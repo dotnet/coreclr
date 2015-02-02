@@ -85,9 +85,9 @@ IF  ERRORLEVEL 1 echo XunitWrapperBuild build failed. Refer %__XunitWrapperBuild
 :preptests
 %_buildprefix% if not "%noCore_RootSet%"=="true" goto :runtests %_buildpostfix%
 %_buildprefix% set Core_Root=%XunitTestBinBase%\Tests\Core_Root %_buildpostfix%
-%_buildprefix% rd /s /q %Core_Root% %_buildpostfix%
+if exist %Core_Root% %_buildprefix% rd /s /q %Core_Root% %_buildpostfix%
 %_buildprefix% md %Core_Root% %_buildpostfix%
-%_buildprefix% echo d | xcopy /s %__BinDir% %Core_Root% %_buildpostfix%
+%_buildprefix% xcopy /s %__BinDir% %Core_Root% %_buildpostfix%
 
 :runtests
 %_buildprefix% %_msbuildexe% "%__ProjectFilesDir%runtest.proj" /p:NoBuild=true /nologo /maxcpucount /verbosity:minimal /nodeReuse:false /fileloggerparameters:Verbosity=diag;LogFile="%__TestRunBuildLog%";Append %* %_buildpostfix%
@@ -95,7 +95,7 @@ IF  ERRORLEVEL 1 echo XunitWrapperBuild build failed. Refer %__XunitWrapperBuild
 %_buildprefix% echo "Core_Root that was used is %Core_Root%" %_buildpostfix%
 echo "Find details of the run in %__TestRunHtmlLog%
 
-IF  ERRORLEVEL 1 echo Test Run  failed. Refer %__TestRunBuildLog% for details. && exit /b 1
+IF  ERRORLEVEL 1 echo Test run failed. Refer %__TestRunBuildLog% for details. && exit /b 1
 
 goto :eof
 
