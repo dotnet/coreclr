@@ -1064,6 +1064,10 @@ namespace System.Collections.Concurrent
             if (key == null) throw new ArgumentNullException("key");
 
             TValue resultingValue;
+            if (TryGetValue(key, out resultingValue))
+            {
+                return resultingValue;
+            }
             TryAddInternal(key, value, false, true, out resultingValue);
             return resultingValue;
         }
