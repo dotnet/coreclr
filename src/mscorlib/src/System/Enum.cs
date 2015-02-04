@@ -388,28 +388,24 @@ namespace System
 
             if (Char.IsDigit(value[0]) || value[0] == '-' || value[0] == '+')
             {
-                Type underlyingType = GetUnderlyingType(enumType);
-                Object temp;
+                bool parseSuccess = TryParseEnumValue(enumType, value, ref result);
 
-                try
+                if (parseSuccess)
                 {
-                    temp = Convert.ChangeType(value, underlyingType, CultureInfo.InvariantCulture);
-                    parseResult.parsedEnum = ToObject(enumType, temp);
-                    return true;
-                }
-                catch (FormatException)
-                { // We need to Parse this as a String instead. There are cases
-                  // when you tlbimp enums that can have values of the form "3D".
-                  // Don't fix this code.
-                }
-                catch (Exception ex)
-                {
-                    if (parseResult.canThrow)
-                        throw;
-                    else
+                    try
                     {
-                        parseResult.SetFailure(ex);
-                        return false;
+                        parseResult.parsedEnum = ToObject(enumType, result);
+                        return true;
+                    }
+                    catch (Exception ex)
+                    {
+                        if (parseResult.canThrow)
+                            throw;
+                        else
+                        {
+                            parseResult.SetFailure(ex);
+                            return false;
+                        }
                     }
                 }
             }
@@ -472,6 +468,105 @@ namespace System
                     return false;
                 }
             }
+        }
+
+        private static bool TryParseEnumValue(Type enumType, String value, ref ulong result)
+        {
+            // No need to check for bool here since we don't want it to be parsed by value
+            switch (Type.GetTypeCode(enumType))
+            {
+                case TypeCode.Char:
+                {
+                    char temp;
+                    if (Char.TryParse(value, out temp))
+                    {
+                        result = (ulong)temp;
+                        return true;
+                    }
+                    return false;
+                }
+                case TypeCode.Byte:
+                {
+                    byte temp;
+                    if (Byte.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out temp))
+                    {
+                        result = (ulong)temp;
+                        return true;
+                    }
+                    return false;
+                }
+                case TypeCode.SByte:
+                {
+                    sbyte temp;
+                    if (SByte.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out temp))
+                    {
+                        result = (ulong)temp;
+                        return true;
+                    }
+                    return false;
+                }
+                case TypeCode.Int16:
+                {
+                    short temp;
+                    if (Int16.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out temp))
+                    {
+                        result = (ulong)temp;
+                        return true;
+                    }
+                    return false;
+                }
+                case TypeCode.UInt16:
+                {
+                    ushort temp;
+                    if (UInt16.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out temp))
+                    {
+                        result = (ulong)temp;
+                        return true;
+                    }
+                    return false;
+                }
+                case TypeCode.Int32:
+                {
+                    int temp;
+                    if (Int32.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out temp))
+                    {
+                        result = (ulong)temp;
+                        return true;
+                    }
+                    return false;
+                }
+                case TypeCode.UInt32:
+                {
+                    uint temp;
+                    if (UInt32.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out temp))
+                    {
+                        result = (ulong)temp;
+                        return true;
+                    }
+                    return false;
+                }
+                case TypeCode.Int64:
+                {
+                    long temp;
+                    if (Int64.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out temp))
+                    {
+                        result = (ulong)temp;
+                        return true;
+                    }
+                    return false;
+                }
+                case TypeCode.UInt64:
+                {
+                    ulong temp;
+                    if (UInt64.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out temp))
+                    {
+                        result = (ulong)temp;
+                        return true;
+                    }
+                    return false;
+                }
+            }
+            return false;
         }
 
         [System.Runtime.InteropServices.ComVisible(true)]
