@@ -58,6 +58,16 @@ namespace System.Threading
         // threading and decrements it back after that. It is used as flag for the release call to know if there are
         // waiting threads in the monitor or not.
         private volatile int m_waitCount;
+        
+        // The number of threads entered Wait method. 
+        // Increments every time before calling Monitor.Enter() inside Wait method.
+        // Allow to calculate the number of threads that are about to block on m_lockObj.
+        private int m_enteringWaiterNumber;
+
+        // The number of threads exited Wait method.
+        // Increments every time before calling Monitor.Exit() inside Wait method.
+        // Allow to calculate the number of threads that are about to block on m_lockObj.
+        private volatile int m_finishedWaiterNumber;
 
         // Dummy object used to in lock statements to protect the semaphore count, wait handle and cancelation
         private object m_lockObj;
@@ -328,6 +338,7 @@ namespace System.Threading
             bool waitSuccessful = false;
             Task<bool> asyncWaitTask = null;
             bool lockTaken = false;
+            bool enteringWaiterNumberUpdated = false;
 
             //Register for cancellation outside of the main lock.
             //NOTE: Register/deregister inside the lock can deadlock as different lock acquisition orders could
@@ -335,15 +346,33 @@ namespace System.Threading
             CancellationTokenRegistration cancellationTokenRegistration = cancellationToken.InternalRegisterWithoutEC(s_cancellationTokenCanceledEventHandler, this);
             try
             {
-                // Perf: first spin wait for the count to be positive, but only up to the first planned yield.
+                // Perf: trying to wait with spin.
                 //       This additional amount of spinwaiting in addition
                 //       to Monitor.Enter()’s spinwaiting has shown measurable perf gains in test scenarios.
                 //
-                SpinWait spin = new SpinWait();
-                while (m_currentCount == 0 && !spin.NextSpinWillYield)
+                // If there's too many waiters then we got nothing from spinwaiting
+
+
+                // Getting the id for current thread
+                int myEntryId = 0;
+                try { }
+                finally
                 {
-                    spin.SpinOnce();
+                    myEntryId = Interlocked.Increment(ref m_enteringWaiterNumber);
+                    enteringWaiterNumberUpdated = true;
                 }
+
+                if (m_waitCount <= PlatformHelper.ProcessorCount)
+                {
+                    SpinWait spin = new SpinWait();
+                    // This condition allows to arrange all threads in the order of their appearance
+                    // ('myEntryId - m_finishedWaiterNumber - 1' is the number of waiting threads entered before current)
+                    while (m_currentCount < myEntryId - m_finishedWaiterNumber && !spin.NextSpinWillYield)
+                    {
+                        spin.SpinOnce();
+                    }
+                }
+                
                 // entering the lock and incrementing waiters must not suffer a thread-abort, else we cannot
                 // clean up m_waitCount correctly, which may lead to deadlock due to non-woken waiters.
                 try { }
@@ -414,6 +443,20 @@ namespace System.Threading
             }
             finally
             {
+                if (enteringWaiterNumberUpdated)
+                {
+                    if (lockTaken)
+                    {
+                        m_finishedWaiterNumber++;
+                    }
+                    else
+                    {
+                        // Incrementing of m_finishedWaiterNumber can cause the 'lost update' situation, 
+                        // so it is better to decrement atomically m_enteringWaiterNumber
+                        Interlocked.Decrement(ref m_enteringWaiterNumber);
+                    }
+                }
+                
                 // Release the lock
                 if (lockTaken)
                 {
