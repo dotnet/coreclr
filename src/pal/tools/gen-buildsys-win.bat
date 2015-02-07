@@ -9,7 +9,13 @@ for %%x in (%*) do Set /A argC+=1
 if NOT %argC%==1 GOTO :USAGE
 if %1=="/?" GOTO :USAGE
 
-cmake -DCMAKE_USER_MAKE_RULES_OVERRIDE=%1\src\pal\tools\windows-compiler-override.txt -G "Visual Studio 12 2013 Win64" %1
+if defined CMakePath goto DoGen
+
+:: Eval the output from probe-win1.ps1
+for /f "delims=" %%a in ('powershell -NoProfile -ExecutionPolicy RemoteSigned & probe-win.ps1') do %%a
+
+:DoGen
+"%CMakePath%" -DCMAKE_USER_MAKE_RULES_OVERRIDE=%1\src\pal\tools\windows-compiler-override.txt -G "Visual Studio 12 2013 Win64" %1
 GOTO :DONE
 
 :USAGE
