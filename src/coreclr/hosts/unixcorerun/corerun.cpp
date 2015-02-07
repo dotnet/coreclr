@@ -17,7 +17,11 @@
 #include <set>
 
 // The name of the CoreCLR native runtime DLL.
+#if defined(__APPLE__)
+static const char * const coreClrDll = "libcoreclr.dylib";
+#else
 static const char * const coreClrDll = "libcoreclr.so";
+#endif
 
 // Windows types used by the ExecuteAssembly function
 typedef unsigned int DWORD;
@@ -190,7 +194,7 @@ void AddFilesFromDirectoryToTpaList(const char* directory, std::string& tpaList)
             std::string filename(entry->d_name);
             
             // Check if the extension matches the one we are looking for
-            size_t extPos = filename.length() - extLength;
+            int extPos = filename.length() - extLength;
             if ((extPos <= 0) || (filename.compare(extPos, extLength, ext) != 0))
             {
                 continue;

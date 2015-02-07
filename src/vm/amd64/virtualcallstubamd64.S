@@ -10,7 +10,7 @@
 // entry is promoted to the front of the chain. This is declared as extern because
 // the default value (CALL_STUB_CACHE_INITIAL_SUCCESS_COUNT) is defined in the header.
 // extern size_t g_dispatch_cache_chain_success_counter;
-CHAIN_SUCCESS_COUNTER = g_dispatch_cache_chain_success_counter
+#define CHAIN_SUCCESS_COUNTER g_dispatch_cache_chain_success_counter
 
 // The reason for not using .equ or '=' here is that otherwise the assembler compiles e.g. 
 // mov rax, BACKPATCH_FLAG as mov rax, [BACKPATCH_FLAG]
@@ -24,9 +24,9 @@ CHAIN_SUCCESS_COUNTER = g_dispatch_cache_chain_success_counter
 //                                 or the ResolveCacheElem when r11 has the PROMOTE_CHAIN_FLAG set
 //  [rsp+8] m_ReturnAddress: contains the return address of caller to stub
         
-NESTED_ENTRY ResolveWorkerAsmStub, _TEXT
+NESTED_ENTRY ResolveWorkerAsmStub, _TEXT, NoHandler
 
-        PROLOG_WITH_TRANSITION_BLOCK 0, 8, rdx
+        PROLOG_WITH_TRANSITION_BLOCK 0, 8, rdx, 0, 0
 
         // token stored in rdx by prolog
 
@@ -36,7 +36,7 @@ NESTED_ENTRY ResolveWorkerAsmStub, _TEXT
         and             rcx,  7                                    // flags
         sub             rsi, rcx                                   // indirection cell
 
-        call            VSD_ResolveWorker
+        call            C_FUNC(VSD_ResolveWorker)
 
         EPILOG_WITH_TRANSITION_BLOCK_TAILCALL
         TAILJMP_RAX
@@ -85,6 +85,6 @@ Fail_RWCLAS:
         pop    rsi               // Restore the original saved rdx value
         push   r10               // pass the DispatchToken or ResolveCacheElem to promote to ResolveWorkerAsmStub
         
-        jmp    ResolveWorkerAsmStub
+        jmp    C_FUNC(ResolveWorkerAsmStub)
         
 LEAF_END ResolveWorkerChainLookupAsmStub, _TEXT

@@ -1716,8 +1716,8 @@ HRESULT CordbProcess::Init()
         // really shouldn't ever fail. See issue 696511.
         VARIANT optionValue;
         VariantInit(&optionValue);
-        optionValue.vt = VT_UI4;
-        optionValue.ulVal = MDThreadSafetyOn;
+        V_VT(&optionValue) = VT_UI4;
+        V_UI4(&optionValue) = MDThreadSafetyOn;
         m_pMetaDispenser->SetOption(MetaDataThreadSafetyOptions, &optionValue);
 
         //
@@ -4487,7 +4487,7 @@ protected:
 //    Eg., if we used std::map, we could have efficient lookups and ordered 
 //    enumerations.  However, we do need to be careful about exposing new invariants
 //    through ICorDebug that customers may depend on, which could place a long-term
-//    compatability burden on us.  We could have a simple generic data structure 
+//    compatibility burden on us.  We could have a simple generic data structure
 //    (eg. built on std::hash_map and std::list) which provided efficient look-up
 //    and both in-order and random enumeration.
 //    
@@ -7651,6 +7651,8 @@ HRESULT CordbProcess::GetRuntimeOffsets()
             m_hHelperThread = pfnOpenThread(SYNCHRONIZE, FALSE, dwHelperTid);
             CONSISTENCY_CHECK_MSGF(m_hHelperThread != NULL, ("Failed to get helper-thread handle. tid=0x%x\n", dwHelperTid));
         }
+#elif FEATURE_PAL
+        m_hHelperThread = NULL; //RS is supposed to be able to live without a helper thread handle.
 #else
 		m_hHelperThread = OpenThread(SYNCHRONIZE, FALSE, dwHelperTid);
 		CONSISTENCY_CHECK_MSGF(m_hHelperThread != NULL, ("Failed to get helper-thread handle. tid=0x%x\n", dwHelperTid));

@@ -64,7 +64,7 @@ build_coreclr()
 {
     # All set to commence the build
     
-    echo Commencing build of native components for %__BuildArch%/%__BuildType%
+    echo Commencing build of native components for $__BuildArch/$__BuildType
     cd $__CMakeSlnDir
     
     # Regenerate the CMake solution
@@ -77,11 +77,17 @@ build_coreclr()
         echo Failed to generate native component build project!
         exit 1
     fi
+
+    # Get the number of processors available to the scheduler
+    # Other techniques such as `nproc` only get the number of
+    # processors available to a single process.
+    NumProc=$(($(getconf _NPROCESSORS_ONLN)+1))
     
     # Build CoreCLR
     
-    echo Executing make $__UnprocessedBuildArgs
-    make -j `nproc` $__UnprocessedBuildArgs
+    echo Executing make install -j $NumProc $__UnprocessedBuildArgs
+
+    make install -j $NumProc $__UnprocessedBuildArgs
     if [ $? != 0 ]; then
         echo Failed to build coreclr components.
         exit 1
@@ -117,7 +123,8 @@ __CleanBuild=false
 
 for i in "$@"
     do
-        case $i in
+        lowerI="$(echo $i | awk '{print tolower($0)}')"
+        case $lowerI in
         -?|-h|--help)
         usage
         exit 1
@@ -134,7 +141,7 @@ for i in "$@"
         __CMakeArgs=RELEASE
         ;;
         clean)
-        __CleanBuild=true
+        __CleanBuild=1
         ;;
         *)
         __UnprocessedBuildArgs="$__UnprocessedBuildArgs $i"
@@ -147,6 +154,10 @@ __PackagesBinDir="$__BinDir/.nuget"
 __ToolsDir="$__RootBinDir/tools"
 __TestWorkingDir="$__RootBinDir/tests/$__BuildArch/$__BuildType"
 __IntermediatesDir="$__RootBinDir/intermediates/$__BuildArch/$__BuildType"
+
+# Specify path to be set for CMAKE_INSTALL_PREFIX.
+# This is where all built CoreClr libraries will copied to.
+export __CMakeBinDir="$__BinDir"
 
 # Switch to clean build mode if the binaries output folder does not exist
 if [ ! -d "$__RootBinDir" ]; then

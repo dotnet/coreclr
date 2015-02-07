@@ -7,7 +7,15 @@ project(CoreCLR)
 if(CMAKE_SYSTEM_NAME STREQUAL Linux)
     set(CLR_CMAKE_PLATFORM_UNIX 1)
     set(CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64 1)
+    set(CLR_CMAKE_PLATFORM_LINUX 1)
 endif(CMAKE_SYSTEM_NAME STREQUAL Linux)
+
+if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
+    set(CLR_CMAKE_PLATFORM_UNIX 1)
+    set(CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64 1)
+    set(CLR_CMAKE_PLATFORM_DARWIN 1)
+    set(CMAKE_ASM_COMPILE_OBJECT "${CMAKE_C_COMPILER} <FLAGS> <DEFINES> -o <OBJECT> -c <SOURCE>")
+endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
 # Build a list of compiler definitions by putting -D in front of each define.
 function(get_compile_definitions DefinitionName)
@@ -82,21 +90,27 @@ if (WIN32)
     set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS $<$<CONFIG:RELWITHDEBINFO>:${Definition}>)
   endforeach (Definition ${CLR_DEFINES_RELWITHDEBINFO_INIT})
 
-elseif (CLR_CMAKE_PLATFORM_UNIX)  
+elseif (CLR_CMAKE_PLATFORM_UNIX)
+  # Set the values to display when interactively configuring CMAKE_BUILD_TYPE
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "DEBUG;RELEASE;RELWITHDEBINFO")
+
+  # Use uppercase CMAKE_BUILD_TYPE for the string comparisons below
+  string(TOUPPER ${CMAKE_BUILD_TYPE} UPPERCASE_CMAKE_BUILD_TYPE)
+
   # For single-configuration toolset
   # set the different configuration defines.
-  if (CMAKE_BUILD_TYPE STREQUAL DEBUG)
+  if (UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG)
     # First DEBUG
     set_property(DIRECTORY  PROPERTY COMPILE_DEFINITIONS ${CLR_DEFINES_DEBUG_INIT})
-  elseif (CMAKE_BUILD_TYPE STREQUAL RELEASE)
+  elseif (UPPERCASE_CMAKE_BUILD_TYPE STREQUAL RELEASE)
     # Then RELEASE
     set_property(DIRECTORY PROPERTY COMPILE_DEFINITIONS ${CLR_DEFINES_RELEASE_INIT})
-  elseif (CMAKE_BUILD_TYPE STREQUAL RELWITHDEBINFO)
+  elseif (UPPERCASE_CMAKE_BUILD_TYPE STREQUAL RELWITHDEBINFO)
     # And then RELWITHDEBINFO
     set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS ${CLR_DEFINES_RELWITHDEBINFO_INIT})
-  else (CMAKE_BUILD_TYPE STREQUAL RELWITHDEBINFO)
-    message(FATAL_ERROR "Unknown build type! Allowed DEBUG, RELEASE and RELWITHDEBINFO!")
-  endif (CMAKE_BUILD_TYPE STREQUAL DEBUG)
+  else ()
+    message(FATAL_ERROR "Unknown build type! Set CMAKE_BUILD_TYPE to DEBUG, RELEASE, or RELWITHDEBINFO!")
+  endif ()
 
 endif(WIN32)
 
@@ -120,7 +134,7 @@ if (WIN32)
   endif (CMAKE_SYSTEM_PROCESSOR STREQUAL AMD64)
   
 elseif (CLR_CMAKE_PLATFORM_UNIX)  
-  # Set flag to indicate if this will be a 64bit Linux build
+  # Set flag to indicate if this will be a 64bit build
   if(CMAKE_SYSTEM_PROCESSOR STREQUAL x86_64)
     set(IS_64BIT_BUILD 1)  
   endif (CMAKE_SYSTEM_PROCESSOR STREQUAL x86_64)
@@ -137,6 +151,7 @@ if (WIN32)
 add_compile_options(/TP) # compile all files as C++
 add_compile_options(/FIWarningControl.h) # force include of WarningControl.h
 add_compile_options(/Zi) # enable debugging information
+add_compile_options(/d2Zi+) # make optimized builds debugging easier
 add_compile_options(/nologo) # Suppress Startup Banner
 add_compile_options(/W3) # set warning level to 3
 add_compile_options(/WX) # treat warnings as errors
@@ -157,7 +172,6 @@ add_compile_options(/FC) # use full pathnames in diagnostics
 add_compile_options(/Zl) # omit default library name in .OBJ
 add_compile_options(/MP) # Build with Multiple Processes (number of processes equal to the number of processors)
 add_compile_options(/GS) # Buffer Security Check
-add_compile_options(/d2Zi+) # make optimized builds debugging easier
 add_compile_options(/Zm200) # Specify Precompiled Header Memory Allocation Limit of 150MB
 add_compile_options(/wd4960 /wd4961 /wd4603 /wd4627 /wd4838 /wd4456 /wd4457 /wd4458 /wd4459 /wd4091 /we4640)
 
@@ -185,6 +199,8 @@ set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /DYNAMICBASE") #Use 
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /DEBUGTYPE:cv,fixup") #debugging format
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /PDBCOMPRESS") #shrink pdb size
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /DEBUG /INCREMENTAL:NO /OPT:REF /OPT:ICF /IGNORE:4197,4013,4254,4070,4221")
+
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /DEBUG /PDBCOMPRESS")
 
 # Debug build specific flags
 set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "/NOVCFEATURE")
@@ -233,6 +249,8 @@ add_compile_options(-Wno-self-assign)
 add_compile_options(-Wno-bitfield-constant-conversion)
 add_compile_options(-Wno-unused-value)
 
+add_compile_options(-Wno-unknown-warning-option)
+
 #These seem to indicate real issues
 add_compile_options(-Wno-invalid-offsetof)
 add_compile_options(-Wno-return-type)
@@ -275,17 +293,24 @@ endif (WIN32)
 
 if (CLR_CMAKE_PLATFORM_UNIX)
   add_definitions(-DPLATFORM_UNIX=1)
-  add_definitions(-D__LINUX__=1)
   add_definitions(-DFEATURE_PAL_SXS)
 
   if(CMAKE_SYSTEM_PROCESSOR STREQUAL x86_64)
-    message("Detected Linux x86_64")
-    add_definitions(-DLINUX64)
     add_definitions(-DBIT64=1)
     add_definitions(-DFEATURE_PAL)
   else (CMAKE_SYSTEM_PROCESSOR STREQUAL x86_64)
     message(FATAL_ERROR "error: Detected non x86_64 target processor. Not supported!")
   endif(CMAKE_SYSTEM_PROCESSOR STREQUAL x86_64)
+
+  if(CLR_CMAKE_PLATFORM_LINUX)
+    add_definitions(-D__LINUX__=1)
+    message("Detected Linux x86_64")
+    add_definitions(-DLINUX64)
+  endif(CLR_CMAKE_PLATFORM_LINUX)
+  if(CLR_CMAKE_PLATFORM_DARWIN)
+    message("Detected OSX x86_64")
+    add_definitions(-D_XOPEN_SOURCE)
+  endif(CLR_CMAKE_PLATFORM_DARWIN)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 

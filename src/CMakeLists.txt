@@ -14,8 +14,14 @@ if(WIN32)
 enable_language(ASM_MASM)
 else(WIN32)
 enable_language(ASM)
-# This prevents inclusion of standard compiler headers
-add_compile_options(-nostdinc -nostdinc++)
+# This prevents inclusion of standard C compiler headers
+add_compile_options(-nostdinc)
+
+if(NOT CLR_CMAKE_PLATFORM_DARWIN)
+  # This prevents inclusion of standard C++ compiler headers
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -nostdinc++")
+endif(NOT CLR_CMAKE_PLATFORM_DARWIN)
+
 endif(WIN32)
 
 add_subdirectory(utilcode)
