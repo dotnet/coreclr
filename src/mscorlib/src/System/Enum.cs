@@ -388,7 +388,7 @@ namespace System
 
             if (Char.IsDigit(value[0]) || value[0] == '-' || value[0] == '+')
             {
-                bool parseSuccess = TryParseEnumValue(enumType, value, ref result);
+                bool parseSuccess = TryParseEnumValue(enumType, value, ref result, ref parseResult);
 
                 if (parseSuccess)
                 {
@@ -407,6 +407,10 @@ namespace System
                             return false;
                         }
                     }
+                }
+                else if (parseResult.m_failure != ParseFailureKind.None)
+                {
+                    return false;
                 }
             }
 
@@ -470,11 +474,13 @@ namespace System
             }
         }
 
-        private static bool TryParseEnumValue(Type enumType, String value, ref ulong result)
+        private static bool TryParseEnumValue(Type enumType, String value, ref ulong result, ref EnumResult parseResult)
         {
-            // No need to check for bool here since we don't want it to be parsed by value
             switch (Type.GetTypeCode(enumType))
             {
+                case TypeCode.Boolean:
+                    return false;
+
                 case TypeCode.Char:
                 {
                     char temp;
@@ -565,8 +571,13 @@ namespace System
                     }
                     return false;
                 }
+                default:
+                {
+                    // This is needed for backwards compatibility
+                    parseResult.SetFailure(ParseFailureKind.Argument, "Arg_MustBeEnumBaseTypeOrEnum", null);
+                    return false;
+                }
             }
-            return false;
         }
 
         [System.Runtime.InteropServices.ComVisible(true)]
