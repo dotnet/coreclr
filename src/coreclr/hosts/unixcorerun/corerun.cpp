@@ -193,6 +193,10 @@ void AddFilesFromDirectoryToTpaList(const char* directory, std::string& tpaList)
 
             std::string filename(entry->d_name);
             
+            // If the file is shorter than the 
+            if (extLength > filename.length())
+              continue;
+
             // Check if the extension matches the one we are looking for
             size_t extPos = filename.length() - extLength;
             if ((extPos <= 0) || (filename.compare(extPos, extLength, ext) != 0))
