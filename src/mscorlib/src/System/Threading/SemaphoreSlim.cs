@@ -350,9 +350,7 @@ namespace System.Threading
                 //       This additional amount of spinwaiting in addition
                 //       to Monitor.Enter()’s spinwaiting has shown measurable perf gains in test scenarios.
                 //
-                // If there's too many waiters then we got nothing from spinwaiting
-
-
+                
                 // Getting the id for current thread
                 int myEntryId = 0;
                 try { }
@@ -361,7 +359,8 @@ namespace System.Threading
                     myEntryId = Interlocked.Increment(ref m_enteringWaiterNumber);
                     enteringWaiterNumberUpdated = true;
                 }
-
+                
+                // If there's too many waiters then we got nothing from spinwaiting
                 if (m_waitCount <= PlatformHelper.ProcessorCount)
                 {
                     SpinWait spin = new SpinWait();
