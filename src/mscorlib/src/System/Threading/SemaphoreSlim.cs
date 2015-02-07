@@ -350,19 +350,21 @@ namespace System.Threading
                 //       This additional amount of spinwaiting in addition
                 //       to Monitor.Enter()’s spinwaiting has shown measurable perf gains in test scenarios.
                 //
-                
-                // Getting the id for current thread
-                int myEntryId = 0;
-                try { }
-                finally
+
+                // Check the conditions to perform spinwaiting
+                //  1. m_currentCount is less than the number of entered threads (can wait for Release)
+                //  2. number of waiters is less than core count (otherwise the spinning gives nothing)
+                if (m_currentCount < 1 + Volatile.Read(ref m_enteringWaiterNumber) - m_finishedWaiterNumber && m_waitCount <= PlatformHelper.ProcessorCount)
                 {
-                    myEntryId = Interlocked.Increment(ref m_enteringWaiterNumber);
-                    enteringWaiterNumberUpdated = true;
-                }
-                
-                // If there's too many waiters then we got nothing from spinwaiting
-                if (m_waitCount <= PlatformHelper.ProcessorCount)
-                {
+                    // Calculating Id for current thread
+                    int myEntryId = 0;
+                    try { }
+                    finally
+                    {
+                        myEntryId = Interlocked.Increment(ref m_enteringWaiterNumber);
+                        enteringWaiterNumberUpdated = true;
+                    }
+
                     SpinWait spin = new SpinWait();
                     // This condition allows to arrange all threads in the order of their appearance
                     // ('myEntryId - m_finishedWaiterNumber - 1' is the number of waiting threads entered before current)
