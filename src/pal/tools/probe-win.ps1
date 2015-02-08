@@ -27,6 +27,7 @@ function GetCMakeInfo($regKey)
 
 function LocateCMake
 {
+  [System.Console]::Error.WriteLine('PS Version:' + $PSVersionTable.PSVersion)
   $errorMsg = "CMake is a pre-requisite to build this repository but it was not found on the path. Please install CMake from http://www.cmake.org/download/ and ensure it is on your path."
   $inPathPath = get-command cmake.exe -ErrorAction SilentlyContinue | select Path
   if ($inPathPath -ne $null) {
@@ -46,7 +47,7 @@ function LocateCMake
   if ($newestCMakePath -eq $null) {
     Throw $errorMsg
   }
-  Write-Error $('$newestCMakePath type: ' + $newestCMakePath.GetType().FullName)
+  [System.Console]::Error.WriteLine('$newestCMakePath type: ' + $newestCMakePath.GetType().FullName)
   return $newestCMakePath
 }
 
