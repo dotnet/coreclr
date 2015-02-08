@@ -1,4 +1,4 @@
-@echo off
+::@echo off
 setlocal
 
 :: Set the default arguments for build

@@ -1,7 +1,7 @@
 rem
 rem This file invokes cmake and generates the build system for windows.
 
-echo off
+::echo off
 
 set argC=0
 for %%x in (%*) do Set /A argC+=1
