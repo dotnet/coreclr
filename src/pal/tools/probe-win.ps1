@@ -46,6 +46,7 @@ function LocateCMake
   if ($newestCMakePath -eq $null) {
     Throw $errorMsg
   }
+  Write-Error $('$newestCMakePath type: ' + $newestCMakePath.GetType().FullName)
   return $newestCMakePath
 }
 
