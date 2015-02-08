@@ -1,4 +1,4 @@
-#if defined(_DEBUG)
+#if defined(__APPLE__)
     .text
     .globl _DBG_CheckStackAlignment
 
