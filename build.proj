@@ -51,7 +51,7 @@
   
   <!-- Setup OutputPath -->
   <PropertyGroup>
-	<BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">$(RootBinDir)intermediates</BaseIntermediateOutputPath>
+    <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">$(RootBinDir)intermediates</BaseIntermediateOutputPath>
     <OutputPath Condition="'$(OutputPath)' == ''">$(BaseIntermediateOutputPath)\$(Platform)\$(Configuration)</OutputPath>
   </PropertyGroup>
 
