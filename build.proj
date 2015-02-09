@@ -48,6 +48,12 @@
     <NuSpecPathSrc>$(PackagesDir)Microsoft.DotNet.CoreCLR.nuspec</NuSpecPathSrc>
     <NuSpecPathBin>$(PackagesBinDir)\Microsoft.DotNet.CoreCLR.nuspec</NuSpecPathBin>
   </PropertyGroup>
+  
+  <!-- Setup OutputPath -->
+  <PropertyGroup>
+    <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">$(RootBinDir)intermediates</BaseIntermediateOutputPath>
+    <OutputPath Condition="'$(OutputPath)' == ''">$(BaseIntermediateOutputPath)\$(Platform)\$(Configuration)</OutputPath>
+  </PropertyGroup>
 
   <ItemGroup>
     <NuSpecs Include="$(NuSpecPathBin)" />

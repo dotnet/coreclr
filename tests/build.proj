@@ -43,6 +43,12 @@
 
     <Touch Files="$(BuildToolsInstallSemaphore)" AlwaysCreate="true" />
   </Target>
+  
+  <!-- Setup OutputPath -->
+  <PropertyGroup>
+    <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">$(RootBinDir)intermediates</BaseIntermediateOutputPath>
+    <OutputPath Condition="'$(OutputPath)' == ''">$(BaseIntermediateOutputPath)\$(Platform)\$(Configuration)</OutputPath>
+  </PropertyGroup>
 
   <ItemGroup>
     <Project Include="src\dirs.proj" />
