@@ -237,8 +237,8 @@ There is a special case for purely unmanaged threads (threads that have no Threa
 
 There are a couple of variants for special situations:
 
-- **GCX_MAYBE_\*(BOOL)**: This version only performs the switch if the boolean parameter is TRUE. Note that the mode restore at the end of the scope still occurs whether or not you passed TRUE. (Of course, this is only important if the mode got switched some other way inside the scope. Usually, this shouldn't happen.)
-- **GCX_\*_THREAD_EXISTS(Thread\*)**: If you're concerned about the repeated GetThread() and null Thread checks inside this holder, use this "performance" version which lets you cache the Thread pointer and pass it to all the GCX_\* calls. You cannot use this to change the mode of another thread. You also cannot pass NULL here.
+- **GCX_MAYBE_*(BOOL)**: This version only performs the switch if the boolean parameter is TRUE. Note that the mode restore at the end of the scope still occurs whether or not you passed TRUE. (Of course, this is only important if the mode got switched some other way inside the scope. Usually, this shouldn't happen.)
+- **GCX_*_THREAD_EXISTS(Thread*)**: If you're concerned about the repeated GetThread() and null Thread checks inside this holder, use this "performance" version which lets you cache the Thread pointer and pass it to all the GCX_* calls. You cannot use this to change the mode of another thread. You also cannot pass NULL here.
 
 To switch modes multiple times in a function, you must introduce a new scope for each switch. You can also call GCX_POP(), which performs a mode restore prior to the end of the scope. (The mode restore will happen again at the end of the scope, however. Since mode restore is idempotent, this shouldn't matter.) Do not, however, do this:
 
@@ -772,7 +772,7 @@ To enter or leave a crst, you must wrap the crst inside a CrstHolder. All operat
 
 **You can only enter and leave Crsts in preemptive GC mode.** Attempting to enter a Crst in cooperative mode will forcibly switch your thread into preemptive mode.
 
-If you need a Crst that you can take in cooperative mode, you must pass a special flag to the Crst constructor to do so. See the information about CRITSECT_UNSAFE_\* flags below. You will also find information about why it's preferable not to take Crsts in cooperative mode.
+If you need a Crst that you can take in cooperative mode, you must pass a special flag to the Crst constructor to do so. See the information about CRITSECT_UNSAFE_* flags below. You will also find information about why it's preferable not to take Crsts in cooperative mode.
 
 You can also manually acquire and release crsts by calling the appropriate methods on the holder:
 
@@ -876,7 +876,7 @@ CrstUnordered (used in rules inside CrstTypes.def) is a special level that says 
 
 ### So what _are _the prerequisites and side-effects of entering a Crst?
 
-The following matrix lists the effective contract and side-effects of entering a crst for all combinations of CRST_HOST_BREAKABLE and CRST_UNSAFE_\* flags. The SAMELEVEL flag has no effect on any of these parameters.
+The following matrix lists the effective contract and side-effects of entering a crst for all combinations of CRST_HOST_BREAKABLE and CRST_UNSAFE_* flags. The SAMELEVEL flag has no effect on any of these parameters.
 
 |                     | Default                                                                                   | CRST_HOST_BREAKABLE                                                                      |
 | ------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
@@ -914,7 +914,7 @@ Unfortunately, there is no official list of "safe" OS apis. The safest approach 
 - Do pick the lowest possible level for your Crst.
 - Don't create static instances of Crst. Use CrstStatic instead.
 - Do assert IsSafeToTake() if your function only takes a crst some of the time.
-- Do use the default Crst rather than the CRST_UNSAFE_\* alternatives. They're  named that for a reason.
+- Do use the default Crst rather than the CRST_UNSAFE_* alternatives. They're  named that for a reason.
 - Do choose correctly between host-breakable and non-breakable crsts. Crsts that don't protect calls to managed code and participate fully in the leveling scheme can be non-breakable. Otherwise, you must use breakable.
 - Don't take locks in cooperative mode if you can avoid it. This can delay or stall the GC. You are in a ForbidGC region the entire time you hold the lock.
 - Don't block a thread without yielding back to the host. Your "thread" may actually be a nonpreemptive thread. Always stick to the approved synchronization primitives.
@@ -1150,7 +1150,7 @@ Contracts come in several forms:
 - CONTRACTL: This is the most common type. It does runtime checks as well as being visible to the static scanner. It is suitable for all runtime contracts except those that use postconditions. When in doubt, use this form.
 - CONTRACT(returntype): This is an uglier version that's needed if you include a POSTCONDITION. You must supply the correct function return type for this form and it cannot be "void" (use CONTRACT_VOID instead.) You must also use the special RETURN macro rather than the normal return keyword.
 - CONTRACT_VOID: Use this if you need a postcondition and the return type is void. CONTRACT(void) will not work.
-- STATIC_CONTRACT_\*: This form generates no runtime code but still emits the hidden tags visible to the static contract scanner. Use this only if checked build perf would suffer greatly by putting a runtime contract there or if for some technical reason, the runtime-based contract is not possible..
+- STATIC_CONTRACT_*: This form generates no runtime code but still emits the hidden tags visible to the static contract scanner. Use this only if checked build perf would suffer greatly by putting a runtime contract there or if for some technical reason, the runtime-based contract is not possible..
 - LIMITED_METHOD_CONTRACT: A static contract equivalent to NOTHROW/GC_NOTRIGGER/FORBID_FAULT/MODE_ANY/CANNOT_TAKE_LOCK. Use this form only for trivial one-liner functions. Remember it does not do runtime checks so it should not be used for complex functions.
 - WRAPPER_NO_CONTRACT: A static no-op contract for functions that trivially wrap another. This was invented back when we didn't have static contracts and we now wish it hadn't been invented. Please don't use this in new code.
 
