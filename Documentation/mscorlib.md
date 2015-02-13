@@ -312,7 +312,7 @@ Then, you can use the REF<T> template to create a type name like SAFEHANDLEREF. 
 
 # Calling Into Managed Code From Native
 
-Clearly there are places where the CLR must call into managed code from native. For this purpose, we have added a MethodDescCallSite class to handle a lot of plumbing for you. Conceptually, all you need to do is find the MethodDesc\* for the method you want to call, find a managed object for the "this" pointer (if you're calling an instance method), pass in an array of arguments, and deal with the return value. Internally, you'll need to potentially toggle your thread's state to allow the GC to run in preemptive mode, etc.
+Clearly there are places where the CLR must call into managed code from native. For this purpose, we have added a MethodDescCallSite class to handle a lot of plumbing for you. Conceptually, all you need to do is find the MethodDesc* for the method you want to call, find a managed object for the "this" pointer (if you're calling an instance method), pass in an array of arguments, and deal with the return value. Internally, you'll need to potentially toggle your thread's state to allow the GC to run in preemptive mode, etc.
 
 Here's a simplified example. Note how this instance uses the binder described in the previous section to call SafeHandle's virtual ReleaseHandle method.
 
