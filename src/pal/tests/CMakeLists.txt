@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 2.8.12.2)
 
 # Compile options
+SET (CMAKE_C_FLAGS "-Wall -std=c11")
 add_definitions(-DPLATFORM_UNIX=1)
 add_definitions(-D__LINUX__=1)
 add_definitions(-DLP64COMPATIBLE=1)
