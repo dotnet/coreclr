@@ -1,3 +1,4 @@
+SET (CMAKE_C_FLAGS_INIT                "-Wall -std=gnu11")
 SET (CMAKE_C_FLAGS_DEBUG_INIT          "-g -O0")
 SET (CMAKE_C_FLAGS_RELEASE_INIT        "-O3")
 SET (CMAKE_C_FLAGS_RELWITHDEBINFO_INIT "-O2 -g")
