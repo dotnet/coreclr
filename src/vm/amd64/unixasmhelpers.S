@@ -152,24 +152,24 @@ LEAF_END moveOWord, _TEXT
 //
 NESTED_ENTRY JIT_RareDisableHelper, _TEXT, NoHandler
 
-    // First integer return register
-    push rax
-    // Second integer return register
-    push rdx
-    alloc_stack         0x28
+    alloc_stack         0x38
     END_PROLOGUE
     // First float return register
     movdqa              [rsp], xmm0
     // Second float return register
     movdqa              [rsp+0x10], xmm1
+    // First integer return register
+    mov                 [rsp+0x20], rax
+    // Second integer return register
+    mov                 [rsp+0x28], rdx
 
     call                C_FUNC(JIT_RareDisableHelperWorker)
 
     movdqa              xmm0, [rsp]
     movdqa              xmm1, [rsp+0x10]
-    add                 rsp, 0x28
-    pop                 rdx
-    pop                 rax
+    mov                 rax,  [rsp+0x20]
+    mov                 rdx,  [rsp+0x28]
+    free_stack          0x38
     ret
 
 NESTED_END JIT_RareDisableHelper, _TEXT
