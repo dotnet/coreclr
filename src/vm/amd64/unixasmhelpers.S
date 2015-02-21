@@ -169,7 +169,7 @@ NESTED_ENTRY JIT_RareDisableHelper, _TEXT, NoHandler
     movdqa              xmm1, [rsp+0x10]
     mov                 rax,  [rsp+0x20]
     mov                 rdx,  [rsp+0x28]
-    add                 rsp, 0x38
+    free_stack          0x38
     ret
 
 NESTED_END JIT_RareDisableHelper, _TEXT
