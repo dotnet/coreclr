@@ -23,6 +23,7 @@
 
     <BinDir>$(__BinDir)\</BinDir>
     <BinDir Condition="'$(__BinDir)'==''">$(RootBinDir)\Product\$(BuildArch)\$(BuildType)\</BinDir>
+    <BinDir Condition="'$(OS)'=='unix'">$(RootBinDir)\intermediates\$(BuildArch)\$(BuildType)\</BinDir>
 
     <!-- We dont append back slash because this path is used by nuget.exe as output directory and it
          fails to write packages to it if the path contains the forward slash.
