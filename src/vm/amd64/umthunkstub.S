@@ -18,14 +18,14 @@
 //
 NESTED_ENTRY TheUMEntryPrestub, _TEXT, UMEntryPrestubUnwindFrameChainHandler
 
-#define TheUMEntryPrestub_XMM_SAVE_OFFSET SIZEOF_MAX_OUTGOING_ARGUMENT_HOMES
+#define TheUMEntryPrestub_XMM_SAVE_OFFSET SIZEOF_MAX_INT_ARG_SPILL
 
 // Ensure that the new rsp will be 16-byte aligned.  Note that the caller has
 // already pushed the return address.
-#if (((SIZEOF_MAX_OUTGOING_ARGUMENT_HOMES + SIZEOF_MAX_FP_ARG_SPILL) + 8) % 16) != 0
-#define TheUMEntryPrestub_STACK_FRAME_SIZE (SIZEOF_MAX_OUTGOING_ARGUMENT_HOMES + SIZEOF_MAX_FP_ARG_SPILL + 8)
+#if (((SIZEOF_MAX_INT_ARG_SPILL + SIZEOF_MAX_FP_ARG_SPILL) + 8) % 16) != 0
+#define TheUMEntryPrestub_STACK_FRAME_SIZE (SIZEOF_MAX_INT_ARG_SPILL + SIZEOF_MAX_FP_ARG_SPILL + 8)
 #else
-#define TheUMEntryPrestub_STACK_FRAME_SIZE (SIZEOF_MAX_OUTGOING_ARGUMENT_HOMES + SIZEOF_MAX_FP_ARG_SPILL)
+#define TheUMEntryPrestub_STACK_FRAME_SIZE (SIZEOF_MAX_INT_ARG_SPILL + SIZEOF_MAX_FP_ARG_SPILL)
 #endif
 
         alloc_stack     TheUMEntryPrestub_STACK_FRAME_SIZE
@@ -101,7 +101,7 @@ NESTED_ENTRY UMThunkStub, _TEXT, UMThunkStubUnwindFrameChainHandler
 #define UMThunkStubAMD64_XMM_SAVE_NEGOFFSET 0xa8
 
 // Add in the callee scratch area size.
-#define UMThunkStubAMD64_CALLEE_SCRATCH_SIZE SIZEOF_MAX_OUTGOING_ARGUMENT_HOMES
+#define UMThunkStubAMD64_CALLEE_SCRATCH_SIZE SIZEOF_MAX_INT_ARG_SPILL
 #define UMThunkStubAMD64_STACK_FRAME_SIZE 0xd8
 
 // Now we have the full size of the stack frame.  The offsets have been computed relative to the
@@ -236,7 +236,7 @@ LOCAL_LABEL(UMThunkStub_CopyStackArgs):
 
         // rax = number of bytes
 
-        lea             rdi, [rbp + UMThunkStubAMD64_ARGUMENTS_STACK_HOME_OFFSET + SIZEOF_MAX_OUTGOING_ARGUMENT_HOMES] 
+        lea             rdi, [rbp + UMThunkStubAMD64_ARGUMENTS_STACK_HOME_OFFSET + SIZEOF_MAX_INT_ARG_SPILL] 
         lea             rsi, [rsp + UMThunkStubAMD64_CALLEE_SCRATCH_SIZE]
 
 LOCAL_LABEL(CopyLoop):
@@ -288,7 +288,7 @@ NESTED_ENTRY UM2MThunk_WrapperHelper, _TEXT, NoHandler
 // number of integer registers saved in prologue
 #define UM2MThunk_WrapperHelper_NUM_REG_PUSHES 1
 
-#define UM2MThunk_WrapperHelper_CALLEE_SCRATCH_SIZE SIZEOF_MAX_OUTGOING_ARGUMENT_HOMES
+#define UM2MThunk_WrapperHelper_CALLEE_SCRATCH_SIZE SIZEOF_MAX_INT_ARG_SPILL
 #define UM2MThunk_WrapperHelper_STACK_FRAME_SIZE 0x38
 
 #define UM2MThunk_WrapperHelper_FRAME_OFFSET UM2MThunk_WrapperHelper_CALLEE_SCRATCH_SIZE
@@ -352,7 +352,7 @@ LOCAL_LABEL(UM2MThunk_WrapperHelper_CopyStackArgs):
         mov             rdx, rdi
         mov             r11, rcx
         
-        lea             rsi, [rsi + SIZEOF_MAX_OUTGOING_ARGUMENT_HOMES]
+        lea             rsi, [rsi + SIZEOF_MAX_INT_ARG_SPILL]
         lea             rdi, [rsp + UM2MThunk_WrapperHelper_CALLEE_SCRATCH_SIZE]
 
         mov             rcx, rsi

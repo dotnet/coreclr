@@ -64,7 +64,7 @@ ASMCONSTANTS_C_ASSERT(ASM_CLRTASKHOSTED   == CLRTASKHOSTED);
 
 #ifdef UNIX_AMD64_ABI
 // rdi, rsi, rdx, rcx, r8, r9
-#define SIZEOF_MAX_OUTGOING_ARGUMENT_HOMES  0x30
+#define SIZEOF_MAX_INT_ARG_SPILL  0x30
 // xmm0...xmm7
 #define SIZEOF_MAX_FP_ARG_SPILL             0x80
 #else
