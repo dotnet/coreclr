@@ -179,7 +179,7 @@ LOCAL_LABEL(InCooperativeMode):
         mov             r11, [METHODDESC_REGISTER + OFFSETOF__UMEntryThunk__m_pUMThunkMarshInfo]
         mov             eax, [r11 + OFFSETOF__UMThunkMarshInfo__m_cbActualArgSize]                      // stack_args
         test            rax, rax                                                                        // stack_args
-        jnz             LOCAL_LABEL(UMThunkStub_CopyStackArgs)                                                                   // stack_args
+        jnz             LOCAL_LABEL(UMThunkStub_CopyStackArgs)                                          // stack_args
         
 LOCAL_LABEL(UMThunkStub_ArgumentsSetup):
         mov             rdi,  [rbp + UMThunkStubAMD64_ARGUMENTS_STACK_HOME_OFFSET +  0h] 
@@ -210,8 +210,8 @@ LOCAL_LABEL(PostCall):
 
         // epilog
         lea             rsp, [rbp - UMThunkStubAMD64_FRAME_OFFSET + UMThunkStubAMD64_FIXED_STACK_ALLOC_SIZE]
-        pop             rbp                                                                             // stack_args
-        pop             r12
+        pop_nonvol_reg  rbp                                                                             // stack_args
+        pop_nonvol_reg  r12
         ret
 
 
@@ -229,7 +229,7 @@ LOCAL_LABEL(DoTrapReturningThreadsTHROW):
         jmp             LOCAL_LABEL(InCooperativeMode)
 
 LOCAL_LABEL(UMThunkStub_CopyStackArgs):
-        // rax = cbStackArgs (with 20h for register args subtracted out already)
+        // rax = cbStackArgs
 
         sub             rsp, rax
         and             rsp, -16
