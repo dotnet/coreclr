@@ -307,8 +307,8 @@ namespace System.Collections.Generic
 #if FEATURE_CORECLR
     // NonRandomizedStringEqualityComparer is the comparer used by default with the Dictionary<string,...> 
     // As the randomized string hashing is turned on by default on coreclr, we need to keep the performance not affected 
-    // as much as possible in the main stream scenarios like Dictionary<string,…>
-    // We use NonRandomizedStringEqualityComparer as default comparer as it doesn’t use the randomized string hashing which 
+    // as much as possible in the main stream scenarios like Dictionary<string,Â…>
+    // We use NonRandomizedStringEqualityComparer as default comparer as it doesnÂ’t use the randomized string hashing which 
     // keep the perofrmance not affected till we hit collision threshold and then we switch to the comparer which is using 
     // randomized string hashing GenericEqualityComparer<string>
 
@@ -349,15 +349,6 @@ namespace System.Collections.Generic
 
         [System.Security.SecuritySafeCritical]  // auto-generated
         internal unsafe override int IndexOf(byte[] array, byte value, int startIndex, int count) {
-            if (array==null)
-                throw new ArgumentNullException("array");
-            if (startIndex < 0)
-                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_Index"));
-            if (count < 0)
-                throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_Count"));
-            if (count > array.Length - startIndex)
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidOffLen"));
-            Contract.EndContractBlock();
             if (count == 0) return -1;
             fixed (byte* pbytes = array) {
                 return Buffer.IndexOfByte(pbytes, value, startIndex, count);
