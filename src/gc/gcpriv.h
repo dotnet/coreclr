@@ -281,13 +281,13 @@ inline void FATAL_GC_ERROR()
 #define THREAD_NUMBER_FROM_CONTEXT int thread = sc->thread_number;
 #define THREAD_FROM_HEAP  int thread = heap_number;
 #define HEAP_FROM_THREAD  gc_heap* hpt = gc_heap::g_heaps[thread];
-#else
+#else // MULTIPLE_HEAPS
 #define THREAD_NUMBER_DCL
 #define THREAD_NUMBER_ARG
 #define THREAD_NUMBER_FROM_CONTEXT
 #define THREAD_FROM_HEAP
 #define HEAP_FROM_THREAD  gc_heap* hpt = 0;
-#endif //MULTIPLE_HEAPS
+#endif // MULTIPLE_HEAPS
 
 //These constants are ordered
 const int policy_sweep = 0;
@@ -352,18 +352,8 @@ public:
 //#define dprintf(l,x) {if (trace_gc && ((l<=print_level)||gc_heap::settings.concurrent)) {printf ("\n");printf x ; fflush(stdout);}}
 void LogValist(const char *fmt, va_list args);
 void GCLog (const char *fmt, ... );
-//#define dprintf(l,x) {if (trace_gc && (l<=print_level)) {GCLog x;}}
-//#define dprintf(l,x) {if ((l==SEG_REUSE_LOG_0) || (l==SEG_REUSE_LOG_1) || (trace_gc && (l<=3))) {GCLog x;}}
-//#define dprintf(l,x) {if (l == DT_LOG_0) {GCLog x;}}
-//#define dprintf(l,x) {if (trace_gc && ((l <= 2) || (l == BGC_LOG) || (l==GTC_LOG))) {GCLog x;}}
-//#define dprintf(l,x) {if (l==GTC_LOG) {GCLog x;}}
-//#define dprintf(l,x) {if (trace_gc && ((l <= 2) || (l == 1234)) ) {GCLog x;}}
-//#define dprintf(l,x) {if ((l <= 1) || (l == 2222)) {GCLog x;}}
+
 #define dprintf(l,x) {if ((l <= 1) || (l == GTC_LOG)) {GCLog x;}}
-//#define dprintf(l,x) {if ((l <= 1) || (l == GTC_LOG) ||(l == DT_LOG_0)) {GCLog x;}}
-//#define dprintf(l,x) {if ((l==GTC_LOG) || (l <= 1)) {GCLog x;}}
-//#define dprintf(l,x) {if (trace_gc && ((l <= print_level) || (l==GTC_LOG))) {GCLog x;}}
-//#define dprintf(l,x) {if (l==GTC_LOG) {printf ("\n");printf x ; fflush(stdout);}}
 
 #else //SIMPLE_DPRINTF
 
