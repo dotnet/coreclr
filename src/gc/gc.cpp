@@ -20,6 +20,7 @@
 // 
 
 #include "gcpriv.h"
+#include "gcallocator.h"
 #ifdef GC_STATS
 #include "gcstatistics.h"
 #endif // GC_STATS

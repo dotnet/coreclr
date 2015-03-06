@@ -13,6 +13,7 @@
 #define inline __forceinline
 
 #include "gc.h"
+#include "gcallocator.h"
 
 #ifdef GC_STATS
 #include "gcstatistics.h"
