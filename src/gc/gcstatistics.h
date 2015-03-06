@@ -5,6 +5,8 @@
 
 #ifndef __GCSTATISTICS_H 
 #define __GCSTATISTICS_H
+#include "gcpriv.h"
+#include "gc.h"
 
 // GC specific statistics, tracking counts and timings for GCs occuring in the system.
 // This writes the statistics to a file every 60 seconds, if a file is specified in

@@ -159,7 +159,7 @@ BOOL is_induced_blocking (gc_reason reason)
             (reason == reason_induced_compacting));
 }
 
-#if GC_STATS
+#ifdef GC_STATS
 // There is a current and a prior copy of the statistics.  This allows us to display deltas per reporting
 // interval, as well as running totals.  The 'min' and 'max' values require special treatment.  They are
 // Reset (zeroed) in the current statistics when we begin a new interval and they are updated via a

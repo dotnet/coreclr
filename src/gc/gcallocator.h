@@ -5,6 +5,7 @@
 
 #ifndef __GCALLOCATOR_H
 #define __GCALLOCATOR_H
+#include "gcpriv.h"
 
 class alloc_list 
 {
