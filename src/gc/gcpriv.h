@@ -4,6 +4,8 @@
 //
 // optimize for speed
 
+#ifndef __GCPRIV_H
+#define __GCPRIV_H
 
 #ifndef _DEBUG
 #ifdef _MSC_VER
@@ -13,6 +15,11 @@
 #define inline __forceinline
 
 #include "gc.h"
+#include "gcallocator.h"
+
+#ifdef GC_STATS
+#include "gcstatistics.h"
+#endif
 
 //#define DT_LOG
 
@@ -281,13 +288,13 @@ inline void FATAL_GC_ERROR()
 #define THREAD_NUMBER_FROM_CONTEXT int thread = sc->thread_number;
 #define THREAD_FROM_HEAP  int thread = heap_number;
 #define HEAP_FROM_THREAD  gc_heap* hpt = gc_heap::g_heaps[thread];
-#else
+#else // MULTIPLE_HEAPS
 #define THREAD_NUMBER_DCL
 #define THREAD_NUMBER_ARG
 #define THREAD_NUMBER_FROM_CONTEXT
 #define THREAD_FROM_HEAP
 #define HEAP_FROM_THREAD  gc_heap* hpt = 0;
-#endif //MULTIPLE_HEAPS
+#endif // MULTIPLE_HEAPS
 
 //These constants are ordered
 const int policy_sweep = 0;
@@ -352,18 +359,8 @@ public:
 //#define dprintf(l,x) {if (trace_gc && ((l<=print_level)||gc_heap::settings.concurrent)) {printf ("\n");printf x ; fflush(stdout);}}
 void LogValist(const char *fmt, va_list args);
 void GCLog (const char *fmt, ... );
-//#define dprintf(l,x) {if (trace_gc && (l<=print_level)) {GCLog x;}}
-//#define dprintf(l,x) {if ((l==SEG_REUSE_LOG_0) || (l==SEG_REUSE_LOG_1) || (trace_gc && (l<=3))) {GCLog x;}}
-//#define dprintf(l,x) {if (l == DT_LOG_0) {GCLog x;}}
-//#define dprintf(l,x) {if (trace_gc && ((l <= 2) || (l == BGC_LOG) || (l==GTC_LOG))) {GCLog x;}}
-//#define dprintf(l,x) {if (l==GTC_LOG) {GCLog x;}}
-//#define dprintf(l,x) {if (trace_gc && ((l <= 2) || (l == 1234)) ) {GCLog x;}}
-//#define dprintf(l,x) {if ((l <= 1) || (l == 2222)) {GCLog x;}}
+
 #define dprintf(l,x) {if ((l <= 1) || (l == GTC_LOG)) {GCLog x;}}
-//#define dprintf(l,x) {if ((l <= 1) || (l == GTC_LOG) ||(l == DT_LOG_0)) {GCLog x;}}
-//#define dprintf(l,x) {if ((l==GTC_LOG) || (l <= 1)) {GCLog x;}}
-//#define dprintf(l,x) {if (trace_gc && ((l <= print_level) || (l==GTC_LOG))) {GCLog x;}}
-//#define dprintf(l,x) {if (l==GTC_LOG) {printf ("\n");printf x ; fflush(stdout);}}
 
 #else //SIMPLE_DPRINTF
 
@@ -660,54 +657,8 @@ public:
 };
 
 #ifdef GC_STATS
-
-// GC specific statistics, tracking counts and timings for GCs occuring in the system.
-// This writes the statistics to a file every 60 seconds, if a file is specified in
-// COMPLUS_GcMixLog
-
-struct GCStatistics
-    : public StatisticsBase
-{
-    // initialized to the contents of COMPLUS_GcMixLog, or NULL, if not present
-    static WCHAR* logFileName;
-    static FILE*  logFile;
-
-    // number of times we executed a background GC, a foreground GC, or a
-    // non-concurrent GC
-    int cntBGC, cntFGC, cntNGC;
-
-    // min, max, and total time spent performing BGCs, FGCs, NGCs
-    // (BGC time includes everything between the moment the BGC starts until 
-    // it completes, i.e. the times of all FGCs occuring concurrently)
-    MinMaxTot bgc, fgc, ngc;
-
-    // number of times we executed a compacting GC (sweeping counts can be derived)
-    int cntCompactNGC, cntCompactFGC;
-
-    // count of reasons
-    int cntReasons[reason_max];
-
-    // count of condemned generation, by NGC and FGC:
-    int cntNGCGen[max_generation+1];
-    int cntFGCGen[max_generation];
-    
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-    // Internal mechanism:
-
-    virtual void Initialize();
-    virtual void DisplayAndUpdate();
-
-    // Public API
-
-    static BOOL Enabled()
-    { return logFileName != NULL; }
-
-    void AddGCStats(const gc_mechanisms& settings, size_t timeInMSec);
-};
-
 extern GCStatistics g_GCStatistics;
 extern GCStatistics g_LastGCStatistics;
-
 #endif // GC_STATS
 
 
@@ -723,83 +674,6 @@ typedef DPTR(class CFinalize)                  PTR_CFinalize;
 //and doubling each time. The last bucket (index == num_buckets) is for largest sizes with no limit
 
 #define MAX_BUCKET_COUNT (13)//Max number of buckets for the small generations. 
-class alloc_list 
-{
-    BYTE* head;
-    BYTE* tail;
-public:
-    BYTE*& alloc_list_head () { return head;}
-    BYTE*& alloc_list_tail () { return tail;}
-    alloc_list()
-    {
-        head = 0; 
-        tail = 0; 
-    }
-};
-
-
-class allocator 
-{
-    size_t num_buckets;
-    size_t frst_bucket_size;
-    alloc_list first_bucket;
-    alloc_list* buckets;
-    alloc_list& alloc_list_of (unsigned int bn);
-
-public:
-    allocator (unsigned int num_b, size_t fbs, alloc_list* b);
-    allocator()
-    {
-        num_buckets = 1;
-        frst_bucket_size = SIZE_T_MAX;
-    }
-    unsigned int number_of_buckets() {return (unsigned int)num_buckets;}
-
-    size_t first_bucket_size() {return frst_bucket_size;}
-    BYTE*& alloc_list_head_of (unsigned int bn)
-    {
-        return alloc_list_of (bn).alloc_list_head();
-    }
-    BYTE*& alloc_list_tail_of (unsigned int bn)
-    {
-        return alloc_list_of (bn).alloc_list_tail();
-    }
-    void clear();
-    BOOL discard_if_no_fit_p()
-    {
-        return (num_buckets == 1);
-    }
-
-    // This is when we know there's nothing to repair because this free
-    // list has never gone through plan phase. Right now it's only used
-    // by the background ephemeral sweep when we copy the local free list
-    // to gen0's free list.
-    //
-    // We copy head and tail manually (vs together like copy_to_alloc_list)
-    // since we need to copy tail first because when we get the free items off
-    // of each bucket we check head first. We also need to copy the
-    // smaller buckets first so when gen0 allocation needs to thread
-    // smaller items back that bucket is guaranteed to have been full
-    // copied.
-    void copy_with_no_repair (allocator* allocator_to_copy)
-    {
-        assert (num_buckets == allocator_to_copy->number_of_buckets());
-        for (unsigned int i = 0; i < num_buckets; i++)
-        {
-            alloc_list* al = &(allocator_to_copy->alloc_list_of (i));
-            alloc_list_tail_of(i) = al->alloc_list_tail();
-            alloc_list_head_of(i) = al->alloc_list_head();
-        }
-    }
-
-    void unlink_item (unsigned int bucket_number, BYTE* item, BYTE* previous_item, BOOL use_undo_p);
-    void thread_item (BYTE* item, size_t size);
-    void thread_item_front (BYTE* itme, size_t size);
-    void thread_free_item (BYTE* free_item, BYTE*& head, BYTE*& tail);
-    void copy_to_alloc_list (alloc_list* toalist);
-    void copy_from_alloc_list (alloc_list* fromalist);
-    void commit_alloc_list_changes();
-};
 
 #define NUM_GEN_POWER2 (20)
 #define BASE_GEN_SIZE (1*512)
@@ -4288,3 +4162,4 @@ size_t gcard_of (BYTE* object)
     return (size_t)(object) / card_size;
 }
 
+#endif
