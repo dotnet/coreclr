@@ -1,3 +1,11 @@
+//
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+//
+
+#include "gcpriv.h"
+#include "gc.h"
+
 WCHAR* GCStatistics::logFileName = NULL;
 FILE*  GCStatistics::logFile = NULL;
 

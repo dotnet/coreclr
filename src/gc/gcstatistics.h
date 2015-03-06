@@ -1,3 +1,8 @@
+//
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+//
+
 #ifndef __GCSTATISTICS_H 
 #define __GCSTATISTICS_H
 
