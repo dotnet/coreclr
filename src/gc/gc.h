@@ -23,6 +23,8 @@ Module Name:
 
 #endif
 
+#define max_generation 2
+
 /*
  * Promotion Function Prototypes
  */
@@ -606,11 +608,6 @@ public:
     }
 
     virtual size_t GetPromotedBytes(int heap_index) = 0;
-
-private:
-    enum {
-        max_generation  = 2,
-    };
     
 public:
 
