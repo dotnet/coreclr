@@ -5,6 +5,21 @@
 
 #ifndef __GCALLOCATOR_H
 #define __GCALLOCATOR_H
+
+class alloc_list 
+{
+    BYTE* head;
+    BYTE* tail;
+public:
+    BYTE*& alloc_list_head () { return head;}
+    BYTE*& alloc_list_tail () { return tail;}
+    alloc_list()
+    {
+        head = 0; 
+        tail = 0; 
+    }
+};
+
 class allocator 
 {
     size_t num_buckets;

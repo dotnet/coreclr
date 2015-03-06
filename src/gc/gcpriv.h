@@ -672,19 +672,6 @@ typedef DPTR(class CFinalize)                  PTR_CFinalize;
 //and doubling each time. The last bucket (index == num_buckets) is for largest sizes with no limit
 
 #define MAX_BUCKET_COUNT (13)//Max number of buckets for the small generations. 
-class alloc_list 
-{
-    BYTE* head;
-    BYTE* tail;
-public:
-    BYTE*& alloc_list_head () { return head;}
-    BYTE*& alloc_list_tail () { return tail;}
-    alloc_list()
-    {
-        head = 0; 
-        tail = 0; 
-    }
-};
 
 #define NUM_GEN_POWER2 (20)
 #define BASE_GEN_SIZE (1*512)

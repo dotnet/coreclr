@@ -5,6 +5,7 @@
 
 #include "gc.h"
 #include "gcpriv.h"
+#include "gcallocator.h"
 
 allocator::allocator (unsigned int num_b, size_t fbs, alloc_list* b)
 {
