@@ -4,6 +4,8 @@
 //
 // optimize for speed
 
+#ifndef __GCPRIV_H
+#define __GCPRIV_H
 
 #ifndef _DEBUG
 #ifdef _MSC_VER
@@ -4160,3 +4162,4 @@ size_t gcard_of (BYTE* object)
     return (size_t)(object) / card_size;
 }
 
+#endif
