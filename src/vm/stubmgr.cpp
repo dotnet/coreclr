@@ -1044,7 +1044,11 @@ BOOL PrecodeStubManager::IsPrecodeByAsm(PCODE stubStartAddress)
         && *PTR_BYTE(pInstr) != X86_INSTR_JMP_REL32 // patched fixup precode
 #endif
 #ifdef HAS_THISPTR_RETBUF_PRECODE
+#ifdef UNIX_AMD64_ABI
+        && *PTR_DWORD(pInstr) != 0xC78B4890 // mov rax,rdi
+#else
         && *PTR_DWORD(pInstr) != IN_WIN64(0xC8894890) IN_WIN32(0xD189C889) // mov eax,ecx; mov ecx,edx
+#endif
 #endif
        )
     {
