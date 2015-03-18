@@ -63,7 +63,7 @@ namespace System {
             }
             Contract.EndContractBlock();
             base.GetObjectData(info, context);
-            info.AddValue("OffendingNumber", _offendingNumber, typeof(double));
+            info.AddValue("OffendingNumber", _offendingNumber, typeof(Double));
         }
     }
 }
