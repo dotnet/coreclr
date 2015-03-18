@@ -135,10 +135,10 @@ private:
             ThrowHR(CORDBG_E_PROCESS_NOT_SYNCHRONIZED); 
         }
     };
-    static void ReleaseReadLock(SimpleRWLock *s);
+    static void ReleaseReadLock(SimpleRWLock *s) { };
 
     static void AcquireWriteLock(SimpleRWLock *s) { SUPPORTS_DAC; ThrowHR(CORDBG_E_TARGET_READONLY); };
-    static void ReleaseWriteLock(SimpleRWLock *s);
+    static void ReleaseWriteLock(SimpleRWLock *s) { };
 #endif // DACCESS_COMPILE
 
 public:
@@ -163,7 +163,6 @@ public:
 #endif
     }
 
-#ifdef DACCESS_COMPILE
     // Special empty CTOR for DAC. We still need to assign to const fields, but they won't actually be used.
     SimpleRWLock()  
         : m_gcMode(COOPERATIVE_OR_PREEMPTIVE)
@@ -174,7 +173,6 @@ public:
         m_countNoTriggerGC = 0;
 #endif //_DEBUG
     }
-#endif
     
 #ifndef DACCESS_COMPILE
     // Acquire the reader lock.

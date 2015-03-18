@@ -2513,6 +2513,14 @@ void * ZapInfo::getHelperFtn (CorInfoHelpFunc ftnNum, void **ppIndirection)
     case CORINFO_HELP_PROF_FCN_TAILCALL:
         *ppIndirection = m_pImage->GetInnerPtr(GetProfilingHandleImport(), kZapProfilingHandleImportValueIndexTailcallAddr * sizeof(TADDR));
         return NULL;
+#ifdef _TARGET_AMD64_
+    case CORINFO_HELP_STOP_FOR_GC:
+        // Force all calls in ngen images for this helper to use an indirect call.
+        // We cannot use a jump stub to reach this helper because 
+        // the RAX register can contain a return value.
+        dwHelper |= CORCOMPILE_HELPER_PTR;
+   break;
+#endif
     default:
         break;
     }
@@ -4696,4 +4704,35 @@ BOOL ZapInfo::CurrentMethodHasProfileData()
     ULONG size;
     ICorJitInfo::ProfileBuffer * profileBuffer;
     return SUCCEEDED(getBBProfileData(m_currentMethodHandle, &size, &profileBuffer, NULL));
+}
+
+int ZapInfo::getIntConfigValue(const wchar_t *name, int defaultValue)
+{
+    int ret;
+
+    // Translate JIT call into runtime configuration query
+    CLRConfig::ConfigDWORDInfo info{name, defaultValue, CLRConfig::REGUTIL_default};
+
+    // Perform a CLRConfig look up on behalf of the JIT.
+    ret = CLRConfig::GetConfigValue(info);
+
+    return ret;
+}
+
+wchar_t *ZapInfo::getStringConfigValue(const wchar_t *name)
+{
+    wchar_t *returnStr = nullptr;
+
+    // Translate JIT call into runtime configuration query
+    CLRConfig::ConfigStringInfo info { name, CLRConfig::REGUTIL_default };
+
+    // Perform a CLRConfig look up on behalf of the JIT.
+    returnStr = CLRConfig::GetConfigValue(info);
+
+    return returnStr;
+}
+
+void ZapInfo::freeStringConfigValue(wchar_t *value)
+{
+    CLRConfig::FreeConfigString(value);
 }

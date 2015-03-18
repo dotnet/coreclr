@@ -1354,7 +1354,7 @@ ClrDataAccess::GetObjectStringData(CLRDATA_ADDRESS obj, unsigned int count, __ou
     if (SUCCEEDED(hr))
     {
         PTR_StringObject str(TO_TADDR(obj));
-        ULONG32 needed = (ULONG32)str->GetStringLength()+1;
+        ULONG32 needed = (ULONG32)str->GetStringLength();
 
         if (stringData && count > 0)
         {
@@ -1365,7 +1365,7 @@ ClrDataAccess::GetObjectStringData(CLRDATA_ADDRESS obj, unsigned int count, __ou
             hr = m_pTarget->ReadVirtual(pszStr, (PBYTE)stringData, count*sizeof(wchar_t), &needed);
         
             if (SUCCEEDED(hr))
-                stringData[count-1] = 0;
+                stringData[count] = 0;
             else
                 stringData[0] = 0;
         }

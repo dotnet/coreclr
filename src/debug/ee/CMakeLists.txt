@@ -10,6 +10,10 @@ include_directories(BEFORE ${VM_DIR})
 include_directories(BEFORE ${VM_DIR}/${ARCH_SOURCES_DIR})
 include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR})
 
+if(CLR_CMAKE_PLATFORM_UNIX)
+  add_compile_options(-fPIC)
+endif(CLR_CMAKE_PLATFORM_UNIX)
+
 set(CORDBEE_SOURCES_DAC_AND_WKS
   controller.cpp
   debugger.cpp
@@ -32,14 +36,11 @@ set(CORDBEE_SOURCES_DAC
   ${CORDBEE_SOURCES_DAC_AND_WKS}
 )
 
-if(WIN32)
-  list(APPEND CORDBEE_SOURCES_WKS
-    # The following files need to be ported to Linux
-    inprocdac.cpp
-    dbgtransportproxy.cpp
-    ddunpack.cpp
+if(CLR_CMAKE_PLATFORM_UNIX)
+  list(APPEND CORDBEE_SOURCES_WKS 
+    dactable.cpp
   )
-endif(WIN32)
+endif(CLR_CMAKE_PLATFORM_UNIX)
 
 if (IS_64BIT_BUILD EQUAL 1)
   list(APPEND CORDBEE_SOURCES_WKS amd64/amd64walker.cpp)

@@ -17,7 +17,7 @@
 inline void RestoreSOToleranceState() {}
 
 #include <cor.h>
-#include <CorSym.h>
+#include <corsym.h>
 #include <clrdata.h>
 #include <palclr.h>
 
@@ -1380,8 +1380,8 @@ void IP2MethodDesc (DWORD_PTR IP, DWORD_PTR &methodDesc, JITTypes &jitType,
 const char *ElementTypeName (unsigned type);
 void DisplayFields (CLRDATA_ADDRESS cdaMT, DacpMethodTableData *pMTD, DacpMethodTableFieldData *pMTFD,
                     DWORD_PTR dwStartAddr = 0, BOOL bFirst=TRUE, BOOL bValueClass=FALSE);
-int GetObjFieldOffset(CLRDATA_ADDRESS cdaObj, __in_z LPWSTR wszFieldName, BOOL bFirst=TRUE);
-int GetObjFieldOffset(CLRDATA_ADDRESS cdaObj, CLRDATA_ADDRESS cdaMT, __in_z LPWSTR wszFieldName, BOOL bFirst=TRUE);
+int GetObjFieldOffset(CLRDATA_ADDRESS cdaObj, __in_z LPCWSTR wszFieldName, BOOL bFirst=TRUE);
+int GetObjFieldOffset(CLRDATA_ADDRESS cdaObj, CLRDATA_ADDRESS cdaMT, __in_z LPCWSTR wszFieldName, BOOL bFirst=TRUE);
 
 BOOL IsValidToken(DWORD_PTR ModuleAddr, mdTypeDef mb);
 void NameForToken_s(DacpModuleData *pModule, mdTypeDef mb, __out_ecount (capacity_mdName) WCHAR *mdName, size_t capacity_mdName, 
@@ -1734,6 +1734,7 @@ private:
 };
 
 class CGCDesc;
+
 // The information MethodTableCache returns.
 struct MethodTableInfo
 {
@@ -2072,13 +2073,16 @@ struct StringHolder
 };
 
 
-ULONG TargetPlatform();
 ULONG DebuggeeType();
+
+#ifndef FEATURE_PAL
 
 inline BOOL IsKernelDebugger ()
 {
     return DebuggeeType() == DEBUG_CLASS_KERNEL;
 }
+
+#endif // !FEATURE_PAL
 
 void    ResetGlobals(void);
 HRESULT LoadClrDebugDll(void);
@@ -2314,6 +2318,8 @@ struct MemRange
     MemRange * next;
 }; //struct MemRange
 
+#ifndef FEATURE_PAL
+
 class StressLogMem
 {
 private:
@@ -2333,7 +2339,6 @@ public:
     bool IsInStressLog (ULONG64 addr);
 }; //class StressLogMem
 
-#ifndef FEATURE_PAL
 // An adapter class that DIA consumes so that it can read PE data from the an image
 // This implementation gets the backing data from the image loaded in debuggee memory
 // that has been layed out identical to the disk format (ie not seperated by section)
@@ -2400,7 +2405,8 @@ public:
     HRESULT GetNamedLocalVariable(ICorDebugFrame * pFrame, ULONG localIndex, __inout_ecount(paramNameLen) WCHAR* paramName, ULONG paramNameLen, ICorDebugValue** ppValue);
     HRESULT SymbolReader::ResolveSequencePoint(__in_z WCHAR* pFilename, ULONG32 lineNumber, mdMethodDef* pToken, ULONG32* pIlOffset);
 };
-#endif
+
+#endif // !FEATURE_PAL
 
 HRESULT
 GetLineByOffset(
@@ -2795,6 +2801,7 @@ public:
             MoveToPage(start, size);
         }
     }
+
     
     void ClearStats()
     {
@@ -2805,6 +2812,8 @@ public:
 #endif
     }
     
+#ifndef FEATURE_PAL
+
     void PrintStats(const char *func)
     {
 #ifdef _DEBUG
@@ -2815,6 +2824,8 @@ public:
         OutputDebugStringA(buffer);
 #endif
     }
+
+#endif // !FEATURE_PAL
     
 private:
     /* Sets the cache to the page specified by addr, or false if we could not move to

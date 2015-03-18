@@ -37,11 +37,6 @@ VOID ResetCurrentContext()
     LIMITED_METHOD_CONTRACT;
 }
 
-bool IsInstrModifyFault(PEXCEPTION_POINTERS pExceptionInfo)
-{
-    return false;
-}
-
 LONG CLRNoCatchHandler(EXCEPTION_POINTERS* pExceptionInfo, PVOID pv)
 {
     return EXCEPTION_CONTINUE_SEARCH;
@@ -170,8 +165,6 @@ RtlVirtualUnwind (
     // The indirection should be taken care of by the caller 
     _ASSERTE((FunctionEntry->UnwindData & RUNTIME_FUNCTION_INDIRECT) == 0);
 
-#ifndef FEATURE_PAL    
-
 #ifdef DEBUGGING_SUPPORTED
     if (CORDebuggerAttached())
     {
@@ -182,14 +175,8 @@ RtlVirtualUnwind (
     {
         return RtlVirtualUnwind_Unsafe(HandlerType, ImageBase, ControlPc, FunctionEntry, ContextRecord, HandlerData, EstablisherFrame, ContextPointers);        
     }
-
-#else // !FEATURE_PAL
-    PORTABILITY_ASSERT("UNIXTODO: Implement unwinding for PAL");
-    return NULL;
-#endif // !FEATURE_PAL
 }
 
-#ifndef FEATURE_PAL    
 #ifdef DEBUGGING_SUPPORTED
 PEXCEPTION_ROUTINE
 RtlVirtualUnwind_Worker (
@@ -561,7 +548,6 @@ NORMAL_UNWIND:
     return RtlVirtualUnwind_Unsafe(HandlerType, ImageBase, ControlPc, FunctionEntry, ContextRecord, HandlerData, EstablisherFrame, ContextPointers);
 }
 #endif // DEBUGGING_SUPPORTED
-#endif // !FEATURE_PAL
 
 #undef FAKE_PROLOG_SIZE
 #undef FAKE_FUNCTION_CODE_SIZE

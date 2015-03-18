@@ -55,8 +55,54 @@
           Condition="'$(GenerateRunScript)' != 'false'"
           DependsOnTargets="GenerateExecutionScriptsInternal" />
 
-<PropertyGroup>
-    <OutDir>$(BaseOutputPathWithConfig)$(BuildProjectRelativeDir)\</OutDir>
-</PropertyGroup>
+  <PropertyGroup>
+      <OutDir>$(BaseOutputPathWithConfig)$(BuildProjectRelativeDir)\</OutDir>
+  </PropertyGroup>
 
+  <Target Name="CopyNativeProjectBinaries">
+     <ItemGroup>
+        <NativeProjectBinaries Include="$(NativeProjectOutputFolder)\**\*.*" />
+     </ItemGroup>
+
+     <Error  Text="The native project files are missing in $(NativeProjectOutputFolder) please run build from the root of the repo at least once"
+             Condition="'@(NativeProjectBinaries)' == ''" />
+
+     <Copy
+        SourceFiles="@(NativeProjectBinaries)"
+        DestinationFiles="@(NativeProjectBinaries -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')"
+        SkipUnchangedFiles="$(SkipCopyUnchangedFiles)"
+        OverwriteReadOnlyFiles="$(OverwriteReadOnlyFiles)"
+        Retries="$(CopyRetryCount)"
+        RetryDelayMilliseconds="$(CopyRetryDelayMilliseconds)"
+        UseHardlinksIfPossible="$(CreateHardLinksForCopyFilesToOutputDirectoryIfPossible)">
+        <Output TaskParameter="DestinationFiles" ItemName="FileWrites" />
+     </Copy>
+  </Target>
+
+  <Target Name="ResolveCmakeNativeProjectReference"
+          Condition="'@(ProjectReference)' != ''"
+          BeforeTargets="BeforeResolveReferences;BeforeClean" >
+     <ItemGroup>
+        <NativeProjectReference Include="%(ProjectReference.Identity)" Condition="$([System.String]::Copy(%(ProjectReference.FileName)).ToUpper()) == 'CMAKELISTS'" />
+        <ProjectReference Remove="%(NativeProjectReference.Identity)" />
+        <NativeProjectReferenceNormalized Include="@(NativeProjectReference -> '%(FullPath)')" />
+     </ItemGroup>
+  </Target>
+
+  <Target Name="ConsolidateNativeProjectReference"
+          Condition="'@(ProjectReference)' != ''"
+          BeforeTargets="Build" >
+     <ItemGroup>
+        <NativeProjectOutputFoldersToCopy Include="$([System.String]::Copy('%(NativeProjectReferenceNormalized.RelativeDir)').Replace($(SourceDir),$(__NativeTestIntermediatesDir)\src\))$(Configuration)\"/>
+     </ItemGroup>
+
+    <Message Text= "Project files are :$([System.String]::Copy(%(ProjectReference.FileName)).ToUpper()) " />
+    <Message Text= "Project references are :%(ProjectReference.Identity)" />
+    <Message Text= "Native project references are :%(NativeProjectReference.Identity)" />
+    <Message Text= "Full native project references are :%(NativeProjectReferenceNormalized.Identity)" />
+    <Message Text= "Native binaries will be copied from :%(NativeProjectOutputFoldersToCopy.Identity)" />
+   <MSBuild Projects="$(MSBuildProjectFile)" Targets="CopyNativeProjectBinaries" Properties="NativeProjectOutputFolder=%(NativeProjectOutputFoldersToCopy.Identity)" Condition="'@(NativeProjectReference)' != ''" />
+
+  </Target>
 </Project>
+

@@ -15,8 +15,9 @@
 //
 //      EXTERN_C void FastCallFinalizeWorker(Object *obj, PCODE funcPtr);
 //
-NESTED_ENTRY FastCallFinalizeWorker, _TEXT, CallDescrWorkerUnwindFrameChainHandler
-        alloc_stack     0x28     // alloc callee scratch and align the stack
+NESTED_ENTRY FastCallFinalizeWorker, _TEXT, NoHandler
+        push_nonvol_reg rbp
+        mov     rbp, rsp
         END_PROLOGUE
         
         //
@@ -32,7 +33,7 @@ NESTED_ENTRY FastCallFinalizeWorker, _TEXT, CallDescrWorkerUnwindFrameChainHandl
         xor     rax, rax
         
         // epilog
-        add     rsp, 0x28
+        pop_nonvol_reg rbp
         ret
 
 
@@ -40,12 +41,12 @@ NESTED_END FastCallFinalizeWorker, _TEXT
 
 //extern "C" void CallDescrWorkerInternal(CallDescrData * pCallDescrData);
 
-NESTED_ENTRY CallDescrWorkerInternal, _TEXT, CallDescrWorkerUnwindFrameChainHandler
-        push_nonvol_reg rbx             // save nonvolatile registers
-        push_nonvol_reg rbp             // 
-        set_frame rbp, 0                // set frame pointer
-        lea     rsp, [rsp - 8]          // ensure proper alignment of the rsp
-
+NESTED_ENTRY CallDescrWorkerInternal, _TEXT, NoHandler
+        push_nonvol_reg rbp
+        mov     rbp, rsp
+        push_nonvol_reg rbx
+        alloc_stack 8                   // ensure proper alignment of the rsp 
+        set_cfa_register rbp, (2*8)
         END_PROLOGUE
 
         mov     rbx, rdi                // save pCallDescrData in rbx
@@ -53,22 +54,22 @@ NESTED_ENTRY CallDescrWorkerInternal, _TEXT, CallDescrWorkerUnwindFrameChainHand
         mov     ecx, dword ptr [rbx + CallDescrData__numStackSlots]
 
         and     ecx, ecx
-        jz      NoStackArguments
+        jz      LOCAL_LABEL(NoStackArguments)
 
         test    ecx, 1
-        jz      StackAligned
+        jz      LOCAL_LABEL(StackAligned)
         push    rax
-StackAligned:
+LOCAL_LABEL(StackAligned):
 
         mov     rsi, [rbx + CallDescrData__pSrc] // set source argument list address
         lea     rsi, [rsi + 8 * rcx]
 
-StackCopyLoop:                          // copy the arguments to stack top-down to carefully probe for sufficient stack space
+LOCAL_LABEL(StackCopyLoop):                          // copy the arguments to stack top-down to carefully probe for sufficient stack space
         sub     rsi, 8
         push    qword ptr [rsi]
         dec     ecx
-        jnz     StackCopyLoop
-NoStackArguments:
+        jnz     LOCAL_LABEL(StackCopyLoop)
+LOCAL_LABEL(NoStackArguments):
         // All argument registers are loaded regardless of the actual number
         // of arguments.
 
@@ -85,7 +86,7 @@ NoStackArguments:
 
         mov     rax, [rbx + CallDescrData__pFloatArgumentRegisters] 
         and     rax, rax
-        jz      NoFloatArguments
+        jz      LOCAL_LABEL(NoFloatArguments)
         movsd   xmm0, [rax + 0]
         movsd   xmm1, [rax + 16]
         movsd   xmm2, [rax + 32]
@@ -94,38 +95,39 @@ NoStackArguments:
         movsd   xmm5, [rax + 80]
         movsd   xmm6, [rax + 96]
         movsd   xmm7, [rax + 112]
-NoFloatArguments:        
+LOCAL_LABEL(NoFloatArguments):
         call    qword ptr [rbx + CallDescrData__pTarget]     // call target function
 
         // Save FP return value
 
         mov     ecx, dword ptr [rbx + CallDescrData__fpReturnSize]
         test    ecx, ecx
-        jz      ReturnsInt
+        jz      LOCAL_LABEL(ReturnsInt)
         
         cmp     ecx, 4
-        je      ReturnsFloat
+        je      LOCAL_LABEL(ReturnsFloat)
         cmp     ecx, 8
-        je      ReturnsDouble
+        je      LOCAL_LABEL(ReturnsDouble)
         // unexpected
-        jmp     Epilog
+        jmp     LOCAL_LABEL(Epilog)
 
-ReturnsInt:
+LOCAL_LABEL(ReturnsInt):
         mov     [rbx+CallDescrData__returnValue], rax
 
-Epilog:
-        lea     rsp, 0[rbp]             // deallocate argument list
-        pop     rbp                     // restore nonvolatile register
-        pop     rbx                     //
+LOCAL_LABEL(Epilog):
+        lea     rsp, [rbp - 8]          // deallocate arguments
+        set_cfa_register rsp, (3*8)
+        pop_nonvol_reg rbx
+        pop_nonvol_reg rbp
         ret
 
-ReturnsFloat:
+LOCAL_LABEL(ReturnsFloat):
         movss   real4 ptr [rbx+CallDescrData__returnValue], xmm0
-        jmp     Epilog
+        jmp     LOCAL_LABEL(Epilog)
 
-ReturnsDouble:
+LOCAL_LABEL(ReturnsDouble):
         movsd   real8 ptr [rbx+CallDescrData__returnValue], xmm0
-        jmp     Epilog
+        jmp     LOCAL_LABEL(Epilog)
 
 NESTED_END CallDescrWorkerInternal, _TEXT
 

@@ -1753,6 +1753,41 @@ FCIMPL2(int, GCInterface::CollectionCount, INT32 generation, INT32 getSpecialGCC
 }
 FCIMPLEND
 
+int QCALLTYPE GCInterface::StartNoGCRegion(INT64 totalSize, BOOL lohSizeKnown, INT64 lohSize, BOOL disallowFullBlockingGC)
+{
+    QCALL_CONTRACT;
+
+    int retVal = 0;
+
+    BEGIN_QCALL;
+
+    GCX_COOP();
+
+    retVal = GCHeap::GetGCHeap()->StartNoGCRegion((ULONGLONG)totalSize, 
+                                                  lohSizeKnown,
+                                                  (ULONGLONG)lohSize,
+                                                  disallowFullBlockingGC);
+
+    END_QCALL;
+
+    return retVal;
+}
+
+int QCALLTYPE GCInterface::EndNoGCRegion()
+{
+    QCALL_CONTRACT;
+
+    int retVal = FALSE;
+
+    BEGIN_QCALL;
+
+    retVal = GCHeap::GetGCHeap()->EndNoGCRegion();
+
+    END_QCALL;
+
+    return retVal;
+}
+
 /*===============================GetGenerationWR================================
 **Action: Returns the generation in which the object pointed to by a WeakReference is found.
 **Returns:
@@ -2434,7 +2469,7 @@ FCIMPL2(LPVOID,COMInterlocked::ExchangeObject, LPVOID*location, LPVOID value)
 }
 FCIMPLEND
 
-FCIMPL2_VV(void,COMInterlocked::ExchangeGeneric, TypedByRef location, TypedByRef value)
+FCIMPL2_VV(void,COMInterlocked::ExchangeGeneric, FC_TypedByRef location, FC_TypedByRef value)
 {
     FCALL_CONTRACT;
 
@@ -2452,7 +2487,7 @@ FCIMPL2_VV(void,COMInterlocked::ExchangeGeneric, TypedByRef location, TypedByRef
 }
 FCIMPLEND
 
-FCIMPL3_VVI(void,COMInterlocked::CompareExchangeGeneric, TypedByRef location, TypedByRef value, LPVOID comparand)
+FCIMPL3_VVI(void,COMInterlocked::CompareExchangeGeneric, FC_TypedByRef location, FC_TypedByRef value, LPVOID comparand)
 {
     FCALL_CONTRACT;
 

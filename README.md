@@ -1,10 +1,10 @@
 .NET Core Runtime (CoreCLR)
 ===
 
-|   |Linux|Windows|
-|:-:|:-:|:-:|
-|**Debug**|[![Build status](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_linux_debug/badge/icon)](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_linux_debug/)|[![Build status](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_windows_debug/badge/icon)](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_windows_debug/)|
-|**Release**|[![Build status](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_linux_release/badge/icon)](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_linux_release/)|[![Build status](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_windows_release/badge/icon)](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_windows_release/)|
+|   |Linux|Windows|Mac OS X|
+|:-:|:-:|:-:|:-:|
+|**Debug**|[![Build status](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_linux_debug/badge/icon)](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_linux_debug/)|[![Build status](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_windows_debug/badge/icon)](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_windows_debug/)|[![Build Status](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_mac_debug/badge/icon)](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_mac_debug/)
+|**Release**|[![Build status](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_linux_release/badge/icon)](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_linux_release/)|[![Build status](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_windows_release/badge/icon)](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_windows_release/)|[![Build status](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_mac_release/badge/icon)](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_mac_release/)
 
 The coreclr repo contains the complete runtime implementation (called "CoreCLR") for [.NET Core](http://github.com/dotnet/core). It includes RyuJIT, the .NET GC, native interop and many other components. It builds and runs on Windows. You can 'watch' the repo to see Linux and Mac support being added over the next few months.
 
@@ -20,9 +20,9 @@ Want to chat with other members of the CoreCLR community?
 Historically, new devs to the CLR team would be encouraged to read the "Book of the Runtime" (BotR) before making substative changes to the product. We have released the meaningful BotR chapters and other documents, for the same goal with new contributors.
 
 - [Introduction to the Common Language Runtime](Documentation/intro-to-clr.md)
-- [Book of the Runtime](Documentation/index.md#book-of-the-runtime)
+- [Book of the Runtime](Documentation/README.md#book-of-the-runtime)
 - [CLR Coding Guide](Documentation/clr-code-guide.md)
-- [Documents Index](Documentation/index.md)
+- [Documents Index](Documentation)
 
 ## How to Engage, Contribute and Provide Feedback
 
@@ -39,7 +39,7 @@ Looking for something to work on? The list of [up-for-grabs issues](https://gith
 You are encouraged to start a discussion by filing an issue, creating a
 gist or starting a thread in the [.NET Foundation forums]. For broader topics, please use the forums.
 
-[Contributing Guide]: https://github.com/dotnet/coreclr/wiki/Contributing
+[Contributing Guide]: https://github.com/dotnet/coreclr/wiki/Contribution-Overview
 [Developer Guide]: https://github.com/dotnet/coreclr/wiki/Developer-Guide
 
 [.NET Foundation forums]: http://forums.dotnetfoundation.org/

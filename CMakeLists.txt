@@ -4,6 +4,17 @@ cmake_minimum_required(VERSION 2.8.12)
 # Set the project name
 project(CoreCLR)
 
+if(APPLE)
+    # Enable @rpath support for shared libraries.
+    set(MACOSX_RPATH ON)
+    if(CMAKE_VERSION VERSION_EQUAL 3.0 OR CMAKE_VERSION VERSION_GREATER 3.0)
+        cmake_policy(SET CMP0042 NEW)
+    endif()
+endif()
+
+set(CLR_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+set(VM_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/vm)
+
 if(CMAKE_SYSTEM_NAME STREQUAL Linux)
     set(CLR_CMAKE_PLATFORM_UNIX 1)
     set(CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64 1)
@@ -16,6 +27,24 @@ if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
     set(CLR_CMAKE_PLATFORM_DARWIN 1)
     set(CMAKE_ASM_COMPILE_OBJECT "${CMAKE_C_COMPILER} <FLAGS> <DEFINES> -o <OBJECT> -c <SOURCE>")
 endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
+
+if(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
+	set(CLR_CMAKE_PLATFORM_UNIX 1)
+	set(CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64 1)
+	set(CLR_CMAKE_PLATFORM_FREEBSD 1)
+endif(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
+
+if(CMAKE_SYSTEM_NAME STREQUAL OpenBSD)
+	set(CLR_CMAKE_PLATFORM_UNIX 1)
+	set(CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64 1)
+	set(CLR_CMAKE_PLATFORM_OPENBSD 1)
+endif(CMAKE_SYSTEM_NAME STREQUAL OpenBSD)
+
+if(WIN32)
+    enable_language(ASM_MASM)
+else()
+    enable_language(ASM)
+endif(WIN32)
 
 # Build a list of compiler definitions by putting -D in front of each define.
 function(get_compile_definitions DefinitionName)
@@ -120,6 +149,7 @@ elseif (CLR_CMAKE_PLATFORM_UNIX)
 endif(WIN32)
 
 if(CLR_CMAKE_PLATFORM_UNIX)
+    add_subdirectory(src/ToolBox/SOS/lldbplugin)
     add_subdirectory(src/pal)
     add_subdirectory(src/coreclr/hosts/unixcorerun)
 endif(CLR_CMAKE_PLATFORM_UNIX)
@@ -275,6 +305,8 @@ add_compile_options(-fms-extensions )
 # The newer version of clang hits this seemly benign error that this disables.
 add_compile_options(-Wno-incompatible-ms-struct)
 endif(CLR_CMAKE_PLATFORM_UNIX)
+
+add_subdirectory(src/debug/debug-pal)
 
 # Include directory directives
 
@@ -441,6 +473,11 @@ add_definitions(-DFEATURE_MULTICOREJIT)
 add_definitions(-DFEATURE_USE_ASM_GC_WRITE_BARRIERS)
 add_definitions(-DFEATURE_SYMDIFF)
 
+if(CLR_CMAKE_PLATFORM_UNIX)
+    add_definitions(-DFEATURE_DBGIPC_TRANSPORT_DI)
+    add_definitions(-DFEATURE_DBGIPC_TRANSPORT_VM)
+endif(CLR_CMAKE_PLATFORM_UNIX)
+
 if (IS_64BIT_BUILD EQUAL 1)
 add_definitions(-D_AMD64_)
 add_definitions(-D_AMD64_SIMULATOR_)
@@ -466,8 +503,5 @@ if (IS_64BIT_BUILD EQUAL 1)
 else ()
   set(ARCH_SOURCES_DIR i386)
 endif (IS_64BIT_BUILD EQUAL 1)
-
-set(CLR_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-set(VM_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/vm)
 
 add_subdirectory(src)

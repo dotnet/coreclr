@@ -652,13 +652,11 @@ bool operator ==(const ICorDebugInfo::VarLoc &varLoc1,
                varLoc1.vlStkReg.vlsrReg == varLoc2.vlStkReg.vlsrReg;
 
     case ICorDebugInfo::VLT_STK2:
-        // <TODO>@TODO : VLT_STK(2) is overloaded to also indicate valueclasses 
-        // which should be VLT_STK_n. Just have a parameterized VLT_STK_n.</TODO>
-        return varLoc1.vlStk2.vls2BaseReg == varLoc1.vlStk2.vls2BaseReg &&
-               varLoc1.vlStk2.vls2Offset == varLoc1.vlStk2.vls2Offset;
+        return varLoc1.vlStk2.vls2BaseReg == varLoc2.vlStk2.vls2BaseReg &&
+               varLoc1.vlStk2.vls2Offset == varLoc2.vlStk2.vls2Offset;
 
     case ICorDebugInfo::VLT_FPSTK:
-        return varLoc1.vlFPstk.vlfReg == varLoc1.vlFPstk.vlfReg;
+        return varLoc1.vlFPstk.vlfReg == varLoc2.vlFPstk.vlfReg;
 
     default:
         _ASSERTE(!"Bad vlType"); return false;
@@ -1948,8 +1946,9 @@ DWORD GetLogicalCpuCountFromOS()
     static DWORD val = 0;
     DWORD retVal = 0;
 
-// UNIXTODO: Implement the functionality in PAL?
-#ifndef FEATURE_PAL    
+#ifdef FEATURE_PAL
+    retVal = PAL_GetLogicalCpuCountFromOS();
+#else // FEATURE_PAL    
     
     DWORD nEntries = 0;
 
@@ -2020,7 +2019,6 @@ lDone:
     {
         delete[] pslpi;                        // release the memory allocated for the SLPI array    
     }
-
 #endif // FEATURE_PAL
 
     return retVal;

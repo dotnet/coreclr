@@ -575,13 +575,19 @@ ValueNumStore::Chunk::Chunk(IAllocator* alloc, ValueNum* pNextBaseVN, var_types 
         switch (typ)
         {
         case TYP_INT:
+            m_defs = new (alloc) Alloc<TYP_INT>::Type[ChunkSize];
+            break;
         case TYP_FLOAT:
-            m_defs = new (alloc) INT32[ChunkSize];
+            m_defs = new (alloc) Alloc<TYP_FLOAT>::Type[ChunkSize];
             break;
         case TYP_LONG:
+            m_defs = new (alloc) Alloc<TYP_LONG>::Type[ChunkSize];
+            break;
         case TYP_DOUBLE:
+            m_defs = new (alloc) Alloc<TYP_DOUBLE>::Type[ChunkSize];
+            break;
         case TYP_BYREF:
-            m_defs = new (alloc) INT64[ChunkSize];
+            m_defs = new (alloc) Alloc<TYP_BYREF>::Type[ChunkSize];
             break;
         case TYP_REF:
             // We allocate space for a single REF constant, NULL, so we can access these values uniformly.
@@ -1610,7 +1616,7 @@ ValueNum ValueNumStore::EvalFuncForConstantFPArgs(var_types typ, VNFunc func, Va
 
     if (VNFuncIsComparison(func))
     {
-        assert(typ == TYP_INT);
+        assert(genActualType(typ) == TYP_INT);
         result = VNForIntCon(EvalComparison(func, arg0Val, arg1Val));
     }
     else
@@ -2711,9 +2717,18 @@ void ValueNumStore::GetArrLenBoundInfo(ValueNum vn, ArrLenArithBoundInfo* info)
     GetVNFunc(vn, &funcAttr);
 
     bool isOp1ArrLen = IsVNArrLen(funcAttr.m_args[1]);
-    info->cmpOper = funcAttr.m_func;
-    info->cmpOp = funcAttr.m_args[isOp1ArrLen ? 0 : 1];
-    info->vnArray = GetArrForLenVn(funcAttr.m_args[isOp1ArrLen ? 1 : 0]);
+    if (isOp1ArrLen)
+    {
+        info->cmpOper = funcAttr.m_func;
+        info->cmpOp = funcAttr.m_args[0];
+        info->vnArray = GetArrForLenVn(funcAttr.m_args[1]);
+    }
+    else
+    {
+        info->cmpOper = GenTree::SwapRelop((genTreeOps) funcAttr.m_func);
+        info->cmpOp = funcAttr.m_args[1];
+        info->vnArray = GetArrForLenVn(funcAttr.m_args[0]);
+    }
 }
 
 bool ValueNumStore::IsVNArrLenArith(ValueNum vn)
@@ -2736,9 +2751,18 @@ void ValueNumStore::GetArrLenArithInfo(ValueNum vn, ArrLenArithBoundInfo* info)
     GetVNFunc(vn, &funcArith);
 
     bool isOp1ArrLen = IsVNArrLen(funcArith.m_args[1]);
-    info->arrOper = funcArith.m_func;
-    info->arrOp = funcArith.m_args[isOp1ArrLen ? 0 : 1];
-    info->vnArray = GetArrForLenVn(funcArith.m_args[isOp1ArrLen ? 1 : 0]);
+    if (isOp1ArrLen)
+    {
+        info->arrOper = funcArith.m_func;
+        info->arrOp = funcArith.m_args[0];
+        info->vnArray = GetArrForLenVn(funcArith.m_args[1]);
+    }
+    else
+    {
+        info->arrOper = funcArith.m_func;
+        info->arrOp = funcArith.m_args[1];
+        info->vnArray = GetArrForLenVn(funcArith.m_args[0]);
+    }
 }
 
 bool ValueNumStore::IsVNArrLenArithBound(ValueNum vn)
@@ -2778,9 +2802,18 @@ void ValueNumStore::GetArrLenArithBoundInfo(ValueNum vn, ArrLenArithBoundInfo* i
 
     // Check whether op0 or op1 ia arr len arithmetic.
     bool isOp1ArrLenArith = IsVNArrLenArith(funcAttr.m_args[1]);
-    info->cmpOper = funcAttr.m_func;
-    info->cmpOp = funcAttr.m_args[isOp1ArrLenArith ? 0 : 1];
-    GetArrLenArithInfo(funcAttr.m_args[isOp1ArrLenArith ? 1 : 0], info);
+    if (isOp1ArrLenArith)
+    {
+        info->cmpOper = funcAttr.m_func;
+        info->cmpOp = funcAttr.m_args[0];
+        GetArrLenArithInfo(funcAttr.m_args[1], info);
+    }
+    else
+    {
+        info->cmpOper = GenTree::SwapRelop((genTreeOps) funcAttr.m_func);
+        info->cmpOp = funcAttr.m_args[1];
+        GetArrLenArithInfo(funcAttr.m_args[0], info);
+    }
 }
 
 ValueNum ValueNumStore::GetArrForLenVn(ValueNum vn)
@@ -2808,9 +2841,10 @@ int ValueNumStore::GetNewArrSize(ValueNum vn)
     VNFuncApp funcAttr;
     if (GetVNFunc(vn, &funcAttr) && funcAttr.m_func == VNF_JitNewArr)
     {
-        if (IsVNConstant(funcAttr.m_args[1]))
+        ValueNum arg1VN = funcAttr.m_args[1];
+        if (IsVNConstant(arg1VN) && TypeOfVN(arg1VN) == TYP_INT)
         {
-            return ConstantValue<int>(funcAttr.m_args[1]);
+            return ConstantValue<int>(arg1VN);
         }
     }
     return 0;
@@ -2886,7 +2920,22 @@ ValueNum ValueNumStore::EvalMathFunc(var_types typ, CorInfoIntrinsics gtMathFN, 
             vnf = VNF_Abs; 
             break;
         case CORINFO_INTRINSIC_Round:
-            vnf = VNF_Round; 
+            if (typ == TYP_DOUBLE)
+            {
+                vnf = VNF_RoundDouble;
+            }
+            else if (typ == TYP_FLOAT)
+            {
+                vnf = VNF_RoundFloat;
+            }
+            else if (typ == TYP_INT)
+            {
+                vnf = VNF_RoundInt;
+            }
+            else
+            {
+                noway_assert(!"Invalid INTRINSIC_Round");
+            }
             break;
         default:
             unreached(); // the above are the only math intrinsics at the time of this writing.
@@ -2894,6 +2943,7 @@ ValueNum ValueNumStore::EvalMathFunc(var_types typ, CorInfoIntrinsics gtMathFN, 
         assert(typ == TYP_DOUBLE 
             || typ == TYP_FLOAT
             || (typ == TYP_INT && gtMathFN == CORINFO_INTRINSIC_Round));
+
         return VNForFunc(typ, vnf, arg0VN);
     }
 }

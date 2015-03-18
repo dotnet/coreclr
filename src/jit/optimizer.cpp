@@ -4699,6 +4699,10 @@ bool                Compiler::optNarrowTree(GenTreePtr     tree,
             {
                 tree->gtType = TYP_INT;
                 tree->gtIntCon.gtIconVal = (int) ival;
+                if (vnStore != nullptr)
+                {
+                    fgValueNumberTreeConst(tree);
+                }
             }
 #endif // _TARGET_64BIT_
 
@@ -4853,6 +4857,7 @@ NARROW_IND:
                             tree->ChangeOper         (GT_NOP);
                             tree->gtType            = dstt;
                             tree->gtOp.gtOp2        = nullptr;
+                            tree->gtVNPair          = op1->gtVNPair;   // Set to op1's ValueNumber
                         }
                         else
                         {
@@ -5169,8 +5174,6 @@ void                    Compiler::optPerformHoistExpr(GenTreePtr origExpr, unsig
         hoist = gtUnusedValNode(hoistExpr);
     }
 
-    gtSetEvalOrder(hoist);
-
     /* Put the statement in the preheader */
 
     fgCreateLoopPreHeader(lnum);
@@ -5178,8 +5181,15 @@ void                    Compiler::optPerformHoistExpr(GenTreePtr origExpr, unsig
     BasicBlock *  preHead = optLoopTable[lnum].lpHead;
     assert (preHead->bbJumpKind == BBJ_NONE);
 
-    compCurBB = preHead; // fgMorphTree requires that compCurBB be the block that contains
-                         // (or in this case, will contain) the expression.
+    // fgMorphTree and lvaRecursiveIncRefCounts requires that compCurBB be the block that contains
+    // (or in this case, will contain) the expression.
+    compCurBB = preHead; 
+    
+    // Increment the ref counts of any local vars appearing in "hoist".
+    // Note that we need to do this before fgMorphTree() as fgMorph() could constant
+    // fold away some of the lcl vars referenced by "hoist".
+    lvaRecursiveIncRefCounts(hoist);
+
     hoist = fgMorphTree(hoist);
 
     GenTreePtr hoistStmt = gtNewStmt(hoist);
@@ -5218,11 +5228,9 @@ void                    Compiler::optPerformHoistExpr(GenTreePtr origExpr, unsig
     }
 #endif
 
-    // Update the ref counts of any local vars appearing in "hoist".
-    fgUpdateRefCntForClone(preHead, hoist);
-
     if (fgStmtListThreaded)
     {
+        gtSetStmtInfo(hoistStmt);
         fgSetStmtSeq(hoistStmt);
     }
 
@@ -6171,6 +6179,37 @@ void                 Compiler::fgCreateLoopPreHeader(unsigned   lnum)
 
     // Link in the preHead block.
     fgInsertBBbefore(top, preHead);
+
+    // Ideally we would re-run SSA and VN if we optimized by doing loop hoisting.
+    // However, that is too expensive at this point. Instead, we update the phi
+    // node block references, if we created pre-header block due to hoisting.
+    // This is sufficient because any definition participating in SSA that flowed
+    // into the phi via the loop header block will now flow through the preheader
+    // block from the header block.
+
+    for (GenTreePtr stmt = top->bbTreeList; stmt; stmt = stmt->gtNext)
+    {
+        GenTreePtr tree = stmt->gtStmt.gtStmtExpr;
+        if (tree->OperGet() != GT_ASG)
+        {
+            break;
+        }
+        GenTreePtr op2 = tree->gtGetOp2();
+        if (op2->OperGet() != GT_PHI)
+        {
+            break;
+        }
+        GenTreeArgList* args = op2->gtGetOp1()->AsArgList();
+        while (args != nullptr)
+        {
+            GenTreePhiArg* phiArg = args->Current()->AsPhiArg();
+            if (phiArg->gtPredBB == head)
+            {
+                phiArg->gtPredBB = preHead;
+            }
+            args = args->Rest();
+        }
+    }
 
     // The handler can't begin at the top of the loop.  If it did, it would be incorrect
     // to set the handler index on the pre header without updating the exception table.

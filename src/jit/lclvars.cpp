@@ -1180,6 +1180,11 @@ void   Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE     typeHnd,
                                          lvaStructPromotionInfo * StructPromotionInfo,
                                          bool                     sortFields)
 {    
+#ifdef UNIX_AMD64_ABI
+    // TODO-Amd64-Unix: For now don't promote structs on Linux.
+    // This should be brought online with the full SystemVStruct passing work.
+    return;
+#endif // UNIX_AMD64_ABI
     assert(eeIsValueClass(typeHnd));
     
     if (typeHnd != StructPromotionInfo->typeHnd)
@@ -1493,7 +1498,6 @@ void   Compiler::lvaPromoteStructVar(unsigned      lclNum, lvaStructPromotionInf
         fieldVarDsc->lvFldOrdinal     = pFieldInfo->fldOrdinal;            
         fieldVarDsc->lvParentLcl      = lclNum;
         fieldVarDsc->lvIsParam        = varDsc->lvIsParam;
-
 #if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
         // Do we have a parameter that can be enregistered?
         //
@@ -1927,6 +1931,26 @@ void Compiler::lvaRecursiveDecRefCounts(GenTreePtr tree)
     else
     {
         fgWalkTreePre(&tree, Compiler::lvaDecRefCntsCB, (void *)this, true);
+    }
+}
+
+// Increment the ref counts for all locals contained in the tree and its children.
+void Compiler::lvaRecursiveIncRefCounts(GenTreePtr tree)
+{
+    assert(lvaLocalVarRefCounted);
+
+    // We could just use the recursive walker for all cases but that is a 
+    // fairly heavyweight thing to spin up when we're usually just handling a leaf.
+    if (tree->OperIsLeaf())
+    {
+        if (tree->OperIsLocal())
+        {
+            lvaIncRefCnts(tree);
+        }
+    }
+    else
+    {
+        fgWalkTreePre(&tree, Compiler::lvaIncRefCntsCB, (void *)this, true);
     }
 }
 
@@ -3695,7 +3719,7 @@ void Compiler::lvaFixVirtualFrameOffsets()
         if (!varDsc->lvOnFrame)
         {
             if (!varDsc->lvIsParam 
-#if !defined(_TARGET_AMD64_) || defined(UNIX_AMD64_ABI)
+#if !defined(_TARGET_AMD64_)
                 || (varDsc->lvIsRegArg
 #if defined(_TARGET_ARM_) && defined(PROFILING_SUPPORTED)
                 && compIsProfilerHookNeeded() && !lvaIsPreSpilled(lclNum, codeGen->regSet.rsMaskPreSpillRegs(false))   // We need assign stack offsets for prespilled arguments
@@ -3710,7 +3734,7 @@ void Compiler::lvaFixVirtualFrameOffsets()
     
         if (doAssignStkOffs)
         {
-            varDsc->lvStkOffs += delta;
+           varDsc->lvStkOffs += delta;
 #if DOUBLE_ALIGN
             if (genDoubleAlign() && !codeGen->isFramePointerUsed())
             {
@@ -3727,10 +3751,8 @@ void Compiler::lvaFixVirtualFrameOffsets()
                 }
             }
 #endif
-#ifndef UNIX_AMD64_ABI
             // On System V environments the stkOffs could be 0 for params passed in registers.
             assert(codeGen->isFramePointerUsed() || varDsc->lvStkOffs >= 0); // Only EBP relative references can have negative offsets
-#endif // !UNIX_AMD64_ABI
         }
     }
 
@@ -3825,8 +3847,11 @@ void Compiler::lvaUpdateArgsWithInitialReg()
  */
 void Compiler::lvaAssignVirtualFrameOffsetsToArgs()
 {
-    unsigned lclNum = 0;
-    int      argOffs = 0;
+    unsigned lclNum     = 0;
+    int      argOffs    = 0;
+#ifdef UNIX_AMD64_ABI
+    int callerArgOffset = 0;
+#endif // UNIX_AMD64_ABI
 
     /*
         Assign stack offsets to arguments (in reverse order of passing).
@@ -3861,7 +3886,11 @@ void Compiler::lvaAssignVirtualFrameOffsetsToArgs()
     {
         noway_assert(lclNum == info.compThisArg);
 #ifndef _TARGET_X86_
+#ifdef UNIX_AMD64_ABI
+        argOffs = lvaAssignVirtualFrameOffsetToArg(lclNum, REGSIZE_BYTES, argOffs, &callerArgOffset);
+#else // !UNIX_AMD64_ABI
         argOffs = lvaAssignVirtualFrameOffsetToArg(lclNum, REGSIZE_BYTES, argOffs);
+#endif // !UNIX_AMD64_ABI
 #endif // _TARGET_X86_
         lclNum++;
     }
@@ -3873,7 +3902,11 @@ void Compiler::lvaAssignVirtualFrameOffsetsToArgs()
         noway_assert(lclNum == info.compRetBuffArg);
         noway_assert(lvaTable[lclNum].lvIsRegArg);
 #ifndef _TARGET_X86_
+#ifdef UNIX_AMD64_ABI
+        argOffs = lvaAssignVirtualFrameOffsetToArg(lclNum, REGSIZE_BYTES, argOffs, &callerArgOffset);
+#else // !UNIX_AMD64_ABI
         argOffs = lvaAssignVirtualFrameOffsetToArg(lclNum, REGSIZE_BYTES, argOffs);
+#endif // !UNIX_AMD64_ABI
 #endif // _TARGET_X86_
         lclNum++;
     }
@@ -3884,12 +3917,20 @@ void Compiler::lvaAssignVirtualFrameOffsetsToArgs()
     if (info.compMethodInfo->args.callConv & CORINFO_CALLCONV_PARAMTYPE)
     {
         noway_assert(lclNum == (unsigned)info.compTypeCtxtArg);
+#ifdef UNIX_AMD64_ABI
+        argOffs = lvaAssignVirtualFrameOffsetToArg(lclNum++, sizeof(void *), argOffs, &callerArgOffset);
+#else // UNIX_AMD64_ABI
         argOffs = lvaAssignVirtualFrameOffsetToArg(lclNum++, sizeof(void *), argOffs);
+#endif // UNIX_AMD64_ABI
     }
 
     if (info.compIsVarArgs)
     {
+#ifdef UNIX_AMD64_ABI
+        argOffs = lvaAssignVirtualFrameOffsetToArg(lclNum++, sizeof(void *), argOffs, &callerArgOffset);
+#else // !UNIX_AMD64_ABI
         argOffs = lvaAssignVirtualFrameOffsetToArg(lclNum++, sizeof(void *), argOffs);
+#endif // !UNIX_AMD64_ABI
     }
 
 #endif // USER_ARGS_COME_LAST
@@ -3935,10 +3976,18 @@ void Compiler::lvaAssignVirtualFrameOffsetsToArgs()
         if (lvaIsPreSpilled(preSpillLclNum, preSpillMask))
         {
             unsigned argSize = eeGetArgSize(argLst, &info.compMethodInfo->args);
+#ifdef UNIX_AMD64_ABI
+            argOffs = lvaAssignVirtualFrameOffsetToArg(
+                preSpillLclNum,
+                argSize,
+                argOffs,
+                &callerArgOffset);
+#else // !UNIX_AMD64_ABI
             argOffs = lvaAssignVirtualFrameOffsetToArg(
                 preSpillLclNum,
                 argSize,
                 argOffs);
+#endif // !UNIX_AMD64_ABI
             argLcls++;
 
             // Early out if we can. If size is 8 and base reg is 2, then the mask is 0x1100
@@ -3959,10 +4008,18 @@ void Compiler::lvaAssignVirtualFrameOffsetsToArgs()
     {
         if (!lvaIsPreSpilled(stkLclNum, preSpillMask))
         {
+#ifdef UNIX_AMD64_ABI
             argOffs = lvaAssignVirtualFrameOffsetToArg(
-                stkLclNum, 
+                stkLclNum,
+                eeGetArgSize(argLst, &info.compMethodInfo->args),
+                argOffs,
+                &callerArgOffset);
+#else // !UNIX_AMD64_ABI
+            argOffs = lvaAssignVirtualFrameOffsetToArg(
+                stkLclNum,
                 eeGetArgSize(argLst, &info.compMethodInfo->args),
                 argOffs);
+#endif // !UNIX_AMD64_ABI
             argLcls++;
         }
         argLst = info.compCompHnd->getArgNext(argLst);
@@ -3972,9 +4029,16 @@ void Compiler::lvaAssignVirtualFrameOffsetsToArgs()
 #else // !_TARGET_ARM_
     for (unsigned i = 0; i < argSigLen; i++)
     {
-        argOffs = lvaAssignVirtualFrameOffsetToArg(lclNum++, 
-                                                   eeGetArgSize(argLst, &info.compMethodInfo->args),
-                                                   argOffs);
+#ifdef UNIX_AMD64_ABI
+        argOffs = lvaAssignVirtualFrameOffsetToArg(lclNum++,
+            eeGetArgSize(argLst, &info.compMethodInfo->args),
+            argOffs,
+            &callerArgOffset);
+#else // !UNIX_AMD64_ABI
+        argOffs = lvaAssignVirtualFrameOffsetToArg(lclNum++,
+            eeGetArgSize(argLst, &info.compMethodInfo->args),
+            argOffs);
+#endif // UNIX_AMD64_ABI
         argLst = info.compCompHnd->getArgNext(argLst);
     }
 #endif // !_TARGET_ARM_
@@ -3985,23 +4049,39 @@ void Compiler::lvaAssignVirtualFrameOffsetsToArgs()
     if (info.compMethodInfo->args.callConv & CORINFO_CALLCONV_PARAMTYPE)
     {
         noway_assert(lclNum == (unsigned)info.compTypeCtxtArg);
+#ifdef UNIX_AMD64_ABI
+        argOffs = lvaAssignVirtualFrameOffsetToArg(lclNum++, sizeof(void *), argOffs, &callerArgOffset);
+#else // !UNIX_AMD64_ABI
         argOffs = lvaAssignVirtualFrameOffsetToArg(lclNum++, sizeof(void *), argOffs);
+#endif // !UNIX_AMD64_ABI
     }
 
     if (info.compIsVarArgs)
     {
+#ifdef UNIX_AMD64_ABI
+        argOffs = lvaAssignVirtualFrameOffsetToArg(lclNum++, sizeof(void *), argOffs, &callerArgOffset);
+#else // !UNIX_AMD64_ABI
         argOffs = lvaAssignVirtualFrameOffsetToArg(lclNum++, sizeof(void *), argOffs);
+#endif // !UNIX_AMD64_ABI
     }
 
 #endif // USER_ARGS_COME_LAST
 
 }
 
-/*****************************************************************************
- *  lvaAssignVirtualFrameOffsetToArg() : Assign virtual stack offsets to an
- *  individual argument, and return the offset for the next argument.
- */
+//
+//  lvaAssignVirtualFrameOffsetToArg() : Assign virtual stack offsets to an
+//  individual argument, and return the offset for the next argument.
+//  Note: This method only calculates the initial offset of the stack passed/spilled arguments 
+//  (if any - the RA might decide to spill(home on the stack) register passed arguments, if rarely used.)
+//        The final offset is calculated in lvaFixVirtualFrameOffsets method. It accounts for FP existance, 
+//        ret address slot, stack frame padding, alloca instructions, etc. 
+//
+#ifdef UNIX_AMD64_ABI
+int Compiler::lvaAssignVirtualFrameOffsetToArg(unsigned lclNum, unsigned argSize, int argOffs, int * callerArgOffset)
+#else // !UNIX_AMD64_ABI
 int Compiler::lvaAssignVirtualFrameOffsetToArg(unsigned lclNum, unsigned argSize, int argOffs)
+#endif // !UNIX_AMD64_ABI
 {
     noway_assert(lclNum < info.compArgsCount);
     noway_assert(argSize);
@@ -4044,12 +4124,20 @@ int Compiler::lvaAssignVirtualFrameOffsetToArg(unsigned lclNum, unsigned argSize
 #if defined(_TARGET_X86_)
         argOffs += sizeof(void *);
 #elif defined(_TARGET_AMD64_)
-#ifndef UNIX_AMD64_ABI
-        // The offset for args need not to be set for System V.
-        // No outgoing args for callees. The spilled args offsets will be set later.
-        varDsc->lvStkOffs = argOffs;
-        argOffs += sizeof(void *);
-#endif // !UNIX_AMD64_ABI
+#ifdef UNIX_AMD64_ABI
+        if (varDsc->lvOnFrame)
+#endif
+        {
+            // The offset for args needs to be set only for the stack homed arguments for System V.
+            varDsc->lvStkOffs = argOffs;
+            argOffs += sizeof(void *);
+        }
+#ifdef UNIX_AMD64_ABI
+        else 
+        {
+            varDsc->lvStkOffs = 0;
+        }
+#endif
 #elif defined(_TARGET_ARM64_)
         // Register arguments don't take stack space.
 #elif defined(_TARGET_ARM_)
@@ -4242,7 +4330,21 @@ int Compiler::lvaAssignVirtualFrameOffsetToArg(unsigned lclNum, unsigned argSize
         }
 #endif // _TARGET_ARM_
 
+#ifdef UNIX_AMD64_ABI
+        // For Windows there are 4 slots for the register passed arguments on the top of the caller's stack. This is where they are always homed.
+        // So, they can be accessed with positive offset.
+        // On System V platforms, if the RA decides to home a register passed arg on the stack,
+        // it creates a stack location on the callee stack (like any other local var.) In such a case, the register passed, stack homed arguments
+        // are accessed using negative offsets and the stack passed arguments are accessed using positive offset (from the caller's stack.)
+        // For  System V platforms if there is no frame pointer the caller stack parameter offset should include the callee allocated space.
+        // If frame register is used, the callee allocated space should not be included for accessing the caller stack parameters.
+        // The last two requirements are met in lvaFixVirtualFrameOffsets method, which fixes the offsets, based on frame pointer existence, 
+        // existence of alloca instructions, ret address pushed, ets.
+        varDsc->lvStkOffs = *callerArgOffset;
+        *callerArgOffset += TARGET_POINTER_SIZE;
+#else // !UNIX_AMD64_ABI
         varDsc->lvStkOffs = argOffs;
+#endif // !UNIX_AMD64_ABI
     }
 
     // For struct promoted parameters we need to set the offsets for both LclVars.
@@ -4292,7 +4394,6 @@ int Compiler::lvaAssignVirtualFrameOffsetToArg(unsigned lclNum, unsigned argSize
 void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
 {
     int stkOffs = 0;
-
     // codeGen->isFramePointerUsed is set in regalloc phase. Initialize it to a guess for pre-regalloc layout.
     if (lvaDoneFrameLayout <= PRE_REGALLOC_FRAME_LAYOUT)    
         codeGen->setFramePointerUsed(codeGen->isFramePointerRequired());
@@ -4600,7 +4701,7 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
                the promotion type is PROMOTION_TYPE_FIELD_DEPENDENT.            
             */            
             if (lvaIsFieldOfDependentlyPromotedStruct(varDsc))
-            {                
+            {        
                 continue;
             }
 
@@ -4783,7 +4884,7 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
                 have_LclVarDoubleAlign = true;
             }
 
-            /* Reserve the stack space for this variable */
+            // Reserve the stack space for this variable
             stkOffs = lvaAllocLocalAndSetVirtualOffset(lclNum, lvaLclSize(lclNum), stkOffs);
         }
     }
@@ -4802,7 +4903,6 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
          *
          *-------------------------------------------------------------------------
          */
-
         stkOffs = lvaAllocateTemps(stkOffs, mustDoubleAlign);
     }
 
@@ -5719,7 +5819,6 @@ unsigned            Compiler::lvaFrameSize(FrameLayoutState curState)
 #endif
 
     result = compLclFrameSize + calleeSavedRegMaxSz;
-
     return result;
 }
 

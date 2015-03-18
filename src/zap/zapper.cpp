@@ -437,6 +437,7 @@ ZapperOptions::ZapperOptions() :
   m_fPartialNGen(false),
   m_fPartialNGenSet(false),
   m_fNGenLastRetry(false),
+  m_legacyMode(false),
 #ifdef FEATURE_CORECLR
   m_fNoMetaData(s_fNGenNoMetaData),
 #endif
@@ -754,7 +755,7 @@ void Zapper::LoadAndInitializeJITForNgen(LPCWSTR pwzJitName, OUT HINSTANCE* phJi
 
     if (FAILED(hr))
     {
-        Error(W("Unable to load Jit Compiler: %s\r\n"), pwzJitName);
+        Error(W("Unable to load Jit Compiler: %s, hr=0x%08x\r\n"), pwzJitName, hr);
         ThrowLastError();
     }
 

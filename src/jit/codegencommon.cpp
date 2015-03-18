@@ -763,14 +763,21 @@ regMaskTP Compiler::compHelperCallKillSet(CorInfoHelpFunc helper)
 #endif
 
     case CORINFO_HELP_PROF_FCN_ENTER:
+#ifdef _TARGET_AMD64_
+        return RBM_PROFILER_ENTER_TRASH;
+#else
+        unreached();
+#endif
     case CORINFO_HELP_PROF_FCN_LEAVE:
     case CORINFO_HELP_PROF_FCN_TAILCALL:
 #ifdef _TARGET_AMD64_
-        return RBM_PROFILER_ELT_TRASH;
+        return RBM_PROFILER_LEAVE_TRASH;
 #else
         unreached();
 #endif
 
+    case CORINFO_HELP_STOP_FOR_GC:
+        return RBM_STOP_FOR_GC_TRASH;
 
     default:
         return RBM_CALLEE_TRASH;
@@ -791,9 +798,11 @@ regMaskTP Compiler::compNoGCHelperCallKillSet(CorInfoHelpFunc helper)
     switch (helper)
     {
     case CORINFO_HELP_PROF_FCN_ENTER:
+        return RBM_PROFILER_ENTER_TRASH;
+
     case CORINFO_HELP_PROF_FCN_LEAVE:
     case CORINFO_HELP_PROF_FCN_TAILCALL:
-        return RBM_PROFILER_ELT_TRASH;
+        return RBM_PROFILER_LEAVE_TRASH;
 
     default:
         return RBM_CALLEE_TRASH_NOGC;
@@ -4821,15 +4830,7 @@ void CodeGen::genCheckUseBlockInit()
        we waste all the other slots.  Really need to compute the correct
        and compare that against zeroing the slots individually */
 
-#if defined(UNIX_AMD64_ABI)
-    // For AMD64_UNIX don't use block initialization if there is no FrameRegister.
-    // The RDI and RSI registers are in the block initialization and are also
-    // the first two parameters to a callee. 
-    // Need to push and pop them in the prolog and this will break unwinding.
-    genUseBlockInit = (genInitStkLclCnt > (largeGcStructs + 4)) && isFramePointerUsed();
-#else // UNIX_AMD64_ABI
-	genUseBlockInit = (genInitStkLclCnt > (largeGcStructs + 4)); 
-#endif // UNIX_AMD64_ABI
+    genUseBlockInit = (genInitStkLclCnt > (largeGcStructs + 4)); 
 
     if  (genUseBlockInit)
     {
@@ -4843,20 +4844,36 @@ void CodeGen::genCheckUseBlockInit()
         }
 
 #ifdef _TARGET_XARCH_
-        /* If we're going to use "REP STOS", remember that we will trash EDI */
-        /* For fastcall we will have to save ECX, EAX
-         * so reserve two extra callee saved
-         * This is better than pushing eax, ecx, because we in the later
-         * we will mess up already computed offsets on the stack (for ESP frames)
-         */
-
+        // If we're going to use "REP STOS", remember that we will trash EDI
+        // For fastcall we will have to save ECX, EAX
+        // so reserve two extra callee saved
+        // This is better than pushing eax, ecx, because we in the later
+        // we will mess up already computed offsets on the stack (for ESP frames)
         regSet.rsSetRegsModified(RBM_EDI);
 
-        if  (maskCalleeRegArgMask & RBM_ECX)
-            regSet.rsSetRegsModified(RBM_ESI);
+        // For register arguments we may have to save ECX (and RDI on Amd64 System V OSes.)
+        // In such case use R12 and R13 registers.
+#ifdef UNIX_AMD64_ABI
+        if (maskCalleeRegArgMask & RBM_RCX)
+        {
+            regSet.rsSetRegsModified(RBM_R12);
+        }
 
-        if  (maskCalleeRegArgMask & RBM_EAX)
+        if (maskCalleeRegArgMask & RBM_RDI)
+        {
+            regSet.rsSetRegsModified(RBM_R13);
+        }
+#else // !UNIX_AMD64_ABI
+        if (maskCalleeRegArgMask & RBM_ECX)
+        {
+            regSet.rsSetRegsModified(RBM_ESI);
+        }
+#endif // !UNIX_AMD64_ABI
+
+        if (maskCalleeRegArgMask & RBM_EAX)
+        {
             regSet.rsSetRegsModified(RBM_EBX);
+        }
 
 #endif // _TARGET_XARCH_
 #ifdef _TARGET_ARM_
@@ -5402,23 +5419,43 @@ void CodeGen::genAllocLclFrame(unsigned  frameSize,
 
 #else // !CPU_LOAD_STORE_ARCH
 
+        // Code size for each instruction. We need this because the 
+        // backward branch is hard-coded with the number of bytes to branch.
+
         // loop:
+        // For x86
         //      test [esp + eax], eax       3
         //      sub eax, 0x1000             5
         //      cmp EAX, -frameSize         5
         //      jge loop                    2
+        //
+        // For AMD64 using RAX
+        //      test [rsp + rax], rax       4
+        //      sub rax, 0x1000             6
+        //      cmp rax, -frameSize         6
+        //      jge loop                    2
+        //
+        // For AMD64 using RBP
+        //      test [rsp + rbp], rbp       4
+        //      sub rbp, 0x1000             7
+        //      cmp rbp, -frameSize         7
+        //      jge loop                    2
         getEmitter()->emitIns_R_ARR(INS_TEST, EA_PTRSIZE, initReg, REG_SPBASE, initReg, 0);
         inst_RV_IV(INS_sub,  initReg, CORINFO_PAGE_SIZE, EA_PTRSIZE);
         inst_RV_IV(INS_cmp,  initReg, -((ssize_t)frameSize), EA_PTRSIZE);
-        inst_IV   (INS_jge, -15 AMD64_ONLY(-3));   // Branch backwards to Start of Loop
+        int extraBytesForBackJump = 0;
+#ifdef _TARGET_AMD64_
+        extraBytesForBackJump = ((initReg == REG_EAX) ? 3 : 5);
+#endif // _TARGET_AMD64_
+        inst_IV(INS_jge, -15 - extraBytesForBackJump);   // Branch backwards to Start of Loop
 
 #endif // !CPU_LOAD_STORE_ARCH
 
         *pInitRegZeroed = false;  // The initReg does not contain zero
 
 #ifdef _TARGET_XARCH_
-        // The backward branch above depends upon using EAX
-        assert(initReg == REG_EAX);
+        // The backward branch above depends upon using EAX (and for Amd64 funclets EBP)
+        assert((initReg == REG_EAX) AMD64_ONLY(|| (initReg == REG_EBP)));
 
         if (pushedStubParam)
         {
@@ -6038,7 +6075,6 @@ void            CodeGen::genPopCalleeSavedRegisters(bool jmpEpilog)
         popCount++;
         inst_RV(INS_pop, REG_EDI, TYP_I_IMPL);
     }
-
     noway_assert(compiler->compCalleeRegsPushed == popCount);
 }
 
@@ -6080,12 +6116,6 @@ void        CodeGen::genZeroInitFrame(int        untrLclHi,
 
     if  (genUseBlockInit)
     {
-#ifdef UNIX_AMD64_ABI
-        // Should not be here for Unix AMD64 if there is no Frame Pointer used.
-        // No block initialization in this case.
-        assert(isFramePointerUsed());
-#endif // UNIX_AMD64_ABI
-
         assert(untrLclHi > untrLclLo);
 #ifdef _TARGET_ARMARCH_
         /*
@@ -6254,11 +6284,6 @@ void        CodeGen::genZeroInitFrame(int        untrLclHi,
         noway_assert(uCntBytes == 0);
 
 #elif defined(_TARGET_XARCH_)
-#ifdef UNIX_AMD64_ABI
-        // Save the RDI and RSI since they are the first and second params on System V systems.
-        inst_RV(INS_push, REG_RDI, TYP_I_IMPL);
-        inst_RV(INS_push, REG_RSI, TYP_I_IMPL);
-#endif // UNIX_AMD64_ABI
         /*
             Generate the following code:
 
@@ -6270,14 +6295,29 @@ void        CodeGen::genZeroInitFrame(int        untrLclHi,
 
         noway_assert(regSet.rsRegsModified(RBM_EDI));
 
-        /* For register arguments we may have to save ECX */
-      
-        if  (intRegState.rsCalleeRegArgMaskLiveIn & RBM_ECX)
+        // For register arguments we may have to save ECX (and RDI on Amd64 System V OSes.)
+#ifdef UNIX_AMD64_ABI
+        if (intRegState.rsCalleeRegArgMaskLiveIn & RBM_RCX)
+        {
+            noway_assert(regSet.rsRegsModified(RBM_R12));
+            inst_RV_RV(INS_mov, REG_R12, REG_RCX);
+            regTracker.rsTrackRegTrash(REG_R12);
+        }
+
+        if (intRegState.rsCalleeRegArgMaskLiveIn & RBM_RDI)
+        {
+            noway_assert(regSet.rsRegsModified(RBM_R13));
+            inst_RV_RV(INS_mov, REG_R13, REG_RDI);
+            regTracker.rsTrackRegTrash(REG_R13);
+        }
+#else // !UNIX_AMD64_ABI      
+        if (intRegState.rsCalleeRegArgMaskLiveIn & RBM_ECX)
         {
             noway_assert(regSet.rsRegsModified(RBM_ESI));
             inst_RV_RV(INS_mov, REG_ESI, REG_ECX);
             regTracker.rsTrackRegTrash(REG_ESI);
         }
+#endif // !UNIX_AMD64_ABI      
 
         noway_assert((intRegState.rsCalleeRegArgMaskLiveIn & RBM_EAX) == 0);
 
@@ -6292,16 +6332,24 @@ void        CodeGen::genZeroInitFrame(int        untrLclHi,
         instGen_Set_Reg_To_Zero(EA_PTRSIZE, REG_EAX);
         instGen   (INS_r_stosd);
 
-        /* Move back the argument registers */
-
-        if  (intRegState.rsCalleeRegArgMaskLiveIn & RBM_ECX)
-            inst_RV_RV(INS_mov, REG_ECX, REG_ESI);
-
+        // Move back the argument registers
 #ifdef UNIX_AMD64_ABI
-        // Restore the RDI and RSI.
-         inst_RV(INS_pop, REG_RSI, TYP_I_IMPL);
-         inst_RV(INS_pop, REG_RDI, TYP_I_IMPL);
-#endif // UNIX_AMD64_ABI
+        if (intRegState.rsCalleeRegArgMaskLiveIn & RBM_RCX)
+        {
+            inst_RV_RV(INS_mov, REG_RCX, REG_R12);
+        }
+        
+        if (intRegState.rsCalleeRegArgMaskLiveIn & RBM_RDI)
+        {
+            inst_RV_RV(INS_mov, REG_RDI, REG_R13);
+        }
+#else // !UNIX_AMD64_ABI
+        if (intRegState.rsCalleeRegArgMaskLiveIn & RBM_ECX)
+        {
+            inst_RV_RV(INS_mov, REG_ECX, REG_ESI);
+        }
+#endif // !UNIX_AMD64_ABI
+
 #else // _TARGET_*
 #error Unsupported or unset target architecture
 #endif // _TARGET_*
@@ -6651,7 +6699,7 @@ void CodeGen::genProfilingEnterCallback(regNumber  initReg,
     // This will emit either 
     // "call ip-relative 32-bit offset" or 
     // "mov rax, helper addr; call rax"
-    genEmitHelperCall(CORINFO_HELP_PROF_FCN_ENTER, 0, EA_UNKNOWN);
+    genEmitHelperCall(CORINFO_HELP_PROF_FCN_ENTER, 0, EA_UNKNOWN);  
 
     // TODO-AMD64-CQ: Rather than reloading, see if this could be optimized by combining with prolog
     // generation logic that moves args around as required by first BB entry point conditions
@@ -6738,6 +6786,9 @@ void CodeGen::genProfilingEnterCallback(regNumber  initReg,
     //
     genPrologPadForReJit();
 
+    // This will emit either 
+    // "call ip-relative 32-bit offset" or 
+    // "mov rax, helper addr; call rax"
     genEmitHelperCall(CORINFO_HELP_PROF_FCN_ENTER,
                       0,             // argSize. Again, we have to lie about it
                       EA_UNKNOWN);   // retSize
@@ -6798,7 +6849,7 @@ void                CodeGen::genProfilingLeaveCallback(unsigned helper /*= CORIN
     if (compiler->lvaKeepAliveAndReportThis() && compiler->lvaTable[compiler->info.compThisArg].lvIsInReg())
     {
         regMaskTP thisPtrMask = genRegMask(compiler->lvaTable[compiler->info.compThisArg].lvRegNum);
-        noway_assert((RBM_PROFILER_ELT_TRASH & thisPtrMask) == 0);
+        noway_assert((RBM_PROFILER_LEAVE_TRASH & thisPtrMask) == 0);
     }
 
     // At this point return value is computed and stored in RAX or XMM0.
@@ -9615,12 +9666,13 @@ void                CodeGen::genFuncletProlog(BasicBlock* block)
     regMaskTP maskArgRegsLiveIn;
     if ((block->bbCatchTyp == BBCT_FINALLY) || (block->bbCatchTyp == BBCT_FAULT))
     {
-        maskArgRegsLiveIn = RBM_ECX;
+        maskArgRegsLiveIn = RBM_ARG_0;
     }
     else
     {
-        maskArgRegsLiveIn = RBM_ECX | RBM_EDX;
+        maskArgRegsLiveIn = RBM_ARG_0 | RBM_ARG_2;
     }
+
 
     regNumber initReg = REG_EBP; // We already saved EBP, so it can be trashed
     bool initRegZeroed = false;
@@ -9634,7 +9686,8 @@ void                CodeGen::genFuncletProlog(BasicBlock* block)
     // This is the end of the OS-reported prolog for purposes of unwinding
     compiler->unwindEndProlog();
 
-    getEmitter()->emitIns_R_AR(INS_mov, EA_PTRSIZE, REG_FPBASE, REG_ECX, genFuncletInfo.fiPSP_slot_InitialSP_offset);
+    getEmitter()->emitIns_R_AR(INS_mov, EA_PTRSIZE, REG_FPBASE, REG_ARG_0, genFuncletInfo.fiPSP_slot_InitialSP_offset);
+
     regTracker.rsTrackRegTrash(REG_FPBASE);
 
     getEmitter()->emitIns_AR_R(INS_mov, EA_PTRSIZE, REG_FPBASE, REG_SPBASE, genFuncletInfo.fiPSP_slot_InitialSP_offset);

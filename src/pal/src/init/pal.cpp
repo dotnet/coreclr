@@ -53,6 +53,8 @@ Abstract:
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <limits.h>
+#include <string.h>
+#include <fcntl.h>
 
 #if HAVE_POLL
 #include <poll.h>
@@ -93,14 +95,14 @@ static PCRITICAL_SECTION init_critsec = NULL;
 char g_szCoreCLRPath[MAX_PATH] = { 0 };
 
 static BOOL INIT_IncreaseDescriptorLimit(void);
-static LPWSTR INIT_FormatCommandLine (CPalThread *pThread, int argc, const char **argv);
+static LPWSTR INIT_FormatCommandLine (CPalThread *pThread, int argc, const char * const *argv);
 static LPWSTR INIT_FindEXEPath(CPalThread *pThread, LPCSTR exe_name);
 
 #ifdef _DEBUG
 extern void PROCDumpThreadList(void);
 #endif
 
-char g_ExePath[MAX_PATH];
+char g_ExePath[MAX_PATH] = { 0 };
 
 #if defined(__APPLE__)
 static bool RunningNatively()
@@ -135,7 +137,7 @@ int
 PALAPI
 PAL_Initialize(
             int argc,
-            const char *argv[])
+            const char *const argv[])
 {
     PAL_ERROR palError = ERROR_GEN_FAILURE;
     CPalThread *pThread = NULL;
@@ -224,16 +226,6 @@ PAL_Initialize(
         }
 #endif  // _DEBUG
     
-        /* Output the ENTRY here, since it doesn't work before initializing
-           debug channels */
-        ENTRY("PAL_Initialize(argc = %d argv = %p)\n", argc, argv);
-
-        if(argc<1 || argv==NULL)
-        {
-            ERROR("First-time initialization attempted with bad parameters!\n");
-            goto done;
-        }
-
         if (!INIT_IncreaseDescriptorLimit())
         {
             ERROR("Unable to increase the file descriptor limit!\n");
@@ -356,43 +348,47 @@ PAL_Initialize(
             goto CLEANUP1c;
         }
 
-        /* build the command line */
-        command_line=INIT_FormatCommandLine(pThread, argc,argv);
-        if (NULL == command_line)
+        if (argc > 0 && argv != NULL)
         {
-            ERROR("Error building command line\n");
-            goto CLEANUP1d;
-        }
+            /* build the command line */
+            command_line = INIT_FormatCommandLine(pThread, argc, argv);
+            if (NULL == command_line)
+            {
+                ERROR("Error building command line\n");
+                goto CLEANUP1d;
+            }
 
-        /* find out the application's full path */
-        exe_path=INIT_FindEXEPath(pThread, argv[0]);
-        if (NULL == exe_path)
-        {
-            ERROR("Unable to find exe path\n");
-            goto CLEANUP1e;
-        }
+            /* find out the application's full path */
+            exe_path = INIT_FindEXEPath(pThread, argv[0]);
+            if (NULL == exe_path)
+            {
+                ERROR("Unable to find exe path\n");
+                goto CLEANUP1e;
+            }
 
-        if (!WideCharToMultiByte (CP_ACP, 0, exe_path, -1, g_ExePath,
-                                 sizeof (g_ExePath), NULL, NULL)) {
-            ERROR("Failed to store process executable path\n");
-            goto CLEANUP2;
-        }
+            if (!WideCharToMultiByte(CP_ACP, 0, exe_path, -1, g_ExePath,
+                sizeof(g_ExePath), NULL, NULL))
+            {
+                ERROR("Failed to store process executable path\n");
+                goto CLEANUP2;
+            }
 
-        if(NULL == command_line || NULL == exe_path)
-        {
-            ERROR("Failed to process command-line parameters!\n");
-            goto CLEANUP2;
-        }
+            if (NULL == command_line || NULL == exe_path)
+            {
+                ERROR("Failed to process command-line parameters!\n");
+                goto CLEANUP2;
+            }
 
 #ifdef PAL_PERF
-        // Initialize the Profiling structure
-        if(FALSE == PERFInitialize(command_line, exe_path)) 
-        {
-            ERROR("Performance profiling initial failed\n");
-            goto done;
-        }    
-        PERFAllocThreadInfo();
+            // Initialize the Profiling structure
+            if(FALSE == PERFInitialize(command_line, exe_path)) 
+            {
+                ERROR("Performance profiling initial failed\n");
+                goto done;
+            }    
+            PERFAllocThreadInfo();
 #endif
+        }
 
         //
         // Create the initial process and thread objects
@@ -659,8 +655,44 @@ BOOL
 PALAPI
 PAL_IsDebuggerPresent()
 {
-    // Always retun false for now.
+#if defined(__LINUX__)
+    BOOL debugger_present = FALSE;
+    char buf[2048];
+
+    int status_fd = open("/proc/self/status", O_RDONLY);
+    if (status_fd == -1)
+    {
+        return FALSE;
+    }
+    ssize_t num_read = read(status_fd, buf, sizeof(buf) - 1);
+
+    if (num_read > 0)
+    {
+        static const char TracerPid[] = "TracerPid:";
+        char *tracer_pid;
+
+        buf[num_read] = '\0';
+        tracer_pid = strstr(buf, TracerPid);
+        if (tracer_pid)
+        {
+            debugger_present = !!atoi(tracer_pid + sizeof(TracerPid) - 1);
+        }
+    }
+
+    return debugger_present;
+#elif defined(__APPLE__)
+    struct kinfo_proc info = {};
+    size_t size = sizeof(info);
+    int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid() };
+    int ret = sysctl(mib, sizeof(mib)/sizeof(*mib), &info, &size, NULL, 0);
+
+    if (ret == 0)
+        return ((info.kp_proc.p_flag & P_TRACED) != 0);
+
     return FALSE;
+#else
+    return FALSE;
+#endif
 }
 
 /*++
@@ -1070,7 +1102,7 @@ Note : not all peculiarities of Windows command-line processing are supported;
      passed to argv as \\a... there may be other similar cases
     -there may be other characters which must be escaped 
 --*/
-static LPWSTR INIT_FormatCommandLine (CPalThread *pThread, int argc, const char **argv)
+static LPWSTR INIT_FormatCommandLine (CPalThread *pThread, int argc, const char * const *argv)
 {
     LPWSTR retval;
     LPSTR command_line=NULL, command_ptr;

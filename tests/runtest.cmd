@@ -8,7 +8,7 @@ if /i "%1" == "x64"    (set __BuildArch=x64&set __MSBuildBuildArch=x64&shift&got
 if /i "%1" == "debug"    (set __BuildType=debug&shift&goto Arg_Loop)
 if /i "%1" == "release"   (set __BuildType=release&shift&goto Arg_Loop)
 if /i "%1" == "SkipWrapperGeneration" (set __SkipWrapperGeneration=true&shift&goto Arg_Loop)
-if /i "%1" == "EnableMSILC" (set __EnableMSILC=true&shift&goto Arg_Loop)
+if /i "%1" == "TestEnv" (set __TestEnv=%2&shift&shift&goto Arg_Loop)
 
 if /i "%1" == "/?"      (goto Usage)
 
@@ -37,9 +37,10 @@ if not defined VSINSTALLDIR echo Error: runtest.cmd should be run from a Visual 
 
 if not defined __BuildArch set __BuildArch=x64
 if not defined __BuildType set __BuildType=debug
-if not defined __BinDir    set  __BinDir=%__ProjectFilesDir%..\binaries\Product\%__BuildArch%\%__BuildType%
-if not defined __TestWorkingDir set __TestWorkingDir=%__ProjectFilesDir%..\binaries\tests\%__BuildArch%\%__BuildType%
-if not defined __LogsDir        set  __LogsDir=%__ProjectFilesDir%..\binaries\Logs\
+if not defined __BuildOS set __BuildOS=Windows_NT
+if not defined __BinDir    set  __BinDir=%__ProjectFilesDir%..\binaries\Product\%__BuildOS%.%__BuildArch%.%__BuildType%
+if not defined __TestWorkingDir set __TestWorkingDir=%__ProjectFilesDir%..\binaries\tests\%__BuildOS%.%__BuildArch%.%__BuildType%
+if not defined __LogsDir        set  __LogsDir=%__ProjectFilesDir%..\binaries\Logs
 
 :: Default global test environmet variables
 if not defined XunitTestBinBase       set  XunitTestBinBase=%__TestWorkingDir%\
@@ -54,13 +55,14 @@ set Core_Root=%__BinDir%
 if not exist %XunitTestBinBase% echo Error: Ensure the Test Binaries are built and are present at %XunitTestBinBase%, Run - buildtest.cmd %__BuildArch% %__BuildType% to build the tests first. && exit /b 1
 if "%Core_Root%" == ""             echo Error: Ensure you have done a successful build of the Product and Run - runtest BuildArch BuildType {path to product binaries}. && exit /b 1
 if not exist %Core_Root%\coreclr.dll echo Error: Ensure you have done a successful build of the Product and %Core_Root% contains runtime binaries. && exit /b 1
+if not "%__TestEnv%"==""           (if not exist %__TestEnv% echo Error: Test Environment script not found && exit /b 1) 
 if not exist %__LogsDir%           md  %__LogsDir%
 
 :SkipDefaultCoreRootSetup
-set __XunitWrapperBuildLog=%__LogsDir%\Tests_XunitWrapper_%__BuildArch%__%__BuildType%.log
-set __TestRunBuildLog=%__LogsDir%\TestRunResults_%__BuildArch%__%__BuildType%.log
-set __TestRunHtmlLog=%__LogsDir%\TestRun_%__BuildArch%_%__BuildType%.html
-set __TestRunXmlLog=%__LogsDir%\TestRun_%__BuildArch%_%__BuildType%.xml
+set __XunitWrapperBuildLog=%__LogsDir%\Tests_XunitWrapper_%__BuildOS%__%__BuildArch%__%__BuildType%.log
+set __TestRunBuildLog=%__LogsDir%\TestRunResults_%__BuildOS%__%__BuildArch%__%__BuildType%.log
+set __TestRunHtmlLog=%__LogsDir%\TestRun_%__BuildOS%__%__BuildArch%_%__BuildType%.html
+set __TestRunXmlLog=%__LogsDir%\TestRun_%__BuildOS%__%__BuildArch%_%__BuildType%.xml
 
 echo "Core_Root that will be used is : %Core_Root%"
 echo "Starting The Test Run .. "
@@ -128,12 +130,12 @@ goto :eof
 :Usage
 echo.
 echo Usage:
-echo %0 BuildArch BuildType [SkipWrapperGeneration] CORE_ROOT   where:
+echo %0 BuildArch BuildType [SkipWrapperGeneration] [TestEnv TEST_ENV_SCRIPT] CORE_ROOT   where:
 echo.
 echo BuildArch is x64
 echo BuildType can be: Debug, Release
-echo SkipWrapperGeneration- Optional parameter this will run the same set of tests as the last time it was run
-echo EnableMSILC- Optional parameter this will use MSILC JIT, an alternative JIT for testing
+echo SkipWrapperGeneration- Optional parameter - this will run the same set of tests as the last time it was run
+echo TestEnv- Optional parameter - this will run a custom script to set custom test envirommnent settings.
 echo CORE_ROOT The path to the runtime  
 goto :eof
 

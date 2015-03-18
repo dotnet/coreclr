@@ -390,10 +390,7 @@ class CodeHeap
     VPTR_BASE_VTABLE_CLASS(CodeHeap)
 
 public:
-
-#ifdef DACCESS_COMPILE
     CodeHeap() {}
-#endif
 
     // virtual dtor. Clean up heap
     virtual ~CodeHeap() {}
@@ -1142,6 +1139,7 @@ public:
 class ExecutionManager
 {
     friend class CorExternalDataAccess;
+    friend struct _DacGlobals;
 
 #ifdef DACCESS_COMPILE
     friend class ClrDataAccess;
@@ -1281,7 +1279,7 @@ public:
                           LoaderAllocator *pLoaderAllocator = NULL);
 #endif
 
-private :
+private:
     static RangeSection * FindCodeRangeWithLock(PCODE currentPC);
 
     static BOOL IsManagedCodeWithLock(PCODE currentPC);

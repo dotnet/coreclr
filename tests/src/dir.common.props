@@ -5,8 +5,10 @@
   <PropertyGroup>
     <__BuildArch Condition="'$(__BuildArch)' == ''">x64</__BuildArch>
     <__BuildType Condition="'$(__BuildType)' == ''">Debug</__BuildType>
+    <__BuildOS Condition="'$(__BuildOS)' == ''">Windows_NT</__BuildOS>
     <BuildArch>$(__BuildArch)</BuildArch>
     <BuildType>$(__BuildType)</BuildType>
+    <BuildOS>$(__BuildOS)</BuildOS>
     <Configuration Condition="'$(Configuration)' ==''">$(BuildType)</Configuration>
     <Platform Condition="'$(Platform)'==''">$(BuildArch)</Platform>
   </PropertyGroup>
@@ -27,13 +29,15 @@
 
 <!-- Setup the default output and intermediate paths -->
   <PropertyGroup>
-    <BaseOutputPathWithConfig>$(ProjectDir)\..\binaries\tests\$(Platform)\$(Configuration)\</BaseOutputPathWithConfig>
-    <BaseOutputPathWithConfig Condition="'$(__TestWorkingDir)' != ''">$(__TestWorkingDir)\</BaseOutputPathWithConfig>
-    <BinDir>$(BaseOutputPathWithConfig)\..\..\</BinDir>
-    <BaseIntermediateOutputPath>$(BinDir)\obj\</BaseIntermediateOutputPath>
+    <BaseOutputPathWithConfig>$(ProjectDir)\..\binaries\tests\$(BuildOS).$(Platform).$(Configuration)\</BaseOutputPathWithConfig>
+    <BaseOutputPathWithConfig Condition="'$(__TestBinDir)' != ''">$(__TestBinDir)\</BaseOutputPathWithConfig>
+    <BinDir>$(BaseOutputPathWithConfig)\..</BinDir>
+    <BaseIntermediateOutputPath>$(ProjectDir)\..\binaries\tests\intermediates\</BaseIntermediateOutputPath>
+    <BaseIntermediateOutputPath Condition="'$(__ManagedTestIntermediatesDir)' != ''">$(__ManagedTestIntermediatesDir)\</BaseIntermediateOutputPath>
+    <__NativeTestIntermediatesDir Condition="'$(__NativeTestIntermediatesDir)' == ''">$([System.IO.Path]::GetFullPath($(BaseOutputPathWithConfig)..\intermediates\$(BuildOS).$(Platform).$(Configuration)\))</__NativeTestIntermediatesDir>
     <BuildProjectRelativeDir>$(MSBuildProjectName)\</BuildProjectRelativeDir>
     <BuildProjectRelativeDir Condition="'$(MSBuildProjectDirectory.Contains($(SourceDir)))'">$([System.String]::Copy('$(MSBuildProjectDirectory)').Replace($(SourceDir),''))</BuildProjectRelativeDir>
-    <IntermediateOutputPath>$(BaseIntermediateOutputPath)$(BuildProjectRelativeDir)\$(Configuration)\$(Platform)\</IntermediateOutputPath>
+    <IntermediateOutputPath>$(BaseIntermediateOutputPath)$(BuildProjectRelativeDir)</IntermediateOutputPath>
     <OutputPath>$(BaseOutputPathWithConfig)$(BuildProjectRelativeDir)\</OutputPath>
   </PropertyGroup>
 
