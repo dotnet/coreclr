@@ -782,22 +782,14 @@ UINT_PTR Thread::VirtualUnwindToFirstManagedCallFrame(T_CONTEXT* pContext)
         BOOL success = PAL_VirtualUnwind(pContext, NULL);
         if (!success)
         {
-            _ASSERTE(!"Thread::VirtualUnwindToFirstManagedCallFrame: PAL_VirtualUnwind failed");
-            EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
-        }
-
-        uControlPc = GetIP(pContext);
-
-        if (uControlPc == 0)
-        {
             // This displays the managed stack in case the unwind has walked out of the stack and
             // a managed exception was being unwound.
             DefaultCatchHandler(NULL /*pExceptionInfo*/, NULL /*Throwable*/, TRUE /*useLastThrownObject*/,
                                 TRUE /*isTerminating*/, FALSE /*isThreadBaseFIlter*/, FALSE /*sendAppDomainEvents*/);
-
             EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
         }
 
+        uControlPc = GetIP(pContext);
 #endif // !FEATURE_PAL
     }
 
