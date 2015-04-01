@@ -1,5 +1,22 @@
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  
+
+  <UsingTask TaskName="FixFilePath" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.v12.0.dll">
+    <ParameterGroup>
+      <FilePath ParameterType="System.String" Required="true" />
+      <FixedFilePath ParameterType="System.String" Output="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.IO" />
+      <Code Type="Fragment" Language="cs">
+        <![CDATA[
+           FixedFilePath = Path.DirectorySeparatorChar != '\\' ?
+             FilePath.Replace('\\', Path.DirectorySeparatorChar) :
+             FilePath;
+        ]]>
+      </Code>
+    </Task>
+  </UsingTask>
+
   <!-- Inline task to bootstrap the build to enable downloading nuget.exe -->
   <UsingTask TaskName="DownloadFile" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.v12.0.dll">
     <ParameterGroup>
@@ -27,6 +44,18 @@
     Outputs="$(BuildToolsCoreCLRTargetOutputs)"
     >
 
+    <FixFilePath FilePath="$(NugetToolPath)">
+      <Output PropertyName="NugetToolPath" TaskParameter="FixedFilePath" />
+    </FixFilePath>
+
+    <FixFilePath FilePath="$(SourceDir).nuget\packages.config">
+      <Output PropertyName="PackagesConfigPath" TaskParameter="FixedFilePath" />
+    </FixFilePath>
+
+    <FixFilePath FilePath="$(ToolsDir)">
+      <Output PropertyName="ToolsDir" TaskParameter="FixedFilePath" />
+    </FixFilePath>
+
     <!-- Download latest nuget.exe -->
     <DownloadFile
       Condition="!Exists($(NuGetToolPath))"
@@ -36,7 +65,7 @@
     <!-- Restore build tools -->
     <Exec
       StandardOutputImportance="Low"
-      Command="&quot;$(NuGetToolPath)&quot; install &quot; $(SourceDir).nuget\packages.config &quot;  -o &quot; $(ToolsDir) &quot; $(NuGetConfigCommandLine)" />
+      Command="&quot;$(NuGetToolPath)&quot; install &quot;$(PackagesConfigPath)&quot;  -o &quot;$(ToolsDir)&quot; $(NuGetConfigCommandLine)" />
 
     <Touch Files="$(BuildToolsInstallSemaphore)" AlwaysCreate="true" />
   </Target>
