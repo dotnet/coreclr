@@ -873,7 +873,7 @@ namespace System.Globalization
         // Obtain locale name from LCID
         // NOTE: This will get neutral names, unlike the OS API
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern String LCIDToLocaleName(int lcid);
 
         // We'd rather people use the named version since this doesn't allow custom locales
@@ -2666,7 +2666,7 @@ namespace System.Globalization
         // Obtain locale name from LCID
         // NOTE: This will get neutral names, unlike the OS API
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int LocaleNameToLCID(String localeName);
 
         // These are desktop only, not coreclr
@@ -3490,20 +3490,20 @@ namespace System.Globalization
 
         // Get our initial minimal culture data (name, parent, etc.)
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool nativeInitCultureData(CultureData cultureData);
 
         // Grab the NumberFormatInfo data
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool nativeGetNumberFormatInfoValues(String localeName, NumberFormatInfo nfi, bool useUserOverride);
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern String[] nativeEnumTimeFormats(String localeName, uint dwFlags, bool useUserOverride);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [SuppressUnmanagedCodeSecurityAttribute()]
+        [SuppressUnmanagedCodeSecurity]
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern int nativeEnumCultureNames(int cultureTypes, ObjectHandleOnStack retStringArray);
     }

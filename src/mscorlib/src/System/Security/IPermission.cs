@@ -76,7 +76,7 @@ namespace System.Security
         // permissions invoke that mechanism through the Demand interface.
         // Mark this method as requiring a security object on the caller's frame
         // so the caller won't be inlined (which would mess up stack crawling).
-        [DynamicSecurityMethodAttribute()]
+        [DynamicSecurityMethod]
         void Demand();
 
     }

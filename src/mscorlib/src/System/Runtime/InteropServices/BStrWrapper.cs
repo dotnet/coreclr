@@ -22,7 +22,7 @@ namespace System.Runtime.InteropServices {
     {
         [System.Security.SecuritySafeCritical]  // auto-generated
 #pragma warning disable 618
-        [SecurityPermissionAttribute(SecurityAction.Demand,Flags=SecurityPermissionFlag.UnmanagedCode)]
+        [SecurityPermission(SecurityAction.Demand,Flags=SecurityPermissionFlag.UnmanagedCode)]
 #pragma warning restore 618
         public BStrWrapper(String value)
         {
@@ -31,7 +31,7 @@ namespace System.Runtime.InteropServices {
 
         [System.Security.SecuritySafeCritical]  // auto-generated
 #pragma warning disable 618
-        [SecurityPermissionAttribute(SecurityAction.Demand, Flags = SecurityPermissionFlag.UnmanagedCode)]
+        [SecurityPermission(SecurityAction.Demand, Flags = SecurityPermissionFlag.UnmanagedCode)]
 #pragma warning restore 618
         public BStrWrapper(Object value)
         {

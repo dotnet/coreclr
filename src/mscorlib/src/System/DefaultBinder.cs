@@ -1091,14 +1091,14 @@ namespace System {
         // CanConvertPrimitive
         // This will determine if the source can be converted to the target type
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool CanConvertPrimitive(RuntimeType source,RuntimeType target);
 
         // CanConvertPrimitiveObjectToType
         // This method will determine if the primitive object can be converted
         //  to a type.
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         static internal extern bool CanConvertPrimitiveObjectToType(Object source,RuntimeType type);
         
         // This method will sort the vars array into the mapping order stored

@@ -12,10 +12,10 @@ using System.Security.Policy;
 
 namespace System.Runtime.InteropServices
 {
-    [GuidAttribute("BEBB2505-8B54-3443-AEAD-142A16DD9CC7")]
-    [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
+    [Guid("BEBB2505-8B54-3443-AEAD-142A16DD9CC7")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     [CLSCompliant(false)]
-    [TypeLibImportClassAttribute(typeof(System.Reflection.Emit.AssemblyBuilder))]
+    [TypeLibImportClass(typeof(System.Reflection.Emit.AssemblyBuilder))]
 [System.Runtime.InteropServices.ComVisible(true)]
     public interface _AssemblyBuilder
     {
@@ -30,10 +30,10 @@ namespace System.Runtime.InteropServices
 #endif
     }
 
-    [GuidAttribute("ED3E4384-D7E2-3FA7-8FFD-8940D330519A")]
-    [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
+    [Guid("ED3E4384-D7E2-3FA7-8FFD-8940D330519A")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     [CLSCompliant(false)]
-    [TypeLibImportClassAttribute(typeof(System.Reflection.Emit.ConstructorBuilder))]
+    [TypeLibImportClass(typeof(System.Reflection.Emit.ConstructorBuilder))]
     [System.Runtime.InteropServices.ComVisible(true)]
     public interface _ConstructorBuilder
     {
@@ -48,10 +48,10 @@ namespace System.Runtime.InteropServices
 #endif
     }
 
-    [GuidAttribute("BE9ACCE8-AAFF-3B91-81AE-8211663F5CAD")]
-    [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
+    [Guid("BE9ACCE8-AAFF-3B91-81AE-8211663F5CAD")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     [CLSCompliant(false)]
-    [TypeLibImportClassAttribute(typeof(System.Reflection.Emit.CustomAttributeBuilder))]
+    [TypeLibImportClass(typeof(System.Reflection.Emit.CustomAttributeBuilder))]
 [System.Runtime.InteropServices.ComVisible(true)]
     public interface _CustomAttributeBuilder
     {
@@ -66,10 +66,10 @@ namespace System.Runtime.InteropServices
 #endif
     }
 
-    [GuidAttribute("C7BD73DE-9F85-3290-88EE-090B8BDFE2DF")]
-    [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
+    [Guid("C7BD73DE-9F85-3290-88EE-090B8BDFE2DF")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     [CLSCompliant(false)]
-    [TypeLibImportClassAttribute(typeof(System.Reflection.Emit.EnumBuilder))]
+    [TypeLibImportClass(typeof(System.Reflection.Emit.EnumBuilder))]
 [System.Runtime.InteropServices.ComVisible(true)]
     public interface _EnumBuilder
     {
@@ -84,10 +84,10 @@ namespace System.Runtime.InteropServices
 #endif
     }
 
-    [GuidAttribute("AADABA99-895D-3D65-9760-B1F12621FAE8")]
-    [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
+    [Guid("AADABA99-895D-3D65-9760-B1F12621FAE8")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     [CLSCompliant(false)]
-    [TypeLibImportClassAttribute(typeof(System.Reflection.Emit.EventBuilder))]
+    [TypeLibImportClass(typeof(System.Reflection.Emit.EventBuilder))]
 [System.Runtime.InteropServices.ComVisible(true)]
     public interface _EventBuilder
     {
@@ -102,10 +102,10 @@ namespace System.Runtime.InteropServices
 #endif
     }
 
-    [GuidAttribute("CE1A3BF5-975E-30CC-97C9-1EF70F8F3993")]
-    [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
+    [Guid("CE1A3BF5-975E-30CC-97C9-1EF70F8F3993")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     [CLSCompliant(false)]
-    [TypeLibImportClassAttribute(typeof(System.Reflection.Emit.FieldBuilder))]
+    [TypeLibImportClass(typeof(System.Reflection.Emit.FieldBuilder))]
 [System.Runtime.InteropServices.ComVisible(true)]
     public interface _FieldBuilder
     {
@@ -120,10 +120,10 @@ namespace System.Runtime.InteropServices
 #endif
     }
 
-    [GuidAttribute("A4924B27-6E3B-37F7-9B83-A4501955E6A7")]
-    [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
+    [Guid("A4924B27-6E3B-37F7-9B83-A4501955E6A7")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     [CLSCompliant(false)]
-    [TypeLibImportClassAttribute(typeof(System.Reflection.Emit.ILGenerator))]
+    [TypeLibImportClass(typeof(System.Reflection.Emit.ILGenerator))]
 [System.Runtime.InteropServices.ComVisible(true)]
     public interface _ILGenerator
     {
@@ -138,10 +138,10 @@ namespace System.Runtime.InteropServices
 #endif
     }
 
-    [GuidAttribute("4E6350D1-A08B-3DEC-9A3E-C465F9AEEC0C")]
-    [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
+    [Guid("4E6350D1-A08B-3DEC-9A3E-C465F9AEEC0C")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     [CLSCompliant(false)]
-    [TypeLibImportClassAttribute(typeof(System.Reflection.Emit.LocalBuilder))]
+    [TypeLibImportClass(typeof(System.Reflection.Emit.LocalBuilder))]
 [System.Runtime.InteropServices.ComVisible(true)]
     public interface _LocalBuilder
     {
@@ -156,10 +156,10 @@ namespace System.Runtime.InteropServices
 #endif
     }
 
-    [GuidAttribute("007D8A14-FDF3-363E-9A0B-FEC0618260A2")]
-    [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
+    [Guid("007D8A14-FDF3-363E-9A0B-FEC0618260A2")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     [CLSCompliant(false)]
-    [TypeLibImportClassAttribute(typeof(System.Reflection.Emit.MethodBuilder))]
+    [TypeLibImportClass(typeof(System.Reflection.Emit.MethodBuilder))]
 [System.Runtime.InteropServices.ComVisible(true)]
     public interface _MethodBuilder
     {
@@ -175,10 +175,10 @@ namespace System.Runtime.InteropServices
     }
 
 #if FEATURE_METHOD_RENTAL
-    [GuidAttribute("C2323C25-F57F-3880-8A4D-12EBEA7A5852")]
-    [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
+    [Guid("C2323C25-F57F-3880-8A4D-12EBEA7A5852")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     [CLSCompliant(false)]
-    [TypeLibImportClassAttribute(typeof(System.Reflection.Emit.MethodRental))]
+    [TypeLibImportClass(typeof(System.Reflection.Emit.MethodRental))]
 [System.Runtime.InteropServices.ComVisible(true)]
     public interface _MethodRental
     {
@@ -194,10 +194,10 @@ namespace System.Runtime.InteropServices
     }
 #endif
 
-    [GuidAttribute("D05FFA9A-04AF-3519-8EE1-8D93AD73430B")]
-    [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
+    [Guid("D05FFA9A-04AF-3519-8EE1-8D93AD73430B")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     [CLSCompliant(false)]
-    [TypeLibImportClassAttribute(typeof(System.Reflection.Emit.ModuleBuilder))]
+    [TypeLibImportClass(typeof(System.Reflection.Emit.ModuleBuilder))]
 [System.Runtime.InteropServices.ComVisible(true)]
     public interface _ModuleBuilder
     {
@@ -212,10 +212,10 @@ namespace System.Runtime.InteropServices
 #endif
     }
 
-    [GuidAttribute("36329EBA-F97A-3565-BC07-0ED5C6EF19FC")]
-    [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
+    [Guid("36329EBA-F97A-3565-BC07-0ED5C6EF19FC")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     [CLSCompliant(false)]
-    [TypeLibImportClassAttribute(typeof(System.Reflection.Emit.ParameterBuilder))]
+    [TypeLibImportClass(typeof(System.Reflection.Emit.ParameterBuilder))]
 [System.Runtime.InteropServices.ComVisible(true)]
     public interface _ParameterBuilder
     {
@@ -230,10 +230,10 @@ namespace System.Runtime.InteropServices
 #endif
     }
 
-    [GuidAttribute("15F9A479-9397-3A63-ACBD-F51977FB0F02")]
-    [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
+    [Guid("15F9A479-9397-3A63-ACBD-F51977FB0F02")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     [CLSCompliant(false)]
-    [TypeLibImportClassAttribute(typeof(System.Reflection.Emit.PropertyBuilder))]
+    [TypeLibImportClass(typeof(System.Reflection.Emit.PropertyBuilder))]
 [System.Runtime.InteropServices.ComVisible(true)]
     public interface _PropertyBuilder
     {
@@ -248,10 +248,10 @@ namespace System.Runtime.InteropServices
 #endif
     }
 
-    [GuidAttribute("7D13DD37-5A04-393C-BBCA-A5FEA802893D")]
-    [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
+    [Guid("7D13DD37-5A04-393C-BBCA-A5FEA802893D")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     [CLSCompliant(false)]
-    [TypeLibImportClassAttribute(typeof(System.Reflection.Emit.SignatureHelper))]
+    [TypeLibImportClass(typeof(System.Reflection.Emit.SignatureHelper))]
 [System.Runtime.InteropServices.ComVisible(true)]
     public interface _SignatureHelper
     {
@@ -266,10 +266,10 @@ namespace System.Runtime.InteropServices
 #endif
     }
 
-    [GuidAttribute("7E5678EE-48B3-3F83-B076-C58543498A58")]
-    [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
+    [Guid("7E5678EE-48B3-3F83-B076-C58543498A58")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     [CLSCompliant(false)]
-    [TypeLibImportClassAttribute(typeof(System.Reflection.Emit.TypeBuilder))]
+    [TypeLibImportClass(typeof(System.Reflection.Emit.TypeBuilder))]
 [System.Runtime.InteropServices.ComVisible(true)]
     public interface _TypeBuilder
     {

@@ -179,7 +179,7 @@ namespace System.Threading.Tasks
         //
 
         [FriendAccessAllowed]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Tracking is slow path. Disable inlining for it.
+        [MethodImpl(MethodImplOptions.NoInlining)] // Tracking is slow path. Disable inlining for it.
         internal static void TraceOperationCreation(CausalityTraceLevel traceLevel, int taskId, string operationName, ulong relatedContext)
         {
 #if FEATURE_COMINTEROP
@@ -199,7 +199,7 @@ namespace System.Threading.Tasks
         }
 
         [FriendAccessAllowed]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         internal static void TraceOperationCompletion(CausalityTraceLevel traceLevel, int taskId, AsyncCausalityStatus status)
         {
 #if FEATURE_COMINTEROP
@@ -218,7 +218,7 @@ namespace System.Threading.Tasks
 #endif
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         internal static void TraceOperationRelation(CausalityTraceLevel traceLevel, int taskId, CausalityRelation relation)
         {
 #if FEATURE_COMINTEROP
@@ -237,7 +237,7 @@ namespace System.Threading.Tasks
 #endif
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         internal static void TraceSynchronousWorkStart(CausalityTraceLevel traceLevel, int taskId, CausalitySynchronousWork work)
         {
 #if FEATURE_COMINTEROP
@@ -256,7 +256,7 @@ namespace System.Threading.Tasks
 #endif
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         internal static void TraceSynchronousWorkCompletion(CausalityTraceLevel traceLevel, CausalitySynchronousWork work)
         {
 #if FEATURE_COMINTEROP

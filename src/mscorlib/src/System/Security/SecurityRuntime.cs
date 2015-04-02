@@ -26,7 +26,7 @@ namespace System.Security {
         // Internal only, do not doc.
         // 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern 
         FrameSecurityDescriptor GetSecurityObjectForFrame(ref StackCrawlMark stackMark,
                                                           bool create);

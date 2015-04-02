@@ -806,7 +806,7 @@ namespace System.Reflection.Emit
         private delegate void DRelease(IntPtr punk);         // Delegate type for P/Invoking to coreclr.dll and doing an IUnknown::Release()
         private static DRelease m_Release;
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern IntPtr nGetDReleaseTarget();     // FCall gets us the native DRelease target (so we don't need named dllexport from coreclr.dll)
 
         #if FEATURE_CORECLR

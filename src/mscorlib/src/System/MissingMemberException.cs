@@ -61,7 +61,7 @@ namespace System {
     
         // Called to format signature
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern String FormatSignature(byte [] signature);
     
     

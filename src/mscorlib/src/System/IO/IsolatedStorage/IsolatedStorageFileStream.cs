@@ -370,7 +370,7 @@ namespace System.IO.IsolatedStorage {
         public override IntPtr Handle {
             [System.Security.SecurityCritical]  // auto-generated_required
 #if !FEATURE_CORECLR
-            [SecurityPermissionAttribute(SecurityAction.InheritanceDemand, Flags=SecurityPermissionFlag.UnmanagedCode)]
+            [SecurityPermission(SecurityAction.InheritanceDemand, Flags=SecurityPermissionFlag.UnmanagedCode)]
 #endif
             get {
                 NotPermittedError();
@@ -381,7 +381,7 @@ namespace System.IO.IsolatedStorage {
         public override SafeFileHandle SafeFileHandle {
             [System.Security.SecurityCritical]  // auto-generated_required
 #if !FEATURE_CORECLR
-            [SecurityPermissionAttribute(SecurityAction.InheritanceDemand, Flags=SecurityPermissionFlag.UnmanagedCode)]
+            [SecurityPermission(SecurityAction.InheritanceDemand, Flags=SecurityPermissionFlag.UnmanagedCode)]
 #endif
             get {
                 NotPermittedError();

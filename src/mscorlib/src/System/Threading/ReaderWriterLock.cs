@@ -87,7 +87,7 @@ namespace System.Threading {
          * thread has writer lock.
          */
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern void AcquireReaderLockInternal(int millisecondsTimeout);
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -113,7 +113,7 @@ namespace System.Threading {
          * sure if the thread has reader lock
          */
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern void AcquireWriterLockInternal(int millisecondsTimeout);
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -136,7 +136,7 @@ namespace System.Threading {
          * Releases reader lock. 
          */
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         private extern void ReleaseReaderLockInternal();
 
@@ -151,7 +151,7 @@ namespace System.Threading {
          * Releases writer lock. 
          */
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         private extern void ReleaseWriterLockInternal();
 
@@ -176,7 +176,7 @@ namespace System.Threading {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern void FCallUpgradeToWriterLock(ref LockCookie result, int millisecondsTimeout);
 
         public LockCookie UpgradeToWriterLock(TimeSpan timeout)
@@ -192,7 +192,7 @@ namespace System.Threading {
          * in when it called UpgradeToWriterLock. 
          */
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern void DowngradeFromWriterLockInternal(ref LockCookie lockCookie);
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -214,7 +214,7 @@ namespace System.Threading {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern void FCallReleaseLock(ref LockCookie result);
         
         /*
@@ -222,7 +222,7 @@ namespace System.Threading {
          * in when it called ReleaseLock. 
          */
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern void RestoreLockInternal(ref LockCookie lockCookie);
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -236,7 +236,7 @@ namespace System.Threading {
          * by the current thread
          */
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         private extern bool PrivateGetIsReaderLockHeld();
         
@@ -245,7 +245,7 @@ namespace System.Threading {
          * by the current thread
          */
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         private extern bool PrivateGetIsWriterLockHeld();
         
@@ -255,7 +255,7 @@ namespace System.Threading {
          * meaningful results
          */
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern int PrivateGetWriterSeqNum();
         
         /*
@@ -264,17 +264,17 @@ namespace System.Threading {
          * a reader or writer for getting meaningful results
          */
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern bool AnyWritersSince(int seqNum);
     
         // Initialize state kept inside the lock
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern void PrivateInitialize();
 
         // Destruct resource associated with the lock
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern void PrivateDestruct();
 
         // State

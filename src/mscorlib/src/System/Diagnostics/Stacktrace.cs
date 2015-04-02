@@ -340,7 +340,7 @@ namespace System.Diagnostics {
         }
 
         [System.Security.SecuritySafeCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void GetStackFramesInternal(StackFrameHelper sfh, int iSkip, Exception e);
     
         internal static int CalculateFramesToSkip(StackFrameHelper StackF, int iNumFrames)

@@ -28,7 +28,7 @@ namespace System.Collections.Generic {
 #if CONTRACTS_FULL
     [ContractClass(typeof(ICollectionContract<>))]
 #endif
-    [TypeDependencyAttribute("System.SZArrayHelper")]
+    [TypeDependency("System.SZArrayHelper")]
     public interface ICollection<T> : IEnumerable<T>
     {
         // Number of items in the collections.        

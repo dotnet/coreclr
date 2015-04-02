@@ -305,14 +305,14 @@ namespace System.Text
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         unsafe private static extern int nativeNormalizationNormalizeString(
             NormalizationForm normForm, ref int iError,
             String lpSrcString, int cwSrcLength,
             char[] lpDstString, int cwDstLength);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         unsafe private static extern bool nativeNormalizationIsNormalizedString(
             NormalizationForm normForm, ref int iError,
             String lpString, int cwLength);

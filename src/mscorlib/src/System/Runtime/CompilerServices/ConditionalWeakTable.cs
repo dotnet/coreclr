@@ -768,19 +768,19 @@ namespace System.Runtime.CompilerServices
 
         #region Private Members
         [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void nInitialize(Object primary, Object secondary, out IntPtr dependentHandle);
 
         [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void nGetPrimary(IntPtr dependentHandle, out Object primary);
 
         [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void nGetPrimaryAndSecondary(IntPtr dependentHandle, out Object primary, out Object secondary);
 
         [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void nFree(IntPtr dependentHandle);
         #endregion
 

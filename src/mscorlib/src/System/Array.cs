@@ -219,7 +219,7 @@ namespace System {
                     return InternalCreate((void*)t.TypeHandle.Value,lengths.Length,pLengths,pLowerBounds);
         }
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private unsafe static extern Array InternalCreate(void* elementType,int rank,int *pLengths,int *pLowerBounds);
 
         [SecurityCritical]
@@ -296,7 +296,7 @@ namespace System {
         // throw an exception with no side effects.
         [System.Security.SecurityCritical]  // auto-generated
         [ReliabilityContract(Consistency.MayCorruptInstance, Cer.MayFail)]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void Copy(Array sourceArray, int sourceIndex, Array destinationArray, int destinationIndex, int length, bool reliable);
 
         // Provides a strong exception guarantee - either it succeeds, or
@@ -338,7 +338,7 @@ namespace System {
         // at index.
         //
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         public static extern void Clear(Array array, int index, int length);
         
@@ -581,14 +581,14 @@ namespace System {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         // reference to TypedReference is banned, so have to pass result as pointer
         private unsafe extern void InternalGetReference(void * elemRef, int rank, int * pIndices);
 
         // Ideally, we would like to use TypedReference.SetValue instead. Unfortunately, TypedReference.SetValue
         // always throws not-supported exception
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private unsafe extern static void InternalSetValue(void * target, Object value);
 
         public extern int Length {
@@ -626,7 +626,7 @@ namespace System {
 
         [Pure]
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern int GetLength(int dimension);
 
         [Pure]
@@ -640,25 +640,25 @@ namespace System {
             [Pure]
             [System.Security.SecuritySafeCritical]  // auto-generated
             [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-            [MethodImplAttribute(MethodImplOptions.InternalCall)]
+            [MethodImpl(MethodImplOptions.InternalCall)]
             get;
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
         [Pure]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         public extern int GetUpperBound(int dimension);
 
         [System.Security.SecuritySafeCritical]  // auto-generated
         [Pure]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern int GetLowerBound(int dimension);
 
         [System.Security.SecurityCritical]  // auto-generated
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern int GetDataPtrOffsetInternal();
 
         // Number of elements in the Array.
@@ -961,7 +961,7 @@ namespace System {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         private static extern bool TrySZBinarySearch(Array sourceArray, int sourceIndex, int count, Object value, out int retVal);
         
@@ -1388,7 +1388,7 @@ namespace System {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         private static extern bool TrySZIndexOf(Array sourceArray, int sourceIndex, int count, Object value, out int retVal);
         
@@ -1541,7 +1541,7 @@ namespace System {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         private static extern bool TrySZLastIndexOf(Array sourceArray, int sourceIndex, int count, Object value, out int retVal);
 
@@ -1606,7 +1606,7 @@ namespace System {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.MayCorruptInstance, Cer.MayFail)]
         private static extern bool TrySZReverse(Array array, int index, int count);
         
@@ -1744,7 +1744,7 @@ namespace System {
         }
         
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.MayCorruptInstance, Cer.MayFail)]
         private static extern bool TrySZSort(Array keys, Array items, int left, int right);
 
@@ -2666,7 +2666,7 @@ namespace System {
         // then this calls this default constructor on every element in the value class array.
         // otherwise this is a no-op.  Generally this method is called automatically by the compiler
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern void Initialize();
     }
 

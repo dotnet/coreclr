@@ -831,7 +831,7 @@ namespace Microsoft.Win32 {
         [ComVisible(false)]
         public SafeRegistryHandle Handle {
             [System.Security.SecurityCritical]
-            [SecurityPermissionAttribute(SecurityAction.Demand, Flags = SecurityPermissionFlag.UnmanagedCode)]
+            [SecurityPermission(SecurityAction.Demand, Flags = SecurityPermissionFlag.UnmanagedCode)]
             get {
                 EnsureNotDisposed();
                 int ret = Win32Native.ERROR_INVALID_HANDLE;
@@ -887,14 +887,14 @@ namespace Microsoft.Win32 {
 
         [System.Security.SecurityCritical]
         [ComVisible(false)]
-        [SecurityPermissionAttribute(SecurityAction.Demand, Flags = SecurityPermissionFlag.UnmanagedCode)]
+        [SecurityPermission(SecurityAction.Demand, Flags = SecurityPermissionFlag.UnmanagedCode)]
         public static RegistryKey FromHandle(SafeRegistryHandle handle) {
             return FromHandle(handle, RegistryView.Default);
         }
 
         [System.Security.SecurityCritical]
         [ComVisible(false)]
-        [SecurityPermissionAttribute(SecurityAction.Demand, Flags = SecurityPermissionFlag.UnmanagedCode)]
+        [SecurityPermission(SecurityAction.Demand, Flags = SecurityPermissionFlag.UnmanagedCode)]
         public static RegistryKey FromHandle(SafeRegistryHandle handle, RegistryView view) {
             if (handle == null) throw new ArgumentNullException("handle");
             ValidateKeyView(view);

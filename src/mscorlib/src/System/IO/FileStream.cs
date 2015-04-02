@@ -915,7 +915,7 @@ namespace System.IO {
         [System.Security.SecuritySafeCritical]  // auto-generated
         [Obsolete("This constructor has been deprecated.  Please use new FileStream(SafeFileHandle handle, FileAccess access, int bufferSize, bool isAsync) instead, and optionally make a new SafeFileHandle with ownsHandle=false if needed.  http://go.microsoft.com/fwlink/?linkid=14202")]
 #pragma warning disable 618
-        [SecurityPermissionAttribute(SecurityAction.Demand, Flags=SecurityPermissionFlag.UnmanagedCode)]
+        [SecurityPermission(SecurityAction.Demand, Flags=SecurityPermissionFlag.UnmanagedCode)]
 #pragma warning restore 618
         public FileStream(IntPtr handle, FileAccess access, bool ownsHandle, int bufferSize, bool isAsync) 
             : this(new SafeFileHandle(handle, ownsHandle), access, bufferSize, isAsync) {
@@ -933,7 +933,7 @@ namespace System.IO {
 
         [System.Security.SecuritySafeCritical]  // auto-generated
 #pragma warning disable 618
-        [SecurityPermissionAttribute(SecurityAction.Demand, Flags=SecurityPermissionFlag.UnmanagedCode)]
+        [SecurityPermission(SecurityAction.Demand, Flags=SecurityPermissionFlag.UnmanagedCode)]
 #pragma warning restore 618
         public FileStream(SafeFileHandle handle, FileAccess access, int bufferSize, bool isAsync) {
             // To ensure we don't leak a handle, put it in a SafeFileHandle first
@@ -1325,7 +1325,7 @@ namespace System.IO {
         public virtual IntPtr Handle {
             [System.Security.SecurityCritical]  // auto-generated_required
 #if !FEATURE_CORECLR
-            [SecurityPermissionAttribute(SecurityAction.InheritanceDemand, Flags=SecurityPermissionFlag.UnmanagedCode)]
+            [SecurityPermission(SecurityAction.InheritanceDemand, Flags=SecurityPermissionFlag.UnmanagedCode)]
 #endif
             get { 
                 Flush();
@@ -1343,7 +1343,7 @@ namespace System.IO {
         public virtual SafeFileHandle SafeFileHandle {
             [System.Security.SecurityCritical]  // auto-generated_required
 #if !FEATURE_CORECLR
-            [SecurityPermissionAttribute(SecurityAction.InheritanceDemand, Flags=SecurityPermissionFlag.UnmanagedCode)]
+            [SecurityPermission(SecurityAction.InheritanceDemand, Flags=SecurityPermissionFlag.UnmanagedCode)]
 #endif
             get { 
                 Flush();

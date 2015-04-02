@@ -16,7 +16,7 @@ namespace Microsoft.Win32 {
     using System.Diagnostics.Tracing;
 
     [System.Security.SecurityCritical]  // auto-generated
-    [SuppressUnmanagedCodeSecurityAttribute()]
+    [SuppressUnmanagedCodeSecurity]
     internal static class UnsafeNativeMethods {
 
         [DllImport(Win32Native.KERNEL32, EntryPoint="GetTimeZoneInformation", SetLastError = true, ExactSpelling = true)]
@@ -64,7 +64,7 @@ namespace Microsoft.Win32 {
 
 
         [SecurityCritical]
-        [SuppressUnmanagedCodeSecurityAttribute()]
+        [SuppressUnmanagedCodeSecurity]
         internal static unsafe class ManifestEtw
         {
             //
@@ -180,7 +180,7 @@ namespace Microsoft.Win32 {
 
             [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2118:ReviewSuppressUnmanagedCodeSecurityUsage")]
             [DllImport(Win32Native.ADVAPI32, ExactSpelling = true, EntryPoint = "EventWriteTransfer", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
-            [SuppressUnmanagedCodeSecurityAttribute]        // Don't do security checks 
+            [SuppressUnmanagedCodeSecurity]        // Don't do security checks 
             private static extern int EventWriteTransfer(
                     [In] long registrationHandle,
                     [In] ref EventDescriptor eventDescriptor,
@@ -201,7 +201,7 @@ namespace Microsoft.Win32 {
 
             [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2118:ReviewSuppressUnmanagedCodeSecurityUsage")]
             [DllImport(Win32Native.ADVAPI32, ExactSpelling = true, EntryPoint = "EventActivityIdControl", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
-            [SuppressUnmanagedCodeSecurityAttribute]        // Don't do security checks 
+            [SuppressUnmanagedCodeSecurity]        // Don't do security checks 
             internal static extern int EventActivityIdControl([In] ActivityControl ControlCode, [In][Out] ref Guid ActivityId);
 
             internal enum EVENT_INFO_CLASS
@@ -213,7 +213,7 @@ namespace Microsoft.Win32 {
 
             [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2118:ReviewSuppressUnmanagedCodeSecurityUsage")]
             [DllImport(Win32Native.ADVAPI32, ExactSpelling = true, EntryPoint = "EventSetInformation", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
-            [SuppressUnmanagedCodeSecurityAttribute]        // Don't do security checks 
+            [SuppressUnmanagedCodeSecurity]        // Don't do security checks 
             internal static extern int EventSetInformation(
                 [In] long registrationHandle,
                 [In] EVENT_INFO_CLASS informationClass,
@@ -258,7 +258,7 @@ namespace Microsoft.Win32 {
 
             [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2118:ReviewSuppressUnmanagedCodeSecurityUsage")]
             [DllImport(Win32Native.ADVAPI32, ExactSpelling = true, EntryPoint = "EnumerateTraceGuidsEx", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
-            [SuppressUnmanagedCodeSecurityAttribute]        // Don't do security checks 
+            [SuppressUnmanagedCodeSecurity]        // Don't do security checks 
             internal static extern int EnumerateTraceGuidsEx(
                 TRACE_QUERY_INFO_CLASS TraceQueryInfoClass,
                 void* InBuffer,

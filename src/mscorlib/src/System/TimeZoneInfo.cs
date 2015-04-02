@@ -2644,7 +2644,7 @@ namespace System {
         // </SecurityKernel>
         [System.Security.SecuritySafeCritical]  // auto-generated
 #if !FEATURE_CORECLR
-        [FileIOPermissionAttribute(SecurityAction.Assert, AllLocalFiles = FileIOPermissionAccess.PathDiscovery)]
+        [FileIOPermission(SecurityAction.Assert, AllLocalFiles = FileIOPermissionAccess.PathDiscovery)]
 #endif
         static private string TryGetLocalizedNameByMuiNativeResource(string resource) {
             if (String.IsNullOrEmpty(resource)) {

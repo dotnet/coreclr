@@ -86,7 +86,7 @@ namespace System.Threading
         
             [System.Security.SecurityCritical]  // auto-generated_required
 #if !FEATURE_CORECLR
-            [SecurityPermissionAttribute(SecurityAction.InheritanceDemand, Flags=SecurityPermissionFlag.UnmanagedCode)]
+            [SecurityPermission(SecurityAction.InheritanceDemand, Flags=SecurityPermissionFlag.UnmanagedCode)]
 #endif
             set
             {
@@ -117,7 +117,7 @@ namespace System.Threading
         {
             [System.Security.SecurityCritical]  // auto-generated_required
 #if !FEATURE_CORECLR
-            [SecurityPermissionAttribute(SecurityAction.InheritanceDemand, Flags=SecurityPermissionFlag.UnmanagedCode)]
+            [SecurityPermission(SecurityAction.InheritanceDemand, Flags=SecurityPermissionFlag.UnmanagedCode)]
 #endif
             [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
             get
@@ -131,7 +131,7 @@ namespace System.Threading
         
             [System.Security.SecurityCritical]  // auto-generated_required
 #if !FEATURE_CORECLR
-            [SecurityPermissionAttribute(SecurityAction.InheritanceDemand, Flags=SecurityPermissionFlag.UnmanagedCode)]
+            [SecurityPermission(SecurityAction.InheritanceDemand, Flags=SecurityPermissionFlag.UnmanagedCode)]
 #endif
             [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
             set
@@ -258,7 +258,7 @@ namespace System.Threading
          }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int WaitOneNative(SafeHandle waitableSafeHandle, uint millisecondsTimeout, bool hasThreadAffinity, bool exitContext);
     
         /*========================================================================
@@ -271,7 +271,7 @@ namespace System.Threading
         ========================================================================*/
         
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)] 
+        [MethodImpl(MethodImplOptions.InternalCall)] 
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         private static extern int WaitMultiple(WaitHandle[] waitHandles, int millisecondsTimeout, bool exitContext, bool WaitAll);
 
@@ -498,7 +498,7 @@ namespace System.Threading
         ==================================================*/
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)] 
+        [MethodImpl(MethodImplOptions.InternalCall)] 
         private static extern int SignalAndWaitOne(SafeWaitHandle waitHandleToSignal,SafeWaitHandle waitHandleToWaitOn, int millisecondsTimeout,
                                             bool hasThreadAffinity,  bool exitContext);
 

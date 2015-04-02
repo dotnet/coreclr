@@ -50,7 +50,7 @@ namespace System.Runtime.InteropServices {
         //
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [SecurityPermissionAttribute(SecurityAction.Demand, Flags=SecurityPermissionFlag.UnmanagedCode)]
+        [SecurityPermission(SecurityAction.Demand, Flags=SecurityPermissionFlag.UnmanagedCode)]
         public AssemblyBuilder ConvertTypeLibToAssembly([MarshalAs(UnmanagedType.Interface)] Object typeLib, 
                                                         String asmFileName,
                                                         int flags,
@@ -75,7 +75,7 @@ namespace System.Runtime.InteropServices {
 
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [SecurityPermissionAttribute(SecurityAction.Demand, Flags=SecurityPermissionFlag.UnmanagedCode)]
+        [SecurityPermission(SecurityAction.Demand, Flags=SecurityPermissionFlag.UnmanagedCode)]
         public AssemblyBuilder ConvertTypeLibToAssembly([MarshalAs(UnmanagedType.Interface)] Object typeLib, 
                                                         String asmFileName,
                                                         TypeLibImporterFlags flags, 
@@ -155,7 +155,7 @@ namespace System.Runtime.InteropServices {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [SecurityPermissionAttribute(SecurityAction.Demand, Flags=SecurityPermissionFlag.UnmanagedCode)]
+        [SecurityPermission(SecurityAction.Demand, Flags=SecurityPermissionFlag.UnmanagedCode)]
         [return : MarshalAs(UnmanagedType.Interface)]
         public Object ConvertAssemblyToTypeLib(Assembly assembly, String strTypeLibName, TypeLibExporterFlags flags, ITypeLibExporterNotifySink notifySink)
         {
@@ -213,7 +213,7 @@ namespace System.Runtime.InteropServices {
         //
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         private static AssemblyBuilder CreateAssemblyForTypeLib(Object typeLib, String asmFileName, AssemblyName asmName, bool bPrimaryInteropAssembly, bool bReflectionOnly, bool bNoDefineVersionResource)
         {
             // Retrieve the current app domain.
@@ -465,12 +465,12 @@ namespace System.Runtime.InteropServices {
         //
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)] 
+        [MethodImpl(MethodImplOptions.InternalCall)] 
         private static extern void nConvertTypeLibToMetadata(Object typeLib, RuntimeAssembly asmBldr, RuntimeModule modBldr, String nameSpace, TypeLibImporterFlags flags, ITypeLibImporterNotifySink notifySink, out ArrayList eventItfInfoList);
 
         // Must use assembly versioning or GuidAttribute to avoid collisions in typelib export or registration.
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)] 
+        [MethodImpl(MethodImplOptions.InternalCall)] 
         private static extern Object nConvertAssemblyToTypeLib(RuntimeAssembly assembly, String strTypeLibName, TypeLibExporterFlags flags, ITypeLibExporterNotifySink notifySink);
 
         [System.Security.SecurityCritical]  // auto-generated

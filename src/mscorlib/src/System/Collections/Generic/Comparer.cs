@@ -13,7 +13,7 @@ using System.Runtime.CompilerServices;
 namespace System.Collections.Generic
 {    
     [Serializable]
-    [TypeDependencyAttribute("System.Collections.Generic.ObjectComparer`1")] 
+    [TypeDependency("System.Collections.Generic.ObjectComparer`1")] 
     public abstract class Comparer<T> : IComparer, IComparer<T>
     {
         static volatile Comparer<T> defaultComparer;    

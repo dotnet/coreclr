@@ -1124,29 +1124,29 @@ namespace System.Globalization
 
 
         [System.Security.SecurityCritical]
-        [SuppressUnmanagedCodeSecurityAttribute()]
+        [SuppressUnmanagedCodeSecurity]
         [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
         private static extern int IdnToAscii(
                                         uint    dwFlags, 
-                                        [InAttribute()]
-                                        [MarshalAsAttribute(System.Runtime.InteropServices.UnmanagedType.LPWStr)]
+                                        [In]
+                                        [MarshalAs(System.Runtime.InteropServices.UnmanagedType.LPWStr)]
                                         String  lpUnicodeCharStr, 
                                         int     cchUnicodeChar, 
-                                        [System.Runtime.InteropServices.OutAttribute()]
+                                        [System.Runtime.InteropServices.Out]
 
                                         char    [] lpASCIICharStr, 
                                         int     cchASCIIChar);
 
         [System.Security.SecurityCritical]
-        [SuppressUnmanagedCodeSecurityAttribute()]
+        [SuppressUnmanagedCodeSecurity]
         [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
         private static extern int IdnToUnicode(
                                         uint    dwFlags, 
-                                        [InAttribute()]
-                                        [MarshalAsAttribute(System.Runtime.InteropServices.UnmanagedType.LPWStr)]
+                                        [In]
+                                        [MarshalAs(System.Runtime.InteropServices.UnmanagedType.LPWStr)]
                                         string  lpASCIICharStr, 
                                         int     cchASCIIChar, 
-                                        [System.Runtime.InteropServices.OutAttribute()]
+                                        [System.Runtime.InteropServices.Out]
 
                                         char    []  lpUnicodeCharStr,
                                         int     cchUnicodeChar);

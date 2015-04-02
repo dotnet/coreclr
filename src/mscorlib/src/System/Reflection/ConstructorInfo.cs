@@ -28,7 +28,7 @@ namespace System.Reflection
     [ClassInterface(ClassInterfaceType.None)]
     [ComDefaultInterface(typeof(_ConstructorInfo))]
 #pragma warning disable 618
-    [PermissionSetAttribute(SecurityAction.InheritanceDemand, Name = "FullTrust")]
+    [PermissionSet(SecurityAction.InheritanceDemand, Name = "FullTrust")]
 #pragma warning restore 618
     [System.Runtime.InteropServices.ComVisible(true)]
     public abstract class ConstructorInfo : MethodBase, _ConstructorInfo
@@ -89,7 +89,7 @@ namespace System.Reflection
         #endregion
 
         #region Public Members
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
         public Object Invoke(Object[] parameters)
         {
@@ -588,9 +588,9 @@ namespace System.Reflection
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public override Object Invoke(
             Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
         {
@@ -659,7 +659,7 @@ namespace System.Reflection
 
         [System.Security.SecuritySafeCritical] // overrides SC member
 #pragma warning disable 618
-        [ReflectionPermissionAttribute(SecurityAction.Demand, Flags = ReflectionPermissionFlag.MemberAccess)]
+        [ReflectionPermission(SecurityAction.Demand, Flags = ReflectionPermissionFlag.MemberAccess)]
 #pragma warning restore 618
         public override MethodBody GetMethodBody()
         {
@@ -695,9 +695,9 @@ namespace System.Reflection
 
         #region ConstructorInfo Overrides
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public override Object Invoke(BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
         {
             INVOCATION_FLAGS invocationFlags = InvocationFlags;

@@ -321,8 +321,8 @@ namespace System.Security
         // provide an alternate way to do a SecurityContext.Run make sure to update
         // SecurityStackWalk::IsSpecialRunFrame in the VM to search for the new method.
         [System.Security.SecurityCritical]  // auto-generated_required
-        [DynamicSecurityMethodAttribute()]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [DynamicSecurityMethod]
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static void Run(SecurityContext securityContext, ContextCallback callback, Object state)
         {
             if (securityContext == null )
@@ -419,8 +419,8 @@ namespace System.Security
         // Internal API that gets called from public SetSecurityContext and from SetExecutionContext
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         [System.Security.SecurityCritical]  // auto-generated
-        [DynamicSecurityMethodAttribute()]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [DynamicSecurityMethod]
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         internal static SecurityContextSwitcher SetSecurityContext(SecurityContext sc, SecurityContext.Reader prevSecurityContext, bool modifyCurrentExecutionContext)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -527,7 +527,7 @@ namespace System.Security
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static SecurityContext Capture( )
         {
             // check to see if Flow is suppressed
@@ -687,11 +687,11 @@ namespace System.Security
 #endif
 #if FEATURE_IMPERSONATION
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall), ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
+        [MethodImpl(MethodImplOptions.InternalCall), ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         internal extern static WindowsImpersonationFlowMode GetImpersonationFlowMode();
 #endif
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall), ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
+        [MethodImpl(MethodImplOptions.InternalCall), ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         internal extern static bool IsDefaultThreadSecurityInfo();
         
     }

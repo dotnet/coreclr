@@ -50,7 +50,7 @@ namespace System.Reflection
     [ClassInterface(ClassInterfaceType.None)]
     [ComDefaultInterface(typeof(_MethodBase))]
 #pragma warning disable 618
-    [PermissionSetAttribute(SecurityAction.InheritanceDemand, Name = "FullTrust")]
+    [PermissionSet(SecurityAction.InheritanceDemand, Name = "FullTrust")]
 #pragma warning restore 618
     [System.Runtime.InteropServices.ComVisible(true)]
     public abstract class MethodBase : MemberInfo, _MethodBase
@@ -82,7 +82,7 @@ namespace System.Reflection
         }
 
         [System.Security.DynamicSecurityMethod] // Specify DynamicSecurityMethod attribute to prevent inlining of the caller.
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static MethodBase GetCurrentMethod()
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -195,7 +195,7 @@ namespace System.Reflection
         #endregion
 
         #region Public Members
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
         public Object Invoke(Object obj, Object[] parameters)
         {
@@ -246,7 +246,7 @@ namespace System.Reflection
 
         [System.Security.SecuritySafeCritical]
 #pragma warning disable 618
-        [ReflectionPermissionAttribute(SecurityAction.Demand, Flags=ReflectionPermissionFlag.MemberAccess)]            
+        [ReflectionPermission(SecurityAction.Demand, Flags=ReflectionPermissionFlag.MemberAccess)]            
 #pragma warning restore 618
         public virtual MethodBody GetMethodBody()
         {

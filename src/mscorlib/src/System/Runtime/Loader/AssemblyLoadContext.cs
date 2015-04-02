@@ -263,7 +263,7 @@ namespace System.Runtime.Loader
         
         // This call opens and closes the file, but does not add the
         // assembly to the domain.
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         static internal extern AssemblyName nGetFileInformation(String s);
         
         // Helper to return AssemblyName corresponding to the path of an IL assembly

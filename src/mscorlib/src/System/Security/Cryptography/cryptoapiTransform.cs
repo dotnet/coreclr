@@ -150,7 +150,7 @@ namespace System.Security.Cryptography {
 
         public IntPtr KeyHandle {
             [System.Security.SecuritySafeCritical]  // auto-generated
-            [SecurityPermissionAttribute(SecurityAction.Demand, Flags=SecurityPermissionFlag.UnmanagedCode)]
+            [SecurityPermission(SecurityAction.Demand, Flags=SecurityPermissionFlag.UnmanagedCode)]
             get { return _safeKeyHandle.DangerousGetHandle(); }
         }
 

@@ -83,26 +83,26 @@ namespace System {
         // case-sensitive by default).
         ////  
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static Type GetType(String typeName, bool throwOnError, bool ignoreCase) {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return RuntimeType.GetType(typeName, throwOnError, ignoreCase, false, ref stackMark);
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static Type GetType(String typeName, bool throwOnError) {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return RuntimeType.GetType(typeName, throwOnError, false, false, ref stackMark);
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static Type GetType(String typeName) {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return RuntimeType.GetType(typeName, false, false, false, ref stackMark);
         }
 
 #if !FEATURE_CORECLR
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static Type GetType(
             string typeName,
             Func<AssemblyName, Assembly> assemblyResolver,
@@ -112,7 +112,7 @@ namespace System {
             return TypeNameParser.GetType(typeName, assemblyResolver, typeResolver, false, false, ref stackMark);
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static Type GetType(
             string typeName,
             Func<AssemblyName, Assembly> assemblyResolver,
@@ -123,7 +123,7 @@ namespace System {
             return TypeNameParser.GetType(typeName, assemblyResolver, typeResolver, throwOnError, false, ref stackMark);
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static Type GetType(
             string typeName,
             Func<AssemblyName, Assembly> assemblyResolver,
@@ -136,7 +136,7 @@ namespace System {
         }
 #endif //!FEATURE_CORECLR
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static Type ReflectionOnlyGetType(String typeName, bool throwIfNotFound, bool ignoreCase) 
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -295,14 +295,14 @@ namespace System {
         abstract public Object InvokeMember(String name,BindingFlags invokeAttr,Binder binder,Object target,
                                     Object[] args, ParameterModifier[] modifiers,CultureInfo culture,String[] namedParameters);
 
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
         public Object InvokeMember(String name,BindingFlags invokeAttr,Binder binder, Object target, Object[] args, CultureInfo culture)
         {
             return InvokeMember(name,invokeAttr,binder,target,args,null,culture,null);
         }
 
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
         public Object InvokeMember(String name,BindingFlags invokeAttr,Binder binder, Object target, Object[] args)
         {
@@ -1793,12 +1793,12 @@ namespace System {
 #if !FEATURE_CORECLR
         [System.Security.SecuritySafeCritical]
         [Pure]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern bool operator ==(Type left, Type right);
 
         [System.Security.SecuritySafeCritical]
         [Pure]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern bool operator !=(Type left, Type right);
 #endif // !FEATURE_CORECLR
 

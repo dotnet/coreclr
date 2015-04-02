@@ -15,7 +15,7 @@ namespace System.Runtime.InteropServices.ComTypes
     using System;
 
     [Guid("00020412-0000-0000-C000-000000000046")]
-    [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     [ComImport]
     public interface ITypeInfo2 : ITypeInfo
     {
@@ -50,7 +50,7 @@ namespace System.Runtime.InteropServices.ComTypes
         void GetParamCustData(int indexFunc, int indexParam, ref Guid guid, out Object pVarVal);
         void GetVarCustData(int index, ref Guid guid, out Object pVarVal);
         void GetImplTypeCustData(int index, ref Guid guid, out Object pVarVal);
-        [LCIDConversionAttribute(1)]
+        [LCIDConversion(1)]
         void GetDocumentation2(int memid, out String pbstrHelpString, out int pdwHelpStringContext, out String pbstrHelpStringDll);
         void GetAllCustData(IntPtr pCustData);
         void GetAllFuncCustData(int index, IntPtr pCustData);

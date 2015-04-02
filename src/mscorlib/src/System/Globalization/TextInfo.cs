@@ -930,17 +930,17 @@ namespace System.Globalization {
 
         // Change case (ToUpper/ToLower) -- COMNlsInfo::InternalChangeCaseChar
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static unsafe extern char InternalChangeCaseChar(IntPtr handle, IntPtr handleOrigin, String localeName, char ch, bool isToUpper);
         
         // Change case (ToUpper/ToLower) -- COMNlsInfo::InternalChangeCaseString
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static unsafe extern String InternalChangeCaseString(IntPtr handle, IntPtr handleOrigin, String localeName, String str, bool isToUpper);
 
         // Get case insensitive hash -- ComNlsInfo::InternalGetCaseInsHash
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static unsafe extern int InternalGetCaseInsHash(IntPtr handle, IntPtr handleOrigin, String localeName, String str, bool forceRandomizedHashing, long additionalEntropy);
 
         // Call ::CompareStringOrdinal -- ComNlsInfo::InternalCompareStringOrdinalIgnoreCase

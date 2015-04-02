@@ -156,7 +156,7 @@ namespace System.Security.Cryptography.X509Certificates {
         // Package protected constructor for creating a certificate from a PCCERT_CONTEXT
         [System.Security.SecurityCritical]  // auto-generated_required
 #if !FEATURE_CORECLR
-        [SecurityPermissionAttribute(SecurityAction.InheritanceDemand, Flags=SecurityPermissionFlag.UnmanagedCode)]
+        [SecurityPermission(SecurityAction.InheritanceDemand, Flags=SecurityPermissionFlag.UnmanagedCode)]
 #endif
         public X509Certificate (IntPtr handle):this() {
             if (handle == IntPtr.Zero)
@@ -199,7 +199,7 @@ namespace System.Security.Cryptography.X509Certificates {
         public IntPtr Handle {
             [System.Security.SecurityCritical]  // auto-generated_required
 #if !FEATURE_CORECLR
-            [SecurityPermissionAttribute(SecurityAction.InheritanceDemand, Flags=SecurityPermissionFlag.UnmanagedCode)]
+            [SecurityPermission(SecurityAction.InheritanceDemand, Flags=SecurityPermissionFlag.UnmanagedCode)]
 #endif
             get {
                 return m_safeCertContext.pCertContext;
@@ -439,7 +439,7 @@ namespace System.Security.Cryptography.X509Certificates {
           // auto-generated_required
         [System.Runtime.InteropServices.ComVisible(false)]
 #pragma warning disable 618
-        [PermissionSetAttribute(SecurityAction.InheritanceDemand, Unrestricted=true)]
+        [PermissionSet(SecurityAction.InheritanceDemand, Unrestricted=true)]
 #pragma warning restore 618
         public virtual void Import(byte[] rawData) {
             Reset();
@@ -454,7 +454,7 @@ namespace System.Security.Cryptography.X509Certificates {
           // auto-generated_required
         [System.Runtime.InteropServices.ComVisible(false)]
 #pragma warning disable 618
-        [PermissionSetAttribute(SecurityAction.InheritanceDemand, Unrestricted=true)]
+        [PermissionSet(SecurityAction.InheritanceDemand, Unrestricted=true)]
 #pragma warning restore 618
         public virtual void Import(byte[] rawData, string password, X509KeyStorageFlags keyStorageFlags) {
             Reset();
@@ -464,7 +464,7 @@ namespace System.Security.Cryptography.X509Certificates {
 #if FEATURE_X509_SECURESTRINGS
         [System.Security.SecurityCritical]  // auto-generated_required
 #pragma warning disable 618
-        [PermissionSetAttribute(SecurityAction.InheritanceDemand, Unrestricted=true)]
+        [PermissionSet(SecurityAction.InheritanceDemand, Unrestricted=true)]
 #pragma warning restore 618
         public virtual void Import(byte[] rawData, SecureString password, X509KeyStorageFlags keyStorageFlags) {
             Reset();
@@ -475,7 +475,7 @@ namespace System.Security.Cryptography.X509Certificates {
         [System.Security.SecurityCritical]  // auto-generated_required
         [System.Runtime.InteropServices.ComVisible(false)]
 #pragma warning disable 618
-        [PermissionSetAttribute(SecurityAction.InheritanceDemand, Unrestricted=true)]
+        [PermissionSet(SecurityAction.InheritanceDemand, Unrestricted=true)]
 #pragma warning restore 618
         public virtual void Import(string fileName) {
             Reset();
@@ -485,7 +485,7 @@ namespace System.Security.Cryptography.X509Certificates {
         [System.Security.SecurityCritical]  // auto-generated_required
         [System.Runtime.InteropServices.ComVisible(false)]
 #pragma warning disable 618
-        [PermissionSetAttribute(SecurityAction.InheritanceDemand, Unrestricted=true)]
+        [PermissionSet(SecurityAction.InheritanceDemand, Unrestricted=true)]
 #pragma warning restore 618
         public virtual void Import(string fileName, string password, X509KeyStorageFlags keyStorageFlags) {
             Reset();
@@ -495,7 +495,7 @@ namespace System.Security.Cryptography.X509Certificates {
 #if FEATURE_X509_SECURESTRINGS
         [System.Security.SecurityCritical]  // auto-generated_required
 #pragma warning disable 618
-        [PermissionSetAttribute(SecurityAction.InheritanceDemand, Unrestricted=true)]
+        [PermissionSet(SecurityAction.InheritanceDemand, Unrestricted=true)]
 #pragma warning restore 618
         public virtual void Import(string fileName, SecureString password, X509KeyStorageFlags keyStorageFlags) {
             Reset();
@@ -525,7 +525,7 @@ namespace System.Security.Cryptography.X509Certificates {
         [System.Security.SecurityCritical]  // auto-generated_required
         [System.Runtime.InteropServices.ComVisible(false)]
 #pragma warning disable 618
-        [PermissionSetAttribute(SecurityAction.InheritanceDemand, Unrestricted=true)]
+        [PermissionSet(SecurityAction.InheritanceDemand, Unrestricted=true)]
 #pragma warning restore 618
         public virtual void Reset () {
             m_subjectName = null;

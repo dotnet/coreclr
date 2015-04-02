@@ -240,10 +240,10 @@ namespace System.Diagnostics {
     
         // Native method to inform the EE about the creation of a new LogSwitch
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void AddLogSwitch(LogSwitch logSwitch);
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void ModifyLogSwitch (int iNewLevel, String strSwitchName, String strParentName);
     }
 

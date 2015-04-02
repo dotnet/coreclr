@@ -1807,77 +1807,77 @@ namespace System {
         // the inlined console writelines from them.
         //
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static int Read()
         {
             return In.Read();
         }
         
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static String ReadLine()
         {
             return In.ReadLine();
         }
         
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void WriteLine()
         {
             Out.WriteLine();
         }
         
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void WriteLine(bool value)
         {
             Out.WriteLine(value);
         }
         
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void WriteLine(char value)
         {
             Out.WriteLine(value);
         }   
         
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void WriteLine(char[] buffer)
         {
             Out.WriteLine(buffer);
         }
                    
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void WriteLine(char[] buffer, int index, int count)
         {
             Out.WriteLine(buffer, index, count);
         }
         
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void WriteLine(decimal value)
         {
             Out.WriteLine(value);
         }   
 
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void WriteLine(double value)
         {
             Out.WriteLine(value);
         }   
         
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void WriteLine(float value)
         {
             Out.WriteLine(value);
         }   
            
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void WriteLine(int value)
         {
             Out.WriteLine(value);
@@ -1885,14 +1885,14 @@ namespace System {
         
         [HostProtection(UI=true)]
         [CLSCompliant(false)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void WriteLine(uint value)
         {
             Out.WriteLine(value);
         }
     
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void WriteLine(long value)
         {
             Out.WriteLine(value);
@@ -1900,21 +1900,21 @@ namespace System {
         
         [HostProtection(UI=true)]
         [CLSCompliant(false)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void WriteLine(ulong value)
         {
             Out.WriteLine(value);
         }
     
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void WriteLine(Object value)
         {
             Out.WriteLine(value);
         }
         
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void WriteLine(String value)
         {
             Out.WriteLine(value);
@@ -1922,21 +1922,21 @@ namespace System {
     
     
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void WriteLine(String format, Object arg0)
         {
             Out.WriteLine(format, arg0);
         }
     
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void WriteLine(String format, Object arg0, Object arg1)
         {
             Out.WriteLine(format, arg0, arg1);
         }
         
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void WriteLine(String format, Object arg0, Object arg1, Object arg2)
         {
             Out.WriteLine(format, arg0, arg1, arg2);
@@ -1944,7 +1944,7 @@ namespace System {
         
         [HostProtection(UI=true)]
         [CLSCompliant(false)] 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void WriteLine(String format, Object arg0, Object arg1, Object arg2,Object arg3, __arglist) 
         {
             Object[]   objArgs;
@@ -1973,7 +1973,7 @@ namespace System {
 
 
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void WriteLine(String format, params Object[] arg)
         {
             if (arg == null)                       // avoid ArgumentNullException from String.Format
@@ -1983,21 +1983,21 @@ namespace System {
         }
         
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void Write(String format, Object arg0)
         {
             Out.Write(format, arg0);
         }
         
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void Write(String format, Object arg0, Object arg1)
         {
             Out.Write(format, arg0, arg1);
         }
         
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void Write(String format, Object arg0, Object arg1, Object arg2)
         {
             Out.Write(format, arg0, arg1, arg2);
@@ -2005,7 +2005,7 @@ namespace System {
 
         [HostProtection(UI=true)]
         [CLSCompliant(false)] 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void Write(String format, Object arg0, Object arg1, Object arg2, Object arg3, __arglist) 
         {
             Object[]   objArgs;
@@ -2034,7 +2034,7 @@ namespace System {
 
             
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void Write(String format, params Object[] arg)
         {
             if (arg == null)                   // avoid ArgumentNullException from String.Format
@@ -2044,56 +2044,56 @@ namespace System {
         }
         
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void Write(bool value)
         {
             Out.Write(value);
         }
     
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void Write(char value)
         {
             Out.Write(value);
         }   
         
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void Write(char[] buffer)
         {
             Out.Write(buffer);
         }
         
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void Write(char[] buffer, int index, int count)
         {
             Out.Write(buffer, index, count);
         }
         
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void Write(double value)
         {
             Out.Write (value);
         }   
         
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void Write(decimal value)
         {
             Out.Write (value);
         }   
         
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void Write(float value)
         {
             Out.Write (value);
         }   
         
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void Write(int value)
         {
             Out.Write (value);
@@ -2101,14 +2101,14 @@ namespace System {
         
         [HostProtection(UI=true)]
         [CLSCompliant(false)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void Write(uint value)
         {
             Out.Write (value);
         }
     
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void Write(long value)
         {
             Out.Write (value);
@@ -2116,21 +2116,21 @@ namespace System {
         
         [HostProtection(UI=true)]
         [CLSCompliant(false)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void Write(ulong value)
         {
             Out.Write (value);
         }
     
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void Write(Object value)
         {
             Out.Write (value);
         }
         
         [HostProtection(UI=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void Write(String value)
         {
             Out.Write (value);

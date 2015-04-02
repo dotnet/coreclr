@@ -15,7 +15,7 @@ namespace System.Runtime.InteropServices.ComTypes
     using System;
 
     [Guid("00020411-0000-0000-C000-000000000046")]
-    [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     [ComImport]
     public interface ITypeLib2 : ITypeLib
     {
@@ -33,7 +33,7 @@ namespace System.Runtime.InteropServices.ComTypes
         [PreserveSig]
         new void ReleaseTLibAttr(IntPtr pTLibAttr);
         void GetCustData(ref Guid guid, out Object pVarVal);
-        [LCIDConversionAttribute(1)]
+        [LCIDConversion(1)]
         void GetDocumentation2(int index, out String pbstrHelpString, out int pdwHelpStringContext, out String pbstrHelpStringDll);
         void GetLibStatistics(IntPtr pcUniqueNames, out int pcchUniqueNames);
         void GetAllCustData(IntPtr pCustData);

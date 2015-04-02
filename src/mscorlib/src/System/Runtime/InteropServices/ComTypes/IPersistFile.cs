@@ -15,7 +15,7 @@ namespace System.Runtime.InteropServices.ComTypes
     using System;
 
     [Guid("0000010b-0000-0000-C000-000000000046")]
-    [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     [ComImport]
     public interface IPersistFile
     {

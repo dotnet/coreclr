@@ -38,7 +38,7 @@ namespace System.Threading {
         ** Exceptions: ArgumentNullException if object is null.
         =========================================================================*/
         [System.Security.SecuritySafeCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void Enter(Object obj);
 
 
@@ -62,7 +62,7 @@ namespace System.Threading {
         }
 
         [System.Security.SecuritySafeCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void ReliableEnter(Object obj, ref bool lockTaken);
 
 
@@ -77,7 +77,7 @@ namespace System.Threading {
         **             own the lock.
         =========================================================================*/
         [System.Security.SecuritySafeCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         public static extern void Exit(Object obj);
     
@@ -154,7 +154,7 @@ namespace System.Threading {
         }
 
         [System.Security.SecuritySafeCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void ReliableEnterTimeout(Object obj, int timeout, ref bool lockTaken);
 
         [System.Security.SecuritySafeCritical]
@@ -167,7 +167,7 @@ namespace System.Threading {
         }
 
         [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool IsEnteredNative(Object obj);
 
         /*========================================================================
@@ -182,7 +182,7 @@ namespace System.Threading {
         ** Exceptions: ArgumentNullException if object is null.
     ========================================================================*/
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool ObjWait(bool exitContext, int millisecondsTimeout, Object obj);
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -219,7 +219,7 @@ namespace System.Threading {
         * a synchronized block of code.
         ========================================================================*/
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void ObjPulse(Object obj);
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -237,7 +237,7 @@ namespace System.Threading {
         ** Sends a notification to all waiting objects. 
         ========================================================================*/
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void ObjPulseAll(Object obj);
 
         [System.Security.SecuritySafeCritical]  // auto-generated

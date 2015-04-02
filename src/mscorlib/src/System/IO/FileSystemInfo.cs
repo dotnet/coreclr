@@ -26,7 +26,7 @@ using System.Diagnostics.Contracts;
 namespace System.IO {
     [Serializable]
 #if !FEATURE_CORECLR
-    [FileIOPermissionAttribute(SecurityAction.InheritanceDemand,Unrestricted=true)]
+    [FileIOPermission(SecurityAction.InheritanceDemand,Unrestricted=true)]
 #endif
     [ComVisible(true)]
 #if FEATURE_REMOTING        

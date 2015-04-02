@@ -198,22 +198,22 @@ namespace System.Globalization
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private unsafe static extern InternalEncodingDataItem *GetEncodingData();
         
         //
         // Return the number of encoding data items.
         //
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int GetNumEncodingItems();
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private unsafe static extern InternalCodePageDataItem* GetCodePageData();
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal unsafe static extern byte* nativeCreateOpenFileMapping(
             String inSectionName, int inBytesToAllocate, out IntPtr mappedFileHandle);   
     }

@@ -97,7 +97,7 @@ public class Object
     // 
     [System.Security.SecuritySafeCritical]  // auto-generated
     [Pure]
-    [MethodImplAttribute(MethodImplOptions.InternalCall)]
+    [MethodImpl(MethodImplOptions.InternalCall)]
     public extern Type GetType();
 
     // Allow an object to free resources before the object is reclaimed by the GC.
@@ -114,7 +114,7 @@ public class Object
     // support the ICloneable interface.
     // 
     [System.Security.SecuritySafeCritical]  // auto-generated
-    [MethodImplAttribute(MethodImplOptions.InternalCall)]
+    [MethodImpl(MethodImplOptions.InternalCall)]
     protected extern Object MemberwiseClone();
     
    

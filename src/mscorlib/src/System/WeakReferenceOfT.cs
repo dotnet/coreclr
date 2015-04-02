@@ -61,7 +61,7 @@ namespace System
         //      if (ref.Target != null)
         //          DoSomething(ref.Target)
         //
-        [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryGetTarget(out T target)
         {
             // Call the worker method that has more performant but less user friendly signature.
@@ -78,10 +78,10 @@ namespace System
         // This is property for better debugging experience (VS debugger shows values of properties when you hover over the variables)
         private extern T Target
         {
-            [MethodImplAttribute(MethodImplOptions.InternalCall)]
+            [MethodImpl(MethodImplOptions.InternalCall)]
             [SecuritySafeCritical]
             get;
-            [MethodImplAttribute(MethodImplOptions.InternalCall)]
+            [MethodImpl(MethodImplOptions.InternalCall)]
             [SecuritySafeCritical]
             set;
         }
@@ -92,7 +92,7 @@ namespace System
         // treated specially in gc.cpp's ScanForFinalization
         // This is needed for subclasses deriving from WeakReference<T>, however.
         // Additionally, there may be some cases during shutdown when we run this finalizer.
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [SecuritySafeCritical]
         extern ~WeakReference();
 
@@ -108,11 +108,11 @@ namespace System
             info.AddValue("TrackResurrection", IsTrackResurrection());
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [SecuritySafeCritical]
         private extern void Create(T target, bool trackResurrection);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [SecuritySafeCritical]
         private extern bool IsTrackResurrection();
     }

@@ -29,7 +29,7 @@ namespace System.Reflection
     [ClassInterface(ClassInterfaceType.None)]
     [ComDefaultInterface(typeof(_MethodInfo))]
 #pragma warning disable 618
-    [PermissionSetAttribute(SecurityAction.InheritanceDemand, Name = "FullTrust")]
+    [PermissionSet(SecurityAction.InheritanceDemand, Name = "FullTrust")]
 #pragma warning restore 618
     [System.Runtime.InteropServices.ComVisible(true)]
     public abstract class MethodInfo : MethodBase, _MethodInfo
@@ -633,7 +633,7 @@ namespace System.Reflection
         [System.Security.SecuritySafeCritical] // overrides SafeCritical member
 #if !FEATURE_CORECLR
 #pragma warning disable 618
-        [ReflectionPermissionAttribute(SecurityAction.Demand, Flags = ReflectionPermissionFlag.MemberAccess)]
+        [ReflectionPermission(SecurityAction.Demand, Flags = ReflectionPermissionFlag.MemberAccess)]
 #pragma warning restore 618
 #endif
         public override MethodBody GetMethodBody()
@@ -700,9 +700,9 @@ namespace System.Reflection
         }
         
         [System.Security.SecuritySafeCritical]
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public override Object Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
         {
             object[] arguments = InvokeArgumentsCheck(obj, invokeAttr, binder, parameters, culture);
@@ -736,7 +736,7 @@ namespace System.Reflection
         }
 
         [System.Security.SecurityCritical]
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
         internal object UnsafeInvoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
         {
@@ -746,7 +746,7 @@ namespace System.Reflection
         }
 
         [System.Security.SecurityCritical]
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
         private object UnsafeInvokeInternal(Object obj, Object[] parameters, Object[] arguments)
         {
@@ -764,7 +764,7 @@ namespace System.Reflection
             }
         }
 
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
         private object[] InvokeArgumentsCheck(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
         {

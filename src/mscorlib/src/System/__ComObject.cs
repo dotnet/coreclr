@@ -180,7 +180,7 @@ namespace System {
 
         [System.Security.SecurityCritical]  // auto-generated
 #if !FEATURE_CORECLR
-        [ReflectionPermissionAttribute(SecurityAction.Assert, MemberAccess=true)]
+        [ReflectionPermission(SecurityAction.Assert, MemberAccess=true)]
 #endif
         private Object CreateEventProvider(RuntimeType t)
         {

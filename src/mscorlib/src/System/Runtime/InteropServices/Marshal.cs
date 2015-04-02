@@ -113,7 +113,7 @@ namespace System.Runtime.InteropServices
         //====================================================================
         // Helper method to retrieve the system's maximum DBCS character size.
         //====================================================================
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int GetSystemMaxDBCSCharSize();
 
         [System.Security.SecurityCritical]  // auto-generated_required
@@ -259,7 +259,7 @@ namespace System.Runtime.InteropServices
 #if !FEATURE_CORECLR // Marshal is critical in CoreCLR, so SafeCritical members trigger Annotator violations
         [System.Security.SecuritySafeCritical]
 #endif // !FEATURE_CORECLR
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int SizeOfHelper(Type t, bool throwIfNotMarshalable);
 
         //====================================================================
@@ -285,7 +285,7 @@ namespace System.Runtime.InteropServices
             return OffsetOf(typeof(T), fieldName);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern IntPtr OffsetOfHelper(IRuntimeFieldInfo f);
 
         //====================================================================
@@ -297,7 +297,7 @@ namespace System.Runtime.InteropServices
         // unexpected results !
         //====================================================================
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern IntPtr UnsafeAddrOfPinnedArrayElement(Array arr, int index);
 
         [System.Security.SecurityCritical]
@@ -349,7 +349,7 @@ namespace System.Runtime.InteropServices
         {
             CopyToNative(source, startIndex, destination, length);
         }
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void CopyToNative(Object source, int startIndex, IntPtr destination, int length);
 
         //====================================================================
@@ -395,7 +395,7 @@ namespace System.Runtime.InteropServices
         {
             CopyToManaged(source, destination, startIndex, length);
         }
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void CopyToManaged(IntPtr source, Object destination, int startIndex, int length);
 
         //====================================================================
@@ -790,7 +790,7 @@ namespace System.Runtime.InteropServices
         // GetLastWin32Error
         //====================================================================
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         public static extern int GetLastWin32Error();
     
@@ -798,7 +798,7 @@ namespace System.Runtime.InteropServices
         //====================================================================
         // SetLastWin32Error
         //====================================================================
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         internal static extern void SetLastWin32Error(int error);
     
@@ -884,12 +884,12 @@ namespace System.Runtime.InteropServices
         // but need to be exposed for all exceptions (not just SEHException).
         //====================================================================
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [System.Runtime.InteropServices.ComVisible(true)]
         public static extern /* struct _EXCEPTION_POINTERS* */ IntPtr GetExceptionPointers();
 
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern int GetExceptionCode();
 
 
@@ -899,7 +899,7 @@ namespace System.Runtime.InteropServices
         // "fDeleteOld" is true, this routine will call DestroyStructure() first. 
         //====================================================================
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall), ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
+        [MethodImpl(MethodImplOptions.InternalCall), ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         [System.Runtime.InteropServices.ComVisible(true)]
         public static extern void StructureToPtr(Object structure, IntPtr ptr, bool fDeleteOld);
 
@@ -931,7 +931,7 @@ namespace System.Runtime.InteropServices
         //====================================================================
         [System.Security.SecurityCritical]  // auto-generated_required
         [System.Runtime.InteropServices.ComVisible(true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static Object PtrToStructure(IntPtr ptr, Type structureType)
         {
             if (ptr == IntPtr.Zero) return null;
@@ -963,7 +963,7 @@ namespace System.Runtime.InteropServices
         //====================================================================
         // Helper function to copy a pointer into a preallocated structure.
         //====================================================================
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void PtrToStructureHelper(IntPtr ptr, Object structure, bool allowValueClasses);
 
 
@@ -972,7 +972,7 @@ namespace System.Runtime.InteropServices
         // "structureclass" is used to provide layout information.
         //====================================================================
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [System.Runtime.InteropServices.ComVisible(true)]
         public static extern void DestroyStructure(IntPtr ptr, Type structuretype);
 
@@ -1029,7 +1029,7 @@ namespace System.Runtime.InteropServices
                 ThrowExceptionForHRInternal(errorCode, errorInfo);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void ThrowExceptionForHRInternal(int errorCode, IntPtr errorInfo);
 
 
@@ -1053,7 +1053,7 @@ namespace System.Runtime.InteropServices
                 return null;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern Exception GetExceptionForHRInternal(int errorCode, IntPtr errorInfo);
 
 
@@ -1062,7 +1062,7 @@ namespace System.Runtime.InteropServices
         // up an IErrorInfo for the exception.
         //====================================================================
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern int GetHRForException(Exception e);
 
         //====================================================================
@@ -1072,7 +1072,7 @@ namespace System.Runtime.InteropServices
         // to RO_E_CLOSED
         //====================================================================
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int GetHRForException_WinRT(Exception e);
 
         //====================================================================
@@ -1080,8 +1080,8 @@ namespace System.Runtime.InteropServices
         // than applications. 
         //====================================================================
         [System.Security.SecurityCritical]  // auto-generated_required
-        [ObsoleteAttribute("The GetUnmanagedThunkForManagedMethodPtr method has been deprecated and will be removed in a future release.", false)]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [Obsolete("The GetUnmanagedThunkForManagedMethodPtr method has been deprecated and will be removed in a future release.", false)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern IntPtr GetUnmanagedThunkForManagedMethodPtr(IntPtr pfnMethodToWrap, IntPtr pbSignature, int cbSignature);
 
         //====================================================================
@@ -1089,8 +1089,8 @@ namespace System.Runtime.InteropServices
         // than applications. 
         //====================================================================
         [System.Security.SecurityCritical]  // auto-generated_required
-        [ObsoleteAttribute("The GetManagedThunkForUnmanagedMethodPtr method has been deprecated and will be removed in a future release.", false)]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [Obsolete("The GetManagedThunkForUnmanagedMethodPtr method has been deprecated and will be removed in a future release.", false)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern IntPtr GetManagedThunkForUnmanagedMethodPtr(IntPtr pfnMethodToWrap, IntPtr pbSignature, int cbSignature);
 
         //====================================================================
@@ -1100,7 +1100,7 @@ namespace System.Runtime.InteropServices
         // object by calling the following service.
         //====================================================================
         [System.Security.SecurityCritical]  // auto-generated_required
-        [ObsoleteAttribute("The GetThreadFromFiberCookie method has been deprecated.  Use the hosting API to perform this operation.", false)]
+        [Obsolete("The GetThreadFromFiberCookie method has been deprecated.  Use the hosting API to perform this operation.", false)]
         public static Thread GetThreadFromFiberCookie(int cookie)
         {
             if (cookie == 0)
@@ -1110,7 +1110,7 @@ namespace System.Runtime.InteropServices
             return InternalGetThreadFromFiberCookie(cookie);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern Thread InternalGetThreadFromFiberCookie(int cookie);
 
 
@@ -1343,7 +1343,7 @@ namespace System.Runtime.InteropServices
             return result;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void FCallGetTypeLibGuid(ref Guid result, ITypeLib pTLB);
 
         //====================================================================
@@ -1360,14 +1360,14 @@ namespace System.Runtime.InteropServices
         // Given a managed object that wraps an ITypeLib, return its lcid
         //====================================================================
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern int GetTypeLibLcid(ITypeLib typelib);
 
         //====================================================================
         // Given a managed object that wraps an ITypeLib, return it's 
         // version information.
         //====================================================================
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void GetTypeLibVersion(ITypeLib typeLibrary, out int major, out int minor);
 
         //====================================================================
@@ -1381,7 +1381,7 @@ namespace System.Runtime.InteropServices
             return result;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void FCallGetTypeInfoGuid(ref Guid result, ITypeInfo typeInfo);
 
         //====================================================================
@@ -1404,14 +1404,14 @@ namespace System.Runtime.InteropServices
             return result;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void FCallGetTypeLibGuidForAssembly(ref Guid result, RuntimeAssembly asm);
 
         //====================================================================
         // Given a assembly, return the version number of the type library
         // that would be exported from the assembly.
         //====================================================================
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _GetTypeLibVersionForAssembly(RuntimeAssembly inputAssembly, out int majorVersion, out int minorVersion);
 
         [System.Security.SecurityCritical]  // auto-generated_required
@@ -1516,7 +1516,7 @@ namespace System.Runtime.InteropServices
         // return the reflection type that represents it. Otherwise it returns
         // NULL.
         //====================================================================
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern Type GetLoadedTypeForGUID(ref Guid guid);
 
 #if !FEATURE_CORECLR // current implementation requires reflection only load 
@@ -1617,7 +1617,7 @@ namespace System.Runtime.InteropServices
         // map Type to ITypeInfo*
         //====================================================================
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern IntPtr /* ITypeInfo* */ GetITypeInfoForType(Type t);
 
         //====================================================================
@@ -1637,7 +1637,7 @@ namespace System.Runtime.InteropServices
             return GetIUnknownForObjectNative(o, true);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern IntPtr /* IUnknown* */ GetIUnknownForObjectNative(Object o, bool onlyInContext);
 
         //====================================================================
@@ -1645,7 +1645,7 @@ namespace System.Runtime.InteropServices
         // context
         // Does not call AddRef
         //====================================================================
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern IntPtr /* IUnknown* */ GetRawIUnknownForComObjectNoAddRef(Object o);
 
         //====================================================================
@@ -1668,7 +1668,7 @@ namespace System.Runtime.InteropServices
             return GetIDispatchForObjectNative(o, true);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern IntPtr /* IUnknown* */ GetIDispatchForObjectNative(Object o, bool onlyInContext);
 
         //====================================================================
@@ -1711,14 +1711,14 @@ namespace System.Runtime.InteropServices
             return GetComInterfaceForObjectNative(o, t, true, true);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern IntPtr /* IUnknown* */ GetComInterfaceForObjectNative(Object o, Type t, bool onlyInContext, bool fEnalbeCustomizedQueryInterface);
 
         //====================================================================
         // return an Object for IUnknown
         //====================================================================
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern Object GetObjectForIUnknown(IntPtr /* IUnknown* */ pUnk);
 
         //====================================================================
@@ -1729,7 +1729,7 @@ namespace System.Runtime.InteropServices
         //  and not worry about other active uses of said RCW.
         //====================================================================
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern Object GetUniqueObjectForIUnknown(IntPtr unknown);
 
         //====================================================================
@@ -1739,11 +1739,11 @@ namespace System.Runtime.InteropServices
         //  imported Type
         //====================================================================
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern Object GetTypedObjectForIUnknown(IntPtr /* IUnknown* */ pUnk, Type t);
 
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern IntPtr CreateAggregatedObject(IntPtr pOuter, Object o);
 
         [System.Security.SecurityCritical]
@@ -1753,11 +1753,11 @@ namespace System.Runtime.InteropServices
         }
 
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void CleanupUnusedObjectsInCurrentContext();
 
         [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern bool AreComObjectsAvailableForCleanup();
 
         //====================================================================
@@ -1766,7 +1766,7 @@ namespace System.Runtime.InteropServices
 #if !FEATURE_CORECLR // with FEATURE_CORECLR, the whole type is SecurityCritical
         [System.Security.SecuritySafeCritical]
 #endif
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern bool IsComObject(Object o);
 
 #endif // FEATURE_COMINTEROP
@@ -1893,7 +1893,7 @@ namespace System.Runtime.InteropServices
             return co.ReleaseSelf();
         }    
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int InternalReleaseComObject(Object o);
 
         
@@ -1925,7 +1925,7 @@ namespace System.Runtime.InteropServices
             return 0;
         }    
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void InternalFinalReleaseComObject(Object o);
 
         //====================================================================
@@ -2060,7 +2060,7 @@ namespace System.Runtime.InteropServices
         // Helper method called from CreateWrapperOfType.
         //====================================================================
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern Object InternalCreateWrapperOfType(Object o, Type t);
 
         //====================================================================
@@ -2077,21 +2077,21 @@ namespace System.Runtime.InteropServices
         // check if the type is visible from COM.
         //====================================================================
         [System.Security.SecuritySafeCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern bool IsTypeVisibleFromCom(Type t);
 
         //====================================================================
         // IUnknown Helpers
         //====================================================================
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern int /* HRESULT */ QueryInterface(IntPtr /* IUnknown */ pUnk, ref Guid iid, out IntPtr ppv);    
 
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern int /* ULONG */ AddRef(IntPtr /* IUnknown */ pUnk );
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         public static extern int /* ULONG */ Release(IntPtr /* IUnknown */ pUnk );
 
@@ -2130,7 +2130,7 @@ namespace System.Runtime.InteropServices
         }
 
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void GetNativeVariantForObject(Object obj, /* VARIANT * */ IntPtr pDstNativeVariant);
 
         [System.Security.SecurityCritical]
@@ -2140,7 +2140,7 @@ namespace System.Runtime.InteropServices
         }
 
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern Object GetObjectForNativeVariant(/* VARIANT * */ IntPtr pSrcNativeVariant );
 
         [System.Security.SecurityCritical]
@@ -2150,7 +2150,7 @@ namespace System.Runtime.InteropServices
         }
 
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern Object[] GetObjectsForNativeVariants(/* VARIANT * */ IntPtr aSrcNativeVariant, int cVars );
 
         [System.Security.SecurityCritical]
@@ -2173,14 +2173,14 @@ namespace System.Runtime.InteropServices
         /// This will be 3 for IUnknown based interfaces and 7 for IDispatch based interfaces. </para>
         /// </summary>
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern int GetStartComSlot(Type t);
 
         /// <summary>
         /// <para>Returns the last valid COM slot that GetMethodInfoForSlot will work on. </para>
         /// </summary>
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern int GetEndComSlot(Type t);
 
         /// <summary>
@@ -2191,7 +2191,7 @@ namespace System.Runtime.InteropServices
         /// exposed for the class. </para>
         /// </summary>
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern MemberInfo GetMethodInfoForComSlot(Type t, int slot, ref ComMemberType memberType);
 
         /// <summary>
@@ -2216,7 +2216,7 @@ namespace System.Runtime.InteropServices
             return InternalGetComSlotForMethodInfo((IRuntimeMethodInfo)m);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int InternalGetComSlotForMethodInfo(IRuntimeMethodInfo m);
 
         //====================================================================
@@ -2234,7 +2234,7 @@ namespace System.Runtime.InteropServices
         }
 
         // The full assembly name is used to compute the GUID, so this should be SxS-safe
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void FCallGenerateGuidForType(ref Guid result, Type type);
 
         //====================================================================
@@ -2358,10 +2358,10 @@ namespace System.Runtime.InteropServices
         //========================================================================
         // Private method called from remoting to support ServicedComponents.
         //========================================================================
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool InternalSwitchCCW(Object oldtp, Object newtp);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern Object InternalWrapIUnknownWithComObject(IntPtr i);
 
         //========================================================================
@@ -2379,16 +2379,16 @@ namespace System.Runtime.InteropServices
         }
 
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void ChangeWrapperHandleStrength(Object otp, bool fIsWeak);
 
         [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void InitializeWrapperForWinRT(object o, ref IntPtr pUnk);
 
 #if FEATURE_COMINTEROP_WINRT_MANAGED_ACTIVATION
         [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void InitializeManagedWinRTFactoryObject(object o, RuntimeType runtimeClassType);
 #endif
 
@@ -2396,7 +2396,7 @@ namespace System.Runtime.InteropServices
         // Create activation factory and wraps it with a unique RCW
         //========================================================================
         [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern object GetNativeActivationFactory(Type type);
 
         //========================================================================
@@ -2518,7 +2518,7 @@ namespace System.Runtime.InteropServices
             return (TDelegate)(object)GetDelegateForFunctionPointer(ptr, typeof(TDelegate));
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern Delegate GetDelegateForFunctionPointerInternal(IntPtr ptr, Type t);
 
         [System.Security.SecurityCritical]  // auto-generated_required
@@ -2537,7 +2537,7 @@ namespace System.Runtime.InteropServices
             return GetFunctionPointerForDelegate((Delegate)(object)d);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern IntPtr GetFunctionPointerForDelegateInternal(Delegate d);
 
 #if FEATURE_LEGACYSURFACE

@@ -35,16 +35,16 @@ namespace System {
       public const double E  = 2.7182818284590452354;
     
       [System.Security.SecuritySafeCritical]  // auto-generated
-      [MethodImplAttribute(MethodImplOptions.InternalCall)]
+      [MethodImpl(MethodImplOptions.InternalCall)]
       public static extern double Acos(double d);
       [System.Security.SecuritySafeCritical]  // auto-generated
-      [MethodImplAttribute(MethodImplOptions.InternalCall)]
+      [MethodImpl(MethodImplOptions.InternalCall)]
       public static extern double Asin(double d);
       [System.Security.SecuritySafeCritical]  // auto-generated
-      [MethodImplAttribute(MethodImplOptions.InternalCall)]
+      [MethodImpl(MethodImplOptions.InternalCall)]
       public static extern double Atan(double d);
       [System.Security.SecuritySafeCritical]  // auto-generated
-      [MethodImplAttribute(MethodImplOptions.InternalCall)]
+      [MethodImpl(MethodImplOptions.InternalCall)]
       public static extern double Atan2(double y,double x);
       
       public static Decimal Ceiling(Decimal d) {
@@ -52,15 +52,15 @@ namespace System {
       }
 
       [System.Security.SecuritySafeCritical]  // auto-generated
-      [MethodImplAttribute(MethodImplOptions.InternalCall)]
+      [MethodImpl(MethodImplOptions.InternalCall)]
       public static extern double Ceiling(double a);      
       
       [System.Security.SecuritySafeCritical]  // auto-generated
-      [MethodImplAttribute(MethodImplOptions.InternalCall)]
+      [MethodImpl(MethodImplOptions.InternalCall)]
       public static extern double Cos (double d);
 
       [System.Security.SecuritySafeCritical]  // auto-generated
-      [MethodImplAttribute(MethodImplOptions.InternalCall)]
+      [MethodImpl(MethodImplOptions.InternalCall)]
       public static extern double Cosh(double value);
       
       public static Decimal Floor(Decimal d) {
@@ -68,7 +68,7 @@ namespace System {
       }
 
       [System.Security.SecuritySafeCritical]  // auto-generated
-      [MethodImplAttribute(MethodImplOptions.InternalCall)]
+      [MethodImpl(MethodImplOptions.InternalCall)]
       public static extern double Floor(double d);
       
       [System.Security.SecuritySafeCritical]  // auto-generated
@@ -98,20 +98,20 @@ namespace System {
       }            
       
       [System.Security.SecuritySafeCritical]  // auto-generated
-      [MethodImplAttribute(MethodImplOptions.InternalCall)]
+      [MethodImpl(MethodImplOptions.InternalCall)]
       public static extern double Sin(double a);
       [System.Security.SecuritySafeCritical]  // auto-generated
-      [MethodImplAttribute(MethodImplOptions.InternalCall)]
+      [MethodImpl(MethodImplOptions.InternalCall)]
       public static extern double Tan(double a);
       [System.Security.SecuritySafeCritical]  // auto-generated
-      [MethodImplAttribute(MethodImplOptions.InternalCall)]
+      [MethodImpl(MethodImplOptions.InternalCall)]
       public static extern double Sinh(double value);
       [System.Security.SecuritySafeCritical]  // auto-generated
-      [MethodImplAttribute(MethodImplOptions.InternalCall)]
+      [MethodImpl(MethodImplOptions.InternalCall)]
       public static extern double Tanh(double value);
 
       [System.Security.SecuritySafeCritical]  // auto-generated
-      [MethodImplAttribute(MethodImplOptions.InternalCall)]
+      [MethodImpl(MethodImplOptions.InternalCall)]
       public static extern double Round(double a);
 
       public static double Round(double value, int digits)
@@ -153,7 +153,7 @@ namespace System {
       }
 
       [System.Security.SecurityCritical]  // auto-generated
-      [MethodImplAttribute(MethodImplOptions.InternalCall)]
+      [MethodImpl(MethodImplOptions.InternalCall)]
       private static unsafe extern double SplitFractionDouble(double* value);
       
       public static Decimal Truncate(Decimal d) {
@@ -166,19 +166,19 @@ namespace System {
             
       [System.Security.SecuritySafeCritical]  // auto-generated
       [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-      [MethodImplAttribute(MethodImplOptions.InternalCall)]
+      [MethodImpl(MethodImplOptions.InternalCall)]
       public static extern double Sqrt(double d);
       [System.Security.SecuritySafeCritical]  // auto-generated
-      [MethodImplAttribute(MethodImplOptions.InternalCall)]
+      [MethodImpl(MethodImplOptions.InternalCall)]
       public static extern double Log (double d);
       [System.Security.SecuritySafeCritical]  // auto-generated
-      [MethodImplAttribute(MethodImplOptions.InternalCall)]
+      [MethodImpl(MethodImplOptions.InternalCall)]
       public static extern double Log10(double d);
       [System.Security.SecuritySafeCritical]  // auto-generated
-      [MethodImplAttribute(MethodImplOptions.InternalCall)]
+      [MethodImpl(MethodImplOptions.InternalCall)]
       public static extern double Exp(double d);
       [System.Security.SecuritySafeCritical]  // auto-generated
-      [MethodImplAttribute(MethodImplOptions.InternalCall)]
+      [MethodImpl(MethodImplOptions.InternalCall)]
       public static extern double Pow(double x, double y);
             
       public static double IEEERemainder(double x, double y) {
@@ -284,7 +284,7 @@ namespace System {
       }
     
       [System.Security.SecuritySafeCritical]  // auto-generated
-      [MethodImplAttribute(MethodImplOptions.InternalCall)]
+      [MethodImpl(MethodImplOptions.InternalCall)]
       extern public static float Abs(float value);
         // This is special code to handle NaN (We need to make sure NaN's aren't 
         // negated).  In CSharp, the else clause here should always be taken if 
@@ -296,7 +296,7 @@ namespace System {
         //  return (value < 0) ? -value : value;
     
       [System.Security.SecuritySafeCritical]  // auto-generated
-      [MethodImplAttribute(MethodImplOptions.InternalCall)]
+      [MethodImpl(MethodImplOptions.InternalCall)]
       extern public static double Abs(double value);
         // This is special code to handle NaN (We need to make sure NaN's aren't 
         // negated).  In CSharp, the else clause here should always be taken if 

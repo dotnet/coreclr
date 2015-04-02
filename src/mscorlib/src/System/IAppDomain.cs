@@ -33,8 +33,8 @@ namespace System {
     using System.IO;
     using System.Runtime.Versioning;
 
-    [GuidAttribute("05F696DC-2B29-3663-AD8B-C4389CF2A713")]
-    [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
+    [Guid("05F696DC-2B29-3663-AD8B-C4389CF2A713")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     [CLSCompliant(false)]
 [System.Runtime.InteropServices.ComVisible(true)]
     public interface _AppDomain

@@ -111,7 +111,7 @@ namespace Microsoft.Win32 {
     // global declaration on the class.
 
     [System.Security.SecurityCritical]
-    [SuppressUnmanagedCodeSecurityAttribute()]
+    [SuppressUnmanagedCodeSecurity]
     internal static class Win32Native {
 
         internal const int KEY_QUERY_VALUE        = 0x0001;
@@ -489,7 +489,7 @@ namespace Microsoft.Win32 {
             internal UNICODE_INTPTR_STRING  ClientRealm; // Optional: Client Realm, if known
         }
 
-        [StructLayoutAttribute(LayoutKind.Sequential)]
+        [StructLayout(LayoutKind.Sequential)]
         internal struct LSA_OBJECT_ATTRIBUTES {
             internal int Length;
             internal IntPtr RootDirectory;
@@ -552,14 +552,14 @@ namespace Microsoft.Win32 {
             internal int DomainIndex;
         }
 
-        [StructLayoutAttribute(LayoutKind.Sequential)]
+        [StructLayout(LayoutKind.Sequential)]
         internal struct LSA_TRANSLATED_SID {
             internal int Use;
             internal uint Rid;
             internal int DomainIndex;
         }
 
-        [StructLayoutAttribute(LayoutKind.Sequential)]
+        [StructLayout(LayoutKind.Sequential)]
         internal struct LSA_TRANSLATED_SID2 {
             internal int Use;
             internal IntPtr Sid;
@@ -1384,14 +1384,14 @@ namespace Microsoft.Win32 {
         [DllImport(Win32Native.OLE32)]
         internal static extern void CoTaskMemFree(IntPtr ptr);
 
-        [StructLayoutAttribute(LayoutKind.Sequential)]
+        [StructLayout(LayoutKind.Sequential)]
         internal struct COORD
         {
             internal short X;
             internal short Y;
         }
 
-        [StructLayoutAttribute(LayoutKind.Sequential)]
+        [StructLayout(LayoutKind.Sequential)]
         internal struct SMALL_RECT
         {
             internal short Left; 
@@ -1400,7 +1400,7 @@ namespace Microsoft.Win32 {
             internal short Bottom; 
         }
 
-        [StructLayoutAttribute(LayoutKind.Sequential)]
+        [StructLayout(LayoutKind.Sequential)]
         internal struct CONSOLE_SCREEN_BUFFER_INFO 
         {
             internal COORD      dwSize; 
@@ -1410,7 +1410,7 @@ namespace Microsoft.Win32 {
             internal COORD      dwMaximumWindowSize; 
         }
 
-        [StructLayoutAttribute(LayoutKind.Sequential)]
+        [StructLayout(LayoutKind.Sequential)]
         internal struct CONSOLE_CURSOR_INFO 
         {
             internal int dwSize;
@@ -2083,15 +2083,15 @@ namespace Microsoft.Win32 {
                     | CLAIM_SECURITY_ATTRIBUTE_MANDATORY;
 
 
-        [StructLayoutAttribute( LayoutKind.Explicit )]
+        [StructLayout( LayoutKind.Explicit )]
         internal struct CLAIM_SECURITY_ATTRIBUTE_INFORMATION_V1
         {
             // defined as union in CLAIM_SECURITY_ATTRIBUTES_INFORMATION
-            [FieldOffsetAttribute( 0 )]
+            [FieldOffset( 0 )]
             public IntPtr pAttributeV1;
         }
 
-        [StructLayoutAttribute( LayoutKind.Sequential )]
+        [StructLayout( LayoutKind.Sequential )]
         internal struct CLAIM_SECURITY_ATTRIBUTES_INFORMATION
         {
             /// WORD->unsigned short
@@ -2110,18 +2110,18 @@ namespace Microsoft.Win32 {
         //
         //  Fully-qualified binary name.
         //
-        [StructLayoutAttribute( LayoutKind.Sequential, CharSet = CharSet.Unicode )]
+        [StructLayout( LayoutKind.Sequential, CharSet = CharSet.Unicode )]
         internal struct CLAIM_SECURITY_ATTRIBUTE_FQBN_VALUE
         {
             // DWORD64->unsigned __int64
             public ulong Version;
 
             // PWSTR->WCHAR*
-            [MarshalAsAttribute( UnmanagedType.LPWStr )]
+            [MarshalAs( UnmanagedType.LPWStr )]
             public string Name;
         }
 
-        [StructLayoutAttribute( LayoutKind.Sequential, CharSet = CharSet.Unicode )]
+        [StructLayout( LayoutKind.Sequential, CharSet = CharSet.Unicode )]
         internal struct CLAIM_SECURITY_ATTRIBUTE_OCTET_STRING_VALUE
         {
             /// PVOID->void*
@@ -2131,35 +2131,35 @@ namespace Microsoft.Win32 {
             public uint ValueLength;
         }
 
-        [StructLayoutAttribute( LayoutKind.Explicit, CharSet = CharSet.Unicode )]
+        [StructLayout( LayoutKind.Explicit, CharSet = CharSet.Unicode )]
         internal struct CLAIM_VALUES_ATTRIBUTE_V1
         {
             // PLONG64->__int64*
-            [FieldOffsetAttribute( 0 )]
+            [FieldOffset( 0 )]
             public IntPtr pInt64;
 
             // PDWORD64->unsigned __int64*
-            [FieldOffsetAttribute( 0 )]
+            [FieldOffset( 0 )]
             public IntPtr pUint64;
 
             // PWSTR*
-            [FieldOffsetAttribute( 0 )]
+            [FieldOffset( 0 )]
             public IntPtr ppString;
 
             // PCLAIM_SECURITY_ATTRIBUTE_FQBN_VALUE->_CLAIM_SECURITY_ATTRIBUTE_FQBN_VALUE*
-            [FieldOffsetAttribute( 0 )]
+            [FieldOffset( 0 )]
             public IntPtr pFqbn;
 
             // PCLAIM_SECURITY_ATTRIBUTE_OCTET_STRING_VALUE->_CLAIM_SECURITY_ATTRIBUTE_OCTET_STRING_VALUE*
-            [FieldOffsetAttribute( 0 )]
+            [FieldOffset( 0 )]
             public IntPtr pOctetString;
         }
 
-        [StructLayoutAttribute( LayoutKind.Sequential, CharSet = CharSet.Unicode )]
+        [StructLayout( LayoutKind.Sequential, CharSet = CharSet.Unicode )]
         internal struct CLAIM_SECURITY_ATTRIBUTE_V1
         {
             // PWSTR->WCHAR*
-            [MarshalAsAttribute( UnmanagedType.LPWStr )]
+            [MarshalAs( UnmanagedType.LPWStr )]
             public string Name;
 
             // WORD->unsigned short
@@ -2385,7 +2385,7 @@ namespace Microsoft.Win32 {
 
 #if FEATURE_CORECLR
         [DllImport(KERNEL32, CharSet=CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurityAttribute()]
+        [SuppressUnmanagedCodeSecurity]
         internal  unsafe static extern int WideCharToMultiByte(
             int     CodePage,
             UInt32    dwFlags,
@@ -2397,7 +2397,7 @@ namespace Microsoft.Win32 {
             bool*   lpUsedDefaultChar);    
 
         [DllImport(KERNEL32, CharSet=CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurityAttribute()]
+        [SuppressUnmanagedCodeSecurity]
         internal unsafe static extern int MultiByteToWideChar(
             int     CodePage,
             UInt32    dwFlags,

@@ -9,7 +9,7 @@ namespace System.Threading
     using System.Runtime.InteropServices;
 
     [Serializable]
-    [ComVisibleAttribute(false)]
+    [ComVisible(false)]
 
 #if FEATURE_CORECLR
     public class WaitHandleCannotBeOpenedException : Exception {

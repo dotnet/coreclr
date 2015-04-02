@@ -154,7 +154,7 @@ namespace System.IO {
 #if FEATURE_FUSION
         public String FusionLog {
             [System.Security.SecuritySafeCritical]  // auto-generated
-            [SecurityPermissionAttribute( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlEvidence | SecurityPermissionFlag.ControlPolicy)]
+            [SecurityPermission( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlEvidence | SecurityPermissionFlag.ControlPolicy)]
             get { return _fusionLog; }
         }
 #endif // FEATURE_FUSION

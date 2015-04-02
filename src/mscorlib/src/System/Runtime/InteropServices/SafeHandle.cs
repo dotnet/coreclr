@@ -197,7 +197,7 @@ public abstract class SafeHandle : CriticalFinalizerObject, IDisposable
     }
 
     [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-    [MethodImplAttribute(MethodImplOptions.InternalCall)]
+    [MethodImpl(MethodImplOptions.InternalCall)]
     extern void InternalFinalize();
 
     [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
@@ -258,7 +258,7 @@ public abstract class SafeHandle : CriticalFinalizerObject, IDisposable
     }
 
     [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-    [MethodImplAttribute(MethodImplOptions.InternalCall)]
+    [MethodImpl(MethodImplOptions.InternalCall)]
     private extern void InternalDispose();
 
     // This should only be called for cases when you know for a fact that
@@ -267,7 +267,7 @@ public abstract class SafeHandle : CriticalFinalizerObject, IDisposable
     // This method will normally leak handles!
     [System.Security.SecurityCritical]  // auto-generated
     [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-    [MethodImplAttribute(MethodImplOptions.InternalCall)]
+    [MethodImpl(MethodImplOptions.InternalCall)]
     public extern void SetHandleAsInvalid();
 
     // Implement this abstract method in your derived class to specify how to
@@ -296,7 +296,7 @@ public abstract class SafeHandle : CriticalFinalizerObject, IDisposable
     // released.
     [System.Security.SecurityCritical]  // auto-generated
     [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-    [MethodImplAttribute(MethodImplOptions.InternalCall)]
+    [MethodImpl(MethodImplOptions.InternalCall)]
     public extern void DangerousAddRef(ref bool success);
 
     // Partner to DangerousAddRef. This should always be successful when used in
@@ -310,7 +310,7 @@ public abstract class SafeHandle : CriticalFinalizerObject, IDisposable
     // untrusted code.
     [System.Security.SecurityCritical]  // auto-generated
     [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-    [MethodImplAttribute(MethodImplOptions.InternalCall)]
+    [MethodImpl(MethodImplOptions.InternalCall)]
     public extern void DangerousRelease();
 }
 }

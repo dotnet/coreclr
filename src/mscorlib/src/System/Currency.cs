@@ -54,7 +54,7 @@ namespace System {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void FCallToDecimal(ref Decimal result,Currency c);
     }
 }

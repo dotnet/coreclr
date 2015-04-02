@@ -29,9 +29,9 @@ using System.Runtime.InteropServices.WindowsRuntime;
 
 #endif // FEATURE_COMINTEROP
 
-[assembly:DefaultDependencyAttribute(LoadHint.Always)]
+[assembly:DefaultDependency(LoadHint.Always)]
 // mscorlib would like to have its literal strings frozen if possible
-[assembly: System.Runtime.CompilerServices.StringFreezingAttribute()]
+[assembly: System.Runtime.CompilerServices.StringFreezing]
 
 namespace System
 {

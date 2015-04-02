@@ -16,7 +16,7 @@ using System.Diagnostics.Contracts;
 
 namespace System.Runtime.Versioning {
 
-    [AttributeUsageAttribute(AttributeTargets.Assembly, AllowMultiple = false, Inherited = false)]
+    [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = false, Inherited = false)]
     public sealed class TargetFrameworkAttribute : Attribute {
         private String _frameworkName;  // A target framework moniker
         private String _frameworkDisplayName;

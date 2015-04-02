@@ -203,7 +203,7 @@ public abstract class CriticalHandle : CriticalFinalizerObject, IDisposable
         GC.SuppressFinalize(this);
     }
 
-    [MethodImplAttribute(MethodImplOptions.InternalCall)]
+    [MethodImpl(MethodImplOptions.InternalCall)]
     [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
     private extern void FireCustomerDebugProbe();
 

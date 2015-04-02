@@ -199,7 +199,7 @@ namespace System.Runtime.CompilerServices {
 
         // Set the given element in the array without any type or range checks
         [SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         extern static internal void UnsafeSetArrayElement(Object[] target, int index, Object element);
 
         // Used for unsafe pinning of arbitrary objects.
@@ -216,7 +216,7 @@ namespace System.Runtime.CompilerServices {
 
 #if _DEBUG
         [SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         extern static bool IsAddressInStack(IntPtr ptr);
 #endif
     }

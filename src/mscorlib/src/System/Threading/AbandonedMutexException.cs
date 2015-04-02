@@ -16,7 +16,7 @@ namespace System.Threading {
     using System.Runtime.InteropServices;
     
     [Serializable]
-    [ComVisibleAttribute(false)]
+    [ComVisible(false)]
     public class AbandonedMutexException : SystemException {
 
         private int m_MutexIndex = -1;

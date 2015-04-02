@@ -57,7 +57,7 @@ namespace System.Reflection.Emit
     {
         #region FCalls
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern IntPtr nCreateISymWriterForDynamicModule(Module module, String filename);
 
         #endregion

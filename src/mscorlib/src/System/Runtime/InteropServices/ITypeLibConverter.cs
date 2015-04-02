@@ -73,8 +73,8 @@ namespace System.Runtime.InteropServices {
         ERROR_REFTOINVALIDASSEMBLY = 2
     }
 
-    [GuidAttribute("F1C3BF76-C3E4-11d3-88E7-00902754C43A")]
-    [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
+    [Guid("F1C3BF76-C3E4-11d3-88E7-00902754C43A")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
 [System.Runtime.InteropServices.ComVisible(true)]
     public interface ITypeLibImporterNotifySink
     {
@@ -86,8 +86,8 @@ namespace System.Runtime.InteropServices {
                 [MarshalAs(UnmanagedType.Interface)] Object typeLib);
     }
 
-    [GuidAttribute("F1C3BF77-C3E4-11d3-88E7-00902754C43A")]
-    [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
+    [Guid("F1C3BF77-C3E4-11d3-88E7-00902754C43A")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
 [System.Runtime.InteropServices.ComVisible(true)]
     public interface ITypeLibExporterNotifySink 
     {
@@ -101,8 +101,8 @@ namespace System.Runtime.InteropServices {
                 Assembly assembly);
     }
 
-    [GuidAttribute("F1C3BF78-C3E4-11d3-88E7-00902754C43A")]
-    [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
+    [Guid("F1C3BF78-C3E4-11d3-88E7-00902754C43A")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
 [System.Runtime.InteropServices.ComVisible(true)]
     public interface ITypeLibConverter
     {
@@ -134,8 +134,8 @@ namespace System.Runtime.InteropServices {
                                                 bool unsafeInterfaces);
     }
 
-    [GuidAttribute("FA1F3615-ACB9-486d-9EAC-1BEF87E36B09")]
-    [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
+    [Guid("FA1F3615-ACB9-486d-9EAC-1BEF87E36B09")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
 [System.Runtime.InteropServices.ComVisible(true)]
     public interface ITypeLibExporterNameProvider
     {

@@ -238,11 +238,11 @@ namespace System
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int InternalCompareTo(Object o1, Object o2);
 
         [System.Security.SecuritySafeCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern RuntimeType InternalGetUnderlyingType(RuntimeType enumType);
 
         [System.Security.SecurityCritical]  // auto-generated
@@ -251,7 +251,7 @@ namespace System
         private static extern void GetEnumValuesAndNames(RuntimeTypeHandle enumType, ObjectHandleOnStack values, ObjectHandleOnStack names, bool getNames);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern Object InternalBoxEnum(RuntimeType enumType, long value);
         #endregion
 
@@ -724,18 +724,18 @@ namespace System
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern bool InternalHasFlag(Enum flags);
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern CorElementType InternalGetCorElementType();
 
         #endregion
 
         #region Object Overrides
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern override bool Equals(Object obj);
 
         [System.Security.SecuritySafeCritical]

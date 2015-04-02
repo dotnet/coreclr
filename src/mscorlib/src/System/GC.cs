@@ -63,11 +63,11 @@ namespace System {
     public static class GC 
     {
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int GetGCLatencyMode();
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int SetGCLatencyMode(int newLatencyMode);
 
         [System.Security.SecurityCritical]  // auto-generated
@@ -81,15 +81,15 @@ namespace System {
         internal static extern int _EndNoGCRegion();
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int GetLOHCompactionMode();
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void SetLOHCompactionMode(int newLOHCompactionyMode);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int GetGenerationWR(IntPtr handle);
 
         [System.Security.SecurityCritical]  // auto-generated
@@ -103,16 +103,16 @@ namespace System {
         private static extern void _Collect(int generation, int mode);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int GetMaxGeneration();
     
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         private static extern int _CollectionCount (int generation, int getSpecialGCCount);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool IsServerGC();
 
         [System.Security.SecurityCritical]  // auto-generated
@@ -163,7 +163,7 @@ namespace System {
 #else
         [System.Security.SecuritySafeCritical]  // auto-generated
 #endif
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern int GetGeneration(Object obj);
 
     
@@ -290,7 +290,7 @@ namespace System {
         //
         // If we insert a call to GC.KeepAlive(this) at the end of Problem(), then
         // Foo doesn't get finalized and the stream says open.
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
+        [MethodImpl(MethodImplOptions.NoInlining)] // disable optimizations
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         public static void KeepAlive(Object obj)
         {
@@ -326,7 +326,7 @@ namespace System {
         // Indicates that the system should not call the Finalize() method on
         // an object that would normally require this call.
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         private static extern void _SuppressFinalize(Object o);
 
@@ -344,7 +344,7 @@ namespace System {
         // where calling ReRegisterForFinalize is useful is inside a finalizer that 
         // needs to resurrect itself or an object that it references.
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _ReRegisterForFinalize(Object o);
         
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -383,16 +383,16 @@ namespace System {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool _RegisterForFullGCNotification(int maxGenerationPercentage, int largeObjectHeapPercentage);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool _CancelFullGCNotification();
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int _WaitForFullGCApproach(int millisecondsTimeout);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int _WaitForFullGCComplete(int millisecondsTimeout);
 
         [SecurityCritical]
@@ -541,19 +541,19 @@ namespace System {
     internal class SizedReference : IDisposable
     {
         [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern IntPtr CreateSizedRef(Object o);
 
         [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void FreeSizedRef(IntPtr h);
 
         [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern Object GetTargetOfSizedRef(IntPtr h);
 
         [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern Int64 GetApproximateSizeOfSizedRef(IntPtr h);
 
         #pragma warning disable 420

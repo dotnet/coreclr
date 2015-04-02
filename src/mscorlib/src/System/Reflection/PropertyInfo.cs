@@ -22,7 +22,7 @@ namespace System.Reflection
     [ClassInterface(ClassInterfaceType.None)]
     [ComDefaultInterface(typeof(_PropertyInfo))]
 #pragma warning disable 618
-    [PermissionSetAttribute(SecurityAction.InheritanceDemand, Name = "FullTrust")]
+    [PermissionSet(SecurityAction.InheritanceDemand, Name = "FullTrust")]
 #pragma warning restore 618
     [System.Runtime.InteropServices.ComVisible(true)]
     public abstract class PropertyInfo : MemberInfo, _PropertyInfo
@@ -94,14 +94,14 @@ namespace System.Reflection
                                         
         public abstract bool CanWrite { get; }
 
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
         public Object GetValue(Object obj)
         {
             return GetValue(obj, null);
         }
 
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
         public virtual Object GetValue(Object obj,Object[] index)
         {
@@ -110,14 +110,14 @@ namespace System.Reflection
 
         public abstract Object GetValue(Object obj, BindingFlags invokeAttr, Binder binder, Object[] index, CultureInfo culture);
 
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
         public void SetValue(Object obj, Object value)
         {
             SetValue(obj, value, null);
         }
 
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
         public virtual void SetValue(Object obj, Object value, Object[] index)
         {
@@ -608,7 +608,7 @@ namespace System.Reflection
         #endregion
 
         #region Dynamic
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
         public override Object GetValue(Object obj,Object[] index) 
         {
@@ -616,7 +616,7 @@ namespace System.Reflection
                 null, index, null);
         }
 
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
         public override Object GetValue(Object obj, BindingFlags invokeAttr, Binder binder, Object[] index, CultureInfo culture) 
         {
@@ -627,7 +627,7 @@ namespace System.Reflection
             return m.Invoke(obj, invokeAttr, binder, index, null); 
         }
 
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
         public override void SetValue(Object obj, Object value, Object[] index)
         {
@@ -639,7 +639,7 @@ namespace System.Reflection
                     null);
         }
 
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
         public override void SetValue(Object obj, Object value, BindingFlags invokeAttr, Binder binder, Object[] index, CultureInfo culture)
         {

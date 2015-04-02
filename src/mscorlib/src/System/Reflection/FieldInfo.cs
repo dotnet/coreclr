@@ -26,7 +26,7 @@ namespace System.Reflection
     [ClassInterface(ClassInterfaceType.None)]
     [ComDefaultInterface(typeof(_FieldInfo))]
 #pragma warning disable 618
-    [PermissionSetAttribute(SecurityAction.InheritanceDemand, Name = "FullTrust")]
+    [PermissionSet(SecurityAction.InheritanceDemand, Name = "FullTrust")]
 #pragma warning restore 618
     [System.Runtime.InteropServices.ComVisible(true)]
     public abstract class FieldInfo : MemberInfo, _FieldInfo
@@ -134,7 +134,7 @@ namespace System.Reflection
         #endregion
 
         #region Public Members
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
         public void SetValue(Object obj, Object value)
         {
@@ -387,7 +387,7 @@ namespace System.Reflection
     {
         #region FCalls
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         static private extern void PerformVisibilityCheckOnField(IntPtr field, Object target, RuntimeType declaringType, FieldAttributes attr, uint invocationFlags);
         #endregion
 
@@ -545,7 +545,7 @@ namespace System.Reflection
         }
 
         [System.Security.SecurityCritical]
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
         internal void InternalSetValue(Object obj, Object value, BindingFlags invokeAttr, Binder binder, CultureInfo culture, ref StackCrawlMark stackMark)
         {
@@ -602,7 +602,7 @@ namespace System.Reflection
         // consistency checks they should call CheckConsistency() before 
         // calling this method.
         [System.Security.SecurityCritical]  // auto-generated
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
         internal void UnsafeSetValue(Object obj, Object value, BindingFlags invokeAttr, Binder binder, CultureInfo culture)
         {
@@ -624,7 +624,7 @@ namespace System.Reflection
         }
 
         [System.Security.SecuritySafeCritical]
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
         internal Object InternalGetValue(Object obj, ref StackCrawlMark stackMark)
         {
@@ -667,7 +667,7 @@ namespace System.Reflection
         // consistency checks they should call CheckConsistency() before 
         // calling this method.
         [System.Security.SecurityCritical]
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
         internal Object UnsafeGetValue(Object obj)
         {
@@ -736,7 +736,7 @@ namespace System.Reflection
         public override object GetRawConstantValue() { throw new InvalidOperationException(); }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
         public override Object GetValueDirect(TypedReference obj)
         {
@@ -752,7 +752,7 @@ namespace System.Reflection
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
         public override void SetValue(Object obj, Object value, BindingFlags invokeAttr, Binder binder, CultureInfo culture)
         {
@@ -761,7 +761,7 @@ namespace System.Reflection
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
         public override void SetValueDirect(TypedReference obj, Object value)
         {
@@ -888,21 +888,21 @@ namespace System.Reflection
         public override bool IsSecuritySafeCritical { get { return DeclaringType.IsSecuritySafeCritical; } }
         public override bool IsSecurityTransparent { get { return DeclaringType.IsSecurityTransparent; } }
 
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
         public override Object GetValueDirect(TypedReference obj)
         {
             return GetValue(null);
         }
 
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
         public override void SetValueDirect(TypedReference obj,Object value)
         {
             throw new FieldAccessException(Environment.GetResourceString("Acc_ReadOnly"));
         }
 
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
         public unsafe override Object GetValue(Object obj)
         {
@@ -924,7 +924,7 @@ namespace System.Reflection
             return value;
         } 
 
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
         public override void SetValue(Object obj, Object value, BindingFlags invokeAttr, Binder binder, CultureInfo culture)
         {

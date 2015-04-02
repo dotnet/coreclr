@@ -71,7 +71,7 @@ namespace System {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         // reference to TypedReference is banned, so have to pass result as pointer
         private unsafe static extern void InternalMakeTypedReference(void* result, Object target, IntPtr[] flds, RuntimeType lastFieldType);
 
@@ -95,7 +95,7 @@ namespace System {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal unsafe extern static Object InternalToObject(void * value);
 
         internal bool IsNull 
@@ -125,7 +125,7 @@ namespace System {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal unsafe extern static void InternalSetTypedReference(void * target, Object value);
     }
 

@@ -51,7 +51,7 @@ namespace System.Reflection
         // Build key pair from file.
         [System.Security.SecuritySafeCritical]  // auto-generated
 #pragma warning disable 618
-        [SecurityPermissionAttribute(SecurityAction.Demand, Flags=SecurityPermissionFlag.UnmanagedCode)]
+        [SecurityPermission(SecurityAction.Demand, Flags=SecurityPermissionFlag.UnmanagedCode)]
 #pragma warning restore 618
         public StrongNameKeyPair(FileStream keyPairFile)
         {
@@ -69,7 +69,7 @@ namespace System.Reflection
         // Build key pair from byte array in memory.
         [System.Security.SecuritySafeCritical]  // auto-generated
 #pragma warning disable 618
-        [SecurityPermissionAttribute(SecurityAction.Demand, Flags=SecurityPermissionFlag.UnmanagedCode)]
+        [SecurityPermission(SecurityAction.Demand, Flags=SecurityPermissionFlag.UnmanagedCode)]
 #pragma warning restore 618
         public StrongNameKeyPair(byte[] keyPairArray)
         {
@@ -86,7 +86,7 @@ namespace System.Reflection
         // Reference key pair in named key container.
         [System.Security.SecuritySafeCritical]  // auto-generated
 #pragma warning disable 618
-        [SecurityPermissionAttribute(SecurityAction.Demand, Flags=SecurityPermissionFlag.UnmanagedCode)]
+        [SecurityPermission(SecurityAction.Demand, Flags=SecurityPermissionFlag.UnmanagedCode)]
 #pragma warning restore 618
         public StrongNameKeyPair(String keyPairContainer)
         {
@@ -101,7 +101,7 @@ namespace System.Reflection
 
         [System.Security.SecuritySafeCritical]  // auto-generated
 #pragma warning disable 618
-        [SecurityPermissionAttribute(SecurityAction.Demand, Flags=SecurityPermissionFlag.UnmanagedCode)]
+        [SecurityPermission(SecurityAction.Demand, Flags=SecurityPermissionFlag.UnmanagedCode)]
 #pragma warning restore 618
         protected StrongNameKeyPair (SerializationInfo info, StreamingContext context) {
             _keyPairExported = (bool) info.GetValue("_keyPairExported", typeof(bool));

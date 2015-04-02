@@ -1935,15 +1935,15 @@ namespace System.Globalization {
         
         // Get Locale Info Ex calls.  So we don't have to muck with the different int/string return types we declared two of these:
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern String nativeGetLocaleInfoEx(String localeName, uint field);
         
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int nativeGetLocaleInfoExInt(String localeName, uint field);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool nativeSetThreadLocale(String localeName);
 
         [System.Security.SecurityCritical]
@@ -1997,7 +1997,7 @@ namespace System.Globalization {
         }
 
         [System.Security.SecurityCritical] // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [SuppressUnmanagedCodeSecurity]
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [return: MarshalAs(UnmanagedType.Bool)]
@@ -2006,7 +2006,7 @@ namespace System.Globalization {
 // Added but disabled from desktop in .NET 4.0, stayed disabled in .NET 4.5
 #if FEATURE_CORECLR
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern String[] nativeGetResourceFallbackArray();
 #endif
     }

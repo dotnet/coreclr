@@ -434,7 +434,7 @@ namespace System {
                                                            string type);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void nSetHostSecurityManagerFlags (HostSecurityManagerOptions flags);
 
         [SecurityCritical]
@@ -1161,7 +1161,7 @@ namespace System {
         * is saved.
         **********************************************/
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public AssemblyBuilder DefineDynamicAssembly(
             AssemblyName            name,
             AssemblyBuilderAccess   access)
@@ -1174,7 +1174,7 @@ namespace System {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public AssemblyBuilder DefineDynamicAssembly(
             AssemblyName            name,
             AssemblyBuilderAccess   access,
@@ -1190,7 +1190,7 @@ namespace System {
                                                  assemblyAttributes, SecurityContextSource.CurrentAssembly);
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Due to the stack crawl mark
+        [MethodImpl(MethodImplOptions.NoInlining)] // Due to the stack crawl mark
         [SecuritySafeCritical]
         public AssemblyBuilder DefineDynamicAssembly(AssemblyName name,
                                                      AssemblyBuilderAccess access,
@@ -1209,7 +1209,7 @@ namespace System {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public AssemblyBuilder DefineDynamicAssembly(
             AssemblyName            name,
             AssemblyBuilderAccess   access,
@@ -1226,7 +1226,7 @@ namespace System {
         }
     
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         [Obsolete("Assembly level declarative security is obsolete and is no longer enforced by the CLR by default.  See http://go.microsoft.com/fwlink/?LinkID=155570 for more information.")]
         public AssemblyBuilder DefineDynamicAssembly(
             AssemblyName            name,
@@ -1244,7 +1244,7 @@ namespace System {
         }
     
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         [Obsolete("Assembly level declarative security is obsolete and is no longer enforced by the CLR by default.  See http://go.microsoft.com/fwlink/?LinkID=155570 for more information.")]
         public AssemblyBuilder DefineDynamicAssembly(
             AssemblyName            name,
@@ -1266,7 +1266,7 @@ namespace System {
         }
     
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         [Obsolete("Methods which use evidence to sandbox are obsolete and will be removed in a future release of the .NET Framework. Please use an overload of DefineDynamicAssembly which does not take an Evidence parameter. See http://go.microsoft.com/fwlink/?LinkId=155570 for more information.")]
         public AssemblyBuilder DefineDynamicAssembly(
             AssemblyName            name,
@@ -1282,7 +1282,7 @@ namespace System {
         }
     
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         [Obsolete("Assembly level declarative security is obsolete and is no longer enforced by the CLR by default. See http://go.microsoft.com/fwlink/?LinkID=155570 for more information.")]
         public AssemblyBuilder DefineDynamicAssembly(
             AssemblyName            name,
@@ -1305,7 +1305,7 @@ namespace System {
         }
     
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         [Obsolete("Assembly level declarative security is obsolete and is no longer enforced by the CLR by default. See http://go.microsoft.com/fwlink/?LinkID=155570 for more information.")]
         public AssemblyBuilder DefineDynamicAssembly(
             AssemblyName            name,
@@ -1329,7 +1329,7 @@ namespace System {
         }
     
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         [Obsolete("Assembly level declarative security is obsolete and is no longer enforced by the CLR by default.  Please see http://go.microsoft.com/fwlink/?LinkId=155570 for more information.")]
         public AssemblyBuilder DefineDynamicAssembly(
             AssemblyName            name,
@@ -1355,7 +1355,7 @@ namespace System {
 
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         [Obsolete("Assembly level declarative security is obsolete and is no longer enforced by the CLR by default. See http://go.microsoft.com/fwlink/?LinkID=155570 for more information.")]
         public AssemblyBuilder DefineDynamicAssembly(
             AssemblyName            name,
@@ -1383,7 +1383,7 @@ namespace System {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         [Obsolete("Assembly level declarative security is obsolete and is no longer enforced by the CLR by default. See http://go.microsoft.com/fwlink/?LinkID=155570 for more information.")]
         public AssemblyBuilder DefineDynamicAssembly(
                     AssemblyName name,
@@ -1412,7 +1412,7 @@ namespace System {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public AssemblyBuilder DefineDynamicAssembly(
                     AssemblyName name,
                     AssemblyBuilderAccess access,
@@ -1436,7 +1436,7 @@ namespace System {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         private AssemblyBuilder InternalDefineDynamicAssembly(
             AssemblyName name,
             AssemblyBuilderAccess access,
@@ -1462,7 +1462,7 @@ namespace System {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern String nApplyPolicy(AssemblyName an);
        
         // Return the assembly name that results from applying policy.
@@ -1759,7 +1759,7 @@ namespace System {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public Assembly Load(AssemblyName assemblyRef)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -1767,7 +1767,7 @@ namespace System {
         }
         
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public Assembly Load(String assemblyString)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -1775,7 +1775,7 @@ namespace System {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public Assembly Load(byte[] rawAssembly)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -1789,7 +1789,7 @@ namespace System {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public Assembly Load(byte[] rawAssembly,
                              byte[] rawSymbolStore)
         {
@@ -1804,9 +1804,9 @@ namespace System {
 
         [System.Security.SecuritySafeCritical]  // auto-generated
 #pragma warning disable 618
-        [SecurityPermissionAttribute(SecurityAction.Demand, ControlEvidence = true)]
+        [SecurityPermission(SecurityAction.Demand, ControlEvidence = true)]
 #pragma warning restore 618
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         [Obsolete("Methods which use evidence to sandbox are obsolete and will be removed in a future release of the .NET Framework. Please use an overload of Load which does not take an Evidence parameter. See http://go.microsoft.com/fwlink/?LinkId=155570 for more information.")]
         public Assembly Load(byte[] rawAssembly,
                              byte[] rawSymbolStore,
@@ -1829,7 +1829,7 @@ namespace System {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         [Obsolete("Methods which use evidence to sandbox are obsolete and will be removed in a future release of the .NET Framework. Please use an overload of Load which does not take an Evidence parameter. See http://go.microsoft.com/fwlink/?LinkID=155570 for more information.")]
         public Assembly Load(AssemblyName assemblyRef,
                              Evidence assemblySecurity)
@@ -1839,7 +1839,7 @@ namespace System {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         [Obsolete("Methods which use evidence to sandbox are obsolete and will be removed in a future release of the .NET Framework. Please use an overload of Load which does not take an Evidence parameter. See http://go.microsoft.com/fwlink/?LinkID=155570 for more information.")]
         public Assembly Load(String assemblyString,
                              Evidence assemblySecurity)
@@ -2017,7 +2017,7 @@ namespace System {
         public Evidence Evidence
         {
             [System.Security.SecuritySafeCritical]  // auto-generated
-            [SecurityPermissionAttribute(SecurityAction.Demand, ControlEvidence = true)]
+            [SecurityPermission(SecurityAction.Demand, ControlEvidence = true)]
             get {
                 return EvidenceNoDemand;
             }
@@ -2148,22 +2148,22 @@ namespace System {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern Assembly[] nGetAssemblies(bool forIntrospection);
 
         // this is true when we've removed the handles etc so really can't do anything
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern bool IsUnloadingForcedFinalize();
 
     // this is true when we've just started going through the finalizers and are forcing objects to finalize
     // so must be aware that certain infrastructure may have gone away
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern bool IsFinalizingForUnload();
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void PublishAnonymouslyHostedDynamicMethodsAssembly(RuntimeAssembly assemblyHandle);
 
 #if  FEATURE_FUSION
@@ -2456,7 +2456,7 @@ namespace System {
 
 #if FEATURE_REMOTING
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [SecurityPermissionAttribute( SecurityAction.Demand, ControlAppDomain = true ),
+        [SecurityPermission( SecurityAction.Demand, ControlAppDomain = true ),
          ReliabilityContract(Consistency.MayCorruptAppDomain, Cer.MayFail)]            
         public static void Unload(AppDomain domain)
         {
@@ -2546,7 +2546,7 @@ namespace System {
         // attempt to bind to a principal while executing in this appdomain. The
         // default can only be set once.
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [SecurityPermissionAttribute(SecurityAction.Demand, Flags=SecurityPermissionFlag.ControlPrincipal)]
+        [SecurityPermission(SecurityAction.Demand, Flags=SecurityPermissionFlag.ControlPrincipal)]
         public void SetThreadPrincipal(IPrincipal principal)
         {
             if (principal == null)
@@ -2567,7 +2567,7 @@ namespace System {
         // Similar to the above, but sets the class of principal to be created
         // instead.
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [SecurityPermissionAttribute(SecurityAction.Demand, Flags=SecurityPermissionFlag.ControlPrincipal)]
+        [SecurityPermission(SecurityAction.Demand, Flags=SecurityPermissionFlag.ControlPrincipal)]
         public void SetPrincipalPolicy(PrincipalPolicy policy)
         {
             _PrincipalPolicy = policy;
@@ -2639,7 +2639,7 @@ namespace System {
 
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         extern private String GetDynamicDir();
 
         // Private helpers called from unmanaged code.
@@ -2826,7 +2826,7 @@ namespace System {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern int _nExecuteAssembly(RuntimeAssembly assembly, String[] args);
         internal int nExecuteAssembly(RuntimeAssembly assembly, String[] args)
         {
@@ -2834,7 +2834,7 @@ namespace System {
         }
 
 #if FEATURE_VERSIONING
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern void nCreateContext();
 
         [System.Security.SecurityCritical]
@@ -2873,10 +2873,10 @@ namespace System {
 #endif // FEATURE_REMOTING
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern String nGetFriendlyName();
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern bool nIsDefaultAppDomainForEvidence();
 
         // support reliability for certain event handlers, if the target
@@ -3147,13 +3147,13 @@ namespace System {
         // Used to determine if server object context is valid in
         // x-domain remoting scenarios.
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         internal static extern bool IsDomainIdValid(Int32 id);
         
 #if FEATURE_REMOTING        
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         static internal extern AppDomain GetDefaultDomain();
 #endif
 
@@ -3255,7 +3255,7 @@ namespace System {
 
 #if FEATURE_CAS_POLICY
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [SecurityPermissionAttribute( SecurityAction.Demand, ControlAppDomain = true )]
+        [SecurityPermission( SecurityAction.Demand, ControlAppDomain = true )]
         public static AppDomain CreateDomain(String friendlyName,
                                       Evidence securityInfo,
                                       AppDomainSetup info)
@@ -3577,7 +3577,7 @@ namespace System {
 
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         private static Object Setup(Object arg)
         {
             Contract.Requires(arg != null && arg is Object[]);
@@ -4051,17 +4051,17 @@ namespace System {
            
 #if FEATURE_FUSION
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern IntPtr GetFusionContext();
 #endif // FEATURE_FUSION
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern IntPtr GetSecurityDescriptor();
 
 #if FEATURE_REMOTING        
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern AppDomain nCreateDomain(String friendlyName,
                                                       AppDomainSetup setup,
                                                       Evidence providedSecurityInfo,
@@ -4069,7 +4069,7 @@ namespace System {
                                                       IntPtr parentSecurityDescriptor);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern ObjRef nCreateInstance(String friendlyName,
                                                       AppDomainSetup setup,
                                                       Evidence providedSecurityInfo,
@@ -4099,17 +4099,17 @@ namespace System {
                                                        [MarshalAs(UnmanagedType.Bool)] bool publishAppDomain);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern void nSetupFriendlyName(string friendlyName);
 
 #if FEATURE_COMINTEROP
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern void nSetDisableInterfaceCache();
 #endif // FEATURE_COMINTEROP
 
 #if FEATURE_LOADER_OPTIMIZATION
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern void UpdateLoaderOptimization(LoaderOptimization optimization);
 #endif
 
@@ -4202,11 +4202,11 @@ namespace System {
 #endif // FEATURE_FUSION
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern String IsStringInterned(String str);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern String GetOrInternString(String str);
         
         [SecurityCritical]
@@ -4315,11 +4315,11 @@ namespace System {
 #endif // FEATURE_CAS_POLICY
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern void nChangeSecurityPolicy();
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.MayCorruptAppDomain, Cer.MayFail)]
         internal static extern void nUnload(Int32 domainInternal);
            
@@ -4479,7 +4479,7 @@ namespace System {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]              
         internal extern Int32 GetId();
         
@@ -4527,31 +4527,31 @@ namespace System {
 
 #if FEATURE_APPDOMAIN_RESOURCE_MONITORING
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void nEnableMonitoring();
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool nMonitoringIsEnabled();
 
         // return -1 if ARM is not supported.
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern Int64 nGetTotalProcessorTime();
 
         // return -1 if ARM is not supported.
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern Int64 nGetTotalAllocatedMemorySize();
 
         // return -1 if ARM is not supported.
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern Int64 nGetLastSurvivedMemorySize();
 
         // return -1 if ARM is not supported.
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern Int64 nGetLastSurvivedProcessMemorySize();
 
         public static bool MonitoringIsEnabled

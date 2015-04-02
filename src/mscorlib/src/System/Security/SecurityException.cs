@@ -370,7 +370,7 @@ namespace System.Security
         public IPermission FirstPermissionThatFailed
         {
             [System.Security.SecuritySafeCritical]  // auto-generated
-            [SecurityPermissionAttribute( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlEvidence | SecurityPermissionFlag.ControlPolicy)]
+            [SecurityPermission( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlEvidence | SecurityPermissionFlag.ControlPolicy)]
             get
             {
                 return (IPermission)XMLUtil.XmlStringToSecurityObject(m_permissionThatFailed);
@@ -385,7 +385,7 @@ namespace System.Security
         public String PermissionState
         {
             [System.Security.SecuritySafeCritical]  // auto-generated
-            [SecurityPermissionAttribute( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlEvidence | SecurityPermissionFlag.ControlPolicy)]
+            [SecurityPermission( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlEvidence | SecurityPermissionFlag.ControlPolicy)]
             get
             {
                 return m_demanded;
@@ -401,7 +401,7 @@ namespace System.Security
         public Object Demanded
         {
             [System.Security.SecuritySafeCritical]  // auto-generated
-            [SecurityPermissionAttribute( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlEvidence | SecurityPermissionFlag.ControlPolicy)]
+            [SecurityPermission( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlEvidence | SecurityPermissionFlag.ControlPolicy)]
             get
             {
                 return XMLUtil.XmlStringToSecurityObject(m_demanded);
@@ -416,7 +416,7 @@ namespace System.Security
         public String GrantedSet
         {
             [System.Security.SecuritySafeCritical]  // auto-generated
-            [SecurityPermissionAttribute( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlEvidence | SecurityPermissionFlag.ControlPolicy)]
+            [SecurityPermission( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlEvidence | SecurityPermissionFlag.ControlPolicy)]
             get
             {
                 return m_granted;
@@ -431,7 +431,7 @@ namespace System.Security
         public String RefusedSet
         {
             [System.Security.SecuritySafeCritical]  // auto-generated
-            [SecurityPermissionAttribute( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlEvidence | SecurityPermissionFlag.ControlPolicy)]
+            [SecurityPermission( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlEvidence | SecurityPermissionFlag.ControlPolicy)]
             get
             {
                 return m_refused;
@@ -447,7 +447,7 @@ namespace System.Security
         public Object DenySetInstance
         {
             [System.Security.SecuritySafeCritical]  // auto-generated
-            [SecurityPermissionAttribute( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlEvidence | SecurityPermissionFlag.ControlPolicy)]
+            [SecurityPermission( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlEvidence | SecurityPermissionFlag.ControlPolicy)]
             get
             {
                 return XMLUtil.XmlStringToSecurityObject(m_denied);
@@ -463,7 +463,7 @@ namespace System.Security
         public Object PermitOnlySetInstance
         {
             [System.Security.SecuritySafeCritical]  // auto-generated
-            [SecurityPermissionAttribute( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlEvidence | SecurityPermissionFlag.ControlPolicy)]
+            [SecurityPermission( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlEvidence | SecurityPermissionFlag.ControlPolicy)]
             get
             {
                 return XMLUtil.XmlStringToSecurityObject(m_permitOnly);
@@ -479,7 +479,7 @@ namespace System.Security
         public AssemblyName FailedAssemblyInfo
         {
             [System.Security.SecuritySafeCritical]  // auto-generated
-            [SecurityPermissionAttribute( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlEvidence | SecurityPermissionFlag.ControlPolicy)]
+            [SecurityPermission( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlEvidence | SecurityPermissionFlag.ControlPolicy)]
             get
             {
                 return m_assemblyName;
@@ -500,7 +500,7 @@ namespace System.Security
         public MethodInfo Method
         {
             [System.Security.SecuritySafeCritical]  // auto-generated
-            [SecurityPermissionAttribute( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlEvidence | SecurityPermissionFlag.ControlPolicy)]
+            [SecurityPermission( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlEvidence | SecurityPermissionFlag.ControlPolicy)]
             get
             {
                 return getMethod();
@@ -533,7 +533,7 @@ namespace System.Security
         public String Url
         {
             [System.Security.SecuritySafeCritical]  // auto-generated
-            [SecurityPermissionAttribute( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlEvidence | SecurityPermissionFlag.ControlPolicy)]
+            [SecurityPermission( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlEvidence | SecurityPermissionFlag.ControlPolicy)]
             get
             {
                 return m_url;

@@ -40,7 +40,7 @@ namespace System.Security {
     [System.Security.SecurityCritical]  // auto-generated_required
     [Serializable]
 #if !FEATURE_CORECLR
-    [SecurityPermissionAttribute(SecurityAction.InheritanceDemand, Flags=SecurityPermissionFlag.Infrastructure)]
+    [SecurityPermission(SecurityAction.InheritanceDemand, Flags=SecurityPermissionFlag.Infrastructure)]
 #endif
     [System.Runtime.InteropServices.ComVisible(true)]
     public class HostSecurityManager {
@@ -81,7 +81,7 @@ namespace System.Security {
 
 #if FEATURE_CLICKONCE
         [System.Security.SecurityCritical]  // auto-generated
-        [SecurityPermissionAttribute(SecurityAction.Assert, Unrestricted=true)]
+        [SecurityPermission(SecurityAction.Assert, Unrestricted=true)]
         public virtual ApplicationTrust DetermineApplicationTrust(Evidence applicationEvidence, Evidence activatorEvidence, TrustManagerContext context)
         {
             if (applicationEvidence == null)

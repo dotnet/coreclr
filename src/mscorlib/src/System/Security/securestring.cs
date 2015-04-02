@@ -122,7 +122,7 @@ namespace System.Security {
   
         public int Length { 
             [System.Security.SecuritySafeCritical]  // auto-generated
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             get  { 
                 EnsureNotDisposed();
                 return m_length;
@@ -130,7 +130,7 @@ namespace System.Security {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.Synchronized)]
+        [MethodImpl(MethodImplOptions.Synchronized)]
 #if FEATURE_CORRUPTING_EXCEPTIONS
         [HandleProcessCorruptedStateExceptions] 
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
@@ -157,7 +157,7 @@ namespace System.Security {
 
         // clears the current contents. Only available if writable
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.Synchronized)]
+        [MethodImpl(MethodImplOptions.Synchronized)]
         public void Clear() {
             EnsureNotDisposed();
             EnsureNotReadOnly();
@@ -169,14 +169,14 @@ namespace System.Security {
                 
         // Do a deep-copy of the SecureString 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.Synchronized)]
+        [MethodImpl(MethodImplOptions.Synchronized)]
         public SecureString Copy() {
             EnsureNotDisposed();
             return new SecureString(this);
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.Synchronized)]
+        [MethodImpl(MethodImplOptions.Synchronized)]
         public void Dispose() {
             if(m_buffer != null && !m_buffer.IsInvalid) {
                 m_buffer.Close();
@@ -185,7 +185,7 @@ namespace System.Security {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.Synchronized)]
+        [MethodImpl(MethodImplOptions.Synchronized)]
 #if FEATURE_CORRUPTING_EXCEPTIONS
         [HandleProcessCorruptedStateExceptions] 
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
@@ -227,21 +227,21 @@ namespace System.Security {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.Synchronized)]
+        [MethodImpl(MethodImplOptions.Synchronized)]
         public bool IsReadOnly() {
             EnsureNotDisposed();
             return m_readOnly; 
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.Synchronized)]
+        [MethodImpl(MethodImplOptions.Synchronized)]
         public void MakeReadOnly() {
             EnsureNotDisposed();
             m_readOnly = true;
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.Synchronized)]
+        [MethodImpl(MethodImplOptions.Synchronized)]
 #if FEATURE_CORRUPTING_EXCEPTIONS
         [HandleProcessCorruptedStateExceptions]
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
@@ -283,7 +283,7 @@ namespace System.Security {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.Synchronized)]
+        [MethodImpl(MethodImplOptions.Synchronized)]
 #if FEATURE_CORRUPTING_EXCEPTIONS
         [HandleProcessCorruptedStateExceptions] 
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
@@ -474,7 +474,7 @@ namespace System.Security {
         
         [System.Security.SecurityCritical]  // auto-generated
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-        [MethodImplAttribute(MethodImplOptions.Synchronized)]
+        [MethodImpl(MethodImplOptions.Synchronized)]
 #if FEATURE_CORRUPTING_EXCEPTIONS
         [HandleProcessCorruptedStateExceptions] 
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
@@ -523,7 +523,7 @@ namespace System.Security {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.Synchronized)]
+        [MethodImpl(MethodImplOptions.Synchronized)]
 #if FEATURE_CORRUPTING_EXCEPTIONS
         [HandleProcessCorruptedStateExceptions] 
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
@@ -586,7 +586,7 @@ namespace System.Security {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.Synchronized)]
+        [MethodImpl(MethodImplOptions.Synchronized)]
 #if FEATURE_CORRUPTING_EXCEPTIONS
         [HandleProcessCorruptedStateExceptions] 
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
@@ -678,7 +678,7 @@ namespace System.Security {
     }
 
     [System.Security.SecurityCritical]  // auto-generated
-    [SuppressUnmanagedCodeSecurityAttribute()]
+    [SuppressUnmanagedCodeSecurity]
     internal sealed class SafeBSTRHandle : SafeBuffer {
         internal SafeBSTRHandle () : base(true) {}
 
