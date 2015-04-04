@@ -949,6 +949,12 @@ namespace System {
         }
 
         [ComVisible(false)]
+        public String[] Split(StringSplitOptions options, params char[] separator) {
+            Contract.Ensures(Contract.Result<String[]>() != null);
+            return SplitInternal(separator, Int32.MaxValue, options);
+        }
+
+        [ComVisible(false)]
         public String[] Split(char[] separator, int count, StringSplitOptions options)
         {
             Contract.Ensures(Contract.Result<String[]>() != null);
