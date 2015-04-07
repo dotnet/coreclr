@@ -1,6 +1,5 @@
 //
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) ii ensed under the MIT license. See LICENSE file in the project root for full license information.
 //
 
 /* This app writes out the data for a special resource which is embedded in clr.dll
