@@ -562,12 +562,15 @@ static void common_signal_handler(PEXCEPTION_POINTERS pointers, int code,
 
 #if HAVE_MACH_EXCEPTIONS
                 RtlRestoreContext(&exception.ContextRecord, &exception.ExceptionRecord);
-#elif __LINUX__
+#elif __LINUX__ || defined(__FreeBSD__)
                 // Here we shamelessly exploit undocumented behavior of Linux signal handlers:
                 // 
                 // When signal handler exits it completely restores context saved in ucontext, 
                 // if any changes are applied to it by the signal handler they will also be 
                 // restored and affect further course of execution.
+                //
+                // This also seems to hold true for FreeBSD, except FreeBSD is nice enough to
+                // document it: http://www.unix.com/man-page/FreeBSD/2/sigaction/
                 //
                 // We'd love to avoid using this assumption, but unfortunately setcontext()
                 // (which is used in PAL implementation of RtlRestoreContext) doesn't restore eflags 
