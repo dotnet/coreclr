@@ -37,7 +37,7 @@ namespace System {
             return StringToLong(s,radix,flags, null);
         }
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public unsafe extern static long StringToLong(System.String s, int radix, int flags, int* currPos);
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -52,7 +52,7 @@ namespace System {
             return StringToInt(s,radix,flags, null);
         }
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]        
+        [MethodImpl(MethodImplOptions.InternalCall)]        
         public unsafe extern static int StringToInt(System.String s, int radix, int flags, int* currPos);        
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -63,11 +63,11 @@ namespace System {
         }        
     
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern static String IntToString(int l, int radix, int width, char paddingChar, int flags);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern static String LongToString(long l, int radix, int width, char paddingChar, int flags);
     }
 }

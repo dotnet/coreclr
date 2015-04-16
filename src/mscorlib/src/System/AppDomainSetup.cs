@@ -1325,7 +1325,7 @@ namespace System {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void UpdateContextProperty(IntPtr fusionContext, string key, Object value);
 #endif // FEATURE_FUSION
 

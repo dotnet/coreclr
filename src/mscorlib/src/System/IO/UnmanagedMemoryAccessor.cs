@@ -57,7 +57,7 @@ namespace System.IO {
 
         [System.Security.SecuritySafeCritical]  // auto-generated
 #pragma warning disable 618
-        [SecurityPermissionAttribute(SecurityAction.Demand, Flags = SecurityPermissionFlag.UnmanagedCode)]
+        [SecurityPermission(SecurityAction.Demand, Flags = SecurityPermissionFlag.UnmanagedCode)]
 #pragma warning restore 618
         protected void Initialize(SafeBuffer buffer, Int64 offset, Int64 capacity, FileAccess access) {
             if (buffer == null) {

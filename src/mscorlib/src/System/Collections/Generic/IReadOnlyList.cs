@@ -24,7 +24,7 @@ namespace System.Collections.Generic
     // without jitting.  Hence the TypeDependencyAttribute on SZArrayHelper.
     // This is a special workaround internally though - see VM\compile.cpp.
     // The same attribute is on IList<T>, IEnumerable<T>, ICollection<T> and IReadOnlyCollection<T>.
-    [TypeDependencyAttribute("System.SZArrayHelper")]
+    [TypeDependency("System.SZArrayHelper")]
 #if CONTRACTS_FULL
     [ContractClass(typeof(IReadOnlyListContract<>))]
 #endif

@@ -88,7 +88,7 @@ namespace System.Collections.Generic
 
     }
 
-    [TypeDependencyAttribute("System.Collections.Generic.GenericArraySortHelper`1")]     
+    [TypeDependency("System.Collections.Generic.GenericArraySortHelper`1")]     
     internal class ArraySortHelper<T>  
         : IArraySortHelper<T>
     {
@@ -866,7 +866,7 @@ namespace System.Collections.Generic
         void Sort(TKey[] keys, TValue[] values, int index, int length, IComparer<TKey> comparer);
     }
 
-    [TypeDependencyAttribute("System.Collections.Generic.GenericArraySortHelper`2")]
+    [TypeDependency("System.Collections.Generic.GenericArraySortHelper`2")]
     internal class ArraySortHelper<TKey, TValue>
         : IArraySortHelper<TKey, TValue>
     {

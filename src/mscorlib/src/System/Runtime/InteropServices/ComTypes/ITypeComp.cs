@@ -38,7 +38,7 @@ namespace System.Runtime.InteropServices.ComTypes
     }
 
     [Guid("00020403-0000-0000-C000-000000000046")]
-    [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     [ComImport]
     public interface ITypeComp
     {

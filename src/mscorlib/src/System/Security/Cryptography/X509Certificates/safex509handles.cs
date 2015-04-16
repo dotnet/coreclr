@@ -35,7 +35,7 @@ namespace System.Security.Cryptography.X509Certificates {
         }
 
         // This method handles the case where pCert == NULL
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         private static extern void _FreePCertContext(IntPtr pCert);
 
@@ -61,7 +61,7 @@ namespace System.Security.Cryptography.X509Certificates {
         }
 
         // This method handles the case where hCertStore == NULL
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         private static extern void _FreeCertStoreContext(IntPtr hCertStore);
 

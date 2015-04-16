@@ -48,7 +48,7 @@ namespace System
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static bool IsInstanceOfType(RuntimeType type, Object o);
         
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -233,19 +233,19 @@ namespace System
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern Object CreateInstance(RuntimeType type, bool publicOnly, bool noCheck, ref bool canBeCached, ref RuntimeMethodHandleInternal ctor, ref bool bNeedSecurityCheck);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern Object CreateCaInstance(RuntimeType type, IRuntimeMethodInfo ctor);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern Object Allocate(RuntimeType type);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern Object CreateInstanceForAnotherGenericParameter(RuntimeType type, RuntimeType genericParameter);
         
         internal RuntimeType GetRuntimeType()
@@ -254,15 +254,15 @@ namespace System
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static CorElementType GetCorElementType(RuntimeType type);
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static RuntimeAssembly GetAssembly(RuntimeType type);
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         internal extern static RuntimeModule GetModule(RuntimeType type);
 
@@ -274,31 +274,31 @@ namespace System
         }
         
         [System.Security.SecuritySafeCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static RuntimeType GetBaseType(RuntimeType type);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static TypeAttributes GetAttributes(RuntimeType type); 
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static RuntimeType GetElementType(RuntimeType type);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static bool CompareCanonicalHandles(RuntimeType left, RuntimeType right);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static int GetArrayRank(RuntimeType type); 
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static int GetToken(RuntimeType type); 
         
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static RuntimeMethodHandleInternal GetMethodAt(RuntimeType type, int slot);
 
         // This is managed wrapper for MethodTable::IntroducedMethodIterator
@@ -348,19 +348,19 @@ namespace System
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern RuntimeMethodHandleInternal GetFirstIntroducedMethod(RuntimeType type);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void GetNextIntroducedMethod(ref RuntimeMethodHandleInternal method);
         
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static bool GetFields(RuntimeType type, IntPtr* result, int* count);
         
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static Type[] GetInterfaces(RuntimeType type);
         
         [System.Security.SecurityCritical]  // auto-generated
@@ -389,7 +389,7 @@ namespace System
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static int GetNumVirtuals(RuntimeType type); 
 
         [System.Security.SecurityCritical]  // auto-generated
@@ -415,15 +415,15 @@ namespace System
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static bool IsComObject(RuntimeType type, bool isGenericCOM); 
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static bool IsContextful(RuntimeType type); 
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static bool IsInterface(RuntimeType type);
 
         [System.Security.SecurityCritical]  // auto-generated
@@ -476,11 +476,11 @@ namespace System
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static bool HasProxyAttribute(RuntimeType type);
 
         [System.Security.SecuritySafeCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static bool IsValueType(RuntimeType type);
 
         [System.Security.SecurityCritical]  // auto-generated
@@ -497,7 +497,7 @@ namespace System
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern static void* _GetUtf8Name(RuntimeType type);
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -507,15 +507,15 @@ namespace System
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static bool CanCastTo(RuntimeType type, RuntimeType target);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static RuntimeType GetDeclaringType(RuntimeType type);
         
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static IRuntimeMethodInfo GetDeclaringMethod(RuntimeType type);
         
         [System.Security.SecurityCritical]  // auto-generated
@@ -710,7 +710,7 @@ namespace System
         #if FEATURE_CORECLR
         [System.Security.SecuritySafeCritical] // auto-generated
         #endif
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static bool HasInstantiation(RuntimeType type);
 
         internal bool HasInstantiation()
@@ -735,11 +735,11 @@ namespace System
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static bool IsGenericTypeDefinition(RuntimeType type);
        
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static bool IsGenericVariable(RuntimeType type);
 
         internal bool IsGenericVariable()
@@ -748,7 +748,7 @@ namespace System
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern static int GetGenericVariableIndex(RuntimeType type);
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -763,7 +763,7 @@ namespace System
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static bool ContainsGenericVariables(RuntimeType handle);
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -773,7 +773,7 @@ namespace System
         }
         
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern static bool SatisfiesConstraints(RuntimeType paramType, IntPtr *pTypeContext, int typeContextLength, IntPtr *pMethodContext, int methodContextLength, RuntimeType toType);
 
         [System.Security.SecurityCritical]
@@ -796,7 +796,7 @@ namespace System
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern static IntPtr _GetMetadataImport(RuntimeType type);
 
         [System.Security.SecurityCritical]  // auto-generated
@@ -1071,7 +1071,7 @@ namespace System
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal unsafe extern static void CheckLinktimeDemands(IRuntimeMethodInfo method, RuntimeModule module, bool isDecoratedTargetSecurityTransparent);
 
         [System.Security.SecurityCritical]  // auto-generated
@@ -1084,7 +1084,7 @@ namespace System
             RuntimeModule sourceModule);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern IRuntimeMethodInfo _GetCurrentMethod(ref StackCrawlMark stackMark);
         [System.Security.SecuritySafeCritical]  // auto-generated
         internal static IRuntimeMethodInfo GetCurrentMethod(ref StackCrawlMark stackMark)
@@ -1094,7 +1094,7 @@ namespace System
         
         [Pure]
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern MethodAttributes GetAttributes(RuntimeMethodHandleInternal method);
 
         [System.Security.SecurityCritical]  // auto-generated
@@ -1106,7 +1106,7 @@ namespace System
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern MethodImplAttributes GetImplAttributes(IRuntimeMethodInfo method);
         
         [System.Security.SecurityCritical]  // auto-generated
@@ -1123,7 +1123,7 @@ namespace System
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static RuntimeType GetDeclaringType(RuntimeMethodHandleInternal method);
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -1135,7 +1135,7 @@ namespace System
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static int GetSlot(RuntimeMethodHandleInternal method);
 
         [System.Security.SecurityCritical]  // auto-generated
@@ -1149,11 +1149,11 @@ namespace System
         }
         
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static int GetMethodDef(IRuntimeMethodInfo method);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static string GetName(RuntimeMethodHandleInternal method);
 
         [System.Security.SecurityCritical]  // auto-generated
@@ -1165,7 +1165,7 @@ namespace System
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern static void* _GetUtf8Name(RuntimeMethodHandleInternal method);
 
         [System.Security.SecurityCritical]  // auto-generated
@@ -1175,13 +1175,13 @@ namespace System
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool MatchesNameHash(RuntimeMethodHandleInternal method, uint hash);
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static object InvokeMethod(object target, object[] arguments, Signature sig, bool constructor);
 
         #region Private Invocation Helpers
@@ -1192,11 +1192,11 @@ namespace System
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         static extern internal uint GetSpecialSecurityFlags(IRuntimeMethodInfo method);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         static extern internal void PerformSecurityCheck(Object obj, RuntimeMethodHandleInternal method, RuntimeType parent, uint invocationFlags);
 
         [System.Security.SecurityCritical]
@@ -1209,16 +1209,16 @@ namespace System
         #endregion
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]        
+        [MethodImpl(MethodImplOptions.InternalCall)]        
         internal extern static void SerializationInvoke(IRuntimeMethodInfo method,
             Object target, SerializationInfo info, ref StreamingContext context);
 
         // This returns true if the token is SecurityTransparent: 
         // just the token - does not consider including module/type etc.
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool _IsTokenSecurityTransparent(RuntimeModule module, int metaDataToken);
         
         #if FEATURE_CORECLR
@@ -1299,7 +1299,7 @@ namespace System
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static bool HasMethodInstantiation(RuntimeMethodHandleInternal method);
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -1311,15 +1311,15 @@ namespace System
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static RuntimeMethodHandleInternal GetStubIfNeeded(RuntimeMethodHandleInternal method, RuntimeType declaringType, RuntimeType[] methodInstantiation);
         
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static RuntimeMethodHandleInternal GetMethodFromCanonical(RuntimeMethodHandleInternal method, RuntimeType declaringType);
         
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static bool IsGenericMethodDefinition(RuntimeMethodHandleInternal method);
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -1332,7 +1332,7 @@ namespace System
 
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static bool IsTypicalMethodDefinition(IRuntimeMethodInfo method);
 
         [System.Security.SecurityCritical]  // auto-generated
@@ -1365,7 +1365,7 @@ namespace System
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static bool IsDynamicMethod(RuntimeMethodHandleInternal method);
 
         [System.Security.SecurityCritical]  // auto-generated
@@ -1374,7 +1374,7 @@ namespace System
         internal extern static void Destroy(RuntimeMethodHandleInternal method);
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static Resolver GetResolver(RuntimeMethodHandleInternal method);
 
         [System.Security.SecurityCritical]  // auto-generated
@@ -1565,26 +1565,26 @@ namespace System
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]        
+        [MethodImpl(MethodImplOptions.InternalCall)]        
         internal static extern String GetName(RtFieldInfo field); 
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]        
+        [MethodImpl(MethodImplOptions.InternalCall)]        
         private static extern unsafe void* _GetUtf8Name(RuntimeFieldHandleInternal field); 
 
         [System.Security.SecuritySafeCritical]  // auto-generated
         internal static unsafe Utf8String GetUtf8Name(RuntimeFieldHandleInternal field) { return new Utf8String(_GetUtf8Name(field)); }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool MatchesNameHash(RuntimeFieldHandleInternal handle, uint hash);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern FieldAttributes GetAttributes(RuntimeFieldHandleInternal field); 
         
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern RuntimeType GetApproxDeclaringType(RuntimeFieldHandleInternal field);
 
         [System.Security.SecurityCritical]  // auto-generated
@@ -1596,31 +1596,31 @@ namespace System
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]        
+        [MethodImpl(MethodImplOptions.InternalCall)]        
         internal static extern int GetToken(RtFieldInfo field); 
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]        
+        [MethodImpl(MethodImplOptions.InternalCall)]        
         internal static extern Object GetValue(RtFieldInfo field, Object instance, RuntimeType fieldType, RuntimeType declaringType, ref bool domainInitialized);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]        
+        [MethodImpl(MethodImplOptions.InternalCall)]        
         internal static extern Object GetValueDirect(RtFieldInfo field, RuntimeType fieldType, void *pTypedRef, RuntimeType contextType);
         
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]        
+        [MethodImpl(MethodImplOptions.InternalCall)]        
         internal static extern void SetValue(RtFieldInfo field, Object obj, Object value, RuntimeType fieldType, FieldAttributes fieldAttr, RuntimeType declaringType, ref bool domainInitialized);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void SetValueDirect(RtFieldInfo field, RuntimeType fieldType, void* pTypedRef, Object value, RuntimeType contextType);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern RuntimeFieldHandleInternal GetStaticFieldForGenericType(RuntimeFieldHandleInternal field, RuntimeType declaringType);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool AcquiresContextFromThis(RuntimeFieldHandleInternal field);
 
         [System.Security.SecurityCritical]  // auto-generated
@@ -1768,11 +1768,11 @@ namespace System
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern IRuntimeMethodInfo GetDynamicMethod(DynamicMethod method, RuntimeModule module, string name, byte[] sig, Resolver resolver);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int GetToken(RuntimeModule module);
 
         private static void ValidateModulePointer(RuntimeModule module)
@@ -1967,7 +1967,7 @@ namespace System
         }
    
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]        
+        [MethodImpl(MethodImplOptions.InternalCall)]        
         internal extern static int GetMDStreamVersion(RuntimeModule module);
 
         public int MDStreamVersion
@@ -1977,7 +1977,7 @@ namespace System
         }
         
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern static IntPtr _GetMetadataImport(RuntimeModule module);
 
         [System.Security.SecurityCritical]  // auto-generated
@@ -2014,7 +2014,7 @@ namespace System
 
         #region FCalls
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]        
+        [MethodImpl(MethodImplOptions.InternalCall)]        
         private extern void GetSignature(
             void* pCorSig, int cCorSig,
             RuntimeFieldHandleInternal fieldHandle, IRuntimeMethodInfo methodHandle, RuntimeType declaringType);
@@ -2080,17 +2080,17 @@ namespace System
         internal RuntimeType FieldType { get { return m_returnTypeORfieldType; } }
 
         [System.Security.SecuritySafeCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool CompareSig(Signature sig1, Signature sig2);
 
 #if FEATURE_LEGACYNETCF
         [System.Security.SecuritySafeCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool CompareSigForAppCompat(Signature left, RuntimeType typeLeft, Signature right, RuntimeType typeRight); 
 #endif
 
         [System.Security.SecuritySafeCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern Type[] GetCustomModifiers(int position, bool required);
         #endregion
     }

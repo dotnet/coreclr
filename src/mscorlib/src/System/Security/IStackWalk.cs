@@ -7,16 +7,16 @@ namespace System.Security
 [System.Runtime.InteropServices.ComVisible(true)]
     public interface IStackWalk
     {
-        [DynamicSecurityMethodAttribute()]
+        [DynamicSecurityMethod]
         void Assert();
         
-        [DynamicSecurityMethodAttribute()]
+        [DynamicSecurityMethod]
         void Demand();
         
-        [DynamicSecurityMethodAttribute()]
+        [DynamicSecurityMethod]
         void Deny();
         
-        [DynamicSecurityMethodAttribute()]
+        [DynamicSecurityMethod]
         void PermitOnly();
     }
 }

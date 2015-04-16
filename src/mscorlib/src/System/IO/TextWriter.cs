@@ -660,202 +660,202 @@ namespace System.IO {
             }
             
             public override  String NewLine {
-                [MethodImplAttribute(MethodImplOptions.Synchronized)]
+                [MethodImpl(MethodImplOptions.Synchronized)]
                 get { return _out.NewLine; }
-                [MethodImplAttribute(MethodImplOptions.Synchronized)]
+                [MethodImpl(MethodImplOptions.Synchronized)]
                 set { _out.NewLine = value; }
             }
     
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void Close() {
                 // So that any overriden Close() gets run
                 _out.Close();
             }
 
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             protected override void Dispose(bool disposing) {
                 // Explicitly pick up a potentially methodimpl'ed Dispose
                 if (disposing)
                     ((IDisposable)_out).Dispose();
             }
 
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void Flush() {
                 _out.Flush();
             }
     
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void Write(char value) {
                 _out.Write(value);
             }
     
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void Write(char[] buffer) {
                 _out.Write(buffer);
             }
 
             [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void Write(char[] buffer, int index, int count) {
                 _out.Write(buffer, index, count);
             }
 
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void Write(bool value) {
                 _out.Write(value);
             }
             
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void Write(int value) {
                 _out.Write(value);
             }
             
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void Write(uint value) {
                 _out.Write(value);
             }
             
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void Write(long value) {
                 _out.Write(value);
             }
             
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void Write(ulong value) {
                 _out.Write(value);
             }
             
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void Write(float value) {
                 _out.Write(value);
             }
             
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void Write(double value) {
                 _out.Write(value);
             }
             
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void Write(Decimal value) {
                 _out.Write(value);
             }
 
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void Write(String value) {
                 _out.Write(value);
             }
             
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void Write(Object value) {
                 _out.Write(value);
             }
             
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void Write(String format, Object arg0) {
                 _out.Write(format, arg0);
             }
             
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void Write(String format, Object arg0, Object arg1) {
                 _out.Write(format, arg0, arg1);
             }
             
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void Write(String format, Object arg0, Object arg1, Object arg2) {
                 _out.Write(format, arg0, arg1, arg2);
             }
             
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void Write(String format, Object[] arg) {
                 _out.Write(format, arg);
             }
     
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void WriteLine() {
                 _out.WriteLine();
             }
     
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void WriteLine(char value) {
                 _out.WriteLine(value);
             }
     
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void WriteLine(decimal value) {
                 _out.WriteLine(value);
             }
     
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void WriteLine(char[] buffer) {
                 _out.WriteLine(buffer);
             }
             
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void WriteLine(char[] buffer, int index, int count) {
                 _out.WriteLine(buffer, index, count);
             }
             
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void WriteLine(bool value) {
                 _out.WriteLine(value);
             }
             
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void WriteLine(int value) {
                 _out.WriteLine(value);
             }
             
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void WriteLine(uint value) {
                 _out.WriteLine(value);
             }
             
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void WriteLine(long value) {
                 _out.WriteLine(value);
             }
             
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void WriteLine(ulong value) {
                 _out.WriteLine(value);
             }
             
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void WriteLine(float value) {
                 _out.WriteLine(value);
             }
             
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void WriteLine(double value) {
                 _out.WriteLine(value);
             }
             
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void WriteLine(String value) {
                 _out.WriteLine(value);
             }
             
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void WriteLine(Object value) {
                 _out.WriteLine(value);
             }
             
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void WriteLine(String format, Object arg0) {
                 _out.WriteLine(format, arg0);
             }
             
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void WriteLine(String format, Object arg0, Object arg1) {
                 _out.WriteLine(format, arg0, arg1);
             }
             
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void WriteLine(String format, Object arg0, Object arg1, Object arg2) {
                 _out.WriteLine(format, arg0, arg1, arg2);
             }
             
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void WriteLine(String format, Object[] arg) {
                 _out.WriteLine(format, arg);
             }
@@ -865,7 +865,7 @@ namespace System.IO {
             // On SyncTextWriter all APIs should run synchronously, even the async ones.
             //
 
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             [ComVisible(false)]
             public override Task WriteAsync(char value)
             {
@@ -873,7 +873,7 @@ namespace System.IO {
                 return Task.CompletedTask;
             }
 
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             [ComVisible(false)]
             public override Task WriteAsync(String value)
             {
@@ -881,7 +881,7 @@ namespace System.IO {
                 return Task.CompletedTask;
             }
 
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             [ComVisible(false)]
             public override Task WriteAsync(char[] buffer, int index, int count)
             {
@@ -889,7 +889,7 @@ namespace System.IO {
                 return Task.CompletedTask;
             }
 
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             [ComVisible(false)]
             public override Task WriteLineAsync(char value)
             {
@@ -897,7 +897,7 @@ namespace System.IO {
                 return Task.CompletedTask;
             }
 
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             [ComVisible(false)]
             public override Task WriteLineAsync(String value)
             {
@@ -905,7 +905,7 @@ namespace System.IO {
                 return Task.CompletedTask;
             }
 
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             [ComVisible(false)]
             public override Task WriteLineAsync(char[] buffer, int index, int count)
             {
@@ -913,7 +913,7 @@ namespace System.IO {
                 return Task.CompletedTask;
             }
 
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             [ComVisible(false)]
             public override Task FlushAsync()
             {

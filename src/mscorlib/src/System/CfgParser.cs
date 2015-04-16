@@ -213,7 +213,7 @@ namespace System
                              int prefixLength);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern void RunParser(String fileName);
     }
 

@@ -64,7 +64,7 @@ namespace System.Runtime.InteropServices {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern int CalculateCount();
     
         private Object m_array;

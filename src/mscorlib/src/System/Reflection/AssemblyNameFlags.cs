@@ -17,7 +17,7 @@ namespace System.Reflection {
     
     using System;
     [Serializable]
-    [FlagsAttribute()]
+    [Flags]
     [System.Runtime.InteropServices.ComVisible(true)]
     public enum AssemblyNameFlags
     {

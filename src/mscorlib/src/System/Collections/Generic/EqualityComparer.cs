@@ -17,7 +17,7 @@ namespace System.Collections.Generic
     using System.Diagnostics.Contracts;
     
     [Serializable]
-    [TypeDependencyAttribute("System.Collections.Generic.ObjectEqualityComparer`1")]
+    [TypeDependency("System.Collections.Generic.ObjectEqualityComparer`1")]
     public abstract class EqualityComparer<T> : IEqualityComparer, IEqualityComparer<T>
     {
         static volatile EqualityComparer<T> defaultComparer;

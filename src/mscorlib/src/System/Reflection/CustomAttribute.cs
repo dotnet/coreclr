@@ -1010,7 +1010,7 @@ namespace System.Reflection
     { 
         #region Parser
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void ParseAttributeArguments(
             IntPtr pCa, 
             int cCa, 
@@ -1126,11 +1126,11 @@ namespace System.Reflection
         IntPtr m_Assembly;
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern void Push(RuntimeAssembly assembly);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         public extern void Pop();
     }
@@ -2036,7 +2036,7 @@ namespace System.Reflection
 
         #region Private Static FCalls
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _ParseAttributeUsageAttribute(
             IntPtr pCa, int cCa, out int targets, out bool inherited, out bool allowMultiple);
         [System.Security.SecurityCritical]  // auto-generated
@@ -2049,7 +2049,7 @@ namespace System.Reflection
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static unsafe extern Object _CreateCaObject(RuntimeModule pModule, IRuntimeMethodInfo pCtor, byte** ppBlob, byte* pEndBlob, int* pcNamedArgs);
         [System.Security.SecurityCritical]  // auto-generated
         private static unsafe Object CreateCaObject(RuntimeModule module, IRuntimeMethodInfo ctor, ref IntPtr blob, IntPtr blobEnd, out int namedArgs)
@@ -2064,7 +2064,7 @@ namespace System.Reflection
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private unsafe extern static void _GetPropertyOrFieldData(
             RuntimeModule pModule, byte** ppBlobStart, byte* pBlobEnd, out string name, out bool bIsProperty, out RuntimeType type, out object value);
         [System.Security.SecurityCritical]  // auto-generated
@@ -2098,7 +2098,7 @@ namespace System.Reflection
 
         #region FCalls
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         unsafe private static extern void _GetSecurityAttributes(RuntimeModule module, int token, bool assembly, out object[] securityAttributes);
         [System.Security.SecurityCritical]  // auto-generated
         unsafe internal static void GetSecurityAttributes(RuntimeModule module, int token, bool assembly, out object[] securityAttributes)

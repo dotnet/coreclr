@@ -67,7 +67,7 @@ namespace System.IO {
 
         [System.Security.SecurityCritical]  // auto-generated
         [DllImport(Win32Native.KERNEL32, CharSet=CharSet.Auto)]
-        [SuppressUnmanagedCodeSecurityAttribute()]
+        [SuppressUnmanagedCodeSecurity]
         private static extern void OutputDebugString(String output);
     }
 }

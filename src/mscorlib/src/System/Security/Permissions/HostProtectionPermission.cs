@@ -43,7 +43,7 @@ namespace System.Security.Permissions
 #if FEATURE_CORECLR
     // This needs to be in the asmmeta to enable SecAnnotate to successfully resolve and run the security rules. It gets marked
     // as internal by BCLRewriter so we are simply marking it as FriendAccessAllowed so it stays in the asmmeta.
-    [System.Runtime.CompilerServices.FriendAccessAllowedAttribute]
+    [System.Runtime.CompilerServices.FriendAccessAllowed]
 #endif // FEATURE_CORECLR
 #pragma warning disable 618
     sealed public class HostProtectionAttribute : CodeAccessSecurityAttribute

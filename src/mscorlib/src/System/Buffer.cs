@@ -22,7 +22,7 @@ namespace System {
         // offset parameters here are in bytes.  If you want to use traditional
         // array element indices and counts, use Array.Copy.
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void BlockCopy(Array src, int srcOffset,
             Array dst, int dstOffset, int count);
 
@@ -31,7 +31,7 @@ namespace System {
         // parameters here are in bytes.  If you want to use traditional
         // array element indices and counts, use Array.Copy.
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void InternalBlockCopy(Array src, int srcOffsetBytes,
             Array dst, int dstOffsetBytes, int byteCount);
 
@@ -116,7 +116,7 @@ namespace System {
         // Returns a bool to indicate if the array is of primitive data types
         // or not.
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool IsPrimitiveTypeArray(Array array);
 
         // Gets a particular byte out of the array.  The array must be an
@@ -126,7 +126,7 @@ namespace System {
         // return ((byte*)array) + index.
         //
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern byte _GetByte(Array array, int index);
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -154,7 +154,7 @@ namespace System {
         // *(((byte*)array) + index) = value.
         //
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _SetByte(Array array, int index, byte value);
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -184,7 +184,7 @@ namespace System {
         // return array.length * sizeof(array.UnderlyingElementType).
         //
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int _ByteLength(Array array);
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -250,10 +250,10 @@ namespace System {
         [System.Security.SecurityCritical]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
 #if ARM
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal unsafe static extern void Memcpy(byte* dest, byte* src, int len);
 #else // ARM
-        [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal unsafe static void Memcpy(byte* dest, byte* src, int len) {
             Contract.Assert(len >= 0, "Negative length in memcopy!");
             Memmove(dest, src, (uint)len);
@@ -493,7 +493,7 @@ namespace System {
         // with P/Invoke prolog/epilog.
         [SecurityCritical]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
 #if WIN64
         private unsafe static void _Memmove(byte* dest, byte* src, ulong len)
 #else
@@ -517,7 +517,7 @@ namespace System {
         // The attributes on this method are chosen for best JIT performance. 
         // Please do not edit unless intentional.
         [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [CLSCompliant(false)]
         public static unsafe void MemoryCopy(void* source, void* destination, long destinationSizeInBytes, long sourceBytesToCopy)
         {
@@ -536,7 +536,7 @@ namespace System {
         // The attributes on this method are chosen for best JIT performance. 
         // Please do not edit unless intentional.
         [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [CLSCompliant(false)]
         public static unsafe void MemoryCopy(void* source, void* destination, ulong destinationSizeInBytes, ulong sourceBytesToCopy)
         {

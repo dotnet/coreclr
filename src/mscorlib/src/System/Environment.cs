@@ -259,7 +259,7 @@ namespace System {
         ==============================================================================*/
         public static extern int TickCount {
             [System.Security.SecuritySafeCritical]  // auto-generated
-            [MethodImplAttribute(MethodImplOptions.InternalCall)]
+            [MethodImpl(MethodImplOptions.InternalCall)]
             get;
         }
         
@@ -271,7 +271,7 @@ namespace System {
 
         [System.Security.SecuritySafeCritical]  // auto-generated
 #pragma warning disable 618
-        [SecurityPermissionAttribute(SecurityAction.Demand, Flags=SecurityPermissionFlag.UnmanagedCode)]
+        [SecurityPermission(SecurityAction.Demand, Flags=SecurityPermissionFlag.UnmanagedCode)]
 #pragma warning restore 618
         public static void Exit(int exitCode) {
             _Exit(exitCode);
@@ -280,11 +280,11 @@ namespace System {
 
         public static extern int ExitCode {
             [System.Security.SecuritySafeCritical]  // auto-generated
-            [MethodImplAttribute(MethodImplOptions.InternalCall)]
+            [MethodImpl(MethodImplOptions.InternalCall)]
             get;
     
             [System.Security.SecuritySafeCritical]  // auto-generated
-            [MethodImplAttribute(MethodImplOptions.InternalCall)]
+            [MethodImpl(MethodImplOptions.InternalCall)]
             set;
         }
 
@@ -292,11 +292,11 @@ namespace System {
         // to assign blame for crashes.  Don't mess with this, such as by making it call 
         // another managed helper method, unless you consult with some CLR Watson experts.
         [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void FailFast(String message);
 
         [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void FailFast(String message, uint exitCode);
 
         // This overload of FailFast will allow you to specify the exception object
@@ -313,7 +313,7 @@ namespace System {
         //    IP for bucketing. If the exception object is not preallocated, it will use the bucket
         //    details contained in the object (if any).
         [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void FailFast(String message, Exception exception);
 
 #if !FEATURE_CORECLR
@@ -579,7 +579,7 @@ namespace System {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern String[] GetCommandLineArgsNative();
         
         // We need to keep this Fcall since it is used in AppDomain.cs.
@@ -587,7 +587,7 @@ namespace System {
         // That has side effect to change the ApartmentState of the calling Thread to MTA.
         // So runtime can't change the ApartmentState of calling thread any more.
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern String nativeGetEnvironmentVariable(String variable);
 #endif //!FEATURE_CORECLR
         
@@ -1189,11 +1189,11 @@ namespace System {
 #endif // FEATURE_CORESYSTEM
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool GetVersion(Microsoft.Win32.Win32Native.OSVERSIONINFO  osVer);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool GetVersionEx(Microsoft.Win32.Win32Native.OSVERSIONINFOEX  osVer);
 
 
@@ -1259,7 +1259,7 @@ namespace System {
 
 #if !FEATURE_CORECLR
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static String GetResourceFromDefault(String key);           
 #endif	
 
@@ -1344,13 +1344,13 @@ namespace System {
 
         public static extern bool HasShutdownStarted {
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
             get;
         }
 
 #if !FEATURE_CORECLR
         // This is the temporary Whidbey stub for compatibility flags
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [System.Security.SecurityCritical]
         internal static extern bool GetCompatibilityFlag(CompatibilityFlag flag);
 #endif //!FEATURE_CORECLR

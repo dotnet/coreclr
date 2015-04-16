@@ -3840,7 +3840,7 @@ namespace System
         }
         
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern void GetGUID(ref Guid result);
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -3890,11 +3890,11 @@ namespace System
             return IsTypeExportedToWindowsRuntime(this);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [SecurityCritical]
         private static extern bool IsWindowsRuntimeObjectType(RuntimeType type);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [SecurityCritical]
         private static extern bool IsTypeExportedToWindowsRuntime(RuntimeType type);
 
@@ -4292,11 +4292,11 @@ namespace System
         private static RuntimeType s_typedRef = (RuntimeType)typeof(TypedReference);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         static private extern bool CanValueSpecialCast(RuntimeType valueType, RuntimeType targetType);
         
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         static private extern Object AllocateValueType(RuntimeType type, object value, bool fForceTypeChange); 
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -4447,7 +4447,7 @@ namespace System
 #if FEATURE_COMINTEROP
         [System.Security.SecuritySafeCritical]  // auto-generated
 #endif
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
         public override Object InvokeMember(
             String name, BindingFlags bindingFlags, Binder binder, Object target, 
@@ -5436,7 +5436,7 @@ namespace System
         // Helper to invoke the default (parameterless) ctor.
         // fillCache is set in the SL2/3 compat mode or when called from Marshal.PtrToStructure.
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
         internal Object CreateInstanceDefaultCtor(bool publicOnly, bool skipCheckThis, bool fillCache, ref StackCrawlMark stackMark)
         {
@@ -5500,7 +5500,7 @@ namespace System
 
         #region Legacy Static Internal
         [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern Object _CreateEnum(RuntimeType enumType, long value);
         [System.Security.SecuritySafeCritical]  // auto-generated
         internal static Object CreateEnum(RuntimeType enumType, long value)
@@ -5510,18 +5510,18 @@ namespace System
 
 #if FEATURE_COMINTEROP
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern Object InvokeDispMethod(
             String name, BindingFlags invokeAttr, Object target, Object[] args,
             bool[] byrefModifiers, int culture, String[] namedParameters);
 
 #if FEATURE_COMINTEROP_UNMANAGED_ACTIVATION
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern Type GetTypeFromProgIDImpl(String progID, String server, bool throwOnError);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern Type GetTypeFromCLSIDImpl(Guid clsid, String server, bool throwOnError);
 #else // FEATURE_COMINTEROP_UNMANAGED_ACTIVATION
         internal static Type GetTypeFromProgIDImpl(String progID, String server, bool throwOnError)
@@ -5778,7 +5778,7 @@ namespace System
     internal unsafe struct Utf8String
     {
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern unsafe bool EqualsCaseSensitive(void* szLhs, void* szRhs, int cSz);
 
         [System.Security.SecurityCritical]  // auto-generated

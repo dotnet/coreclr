@@ -299,13 +299,13 @@ namespace System {
 
         // native call to COMString::CompareOrdinalEx
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int nativeCompareOrdinalEx(String strA, int indexA, String strB, int indexB, int count);
 
         //This will not work in case-insensitive mode for any character greater than 0x80.  
         //We'll throw an ArgumentException.
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         unsafe internal static extern int nativeCompareOrdinalIgnoreCaseWC(String strA, sbyte *strBBytes);
         //
         // This is a helper method for the security team.  They need to uppercase some strings (guaranteed to be less 
@@ -764,7 +764,7 @@ namespace System {
         // Do not remove!
         // This method is called by reflection in System.Xml
         [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int InternalMarvin32HashString(string s, int strLen, long additionalEntropy);
 
         [System.Security.SecuritySafeCritical]
@@ -910,7 +910,7 @@ namespace System {
         // Spec#: Add postcondition in a contract assembly.  Potential perf problem.
         public extern int Length {
             [System.Security.SecuritySafeCritical]  // auto-generated
-            [MethodImplAttribute(MethodImplOptions.InternalCall)]
+            [MethodImpl(MethodImplOptions.InternalCall)]
             get;
         }
 
@@ -1296,21 +1296,21 @@ namespace System {
         // ptr is null, a 0-length string (like String.Empty) is returned.
         //
         [System.Security.SecurityCritical]  // auto-generated
-        [CLSCompliant(false), MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [CLSCompliant(false), MethodImpl(MethodImplOptions.InternalCall)]
         unsafe public extern String(char *value);
         [System.Security.SecurityCritical]  // auto-generated
-        [CLSCompliant(false), MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [CLSCompliant(false), MethodImpl(MethodImplOptions.InternalCall)]
         unsafe public extern String(char *value, int startIndex, int length);
     
         [System.Security.SecurityCritical]  // auto-generated
-        [CLSCompliant(false), MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [CLSCompliant(false), MethodImpl(MethodImplOptions.InternalCall)]
         unsafe public extern String(sbyte *value);
         [System.Security.SecurityCritical]  // auto-generated
-        [CLSCompliant(false), MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [CLSCompliant(false), MethodImpl(MethodImplOptions.InternalCall)]
         unsafe public extern String(sbyte *value, int startIndex, int length);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [CLSCompliant(false), MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [CLSCompliant(false), MethodImpl(MethodImplOptions.InternalCall)]
         unsafe public extern String(sbyte *value, int startIndex, int length, Encoding enc);
         
         [System.Security.SecurityCritical]  // auto-generated
@@ -1465,7 +1465,7 @@ namespace System {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static String FastAllocateString(int length);
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -1489,7 +1489,7 @@ namespace System {
         // startIndex + length - 1.
         //
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern String(char [] value, int startIndex, int length);
     
         // Creates a new string from the characters in a subarray.  The new string will be
@@ -1497,7 +1497,7 @@ namespace System {
         //
         
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern String(char [] value);
 
         [System.Security.SecurityCritical]  // auto-generated
@@ -1690,7 +1690,7 @@ namespace System {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern String(char c, int count);
     
         //
@@ -2215,7 +2215,7 @@ namespace System {
 
         [Pure]
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern int IndexOf(char value, int startIndex, int count);
     
         // Returns the index of the first occurance of any character in value in the current instance.
@@ -2233,7 +2233,7 @@ namespace System {
     
         [Pure]
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern int IndexOfAny(char [] anyOf, int startIndex, int count);
     
         
@@ -2342,7 +2342,7 @@ namespace System {
 
         [Pure]
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern int LastIndexOf(char value, int startIndex, int count);
     
         // Returns the index of the last occurance of any character in value in the current instance.
@@ -2365,7 +2365,7 @@ namespace System {
 
         [Pure]
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern int LastIndexOfAny(char [] anyOf, int startIndex, int count);
     
     
@@ -2485,7 +2485,7 @@ namespace System {
     
     
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern String PadHelper(int totalWidth, char paddingChar, bool isRightPadded);
     
         // Determines whether a specified string is a prefix of the current instance
@@ -2796,7 +2796,7 @@ namespace System {
         // Replaces all instances of oldChar with newChar.
         //
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern String ReplaceInternal(char oldChar, char newChar);
 
         public String Replace(char oldChar, char newChar)
@@ -2811,7 +2811,7 @@ namespace System {
         // This method contains the same functionality as StringBuilder Replace. The only difference is that
         // a new String has to be allocated since Strings are immutable
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern String ReplaceInternal(String oldValue, String newValue);
 
         public String Replace(String oldValue, String newValue)
@@ -3372,20 +3372,20 @@ namespace System {
         // Is this a string that can be compared quickly (that is it has only characters > 0x80 
         // and not a - or '
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern bool IsFastSort();
         // Is this a string that only contains characters < 0x80.
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern bool IsAscii();
 
         // Set extra byte for odd-sized strings that came from interop as BSTR.
         [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern void SetTrailByte(byte data);
         // Try to retrieve the extra byte - returns false if not present.
         [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern bool TryGetTrailByte(out byte data);
 
 #if !FEATURE_CORECLR

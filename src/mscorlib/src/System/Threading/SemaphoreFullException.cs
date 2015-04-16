@@ -7,7 +7,7 @@ namespace System.Threading {
     using System.Runtime.InteropServices;
 
     [Serializable()]
-    [ComVisibleAttribute(false)]
+    [ComVisible(false)]
     [System.Runtime.CompilerServices.TypeForwardedFrom("System, Version=2.0.0.0, Culture=Neutral, PublicKeyToken=b77a5c561934e089")]
     public class SemaphoreFullException : SystemException {
     

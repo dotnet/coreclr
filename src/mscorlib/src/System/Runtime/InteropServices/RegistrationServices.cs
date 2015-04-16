@@ -1069,13 +1069,13 @@ namespace System.Runtime.InteropServices {
         // GUID versioning can be controlled by using the GuidAttribute or 
         // letting the runtime generate it based on type and assembly strong name.
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void RegisterTypeForComClientsNative(Type type,ref Guid g);
         
         // GUID versioning can be controlled by using the GuidAttribute or 
         // letting the runtime generate it based on type and assembly strong name.
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int RegisterTypeForComClientsExNative(Type t, RegistrationClassContext clsContext, RegistrationConnectionType flags);
 #endif // FEATURE_COMINTEROP_MANAGED_ACTIVATION
 

@@ -54,7 +54,7 @@ namespace System.Security {
         // Public APIs
         //
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         [Obsolete("IsGranted is obsolete and will be removed in a future release of the .NET Framework.  Please use the PermissionSet property of either AppDomain or Assembly instead.")]
         public static bool IsGranted( IPermission perm )
         {
@@ -147,14 +147,14 @@ namespace System.Security {
 
         /// <internalonly/>
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         static public void GetZoneAndOrigin( out ArrayList zone, out ArrayList origin )
         {
             StackCrawlMark mark = StackCrawlMark.LookForMyCaller;
             CodeAccessSecurityEngine.GetZoneAndOrigin( ref mark, out zone, out origin );
         }
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [SecurityPermissionAttribute( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlPolicy )]
+        [SecurityPermission( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlPolicy )]
         [Obsolete("This method is obsolete and will be removed in a future release of the .NET Framework. See http://go.microsoft.com/fwlink/?LinkID=155570 for more information.")]
         static public PolicyLevel LoadPolicyLevelFromFile(string path, PolicyLevelType type)
         {
@@ -186,7 +186,7 @@ namespace System.Security {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [SecurityPermissionAttribute( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlPolicy )]
+        [SecurityPermission( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlPolicy )]
         [Obsolete("This method is obsolete and will be removed in a future release of the .NET Framework. See http://go.microsoft.com/fwlink/?LinkID=155570 for more information.")]
         static public PolicyLevel LoadPolicyLevelFromString(string str, PolicyLevelType type)
         {
@@ -228,7 +228,7 @@ namespace System.Security {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [SecurityPermissionAttribute( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlPolicy )]
+        [SecurityPermission( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlPolicy )]
         [Obsolete("This method is obsolete and will be removed in a future release of the .NET Framework. See http://go.microsoft.com/fwlink/?LinkID=155570 for more information.")]
         static public void SavePolicyLevel( PolicyLevel level )
         {
@@ -379,7 +379,7 @@ namespace System.Security {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [SecurityPermissionAttribute( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlPolicy )]
+        [SecurityPermission( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlPolicy )]
         [Obsolete("This method is obsolete and will be removed in a future release of the .NET Framework. See http://go.microsoft.com/fwlink/?LinkID=155570 for more information.")]
         public static void SavePolicy()
         {
@@ -659,7 +659,7 @@ namespace System.Security {
         internal static extern bool IsSameType(String strLeft, String strRight);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool _SetThreadSecurity(bool bThreadSecurity);
 
         [System.Security.SecurityCritical]  // auto-generated

@@ -24,7 +24,7 @@ namespace System.Runtime.CompilerServices {
     public static class RuntimeHelpers
     {
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void InitializeArray(Array array,RuntimeFieldHandle fldHandle);
 
         // GetObjectValue is intended to allow value classes to be manipulated as 'Object'
@@ -41,7 +41,7 @@ namespace System.Runtime.CompilerServices {
         // Of course, reference types are not cloned.
         //
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern Object GetObjectValue(Object obj);
 
         // RunClassConstructor causes the class constructor for the given type to be triggered
@@ -53,7 +53,7 @@ namespace System.Runtime.CompilerServices {
         // exception when it ran. 
 
         [System.Security.SecuritySafeCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _RunClassConstructor(RuntimeType type);
 
         public static void RunClassConstructor(RuntimeTypeHandle type) 
@@ -70,7 +70,7 @@ namespace System.Runtime.CompilerServices {
         // exception when it ran. 
 
         [System.Security.SecuritySafeCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _RunModuleConstructor(System.Reflection.RuntimeModule module);
 
         public static void RunModuleConstructor(ModuleHandle module) 
@@ -79,7 +79,7 @@ namespace System.Runtime.CompilerServices {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static unsafe extern void _PrepareMethod(IRuntimeMethodInfo method, IntPtr* pInstantiation, int cInstantiation);
 
         [System.Security.SecurityCritical]  // auto-generated
@@ -122,7 +122,7 @@ namespace System.Runtime.CompilerServices {
         // then adds that combination to e.g. AppDomain.DomainUnload, then the client is responsible
         // for his own preparation.
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void PrepareDelegate(Delegate d);
 
         // See comment above for PrepareDelegate
@@ -136,15 +136,15 @@ namespace System.Runtime.CompilerServices {
         // NOTE: that for the NGen case you can sidestep the required ReliabilityContract
         // by using the [PrePrepareMethod] attribute.
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void PrepareContractedDelegate(Delegate d);
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern int GetHashCode(Object o);
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public new static extern bool Equals(Object o1, Object o2);
 
         public static int OffsetToStringData
@@ -173,7 +173,7 @@ namespace System.Runtime.CompilerServices {
         // Note: this method is not part of the CER support, and is not to be confused with ProbeForSufficientStack
         // below.
         [System.Security.SecuritySafeCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         public static extern void EnsureSufficientExecutionStack();
 
@@ -183,13 +183,13 @@ namespace System.Runtime.CompilerServices {
         // Note: this method is not part of the CER support, and is not to be confused with ProbeForSufficientStack
         // below.
         [System.Security.SecuritySafeCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         internal static extern bool TryEnsureSufficientExecutionStack();
 #endif
 
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public static extern void ProbeForSufficientStack();
 
@@ -221,7 +221,7 @@ namespace System.Runtime.CompilerServices {
         public delegate void CleanupCode(Object userData, bool exceptionThrown);
 
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void ExecuteCodeWithGuaranteedCleanup(TryCode code, CleanupCode backoutCode, Object userData);
 
 #if FEATURE_CORECLR

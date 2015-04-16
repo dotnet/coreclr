@@ -407,7 +407,7 @@ namespace System {
         //
 #if !FEATURE_CORECLR
         [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool LegacyFormatMode();
 #endif // !FEATURE_CORECLR
         //

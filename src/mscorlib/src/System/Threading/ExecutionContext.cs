@@ -982,8 +982,8 @@ namespace System.Threading
         // Sets the given execution context object on the thread.
         // Returns the previous one.
         [System.Security.SecurityCritical]  // auto-generated
-        [DynamicSecurityMethodAttribute()]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [DynamicSecurityMethod]
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
 #if FEATURE_CORRUPTING_EXCEPTIONS
         [HandleProcessCorruptedStateExceptions] 
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
@@ -1161,7 +1161,7 @@ namespace System.Threading
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static ExecutionContext Capture()
         {
             // set up a stack mark for finding the caller
@@ -1174,7 +1174,7 @@ namespace System.Threading
         // When calling ExecutionContext.Run on the returned context, specify ignoreSyncCtx = true
         //
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         [FriendAccessAllowed]
         internal static ExecutionContext FastCapture()
         {

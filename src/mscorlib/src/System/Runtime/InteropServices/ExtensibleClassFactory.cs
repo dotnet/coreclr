@@ -34,7 +34,7 @@ namespace System.Runtime.InteropServices {
         // It is not legal to register this callback from a class that has any
         // parents that have already registered a callback.
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void RegisterObjectCreationCallback(ObjectCreationDelegate callback);
     }
 }

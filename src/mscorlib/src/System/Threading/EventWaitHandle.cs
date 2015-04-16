@@ -39,7 +39,7 @@ namespace System.Threading
     using System.Diagnostics.Contracts;
 
     [HostProtection(Synchronization=true, ExternalThreading=true)]
-    [ComVisibleAttribute(true)]
+    [ComVisible(true)]
     public class EventWaitHandle : WaitHandle
     {
         [System.Security.SecuritySafeCritical]  // auto-generated

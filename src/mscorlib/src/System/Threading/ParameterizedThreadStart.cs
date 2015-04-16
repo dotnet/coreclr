@@ -18,6 +18,6 @@ namespace System.Threading {
     using System.Threading;
     using System.Runtime.InteropServices;
 
-    [ComVisibleAttribute(false)]
+    [ComVisible(false)]
     public delegate void ParameterizedThreadStart(object obj);
 }

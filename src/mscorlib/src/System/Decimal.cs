@@ -206,13 +206,13 @@ namespace System {
         // Constructs a Decimal from a float value.
         //
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern Decimal(float value);
     
         // Constructs a Decimal from a double value.
         //
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern Decimal(double value);
     
         // Constructs a Decimal from a Currency value.
@@ -352,11 +352,11 @@ namespace System {
         // addition or subtraction, respectively.
         //
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void FCallAddSub(ref Decimal d1, ref Decimal d2, byte bSign);
         
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void FCallAddSubOverflowed(ref Decimal d1, ref Decimal d2, byte bSign, ref bool overflowed);
         
         // Rounds a Decimal to an integer value. The Decimal argument is rounded
@@ -375,7 +375,7 @@ namespace System {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         private static extern int FCallCompare(ref Decimal d1, ref Decimal d2);
     
@@ -416,11 +416,11 @@ namespace System {
         // of the operation.
         //
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void FCallDivide(ref Decimal d1, ref Decimal d2);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void FCallDivideOverflowed(ref Decimal d1, ref Decimal d2, ref bool overflowed);
 
     
@@ -446,7 +446,7 @@ namespace System {
         // Returns the hash code for this Decimal.
         //
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern override int GetHashCode();
     
         // Compares two Decimal values for equality. Returns true if the two
@@ -468,7 +468,7 @@ namespace System {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void FCallFloor(ref Decimal d);    
 
         // Converts this Decimal to a string. The resulting string consists of an
@@ -725,11 +725,11 @@ namespace System {
         // of the operation.
         //
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void FCallMultiply(ref Decimal d1, ref Decimal d2);
     
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void FCallMultiplyOverflowed(ref Decimal d1, ref Decimal d2, ref bool overflowed);
     
         // Returns the negated value of the given Decimal. If d is non-zero,
@@ -781,7 +781,7 @@ namespace System {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void FCallRound(ref Decimal d, int decimals);
     
         // Subtracts two Decimal values.
@@ -857,18 +857,18 @@ namespace System {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void FCallToCurrency(ref Currency result, Decimal d);
     
         // Converts a Decimal to a double. Since a double has fewer significant
         // digits than a Decimal, this operation may produce round-off errors.
         //
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern double ToDouble(Decimal d);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int FCallToInt32(Decimal d);
     
         // Converts a Decimal to an integer. The Decimal value is rounded towards
@@ -964,7 +964,7 @@ namespace System {
         // digits than a Decimal, this operation may produce round-off errors.
         //
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern float ToSingle(Decimal d);
 
         // Truncates a Decimal to an integer value. The Decimal argument is rounded
@@ -980,7 +980,7 @@ namespace System {
 
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void FCallTruncate(ref Decimal d);
     
                 

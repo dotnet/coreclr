@@ -14,7 +14,7 @@ namespace System {
     using System.Security.Permissions;
 
     [Serializable]
-    [AttributeUsageAttribute(AttributeTargets.All, Inherited = true, AllowMultiple=false)] 
+    [AttributeUsage(AttributeTargets.All, Inherited = true, AllowMultiple=false)] 
     [ClassInterface(ClassInterfaceType.None)]
     [ComDefaultInterface(typeof(_Attribute))]
     [System.Runtime.InteropServices.ComVisible(true)]

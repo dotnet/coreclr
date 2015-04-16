@@ -156,7 +156,7 @@ namespace System {
         // This code gets called during security startup, so we can't go through Marshal to get the values.  This is
         // just a small helper in native code instead of that.
         //
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern static int GetRegistryLoggingValues(out bool loggingEnabled, out bool logToConsole, out int logLevel, out bool perfWarnings, out bool correctnessWarnings, out bool safeHandleStackTraces);
 
         [SecuritySafeCritical]

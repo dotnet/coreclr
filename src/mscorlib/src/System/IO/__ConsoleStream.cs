@@ -265,7 +265,7 @@ namespace System.IO {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void WaitForAvailableConsoleInput(SafeFileHandle file, bool isPipe);
     }
 }

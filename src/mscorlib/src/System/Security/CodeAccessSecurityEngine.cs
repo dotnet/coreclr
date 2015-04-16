@@ -52,7 +52,7 @@ namespace System.Security {
         internal static PermissionToken AssertPermissionToken; 
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void SpecialDemand(PermissionType whatPermission, ref StackCrawlMark stackMark);
 
         [System.Security.SecurityCritical]  // auto-generated
@@ -448,7 +448,7 @@ namespace System.Security {
         /// <param name="permission">compatibility permission to check (See PermissionType)</param>
         /// <param name="targetGrant">grant set of the reflection target</param>
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         private static void ReflectionTargetDemandHelper(int permission, PermissionSet targetGrant)
         {
             // Capture a compressed stack so that we can make both permission checks without walking the stack
@@ -536,7 +536,7 @@ namespace System.Security {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void GetZoneAndOriginInternal(ArrayList zoneList, 
                                   ArrayList originList, 
                                   ref StackCrawlMark stackMark);
@@ -558,17 +558,17 @@ namespace System.Security {
         // This method invokes a stack walk after skipping to the frame
         // referenced by stackMark.
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void Check (Object demand,
                                   ref StackCrawlMark stackMark, 
                                   bool isPermSet);
 
   
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool QuickCheckForAllDemands();
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool AllDomainsHomogeneousWithNoStackModifiers();
 #endif // FEATURE_CAS_POLICY
 
@@ -594,7 +594,7 @@ namespace System.Security {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern FrameSecurityDescriptor CheckNReturnSO(PermissionToken permToken, 
                                                                     CodeAccessPermission demand, 
                                                                     ref StackCrawlMark stackMark,

@@ -291,15 +291,15 @@ namespace System.Runtime.Serialization {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern Object nativeGetSafeUninitializedObject(RuntimeType type);
     
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern Object nativeGetUninitializedObject(RuntimeType type);
 #if FEATURE_SERIALIZATION
         [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool GetEnableUnsafeTypeForwarders();
 
         [SecuritySafeCritical]

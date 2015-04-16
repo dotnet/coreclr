@@ -270,7 +270,7 @@ namespace System.Threading {
         extern public int ManagedThreadId
         {
             [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-            [MethodImplAttribute(MethodImplOptions.InternalCall)]
+            [MethodImpl(MethodImplOptions.InternalCall)]
             [System.Security.SecuritySafeCritical]  // auto-generated
             get;
         }
@@ -298,7 +298,7 @@ namespace System.Threading {
         ** Exceptions: ThreadStateException if the thread has already been started.
         =========================================================================*/
         [HostProtection(Synchronization=true,ExternalThreading=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public void Start()
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -306,7 +306,7 @@ namespace System.Threading {
         }
 
         [HostProtection(Synchronization=true,ExternalThreading=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public void Start(object parameter)
         {
             //In the case of a null delegate (second call to start on same thread)
@@ -430,12 +430,12 @@ namespace System.Threading {
 #endif //!FEATURE_CORECLR
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern void StartInternal(IPrincipal principal, ref StackCrawlMark stackMark);
 #if FEATURE_COMPRESSEDSTACK
         /// <internalonly/>
         [System.Security.SecurityCritical]  // auto-generated_required
-        [DynamicSecurityMethodAttribute()]
+        [DynamicSecurityMethod]
         [Obsolete("Thread.SetCompressedStack is no longer supported. Please use the System.Threading.CompressedStack class")]         
         public void SetCompressedStack( CompressedStack stack )
         {
@@ -443,11 +443,11 @@ namespace System.Threading {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall), ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
+        [MethodImpl(MethodImplOptions.InternalCall), ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         internal extern IntPtr SetAppDomainStack( SafeCompressedStackHandle csHandle);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall), ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
+        [MethodImpl(MethodImplOptions.InternalCall), ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         internal extern void RestoreAppDomainStack( IntPtr appDomainStack);
         
 
@@ -465,7 +465,7 @@ namespace System.Threading {
         // correctness) and for FileStream's async code path (for perf, to
         // avoid creating a Thread instance).
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern static IntPtr InternalGetCurrentThread();
 
         /*=========================================================================
@@ -486,7 +486,7 @@ namespace System.Threading {
 
 #if !FEATURE_CORECLR
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [SecurityPermissionAttribute(SecurityAction.Demand, ControlThread=true)]
+        [SecurityPermission(SecurityAction.Demand, ControlThread=true)]
         public void Abort(Object stateInfo)
         {
             // If two aborts come at the same time, it is possible that the state info
@@ -512,7 +512,7 @@ namespace System.Threading {
         [System.Security.SecuritySafeCritical]
         #endif
 #pragma warning disable 618
-        [SecurityPermissionAttribute(SecurityAction.Demand, ControlThread = true)]
+        [SecurityPermission(SecurityAction.Demand, ControlThread = true)]
 #pragma warning restore 618
         public void Abort()
         {
@@ -538,7 +538,7 @@ namespace System.Threading {
         // Internal helper (since we can't place security demands on
         // ecalls/fcalls).
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern void AbortInternal();
 
 #if !FEATURE_CORECLR
@@ -547,7 +547,7 @@ namespace System.Threading {
         ** Should be called by trusted code only
           =========================================================================*/
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [SecurityPermissionAttribute(SecurityAction.Demand, ControlThread=true)]
+        [SecurityPermission(SecurityAction.Demand, ControlThread=true)]
         public static void ResetAbort()
         {
             Thread thread = Thread.CurrentThread;
@@ -558,7 +558,7 @@ namespace System.Threading {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern void ResetAbortNative();
 
         /*=========================================================================
@@ -576,7 +576,7 @@ namespace System.Threading {
         // Internal helper (since we can't place security demands on
         // ecalls/fcalls).
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern void SuspendInternal();
 
         /*=========================================================================
@@ -593,7 +593,7 @@ namespace System.Threading {
         // Internal helper (since we can't place security demands on
         // ecalls/fcalls).
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern void ResumeInternal();
 
         /*=========================================================================
@@ -608,7 +608,7 @@ namespace System.Threading {
         // Internal helper (since we can't place security demands on
         // ecalls/fcalls).
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern void InterruptInternal();
 #endif
 
@@ -626,10 +626,10 @@ namespace System.Threading {
             set { SetPriorityNative((int)value); }
         }
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern int GetPriorityNative();
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern void SetPriorityNative(int priority);
 
         /*=========================================================================
@@ -660,7 +660,7 @@ namespace System.Threading {
         **             ThreadStateException if the thread has not been started yet.
         =========================================================================*/
         [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern bool JoinInternal(int millisecondsTimeout);
 
         [System.Security.SecuritySafeCritical]
@@ -696,7 +696,7 @@ namespace System.Threading {
         **             ThreadInterruptedException if the thread is interrupted while sleeping.
         =========================================================================*/
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void SleepInternal(int millisecondsTimeout);
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -722,7 +722,7 @@ namespace System.Threading {
            a explict busy loop because the hardware can be informed that it is busy waiting. */
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [HostProtection(Synchronization=true,ExternalThreading=true)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         private static extern void SpinWaitInternal(int iterations);
@@ -759,7 +759,7 @@ namespace System.Threading {
             }
         }
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall), ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
+        [MethodImpl(MethodImplOptions.InternalCall), ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         private static extern Thread GetCurrentThreadNative();
 
         [System.Security.SecurityCritical]  // auto-generated
@@ -806,7 +806,7 @@ namespace System.Threading {
         ** start != null.
         =========================================================================*/
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern void SetStart(Delegate start, int maxStackSize);
 
         /*=========================================================================
@@ -822,13 +822,13 @@ namespace System.Threading {
 
         [System.Security.SecurityCritical]  // auto-generated
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern void InternalFinalize();
 
 #if FEATURE_COMINTEROP
         [System.Security.SecurityCritical]  // auto-generated
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern void DisableComObjectEagerCleanup();
 #endif //FEATURE_COMINTEROP
 
@@ -846,10 +846,10 @@ namespace System.Threading {
             set { SetBackgroundNative(value); }
         }
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern bool IsBackgroundNative();
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern void SetBackgroundNative(bool isBackground);
 
 
@@ -863,7 +863,7 @@ namespace System.Threading {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern int GetThreadStateNative();
 
 #if FEATURE_COMINTEROP_APARTMENT_SUPPORT
@@ -932,13 +932,13 @@ namespace System.Threading {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern int GetApartmentStateNative();
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern int SetApartmentStateNative(int state, bool fireMDAOnMismatch);
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern void StartupSetApartmentStateInternal();
 #endif // FEATURE_COMINTEROP_APARTMENT_SUPPORT
 
@@ -1047,7 +1047,7 @@ namespace System.Threading {
         // 
 #if FEATURE_LEAK_CULTURE_INFO
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         static extern private bool nativeGetSafeCulture(Thread t, int appDomainId, bool isUI, ref CultureInfo safeCulture);
 #endif // FEATURE_LEAK_CULTURE_INFO
 
@@ -1163,7 +1163,7 @@ namespace System.Threading {
         // This returns the exposed context for a given context ID.
 #if FEATURE_LEAK_CULTURE_INFO
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         static extern private bool nativeSetThreadUILocale(String locale);
 #endif
 
@@ -1329,7 +1329,7 @@ namespace System.Threading {
             }
 
             [System.Security.SecuritySafeCritical]  // auto-generated
-            [SecurityPermissionAttribute(SecurityAction.Demand, Flags=SecurityPermissionFlag.ControlPrincipal)]
+            [SecurityPermission(SecurityAction.Demand, Flags=SecurityPermissionFlag.ControlPrincipal)]
             set
             {
                 CallContext.Principal = value;
@@ -1349,11 +1349,11 @@ namespace System.Threading {
 
         // This returns the exposed context for a given context ID.
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern Context GetContextInternal(IntPtr id);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern Object InternalCrossContextCallback(Context ctx, IntPtr ctxID, Int32 appDomainID, InternalCrossContextDelegate ftnToCall, Object[] args);
 
         [System.Security.SecurityCritical]  // auto-generated
@@ -1374,10 +1374,10 @@ namespace System.Threading {
         ======================================================================*/
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern AppDomain GetDomainInternal();
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern AppDomain GetFastDomainInternal();
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -1455,7 +1455,7 @@ namespace System.Threading {
          */
         [System.Security.SecuritySafeCritical]  // auto-generated
         [HostProtection(Synchronization=true, ExternalThreading=true)]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public static extern void BeginCriticalRegion();
 
@@ -1464,7 +1464,7 @@ namespace System.Threading {
          */
         [System.Security.SecuritySafeCritical]  // auto-generated
         [HostProtection(Synchronization=true, ExternalThreading=true)]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         public static extern void EndCriticalRegion();
 
@@ -1472,7 +1472,7 @@ namespace System.Threading {
          *  This marks the beginning of a code region that requires thread affinity.
          */
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public static extern void BeginThreadAffinity();
 
@@ -1480,7 +1480,7 @@ namespace System.Threading {
          *  This marks the end of a code region that requires thread affinity.
          */
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public static extern void EndThreadAffinity();
 
@@ -1490,7 +1490,7 @@ namespace System.Threading {
         ** are read/written each time they are accessed.
         =========================================================================*/
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
+        [MethodImpl(MethodImplOptions.NoInlining)] // disable optimizations
         public static byte VolatileRead(ref byte address)
         {
             byte ret = address;
@@ -1498,7 +1498,7 @@ namespace System.Threading {
             return ret;
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
+        [MethodImpl(MethodImplOptions.NoInlining)] // disable optimizations
         public static short VolatileRead(ref short address)
         {
             short ret = address;
@@ -1506,7 +1506,7 @@ namespace System.Threading {
             return ret;
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
+        [MethodImpl(MethodImplOptions.NoInlining)] // disable optimizations
         public static int VolatileRead(ref int address)
         {
             int ret = address;
@@ -1514,7 +1514,7 @@ namespace System.Threading {
             return ret;
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
+        [MethodImpl(MethodImplOptions.NoInlining)] // disable optimizations
         public static long VolatileRead(ref long address)
         {
             long ret = address;
@@ -1523,7 +1523,7 @@ namespace System.Threading {
         }
 
         [CLSCompliant(false)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
+        [MethodImpl(MethodImplOptions.NoInlining)] // disable optimizations
         public static sbyte VolatileRead(ref sbyte address)
         {
             sbyte ret = address;
@@ -1532,7 +1532,7 @@ namespace System.Threading {
         }
 
         [CLSCompliant(false)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
+        [MethodImpl(MethodImplOptions.NoInlining)] // disable optimizations
         public static ushort VolatileRead(ref ushort address)
         {
             ushort ret = address;
@@ -1541,7 +1541,7 @@ namespace System.Threading {
         }
 
         [CLSCompliant(false)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
+        [MethodImpl(MethodImplOptions.NoInlining)] // disable optimizations
         public static uint VolatileRead(ref uint address)
         {
             uint ret = address;
@@ -1549,7 +1549,7 @@ namespace System.Threading {
             return ret;
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
+        [MethodImpl(MethodImplOptions.NoInlining)] // disable optimizations
         public static IntPtr VolatileRead(ref IntPtr address)
         {
             IntPtr ret = address;
@@ -1558,7 +1558,7 @@ namespace System.Threading {
         }
 
         [CLSCompliant(false)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
+        [MethodImpl(MethodImplOptions.NoInlining)] // disable optimizations
         public static UIntPtr VolatileRead(ref UIntPtr address)
         {
             UIntPtr ret = address;
@@ -1567,7 +1567,7 @@ namespace System.Threading {
         }
 
         [CLSCompliant(false)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
+        [MethodImpl(MethodImplOptions.NoInlining)] // disable optimizations
         public static ulong VolatileRead(ref ulong address)
         {
             ulong ret = address;
@@ -1575,7 +1575,7 @@ namespace System.Threading {
             return ret;
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
+        [MethodImpl(MethodImplOptions.NoInlining)] // disable optimizations
         public static float VolatileRead(ref float address)
         {
             float ret = address;
@@ -1583,7 +1583,7 @@ namespace System.Threading {
             return ret;
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
+        [MethodImpl(MethodImplOptions.NoInlining)] // disable optimizations
         public static double VolatileRead(ref double address)
         {
             double ret = address;
@@ -1591,7 +1591,7 @@ namespace System.Threading {
             return ret;
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
+        [MethodImpl(MethodImplOptions.NoInlining)] // disable optimizations
         public static Object VolatileRead(ref Object address)
         {
             Object ret = address;
@@ -1599,28 +1599,28 @@ namespace System.Threading {
             return ret;
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
+        [MethodImpl(MethodImplOptions.NoInlining)] // disable optimizations
         public static void VolatileWrite(ref byte address, byte value)
         {
             MemoryBarrier(); // Call MemoryBarrier to ensure the proper semantic in a portable way.
             address = value;
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
+        [MethodImpl(MethodImplOptions.NoInlining)] // disable optimizations
         public static void VolatileWrite(ref short address, short value)
         {
             MemoryBarrier(); // Call MemoryBarrier to ensure the proper semantic in a portable way.
             address = value;
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
+        [MethodImpl(MethodImplOptions.NoInlining)] // disable optimizations
         public static void VolatileWrite(ref int address, int value)
         {
             MemoryBarrier(); // Call MemoryBarrier to ensure the proper semantic in a portable way.
             address = value;
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
+        [MethodImpl(MethodImplOptions.NoInlining)] // disable optimizations
         public static void VolatileWrite(ref long address, long value)
         {
             MemoryBarrier(); // Call MemoryBarrier to ensure the proper semantic in a portable way.
@@ -1628,7 +1628,7 @@ namespace System.Threading {
         }
 
         [CLSCompliant(false)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
+        [MethodImpl(MethodImplOptions.NoInlining)] // disable optimizations
         public static void VolatileWrite(ref sbyte address, sbyte value)
         {
             MemoryBarrier(); // Call MemoryBarrier to ensure the proper semantic in a portable way.
@@ -1636,7 +1636,7 @@ namespace System.Threading {
         }
 
         [CLSCompliant(false)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
+        [MethodImpl(MethodImplOptions.NoInlining)] // disable optimizations
         public static void VolatileWrite(ref ushort address, ushort value)
         {
             MemoryBarrier(); // Call MemoryBarrier to ensure the proper semantic in a portable way.
@@ -1644,14 +1644,14 @@ namespace System.Threading {
         }
 
         [CLSCompliant(false)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
+        [MethodImpl(MethodImplOptions.NoInlining)] // disable optimizations
         public static void VolatileWrite(ref uint address, uint value)
         {
             MemoryBarrier(); // Call MemoryBarrier to ensure the proper semantic in a portable way.
             address = value;
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
+        [MethodImpl(MethodImplOptions.NoInlining)] // disable optimizations
         public static void VolatileWrite(ref IntPtr address, IntPtr value)
         {
             MemoryBarrier(); // Call MemoryBarrier to ensure the proper semantic in a portable way.
@@ -1659,7 +1659,7 @@ namespace System.Threading {
         }
 
         [CLSCompliant(false)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
+        [MethodImpl(MethodImplOptions.NoInlining)] // disable optimizations
         public static void VolatileWrite(ref UIntPtr address, UIntPtr value)
         {
             MemoryBarrier(); // Call MemoryBarrier to ensure the proper semantic in a portable way.
@@ -1667,28 +1667,28 @@ namespace System.Threading {
         }
 
         [CLSCompliant(false)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
+        [MethodImpl(MethodImplOptions.NoInlining)] // disable optimizations
         public static void VolatileWrite(ref ulong address, ulong value)
         {
             MemoryBarrier(); // Call MemoryBarrier to ensure the proper semantic in a portable way.
             address = value;
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
+        [MethodImpl(MethodImplOptions.NoInlining)] // disable optimizations
         public static void VolatileWrite(ref float address, float value)
         {
             MemoryBarrier(); // Call MemoryBarrier to ensure the proper semantic in a portable way.
             address = value;
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
+        [MethodImpl(MethodImplOptions.NoInlining)] // disable optimizations
         public static void VolatileWrite(ref double address, double value)
         {
             MemoryBarrier(); // Call MemoryBarrier to ensure the proper semantic in a portable way.
             address = value;
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
+        [MethodImpl(MethodImplOptions.NoInlining)] // disable optimizations
         public static void VolatileWrite(ref Object address, Object value)
         {
             MemoryBarrier(); // Call MemoryBarrier to ensure the proper semantic in a portable way.
@@ -1696,7 +1696,7 @@ namespace System.Threading {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void MemoryBarrier();
 
         private static LocalDataStoreMgr LocalDataStoreManager
@@ -1738,20 +1738,20 @@ namespace System.Threading {
         //  Checks that they're not alredy set, and then atomically updates
         //  the reason info (object + ADID).
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern void SetAbortReason(Object o);
     
         // Helper function to retrieve the AbortReason from a thread
         //  abort.  Will perform cross-AppDomain marshalling if the object
         //  lives in a different AppDomain from the requester.
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern Object GetAbortReason();
     
         // Helper function to clear the AbortReason.  Takes care of
         //  AppDomain related cleanup if required.
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern void ClearAbortReason();
 
 

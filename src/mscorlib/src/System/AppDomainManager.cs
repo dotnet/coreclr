@@ -36,7 +36,7 @@ namespace System {
     [System.Security.SecurityCritical]  // auto-generated_required
     [System.Runtime.InteropServices.ComVisible(true)]
 #if !FEATURE_CORECLR
-    [SecurityPermissionAttribute(SecurityAction.InheritanceDemand, Flags = SecurityPermissionFlag.Infrastructure)]
+    [SecurityPermission(SecurityAction.InheritanceDemand, Flags = SecurityPermissionFlag.Infrastructure)]
 #endif
 #if FEATURE_REMOTING
     public class AppDomainManager : MarshalByRefObject {
@@ -53,7 +53,7 @@ namespace System {
         }
 
         [System.Security.SecurityCritical]  // auto-generated_required
-        [SecurityPermissionAttribute(SecurityAction.Demand, ControlAppDomain = true)]
+        [SecurityPermission(SecurityAction.Demand, ControlAppDomain = true)]
         protected static AppDomain CreateDomainHelper (string friendlyName,
                                                        Evidence securityInfo,
                                                        AppDomainSetup appDomainInfo) {
@@ -190,7 +190,7 @@ namespace System {
         }
 
 #if FEATURE_APPDOMAINMANAGER_INITOPTIONS
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool HasHost();
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]

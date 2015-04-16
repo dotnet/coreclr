@@ -18,7 +18,7 @@ namespace System.Security
 
     [Serializable]
 #if !FEATURE_CORECLR
-    [SecurityPermissionAttribute( SecurityAction.InheritanceDemand, ControlEvidence = true, ControlPolicy = true )]
+    [SecurityPermission( SecurityAction.InheritanceDemand, ControlEvidence = true, ControlPolicy = true )]
 #endif
     [System.Runtime.InteropServices.ComVisible(true)]
     abstract public class CodeAccessPermission
@@ -26,7 +26,7 @@ namespace System.Security
     {
         // Static methods for manipulation of stack
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static void RevertAssert()
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -34,7 +34,7 @@ namespace System.Security
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         [Obsolete("Deny is obsolete and will be removed in a future release of the .NET Framework. See http://go.microsoft.com/fwlink/?LinkID=155570 for more information.")]
         public static void RevertDeny()
         {
@@ -43,7 +43,7 @@ namespace System.Security
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static void RevertPermitOnly()
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -51,7 +51,7 @@ namespace System.Security
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static void RevertAll()
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -66,8 +66,8 @@ namespace System.Security
         // Mark this method as requiring a security object on the caller's frame
         // so the caller won't be inlined (which would mess up stack crawling).
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [DynamicSecurityMethodAttribute()]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [DynamicSecurityMethod]
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public void Demand()
         {
             if (!this.CheckDemand( null ))
@@ -78,8 +78,8 @@ namespace System.Security
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [DynamicSecurityMethodAttribute()]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [DynamicSecurityMethod]
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         internal static void Demand(PermissionType permissionType)
         {
             //    The intent of the method is to be an internal mscorlib helper that Demands a specific permissiontype
@@ -96,8 +96,8 @@ namespace System.Security
         // EE can allocate space on the stack frame for FrameSecurityDescriptor
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [DynamicSecurityMethodAttribute()]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [DynamicSecurityMethod]
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public void Assert()
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -106,8 +106,8 @@ namespace System.Security
 
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [DynamicSecurityMethodAttribute()]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable    
+        [DynamicSecurityMethod]
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable    
         static internal void Assert(bool allPossible)
         {
             //    The intent of the method is to be an internal mscorlib helper that easily asserts for all possible permissions
@@ -124,8 +124,8 @@ namespace System.Security
         // EE can allocate space on the stack frame for FrameSecurityDescriptor
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [DynamicSecurityMethodAttribute()]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [DynamicSecurityMethod]
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         [Obsolete("Deny is obsolete and will be removed in a future release of the .NET Framework. See http://go.microsoft.com/fwlink/?LinkID=155570 for more information.")]
         public void Deny()
         {
@@ -137,8 +137,8 @@ namespace System.Security
         // EE can allocate space on the stack frame for FrameSecurityDescriptor
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [DynamicSecurityMethodAttribute()]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [DynamicSecurityMethod]
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public void PermitOnly()
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;

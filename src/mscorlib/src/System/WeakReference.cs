@@ -18,7 +18,7 @@ namespace System {
     using System.Diagnostics.Contracts;
     [System.Runtime.InteropServices.ComVisible(true)]
 #if !FEATURE_CORECLR
-    [SecurityPermissionAttribute(SecurityAction.InheritanceDemand, Flags=SecurityPermissionFlag.UnmanagedCode)] // Don't call Object::MemberwiseClone.
+    [SecurityPermission(SecurityAction.InheritanceDemand, Flags=SecurityPermissionFlag.UnmanagedCode)] // Don't call Object::MemberwiseClone.
 #endif
     [Serializable]
     public class WeakReference : ISerializable {
@@ -65,7 +65,7 @@ namespace System {
         //that has not been collected.
         //
         public extern virtual bool IsAlive {
-            [MethodImplAttribute(MethodImplOptions.InternalCall)]
+            [MethodImpl(MethodImplOptions.InternalCall)]
             [SecuritySafeCritical]
             get;
          }
@@ -82,10 +82,10 @@ namespace System {
         // Or sets it.
         //
         public extern virtual Object Target {
-            [MethodImplAttribute(MethodImplOptions.InternalCall)]
+            [MethodImpl(MethodImplOptions.InternalCall)]
             [SecuritySafeCritical]
             get;
-            [MethodImplAttribute(MethodImplOptions.InternalCall)]
+            [MethodImpl(MethodImplOptions.InternalCall)]
             [SecuritySafeCritical]
             set;
         }
@@ -96,7 +96,7 @@ namespace System {
         // treated specially in gc.cpp's ScanForFinalization
         // This is needed for subclasses deriving from WeakReference, however.
         // Additionally, there may be some cases during shutdown when we run this finalizer.
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [SecuritySafeCritical]
         extern ~WeakReference();
 
@@ -111,11 +111,11 @@ namespace System {
             info.AddValue("TrackResurrection", IsTrackResurrection());
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [SecuritySafeCritical]
         private extern void Create(Object target, bool trackResurrection);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [SecuritySafeCritical]
         private extern bool IsTrackResurrection();
     }

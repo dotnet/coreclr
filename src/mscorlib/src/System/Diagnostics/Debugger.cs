@@ -75,7 +75,7 @@ namespace System.Diagnostics
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void BreakInternal();
 
         // Launch launches & attaches a debugger to the process. If a debugger is already attached,
@@ -122,7 +122,7 @@ namespace System.Diagnostics
         }
 
         // Do not inline the slow path 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         private static void NotifyOfCrossThreadDependencySlow()
         {
             CrossThreadDependencyNotification notification = new CrossThreadDependencyNotification();
@@ -147,7 +147,7 @@ namespace System.Diagnostics
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool LaunchInternal();
 
         // Returns whether or not a debugger is attached to the process.
@@ -155,7 +155,7 @@ namespace System.Diagnostics
         public static extern bool IsAttached
         {
             [System.Security.SecuritySafeCritical]  // auto-generated
-            [MethodImplAttribute(MethodImplOptions.InternalCall)]
+            [MethodImpl(MethodImplOptions.InternalCall)]
             get;
         }
 
@@ -173,20 +173,20 @@ namespace System.Diagnostics
         // debugger attached, has no effect.  The debugger may or may not
         // report the message depending on its settings. 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void Log(int level, String category, String message);
 
         // Checks to see if an attached debugger has logging enabled
         //  
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern bool IsLogging();
 
         // Posts a custom notification for the attached debugger.  If there is no
         // debugger attached, has no effect.  The debugger may or may not
         // report the notification depending on its settings. 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void CustomNotification(ICustomDebuggerNotification data);
 
     }

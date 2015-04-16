@@ -1084,11 +1084,11 @@ namespace System.Threading
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void WaitHandleCleanupNative(IntPtr handle);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool UnregisterWaitNative(IntPtr handle, SafeHandle waitObject);
     }
 
@@ -1351,7 +1351,7 @@ namespace System.Threading
         [System.Security.SecuritySafeCritical]
         #endif
 #pragma warning disable 618
-        [SecurityPermissionAttribute(SecurityAction.Demand, ControlThread = true)]
+        [SecurityPermission(SecurityAction.Demand, ControlThread = true)]
 #pragma warning restore 618
         public static bool SetMaxThreads(int workerThreads, int completionPortThreads)
         {
@@ -1370,7 +1370,7 @@ namespace System.Threading
         [System.Security.SecuritySafeCritical]
         #endif
 #pragma warning disable 618
-        [SecurityPermissionAttribute(SecurityAction.Demand, ControlThread = true)]
+        [SecurityPermission(SecurityAction.Demand, ControlThread = true)]
 #pragma warning restore 618
         public static bool SetMinThreads(int workerThreads, int completionPortThreads)
         {
@@ -1391,7 +1391,7 @@ namespace System.Threading
 
         [System.Security.SecuritySafeCritical]  // auto-generated
         [CLSCompliant(false)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable            
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable            
         public static RegisteredWaitHandle RegisterWaitForSingleObject(  // throws RegisterWaitException
              WaitHandle             waitObject,
              WaitOrTimerCallback    callBack,
@@ -1406,7 +1406,7 @@ namespace System.Threading
 
         [System.Security.SecurityCritical]  // auto-generated_required
         [CLSCompliant(false)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static RegisteredWaitHandle UnsafeRegisterWaitForSingleObject(  // throws RegisterWaitException
              WaitHandle             waitObject,
              WaitOrTimerCallback    callBack,
@@ -1464,7 +1464,7 @@ namespace System.Threading
 
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static RegisteredWaitHandle RegisterWaitForSingleObject(  // throws RegisterWaitException
              WaitHandle             waitObject,
              WaitOrTimerCallback    callBack,
@@ -1481,7 +1481,7 @@ namespace System.Threading
         }
 
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable            
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable            
         public static RegisteredWaitHandle UnsafeRegisterWaitForSingleObject(  // throws RegisterWaitException
              WaitHandle             waitObject,
              WaitOrTimerCallback    callBack,
@@ -1498,7 +1498,7 @@ namespace System.Threading
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static RegisteredWaitHandle RegisterWaitForSingleObject(  // throws RegisterWaitException
             WaitHandle          waitObject,
             WaitOrTimerCallback callBack,
@@ -1515,7 +1515,7 @@ namespace System.Threading
         }
 
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static RegisteredWaitHandle UnsafeRegisterWaitForSingleObject(  // throws RegisterWaitException
             WaitHandle          waitObject,
             WaitOrTimerCallback callBack,
@@ -1532,7 +1532,7 @@ namespace System.Threading
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static RegisteredWaitHandle RegisterWaitForSingleObject(
                           WaitHandle            waitObject,
                           WaitOrTimerCallback   callBack,
@@ -1551,7 +1551,7 @@ namespace System.Threading
         }
 
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static RegisteredWaitHandle UnsafeRegisterWaitForSingleObject(
                           WaitHandle            waitObject,
                           WaitOrTimerCallback   callBack,
@@ -1570,7 +1570,7 @@ namespace System.Threading
         }
             
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable    
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable    
         public static bool QueueUserWorkItem(           
              WaitCallback           callBack,     // NOTE: we do not expose options that allow the callback to be queued as an APC
              Object                 state
@@ -1581,7 +1581,7 @@ namespace System.Threading
         }
         
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static bool QueueUserWorkItem(           
              WaitCallback           callBack     // NOTE: we do not expose options that allow the callback to be queued as an APC
              )
@@ -1591,7 +1591,7 @@ namespace System.Threading
         }
     
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static bool UnsafeQueueUserWorkItem(
              WaitCallback           callBack,     // NOTE: we do not expose options that allow the callback to be queued as an APC
              Object                 state
@@ -1766,7 +1766,7 @@ namespace System.Threading
         internal static extern bool RequestWorkerThread();
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         unsafe private static extern bool PostQueuedCompletionStatus(NativeOverlapped* overlapped);
 
         [System.Security.SecurityCritical]  // auto-generated_required
@@ -1795,31 +1795,31 @@ namespace System.Threading
         // Native methods: 
     
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool SetMinThreadsNative(int workerThreads, int completionPortThreads);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool SetMaxThreadsNative(int workerThreads, int completionPortThreads);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void GetMinThreadsNative(out int workerThreads, out int completionPortThreads);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void GetMaxThreadsNative(out int workerThreads, out int completionPortThreads);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void GetAvailableThreadsNative(out int workerThreads, out int completionPortThreads);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool NotifyWorkItemComplete();
 
         [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void ReportThreadStatus(bool isWorking);
 
         [System.Security.SecuritySafeCritical]
@@ -1831,11 +1831,11 @@ namespace System.Threading
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void NotifyWorkItemProgressNative();
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool IsThreadPoolHosted();
 
         [System.Security.SecurityCritical]  // auto-generated
@@ -1844,7 +1844,7 @@ namespace System.Threading
         private static extern void InitializeVMTp(ref bool enableWorkerTracking);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern IntPtr RegisterWaitForSingleObjectNative(  
              WaitHandle             waitHandle,
              Object                 state,
@@ -1858,7 +1858,7 @@ namespace System.Threading
 #if !FEATURE_CORECLR
         [System.Security.SecuritySafeCritical]  // auto-generated
         [Obsolete("ThreadPool.BindHandle(IntPtr) has been deprecated.  Please use ThreadPool.BindHandle(SafeHandle) instead.", false)]
-        [SecurityPermissionAttribute( SecurityAction.Demand, Flags = SecurityPermissionFlag.UnmanagedCode)]
+        [SecurityPermission( SecurityAction.Demand, Flags = SecurityPermissionFlag.UnmanagedCode)]
         public static bool BindHandle(
              IntPtr osHandle
              )
@@ -1873,7 +1873,7 @@ namespace System.Threading
         [System.Security.SecuritySafeCritical]
         #endif        
 #pragma warning disable 618
-        [SecurityPermissionAttribute(SecurityAction.Demand, Flags = SecurityPermissionFlag.UnmanagedCode)]
+        [SecurityPermission(SecurityAction.Demand, Flags = SecurityPermissionFlag.UnmanagedCode)]
 #pragma warning restore 618
         public static bool BindHandle(SafeHandle osHandle)
         {
@@ -1901,7 +1901,7 @@ namespace System.Threading
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         private static extern bool BindIOCompletionCallbackNative(IntPtr fileHandle);
     }

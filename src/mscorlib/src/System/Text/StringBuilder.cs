@@ -672,11 +672,11 @@ namespace System.Text {
             }
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [SecurityCritical]
         internal unsafe extern void ReplaceBufferInternal(char* newBuffer, int newLength);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [SecurityCritical]
         internal unsafe extern void ReplaceBufferAnsiInternal(sbyte* newBuffer, int newLength);
 
@@ -1650,7 +1650,7 @@ namespace System.Text {
         /// Appends 'value' of length 'count' to the stringBuilder. 
         /// </summary>
         [SecurityCritical]
-        [System.CLSCompliantAttribute(false)]
+        [CLSCompliant(false)]
         public unsafe StringBuilder Append(char* value, int valueCount)
         {
             // We don't check null value as this case will throw null reference exception anyway

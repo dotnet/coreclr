@@ -16,7 +16,7 @@ namespace System {
     public struct ArgIterator
     {
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern ArgIterator(IntPtr arglist);
 
         // create an arg iterator that points at the first argument that
@@ -28,7 +28,7 @@ namespace System {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private unsafe extern ArgIterator(IntPtr arglist, void *ptr);
         
         // create an arg iterator that points just past 'firstArg'.  
@@ -58,7 +58,7 @@ namespace System {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         // reference to TypedReference is banned, so have to pass result as void pointer
         private unsafe extern void FCallGetNextArg(void * result);
 
@@ -96,7 +96,7 @@ namespace System {
 
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         // reference to TypedReference is banned, so have to pass result as void pointer
         private unsafe extern void InternalGetNextArg(void * result, RuntimeType rt);
 
@@ -107,12 +107,12 @@ namespace System {
     
         // How many arguments are left in the list 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern int GetRemainingCount();
     
         // Gets the type of the current arg, does NOT advance the iterator
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern unsafe void* _GetNextArgType();
 
         [System.Security.SecuritySafeCritical]  // auto-generated

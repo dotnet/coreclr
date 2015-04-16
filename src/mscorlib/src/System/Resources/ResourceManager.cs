@@ -257,7 +257,7 @@ namespace System.Resources {
         
         private static volatile bool s_IsAppXModel;
         
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         private void Init()
         {
             m_callingAssembly = (RuntimeAssembly)Assembly.GetCallingAssembly();
@@ -332,7 +332,7 @@ namespace System.Resources {
 #endif
         }
     
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var have to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var have to be marked non-inlineable
         public ResourceManager(String baseName, Assembly assembly)
         {
             if (null==baseName)
@@ -363,7 +363,7 @@ namespace System.Resources {
             }
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public ResourceManager(String baseName, Assembly assembly, Type usingResourceSet)
         {
             if (null==baseName)
@@ -399,7 +399,7 @@ namespace System.Resources {
                 m_callingAssembly = null;
         }
         
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public ResourceManager(Type resourceSource)
         {
             if (null==resourceSource)
@@ -677,7 +677,7 @@ namespace System.Resources {
         // loaded as well for resource inheritance.
         //         
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var have to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var have to be marked non-inlineable
         public virtual ResourceSet GetResourceSet(CultureInfo culture, bool createIfNotExists, bool tryParents) {
             if (null==culture)
                 throw new ArgumentNullException("culture");
@@ -721,7 +721,7 @@ namespace System.Resources {
         // threadsafe methods such as GetResourceSet, GetString, & GetObject.  
         // This will take a minimal number of locks.
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [MethodImpl(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         protected virtual ResourceSet InternalGetResourceSet(CultureInfo culture, bool createIfNotExists, bool tryParents) 
         {
             Contract.Assert(culture != null, "culture != null");

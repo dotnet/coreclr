@@ -32,7 +32,7 @@ namespace System.Security.Permissions {
     
     [Serializable]
 #if !FEATURE_CORECLR
-    [SecurityPermissionAttribute( SecurityAction.InheritanceDemand, ControlEvidence = true, ControlPolicy = true )]
+    [SecurityPermission( SecurityAction.InheritanceDemand, ControlEvidence = true, ControlPolicy = true )]
 #endif
     [System.Runtime.InteropServices.ComVisible(true)]
     abstract public class IsolatedStoragePermission

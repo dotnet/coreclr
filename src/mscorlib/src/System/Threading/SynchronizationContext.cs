@@ -51,7 +51,7 @@ namespace System.Threading
 #endif //FEATURE_COMINTEROP
 
 #if !FEATURE_CORECLR
-    [SecurityPermissionAttribute(SecurityAction.InheritanceDemand, Flags =SecurityPermissionFlag.ControlPolicy|SecurityPermissionFlag.ControlEvidence)]
+    [SecurityPermission(SecurityAction.InheritanceDemand, Flags =SecurityPermissionFlag.ControlPolicy|SecurityPermissionFlag.ControlEvidence)]
 #endif
     public class SynchronizationContext
     {
@@ -161,7 +161,7 @@ namespace System.Threading
         [System.Security.SecurityCritical]  // auto-generated_required
         [CLSCompliant(false)]
         [PrePrepareMethod]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]       
+        [MethodImpl(MethodImplOptions.InternalCall)]       
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         protected static extern int WaitHelper(IntPtr[] waitHandles, bool waitAll, int millisecondsTimeout);
 #endif

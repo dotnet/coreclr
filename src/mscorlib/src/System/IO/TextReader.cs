@@ -308,14 +308,14 @@ namespace System.IO {
                 _in = t;        
             }
             
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void Close() 
             {
                 // So that any overriden Close() gets run
                 _in.Close();
             }
 
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             protected override void Dispose(bool disposing) 
             {
                 // Explicitly pick up a potentially methodimpl'ed Dispose
@@ -323,38 +323,38 @@ namespace System.IO {
                     ((IDisposable)_in).Dispose();
             }
             
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override int Peek() 
             {
                 return _in.Peek();
             }
             
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override int Read() 
             {
                 return _in.Read();
             }
 
             [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override int Read([In, Out] char[] buffer, int index, int count) 
             {
                 return _in.Read(buffer, index, count);
             }
             
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override int ReadBlock([In, Out] char[] buffer, int index, int count) 
             {
                 return _in.ReadBlock(buffer, index, count);
             }
             
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override String ReadLine() 
             {
                 return _in.ReadLine();
             }
 
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override String ReadToEnd() 
             {
                 return _in.ReadToEnd();
@@ -365,21 +365,21 @@ namespace System.IO {
             //
 
             [ComVisible(false)]
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override Task<String> ReadLineAsync()
             {
                 return Task.FromResult(ReadLine());
             }
 
             [ComVisible(false)]
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override Task<String> ReadToEndAsync()
             {
                 return Task.FromResult(ReadToEnd());
             }
 
             [ComVisible(false)]
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override Task<int> ReadBlockAsync(char[] buffer, int index, int count)
             {
                 if (buffer==null)
@@ -395,7 +395,7 @@ namespace System.IO {
             }
 
             [ComVisible(false)]
-            [MethodImplAttribute(MethodImplOptions.Synchronized)]
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override Task<int> ReadAsync(char[] buffer, int index, int count)
             {
                 if (buffer==null)

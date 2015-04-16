@@ -59,7 +59,7 @@ namespace System.Reflection
     [ComDefaultInterface(typeof(_Module))]
     [System.Runtime.InteropServices.ComVisible(true)]
 #pragma warning disable 618
-    [PermissionSetAttribute(SecurityAction.InheritanceDemand, Unrestricted = true)]
+    [PermissionSet(SecurityAction.InheritanceDemand, Unrestricted = true)]
 #pragma warning restore 618
     public abstract class Module : _Module, ISerializable, ICustomAttributeProvider
     {   
@@ -603,7 +603,7 @@ namespace System.Reflection
         private extern static void GetFullyQualifiedName(RuntimeModule module, StringHandleOnStack retString);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern static RuntimeType[] GetTypes(RuntimeModule module);
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -613,7 +613,7 @@ namespace System.Reflection
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern static bool IsResource(RuntimeModule module);
 
 #if FEATURE_X509 && FEATURE_CAS_POLICY

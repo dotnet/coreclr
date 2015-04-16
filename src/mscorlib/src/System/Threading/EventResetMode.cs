@@ -16,7 +16,7 @@
 namespace System.Threading
 {
     using System.Runtime.InteropServices;
-    [ComVisibleAttribute(false)]
+    [ComVisible(false)]
     public enum EventResetMode
     {
         AutoReset = 0,

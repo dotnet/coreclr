@@ -312,7 +312,7 @@ namespace System.Reflection
 
         #region Static Members
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _GetMarshalAs(IntPtr pNativeType, int cNativeType, out int unmanagedType, out int safeArraySubType, out string safeArrayUserDefinedSubType, 
             out int arraySubType, out int sizeParamIndex, out int sizeConst, out string marshalType, out string marshalCookie,
             out int iidParamIndex);
@@ -510,7 +510,7 @@ namespace System.Reflection
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _GetParamDefProps(IntPtr scope, 
             int parameterToken, out int sequence, out int attributes);
         [System.Security.SecurityCritical]  // auto-generated
@@ -524,7 +524,7 @@ namespace System.Reflection
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _GetGenericParamProps(IntPtr scope, 
             int genericParameter, 
             out int flags);
@@ -540,7 +540,7 @@ namespace System.Reflection
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _GetScopeProps(IntPtr scope, 
             out Guid mvid);
         
@@ -562,7 +562,7 @@ namespace System.Reflection
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _GetSigOfMethodDef(IntPtr scope, 
             int methodToken, 
             ref ConstArray signature);
@@ -578,7 +578,7 @@ namespace System.Reflection
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _GetSignatureFromToken(IntPtr scope, 
             int methodToken, 
             ref ConstArray signature);
@@ -594,7 +594,7 @@ namespace System.Reflection
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _GetMemberRefProps(IntPtr scope, 
             int memberTokenRef, 
             out ConstArray signature);
@@ -610,7 +610,7 @@ namespace System.Reflection
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _GetCustomAttributeProps(IntPtr scope, 
             int customAttributeToken, 
             out int constructorToken, 
@@ -627,7 +627,7 @@ namespace System.Reflection
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _GetClassLayout(IntPtr scope, 
             int typeTokenDef, out int packSize, out int classSize);
         [System.Security.SecurityCritical]  // auto-generated
@@ -640,7 +640,7 @@ namespace System.Reflection
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool _GetFieldOffset(IntPtr scope, 
             int typeTokenDef, int fieldTokenDef, out int offset);
         [System.Security.SecurityCritical]  // auto-generated
@@ -653,7 +653,7 @@ namespace System.Reflection
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _GetSigOfFieldDef(IntPtr scope, 
             int fieldToken, 
             ref ConstArray fieldMarshal);
@@ -669,7 +669,7 @@ namespace System.Reflection
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _GetFieldMarshal(IntPtr scope, 
             int fieldToken, 
             ref ConstArray fieldMarshal);
@@ -685,7 +685,7 @@ namespace System.Reflection
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private unsafe static extern void _GetPInvokeMap(IntPtr scope, 
             int token, 
             out int attributes, 
@@ -709,7 +709,7 @@ namespace System.Reflection
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool _IsValidToken(IntPtr scope, int token);        
         [System.Security.SecurityCritical]  // auto-generated
         public bool IsValidToken(int token) 

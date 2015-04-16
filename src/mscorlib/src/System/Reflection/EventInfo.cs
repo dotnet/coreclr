@@ -19,7 +19,7 @@ namespace System.Reflection
     [ClassInterface(ClassInterfaceType.None)]
     [ComDefaultInterface(typeof(_EventInfo))]
 #pragma warning disable 618
-    [PermissionSetAttribute(SecurityAction.InheritanceDemand, Name = "FullTrust")]
+    [PermissionSet(SecurityAction.InheritanceDemand, Name = "FullTrust")]
 #pragma warning restore 618
     [System.Runtime.InteropServices.ComVisible(true)]
     public abstract class EventInfo : MemberInfo, _EventInfo
@@ -110,7 +110,7 @@ namespace System.Reflection
 
         public MethodInfo GetRaiseMethod() { return GetRaiseMethod(false); }
 
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
         public virtual void AddEventHandler(Object target, Delegate handler)
         {
@@ -130,7 +130,7 @@ namespace System.Reflection
             addMethod.Invoke(target, new object[] { handler });
         }
 
-        [DebuggerStepThroughAttribute]
+        [DebuggerStepThrough]
         [Diagnostics.DebuggerHidden]
         public virtual void RemoveEventHandler(Object target, Delegate handler)
         {

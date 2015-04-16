@@ -402,7 +402,7 @@ namespace System.Reflection {
         /// "parse" tells us to parse the simple name of the assembly as if it was the full name
         /// almost never the right thing to do, but needed for compat
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         static internal extern bool ReferenceMatchesDefinitionInternal(AssemblyName reference,
                                                                      AssemblyName definition,
                                                                      bool parse);  
@@ -410,7 +410,7 @@ namespace System.Reflection {
 
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern void nInit(out RuntimeAssembly assembly, bool forIntrospection, bool raiseResolveEvent);
 
         [System.Security.SecurityCritical]  // auto-generated
@@ -533,19 +533,19 @@ namespace System.Reflection {
         // This call opens and closes the file, but does not add the
         // assembly to the domain.
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         static internal extern AssemblyName nGetFileInformation(String s);
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern String nToString();
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern byte[] nGetPublicKeyToken();
     
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         static internal extern String EscapeCodeBase(String codeBase);
     }
 }

@@ -941,7 +941,7 @@ namespace System {
 
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern long GetSystemTimeAsFileTime();
 
 

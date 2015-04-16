@@ -63,29 +63,29 @@ namespace System.Threading
          *                        IntPtr
          *****************************/
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [System.Security.SecuritySafeCritical]
         public static extern int Exchange(ref int location1, int value);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [System.Security.SecuritySafeCritical]
         public static extern long Exchange(ref long location1, long value);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [System.Security.SecuritySafeCritical]
         public static extern float Exchange(ref float location1, float value);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [System.Security.SecuritySafeCritical]
         public static extern double Exchange(ref double location1, double value);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [System.Security.SecuritySafeCritical]
         public static extern Object Exchange(ref Object location1, Object value);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [System.Security.SecuritySafeCritical]
         public static extern IntPtr Exchange(ref IntPtr location1, IntPtr value);
@@ -103,7 +103,7 @@ namespace System.Threading
             return value;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [System.Security.SecuritySafeCritical]
         private static extern void _Exchange(TypedReference location1, TypedReference value);
@@ -118,29 +118,29 @@ namespace System.Threading
          *                         IntPtr
          *****************************/
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [System.Security.SecuritySafeCritical]
         public static extern int CompareExchange(ref int location1, int value, int comparand);    
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [System.Security.SecuritySafeCritical]
         public static extern long CompareExchange(ref long location1, long value, long comparand);    
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [System.Security.SecuritySafeCritical]
         public static extern float CompareExchange(ref float location1, float value, float comparand);    
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [System.Security.SecuritySafeCritical]
         public static extern double CompareExchange(ref double location1, double value, double comparand);    
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [System.Security.SecuritySafeCritical]
         public static extern Object CompareExchange(ref Object location1, Object value, Object comparand);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [System.Security.SecuritySafeCritical]
         public static extern IntPtr CompareExchange(ref IntPtr location1, IntPtr value, IntPtr comparand);
@@ -179,13 +179,13 @@ namespace System.Threading
             return value;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [System.Security.SecuritySafeCritical]
         private static extern void _CompareExchange(TypedReference location1, TypedReference value, Object comparand);
 
         // BCL-internal overload that returns success via a ref bool param, useful for reliable spin locks.
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [System.Security.SecuritySafeCritical]
         internal static extern int CompareExchange(ref int location1, int value, int comparand, ref bool succeeded);
@@ -196,11 +196,11 @@ namespace System.Threading
          *                         long
          *****************************/
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         internal static extern int ExchangeAdd(ref int location1, int value);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern long ExchangeAdd(ref long location1, long value);
 
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
