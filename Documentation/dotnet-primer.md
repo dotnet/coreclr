@@ -8,7 +8,7 @@ Multiple implementations of .NET are available, based on open [.NET Standards](d
 Defining .NET Features
 ======================
 
-There are a set of key features that together define .NET. Most of them are not unique on their own, but the peculiar aggregation of these features is what defines .NET as being distinct.
+There are a set of key features that together define .NET. Most of them are not unique on their own, but the particular aggregation of these features is what defines .NET as being distinct.
 
 - [Automatic memory management](garbage-collection-overview.md)
 - Verifiable code - type and memory safety
@@ -32,23 +32,6 @@ TODO: Ensure that this list is correct. Write and link to a chapter for each of 
 
 .NET includes many features and capabilities that you will use on a daily basis for common tasks and needs. You can see these described below, with examples. Some of the same topics are discussed in more detail in documents linked above.
 
-Automatic Memory Management
----------------------------
-
-[Garbage collection](garbage-collection.md) is the most well-known of .NET features. Developers do not need to actively manage memory, athough there are affordances to provide more information to the garbage collector (GC). C# includes the `new` keyword to allocate memory in terms of a particular type, and the `using` keyword to scope the usage of an object. The GC operates on a lazy approach to memory management, preferring application throughput to the immediate collection of memory.
-
-The following two lines both allocate. There is no analogous keyword to de-allocate the memory. The GC reclaims the memory sometime after the two variables go out of scope.
-
-	var title = ".NET Primer";
-	var list = new List<string>;
-
-Method variables normally go out of scope once a method completes, at which point they can be collected. The following example indicates to the GC that an object has gone out of scope, once the `using` statement has been completed, and the dependent `stream` object can be collected.
-
-	using(FileStream stream = GetFileStream(context))
-	{
-		//operations on the stream
-	}
-
 Memory Safety
 -------------
 
@@ -59,14 +42,14 @@ The .NET runtime provides additional services, to complete the promise of memory
 The following example will throw as a result of memory safety.
 
 	int[] numbers = new int[42];
-	int number = numbers[42] // will throw (indexes are 0-based)
+	int number = numbers[42]; // will throw (indexes are 0-based)
 
 Type Safety
 -----------
 
 Objects are allocated in terms of types. The only operations allowed for a given object, and the memory it consumes, are those of its type. A `Dog` type may have `Jump` and `WagTail` methods, but not likely a `SumTotal` method. A program can only call the declared methods of a given type. All other calls will result in an exception.
 
-.NET languages can be object-oriented, with hiearchies of base and derived classes. The .NET runtime will only allow object casts and calls that align with the object hierarchy.
+.NET languages can be object-oriented, with hierarchies of base and derived classes. The .NET runtime will only allow object casts and calls that align with the object hierarchy.
 
 	Dog dog = Dog.AdoptDog();
 	Pet pet = (Pet)dog; // Dog derives from Pet
@@ -97,7 +80,9 @@ The most commonly used generic type is `List<T>` and its sibling `Dictionary<K,V
 Async Programming
 -----------------
 
-Async is a first-class concept within .NET, with async support in the runtime, the framework libraries and various .NET languages. Async is based off of the `Task` concept, which encaptsulates a set of operations to be completed. Tasks are distinct from threads and may not rely on threads or require CPU time much at all, particularly for i/o-bound tasks.
+Async is a first-class concept within .NET, with async support in the runtime, the framework libraries and various .NET languages. Async is based off of the `Task` concept, which encapsulates a set of operations to be completed. Tasks are distinct from threads and may not rely on threads or require CPU time much at all, particularly for i/o-bound tasks.
+
+TODO: Elaborate on Task concept.
 
 C# includes special treatment for async, including the special keyword `await` for managing tasks. The following example demonstrates calling a web service as an async operation.
 
@@ -105,23 +90,64 @@ C# includes special treatment for async, including the special keyword `await` f
 	HttpClient client = new HttpClient();
 	string json = await client.GetStringAsync(url);
 
-The call to `client.GetStringAsync(url)` does not block, but instead immediately yields by returing a `Task`. Computation resumes and the call returns the requested string when the network activity has completed.
+The call to `client.GetStringAsync(url)` does not block, but instead immediately yields by returning a `Task`. Computation resumes and the call returns the requested string when the network activity has completed.
 
-Language Integrated Query (Linq)
+Language Integrated Query (LINQ)
 --------------------------------
 
-.NET programs typically operate on some form of data. The data can be database-resident or in the form of objects (sometimes called POCOs - "Plain Old CLR Objects"). Linq provides a language-integrated uniform query model over data, independent of the source. Linq providers bridge the gap between the uniform query model and the form of the data, such as SQL Server tables.
+.NET programs typically operate on some form of data. The data can be database-resident or in the form of objects (sometimes called POCOs - "Plain Old CLR Objects"). LINQ provides a language-integrated uniform query model over data, independent of the source. Linq providers bridge the gap between the uniform query model and the form of the data, such as SQL Server tables, XML documents, standard collections like List<T> and more.
 
-The follow examples demonstrate various uses of Linq to query different forms of data.
+The follow examples demonstrate various uses of LINQ to query different forms of data.
 
 TODO: Examples.
 
-Lambdas
--------
+Delegates and Lambdas
+---------------------
 
-Lambdas are a kind of mini-method. They declare a signature and a method body, but don't have an identity of their own, like a method on a type. They can however, be assigned to a variable and be called, with the appropriate arguments, and passed in a method signature. They are effectively an alternative delegate syntax. Unlike delegates, they can be directly assigned as the left-hand side of event registration or as a Linq select clause.
+Delegates are like C++ function pointers, but are type safe. They are a kind of disconnected method within the CLR type system. Regular methods are attached to a class and only directly callable through static or instance calling conventions. Alternatively, delegates can be thought of as a one method interface, without the interface. 
 
-The following example demonstrated the use of a lambda as an event handler. You can see the use of lambda as a linq select clause in the Linq section above.
+Delegates define a type, which specify a particular method signature. A method (static or instance) that satisfies this signature can be assigned to a variable of that type, then called directly (with the appropriate arguments) or passed as an argument itself to another method and then called. The following example demonstrates delegate use.
+
+        public delegate string Reverse(string s);
+
+        static string ReverseString(string s)
+        {
+            return new string(s.Reverse().ToArray());
+        }
+
+        static void Main(string[] args)
+        {
+            Reverse rev = ReverseString;
+
+            Console.WriteLine(rev("a string"));
+        }
+
+.NET include a set of pre-defined delegate types - Func<> and Action<> - that be used in many situations, without the requirement to define new types. The example above can be re-written to no longer defined the reverse delegate and instead define the rev variable as a Func<string,string>. The program will function the same.
+
+	Func<string,string> rev = ReverseString;
+
+Lambdas are a more convenient syntax for using delegates. They declare a signature and a method body, but don't have an formal identity of their own, unless they are assigned to a delegate. Unlike delegates, they can be directly assigned as the left-hand side of event registration or as a Linq select clause.
+
+You can see the use of lambda as a linq select clause in the Linq section above. The following example rewrites the program above using the more compact lambda syntax. Note that an explictly defined delegate could still be used, instead of Func<>.
+
+    static void Main(string[] args)
+    {
+        Func<string,string> rev = (s) => {return new string(s.Reverse().ToArray());};
+
+        Console.WriteLine(rev("a string"));
+    }
+
+The following example demonstrated the use of a lambda as an event handler.
+
+    public MainWindow()
+    {
+        InitializeComponent();
+
+        Loaded += (o, e) =>
+        {
+            this.Title = "Loaded";
+        };
+    }
 
 Native Interop
 --------------
