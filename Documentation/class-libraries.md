@@ -25,7 +25,7 @@ Portable libraries are supported on multiple .NET platforms. They can still take
 
 You choose a platform configuration when you create a portable library. These are the set of platforms that you need to support (e.g. .NET Framework 4.5+, Windows Phone 8.0+). The more platforms you opt to support, the fewer APIs and fewer platform assumptions you can make, the lowest common denominator. This characteristic can be confusing at first, since people often think "more is better", but find that more supported platforms results in fewer available APIs.
 
-Many library developers have switched from producing multiple platform-specific libraries from one source (using conditional compilation directives) to portable libraries. There are several techniques for accessing platform-specific functionality within portable libraries.
+Many library developers have switched from producing multiple platform-specific libraries from one source (using conditional compilation directives) to portable libraries. There are [several approaches](http://blog.stephencleary.com/2012/11/portable-class-library-enlightenment.html) for accessing platform-specific functionality within portable libraries, with [bait-and-switch](http://log.paulbetts.org/the-bait-and-switch-pcl-trick/) being the most widely accepted technique at this point. 
 
 .NET Core Class Libraries
 =========================
