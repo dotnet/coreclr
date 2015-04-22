@@ -10,7 +10,7 @@ Defining .NET Features
 
 There are a set of key features that together define .NET. Most of them are not unique on their own, but the particular aggregation of these features is what defines .NET as being distinct.
 
-- [Automatic memory management](garbage-collection-overview.md)
+- [Garbage Collection](garbage-collection-overview.md)
 - Verifiable code - type and memory safety
 - Flexible native code compilation (enables JIT and AOT)
 - Fast native interop and access to native memory
@@ -20,9 +20,9 @@ There are a set of key features that together define .NET. Most of them are not 
 - Flexible type system
 - Expressive (imperative and functional) programming languages
 - Programmable source code compiler (Roslyn)
-- Large standard class library
-- [.NET Class Libraries](class-libraries.md)
 - [Assembly format](assembly-format.md)
+- [.NET Class Libraries](class-libraries.md)
+- [Large framework library](framework-libraries.md)
 - Package management
 
 TODO: Ensure that this list is correct. Write and link to a chapter for each of these defining features.
