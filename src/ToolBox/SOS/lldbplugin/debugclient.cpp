@@ -7,6 +7,10 @@
 #include <string.h>
 #include <dbgtargetcontext.h>
 #include <string>
+#if defined(__FreeBSD__)
+#include <stdarg.h>
+#include <stdlib.h>
+#endif
 
 DebugClient::DebugClient(lldb::SBDebugger &debugger, lldb::SBCommandReturnObject &returnObject) :
     m_debugger(debugger),
