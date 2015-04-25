@@ -3,14 +3,12 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information. 
 //
 
+#include <cstdarg>
+#include <cstdlib>
 #include "sosplugin.h"
 #include <string.h>
 #include <dbgtargetcontext.h>
 #include <string>
-#if defined(__FreeBSD__)
-#include <stdarg.h>
-#include <stdlib.h>
-#endif
 
 DebugClient::DebugClient(lldb::SBDebugger &debugger, lldb::SBCommandReturnObject &returnObject) :
     m_debugger(debugger),
