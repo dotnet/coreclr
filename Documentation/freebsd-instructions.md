@@ -24,13 +24,33 @@ Install the following packages for the toolchain:
 - libunwind
 - gettext
 
-Note: LLDB is not yet available in the pkg repository on FreeBSD. The LLDB plugin is currently not being build on FreeBSD. Instructions for this will be added later.
-
 To install the packages you need:
 
-```janhenke@freebsd-frankfurt:~ % sudo pkg install bash cmake clang35 libunwind gettext```
+```$ sudo pkg install bash cmake clang35 libunwind gettext```
 
-You now have all the required components.
+In order to debug CoreCLR you will also need to install LLDB, the LLVM debugger . LLDB is still in the process of being ported to FreeBSD, so no official packages exist (see the FreeBSD LLDB Wiki page for more information on what has been ported so far: https://wiki.freebsd.org/lldb). However, it is possible to manually download and install LLDB from the LLVM source tree by following the instructions below: 
+
+Download the install-lldb.sh script from https://github.com/ajensenwaud/freebsd-dotnet-misc/blob/master/install-lldb.sh
+Make the script executable, i.e. 
+
+```$ chmod +x install-lldb.sh```
+
+Install the following packages: python ninja swig13 git (in addition to the packages above), i.e.
+
+```$ sudo pkg install python ninja swig13 git```
+
+Run the install script: 
+
+```$ ./install-lldb.sh```
+
+Note: LLDB will run su in order to install the LLDB build to /usr/local/include. 
+
+(Optional) If you wish to run sudo instead of su, you can change line 29-31 to:
+
+```sudo $NINJA lldb install```
+
+
+You now have all the required components installed.
 
 Git Setup
 ---------
