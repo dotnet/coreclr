@@ -6267,6 +6267,10 @@ bool       Compiler::gtCompareTree(GenTree *      op1,
                 return true;
             }
             break;
+
+        default:
+            // we return false for these unhandled 'oper' kinds
+            break;
         }
     }
     return false;
@@ -6908,7 +6912,7 @@ void                Compiler::gtDispNode(GenTreePtr     tree,
         }
         else
         {
-            printf("(???,???) "); // This probably indicates a bug: the node has a sequence number, but not costs.
+            printf("(???" ",???" ") "); // This probably indicates a bug: the node has a sequence number, but not costs.
         }
     }
     else
@@ -9292,10 +9296,9 @@ CHK_OVF:
                         d1 = (double) INT32(i1);
                     goto CNS_DOUBLE;
 
-#ifdef  DEBUG
                 default:
                     assert(!"BAD_TYP");
-#endif
+                    break;
                 }
                 return tree;
 
@@ -9386,10 +9389,9 @@ CHK_OVF:
                         d1 = f1;
                     }
                     goto CNS_DOUBLE;
-#ifdef  DEBUG
                 default:
                     assert(!"BAD_TYP");
-#endif
+                    break;
                 }
                 return tree;
 
@@ -9527,10 +9529,9 @@ CHK_OVF:
                         d1 = forceCastToFloat(d1); // truncate precision
                     goto CNS_DOUBLE; // redundant cast
 
-#ifdef  DEBUG
                 default:
                     assert(!"BAD_TYP");
-#endif
+                    break;
                 }
                 return tree;
 

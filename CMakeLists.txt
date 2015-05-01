@@ -158,6 +158,7 @@ if(CLR_CMAKE_PLATFORM_UNIX)
     add_subdirectory(src/pal)
     add_subdirectory(src/coreclr/hosts/unixcorerun)
     add_subdirectory(src/corefx)
+    add_subdirectory(src/coreclr/hosts/unixcoreconsole)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 # Add this subdir. We install the headers for the jit.
@@ -269,6 +270,9 @@ add_definitions(-DDISABLE_CONTRACTS)
 # after hitting just about 20 errors.
 add_compile_options(-ferror-limit=4096)
 
+# All warnings that are not explicitly disabled are reported as errors
+add_compile_options(-Werror)
+
 # Disabled warnings
 add_compile_options(-Wno-unused-private-field)
 add_compile_options(-Wno-implicit-exception-spec-mismatch)
@@ -276,9 +280,6 @@ add_compile_options(-Wno-implicit-exception-spec-mismatch)
 # class, but different set of parameters.
 add_compile_options(-Wno-overloaded-virtual)
 add_compile_options(-Wno-unused-variable)
-# Enum value is not handled in a switch (and there is no default clause)
-# Remaining cases are in JIT only
-add_compile_options(-Wno-switch)
 # Explicit constructor calls are not supported by clang (this->ClassName::ClassName())
 add_compile_options(-Wno-microsoft)
 # This warning is caused by comparing 'this' to NULL
@@ -452,6 +453,7 @@ add_definitions(-DFEATURE_NORM_IDNA_ONLY)
 add_definitions(-DFEATURE_PREJIT)
 if(WIN32)
     add_definitions(-DFEATURE_RANDOMIZED_STRING_HASHING)
+    add_definitions(-DFEATURE_READYTORUN)
 endif(WIN32)
 add_definitions(-DFEATURE_STANDALONE_SN)
 add_definitions(-DFEATURE_STRONGNAME_DELAY_SIGNING_ALLOWED)

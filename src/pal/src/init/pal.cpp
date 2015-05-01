@@ -140,7 +140,7 @@ PAL_Initialize(
     int argc,
     const char *const argv[])
 {
-    return Initialize(argc, argv, PAL_INITIALIZE_ALL);
+    return Initialize(argc, argv, PAL_INITIALIZE);
 }
 
 /*++
@@ -669,7 +669,9 @@ PAL_InitializeCoreCLR(
     {
         return ERROR_DLL_INIT_FAILED;
     }
-    
+
+    InitializeStringResources();
+
     if (!fStayInPAL)
     {
         PAL_Leave(PAL_BoundaryTop);

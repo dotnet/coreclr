@@ -102,7 +102,7 @@ The output is placed in ```bin\Product\Linux.x64.Debug\mscorlib.dll```.  You'll 
 For the rest of the framework, you need to pass some special parameters to build.cmd when building out of the CoreFX repository.
 
 ```
-D:\git\corefx> build.cmd /p:OS=Linux /p:SkipTests=true
+D:\git\corefx> build.cmd /p:OSGroup=Linux /p:SkipTests=true
 ```
 
 Note: We are using the Linux build currently, as CoreFX does not yet know about FreeBSD.
@@ -215,7 +215,7 @@ janhenke@freebsd-frankfurt:~/coreclr-demo/runtime % mcs /nostdlib /noconfig /r:.
 Run your App
 ============
 
-You're ready to run Hello World!  To do that, run corerun, passing the path to the managed exe, plus any arguments.  The HelloWorld from corefxlab will print Tux if you pass "linux" as an argument, so:
+You're ready to run Hello World!  To do that, run corerun, passing the path to the managed exe, plus any arguments.  The HelloWorld from corefxlab will print a daemon if you pass "freebsd" as an argument, so:
 
 ```
 janhenke@freebsd-frankfurt:~/coreclr-demo/runtime % ./corerun HelloWorld.exe freebsd

@@ -8,6 +8,8 @@ Environment
 
 These instructions were validated on OS X Yosemite, although they probably work on earlier versions. The instructions makes use of both OS X and Windows machines, since parts of the .NET Core developer environment are not yet supported on OS X. Once those parts are supported on OS X, the Windows-specific instructions will be replaced.
 
+If your machine has Command Line Tools for XCode 6.3 installed, you'll need to update them to the 6.3.1 version or higher in order to successfully build. There was an issue with the headers that shipped with version 6.3 that was subsequently fixed in 6.3.1.
+
 Git Setup
 ---------
 
@@ -64,14 +66,14 @@ To Build CoreCLR, run build.sh from the root of the coreclr repo.
 
     [Lots of stuff before this]
     Repo successfully built.
-	Product binaries are available at /Users/richlander/git/coreclr/bin/Product/mac.x64.debug
+    Product binaries are available at /Users/richlander/git/coreclr/bin/Product/OSX.x64.Debug
 
 
 Type `./build.sh -?` to see the full set of build options.
 
 Check the build output.
 
-    dotnet-mbp:coreclr richlander$ ls bin/Product/mac.x64.debug/
+    dotnet-mbp:coreclr richlander$ ls bin/Product/OSX.x64.Debug/
 
 You will see several files. The interesting ones are:
 
@@ -80,8 +82,8 @@ You will see several files. The interesting ones are:
 
 Copy the runtime and corerun into the demo directory.
 
-    dotnet-mbp:coreclr richlander$ cp bin/Product/mac.x64.debug/corerun ~/coreclr-demo/runtime/
-    dotnet-mbp:coreclr richlander$ cp bin/Product/mac.x64.debug/libcoreclr.dylib ~/coreclr-demo/runtime/
+    dotnet-mbp:coreclr richlander$ cp bin/Product/OSX.x64.Debug/corerun ~/coreclr-demo/runtime/
+    dotnet-mbp:coreclr richlander$ cp bin/Product/OSX.x64.Debug/libcoreclr.dylib ~/coreclr-demo/runtime/
 
 Build the Framework
 ===================
@@ -108,7 +110,7 @@ Build CoreFX
 
 Build the rest of the Framework out of the corefx directory. You need to pass some special parameters to build.cmd.
 
-    C:\git\corefx>build.cmd /p:OS=OSX /p:SkipTests=true
+    C:\git\corefx>build.cmd /p:OSGroup=OSX /p:SkipTests=true
 
 It's also possible to add `/t:rebuild` to build.cmd to force it to delete the previously built assemblies.
 

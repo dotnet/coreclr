@@ -29,7 +29,9 @@ class MethodDesc;
 class MethodTable;
 #include "CompactLayoutWriter.h"
 #endif
+#ifdef MDIL
 #include "TritonStress.h"
+#endif
 
 ZapInfo::ZapInfo(ZapImage * pImage, mdMethodDef md, CORINFO_METHOD_HANDLE handle, CORINFO_MODULE_HANDLE module, unsigned methodProfilingDataFlags)
     : m_pImage(pImage),
@@ -1334,6 +1336,8 @@ COUNT_T ZapImage::MethodCodeTraits::Hash(key_t k)
             case ZapNodeType_MethodHandle:
             case ZapNodeType_Import_MethodHandle:
                 hash = ((hash << 5) + hash) ^ (COUNT_T)(pTarget);
+                break;
+            default:
                 break;
             }
 

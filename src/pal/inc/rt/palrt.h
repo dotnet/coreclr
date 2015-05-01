@@ -878,8 +878,8 @@ Remember to fix the errcode defintion in safecrt.h.
 #define _vsnwprintf_s _vsnwprintf_unsafe
 #define _snprintf_s _snprintf_unsafe
 #define _vsnprintf_s _vsnprintf_unsafe
-#define swscanf_s _swscanf_unsafe
-#define sscanf_s _sscanf_unsafe
+#define swscanf_s swscanf
+#define sscanf_s sscanf
 
 #define _wfopen_s _wfopen_unsafe
 #define fopen_s _fopen_unsafe
@@ -1022,77 +1022,6 @@ inline int __cdecl _snprintf_unsafe(char *_Dst, size_t _SizeInWords, size_t _Cou
     return ret;
 }
 
-inline int __cdecl _swscanf_unsafe(const wchar_t *_Dst, const wchar_t *_Format,...)
-{
-    int ret;
-    va_list _ArgList;
-    va_start(_ArgList, _Format);
-    wchar_t *tempFormat;
-
-    tempFormat = (wchar_t*) _Format;
-    
-    while (*tempFormat != L'\0') {
-
-        if (*tempFormat == L'%') {
-            
-            //
-            // If scanf takes parameters other than numbers, return error.
-            //
-            
-            if (! ((*(tempFormat+1)==L'x') || (*(tempFormat+1)==L'd') ||
-                   (*(tempFormat+1)==L'X') || (*(tempFormat+1)==L'D')) ) {
-                
-                _ASSERTE(FALSE);
-                return -1;    
-                
-            } 
-        }
-           
-        tempFormat++;
-       }
-
-    ret = swscanf(_Dst, _Format, _ArgList);
-    va_end(_ArgList);
-    return ret;
-}
-
-inline int __cdecl _sscanf_unsafe(const char *_Dst, const char *_Format,...)
-{
-    int ret;
-    char *tempFormat;
-
-    va_list _ArgList;
-    va_start(_ArgList, _Format);
-
-    tempFormat = (char*) _Format;
-
-    while (*tempFormat != '\0') {
-        
-        if (*tempFormat == '%') {
-            
-            //
-            // If scanf takes parameters other than numbers, return error.
-            //
-            
-            if (! ((*(tempFormat+1)=='x') || (*(tempFormat+1)=='d') ||
-                   (*(tempFormat+1)=='X') || (*(tempFormat+1)=='D')) ) {
-
-                _ASSERTE(FALSE);
-                return -1;    
-
-            } 
-        }
-        
-        tempFormat++;
-    }
-
-
-    ret = sscanf(_Dst, _Format, _ArgList);
-    va_end(_ArgList);
-
-    return ret;
-}
-
 inline errno_t __cdecl _wfopen_unsafe(FILE * *ff, const wchar_t *fileName, const wchar_t *mode)
 {
     FILE *result = _wfopen(fileName, mode);
@@ -1215,7 +1144,7 @@ errno_t __cdecl getenv_s(size_t *_ReturnValue, char *_Dst, size_t _SizeInWords, 
 
 STDAPI_(BOOL) PathAppendW(LPWSTR pszPath, LPCWSTR pszMore);
 STDAPI_(int) PathCommonPrefixW(LPCWSTR pszFile1, LPCWSTR pszFile2, LPWSTR  pszPath);
-STDAPI_(LPWSTR) PathFindFileNameW(LPCWSTR pPath);
+PALIMPORT LPWSTR PALAPI PathFindFileNameW(LPCWSTR pPath);
 STDAPI_(LPWSTR) PathFindExtensionW(LPCWSTR pszPath);
 STDAPI_(int) PathGetDriveNumberW(LPCWSTR lpsz);
 STDAPI_(BOOL) PathIsRelativeW(LPCWSTR lpszPath);
@@ -1404,9 +1333,11 @@ typedef VOID (__stdcall *WAITORTIMERCALLBACK)(PVOID, BOOLEAN);
 
 #ifdef PLATFORM_UNIX
 #define DIRECTORY_SEPARATOR_CHAR_W W('/')
+#define DIRECTORY_SEPARATOR_STR_W W("/")
 #define PATH_SEPARATOR_CHAR_W W(':')
 #else // PLATFORM_UNIX
 #define DIRECTORY_SEPARATOR_CHAR_W W('\\')
+#define DIRECTORY_SEPARATOR_STR_W W("\\")
 #define PATH_SEPARATOR_CHAR_W W(';')
 #endif // PLATFORM_UNIX
 

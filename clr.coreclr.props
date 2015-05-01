@@ -99,6 +99,8 @@
 
     <FeatureStubsAsIL>true</FeatureStubsAsIL>
 
+    <ProfilingSupportedBuild>false</ProfilingSupportedBuild>
+
     <!-- UNIXTODO Enable randomized string hashing -->
     <FeatureRandomizedStringHashing>false</FeatureRandomizedStringHashing>
 

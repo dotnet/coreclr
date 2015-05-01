@@ -341,7 +341,7 @@ ZapGenericSignature * ZapImportTable::GetGenericSignature(PVOID signature, BOOL 
     void * pMemory = new (m_pImage->GetHeap()) BYTE[cbAllocSize.Value()];
 
     pGenericSignature = new (pMemory) ZapGenericSignature(cbSig);
-    memcpy(pGenericSignature + 1, pSig, cbSig);
+    memcpy((void *)(pGenericSignature + 1), pSig, cbSig);
 
     m_genericSignatures.Add(pGenericSignature);
 
@@ -421,7 +421,7 @@ void ZapImportSectionsTable::Save(ZapWriter * pZapWriter)
 
 
 ZapImportSectionSignatures::ZapImportSectionSignatures(ZapImage * pImage, ZapVirtualSection * pImportSection, ZapVirtualSection * pGCSection)
-    : m_pImage(pImage), m_pImportSection(pImportSection)
+    : m_pImportSection(pImportSection), m_pImage(pImage)
 {
     if (pGCSection != NULL)
     {
@@ -827,14 +827,6 @@ public:
     virtual void Save(ZapWriter * pZapWriter);
 };
 
-#ifndef BINDER // Binder sees a body in vm\util.hpp
-static BOOL FitsInU2(unsigned __int64 val)
-{
-    LIMITED_METHOD_CONTRACT;
-    return val == (unsigned __int64)(unsigned __int16)val;
-}
-#endif
-
 void ZapVirtualMethodThunk::Save(ZapWriter * pZapWriter)
 {
     ZapImage * pImage = ZapImage::GetImage(pZapWriter);
@@ -845,7 +837,7 @@ void ZapVirtualMethodThunk::Save(ZapWriter * pZapWriter)
     // On ARM, the helper would already have the thumb-bit set. Refer to
     // GetHelperThunk implementation.
     ZapNode *  helper  = pImage->GetHelperThunk(CORINFO_HELP_EE_VTABLE_FIXUP);
-    _ASSERTE(FitsInU2((SIZE_T)GetHandle2() - 1));
+    _ASSERTE(FitsIn<UINT16>((SIZE_T)GetHandle2() - 1));
     USHORT     slotNum = (USHORT)((SIZE_T)GetHandle2() - 1);
 
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)

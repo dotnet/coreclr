@@ -102,6 +102,7 @@ set(SOURCES
   misc/fmtmessage.cpp
   misc/interlock.cpp
   misc/miscpalapi.cpp
+  misc/msgbox.cpp
   misc/dactableaddress.cpp
   misc/strutil.cpp
   misc/sysinfo.cpp
@@ -157,7 +158,7 @@ set(SOURCES
 )
 
 add_library(coreclrpal
-  SHARED
+  STATIC
   ${SOURCES}
   ${PLATFORM_SOURCES}
 )
@@ -197,4 +198,3 @@ endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
 add_subdirectory(examples)
 
-install(TARGETS coreclrpal DESTINATION .)

@@ -438,11 +438,15 @@ typedef long time_t;
 #define DLL_THREAD_DETACH  3
 #define DLL_PROCESS_DETACH 0
 
+#define PAL_INITIALIZE_NONE            0x00
 #define PAL_INITIALIZE_SYNC_THREAD     0x01
 #define PAL_INITIALIZE_SIGNAL_THREAD   0x02
-#define PAL_INITIALIZE_ALL_SIGNALS     0x04
-#define PAL_INITIALIZE_ALL             0xff
-#define PAL_INITIALIZE_DLL             0x00
+
+// PAL_Initialize() flags - do not initialize signal thread (used for ctrl-c handling) for now
+#define PAL_INITIALIZE                 PAL_INITIALIZE_SYNC_THREAD     
+
+// PAL_InitializeDLL() flags - don't start any of the helper threads
+#define PAL_INITIALIZE_DLL             PAL_INITIALIZE_NONE       
 
 typedef DWORD (PALAPI *PTHREAD_START_ROUTINE)(LPVOID lpThreadParameter);
 typedef PTHREAD_START_ROUTINE LPTHREAD_START_ROUTINE;
@@ -698,8 +702,19 @@ MessageBoxW(
         IN LPCWSTR lpCaption,
         IN UINT uType);
 
+PALIMPORT
+int
+PALAPI
+MessageBoxA(
+        IN LPVOID hWnd,  // NOTE: diff from winuser.h
+        IN LPCSTR lpText,
+        IN LPCSTR lpCaption,
+        IN UINT uType);
+
 #ifdef UNICODE
 #define MessageBox MessageBoxW
+#else
+#define MessageBox MessageBoxA
 #endif
 
 /***************** wincon.h Entrypoints **********************************/
@@ -782,6 +797,7 @@ typedef struct _SECURITY_ATTRIBUTES {
 #define FILE_ATTRIBUTE_SYSTEM                   0x00000004
 #define FILE_ATTRIBUTE_DIRECTORY                0x00000010
 #define FILE_ATTRIBUTE_ARCHIVE                  0x00000020
+#define FILE_ATTRIBUTE_DEVICE                   0x00000040
 #define FILE_ATTRIBUTE_NORMAL                   0x00000080
 
 #define FILE_FLAG_WRITE_THROUGH    0x80000000
@@ -5859,31 +5875,6 @@ public:
 #ifdef __cplusplus
 
 #include "pal_unwind.h"
-
-// A pretend exception code that we use to stand for external exceptions,
-// such as a C++ exception leaking across a P/Invoke boundary into
-// COMPlusFrameHandler.
-#define EXCEPTION_FOREIGN 0xe0455874    // 0xe0000000 | 'EXT'
-
-// Test whether the argument exceptionObject is an SEH exception.  If it is,
-// return the associated exception pointers.  If it is not, return NULL.
-PALIMPORT
-EXCEPTION_POINTERS *
-PALAPI
-PAL_GetExceptionPointers(struct _Unwind_Exception *exceptionObject);
-
-typedef void (*PFN_PAL_BODY)(void *pvParam);
-
-typedef struct _PAL_DISPATCHER_CONTEXT {
-    _Unwind_Action actions;
-    struct _Unwind_Exception *exception_object;
-    struct _Unwind_Context *context;
-} PAL_DISPATCHER_CONTEXT;
-
-typedef EXCEPTION_DISPOSITION (*PFN_PAL_EXCEPTION_FILTER)(
-    EXCEPTION_POINTERS *ExceptionPointers,
-    PAL_DISPATCHER_CONTEXT *DispatcherContext,
-    void *pvParam);
 
 struct PAL_SEHException
 {
