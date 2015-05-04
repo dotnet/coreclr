@@ -17,7 +17,8 @@ PYTHON_PATH=/usr/local/include/python2.7
 $GIT clone http://llvm.org/git/llvm.git
 cd llvm/tools
 $GIT clone http://llvm.org/git/clang.git
-$GIT  clone http://llvm.org/git/lldb.git
+$GIT clone http://llvm.org/git/lldb.git
+
 cd ..
 mkdir build
 cd build

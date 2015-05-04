@@ -26,9 +26,7 @@ Install the following packages for the toolchain:
 
 To install the packages you need:
 
-```
-janhenke@freebsd-frankfurt:~ sudo pkg install bash cmake clang35 libunwind gettext
-```
+``janhenke@freebsd-frankfurt:~ sudo pkg install bash cmake clang35 libunwind gettext```
 
 You now have all the required components for building CoreCLR installed.
 
@@ -45,9 +43,7 @@ Firstly, install the following packages: python ninja swig13 git (in addition to
 
 Then, run the install script in ~/coreclr/src/pal/tools: 
 
-```
-janhenke@freebsd-frankfurt:~ % ~/coreclr/src/pal/tools/freebsd-install-lldb.sh
-```
+```janhenke@freebsd-frankfurt:~ % ~/coreclr/src/pal/tools/freebsd-install-lldb.sh```
 
 Note: LLDB will run su in order to install the LLDB build to /usr/local/include. 
 
@@ -68,9 +64,7 @@ Build the Runtime
 
 To build the runtime on FreeBSD, run build.sh from the root of the coreclr repository:
 
-```
-janhenke@freebsd-frankfurt:~/git/coreclr % ./build.sh
-```
+```janhenke@freebsd-frankfurt:~/git/coreclr % ./build.sh```
 
 After the build is completed, there should some files placed in ```bin/Product/FreeBSD.x64.Debug```.  The ones we are interested in are:
 
