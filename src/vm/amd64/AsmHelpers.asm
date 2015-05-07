@@ -753,7 +753,7 @@ LEAF_ENTRY xmmYmmStateSupport, _TEXT
         ret
 LEAF_END xmmYmmStateSupport, _TEXT
 
-;The following function uses Deterministic Cache Parameter leafs to determine the cache hierarchy information on Prescott & Above platforms. 
+;The following function uses Deterministic Cache Parameter leafs to crack the cache hierarchy information on Prescott & Above platforms. 
 ;  This function takes 3 arguments:
 ;     Arg1 is an input to ECX. Used as index to specify which cache level to return information on by CPUID.
 ;         Arg1 is already passed in ECX on call to getextcpuid, so no explicit assignment is required;  
