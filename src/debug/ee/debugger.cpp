@@ -313,7 +313,7 @@ class TypeHandleDummyPtr
 {
 private:
     TypeHandleDummyPtr() { }; // should never actually create this.
-    void * data;
+    void * data UNUSED_ATTR;
 };
 
 // Convert: VMPTR_TYPEHANDLE --> TypeHandle

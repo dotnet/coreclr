@@ -598,6 +598,12 @@
 #define MAKEDLLNAME(x) MAKEDLLNAME_A(x)
 #endif
 
+#ifdef __GNUC__
+#define UNUSED_ATTR __attribute__((unused))
+#else  // __GNUC__
+#define UNUSED_ATTR
+#endif // __GNUC__
+
 #endif	// __PALCLR_H__
 
 #include "palclr_win.h"

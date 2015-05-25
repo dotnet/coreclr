@@ -773,7 +773,6 @@ private:
     MethodDesc*                      m_pTargetMD;
     NDirectStubParameters*           m_pParams;
     NewArrayHolder<ILStubHashBlob>   m_pHashParams;
-    AllocMemTracker*                 m_pAmTracker;
     MethodDesc*                      m_pStubMD;
     AllocMemTracker                  m_amTracker;
     bool                             m_bILStubCreator;     // Only the creator can remove the ILStub from the Cache

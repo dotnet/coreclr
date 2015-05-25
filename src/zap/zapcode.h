@@ -228,7 +228,7 @@ public:
         BOOL GetNext(CORINFO_METHOD_HANDLE *pHnd);
 
     private:
-        ZapMethodHeader* m_pMethod;
+        ZapMethodHeader* m_pMethod UNUSED_ATTR;
         ZapReloc* m_pCurReloc;
     };
 
@@ -927,7 +927,7 @@ private:
 //
 class ZapProfileData : public ZapNode
 {
-    ZapMethodHeader *          m_pMethod;
+    ZapMethodHeader *          m_pMethod UNUSED_ATTR;
     ZapProfileData *           m_pNext;
 
 public:

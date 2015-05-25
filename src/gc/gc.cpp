@@ -963,7 +963,7 @@ class exclusive_sync
     
     int spin_count;
 
-    BYTE cache_separator[HS_CACHE_LINE_SIZE - sizeof (int) - sizeof (LONG)];
+    BYTE cache_separator[HS_CACHE_LINE_SIZE - sizeof (int) - sizeof (LONG)] UNUSED_ATTR;
 
     // TODO - perhaps each object should be on its own cache line...
     VOLATILE(BYTE*) alloc_objects[max_pending_allocs];

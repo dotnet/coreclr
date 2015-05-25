@@ -53,7 +53,7 @@ private:
     LPWSTR       _pwzTextualIdentity;
     LPWSTR       _pwzTextualIdentityILFull;
 
-    DWORD _dw;
+    DWORD _dw UNUSED_ATTR;
 
 public:
     // IUnknown methods

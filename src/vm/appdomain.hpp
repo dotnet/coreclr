@@ -793,7 +793,7 @@ public:
 
 private:
     ThreadStaticHandleBucket *m_pNext;
-    int m_ArraySize;
+    int m_ArraySize UNUSED_ATTR;
     OBJECTHANDLE m_hndHandleArray;
 };
 

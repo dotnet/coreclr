@@ -1844,21 +1844,21 @@ class CultureInfoBaseObject : public Object
     friend class MscorlibBinder;
 
 private:
-    OBJECTREF compareInfo;
-    OBJECTREF textInfo;
+    OBJECTREF compareInfo UNUSED_ATTR;
+    OBJECTREF textInfo UNUSED_ATTR;
 #ifndef FEATURE_CORECLR
     OBJECTREF regionInfo;
 #endif // !FEATURE_CORECLR
-    OBJECTREF numInfo;
-    OBJECTREF dateTimeInfo;
-    OBJECTREF calendar;
-    OBJECTREF m_cultureData;
+    OBJECTREF numInfo UNUSED_ATTR;
+    OBJECTREF dateTimeInfo UNUSED_ATTR;
+    OBJECTREF calendar UNUSED_ATTR;
+    OBJECTREF m_cultureData UNUSED_ATTR;
 #ifndef FEATURE_CORECLR
     OBJECTREF m_consoleFallbackCulture;
 #endif // !FEATURE_CORECLR
     STRINGREF m_name;                       // "real" name - en-US, de-DE_phoneb or fj-FJ
-    STRINGREF m_nonSortName;                // name w/o sort info (de-DE for de-DE_phoneb)
-    STRINGREF m_sortName;                   // Sort only name (de-DE_phoneb, en-us for fj-fj (w/us sort)
+    STRINGREF m_nonSortName UNUSED_ATTR;    // name w/o sort info (de-DE for de-DE_phoneb)
+    STRINGREF m_sortName UNUSED_ATTR;       // Sort only name (de-DE_phoneb, en-us for fj-fj (w/us sort)
     CULTUREINFOBASEREF m_parent;
 #if !FEATURE_CORECLR
     INT32    iDataItem;                     // NEVER USED, DO NOT USE THIS! (Serialized in Whidbey/Everett)
@@ -1867,8 +1867,8 @@ private:
 #ifdef FEATURE_LEAK_CULTURE_INFO
     INT32 m_createdDomainID;
 #endif // FEATURE_LEAK_CULTURE_INFO
-    CLR_BOOL m_isReadOnly;
-    CLR_BOOL m_isInherited;
+    CLR_BOOL m_isReadOnly UNUSED_ATTR;
+    CLR_BOOL m_isInherited UNUSED_ATTR;
 #ifdef FEATURE_LEAK_CULTURE_INFO
     CLR_BOOL m_isSafeCrossDomain;
 #endif // FEATURE_LEAK_CULTURE_INFO
@@ -2291,22 +2291,22 @@ class ContextBaseObject : public Object
     // Modifying the order or fields of this object may require other changes to the
     //  classlib class definition of this object.
 
-    OBJECTREF m_ctxProps;   // array of name-value pairs of properties
-    OBJECTREF m_dphCtx;     // dynamic property holder
-    OBJECTREF m_localDataStore; // context local store
-    OBJECTREF m_serverContextChain; // server context sink chain
-    OBJECTREF m_clientContextChain; // client context sink chain
-    OBJECTREF m_exposedAppDomain;       //appDomain ??
-    PTRARRAYREF m_ctxStatics; // holder for context relative statics
+    OBJECTREF m_ctxProps UNUSED_ATTR;           // array of name-value pairs of properties
+    OBJECTREF m_dphCtx UNUSED_ATTR;             // dynamic property holder
+    OBJECTREF m_localDataStore UNUSED_ATTR;     // context local store
+    OBJECTREF m_serverContextChain UNUSED_ATTR; // server context sink chain
+    OBJECTREF m_clientContextChain UNUSED_ATTR; // client context sink chain
+    OBJECTREF m_exposedAppDomain;               //appDomain ??
+    PTRARRAYREF m_ctxStatics;                   // holder for context relative statics
     
-    Context*  m_internalContext;            // Pointer to the VM context
+    Context*  m_internalContext;                // Pointer to the VM context
 
-    INT32 _ctxID;
-    INT32 _ctxFlags;
-    INT32 _numCtxProps;     // current count of properties
+    INT32 _ctxID UNUSED_ATTR;
+    INT32 _ctxFlags UNUSED_ATTR;
+    INT32 _numCtxProps UNUSED_ATTR;             // current count of properties
 
-    INT32 _ctxStaticsCurrentBucket;
-    INT32 _ctxStaticsFreeIndex;
+    INT32 _ctxStaticsCurrentBucket UNUSED_ATTR;
+    INT32 _ctxStaticsFreeIndex UNUSED_ATTR;
 
   protected:
     ContextBaseObject() { LIMITED_METHOD_CONTRACT; }
@@ -3132,12 +3132,12 @@ protected:
 
 private:
     OBJECTREF       _tp;
-    OBJECTREF       _identity;
-    OBJECTREF       _serverObject;
-    DWORD           _flags;
+    OBJECTREF       _identity UNUSED_ATTR;
+    OBJECTREF       _serverObject UNUSED_ATTR;
+    DWORD           _flags UNUSED_ATTR;
     DWORD           _optFlags;
     DWORD           _domainID;
-    OBJECTHANDLE    _srvIdentity;
+    OBJECTHANDLE    _srvIdentity UNUSED_ATTR;
 };
 
 #ifdef USE_CHECKED_OBJECTREFS
@@ -3674,7 +3674,7 @@ class ReflectClassBaseObject;
 class SafeBuffer : SafeHandle
 {
   private:
-    size_t m_numBytes;
+    size_t m_numBytes UNUSED_ATTR;
 
   public:
     static FCDECL1(UINT, SizeOfType, ReflectClassBaseObject* typeUNSAFE);
@@ -3730,20 +3730,20 @@ public:
     // If you modify the order of these fields, make sure to update the definition in 
     // BCL for this object.
 private:
-    OBJECTREF _userCallback;
-    OBJECTREF _userStateObject;
+    OBJECTREF _userCallback UNUSED_ATTR;
+    OBJECTREF _userStateObject UNUSED_ATTR;
 
     WAITHANDLEREF _waitHandle;
-    SAFEHANDLEREF _fileHandle;     // For cancellation.
-    LPOVERLAPPED  _overlapped;
-    int _EndXxxCalled;             // Whether we've called EndXxx already.
-    int _numBytes;                 // number of bytes read OR written
+    SAFEHANDLEREF _fileHandle UNUSED_ATTR;      // For cancellation.
+    LPOVERLAPPED  _overlapped UNUSED_ATTR;
+    int _EndXxxCalled UNUSED_ATTR;              // Whether we've called EndXxx already.
+    int _numBytes;                              // number of bytes read OR written
     int _errorCode;
-    int _numBufferedBytes;
+    int _numBufferedBytes UNUSED_ATTR;
 
-    CLR_BOOL _isWrite;                 // Whether this is a read or a write
+    CLR_BOOL _isWrite UNUSED_ATTR;              // Whether this is a read or a write
     CLR_BOOL _isComplete;
-    CLR_BOOL _completedSynchronously;  // Which thread called callback
+    CLR_BOOL _completedSynchronously;           // Which thread called callback
 };
 
 #ifdef USE_CHECKED_OBJECTREFS
@@ -3854,17 +3854,17 @@ private:
     // to access the fields directly from unmanaged code given an OBJECTREF. 
     // Please keep them in sync when you make changes to the fields. 
     OBJECTREF _permSet;
-    STRINGREF _serializedPermissionSet;
-    OBJECTREF _permSetSaved;
-    OBJECTREF _unrestrictedPermSet;
-    OBJECTREF _normalPermSet;
+    STRINGREF _serializedPermissionSet UNUSED_ATTR;
+    OBJECTREF _permSetSaved UNUSED_ATTR;
+    OBJECTREF _unrestrictedPermSet UNUSED_ATTR;
+    OBJECTREF _normalPermSet UNUSED_ATTR;
     CLR_BOOL _Unrestricted;
     CLR_BOOL _allPermissionsDecoded;
-    CLR_BOOL _ignoreTypeLoadFailures;
+    CLR_BOOL _ignoreTypeLoadFailures UNUSED_ATTR;
     CLR_BOOL _CheckedForNonCas;
     CLR_BOOL _ContainsCas;
     CLR_BOOL _ContainsNonCas;
-    CLR_BOOL _Readable;
+    CLR_BOOL _Readable UNUSED_ATTR;
 #ifdef FEATURE_CAS_POLICY
     CLR_BOOL _canUnrestrictedOverride;
 #endif // FEATURE_CAS_POLICY
@@ -3893,13 +3893,13 @@ public:
 private:
     // If you modify the order of these fields, make sure
     // to update the definition in BCL for this object.
-    OBJECTREF _objSet;
+    OBJECTREF _objSet UNUSED_ATTR;
     OBJECTREF _Obj;
-    OBJECTREF _Set;
-    INT32 _initSize;
-    INT32 _increment;
+    OBJECTREF _Set UNUSED_ATTR;
+    INT32 _initSize UNUSED_ATTR;
+    INT32 _increment UNUSED_ATTR;
     INT32 _cElt;
-    INT32 _maxIndex;
+    INT32 _maxIndex UNUSED_ATTR;
 };
 
 #ifdef USE_CHECKED_OBJECTREFS
@@ -3917,7 +3917,7 @@ private:
 #ifdef FEATURE_CAS_POLICY
     OBJECTREF _dependentEvidence;
 #endif // FEATURE_CAS_POLICY
-    INT32 _attributes;
+    INT32 _attributes UNUSED_ATTR;
 
 public:
     PERMISSIONSETREF GetPermissionSet()
@@ -3943,7 +3943,7 @@ private:
     OBJECTREF _elExtraInfo;
 #endif // FEATURE_CLICKONCE
     POLICYSTATEMENTREF _psDefaultGrant;
-    OBJECTREF _fullTrustAssemblies;
+    OBJECTREF _fullTrustAssemblies UNUSED_ATTR;
     DWORD _grantSetSpecialFlags;
 #ifdef FEATURE_CLICKONCE
     CLR_BOOL _appTrustedToRun;
@@ -4517,8 +4517,8 @@ public:
 private:
     // keep these in sync with ndp/clr/src/bcl/system/diagnostics/contracts/contractsbcl.cs
     IN_WIN64(INT32 _Kind;)
-    STRINGREF _UserMessage;
-    STRINGREF _Condition;
+    STRINGREF _UserMessage UNUSED_ATTR;
+    STRINGREF _Condition UNUSED_ATTR;
     IN_WIN32(INT32 _Kind;)
 };
 #include "poppack.h"

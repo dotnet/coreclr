@@ -278,7 +278,6 @@ add_compile_options(-ferror-limit=4096)
 add_compile_options(-Werror)
 
 # Disabled warnings
-add_compile_options(-Wno-unused-private-field)
 add_compile_options(-Wno-implicit-exception-spec-mismatch)
 # A derived class defines a virtual method with the same name as its base
 # class, but different set of parameters.

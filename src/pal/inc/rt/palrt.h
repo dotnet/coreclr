@@ -1225,6 +1225,12 @@ template< class T >
 typename std::remove_reference<T>::type&& move( T&& t );
 #endif // __cplusplus
 
+#ifdef __GNUC__
+#define UNUSED_ATTR __attribute__((unused))
+#else  // __GNUC__
+#define UNUSED_ATTR
+#endif // __GNUC__
+
 #define __RPC__out
 #define __RPC__in
 #define __RPC__deref_out_opt

@@ -169,7 +169,7 @@ struct LayoutRawFieldInfo
     struct
     {
         private:
-            char m_space[MAXFIELDMARSHALERSIZE];
+            char m_space[MAXFIELDMARSHALERSIZE] UNUSED_ATTR;
     } m_FieldMarshaler;
 };
 

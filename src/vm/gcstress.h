@@ -59,12 +59,6 @@ namespace GCStressPolicy
 
 #ifdef STRESS_HEAP
 
-#ifdef __GNUC__
-#define UNUSED_ATTR __attribute__ ((unused))
-#else  // __GNUC__
-#define UNUSED_ATTR
-#endif // __GNUC__
-
 #ifndef __UNUSED
 #define __UNUSED(x) ((void)(x))
 #endif // __UNUSED

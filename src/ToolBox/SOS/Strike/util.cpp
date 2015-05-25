@@ -5480,7 +5480,9 @@ CachedString Output::BuildManagedVarValue(__in_z LPCWSTR expansionName, ULONG fr
 }
 
 EnableDMLHolder::EnableDMLHolder(BOOL enable)
+#ifndef FEATURE_PAL
     : mEnable(enable)
+#endif // FEATURE_PAL
 {
 #ifndef FEATURE_PAL
     // If the user has not requested that we use DML, it's still possible that

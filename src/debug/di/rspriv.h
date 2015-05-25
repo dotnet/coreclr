@@ -5960,7 +5960,7 @@ private:
     //-----------------------------------------------------------
 private:
     // offset of the beginning of the last sequence point in the sequence point map
-    SIZE_T                   m_lastIL;
+    SIZE_T                   m_lastIL UNUSED_ATTR;
 
     // start address(es) and size(s) of hot and cold regions
     TargetBuffer             m_rgCodeRegions[MAX_REGIONS];

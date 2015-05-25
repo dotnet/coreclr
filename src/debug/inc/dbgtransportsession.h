@@ -613,7 +613,7 @@ private:
     // Some flags used to record how far we got in Init() (used for cleanup in Shutdown()).
     bool m_fInitStateLock;
 #ifndef RIGHT_SIDE_COMPILE
-    bool m_fInitWSA;
+    bool m_fInitWSA UNUSED_ATTR;
 #endif // !RIGHT_SIDE_COMPILE
 
     // Protocol version. This consists of two parts. The major version is incremented on incompatible protocol

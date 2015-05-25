@@ -3993,7 +3993,7 @@ private:
     EXPSET_TP* mJumpDestOut;
     EXPSET_TP* mJumpDestGen;
 
-    Compiler* m_pCompiler;
+    Compiler* m_pCompiler UNUSED_ATTR; // TODO: remove it completely?
 
 public:
     AssertionPropFlowCallback(Compiler* pCompiler, EXPSET_TP* jumpDestOut, EXPSET_TP* jumpDestGen)
