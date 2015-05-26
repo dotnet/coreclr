@@ -126,7 +126,7 @@ class ThreadpoolMgr
     private:
 
         // padding to ensure we get our own cache line
-        BYTE padding1[64];
+        BYTE padding1[64] UNUSED_ATTR;
 
         //
         // We track everything we care about in a single 64-bit struct to allow us to 
@@ -150,7 +150,7 @@ class ThreadpoolMgr
         CLRSemaphore m_sem;  //waiters wait on this
 
         // padding to ensure we get our own cache line
-        BYTE padding2[64];
+        BYTE padding2[64] UNUSED_ATTR;
 
         INDEBUG(int m_maxCount;)
 
@@ -1003,11 +1003,11 @@ public:
     //
     class RecycledListsWrapper
     {
-        DWORD                        CacheGuardPre[64/sizeof(DWORD)];
+        DWORD                        CacheGuardPre[64/sizeof(DWORD)] UNUSED_ATTR;
         
         RecycledListInfo            (*pRecycledListPerProcessor)[MEMTYPE_COUNT];  // RecycledListInfo [numProc][MEMTYPE_COUNT]
 
-        DWORD                        CacheGuardPost[64/sizeof(DWORD)];
+        DWORD                        CacheGuardPost[64/sizeof(DWORD)] UNUSED_ATTR;
 
     public:
         void Initialize( unsigned int numProcs );

@@ -2358,7 +2358,7 @@ class FCallMethodDesc : public MethodDesc
 
     DWORD   m_dwECallID;
 #ifdef _WIN64 
-    DWORD   m_padding;
+    DWORD   m_padding UNUSED_ATTR;
 #endif
 
 public:

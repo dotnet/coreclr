@@ -531,7 +531,7 @@ private:
 
 #ifdef _DEBUG
     GcInfoDecoderFlags m_Flags;
-    PTR_CBYTE m_GcInfoAddress;
+    PTR_CBYTE m_GcInfoAddress UNUSED_ATTR;
 #endif
 
 #ifdef VERIFY_GCINFO

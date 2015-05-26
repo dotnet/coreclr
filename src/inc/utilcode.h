@@ -4939,9 +4939,9 @@ public:
     }
 
 private:
-    TlsThreadTypeFlag m_flag;
-    BOOL m_fPreviouslySet;
-    INDEBUG(size_t m_nPreviousFlagGroup);
+    TlsThreadTypeFlag m_flag UNUSED_ATTR;
+    BOOL m_fPreviouslySet UNUSED_ATTR;
+    INDEBUG(size_t m_nPreviousFlagGroup UNUSED_ATTR);
 };
 
 class ClrFlsValueSwitch

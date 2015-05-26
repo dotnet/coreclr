@@ -152,7 +152,7 @@ const int nMaxHeapSegmentCount = 1000;
 
 class BaseObject
 {
-    MethodTable    *m_pMethTab;
+    MethodTable    *m_pMethTab UNUSED_ATTR;
 };
 
 
@@ -414,7 +414,9 @@ public:
     ~EnableDMLHolder();
 
 private:
+#ifndef FEATURE_PAL
     BOOL mEnable;
+#endif    
 };
 
 size_t CountHexCharacters(CLRDATA_ADDRESS val);
@@ -2847,7 +2849,7 @@ private:
     ULONG mPageSize, mCurrPageSize;
     BYTE *mPage;
     
-    int mMisses, mReads, mMisaligned;
+    int mMisses UNUSED_ATTR, mReads UNUSED_ATTR, mMisaligned;
 };
 
 
