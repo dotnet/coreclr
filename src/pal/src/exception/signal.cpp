@@ -63,6 +63,8 @@ static void sigfpe_handler(int code, siginfo_t *siginfo, void *context);
 static void sigsegv_handler(int code, siginfo_t *siginfo, void *context);
 static void sigtrap_handler(int code, siginfo_t *siginfo, void *context);
 static void sigbus_handler(int code, siginfo_t *siginfo, void *context);
+static void sigint_handler(int code, siginfo_t *siginfo, void *context);
+static void sigquit_handler(int code, siginfo_t *siginfo, void *context);
 #if USE_SIGNALS_FOR_THREAD_SUSPENSION
 void CorUnix::suspend_handler(int code, siginfo_t *siginfo, void *context);
 void CorUnix::resume_handler(int code, siginfo_t *siginfo, void *context);
@@ -81,6 +83,8 @@ struct sigaction g_previous_sigtrap;
 struct sigaction g_previous_sigfpe;
 struct sigaction g_previous_sigbus;
 struct sigaction g_previous_sigsegv;
+struct sigaction g_previous_sigint;
+struct sigaction g_previous_sigquit;
 
 #if USE_SIGNALS_FOR_THREAD_SUSPENSION
 struct sigaction g_previous_sigusr1;
@@ -122,6 +126,9 @@ void SEHInitializeSignals()
     handle_signal(SIGFPE, sigfpe_handler, &g_previous_sigfpe);
     handle_signal(SIGBUS, sigbus_handler, &g_previous_sigbus);
     handle_signal(SIGSEGV, sigsegv_handler, &g_previous_sigsegv);
+    handle_signal(SIGINT, sigint_handler, &g_previous_sigint);
+    handle_signal(SIGQUIT, sigquit_handler, &g_previous_sigquit);
+
 #if USE_SIGNALS_FOR_THREAD_SUSPENSION
     handle_signal(SIGUSR1, suspend_handler, &g_previous_sigusr1);
     handle_signal(SIGUSR2, resume_handler, &g_previous_sigusr2);
@@ -165,6 +172,8 @@ void SEHCleanupSignals()
     restore_signal(SIGFPE, &g_previous_sigfpe);
     restore_signal(SIGBUS, &g_previous_sigbus);
     restore_signal(SIGSEGV, &g_previous_sigsegv);
+    restore_signal(SIGINT, &g_previous_sigint);
+    restore_signal(SIGQUIT, &g_previous_sigquit);
 }
 
 /* internal function definitions **********************************************/
@@ -401,6 +410,113 @@ static void sigtrap_handler(int code, siginfo_t *siginfo, void *context)
 
 /*++
 Function :
+    ControlHandlerThreadRoutine
+
+    Thread routine of the thread that is created to handle CTRL_C and CTRL-BREAK
+    (SIGINT and SIGQUIT) signals.
+
+Parameters :
+    pvEvent - the event to handle
+
+    (no return value)
+--*/
+static void* ControlHandlerThreadRoutine(void* pvEvent)
+{
+    // Uint and DWORD are implicitly the same.
+    SEHHandleControlEvent(PtrToUint(pvEvent), NULL);
+    return NULL;
+}
+
+/*++
+Function :
+    ControlHandlerThreadRoutine
+
+    Handle the CTRL-C and CTRL-BREAK (SIGINT and SIGQUIT) signals.
+
+    Spawn a new detached thread to handle the signal. We cannot handle it directly
+    in this handler since the interrupted thread might e.g. hold locks and
+    the execution of the event handling code could deadlock.
+
+Parameters :
+    pvEvent - the event to handle
+
+    (no return value)
+--*/
+static void HandleControlEvent(int eventCode)
+{
+    pthread_t helperThread;
+    int status = pthread_create(&helperThread, NULL, ControlHandlerThreadRoutine, IntToPtr(eventCode)); 
+    if (status == 0)
+    {
+        status = pthread_detach(helperThread);
+    }
+
+    if (status != 0)
+    {
+        // Fatal error
+        _exit(EXIT_FAILURE);
+    }    
+}
+
+/*++
+Function :
+    sigint_handler
+
+    handle SIGINT signal
+
+Parameters :
+    POSIX signal handler parameter list ("man sigaction" for details)
+
+    (no return value)
+--*/
+static void sigint_handler(int code, siginfo_t *siginfo, void *context)
+{
+    if (PALIsInitialized())
+    {
+        HandleControlEvent(CTRL_C_EVENT);
+    }
+    else 
+    {
+        TRACE("SIGINT signal was unhandled; chaining to previous sigaction\n");
+
+        if (g_previous_sigint.sa_sigaction != NULL)
+        {
+            g_previous_sigint.sa_sigaction(code, siginfo, context);
+        }
+    }
+}
+
+/*++
+Function :
+    sigint_handler
+
+    handle SIGQUIT signal
+
+Parameters :
+    POSIX signal handler parameter list ("man sigaction" for details)
+
+    (no return value)
+--*/
+static void sigquit_handler(int code, siginfo_t *siginfo, void *context)
+{
+    if (PALIsInitialized())
+    {
+        HandleControlEvent(CTRL_BREAK_EVENT);
+    }
+    else 
+    {
+        TRACE("SIGQUIT signal was unhandled; chaining to previous sigaction\n");
+
+        if (g_previous_sigquit.sa_sigaction != NULL)
+        {
+            g_previous_sigquit.sa_sigaction(code, siginfo, context);
+        }
+    }
+}
+
+
+/*++
+Function :
     sigbus_handler
 
     handle SIGBUS signal (EXCEPTION_ACCESS_VIOLATION?)
@@ -595,210 +711,6 @@ void restore_signal(int signal_id, struct sigaction *previousAction)
         ASSERT("restore_signal: sigaction() call failed with error code %d (%s)\n",
             errno, strerror(errno));
     }
-}
-
-DWORD g_dwExternalSignalHandlerThreadId;
-
-static
-DWORD
-PALAPI
-ExternalSignalHandlerThreadRoutine(
-    PVOID
-    );
-
-static
-DWORD
-PALAPI
-ControlHandlerThreadRoutine(
-    PVOID pvSignal
-    );
-
-PAL_ERROR
-StartExternalSignalHandlerThread(
-    CPalThread *pthr)
-{
-    PAL_ERROR palError = NO_ERROR;
-    
-#ifndef DO_NOT_USE_SIGNAL_HANDLING_THREAD
-    HANDLE hThread;
-
-    palError = InternalCreateThread(
-        pthr,
-        NULL,
-        0,
-        ExternalSignalHandlerThreadRoutine,
-        NULL,
-        0,
-        SignalHandlerThread, // Want no_suspend variant
-        &g_dwExternalSignalHandlerThreadId,
-        &hThread
-        );
-
-    if (NO_ERROR != palError)
-    {
-        ERROR("Failure creating external signal handler thread (%d)\n", palError);
-        goto done;
-    }
-
-    InternalCloseHandle(pthr, hThread);
-#endif // DO_NOT_USE_SIGNAL_HANDLING_THREAD
-
-done:
-
-    return palError;        
-}
-
-static const int c_iShutdownWaitTime = 5;
-
-static
-DWORD
-PALAPI
-ExternalSignalHandlerThreadRoutine(
-    PVOID
-    )
-{
-    DWORD dwThreadId;
-    bool fContinue = TRUE;
-    HANDLE hThread;
-    int iError;
-    int iSignal;
-    PAL_ERROR palError = NO_ERROR;
-    CPalThread *pthr = InternalGetCurrentThread();
-    sigset_t sigsetAll;
-    sigset_t sigsetWait;
-
-    //
-    // Setup our signal masks
-    //
-
-    //
-    // SIGPROF is not masked by this thread, and thus not waited for
-    // in sigwait since SIGPROF is used by the BSD thread scheduler.
-    // Masking SIGPROF in this thread leads to a significant 
-    // reduction in performance.
-    //
-
-    (void)sigfillset(&sigsetAll); 
-    (void)sigdelset(&sigsetAll, SIGPROF);
-
-    (void)sigemptyset(&sigsetWait);
-    (void)sigaddset(&sigsetWait, SIGINT);  
-    (void)sigaddset(&sigsetWait, SIGQUIT);  
-
-    //
-    // Mask off all signals for this thread
-    //
-    
-    iError = pthread_sigmask(SIG_SETMASK, &sigsetAll, NULL);
-    if (0 != iError)
-    {
-        ASSERT("pthread sigmask(sigsetAll) failed\n");
-        fContinue = FALSE;
-    }
-
-    //
-    // Wait for a signal to occur
-    //
-
-    while (fContinue)
-    {
-        iError = sigwait(&sigsetWait, &iSignal);
-        if (0 != iError)
-        {
-            ASSERT("sigwait(sigsetWait, iSignal) failed\n");
-            fContinue = FALSE;
-            break;
-        }
-
-        //
-        // If the PAL is shutting down we want to exit after waiting
-        // a few seconds (in the hopes that the normal shutdown
-        // finishes...)
-        //
-
-        if (PALIsShuttingDown())
-        {
-            sleep(c_iShutdownWaitTime);
-            fContinue = FALSE;
-            break;
-        }
-
-        switch (iSignal)
-        {
-            case SIGINT:
-            case SIGQUIT:
-            {
-                //
-                // Spin up a new thread to run the console handlers. We want
-                // to do this even if no handlers are installed, as in that
-                // case we want to do a normal shutdown from the new thread
-                // while still having this thread available to handle any
-                // other incoming signals.
-                //
-                // The new thread is always spawned, even if there are already
-                // currently console handlers running; this follows the
-                // Windows behavior. Yes, this means that poorly written
-                // console handler routines can make it impossible to kill
-                // a process using Ctrl-C or Ctrl-Break. "kill -9" is
-                // your friend.
-                //
-                // This thread must not be marked as a PalWorkerThread --
-                // since it may run user code it needs to make
-                // DLL_THREAD_ATTACH notifications.
-                //
-
-                PVOID pvCtrlCode = UintToPtr(
-                    SIGINT == iSignal ? CTRL_C_EVENT : CTRL_BREAK_EVENT
-                    );
-
-                palError = InternalCreateThread(
-                    pthr,
-                    NULL,
-                    0,
-                    ControlHandlerThreadRoutine,
-                    pvCtrlCode,
-                    0,
-                    UserCreatedThread,
-                    &dwThreadId,
-                    &hThread
-                    );
-
-                if (NO_ERROR != palError)
-                {
-                    fContinue = FALSE;
-                    break;
-                }
-
-                InternalCloseHandle(pthr, hThread);                
-                break;
-            }
-
-            default:
-                ASSERT("Unexpect signal %d in signal thread\n", iSignal);
-                fContinue = FALSE;
-                break;
-        }
-    }
-
-    //
-    // Perform an immediate (non-graceful) shutdown
-    //
-
-    _exit(EXIT_FAILURE);    
-
-    return 0;
-}
-
-static
-DWORD
-PALAPI
-ControlHandlerThreadRoutine(
-    PVOID pvSignal
-    )
-{
-    // Uint and DWORD are implicitly the same.
-    SEHHandleControlEvent(PtrToUint(pvSignal), NULL);
-    return 0;
 }
 
 #endif // !HAVE_MACH_EXCEPTIONS

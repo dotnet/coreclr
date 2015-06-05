@@ -70,12 +70,6 @@ int t_holderCount = 0;
 
 BOOL SEHInitializeConsole();
 
-#if !HAVE_MACH_EXCEPTIONS
-PAL_ERROR
-StartExternalSignalHandlerThread(
-    CPalThread *pthr);
-#endif // !HAVE_MACH_EXCEPTIONS
-
 /* Internal function definitions **********************************************/
 
 /*++
@@ -106,17 +100,6 @@ SEHInitialize (CPalThread *pthrCurrent, DWORD flags)
 
 #if !HAVE_MACH_EXCEPTIONS
     SEHInitializeSignals();
-
-    if (flags & PAL_INITIALIZE_SIGNAL_THREAD)
-    {
-        PAL_ERROR palError = StartExternalSignalHandlerThread(pthrCurrent);
-        if (NO_ERROR != palError)
-        {
-            ERROR("StartExternalSignalHandlerThread returned %d\n", palError);
-            SEHCleanup();
-            goto SEHInitializeExit;
-        }
-    }
 #endif
     bRet = TRUE;
 

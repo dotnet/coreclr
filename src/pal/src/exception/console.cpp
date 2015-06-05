@@ -254,7 +254,8 @@ Parameters :
 Notes :
     Handlers are called on a last-installed, first called basis, until a
     handler returns TRUE. If no handler returns TRUE (or no hanlder is
-    installed), the default behavior is to call TerminateProcess
+    installed), the default behavior is to call the default handler of
+    the corresponding signal.
 --*/
 void SEHHandleControlEvent(DWORD event, LPVOID eip)
 {
@@ -369,17 +370,23 @@ done:
 #endif
     if(!fHandled)
     {
+        int signalCode;
+
         if(CTRL_C_EVENT == event)
         {
             TRACE("Control-C not handled; terminating.\n");
+            signalCode = SIGINT;
         }
         else
         {
             TRACE("Control-Break not handled; terminating.\n");
+            signalCode = SIGQUIT;
         }
-        /* tested in Win32 : this is the exit code when ^C and ^Break are not 
-           handled */
-        TerminateProcess(GetCurrentProcess(),CONTROL_C_EXIT);
+
+        // The proper behavior for unhandled SIGINT/SIGQUIT is to set the signal handler to the default one
+        // and then send the SIGINT/SIGQUIT to self and let the default handler do its work.
+        signal(signalCode, SIG_DFL);
+        kill(getpid(), signalCode);
     }
 }
 
