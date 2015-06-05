@@ -25,9 +25,6 @@ Abstract:
 #include "pal/palinternal.h"
 #include "pal/corunix.hpp"
 
-// Uncomment this define to turn off the signal handling thread.
-// #define DO_NOT_USE_SIGNAL_HANDLING_THREAD
-
 /*++
 Function :
     SEHInitialize

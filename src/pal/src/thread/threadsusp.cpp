@@ -1293,14 +1293,11 @@ CThreadSuspensionInfo::InitializeSignalSets()
 #if !HAVE_MACH_EXCEPTIONS
     sigemptyset(&smDefaultmask);
     
-#ifndef DO_NOT_USE_SIGNAL_HANDLING_THREAD
     // The default signal mask masks all common signals except those that represent 
     // synchronous exceptions in the PAL or are used by the system (e.g. SIGPROF on BSD).
     // Note that SIGPROF is used by the BSD thread scheduler and masking it caused a 
     // significant reduction in performance.
     sigaddset(&smDefaultmask, SIGHUP);  
-    sigaddset(&smDefaultmask, SIGINT);
-    sigaddset(&smDefaultmask, SIGQUIT); 
     sigaddset(&smDefaultmask, SIGABRT); 
 #ifdef SIGEMT
     sigaddset(&smDefaultmask, SIGEMT); 
@@ -1332,20 +1329,9 @@ CThreadSuspensionInfo::InitializeSignalSets()
         sigaddset(&smDefaultmask, SIGUSR1);
     }
     #endif // !USE_SIGNALS_FOR_THREAD_SUSPENSION
-#endif // DO_NOT_USE_SIGNAL_HANDLING_THREAD
 #endif // !HAVE_MACH_EXCEPTIONS
 
 #if USE_SIGNALS_FOR_THREAD_SUSPENSION
-#if !HAVE_MACH_EXCEPTIONS
-    #ifdef DO_NOT_USE_SIGNAL_HANDLING_THREAD
-    {
-        // If the SWT is turned on, SIGUSR2 was already added to the mask. 
-        // Otherwise, add it to the mask now.
-        sigaddset(&smDefaultmask, SIGUSR2);
-    }
-    #endif
-#endif // !HAVE_MACH_EXCEPTIONS
-
     // smContmask is used to allow a thread to accept a SIGUSR1 when in sigsuspend, 
     // after a pending suspension
     sigfillset(&smContmask);
