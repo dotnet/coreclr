@@ -1059,6 +1059,8 @@ namespace System.IO {
             private bool? _overridesBeginRead;
             [NonSerialized]
             private bool? _overridesBeginWrite;
+            [NonSerialized]
+            private readonly object _syncRoot = new object();
 
             internal SyncStream(Stream stream)
             {
@@ -1093,7 +1095,7 @@ namespace System.IO {
 
             public override long Length {
                 get {
-                    lock(_stream) {
+                    lock(_syncRoot) {
                         return _stream.Length;
                     }
                 }
@@ -1101,12 +1103,12 @@ namespace System.IO {
         
             public override long Position {
                 get {
-                    lock(_stream) {
+                    lock(_syncRoot) {
                         return _stream.Position;
                     }
                 }
                 set {
-                    lock(_stream) {
+                    lock(_syncRoot) {
                         _stream.Position = value;
                     }
                 }
@@ -1136,7 +1138,7 @@ namespace System.IO {
             // semantics for Close vs. Dispose, let's preserve that.
             public override void Close()
             {
-                lock(_stream) {
+                lock(_syncRoot) {
                     try {
                         _stream.Close();
                     }
@@ -1148,7 +1150,7 @@ namespace System.IO {
         
             protected override void Dispose(bool disposing)
             {
-                lock(_stream) {
+                lock(_syncRoot) {
                     try {
                         // Explicitly pick up a potentially methodimpl'ed Dispose
                         if (disposing)
@@ -1162,19 +1164,19 @@ namespace System.IO {
         
             public override void Flush()
             {
-                lock(_stream)
+                lock(_syncRoot)
                     _stream.Flush();
             }
         
             public override int Read([In, Out]byte[] bytes, int offset, int count)
             {
-                lock(_stream)
+                lock(_syncRoot)
                     return _stream.Read(bytes, offset, count);
             }
         
             public override int ReadByte()
             {
-                lock(_stream)
+                lock(_syncRoot)
                     return _stream.ReadByte();
             }
 
@@ -1210,7 +1212,7 @@ namespace System.IO {
                     _overridesBeginRead = OverridesBeginMethod(_stream, "BeginRead");
                 }
 
-                lock (_stream)
+                lock (_syncRoot)
                 {
                     // If the Stream does have its own BeginRead implementation, then we must use that override.
                     // If it doesn't, then we'll use the base implementation, but we'll make sure that the logic
@@ -1231,31 +1233,31 @@ namespace System.IO {
                 Contract.Ensures(Contract.Result<int>() >= 0);
                 Contract.EndContractBlock();
 
-                lock(_stream)
+                lock(_syncRoot)
                     return _stream.EndRead(asyncResult);
             }
         
             public override long Seek(long offset, SeekOrigin origin)
             {
-                lock(_stream)
+                lock(_syncRoot)
                     return _stream.Seek(offset, origin);
             }
         
             public override void SetLength(long length)
             {
-                lock(_stream)
+                lock(_syncRoot)
                     _stream.SetLength(length);
             }
         
             public override void Write(byte[] bytes, int offset, int count)
             {
-                lock(_stream)
+                lock(_syncRoot)
                     _stream.Write(bytes, offset, count);
             }
         
             public override void WriteByte(byte b)
             {
-                lock(_stream)
+                lock(_syncRoot)
                     _stream.WriteByte(b);
             }
         
@@ -1268,7 +1270,7 @@ namespace System.IO {
                     _overridesBeginWrite = OverridesBeginMethod(_stream, "BeginWrite");
                 }
 
-                lock (_stream)
+                lock (_syncRoot)
                 {
                     // If the Stream does have its own BeginWrite implementation, then we must use that override.
                     // If it doesn't, then we'll use the base implementation, but we'll make sure that the logic
@@ -1288,7 +1290,7 @@ namespace System.IO {
                     throw new ArgumentNullException("asyncResult");
                 Contract.EndContractBlock();
 
-                lock(_stream)
+                lock(_syncRoot)
                     _stream.EndWrite(asyncResult);
             }
         }
