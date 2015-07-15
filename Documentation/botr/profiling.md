@@ -76,15 +76,19 @@ The picture so far describes what happens once the application and profiler are 
 
 When both checks above pass, the CLR creates an instance of the profiler in a similar fashion to _CoCreateInstance_.  The profiler is not loaded through a direct call to _CoCreateInstance_ so that a call to _CoInitialize_ may be avoided, which requires setting the threading model.  It then calls the _ICorProfilerCallback::Initialize_ method in the profiler.  The signature of this method is:
 
-	HRESULT Initialize(IUnknown \*pICorProfilerInfoUnk)
+```c++
+HRESULT Initialize(IUnknown \*pICorProfilerInfoUnk)
+```
 
 The profiler must QueryInterface pICorProfilerInfoUnk for an _ICorProfilerInfo_ interface pointer and save it so that it can call for more info during later profiling.  It then calls ICorProfilerInfo::SetEventMask to say which categories of notifications it is interested in.  For example:
 
-	ICorProfilerInfo\* pInfo;
+```c++
+ICorProfilerInfo\* pInfo;
 
-	pICorProfilerInfoUnk->QueryInterface(IID\_ICorProfilerInfo, (void\*\*)&pInfo);
+pICorProfilerInfoUnk->QueryInterface(IID\_ICorProfilerInfo, (void\*\*)&pInfo);
 
-	pInfo->SetEventMask(COR\_PRF\_MONITOR\_ENTERLEAVE | COR\_PRF\_MONITOR\_GC)
+pInfo->SetEventMask(COR\_PRF\_MONITOR\_ENTERLEAVE | COR\_PRF\_MONITOR\_GC)
+```
 
 This mask would be used for a profiler interested only in function enter/leave notifications and garbage collection notifications.  The profiler then simply returns, and is off and running!
 
@@ -166,10 +170,12 @@ Caller-Allocated Buffers
 
 ICorProfilerInfo functions that take caller-allocated buffers typically conform to the following signature:
 
-	HRESULT GetBuffer( [in] /\* Some query information \*/,
-	   [in] ULONG32 cBuffer,
-	   [out] ULONG32 \*pcBuffer,
-	   [out, size\_is(cBuffer), length\_is(\*pcMap)] /\* TYPE \*/ buffer[] );
+```c++
+HRESULT GetBuffer( [in] /* Some query information */,
+    [in] ULONG32 cBuffer,
+    [out] ULONG32 *pcBuffer,
+    [out, size_is(cBuffer), length_is(*pcMap)] /* TYPE */ buffer[] );
+```
 
 These functions will always behave as follows:
 
@@ -278,11 +284,13 @@ The number of objects in the heap can number thousands or millions.  With such l
 
 In other words, if an _ObjectID_ value lies within the range:
 
-	_oldObjectIDRangeStart[i] <= ObjectID < oldObjectIDRangeStart[i] + cObjectIDRangeLength[i]_
+```
+oldObjectIDRangeStart[i] <= ObjectID < oldObjectIDRangeStart[i] + cObjectIDRangeLength[i]
 
-	for _0 <= i < cMovedObjectIDRanges_, then the _ObjectID_ value has changed to
+for 0 <= i < cMovedObjectIDRanges, then the ObjectID value has changed to
 
-	_ObjectID - oldObjectIDRangeStart[i] + newObjectIDRangeStart[i]_
+_ObjectID - oldObjectIDRangeStart[i] + newObjectIDRangeStart[i]
+```
 
 All of these callbacks are made while the Runtime is suspended, so none of the _ObjectID_ values can change until the Runtime resumes and another GC occurs.
 

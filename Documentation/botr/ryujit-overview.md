@@ -71,7 +71,9 @@ The statement nodes utilize the same `GenTree` base type as the operation nodes,
 
 For this snippet of code (extracted from [tests/src/JIT/CodeGenBringUpTests/DblRoots.cs](https://github.com/dotnet/coreclr/blob/master/tests/src/JIT/CodeGenBringUpTests/DblRoots.cs)):
 
-       r1 = (-b + Math.Sqrt(b*b - 4*a*c))/(2*a);
+```c#
+    r1 = (-b + Math.Sqrt(b*b - 4*a*c))/(2*a);
+```
 
 A stripped-down dump of the `GenTree` nodes just after they are imported looks like this:
 
@@ -293,7 +295,7 @@ After rationalization, the nodes are presented in execution order, and the `GT_C
     │     ┌──▌  -         double
     │  ┌──▌  mathFN    double sqrt
     └──▌  st.lclVar double V06
-
+    
     ▌  stmtExpr  void  (top level) (IL 0x000...0x026)
     │        ┌──▌  lclVar    double V06
     │        │  ┌──▌  lclVar    double V01 arg1

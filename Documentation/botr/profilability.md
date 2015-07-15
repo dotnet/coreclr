@@ -32,17 +32,19 @@ ICorProfilerCallback
 This interface comprises the callbacks made by the CLR into the profiler to notify the profiler of interesting events.  Each callback is wrapped in a thin method in the EE that handles locating the profiler's implementation of ICorProfilerCallback(2), and calling its corresponding method.
 
 Profilers subscribe to events by specifying the corresponding flag in a call to ICorProfilerInfo::SetEventMask().  The profiling API stores these choices and exposes them to the CLR through specialized inline functions (CORProfiler\*) that mask against the bit corresponding to the flag.   Then, sprinkled throughout the CLR, you'll see code that calls the ICorProfilerCallback wrapper to notify the profiler of events as they happen, but this call is conditional on the flag being set (determined by calling the specialized inline function):
+`
+```c++
+{
+    //check if profiler set flag, pin profiler
+    BEGIN_PIN_PROFILER(CORProfilerTrackModuleLoads());
 
-    {
-        //check if profiler set flag, pin profiler
-        BEGIN_PIN_PROFILER(CORProfilerTrackModuleLoads());
+    //call the wrapper around the profiler's callback implementation
+    g_profControlBlock.pProfInterface->ModuleLoadStarted((ModuleID) this);          
 
-        //call the wrapper around the profiler's callback implementation
-        g_profControlBlock.pProfInterface->ModuleLoadStarted((ModuleID) this);          
-
-        //unpin profiler
-        END_PIN_PROFILER();
-    }
+    //unpin profiler
+    END_PIN_PROFILER();
+}
+```
 
 To be clear, the code above is what you'll see sprinkled throughout the code base.  The function it calls (in this case ModuleLoadStarted()) is our wrapper around the profiler's callback implementation (in this case ICorProfilerCallback::ModuleLoadStarted()).  All of our wrappers appear in a single file (vm\EEToProfInterfaceImpl.cpp), and the guidance provided in the sections below relate to those wrappers; not to the above sample code that calls the wrappers.
 
@@ -53,28 +55,30 @@ Contracts
 
 Each and every callback wrapper must have some common gunk at the top.  Here's an example:
 
-    CONTRACTL
-    {
-        // Yay!
-        NOTHROW;
+```c++
+CONTRACTL
+{
+    // Yay!
+    NOTHROW;
 
-        // Yay!
-        GC_TRIGGERS;
+    // Yay!
+    GC_TRIGGERS;
 
-        // Yay!
-        MODE_PREEMPTIVE;
+    // Yay!
+    MODE_PREEMPTIVE;
 
-        // Yay!
-        CAN_TAKE_LOCK;
+    // Yay!
+    CAN_TAKE_LOCK;
 
-        // Yay!
-        ASSERT_NO_EE_LOCKS_HELD();
-        SO_NOT_MAINLINE;
-    }
-    CONTRACTL_END;
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
-                            LL_INFO10,
-                            "**PROF: useful logging text here.\n"));
+    // Yay!
+    ASSERT_NO_EE_LOCKS_HELD();
+    SO_NOT_MAINLINE;
+}
+CONTRACTL_END;
+CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                        LL_INFO10,
+                        "**PROF: useful logging text here.\n"));
+```
 
 Important points:
 
@@ -100,13 +104,17 @@ Entrypoint macros
 
 As in the example above, after the contracts there should be an entrypoint macro.  This takes care of logging, marking on the EE Thread object that we're in a callback, removing stack guard, and doing some asserts.  There are a few variants of the macro you can use:
 
-    CLR_TO_PROFILER_ENTRYPOINT
+```c++
+CLR_TO_PROFILER_ENTRYPOINT
+```
 
 This is the preferred and typically-used macro.
 
 Other macro choices may be used **but you must comment** why the above (preferred) macro cannot be used.
 
-    *_FOR_THREAD_*
+```c++
+*_FOR_THREAD_*
+```
 
 These macros are used for ICorProfilerCallback methods that specify a ThreadID parameter whose value may not always be the _current_ ThreadID.  You must specify the ThreadID as the first parameter to these macros.  The macro will then use your ThreadID rather than GetThread(), to assert that the callback is currently allowed for that ThreadID (i.e., that we have not yet issued a ThreadDestroyed() for that ThreadID).
 
@@ -151,29 +159,31 @@ Contracts
 
 Each and every Info function must have some common gunk at the top.  Here's an example:
 
-    CONTRACTL
-    {
-        // Yay!
-        NOTHROW;
+```c++
+CONTRACTL
+{
+    // Yay!
+    NOTHROW;
 
-        // Yay!
-        GC_NOTRIGGER;
+    // Yay!
+    GC_NOTRIGGER;
 
-        // Yay!
-        MODE_ANY;
+    // Yay!
+    MODE_ANY;
 
-        // Yay!
-        EE_THREAD_NOT_REQUIRED;
+    // Yay!
+    EE_THREAD_NOT_REQUIRED;
 
-        // Yay!
-        CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
-    }
-    CONTRACTL_END;
-    PROFILER_TO_CLR_ENTRYPOINT_SYNC((LF_CORPROF,
-                                     LL_INFO1000,
-                                     "**PROF: EnumModuleFrozenObjects 0x%p.\n",
-                                     moduleID));
+    // Yay!
+    CANNOT_TAKE_LOCK;
+    SO_NOT_MAINLINE;
+}
+CONTRACTL_END;
+PROFILER_TO_CLR_ENTRYPOINT_SYNC((LF_CORPROF,
+                                 LL_INFO1000,
+                                 "**PROF: EnumModuleFrozenObjects 0x%p.\n",
+                                 moduleID));
+ ```
 
 Here are the "preferred" values for each contract type.  Note these are mostly different from the preferred values for Callbacks!  If that confuses you, reread section 2.
 
@@ -187,26 +197,28 @@ Here are the "preferred" values for each contract type.  Note these are mostly d
 
 Here's an example of commented contracts in a function that's not as "yay" as the one above:
 
-    CONTRACTL
-    {
-        // ModuleILHeap::CreateNew throws
-        THROWS;
+```c++
+CONTRACTL
+{
+    // ModuleILHeap::CreateNew throws
+    THROWS;
 
-        // AppDomainIterator::Next calls AppDomain::Release which can destroy AppDomain, and
-        // ~AppDomain triggers, according to its contract.
-        GC_TRIGGERS;
+    // AppDomainIterator::Next calls AppDomain::Release which can destroy AppDomain, and
+    // ~AppDomain triggers, according to its contract.
+    GC_TRIGGERS;
 
-        // Need cooperative mode, otherwise objectId can become invalid
-        if (GetThreadNULLOk() != NULL) { MODE_COOPERATIVE;  }
+    // Need cooperative mode, otherwise objectId can become invalid
+    if (GetThreadNULLOk() != NULL) { MODE_COOPERATIVE;  }
 
-        // Yay!
-        EE_THREAD_NOT_REQUIRED;
+    // Yay!
+    EE_THREAD_NOT_REQUIRED;
 
-        // Generics::GetExactInstantiationsFromCallInformation eventually
-        // reads metadata which causes us to take a reader lock.
-        CAN_TAKE_LOCK;
-    }
-    CONTRACTL_END;
+    // Generics::GetExactInstantiationsFromCallInformation eventually
+    // reads metadata which causes us to take a reader lock.
+    CAN_TAKE_LOCK;
+}
+CONTRACTL_END;
+```
 
 Entrypoint macros
 -----------------

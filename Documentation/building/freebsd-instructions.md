@@ -28,7 +28,9 @@ Note: LLDB is not yet available in the pkg repository on FreeBSD. The LLDB plugi
 
 To install the packages you need:
 
-`janhenke@freebsd-frankfurt:~ % sudo pkg install bash cmake clang35 libunwind gettext`
+```
+janhenke@freebsd-frankfurt:~ % sudo pkg install bash cmake clang35 libunwind gettext
+```
 
 You now have all the required components.
 
@@ -41,17 +43,23 @@ In order to debug CoreCLR you will also need to install LLDB, the LLVM debugger.
 
 Firstly, install the following packages: python ninja swig13 git (in addition to the packages above), i.e.
 
-```janhenke@freebsd-frankfurt:~ % sudo pkg install python ninja swig13 git```
+```
+janhenke@freebsd-frankfurt:~ % sudo pkg install python ninja swig13 git
+```
 
 Then, run the install script in ~/coreclr/src/pal/tools: 
 
-```janhenke@freebsd-frankfurt:~ % ~/coreclr/src/pal/tools/freebsd-install-lldb.sh```
+```
+janhenke@freebsd-frankfurt:~ % ~/coreclr/src/pal/tools/freebsd-install-lldb.sh
+```
 
 Note: LLDB will run su in order to install the LLDB build to /usr/local/include. 
 
 (Optional) If you wish to run sudo instead of su, you can change line 29-31 to:
 
-```sudo $NINJA lldb install```
+```
+sudo $NINJA lldb install
+```
 
 
 You now have all the required components to debug CoreCLR installed.
@@ -114,7 +122,7 @@ For the purposes of Hello World, you need to copy over both `bin\Linux.AnyCPU.De
 
 After you've done these steps, the runtime directory on FreeBSD should look like this:
 
-```
+```bash
 janhenke@freebsd-frankfurt:~/git/coreclr % ls ~/coreclr-demo/runtime/
 System.Console.dll  System.Diagnostics.Debug.dll  corerun  libcoreclr.so  libcoreclrpal.so  mscorlib.dll
 ```
@@ -126,7 +134,7 @@ The rest of the assemblies you need to run are presently just facades that point
 
 Create a folder for the packages:
 
-```
+```bash
 janhenke@freebsd-frankfurt:~/git/coreclr % mkdir ~/coreclr-demo/packages
 janhenke@freebsd-frankfurt:~/git/coreclr % cd ~/coreclr-demo/packages
 ```
@@ -136,7 +144,7 @@ Install Mono
 
 If you don't already have Mono installed on your system, use the pkg tool again:
 
-```
+```bash
 janhenke@freebsd-frankfurt:~/coreclr-demo/packages % sudo pkg install mono
 ```
 
@@ -145,7 +153,7 @@ Download the NuGet Client
 
 Grab NuGet (if you don't have it already)
 
-```
+```bash
 janhenke@freebsd-frankfurt:~/coreclr-demo/packages % curl -L -O https://nuget.org/nuget.exe
 ```
 Download NuGet Packages
@@ -155,7 +163,7 @@ With Mono and NuGet in hand, you can use NuGet to get the required dependencies.
 
 Make a `packages.config` file with the following text. These are the required dependencies of this particular app. Different apps will have different dependencies and require a different `packages.config` - see [Issue #480](https://github.com/dotnet/coreclr/issues/480).
 
-```
+```xml
 <?xml version="1.0" encoding="utf-8"?>
 <packages>
   <package id="System.Console" version="4.0.0-beta-22703" />
@@ -176,24 +184,23 @@ Make a `packages.config` file with the following text. These are the required de
   <package id="System.Threading" version="4.0.10-beta-22703" />
   <package id="System.Threading.Tasks" version="4.0.10-beta-22703" />
 </packages>
-
 ```
 
 And restore your packages.config file:
 
-```
+```bash
 janhenke@freebsd-frankfurt:~/coreclr-demo/packages % mono nuget.exe restore -Source https://www.myget.org/F/dotnet-corefx/ -PackagesDirectory .
 ```
 
 NOTE: This assumes you already installed the default CA certs. If you have problems downloading the packages please see [Issue #602](https://github.com/dotnet/coreclr/issues/602#issuecomment-88203778). The command for FreeBSD is:
 
-```
+```bash
 janhenke@freebsd-frankfurt:~/coreclr-demo/packages % mozroots --import --sync
 ```
 
 Finally, you need to copy over the assemblies to the runtime folder.  You don't want to copy over System.Console.dll or System.Diagnostics.Debug however, since the version from NuGet is the Windows version.  The easiest way to do this is with a little find magic:
 
-```
+```bash
 janhenke@freebsd-frankfurt:~/coreclr-demo/packages % find . -wholename '*/aspnetcore50/*.dll' -exec cp -n {} ~/coreclr-demo/runtime \;
 ```
 
@@ -202,14 +209,14 @@ Compile an App
 
 Now you need a Hello World application to run.  You can write your own, if you'd like.  Personally, I'm partial to the one on corefxlab which will draw Tux for us.
 
-```
+```bash
 janhenke@freebsd-frankfurt:~/coreclr-demo/packages % cd ~/coreclr-demo/runtime
 janhenke@freebsd-frankfurt:~/coreclr-demo/runtime % curl -O https://raw.githubusercontent.com/dotnet/corefxlab/master/demos/CoreClrConsoleApplications/HelloWorld/HelloWorld.cs
 ```
 
 Then you just need to build it, with `mcs`, the Mono C# compiler. FYI: The Roslyn C# compiler will soon be available on FreeBSD.  Because you need to compile the app against the .NET Core surface area, you need to pass references to the contract assemblies you restored using NuGet:
 
-```
+```bash
 janhenke@freebsd-frankfurt:~/coreclr-demo/runtime % mcs /nostdlib /noconfig /r:../packages/System.Console.4.0.0-beta-22703/lib/contract/System.Console.dll /r:../packages/System.Runtime.4.0.20-beta-22703/lib/contract/System.Runtime.dll HelloWorld.cs
 ```
 
@@ -218,7 +225,7 @@ Run your App
 
 You're ready to run Hello World!  To do that, run corerun, passing the path to the managed exe, plus any arguments.  The HelloWorld from corefxlab will print a daemon if you pass "freebsd" as an argument, so:
 
-```
+```bash
 janhenke@freebsd-frankfurt:~/coreclr-demo/runtime % ./corerun HelloWorld.exe freebsd
 ```
 

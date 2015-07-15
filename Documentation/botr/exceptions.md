@@ -25,13 +25,15 @@ EX_TRY
 
 The basic macros are, of course, EX_TRY / EX_CATCH / EX_END_CATCH, and in use they look like this:
 
-    EX_TRY
-      // Call some function.  Maybe it will throw an exception. 
-      Bar();
-    EX_CATCH 
-      // If we're here, something failed. 
-      m_finalDisposition = terminallyHopeless; 
-    EX_END_CATCH(RethrowTransientExceptions) 
+```c++
+EX_TRY
+    // Call some function.  Maybe it will throw an exception.
+    Bar();
+EX_CATCH
+    // If we're here, something failed.
+    m_finalDisposition = terminallyHopeless;
+EX_END_CATCH(RethrowTransientExceptions)
+```
 
 The EX_TRY macro simply introduces the try block, and is much like the C++ "try", except that it also includes an opening brace, "{".
 
@@ -59,25 +61,31 @@ So, given these features, how does the CLR developer categorize an exception?
 
 Frequently, all that is needed to categorize is the HRESULT that corresponds to the exception, and this is extremely easy to get:
 
-    HRESULT hr = GET_EXCEPTION()->GetHR();
+```c++
+HRESULT hr = GET_EXCEPTION()->GetHR();
+```
 
 More information is often most conveniently available through the managed exception object. And if the exception will be delivered back to managed code, whether immediately, or cached for later, the managed object is, of course, required. And the exception object is just as easy to get. Of course, it is a managed objectref, so all the usual rules apply:
 
-    OBJECTREF throwable = NULL;
-    GCPROTECT_BEGIN(throwable);
-    // . . .
-    EX_TRY
-        // . . . do something that might throw
-    EX_CATCH
-        throwable = GET_THROWABLE();
-    EX_END_CATCH(RethrowTransientExceptions)
-    // . . . do something with throwable
-    GCPROTECT_END()
+```c++
+OBJECTREF throwable = NULL;
+GCPROTECT_BEGIN(throwable);
+// . . .
+EX_TRY
+    // . . . do something that might throw
+EX_CATCH
+    throwable = GET_THROWABLE();
+EX_END_CATCH(RethrowTransientExceptions)
+// . . . do something with throwable
+GCPROTECT_END()
+```
 
 Sometimes, there is no avoiding a need for the C++ exception object, though this is mostly inside the exception implementation. If it is important exactly what the C++ exception type is, there is a set of lightweight RTTI-like functions that help categorize exceptions. For instance,
 
-    Exception *pEx = GET_EXCEPTION();
-    if (pEx->IsType(CLRException::GetType())) {/* ... */}
+```c++
+Exception *pEx = GET_EXCEPTION();
+if (pEx->IsType(CLRException::GetType())) {/* ... */}
+```
 
 would tell whether the exception is (or derives from) CLRException.
 
@@ -110,12 +118,14 @@ If an EX_CATCH / EX_END_CATCH block has properly categorized its exceptions, and
 
 Sometimes all that is needed is the HRESULT corresponding to an exception, particularly when the code is in an interface from COM. For these cases, EX_CATCH_HRESULT is simpler than writing a while EX_CATCH block. A typical case would look like this:
 
-    HRESULT hr;
-    EX_TRY
-      // code
-    EX_CATCH_HRESULT (hr)
+```c++
+HRESULT hr;
+EX_TRY
+  // code
+EX_CATCH_HRESULT (hr)
 
-    return hr;
+return hr;
+```
 
 _However, while very tempting, it is not always correct_. The EX_CATCH_HRESULT catches all exceptions, saves the HRESULT, and swallows the exception. So, unless that exception swallowing is what the function really needs, EX_CATCH_HRESULT is not appropriate.
 
@@ -134,11 +144,13 @@ EX_TRY_FOR_FINALLY
 
 When there is a need for some sort of compensating action as code exits, a finally may be appropriate. There is a set of macros to implement a try/finally in the CLR:
 
-    EX_TRY_FOR_FINALLY
-      // code
-    EX_FINALLY
-      // exit and/or backout code
-    EX_END_FINALLY
+```c++
+EX_TRY_FOR_FINALLY
+    // code
+EX_FINALLY
+    // exit and/or backout code
+EX_END_FINALLY
+```
 
 **Important** : The EX_TRY_FOR_FINALLY macros are built with SEH, rather than C++ EH, and the C++ compiler doesn't allow SEH and C++ EH to be mixed in the same function. Locals with auto-destructors require C++ EH for their destructor to run. Therefore, any function with EX_TRY_FOR_FINALLY can't have EX_TRY, and can't have any local variable with an auto-destructor.
 
@@ -147,11 +159,13 @@ EX_HOOK
 
 Frequently there is a need for compensating code, but only when an exception is thrown. For these cases, EX_HOOK is similar to EX_FINALLY, but the "hook" clause only runs when there is an exception. The exception is automatically rethrown at the end of the "hook" clause.
 
-    EX_TRY
-      // code
-    EX_HOOK
-      // code to run when an exception escapes the “code” block.
-    EX_END_HOOK
+```c++
+EX_TRY
+    // code
+EX_HOOK
+    // code to run when an exception escapes the “code” block.
+EX_END_HOOK
+```
 
 This construct is somewhat better than simply EX_CATCH with EX_RETHROW, because it will rethrow a non-stack-overflow, but will catch a stack overflow exception (and unwind the stack) and then throw a new stack overflow exception.
 
@@ -160,7 +174,9 @@ Throwing an Exception
 
 Throwing an Exception in the CLR is generally a matter of calling
 
-    COMPlusThrow ( < args > )
+```c++
+COMPlusThrow ( < args > )
+```
 
 There are a number of overloads, but the idea is to pass the "kind" of the exception to COMPlusThrow. The list of "kinds" is generated by a set of macros operating on [Rexcep.h](https://github.com/dotnet/coreclr/blob/master/src/vm/rexcep.h), and the various "kinds" are kAmbiguousMatchException, kApplicationException, and so forth. Additional arguments (for the overloads) specify resources and substitution text. Generally, the right "kind" is selected by looking for other code that reports a similar error.
 
@@ -273,21 +289,25 @@ The current solution is to wrap the call to external code in a "callout filter".
 
 To use the callout filter, instead of this:
 
-    length = SysStringLen(pBSTR);
+```c++
+length = SysStringLen(pBSTR);
+```
 
 write this:
 
-    BOOL OneShot = TRUE;
+```c++
+BOOL OneShot = TRUE;
 
-    PAL_TRY
-    {
-      length = SysStringLen(pBSTR);
-    }
-    PAL_EXCEPT_FILTER(CallOutFilter, &OneShot)
-    {
-      _ASSERTE(!"CallOutFilter returned EXECUTE_HANDLER.");
-    }
-    PAL_ENDTRY;
+PAL_TRY
+{
+  length = SysStringLen(pBSTR);
+}
+PAL_EXCEPT_FILTER(CallOutFilter, &OneShot)
+{
+  _ASSERTE(!"CallOutFilter returned EXECUTE_HANDLER.");
+}
+PAL_ENDTRY;
+```
 
 A missing callout filter on a call that raises an exception will always result in the wrong exception being reported in the runtime. The type that is incorrectly reported isn't even always deterministic; if there is already some managed exception "in flight", then that managed exception is what will be reported. If there is no current exception, then OOM will be reported. On a checked build there are asserts that usually fire for a missing callout filter. These assert messages will include the text "The runtime may have lost track of the type of an exception".
 
