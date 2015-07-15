@@ -33,7 +33,9 @@ CoreCLR has a dependency on CMake for the build. You can download it from [CMake
 
 Alternatively, you can install CMake from [Homebrew](http://brew.sh/).
 
-    dotnet-mbp:~ richlander$ brew install cmake
+```sh
+dotnet-mbp:~ richlander$ brew install cmake
+```
 
 Mono
 ----
@@ -45,16 +47,20 @@ Demo directory
 
 In order to keep everything tidy, create a new directory for all the files that you will build or acquire.
 
-    dotnet-mbp:~ richlander$ mkdir -p ~/coreclr-demo/runtime
-    dotnet-mbp:~ richlander$ mkdir -p ~/coreclr-demo/packages
-    dotnet-mbp:~ richlander$ cd ~/coreclr-demo/
+```sh
+dotnet-mbp:~ richlander$ mkdir -p ~/coreclr-demo/runtime
+dotnet-mbp:~ richlander$ mkdir -p ~/coreclr-demo/packages
+dotnet-mbp:~ richlander$ cd ~/coreclr-demo/
+```
 
 NuGet
 -----
 
 NuGet is required to acquire any .NET assembly dependency that is not built by these instructions.
 
-    dotnet-mbp:coreclr-demo richlander$ curl -L -O https://nuget.org/nuget.exe
+```sh
+dotnet-mbp:coreclr-demo richlander$ curl -L -O https://nuget.org/nuget.exe
+```
 
 Build CoreCLR
 =============
@@ -63,7 +69,7 @@ To Build CoreCLR, run build.sh from the root of the coreclr repo.
 
     dotnet-mbp:~ richlander$ cd ~/git/coreclr
     dotnet-mbp:coreclr richlander$ ./build.sh
-
+    
     [Lots of stuff before this]
     Repo successfully built.
     Product binaries are available at /Users/richlander/git/coreclr/bin/Product/OSX.x64.Debug
@@ -73,7 +79,9 @@ Type `./build.sh -?` to see the full set of build options.
 
 Check the build output.
 
-    dotnet-mbp:coreclr richlander$ ls bin/Product/OSX.x64.Debug/
+```sh
+dotnet-mbp:coreclr richlander$ ls bin/Product/OSX.x64.Debug/
+```
 
 You will see several files. The interesting ones are:
 
@@ -82,8 +90,10 @@ You will see several files. The interesting ones are:
 
 Copy the runtime and corerun into the demo directory.
 
-    dotnet-mbp:coreclr richlander$ cp bin/Product/OSX.x64.Debug/corerun ~/coreclr-demo/runtime/
-    dotnet-mbp:coreclr richlander$ cp bin/Product/OSX.x64.Debug/libcoreclr.dylib ~/coreclr-demo/runtime/
+```sh
+dotnet-mbp:coreclr richlander$ cp bin/Product/OSX.x64.Debug/corerun ~/coreclr-demo/runtime/
+dotnet-mbp:coreclr richlander$ cp bin/Product/OSX.x64.Debug/libcoreclr.dylib ~/coreclr-demo/runtime/
+```
 
 Build the Framework
 ===================
@@ -136,69 +146,81 @@ The rest of the assemblies you need to run are presently just facades that point
 
 Make a `packages/packages.config` file with the following text. These are the required dependencies of this particular app. Different apps will have different dependencies and require a different `packages.config` - see [Issue #480](https://github.com/dotnet/coreclr/issues/480).
 
-    <?xml version="1.0" encoding="utf-8"?>
-    <packages>
-      <package id="System.Console" version="4.0.0-beta-22703" />
-      <package id="System.Diagnostics.Contracts" version="4.0.0-beta-22703" />
-      <package id="System.Diagnostics.Debug" version="4.0.10-beta-22703" />
-      <package id="System.Diagnostics.Tools" version="4.0.0-beta-22703" />
-      <package id="System.Globalization" version="4.0.10-beta-22703" />
-      <package id="System.IO" version="4.0.10-beta-22703" />
-      <package id="System.IO.FileSystem.Primitives" version="4.0.0-beta-22703" />
-      <package id="System.Reflection" version="4.0.10-beta-22703" />
-      <package id="System.Resources.ResourceManager" version="4.0.0-beta-22703" />
-      <package id="System.Runtime" version="4.0.20-beta-22703" />
-      <package id="System.Runtime.Extensions" version="4.0.10-beta-22703" />
-      <package id="System.Runtime.Handles" version="4.0.0-beta-22703" />
-      <package id="System.Runtime.InteropServices" version="4.0.20-beta-22703" />
-      <package id="System.Text.Encoding" version="4.0.10-beta-22703" />
-      <package id="System.Text.Encoding.Extensions" version="4.0.10-beta-22703" />
-      <package id="System.Threading" version="4.0.10-beta-22703" />
-      <package id="System.Threading.Tasks" version="4.0.10-beta-22703" />
-    </packages>
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<packages>
+  <package id="System.Console" version="4.0.0-beta-22703" />
+  <package id="System.Diagnostics.Contracts" version="4.0.0-beta-22703" />
+  <package id="System.Diagnostics.Debug" version="4.0.10-beta-22703" />
+  <package id="System.Diagnostics.Tools" version="4.0.0-beta-22703" />
+  <package id="System.Globalization" version="4.0.10-beta-22703" />
+  <package id="System.IO" version="4.0.10-beta-22703" />
+  <package id="System.IO.FileSystem.Primitives" version="4.0.0-beta-22703" />
+  <package id="System.Reflection" version="4.0.10-beta-22703" />
+  <package id="System.Resources.ResourceManager" version="4.0.0-beta-22703" />
+  <package id="System.Runtime" version="4.0.20-beta-22703" />
+  <package id="System.Runtime.Extensions" version="4.0.10-beta-22703" />
+  <package id="System.Runtime.Handles" version="4.0.0-beta-22703" />
+  <package id="System.Runtime.InteropServices" version="4.0.20-beta-22703" />
+  <package id="System.Text.Encoding" version="4.0.10-beta-22703" />
+  <package id="System.Text.Encoding.Extensions" version="4.0.10-beta-22703" />
+  <package id="System.Threading" version="4.0.10-beta-22703" />
+  <package id="System.Threading.Tasks" version="4.0.10-beta-22703" />
+</packages>
+```
 
 And restore your packages.config file:
 
-    dotnet-mbp:~ richlander$ cd ~/coreclr-demo
-    dotnet-mbp:coreclr-demo richlander$ mono nuget.exe restore packages/packages.config -Source https://www.myget.org/F/dotnet-corefx/ -PackagesDirectory packages
+```sh
+dotnet-mbp:~ richlander$ cd ~/coreclr-demo
+dotnet-mbp:coreclr-demo richlander$ mono nuget.exe restore packages/packages.config -Source https://www.myget.org/F/dotnet-corefx/ -PackagesDirectory packages
+```
 
 Finally, you need to copy the assemblies over to the runtime folder.  You don't want to copy over System.Console.dll or System.Diagnostics.Debug however, since the version from NuGet is the Windows version.  The easiest way to do this is with a little find magic:
 
-    dotnet-mbp:coreclr-demo richlander$ find . -wholename '*/aspnetcore50/*.dll' -exec cp -n {} ~/coreclr-demo/runtime \;
+```sh
+dotnet-mbp:coreclr-demo richlander$ find . -wholename '*/aspnetcore50/*.dll' -exec cp -n {} ~/coreclr-demo/runtime \;
+```
 
 Compile an App
 ==============
 
 Now you need a Hello World application to run.  You can write your own, if you'd like. Here's a very simple one:
 
-    using System;
+```c#
+using System;
 
-    public class Program
+public class Program
+{
+    public static void Main (string[] args)
     {
-        public static void Main (string[] args)
-        {
-            Console.WriteLine("Hello, OS X");
-            Console.WriteLine("Love from CoreCLR.");
-        }   
-    } 
+        Console.WriteLine("Hello, OS X");
+        Console.WriteLine("Love from CoreCLR.");
+    }
+}
+```
 
 Personally, I'm partial to the one on corefxlab which will print a  picture for you.
 
-    dotnet-mbp:coreclr-demo richlander$ curl -O https://raw.githubusercontent.com/dotnet/corefxlab/master/demos/CoreClrConsoleApplications/HelloWorld/HelloWorld.cs
-
+```sh
+dotnet-mbp:coreclr-demo richlander$ curl -O https://raw.githubusercontent.com/dotnet/corefxlab/master/demos/CoreClrConsoleApplications/HelloWorld/HelloWorld.cs
+```
 
 Then you just need to build it, with `mcs`, the Mono C# compiler. FYI: The Roslyn C# compiler will soon be available on OS X.  Because you need to compile the app against the .NET Core surface area, you need to pass references to the contract assemblies you restored using NuGet:
 
-    dotnet-mbp:coreclr-demo richlander$ mcs /nostdlib /noconfig /r:packages/System.Console.4.0.0-beta-22703/lib/contract/System.Console.dll /r:packages/System.Runtime.4.0.20-beta-22703/lib/contract/System.Runtime.dll -out:runtime/HelloWorld.exe HelloWorld.cs 
+```sh
+dotnet-mbp:coreclr-demo richlander$ mcs /nostdlib /noconfig /r:packages/System.Console.4.0.0-beta-22703/lib/contract/System.Console.dll /r:packages/System.Runtime.4.0.20-beta-22703/lib/contract/System.Runtime.dll -out:runtime/HelloWorld.exe HelloWorld.cs 
+```
 
 Run your App
 ============
 
 You're ready to run Hello World!  To do that, run corerun, passing the path to the managed exe, plus any arguments.  The HelloWorld from corefxlab will print a special fruit if you pass "mac" as an argument, so:
 
-    dotnet-mbp:coreclr-demo richlander$ cd runtime/
-    dotnet-mbp:runtime richlander$ ./corerun HelloWorld.exe mac
-
+```sh
+dotnet-mbp:coreclr-demo richlander$ cd runtime/
+dotnet-mbp:runtime richlander$ ./corerun HelloWorld.exe mac
+```
 
 Over time, this process will get easier. We will remove the dependency on having to compile managed code on Windows. For example, we are working to get our NuGet packages to include  Windows, Linux and OS X versions of an assembly, so you can simply nuget restore the dependencies. 
 

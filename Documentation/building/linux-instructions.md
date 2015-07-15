@@ -28,7 +28,7 @@ Install the following packages for the toolchain:
 
 In order to get lldb-3.6 on Ubuntu 14.04, we need to add an additional package source:
 
-```
+```bash
 ellismg@linux:~$ echo "deb http://llvm.org/apt/trusty/ llvm-toolchain-trusty-3.6 main" | sudo tee /etc/apt/sources.list.d/llvm.list
 ellismg@linux:~$ wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key | sudo apt-key add -
 ellismg@linux:~$ sudo apt-get update
@@ -36,7 +36,9 @@ ellismg@linux:~$ sudo apt-get update
 
 Then install the packages you need:
 
-`ellismg@linux:~$ sudo apt-get install cmake llvm-3.5 clang-3.5 lldb-3.6 lldb-3.6-dev libunwind8 libunwind8-dev gettext`
+```bash
+ellismg@linux:~$ sudo apt-get install cmake llvm-3.5 clang-3.5 lldb-3.6 lldb-3.6-dev libunwind8 libunwind8-dev gettext
+```
 
 You now have all the required components.
 
@@ -50,7 +52,7 @@ Build the Runtime
 
 To build the runtime on Linux, run build.sh from the root of the coreclr repository:
 
-```
+```bash
 ellismg@linux:~/git/coreclr$ ./build.sh
 ```
 
@@ -61,7 +63,7 @@ After the build is completed, there should some files placed in `bin/Product/Lin
 
 In order to keep everything tidy, let's create a new directory for the runtime and copy the runtime and corerun into it.
 
-```
+```bash
 ellismg@linux:~/git/coreclr$ mkdir -p ~/coreclr-demo/runtime
 ellismg@linux:~/git/coreclr$ cp bin/Product/Linux.x64.Debug/corerun ~/coreclr-demo/runtime
 ellismg@linux:~/git/coreclr$ cp bin/Product/Linux.x64.Debug/libcoreclr.so ~/coreclr-demo/runtime
@@ -92,7 +94,7 @@ For the purposes of Hello World, you need to copy over both `bin\Linux.AnyCPU.De
 
 After you've done these steps, the runtime directory on Linux should look like this:
 
-```
+```bash
 matell@linux:~$ ls ~/coreclr-demo/runtime/
 corerun  libcoreclr.so  mscorlib.dll  System.Console.dll  System.Diagnostics.Debug.dll
 ```
@@ -109,7 +111,7 @@ If you don't already have Mono installed on your system, use the [installation i
 
 At a high level, you do the following:
 
-```
+```bash
 ellismg@linux:~$ sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF
 ellismg@linux:~$ echo "deb http://download.mono-project.com/repo/debian wheezy main" | sudo tee /etc/apt/sources.list.d/mono-xamarin.list
 ellismg@linux:~$ sudo apt-get update
@@ -121,7 +123,7 @@ Download the NuGet Client
 
 Grab NuGet (if you don't have it already)
 
-```
+```bash
 ellismg@linux:~/coreclr-demo/packages$ curl -L -O https://nuget.org/nuget.exe
 ```
 Download NuGet Packages
@@ -129,14 +131,14 @@ Download NuGet Packages
 
 With Mono and NuGet in hand, you can use NuGet to get the required dependencies.  Place all the NuGet packages together:
 
-```
+```bash
 ellismg@linux:~$ mkdir ~/coreclr-demo/packages
 ellismg@linux:~$ cd ~/coreclr-demo/packages
 ```
 
 Make a `packages.config` file with the following text. These are the required dependencies of this particular app. Different apps will have different dependencies and require a different `packages.config` - see [Issue #480](https://github.com/dotnet/coreclr/issues/480).
 
-```
+```xml
 <?xml version="1.0" encoding="utf-8"?>
 <packages>
   <package id="System.Console" version="4.0.0-beta-22703" />
@@ -157,12 +159,11 @@ Make a `packages.config` file with the following text. These are the required de
   <package id="System.Threading" version="4.0.10-beta-22703" />
   <package id="System.Threading.Tasks" version="4.0.10-beta-22703" />
 </packages>
-
 ```
 
 And restore your packages.config file:
 
-```
+```bash
 ellismg@linux:~/coreclr-demo/packages$ mono nuget.exe restore -Source https://www.myget.org/F/dotnet-corefx/ -PackagesDirectory .
 ```
 
@@ -170,7 +171,7 @@ NOTE: This assumes you installed Mono from the mono-project.com packages. If you
 
 Finally, you need to copy over the assemblies to the runtime folder.  You don't want to copy over System.Console.dll or System.Diagnostics.Debug however, since the version from NuGet is the Windows version.  The easiest way to do this is with a little find magic:
 
-```
+```bash
 ellismg@linux:~/coreclr-demo/packages$ find . -wholename '*/aspnetcore50/*.dll' -exec cp -n {} ~/coreclr-demo/runtime \;
 ```
 
@@ -179,14 +180,14 @@ Compile an App
 
 Now you need a Hello World application to run.  You can write your own, if you'd like.  Personally, I'm partial to the one on corefxlab which will draw Tux for us.
 
-```
+```bash
 ellismg@linux:~$ cd ~/coreclr-demo/runtime
 ellismg@linux:~/coreclr-demo/runtime$ curl -O https://raw.githubusercontent.com/dotnet/corefxlab/master/demos/CoreClrConsoleApplications/HelloWorld/HelloWorld.cs
 ```
 
 Then you just need to build it, with `mcs`, the Mono C# compiler. FYI: The Roslyn C# compiler will soon be available on Linux.  Because you need to compile the app against the .NET Core surface area, you need to pass references to the contract assemblies you restored using NuGet:
 
-```
+```bash
 ellismg@linux:~/coreclr-demo/runtime$ mcs /nostdlib /noconfig /r:../packages/System.Console.4.0.0-beta-22703/lib/contract/System.Console.dll /r:../packages/System.Runtime.4.0.20-beta-22703/lib/contract/System.Runtime.dll HelloWorld.cs
 ```
 
@@ -195,7 +196,7 @@ Run your App
 
 You're ready to run Hello World!  To do that, run corerun, passing the path to the managed exe, plus any arguments.  The HelloWorld from corefxlab will print Tux if you pass "linux" as an argument, so:
 
-```
+```bash
 ellismg@linux:~/coreclr-demo/runtime$ ./corerun HelloWorld.exe linux
 ```
 
