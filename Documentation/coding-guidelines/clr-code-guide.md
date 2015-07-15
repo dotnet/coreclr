@@ -64,18 +64,20 @@ A GC hole occurs when code inside the CLR creates a reference to a GC object, ne
 
 The code fragment below is the simplest way to introduce a GC hole into the system.
 
-	//OBJECTREF is a typedef for Object*.
+```c++
+//OBJECTREF is a typedef for Object*.
 
-	{
-	     MethodTable *pMT = g_pObjectClass->GetMethodTable();
-
-	     OBJECTREF a = AllocateObject(pMT);
-	     OBJECTREF b = AllocateObject(pMT);
-
-	     //WRONG!!! "a" may point to garbage if the second
-	     //"AllocateObject" triggered a GC.
-	     DoSomething (a, b);
-	}
+{
+    MethodTable *pMT = g_pObjectClass->GetMethodTable();
+    
+    OBJECTREF a = AllocateObject(pMT);
+    OBJECTREF b = AllocateObject(pMT);
+    
+    //WRONG!!! "a" may point to garbage if the second
+    //"AllocateObject" triggered a GC.
+    DoSomething (a, b);
+}
+```
 
 All it does is allocate two managed objects, and then does something with them both.
 
@@ -89,20 +91,22 @@ This point is worth repeating. The GC has no intrinsic knowledge of root referen
 
 Here's how to fix our buggy code fragment.
 
-	#include "frames.h"
-	{
-	     MethodTable *pMT = g_pObjectClass->GetMethodTable();
+```c++
+#include "frames.h"
+{
+    MethodTable *pMT = g_pObjectClass->GetMethodTable();
 
-	    //RIGHT
-	    OBJECTREF a = AllocateObject(pMT);
+    //RIGHT
+    OBJECTREF a = AllocateObject(pMT);
 
-	    GCPROTECT_BEGIN(a);
-	    OBJECTREF b = AllocateObject(pMT);
+    GCPROTECT_BEGIN(a);
+    OBJECTREF b = AllocateObject(pMT);
 
-	    DoSomething (a, b);
+    DoSomething (a, b);
 
-	    GCPROTECT_END();
-	}
+    GCPROTECT_END();
+}
+```
 
 Notice the addition of the line GCPROTECT_BEGIN(a). GCPROTECT_BEGIN is a macro whose argument is any OBJECTREF-typed storage location (it has to be an expression that can you can legally apply the address-of (&) operator to.) GCPROTECT_BEGIN tells the GC two things:
 
@@ -129,25 +133,29 @@ Why is GCPROTECT not implemented via a C++ smart pointer? The GCPROTECT macro or
 
 The following is illegal and will cause some sort of crash:
 
-	// WRONG: Can't GCPROTECT twice.
-	OBJECTREF a = AllocateObject(...);
-	GCPROTECT_BEGIN(a);
-	GCPROTECT_BEGIN(a);
+```c++
+// WRONG: Can't GCPROTECT twice.
+OBJECTREF a = AllocateObject(...);
+GCPROTECT_BEGIN(a);
+GCPROTECT_BEGIN(a);
+```
 
 It'd be nice if the GC was robust enough to ignore the second, unnecessary GCPROTECT but I've been assured many times that this isn't possible.
 
 Don't confuse the reference with a copy of the reference. It's not illegal to protect the same reference twice. What is illegal is protecting the same _copy_ of the reference twice. Hence, the following is legal:
 
-	OBJECTREF a = AllocateObject(...);
-	GCPROTECT_BEGIN(a);
-	DoSomething(a);
-	GCPROTECT_END();
+```c++
+OBJECTREF a = AllocateObject(...);
+GCPROTECT_BEGIN(a);
+DoSomething(a);
+GCPROTECT_END();
 
-	void DoSomething(OBJECTREF a)
-	{
-	    GCPROTECT_BEGIN(a);
-	    GCPROTECT_END();
-	}
+void DoSomething(OBJECTREF a)
+{
+    GCPROTECT_BEGIN(a);
+    GCPROTECT_END();
+}
+```
 
 ### Protecting multiple OBJECTREF's.
 
@@ -166,25 +174,27 @@ Handles are implemented through several layers of abstraction – the "official"
 
 The following code fragment shows how handles are used. In practice, of course, people use GCPROTECT rather than handles for situations this simple.
 
-	{
-	    MethodTable *pMT = g_pObjectClass->GetMethodTable();
+```c++
+{
+    MethodTable *pMT = g_pObjectClass->GetMethodTable();
 
-	    //Another way is to use handles. Handles would be
-	    // wasteful for a case this simple but are useful
-	    // if you need to protect something for the long
-	    // term.
-	    OBJECTHANDLE ah;
-	    OBJECTHANDLE bh;
+    //Another way is to use handles. Handles would be
+    // wasteful for a case this simple but are useful
+    // if you need to protect something for the long
+    // term.
+    OBJECTHANDLE ah;
+    OBJECTHANDLE bh;
 
-	    ah = CreateHandle(AllocateObject(pMT));
-	    bh = CreateHandle(AllocateObject(pMT));
+    ah = CreateHandle(AllocateObject(pMT));
+    bh = CreateHandle(AllocateObject(pMT));
 
-	    DoSomething (ObjectFromHandle(ah),
-	                 ObjectFromhandle(bh));
+    DoSomething (ObjectFromHandle(ah),
+                 ObjectFromhandle(bh));
 
-	    DestroyHandle(bh);
-	    DestroyHandle(ah);
-	}
+    DestroyHandle(bh);
+    DestroyHandle(ah);
+}
+```
 
 There are actually several flavors of handles. This section lists the most common ones. ([objecthandle.h][objecthandle.h] contains the complete list.)
 
@@ -205,17 +215,21 @@ Consider two possible ways to schedule GC:
 
 Both have their strengths and drawbacks. Preemptive mode sounds attractive and efficient except for one thing: it completely breaks our previously discussed GC-protection mechanism. Consider the following code fragment:
 
-	OBJECTREF a = AllocateObject(...)
-	GCPROTECT_BEGIN(a);
-	DoSomething(a);
+```c++
+OBJECTREF a = AllocateObject(...)
+GCPROTECT_BEGIN(a);
+DoSomething(a);
+```
 
 Now, while the compiler can generate any valid code for this, it's very likely it will look something like this:
 
-	call	AllocateObject
-	mov	[A],eax  ;;store result in "a"
-	... code for GCPROTECT_BEGIN omitted...
-	push	[A]        ;push argument to DoSomething
-	call	DoSomething
+```nasm
+call	AllocateObject
+mov	    [A],eax    ;store result in "a"
+... code for GCPROTECT_BEGIN omitted...
+push	[A]        ;push argument to DoSomething
+call	DoSomething
+```
 
 This is supposed to be work correctly in every case, according to the semantics of GCPROTECT. However, suppose just after the "push" instruction, another thread gets the time-slice, starts a GC and moves the object A. The local variable A will be correctly updated – but the copy of A which we just pushed as an argument to DoSomething() will not. Hence, DoSomething() will receive a pointer to the old location and crash. Clearly, preemptive GC alone will not suffice for the CLR.
 
@@ -231,10 +245,12 @@ While you are running in preemptive mode, OBJECTREF's are strictly hands-off; th
 
 **Setting the GC mode:** The preferred way to set the GC mode are the GCX_COOP and GCX_PREEMP macros. These macros operate as holders. That is, you declare them at the start of the block of code you want to execute in a certain mode. Upon any local or non-local exit out of that scope, a destructor automatically restores the original mode.
 
-	{ // always open a new C++ scope to switch modes
-	    GCX_COOP();
-	    Code you want run in cooperative mode
-	} // leaving scope automatically restores original mode
+```c++
+{ // always open a new C++ scope to switch modes
+    GCX_COOP();
+    Code you want run in cooperative mode
+} // leaving scope automatically restores original mode
+```
 
 It's perfectly legal to invoke GCX_COOP() when the thread is already in cooperative mode. GCX_COOP will be a NOP in that case. Likewise for GCX_PREEMP.
 
@@ -249,18 +265,22 @@ There are a couple of variants for special situations:
 
 To switch modes multiple times in a function, you must introduce a new scope for each switch. You can also call GCX_POP(), which performs a mode restore prior to the end of the scope. (The mode restore will happen again at the end of the scope, however. Since mode restore is idempotent, this shouldn't matter.) Do not, however, do this:
 
-	{
-	     GCX_COOP();
-	     ...
-	     GCX_PREEMP():	//WRONG!
-	}
+```c++
+{
+     GCX_COOP();
+     ...
+     GCX_PREEMP():	//WRONG!
+}
+```
 
 You will get a compile error due to a variable being redeclared in the same scope.
 
 While the holder-based macros are the preferred way to switch modes, sometimes one needs to leave a mode changed beyond the end of the scope. For those situations, you may use the "raw" unscoped functions:
 
-	GetThread()->DisablePreemptiveGC();   // switch to cooperative mode
-	GetThread()->EnablePreemptiveGC();	// switch to preemptive mode
+```c++
+GetThread()->DisablePreemptiveGC();   // switch to cooperative mode
+GetThread()->EnablePreemptiveGC();	// switch to preemptive mode
+```
 
 There is no automatic mode-restore with these functions so the onus is on you to manage the lifetime of the mode. Also, mode changes cannot be nested. You will get an assert if you try to change to a mode you're already in. The "this" argument must be the currently executing thread. You cannot use this to change the mode of another thread.
 
@@ -270,27 +290,31 @@ There is no automatic mode-restore with these functions so the onus is on you to
 
 You can assert the need to be in a particular mode in the contract by using one of the following:
 
-	CONTRACTL
-	{
-	    MODE_COOPERATIVE
-	}
-	CONTRACTL_END
+```c++
+CONTRACTL
+{
+    MODE_COOPERATIVE
+}
+CONTRACTL_END
 
-	CONTRACTL
-	{
-	    MODE_PREEMPTIVE
-	}
-	CONTRACTL_END
+CONTRACTL
+{
+    MODE_PREEMPTIVE
+}
+CONTRACTL_END
+```
 
 There are also standalone versions:
 
-	{
-	    GCX_ASSERT_COOP();
-	}
+```c++
+{
+    GCX_ASSERT_COOP();
+}
 
-	{
-	    GCX_ASSERT_PREEMP();
-	}
+{
+    GCX_ASSERT_PREEMP();
+}
+```
 
 You'll notice that the standalone versions are actually holders rather than simple statements. The intention was that these holders would assert again on scope exit to ensure that any backout holders are correctly restoring the mode. However, that exit check was disabled initially with the idea of enabling it eventually once all the backout code was clean. Unfortunately, the "eventually" has yet to arrive. As long as you use the GCX holders to manage mode changes, this shouldn't really be a problem.
 
@@ -300,8 +324,10 @@ The checked build inserts automatic sanity-checking every single time an OBJECTR
 
 Thus, the following code fragment:
 
-	OBJECTREF uninitialized;
-	DoSomething(uninitialized);
+```c++
+OBJECTREF uninitialized;
+DoSomething(uninitialized);
+```
 
 will produce the following assert:
 
@@ -311,40 +337,48 @@ This is because the default constructor for OBJECTREF initializes to 0xcccccccc.
 
 OBJECTREF's pointer mimicry isn't perfect. In certain cases, the checked build refuses to build legal-seeming constructs. We just have to work around this. A common case is casting an OBJECTREF to either a void* or a STRINGREF (we actually define a whole family of OBJECTREF-like pointers, for various interesting subclasses of objects.) The construct:
 
-	//WRONG
-	OBJECTREF o =  ...;
-	LPVOID pv = (LPVOID)o;
+```c++
+//WRONG
+OBJECTREF o =  ...;
+LPVOID pv = (LPVOID)o;
+```
 
 compiles fine under retail but breaks under checked. The usual workaround is something like this:
 
-	pv = (LPVOID)OBJECTREFToObject(o);
+```c++
+pv = (LPVOID)OBJECTREFToObject(o);
+```
 
 ### How to know if a function can trigger a GC.
 
 The GC behavior of every function in the source base must be documented in its contract. Every function must have a contract that declares one of the following:
 
-	// If you call me, assume a GC can happen
-	void Noisy()
-	{
-	    CONTRACTL
-	    {
-	        GC_TRIGGERS;
-	    }
-	    CONTRACTL_END
-	}
+```c++
+// If you call me, assume a GC can happen
+void Noisy()
+{
+    CONTRACTL
+    {
+        GC_TRIGGERS;
+    }
+    CONTRACTL_END
+}
+```
 
 or
 
-	// If you call me and the thread is in cooperative mode, I guarantee no GC
-	// will occur.
-	void Quiet()
-	{
-	    CONTRACTL
-	    {
-	        GC_NOTRIGGER;
-	    }
-	    CONTRACTL_END
-	}
+```c++
+// If you call me and the thread is in cooperative mode, I guarantee no GC
+// will occur.
+void Quiet()
+{
+    CONTRACTL
+    {
+        GC_NOTRIGGER;
+    }
+    CONTRACTL_END
+}
+```
 
 A GC_NOTRIGGER function cannot:
 
@@ -372,13 +406,15 @@ Why do we use GC_NOTRIGGERS rather than GC_FORBID? Because forcing every functio
 
 Sometimes you want to mark a scope rather than a function. For that purpose, GC_TRIGGERS and TRIGGERSGC also exist as standalone holders. These holders are also visible to the static contract scanner.
 
-	{
-	    TRIGGERSGC();
-	}
+```c++
+{
+    TRIGGERSGC();
+}
 
-	{
-	    GCX_NOTRIGGER();
-	}
+{
+    GCX_NOTRIGGER();
+}
+```
 
 One difference between the standalone TRIGGERSGC and the contract GC_TRIGGERS: the standalone version also performs a "phantom" GC that poisons all unreachable OBJECTREFs. The contract version does not do this mainly for checked build perf concerns.
 
@@ -400,30 +436,34 @@ The following shows explicit backout vs. holders:
 
 **Wrong**
 
-	HANDLE hFile = ClrCreateFile(szFileName, GENERIC_READ, ...);
-	if (hFile == INVALID_HANDLE_VALUE) {
-	    COMPlusThrow(...);
-	}
+```c++
+HANDLE hFile = ClrCreateFile(szFileName, GENERIC_READ, ...);
+if (hFile == INVALID_HANDLE_VALUE) {
+    COMPlusThrow(...);
+}
 
-	DWORD dwFileLen = SafeGetFileSize(hFile, 0);
-	if (dwFileLen == 0xffffffff) {
-	    CloseHandle(hFile);
-	    COMPlusThrow(...);
-	}
-	CloseHandle(hFile);
-	return S_OK;
+DWORD dwFileLen = SafeGetFileSize(hFile, 0);
+if (dwFileLen == 0xffffffff) {
+    CloseHandle(hFile);
+    COMPlusThrow(...);
+}
+CloseHandle(hFile);
+return S_OK;
+```
 
 **Right**
 
-	HandleHolder hFile(ClrCreateFile(szFileName, GENERIC_READ, ...));
-	if (hFile == INVALID_HANDLE_VALUE)
-	    COMPlusThrow(...);
+```c++
+HandleHolder hFile(ClrCreateFile(szFileName, GENERIC_READ, ...));
+if (hFile == INVALID_HANDLE_VALUE)
+    COMPlusThrow(...);
 
-	DWORD dwFileLen = SafeGetFileSize(hFile, 0);
-	if (dwFileLen == 0xffffffff)
-	    COMPlusThrow(...);
+DWORD dwFileLen = SafeGetFileSize(hFile, 0);
+if (dwFileLen == 0xffffffff)
+    COMPlusThrow(...);
 
-	return S_OK;
+return S_OK;
+```
 
 The difference is that hFile is now a HandleHolder rather than a HANDLE and that there are no more explicit CloseHandle calls. That call is now implicit in the holder's destructor and executes no matter how control leaves the scope.
 
@@ -433,28 +473,32 @@ Suppose you want to auto-close the handle if an error occurs but keep the handle
 
 **Wrong:**
 
-	HANDLE hFile = ClrCreateFile(szFileName, GENERIC_READ, ...);
-	if (hFile == INVALID_HANDLE_VALUE) {
-	    COMPlusThrow(...);
-	}
-	if (FAILED(SomeOperation())) {
-	    CloseHandle(hFile);
-	    COMPlusThrow(...);
-	}
-	return hFile;
+```c++
+HANDLE hFile = ClrCreateFile(szFileName, GENERIC_READ, ...);
+if (hFile == INVALID_HANDLE_VALUE) {
+    COMPlusThrow(...);
+}
+if (FAILED(SomeOperation())) {
+    CloseHandle(hFile);
+    COMPlusThrow(...);
+}
+return hFile;
+```
 
 **Right:**
 
-	HandleHolder hFile = ClrCreateFile(szFileName, GENERIC_READ, ...);
-	if (hFile == INVALID_HANDLE_VALUE) {
-	    COMPlusThrow(...);
-	}
-	if (FAILED(SomeOperation())) {
-	    COMPlusThrow(...);
-	}
-	// No failures allowed after this!
-	hFile.SuppressRelease();
-	return hFile;
+```c++
+HandleHolder hFile = ClrCreateFile(szFileName, GENERIC_READ, ...);
+if (hFile == INVALID_HANDLE_VALUE) {
+    COMPlusThrow(...);
+}
+if (FAILED(SomeOperation())) {
+    COMPlusThrow(...);
+}
+// No failures allowed after this!
+hFile.SuppressRelease();
+return hFile;
+```
 
 ### Common Features of Holders
 
@@ -504,48 +548,65 @@ Holders consistently release on destruction – that's their whole purpose. Sadl
 
 **Wrong:**
 
-	Foo *pFoo = new Foo();
-	delete pFoo;
+```c++
+Foo *pFoo = new Foo();
+delete pFoo;
+```
 
 **Right:**
 
-	NewHolder<Foo> pFoo = new Foo();
+```c++
+NewHolder<Foo> pFoo = new Foo();
+```
 
 ### New'ed array:
 
 **Wrong:**
 
-   	Foo *pFoo = new Foo[30];
-	delete pFoo;
+```c++
+Foo *pFoo = new Foo[30];
+delete pFoo;
+```
 
 **Right:**
 
-	NewArrayHolder<Foo> pFoo = new Foo[30];
+```c++
+NewArrayHolder<Foo> pFoo = new Foo[30];
+```
 
 ### COM Interface Holder:
 
 **Wrong:**
 
-	IFoo *pFoo = NULL;
-	FunctionToGetRefOfFoo(&pFoo);
-	pFoo->Release();
+```c++
+IFoo *pFoo = NULL;
+FunctionToGetRefOfFoo(&pFoo);
+pFoo->Release();
+```
 
 **Right:**
 
-	ComHolder<IFoo> pFoo;  // declaring ComHolder does not insert AddRef!
-	FunctionToGetRefOfFoo(&pFoo);
+```c++
+ComHolder<IFoo> pFoo;  // declaring ComHolder does not insert AddRef!
+FunctionToGetRefOfFoo(&pFoo);
+```
 
 ### Critical Section Holder:
 
 **Wrong:**
-	pCrst->Enter();
-	pCrst->Leave();
+
+```c++
+pCrst->Enter();
+pCrst->Leave();
+```
 
 **Right:**
 
-	{
-	    CrstHolder(pCrst);	//implicit Enter
-	}			       		//implicit Leave
+```c++
+{
+    CrstHolder(pCrst);	//implicit Enter
+}			       		//implicit Leave
+```
 
 ## Does your code follow our OOM rules?
 
@@ -567,41 +628,49 @@ To document that a function _can_ fail due to OOM:
 
 **Runtime-based (preferred)**
 
-	void AllocateThingie()
-	{
-	    CONTRACTL
-	    {
-	        INJECT_FAULT(COMPlusThrowOM(););
-	    }
-	    CONTRACTL_END
-	}
+```c++
+void AllocateThingie()
+{
+    CONTRACTL
+    {
+        INJECT_FAULT(COMPlusThrowOM(););
+    }
+    CONTRACTL_END
+}
+```
 
 **Static**
 
-	void AllocateThingie()
-	{
-	    STATIC_CONTRACT_FAULT;
-	}
+```c++
+void AllocateThingie()
+{
+    STATIC_CONTRACT_FAULT;
+}
+```
 
 To document that a function _cannot_ fail due to OOM:
 
 **Runtime-based (preferred)**
 
-	BOOL IsARedObject()
-	{
-	    CONTRACTL
-	    {
-	        FORBID_FAULT;
-	    }
-	    CONTRACTL_END
-	}
+```c++
+BOOL IsARedObject()
+{
+    CONTRACTL
+    {
+        FORBID_FAULT;
+    }
+    CONTRACTL_END
+}
+```
 
 **Static**
 
-	BOOL IsARedObject()
-	{
-	    STATIC_CONTRACT_FORBID_FAULT;
-	}
+```c++
+BOOL IsARedObject()
+{
+    STATIC_CONTRACT_FORBID_FAULT;
+}
+```
 
 INJECT_FAULT()'s argument is the code that executes when the function reports an OOM. Typically this is to throw an OOM exception or return E_OUTOFMEMORY. The original intent for this was for our OOM fault injection test harness to insert simulated OOM's at this point and execute this line. At the moment, this argument is ignored but we may still employ this fault injection idea in the future so please code it appropriately.
 
@@ -611,10 +680,12 @@ The CLR asserts if you invoke an INJECT_FAULT function under the scope of a FORB
 
 Sometimes, a function handles an internal OOM without needing to notify the caller. For example, perhaps the additional memory was used to implement an internal cache but your function can still do its job without it. Or perhaps the function is a logging function in which case, it can silently NOP – the caller doesn't care. In such cases, wrap the allocation in the FAULT_NOT_FATAL holder which temporarily lifts the FORBID_FAULT state.
 
-	{
-	    FAULT_NOT_FATAL();
-	    pv = new Foo();
-	}
+```c++
+{
+    FAULT_NOT_FATAL();
+    pv = new Foo();
+}
+```
 
 FAULT_NOT_FATAL() is almost identical to a CONTRACT_VIOLATION() but the name indicates that it is by design, not a bug. It is analogous to TRY/CATCH for exceptions.
 
@@ -662,11 +733,13 @@ For easy creation of an SString for a string literal, use the SL macro. This can
 
 Integer overflow bugs are an insidious source of buffer overrun vulnerabilities.Here is a simple example of how such a bug can occur:
 
-	void *pInput = whatever;
-	UINT32 cbSizeOfData = GetSizeOfData();
-	UINT32 cbAllocSize = SIZE_OF_HEADER + cbSizeOfData;
-	void *pBuffer = Allocate(cbAllocSize);
-	memcpy(pBuffer + SIZE_OF_HEADER, pInput, cbSizeOfData);
+```c++
+void *pInput = whatever;
+UINT32 cbSizeOfData = GetSizeOfData();
+UINT32 cbAllocSize = SIZE_OF_HEADER + cbSizeOfData;
+void *pBuffer = Allocate(cbAllocSize);
+memcpy(pBuffer + SIZE_OF_HEADER, pInput, cbSizeOfData);
+```
 
 If GetSizeOfData() obtains its result from untrusted data, it could return a huge value just shy of UINT32_MAX. Adding SIZE_OF_HEADER causes a silent overflow, resulting in a very small (and incorrect) value being passed to Allocate() which dutifully returns a short buffer. The memcpy, however, copies a huge number of bytes and overflows the buffer.
 
@@ -676,17 +749,19 @@ We have now standardized on an infrastructure for performing overflow-safe arith
 
 The _safe_ version of the above code follows:
 
-	#include "safemath.h"
+```c++
+#include "safemath.h"
 
-	void *pInput = whatever;
-	S_UINT32 cbSizeOfData = S_UINT32(GetSizeOfData());
-	S_UINT32 cbAllocSize =  S_UINT32(SIZE_OF_HEADER) + cbSizeOfData;
-	if (cbAllocSize.IsOverflow())
-	{
-	    return E_OVERFLOW;
-	}
-	void *pBuffer = Allocate(cbAllocSize.Value());
-	memcpy(pBuffer + SIZE_OF_HEADER, pInput, cbSizeOfData);
+void *pInput = whatever;
+S_UINT32 cbSizeOfData = S_UINT32(GetSizeOfData());
+S_UINT32 cbAllocSize =  S_UINT32(SIZE_OF_HEADER) + cbSizeOfData;
+if (cbAllocSize.IsOverflow())
+{
+    return E_OVERFLOW;
+}
+void *pBuffer = Allocate(cbAllocSize.Value());
+memcpy(pBuffer + SIZE_OF_HEADER, pInput, cbSizeOfData);
+```
 
 As you can see, the transformation consists of the following:
 
@@ -750,7 +825,9 @@ Instead we now record the explicit dependencies as a set of rules in the src\inc
 
 To create a Crst:
 
-	Crst *pcrst = new Crst(type [, flags]);
+```c++
+Crst *pcrst = new Crst(type [, flags]);
+```
 
 Where "type" is a member of the CrstType enumeration (defined in the automatically generated src\inc\CrstTypes.h file). These types indicate the usage of the Crst, particularly with regard to which other Crsts may be obtained simultaneously, There is a direct mapping for the CrstType to a level (see CrstTypes.h) though the reverse is not true.
 
@@ -758,11 +835,15 @@ Don't create static instances of Crsts<sup>[2]</sup>. Use CrstStatic class for t
 
 Simply define a CrstStatic as a static variable, then initialize the CrstStatic when appropriate:
 
-	g_GlobalCrst.Init(type"tag", level);
+```c++
+g_GlobalCrst.Init(type"tag", level);
+```
 
 A CrstStatic must be destroyed with the Destroy() method as follows:
 
-	g_GlobalCrst.Destroy();
+```c++
+g_GlobalCrst.Destroy();
+```
 
 [2]: In fact, you should generally avoid use of static instances that require construction and destruction. This can have an impact on startup time, it can affect our shutdown robustness, and it will eventually limit our ability to recycle the CLR within a running process.
 
@@ -770,12 +851,14 @@ A CrstStatic must be destroyed with the Destroy() method as follows:
 
 To enter or leave a crst, you must wrap the crst inside a CrstHolder. All operations on crsts are available only through the CrstHolder. To enter the crst, create a local CrstHolder and pass the crst as an argument. The crst is automatically released by the CrstHolder's destructor when control leaves the scope either normally or via an exception:
 
-	{
-	    CrstHolder ch(pcrst);	// implicit enter
+```c++
+{
+    CrstHolder ch(pcrst);	// implicit enter
 
-	    ... do your thing... may also throw...
+    ... do your thing... may also throw...
 
-	}							// implicit leave
+}							// implicit leave
+```
 
 **You can only enter and leave Crsts in preemptive GC mode.** Attempting to enter a Crst in cooperative mode will forcibly switch your thread into preemptive mode.
 
@@ -783,38 +866,46 @@ If you need a Crst that you can take in cooperative mode, you must pass a specia
 
 You can also manually acquire and release crsts by calling the appropriate methods on the holder:
 
-	{
-	    CrstHolder ch(pcrst);	// implicit enter
+```c++
+{
+    CrstHolder ch(pcrst);	// implicit enter
 
-	    ...
-	    ch.Release();		// temporarily leave
-	    ...
-	    ch.Acquire();		// temporarily enter
+    ...
+    ch.Release();		// temporarily leave
+    ...
+    ch.Acquire();		// temporarily enter
 
-	}					// implicit leave
+}					// implicit leave
+```
 
 Note that holders do not let you nest Acquires or Releases. You will get an assert if you try. Introduce a new scope and a new holder if you need to do this.
 
 If you need to create a CrstHolder without actually entering the critical section, pass FALSE to the holder's "take" parameter like this:
 
-	{
-	    CrstHolder ch(pcrst, FALSE);	// no implicit enter
+```c++
+{
+    CrstHolder ch(pcrst, FALSE);	// no implicit enter
 
-	    ...
-	}									// no implicit leave
+    ...
+}									// no implicit leave
+```
 
 If you want to exit the scope without leaving the Crst, call SuppressRelease() on the holder:
 
-	{
-	    CrstHolder ch(pcrst);	// implicit enter
-	    ch.SuppressRelease();
-	}							// no implicit leave
+```c++
+{
+    CrstHolder ch(pcrst);	// implicit enter
+    ch.SuppressRelease();
+}							// no implicit leave
+```
 
 ### Other Crst Operations
 
 If you want to validate that you own no other locks at the same or lower level, assert the debug-only IsSafeToTake() method:
 
-	_ASSERTE(pcrst->IsSafeToTake());
+```c++
+_ASSERTE(pcrst->IsSafeToTake());
+```
 
 Entering a crst always calls IsSafeToTake() for you but calling it manually is useful for functions that acquire a lock only some of the time.
 
@@ -1005,23 +1096,25 @@ These two approaches are complementary. Static analysis is always preferable but
 
 Here is a typical contract:
 
-	LPVOID Foo(char *name, Blob *pBlob)
-	{
-	    CONTRACTL
-	    {
-	        THROWS;                                     // This function may throw
-	        INJECT_FAULT(COMPlusThrowOM());             // This function may fail due to OOM
-	        GC_TRIGGERS;                                // This function may trigger a GC
-	        MODE_COOPERATIVE;                           // Must be in GC-cooperative mode to call
-	        CAN_TAKE_LOCK;                              // This function may take a Crst, spinlock, etc.
-	        EE_THREAD_REQUIRED;                         // This function expects an EE Thread object in the TLS
-	        PRECONDITION(CheckPointer(name));           // Invalid to pass NULL
-	        PRECONDITION(CheckPointer(pBlob, NULL_OK)); // Ok to pass NULL
-	    }
-	    CONTRACTL_END;
+```c++
+LPVOID Foo(char *name, Blob *pBlob)
+{
+    CONTRACTL
+    {
+        THROWS;                                     // This function may throw
+        INJECT_FAULT(COMPlusThrowOM());             // This function may fail due to OOM
+        GC_TRIGGERS;                                // This function may trigger a GC
+        MODE_COOPERATIVE;                           // Must be in GC-cooperative mode to call
+        CAN_TAKE_LOCK;                              // This function may take a Crst, spinlock, etc.
+        EE_THREAD_REQUIRED;                         // This function expects an EE Thread object in the TLS
+        PRECONDITION(CheckPointer(name));           // Invalid to pass NULL
+        PRECONDITION(CheckPointer(pBlob, NULL_OK)); // Ok to pass NULL
+    }
+    CONTRACTL_END;
 
-	    ...
-	}
+    ...
+}
+```
 
 There are several flavors of contracts. This example shows the most common type (CONTRACTL, where "L" stands for "lite.")
 
@@ -1088,36 +1181,44 @@ EE_THREAD_NOT_REQUIRED is a noop by default. You must "set COMPLUS_EnforceEEThre
 
 Of course, there are exceptions to this. In particular, if there is a clear code path for GetThread() == NULL, then it's ok to call GetThread() in an EE_THREAD_NOT_REQUIRED scope. You declare your intention by using GetThreadNULLOk():
 
-	Thread* pThread = GetThreadNULLOk();
-	if (pThread != NULL)
-	{
-	    pThread->m_dwAVInRuntimeImplOkayCount++;
-	}
+```c++
+Thread* pThread = GetThreadNULLOk();
+if (pThread != NULL)
+{
+    pThread->m_dwAVInRuntimeImplOkayCount++;
+}
+```
 
 Rule: You should only use GetThreadNULLOk if it is patently obvious from the call site that NULL is dealt with directly. Obviously, this would be bad:
 
-	GetThreadNULLOk()->BeginCriticalRegion();
+```c++
+GetThreadNULLOk()->BeginCriticalRegion();
+```
 
 This is also frowned upon, as it's unclear whether a NULL Thread is handled:
 
-	MyObj myObj(GetThreadNULLOk());
+```c++
+MyObj myObj(GetThreadNULLOk());
+```
 
 In more complex situations, a caller may be able to vouch for an EE Thread's existence, while its callee cannot. So you can set up a scope that temporarily stops doing the EE_THREAD_NOT_REQUIRED verification as follows:
 
-	CONTRACTL
-	{
-	    EE_THREAD_NOT_REQUIRED;
-	} CONTRACTL_END;
+```c++
+CONTRACTL
+{
+    EE_THREAD_NOT_REQUIRED;
+} CONTRACTL_END;
 
-	Thread* pThread = GetThreadNULLOk();
-	if (pThread == NULL)
-	    return;
+Thread* pThread = GetThreadNULLOk();
+if (pThread == NULL)
+    return;
 
-	// We know there's an EE Thread now, so it's safe to call GetThread()
-	// and expect a non-NULL return.
-	BEGIN_GETTHREAD_ALLOWED;
-	CallCodeThatRequiresThread();
-	END_GETTHREAD_ALLOWED;
+// We know there's an EE Thread now, so it's safe to call GetThread()
+// and expect a non-NULL return.
+BEGIN_GETTHREAD_ALLOWED;
+CallCodeThatRequiresThread();
+END_GETTHREAD_ALLOWED;
+```
 
 BEGIN/END_GETTHREAD_ALLOWED simply instantiate a holder that temporarily disables the assert on each GetThread() call. A non-holder version is also available which can generate less code if you're wrapping a NOTHROW region: BEGIN/END_GETTHREAD_ALLOWED_IN_NO_THROW_REGION. In fact, GetThreadNULLOk() is implemented by just calling GetThread() from within a BEGIN/END_GETTHREAD_ALLOWED_IN_NO_THROW_REGION block.
 
