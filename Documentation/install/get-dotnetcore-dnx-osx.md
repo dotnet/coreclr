@@ -14,28 +14,38 @@ Installing DNVM
 
 You need DNVM to acquire a (or multiple) .NET Execution Environment (DNX). DNVM is simply a script, which doesn't depend on .NET. On OS X the best way to get DNVM is to use [Homebrew](http://www.brew.sh). If you don't have Homebrew installed then follow the [Homebrew installation instructions](http://www.brew.sh). Once you have Homebrew then run the following commands:
 
-	brew tap aspnet/dnx
-	brew update
-	brew install dnvm
+```sh
+brew tap aspnet/dnx
+brew update
+brew install dnvm
+```
 
 You will likely need to register the dnvm command:
 
-	source dnvm.sh
+```sh
+source dnvm.sh
+```
 
 Installing the .NET Core DNX SDK
 ================================
 
 You first need to acquire the Mono DNX. It includes a specfic version of Mono, and is needed to use the DNX tools that are not yet supported on .NET Core. Mono is the default DNX, so you can acquire it via `dnvnm upgrade`.
 
-	dnvm upgrade -u
+```sh
+dnvm upgrade -u
+```
 
 Next, acquire the .NET Core DNX SDK.
 
-	dnvm install latest -r coreclr -u
+```sh
+dnvm install latest -r coreclr -u
+```
 
 You can see the currently installed DNX versions with `dnvm list`.
 
-	dnvm list
+```sh
+dnvm list
+```
 
 ```
 Active Version              Runtime Arch Location             Alias
@@ -66,7 +76,7 @@ Some people on the .NET Core team are partial to a demo console app on corefxlab
 
 You need a `project.json` that matches your app. Use this one. It will work for both of the apps provided/referenced above. Save the project.json beside your app.
 
-```
+```json
 {
     "version": "1.0.0-*",
     "dependencies": {
@@ -87,13 +97,18 @@ Run your App
 
 You need to restore packages for your app, based on your project.json, with `dnu restore`. You will need to run this command under the Mono DNX. Make sure that you are using that one.
 
-	dnvm use 1.0.0-beta5-11649 -r mono
-	dnu restore
+```sh
+dnvm use 1.0.0-beta5-11649 -r mono
+dnu restore
+```
 
 You can run your app with .NET Core, although make sure to switch to that DNX.
 
-    dnvm use 1.0.0-beta5-11649 -r coreclr
-	dnx . run
-
-	Hello, OSX
-	Love from CoreCLR.
+```sh
+dnvm use 1.0.0-beta5-11649 -r coreclr
+dnx . run
+```
+```
+Hello, OSX
+Love from CoreCLR.
+```
