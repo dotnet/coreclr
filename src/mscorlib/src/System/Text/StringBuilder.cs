@@ -1308,7 +1308,10 @@ namespace System.Text {
         private static void FormatError() {
             throw new FormatException(Environment.GetResourceString("Format_InvalidString"));
         }
-        
+
+        public static readonly int Index_Limit = 1000000;
+        public static readonly int Width_Limit = 1000000;
+
         internal StringBuilder AppendFormatHelper(IFormatProvider provider, String format, ParamsArray args) {
             if (format == null) {
                 throw new ArgumentNullException("format");
@@ -1373,7 +1376,7 @@ namespace System.Text {
                     if (pos == len) FormatError();
                     ch = format[pos];
                     // so long as character is digit and index is less than 1000000 ( index limit )
-                } while (ch >= '0' && ch <= '9' && index < 1000000);
+                } while (ch >= '0' && ch <= '9' && index < Index_Limit);
                 // If value of index is not within the range of the arguments passed in then error (Index out of range)
                 if (index >= args.Length) throw new FormatException(Environment.GetResourceString("Format_IndexOutOfRange"));
                 // End of Parsing (Index Parameter)
@@ -1409,7 +1412,7 @@ namespace System.Text {
                         if (pos == len) FormatError();
                         ch = format[pos];
                         // So long a character is a digit and width is less than 100000 ( width limit )
-                    } while (ch >= '0' && ch <= '9' && width < 1000000);
+                    } while (ch >= '0' && ch <= '9' && width < Width_Limit);
                     // end of parsing Argument Alignment
                 }
                 // Consume optional whitespace
