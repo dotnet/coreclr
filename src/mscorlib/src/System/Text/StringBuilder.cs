@@ -1326,101 +1326,140 @@ namespace System.Text {
             }
 
             while (true) {
+                // While not End of Text
                 while (pos < len) {
                     ch = format[pos];
 
                     pos++;
+                    // Is it a closing brace?
                     if (ch == '}')
                     {
+                        // Is it escaped?
                         if (pos < len && format[pos] == '}') // Treat as escape character for }}
                             pos++;
                         else
+                            // Error (Mismatched closing brace)
                             FormatError();
                     }
-
+                    // Is it a opening brace?
                     if (ch == '{')
                     {
+                        // Is it escaped?
                         if (pos < len && format[pos] == '{') // Treat as escape character for {{
                             pos++;
                         else
                         {
+                            // Treat as an opening brace to an Arg Hole.
                             pos--;
                             break;
                         }
                     }
-
+                    // Otherwise treat it as just text.
                     Append(ch);
                 }
-
+                // End Of Text?
                 if (pos == len) break;
+                //  Start of parsing (Index parameter)
                 pos++;
+                // If reached end of text then error (Unexpected end of text)
+                // or characted is not a digit then error (Unexpected Character)
                 if (pos == len || (ch = format[pos]) < '0' || ch > '9') FormatError();
+                // Parse Index
                 int index = 0;
                 do {
                     index = index * 10 + ch - '0';
                     pos++;
+                    // If reached end of text then error (Unexpected end of text)
                     if (pos == len) FormatError();
                     ch = format[pos];
+                    // so long as character is digit and index is less than 1000000 ( index limit )
                 } while (ch >= '0' && ch <= '9' && index < 1000000);
+                // If value of index is not within the range of the arguments passed in then error (Index out of range)
                 if (index >= args.Length) throw new FormatException(Environment.GetResourceString("Format_IndexOutOfRange"));
+                // End of Parsing (Index Parameter)
+                // Consume optional whitespace.
                 while (pos < len && (ch = format[pos]) == ' ') pos++;
                 bool leftJustify = false;
                 int width = 0;
+                // Is the character a comma
                 if (ch == ',') {
+                    // Yes, then parse as Argument Alignment
                     pos++;
+                    // Consume Optional whitespace
                     while (pos < len && format[pos] == ' ') pos++;
-
+                    // If reached the end of the text then error (Unexpected end of text)
                     if (pos == len) FormatError();
+                    // Is there a minus sign?
                     ch = format[pos];
                     if (ch == '-') {
+                        // Yes, then alignment is left justified.
                         leftJustify = true;
                         pos++;
+                        // If reached end of text then error (Unexpected end of text)
                         if (pos == len) FormatError();
                         ch = format[pos];
                     }
+                    // If next character is not a digit then error (Unexpected character)
                     if (ch < '0' || ch > '9') FormatError();
+                    // Parse alignment digits.
                     do {
                         width = width * 10 + ch - '0';
                         pos++;
+                        // If reached end of text then error. (Unexpected end of text)
                         if (pos == len) FormatError();
                         ch = format[pos];
+                        // So long a character is a digit and width is less than 100000 ( width limit )
                     } while (ch >= '0' && ch <= '9' && width < 1000000);
+                    // end of parsing Argument Alignment
                 }
-
+                // Consume optional whitespace
                 while (pos < len && (ch = format[pos]) == ' ') pos++;
                 Object arg = args[index];
                 StringBuilder fmt = null;
+                // Is character a colon?
                 if (ch == ':') {
+                    // Yes, then parse as Argument Format Text.
                     pos++;
                     while (true) {
+                        // If reached end of text then error. (Unexpected end of text)
                         if (pos == len) FormatError();
                         ch = format[pos];
                         pos++;
+                        // Is character a opening brace?
                         if (ch == '{')
                         {
-                            if (pos < len && format[pos] == '{')  // Treat as escape character for {{
+                            // Yes, is next character also a opening brace.
+                            if (pos < len && format[pos] == '{')
+                                // Yes, Treat as escape character for {{
                                 pos++;
                             else
+                                // Error Arg Holes can not be nested.
                                 FormatError();
                         }
+                        // Is charecter a closing brace?
                         else if (ch == '}')
                         {
-                            if (pos < len && format[pos] == '}')  // Treat as escape character for }}
+                            // Yes, is next character also a closing brace?
+                            if (pos < len && format[pos] == '}')
+                                // Yes, Treat as escape character for }}
                                 pos++;
                             else
                             {
+                                // No, then treat it as the closing brace of an Arg Hole.
                                 pos--;
                                 break;
                             }
                         }
-
+                        // build up the argument format string.
                         if (fmt == null) {
                             fmt = new StringBuilder();
                         }
                         fmt.Append(ch);
                     }
                 }
+                // If current character is not a closing brace then error. (Unexpected Character)
                 if (ch != '}') FormatError();
+                // Construct the output for this arg hole.
                 pos++;
                 String sFmt = null;
                 String s = null;
@@ -1452,12 +1491,13 @@ namespace System.Text {
                         s = arg.ToString();
                     }
                 }
-
+                // Append it to the final output of the Format String.
                 if (s == null) s = String.Empty;
                 int pad = width - s.Length;
                 if (!leftJustify && pad > 0) Append(' ', pad);
                 Append(s);
                 if (leftJustify && pad > 0) Append(' ', pad);
+                // Continue to parse other characters.
             }
             return this;
         }
