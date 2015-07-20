@@ -243,6 +243,8 @@ public:
 #endif // FEATURE_REDHAWK
 };
 
+#ifdef FEATURE_EVENT_TRACE
+
 // Encapsulates all the type event batching we need to do. This is used by
 // ETW::TypeSystemLog, which calls LogTypeAndParameters for each type to be logged.
 // BulkTypeEventLogger will batch each type and its generic type parameters, and flush to
@@ -405,6 +407,7 @@ private:
     BulkTypeEventLogger *m_typeLogger;  // The type logger used to emit type data as we encounter it.
 };
 
+#endif // FEATURE_EVENT_TRACE
 
 
 #endif // __EVENTTRACEPRIV_H__

@@ -39,7 +39,7 @@ class ProfilerEnum : public EnumInterface
 public:
     ProfilerEnum(CDynArray< Element >* elements);
     ProfilerEnum();
-    ~ProfilerEnum();
+    virtual ~ProfilerEnum();
 
     // IUnknown functions
 

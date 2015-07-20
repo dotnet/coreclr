@@ -246,6 +246,8 @@ set(VM_SOURCES_WKS
     typeparse.cpp
     verifier.cpp
     weakreferencenative.cpp
+    eventtrace.cpp
+    profilermetadataemitvalidator.cpp
 )
 
 if(WIN32)
@@ -277,13 +279,11 @@ list(APPEND VM_SOURCES_WKS
     dispparammarshaler.cpp
     dwreport.cpp
     eventreporter.cpp
-    eventtrace.cpp
     extensibleclassfactory.cpp
     microsoft.comservices_i.c
     mngstdinterfaces.cpp
     notifyexternals.cpp
     olecontexthelpers.cpp
-    profilermetadataemitvalidator.cpp
     rcwrefcache.cpp
     rtlfunctions.cpp
     runtimecallablewrapper.cpp

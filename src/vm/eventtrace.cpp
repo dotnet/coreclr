@@ -229,6 +229,7 @@ extern "C"
 }
 #endif //_TARGET_X86_
 
+#ifdef FEATURE_EVENT_TRACE
 /*************************************/
 /* Function to append a frame to an existing stack */
 /*************************************/
@@ -411,6 +412,7 @@ ETW::SamplingLog::EtwStackWalkStatus ETW::SamplingLog::SaveCurrentStack(int skip
 
     return ETW::SamplingLog::Completed;
 }
+#endif // FEATURE_EVENT_TRACE
 
 #endif // !FEATURE_REDHAWK
 
@@ -1065,6 +1067,7 @@ VOID ETW::GCLog::WalkStaticsAndCOMForETW()
     }
     CONTRACTL_END;
 
+#ifdef FEATURE_EVENT_TRACE
     EX_TRY
     {
         BulkTypeEventLogger typeLogger;
@@ -1087,8 +1090,11 @@ VOID ETW::GCLog::WalkStaticsAndCOMForETW()
     {
     }
     EX_END_CATCH(SwallowAllExceptions);
+
+#endif // FEATURE_EVENT_TRACE
 }
 
+#ifdef FEATURE_EVENT_TRACE
 
 //---------------------------------------------------------------------------------------
 // BulkStaticsLogger: Batches up and logs static variable roots
@@ -1635,6 +1641,7 @@ void BulkStaticsLogger::LogAllStatics()
     } // foreach AppDomain
 } // BulkStaticsLogger::LogAllStatics
 
+#endif // FEATURE_EVENT_TRACE
 
 
 //---------------------------------------------------------------------------------------
@@ -1642,12 +1649,14 @@ void BulkStaticsLogger::LogAllStatics()
 // be logged via ETW in bulk
 //---------------------------------------------------------------------------------------
 
-BulkTypeValue::BulkTypeValue() : cTypeParameters(0), rgTypeParameters()
+BulkTypeValue::BulkTypeValue() :
+    cTypeParameters(0),
 #ifdef FEATURE_REDHAWK
-, ullSingleTypeParameter(0)
+    ullSingleTypeParameter(0),
 #else // FEATURE_REDHAWK
-, sName()
+    sName(),
 #endif // FEATURE_REDHAWK
+    rgTypeParameters()
 {
     LIMITED_METHOD_CONTRACT;
     ZeroMemory(&fixedSizedData, sizeof(fixedSizedData));
@@ -1678,6 +1687,8 @@ void BulkTypeValue::Clear()
     rgTypeParameters.Clear();
 #endif // FEATURE_REDHAWK
 }
+
+#ifdef FEATURE_EVENT_TRACE
 
 //---------------------------------------------------------------------------------------
 //
@@ -2237,6 +2248,7 @@ public:
     BulkTypeEventLogger bulkTypeEventLogger;
 };
 
+#endif // FEATURE_EVENT_TRACE
 
 
 //---------------------------------------------------------------------------------------
@@ -2267,6 +2279,7 @@ VOID ETW::GCLog::RootReference(
 {
     LIMITED_METHOD_CONTRACT;
 
+#ifdef FEATURE_EVENT_TRACE
     EtwGcHeapDumpContext * pContext =
         EtwGcHeapDumpContext::GetOrCreateInGCContext(&profilingScanContext->pvEtwContext);
     if (pContext == NULL)
@@ -2355,6 +2368,8 @@ VOID ETW::GCLog::RootReference(
             pContext->ClearRootEdges();
         }
     }
+
+#endif // FEATURE_EVENT_TRACE
 }
 
 
@@ -2391,6 +2406,7 @@ VOID ETW::GCLog::ObjectReference(
     }
     CONTRACTL_END;
 
+#ifdef FEATURE_EVENT_TRACE
     EtwGcHeapDumpContext * pContext =
         EtwGcHeapDumpContext::GetOrCreateInGCContext(&profilerWalkHeapContext->pvEtwContext);
     if (pContext == NULL)
@@ -2473,6 +2489,8 @@ VOID ETW::GCLog::ObjectReference(
             pContext->ClearEdges();
         }
     }
+
+#endif // FEATURE_EVENT_TRACE
 }
 
 //---------------------------------------------------------------------------------------
@@ -2489,6 +2507,7 @@ VOID ETW::GCLog::EndHeapDump(ProfilerWalkHeapContext * profilerWalkHeapContext)
 {
     LIMITED_METHOD_CONTRACT;
 
+#ifdef FEATURE_EVENT_TRACE
     // If context isn't already set up for us, then we haven't been collecting any data
     // for ETW events.
     EtwGcHeapDumpContext * pContext = (EtwGcHeapDumpContext *) profilerWalkHeapContext->pvEtwContext;
@@ -2554,6 +2573,8 @@ VOID ETW::GCLog::EndHeapDump(ProfilerWalkHeapContext * profilerWalkHeapContext)
     // Delete any GC state built up in the context
     profilerWalkHeapContext->pvEtwContext = NULL;
     delete pContext;
+
+#endif // FEATURE_EVENT_TRACE
 }
 
 
@@ -2584,6 +2605,7 @@ VOID ETW::GCLog::SendFinalizeObjectEvent(MethodTable * pMT, Object * pObj)
     }
     CONTRACTL_END;
 
+#ifdef FEATURE_EVENT_TRACE
     // Send public finalize object event, if it's enabled
     if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, FinalizeObject))
     {
@@ -2614,6 +2636,8 @@ VOID ETW::GCLog::SendFinalizeObjectEvent(MethodTable * pMT, Object * pObj)
         }
         EX_END_CATCH(RethrowCorruptingExceptions);
     }
+
+#endif // FEATURE_EVENT_TRACE
 }
 
 
@@ -3064,6 +3088,7 @@ void ETW::TypeSystemLog::SendObjectAllocatedEvent(Object * pObject)
     }
     CONTRACTL_END;
 
+#ifdef FEATURE_EVENT_TRACE
     // No-op if the appropriate keywords were not enabled on startup (or we're not yet
     // started up)
     if (!s_fHeapAllocEventEnabledOnStartup || !g_fEEStarted)
@@ -3202,6 +3227,8 @@ void ETW::TypeSystemLog::SendObjectAllocatedEvent(Object * pObject)
     {
         FireEtwGCSampledObjectAllocationLow(pObject, (LPVOID) th.AsTAddr(), dwObjectCountForTypeSample, nTotalSizeForTypeSample, GetClrInstanceId());
     }
+
+#endif // FEATURE_EVENT_TRACE
 }
 
 //---------------------------------------------------------------------------------------
@@ -3252,6 +3279,7 @@ VOID ETW::TypeSystemLog::LogTypeAndParametersIfNecessary(BulkTypeEventLogger * p
     }
     CONTRACTL_END;
 
+#ifdef FEATURE_EVENT_TRACE
     if (!ETW_TRACING_CATEGORY_ENABLED(
         MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, 
         TRACE_LEVEL_INFORMATION, 
@@ -3295,6 +3323,8 @@ VOID ETW::TypeSystemLog::LogTypeAndParametersIfNecessary(BulkTypeEventLogger * p
         // a GC on a heap walk).  So use the logger our caller set up for us.
         pLogger->LogTypeAndParameters(thAsAddr, typeLogBehavior);
     }
+
+#endif // FEATURE_EVENT_TRACE
 }
 
 
@@ -3891,6 +3921,7 @@ VOID ETW::TypeSystemLog::Cleanup()
     }
 }
 
+#ifdef FEATURE_EVENT_TRACE
 
 /****************************************************************************/
 /* Called when ETW is turned ON on an existing process and ModuleRange events are to
@@ -4187,6 +4218,8 @@ VOID ETW::EnumerationLog::EndRundown()
     } EX_END_CATCH(SwallowAllExceptions);
 }
 
+#endif // FEATURE_EVENT_TRACE
+
 // #Registration
 /*++
 
@@ -4235,6 +4268,8 @@ void InitializeEventTracing()
     // providers can do so now
     ETW::TypeSystemLog::PostRegistrationInit();
 }
+
+#ifdef FEATURE_EVENT_TRACE
 
 HRESULT ETW::CEtwTracer::Register()
 {
@@ -4484,9 +4519,13 @@ extern "C"
     }
 }
 
+#endif // FEATURE_EVENT_TRACE
+
 #endif // FEATURE_REDHAWK
 
 #ifndef FEATURE_REDHAWK
+
+#ifdef FEATURE_EVENT_TRACE
 
 /****************************************************************************/
 /* This is called by the runtime when an exception is thrown */
@@ -7121,5 +7160,7 @@ VOID ETW::EnumerationLog::EnumerationHelper(Module *moduleFilter, BaseDomain *do
         }    
     }    
 }
+
+#endif // FEATURE_EVENT_TRACE
 
 #endif // !FEATURE_REDHAWK

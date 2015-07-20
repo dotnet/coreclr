@@ -70,8 +70,6 @@ enum EtwThreadFlags
     kEtwThreadFlagThreadPoolWorker =  0x00000004,
 };
 
-#ifdef FEATURE_EVENT_TRACE
-
 // During a heap walk, this is the storage for keeping track of all the nodes and edges
 // being batched up by ETW, and for remembering whether we're also supposed to call into
 // a profapi profiler.  This is allocated toward the end of a GC and passed to us by the
@@ -88,6 +86,8 @@ public:
     BOOL fProfilerPinned;
     LPVOID pvEtwContext;
 };
+
+#ifdef FEATURE_EVENT_TRACE
 
 class Object;
 

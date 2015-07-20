@@ -232,7 +232,7 @@ inline BOOL EEToProfInterfaceImpl::RequiresGenericsContextForEnterLeave()
 
     return 
         CORProfilerPresent() &&
-        ((g_profControlBlock.dwEventMask & COR_PRF_ENABLE_FRAME_INFO) != 0) &&
+        (((&g_profControlBlock)->dwEventMask & COR_PRF_ENABLE_FRAME_INFO) != 0) &&
         (
             (m_pEnter2            != NULL) || 
             (m_pLeave2            != NULL) || 

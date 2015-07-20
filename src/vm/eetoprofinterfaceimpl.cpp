@@ -392,6 +392,9 @@ BOOL EEToProfInterfaceImpl::CHashTableImpl::Cmp(SIZE_T k1, const HASHENTRY * pc2
     return (key != val);
 }
 
+EEToProfInterfaceImpl::CHashTableImpl::~CHashTableImpl()
+{
+}
 
 //---------------------------------------------------------------------------------------
 // Private maintenance functions for initialization, cleanup, etc.

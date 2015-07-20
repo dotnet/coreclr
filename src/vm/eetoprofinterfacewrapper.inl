@@ -40,7 +40,7 @@ class EEToProfilerExceptionInterfaceWrapper
             // Get a reference to the object that won't move
             OBJECTREF thrown = pThread->GetThrowable();
 
-            g_profControlBlock.pProfInterface->ExceptionThrown(
+            (&g_profControlBlock)->pProfInterface->ExceptionThrown(
                 reinterpret_cast<ObjectID>((*(BYTE **)&thrown)));
             END_PIN_PROFILER();
         }
@@ -59,7 +59,7 @@ class EEToProfilerExceptionInterfaceWrapper
             if (!pFunction->IsNoMetadata())
             {
                 GCX_PREEMP();
-                g_profControlBlock.pProfInterface->ExceptionSearchFunctionEnter(
+                (&g_profControlBlock)->pProfInterface->ExceptionSearchFunctionEnter(
                     (FunctionID) pFunction);
             }
             END_PIN_PROFILER();
@@ -75,7 +75,7 @@ class EEToProfilerExceptionInterfaceWrapper
             if (!pFunction->IsNoMetadata())
             {
                 GCX_PREEMP();
-                g_profControlBlock.pProfInterface->ExceptionSearchFunctionLeave();
+                (&g_profControlBlock)->pProfInterface->ExceptionSearchFunctionLeave();
             }
             END_PIN_PROFILER();
         }
@@ -90,7 +90,7 @@ class EEToProfilerExceptionInterfaceWrapper
             if (!pFunc->IsNoMetadata())
             {
                 GCX_PREEMP();
-                g_profControlBlock.pProfInterface->ExceptionSearchFilterEnter(
+                (&g_profControlBlock)->pProfInterface->ExceptionSearchFilterEnter(
                     (FunctionID) pFunc);
             }
             END_PIN_PROFILER();
@@ -104,7 +104,7 @@ class EEToProfilerExceptionInterfaceWrapper
         {
             BEGIN_PIN_PROFILER(CORProfilerTrackExceptions());
             GCX_PREEMP();
-            g_profControlBlock.pProfInterface->ExceptionSearchFilterLeave();
+            (&g_profControlBlock)->pProfInterface->ExceptionSearchFilterLeave();
             END_PIN_PROFILER();
         }
     }
@@ -117,7 +117,7 @@ class EEToProfilerExceptionInterfaceWrapper
             if (!pFunc->IsNoMetadata())
             {
                 GCX_PREEMP();
-                g_profControlBlock.pProfInterface->ExceptionSearchCatcherFound(
+                (&g_profControlBlock)->pProfInterface->ExceptionSearchCatcherFound(
                     (FunctionID) pFunc);
             }
             END_PIN_PROFILER();
@@ -135,7 +135,7 @@ class EEToProfilerExceptionInterfaceWrapper
             BEGIN_PIN_PROFILER(CORProfilerTrackExceptions());
             if (!pFunc->IsNoMetadata())
             {
-                g_profControlBlock.pProfInterface->ExceptionUnwindFunctionEnter(
+                (&g_profControlBlock)->pProfInterface->ExceptionUnwindFunctionEnter(
                     (FunctionID) pFunc);
             }
             END_PIN_PROFILER();
@@ -150,7 +150,7 @@ class EEToProfilerExceptionInterfaceWrapper
             BEGIN_PIN_PROFILER(CORProfilerTrackExceptions());
             if (!pFunction->IsNoMetadata())
             {
-                g_profControlBlock.pProfInterface->ExceptionUnwindFunctionLeave();
+                (&g_profControlBlock)->pProfInterface->ExceptionUnwindFunctionLeave();
             }
             END_PIN_PROFILER();
         }
@@ -164,7 +164,7 @@ class EEToProfilerExceptionInterfaceWrapper
             BEGIN_PIN_PROFILER(CORProfilerTrackExceptions());
             if (!pFunc->IsNoMetadata())
             {
-                g_profControlBlock.pProfInterface->ExceptionUnwindFinallyEnter(
+                (&g_profControlBlock)->pProfInterface->ExceptionUnwindFinallyEnter(
                     (FunctionID) pFunc);
             }
             END_PIN_PROFILER();
@@ -177,7 +177,7 @@ class EEToProfilerExceptionInterfaceWrapper
         // Notify the profiler of the function being searched for a handler.
         {
             BEGIN_PIN_PROFILER(CORProfilerTrackExceptions());
-            g_profControlBlock.pProfInterface->ExceptionUnwindFinallyLeave();
+            (&g_profControlBlock)->pProfInterface->ExceptionUnwindFinallyLeave();
             END_PIN_PROFILER();
         }
     }
@@ -199,7 +199,7 @@ class EEToProfilerExceptionInterfaceWrapper
                 GCPROTECT_BEGIN(thrown);
                 thrown = pThread->GetThrowable();
                 {
-                    g_profControlBlock.pProfInterface->ExceptionCatcherEnter(
+                    (&g_profControlBlock)->pProfInterface->ExceptionCatcherEnter(
                         (FunctionID) pFunc,
                         reinterpret_cast<ObjectID>((*(BYTE **)&thrown)));
                 }
@@ -215,7 +215,7 @@ class EEToProfilerExceptionInterfaceWrapper
         // Notify the profiler of the function being searched for a handler.
         {
             BEGIN_PIN_PROFILER(CORProfilerTrackExceptions());
-            g_profControlBlock.pProfInterface->ExceptionCatcherLeave();
+            (&g_profControlBlock)->pProfInterface->ExceptionCatcherLeave();
             END_PIN_PROFILER();
         }
     }

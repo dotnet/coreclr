@@ -293,11 +293,7 @@ namespace ETW
             } GCFullNotify;
         } ETW_GC_INFO, *PETW_GC_INFO;
 
-#ifdef FEATURE_EVENT_TRACE
         static VOID GCSettingsEvent();
-#else
-        static VOID GCSettingsEvent() {};
-#endif // FEATURE_EVENT_TRACE
 
         static BOOL ShouldWalkHeapObjectsForEtw();
         static BOOL ShouldWalkHeapRootsForEtw();
