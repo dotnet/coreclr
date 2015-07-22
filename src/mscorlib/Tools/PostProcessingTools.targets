@@ -8,10 +8,22 @@
     <Clean Include="$(FinalOutputPath)\$(TargetName).pdb" />
   </ItemGroup>
 
-  <PropertyGroup>
+  <PropertyGroup Condition="'$(OS)'!='Unix'">
     <CurrentAssemblyPdb>$(IntermediateOutputPath)$(TargetName).pdb</CurrentAssemblyPdb>
     <PostProcessingTargets>RewriteWithBclRewriter</PostProcessingTargets>
   </PropertyGroup>
+
+  <PropertyGroup Condition="'$(OS)'=='Unix'">
+    <PostProcessingTargets>PlaceCopyAsDummyRewrite</PostProcessingTargets>
+  </PropertyGroup>
+
+  <Target Name="PlaceCopyAsDummyRewrite"
+          Inputs="$(IntermediateOutputPath)$(TargetName).dll"
+          Outputs="@(RewrittenAssembly)">
+    <Copy
+      SourceFiles="$(IntermediateOutputPath)$(TargetName).dll"
+      DestinationFiles="@(RewrittenAssembly)" />
+  </Target>
 
   <Target Name="AfterBuild" DependsOnTargets="$(PostProcessingTargets)"
           Inputs="@(RewrittenAssembly)" Outputs="$(FinalOutputPath)\%(RewrittenAssembly.FileName)%(RewrittenAssembly.Extension)">
@@ -19,7 +31,7 @@
     <!-- Copy to the final output location -->
     <Copy Retries="3" SourceFiles="@(RewrittenAssembly)" DestinationFiles="$(FinalOutputPath)\%(RewrittenAssembly.FileName)%(RewrittenAssembly.Extension)"/>
     <Message Importance="High" Text="$(MSBuildProjectName) -&gt; $(FinalOutputPath)\%(RewrittenAssembly.FileName)%(RewrittenAssembly.Extension)" />
-    <Copy Retries="3" SourceFiles="$(CurrentAssemblyPdb)" DestinationFiles="$(FinalOutputPath)\$(TargetName).pdb"/>
+    <Copy Condition="'$(OS)'!='Unix'" Retries="3" SourceFiles="$(CurrentAssemblyPdb)" DestinationFiles="$(FinalOutputPath)\$(TargetName).pdb"/>
   </Target>
 
 </Project>

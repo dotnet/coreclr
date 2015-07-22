@@ -1,5 +1,86 @@
 #!/usr/bin/env bash
 
+# copy of corefx/build.sh from here
+
+__scriptpath=$(cd "$(dirname "$0")"; pwd -P)
+__packageroot=$__scriptpath/packages
+__sourceroot=$__scriptpath/src
+__nugetpath=$__packageroot/NuGet.exe
+__nugetconfig=$__sourceroot/NuGet.Config
+__msbuildpackageid="Microsoft.Build.Mono.Debug"
+__msbuildpackageversion="14.1.0.0-prerelease"
+__msbuildpath=$__packageroot/$__msbuildpackageid.$__msbuildpackageversion/lib/MSBuild.exe
+__resgenpackageid="Mono.Tools.ResgenModified"
+__resgenpackageversion="1.0.0"
+__resgenpath=$__packageroot/$__resgenpackageid.$__resgenpackageversion/tools/resgen.exe
+
+if [ $(uname) == "Linux" ]; then
+    __monoroot=/devel
+elif [ $(uname) == "FreeBSD" ]; then
+    __monoroot=/usr/local
+else
+    __monoroot=/Library/Frameworks/Mono.framework/Versions/Current
+fi
+
+__referenceassemblyroot=$__monoroot/lib/mono/xbuild-frameworks
+
+
+__monoversion=$(mono --version | grep "version 4.[1-9]")
+
+if [ $? -ne 0 ]; then
+    # if built from tarball, mono only identifies itself as 4.0.1
+    __monoversion=$(mono --version | egrep "version 4.0.[1-9]+(.[0-9]+)?")
+    if [ $? -ne 0 ]; then
+        echo "Mono 4.0.1.44 or later is required to build corefx. Please see https://github.com/dotnet/corefx/blob/master/Documentation/building/unix-instructions.md for more details."
+        exit 1
+    else
+        echo "WARNING: Mono 4.0.1.44 or later is required to build corefx. Unable to asses if current version is supported."
+    fi
+fi
+
+if [ ! -e "$__referenceassemblyroot/.NETPortable" ]; then
+    echo "PCL reference assemblies not found. Please see https://github.com/dotnet/corefx/blob/master/Documentation/building/unix-instructions.md for more details."
+    exit 1
+fi
+
+
+# Pull NuGet.exe down if we don't have it already
+if [ ! -e "$__nugetpath" ]; then
+    which curl wget > /dev/null 2> /dev/null
+    if [ $? -ne 0 -a $? -ne 1 ]; then
+        echo "cURL or wget is required to build corefx. Please see https://github.com/dotnet/corefx/blob/master/Documentation/building/unix-instructions.md for more details."
+        exit 1
+    fi
+    echo "Restoring NuGet.exe..."
+
+    # curl has HTTPS CA trust-issues less often than wget, so lets try that first.
+    which curl > /dev/null 2> /dev/null
+    if [ $? -ne 0 ]; then
+       mkdir -p $__packageroot
+       wget -q -O $__nugetpath https://api.nuget.org/downloads/nuget.exe
+    else
+       curl -sSL --create-dirs -o $__nugetpath https://api.nuget.org/downloads/nuget.exe
+    fi
+
+    if [ $? -ne 0 ]; then
+        echo "Failed to restore NuGet.exe."
+        exit 1
+    fi
+fi
+
+# Grab the MSBuild package if we don't have it already
+if [ ! -e "$__msbuildpath" ]; then
+    echo "Restoring MSBuild..."
+    mono "$__nugetpath" install $__msbuildpackageid -Version $__msbuildpackageversion -source "https://www.myget.org/F/dotnet-buildtools/" -OutputDirectory "$__packageroot"
+    if [ $? -ne 0 ]; then
+        echo "Failed to restore MSBuild."
+        exit 1
+    fi
+fi
+
+# end of copy of corefx/build.sh
+
+
 usage()
 {
     echo "Usage: $0 [BuildArch] [BuildType] [clean] [verbose] [clangx.y]"
@@ -88,6 +169,30 @@ build_coreclr()
     fi
 }
 
+build_mscorlib()
+{
+    echo "Commencing build of mscorlib for $__BuildOS.$__BuildArch.$__BuildType."
+
+    # GenerateNativeVersionInfo=false is a workaround to avoid call to rc.exe.
+    MONO29679=1 ReferenceAssemblyRoot=$__referenceassemblyroot mono $__msbuildpath $__ProjectDir/build.proj $__MSBCleanBuildArgs /nologo /verbosity:minimal /fileloggerparameters:Verbosity=normal\;LogFile="$__MScorlibBuildLog" /p:Platform=$__BuildArch /p:OSGroup=$__BuildOS /p:BuildOS=$__BuildOS /p:UseRoslynCompiler=true /p:GenerateNativeVersionInfo=false /p:ResGenCommand=$__resgenpath $__AdditionalMSBuildArgs
+
+    if [ $? != 0 ]; then
+        echo "MScorlib build failed. Refer $__MScorlibBuildLog for details."
+        exit 1
+    fi
+}
+
+crossgen()
+{
+    echo "Generating native image of mscorlib for $__BuildOS.$__BuildArch.$__BuildType."
+    echo "$__BinDir/crossgen $__BinDir/mscorlib.dll &> $__CrossGenMScorlibLog
+    $__BinDir/crossgen $__BinDir/mscorlib.dll &> "$__CrossGenMScorlibLog
+    if [ $? != 0 ]; then
+        echo "CrossGen mscorlib failed. Refer $__CrossGenMScorlibLog for details."
+        exit 1
+    fi
+}
+
 echo "Commencing CoreCLR Repo build"
 
 # Argument types supported by this script:
@@ -144,6 +249,9 @@ __CleanBuild=false
 __VerboseBuild=false
 __ClangMajorVersion=3
 __ClangMinorVersion=5
+
+__MScorlibBuildLog=$__LogsDir/MScorlib_$__BuildOS__$__BuildArch__$__BuildType.log
+__CrossGenMScorlibLog=$__LogsDir/CrossgenMScorlib_$__BuildOS__$__BuildArch__$__BuildType.log
 
 for i in "$@"
     do
@@ -220,6 +328,14 @@ check_prereqs
 # Build the coreclr (native) components.
 
 build_coreclr
+
+# Build mscorlib.dll.
+
+build_mscorlib
+
+# Build native parts of mscorlib
+
+crossgen
 
 # Build complete
 

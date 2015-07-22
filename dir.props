@@ -1,4 +1,4 @@
-<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="12.0" DefaultTargets="Build" InitialTargets="CheckRoslyn" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
   <!--
     $(OS) is set to Unix/Windows_NT. This comes from an environment variable on Windows and MSBuild on Unix.
@@ -112,13 +112,146 @@
     <NuSpecs Condition="'$(Configuration)'=='Debug'" Include="$(PackagesBinDir)\Microsoft.DotNet.CoreCLR.Debug.Development.nuspec" />
   </ItemGroup>
 
-  <!-- Setup common target properties that we use to conditionally include sources -->
+
+
+  <!--
+    Set up Roslyn predefines
+  -->
   <PropertyGroup>
-    <TargetsFreeBSD Condition="'$(BuildOS)' == 'FreeBSD'">true</TargetsFreeBSD>
-    <TargetsLinux Condition="'$(BuildOS)' == 'Linux'">true</TargetsLinux>
-    <TargetsOSX Condition="'$(BuildOS)' == 'OSX'">true</TargetsOSX>
-    <TargetsWindows Condition="'$(BuildOS)' == 'Windows_NT'">true</TargetsWindows>
-    
-    <TargetsUnix Condition="'$(TargetsFreeBSD)' == 'true' or '$(TargetsLinux)' == 'true' or '$(TargetsOSX)' == 'true'">true</TargetsUnix>
+    <RoslynPackageDir>$(PackagesDir)/$(RoslynPackageName).$(RoslynVersion)/</RoslynPackageDir>
+    <RoslynPropsFile>$(RoslynPackageDir)build/Microsoft.Net.ToolsetCompilers.props</RoslynPropsFile>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(OsEnvironment)'=='Unix' and '$(UseRoslynCompiler)'=='true'">
+    <!--
+      PDB support isn't implemented yet. https://github.com/dotnet/roslyn/issues/2449
+      Note that both DebugSymbols and DebugType need set or project references will assume they need to copy pdbs and fail.
+    -->
+    <DebugSymbols>false</DebugSymbols>
+    <DebugType>none</DebugType>
+    <!--
+      Delay signing with the ECMA key currently doesn't work.
+      https://github.com/dotnet/roslyn/issues/2444
+    -->
+    <UseECMAKey>false</UseECMAKey>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(OsEnvironment)'=='Unix' and '$(UseRoslynCompiler)'=='true'">
+    <!--
+      System.Diagnostics.Debug.Tests currently fails trying to resolve types against System.Runtime
+      https://github.com/dotnet/corefx/issues/1609
+    -->
+    <ExcludeProjects Include="System.Diagnostics.Debug/tests/System.Diagnostics.Debug.Tests.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup Condition="'$(OsEnvironment)'=='Unix'">
+    <!--
+      Mono currently doesn't include VB targets for portable, notably /lib/mono/xbuild/Microsoft/Portable/v4.5/Microsoft.Portable.VisualBasic.targets.
+      Fixed in https://github.com/mono/mono/pull/1726.
+    -->
+    <IncludeVbProjects>false</IncludeVbProjects>
+    <!--
+      Building packages fails for two reasons.
+      First, nuget doesn't like the paths in the nuspec having backslashes as directory separators.
+      Second, we aren't yet building pdbs, which the nuspecs specify.
+    -->
+    <SkipBuildPackages>true</SkipBuildPackages>
+  </PropertyGroup>
+
+  <!-- 
+  Projects that have no OS-specific implementations just use Debug and Release for $(Configuration).
+  Projects that do have OS-specific implementations use OS_Debug and OS_Release, for all OS's we support even
+  if the code is the same between some OS's (so if you have some project that just calls POSIX APIs, we still have
+  OSX_[Debug|Release] and Linux_[Debug|Release] configurations.  We do this so that we place all the output under
+  a single binary folder and can have a similar experience between the command line and Visual Studio.
+  
+  Since now have multiple *Debug and *Release configurations, ConfigurationGroup is set to Debug for any of the
+  debug configurations, and to Release for any of the release configurations.
+  -->
+
+  <!-- Set default Configuration and Platform -->
+  <PropertyGroup>
+    <Platform Condition="'$(Platform)'==''">AnyCPU</Platform>
+
+    <Configuration Condition="'$(Configuration)'==''">Debug</Configuration>
+    <ConfigurationGroup Condition="$(Configuration.EndsWith('Debug'))">Debug</ConfigurationGroup>
+    <ConfigurationGroup Condition="$(Configuration.EndsWith('Release'))">Release</ConfigurationGroup>
+    <ConfigurationGroup Condition="'$(ConfigurationGroup)'==''">$(Configuration)</ConfigurationGroup>
+
+    <OSGroup Condition="'$(OSGroup)'=='' and $(Configuration.StartsWith('Windows'))">Windows_NT</OSGroup>
+    <OSGroup Condition="'$(OSGroup)'=='' and $(Configuration.StartsWith('Linux'))">Linux</OSGroup>
+    <OSGroup Condition="'$(OSGroup)'=='' and $(Configuration.StartsWith('OSX'))">OSX</OSGroup>
+    <OSGroup Condition="'$(OSGroup)'=='' and $(Configuration.StartsWith('FreeBSD'))">FreeBSD</OSGroup>
+    <OSGroup Condition="'$(OSGroup)'==''">Windows_NT</OSGroup>
+  </PropertyGroup>
+
+  <!-- Set up Default symbol and optimization for Configuration -->
+  <PropertyGroup Condition="'$(ConfigurationGroup)' == 'Debug'">
+    <DebugSymbols Condition="'$(DebugSymbols)' == ''">true</DebugSymbols>
+    <Optimize Condition="'$(Optimize)' == ''">false</Optimize>
+    <DebugType Condition="'$(DebugType)' == ''">full</DebugType>
+    <DefineConstants>$(DefineConstants),DEBUG,TRACE</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(ConfigurationGroup)' == 'Release'">
+    <DebugSymbols Condition="'$(DebugSymbols)' == ''">true</DebugSymbols>
+    <Optimize Condition="'$(Optimize)' == ''">true</Optimize>
+    <DebugType Condition="'$(DebugType)' == ''">pdbonly</DebugType>
+    <DefineConstants>$(DefineConstants),TRACE</DefineConstants>
+  </PropertyGroup>
+
+  <!-- Disable some standard properties for building our projects -->
+  <PropertyGroup>
+    <NoStdLib>true</NoStdLib>
+    <NoExplicitReferenceToStdLib>true</NoExplicitReferenceToStdLib>
+    <AddAdditionalExplicitAssemblyReferences>false</AddAdditionalExplicitAssemblyReferences>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+  </PropertyGroup>
+
+  <!-- Set up handling of build warnings -->
+  <PropertyGroup>
+    <WarningLevel>4</WarningLevel>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <!-- Set up some common paths -->
+  <PropertyGroup>
+    <CommonPath>$(SourceDir)Common\src</CommonPath>
+    <CommonTestPath>$(SourceDir)Common\tests</CommonTestPath>
+  </PropertyGroup>
+
+  <!-- Set up the default output and intermediate paths -->
+  <PropertyGroup>
+    <OSPlatformConfig>$(OSGroup).$(Platform).$(ConfigurationGroup)</OSPlatformConfig>
+
+    <BaseOutputPath Condition="'$(BaseOutputPath)'==''">$(BinDir)</BaseOutputPath>
+    <OutputPath Condition="'$(OutputPath)'==''">$(BaseOutputPath)$(OSPlatformConfig)\$(MSBuildProjectName)\</OutputPath>
+
+    <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)'==''">$(ObjDir)</BaseIntermediateOutputPath>
+    <IntermediateOutputRootPath Condition="'$(IntermediateOutputRootPath)' == ''">$(BaseIntermediateOutputPath)$(OSPlatformConfig)\</IntermediateOutputRootPath>
+    <IntermediateOutputPath Condition="'$(IntermediateOutputPath)' == ''">$(IntermediateOutputRootPath)$(MSBuildProjectName)\</IntermediateOutputPath>
+
+    <TestPath Condition="'$(TestPath)'==''">$(TestWorkingDir)$(OSPlatformConfig)\$(MSBuildProjectName)\</TestPath>
+
+    <PackagesBasePath Condition="'$(PackagesBasePath)'==''">$(BinDir)$(OSPlatformConfig)</PackagesBasePath>
+  </PropertyGroup>
+
+  <!-- Set up common target properties that we use to conditionally include sources -->
+  <PropertyGroup>
+    <TargetsWindows Condition="'$(OSGroup)' == 'Windows_NT'">true</TargetsWindows>
+    <TargetsLinux Condition="'$(OSGroup)' == 'Linux'">true</TargetsLinux>
+    <TargetsOSX Condition="'$(OSGroup)' == 'OSX'">true</TargetsOSX>
+    <TargetsFreeBSD Condition="'$(OSGroup)' == 'FreeBSD'">true</TargetsFreeBSD>
+
+    <TargetsUnix Condition="'$(TargetsLinux)' == 'true' or '$(TargetsOSX)' == 'true' or '$(TargetsFreeBSD)' == 'true'">true</TargetsUnix>
+  </PropertyGroup>
+
+
+
+  <Import Project="$(RoslynPropsFile)"
+          Condition="'$(UseRoslynCompiler)'=='true' and Exists('$(RoslynPropsFile)')" />
+
+  <!-- Building the build.proj should restore successfully, so ignore in that case -->
+  <Target Name="CheckRoslyn" Condition="'$(UseRoslynCompiler)'=='true' and '$(MSBuildProjectFile)'!='build.proj'">
+    <Warning Condition="!Exists('$(RoslynPropsFile)')"
+             Text="The Roslyn targets do not exist- Roslyn will not be used for this build, but the package should be restored if you build again." />
+  </Target>
+
 </Project>
