@@ -15,7 +15,7 @@ __resgenpackageversion="1.0.0"
 __resgenpath=$__packageroot/$__resgenpackageid.$__resgenpackageversion/tools/resgen.exe
 
 if [ $(uname) == "Linux" ]; then
-    __monoroot=/devel
+    __monoroot=/usr
 elif [ $(uname) == "FreeBSD" ]; then
     __monoroot=/usr/local
 else
