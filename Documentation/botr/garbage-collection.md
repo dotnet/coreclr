@@ -48,13 +48,17 @@ The allocator is designed to achieve the following:
 Allocation APIs
 ---------------
 
-     Object* GCHeap::Alloc(size_t size, DWORD flags);
-     Object* GCHeap::Alloc(alloc_context* acontext, size_t size, DWORD flags);
+```c++
+Object* GCHeap::Alloc(size_t size, DWORD flags);
+Object* GCHeap::Alloc(alloc_context* acontext, size_t size, DWORD flags);
+```
 
 The above functions can be used to allocate both small objects and
 large objects. There is also a function to allocate directly on LOH:
 
-     Object* GCHeap::AllocLHeap(size_t size, DWORD flags);
+```c++
+Object* GCHeap::AllocLHeap(size_t size, DWORD flags);
+```
  
 Design of the Collector
 =======================
@@ -250,79 +254,83 @@ try_allocate_more_space calls GarbageCollectGeneration when it needs to trigger 
 Given WKS GC with concurrent GC off, GarbageCollectGeneration is done all
 on the user thread that triggerred the GC. The code flow is:
 
-     GarbageCollectGeneration()
-     {
-         SuspendEE();
-         garbage_collect();
-         RestartEE();
-     }
-     
-     garbage_collect()
-     {
-         generation_to_condemn();
-         gc1();
-     }
-     
-     gc1()
-     {
-         mark_phase();
-         plan_phase();
-     }
-     
-     plan_phase()
-     {
-         // actual plan phase work to decide to 
-         // compact or not
-         if (compact)
-         {
-             relocate_phase();
-             compact_phase();
-         }
-         else
-             make_free_lists();
-     }
+```c++
+GarbageCollectGeneration()
+{
+    SuspendEE();
+    garbage_collect();
+    RestartEE();
+}
+
+garbage_collect()
+{
+    generation_to_condemn();
+    gc1();
+}
+
+gc1()
+{
+    mark_phase();
+    plan_phase();
+}
+
+plan_phase()
+{
+    // actual plan phase work to decide to 
+    // compact or not
+    if (compact)
+    {
+        relocate_phase();
+        compact_phase();
+    }
+    else
+        make_free_lists();
+}
+```
 
 Given WKS GC with concurrent GC on (default case), the code flow for a background GC is 
 
-     GarbageCollectGeneration()
-     {
-         SuspendEE();
-         garbage_collect();
-         RestartEE();
-     }
-     
-     garbage_collect()
-     {
-         generation_to_condemn();
-         // decide to do a background GC
-         // wake up the background GC thread to do the work
-         do_background_gc();
-     }
-     
-     do_background_gc()
-     {
-         init_background_gc();
-         start_c_gc ();
-     
-         //wait until restarted by the BGC.
-         wait_to_proceed();
-     }
-     
-     bgc_thread_function()
-     {
-         while (1)
-         {
-             // wait on an event
-             // wake up
-             gc1();
-         }
-     }
-     
-     gc1()
-     {
-         background_mark_phase();
-         background_sweep();
-     }
+```c++
+GarbageCollectGeneration()
+{
+    SuspendEE();
+    garbage_collect();
+    RestartEE();
+}
+
+garbage_collect()
+{
+    generation_to_condemn();
+    // decide to do a background GC
+    // wake up the background GC thread to do the work
+    do_background_gc();
+}
+
+do_background_gc()
+{
+    init_background_gc();
+    start_c_gc ();
+    
+    //wait until restarted by the BGC.
+    wait_to_proceed();
+}
+
+bgc_thread_function()
+{
+    while (1)
+    {
+         // wait on an event
+         // wake up
+         gc1();
+    }
+}
+
+gc1()
+{
+    background_mark_phase();
+    background_sweep();
+}
+```
 
 Resources
 =========

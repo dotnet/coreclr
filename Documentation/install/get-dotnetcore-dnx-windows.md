@@ -77,7 +77,7 @@ Some people on the .NET Core team are partial to a demo console app on corefxlab
 
 You need a `project.json` that matches your app. Use this one. It will work for both of the apps provided/referenced above. Save the project.json beside your app.
 
-```
+```json
 {
     "version": "1.0.0-*",
     "dependencies": {

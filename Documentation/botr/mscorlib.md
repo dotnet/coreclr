@@ -80,29 +80,31 @@ There is a way to pass a raw object references in and out of QCalls. It is done 
 
 Do not replicate the comments into your actual QCall implementation. This is for illustrative purposes.
 
-	class Foo
-	{
-	    // All QCalls should have the following DllImport and
-	    // SuppressUnmanagedCodeSecurity attributes
-	    [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-	    [SuppressUnmanagedCodeSecurity]
-	    // QCalls should always be static extern.
-	    private static extern bool Bar(int flags, string inString, StringHandleOnStack retString);
+```c#
+class Foo
+{
+    // All QCalls should have the following DllImport and
+    // SuppressUnmanagedCodeSecurity attributes
+    [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+    [SuppressUnmanagedCodeSecurity]
+    // QCalls should always be static extern.
+    private static extern bool Bar(int flags, string inString, StringHandleOnStack retString);
 
-	    // Many QCalls have a thin managed wrapper around them to expose them to
-	    // the world in more meaningful way.
-	    public string Bar(int flags)
-	    {
-	        string retString = null;
+    // Many QCalls have a thin managed wrapper around them to expose them to
+    // the world in more meaningful way.
+    public string Bar(int flags)
+    {
+        string retString = null;
 
-	        // The strings are returned from QCalls by taking address
-	        // of a local variable using JitHelpers.GetStringHandle method
-	        if (!Bar(flags, this.Id, JitHelpers.GetStringHandle(ref retString)))
-	            FatalError();
+        // The strings are returned from QCalls by taking address
+        // of a local variable using JitHelpers.GetStringHandle method
+        if (!Bar(flags, this.Id, JitHelpers.GetStringHandle(ref retString)))
+            FatalError();
 
-	        return retString;
-	    }
-	}
+        return retString;
+    }
+}
+```
 
 ### QCall Example - Unmanaged Part
 
@@ -112,57 +114,59 @@ The QCall entrypoint has to be registered in tables in [vm\ecalllist.h][ecalllis
 
 [ecalllist]: https://github.com/dotnet/coreclr/blob/master/src/vm/ecalllist.h
 
-	class FooNative
-	{
-	public:
-	    // All QCalls should be static and should be tagged with QCALLTYPE
-	    static
-	    BOOL QCALLTYPE Bar(int flags, LPCWSTR wszString, QCall::StringHandleOnStack retString);
-	};
+```c++
+class FooNative
+{
+public:
+    // All QCalls should be static and should be tagged with QCALLTYPE
+    static
+    BOOL QCALLTYPE Bar(int flags, LPCWSTR wszString, QCall::StringHandleOnStack retString);
+};
 
-	BOOL QCALLTYPE FooNative::Bar(int flags, LPCWSTR wszString, QCall::StringHandleOnStack retString)
-	{
-	    // All QCalls should have QCALL_CONTRACT.
-	    // It is alias for THROWS; GC_TRIGGERS; MODE_PREEMPTIVE; SO_TOLERANT.
-	    QCALL_CONTRACT;
+BOOL QCALLTYPE FooNative::Bar(int flags, LPCWSTR wszString, QCall::StringHandleOnStack retString)
+{
+    // All QCalls should have QCALL_CONTRACT.
+    // It is alias for THROWS; GC_TRIGGERS; MODE_PREEMPTIVE; SO_TOLERANT.
+    QCALL_CONTRACT;
 
-	    // Optionally, use QCALL_CHECK instead and the expanded form of the contract
-	    // if you want to specify preconditions:
-	    // CONTRACTL {
-	    //     QCALL_CHECK;
-	    //     PRECONDITION(wszString != NULL);
-	    // } CONTRACTL_END;
+    // Optionally, use QCALL_CHECK instead and the expanded form of the contract
+    // if you want to specify preconditions:
+    // CONTRACTL {
+    //     QCALL_CHECK;
+    //     PRECONDITION(wszString != NULL);
+    // } CONTRACTL_END;
 
-	    // The only line between QCALL_CONTRACT and BEGIN_QCALL
-	    // should be the return value declaration if there is one.
-	    BOOL retVal = FALSE;
+    // The only line between QCALL_CONTRACT and BEGIN_QCALL
+    // should be the return value declaration if there is one.
+    BOOL retVal = FALSE;
 
-	    // The body has to be enclosed in BEGIN_QCALL/END_QCALL macro. It is necessary
-	    // to make the exception handling work.
-	    BEGIN_QCALL;
+    // The body has to be enclosed in BEGIN_QCALL/END_QCALL macro. It is necessary
+    // to make the exception handling work.
+    BEGIN_QCALL;
 
-	    // Validate arguments if necessary and throw exceptions.
-	    // There is no convention currently on whether the argument validation should be
-	    // done in managed or unmanaged code.
-	    if (flags != 0)
-	        COMPlusThrow(kArgumentException, L"InvalidFlags");
+    // Validate arguments if necessary and throw exceptions.
+    // There is no convention currently on whether the argument validation should be
+    // done in managed or unmanaged code.
+    if (flags != 0)
+        COMPlusThrow(kArgumentException, L"InvalidFlags");
 
-	    // No need to worry about GC moving strings passed into QCall.
-	    // Marshalling pins them for us.
-	    printf("%S", wszString);
+    // No need to worry about GC moving strings passed into QCall.
+    // Marshalling pins them for us.
+    printf("%S", wszString);
 
-	    // This is most the efficient way to return strings back
-	    // to managed code. No need to use StringBuilder.
-	    retString.Set(L"Hello");
+    // This is most the efficient way to return strings back
+    // to managed code. No need to use StringBuilder.
+    retString.Set(L"Hello");
 
-	    // You can not return from inside of BEGIN_QCALL/END_QCALL.
-	    // The return value has to be passed out in helper variable.
-	    retVal = TRUE;
+    // You can not return from inside of BEGIN_QCALL/END_QCALL.
+    // The return value has to be passed out in helper variable.
+    retVal = TRUE;
 
-	    END_QCALL;
+    END_QCALL;
 
-	    return retVal;
-	}
+    return retVal;
+}
+```
 
 ## FCall Functional Behavior
 
@@ -196,12 +200,14 @@ Setting a breakpoint inside an FCall implementation may confuse the epilog walke
 
 Here's a real-world example from the String class:
 
-	public partial sealed class String
-	{
-	    // Replaces all instances of oldChar with newChar.
-	    [MethodImplAttribute(MethodImplOptions.InternalCall)]
-	    public extern String Replace (char oldChar, char newChar);
-	}
+```c#
+public partial sealed class String
+{
+    // Replaces all instances of oldChar with newChar.
+    [MethodImplAttribute(MethodImplOptions.InternalCall)]
+    public extern String Replace (char oldChar, char newChar);
+}
+```
 
 ### FCall Example – Native Part
 
@@ -209,50 +215,52 @@ The FCall entrypoint has to be registered in tables in [vm\ecalllist.h][ecalllis
 
 Notice how oldBuffer and newBuffer (interior pointers into String instances) are re-fetched after allocating memory. Also, this method is an instance method in managed code, with the "this" parameter passed as the first argument. We use StringObject* as the argument type, then copy it into a STRINGREF so we get some error checking when we use it.
 
-	FCIMPL3(LPVOID, COMString::Replace, StringObject* thisRefUNSAFE, CLR_CHAR oldChar, CLR_CHAR newChar)
-	{
-	    FCALL_CONTRACT;
+```c++
+FCIMPL3(LPVOID, COMString::Replace, StringObject* thisRefUNSAFE, CLR_CHAR oldChar, CLR_CHAR newChar)
+{
+    FCALL_CONTRACT;
 
-	    int length = 0;
-	    int firstFoundIndex = -1;
-	    WCHAR *oldBuffer = NULL;
-	    WCHAR *newBuffer;
+    int length = 0;
+    int firstFoundIndex = -1;
+    WCHAR *oldBuffer = NULL;
+    WCHAR *newBuffer;
 
-	    STRINGREF   newString   = NULL;
-	    STRINGREF   thisRef     = (STRINGREF)thisRefUNSAFE;
+    STRINGREF   newString   = NULL;
+    STRINGREF   thisRef     = (STRINGREF)thisRefUNSAFE;
 
-	    if (thisRef==NULL) {
-	        FCThrowRes(kNullReferenceException, L"NullReference_This");
-	    }
+    if (thisRef==NULL) {
+        FCThrowRes(kNullReferenceException, L"NullReference_This");
+    }
 
-	    [... Removed some uninteresting code here for illustrative purposes...]
+    [... Removed some uninteresting code here for illustrative purposes...]
 
-	    HELPER_METHOD_FRAME_BEGIN_RET_ATTRIB_2(Frame::FRAME_ATTR_RETURNOBJ, newString, thisRef);
+    HELPER_METHOD_FRAME_BEGIN_RET_ATTRIB_2(Frame::FRAME_ATTR_RETURNOBJ, newString, thisRef);
 
-	    //Get the length and allocate a new String
-	    //We will definitely do an allocation here.
-	    newString = NewString(length);
+    //Get the length and allocate a new String
+    //We will definitely do an allocation here.
+    newString = NewString(length);
 
-	    //After allocation, thisRef may have moved
-	    oldBuffer = thisRef->GetBuffer();
+    //After allocation, thisRef may have moved
+    oldBuffer = thisRef->GetBuffer();
 
-	    //Get the buffers in both of the Strings.
-	    newBuffer = newString->GetBuffer();
+    //Get the buffers in both of the Strings.
+    newBuffer = newString->GetBuffer();
 
-	    //Copy the characters, doing the replacement as we go.
-	    for (int i=0; i<firstFoundIndex; i++) {
-	        newBuffer[i]=oldBuffer[i];
-	    }
-	    for (int i=firstFoundIndex; i<length; i++) {
-	        newBuffer[i]=(oldBuffer[i]==((WCHAR)oldChar))?
-	                      ((WCHAR)newChar):oldBuffer[i];
-	    }
+    //Copy the characters, doing the replacement as we go.
+    for (int i=0; i<firstFoundIndex; i++) {
+        newBuffer[i]=oldBuffer[i];
+    }
+    for (int i=firstFoundIndex; i<length; i++) {
+        newBuffer[i]=(oldBuffer[i]==((WCHAR)oldChar))?
+                      ((WCHAR)newChar):oldBuffer[i];
+    }
 
-	    HELPER_METHOD_FRAME_END();
+    HELPER_METHOD_FRAME_END();
 
-	    return OBJECTREFToObject(newString);
-	}
-	FCIMPLEND
+    return OBJECTREFToObject(newString);
+}
+FCIMPLEND
+```
 
 
 ## Registering your QCall or FCall Method
@@ -261,20 +269,24 @@ The CLR must know the name of your QCall and FCall methods, both in terms of the
 
 Say we defined an FCall method for String.Replace(char, char), in the example above. First, we need to ensure that we have an array of function elements for the String class.
 
-	// Note these have to remain sorted by name:namespace pair (Assert will wack you if you
-	    ...
-	    FCClassElement("String", "System", gStringFuncs)
-	    ...
+```c++
+// Note these have to remain sorted by name:namespace pair (Assert will wack you if you
+    ...
+    FCClassElement("String", "System", gStringFuncs)
+    ...
+```
 
 Second, we must then ensure that gStringFuncs contains a proper entry for Replace. Note that if a method name has multiple overloads (such as String.Replace(String, String)), then we can specify a signature:
 
-	FCFuncStart(gStringFuncs)
-	    ...
-	    FCFuncElement("IndexOf", COMString::IndexOfChar)
-	    FCFuncElementSig("Replace", &gsig_IM_Char_Char_RetStr, COMString::Replace)
-	    FCFuncElementSig("Replace", &gsig_IM_Str_Str_RetStr, COMString::ReplaceString)
-	    ...
-	FCFuncEnd()
+```c++
+FCFuncStart(gStringFuncs)
+    ...
+    FCFuncElement("IndexOf", COMString::IndexOfChar)
+    FCFuncElementSig("Replace", &gsig_IM_Char_Char_RetStr, COMString::Replace)
+    FCFuncElementSig("Replace", &gsig_IM_Str_Str_RetStr, COMString::ReplaceString)
+    ...
+FCFuncEnd()
+```
 
 There is a parallel QCFuncElement macro.
 
@@ -297,16 +309,17 @@ In [mscorlib.h][mscorlib.h], you can use macros ending in "_U" to describe a typ
 
 [mscorlib.h]: https://github.com/dotnet/coreclr/blob/master/src/vm/mscorlib.h
 
-	DEFINE_CLASS_U(SAFE_HANDLE,         Interop,                SafeHandle,         SafeHandle)
-	DEFINE_FIELD(SAFE_HANDLE,           HANDLE,                 handle)
-	DEFINE_FIELD_U(SAFE_HANDLE,         STATE,                  _state,                     SafeHandle,            m_state)
-	DEFINE_FIELD_U(SAFE_HANDLE,         OWNS_HANDLE,            _ownsHandle,                SafeHandle,            m_ownsHandle)
-	DEFINE_FIELD_U(SAFE_HANDLE,         INITIALIZED,            _fullyInitialized,          SafeHandle,            m_fullyInitialized)
-	DEFINE_METHOD(SAFE_HANDLE,          GET_IS_INVALID,         get_IsInvalid,              IM_RetBool)
-	DEFINE_METHOD(SAFE_HANDLE,          RELEASE_HANDLE,         ReleaseHandle,              IM_RetBool)
-	DEFINE_METHOD(SAFE_HANDLE,          DISPOSE,                Dispose,                    IM_RetVoid)
-	DEFINE_METHOD(SAFE_HANDLE,          DISPOSE_BOOL,           Dispose,                    IM_Bool_RetVoid)
-
+```
+DEFINE_CLASS_U(SAFE_HANDLE,         Interop,                SafeHandle,         SafeHandle)
+DEFINE_FIELD(SAFE_HANDLE,           HANDLE,                 handle)
+DEFINE_FIELD_U(SAFE_HANDLE,         STATE,                  _state,                     SafeHandle,            m_state)
+DEFINE_FIELD_U(SAFE_HANDLE,         OWNS_HANDLE,            _ownsHandle,                SafeHandle,            m_ownsHandle)
+DEFINE_FIELD_U(SAFE_HANDLE,         INITIALIZED,            _fullyInitialized,          SafeHandle,            m_fullyInitialized)
+DEFINE_METHOD(SAFE_HANDLE,          GET_IS_INVALID,         get_IsInvalid,              IM_RetBool)
+DEFINE_METHOD(SAFE_HANDLE,          RELEASE_HANDLE,         ReleaseHandle,              IM_RetBool)
+DEFINE_METHOD(SAFE_HANDLE,          DISPOSE,                Dispose,                    IM_RetVoid)
+DEFINE_METHOD(SAFE_HANDLE,          DISPOSE_BOOL,           Dispose,                    IM_Bool_RetVoid)
+```
 
 Then, you can use the REF<T> template to create a type name like SAFEHANDLEREF. All the error checking from OBJECTREF is built into the REF<T> macro, and you can freely dereference this SAFEHANDLEREF & use fields off of it in native code. You still must GC protect these references.
 
@@ -316,27 +329,29 @@ Clearly there are places where the CLR must call into managed code from native. 
 
 Here's a simplified example. Note how this instance uses the binder described in the previous section to call SafeHandle's virtual ReleaseHandle method.
 
-	void SafeHandle::RunReleaseMethod(SafeHandle* psh)
-	{
-	    CONTRACTL {
-	        THROWS;
-	        GC_TRIGGERS;
-	        MODE_COOPERATIVE;
-	    } CONTRACTL_END;
+```c++
+void SafeHandle::RunReleaseMethod(SafeHandle* psh)
+{
+    CONTRACTL {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_COOPERATIVE;
+    } CONTRACTL_END;
 
-	    SAFEHANDLEREF sh(psh);
+    SAFEHANDLEREF sh(psh);
 
-	    GCPROTECT_BEGIN(sh);
+    GCPROTECT_BEGIN(sh);
 
-	    MethodDescCallSite releaseHandle(s_pReleaseHandleMethod, METHOD__SAFE_HANDLE__RELEASE_HANDLE, (OBJECTREF*)&sh, TypeHandle(), TRUE);
+    MethodDescCallSite releaseHandle(s_pReleaseHandleMethod, METHOD__SAFE_HANDLE__RELEASE_HANDLE, (OBJECTREF*)&sh, TypeHandle(), TRUE);
 
-	    ARG_SLOT releaseArgs[] = { ObjToArgSlot(sh) };
-	    if (!(BOOL)releaseHandle.Call_RetBool(releaseArgs)) {
-	        MDA_TRIGGER_ASSISTANT(ReleaseHandleFailed, ReportViolation)(sh->GetTypeHandle(), sh->m_handle);
-	    }
+    ARG_SLOT releaseArgs[] = { ObjToArgSlot(sh) };
+    if (!(BOOL)releaseHandle.Call_RetBool(releaseArgs)) {
+        MDA_TRIGGER_ASSISTANT(ReleaseHandleFailed, ReportViolation)(sh->GetTypeHandle(), sh->m_handle);
+    }
 
-	    GCPROTECT_END();
-	}
+    GCPROTECT_END();
+}
+```
 
 # Interactions with Other Subsystems
 

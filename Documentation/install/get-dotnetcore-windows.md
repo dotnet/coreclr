@@ -14,7 +14,7 @@ NuGet Restore Packages
 
 Given that NuGet is the .NET Core distribution mechanism, you need a packages.config to restore the packages. The following packages.config is the most minimal one you can have for console apps. You will need to add packages if your app needs it Save this XML to `c:\coreclr-demo\packages\packages.config`.
 
-```
+```xml
 <?xml version="1.0" encoding="utf-8"?>
 <packages>
   <package id="System.Console" version="4.0.0-beta-22713" />

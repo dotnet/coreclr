@@ -33,21 +33,23 @@ When the DAC reads a value from the target, it marshals the value as a chunk of 
 
 Because we build this dll from the same sources that we use to build mscorwks.dll (coreclr.dll), the mscordacwks.dll (msdaccore.dll) build that the debugger uses must match the mscorwks build exactly. You can see that this is obviously true if you consider that between builds we might add or remove a field from a type we use. The size for the object in mscorwks would then be different from the size in mscordacwks and the DAC could not marshal the object correctly. This has a ramification that's obvious when you think about it, but easy to overlook. We cannot have fields in objects that exist only in DAC builds or only in non-DAC builds. Thus, a declaration such as the following would lead to incorrect behavior.
 
-	class Foo
-	{
-		...
-		int nCount;
+```c++
+class Foo
+{
+	...
+	int nCount;
 
-		// DON'T DO THIS!! Object layout must match in DAC builds
-		#ifndef DACCESS_COMPILE
+	// DON'T DO THIS!! Object layout must match in DAC builds
+	#ifndef DACCESS_COMPILE
 
-			DWORD dwFlags;
+		DWORD dwFlags;
 
-		#endif
+	#endif
 
-		PTR_Bar pBar;
-		...
-	};
+	PTR_Bar pBar;
+	...
+};
+```
 
 Marshaling Specifics
 --------------------
@@ -64,59 +66,67 @@ The debugger in this figure could be Visual Studio, MDbg, WinDbg, etc. The debug
 
 Suppose the debugger needs to display the starting address of an ngen'ed method in the managed application that it has gotten from the managed stack. We will assume that the debugger has already gotten an instance of ICorDebugFunction back from the DBI. It will begin by calling the DBI API ICorDebugFunction::GetNativeCode. This calls into the DAC through the DAC/DBI interface function GetNativeCodeInfo, passing in the domain file and metadata token for the function. The following code fragment is a simplification of the actual function, but it illustrates marshaling without introducing extraneous details.
 
-	void DacDbiInterfaceImpl::GetNativeCodeInfo(TADDR taddrDomainFile,
-	mdToken functionToken,
-	NativeCodeFunctionData \* pCodeInfo)
+```c++
+void DacDbiInterfaceImpl::GetNativeCodeInfo(TADDR taddrDomainFile,
+    mdToken functionToken,
+    NativeCodeFunctionData * pCodeInfo)
+{
+	...
+
+	DomainFile * pDomainFile = dac_cast<PTR_DomainFile>(taddrDomainFile);
+	Module * pModule = pDomainFile->GetCurrentModule();
+
+	MethodDesc* pMethodDesc = pModule->LookupMethodDef(functionToken);
+	pCodeInfo->pNativeCodeMethodDescToken = pMethodDesc;
+
+	// if we are loading a module and trying to bind a previously set breakpoint, we may not have
+	// a method desc yet, so check for that situation
+	if(pMethodDesc != NULL)
 	{
+		pCodeInfo->startAddress = pMethodDesc->GetNativeCode();
 		...
-
-		DomainFile \* pDomainFile = dac\_cast<PTR\_DomainFile>(taddrDomainFile);
-		Module \* pModule = pDomainFile->GetCurrentModule();
-
-		MethodDesc\* pMethodDesc = pModule->LookupMethodDef (functionToken);
-		pCodeInfo->pNativeCodeMethodDescToken = pMethodDesc;
-
-		// if we are loading a module and trying to bind a previously set breakpoint, we may not have
-		// a method desc yet, so check for that situation
-		if(pMethodDesc != NULL)
-		{
-			pCodeInfo->startAddress = pMethodDesc->GetNativeCode();
-			...
-		}
 	}
+}
+```
 
 The first step is to get the module in which the managed function resides. The taddrDomainFile parameter we pass in represents a target address, but we will need to be able to dereference it here. This means we need the DAC to marshal the value. The dac\_cast operator will construct a new instance of PTR\_DomainFile with a target address equal to the value of domainFileTaddr. When we assign this to pDomainFile, we have an implicit conversion to the host pointer type. This conversion operator is a member of the PTR type and this is where the marshaling occurs. The DAC first searches its cache for the target address. If it doesn't find it, it reads the data from the target for the marshaled DomainFile instance and copies it to the cache. Finally, it returns the host address of the marshaled value.
 
 Now we can call GetCurrentModule on this host instance of the DomainFile. This function is a simple accessor that returns DomainFile::m\_pModule. Notice that it returns a Module \*, which will be a host address. The value of m\_pModule is a target address (the DAC will have copied the DomainFile instance as raw bytes). The type for the field is PTR\_Module, however, so when the function returns it, the DAC will automatically marshal it as part of the conversion to Module \*. That means the return value is a host address. Now we have the correct module and a method token, so we have all the information we need to get the MethodDesc.
 
-	Module * DomainFile::GetCurrentModule()
-	{
-		LEAF_CONTRACT;
-		SUPPORTS_DAC;
-		return m_pModule;
-	}
+```c++
+Module * DomainFile::GetCurrentModule()
+{
+	LEAF_CONTRACT;
+	SUPPORTS_DAC;
+	return m_pModule;
+}
+```
 
 In this simplified version of the code, we are assuming that the method token is a method definition. The next step, then, is to call the LookupMethodDef function on the Module instance.
 
-	inline MethodDesc \*Module::LookupMethodDef(mdMethodDef token)
-	{
-		WRAPPER\_CONTRACT;
-		SUPPORTS\_DAC;
-		...
-		return dac\_cast<PTR\_MethodDesc>(GetFromRidMap(&m\_MethodDefToDescMap,
-		RidFromToken(token)));
-	}
+```c++
+inline MethodDesc *Module::LookupMethodDef(mdMethodDef token)
+{
+	WRAPPER_CONTRACT;
+	SUPPORTS_DAC;
+	...
+	return dac_cast<PTR_MethodDesc>(GetFromRidMap(&m_MethodDefToDescMap,
+	RidFromToken(token)));
+}
+```
 
 This uses the RidMap to lookup the MethodDesc. If you look at the definition for this function, you will see that it returns a TADDR:
 
-	TADDR GetFromRidMap(LookupMap \*pMap, DWORD rid)
-	{
-		...
+```c++
+TADDR GetFromRidMap(LookupMap *pMap, DWORD rid)
+{
+	...
 
-		TADDR result = pMap->pTable[rid];
-		...
-		return result;
-	}
+	TADDR result = pMap->pTable[rid];
+	...
+	return result;
+}
+```
 
 This represents a target address, but it's not really a pointer; it's simply a number (although it represents an address). The problem is that LookupMethodDef needs to return the address of a MethodDesc that we can dereference. To accomplish this, the function uses a dac\_cast to PTR\_MethodDesc to convert the TADDR to a PTR\_MethodDesc. You can think of this as the target address space form of a cast from void \* to MethodDesc \*. In fact, this code would be slightly cleander if GetFromRidMap returned a PTR\_VOID (with pointer semantics) instead of a TADDR (with integer semantics). Again, the type conversion implicit in the return statement ensures that the DAC marshals the object (if necessary) and returns the host address of the MethodDesc in the DAC cache.
 
@@ -130,7 +140,9 @@ Because the DAC marshals values from the target address space to the host addres
 
 In practice, we use these types only through macros. The introductory comment in [daccess.h][daccess.h] has examples of the use of all of these. What is interesting about these macros is that they will expand to declare instantiated types from these marshaling templates in DAC builds, but are no-ops in non-DAC builds. For example, the following definition declares PTR\_MethodTable as a type to represent method table pointers (note that the convention is to name these types with a prefix of PTR\_):
 
-	typedef DPTR(class MethodTable) PTR\_MethodTable;
+```c++
+typedef DPTR(class MethodTable) PTR_MethodTable;
+```
 
 In a DAC build, the DPTR macro will expand to declare a \_\_DPtr<MethodTable> type named PTR\_MethodTable. In a non-DAC build, the macro simply declares PTR\_MethodTable to be MethodTable \*. This implies that the DAC functionality does not result in any behavior change or performance degradation in non-DAC builds.
 
@@ -160,16 +172,18 @@ Occasionally, legacy code stores a target address in a host pointer type such as
 
 In earlier CLR versions, we used C-style type casting, macros, and constructors to cast between types. For example, in MethodIterator::Next, we have the following:
 
-	if (methodCold)
-	{
-		PTR_CORCOMPILE_METHOD_COLD_HEADER methodColdHeader
-		= PTR_CORCOMPILE_METHOD_COLD_HEADER((TADDR)methodCold);
+```c++
+if (methodCold)
+{
+	PTR_CORCOMPILE_METHOD_COLD_HEADER methodColdHeader
+	= PTR_CORCOMPILE_METHOD_COLD_HEADER((TADDR)methodCold);
 
-		if (((TADDR)methodCode) == PTR_TO_TADDR(methodColdHeader->hotHeader))
-		{
-			// Matched the cold code
-			m_pCMH = PTR_CORCOMPILE_METHOD_COLD_HEADER((TADDR)methodCold);
-			...
+	if (((TADDR)methodCode) == PTR_TO_TADDR(methodColdHeader->hotHeader))
+	{
+		// Matched the cold code
+		m_pCMH = PTR_CORCOMPILE_METHOD_COLD_HEADER((TADDR)methodCold);
+		...
+```
 
 Both methodCold and methodCode are declared as BYTE \*, but in fact hold target addresses. In line 4, methodCold is casted to a TADDR and used as the argument to the constructor for PTR\_CORCOMPILE\_METHOD\_COLD\_HEADER. At this point, methodColdHeader is explicitly a target address. In line 6, there is another C-style cast for methodCode. The hotHeader field of methodColdHeader is of type PTR\_CORCOMPILE\_METHOD\_HEADER. The macro PTR\_TO\_TADDR extracts the raw target address from this PTR type and assigns it to methodCode. Finally, in line 9,  another instance of type PTR\_CORCOMPILE\_METHOD\_COLD\_HEADER is constructed. Again, methodCold is casted to TADDR to pass to this constructor.
 
@@ -185,15 +199,17 @@ There is also a disciplined means to cast between different PTR types: dac\_cast
 
 Now, assuming both methodCold and methodCode are declared to be of type PTR\_BYTE, the code above can be rewritten as follows.
 
-	if (methodCold)
-	{
-		PTR_CORCOMPILE_METHOD_COLD_HEADER methodColdHeader
-		= dac_cast<PTR_CORCOMPILE_METHOD_COLD_HEADER>(methodCold);
+```c++
+if (methodCold)
+{
+	PTR_CORCOMPILE_METHOD_COLD_HEADER methodColdHeader
+	= dac_cast<PTR_CORCOMPILE_METHOD_COLD_HEADER>(methodCold);
 
-		if (methodCode == methodColdHeader->hotHeader)
-		{
-			// Matched the cold code
-			m_pCMH = methodColdHeader;
+	if (methodCode == methodColdHeader->hotHeader)
+	{
+		// Matched the cold code
+		m_pCMH = methodColdHeader;
+```
 
 You might argue that this code still seems complex and confusing, but at least we have significantly reduced the number of casts and constructors. We have also used constructs that maintain the separation between host and target pointers, so we have made the code safer. In particular, dac\_cast will often generate compiler or run-time errors if we try to do the wrong thing. In general, dac\_cast should be used for conversions.
 

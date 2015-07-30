@@ -19,47 +19,63 @@ Packages
 
 Install the `libunwind8`, `libssl-dev` and `unzip` packages:
 
-	sudo apt-get install libunwind8 libssl-dev unzip
+```sh
+sudo apt-get install libunwind8 libssl-dev unzip
+```
 
 You also need a latest version of Mono, which is required for DNU. This is a temporary requirement.
 
-	sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF
-	echo "deb http://download.mono-project.com/repo/debian wheezy main" | sudo tee /etc/apt/sources.list.d/mono-xamarin.list
-	sudo apt-get update
-	sudo apt-get install mono-complete
+```sh
+sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF
+echo "deb http://download.mono-project.com/repo/debian wheezy main" | sudo tee /etc/apt/sources.list.d/mono-xamarin.list
+sudo apt-get update
+sudo apt-get install mono-complete
+```
 
 Certificates
 ------------
 
 You need to import trusted root certificates in order to restore NuGet packages. You can do that with the `mozroots` tool.
 
-	mozroots --import --sync
+```sh
+mozroots --import --sync
+```
 
 Installing DNVM
 ===============
 
 You need DNVM to acquire a (or multiple) .NET Execution Environment (DNX) SDKs. DNVM is simply a script, which doesn't depend on .NET.
 
-	curl -sSL https://raw.githubusercontent.com/aspnet/Home/dev/dnvminstall.sh | DNX_BRANCH=dev sh && source ~/.dnx/dnvm/dnvm.sh
+```sh
+curl -sSL https://raw.githubusercontent.com/aspnet/Home/dev/dnvminstall.sh | DNX_BRANCH=dev sh && source ~/.dnx/dnvm/dnvm.sh
+```
 
 You can see the currently installed DNX versions with `dnvm list`, which will display an empty set of installed runtimes.
 
-	dnvm list
+```sh
+dnvm list
+```
 
 Installing the .NET Core DNX SDK
 ================================
 
 You first need to acquire the Mono DNX. It doesn't include Mono, but is needed to use the DNX tools on top of Mono. In particular, the DNU command is not yet supported on .NET Core, requiring us to use Mono for this purpose (until DNU runs on .NET Core). Mono is the default DNX, do you can acquire it via `dnvm upgrade`.
 
-	dnvm upgrade -u
+```sh
+dnvm upgrade -u
+```
 
 Next, acquire the .NET Core DNX SDK.
 
-	dnvm install latest -r coreclr -u
+```sh
+dnvm install latest -r coreclr -u
+```
 
 You can see the currently installed DNX versions with `dnvm list`.
 
-	dnvm list
+```sh
+dnvm list
+```
 
 ```
 Active Version              Runtime Arch Location             Alias
@@ -90,7 +106,7 @@ Some people on the .NET Core team are partial to a demo console app on corefxlab
 
 You need a `project.json` that matches your app. Use this one. It will work for both of the apps provided/referenced above. Save the project.json beside your app.
 
-```
+```json
 {
     "version": "1.0.0-*",
     "dependencies": {
@@ -111,13 +127,19 @@ Run your App
 
 You need to restore packages for your app, based on your project.json, with `dnu restore`. You will need to run this command under the Mono DNX. Make sure that you are using that one.
 
-	dnvm use 1.0.0-beta5-11649 -r mono
-	dnu restore
+```sh
+dnvm use 1.0.0-beta5-11649 -r mono
+dnu restore
+```
 
 You can run your app with .NET Core, although make sure to switch to that DNX.
 
-    dnvm use 1.0.0-beta5-11649 -r coreclr
-	dnx . run
+```sh
+dnvm use 1.0.0-beta5-11649 -r coreclr
+dnx . run
+```
 
-	Hello, Linux
-	Love from CoreCLR.
+```
+Hello, Linux
+Love from CoreCLR.
+```
