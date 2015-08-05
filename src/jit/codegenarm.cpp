@@ -152,7 +152,7 @@ void                CodeGen::genSetRegToIcon(regNumber     reg,
     else
     {
         // TODO-CQ: needs all the optimized cases
-        getEmitter()->emitIns_R_I(INS_mov, emitActualTypeSize(type), reg, val);
+        instGen_Set_Reg_To_Imm(emitActualTypeSize(type), reg, val);
     }
 }
 
@@ -220,6 +220,7 @@ void                CodeGen::genCodeForBBlist()
     }
 #endif
 
+#if 0
     if (compiler->opts.compDbgEnC)
     {
         noway_assert(isFramePointerUsed());
@@ -235,6 +236,15 @@ void                CodeGen::genCodeForBBlist()
     }
 
 #endif // INLINE_NDIRECT
+#endif
+
+    // The current implementation of switch tables requires the first block to have a label so it
+    // can generate offsets to the switch label targets.
+    // TODO-ARM-CQ: remove this when switches have been re-implemented to not use this.
+    if (compiler->fgHasSwitch)
+    {
+        compiler->fgFirstBB->bbFlags |= BBF_JMP_TARGET;
+    }
 
     genPendingCallLabel = nullptr;
 
@@ -469,7 +479,7 @@ void                CodeGen::genCodeForBBlist()
 
         genStackLevel = 0;
 
-#if !FEATURE_FIXED_OUT_ARGS
+#if 0//!FEATURE_FIXED_OUT_ARGS
         /* Check for inserted throw blocks and adjust genStackLevel */
 
         if  (!isFramePointerUsed() && compiler->fgIsThrowHlpBlk(block))
@@ -1012,7 +1022,19 @@ void                CodeGen::instGen_Set_Reg_To_Imm(emitAttr    size,
         else
 #endif // _TARGET_AMD64_
         {
-            getEmitter()->emitIns_R_I(INS_mov, size, reg, imm);
+            if ((imm & 0x0000ffff) == imm)
+            {
+                getEmitter()->emitIns_R_I(INS_mov, size, reg, imm);
+            }
+            else if ((flags != INS_FLAGS_SET) && ((imm & 0xffffffff) == imm))
+            {
+                getEmitter()->emitIns_R_I(INS_movw, size, reg, imm & 0x0000ffff);
+                getEmitter()->emitIns_R_I(INS_movt, size, reg, (imm >> 16) & 0x0000ffff);
+            }
+            else
+            {
+                NYI_ARM("instGen_Set_Reg_To_Imm flags == INS_FLAGS_SET, imm > 0xffff");
+            }
         }
     }
     regTracker.rsTrackRegIntCns(reg, imm);
@@ -1498,7 +1520,76 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
 
     case GT_STOREIND:
         {
-            NYI("GT_STOREIND");
+            GenTree* data = treeNode->gtOp.gtOp2;
+            GenTree* addr = treeNode->gtOp.gtOp1;
+            GCInfo::WriteBarrierForm writeBarrierForm = gcInfo.gcIsWriteBarrierCandidate(treeNode, data);
+            if (writeBarrierForm != GCInfo::WBF_NoBarrier)
+            {
+                // data and addr must be in registers.
+                // Consume both registers so that any copies of interfering
+                // registers are taken care of.
+                genConsumeOperands(treeNode->AsOp());
+                
+                // At this point, we should not have any interference.
+                // That is, 'data' must not be in REG_ARG_0,
+                //  as that is where 'addr' must go.
+                noway_assert(data->gtRegNum != REG_ARG_0);
+
+                // addr goes in REG_ARG_0
+                if (addr->gtRegNum != REG_ARG_0)
+                {
+                    inst_RV_RV(INS_mov, REG_ARG_0, addr->gtRegNum, addr->TypeGet());
+                }
+
+                // data goes in REG_ARG_1
+                if (data->gtRegNum != REG_ARG_1)
+                {
+                    inst_RV_RV(INS_mov, REG_ARG_1, data->gtRegNum, data->TypeGet());
+                }
+
+                genGCWriteBarrier(treeNode, writeBarrierForm);
+            }
+            else
+            {
+                bool reverseOps = ((treeNode->gtFlags & GTF_REVERSE_OPS) != 0);
+                bool dataIsUnary = false;
+                GenTree* nonRMWsrc = nullptr;
+                // We must consume the operands in the proper execution order, 
+                // so that liveness is updated appropriately.
+                if (!reverseOps)
+                {
+                    genConsumeAddress(addr);
+                }
+                if (data->isContained() && !data->OperIsLeaf())
+                {
+                    dataIsUnary = (GenTree::OperIsUnary(data->OperGet()) != 0);
+                    if (!dataIsUnary)
+                    {
+                        nonRMWsrc = data->gtGetOp1();
+                        if (nonRMWsrc->isIndir() && Lowering::IndirsAreEquivalent(nonRMWsrc, treeNode))
+                        {
+                            nonRMWsrc = data->gtGetOp2();
+                        }
+                        genConsumeRegs(nonRMWsrc);
+                    }
+                }
+                else
+                {
+                    genConsumeRegs(data);
+                }
+                if (reverseOps)
+                {
+                    genConsumeAddress(addr);
+                }
+                if (data->isContained() && !data->OperIsLeaf())
+                {
+                    NYI("RMW?");
+                }
+                else
+                {
+                    emit->emitInsMov(ins_Store(targetType), emitTypeSize(treeNode), treeNode);
+                }
+            }
         }
         break;
 
@@ -1917,6 +2008,73 @@ void CodeGen::genConsumeAddrMode(GenTreeAddrMode *addr)
         genConsumeReg(addr->Index());
 }
 
+// TODO-Cleanup: move to CodeGenCommon.cpp
+void CodeGen::genConsumeRegs(GenTree* tree)
+{
+    if (tree->OperGet() == GT_LONG)
+    {
+        NYI_ARM("genConsumeRegs - long");
+        return;
+    }
+    
+    if (tree->isContained())
+    {
+        if (tree->isIndir())
+        {
+            genConsumeAddress(tree->AsIndir()->Addr());
+        }
+        else if (tree->OperGet() == GT_AND)
+        {
+            // This is the special contained GT_AND that we created in Lowering::LowerCmp()
+            // Now we need to consume the operands of the GT_AND node.
+            genConsumeOperands(tree->AsOp());
+        }
+        else
+        {
+            assert(tree->OperIsLeaf());
+        }
+    }
+    else
+    {
+        genConsumeReg(tree);
+    }
+}
+
+//------------------------------------------------------------------------
+// genConsumeOperands: Do liveness update for the operands of a unary or binary tree
+//
+// Arguments:
+//    tree - the GenTreeOp whose operands will have their liveness updated.
+//
+// Return Value:
+//    None.
+//
+// Notes:
+//    Note that this logic is localized here because we must do the liveness update in
+//    the correct execution order.  This is important because we may have two operands
+//    that involve the same lclVar, and if one is marked "lastUse" we must handle it
+//    after the first.
+// TODO-Cleanup: move to CodeGenCommon.cpp
+
+void CodeGen::genConsumeOperands(GenTreeOp* tree)
+{
+    GenTree* firstOp = tree->gtOp1;
+    GenTree* secondOp = tree->gtOp2;
+    if ((tree->gtFlags & GTF_REVERSE_OPS) != 0)
+    {
+        assert(secondOp != nullptr);
+        firstOp = secondOp;
+        secondOp = tree->gtOp1;
+    }
+    if (firstOp != nullptr)
+    {
+        genConsumeRegs(firstOp);
+    }
+    if (secondOp != nullptr)
+    {
+        genConsumeRegs(secondOp);
+    }
+}
 
 // do liveness update for register produced by the current node in codegen
 void CodeGen::genProduceReg(GenTree *tree)
@@ -1972,10 +2130,319 @@ void CodeGen::genTransferRegGCState(regNumber dst, regNumber src)
    }
 }
 
+
+// generates an ip-relative call or indirect call via reg ('call reg')
+//     pass in 'addr' for a relative call or 'base' for a indirect register call
+//     methHnd - optional, only used for pretty printing 
+//     retSize - emitter type of return for GC purposes, should be EA_BYREF, EA_GCREF, or EA_PTRSIZE(not GC)
+// TODO-Cleanup: move to CodeGenCommon.cpp
+void CodeGen::genEmitCall(int                   callType,
+                          CORINFO_METHOD_HANDLE methHnd,
+                          INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo)
+                          void*                 addr,
+                          emitAttr              retSize,
+                          IL_OFFSETX            ilOffset,
+                          regNumber             base,
+                          bool                  isJump,
+                          bool                  isNoGC)
+{
+    
+    getEmitter()->emitIns_Call(emitter::EmitCallType(callType),
+                               methHnd,
+                               INDEBUG_LDISASM_COMMA(sigInfo)
+                               addr,
+                               0,
+                               retSize,
+                               gcInfo.gcVarPtrSetCur,
+                               gcInfo.gcRegGCrefSetCur,
+                               gcInfo.gcRegByrefSetCur,
+                               ilOffset,
+                               base, REG_NA, 0, 0,
+                               isJump, 
+                               emitter::emitNoGChelper(compiler->eeGetHelperNum(methHnd)));
+}
+
+// generates an indirect call via addressing mode (call []) given an indir node
+//     methHnd - optional, only used for pretty printing
+//     retSize - emitter type of return for GC purposes, should be EA_BYREF, EA_GCREF, or EA_PTRSIZE(not GC)
+// TODO-Cleanup: move to CodeGenCommon.cpp
+void CodeGen::genEmitCall(int                   callType,
+                          CORINFO_METHOD_HANDLE methHnd,
+                          INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo)
+                          GenTreeIndir*         indir,
+                          emitAttr              retSize,
+                          IL_OFFSETX            ilOffset)
+{
+    genConsumeAddress(indir->Addr());
+
+    getEmitter()->emitIns_Call(emitter::EmitCallType(callType),
+                               methHnd,
+                               INDEBUG_LDISASM_COMMA(sigInfo)
+                               nullptr,
+                               0,
+                               retSize,
+                               gcInfo.gcVarPtrSetCur,
+                               gcInfo.gcRegGCrefSetCur,
+                               gcInfo.gcRegByrefSetCur,
+                               ilOffset, 
+                               indir->Base()  ? indir->Base()->gtRegNum : REG_NA,
+                               indir->Index() ? indir->Index()->gtRegNum : REG_NA,
+                               indir->Scale(),
+                               indir->Offset());
+}
+
 // Produce code for a GT_CALL node
 void CodeGen::genCallInstruction(GenTreePtr node)
 {
-    NYI("Call not implemented");
+    GenTreeCall *call = node->AsCall();
+
+    assert(call->gtOper == GT_CALL);
+
+    gtCallTypes callType  = (gtCallTypes)call->gtCallType;
+
+    IL_OFFSETX      ilOffset  = BAD_IL_OFFSET;
+
+    // all virtuals should have been expanded into a control expression
+    assert (!call->IsVirtual() || call->gtControlExpr || call->gtCallAddr);
+
+    // Consume all the arg regs
+    for (GenTreePtr list = call->gtCallLateArgs; list; list = list->MoveNext())
+    {
+        assert(list->IsList());
+
+        GenTreePtr argNode = list->Current();
+
+        fgArgTabEntryPtr curArgTabEntry = compiler->gtArgEntryByNode(call, argNode->gtSkipReloadOrCopy());
+        assert(curArgTabEntry);
+        
+        if (curArgTabEntry->regNum == REG_STK)
+            continue;
+
+        regNumber argReg = curArgTabEntry->regNum;
+        genConsumeReg(argNode);
+        if (argNode->gtRegNum != argReg)
+        {
+            inst_RV_RV(ins_Move_Extend(argNode->TypeGet(), argNode->InReg()), argReg, argNode->gtRegNum);
+        }
+
+        // In the case of a varargs call, 
+        // the ABI dictates that if we have floating point args,
+        // we must pass the enregistered arguments in both the 
+        // integer and floating point registers so, let's do that.
+        if (call->IsVarargs() && varTypeIsFloating(argNode))
+        {
+            NYI_ARM("CodeGen - IsVarargs");
+        }
+    }
+
+    // Insert a null check on "this" pointer if asked.
+    if (call->NeedsNullCheck())
+    {
+        const regNumber regThis = genGetThisArgReg(call);
+        // TODO-ARM: Do we need to do anything when we use R12?
+        getEmitter()->emitIns_R_R_I(INS_ldr, EA_4BYTE, REG_R12, regThis, 0);
+        regTracker.rsTrackRegTrash(REG_R12);
+    }
+
+    // Either gtControlExpr != null or gtCallAddr != null or it is a direct non-virtual call to a user or helper method.
+    CORINFO_METHOD_HANDLE methHnd;
+    GenTree* target = call->gtControlExpr;
+    if (callType == CT_INDIRECT)
+    {
+        assert(target == nullptr);
+        target = call->gtCall.gtCallAddr;
+        methHnd = nullptr;
+    }
+    else
+    {
+        methHnd = call->gtCallMethHnd;
+    }
+    
+    CORINFO_SIG_INFO* sigInfo = nullptr;
+#ifdef DEBUG
+    // Pass the call signature information down into the emitter so the emitter can associate
+    // native call sites with the signatures they were generated from.
+    if (callType != CT_HELPER)
+    {
+        sigInfo = call->callSig;
+    }
+#endif // DEBUG
+
+    // If fast tail call, then we are done.  In this case we setup the args (both reg args
+    // and stack args in incoming arg area) and call target in rax.  Epilog sequence would
+    // generate "br x0".
+    if (call->IsFastTailCall())
+    {
+        NYI_ARM("CodeGen - IsFastTailCall");
+
+        // Don't support fast tail calling JIT helpers
+        assert(callType != CT_HELPER);
+
+        // Fast tail calls materialize call target either in gtControlExpr or in gtCallAddr.
+        assert(target != nullptr);
+
+        genConsumeReg(target);
+#if 0
+        if (target->gtRegNum != REG_RAX)
+        {
+            inst_RV_RV(INS_mov, REG_RAX, target->gtRegNum);
+        }
+#endif
+        return;
+    }   
+
+    // For a pinvoke to unmanged code we emit a label to clear 
+    // the GC pointer state before the callsite.
+    // We can't utilize the typical lazy killing of GC pointers
+    // at (or inside) the callsite.
+    if (call->IsUnmanaged())
+    {
+        genDefineTempLabel(genCreateTempLabel());
+    }
+
+    // Determine return value size.
+    emitAttr retSize = EA_PTRSIZE;
+    if (call->gtType == TYP_REF ||
+        call->gtType == TYP_ARRAY)
+    {
+        retSize = EA_GCREF;
+    }
+    else if (call->gtType == TYP_BYREF)
+    {
+        retSize = EA_BYREF;
+    }
+
+#ifdef DEBUGGING_SUPPORT
+    // We need to propagate the IL offset information to the call instruction, so we can emit
+    // an IL to native mapping record for the call, to support managed return value debugging.
+    // We don't want tail call helper calls that were converted from normal calls to get a record,
+    // so we skip this hash table lookup logic in that case.
+    if (compiler->opts.compDbgInfo && compiler->genCallSite2ILOffsetMap != nullptr && !call->IsTailCall())
+    {
+        (void)compiler->genCallSite2ILOffsetMap->Lookup(call, &ilOffset);
+    }
+#endif // DEBUGGING_SUPPORT
+    
+    if (target != nullptr)
+    {
+        // For ARM a call target can not be a contained indirection
+        assert(!target->isContainedIndir());
+            
+        // We have already generated code for gtControlExpr evaluating it into a register.
+        // We just need to emit "call reg" in this case.
+        //
+        assert(genIsValidIntReg(target->gtRegNum));
+
+        genEmitCall(emitter::EC_INDIR_R,
+                    methHnd,
+                    INDEBUG_LDISASM_COMMA(sigInfo)
+                    nullptr, //addr
+                    retSize,
+                    ilOffset,
+                    genConsumeReg(target));
+    }
+    else
+    {
+        // Generate a direct call to a non-virtual user defined or helper method
+        assert(callType == CT_HELPER || callType == CT_USER_FUNC);
+        
+        void *addr = nullptr; 
+        if (callType == CT_HELPER)
+        {            
+            // Direct call to a helper method.
+            CorInfoHelpFunc helperNum = compiler->eeGetHelperNum(methHnd);
+            noway_assert(helperNum != CORINFO_HELP_UNDEF);
+
+            void *pAddr = nullptr;
+            addr = compiler->compGetHelperFtn(helperNum, (void **)&pAddr);
+
+            if (addr == nullptr)
+            {
+                addr = pAddr;
+            }
+        }
+        else
+        {
+            // Direct call to a non-virtual user function.
+            CORINFO_ACCESS_FLAGS  aflags = CORINFO_ACCESS_ANY;
+            if (call->IsSameThis())
+            {
+                aflags = (CORINFO_ACCESS_FLAGS)(aflags | CORINFO_ACCESS_THIS);
+            }
+
+            if ((call->NeedsNullCheck()) == 0)
+            {
+                aflags = (CORINFO_ACCESS_FLAGS)(aflags | CORINFO_ACCESS_NONNULL);
+            }
+
+            CORINFO_CONST_LOOKUP addrInfo;
+            compiler->info.compCompHnd->getFunctionEntryPoint(methHnd, &addrInfo, aflags);
+
+            addr = addrInfo.addr;
+        }
+#if 1
+        // Use this path if you want to load an absolute call target using 
+        //  a sequence of movs followed by an indirect call (blr instruction)
+
+        // Load the call target address in r12
+        // TODO-ARM: Do we need to do anything when we use R12?
+        instGen_Set_Reg_To_Imm(EA_4BYTE, REG_R12, (ssize_t) addr);
+        regTracker.rsTrackRegTrash(REG_R12);
+
+        // indirect call to constant address in r12
+        genEmitCall(emitter::EC_INDIR_R,
+                    methHnd, 
+                    INDEBUG_LDISASM_COMMA(sigInfo)
+                    nullptr, //addr
+                    retSize,
+                    ilOffset,
+                    REG_R12);
+#else
+        // Non-virtual direct call to known addresses
+        genEmitCall(emitter::EC_FUNC_TOKEN,
+                    methHnd, 
+                    INDEBUG_LDISASM_COMMA(sigInfo)
+                    addr,
+                    retSize,
+                    ilOffset);
+#endif
+    }
+
+    // if it was a pinvoke we may have needed to get the address of a label
+    if (genPendingCallLabel)
+    {
+        assert(call->IsUnmanaged());
+        genDefineTempLabel(genPendingCallLabel);
+        genPendingCallLabel = nullptr;
+    }
+
+    // Update GC info:
+    // All Callee arg registers are trashed and no longer contain any GC pointers.
+    // TODO-ARM-Bug?: As a matter of fact shouldn't we be killing all of callee trashed regs here?
+    // For now we will assert that other than arg regs gc ref/byref set doesn't contain any other
+    // registers from RBM_CALLEE_TRASH
+    assert((gcInfo.gcRegGCrefSetCur & (RBM_CALLEE_TRASH & ~RBM_ARG_REGS)) == 0);
+    assert((gcInfo.gcRegByrefSetCur & (RBM_CALLEE_TRASH & ~RBM_ARG_REGS)) == 0);
+    gcInfo.gcRegGCrefSetCur &= ~RBM_ARG_REGS;
+    gcInfo.gcRegByrefSetCur &= ~RBM_ARG_REGS;
+
+    var_types returnType = call->TypeGet();
+    if (returnType != TYP_VOID)
+    {
+        regNumber returnReg = (varTypeIsFloating(returnType) ? REG_FLOATRET : REG_INTRET);
+        if (call->gtRegNum != returnReg)
+        {
+            inst_RV_RV(ins_Copy(returnType), call->gtRegNum, returnReg, returnType);
+        }
+        genProduceReg(call);
+    }
+
+    // If there is nothing next, that means the result is thrown away, so this value is not live.
+    // However, for minopts or debuggable code, we keep it live to support managed return value debugging.
+    if ((call->gtNext == nullptr) && !compiler->opts.MinOpts() && !compiler->opts.compDbgCode)
+    {
+        gcInfo.gcMarkRegSetNpt(RBM_INTRET);
+    }
 }
 
 // produce code for a GT_LEA subnode
@@ -2020,7 +2487,203 @@ void CodeGen::genSetRegToCond(regNumber dstReg, GenTreePtr tree)
 void
 CodeGen::genIntToIntCast(GenTreePtr treeNode)
 {
-    NYI("Cast");
+    assert(treeNode->OperGet() == GT_CAST);
+
+    GenTreePtr castOp = treeNode->gtCast.CastOp();
+    emitter *  emit   = getEmitter();
+
+    var_types dstType = treeNode->CastToType();
+    var_types srcType = genActualType(castOp->TypeGet());
+    emitAttr  movSize = emitActualTypeSize(dstType);
+    bool      movRequired = false;
+
+    bool isUnsignedDst = varTypeIsUnsigned(dstType);
+    bool isUnsignedSrc = varTypeIsUnsigned(srcType);
+
+    bool requiresOverflowCheck = false;
+
+    regNumber targetReg = treeNode->gtRegNum;
+    regNumber sourceReg = castOp->gtRegNum;
+
+    assert(genIsValidIntReg(targetReg));
+    assert(genIsValidIntReg(sourceReg));
+
+    instruction ins = INS_invalid;
+
+    // If necessary, force the srcType to unsigned when the GT_UNSIGNED flag is set.
+    if (!isUnsignedSrc && (treeNode->gtFlags & GTF_UNSIGNED) != 0)
+    {
+        srcType = genUnsignedType(srcType);
+        isUnsignedSrc = true;
+    }
+
+    if (treeNode->gtOverflow() && (genTypeSize(srcType) >= genTypeSize(dstType) || (srcType == TYP_INT && dstType == TYP_ULONG)))
+    {
+        requiresOverflowCheck = true;
+    }
+
+    genConsumeReg(castOp);
+
+    if (requiresOverflowCheck)
+    {
+        emitAttr   cmpSize   = EA_ATTR(genTypeSize(srcType));
+        ssize_t    typeMin   = 0;
+        ssize_t    typeMax   = 0;
+        ssize_t    typeMask  = 0;
+        bool       signCheckOnly  = false;
+
+        /* Do we need to compare the value, or just check masks */
+
+        switch (dstType)
+        {
+        case TYP_BYTE:
+            typeMask = ssize_t((int)0xFFFFFF80);
+            typeMin  = SCHAR_MIN;
+            typeMax  = SCHAR_MAX;
+            break;
+
+        case TYP_UBYTE:
+            typeMask = ssize_t((int)0xFFFFFF00L);
+            break;
+
+        case TYP_SHORT:
+            typeMask = ssize_t((int)0xFFFF8000);
+            typeMin  = SHRT_MIN;
+            break;
+
+        case TYP_CHAR:
+            typeMask = ssize_t((int)0xFFFF0000L);
+            break;
+
+        case TYP_INT:
+            if (srcType == TYP_UINT)
+            {
+                signCheckOnly = true;
+            }
+            else
+            {
+                typeMask = 0xFFFFFFFF80000000LL;            
+                typeMin  = INT_MIN;
+                typeMax  = INT_MAX;
+            }
+            break;
+
+        case TYP_UINT:
+            if (srcType == TYP_INT)
+            {
+                signCheckOnly = true;
+            }
+            else
+            {
+                typeMask = 0x80000000L;
+            }
+            break;
+
+        case TYP_LONG:
+            noway_assert(srcType == TYP_ULONG);
+            signCheckOnly = true;
+            break;
+
+        case TYP_ULONG:
+            noway_assert((srcType == TYP_LONG) ||  (srcType == TYP_INT));
+            signCheckOnly = true;
+            break;
+
+        default:
+            NO_WAY("Unknown type");
+            return;
+        }
+
+        if (signCheckOnly)
+        {
+            // We only need to check for a negative value in sourceReg
+            emit->emitIns_R_I(INS_cmp, cmpSize, sourceReg, 0);
+            genJumpToThrowHlpBlk(EJ_jl, SCK_OVERFLOW);
+            if (dstType == TYP_ULONG)
+            {
+                // cast to TYP_ULONG:
+                // We use a mov with size=EA_4BYTE
+                // which will zero out the upper bits
+                movSize = EA_4BYTE;
+                movRequired = true;
+            }
+        }
+        else
+        {
+            // When we are converting from/to unsigned,
+            // we only have to check for any bits set in 'typeMask'
+            if (isUnsignedSrc || isUnsignedDst)
+            {
+                noway_assert(typeMask != 0);
+                emit->emitIns_R_I(INS_tst, cmpSize, sourceReg, typeMask);
+                genJumpToThrowHlpBlk(EJ_jne, SCK_OVERFLOW);
+            }
+            else
+            {
+                // For a narrowing signed cast
+                //
+                // We must check the value is in a signed range.
+
+                // Compare with the MAX
+
+                noway_assert((typeMin != 0) && (typeMax != 0));
+
+                emit->emitIns_R_I(INS_cmp, cmpSize, sourceReg, typeMax);
+                genJumpToThrowHlpBlk(EJ_jg, SCK_OVERFLOW);
+
+                // Compare with the MIN
+
+                emit->emitIns_R_I(INS_cmp, cmpSize, sourceReg, typeMin);
+                genJumpToThrowHlpBlk(EJ_jl, SCK_OVERFLOW);
+            }
+        }
+        ins = INS_mov;
+    }
+    else // Non-overflow checking cast.
+    {
+        if (genTypeSize(srcType) == genTypeSize(dstType))
+        {
+            ins = INS_mov;
+        }
+        else
+        {
+            var_types extendType;
+
+            if (genTypeSize(srcType) < genTypeSize(dstType))
+            {
+                extendType = srcType;
+                // TODO-ARM: Check correct behaviour here.
+#if 0
+                if (srcType == TYP_UINT)
+                {
+                    movSize = EA_4BYTE;  // force a mov EA_4BYTE to zero the upper bits
+                    movRequired = true;
+                }
+#endif
+            }
+            else // (genTypeSize(srcType) > genTypeSize(dstType))
+            {
+                extendType = dstType;
+                if (varTypeIsShort(dstType))
+                {
+                    movSize = EA_2BYTE; // a uxth instruction requires EA_2BYTE
+                }
+                else if (varTypeIsByte(dstType))
+                {
+                    movSize = EA_1BYTE; // a uxtb instruction requires EA_1BYTE
+                }
+            }
+
+            ins = ins_Move_Extend(extendType, castOp->InReg());
+        }
+    }
+
+    if ((ins != INS_mov) || movRequired || (targetReg != sourceReg))
+    {            
+        emit->emitIns_R_R(ins, movSize, targetReg, sourceReg);
+    }
+
+    genProduceReg(treeNode);
 }
 
 //------------------------------------------------------------------------
@@ -2139,7 +2802,78 @@ void        CodeGen::genEmitHelperCall(unsigned    helper,
 #endif // !LEGACY_BACKEND
                                        )
 {
-    NYI("Helper call");
+    void* addr  = nullptr;
+    void* pAddr = nullptr;
+
+    emitter::EmitCallType  callType = emitter::EC_FUNC_TOKEN;
+    addr = compiler->compGetHelperFtn((CorInfoHelpFunc)helper, &pAddr);
+    regNumber callTarget = REG_NA;
+
+    if (addr == nullptr)
+    {
+        NYI("genEmitHelperCall indirect");
+#if 0
+        assert(pAddr != nullptr);
+        if (genAddrShouldUsePCRel((size_t)pAddr))
+        {
+            // generate call whose target is specified by PC-relative 32-bit offset.
+            callType = emitter::EC_FUNC_TOKEN_INDIR;
+            addr = pAddr;
+        }
+        else
+        {
+            // If this address cannot be encoded as PC-relative 32-bit offset, load it into REG_HELPER_CALL_TARGET
+            // and use register indirect addressing mode to make the call.
+            //    mov   reg, addr
+            //    call  [reg]
+            if (callTargetReg == REG_NA)
+            {
+                // If a callTargetReg has not been explicitly provided, we will use REG_DEFAULT_HELPER_CALL_TARGET, but
+                // this is only a valid assumption if the helper call is known to kill REG_DEFAULT_HELPER_CALL_TARGET.
+                callTargetReg = REG_DEFAULT_HELPER_CALL_TARGET;
+            }
+
+            regMaskTP callTargetMask = genRegMask(callTargetReg);
+            regMaskTP callKillSet = compiler->compHelperCallKillSet((CorInfoHelpFunc)helper);
+
+            // assert that all registers in callTargetMask are in the callKillSet
+            noway_assert((callTargetMask & callKillSet) == callTargetMask);
+
+            callTarget = callTargetReg;
+            CodeGen::genSetRegToIcon(callTarget, (ssize_t) pAddr, TYP_I_IMPL);
+            callType = emitter::EC_INDIR_ARD;
+        }
+#endif // 0
+    }
+
+    if (!validImmForBL((ssize_t) addr))
+    {
+        // TODO-ARM: Do we need to do anything when we use R12?
+        callTarget = REG_R12;
+        callType = emitter::EC_INDIR_R;
+        instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, callTarget, (ssize_t)addr);
+        regTracker.rsTrackRegTrash(REG_R12);
+        addr = nullptr;
+    }
+    
+    getEmitter()->emitIns_Call(callType,
+                                compiler->eeFindHelper(helper),
+                                INDEBUG_LDISASM_COMMA(nullptr)
+                                addr,
+                                argSize,
+                                retSize,
+                                gcInfo.gcVarPtrSetCur,
+                                gcInfo.gcRegGCrefSetCur,
+                                gcInfo.gcRegByrefSetCur,
+                                BAD_IL_OFFSET,       /* IL offset */
+                                callTarget,          /* ireg */
+                                REG_NA, 0, 0,        /* xreg, xmul, disp */
+                                false,               /* isJump */
+                                emitter::emitNoGChelper(helper));
+    
+    regMaskTP killMask = compiler->compHelperCallKillSet((CorInfoHelpFunc)helper);
+    regTracker.rsTrashRegSet(killMask);
+    regTracker.rsTrashRegsForGCInterruptability();
 }
 
 /*****************************************************************************/

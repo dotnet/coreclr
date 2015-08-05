@@ -7830,30 +7830,112 @@ void emitter::emitInsMov(instruction ins, emitAttr attr, GenTree* node)
     {
     case GT_IND:
         {
-            GenTree* addr = node->gtGetOp1();
-            assert(!addr->isContained());
-            codeGen->genConsumeReg(addr);
-            emitIns_R_R(ins, attr, node->gtRegNum, addr->gtRegNum);
+assert(emitInsIsLoad(ins));
+
+            GenTreeIndir* indir = node->AsIndir();
+            GenTree*      addr  = node->gtGetOp1();
+
+#if 0
+            // The value of 'ins' encodes the size to load 
+            // we use EA_8BYTE here because it is the size we want to write (into node->gtRegNum)
+            // it is also required when ins is INS_ldrsw
+            //
+            if (EA_SIZE(attr) < EA_8BYTE)
+            {
+                attr = EA_8BYTE;
+            }
+#endif
+
+            if (addr->isContained())
+            {
+                assert(addr->OperGet() == GT_LCL_VAR ||
+                       addr->OperGet() == GT_LEA);
+
+                int offset = 0;
+
+                if (addr->OperGet() == GT_LEA)
+                {
+                    offset = (int) addr->AsAddrMode()->gtOffset;
+                }
+                GenTree*  memBase = indir->Base();
+
+                if (indir->HasIndex())
+                {
+                    assert(offset == 0);
+                    GenTree*  index = indir->Index();
+
+                    emitIns_R_R_R(ins, attr, node->gtRegNum, 
+                                  memBase->gtRegNum, index->gtRegNum);
+                }
+                else
+                {
+                    emitIns_R_R_I(ins, attr, node->gtRegNum, 
+                                  memBase->gtRegNum, offset);
+                }
+            }
+            else
+            {
+                codeGen->genConsumeReg(addr);
+                emitIns_R_R(ins, attr, node->gtRegNum, addr->gtRegNum);
+            }
         }
         break;
 
     case GT_STOREIND:
         {
-            GenTree* addr = node->gtGetOp1();
-            GenTree* data = node->gtOp.gtOp2;
+            assert(emitInsIsStore(ins));
 
-            assert(!addr->isContained());
+            GenTreeIndir* indir   = node->AsIndir();
+            GenTree*      addr    = node->gtGetOp1();
+            GenTree*      data    = node->gtGetOp2();
+            regNumber     dataReg = REG_NA;
+            
             assert(!data->isContained());
-            codeGen->genConsumeReg(addr);
             codeGen->genConsumeReg(data);
+            dataReg = data->gtRegNum;
 
-            if (addr->OperGet() == GT_CLS_VAR_ADDR)
+#if 0
+            // The value of 'ins' encodes the size to store 
+            // we use EA_4BYTE here because it is the size of the register
+            // that we want to display when storing small values 
+            //
+            if (EA_SIZE(attr) < EA_4BYTE)
             {
-                emitIns_C_R(ins, attr, addr->gtClsVar.gtClsVarHnd, data->gtRegNum, 0);
+                attr = EA_4BYTE;
+            }
+#endif
+
+            if (addr->isContained())
+            {
+                assert(addr->OperGet() == GT_LCL_VAR_ADDR ||
+                       addr->OperGet() == GT_LEA);
+
+                int offset = 0;
+
+                if (addr->OperGet() == GT_LEA)
+                {
+                    offset = (int) addr->AsAddrMode()->gtOffset;
+                }
+                GenTree*  memBase = indir->Base();
+
+                if (indir->HasIndex())
+                {
+                    assert(offset == 0);
+                    GenTree*  index = indir->Index();
+
+                    emitIns_R_R_R(ins, attr, dataReg, 
+                                  memBase->gtRegNum, index->gtRegNum);
+                }
+                else
+                {
+                    emitIns_R_R_I(ins, attr, dataReg, 
+                                  memBase->gtRegNum, offset);
+                }
             }
             else
             {
-                emitIns_R_R(ins, attr, addr->gtRegNum, data->gtRegNum);
+                codeGen->genConsumeReg(addr);
+                emitIns_R_R(ins, attr, dataReg, addr->gtRegNum);
             }
         }
         break;

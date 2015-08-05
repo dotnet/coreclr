@@ -1331,11 +1331,13 @@ void Lowering::TreeNodeInfoInit(GenTree* stmt)
                     LowerGCWriteBarrier(tree);
                     break;
                 }
+#if 0
                 if (!varTypeIsFloating(src->TypeGet()) && src->IsZero())
                 {
                     // an integer zero for 'src' can be contained.
                     MakeSrcContained(tree, src);
                 }
+#endif
 
                 GenTreePtr addr = tree->gtOp.gtOp1;
 
