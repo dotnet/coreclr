@@ -1092,6 +1092,35 @@ void                CodeGen::genSetRegToConst(regNumber targetReg, var_types tar
     }
 }
 
+// Generate code for ADD, SUB, AND, OR and XOR
+void CodeGen::genCodeForBinary(GenTree* treeNode)
+{
+    const genTreeOps oper = treeNode->OperGet();
+    regNumber targetReg  = treeNode->gtRegNum;
+    var_types targetType = treeNode->TypeGet();
+    emitter *emit = getEmitter();
+
+    assert (oper == GT_ADD  ||
+            oper == GT_SUB  ||
+            oper == GT_AND  ||
+            oper == GT_OR   || 
+            oper == GT_XOR);
+        
+    GenTreePtr op1 = treeNode->gtGetOp1();
+    GenTreePtr op2 = treeNode->gtGetOp2();
+    instruction ins = genGetInsForOper(treeNode->OperGet(), targetType);
+
+    // The arithmetic node must be sitting in a register (since it's not contained)
+    noway_assert(targetReg != REG_NA);
+
+    genConsumeOperands(treeNode->AsOp());
+
+    regNumber r = emit->emitInsTernary(ins, emitTypeSize(treeNode), treeNode, op1, op2);
+    noway_assert(r == targetReg);
+
+    genProduceReg(treeNode);
+}
+
 /*****************************************************************************
  *
  * Generate code for a single node in the tree.
@@ -1155,6 +1184,9 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
 
     case GT_ADD:
     case GT_SUB:
+        genCodeForBinary(treeNode);
+        break;
+#if 0
         {
             const genTreeOps oper = treeNode->OperGet();
             if ((oper == GT_ADD || oper == GT_SUB) &&
@@ -1217,6 +1249,7 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
         }
         genProduceReg(treeNode);
         break;
+#endif
 
     case GT_LSH:
     case GT_RSH:
@@ -1890,7 +1923,25 @@ instruction CodeGen::genGetInsForOper(genTreeOps oper, var_types type)
 void CodeGen::genCodeForShift(GenTreePtr operand, GenTreePtr shiftBy,
                               GenTreePtr parent)
 {
-    NYI("genCodeForShift");
+    var_types targetType = parent->TypeGet();
+    genTreeOps oper = parent->OperGet();
+    instruction ins = genGetInsForOper(oper, targetType);
+    emitAttr size = emitTypeSize(parent);
+
+    assert(parent->gtRegNum != REG_NA);
+    genConsumeReg(operand);
+    
+    if (!shiftBy->IsCnsIntOrI())
+    {
+        genConsumeReg(shiftBy);
+        getEmitter()->emitIns_R_R_R(ins, size, parent->gtRegNum, operand->gtRegNum, shiftBy->gtRegNum);
+    }
+    else
+    {
+        getEmitter()->emitIns_R_R_I(ins, size, parent->gtRegNum, operand->gtRegNum, shiftBy->gtIntCon.gtIconVal);
+    }
+
+    genProduceReg(parent);
 }
 
 // TODO-Cleanup: move to CodeGenCommon.cpp

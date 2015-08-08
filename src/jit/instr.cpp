@@ -303,6 +303,31 @@ void                CodeGen::inst_SET(emitJumpKind   condition,
     default:      NO_WAY("unexpected condition type"); return;
     }
     getEmitter()->emitIns_R_COND(INS_cset, EA_8BYTE, reg, cond);
+#elif defined(_TARGET_ARM_)
+    insCond cond;
+    /* Convert the condition to an insCond value */
+    switch (condition)
+    {
+    case EJ_je  : cond = INS_COND_EQ; break;
+    case EJ_jne : cond = INS_COND_NE; break;
+    case EJ_jae : cond = INS_COND_HS; break;
+    case EJ_jb  : cond = INS_COND_LO; break;
+
+    case EJ_js  : cond = INS_COND_MI; break;
+    case EJ_jns : cond = INS_COND_PL; break;
+    case EJ_ja  : cond = INS_COND_HI; break;
+    case EJ_jbe : cond = INS_COND_LS; break;
+
+    case EJ_jge : cond = INS_COND_GE; break;
+    case EJ_jl  : cond = INS_COND_LT; break;
+    case EJ_jg  : cond = INS_COND_GT; break;
+    case EJ_jle : cond = INS_COND_LE; break;
+ 
+    default:      NO_WAY("unexpected condition type"); return;
+    }
+    getEmitter()->emitIns_I(INS_ite, EA_4BYTE, cond);
+    getEmitter()->emitIns_R_I(INS_mov, EA_4BYTE, reg, 1);
+    getEmitter()->emitIns_R_I(INS_mov, EA_4BYTE, reg, 0);
 #else
     NYI("inst_SET");
 #endif
