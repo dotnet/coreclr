@@ -7861,20 +7861,11 @@ void emitter::emitInsMov(instruction ins, emitAttr attr, GenTree* node)
 
                 if (indir->HasIndex())
                 {
+                    assert(offset == 0);
                     GenTree*  index = indir->Index();
-                    if(offset == 0)
-                    {
-                        emitIns_R_R_R(ins, attr, node->gtRegNum, 
-                                      memBase->gtRegNum, index->gtRegNum);
-                    }
-                    else
-                    {
-                        regNumber rsvdReg = codeGen->rsGetRsvdReg();
-                        emitIns_R_R_I(INS_add, EA_4BYTE, rsvdReg,
-                                      index->gtRegNum, offset);
-                        emitIns_R_R_R(ins, attr, node->gtRegNum, 
-                                      memBase->gtRegNum, rsvdReg);
-                    }
+                    
+                    emitIns_R_R_R(ins, attr, node->gtRegNum, 
+                                  memBase->gtRegNum, index->gtRegNum);
                 }
                 else
                 {
@@ -7929,20 +7920,11 @@ void emitter::emitInsMov(instruction ins, emitAttr attr, GenTree* node)
 
                 if (indir->HasIndex())
                 {
+                    assert(offset == 0);
                     GenTree*  index = indir->Index();
-                    if(offset == 0)
-                    {
-                        emitIns_R_R_R(ins, attr, dataReg, 
-                                      memBase->gtRegNum, index->gtRegNum);
-                    }
-                    else
-                    {
-                        regNumber rsvdReg = codeGen->rsGetRsvdReg();
-                        emitIns_R_R_I(INS_add, EA_4BYTE, rsvdReg,
-                                      index->gtRegNum, offset);
-                        emitIns_R_R_R(ins, attr, dataReg, 
-                                      memBase->gtRegNum, rsvdReg);
-                    }
+                    
+                    emitIns_R_R_R(ins, attr, dataReg, 
+                                  memBase->gtRegNum, index->gtRegNum);
                 }
                 else
                 {

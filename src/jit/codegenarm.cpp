@@ -1726,6 +1726,10 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
         genLockedInstructions(treeNode);
         break;
 
+    case GT_MEMORYBARRIER:
+        instGen_MemoryBarrier();
+        break;
+
     case GT_CMPXCHG:
         {
             NYI("GT_CMPXCHG");
@@ -1817,40 +1821,58 @@ CodeGen::genLockedInstructions(GenTree* treeNode)
 }
 
 
-// generate code for GT_ARR_BOUNDS_CHECK node
+// generate code for BoundsCheck nodes
 void
 CodeGen::genRangeCheck(GenTreePtr  oper)
 {
+#ifdef FEATURE_SIMD
+    noway_assert(oper->OperGet() == GT_ARR_BOUNDS_CHECK || oper->OperGet() == GT_SIMD_CHK);
+#else // !FEATURE_SIMD
     noway_assert(oper->OperGet() == GT_ARR_BOUNDS_CHECK);
+#endif // !FEATURE_SIMD
+
     GenTreeBoundsChk* bndsChk = oper->AsBoundsChk();
 
     GenTreePtr arrLen = bndsChk->gtArrLen;
-    GenTreePtr arrIdx = bndsChk->gtIndex;
+    GenTreePtr arrIndex = bndsChk->gtIndex;
     GenTreePtr arrRef = NULL;
     int lenOffset = 0;
 
     GenTree *src1, *src2;
     emitJumpKind jmpKind;
 
-    if (arrIdx->isContainedIntOrIImmed())
+    genConsumeRegs(arrLen);
+    genConsumeRegs(arrIndex);
+
+    if (arrIndex->isContainedIntOrIImmed())
     {
         src1 = arrLen;
-        src2 = arrIdx;
+        src2 = arrIndex;
         jmpKind = EJ_jbe;
     }
     else
     {
-        src1 = arrIdx;
+        src1 = arrIndex;
         src2 = arrLen;
         jmpKind = EJ_jae;
     }
 
-    genConsumeIfReg(src1);
-    genConsumeIfReg(src2);
+    GenTreeIntConCommon* intConst = nullptr;
+    if (src2->isContainedIntOrIImmed())
+    {
+        intConst = src2->AsIntConCommon();
+    }
 
-    getEmitter()->emitInsBinary(INS_cmp, emitAttr(TYP_INT), src1, src2);
+    if (intConst != nullptr)
+    {
+        getEmitter()->emitIns_R_I(INS_cmp, EA_4BYTE, src1->gtRegNum, intConst->IconValue());
+    }
+    else
+    {
+        getEmitter()->emitIns_R_R(INS_cmp, EA_4BYTE, src1->gtRegNum, src2->gtRegNum);
+    }
+
     genJumpToThrowHlpBlk(jmpKind, SCK_RNGCHK_FAIL, bndsChk->gtIndRngFailBB);
-
 }
 
 // make a temporary indir we can feed to pattern matching routines
@@ -3076,7 +3098,7 @@ void        CodeGen::genEmitHelperCall(unsigned    helper,
         callTarget = REG_R12;
         callType = emitter::EC_INDIR_R;
         instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, callTarget, (ssize_t)addr);
-        regTracker.rsTrackRegTrash(REG_R12);
+        regTracker.rsTrackRegTrash(callTarget);
         addr = nullptr;
     }
     
