@@ -50,7 +50,6 @@ regNumber CodeGenInterface::genGetAssignedReg(GenTreePtr tree)
 
 void                CodeGen::genSpillVar(GenTreePtr tree)
 {
-    regMaskTP regMask;
     unsigned varNum = tree->gtLclVarCommon.gtLclNum;
     LclVarDsc * varDsc = &(compiler->lvaTable[varNum]);
 
@@ -58,6 +57,11 @@ void                CodeGen::genSpillVar(GenTreePtr tree)
     bool needsSpill = ((tree->gtFlags & GTF_VAR_DEF) == 0 && varDsc->lvIsInReg());
     if (needsSpill)
     {
+        var_types lclTyp = varDsc->TypeGet();
+        if (varDsc->lvNormalizeOnStore())
+            lclTyp = genActualType(lclTyp);
+        emitAttr size = emitTypeSize(lclTyp);
+
         bool restoreRegVar = false;
         if  (tree->gtOper == GT_REG_VAR)
         {
@@ -145,15 +149,7 @@ void                CodeGen::genSetRegToIcon(regNumber     reg,
     // code path.
     noway_assert(type != TYP_REF || val == 0);
 
-    if (val == 0)
-    {
-        instGen_Set_Reg_To_Zero(emitActualTypeSize(type), reg, flags);
-    }
-    else
-    {
-        // TODO-CQ: needs all the optimized cases
-        instGen_Set_Reg_To_Imm(emitActualTypeSize(type), reg, val);
-    }
+    instGen_Set_Reg_To_Imm(emitActualTypeSize(type), reg, val);
 }
 
 
@@ -327,6 +323,10 @@ void                CodeGen::genCodeForBBlist()
         regMaskTP newLiveRegSet = RBM_NONE;
         regMaskTP newRegGCrefSet = RBM_NONE;
         regMaskTP newRegByrefSet = RBM_NONE;
+#ifdef DEBUG
+        VARSET_TP VARSET_INIT_NOCOPY(removedGCVars, VarSetOps::MakeEmpty(compiler));
+        VARSET_TP VARSET_INIT_NOCOPY(addedGCVars, VarSetOps::MakeEmpty(compiler));
+#endif
         VARSET_ITER_INIT(compiler, iter, block->bbLiveIn, varIndex);
         while (iter.NextElem(compiler, &varIndex))
         {
@@ -344,9 +344,22 @@ void                CodeGen::genCodeForBBlist()
                 {
                     newRegByrefSet |= varDsc->lvRegMask();
                 }
+#ifdef DEBUG
+                if (verbose && VarSetOps::IsMember(compiler, gcInfo.gcVarPtrSetCur, varIndex))
+                {
+                    VarSetOps::AddElemD(compiler, removedGCVars, varIndex);
+                }
+#endif // DEBUG
+                VarSetOps::RemoveElemD(compiler, gcInfo.gcVarPtrSetCur, varIndex);
             }
-            else if (varDsc->lvType == TYP_REF || varDsc->lvType == TYP_BYREF)
+            else if (compiler->lvaIsGCTracked(varDsc))
             {
+#ifdef DEBUG
+                if (verbose && !VarSetOps::IsMember(compiler, gcInfo.gcVarPtrSetCur, varIndex))
+                {
+                    VarSetOps::AddElemD(compiler, addedGCVars, varIndex);
+                }
+#endif // DEBUG
                 VarSetOps::AddElemD(compiler, gcInfo.gcVarPtrSetCur, varIndex);
             }
         }
@@ -368,6 +381,18 @@ void                CodeGen::genCodeForBBlist()
             printRegMaskInt(newLiveRegSet);
             compiler->getEmitter()->emitDispRegSet(newLiveRegSet);
             printf("\n");
+            if (!VarSetOps::IsEmpty(compiler, addedGCVars))
+            {
+                printf("\t\t\t\t\t\t\tAdded GCVars: ");
+                dumpConvertedVarSet(compiler, addedGCVars);
+                printf("\n");
+            }
+            if (!VarSetOps::IsEmpty(compiler, removedGCVars))
+            {
+                printf("\t\t\t\t\t\t\tRemoved GCVars: ");
+                dumpConvertedVarSet(compiler, removedGCVars);
+                printf("\n");
+            }
         }
 #endif // DEBUG
 
@@ -452,11 +477,10 @@ void                CodeGen::genCodeForBBlist()
         {
             /* Mark a label and update the current set of live GC refs */
 
-            block->bbEmitCookie = getEmitter()->emitAddLabel(
-                gcInfo.gcVarPtrSetCur,
-                gcInfo.gcRegGCrefSetCur,
-                gcInfo.gcRegByrefSetCur,
-                /*isFinally*/block->bbFlags & BBF_FINALLY_TARGET);
+            block->bbEmitCookie = getEmitter()->emitAddLabel(gcInfo.gcVarPtrSetCur,
+                                                             gcInfo.gcRegGCrefSetCur,
+                                                             gcInfo.gcRegByrefSetCur,
+                                                             FALSE);
         }
 
         if (block == compiler->fgFirstColdBlock)
@@ -505,8 +529,12 @@ void                CodeGen::genCodeForBBlist()
         siBeginBlock(block);
 
         // BBF_INTERNAL blocks don't correspond to any single IL instruction.
-        if (compiler->opts.compDbgInfo && (block->bbFlags & BBF_INTERNAL) && block != compiler->fgFirstBB)
+        if (compiler->opts.compDbgInfo &&
+            (block->bbFlags & BBF_INTERNAL) &&
+            !compiler->fgBBisScratch(block))    // If the block is the distinguished first scratch block, then no need to emit a NO_MAPPING entry, immediately after the prolog.
+        {
             genIPmappingAdd((IL_OFFSETX) ICorDebugInfo::NO_MAPPING, true);
+        }
 
         bool    firstMapping = true;
 #endif // DEBUGGING_SUPPORT
@@ -572,7 +600,11 @@ void                CodeGen::genCodeForBBlist()
                 printf("Holding variables: ");
                 dspRegMask(regSet.rsMaskVars); printf("\n\n");
                 compiler->gtDispTree(compiler->opts.compDbgInfo ? stmt : tree);
-                printf("\n");
+                if (compiler->verboseTrees)
+                {
+                    compiler->gtDispTree(compiler->opts.compDbgInfo ? stmt : tree);
+                    printf("\n");
+                }
             }
             totalCostEx += (stmt->gtCostEx * block->getBBWeight(compiler));
             totalCostSz +=  stmt->gtCostSz;
@@ -581,13 +613,6 @@ void                CodeGen::genCodeForBBlist()
             // Traverse the tree in linear order, generating code for each node in the
             // tree as we encounter it
 
-            // If we have embedded statements, we need to keep track of the next top-level
-            // node in order, because if it produces a register, we need to consume it
-
-            GenTreeStmt* curPossiblyEmbeddedStmt = stmt->gtStmt.gtStmtNextIfEmbedded();
-            if (curPossiblyEmbeddedStmt == nullptr)
-                curPossiblyEmbeddedStmt = stmt->AsStmt();
-
             compiler->compCurLifeTree = NULL;
             compiler->compCurStmt = stmt;
             for (GenTreePtr treeNode = stmt->gtStmt.gtStmtList;
@@ -595,23 +620,9 @@ void                CodeGen::genCodeForBBlist()
                  treeNode = treeNode->gtNext)
             {
                 genCodeForTreeNode(treeNode);
-
-                if (treeNode == curPossiblyEmbeddedStmt->gtStmtExpr)
+                if (treeNode->gtHasReg() && treeNode->gtLsraInfo.isLocalDefUse)
                 {
-                    // It is possible that the last top-level node may generate a result
-                    // that is not used (but may still require a register, e.g. an indir
-                    // that is evaluated only for the side-effect of a null check).
-                    // In that case, we must "consume" the register now.
-                    if (treeNode->gtHasReg())
-                    {
-                        genConsumeReg(treeNode);
-                    }
-                    if (curPossiblyEmbeddedStmt != stmt)
-                    {
-                        curPossiblyEmbeddedStmt = curPossiblyEmbeddedStmt->gtStmt.gtStmtNextIfEmbedded();
-                        if (curPossiblyEmbeddedStmt == nullptr)
-                            curPossiblyEmbeddedStmt = stmt->AsStmt();
-                    }
+                    genConsumeReg(treeNode);
                 }
             }
 
@@ -974,8 +985,8 @@ sameRegAsDst(GenTree *tree, GenTree *&other /*out*/)
         return NULL;
     }
 
-    GenTreePtr op1 = tree->gtOp.gtOp1->gtEffectiveVal();
-    GenTreePtr op2 = tree->gtOp.gtOp2->gtEffectiveVal();
+    GenTreePtr op1 = tree->gtOp.gtOp1;
+    GenTreePtr op2 = tree->gtOp.gtOp2;
     if (op1->gtRegNum == tree->gtRegNum)
     {
         other = op2;
@@ -1094,8 +1105,24 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
     var_types targetType = treeNode->TypeGet();
     emitter *emit = getEmitter();
 
-    JITDUMP("Generating: ");
-    DISPNODE(treeNode);
+#ifdef  DEBUG
+    if (compiler->verbose)
+    {
+        unsigned seqNum = treeNode->gtSeqNum;   // Useful for setting a conditional break in Visual Studio
+        printf("Generating: ");
+        compiler->gtDispTree(treeNode, nullptr, nullptr, true);
+    }
+#endif // DEBUG
+
+    // Is this a node whose value is already in a register?  LSRA denotes this by
+    // setting the GTF_REUSE_REG_VAL flag.
+    if (treeNode->IsReuseRegVal())
+    {
+        // For now, this is only used for constant nodes.
+        assert((treeNode->OperGet() == GT_CNS_INT) || (treeNode->OperGet() == GT_CNS_DBL));
+        JITDUMP("  TreeNode is marked ReuseReg\n");
+        return;
+    }
 
     // contained nodes are part of their parents for codegen purposes
     // ex : immediates, most LEAs
@@ -1199,13 +1226,6 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
         break;
 
     case GT_CAST:
-        // Cast is never contained (?)
-        noway_assert(targetReg != REG_NA);
-
-        // Overflow conversions from float/double --> int types go through helper calls.
-        if (treeNode->gtOverflow() && !varTypeIsFloating(treeNode->gtOp.gtOp1))
-            NYI("Unimplmented GT_CAST:int <--> int with overflow");
-
         if (varTypeIsFloating(targetType) && varTypeIsFloating(treeNode->gtOp.gtOp1))
         {
             // Casts float/double <--> double/float
@@ -1372,7 +1392,8 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
         break;
 
     case GT_IND:
-        emit->emitInsMov(ins_Load(treeNode->TypeGet()), emitTypeSize(treeNode), treeNode);
+        genConsumeAddress(treeNode->AsIndir()->Addr());
+        emit->emitInsMov(ins_Load(targetType), emitTypeSize(treeNode), treeNode);
         genProduceReg(treeNode);
         break;
 
@@ -1418,11 +1439,10 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
             //         (signed < or >= where targetReg != REG_NA)
 
             GenTreeOp *tree = treeNode->AsOp();
-            GenTreePtr op1 = tree->gtOp1->gtEffectiveVal();
-            GenTreePtr op2 = tree->gtOp2->gtEffectiveVal();
+            GenTreePtr op1 = tree->gtOp1;
+            GenTreePtr op2 = tree->gtOp2;
 
-            genConsumeIfReg(op1);
-            genConsumeIfReg(op2);
+            genConsumeOperands(tree);
 
             instruction ins = INS_cmp;
             emitAttr cmpAttr;
@@ -1652,7 +1672,7 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
             NYI_IF(targetType == TYP_STRUCT, "GT_PUTARG_REG: struct support not implemented");
 
             // commas show up here commonly, as part of a nullchk operation
-            GenTree *op1 = treeNode->gtOp.gtOp1->gtEffectiveVal();
+            GenTree *op1 = treeNode->gtOp.gtOp1;
             // If child node is not already in the register we need, move it
             genConsumeReg(op1);
             if (treeNode->gtRegNum != op1->gtRegNum)
@@ -1771,8 +1791,8 @@ CodeGen::genRangeCheck(GenTreePtr  oper)
     noway_assert(oper->OperGet() == GT_ARR_BOUNDS_CHECK);
     GenTreeBoundsChk* bndsChk = oper->AsBoundsChk();
 
-    GenTreePtr arrLen = bndsChk->gtArrLen->gtEffectiveVal();
-    GenTreePtr arrIdx = bndsChk->gtIndex->gtEffectiveVal();
+    GenTreePtr arrLen = bndsChk->gtArrLen;
+    GenTreePtr arrIdx = bndsChk->gtIndex;
     GenTreePtr arrRef = NULL;
     int lenOffset = 0;
 
@@ -1873,6 +1893,7 @@ void CodeGen::genCodeForShift(GenTreePtr operand, GenTreePtr shiftBy,
     NYI("genCodeForShift");
 }
 
+// TODO-Cleanup: move to CodeGenCommon.cpp
 void CodeGen::genUnspillRegIfNeeded(GenTree *tree)
 {
     regNumber dstReg = tree->gtRegNum;
@@ -1889,13 +1910,13 @@ void CodeGen::genUnspillRegIfNeeded(GenTree *tree)
             // Reset spilled flag, since we are going to load a local variable from its home location.
             unspillTree->gtFlags &= ~GTF_SPILLED;
 
-            // Load local variable from its home location.
-            inst_RV_TT(ins_Load(unspillTree->gtType), dstReg, unspillTree);
-
-            unspillTree->SetInReg();
-
             GenTreeLclVarCommon* lcl = unspillTree->AsLclVarCommon();
             LclVarDsc* varDsc = &compiler->lvaTable[lcl->gtLclNum];
+
+            // Load local variable from its home location.
+            inst_RV_TT(ins_Load(unspillTree->gtType, compiler->isSIMDTypeLocalAligned(lcl->gtLclNum)), dstReg, unspillTree);
+
+            unspillTree->SetInReg();
 
             // TODO-Review: We would like to call:
             //      genUpdateRegLife(varDsc, /*isBorn*/ true, /*isDying*/ false DEBUGARG(tree));
@@ -1907,40 +1928,46 @@ void CodeGen::genUnspillRegIfNeeded(GenTree *tree)
             // Extra note: I think we really want to call something like gcInfo.gcUpdateForRegVarMove,
             // because the variable is not really going live or dead, but that method is somewhat poorly
             // factored because it, in turn, updates rsMaskVars which is part of RegSet not GCInfo.
-            // TODO-Cleanup: This code exists in other CodeGen*.cpp files, and should be moved to CodeGenCommon.cpp.
+            // This code exists in other CodeGen*.cpp files.
 
-            genUpdateVarReg(varDsc, tree);
-#ifdef DEBUG
-            if (VarSetOps::IsMember(compiler, gcInfo.gcVarPtrSetCur, varDsc->lvVarIndex))
+            // Don't update the variable's location if we are just re-spilling it again.
+
+            if ((unspillTree->gtFlags & GTF_SPILL) == 0)
             {
-                JITDUMP("\t\t\t\t\t\t\tRemoving V%02u from gcVarPtrSetCur\n", lcl->gtLclNum);
-            }
+                genUpdateVarReg(varDsc, tree);
+#ifdef DEBUG
+                if (VarSetOps::IsMember(compiler, gcInfo.gcVarPtrSetCur, varDsc->lvVarIndex))
+                {
+                    JITDUMP("\t\t\t\t\t\t\tRemoving V%02u from gcVarPtrSetCur\n", lcl->gtLclNum);
+                }
 #endif // DEBUG
-            VarSetOps::RemoveElemD(compiler, gcInfo.gcVarPtrSetCur, varDsc->lvVarIndex);
+                VarSetOps::RemoveElemD(compiler, gcInfo.gcVarPtrSetCur, varDsc->lvVarIndex);
 
 #ifdef  DEBUG
-            if (compiler->verbose)
-            {
-                printf("\t\t\t\t\t\t\tV%02u in reg ", lcl->gtLclNum);
-                varDsc->PrintVarReg();
-                printf(" is becoming live  ");
-                Compiler::printTreeID(unspillTree);
-                printf("\n");
-            }
+                if (compiler->verbose)
+                {
+                    printf("\t\t\t\t\t\t\tV%02u in reg ", lcl->gtLclNum);
+                    varDsc->PrintVarReg();
+                    printf(" is becoming live  ");
+                    compiler->printTreeID(unspillTree);
+                    printf("\n");
+                }
 #endif // DEBUG
 
-            regSet.rsMaskVars |= genGetRegMask(varDsc);
+                regSet.rsMaskVars |= genGetRegMask(varDsc);
+            }
         }
         else
         {
             TempDsc* t = regSet.rsUnspillInPlace(unspillTree);
-            compiler->tmpRlsTemp(t);
             getEmitter()->emitIns_R_S(ins_Load(unspillTree->gtType),
                             emitActualTypeSize(unspillTree->gtType),
                             dstReg,
                             t->tdTempNum(),
                             0);
+            compiler->tmpRlsTemp(t);
 
+            unspillTree->gtFlags &= ~GTF_SPILLED;
             unspillTree->SetInReg();
         }
 
@@ -1948,10 +1975,115 @@ void CodeGen::genUnspillRegIfNeeded(GenTree *tree)
     }
 }
 
+void CodeGen::genRegCopy(GenTree* treeNode)
+{
+    assert(treeNode->OperGet() == GT_COPY);
 
-// do liveness update for a subnode that is being consumed by codegen
+    var_types targetType = treeNode->TypeGet();
+    regNumber targetReg  = treeNode->gtRegNum;
+    assert(targetReg != REG_NA);
+
+    GenTree* op1 = treeNode->gtOp.gtOp1;
+
+    // Check whether this node and the node from which we're copying the value have the same
+    // register type.
+    // This can happen if (currently iff) we have a SIMD vector type that fits in an integer
+    // register, in which case it is passed as an argument, or returned from a call,
+    // in an integer register and must be copied if it's in an xmm register.
+
+    if (varTypeIsFloating(treeNode) != varTypeIsFloating(op1))
+    {
+#if 0
+        instruction ins;
+        regNumber fpReg;
+        regNumber intReg;
+        if(varTypeIsFloating(treeNode))
+        {
+            ins = INS_mov_i2xmm;
+            fpReg = targetReg;
+            intReg = op1->gtRegNum;
+        }
+        else
+        {
+            ins = INS_mov_xmm2i;
+            intReg = targetReg;
+            fpReg = op1->gtRegNum;
+        }
+        inst_RV_RV(ins, fpReg, intReg, targetType);
+#else
+        NYI_ARM("CodeGen - FP/Int RegCopy");
+#endif
+    }
+    else
+    {
+        inst_RV_RV(ins_Copy(targetType), targetReg, genConsumeReg(op1), targetType);
+    }
+
+    if (op1->IsLocal())
+    {
+        // The lclVar will never be a def.
+        // If it is a last use, the lclVar will be killed by genConsumeReg(), as usual, and genProduceReg will
+        // appropriately set the gcInfo for the copied value.
+        // If not, there are two cases we need to handle:
+        // - If this is a TEMPORARY copy (indicated by the GTF_VAR_DEATH flag) the variable
+        //   will remain live in its original register.
+        //   genProduceReg() will appropriately set the gcInfo for the copied value,
+        //   and genConsumeReg will reset it.
+        // - Otherwise, we need to update register info for the lclVar.
+
+        GenTreeLclVarCommon* lcl = op1->AsLclVarCommon();
+        assert((lcl->gtFlags & GTF_VAR_DEF) == 0);
+
+        if ((lcl->gtFlags & GTF_VAR_DEATH) == 0 && (treeNode->gtFlags & GTF_VAR_DEATH) == 0)
+        {
+            LclVarDsc* varDsc = &compiler->lvaTable[lcl->gtLclNum];
+
+            // If we didn't just spill it (in genConsumeReg, above), then update the register info
+            if (varDsc->lvRegNum != REG_STK)
+            {
+                // The old location is dying
+                genUpdateRegLife(varDsc, /*isBorn*/ false, /*isDying*/ true DEBUGARG(op1));
+
+                gcInfo.gcMarkRegSetNpt(genRegMask(op1->gtRegNum));
+
+                genUpdateVarReg(varDsc, treeNode);
+
+                // The new location is going live
+                genUpdateRegLife(varDsc, /*isBorn*/ true, /*isDying*/ false DEBUGARG(treeNode));
+            }
+        }
+    }
+    genProduceReg(treeNode);
+}
+
+// Do liveness update for a subnode that is being consumed by codegen.
+// TODO-Cleanup: move to CodeGenCommon.cpp
 regNumber CodeGen::genConsumeReg(GenTree *tree)
 {
+    if (tree->OperGet() == GT_COPY)
+    {
+        genRegCopy(tree);
+    }
+    // Handle the case where we have a lclVar that needs to be copied before use (i.e. because it
+    // interferes with one of the other sources (or the target, if it's a "delayed use" register)). 
+    // TODO-Cleanup: This is a special copyReg case in LSRA - consider eliminating these and
+    // always using GT_COPY to make the lclVar location explicit.
+    // Note that we have to do this before calling genUpdateLife because otherwise if we spill it
+    // the lvRegNum will be set to REG_STK and we will lose track of what register currently holds
+    // the lclVar (normally when a lclVar is spilled it is then used from its former register
+    // location, which matches the gtRegNum on the node).
+    // (Note that it doesn't matter if we call this before or after genUnspillRegIfNeeded
+    // because if it's on the stack it will always get reloaded into tree->gtRegNum).
+    if (genIsRegCandidateLocal(tree))
+    {
+        GenTreeLclVarCommon *lcl = tree->AsLclVarCommon();
+        LclVarDsc* varDsc = &compiler->lvaTable[lcl->GetLclNum()];
+        if ((varDsc->lvRegNum != REG_STK) && (varDsc->lvRegNum != tree->gtRegNum))
+        {
+            inst_RV_RV(ins_Copy(tree->TypeGet()), tree->gtRegNum, varDsc->lvRegNum);
+        }
+    }
+
     genUnspillRegIfNeeded(tree);
 
     // genUpdateLife() will also spill local var if marked as GTF_SPILL by calling CodeGen::genSpillVar
@@ -1967,13 +2099,15 @@ regNumber CodeGen::genConsumeReg(GenTree *tree)
     {
         GenTreeLclVarCommon *lcl = tree->AsLclVarCommon();
         LclVarDsc* varDsc = &compiler->lvaTable[lcl->GetLclNum()];
+        assert(varDsc->lvLRACandidate);
 
-        if (varDsc->lvRegNum == tree->gtRegNum && ((tree->gtFlags & GTF_VAR_DEATH) != 0))
+        if ((tree->gtFlags & GTF_VAR_DEATH) != 0)
         {
-            gcInfo.gcMarkRegSetNpt(genRegMask(tree->gtRegNum));
+            gcInfo.gcMarkRegSetNpt(genRegMask(varDsc->lvRegNum));
         }
-        else if (!varDsc->lvLRACandidate)
+        else if (varDsc->lvRegNum == REG_STK)
         {
+            // We have loaded this into a register only temporarily
             gcInfo.gcMarkRegSetNpt(genRegMask(tree->gtRegNum));
         }
     }
@@ -2101,11 +2235,20 @@ void CodeGen::genProduceReg(GenTree *tree)
     genUpdateLife(tree);
 
     // If we've produced a register, mark it as a pointer, as needed.
-    // Except in the case of a dead definition of a lclVar.
-    if (tree->gtHasReg() &&
-        (!tree->IsLocal() || (tree->gtFlags & GTF_VAR_DEATH) == 0))
+    if (tree->gtHasReg())
     {
-        gcInfo.gcMarkRegPtrVal(tree->gtRegNum, tree->TypeGet());
+        // We only mark the register in the following cases:
+        // 1. It is not a register candidate local. In this case, we're producing a
+        //    register from a local, but the local is not a register candidate. Thus,
+        //    we must be loading it as a temp register, and any "last use" flag on
+        //    the register wouldn't be relevant.
+        // 2. The register candidate local is going dead. There's no point to mark
+        //    the register as live, with a GC pointer, if the variable is dead.
+        if (!genIsRegCandidateLocal(tree) ||
+            ((tree->gtFlags & GTF_VAR_DEATH) == 0))
+        {
+            gcInfo.gcMarkRegPtrVal(tree->gtRegNum, tree->TypeGet());
+        }
     }
     tree->SetInReg();
 }
@@ -2467,7 +2610,12 @@ void CodeGen::genLeaInstruction(GenTreeAddrMode *lea)
 
 void CodeGen::genSetRegToCond(regNumber dstReg, GenTreePtr tree)
 {
-    NYI("genSetRegToCond");
+    // Get the "jmpKind" using the gtOper kind
+    // Note that whether it is an unsigned cmp is governed by the GTF_UNSIGNED flags
+
+    emitJumpKind jmpKind = genJumpKindForOper(tree->gtOper, (tree->gtFlags & GTF_UNSIGNED) != 0);
+
+    inst_SET(jmpKind, dstReg);
 }
 
 //------------------------------------------------------------------------
@@ -2770,7 +2918,7 @@ void                CodeGen::genCreateAndStoreGCInfoX64(unsigned codeSize, unsig
 {
     IAllocator* allowZeroAlloc = new (compiler, CMK_GC) AllowZeroAllocator(compiler->getAllocatorGC());
     GcInfoEncoder* gcInfoEncoder = new (compiler, CMK_GC) GcInfoEncoder(compiler->info.compCompHnd, compiler->info.compMethodInfo, allowZeroAlloc);
-    assert(gcInfoEncoder);
+    assert(gcInfoEncoder != nullptr);
 
     // Follow the code pattern of the x86 gc info encoder (genCreateAndStoreGCInfoJIT32).
     gcInfo.gcInfoBlockHdrSave(gcInfoEncoder, codeSize, prologSize);
@@ -2781,6 +2929,31 @@ void                CodeGen::genCreateAndStoreGCInfoX64(unsigned codeSize, unsig
     gcInfoEncoder->FinalizeSlotIds();
     // Now we can actually use those slot ID's to declare live ranges.
     gcInfo.gcMakeRegPtrTable(gcInfoEncoder, codeSize, prologSize, GCInfo::MAKE_REG_PTR_MODE_DO_WORK);
+
+#if defined(DEBUGGING_SUPPORT)
+    if (compiler->opts.compDbgEnC)
+    {
+        // what we have to preserve is called the "frame header" (see comments in VM\eetwain.cpp)
+        // which is:
+        //  -return address
+        //  -saved off RBP
+        //  -saved 'this' pointer and bool for synchronized methods
+
+        // 4 slots for RBP + return address + RSI + RDI
+        int preservedAreaSize = 4 * REGSIZE_BYTES;
+
+        if (compiler->info.compFlags & CORINFO_FLG_SYNCH)
+        {
+            if (!(compiler->info.compFlags & CORINFO_FLG_STATIC))
+                preservedAreaSize += REGSIZE_BYTES; 
+
+            preservedAreaSize += 1; // bool for synchronized methods
+        }
+
+        // Used to signal both that the method is compiled for EnC, and also the size of the block at the top of the frame
+        gcInfoEncoder->SetSizeOfEditAndContinuePreservedArea(preservedAreaSize);
+    }  
+#endif
 
     gcInfoEncoder->Build();
 

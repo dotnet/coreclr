@@ -699,7 +699,11 @@ RegSet::RegSet(Compiler* compiler, GCInfo& gcInfo) :
     // intRegState.rsCurRegArgNum   = 0;
     // loatRegState.rsCurRegArgNum = 0;
 
+#ifdef _TARGET_ARM_
+    rsMaskResvd       = RBM_R12;
+#else
     rsMaskResvd       = RBM_NONE;
+#endif
 
 #ifdef LEGACY_BACKEND
     rsMaskMult        = RBM_NONE;
