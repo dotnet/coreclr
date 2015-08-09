@@ -3482,6 +3482,9 @@ void                emitter::emitIns_R_S (instruction ins,
     case INS_ldrsh:
     case INS_ldrsb:
     case INS_vldr:
+    case INS_str:
+    case INS_strh:
+    case INS_strb:
     case INS_vmov:
     case INS_movw:
     case INS_movt:
@@ -3536,7 +3539,7 @@ void                emitter::emitIns_R_S (instruction ins,
     {
         if (isLowRegister(reg1)   &&
             (reg2 == REG_SP)      && 
-            (ins == INS_ldr)      &&
+            ((ins == INS_ldr) || (ins == INS_str)) &&
             ((disp & 0x03fc) == disp && disp <= 0x03f8))
         {
             fmt = IF_T1_J2; 

@@ -1102,6 +1102,7 @@ void CodeGen::genCodeForBinary(GenTree* treeNode)
 
     assert (oper == GT_ADD  ||
             oper == GT_SUB  ||
+            oper == GT_MUL  ||
             oper == GT_AND  ||
             oper == GT_OR   || 
             oper == GT_XOR);
@@ -1184,6 +1185,7 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
 
     case GT_ADD:
     case GT_SUB:
+    case GT_MUL:
         genCodeForBinary(treeNode);
         break;
 #if 0
@@ -1338,12 +1340,19 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
 
     case GT_STORE_LCL_FLD:
         {
-            NYI_IF(targetType == TYP_STRUCT, "GT_STORE_LCL_FLD: struct store local field not supported");
+            NYI_IF(varTypeIsFloating(targetType), "Code generation for FP field assignment");
+
+            noway_assert(targetType != TYP_STRUCT);
             noway_assert(!treeNode->InReg());
 
-            GenTreePtr op1 = treeNode->gtOp.gtOp1->gtEffectiveVal();
-            genConsumeIfReg(op1);
-            emit->emitInsBinary(ins_Store(targetType), emitTypeSize(treeNode), treeNode, op1);
+            unsigned offs = treeNode->gtLclFld.gtLclOffs;
+            unsigned varNum = treeNode->gtLclVarCommon.gtLclNum;
+            assert(varNum < compiler->lvaCount);
+
+            GenTreePtr op1 = treeNode->gtOp.gtOp1;
+            genConsumeRegs(op1);
+
+            emit->emitIns_R_S(ins_Store(targetType), emitTypeSize(targetType), op1->gtRegNum, varNum, offs);
         }
         break;
 
@@ -1430,13 +1439,6 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
         genProduceReg(treeNode);
         break;
 
-    case GT_MUL:
-        {
-            NYI("GT_MUL");
-        }
-        genProduceReg(treeNode);
-        break;
-
     case GT_MOD:
     case GT_UDIV:
     case GT_UMOD:
@@ -1447,10 +1449,7 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
         __fallthrough;
 
     case GT_DIV:
-        {
-            NYI("GT_DIV");
-        }
-        genProduceReg(treeNode);
+        noway_assert(!"Codegen for GT_DIV/GT_MOD/GT_UDIV/GT_UMOD");
         break;
 
     case GT_MATH:
@@ -2455,9 +2454,9 @@ void CodeGen::genCallInstruction(GenTreePtr node)
     if (call->NeedsNullCheck())
     {
         const regNumber regThis = genGetThisArgReg(call);
-        // TODO-ARM: Do we need to do anything when we use R12?
-        getEmitter()->emitIns_R_R_I(INS_ldr, EA_4BYTE, REG_R12, regThis, 0);
-        regTracker.rsTrackRegTrash(REG_R12);
+        // TODO-ARM: Do we need to do anything when we use REG_SCRATCH?
+        getEmitter()->emitIns_R_R_I(INS_ldr, EA_4BYTE, REG_SCRATCH, regThis, 0);
+        //regTracker.rsTrackRegTrash(REG_SCRATCH);
     }
 
     // Either gtControlExpr != null or gtCallAddr != null or it is a direct non-virtual call to a user or helper method.
@@ -2600,19 +2599,19 @@ void CodeGen::genCallInstruction(GenTreePtr node)
         // Use this path if you want to load an absolute call target using 
         //  a sequence of movs followed by an indirect call (blr instruction)
 
-        // Load the call target address in r12
-        // TODO-ARM: Do we need to do anything when we use R12?
-        instGen_Set_Reg_To_Imm(EA_4BYTE, REG_R12, (ssize_t) addr);
-        regTracker.rsTrackRegTrash(REG_R12);
+        // Load the call target address in REG_SCRATCH
+        // TODO-ARM: Do we need to do anything when we use R10?
+        instGen_Set_Reg_To_Imm(EA_4BYTE, REG_SCRATCH, (ssize_t) addr);
+        //regTracker.rsTrackRegTrash(REG_SCRATCH);
 
-        // indirect call to constant address in r12
+        // indirect call to constant address in R10
         genEmitCall(emitter::EC_INDIR_R,
                     methHnd, 
                     INDEBUG_LDISASM_COMMA(sigInfo)
                     nullptr, //addr
                     retSize,
                     ilOffset,
-                    REG_R12);
+                    REG_SCRATCH);
 #else
         // Non-virtual direct call to known addresses
         genEmitCall(emitter::EC_FUNC_TOKEN,
@@ -3094,8 +3093,8 @@ void        CodeGen::genEmitHelperCall(unsigned    helper,
 
     if (!validImmForBL((ssize_t) addr))
     {
-        // TODO-ARM: Do we need to do anything when we use R12?
-        callTarget = REG_R12;
+        // TODO-ARM: Do we need to do anything when we use REG_SCRATCH?
+        callTarget = REG_SCRATCH;
         callType = emitter::EC_INDIR_R;
         instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, callTarget, (ssize_t)addr);
         regTracker.rsTrackRegTrash(callTarget);

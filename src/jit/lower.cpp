@@ -1231,9 +1231,6 @@ void Lowering::LowerCall(GenTree* node)
     
     LowerArgsForCall(call);
 
-// RyuJIT arm is not set up for lowered call control
-#ifndef _TARGET_ARM_
-
     // note that everything generated from this point on runs AFTER the outgoing args are placed
     GenTree* result = nullptr;
 
@@ -1354,7 +1351,6 @@ void Lowering::LowerCall(GenTree* node)
         comp->fgInsertTreeInListBefore(result, insertionPoint, callStmt);
         call->gtControlExpr = result;
     }
-#endif //!_TARGET_ARM_
 
 #ifdef DEBUG
     comp->fgDebugCheckNodeLinks(comp->compCurBB, callStmt);
