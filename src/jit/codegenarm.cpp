@@ -1037,7 +1037,7 @@ void                CodeGen::instGen_Set_Reg_To_Imm(emitAttr    size,
             {
                 getEmitter()->emitIns_R_I(INS_mov, size, reg, imm);
             }
-            else if ((flags != INS_FLAGS_SET) && ((imm & 0xffffffff) == imm))
+            else if (flags != INS_FLAGS_SET)
             {
                 getEmitter()->emitIns_R_I(INS_movw, size, reg, imm & 0x0000ffff);
                 getEmitter()->emitIns_R_I(INS_movt, size, reg, (imm >> 16) & 0x0000ffff);
@@ -1188,70 +1188,6 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
     case GT_MUL:
         genCodeForBinary(treeNode);
         break;
-#if 0
-        {
-            const genTreeOps oper = treeNode->OperGet();
-            if ((oper == GT_ADD || oper == GT_SUB) &&
-                treeNode->gtOverflow())
-            {
-                // This is also checked in the importer.
-                NYI("Overflow not yet implemented");
-            }
-
-            GenTreePtr op1 = treeNode->gtGetOp1();
-            GenTreePtr op2 = treeNode->gtGetOp2();
-            instruction ins = genGetInsForOper(treeNode->OperGet(), targetType);
-
-            // The arithmetic node must be sitting in a register (since it's not contained)
-            noway_assert(targetReg != REG_NA);
-
-            regNumber op1reg = op1->gtRegNum;
-            regNumber op2reg = op2->gtRegNum;
-
-            GenTreePtr dst;
-            GenTreePtr src;
-
-            genConsumeIfReg(op1);
-            genConsumeIfReg(op2);
-
-            // This is the case of reg1 = reg1 op reg2
-            // We're ready to emit the instruction without any moves
-            if (op1reg == targetReg)
-            {
-                dst = op1;
-                src = op2;
-            }
-            // We have reg1 = reg2 op reg1
-            // In order for this operation to be correct
-            // we need that op is a commutative operation so
-            // we can convert it into reg1 = reg1 op reg2 and emit
-            // the same code as above
-            else if (op2reg == targetReg)
-            {
-                noway_assert(GenTree::OperIsCommutative(treeNode->OperGet()));
-                dst = op2;
-                src = op1;
-            }
-            // dest, op1 and op2 registers are different:
-            // reg3 = reg1 op reg2
-            // We can implement this by issuing a mov:
-            // reg3 = reg1
-            // reg3 = reg3 op reg2
-            else
-            {
-                inst_RV_RV(ins_Move_Extend(targetType, true), targetReg, op1reg, op1->gtType);
-                regTracker.rsTrackRegCopy(targetReg, op1reg);
-                gcInfo.gcMarkRegPtrVal(targetReg, targetType);
-                dst = treeNode;
-                src = op2;
-            }
-
-            regNumber r = emit->emitInsBinary(ins, emitTypeSize(treeNode), dst, src);
-            noway_assert(r == targetReg);
-        }
-        genProduceReg(treeNode);
-        break;
-#endif
 
     case GT_LSH:
     case GT_RSH:
@@ -2454,9 +2390,8 @@ void CodeGen::genCallInstruction(GenTreePtr node)
     if (call->NeedsNullCheck())
     {
         const regNumber regThis = genGetThisArgReg(call);
-        // TODO-ARM: Do we need to do anything when we use REG_SCRATCH?
         getEmitter()->emitIns_R_R_I(INS_ldr, EA_4BYTE, REG_SCRATCH, regThis, 0);
-        //regTracker.rsTrackRegTrash(REG_SCRATCH);
+        regTracker.rsTrackRegTrash(REG_SCRATCH);
     }
 
     // Either gtControlExpr != null or gtCallAddr != null or it is a direct non-virtual call to a user or helper method.
@@ -2600,11 +2535,10 @@ void CodeGen::genCallInstruction(GenTreePtr node)
         //  a sequence of movs followed by an indirect call (blr instruction)
 
         // Load the call target address in REG_SCRATCH
-        // TODO-ARM: Do we need to do anything when we use R10?
         instGen_Set_Reg_To_Imm(EA_4BYTE, REG_SCRATCH, (ssize_t) addr);
-        //regTracker.rsTrackRegTrash(REG_SCRATCH);
+        regTracker.rsTrackRegTrash(REG_SCRATCH);
 
-        // indirect call to constant address in R10
+        // indirect call to constant address in REG_SCRATCH
         genEmitCall(emitter::EC_INDIR_R,
                     methHnd, 
                     INDEBUG_LDISASM_COMMA(sigInfo)
@@ -3093,7 +3027,6 @@ void        CodeGen::genEmitHelperCall(unsigned    helper,
 
     if (!validImmForBL((ssize_t) addr))
     {
-        // TODO-ARM: Do we need to do anything when we use REG_SCRATCH?
         callTarget = REG_SCRATCH;
         callType = emitter::EC_INDIR_R;
         instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, callTarget, (ssize_t)addr);
