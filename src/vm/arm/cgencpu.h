@@ -750,6 +750,12 @@ public:
             Emit16((WORD)(0x4500 | reg2 << 3 | (reg1 & 0x7) | (reg1 & 0x8 ? 0x80 : 0x0)));
         }
     }
+
+    void ThumbEmitCmpImm(ThumbReg dest, unsigned int value)
+    {
+        _ASSERTE(value <= 255);
+        Emit16((WORD)(0x2800 | (dest << 8) | value));
+    }
     
     void ThumbEmitIncrement(ThumbReg dest, unsigned int value)
     {
