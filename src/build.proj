@@ -21,15 +21,15 @@
   <Target Name="BuildNuGetPackages" AfterTargets="MovePDB" Condition="'$(BuildNugetPackage)' != 'false'">
     <MakeDir Directories="$(PackagesBinDir)" Condition="!Exists('$(PackagesBinDir)')" />
     <Copy SourceFiles="@(NuSpecSrcs)" DestinationFolder="$(PackagesBinDir)" />
-    <Exec Command="&quot;$(NuGetToolPath)&quot; pack &quot;%(NuSpecs.Identity)&quot; -NoPackageAnalysis -NoDefaultExcludes -OutputDirectory &quot;$(PackagesBinDir)&quot;" />
+    <Exec Command="&quot;$(NuGetToolPath)&quot; pack &quot;%(NuSpecs.Identity)&quot; -NoPackageAnalysis -NoDefaultExcludes -OutputDirectory &quot;$(PackagesBinDir)&quot;" Condition="'$(OS)'!='Unix'"/>
   </Target>
 
   <ItemGroup>
-    <PDBSToMove Include="$(BinDir)mscorlib.pdb"/>
+    <PDBSToMove Condition="'$(OS)'!='Unix'" Include="$(BinDir)mscorlib.pdb"/>
   </ItemGroup>
 
   <PropertyGroup>
-    <MscorlibPDBPath>$(BinDir)mscorlib.pdb</MscorlibPDBPath>
+    <MscorlibPDBPath Condition="'$(OS)'!='Unix'">$(BinDir)mscorlib.pdb</MscorlibPDBPath>
   </PropertyGroup>
 
   <Target Name="MovePDB" AfterTargets="Build">
