@@ -531,6 +531,12 @@ LPVOID __FCThrowArgument(LPVOID me, enum RuntimeExceptionKind reKind, LPCWSTR ar
   #define FORLAZYMACHSTATE_DEBUG_OK_TO_RETURN_END    DEBUG_OK_TO_RETURN_END(LAZYMACHSTATE)
 #endif
 
+#ifdef FEATURE_PAL
+#define PAL_ONLY(x) x
+#else
+#define PAL_ONLY(x)
+#endif
+
 // BEGIN: before gcpoll
 //FCallGCCanTriggerNoDtor __fcallGcCanTrigger;        
 //__fcallGcCanTrigger.Enter();                        
@@ -551,6 +557,10 @@ LPVOID __FCThrowArgument(LPVOID me, enum RuntimeExceptionKind reKind, LPCWSTR ar
             helperFrame;                                        \
             FORLAZYMACHSTATE_DEBUG_OK_TO_RETURN_BEGIN;          \
             FORLAZYMACHSTATE(CAPTURE_STATE(__helperframe.MachineState(), ret);) \
+            /* On Unix DAC can't unwind native stack out-of-proc yet */ \
+            /* that's why we have to pre-unwind it in-proc when helper frams is created */ \
+            /* UNIXTODO: Get rid of the next line when DAC native unwind is implemented */ \
+            PAL_ONLY(FORLAZYMACHSTATE(__helperframe.InsureInit(false, NULL);))  \
             FORLAZYMACHSTATE_DEBUG_OK_TO_RETURN_END;            \
             INDEBUG(__helperframe.SetAddrOfHaveCheckedRestoreState(&__haveCheckedRestoreState)); \
             DEBUG_ASSURE_NO_RETURN_BEGIN(HELPER_METHOD_FRAME);  \

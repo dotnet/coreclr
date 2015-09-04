@@ -1657,8 +1657,6 @@ void HelperMethodFrame::Push()
     _ASSERTE(GetGSCookiePtr() == (((GSCookie *)(this)) - 1));
     *(((GSCookie *)(this)) - 1) = GetProcessGSCookie();
 
-    _ASSERTE(!m_MachState.isValid());
-
     Thread * pThread = ::GetThread();
     m_pThread = pThread;
 
