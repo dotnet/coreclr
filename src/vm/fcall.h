@@ -531,6 +531,12 @@ LPVOID __FCThrowArgument(LPVOID me, enum RuntimeExceptionKind reKind, LPCWSTR ar
   #define FORLAZYMACHSTATE_DEBUG_OK_TO_RETURN_END    DEBUG_OK_TO_RETURN_END(LAZYMACHSTATE)
 #endif
 
+#ifdef FEATURE_PAL
+#define PAL_ONLY(x) x
+#else
+#define PAL_ONLY(x)
+#endif
+
 // BEGIN: before gcpoll
 //FCallGCCanTriggerNoDtor __fcallGcCanTrigger;        
 //__fcallGcCanTrigger.Enter();                        
@@ -551,6 +557,7 @@ LPVOID __FCThrowArgument(LPVOID me, enum RuntimeExceptionKind reKind, LPCWSTR ar
             helperFrame;                                        \
             FORLAZYMACHSTATE_DEBUG_OK_TO_RETURN_BEGIN;          \
             FORLAZYMACHSTATE(CAPTURE_STATE(__helperframe.MachineState(), ret);) \
+            PAL_ONLY(FORLAZYMACHSTATE(__helperframe.InsureInit(false, NULL);))  \
             FORLAZYMACHSTATE_DEBUG_OK_TO_RETURN_END;            \
             INDEBUG(__helperframe.SetAddrOfHaveCheckedRestoreState(&__haveCheckedRestoreState)); \
             DEBUG_ASSURE_NO_RETURN_BEGIN(HELPER_METHOD_FRAME);  \
