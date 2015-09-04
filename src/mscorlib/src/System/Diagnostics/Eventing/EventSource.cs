@@ -3570,12 +3570,15 @@ namespace System.Diagnostics.Tracing
                 manifest.ManifestError(Environment.GetResourceString("EventSource_EventIdReused", evtName, evtId, eventData[evtId].Name), true);
             }
 
-            for (int idx = 0; idx < eventData.Length; ++idx)
+            if (eventAttribute.Task != EventTask.None)
             {
-                if (eventData[idx].Descriptor.Task == (int)eventAttribute.Task && eventData[idx].Descriptor.Opcode == (int)eventAttribute.Opcode)
+                for (int idx = 0; idx < eventData.Length; ++idx)
                 {
-                    manifest.ManifestError(Environment.GetResourceString("EventSource_TaskOpcodePairReused",
-                                            evtName, evtId, eventData[idx].Name, idx));
+                    if (eventData[idx].Descriptor.Task == (int)eventAttribute.Task && eventData[idx].Descriptor.Opcode == (int)eventAttribute.Opcode)
+                    {
+                        manifest.ManifestError(Environment.GetResourceString("EventSource_TaskOpcodePairReused",
+                                                evtName, evtId, eventData[idx].Name, idx));
+                    }
                 }
             }
 
