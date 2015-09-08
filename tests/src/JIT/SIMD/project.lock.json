@@ -1,5 +1,5 @@
 {
-  "locked": false,
+  "locked": true,
   "version": -9996,
   "targets": {
     "DNXCore,Version=v5.0": {
@@ -14,7 +14,7 @@
           "lib/DNXCore50/System.Collections.dll": {}
         }
       },
-      "System.Console/4.0.0-beta-23304": {
+      "System.Console/4.0.0-beta-23302": {
         "dependencies": {
           "System.Runtime": "4.0.20",
           "System.Runtime.InteropServices": "4.0.20",
@@ -234,7 +234,7 @@
           "lib/DNXCore50/System.Threading.Tasks.dll": {}
         }
       },
-      "System.Threading.Thread/4.0.0-beta-23304": {
+      "System.Threading.Thread/4.0.0-beta-23302": {
         "dependencies": {
           "System.Runtime": "4.0.0"
         },
@@ -281,20 +281,13 @@
         "runtimes/win8-aot/lib/netcore50/System.Collections.dll"
       ]
     },
-    "System.Console/4.0.0-beta-23304": {
+    "System.Console/4.0.0-beta-23302": {
       "serviceable": true,
-      "sha512": "cyjEdYhKrO2NoJpq5k0KHKACkSRmZUYkicjis1IpEuxtdWxDjKfCOQlHKIi92ZF5pM3tScaqJSHnWNza9jUObA==",
+      "sha512": "rpWEkJWW29TjVZdDz5zr8VnBv4IN9BQHmP4Ky9tEbvkdhkJRb0ZO59acXMpVD1tSM2VhGlLnq0kpdjOLNmejNA==",
       "files": [
-        "System.Console.4.0.0-beta-23304.nupkg",
-        "System.Console.4.0.0-beta-23304.nupkg.sha512",
+        "System.Console.4.0.0-beta-23302.nupkg",
+        "System.Console.4.0.0-beta-23302.nupkg.sha512",
         "System.Console.nuspec",
-        "System.Console.xml",
-        "de/System.Console.xml",
-        "es/System.Console.xml",
-        "fr/System.Console.xml",
-        "it/System.Console.xml",
-        "ja/System.Console.xml",
-        "ko/System.Console.xml",
         "lib/DNXCore50/System.Console.dll",
         "lib/MonoAndroid10/_._",
         "lib/MonoTouch10/_._",
@@ -306,10 +299,7 @@
         "ref/MonoTouch10/_._",
         "ref/net46/System.Console.dll",
         "ref/xamarinios10/_._",
-        "ref/xamarinmac20/_._",
-        "ru/System.Console.xml",
-        "zh-hans/System.Console.xml",
-        "zh-hant/System.Console.xml"
+        "ref/xamarinmac20/_._"
       ]
     },
     "System.Diagnostics.Debug/4.0.10": {
@@ -913,12 +903,12 @@
         "runtimes/win8-aot/lib/netcore50/System.Threading.Tasks.dll"
       ]
     },
-    "System.Threading.Thread/4.0.0-beta-23304": {
+    "System.Threading.Thread/4.0.0-beta-23302": {
       "serviceable": true,
-      "sha512": "QqZx0WIyQGcqK16NOoLKlLNHvBmssCm7w4UJdU6wL7cXsjG1kX+4FHQCEHZN2enyqoCZd6cYzhbBUeitiOqXZw==",
+      "sha512": "0tn5ET6NNDVjJdpacPXM9lwa3tZeKiIYZHOZPtsbORXop84IN93KenlcqEdPizxPsnOAgauVIgeKftnvwcvlsQ==",
       "files": [
-        "System.Threading.Thread.4.0.0-beta-23304.nupkg",
-        "System.Threading.Thread.4.0.0-beta-23304.nupkg.sha512",
+        "System.Threading.Thread.4.0.0-beta-23302.nupkg",
+        "System.Threading.Thread.4.0.0-beta-23302.nupkg.sha512",
         "System.Threading.Thread.nuspec",
         "lib/DNXCore50/System.Threading.Thread.dll",
         "lib/MonoAndroid10/_._",

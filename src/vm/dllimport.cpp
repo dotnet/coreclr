@@ -7390,6 +7390,7 @@ EXTERN_C LPVOID STDCALL NDirectImportWorker(NDirectMethodDesc* pMD)
     }
     CONTRACTL_END;
 
+    INSTALL_MANAGED_EXCEPTION_DISPATCHER;
     // this function is called by CLR to native assembly stubs which are called by 
     // managed code as a result, we need an unwind and continue handler to translate 
     // any of our internal exceptions into managed exceptions.
@@ -7446,6 +7447,7 @@ EXTERN_C LPVOID STDCALL NDirectImportWorker(NDirectMethodDesc* pMD)
     ret = pMD->GetNDirectTarget();
 
     UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
+    UNINSTALL_MANAGED_EXCEPTION_DISPATCHER;
 
     END_PRESERVE_LAST_ERROR;
 
@@ -7532,6 +7534,7 @@ PCODE GetILStubForCalli(VASigCookie *pVASigCookie, MethodDesc *pMD)
 
     PCODE pTempILStub = NULL;
 
+    INSTALL_MANAGED_EXCEPTION_DISPATCHER;
     // this function is called by CLR to native assembly stubs which are called by 
     // managed code as a result, we need an unwind and continue handler to translate 
     // any of our internal exceptions into managed exceptions.
@@ -7630,6 +7633,7 @@ PCODE GetILStubForCalli(VASigCookie *pVASigCookie, MethodDesc *pMD)
                                                     NULL);
 
     UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
+    UNINSTALL_MANAGED_EXCEPTION_DISPATCHER;
 
     RETURN pVASigCookie->pNDirectILStub;
 }
