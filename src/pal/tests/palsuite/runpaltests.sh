@@ -38,16 +38,20 @@ PAL_TEST_LIST=$PWD/paltestlist.txt
 cd $OLDPWD
 echo The list of PAL tests to run will be read from $PAL_TEST_LIST
 
-# Create path to a folder where PAL tests will store their output
-# First check if the output folder was passed as a parameter to the script.
-# It is supposed be the second parameter so check if we have more than 1 argument.
+# Create path to a folder where PAL tests will store their output. Determine the folder where output files were requested to be
+# copied. First check if the output folder was passed as a parameter to the script. It is supposed be the second parameter so
+# check if we have more than 1 argument.
+PAL_TEST_OUTPUT_DIR=/tmp/PalTestOutput
 if [ $# -gt 1 ]
 then
-PAL_TEST_OUTPUT_DIR=$2
+COPY_TO_TEST_OUTPUT_DIR=$2
 else
-PAL_TEST_OUTPUT_DIR=/tmp/PalTestOutput
+COPY_TO_TEST_OUTPUT_DIR=$PAL_TEST_OUTPUT_DIR
 fi
-echo PAL tests will store their temporary files and output in $PAL_TEST_OUTPUT_DIR
+echo PAL tests will store their temporary files and output in $PAL_TEST_OUTPUT_DIR.
+if [ "$COPY_TO_TEST_OUTPUT_DIR" != "$PAL_TEST_OUTPUT_DIR" ]; then
+  echo Output files will be copied to $COPY_TO_TEST_OUTPUT_DIR at the end.
+fi
 
 # Path to a file that will contains a list PAL tests that failed during the test run.
 PAL_FAILED_TEST_LIST=$PAL_TEST_OUTPUT_DIR/palfailedtests.txt
@@ -61,9 +65,17 @@ PAL_XUNIT_TEST_LIST=$PAL_TEST_OUTPUT_DIR/pal_tests.xml
 # Capturing stdout and stderr
 PAL_OUT_FILE=$PAL_TEST_OUTPUT_DIR/pal_test_out
 
-# Remove the temporary test output directory
-rm -r $PAL_TEST_OUTPUT_DIR
+# Remove the temporary test output directory, and the directory where output files were requested to be copied.
+if [ -e $PAL_TEST_OUTPUT_DIR ]; then
+  rm -f -r $PAL_TEST_OUTPUT_DIR
+fi
 mkdir $PAL_TEST_OUTPUT_DIR
+if [ "$COPY_TO_TEST_OUTPUT_DIR" != "$PAL_TEST_OUTPUT_DIR" ]; then
+  if [ -e $COPY_TO_TEST_OUTPUT_DIR ]; then
+    rm -f -r $COPY_TO_TEST_OUTPUT_DIR
+  fi
+  mkdir $COPY_TO_TEST_OUTPUT_DIR
+fi
 cd $PAL_TEST_OUTPUT_DIR
 
 echo
@@ -79,6 +91,16 @@ do
   # Remove stdout/stderr file if it exists
   rm -f $PAL_OUT_FILE
 
+  # Create a folder with the test name, and use that as the working directory for the test. Many PAL tests don't clean up after
+  # themselves and may leave files/directories around, but even to handle test failures that result in a dirty state, run each
+  # test in its own folder.
+  TEST_WORKING_DIR=$(basename $TEST_NAME)
+  if [ -d $TEST_WORKING_DIR ]; then
+    rm -f -r $TEST_WORKING_DIR
+  fi
+  mkdir $TEST_WORKING_DIR
+  cd $TEST_WORKING_DIR
+
   # Create path to a test executable to run
   TEST_COMMAND="$PAL_TEST_BUILD/$TEST_NAME"
   echo -n .
@@ -87,6 +109,10 @@ do
 
   # Get exit code of the test process.
   TEST_EXIT_CODE=$?
+
+  # Change back to the output directory, and remove the test's working directory if it's not empty
+  cd $PAL_TEST_OUTPUT_DIR
+  rmdir $TEST_WORKING_DIR 2>/dev/null
   
   TEST_XUNIT_NAME=$(dirname $TEST_NAME)
   TEST_XUNIT_CLASSNAME=$(dirname $TEST_XUNIT_NAME)
@@ -154,6 +180,11 @@ echo PAL Test Results:
 echo "  Passed: $NUMBER_OF_PASSED_TESTS"
 echo "  Failed: $NUMBER_OF_FAILED_TESTS"
 echo
+
+if [ "$COPY_TO_TEST_OUTPUT_DIR" != "$PAL_TEST_OUTPUT_DIR" ]; then
+  cp -f -r $PAL_TEST_OUTPUT_DIR/* $COPY_TO_TEST_OUTPUT_DIR/
+  echo Copied PAL test output files to $COPY_TO_TEST_OUTPUT_DIR
+fi
 
 # Set exit code to be equal to the number PAL tests that have failed.
 # Exit code 0 indicates success.
