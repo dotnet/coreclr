@@ -131,8 +131,7 @@ C_ASSERT (HANDLE_HANDLES_PER_MASK * 2 == HANDLE_HANDLES_PER_BLOCK);
 /*
  * we need byte packing for the handle table layout to work
  */
-#include <pshpack1.h>
-
+#pragma pack(push,1)
 
 
 /*
@@ -306,7 +305,7 @@ typedef SPTR(struct TableSegment) PTR_TableSegment;
 /*
  * restore default packing
  */
-#include <poppack.h>
+#pragma pack(pop)
 
 
 /*
@@ -529,10 +528,10 @@ struct HandleTable
      */
 #ifdef _DEBUG
     int     _DEBUG_iMaxGen;
-    __int64 _DEBUG_TotalBlocksScanned            [MAXSTATGEN];
-    __int64 _DEBUG_TotalBlocksScannedNonTrivially[MAXSTATGEN];
-    __int64 _DEBUG_TotalHandleSlotsScanned       [MAXSTATGEN];
-    __int64 _DEBUG_TotalHandlesActuallyScanned   [MAXSTATGEN];
+    INT64   _DEBUG_TotalBlocksScanned            [MAXSTATGEN];
+    INT64   _DEBUG_TotalBlocksScannedNonTrivially[MAXSTATGEN];
+    INT64   _DEBUG_TotalHandleSlotsScanned       [MAXSTATGEN];
+    INT64   _DEBUG_TotalHandlesActuallyScanned   [MAXSTATGEN];
 #endif
 
     /*

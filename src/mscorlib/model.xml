@@ -1022,6 +1022,9 @@
     <Member Name="SetProfileOptimizationRoot(System.String)" />
     <Member Name="StartProfileOptimization(System.String)" />
     </Type>
+    <Type Name="System.Reflection.Metadata.AssemblyExtensions">
+      <Member Name="TryGetRawMetadata(System.Reflection.Assembly,System.Byte*@,System.Int32@)"/>
+    </Type>
     <Type Status="ApiFxInternal" Name="System.Runtime.Versioning.BinaryCompatibility">
       <Member Status="ApiFxInternal" MemberType="Property" Name="TargetsAtLeast_Phone_V7_1" />
       <Member Status="ApiFxInternal" MemberType="Property" Name="TargetsAtLeast_Phone_V8_0" />
@@ -6083,6 +6086,11 @@
       <Member MemberType="Field" Name="Explicit" />
       <Member MemberType="Field" Name="Sequential" />
       <Member MemberType="Field" Name="value__" />
+    </Type>
+    <Type Name="System.Runtime.InteropServices.NativeCallableAttribute"> 
+      <Member Name="#ctor" />
+      <Member MemberType="Field" Name="CallingConvention" /> <!-- EE -->
+      <Member MemberType="Field" Name="EntryPoint" /> <!-- EE -->
     </Type>
     <Type Name="System.Runtime.InteropServices.Marshal">
       <Member MemberType="Field" Name="SystemDefaultCharSize" />

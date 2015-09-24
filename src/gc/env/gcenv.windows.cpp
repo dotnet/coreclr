@@ -183,13 +183,6 @@ uint32_t CLREventStatic::Wait(uint32_t dwMilliseconds, bool bAlertable)
     return result;
 }
 
-HANDLE CLREventStatic::GetOSEvent()
-{
-    if (!m_fInitialized)
-        return INVALID_HANDLE_VALUE;
-    return m_hEvent;
-}
-
 bool __SwitchToThread(uint32_t dwSleepMSec, uint32_t dwSwitchCount)
 {
     SwitchToThread();
@@ -260,11 +253,11 @@ Thread * GetThread()
     return pCurrentThread;
 }
 
-Thread * g_pThreadList = nullptr;
+Thread * g_pThreadList = NULL;
 
 Thread * ThreadStore::GetThreadList(Thread * pThread)
 {
-    if (pThread == nullptr)
+    if (pThread == NULL)
         return g_pThreadList;
 
     return pThread->m_pNext;

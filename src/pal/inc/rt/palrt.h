@@ -46,7 +46,6 @@ Revision History:
 #define E_UNEXPECTED                     _HRESULT_TYPEDEF_(0x8000FFFFL)
 #define E_OUTOFMEMORY                    _HRESULT_TYPEDEF_(0x8007000EL)
 #define E_INVALIDARG                     _HRESULT_TYPEDEF_(0x80070057L)
-#define E_INVALIDARG                     _HRESULT_TYPEDEF_(0x80070057L)
 #define E_POINTER                        _HRESULT_TYPEDEF_(0x80004003L)
 #define E_HANDLE                         _HRESULT_TYPEDEF_(0x80070006L)
 #define E_ABORT                          _HRESULT_TYPEDEF_(0x80004004L)
@@ -1709,8 +1708,6 @@ typedef LONG (WINAPI *PTOP_LEVEL_EXCEPTION_FILTER)(
     IN struct _EXCEPTION_POINTERS *ExceptionInfo
     );
 typedef PTOP_LEVEL_EXCEPTION_FILTER LPTOP_LEVEL_EXCEPTION_FILTER;
-
-BOOL PAL_VirtualUnwind(CONTEXT *context, KNONVOLATILE_CONTEXT_POINTERS *contextPointers);
 
 /******************* ntdef ************************************/
 

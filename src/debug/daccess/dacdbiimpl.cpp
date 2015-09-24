@@ -1247,8 +1247,8 @@ bool DacDbiInterfaceImpl::GetMetaDataFileInfoFromPEFile(VMPTR_PEFile vmPEFile,
     if (pPEFile == NULL)
         return false;
 
-    WCHAR wszFilePath[MAX_PATH] = {0};
-    DWORD cchFilePath = MAX_PATH;
+    WCHAR wszFilePath[MAX_LONGPATH] = {0};
+    DWORD cchFilePath = MAX_LONGPATH;
     bool ret = ClrDataAccess::GetMetaDataFileInfoFromPEFile(pPEFile,
                                                             dwTimeStamp,
                                                             dwSize,
@@ -1284,8 +1284,8 @@ bool DacDbiInterfaceImpl::GetILImageInfoFromNgenPEFile(VMPTR_PEFile vmPEFile,
         return false;
     }
 
-    WCHAR wszFilePath[MAX_PATH] = {0};
-    DWORD cchFilePath = MAX_PATH;
+    WCHAR wszFilePath[MAX_LONGPATH] = {0};
+    DWORD cchFilePath = MAX_LONGPATH;
     bool ret = ClrDataAccess::GetILImageInfoFromNgenPEFile(pPEFile,
                                                            dwTimeStamp,
                                                            dwSize,
@@ -5616,10 +5616,43 @@ void DacDbiInterfaceImpl::GetContext(VMPTR_Thread vmThread, DT_CONTEXT * pContex
     {
         // If the filter context is NULL, then we use the true context of the thread.
         pContextBuffer->ContextFlags = CONTEXT_ALL;
-        IfFailThrow(m_pTarget->GetThreadContext(pThread->GetOSThreadId(), 
+        HRESULT hr = m_pTarget->GetThreadContext(pThread->GetOSThreadId(), 
                                                 pContextBuffer->ContextFlags, 
                                                 sizeof(*pContextBuffer),
-                                                reinterpret_cast<BYTE *>(pContextBuffer)));
+                                                reinterpret_cast<BYTE *>(pContextBuffer));
+        if (hr == E_NOTIMPL)
+        {
+            // GetThreadContext is not implemented on this data target.
+            // That's why we have to make do with context we can obtain from Frames explicitly stored in Thread object. 
+            // It suffices for managed debugging stackwalk. 
+            REGDISPLAY tmpRd = {};
+            T_CONTEXT tmpContext = {};
+            FillRegDisplay(&tmpRd, &tmpContext);
+            
+            // Going through thread Frames and looking for first (deepest one) one that 
+            // that has context available for stackwalking (SP and PC)
+            // For example: RedirectedThreadFrame, InlinedCallFrame, HelperMethodFrame, ComPlusMethodFrame
+            Frame *frame = pThread->GetFrame();
+            while (frame != NULL && frame != FRAME_TOP)
+            {
+                frame->UpdateRegDisplay(&tmpRd);
+                if (GetRegdisplaySP(&tmpRd) != 0 && GetControlPC(&tmpRd) != 0)
+                {
+                    UpdateContextFromRegDisp(&tmpRd, &tmpContext);
+                    CopyMemory(pContextBuffer, &tmpContext, sizeof(*pContextBuffer));
+                    pContextBuffer->ContextFlags = DT_CONTEXT_CONTROL;
+                    return;
+                }
+                frame = frame->Next();
+            }
+
+            // It looks like this thread is not running managed code. 
+            ZeroMemory(pContextBuffer, sizeof(*pContextBuffer));   
+        }
+        else 
+        {
+            IfFailThrow(hr);
+        }
     }
     else
     {

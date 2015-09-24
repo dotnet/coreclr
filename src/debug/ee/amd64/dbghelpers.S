@@ -7,13 +7,12 @@
 #include "unixasmmacros.inc"
 
 //extern FuncEvalHijackWorker:proc
-//extern FuncEvalHijackPersonalityRoutine:proc
 
 // @dbgtodo- once we port Funceval, use the ExceptionHijack stub instead of this func-eval stub.
-NESTED_ENTRY FuncEvalHijack, _TEXT, FuncEvalHijackPersonalityRoutine
+NESTED_ENTRY FuncEvalHijack, _TEXT, UnhandledExceptionHandlerUnix
         // the stack should be aligned at this point, since we do not call this
         // function explicitly
-        alloc_stack 20h
+        alloc_stack 0x20
         END_PROLOGUE
 
         mov     [rsp], rdi
@@ -36,11 +35,10 @@ NESTED_ENTRY FuncEvalHijack, _TEXT, FuncEvalHijackPersonalityRoutine
 NESTED_END FuncEvalHijack, _TEXT
 
 //extern ExceptionHijackWorker:proc
-//extern ExceptionHijackPersonalityRoutine:proc
 
 // This is the general purpose hijacking stub. The DacDbi Hijack primitive will 
 // set up the stack and then set the IP here, and so this just makes the call.
-NESTED_ENTRY ExceptionHijack, _TEXT, NoHandler
+NESTED_ENTRY ExceptionHijack, _TEXT, UnhandledExceptionHandlerUnix
         // the stack should be aligned at this point, since we do not call this
         // function explicitly
         // 
@@ -48,7 +46,7 @@ NESTED_ENTRY ExceptionHijack, _TEXT, NoHandler
         // So we allocate 4 stack slots as the outgoing argument home and just copy the 
         // arguments set up by DacDbi into these stack slots.  We will take a perf hit,
         // but this is not a perf critical code path anyway.
-        alloc_stack 20h
+        alloc_stack 0x20
         END_PROLOGUE
 
         // We used to do an "alloc_stack 0h" because the stack has been allocated for us
