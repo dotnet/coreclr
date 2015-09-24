@@ -549,36 +549,31 @@ namespace System {
             return new int[] {d.lo, d.mid, d.hi, d.flags};
         }
 
-        internal static void GetBytes(Decimal d, byte [] buffer) {
+        internal unsafe static void GetBytes(Decimal d, byte [] buffer) {
             Contract.Requires((buffer != null && buffer.Length >= 16), "[GetBytes]buffer != null && buffer.Length >= 16");
-            buffer[0] = (byte) d.lo;
-            buffer[1] = (byte) (d.lo >> 8);
-            buffer[2] = (byte) (d.lo >> 16);
-            buffer[3] = (byte) (d.lo >> 24);
             
-            buffer[4] = (byte) d.mid;
-            buffer[5] = (byte) (d.mid >> 8);
-            buffer[6] = (byte) (d.mid >> 16);
-            buffer[7] = (byte) (d.mid >> 24);
-
-            buffer[8] = (byte) d.hi;
-            buffer[9] = (byte) (d.hi >> 8);
-            buffer[10] = (byte) (d.hi >> 16);
-            buffer[11] = (byte) (d.hi >> 24);
-            
-            buffer[12] = (byte) d.flags;
-            buffer[13] = (byte) (d.flags >> 8);
-            buffer[14] = (byte) (d.flags >> 16);
-            buffer[15] = (byte) (d.flags >> 24);
+            fixed (byte* pBuffer = buffer)
+            {
+                int* ptr = (int*)pBuffer;
+                *ptr = d.lo;
+                *(ptr + 1) = d.mid;
+                *(ptr + 2) = d.hi;
+                *(ptr + 3) = d.flags;
+            }
         }
 
-        internal static decimal ToDecimal(byte [] buffer) {
+        internal unsafe static decimal ToDecimal(byte [] buffer) {
             Contract.Requires((buffer != null && buffer.Length >= 16), "[ToDecimal]buffer != null && buffer.Length >= 16");
-            int lo = ((int)buffer[0]) | ((int)buffer[1] << 8) | ((int)buffer[2] << 16) | ((int)buffer[3] << 24);
-            int mid = ((int)buffer[4]) | ((int)buffer[5] << 8) | ((int)buffer[6] << 16) | ((int)buffer[7] << 24);
-            int hi = ((int)buffer[8]) | ((int)buffer[9] << 8) | ((int)buffer[10] << 16) | ((int)buffer[11] << 24);
-            int flags = ((int)buffer[12]) | ((int)buffer[13] << 8) | ((int)buffer[14] << 16) | ((int)buffer[15] << 24);
-            return new Decimal(lo,mid,hi,flags);
+            
+            fixed (byte* pBuffer = buffer)
+            {
+                int* ptr = (int*)pBuffer;
+                int lo = *ptr;
+                int mid = *(ptr + 1);
+                int hi = *(ptr + 2);
+                int flags = *(ptr + 3);
+                return new decimal(lo, mid, hi, flags);
+            }
         }
    
         // This method does a 'raw' and 'unchecked' addition of a UInt32 to a Decimal in place. 
