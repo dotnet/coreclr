@@ -8780,7 +8780,7 @@ bool FilterTable::IsTokenMarked(
         //
         return true;
     }
-    return ( (*Get(rid)) & bitMarked ? true : false);
+    return ( ((*Get(rid)) & bitMarked) ? true : false);
 } // FilterTable::IsTokenMarked
 
 
