@@ -1348,15 +1348,15 @@ static HMODULE LOADLoadLibrary(LPCSTR shortAsciiName, BOOL fDynamic)
         // We try to dlopen with such variations on the original.
         const char* const formatStrings[4] = // used with args: PAL_SHLIB_PREFIX, shortAsciiName, PAL_SHLIB_SUFFIX
         {
+            "%.0s%s%.0s", //        name        (checked first so that the dev has more control if needed)
             "%s%s%s",     // prefix+name+suffix
-            "%.0s%s%.0s", // name
-            "%.0s%s%s",   // name+suffix
+            "%.0s%s%s",   //        name+suffix
             "%s%s%.0s",   // prefix+name
         };
         const int skipPrefixing = strchr(shortAsciiName, '/') != NULL; // skip prefixing if the name is actually a path
         for (int i = 0; i < 4; i++)
         {
-           if (skipPrefixing && (i == 0 || i == 3)) // 0th and 3rd strings include prefixes
+           if (skipPrefixing && (i == 1 || i == 3)) // 1st and 3rd strings include prefixes
                continue;
            
             if (!dl_handle &&
