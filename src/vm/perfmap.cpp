@@ -10,7 +10,9 @@
 
 #ifdef FEATURE_PERFMAP
 #include "perfmap.h"
+#ifdef PLATFORM_UNIX
 #include "pal.h"
+#endif
 
 PerfMap * PerfMap::s_Current = NULL;
 
@@ -30,8 +32,55 @@ void PerfMap::Initialize()
     }
 }
 
+void PerfMap::LogPreCompiledMethod(MethodDesc * pMethod, PCODE pCode)
+{
+    STANDARD_VM_CONTRACT;
+
+    if (s_Current != NULL)
+    {
+        // Check to see if we've already logged this one.
+        {
+            // Take a lock on the table.
+            CrstHolder _crst(&s_Current->m_ZapPerfMapMethodsCrst);
+
+            // Check the hash table to see if we've already written this method.
+            MethodDesc * pWrittenMD = s_Current->m_ZapPerfMapMethods.Lookup(pMethod);
+            if (pWrittenMD != NULL)
+            {
+                // We've written the method already so just return.
+                return;
+            }
+            else
+            {
+                // We've not written this method yet.
+                // Mark it written under lock and then write it outside of the lock.
+                s_Current->m_ZapPerfMapMethods.Add(pMethod);
+            }
+        }
+
+        // Get information about the NGEN'd method code.
+        EECodeInfo codeInfo(pCode);
+        _ASSERTE(codeInfo.IsValid());
+
+        IJitManager::MethodRegionInfo methodRegionInfo;
+        codeInfo.GetMethodRegionInfo(&methodRegionInfo);
+
+        // NGEN can split code between hot and cold sections which are separate in memory.
+        // Emit an entry for each section if it is used.
+        if (methodRegionInfo.hotSize > 0)
+        {
+            s_Current->Log(pMethod, (PCODE)methodRegionInfo.hotStartAddress, methodRegionInfo.hotSize);
+        }
+
+        if (methodRegionInfo.coldSize > 0)
+        {
+            s_Current->Log(pMethod, (PCODE)methodRegionInfo.coldStartAddress, methodRegionInfo.coldSize);
+        }
+    }
+}
+
 // Log a method to the map.
-void PerfMap::LogMethod(MethodDesc * pMethod, PCODE pCode, size_t codeSize)
+void PerfMap::LogJITCompiledMethod(MethodDesc * pMethod, PCODE pCode, size_t codeSize)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -58,6 +107,14 @@ PerfMap::PerfMap(int pid)
 
     // Initialize with no failures.
     m_ErrorEncountered = false;
+
+    // Initialize the pre-compiled method list lock.
+    if (!m_ZapPerfMapMethodsCrst.InitNoThrow(
+        CrstEtwTypeLogHash,
+        CRST_UNSAFE_ANYMODE))
+    {
+        return;
+    }
 
     // Build the path to the map file on disk.
     WCHAR tempPath[MAX_LONGPATH+1];
