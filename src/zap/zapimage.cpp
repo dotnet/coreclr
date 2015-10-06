@@ -5074,6 +5074,12 @@ bool ZapImage::canIntraModuleDirectCall(
 
     // No direct calls at all under some circumstances
 
+#ifdef PLATFORM_LINUX
+    // On Linux always call via the prestub.  This ensures that the prestub can log method information
+    // for Linux profiling tools.
+    goto CALL_VIA_ENTRY_POINT;
+#endif
+
     if ((m_zapper->m_pOpt->m_compilerFlags & CORJIT_FLG_PROF_ENTERLEAVE)
         && !m_pPreloader->IsDynamicMethod(callerFtn))
     {
