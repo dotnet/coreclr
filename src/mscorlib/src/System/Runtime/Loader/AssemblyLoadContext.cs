@@ -29,7 +29,7 @@ namespace System.Runtime.Loader
         
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
-        private static extern IntPtr InitializeAssemblyLoadContext(IntPtr ptrAssemblyLoadContext);
+        private static extern IntPtr InitializeAssemblyLoadContext(IntPtr ptrAssemblyLoadContext, ObjectHandleOnStack assemblyName, ObjectHandleOnStack retAssembly);
         
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
@@ -49,9 +49,14 @@ namespace System.Runtime.Loader
         protected AssemblyLoadContext()
         {
             // Initialize the VM side of AssemblyLoadContext if not already done.
-            GCHandle gchALC = GCHandle.Alloc(this);
+            GCHandle gchALC = GCHandle.Alloc(this, GCHandleType.WeakTrackResurrection);
             IntPtr ptrALC = GCHandle.ToIntPtr(gchALC);
-            m_pNativeAssemblyLoadContext = InitializeAssemblyLoadContext(ptrALC);
+
+            AssemblyName rootAssemblyName = new AssemblyName("AssemblyLoadContext Root");
+            object rootAssembly = null;
+
+            m_pNativeAssemblyLoadContext = InitializeAssemblyLoadContext(ptrALC, JitHelpers.GetObjectHandleOnStack(ref rootAssemblyName), JitHelpers.GetObjectHandleOnStack(ref rootAssembly));
+            //m_rootAssembly = rootAssembly;
         }
 
         internal AssemblyLoadContext(bool fDummy)
@@ -349,6 +354,8 @@ namespace System.Runtime.Loader
         
         // Contains the reference to VM's representation of the AssemblyLoadContext
         private IntPtr m_pNativeAssemblyLoadContext;
+
+        private object m_rootAssembly;
         
         // Each AppDomain contains the reference to its AssemblyLoadContext instance, if one is
         // specified by the host. By having the field as a static, we are
