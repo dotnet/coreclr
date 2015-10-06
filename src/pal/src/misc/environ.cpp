@@ -25,6 +25,7 @@ Revision History:
 #include "pal/critsect.h"
 #include "pal/dbgmsg.h"
 #include "pal/misc.h"
+#include "pal/stackstring.hpp"
 
 #include <stdlib.h>
 
@@ -143,6 +144,15 @@ GetEnvironmentVariableW(
     CHAR *outBuff = NULL;
     INT inBuffSize;
     DWORD size = 0;
+    // Buffer for the name converted to UTF-8
+    StackString<64, CHAR> inBuffStr;
+    // Buffer for the environment variable contents in UTF-8
+    StackString<1024, CHAR> outBuffStr;
+    // To ensure that we will be able to generate nSize characters to the output
+    // Unicode buffer, we need to reserve larger buffer for the UTF-8 encoded
+    // string that we get from the OS and translate to Unicode.
+    // The longest encoding in UTF-8 we support is 4 bytes per character.
+    static const DWORD MaxUtf8CharEncodingLength = 4;
 
     PERF_ENTRY(GetEnvironmentVariableW);
     ENTRY("GetEnvironmentVariableW(lpName=%p (%S), lpBuffer=%p, nSize=%u)\n",
@@ -158,19 +168,19 @@ GetEnvironmentVariableW(
         goto done;
     }
 
-    inBuff = (CHAR *)PAL_malloc(inBuffSize);
+    inBuff = inBuffStr.OpenStringBuffer(inBuffSize);
     if (inBuff == NULL)
     {
-        ERROR("malloc failed\n");
+        ERROR("StackString::OpenStringBuffer failed\n");
         SetLastError(ERROR_NOT_ENOUGH_MEMORY);
         goto done;
     }
     
     if (nSize) {
-        outBuff = (CHAR *)PAL_malloc(nSize*2);
+        outBuff = outBuffStr.OpenStringBuffer(nSize * MaxUtf8CharEncodingLength);
         if (outBuff == NULL)
         {
-            ERROR("malloc failed\n");
+            ERROR("StackString::OpenStringBuffer failed\n");
             SetLastError(ERROR_NOT_ENOUGH_MEMORY);
             goto done;
         }
@@ -183,8 +193,8 @@ GetEnvironmentVariableW(
         SetLastError( ERROR_INTERNAL_ERROR );
         goto done;
     }
-    size = GetEnvironmentVariableA(inBuff, outBuff, nSize);
-    if (size > nSize)
+    size = GetEnvironmentVariableA(inBuff, outBuff, outBuffStr.GetCount());
+    if (size > outBuffStr.GetCount())
     {
         TRACE("Insufficient buffer\n");
     }
@@ -210,8 +220,6 @@ GetEnvironmentVariableW(
     }
 
 done:
-    PAL_free(outBuff);
-    PAL_free(inBuff);
 
     LOGEXIT("GetEnvironmentVariableW returns DWORD 0x%x\n", size);
     PERF_EXIT(GetEnvironmentVariableW);
