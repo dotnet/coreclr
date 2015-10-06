@@ -434,16 +434,28 @@ LoaderAllocator * LoaderAllocator::GCLoaderAllocators_RemoveAssemblies(AppDomain
                     }
                     else if (!pLoaderAllocator->IsAlive())
                     {
-                        pLoaderAllocator->m_pLoaderAllocatorDestroyNext = pFirstDestroyedLoaderAllocator;
-                        // We will store a reference to this assembly, and use it later in this function
-                        pFirstDestroyedLoaderAllocator = pLoaderAllocator;
-                        _ASSERTE(pLoaderAllocator->m_pDomainAssemblyToDelete != NULL);
+#ifdef FEATURE_COLLECTIBLE_ALC
+                        // Collectible LoaderAllocators are referenced by multiple assemblies when
+                        // using collectible AssemblyLoadContexts
+                        pAppDomain->RemoveAssembly_Unlocked(pDomainAssembly);
+
+                        // The same LoaderAllocator instance can appear multiple times while iterating
+                        // so we need to skip the ones we have seen before
+                        if (pLoaderAllocator->m_pLoaderAllocatorDestroyNext == NULL && pLoaderAllocator != pFirstDestroyedLoaderAllocator)
+#endif // FEATURE_COLLECTIBLE_ALC
+                        {
+                            pLoaderAllocator->m_pLoaderAllocatorDestroyNext = pFirstDestroyedLoaderAllocator;
+                            // We will store a reference to this assembly, and use it later in this function
+                            pFirstDestroyedLoaderAllocator = pLoaderAllocator;
+                            _ASSERTE(pLoaderAllocator->m_pDomainAssemblyToDelete != NULL);
+                        }
                     }
                 }
             }
         }
     }
     
+#ifndef FEATURE_COLLECTIBLE_ALC
     // Iterate through free list, removing from Assembly list 
     LoaderAllocator * pDomainLoaderAllocatorDestroyIterator = pFirstDestroyedLoaderAllocator;
 
@@ -456,6 +468,7 @@ LoaderAllocator * LoaderAllocator::GCLoaderAllocators_RemoveAssemblies(AppDomain
         
         pDomainLoaderAllocatorDestroyIterator = pDomainLoaderAllocatorDestroyIterator->m_pLoaderAllocatorDestroyNext;
     }
+#endif // !FEATURE_COLLECTIBLE_ALC
     
     return pFirstDestroyedLoaderAllocator;
 } // LoaderAllocator::GCLoaderAllocators_RemoveAssemblies
