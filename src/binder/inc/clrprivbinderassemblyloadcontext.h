@@ -18,7 +18,32 @@ namespace BINDER_SPACE
     class AssemblyIdentityUTF8;
 };
 
-class CLRPrivBinderAssemblyLoadContext : public IUnknownCommon<ICLRPrivBinder>
+class AppDomain;
+
+#ifdef FEATURE_COLLECTIBLE_ALC
+
+class Object;
+class Assembly;
+class LoaderAllocator;
+
+class DECLSPEC_UUID("68220E65-3D3F-42E2-BAD6-2D07419DAB5E") IAssemblyLoadContext : public IUnknown
+{
+public:
+    STDMETHOD(GetIsCollectible)(
+            /* [retval][out] */ BOOL *pIsCollectible) = 0;
+
+    STDMETHOD(GetLoaderAllocator)(
+            /* [retval][out] */ LoaderAllocator **ppLoaderAllocator) = 0;
+};
+
+#endif // FEATURE_COLLECTIBLE_ALC
+
+class CLRPrivBinderAssemblyLoadContext :
+#ifndef FEATURE_COLLECTIBLE_ALC
+    public IUnknownCommon<ICLRPrivBinder>
+#else // !FEATURE_COLLECTIBLE_ALC
+    public IUnknownCommon<ICLRPrivBinder, IAssemblyLoadContext>
+#endif // FEATURE_COLLECTIBLE_ALC
 {
 public:
 
@@ -46,14 +71,33 @@ public:
             /* [out] */ HRESULT *pResult,
             /* [out] */ ICLRPrivAssembly **ppAssembly);
 
+#ifdef FEATURE_COLLECTIBLE_ALC
+
+    //=========================================================================
+    // IAssemblyLoadContext functions
+    //-------------------------------------------------------------------------
+    STDMETHOD(GetIsCollectible)(
+            /* [retval][out] */ BOOL *pIsCollectible);
+
+    STDMETHOD(GetLoaderAllocator)(
+            /* [retval][out] */ LoaderAllocator **ppLoaderAllocator);
+
+#endif // FEATURE_COLLECTIBLE_ALC
+
 public:
     //=========================================================================
     // Class functions
     //-------------------------------------------------------------------------
 
-    static HRESULT SetupContext(DWORD      dwAppDomainId, CLRPrivBinderCoreCLR *pTPABinder, 
-                                UINT_PTR ptrAssemblyLoadContext, CLRPrivBinderAssemblyLoadContext **ppBindContext);
-                    
+    static HRESULT SetupContext(AppDomain *pAppDomain, CLRPrivBinderCoreCLR *pTPABinder, 
+                                UINT_PTR ptrAssemblyLoadContext,
+#ifdef FEATURE_COLLECTIBLE_ALC
+                                BOOL fIsCollectible,
+                                Object *pAssemblyName,
+                                ::Assembly **ppDummyAssembly,
+#endif // FEATURE_COLLECTIBLE_ALC
+                                CLRPrivBinderAssemblyLoadContext **ppBindContext);
+    
     CLRPrivBinderAssemblyLoadContext();
     
     inline BINDER_SPACE::ApplicationContext *GetAppContext()
@@ -81,6 +125,12 @@ private:
     CLRPrivBinderCoreCLR *m_pTPABinder;
     
     INT_PTR m_ptrManagedAssemblyLoadContext;
+
+#ifdef FEATURE_COLLECTIBLE_ALC
+    BOOL m_isCollectible;
+
+    LoaderAllocator *m_pLoaderAllocator;
+#endif // FEATURE_COLLECTIBLE_ALC
 };
 
 #endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(MDILNIGEN)

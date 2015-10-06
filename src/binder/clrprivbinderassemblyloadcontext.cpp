@@ -220,6 +220,22 @@ HRESULT CLRPrivBinderAssemblyLoadContext::FindAssemblyBySpec(
     return E_FAIL;
 }
 
+#ifdef FEATURE_COLLECTIBLE_ALC
+
+HRESULT CLRPrivBinderAssemblyLoadContext::GetIsCollectible(BOOL *pIsCollectible)
+{
+    *pIsCollectible = m_isCollectible;
+    return S_OK;
+}
+
+HRESULT CLRPrivBinderAssemblyLoadContext::GetLoaderAllocator(LoaderAllocator **ppLoaderAllocator)
+{
+    *ppLoaderAllocator = m_pLoaderAllocator;
+    return S_OK;
+}
+
+#endif // FEATURE_COLLECTIBLE_ALC
+
 //=============================================================================
 // Creates an instance of the AssemblyLoadContext Binder
 //
@@ -227,9 +243,14 @@ HRESULT CLRPrivBinderAssemblyLoadContext::FindAssemblyBySpec(
 // managed AssemblyLoadContext type.
 //=============================================================================
 /* static */
-HRESULT CLRPrivBinderAssemblyLoadContext::SetupContext(DWORD      dwAppDomainId,
+HRESULT CLRPrivBinderAssemblyLoadContext::SetupContext(AppDomain *pAppDomain,
                                             CLRPrivBinderCoreCLR *pTPABinder,
-                                            UINT_PTR ptrAssemblyLoadContext,                                            
+                                            UINT_PTR ptrAssemblyLoadContext, 
+#ifdef FEATURE_COLLECTIBLE_ALC
+                                            BOOL fIsCollectible,
+                                            Object *pAssemblyName,
+                                            ::Assembly **ppDummyAssembly,
+#endif // FEATURE_COLLECTIBLE_ALC
                                             CLRPrivBinderAssemblyLoadContext **ppBindContext)
 {
     HRESULT hr = E_FAIL;
@@ -244,7 +265,7 @@ HRESULT CLRPrivBinderAssemblyLoadContext::SetupContext(DWORD      dwAppDomainId,
             if(SUCCEEDED(hr))
             {
                 // Save the reference to the AppDomain in which the binder lives
-                pBinder->m_appContext.SetAppDomainId(dwAppDomainId);
+                pBinder->m_appContext.SetAppDomainId(pAppDomain->GetId().m_dwId);
                 
                 // Mark that this binder can explicitly bind to native images
                 pBinder->m_appContext.SetExplicitBindToNativeImages(true);
@@ -259,6 +280,35 @@ HRESULT CLRPrivBinderAssemblyLoadContext::SetupContext(DWORD      dwAppDomainId,
 
                 // Return reference to the allocated Binder instance
                 *ppBindContext = clr::SafeAddRef(pBinder.Extract());
+
+#ifdef FEATURE_COLLECTIBLE_ALC
+                if(fIsCollectible)
+                {
+                    StackCrawlMark stackMark = StackCrawlMark::LookForMyCaller;
+
+                    CreateDynamicAssemblyArgs args;
+                    ZeroMemory(&args, sizeof(CreateDynamicAssemblyArgs));
+
+                    args.assemblyName = (ASSEMBLYNAMEREF)ObjectToOBJECTREF(pAssemblyName);
+
+                    args.access = ASSEMBLY_ACCESS_RUN | ASSEMBLY_ACCESS_COLLECT;
+                    args.flags = kTransparentAssembly;
+                    args.stackMark = &stackMark;
+
+                    GCPROTECT_BEGIN((CreateDynamicAssemblyArgsGC&)args);
+
+                    // Creating a dummy assembly lets us properly create a collectible
+                    // LoaderAllocator without duplicating code
+                    ::Assembly *pDummyAssembly = ::Assembly::CreateDynamic(pAppDomain, &args);
+
+                    pBinder->m_isCollectible = TRUE;
+                    pBinder->m_pLoaderAllocator = args.nativeLoaderAllocator;
+
+                    *ppDummyAssembly = pDummyAssembly;
+
+                    GCPROTECT_END();
+                }
+#endif // FEATURE_COLLECTIBLE_ALC
             }
         }
     }
@@ -271,6 +321,11 @@ Exit:
 CLRPrivBinderAssemblyLoadContext::CLRPrivBinderAssemblyLoadContext()
 {
     m_pTPABinder = NULL;
+
+#ifdef FEATURE_COLLECTIBLE_ALC
+    m_isCollectible = FALSE;
+    m_pLoaderAllocator = NULL;
+#endif // FEATURE_COLLECTIBLE_ALC
 }
 
 #endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(MDILNIGEN)

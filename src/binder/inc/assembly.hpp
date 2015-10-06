@@ -185,7 +185,7 @@ namespace BINDER_SPACE
         class CLRPrivResourceAssembly : 
             public ICLRPrivResource, public ICLRPrivResourceAssembly
         {
-public:
+        public:
             STDMETHOD(QueryInterface)(REFIID riid, void ** ppv);
             STDMETHOD_(ULONG, AddRef)();
             STDMETHOD_(ULONG, Release)();
@@ -199,6 +199,7 @@ public:
             m_pBinder = pBinder;
         }
 
+    public:
         inline ICLRPrivBinder* GetBinder()
         {
             return m_pBinder;

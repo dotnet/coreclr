@@ -572,6 +572,35 @@ Assembly * Assembly::Create(
 {
     STANDARD_VM_CONTRACT;
 
+#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
+    ICLRPrivBinder *pFileBinder = pFile->GetBindingContext();
+
+    if (pFileBinder != NULL)
+    {
+        ICLRPrivBinder *pBinder = reinterpret_cast<BINDER_SPACE::Assembly *>(pFileBinder)->GetBinder();
+        SafeComHolder<IAssemblyLoadContext> pAssemblyLoadContext = NULL;
+
+        // Assemblies loaded with AssemblyLoadContext need to use a different LoaderAllocator if
+        // marked as collectible
+        if (SUCCEEDED(pBinder->QueryInterface<IAssemblyLoadContext>(&pAssemblyLoadContext)))
+        {
+            BOOL isCollectible;
+            pAssemblyLoadContext->GetIsCollectible(&isCollectible);
+
+            if (isCollectible)
+            {
+                LoaderAllocator *loaderAllocator;
+                pAssemblyLoadContext->GetLoaderAllocator(&loaderAllocator);
+
+                _ASSERTE(!fIsCollectible && pLoaderAllocator == NULL);
+
+                fIsCollectible = TRUE;
+                pLoaderAllocator = loaderAllocator;
+            }
+        }
+    }
+#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
+
     NewHolder<Assembly> pAssembly (new Assembly(pDomain, pFile, debuggerFlags, fIsCollectible));
 
     // If there are problems that arise from this call stack, we'll chew up a lot of stack
@@ -1104,6 +1133,10 @@ Assembly *Assembly::CreateDynamic(AppDomain *pDomain, CreateDynamicAssemblyArgs 
                 // Atomically transfer ownership to the managed heap
                 pLoaderAllocator->ActivateManagedTracking();
                 pLoaderAllocator.SuppressRelease();
+
+#ifdef FEATURE_COLLECTIBLE_ALC
+                args->nativeLoaderAllocator = pLoaderAllocator;
+#endif // FEATURE_COLLECTIBLE_ALC
             }
 
             pAssem->SetIsTenured();
