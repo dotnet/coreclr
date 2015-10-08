@@ -98,6 +98,10 @@ public:
 #endif // FEATURE_COLLECTIBLE_ALC
                                 CLRPrivBinderAssemblyLoadContext **ppBindContext);
     
+#ifdef FEATURE_COLLECTIBLE_ALC
+    static BOOL DestroyContext(CLRPrivBinderAssemblyLoadContext *pBindContext);
+#endif // FEATURE_COLLECTIBLE_ALC
+
     CLRPrivBinderAssemblyLoadContext();
     
     inline BINDER_SPACE::ApplicationContext *GetAppContext()

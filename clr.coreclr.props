@@ -65,6 +65,7 @@
     <FeatureCominteropWinRTManagedActivation>true</FeatureCominteropWinRTManagedActivation>
     <FeatureCrypto>true</FeatureCrypto>
     <FeatureHostAssemblyResolver>true</FeatureHostAssemblyResolver>
+    <FeatureCollectibleALC>true</FeatureCollectibleALC>
     <FeatureLazyCOWPages Condition="('$(TargetArch)' == 'i386') or ('$(TargetArch)' == 'arm')">true</FeatureLazyCOWPages>
     <FeatureLegacyNetCFCrypto>true</FeatureLegacyNetCFCrypto>
     <FeatureLatin1>true</FeatureLatin1>

@@ -253,6 +253,15 @@ HRESULT CLRPrivBinderAssemblyLoadContext::SetupContext(AppDomain *pAppDomain,
 #endif // FEATURE_COLLECTIBLE_ALC
                                             CLRPrivBinderAssemblyLoadContext **ppBindContext)
 {
+#ifdef FEATURE_COLLECTIBLE_ALC
+    CONTRACTL
+    {
+        GC_TRIGGERS;
+        MODE_COOPERATIVE;
+    }
+    CONTRACTL_END;
+#endif // FEATURE_COLLECTIBLE_ALC
+
     HRESULT hr = E_FAIL;
     EX_TRY
     {
@@ -284,6 +293,7 @@ HRESULT CLRPrivBinderAssemblyLoadContext::SetupContext(AppDomain *pAppDomain,
 #ifdef FEATURE_COLLECTIBLE_ALC
                 if(fIsCollectible)
                 {
+                    // TODO: Does this need to be passed from managed code?
                     StackCrawlMark stackMark = StackCrawlMark::LookForMyCaller;
 
                     CreateDynamicAssemblyArgs args;
@@ -297,12 +307,19 @@ HRESULT CLRPrivBinderAssemblyLoadContext::SetupContext(AppDomain *pAppDomain,
 
                     GCPROTECT_BEGIN((CreateDynamicAssemblyArgsGC&)args);
 
-                    // Creating a dummy assembly lets us properly create a collectible
-                    // LoaderAllocator without duplicating code
+                    // TODO: Creating a dummy assembly lets us properly create a collectible
+                    // LoaderAllocator without duplicating code, however it should be created
+                    // lazily on the first loaded assembly to avoid polluting the assembly list
                     ::Assembly *pDummyAssembly = ::Assembly::CreateDynamic(pAppDomain, &args);
+
+                    _ASSERTE(args.nativeLoaderAllocator != NULL);
 
                     pBinder->m_isCollectible = TRUE;
                     pBinder->m_pLoaderAllocator = args.nativeLoaderAllocator;
+
+                    // We don't want the LoaderAllocator to die unless the managed
+                    // AssemblyLoadContext tells us to
+                    _ASSERTE(pBinder->m_pLoaderAllocator->AddReferenceIfAlive());
 
                     *ppDummyAssembly = pDummyAssembly;
 
@@ -317,6 +334,40 @@ HRESULT CLRPrivBinderAssemblyLoadContext::SetupContext(AppDomain *pAppDomain,
 Exit:
     return hr;
 }
+
+#ifdef FEATURE_COLLECTIBLE_ALC
+
+/* static */
+BOOL CLRPrivBinderAssemblyLoadContext::DestroyContext(CLRPrivBinderAssemblyLoadContext *pBindContext)
+{
+    LoaderAllocator *pLoaderAllocator = pBindContext->m_pLoaderAllocator;
+
+    // This context should be holding onto a reference to the LoaderAllocator, so it
+    // should still be alive
+    _ASSERTE(pLoaderAllocator->IsAlive());
+
+    if (pLoaderAllocator->IsManagedScoutAlive())
+    {
+        // We can't destroy until there is no managed reference to the LoaderAllocator
+        return FALSE;
+    }
+
+    // Release our reference to the LoaderAllocator so it can be deleted by the LoaderAllocator GC
+    if (pLoaderAllocator->Release())
+    {
+        // The managed LoaderAllocatorScout finalizer would normally trigger the LoaderAllocator GC
+        // but because we hold a reference that outlasts it, we need to trigger it as well
+        LoaderAllocator::GCLoaderAllocators(AppDomain::GetCurrentDomain());
+    }
+    
+    // The managed AssemblyLoadContext should be the only remaining reference to the native
+    // binding context
+    _ASSERTE(pBindContext->Release() == 0);
+
+    return TRUE;
+}
+
+#endif // FEATURE_COLLECTIBLE_ALC
 
 CLRPrivBinderAssemblyLoadContext::CLRPrivBinderAssemblyLoadContext()
 {

@@ -2493,12 +2493,12 @@ BOOL QCALLTYPE AssemblyNative::IsDesignerBindingContext(QCall::AssemblyHandle pA
 #endif // FEATURE_APPX
 
 #if defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
-/*static*/
 
+/*static*/
 #ifndef FEATURE_COLLECTIBLE_ALC
 INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManagedAssemblyLoadContext)
 #else // !FEATURE_COLLECTIBLE_ALC
-INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManagedAssemblyLoadContext, QCall::ObjectHandleOnStack pAssemblyName, QCall::ObjectHandleOnStack retDummyAssembly)
+INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManagedAssemblyLoadContext, BOOL fIsCollectible, QCall::ObjectHandleOnStack pAssemblyName, QCall::ObjectHandleOnStack retDummyAssembly)
 #endif // FEATURE_COLLECTIBLE_ALC
 {
     QCALL_CONTRACT;
@@ -2524,7 +2524,7 @@ INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManag
         GCX_COOP();
 
         Assembly *pDummyAssembly;
-        IfFailThrow(CLRPrivBinderAssemblyLoadContext::SetupContext(pCurDomain, pTPABinderContext, ptrManagedAssemblyLoadContext, TRUE, *pAssemblyName.m_ppObject, &pDummyAssembly, &pBindContext));
+        IfFailThrow(CLRPrivBinderAssemblyLoadContext::SetupContext(pCurDomain, pTPABinderContext, ptrManagedAssemblyLoadContext, fIsCollectible, *pAssemblyName.m_ppObject, &pDummyAssembly, &pBindContext));
         retDummyAssembly.Set(pDummyAssembly->GetExposedObject());
     }
 #endif // FEATURE_COLLECTIBLE_ALC
@@ -2537,6 +2537,26 @@ INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManag
     
     return ptrNativeAssemblyLoadContext;
 }
+
+#ifdef FEATURE_COLLECTIBLE_ALC
+
+/*static*/
+BOOL QCALLTYPE AssemblyNative::DestroyAssemblyLoadContext(INT_PTR ptrNativeAssemblyLoadContext)
+{
+    QCALL_CONTRACT;
+
+    BOOL fDestroyed = FALSE;
+
+    BEGIN_QCALL;
+
+    fDestroyed = CLRPrivBinderAssemblyLoadContext::DestroyContext(reinterpret_cast<CLRPrivBinderAssemblyLoadContext *>(ptrNativeAssemblyLoadContext));
+
+    END_QCALL;
+
+    return fDestroyed;
+}
+
+#endif // FEATURE_COLLECTIBLE_ALC
 
 /*static*/
 BOOL QCALLTYPE AssemblyNative::OverrideDefaultAssemblyLoadContextForCurrentDomain(INT_PTR ptrNativeAssemblyLoadContext)
