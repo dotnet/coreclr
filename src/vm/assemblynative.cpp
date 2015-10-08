@@ -2498,7 +2498,7 @@ BOOL QCALLTYPE AssemblyNative::IsDesignerBindingContext(QCall::AssemblyHandle pA
 #ifndef FEATURE_COLLECTIBLE_ALC
 INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManagedAssemblyLoadContext)
 #else // !FEATURE_COLLECTIBLE_ALC
-INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManagedAssemblyLoadContext, BOOL fIsCollectible, QCall::ObjectHandleOnStack pAssemblyName, QCall::ObjectHandleOnStack retDummyAssembly)
+INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManagedAssemblyLoadContext, BOOL fIsCollectible)
 #endif // FEATURE_COLLECTIBLE_ALC
 {
     QCALL_CONTRACT;
@@ -2520,13 +2520,7 @@ INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManag
 #ifndef FEATURE_COLLECTIBLE_ALC
     IfFailThrow(CLRPrivBinderAssemblyLoadContext::SetupContext(pCurDomain, pTPABinderContext, ptrManagedAssemblyLoadContext, &pBindContext));
 #else // !FEATURE_COLLECTIBLE_ALC
-    {
-        GCX_COOP();
-
-        Assembly *pDummyAssembly;
-        IfFailThrow(CLRPrivBinderAssemblyLoadContext::SetupContext(pCurDomain, pTPABinderContext, ptrManagedAssemblyLoadContext, fIsCollectible, *pAssemblyName.m_ppObject, &pDummyAssembly, &pBindContext));
-        retDummyAssembly.Set(pDummyAssembly->GetExposedObject());
-    }
+    IfFailThrow(CLRPrivBinderAssemblyLoadContext::SetupContext(pCurDomain, pTPABinderContext, ptrManagedAssemblyLoadContext, fIsCollectible, &pBindContext));
 #endif // FEATURE_COLLECTIBLE_ALC
 
     _ASSERTE(pBindContext != NULL);

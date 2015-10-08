@@ -228,9 +228,15 @@ HRESULT CLRPrivBinderAssemblyLoadContext::GetIsCollectible(BOOL *pIsCollectible)
     return S_OK;
 }
 
-HRESULT CLRPrivBinderAssemblyLoadContext::GetLoaderAllocator(LoaderAllocator **ppLoaderAllocator)
+HRESULT CLRPrivBinderAssemblyLoadContext::ReferenceLoaderAllocator(LoaderAllocator *pLoaderAllocator)
 {
-    *ppLoaderAllocator = m_pLoaderAllocator;
+    // The same LoaderAllocator should not be used twice
+    _ASSERTE(m_loaderAllocators.Lookup(pLoaderAllocator) == NULL);
+
+    _ASSERTE(pLoaderAllocator->AddReferenceIfAlive());
+
+    m_loaderAllocators.Add(pLoaderAllocator);
+
     return S_OK;
 }
 
@@ -248,20 +254,9 @@ HRESULT CLRPrivBinderAssemblyLoadContext::SetupContext(AppDomain *pAppDomain,
                                             UINT_PTR ptrAssemblyLoadContext, 
 #ifdef FEATURE_COLLECTIBLE_ALC
                                             BOOL fIsCollectible,
-                                            Object *pAssemblyName,
-                                            ::Assembly **ppDummyAssembly,
 #endif // FEATURE_COLLECTIBLE_ALC
                                             CLRPrivBinderAssemblyLoadContext **ppBindContext)
 {
-#ifdef FEATURE_COLLECTIBLE_ALC
-    CONTRACTL
-    {
-        GC_TRIGGERS;
-        MODE_COOPERATIVE;
-    }
-    CONTRACTL_END;
-#endif // FEATURE_COLLECTIBLE_ALC
-
     HRESULT hr = E_FAIL;
     EX_TRY
     {
@@ -287,45 +282,12 @@ HRESULT CLRPrivBinderAssemblyLoadContext::SetupContext(AppDomain *pAppDomain,
                 // AssemblyLoadContext instance
                 pBinder->m_ptrManagedAssemblyLoadContext = ptrAssemblyLoadContext;
 
+#ifdef FEATURE_COLLECTIBLE_ALC
+                pBinder->m_isCollectible = fIsCollectible;
+#endif // FEATURE_COLLECTIBLE_ALC
+
                 // Return reference to the allocated Binder instance
                 *ppBindContext = clr::SafeAddRef(pBinder.Extract());
-
-#ifdef FEATURE_COLLECTIBLE_ALC
-                if(fIsCollectible)
-                {
-                    // TODO: Does this need to be passed from managed code?
-                    StackCrawlMark stackMark = StackCrawlMark::LookForMyCaller;
-
-                    CreateDynamicAssemblyArgs args;
-                    ZeroMemory(&args, sizeof(CreateDynamicAssemblyArgs));
-
-                    args.assemblyName = (ASSEMBLYNAMEREF)ObjectToOBJECTREF(pAssemblyName);
-
-                    args.access = ASSEMBLY_ACCESS_RUN | ASSEMBLY_ACCESS_COLLECT;
-                    args.flags = kTransparentAssembly;
-                    args.stackMark = &stackMark;
-
-                    GCPROTECT_BEGIN((CreateDynamicAssemblyArgsGC&)args);
-
-                    // TODO: Creating a dummy assembly lets us properly create a collectible
-                    // LoaderAllocator without duplicating code, however it should be created
-                    // lazily on the first loaded assembly to avoid polluting the assembly list
-                    ::Assembly *pDummyAssembly = ::Assembly::CreateDynamic(pAppDomain, &args);
-
-                    _ASSERTE(args.nativeLoaderAllocator != NULL);
-
-                    pBinder->m_isCollectible = TRUE;
-                    pBinder->m_pLoaderAllocator = args.nativeLoaderAllocator;
-
-                    // We don't want the LoaderAllocator to die unless the managed
-                    // AssemblyLoadContext tells us to
-                    _ASSERTE(pBinder->m_pLoaderAllocator->AddReferenceIfAlive());
-
-                    *ppDummyAssembly = pDummyAssembly;
-
-                    GCPROTECT_END();
-                }
-#endif // FEATURE_COLLECTIBLE_ALC
             }
         }
     }
@@ -340,25 +302,50 @@ Exit:
 /* static */
 BOOL CLRPrivBinderAssemblyLoadContext::DestroyContext(CLRPrivBinderAssemblyLoadContext *pBindContext)
 {
-    LoaderAllocator *pLoaderAllocator = pBindContext->m_pLoaderAllocator;
+    LoaderAllocatorSet &loaderAllocators = pBindContext->m_loaderAllocators;
 
-    // This context should be holding onto a reference to the LoaderAllocator, so it
-    // should still be alive
-    _ASSERTE(pLoaderAllocator->IsAlive());
-
-    if (pLoaderAllocator->IsManagedScoutAlive())
+    LoaderAllocatorSet::Iterator iter = loaderAllocators.Begin();
+    while (iter != loaderAllocators.End())
     {
-        // We can't destroy until there is no managed reference to the LoaderAllocator
-        return FALSE;
+        LoaderAllocator *pLoaderAllocator = *iter;
+        
+        // This context should be holding onto a reference to the LoaderAllocator, so it
+        // should still be alive
+        _ASSERTE(pLoaderAllocator->IsAlive());
+
+        if (pLoaderAllocator->IsManagedScoutAlive())
+        {
+            // We can't destroy until there is no managed reference to any of our LoaderAllocators
+            return FALSE;
+        }
+
+        iter++;
     }
 
-    // Release our reference to the LoaderAllocator so it can be deleted by the LoaderAllocator GC
-    if (pLoaderAllocator->Release())
+    BOOL fNeedsGC = FALSE;
+
+    iter = loaderAllocators.Begin();
+    while (iter != loaderAllocators.End())
     {
+        LoaderAllocator *pLoaderAllocator = *iter;
+
+        // Release our reference to the LoaderAllocator so it can be deleted by the LoaderAllocator GC
+        fNeedsGC = fNeedsGC || pLoaderAllocator->Release();
+
+        iter++;
+    }
+
+    if (fNeedsGC)
+    {
+        // TODO: Is AppDomain::GetCurrentDomain() going to work properly?
+
         // The managed LoaderAllocatorScout finalizer would normally trigger the LoaderAllocator GC
         // but because we hold a reference that outlasts it, we need to trigger it as well
         LoaderAllocator::GCLoaderAllocators(AppDomain::GetCurrentDomain());
     }
+
+    // CLear the list of LoaderAllocators
+    loaderAllocators.RemoveAll();
     
     // The managed AssemblyLoadContext should be the only remaining reference to the native
     // binding context
@@ -375,7 +362,6 @@ CLRPrivBinderAssemblyLoadContext::CLRPrivBinderAssemblyLoadContext()
 
 #ifdef FEATURE_COLLECTIBLE_ALC
     m_isCollectible = FALSE;
-    m_pLoaderAllocator = NULL;
 #endif // FEATURE_COLLECTIBLE_ALC
 }
 

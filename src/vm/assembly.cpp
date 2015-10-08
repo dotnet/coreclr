@@ -563,7 +563,8 @@ void Assembly::Terminate( BOOL signalProfiler )
 #endif // CROSSGEN_COMPILE
 
 Assembly * Assembly::Create(
-    BaseDomain *                 pDomain, 
+    BaseDomain *                 pDomain,
+    DomainAssembly *             pDomainAssembly,
     PEAssembly *                 pFile, 
     DebuggerAssemblyControlFlags debuggerFlags, 
     BOOL                         fIsCollectible, 
@@ -573,13 +574,13 @@ Assembly * Assembly::Create(
     STANDARD_VM_CONTRACT;
 
 #if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
-    ICLRPrivBinder *pFileBinder = pFile->GetBindingContext();
+    SafeComHolder<IAssemblyLoadContext> pAssemblyLoadContext = NULL;
 
+    ICLRPrivBinder *pFileBinder = pFile->GetBindingContext();
     if (pFileBinder != NULL)
     {
         ICLRPrivBinder *pBinder = reinterpret_cast<BINDER_SPACE::Assembly *>(pFileBinder)->GetBinder();
-        SafeComHolder<IAssemblyLoadContext> pAssemblyLoadContext = NULL;
-
+        
         // Assemblies loaded with AssemblyLoadContext need to use a different LoaderAllocator if
         // marked as collectible
         if (SUCCEEDED(pBinder->QueryInterface<IAssemblyLoadContext>(&pAssemblyLoadContext)))
@@ -589,15 +590,42 @@ Assembly * Assembly::Create(
 
             if (isCollectible)
             {
-                LoaderAllocator *loaderAllocator;
-                pAssemblyLoadContext->GetLoaderAllocator(&loaderAllocator);
-
                 _ASSERTE(!fIsCollectible && pLoaderAllocator == NULL);
-
                 fIsCollectible = TRUE;
-                pLoaderAllocator = loaderAllocator;
             }
         }
+    }
+
+    NewHolder<LoaderAllocator> pNewLoaderAllocator;
+    AssemblyLoaderAllocator *pNewAssemblyLoaderAllocator;
+
+    if (fIsCollectible && pAssemblyLoadContext != NULL)
+    {
+        GCX_COOP();
+
+        // TODO: This should probably be stored in the managed AssemblyLoadContext.
+        LOADERALLOCATORREF pManagedLoaderAllocator = NULL;
+        GCPROTECT_BEGIN(pManagedLoaderAllocator);
+
+        {
+            GCX_PREEMP();
+
+            pNewAssemblyLoaderAllocator = new AssemblyLoaderAllocator();
+            pNewLoaderAllocator = pNewAssemblyLoaderAllocator;
+
+            // Some of the initialization functions are not virtual. Call through the derived class
+            // to prevent calling the base class version.
+            pNewAssemblyLoaderAllocator->Init(reinterpret_cast<AppDomain *>(pDomain));
+
+            // Setup the managed proxy now, but do not actually transfer ownership to it.
+            // Once everything is setup and nothing can fail anymore, the ownership will be
+            // atomically transfered by call to LoaderAllocator::ActivateManagedTracking().
+            pNewAssemblyLoaderAllocator->SetupManagedTracking(&pManagedLoaderAllocator);
+        }
+
+        GCPROTECT_END();
+
+        pLoaderAllocator = pNewLoaderAllocator;
     }
 #endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
 
@@ -635,6 +663,18 @@ Assembly * Assembly::Create(
 #endif
     pAssembly.SuppressRelease();
     END_INTERIOR_STACK_PROBE;
+
+#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
+    if (fIsCollectible && pAssemblyLoadContext != NULL)
+    {
+        pNewAssemblyLoaderAllocator->SetDomainAssembly(pDomainAssembly);
+
+        pNewLoaderAllocator->ActivateManagedTracking();
+        pNewLoaderAllocator.SuppressRelease();
+
+        _ASSERTE(SUCCEEDED(pAssemblyLoadContext->ReferenceLoaderAllocator(pNewLoaderAllocator)));
+    }
+#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
     
     return pAssembly;
 } // Assembly::Create
@@ -929,7 +969,7 @@ Assembly *Assembly::CreateDynamic(AppDomain *pDomain, CreateDynamicAssemblyArgs 
         {
             GCX_PREEMP();
             // Assembly::Create will call SuppressRelease on the NewHolder that holds the LoaderAllocator when it transfers ownership
-            pAssem = Assembly::Create(pDomain, pFile, pDomainAssembly->GetDebuggerInfoBits(), args->access & ASSEMBLY_ACCESS_COLLECT ? TRUE : FALSE, pamTracker, pLoaderAllocator);
+            pAssem = Assembly::Create(pDomain, pDomainAssembly, pFile, pDomainAssembly->GetDebuggerInfoBits(), args->access & ASSEMBLY_ACCESS_COLLECT ? TRUE : FALSE, pamTracker, pLoaderAllocator);
             
             ReflectionModule* pModule = (ReflectionModule*) pAssem->GetManifestModule();
             pModule->SetCreatingAssembly( pCallerAssembly );

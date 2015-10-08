@@ -32,8 +32,8 @@ public:
     STDMETHOD(GetIsCollectible)(
             /* [retval][out] */ BOOL *pIsCollectible) = 0;
 
-    STDMETHOD(GetLoaderAllocator)(
-            /* [retval][out] */ LoaderAllocator **ppLoaderAllocator) = 0;
+    STDMETHOD(ReferenceLoaderAllocator)(
+            /* [in] */ LoaderAllocator *pLoaderAllocator) = 0;
 };
 
 #endif // FEATURE_COLLECTIBLE_ALC
@@ -79,8 +79,8 @@ public:
     STDMETHOD(GetIsCollectible)(
             /* [retval][out] */ BOOL *pIsCollectible);
 
-    STDMETHOD(GetLoaderAllocator)(
-            /* [retval][out] */ LoaderAllocator **ppLoaderAllocator);
+    STDMETHOD(ReferenceLoaderAllocator)(
+            /* [in] */ LoaderAllocator *pLoaderAllocator);
 
 #endif // FEATURE_COLLECTIBLE_ALC
 
@@ -93,8 +93,6 @@ public:
                                 UINT_PTR ptrAssemblyLoadContext,
 #ifdef FEATURE_COLLECTIBLE_ALC
                                 BOOL fIsCollectible,
-                                Object *pAssemblyName,
-                                ::Assembly **ppDummyAssembly,
 #endif // FEATURE_COLLECTIBLE_ALC
                                 CLRPrivBinderAssemblyLoadContext **ppBindContext);
     
@@ -133,7 +131,8 @@ private:
 #ifdef FEATURE_COLLECTIBLE_ALC
     BOOL m_isCollectible;
 
-    LoaderAllocator *m_pLoaderAllocator;
+    typedef SHash<PtrSetSHashTraits<LoaderAllocator * > > LoaderAllocatorSet;
+    LoaderAllocatorSet m_loaderAllocators;
 #endif // FEATURE_COLLECTIBLE_ALC
 };
 

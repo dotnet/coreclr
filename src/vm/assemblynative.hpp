@@ -278,7 +278,7 @@ public:
 #ifndef FEATURE_COLLECTIBLE_ALC
     static INT_PTR QCALLTYPE InitializeAssemblyLoadContext(INT_PTR ptrManagedAssemblyLoadContext);
 #else // !FEATURE_COLLECTIBLE_ALC
-    static INT_PTR QCALLTYPE InitializeAssemblyLoadContext(INT_PTR ptrManagedAssemblyLoadContext, BOOL fIsCollectible, QCall::ObjectHandleOnStack pAssemblyName, QCall::ObjectHandleOnStack retDummyAssembly);
+    static INT_PTR QCALLTYPE InitializeAssemblyLoadContext(INT_PTR ptrManagedAssemblyLoadContext, BOOL fIsCollectible);
     static BOOL QCALLTYPE DestroyAssemblyLoadContext(INT_PTR ptrNativeAssemblyLoadContext);
 #endif // FEATURE_COLLECTIBLE_ALC
 

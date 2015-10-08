@@ -34,7 +34,7 @@ namespace System.Runtime.Loader
 #else // !FEATURE_COLLECTIBLE_ALC
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
-        private static extern IntPtr InitializeAssemblyLoadContext(IntPtr ptrAssemblyLoadContext, bool fIsCollectible, ObjectHandleOnStack assemblyName, ObjectHandleOnStack retAssembly);
+        private static extern IntPtr InitializeAssemblyLoadContext(IntPtr ptrAssemblyLoadContext, bool fIsCollectible);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
@@ -81,12 +81,7 @@ namespace System.Runtime.Loader
             GCHandle gchALC = GCHandle.Alloc(this, isCollectible ? GCHandleType.WeakTrackResurrection : GCHandleType.Normal);
             IntPtr ptrALC = GCHandle.ToIntPtr(gchALC);
             
-            // TODO: Stop using Assembly::CreateDynamic to create a LoaderAllocator
-            AssemblyName rootAssemblyName = new AssemblyName("AssemblyLoadContext Root");
-            object rootAssembly = null;
-
-            m_pNativeAssemblyLoadContext = InitializeAssemblyLoadContext(ptrALC, isCollectible, JitHelpers.GetObjectHandleOnStack(ref rootAssemblyName), JitHelpers.GetObjectHandleOnStack(ref rootAssembly));
-            m_rootAssembly = rootAssembly;
+            m_pNativeAssemblyLoadContext = InitializeAssemblyLoadContext(ptrALC, isCollectible);
 
             m_isCollectible = isCollectible;
             m_gchALC = gchALC;
@@ -107,10 +102,15 @@ namespace System.Runtime.Loader
                 return;
             }
 
-            // TODO: What should happen if the derived class ressurects us?
+            if (Environment.HasShutdownStarted || AppDomain.CurrentDomain.IsFinalizingForUnload())
+            {
+                // TODO: We need this to prevent running the finalizer forever on shutdown, but
+                // I'm not sure if it needs to be completely clean. Maybe this condition should
+                // be passed to DestroyAssemblyLoadContext() so we can force it to cleanup?
+                return;
+            }
 
-            // Let the dummy assembly get collected so the LoaderAllocator can start unloading.
-            m_rootAssembly = null;
+            // TODO: What should happen if the derived class ressurects us?
 
             // DestroyAssemblyLoadContext returns true if the native resources were released.
             if (DestroyAssemblyLoadContext(m_pNativeAssemblyLoadContext))
@@ -426,11 +426,6 @@ namespace System.Runtime.Loader
 
         // The GCHandle for this AssemblyLoadContext instance
         private GCHandle m_gchALC;
-
-        // Contains the reference to the dummy assembly used by collectible contexts.
-        // This should keep the managed LoaderAllocator alive while this context is
-        // still reachable.
-        private object m_rootAssembly;
 #endif // FEATURE_COLLECTIBLE_ALC
 
         // Each AppDomain contains the reference to its AssemblyLoadContext instance, if one is
