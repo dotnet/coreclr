@@ -518,9 +518,19 @@ void LoaderAllocator::GCLoaderAllocators(AppDomain * pAppDomain)
     while (pDomainLoaderAllocatorDestroyIterator != NULL)
     {
         _ASSERTE(!pDomainLoaderAllocatorDestroyIterator->IsAlive());
-        _ASSERTE(pDomainLoaderAllocatorDestroyIterator->m_pDomainAssemblyToDelete != NULL);
-        
-        delete pDomainLoaderAllocatorDestroyIterator->m_pDomainAssemblyToDelete;
+
+        DomainAssembly * pDomainAssembly = pDomainLoaderAllocatorDestroyIterator->m_pDomainAssemblyToDelete;
+        _ASSERTE(pDomainAssembly != NULL);
+
+#if defined(FEATURE_CORECLR) && defined(FEATURE_COLLECTIBLE_ALC)
+        AssemblySpec spec;
+        spec.InitializeSpec(pDomainAssembly->GetFile());
+
+        pAppDomain->RemoveAssemblyFromCache(&spec, pDomainAssembly);
+        pAppDomain->RemoveNativeImageDependency(&spec);
+#endif // defined(FEATURE_CORECLR) && defined(FEATURE_COLLECTIBLE_ALC)
+
+        delete pDomainAssembly;
         // We really don't have to set it to NULL as the assembly is not reachable anymore, but just in case ...
         // (Also debugging NULL AVs if someone uses it accidentaly is so much easier)
         pDomainLoaderAllocatorDestroyIterator->m_pDomainAssemblyToDelete = NULL;

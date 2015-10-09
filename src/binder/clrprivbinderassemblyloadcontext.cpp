@@ -338,10 +338,11 @@ BOOL CLRPrivBinderAssemblyLoadContext::DestroyContext(CLRPrivBinderAssemblyLoadC
     if (fNeedsGC)
     {
         // TODO: Is AppDomain::GetCurrentDomain() going to work properly?
+        AppDomain *pAppDomain = AppDomain::GetCurrentDomain();
 
         // The managed LoaderAllocatorScout finalizer would normally trigger the LoaderAllocator GC
         // but because we hold a reference that outlasts it, we need to trigger it as well
-        LoaderAllocator::GCLoaderAllocators(AppDomain::GetCurrentDomain());
+        LoaderAllocator::GCLoaderAllocators(pAppDomain);
     }
 
     // CLear the list of LoaderAllocators

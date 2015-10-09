@@ -5104,8 +5104,8 @@ void AppDomain::Init()
 
     m_pSecContext = new SecurityContext (GetLowFrequencyHeap());
 
-// Set up the binding caches
-    m_AssemblyCache.Init(&m_DomainCacheCrst, GetHighFrequencyHeap());
+    // Set up the binding caches
+    m_AssemblyCache.Init(&m_DomainCacheCrst);
     m_UnmanagedCache.InitializeTable(this, &m_DomainCacheCrst);
 
     m_MemoryPressure = 0;
@@ -7489,17 +7489,9 @@ AppDomain::SharePolicy AppDomain::GetSharePolicy()
 
 
 #ifdef FEATURE_CORECLR
-void AppDomain::CheckForMismatchedNativeImages(AssemblySpec * pSpec, const GUID * pGuid)
+static void NormalizeAssemblySpecForNativeDependencies(AssemblySpec * pSpec)
 {
     STANDARD_VM_CONTRACT;
-
-    //
-    // The native images are ever used only for trusted images in CoreCLR.
-    // We don't wish to open the IL file at runtime so we just forgo any
-    // eager consistency checking. But we still want to prevent mistmatched 
-    // NGen images from being used. We record all mappings between assembly 
-    // names and MVID, and fail once we detect mismatch.
-    //
 
     if (pSpec->IsStrongNamed() && pSpec->HasPublicKey())
     {
@@ -7518,6 +7510,21 @@ void AppDomain::CheckForMismatchedNativeImages(AssemblySpec * pSpec, const GUID 
 
     // Ignore the WinRT type while considering if two assemblies have the same identity.
     pSpec->SetWindowsRuntimeType(NULL, NULL);
+}
+
+void AppDomain::CheckForMismatchedNativeImages(AssemblySpec * pSpec, const GUID * pGuid)
+{
+    STANDARD_VM_CONTRACT;
+
+    //
+    // The native images are ever used only for trusted images in CoreCLR.
+    // We don't wish to open the IL file at runtime so we just forgo any
+    // eager consistency checking. But we still want to prevent mistmatched 
+    // NGen images from being used. We record all mappings between assembly 
+    // names and MVID, and fail once we detect mismatch.
+    //
+
+    NormalizeAssemblySpecForNativeDependencies(pSpec);
 
     CrstHolder ch(&m_DomainCrst);
 
@@ -7538,22 +7545,36 @@ void AppDomain::CheckForMismatchedNativeImages(AssemblySpec * pSpec, const GUID 
         //
         // No entry yet - create one
         //
-        AllocMemTracker amTracker;
-        AllocMemTracker *pamTracker = &amTracker;
 
-        NativeImageDependenciesEntry * pNewEntry = 
-            new (pamTracker->Track(GetLowFrequencyHeap()->AllocMem(S_SIZE_T(sizeof(NativeImageDependenciesEntry)))))
-                NativeImageDependenciesEntry();
+        NativeImageDependenciesEntry * pNewEntry = new NativeImageDependenciesEntry();
 
         pNewEntry->m_AssemblySpec.CopyFrom(pSpec);
-        pNewEntry->m_AssemblySpec.CloneFieldsToLoaderHeap(AssemblySpec::ALL_OWNED, GetLowFrequencyHeap(), pamTracker);
+        pNewEntry->m_AssemblySpec.CloneFields(AssemblySpec::ALL_OWNED);
 
         pNewEntry->m_guidMVID = *pGuid;
 
         m_NativeImageDependencies.Add(pNewEntry);
-        amTracker.SuppressRelease();
     }
 }
+
+#ifdef FEATURE_COLLECTIBLE_ALC
+void AppDomain::RemoveNativeImageDependency(AssemblySpec * pSpec)
+{
+    STANDARD_VM_CONTRACT;
+
+    NormalizeAssemblySpecForNativeDependencies(pSpec);
+
+    CrstHolder ch(&m_DomainCrst);
+
+    NativeImageDependenciesEntry *pEntry = m_NativeImageDependencies.Lookup(pSpec);
+
+    if (pEntry != NULL)
+    {
+        m_NativeImageDependencies.Remove(pSpec);
+    }
+}
+#endif // FEATURE_COLLECTIBLE_ALC
+
 #endif // FEATURE_CORECLR
 
 
@@ -8085,6 +8106,22 @@ HMODULE AppDomain::FindUnmanagedImageInCache(LPCWSTR libraryName)
     RETURN (HMODULE) m_UnmanagedCache.LookupEntry(&spec, 0);
 }
 
+#if defined(FEATURE_CORECLR) && defined(FEATURE_COLLECTIBLE_ALC)
+BOOL AppDomain::RemoveAssemblyFromCache(AssemblySpec* pSpec, DomainAssembly *pDomainAssembly)
+{
+    CONTRACTL
+    {
+        MODE_ANY;
+        PRECONDITION(CheckPointer(pSpec));
+        INJECT_FAULT(COMPlusThrowOM(););
+    }
+    CONTRACTL_END;
+
+    CrstHolder holder(&m_DomainCacheCrst);
+
+    return m_AssemblyCache.RemoveAssembly(pSpec, pDomainAssembly);
+}
+#endif // defined(FEATURE_CORECLR) && defined(FEATURE_COLLECTIBLE_ALC)
 
 BOOL AppDomain::IsCached(AssemblySpec *pSpec)
 {
@@ -10736,6 +10773,9 @@ void AppDomain::Exit(BOOL fRunFinalizers, BOOL fAsyncExit)
     {
         GCX_PREEMP();
         m_AssemblyCache.Clear();
+#ifdef FEATURE_CORECLR
+        m_NativeImageDependencies.RemoveAll();
+#endif // FEATURE_CORECLR
         ClearFusionContext();
         ReleaseFiles();
         if (!NingenEnabled())
