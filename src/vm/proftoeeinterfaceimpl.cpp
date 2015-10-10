@@ -6795,6 +6795,7 @@ StackWalkAction ProfilerStackWalkCallback(CrawlFrame *pCf, PROFILER_STACK_WALK_D
     return SWA_ABORT;
 }
 
+#ifdef _TARGET_X86_
 //---------------------------------------------------------------------------------------
 // Normally, calling GetFunction() on the frame is sufficient to ensure
 // HelperMethodFrames are intialized. However, sometimes we need to be able to specify
@@ -6856,7 +6857,6 @@ static BOOL EnsureFrameInitialized(Frame * pFrame)
 }
 
 
-#ifdef _TARGET_X86_
 //---------------------------------------------------------------------------------------
 //
 // Implements the COR_PRF_SNAPSHOT_X86_OPTIMIZED algorithm called by DoStackSnapshot. 

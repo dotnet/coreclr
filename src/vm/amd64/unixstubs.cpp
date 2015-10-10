@@ -73,4 +73,19 @@ extern "C"
     void STDCALL JIT_ProfilerEnterLeaveTailcallStub(UINT_PTR ProfilerHandle)
     {
     }
+
+    void STDCALL ProfileEnterNaked(UINT_PTR functionIDOrClientID)
+    {
+      PORTABILITY_ASSERT("Implement for Profiling API");
+    }
+
+    void STDCALL ProfileLeaveNaked(UINT_PTR functionIDOrClientID)
+    {
+      PORTABILITY_ASSERT("Implement for Profiling API");
+    }
+
+    void STDCALL ProfileTailcallNaked(UINT_PTR functionIDOrClientID, size_t profiledRsp)
+    {
+      PORTABILITY_ASSERT("Implement for Profiling API");
+    }
 };

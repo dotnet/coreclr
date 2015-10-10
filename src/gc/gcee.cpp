@@ -523,16 +523,11 @@ void GCProfileWalkHeap()
 {
     BOOL fWalkedHeapForProfiler = FALSE;
 
-#ifdef FEATURE_EVENT_TRACE
     if (ETW::GCLog::ShouldWalkStaticsAndCOMForEtw())
         ETW::GCLog::WalkStaticsAndCOMForETW();
     
     BOOL fShouldWalkHeapRootsForEtw = ETW::GCLog::ShouldWalkHeapRootsForEtw();
     BOOL fShouldWalkHeapObjectsForEtw = ETW::GCLog::ShouldWalkHeapObjectsForEtw();
-#else // !FEATURE_EVENT_TRACE
-    BOOL fShouldWalkHeapRootsForEtw = FALSE;
-    BOOL fShouldWalkHeapObjectsForEtw = FALSE;
-#endif // FEATURE_EVENT_TRACE
 
 #if defined (GC_PROFILING)
     {
@@ -543,7 +538,6 @@ void GCProfileWalkHeap()
     }
 #endif // defined (GC_PROFILING)
 
-#ifdef FEATURE_EVENT_TRACE
     // If the profiling API didn't want us to walk the heap but ETW does, then do the
     // walk here
     if (!fWalkedHeapForProfiler && 
@@ -551,7 +545,6 @@ void GCProfileWalkHeap()
     {
         GCProfileWalkHeapWorker(FALSE /* fProfilerPinned */, fShouldWalkHeapRootsForEtw, fShouldWalkHeapObjectsForEtw);
     }
-#endif // FEATURE_EVENT_TRACE
 }
 
 BOOL GCHeap::IsGCInProgressHelper (BOOL bConsiderGCStart)

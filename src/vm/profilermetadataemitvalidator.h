@@ -15,6 +15,7 @@ class ProfilerMetadataEmitValidator : public IMetaDataEmit2, public IMetaDataAss
 {
 public:
     ProfilerMetadataEmitValidator(IMetaDataEmit* pInnerEmit);
+    virtual ~ProfilerMetadataEmitValidator();
 
     //IUnknown
     virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppInterface);
