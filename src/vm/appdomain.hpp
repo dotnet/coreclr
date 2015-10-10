@@ -2363,7 +2363,7 @@ public:
     void CheckForMismatchedNativeImages(AssemblySpec * pSpec, const GUID * pGuid);
 
 #ifdef FEATURE_COLLECTIBLE_ALC
-    void RemoveNativeImageDependency(AssemblySpec * pSpec);
+    BOOL RemoveNativeImageDependency(AssemblySpec * pSpec);
 #endif // FEATURE_COLLECTIBLE_ALC
 
 public:

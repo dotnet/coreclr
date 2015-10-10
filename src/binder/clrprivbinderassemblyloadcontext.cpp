@@ -230,6 +230,8 @@ HRESULT CLRPrivBinderAssemblyLoadContext::GetIsCollectible(BOOL *pIsCollectible)
 
 HRESULT CLRPrivBinderAssemblyLoadContext::ReferenceLoaderAllocator(LoaderAllocator *pLoaderAllocator)
 {
+    CrstHolder holder(m_loadersCrst);
+
     // The same LoaderAllocator should not be used twice
     _ASSERTE(m_loaderAllocators.Lookup(pLoaderAllocator) == NULL);
 
@@ -302,51 +304,47 @@ Exit:
 /* static */
 BOOL CLRPrivBinderAssemblyLoadContext::DestroyContext(CLRPrivBinderAssemblyLoadContext *pBindContext)
 {
-    LoaderAllocatorSet &loaderAllocators = pBindContext->m_loaderAllocators;
-
-    LoaderAllocatorSet::Iterator iter = loaderAllocators.Begin();
-    while (iter != loaderAllocators.End())
     {
-        LoaderAllocator *pLoaderAllocator = *iter;
-        
-        // This context should be holding onto a reference to the LoaderAllocator, so it
-        // should still be alive
-        _ASSERTE(pLoaderAllocator->IsAlive());
+        CrstHolder holder(pBindContext->m_loadersCrst);
 
-        if (pLoaderAllocator->IsManagedScoutAlive())
+        LoaderAllocatorSet &loaderAllocators = pBindContext->m_loaderAllocators;
+
+        LoaderAllocatorSet::Iterator iter = loaderAllocators.Begin();
+        while (iter != loaderAllocators.End())
         {
-            // We can't destroy until there is no managed reference to any of our LoaderAllocators
-            return FALSE;
+            LoaderAllocator *pLoaderAllocator = *iter;
+
+            // This context should be holding onto a reference to the LoaderAllocator, so it
+            // should still be alive
+            _ASSERTE(pLoaderAllocator->IsAlive());
+
+            if (pLoaderAllocator->IsManagedScoutAlive())
+            {
+                // We can't destroy until there is no managed reference to any of our LoaderAllocators
+                return FALSE;
+            }
+
+            iter++;
         }
 
-        iter++;
+        iter = loaderAllocators.Begin();
+        while (iter != loaderAllocators.End())
+        {
+            LoaderAllocator *pLoaderAllocator = *iter;
+
+            // Release our reference to the LoaderAllocator so it can be deleted by the LoaderAllocator GC
+            _ASSERTE(pLoaderAllocator->Release());
+
+            iter++;
+        }
     }
 
-    BOOL fNeedsGC = FALSE;
+    // TODO: Is AppDomain::GetCurrentDomain() going to work properly?
+    AppDomain *pAppDomain = AppDomain::GetCurrentDomain();
 
-    iter = loaderAllocators.Begin();
-    while (iter != loaderAllocators.End())
-    {
-        LoaderAllocator *pLoaderAllocator = *iter;
-
-        // Release our reference to the LoaderAllocator so it can be deleted by the LoaderAllocator GC
-        fNeedsGC = fNeedsGC || pLoaderAllocator->Release();
-
-        iter++;
-    }
-
-    if (fNeedsGC)
-    {
-        // TODO: Is AppDomain::GetCurrentDomain() going to work properly?
-        AppDomain *pAppDomain = AppDomain::GetCurrentDomain();
-
-        // The managed LoaderAllocatorScout finalizer would normally trigger the LoaderAllocator GC
-        // but because we hold a reference that outlasts it, we need to trigger it as well
-        LoaderAllocator::GCLoaderAllocators(pAppDomain);
-    }
-
-    // CLear the list of LoaderAllocators
-    loaderAllocators.RemoveAll();
+    // The managed LoaderAllocatorScout finalizer would normally trigger the LoaderAllocator GC
+    // but because we hold a reference that outlasts it, we need to trigger it as well
+    LoaderAllocator::GCLoaderAllocators(pAppDomain);
     
     // The managed AssemblyLoadContext should be the only remaining reference to the native
     // binding context
@@ -363,7 +361,16 @@ CLRPrivBinderAssemblyLoadContext::CLRPrivBinderAssemblyLoadContext()
 
 #ifdef FEATURE_COLLECTIBLE_ALC
     m_isCollectible = FALSE;
+
+    m_loadersCrst = new Crst(CrstType::CrstLoaderAllocatorReferences);
 #endif // FEATURE_COLLECTIBLE_ALC
+}
+
+CLRPrivBinderAssemblyLoadContext::~CLRPrivBinderAssemblyLoadContext()
+{
+#ifdef FEATURE_COLLECTIBLE_ALC
+    delete m_loadersCrst;
+#endif
 }
 
 #endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(MDILNIGEN)

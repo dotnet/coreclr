@@ -522,12 +522,14 @@ void LoaderAllocator::GCLoaderAllocators(AppDomain * pAppDomain)
         DomainAssembly * pDomainAssembly = pDomainLoaderAllocatorDestroyIterator->m_pDomainAssemblyToDelete;
         _ASSERTE(pDomainAssembly != NULL);
 
+        // Deleting pDomainAssembly can overwrite m_pLoaderAllocatorDestroyNext so we need to save it
+        LoaderAllocator *pNextDestroyedLoaderAllocator = pDomainLoaderAllocatorDestroyIterator->m_pLoaderAllocatorDestroyNext;
+
 #if defined(FEATURE_CORECLR) && defined(FEATURE_COLLECTIBLE_ALC)
         AssemblySpec spec;
         spec.InitializeSpec(pDomainAssembly->GetFile());
-
-        pAppDomain->RemoveAssemblyFromCache(&spec, pDomainAssembly);
-        pAppDomain->RemoveNativeImageDependency(&spec);
+        _ASSERTE(pAppDomain->RemoveAssemblyFromCache(&spec, pDomainAssembly));
+        _ASSERTE(pAppDomain->RemoveNativeImageDependency(&spec));
 #endif // defined(FEATURE_CORECLR) && defined(FEATURE_COLLECTIBLE_ALC)
 
         delete pDomainAssembly;
@@ -535,7 +537,7 @@ void LoaderAllocator::GCLoaderAllocators(AppDomain * pAppDomain)
         // (Also debugging NULL AVs if someone uses it accidentaly is so much easier)
         pDomainLoaderAllocatorDestroyIterator->m_pDomainAssemblyToDelete = NULL;
         
-        pDomainLoaderAllocatorDestroyIterator = pDomainLoaderAllocatorDestroyIterator->m_pLoaderAllocatorDestroyNext;
+        pDomainLoaderAllocatorDestroyIterator = pNextDestroyedLoaderAllocator;
     }
     
     // Deleting the DomainAssemblies will have created a list of LoaderAllocator's on the AppDomain

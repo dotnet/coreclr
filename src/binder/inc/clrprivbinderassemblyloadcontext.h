@@ -101,6 +101,7 @@ public:
 #endif // FEATURE_COLLECTIBLE_ALC
 
     CLRPrivBinderAssemblyLoadContext();
+    ~CLRPrivBinderAssemblyLoadContext();
     
     inline BINDER_SPACE::ApplicationContext *GetAppContext()
     {
@@ -131,6 +132,7 @@ private:
 #ifdef FEATURE_COLLECTIBLE_ALC
     BOOL m_isCollectible;
 
+    class Crst *m_loadersCrst;
     typedef SHash<PtrSetSHashTraits<LoaderAllocator * > > LoaderAllocatorSet;
     LoaderAllocatorSet m_loaderAllocators;
 #endif // FEATURE_COLLECTIBLE_ALC

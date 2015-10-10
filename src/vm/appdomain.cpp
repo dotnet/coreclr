@@ -7558,7 +7558,7 @@ void AppDomain::CheckForMismatchedNativeImages(AssemblySpec * pSpec, const GUID 
 }
 
 #ifdef FEATURE_COLLECTIBLE_ALC
-void AppDomain::RemoveNativeImageDependency(AssemblySpec * pSpec)
+BOOL AppDomain::RemoveNativeImageDependency(AssemblySpec * pSpec)
 {
     STANDARD_VM_CONTRACT;
 
@@ -7568,10 +7568,11 @@ void AppDomain::RemoveNativeImageDependency(AssemblySpec * pSpec)
 
     NativeImageDependenciesEntry *pEntry = m_NativeImageDependencies.Lookup(pSpec);
 
-    if (pEntry != NULL)
-    {
-        m_NativeImageDependencies.Remove(pSpec);
-    }
+    if (pEntry == NULL)
+        return FALSE;
+
+    m_NativeImageDependencies.Remove(pSpec);
+    return TRUE;
 }
 #endif // FEATURE_COLLECTIBLE_ALC
 
