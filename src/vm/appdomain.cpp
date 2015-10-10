@@ -7572,6 +7572,8 @@ BOOL AppDomain::RemoveNativeImageDependency(AssemblySpec * pSpec)
         return FALSE;
 
     m_NativeImageDependencies.Remove(pSpec);
+    delete pEntry;
+
     return TRUE;
 }
 #endif // FEATURE_COLLECTIBLE_ALC

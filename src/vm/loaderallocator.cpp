@@ -526,10 +526,13 @@ void LoaderAllocator::GCLoaderAllocators(AppDomain * pAppDomain)
         LoaderAllocator *pNextDestroyedLoaderAllocator = pDomainLoaderAllocatorDestroyIterator->m_pLoaderAllocatorDestroyNext;
 
 #if defined(FEATURE_CORECLR) && defined(FEATURE_COLLECTIBLE_ALC)
-        AssemblySpec spec;
-        spec.InitializeSpec(pDomainAssembly->GetFile());
-        _ASSERTE(pAppDomain->RemoveAssemblyFromCache(&spec, pDomainAssembly));
-        _ASSERTE(pAppDomain->RemoveNativeImageDependency(&spec));
+        if (!pDomainAssembly->GetAssembly()->IsDynamic())
+        {
+            AssemblySpec spec;
+            spec.InitializeSpec(pDomainAssembly->GetFile());
+            _ASSERTE(pAppDomain->RemoveAssemblyFromCache(&spec, pDomainAssembly));
+            _ASSERTE(pAppDomain->RemoveNativeImageDependency(&spec));
+        }
 #endif // defined(FEATURE_CORECLR) && defined(FEATURE_COLLECTIBLE_ALC)
 
         delete pDomainAssembly;
