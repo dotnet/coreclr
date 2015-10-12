@@ -1173,10 +1173,6 @@ Assembly *Assembly::CreateDynamic(AppDomain *pDomain, CreateDynamicAssemblyArgs 
                 // Atomically transfer ownership to the managed heap
                 pLoaderAllocator->ActivateManagedTracking();
                 pLoaderAllocator.SuppressRelease();
-
-#ifdef FEATURE_COLLECTIBLE_ALC
-                args->nativeLoaderAllocator = pLoaderAllocator;
-#endif // FEATURE_COLLECTIBLE_ALC
             }
 
             pAssem->SetIsTenured();

@@ -10776,9 +10776,6 @@ void AppDomain::Exit(BOOL fRunFinalizers, BOOL fAsyncExit)
     {
         GCX_PREEMP();
         m_AssemblyCache.Clear();
-#ifdef FEATURE_CORECLR
-        m_NativeImageDependencies.RemoveAll();
-#endif // FEATURE_CORECLR
         ClearFusionContext();
         ReleaseFiles();
         if (!NingenEnabled())

@@ -98,10 +98,6 @@ struct CreateDynamicAssemblyArgs : CreateDynamicAssemblyArgsGC
     DynamicAssemblyFlags  flags;
     StackCrawlMark* stackMark;
     SecurityContextSource securityContextSource;
-
-#ifdef FEATURE_COLLECTIBLE_ALC
-    LoaderAllocator* nativeLoaderAllocator;
-#endif // FEATURE_COLLECTIBLE_ALC
 };
 
 // An assembly is the unit of deployment for managed code.  Typically Assemblies are one to one with files
