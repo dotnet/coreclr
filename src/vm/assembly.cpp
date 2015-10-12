@@ -672,7 +672,7 @@ Assembly * Assembly::Create(
         pNewLoaderAllocator->ActivateManagedTracking();
         pNewLoaderAllocator.SuppressRelease();
 
-        _ASSERTE(SUCCEEDED(pAssemblyLoadContext->ReferenceLoaderAllocator(pNewLoaderAllocator)));
+        VERIFY(SUCCEEDED(pAssemblyLoadContext->ReferenceLoaderAllocator(pNewLoaderAllocator)));
     }
 #endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
     

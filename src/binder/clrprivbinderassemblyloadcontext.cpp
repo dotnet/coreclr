@@ -235,7 +235,7 @@ HRESULT CLRPrivBinderAssemblyLoadContext::ReferenceLoaderAllocator(LoaderAllocat
     // The same LoaderAllocator should not be used twice
     _ASSERTE(m_loaderAllocators.Lookup(pLoaderAllocator) == NULL);
 
-    _ASSERTE(pLoaderAllocator->AddReferenceIfAlive());
+    VERIFY(pLoaderAllocator->AddReferenceIfAlive());
 
     m_loaderAllocators.Add(pLoaderAllocator);
 
@@ -333,7 +333,7 @@ BOOL CLRPrivBinderAssemblyLoadContext::DestroyContext(CLRPrivBinderAssemblyLoadC
             LoaderAllocator *pLoaderAllocator = *iter;
 
             // Release our reference to the LoaderAllocator so it can be deleted by the LoaderAllocator GC
-            _ASSERTE(pLoaderAllocator->Release());
+            VERIFY(pLoaderAllocator->Release());
 
             iter++;
         }
@@ -348,7 +348,7 @@ BOOL CLRPrivBinderAssemblyLoadContext::DestroyContext(CLRPrivBinderAssemblyLoadC
     
     // The managed AssemblyLoadContext should be the only remaining reference to the native
     // binding context
-    _ASSERTE(pBindContext->Release() == 0);
+    VERIFY(pBindContext->Release() == 0);
 
     return TRUE;
 }
