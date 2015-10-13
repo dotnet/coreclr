@@ -530,6 +530,9 @@ void LoaderAllocator::GCLoaderAllocators(AppDomain * pAppDomain)
         {
             AssemblySpec spec;
             spec.InitializeSpec(pDomainAssembly->GetFile());
+
+            pAppDomain->RemoveDomainAssemblyFromFileLoadList(pDomainAssembly);
+
             VERIFY(pAppDomain->RemoveAssemblyFromCache(&spec, pDomainAssembly));
             VERIFY(pAppDomain->RemoveNativeImageDependency(&spec));
         }

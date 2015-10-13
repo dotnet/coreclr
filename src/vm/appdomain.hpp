@@ -2498,6 +2498,7 @@ public:
     HMODULE FindUnmanagedImageInCache(LPCWSTR libraryName);
 
 #if defined(FEATURE_CORECLR) && defined(FEATURE_COLLECTIBLE_ALC)
+    BOOL RemoveDomainAssemblyFromFileLoadList(DomainAssembly *pDomainAssembly);
     BOOL RemoveAssemblyFromCache(AssemblySpec* pSpec, DomainAssembly *pDomainAssembly);
 #endif // defined(FEATURE_CORECLR) && defined(FEATURE_COLLECTIBLE_ALC)
 

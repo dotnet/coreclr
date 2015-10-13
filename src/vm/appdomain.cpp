@@ -8110,12 +8110,36 @@ HMODULE AppDomain::FindUnmanagedImageInCache(LPCWSTR libraryName)
 }
 
 #if defined(FEATURE_CORECLR) && defined(FEATURE_COLLECTIBLE_ALC)
+BOOL AppDomain::RemoveDomainAssemblyFromFileLoadList(DomainAssembly *pDomainAssembly)
+{
+    CONTRACTL
+    {
+        MODE_ANY;
+        PRECONDITION(CheckPointer(pDomainAssembly));
+        INJECT_FAULT(COMPlusThrowOM(););
+    }
+    CONTRACTL_END;
+
+    LoadLockHolder lock(this);
+    FileLoadLock *fileLock = (FileLoadLock *)lock->FindFileLock(pDomainAssembly->GetFile());
+
+    if (fileLock == NULL)
+        return FALSE;
+
+    VERIFY(lock->Unlink(fileLock));
+
+    fileLock->Release();
+
+    return TRUE;
+}
+
 BOOL AppDomain::RemoveAssemblyFromCache(AssemblySpec* pSpec, DomainAssembly *pDomainAssembly)
 {
     CONTRACTL
     {
         MODE_ANY;
         PRECONDITION(CheckPointer(pSpec));
+        PRECONDITION(CheckPointer(pDomainAssembly));
         INJECT_FAULT(COMPlusThrowOM(););
     }
     CONTRACTL_END;
