@@ -1345,6 +1345,32 @@ OBJECTREF* BaseDomain::AllocateObjRefPtrsInLargeTable(int nRequested, OBJECTREF*
         return result;
     }
 }
+
+#ifdef FEATURE_COLLECTIBLE_ALC
+void BaseDomain::ReleaseObjRefPtrsInLargeTable(OBJECTREF *pObjRef, DWORD nReleased)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_ANY;
+        PRECONDITION((nReleased > 0));
+        INJECT_FAULT(COMPlusThrowOM(););
+    }
+    CONTRACTL_END;
+
+    {
+        CrstHolder ch(&m_LargeHeapHandleTableCrst);
+        GCX_COOP();
+        
+        if (!m_pLargeHeapHandleTable)
+            _ASSERTE(!"Unreachable");
+
+        m_pLargeHeapHandleTable->ReleaseHandles(pObjRef, nReleased);
+    }
+}
+#endif // FEATURE_COLLECTIBLE_ALC
+
 #endif // CROSSGEN_COMPILE
 
 #endif // !DACCESS_COMPILE
