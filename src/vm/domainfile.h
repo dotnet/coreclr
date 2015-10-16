@@ -841,13 +841,13 @@ private:
     ArrayList                               m_Modules;
     BOOL                                    m_fSkipPolicyResolution;
     BOOL                                    m_fDebuggerUnloadStarted;
+#ifdef FEATURE_COLLECTIBLE_ALC
+    PTR_LoaderAllocator                     m_pLoaderAllocator;
+#endif // FEATURE_COLLECTIBLE_ALC
     BOOL                                    m_fCollectible;
     Volatile<bool>                          m_fHostAssemblyPublished;
     Volatile<bool>                          m_fCalculatedShouldLoadDomainNeutral;
     Volatile<bool>                          m_fShouldLoadDomainNeutral;
-#ifdef FEATURE_COLLECTIBLE_ALC
-    PTR_LoaderAllocator                     m_pLoaderAllocator;
-#endif // FEATURE_COLLECTIBLE_ALC
 
   public:
     // Indicates if the assembly can be cached in a binding cache such as AssemblySpecBindingCache.
