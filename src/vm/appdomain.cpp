@@ -1345,32 +1345,6 @@ OBJECTREF* BaseDomain::AllocateObjRefPtrsInLargeTable(int nRequested, OBJECTREF*
         return result;
     }
 }
-
-#ifdef FEATURE_COLLECTIBLE_ALC
-void BaseDomain::ReleaseObjRefPtrsInLargeTable(OBJECTREF *pObjRef, DWORD nReleased)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_ANY;
-        PRECONDITION((nReleased > 0));
-        INJECT_FAULT(COMPlusThrowOM(););
-    }
-    CONTRACTL_END;
-
-    {
-        CrstHolder ch(&m_LargeHeapHandleTableCrst);
-        GCX_COOP();
-        
-        if (!m_pLargeHeapHandleTable)
-            _ASSERTE(!"Unreachable");
-
-        m_pLargeHeapHandleTable->ReleaseHandles(pObjRef, nReleased);
-    }
-}
-#endif // FEATURE_COLLECTIBLE_ALC
-
 #endif // CROSSGEN_COMPILE
 
 #endif // !DACCESS_COMPILE
@@ -6814,11 +6788,60 @@ DomainAssembly *AppDomain::LoadDomainAssemblyInternal(AssemblySpec* pIdentity,
     
     if (result == NULL)
     {
+#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
+        BOOL fIsCollectible = FALSE;
+        SafeComHolder<IAssemblyLoadContext> pAssemblyLoadContext = NULL;
+
+        ICLRPrivBinder *pFileBinder = pFile->GetBindingContext();
+        if (pFileBinder != NULL)
+        {
+            ICLRPrivBinder *pBinder = reinterpret_cast<BINDER_SPACE::Assembly *>(pFileBinder)->GetBinder();
+
+            // Assemblies loaded with AssemblyLoadContext need to use a different LoaderAllocator if
+            // marked as collectible
+            if (SUCCEEDED(pBinder->QueryInterface<IAssemblyLoadContext>(&pAssemblyLoadContext)))
+            {
+                pAssemblyLoadContext->GetIsCollectible(&fIsCollectible);
+            }
+        }
+
+        AssemblyLoaderAllocator *pLoaderAllocatorOverride = NULL;
+
+        if (fIsCollectible && pAssemblyLoadContext != NULL)
+        {
+            GCX_COOP();
+
+            LOADERALLOCATORREF pManagedLoaderAllocator = NULL;
+            GCPROTECT_BEGIN(pManagedLoaderAllocator);
+
+            {
+                GCX_PREEMP();
+
+                pLoaderAllocatorOverride = new AssemblyLoaderAllocator();
+
+                // Some of the initialization functions are not virtual. Call through the derived class
+                // to prevent calling the base class version.
+                pLoaderAllocatorOverride->Init(this);
+
+                // Setup the managed proxy now, but do not actually transfer ownership to it.
+                // Once everything is setup and nothing can fail anymore, the ownership will be
+                // atomically transfered by call to LoaderAllocator::ActivateManagedTracking().
+                pLoaderAllocatorOverride->SetupManagedTracking(&pManagedLoaderAllocator);
+            }
+
+            GCPROTECT_END();
+        }
+
+        LoaderAllocator *pLoaderAllocator = pLoaderAllocatorOverride == NULL ? this->GetLoaderAllocator() : pLoaderAllocatorOverride;
+#else // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
+        LoaderAllocator *pLoaderAllocator = this->GetLoaderAllocator();
+#endif
+
         // Allocate the DomainAssembly a bit early to avoid GC mode problems. We could potentially avoid
         // a rare redundant allocation by moving this closer to FileLoadLock::Create, but it's not worth it.
 
         NewHolder<DomainAssembly> pDomainAssembly;
-        pDomainAssembly = new DomainAssembly(this, pFile, pLoadSecurity, this->GetLoaderAllocator());
+        pDomainAssembly = new DomainAssembly(this, pFile, pLoadSecurity, pLoaderAllocator);
 
         LoadLockHolder lock(this);
 

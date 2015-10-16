@@ -759,6 +759,10 @@ public:
     void NotifyDebuggerUnload();
     BOOL IsUnloading();
 
+#ifdef FEATURE_COLLECTIBLE_ALC
+    inline PTR_LoaderAllocator GetLoaderAllocator();
+#endif // FEATURE_COLLECTIBLE_ALC
+
     inline BOOL IsCollectible();
     // 
     //  GC API
@@ -841,6 +845,9 @@ private:
     Volatile<bool>                          m_fHostAssemblyPublished;
     Volatile<bool>                          m_fCalculatedShouldLoadDomainNeutral;
     Volatile<bool>                          m_fShouldLoadDomainNeutral;
+#ifdef FEATURE_COLLECTIBLE_ALC
+    PTR_LoaderAllocator                     m_pLoaderAllocator;
+#endif // FEATURE_COLLECTIBLE_ALC
 
   public:
     // Indicates if the assembly can be cached in a binding cache such as AssemblySpecBindingCache.

@@ -1260,10 +1260,6 @@ public:
     // will be properly serialized)
     OBJECTREF *AllocateObjRefPtrsInLargeTable(int nRequested, OBJECTREF** ppLazyAllocate = NULL, BOOL bCrossAD = FALSE);
 
-#ifdef FEATURE_COLLECTIBLE_ALC
-    void ReleaseObjRefPtrsInLargeTable(OBJECTREF *pObjRef, DWORD nReleased);
-#endif // FEATURE_COLLECTIBLE_ALC
-
 #ifdef FEATURE_PREJIT
     // Ensures that the file for logging profile data is open (we only open it once)
     // return false on failure

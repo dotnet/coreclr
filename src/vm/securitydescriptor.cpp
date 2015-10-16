@@ -476,20 +476,4 @@ BOOL PEFileSecurityDescriptor::AllowBindingRedirects()
 
 #endif // FEATURE_CORECLR
 
-#if defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
-SecurityDescriptor::~SecurityDescriptor()
-{
-    // When the AppDomain's LoaderAllocator is not collectible, its LargeHeapHandleTable will
-    // be used for the permission handles
-    if (!m_pLoaderAllocator->IsCollectible())
-    {
-        if (m_hGrantedPermissionSet != NULL)
-            m_pAppDomain->ReleaseObjRefPtrsInLargeTable((OBJECTREF*)((UINT_PTR)m_hGrantedPermissionSet - 1), 1);
-
-        if (m_hGrantDeniedPermissionSet != NULL)
-            m_pAppDomain->ReleaseObjRefPtrsInLargeTable((OBJECTREF*)((UINT_PTR)m_hGrantDeniedPermissionSet - 1), 1);
-    }
-}
-#endif // defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
-
 #endif // !DACCESS_COMPILE

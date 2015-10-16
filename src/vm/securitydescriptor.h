@@ -137,11 +137,6 @@ protected:
 #ifdef FEATURE_PAL
     SecurityDescriptor() {}
 #endif // FEATURE_PAL
-
-#if defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
-    ~SecurityDescriptor();
-#endif // defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
-
 #endif // !DACCESS_COMPILE
 };
 

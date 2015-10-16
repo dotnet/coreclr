@@ -575,57 +575,25 @@ Assembly * Assembly::Create(
 
 #if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
     SafeComHolder<IAssemblyLoadContext> pAssemblyLoadContext = NULL;
+    BOOL fCollectibleALC = FALSE;
 
     ICLRPrivBinder *pFileBinder = pFile->GetBindingContext();
     if (pFileBinder != NULL)
     {
         ICLRPrivBinder *pBinder = reinterpret_cast<BINDER_SPACE::Assembly *>(pFileBinder)->GetBinder();
-        
-        // Assemblies loaded with AssemblyLoadContext need to use a different LoaderAllocator if
-        // marked as collectible
+
         if (SUCCEEDED(pBinder->QueryInterface<IAssemblyLoadContext>(&pAssemblyLoadContext)))
         {
-            BOOL isCollectible;
-            pAssemblyLoadContext->GetIsCollectible(&isCollectible);
+            pAssemblyLoadContext->GetIsCollectible(&fCollectibleALC);
 
-            if (isCollectible)
-            {
-                _ASSERTE(!fIsCollectible && pLoaderAllocator == NULL);
-                fIsCollectible = TRUE;
-            }
+            _ASSERTE(!fIsCollectible && pLoaderAllocator == NULL);
+
+            fIsCollectible = fCollectibleALC;
+            pLoaderAllocator = pDomainAssembly->GetLoaderAllocator();
+
+            if (fCollectibleALC)
+                _ASSERTE(pLoaderAllocator->IsCollectible());
         }
-    }
-
-    NewHolder<LoaderAllocator> pNewLoaderAllocator;
-    AssemblyLoaderAllocator *pNewAssemblyLoaderAllocator;
-
-    if (fIsCollectible && pAssemblyLoadContext != NULL)
-    {
-        GCX_COOP();
-
-        // TODO: This should probably be stored in the managed AssemblyLoadContext.
-        LOADERALLOCATORREF pManagedLoaderAllocator = NULL;
-        GCPROTECT_BEGIN(pManagedLoaderAllocator);
-
-        {
-            GCX_PREEMP();
-
-            pNewAssemblyLoaderAllocator = new AssemblyLoaderAllocator();
-            pNewLoaderAllocator = pNewAssemblyLoaderAllocator;
-
-            // Some of the initialization functions are not virtual. Call through the derived class
-            // to prevent calling the base class version.
-            pNewAssemblyLoaderAllocator->Init(reinterpret_cast<AppDomain *>(pDomain));
-
-            // Setup the managed proxy now, but do not actually transfer ownership to it.
-            // Once everything is setup and nothing can fail anymore, the ownership will be
-            // atomically transfered by call to LoaderAllocator::ActivateManagedTracking().
-            pNewAssemblyLoaderAllocator->SetupManagedTracking(&pManagedLoaderAllocator);
-        }
-
-        GCPROTECT_END();
-
-        pLoaderAllocator = pNewLoaderAllocator;
     }
 #endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
 
@@ -665,14 +633,15 @@ Assembly * Assembly::Create(
     END_INTERIOR_STACK_PROBE;
 
 #if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
-    if (fIsCollectible && pAssemblyLoadContext != NULL)
+    if (fCollectibleALC)
     {
-        pNewAssemblyLoaderAllocator->SetDomainAssembly(pDomainAssembly);
+        AssemblyLoaderAllocator *pAssemblyLoaderAllocator = static_cast<AssemblyLoaderAllocator *>(pLoaderAllocator);
 
-        pNewLoaderAllocator->ActivateManagedTracking();
-        pNewLoaderAllocator.SuppressRelease();
+        pAssemblyLoaderAllocator->SetDomainAssembly(pDomainAssembly);
 
-        VERIFY(SUCCEEDED(pAssemblyLoadContext->ReferenceLoaderAllocator(pNewLoaderAllocator)));
+        pAssemblyLoaderAllocator->ActivateManagedTracking();
+
+        VERIFY(SUCCEEDED(pAssemblyLoadContext->ReferenceLoaderAllocator(pLoaderAllocator)));
     }
 #endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
     

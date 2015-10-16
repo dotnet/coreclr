@@ -1688,6 +1688,9 @@ DomainAssembly::DomainAssembly(AppDomain *pDomain, PEFile *pFile, AssemblyLoadSe
     m_MissingDependenciesCheckStatus(CMD_Unknown),
     m_fSkipPolicyResolution(pLoadSecurity != NULL && !pLoadSecurity->ShouldResolvePolicy()),
     m_fDebuggerUnloadStarted(FALSE),
+#ifdef FEATURE_COLLECTIBLE_ALC
+    m_pLoaderAllocator(pLoaderAllocator),
+#endif // FEATURE_COLLECTIBLE_ALC
     m_fCollectible(pLoaderAllocator->IsCollectible()),
     m_fHostAssemblyPublished(false),
     m_fCalculatedShouldLoadDomainNeutral(false),

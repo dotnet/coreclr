@@ -129,6 +129,14 @@ inline ULONG DomainAssembly::HashIdentity()
     return GetFile()->HashIdentity();
 }
 
+#ifdef FEATURE_COLLECTIBLE_ALC
+inline PTR_LoaderAllocator DomainAssembly::GetLoaderAllocator()
+{
+    LIMITED_METHOD_CONTRACT;
+    return m_pLoaderAllocator;
+}
+#endif // FEATURE_COLLECTIBLE_ALC
+
 inline BOOL DomainAssembly::IsCollectible()
 {
     LIMITED_METHOD_CONTRACT;
