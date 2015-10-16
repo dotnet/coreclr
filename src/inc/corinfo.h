@@ -190,9 +190,10 @@ TODO: Talk about initializing strutures before use
 #include <specstrings.h>
 
 // For System V on the CLR type system number of registers to pass in and return a struct is the same.
-#define SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS   2
-#define SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_RETURN_IN_REGISTERS SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS
-#define SYSTEMV_MAX_STRUCT_BYTES_TO_PASS_IN_REGISTERS       16
+// The CLR type system allows only up to 2 eightbytes to be passed in registers. There is no SSEUP clasification types.
+#define CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS   2 
+#define CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_RETURN_IN_REGISTERS 2
+#define CLR_SYSTEMV_MAX_STRUCT_BYTES_TO_PASS_IN_REGISTERS       16
 
 // System V struct passing
 // The Classification types are described in the ABI spec at http://www.x86-64.org/documentation/abi.pdf
@@ -220,19 +221,33 @@ struct SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR
         Initialize();
     }
 
-    bool                        canPassInRegisters;
-    unsigned int                eightByteCount;
-    SystemVClassificationType   eightByteClassifications[SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS];
-    unsigned int                eightByteSizes[SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS];
-    unsigned int                eightByteOffsets[SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS];
+    bool                        passedInRegisters;
+    unsigned __int8             eightByteCount;
+    SystemVClassificationType   eightByteClassifications[CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS];
+    unsigned __int8             eightByteSizes[CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS];
+    unsigned __int8             eightByteOffsets[CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS];
+
+    void CopyFrom(const SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR& copyFrom)
+    {
+        passedInRegisters = copyFrom.passedInRegisters;
+        eightByteCount = copyFrom.eightByteCount;
+
+        for (int i = 0; i < CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS; i++)
+        {
+            eightByteClassifications[i] = copyFrom.eightByteClassifications[i];
+            eightByteSizes[i] = copyFrom.eightByteSizes[i];
+            eightByteOffsets[i] = copyFrom.eightByteOffsets[i];
+        }
+    }
 
     // Members
+private:
     void Initialize()
     {
-        canPassInRegisters = false;
+        passedInRegisters = false;
         eightByteCount = 0;
 
-        for (int i = 0; i < SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS; i++)
+        for (int i = 0; i < CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS; i++)
         {
             eightByteClassifications[i] = SystemVClassificationTypeUnknown;
             eightByteSizes[i] = 0;

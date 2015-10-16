@@ -1338,7 +1338,7 @@ COUNT_T ZapImage::MethodCodeTraits::Hash(key_t k)
                 hash = ((hash << 5) + hash) ^ (COUNT_T)(pTarget);
                 break;
             default:
-                break;
+                break; // Shut off a warning.
             }
 
             pRelocs++;
