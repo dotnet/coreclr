@@ -332,6 +332,8 @@ BOOL CLRPrivBinderAssemblyLoadContext::DestroyContext(CLRPrivBinderAssemblyLoadC
         {
             LoaderAllocator *pLoaderAllocator = *iter;
 
+            pLoaderAllocator->ReleaseAllReferences();
+
             // Release our reference to the LoaderAllocator so it can be deleted by the LoaderAllocator GC
             VERIFY(pLoaderAllocator->Release());
 
@@ -362,7 +364,7 @@ CLRPrivBinderAssemblyLoadContext::CLRPrivBinderAssemblyLoadContext()
 #ifdef FEATURE_COLLECTIBLE_ALC
     m_isCollectible = FALSE;
 
-    m_loadersCrst = new Crst(CrstType::CrstLoaderAllocatorReferences);
+    m_loadersCrst = new Crst(CrstType::CrstAssemblyLoadContextLoaderAllocators);
 #endif // FEATURE_COLLECTIBLE_ALC
 }
 

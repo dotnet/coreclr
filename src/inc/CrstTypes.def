@@ -101,6 +101,10 @@ End
 Crst AssemblyIdentityCache
 End
 
+Crst AssemblyLoadContextLoaderAllocators
+    AcquiredBefore LoaderAllocatorReferences
+End
+
 Crst AssemblyLoader
     AcquiredBefore DeadlockDetection UniqueStack
 End

@@ -283,6 +283,9 @@ public:
     // in an instantiation
     BOOL EnsureInstantiation(Module *pDefiningModule, Instantiation inst);
 
+    // Releases all references this instance has to other LoaderAllocators
+    BOOL ReleaseAllReferences();
+
     // Given typeId and slotNumber, GetDispatchToken will return a DispatchToken
     // representing <typeId, slotNumber>. If the typeId is big enough, this
     // method will automatically allocate a DispatchTokenFat and encapsulate it
