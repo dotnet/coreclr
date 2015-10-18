@@ -26,16 +26,12 @@ namespace System.Runtime.Loader
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private static extern bool CanUseAppPathAssemblyLoadContextInCurrentDomain();
-
-#if !FEATURE_COLLECTIBLE_ALC
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        private static extern IntPtr InitializeAssemblyLoadContext(IntPtr ptrAssemblyLoadContext);
-#else // !FEATURE_COLLECTIBLE_ALC
+        
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private static extern IntPtr InitializeAssemblyLoadContext(IntPtr ptrAssemblyLoadContext, bool fIsCollectible);
 
+#if FEATURE_COLLECTIBLE_ALC
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private static extern bool DestroyAssemblyLoadContext(IntPtr ptrNativeAssemblyLoadContext);
@@ -62,7 +58,7 @@ namespace System.Runtime.Loader
             // Initialize the VM side of AssemblyLoadContext if not already done.
             GCHandle gchALC = GCHandle.Alloc(this);
             IntPtr ptrALC = GCHandle.ToIntPtr(gchALC);
-            m_pNativeAssemblyLoadContext = InitializeAssemblyLoadContext(ptrALC);
+            m_pNativeAssemblyLoadContext = InitializeAssemblyLoadContext(ptrALC, false);
         }
 
         internal AssemblyLoadContext(bool fDummy)
@@ -75,6 +71,7 @@ namespace System.Runtime.Loader
         {
         }
 
+        [System.Security.SecuritySafeCritical]
         protected AssemblyLoadContext(bool isCollectible)
         {
             // Initialize the VM side of AssemblyLoadContext if not already done.

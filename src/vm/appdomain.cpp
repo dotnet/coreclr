@@ -6790,7 +6790,7 @@ DomainAssembly *AppDomain::LoadDomainAssemblyInternal(AssemblySpec* pIdentity,
     {
 #if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
         BOOL fIsCollectible = FALSE;
-        SafeComHolder<IAssemblyLoadContext> pAssemblyLoadContext = NULL;
+        SafeComHolder<ICollectibleAssemblyLoadContext> pAssemblyLoadContext = NULL;
 
         ICLRPrivBinder *pFileBinder = pFile->GetBindingContext();
         if (pFileBinder != NULL)
@@ -6799,7 +6799,7 @@ DomainAssembly *AppDomain::LoadDomainAssemblyInternal(AssemblySpec* pIdentity,
 
             // Assemblies loaded with AssemblyLoadContext need to use a different LoaderAllocator if
             // marked as collectible
-            if (SUCCEEDED(pBinder->QueryInterface<IAssemblyLoadContext>(&pAssemblyLoadContext)))
+            if (SUCCEEDED(pBinder->QueryInterface<ICollectibleAssemblyLoadContext>(&pAssemblyLoadContext)))
             {
                 pAssemblyLoadContext->GetIsCollectible(&fIsCollectible);
             }
@@ -6807,7 +6807,7 @@ DomainAssembly *AppDomain::LoadDomainAssemblyInternal(AssemblySpec* pIdentity,
 
         AssemblyLoaderAllocator *pLoaderAllocatorOverride = NULL;
 
-        if (fIsCollectible && pAssemblyLoadContext != NULL)
+        if (fIsCollectible)
         {
             GCX_COOP();
 

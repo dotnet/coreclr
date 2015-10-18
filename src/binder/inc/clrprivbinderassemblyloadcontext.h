@@ -26,7 +26,7 @@ class Object;
 class Assembly;
 class LoaderAllocator;
 
-class DECLSPEC_UUID("68220E65-3D3F-42E2-BAD6-2D07419DAB5E") IAssemblyLoadContext : public IUnknown
+class DECLSPEC_UUID("68220E65-3D3F-42E2-BAD6-2D07419DAB5E") ICollectibleAssemblyLoadContext : public IUnknown
 {
 public:
     STDMETHOD(GetIsCollectible)(
@@ -42,7 +42,7 @@ class CLRPrivBinderAssemblyLoadContext :
 #ifndef FEATURE_COLLECTIBLE_ALC
     public IUnknownCommon<ICLRPrivBinder>
 #else // !FEATURE_COLLECTIBLE_ALC
-    public IUnknownCommon<ICLRPrivBinder, IAssemblyLoadContext>
+    public IUnknownCommon<ICLRPrivBinder, ICollectibleAssemblyLoadContext>
 #endif // FEATURE_COLLECTIBLE_ALC
 {
 public:
@@ -89,11 +89,9 @@ public:
     // Class functions
     //-------------------------------------------------------------------------
 
-    static HRESULT SetupContext(AppDomain *pAppDomain, CLRPrivBinderCoreCLR *pTPABinder, 
+    static HRESULT SetupContext(DWORD      dwAppDomainId, CLRPrivBinderCoreCLR *pTPABinder,
                                 UINT_PTR ptrAssemblyLoadContext,
-#ifdef FEATURE_COLLECTIBLE_ALC
                                 BOOL fIsCollectible,
-#endif // FEATURE_COLLECTIBLE_ALC
                                 CLRPrivBinderAssemblyLoadContext **ppBindContext);
     
 #ifdef FEATURE_COLLECTIBLE_ALC

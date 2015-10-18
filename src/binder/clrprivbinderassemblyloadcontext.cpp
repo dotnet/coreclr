@@ -251,12 +251,10 @@ HRESULT CLRPrivBinderAssemblyLoadContext::ReferenceLoaderAllocator(LoaderAllocat
 // managed AssemblyLoadContext type.
 //=============================================================================
 /* static */
-HRESULT CLRPrivBinderAssemblyLoadContext::SetupContext(AppDomain *pAppDomain,
+HRESULT CLRPrivBinderAssemblyLoadContext::SetupContext(DWORD      dwAppDomainId,
                                             CLRPrivBinderCoreCLR *pTPABinder,
                                             UINT_PTR ptrAssemblyLoadContext, 
-#ifdef FEATURE_COLLECTIBLE_ALC
                                             BOOL fIsCollectible,
-#endif // FEATURE_COLLECTIBLE_ALC
                                             CLRPrivBinderAssemblyLoadContext **ppBindContext)
 {
     HRESULT hr = E_FAIL;
@@ -271,7 +269,7 @@ HRESULT CLRPrivBinderAssemblyLoadContext::SetupContext(AppDomain *pAppDomain,
             if(SUCCEEDED(hr))
             {
                 // Save the reference to the AppDomain in which the binder lives
-                pBinder->m_appContext.SetAppDomainId(pAppDomain->GetId().m_dwId);
+                pBinder->m_appContext.SetAppDomainId(dwAppDomainId);
                 
                 // Mark that this binder can explicitly bind to native images
                 pBinder->m_appContext.SetExplicitBindToNativeImages(true);
@@ -341,8 +339,13 @@ BOOL CLRPrivBinderAssemblyLoadContext::DestroyContext(CLRPrivBinderAssemblyLoadC
         }
     }
 
-    // TODO: Is AppDomain::GetCurrentDomain() going to work properly?
-    AppDomain *pAppDomain = AppDomain::GetCurrentDomain();
+    AppDomain *pAppDomain;
+
+    {
+        GCX_COOP();
+        DWORD dwAppDomainId = pBindContext->m_appContext.GetAppDomainId();
+        pAppDomain = SystemDomain::System()->GetAppDomainFromId((ADID)dwAppDomainId, ADV_RUNNINGIN);
+    }
 
     // The managed LoaderAllocatorScout finalizer would normally trigger the LoaderAllocator GC
     // but because we hold a reference that outlasts it, we need to trigger it as well
@@ -371,7 +374,11 @@ CLRPrivBinderAssemblyLoadContext::CLRPrivBinderAssemblyLoadContext()
 CLRPrivBinderAssemblyLoadContext::~CLRPrivBinderAssemblyLoadContext()
 {
 #ifdef FEATURE_COLLECTIBLE_ALC
-    delete m_loadersCrst;
+    if (m_loadersCrst != NULL)
+    {
+        delete m_loadersCrst;
+        m_loadersCrst = NULL;
+    }
 #endif
 }
 

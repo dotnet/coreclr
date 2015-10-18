@@ -574,7 +574,7 @@ Assembly * Assembly::Create(
     STANDARD_VM_CONTRACT;
 
 #if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
-    SafeComHolder<IAssemblyLoadContext> pAssemblyLoadContext = NULL;
+    SafeComHolder<ICollectibleAssemblyLoadContext> pAssemblyLoadContext = NULL;
     BOOL fCollectibleALC = FALSE;
 
     ICLRPrivBinder *pFileBinder = pFile->GetBindingContext();
@@ -582,7 +582,7 @@ Assembly * Assembly::Create(
     {
         ICLRPrivBinder *pBinder = reinterpret_cast<BINDER_SPACE::Assembly *>(pFileBinder)->GetBinder();
 
-        if (SUCCEEDED(pBinder->QueryInterface<IAssemblyLoadContext>(&pAssemblyLoadContext)))
+        if (SUCCEEDED(pBinder->QueryInterface<ICollectibleAssemblyLoadContext>(&pAssemblyLoadContext)))
         {
             pAssemblyLoadContext->GetIsCollectible(&fCollectibleALC);
 
@@ -592,7 +592,10 @@ Assembly * Assembly::Create(
             pLoaderAllocator = pDomainAssembly->GetLoaderAllocator();
 
             if (fCollectibleALC)
+            {
+                _ASSERTE(pDomainAssembly->IsCollectible());
                 _ASSERTE(pLoaderAllocator->IsCollectible());
+            }
         }
     }
 #endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
