@@ -213,7 +213,7 @@ enum SystemVClassificationType : unsigned __int8
     SystemVClassificationTypeMAX = 7,
 };
 
-
+// Represents classification information for a struct.
 struct SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR
 {
     SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR()
@@ -221,12 +221,19 @@ struct SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR
         Initialize();
     }
 
-    bool                        passedInRegisters;
-    unsigned __int8             eightByteCount;
-    SystemVClassificationType   eightByteClassifications[CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS];
-    unsigned __int8             eightByteSizes[CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS];
-    unsigned __int8             eightByteOffsets[CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS];
+    bool                        passedInRegisters; // Whether the struct is passable/passed (this includes struct returning) in registers.
+    unsigned __int8             eightByteCount;    // Number of eightbytes for this struct.
+    SystemVClassificationType   eightByteClassifications[CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS]; // The eightbytes type classification.
+    unsigned __int8             eightByteSizes[CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS];           // The sizeof the eightbytes (an eightbyte could include padding. This represents the no padding size of the eightbyte.)
+    unsigned __int8             eightByteOffsets[CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS];         // The start offset of the eightbytes.
 
+
+    //------------------------------------------------------------------------
+    // CopyFrom: Copies a struct classification into this one.
+    //
+    // Arguments:
+    //    'copyFrom' the struct classification to copy from.
+    //
     void CopyFrom(const SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR& copyFrom)
     {
         passedInRegisters = copyFrom.passedInRegisters;

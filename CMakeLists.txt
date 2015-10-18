@@ -371,12 +371,6 @@ if(CMAKE_ENABLE_CODE_COVERAGE)
 
 endif(CMAKE_ENABLE_CODE_COVERAGE)
 
-if(CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64)
-add_definitions(-DFEATURE_UNIX_AMD64_STRUCT_PASSING_ITF)
-add_definitions(-DFEATURE_UNIX_AMD64_STRUCT_PASSING)
-add_definitions(-DFEATURE_UNIX_AMD64_STRUCT_RETURNING)
-endif (CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64)
-
 if(CLR_CMAKE_PLATFORM_UNIX)
 add_definitions(-DDISABLE_CONTRACTS)
 # The -ferror-limit is helpful during the porting, it makes sure the compiler doesn't stop
