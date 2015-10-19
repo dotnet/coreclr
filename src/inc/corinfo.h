@@ -212,7 +212,7 @@ enum SystemVClassificationType : unsigned __int8
     SystemVClassificationTypeMAX = 7,
 };
 
-
+// Represents classification information for a struct.
 struct SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR
 {
     SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR()
