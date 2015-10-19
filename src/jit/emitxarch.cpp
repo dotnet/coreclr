@@ -3671,8 +3671,7 @@ void                emitter::emitIns_C(instruction  ins,
     }
     else if (ins == INS_pop)
     {
-        emitCurStackLvl -= emitCntStackDepth;
-        assert((int)emitCurStackLvl >= 0);
+        emitCurStackLvl -= emitCntStackDepth; assert((int)emitCurStackLvl >= 0);
     }
 
 #endif // !FEATURE_FIXED_OUT_ARGS
@@ -8178,7 +8177,7 @@ BYTE*       emitter::emitOutputSV(BYTE* dst, instrDesc* id, size_t code, CnsVal*
 #endif // _TARGET_X86_
 
         default:
-            NO_WAY("unexpected size"); // TODO: Fix this... For Linux it could be values of 16 bytes in length or more (structs.)
+            NO_WAY("unexpected size");
             break;
         }
     }
@@ -11011,7 +11010,7 @@ size_t              emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE**
                                 && id->idReg1()   == REG_ESP)
             {
                 assert((size_t)emitGetInsSC(id) < 0x00000000FFFFFFFFLL);
-                emitStackPop(dst, /*isCall*/false, /*callInstrSize*/0, (unsigned)(emitGetInsSC(id) / sizeof(void*)));
+                emitStackPop (dst, /*isCall*/false, /*callInstrSize*/0, (unsigned)(emitGetInsSC(id) / sizeof(void*)));
             }
             break;
 

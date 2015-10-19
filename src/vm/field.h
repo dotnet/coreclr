@@ -223,6 +223,7 @@ public:
     DWORD GetOffset()
     {
         LIMITED_METHOD_DAC_CONTRACT;
+
         g_IBCLogger.LogFieldDescsAccess(this);
         return GetOffset_NoLogging();
     }

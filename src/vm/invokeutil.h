@@ -44,7 +44,6 @@ struct InterfaceMapData
 #include <poppack.h>
 
 class ReflectMethodList;
-class ArgDestination;
 
 // Structure used to track security access checks efficiently when applied
 // across a range of methods, fields etc.
@@ -115,7 +114,7 @@ class InvokeUtil
 {
 
 public:
-    static void CopyArg(TypeHandle th, OBJECTREF *obj, ArgDestination *argDest);
+    static void CopyArg(TypeHandle th, OBJECTREF *obj, void *pArgDst);
    
     // Given a type, this routine will convert an return value representing that
     //  type into an ObjectReference.  If the type is a primitive, the 

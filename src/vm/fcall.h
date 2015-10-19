@@ -1318,8 +1318,9 @@ typedef UINT16 FC_UINT16_RET;
 
 
 // FC_TypedByRef should be used for TypedReferences in FCall signatures
-#if defined(UNIX_AMD64_ABI) && !defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#ifdef UNIX_AMD64_ABI
 // Explicitly pass the TypedReferences by reference 
+// UNIXTODO: Remove once the proper managed calling convention for struct is in place
 #define FC_TypedByRef   TypedByRef&
 #define FC_DECIMAL      DECIMAL&
 #else

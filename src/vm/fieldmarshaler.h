@@ -396,7 +396,7 @@ public:
         m_dwExternalOffset = dwExternalOffset;
     }
 
-    UINT32 GetExternalOffset() const
+    UINT32 GetExternalOffset()
     {
         LIMITED_METHOD_CONTRACT;
         return m_dwExternalOffset;

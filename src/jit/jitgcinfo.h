@@ -253,6 +253,7 @@ public :
 #endif
 
         unsigned short      cdArgCnt;
+        unsigned short      cdArgBaseOffset;
 
         union
         {

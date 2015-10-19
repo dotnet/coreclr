@@ -45,8 +45,6 @@
 #include "interpreter.h"
 #endif // FEATURE_INTERPRETER
 
-#include "argdestination.h"
-
 #if CHECK_APP_DOMAIN_LEAKS
 #define CHECK_APP_DOMAIN    GC_CALL_CHECK_APP_DOMAIN
 #else
@@ -1280,8 +1278,7 @@ void TransitionFrame::PromoteCallerStackHelper(promote_func* fn, ScanContext* sc
     int argOffset;
     while ((argOffset = argit.GetNextOffset()) != TransitionBlock::InvalidOffset)
     {
-        ArgDestination argDest(dac_cast<PTR_VOID>(pTransitionBlock), argOffset, argit.GetArgLocDescForStructInRegs());
-        pmsig->GcScanRoots(&argDest, fn, sc);
+        pmsig->GcScanRoots(dac_cast<PTR_VOID>(pTransitionBlock + argOffset), fn, sc);
     }
 }
 

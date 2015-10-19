@@ -18,7 +18,6 @@
 #include "gcinfodecoder.h"
 #endif
 
-#include "argdestination.h"
 
 #define X86_INSTR_W_TEST_ESP            0x4485  // test [esp+N], eax
 #define X86_INSTR_TEST_ESP_SIB          0x24
@@ -4072,10 +4071,7 @@ void promoteVarArgs(PTR_BYTE argsStart, PTR_VASigCookie varArgSig, GCCONTEXT* ct
         // if skipFixedArgs is false we report all arguments
         //  otherwise we just report the varargs.
         if (!skipFixedArgs || inVarArgs)
-        {
-            ArgDestination argDest(pFrameBase, argOffset, argit.GetArgLocDescForStructInRegs());
-            msig.GcScanRoots(&argDest, ctx->f, ctx->sc);
-        }
+            msig.GcScanRoots(pFrameBase + argOffset, ctx->f, ctx->sc);
     }
 }
 

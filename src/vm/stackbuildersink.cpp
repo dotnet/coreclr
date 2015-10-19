@@ -404,16 +404,13 @@ void CallDescrWithObjectArray(OBJECTREF& pServer,
 #endif
 
 #ifdef CALLDESCR_FPARGREGS
-        // Under CALLDESCR_FPARGREGS we can have arguments in floating point registers. If we have at
+        // Under CALLDESCR_FPARGREGS -ve offsets indicate arguments in floating point registers. If we have at
         // least one such argument we point the call worker at the floating point area of the frame (we leave
         // it null otherwise since the worker can perform a useful optimization if it knows no floating point
         // registers need to be set up).
-        if (TransitionBlock::HasFloatRegister(ofs, argit.GetArgLocDescForStructInRegs()) && 
-            (pFloatArgumentRegisters == NULL))
-        {
+        if (TransitionBlock::IsFloatArgumentRegisterOffset(ofs) && (pFloatArgumentRegisters == NULL))
             pFloatArgumentRegisters = (FloatArgumentRegisters*)(pTransitionBlock +
                                                                 TransitionBlock::GetOffsetOfFloatArgumentRegisters());
-        }
 #endif
 
         if (argit.GetArgType() == ELEMENT_TYPE_BYREF)

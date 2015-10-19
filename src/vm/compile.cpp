@@ -76,8 +76,6 @@
 #endif
 #include "tritonstress.h"
 
-#include "argdestination.h"
-
 #ifdef CROSSGEN_COMPILE
 CompilationDomain * theDomain;
 #endif
@@ -1485,8 +1483,7 @@ void FakeGcScanRoots(MetaSig& msig, ArgIterator& argit, MethodDesc * pMD, BYTE *
     int argOffset;
     while ((argOffset = argit.GetNextOffset()) != TransitionBlock::InvalidOffset)
     {
-        ArgDestination argDest(pFrame, argOffset, argit.GetArgLocDescForStructInRegs());
-        msig.GcScanRoots(&argDest, &FakePromote, &sc, &FakePromoteCarefully);
+        msig.GcScanRoots(pFrame + argOffset, &FakePromote, &sc, &FakePromoteCarefully);
     }
 }
 
@@ -1936,17 +1933,7 @@ BOOL CanDeduplicateCode(CORINFO_METHOD_HANDLE method, CORINFO_METHOD_HANDLE dupl
         return FALSE;
 #endif // _TARGET_X86_
 
-    MetaSig::RETURNTYPE returnType = pMethod->ReturnsObject();
-    MetaSig::RETURNTYPE returnTypeDuplicate = pDuplicateMethod->ReturnsObject();
-
-    if (returnType != returnTypeDuplicate)
-        return FALSE;
-
-    //
-    // Do not enable deduplication of structs returned in registers
-    //
-
-    if (returnType == MetaSig::RETVALUETYPE)
+    if (pMethod->ReturnsObject() != pDuplicateMethod->ReturnsObject())
         return FALSE;
 
     //

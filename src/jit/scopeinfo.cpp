@@ -909,99 +909,21 @@ void                CodeGen::psiBegProlog()
         psiScope * newScope      = psiNewPrologScope(varScope->vsdLVnum,
                                                      varScope->vsdVarNum);
 
-        if (lclVarDsc1->lvIsRegArg)
+        if  (lclVarDsc1->lvIsRegArg)
         {
-            bool isStructHandled = false;
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-            SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
-            if (lclVarDsc1->TypeGet() == TYP_STRUCT)
-            {
-                CORINFO_CLASS_HANDLE typeHnd = lclVarDsc1->lvVerTypeInfo.GetClassHandle();
-                assert(typeHnd != nullptr);
-                compiler->eeGetSystemVAmd64PassStructInRegisterDescriptor(typeHnd, &structDesc);
-                assert(structDesc.passedInRegisters);
-
-                for (unsigned nCnt = 0; nCnt < structDesc.eightByteCount; nCnt++)
-                {
-                    unsigned len = structDesc.eightByteSizes[nCnt];
-                    var_types regType = TYP_UNDEF;
-                    regNumber regNum = REG_NA;
-                    if (nCnt == 0)
-                    {
-                        regNum = lclVarDsc1->lvArgReg;
-                    }
-                    else if (nCnt == 1)
-                    {
-                        regNum = lclVarDsc1->lvOtherArgReg;
-                    }
-                    else
-                    {
-                        assert(false);
-                    }
-
-                    switch (structDesc.eightByteClassifications[nCnt])
-                    {
-                    case SystemVClassificationTypeInteger:
-                        if (structDesc.eightByteSizes[nCnt] < 8)
-                        {
-                            regType = TYP_INT;
-                        }
-                        else if (structDesc.eightByteSizes[nCnt] == 8)
-                        {
-                            regType = TYP_LONG;
-                        }
-                        break;
-                    case SystemVClassificationTypeIntegerReference:
-                        assert(len == REGSIZE_BYTES);
-                        regType = TYP_REF;
-                        break;
-                    case SystemVClassificationTypeSSE:
-                        if (structDesc.eightByteSizes[nCnt] == 4)
-                        {
-                            regType = TYP_FLOAT;
-                        }
-                        else if (structDesc.eightByteSizes[nCnt] == 8)
-                        {
-                            regType = TYP_DOUBLE;
-                        }
-                        else
-                        {
-                            assert(false); // Not possible.
-                        }
-
-                        break;
-                    default:
-                        assert(false);
-                        break;
-                    }
 #ifdef DEBUG
-                    regType = compiler->mangleVarArgsType(regType);
-                    assert(genMapRegNumToRegArgNum(regNum, regType) != (unsigned)-1);
-#endif // DEBUG
-
-                    newScope->scRegister = true;
-                    newScope->u1.scRegNum = (regNumberSmall)regNum;
-                }
-
-                isStructHandled = true;
-            }
-#endif // !defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-            if (!isStructHandled)
-            {
-#ifdef DEBUG
-                var_types regType = compiler->mangleVarArgsType(lclVarDsc1->TypeGet());
+            var_types regType = compiler->mangleVarArgsType(lclVarDsc1->TypeGet());
 #ifdef _TARGET_ARM_
-                if (lclVarDsc1->lvIsHfaRegArg)
-                {
-                    regType = lclVarDsc1->GetHfaType();
-                }
+            if (lclVarDsc1->lvIsHfaRegArg)
+            {
+                regType = lclVarDsc1->GetHfaType();
+            }
 #endif // _TARGET_ARM_
-                assert(genMapRegNumToRegArgNum(lclVarDsc1->lvArgReg, regType) != (unsigned)-1);
+            assert(genMapRegNumToRegArgNum(lclVarDsc1->lvArgReg, regType) != (unsigned)-1);
 #endif // DEBUG
 
-                newScope->scRegister =  true;
-                newScope->u1.scRegNum = (regNumberSmall)lclVarDsc1->lvArgReg;
-            }
+            newScope->scRegister     = true;
+            newScope->u1.scRegNum    = (regNumberSmall) lclVarDsc1->lvArgReg;
         }
         else
         {

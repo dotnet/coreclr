@@ -269,12 +269,9 @@ public:
     unsigned char       lvOverlappingFields :1;  // True when we have a struct with possibly overlapping fields
     unsigned char       lvContainsHoles     :1;  // True when we have a promoted struct that contains holes
     unsigned char       lvCustomLayout      :1;  // True when this struct has "CustomLayout"
-#if defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-    unsigned char       lvDontPromote:1;        // Should struct promoter consider this variable for promotion?
-#endif
-
 #ifdef _TARGET_ARM_
-    unsigned char       lvIsHfaRegArg   :1;        // Is this argument variable holding a HFA register argument.
+    unsigned char       lvDontPromote:1;        // Should struct promoter consider this variable for promotion?
+    unsigned char       lvIsHfaRegArg:1;        // Is this argument variable holding a HFA register argument.
     unsigned char       lvHfaTypeIsFloat:1;     // Is the HFA type float or double?
 #endif
 
@@ -293,7 +290,7 @@ public:
     unsigned char       lvSIMDType       :1; // This is a SIMD struct
     unsigned char       lvUsedInSIMDIntrinsic :1; // This tells lclvar is used for simd intrinsic
 #endif // FEATURE_SIMD
-    unsigned char       lvRegStruct      :1;     // This is a reg-sized non-field-addressed struct.
+    unsigned char       lvRegStruct : 1;     // This is a reg-sized non-field-addressed struct.
 
     union 
     {
@@ -308,26 +305,6 @@ public:
     unsigned char       lvFldOffset;
     unsigned char       lvFldOrdinal;
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-    regNumber lvRegNumForSlot(unsigned slotNum)
-    {
-        if (slotNum == 0)
-        {
-            return lvArgReg;
-        }
-        else if (slotNum == 1)
-        {
-            return lvOtherArgReg;
-        }
-        else
-        {
-            assert(false && "Invalid slotNum!");
-        }
-
-        unreached();
-    }
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-
 private:
 
     regNumberSmall      _lvRegNum;      // Used to store the register this variable is in (or, the low register of a register pair).
@@ -337,13 +314,7 @@ private:
 #if !defined(_TARGET_64BIT_)
     regNumberSmall      _lvOtherReg;    // Used for "upper half" of long var.
 #endif // !defined(_TARGET_64BIT_)
-
     regNumberSmall      _lvArgReg;      // The register in which this argument is passed.
-
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-    regNumberSmall      _lvOtherArgReg;    // Used for the second part of the struct passed in a register.
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-
 #ifndef LEGACY_BACKEND
     union
     {
@@ -411,7 +382,7 @@ public:
     regNumber           lvArgReg;
 
     regNumber GetArgReg() const
-    {
+{
         return (regNumber) _lvArgReg;
     }
 
@@ -420,22 +391,6 @@ public:
         _lvArgReg = (regNumberSmall) reg;
         assert(_lvArgReg == reg);
     }
-
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-    __declspec(property(get = GetOtherArgReg, put = SetOtherArgReg))
-        regNumber           lvOtherArgReg;
-
-    regNumber GetOtherArgReg() const
-    {
-        return (regNumber)_lvOtherArgReg;
-    }
-
-    void SetOtherArgReg(regNumber reg)
-    {
-        _lvOtherArgReg = (regNumberSmall)reg;
-        assert(_lvOtherArgReg == reg);
-    }
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
 
 #ifdef FEATURE_SIMD
     // Is this is a SIMD struct?
@@ -1184,15 +1139,6 @@ struct FuncInfoDsc
 
 struct fgArgTabEntry
 {
-
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-    fgArgTabEntry()
-    {
-        otherRegNum                     = REG_NA;
-        isStruct                        = false;  // is this a struct arg
-    }
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-
     GenTreePtr     node;        // Initially points at the Op1 field of 'parent', but if the argument is replaced with an GT_ASG or placeholder
                                 //  it will point at the actual argument in the gtCallLateArgs list.
     GenTreePtr     parent;      // Points at the GT_LIST node in the gtCallArgs for this argument
@@ -1218,13 +1164,6 @@ struct fgArgTabEntry
     bool           isHfaRegArg  :1; // True when the argument is passed as a HFA in FP registers.
     bool           isBackFilled :1; // True when the argument fills a register slot skipped due to alignment requirements of previous arguments.
     bool           isNonStandard:1; // True if it is an arg that is passed in a reg other than a standard arg reg
-
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-    regNumber             otherRegNum;              // The (second) register to use when passing this argument.
-    bool                  isStruct;                 // is this a struct arg
-
-    SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
 
     void SetIsHfaRegArg(bool hfaRegArg)
     {
@@ -1257,10 +1196,10 @@ class  fgArgInfo
     unsigned              nextSlotNum;  // Updatable slot count value
     unsigned              stkLevel;     // Stack depth when we make this call (for x86)
 
-    unsigned              argTableSize; // size of argTable array (equal to the argCount when done with fgMorphArgs)
-    bool                  argsComplete; // marker for state
-    bool                  argsSorted;   // marker for state
-    fgArgTabEntryPtr *    argTable;     // variable sized array of per argument descrption: (i.e. argTable[argTableSize])
+    unsigned              argTableSize;  // size of argTable array (equal to the argCount when done with fgMorphArgs)
+    bool                  argsComplete;  // marker for state
+    bool                  argsSorted;    // marker for state
+    fgArgTabEntryPtr *    argTable;      // variable sized array of per argument descrption: (i.e. argTable[argTableSize])
 
 private:
 
@@ -1278,24 +1217,11 @@ public:
                                         unsigned        numRegs,
                                         unsigned        alignment);
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
-    fgArgTabEntryPtr AddRegArg         (unsigned        argNum,
-                                        GenTreePtr      node,
-                                        GenTreePtr      parent,
-                                        regNumber       regNum,
-                                        unsigned        numRegs,
-                                        unsigned        alignment,
-                                        const bool      isStruct,
-                                        const regNumber otherRegNum = REG_NA,
-                                        const SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR* const structDescPtr = nullptr);
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
-
     fgArgTabEntryPtr AddStkArg         (unsigned        argNum,
                                         GenTreePtr      node,
                                         GenTreePtr      parent,
                                         unsigned        numSlots,
-                                        unsigned        alignment
-                                        FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(const bool isStruct));
+                                        unsigned        alignment);
 
     void             RemorphReset      ();
     fgArgTabEntryPtr RemorphRegArg     (unsigned        argNum,
@@ -1465,9 +1391,7 @@ public:
     DWORD expensiveDebugCheckLevel;
 #endif
 
-#if defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-    CORINFO_CLASS_HANDLE     GetStructClassHandle(GenTreePtr tree);
-#endif // defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+
 
 #ifdef _TARGET_ARM_
 
@@ -1479,6 +1403,8 @@ public:
     // floating-point registers.
     //
 
+    inline CORINFO_CLASS_HANDLE     GetHfaClassHandle(GenTreePtr tree);
+
     bool                            IsHfa(CORINFO_CLASS_HANDLE hClass);
     bool                            IsHfa(GenTreePtr tree);
 
@@ -1489,14 +1415,6 @@ public:
     unsigned                        GetHfaSlots(CORINFO_CLASS_HANDLE hClass);
 
 #endif // _TARGET_ARM_
-
-    //-------------------------------------------------------------------------
-    // The following is used for struct passing on System V system.
-    //
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
-    bool                            IsRegisterPassable(CORINFO_CLASS_HANDLE hClass);
-    bool                            IsRegisterPassable(GenTreePtr tree);
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
 
     //-------------------------------------------------------------------------
     // The following is used for validating format of EH table
@@ -2532,7 +2450,7 @@ public :
         unsigned char         fldOrdinal;
         var_types             fldType;
         unsigned              fldSize;
-        CORINFO_CLASS_HANDLE  fldTypeHnd;
+        CORINFO_CLASS_HANDLE  fldTypeHnd;      
     };
 
     // Info about struct to be promoted.
@@ -2721,10 +2639,6 @@ protected :
                                              CORINFO_CLASS_HANDLE retClsHnd);
     GenTreePtr          impFixupStructReturnType(GenTreePtr       op,
                                              CORINFO_CLASS_HANDLE retClsHnd);
-
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
-    var_types           impGetEightByteType(const SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR& structDesc, unsigned eightByteIndex);
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
 
 #ifdef DEBUG
     var_types           impImportJitTestLabelMark(int numArgs);
@@ -3092,12 +3006,9 @@ private:
     bool                impReturnInstruction(BasicBlock *block, int prefixFlags, OPCODE &opcode);
     void                impAbortInline(bool abortThisInlineOnly, bool contextDependent, const char *reason);
 
-#if defined(_TARGET_ARM_)
+#ifdef _TARGET_ARM_
     void                impMarkLclDstNotPromotable(unsigned tmpNum, GenTreePtr op, CORINFO_CLASS_HANDLE hClass);
-#endif
-
-#if defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-    GenTreePtr          impAssignStructToVar(GenTreePtr op, CORINFO_CLASS_HANDLE hClass);
+    GenTreePtr          impAssignHfaToVar(GenTreePtr op, CORINFO_CLASS_HANDLE hClass);
 #endif
 
     // A free list of linked list nodes used to represent to-do stacks of basic blocks.
@@ -3115,11 +3026,9 @@ private:
 
     bool                impIsValueType              (typeInfo* pTypeInfo);
     var_types           mangleVarArgsType           (var_types type);
-    // For CORECLR on Unix there is no vararg.
-#if FEATURE_VARARG_SUPPORTED
     regNumber           getCallArgIntRegister       (regNumber floatReg);
     regNumber           getCallArgFloatRegister     (regNumber intReg);
-#endif // FEATURE_VARARG_SUPPORTED
+
     //--------------------------- Inlining-------------------------------------
 
 #if defined(DEBUG) || MEASURE_INLINING
@@ -4171,9 +4080,10 @@ public:
 
     bool                fgCastNeeded(GenTreePtr tree, var_types toType);
     GenTreePtr          fgDoNormalizeOnStore(GenTreePtr tree);
-    GenTreePtr          fgMakeTmpArgNode(unsigned tmpVarNum FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(const bool passedInRegisters));
+    GenTreePtr          fgMakeTmpArgNode(unsigned tmpVarNum);
 
-    // The following check for loops that don't execute calls
+    /* The following check for loops that don't execute calls */
+
     bool                fgLoopCallMarked;
 
     void                fgLoopCallTest    (BasicBlock *srcBB,
@@ -4540,14 +4450,7 @@ private:
     GenTreePtr          fgMorphCast         (GenTreePtr     tree);
     GenTreePtr          fgUnwrapProxy       (GenTreePtr     objRef);
     GenTreeCall*        fgMorphArgs         (GenTreeCall*   call);
-    
-    void                fgMakeOutgoingStructArgCopy(
-                            GenTreeCall* call,
-                            GenTree* args,
-                            unsigned argIndex,
-                            CORINFO_CLASS_HANDLE copyBlkClass
-                            FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(const SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR* structDescPtr));
-
+    void                fgMakeOutgoingStructArgCopy(GenTreeCall* call, GenTree* args, unsigned argIndex, CORINFO_CLASS_HANDLE copyBlkClass);
     void                fgFixupStructReturn (GenTreePtr     call);
     GenTreePtr          fgMorphLocalVar     (GenTreePtr     tree);
     bool                fgAddrCouldBeNull   (GenTreePtr     addr);
@@ -4667,11 +4570,11 @@ private:
     void                fgInsertInlineeBlocks (InlineInfo * pInlineInfo);
     GenTreePtr          fgInlinePrependStatements(InlineInfo * inlineInfo);
 
-#if defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#ifdef _TARGET_ARM_
     GenTreePtr          fgGetStructAsStructPtr(GenTreePtr tree);
-    GenTreePtr          fgAssignStructInlineeToVar(GenTreePtr child, CORINFO_CLASS_HANDLE retClsHnd);
-    void                fgAttachStructInlineeToAsg(GenTreePtr tree, GenTreePtr child, CORINFO_CLASS_HANDLE retClsHnd);
-#endif // defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+    GenTreePtr          fgAssignHfaInlineeToVar(GenTreePtr child, CORINFO_CLASS_HANDLE retClsHnd);
+    void                fgAttachHfaInlineeToAsg(GenTreePtr tree, GenTreePtr child, CORINFO_CLASS_HANDLE retClsHnd);
+#endif
     static fgWalkPreFn  fgUpdateInlineReturnExpressionPlaceHolder;
 
 #ifdef DEBUG
@@ -6371,17 +6274,6 @@ public :
 
     void                        eeSetEHinfo(unsigned                 EHnumber,
                                             const CORINFO_EH_CLAUSE* clause);
-
-    // ICorStaticInfo wrapper functions
-
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-#ifdef DEBUG
-    static void                 dumpSystemVClassificationType(SystemVClassificationType ct);
-#endif // DEBUG
-
-    void                        eeGetSystemVAmd64PassStructInRegisterDescriptor(/*IN*/  CORINFO_CLASS_HANDLE structHnd,
-                                                                                /*OUT*/ SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR* structPassInRegDescPtr);
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
 
     // Utility functions
 
@@ -8541,11 +8433,6 @@ public:
 
     static HelperCallProperties s_helperCallProperties;
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-    var_types GetTypeFromClassificationAndSizes(SystemVClassificationType classType, int size);
-    var_types getEightByteType(SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc, unsigned slotNum);
-    void fgMorphSystemVStructArgs(GenTreeCall* call, bool hasStructArgument);
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
 }; // end of class Compiler
 
 // Inline methods of CompAllocator.
@@ -8578,6 +8465,7 @@ LclVarDsc::LclVarDsc(Compiler* comp)
     lvPerSsaData(comp->getAllocator())
 {
 }
+
 
 /*
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
