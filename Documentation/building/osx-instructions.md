@@ -101,7 +101,7 @@ Copy the runtime and corerun into the demo directory.
 Build the Framework Native Components
 =====================================
 
-    dotnet-mbp:corefx richlander$ src/Native/build.sh
+    dotnet-mbp:corefx richlander$ ./build.sh native
     dotnet-mbp:corefx richlander$ cp bin/OSX.x64.Debug/Native/*.dylib ~/coreclr-demo/runtime
 
 Build the Framework Managed Components
