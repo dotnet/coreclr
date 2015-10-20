@@ -290,7 +290,7 @@ add_compile_options(/MP) # Build with Multiple Processes (number of processes eq
 add_compile_options(/GS) # Buffer Security Check
 add_compile_options(/Zm200) # Specify Precompiled Header Memory Allocation Limit of 150MB
 add_compile_options(/wd4960 /wd4961 /wd4603 /wd4627 /wd4838 /wd4456 /wd4457 /wd4458 /wd4459 /wd4091 /we4640)
-add_compile_options(/Zi) # enable debugging information
+add_compile_options(/Z7) # enable debugging information
 
 if (CLR_CMAKE_PLATFORM_ARCH_I386)
   add_compile_options(/Gz)
