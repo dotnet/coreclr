@@ -105,7 +105,7 @@ Build the Framework Native Components
 ======================================
 
 ```
-ellismg@linux:~/git/corefx$ src/Native/build.sh
+ellismg@linux:~/git/corefx$ ./build.sh native
 ellismg@linux:~/git/corefx$ cp bin/Linux.x64.Debug/Native/*.so ~/coreclr-demo/runtime
 ```
 
