@@ -6631,7 +6631,7 @@ ClrDataAccess::GetMetaDataFromHost(PEFile* peFile,
 {
     DWORD imageTimestamp, imageSize, dataSize;
     void* buffer = NULL;
-    WCHAR uniPath[MAX_LONGPATH] = {0};
+    NewArrayHolder<WCHAR> uniPath = new WCHAR[MAX_LONGPATH];
     bool isAlt = false;
     bool isNGEN = false;
     DAC_INSTANCE* inst = NULL;
@@ -6664,7 +6664,7 @@ ClrDataAccess::GetMetaDataFromHost(PEFile* peFile,
             ulRvaHint,
             isNGEN,
             uniPath,
-            NumItems(uniPath)))
+            MAX_LONGPATH))
     {
         return NULL;
     }
@@ -6728,26 +6728,26 @@ ClrDataAccess::GetMetaDataFromHost(PEFile* peFile,
                 imageTimestamp,
                 imageSize,
                 uniPath,
-                NumItems(uniPath)))
+                MAX_LONGPATH))
         {
             goto ErrExit;
         }
         
 #if defined(FEATURE_CORESYSTEM)
         const WCHAR* ilExtension[] = {W("dll"), W("winmd")};
-        WCHAR ngenImageName[MAX_LONGPATH] = {0};
-        if (wcscpy_s(ngenImageName, NumItems(ngenImageName), uniPath) != 0)
+        NewArrayHolder<WCHAR> ngenImageName = new WCHAR[MAX_LONGPATH];
+        if (wcscpy_s(ngenImageName, MAX_LONGPATH, uniPath) != 0)
         {
             goto ErrExit;
         }
         for (unsigned i = 0; i < COUNTOF(ilExtension); i++)
         {
-            if (wcscpy_s(uniPath, NumItems(uniPath), ngenImageName) != 0)
+            if (wcscpy_s(uniPath, MAX_LONGPATH, ngenImageName) != 0)
             {
                 goto ErrExit;
             }
             // Transform NGEN image name into IL Image name
-            if (!GetILImageNameFromNgenImage(ilExtension[i], uniPath, NumItems(uniPath)))
+            if (!GetILImageNameFromNgenImage(ilExtension[i], uniPath, MAX_LONGPATH))
             {
                 goto ErrExit;
             }

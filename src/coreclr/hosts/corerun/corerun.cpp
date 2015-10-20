@@ -64,10 +64,10 @@ public:
 class HostEnvironment 
 {
     // The path to this module
-    wchar_t m_hostPath[MAX_LONGPATH];
+    wchar_t * m_hostPath;
 
     // The path to the directory containing this module
-    wchar_t m_hostDirectoryPath[MAX_LONGPATH];
+    wchar_t * m_hostDirectoryPath;
 
     // The name of this module, without the path
     wchar_t *m_hostExeName;
@@ -87,9 +87,11 @@ class HostEnvironment
     // On failure returns nullptr.
     HMODULE TryLoadCoreCLR(const wchar_t* directoryPath) {
 
-        wchar_t coreCLRPath[MAX_LONGPATH];
+        PathString coreCLRPathPS;
+        wchar_t * coreCLRPath = coreCLRPathPS.OpenUnicodeBuffer(wcslen(directoryPath) + wcslen(coreCLRDll));
         wcscpy_s(coreCLRPath, directoryPath);
         wcscat_s(coreCLRPath, coreCLRDll);
+        coreCLRPathPS.CloseBuffer();
 
         *m_log << W("Attempting to load: ") << coreCLRPath << Logger::endl;
 
@@ -107,24 +109,28 @@ class HostEnvironment
             return nullptr;
         }
 
-        wchar_t coreCLRLoadedPath[MAX_LONGPATH];
+        wchar_t * coreCLRLoadedPath = new wchar_t[MAX_LONGPATH];
         ::GetModuleFileNameW(result, coreCLRLoadedPath, MAX_LONGPATH);
 
         *m_log << W("Loaded: ") << coreCLRLoadedPath << Logger::endl;
 
+        delete [] coreCLRLoadedPath;
+        coreCLRLoadedPath = NULL;
         return result;
     }
 
 public:
     // The path to the directory that CoreCLR is in
-    wchar_t m_coreCLRDirectoryPath[MAX_LONGPATH];
+    wchar_t * m_coreCLRDirectoryPath;
 
     HostEnvironment(Logger *logger) 
         : m_log(logger), m_CLRRuntimeHost(nullptr) {
 
+            PathString m_hostPathPS;
+            m_hostPath = m_hostPathPS.OpenUnicodeBuffer(MAX_LONGPATH);
             // Discover the path to this exe's module. All other files are expected to be in the same directory.
             DWORD thisModuleLength = ::GetModuleFileNameW(::GetModuleHandleW(nullptr), m_hostPath, MAX_LONGPATH);
-
+            m_hostPathPS.CloseBuffer(thisModuleLength);
             // Search for the last backslash in the host path.
             int lastBackslashIndex;
             for (lastBackslashIndex = thisModuleLength-1; lastBackslashIndex >= 0; lastBackslashIndex--) {
@@ -133,8 +139,11 @@ public:
                 }
             }
 
+            PathString m_hostDirectoryPathPS;
+            m_hostDirectoryPath = m_hostDirectoryPathPS.OpenUnicodeBuffer(lastBackslashIndex+1);
             // Copy the directory path
             ::wcsncpy_s(m_hostDirectoryPath, m_hostPath, lastBackslashIndex + 1);
+            m_hostDirectoryPathPS.CloseBuffer();
 
             // Save the exe name
             m_hostExeName = m_hostPath + lastBackslashIndex + 1;
@@ -142,7 +151,7 @@ public:
             *m_log << W("Host directory: ")  << m_hostDirectoryPath << Logger::endl;
 
             // Check for %CORE_ROOT% and try to load CoreCLR.dll from it if it is set
-            wchar_t coreRoot[MAX_LONGPATH];
+            wchar_t * coreRoot = new wchar_t[MAX_LONGPATH];
             size_t outSize;
 			m_coreCLRModule = NULL; // Initialize this here since we don't call TryLoadCoreCLR if CORE_ROOT is unset.
             if (_wgetenv_s(&outSize, coreRoot, MAX_LONGPATH, W("CORE_ROOT")) == 0 && outSize > 0)
@@ -157,6 +166,8 @@ public:
                 *m_log << W("where CoreCLR.dll lives to help CoreRun.exe find it.") << Logger::endl;
             }
 
+            delete [] coreRoot;
+            coreRoot = NULL;
             // Try to load CoreCLR from the directory that coreRun is in
             if (!m_coreCLRModule) {
                 m_coreCLRModule = TryLoadCoreCLR(m_hostDirectoryPath);
@@ -165,17 +176,20 @@ public:
             if (!m_coreCLRModule) {
 
                 // Failed to load. Try to load from the well-known location.
-                wchar_t coreCLRInstallPath[MAX_LONGPATH];
+                wchar_t * coreCLRInstallPath = new wchar_t[MAX_LONGPATH];
                 ::ExpandEnvironmentStringsW(coreCLRInstallDirectory, coreCLRInstallPath, MAX_LONGPATH);
                 m_coreCLRModule = TryLoadCoreCLR(coreCLRInstallPath);
-
+                delete [] coreCLRInstallPath;
+                coreCLRInstallPath = NULL;
             }
 
             if (m_coreCLRModule) {
 
                 // Save the directory that CoreCLR was found in
+                PathString m_coreCLRDirectoryPathPS;
+                m_coreCLRDirectoryPath = m_coreCLRDirectoryPathPS.OpenUnicodeBuffer(MAX_LONGPATH);
                 DWORD modulePathLength = ::GetModuleFileNameW(m_coreCLRModule, m_coreCLRDirectoryPath, MAX_LONGPATH);
-
+                m_coreCLRDirectoryPathPS.CloseBuffer(modulePathLength);
                 // Search for the last backslash and terminate it there to keep just the directory path with trailing slash
                 for (lastBackslashIndex = modulePathLength-1; lastBackslashIndex >= 0; lastBackslashIndex--) {
                     if (m_coreCLRDirectoryPath[lastBackslashIndex] == W('\\')) {
@@ -204,12 +218,14 @@ public:
 
         for (int iExtension = 0; iExtension < countExtensions; iExtension++)
         {
-            wchar_t fileName[MAX_LONGPATH];
+            PathString fileNamePS;
+            int len = wcslen(fileNameWithoutExtension) + wcslen(rgTPAExtensions[iExtension]+1) + 2;
+            wchar_t * fileName = fileNamePS.OpenUnicodeBuffer(len);
             wcscpy_s(fileName, MAX_LONGPATH, W("\\")); // So that we don't match other files that end with the current file name
             wcscat_s(fileName, MAX_LONGPATH, fileNameWithoutExtension);
             wcscat_s(fileName, MAX_LONGPATH, rgTPAExtensions[iExtension] + 1);
             wcscat_s(fileName, MAX_LONGPATH, W(";")); // So that we don't match other files that begin with the current file name
-
+            fileNamePS.CloseBuffer();
             if (wcsstr(m_tpaList.CStr(), fileName))
             {
                 return true;
@@ -241,7 +257,7 @@ public:
     void AddFilesFromDirectoryToTPAList(wchar_t* targetPath, wchar_t** rgTPAExtensions, int countExtensions)
     {
         *m_log << W("Adding assemblies from ") << targetPath << W(" to the TPA list") << Logger::endl;
-        wchar_t assemblyPath[MAX_LONGPATH];
+        wchar_t * assemblyPath = new wchar_t[MAX_LONGPATH];
 
         for (int iExtension = 0; iExtension < countExtensions; iExtension++)
         {
@@ -295,6 +311,9 @@ public:
                 FindClose(findHandle);
             }
         }
+
+        delete [] assemblyPath;
+        assemblyPath = NULL; 
     }
 
     // Returns the semicolon-separated list of paths to runtime dlls that are considered trusted.
@@ -311,7 +330,7 @@ public:
                         };
 
             // Add files from %CORE_LIBRARIES% if specified
-            wchar_t coreLibraries[MAX_LONGPATH];
+            wchar_t * coreLibraries = new wchar_t[MAX_LONGPATH];
             size_t outSize;
             if (_wgetenv_s(&outSize, coreLibraries, MAX_LONGPATH, W("CORE_LIBRARIES")) == 0 && outSize > 0)
             {
@@ -325,6 +344,8 @@ public:
                 *m_log << W("path containing additional platform assemblies,") << Logger::endl;
             }
 
+            delete [] coreLibraries;
+            coreLibraries = NULL;
             AddFilesFromDirectoryToTPAList(m_coreCLRDirectoryPath, rgTPAExtensions, _countof(rgTPAExtensions));
         }
 
@@ -395,10 +416,10 @@ bool TryRun(const int argc, const wchar_t* argv[], Logger &log, const bool verbo
         return false;
     }
 
-    wchar_t appPath[MAX_LONGPATH] = W("");
-    wchar_t appNiPath[MAX_LONGPATH * 2] = W("");
-    wchar_t managedAssemblyFullName[MAX_LONGPATH] = W("");
-    wchar_t appLocalWinmetadata[MAX_LONGPATH] = W("");
+    wchar_t * appPath = new wchar_t[MAX_LONGPATH];
+    wchar_t * appNiPath;
+    wchar_t * managedAssemblyFullName;
+    wchar_t * appLocalWinmetadata;
     
     wchar_t* filePart = NULL;
     
@@ -408,31 +429,44 @@ bool TryRun(const int argc, const wchar_t* argv[], Logger &log, const bool verbo
         return false;
     } 
 
+    PathString managedAssemblyFullNamePS;
+    managedAssemblyFullName = managedAssemblyFullNamePS.OpenUnicodeBuffer(wcslen(appPath));
     wcscpy_s(managedAssemblyFullName, appPath);
+    managedAssemblyFullNamePS.CloseBuffer();
 
     *(filePart) = W('\0');
 
     log << W("Loading: ") << managedAssemblyFullName << Logger::endl;
    
+    PathString appLocalWinmetadataPS;
+    appLocalWinmetadata = appLocalWinmetadataPS.OpenUnicodeBuffer(wcslen(appPath) + wcslen(W("\\WinMetadata")));
     wcscpy_s(appLocalWinmetadata, appPath);
     wcscat_s(appLocalWinmetadata, W("\\WinMetadata"));
+    appLocalWinmetadataPS.CloseBuffer();
    
     DWORD dwAttrib = ::GetFileAttributes(appLocalWinmetadata);
     bool appLocalWinMDexists = dwAttrib != INVALID_FILE_ATTRIBUTES && (dwAttrib & FILE_ATTRIBUTE_DIRECTORY);
 
     if (!appLocalWinMDexists) {
+        appLocalWinmetadata = appLocalWinmetadataPS.OpenUnicodeBuffer(1);
         wcscpy_s(appLocalWinmetadata, W(""));
+        appLocalWinmetadataPS.CloseBuffer();
     }
+
+    PathString appNiPathPS;
+    int len = (wcslen(appPath)*2) + wcslen(W("NI")) + wcslen(W(";"));
+    appNiPath = appNiPathPS.OpenUnicodeBuffer(len):
     wcscpy_s(appNiPath, appPath);
     wcscat_s(appNiPath, W("NI"));
-    wcscat_s(appNiPath, MAX_LONGPATH * 2, W(";"));
-    wcscat_s(appNiPath, MAX_LONGPATH * 2, appPath);
+    wcscat_s(appNiPath, len+1, W(";"));
+    wcscat_s(appNiPath, len+1, appPath);
+    appNiPathPS.CloseBuffer();
 
     // Construct native search directory paths
-    wchar_t nativeDllSearchDirs[MAX_LONGPATH * 3];
+    wchar_t * nativeDllSearchDirs = new wchar_t[MAX_LONGPATH * 3];
 
     wcscpy_s(nativeDllSearchDirs, appPath);
-    wchar_t coreLibraries[MAX_LONGPATH];
+    wchar_t * coreLibraries = new wchar_t[MAX_LONGPATH];
     size_t outSize;
     if (_wgetenv_s(&outSize, coreLibraries, MAX_LONGPATH, W("CORE_LIBRARIES")) == 0 && outSize > 0)
     {
@@ -442,6 +476,12 @@ bool TryRun(const int argc, const wchar_t* argv[], Logger &log, const bool verbo
     wcscat_s(nativeDllSearchDirs, MAX_LONGPATH * 3, W(";"));
     wcscat_s(nativeDllSearchDirs, MAX_LONGPATH * 3, hostEnvironment.m_coreCLRDirectoryPath);
 
+    delete [] coreLibraries;
+    delete [] nativeDllSearchDirs;
+    delete [] appPath;
+    appPath = NULL;
+    coreLibraries = NULL;
+    nativeDllSearchDirs = NULL;
     // Start the CoreCLR
 
     ICLRRuntimeHost2 *host = hostEnvironment.GetCLRRuntimeHost();

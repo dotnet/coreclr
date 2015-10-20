@@ -9409,19 +9409,19 @@ HRESULT gc_heap::initialize_gc (size_t segment_size,
             FILE_ATTRIBUTE_NORMAL,
             NULL);
 #else // FEATURE_REDHAWK
-        char logfile_name[MAX_LONGPATH+1];
+        char * logfile_name = new (nothrow) char[MAX_LONGPATH+1];
         if (temp_logfile_name != 0)
         {
             int ret;
-            ret = WszWideCharToMultiByte(CP_ACP, 0, temp_logfile_name, -1, logfile_name, sizeof(logfile_name)-1, NULL, NULL);
+            ret = WszWideCharToMultiByte(CP_ACP, 0, temp_logfile_name, -1, logfile_name, MAX_LONGPATH, NULL, NULL);
             _ASSERTE(ret != 0);
             delete temp_logfile_name;
         }
 
         char szPid[20];
         sprintf_s(szPid, _countof(szPid), ".%d", GetCurrentProcessId());
-        strcat_s(logfile_name, _countof(logfile_name), szPid);
-        strcat_s(logfile_name, _countof(logfile_name), ".log");
+        strcat_s(logfile_name, MAX_LONGPATH, szPid);
+        strcat_s(logfile_name, MAX_LONGPATH, ".log");
 
         gc_log = CreateFileA(
             logfile_name,
@@ -9431,6 +9431,9 @@ HRESULT gc_heap::initialize_gc (size_t segment_size,
             CREATE_ALWAYS,
             FILE_ATTRIBUTE_NORMAL,
             NULL);
+
+		delete [] logfile_name;
+		logfile_name = NULL;
 #endif // FEATURE_REDHAWK
 
         if (gc_log == INVALID_HANDLE_VALUE)

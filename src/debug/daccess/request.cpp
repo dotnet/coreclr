@@ -1269,10 +1269,10 @@ ClrDataAccess::GetMethodDescName(CLRDATA_ADDRESS methodDesc, unsigned int count,
             Module* pModule = pMD->GetModule();
             if (pModule)
             {
-                WCHAR path[MAX_LONGPATH];
+                WCHAR * path = new WCHAR[MAX_LONGPATH];
                 COUNT_T nChars = 0;
-                if (pModule->GetPath().DacGetUnicode(NumItems(path), path, &nChars) &&
-                    nChars > 0 && nChars <= NumItems(path))
+                if (pModule->GetPath().DacGetUnicode(MAX_LONGPATH, path, &nChars) &&
+                    nChars > 0 && nChars <= MAX_LONGPATH)
                 {
                     WCHAR* pFile = path + nChars - 1;
                     while ((pFile >= path) && (*pFile != W('\\')))
@@ -1287,6 +1287,9 @@ ClrDataAccess::GetMethodDescName(CLRDATA_ADDRESS methodDesc, unsigned int count,
                         hr = S_OK;
                     }
                 }
+
+                delete [] path;
+                path = NULL;
             }
 #ifdef FEATURE_MINIMETADATA_IN_TRIAGEDUMPS
             }

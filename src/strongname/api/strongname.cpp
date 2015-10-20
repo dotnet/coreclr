@@ -2631,8 +2631,8 @@ BOOLEAN RehashModules (SN_LOAD_CTX *pLoadCtx, LPCWSTR wszFilePath) {
     DWORD               cbNewFileHash = 0;
     DWORD               cchDirectory;
     DWORD               cchFullFile;
-    CHAR                szFullFile[MAX_LONGPATH + 1];
-    WCHAR               wszFullFile[MAX_LONGPATH + 1];
+    NewArrayHolder<CHAR> szFullFile = new CHAR[MAX_LONGPATH + 1];
+    NewArrayHolder<WCHAR> wszFullFile = new WCHAR[MAX_LONGPATH + 1];
     LPCWSTR             pszSlash;
     DWORD               cchFile;
     IMDInternalImport  *pMetaDataImport = NULL;
