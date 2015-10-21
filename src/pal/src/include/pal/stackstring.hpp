@@ -12,8 +12,7 @@ class StackString
 private:
     T m_innerBuffer[STACKCOUNT + 1];
     T * m_buffer;
-    SIZE_T m_size; // actual allocated size
-    SIZE_T m_count; // actual length of string
+    SIZE_T m_count; // actual allocated count
 
     void NullTerminate()
     {
@@ -46,7 +45,6 @@ private:
         DeleteBuffer();
         m_buffer = newBuffer;
         m_count = count;
-        m_size = count+1;
 
         return;
     }
@@ -61,7 +59,6 @@ private:
             }
             else
             {
-                m_size = STACKCOUNT+1;
                 m_buffer = m_innerBuffer;
                 m_count = count;
             }
@@ -69,14 +66,9 @@ private:
         else if (m_innerBuffer == m_buffer)
         {
             if (count > STACKCOUNT)
-            {
                 ReallocateBuffer(count);
-            }
             else
-            {
                 m_count = count;
-                m_size = STACKCOUNT+1;
-            }
         }
         else
         {
@@ -120,7 +112,7 @@ public:
     
     SIZE_T GetSizeOf() const
     {
-        return m_size * sizeof(T);
+        return (m_count+1) * sizeof(T);
     }
 
     CONST T * GetString() const

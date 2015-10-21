@@ -24,7 +24,6 @@ Revision History:
 #include "pal/palinternal.h"
 #include "pal/dbgmsg.h"
 #include "pal/file.h"
-#include "pal/stackstring.hpp"
 
 #if HAVE_ALLOCA_H
 #include <alloca.h>
@@ -196,10 +195,8 @@ RemoveDirectoryA(
 {
     DWORD dwLastError = 0;
     BOOL  bRet = FALSE;
-    PathCharString mb_dirPathString;
-    size_t length;
-    char * mb_dir;
-    
+    char  mb_dir[MAX_LONGPATH];
+
     PERF_ENTRY(RemoveDirectoryA);
     ENTRY("RemoveDirectoryA(lpPathName=%p (%s))\n",
           lpPathName,
@@ -211,17 +208,14 @@ RemoveDirectoryA(
         goto done;
     }
 
-    length = strlen(lpPathName);
-    mb_dir = mb_dirPathString.OpenStringBuffer(length);
-    if (strncpy_s (mb_dir, sizeof(char) * (length+1), lpPathName, MAX_LONGPATH) != SAFECRT_SUCCESS)
+    mb_dir[MAX_LONGPATH - 1] = '\0';
+    if (strncpy_s (mb_dir, sizeof(mb_dir), lpPathName, MAX_LONGPATH) != SAFECRT_SUCCESS)
     {
-        mb_dirPathString.CloseBuffer(length);
         WARN("mb_dir is larger than MAX_LONGPATH (%d)!\n", MAX_LONGPATH);
         dwLastError = ERROR_FILENAME_EXCED_RANGE;
         goto done;
     }
 
-    mb_dirPathString.CloseBuffer(length);
     bRet = RemoveDirectoryHelper (mb_dir, &dwLastError);
 
 done:
@@ -246,12 +240,10 @@ PALAPI
 RemoveDirectoryW(
          IN LPCWSTR lpPathName)
 {
-    PathCharString mb_dirPathString;
+    char  mb_dir[MAX_LONGPATH];
     int   mb_size;
     DWORD dwLastError = 0;
     BOOL  bRet = FALSE;
-    size_t length;
-    char * mb_dir;
 
     PERF_ENTRY(RemoveDirectoryW);
     ENTRY("RemoveDirectoryW(lpPathName=%p (%S))\n",
@@ -263,13 +255,9 @@ RemoveDirectoryW(
         dwLastError = ERROR_PATH_NOT_FOUND;
         goto done;
     }
-
-    length = (PAL_wcslen(lpPathName)+1) * 3;
-    mb_dir = mb_dirPathString.OpenStringBuffer(length);
-    mb_size = WideCharToMultiByte( CP_ACP, 0, lpPathName, -1, mb_dir, length,
+    
+    mb_size = WideCharToMultiByte( CP_ACP, 0, lpPathName, -1, mb_dir, MAX_LONGPATH,
                                    NULL, NULL );
-    mb_dirPathString.CloseBuffer(mb_size);
-
     if( mb_size == 0 )
     {
         dwLastError = GetLastError();
@@ -441,11 +429,9 @@ SetCurrentDirectoryW(
 {
     BOOL bRet;
     DWORD dwLastError = 0;
-    PathCharString dirPathString;
+    char dir[MAX_LONGPATH];
     int  size;
-    size_t length;
-    char * dir;
-    
+
     PERF_ENTRY(SetCurrentDirectoryW);
     ENTRY("SetCurrentDirectoryW(lpPathName=%p (%S))\n",
           lpPathName?lpPathName:W16_NULLSTRING,
@@ -461,12 +447,8 @@ SetCurrentDirectoryW(
         goto done;
     }
 
-    length = (PAL_wcslen(lpPathName)+1) * 3;
-    dir = dirPathString.OpenStringBuffer(length);
-    size = WideCharToMultiByte( CP_ACP, 0, lpPathName, -1, dir, length,
+    size = WideCharToMultiByte( CP_ACP, 0, lpPathName, -1, dir, MAX_LONGPATH,
                                 NULL, NULL );
-    dirPathString.CloseBuffer(size);
-    
     if( size == 0 )
     {
         dwLastError = GetLastError();
