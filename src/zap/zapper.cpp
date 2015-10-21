@@ -731,7 +731,7 @@ void Zapper::LoadAndInitializeJITForNgen(LPCWSTR pwzJitName, OUT HINSTANCE* phJi
     HRESULT hr = E_FAIL;
 
 #ifdef FEATURE_MERGE_JIT_AND_ENGINE
-    WCHAR CoreClrFolder[MAX_LONGPATH + 1];
+    NewArrayHolder<WCHAR> CoreClrFolder = new WCHAR[MAX_LONGPATH + 1];
     extern HINSTANCE g_hThisInst;
     if (WszGetModuleFileName(g_hThisInst, CoreClrFolder, MAX_LONGPATH))
     {
@@ -1462,10 +1462,13 @@ void Zapper::PrintAssemblyVersionInfo(IAssemblyName *pName, SString &s)
     //
 
     WCHAR szGuid[64];
-    WCHAR path[MAX_LONGPATH];
+    WCHAR * path;
     DWORD cPath = MAX_LONGPATH;
+	PathString tempPS;
 
+	path = tempPS.OpenUnicodeBuffer(cPath);
     IfFailThrow(QueryNativeAssemblyInfo(pName, path, &cPath));
+	tempPS.CloseBuffer(cPath);
 
     // The LoadLibrary call fails occasionally in the lab due to sharing violation.  Retry when needed.
     const int SHARING_VIOLATION_RETRY_TIMES = 10;
@@ -2213,11 +2216,14 @@ void Zapper::CreatePdbInCurrentDomain(BSTR pAssemblyPathOrName, BSTR pNativeImag
         // Now is a good time to make sure pNativeImagePath is the same native image
         // fusion loaded
         {
-            WCHAR wzZapImagePath[MAX_LONGPATH] = {0};
+            WCHAR * wzZapImagePath;
             DWORD dwZapImagePathLength = MAX_LONGPATH;
-
+			PathString tempPS;
+			wzZapImagePath = tempPS.OpenUnicodeBuffer(dwZapImagePathLength);
+			bool r = m_pEECompileInfo->CheckAssemblyZap(hAssembly, wzZapImagePath, &dwZapImagePathLength);
+			tempPS.CloseBuffer(dwZapImagePathLength);
             hr = E_FAIL;
-            if (m_pEECompileInfo->CheckAssemblyZap(hAssembly, wzZapImagePath, &dwZapImagePathLength))
+            if (r)
             {
                 if (_wcsicmp(wzZapImagePath, pNativeImagePath) != 0)
                 {
@@ -2386,10 +2392,13 @@ void Zapper::ComputeDependenciesInCurrentDomain(LPCWSTR pAssemblyString, CORCOMP
     // Check if we have a native image already, and if so get its GUID
     //
 
-    WCHAR zapManifestPath[MAX_LONGPATH];
+    WCHAR * zapManifestPath;
     DWORD cZapManifestPath = MAX_LONGPATH;
-    if (pNativeImageSig &&
-        m_pEECompileInfo->CheckAssemblyZap(hAssembly, zapManifestPath, &cZapManifestPath))
+	PathString tempPS;
+	zapManifestPath = tempPS.OpenUnicodeBuffer(cZapManifestPath);
+	bool r = m_pEECompileInfo->CheckAssemblyZap(hAssembly, zapManifestPath, &cZapManifestPath);
+	tempPS.CloseBuffer(cZapManifestPath);
+    if (pNativeImageSig && r)
     {
         NonVMComHolder<INativeImageInstallInfo> pNIInstallInfo;
 
@@ -2821,14 +2830,20 @@ Exit:
 #ifdef FEATURE_FUSION
 BOOL Zapper::CheckAssemblyUpToDate(CORINFO_ASSEMBLY_HANDLE hAssembly, CORCOMPILE_NGEN_SIGNATURE * pNativeImageSig)
 {
-    WCHAR zapManifestPath[MAX_LONGPATH];
+    WCHAR * zapManifestPath;
     DWORD cZapManifestPath = MAX_LONGPATH;
-
-    if (!m_pEECompileInfo->CheckAssemblyZap(
+	PathString tempPS;
+	zapManifestPath = tempPS.OpenUnicodeBuffer(cZapManifestPath);
+	bool r = m_pEECompileInfo->CheckAssemblyZap(
         hAssembly,
-        zapManifestPath, &cZapManifestPath))
+        zapManifestPath, &cZapManifestPath);
+	tempPS.CloseBuffer(cZapManifestPath);
+    if (!r)
+    {
         return FALSE;
+    }
 
+	tempPS.CloseBuffer(cZapManifestPath);
     if (pNativeImageSig)
     {
         NonVMComHolder<INativeImageInstallInfo> pNIInstallInfo;
@@ -2861,11 +2876,15 @@ BOOL Zapper::TryToInstallFromRepository(CORINFO_ASSEMBLY_HANDLE hAssembly, CORCO
     // First see if the NI is available in a folder named "NGen" under the CLR location.
     // This folder is used by CBS to store build lab generated NIs.  Moving files out of
     // this folder might confuse CBS, so we hard link NIs from this folder into the NIC.
-    WCHAR wszNGenPath[MAX_LONGPATH];
-    DWORD dwNGenPathLen = COUNTOF(wszNGenPath);
+    WCHAR * wszNGenPath;
+	PathString tempPS;	
+    DWORD dwNGenPathLen = MAX_LONGPATH;
+	DWORD len = dwNGenPathLen + wcslen(W("NativeImages"));
+	wszNGenPath = tempPS.OpenUnicodeBuffer(len);
     IfFailThrow(GetInternalSystemDirectory(wszNGenPath, &dwNGenPathLen));
 
-    wcscat_s(wszNGenPath, COUNTOF(wszNGenPath), W("NativeImages"));
+    wcscat_s(wszNGenPath, len, W("NativeImages"));
+	tempPS.CloseBuffer(wcslen(W("NativeImages")) + dwNGenPathLen);
     if (TryToInstallFromRepositoryDir(StackSString(wszNGenPath), strSimpleName,
                                       pNativeImageSig, &fHitMismatchedVersion, &fHitMismatchedDependencies, TRUE))
     {
@@ -3099,9 +3118,13 @@ void Zapper::InstallFromRepository(LPCWSTR lpszNativeImage,
         PrintFusionCacheEntry(LogLevel_Info, pName);
     }
 
-    WCHAR zapManifestPath[MAX_LONGPATH];
-    DWORD cPath = MAX_LONGPATH;
+    WCHAR * zapManifestPath;
+	PathString tempPS;
+	DWORD cPath = MAX_LONGPATH;
+	zapManifestPath = tempPS.OpenUnicodeBuffer(cPath);
+	
     IfFailThrow(pAssemblyLocation->GetPath(zapManifestPath, &cPath));
+	tempPS.CloseBuffer(cPath);
 
     if (pNativeImageSig)
     {
@@ -3189,7 +3212,7 @@ void Zapper::TryCleanDirectory(Zapper * pZapper)
     // @CONSIDER: If this fails, block for some time, and try again.
     // This will give more time for programs like Anti-virus software
     // to release the file handle.
-    pZapper->TryCleanDirectory(pZapper->m_outputPath);
+    pZapper->TryCleanDirectory((pZapper->m_outputPath).GetUnicode());
 }
 
 typedef Wrapper<Zapper*, DoNothing<Zapper*>, Zapper::TryCleanDirectory, NULL>
@@ -3209,8 +3232,8 @@ void Zapper::GetOutputFolder()
        will move the files to the NIC preserving the security attributes.
        Now other users cannot use the ngen images, which is bad.
     */
-    WCHAR tempFolder[MAX_LONGPATH];
-    DWORD tempFolderLen = NumItems(tempFolder);
+    NewArrayHolder<WCHAR> tempFolder = new WCHAR[MAX_LONGPATH];
+    DWORD tempFolderLen = MAX_LONGPATH;
     IfFailThrow(GetCachePath(ASM_CACHE_ZAP, tempFolder, &tempFolderLen));
 
     // Create the folder "NIC"
@@ -3232,14 +3255,16 @@ void Zapper::GetOutputFolder()
     // active use because process ID is unique), increment N, and try again.  Give up if N gets too large.
     for (DWORD n = 0; ; n++)
     {
-        swprintf_s(m_outputPath, W("%s\\%x-%x"), (LPCWSTR)tempPath, GetCurrentProcessId(), n);
-        if (WszCreateDirectory(m_outputPath, NULL))
+    	WCHAR * tempPath = new WCHAR[wcslen(tempPath)+50];
+        swprintf_s(tempPath, W("%s\\%x-%x"), (LPCWSTR)tempPath, GetCurrentProcessId(), n);
+		m_outputPath.Set(tempPath);
+        if (WszCreateDirectory(m_outputPath.GetUnicode(), NULL))
             break;
 
         if (GetLastError() != ERROR_ALREADY_EXISTS)
             ThrowLastError();
 
-        TryCleanDirectory(m_outputPath);
+        TryCleanDirectory(m_outputPath.GetUnicode());
 
         if (n >= 255)
         {
@@ -3270,7 +3295,7 @@ void Zapper::CopyAndInstallFromRepository(LPCWSTR lpszNativeImageDir,
     
     //local variable fixes gcc overload resolution.
     SString literalPathSep(SString::Literal, "\\");
-    strTempNativeImage.Set(m_outputPath, literalPathSep, lpszNativeImageName);
+    strTempNativeImage.Set(m_outputPath.GetUnicode(), literalPathSep, lpszNativeImageName);
 
     if (useHardLink)
     {
@@ -3290,7 +3315,7 @@ void Zapper::CopyAndInstallFromRepository(LPCWSTR lpszNativeImageDir,
     {
         // Copy everything in the directory over. Blindly copying everything over
         // saves us from dealing with external modules.
-        CopyDirectory(lpszNativeImageDir, m_outputPath);
+        CopyDirectory(lpszNativeImageDir, m_outputPath.GetUnicode());
     }
 
     InstallFromRepository(strTempNativeImage.GetUnicode(), pNativeImageSig);
@@ -3570,11 +3595,17 @@ void Zapper::CompileAssembly(CORCOMPILE_NGEN_SIGNATURE * pNativeImageSig)
         const WCHAR * pathend = wcsrchr( assemblyPath, DIRECTORY_SEPARATOR_CHAR_W );
         if( pathend )
         {
-            wcsncpy_s(m_outputPath, _countof(m_outputPath), assemblyPath, pathend - assemblyPath);
+        	int len = wcslen(pathend);
+        	WCHAR * tempPath = new WCHAR[len];
+            wcsncpy_s(tempPath, len, assemblyPath, pathend - assemblyPath);
+			m_outputPath.Set(tempPath);
+			delete [] tempPath;
         }
         else
         {
-            wcscpy_s(m_outputPath, _countof(m_outputPath), W(".") DIRECTORY_SEPARATOR_STR_W);
+        	WCHAR tempPath[10];
+            wcscpy_s(tempPath, _countof(tempPath), W(".") DIRECTORY_SEPARATOR_STR_W);
+			m_outputPath.Set(tempPath);
         }
     }
 #endif // FEATURE_FUSION
@@ -3641,14 +3672,14 @@ void Zapper::CompileAssembly(CORCOMPILE_NGEN_SIGNATURE * pNativeImageSig)
 
         // Write the main assembly module
 #ifdef FEATURE_FUSION
-        strNativeImagePath.Set(m_outputPath, SL(DIRECTORY_SEPARATOR_STR_W), strAssemblyName, 
+        strNativeImagePath.Set(m_outputPath.GetUnicode(), SL(DIRECTORY_SEPARATOR_STR_W), strAssemblyName, 
             pAssemblyModule->m_ModuleDecoder.IsDll() ? SL(W(".dll")) : SL(W(".exe")));
 #else // FEATURE_FUSION
         strNativeImagePath = GetOutputFileName();
 
         if (strNativeImagePath.IsEmpty())
         {
-            strNativeImagePath.Set(m_outputPath, SL(DIRECTORY_SEPARATOR_STR_W), strAssemblyName, 
+            strNativeImagePath.Set(m_outputPath.GetUnicode(), SL(DIRECTORY_SEPARATOR_STR_W), strAssemblyName, 
                 pAssemblyModule->m_ModuleDecoder.IsDll() ? SL(W(".ni.dll")) : SL(W(".ni.exe")));
         }
 #endif // FEATURE_FUSION
@@ -3815,7 +3846,7 @@ void Zapper::CompileNonManifestModules(ULONG hashAlgId, SArray<HANDLE> &hFiles)
 
                 pModule->SetPdbFileName(SString(strFileNameWithoutExt, SL(W(".ni.pdb"))));
 
-                strNativeImagePath.Set(m_outputPath, SL(W("\\")), wszFileName);
+                strNativeImagePath.Set(m_outputPath.GetUnicode(), SL(W("\\")), wszFileName);
 
                 hFile = pModule->SaveImage(strNativeImagePath.GetUnicode(), NULL);
                 hFiles.Append(hFile);
@@ -3958,7 +3989,7 @@ void Zapper::InstallCompiledAssembly(LPCWSTR szAssemblyName, LPCWSTR szNativeIma
         if (!WszCreateDirectory(destPath, NULL))
             ThrowLastError();
 
-        CopyDirectory(m_outputPath, destPath);
+        CopyDirectory(m_outputPath.GetUnicode(), destPath);
     }
 
     NonVMComHolder<IAssemblyName> pName;

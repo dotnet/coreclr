@@ -7592,8 +7592,11 @@ void CordbProcess::VerifyControlBlock()
     }
 
 #ifdef _DEBUG
-    char buf[MAX_LONGPATH];
-    DWORD len = GetEnvironmentVariableA("CORDBG_NotCompatibleTest", buf, sizeof(buf));
+    char * buf;
+    PathString bufPS;
+    buf = bufPS.OpenANSIBuffer(MAX_LONGPATH);
+    DWORD len = GetEnvironmentVariableA("CORDBG_NotCompatibleTest", buf, MAX_LONGPATH);
+    bufPS.CloseBuffer(len);
     _ASSERTE(len < sizeof(buf));
 
     if (len > 0)

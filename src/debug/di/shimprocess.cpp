@@ -1834,20 +1834,21 @@ HRESULT ShimProcess::FindLoadedCLR(CORDB_ADDRESS * pClrInstanceId)
 HMODULE ShimProcess::GetDacModule()
 {
     
-    HModuleHolder hDacDll;
+    HModuleHolder hDacDll;    
 
 #ifdef FEATURE_PAL
     // For now on Unix we'll just search for DAC in the default location.
     // Debugger can always control it by setting LD_LIBRARY_PATH env var.
-    WCHAR wszAccessDllPath[MAX_LONGPATH] = MAKEDLLNAME_W(W("mscordaccore"));
+    
+    WCHAR wszAccessDllPath[50] = MAKEDLLNAME_W(W("mscordaccore"));
 
-#else    
-    WCHAR wszAccessDllPath[MAX_LONGPATH];
+#else
+    NewArrayHolder<WCHAR> wszAccessDllPath = new WCHAR[MAX_LONGPATH];
     //
     // Load the access DLL from the same directory as the the current CLR Debugging Services DLL.
     //
 
-    if (!WszGetModuleFileName(GetModuleInst(), wszAccessDllPath, NumItems(wszAccessDllPath)))
+    if (!WszGetModuleFileName(GetModuleInst(), wszAccessDllPath, MAX_LONGPATH))
     {
         ThrowLastError();
     }
@@ -1870,8 +1871,8 @@ HMODULE ShimProcess::GetDacModule()
 #endif
 
     if (_snwprintf_s(pPathTail, 
-                     _countof(wszAccessDllPath) + (wszAccessDllPath - pPathTail),
-                     NumItems(wszAccessDllPath) - (pPathTail - wszAccessDllPath),
+                     MAX_LONGPATH + (wszAccessDllPath - pPathTail),
+                     MAX_LONGPATH - (pPathTail - wszAccessDllPath),
                      MAKEDLLNAME_W(W("mscordac%s")), 
                      eeFlavor) <= 0)
     {

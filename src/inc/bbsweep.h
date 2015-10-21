@@ -277,8 +277,8 @@ private:
             }
 #endif // !FEATURE_CORESYSTEM
 
-            WCHAR objectName[MAX_LONGPATH] = {0};
-            WCHAR objectNamePrefix[MAX_LONGPATH] = {0};
+            WCHAR * objectName = new WCHAR[MAX_LONGPATH];
+            WCHAR * objectNamePrefix = new WCHAR[MAX_LONGPATH];
             GetObjectNamePrefix(processID, fromRuntime, objectNamePrefix);
             // if there is a non-empty name prefix, append a '\'
             if (objectNamePrefix[0] != '\0')
@@ -295,6 +295,11 @@ private:
             hTerminationEvent    = ::WszCreateEvent(pSecurityAttributes, true, false, NULL);
             swprintf_s(objectName, MAX_LONGPATH, W("%sBBSweep_hProfWriterSemaphore"), objectNamePrefix);
             hProfWriterSemaphore = ::WszCreateSemaphore(pSecurityAttributes, MAX_COUNT, MAX_COUNT, objectName);
+
+			delete [] objectName;
+			delete [] objectNamePrefix;
+			objectName = NULL;
+			objectNamePrefix = NULL;
 
 #ifndef FEATURE_CORESYSTEM // @CORESYSTEMTODO
 cleanup:
@@ -373,7 +378,8 @@ cleanup:
             // construct the object name prefix using AppContainerNamedObjectPath
             if (OpenProcessToken(hProcess, TOKEN_QUERY, &hToken) && IsAppContainerProcess(hToken))
             {
-                WCHAR appxNamedObjPath[MAX_LONGPATH] = { 0 };
+                WCHAR * appxNamedObjPath;
+				PathString appxNamedObjPathPS;
                 ULONG appxNamedObjPathBufLen = 0;
 
                 if (fromRuntime)
@@ -398,7 +404,9 @@ cleanup:
                         // for bbsweepclr sweeping a Metro app, create the object specifying the AppContainer's path
                         DWORD sessionId = 0;
                         ProcessIdToSessionId(processID, &sessionId);
-                        pfnGetAppContainerNamedObjectPath(hToken, NULL, sizeof (appxNamedObjPath) / sizeof (WCHAR), appxNamedObjPath, &appxNamedObjPathBufLen);
+						appxNamedObjPath = appxNamedObjPathPS.OpenUnicodeBuffer(MAX_LONGPATH);
+                        pfnGetAppContainerNamedObjectPath(hToken, NULL, MAX_LONGPATH, appxNamedObjPath, &appxNamedObjPathBufLen);
+						appxNamedObjPathPS.CloseBuffer(appxNamedObjPathBufLen);
                         swprintf_s(objectNamePrefix, MAX_LONGPATH, W("Global\\Session\\%d\\%s"), sessionId, appxNamedObjPath);
                     }
                 }

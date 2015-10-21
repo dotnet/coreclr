@@ -1112,17 +1112,21 @@ HANDLE ZapImage::GenerateFile(LPCWSTR wszOutputFileName, CORCOMPILE_NGEN_SIGNATU
         memcpy(&rsds.signature.Data4, &asBytes[8], 8);
 
         _ASSERTE(!m_pdbFileName.IsEmpty());
-        ZeroMemory(&rsds.path[0], sizeof(rsds.path));
-        if (WideCharToMultiByte(CP_UTF8, 
+        
+		int len = WideCharToMultiByte(CP_UTF8, 
                                 0, 
                                 m_pdbFileName.GetUnicode(),
                                 m_pdbFileName.GetCount(), 
                                 &rsds.path[0], 
                                 sizeof(rsds.path) - 1, // -1 to keep the buffer zero terminated
                                 NULL, 
-                                NULL) == 0)
+                                NULL);
+		
+        if (len == 0)
+        {
             ThrowHR(E_FAIL);
-        
+        }	
+
         ULONG cbWritten = 0;
         filePos.QuadPart = m_pTextSection->GetFilePos() + (m_pNGenPdbDebugData->GetRVA() - m_pTextSection->GetRVA());
         IfFailThrow(outputStream.Seek(filePos, STREAM_SEEK_SET, NULL));

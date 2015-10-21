@@ -370,7 +370,7 @@ bool IsCoreClrWithGoodHeader(HANDLE hProcess, HMODULE hModule)
 {
     HRESULT hr = S_OK;
 
-    WCHAR modulePath[MAX_LONGPATH];
+    NewArrayHolder<WCHAR> modulePath = new WCHAR[MAX_LONGPATH];
     modulePath[0] = W('\0');
     if(0 == GetModuleFileNameEx(hProcess, hModule, modulePath, MAX_LONGPATH))
     {
@@ -618,7 +618,7 @@ BYTE* GetRemoteModuleBaseAddress(DWORD dwPID, LPCWSTR szFullModulePath)
     DWORD countModules = min(cbNeeded, sizeof(modules)) / sizeof(HMODULE);
     for(DWORD i = 0; i < countModules; i++)
     {
-        WCHAR modulePath[MAX_LONGPATH];
+        NewArrayHolder<WCHAR> modulePath = new WCHAR[MAX_LONGPATH];
         if(0 == GetModuleFileNameEx(hProcess, modules[i], modulePath, MAX_LONGPATH))
         {
             continue;
@@ -814,7 +814,7 @@ void GetDbiFilenameNextToRuntime(DWORD pidDebuggee, HMODULE hmodTargetCLR, SStri
     // Step 1: (pid, hmodule) --> full path
     // 
     HandleHolder hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pidDebuggee);
-    WCHAR modulePath[MAX_LONGPATH];
+    NewArrayHolder<WCHAR> modulePath = new WCHAR[MAX_LONGPATH];
     if(0 == GetModuleFileNameEx(hProcess, hmodTargetCLR, modulePath, MAX_LONGPATH))
     {
         ThrowHR(E_FAIL);
