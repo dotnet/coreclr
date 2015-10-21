@@ -956,8 +956,8 @@ ValueNum ValueNumStore::VNForFunc(var_types typ, VNFunc func, ValueNum arg0VN, V
         // comparison would return false, an unordered comparison
         // will return true if any operands are a NaN. We only perform
         // ordered NaN comparison in EvalComparison.
-        if ((arg0IsFloating && _isnan(GetConstantDouble(arg0VN))) ||
-            (arg1IsFloating && _isnan(GetConstantDouble(arg1VN))))
+        if ((arg0IsFloating && isnan(GetConstantDouble(arg0VN))) ||
+            (arg1IsFloating && isnan(GetConstantDouble(arg1VN))))
         {
             canFold = false;
         }

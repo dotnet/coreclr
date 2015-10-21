@@ -13,8 +13,8 @@
 **               PAL_Terminate
 **				 Fail
 **               fabs
-**               _finite
-**               _isnan
+**               isfinite
+**               isnan
 ** 
 
 **
@@ -112,7 +112,7 @@ INT __cdecl main(INT argc, CHAR **argv)
         result = log10( indefinite[i] );
 
         /* The test is valid when the function returns a defined result */
-        if( ! _isnan( result ) )
+        if( ! isnan( result ) )
         {
             Fail( "log10(%g) returned %20.10f"
                   " when it should have returned -1.#IND00000000",
@@ -123,7 +123,7 @@ INT __cdecl main(INT argc, CHAR **argv)
 
     /* log(0) is a special case */
     result = log10( 0.0 );
-    if( _finite( result ) )
+    if( isfinite( result ) )
     {
             Fail( "log10(%g) returned %20.10f"
                   " when it should have returned -1.#INF00000000",

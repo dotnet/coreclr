@@ -1,0 +1,14 @@
+#
+# Copyright (c) Microsoft Corporation.  All rights reserved.
+#
+
+Version = 1.0
+Section = C Runtime
+Function = isinf
+Name = Positive Test for isinf
+TYPE = DEFAULT
+EXE1 = test1
+Description
+=Checks that isinf correctly classifies all types of floating 
+=point numbers
+=(NaN, -Infinity, Infinity, finite nonzero, unnormalized, 0, and -0).

@@ -982,7 +982,7 @@ CNS_COMMON:
                     {
                         noway_assert(op2->gtOper == GT_CNS_DBL);
                         /* If we have an NaN value then don't record it */
-                        if  (_isnan(op2->gtDblCon.gtDconVal))
+                        if  (isnan(op2->gtDblCon.gtDconVal))
                         {
                             goto DONE_ASSERTION;  // Don't make an assertion
                         }
@@ -1322,8 +1322,8 @@ bool  Compiler::optAssertionVnInvolvesNan(AssertionDsc* assertion)
         if (vnStore->IsVNConstant(vns[i]))
         {
             var_types type = vnStore->TypeOfVN(vns[i]);
-            if ((type == TYP_FLOAT  && _isnan(vnStore->ConstantValue<float >(vns[i])) != 0) ||
-                (type == TYP_DOUBLE && _isnan(vnStore->ConstantValue<double>(vns[i])) != 0))
+            if ((type == TYP_FLOAT  && isnan(vnStore->ConstantValue<float >(vns[i])) != 0) ||
+                (type == TYP_DOUBLE && isnan(vnStore->ConstantValue<double>(vns[i])) != 0))
             {
                 return true;
             }
@@ -2769,7 +2769,7 @@ GenTreePtr Compiler::optAssertionPropGlobal_RelOp(EXPSET_TP assertions, const Ge
             // which will yield a false correctly. Instead if IL had "op1 != NaN", then we already
             // made op1 NaN which will yield a true correctly. Note that this is irrespective of the
             // assertion we have made.
-            allowReverse = (_isnan(constant) == 0);
+            allowReverse = (isnan(constant) == 0);
         }
         else if (op1->TypeGet() == TYP_FLOAT)
         {
@@ -2777,7 +2777,7 @@ GenTreePtr Compiler::optAssertionPropGlobal_RelOp(EXPSET_TP assertions, const Ge
             op1->ChangeOperConst(GT_CNS_DBL);
             op1->gtDblCon.gtDconVal = constant;
             // See comments for TYP_DOUBLE.
-            allowReverse = (_isnan(constant) == 0);
+            allowReverse = (isnan(constant) == 0);
         }
         else if (op1->TypeGet() == TYP_REF)
         {

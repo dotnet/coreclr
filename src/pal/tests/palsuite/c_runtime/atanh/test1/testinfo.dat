@@ -1,0 +1,13 @@
+#
+# Copyright (c) Microsoft Corporation.  All rights reserved.
+#
+
+Version = 1.0
+Section = C Runtime
+Function = atanh
+Name = Positive Test for atanh
+TYPE = DEFAULT
+EXE1 = test1
+Description
+= Passes a series of values to the atanh() function,
+= checking each for the expected result.

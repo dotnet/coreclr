@@ -13,8 +13,8 @@
 **               PAL_Terminate
 **				 Fail
 **               fabs
-**               _finite
-**               _isnan
+**               isfinite
+**               isnan
 ** 
 
 **
@@ -107,7 +107,7 @@ int __cdecl main(int argc, char **argv)
         result = pow( infinite[i].value, infinite[i].exponent );
 
         /* The test is valid when the function returns an infinite result */
-        if( _finite( result ) )
+        if( isfinite( result ) )
         {
             Fail( "pow(%g,%g) returned %20.10g"
                   " when it should have returned 1.#INF00000000",

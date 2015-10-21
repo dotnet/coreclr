@@ -1,0 +1,13 @@
+#
+# Copyright (c) Microsoft Corporation.  All rights reserved.
+#
+
+Version = 1.0
+Section = C Runtime
+Function = atanhf
+Name = Positive Test for atanhf
+TYPE = DEFAULT
+EXE1 = test1
+Description
+= Passes a series of values to the atanhf() function,
+= checking each for the expfected result.

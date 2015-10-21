@@ -1,0 +1,14 @@
+#
+# Copyright (c) Microsoft Corporation.  All rights reserved.
+#
+
+Version = 1.0
+Section = C Runtime
+Function = acosf
+Name = Positive Test for acosf
+TYPE = DEFAULT
+EXE1 = test1
+Description
+= Passes a series of values to the acosf() function,
+= checking each for the expfected result. Also checks
+= for proper handling of out-of-range values.

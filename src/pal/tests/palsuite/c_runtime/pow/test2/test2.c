@@ -170,7 +170,7 @@ int __cdecl main(int argc, char **argv)
     {
         result = pow(retNaN[i].Number, retNaN[i].Exponent);
 
-        if ( ! _isnan(result) )
+        if ( ! isnan(result) )
         {
             Fail("ERROR: pow took '%f' to the exponent '%f' "
                  "to be %f instead of %f.\n", 

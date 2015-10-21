@@ -110,7 +110,7 @@ public:
     template <class REAL>
     static unsigned int NaNPrepass(REAL keys[], REAL items[], unsigned int left, unsigned int right) {
         for (unsigned int i = left; i <= right; i++) {
-            if (_isnan(keys[i])) {
+            if (isnan(keys[i])) {
                 REAL temp = keys[left];
                 keys[left] = keys[i];
                 keys[i] = temp;

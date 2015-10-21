@@ -1,0 +1,14 @@
+#
+# Copyright (c) Microsoft Corporation.  All rights reserved.
+#
+
+Version = 1.0
+Section = C Runtime
+Function = isfinite
+Name = Positive Test for isfinite
+TYPE = DEFAULT
+EXE1 = test1
+Description
+=Checks that isfinite correctly classifies all types of floating 
+=point numbers
+=(NaN, -Infinity, Infinity, finite nonzero, unnormalized, 0, and -0).
