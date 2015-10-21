@@ -26,7 +26,6 @@ Revision History:
 #include "pal/dbgmsg.h"
 #include "pal/file.h"
 #include "pal/malloc.hpp"
-#include "pal/stackstring.hpp"
 
 #include <errno.h>
 
@@ -43,7 +42,6 @@ SET_DEFAULT_DEBUG_CHANNEL(FILE);
 // should be placed after the SET_DEFAULT_DEBUG_CHANNEL(FILE)
 #include <safemath.h>
 
-int MaxWCharToAcpLengthRatio = 3;
 /*++
 Function:
   GetFullPathNameA
@@ -196,9 +194,7 @@ GetFullPathNameW(
     LPSTR fileNameA;
     /* bufferA needs to be able to hold a path that's potentially as
        large as MAX_LONGPATH WCHARs. */
-    CHAR * bufferA;
-    size_t bufferASize = 0;
-    PathCharString bufferAPS;
+    CHAR  bufferA[MAX_LONGPATH * sizeof(WCHAR)];
     LPSTR lpFilePartA;
     int   fileNameLength;
     int   srcSize;
@@ -216,7 +212,6 @@ GetFullPathNameW(
        to ANSI. This may be more than MAX_LONGPATH. We try to
        handle that case, since it may be less than MAX_LONGPATH
        WCHARs. */
-    
     fileNameLength = WideCharToMultiByte(CP_ACP, 0, lpFileName,
                                          -1, NULL, 0, NULL, NULL);
     if (fileNameLength == 0)
@@ -249,13 +244,9 @@ GetFullPathNameW(
         goto done;
     }
     
-    bufferASize = MAX_LONGPATH * MaxWCharToAcpLengthRatio;
-    bufferA = bufferAPS.OpenStringBuffer(bufferASize);
+    length = GetFullPathNameA(fileNameA, sizeof(bufferA), bufferA, &lpFilePartA);
     
-    length = GetFullPathNameA(fileNameA, bufferASize, bufferA, &lpFilePartA);
-    bufferAPS.CloseBuffer(length);
-    
-    if (length == 0 || length > bufferASize)
+    if (length == 0 || length > sizeof(bufferA))
     {
         /* Last error is set by GetFullPathNameA */
         nRet = length;
@@ -1096,16 +1087,12 @@ SearchPathA(
     )
 {
     DWORD nRet = 0;
-    CHAR * FullPath;
-    size_t FullPathLength = 0;
-    PathCharString FullPathPS;
-    PathCharString CanonicalFullPathPS;
-    CHAR * CanonicalFullPath;
+    CHAR FullPath[MAX_LONGPATH];
+    CHAR CanonicalFullPath[MAX_LONGPATH];
     LPCSTR pPathStart;
     LPCSTR pPathEnd;
     size_t PathLength;
     size_t FileNameLength;
-    DWORD length;
     DWORD dw;
 
     PERF_ENTRY(SearchPathA);
@@ -1149,23 +1136,11 @@ SearchPathA(
             goto done;
         }
         /* Canonicalize the path to deal with back-to-back '/', etc. */
-        length = MAX_LONGPATH;
-        CanonicalFullPath = CanonicalFullPathPS.OpenStringBuffer(length);
-        dw = GetFullPathNameA(lpFileName, length+1, CanonicalFullPath, NULL);
-        CanonicalFullPathPS.CloseBuffer(dw);
-        
-        if (length+1 < dw)
-        {
-            CanonicalFullPath = CanonicalFullPathPS.OpenStringBuffer(dw-1);
-            dw = GetFullPathNameA(lpFileName, dw,
-                                  CanonicalFullPath, NULL);
-            CanonicalFullPathPS.CloseBuffer(dw);
-        }
-
-        if (dw == 0) 
+        dw = GetFullPathNameA(lpFileName, MAX_LONGPATH, CanonicalFullPath, NULL);
+        if (dw == 0 || dw >= MAX_LONGPATH) 
         {
             WARN("couldn't canonicalize path <%s>, error is %#x. failing.\n",
-                 lpFileName, GetLastError());
+                 FullPath, GetLastError());
             SetLastError(ERROR_INVALID_PARAMETER);
             goto done;
         }
@@ -1219,11 +1194,9 @@ SearchPathA(
     
             /* Construct a pathname by concatenating one path from lpPath, '/' 
                and lpFileName */
-            FullPathLength = PathLength + FileNameLength;
-            FullPath = FullPathPS.OpenStringBuffer(FullPathLength+1);
             memcpy(FullPath, pPathStart, PathLength);
             FullPath[PathLength] = '/';
-            if (strcpy_s(&FullPath[PathLength+1], FullPathLength+1-PathLength, lpFileName) != SAFECRT_SUCCESS)
+            if (strcpy_s(&FullPath[PathLength+1], MAX_LONGPATH-PathLength, lpFileName) != SAFECRT_SUCCESS)
             {
                 ERROR("strcpy_s failed!\n");
                 SetLastError( ERROR_FILENAME_EXCED_RANGE );
@@ -1231,23 +1204,10 @@ SearchPathA(
                 goto done;
             }
 
-            FullPathPS.CloseBuffer(FullPathLength+1);            
             /* Canonicalize the path to deal with back-to-back '/', etc. */
-            length = MAX_LONGPATH;
-            CanonicalFullPath = CanonicalFullPathPS.OpenStringBuffer(length);
-            dw = GetFullPathNameA(FullPath, length+1,
+            dw = GetFullPathNameA(FullPath, MAX_LONGPATH,
                                   CanonicalFullPath, NULL);
-            CanonicalFullPathPS.CloseBuffer(dw);
-            
-            if (length+1 < dw)
-            {
-                CanonicalFullPath = CanonicalFullPathPS.OpenStringBuffer(dw-1);
-                dw = GetFullPathNameA(FullPath, dw,
-                                      CanonicalFullPath, NULL);
-                CanonicalFullPathPS.CloseBuffer(dw);
-            }
-            
-            if (dw == 0) 
+            if (dw == 0 || dw >= MAX_LONGPATH) 
             {
                 /* Call failed - possibly low memory.  Skip the path */
                 WARN("couldn't canonicalize path <%s>, error is %#x. "
@@ -1345,21 +1305,14 @@ SearchPathW(
     )
 {
     DWORD nRet = 0;
-    WCHAR * FullPath;
-    size_t FullPathLength = 0;
-    PathWCharString FullPathPS;
+    WCHAR FullPath[MAX_LONGPATH];
     LPCWSTR pPathStart;
     LPCWSTR pPathEnd;
     size_t PathLength;
     size_t FileNameLength;
     DWORD dw;
-    DWORD length;
-    char * AnsiPath;
-    PathCharString AnsiPathPS;
-    size_t CanonicalPathLength;
-    int canonical_size;
-    WCHAR * CanonicalPath;
-    PathWCharString CanonicalPathPS;
+    char AnsiPath[MAX_LONGPATH];
+    WCHAR CanonicalPath[MAX_LONGPATH];
 
     PERF_ENTRY(SearchPathW);
     ENTRY("SearchPathW(lpPath=%p (%S), lpFileName=%p (%S), lpExtension=%p, "
@@ -1394,18 +1347,8 @@ SearchPathW(
     if('\\' == lpFileName[0] || '/' == lpFileName[0])
     {
         /* Canonicalize the path to deal with back-to-back '/', etc. */
-        length = MAX_LONGPATH;
-        CanonicalPath = CanonicalPathPS.OpenStringBuffer(length);
-        dw = GetFullPathNameW(lpFileName, length+1, CanonicalPath, NULL);
-        CanonicalPathPS.CloseBuffer(dw);
-        if (length+1 < dw)
-        {
-            CanonicalPath = CanonicalPathPS.OpenStringBuffer(dw-1);
-            dw = GetFullPathNameW(lpFileName, dw, CanonicalPath, NULL);
-            CanonicalPathPS.CloseBuffer(dw);
-        }
-        
-        if (dw == 0) 
+        dw = GetFullPathNameW(lpFileName, MAX_LONGPATH, CanonicalPath, NULL);
+        if (dw == 0 || dw >= MAX_LONGPATH) 
         {
             WARN("couldn't canonicalize path <%S>, error is %#x. failing.\n",
                  lpPath, GetLastError());
@@ -1414,12 +1357,8 @@ SearchPathW(
         }
 
         /* see if the file exists */
-        CanonicalPathLength = (PAL_wcslen(CanonicalPath)+1) * MaxWCharToAcpLengthRatio;
-        AnsiPath = AnsiPathPS.OpenStringBuffer(CanonicalPathLength);
-	    canonical_size = WideCharToMultiByte(CP_ACP, 0, CanonicalPath, -1,
-			    AnsiPath, CanonicalPathLength, NULL, NULL);
-	    AnsiPathPS.CloseBuffer(canonical_size);
-	    
+	WideCharToMultiByte(CP_ACP, 0, CanonicalPath, -1,
+			    AnsiPath, MAX_LONGPATH, NULL, NULL);
         if(0 == access(AnsiPath, F_OK))
         {
             /* found it */
@@ -1470,29 +1409,14 @@ SearchPathW(
     
             /* Construct a pathname by concatenating one path from lpPath, '/' 
                and lpFileName */
-            FullPathLength = PathLength + FileNameLength;
-            FullPath = FullPathPS.OpenStringBuffer(FullPathLength+1);
             memcpy(FullPath, pPathStart, PathLength*sizeof(WCHAR));
             FullPath[PathLength] = '/';
             PAL_wcscpy(&FullPath[PathLength+1], lpFileName);
-            
-            FullPathPS.CloseBuffer(FullPathLength+1);
     
             /* Canonicalize the path to deal with back-to-back '/', etc. */
-            length = MAX_LONGPATH;
-            CanonicalPath = CanonicalPathPS.OpenStringBuffer(length);
-            dw = GetFullPathNameW(FullPath, length+1,
+            dw = GetFullPathNameW(FullPath, MAX_LONGPATH,
                                   CanonicalPath, NULL);
-            CanonicalPathPS.CloseBuffer(dw);
-            
-            if (length+1 < dw)
-            {
-                CanonicalPath = CanonicalPathPS.OpenStringBuffer(dw-1);
-                dw = GetFullPathNameW(FullPath, dw, CanonicalPath, NULL);
-                CanonicalPathPS.CloseBuffer(dw);
-            }
-            
-            if (dw == 0) 
+            if (dw == 0 || dw >= MAX_LONGPATH) 
             {
                 /* Call failed - possibly low memory.  Skip the path */
                 WARN("couldn't canonicalize path <%S>, error is %#x. "
@@ -1501,12 +1425,8 @@ SearchPathW(
             }
     
             /* see if the file exists */
-            CanonicalPathLength = (PAL_wcslen(CanonicalPath)+1) * MaxWCharToAcpLengthRatio;
-            AnsiPath = AnsiPathPS.OpenStringBuffer(CanonicalPathLength);
-            canonical_size = WideCharToMultiByte(CP_ACP, 0, CanonicalPath, -1,
-                                AnsiPath, CanonicalPathLength, NULL, NULL);
-            AnsiPathPS.CloseBuffer(canonical_size);
-               
+            WideCharToMultiByte(CP_ACP, 0, CanonicalPath, -1,
+                                AnsiPath, MAX_LONGPATH, NULL, NULL);
             if(0 == access(AnsiPath, F_OK))
             {
                 /* found it */

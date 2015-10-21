@@ -30,7 +30,6 @@ Revision History:
 #include "pal/utf8.h"
 #include "pal/locale.h"
 #include "pal/cruntime.h"
-#include "pal/stackstring.hpp"
 
 #if !(HAVE_PTHREAD_RWLOCK_T || HAVE_COREFOUNDATION)
 #error Either pthread rwlocks or Core Foundation are required for Unicode support
@@ -954,7 +953,7 @@ EXIT:
     return retval;
 }
 
-extern char * g_szCoreCLRPath;
+extern char g_szCoreCLRPath[MAX_LONGPATH];
 
 /*++
 Function :
@@ -968,13 +967,10 @@ PALAPI
 PAL_BindResources(IN LPCSTR lpDomain)
 {
 #ifndef __APPLE__
-    _ASSERTE(g_szCoreCLRPath != NULL);
-    char * coreCLRDirectoryPath;
-    PathCharString coreCLRDirectoryPathPS;
-    int len = strlen(g_szCoreCLRPath);
-    coreCLRDirectoryPath = coreCLRDirectoryPathPS.OpenStringBuffer(len);
-    DWORD size = FILEGetDirectoryFromFullPathA(g_szCoreCLRPath, len, coreCLRDirectoryPath);
-    coreCLRDirectoryPathPS.CloseBuffer(size);
+    char coreCLRDirectoryPath[MAX_LONGPATH];
+
+    INDEBUG(DWORD size = )
+    FILEGetDirectoryFromFullPathA(g_szCoreCLRPath, MAX_LONGPATH, coreCLRDirectoryPath);
     _ASSERTE(size <= MAX_LONGPATH);
 
     LPCSTR boundPath = bindtextdomain(lpDomain, coreCLRDirectoryPath);

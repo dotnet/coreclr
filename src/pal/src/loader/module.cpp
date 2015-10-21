@@ -34,7 +34,6 @@ Abstract:
 #include "pal/misc.h"
 #include "pal/virtual.h"
 #include "pal/map.hpp"
-#include "pal/stackstring.hpp"
 
 #include <sys/param.h>
 #include <errno.h>
@@ -93,16 +92,14 @@ CRITICAL_SECTION module_critsec;
 MODSTRUCT exe_module; 
 MODSTRUCT *pal_module = NULL;
 
-char * g_szCoreCLRPath = NULL;
-size_t g_cbszCoreCLRPath = MAX_LONGPATH * sizeof(char);
+char g_szCoreCLRPath[MAX_LONGPATH] = { 0 };
 
-int MaxWCharToAcpLength = 3;
 /* static function declarations ***********************************************/
 
 template<class TChar> bool LOADVerifyLibraryPath(const TChar *libraryPath);
 bool LOADConvertLibraryPathWideStringToMultibyteString(
     LPCWSTR wideLibraryPath,
-    LPSTR multibyteLibraryPath,
+    CHAR (&multibyteLibraryPath)[MAX_LONGPATH],
     INT *multibyteLibraryPathLengthRef);
 
 static BOOL LOADValidateModule(MODSTRUCT *module);
@@ -223,9 +220,8 @@ LoadLibraryExW(
         return NULL;
     }
     
-    CHAR * lpstr;
+    CHAR lpstr[MAX_LONGPATH];
     INT name_length;
-    PathCharString pathstr;
     HMODULE hModule = NULL;
 
     PERF_ENTRY(LoadLibraryExW);
@@ -238,7 +234,6 @@ LoadLibraryExW(
         goto done;
     }
 
-    lpstr = pathstr.OpenStringBuffer((PAL_wcslen(lpLibFileName)+1) * MaxWCharToAcpLength);
     if (!LOADConvertLibraryPathWideStringToMultibyteString(lpLibFileName, lpstr, &name_length))
     {
         goto done;
@@ -246,7 +241,6 @@ LoadLibraryExW(
 
     /* do the Dos/Unix conversion on our own copy of the name */
     FILEDosToUnixPathA(lpstr);
-    pathstr.CloseBuffer(name_length);
 
     /* let LOADLoadLibrary call SetLastError in case of failure */
     hModule = LOADLoadLibrary(lpstr, TRUE);
@@ -270,8 +264,7 @@ PALAPI
 PAL_LoadLibraryDirect(
     IN LPCWSTR lpLibFileName)
 {
-    PathCharString pathstr;
-    CHAR * lpstr = NULL;
+    CHAR lpstr[MAX_LONGPATH];
     INT name_length;
     HMODULE hModule = NULL;
 
@@ -284,8 +277,6 @@ PAL_LoadLibraryDirect(
     {
         goto done;
     }
-    
-    lpstr = pathstr.OpenStringBuffer((PAL_wcslen(lpLibFileName)+1) * MaxWCharToAcpLength);
 
     if (!LOADConvertLibraryPathWideStringToMultibyteString(lpLibFileName, lpstr, &name_length))
     {
@@ -294,7 +285,6 @@ PAL_LoadLibraryDirect(
 
     /* do the Dos/Unix conversion on our own copy of the name */
     FILEDosToUnixPathA(lpstr);
-    pathstr.CloseBuffer(name_length);
 
     /* let LOADLoadLibraryDirect call SetLastError in case of failure */
     hModule = LOADLoadLibraryDirect(lpstr, true /* setLastError */);
@@ -319,8 +309,7 @@ PAL_RegisterLibraryDirect(
     IN HMODULE dl_handle,
     IN LPCWSTR lpLibFileName)
 {
-    PathCharString pathstr;
-    CHAR * lpstr = NULL;
+    CHAR lpstr[MAX_LONGPATH];
     INT name_length;
     HMODULE hModule = NULL;
 
@@ -334,7 +323,6 @@ PAL_RegisterLibraryDirect(
         goto done;
     }
 
-    lpstr = pathstr.OpenStringBuffer((PAL_wcslen(lpLibFileName)+1) * MaxWCharToAcpLength);
     if (!LOADConvertLibraryPathWideStringToMultibyteString(lpLibFileName, lpstr, &name_length))
     {
         goto done;
@@ -342,7 +330,6 @@ PAL_RegisterLibraryDirect(
 
     /* do the Dos/Unix conversion on our own copy of the name */
     FILEDosToUnixPathA(lpstr);
-    pathstr.CloseBuffer(name_length);
 
     /* let LOADRegisterLibraryDirect call SetLastError in case of failure */
     LockModuleList();
@@ -1250,16 +1237,14 @@ bool LOADVerifyLibraryPath(const TChar *libraryPath)
 // Converts the wide char library path string into a multibyte-char string. On error, calls SetLastError() and returns false.
 bool LOADConvertLibraryPathWideStringToMultibyteString(
     LPCWSTR wideLibraryPath,
-    LPSTR multibyteLibraryPath,
+    CHAR(&multibyteLibraryPath)[MAX_LONGPATH],
     INT *multibyteLibraryPathLengthRef)
 {
-    _ASSERTE(multibyteLibraryPathLengthRef != nullptr);
     _ASSERTE(wideLibraryPath != nullptr);
+    _ASSERTE(multibyteLibraryPathLengthRef != nullptr);
 
-    size_t length = (PAL_wcslen(wideLibraryPath)+1) * MaxWCharToAcpLength;
     *multibyteLibraryPathLengthRef = WideCharToMultiByte(CP_ACP, 0, wideLibraryPath, -1, multibyteLibraryPath,
-                                                        length, nullptr, nullptr);
-    
+                                                         MAX_LONGPATH, nullptr, nullptr);
     if (*multibyteLibraryPathLengthRef == 0)
     {
         DWORD dwLastError = GetLastError();
@@ -1611,8 +1596,7 @@ Return value :
 --*/
 static HMODULE LOADLoadLibrary(LPCSTR shortAsciiName, BOOL fDynamic)
 {
-    CHAR * fullLibraryName;
-    PathCharString fullLibraryNamePS;
+    CHAR fullLibraryName[MAX_LONGPATH];
     HMODULE module = NULL;
     HMODULE dl_handle = NULL;
 
@@ -1658,11 +1642,8 @@ static HMODULE LOADLoadLibrary(LPCSTR shortAsciiName, BOOL fDynamic)
                 continue;
 
             _ASSERTE(dl_handle == nullptr);
-            fullLibraryName = fullLibraryNamePS.OpenStringBuffer(strlen(PAL_SHLIB_PREFIX)+strlen(shortAsciiName)+strlen(PAL_SHLIB_SUFFIX));
-            int size = snprintf(fullLibraryName, fullLibraryNamePS.GetSizeOf(), formatStrings[i], PAL_SHLIB_PREFIX, shortAsciiName, PAL_SHLIB_SUFFIX);
-            if (size < fullLibraryNamePS.GetSizeOf())
+            if (snprintf(fullLibraryName, MAX_LONGPATH, formatStrings[i], PAL_SHLIB_PREFIX, shortAsciiName, PAL_SHLIB_SUFFIX) < MAX_LONGPATH)
             {
-                fullLibraryNamePS.CloseBuffer(size);
                 dl_handle = LOADLoadLibraryDirect(fullLibraryName, false /* setLastError */);
                 if (dl_handle != nullptr)
                 {
@@ -1929,12 +1910,7 @@ MODSTRUCT *LOADGetPalLibrary()
         }
         // Stash a copy of the CoreCLR installation path in a global variable.
         // Make sure it's terminated with a slash.
-        if (g_szCoreCLRPath == NULL)
-        {
-            g_szCoreCLRPath = new char[g_cbszCoreCLRPath/sizeof(char)];
-        }
-        
-        if (strcpy_s(g_szCoreCLRPath, g_cbszCoreCLRPath, info.dli_fname) != SAFECRT_SUCCESS)
+        if (strcpy_s(g_szCoreCLRPath, sizeof(g_szCoreCLRPath), info.dli_fname) != SAFECRT_SUCCESS)
         {
             ERROR("LOADGetPalLibrary: strcpy_s failed!");
             goto exit;
