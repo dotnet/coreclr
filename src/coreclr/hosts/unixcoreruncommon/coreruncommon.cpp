@@ -22,6 +22,7 @@
 static const char * const coreClrDll = "libcoreclr.dylib";
 #else
 static const char * const coreClrDll = "libcoreclr.so";
+static const char * const coreClrTpProviderDll = "libcoreclrtraceptprovider.so";
 #endif
 
 #define SUCCEEDED(Status) ((Status) >= 0)
@@ -215,6 +216,12 @@ int ExecuteManagedAssembly(
     coreClrDllPath.append("/");
     coreClrDllPath.append(coreClrDll);
 
+#if defined(__LINUX__)
+    std::string coreClrTPproviderDllPath(clrFilesAbsolutePath);
+    coreClrTPproviderDllPath.append("/");
+    coreClrTPproviderDllPath.append(coreClrTpProviderDll);
+#endif //defined(__LINUX__)
+
     if (coreClrDllPath.length() >= PATH_MAX)
     {
         fprintf(stderr, "Absolute path to libcoreclr.so too long\n");
@@ -231,6 +238,14 @@ int ExecuteManagedAssembly(
 
     std::string tpaList;
     AddFilesFromDirectoryToTpaList(clrFilesAbsolutePath, tpaList);
+
+#if defined(__LINUX__)
+    void* coreclrTPLib = dlopen(coreClrTPproviderDllPath.c_str(),RTLD_NOW | RTLD_GLOBAL);
+    if (coreclrTPLib == nullptr)
+    {
+       // "Event Tracing is disabled.dlopen failed to load tracepoint provider"
+    }
+#endif //defined(__LINUX__)
 
     void* coreclrLib = dlopen(coreClrDllPath.c_str(), RTLD_NOW | RTLD_LOCAL);
     if (coreclrLib != nullptr)
