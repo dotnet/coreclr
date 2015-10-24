@@ -316,20 +316,31 @@ namespace System.IO {
             }
         }
 
+        /*
+        NOTE:
+            A decimal consists of 4 int fields: lo, mid, hi, flags.
+            We *read* the ints from the stream in that order,
+            but the actual layout in memory is the same order 
+            they are declared in Decimal.cs: flags, hi, lo, mid.
+        */
         public virtual unsafe decimal ReadDecimal()
         {
             const int SignMask = unchecked((int)0x80000000);
             const int ScaleMask = 0x00FF0000;
 
             FillBuffer(16);
-            decimal d;
-            int* pDec = (int*)&d;
             fixed (byte* ptr = m_buffer)
             {
 #if BIGENDIAN
+                int lo = ptr[0] | ptr[1] << 8 | ptr[2] << 16 | ptr[3] << 24;
+                int mid = ptr[4] | ptr[5] << 8 | ptr[6] << 16 | ptr[7] << 24;
+                int hi = ptr[8] | ptr[9] << 8 | ptr[10] << 16 | ptr[11] << 24;
                 int flags = ptr[12] | ptr[13] << 8 | ptr[14] << 16 | ptr[15] << 24;
 #else
                 int* pBuffer = (int*)ptr;
+                int lo = pBuffer[0];
+                int mid = pBuffer[1];
+                int hi = pBuffer[2];
                 int flags = pBuffer[3];
 #endif
                 // This logic mirrors the code in Decimal(int[]) ctor.
@@ -338,19 +349,12 @@ namespace System.IO {
                     // Invalid decimal
                     throw new IOException(Environment.GetResourceString("Arg_DecBitCtor"));
                 }
-#if BIGENDIAN
-                pDec[0] = ptr[4] | ptr[5] << 8 | ptr[6] << 16 | ptr[7] << 24; // mid
-                pDec[1] = ptr[0] | ptr[1] << 8 | ptr[2] << 16 | ptr[3] << 24; // lo
-                pDec[2] = ptr[8] | ptr[9] << 8 | ptr[10] << 16 | ptr[11] << 24; // hi
-                pDec[3] = flags;
-#else
-                pDec[0] = flags;
-                pDec[1] = pBuffer[2]; // hi
-                pDec[2] = pBuffer[0]; // lo
-                pDec[3] = pBuffer[1]; // mid
-#endif
+
+                bool isNegative = (flags & SignMask) != 0;
+                byte scale = (byte)(flags >> 16);
+
+                return new decimal(lo, mid, hi, isNegative, scale);
             }
-            return d;
         }
 
         public virtual String ReadString() {
