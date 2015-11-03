@@ -1,7 +1,7 @@
 using System.Security;
 using System;
 using System.IO;
-
+using TestLibrary;
 
 
 /// <summary>
@@ -53,7 +53,7 @@ public class PathGetFileName
         const string c_TEST_DESC = "PosTest1:the source path is a file name.";
         const string c_TEST_ID = "P001";
 
-        string sourcePath = @"C:\mydir\myfolder\test.txt";
+        string sourcePath = Utilities.IsWindows ? @"C:\mydir\myfolder\test.txt" : @"/home/user/test.txt";
         string FileName = "test.txt";
 
         TestLibrary.TestFramework.BeginScenario(c_TEST_DESC);
@@ -84,7 +84,7 @@ public class PathGetFileName
         const string c_TEST_DESC = "PosTest2:the source path is not a file name.";
         const string c_TEST_ID = "P002";
 
-        string sourcePath = @"C:\mydir\myfolder\test";
+        string sourcePath = Utilities.IsWindows ? @"C:\mydir\myfolder\test" : @"/home/user/test";
         string FileName = "test";
 
         TestLibrary.TestFramework.BeginScenario(c_TEST_DESC);
@@ -115,7 +115,7 @@ public class PathGetFileName
         const string c_TEST_DESC = "PosTest3:the last of character of source path is a directory separator character.";
         const string c_TEST_ID = "P003";
 
-        string sourcePath = @"C:\mydir\myfolder\";
+        string sourcePath = Utilities.IsWindows ? @"C:\mydir\myfolder\" : @"/home/user/myfolder/";
         string FileName = string.Empty;
 
         TestLibrary.TestFramework.BeginScenario(c_TEST_DESC);
@@ -146,8 +146,8 @@ public class PathGetFileName
         const string c_TEST_DESC = "PosTest4:the last of character of source path is a volume separator character.";
         const string c_TEST_ID = "P004";
 
-        string sourcePath = @"C:";
-        string FileName = TestLibrary.Utilities.IsWindows?string.Empty:"C:";
+        string sourcePath = Utilities.IsWindows ? @"C:" : @"/";
+        string FileName = string.Empty;
 
         TestLibrary.TestFramework.BeginScenario(c_TEST_DESC);
 
@@ -241,7 +241,7 @@ public class PathGetFileName
         const string c_TEST_DESC = "NegTest1: the source path  contains  invalid characters";
         const string c_TEST_ID = "N001";
 
-        string sourcePath = "C:\\mydir\\myfolder>\\test.txt";
+        string sourcePath = Utilities.IsWindows ? "C:\\mydir\\myfolder>\\test.txt" : "/home/user\u0000/test.txt";
 
         TestLibrary.TestFramework.BeginScenario(c_TEST_DESC);
 
@@ -270,7 +270,7 @@ public class PathGetFileName
         const string c_TEST_DESC = "NegTest2: the source path  contains  a wildcard characters";
         const string c_TEST_ID = "N002";
 
-        string sourcePath = "C:\\mydir\\<\\test.txt";
+        string sourcePath = Utilities.IsWindows ? "C:\\mydir\\<\\test.txt" : "/home/user/\u0000/test.txt";
 
         TestLibrary.TestFramework.BeginScenario(c_TEST_DESC);
 

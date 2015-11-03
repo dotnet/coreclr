@@ -86,8 +86,8 @@ public class PathGetDirectoryName
         const string c_TEST_DESC = "PosTest2:the source Path is  a root directory";
         const string c_TEST_ID = "P002";
 
-        string sourcePath = @"C:\";
-        string directoryName = Utilities.IsWindows?null:"C:";
+        string sourcePath = Utilities.IsWindows ? @"C:\" : "/";
+        string directoryName = null;
 
         TestLibrary.TestFramework.BeginScenario(c_TEST_DESC);
 
@@ -212,7 +212,7 @@ public class PathGetDirectoryName
         const string c_TEST_DESC = "NegTest1: the source path  contains  invalid characters";
         const string c_TEST_ID = "N001";
 
-        string sourcePath = "C:\\mydir\\myfolder>\\test.txt"; 
+        string sourcePath = Utilities.IsWindows ? "C:\\mydir\\myfolder>\\test.txt" : "/bin/\u0000bash"; 
 
         TestLibrary.TestFramework.BeginScenario(c_TEST_DESC);
 
@@ -270,7 +270,7 @@ public class PathGetDirectoryName
         const string c_TEST_DESC = "NegTest3: the source path  contains a wildcard character";
         const string c_TEST_ID = "N003";
 
-        string sourcePath = @"C:\<\myfolder\test.txt"; 
+        string sourcePath = Utilities.IsWindows ? @"C:\<\myfolder\test.txt" : "/bin\u0000/bash"; 
 
         TestLibrary.TestFramework.BeginScenario(c_TEST_DESC);
 
@@ -295,6 +295,7 @@ public class PathGetDirectoryName
 
     public bool NegTest4()
     {
+        if (!Utilities.IsWindows) return true;
         bool retVal = true;
         const string c_TEST_DESC = "NegTest4: the source path is longer than the system-defined maximum length ";
         const string c_TEST_ID = "N004";

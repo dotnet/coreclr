@@ -2,6 +2,7 @@
 using System.Security;
 using System;
 using System.IO;
+using TestLibrary;
 
 /// <summary>
 /// System.IO.Path.GetExtension(string)
@@ -164,7 +165,7 @@ public class PathGetDirectoryName
     {
         bool retVal = true;
 
-        string oldPath = @"C:\mydir\myfolder>\test.txt";
+        string oldPath = Utilities.IsWindows ? @"C:\mydir\myfolder>\test.txt": "/home/user\u0000/test.txt";
         string strExtension = "";
 
         TestLibrary.TestFramework.BeginScenario("NegTest1: the  path contains contains one  of the invalid characters");

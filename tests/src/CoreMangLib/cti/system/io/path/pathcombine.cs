@@ -266,7 +266,7 @@ public class PathCombine
         const string c_TEST_DESC = "NegTest1: path1 contains one  of the invalid characters";
         const string c_TEST_ID = "N001";
 
-        string path1 = "mydir\\my| folder";
+        string path1 = Utilities.IsWindows ? "mydir\\my| folder" : "mydir\\my\u0000 folder";
         string path2 = "yourfolder\\youfile";
 
         TestLibrary.TestFramework.BeginScenario(c_TEST_DESC);
@@ -297,7 +297,7 @@ public class PathCombine
         const string c_TEST_ID = "N002";
 
         string path1 = "mydir\\my folder";
-        string path2 = "yourfolder\\>youfile";
+        string path2 = Utilities.IsWindows ? "yourfolder\\>youfile" : "yourfolder\\\u0000youfile";
 
         TestLibrary.TestFramework.BeginScenario(c_TEST_DESC);
 

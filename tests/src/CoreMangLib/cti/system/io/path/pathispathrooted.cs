@@ -80,7 +80,7 @@ public class PathGetPathRoot
         const string c_TEST_DESC = "PosTest2:the source path is a absolute path.";
         const string c_TEST_ID = "P002";
 
-        string sourcePath = @"\mydir\myfolder\";
+        string sourcePath = Utilities.IsWindows ? @"\mydir\myfolder\" : @"/home/myfolder/";
 
         TestLibrary.TestFramework.BeginScenario(c_TEST_DESC);
 
