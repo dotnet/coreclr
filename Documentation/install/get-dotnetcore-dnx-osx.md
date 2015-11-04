@@ -9,6 +9,13 @@ These instructions are for .NET Core console apps. If you want to try out ASP.NE
 
 You can also [build from source](../building/osx-instructions.md). 
 
+Installing dependencies
+=======================
+
+We need to make sure we have all of the dependencies set up. You can install these using [Homebrew](http://www.brew.sh). 
+
+    brew install icu4c
+
 Installing DNVM
 ===============
 
