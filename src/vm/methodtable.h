@@ -1048,9 +1048,6 @@ public:
     void CheckRunClassInitAsIfConstructingThrowing();
 
 #if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF)
-    // Helper function for ClassifyEightBytes
-    static SystemVClassificationType ReClassifyField(SystemVClassificationType originalClassification, SystemVClassificationType newFieldClassification);
-
     // Builds the internal data structures and classifies struct eightbytes for Amd System V calling convention.
     bool ClassifyEightBytes(SystemVStructRegisterPassingHelperPtr helperPtr, unsigned int nestingLevel, unsigned int startOffsetOfStruct);
     bool ClassifyEightBytesForNativeStruct(SystemVStructRegisterPassingHelperPtr helperPtr, unsigned int nestingLevel, unsigned int startOffsetOfStruct);
@@ -1090,10 +1087,6 @@ public:
     bool ClassRequiresUnmanagedCodeCheck();
 
 private:
-
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF)
-    void AssignClassifiedEightByteTypes(SystemVStructRegisterPassingHelperPtr helperPtr, unsigned int nestingLevel);
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF)
 
     DWORD   GetClassIndexFromToken(mdTypeDef typeToken)
     {

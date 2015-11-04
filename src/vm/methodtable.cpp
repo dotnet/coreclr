@@ -2302,8 +2302,7 @@ const char* GetSystemVClassificationTypeName(SystemVClassificationType t)
 
 // If we have a field classification already, but there is a union, we must merge the classification type of the field. Returns the
 // new, merged classification type.
-/* static */
-SystemVClassificationType MethodTable::ReClassifyField(SystemVClassificationType originalClassification, SystemVClassificationType newFieldClassification)
+static SystemVClassificationType ReClassifyField(SystemVClassificationType originalClassification, SystemVClassificationType newFieldClassification)
 {
     _ASSERTE((newFieldClassification == SystemVClassificationTypeInteger) ||
              (newFieldClassification == SystemVClassificationTypeIntegerReference) ||
@@ -2343,6 +2342,387 @@ SystemVClassificationType MethodTable::ReClassifyField(SystemVClassificationType
     }
 }
 
+#ifndef DACCESS_COMPILE
+static SystemVClassificationType NativeFieldToUnixAmd64Classification(const FieldMarshaler *pFieldMarshaler, NStructFieldType cls, CorElementType fieldType)
+{
+    switch (cls)
+    {
+        case NFT_FIXEDCHARARRAYANSI:
+        case NFT_FIXEDARRAY:
+        case NFT_NESTEDLAYOUTCLASS:
+        case NFT_NESTEDVALUECLASS:
+        case NFT_FIXEDSTRINGUNI:
+        case NFT_FIXEDSTRINGANSI:
+            return SystemVClassificationTypeStruct;
+
+        case NFT_COPY1:
+            // The following CorElementTypes are the only ones handled with FieldMarshaler_Copy1. 
+            switch (fieldType)
+            {
+                case ELEMENT_TYPE_I1:
+                case ELEMENT_TYPE_U1:
+                    return SystemVClassificationTypeInteger;
+
+                default:
+                    // Invalid entry.
+                    return SystemVClassificationTypeMemory; // Pass on stack.
+            }
+
+        case NFT_COPY2:
+            // The following CorElementTypes are the only ones handled with FieldMarshaler_Copy2. 
+            switch (fieldType)
+            {
+                case ELEMENT_TYPE_CHAR:
+                case ELEMENT_TYPE_I2:
+                case ELEMENT_TYPE_U2:
+                    return SystemVClassificationTypeInteger;
+
+                default:
+                    // Invalid entry.
+                    return SystemVClassificationTypeUnknown; // Pass on stack.
+            }
+
+        case NFT_COPY4:
+            // The following CorElementTypes are the only ones handled with FieldMarshaler_Copy4. 
+            switch (fieldType)
+            {
+                // At this point, ELEMENT_TYPE_I must be 4 bytes long.  Same for ELEMENT_TYPE_U.
+                case ELEMENT_TYPE_I:
+                case ELEMENT_TYPE_I4:
+                case ELEMENT_TYPE_U:
+                case ELEMENT_TYPE_U4:
+                case ELEMENT_TYPE_PTR:
+                    return SystemVClassificationTypeInteger;
+
+                case ELEMENT_TYPE_R4:
+                    return SystemVClassificationTypeSSE;
+
+                default:
+                    // Invalid entry.
+                    return SystemVClassificationTypeMemory; // Pass on stack.
+            }
+
+        case NFT_COPY8:
+             // The following CorElementTypes are the only ones handled with FieldMarshaler_Copy8. 
+            switch (fieldType)
+            {
+                // At this point, ELEMENT_TYPE_I must be 8 bytes long.  Same for ELEMENT_TYPE_U.
+                case ELEMENT_TYPE_I:
+                case ELEMENT_TYPE_I8:
+                case ELEMENT_TYPE_U:
+                case ELEMENT_TYPE_U8:
+                case ELEMENT_TYPE_PTR:
+                    return SystemVClassificationTypeInteger;
+
+                case ELEMENT_TYPE_R8:
+                    return SystemVClassificationTypeSSE;
+
+                default:
+                    // Invalid entry.
+                    return SystemVClassificationTypeMemory; // Pass on stack.
+            }
+
+        case NFT_STRINGUNI:
+        case NFT_STRINGANSI:
+        case NFT_ANSICHAR:
+        case NFT_WINBOOL:
+        case NFT_CBOOL:
+            return SystemVClassificationTypeInteger;
+
+        case NFT_DELEGATE:
+        case NFT_DECIMAL:
+        case NFT_DATE:
+        case NFT_ILLEGAL:
+        case NFT_SAFEHANDLE:
+        case NFT_CRITICALHANDLE:
+            return SystemVClassificationTypeMemory;
+
+#ifdef FEATURE_COMINTEROP
+#ifdef FEATURE_CLASSIC_COMINTEROP
+        case NFT_SAFEARRAY:
+#endif  // FEATURE_CLASSIC_COMINTEROP
+        case NFT_INTERFACE:
+        case NFT_BSTR:
+        case NFT_HSTRING:
+        case NFT_VARIANT:
+        case NFT_CURRENCY:
+        case NFT_VARIANTBOOL:
+            _ASSERTE(false && "COMInterop not supported for CORECLR.");
+            return SystemVClassificationTypeMemory;
+#endif  // FEATURE_COMINTEROP
+
+        default:
+            return SystemVClassificationTypeMemory;
+    }
+}
+#endif
+
+#ifdef _DEBUG
+struct DebugFieldClassificationInfo
+{
+    unsigned int NestingLevel;
+    unsigned int FieldNum;
+    unsigned int FieldOffset;
+    LPCUTF8 FieldName;
+
+    DebugFieldClassificationInfo(unsigned int nestingLevel, unsigned int fieldNum, unsigned int fieldOffset, LPCUTF8 fieldName)
+        : NestingLevel(nestingLevel), FieldNum(fieldNum), FieldOffset(fieldOffset), FieldName(fieldName)
+    {
+    }
+};
+#else
+typedef void DebugFieldClassificationInfo;
+#endif // _DEBUG
+
+static bool CompleteFieldClassification(SystemVStructRegisterPassingHelperPtr helperPtr, unsigned int normalizedFieldOffset, unsigned int fieldSize, SystemVClassificationType fieldClassificationType, DebugFieldClassificationInfo *debugInfo)
+{
+#ifdef _DEBUG
+    _ASSERTE(debugInfo != nullptr);
+    unsigned int nestingLevel = debugInfo->NestingLevel;
+    unsigned int fieldNum = debugInfo->FieldNum;
+    unsigned int fieldOffset = debugInfo->FieldOffset;
+    LPCUTF8 fieldName = debugInfo->FieldName;
+#else
+    _ASSERTE(debugInfo == nullptr);
+#endif //_DEBUG
+
+    if ((normalizedFieldOffset % fieldSize) != 0)
+    {
+        // The spec requires that struct values on the stack from register passed fields expects
+        // those fields to be at their natural alignment.
+
+        LOG((LF_JIT, LL_EVERYTHING, "     %*sxxxx Native Field %d %s: offset %d (normalized %d), native size %d not at natural alignment; not enregistering struct\n",
+            nestingLevel * 5, "", fieldNum, fieldNum, fieldName, fieldOffset, normalizedFieldOffset, fieldSize));
+
+        return false;
+    }
+
+    if ((int)normalizedFieldOffset <= helperPtr->largestFieldOffset)
+    {
+        // Find the field corresponding to this offset and update the size if needed.
+        // We assume that either it matches the offset of a previously seen field, or
+        // it is an out-of-order offset (the VM does give us structs in non-increasing
+        // offset order sometimes) that doesn't overlap any other field.
+
+        // REVIEW: will the offset ever match a previously seen field offset for cases that are NOT ExplicitLayout?
+        // If not, we can get rid of this loop, and just assume the offset is from an out-of-order field. We wouldn't
+        // need to maintain largestFieldOffset, either, since we would then assume all fields are unique. We could
+        // also get rid of ReClassifyField().
+        int i;
+        for (i = helperPtr->currentUniqueOffsetField - 1; i >= 0; i--)
+        {
+            if (helperPtr->fieldOffsets[i] == normalizedFieldOffset)
+            {
+                if (fieldSize > helperPtr->fieldSizes[i])
+                {
+                    helperPtr->fieldSizes[i] = fieldSize;
+                }
+
+                helperPtr->fieldClassifications[i] = ReClassifyField(helperPtr->fieldClassifications[i], fieldClassificationType);
+
+                LOG((LF_JIT, LL_EVERYTHING, "     %*sxxxx Field %d %s: offset %d (normalized %d), size %d, union with uniqueOffsetField %d, field type classification %s, reclassified field to %s\n",
+                    nestingLevel * 5, "", fieldNum, fieldName, fieldOffset, normalizedFieldOffset, fieldSize, i,
+                    GetSystemVClassificationTypeName(fieldClassificationType),
+                    GetSystemVClassificationTypeName(helperPtr->fieldClassifications[i])));
+
+                break;
+            }
+
+            // Make sure the field doesn't start in the middle of another field.
+            _ASSERTE((normalizedFieldOffset <  helperPtr->fieldOffsets[i]) ||
+                (normalizedFieldOffset >= helperPtr->fieldOffsets[i] + helperPtr->fieldSizes[i]));
+        }
+
+        if (i >= 0)
+        {
+            // The proper size of the union set of fields has been set above; continue to the next field.
+            return true;
+        }
+    }
+    else
+    {
+        helperPtr->largestFieldOffset = (int)normalizedFieldOffset;
+    }
+
+    // Set the data for a new field.
+
+    // The new field classification must not have been initialized yet.
+    _ASSERTE(helperPtr->fieldClassifications[helperPtr->currentUniqueOffsetField] == SystemVClassificationTypeNoClass);
+
+    // There are only a few field classifications that are allowed.
+    _ASSERTE((fieldClassificationType == SystemVClassificationTypeInteger) ||
+        (fieldClassificationType == SystemVClassificationTypeIntegerReference) ||
+        (fieldClassificationType == SystemVClassificationTypeSSE));
+
+    helperPtr->fieldClassifications[helperPtr->currentUniqueOffsetField] = fieldClassificationType;
+    helperPtr->fieldSizes[helperPtr->currentUniqueOffsetField] = fieldSize;
+    helperPtr->fieldOffsets[helperPtr->currentUniqueOffsetField] = normalizedFieldOffset;
+
+    LOG((LF_JIT, LL_EVERYTHING, "     %*s**** Field %d %s: offset %d (normalized %d), size %d, currentUniqueOffsetField %d, field type classification %s, chosen field classification %s\n",
+        nestingLevel * 5, "", fieldNum, fieldName, fieldOffset, normalizedFieldOffset, fieldSize, helperPtr->currentUniqueOffsetField,
+        GetSystemVClassificationTypeName(fieldClassificationType),
+        GetSystemVClassificationTypeName(helperPtr->fieldClassifications[helperPtr->currentUniqueOffsetField])));
+
+    helperPtr->currentUniqueOffsetField++;
+    _ASSERTE(helperPtr->currentUniqueOffsetField <= SYSTEMV_MAX_NUM_FIELDS_IN_REGISTER_PASSED_STRUCT);
+
+    return true;
+}
+
+// Assigns the classification types to the array with eightbyte types.
+static void AssignClassifiedEightByteTypes(SystemVStructRegisterPassingHelperPtr helperPtr, unsigned int nestingLevel)
+{
+    // Final classification only happens on the top-level struct.
+    if (helperPtr->inEmbeddedStruct)
+    {
+        return;
+    }
+
+    _ASSERTE(nestingLevel == 0);
+
+    // We're at the top level of the recursion, and we're done looking at the fields.
+    // Now sort the fields by offset and set the output data.
+
+    int sortedFieldOrder[SYSTEMV_MAX_NUM_FIELDS_IN_REGISTER_PASSED_STRUCT];
+    for (unsigned i = 0; i < SYSTEMV_MAX_NUM_FIELDS_IN_REGISTER_PASSED_STRUCT; i++)
+    {
+        sortedFieldOrder[i] = -1;
+    }
+
+    for (unsigned i = 0; i < helperPtr->currentUniqueOffsetField; i++)
+    {
+        _ASSERTE(helperPtr->fieldOffsets[i] < SYSTEMV_MAX_NUM_FIELDS_IN_REGISTER_PASSED_STRUCT);
+        _ASSERTE(sortedFieldOrder[helperPtr->fieldOffsets[i]] == -1); // we haven't seen this field offset yet.
+        sortedFieldOrder[helperPtr->fieldOffsets[i]] = i;
+    }
+
+    // Set the layoutSizes (includes holes from alignment of the fields.)
+    int lastField = -1;
+    for (unsigned i = 0; i < SYSTEMV_MAX_NUM_FIELDS_IN_REGISTER_PASSED_STRUCT; i++)
+    {
+        int ordinal = sortedFieldOrder[i];
+        if (ordinal == -1)
+        {
+            continue;
+        }
+
+        if (lastField == -1)
+        {
+            lastField = ordinal;
+            continue;
+        }
+
+        helperPtr->fieldLayoutSizes[lastField] = helperPtr->fieldOffsets[ordinal] - helperPtr->fieldOffsets[lastField];
+
+        lastField = ordinal;
+    }
+    // Now the last field
+    _ASSERTE(lastField != -1); // if lastField==-1, then the struct has no fields!
+
+    // A field size cannot be bigger than the size of an eightbyte; any necessary padding
+    // will be handled later.
+    _ASSERTE(helperPtr->fieldSizes[lastField] <= SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES);
+    helperPtr->fieldLayoutSizes[lastField] = min(helperPtr->structSize - helperPtr->fieldOffsets[lastField], SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES);
+
+    // Add logical fields for any padding bytes at the end of the struct.
+    unsigned int paddingOffset = helperPtr->fieldOffsets[lastField] + helperPtr->fieldLayoutSizes[lastField];
+    _ASSERTE(paddingOffset == helperPtr->structSize || lastField < SYSTEMV_MAX_NUM_FIELDS_IN_REGISTER_PASSED_STRUCT);
+
+    // Padding bytes inside of an eightbyte that contains other fields must be classified as NO_CLASS
+    // as per the SysV ABI spec. Subsequent bytes will be classified as INTEGERs to ensure that they
+    // do not get dropped.
+    //
+    // NOTE: if INTEGER-classified bytes are actually shadowing SSE-classified native fields, these
+    // classifications will be incorrect. Unfortunately, there's no accurate way to guess whether or
+    // not this shadowing is occurring based on the size of the struct and the managed fields alone.
+    unsigned int nextEightByteOffset = paddingOffset + (paddingOffset % 8);
+    for (unsigned int offset = paddingOffset, ordinal = lastField + 1; offset < helperPtr->structSize; offset++, ordinal++)
+    {
+        _ASSERTE(sortedFieldOrder[offset] == -1);
+        sortedFieldOrder[offset] = ordinal;
+        helperPtr->fieldOffsets[ordinal] = offset;
+        helperPtr->fieldLayoutSizes[ordinal] = 1;
+
+        helperPtr->fieldClassifications[ordinal] = offset < nextEightByteOffset ? SystemVClassificationTypeNoClass
+                                                                                : SystemVClassificationTypeInteger;
+    }
+
+    // Calculate the eightbytes and their types.
+    unsigned int accumulatedSizeForEightByte = 0;
+    unsigned int lastEightByteOffset = 0;
+    unsigned int currentEightByte = 0;
+
+    for (unsigned i = 0; i < SYSTEMV_MAX_NUM_FIELDS_IN_REGISTER_PASSED_STRUCT; i++)
+    {
+        int ordinal = sortedFieldOrder[i];
+        if (ordinal == -1)
+        {
+            continue;
+        }
+
+        _ASSERTE(helperPtr->fieldLayoutSizes[ordinal] <= SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES);
+
+        if ((accumulatedSizeForEightByte + helperPtr->fieldLayoutSizes[ordinal]) > SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES)
+        {
+            // Save data for this eightbyte.
+            helperPtr->eightByteSizes[currentEightByte] = accumulatedSizeForEightByte;
+            helperPtr->eightByteOffsets[currentEightByte] = lastEightByteOffset;
+
+            // Set up for next eightbyte.
+            currentEightByte++;
+            _ASSERTE(currentEightByte < CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS);
+
+            lastEightByteOffset = helperPtr->fieldOffsets[ordinal];
+            accumulatedSizeForEightByte = (accumulatedSizeForEightByte + helperPtr->fieldLayoutSizes[ordinal]) - SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES;
+        }
+        else
+        {
+            accumulatedSizeForEightByte += helperPtr->fieldLayoutSizes[ordinal];
+        }
+
+        _ASSERTE(helperPtr->fieldClassifications[ordinal] != SystemVClassificationTypeMemory);
+
+        if (helperPtr->eightByteClassifications[currentEightByte] == helperPtr->fieldClassifications[ordinal])
+        {
+            // Do nothing. The eight-byte is already classified.
+        }
+        else if (helperPtr->eightByteClassifications[currentEightByte] == SystemVClassificationTypeNoClass)
+        {
+            helperPtr->eightByteClassifications[currentEightByte] = helperPtr->fieldClassifications[ordinal];
+        }
+        else if ((helperPtr->eightByteClassifications[currentEightByte] == SystemVClassificationTypeInteger) ||
+            (helperPtr->fieldClassifications[ordinal] == SystemVClassificationTypeInteger))
+        {
+            _ASSERTE(helperPtr->fieldClassifications[ordinal] != SystemVClassificationTypeIntegerReference);
+            helperPtr->eightByteClassifications[currentEightByte] = SystemVClassificationTypeInteger;
+        }
+        else if ((helperPtr->eightByteClassifications[currentEightByte] == SystemVClassificationTypeIntegerReference) ||
+            (helperPtr->fieldClassifications[ordinal] == SystemVClassificationTypeIntegerReference))
+        {
+            helperPtr->eightByteClassifications[currentEightByte] = SystemVClassificationTypeIntegerReference;
+        }
+        else
+        {
+            helperPtr->eightByteClassifications[currentEightByte] = SystemVClassificationTypeSSE;
+        }
+    }
+
+    helperPtr->eightByteCount = currentEightByte + 1;
+    helperPtr->eightByteSizes[currentEightByte] = accumulatedSizeForEightByte;
+    helperPtr->eightByteOffsets[currentEightByte] = lastEightByteOffset;
+    _ASSERTE(helperPtr->eightByteCount <= CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS);
+
+#ifdef _DEBUG
+    LOG((LF_JIT, LL_EVERYTHING, "     ----\n"));
+    LOG((LF_JIT, LL_EVERYTHING, "     **** Number EightBytes: %d\n", helperPtr->eightByteCount));
+    for (unsigned i = 0; i < helperPtr->eightByteCount; i++)
+    {
+        LOG((LF_JIT, LL_EVERYTHING, "     **** eightByte %d -- classType: %s, eightByteOffset: %d, eightByteSize: %d\n",
+            i, GetSystemVClassificationTypeName(helperPtr->eightByteClassifications[i]), helperPtr->eightByteOffsets[i], helperPtr->eightByteSizes[i]));
+    }
+#endif // _DEBUG
+}
+
 // Returns 'true' if the struct is passed in registers, 'false' otherwise.
 bool MethodTable::ClassifyEightBytes(SystemVStructRegisterPassingHelperPtr helperPtr, unsigned int nestingLevel, unsigned int startOffsetOfStruct)
 {
@@ -2354,7 +2734,7 @@ bool MethodTable::ClassifyEightBytes(SystemVStructRegisterPassingHelperPtr helpe
         MODE_ANY;
     }
     CONTRACTL_END;
-    
+
     WORD numIntroducedFields = GetNumIntroducedInstanceFields();
 
     // It appears the VM gives a struct with no fields of size 1.
@@ -2382,6 +2762,82 @@ bool MethodTable::ClassifyEightBytes(SystemVStructRegisterPassingHelperPtr helpe
     FieldDesc *pField = GetApproxFieldDescListRaw();
     FieldDesc *pFieldEnd = pField + numIntroducedFields;
 
+    auto ClassifyStructTypeField = [helperPtr](FieldDesc* pField, unsigned int nestingLevel, unsigned int normalizedFieldOffset) -> bool
+    {
+         TypeHandle th = pField->GetApproxFieldTypeHandleThrowing();
+        _ASSERTE(!th.IsNull());
+
+        MethodTable* pFieldMT = nullptr;
+        bool isNativeStruct = false;
+        if (!th.IsTypeDesc())
+        {
+            pFieldMT = th.AsMethodTable();
+            _ASSERTE(pFieldMT != nullptr);
+        }
+        else if (th.IsTypeDesc())
+        {
+            _ASSERTE(th.IsNativeValueType());
+
+            pFieldMT = th.AsNativeValueType();
+            isNativeStruct = true;
+            _ASSERTE(pFieldMT != nullptr);
+        }
+
+        bool inEmbeddedStructPrev = helperPtr->inEmbeddedStruct;
+        helperPtr->inEmbeddedStruct = true;
+        bool structRet = isNativeStruct ? pFieldMT->ClassifyEightBytesForNativeStruct(helperPtr, nestingLevel + 1, normalizedFieldOffset)
+                                        : pFieldMT->ClassifyEightBytes(helperPtr, nestingLevel + 1, normalizedFieldOffset);
+        helperPtr->inEmbeddedStruct = inEmbeddedStructPrev;
+
+        return structRet;
+    };
+
+    // Attempt to pattern-match fixed-size buffer structs. These structs need to be treated as if they have
+    // element_count = ((type_size) / (element_size)) fields of type element_type, as they are intended to be
+    // be equivalent to a C-style inline array.
+    EEClass *pClass = GetClass();
+    const bool isFixedArrayStruct = numIntroducedFields == 1 && pClass->IsUnsafeValueClass() && pClass->HasExplicitSize();
+    if (isFixedArrayStruct)
+    {
+        FieldDesc *pElement = pField;
+        unsigned int arraySizeInBytes = GetNativeSize();
+
+        // This condition should already be guaranteed by a check in the caller.
+        _ASSERTE((startOffsetOfStruct + arraySizeInBytes) <= helperPtr->structSize);
+
+        unsigned int elementSize = pElement->GetSize();
+
+        CorElementType elementType = pElement->GetFieldType();
+        SystemVClassificationType elementClassification = CorInfoType2UnixAmd64Classification(elementType);
+
+        unsigned int elementCount = arraySizeInBytes / elementSize;
+        for (unsigned int i = 0, elementOffset = startOffsetOfStruct; i < elementCount; i++, elementOffset += elementSize)
+        {
+            if (elementClassification == SystemVClassificationTypeStruct)
+            {
+                if (!ClassifyStructTypeField(pElement, nestingLevel + 1, elementOffset))
+                {
+                    // If the nested struct says not to enregister, there's no need to continue analyzing at this level. Just return do not enregister.
+                    return false;
+                }
+
+                continue;
+            }
+   
+            DebugFieldClassificationInfo *debugInfoPtr = nullptr;
+#ifdef _DEBUG
+            DebugFieldClassificationInfo debugInfo(nestingLevel + 1, i, elementOffset - startOffsetOfStruct, "__FixedArrayElement");
+            debugInfoPtr = &debugInfo;
+#endif // _DEBUG
+            if (!CompleteFieldClassification(helperPtr, elementOffset, elementSize, elementClassification, debugInfoPtr))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     for (; pField < pFieldEnd; pField++)
     {
 #ifdef _DEBUG
@@ -2402,26 +2858,11 @@ bool MethodTable::ClassifyEightBytes(SystemVStructRegisterPassingHelperPtr helpe
         }
 
         CorElementType fieldType = pField->GetFieldType();
-
         SystemVClassificationType fieldClassificationType = CorInfoType2UnixAmd64Classification(fieldType);
-
-#ifdef _DEBUG
-        LPCUTF8 fieldName;
-        pField->GetName_NoThrow(&fieldName);
-#endif // _DEBUG
 
         if (fieldClassificationType == SystemVClassificationTypeStruct)
         {
-            TypeHandle th = pField->GetApproxFieldTypeHandleThrowing();
-            _ASSERTE(!th.IsNull());
-            MethodTable* pFieldMT = th.GetMethodTable();
-
-            bool inEmbeddedStructPrev = helperPtr->inEmbeddedStruct;
-            helperPtr->inEmbeddedStruct = true;
-            bool structRet = pFieldMT->ClassifyEightBytes(helperPtr, nestingLevel + 1, normalizedFieldOffset);
-            helperPtr->inEmbeddedStruct = inEmbeddedStructPrev;
-
-            if (!structRet)
+            if (!ClassifyStructTypeField(pField, nestingLevel + 1, normalizedFieldOffset))
             {
                 // If the nested struct says not to enregister, there's no need to continue analyzing at this level. Just return do not enregister.
                 return false;
@@ -2430,83 +2871,19 @@ bool MethodTable::ClassifyEightBytes(SystemVStructRegisterPassingHelperPtr helpe
             continue;
         }
 
-        if ((normalizedFieldOffset % fieldSize) != 0)
-        {
-            // The spec requires that struct values on the stack from register passed fields expects
-            // those fields to be at their natural alignment.
+        DebugFieldClassificationInfo *debugInfoPtr = nullptr;
+#ifdef _DEBUG
+        LPCUTF8 fieldName;
+        pField->GetName_NoThrow(&fieldName);
 
-            LOG((LF_JIT, LL_EVERYTHING, "     %*sxxxx Field %d %s: offset %d (normalized %d), size %d not at natural alignment; not enregistering struct\n",
-                   nestingLevel * 5, "", fieldNum, fieldNum, fieldName, fieldOffset, normalizedFieldOffset, fieldSize));
+        DebugFieldClassificationInfo debugInfo(nestingLevel, fieldNum, fieldOffset, fieldName);
+        debugInfoPtr = &debugInfo;
+#endif // _DEBUG
+
+        if (!CompleteFieldClassification(helperPtr, normalizedFieldOffset, fieldSize, fieldClassificationType, debugInfoPtr))
+        {
             return false;
         }
-
-        if ((int)normalizedFieldOffset <= helperPtr->largestFieldOffset)
-        {
-            // Find the field corresponding to this offset and update the size if needed.
-            // We assume that either it matches the offset of a previously seen field, or
-            // it is an out-of-order offset (the VM does give us structs in non-increasing
-            // offset order sometimes) that doesn't overlap any other field.
-
-            // REVIEW: will the offset ever match a previously seen field offset for cases that are NOT ExplicitLayout?
-            // If not, we can get rid of this loop, and just assume the offset is from an out-of-order field. We wouldn't
-            // need to maintain largestFieldOffset, either, since we would then assume all fields are unique. We could
-            // also get rid of ReClassifyField().
-            int i;
-            for (i = helperPtr->currentUniqueOffsetField - 1; i >= 0; i--)
-            {
-                if (helperPtr->fieldOffsets[i] == normalizedFieldOffset)
-                {
-                    if (fieldSize > helperPtr->fieldSizes[i])
-                    {
-                        helperPtr->fieldSizes[i] = fieldSize;
-                    }
-
-                    helperPtr->fieldClassifications[i] = ReClassifyField(helperPtr->fieldClassifications[i], fieldClassificationType);
-
-                    LOG((LF_JIT, LL_EVERYTHING, "     %*sxxxx Field %d %s: offset %d (normalized %d), size %d, union with uniqueOffsetField %d, field type classification %s, reclassified field to %s\n",
-                           nestingLevel * 5, "", fieldNum, fieldName, fieldOffset, normalizedFieldOffset, fieldSize, i,
-                           GetSystemVClassificationTypeName(fieldClassificationType),
-                           GetSystemVClassificationTypeName(helperPtr->fieldClassifications[i])));
-
-                    break;
-                }
-                // Make sure the field doesn't start in the middle of another field.
-                _ASSERTE((normalizedFieldOffset <  helperPtr->fieldOffsets[i]) ||
-                         (normalizedFieldOffset >= helperPtr->fieldOffsets[i] + helperPtr->fieldSizes[i]));
-            }
-
-            if (i >= 0)
-            {
-                // The proper size of the union set of fields has been set above; continue to the next field.
-                continue;
-            }
-        }
-        else
-        {
-            helperPtr->largestFieldOffset = (int)normalizedFieldOffset;
-        }
-
-        // Set the data for a new field.
-
-        // The new field classification must not have been initialized yet.
-        _ASSERTE(helperPtr->fieldClassifications[helperPtr->currentUniqueOffsetField] == SystemVClassificationTypeNoClass);
-
-        // There are only a few field classifications that are allowed.
-        _ASSERTE((fieldClassificationType == SystemVClassificationTypeInteger) ||
-                 (fieldClassificationType == SystemVClassificationTypeIntegerReference) ||
-                 (fieldClassificationType == SystemVClassificationTypeSSE));
-
-        helperPtr->fieldClassifications[helperPtr->currentUniqueOffsetField] = fieldClassificationType;
-        helperPtr->fieldSizes[helperPtr->currentUniqueOffsetField] = fieldSize;
-        helperPtr->fieldOffsets[helperPtr->currentUniqueOffsetField] = normalizedFieldOffset;
-
-        LOG((LF_JIT, LL_EVERYTHING, "     %*s**** Field %d %s: offset %d (normalized %d), size %d, currentUniqueOffsetField %d, field type classification %s, chosen field classification %s\n",
-               nestingLevel * 5, "", fieldNum, fieldName, fieldOffset, normalizedFieldOffset, fieldSize, helperPtr->currentUniqueOffsetField,
-               GetSystemVClassificationTypeName(fieldClassificationType),
-               GetSystemVClassificationTypeName(helperPtr->fieldClassifications[helperPtr->currentUniqueOffsetField])));
-
-        helperPtr->currentUniqueOffsetField++;
-        _ASSERTE(helperPtr->currentUniqueOffsetField < SYSTEMV_MAX_NUM_FIELDS_IN_REGISTER_PASSED_STRUCT);
     } // end per-field for loop
 
     AssignClassifiedEightByteTypes(helperPtr, nestingLevel);
@@ -2594,317 +2971,149 @@ bool MethodTable::ClassifyEightBytesForNativeStruct(SystemVStructRegisterPassing
             return false;
         }
 
-        SystemVClassificationType fieldClassificationType = SystemVClassificationTypeUnknown;
+        NStructFieldType cls = pFieldMarshaler->GetNStructFieldType();
+        SystemVClassificationType fieldClassificationType = NativeFieldToUnixAmd64Classification(pFieldMarshaler, cls, fieldType);
 
+        if (fieldClassificationType == SystemVClassificationTypeMemory)
+        {
+            return false;
+        }
+        else if (fieldClassificationType == SystemVClassificationTypeStruct)
+        {
+            auto ClassifyNestedClass = [helperPtr, nestingLevel, normalizedFieldOffset](MethodTable *pFieldMT) -> bool
+            {
+                bool inEmbeddedStructPrev = helperPtr->inEmbeddedStruct;
+                helperPtr->inEmbeddedStruct = true;
+                bool structRet = pFieldMT->ClassifyEightBytesForNativeStruct(helperPtr, nestingLevel + 1, normalizedFieldOffset);
+                helperPtr->inEmbeddedStruct = inEmbeddedStructPrev;
+
+                return structRet;
+            };
+
+            auto ClassifyFixedArray = [helperPtr, nestingLevel, normalizedFieldOffset](VARTYPE elementType, unsigned int arraySizeInBytes) -> bool
+            {
+                // This condition should already be guaranteed by a check in the caller.
+                _ASSERTE((normalizedFieldOffset + arraySizeInBytes) <= helperPtr->structSize);
+
+                unsigned int elementSize;
+                SystemVClassificationType elementClassification;
+                switch (elementType)
+                {
+                    case VT_BOOL:
+                    case VT_I1:
+                    case VT_UI1:
+                        elementSize = 1;
+                        elementClassification = SystemVClassificationTypeInteger;
+                        break;
+
+                    case VT_I2:
+                    case VT_UI2:
+                        elementSize = 2;
+                        elementClassification = SystemVClassificationTypeInteger;
+                        break;
+
+                    case VT_I4:
+                    case VT_UI4:
+                        elementSize = 4;
+                        elementClassification = SystemVClassificationTypeInteger;
+                        break;
+
+                    case VT_I8:
+                    case VT_UI8:
+                    case VT_PTR:
+                    case VT_INT:
+                    case VT_UINT:
+                    case VT_LPSTR:
+                    case VT_LPWSTR:
+                        elementSize = 8;
+                        elementClassification = SystemVClassificationTypeInteger;
+                        break;
+
+                    case VT_R4:
+                        elementSize = 4;
+                        elementClassification = SystemVClassificationTypeSSE;
+                        break;
+
+                    case VT_R8:
+                        elementSize = 8;
+                        elementClassification = SystemVClassificationTypeSSE;
+                        break;
+
+                    default:
+                        // Unsupported element type.
+                        return false;
+                }
+
+                unsigned int elementCount = arraySizeInBytes / elementSize;
+                for (unsigned int i = 0, elementOffset = normalizedFieldOffset; i < elementCount; i++, elementOffset += elementSize)
+                {
+                    DebugFieldClassificationInfo *debugInfoPtr = nullptr;
+#ifdef _DEBUG
+                    DebugFieldClassificationInfo debugInfo(nestingLevel + 1, i, elementOffset - normalizedFieldOffset, "__FixedArrayElement");
+                    debugInfoPtr = &debugInfo;
+#endif // _DEBUG
+                    if (!CompleteFieldClassification(helperPtr, elementOffset, elementSize, elementClassification, debugInfoPtr))
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            };
+
+            bool structRet = false;
+            switch (cls)
+            {
+                case NFT_NESTEDLAYOUTCLASS:
+                    structRet = ClassifyNestedClass(((FieldMarshaler_NestedLayoutClass*)pFieldMarshaler)->GetMethodTable());
+                    break;
+
+                case NFT_NESTEDVALUECLASS:
+                    structRet = ClassifyNestedClass(((FieldMarshaler_NestedValueClass*)pFieldMarshaler)->GetMethodTable());
+                    break;
+
+                case NFT_FIXEDARRAY:
+                    structRet = ClassifyFixedArray(((FieldMarshaler_FixedArray*)pFieldMarshaler)->GetElementVT(), fieldNativeSize);
+                    break;
+
+                case NFT_FIXEDSTRINGUNI:
+                    structRet = ClassifyFixedArray(VT_I2, fieldNativeSize);
+                    break;
+
+                case NFT_FIXEDSTRINGANSI:
+                case NFT_FIXEDCHARARRAYANSI:
+                    structRet = ClassifyFixedArray(VT_I1, fieldNativeSize);
+                    break;
+
+                default:
+                    _ASSERTE(false && "unexpected native field type for SysVStruct");
+                    return false;
+            }
+
+            if (!structRet)
+            {
+                // If the nested struct says not to enregister, there's no need to continue analyzing at this level. Just return do not enregister.
+                return false;
+            }
+
+            continue;
+        }
+
+        DebugFieldClassificationInfo *debugInfoPtr = nullptr;
 #ifdef _DEBUG
         LPCUTF8 fieldName;
         pField->GetName_NoThrow(&fieldName);
+
+        DebugFieldClassificationInfo debugInfo(nestingLevel, fieldNum, fieldOffset, fieldName);
+        debugInfoPtr = &debugInfo;
 #endif // _DEBUG
 
-        // Some NStruct Field Types have extra information and require special handling
-        NStructFieldType cls = pFieldMarshaler->GetNStructFieldType();
-        if (cls == NFT_FIXEDCHARARRAYANSI)
+        if (!CompleteFieldClassification(helperPtr, normalizedFieldOffset, fieldNativeSize, fieldClassificationType, debugInfoPtr))
         {
-            fieldClassificationType = SystemVClassificationTypeInteger;
-        }
-        else if (cls == NFT_FIXEDARRAY)
-        {
-            VARTYPE vtElement = ((FieldMarshaler_FixedArray*)pFieldMarshaler)->GetElementVT();
-            switch (vtElement)
-            {
-            case VT_EMPTY:
-            case VT_NULL:
-            case VT_BOOL:
-            case VT_I1:
-            case VT_I2:
-            case VT_I4:
-            case VT_I8:
-            case VT_UI1:
-            case VT_UI2:
-            case VT_UI4:
-            case VT_UI8:
-            case VT_PTR:
-            case VT_INT:
-            case VT_UINT:
-            case VT_LPSTR:
-            case VT_LPWSTR:
-                fieldClassificationType = SystemVClassificationTypeInteger;
-                break;
-            case VT_R4:
-            case VT_R8:
-                fieldClassificationType = SystemVClassificationTypeSSE;
-                break;
-            case VT_DECIMAL:
-            case VT_DATE:
-            case VT_BSTR:
-            case VT_UNKNOWN:
-            case VT_DISPATCH:
-            case VT_SAFEARRAY:
-            case VT_ERROR:
-            case VT_HRESULT:
-            case VT_CARRAY:
-            case VT_USERDEFINED:
-            case VT_RECORD:
-            case VT_FILETIME:
-            case VT_BLOB:
-            case VT_STREAM:
-            case VT_STORAGE:
-            case VT_STREAMED_OBJECT:
-            case VT_STORED_OBJECT:
-            case VT_BLOB_OBJECT:
-            case VT_CF:
-            case VT_CLSID:
-            default:
-                // Not supported.
-                return false;
-            }
-        }
-#ifdef FEATURE_COMINTEROP
-        else if (cls == NFT_INTERFACE)
-        {
-            // COMInterop not supported for CORECLR.
-            _ASSERTE(false && "COMInterop not supported for CORECLR.");
-            return false;
-        }
-#ifdef FEATURE_CLASSIC_COMINTEROP
-        else if (cls == NFT_SAFEARRAY)
-        {
-            // COMInterop not supported for CORECLR.
-            _ASSERTE(false && "COMInterop not supported for CORECLR.");
-            return false;
-        }
-#endif // FEATURE_CLASSIC_COMINTEROP
-#endif // FEATURE_COMINTEROP
-        else if (cls == NFT_NESTEDLAYOUTCLASS)
-        {
-            MethodTable* pFieldMT = ((FieldMarshaler_NestedLayoutClass*)pFieldMarshaler)->GetMethodTable();
-
-            bool inEmbeddedStructPrev = helperPtr->inEmbeddedStruct;
-            helperPtr->inEmbeddedStruct = true;
-            bool structRet = pFieldMT->ClassifyEightBytesForNativeStruct(helperPtr, nestingLevel + 1, normalizedFieldOffset);
-            helperPtr->inEmbeddedStruct = inEmbeddedStructPrev;
-
-            if (!structRet)
-            {
-                // If the nested struct says not to enregister, there's no need to continue analyzing at this level. Just return do not enregister.
-                return false;
-            }
-
-            continue;
-        }
-        else if (cls == NFT_NESTEDVALUECLASS)
-        {
-            MethodTable* pFieldMT = ((FieldMarshaler_NestedValueClass*)pFieldMarshaler)->GetMethodTable();
-
-            bool inEmbeddedStructPrev = helperPtr->inEmbeddedStruct;
-            helperPtr->inEmbeddedStruct = true;
-            bool structRet = pFieldMT->ClassifyEightBytesForNativeStruct(helperPtr, nestingLevel + 1, normalizedFieldOffset);
-            helperPtr->inEmbeddedStruct = inEmbeddedStructPrev;
-
-            if (!structRet)
-            {
-                // If the nested struct says not to enregister, there's no need to continue analyzing at this level. Just return do not enregister.
-                return false;
-            }
-
-            continue;
-        }
-        else if (cls == NFT_COPY1)
-        {
-            // The following CorElementTypes are the only ones handled with FieldMarshaler_Copy1. 
-            switch (fieldType)
-            {
-            case ELEMENT_TYPE_I1:
-                fieldClassificationType = SystemVClassificationTypeInteger;
-                break;
-
-            case ELEMENT_TYPE_U1:
-                fieldClassificationType = SystemVClassificationTypeInteger;
-                break;
-
-            default:
-                // Invalid entry.
-                return false; // Pass on stack.
-            }
-        }
-        else if (cls == NFT_COPY2)
-        {
-            // The following CorElementTypes are the only ones handled with FieldMarshaler_Copy2. 
-            switch (fieldType)
-            {
-            case ELEMENT_TYPE_CHAR:
-            case ELEMENT_TYPE_I2:
-            case ELEMENT_TYPE_U2:
-                fieldClassificationType = SystemVClassificationTypeInteger;
-                break;
-
-            default:
-                // Invalid entry.
-                return false; // Pass on stack.
-            }
-        }
-        else if (cls == NFT_COPY4)
-        {
-            // The following CorElementTypes are the only ones handled with FieldMarshaler_Copy4. 
-            switch (fieldType)
-            {
-                // At this point, ELEMENT_TYPE_I must be 4 bytes long.  Same for ELEMENT_TYPE_U.
-            case ELEMENT_TYPE_I:
-            case ELEMENT_TYPE_I4:
-            case ELEMENT_TYPE_U:
-            case ELEMENT_TYPE_U4:
-            case ELEMENT_TYPE_PTR:
-                fieldClassificationType = SystemVClassificationTypeInteger;
-                break;
-
-            case ELEMENT_TYPE_R4:
-                fieldClassificationType = SystemVClassificationTypeSSE;
-                break;
-
-            default:
-                // Invalid entry.
-                return false; // Pass on stack.
-            }
-        }
-        else if (cls == NFT_COPY8)
-        {
-            // The following CorElementTypes are the only ones handled with FieldMarshaler_Copy8. 
-            switch (fieldType)
-            {
-                // At this point, ELEMENT_TYPE_I must be 8 bytes long.  Same for ELEMENT_TYPE_U.
-            case ELEMENT_TYPE_I:
-            case ELEMENT_TYPE_I8:
-            case ELEMENT_TYPE_U:
-            case ELEMENT_TYPE_U8:
-            case ELEMENT_TYPE_PTR:
-                fieldClassificationType = SystemVClassificationTypeInteger;
-                break;
-
-            case ELEMENT_TYPE_R8:
-                fieldClassificationType = SystemVClassificationTypeSSE;
-                break;
-
-            default:
-                // Invalid entry.
-                return false; // Pass on stack.
-            }
-        }
-        else if (cls == NFT_FIXEDSTRINGUNI)
-        {
-            fieldClassificationType = SystemVClassificationTypeInteger;
-        }
-        else if (cls == NFT_FIXEDSTRINGANSI)
-        {
-            fieldClassificationType = SystemVClassificationTypeInteger;
-        }
-        else
-        {
-            // All other NStruct Field Types which do not require special handling.
-            switch (cls)
-            {
-#ifdef FEATURE_COMINTEROP
-            case NFT_BSTR:
-            case NFT_HSTRING:
-            case NFT_VARIANT:
-            case NFT_VARIANTBOOL:
-            case NFT_CURRENCY:
-                // COMInterop not supported for CORECLR.
-                _ASSERTE(false && "COMInterop not supported for CORECLR.");
-                return false;
-#endif  // FEATURE_COMINTEROP
-            case NFT_STRINGUNI:
-            case NFT_STRINGANSI:
-            case NFT_ANSICHAR:
-            case NFT_WINBOOL:
-            case NFT_CBOOL:
-                fieldClassificationType = SystemVClassificationTypeInteger;
-                break;
-
-            case NFT_DELEGATE:
-            case NFT_DECIMAL:
-            case NFT_DATE:
-            case NFT_ILLEGAL:
-            case NFT_SAFEHANDLE:
-            case NFT_CRITICALHANDLE:
-            default:
-                return false;
-            }
-        }
-
-        if ((normalizedFieldOffset % fieldNativeSize) != 0)
-        {
-            // The spec requires that struct values on the stack from register passed fields expects
-            // those fields to be at their natural alignment.
-
-            LOG((LF_JIT, LL_EVERYTHING, "     %*sxxxx Native Field %d %s: offset %d (normalized %d), native size %d not at natural alignment; not enregistering struct\n",
-                nestingLevel * 5, "", fieldNum, fieldNum, fieldName, fieldOffset, normalizedFieldOffset, fieldNativeSize));
             return false;
         }
 
-        if ((int)normalizedFieldOffset <= helperPtr->largestFieldOffset)
-        {
-            // Find the field corresponding to this offset and update the size if needed.
-            // We assume that either it matches the offset of a previously seen field, or
-            // it is an out-of-order offset (the VM does give us structs in non-increasing
-            // offset order sometimes) that doesn't overlap any other field.
-
-            int i;
-            for (i = helperPtr->currentUniqueOffsetField - 1; i >= 0; i--)
-            {
-                if (helperPtr->fieldOffsets[i] == normalizedFieldOffset)
-                {
-                    if (fieldNativeSize > helperPtr->fieldSizes[i])
-                    {
-                        helperPtr->fieldSizes[i] = fieldNativeSize;
-                    }
-
-                    helperPtr->fieldClassifications[i] = ReClassifyField(helperPtr->fieldClassifications[i], fieldClassificationType);
-
-                    LOG((LF_JIT, LL_EVERYTHING, "     %*sxxxx Native Field %d %s: offset %d (normalized %d), native size %d, union with uniqueOffsetField %d, field type classification %s, reclassified field to %s\n",
-                        nestingLevel * 5, "", fieldNum, fieldName, fieldOffset, normalizedFieldOffset, fieldNativeSize, i,
-                        GetSystemVClassificationTypeName(fieldClassificationType),
-                        GetSystemVClassificationTypeName(helperPtr->fieldClassifications[i])));
-
-                    break;
-                }
-                // Make sure the field doesn't start in the middle of another field.
-                _ASSERTE((normalizedFieldOffset <  helperPtr->fieldOffsets[i]) ||
-                    (normalizedFieldOffset >= helperPtr->fieldOffsets[i] + helperPtr->fieldSizes[i]));
-            }
-
-            if (i >= 0)
-            {
-                // The proper size of the union set of fields has been set above; continue to the next field.
-                continue;
-            }
-        }
-        else
-        {
-            helperPtr->largestFieldOffset = (int)normalizedFieldOffset;
-        }
-
-        // Set the data for a new field.
-
-        // The new field classification must not have been initialized yet.
-        _ASSERTE(helperPtr->fieldClassifications[helperPtr->currentUniqueOffsetField] == SystemVClassificationTypeNoClass);
-
-        // There are only a few field classifications that are allowed.
-        _ASSERTE((fieldClassificationType == SystemVClassificationTypeInteger) ||
-            (fieldClassificationType == SystemVClassificationTypeIntegerReference) ||
-            (fieldClassificationType == SystemVClassificationTypeSSE));
-
-        helperPtr->fieldClassifications[helperPtr->currentUniqueOffsetField] = fieldClassificationType;
-        helperPtr->fieldSizes[helperPtr->currentUniqueOffsetField] = fieldNativeSize;
-        helperPtr->fieldOffsets[helperPtr->currentUniqueOffsetField] = normalizedFieldOffset;
-
-        LOG((LF_JIT, LL_EVERYTHING, "     %*s**** Native Field %d %s: offset %d (normalized %d), size %d, currentUniqueOffsetField %d, field type classification %s, chosen field classification %s\n",
-            nestingLevel * 5, "", fieldNum, fieldName, fieldOffset, normalizedFieldOffset, fieldNativeSize, helperPtr->currentUniqueOffsetField,
-            GetSystemVClassificationTypeName(fieldClassificationType),
-            GetSystemVClassificationTypeName(helperPtr->fieldClassifications[helperPtr->currentUniqueOffsetField])));
-
-        helperPtr->currentUniqueOffsetField++;
         ((BYTE*&)pFieldMarshaler) += MAXFIELDMARSHALERSIZE;
-        _ASSERTE(helperPtr->currentUniqueOffsetField < SYSTEMV_MAX_NUM_FIELDS_IN_REGISTER_PASSED_STRUCT);
 
     } // end per-field for loop
 
@@ -2912,137 +3121,6 @@ bool MethodTable::ClassifyEightBytesForNativeStruct(SystemVStructRegisterPassing
 
     return true;
 #endif // DACCESS_COMPILE
-}
-
-// Assigns the classification types to the array with eightbyte types.
-void  MethodTable::AssignClassifiedEightByteTypes(SystemVStructRegisterPassingHelperPtr helperPtr, unsigned int nestingLevel)
-{
-    if (!helperPtr->inEmbeddedStruct)
-    {
-        _ASSERTE(nestingLevel == 0);
-
-        // We're at the top level of the recursion, and we're done looking at the fields.
-        // Now sort the fields by offset and set the output data.
-
-        int sortedFieldOrder[SYSTEMV_MAX_NUM_FIELDS_IN_REGISTER_PASSED_STRUCT];
-        for (unsigned i = 0; i < SYSTEMV_MAX_NUM_FIELDS_IN_REGISTER_PASSED_STRUCT; i++)
-        {
-            sortedFieldOrder[i] = -1;
-        }
-
-        for (unsigned i = 0; i < helperPtr->currentUniqueOffsetField; i++)
-        {
-            _ASSERTE(helperPtr->fieldOffsets[i] < SYSTEMV_MAX_NUM_FIELDS_IN_REGISTER_PASSED_STRUCT);
-            _ASSERTE(sortedFieldOrder[helperPtr->fieldOffsets[i]] == -1); // we haven't seen this field offset yet.
-            sortedFieldOrder[helperPtr->fieldOffsets[i]] = i;
-        }
-
-        // Set the layoutSizes (includes holes from alignment of the fields.)
-        int lastField = -1;
-        for (unsigned i = 0; i < SYSTEMV_MAX_NUM_FIELDS_IN_REGISTER_PASSED_STRUCT; i++)
-        {
-            int ordinal = sortedFieldOrder[i];
-            if (ordinal == -1)
-            {
-                continue;
-            }
-
-            if (lastField == -1)
-            {
-                lastField = ordinal;
-                continue;
-            }
-
-            helperPtr->fieldLayoutSizes[lastField] = helperPtr->fieldOffsets[ordinal] - helperPtr->fieldOffsets[lastField];
-
-            lastField = ordinal;
-        }
-        // Now the last field
-        _ASSERTE(lastField != -1); // if lastField==-1, then the struct has no fields!
-
-        // A field size cannot be bigger than the size of an eightbyte.
-        // There are cases where for the native layout of a struct the VM allocates 16 
-        // bytes space, but the struct has one eight-byte field.
-        // This field is of classification type INTEGER or INTEGERREFERENCE.
-        // Make sure the field layout size does not extend beyound an eightbyte.
-        _ASSERTE(helperPtr->fieldSizes[lastField] <= SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES);
-        helperPtr->fieldLayoutSizes[lastField] = min(helperPtr->structSize - helperPtr->fieldOffsets[lastField], SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES);
-
-        // Calculate the eightbytes and their types.
-        unsigned int accumulatedSizeForEightByte = 0;
-        unsigned int lastEightByteOffset = 0;
-        unsigned int currentEightByte = 0;
-
-        for (unsigned i = 0; i < SYSTEMV_MAX_NUM_FIELDS_IN_REGISTER_PASSED_STRUCT; i++)
-        {
-            int ordinal = sortedFieldOrder[i];
-            if (ordinal == -1)
-            {
-                continue;
-            }
-
-            _ASSERTE(helperPtr->fieldLayoutSizes[ordinal] <= SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES);
-
-            if ((accumulatedSizeForEightByte + helperPtr->fieldLayoutSizes[ordinal]) > SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES)
-            {
-                // Save data for this eightbyte.
-                helperPtr->eightByteSizes[currentEightByte] = accumulatedSizeForEightByte;
-                helperPtr->eightByteOffsets[currentEightByte] = lastEightByteOffset;
-
-                // Set up for next eightbyte.
-                currentEightByte++;
-                _ASSERTE(currentEightByte < CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS);
-
-                lastEightByteOffset = helperPtr->fieldOffsets[ordinal];
-                accumulatedSizeForEightByte = (accumulatedSizeForEightByte + helperPtr->fieldLayoutSizes[ordinal]) - SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES;
-            }
-            else
-            {
-                accumulatedSizeForEightByte += helperPtr->fieldLayoutSizes[ordinal];
-            }
-
-            _ASSERTE(helperPtr->fieldClassifications[ordinal] != SystemVClassificationTypeMemory);
-
-            if (helperPtr->eightByteClassifications[currentEightByte] == helperPtr->fieldClassifications[ordinal])
-            {
-                // Do nothing. The eight-byte is already classified.
-            }
-            else if (helperPtr->eightByteClassifications[currentEightByte] == SystemVClassificationTypeNoClass)
-            {
-                helperPtr->eightByteClassifications[currentEightByte] = helperPtr->fieldClassifications[ordinal];
-            }
-            else if ((helperPtr->eightByteClassifications[currentEightByte] == SystemVClassificationTypeInteger) ||
-                (helperPtr->fieldClassifications[ordinal] == SystemVClassificationTypeInteger))
-            {
-                _ASSERTE(helperPtr->fieldClassifications[ordinal] != SystemVClassificationTypeIntegerReference);
-                helperPtr->eightByteClassifications[currentEightByte] = SystemVClassificationTypeInteger;
-            }
-            else if ((helperPtr->eightByteClassifications[currentEightByte] == SystemVClassificationTypeIntegerReference) ||
-                (helperPtr->fieldClassifications[ordinal] == SystemVClassificationTypeIntegerReference))
-            {
-                helperPtr->eightByteClassifications[currentEightByte] = SystemVClassificationTypeIntegerReference;
-            }
-            else
-            {
-                helperPtr->eightByteClassifications[currentEightByte] = SystemVClassificationTypeSSE;
-            }
-        }
-
-        helperPtr->eightByteCount = currentEightByte + 1;
-        helperPtr->eightByteSizes[currentEightByte] = accumulatedSizeForEightByte;
-        helperPtr->eightByteOffsets[currentEightByte] = lastEightByteOffset;
-        _ASSERTE(helperPtr->eightByteCount <= CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS);
-
-#ifdef _DEBUG
-        LOG((LF_JIT, LL_EVERYTHING, "     ----\n"));
-        LOG((LF_JIT, LL_EVERYTHING, "     **** Number EightBytes: %d\n", helperPtr->eightByteCount));
-        for (unsigned i = 0; i < helperPtr->eightByteCount; i++)
-        {
-            LOG((LF_JIT, LL_EVERYTHING, "     **** eightByte %d -- classType: %s, eightByteOffset: %d, eightByteSize: %d\n",
-                i, GetSystemVClassificationTypeName(helperPtr->eightByteClassifications[i]), helperPtr->eightByteOffsets[i], helperPtr->eightByteSizes[i]));
-        }
-#endif // _DEBUG
-    }
 }
 
 #endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF)
