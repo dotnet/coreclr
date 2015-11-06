@@ -259,10 +259,10 @@ PAL_ERROR SEHDisable(CPalThread *pthrCurrent)
 --*/
 
 #ifdef __llvm__
-__thread 
+__thread
 #else // __llvm__
 __declspec(thread)
-#endif // !__llvm__
+#endif //!__llvm__
 int t_holderCount = 0;
 
 CatchHardwareExceptionHolder::CatchHardwareExceptionHolder()
@@ -287,10 +287,10 @@ bool CatchHardwareExceptionHolder::IsEnabled()
 --*/
 
 #ifdef __llvm__
-__thread 
-#else // __llvm__
+__thread
+#else
 __declspec(thread)
-#endif // !__llvm__
+#endif // __llvm__
 static NativeExceptionHolderBase *t_nativeExceptionHolderHead = nullptr;
 
 NativeExceptionHolderBase::NativeExceptionHolderBase()

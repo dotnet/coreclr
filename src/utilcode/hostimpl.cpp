@@ -268,13 +268,13 @@ BOOL STDMETHODCALLTYPE UtilExecutionEngine::ClrResetEvent(EVENT_COOKIE event)
 DWORD STDMETHODCALLTYPE UtilExecutionEngine::WaitForEvent(EVENT_COOKIE event, DWORD dwMilliseconds, BOOL bAlertable) 
 {
     _ASSERTE(event);
-    return WaitForSingleObjectEx((HANDLE)event, dwMilliseconds, bAlertable);
+    return ::WaitForSingleObjectEx((HANDLE)event, dwMilliseconds, bAlertable);
 }
 
 DWORD STDMETHODCALLTYPE UtilExecutionEngine::WaitForSingleObject(HANDLE handle, DWORD dwMilliseconds) 
 {
     _ASSERTE(handle);
-    return WaitForSingleObject(handle, dwMilliseconds);
+    return ::WaitForSingleObject(handle, dwMilliseconds);
 }
 
 SEMAPHORE_COOKIE STDMETHODCALLTYPE UtilExecutionEngine::ClrCreateSemaphore(DWORD dwInitial, DWORD dwMax) 

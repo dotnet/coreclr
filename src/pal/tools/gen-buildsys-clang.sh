@@ -15,22 +15,51 @@ then
   exit 1
 fi
 
+check_clang()
+{
+    if which $1 > /dev/null 2>&1
+        then
+            result="$(which $1)"
+    fi
+}
+
 # Set up the environment to be used for building with clang.
-if which "clang-$2.$3" > /dev/null 2>&1
+check_clang "clang-$2.$3" "CC"
+CC=$result
+
+check_clang "clang++-$2.$3" "CXX"
+CXX=$result
+
+# CC and CXX may be independently named.
+# eg. clang-x.x does not imply clang++ to be clang++x.x
+if [ "$CC" == "" ]
     then
-        export CC="$(which clang-$2.$3)"
-        export CXX="$(which clang++-$2.$3)"
-elif which "clang$2$3" > /dev/null 2>&1
+        check_clang "clang$2$3"
+        CC=$result
+fi
+
+if [ "$CXX" == "" ]
     then
-        export CC="$(which clang$2$3)"
-        export CXX="$(which clang++$2$3)"
-elif which clang > /dev/null 2>&1
+        check_clang "clang++$2$3"
+        CXX=$result
+fi
+
+if [ "$CC" == "" ]
     then
-        export CC="$(which clang)"
-        export CXX="$(which clang++)"
-else
-    echo "Unable to find Clang Compiler"
-    exit 1
+        check_clang "clang"
+        CC=$result
+fi
+
+if [ "$CXX" == "" ]
+    then
+        check_clang "clang++"
+        CXX=$result
+fi
+
+if [[ "$CC" == "" || "$CXX" == "" ]]
+    then
+        echo "Unable to find Clang Compiler"
+        exit 1
 fi
 
 build_arch="$4"
@@ -126,9 +155,13 @@ if [[ -n "$CROSSCOMPILE" ]]; then
     cmake_extra_defines="$cmake_extra_defines -DCMAKE_TOOLCHAIN_FILE=$1/cross/$build_arch/toolchain.cmake"
 fi
 
+echo "cmake -DCMAKE_USER_MAKE_RULES_OVERRIDE=$1/src/pal/tools/clang-compiler-override.txt -DCMAKE_AR=$llvm_ar -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX -DCMAKE_LINKER=$llvm_link -DCMAKE_NM=$llvm_nm -DCMAKE-OBJDUMP=$llvm_objdump -DCMAKE_BUILD_TYPE=$buildtype -DCMAKE_ENABLE_CODE_COVERAGE=$code_coverage $cmake_extra_defines $1"
+
 cmake \
   "-DCMAKE_USER_MAKE_RULES_OVERRIDE=$1/src/pal/tools/clang-compiler-override.txt" \
   "-DCMAKE_AR=$llvm_ar" \
+  "-DCMAKE_C_COMPILER=$CC" \
+  "-DCMAKE_CXX_COMPILER=$CXX" \
   "-DCMAKE_LINKER=$llvm_link" \
   "-DCMAKE_NM=$llvm_nm" \
   "-DCMAKE_OBJDUMP=$llvm_objdump" \

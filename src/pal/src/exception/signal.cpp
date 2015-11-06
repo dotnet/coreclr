@@ -594,10 +594,10 @@ static void inject_activation_handler(int code, siginfo_t *siginfo, void *contex
                 &winContext, 
                 CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_FLOATING_POINT);
 
-            if (g_safeActivationCheckFunction(winContext.Rip))
-            {
-                g_activationFunction(&winContext);
-            }
+            //if (g_safeActivationCheckFunction(winContext.Rip))
+            //{
+            //    g_activationFunction(&winContext);
+            //}
 
             // Activation function may have modified the context, so update it.
             CONTEXTToNativeContext(&winContext, ucontext);
