@@ -1091,7 +1091,15 @@ public class ReliabilityFramework
                         Console.WriteLine("==============================running test: {0}==============================", daTest.Assembly);
                         try
                         {
-                            daTest.EntryPointMethod.Invoke(null, new object[] { (daTest.Arguments == null) ? new string[0] : daTest.GetSplitArguments() });
+                            var exitCode = (int)daTest.EntryPointMethod.Invoke(null, new object[] { (daTest.Arguments == null) ? new string[0] : daTest.GetSplitArguments() });
+                            if (exitCode != daTest.SuccessCode)
+                            {
+                                AddFailure(String.Format("Test Result ({0}) != Success ({1})", exitCode, daTest.SuccessCode), daTest, exitCode);
+                            }
+                            else
+                            {
+                                AddSuccess("", daTest, exitCode);
+                            }
                         }
                         catch (Exception e)
                         {
