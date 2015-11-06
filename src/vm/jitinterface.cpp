@@ -2592,16 +2592,11 @@ bool CEEInfo::getSystemVAmd64PassStructInRegisterDescriptor(
         }
         else if (th.IsTypeDesc())
         {
-            if (th.IsNativeValueType())
-            {
-                methodTablePtr = th.AsNativeValueType();
-                isNativeStruct = true;
-                _ASSERTE(methodTablePtr != nullptr);
-            }
-            else
-            {
-                _ASSERTE(false && "Unhandled TypeHandle for struct!");
-            }
+            _ASSERTE(th.IsNativeValueType());
+
+            methodTablePtr = th.AsNativeValueType();
+            isNativeStruct = true;
+            _ASSERTE(methodTablePtr != nullptr);
         }
 
         bool isPassableInRegs = false;
@@ -2624,7 +2619,8 @@ bool CEEInfo::getSystemVAmd64PassStructInRegisterDescriptor(
             structPassInRegDescPtr->passedInRegisters = true;
 
             SystemVStructRegisterPassingHelper helper((unsigned int)th.GetSize());
-            bool result = methodTablePtr->ClassifyEightBytes(&helper, 0, 0);
+            bool result = isNativeStruct ? methodTablePtr->ClassifyEightBytesForNativeStruct(&helper, 0, 0)
+                                         : methodTablePtr->ClassifyEightBytes(&helper, 0, 0);
 
             structPassInRegDescPtr->eightByteCount = helper.eightByteCount;
             _ASSERTE(structPassInRegDescPtr->eightByteCount <= CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS);
