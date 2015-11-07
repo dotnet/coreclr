@@ -20,6 +20,9 @@ else()
         # of the utilcode will be used instead of the standard library delete operator.
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Xlinker -Bsymbolic -Bsymbolic-functions")
 
+	# Follow option is necessary to avoid ld process gets killed on low-memory embedded systems such as BananaPi
+	set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} --no-keep-memory")
+
         # The following linked options can be inserted into the linker libraries list to 
         # ensure proper resolving of circular references between a subset of the libraries.
         set(START_LIBRARY_GROUP -Wl,--start-group)
