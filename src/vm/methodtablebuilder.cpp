@@ -8475,7 +8475,7 @@ void MethodTableBuilder::SystemVAmd64CheckForPassStructInRegister()
     // Iterate through the fields and make sure they meet requirements to pass in registers
     SystemVStructRegisterPassingHelper helper((unsigned int)totalStructSize);
 
-    if (GetHalfBakedMethodTable()->ClassifyEightBytes(&helper, 0, 0))
+    if (GetHalfBakedMethodTable()->ClassifyEightBytesForManagedStruct(&helper, 0, 0, false))
     {
         // All the above tests passed. It's registers passed struct!
         GetHalfBakedMethodTable()->SetRegPassedStruct();
@@ -8513,7 +8513,7 @@ void MethodTableBuilder::SystemVAmd64CheckForPassNativeStructInRegister()
    
     // Iterate through the fields and make sure they meet requirements to pass in registers
     SystemVStructRegisterPassingHelper helper((unsigned int)totalStructSize);
-    if (GetHalfBakedMethodTable()->ClassifyEightBytesForNativeStruct(&helper, 0, 0))
+    if (GetHalfBakedMethodTable()->ClassifyEightBytesForNativeStruct(&helper, 0, 0, true))
     {
         GetLayoutInfo()->SetNativeStructPassedInRegisters();
     }

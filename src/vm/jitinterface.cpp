@@ -2635,11 +2635,11 @@ bool CEEInfo::getSystemVAmd64PassStructInRegisterDescriptor(
 
                 if (isNativeStruct)
                 {
-                    result = methodTablePtr->ClassifyEightBytesForNativeStruct(&helper, 0, 0);
+                    result = methodTablePtr->ClassifyEightBytesForNativeStruct(&helper, 0, 0, isNativeStruct);
                 }
                 else
                 {
-                    result = methodTablePtr->ClassifyEightBytes(&helper, 0, 0);
+                    result = methodTablePtr->ClassifyEightBytesForManagedStruct(&helper, 0, 0, isNativeStruct);
                 }
 
                 structPassInRegDescPtr->passedInRegisters = result;

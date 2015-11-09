@@ -1048,12 +1048,12 @@ public:
     void CheckRunClassInitAsIfConstructingThrowing();
 
 #if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF)
-    // Helper function for ClassifyEightBytes
+    // Helper function for ClassifyEightBytesForManagedStruct and ClassifyEightBytesForNativeStruct
     static SystemVClassificationType ReClassifyField(SystemVClassificationType originalClassification, SystemVClassificationType newFieldClassification);
 
     // Builds the internal data structures and classifies struct eightbytes for Amd System V calling convention.
-    bool ClassifyEightBytes(SystemVStructRegisterPassingHelperPtr helperPtr, unsigned int nestingLevel, unsigned int startOffsetOfStruct);
-    bool ClassifyEightBytesForNativeStruct(SystemVStructRegisterPassingHelperPtr helperPtr, unsigned int nestingLevel, unsigned int startOffsetOfStruct);
+    bool ClassifyEightBytesForManagedStruct(SystemVStructRegisterPassingHelperPtr helperPtr, unsigned int nestingLevel, unsigned int startOffsetOfStruct, bool isNativeStruct);
+    bool ClassifyEightBytesForNativeStruct(SystemVStructRegisterPassingHelperPtr helperPtr, unsigned int nestingLevel, unsigned int startOffsetOfStruct, bool isNativeStruct);
 #endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF)
 
     // Copy m_dwFlags from another method table
