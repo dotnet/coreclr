@@ -1189,7 +1189,8 @@ struct fgArgTabEntry
     fgArgTabEntry()
     {
         otherRegNum                     = REG_NA;
-        isStruct                        = false;  // is this a struct arg
+        isStruct                        = false;            // is this a struct arg
+        classHnd                        = NO_CLASS_HANDLE;  // typeHandle for the struct.
     }
 #endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
 
@@ -1220,9 +1221,9 @@ struct fgArgTabEntry
     bool           isNonStandard:1; // True if it is an arg that is passed in a reg other than a standard arg reg
 
 #if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-    regNumber             otherRegNum;              // The (second) register to use when passing this argument.
-    bool                  isStruct;                 // is this a struct arg
-
+    regNumber             otherRegNum;  // The (second) register to use when passing this argument.
+    bool                  isStruct;     // is this a struct arg.
+    CORINFO_CLASS_HANDLE  classHnd;     // type (class) handle for the struct.
     SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
 #endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
 
@@ -1287,7 +1288,8 @@ public:
                                         unsigned        alignment,
                                         const bool      isStruct,
                                         const regNumber otherRegNum = REG_NA,
-                                        const SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR* const structDescPtr = nullptr);
+                                        const SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR* const structDescPtr = nullptr,
+                                        const CORINFO_CLASS_HANDLE classHandle = NO_CLASS_HANDLE); 
 #endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
 
     fgArgTabEntryPtr AddStkArg         (unsigned        argNum,
@@ -1295,7 +1297,8 @@ public:
                                         GenTreePtr      parent,
                                         unsigned        numSlots,
                                         unsigned        alignment
-                                        FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(const bool isStruct));
+                                        FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(const bool isStruct)
+                                        FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(const CORINFO_CLASS_HANDLE classHandle = NO_CLASS_HANDLE)); 
 
     void             RemorphReset      ();
     fgArgTabEntryPtr RemorphRegArg     (unsigned        argNum,
