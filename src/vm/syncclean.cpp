@@ -36,13 +36,19 @@ void SyncClean::AddHashMap (Bucket *bucket)
     _ASSERTE (GetThread() == NULL || GetThread()->PreemptiveGCDisabled());
     END_GETTHREAD_ALLOWED
 
-    Bucket * pTempBucket = NULL;
-    do
+    Bucket * pTempBucket = m_HashMap;
+    while (TRUE)
     {
-        pTempBucket = (Bucket *)m_HashMap;
         NextObsolete (bucket) = pTempBucket;
+    
+        Bucket * pOldBucket = FastInterlockCompareExchangePointer(m_HashMap.GetPointer(), bucket, pTempBucket);
+        
+        if (pOldBucket == pTempBucket)
+        {
+            break;
+        }
+        pTempBucket = pOldBucket;
     }
-    while (FastInterlockCompareExchangePointer(m_HashMap.GetPointer(), bucket, pTempBucket) != pTempBucket);
 }
 
 void SyncClean::AddEEHashTable (EEHashEntry** entry)
@@ -58,13 +64,18 @@ void SyncClean::AddEEHashTable (EEHashEntry** entry)
     _ASSERTE (GetThread() == NULL || GetThread()->PreemptiveGCDisabled());
     END_GETTHREAD_ALLOWED
 
-    EEHashEntry ** pTempHashEntry = NULL;
-    do
+    EEHashEntry ** pTempHashEntry = (EEHashEntry**)m_EEHashTable;
+    while (TRUE)
     {
-        pTempHashEntry = (EEHashEntry**)m_EEHashTable;
         entry[-1] = (EEHashEntry *)pTempHashEntry;
+    
+        EEHashEntry ** pOldHashEntry = FastInterlockCompareExchangePointer(m_EEHashTable.GetPointer(), entry, pTempHashEntry);
+        if (pOldHashEntry == pTempHashEntry)
+        {
+            break;
+        }
+        pTempHashEntry = pOldHashEntry;
     }
-    while (FastInterlockCompareExchangePointer(m_EEHashTable.GetPointer(), entry, pTempHashEntry) != pTempHashEntry);
 }
 
 void SyncClean::CleanUp ()

@@ -157,27 +157,31 @@ void CLREventBase::CreateMonitorEvent(SIZE_T Cookie)
     // thread-safe SetInDeadlockDetection
     FastInterlockOr(&m_dwFlags, CLREVENT_FLAGS_IN_DEADLOCK_DETECTION);
 
+    LONG cmpFlags = m_dwFlags;
+
     for (;;)
     {
-        LONG oldFlags = m_dwFlags;
-
-        if (oldFlags & CLREVENT_FLAGS_MONITOREVENT_ALLOCATED)
+        if (cmpFlags & CLREVENT_FLAGS_MONITOREVENT_ALLOCATED)
         {
             // Other thread has set the flag already. Nothing left for us to do.
             break;
         }
 
-        LONG newFlags = oldFlags | CLREVENT_FLAGS_MONITOREVENT_ALLOCATED;
-        if (FastInterlockCompareExchange((LONG*)&m_dwFlags, newFlags, oldFlags) != oldFlags)
+        LONG newFlags = cmpFlags | CLREVENT_FLAGS_MONITOREVENT_ALLOCATED;
+        
+        LONG oldFlags = FastInterlockCompareExchange((LONG*)&m_dwFlags, newFlags, cmpFlags);
+        
+        if (oldFlags == cmpFlags)
         {
             // We lost the race
+            cmpFlags = oldFlags;
             continue;
         }
 
         // Because we set the allocated bit, we are the ones to do the signalling
-        if (oldFlags & CLREVENT_FLAGS_MONITOREVENT_SIGNALLED)
+        if (cmpFlags & CLREVENT_FLAGS_MONITOREVENT_SIGNALLED)
         {
-            // We got the honour to signal the event
+            // We got the honor to signal the event
             Set();
         }
         break;
@@ -198,21 +202,25 @@ void CLREventBase::SetMonitorEvent()
     // call CLREvent::SetMonitorEvent on event that has not been initialialized yet by CreateMonitorEvent.
     // CreateMonitorEvent will signal the event once it is created if it happens.
 
+    LONG cmpFlags = m_dwFlags;
+
     for (;;)
     {
-        LONG oldFlags = m_dwFlags;
-
-        if (oldFlags & CLREVENT_FLAGS_MONITOREVENT_ALLOCATED)
+        if (cmpFlags & CLREVENT_FLAGS_MONITOREVENT_ALLOCATED)
         {
             // Event has been allocated already. Use the regular codepath.
             Set();
             break;
         }
 
-        LONG newFlags = oldFlags | CLREVENT_FLAGS_MONITOREVENT_SIGNALLED;
-        if (FastInterlockCompareExchange((LONG*)&m_dwFlags, newFlags, oldFlags) != oldFlags)
+        LONG newFlags = cmpFlags | CLREVENT_FLAGS_MONITOREVENT_SIGNALLED;
+        
+        LONG oldFlags = FastInterlockCompareExchange((LONG*)&m_dwFlags, newFlags, cmpFlags);
+        
+        if (oldFlags != cmpFlags)
         {
             // We lost the race
+            cmpFlags = oldFlags;
             continue;
         }
         break;

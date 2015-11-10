@@ -3453,11 +3453,18 @@ BOOL BucketTable::GetMoreSpace(const Prober* p)
 
     // Link the old onto the "to be reclaimed" list.
     // Use the dead link field of the abandoned buckets to form the list
-    FastTable* list;
-    do {
-        list = VolatileLoad(&dead);
+    FastTable* list = VolatileLoad(&dead);
+    while (TRUE)
+    {
         oldBucket->contents[CALL_STUB_DEAD_LINK] = (size_t) list;
-    } while (FastInterlockCompareExchangePointer(&dead, oldBucket, list) != list);
+    
+        FastTable* oldDead = FastInterlockCompareExchangePointer(&dead, oldBucket, list);
+        if (oldDead == list)
+        {
+            break;
+        }
+        list = oldDead;
+    }
 
 #ifdef _DEBUG 
     {

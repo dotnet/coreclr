@@ -2120,13 +2120,18 @@ void RCWAuxiliaryData::CacheInterfacePointer(MethodTable *pMT, IUnknown *pUnk, L
 
     // and insert it into the linked list (the interlocked operation ensures that
     // the list is walkable by other threads at all times)
-    InterfaceEntryEx *pNext;
-    do
+    InterfaceEntryEx *pNext = VolatileLoad(&m_pInterfaceCache);
+    while (TRUE)
     {
-        pNext = VolatileLoad(&m_pInterfaceCache); // our candidate "next"
         pEntryEx->m_pNext = pNext;
+
+        InterfaceEntryEx *pOldNext = FastInterlockCompareExchangePointer(&m_pInterfaceCache, pEntryEx, pNext);
+        if (pOldNext == pNext)
+        {
+            break;
+        }
+        pNext = pOldNext;
     }
-    while (FastInterlockCompareExchangePointer(&m_pInterfaceCache, pEntryEx, pNext) != pNext);
 }
 
 // Returns a cached interface pointer or NULL if there was no match.

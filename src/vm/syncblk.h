@@ -1131,22 +1131,24 @@ class ObjHeader
         }
 #endif
 
-        LONG newValue;
-        LONG oldValue;
+        LONG cmpValue = m_SyncBlockValue.LoadWithoutBarrier();
+
         while (TRUE) {
-            oldValue = m_SyncBlockValue.LoadWithoutBarrier();
             _ASSERTE(GetHeaderSyncBlockIndex() == 0);
+
             // or in the old value except any index that is there - 
             // note that indx could be carrying the BIT_SBLK_IS_HASH_OR_SYNCBLKINDEX bit that we need to preserve
-            newValue = (indx | 
-                (oldValue & ~(BIT_SBLK_IS_HASH_OR_SYNCBLKINDEX | BIT_SBLK_IS_HASHCODE | MASK_SYNCBLOCKINDEX)));
-            if (FastInterlockCompareExchange((LONG*)&m_SyncBlockValue, 
-                                             newValue, 
-                                             oldValue)
-                == oldValue)
+            LONG newValue = (indx | 
+                (cmpValue & ~(BIT_SBLK_IS_HASH_OR_SYNCBLKINDEX | BIT_SBLK_IS_HASHCODE | MASK_SYNCBLOCKINDEX)));
+            
+            LONG oldValue = FastInterlockCompareExchange((LONG*)&m_SyncBlockValue, 
+                                                         newValue, 
+                                                         cmpValue);
+            if (oldValue == cmpValue)
             {
                 return;
             }
+            cmpValue = oldValue;
         }
     }
 #endif // !BINDER

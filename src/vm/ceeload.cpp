@@ -537,14 +537,17 @@ BOOL Module::SetTransientFlagInterlocked(DWORD dwFlag)
 {
     LIMITED_METHOD_CONTRACT;
 
-    for (;;)
+    DWORD dwTransientFlags = m_dwTransientFlags;
+
+    while ((dwTransientFlags & dwFlag) == 0)
     {
-        DWORD dwTransientFlags = m_dwTransientFlags;
-        if ((dwTransientFlags & dwFlag) != 0)
-            return FALSE;
-        if ((DWORD)FastInterlockCompareExchange((LONG*)&m_dwTransientFlags, dwTransientFlags | dwFlag, dwTransientFlags) == dwTransientFlags)
+        DWORD dwOldTransientFlags = (DWORD)FastInterlockCompareExchange((LONG*)&m_dwTransientFlags, dwTransientFlags | dwFlag, dwTransientFlags);
+        if (dwOldTransientFlags == dwTransientFlags)
             return TRUE;
+        dwTransientFlags = dwOldTransientFlags;
     }
+
+    return FALSE;
 }
 
 #if PROFILING_SUPPORTED 

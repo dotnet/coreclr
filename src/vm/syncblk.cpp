@@ -2321,17 +2321,19 @@ void ObjHeader::ResetAppDomainIndex(ADIndex indx)
         if (GetHeaderSyncBlockIndex() == 0)
         {
             // can store it in the object header
+            DWORD cmpValue = m_SyncBlockValue.LoadWithoutBarrier();
             while (TRUE)
             {
-                DWORD oldValue = m_SyncBlockValue.LoadWithoutBarrier();
-                DWORD newValue = (oldValue & (~(SBLK_MASK_APPDOMAININDEX << SBLK_APPDOMAIN_SHIFT))) |
+                DWORD newValue = (cmpValue & (~(SBLK_MASK_APPDOMAININDEX << SBLK_APPDOMAIN_SHIFT))) |
                     (indx.m_dwIndex << SBLK_APPDOMAIN_SHIFT);
-                if (FastInterlockCompareExchange((LONG*)&m_SyncBlockValue,
-                                                 newValue,
-                                                 oldValue) == (LONG)oldValue)
+                LONG oldValue = FastInterlockCompareExchange((LONG*)&m_SyncBlockValue,
+                                                             newValue,
+                                                             cmpValue);
+                if (oldValue == (LONG)cmpValue)
                 {
                     break;
                 }
+                cmpValue = (DWORD)oldValue;
             }
             done = TRUE;
         }
@@ -2363,17 +2365,19 @@ void ObjHeader::ResetAppDomainIndexNoFailure(ADIndex indx)
     if (GetHeaderSyncBlockIndex() == 0)
     {
         // can store it in the object header
+        DWORD cmpValue = m_SyncBlockValue.LoadWithoutBarrier();
         while (TRUE)
         {
-            DWORD oldValue = m_SyncBlockValue.LoadWithoutBarrier();
-            DWORD newValue = (oldValue & (~(SBLK_MASK_APPDOMAININDEX << SBLK_APPDOMAIN_SHIFT))) |
+            DWORD newValue = (cmpValue & (~(SBLK_MASK_APPDOMAININDEX << SBLK_APPDOMAIN_SHIFT))) |
                 (indx.m_dwIndex << SBLK_APPDOMAIN_SHIFT);
-            if (FastInterlockCompareExchange((LONG*)&m_SyncBlockValue,
-                                             newValue,
-                                             oldValue) == (LONG)oldValue)
+            LONG oldValue = FastInterlockCompareExchange((LONG*)&m_SyncBlockValue,
+                                                         newValue,
+                                                         cmpValue);
+            if (oldValue == (LONG)cmpValue)
             {
                 break;
             }
+            cmpValue = (DWORD)oldValue;
         }
     }
     else
@@ -2954,16 +2958,17 @@ BOOL AwareLock::TryEnter(INT32 timeOut)
 
 retry:
 
-    for (;;) {
+    // Read existing lock state.
+    LONG state = m_MonitorHeld.LoadWithoutBarrier();
 
-        // Read existing lock state.
-        LONG state = m_MonitorHeld.LoadWithoutBarrier();
+    for (;;) {
 
         if (state == 0) 
         {
             // Common case: lock not held, no waiters. Attempt to acquire lock by
             // switching lock bit.
-            if (FastInterlockCompareExchange((LONG*)&m_MonitorHeld, 1, 0) == 0)
+            state = FastInterlockCompareExchange((LONG*)&m_MonitorHeld, 1, 0);
+            if (state == 0)
             {
                 break;
             } 
@@ -3012,20 +3017,22 @@ WouldBlock:
     // The precondition for EnterEpilog is that the count of waiters be bumped
     // to account for this thread
 
+    // Read existing lock state.
+    state = m_MonitorHeld.LoadWithoutBarrier();
+
     for (;;)
     {
-        // Read existing lock state.
-        LONG state = m_MonitorHeld.LoadWithoutBarrier();
-
         if (state == 0)
         {
             goto retry;
         }
 
-        if (FastInterlockCompareExchange((LONG*)&m_MonitorHeld, (state + 2), state) == state)
+        LONG oldState = FastInterlockCompareExchange((LONG*)&m_MonitorHeld, (state + 2), state);
+        if (oldState == state)
         {
             break;
         }
+        state = oldState;
     }
 
     return EnterEpilog(pCurThread, timeOut);
@@ -3149,14 +3156,18 @@ BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
                 if (GOT_EXCEPTION())
                 {
                     // We must decrement the waiter count.
+                    LONG state = m_MonitorHeld.LoadWithoutBarrier();
+                    
                     for (;;)
                     {
-                        LONG state = m_MonitorHeld.LoadWithoutBarrier();
                         _ASSERTE((state >> 1) != 0);
-                        if (FastInterlockCompareExchange((LONG*)&m_MonitorHeld, state - 2, state) == state)
+
+                        LONG oldState = FastInterlockCompareExchange((LONG*)&m_MonitorHeld, state - 2, state);
+                        if (oldState == state)
                         {
                             break;
                         }
+                        state = oldState;
                     }
 
                     // And signal the next waiter, else they'll wait forever.
@@ -3169,9 +3180,10 @@ BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
             if (ret == WAIT_OBJECT_0)
             {
                 // Attempt to acquire lock (this also involves decrementing the waiter count).
+                LONG state = m_MonitorHeld.LoadWithoutBarrier();
+
                 for (;;) 
                 {
-                    LONG state = m_MonitorHeld.LoadWithoutBarrier();
                     _ASSERTE(((size_t)state >> 1) != 0);
 
                     if ((size_t)state & 1)
@@ -3179,11 +3191,14 @@ BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
                         break;
                     }
 
-                    if (FastInterlockCompareExchange((LONG*)&m_MonitorHeld, ((state - 2) | 1), state) == state)
+                    LONG oldState = FastInterlockCompareExchange((LONG*)&m_MonitorHeld, ((state - 2) | 1), state);
+                    
+                    if (oldState == state)
                     {
                         finished = true;
                         break;
                     }
+                    state = oldState;
                 }
             }
             else

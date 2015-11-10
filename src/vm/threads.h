@@ -3939,18 +3939,20 @@ private:
         //
         // If the thread is set free, mark it as not-suspended now
         //
-        ThreadState oldState = m_State;
+        ThreadState cmpState = m_State;
 
-        while ((oldState & (TS_UserSuspendPending | TS_DebugSuspendPending)) == 0)
+        while ((cmpState & (TS_UserSuspendPending | TS_DebugSuspendPending)) == 0)
         {
             //
             // Construct the destination state we desire - all suspension bits turned off.
             //
-            ThreadState newState = (ThreadState)(oldState & ~(TS_UserSuspendPending |
+            ThreadState newState = (ThreadState)(cmpState & ~(TS_UserSuspendPending |
                                                               TS_DebugSuspendPending |
                                                               TS_SyncSuspended));
 
-            if (FastInterlockCompareExchange((LONG *)&m_State, newState, oldState) == (LONG)oldState)
+            ThreadState oldState = (ThreadState)FastInterlockCompareExchange((LONG *)&m_State, newState, cmpState);
+            
+            if (oldState == cmpState)
             {
                 break;
             }
@@ -3958,7 +3960,7 @@ private:
             //
             // The state changed underneath us, refresh it and try again.
             //
-            oldState = m_State;
+            cmpState = oldState;
         }
 
         if (bit & TS_UserSuspendPending) {

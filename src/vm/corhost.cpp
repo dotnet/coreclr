@@ -7566,14 +7566,19 @@ void CExecutionEngine::DetachTlsInfo(void **pTlsData)
 #endif
     }
 
+    ClrTlsInfo *head = g_pDetachedTlsInfo.Load();
+
     while (TRUE)
     {
-        ClrTlsInfo *head = g_pDetachedTlsInfo.Load();
-        pTlsInfo->next =  head;
-        if (FastInterlockCompareExchangePointer(g_pDetachedTlsInfo.GetPointer(), pTlsInfo, head) == head)
+        pTlsInfo->next = head;
+
+        ClrTlsInfo *oldHead = FastInterlockCompareExchangePointer(g_pDetachedTlsInfo.GetPointer(), pTlsInfo, head);
+        if (oldHead == head)
         {
             return;
         }
+
+        head = oldHead;
     }
 }
 

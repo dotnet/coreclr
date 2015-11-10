@@ -221,17 +221,20 @@ void MdaCallbackOnCollectedDelegate::AddToList(UMEntryThunk* pEntryThunk)
     CONTRACTL_END;
 
     // Get an index to use.
-    ULONG oldIndex = m_iIndex;
-    ULONG newIndex = oldIndex + 1;
-    if (newIndex >= (ULONG)m_size)
-        newIndex = 0;
+    ULONG index = m_iIndex;
     
-    while ((ULONG)FastInterlockCompareExchange((LONG*)&m_iIndex, newIndex, oldIndex) != oldIndex)
+    while (TRUE) 
     {
-        oldIndex = m_iIndex;
-        newIndex = oldIndex + 1;
+        ULONG newIndex = index + 1;
         if (newIndex >= (ULONG)m_size)
             newIndex = 0;
+
+        ULONG oldIndex = (ULONG)FastInterlockCompareExchange((LONG*)&m_iIndex, newIndex, index);
+
+        if (oldIndex == index)
+            break;
+
+        index = oldIndex;
     }
 
     // We successfully incremented the index and can use the oldIndex value as our entry.

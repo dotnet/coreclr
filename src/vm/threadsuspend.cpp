@@ -2838,19 +2838,24 @@ void Thread::MarkThreadForAbort(ThreadAbortRequester requester, EEPolicy::Thread
 void Thread::SetAbortRequestBit()
 {
     WRAPPER_NO_CONTRACT;
+
+    LONG curValue = (LONG)m_State;
+
     while (TRUE)
     {
-        Volatile<LONG> curValue = (LONG)m_State;
         if ((curValue & TS_AbortRequested) != 0)
         {
             break;
         }
-        if (FastInterlockCompareExchange((LONG*)&m_State, curValue|TS_AbortRequested, curValue) == curValue)
+
+        LONG oldValue = FastInterlockCompareExchange((LONG*)&m_State, curValue|TS_AbortRequested, curValue); 
+        if (oldValue == curValue)
         {
             ThreadStore::TrapReturningThreads(TRUE);
 
             break;
         }
+        curValue = oldValue;
     }
 }
 
@@ -2868,19 +2873,22 @@ void Thread::RemoveAbortRequestBit()
     // To ensure the assert in DbgFindThread does not fire under such a race we set the ChgInFlight before hand.
     CounterHolder trtHolder(&g_trtChgInFlight);
 #endif
+    LONG curValue = (LONG)m_State;
     while (TRUE)
     {
-        Volatile<LONG> curValue = (LONG)m_State;
         if ((curValue & TS_AbortRequested) == 0)
         {
             break;
         }
-        if (FastInterlockCompareExchange((LONG*)&m_State, curValue&(~TS_AbortRequested), curValue) == curValue)
+        LONG oldValue = FastInterlockCompareExchange((LONG*)&m_State, curValue&(~TS_AbortRequested), curValue);
+        
+        if (oldValue == curValue)
         {
             ThreadStore::TrapReturningThreads(FALSE);
 
             break;
         }
+        curValue = oldValue;
     }
 }
 
@@ -6759,12 +6767,15 @@ BOOL Thread::WaitSuspendEventsHelper(void)
 
         if (m_State & TS_UserSuspendPending) {
 
-            ThreadState oldState = m_State;
+            ThreadState cmpState = m_State;
 
-            while (oldState & TS_UserSuspendPending) {
+            while (cmpState & TS_UserSuspendPending) {
 
-                ThreadState newState = (ThreadState)(oldState | TS_SyncSuspended);
-                if (FastInterlockCompareExchange((LONG *)&m_State, newState, oldState) == (LONG)oldState)
+                ThreadState newState = (ThreadState)(cmpState | TS_SyncSuspended);
+
+                ThreadState oldState = (ThreadState)FastInterlockCompareExchange((LONG *)&m_State, newState, cmpState);
+                
+                if (oldState == cmpState)
                 {
                     result = m_UserSuspendEvent.Wait(INFINITE,FALSE);
 #if _DEBUG
@@ -6774,18 +6785,21 @@ BOOL Thread::WaitSuspendEventsHelper(void)
                     break;
                 }
 
-                oldState = m_State;
+                cmpState = oldState;
             }
 
 
         } else if (m_State & TS_DebugSuspendPending) {
 
-            ThreadState oldState = m_State;
+            ThreadState cmpState = m_State;
 
-            while (oldState & TS_DebugSuspendPending) {
+            while (cmpState & TS_DebugSuspendPending) {
 
-                ThreadState newState = (ThreadState)(oldState | TS_SyncSuspended);
-                if (FastInterlockCompareExchange((LONG *)&m_State, newState, oldState) == (LONG)oldState)
+                ThreadState newState = (ThreadState)(cmpState | TS_SyncSuspended);
+
+                ThreadState oldState = (ThreadState)FastInterlockCompareExchange((LONG *)&m_State, newState, cmpState);
+                
+                if (oldState == cmpState)
                 {
                     result = m_DebugSuspendEvent.Wait(INFINITE,FALSE);
 #if _DEBUG
@@ -6795,7 +6809,7 @@ BOOL Thread::WaitSuspendEventsHelper(void)
                     break;
                 }
 
-                oldState = m_State;
+                cmpState = oldState;
             }
         }
     }
@@ -6826,28 +6840,31 @@ void Thread::WaitSuspendEvents(BOOL fDoWait)
         {
             WaitSuspendEventsHelper();
 
-            ThreadState oldState = m_State;
+            ThreadState cmpState = m_State;
 
             //
             // If all reasons to suspend are off, we think we can exit
             // this loop, but we need to check atomically.
             //
-            if ((oldState & (TS_UserSuspendPending | TS_DebugSuspendPending)) == 0)
+            if ((cmpState & (TS_UserSuspendPending | TS_DebugSuspendPending)) == 0)
             {
                 //
                 // Construct the destination state we desire - all suspension bits turned off.
                 //
-                ThreadState newState = (ThreadState)(oldState & ~(TS_UserSuspendPending |
+                ThreadState newState = (ThreadState)(cmpState & ~(TS_UserSuspendPending |
                                                                   TS_DebugSuspendPending |
                                                                   TS_SyncSuspended));
 
-                if (FastInterlockCompareExchange((LONG *)&m_State, newState, oldState) == (LONG)oldState)
+                ThreadState oldState = (ThreadState)FastInterlockCompareExchange((LONG *)&m_State, newState, cmpState);
+                
+                if (oldState == cmpState)
                 {
                     //
                     // We are done.
                     //
                     break;
                 }
+                cmpState = oldState;
             }
         }
     }
