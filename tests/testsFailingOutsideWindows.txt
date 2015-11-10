@@ -1,3 +1,4 @@
+CoreMangLib/system/delegate/regressions/devdivbugs/113347/DDB113347/DDB113347.sh
 CoreMangLib/cti/system/multicastdelegate/MulticastDelegateCtor/MulticastDelegateCtor.sh
 CoreMangLib/cti/system/runtime/interopservices/marshal/MarshalGetLastWin32Error_PSC/MarshalGetLastWin32Error_PSC.sh
 Interop/ICastable/Castable/Castable.sh
