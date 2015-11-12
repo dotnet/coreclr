@@ -65,8 +65,6 @@ enum VIRTUAL_CONSTANTS
     /* Page manipulation constants. */
 #ifdef __sparc__
     VIRTUAL_PAGE_SIZE       = 0x2000,
-#elif __aarch64__
-    VIRTUAL_PAGE_SIZE       = 0x1000,
 #else   // __sparc__
     VIRTUAL_PAGE_SIZE       = 0x1000,
 #endif  // __sparc__

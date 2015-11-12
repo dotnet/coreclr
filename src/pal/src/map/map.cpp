@@ -80,7 +80,6 @@ static PMAPPED_VIEW_LIST FindSharedMappingReplacement(CPalThread *pThread, dev_t
 
 static PAL_ERROR
 MAPRecordMapping(
-    CPalThread *pThread,
     IPalObject *pMappingObject,
     void *pPEBaseAddress,
     void *addr,
@@ -90,7 +89,6 @@ MAPRecordMapping(
 
 static PAL_ERROR
 MAPmmapAndRecord(
-    CPalThread *pThread,
     IPalObject *pMappingObject,
     void *pPEBaseAddress,
     void *addr,
@@ -179,7 +177,7 @@ FileMappingCleanupRoutine(
 
         if (pImmutableData->bPALCreatedTempFile)
         {
-            InternalUnlink(pThread, pImmutableData->szFileName);
+            unlink(pImmutableData->szFileName);
         }
     }
 
@@ -240,7 +238,6 @@ FileMappingInitializationRoutine(
         reinterpret_cast<CFileMappingProcessLocalData *>(pvProcessLocalData);
 
     pProcessLocalData->UnixFd = InternalOpen(
-        pThread,
         pImmutableData->szFileName,
         MAPProtectionToFileOpenFlags(pImmutableData->flProtect)
         );
@@ -506,7 +503,7 @@ CorUnix::InternalCreateFileMapping(
 
 #if HAVE_MMAP_DEV_ZERO
 
-        UnixFd = InternalOpen(pThread, pImmutableData->szFileName, O_RDWR);
+        UnixFd = InternalOpen(pImmutableData->szFileName, O_RDWR);
         if ( -1 == UnixFd )
         {
             ERROR( "Unable to open the file.\n");
@@ -767,7 +764,7 @@ ExitInternalCreateFileMapping:
 
         if (bPALCreatedTempFile)
         {
-            InternalUnlink(pThread, pImmutableData->szFileName);
+            unlink(pImmutableData->szFileName);
         }
 
         if (-1 != UnixFd)
@@ -784,9 +781,9 @@ ExitInternalCreateFileMapping:
     if (NULL != pFileObject)
     {
         pFileObject->ReleaseReference(pThread);
-    }  
+    }
 
-    return palError;    
+    return palError;
 }
 
 /*++
@@ -1348,7 +1345,7 @@ CorUnix::InternalMapViewOfFile(
                         ERROR( "Failed setting protections on reused mapping\n");
 
                         NativeMapHolderRelease(pThread, pReusedMapping->pNMHolder);
-                        InternalFree(pThread, pReusedMapping);
+                        InternalFree(pReusedMapping);
                         pReusedMapping = NULL;
                     }
                 }
@@ -1398,7 +1395,7 @@ CorUnix::InternalMapViewOfFile(
         // the global list.
         //
         
-        PMAPPED_VIEW_LIST pNewView = (PMAPPED_VIEW_LIST)InternalMalloc(pThread, sizeof(*pNewView));
+        PMAPPED_VIEW_LIST pNewView = (PMAPPED_VIEW_LIST)InternalMalloc(sizeof(*pNewView));
         if (NULL != pNewView)
         {
             pNewView->lpAddress = pvBaseAddress;
@@ -1425,7 +1422,7 @@ CorUnix::InternalMapViewOfFile(
             {
                 pNewView->pFileMapping->ReleaseReference(pThread);
                 RemoveEntryList(&pNewView->Link);
-                InternalFree(pThread, pNewView);
+                InternalFree(pNewView);
                 palError = ERROR_INTERNAL_ERROR;
             }
 #endif // ONE_SHARED_MAPPING_PER_FILEREGION_PER_PROCESS
@@ -1507,7 +1504,7 @@ CorUnix::InternalUnmapViewOfFile(
 
     RemoveEntryList(&pView->Link);
     pMappingObject = pView->pFileMapping;
-    InternalFree(pThread, pView);
+    InternalFree(pView);
     
 InternalUnmapViewOfFileExit:
 
@@ -2099,7 +2096,7 @@ static PMAPPED_VIEW_LIST FindSharedMappingReplacement(
                 /* The new desired mapping is fully contained in the 
                    one just found: we can reuse this one */
 
-                pNewView = (PMAPPED_VIEW_LIST)InternalMalloc(pThread, sizeof(MAPPED_VIEW_LIST));
+                pNewView = (PMAPPED_VIEW_LIST)InternalMalloc(sizeof(MAPPED_VIEW_LIST));
                 if (pNewView)
                 {
                     memcpy(pNewView, pView, sizeof(*pNewView));
@@ -2134,7 +2131,7 @@ static NativeMapHolder * NewNativeMapHolder(CPalThread *pThread, LPVOID address,
     }
 	
     pThisMapHolder = 
-        (NativeMapHolder *)InternalMalloc(pThread, sizeof(NativeMapHolder));
+        (NativeMapHolder *)InternalMalloc(sizeof(NativeMapHolder));
         
     if (pThisMapHolder)
     {
@@ -2168,7 +2165,7 @@ static LONG NativeMapHolderRelease(CPalThread *pThread, NativeMapHolder * thisNM
             TRACE( "Successfully unmapped %p (size=%lu)\n", 
                    thisNMH->address, (unsigned long)thisNMH->size);
         }
-        InternalFree (pThread, thisNMH);
+        InternalFree (thisNMH);
     }
     else if (ret < 0)
     {
@@ -2186,7 +2183,6 @@ static LONG NativeMapHolderRelease(CPalThread *pThread, NativeMapHolder * thisNM
 // This call assumes the mapping_critsec has already been taken.
 static PAL_ERROR
 MAPRecordMapping(
-    CPalThread *pThread,
     IPalObject *pMappingObject,
     void *pPEBaseAddress,
     void *addr,
@@ -2201,7 +2197,7 @@ MAPRecordMapping(
 
     PAL_ERROR palError = NO_ERROR;
     PMAPPED_VIEW_LIST pNewView;
-    pNewView = (PMAPPED_VIEW_LIST)InternalMalloc(pThread, sizeof(*pNewView));
+    pNewView = (PMAPPED_VIEW_LIST)InternalMalloc(sizeof(*pNewView));
     if (NULL != pNewView)
     {
         pNewView->lpAddress = addr;
@@ -2226,7 +2222,6 @@ MAPRecordMapping(
 // This call assumes the mapping_critsec has already been taken.
 static PAL_ERROR
 MAPmmapAndRecord(
-    CPalThread *pThread,
     IPalObject *pMappingObject,
     void *pPEBaseAddress,
     void *addr,
@@ -2251,7 +2246,7 @@ MAPmmapAndRecord(
     }
     else
     {
-        palError = MAPRecordMapping(pThread, pMappingObject, pPEBaseAddress, pvBaseAddress, len, prot);
+        palError = MAPRecordMapping(pMappingObject, pPEBaseAddress, pvBaseAddress, len, prot);
         if (NO_ERROR != palError)
         {
             if (-1 == munmap(pvBaseAddress, len))
@@ -2476,7 +2471,7 @@ void * MAPMapPEFile(HANDLE hFile)
     headerSize = VIRTUAL_PAGE_SIZE; // if there are lots of sections, this could be wrong
 
     //first, map the PE header to the first page in the image.  Get pointers to the section headers
-    palError = MAPmmapAndRecord(pThread, pFileObject, loadedBase,
+    palError = MAPmmapAndRecord(pFileObject, loadedBase,
                     loadedBase, headerSize, PROT_READ, MAP_FILE|MAP_PRIVATE|MAP_FIXED, fd, 0,
                     (void**)&loadedHeader);
     if (NO_ERROR != palError)
@@ -2544,7 +2539,7 @@ void * MAPMapPEFile(HANDLE hFile)
         if ((char*)prevSectionBase + prevSectionSizeInMemory < sectionBase)
         {
             char* gapBase = (char*)prevSectionBase + prevSectionSizeInMemory;
-            palError = MAPRecordMapping(pThread, pFileObject,
+            palError = MAPRecordMapping(pFileObject,
                             loadedBase,
                             (void*)gapBase,
                             (char*)sectionBase - gapBase,
@@ -2566,7 +2561,7 @@ void * MAPMapPEFile(HANDLE hFile)
         if (currentHeader.Characteristics & IMAGE_SCN_MEM_WRITE)
             prot |= PROT_WRITE;
 
-        palError = MAPmmapAndRecord(pThread, pFileObject, loadedBase,
+        palError = MAPmmapAndRecord(pFileObject, loadedBase,
                         sectionBase,
                         currentHeader.SizeOfRawData,
                         prot,
@@ -2601,7 +2596,7 @@ void * MAPMapPEFile(HANDLE hFile)
     if ((char*)prevSectionBase + prevSectionSizeInMemory < imageEnd)
     {
         char* gapBase = (char*)prevSectionBase + prevSectionSizeInMemory;
-        palError = MAPRecordMapping(pThread, pFileObject,
+        palError = MAPRecordMapping(pFileObject,
                         loadedBase,
                         (void*)gapBase,
                         imageEnd - gapBase,
@@ -2730,7 +2725,7 @@ BOOL MAPUnmapPEFile(LPCVOID lpAddress)
         {
             pFileObject->ReleaseReference(pThread);
         }
-        InternalFree(pThread, pView); // this leaves pLink dangling
+        InternalFree(pView); // this leaves pLink dangling
     }
 
     TRACE_(LOADER)("MAPUnmapPEFile returning %d\n", retval);

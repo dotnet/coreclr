@@ -67,8 +67,8 @@ static FREE_BLOCK *pFreeMemory;
 // Currently 1GB.
 static const int BACKING_FILE_SIZE = 1024 * 1024 * 1024;
 
-static void *VIRTUALReserveFromBackingFile(CPalThread *pthrCurrnet, UINT_PTR addr, size_t length);
-static BOOL VIRTUALAddToFreeList(CPalThread* pthrCurrent, const PCMI pMemoryToBeReleased);
+static void *VIRTUALReserveFromBackingFile(UINT_PTR addr, size_t length);
+static BOOL VIRTUALAddToFreeList(const PCMI pMemoryToBeReleased);
 
 // The base address of the pages mapped onto our backing file.
 static void *gBackingBaseAddress = MAP_FAILED;
@@ -140,14 +140,14 @@ void VIRTUALCleanup()
     {
         WARN( "The memory at %d was not freed through a call to VirtualFree.\n",
               pEntry->startBoundary );
-        InternalFree( pthrCurrent, pEntry->pAllocState);
-        InternalFree( pthrCurrent, pEntry->pProtectionState );
+        InternalFree(pEntry->pAllocState);
+        InternalFree(pEntry->pProtectionState );
 #if MMAP_DOESNOT_ALLOW_REMAP
-        InternalFree( pthrCurrent, pEntry->pDirtyPages );
+        InternalFree(pEntry->pDirtyPages );
 #endif
         pTempEntry = pEntry;
         pEntry = pEntry->pNext;
-        InternalFree( pthrCurrent, pTempEntry );
+        InternalFree(pTempEntry );
     }
     pVirtualMemory = NULL;
     
@@ -161,7 +161,7 @@ void VIRTUALCleanup()
         munmap(pFreeBlock->startBoundary, pFreeBlock->memSize);
         pTempFreeBlock = pFreeBlock;
         pFreeBlock = pFreeBlock->next;
-        InternalFree(pthrCurrent, pTempFreeBlock);
+        InternalFree(pTempFreeBlock);
     }
     pFreeMemory = NULL;
     gBackingBaseAddress = MAP_FAILED;   
@@ -565,7 +565,7 @@ Function :
     
     Returns true on success. FALSE otherwise.
 --*/
-static BOOL VIRTUALReleaseMemory( CPalThread *pthrCurrent, PCMI pMemoryToBeReleased )
+static BOOL VIRTUALReleaseMemory( PCMI pMemoryToBeReleased )
 {
     BOOL bRetVal = TRUE;
     
@@ -575,7 +575,6 @@ static BOOL VIRTUALReleaseMemory( CPalThread *pthrCurrent, PCMI pMemoryToBeRelea
         return FALSE;
     }
 
-    
     if ( pMemoryToBeReleased == pVirtualMemory )
     {
         /* This is either the first entry, or the only entry. */
@@ -602,21 +601,21 @@ static BOOL VIRTUALReleaseMemory( CPalThread *pthrCurrent, PCMI pMemoryToBeRelea
 #if MMAP_IGNORES_HINT
     // We've removed the block from our allocated list. Add it to the
     // free list.
-    bRetVal = VIRTUALAddToFreeList(pthrCurrent, pMemoryToBeReleased);
+    bRetVal = VIRTUALAddToFreeList(pMemoryToBeReleased);
 #endif  // MMAP_IGNORES_HINT
 
-    InternalFree( pthrCurrent, pMemoryToBeReleased->pAllocState );
+    InternalFree( pMemoryToBeReleased->pAllocState );
     pMemoryToBeReleased->pAllocState = NULL;
     
-    InternalFree( pthrCurrent, pMemoryToBeReleased->pProtectionState );
+    InternalFree( pMemoryToBeReleased->pProtectionState );
     pMemoryToBeReleased->pProtectionState = NULL;
 
 #if MMAP_DOESNOT_ALLOW_REMAP
-    InternalFree( pthrCurrent, pMemoryToBeReleased->pDirtyPages );
+    InternalFree( pMemoryToBeReleased->pDirtyPages );
     pMemoryToBeReleased->pDirtyPages = NULL;
 #endif // MMAP_DOESNOT_ALLOW_REMAP
 
-    InternalFree( pthrCurrent, pMemoryToBeReleased );
+    InternalFree( pMemoryToBeReleased );
     pMemoryToBeReleased = NULL;
 
     return bRetVal;
@@ -759,7 +758,6 @@ static void VIRTUALDisplayList( void  )
  *      NOTE: The caller must own the critical section.
  */
 static BOOL VIRTUALStoreAllocationInfo( 
-            IN CPalThread *pthrCurrent,     /* Currently executing thread */
             IN UINT_PTR startBoundary,      /* Start of the region. */
             IN SIZE_T memSize,            /* Size of the region. */
             IN DWORD flAllocationType,  /* Allocation Types. */
@@ -777,7 +775,7 @@ static BOOL VIRTUALStoreAllocationInfo(
         goto done;
     }
     
-    if ( !(pNewEntry = ( PCMI )InternalMalloc(pthrCurrent, sizeof( *pNewEntry )) ) )
+    if ( !(pNewEntry = ( PCMI )InternalMalloc( sizeof( *pNewEntry )) ) )
     {
         ERROR( "Unable to allocate memory for the structure.\n");
         bRetVal =  FALSE;
@@ -795,10 +793,10 @@ static BOOL VIRTUALStoreAllocationInfo(
         nBufferSize++;
     }
     
-    pNewEntry->pAllocState      = (BYTE*)InternalMalloc( pthrCurrent, nBufferSize  );
-    pNewEntry->pProtectionState = (BYTE*)InternalMalloc( pthrCurrent, (memSize / VIRTUAL_PAGE_SIZE)  );
+    pNewEntry->pAllocState      = (BYTE*)InternalMalloc( nBufferSize  );
+    pNewEntry->pProtectionState = (BYTE*)InternalMalloc( (memSize / VIRTUAL_PAGE_SIZE)  );
 #if MMAP_DOESNOT_ALLOW_REMAP
-    pNewEntry->pDirtyPages  = (BYTE*)InternalMalloc( pthrCurrent, nBufferSize );
+    pNewEntry->pDirtyPages  = (BYTE*)InternalMalloc( nBufferSize );
 #endif // 
 
     if ( pNewEntry->pAllocState && pNewEntry->pProtectionState 
@@ -822,17 +820,17 @@ static BOOL VIRTUALStoreAllocationInfo(
         bRetVal =  FALSE;
 
 #if MMAP_DOESNOT_ALLOW_REMAP
-        if (pNewEntry->pDirtyPages) InternalFree( pthrCurrent, pNewEntry->pDirtyPages );
+        if (pNewEntry->pDirtyPages) InternalFree( pNewEntry->pDirtyPages );
         pNewEntry->pDirtyPages = NULL;
 #endif // 
 
-        if (pNewEntry->pProtectionState) InternalFree( pthrCurrent, pNewEntry->pProtectionState );
+        if (pNewEntry->pProtectionState) InternalFree( pNewEntry->pProtectionState );
         pNewEntry->pProtectionState = NULL;
         
-        if (pNewEntry->pAllocState) InternalFree( pthrCurrent, pNewEntry->pAllocState );
+        if (pNewEntry->pAllocState) InternalFree( pNewEntry->pAllocState );
         pNewEntry->pAllocState = NULL;
 
-        InternalFree( pthrCurrent, pNewEntry );
+        InternalFree( pNewEntry );
         pNewEntry = NULL;
         
         goto done;
@@ -913,7 +911,7 @@ static LPVOID VIRTUALReserveMemory(
     InternalEnterCriticalSection(pthrCurrent, &virtual_critsec);
 
 #if MMAP_IGNORES_HINT
-    pRetVal = VIRTUALReserveFromBackingFile(pthrCurrent, StartBoundary, MemSize);
+    pRetVal = VIRTUALReserveFromBackingFile(StartBoundary, MemSize);
 #else   // MMAP_IGNORES_HINT
     // Most platforms will only commit the memory if it is dirtied,
     // so this should not consume too much swap space.
@@ -980,7 +978,7 @@ static LPVOID VIRTUALReserveMemory(
 #if !MMAP_IGNORES_HINT
         }
 #endif  // MMAP_IGNORES_HINT
-        if ( !VIRTUALStoreAllocationInfo( pthrCurrent, StartBoundary, MemSize, 
+        if ( !VIRTUALStoreAllocationInfo( StartBoundary, MemSize, 
                                    flAllocationType, flProtect ) )
         {
             ASSERT( "Unable to store the structure in the list.\n");
@@ -1219,7 +1217,7 @@ error:
 #else   // MMAP_IGNORES_HINT && !MMAP_DOESNOT_ALLOW_REMAP
         munmap( pRetVal, MemSize );
 #endif  // MMAP_IGNORES_HINT && !MMAP_DOESNOT_ALLOW_REMAP
-        if ( VIRTUALReleaseMemory( pthrCurrent, pInformation ) == FALSE )
+        if ( VIRTUALReleaseMemory( pInformation ) == FALSE )
         {
             ASSERT( "Unable to remove the PCMI entry from the list.\n" );
             pthrCurrent->SetLastError( ERROR_INTERNAL_ERROR );
@@ -1260,7 +1258,7 @@ Function:
     Returns the base address of the mapped block, or MAP_FAILED if no
     suitable block exists or mapping fails.
 --*/
-static void *VIRTUALReserveFromBackingFile(CPalThread *pthrCurrent, UINT_PTR addr, size_t length)
+static void *VIRTUALReserveFromBackingFile(UINT_PTR addr, size_t length)
 {
     FREE_BLOCK *block;
     FREE_BLOCK *prev;
@@ -1318,7 +1316,7 @@ static void *VIRTUALReserveFromBackingFile(CPalThread *pthrCurrent, UINT_PTR add
         {
             prev->next = block->next;
         }
-        InternalFree(pthrCurrent, block);
+        InternalFree(block);
     }
     else
     {
@@ -1340,7 +1338,7 @@ static void *VIRTUALReserveFromBackingFile(CPalThread *pthrCurrent, UINT_PTR add
         else
         {
             // Splitting the block. We'll need a new block for the free list.
-            temp = (FREE_BLOCK *) InternalMalloc(pthrCurrent, sizeof(FREE_BLOCK));
+            temp = (FREE_BLOCK *) InternalMalloc(sizeof(FREE_BLOCK));
             if (temp == NULL)
             {
                 ERROR("Failed to allocate memory for a new free block!");
@@ -1366,7 +1364,7 @@ Function:
     
     Returns TRUE if the block was added to the free list.
 --*/
-static BOOL VIRTUALAddToFreeList(CPalThread* pthrCurrent, const PCMI pMemoryToBeReleased)
+static BOOL VIRTUALAddToFreeList(const PCMI pMemoryToBeReleased)
 {
     FREE_BLOCK *temp;
     FREE_BLOCK *lastBlock;
@@ -1421,7 +1419,7 @@ static BOOL VIRTUALAddToFreeList(CPalThread* pthrCurrent, const PCMI pMemoryToBe
                 lastBlock->memSize += lastBlock->next->memSize;
                 temp = lastBlock->next;
                 lastBlock->next = lastBlock->next->next;
-                InternalFree(pthrCurrent, temp);
+                InternalFree(temp);
             }
             else
             {
@@ -1439,7 +1437,7 @@ static BOOL VIRTUALAddToFreeList(CPalThread* pthrCurrent, const PCMI pMemoryToBe
     
     // At this point we know we're not coalescing anything and we need
     // a new block.
-    newBlock = (FREE_BLOCK *) InternalMalloc(pthrCurrent, sizeof(FREE_BLOCK));
+    newBlock = (FREE_BLOCK *) InternalMalloc(sizeof(FREE_BLOCK));
     if (newBlock == NULL)
     {
         ERROR("Failed to allocate memory for a new free block!");
@@ -1505,7 +1503,7 @@ static BOOL VIRTUALGetBackingFile(CPalThread *pthrCurrent)
         ASSERT("Surprisingly, LibRotorPal can't be found!");
         goto done;
     }
-    gBackingFile = InternalOpen(pthrCurrent, palName, O_RDONLY);
+    gBackingFile = InternalOpen(palName, O_RDONLY);
     if (gBackingFile == -1)
     {
         ASSERT("Failed to open %s as a backing file: errno=%d\n",
@@ -1526,7 +1524,7 @@ static BOOL VIRTUALGetBackingFile(CPalThread *pthrCurrent)
     }
 
     // Create our free list.
-    pFreeMemory = (FREE_BLOCK *) InternalMalloc(pthrCurrent, sizeof(FREE_BLOCK));
+    pFreeMemory = (FREE_BLOCK *) InternalMalloc(sizeof(FREE_BLOCK));
     if (pFreeMemory == NULL)
     {
         // Not good.
@@ -1824,7 +1822,7 @@ VirtualFree(
                      pMemoryToBeReleased->memSize ) == 0 )
 #endif  // MMAP_IGNORES_HINT && !MMAP_DOESNOT_ALLOW_REMAP
         {
-            if ( VIRTUALReleaseMemory( pthrCurrent, pMemoryToBeReleased ) == FALSE )
+            if ( VIRTUALReleaseMemory( pMemoryToBeReleased ) == FALSE )
             {
                 ASSERT( "Unable to remove the PCMI entry from the list.\n" );
                 pthrCurrent->SetLastError( ERROR_INTERNAL_ERROR );

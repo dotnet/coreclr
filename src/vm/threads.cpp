@@ -2136,7 +2136,7 @@ Thread::Thread()
 
     m_dwAVInRuntimeImplOkayCount = 0;
 
-#if defined(HAVE_GCCOVER) && defined(USE_REDIRECT_FOR_GCSTRESS) // GCCOVER
+#if defined(HAVE_GCCOVER) && defined(USE_REDIRECT_FOR_GCSTRESS) && !defined(PLATFORM_UNIX) // GCCOVER
     m_fPreemptiveGCDisabledForGCStress = false;
 #endif // HAVE_GCCOVER && USE_REDIRECT_FOR_GCSTRESS
 
@@ -10105,7 +10105,7 @@ static void ManagedThreadBase_DispatchMiddle(ManagedThreadCallState *pCallState)
     // also invokes SO_INTOLERANT code.
     BEGIN_SO_INTOLERANT_CODE(GetThread());
 
-    EX_TRY
+    EX_TRY_CPP_ONLY
     {
         // During an unwind, we have some cleanup:
         //

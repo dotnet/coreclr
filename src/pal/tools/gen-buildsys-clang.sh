@@ -3,15 +3,16 @@
 # This file invokes cmake and generates the build system for gcc.
 #
 
-if [ $# -lt 4 -o $# -gt 6 ]
+if [ $# -lt 4 -o $# -gt 7 ]
 then
   echo "Usage..."
-  echo "gen-buildsys-clang.sh <path to top level CMakeLists.txt> <ClangMajorVersion> <ClangMinorVersion> <Architecture> [build flavor] [coverage]"
+  echo "gen-buildsys-clang.sh <path to top level CMakeLists.txt> <ClangMajorVersion> <ClangMinorVersion> <Architecture> [build flavor] [coverage] [ninja]"
   echo "Specify the path to the top level CMake file - <ProjectK>/src/NDP"
   echo "Specify the clang version to use, split into major and minor version"
   echo "Specify the target architecture." 
   echo "Optionally specify the build configuration (flavor.) Defaults to DEBUG." 
   echo "Optionally specify 'coverage' to enable code coverage build."
+  echo "Target ninja instead of make. ninja must be on the PATH."
   exit 1
 fi
 
@@ -66,6 +67,7 @@ build_arch="$4"
 buildtype=DEBUG
 code_coverage=OFF
 build_tests=OFF
+generator="Unix Makefiles"
 
 for i in "${@:5}"; do
     upperI="$(echo $i | awk '{print toupper($0)}')"
@@ -81,6 +83,9 @@ for i in "${@:5}"; do
       INCLUDE_TESTS)
       echo "Including tests directory in build."
       build_tests=ON
+      ;;
+      NINJA)
+      generator=Ninja
       ;;
       *)
       echo "Ignoring unknown arg '$i'"
@@ -158,6 +163,7 @@ fi
 echo "cmake -DCMAKE_USER_MAKE_RULES_OVERRIDE=$1/src/pal/tools/clang-compiler-override.txt -DCMAKE_AR=$llvm_ar -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX -DCMAKE_LINKER=$llvm_link -DCMAKE_NM=$llvm_nm -DCMAKE-OBJDUMP=$llvm_objdump -DCMAKE_BUILD_TYPE=$buildtype -DCMAKE_ENABLE_CODE_COVERAGE=$code_coverage $cmake_extra_defines $1"
 
 cmake \
+  -G "$generator" \
   "-DCMAKE_USER_MAKE_RULES_OVERRIDE=$1/src/pal/tools/clang-compiler-override.txt" \
   "-DCMAKE_AR=$llvm_ar" \
   "-DCMAKE_C_COMPILER=$CC" \

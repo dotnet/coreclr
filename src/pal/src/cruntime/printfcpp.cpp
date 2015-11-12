@@ -70,7 +70,7 @@ static int Internal_Convertfwrite(CPalThread *pthrCurrent, const void *buffer, s
             ASSERT("WideCharToMultiByte failed.  Error is %d\n", GetLastError());
             return -1;
         }
-        newBuff = (LPSTR) InternalMalloc(pthrCurrent, nsize);
+        newBuff = (LPSTR) InternalMalloc(nsize);
         if (!newBuff)
         {
             ERROR("InternalMalloc failed\n");
@@ -81,21 +81,21 @@ static int Internal_Convertfwrite(CPalThread *pthrCurrent, const void *buffer, s
         if (!nsize)
         {
             ASSERT("WideCharToMultiByte failed.  Error is %d\n", GetLastError());
-            InternalFree(pthrCurrent, newBuff);
+            InternalFree(newBuff);
             return -1;
         }
-        ret = InternalFwrite(pthrCurrent, newBuff, 1, count, stream, &iError);
+        ret = InternalFwrite(newBuff, 1, count, stream, &iError);
         if (iError != 0)
         {
             ERROR("InternalFwrite did not write the whole buffer. Error is %d\n", iError);
-            InternalFree(pthrCurrent, newBuff);
+            InternalFree(newBuff);
             return -1;
         }
-        InternalFree(pthrCurrent, newBuff);
+        InternalFree(newBuff);
    }
    else
    {
-        ret = InternalFwrite(pthrCurrent, buffer, size, count, stream, &iError);
+        ret = InternalFwrite(buffer, size, count, stream, &iError);
         if (iError != 0)
         {
             ERROR("InternalFwrite did not write the whole buffer. Error is %d\n", iError);
@@ -104,8 +104,8 @@ static int Internal_Convertfwrite(CPalThread *pthrCurrent, const void *buffer, s
    }
    return ret;
 
-}    
-    
+}
+
 /*******************************************************************************
 Function:
   Internal_ExtractFormatA
@@ -170,7 +170,7 @@ BOOL Internal_ExtractFormatA(CPalThread *pthrCurrent, LPCSTR *Fmt, LPSTR Out, LP
     }
 
     /* we'll never need a temp string longer than the original */
-    TempStrPtr = TempStr = (LPSTR) InternalMalloc(pthrCurrent, strlen(*Fmt)+1);
+    TempStrPtr = TempStr = (LPSTR) InternalMalloc(strlen(*Fmt)+1);
     if (!TempStr)
     {
         ERROR("InternalMalloc failed\n");
@@ -442,7 +442,7 @@ BOOL Internal_ExtractFormatA(CPalThread *pthrCurrent, LPCSTR *Fmt, LPSTR Out, LP
     }
 
     *Out = 0;  /* end the string */
-    InternalFree(pthrCurrent, TempStr);
+    InternalFree(TempStr);
     return Result;
 }
 
@@ -475,7 +475,7 @@ BOOL Internal_ExtractFormatW(CPalThread *pthrCurrent, LPCWSTR *Fmt, LPSTR Out, L
     }
 
     /* we'll never need a temp string longer than the original */
-    TempStrPtr = TempStr = (LPSTR) InternalMalloc(pthrCurrent, PAL_wcslen(*Fmt)+1);
+    TempStrPtr = TempStr = (LPSTR) InternalMalloc(PAL_wcslen(*Fmt)+1);
     if (!TempStr)
     {
         ERROR("InternalMalloc failed\n");
@@ -770,7 +770,7 @@ BOOL Internal_ExtractFormatW(CPalThread *pthrCurrent, LPCWSTR *Fmt, LPSTR Out, L
     }
 
     *Out = 0;  /* end the string */
-    InternalFree(pthrCurrent, TempStr);
+    InternalFree(TempStr);
     return Result;
 }
 
@@ -882,7 +882,7 @@ INT Internal_AddPaddingVfprintf(CPalThread *pthrCurrent, PAL_FILE *stream, LPSTR
     {
         Length += Padding;
     }
-    Out = (LPSTR) InternalMalloc(pthrCurrent, Length+1);
+    Out = (LPSTR) InternalMalloc(Length+1);
     int iLength = Length+1;
     if (!Out)
     {
@@ -941,14 +941,14 @@ INT Internal_AddPaddingVfprintf(CPalThread *pthrCurrent, PAL_FILE *stream, LPSTR
     clearerr (stream->bsdFilePtr);
 #endif
     
-    Written = InternalFwrite(pthrCurrent, OutOriginal, 1, Length, stream->bsdFilePtr, &stream->PALferrorCode);
+    Written = InternalFwrite(OutOriginal, 1, Length, stream->bsdFilePtr, &stream->PALferrorCode);
     if (stream->PALferrorCode == PAL_FILE_ERROR)
     {
         ERROR("fwrite() failed with errno == %d\n", errno);
     }
 
 Done:
-    InternalFree(pthrCurrent, OutOriginal);
+    InternalFree(OutOriginal);
 
     return Written;
 }
@@ -979,14 +979,13 @@ static INT Internal_AddPaddingVfwprintf(CPalThread *pthrCurrent, PAL_FILE *strea
     LengthInStr = PAL_wcslen(In);
     Length = LengthInStr;
 
-
     if (Padding > 0)
     {
         Length += Padding;
     }
 
-    int iLen = (Length+1);	
-    Out = (LPWSTR) InternalMalloc(pthrCurrent, iLen * sizeof(WCHAR));
+    int iLen = (Length+1);
+    Out = (LPWSTR) InternalMalloc(iLen * sizeof(WCHAR));
     if (!Out)
     {
         ERROR("InternalMalloc failed\n");
@@ -1000,7 +999,7 @@ static INT Internal_AddPaddingVfwprintf(CPalThread *pthrCurrent, PAL_FILE *strea
         if (wcscpy_s(Out, iLen, In) != SAFECRT_SUCCESS)
         {
             ERROR("wcscpy_s failed!\n");
-            InternalFree(pthrCurrent, OutOriginal);
+            InternalFree(OutOriginal);
             pthrCurrent->SetLastError(ERROR_INSUFFICIENT_BUFFER);
             return -1;
         }
@@ -1030,7 +1029,7 @@ static INT Internal_AddPaddingVfwprintf(CPalThread *pthrCurrent, PAL_FILE *strea
         if (wcscpy_s(Out, iLen, In) != SAFECRT_SUCCESS)
         {
             ERROR("wcscpy_s failed!\n");
-            InternalFree(pthrCurrent, OutOriginal);
+            InternalFree(OutOriginal);
             pthrCurrent->SetLastError(ERROR_INSUFFICIENT_BUFFER);
             return -1;
         }
@@ -1047,7 +1046,7 @@ static INT Internal_AddPaddingVfwprintf(CPalThread *pthrCurrent, PAL_FILE *strea
         {
             ERROR("fwrite() failed with errno == %d\n", errno);
         }
-        InternalFree(pthrCurrent, OutOriginal);
+        InternalFree(OutOriginal);
     }
 
     return Written;
@@ -1143,24 +1142,6 @@ int CorUnix::InternalVfwprintf(CPalThread *pthrCurrent, PAL_FILE *stream, const 
     return CoreVfwprintf(pthrCurrent, stream, format, ap);
 }
 
-int NativeVsnprintf(CPalThread *pthrCurrent, LPSTR Buffer, size_t Count, LPCSTR Format, va_list ap)
-{
-    int retVal = 0;
-    pthrCurrent->suspensionInfo.EnterUnsafeRegion();
-    retVal = vsnprintf(Buffer, Count, Format, ap);
-    pthrCurrent->suspensionInfo.LeaveUnsafeRegion();
-    return retVal;
-}
-
-int NativeVfprintf(CPalThread *pthrCurrent, FILE *filePtr, const char *format, va_list ap)
-{
-    int retVal = 0;
-    pthrCurrent->suspensionInfo.EnterUnsafeRegion();
-    retVal = vfprintf(filePtr, format, ap);
-    pthrCurrent->suspensionInfo.LeaveUnsafeRegion();
-    return retVal;
-}
-
 int CoreVfwprintf(CPalThread *pthrCurrent, PAL_FILE *stream, const wchar_16 *format, va_list aparg)
 {
     CHAR TempBuff[1024]; /* used to hold a single %<foo> format string */
@@ -1237,7 +1218,7 @@ int CoreVfwprintf(CPalThread *pthrCurrent, PAL_FILE *stream, const wchar_16 *for
                     if ( Length != 0 )
                     {
                         TempWStr =
-                            (LPWSTR)InternalMalloc( pthrCurrent, (Length) * sizeof( WCHAR ) );
+                            (LPWSTR)InternalMalloc( (Length) * sizeof( WCHAR ) );
                         if ( TempWStr )
                         {
                             WStrWasMalloced = TRUE;
@@ -1265,7 +1246,7 @@ int CoreVfwprintf(CPalThread *pthrCurrent, PAL_FILE *stream, const wchar_16 *for
                 }
 
                 INT Length = PAL_wcslen(TempWStr);
-                WorkingWStr = (LPWSTR) InternalMalloc(pthrCurrent, (sizeof(WCHAR) * (Length + 1)));
+                WorkingWStr = (LPWSTR) InternalMalloc((sizeof(WCHAR) * (Length + 1)));
                 if (!WorkingWStr)
                 {
                     ERROR("InternalMalloc failed\n");
@@ -1274,7 +1255,7 @@ int CoreVfwprintf(CPalThread *pthrCurrent, PAL_FILE *stream, const wchar_16 *for
                     pthrCurrent->SetLastError(ERROR_NOT_ENOUGH_MEMORY);
                     if (WStrWasMalloced)
                     {
-                        InternalFree(pthrCurrent, TempWStr);
+                        InternalFree(TempWStr);
                     }
                     va_end(ap);
                     return -1;
@@ -1292,11 +1273,11 @@ int CoreVfwprintf(CPalThread *pthrCurrent, PAL_FILE *stream, const wchar_16 *for
                         ERROR("Internal_AddPaddingVfwprintf failed\n");
                         if (WStrWasMalloced)
                         {
-                            InternalFree(pthrCurrent, TempWStr);
+                            InternalFree(TempWStr);
                         }
-                        InternalFree(pthrCurrent, WorkingWStr);
+                        InternalFree(WorkingWStr);
                         LOGEXIT("wcsncpy_s failed!\n");
-                        PERF_EXIT(vfwprintf);	
+                        PERF_EXIT(vfwprintf);
                         va_end(ap);
                         return (-1);
                     }
@@ -1321,20 +1302,20 @@ int CoreVfwprintf(CPalThread *pthrCurrent, PAL_FILE *stream, const wchar_16 *for
                     ERROR("Internal_AddPaddingVfwprintf failed\n");
                     if (WStrWasMalloced)
                     {
-                        InternalFree(pthrCurrent, TempWStr);
+                        InternalFree(TempWStr);
                     }
-                    InternalFree(pthrCurrent, WorkingWStr);
+                    InternalFree(WorkingWStr);
                     LOGEXIT("vfwprintf returns int -1\n");
-                    PERF_EXIT(vfwprintf);	
+                    PERF_EXIT(vfwprintf);
                     va_end(ap);
                     return (-1);
                 }
                 written += paddingReturnValue;
 
-                InternalFree(pthrCurrent, WorkingWStr);
+                InternalFree(WorkingWStr);
                 if (WStrWasMalloced)
                 {
-                    InternalFree(pthrCurrent, TempWStr);
+                    InternalFree(TempWStr);
                 }
             }
             else if (Prefix == PFF_PREFIX_LONG && Type == PFF_TYPE_CHAR)
@@ -1428,12 +1409,12 @@ int CoreVfwprintf(CPalThread *pthrCurrent, PAL_FILE *stream, const wchar_16 *for
                     
                     if (TempInt < 0 || static_cast<size_t>(TempInt) >= TEMP_COUNT)
                     {
-                        if (NULL == (TempSprintfStrPtr = (char*)InternalMalloc(pthrCurrent, ++TempInt)))
+                        if (NULL == (TempSprintfStrPtr = (char*)InternalMalloc(++TempInt)))
                         {
                             ERROR("InternalMalloc failed\n");
                             LOGEXIT("vfwprintf returns int -1\n");
                             PERF_EXIT(vfwprintf);
-                            pthrCurrent->SetLastError(ERROR_NOT_ENOUGH_MEMORY);	
+                            pthrCurrent->SetLastError(ERROR_NOT_ENOUGH_MEMORY);
                             va_end(ap);
                             return -1;
                         }
@@ -1456,12 +1437,12 @@ int CoreVfwprintf(CPalThread *pthrCurrent, PAL_FILE *stream, const wchar_16 *for
 
                     if (TempInt < 0 || static_cast<size_t>(TempInt) >= TEMP_COUNT)
                     {
-                        if (NULL == (TempSprintfStrPtr = (char*)InternalMalloc(pthrCurrent, ++TempInt)))
+                        if (NULL == (TempSprintfStrPtr = (char*)InternalMalloc(++TempInt)))
                         {
                             ERROR("InternalMalloc failed\n");
                             LOGEXIT("vfwprintf returns int -1\n");
                             PERF_EXIT(vfwprintf);
-                            pthrCurrent->SetLastError(ERROR_NOT_ENOUGH_MEMORY);	
+                            pthrCurrent->SetLastError(ERROR_NOT_ENOUGH_MEMORY);
                             va_end(ap);
                             return -1;
                         }
@@ -1475,25 +1456,25 @@ int CoreVfwprintf(CPalThread *pthrCurrent, PAL_FILE *stream, const wchar_16 *for
                     va_list apcopy;
 
                     va_copy(apcopy, ap);
-                    TempInt = NativeVsnprintf(pthrCurrent, TempSprintfStr, TEMP_COUNT, TempBuff, apcopy);
+                    TempInt = vsnprintf(TempSprintfStr, TEMP_COUNT, TempBuff, apcopy);
                     va_end(apcopy);
                     PAL_printf_arg_remover(&ap, Width, Precision, Type, Prefix);
 
                     if (TempInt < 0 || static_cast<size_t>(TempInt) >= TEMP_COUNT)
                     {
-                        if (NULL == (TempSprintfStrPtr = (char*)InternalMalloc(pthrCurrent, ++TempInt)))
+                        if (NULL == (TempSprintfStrPtr = (char*)InternalMalloc(++TempInt)))
                         {
                             ERROR("InternalMalloc failed\n");
                             LOGEXIT("vfwprintf returns int -1\n");
                             PERF_EXIT(vfwprintf);
-                            pthrCurrent->SetLastError(ERROR_NOT_ENOUGH_MEMORY);		
+                            pthrCurrent->SetLastError(ERROR_NOT_ENOUGH_MEMORY);
                             va_end(ap);
                             return -1;
                         }
                         
                         TempSprintfStr = TempSprintfStrPtr;
                         va_copy(apcopy, ap);
-                        NativeVsnprintf(pthrCurrent, TempSprintfStr, TempInt, TempBuff, apcopy);
+                        vsnprintf(TempSprintfStr, TempInt, TempBuff, apcopy);
                         va_end(apcopy);
                         PAL_printf_arg_remover(&ap, Width, Precision, Type, Prefix);
                     }
@@ -1508,15 +1489,15 @@ int CoreVfwprintf(CPalThread *pthrCurrent, PAL_FILE *stream, const wchar_16 *for
                     ERROR("MultiByteToWideChar failed\n");
                     if(TempSprintfStrPtr)
                     {
-                        InternalFree(pthrCurrent, TempSprintfStrPtr);
+                        InternalFree(TempSprintfStrPtr);
                     }
                     LOGEXIT("vfwprintf returns int -1\n");
-                    PERF_EXIT(vfwprintf);	
+                    PERF_EXIT(vfwprintf);
                     va_end(ap);
                     return -1;
                 }
 
-                TempWideBuffer = (LPWSTR) InternalMalloc(pthrCurrent, mbtowcResult*sizeof(WCHAR));
+                TempWideBuffer = (LPWSTR) InternalMalloc(mbtowcResult*sizeof(WCHAR));
                 if (!TempWideBuffer)
                 {
                     ERROR("InternalMalloc failed\n");
@@ -1525,8 +1506,8 @@ int CoreVfwprintf(CPalThread *pthrCurrent, PAL_FILE *stream, const wchar_16 *for
                     pthrCurrent->SetLastError(ERROR_NOT_ENOUGH_MEMORY);
                     if(TempSprintfStrPtr)
                     {
-                        InternalFree(pthrCurrent, TempSprintfStrPtr);
-                    }	
+                        InternalFree(TempSprintfStrPtr);
+                    }
                     va_end(ap);
                     return -1;
                 }
@@ -1547,19 +1528,19 @@ int CoreVfwprintf(CPalThread *pthrCurrent, PAL_FILE *stream, const wchar_16 *for
                     ERROR("fwrite() failed with errno == %d (%s)\n", errno, strerror(errno));
                     LOGEXIT("vfwprintf returns int -1\n");
                     PERF_EXIT(vfwprintf);
-                    InternalFree(pthrCurrent, TempWideBuffer);
+                    InternalFree(TempWideBuffer);
                     if(TempSprintfStrPtr)
                     {
-                        InternalFree(pthrCurrent, TempSprintfStrPtr);
+                        InternalFree(TempSprintfStrPtr);
                     }
                     va_end(ap);
                     return -1;
                 }
                 if(TempSprintfStrPtr)
                 {
-                    InternalFree(pthrCurrent, TempSprintfStrPtr);
+                    InternalFree(TempSprintfStrPtr);
                 }
-                InternalFree(pthrCurrent, TempWideBuffer);
+                InternalFree(TempWideBuffer);
             }
         }
         else
@@ -1583,7 +1564,7 @@ int CoreVfwprintf(CPalThread *pthrCurrent, PAL_FILE *stream, const wchar_16 *for
             ++written;
        }
     }
-	
+
     LOGEXIT("vfwprintf returns int %d\n", written);
     PERF_EXIT(vfwprintf);
     va_end(ap);
@@ -1655,7 +1636,7 @@ int CoreVsnprintf(CPalThread *pthrCurrent, LPSTR Buffer, size_t Count, LPCSTR Fo
                     va_end(ap);
                     return -1;
                 }
-                TempStr = (LPSTR) InternalMalloc(pthrCurrent, Length);
+                TempStr = (LPSTR) InternalMalloc(Length);
                 if (!TempStr)
                 {        
                     ERROR("InternalMalloc failed\n");
@@ -1675,10 +1656,10 @@ int CoreVsnprintf(CPalThread *pthrCurrent, LPSTR Buffer, size_t Count, LPCSTR Fo
                                                  Precision, TempStr, Length,
                                                  0, 0);
                     if (!Length)
-                    {               
+                    {
                         ASSERT("WideCharToMultiByte failed.  Error is %d\n",
                               GetLastError());
-                        InternalFree(pthrCurrent, TempStr);  
+                        InternalFree(TempStr);
                         va_end(ap);
                         return -1;
                     }
@@ -1694,7 +1675,7 @@ int CoreVsnprintf(CPalThread *pthrCurrent, LPSTR Buffer, size_t Count, LPCSTR Fo
                     {               
                         ASSERT("WideCharToMultiByte failed.  Error is %d\n",
                               GetLastError());
-                        InternalFree(pthrCurrent, TempStr);  
+                        InternalFree(TempStr);
                         va_end(ap);
                         return -1;
                     }
@@ -1708,7 +1689,7 @@ int CoreVsnprintf(CPalThread *pthrCurrent, LPSTR Buffer, size_t Count, LPCSTR Fo
                                                    Width - Length,
                                                    Flags);
 
-                InternalFree(pthrCurrent, TempStr);
+                InternalFree(TempStr);
             }
             else if (Prefix == PFF_PREFIX_LONG && Type == PFF_TYPE_CHAR)
             {
@@ -1845,7 +1826,7 @@ int CoreVsnprintf(CPalThread *pthrCurrent, LPSTR Buffer, size_t Count, LPCSTR Fo
                 {
                     va_list apcopy;
                     va_copy(apcopy, ap);
-                    TempInt = NativeVsnprintf(pthrCurrent, BufferPtr, TempCount, TempBuff, apcopy);
+                    TempInt = vsnprintf(BufferPtr, TempCount, TempBuff, apcopy);
                     va_end(apcopy);
                     PAL_printf_arg_remover(&ap, Width, Precision, Type, Prefix);
                 }
@@ -1963,7 +1944,7 @@ int CoreWvsnprintf(CPalThread *pthrCurrent, LPWSTR Buffer, size_t Count, LPCWSTR
                     if ( Length != 0 )
                     {
                         TempWStr =
-                            (LPWSTR)InternalMalloc(pthrCurrent, (Length + 1 ) * sizeof( WCHAR ) );
+                            (LPWSTR)InternalMalloc((Length + 1 ) * sizeof( WCHAR ) );
                         if ( TempWStr )
                         {
                             needToFree = TRUE;
@@ -1988,14 +1969,14 @@ int CoreWvsnprintf(CPalThread *pthrCurrent, LPWSTR Buffer, size_t Count, LPCWSTR
                 }
                 
                 INT Length = PAL_wcslen(TempWStr);
-                WorkingWStr = (LPWSTR) InternalMalloc(pthrCurrent, sizeof(WCHAR) * (Length + 1));
+                WorkingWStr = (LPWSTR) InternalMalloc(sizeof(WCHAR) * (Length + 1));
                 if (!WorkingWStr)
-                {                
+                {
                     ERROR("InternalMalloc failed\n");
                     pthrCurrent->SetLastError(ERROR_NOT_ENOUGH_MEMORY);
                     if (needToFree)
                     {
-                        InternalFree(pthrCurrent, TempWStr);
+                        InternalFree(TempWStr);
                     }
                     va_end(ap);
                     return -1;
@@ -2013,11 +1994,11 @@ int CoreWvsnprintf(CPalThread *pthrCurrent, LPWSTR Buffer, size_t Count, LPCWSTR
                         ERROR("CoreWvsnprintf failed\n");
                         if (needToFree)
                         {
-                            InternalFree(pthrCurrent, TempWStr);
+                            InternalFree(TempWStr);
                         }
-                        InternalFree(pthrCurrent, WorkingWStr);
+                        InternalFree(WorkingWStr);
                         LOGEXIT("wcsncpy_s failed!\n");
-                        PERF_EXIT(wvsnprintf);	
+                        PERF_EXIT(wvsnprintf);
                         va_end(ap);
                         return (-1);
                     }
@@ -2039,9 +2020,9 @@ int CoreWvsnprintf(CPalThread *pthrCurrent, LPWSTR Buffer, size_t Count, LPCWSTR
 
                 if (needToFree)
                 {
-                    InternalFree(pthrCurrent, TempWStr);
+                    InternalFree(TempWStr);
                 }
-                InternalFree(pthrCurrent, WorkingWStr);
+                InternalFree(WorkingWStr);
             }
             else if (Prefix == PFF_PREFIX_LONG && Type == PFF_TYPE_CHAR)
             {
@@ -2143,7 +2124,7 @@ int CoreWvsnprintf(CPalThread *pthrCurrent, LPWSTR Buffer, size_t Count, LPCWSTR
                 {
                     va_list apcopy;
                     va_copy(apcopy, ap);
-                    TempInt = NativeVsnprintf(pthrCurrent, (LPSTR) BufferPtr, TempCount, TempBuff, apcopy);
+                    TempInt = vsnprintf((LPSTR) BufferPtr, TempCount, TempBuff, apcopy);
                     va_end(apcopy);
                     PAL_printf_arg_remover(&ap, Width, Precision, Type, Prefix);
                 }
@@ -2155,9 +2136,9 @@ int CoreWvsnprintf(CPalThread *pthrCurrent, LPWSTR Buffer, size_t Count, LPCWSTR
                 }
                 if (TempInt < 0 || static_cast<size_t>(TempInt) >= TempCount) /* buffer not long enough */
                 {
-                    TempNumberBuffer = (LPSTR) InternalMalloc(pthrCurrent, TempCount+1);
+                    TempNumberBuffer = (LPSTR) InternalMalloc(TempCount+1);
                     if (!TempNumberBuffer)
-                    {                         
+                    {
                         ERROR("InternalMalloc failed\n");
                         pthrCurrent->SetLastError(ERROR_NOT_ENOUGH_MEMORY);
                         errno = ENOMEM;
@@ -2168,7 +2149,7 @@ int CoreWvsnprintf(CPalThread *pthrCurrent, LPWSTR Buffer, size_t Count, LPCWSTR
                     if (strncpy_s(TempNumberBuffer, TempCount+1, (LPSTR) BufferPtr, TempCount) != SAFECRT_SUCCESS)
                     {
                         ASSERT("strncpy_s failed!\n");
-                        InternalFree(pthrCurrent, TempNumberBuffer);
+                        InternalFree(TempNumberBuffer);
                         va_end(ap);
                         return -1;
                     }
@@ -2181,7 +2162,7 @@ int CoreWvsnprintf(CPalThread *pthrCurrent, LPWSTR Buffer, size_t Count, LPCWSTR
                     {                 
                         ASSERT("MultiByteToWideChar failed.  Error is %d\n",
                               GetLastError());
-                        InternalFree(pthrCurrent, TempNumberBuffer);
+                        InternalFree(TempNumberBuffer);
                         va_end(ap);
                         return -1;
                     }
@@ -2190,11 +2171,11 @@ int CoreWvsnprintf(CPalThread *pthrCurrent, LPWSTR Buffer, size_t Count, LPCWSTR
                 }
                 else
                 {
-                    TempNumberBuffer = (LPSTR) InternalMalloc(pthrCurrent, TempInt+1);
+                    TempNumberBuffer = (LPSTR) InternalMalloc(TempInt+1);
                     if (!TempNumberBuffer)
                     {          
                         ERROR("InternalMalloc failed\n");
-                        pthrCurrent->SetLastError(ERROR_NOT_ENOUGH_MEMORY);  
+                        pthrCurrent->SetLastError(ERROR_NOT_ENOUGH_MEMORY);
                         va_end(ap);
                         return -1;
                     }
@@ -2202,7 +2183,7 @@ int CoreWvsnprintf(CPalThread *pthrCurrent, LPWSTR Buffer, size_t Count, LPCWSTR
                     if (strncpy_s(TempNumberBuffer, TempInt+1, (LPSTR) BufferPtr, TempInt) != SAFECRT_SUCCESS)
                     {
                         ASSERT("strncpy_s failed!\n");
-                        InternalFree(pthrCurrent, TempNumberBuffer); 
+                        InternalFree(TempNumberBuffer); 
                         va_end(ap);
                         return -1;
                     }
@@ -2215,13 +2196,13 @@ int CoreWvsnprintf(CPalThread *pthrCurrent, LPWSTR Buffer, size_t Count, LPCWSTR
                     {          
                         ASSERT("MultiByteToWideChar failed.  Error is %d\n",
                               GetLastError());
-                        InternalFree(pthrCurrent, TempNumberBuffer); 
+                        InternalFree(TempNumberBuffer); 
                         va_end(ap);
                         return -1;
                     }
                     BufferPtr += TempInt;
                 }
-                InternalFree(pthrCurrent, TempNumberBuffer);
+                InternalFree(TempNumberBuffer);
             }
         }
         else
@@ -2311,7 +2292,7 @@ int CoreVfprintf(CPalThread *pthrCurrent, PAL_FILE *stream, const char *format, 
                     va_end(ap);
                     return -1;
                 }
-                TempStr = (LPSTR) InternalMalloc(pthrCurrent, Length);
+                TempStr = (LPSTR) InternalMalloc(Length);
                 if (!TempStr)
                 {
                     ERROR("InternalMalloc failed\n");
@@ -2335,8 +2316,8 @@ int CoreVfprintf(CPalThread *pthrCurrent, PAL_FILE *stream, const char *format, 
                     {
                         ASSERT("WideCharToMultiByte failed.  Error is %d\n",
                               GetLastError());
-                        InternalFree(pthrCurrent, TempStr);
-                        PERF_EXIT(vfprintf);        
+                        InternalFree(TempStr);
+                        PERF_EXIT(vfprintf);
                         va_end(ap);
                         return -1;
                     }
@@ -2352,8 +2333,8 @@ int CoreVfprintf(CPalThread *pthrCurrent, PAL_FILE *stream, const char *format, 
                     {
                         ASSERT("WideCharToMultiByte failed.  Error is %d\n",
                               GetLastError());
-                        InternalFree(pthrCurrent, TempStr);
-                        PERF_EXIT(vfprintf);      
+                        InternalFree(TempStr);
+                        PERF_EXIT(vfprintf);
                         va_end(ap);
                         return -1;
                     }
@@ -2367,14 +2348,14 @@ int CoreVfprintf(CPalThread *pthrCurrent, PAL_FILE *stream, const char *format, 
                 if (-1 == paddingReturnValue)
                 {
                     ERROR("Internal_AddPaddingVfprintf failed\n");
-                    InternalFree(pthrCurrent, TempStr);
+                    InternalFree(TempStr);
                     PERF_EXIT(vfprintf);  
                     va_end(ap);
                     return -1;
                 }
                 written += paddingReturnValue;
 
-                InternalFree(pthrCurrent, TempStr);
+                InternalFree(TempStr);
             }
             else if (Prefix == PFF_PREFIX_LONG && Type == PFF_TYPE_CHAR)
             {
@@ -2460,7 +2441,7 @@ int CoreVfprintf(CPalThread *pthrCurrent, PAL_FILE *stream, const char *format, 
                 if (-1 == paddingReturnValue)
                 {
                     ERROR("Internal_AddPaddingVfprintf failed\n");
-                    PERF_EXIT(vfprintf);    
+                    PERF_EXIT(vfprintf);
                     va_end(ap);
                     return -1;
                 }
@@ -2506,7 +2487,7 @@ int CoreVfprintf(CPalThread *pthrCurrent, PAL_FILE *stream, const char *format, 
                     trunc2 = (short)trunc1;
                     trunc1 = trunc2;
 
-                    TempInt = fprintf( stream->bsdFilePtr, TempBuff, trunc1);
+                    TempInt = fprintf(stream->bsdFilePtr, TempBuff, trunc1);
                 }
                 else if (Type == PFF_TYPE_INT && Prefix == PFF_PREFIX_SHORT)
                 {
@@ -2524,7 +2505,7 @@ int CoreVfprintf(CPalThread *pthrCurrent, PAL_FILE *stream, const char *format, 
                 {
                     va_list apcopy;
                     va_copy(apcopy, ap);
-                    TempInt = NativeVfprintf(pthrCurrent, stream->bsdFilePtr, TempBuff, apcopy);
+                    TempInt = vfprintf(stream->bsdFilePtr, TempBuff, apcopy);
                     va_end(apcopy);
                     PAL_printf_arg_remover(&ap, Width, Precision, Type, Prefix);
                 }
@@ -2546,7 +2527,7 @@ int CoreVfprintf(CPalThread *pthrCurrent, PAL_FILE *stream, const char *format, 
             clearerr (stream->bsdFilePtr);
 #endif
 
-            InternalFwrite(pthrCurrent, Fmt++, 1, 1, stream->bsdFilePtr, &stream->PALferrorCode); /* copy regular chars into buffer */
+            InternalFwrite(Fmt++, 1, 1, stream->bsdFilePtr, &stream->PALferrorCode); /* copy regular chars into buffer */
             if (stream->PALferrorCode == PAL_FILE_ERROR)
             {
                 ERROR("fwrite() failed with errno == %d\n", errno);
@@ -2557,10 +2538,9 @@ int CoreVfprintf(CPalThread *pthrCurrent, PAL_FILE *stream, const char *format, 
             ++written;
         }
     }
-    
+
     va_end(ap);
-    
+
     PERF_EXIT(vfprintf);
     return written;
 }
-

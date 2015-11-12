@@ -92,6 +92,19 @@ inline CHECK CheckOverflow(RVA value1, COUNT_T value2)
 #error "port me"
 #endif
 
+// Machine code for native images
+#if defined(__LINUX__)
+#define IMAGE_FILE_MACHINE_NATIVE_OS_OVERRIDE 0x7B79
+#elif defined(__APPLE__)
+#define IMAGE_FILE_MACHINE_NATIVE_OS_OVERRIDE 0x4644
+#elif defined(__FreeBSD__)
+#define IMAGE_FILE_MACHINE_NATIVE_OS_OVERRIDE 0xADC4
+#else
+#define IMAGE_FILE_MACHINE_NATIVE_OS_OVERRIDE 0
+#endif
+
+#define IMAGE_FILE_MACHINE_NATIVE_NI (IMAGE_FILE_MACHINE_NATIVE ^ IMAGE_FILE_MACHINE_NATIVE_OS_OVERRIDE)
+
 // --------------------------------------------------------------------------------
 // Types
 // --------------------------------------------------------------------------------

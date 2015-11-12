@@ -1189,7 +1189,7 @@ struct fgArgTabEntry
     fgArgTabEntry()
     {
         otherRegNum                     = REG_NA;
-        isStruct                        = false;  // is this a struct arg
+        isStruct                        = false;            // is this a struct arg
     }
 #endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
 
@@ -1220,9 +1220,8 @@ struct fgArgTabEntry
     bool           isNonStandard:1; // True if it is an arg that is passed in a reg other than a standard arg reg
 
 #if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-    regNumber             otherRegNum;              // The (second) register to use when passing this argument.
-    bool                  isStruct;                 // is this a struct arg
-
+    regNumber             otherRegNum;  // The (second) register to use when passing this argument.
+    bool                  isStruct;     // is this a struct arg.
     SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
 #endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
 
@@ -4435,8 +4434,9 @@ private:
     void                fgFixupIfCallArg(ArrayStack<GenTree *> *parentStack,
                                          GenTree *oldChild, 
                                          GenTree *newChild);
-    //                  Recognize a rotation pattern and convert into a GT_ROL or a GT_ROR node.
-    GenTreePtr          fgMorphRotation(GenTreePtr tree);
+    //                  Recognize a bitwise rotation pattern and convert into a GT_ROL or a GT_ROR node.
+    GenTreePtr          fgRecognizeAndMorphBitwiseRotation(GenTreePtr tree);
+    bool                fgOperIsBitwiseRotationRoot(genTreeOps oper);
 
     //-------- Determine the order in which the trees will be evaluated -------
 

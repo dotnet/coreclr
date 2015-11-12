@@ -214,7 +214,7 @@ Abstract:
 Return:
     The fresh thread structure, NULL otherwise
 --*/
-CPalThread* AllocTHREAD(CPalThread *pthr)
+CPalThread* AllocTHREAD()
 {
     CPalThread* pThread = NULL;
 
@@ -232,25 +232,7 @@ CPalThread* AllocTHREAD(CPalThread *pthr)
 
     if (pThread == NULL)
     {
-        if(pthr != NULL)
-        {
-            pThread = InternalNew<CPalThread>(pthr);
-        }
-        else
-        {
-#ifdef FEATURE_PAL_SXS
-            // When we reach this point, this thread has presumably wandered in
-            // and is creating a CPalThread instance for itself.  In other words,
-            // the current thread is not registered in the PAL thread list, and
-            // therefore, we will not try to suspend it.  This in turn means
-            // that it's okay to use the system's "new", as opposed to our "new",
-            // whose purpose is to disallow thread suspension while in malloc.
-#else // FEATURE_PAL_SXS
-            // do not use the overloaded new in malloc.cpp since thread data isn't initialized.
-            _ASSERT_MSG(!PALIsThreadDataInitialized(), "Thread data was initialized but NULL was passed in as a reference to the current thread.\n");
-#endif // FEATURE_PAL_SXS
-            pThread = InternalNew<CPalThread>(NULL);
-        }
+        pThread = InternalNew<CPalThread>();
     }
     else
     {
@@ -300,7 +282,10 @@ static void FreeTHREAD(CPalThread *pThread)
        LeaveCriticalSection(&cs,TRUE) need to access the thread private data 
        stored in the very THREAD structure that we just destroyed. Entering and 
        leaving the critical section with internal==FALSE leads to possible hangs
-       in the PROCSuspendOtherThreads logic, at shutdown time */
+       in the PROCSuspendOtherThreads logic, at shutdown time 
+
+       Update: [TODO] PROCSuspendOtherThreads has been removed. Can this 
+       code be changed?*/
 
     /* Get the lock */
     SPINLOCKAcquire(&free_threads_spinlock, 0);
@@ -589,7 +574,7 @@ CorUnix::InternalCreateThread(
     // Create the CPalThread for the thread
     //
 
-    pNewThread = AllocTHREAD(pThread);
+    pNewThread = AllocTHREAD();
     if (NULL == pNewThread)
     {
         palError = ERROR_OUTOFMEMORY;
@@ -944,6 +929,7 @@ CorUnix::InternalEndCurrentThread(
     //
     // Need to synchronize setting the thread state to TS_DONE since 
     // this is checked for in InternalSuspendThreadFromData.
+    // TODO: Is this still needed after removing InternalSuspendThreadFromData?
     //
 
     pThread->suspensionInfo.AcquireSuspensionLock(pThread);
@@ -1590,13 +1576,13 @@ CorUnix::InitializeGlobalThreadData(
         }
     }
 
-#if !HAVE_MACH_EXCEPTIONS || USE_SIGNALS_FOR_THREAD_SUSPENSION
+#if !HAVE_MACH_EXCEPTIONS
     //
     // Initialize the thread suspension signal sets.
     //
     
     CThreadSuspensionInfo::InitializeSignalSets();
-#endif // !HAVE_MACH_EXCEPTIONS || USE_SIGNALS_FOR_THREAD_SUSPENSION
+#endif // !HAVE_MACH_EXCEPTIONS
 
     return palError;
 }
@@ -1627,8 +1613,7 @@ CorUnix::CreateThreadData(
     CPalThread *pThread = NULL;
     
     /* Create the thread object */
-    /* Passing NULL to AllocTHREAD since there is no thread reference to pass in. */
-    pThread = AllocTHREAD(NULL);
+    pThread = AllocTHREAD();
 
     if (NULL == pThread)
     {
@@ -1844,7 +1829,7 @@ CorUnix::InternalCreateDummyThread(
     CObjectAttributes oa(NULL, lpThreadAttributes);
     bool fThreadDataStoredInObject = FALSE;
 
-    pDummyThread = AllocTHREAD(pThread);
+    pDummyThread = AllocTHREAD();
     if (NULL == pDummyThread)
     {
         palError = ERROR_OUTOFMEMORY;
@@ -2195,14 +2180,11 @@ CPalThread::SetStartStatus(
 #endif
 
     //
-    // This routine may get called from two spots:
-    // * CPalThread::ThreadEntry
-    // * InternalSuspendThreadFromData
+    // This routine may get called from CPalThread::ThreadEntry
     //
-    // No matter which path we're on if we've reached this point
-    // there are no further thread suspensions that happen at
-    // creation time, to reset m_bCreateSuspended to prevent
-    // InternalSuspendThreadFromData from calling us again
+    // If we've reached this point there are no further thread 
+    // suspensions that happen at creation time, so reset
+    // m_bCreateSuspended
     //
 
     m_bCreateSuspended = FALSE;

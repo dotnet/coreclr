@@ -58,16 +58,6 @@ const UINT RESERVED_SEH_BIT = 0x800000;
 
 PHARDWARE_EXCEPTION_HANDLER g_hardwareExceptionHandler = NULL;
 
-/* Internal function declarations *********************************************/
-
-BOOL SEHInitializeConsole();
-
-#if !HAVE_MACH_EXCEPTIONS
-PAL_ERROR
-StartExternalSignalHandlerThread(
-    CPalThread *pthr);
-#endif // !HAVE_MACH_EXCEPTIONS
-
 /* Internal function definitions **********************************************/
 
 /*++
@@ -89,30 +79,12 @@ SEHInitialize (CPalThread *pthrCurrent, DWORD flags)
 {
     BOOL bRet = FALSE;
 
-    if (!SEHInitializeConsole())
-    {
-        ERROR("SEHInitializeConsole failed!\n");
-        SEHCleanup();
-        goto SEHInitializeExit;
-    }
-
 #if !HAVE_MACH_EXCEPTIONS
     if (!SEHInitializeSignals())
     {
         ERROR("SEHInitializeSignals failed!\n");
         SEHCleanup();
         goto SEHInitializeExit;
-    }
-
-    if (flags & PAL_INITIALIZE_SIGNAL_THREAD)
-    {
-        PAL_ERROR palError = StartExternalSignalHandlerThread(pthrCurrent);
-        if (NO_ERROR != palError)
-        {
-            ERROR("StartExternalSignalHandlerThread returned %d\n", palError);
-            SEHCleanup();
-            goto SEHInitializeExit;
-        }
     }
 #endif
     bRet = TRUE;
@@ -321,9 +293,9 @@ NativeExceptionHolderBase::Push()
 }
 
 NativeExceptionHolderBase *
-NativeExceptionHolderBase::FindNextHolder(void *stackLowAddress, void *stackHighAddress)
+NativeExceptionHolderBase::FindNextHolder(NativeExceptionHolderBase *currentHolder, void *stackLowAddress, void *stackHighAddress)
 {
-    NativeExceptionHolderBase *holder = this;
+    NativeExceptionHolderBase *holder = (currentHolder == nullptr) ? t_nativeExceptionHolderHead : currentHolder->m_next;
 
     while (holder != nullptr)
     {
@@ -336,17 +308,6 @@ NativeExceptionHolderBase::FindNextHolder(void *stackLowAddress, void *stackHigh
     }
 
     return nullptr;
-}
-
-NativeExceptionHolderBase *
-NativeExceptionHolderBase::FindHolder(void *stackLowAddress, void *stackHighAddress)
-{
-    NativeExceptionHolderBase *head = t_nativeExceptionHolderHead;
-    if (head == nullptr)
-    {
-        return nullptr;
-    }
-    return head->FindNextHolder(stackLowAddress, stackHighAddress);
 }
 
 #include "seh-unwind.cpp"

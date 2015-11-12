@@ -480,10 +480,9 @@ typedef long time_t;
 
 #define PAL_INITIALIZE_NONE            0x00
 #define PAL_INITIALIZE_SYNC_THREAD     0x01
-#define PAL_INITIALIZE_SIGNAL_THREAD   0x02
 
 // PAL_Initialize() flags
-#define PAL_INITIALIZE                 PAL_INITIALIZE_SYNC_THREAD | PAL_INITIALIZE_SIGNAL_THREAD
+#define PAL_INITIALIZE                 PAL_INITIALIZE_SYNC_THREAD
 
 // PAL_InitializeDLL() flags - don't start any of the helper threads
 #define PAL_INITIALIZE_DLL             PAL_INITIALIZE_NONE       
@@ -776,13 +775,6 @@ BOOL
 (PALAPI *PHANDLER_ROUTINE)(
     DWORD CtrlType
     );
-
-PALIMPORT
-BOOL
-PALAPI
-SetConsoleCtrlHandler(
-              IN PHANDLER_ROUTINE HandlerRoutine,
-              IN BOOL Add);
 
 #ifndef CORECLR
 PALIMPORT
@@ -1989,12 +1981,6 @@ PALAPI
 GetExitCodeThread(
            IN HANDLE hThread,
            IN LPDWORD lpExitCode);
-
-PALIMPORT
-DWORD
-PALAPI
-SuspendThread(
-          IN HANDLE hThread);
 
 PALIMPORT
 DWORD
@@ -3944,6 +3930,7 @@ HeapSetInformation(
         IN SIZE_T HeapInformationLength);
 
 #define LMEM_FIXED          0x0000
+#define LMEM_MOVEABLE       0x0002
 #define LMEM_ZEROINIT       0x0040
 #define LPTR                (LMEM_FIXED | LMEM_ZEROINIT)
 
@@ -3953,6 +3940,14 @@ PALAPI
 LocalAlloc(
        IN UINT uFlags,
        IN SIZE_T uBytes);
+
+PALIMPORT
+HLOCAL
+PALAPI
+LocalReAlloc(
+       IN HLOCAL hMem,
+       IN SIZE_T uBytes,
+       IN UINT   uFlags);
 
 PALIMPORT
 HLOCAL
@@ -6766,11 +6761,9 @@ public:
     // with return value optimization (in CreateHolder).
     void Push();
 
-    // Given the locals stack range find the next holder starting with this one
-    NativeExceptionHolderBase *FindNextHolder(void *frameLowAddress, void *frameHighAddress);
-
-    // Given the locals stack range find the holder
-    static NativeExceptionHolderBase *FindHolder(void *frameLowAddress, void *frameHighAddress);
+    // Given the currentHolder and locals stack range find the next holder starting with this one
+    // To find the first holder, pass nullptr as the currentHolder.
+    static NativeExceptionHolderBase *FindNextHolder(NativeExceptionHolderBase *currentHolder, void *frameLowAddress, void *frameHighAddress);
 };
 
 //
@@ -6793,6 +6786,25 @@ public:
     virtual EXCEPTION_DISPOSITION InvokeFilter(PAL_SEHException& ex)
     {
         return (*m_exceptionFilter)(ex);
+    }
+};
+
+//
+// This is a native exception holder that is used when the catch catches
+// all exceptions.
+//
+class NativeExceptionHolderCatchAll : public NativeExceptionHolderBase
+{
+
+public:
+    NativeExceptionHolderCatchAll()
+        : NativeExceptionHolderBase()
+    {
+    }
+
+    virtual EXCEPTION_DISPOSITION InvokeFilter(PAL_SEHException& ex)
+    {
+        return EXCEPTION_EXECUTE_HANDLER;
     }
 };
 

@@ -199,7 +199,6 @@ OutputDebugStringW(
 {
     CHAR *lpOutputStringA;
     int strLen;
-    CPalThread *pThread = NULL;
 
     PERF_ENTRY(OutputDebugStringW);
     ENTRY("OutputDebugStringW (lpOutputString=%p (%S))\n",
@@ -221,28 +220,27 @@ OutputDebugStringW(
         goto EXIT;
     }
 
-    pThread = InternalGetCurrentThread();
     /* strLen includes the null terminator */
-    if ((lpOutputStringA = (LPSTR) InternalMalloc(pThread, (strLen * sizeof(CHAR)))) == NULL)
+    if ((lpOutputStringA = (LPSTR) InternalMalloc((strLen * sizeof(CHAR)))) == NULL)
     {
         ERROR("Insufficient memory available !\n");
         SetLastError(ERROR_NOT_ENOUGH_MEMORY);
         goto EXIT;
     }
-    
+
     if(! WideCharToMultiByte(CP_ACP, 0, lpOutputString, -1, 
                              lpOutputStringA, strLen, NULL, NULL)) 
     {
         ASSERT("failed to convert wide chars to multibytes\n");
         SetLastError(ERROR_INTERNAL_ERROR);
-        InternalFree(pThread, lpOutputStringA);
+        InternalFree(lpOutputStringA);
         goto EXIT;
     }
     
     OutputDebugStringA(lpOutputStringA);
-    InternalFree(pThread, lpOutputStringA);
+    InternalFree(lpOutputStringA);
 
-EXIT:    
+EXIT:
     LOGEXIT("OutputDebugStringW returns\n");
     PERF_EXIT(OutputDebugStringW);
 }
@@ -684,7 +682,7 @@ ReadProcessMemory(
 #else   // HAVE_VM_READ
 #if HAVE_PROCFS_CTL
     snprintf(memPath, sizeof(memPath), "/proc/%u/%s", processId, PROCFS_MEM_NAME);
-    fd = InternalOpen(pThread, memPath, O_RDONLY);
+    fd = InternalOpen(memPath, O_RDONLY);
     if (fd == -1)
     {
         ERROR("Failed to open %s\n", memPath);
@@ -747,7 +745,7 @@ ReadProcessMemory(
         
         /* before transferring any data to lpBuffer we should make sure that all 
            data is accessible for read. so we need to use a temp buffer for that.*/
-        if (!(lpTmpBuffer = (int*)InternalMalloc(pThread, (nbInts * sizeof(int)))))
+        if (!(lpTmpBuffer = (int*)InternalMalloc((nbInts * sizeof(int)))))
         {
             ERROR("Insufficient memory available !\n");
             SetLastError(ERROR_NOT_ENOUGH_MEMORY);
@@ -806,7 +804,7 @@ PROCFSCLEANUP:
 CLEANUP2:
     if (lpTmpBuffer) 
     {
-        InternalFree(pThread, lpTmpBuffer);
+        InternalFree(lpTmpBuffer);
     }
 #endif  // !HAVE_TTRACE
 
@@ -959,7 +957,7 @@ WriteProcessMemory(
 #else   // HAVE_VM_READ
 #if HAVE_PROCFS_CTL
     snprintf(memPath, sizeof(memPath), "/proc/%u/%s", processId, PROCFS_MEM_NAME);
-    fd = InternalOpen(pThread, memPath, O_WRONLY);
+    fd = InternalOpen(memPath, O_WRONLY);
     if (fd == -1)
     {
         ERROR("Failed to open %s\n", memPath);
@@ -1031,20 +1029,20 @@ WriteProcessMemory(
                  (((nSize + FirstIntOffset)%sizeof(int)) ? 1:0);
         lpBaseAddressAligned = (int*)((char*)lpBaseAddress - FirstIntOffset);
         
-        if ((lpTmpBuffer = (int*)InternalMalloc(pThread, (nbInts * sizeof(int)))) == NULL)
+        if ((lpTmpBuffer = (int*)InternalMalloc((nbInts * sizeof(int)))) == NULL)
         {
             ERROR("Insufficient memory available !\n");
             SetLastError(ERROR_NOT_ENOUGH_MEMORY);
             goto CLEANUP1;
         }
-        
-        memcpy( (char *)lpTmpBuffer + FirstIntOffset, (char *)lpBuffer, nSize);    
+
+        memcpy((char *)lpTmpBuffer + FirstIntOffset, (char *)lpBuffer, nSize);
         lpInt = lpTmpBuffer;
 
         LastIntOffset = (nSize + FirstIntOffset) % sizeof(int);
         LastIntMask = -1;
         LastIntMask >>= ((sizeof(int) - LastIntOffset) * 8);
-        
+
         if (nbInts == 1)
         {
             if (DBGWriteProcMem_IntWithMask(processId, lpBaseAddressAligned, 
@@ -1058,7 +1056,7 @@ WriteProcessMemory(
             ret = TRUE;
             goto CLEANUP2;
         }
-        
+
         if (DBGWriteProcMem_IntWithMask(processId,
                                         lpBaseAddressAligned++,
                                         *lpInt++, FirstIntMask) 
@@ -1084,14 +1082,14 @@ WriteProcessMemory(
 
         numberOfBytesWritten = nSize;
         ret = TRUE;
-#endif  // HAVE_TTRACE         
-    }     
+#endif  // HAVE_TTRACE
+    }
     else
     {
         /* Failed to attach processId */
-        goto EXIT;    
-    }  
-#endif  // HAVE_PROCFS_CTL
+        goto EXIT;
+    }
+#endif // HAVE_PROCFS_CTL
 
 #if HAVE_PROCFS_CTL
 PROCFSCLEANUP:
@@ -1103,7 +1101,7 @@ PROCFSCLEANUP:
 CLEANUP2:
     if (lpTmpBuffer) 
     {
-        InternalFree(pThread, lpTmpBuffer);
+        InternalFree(lpTmpBuffer);
     }
 #endif  // !HAVE_TTRACE
 
@@ -1282,7 +1280,7 @@ DBGAttachProcess(
         nanosleep(&waitTime, NULL);
         
         sprintf_s(ctlPath, sizeof(ctlPath), "/proc/%d/ctl", processId);
-        fd = InternalOpen(pThread, ctlPath, O_WRONLY);
+        fd = InternalOpen(ctlPath, O_WRONLY);
         if (fd == -1)
         {
             ERROR("Failed to open %s: errno is %d (%s)\n", ctlPath,
