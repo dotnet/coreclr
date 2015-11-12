@@ -47,29 +47,6 @@ CRITICAL_SECTION gcsEnvironment;
 
 using namespace CorUnix;
 
-namespace CorUnix
-{
-    int InternalRand(CPalThread *pthrCurrent);
-
-    /*++
-    Function:
-    InternalRand
-
-    Wrapper for rand.
-    --*/
-    int
-    InternalRand(
-        CPalThread *pthrCurrent
-        )
-    {
-        int nRet;
-        pthrCurrent->suspensionInfo.EnterUnsafeRegion();
-        nRet = rand();
-        pthrCurrent->suspensionInfo.LeaveUnsafeRegion();
-        return nRet;
-    }
-}
-
 /*++
 Function:
   _gcvt_s
@@ -273,7 +250,7 @@ PAL_rand(void)
     PERF_ENTRY(rand);
     ENTRY("rand(void)\n");
 
-    ret = (InternalRand(InternalGetCurrentThread()) % (PAL_RAND_MAX + 1));
+    ret = (rand() % (PAL_RAND_MAX + 1));
 
     LOGEXIT("rand() returning %d\n", ret);
     PERF_EXIT(rand);
@@ -506,7 +483,7 @@ BOOL MiscPutenv(const char *string, BOOL deleteIfEmpty)
         // set the variable's value to "". deleteIfEmpty will be FALSE in
         // that case.
         length = strlen(string);
-        copy = (char *) InternalMalloc(pthrCurrent, length);
+        copy = (char *) InternalMalloc(length);
         if (copy == NULL)
         {
             goto done;
@@ -521,7 +498,7 @@ BOOL MiscPutenv(const char *string, BOOL deleteIfEmpty)
         // See if we are replacing an item or adding one.
         
         // Make our copy up front, since we'll use it either way.
-        copy = InternalStrdup(pthrCurrent, string);
+        copy = InternalStrdup(string);
         if (copy == NULL)
         {
             goto done;
@@ -571,7 +548,7 @@ BOOL MiscPutenv(const char *string, BOOL deleteIfEmpty)
             
             if (sAllocatedEnviron) {
                 if (NULL == (newEnviron = 
-                        (char **)InternalRealloc(pthrCurrent, palEnvironment, (i + 2) * sizeof(char *))))
+                        (char **)InternalRealloc(palEnvironment, (i + 2) * sizeof(char *))))
                 {
                     goto done;
                 }
@@ -579,7 +556,7 @@ BOOL MiscPutenv(const char *string, BOOL deleteIfEmpty)
             else
             {
                 // Allocate palEnvironment ourselves so we can realloc it later.
-                newEnviron = (char **)InternalMalloc(pthrCurrent, (i + 2) * sizeof(char *));
+                newEnviron = (char **)InternalMalloc((i + 2) * sizeof(char *));
                 if (newEnviron == NULL)
                 {
                     goto done;
@@ -609,7 +586,7 @@ done:
     }
     if (NULL != copy)
     {
-        InternalFree(pthrCurrent, copy);
+        InternalFree(copy);
     }
     return result;
 }

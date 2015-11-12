@@ -1681,6 +1681,17 @@ void PEFile::SetNativeImage(PEImage *image)
     m_nativeImage->Load();
     m_nativeImage->AllocateLazyCOWPages();
 
+#if defined(_TARGET_AMD64_) && !defined(CROSSGEN_COMPILE)
+    static ConfigDWORD configNGenReserveForJumpStubs;
+    int percentReserveForJumpStubs = configNGenReserveForJumpStubs.val(CLRConfig::INTERNAL_NGenReserveForJumpStubs);
+    if (percentReserveForJumpStubs != 0)
+    {
+        PEImageLayout * pLayout = image->GetLoadedLayout();
+        ExecutionManager::GetEEJitManager()->EnsureJumpStubReserve((BYTE *)pLayout->GetBase(), pLayout->GetVirtualSize(),
+            percentReserveForJumpStubs * (pLayout->GetVirtualSize() / 100));
+    }
+#endif
+
     ExternalLog(LL_INFO100, W("Attempting to use native image %s."), image->GetPath().GetUnicode());
     RETURN;
 }
@@ -2146,7 +2157,7 @@ BOOL RuntimeVerifyNativeImageVersion(const CORCOMPILE_VERSION_INFO *info, Loggab
     // Check processor
     //
 
-    if (info->wMachine != IMAGE_FILE_MACHINE_NATIVE)
+    if (info->wMachine != IMAGE_FILE_MACHINE_NATIVE_NI)
     {
         RuntimeVerifyLog(LL_ERROR, pLogAsm, W("Processor type recorded in native image doesn't match this machine's processor."));
         return FALSE;

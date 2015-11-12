@@ -60,7 +60,7 @@ CPalObjectBase::Initialize(
 
     if (0 != m_pot->GetImmutableDataSize())
     {
-        m_pvImmutableData = InternalMalloc(pthr, m_pot->GetImmutableDataSize());
+        m_pvImmutableData = InternalMalloc(m_pot->GetImmutableDataSize());
         if (NULL != m_pvImmutableData)
         {
             ZeroMemory(m_pvImmutableData, m_pot->GetImmutableDataSize());
@@ -82,7 +82,7 @@ CPalObjectBase::Initialize(
             goto IntializeExit;
         }
         
-        m_pvLocalData = InternalMalloc(pthr, m_pot->GetProcessLocalDataSize());
+        m_pvLocalData = InternalMalloc(m_pot->GetProcessLocalDataSize());
         if (NULL != m_pvLocalData)
         {
             ZeroMemory(m_pvLocalData, m_pot->GetProcessLocalDataSize());
@@ -97,7 +97,7 @@ CPalObjectBase::Initialize(
 
     if (0 != poa->sObjectName.GetStringLength())
     {
-        palError = m_oa.sObjectName.CopyString(pthr, &poa->sObjectName);
+        palError = m_oa.sObjectName.CopyString(&poa->sObjectName);
     }
 
 IntializeExit:
@@ -314,8 +314,8 @@ CPalObjectBase::ReleaseReference(
                 fCleanupSharedState
                 );
         }
-            
-        InternalDelete(pthr, this);
+
+        InternalDelete(this);
 
         pthr->ReleaseThreadReference();
     }
@@ -340,24 +340,19 @@ CPalObjectBase::~CPalObjectBase()
 {
     ENTRY("CPalObjectBase::~CPalObjectBase(this = %p)\n", this);
 
-    // There is no need to call InternalGetCurrentThread here because
-    // ReleaseReference already stores the thread object that
-    // deletes this object in m_pthrCleanup to make sure the
-    // thread object is alive throughout the object cleanup process.
-
     if (NULL != m_pvImmutableData)
     {
-        InternalFree(m_pthrCleanup, m_pvImmutableData);
+        InternalFree(m_pvImmutableData);
     }
 
     if (NULL != m_pvLocalData)
     {
-        InternalFree(m_pthrCleanup, m_pvLocalData);
+        InternalFree(m_pvLocalData);
     }
 
     if (NULL != m_oa.sObjectName.GetString())
     {
-        m_oa.sObjectName.FreeBuffer(m_pthrCleanup);
+        m_oa.sObjectName.FreeBuffer();
     }
 
     LOGEXIT("CPalObjectBase::~CPalObjectBase\n");

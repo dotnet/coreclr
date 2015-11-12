@@ -22,6 +22,7 @@ CloseHandle
 CoCreateGuid
 CopyFileW
 CoTaskMemAlloc
+CoTaskMemRealloc
 CoTaskMemFree
 CreateDirectoryW
 CreateEventW
@@ -30,7 +31,6 @@ CreateMutexW
 CreateSemaphoreW
 DeleteFileW
 DuplicateHandle
-EnterCriticalSection
 FindClose
 FindFirstFileW
 FindNextFileW
@@ -56,8 +56,8 @@ GetStdHandle
 GetSystemInfo
 GetTempFileNameW
 GetTempPathW
-LeaveCriticalSection
 LocalAlloc
+LocalReAlloc
 LocalFree
 LockFile
 lstrlenA
@@ -80,7 +80,6 @@ ReleaseSemaphore
 RemoveDirectoryW
 ResetEvent
 RtlZeroMemory
-SetConsoleCtrlHandler
 SetCurrentDirectoryW
 SetEndOfFile
 SetEnvironmentVariableW
@@ -89,6 +88,9 @@ SetEvent
 SetFileAttributesW
 SetFilePointer
 SetFileTime
+SysAllocStringLen
+SysFreeString
+SysStringLen
 UnlockFile
 UnmapViewOfFile
 VirtualAlloc

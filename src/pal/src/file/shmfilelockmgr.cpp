@@ -203,7 +203,7 @@ CSharedMemoryFileLockMgr::GetLockControllerForFile(
         dwShareMode = fileLocks->share_mode;
     }
 
-    pController = InternalNew<CSharedMemoryFileLockController>(pThread, dwAccessRights, shmFileLocks);
+    pController = InternalNew<CSharedMemoryFileLockController>(dwAccessRights, shmFileLocks);
     if (NULL == pController)
     {
         palError = ERROR_OUTOFMEMORY;
@@ -245,7 +245,7 @@ GetLockControllerForFileExit:
     {
         if (NULL != pController)
         {
-            pController->ReleaseController(pThread);
+            pController->ReleaseController();
         }
 
         if (SHMNULL != shmFileLocks)
@@ -265,7 +265,6 @@ GetLockControllerForFileExit:
 
 PAL_ERROR
 CSharedMemoryFileLockMgr::GetFileShareModeForFile(
-   CPalThread *pThread,
    LPCSTR szFileName,
    DWORD* pdwShareMode)
 {
@@ -273,7 +272,6 @@ CSharedMemoryFileLockMgr::GetFileShareModeForFile(
     *pdwShareMode = SHARE_MODE_NOT_INITALIZED;
     SHMPTR shmFileLocks = SHMNULL;
     SHMFILELOCKS* fileLocks = NULL;
-
 
     SHMLock();
 
@@ -306,7 +304,6 @@ GetLockControllerForFileExit:
     SHMRelease();
 
     return palError;
-  
 }
 
 PAL_ERROR
@@ -338,8 +335,7 @@ CSharedMemoryFileLockController::GetTransactionLock(
 
     if (NO_ERROR == palError)
     {
-        *ppTransactionLock = InternalNew<CSharedMemoryFileTransactionLock>(pThread,
-                                                                           m_shmFileLocks,
+        *ppTransactionLock = InternalNew<CSharedMemoryFileTransactionLock>(m_shmFileLocks,
                                                                            reinterpret_cast<PVOID>(this),
                                                                            lockRgnStart, 
                                                                            nbBytesToLock);
@@ -428,9 +424,7 @@ CSharedMemoryFileLockController::ReleaseFileLock(
 }
 
 void
-CSharedMemoryFileLockController::ReleaseController(
-    CPalThread *pThread                 // IN, OPTIONAL
-    )
+CSharedMemoryFileLockController::ReleaseController()
 {
     if (SHMNULL != m_shmFileLocks)
     {
@@ -441,13 +435,11 @@ CSharedMemoryFileLockController::ReleaseController(
             );
     }
 
-    InternalDelete(pThread, this);
+    InternalDelete(this);
 }
 
 void
-CSharedMemoryFileTransactionLock::ReleaseLock(
-    CPalThread *pThread
-    )
+CSharedMemoryFileTransactionLock::ReleaseLock()
 {
     FILEUnlockFileRegion(
         m_shmFileLocks,
@@ -457,7 +449,7 @@ CSharedMemoryFileTransactionLock::ReleaseLock(
         RDWR_LOCK_RGN
         );
 
-    InternalDelete(pThread, this);
+    InternalDelete(this);
 }
 
 PAL_ERROR

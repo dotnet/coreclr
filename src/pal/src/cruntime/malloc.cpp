@@ -39,12 +39,11 @@ PAL_realloc(
     size_t szSize
     )
 {
-    return InternalRealloc(InternalGetCurrentThread(), pvMemblock, szSize);
+    return InternalRealloc(pvMemblock, szSize);
 }
 
 void *
 CorUnix::InternalRealloc(
-    CPalThread *pthrCurrent,
     void* pvMemblock,
     size_t szSize
     )
@@ -59,15 +58,13 @@ CorUnix::InternalRealloc(
         // If pvMemblock is NULL, there's no reason to call free.
         if (pvMemblock != NULL)
         {
-            InternalFree(pthrCurrent, pvMemblock);
+            InternalFree(pvMemblock);
         }
         pvMem = NULL;
     }
     else
     {
-        pthrCurrent->suspensionInfo.EnterUnsafeRegion();
         pvMem = realloc(pvMemblock, szSize);
-        pthrCurrent->suspensionInfo.LeaveUnsafeRegion();
     }
 
     LOGEXIT("realloc returns void * %p\n", pvMem);
@@ -81,18 +78,15 @@ PAL_free(
     void *pvMem
     )
 {
-    InternalFree(InternalGetCurrentThread(), pvMem);
+    InternalFree(pvMem);
 }
 
 void
 CorUnix::InternalFree(
-    CPalThread *pthrCurrent,
     void *pvMem
     )
 {
-    pthrCurrent->suspensionInfo.EnterUnsafeRegion();
     free(pvMem);
-    pthrCurrent->suspensionInfo.LeaveUnsafeRegion();
 }
 
 void * 
@@ -101,17 +95,15 @@ PAL_malloc(
     size_t szSize
     )
 {
-    return InternalMalloc(InternalGetCurrentThread(), szSize);
+    return InternalMalloc(szSize);
 }
 
 void *
 CorUnix::InternalMalloc(
-    CPalThread *pthrCurrent,
     size_t szSize
     )
 {
     void *pvMem;
-    pthrCurrent->suspensionInfo.EnterUnsafeRegion();
 
     if (szSize == 0)
     {
@@ -120,7 +112,6 @@ CorUnix::InternalMalloc(
     }
 
     pvMem = (void*)malloc(szSize);
-    pthrCurrent->suspensionInfo.LeaveUnsafeRegion();
     return pvMem;
 }
 
@@ -130,18 +121,15 @@ PAL__strdup(
     const char *c_szStr
     )
 {
-    return InternalStrdup(InternalGetCurrentThread(), c_szStr);
+    return InternalStrdup(c_szStr);
 }
 
 char *
 CorUnix::InternalStrdup(
-    CPalThread *pthrCurrent,
     const char *c_szStr
     )
 {
     char *pszStrCopy;
-    pthrCurrent->suspensionInfo.EnterUnsafeRegion();
     pszStrCopy = strdup(c_szStr);
-    pthrCurrent->suspensionInfo.LeaveUnsafeRegion();
     return pszStrCopy;
 }

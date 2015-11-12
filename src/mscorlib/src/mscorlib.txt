@@ -1019,7 +1019,7 @@ EventSource_UnsupportedMessageProperty = Event {0} specifies an illegal or unsup
 EventSource_AbstractMustNotDeclareKTOC = Abstract event source must not declare {0} nested type.
 EventSource_AbstractMustNotDeclareEventMethods = Abstract event source must not declare event methods ({0} with ID {1}).
 EventSource_EventMustNotBeExplicitImplementation = Event method {0} (with ID {1}) is an explicit interface method implementation. Re-write method as implicit implementation.
-EventSource_EventParametersMismatch = Event {0} was called with {1} argument(s) , but it is defined with {2} paramenter(s).
+EventSource_EventParametersMismatch = Event {0} was called with {1} argument(s), but it is defined with {2} parameter(s).
 EventSource_InvalidCommand = Invalid command value.
 EventSource_InvalidEventFormat = Can't specify both etw event format flags.
 EventSource_AddScalarOutOfRange = Getting out of bounds during scalar addition. 
@@ -1470,8 +1470,9 @@ NotSupported_NoTypeInfo = Cannot resolve {0} to a TypeInfo object.
 NotSupported_PIAInAppxProcess = A Primary Interop Assembly is not supported in AppX.
 #endif
 #if FEATURE_WINDOWSPHONE
-NotSupported_WindowsPhone = {0} is not supported on Windows Phone.
-NotSupported_AssemblyLoadCodeBase = Assembly.Load with a Codebase is not supported on Windows Phone.
+; Not referring to "Windows Phone" in the messages, as FEATURE_WINDOWSPHONE is defined for .NET Core as well.
+NotSupported_WindowsPhone = {0} is not supported.
+NotSupported_AssemblyLoadCodeBase = Assembly.Load with a Codebase is not supported.
 #endif
 
 ; TypeLoadException
@@ -2647,7 +2648,7 @@ Globalization.ci_ewo = Ewondo
 Globalization.ci_ewo-CM = Ewondo (Cameroon)
 Globalization.ci_fa = Persian
 Globalization.ci_fa-AF = Persian (Afghanistan)
-Globalization.ci_fa-IR = Persian
+Globalization.ci_fa-IR = Persian (Iran)
 Globalization.ci_ff = Fulah
 Globalization.ci_ff-CM = Fulah (Cameroon)
 Globalization.ci_ff-GN = Fulah (Guinea)

@@ -218,8 +218,9 @@ DacWriteAll(TADDR addr, PVOID buffer, ULONG32 size, bool throwEx)
     return S_OK;
 }
 
+#if defined(WIN64EXCEPTIONS) && defined(FEATURE_PAL)
 HRESULT 
-DacGetPid(DWORD *pid)
+DacVirtualUnwind(DWORD threadId, PCONTEXT context, PT_KNONVOLATILE_CONTEXT_POINTERS contextPointers)
 {
     if (!g_dacImpl)
     {
@@ -227,15 +228,22 @@ DacGetPid(DWORD *pid)
         UNREACHABLE();
     }
 
+    // The DAC code doesn't use these context pointers but zero them out to be safe.
+    if (contextPointers != NULL)
+    {
+        memset(contextPointers, 0, sizeof(T_KNONVOLATILE_CONTEXT_POINTERS));
+    }
+
     ReleaseHolder<ICorDebugDataTarget4> dt;
     HRESULT hr = g_dacImpl->m_pTarget->QueryInterface(IID_ICorDebugDataTarget4, (void **)&dt);
     if (SUCCEEDED(hr))
     {
-        hr = dt->GetPid(pid);
+        hr = dt->VirtualUnwind(threadId, sizeof(CONTEXT), (BYTE*)context);
     }
 
     return hr;
 }
+#endif // defined(WIN64EXCEPTIONS) && defined(FEATURE_PAL)
 
 // DacAllocVirtual - Allocate memory from the target process
 // Note: this is only available to clients supporting the legacy

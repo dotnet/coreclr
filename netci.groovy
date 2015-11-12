@@ -75,6 +75,9 @@ def static getBuildJobName(def configuration, def architecture, def os) {
                 buildCommands += "build.cmd ${lowerConfiguration} ${architecture} linuxmscorlib"
                 buildCommands += "build.cmd ${lowerConfiguration} ${architecture} freebsdmscorlib"
                 buildCommands += "build.cmd ${lowerConfiguration} ${architecture} osxmscorlib"
+                // Zip up the tests directory so that we don't use so much space/time copying
+                // 10s of thousands of files around.
+                buildCommands += "powershell -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('.\\bin\\tests\\${osGroup}.${architecture}.${configuration}', '.\\bin\\tests\\tests.zip')\"";
             }
             else {
                 // On other OS's we skipmscorlib but run the pal tests
@@ -134,18 +137,17 @@ def static getBuildJobName(def configuration, def architecture, def os) {
             // for everything else.  This probably deserves a bit of cleanup eventually once we
             // have an easy way to do regex trigger phrases, to put in some more structured test phrases.
             def triggerPhraseString = ''
+            def triggerByPhraseOnly = true;
             if (os == 'OpenSUSE13.2' && architecture == 'x64') {
-                triggerPhraseString = '@dotnet-bot test suse'
-            } else if (architecture == 'x86' && osGroup == 'Windows_NT') {
-                triggerPhraseString = '@dotnet-bot test x86'
+                triggerPhraseString = '(?i).*test\\W+suse.*'
             } else if (architecture == 'x86' && osGroup == 'Linux') {
-                triggerPhraseString = '@dotnet-bot test x86 linux'
+                triggerPhraseString = '(?i).*test\\W+x86\\W+linux.*'
             } else if (architecture == 'x86' && osGroup == 'OSX') {
-                triggerPhraseString = '@dotnet-bot test x86 osx'
+                triggerPhraseString = '(?i).*test\\W+x86\\W+osx.*'
             } else if (architecture == 'x86' && osGroup == 'FreeBSD') {
-                triggerPhraseString = '@dotnet-bot test x86 freebsd'
+                triggerPhraseString = '(?i).*test\\W+x86\\W+freebsd.*'
             }
-            Utilities.addGithubPRTrigger(newPRJob, "${os} ${architecture} ${configuration} Build", triggerPhraseString)
+            Utilities.addGithubPRTrigger(newPRJob, "${os} ${architecture} ${configuration} Build", triggerPhraseString, triggerByPhraseOnly)
             Utilities.addPRTestSCM(newPRJob, project)
             Utilities.addStandardPRParameters(newPRJob, project)
             
@@ -154,13 +156,13 @@ def static getBuildJobName(def configuration, def architecture, def os) {
             [newPRJob, newCommitJob].each { newJob ->
                 Utilities.addStandardOptions(newJob)
                 
-                if (osGroup == 'Windows_NT') {
+                // Instead of packing up all the 
+                if (osGroup == 'Windows_NT' && architecture == 'x64') {
                     Utilities.addXUnitDotNETResults(newJob, 'bin/**/TestRun*.xml')
-                    Utilities.addArchival(newJob, "bin/Product/**,bin/tests/**", "bin/tests/obj/**")
-                } else {
+                    Utilities.addArchival(newJob, "bin/Product/**,bin/tests/tests.zip")
+                } else if (osGroup != 'Windows_NT') {
                     // Add .NET results for the 
                     Utilities.addXUnitDotNETResults(newJob, '**/pal_tests.xml')
-                    Utilities.addArchival(newJob, "bin/Product/**")
                     Utilities.addArchival(newJob, "bin/Product/**,bin/obj/*/tests/**")
                 }
             }
@@ -198,7 +200,7 @@ def static getBuildJobName(def configuration, def architecture, def os) {
                 // Add PR job options
                 Utilities.addPRTestSCM(newArm64Job, project)
                 Utilities.addStandardPRParameters(newArm64Job, project)
-                Utilities.addGithubPRTrigger(newArm64Job, "Arm64 ${os} cross ${configuration} Build", '@dotnet-bot test arm')
+                Utilities.addGithubPRTrigger(newArm64Job, "Arm64 ${os} cross ${configuration} Build", '(?i).*test\\W+arm.*', true /* trigger by phrase only */)
             }
             
             // Create the new job
@@ -223,7 +225,7 @@ def static getBuildJobName(def configuration, def architecture, def os) {
                 // Add PR job options
                 Utilities.addPRTestSCM(newArmJob, project)
                 Utilities.addStandardPRParameters(newArmJob, project)
-                Utilities.addGithubPRTrigger(newArmJob, "Arm ${os} cross ${configuration} Build", '@dotnet-bot test arm')
+                Utilities.addGithubPRTrigger(newArmJob, "Arm ${os} cross ${configuration} Build", '(?i).*test\\W+arm.*', true /* trigger by phrase only */)
             }
             
             [newArmJob, newArm64Job].each { newJob ->
@@ -297,8 +299,10 @@ def static getBuildJobName(def configuration, def architecture, def os) {
                             }
                         }
                         
-                        // Execute the shell command
+                        // Unzip the tests first.  Exit with 0
+                        shell("unzip -q -o ./bin/tests/tests.zip -d ./bin/tests/Windows_NT.${architecture}.${configuration} || exit 0")
                         
+                        // Execute the tests
                         shell("""
     ./tests/runtest.sh \\
         --testRootDir=\"\${WORKSPACE}/bin/tests/Windows_NT.${architecture}.${configuration}\" \\
@@ -333,16 +337,22 @@ def static getBuildJobName(def configuration, def architecture, def os) {
                     buildFlow("""
 // Grab the checked out git commit hash so that it can be passed to the child
 // builds.
-gitCommit = build.environment.get('GIT_COMMIT')
+// Temporarily output the properties for diagnosis of issues with the statement below
+out.println 'Triggered Parameters Map:'
+out.println params
+out.println 'Build Object Properties:'
+build.properties.each { out.println \"\$it.key -> \$it.value\" }
+// globalParams = params + [GitBranchOrCommit: build.environment.get('GIT_COMMIT')]
+globalParams = params
 // Build the input jobs in parallel
 parallel (
-    { linuxBuildJob = build(params + [GitBranchOrCommit: gitCommit], '${inputCoreCLRBuildName}') },
-    { windowsBuildJob = build(params + [GitBranchOrCommit: gitCommit], '${inputWindowTestsBuildName}') }
+    { linuxBuildJob = build(globalParams, '${inputCoreCLRBuildName}') },
+    { windowsBuildJob = build(globalParams, '${inputWindowTestsBuildName}') }
 )
     
 // And then build the test build
-build(params + [CORECLR_LINUX_BUILD: linuxBuildJob.build.number, 
-                CORECLR_WINDOWS_BUILD: windowsBuildJob.build.number, GitBranchOrCommit: gitCommit], '${fullTestJobName}')    
+build(globalParams + [CORECLR_LINUX_BUILD: linuxBuildJob.build.number, 
+                CORECLR_WINDOWS_BUILD: windowsBuildJob.build.number], '${fullTestJobName}')    
 """)
 
                     // Needs a workspace
@@ -351,19 +361,32 @@ build(params + [CORECLR_LINUX_BUILD: linuxBuildJob.build.number,
                         buildNeedsWorkspace.setValue('true')
                     }
                 }
-            
+
                 if (isPR) {
                     Utilities.addPRTestSCM(newFlowJob, project)
                     Utilities.addStandardPRParameters(newFlowJob, project)
                     if (architecture == 'x64') {
-                        Utilities.addGithubPRTrigger(newFlowJob, "Linux ${architecture} ${configuration} Build and Test", '@dotnet-bot test linux')
-                    } else {
-                       Utilities.addGithubPRTrigger(newFlowJob, "Linux ${architecture} ${configuration} Build and Test", '@dotnet-bot test linux x86')
+                        if (configuration == 'Release') {
+                            // Tests will be run on x64 Release by default (no trigger phase required).
+                            Utilities.addGithubPRTrigger(newFlowJob, "Ubuntu ${architecture} ${configuration} Build and Test",
+                            "(?i).*test\\W+ubuntu\\W+release.*", false /* trigger by phrase only */)
+                        } else {
+                            Utilities.addGithubPRTrigger(newFlowJob, "Ubuntu ${architecture} ${configuration} Build and Test", "(?i).*test\\W+ubuntu\\W+debug.*", true /* trigger by phrase only */)
+                        }
+                    } else if (architecture == 'x86') {
+                        if (configuration == 'Release') {
+                            Utilities.addGithubPRTrigger(newFlowJob, "Ubuntu ${architecture} ${configuration} Build and Test", "(?i).*test\\W+ubuntu\\W+x86.*", true /* trigger by phrase only */)
+                        } else {
+                            Utilities.addGithubPRTrigger(newFlowJob, "Ubuntu ${architecture} ${configuration} Build and Test", "(?i).*test\\W+ubuntu\\W+x86\\W+debug.*", true /* trigger by phrase only */)
+                        }
                     }
                 }
                 else {
                     Utilities.addScm(newFlowJob, project)
                     Utilities.addStandardNonPRParameters(newFlowJob)
+                    if (architecture == 'x64') {
+                        Utilities.addGithubPushTrigger(newFlowJob)
+                    }
                 }
                 
                 Utilities.addStandardOptions(newFlowJob)
