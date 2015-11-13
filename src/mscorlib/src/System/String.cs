@@ -1287,8 +1287,7 @@ namespace System {
 
             return result;
         }
-    
-    
+       
         // Removes single character from the Start or/and end of this string.
         [Pure]
         public String Trim(char c) {  
@@ -1311,6 +1310,7 @@ namespace System {
         }
 
         //Removes a set of characters from the beginning and end of this string.
+        [Pure]
         public String Trim(params char[] trimChars)
         {
             if (null == trimChars || trimChars.Length == 0)
