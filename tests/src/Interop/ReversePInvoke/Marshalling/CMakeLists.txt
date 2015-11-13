@@ -8,3 +8,5 @@ add_library (MarshalBoolArrayDLL SHARED ${SOURCES})
 
 # add the install targets
 install (TARGETS MarshalBoolArrayDLL DESTINATION bin)
+
+
