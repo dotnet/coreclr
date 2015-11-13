@@ -303,8 +303,8 @@ bool Thread::DetectHandleILStubsForDebugger()
 extern "C" {
 #ifndef __llvm__
 __declspec(thread)
-#else // !__llvm__
-__thread 
+#else // __llvm__
+__thread
 #endif // !__llvm__
 ThreadLocalInfo gCurrentThreadInfo = 
                                               {
@@ -2138,7 +2138,7 @@ Thread::Thread()
 
 #if defined(HAVE_GCCOVER) && defined(USE_REDIRECT_FOR_GCSTRESS) && !defined(PLATFORM_UNIX) // GCCOVER
     m_fPreemptiveGCDisabledForGCStress = false;
-#endif
+#endif // HAVE_GCCOVER && USE_REDIRECT_FOR_GCSTRESS
 
 #ifdef _DEBUG
     m_pHelperMethodFrameCallerList = (HelperMethodFrameCallerList*)-1;

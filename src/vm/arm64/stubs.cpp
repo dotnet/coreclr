@@ -798,6 +798,24 @@ void ResumableFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     pRD->ControlPC = m_Regs->Pc;
     pRD->SP = m_Regs->Sp;
 
+    pRD->volatileCurrContextPointers.X[0] = &m_Regs->X0;
+    pRD->volatileCurrContextPointers.X[1] = &m_Regs->X1;
+    pRD->volatileCurrContextPointers.X[2] = &m_Regs->X2;
+    pRD->volatileCurrContextPointers.X[3] = &m_Regs->X3;
+    pRD->volatileCurrContextPointers.X[4] = &m_Regs->X4;
+    pRD->volatileCurrContextPointers.X[5] = &m_Regs->X5;
+    pRD->volatileCurrContextPointers.X[6] = &m_Regs->X6;
+    pRD->volatileCurrContextPointers.X[7] = &m_Regs->X7;
+    pRD->volatileCurrContextPointers.X[8] = &m_Regs->X8;
+    pRD->volatileCurrContextPointers.X[9] = &m_Regs->X9;
+    pRD->volatileCurrContextPointers.X[10]  = &m_Regs->X10;
+    pRD->volatileCurrContextPointers.X[11]  = &m_Regs->X11;
+    pRD->volatileCurrContextPointers.X[12] = &m_Regs->X12;
+    pRD->volatileCurrContextPointers.X[13] = &m_Regs->X13;
+    pRD->volatileCurrContextPointers.X[14] = &m_Regs->X14;
+    pRD->volatileCurrContextPointers.X[15] = &m_Regs->X15;
+    pRD->volatileCurrContextPointers.X[16]  = &m_Regs->X16;
+    pRD->volatileCurrContextPointers.X[17]  = &m_Regs->X17;
     pRD->pCurrentContextPointers->X19 = &m_Regs->X19;
     pRD->pCurrentContextPointers->X20 = &m_Regs->X20;
     pRD->pCurrentContextPointers->X21 = &m_Regs->X21;
@@ -810,9 +828,6 @@ void ResumableFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     pRD->pCurrentContextPointers->X28 = &m_Regs->X28;
     pRD->pCurrentContextPointers->Fp  = &m_Regs->Fp;
     pRD->pCurrentContextPointers->Lr  = &m_Regs->Lr;
-
-    for (int i=0; i < 18; i++)
-        pRD->volatileCurrContextPointers.X[i] = &m_Regs->X[i];
 
     pRD->IsCallerContextValid = FALSE;
     pRD->IsCallerSPValid      = FALSE;        // Don't add usage of this field.  This is only temporary.

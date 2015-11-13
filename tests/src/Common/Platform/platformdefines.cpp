@@ -331,10 +331,10 @@ void TP_DebugBreak()
 {
 #ifdef _PPC_
 	__asm__ __volatile__("trap");
-#elif defined(_ARM_)
-    __asm__ __volatile__("bkpt");
-#else
+#elif defined(__amd64__) || defined(_M_AMD64) || defined(__i386) || defined(_M_IX86)
 	__asm__ __volatile__("int $3");
+#elif defined(__arm__)
+    __asm__ __volatile__("bkpt #0");
 #endif	
 }
 #endif

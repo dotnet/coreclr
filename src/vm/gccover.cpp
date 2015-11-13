@@ -1608,7 +1608,7 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
 #elif defined(_TARGET_ARM_)
         retVal = regs->R0;
 #elif defined(_TARGET_ARM64_)
-        retVal = regs->X[0];
+        retVal = regs->X0;
 #else
         PORTABILITY_ASSERT("DoGCStress - return register");
 #endif
@@ -1650,7 +1650,7 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
 #elif defined(_TARGET_ARM_)
         regs->R0 = retVal;
 #elif defined(_TARGET_ARM64_)
-        regs->X[0] = retVal;
+        regs->X0 = retVal;
 #else
         PORTABILITY_ASSERT("DoGCStress - return register");
 #endif

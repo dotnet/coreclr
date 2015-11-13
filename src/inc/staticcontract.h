@@ -237,7 +237,11 @@ namespace StaticContract
 {
     struct ScanThrowMarkerStandard
     {
+#if !defined(PLATFORM_UNIX)
         __declspec(noinline) ScanThrowMarkerStandard()
+#else
+        __attribute__((noinline)) ScanThrowMarkerStandard()
+#endif // !PLATFORM_UNIX
         {
             METHOD_CANNOT_BE_FOLDED_DEBUG;
             STATIC_CONTRACT_THROWS;
@@ -252,7 +256,11 @@ namespace StaticContract
 
     struct ScanThrowMarkerTerminal
     {
+#if !defined(PLATFORM_UNIX)
         __declspec(noinline) ScanThrowMarkerTerminal()
+#else
+        __attribute__((noinline)) ScanThrowMarkerTerminal()
+#endif // !PLATFORM_UNIX
         {
             METHOD_CANNOT_BE_FOLDED_DEBUG;
         }
@@ -264,7 +272,11 @@ namespace StaticContract
 
     struct ScanThrowMarkerIgnore
     {
+#if !defined(PLATFORM_UNIX)
         __declspec(noinline) ScanThrowMarkerIgnore()
+#else
+        __attribute__((noinline)) ScanThrowMarkerIgnore()
+#endif // !PLATFORM_UNIX
         {
             METHOD_CANNOT_BE_FOLDED_DEBUG;
         }
@@ -341,21 +353,32 @@ template <UINT COUNT>
 class BlockMarker
 {
 public:
+    
+#if !defined(PLATFORM_UNIX)
     __declspec(noinline) void MarkBlock()
+#else
+    __attribute__((noinline)) void MarkBlock()
+#endif // !PLATFORM_UNIX
     {
         ANNOTATION_MARK_BLOCK_ANNOTATION;
         METHOD_CANNOT_BE_FOLDED_DEBUG;
         return;
     }
-
+#if !defined(PLATFORM_UNIX)
     __declspec(noinline) void UseMarkedBlockAnnotation()
+#else
+    __attribute__((noinline)) void UseMarkedBlockAnnotation()
+#endif // !PLATFORM_UNIX
     {
         ANNOTATION_USE_BLOCK_ANNOTATION;
         METHOD_CANNOT_BE_FOLDED_DEBUG;
         return;
     }
-
+#if !defined(PLATFORM_UNIX)
     __declspec(noinline) void EndUseMarkedBlockAnnotation()
+#else
+    __attribute__((noinline)) void EndUseMarkedBlockAnnotation()
+#endif // !PLATFORM_UNIX
     {
         ANNOTATION_END_USE_BLOCK_ANNOTATION;
         METHOD_CANNOT_BE_FOLDED_DEBUG;

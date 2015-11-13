@@ -55,6 +55,8 @@ check_prereqs()
     # Check for clang
     hash clang-$__ClangMajorVersion.$__ClangMinorVersion 2>/dev/null ||  hash clang$__ClangMajorVersion$__ClangMinorVersion 2>/dev/null ||  hash clang 2>/dev/null || { echo >&2 "Please install clang before running this script"; exit 1; }
 
+    echo "Pre-requisites met."
+
 }
 
 build_coreclr()
@@ -261,6 +263,10 @@ for i in "$@"
         arm64)
         __BuildArch=arm64
         __MSBuildBuildArch=arm64
+        
+        # if we are on arm64 then we need clang 3.8
+
+        __ClangMinorVersion=8
         ;;
         debug)
         __BuildType=Debug

@@ -8342,7 +8342,7 @@ retry_for_debugger:
 #endif //TIME_SUSPEND
 }
 
-#if defined(FEATURE_HIJACK) && defined(PLATFORM_UNIX)
+#if !defined(_TARGET_ARM64) && defined(FEATURE_HIJACK) && defined(PLATFORM_UNIX)
 
 // This function is called by PAL to check if the specified instruction pointer
 // is in a function where we can safely inject activation. 
@@ -8487,12 +8487,12 @@ bool Thread::InjectGcSuspension()
     return false;
 }
 
-#endif // FEATURE_HIJACK && PLATFORM_UNIX
+#endif // !_TARGET_ARM64 && FEATURE_HIJACK && PLATFORM_UNIX
 
 // Initialize thread suspension support
 void ThreadSuspend::Initialize()
 {
-#if defined(FEATURE_HIJACK) && defined(PLATFORM_UNIX)
+#if defined(FEATURE_HIJACK) && defined(PLATFORM_UNIX) && defined(_TARGET_AMD64_)
     ::PAL_SetActivationFunction(HandleGCSuspensionForInterruptedThread, CheckActivationSafePoint);
 #endif
 }

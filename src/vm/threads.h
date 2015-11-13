@@ -2878,9 +2878,7 @@ public:
         STR_SwitchedOut,
     };
 
-#if defined(FEATURE_HIJACK) && defined(PLATFORM_UNIX)
     bool InjectGcSuspension();
-#endif // FEATURE_HIJACK && PLATFORM_UNIX
 
 #ifndef DISABLE_THREADSUSPEND
     // SuspendThread
@@ -3725,6 +3723,7 @@ private:
     ARG_SLOT CallPropertySet(BinderMethodID id, OBJECTREF pObject, OBJECTREF pValue);
 
 #if defined(FEATURE_HIJACK) && !defined(PLATFORM_UNIX)
+
     // Used in suspension code to redirect a thread at a HandledJITCase
     BOOL RedirectThreadAtHandledJITCase(PFN_REDIRECTTARGET pTgt);
     BOOL RedirectCurrentThreadAtHandledJITCase(PFN_REDIRECTTARGET pTgt, T_CONTEXT *pCurrentThreadCtx);
@@ -3740,13 +3739,15 @@ private:
     // to identifying redirection targets
     static BOOL IsAddrOfRedirectFunc(void * pFuncAddr);
 
+#endif //defined(FEATURE_HIJACK) && defined(PLATFORM_UNIX)
+
+
 #if defined(HAVE_GCCOVER) && defined(USE_REDIRECT_FOR_GCSTRESS)
 public:
     BOOL CheckForAndDoRedirectForGCStress (T_CONTEXT *pCurrentThreadCtx);
 private:
     bool        m_fPreemptiveGCDisabledForGCStress;
 #endif // HAVE_GCCOVER && USE_REDIRECT_FOR_GCSTRESS
-#endif // FEATURE_HIJACK && !PLATFORM_UNIX
 
 public:
 

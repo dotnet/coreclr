@@ -383,7 +383,7 @@ FastFreeInProcessHeapFunc __ClrFreeInProcessHeap = (FastFreeInProcessHeapFunc) C
 
 const NoThrow nothrow = { 0 };
 
-#ifdef __llvm__
+#if defined(__llvm__) && !defined(__aarch64__)
 __attribute__((visibility("hidden")))
 #endif
 void * __cdecl
@@ -407,7 +407,7 @@ operator new(size_t n)
     return result;
 }
 
-#ifdef __llvm__
+#if defined(__llvm__) && !defined(__aarch64__)
 __attribute__((visibility("hidden")))
 #endif
 void * __cdecl
@@ -431,10 +431,11 @@ operator new[](size_t n)
     return result;
 };
 
-#ifdef __llvm__
+#if defined(__llvm__) && !defined(__aarch64__)
 __attribute__((visibility("hidden")))
 #endif
-void * __cdecl operator new(size_t n, const NoThrow&)
+void * __cdecl
+operator new(size_t n, const NoThrow&)
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
@@ -449,10 +450,11 @@ void * __cdecl operator new(size_t n, const NoThrow&)
     return result;
 }
 
-#ifdef __llvm__
+#if defined(__llvm__) && !defined(__aarch64__)
 __attribute__((visibility("hidden")))
 #endif
-void * __cdecl operator new[](size_t n, const NoThrow&)
+void * __cdecl
+operator new[](size_t n, const NoThrow&)
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
@@ -467,7 +469,7 @@ void * __cdecl operator new[](size_t n, const NoThrow&)
     return result;
 }
 
-#ifdef __llvm__
+#if defined(__llvm__) && !defined(__aarch64__)
 __attribute__((visibility("hidden")))
 #endif
 void __cdecl
@@ -483,7 +485,7 @@ operator delete(void *p) NOEXCEPT
     TRASH_LASTERROR;
 }
 
-#ifdef __llvm__
+#if defined(__llvm__) && !defined(__aarch64__)
 __attribute__((visibility("hidden")))
 #endif
 void __cdecl

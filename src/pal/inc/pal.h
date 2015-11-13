@@ -3239,7 +3239,7 @@ typedef struct _NEON128 {
     LONGLONG High;
 } NEON128, *PNEON128;
 
-typedef struct DECLSPEC_ALIGN(16) _CONTEXT {
+typedef struct _CONTEXT {
 
     //
     // Control flags.
