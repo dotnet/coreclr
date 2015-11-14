@@ -1290,23 +1290,23 @@ namespace System {
        
         // Removes single character from the Start or/and end of this string.
         [Pure]
-        public String Trim(char c) {  
+        public String Trim(char trimChar) {  
             Contract.Ensures(Contract.Result<String>() != null);  
             Contract.EndContractBlock();  
-            return TrimHelper(c, TrimBoth);  
+            return TrimHelper(trimChar, TrimBoth);  
         }
 
-        public String TrimStart(char c) {
+        public String TrimStart(char trimChar) {
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.EndContractBlock();
-            return TrimHelper(c, TrimHead);
+            return TrimHelper(trimChar, TrimHead);
         }
 
-        public String TrimEnd(char c)
+        public String TrimEnd(char trimChar)
         {
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.EndContractBlock();
-            return TrimHelper(c, TrimTail);
+            return TrimHelper(trimChar, TrimTail);
         }
 
         //Removes a set of characters from the beginning and end of this string.
