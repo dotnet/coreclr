@@ -1286,10 +1286,39 @@ namespace System {
 
             return result;
         }
-    
-    
-        // Removes a string of characters from the ends of this string.
+
+
+        // Overloads the Trim functions (Trim, TrimEnd, Trim Start)
+        // Removes a string of characters from the ends of this string,
+        // But accepts a single char instead of an array, reducing memory use - added 11/14/15
         [Pure]
+        public String Trim(char trimChars)
+        {
+            if (trimChars == '\0')
+            {
+                return TrimHelper(TrimBoth);
+            }
+            return TrimHelper(trimChars, TrimBoth);
+        }
+
+        public String TrimEnd(char trimChars)
+        {
+            if (trimChars == '\0')
+            {
+                return TrimHelper(TrimTail);
+            }
+            return TrimHelper(trimChars, TrimTail);
+        }
+
+        public String TrimStart(char trimChars)
+        {
+            if (trimChars == '\0')
+            {
+                return TrimHelper(TrimHead);
+            }
+            return TrimHelper(trimChars, TrimHead);
+        }
+
         public String Trim(params char[] trimChars) {
             if (null==trimChars || trimChars.Length == 0) {
                 return TrimHelper(TrimBoth);
@@ -2704,7 +2733,36 @@ namespace System {
             return TrimHelper(TrimBoth);        
         }
 
-       
+        // Overloads the TrimHelper to removes a string of characters from the ends of this string,
+        // But accepts a single char instead of an array, reducing memory use - Added 11/14/15
+        [System.Security.SecuritySafeCritical]  // auto-generated
+        private String TrimHelper(char trimChars, int trimType)
+        {
+            //end will point to the first non-trimmed character on the right
+            //start will point to the first non-trimmed character on the Left
+            int end = this.Length - 1;
+            int start = 0;
+
+            //Trim specified characters.
+            if (trimType != TrimTail)
+            {
+                for (start = 0; start < this.Length; start++)
+                {
+                    if (trimChars != (this[start])) break;
+                }
+            }
+
+            if (trimType != TrimHead)
+            {
+                for (end = Length - 1; end >= start; end--)
+                {
+                    if (trimChars != (this[end])) break;
+                }
+            }
+
+            return CreateTrimmedString(start, end);
+        }
+
         [System.Security.SecuritySafeCritical]  // auto-generated
         private String TrimHelper(int trimType) {
             //end will point to the first non-trimmed character on the right
@@ -2770,7 +2828,7 @@ namespace System {
         [System.Security.SecurityCritical]  // auto-generated
         private String CreateTrimmedString(int start, int end) {
             //Create a new STRINGREF and initialize it from the range determined above.
-            int len = end -start + 1;
+            int len = end - start + 1;
             if (len == this.Length) {
                 // Don't allocate a new string as the trimmed string has not changed.
                 return this;
