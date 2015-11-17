@@ -2777,6 +2777,7 @@ namespace System {
             return CreateTrimmedString(start, end);
 
         }
+
         [System.Security.SecuritySafeCritical]  // auto-generated
         private String TrimHelper(char[] trimChars, int trimType) {
             //end will point to the first non-trimmed character on the right
