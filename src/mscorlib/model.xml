@@ -7234,8 +7234,8 @@
       <Member Name="Trim(System.Char)" />
       <Member Name="Trim(System.Char[])" />
       <Member Name="TrimStart" />
-      <Member Name="TrimStart(System.Char[])" />
       <Member Name="TrimStart(System.Char)" />
+      <Member Name="TrimStart(System.Char[])" />
       <Member Name="TrimEnd" />
       <Member Name="TrimEnd(System.Char)" />
       <Member Name="TrimEnd(System.Char[])" />

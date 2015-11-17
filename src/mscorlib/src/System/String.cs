@@ -18,9 +18,9 @@ namespace System {
     using System.Globalization;
     using System.Threading;
     using System.Collections;
-    using System.Collections.Generic;    
+    using System.Collections.Generic;
     using System.Runtime.CompilerServices;
-    using System.Runtime.InteropServices;    
+    using System.Runtime.InteropServices;
     using System.Runtime.Versioning;
     using Microsoft.Win32;
     using System.Diagnostics.Contracts;
@@ -2729,15 +2729,15 @@ namespace System {
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.EndContractBlock();
 
-            return TrimHelper(TrimBoth);
+            return TrimHelper(TrimHead);
         }
-        // Handles when TrimStart is called with null characters - just this block of code by Annie P
+        // Handles when TrimEnd is called with null characters - just this block of code by Annie P
         public String TrimEnd()
         {
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.EndContractBlock();
 
-            return TrimHelper(TrimBoth);
+            return TrimHelper(TrimTail);
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -2763,7 +2763,6 @@ namespace System {
             return CreateTrimmedString(start, end);
         }
         // Handles when TrimHelper is called with one char - just this block of code by Annie P
-        [System.Security.SecuritySafeCritical]  // auto-generated
         private String TrimHelper(char trimChars, int trimType)
         {
             //start will point to the first non-trimmed character on the Left
