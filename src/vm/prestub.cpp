@@ -522,7 +522,7 @@ PCODE MethodDesc::MakeJitWorker(COR_ILMETHOD_DECODER* ILHeader, DWORD flags, DWO
 
 #ifdef FEATURE_PERFMAP
                 // Save the JIT'd method information so that perf can resolve JIT'd call frames.
-                PerfMap::LogMethod(this, pCode, sizeOfCode);
+                PerfMap::LogJITCompiledMethod(this, pCode, sizeOfCode);
 #endif
                 
                 mcJitManager.GetMulticoreJitCodeStorage().StoreMethodCode(this, pCode);
@@ -606,7 +606,7 @@ GotNewCode:
 
 #ifdef FEATURE_PERFMAP
                 // Save the JIT'd method information so that perf can resolve JIT'd call frames.
-                PerfMap::LogMethod(this, pCode, sizeOfCode);
+                PerfMap::LogJITCompiledMethod(this, pCode, sizeOfCode);
 #endif
             }
  
@@ -1039,8 +1039,12 @@ extern "C" PCODE STDCALL PreStubWorker(TransitionBlock * pTransitionBlock, Metho
     UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
     UNINSTALL_MANAGED_EXCEPTION_DISPATCHER;
 
-    // Give debugger opportunity to stop here
-    ThePreStubPatch();
+    {
+        HardwareExceptionHolder
+
+        // Give debugger opportunity to stop here
+        ThePreStubPatch();
+    }
 
     pPFrame->Pop(CURRENT_THREAD);
 
