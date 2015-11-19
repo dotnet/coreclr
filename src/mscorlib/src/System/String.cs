@@ -1292,31 +1292,26 @@ namespace System {
         // Removes a string of characters from the ends of this string,
         // But accepts a single char instead of an array, reducing memory use - added 11/14/15
         [Pure]
-        public String Trim(char trimChars)
-        {
-            if (trimChars == '\0')
-            {
-                return TrimHelper(TrimBoth);
-            }
-            return TrimHelper(trimChars, TrimBoth);
+        public String Trim(char trimChar) {
+            Contract.Ensures(Contract.Result<String>() != null);
+            Contract.EndContractBlock();
+
+            return TrimHelper(trimChar, TrimBoth);
         }
 
-        public String TrimEnd(char trimChars)
-        {
-            if (trimChars == '\0')
-            {
-                return TrimHelper(TrimTail);
-            }
-            return TrimHelper(trimChars, TrimTail);
+        public String TrimEnd(char trimChar) {
+            Contract.Ensures(Contract.Result<String>() != null);
+            Contract.EndContractBlock();
+
+            return TrimHelper(trimChar, TrimTail);
+            
         }
 
-        public String TrimStart(char trimChars)
-        {
-            if (trimChars == '\0')
-            {
-                return TrimHelper(TrimHead);
-            }
-            return TrimHelper(trimChars, TrimHead);
+        public String TrimStart(char trimChar) {
+            Contract.Ensures(Contract.Result<string>() != null);
+            Contract.EndContractBlock();
+
+            return TrimHelper(trimChar, TrimHead);
         }
 
         public String Trim(params char[] trimChars) {
@@ -2736,7 +2731,7 @@ namespace System {
         // Overloads the TrimHelper to removes a string of characters from the ends of this string,
         // But accepts a single char instead of an array, reducing memory use - Added 11/14/15
         [System.Security.SecuritySafeCritical]  // auto-generated
-        private String TrimHelper(char trimChars, int trimType)
+        private String TrimHelper(char trimChar, int trimType)
         {
             //end will point to the first non-trimmed character on the right
             //start will point to the first non-trimmed character on the Left
@@ -2748,7 +2743,7 @@ namespace System {
             {
                 for (start = 0; start < this.Length; start++)
                 {
-                    if (trimChars != (this[start])) break;
+                    if (trimChar != (this[start])) break;
                 }
             }
 
@@ -2756,7 +2751,7 @@ namespace System {
             {
                 for (end = Length - 1; end >= start; end--)
                 {
-                    if (trimChars != (this[end])) break;
+                    if (trimChar != (this[end])) break;
                 }
             }
 
