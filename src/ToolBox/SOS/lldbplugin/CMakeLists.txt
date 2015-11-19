@@ -2,10 +2,20 @@ project(sosplugin)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-add_definitions(-D_TARGET_AMD64_=1)
-add_definitions(-DDBG_TARGET_64BIT=1)
-add_definitions(-DDBG_TARGET_AMD64=1)
-add_definitions(-DDBG_TARGET_WIN64=1)
+if(CLR_CMAKE_PLATFORM_ARCH_AMD64)
+    add_definitions(-D_TARGET_AMD64_=1)
+    add_definitions(-DDBG_TARGET_64BIT=1)
+    add_definitions(-DDBG_TARGET_AMD64=1)
+    add_definitions(-DDBG_TARGET_WIN64=1)
+elseif(CLR_CMAKE_PLATFORM_ARCH_ARM)
+    add_definitions(-D_TARGET_ARM_=1)
+    add_definitions(-DDBG_TARGET_32BIT=1)
+    add_definitions(-DDBG_TARGET_ARM=1)
+    add_definitions(-DDBG_TARGET_WIN32=1)
+elseif(CLR_CMAKE_PLATFORM_ARCH_ARM64)
+    message(WARNING "lldb is not supported on linux/aarch64 yet")
+    return()
+endif()
 
 set(ENABLE_LLDBPLUGIN ${CLR_CMAKE_PLATFORM_UNIX} CACHE BOOL "Enable building the SOS plugin for LLDB.")
 set(REQUIRE_LLDBPLUGIN ${CLR_CMAKE_PLATFORM_LINUX} CACHE BOOL "Require building the SOS plugin for LLDB.")
@@ -18,7 +28,7 @@ if(NOT ENABLE_LLDBPLUGIN)
 endif()
 
 # Check for LLDB library
-find_library(LLDB NAMES lldb-3.6 lldb-3.5 LLDB lldb PATHS "${WITH_LLDB_LIBS}" PATH_SUFFIXES llvm)
+find_library(LLDB NAMES LLDB lldb lldb-3.6 lldb-3.5 PATHS "${WITH_LLDB_LIBS}" PATH_SUFFIXES llvm)
 if(LLDB STREQUAL LLDB-NOTFOUND)
     if(REQUIRE_LLDBPLUGIN)
         message(FATAL_ERROR "Cannot find lldb-3.5 or lldb-3.6. Try installing lldb-3.6-dev (or the appropriate package for your platform)")
@@ -60,6 +70,8 @@ include_directories(${CLR_DIR}/src/coreclr/hosts/unixcoreruncommon)
 set(SOURCES
     sosplugin.cpp
     soscommand.cpp
+    setclrpathcommand.cpp
+    setsostidcommand.cpp
     coreruncommand.cpp
     debugclient.cpp
     ${CLR_DIR}/src/coreclr/hosts/unixcorerun/corerun.cpp

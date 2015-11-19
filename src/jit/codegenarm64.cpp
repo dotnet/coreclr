@@ -1424,7 +1424,7 @@ void                CodeGen::genCodeForBBlist()
                 {
                     VarSetOps::AddElemD(compiler, removedGCVars, varIndex);
                 }
-#endif DEBUG
+#endif // DEBUG
                 VarSetOps::RemoveElemD(compiler, gcInfo.gcVarPtrSetCur, varIndex);
             }
             else if (compiler->lvaIsGCTracked(varDsc))
@@ -1434,7 +1434,7 @@ void                CodeGen::genCodeForBBlist()
                 {
                     VarSetOps::AddElemD(compiler, addedGCVars, varIndex);
                 }
-#endif DEBUG
+#endif // DEBUG
                 VarSetOps::AddElemD(compiler, gcInfo.gcVarPtrSetCur, varIndex);
             }
         }
@@ -2323,7 +2323,7 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
             
             if (divisorOp->IsZero())
             {
-                genJumpToThrowHlpBlk(EJ_je, Compiler::ACK_DIV_BY_ZERO);
+                genJumpToThrowHlpBlk(EJ_je, SCK_DIV_BY_ZERO);
                 // We don't need to generate the sdiv/udiv instruction
             }
             else
@@ -2354,7 +2354,7 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
                     {   
                         // Check if the divisor is zero throw a DivideByZeroException
                         emit->emitIns_R_I(INS_cmp, cmpSize, divisorReg, 0);
-                        genJumpToThrowHlpBlk(EJ_je, Compiler::ACK_DIV_BY_ZERO);
+                        genJumpToThrowHlpBlk(EJ_je, SCK_DIV_BY_ZERO);
 
                         // Check if the divisor is not -1 branch to 'sdivLabel'
                         emit->emitIns_R_I(INS_cmp, cmpSize, divisorReg, -1);
@@ -2372,7 +2372,7 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
                         //
                         emit->emitIns_R_R_R(INS_adds, cmpSize, REG_ZR, dividendReg, dividendReg);
                         inst_JMP(genJumpKindForOper(GT_NE, true), sdivLabel);     // goto sdiv if Z flag is clear
-                        genJumpToThrowHlpBlk(EJ_jo, Compiler::ACK_ARITH_EXCPN);   // if the V flags is set throw ArithmeticException
+                        genJumpToThrowHlpBlk(EJ_jo, SCK_ARITH_EXCPN);   // if the V flags is set throw ArithmeticException
                     }
 
                     genDefineTempLabel(sdivLabel);
@@ -2388,7 +2388,7 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
                     if (!divisorOp->isContainedIntOrIImmed())
                     {                        
                         emit->emitIns_R_I(INS_cmp, cmpSize, divisorReg, 0);
-                        genJumpToThrowHlpBlk(EJ_je, Compiler::ACK_DIV_BY_ZERO);
+                        genJumpToThrowHlpBlk(EJ_je, SCK_DIV_BY_ZERO);
                     }
 
                     genCodeForBinary(treeNode);         // Generate the udiv instruction
@@ -2411,6 +2411,7 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
     case GT_LSH:
     case GT_RSH:
     case GT_RSZ:
+    case GT_ROR:
         genCodeForShift(treeNode->gtGetOp1(), treeNode->gtGetOp2(), treeNode);
         // genCodeForShift() calls genProduceReg()
         break;
@@ -3341,6 +3342,8 @@ CodeGen::genLclHeap(GenTreePtr tree)
     var_types   type          = genActualType(size->gtType);
     emitAttr    easz          = emitTypeSize(type);
     BasicBlock* endLabel      = nullptr;    
+    BasicBlock* loop          = nullptr;
+    unsigned stackAdjustment  = 0;
     
 #ifdef DEBUG
     // Verify ESP
@@ -3417,7 +3420,7 @@ CodeGen::genLclHeap(GenTreePtr tree)
         inst_RV_IV(INS_AND, regCnt, ~(STACK_ALIGN - 1), emitActualTypeSize(type));
     }
 
-    unsigned stackAdjustment = 0;
+    stackAdjustment = 0;
 #if FEATURE_EH_FUNCLETS 
     // If we have PSPsym, then need to re-locate it after localloc.
     if (hasPspSym)
@@ -3507,7 +3510,7 @@ CodeGen::genLclHeap(GenTreePtr tree)
         genSetRegToIcon(regCnt, amount, ((int)amount == amount)? TYP_INT : TYP_LONG);
     }
 
-    BasicBlock* loop = genCreateTempLabel();
+    loop = genCreateTempLabel();
     if (compiler->info.compInitMem)
     {
         // At this point 'regCnt' is set to the total number of bytes to locAlloc.
@@ -4167,7 +4170,7 @@ CodeGen::genRangeCheck(GenTreePtr  oper)
         getEmitter()->emitIns_R_R(INS_cmp, EA_4BYTE, src1->gtRegNum, src2->gtRegNum);
     }
 
-    genJumpToThrowHlpBlk(jmpKind, Compiler::ACK_RNGCHK_FAIL, bndsChk->gtIndRngFailBB);
+    genJumpToThrowHlpBlk(jmpKind, SCK_RNGCHK_FAIL, bndsChk->gtIndRngFailBB);
 }
 
 //------------------------------------------------------------------------
@@ -4256,7 +4259,7 @@ CodeGen::genCodeForArrIndex(GenTreeArrIndex* arrIndex)
                                 tgtReg,
                                 arrReg,
                                 genOffsetOfMDArrayDimensionSize(elemType, rank, dim));
-    genJumpToThrowHlpBlk(EJ_jae, Compiler::ACK_RNGCHK_FAIL);
+    genJumpToThrowHlpBlk(EJ_jae, SCK_RNGCHK_FAIL);
 
     genProduceReg(arrIndex);
 #else // !0
@@ -4429,6 +4432,9 @@ instruction CodeGen::genGetInsForOper(genTreeOps oper, var_types type)
             break;
         case GT_OR:
             ins = INS_orr;
+            break;
+        case GT_ROR:
+            ins = INS_ror;
             break;
         case GT_RSH:
             ins = INS_asr;
@@ -5600,7 +5606,7 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
         {
             // We only need to check for a negative value in sourceReg
             emit->emitIns_R_I(INS_cmp, cmpSize, sourceReg, 0);
-            genJumpToThrowHlpBlk(EJ_jl, Compiler::ACK_OVERFLOW);
+            genJumpToThrowHlpBlk(EJ_jl, SCK_OVERFLOW);
             if (dstType == TYP_ULONG)
             {
                 // cast to TYP_ULONG:
@@ -5618,7 +5624,7 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
             {
                 noway_assert(typeMask != 0);
                 emit->emitIns_R_I(INS_tst, cmpSize, sourceReg, typeMask);
-                genJumpToThrowHlpBlk(EJ_jne, Compiler::ACK_OVERFLOW);
+                genJumpToThrowHlpBlk(EJ_jne, SCK_OVERFLOW);
             }
             else
             {
@@ -5631,12 +5637,12 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
                 noway_assert((typeMin != 0) && (typeMax != 0));
 
                 emit->emitIns_R_I(INS_cmp, cmpSize, sourceReg, typeMax);
-                genJumpToThrowHlpBlk(EJ_jg, Compiler::ACK_OVERFLOW);
+                genJumpToThrowHlpBlk(EJ_jg, SCK_OVERFLOW);
 
                 // Compare with the MIN
 
                 emit->emitIns_R_I(INS_cmp, cmpSize, sourceReg, typeMin);
-                genJumpToThrowHlpBlk(EJ_jl, Compiler::ACK_OVERFLOW);
+                genJumpToThrowHlpBlk(EJ_jl, SCK_OVERFLOW);
             }
         }
         ins = INS_mov;
@@ -5936,7 +5942,7 @@ CodeGen::genCkfinite(GenTreePtr treeNode)
     inst_RV_IV(INS_cmp, tmpReg, expMask, EA_4BYTE);
 
     // If exponent is all 1's, throw ArithmeticException
-    genJumpToThrowHlpBlk(EJ_je, Compiler::ACK_ARITH_EXCPN);
+    genJumpToThrowHlpBlk(EJ_je, SCK_ARITH_EXCPN);
 
     // if it is a finite value copy it to targetReg
     if (treeNode->gtRegNum != op1->gtRegNum)

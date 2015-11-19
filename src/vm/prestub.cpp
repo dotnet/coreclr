@@ -522,7 +522,7 @@ PCODE MethodDesc::MakeJitWorker(COR_ILMETHOD_DECODER* ILHeader, DWORD flags, DWO
 
 #ifdef FEATURE_PERFMAP
                 // Save the JIT'd method information so that perf can resolve JIT'd call frames.
-                PerfMap::LogMethod(this, pCode, sizeOfCode);
+                PerfMap::LogJITCompiledMethod(this, pCode, sizeOfCode);
 #endif
                 
                 mcJitManager.GetMulticoreJitCodeStorage().StoreMethodCode(this, pCode);
@@ -606,7 +606,7 @@ GotNewCode:
 
 #ifdef FEATURE_PERFMAP
                 // Save the JIT'd method information so that perf can resolve JIT'd call frames.
-                PerfMap::LogMethod(this, pCode, sizeOfCode);
+                PerfMap::LogJITCompiledMethod(this, pCode, sizeOfCode);
 #endif
             }
  
@@ -968,6 +968,7 @@ extern "C" PCODE STDCALL PreStubWorker(TransitionBlock * pTransitionBlock, Metho
 
     pPFrame->Push(CURRENT_THREAD);
 
+    INSTALL_MANAGED_EXCEPTION_DISPATCHER;
     INSTALL_UNWIND_AND_CONTINUE_HANDLER;
 
     ETWOnStartup (PrestubWorker_V1,PrestubWorkerEnd_V1);
@@ -1036,9 +1037,14 @@ extern "C" PCODE STDCALL PreStubWorker(TransitionBlock * pTransitionBlock, Metho
     pbRetVal = pMD->DoPrestub(pDispatchingMT);
 
     UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
+    UNINSTALL_MANAGED_EXCEPTION_DISPATCHER;
 
-    // Give debugger opportunity to stop here
-    ThePreStubPatch();
+    {
+        HardwareExceptionHolder
+
+        // Give debugger opportunity to stop here
+        ThePreStubPatch();
+    }
 
     pPFrame->Pop(CURRENT_THREAD);
 
@@ -1249,6 +1255,8 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
 
     // record if remoting needs to intercept this call
     BOOL  fRemotingIntercepted = IsRemotingInterceptedViaPrestub();
+
+    BOOL  fReportCompilationFinished = FALSE;
     
     /**************************   CODE CREATION  *************************/
     if (IsUnboxingStub())
@@ -1359,7 +1367,11 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
         {
             Module * pModule = GetModule();
             if (pModule->IsReadyToRun())
+            {
                 pCode = pModule->GetReadyToRunInfo()->GetEntryPoint(this);
+                if (pCode != NULL)
+                    fReportCompilationFinished = TRUE;
+            }
         }
 #endif // FEATURE_READYTORUN
 
@@ -1602,6 +1614,9 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
     _ASSERTE(HasStableEntryPoint());
 #endif // FEATURE_INTERPRETER
 
+    if (fReportCompilationFinished)
+        DACNotifyCompilationFinished(this);
+
     RETURN DoBackpatch(pMT, pDispatchingMT, FALSE);
 }
 
@@ -1813,6 +1828,7 @@ EXTERN_C PCODE STDCALL ExternalMethodFixupWorker(TransitionBlock * pTransitionBl
 
     pEMFrame->Push(CURRENT_THREAD);         // Push the new ExternalMethodFrame onto the frame stack
 
+    INSTALL_MANAGED_EXCEPTION_DISPATCHER;
     INSTALL_UNWIND_AND_CONTINUE_HANDLER;
 
     bool fVirtual = false;
@@ -2039,6 +2055,7 @@ EXTERN_C PCODE STDCALL ExternalMethodFixupWorker(TransitionBlock * pTransitionBl
     // Ready to return
 
     UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
+    UNINSTALL_MANAGED_EXCEPTION_DISPATCHER;
 
     pEMFrame->Pop(CURRENT_THREAD);          // Pop the ExternalMethodFrame from the frame stack
 
@@ -2577,6 +2594,7 @@ extern "C" SIZE_T STDCALL DynamicHelperWorker(TransitionBlock * pTransitionBlock
 
     pFrame->Push(CURRENT_THREAD);
 
+    INSTALL_MANAGED_EXCEPTION_DISPATCHER;
     INSTALL_UNWIND_AND_CONTINUE_HANDLER;
 
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
@@ -2680,6 +2698,7 @@ extern "C" SIZE_T STDCALL DynamicHelperWorker(TransitionBlock * pTransitionBlock
     }
 
     UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
+    UNINSTALL_MANAGED_EXCEPTION_DISPATCHER;
 
     pFrame->Pop(CURRENT_THREAD);
 

@@ -1,0 +1,14 @@
+{
+  "dependencies": {
+    "System.Console": "4.0.0-beta-*",
+    "System.Runtime": "4.0.20-beta-*",
+    "System.Runtime.Extensions": "4.0.10-beta-*",
+    "System.Threading": "4.0.0-beta-*",
+    "System.Threading.Thread": "4.0.0-beta-*",
+    "System.Numerics.Vectors": "4.1.1-beta-*",
+    "System.Numerics.Vectors.WindowsRuntime": "4.0.1-beta-*"
+  },
+  "frameworks": {
+    "dnxcore50": {}
+  }
+}

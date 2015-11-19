@@ -33,6 +33,14 @@ Revision History:
 #include <pthread.h>
 #include <dlfcn.h>
 
+#if HAVE_LIBUUID_H
+#include <uuid/uuid.h>
+#elif HAVE_BSD_UUID_H
+#include <uuid.h>
+#endif
+
+#include <pal_endian.h>
+
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
 #endif // __APPLE__
@@ -41,6 +49,80 @@ SET_DEFAULT_DEBUG_CHANNEL(MISC);
 
 static const char RANDOM_DEVICE_NAME[] ="/dev/random";
 static const char URANDOM_DEVICE_NAME[]="/dev/urandom";
+
+
+/*++
+
+Initialization logic for LTTng tracepoint providers.
+
+--*/
+#if defined(__LINUX__)
+
+static const char tpLibName[] = "libcoreclrtraceptprovider.so";
+
+
+/*++
+
+NOTE: PAL_InitializeTracing MUST NOT depend on anything in the PAL itself
+as it is called prior to PAL initialization.
+
+--*/
+static
+void
+PAL_InitializeTracing(void)
+{
+    // Get the path to the currently executing shared object (libcoreclr.so).
+    Dl_info info;
+    int succeeded = dladdr((void *)PAL_InitializeTracing, &info);
+    if(!succeeded)
+    {
+        return;
+    }
+
+    // Copy the path and modify the shared object name to be the tracepoint provider.
+    char tpProvPath[MAX_LONGPATH];
+    int pathLen = strlen(info.dli_fname);
+    int tpLibNameLen = strlen(tpLibName);
+
+    // Find the length of the full path without the shared object name, including the trailing slash.
+    int lastTrailingSlashLen = -1;
+    for(int i=pathLen-1; i>=0; i--)
+    {
+        if(info.dli_fname[i] == '/')
+        {
+            lastTrailingSlashLen = i+1;
+            break;
+        }
+    }
+
+    // Make sure we found the last trailing slash.
+    if(lastTrailingSlashLen == -1)
+    {
+        return;
+    }
+
+    // Make sure that the final path is shorter than MAX_PATH.
+    // +1 ensures that the string can be NULL-terminated.
+    if((lastTrailingSlashLen + tpLibNameLen + 1) > MAX_LONGPATH)
+    {
+        return;
+    }
+
+    // Copy the path without the shared object name.
+    memcpy(&tpProvPath, info.dli_fname, lastTrailingSlashLen);
+
+    // Append the shared object name for the tracepoint provider.
+    memcpy(&tpProvPath[lastTrailingSlashLen], &tpLibName, tpLibNameLen);
+
+    // NULL-terminate the string.
+    tpProvPath[lastTrailingSlashLen + tpLibNameLen] = '\0';
+
+    // Load the tracepoint provider.
+    // It's OK if this fails - that just means that tracing dependencies aren't available.
+    dlopen(tpProvPath, RTLD_NOW | RTLD_GLOBAL);
+}
+
+#endif
 
 /*++
 
@@ -68,7 +150,13 @@ PAL_GetPALDirectoryW( OUT LPWSTR lpDirectoryName, IN UINT cchDirectoryName )
     PERF_ENTRY(PAL_GetPALDirectoryW);
     ENTRY( "PAL_GetPALDirectoryW( %p, %d )\n", lpDirectoryName, cchDirectoryName );
 
-    lpFullPathAndName = pal_module.lib_name;
+    MODSTRUCT *module = LOADGetPalLibrary();
+    if (!module)
+    {
+        SetLastError(ERROR_INTERNAL_ERROR);
+        goto EXIT;
+    }
+    lpFullPathAndName = module->lib_name;
     if (lpFullPathAndName == NULL)
     {
         SetLastError(ERROR_INTERNAL_ERROR);
@@ -142,51 +230,6 @@ PAL_GetPALDirectoryA(
 
     LOGEXIT( "PAL_GetPALDirectoryW returns BOOL %d.\n", bRet);
     PERF_EXIT(PAL_GetPALDirectoryA);
-    return bRet;
-}
-
-// Define _BitScanForward64 and BitScanForward
-// Per MSDN, BitScanForward64 will search the mask data from LSB to MSB for a set bit.
-// If one is found, its bit position is returned in the outPDWORD argument and 1 is returned.
-// Otherwise, 0 is returned.
-//
-// On GCC, the equivalent function is __builtin_ffsl. It returns 1+index of the least
-// significant set bit, or 0 if if mask is zero.
-unsigned char
-PALAPI
-BitScanForward64(
-        IN OUT PDWORD Index,
-        IN UINT64 qwMask)
-{
-    unsigned char bRet = FALSE;
-    int iIndex = __builtin_ffsl(qwMask);
-    if (iIndex != 0)
-    {
-        // Set the Index after deducting unity
-        *Index = (DWORD)(iIndex-1);
-        bRet = TRUE;
-    }
-
-    return bRet;
-}
-
-// On GCC, the equivalent function is __builtin_ffs. It returns 1+index of the least
-// significant set bit, or 0 if if mask is zero.
-unsigned char
-PALAPI
-BitScanForward(
-        IN OUT PDWORD Index,
-        IN UINT wMask)
-{
-    unsigned char bRet = FALSE;
-    int iIndex = __builtin_ffs(wMask);
-    if (iIndex != 0)
-    {
-        // Set the Index after deducting unity
-        *Index = (DWORD)(iIndex-1);
-        bRet = TRUE;
-    }
-    
     return bRet;
 }
 
@@ -305,3 +348,32 @@ PAL_Random(
     return bRet;
 }
 
+HRESULT
+PALAPI
+CoCreateGuid(OUT GUID * pguid)
+{
+#if HAVE_LIBUUID_H
+    uuid_generate_random(*(uuid_t*)pguid);
+
+    // Change the byte order of the Data1, 2 and 3, since the uuid_generate_random
+    // generates them with big endian while GUIDS need to have them in little endian.
+    pguid->Data1 = SWAP32(pguid->Data1);
+    pguid->Data2 = SWAP16(pguid->Data2);
+    pguid->Data3 = SWAP16(pguid->Data3);
+#elif HAVE_BSD_UUID_H
+    uuid_t uuid;
+    uint32_t status;
+    uuid_create(&uuid, &status);
+    if (status != uuid_s_ok)
+    {
+        ASSERT("Unexpected uuid_create failure (status=%u)\n", status);
+        abort();
+    }
+
+    // Encode the uuid with little endian.
+    uuid_enc_le(pguid, &uuid);
+#else
+    #error Don't know how to generate UUID on this platform
+#endif
+    return 0;
+}

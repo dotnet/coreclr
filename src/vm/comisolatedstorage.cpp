@@ -312,7 +312,7 @@ void QCALLTYPE COMIsolatedStorageFile::GetRootDir(DWORD                      dwF
     QCALL_CONTRACT;
     BEGIN_QCALL;
 
-    WCHAR wszPath[MAX_PATH + 1];
+    WCHAR wszPath[MAX_LONGPATH + 1] = {0};
     GetRootDirInternal(dwFlags, wszPath, COUNTOF(wszPath));
     retRootDir.Set(wszPath);
 
@@ -550,7 +550,7 @@ void COMIsolatedStorageFile::GetRootDirInternal(
     CONTRACTL {
         STANDARD_VM_CHECK;
         PRECONDITION(cPath > 1);
-        PRECONDITION(cPath <= MAX_PATH + 1);
+        PRECONDITION(cPath <= MAX_LONGPATH + 1);
     } CONTRACTL_END;
 
     ULONG len;
@@ -993,7 +993,9 @@ HRESULT AccountingInfo::Lock()
     DWORD dwRet;
     {
         // m_hLock is a mutex
+#ifndef FEATURE_CORECLR        
         Thread::BeginThreadAffinityAndCriticalRegion();
+#endif
         dwRet = WaitForSingleObject(m_hLock, INFINITE);
     }
 
@@ -1064,7 +1066,9 @@ void AccountingInfo::Unlock()
     InterlockedDecrement((LPLONG)&m_dwNumLocks);
 #endif
 
+#ifndef FEATURE_CORECLR        
     Thread::EndThreadAffinityAndCriticalRegion();
+#endif
 }
 
 #endif

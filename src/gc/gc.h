@@ -109,6 +109,11 @@ class GCHeap;
 
 GPTR_DECL(GCHeap, g_pGCHeap);
 
+#ifdef GC_CONFIG_DRIVEN
+#define MAX_GLOBAL_GC_MECHANISMS_COUNT 6
+GARY_DECL(size_t, gc_global_mechanisms, MAX_GLOBAL_GC_MECHANISMS_COUNT);
+#endif //GC_CONFIG_DRIVEN
+
 #ifndef DACCESS_COMPILE
 extern "C" {
 #endif
@@ -170,8 +175,8 @@ struct alloc_context
 
     BYTE*          alloc_ptr;
     BYTE*          alloc_limit;
-    __int64        alloc_bytes; //Number of bytes allocated on SOH by this context
-    __int64        alloc_bytes_loh; //Number of bytes allocated on LOH by this context
+    INT64          alloc_bytes; //Number of bytes allocated on SOH by this context
+    INT64          alloc_bytes_loh; //Number of bytes allocated on LOH by this context
 #if defined(FEATURE_SVR_GC)
     SVR::GCHeap*   alloc_heap;
     SVR::GCHeap*   home_heap;
@@ -344,6 +349,10 @@ void record_changed_seg (BYTE* start, BYTE* end,
                          bgc_state current_bgc_state,
                          changed_seg_state changed_state);
 
+#ifdef GC_CONFIG_DRIVEN
+void record_global_mechanism (int mech_index);
+#endif //GC_CONFIG_DRIVEN
+
 //constants for the flags parameter to the gc call back
 
 #define GC_CALL_INTERIOR            0x1
@@ -377,19 +386,23 @@ public:
 #endif
     }
     
-#ifndef CLR_STANDALONE_BINDER   
-    static BOOL IsGCHeapInitialized()
-    {
-        LIMITED_METHOD_CONTRACT;
+#ifndef CLR_STANDALONE_BINDER
 
-        return (g_pGCHeap != NULL);
-    }
+#ifndef DACCESS_COMPILE
     static BOOL IsGCInProgress(BOOL bConsiderGCStart = FALSE)
     {
         WRAPPER_NO_CONTRACT;
 
         return (IsGCHeapInitialized() ? GetGCHeap()->IsGCInProgressHelper(bConsiderGCStart) : false);
     }   
+#endif
+    
+    static BOOL IsGCHeapInitialized()
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        return (g_pGCHeap != NULL);
+    }
 
     static void WaitForGCCompletion(BOOL bConsiderGCStart = FALSE)
     {
@@ -454,10 +467,11 @@ public:
         // SIMPLIFY:  only use allocation contexts
         return true;
 #else
-#ifdef _TARGET_ARM_
-        return TRUE;
-#endif
+#if defined(_TARGET_ARM_) || defined(FEATURE_PAL)
+        return true;
+#else
         return ((IsServerHeap() ? true : (g_SystemInfo.dwNumberOfProcessors >= 2)));
+#endif
 #endif 
     }
 
@@ -597,13 +611,6 @@ public:
     // static if since restricting for all heaps is fine
     virtual size_t GetValidSegmentSize(BOOL large_seg = FALSE) = 0;
 
-
-    static BOOL IsLargeObject(MethodTable *mt) { 
-        WRAPPER_NO_CONTRACT;
-
-        return mt->GetBaseSize() >= LARGE_OBJECT_SIZE; 
-    }
-    
     static unsigned GetMaxGeneration() {
         LIMITED_METHOD_DAC_CONTRACT;  
         return max_generation;
@@ -621,6 +628,7 @@ public:
 #ifdef FEATURE_BASICFREEZE
     // frozen segment management functions
     virtual segment_handle RegisterFrozenSegment(segment_info *pseginfo) = 0;
+    virtual void UnregisterFrozenSegment(segment_handle seg) = 0;
 #endif //FEATURE_BASICFREEZE
 
         // debug support 

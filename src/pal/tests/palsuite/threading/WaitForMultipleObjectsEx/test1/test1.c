@@ -31,23 +31,18 @@ BOOL WaitForMultipleObjectsExTest()
     LPSECURITY_ATTRIBUTES lpEventAttributes = NULL;
     BOOL bManualReset = TRUE; 
     BOOL bInitialState = TRUE;
-    LPTSTR lpName[MAX_EVENTS];
 
     HANDLE hEvent[MAX_EVENTS];
 
     /* Run through this for loop and create 4 events */ 
     for (i = 0; i < MAX_EVENTS; i++)
     {
-        lpName[i] = (TCHAR*)malloc(MAX_PATH);
-        sprintf(lpName[i],"Event #%d",i);
-
         hEvent[i] = CreateEvent( lpEventAttributes, 
-                                 bManualReset, bInitialState, lpName[i]);  
+                                 bManualReset, bInitialState, NULL);  
 
         if (hEvent[i] == INVALID_HANDLE_VALUE)
         {
-            Trace("WaitForMultipleObjectsExTest:CreateEvent "
-                   "%s failed (%x)\n",lpName[i],GetLastError());
+            Trace("WaitForMultipleObjectsExTest:CreateEvent %u failed (%x)\n", i, GetLastError());
             bRet = FALSE;
             break;
         }
@@ -57,8 +52,7 @@ BOOL WaitForMultipleObjectsExTest()
 
         if (!bRet)
         {
-            Trace("WaitForMultipleObjectsExTest:SetEvent %s "
-                   "failed (%x)\n",lpName[i],GetLastError());
+            Trace("WaitForMultipleObjectsExTest:SetEvent %u failed (%x)\n", i, GetLastError());
             bRet = FALSE;
             break;
         }
@@ -68,8 +62,7 @@ BOOL WaitForMultipleObjectsExTest()
 
         if (dwRet != WAIT_OBJECT_0)
         {
-            Trace("WaitForMultipleObjectsExTest:WaitForSingleObject "
-                   "%s failed (%x)\n",lpName[i],GetLastError());
+            Trace("WaitForMultipleObjectsExTest:WaitForSingleObject %u failed (%x)\n", i, GetLastError());
             bRet = FALSE;
             break;
         }
@@ -81,8 +74,7 @@ BOOL WaitForMultipleObjectsExTest()
 
         if (!bRet)
         {
-            Trace("WaitForMultipleObjectsExTest:ResetEvent %s "
-                   "failed (%x)\n",lpName[i],GetLastError());
+            Trace("WaitForMultipleObjectsExTest:ResetEvent %u failed (%x)\n", i, GetLastError());
             bRet = FALSE;
             break;
         }
@@ -91,8 +83,7 @@ BOOL WaitForMultipleObjectsExTest()
 
         if (dwRet != WAIT_TIMEOUT)
         {
-            Trace("WaitForMultipleObjectsExTest:WaitForSingleObject "
-                   "%s failed (%x)\n",lpName[i],GetLastError());
+            Trace("WaitForMultipleObjectsExTest:WaitForSingleObject %u failed (%x)\n", i, GetLastError());
             bRet = FALSE;
             break;
         }
@@ -120,8 +111,7 @@ BOOL WaitForMultipleObjectsExTest()
 
         if (dwRet != WAIT_TIMEOUT)
         {
-            Trace("WaitForMultipleObjectsExTest: WaitForMultipleObjectsEx "
-                   "%s failed (%x)\n",lpName[0],GetLastError());
+            Trace("WaitForMultipleObjectsExTest: WaitForMultipleObjectsEx failed (%x)\n", GetLastError());
         }
         else
         {
@@ -140,9 +130,7 @@ BOOL WaitForMultipleObjectsExTest()
                         
                         if (!bRet)
                         {
-                            Trace("WaitForMultipleObjectsExTest:SetEvent "
-                                   "%s failed (%x)\n",
-                                   lpName[j],GetLastError());
+                            Trace("WaitForMultipleObjectsExTest:SetEvent %j failed (%x)\n", j, GetLastError());
                             break;
                         }
                     }
@@ -152,9 +140,7 @@ BOOL WaitForMultipleObjectsExTest()
                         
                         if (!bRet)
                         {
-                            Trace("WaitForMultipleObjectsExTest:ResetEvent "
-                                   "%s failed (%x)\n",
-                                   lpName[j],GetLastError());
+                            Trace("WaitForMultipleObjectsExTest:ResetEvent %u failed (%x)\n", j, GetLastError());
                         }
                     }
                 }
@@ -167,9 +153,7 @@ BOOL WaitForMultipleObjectsExTest()
                 
                 if (dwRet != WAIT_OBJECT_0+i)
                 {
-                    Trace("WaitForMultipleObjectsExTest: "
-                        "WaitForMultipleObjectsEx %s failed (%x)\n",
-                        lpName[0],GetLastError());
+                    Trace("WaitForMultipleObjectsExTest: WaitForMultipleObjectsEx failed (%x)\n", GetLastError());
                     bRet = FALSE;
                     break;
                 }
@@ -182,17 +166,43 @@ BOOL WaitForMultipleObjectsExTest()
             
             if (!bRet)
             {
-                Trace("WaitForMultipleObjectsExTest:CloseHandle %s "
-                       "failed (%x)\n",lpName[i],GetLastError());
+                Trace("WaitForMultipleObjectsExTest:CloseHandle %u failed (%x)\n", i, GetLastError());
             }
-            
-            free((void*)lpName[i]);
         }
     }
     
     return bRet;
 }
 
+BOOL WaitMultipleDuplicateHandleTest()
+{
+    BOOL testResult = TRUE;
+    const HANDLE eventHandle = CreateEvent(NULL, TRUE, TRUE, NULL);
+    HANDLE eventHandles[] = {eventHandle, eventHandle};
+
+    // WaitAny - Wait for any of the events (no error expected)
+    DWORD result = WaitForMultipleObjects(sizeof(eventHandles) / sizeof(eventHandles[0]), eventHandles, FALSE, 0);
+    if (result != WAIT_OBJECT_0)
+    {
+        Trace("WaitMultipleDuplicateHandleTest:WaitAny failed (%x)\n", GetLastError());
+        testResult = FALSE;
+    }
+
+    // WaitAll - Wait for all of the events (error expected)
+    result = WaitForMultipleObjects(sizeof(eventHandles) / sizeof(eventHandles[0]), eventHandles, TRUE, 0);
+    if (result != WAIT_FAILED)
+    {
+        Trace("WaitMultipleDuplicateHandleTest:WaitAll failed: call unexpectedly succeeded\n");
+        testResult = FALSE;
+    }
+    else if (GetLastError() != ERROR_INVALID_PARAMETER)
+    {
+        Trace("WaitMultipleDuplicateHandleTest:WaitAll failed: unexpected last error (%x)\n");
+        testResult = FALSE;
+    }
+
+    return testResult;
+}
 
 int __cdecl main(int argc, char **argv)
 {
@@ -205,6 +215,11 @@ int __cdecl main(int argc, char **argv)
     if(!WaitForMultipleObjectsExTest())
     {
         Fail ("Test failed\n");
+    }
+
+    if (!WaitMultipleDuplicateHandleTest())
+    {
+        Fail("Test failed\n");
     }
 
     PAL_Terminate();

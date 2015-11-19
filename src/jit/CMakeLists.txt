@@ -7,12 +7,12 @@ include_directories("../inc")
 # add_definitions(-DALT_JIT)
 
 if (WIN32) 
-if (IS_64BIT_BUILD EQUAL 1)
+if (CLR_CMAKE_PLATFORM_ARCH_AMD64)
   add_definitions(-DFEATURE_SIMD -DFEATURE_AVX_SUPPORT) 
-endif (IS_64BIT_BUILD EQUAL 1)
+endif (CLR_CMAKE_PLATFORM_ARCH_AMD64)
 endif (WIN32)
 
-set( SOURCES
+set( JIT_SOURCES
   alloc.cpp
   bitset.cpp
   block.cpp
@@ -59,14 +59,50 @@ set( SOURCES
   loopcloning.cpp
   lower.cpp
   lsra.cpp
-  emitxarch.cpp
-  targetamd64.cpp
-  lowerxarch.cpp
-  codegenxarch.cpp
-  simd.cpp
-  simdcodegenxarch.cpp
-  unwindamd64.cpp
 )
+
+if(CLR_CMAKE_PLATFORM_ARCH_AMD64)
+  set( ARCH_SOURCES
+    targetamd64.cpp
+    unwindamd64.cpp
+    emitxarch.cpp
+    lowerxarch.cpp
+    codegenxarch.cpp
+    simdcodegenxarch.cpp
+    simd.cpp
+  )
+elseif(CLR_CMAKE_PLATFORM_ARCH_ARM)
+  set( ARCH_SOURCES
+    emitarm.cpp
+    targetarm.cpp
+    lowerarm.cpp
+    codegenarm.cpp
+    unwindarm.cpp
+  )
+elseif(CLR_CMAKE_PLATFORM_ARCH_I386)
+  set( ARCH_SOURCES
+    emitxarch.cpp
+    targetx86.cpp
+    lowerxarch.cpp
+    codegenxarch.cpp
+  )
+elseif(CLR_CMAKE_PLATFORM_ARCH_ARM64)
+  set( ARCH_SOURCES
+    codegenarm64.cpp
+    emitarm64.cpp
+    lowerarm64.cpp
+    targetarm64.cpp
+    unwindarm.cpp
+    unwindarm64.cpp
+  )
+else()
+  clr_unknown_arch()
+endif()
+
+set( SOURCES
+  ${JIT_SOURCES}
+  ${ARCH_SOURCES}
+ )
 
 convert_to_absolute_path(SOURCES ${SOURCES})
 
@@ -97,3 +133,4 @@ set(CLR_EXPORTED_SYMBOL_FILE ${CLRJIT_EXPORTS_DEF})
 
 add_subdirectory(dll)
 add_subdirectory(crossgen)
+add_subdirectory(standalone)

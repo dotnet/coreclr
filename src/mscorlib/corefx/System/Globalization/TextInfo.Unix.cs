@@ -1,5 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
 using System.Diagnostics.Contracts;
 using System.Text;
 
@@ -7,6 +8,8 @@ namespace System.Globalization
 {
     public partial class TextInfo
     {
+        private readonly bool m_needsTurkishCasing;
+
         //////////////////////////////////////////////////////////////////////////
         ////
         ////  TextInfo Constructors
@@ -16,47 +19,94 @@ namespace System.Globalization
         //////////////////////////////////////////////////////////////////////////
         internal unsafe TextInfo(CultureData cultureData)
         {
-            // TODO: Implement this fully.
-            this.m_cultureData = cultureData;
-            this.m_cultureName = this.m_cultureData.CultureName;
-            this.m_textInfoName = this.m_cultureData.STEXTINFO;
+            m_cultureData = cultureData;
+            m_cultureName = m_cultureData.CultureName;
+            m_textInfoName = m_cultureData.STEXTINFO;
+            m_needsTurkishCasing = NeedsTurkishCasing(m_textInfoName);
         }
 
+        [System.Security.SecuritySafeCritical]
         private unsafe string ChangeCase(string s, bool toUpper)
         {
-            Contract.Assert(s != null);              
-            // TODO: Implement this fully.
+            Contract.Assert(s != null);
 
-            StringBuilder sb = new StringBuilder(s.Length);
-
-            for (int i = 0; i < s.Length; i++)
+            if (s.Length == 0)
             {
-                sb.Append(ChangeCaseAscii(s[i], toUpper));
+                return string.Empty;
             }
 
-            return sb.ToString();
+            string result = string.FastAllocateString(s.Length);
+
+            fixed (char* pSource = s)
+            {
+                fixed (char* pResult = result)
+                {
+                    if (IsAsciiCasingSameAsInvariant && s.IsAscii())
+                    {
+                        int length = s.Length;
+                        char* a = pSource, b = pResult;
+                        if (toUpper)
+                        {
+                            while (length-- != 0)
+                            {
+                                *b++ = ToUpperAsciiInvariant(*a++);
+                            }
+                        }
+                        else
+                        {
+                            while (length-- != 0)
+                            {
+                                *b++ = ToLowerAsciiInvariant(*a++);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        ChangeCase(pSource, s.Length, pResult, result.Length, toUpper);
+                    }
+                }
+            }
+
+            return result;
         }
 
+        [System.Security.SecuritySafeCritical]
         private unsafe char ChangeCase(char c, bool toUpper)
         {
-            // TODO: Implement this fully.
-            return ChangeCaseAscii(c, toUpper);
+            char dst = default(char);
+
+            ChangeCase(&c, 1, &dst, 1, toUpper);
+
+            return dst;
         }
 
-        // PAL Methods end here.
+        // -----------------------------
+        // ---- PAL layer ends here ----
+        // -----------------------------
 
-        internal static char ChangeCaseAscii(char c, bool toUpper = true)
+        private bool NeedsTurkishCasing(string localeName)
         {
-            if (toUpper && c >= 'a' && c <= 'z')
-            {
-                return (char)('A' + (c - 'a'));
-            }
-            else if (!toUpper && c >= 'A' && c <= 'Z')
-            {
-                return (char)('a' + (c - 'A'));
-            }
-
-            return c;
+            Contract.Assert(localeName != null);
+            return CultureInfo.GetCultureInfo(localeName).CompareInfo.Compare("i", "I", CompareOptions.IgnoreCase) != 0;
         }
+
+        private bool IsInvariant { get { return m_cultureName.Length == 0; } }
+
+        internal unsafe void ChangeCase(char* src, int srcLen, char* dstBuffer, int dstBufferCapacity, bool bToUpper)
+        {
+            if (IsInvariant)
+            {
+                Interop.GlobalizationInterop.ChangeCaseInvariant(src, srcLen, dstBuffer, dstBufferCapacity, bToUpper);
+            }
+            else if (m_needsTurkishCasing)
+            {
+                Interop.GlobalizationInterop.ChangeCaseTurkish(src, srcLen, dstBuffer, dstBufferCapacity, bToUpper);
+            }
+            else
+            {
+                Interop.GlobalizationInterop.ChangeCase(src, srcLen, dstBuffer, dstBufferCapacity, bToUpper);
+            }
+        }
+
     }
 }

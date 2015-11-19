@@ -590,8 +590,12 @@ public:
     BOOL checkMethodModifier(CORINFO_METHOD_HANDLE hMethod, LPCSTR modifier, BOOL fOptional);
 
     unsigned getClassGClayout(CORINFO_CLASS_HANDLE cls, BYTE *gcPtrs);
-    unsigned getClassNumInstanceFields(CORINFO_CLASS_HANDLE cls);
 
+    bool getSystemVAmd64PassStructInRegisterDescriptor(
+        /*IN*/  CORINFO_CLASS_HANDLE _structHnd,
+        /*OUT*/ SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR* structPassInRegDescPtr);
+
+    unsigned getClassNumInstanceFields(CORINFO_CLASS_HANDLE cls);
 
     CorInfoHelpFunc getNewHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_METHOD_HANDLE callerHandle);
     CorInfoHelpFunc getCastingHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, bool fThrowing);
@@ -773,7 +777,7 @@ public:
 
     wchar_t *getStringConfigValue(const wchar_t *name);
 
-    void freeStringConfigValue(wchar_t *value);
+    void freeStringConfigValue(__in_z wchar_t *value);
 };
 
 #endif // __ZAPINFO_H__

@@ -937,6 +937,14 @@ typedef struct _DISPATCHER_CONTEXT {
 
 #ifdef _TARGET_ARM_
 #include "daccess.h"
+
+//
+// Define unwind information flags.
+//
+
+#define UNW_FLAG_NHANDLER               0x0             /* any handler */
+#define UNW_FLAG_EHANDLER               0x1             /* filter handler */
+#define UNW_FLAG_UHANDLER               0x2             /* unwind handler */
                                                             
 // This function returns the length of a function using the new unwind info on arm.
 // Taken from minkernel\ntos\rtl\arm\ntrtlarm.h.
@@ -1004,6 +1012,10 @@ RtlVirtualUnwind (
 
 #ifdef _TARGET_ARM64_
 
+#define UNW_FLAG_NHANDLER               0x0             /* any handler */
+#define UNW_FLAG_EHANDLER               0x1             /* filter handler */
+#define UNW_FLAG_UHANDLER               0x2             /* unwind handler */
+
 // This function returns the RVA of the end of the function (exclusive, so one byte after the actual end)
 // using the unwind info on ARM64. (see ExternalAPIs\Win9CoreSystem\inc\winnt.h)
 FORCEINLINE
@@ -1035,6 +1047,21 @@ RtlpGetFunctionEndAddress (
 typedef struct _UNWIND_INFO {
     // dummy
 } UNWIND_INFO, *PUNWIND_INFO;
+
+EXTERN_C
+NTSYSAPI
+PEXCEPTION_ROUTINE
+NTAPI
+RtlVirtualUnwind(
+    IN ULONG HandlerType,
+    IN ULONG64 ImageBase,
+    IN ULONG64 ControlPc,
+    IN PRUNTIME_FUNCTION FunctionEntry,
+    IN OUT PCONTEXT ContextRecord,
+    OUT PVOID *HandlerData,
+    OUT PULONG64 EstablisherFrame,
+    IN OUT PKNONVOLATILE_CONTEXT_POINTERS ContextPointers OPTIONAL
+    );
 
 #endif
 

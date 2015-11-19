@@ -20,11 +20,16 @@ Install the following packages for the toolchain:
 - cmake 
 - llvm-3.5 
 - clang-3.5 
-- lldb-3.6  
+- lldb-3.6
 - lldb-3.6-dev 
 - libunwind8 
-- libunwind8-dev  
+- libunwind8-dev
 - gettext
+- libicu-dev
+- liblttng-ust-dev
+- libcurl4-openssl-dev
+- libssl-dev
+- uuid-dev
 
 In order to get lldb-3.6 on Ubuntu 14.04, we need to add an additional package source:
 
@@ -36,71 +41,14 @@ ellismg@linux:~$ sudo apt-get update
 
 Then install the packages you need:
 
-`ellismg@linux:~$ sudo apt-get install cmake llvm-3.5 clang-3.5 lldb-3.6 lldb-3.6-dev libunwind8 libunwind8-dev gettext`
+`ellismg@linux:~$ sudo apt-get install cmake llvm-3.5 clang-3.5 lldb-3.6 lldb-3.6-dev libunwind8 libunwind8-dev gettext libicu-dev liblttng-ust-dev libcurl4-openssl-dev libssl-dev uuid-dev`
 
 You now have all the required components.
 
 Git Setup
 ---------
 
-This guide assumes that you've cloned the coreclr repository into `~/git/coreclr` on your Linux machine and the corefx and coreclr repositories into `D:\git\corefx` and `D:\git\coreclr` on Windows. If your setup is different, you'll need to pay careful attention to the commands you run. In this guide, I'll always show what directory I'm in on both the Linux and Windows machine.
-
-Build the Runtime
-=================
-
-To build the runtime on Linux, run build.sh from the root of the coreclr repository:
-
-```
-ellismg@linux:~/git/coreclr$ ./build.sh
-```
-
-After the build is completed, there should some files placed in `bin/Product/Linux.x64.Debug`.  The ones we are interested in are:
-
-* `corerun`: The command line host.  This program loads and starts the CoreCLR runtime and passes the managed program you want to run to it.
-* `libcoreclr.so`: The CoreCLR runtime itself.
-
-In order to keep everything tidy, let's create a new directory for the runtime and copy the runtime and corerun into it.
-
-```
-ellismg@linux:~/git/coreclr$ mkdir -p ~/coreclr-demo/runtime
-ellismg@linux:~/git/coreclr$ cp bin/Product/Linux.x64.Debug/corerun ~/coreclr-demo/runtime
-ellismg@linux:~/git/coreclr$ cp bin/Product/Linux.x64.Debug/libcoreclr.so ~/coreclr-demo/runtime
-```
-
-Build the Framework 
-===================
-
-We don't _yet_ have support for building managed code on Linux, so you'll need a Windows machine with clones of both the CoreCLR and CoreFX projects.
-
-You will build `mscorlib.dll` out of the coreclr repository and the rest of the framework that out of the corefx repository.  For mscorlib (from a regular command prompt window) run:
-
-```
-D:\git\coreclr> build.cmd linuxmscorlib
-```
-
-The output is placed in `bin\Product\Linux.x64.Debug\mscorlib.dll`.  You'll want to copy this to the runtime folder on your Linux machine. (e.g. `~/coreclr-demo/runtime`)
-
-For the rest of the framework, you need to pass some special parameters to build.cmd when building out of the CoreFX repository.
-
-```
-D:\git\corefx> build.cmd /p:OSGroup=Linux /p:SkipTests=true
-```
-
-It's also possible to add `/t:rebuild` to the build.cmd to force it to delete the previously built assemblies.
-
-For the purposes of Hello World, you need to copy over both `bin\Linux.AnyCPU.Debug\System.Console\System.Console.dll` and `bin\Linux.AnyCPU.Debug\System.Diagnostics.Debug\System.Diagnostics.Debug.dll`  into the runtime folder on Linux. (e.g `~/coreclr-demo/runtime`).
-
-After you've done these steps, the runtime directory on Linux should look like this:
-
-```
-matell@linux:~$ ls ~/coreclr-demo/runtime/
-corerun  libcoreclr.so  mscorlib.dll  System.Console.dll  System.Diagnostics.Debug.dll
-```
-
-Download Dependencies
-=====================
-
-The rest of the assemblies you need to run are presently just facades that point to mscorlib.  We can pull these dependencies down via NuGet (which currently requires Mono).
+This guide assumes that you've cloned the corefx and coreclr repositories into `~/git/corefx` and `~/git/coreclr` on your Linux machine and the corefx and coreclr repositories into `D:\git\corefx` and `D:\git\coreclr` on Windows. If your setup is different, you'll need to pay careful attention to the commands you run. In this guide, I'll always show what directory I'm in on both the Linux and Windows machine.
 
 Install Mono
 ------------
@@ -116,6 +64,74 @@ ellismg@linux:~$ sudo apt-get update
 ellismg@linux:~$ sudo apt-get install mono-devel
 ```
 
+Set the maximum number of file-handles
+--------------------------------------
+
+To ensure that your system can allocate enough file-handles for the corefx build, add `fs.file-max = 100000` to `/etc/sysctl.conf`, and then run `sudo sysctl -p`.
+
+Build the Runtime and Microsoft Core Library
+=============================================
+
+To build the runtime on Linux, run build.sh from the root of the coreclr repository:
+
+```
+ellismg@linux:~/git/coreclr$ ./build.sh
+```
+
+After the build is completed, there should some files placed in `bin/Product/Linux.x64.Debug`.  The ones we are interested in are:
+
+* `corerun`: The command line host.  This program loads and starts the CoreCLR runtime and passes the managed program you want to run to it.
+* `libcoreclr.so`: The CoreCLR runtime itself.
+* `mscorlib.dll`: Microsoft Core Library (requires Mono).
+
+In order to keep everything tidy, let's create a new directory for the runtime and copy the runtime and corerun into it.
+
+```
+ellismg@linux:~/git/coreclr$ mkdir -p ~/coreclr-demo/runtime
+ellismg@linux:~/git/coreclr$ cp bin/Product/Linux.x64.Debug/corerun ~/coreclr-demo/runtime
+ellismg@linux:~/git/coreclr$ cp bin/Product/Linux.x64.Debug/libcoreclr.so ~/coreclr-demo/runtime
+ellismg@linux:~/git/coreclr$ cp bin/Product/Linux.x64.Debug/mscorlib.dll ~/coreclr-demo/runtime
+ellismg@linux:~/git/coreclr$ cp bin/Product/Linux.x64.Debug/System.Globalization.Native.so ~/coreclr-demo/runtime
+```
+
+Build the Framework
+===================
+
+```
+ellismg@linux:~/git/corefx$ ./build.sh
+```
+
+For the purposes of Hello World, you need to copy a few required files to the demo folder.
+
+```
+ellismg@linux:~/git/corefx$ cp bin/Linux.x64.Debug/Native/*.so ~/coreclr-demo/runtime
+ellismg@linux:~/git/corefx$ cp bin/Linux.AnyCPU.Debug/System.Console/System.Console.dll ~/coreclr-demo/runtime
+ellismg@linux:~/git/corefx$ cp bin/Linux.AnyCPU.Debug/System.Diagnostics.Debug/System.Diagnostics.Debug.dll ~/coreclr-demo/runtime
+```
+
+The runtime directory should now look like the following:
+
+```
+matell@linux:~$ ls ~/coreclr-demo/runtime/
+corerun                       System.Globalization.Native.so
+libcoreclr.so                 System.Native.so
+mscorlib.dll                  System.Net.Http.Native.so
+System.Console.dll            System.Security.Cryptography.Native.so
+System.Diagnostics.Debug.dll
+```
+
+Download Dependencies
+=====================
+
+The rest of the assemblies you need to run are presently just facades that point to mscorlib.  We can pull these dependencies down via NuGet (which currently requires Mono).
+
+Create a folder for the packages:
+
+```
+ellismg@linux:~$ mkdir ~/coreclr-demo/packages
+ellismg@linux:~$ cd ~/coreclr-demo/packages
+```
+
 Download the NuGet Client
 -------------------------
 
@@ -127,12 +143,7 @@ ellismg@linux:~/coreclr-demo/packages$ curl -L -O https://nuget.org/nuget.exe
 Download NuGet Packages
 -----------------------
 
-With Mono and NuGet in hand, you can use NuGet to get the required dependencies.  Place all the NuGet packages together:
-
-```
-ellismg@linux:~$ mkdir ~/coreclr-demo/packages
-ellismg@linux:~$ cd ~/coreclr-demo/packages
-```
+With Mono and NuGet in hand, you can use NuGet to get the required dependencies. 
 
 Make a `packages.config` file with the following text. These are the required dependencies of this particular app. Different apps will have different dependencies and require a different `packages.config` - see [Issue #480](https://github.com/dotnet/coreclr/issues/480).
 
@@ -201,4 +212,4 @@ ellismg@linux:~/coreclr-demo/runtime$ ./corerun HelloWorld.exe linux
 
 Over time, this process will get easier. We will remove the dependency on having to compile managed code on Windows. For example, we are working to get our NuGet packages to include both the Windows and Linux versions of an assembly, so you can simply nuget restore the dependencies. 
 
-Pull Requests to enable building CoreFX and mscorlib on Linux via Mono would be very welcome. A sample that builds Hello World on Linux using the correct references but via XBuild or MonoDevelop would also be great! Some of our processes (e.g. the mscorlib build) rely on Windows specific tools, but we want to figure out how to solve these problems for Linux as well. There's still a lot of work ahead, so if you're interested in helping, we're ready for you!
+Pull Requests to enable building CoreFX on Linux via Mono would be very welcome. A sample that builds Hello World on Linux using the correct references but via XBuild or MonoDevelop would also be great! There's still a lot of work ahead, so if you're interested in helping, we're ready for you!

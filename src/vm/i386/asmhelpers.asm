@@ -118,6 +118,11 @@ EXTERN @ProfileEnter@8:PROC
 EXTERN @ProfileLeave@8:PROC
 EXTERN @ProfileTailcall@8:PROC
 
+UNREFERENCED macro arg
+    local unref
+    unref equ size arg
+endm
+
 FASTCALL_FUNC macro FuncName,cbArgs
 FuncNameReal EQU @&FuncName&@&cbArgs
 FuncNameReal proc public
@@ -465,7 +470,7 @@ _GetSpecificCpuTypeAsm@0 PROC public
         push    ecx
         popfd               ; Save the updated flags.
         pushfd
-        pop     ecx         ; Retrive the updated flags
+        pop     ecx         ; Retrieve the updated flags
         xor     ecx, eax    ; Test if it actually changed (bit set means yes)
         push    eax
         popfd               ; Restore the flags
@@ -507,7 +512,7 @@ _GetSpecificCpuFeaturesAsm@4 PROC public
         push    ecx
         popfd               ; Save the updated flags.
         pushfd
-        pop     ecx         ; Retrive the updated flags
+        pop     ecx         ; Retrieve the updated flags
         xor     ecx, eax    ; Test if it actually changed (bit set means yes)
         push    eax
         popfd               ; Restore the flags
@@ -1236,6 +1241,7 @@ UM2MThunk_WrapperHelper proc stdcall public,
                         pAddr : DWORD,
                         pEntryThunk : DWORD,
                         pThread : DWORD
+    UNREFERENCED argLen
 
     push    ebx
 

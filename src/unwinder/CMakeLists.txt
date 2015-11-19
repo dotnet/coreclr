@@ -7,29 +7,42 @@ include_directories(${CLR_DIR}/src/gc)
 include_directories(${CLR_DIR}/src/gcdump)
 include_directories(${CLR_DIR}/src/debug/daccess)
 
-if(CLR_CMAKE_PLATFORM_UNIX)
-  add_compile_options(-fPIC)
-endif(CLR_CMAKE_PLATFORM_UNIX)
+set(UNWINDER_SOURCES
+    unwinder.cpp
+)
 
-
-if(IS_64BIT_BUILD EQUAL 1)
+if(CLR_CMAKE_PLATFORM_ARCH_AMD64)
     include_directories(amd64)
+    
+    list(APPEND UNWINDER_SOURCES
+        amd64/unwinder_amd64.cpp
+    )
+elseif(CLR_CMAKE_PLATFORM_ARCH_I386)
+# nothing needed for x86
+elseif(CLR_CMAKE_PLATFORM_ARCH_ARM)
+    include_directories(arm)
+    
+    list(APPEND UNWINDER_SOURCES
+        arm/unwinder_arm.cpp
+    )
+elseif(CLR_CMAKE_PLATFORM_ARCH_ARM64)
+    include_directories(arm64)
+    
+    list(APPEND UNWINDER_SOURCES
+        arm64/unwinder_arm64.cpp
+    )
+else()
+  clr_unknown_arch()
+endif()
+
+convert_to_absolute_path(UNWINDER_SOURCES ${UNWINDER_SOURCES})
 
 if(CLR_CMAKE_PLATFORM_UNIX)
     add_compile_options(-fPIC)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
-    set(UNWINDER_SOURCES
-        unwinder.cpp
-        amd64/unwinder_amd64.cpp
-    )
-    
-    convert_to_absolute_path(UNWINDER_SOURCES ${UNWINDER_SOURCES})
-       
-    add_subdirectory(dac)
 if(CLR_CMAKE_PLATFORM_UNIX)    
     add_subdirectory(wks)
-endif(CLR_CMAKE_PLATFORM_UNIX)    
+endif(CLR_CMAKE_PLATFORM_UNIX)
 
-endif(IS_64BIT_BUILD EQUAL 1)
-
+add_subdirectory(dac)

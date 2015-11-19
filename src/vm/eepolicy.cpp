@@ -573,6 +573,14 @@ void SafeExitProcess(UINT exitCode, BOOL fAbort = FALSE, ShutdownCompleteAction 
         // disabled because if we fault in this code path we will trigger our
         // Watson code via EntryPointFilter which is THROWS (see Dev11 317016)
         CONTRACT_VIOLATION(ThrowsViolation);
+
+#ifdef FEATURE_PAL
+        if (fAbort)
+        {
+            TerminateProcess(GetCurrentProcess(), exitCode);
+        }
+#endif
+
         EEPolicy::ExitProcessViaShim(exitCode);
     }
 }
@@ -1326,7 +1334,6 @@ void EEPolicy::LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage
             // (in SystemDomain::Init) finished.  See Dev10 Bug 677432 for the detail.
             if (ohException != NULL)
             {
-#ifdef FEATURE_WINDOWSPHONE
                 // for fail-fast, if there's a LTO available then use that as the inner exception object
                 // for the FEEE we'll be reporting.  this can help the Watson back-end to generate better
                 // buckets for apps that call Environment.FailFast() and supply an exception object.
@@ -1337,7 +1344,6 @@ void EEPolicy::LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage
                     EXCEPTIONREF curEx = (EXCEPTIONREF)ObjectFromHandle(ohException);
                     curEx->SetInnerException(lto);
                 }
-#endif // FEATURE_WINDOWSPHONE
                 pThread->SetLastThrownObject(ObjectFromHandle(ohException), TRUE);
             }
 
@@ -1437,10 +1443,10 @@ void DECLSPEC_NORETURN EEPolicy::HandleFatalStackOverflow(EXCEPTION_POINTERS *pE
             param.pExceptionRecord = pExceptionInfo->ExceptionRecord;
             g_pDebugInterface->RequestFavor(ResetWatsonBucketsFavorWorker, reinterpret_cast<void *>(&param));
         }
+#endif // !FEATURE_PAL        
 
         WatsonLastChance(pThread, pExceptionInfo, 
             (fTreatAsNativeUnhandledException == FALSE)? TypeOfReportedError::UnhandledException: TypeOfReportedError::NativeThreadUnhandledException);
-#endif // !FEATURE_PAL        
     }
 
     TerminateProcess(GetCurrentProcess(), COR_E_STACKOVERFLOW);

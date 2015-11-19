@@ -21,7 +21,7 @@ There are several issues to keep in mind when making a change.
 
 Managed Code Compatibility
 --------------------------
-Please review [Breaking Changes](https://github.com/dotnet/corefx/blob/master/Documentation/breaking-changes.md) before making changes to managed code. Please pay the most attention to changes that affect the [Public Contract](https://github.com/dotnet/corefx/blob/master/Documentation/breaking-changes.md#bucket-1-public-contract).
+Please review [Breaking Changes](https://github.com/dotnet/corefx/blob/master/Documentation/coding-guidelines/breaking-changes.md) before making changes to managed code. Please pay the most attention to changes that affect the [Public Contract](https://github.com/dotnet/corefx/blob/master/Documentation/coding-guidelines/breaking-changes.md#bucket-1-public-contract).
 
 Typos
 -----
@@ -30,7 +30,7 @@ Typos are embarrassing! We will accept most PRs that fix typos. In order to make
 Coding Style Changes
 --------------------
 
-We intend to bring dotnet/corefx in to full conformance with the style guidelines described in [Coding Style](https://github.com/dotnet/corefx/blob/master/Documentation/coding-style.md). We plan to do that with tooling, in a holistic way. In the meantime, please:
+We intend to bring dotnet/corefx in to full conformance with the style guidelines described in [Coding Style](https://github.com/dotnet/corefx/blob/master/Documentation/coding-guidelines/coding-style.md). We plan to do that with tooling, in a holistic way. In the meantime, please:
 
 * **DO NOT** send PRs for style changes. 
 * **DO** give priority to the current style of the project or file you're changing even if it diverges from the general guidelines.
@@ -86,7 +86,7 @@ We use and recommend the following workflow:
   - You can skip this step for trivial changes.
   - Reuse an existing issue on the topic, if there is one.
   - Get agreement from the team and the community that your proposed change is a good one.
-  - If your change adds a new API, follow the [API Review Process](https://github.com/dotnet/corefx/blob/master/Documentation/api-review-process.md). 
+  - If your change adds a new API, follow the [API Review Process](https://github.com/dotnet/corefx/blob/master/Documentation/project-docs/api-review-process.md). 
   - Clearly state that you are going to take on implementing it, if that's the case. You can request that the issue be assigned to you. Note: The issue filer and the implementer don't have to be the same person.
 2. Create a personal fork of the repository on GitHub (if you don't already have one).
 3. Create a branch off of master (`git checkout -b mybranch`). 

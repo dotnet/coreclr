@@ -739,6 +739,7 @@ HRESULT ShimProcess::HandleWin32DebugEvent(const DEBUG_EVENT * pEvent)
             if (!dwFirstChance && (pRecord->ExceptionCode == STATUS_BREAKPOINT) && !m_fIsInteropDebugging)
             {            
                 DWORD pid = (m_pLiveDataTarget == NULL) ? 0 : m_pLiveDataTarget->GetPid();
+
                 CONSISTENCY_CHECK_MSGF(false, 
                     ("Unhandled breakpoint exception in debuggee (pid=%d (0x%x)) on thread %d(0x%x)\n"
                     "This may mean there was an assert in the debuggee on that thread.\n"
@@ -1743,6 +1744,7 @@ CORDB_ADDRESS ShimProcess::GetCLRInstanceBaseAddress()
 {
     CORDB_ADDRESS baseAddress = CORDB_ADDRESS(NULL);
     DWORD dwPid = m_pLiveDataTarget->GetPid();
+
 #if defined(FEATURE_CORESYSTEM)
     // Debugger attaching to CoreCLR via CoreCLRCreateCordbObject should have already specified CLR module address.
     // Code that help to find it now lives in dbgshim.
@@ -1829,10 +1831,10 @@ HMODULE ShimProcess::GetDacModule()
 #ifdef FEATURE_PAL
     // For now on Unix we'll just search for DAC in the default location.
     // Debugger can always control it by setting LD_LIBRARY_PATH env var.
-    WCHAR wszAccessDllPath[MAX_PATH] = MAKEDLLNAME_W(W("mscordaccore"));
+    WCHAR wszAccessDllPath[MAX_LONGPATH] = MAKEDLLNAME_W(W("mscordaccore"));
 
 #else    
-    WCHAR wszAccessDllPath[MAX_PATH];
+    WCHAR wszAccessDllPath[MAX_LONGPATH];
     //
     // Load the access DLL from the same directory as the the current CLR Debugging Services DLL.
     //

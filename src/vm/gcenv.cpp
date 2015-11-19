@@ -21,6 +21,7 @@
 #ifdef FEATURE_COMINTEROP
 #include "runtimecallablewrapper.h"
 #include "rcwwalker.h"
+#include "comcallablewrapper.h"
 #endif // FEATURE_COMINTEROP
 
 void GCToEEInterface::SuspendEE(SUSPEND_REASON reason)
@@ -511,7 +512,14 @@ VOID GCToEEInterface::ScanStackRoots(Thread * pThread, promote_func* fn, ScanCon
         // Since we report every thing as pinned, we don't need to run following code for relocation phase.
         if (sc->promotion)
         {
-            Object ** topStack = (Object **)pThread->GetFrame();
+            Frame* pTopFrame = pThread->GetFrame();
+            Object ** topStack = (Object **)pTopFrame;
+            if ((pTopFrame != ((Frame*)-1)) 
+                && (pTopFrame->GetVTablePtr() == InlinedCallFrame::GetMethodFrameVPtr())) {
+                // It is an InlinedCallFrame. Get SP from it.
+                InlinedCallFrame* pInlinedFrame = (InlinedCallFrame*)pTopFrame;
+                topStack = (Object **)pInlinedFrame->GetCallSiteSP();
+            } 
             Object ** bottomStack = (Object **) pThread->GetCachedStackBase();
             Object ** walk;
             for (walk = topStack; walk < bottomStack; walk ++)
@@ -604,6 +612,26 @@ void GCToEEInterface::GcDone(int condemned)
 #endif // FEATURE_COMINTEROP
 }
 
+bool GCToEEInterface::RefCountedHandleCallbacks(Object * pObject)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+    }
+    CONTRACTL_END;
+
+#ifdef FEATURE_COMINTEROP
+    //<REVISIT_TODO>@todo optimize the access to the ref-count
+    ComCallWrapper* pWrap = ComCallWrapper::GetWrapperForObject((OBJECTREF)pObject);
+    _ASSERTE(pWrap != NULL);
+
+    return !!pWrap->IsWrapperActive();
+#else
+    return false;
+#endif
+}
+
 void GCToEEInterface::GcBeforeBGCSweepWork()
 {
     CONTRACTL
@@ -641,4 +669,28 @@ void GCToEEInterface::SyncBlockCachePromotionsGranted(int max_gen)
     CONTRACTL_END;
 
     SyncBlockCache::GetSyncBlockCache()->GCDone(FALSE, max_gen);
+}
+
+void GCToEEInterface::SetGCSpecial(Thread * pThread)
+{
+    WRAPPER_NO_CONTRACT;
+    pThread->SetGCSpecial(true);
+}
+
+alloc_context * GCToEEInterface::GetAllocContext(Thread * pThread)
+{
+    WRAPPER_NO_CONTRACT;
+    return pThread->GetAllocContext();
+}
+
+bool GCToEEInterface::CatchAtSafePoint(Thread * pThread)
+{
+    WRAPPER_NO_CONTRACT;
+    return !!pThread->CatchAtSafePoint();
+}
+
+Thread * GCToEEInterface::GetThreadList(Thread * pThread)
+{
+    WRAPPER_NO_CONTRACT;
+    return ThreadStore::GetThreadList(pThread);
 }

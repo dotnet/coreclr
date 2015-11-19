@@ -1103,6 +1103,7 @@ protected:
 #ifdef USE_INTEROPSAFE_HEAP
     HANDLE m_hHeap;
 #endif
+    BOOL m_fExecutable;
 };
 
 class DebuggerJitInfo;
@@ -2059,7 +2060,7 @@ public:
     void SendInterceptExceptionComplete(Thread *thread);
 
     HRESULT AttachDebuggerForBreakpoint(Thread *thread,
-                                        __in_opt __in_z WCHAR *wszLaunchReason);
+                                        __in_opt WCHAR *wszLaunchReason);
 
 
     void ThreadIsSafe(Thread *thread);
@@ -3591,7 +3592,7 @@ void DbgLogHelper(DebuggerIPCEventType event);
 // Helpers for cleanup
 // These are various utility functions, mainly where we factor out code.
 //-----------------------------------------------------------------------------
-void GetPidDecoratedName(__out_z __in_ecount(cBufSizeInChars) WCHAR * pBuf,
+void GetPidDecoratedName(__out_ecount(cBufSizeInChars) WCHAR * pBuf,
                          int cBufSizeInChars,
                          const WCHAR * pPrefix);
 

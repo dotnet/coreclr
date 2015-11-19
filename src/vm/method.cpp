@@ -1396,8 +1396,9 @@ COR_ILMETHOD* MethodDesc::GetILHeader(BOOL fAllowOverrides /*=FALSE*/)
 //*******************************************************************************
 MetaSig::RETURNTYPE MethodDesc::ReturnsObject(
 #ifdef _DEBUG
-    bool supportStringConstructors
+    bool supportStringConstructors,
 #endif
+    MethodTable** pMT
     )
 {
     CONTRACTL
@@ -1439,7 +1440,19 @@ MetaSig::RETURNTYPE MethodDesc::ReturnsObject(
                     if (!thValueType.IsTypeDesc())
                     {
                         MethodTable * pReturnTypeMT = thValueType.AsMethodTable();
-                        if(pReturnTypeMT->ContainsPointers())
+                        if (pMT != NULL)
+                        {
+                            *pMT = pReturnTypeMT;
+                        }
+
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+                        if (pReturnTypeMT->IsRegPassedStruct())
+                        {
+                            return MetaSig::RETVALUETYPE;
+                        }
+#endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING
+
+                        if (pReturnTypeMT->ContainsPointers())
                         {
                             _ASSERTE(pReturnTypeMT->GetNumInstanceFieldBytes() == sizeof(void*));
                             return MetaSig::RETOBJ;
@@ -4456,9 +4469,7 @@ void MethodDesc::CheckRestore(ClassLoadLevel level)
                 pIMD->m_wFlags2 = pIMD->m_wFlags2 & ~InstantiatedMethodDesc::Unrestored;
             }
 
-#if defined(FEATURE_EVENT_TRACE)
-            if (MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context.IsEnabled)
-#endif
+            if (ETW_PROVIDER_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER))
             {
                 ETW::MethodLog::MethodRestored(this);
             }
@@ -4475,9 +4486,7 @@ void MethodDesc::CheckRestore(ClassLoadLevel level)
             PTR_DynamicMethodDesc pDynamicMD = AsDynamicMethodDesc();
             pDynamicMD->Restore();
 
-#if defined(FEATURE_EVENT_TRACE)
-            if (MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context.IsEnabled)
-#endif
+            if (ETW_PROVIDER_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER))
             {
                 ETW::MethodLog::MethodRestored(this);
             }
@@ -5371,6 +5380,33 @@ void MethodDesc::ComputeSuppressUnmanagedCodeAccessAttr(IMDInternalImport *pImpo
 #endif
 
 #endif // FEATURE_COMINTEROP
+}
+
+//*******************************************************************************
+BOOL MethodDesc::HasNativeCallableAttribute()
+{
+
+    CONTRACTL
+    {
+        THROWS;
+        GC_NOTRIGGER;
+        FORBID_FAULT;
+    }
+    CONTRACTL_END;
+
+// enable only for amd64 now, other platforms are not tested.
+#if defined(_TARGET_AMD64_) 
+
+#ifdef FEATURE_CORECLR
+    HRESULT hr = GetMDImport()->GetCustomAttributeByName(GetMemberDef(),
+        g_NativeCallableAttribute,
+        NULL,
+        NULL);
+    return (hr == S_OK);
+#endif //FEATURE_CORECLR
+
+#endif //_TARGET_AMD64_
+    return FALSE;
 }
 
 //*******************************************************************************

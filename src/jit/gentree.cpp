@@ -224,7 +224,15 @@ void                GenTree::InitNodeSize()
         GenTree::s_gtNodeSizes[op] = TREE_NODE_SZ_SMALL;
     }
 
-    /* Now set all of the appropriate entries to 'large' */
+    // Now set all of the appropriate entries to 'large'
+
+    // On ARM and System V struct returning there
+    // is code that does GT_ASG-tree.CopyObj call.
+    // CopyObj is a large node and the GT_ASG is small, which triggers an exception.
+#if defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+    GenTree::s_gtNodeSizes[GT_ASG             ] = TREE_NODE_SZ_LARGE;
+    GenTree::s_gtNodeSizes[GT_RETURN          ] = TREE_NODE_SZ_LARGE;
+#endif // defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
 
     GenTree::s_gtNodeSizes[GT_CALL            ] = TREE_NODE_SZ_LARGE;
     GenTree::s_gtNodeSizes[GT_CAST            ] = TREE_NODE_SZ_LARGE;
@@ -256,6 +264,15 @@ void                GenTree::InitNodeSize()
     GenTree::s_gtNodeSizes[GT_MOD             ] = TREE_NODE_SZ_LARGE;
     GenTree::s_gtNodeSizes[GT_UMOD            ] = TREE_NODE_SZ_LARGE;
 #endif
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+    GenTree::s_gtNodeSizes[GT_PUTARG_STK      ] = TREE_NODE_SZ_LARGE;
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#if defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+    // In importer for Hfa and register returned structs we rewrite GT_ASG to GT_COPYOBJ/GT_CPYBLK
+    // Make sure the sizes agree.
+    assert(GenTree::s_gtNodeSizes[GT_COPYOBJ] <= GenTree::s_gtNodeSizes[GT_ASG]);
+    assert(GenTree::s_gtNodeSizes[GT_COPYBLK] <= GenTree::s_gtNodeSizes[GT_ASG]);
+#endif // !(defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING))
 
     assert(GenTree::s_gtNodeSizes[GT_RETURN] == GenTree::s_gtNodeSizes[GT_ASG]);
 
@@ -312,7 +329,12 @@ void                GenTree::InitNodeSize()
     static_assert_no_msg(sizeof(GenTreeArgPlace)      <= TREE_NODE_SZ_SMALL);
     static_assert_no_msg(sizeof(GenTreeLabel)         <= TREE_NODE_SZ_SMALL);
     static_assert_no_msg(sizeof(GenTreePhiArg)        <= TREE_NODE_SZ_SMALL);
+#ifndef FEATURE_UNIX_AMD64_STRUCT_PASSING
     static_assert_no_msg(sizeof(GenTreePutArgStk)     <= TREE_NODE_SZ_SMALL);
+#else // FEATURE_UNIX_AMD64_STRUCT_PASSING
+    static_assert_no_msg(sizeof(GenTreePutArgStk)     <= TREE_NODE_SZ_LARGE);
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+
 #ifdef FEATURE_SIMD
     static_assert_no_msg(sizeof(GenTreeSIMD)          <= TREE_NODE_SZ_SMALL);
 #endif // FEATURE_SIMD
@@ -1380,7 +1402,8 @@ AGAIN:
     case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
         return Compare(op1->gtBoundsChk.gtArrLen, op2->gtBoundsChk.gtArrLen)
-            && Compare(op1->gtBoundsChk.gtIndex, op2->gtBoundsChk.gtIndex);
+            && Compare(op1->gtBoundsChk.gtIndex, op2->gtBoundsChk.gtIndex)
+            && (op1->gtBoundsChk.gtThrowKind == op1->gtBoundsChk.gtThrowKind);
 
     default:
         assert(!"unexpected operator");
@@ -1896,6 +1919,7 @@ AGAIN:
 #endif // FEATURE_SIMD
         hash = genTreeHashAdd(hash, gtHashValue(tree->gtBoundsChk.gtArrLen));
         hash = genTreeHashAdd(hash, gtHashValue(tree->gtBoundsChk.gtIndex));
+        hash = genTreeHashAdd(hash, tree->gtBoundsChk.gtThrowKind);
         break;
 
     default:
@@ -3670,6 +3694,8 @@ COMMON_CNS:
         case GT_LSH:
         case GT_RSH:
         case GT_RSZ:
+        case GT_ROL:
+        case GT_ROR:
         case GT_ASG_LSH:
         case GT_ASG_RSH:
         case GT_ASG_RSZ:
@@ -4364,13 +4390,21 @@ void            GenTree::InsertAfterSelf(GenTree* node, GenTreeStmt* stmt /* = n
 //    'parent' must be non-null
 //
 // Notes:
-//    Must not be called for GT_LDOBJ (which isn't used for RyuJIT, which is the only context
-//    in which this method is used)
+//    For non System V systems with native struct passing (i.e. FEATURE_UNIX_AMD64_STRUCT_PASSING not defined)
+//    this method must not be called for GT_LDOBJ (which isn't used for RyuJIT, which is the only context
+//    in which this method is used).
+//    If FEATURE_UNIX_AMD64_STRUCT_PASSING is defined we can get here with GT_LDOBJ tree. This happens when
+//    a struct is passed in two registers. The GT_LDOBJ is converted to a GT_LIST with two GT_LCL_FLDs later
+//    in Lower/LowerXArch.
+//
 
 GenTreePtr*         GenTree::gtGetChildPointer(GenTreePtr parent)
 
 {
+#ifndef FEATURE_UNIX_AMD64_STRUCT_PASSING
     noway_assert(parent->OperGet() != GT_LDOBJ);
+#endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING
+
     switch (parent->OperGet())
     {
     default:
@@ -4378,6 +4412,14 @@ GenTreePtr*         GenTree::gtGetChildPointer(GenTreePtr parent)
         if (this == parent->gtOp.gtOp1)                    return &(parent->gtOp.gtOp1);
         if (this == parent->gtOp.gtOp2)                    return &(parent->gtOp.gtOp2);
         break;
+
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+    case GT_LDOBJ:
+        // Any GT_LDOBJ with a field must be lowered before this point.
+        noway_assert(parent->AsLdObj()->gtFldTreeList == nullptr);
+        break;
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+
     case GT_CMPXCHG:
         if (this == parent->gtCmpXchg.gtOpLocation)        return &(parent->gtCmpXchg.gtOpLocation);
         if (this == parent->gtCmpXchg.gtOpValue)           return &(parent->gtCmpXchg.gtOpValue);
@@ -5025,7 +5067,7 @@ GenTreePtr          Compiler::gtNewInlineCandidateReturnExpr(GenTreePtr   inline
     GenTreePtr node = new(this, GT_RET_EXPR) GenTreeRetExpr(type);
     
     node->gtRetExpr.gtInlineCandidate = inlineCandidate;
-#ifdef _TARGET_ARM_
+#if defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
     if (inlineCandidate->gtType == TYP_STRUCT)
     {
         if (inlineCandidate->gtOper == GT_CALL)
@@ -5065,7 +5107,13 @@ GenTreeArgList* Compiler::gtNewListNode(GenTreePtr op1, GenTreeArgList* op2)
 
 GenTreeArgList* Compiler::gtNewArgList(GenTreePtr op)
 {
-    assert((op != NULL) && (op->OperGet() != GT_LIST) && (op->OperGet() != GT_LIST));
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+    // With structs passed in multiple args we could have the arg
+    // GT_LIST containing a list of LCL_FLDs
+    assert((op != NULL) && ((!op->IsList()) || (op->IsListOfLclFlds())));
+#else // !FEATURE_UNIX_AMD64_STRUCT_PASSING
+    assert((op != NULL) && (op->OperGet() != GT_LIST));
+#endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING
 
     return new (this, GT_LIST) GenTreeArgList(op);
 }
@@ -5077,8 +5125,15 @@ GenTreeArgList* Compiler::gtNewArgList(GenTreePtr op)
 
 GenTreeArgList* Compiler::gtNewArgList(GenTreePtr op1, GenTreePtr op2)
 {
-    assert((op1 != NULL) && (op1->OperGet() != GT_LIST) && (op1->OperGet() != GT_LIST));
-    assert((op2 != NULL) && (op2->OperGet() != GT_LIST) && (op2->OperGet() != GT_LIST));
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+    // With structs passed in multiple args we could have the arg
+    // GT_LIST containing a list of LCL_FLDs
+    assert((op1 != NULL) && ((!op1->IsList()) || (op1->IsListOfLclFlds())));
+    assert((op2 != NULL) && ((!op2->IsList()) || (op2->IsListOfLclFlds())));
+#else // !FEATURE_UNIX_AMD64_STRUCT_PASSING
+    assert((op1 != NULL) && (!op1->IsList()));
+    assert((op2 != NULL) && (!op2->IsList()));
+#endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING
 
     GenTreePtr tree;
 
@@ -5205,9 +5260,11 @@ GenTreePtr          Compiler::gtNewAssignNode(GenTreePtr dst, GenTreePtr src DEB
     // using struct assignment.
 #ifdef _TARGET_ARM_
     assert(isPhiDefn || type != TYP_STRUCT || IsHfa(dst) || IsHfa(src));
-#else
+#elif defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
     // You need to use GT_COPYBLK for assigning structs
     // See impAssignStruct()
+    assert(isPhiDefn || type != TYP_STRUCT || IsRegisterPassable(dst) || IsRegisterPassable(src));
+#else // !FEATURE_UNIX_AMD64_STRUCT_PASSING
     assert(isPhiDefn || type != TYP_STRUCT);
 #endif
 
@@ -5551,7 +5608,6 @@ GenTreePtr          Compiler::gtClone(GenTree * tree, bool complexOK)
                                  tree->gtField.gtFldHnd,
                                  objp,
                                  tree->gtField.gtFldOffset);
-
         }
         else if  (tree->gtOper == GT_ADD)
         {
@@ -6134,7 +6190,8 @@ GenTreePtr          Compiler::gtCloneExpr(GenTree * tree,
             GenTreeBoundsChk(oper,
                              tree->TypeGet(),
                              gtCloneExpr(tree->gtBoundsChk.gtArrLen, addFlags, varNum, varVal),
-                             gtCloneExpr(tree->gtBoundsChk.gtIndex, addFlags, varNum, varVal));
+                             gtCloneExpr(tree->gtBoundsChk.gtIndex, addFlags, varNum, varVal),
+                             tree->gtBoundsChk.gtThrowKind);
         break;
 
 
@@ -6845,6 +6902,16 @@ Compiler::gtDispNodeName(GenTree *tree)
         if (lea->Base() != NULL) bufp += SimpleSprintf_s(bufp, buf, sizeof(buf), "b+");
         if (lea->Index() != NULL) bufp += SimpleSprintf_s(bufp, buf, sizeof(buf), "(i*%d)+", lea->gtScale);
         bufp += SimpleSprintf_s(bufp, buf, sizeof(buf), "%d)", lea->gtOffset);
+    }
+    else if (tree->gtOper == GT_ARR_BOUNDS_CHECK)
+    {
+        switch(tree->gtBoundsChk.gtThrowKind)
+        {
+        case SCK_RNGCHK_FAIL:   sprintf_s(bufp, sizeof(buf), " %s_Rng", name);    break;
+        case SCK_ARG_EXCPN:     sprintf_s(bufp, sizeof(buf), " %s_Arg", name);    break;
+        case SCK_ARG_RNG_EXCPN: sprintf_s(bufp, sizeof(buf), " %s_ArgRng", name); break;
+        default:                unreached();
+        }
     }
     else if (tree->gtOverflowEx())
     {
@@ -8583,13 +8650,13 @@ GenTreePtr          Compiler::gtDispLinearTree(GenTreeStmt* curStmt,
                 // special case for child of initblk and cpblk
                 // op1 is dst, op2 is src, and op2 must show up first
                 assert(tree->OperIsBlkOp());
-                sprintf_s(bufp, sizeof(buf), "Source", listElemNum, 0);
+                sprintf_s(bufp, sizeof(buf), "Source");
                 indentStack->Push(indentInfo);
                 nextLinearNode = gtDispLinearTree(curStmt, nextLinearNode, child->gtOp.gtOp2, indentStack, bufp);
                 indentStack->Pop();
 
                 indentInfo = IIArc;
-                sprintf_s(bufp, sizeof(buf), "Destination", listElemNum, 0);
+                sprintf_s(bufp, sizeof(buf), "Destination");
                 indentStack->Push(indentInfo);
                 nextLinearNode = gtDispLinearTree(curStmt, nextLinearNode, child->gtOp.gtOp1, indentStack, bufp);
                 indentStack->Pop();
@@ -8616,6 +8683,51 @@ GenTreePtr          Compiler::gtDispLinearTree(GenTreeStmt* curStmt,
                     // get child msg
                     if (tree->IsCall())
                     {
+                        // If this is a call and the arg (listElem) is a GT_LIST (Unix LCL_FLD for passing a var in multiple registers)
+                        // print the nodes of the nested list and continue to the next argument.
+                        if (listElem->gtOper == GT_LIST)
+                        {
+                            GenTreePtr nextListNested = nullptr;
+                            for (GenTreePtr listNested = listElem; listNested != nullptr; listNested = nextListNested)
+                            {
+                                GenTreePtr listElemNested;
+                                if (listNested->gtOper == GT_LIST)
+                                {
+                                    nextListNested = listNested->MoveNext();
+                                    listElemNested = listNested->Current();
+                                }
+                                else
+                                {
+                                    // GT_LIST nodes (under initBlk, others?) can have a non-null op2 that's not a GT_LIST
+                                    nextListNested = nullptr;
+                                    listElemNested = listNested;
+                                }
+
+                                indentStack->Push(indentInfo);
+                                if (child == tree->gtCall.gtCallArgs)
+                                {
+                                    gtGetArgMsg(tree, listNested, listElemNum, bufp, BufLength);
+                                }
+                                else
+                                {
+                                    assert(child == tree->gtCall.gtCallLateArgs);
+                                    gtGetLateArgMsg(tree, listNested, listElemNum, bufp, BufLength);
+                                }
+                                nextLinearNode = gtDispLinearTree(curStmt, nextLinearNode, listElemNested, indentStack, bufp);
+                                indentStack->Pop();
+                            }
+
+                            // Skip the GT_LIST nodes, as we do not print them, and the next node to print will occur
+                            // after the list.
+                            while (nextLinearNode->OperGet() == GT_LIST)
+                            {
+                                nextLinearNode = nextLinearNode->gtNext;
+                            }
+
+                            listElemNum++;
+                            continue;
+                        }
+
                         if (child == tree->gtCall.gtCallArgs)
                         {
                             gtGetArgMsg(tree, listElem, listElemNum, bufp, BufLength);
@@ -8628,8 +8740,9 @@ GenTreePtr          Compiler::gtDispLinearTree(GenTreeStmt* curStmt,
                     }
                     else
                     {
-                        sprintf_s(bufp, sizeof(buf), "List Item %d", listElemNum, 0);
+                        sprintf_s(bufp, sizeof(buf), "List Item %d", listElemNum);
                     }
+
                     indentStack->Push(indentInfo);
                     nextLinearNode = gtDispLinearTree(curStmt, nextLinearNode, listElem, indentStack, bufp);
                     indentStack->Pop();
@@ -9137,6 +9250,8 @@ GenTreePtr              Compiler::gtFoldExprSpecial(GenTreePtr tree)
     case GT_LSH:
     case GT_RSH:
     case GT_RSZ:
+    case GT_ROL:
+    case GT_ROR:
     case GT_ASG_LSH:
     case GT_ASG_RSH:
     case GT_ASG_RSZ:
@@ -9832,8 +9947,12 @@ CHK_OVF:
         case GT_LSH: i1 <<= (i2 & 0x1f); break;
         case GT_RSH: i1 >>= (i2 & 0x1f); break;
         case GT_RSZ:
-                /* logical shift -> make it unsigned to propagate the sign bit */
+                /* logical shift -> make it unsigned to not propagate the sign bit */
                 i1 = UINT32(i1) >> (i2 & 0x1f);
+            break;
+        case GT_ROL: i1 = (i1 << (i2 & 0x1f)) | (UINT32(i1) >> ((32 - i2) & 0x1f));
+            break;
+        case GT_ROR: i1 = (i1 << ((32 - i2) & 0x1f)) | (UINT32(i1) >> (i2 & 0x1f));
             break;
 
         /* DIV and MOD can generate an INT 0 - if division by 0
@@ -10128,8 +10247,10 @@ LNG_ADD_CHKOVF:
 
         case GT_MUL:
             ltemp = lval1 * lval2;
+
             if (tree->gtOverflow() && lval2 != 0)
             {
+
                 if (tree->gtFlags & GTF_UNSIGNED)
                 {
                     UINT64 ultemp = ltemp;
@@ -10152,21 +10273,34 @@ LNG_ADD_CHKOVF:
                         {
                             goto LNG_OVF;
                         }
+
+                        // TODO-Amd64-Unix: Remove the code that disables optimizations for this method when the clang 
+                        // optimizer is fixed and/or the method implementation is refactored in a simpler code.
+                        // There is a bug in the clang-3.5 optimizer. The issue is that in release build the optimizer is mistyping 
+                        // (or just wrongly decides to use 32 bit operation for a corner case of MIN_LONG) the args of the (ltemp / lval2)
+                        // to int (it does a 32 bit div operation instead of 64 bit.)
+                        // For the case of lval1 and lval2 equal to MIN_LONG (0x8000000000000000) this results in raising a SIGFPE.
+                        // Optimizations disabled for now. See compiler.h.
                         if ((ltemp/lval2) != lval1) goto LNG_OVF;
                     }
                 }
             }
+
             lval1 = ltemp; break;
 
         case GT_OR : lval1 |= lval2; break;
         case GT_XOR: lval1 ^= lval2; break;
         case GT_AND: lval1 &= lval2; break;
 
-        case GT_LSH: lval1 <<= (op2->gtIntConCommon.IconValue() & 0x3f); break;
-        case GT_RSH: lval1 >>= (op2->gtIntConCommon.IconValue() & 0x3f); break;
+        case GT_LSH: lval1 <<= (lval2 & 0x3f); break;
+        case GT_RSH: lval1 >>= (lval2 & 0x3f); break;
         case GT_RSZ:
-                /* logical shift -> make it unsigned to propagate the sign bit */
-                lval1 = UINT64(lval1) >> (op2->gtIntConCommon.IconValue() & 0x3f);
+                /* logical shift -> make it unsigned to not propagate the sign bit */
+                lval1 = UINT64(lval1) >> (lval2 & 0x3f);
+            break;
+        case GT_ROL: lval1 = (lval1 << (lval2 & 0x3f)) | (UINT64(lval1) >> ((64 - lval2) & 0x3f));
+            break;
+        case GT_ROR: lval1 = (lval1 << ((64 - lval2) & 0x3f)) | (UINT64(lval1) >> (lval2 & 0x3f));
             break;
 
             //Both DIV and IDIV on x86 raise an exception for min_int (and min_long) / -1.  So we preserve

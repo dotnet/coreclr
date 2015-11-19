@@ -25,6 +25,7 @@
 #include "asm.h"
 #endif
 #include "assemblynative.hpp"
+#include "dllimport.h"
 #include "field.h"
 #include "assemblyname.hpp"
 #include "eeconfig.h"
@@ -878,6 +879,22 @@ void QCALLTYPE AssemblyNative::LoadFromPath(INT_PTR ptrNativeAssemblyLoadContext
             "\tLoaded assembly from a file\n"));
     
     END_QCALL;
+}
+
+// static
+INT_PTR QCALLTYPE AssemblyNative::InternalLoadUnmanagedDllFromPath(LPCWSTR unmanagedLibraryPath)
+{
+    QCALL_CONTRACT;
+
+    HMODULE moduleHandle = nullptr;
+
+    BEGIN_QCALL;
+
+    moduleHandle = NDirect::LoadLibraryFromPath(unmanagedLibraryPath);
+
+    END_QCALL;
+
+    return reinterpret_cast<INT_PTR>(moduleHandle);
 }
 
 /*static */
@@ -2335,8 +2352,8 @@ void QCALLTYPE AssemblyNative::CreateVersionInfoResource(LPCWSTR    pwzFilename,
     const void  *pvData=0;              // Pointer to the resource.
     ULONG       cbData;                 // Size of the resource data.
     ULONG       cbWritten;
-    WCHAR       szFile[MAX_PATH+1];     // File name for resource file.
-    WCHAR       szPath[MAX_PATH+1];     // Path name for resource file.
+    WCHAR       szFile[MAX_PATH_FNAME+1];     // File name for resource file.
+    WCHAR       szPath[MAX_LONGPATH+1];     // Path name for resource file.
     HandleHolder hFile;
 
     res.SetInfo(pwzFilename, 
@@ -2358,7 +2375,7 @@ void QCALLTYPE AssemblyNative::CreateVersionInfoResource(LPCWSTR    pwzFilename,
     // messages including the path/file name</TODO>
 
     // Persist to a file.
-    if (!WszGetTempPath(MAX_PATH, szPath))
+    if (!WszGetTempPath(MAX_LONGPATH, szPath))
         COMPlusThrowWin32();
     if (!WszGetTempFileName(szPath, W("RES"), 0, szFile))
         COMPlusThrowWin32();
@@ -2614,3 +2631,29 @@ INT_PTR QCALLTYPE AssemblyNative::GetLoadContextForAssembly(QCall::AssemblyHandl
     return ptrManagedAssemblyLoadContext;
 }
 #endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
+
+// static
+BOOL QCALLTYPE AssemblyNative::InternalTryGetRawMetadata(
+    QCall::AssemblyHandle assembly,
+    UINT8 **blobRef,
+    INT32 *lengthRef)
+{
+    QCALL_CONTRACT;
+
+    PTR_CVOID metadata = nullptr;
+
+    BEGIN_QCALL;
+
+    _ASSERTE(assembly != nullptr);
+    _ASSERTE(blobRef != nullptr);
+    _ASSERTE(lengthRef != nullptr);
+
+    static_assert_no_msg(sizeof(*lengthRef) == sizeof(COUNT_T));
+    metadata = assembly->GetFile()->GetLoadedMetadata(reinterpret_cast<COUNT_T *>(lengthRef));
+    *blobRef = reinterpret_cast<UINT8 *>(const_cast<PTR_VOID>(metadata));
+    _ASSERTE(*lengthRef >= 0);
+
+    END_QCALL;
+
+    return metadata != nullptr;
+}

@@ -24,6 +24,7 @@ Revision History:
 #include "pal/palinternal.h"
 #include "pal/dbgmsg.h"
 #include "pal/file.h"
+#include "pal/stackstring.hpp"
 
 #if HAVE_ALLOCA_H
 #include <alloca.h>
@@ -195,8 +196,10 @@ RemoveDirectoryA(
 {
     DWORD dwLastError = 0;
     BOOL  bRet = FALSE;
-    char  mb_dir[MAX_PATH];
-
+    PathCharString mb_dirPathString;
+    size_t length;
+    char * mb_dir;
+    
     PERF_ENTRY(RemoveDirectoryA);
     ENTRY("RemoveDirectoryA(lpPathName=%p (%s))\n",
           lpPathName,
@@ -208,13 +211,23 @@ RemoveDirectoryA(
         goto done;
     }
 
-    mb_dir[MAX_PATH - 1] = '\0';
-    if (strncpy_s (mb_dir, sizeof(mb_dir), lpPathName, MAX_PATH) != SAFECRT_SUCCESS)
+    length = strlen(lpPathName);
+    mb_dir = mb_dirPathString.OpenStringBuffer(length);
+    if (NULL == mb_dir)
     {
+        dwLastError = ERROR_NOT_ENOUGH_MEMORY;
+        goto done;
+    }
+    
+    if (strncpy_s (mb_dir, sizeof(char) * (length+1), lpPathName, MAX_LONGPATH) != SAFECRT_SUCCESS)
+    {
+        mb_dirPathString.CloseBuffer(length);
+        WARN("mb_dir is larger than MAX_LONGPATH (%d)!\n", MAX_LONGPATH);
         dwLastError = ERROR_FILENAME_EXCED_RANGE;
         goto done;
     }
 
+    mb_dirPathString.CloseBuffer(length);
     bRet = RemoveDirectoryHelper (mb_dir, &dwLastError);
 
 done:
@@ -239,10 +252,12 @@ PALAPI
 RemoveDirectoryW(
          IN LPCWSTR lpPathName)
 {
-    char  mb_dir[MAX_PATH];
+    PathCharString mb_dirPathString;
     int   mb_size;
     DWORD dwLastError = 0;
     BOOL  bRet = FALSE;
+    size_t length;
+    char * mb_dir;
 
     PERF_ENTRY(RemoveDirectoryW);
     ENTRY("RemoveDirectoryW(lpPathName=%p (%S))\n",
@@ -254,15 +269,25 @@ RemoveDirectoryW(
         dwLastError = ERROR_PATH_NOT_FOUND;
         goto done;
     }
-    
-    mb_size = WideCharToMultiByte( CP_ACP, 0, lpPathName, -1, mb_dir, MAX_PATH,
+
+    length = (PAL_wcslen(lpPathName)+1) * 3;
+    mb_dir = mb_dirPathString.OpenStringBuffer(length);
+    if (NULL == mb_dir)
+    {
+        dwLastError = ERROR_NOT_ENOUGH_MEMORY;
+        goto done;        
+    }
+
+    mb_size = WideCharToMultiByte( CP_ACP, 0, lpPathName, -1, mb_dir, length,
                                    NULL, NULL );
+    mb_dirPathString.CloseBuffer(mb_size);
+
     if( mb_size == 0 )
     {
         dwLastError = GetLastError();
         if( dwLastError == ERROR_INSUFFICIENT_BUFFER )
         {
-            WARN("lpPathName is larger than MAX_PATH (%d)!\n", MAX_PATH);
+            WARN("lpPathName is larger than MAX_LONGPATH (%d)!\n", MAX_LONGPATH);
             dwLastError = ERROR_FILENAME_EXCED_RANGE;
         }
         else
@@ -311,7 +336,7 @@ GetCurrentDirectoryA(
     ENTRY("GetCurrentDirectoryA(nBufferLength=%u, lpBuffer=%p)\n", nBufferLength, lpBuffer);
 
     /* NULL first arg means getcwd will allocate the string */
-    current_dir = PAL__getcwd( NULL, MAX_PATH + 1 );
+    current_dir = PAL__getcwd( NULL, MAX_LONGPATH + 1 );
 
     if ( !current_dir )
     {
@@ -370,7 +395,7 @@ GetCurrentDirectoryW(
     ENTRY("GetCurrentDirectoryW(nBufferLength=%u, lpBuffer=%p)\n",
           nBufferLength, lpBuffer);
 
-    current_dir = PAL__getcwd( NULL, MAX_PATH + 1 );
+    current_dir = PAL__getcwd( NULL, MAX_LONGPATH + 1 );
 
     if ( !current_dir )
     {
@@ -428,9 +453,11 @@ SetCurrentDirectoryW(
 {
     BOOL bRet;
     DWORD dwLastError = 0;
-    char dir[MAX_PATH];
+    PathCharString dirPathString;
     int  size;
-
+    size_t length;
+    char * dir;
+    
     PERF_ENTRY(SetCurrentDirectoryW);
     ENTRY("SetCurrentDirectoryW(lpPathName=%p (%S))\n",
           lpPathName?lpPathName:W16_NULLSTRING,
@@ -446,14 +473,25 @@ SetCurrentDirectoryW(
         goto done;
     }
 
-    size = WideCharToMultiByte( CP_ACP, 0, lpPathName, -1, dir, MAX_PATH,
+    length = (PAL_wcslen(lpPathName)+1) * 3;
+    dir = dirPathString.OpenStringBuffer(length);
+    if (NULL == dir)
+    {
+        dwLastError = ERROR_NOT_ENOUGH_MEMORY;
+        bRet = FALSE;
+        goto done;
+    }
+    
+    size = WideCharToMultiByte( CP_ACP, 0, lpPathName, -1, dir, length,
                                 NULL, NULL );
+    dirPathString.CloseBuffer(size);
+    
     if( size == 0 )
     {
         dwLastError = GetLastError();
         if( dwLastError == ERROR_INSUFFICIENT_BUFFER )
         {
-            WARN("lpPathName is larger than MAX_PATH (%d)!\n", MAX_PATH);
+            WARN("lpPathName is larger than MAX_LONGPATH (%d)!\n", MAX_LONGPATH);
             dwLastError = ERROR_FILENAME_EXCED_RANGE;
         }
         else
@@ -546,7 +584,7 @@ CreateDirectoryA(
         }
     }
 
-    // Check the constraint for the real path length (should be < MAX_PATH).
+    // Check the constraint for the real path length (should be < MAX_LONGPATH).
 
     // Get an absolute path.
     if (UnixPathName[0] == '/')
@@ -555,7 +593,7 @@ CreateDirectoryA(
     }
     else
     {
-        const char *cwd = PAL__getcwd(NULL, MAX_PATH);        
+        const char *cwd = PAL__getcwd(NULL, MAX_LONGPATH);        
         if (NULL == cwd)
         {
             WARN("Getcwd failed with errno=%d [%s]\n", errno, strerror(errno));
@@ -574,9 +612,9 @@ CreateDirectoryA(
     // Canonicalize the path so we can determine its length.
     FILECanonicalizePath(realPath);
 
-    if (strlen(realPath) >= MAX_PATH)
+    if (strlen(realPath) >= MAX_LONGPATH)
     {
-        WARN("UnixPathName is larger than MAX_PATH (%d)!\n", MAX_PATH);
+        WARN("UnixPathName is larger than MAX_LONGPATH (%d)!\n", MAX_LONGPATH);
         dwLastError = ERROR_FILENAME_EXCED_RANGE;
         goto done;
     }
@@ -646,9 +684,9 @@ SetCurrentDirectoryA(
         dwLastError = ERROR_INVALID_NAME;
         goto done;
     }
-    if (strlen(lpPathName) >= MAX_PATH)
+    if (strlen(lpPathName) >= MAX_LONGPATH)
     {
-        WARN("Path/directory name longer than MAX_PATH characters\n");
+        WARN("Path/directory name longer than MAX_LONGPATH characters\n");
         dwLastError = ERROR_FILENAME_EXCED_RANGE;
         goto done;
     }

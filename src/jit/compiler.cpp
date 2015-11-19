@@ -2985,14 +2985,13 @@ bool  Compiler::compRsvdRegCheck(FrameLayoutState curState)
 // code:CILJit::compileMethod function.  
 // 
 // For an overview of the structure of the JIT, see:
-//   https://github.com/dotnet/coreclr/blob/master/Documentation/ryujit-overview.md
+//   https://github.com/dotnet/coreclr/blob/master/Documentation/botr/ryujit-overview.md
 //  
 void                 Compiler::compCompile(void * * methodCodePtr,
                                            ULONG  * methodCodeSize,
                                            unsigned compileFlags)
 {
     hashBv::Init(this);
-    
     VarSetOps::AssignAllowUninitRhs(this, compCurLife, VarSetOps::UninitVal());
 
     /* The temp holding the secret stub argument is used by fgImport() when importing the intrinsic. */
@@ -3007,22 +3006,18 @@ void                 Compiler::compCompile(void * * methodCodePtr,
     EndPhase(PHASE_PRE_IMPORT);
 
 #ifdef DEBUG
-#ifdef _TARGET_ARM_
-    bool extraSpew = (CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_SOCExtraSpew) != 0);
-#endif
+    bool funcTrace = (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_JitFunctionTrace) != 0);
 
     if (!compIsForInlining())
     {
         LONG newJitNestingLevel = InterlockedIncrement(&Compiler::jitNestingLevel);
         assert(newJitNestingLevel > 0);
-#ifdef _TARGET_ARM_
-        if (extraSpew && !opts.disDiffable)
+        if (funcTrace && !opts.disDiffable)
         {
             for (LONG i = 0; i < newJitNestingLevel - 1; i++)
                 printf("  ");
             printf("{ Start Jitting %s\n", info.compFullName); /* } editor brace matching workaround for this printf */
         }
-#endif // _TARGET_ARM
     }
 #endif // DEBUG
 
@@ -3464,8 +3459,7 @@ void                 Compiler::compCompile(void * * methodCodePtr,
     LONG newJitNestingLevel = InterlockedDecrement(&Compiler::jitNestingLevel);
     assert(newJitNestingLevel >= 0);
 
-#ifdef _TARGET_ARM_
-    if (extraSpew && !opts.disDiffable)
+    if (funcTrace && !opts.disDiffable)
     {
         for (LONG i = 0; i < newJitNestingLevel; i++)
             printf("  ");
@@ -3474,7 +3468,6 @@ void                 Compiler::compCompile(void * * methodCodePtr,
                Compiler::jitTotalMethodCompiled, DBG_ADDR(*methodCodePtr),
                info.compFullName, *methodCodeSize);
     }
-#endif // _TARGET_ARM_
 
 #if FUNC_INFO_LOGGING
     if (compJitFuncInfoFile != NULL)
@@ -4048,7 +4041,6 @@ int           Compiler::compCompileHelper (CORINFO_MODULE_HANDLE            clas
                                            unsigned                         compileFlags,
                                            CorInfoInstantiationVerification instVerInfo)
     {
-
         CORINFO_METHOD_HANDLE methodHnd = info.compMethodHnd;
 
         info.compCode           = methodInfo->ILCode;
@@ -5033,6 +5025,125 @@ START:
     return result;
 }
 
+#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+
+// GetTypeFromClassificationAndSizes:
+//   Returns the type of the eightbyte accounting for the classification and size of the eightbyte.
+//
+// args:
+//   classType: classification type
+//   size: size of the eightbyte.
+//   
+var_types Compiler::GetTypeFromClassificationAndSizes(SystemVClassificationType classType, int size)
+{
+    var_types type = TYP_UNKNOWN;
+    switch (classType)
+    {
+    case SystemVClassificationTypeInteger:
+        if (size == 1)
+        {
+            type = TYP_BYTE;
+        }
+        else if (size <= 2)
+        {
+            type = TYP_SHORT;
+        }
+        else if (size <= 4)
+        {
+            type = TYP_INT;
+        }
+        else if (size <= 8)
+        {
+            type = TYP_LONG;
+        }
+        else
+        {
+            assert(false && "GetTypeFromClassificationAndSizes Invalid Integer classification type.");
+        }
+        break;
+    case SystemVClassificationTypeIntegerReference:
+        type = TYP_REF;
+        break;
+    case SystemVClassificationTypeSSE:
+        if (size <= 4)
+        {
+            type = TYP_FLOAT;
+        }
+        else if (size <= 8)
+        {
+            type = TYP_DOUBLE;
+        }
+        else
+        {
+            assert(false && "GetTypeFromClassificationAndSizes Invalid SSE classification type.");
+        }
+        break;
+
+    default:
+        assert(false && "GetTypeFromClassificationAndSizes Invalid classification type.");
+        break;
+    }
+
+    return type;
+}
+
+// getEightByteType:
+//   Returns the type of the struct description and slot number of the eightbyte.
+//
+// args:
+//   structDesc: struct classification description.
+//   slotNum: eightbyte slot number for the struct.
+//   
+var_types Compiler::getEightByteType(const SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR& structDesc, unsigned slotNum)
+{
+    var_types eightByteType = TYP_UNDEF;
+    unsigned len = structDesc.eightByteSizes[slotNum];
+
+    switch (structDesc.eightByteClassifications[slotNum])
+    {
+    case SystemVClassificationTypeInteger:
+        // See typelist.h for jit type definition. 
+        // All the types of size < 4 bytes are of jit type TYP_INT.
+        if (structDesc.eightByteSizes[slotNum] <= 4)
+        {
+            eightByteType = TYP_INT;
+        }
+        else if (structDesc.eightByteSizes[slotNum] <= 8)
+        {
+            eightByteType = TYP_LONG;
+        }
+        else
+        {
+            assert(false && "getEightByteType Invalid Integer classification type.");
+        }
+        break;
+    case SystemVClassificationTypeIntegerReference:
+        assert(len == REGSIZE_BYTES);
+        eightByteType = TYP_REF;
+        break;
+    case SystemVClassificationTypeSSE:
+        if (structDesc.eightByteSizes[slotNum] <= 4)
+        {
+            eightByteType = TYP_FLOAT;
+        }
+        else if (structDesc.eightByteSizes[slotNum] <= 8)
+        {
+            eightByteType = TYP_DOUBLE;
+        }
+        else
+        {
+            assert(false && "getEightByteType Invalid SSE classification type.");
+        }
+        break;
+    default:
+        assert(false && "getEightByteType Invalid classification type.");
+        break;
+    }
+
+    return eightByteType;
+}
+#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+
 /*****************************************************************************/
 /*****************************************************************************/
 
@@ -5942,13 +6053,13 @@ void Compiler::AggregateMemStats::Print(FILE* f)
     fprintf(f, "For %9u methods:\n", nMethods);
     fprintf(f, "  count:       %12u (avg %7u per method)\n",
             allocCnt, allocCnt / nMethods);
-    fprintf(f, "  alloc size : %12llu (avg %7u per method)\n",
+    fprintf(f, "  alloc size : %12llu (avg %7llu per method)\n",
             allocSz, allocSz / nMethods);
     fprintf(f, "  max alloc  : %12llu\n", allocSzMax);
     fprintf(f, "\n");
-    fprintf(f, "  nraAlloc   : %12llu (avg %7u per method)\n",
+    fprintf(f, "  nraAlloc   : %12llu (avg %7llu per method)\n",
             nraTotalSizeAlloc, nraTotalSizeAlloc / nMethods);
-    fprintf(f, "  nraUsed    : %12llu (avg %7u per method)\n",
+    fprintf(f, "  nraUsed    : %12llu (avg %7llu per method)\n",
             nraTotalSizeUsed, nraTotalSizeUsed / nMethods);
     PrintByKind(f);
 }

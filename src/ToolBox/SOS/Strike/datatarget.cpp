@@ -21,14 +21,20 @@ DataTarget::DataTarget(void) :
 STDMETHODIMP
 DataTarget::QueryInterface(
     THIS_
-    __in REFIID InterfaceId,
-    __out PVOID* Interface
+    ___in REFIID InterfaceId,
+    ___out PVOID* Interface
     )
 {
     if (InterfaceId == IID_IUnknown ||
         InterfaceId == IID_ICLRDataTarget)
     {
         *Interface = (ICLRDataTarget*)this;
+        AddRef();
+        return S_OK;
+    }
+    if (InterfaceId == IID_ICorDebugDataTarget4)
+    {
+        *Interface = (ICorDebugDataTarget4*)this;
         AddRef();
         return S_OK;
     }
@@ -89,8 +95,8 @@ DataTarget::GetImageBase(
     {
         return E_UNEXPECTED;
     }
-    CHAR lpstr[MAX_PATH];
-    int name_length = WideCharToMultiByte(CP_ACP, 0, name, -1, lpstr, MAX_PATH, NULL, NULL);
+    CHAR lpstr[MAX_LONGPATH];
+    int name_length = WideCharToMultiByte(CP_ACP, 0, name, -1, lpstr, MAX_LONGPATH, NULL, NULL);
     if (name_length == 0)
     {
         return E_FAIL;
@@ -119,7 +125,11 @@ DataTarget::WriteVirtual(
     /* [in] */ ULONG32 request,
     /* [optional][out] */ ULONG32 *done)
 {
-    return E_NOTIMPL;
+    if (g_ExtData == NULL)
+    {
+        return E_UNEXPECTED;
+    }
+    return g_ExtData->WriteVirtual(address, (PVOID)buffer, request, done);
 }
 
 HRESULT STDMETHODCALLTYPE
@@ -183,4 +193,17 @@ DataTarget::Request(
     /* [size_is][out] */ BYTE *outBuffer)
 {
     return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE 
+DataTarget::VirtualUnwind(
+    /* [in] */ DWORD threadId,
+    /* [in] */ ULONG32 contextSize,
+    /* [in, out, size_is(contextSize)] */ PBYTE context)
+{
+    if (g_ExtClient == NULL)
+    {
+        return E_UNEXPECTED;
+    }
+    return g_ExtClient->VirtualUnwind(threadId, contextSize, context);
 }

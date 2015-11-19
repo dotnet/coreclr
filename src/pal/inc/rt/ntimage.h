@@ -430,6 +430,7 @@ typedef PIMAGE_NT_HEADERS32                 PIMAGE_NT_HEADERS;
 //      IMAGE_LIBRARY_THREAD_TERM            0x0008     // Reserved.
 #define IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE 0x0040    // DLL can move
 #define IMAGE_DLLCHARACTERISTICS_NX_COMPAT   0x0100     // Image ix NX compatible
+#define IMAGE_DLLCHARACTERISTICS_NO_SEH       0x0400    // Image does not use SEH.  No SE handler may reside in this image
 #define IMAGE_DLLCHARACTERISTICS_NO_BIND     0x0800     // Do not bind this image.
 #define IMAGE_DLLCHARACTERISTICS_APPCONTAINER 0x1000    // Image should execute in an AppContainer
 #define IMAGE_DLLCHARACTERISTICS_WDM_DRIVER  0x2000     // Driver uses WDM model
@@ -938,6 +939,25 @@ typedef IMAGE_RELOCATION UNALIGNED *PIMAGE_RELOCATION;
 #define IMAGE_REL_ARM_BLX11             0x0009
 #define IMAGE_REL_ARM_SECTION           0x000E  // Section table index
 #define IMAGE_REL_ARM_SECREL            0x000F  // Offset within section
+
+//
+// ARM64 relocation types
+//
+#define IMAGE_REL_ARM64_ABSOLUTE        0x0000
+#define IMAGE_REL_ARM64_ADDR32          0x0001
+#define IMAGE_REL_ARM64_ADDR32NB        0x0002
+#define IMAGE_REL_ARM64_BRANCH26        0x0003
+#define IMAGE_REL_ARM64_PAGEBASE_REL21  0x0004
+#define IMAGE_REL_ARM64_REL21           0x0005
+#define IMAGE_REL_ARM64_PAGEOFFSET_12A  0x0006
+#define IMAGE_REL_ARM64_PAGEOFFSET_12L  0x0007
+#define IMAGE_REL_ARM64_SECREL          0x0008
+#define IMAGE_REL_ARM64_SECREL_LOW12A   0x0009
+#define IMAGE_REL_ARM64_SECREL_HIGH12A  0x000A
+#define IMAGE_REL_ARM64_SECREL_LOW12L   0x000B
+#define IMAGE_REL_ARM64_TOKEN           0x000C
+#define IMAGE_REL_ARM64_SECTION         0x000D
+#define IMAGE_REL_ARM64_ADDR64          0x000E
 
 #define IMAGE_REL_AM_ABSOLUTE           0x0000
 #define IMAGE_REL_AM_ADDR32             0x0001

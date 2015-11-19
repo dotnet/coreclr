@@ -2961,7 +2961,7 @@ void FuncEvalWrapper(MethodDescCallSite* pMDCS, DebuggerEval *pDE, ARG_SLOT *pAr
 /*
  * RecordFuncEvalException
  *
- * Helper function records the details of an exception that occured during a FuncEval
+ * Helper function records the details of an exception that occurred during a FuncEval
  * Note that this should be called from within the target domain of the FuncEval.
  *
  * Parameters:
@@ -3486,7 +3486,7 @@ static void GCProtectArgsAndDoNormalFuncEval(DebuggerEval *pDE,
         RecordFuncEvalException( pDE, ppException);
     }
     // Note: we need to catch all exceptioins here because they all get reported as the result of
-    // the funceval.  If a ThreadAbort occured other than for a funcEval abort, we'll re-throw it manually.
+    // the funceval.  If a ThreadAbort occurred other than for a funcEval abort, we'll re-throw it manually.
     EX_END_CATCH(SwallowAllExceptions);
 
     // Restore context
@@ -3692,7 +3692,7 @@ void FuncEvalHijackRealWorker(DebuggerEval *pDE, Thread* pThread, FuncEvalFrame*
         RecordFuncEvalException( pDE, ppException);
     }
     // Note: we need to catch all exceptioins here because they all get reported as the result of
-    // the funceval.  If a ThreadAbort occured other than for a funcEval abort, we'll re-throw it manually.
+    // the funceval.  If a ThreadAbort occurred other than for a funcEval abort, we'll re-throw it manually.
     EX_END_CATCH(SwallowAllExceptions);
 
     GCPROTECT_END();
@@ -3954,7 +3954,7 @@ void * STDCALL FuncEvalHijackWorker(DebuggerEval *pDE)
 }
 
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(FEATURE_PAL)
 
 EXTERN_C EXCEPTION_DISPOSITION
 FuncEvalHijackPersonalityRoutine(IN     PEXCEPTION_RECORD   pExceptionRecord
@@ -3985,6 +3985,6 @@ FuncEvalHijackPersonalityRoutine(IN     PEXCEPTION_RECORD   pExceptionRecord
 }
 
 
-#endif // WIN64EXCEPTIONS
+#endif // WIN64EXCEPTIONS && !FEATURE_PAL
 
 #endif // ifndef DACCESS_COMPILE

@@ -301,9 +301,9 @@ FCFuncStart(gEnvironmentFuncs)
     FCFuncElement("nativeGetEnvironmentVariable", SystemNative::_GetEnvironmentVariable)
     FCFuncElement("GetCompatibilityFlag", SystemNative::_GetCompatibilityFlag)
     QCFuncElement("GetCommandLine", SystemNative::_GetCommandLine)
-    FCFuncElement("GetCommandLineArgsNative", SystemNative::GetCommandLineArgs)
     FCFuncElement("GetResourceFromDefault", GetResourceFromDefault)
 #endif // !FEATURE_CORECLR
+    FCFuncElement("GetCommandLineArgsNative", SystemNative::GetCommandLineArgs)
 
 #if defined(FEATURE_COMINTEROP) && !defined(FEATURE_CORESYSTEM)
     QCFuncElement("WinRTSupported", SystemNative::WinRTSupported)
@@ -497,8 +497,8 @@ FCFuncStart(gMetaDataImport)
     FCFuncElement("_GetDefaultValue", MetaDataImport::GetDefaultValue) 
     FCFuncElement("_GetName", MetaDataImport::GetName) 
     FCFuncElement("_GetUserString", MetaDataImport::GetUserString) 
-#ifndef FEATURE_CORECLR
     FCFuncElement("_GetScopeProps", MetaDataImport::GetScopeProps)  
+#ifndef FEATURE_CORECLR
     FCFuncElement("_GetClassLayout", MetaDataImport::GetClassLayout) 
     FCFuncElement("_GetSignatureFromToken", MetaDataImport::GetSignatureFromToken) 
 #endif // FEATURE_CORECLR
@@ -1156,10 +1156,17 @@ FCFuncStart(gAssemblyFuncs)
 
 FCFuncEnd()
 
+#ifdef FEATURE_CORECLR
+FCFuncStart(gAssemblyExtensionsFuncs)
+    QCFuncElement("InternalTryGetRawMetadata", AssemblyNative::InternalTryGetRawMetadata)
+FCFuncEnd()
+#endif
+
 #if defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
 FCFuncStart(gAssemblyLoadContextFuncs)
     QCFuncElement("InitializeAssemblyLoadContext", AssemblyNative::InitializeAssemblyLoadContext)
     QCFuncElement("LoadFromPath", AssemblyNative::LoadFromPath)
+    QCFuncElement("InternalLoadUnmanagedDllFromPath", AssemblyNative::InternalLoadUnmanagedDllFromPath)
     QCFuncElement("OverrideDefaultAssemblyLoadContextForCurrentDomain", AssemblyNative::OverrideDefaultAssemblyLoadContextForCurrentDomain)
     QCFuncElement("CanUseAppPathAssemblyLoadContextInCurrentDomain", AssemblyNative::CanUseAppPathAssemblyLoadContextInCurrentDomain)
     QCFuncElement("LoadFromStream", AssemblyNative::LoadFromStream)
@@ -1517,6 +1524,12 @@ FCFuncStart(gTextInfoFuncs)
     QCFuncElement("InternalTryFindStringOrdinalIgnoreCase", COMNlsInfo::InternalTryFindStringOrdinalIgnoreCase)
 FCFuncEnd()
 #endif // defined(FEATURE_LEGACYSURFACE) && !defined(FEATURE_COREFX_GLOBALIZATION)
+
+#ifdef FEATURE_COREFX_GLOBALIZATION
+FCFuncStart(gCompareInfoFuncs)
+    QCFuncElement("InternalHashSortKey", CoreFxGlobalization::HashSortKey)
+FCFuncEnd()
+#endif
 
 FCFuncStart(gArrayFuncs)
     FCFuncElement("get_Rank", ArrayNative::GetRank)
@@ -2073,6 +2086,13 @@ FCFuncStart(gWindowsRuntimeBufferHelperFuncs)
 FCFuncEnd()
 #endif // ifdef FEATURE_COMINTEROP
 
+#if defined(FEATURE_EVENTSOURCE_XPLAT)
+FCFuncStart(gEventLogger)
+    QCFuncElement("IsEventSourceLoggingEnabled", XplatEventSourceLogger::IsEventSourceLoggingEnabled)
+    QCFuncElement("LogEventSource", XplatEventSourceLogger::LogEventSource)
+FCFuncEnd()
+#endif // defined(FEATURE_EVENTSOURCE_XPLAT)
+
 #ifdef FEATURE_COMINTEROP
 FCFuncStart(gRuntimeClassFuncs)
     FCFuncElement("GetRedirectedGetHashCodeMD", ComObject::GetRedirectedGetHashCodeMD)
@@ -2148,6 +2168,10 @@ FCClassElement("AssemblyBuilder", "System.Reflection.Emit", gAssemblyBuilderFunc
 FCClassElement("AssemblyEvidenceFactory", "System.Security.Policy", gAssemblyEvidenceFactoryFuncs)
 #endif // FEATURE_CAS_POLICY
 
+#ifdef FEATURE_CORECLR
+FCClassElement("AssemblyExtensions", "System.Reflection.Metadata", gAssemblyExtensionsFuncs)
+#endif
+
 #if defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
 FCClassElement("AssemblyLoadContext", "System.Runtime.Loader", gAssemblyLoadContextFuncs)
 #endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
@@ -2173,9 +2197,9 @@ FCClassElement("ChannelServices", "System.Runtime.Remoting.Channels", gChannelSe
 #ifdef FEATURE_CAS_POLICY
 FCClassElement("CodeAccessSecurityEngine", "System.Security", gCodeAccessSecurityEngineFuncs)
 #endif
-#if defined(FEATURE_LEGACYSURFACE) && !defined(FEATURE_COREFX_GLOBALIZATION)
+#if defined(FEATURE_LEGACYSURFACE) || defined(FEATURE_COREFX_GLOBALIZATION)
 FCClassElement("CompareInfo", "System.Globalization", gCompareInfoFuncs)
-#endif // defined(FEATURE_LEGACYSURFACE) && !defined(FEATURE_COREFX_GLOBALIZATION)
+#endif // defined(FEATURE_LEGACYSURFACE)
 FCClassElement("CompatibilitySwitch", "System.Runtime.Versioning", gCompatibilitySwitchFuncs)
 #ifdef FEATURE_COMPRESSEDSTACK    
 FCClassElement("CompressedStack", "System.Threading", gCompressedStackFuncs)
@@ -2462,6 +2486,9 @@ FCClassElement("WindowsRuntimeMetadata", "System.Runtime.InteropServices.Windows
 #ifdef FEATURE_X509
 FCClassElement("X509Utils", "System.Security.Cryptography.X509Certificates", gX509CertificateFuncs)
 #endif // FEATURE_X509
+#if defined(FEATURE_EVENTSOURCE_XPLAT)
+FCClassElement("XplatEventLogger", "System.Diagnostics.Tracing", gEventLogger)
+#endif //defined(FEATURE_EVENTSOURCE_XPLAT)
 #ifdef FEATURE_CAS_POLICY
 FCClassElement("Zone", "System.Security.Policy", gCOMSecurityZone)
 #endif // FEATURE_CAS_POLICY

@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 //
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -19,7 +20,7 @@ namespace CoreclrTestLib
             System.IO.TextWriter err_file = new System.IO.StreamWriter(new FileStream(errorfile, FileMode.Create));
 
             int exitCode = -100;
-            int timeout = 1000 * 60*3;
+            int timeout = 1000 * 60*10;
             using (Process process = new Process())
             {
                 process.StartInfo.FileName = cmdLine;
@@ -38,7 +39,14 @@ namespace CoreclrTestLib
                     {
                         if (e.Data == null)
                         {
-                            outputWaitHandle.Set();
+                            try
+                            {
+                                outputWaitHandle.Set();
+                            }
+                            catch (ObjectDisposedException)
+                            {
+                                // Noop for access after timeout.
+                            }
                         }
                         else
                         {
@@ -49,7 +57,14 @@ namespace CoreclrTestLib
                     {
                         if (e.Data == null)
                         {
-                            errorWaitHandle.Set();
+                            try
+                            {
+                                errorWaitHandle.Set();
+                            }
+                            catch (ObjectDisposedException)
+                            {
+                                // Noop for access after timeout.
+                            }
                         }
                         else
                         {

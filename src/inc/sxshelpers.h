@@ -44,7 +44,7 @@
 HRESULT FindRuntimeVersionFromRegistry(
     REFCLSID rclsid,
     __deref_out_z LPWSTR *ppwzRuntimeVersion,
-    __deref_out_z __out_opt LPWSTR *ppwzSupportedVersions);
+    __deref_out_opt LPWSTR *ppwzSupportedVersions);
 
 // Find assembly info from registry for rclsid
 // If succeeded, *ppwzClassName, *ppwzAssemblyString, *ppwzCodeBase
@@ -75,10 +75,10 @@ HRESULT FindShimInfoFromRegistry(
 HRESULT FindShimInfoFromWin32(
     REFCLSID rclsid,
     BOOL bLoadRecord,
-    __deref_out_z __deref_opt_out_opt LPWSTR *ppwzRuntimeVersion,
-    __deref_out_z __deref_opt_out_opt LPWSTR *ppwszSupportedRuntimeVersions,
-    __deref_out_z __deref_opt_out_opt LPWSTR *ppwzClassName,
-    __deref_out_z __deref_opt_out_opt LPWSTR *ppwzAssemblyString,
+    __deref_opt_out_opt LPWSTR *ppwzRuntimeVersion,
+    __deref_opt_out_opt LPWSTR *ppwszSupportedRuntimeVersions,
+    __deref_opt_out_opt LPWSTR *ppwzClassName,
+    __deref_opt_out_opt LPWSTR *ppwzAssemblyString,
     BOOL *pfRegFreePIA);
 
 // Get information from the Win32 fusion about the config file and the application base.
@@ -103,7 +103,7 @@ class AssemblyVersion
         inline AssemblyVersion(AssemblyVersion& version);
         
         // Init
-        HRESULT Init(LPCWSTR pwzVersion, BOOL bStartsWithV);
+        HRESULT Init(__in_z LPCWSTR pwzVersion, BOOL bStartsWithV);
         inline HRESULT Init(WORD major, WORD minor, WORD build, WORD revision);
 
         // Mofifiers.

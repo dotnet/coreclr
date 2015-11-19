@@ -26,12 +26,22 @@ Abstract:
 #endif // !FEATURE_PAL_SXS
 
 #include "pal/context.h"
+#include "pal.h"
 #include <dlfcn.h>
 #include <exception>
+    
 #if HAVE_LIBUNWIND_H
+#ifndef __LINUX__
 #define UNW_LOCAL_ONLY
+#endif // !__LINUX__       
 #include <libunwind.h>
-#endif
+#ifdef __LINUX__
+#ifdef HAVE_LIBUNWIND_PTRACE
+#include <libunwind-ptrace.h>
+#endif // HAVE_LIBUNWIND_PTRACE
+#endif // __LINUX__    
+#endif // HAVE_LIBUNWIND_H
+
 
 //----------------------------------------------------------------------
 // Virtual Unwinding
@@ -49,10 +59,26 @@ Abstract:
     ASSIGN_REG(R12)        \
     ASSIGN_REG(R13)        \
     ASSIGN_REG(R14)        \
-    ASSIGN_REG(R15)     
-#else // _AMD64_
+    ASSIGN_REG(R15)
+#elif defined(_ARM64_)
+#define ASSIGN_UNWIND_REGS \
+    ASSIGN_REG(Pc)         \
+    ASSIGN_REG(Sp)         \
+    ASSIGN_REG(Fp)         \
+    ASSIGN_REG(Lr)         \
+    ASSIGN_REG(X19)        \
+    ASSIGN_REG(X20)        \
+    ASSIGN_REG(X21)        \
+    ASSIGN_REG(X22)        \
+    ASSIGN_REG(X23)        \
+    ASSIGN_REG(X24)        \
+    ASSIGN_REG(X25)        \
+    ASSIGN_REG(X26)        \
+    ASSIGN_REG(X27)        \
+    ASSIGN_REG(X28)
+#else
 #error unsupported architecture
-#endif // _AMD64_
+#endif
 
 static void WinContextToUnwindContext(CONTEXT *winContext, unw_context_t *unwContext)
 {
@@ -72,8 +98,18 @@ static void WinContextToUnwindCursor(CONTEXT *winContext, unw_cursor_t *cursor)
     unw_set_reg(cursor, UNW_X86_64_R13, winContext->R13);
     unw_set_reg(cursor, UNW_X86_64_R14, winContext->R14);
     unw_set_reg(cursor, UNW_X86_64_R15, winContext->R15);
-#else
-#error unsupported architecture
+#elif defined(_ARM_)
+    unw_set_reg(cursor, UNW_ARM_R13, winContext->Sp);
+    unw_set_reg(cursor, UNW_ARM_R14, winContext->Lr);
+    unw_set_reg(cursor, UNW_ARM_R15, winContext->Pc);
+    unw_set_reg(cursor, UNW_ARM_R4, winContext->R4);
+    unw_set_reg(cursor, UNW_ARM_R5, winContext->R5);
+    unw_set_reg(cursor, UNW_ARM_R6, winContext->R6);
+    unw_set_reg(cursor, UNW_ARM_R7, winContext->R7);
+    unw_set_reg(cursor, UNW_ARM_R8, winContext->R8);
+    unw_set_reg(cursor, UNW_ARM_R9, winContext->R9);
+    unw_set_reg(cursor, UNW_ARM_R10, winContext->R10);
+    unw_set_reg(cursor, UNW_ARM_R11, winContext->R11);
 #endif
 }
 #endif
@@ -89,12 +125,39 @@ static void UnwindContextToWinContext(unw_cursor_t *cursor, CONTEXT *winContext)
     unw_get_reg(cursor, UNW_X86_64_R13, (unw_word_t *) &winContext->R13);
     unw_get_reg(cursor, UNW_X86_64_R14, (unw_word_t *) &winContext->R14);
     unw_get_reg(cursor, UNW_X86_64_R15, (unw_word_t *) &winContext->R15);
+#elif defined(_ARM_)
+    unw_get_reg(cursor, UNW_ARM_R13, (unw_word_t *) &winContext->Sp);
+    unw_get_reg(cursor, UNW_ARM_R14, (unw_word_t *) &winContext->Lr);
+    unw_get_reg(cursor, UNW_ARM_R15, (unw_word_t *) &winContext->Pc);
+    unw_get_reg(cursor, UNW_ARM_R4, (unw_word_t *) &winContext->R4);
+    unw_get_reg(cursor, UNW_ARM_R5, (unw_word_t *) &winContext->R5);
+    unw_get_reg(cursor, UNW_ARM_R6, (unw_word_t *) &winContext->R6);
+    unw_get_reg(cursor, UNW_ARM_R7, (unw_word_t *) &winContext->R7);
+    unw_get_reg(cursor, UNW_ARM_R8, (unw_word_t *) &winContext->R8);
+    unw_get_reg(cursor, UNW_ARM_R9, (unw_word_t *) &winContext->R9);
+    unw_get_reg(cursor, UNW_ARM_R10, (unw_word_t *) &winContext->R10);
+    unw_get_reg(cursor, UNW_ARM_R11, (unw_word_t *) &winContext->R11);
+#elif defined(_ARM64_)
+    unw_get_reg(cursor, UNW_REG_IP, (unw_word_t *) &winContext->Pc);
+    unw_get_reg(cursor, UNW_REG_SP, (unw_word_t *) &winContext->Sp);
+    unw_get_reg(cursor, UNW_AARCH64_X29, (unw_word_t *) &winContext->Fp);
+    unw_get_reg(cursor, UNW_AARCH64_X30, (unw_word_t *) &winContext->Lr);
+    unw_get_reg(cursor, UNW_AARCH64_X19, (unw_word_t *) &winContext->X19);
+    unw_get_reg(cursor, UNW_AARCH64_X20, (unw_word_t *) &winContext->X20);
+    unw_get_reg(cursor, UNW_AARCH64_X21, (unw_word_t *) &winContext->X21);
+    unw_get_reg(cursor, UNW_AARCH64_X22, (unw_word_t *) &winContext->X22);
+    unw_get_reg(cursor, UNW_AARCH64_X23, (unw_word_t *) &winContext->X23);
+    unw_get_reg(cursor, UNW_AARCH64_X24, (unw_word_t *) &winContext->X24);
+    unw_get_reg(cursor, UNW_AARCH64_X25, (unw_word_t *) &winContext->X25);
+    unw_get_reg(cursor, UNW_AARCH64_X26, (unw_word_t *) &winContext->X26);
+    unw_get_reg(cursor, UNW_AARCH64_X27, (unw_word_t *) &winContext->X27);
+    unw_get_reg(cursor, UNW_AARCH64_X28, (unw_word_t *) &winContext->X28);
 #else
 #error unsupported architecture
 #endif
 }
 
-static void GetContextPointer(unw_cursor_t *cursor, unw_context_t *unwContext, int reg, PDWORD64 *contextPointer)
+static void GetContextPointer(unw_cursor_t *cursor, unw_context_t *unwContext, int reg, SIZE_T **contextPointer)
 {
 #if defined(__APPLE__)
     // Returning NULL indicates that we don't have context pointers available
@@ -104,10 +167,10 @@ static void GetContextPointer(unw_cursor_t *cursor, unw_context_t *unwContext, i
     unw_get_save_loc(cursor, reg, &saveLoc);
     if (saveLoc.type == UNW_SLT_MEMORY)
     {
-        PDWORD64 pLoc = (PDWORD64)saveLoc.u.addr;
+        SIZE_T *pLoc = (SIZE_T *)saveLoc.u.addr;
         // Filter out fake save locations that point to unwContext 
-        if ((pLoc < (PDWORD64)unwContext) || ((PDWORD64)(unwContext + 1) <= pLoc))
-            *contextPointer = (PDWORD64)saveLoc.u.addr;
+        if ((pLoc < (SIZE_T *)unwContext) || ((SIZE_T *)(unwContext + 1) <= pLoc))
+            *contextPointer = (SIZE_T *)saveLoc.u.addr;
     }
 #endif
 }
@@ -121,6 +184,26 @@ static void GetContextPointers(unw_cursor_t *cursor, unw_context_t *unwContext, 
     GetContextPointer(cursor, unwContext, UNW_X86_64_R13, &contextPointers->R13);
     GetContextPointer(cursor, unwContext, UNW_X86_64_R14, &contextPointers->R14);
     GetContextPointer(cursor, unwContext, UNW_X86_64_R15, &contextPointers->R15);
+#elif defined(_ARM_)
+    GetContextPointer(cursor, unwContext, UNW_ARM_R4, &contextPointers->R4);
+    GetContextPointer(cursor, unwContext, UNW_ARM_R5, &contextPointers->R5);
+    GetContextPointer(cursor, unwContext, UNW_ARM_R6, &contextPointers->R6);
+    GetContextPointer(cursor, unwContext, UNW_ARM_R7, &contextPointers->R7);
+    GetContextPointer(cursor, unwContext, UNW_ARM_R8, &contextPointers->R8);
+    GetContextPointer(cursor, unwContext, UNW_ARM_R9, &contextPointers->R9);
+    GetContextPointer(cursor, unwContext, UNW_ARM_R10, &contextPointers->R10);
+    GetContextPointer(cursor, unwContext, UNW_ARM_R11, &contextPointers->R11);
+#elif defined(_ARM64_)
+    GetContextPointer(cursor, unwContext, UNW_AARCH64_X19, &contextPointers->X19);
+    GetContextPointer(cursor, unwContext, UNW_AARCH64_X20, &contextPointers->X20);
+    GetContextPointer(cursor, unwContext, UNW_AARCH64_X21, &contextPointers->X21);
+    GetContextPointer(cursor, unwContext, UNW_AARCH64_X22, &contextPointers->X22);
+    GetContextPointer(cursor, unwContext, UNW_AARCH64_X23, &contextPointers->X23);
+    GetContextPointer(cursor, unwContext, UNW_AARCH64_X24, &contextPointers->X24);
+    GetContextPointer(cursor, unwContext, UNW_AARCH64_X25, &contextPointers->X25);
+    GetContextPointer(cursor, unwContext, UNW_AARCH64_X26, &contextPointers->X26);
+    GetContextPointer(cursor, unwContext, UNW_AARCH64_X27, &contextPointers->X27);
+    GetContextPointer(cursor, unwContext, UNW_AARCH64_X28, &contextPointers->X28);
 #else
 #error unsupported architecture
 #endif
@@ -131,9 +214,22 @@ BOOL PAL_VirtualUnwind(CONTEXT *context, KNONVOLATILE_CONTEXT_POINTERS *contextP
     int st;
     unw_context_t unwContext;
     unw_cursor_t cursor;
-#if defined(__APPLE__)
+
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(_ARM64_)
     DWORD64 curPc;
 #endif
+
+    if ((context->ContextFlags & CONTEXT_EXCEPTION_ACTIVE) != 0)
+    {
+        // The current frame is a source of hardware exception. Due to the fact that
+        // we use the low level unwinder to unwind just one frame a time, the
+        // unwinder doesn't have the signal_frame flag set. So it doesn't
+        // know that it should not decrement the PC before looking up the unwind info.
+        // So we compensate it by incrementing the PC before passing it to the unwinder.
+        // Without it, the unwinder would not find unwind info if the hardware exception
+        // happened in the first instruction of a function.
+        CONTEXTSetPC(context, CONTEXTGetPC(context) + 1);
+    }
 
 #if UNWIND_CONTEXT_IS_UCONTEXT_T
     WinContextToUnwindContext(context, &unwContext);
@@ -144,7 +240,6 @@ BOOL PAL_VirtualUnwind(CONTEXT *context, KNONVOLATILE_CONTEXT_POINTERS *contextP
         return FALSE;
     }
 #endif
-
     st = unw_init_local(&cursor, &unwContext);
     if (st < 0)
     {
@@ -156,8 +251,8 @@ BOOL PAL_VirtualUnwind(CONTEXT *context, KNONVOLATILE_CONTEXT_POINTERS *contextP
     WinContextToUnwindCursor(context, &cursor);
 #endif
 
-#if defined(__APPLE__)
-    // OSX appears to do two different things when unwinding
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(_ARM64_)
+    // OSX and FreeBSD appear to do two different things when unwinding
     // 1: If it reaches where it cannot unwind anymore, say a 
     // managed frame.  It wil return 0, but also update the $pc
     // 2: If it unwinds all the way to _start it will return
@@ -165,7 +260,7 @@ BOOL PAL_VirtualUnwind(CONTEXT *context, KNONVOLATILE_CONTEXT_POINTERS *contextP
     // The behaviour of libunwind from nongnu.org is to null the PC
     // So we bank the original PC here, so we can compare it after
     // the step
-    curPc = context->Rip;
+    curPc = CONTEXTGetPC(context);
 #endif
 
     st = unw_step(&cursor);
@@ -174,13 +269,25 @@ BOOL PAL_VirtualUnwind(CONTEXT *context, KNONVOLATILE_CONTEXT_POINTERS *contextP
         return FALSE;
     }
 
+    // Check if the frame we have unwound to is a frame that caused
+    // synchronous signal, like a hardware exception and record it
+    // in the context flags.
+    if (unw_is_signal_frame(&cursor) > 0)
+    {
+        context->ContextFlags |= CONTEXT_EXCEPTION_ACTIVE;
+    }
+    else
+    {
+        context->ContextFlags &= ~CONTEXT_EXCEPTION_ACTIVE;
+    }
+
     // Update the passed in windows context to reflect the unwind
     //
     UnwindContextToWinContext(&cursor, context);
-#if defined(__APPLE__)
-    if (st == 0 && context->Rip == curPc)
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(_ARM64_)
+    if (st == 0 && CONTEXTGetPC(context) == curPc)
     {
-        context->Rip = 0;
+        CONTEXTSetPC(context, 0);
     }
 #endif
 
@@ -188,13 +295,268 @@ BOOL PAL_VirtualUnwind(CONTEXT *context, KNONVOLATILE_CONTEXT_POINTERS *contextP
     {
         GetContextPointers(&cursor, &unwContext, contextPointers);
     }
-
     return TRUE;
 }
+
 #else
 #error don't know how to unwind on this platform
 #endif
 
+// These methods are only used on the AMD64 build
+#ifdef _AMD64_
+#ifdef __LINUX__
+
+static struct LibunwindCallbacksInfoType
+{
+     CONTEXT *Context;
+     ReadMemoryWordCallback readMemCallback;
+} LibunwindCallbacksInfo;
+
+static int get_dyn_info_list_addr(unw_addr_space_t as, unw_word_t *dilap, void *arg)
+{
+    return -UNW_ENOINFO;
+}
+
+static int access_mem(unw_addr_space_t as, unw_word_t addr, unw_word_t *valp, int write, void *arg)
+{
+    if (write)
+    {
+        ASSERT("Memory write must never be called by libunwind during stackwalk");
+        return -UNW_EINVAL;
+    }
+
+    // access_mem sometimes gets called by _UPT_find_proc_info, in such cases arg has a pointer to libunwind internal data
+    // returned by _UPT_create. It makes it impossible to use arg for passing readMemCallback. That's why we have to use global variable.
+    if (LibunwindCallbacksInfo.readMemCallback((SIZE_T)addr, (SIZE_T *)valp))
+    {
+        return UNW_ESUCCESS;
+    }
+    else 
+    {
+        return -UNW_EUNSPEC;
+    }
+}
+
+static int access_reg(unw_addr_space_t as, unw_regnum_t regnum, unw_word_t *valp, int write, void *arg)
+{
+    if (write)
+    {
+        ASSERT("Register write must never be called by libunwind during stackwalk");
+        return -UNW_EREADONLYREG;
+    }
+
+    CONTEXT *winContext = LibunwindCallbacksInfo.Context;
+
+    switch (regnum) 
+    {
+#if defined(_AMD64_)
+        case UNW_REG_IP:       *valp = (unw_word_t) winContext->Rip; break;
+        case UNW_REG_SP:       *valp = (unw_word_t) winContext->Rsp; break;
+        case UNW_X86_64_RBP:   *valp = (unw_word_t) winContext->Rbp; break;
+        case UNW_X86_64_RBX:   *valp = (unw_word_t) winContext->Rbx; break;
+        case UNW_X86_64_R12:   *valp = (unw_word_t) winContext->R12; break;
+        case UNW_X86_64_R13:   *valp = (unw_word_t) winContext->R13; break;
+        case UNW_X86_64_R14:   *valp = (unw_word_t) winContext->R14; break;
+        case UNW_X86_64_R15:   *valp = (unw_word_t) winContext->R15; break;
+#elif defined(_ARM_)
+        case UNW_ARM_R13:      *valp = (unw_word_t) winContext->Sp; break;
+        case UNW_ARM_R14:      *valp = (unw_word_t) winContext->Lr; break;
+        case UNW_ARM_R15:      *valp = (unw_word_t) winContext->Pc; break;
+        case UNW_ARM_R4:       *valp = (unw_word_t) winContext->R4; break;
+        case UNW_ARM_R5:       *valp = (unw_word_t) winContext->R5; break;
+        case UNW_ARM_R6:       *valp = (unw_word_t) winContext->R6; break;
+        case UNW_ARM_R7:       *valp = (unw_word_t) winContext->R7; break;
+        case UNW_ARM_R8:       *valp = (unw_word_t) winContext->R8; break;
+        case UNW_ARM_R9:       *valp = (unw_word_t) winContext->R9; break;
+        case UNW_ARM_R10:      *valp = (unw_word_t) winContext->R10; break;
+        case UNW_ARM_R11:      *valp = (unw_word_t) winContext->R11; break;
+#elif defined(_ARM64_)
+        case UNW_REG_IP:       *valp = (unw_word_t) winContext->Pc; break;
+        case UNW_REG_SP:       *valp = (unw_word_t) winContext->Sp; break;
+        case UNW_AARCH64_X29:  *valp = (unw_word_t) winContext->Fp; break;
+        case UNW_AARCH64_X30:  *valp = (unw_word_t) winContext->Lr; break;
+        case UNW_AARCH64_X19:  *valp = (unw_word_t) winContext->X19; break;
+        case UNW_AARCH64_X20:  *valp = (unw_word_t) winContext->X20; break;
+        case UNW_AARCH64_X21:  *valp = (unw_word_t) winContext->X21; break;
+        case UNW_AARCH64_X22:  *valp = (unw_word_t) winContext->X22; break;
+        case UNW_AARCH64_X23:  *valp = (unw_word_t) winContext->X23; break;
+        case UNW_AARCH64_X24:  *valp = (unw_word_t) winContext->X24; break;
+        case UNW_AARCH64_X25:  *valp = (unw_word_t) winContext->X25; break;
+        case UNW_AARCH64_X26:  *valp = (unw_word_t) winContext->X26; break;
+        case UNW_AARCH64_X27:  *valp = (unw_word_t) winContext->X27; break;
+        case UNW_AARCH64_X28:  *valp = (unw_word_t) winContext->X28; break;
+#else
+#error unsupported architecture
+#endif
+        default:
+            ASSERT("Attempt to read an unknown register.");
+            return -UNW_EBADREG;
+    }
+    return UNW_ESUCCESS;
+}
+
+static int access_fpreg(unw_addr_space_t as, unw_regnum_t regnum, unw_fpreg_t *fpvalp, int write, void *arg)
+{
+    ASSERT("Not supposed to be ever called");
+    return -UNW_EINVAL;
+}
+
+static int resume(unw_addr_space_t as, unw_cursor_t *cp, void *arg)
+{
+    ASSERT("Not supposed to be ever called");
+    return -UNW_EINVAL;
+}
+
+static int get_proc_name(unw_addr_space_t as, unw_word_t addr, char *bufp, size_t buf_len, unw_word_t *offp, void *arg)
+{
+    ASSERT("Not supposed to be ever called");
+    return -UNW_EINVAL;  
+}
+
+int find_proc_info(unw_addr_space_t as, 
+                   unw_word_t ip, unw_proc_info_t *pip,
+                   int need_unwind_info, void *arg)
+{
+#ifdef HAVE_LIBUNWIND_PTRACE
+    // UNIXTODO: libunwind RPM package on Fedora/CentOS/RedHat doesn't have libunwind-ptrace.so 
+    // and we can't use it from a shared library like libmscordaccore.so.
+    // That's why all calls to ptrace parts of libunwind ifdeffed out for now.
+    return _UPT_find_proc_info(as, ip, pip, need_unwind_info, arg);
+#else    
+    return -UNW_EINVAL;
+#endif    
+}
+
+void put_unwind_info(unw_addr_space_t as, unw_proc_info_t *pip, void *arg)
+{
+#ifdef HAVE_LIBUNWIND_PTRACE    
+    return _UPT_put_unwind_info(as, pip, arg);
+#endif    
+}
+
+static unw_accessors_t unwind_accessors =
+{
+    .find_proc_info = find_proc_info,
+    .put_unwind_info = put_unwind_info,
+    .get_dyn_info_list_addr = get_dyn_info_list_addr,
+    .access_mem = access_mem,
+    .access_reg = access_reg,
+    .access_fpreg = access_fpreg,
+    .resume = resume,
+    .get_proc_name = get_proc_name
+};
+
+BOOL PAL_VirtualUnwindOutOfProc(CONTEXT *context, 
+                                KNONVOLATILE_CONTEXT_POINTERS *contextPointers, 
+                                DWORD pid, 
+                                ReadMemoryWordCallback readMemCallback)
+{
+    // This function can be executed only by one thread at a time. 
+    // The reason for this is that we need to pass context and read mem function to libunwind callbacks
+    // but "arg" is already used by the pointer returned from _UPT_create(). 
+    // So we resort to using global variables and a lock.
+    struct Lock 
+    {
+        CRITICAL_SECTION cs;
+        Lock()
+        {        
+            // ctor of a static variable is a thread-safe way to initialize critical section exactly once (clang,gcc)
+            InitializeCriticalSection(&cs);
+        }
+    };
+    struct LockHolder
+    {
+        CRITICAL_SECTION *cs;
+        LockHolder(CRITICAL_SECTION *cs)
+        {
+            this->cs = cs;
+            EnterCriticalSection(cs);
+        }
+
+        ~LockHolder()
+        {
+            LeaveCriticalSection(cs);
+            cs = NULL;
+        }
+    };    
+    static Lock lock;
+    LockHolder lockHolder(&lock.cs);
+
+    int st;
+    unw_context_t unwContext;
+    unw_cursor_t cursor;
+    unw_addr_space_t addrSpace = 0;
+    void *libunwindUptPtr = NULL;
+    BOOL result = FALSE;
+
+    LibunwindCallbacksInfo.Context = context;
+    LibunwindCallbacksInfo.readMemCallback = readMemCallback;
+    WinContextToUnwindContext(context, &unwContext);
+    addrSpace = unw_create_addr_space(&unwind_accessors, 0);
+#ifdef HAVE_LIBUNWIND_PTRACE    
+    libunwindUptPtr = _UPT_create(pid);
+#endif    
+    st = unw_init_remote(&cursor, addrSpace, libunwindUptPtr);
+    if (st < 0)
+    {
+        result = FALSE;
+        goto Exit;
+    }
+
+    st = unw_step(&cursor);
+    if (st < 0)
+    {
+        result = FALSE;
+        goto Exit;
+    }
+
+    UnwindContextToWinContext(&cursor, context);
+
+    if (contextPointers != NULL)
+    {
+        GetContextPointers(&cursor, &unwContext, contextPointers);
+    }
+    result = TRUE;
+
+Exit:
+#ifdef HAVE_LIBUNWIND_PTRACE
+    if (libunwindUptPtr != NULL) 
+    {
+        _UPT_destroy(libunwindUptPtr);
+    }
+#endif    
+    if (addrSpace != 0) 
+    {
+        unw_destroy_addr_space(addrSpace);
+    }    
+    return result;
+}
+#else // __LINUX__
+
+BOOL PAL_VirtualUnwindOutOfProc(CONTEXT *context, 
+                                KNONVOLATILE_CONTEXT_POINTERS *contextPointers, 
+                                DWORD pid, 
+                                ReadMemoryWordCallback readMemCallback)
+{
+    //UNIXTODO: Implement for Mac flavor of libunwind
+    return FALSE;
+}
+
+#endif // !__LINUX__
+#endif // _AMD64_
+
+/*++
+Function:
+    RtlpRaiseException
+
+Parameters:
+    ExceptionRecord - the Windows exception record to throw
+
+Note:
+    The name of this function and the name of the ExceptionRecord 
+    parameter is used in the sos lldb plugin code to read the exception
+    record. See coreclr\src\ToolBox\SOS\lldbplugin\debugclient.cpp.
+--*/
 PAL_NORETURN
 static void RtlpRaiseException(EXCEPTION_RECORD *ExceptionRecord)
 {
@@ -214,6 +576,8 @@ static void RtlpRaiseException(EXCEPTION_RECORD *ExceptionRecord)
     ExceptionRecord->ExceptionAddress = (void *) ContextRecord.Eip;
 #elif defined(_AMD64_)
     ExceptionRecord->ExceptionAddress = (void *) ContextRecord.Rip;
+#elif defined(_ARM_) || defined(_ARM64_)
+    ExceptionRecord->ExceptionAddress = (void *) ContextRecord.Pc;
 #else
 #error unsupported architecture
 #endif

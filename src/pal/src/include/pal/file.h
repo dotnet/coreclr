@@ -37,7 +37,7 @@ typedef struct _find_handle
     struct _find_handle *self_addr; /* for pointer verification */
 
     char   dir[_MAX_DIR];
-    char   fname[_MAX_PATH]; /* includes extension */
+    char   fname[MAX_PATH_FNAME]; /* includes extension */
     glob_t gGlob;
     char   **next;
 } find_obj;
@@ -166,7 +166,7 @@ Input paramters:
 source  = path to the file on input, path to the file with all 
           symbolic links traversed on return
 
-Note: Assumes the maximum size of the source is MAX_PATH
+Note: Assumes the maximum size of the source is MAX_LONGPATH
 
 Return value:
     TRUE on success, FALSE on failure
@@ -189,8 +189,7 @@ void FILEGetProperNotFoundError( LPSTR lpPath, LPDWORD lpErrorCode );
 /*++
 PAL__getcwd
 
-Calls InternalGetcwd to call getcwd with a thread that is marked
-as suspension unsafe.
+Calls getcwd
 
 Input parameters:
 
@@ -206,8 +205,7 @@ char * __cdecl PAL__getcwd(char *szBuf, size_t nSize);
 /*++
 PAL_fflush
 
-Calls InternalFflush to call fflush with a thread that is marked
-as suspension unsafe.
+Calls fflush
 
 Input parameters:
 
@@ -221,8 +219,7 @@ int _cdecl PAL_fflush( PAL_FILE *stream );
 /*++
 PAL_mkstemp
     
-Calls InternalMkstemp to call mkstemp with a thread that is marked
-as suspension unsafe. 
+Calls InternalMkstemp to call mkstemp
 
 Input parameters:
 
@@ -236,8 +233,7 @@ int __cdecl PAL_mkstemp(char *szNameTemplate);
 /*++
 PAL_unlink
 
-Calls InternalUnlink to call unlink with a thread that is marked
-as suspension unsafe. 
+Calls unlink. 
 
 Input parameters:
 
@@ -251,8 +247,7 @@ int __cdecl PAL_unlink(const char *szPath);
 /*++
 PAL_rename
 
-Calls InternalRename to call rename with a thread that is marked
-as suspension unsafe. 
+Calls rename
 
 Input parameters:
 
@@ -317,7 +312,7 @@ int __cdecl PAL__open(const char *szPath, int nFlags, ...);
 /*++
 PAL_fseek
 
-Wrapper function for InternalFseek
+Wrapper function for fseek
 
 Input parameters:
 

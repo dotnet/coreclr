@@ -235,7 +235,10 @@ public:
     {
     }
 
-    virtual ~ILMarshaler() {}
+    virtual ~ILMarshaler()
+    {
+        LIMITED_METHOD_CONTRACT;
+    }
 
     void SetNDirectStubLinker(NDirectStubLinker* pslNDirect)
     {
@@ -598,7 +601,7 @@ public:
                 nativeSize = wNativeSize;
             }
 
-#ifndef _TARGET_ARM_
+#if !defined(_TARGET_ARM) && !(defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING))
             switch (nativeSize)
             {
                 case 1: typ = ELEMENT_TYPE_U1; break;
@@ -1946,6 +1949,7 @@ public:
 
     ILWSTRMarshaler()
     {
+        LIMITED_METHOD_CONTRACT;
         m_fCoMemoryAllocated = false;
     }
 #endif // _DEBUG
@@ -2006,7 +2010,7 @@ public:
     enum
     {
         // If required buffer length > MAX_LOCAL_BUFFER_LENGTH, don't optimize by allocating memory on stack
-        MAX_LOCAL_BUFFER_LENGTH = (MAX_PATH + 1) * 2
+        MAX_LOCAL_BUFFER_LENGTH = (MAX_PATH_FNAME + 1) * 2
     };
 
     ILWSTRBufferMarshaler() :
@@ -2035,7 +2039,7 @@ public:
     enum
     {
         // If required buffer length > MAX_LOCAL_BUFFER_LENGTH, don't optimize by allocating memory on stack
-        MAX_LOCAL_BUFFER_LENGTH = MAX_PATH + 1
+        MAX_LOCAL_BUFFER_LENGTH = MAX_PATH_FNAME + 1
     };
 
     ILCSTRBufferMarshaler() :
@@ -2436,7 +2440,7 @@ public:
     enum
     {
         // If required buffer length > MAX_LOCAL_BUFFER_LENGTH, don't optimize by allocating memory on stack
-        MAX_LOCAL_BUFFER_LENGTH = (MAX_PATH + 1) * 2 + sizeof(DWORD)
+        MAX_LOCAL_BUFFER_LENGTH = (MAX_PATH_FNAME + 1) * 2 + sizeof(DWORD)
     };
 
 
@@ -2444,6 +2448,7 @@ public:
         m_dwCCHLocal(-1)
        ,m_dwLocalBuffer(-1)
     {
+        LIMITED_METHOD_CONTRACT;
     }
 
     virtual bool SupportsArgumentMarshal(DWORD dwMarshalFlags, UINT* pErrorResID);
@@ -2475,6 +2480,7 @@ public:
     ILVBByValStrMarshaler() :
         m_dwCCHLocal(-1)
     {
+        LIMITED_METHOD_CONTRACT;
     }
 
     virtual bool SupportsArgumentMarshal(DWORD dwMarshalFlags, UINT* pErrorResID);
@@ -2530,7 +2536,7 @@ public:
     enum
     {
         // If required buffer length > MAX_LOCAL_BUFFER_LENGTH, don't optimize by allocating memory on stack
-        MAX_LOCAL_BUFFER_LENGTH = MAX_PATH + 1
+        MAX_LOCAL_BUFFER_LENGTH = MAX_PATH_FNAME + 1
     };
 
     ILCSTRMarshaler() :
@@ -2559,7 +2565,7 @@ public:
     enum
     {
         // If required buffer length > MAX_LOCAL_BUFFER_LENGTH, don't optimize by allocating memory on stack
-        MAX_LOCAL_BUFFER_LENGTH = (MAX_PATH + 1) * 2 + 4
+        MAX_LOCAL_BUFFER_LENGTH = (MAX_PATH_FNAME + 1) * 2 + 4
     };
 
     ILBSTRMarshaler() :
@@ -2716,6 +2722,7 @@ public:
         m_dwOffsetLocalNum(-1),
         m_dwPinnedLocalNum(-1)
     {
+        LIMITED_METHOD_CONTRACT;
     }
 
 protected:
@@ -2745,6 +2752,7 @@ public:
     ILAsAnyMarshalerBase() :
         m_dwMarshalerLocalNum(-1)
     {
+        LIMITED_METHOD_CONTRACT;
     }
 
 protected:
@@ -2818,6 +2826,7 @@ public:
         m_idClearNativeContents(clearNatContents),
         m_idClearManaged(clearMan)
     {
+        LIMITED_METHOD_CONTRACT;
     }
     
 protected:    

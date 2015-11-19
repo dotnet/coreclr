@@ -6,9 +6,11 @@ set __BuildArch=x64
 set __BuildType=Debug
 set __BuildOS=Windows_NT
 
-:: Default to VS2013
-set __VSVersion=VS2013
-set __VSProductVersion=120
+:: Default to highest Visual Studio version available
+set __VSVersion=vs2015
+
+if defined VS120COMNTOOLS set __VSVersion=vs2013
+if defined VS140COMNTOOLS set __VSVersion=vs2015
 
 :: Set the various build properties here so that CMake and MSBuild can pick them up
 set "__ProjectDir=%~dp0"
@@ -20,11 +22,15 @@ set "__PackagesDir=%__ProjectDir%\packages"
 set "__RootBinDir=%__ProjectDir%\bin"
 set "__LogsDir=%__RootBinDir%\Logs"
 set __MSBCleanBuildArgs=
+set __SkipTestBuild=
+set __DoCrossgen=
 
 :Arg_Loop
 if "%1" == "" goto ArgsDone
 if /i "%1" == "/?" goto Usage
 if /i "%1" == "x64"    (set __BuildArch=x64&&shift&goto Arg_Loop)
+if /i "%1" == "x86"    (set __BuildArch=x86&&shift&goto Arg_Loop)
+if /i "%1" == "arm"    (set __BuildArch=arm&&shift&goto Arg_Loop)
 
 if /i "%1" == "debug"    (set __BuildType=Debug&shift&goto Arg_Loop)
 if /i "%1" == "release"   (set __BuildType=Release&shift&goto Arg_Loop)
@@ -36,8 +42,10 @@ if /i "%1" == "linuxmscorlib" (set __MscorlibOnly=1&set __BuildOS=Linux&shift&go
 if /i "%1" == "osxmscorlib" (set __MscorlibOnly=1&set __BuildOS=OSX&shift&goto Arg_Loop)
 if /i "%1" == "windowsmscorlib" (set __MscorlibOnly=1&set __BuildOS=Windows_NT&shift&goto Arg_Loop)
 
-if /i "%1" == "vs2013" (set __VSVersion=%1&set __VSProductVersion=120&shift&goto Arg_Loop)
-if /i "%1" == "vs2015" (set __VSVersion=%1&set __VSProductVersion=140&shift&goto Arg_Loop)
+if /i "%1" == "vs2013" (set __VSVersion=%1&shift&goto Arg_Loop)
+if /i "%1" == "vs2015" (set __VSVersion=%1&shift&goto Arg_Loop)
+if /i "%1" == "skiptestbuild" (set __SkipTestBuild=1&shift&goto Arg_Loop)
+if /i "%1" == "docrossgen" (set __DoCrossgen=1&shift&goto Arg_Loop)
 
 echo Invalid commandline argument: %1
 goto Usage
@@ -51,7 +59,6 @@ echo.
 set "__BinDir=%__RootBinDir%\Product\%__BuildOS%.%__BuildArch%.%__BuildType%"
 set "__IntermediatesDir=%__RootBinDir%\obj\%__BuildOS%.%__BuildArch%.%__BuildType%"
 set "__PackagesBinDir=%__BinDir%\.nuget"
-set "__ToolsDir=%__RootBinDir%\tools"
 set "__TestBinDir=%__RootBinDir%\tests\%__BuildOS%.%__BuildArch%.%__BuildType%"
 set "__TestIntermediatesDir=%__RootBinDir%\tests\obj\%__BuildOS%.%__BuildArch%.%__BuildType%"
 
@@ -94,17 +101,22 @@ for /f "delims=" %%a in ('powershell -NoProfile -ExecutionPolicy RemoteSigned "&
 goto CheckVS
 
 :CheckVS
+
+set __VSProductVersion=
+if /i "%__VSVersion%" == "vs2013" set __VSProductVersion=120
+if /i "%__VSVersion%" == "vs2015" set __VSProductVersion=140
+
 :: Check presence of VS
 if defined VS%__VSProductVersion%COMNTOOLS goto CheckVSExistence
-echo Visual Studio 2013 Community (free) is a pre-requisite to build this repository.
-echo See: https://github.com/dotnet/coreclr/blob/master/Documentation/developer-guide.md#prerequisites
+echo Visual Studio 2013+ (Community is free) is a pre-requisite to build this repository.
+echo See: https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md#prerequisites
 exit /b 1
 
 :CheckVSExistence
 :: Does VS 2013 or VS 2015 really exist?
 if exist "!VS%__VSProductVersion%COMNTOOLS!\..\IDE\devenv.exe" goto CheckMSBuild
-echo Visual Studio 2013 Community (free) is a pre-requisite to build this repository.
-echo See: https://github.com/dotnet/coreclr/blob/master/Documentation/developer-guide.md#prerequisites
+echo Visual Studio 2013+ (Community is free) is a pre-requisite to build this repository.
+echo See: https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md#prerequisites
 exit /b 1
 
 :CheckMSBuild
@@ -122,7 +134,7 @@ set _msbuildexe="%ProgramFiles(x86)%\MSBuild\14.0\Bin\MSBuild.exe"
 set UseRoslynCompiler=true
 :CheckMSBuild14
 if not exist %_msbuildexe% set _msbuildexe="%ProgramFiles%\MSBuild\14.0\Bin\MSBuild.exe"
-if not exist %_msbuildexe% echo Error: Could not find MSBuild.exe.  Please see https://github.com/dotnet/coreclr/blob/master/developer-guide.md for build instructions. && exit /b 1
+if not exist %_msbuildexe% echo Error: Could not find MSBuild.exe.  Please see https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md for build instructions. && exit /b 1
 
 :: All set to commence the build
 
@@ -133,7 +145,9 @@ echo Commencing build of native components for %__BuildOS%.%__BuildArch%.%__Buil
 echo.
 
 :: Set the environment for the native build
-call "!VS%__VSProductVersion%COMNTOOLS!\..\..\VC\vcvarsall.bat" x86_amd64
+set __VCBuildArch=x86_amd64
+if /i "%__BuildArch%" == "x86" (set __VCBuildArch=x86)
+call "!VS%__VSProductVersion%COMNTOOLS!\..\..\VC\vcvarsall.bat" %__VCBuildArch%
 
 if exist "%VSINSTALLDIR%DIA SDK" goto GenVSSolution
 echo Error: DIA SDK is missing at "%VSINSTALLDIR%DIA SDK". ^
@@ -142,14 +156,14 @@ at VS install location of previous version. Workaround is to copy DIA SDK folder
 of previous version to "%VSINSTALLDIR%" and then resume build.
 :: DIA SDK not included in Express editions
 echo Visual Studio 2013 Express does not include the DIA SDK. ^
-You need Visual Studio 2013 Community (free).
-echo See: https://github.com/dotnet/coreclr/blob/master/Documentation/developer-guide.md#prerequisites
+You need Visual Studio 2013+ (Community is free).
+echo See: https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md#prerequisites
 exit /b 1
 
 :GenVSSolution
 :: Regenerate the VS solution
 pushd "%__IntermediatesDir%"
-call "%__SourceDir%\pal\tools\gen-buildsys-win.bat" "%__ProjectDir%" %__VSVersion%
+call "%__SourceDir%\pal\tools\gen-buildsys-win.bat" "%__ProjectDir%" %__VSVersion% %__BuildArch%
 popd
 
 :BuildComponents
@@ -160,7 +174,7 @@ exit /b 1
 REM Build CoreCLR
 :BuildCoreCLR
 set "__CoreCLRBuildLog=%__LogsDir%\CoreCLR_%__BuildOS%__%__BuildArch%__%__BuildType%.log"
-%_msbuildexe% "%__IntermediatesDir%\install.vcxproj" %__MSBCleanBuildArgs% /nologo /maxcpucount /nodeReuse:false /p:Configuration=%__BuildType% /p:Platform=%__BuildArch% /fileloggerparameters:Verbosity=diag;LogFile="%__CoreCLRBuildLog%"
+%_msbuildexe% "%__IntermediatesDir%\install.vcxproj" %__MSBCleanBuildArgs% /nologo /maxcpucount /nodeReuse:false /p:Configuration=%__BuildType% /p:Platform=%__BuildArch% /fileloggerparameters:Verbosity=normal;LogFile="%__CoreCLRBuildLog%"
 IF NOT ERRORLEVEL 1 goto PerformMScorlibBuild
 echo Native component build failed. Refer !__CoreCLRBuildLog! for details.
 exit /b 1
@@ -183,7 +197,7 @@ call "!VS%__VSProductVersion%COMNTOOLS!\VsDevCmd.bat"
 echo Commencing build of mscorlib for %__BuildOS%.%__BuildArch%.%__BuildType%
 echo.
 set "__MScorlibBuildLog=%__LogsDir%\MScorlib_%__BuildOS%__%__BuildArch%__%__BuildType%.log"
-%_msbuildexe% "%__ProjectFilesDir%\build.proj" %__MSBCleanBuildArgs% /nologo /maxcpucount /verbosity:minimal /nodeReuse:false /fileloggerparameters:Verbosity=diag;LogFile="%__MScorlibBuildLog%" /p:OS=%__BuildOS% %__AdditionalMSBuildArgs%
+%_msbuildexe% "%__ProjectFilesDir%\build.proj" %__MSBCleanBuildArgs% /nologo /maxcpucount /verbosity:minimal /nodeReuse:false /fileloggerparameters:Verbosity=normal;LogFile="%__MScorlibBuildLog%" %__AdditionalMSBuildArgs%
 IF NOT ERRORLEVEL 1 (
   if defined __MscorlibOnly exit /b 0
   goto CrossGenMscorlib
@@ -193,10 +207,17 @@ echo MScorlib build failed. Refer !__MScorlibBuildLog! for details.
 exit /b 1
 
 :CrossGenMscorlib
+if /i "%__BuildArch%" == "x86" (
+  if not defined __DoCrossgen (
+    echo Skipping Crossgen
+    goto PerformTestBuild
+  )
+)
+
 echo Generating native image of mscorlib for %__BuildOS%.%__BuildArch%.%__BuildType%
 echo.
 set "__CrossGenMScorlibLog=%__LogsDir%\CrossgenMScorlib_%__BuildOS%__%__BuildArch%__%__BuildType%.log"
-%__BinDir%\crossgen.exe %__BinDir%\mscorlib.dll > "%__CrossGenMScorlibLog%" 2>&1
+"%__BinDir%\crossgen.exe" "%__BinDir%\mscorlib.dll" > "%__CrossGenMScorlibLog%" 2>&1
 IF NOT ERRORLEVEL 1 (
   goto PerformTestBuild
 )
@@ -205,12 +226,16 @@ echo CrossGen mscorlib failed. Refer !__CrossGenMScorlibLog! for details.
 exit /b 1
 
 :PerformTestBuild
+if defined __SkipTestBuild (
+    echo Skipping test build
+    goto SuccessfulBuild
+)
 echo.
 echo Commencing build of tests for %__BuildOS%.%__BuildArch%.%__BuildType%
 echo.
-call tests\buildtest.cmd
+call %__ProjectDir%\tests\buildtest.cmd
 IF NOT ERRORLEVEL 1 goto SuccessfulBuild
-echo Test binaries build failed. Refer !__MScorlibBuildLog! for details.
+echo Test binaries build failed. Refer !__TestManagedBuildLog! for details.
 exit /b 1
 
 :SuccessfulBuild
@@ -218,7 +243,9 @@ exit /b 1
 echo Repo successfully built.
 echo.
 echo Product binaries are available at !__BinDir!
-echo Test binaries are available at !__TestBinDir!
+if not defined __SkipTestBuild (
+    echo Test binaries are available at !__TestBinDir!
+)
 exit /b 0
 
 :Usage
@@ -226,11 +253,12 @@ echo.
 echo Usage:
 echo %0 BuildArch BuildType [clean] [vsversion] where:
 echo.
-echo BuildArch can be: x64
+echo BuildArch can be: x64, x86
 echo BuildType can be: Debug, Release
 echo Clean - optional argument to force a clean build.
-echo VSVersion - optional argument to use VS2013 or VS2015 (default VS2013)
+echo VSVersion - optional argument to use VS2013 or VS2015 (default VS2015)
 echo windowsmscorlib - Build mscorlib for Windows
 echo linuxmscorlib - Build mscorlib for Linux
 echo osxmscorlib - Build mscorlib for OS X
+echo skiptestbuild - Skip building tests
 exit /b 1

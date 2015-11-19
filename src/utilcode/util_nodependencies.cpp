@@ -211,6 +211,9 @@ CHECK_SUPPORTED:
 // Returns TRUE if we are running on a 64-bit OS in WoW, FALSE otherwise.
 BOOL RunningInWow64()
 {
+    #ifdef PLATFORM_UNIX
+    return FALSE;
+    #else
     static int s_Wow64Process;
 
     if (s_Wow64Process == 0)
@@ -224,6 +227,7 @@ BOOL RunningInWow64()
     }
 
     return (s_Wow64Process == 1) ? TRUE : FALSE;
+    #endif
 }
 #endif
 
@@ -317,7 +321,7 @@ HRESULT GetCurrentModuleFileName(__out_ecount(*pcchBuffer) LPWSTR pBuffer, __ino
     }
 
     // Get the appname to look up in the exclusion or inclusion list.
-    WCHAR appPath[MAX_PATH + 2];
+    WCHAR appPath[MAX_LONGPATH + 2];
 
     DWORD ret = WszGetModuleFileName(NULL, appPath, NumItems(appPath));
 
@@ -380,7 +384,7 @@ BOOL IsCurrentModuleFileNameInAutoExclusionList()
         return FALSE;
     }
 
-    WCHAR wszAppName[MAX_PATH];
+    WCHAR wszAppName[MAX_LONGPATH];
     DWORD cchAppName = NumItems(wszAppName);
 
     // Get the appname to look up in the exclusion or inclusion list.
@@ -415,7 +419,7 @@ void GetDebuggerSettingInfo(SString &ssDebuggerString, BOOL *pfAuto)
 
     EX_TRY
     {
-        DWORD cchDebuggerString = MAX_PATH;
+        DWORD cchDebuggerString = MAX_LONGPATH;
         INDEBUG(DWORD cchOldDebuggerString = cchDebuggerString);
 
         WCHAR * buf = ssDebuggerString.OpenUnicodeBuffer(cchDebuggerString);   
@@ -512,7 +516,7 @@ HRESULT GetDebuggerSettingInfoWorker(__out_ecount_part_opt(*pcchDebuggerString, 
     }
 
     // Look in AeDebug key for "Debugger"; get the size of any value stored there.
-    DWORD valueType, valueSize;
+    DWORD valueType, valueSize = 0;
     ret = WszRegQueryValueEx(hKeyHolder, kUnmanagedDebuggerValue, 0, &valueType, 0, &valueSize);   
 
     _ASSERTE(pcchDebuggerString != NULL);
@@ -549,7 +553,7 @@ HRESULT GetDebuggerSettingInfoWorker(__out_ecount_part_opt(*pcchDebuggerString, 
             BOOL fAuto = FALSE;
 
             // Get the appname to look up in DebugApplications key.
-            WCHAR wzAppName[MAX_PATH];
+            WCHAR wzAppName[MAX_LONGPATH];
             DWORD cchAppName = NumItems(wzAppName);
             long iValue;
 
@@ -569,9 +573,9 @@ HRESULT GetDebuggerSettingInfoWorker(__out_ecount_part_opt(*pcchDebuggerString, 
             {
                 // Look in AeDebug key for "Auto"; get the size of any value stored there.
                 ret = WszRegQueryValueEx(hKeyHolder, kUnmanagedDebuggerAutoValue, 0, &valueType, 0, &valueSize);
-                if ((ret == ERROR_SUCCESS) && (valueType == REG_SZ) && (valueSize / sizeof(WCHAR) < MAX_PATH))
+                if ((ret == ERROR_SUCCESS) && (valueType == REG_SZ) && (valueSize / sizeof(WCHAR) < MAX_LONGPATH))
                 {   
-                    WCHAR wzAutoKey[MAX_PATH];
+                    WCHAR wzAutoKey[MAX_LONGPATH];
                     valueSize = NumItems(wzAutoKey) * sizeof(WCHAR);
                     WszRegQueryValueEx(hKeyHolder, kUnmanagedDebuggerAutoValue, NULL, NULL, reinterpret_cast< LPBYTE >(wzAutoKey), &valueSize);
 

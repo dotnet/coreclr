@@ -85,6 +85,10 @@ LOCAL_LABEL(HaveThread):
 
         mov             r12, rax                // r12 <- Thread*
 
+        //FailFast if a native callable method invoked via ldftn and calli.
+        cmp             dword ptr [r12 + OFFSETOF__Thread__m_fPreemptiveGCDisabled], 1
+        jz              LOCAL_LABEL(InvalidTransition)
+
         //
         // disable preemptive GC
         //
@@ -123,14 +127,14 @@ LOCAL_LABEL(UMThunkStub_ArgumentsSetup):
         mov    rcx, [rbp - UMThunkStubAMD64_RBP_OFFSET + UMThunkStubAMD64_INT_ARG_OFFSET + 0x18]
         mov    r8,  [rbp - UMThunkStubAMD64_RBP_OFFSET + UMThunkStubAMD64_INT_ARG_OFFSET + 0x20]
         mov    r9,  [rbp - UMThunkStubAMD64_RBP_OFFSET + UMThunkStubAMD64_INT_ARG_OFFSET + 0x28]
-        movdqa xmm0, [rbp - UMThunkStubAMD64_RBP_OFFSET + UMThunkStubAMD64_XMM_SAVE_OFFSET]
-        movdqa xmm1, [rbp - UMThunkStubAMD64_RBP_OFFSET + UMThunkStubAMD64_XMM_SAVE_OFFSET + 0x10]
-        movdqa xmm2, [rbp - UMThunkStubAMD64_RBP_OFFSET + UMThunkStubAMD64_XMM_SAVE_OFFSET + 0x20]
-        movdqa xmm3, [rbp - UMThunkStubAMD64_RBP_OFFSET + UMThunkStubAMD64_XMM_SAVE_OFFSET + 0x30]
-        movdqa xmm4, [rbp - UMThunkStubAMD64_RBP_OFFSET + UMThunkStubAMD64_XMM_SAVE_OFFSET + 0x40]
-        movdqa xmm5, [rbp - UMThunkStubAMD64_RBP_OFFSET + UMThunkStubAMD64_XMM_SAVE_OFFSET + 0x50]
-        movdqa xmm6, [rbp - UMThunkStubAMD64_RBP_OFFSET + UMThunkStubAMD64_XMM_SAVE_OFFSET + 0x60]
-        movdqa xmm7, [rbp - UMThunkStubAMD64_RBP_OFFSET + UMThunkStubAMD64_XMM_SAVE_OFFSET + 0x70]
+        movdqa xmm0, xmmword ptr [rbp - UMThunkStubAMD64_RBP_OFFSET + UMThunkStubAMD64_XMM_SAVE_OFFSET]
+        movdqa xmm1, xmmword ptr [rbp - UMThunkStubAMD64_RBP_OFFSET + UMThunkStubAMD64_XMM_SAVE_OFFSET + 0x10]
+        movdqa xmm2, xmmword ptr [rbp - UMThunkStubAMD64_RBP_OFFSET + UMThunkStubAMD64_XMM_SAVE_OFFSET + 0x20]
+        movdqa xmm3, xmmword ptr [rbp - UMThunkStubAMD64_RBP_OFFSET + UMThunkStubAMD64_XMM_SAVE_OFFSET + 0x30]
+        movdqa xmm4, xmmword ptr [rbp - UMThunkStubAMD64_RBP_OFFSET + UMThunkStubAMD64_XMM_SAVE_OFFSET + 0x40]
+        movdqa xmm5, xmmword ptr [rbp - UMThunkStubAMD64_RBP_OFFSET + UMThunkStubAMD64_XMM_SAVE_OFFSET + 0x50]
+        movdqa xmm6, xmmword ptr [rbp - UMThunkStubAMD64_RBP_OFFSET + UMThunkStubAMD64_XMM_SAVE_OFFSET + 0x60]
+        movdqa xmm7, xmmword ptr [rbp - UMThunkStubAMD64_RBP_OFFSET + UMThunkStubAMD64_XMM_SAVE_OFFSET + 0x70]
 
         mov             rax, [r11 + OFFSETOF__UMThunkMarshInfo__m_pILStub]                              // rax <- Stub*
         call            rax
@@ -153,6 +157,10 @@ LOCAL_LABEL(DoThreadSetup):
         call            C_FUNC(CreateThreadBlockThrow)
         jmp             LOCAL_LABEL(HaveThread)
         
+LOCAL_LABEL(InvalidTransition):
+        //No arguments to setup , ReversePInvokeBadTransition will failfast
+        call            C_FUNC(ReversePInvokeBadTransition)
+
 LOCAL_LABEL(DoTrapReturningThreadsTHROW):
         mov             rdi, r12                                                                        // Thread* pThread
         mov             rsi, [rbp - UMThunkStubAMD64_RBP_OFFSET + UMThunkStubAMD64_METHODDESC_OFFSET]   // UMEntryThunk* pUMEntry

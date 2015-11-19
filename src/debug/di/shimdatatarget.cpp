@@ -36,6 +36,10 @@ HRESULT STDMETHODCALLTYPE ShimDataTarget::QueryInterface(
     {
         *pInterface = static_cast<ICorDebugMutableDataTarget *>(this);
     }
+    else if (InterfaceId == IID_ICorDebugDataTarget4)
+    {
+        *pInterface = static_cast<ICorDebugDataTarget4 *>(this);
+    }
     else
     {
         *pInterface = NULL;
@@ -64,7 +68,6 @@ ULONG STDMETHODCALLTYPE ShimDataTarget::Release()
     return ref;
 }
 
-
 //---------------------------------------------------------------------------------------
 //
 // Get the OS Process ID that this DataTarget is for.
@@ -74,6 +77,21 @@ ULONG STDMETHODCALLTYPE ShimDataTarget::Release()
 DWORD ShimDataTarget::GetPid()
 {
     return m_processId;
+}
+
+//---------------------------------------------------------------------------------------
+//
+// Unwind the stack to the next frame.
+//
+// Return Value: 
+//     context and contextPointers filled in with the next frame
+//
+HRESULT STDMETHODCALLTYPE ShimDataTarget::VirtualUnwind(DWORD threadId, ULONG32 contextSize, PBYTE context)
+{
+#ifndef FEATURE_PAL
+    _ASSERTE(!"ShimDataTarget::VirtualUnwind NOT IMPLEMENTED");
+#endif 
+    return E_NOTIMPL;
 }
 
 //---------------------------------------------------------------------------------------

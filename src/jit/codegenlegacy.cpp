@@ -15,7 +15,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #ifdef _MSC_VER
 #pragma hdrstop
 #endif
-#include "CodeGen.h"
+#include "codegen.h"
 
 #ifdef LEGACY_BACKEND // This file is NOT used for the '!LEGACY_BACKEND' that uses the linear scan register allocator
 
@@ -655,6 +655,9 @@ void                CodeGen::genComputeReg(GenTreePtr       tree,
                                            bool             freeOnly)
 {
     noway_assert(tree->gtType != TYP_VOID);
+    
+    regNumber       reg;
+    regNumber       rg2;
 
 #if FEATURE_STACK_FP_X87
     noway_assert(genActualType(tree->gtType) == TYP_INT    ||
@@ -692,8 +695,7 @@ void                CodeGen::genComputeReg(GenTreePtr       tree,
     if ((tree->OperGet() == GT_MUL) && (tree->gtFlags & GTF_MUL_64RSLT))
         goto REG_OK;
 
-    regNumber       reg = tree->gtRegNum;
-    regNumber       rg2;
+    reg = tree->gtRegNum;
 
     /* Did the value end up in an acceptable register? */
 
@@ -1396,6 +1398,12 @@ bool                CodeGen::genMakeIndAddrMode(GenTreePtr   addr,
 
     GenTreePtr      tmp;
     int            ixv = INT_MAX; // unset value
+    
+    GenTreePtr      scaledIndexVal;
+
+    regMaskTP       newLiveMask;
+    regMaskTP       rv1Mask;
+    regMaskTP       rv2Mask;
 
     /* Deferred address mode forming NYI for x86 */
 
@@ -1476,7 +1484,7 @@ bool                CodeGen::genMakeIndAddrMode(GenTreePtr   addr,
        the scaled value */
 
     scaledIndex = NULL;
-    GenTreePtr scaledIndexVal = NULL;
+    scaledIndexVal = NULL;
 
     if  (operIsArrIndex && rv2 != NULL 
          && (rv2->gtOper == GT_MUL || rv2->gtOper == GT_LSH) 
@@ -1692,9 +1700,9 @@ bool                CodeGen::genMakeIndAddrMode(GenTreePtr   addr,
         /* Generate the second operand first */
 
         // Determine what registers go live between rv2 and rv1
-        regMaskTP newLiveMask = genNewLiveRegMask(rv2, rv1);
+        newLiveMask = genNewLiveRegMask(rv2, rv1);
 
-        regMaskTP rv2Mask  = regMask & ~newLiveMask; 
+        rv2Mask = regMask & ~newLiveMask; 
         rv2Mask &= ~rv1->gtRsvdRegs;
 
         if (rv2Mask == RBM_NONE)
@@ -1731,9 +1739,9 @@ bool                CodeGen::genMakeIndAddrMode(GenTreePtr   addr,
         /* Get the first operand into a register */
 
         // Determine what registers go live between rv1 and rv2
-        regMaskTP newLiveMask = genNewLiveRegMask(rv1, rv2);
+        newLiveMask = genNewLiveRegMask(rv1, rv2);
 
-        regMaskTP rv1Mask  = regMask & ~newLiveMask; 
+        rv1Mask  = regMask & ~newLiveMask; 
         rv1Mask &= ~rv2->gtRsvdRegs;
  
         if (rv1Mask == RBM_NONE)
@@ -2000,7 +2008,7 @@ void                CodeGen::genRangeCheck(GenTreePtr  oper)
         /* Generate "jae <fail_label>" */
 
         noway_assert(oper->gtOper == GT_ARR_BOUNDS_CHECK);
-        genJumpToThrowHlpBlk(EJ_jae, Compiler::ACK_RNGCHK_FAIL, bndsChk->gtIndRngFailBB);
+        genJumpToThrowHlpBlk(EJ_jae, SCK_RNGCHK_FAIL, bndsChk->gtIndRngFailBB);
     }
     else
     {
@@ -2027,7 +2035,7 @@ void                CodeGen::genRangeCheck(GenTreePtr  oper)
             /* Generate "cmp [arrRef+LenOffs], ixv" */
             inst_AT_IV(INS_cmp, EA_4BYTE, arrRef, ixv, lenOffset);
             // Generate "jbe <fail_label>"
-            genJumpToThrowHlpBlk(EJ_jbe, Compiler::ACK_RNGCHK_FAIL, bndsChk->gtIndRngFailBB);
+            genJumpToThrowHlpBlk(EJ_jbe, SCK_RNGCHK_FAIL, bndsChk->gtIndRngFailBB);
         }
         else if (arrLen->IsCnsIntOrI())
         {
@@ -2035,19 +2043,19 @@ void                CodeGen::genRangeCheck(GenTreePtr  oper)
             // Both are constants; decide at compile time.
             if (!(0 <= ixvFull && ixvFull < lenv))
             {
-                genJumpToThrowHlpBlk(EJ_jmp, Compiler::ACK_RNGCHK_FAIL, bndsChk->gtIndRngFailBB);
+                genJumpToThrowHlpBlk(EJ_jmp, SCK_RNGCHK_FAIL, bndsChk->gtIndRngFailBB);
             }
         }
         else if (!indIsInt)
         {
-            genJumpToThrowHlpBlk(EJ_jmp, Compiler::ACK_RNGCHK_FAIL, bndsChk->gtIndRngFailBB);
+            genJumpToThrowHlpBlk(EJ_jmp, SCK_RNGCHK_FAIL, bndsChk->gtIndRngFailBB);
         }
         else
         {
              /* Generate "cmp arrLen, ixv" */
             inst_RV_IV(INS_cmp, arrLen->gtRegNum, ixv, EA_4BYTE);
             // Generate "jbe <fail_label>"
-            genJumpToThrowHlpBlk(EJ_jbe, Compiler::ACK_RNGCHK_FAIL, bndsChk->gtIndRngFailBB);
+            genJumpToThrowHlpBlk(EJ_jbe, SCK_RNGCHK_FAIL, bndsChk->gtIndRngFailBB);
         }
     }
 
@@ -2266,7 +2274,7 @@ regMaskTP           CodeGen::genMakeAddrArrElem(GenTreePtr      arrElem,
                         compiler->eeGetArrayDataOffset(elemType) + sizeof(int) * dim);
 #endif
 
-        genJumpToThrowHlpBlk(EJ_jae, Compiler::ACK_RNGCHK_FAIL);
+        genJumpToThrowHlpBlk(EJ_jae, SCK_RNGCHK_FAIL);
 
         if (dim == 0)
         {
@@ -3094,7 +3102,7 @@ AGAIN:
             // do not need an additional null-check
             /* Do this only if the GTF_EXCEPT or GTF_IND_VOLATILE flag is set on the indir */
             else if ((tree->gtFlags & GTF_IND_ARR_INDEX) == 0 &&
-                     (tree->gtFlags & GTF_EXCEPT | GTF_IND_VOLATILE))
+                     ((tree->gtFlags & GTF_EXCEPT) | GTF_IND_VOLATILE))
             {
                 /* Compare against any register to do null-check */
  #if defined(_TARGET_XARCH_)
@@ -3966,6 +3974,12 @@ emitJumpKind            CodeGen::genCondSetFlags(GenTreePtr cond)
     regMaskTP     addrReg2 = RBM_NONE;
     emitJumpKind  jumpKind = EJ_jmp; // We borrow EJ_jmp for the cases where we don't know yet 
                                      // which conditional instruction to use. 
+    
+    bool  byteCmp;
+    bool  shortCmp;
+                  
+    regMaskTP newLiveMask;
+    regNumber op1Reg;
 
     /* Are we comparing against a constant? */
 
@@ -4337,8 +4351,8 @@ emitJumpKind            CodeGen::genCondSetFlags(GenTreePtr cond)
     // We reach here if op2 was not a GT_CNS_INT
     //
 
-    bool  byteCmp;     byteCmp  = false;
-    bool  shortCmp;    shortCmp = false;
+    byteCmp  = false;
+    shortCmp = false;
 
     if (op1Type == op2->gtType)
     {
@@ -4445,7 +4459,7 @@ NO_SMALL_CMP:
     assert(addrReg1 == 0);  
 
     // Determine what registers go live between op1 and op2
-    regMaskTP newLiveMask = genNewLiveRegMask(op1, op2);
+    newLiveMask = genNewLiveRegMask(op1, op2);
 
     // Setup regNeed with the set of register that we suggest for op1 to be in
     //
@@ -4468,7 +4482,7 @@ NO_SMALL_CMP:
     genComputeReg(op1, regNeed, RegSet::ANY_REG, RegSet::FREE_REG);
     noway_assert(op1->gtFlags & GTF_REG_VAL);
 
-    regNumber op1Reg; op1Reg = op1->gtRegNum;
+    op1Reg = op1->gtRegNum;
 
     // Setup regNeed with the set of register that we require for op1 to be in
     //
@@ -5374,7 +5388,7 @@ void                CodeGen::genCodeForTreeLeaf_GT_JMP(GenTreePtr tree)
             }
         }
         else
-#endif _TARGET_ARM_
+#endif //_TARGET_ARM_
         {
             var_types  loadType  = varDsc->TypeGet();
             regNumber  argReg    = varDsc->lvArgReg;    // incoming arg register
@@ -6462,7 +6476,7 @@ void                CodeGen::genCodeForMult64(GenTreePtr tree,
         getEmitter()->emitIns_R_I(INS_cmp, EA_4BYTE, regTmpHi, 0);
 
         // Jump to the block which will throw the expection
-        genJumpToThrowHlpBlk(EJ_jne, Compiler::ACK_OVERFLOW);
+        genJumpToThrowHlpBlk(EJ_jne, SCK_OVERFLOW);
 
         // Unlock regLo [and regHi] after generating code for the gtOverflow() case
         //
@@ -6601,6 +6615,8 @@ void                CodeGen::genCodeForTreeSmpBinArithLogOp(GenTreePtr tree,
                  bEnoughRegs  &&
                  genMakeIndAddrMode(tree, NULL, true, needReg, RegSet::FREE_REG, &regs, false))
             {
+                emitAttr size;
+                
                 /* Is the value now computed in some register? */
     
                 if  (tree->gtFlags & GTF_REG_VAL)
@@ -6671,7 +6687,7 @@ void                CodeGen::genCodeForTreeSmpBinArithLogOp(GenTreePtr tree,
                 // caused when op1 or op2 are enregistered variables.
     
                 reg = regSet.rsPickReg(needReg, bestReg);
-                emitAttr size = emitActualTypeSize(treeType);
+                size = emitActualTypeSize(treeType);
     
                 /* Generate "lea reg, [addr-mode]" */
     
@@ -10648,7 +10664,7 @@ void                CodeGen::genCodeForNumericCast(GenTreePtr tree,
                 reg = op1->gtRegNum;
 #else // _TARGET_64BIT_
                 reg = genRegPairLo(op1->gtRegPair);
-#endif _TARGET_64BIT_
+#endif //_TARGET_64BIT_
 
                 genCodeForTree_DONE(tree, reg);
                 return;
@@ -10724,7 +10740,7 @@ REG_OK:
                 instGen_Compare_Reg_To_Zero(EA_4BYTE, reg);
                 if (tree->gtFlags & GTF_UNSIGNED)       // conv.ovf.u8.i4       (i4 > 0 and upper bits 0)
                 {
-                    genJumpToThrowHlpBlk(EJ_jl, Compiler::ACK_OVERFLOW);
+                    genJumpToThrowHlpBlk(EJ_jl, SCK_OVERFLOW);
                     goto UPPER_BITS_ZERO;
                 }
 
@@ -10767,7 +10783,7 @@ REG_OK:
                     inst_TT_IV(INS_cmp, op1, 0x00000000, 4);
                 }
 
-                genJumpToThrowHlpBlk(EJ_jne, Compiler::ACK_OVERFLOW);
+                genJumpToThrowHlpBlk(EJ_jne, SCK_OVERFLOW);
                 inst_JMP(EJ_jmp, done);
 
                 // If loDWord is negative, hiDWord should be -1 (sign extended loDWord)
@@ -10782,7 +10798,7 @@ REG_OK:
                 {
                     inst_TT_IV(INS_cmp, op1, 0xFFFFFFFFL, 4);
                 }
-                genJumpToThrowHlpBlk(EJ_jne, Compiler::ACK_OVERFLOW);
+                genJumpToThrowHlpBlk(EJ_jne, SCK_OVERFLOW);
 
                 // Done
 
@@ -10803,7 +10819,7 @@ UPPER_BITS_ZERO:
                     inst_TT_IV(INS_cmp, op1, 0, 4);
                 }
 
-                genJumpToThrowHlpBlk(EJ_jne, Compiler::ACK_OVERFLOW);
+                genJumpToThrowHlpBlk(EJ_jne, SCK_OVERFLOW);
                 break;
 
             default:
@@ -11034,7 +11050,7 @@ UPPER_BITS_ZERO:
         if (unsv)
         {
             inst_RV_IV(INS_TEST, reg, typeMask, emitActualTypeSize(baseType));
-            genJumpToThrowHlpBlk(EJ_jne, Compiler::ACK_OVERFLOW);
+            genJumpToThrowHlpBlk(EJ_jne, SCK_OVERFLOW);
         }
         else
         {
@@ -11046,12 +11062,12 @@ UPPER_BITS_ZERO:
             noway_assert(typeMin != DUMMY_INIT(~0) && typeMax != DUMMY_INIT(0));
 
             inst_RV_IV(INS_cmp, reg, typeMax, emitActualTypeSize(baseType));
-            genJumpToThrowHlpBlk(EJ_jg, Compiler::ACK_OVERFLOW);
+            genJumpToThrowHlpBlk(EJ_jg, SCK_OVERFLOW);
 
             // Compare with the MIN
 
             inst_RV_IV(INS_cmp, reg, typeMin, emitActualTypeSize(baseType));
-            genJumpToThrowHlpBlk(EJ_jl, Compiler::ACK_OVERFLOW);
+            genJumpToThrowHlpBlk(EJ_jl, SCK_OVERFLOW);
         }
 
         genCodeForTree_DONE(tree, reg);
@@ -12854,7 +12870,7 @@ void                CodeGen::genCodeForBBlist()
         genStackLevel = 0;
 #if FEATURE_STACK_FP_X87
         genResetFPstkLevel();
-#endif FEATURE_STACK_FP_X87
+#endif // FEATURE_STACK_FP_X87
 
 #if !FEATURE_FIXED_OUT_ARGS
         /* Check for inserted throw blocks and adjust genStackLevel */
@@ -13759,7 +13775,7 @@ REG_VAR_LONG:
                     {
                         noway_assert((op2->gtFlags & GTF_UNSIGNED) == 0); // conv.ovf.u8.un should be bashed to conv.u8.un
                         instGen_Compare_Reg_To_Zero(EA_4BYTE, regHi);     // set flags
-                        genJumpToThrowHlpBlk(EJ_jl, Compiler::ACK_OVERFLOW);
+                        genJumpToThrowHlpBlk(EJ_jl, SCK_OVERFLOW);
                     }
 
                     /* Move the value into the target */
@@ -15169,7 +15185,7 @@ USE_SAR_FOR_CAST:
                     {
                         regNumber hiReg = genRegPairHi(regPair);
                         instGen_Compare_Reg_To_Zero(EA_4BYTE, hiReg); // set flags
-                        genJumpToThrowHlpBlk(EJ_jl, Compiler::ACK_OVERFLOW);
+                        genJumpToThrowHlpBlk(EJ_jl, SCK_OVERFLOW);
                     }
                 }
                 goto DONE;
@@ -15240,7 +15256,7 @@ USE_SAR_FOR_CAST:
                     inst_TT_IV(INS_cmp, op1, 0, sizeof(int));
                 }
 
-                genJumpToThrowHlpBlk(EJ_jl, Compiler::ACK_OVERFLOW);
+                genJumpToThrowHlpBlk(EJ_jl, SCK_OVERFLOW);
                 goto DONE;
 
             default:
@@ -15952,7 +15968,7 @@ void        CodeGen::genEmitHelperCall(unsigned    helper,
     void * addr = NULL, **pAddr = NULL;
 
     // Don't ask VM if it hasn't requested ELT hooks 
-#if defined(_TARGET_ARM_) && defined(DEBUG)
+#if defined(_TARGET_ARM_) && defined(DEBUG) && defined(PROFILING_SUPPORTED)
     if (!compiler->compProfilerHookNeeded && 
         compiler->opts.compJitELTHookEnabled &&
         (helper == CORINFO_HELP_PROF_FCN_ENTER ||

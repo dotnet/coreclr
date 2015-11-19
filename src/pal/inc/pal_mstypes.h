@@ -57,10 +57,12 @@ extern "C" {
 #define CDECL          __cdecl
 #endif
 
+#ifndef PAL_STDCPP_COMPAT
 #undef __fastcall
 #define __fastcall      __stdcall
 #undef _fastcall
 #define _fastcall       __fastcall
+#endif // PAL_STDCPP_COMPAT
 
 #else   // !defined(__i386__)
 
@@ -69,8 +71,14 @@ extern "C" {
 #define __cdecl
 #define _cdecl
 #define CDECL
-#define __fastcall
-#define _fastcall
+
+// On ARM __fastcall is ignored and causes a compile error
+#if !defined(PAL_STDCPP_COMPAT) || defined(__arm__)
+#  undef __fastcall
+#  undef _fastcall
+#  define __fastcall
+#  define _fastcall
+#endif // !defined(PAL_STDCPP_COMPAT) || defined(__arm__)
 
 #endif  // !defined(__i386__)
 
@@ -563,9 +571,14 @@ typedef LONG_PTR SSIZE_T, *PSSIZE_T;
 #endif
 
 #ifndef PAL_STDCPP_COMPAT
-#if defined(__APPLE_CC__) || defined(__LINUX__) 
+#if defined(__APPLE_CC__) || defined(__LINUX__)
+#ifdef BIT64
 typedef unsigned long size_t;
 typedef long ptrdiff_t;
+#else // !BIT64
+typedef unsigned int size_t;
+typedef int ptrdiff_t;
+#endif // !BIT64
 #else
 typedef ULONG_PTR size_t;
 typedef LONG_PTR ptrdiff_t;
@@ -584,15 +597,25 @@ typedef LONG_PTR LPARAM;
 
 #ifdef PAL_STDCPP_COMPAT
 
+#ifdef BIT64
 typedef unsigned long int uintptr_t;
+#else // !BIT64
+typedef unsigned int uintptr_t;
+#endif // !BIT64
+
 typedef char16_t WCHAR;
 
 #else // PAL_STDCPP_COMPAT
 
 typedef wchar_t WCHAR;
 #if defined(__LINUX__) 
+#ifdef BIT64
 typedef long int intptr_t;
 typedef unsigned long int uintptr_t;
+#else // !BIT64
+typedef int intptr_t;
+typedef unsigned int uintptr_t;
+#endif // !BIT64
 #else
 typedef INT_PTR intptr_t;
 typedef UINT_PTR uintptr_t;
@@ -680,6 +703,7 @@ typedef struct _GUID {
     USHORT  Data3;
     UCHAR   Data4[ 8 ];
 } GUID;
+typedef const GUID *LPCGUID;
 #define GUID_DEFINED
 #endif // !GUID_DEFINED
 

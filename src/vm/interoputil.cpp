@@ -1446,7 +1446,7 @@ void SafeRelease_OnException(IUnknown* pUnk, RCW* pRCW
 #endif  // MDA_SUPPORTED
 
 #ifdef FEATURE_COMINTEROP
-    LogInterop(W("An exception occured during release"));
+    LogInterop(W("An exception occurred during release"));
     LogInteropLeak(pUnk);
 #endif // FEATURE_COMINTEROP
 
@@ -2815,7 +2815,7 @@ void SafeReleaseStream(IStream *pStream)
     
 #ifdef _DEBUG          
         wchar_t      logStr[200];
-        swprintf_s(logStr, NumItems(logStr), W("Object gone: CoReleaseMarshalData returned %x, file %s, line %d\n"), hr, __FILE__, __LINE__);
+        swprintf_s(logStr, NumItems(logStr), W("Object gone: CoReleaseMarshalData returned %x, file %S, line %d\n"), hr, __FILE__, __LINE__);
         LogInterop(logStr);
         if (hr != S_OK)
         {
@@ -2825,7 +2825,7 @@ void SafeReleaseStream(IStream *pStream)
             ULARGE_INTEGER li2;
             pStream->Seek(li, STREAM_SEEK_SET, &li2);
             hr = CoReleaseMarshalData(pStream);
-            swprintf_s(logStr, NumItems(logStr), W("Object gone: CoReleaseMarshalData returned %x, file %s, line %d\n"), hr, __FILE__, __LINE__);
+            swprintf_s(logStr, NumItems(logStr), W("Object gone: CoReleaseMarshalData returned %x, file %S, line %d\n"), hr, __FILE__, __LINE__);
             LogInterop(logStr);
         }
 #endif
@@ -5183,7 +5183,7 @@ void GetComClassFromCLSID(REFCLSID clsid, STRINGREF srefServer, OBJECTREF *pRef)
     _ASSERTE(*pRef != NULL);
 }
 
-void GetComClassHelper(OBJECTREF *pRef, EEClassFactoryInfoHashTable *pClassFactHash, ClassFactoryInfo *pClassFactInfo, __in_opt __in_z WCHAR *wszProgID)
+void GetComClassHelper(OBJECTREF *pRef, EEClassFactoryInfoHashTable *pClassFactHash, ClassFactoryInfo *pClassFactInfo, __in_opt WCHAR *wszProgID)
 {
     CONTRACTL
     {

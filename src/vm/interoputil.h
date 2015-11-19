@@ -232,12 +232,12 @@ ULONG SafeAddRefPreemp(IUnknown* pUnk);
 
 //--------------------------------------------------------------------------------
 // Release helper, enables and disables GC during call-outs
-HRESULT SafeVariantChangeType(VARIANT* pVarRes, VARIANT* pVarSrc,
+HRESULT SafeVariantChangeType(_Inout_ VARIANT* pVarRes, _In_ VARIANT* pVarSrc,
                               unsigned short wFlags, VARTYPE vt);
 
 //--------------------------------------------------------------------------------
 // Release helper, enables and disables GC during call-outs
-HRESULT SafeVariantChangeTypeEx(VARIANT* pVarRes, VARIANT* pVarSrc,
+HRESULT SafeVariantChangeTypeEx(_Inout_ VARIANT* pVarRes, _In_ VARIANT* pVarSrc,
                           LCID lcid, unsigned short wFlags, VARTYPE vt);
 
 //--------------------------------------------------------------------------------
@@ -392,7 +392,7 @@ void GetComClassFromCLSID(REFCLSID clsid, STRINGREF srefServer, OBJECTREF* pRef)
 void GetComClassHelper(OBJECTREF *pRef,
                        EEClassFactoryInfoHashTable *pClassFactHash,
                        ClassFactoryInfo *pClassFactInfo,
-                       __in_opt __in_z WCHAR *wszProgID);
+                       __in_opt WCHAR *wszProgID);
 
 //-------------------------------------------------------------
 // check if a ComClassFactory/WinRTClassFactory has been setup for this class

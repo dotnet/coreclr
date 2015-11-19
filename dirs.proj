@@ -4,7 +4,7 @@
 
   <ItemDefinitionGroup>
     <ProjectFile>
-      <ProductGroups>VS;FX</ProductGroups>
+      <ProductGroups>FX;PK</ProductGroups>
     </ProjectFile>
   </ItemDefinitionGroup>
 
@@ -18,6 +18,10 @@
   <!-- Build in all phases -->
   <ItemGroup>
     <ProjectFile Include="src\dirs.proj" Condition="'$(BuildSysBuildOnlyForARM64)' == 'true'" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(BuildExePhase)' == '1' and '$(FeatureCoreclr)' == 'true'">
+    <ProjectFile Include="xplat\GetAllXPlatBinaries.proj" Condition="'$(BuildArchitecture)' == 'amd64'" />
   </ItemGroup>
 
   <!--Import the targets-->

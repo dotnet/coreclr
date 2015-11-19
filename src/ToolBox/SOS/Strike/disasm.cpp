@@ -101,7 +101,7 @@ GenOpenMapping(
             // file operations.  Convert to ANSI and see if
             // that helps.
             
-            CHAR FilePathA [ MAX_PATH + 10 ];
+            CHAR FilePathA [ MAX_LONGPATH + 10 ];
 
             if (WideCharToMultiByte (CP_ACP,
                                      0,
@@ -207,7 +207,7 @@ char* PrintOneLine (__in_z char *begin, __in_z char *limit)
 
 void UnassemblyUnmanaged(DWORD_PTR IP, BOOL bSuppressLines)
 {
-    char            filename[MAX_PATH+1];
+    char            filename[MAX_PATH_FNAME+1];
     char            line[256];
     int             lcount          = 10;
 
@@ -221,7 +221,7 @@ void UnassemblyUnmanaged(DWORD_PTR IP, BOOL bSuppressLines)
         ReloadSymbolWithLineInfo();
         fLineAvailable = SUCCEEDED (g_ExtSymbols->GetLineByOffset (TO_CDADDR(IP), &linenum,
                                                                     filename,
-                                                                    MAX_PATH+1,
+                                                                    MAX_PATH_FNAME+1,
                                                                     NULL,
                                                                     &Displacement));
     }
@@ -378,7 +378,7 @@ void UnassemblyUnmanaged(DWORD_PTR IP, BOOL bSuppressLines)
         }
     }
     
-    char filename1[MAX_PATH+1];
+    char filename1[MAX_PATH_FNAME+1];
     for (lastLine = beginLine; lastLine < endLine; lastLine ++) {
         if (IsInterrupt())
             return;
@@ -410,7 +410,7 @@ void UnassemblyUnmanaged(DWORD_PTR IP, BOOL bSuppressLines)
                 if (vIP > vNextLineIP || vNextLineIP - vIP > 40) {
                     if (FAILED (g_ExtSymbols->GetLineByOffset (vIP, &linenum,
                                                                filename1,
-                                                               MAX_PATH+1,
+                                                               MAX_PATH_FNAME+1,
                                                                NULL,
                                                                &Displacement))) {
                         if (lastLine != endOfFunc) {
@@ -434,8 +434,7 @@ void UnassemblyUnmanaged(DWORD_PTR IP, BOOL bSuppressLines)
         
 }
 
-
-void DisasmAndClean (DWORD_PTR &IP, __out_ecount (length) __out_opt char *line, ULONG length)
+void DisasmAndClean (DWORD_PTR &IP, __out_ecount_opt(length) char *line, ULONG length)
 {
     ULONG64 vIP = TO_CDADDR(IP);
     g_ExtControl->Disassemble (vIP, 0, line, length, NULL, &vIP);
@@ -444,8 +443,10 @@ void DisasmAndClean (DWORD_PTR &IP, __out_ecount (length) __out_opt char *line, 
     char *ptr = strrchr (line, '\n');
     if (ptr != NULL)
         ptr[0] = '\0';
-
 }
+
+#endif // FEATURE_PAL
+
 
 // If byref, move to pass the byref prefix
 BOOL IsByRef (__deref_inout_z char *& ptr)
@@ -515,7 +516,7 @@ void NextTerm (__deref_inout_z char *& ptr)
 // Parses something like 6e24d310, 0x6e24d310, or 6e24d310h.  
 // On 64-bit, also parses things like 000006fb`f9b70f50 and 
 // 000006fbf9b70f50 (as well as their 0x-prefix, -h suffix variations).
-INT_PTR ParseHexNumber (__in_z char *ptr, __out char **endptr)
+INT_PTR ParseHexNumber (__in_z char *ptr, ___out char **endptr)
 {
     char *endptr1;
     INT_PTR value1 = strtoul(ptr, &endptr1, 16);
@@ -529,7 +530,7 @@ INT_PTR ParseHexNumber (__in_z char *ptr, __out char **endptr)
         value1 = (value1 << 32) | value2;
         endptr1 = endptr2;
     }
-    // if the hex number was specified as 000006fbf9b70f50, an overflow occured
+    // if the hex number was specified as 000006fbf9b70f50, an overflow occurred
     else if (ULONG_MAX == value1 && errno == ERANGE)
     {
         if (!strncmp(ptr, "0x", 2))
@@ -584,8 +585,7 @@ INT_PTR GetValueFromExpr(__in_z char *ptr, INT_PTR &value)
     {
         char *endptr;
         value = ParseHexNumber(myPtr, &endptr);
-        if (!bByRef && IsTermSep (endptr[0])
-            || bByRef && endptr[0] == ']')
+        if ((!bByRef && IsTermSep(endptr[0])) || (bByRef && endptr[0] == ']'))
         {
             if (bNegative)
                 value = -value;
@@ -705,12 +705,12 @@ const char * HelperFuncName (size_t IP)
 // Note:
 //   The return is a pointer to a global buffer, therefore this value must
 //   be consumed as soon as possible after a call to this function.
-LPCWSTR EHTypedClauseTypeName(__in const DACEHInfo* pEHInfo)
+LPCWSTR EHTypedClauseTypeName(___in const DACEHInfo* pEHInfo)
 {
     _ASSERTE(pEHInfo != NULL);
     if ((pEHInfo->clauseType == EHTyped) && pEHInfo->isCatchAllHandler)
     {
-        return L"...";
+        return W("...");
     }
 
     // is there a method table or a token to look at?
@@ -839,6 +839,7 @@ void SOSEHInfo::FormatForDisassembly(CLRDATA_ADDRESS offSet)
 // use the IS_DBG_TARGET_XYZ macro.
 //
 
+#ifndef FEATURE_PAL
 
 // Return TRUE if we have printed something.
 BOOL PrintCallInfo (DWORD_PTR vEBP, DWORD_PTR IP,
@@ -846,7 +847,7 @@ BOOL PrintCallInfo (DWORD_PTR vEBP, DWORD_PTR IP,
                     BOOL bSymbolOnly)
 {
     char Symbol[1024];
-    char filename[MAX_PATH+1];
+    char filename[MAX_PATH_FNAME+1];
     ULONG64 Displacement;
     BOOL bOutput = FALSE;
 
@@ -921,14 +922,16 @@ BOOL PrintCallInfo (DWORD_PTR vEBP, DWORD_PTR IP,
                     ExtOut ("%s", Symbol);
                     if (Displacement)
                         ExtOut ("+%#x", Displacement);
+#ifndef FEATURE_PAL
                     if (!DSFlag.fSuppressSrcInfo)
                     {
                         ULONG line;
                         hr = g_ExtSymbols->GetLineByOffset (TO_CDADDR(IP), &line, filename,
-                            MAX_PATH+1, NULL, NULL);
+                            MAX_PATH_FNAME+1, NULL, NULL);
                         if (SUCCEEDED (hr))
                             ExtOut (" [%s:%d]", filename, line);
                     }
+#endif
                 }
                 else
                 {
@@ -1032,8 +1035,7 @@ void DumpStackWorker (DumpStackFlag &DSFlag)
     }
 }
 
-#endif // !FEATURE_PAL
-
+#endif // FEATURE_PAL
 
 #ifdef SOS_TARGET_X86
 ///
@@ -1117,40 +1119,6 @@ void AMD64Machine::DumpGCInfo(BYTE* pTable, unsigned methodSize, printfFtn gcPri
     gcDump.DumpGCTable(pTable, methodSize, 0);
 #endif // FEATURE_PAL
 }
-
-#ifdef FEATURE_PAL
-void AMD64Machine::Unassembly(
-    TADDR IPBegin, 
-    TADDR IPEnd, 
-    TADDR IPAskedFor, 
-    TADDR GCStressCodeCopy, 
-    GCEncodingInfo *pGCEncodingInfo, 
-    SOSEHInfo *pEHInfo,
-    BOOL bSuppressLines,
-    BOOL bDisplayOffsets) const
-{
-    ExtErr("AMD64Machine::Unassembly not implemented\n");
-}
-
-void AMD64Machine::IsReturnAddress(
-    TADDR retAddr, 
-    TADDR* whereCalled) const
-{
-    ExtErr("AMD64Machine::IsReturnAddress not implemented\n");
-}
-
-BOOL AMD64Machine::GetExceptionContext(
-    TADDR stack,
-    TADDR PC,
-    TADDR *cxrAddr,
-    CROSS_PLATFORM_CONTEXT * cxr,
-    TADDR *exrAddr,
-    PEXCEPTION_RECORD exr) const
-{ 
-    ExtErr("AMD64Machine::GetExceptionContext not implemented\n");
-    return FALSE;
-}
-#endif // FEATURE_PAL
 
 #endif // SOS_TARGET_AMD64
 

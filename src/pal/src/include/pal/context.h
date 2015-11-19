@@ -67,9 +67,9 @@ typedef ucontext_t native_context_t;
 #define MCREG_R14(mc)       ((mc).gregs[REG_R14])
 #define MCREG_R15(mc)       ((mc).gregs[REG_R15])
 
-#define FPREG_Xmm(uc, index) *(M128A*)&((uc)->__fpregs_mem._xmm[index])
+#define FPREG_Xmm(uc, index) *(M128U*)&((uc)->__fpregs_mem._xmm[index])
 
-#define FPREG_St(uc, index) *(M128A*)&((uc)->__fpregs_mem._st[index])
+#define FPREG_St(uc, index) *(M128U*)&((uc)->__fpregs_mem._st[index])
 
 #define FPREG_ControlWord(uc) ((uc)->__fpregs_mem.cwd)
 #define FPREG_StatusWord(uc) ((uc)->__fpregs_mem.swd)
@@ -103,6 +103,44 @@ typedef ucontext_t native_context_t;
 
 #ifdef BIT64
 
+#if defined(_ARM64_)
+#define MCREG_X0(mc)      ((mc).regs[0])
+#define MCREG_X1(mc)      ((mc).regs[1])
+#define MCREG_X2(mc)      ((mc).regs[2])
+#define MCREG_X3(mc)      ((mc).regs[3])
+#define MCREG_X4(mc)      ((mc).regs[4])
+#define MCREG_X5(mc)      ((mc).regs[5])
+#define MCREG_X6(mc)      ((mc).regs[6])
+#define MCREG_X7(mc)      ((mc).regs[7])
+#define MCREG_X8(mc)      ((mc).regs[8])
+#define MCREG_X9(mc)      ((mc).regs[9])
+#define MCREG_X10(mc)     ((mc).regs[10])
+#define MCREG_X11(mc)     ((mc).regs[11])
+#define MCREG_X12(mc)     ((mc).regs[12])
+#define MCREG_X13(mc)     ((mc).regs[13])
+#define MCREG_X14(mc)     ((mc).regs[14])
+#define MCREG_X15(mc)     ((mc).regs[15])
+#define MCREG_X16(mc)     ((mc).regs[16])
+#define MCREG_X17(mc)     ((mc).regs[17])
+#define MCREG_X18(mc)     ((mc).regs[18])
+#define MCREG_X19(mc)     ((mc).regs[19])
+#define MCREG_X20(mc)     ((mc).regs[20])
+#define MCREG_X21(mc)     ((mc).regs[21])
+#define MCREG_X22(mc)     ((mc).regs[22])
+#define MCREG_X23(mc)     ((mc).regs[23])
+#define MCREG_X24(mc)     ((mc).regs[24])
+#define MCREG_X25(mc)     ((mc).regs[25])
+#define MCREG_X26(mc)     ((mc).regs[26])
+#define MCREG_X27(mc)     ((mc).regs[27])
+#define MCREG_X28(mc)     ((mc).regs[28])
+#define MCREG_Fp(mc)      ((mc).regs[29])
+#define MCREG_Lr(mc)      ((mc).regs[30])
+
+#define MCREG_Sp(mc)      ((mc).sp)
+#define MCREG_Pc(mc)      ((mc).pc)
+#define MCREG_PState(mc)  ((mc).pstate)
+#define MCREG_Cpsr(mc)    ((mc).cpsr)
+#else
     // For FreeBSD, as found in x86/ucontext.h
 #define MCREG_Rbp(mc)	    ((mc).mc_rbp)
 #define MCREG_Rip(mc)	    ((mc).mc_rip)
@@ -138,8 +176,31 @@ typedef ucontext_t native_context_t;
 
 #define FPREG_Xmm(uc, index)    *(M128A*) &(FPSTATE(uc)->sv_xmm[index])
 #define FPREG_St(uc, index)     *(M128A*) &(FPSTATE(uc)->sv_fp[index].fp_acc)
+#endif
 
 #else // BIT64
+
+#if defined(_ARM_)
+
+#define MCREG_R0(mc)        ((mc).arm_r0)
+#define MCREG_R1(mc)        ((mc).arm_r1)
+#define MCREG_R2(mc)        ((mc).arm_r2)
+#define MCREG_R3(mc)        ((mc).arm_r3)
+#define MCREG_R4(mc)        ((mc).arm_r4)
+#define MCREG_R5(mc)        ((mc).arm_r5)
+#define MCREG_R6(mc)        ((mc).arm_r6)
+#define MCREG_R7(mc)        ((mc).arm_r7)
+#define MCREG_R8(mc)        ((mc).arm_r8)
+#define MCREG_R9(mc)        ((mc).arm_r9)
+#define MCREG_R10(mc)       ((mc).arm_r10)
+#define MCREG_R11(mc)       ((mc).arm_fp)
+#define MCREG_R12(mc)       ((mc).arm_ip)
+#define MCREG_Sp(mc)        ((mc).arm_sp)
+#define MCREG_Lr(mc)        ((mc).arm_lr)
+#define MCREG_Pc(mc)        ((mc).arm_pc)
+#define MCREG_Cpsr(mc)      ((mc).arm_cpsr)
+
+#elif defined(_X86_)
 
 #define MCREG_Ebx(mc)       ((mc).mc_ebx)
 #define MCREG_Ecx(mc)       ((mc).mc_ecx)
@@ -153,6 +214,10 @@ typedef ucontext_t native_context_t;
 #define MCREG_EFlags(mc)    ((mc).mc_eflags)
 #define MCREG_Esp(mc)       ((mc).mc_esp)
 #define MCREG_SegSs(mc)     ((mc).mc_ss)
+
+#else
+#error "Unsupported arch"
+#endif
 
 #endif // BIT64
 
@@ -184,6 +249,25 @@ typedef ucontext_t native_context_t;
 
 #else // BIT64
 
+#if defined(_ARM_)
+#define PTREG_R0(ptreg)        ((ptreg).uregs[0])
+#define PTREG_R1(ptreg)        ((ptreg).uregs[1])
+#define PTREG_R2(ptreg)        ((ptreg).uregs[2])
+#define PTREG_R3(ptreg)        ((ptreg).uregs[3])
+#define PTREG_R4(ptreg)        ((ptreg).uregs[4])
+#define PTREG_R5(ptreg)        ((ptreg).uregs[5])
+#define PTREG_R6(ptreg)        ((ptreg).uregs[6])
+#define PTREG_R7(ptreg)        ((ptreg).uregs[7])
+#define PTREG_R8(ptreg)        ((ptreg).uregs[8])
+#define PTREG_R9(ptreg)        ((ptreg).uregs[9])
+#define PTREG_R10(ptreg)       ((ptreg).uregs[10])
+#define PTREG_R11(ptreg)       ((ptreg).uregs[11])
+#define PTREG_R12(ptreg)       ((ptreg).uregs[12])
+#define PTREG_Sp(ptreg)        ((ptreg).uregs[13])
+#define PTREG_Lr(ptreg)        ((ptreg).uregs[14])
+#define PTREG_Pc(ptreg)        ((ptreg).uregs[15])
+#define PTREG_Cpsr(ptreg)      ((ptreg).uregs[16])
+#elif defined(_X86_)
 #define PTREG_Ebx(ptreg)    ((ptreg).ebx)
 #define PTREG_Ecx(ptreg)    ((ptreg).ecx)
 #define PTREG_Edx(ptreg)    ((ptreg).edx)
@@ -195,6 +279,9 @@ typedef ucontext_t native_context_t;
 #define PTREG_SegCs(ptreg)  ((ptreg).xcs)
 #define PTREG_SegSs(ptreg)  ((ptreg).xss)
 #define PTREG_Esp(ptreg)    ((ptreg).esp)
+#else
+#error "Unsupported arch"
+#endif
 
 #endif // BIT64
 
@@ -249,6 +336,28 @@ typedef ucontext_t native_context_t;
 
 #endif // HAVE_BSD_REGS_T
 
+inline static DWORD64 CONTEXTGetPC(LPCONTEXT pContext)
+{
+#if defined(_AMD64_)
+    return pContext->Rip;
+#elif defined(_ARM64_) || defined(_ARM_)
+    return pContext->Pc;
+#else
+#error don't know how to get the program counter for this architecture
+#endif
+}
+
+inline static void CONTEXTSetPC(LPCONTEXT pContext, DWORD64 pc)
+{
+#if defined(_AMD64_)
+    pContext->Rip = pc;
+#elif defined(_ARM64_) || defined(_ARM_)
+    pContext->Pc = pc;
+#else
+#error don't know how to set the program counter for this architecture
+#endif
+}
+
 /*++
 Function :
     CONTEXT_CaptureContext
@@ -284,7 +393,6 @@ BOOL
 CONTEXT_SetThreadContext(
     DWORD dwProcessId,
     pthread_t self,
-    DWORD dwLwpId,
     CONST CONTEXT *lpContext
     );
 
@@ -306,7 +414,6 @@ BOOL
 CONTEXT_GetThreadContext(
          DWORD dwProcessId,
          pthread_t self,
-         DWORD dwLwpId,
          LPCONTEXT lpContext);
 
 #if HAVE_MACH_EXCEPTIONS
@@ -373,7 +480,7 @@ void CONTEXTFromNativeContext(const native_context_t *native, LPCONTEXT lpContex
 
 /*++
 Function :
-    CONTEXTGetPC
+    GetNativeContextPC
     
     Returns the program counter from the native context.
 
@@ -384,7 +491,7 @@ Return value :
     The program counter from the native context.
 
 --*/
-LPVOID CONTEXTGetPC(const native_context_t *context);
+LPVOID GetNativeContextPC(const native_context_t *context);
 
 /*++
 Function :

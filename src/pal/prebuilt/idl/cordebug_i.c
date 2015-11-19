@@ -1,8 +1,3 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
-
 
 
 /* this ALWAYS GENERATED file contains the IIDs and CLSIDs */
@@ -10,7 +5,17 @@
 /* link this file in with the server and any clients */
 
 
- /* File created by MIDL compiler version 8.00.0603 */
+ /* File created by MIDL compiler version 8.00.0613 */
+/* at Mon Jan 18 19:14:07 2038
+ */
+/* Compiler settings for C:/ssd/coreclr/src/inc/cordebug.idl:
+    Oicf, W1, Zp8, env=Win32 (32b run), target_arch=X86 8.00.0613 
+    protocol : dce , ms_ext, c_ext, robust
+    error checks: allocation ref bounds_check enum stub_data 
+    VC __declspec() decoration level: 
+         __declspec(uuid()), __declspec(selectany), __declspec(novtable)
+         DECLSPEC_UUID(), MIDL_INTERFACE()
+*/
 /* @@MIDL_FILE_HEADING(  ) */
 
 #pragma warning( disable: 4049 )  /* more than 64k source lines */
@@ -96,6 +101,9 @@ MIDL_DEFINE_GUID(IID, IID_ICorDebugLoadedModule,0x817F343A,0x6630,0x4578,0x96,0x
 
 
 MIDL_DEFINE_GUID(IID, IID_ICorDebugDataTarget3,0xD05E60C3,0x848C,0x4E7D,0x89,0x4E,0x62,0x33,0x20,0xFF,0x6A,0xFA);
+
+
+MIDL_DEFINE_GUID(IID, IID_ICorDebugDataTarget4,0xE799DC06,0xE099,0x4713,0xBD,0xD9,0x90,0x6D,0x3C,0xC0,0x2C,0xF2);
 
 
 MIDL_DEFINE_GUID(IID, IID_ICorDebugMutableDataTarget,0xA1B8A756,0x3CB6,0x4CCB,0x97,0x9F,0x3D,0xF9,0x99,0x67,0x3A,0x59);

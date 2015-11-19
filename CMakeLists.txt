@@ -13,37 +13,77 @@ endif()
 
 set(CLR_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(VM_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/vm)
+set(GENERATED_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/src/inc)
+
+function(clr_unknown_arch)
+    if (WIN32)
+        message(FATAL_ERROR "Only AMD64 and I386 are supported")
+    else()
+        message(FATAL_ERROR "Only AMD64, ARM64 and ARM are supported")
+    endif()
+endfunction()
 
 if(CMAKE_SYSTEM_NAME STREQUAL Linux)
     set(CLR_CMAKE_PLATFORM_UNIX 1)
-    set(CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64 1)
+    if(CMAKE_SYSTEM_PROCESSOR STREQUAL x86_64)
+        set(CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64 1)
+    elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL armv7l)
+        set(CLR_CMAKE_PLATFORM_UNIX_TARGET_ARM 1)
+        # Because we don't use CMAKE_C_COMPILER/CMAKE_CXX_COMPILER to use clang
+        # we have to set the triple by adding a compiler argument
+        add_compile_options(-target armv7-linux-gnueabihf)
+        add_compile_options(-mthumb)
+        add_compile_options(-mfpu=vfpv3)
+    elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL aarch64)
+        set(CLR_CMAKE_PLATFORM_UNIX_TARGET_ARM64 1)
+    else()
+        clr_unknown_arch()
+    endif()
     set(CLR_CMAKE_PLATFORM_LINUX 1)
 endif(CMAKE_SYSTEM_NAME STREQUAL Linux)
 
 if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
-    set(CLR_CMAKE_PLATFORM_UNIX 1)
-    set(CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64 1)
-    set(CLR_CMAKE_PLATFORM_DARWIN 1)
-    set(CMAKE_ASM_COMPILE_OBJECT "${CMAKE_C_COMPILER} <FLAGS> <DEFINES> -o <OBJECT> -c <SOURCE>")
+  set(CLR_CMAKE_PLATFORM_UNIX 1)
+  set(CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64 1)
+  set(CLR_CMAKE_PLATFORM_DARWIN 1)
+  set(CMAKE_ASM_COMPILE_OBJECT "${CMAKE_C_COMPILER} <FLAGS> <DEFINES> -o <OBJECT> -c <SOURCE>")
 endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
 if(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
-	set(CLR_CMAKE_PLATFORM_UNIX 1)
-	set(CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64 1)
-	set(CLR_CMAKE_PLATFORM_FREEBSD 1)
+  set(CLR_CMAKE_PLATFORM_UNIX 1)
+  set(CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64 1)
+  set(CLR_CMAKE_PLATFORM_FREEBSD 1)
 endif(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
 
 if(CMAKE_SYSTEM_NAME STREQUAL OpenBSD)
-	set(CLR_CMAKE_PLATFORM_UNIX 1)
-	set(CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64 1)
-	set(CLR_CMAKE_PLATFORM_OPENBSD 1)
+  set(CLR_CMAKE_PLATFORM_UNIX 1)
+  set(CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64 1)
+  set(CLR_CMAKE_PLATFORM_OPENBSD 1)
 endif(CMAKE_SYSTEM_NAME STREQUAL OpenBSD)
 
 if(CMAKE_SYSTEM_NAME STREQUAL NetBSD)
-	set(CLR_CMAKE_PLATFORM_UNIX 1)
-	set(CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64 1)
-	set(CLR_CMAKE_PLATFORM_NETBSD 1)
+  set(CLR_CMAKE_PLATFORM_UNIX 1)
+  set(CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64 1)
+  set(CLR_CMAKE_PLATFORM_NETBSD 1)
 endif(CMAKE_SYSTEM_NAME STREQUAL NetBSD)
+
+if(CLR_CMAKE_PLATFORM_UNIX_TARGET_ARM)
+  set(CLR_CMAKE_PLATFORM_ARCH_ARM 1)
+elseif(CLR_CMAKE_PLATFORM_UNIX_TARGET_ARM64)
+  set(CLR_CMAKE_PLATFORM_ARCH_ARM64 1)
+elseif(CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64)
+  set(CLR_CMAKE_PLATFORM_ARCH_AMD64 1)
+elseif(WIN32)
+  if (CLR_CMAKE_TARGET_ARCH STREQUAL x64)
+    set(CLR_CMAKE_PLATFORM_ARCH_AMD64 1)
+    set(IS_64BIT_BUILD 1)
+  elseif(CLR_CMAKE_TARGET_ARCH STREQUAL x86)
+    set(CLR_CMAKE_PLATFORM_ARCH_I386 1)
+    set(IS_64BIT_BUILD 0)
+  else()
+    clr_unknown_arch()
+  endif()
+endif()
 
 if(WIN32)
     enable_language(ASM_MASM)
@@ -120,7 +160,7 @@ function(generate_exports_file inputFilename outputFilename)
   add_custom_command(
     OUTPUT ${outputFilename}
     COMMAND ${AWK} -f ${CMAKE_SOURCE_DIR}/${AWK_SCRIPT} ${inputFilename} >${outputFilename}
-    DEPENDS ${inputFilename}
+    DEPENDS ${inputFilename} ${CMAKE_SOURCE_DIR}/${AWK_SCRIPT}
     COMMENT "Generating exports file ${outputFilename}"
   )
   set_source_files_properties(${outputFilename}
@@ -177,21 +217,87 @@ elseif (CLR_CMAKE_PLATFORM_UNIX)
 
 endif(WIN32)
 
-if(CLR_CMAKE_PLATFORM_UNIX)
-    add_subdirectory(src/ToolBox/SOS/lldbplugin)
-    add_subdirectory(src/pal)
-    add_subdirectory(src/coreclr/hosts/unixcorerun)
-    add_subdirectory(src/corefx)
-    add_subdirectory(src/coreclr/hosts/unixcoreconsole)
+if (WIN32 OR CLR_CMAKE_PLATFORM_LINUX)
+  add_definitions(-DFEATURE_EVENT_TRACE=1)
+endif (WIN32 OR CLR_CMAKE_PLATFORM_LINUX)
+
+if (CLR_CMAKE_PLATFORM_LINUX)
+    add_definitions(-DFEATURE_EVENTSOURCE_XPLAT=1)
+endif (CLR_CMAKE_PLATFORM_LINUX)
+
+if (CLR_CMAKE_PLATFORM_UNIX)
+  add_definitions(-DPLATFORM_UNIX=1)
+  
+  if(CLR_CMAKE_PLATFORM_LINUX)
+    add_definitions(-D__LINUX__=1)
+    if(CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64)
+      message("Detected Linux x86_64")
+      add_definitions(-DLINUX64)
+    elseif(CLR_CMAKE_PLATFORM_ARCH_ARM)
+      message("Detected Linux ARM")
+      add_definitions(-DLINUX32)
+    elseif(CLR_CMAKE_PLATFORM_ARCH_ARM64)
+      message("Detected Linux ARM64")
+      add_definitions(-DLINUX64)
+    else()
+      clr_unknown_arch()
+    endif()
+  endif(CLR_CMAKE_PLATFORM_LINUX)
+
+  if(CLR_CMAKE_PLATFORM_DARWIN)
+    message("Detected OSX x86_64")
+  endif(CLR_CMAKE_PLATFORM_DARWIN)
+
+  if(CLR_CMAKE_PLATFORM_FREEBSD)
+    message("Detected FreeBSD amd64")
+  endif(CLR_CMAKE_PLATFORM_FREEBSD)
+
+  # Disable frame pointer optimizations so profilers can get better call stacks
+  add_compile_options(-fno-omit-frame-pointer)
+
+  # set the CLANG sanitizer flags for debug build
+  if(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG)
+    # obtain settings from running enablesanitizers.sh
+    string(FIND "$ENV{DEBUG_SANITIZERS}" "asan" __ASAN_POS)
+    string(FIND "$ENV{DEBUG_SANITIZERS}" "ubsan" __UBSAN_POS)
+    if ((${__ASAN_POS} GREATER -1) OR (${__UBSAN_POS} GREATER -1))
+      set(CLR_SANITIZE_CXX_FLAGS "${CLR_SANITIZE_CXX_FLAGS} -fsanitize=")
+      set(CLR_SANITIZE_LINK_FLAGS "${CLR_SANITIZE_LINK_FLAGS} -fsanitize=")
+      if (${__ASAN_POS} GREATER -1) 
+        set(CLR_SANITIZE_CXX_FLAGS "${CLR_SANITIZE_CXX_FLAGS}address,")
+        set(CLR_SANITIZE_LINK_FLAGS "${CLR_SANITIZE_LINK_FLAGS}address,")
+        message("Address Sanitizer (asan) enabled")
+      endif ()
+      if (${__UBSAN_POS} GREATER -1)
+        set(CLR_SANITIZE_CXX_FLAGS "${CLR_SANITIZE_CXX_FLAGS}undefined")
+        set(CLR_SANITIZE_LINK_FLAGS "${CLR_SANITIZE_LINK_FLAGS}undefined")
+        message("Undefined Behavior Sanitizer (ubsan) enabled")
+      endif ()
+
+      # -fdata-sections -ffunction-sections: each function has own section instead of one per .o file (needed for --gc-sections)
+      # -fPIC: enable Position Independent Code normally just for shared libraries but required when linking with address sanitizer
+      # -O1: optimization level used instead of -O0 to avoid compile error "invalid operand for inline asm constraint"
+      set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${CLR_SANITIZE_CXX_FLAGS} -fdata-sections -ffunction-sections -fPIC -O1")
+
+      set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} ${CLR_SANITIZE_LINK_FLAGS}")
+
+      # -Wl and --gc-sections: drop unused sections\functions (similar to Windows /Gy function-level-linking)
+      set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "${CMAKE_SHARED_LINKER_FLAGS_DEBUG} ${CLR_SANITIZE_LINK_FLAGS} -Wl,--gc-sections")
+    endif ()
+  endif(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG)
+
+  add_subdirectory(src/ToolBox/SOS/lldbplugin)
+  add_subdirectory(src/pal)
+  add_subdirectory(src/corefx)
+  add_subdirectory(src/coreclr/hosts/unixcorerun)
+  add_subdirectory(src/coreclr/hosts/unixcoreconsole)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 if(CLR_CMAKE_PLATFORM_DARWIN)
-    add_subdirectory(src/coreclr/hosts/osxbundlerun)
+  add_subdirectory(src/coreclr/hosts/osxbundlerun)
 endif(CLR_CMAKE_PLATFORM_DARWIN)
 
-
 # Add this subdir. We install the headers for the jit.
-
 add_subdirectory(src/pal/prebuilt/inc)
 
 # Set to 1 if you want to clear the CMAKE initial compiler flags and set all the flags explicitly
@@ -202,21 +308,15 @@ add_subdirectory(src/pal/prebuilt/inc)
 
 if (WIN32)
   set(OVERRIDE_CMAKE_CXX_FLAGS 1)
-
-  # Set flag to indicate if this will be a 64bit Windows build
-  if(CMAKE_SYSTEM_PROCESSOR STREQUAL AMD64)
-    set(IS_64BIT_BUILD 1)
-  endif (CMAKE_SYSTEM_PROCESSOR STREQUAL AMD64)
-  
 elseif (CLR_CMAKE_PLATFORM_UNIX)  
   # Set flag to indicate if this will be a 64bit build
   # CMAKE_SYSTEM_PROCESSOR returns the value of `uname -p`.
   # For the AMD/Intel 64bit architecure two different strings are common.
   # Linux and Darwin identify it as "x86_64" while FreeBSD uses the
   # "amd64" string. Accept either of the two here.
-  if(CMAKE_SYSTEM_PROCESSOR STREQUAL x86_64 OR CMAKE_SYSTEM_PROCESSOR STREQUAL amd64)
+  if(CMAKE_SYSTEM_PROCESSOR STREQUAL x86_64 OR CMAKE_SYSTEM_PROCESSOR STREQUAL amd64 OR CMAKE_SYSTEM_PROCESSOR STREQUAL aarch64)
     set(IS_64BIT_BUILD 1)  
-  endif (CMAKE_SYSTEM_PROCESSOR STREQUAL x86_64 OR CMAKE_SYSTEM_PROCESSOR STREQUAL amd64)
+  endif (CMAKE_SYSTEM_PROCESSOR STREQUAL x86_64 OR CMAKE_SYSTEM_PROCESSOR STREQUAL amd64 OR CMAKE_SYSTEM_PROCESSOR STREQUAL aarch64)
   
   add_definitions(-DFEATURE_IMPLICIT_TLS)
 endif(WIN32)
@@ -251,10 +351,14 @@ add_compile_options(/MP) # Build with Multiple Processes (number of processes eq
 add_compile_options(/GS) # Buffer Security Check
 add_compile_options(/Zm200) # Specify Precompiled Header Memory Allocation Limit of 150MB
 add_compile_options(/wd4960 /wd4961 /wd4603 /wd4627 /wd4838 /wd4456 /wd4457 /wd4458 /wd4459 /wd4091 /we4640)
-add_compile_options(/O1) # minimize space
 add_compile_options(/Zi) # enable debugging information
 
+if (CLR_CMAKE_PLATFORM_ARCH_I386)
+  add_compile_options(/Gz)
+endif (CLR_CMAKE_PLATFORM_ARCH_I386)
+
 add_compile_options($<$<OR:$<CONFIG:Release>,$<CONFIG:Relwithdebinfo>>:/GL>)
+add_compile_options($<$<OR:$<CONFIG:Release>,$<CONFIG:Relwithdebinfo>>:/O1>)
 
 if (IS_64BIT_BUILD EQUAL 1)
 # The generator expression in the following command means that the /homeparams option is added only for debug builds
@@ -278,26 +382,55 @@ set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /NXCOMPAT") #Compati
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /DYNAMICBASE") #Use address space layout randomization
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /DEBUGTYPE:cv,fixup") #debugging format
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /PDBCOMPRESS") #shrink pdb size
-set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /DEBUG /INCREMENTAL:NO /OPT:REF /OPT:ICF /IGNORE:4197,4013,4254,4070,4221")
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /DEBUG")
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /IGNORE:4197,4013,4254,4070,4221")
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /INCREMENTAL:NO")
 
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /DEBUG /PDBCOMPRESS")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:1572864")
 
 # Debug build specific flags
 set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "/NOVCFEATURE")
 
 # Release build specific flags
-set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /LTCG")
-set(CMAKE_STATIC_LINKER_FLAGS_RELEASE "${CMAKE_STATIC_LINKER_FLAGS_RELEASE} /LTCG")
-set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /LTCG")
+set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /LTCG /OPT:REF /OPT:ICF")
+set(CMAKE_STATIC_LINKER_FLAGS_RELEASE "${CMAKE_STATIC_LINKER_FLAGS_RELEASE} /LTCG /OPT:REF /OPT:ICF")
+set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /LTCG /OPT:REF /OPT:ICF")
 
 # ReleaseWithDebugInfo build specific flags
-set(CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO} /LTCG")
-set(CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO} /LTCG")
-set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO} /LTCG")
+set(CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO} /LTCG /OPT:REF /OPT:ICF")
+set(CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO} /LTCG /OPT:REF /OPT:ICF")
+set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO} /LTCG /OPT:REF /OPT:ICF")
 
 endif (WIN32)
 
 endif (OVERRIDE_CMAKE_CXX_FLAGS)
+
+if(CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64)
+add_definitions(-DFEATURE_UNIX_AMD64_STRUCT_PASSING_ITF)
+add_definitions(-DFEATURE_UNIX_AMD64_STRUCT_PASSING)
+endif (CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64)
+
+OPTION(CMAKE_ENABLE_CODE_COVERAGE "Enable code coverage" OFF)
+
+if(CMAKE_ENABLE_CODE_COVERAGE)
+
+  if(CLR_CMAKE_PLATFORM_UNIX)
+    string(TOUPPER ${CMAKE_BUILD_TYPE} UPPERCASE_CMAKE_BUILD_TYPE)
+    if(NOT UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG)
+      message( WARNING "Code coverage results with an optimised (non-Debug) build may be misleading" )
+    endif(NOT UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG)
+
+    add_compile_options(-fprofile-arcs)
+    add_compile_options(-ftest-coverage)
+    set(CLANG_COVERAGE_LINK_FLAGS  "--coverage")
+    set(CMAKE_SHARED_LINKER_FLAGS  "${CMAKE_SHARED_LINKER_FLAGS} ${CLANG_COVERAGE_LINK_FLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS     "${CMAKE_EXE_LINKER_FLAGS} ${CLANG_COVERAGE_LINK_FLAGS}")
+  else()
+    message(FATAL_ERROR "Code coverage builds not supported on current platform")
+  endif(CLR_CMAKE_PLATFORM_UNIX)
+
+endif(CMAKE_ENABLE_CODE_COVERAGE)
 
 if(CLR_CMAKE_PLATFORM_UNIX)
 add_definitions(-DDISABLE_CONTRACTS)
@@ -345,7 +478,6 @@ include_directories("src/pal/prebuilt/inc")
 if (CLR_CMAKE_PLATFORM_UNIX)
   include_directories("src/pal/inc")
   include_directories("src/pal/inc/rt")
-  include_directories("src/pal/inc/rt/cpp")
   include_directories("src/pal/src/safecrt")
 endif (CLR_CMAKE_PLATFORM_UNIX)
 
@@ -357,35 +489,21 @@ if (WIN32)
 endif(WIN32)
 # Definition directives
 
-# The following defines were extracted from the official amd64 debug / release builds.
-if (WIN32)
-  add_definitions(-DFEATURE_EVENT_TRACE=1)
-endif (WIN32)
+
 
 if (CLR_CMAKE_PLATFORM_UNIX)
-  add_definitions(-DPLATFORM_UNIX=1)
   add_definitions(-DFEATURE_PAL_SXS)
   add_definitions(-DFEATURE_COREFX_GLOBALIZATION)
+  add_definitions(-DFEATURE_PAL)
 
   if(IS_64BIT_BUILD)
     add_definitions(-DBIT64=1)
-    add_definitions(-DFEATURE_PAL)
-  else (IS_64BIT_BUILD)
-    message(FATAL_ERROR "error: Detected non x86_64 target processor. Not supported!")
   endif(IS_64BIT_BUILD)
-
-  if(CLR_CMAKE_PLATFORM_LINUX)
-    add_definitions(-D__LINUX__=1)
-    message("Detected Linux x86_64")
-    add_definitions(-DLINUX64)
-  endif(CLR_CMAKE_PLATFORM_LINUX)
+  
   if(CLR_CMAKE_PLATFORM_DARWIN)
-    message("Detected OSX x86_64")
     add_definitions(-D_XOPEN_SOURCE)
   endif(CLR_CMAKE_PLATFORM_DARWIN)
-  if(CLR_CMAKE_PLATFORM_FREEBSD)
-    message("Detected FreeBSD amd64")
-  endif(CLR_CMAKE_PLATFORM_FREEBSD)
+
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 
@@ -403,12 +521,28 @@ add_definitions(-DNTDDI_VERSION=NTDDI_WIN8)
 if (IS_64BIT_BUILD EQUAL 1)
   if (CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64)
     add_definitions(-DDBG_TARGET_AMD64_UNIX)
+    add_definitions(-D_TARGET_AMD64_=1)
+    add_definitions(-DDBG_TARGET_AMD64)
+  elseif (CLR_CMAKE_PLATFORM_UNIX_TARGET_ARM64)
+    add_definitions(-DDBG_TARGET_ARM64_UNIX)
+    add_definitions(-D_TARGET_ARM64_=1)
+    add_definitions(-DDBG_TARGET_ARM64)
+  else ()
+    # Windows is assumed in this path -- fix this
+    add_definitions(-DDBG_TARGET_AMD64)
+    add_definitions(-D_TARGET_AMD64_=1)
   endif (CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64)
-  add_definitions(-D_TARGET_AMD64_=1)
-  add_definitions(-DDBG_TARGET_AMD64)
+elseif (CLR_CMAKE_PLATFORM_ARCH_ARM)
+  if (CLR_CMAKE_PLATFORM_UNIX_TARGET_ARM)
+    add_definitions(-DDBG_TARGET_ARM_UNIX)
+  endif (CLR_CMAKE_PLATFORM_UNIX_TARGET_ARM)
+  add_definitions(-D_TARGET_ARM_=1)
+  add_definitions(-DDBG_TARGET_ARM)
+elseif (CLR_CMAKE_PLATFORM_ARCH_I386)
+  add_definitions(-D_TARGET_X86_=1)
+  add_definitions(-DDBG_TARGET_X86)
 else ()
-  # TODO: Support this
-  message(FATAL_ERROR "Not Implemented!")
+  clr_unknown_arch()
 endif (IS_64BIT_BUILD EQUAL 1)
 
 if(WIN32)
@@ -424,10 +558,16 @@ if(WIN32)
     add_definitions(-DEnC_SUPPORTED)
 endif(WIN32)
 add_definitions(-DFEATURE_APPDOMAIN_RESOURCE_MONITORING)
-add_definitions(-DFEATURE_ARRAYSTUB_AS_IL)
+if(CLR_CMAKE_PLATFORM_ARCH_AMD64 OR CLR_CMAKE_PLATFORM_ARCH_ARM OR CLR_CMAKE_PLATFORM_ARCH_ARM64)
+    add_definitions(-DFEATURE_ARRAYSTUB_AS_IL)
+endif()
 if (CLR_CMAKE_PLATFORM_UNIX)
     add_definitions(-DFEATURE_STUBS_AS_IL)
-    add_definitions(-DUNIX_AMD64_ABI)
+    if (CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64)
+      add_definitions(-DUNIX_AMD64_ABI)
+    elseif (CLR_CMAKE_PLATFORM_UNIX_TARGET_ARM)
+      add_definitions(-DUNIX_ARM_ABI)
+    endif()
 endif(CLR_CMAKE_PLATFORM_UNIX)
 add_definitions(-DFEATURE_ASYNC_IO)
 add_definitions(-DFEATURE_BCL_FORMATTING)
@@ -452,9 +592,7 @@ if(WIN32)
 endif(WIN32)
 add_definitions(-DFEATURE_EXCEPTIONDISPATCHINFO)
 add_definitions(-DFEATURE_FRAMEWORK_INTERNAL)
-if(WIN32)
-    add_definitions(-DFEATURE_HIJACK)
-endif(WIN32)
+add_definitions(-DFEATURE_HIJACK)
 add_definitions(-DFEATURE_HOST_ASSEMBLY_RESOLVER)
 add_definitions(-DFEATURE_HOSTED_BINDER)
 if(WIN32)
@@ -482,9 +620,7 @@ add_definitions(-DFEATURE_MERGE_JIT_AND_ENGINE)
 endif(WIN32)
 add_definitions(-DFEATURE_NORM_IDNA_ONLY)
 add_definitions(-DFEATURE_PREJIT)
-if(WIN32)
-    add_definitions(-DFEATURE_RANDOMIZED_STRING_HASHING)
-endif(WIN32)
+add_definitions(-DFEATURE_RANDOMIZED_STRING_HASHING)
 add_definitions(-DFEATURE_READYTORUN)
 add_definitions(-DFEATURE_STANDALONE_SN)
 add_definitions(-DFEATURE_STRONGNAME_DELAY_SIGNING_ALLOWED)
@@ -518,16 +654,31 @@ if(CLR_CMAKE_PLATFORM_UNIX)
     add_definitions(-DFEATURE_DBGIPC_TRANSPORT_VM)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
-if (IS_64BIT_BUILD EQUAL 1)
-add_definitions(-D_AMD64_)
-add_definitions(-D_AMD64_SIMULATOR_)
-add_definitions(-D_AMD64_SIMULATOR_PERF_)
-add_definitions(-D_AMD64_WORKAROUND_)
-add_definitions(-D_WIN64)
-add_definitions(-DAMD64)
+if (CLR_CMAKE_PLATFORM_ARCH_AMD64)
+  add_definitions(-D_AMD64_)
+  add_definitions(-D_AMD64_SIMULATOR_)
+  add_definitions(-D_AMD64_SIMULATOR_PERF_)
+  add_definitions(-D_AMD64_WORKAROUND_)
+  add_definitions(-D_WIN64)
+  add_definitions(-DAMD64)
+elseif (CLR_CMAKE_PLATFORM_ARCH_I386)
+  add_definitions(-D_WIN32)
+  add_definitions(-D_X86_)
+elseif (CLR_CMAKE_PLATFORM_ARCH_ARM)
+  add_definitions(-D_ARM_)
+  add_definitions(-DARM)
+  add_definitions(-D_WIN32)
+elseif (CLR_CMAKE_PLATFORM_ARCH_ARM64)
+  add_definitions(-D_ARM64_)
+  add_definitions(-DARM64)
+  add_definitions(-D_WIN64)
 else ()
-# TODO - Support this
-endif (IS_64BIT_BUILD EQUAL 1)
+  clr_unknown_arch()
+endif ()
+
+if(CLR_CMAKE_BUILD_TESTS)
+  add_subdirectory(tests)
+endif(CLR_CMAKE_BUILD_TESTS)
 
 add_definitions(-D_SKIP_IF_SIMULATOR_)
 add_definitions(-D_SECURE_SCL=0)
@@ -539,9 +690,20 @@ add_definitions(-DUNICODE)
 add_definitions(-D_UNICODE)
 
 if (IS_64BIT_BUILD EQUAL 1)
-  set(ARCH_SOURCES_DIR amd64)
+  if (CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64 EQUAL 1)
+    set(ARCH_SOURCES_DIR amd64)
+  elseif (CLR_CMAKE_PLATFORM_UNIX_TARGET_ARM64 EQUAL 1)
+    set(ARCH_SOURCES_DIR arm64)
+  else ()
+    # Windows is assumed in this path -- fix this
+    set(ARCH_SOURCES_DIR amd64)
+  endif ()
 else ()
-  set(ARCH_SOURCES_DIR i386)
+  if (CLR_CMAKE_PLATFORM_ARCH_ARM)
+    set(ARCH_SOURCES_DIR arm)
+  else ()
+    set(ARCH_SOURCES_DIR i386)
+  endif ()
 endif (IS_64BIT_BUILD EQUAL 1)
 
 add_subdirectory(src)

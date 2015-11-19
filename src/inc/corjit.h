@@ -300,7 +300,13 @@ enum CorJitAllocMemFlag
 {
     CORJIT_ALLOCMEM_DEFAULT_CODE_ALIGN = 0x00000000, // The code will be use the normal alignment
     CORJIT_ALLOCMEM_FLG_16BYTE_ALIGN   = 0x00000001, // The code will be 16-byte aligned
+    CORJIT_ALLOCMEM_FLG_RODATA_16BYTE_ALIGN = 0x00000002, // The read-only data will be 16-byte aligned
 };
+
+inline CorJitAllocMemFlag operator |(CorJitAllocMemFlag a, CorJitAllocMemFlag b)
+{
+    return static_cast<CorJitAllocMemFlag>(static_cast<int>(a) | static_cast<int>(b));
+}
 
 enum CorJitFuncKind
 {
@@ -356,12 +362,12 @@ extern "C" ICorJitCompiler* __stdcall getJit();
 #if !defined(RYUJIT_CTPBUILD)
 
 // Update this one
-SELECTANY const GUID JITEEVersionIdentifier = { /* 8e31af35-be80-4484-a91a-b096a08a49fe */
-  0x8e31af35,
-  0xbe80,
-  0x4484,
-  { 0xa9, 0x1a, 0xb0, 0x96, 0xa0, 0x8a, 0x49, 0xfe }
-  };
+SELECTANY const GUID JITEEVersionIdentifier = { /* f7be09f3-9ca7-42fd-b0ca-f97c0499f5a3 */
+    0xf7be09f3,
+    0x9ca7,
+    0x42fd,
+    {0xb0, 0xca, 0xf9, 0x7c, 0x04, 0x99, 0xf5, 0xa3}
+};
 
 #else
 // Leave this one alone

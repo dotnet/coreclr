@@ -37,6 +37,8 @@ Revision History:
 #include "pal/debug.h"
 #include "pal/misc.h"
 #include "pal/malloc.hpp"
+#include "pal/module.h"
+#include "pal/stackstring.hpp"
 #include "pal/virtual.h"
 
 #include <signal.h>
@@ -66,6 +68,8 @@ Revision History:
 using namespace CorUnix;
 
 SET_DEFAULT_DEBUG_CHANNEL(DEBUG);
+
+extern "C" void DBG_DebugBreak_End();
 
 #if HAVE_PROCFS_CTL
 #define CTL_ATTACH      "attach"
@@ -197,7 +201,6 @@ OutputDebugStringW(
 {
     CHAR *lpOutputStringA;
     int strLen;
-    CPalThread *pThread = NULL;
 
     PERF_ENTRY(OutputDebugStringW);
     ENTRY("OutputDebugStringW (lpOutputString=%p (%S))\n",
@@ -219,28 +222,27 @@ OutputDebugStringW(
         goto EXIT;
     }
 
-    pThread = InternalGetCurrentThread();
     /* strLen includes the null terminator */
-    if ((lpOutputStringA = (LPSTR) InternalMalloc(pThread, (strLen * sizeof(CHAR)))) == NULL)
+    if ((lpOutputStringA = (LPSTR) InternalMalloc((strLen * sizeof(CHAR)))) == NULL)
     {
         ERROR("Insufficient memory available !\n");
         SetLastError(ERROR_NOT_ENOUGH_MEMORY);
         goto EXIT;
     }
-    
+
     if(! WideCharToMultiByte(CP_ACP, 0, lpOutputString, -1, 
                              lpOutputStringA, strLen, NULL, NULL)) 
     {
         ASSERT("failed to convert wide chars to multibytes\n");
         SetLastError(ERROR_INTERNAL_ERROR);
-        InternalFree(pThread, lpOutputStringA);
+        InternalFree(lpOutputStringA);
         goto EXIT;
     }
     
     OutputDebugStringA(lpOutputStringA);
-    InternalFree(pThread, lpOutputStringA);
+    InternalFree(lpOutputStringA);
 
-EXIT:    
+EXIT:
     LOGEXIT("OutputDebugStringW returns\n");
     PERF_EXIT(OutputDebugStringW);
 }
@@ -330,25 +332,41 @@ run_debug_command (const char *command)
 }
 #endif // ENABLE_RUN_ON_DEBUG_BREAK
 
+#define PID_TEXT "PAL_EXE_PID="
+#define EXE_TEXT "PAL_EXE_NAME="
+
 static
 int
 DebugBreakCommand()
 {
 #ifdef ENABLE_RUN_ON_DEBUG_BREAK
+    extern MODSTRUCT exe_module;
     const char *command_string = getenv (PAL_RUN_ON_DEBUG_BREAK);
     if (command_string) {
-        char pid_buf[sizeof ("PAL_EXE_PID=") + 32];
-        char exe_buf[sizeof ("PAL_EXE_NAME=") + MAX_PATH + 1];
-        extern char g_ExePath[MAX_PATH];
-        if (snprintf (pid_buf, sizeof (pid_buf),
-                      "PAL_EXE_PID=%d", getpid()) <= 0) {
-            goto FAILED;
+        char pid_buf[sizeof (PID_TEXT) + 32];
+        PathCharString exe_bufString;
+        int libNameLength = 10;
+        if (exe_module.lib_name != NULL)
+        {
+            libNameLength = PAL_wcslen(exe_module.lib_name);
         }
-        if (snprintf (exe_buf, sizeof (exe_buf),
-                      "PAL_EXE_NAME=%s", g_ExePath) <= 0) {
+        
+        SIZE_T dwexe_buf = strlen(EXE_TEXT) + libNameLength + 1;
+        CHAR * exe_buf = exe_bufString.OpenStringBuffer(dwexe_buf);
+        
+        if (NULL == exe_buf)
+        {
             goto FAILED;
         }
 
+        if (snprintf (pid_buf, sizeof (pid_buf), PID_TEXT "%d", getpid()) <= 0) {
+            goto FAILED;
+        }
+        if (snprintf (exe_buf, sizeof (CHAR) * (dwexe_buf + 1), EXE_TEXT "%ls", (wchar_t *)exe_module.lib_name) <= 0) {
+            goto FAILED;
+        }
+
+        exe_bufString.CloseBuffer(dwexe_buf);
         /* strictly speaking, we might want to only set these environment
            variables in the child process, but if we do that we can't check
            for errors. putenv/setenv can fail when out of memory */
@@ -396,6 +414,19 @@ DebugBreak(
 
 /*++
 Function:
+  IsInDebugBreak(addr)
+
+  Returns true if the address is in DBG_DebugBreak.
+
+--*/
+BOOL
+IsInDebugBreak(void *addr)
+{
+    return (addr >= (void *)DBG_DebugBreak) && (addr <= (void *)DBG_DebugBreak_End);
+}
+
+/*++
+Function:
   GetThreadContext
 
 See MSDN doc.
@@ -432,7 +463,6 @@ GetThreadContext(
             ret = CONTEXT_GetThreadContext(
                 GetCurrentProcessId(),
                 pTargetThread->GetPThreadSelf(),
-                pTargetThread->GetLwpId(),
                 lpContext
                 );
         }
@@ -495,7 +525,6 @@ SetThreadContext(
             ret = CONTEXT_SetThreadContext(
                 GetCurrentProcessId(),
                 pTargetThread->GetPThreadSelf(),
-                pTargetThread->GetLwpId(),
                 lpContext
                 );
         }
@@ -668,7 +697,7 @@ ReadProcessMemory(
 #else   // HAVE_VM_READ
 #if HAVE_PROCFS_CTL
     snprintf(memPath, sizeof(memPath), "/proc/%u/%s", processId, PROCFS_MEM_NAME);
-    fd = InternalOpen(pThread, memPath, O_RDONLY);
+    fd = InternalOpen(memPath, O_RDONLY);
     if (fd == -1)
     {
         ERROR("Failed to open %s\n", memPath);
@@ -731,7 +760,7 @@ ReadProcessMemory(
         
         /* before transferring any data to lpBuffer we should make sure that all 
            data is accessible for read. so we need to use a temp buffer for that.*/
-        if (!(lpTmpBuffer = (int*)InternalMalloc(pThread, (nbInts * sizeof(int)))))
+        if (!(lpTmpBuffer = (int*)InternalMalloc((nbInts * sizeof(int)))))
         {
             ERROR("Insufficient memory available !\n");
             SetLastError(ERROR_NOT_ENOUGH_MEMORY);
@@ -790,7 +819,7 @@ PROCFSCLEANUP:
 CLEANUP2:
     if (lpTmpBuffer) 
     {
-        InternalFree(pThread, lpTmpBuffer);
+        InternalFree(lpTmpBuffer);
     }
 #endif  // !HAVE_TTRACE
 
@@ -943,7 +972,7 @@ WriteProcessMemory(
 #else   // HAVE_VM_READ
 #if HAVE_PROCFS_CTL
     snprintf(memPath, sizeof(memPath), "/proc/%u/%s", processId, PROCFS_MEM_NAME);
-    fd = InternalOpen(pThread, memPath, O_WRONLY);
+    fd = InternalOpen(memPath, O_WRONLY);
     if (fd == -1)
     {
         ERROR("Failed to open %s\n", memPath);
@@ -1015,20 +1044,20 @@ WriteProcessMemory(
                  (((nSize + FirstIntOffset)%sizeof(int)) ? 1:0);
         lpBaseAddressAligned = (int*)((char*)lpBaseAddress - FirstIntOffset);
         
-        if ((lpTmpBuffer = (int*)InternalMalloc(pThread, (nbInts * sizeof(int)))) == NULL)
+        if ((lpTmpBuffer = (int*)InternalMalloc((nbInts * sizeof(int)))) == NULL)
         {
             ERROR("Insufficient memory available !\n");
             SetLastError(ERROR_NOT_ENOUGH_MEMORY);
             goto CLEANUP1;
         }
-        
-        memcpy( (char *)lpTmpBuffer + FirstIntOffset, (char *)lpBuffer, nSize);    
+
+        memcpy((char *)lpTmpBuffer + FirstIntOffset, (char *)lpBuffer, nSize);
         lpInt = lpTmpBuffer;
 
         LastIntOffset = (nSize + FirstIntOffset) % sizeof(int);
         LastIntMask = -1;
         LastIntMask >>= ((sizeof(int) - LastIntOffset) * 8);
-        
+
         if (nbInts == 1)
         {
             if (DBGWriteProcMem_IntWithMask(processId, lpBaseAddressAligned, 
@@ -1042,7 +1071,7 @@ WriteProcessMemory(
             ret = TRUE;
             goto CLEANUP2;
         }
-        
+
         if (DBGWriteProcMem_IntWithMask(processId,
                                         lpBaseAddressAligned++,
                                         *lpInt++, FirstIntMask) 
@@ -1068,14 +1097,14 @@ WriteProcessMemory(
 
         numberOfBytesWritten = nSize;
         ret = TRUE;
-#endif  // HAVE_TTRACE         
-    }     
+#endif  // HAVE_TTRACE
+    }
     else
     {
         /* Failed to attach processId */
-        goto EXIT;    
-    }  
-#endif  // HAVE_PROCFS_CTL
+        goto EXIT;
+    }
+#endif // HAVE_PROCFS_CTL
 
 #if HAVE_PROCFS_CTL
 PROCFSCLEANUP:
@@ -1087,7 +1116,7 @@ PROCFSCLEANUP:
 CLEANUP2:
     if (lpTmpBuffer) 
     {
-        InternalFree(pThread, lpTmpBuffer);
+        InternalFree(lpTmpBuffer);
     }
 #endif  // !HAVE_TTRACE
 
@@ -1266,7 +1295,7 @@ DBGAttachProcess(
         nanosleep(&waitTime, NULL);
         
         sprintf_s(ctlPath, sizeof(ctlPath), "/proc/%d/ctl", processId);
-        fd = InternalOpen(pThread, ctlPath, O_WRONLY);
+        fd = InternalOpen(ctlPath, O_WRONLY);
         if (fd == -1)
         {
             ERROR("Failed to open %s: errno is %d (%s)\n", ctlPath,
@@ -1597,7 +1626,7 @@ PAL_CreateExecWatchpoint(
     CPalThread *pTargetThread = NULL;
     IPalObject *pobjThread = NULL;
     int fd = -1;
-    char ctlPath[MAX_PATH];
+    char ctlPath[50];
 
     struct
     {
@@ -1641,6 +1670,7 @@ PAL_CreateExecWatchpoint(
     }
 
     snprintf(ctlPath, sizeof(ctlPath), "/proc/%u/lwp/%u/lwpctl", getpid(), pTargetThread->GetLwpId());
+
     fd = InternalOpen(pThread, ctlPath, O_WRONLY);
     if (-1 == fd)
     {
@@ -1718,7 +1748,7 @@ PAL_DeleteExecWatchpoint(
     CPalThread *pTargetThread = NULL;
     IPalObject *pobjThread = NULL;
     int fd = -1;
-    char ctlPath[MAX_PATH];
+    char ctlPath[50];
 
     struct
     {
@@ -1743,6 +1773,7 @@ PAL_DeleteExecWatchpoint(
     }
 
     snprintf(ctlPath, sizeof(ctlPath), "/proc/%u/lwp/%u/lwpctl", getpid(), pTargetThread->GetLwpId());
+
     fd = InternalOpen(pThread, ctlPath, O_WRONLY);
     if (-1 == fd)
     {

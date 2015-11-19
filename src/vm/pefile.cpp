@@ -1681,6 +1681,17 @@ void PEFile::SetNativeImage(PEImage *image)
     m_nativeImage->Load();
     m_nativeImage->AllocateLazyCOWPages();
 
+#if defined(_TARGET_AMD64_) && !defined(CROSSGEN_COMPILE)
+    static ConfigDWORD configNGenReserveForJumpStubs;
+    int percentReserveForJumpStubs = configNGenReserveForJumpStubs.val(CLRConfig::INTERNAL_NGenReserveForJumpStubs);
+    if (percentReserveForJumpStubs != 0)
+    {
+        PEImageLayout * pLayout = image->GetLoadedLayout();
+        ExecutionManager::GetEEJitManager()->EnsureJumpStubReserve((BYTE *)pLayout->GetBase(), pLayout->GetVirtualSize(),
+            percentReserveForJumpStubs * (pLayout->GetVirtualSize() / 100));
+    }
+#endif
+
     ExternalLog(LL_INFO100, W("Attempting to use native image %s."), image->GetPath().GetUnicode());
     RETURN;
 }
@@ -2146,7 +2157,7 @@ BOOL RuntimeVerifyNativeImageVersion(const CORCOMPILE_VERSION_INFO *info, Loggab
     // Check processor
     //
 
-    if (info->wMachine != IMAGE_FILE_MACHINE_NATIVE)
+    if (info->wMachine != IMAGE_FILE_MACHINE_NATIVE_NI)
     {
         RuntimeVerifyLog(LL_ERROR, pLogAsm, W("Processor type recorded in native image doesn't match this machine's processor."));
         return FALSE;
@@ -3911,8 +3922,8 @@ void PEAssembly::SetNativeImage(IBindResult *pNativeFusionAssembly)
     CONTRACTL_END;
 
     StackSString path;
-    WCHAR pwzPath[MAX_PATH];
-    DWORD dwCCPath = MAX_PATH;
+    WCHAR pwzPath[MAX_LONGPATH];
+    DWORD dwCCPath = MAX_LONGPATH;
     ReleaseHolder<IAssemblyLocation> pIAssemblyLocation;
 
     IfFailThrow(pNativeFusionAssembly->GetAssemblyLocation(&pIAssemblyLocation));
@@ -4846,9 +4857,9 @@ PEModule::PEModule(PEImage *image, PEAssembly *assembly, mdFile token, IMetaData
     {
         IAssemblyLocation *pIAssemblyLocation = assembly->GetNativeAssemblyLocation();
 
-        WCHAR wzPath[MAX_PATH];
+        WCHAR wzPath[MAX_LONGPATH];
         WCHAR *pwzTemp = NULL;
-        DWORD dwCCPath = MAX_PATH;
+        DWORD dwCCPath = MAX_LONGPATH;
         SString path;
         SString moduleName(SString::Utf8, GetSimpleName());
 

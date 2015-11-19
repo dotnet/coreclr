@@ -6,7 +6,7 @@ if (WIN32)
   set_source_files_properties(../microsoft.comservices_i.c PROPERTIES COMPILE_FLAGS "/Y-") 
 endif (WIN32)
 
-add_library(cee_wks ${VM_SOURCES_WKS} ${VM_SOURCES_WKS_AMD64_ASM})
+add_library(cee_wks ${VM_SOURCES_WKS} ${VM_SOURCES_WKS_ARCH_ASM})
 
 if (WIN32)
 # Get the current list of definitions
@@ -29,11 +29,15 @@ endforeach()
 
 # Add defines for the ASM. Unfortunately setting it on the target is ignored for asm by the cmake, so we have
 # to set it on the sources.
-set_property(SOURCE ${VM_SOURCES_WKS_AMD64_ASM} PROPERTY COMPILE_DEFINITIONS ${ASM_DEFINITIONS})
+set_property(SOURCE ${VM_SOURCES_WKS_ARCH_ASM} PROPERTY COMPILE_DEFINITIONS ${ASM_DEFINITIONS})
 foreach(CONFIG IN LISTS CMAKE_CONFIGURATION_TYPES)
     string(TOUPPER ${CONFIG} CONFIG)
-    set_property(SOURCE ${VM_SOURCES_WKS_AMD64_ASM} PROPERTY COMPILE_DEFINITIONS_${CONFIG} ${ASM_DEFINITIONS_${CONFIG}})
+    set_property(SOURCE ${VM_SOURCES_WKS_ARCH_ASM} PROPERTY COMPILE_DEFINITIONS_${CONFIG} ${ASM_DEFINITIONS_${CONFIG}})
 endforeach()
+
+if (CLR_CMAKE_PLATFORM_ARCH_I386)
+    set_source_files_properties(${VM_SOURCES_WKS_ARCH_ASM} PROPERTIES COMPILE_FLAGS "/Zm")
+endif (CLR_CMAKE_PLATFORM_ARCH_I386)
 
 # Convert AsmConstants.h into AsmConstants.inc
 find_program(POWERSHELL powershell)
@@ -44,7 +48,7 @@ endif()
 add_custom_command(
     # The AsmConstants.inc will be built in the pre-build phase of the cee_wks build
     TARGET cee_wks PRE_BUILD 
-    COMMAND ${POWERSHELL} -NoProfile -ExecutionPolicy Bypass \"& \"\"${VM_DIR}/h2inc.ps1\"\"\" \"\"\"${VM_DIR}/amd64/asmconstants.h\"\"\" >"${CMAKE_CURRENT_BINARY_DIR}/AsmConstants.tmp"
+    COMMAND ${POWERSHELL} -NoProfile -ExecutionPolicy Bypass \"& \"\"${VM_DIR}/h2inc.ps1\"\"\" \"\"\"${VM_DIR}/${ARCH_SOURCES_DIR}/asmconstants.h\"\"\" >"${CMAKE_CURRENT_BINARY_DIR}/AsmConstants.tmp"
     COMMAND ${CMAKE_CXX_COMPILER} ${DEFINITIONS} /EP "${CMAKE_CURRENT_BINARY_DIR}/AsmConstants.tmp" >"${CMAKE_CURRENT_BINARY_DIR}/AsmConstants.inc"
 )
 

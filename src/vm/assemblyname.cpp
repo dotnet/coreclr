@@ -63,9 +63,17 @@ FCIMPL1(Object*, AssemblyNameNative::GetFileInformation, StringObject* filenameU
 
     EX_TRY
     {
+#ifdef FEATURE_CORECLR
+        // Allow AssemblyLoadContext.GetAssemblyName for native images on CoreCLR
+        if (pImage->HasNTHeaders() && pImage->HasCorHeader() && pImage->HasNativeHeader())
+            pImage->VerifyIsNIAssembly();
+        else
+            pImage->VerifyIsAssembly();
+#else
         pImage->VerifyIsAssembly();
+#endif
     }
-    EX_CATCH              
+    EX_CATCH
     {
         Exception *ex = GET_EXCEPTION();
         EEFileLoadException::Throw(sFileName,ex->GetHR(),ex);
@@ -77,7 +85,9 @@ FCIMPL1(Object*, AssemblyNameNative::GetFileInformation, StringObject* filenameU
 
     AssemblySpec spec;
     spec.InitializeSpec(TokenFromRid(mdtAssembly,1),pImage->GetMDImport(),NULL,TRUE);
+#ifndef FEATURE_CORECLR
     spec.SetCodeBase(sUrl);
+#endif
     spec.AssemblyNameInit(&gc.result, pImage);
     
     HELPER_METHOD_FRAME_END();

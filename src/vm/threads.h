@@ -551,22 +551,24 @@ EXTERN_C void LeaveSyncHelper    (UINT_PTR caller, void *pAwareLock);
 
 #endif  // TRACK_SYNC
 
+//***************************************************************************
 #ifdef FEATURE_HIJACK
-//****************************************************************************************
-// This is the type of the start function of a redirected thread pulled from a
-// HandledJITCase during runtime suspension
-typedef void (__stdcall *PFN_REDIRECTTARGET)();
 
-// Used to capture information about the state of execution of a *SUSPENDED*
-// thread.
+// Used to capture information about the state of execution of a *SUSPENDED* thread.
 struct ExecutionState;
+
+#ifndef PLATFORM_UNIX
+// This is the type of the start function of a redirected thread pulled from
+// a HandledJITCase during runtime suspension
+typedef void (__stdcall *PFN_REDIRECTTARGET)();
 
 // Describes the weird argument sets during hijacking
 struct HijackArgs;
+#endif // !PLATFORM_UNIX
+
 #endif // FEATURE_HIJACK
 
 //***************************************************************************
-
 #ifdef ENABLE_CONTRACTS_IMPL
 inline Thread* GetThreadNULLOk()
 {
@@ -683,16 +685,21 @@ void InitThreadManager();
 // eventually come back to us in one of the following trip functions:
 
 #ifdef FEATURE_HIJACK
-EXTERN_C void __stdcall OnHijackObjectTripThread();    // hijacked JIT code is returning an objectref
-EXTERN_C void __stdcall OnHijackInteriorPointerTripThread();    // hijacked JIT code is returning a byref
-EXTERN_C void __stdcall OnHijackScalarTripThread();    // hijacked JIT code is returning a non-objectref, non-FP
+
+EXTERN_C void __stdcall OnHijackObjectTripThread();                 // hijacked JIT code is returning an objectref
+EXTERN_C void __stdcall OnHijackInteriorPointerTripThread();        // hijacked JIT code is returning a byref
+EXTERN_C void __stdcall OnHijackScalarTripThread();                 // hijacked JIT code is returning a non-objectref, non-FP
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+EXTERN_C void __stdcall OnHijackStructInRegsTripThread();           // hijacked JIT code is returning a struct in registers
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+
 #ifdef _TARGET_X86_
-EXTERN_C void __stdcall OnHijackFloatingPointTripThread();  // hijacked JIT code is returning an FP value
+EXTERN_C void __stdcall OnHijackFloatingPointTripThread();          // hijacked JIT code is returning an FP value
 #endif // _TARGET_X86_
+
 #endif // FEATURE_HIJACK
 
 void CommonTripThread();
-
 
 // When we resume a thread at a new location, to get an exception thrown, we have to
 // pretend the exception originated elsewhere.
@@ -701,7 +708,6 @@ EXTERN_C void ThrowControlForThread(
         FaultingExceptionFrame *pfef
 #endif // WIN64EXCEPTIONS
         );
-
 
 // RWLock state inside TLS
 struct LockEntry
@@ -1010,13 +1016,14 @@ typedef DWORD (*AppropriateWaitFunc) (void *args, DWORD timeout, DWORD option);
 // unstarted System.Thread), then this instance can be found in the TLS
 // of that physical thread.
 
-
 #ifdef FEATURE_HIJACK
 EXTERN_C void STDCALL OnHijackObjectWorker(HijackArgs * pArgs);
 EXTERN_C void STDCALL OnHijackInteriorPointerWorker(HijackArgs * pArgs);
 EXTERN_C void STDCALL OnHijackScalarWorker(HijackArgs * pArgs);
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+EXTERN_C void STDCALL OnHijackStructInRegsWorker(HijackArgs * pArgs);
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
 #endif // FEATURE_HIJACK
-
 
 // This is the code we pass around for Thread.Interrupt, mainly for assertions
 #define APC_Code    0xEECEECEE
@@ -1063,10 +1070,17 @@ class Thread: public IUnknown
 #ifdef FEATURE_HIJACK
     // MapWin32FaultToCOMPlusException needs access to Thread::IsAddrOfRedirectFunc()
     friend DWORD MapWin32FaultToCOMPlusException(EXCEPTION_RECORD *pExceptionRecord);
-    friend void STDCALL OnHijackObjectWorker(HijackArgs * pArgs);
-    friend void STDCALL OnHijackInteriorPointerWorker(HijackArgs * pArgs);
-    friend void STDCALL OnHijackScalarWorker(HijackArgs * pArgs);
-#endif
+    friend void STDCALL OnHijackObjectWorker(HijackArgs *pArgs);
+    friend void STDCALL OnHijackInteriorPointerWorker(HijackArgs *pArgs);
+    friend void STDCALL OnHijackScalarWorker(HijackArgs *pArgs);
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+    friend void STDCALL OnHijackStructInRegsWorker(HijackArgs *pArgs);
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef PLATFORM_UNIX
+    friend void PALAPI HandleGCSuspensionForInterruptedThread(CONTEXT *interruptedContext);
+#endif // PLATFORM_UNIX
+
+#endif // FEATURE_HIJACK
 
     friend void         InitThreadManager();
     friend void         ThreadBaseObject::SetDelegate(OBJECTREF delegate);
@@ -1146,6 +1160,7 @@ public:
 #ifdef FEATURE_HIJACK
         TS_Hijacked               = 0x00000080,    // Return address has been hijacked
 #endif // FEATURE_HIJACK
+
         TS_BlockGCForSO           = 0x00000100,    // If a thread does not have enough stack, WaitUntilGCComplete may fail.
                                                    // Either GC suspension will wait until the thread has cleared this bit,
                                                    // Or the current thread is going to spin if GC has suspended all threads.
@@ -1780,10 +1795,12 @@ public:
 
 private:
     DWORD m_dwBeginLockCount;  // lock count when the thread enters current domain
+#ifndef FEATURE_CORECLR
     DWORD m_dwBeginCriticalRegionCount;  // lock count when the thread enters current domain
     DWORD m_dwCriticalRegionCount;
 
     DWORD m_dwThreadAffinityCount;
+#endif // !FEATURE_CORECLR
 
 #ifdef _DEBUG
     DWORD dbg_m_cSuspendedThreads;
@@ -1876,15 +1893,21 @@ public:
         LIMITED_METHOD_CONTRACT;
 
         _ASSERTE(m_dwLockCount >= m_dwBeginLockCount);
+#ifndef FEATURE_CORECLR
         _ASSERTE(m_dwCriticalRegionCount >= m_dwBeginCriticalRegionCount);
+#endif // !FEATURE_CORECLR
 
         // Equivalent to (m_dwLockCount != m_dwBeginLockCount ||
         //                m_dwCriticalRegionCount ! m_dwBeginCriticalRegionCount),
         // but without branching instructions
-        return ((m_dwLockCount ^ m_dwBeginLockCount) |
-                (m_dwCriticalRegionCount ^ m_dwBeginCriticalRegionCount));
-    }
+        BOOL fHasLock = (m_dwLockCount ^ m_dwBeginLockCount);
+#ifndef FEATURE_CORECLR
+        fHasLock |= (m_dwCriticalRegionCount ^ m_dwBeginCriticalRegionCount);
+#endif // !FEATURE_CORECLR
 
+        return fHasLock; 
+    }
+#ifndef FEATURE_CORECLR
     inline void BeginCriticalRegion()
     {
         LIMITED_METHOD_CONTRACT;
@@ -1922,11 +1945,16 @@ public:
         _ASSERTE (m_dwCriticalRegionCount > 0);
         m_dwCriticalRegionCount --;
     }
+#endif // !FEATURE_CORECLR
 
     inline BOOL HasCriticalRegion()
     {
         LIMITED_METHOD_CONTRACT;
+#ifndef FEATURE_CORECLR
         return m_dwCriticalRegionCount != 0;
+#else 
+        return FALSE;        
+#endif
     }
 
     inline DWORD GetNewHashCode()
@@ -1973,6 +2001,11 @@ public:
     static void ReverseEnterRuntimeThrowComplus();
     static void ReverseLeaveRuntime();
 
+    // Hook for OS Critical Section, Mutex, and others that require thread affinity
+    static void BeginThreadAffinity();
+    static void EndThreadAffinity();
+
+#ifndef FEATURE_CORECLR
     inline void IncThreadAffinityCount()
     {
         LIMITED_METHOD_CONTRACT;
@@ -1988,10 +2021,6 @@ public:
         m_dwThreadAffinityCount --;
     }
 
-    // Hook for OS Critical Section, Mutex, and others that require thread affinity
-    static void BeginThreadAffinity();
-    static void EndThreadAffinity();
-
     static void BeginThreadAffinityAndCriticalRegion()
     {
         LIMITED_METHOD_CONTRACT;
@@ -2005,11 +2034,16 @@ public:
         GetThread()->EndCriticalRegion();
         EndThreadAffinity();
     }
+#endif // !FEATURE_CORECLR
 
     BOOL HasThreadAffinity()
     {
         LIMITED_METHOD_CONTRACT;
+#ifndef FEATURE_CORECLR
         return m_dwThreadAffinityCount > 0;
+#else
+        return FALSE;
+#endif
     }
 
  private:
@@ -2540,6 +2574,8 @@ public:
     }
 
 
+    void SyncManagedExceptionState(bool fIsDebuggerThread);
+
     //---------------------------------------------------------------
     // Per-thread information used by handler
     //---------------------------------------------------------------
@@ -2842,6 +2878,10 @@ public:
         STR_SwitchedOut,
     };
 
+#if defined(FEATURE_HIJACK) && defined(PLATFORM_UNIX)
+    bool InjectGcSuspension();
+#endif // FEATURE_HIJACK && PLATFORM_UNIX
+
 #ifndef DISABLE_THREADSUSPEND
     // SuspendThread
     //   Attempts to OS-suspend the thread, whichever GC mode it is in.
@@ -2856,6 +2896,7 @@ public:
     SuspendThreadResult SuspendThread(BOOL fOneTryOnly = FALSE, DWORD *pdwSuspendCount = NULL);
 
     DWORD ResumeThread();
+
 #endif  // DISABLE_THREADSUSPEND
 
     int GetThreadPriority();
@@ -3260,10 +3301,10 @@ public:
         return s_NextSelfAbortEndTime;
     }
 
-#ifdef FEATURE_HIJACK
+#if defined(FEATURE_HIJACK) && !defined(PLATFORM_UNIX)
     // Tricks for resuming threads from fully interruptible code with a ThreadStop.
     BOOL           ResumeUnderControl(T_CONTEXT *pCtx);
-#endif // FEATURE_HIJACK
+#endif // FEATURE_HIJACK && !PLATFORM_UNIX
 
     enum InducedThrowReason {
         InducedThreadStop = 1,
@@ -3683,7 +3724,7 @@ private:
     ARG_SLOT CallPropertyGet(BinderMethodID id, OBJECTREF pObject);
     ARG_SLOT CallPropertySet(BinderMethodID id, OBJECTREF pObject, OBJECTREF pValue);
 
-#ifdef FEATURE_HIJACK
+#if defined(FEATURE_HIJACK) && !defined(PLATFORM_UNIX)
     // Used in suspension code to redirect a thread at a HandledJITCase
     BOOL RedirectThreadAtHandledJITCase(PFN_REDIRECTTARGET pTgt);
     BOOL RedirectCurrentThreadAtHandledJITCase(PFN_REDIRECTTARGET pTgt, T_CONTEXT *pCurrentThreadCtx);
@@ -3701,14 +3742,11 @@ private:
 
 #if defined(HAVE_GCCOVER) && defined(USE_REDIRECT_FOR_GCSTRESS)
 public:
-
     BOOL CheckForAndDoRedirectForGCStress (T_CONTEXT *pCurrentThreadCtx);
-
 private:
-
     bool        m_fPreemptiveGCDisabledForGCStress;
 #endif // HAVE_GCCOVER && USE_REDIRECT_FOR_GCSTRESS
-#endif // FEATURE_HIJACK
+#endif // FEATURE_HIJACK && !PLATFORM_UNIX
 
 public:
 
@@ -3841,7 +3879,7 @@ public:
     // is optional.
     static BOOL CommitThreadStack(Thread* pThreadOptional);
 
-#ifdef FEATURE_HIJACK
+#if defined(FEATURE_HIJACK) && !defined(PLATFORM_UNIX)
 private:
     // Redirecting of threads in managed code at suspension
 
@@ -3864,7 +3902,7 @@ private:
 #endif // defined(HAVE_GCCOVER) && USE_REDIRECT_FOR_GCSTRESS
 
     friend void CPFH_AdjustContextForThreadSuspensionRace(T_CONTEXT *pContext, Thread *pThread);
-#endif // FEATURE_HIJACK
+#endif // FEATURE_HIJACK && !PLATFORM_UNIX
 
 private:
     //-------------------------------------------------------------
@@ -3981,24 +4019,26 @@ public:
 
 private:
 #ifdef FEATURE_HIJACK
-    // Add and remove hijacks for JITted calls.
     void    HijackThread(VOID *pvHijackAddr, ExecutionState *esb);
-    BOOL    HandledJITCase(BOOL ForTaskSwitchIn = FALSE);
 
-    VOID          *m_pvHJRetAddr;             // original return address (before hijack)
-    VOID         **m_ppvHJRetAddrPtr;         // place we bashed a new return address
-    MethodDesc  *m_HijackedFunction;        // remember what we hijacked
+    VOID        *m_pvHJRetAddr;           // original return address (before hijack)
+    VOID       **m_ppvHJRetAddrPtr;       // place we bashed a new return address
+    MethodDesc  *m_HijackedFunction;      // remember what we hijacked
+
+#ifndef PLATFORM_UNIX
+    BOOL    HandledJITCase(BOOL ForTaskSwitchIn = FALSE);
 
 #ifdef _TARGET_X86_
     PCODE       m_LastRedirectIP;
     ULONG       m_SpinCount;
 #endif // _TARGET_X86_
-#endif // FEATURE_HIJACK
 
+#endif // !PLATFORM_UNIX
+
+#endif // FEATURE_HIJACK
 
     DWORD       m_Win32FaultAddress;
     DWORD       m_Win32FaultCode;
-
 
     // Support for Wait/Notify
     BOOL        Block(INT32 timeOut, PendingSync *syncInfo);
@@ -4555,7 +4595,7 @@ public:
         WRAPPER_NO_CONTRACT;
 
 #ifdef FEATURE_HIJACK
-        // Only unhijack the thread if the suspend succeeded.  If it failed, 
+        // Only unhijack the thread if the suspend succeeded. If it failed, 
         // the target thread may currently be using the original stack
         // location of the return address for something else.
         if (SuspendSucceeded)
@@ -5278,15 +5318,17 @@ public:
     void PrepareThreadForSOWork()
     {
         WRAPPER_NO_CONTRACT;
-#ifdef FEATURE_HIJACK
-            UnhijackThread();
-#endif // FEATURE_HIJACK
-            ResetThrowControlForThread();
 
-            // Since this Thread has taken an SO, there may be state left-over after we
-            //  short-circuited exception or other error handling, and so we don't want
-            //  to risk recycling it.
-            SetThreadStateNC(TSNC_CannotRecycle);
+#ifdef FEATURE_HIJACK
+        UnhijackThread();
+#endif // FEATURE_HIJACK
+
+        ResetThrowControlForThread();
+
+        // Since this Thread has taken an SO, there may be state left-over after we
+        // short-circuited exception or other error handling, and so we don't want
+        // to risk recycling it.
+        SetThreadStateNC(TSNC_CannotRecycle);
     }
 
     void SetSOWorkNeeded()
@@ -5519,6 +5561,24 @@ public:
         _ASSERTE(pAllLoggedTypes != NULL ? m_pAllLoggedTypes == NULL : TRUE);
         m_pAllLoggedTypes = pAllLoggedTypes;
     }
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+private:
+    EEClass* m_pHijackReturnTypeClass;
+public:
+    EEClass* GetHijackReturnTypeClass()
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        return m_pHijackReturnTypeClass;
+    }
+
+    void SetHijackReturnTypeClass(EEClass* pClass)
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        m_pHijackReturnTypeClass = pClass;
+    }
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
 };
 
 // End of class Thread
@@ -5526,9 +5586,12 @@ public:
 
 LCID GetThreadCultureIdNoThrow(Thread *pThread, BOOL bUICulture);
 
+#ifndef FEATURE_CORECLR
 // Request/Remove Thread Affinity for the current thread
 typedef StateHolder<Thread::BeginThreadAffinityAndCriticalRegion, Thread::EndThreadAffinityAndCriticalRegion> ThreadAffinityAndCriticalRegionHolder;
+#endif // !FEATURE_CORECLR
 typedef StateHolder<Thread::BeginThreadAffinity, Thread::EndThreadAffinity> ThreadAffinityHolder;
+
 typedef Thread::ForbidSuspendThreadHolder ForbidSuspendThreadHolder;
 typedef Thread::ThreadPreventAsyncHolder ThreadPreventAsyncHolder;
 typedef Thread::ThreadPreventAbortHolder ThreadPreventAbortHolder;

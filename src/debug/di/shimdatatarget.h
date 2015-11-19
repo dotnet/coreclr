@@ -21,7 +21,7 @@ typedef HRESULT (*FPContinueStatusChanged)(void * pUserData, DWORD dwThreadId, C
 //---------------------------------------------------------------------------------------
 // Data target for a live process. This is used by Shim. 
 // 
-class ShimDataTarget : public ICorDebugMutableDataTarget
+class ShimDataTarget : public ICorDebugMutableDataTarget, ICorDebugDataTarget4
 {
 public:
     virtual ~ShimDataTarget() {}
@@ -84,6 +84,13 @@ public:
         CORDB_CONTINUE_STATUS dwContinueStatus) = 0;
 
     // @dbgtodo - add Native Patch Table support
+
+    //
+    // ICorDebugDataTarget4
+    //    
+
+    // Unwind to the next stack frame
+    virtual HRESULT STDMETHODCALLTYPE VirtualUnwind(DWORD threadId, ULONG32 contextSize, PBYTE context);
 
 protected:
     // Pid of the target process.

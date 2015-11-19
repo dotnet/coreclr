@@ -56,6 +56,9 @@
 #include "fxretarget.h"
 #endif
 
+#include "clr/fs/path.h"
+using namespace clr::fs;
+
 // remove when we get an updated SDK
 #define LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR 0x00000100
 #define LOAD_LIBRARY_SEARCH_DEFAULT_DIRS 0x00001000
@@ -186,7 +189,10 @@ public:
 
     virtual void FinishEmit(MethodDesc* pMD) = 0;
 
-    virtual ~StubState() {}
+    virtual ~StubState()
+    {
+        LIMITED_METHOD_CONTRACT;
+    }
 };
 
 class ILStubState : public StubState
@@ -4028,7 +4034,7 @@ struct HiddenParameterInfo
 void CheckForHiddenParameters(DWORD cParamMarshalInfo,
                               __in_ecount(cParamMarshalInfo) MarshalInfo *pParamMarshalInfo,
                               __out DWORD *pcHiddenNativeParameters,
-                              __out_ecount(*pcHiddenNativeParameters) HiddenParameterInfo **ppHiddenNativeParameters)
+                              __out HiddenParameterInfo **ppHiddenNativeParameters)
 {
     CONTRACTL
     {
@@ -6141,48 +6147,6 @@ LPVOID NDirect::NDirectGetEntryPoint(NDirectMethodDesc *pMD, HINSTANCE hMod)
     RETURN pMD->FindEntryPoint(hMod);
 }
 
-static BOOL AbsolutePath(LPCWSTR wszLibName)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-
-        PRECONDITION(CheckPointer(wszLibName));
-    }
-    CONTRACTL_END;
-
-    // check for UNC or a drive
-    WCHAR* ptr = (WCHAR*) wszLibName;
-    WCHAR* start = ptr;
-
-    // Check for UNC path
-    while(*ptr)
-    {
-        if(*ptr != W('\\'))
-            break;
-        ptr++;
-    }
-
-    if((ptr - wszLibName) == 2)
-        return TRUE;
-    else
-    {
-        // Check to see if there is a colon indicating a drive or protocal
-        for(ptr = start; *ptr; ptr++)
-        {
-            if(*ptr == W(':'))
-                break;
-        }
-        if(*ptr != NULL)
-            return TRUE;
-    }
-
-    // We did not find a UNC/drive/protocol path
-    return FALSE;
-}
-
 VOID NDirectMethodDesc::SetNDirectTarget(LPVOID pTarget)
 {
     CONTRACTL
@@ -6575,6 +6539,25 @@ public:
         return m_hr;
     }
 
+    void DECLSPEC_NORETURN Throw(SString &libraryNameOrPath)
+    {
+        STANDARD_VM_CONTRACT;
+
+        HRESULT theHRESULT = GetHR();
+        if (theHRESULT == HRESULT_FROM_WIN32(ERROR_BAD_EXE_FORMAT))
+        {
+            COMPlusThrow(kBadImageFormatException);
+        }
+        else
+        {
+            SString hrString;
+            GetHRMsg(theHRESULT, hrString);
+            COMPlusThrow(kDllNotFoundException, IDS_EE_NDIRECT_LOADLIB, libraryNameOrPath.GetUnicode(), hrString);
+        }
+
+        __UNREACHABLE();
+    }
+
 private:
     void UpdateHR(DWORD priority, HRESULT hr)
     {
@@ -6590,7 +6573,7 @@ private:
 };  // class LoadLibErrorTracker
 
 
-//  Local helper function for the LoadLibraryModule below
+//  Local helper function for the LoadLibraryModule function below
 static HMODULE LocalLoadLibraryHelper( LPCWSTR name, DWORD flags, LoadLibErrorTracker *pErrorTracker )
 {
     STANDARD_VM_CONTRACT;
@@ -6631,6 +6614,27 @@ static HMODULE LocalLoadLibraryHelper( LPCWSTR name, DWORD flags, LoadLibErrorTr
     }
     
     return hmod;
+}
+
+//  Local helper function for the LoadLibraryFromPath function below
+static HMODULE LocalLoadLibraryDirectHelper(LPCWSTR name, DWORD flags, LoadLibErrorTracker *pErrorTracker)
+{
+    STANDARD_VM_CONTRACT;
+
+#ifndef FEATURE_PAL
+    return LocalLoadLibraryHelper(name, flags, pErrorTracker);
+#else // !FEATURE_PAL
+    // Load the library directly, and don't register it yet with PAL. The system library handle is required here, not the PAL
+    // handle. The system library handle is registered with PAL to get a PAL handle in LoadLibraryModuleViaHost().
+    HMODULE hmod = PAL_LoadLibraryDirect(name);
+
+    if (hmod == NULL)
+    {
+        pErrorTracker->TrackErrorCode(GetLastError());
+    }
+
+    return hmod;
+#endif // !FEATURE_PAL
 }
 
 
@@ -6768,6 +6772,22 @@ VOID NDirect::CheckUnificationList(NDirectMethodDesc * pMD, DWORD * pDllImportSe
 }
 #endif // !FEATURE_CORECLR
 
+// static
+HMODULE NDirect::LoadLibraryFromPath(LPCWSTR libraryPath)
+{
+    STANDARD_VM_CONTRACT;
+
+    LoadLibErrorTracker errorTracker;
+    const HMODULE systemModuleHandle =
+        LocalLoadLibraryDirectHelper(libraryPath, GetLoadWithAlteredSearchPathFlag(), &errorTracker);
+    if (systemModuleHandle == nullptr)
+    {
+        SString libraryPathSString(libraryPath);
+        errorTracker.Throw(libraryPathSString);
+    }
+    return systemModuleHandle;
+}
+
 #if defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
 /* static */
 HMODULE NDirect::LoadLibraryModuleViaHost(NDirectMethodDesc * pMD, AppDomain* pDomain, const wchar_t* wszLibName)
@@ -6846,12 +6866,67 @@ HMODULE NDirect::LoadLibraryModuleViaHost(NDirectMethodDesc * pMD, AppDomain* pD
 
     GCPROTECT_END();
 
+#ifdef FEATURE_PAL
+    if (hmod != nullptr)
+    {
+        // Register the system library handle with PAL and get a PAL library handle
+        hmod = PAL_RegisterLibraryDirect(hmod, wszLibName);
+    }
+#endif // FEATURE_PAL
+
     return (HMODULE)hmod;
 }
 #endif //defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
 
-/* static */
-HINSTANCE NDirect::LoadLibraryModule( NDirectMethodDesc * pMD, LoadLibErrorTracker * pErrorTracker)
+// Try to load the module alongside the assembly where the PInvoke was declared.
+HMODULE NDirect::LoadFromPInvokeAssemblyDirectory(Assembly *pAssembly, LPCWSTR libName, DWORD flags, LoadLibErrorTracker *pErrorTracker)
+{
+    STANDARD_VM_CONTRACT;
+
+    HMODULE hmod = NULL;
+
+    SString path = pAssembly->GetManifestFile()->GetPath();
+
+    SString::Iterator lastPathSeparatorIter = path.End();
+    if (PEAssembly::FindLastPathSeparator(path, lastPathSeparatorIter))
+    {
+        lastPathSeparatorIter++;
+        path.Truncate(lastPathSeparatorIter);
+
+        path.Append(libName);
+        hmod = LocalLoadLibraryHelper(path, flags, pErrorTracker);
+    }
+
+    return hmod;
+}
+
+#ifdef FEATURE_CORECLR
+// Try to load the module from the native DLL search directories
+HMODULE NDirect::LoadFromNativeDllSearchDirectories(AppDomain* pDomain, LPCWSTR libName, DWORD flags, LoadLibErrorTracker *pErrorTracker)
+{
+    STANDARD_VM_CONTRACT;
+
+    HMODULE hmod = NULL;
+
+    if (pDomain->HasNativeDllSearchDirectories())
+    {
+        AppDomain::PathIterator pathIter = pDomain->IterateNativeDllSearchDirectories();
+        while (hmod == NULL && pathIter.Next())
+        {
+            SString qualifiedPath(*(pathIter.GetPath()));
+            qualifiedPath.Append(libName);
+            if (!Path::IsRelative(qualifiedPath))
+            {
+                hmod = LocalLoadLibraryHelper(qualifiedPath, flags, pErrorTracker);
+            }
+        }
+    }
+
+    return hmod;
+}
+#endif // FEATURE_CORECLR
+
+HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracker * pErrorTracker)
 {
     CONTRACTL
     {
@@ -6936,7 +7011,7 @@ HINSTANCE NDirect::LoadLibraryModule( NDirectMethodDesc * pMD, LoadLibErrorTrack
         {
             W("mscorpe.dll"), W("mscorpe")
         };
-                
+
         for (int i = 0; i < COUNTOF(rgSxSAwareDlls); i++)
         {
             if (SString::_wcsicmp(wszLibName, rgSxSAwareDlls[i]) == 0)
@@ -6978,6 +7053,7 @@ HINSTANCE NDirect::LoadLibraryModule( NDirectMethodDesc * pMD, LoadLibErrorTrack
 
     DWORD dllImportSearchPathFlag = 0;
     BOOL searchAssemblyDirectory = TRUE;
+    bool libNameIsRelativePath = Path::IsRelative(wszLibName);
     if (hmod == NULL)
     {
 #ifndef FEATURE_CORECLR
@@ -7004,14 +7080,14 @@ HINSTANCE NDirect::LoadLibraryModule( NDirectMethodDesc * pMD, LoadLibErrorTrack
                 attributeIsFound = TRUE;
             }
         }
-                
+
         if (!attributeIsFound)
         {
             CheckUnificationList(pMD, &dllImportSearchPathFlag, &searchAssemblyDirectory);
         }
 #endif // !FEATURE_CORECLR
 
-        if (AbsolutePath(wszLibName))
+        if (!libNameIsRelativePath)
         {
             DWORD flags = loadWithAlteredPathFlags;
             if ((dllImportSearchPathFlag & LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR) != 0)
@@ -7025,34 +7101,20 @@ HINSTANCE NDirect::LoadLibraryModule( NDirectMethodDesc * pMD, LoadLibErrorTrack
         }
         else if (searchAssemblyDirectory)
         {
-            // Try to load the DLL alongside the assembly where the PInvoke was 
-            // declared using the path of the assembly.
             Assembly* pAssembly = pMD->GetMethodTable()->GetAssembly();
-
-            SString path = pAssembly->GetManifestFile()->GetPath();
-            SString::Iterator i = path.End();
-
-            if (PEAssembly::FindLastPathSeparator(path, i))
-            {
-                i++;
-                path.Truncate(i);
-
-                path.Append(wszLibName);
-
-                hmod = LocalLoadLibraryHelper(path, loadWithAlteredPathFlags | dllImportSearchPathFlag, pErrorTracker);
-            }
+            hmod = LoadFromPInvokeAssemblyDirectory(pAssembly, wszLibName, loadWithAlteredPathFlags | dllImportSearchPathFlag, pErrorTracker);
 
 #ifndef FEATURE_CORECLR
             if (hmod == NULL)
-            {                
+            {
                 // Try to load the DLL alongside the assembly where the PInvoke was 
                 // declared using the codebase of the assembly. This is required for download
                 // and shadow copy scenarios.
                 const WCHAR* ptr;
-                SString codebase;                                            
+                SString codebase;
                 pAssembly->GetCodeBase(codebase);
                 DWORD dwCodebaseLength = codebase.GetCount();
-                                            
+
                 // Strip off the protocol
                 for (ptr = codebase.GetUnicode(); *ptr && *ptr != W(':'); ptr++);
 
@@ -7062,7 +7124,7 @@ HINSTANCE NDirect::LoadLibraryModule( NDirectMethodDesc * pMD, LoadLibErrorTrack
                     SString pathFromCodebase;
 
                     // After finding the colon move forward until no more forward slashes
-                    for(ptr++; *ptr && *ptr == W('/'); ptr++);
+                    for (ptr++; *ptr && *ptr == W('/'); ptr++);
                     if (*ptr) 
                     {
                         // Calculate the number of characters we are interested in
@@ -7075,9 +7137,9 @@ HINSTANCE NDirect::LoadLibraryModule( NDirectMethodDesc * pMD, LoadLibErrorTrack
 
                             if (tail > ptr) 
                             {
-                                for(;ptr <= tail; ptr++) 
+                                for (;ptr <= tail; ptr++) 
                                 {
-                                    if(*ptr == W('/')) 
+                                    if (*ptr == W('/')) 
                                         pathFromCodebase.Append(W('\\'));
                                     else
                                         pathFromCodebase.Append(*ptr);
@@ -7087,6 +7149,15 @@ HINSTANCE NDirect::LoadLibraryModule( NDirectMethodDesc * pMD, LoadLibErrorTrack
                     }
 
                     pathFromCodebase.Append(wszLibName);
+
+                    SString path = pAssembly->GetManifestFile()->GetPath();
+                    SString::Iterator i = path.End();
+                    if (PEAssembly::FindLastPathSeparator(path, i))
+                    {
+                        i++;
+                        path.Truncate(i);
+                        path.Append(wszLibName);
+                    }
 
                     if (!pathFromCodebase.EqualsCaseInsensitive(path, PEImage::GetFileSystemLocale()))
                     {
@@ -7099,24 +7170,15 @@ HINSTANCE NDirect::LoadLibraryModule( NDirectMethodDesc * pMD, LoadLibErrorTrack
     }
 
 #ifdef FEATURE_CORECLR
-    if (hmod == NULL && pDomain->HasNativeDllSearchDirectories())
+    if (hmod == NULL)
     {
-        AppDomain::PathIterator i = pDomain->IterateNativeDllSearchDirectories();
-        while (hmod == NULL && i.Next())
-        {
-            SString qualifiedPath(*(i.GetPath()));
-            qualifiedPath.Append(wszLibName);
-            if (AbsolutePath(qualifiedPath))
-            {
-                hmod = LocalLoadLibraryHelper(qualifiedPath, loadWithAlteredPathFlags, pErrorTracker);
-            }
-        }
+        LoadFromNativeDllSearchDirectories(pDomain, wszLibName, loadWithAlteredPathFlags, pErrorTracker);
     }
+
 #endif // FEATURE_CORECLR
 
-    // Do we really need to do this. This call searches the application directory
-    // instead of the location for the library.
-    if(hmod == NULL)
+    // This call searches the application directory instead of the location for the library.
+    if (hmod == NULL)
     {
         hmod = LocalLoadLibraryHelper(wszLibName, dllImportSearchPathFlag, pErrorTracker);
     }
@@ -7150,6 +7212,49 @@ HINSTANCE NDirect::LoadLibraryModule( NDirectMethodDesc * pMD, LoadLibErrorTrack
         }
     }
 
+#ifdef FEATURE_PAL
+    if (hmod == NULL)
+    {
+        // P/Invokes are often declared with variations on the actual library name.
+        // For example, it's common to leave off the extension/suffix of the library
+        // even if it has one, or to leave off a prefix like "lib" even if it has one
+        // (both of these are typically done to smooth over cross-platform differences). 
+        // We try to dlopen with such variations on the original.
+        const char* const prefixSuffixCombinations[] =
+        {
+            "%s%s%s",     // prefix+name+suffix
+            "%.0s%s%s",   // name+suffix
+            "%s%s%.0s",   // prefix+name
+        };
+
+        const int NUMBER_OF_LIB_NAME_VARIATIONS = COUNTOF(prefixSuffixCombinations);
+
+        // Try to load from places we tried above, but this time with variations on the
+        // name including the prefix, suffix, and both.
+        for (int i = 0; i < NUMBER_OF_LIB_NAME_VARIATIONS; i++)
+        {
+            SString currLibNameVariation;
+            currLibNameVariation.Printf(prefixSuffixCombinations[i], PAL_SHLIB_PREFIX, name, PAL_SHLIB_SUFFIX);
+
+            if (libNameIsRelativePath && searchAssemblyDirectory)
+            {
+                Assembly *pAssembly = pMD->GetMethodTable()->GetAssembly();
+                hmod = LoadFromPInvokeAssemblyDirectory(pAssembly, currLibNameVariation, loadWithAlteredPathFlags | dllImportSearchPathFlag, pErrorTracker);
+                if (hmod != NULL)
+                    break;
+            }
+
+            hmod = LoadFromNativeDllSearchDirectories(pDomain, currLibNameVariation, loadWithAlteredPathFlags, pErrorTracker);
+            if (hmod != NULL)
+                break;
+
+            hmod = LocalLoadLibraryHelper(currLibNameVariation, dllImportSearchPathFlag, pErrorTracker);
+            if (hmod != NULL)
+                break;
+        }
+    }
+#endif // FEATURE_PAL
+
     // After all this, if we have a handle add it to the cache.
     if (hmod)
     {
@@ -7158,7 +7263,6 @@ HINSTANCE NDirect::LoadLibraryModule( NDirectMethodDesc * pMD, LoadLibErrorTrack
 
     return hmod.Extract();
 }
-
 
 //---------------------------------------------------------
 // Loads the DLL and finds the procaddress for an N/Direct call.
@@ -7247,17 +7351,7 @@ VOID NDirect::NDirectLink(NDirectMethodDesc *pMD)
 
         if (!hmod)
         {
-            HRESULT theHRESULT = errorTracker.GetHR();
-            if (theHRESULT == HRESULT_FROM_WIN32(ERROR_BAD_EXE_FORMAT))
-            {
-                COMPlusThrow(kBadImageFormatException);
-            }
-            else
-            {
-                SString hrString;
-                GetHRMsg(theHRESULT, hrString);
-                COMPlusThrow(kDllNotFoundException, IDS_EE_NDIRECT_LOADLIB, ssLibName.GetUnicode(), hrString);
-            }
+            errorTracker.Throw(ssLibName);
         }
 
         WCHAR wszEPName[50];
@@ -7333,6 +7427,7 @@ EXTERN_C LPVOID STDCALL NDirectImportWorker(NDirectMethodDesc* pMD)
     }
     CONTRACTL_END;
 
+    INSTALL_MANAGED_EXCEPTION_DISPATCHER;
     // this function is called by CLR to native assembly stubs which are called by 
     // managed code as a result, we need an unwind and continue handler to translate 
     // any of our internal exceptions into managed exceptions.
@@ -7367,7 +7462,7 @@ EXTERN_C LPVOID STDCALL NDirectImportWorker(NDirectMethodDesc* pMD)
             //
 
             if (!pMD->GetModule()->GetSecurityDescriptor()->CanCallUnmanagedCode())
-            	Security::ThrowSecurityException(g_SecurityPermissionClassName, SPFLAGSUNMANAGEDCODE);
+                Security::ThrowSecurityException(g_SecurityPermissionClassName, SPFLAGSUNMANAGEDCODE);
 
             if (!pMD->IsZapped())
             {
@@ -7382,13 +7477,14 @@ EXTERN_C LPVOID STDCALL NDirectImportWorker(NDirectMethodDesc* pMD)
 
             pMD->CheckRestore();
 
-        	NDirect::NDirectLink(pMD);
+            NDirect::NDirectLink(pMD);
         }
     }
 
     ret = pMD->GetNDirectTarget();
 
     UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
+    UNINSTALL_MANAGED_EXCEPTION_DISPATCHER;
 
     END_PRESERVE_LAST_ERROR;
 
@@ -7475,6 +7571,7 @@ PCODE GetILStubForCalli(VASigCookie *pVASigCookie, MethodDesc *pMD)
 
     PCODE pTempILStub = NULL;
 
+    INSTALL_MANAGED_EXCEPTION_DISPATCHER;
     // this function is called by CLR to native assembly stubs which are called by 
     // managed code as a result, we need an unwind and continue handler to translate 
     // any of our internal exceptions into managed exceptions.
@@ -7573,6 +7670,7 @@ PCODE GetILStubForCalli(VASigCookie *pVASigCookie, MethodDesc *pMD)
                                                     NULL);
 
     UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
+    UNINSTALL_MANAGED_EXCEPTION_DISPATCHER;
 
     RETURN pVASigCookie->pNDirectILStub;
 }

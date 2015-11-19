@@ -4,7 +4,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information. 
 //
 
-class DataTarget : public ICLRDataTarget
+class DataTarget : public ICLRDataTarget, ICorDebugDataTarget4
 {
 private:
     LONG m_ref;                         // Reference count.
@@ -16,8 +16,8 @@ public:
     // IUnknown.
     STDMETHOD(QueryInterface)(
         THIS_
-        __in REFIID InterfaceId,
-        __out PVOID* Interface
+        ___in REFIID InterfaceId,
+        ___out PVOID* Interface
         );
     STDMETHOD_(ULONG, AddRef)(
         THIS
@@ -82,4 +82,11 @@ public:
         /* [size_is][in] */ BYTE *inBuffer,
         /* [in] */ ULONG32 outBufferSize,
         /* [size_is][out] */ BYTE *outBuffer);
+
+    // ICorDebugDataTarget4
+
+    virtual HRESULT STDMETHODCALLTYPE VirtualUnwind(
+        /* [in] */ DWORD threadId,
+        /* [in] */ ULONG32 contextSize,
+        /* [in, out, size_is(contextSize)] */ PBYTE context);
 };

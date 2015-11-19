@@ -19,9 +19,7 @@ Abstract:
 
 --*/
 
-#include <typeinfo>
 #include "pal/thread.hpp"
-#include "signal.hpp"
 #include "pal/handleapi.hpp"
 #include "pal/seh.hpp"
 #include "pal/dbgmsg.h"
@@ -30,18 +28,19 @@ Abstract:
 #include "pal/init.h"
 #include "pal/process.h"
 #include "pal/malloc.hpp"
+#include "signal.hpp"
 
 #if HAVE_ALLOCA_H
 #include "alloca.h"
 #endif
 
-#include <errno.h>
-#include <string.h>
 #if HAVE_MACH_EXCEPTIONS
 #include "machexception.h"
 #else
 #include <signal.h>
 #endif
+
+#include <string.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <stdlib.h>
@@ -58,23 +57,6 @@ const UINT RESERVED_SEH_BIT = 0x800000;
 /* Internal variables definitions **********************************************/
 
 PHARDWARE_EXCEPTION_HANDLER g_hardwareExceptionHandler = NULL;
-
-#ifdef __llvm__
-__thread 
-#else // __llvm__
-__declspec(thread)
-#endif // !__llvm__
-int t_holderCount = 0;
-
-/* Internal function declarations *********************************************/
-
-BOOL SEHInitializeConsole();
-
-#if !HAVE_MACH_EXCEPTIONS
-PAL_ERROR
-StartExternalSignalHandlerThread(
-    CPalThread *pthr);
-#endif // !HAVE_MACH_EXCEPTIONS
 
 /* Internal function definitions **********************************************/
 
@@ -97,30 +79,12 @@ SEHInitialize (CPalThread *pthrCurrent, DWORD flags)
 {
     BOOL bRet = FALSE;
 
-    if (!SEHInitializeConsole())
-    {
-        ERROR("SEHInitializeConsole failed!\n");
-        SEHCleanup();
-        goto SEHInitializeExit;
-    }
-
 #if !HAVE_MACH_EXCEPTIONS
     if (!SEHInitializeSignals())
     {
         ERROR("SEHInitializeSignals failed!\n");
         SEHCleanup();
         goto SEHInitializeExit;
-    }
-
-    if (flags & PAL_INITIALIZE_SIGNAL_THREAD)
-    {
-        PAL_ERROR palError = StartExternalSignalHandlerThread(pthrCurrent);
-        if (NO_ERROR != palError)
-        {
-            ERROR("StartExternalSignalHandlerThread returned %d\n", palError);
-            SEHCleanup();
-            goto SEHInitializeExit;
-        }
     }
 #endif
     bRet = TRUE;
@@ -169,7 +133,6 @@ VOID
 PALAPI 
 PAL_SetHardwareExceptionHandler(
     IN PHARDWARE_EXCEPTION_HANDLER exceptionHandler)
-
 {
     g_hardwareExceptionHandler = exceptionHandler;
 }
@@ -189,19 +152,23 @@ Return value:
 VOID
 SEHProcessException(PEXCEPTION_POINTERS pointers)
 {
-    PAL_SEHException exception(pointers->ExceptionRecord, pointers->ContextRecord);
-
-    if (g_hardwareExceptionHandler != NULL)
+    if (!IsInDebugBreak(pointers->ExceptionRecord->ExceptionAddress))
     {
-        g_hardwareExceptionHandler(&exception);
+        PAL_SEHException exception(pointers->ExceptionRecord, pointers->ContextRecord);
+
+        if (g_hardwareExceptionHandler != NULL)
+        {
+            g_hardwareExceptionHandler(&exception);
+        }
+
+        if (CatchHardwareExceptionHolder::IsEnabled())
+        {
+            throw exception;
+        }
     }
 
-    if (PAL_CatchHardwareExceptionHolder::IsEnabled())
-    {
-        throw exception;
-    }
-
-    TRACE("Unhandled hardware exception %08x\n", pointers->ExceptionRecord->ExceptionCode);
+    TRACE("Unhandled hardware exception %08x at %p\n", 
+        pointers->ExceptionRecord->ExceptionCode, pointers->ExceptionRecord->ExceptionAddress);
 }
 
 /*++
@@ -260,23 +227,84 @@ PAL_ERROR SEHDisable(CPalThread *pthrCurrent)
 
 /*++
 
-PAL_HandlerExceptionHolder implementation
+  CatchHardwareExceptionHolder implementation
 
 --*/
 
-PAL_CatchHardwareExceptionHolder::PAL_CatchHardwareExceptionHolder()
+CatchHardwareExceptionHolder::CatchHardwareExceptionHolder()
 {
-    ++t_holderCount;
+    CPalThread *pThread = InternalGetCurrentThread();
+    ++pThread->m_hardwareExceptionHolderCount;
 }
 
-PAL_CatchHardwareExceptionHolder::~PAL_CatchHardwareExceptionHolder()
+CatchHardwareExceptionHolder::~CatchHardwareExceptionHolder()
 {
-    --t_holderCount;
+    CPalThread *pThread = InternalGetCurrentThread();
+    --pThread->m_hardwareExceptionHolderCount;
 }
 
-bool PAL_CatchHardwareExceptionHolder::IsEnabled()
+bool CatchHardwareExceptionHolder::IsEnabled()
 {
-    return t_holderCount > 0;
+    CPalThread *pThread = InternalGetCurrentThread();
+    return pThread->IsHardwareExceptionsEnabled();
+}
+
+/*++
+
+  NativeExceptionHolderBase implementation
+
+--*/
+
+#ifdef __llvm__
+__thread 
+#else // __llvm__
+__declspec(thread)
+#endif // !__llvm__
+static NativeExceptionHolderBase *t_nativeExceptionHolderHead = nullptr;
+
+NativeExceptionHolderBase::NativeExceptionHolderBase()
+    : CatchHardwareExceptionHolder()
+{
+    m_head = nullptr;
+    m_next = nullptr;
+}
+
+NativeExceptionHolderBase::~NativeExceptionHolderBase()
+{
+    // Only destroy if Push was called
+    if (m_head != nullptr)
+    {
+        *m_head = m_next;
+        m_head = nullptr;
+        m_next = nullptr;
+    }
+}
+
+void 
+NativeExceptionHolderBase::Push()
+{
+    NativeExceptionHolderBase **head = &t_nativeExceptionHolderHead;
+    m_head = head;
+    m_next = *head;
+    *head = this;
+}
+
+NativeExceptionHolderBase *
+NativeExceptionHolderBase::FindNextHolder(NativeExceptionHolderBase *currentHolder, void *stackLowAddress, void *stackHighAddress)
+{
+    NativeExceptionHolderBase *holder = (currentHolder == nullptr) ? t_nativeExceptionHolderHead : currentHolder->m_next;
+
+    while (holder != nullptr)
+    {
+        if (((void *)holder > stackLowAddress) && ((void *)holder < stackHighAddress))
+        { 
+            return holder;
+        }
+        // Get next holder
+        holder = holder->m_next;
+    }
+
+    return nullptr;
 }
 
 #include "seh-unwind.cpp"

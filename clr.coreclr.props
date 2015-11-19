@@ -79,7 +79,7 @@
     <!-- The rejit feature is available only on supported architectures (x86 & x64) -->
     <FeatureReJIT Condition="('$(TargetArch)' == 'i386') or ('$(TargetArch)' == 'amd64')">true</FeatureReJIT>
     <FeatureWindowsPhone>true</FeatureWindowsPhone>
-    <FeatureManagedEtw Condition="'$(OS)' == 'Windows_NT'">true</FeatureManagedEtw>
+    <FeatureManagedEtw>true</FeatureManagedEtw>
     <FeatureManagedEtwChannels>true</FeatureManagedEtwChannels>
     <FeatureHostedBinder>true</FeatureHostedBinder>
     <BinderDebugLog Condition="'$(_BuildType)'=='dbg'">true</BinderDebugLog>
@@ -94,15 +94,16 @@
     <FeatureSvrGc Condition="'$(TargetArch)' != 'arm'">true</FeatureSvrGc>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(TargetsLinux)' == 'true'">
+    <FeatureXplatEventSource>true</FeatureXplatEventSource>
+  </PropertyGroup>
+
   <PropertyGroup Condition="'$(TargetsUnix)' == 'true'">
     <FeaturePal>true</FeaturePal>
 
     <FeatureStubsAsIL>true</FeatureStubsAsIL>
 
     <ProfilingSupportedBuild>false</ProfilingSupportedBuild>
-
-    <!-- UNIXTODO Enable randomized string hashing -->
-    <FeatureRandomizedStringHashing>false</FeatureRandomizedStringHashing>
 
     <!-- Windows specific features -->
     <FeatureWin32Registry>false</FeatureWin32Registry>
@@ -112,6 +113,7 @@
     <FeatureCominterop>false</FeatureCominterop>
     <FeatureCominteropUnmanagedActivation>false</FeatureCominteropUnmanagedActivation>
     <FeatureCominteropWinRTManagedActivation>false</FeatureCominteropWinRTManagedActivation>
+    <FeatureManagedEtw>false</FeatureManagedEtw>
 
     <!-- Features implemented by fxcore -->
     <FeatureLegacySurface>false</FeatureLegacySurface>

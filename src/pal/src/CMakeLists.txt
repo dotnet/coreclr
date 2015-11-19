@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 2.8.12.2)
 
+include_directories(SYSTEM /usr/local/include)
+
 include(configure.cmake)
 
 project(coreclrpal)
@@ -17,16 +19,25 @@ endif()
 
 include_directories(include)
 
-if(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
-  # required for libunwind
-  include_directories("/usr/local/include/")
-endif()
-
 # Compile options
+
+if(CMAKE_SYSTEM_PROCESSOR STREQUAL x86_64 OR CMAKE_SYSTEM_PROCESSOR STREQUAL amd64 OR CMAKE_SYSTEM_PROCESSOR STREQUAL AMD64)
+  set(PAL_CMAKE_PLATFORM_ARCH_AMD64 1)
+  add_definitions(-D_AMD64_)
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL armv7l)
+  set(PAL_CMAKE_PLATFORM_ARCH_ARM 1)
+  add_definitions(-D_ARM_)
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL aarch64)
+  set(PAL_CMAKE_PLATFORM_ARCH_ARM64 1)
+  add_definitions(-D_ARM64_)
+else()
+  message(FATAL_ERROR "Only ARM and AMD64 is supported")
+endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
   add_definitions(-D_TARGET_MAC64)
   set(PLATFORM_SOURCES
+    arch/i386/activationhandlerwrapper.S
     arch/i386/context.S
     arch/i386/dispatchexceptionwrapper.S
     exception/machexception.cpp
@@ -43,16 +54,45 @@ add_definitions(-DLP64COMPATIBLE=1)
 add_definitions(-DFEATURE_PAL=1)
 add_definitions(-DCORECLR=1)
 add_definitions(-DPIC=1)
-add_definitions(-DBIT64=1)
-add_definitions(-D_WIN64=1)
+add_definitions(-D_FILE_OFFSET_BITS=64)
+if(PAL_CMAKE_PLATFORM_ARCH_AMD64)
+  add_definitions(-DBIT64=1)
+  add_definitions(-D_WIN64=1)
+elseif(PAL_CMAKE_PLATFORM_ARCH_ARM)
+  add_definitions(-DBIT32=1)
+  add_definitions(-D_WIN32=1)
+elseif(PAL_CMAKE_PLATFORM_ARCH_ARM64)
+  add_definitions(-DBIT64=1)
+  add_definitions(-D_WIN64=1)
+endif()
+
+# turn off capability to remove unused functions (which was enabled in debug build with sanitizers)
+set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "${CMAKE_SHARED_LINKER_FLAGS_DEBUG} -Wl,--no-gc-sections")
 
 add_compile_options(-fno-builtin)
 add_compile_options(-fPIC)
 
+if(PAL_CMAKE_PLATFORM_ARCH_AMD64)
+  set(ARCH_SOURCES
+    arch/i386/context2.S
+    arch/i386/debugbreak.S
+    arch/i386/processor.cpp
+  )
+elseif(PAL_CMAKE_PLATFORM_ARCH_ARM)
+  set(ARCH_SOURCES
+    arch/arm/context2.S
+    arch/arm/debugbreak.S
+    arch/arm/processor.cpp
+  )
+elseif(PAL_CMAKE_PLATFORM_ARCH_ARM64)
+  set(ARCH_SOURCES
+    arch/arm64/context2.S
+    arch/arm64/debugbreak.S
+    arch/arm64/processor.cpp
+  )
+endif()
+
 set(SOURCES
-  arch/i386/context.cpp
-  arch/i386/context2.S
-  arch/i386/processor.cpp
   cruntime/file.cpp
   cruntime/filecrt.cpp
   cruntime/finite.cpp
@@ -71,7 +111,6 @@ set(SOURCES
   cruntime/wchar.cpp
   cruntime/wchartls.cpp
   debug/debug.cpp
-  exception/console.cpp
   exception/seh.cpp
   exception/signal.cpp
   file/directory.cpp
@@ -95,16 +134,13 @@ set(SOURCES
   map/virtual.cpp
   memory/heap.cpp
   memory/local.cpp
-  misc/corefx.cpp
   misc/dbgmsg.cpp
   misc/environ.cpp
   misc/error.cpp
   misc/errorstrings.cpp
   misc/fmtmessage.cpp
-  misc/interlock.cpp
   misc/miscpalapi.cpp
   misc/msgbox.cpp
-  misc/dactableaddress.cpp
   misc/strutil.cpp
   misc/sysinfo.cpp
   misc/time.cpp
@@ -152,6 +188,7 @@ set(SOURCES
   synchmgr/synchcontrollers.cpp
   synchmgr/synchmanager.cpp
   synchmgr/wait.cpp
+  thread/context.cpp
   thread/process.cpp
   thread/thread.cpp
   thread/threadsusp.cpp
@@ -161,15 +198,33 @@ set(SOURCES
 add_library(coreclrpal
   STATIC
   ${SOURCES}
+  ${ARCH_SOURCES}
   ${PLATFORM_SOURCES}
 )
 
 if(CMAKE_SYSTEM_NAME STREQUAL Linux)
+  # On ARM linking with libunwind will break C++ exceptions unless we first
+  # link with gcc_s, this is a libunwind issue
+  if(PAL_CMAKE_PLATFORM_ARCH_ARM)
+    target_link_libraries(coreclrpal
+      gcc_s
+      unwind-arm
+    )
+  endif()
+
+  if(PAL_CMAKE_PLATFORM_ARCH_AMD64)
+    target_link_libraries(coreclrpal
+      unwind-x86_64
+    )
+  endif()
+    
   target_link_libraries(coreclrpal
     pthread
     rt
     dl
     unwind
+    unwind-generic
+    uuid
   )
 endif(CMAKE_SYSTEM_NAME STREQUAL Linux)
 
@@ -198,6 +253,10 @@ if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
 add_subdirectory(examples)
+
+if(CMAKE_SYSTEM_NAME STREQUAL Linux)
+add_subdirectory(eventprovider)
+endif(CMAKE_SYSTEM_NAME STREQUAL Linux)
 
 # Install the static PAL library for VS
 install (TARGETS coreclrpal DESTINATION lib)

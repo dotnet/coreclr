@@ -8,18 +8,18 @@ class DebugClient : public IDebugClient
 private:
     lldb::SBDebugger &m_debugger;
     lldb::SBCommandReturnObject &m_returnObject;
-    char *m_coreclrDirectory;
 
     void OutputString(ULONG mask, PCSTR str);
     lldb::SBProcess GetCurrentProcess();
     lldb::SBThread GetCurrentThread();
     lldb::SBFrame GetCurrentFrame();
-    ULONG64 GetModuleBase(lldb::SBTarget target, lldb::SBModule module);
-    DWORD_PTR GetExpression(lldb::SBFrame frame, lldb::SBError& error, PCSTR exp);
-    DWORD_PTR GetRegister(lldb::SBFrame frame, const char *name);
+    ULONG64 GetModuleBase(lldb::SBTarget& target, lldb::SBModule& module);
+    DWORD_PTR GetExpression(lldb::SBFrame& frame, lldb::SBError& error, PCSTR exp);
+    void GetContextFromFrame(lldb::SBFrame& frame, DT_CONTEXT *dtcontext);
+    DWORD_PTR GetRegister(lldb::SBFrame& frame, const char *name);
 
 public:
-    DebugClient(lldb::SBDebugger &debugger, lldb::SBCommandReturnObject &returnObject, char *coreclrDirectory);
+    DebugClient(lldb::SBDebugger &debugger, lldb::SBCommandReturnObject &returnObject);
     ~DebugClient();
 
     //----------------------------------------------------------------------------
@@ -58,7 +58,23 @@ public:
         PULONG size);
 
     HRESULT GetExecutingProcessorType(
-        PULONG Type);
+        PULONG type);
+
+    HRESULT Execute(
+        ULONG outputControl,
+        PCSTR command,
+        ULONG flags);
+
+    HRESULT GetLastEventInformation(
+        PULONG type,
+        PULONG processId,
+        PULONG threadId,
+        PVOID extraInformation,
+        ULONG extraInformationSize,
+        PULONG extraInformationUsed,
+        PSTR description,
+        ULONG descriptionSize,
+        PULONG descriptionUsed);
 
     //----------------------------------------------------------------------------
     // IDebugDataSpaces
@@ -123,9 +139,15 @@ public:
         ULONG loadedImageNameBufferSize,
         PULONG loadedImageNameSize);
 
+    PCSTR GetModuleDirectory(
+        PCSTR name);
+
     //----------------------------------------------------------------------------
     // IDebugSystemObjects
     //----------------------------------------------------------------------------
+
+    HRESULT GetCurrentProcessId(
+        PULONG id);
 
     HRESULT GetCurrentThreadId(
         PULONG id);
@@ -172,6 +194,8 @@ public:
     DWORD_PTR GetExpression(
         PCSTR exp);
 
-    PCSTR GetModuleDirectory(
-        PCSTR name);
+    HRESULT VirtualUnwind(
+        DWORD threadID,
+        ULONG32 contextSize,
+        PBYTE context);
 };

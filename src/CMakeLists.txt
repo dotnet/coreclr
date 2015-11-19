@@ -3,7 +3,18 @@ include_directories("strongname/inc")
 include_directories("inc/winrt")
 
 include_directories("debug/inc")
-include_directories("debug/inc/amd64")
+if(CLR_CMAKE_PLATFORM_ARCH_AMD64)
+  include_directories("debug/inc/amd64")
+elseif(CLR_CMAKE_PLATFORM_ARCH_I386)
+  include_directories("debug/inc/i386")
+elseif(CLR_CMAKE_PLATFORM_ARCH_ARM)
+  include_directories("debug/inc/arm")
+elseif(CLR_CMAKE_PLATFORM_ARCH_ARM64)
+  include_directories("debug/inc/arm64")
+else()
+  clr_unknown_arch()
+endif()
+  
 include_directories("debug/inc/dump")
 include_directories("md/inc")
 include_directories("classlibnative/bcltype")
@@ -11,6 +22,11 @@ include_directories("classlibnative/cryptography")
 include_directories("classlibnative/inc")
 
 if(CLR_CMAKE_PLATFORM_UNIX)
+  add_subdirectory(ToolBox/SOS/Strike)
+
+  # Include the dummy c++ include files
+  include_directories("pal/inc/rt/cpp")
+
   # This prevents inclusion of standard C compiler headers
   add_compile_options(-nostdinc)
 
@@ -18,7 +34,6 @@ if(CLR_CMAKE_PLATFORM_UNIX)
     # This prevents inclusion of standard C++ compiler headers
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -nostdinc++")
   endif(NOT CLR_CMAKE_PLATFORM_DARWIN)
-
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 add_subdirectory(utilcode)

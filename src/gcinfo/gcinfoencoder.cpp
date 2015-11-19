@@ -627,7 +627,9 @@ void GcInfoEncoder::Build()
      m_DbgEncoder.Build();
 #endif    
 
+#ifdef _DEBUG
     _ASSERTE(m_IsSlotTableFrozen || m_NumSlots == 0);
+#endif
 
     _ASSERTE((1 << NUM_NORM_CODE_OFFSETS_PER_CHUNK_LOG2) == NUM_NORM_CODE_OFFSETS_PER_CHUNK);
 
@@ -1216,7 +1218,6 @@ void GcInfoEncoder::Build()
         UINT32 i;
         for(i = 0; i < m_NumSlots && m_SlotTable[i].IsRegister(); i++)
         {
-            GcSlotDesc* pSlotDesc = &m_SlotTable[i];
             if(m_SlotTable[i].IsDeleted())
             {
                 numDeleted++;
@@ -1226,7 +1227,6 @@ void GcInfoEncoder::Build()
 
         for(; i < m_NumSlots && !m_SlotTable[i].IsUntracked(); i++)
         {
-            GcSlotDesc* pSlotDesc = &m_SlotTable[i];
             if(m_SlotTable[i].IsDeleted())
             {
                 numDeleted++;
@@ -1528,6 +1528,7 @@ void GcInfoEncoder::Build()
                     UINT32 liveStateOffset;
                     bool found = hashMap.Lookup(&liveState, &liveStateOffset);
                     _ASSERTE(found);
+                    (void)found;
                     GCINFO_WRITE(m_Info1, liveStateOffset, numBitsPerPointer, CallSiteStateSize);
 
 
@@ -1552,6 +1553,7 @@ void GcInfoEncoder::Build()
                 UINT32 liveStateOffset;
                 bool found = hashMap.Lookup(&liveState, &liveStateOffset);
                 _ASSERTE(found);
+                (void)found;
                 for( ; callSiteIndex < m_NumCallSites; callSiteIndex++)
                 {
                     GCINFO_WRITE(m_Info1, liveStateOffset, numBitsPerPointer, CallSiteStateSize);
@@ -2013,7 +2015,6 @@ void GcInfoEncoder::SizeofSlotStateVarLengthVector(const BitArray &vector,
         sizeofRLENeg = 2;
 
         UINT32 rleStart = 0;
-        UINT32 rleDeleted = 0;
         bool fPrev = false;
         UINT32 i;
         for(i = 0; i < m_NumSlots && !m_SlotTable[i].IsUntracked(); i++)

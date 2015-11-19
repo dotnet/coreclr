@@ -431,7 +431,7 @@ public:
         FRAME_ATTR_OUT_OF_LINE = 2,         // The exception out of line (IP of the frame is not correct)
         FRAME_ATTR_FAULTED = 4,             // Exception caused by Win32 fault
         FRAME_ATTR_RESUMABLE = 8,           // We may resume from this frame
-        FRAME_ATTR_CAPTURE_DEPTH_2 = 0x10,  // This is a helperMethodFrame and the capture occured at depth 2
+        FRAME_ATTR_CAPTURE_DEPTH_2 = 0x10,  // This is a helperMethodFrame and the capture occurred at depth 2
         FRAME_ATTR_EXACT_DEPTH = 0x20,      // This is a helperMethodFrame and a jit helper, but only crawl to the given depth
         FRAME_ATTR_NO_THREAD_ABORT = 0x40,  // This is a helperMethodFrame that should not trigger thread aborts on entry
     };
@@ -754,7 +754,7 @@ public:
         return VPTR_HOST_VTABLE_TO_TADDR(*(LPVOID*)this);
     }
 
-#ifdef _DEBUG
+#if defined(_DEBUG) && !defined(DACCESS_COMPILE)
     virtual BOOL Protects(OBJECTREF *ppObjectRef)
     {
         LIMITED_METHOD_CONTRACT;
@@ -845,6 +845,7 @@ protected:
     // Frame is considered an abstract class: this protected constructor
     // causes any attempt to instantiate one to fail at compile-time.
     Frame()
+    : m_Next(dac_cast<PTR_Frame>(nullptr))
     { 
         LIMITED_METHOD_CONTRACT;
     }
@@ -1891,7 +1892,7 @@ public:
 
     virtual PCODE GetReturnAddress();
 
-    // Retrives pointer to the lowest-addressed argument on
+    // Retrieves pointer to the lowest-addressed argument on
     // the stack. Depending on the calling convention, this
     // may or may not be the first argument.
     TADDR GetPointerToArguments()
@@ -3165,8 +3166,9 @@ private:
     PTR_Object  m_LastThrownObjectInParentContext;                                        
     ULONG_PTR   m_LockCount;            // Number of locks the thread takes
                                         // before the transition.
+#ifndef FEATURE_CORECLR
     ULONG_PTR   m_CriticalRegionCount;
-
+#endif // !FEATURE_CORECLR
     VPTR_VTABLE_CLASS(ContextTransitionFrame, Frame)
 
 public:
@@ -3194,18 +3196,29 @@ public:
         m_LastThrownObjectInParentContext = OBJECTREFToObject(lastThrownObject);
     }
 
-    void SetLockCount(DWORD lockCount, DWORD criticalRegionCount)
+    void SetLockCount(DWORD lockCount)
     {
         LIMITED_METHOD_CONTRACT;
         m_LockCount = lockCount;
-        m_CriticalRegionCount = criticalRegionCount;
     }
-    void GetLockCount(DWORD* pLockCount, DWORD* pCriticalRegionCount)
+    DWORD GetLockCount()
     {
         LIMITED_METHOD_CONTRACT;
-        *pLockCount = (DWORD) m_LockCount;
-        *pCriticalRegionCount = (DWORD) m_CriticalRegionCount;
+        return (DWORD) m_LockCount;
     }
+
+#ifndef FEATURE_CORECLR
+    void SetCriticalRegionCount(DWORD criticalRegionCount)
+    {
+        LIMITED_METHOD_CONTRACT;
+        m_CriticalRegionCount = criticalRegionCount;
+    }
+    DWORD GetCriticalRegionCount()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return (DWORD) m_CriticalRegionCount;
+    }
+#endif // !FEATURE_CORECLR
 
     // Let debugger know that we're transitioning between AppDomains.
     ETransitionType GetTransitionType()
@@ -3220,7 +3233,9 @@ public:
     , m_ReturnExecutionContext(NULL)
     , m_LastThrownObjectInParentContext(NULL)
     , m_LockCount(0)
+#ifndef FEATURE_CORECLR
     , m_CriticalRegionCount(0)
+#endif // !FEATURE_CORECLR
     {
         LIMITED_METHOD_CONTRACT;
     }
@@ -3296,6 +3311,7 @@ class TailCallFrame : public Frame
 #endif
 
 public:
+#ifndef	CROSSGEN_COMPILE
 #if !defined(_TARGET_X86_)
 
 #ifndef DACCESS_COMPILE
@@ -3345,7 +3361,7 @@ public:
     }
 
     virtual void UpdateRegDisplay(const PREGDISPLAY pRD);
-
+#endif // !CROSSGEN_COMPILE
 #ifdef _TARGET_AMD64_
     void SetGCLayout(TADDR pGCLayout)
     {

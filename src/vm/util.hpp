@@ -357,7 +357,7 @@ HRESULT VMPostError(                    // Returned error.
     ...);                               // Error arguments.
     
 //=====================================================================
-// Displays the messaage box or logs the message, corresponding to the last COM+ error occured
+// Displays the messaage box or logs the message, corresponding to the last COM+ error occurred
 void VMDumpCOMErrors(HRESULT hrErr);
 HRESULT LoadMscorsn();
 
@@ -365,7 +365,7 @@ HRESULT LoadMscorsn();
 
 #ifndef FEATURE_PAL
 
-HRESULT WszSHGetFolderPath(HWND hwndOwner, int nFolder, HANDLE hToken, DWORD dwFlags, size_t cchPath, __out_ecount(MAX_PATH) LPWSTR pszwPath);
+HRESULT WszSHGetFolderPath(HWND hwndOwner, int nFolder, HANDLE hToken, DWORD dwFlags, size_t cchPath, __out_ecount(MAX_LONGPATH) LPWSTR pszwPath);
 HRESULT WszShellExecute(HWND hwnd, LPCTSTR lpOperation, LPCTSTR lpFile, LPCTSTR lpParameters, LPCTSTR lpDirectory, INT nShowCmd);
 
 #ifndef DACCESS_COMPILE
@@ -1080,6 +1080,16 @@ struct JITNotification
 
 GPTR_DECL(JITNotification,g_pNotificationTable);
 GVAL_DECL(ULONG32, g_dacNotificationFlags);
+
+#if defined(FEATURE_PAL) && !defined(DACCESS_COMPILE)
+
+inline void
+InitializeJITNotificationTable()
+{
+    g_pNotificationTable = new (nothrow) JITNotification[1001];
+}
+
+#endif // FEATURE_PAL && !DACCESS_COMPILE
 
 class JITNotifications
 {

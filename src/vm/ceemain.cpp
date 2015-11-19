@@ -256,6 +256,11 @@
 #include "perfmap.h"
 #endif
 
+#ifndef FEATURE_PAL
+// Included for referencing __security_cookie
+#include "process.h"
+#endif // !FEATURE_PAL
+
 #ifdef FEATURE_IPCMAN
 static HRESULT InitializeIPCManager(void);
 static void PublishIPCManager(void);
@@ -493,6 +498,7 @@ HRESULT EnsureEEStarted(COINITIEE flags)
 
 #ifndef CROSSGEN_COMPILE
 
+#ifndef FEATURE_PAL
 // This is our Ctrl-C, Ctrl-Break, etc. handler.
 static BOOL WINAPI DbgCtrlCHandler(DWORD dwCtrlType)
 {
@@ -514,9 +520,10 @@ static BOOL WINAPI DbgCtrlCHandler(DWORD dwCtrlType)
 #endif // DEBUGGING_SUPPORTED
     {         
         g_fInControlC = true;     // only for weakening assertions in checked build.
-        return FALSE;               // keep looking for a real handler.
+        return FALSE;             // keep looking for a real handler.
     }
 }
+#endif
 
 // A host can specify that it only wants one version of hosting interface to be used.
 BOOL g_singleVersionHosting;
@@ -683,15 +690,6 @@ DWORD __stdcall BBSweepStartFunction(LPVOID lpArgs)
 
 //-----------------------------------------------------------------------------
 
-#ifndef FEATURE_PAL
-// Defined by CRT
-extern "C"
-{
-    extern DWORD_PTR __security_cookie;
-    extern void __fastcall __security_check_cookie(DWORD_PTR cookie);
-}
-#endif // !FEATURE_PAL
-
 void InitGSCookie()
 {
     CONTRACTL
@@ -717,7 +715,7 @@ void InitGSCookie()
                               PAGE_EXECUTE_WRITECOPY|PAGE_WRITECOMBINE)) == 0));
 
     // Forces VC cookie to be initialized.
-    void (__fastcall *pf)(DWORD_PTR cookie) = &__security_check_cookie;
+    void * pf = &__security_check_cookie;
     pf = NULL;
 
     GSCookie val = (GSCookie)(__security_cookie ^ GetTickCount());
@@ -836,7 +834,9 @@ void EEStartupHelper(COINITIEE fFlags)
         DisableGlobalAllocStore();
 #endif //_DEBUG
 
+#ifndef FEATURE_PAL
         ::SetConsoleCtrlHandler(DbgCtrlCHandler, TRUE/*add*/);
+#endif
 
 #endif // CROSSGEN_COMPILE
 
@@ -1164,7 +1164,7 @@ void EEStartupHelper(COINITIEE fFlags)
 #endif // PROFILING_SUPPORTED
 
         InitializeExceptionHandling();
-    
+
         //
         // Install our global exception filter
         //
@@ -1423,6 +1423,7 @@ HRESULT EEStartup(COINITIEE fFlags)
 
 #if defined(FEATURE_PAL) && !defined(CROSSGEN_COMPILE)
     DacGlobals::Initialize();
+    InitializeJITNotificationTable();
 #endif
 
     PAL_TRY(COINITIEE *, pfFlags, &fFlags)
@@ -2944,9 +2945,9 @@ static BOOL CacheCommandLine(__in LPWSTR pCmdLine, __in_opt LPWSTR* ArgvW)
     }
 
     if (ArgvW != NULL && ArgvW[0] != NULL) {
-        WCHAR wszModuleName[MAX_PATH];
-        WCHAR wszCurDir[MAX_PATH];
-        if (!WszGetCurrentDirectory(MAX_PATH, wszCurDir))
+        WCHAR wszModuleName[MAX_LONGPATH];
+        WCHAR wszCurDir[MAX_LONGPATH];
+        if (!WszGetCurrentDirectory(MAX_LONGPATH, wszCurDir))
             return FALSE;
 
 #ifdef _PREFAST_
@@ -3080,13 +3081,13 @@ BOOL STDMETHODCALLTYPE ExecuteEXE(__in LPWSTR pImageNameIn)
 
     EX_TRY_NOCATCH(LPWSTR, pImageNameInner, pImageNameIn)
     {
-        WCHAR               wzPath[MAX_PATH];
+        WCHAR               wzPath[MAX_LONGPATH];
         DWORD               dwPathLength = 0;
 
         // get the path of executable
-        dwPathLength = WszGetFullPathName(pImageNameInner, MAX_PATH, wzPath, NULL);
+        dwPathLength = WszGetFullPathName(pImageNameInner, MAX_LONGPATH, wzPath, NULL);
 
-        if (!dwPathLength || dwPathLength > MAX_PATH)
+        if (!dwPathLength || dwPathLength > MAX_LONGPATH)
         {
             ThrowWin32( !dwPathLength ? GetLastError() : ERROR_FILENAME_EXCED_RANGE);
         }
@@ -4265,7 +4266,7 @@ static HRESULT InitializeIPCManager(void)
         if (!WszGetModuleFileName(GetModuleInst(), (PWSTR)
                                   g_pIPCManagerInterface->
                                   GetInstancePath(),
-                                  MAX_PATH))
+                                  MAX_LONGPATH))
         {
             hr = HRESULT_FROM_GetLastErrorNA();
         }

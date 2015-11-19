@@ -10,10 +10,9 @@
 #include "common.h"
 #include "gmscpu.h"
 
-
-
 void LazyMachState::unwindLazyState(LazyMachState* baseState,
                                     MachState* unwoundState,
+                                    DWORD threadId,
                                     int funCallDepth /* = 1 */,
                                     HostCallPreference hostCallPreference /* = (HostCallPreference)(-1) */)
 {
@@ -56,7 +55,17 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
 #ifndef FEATURE_PAL
         pvControlPc = Thread::VirtualUnwindCallFrame(&ctx, &nonVolRegPtrs);
 #else // !FEATURE_PAL
+        
+#if defined(DACCESS_COMPILE)
+        HRESULT hr = DacVirtualUnwind(threadId, &ctx, &nonVolRegPtrs);
+        if (FAILED(hr))
+        {
+            DacError(hr);
+        }
+#else
         PAL_VirtualUnwind(&ctx, &nonVolRegPtrs);
+#endif  // DACCESS_COMPILE    
+
         pvControlPc = GetIP(&ctx);
 #endif // !FEATURE_PAL
 

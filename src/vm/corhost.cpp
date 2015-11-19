@@ -1217,6 +1217,58 @@ ErrExit:
 }
 
 #ifdef FEATURE_CORECLR
+/*
+ * This method processes the arguments sent to the host which are then used
+ * to invoke the main method.
+ * Note -
+ * [0] - points to the assemblyName that has been sent by the host.
+ * The rest are the arguments sent to the assembly.
+ * Also note, this might not always return the exact same identity as the cmdLine
+ * used to invoke the method.
+ *
+ * For example :-
+ * ActualCmdLine - Foo arg1 arg2.
+ * (Host1)       - Full_path_to_Foo arg1 arg2
+*/
+void SetCommandLineArgs(LPCWSTR pwzAssemblyPath, int argc, LPCWSTR* argv)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_COOPERATIVE;
+    }
+    CONTRACTL_END;
+
+    struct _gc
+    {
+        PTRARRAYREF cmdLineArgs;
+    } gc;
+
+    ZeroMemory(&gc, sizeof(gc));
+    GCPROTECT_BEGIN(gc);
+
+    gc.cmdLineArgs = (PTRARRAYREF)AllocateObjectArray(argc + 1 /* arg[0] should be the exe name*/, g_pStringClass);
+    OBJECTREF orAssemblyPath = StringObject::NewString(pwzAssemblyPath);
+    gc.cmdLineArgs->SetAt(0, orAssemblyPath);
+
+    for (int i = 0; i < argc; ++i)
+    {
+        OBJECTREF argument = StringObject::NewString(argv[i]);
+        gc.cmdLineArgs->SetAt(i + 1, argument);
+    }
+
+    MethodDescCallSite setCmdLineArgs(METHOD__ENVIRONMENT__SET_COMMAND_LINE_ARGS);
+
+    ARG_SLOT args[] =
+    {
+        ObjToArgSlot(gc.cmdLineArgs),
+    };
+    setCmdLineArgs.Call(args);
+
+    GCPROTECT_END();
+}
+
 HRESULT CorHost2::ExecuteAssembly(DWORD dwAppDomainId,
                                       LPCWSTR pwzAssemblyPath,
                                       int argc,
@@ -1270,6 +1322,7 @@ HRESULT CorHost2::ExecuteAssembly(DWORD dwAppDomainId,
         return HOST_E_INVALIDOPERATION;
     }
 
+    INSTALL_UNHANDLED_MANAGED_EXCEPTION_TRAP;
     INSTALL_UNWIND_AND_CONTINUE_HANDLER;
 
     _ASSERTE (!pThread->PreemptiveGCDisabled());
@@ -1279,12 +1332,13 @@ HRESULT CorHost2::ExecuteAssembly(DWORD dwAppDomainId,
     {
         GCX_COOP();
 
+        // Here we call the managed method that gets the cmdLineArgs array.
+        SetCommandLineArgs(pwzAssemblyPath, argc, argv);
+
         PTRARRAYREF arguments = NULL;
-        
         GCPROTECT_BEGIN(arguments);
-        
+
         arguments = (PTRARRAYREF)AllocateObjectArray(argc, g_pStringClass);
-        
         for (int i = 0; i < argc; ++i)
         {
             STRINGREF argument = StringObject::NewString(argv[i]);
@@ -1302,6 +1356,7 @@ HRESULT CorHost2::ExecuteAssembly(DWORD dwAppDomainId,
     }
 
     UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
+    UNINSTALL_UNHANDLED_MANAGED_EXCEPTION_TRAP;
 
 ErrExit:
 
@@ -6774,7 +6829,7 @@ HRESULT CCLRErrorReportingManager::SetApplicationData(ApplicationDataKey key, WC
     if(g_fEEStarted)
         return HOST_E_INVALIDOPERATION;
 
-    if (pValue == NULL || wcslen(pValue) > MAX_PATH)
+    if (pValue == NULL || wcslen(pValue) > MAX_LONGPATH)
         return E_INVALIDARG;
 
     HRESULT hr = S_OK;

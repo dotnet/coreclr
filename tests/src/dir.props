@@ -7,11 +7,20 @@
     <NoExplicitReferenceToStdLib>true</NoExplicitReferenceToStdLib>
     <AddAdditionalExplicitAssemblyReferences>false</AddAdditionalExplicitAssemblyReferences>
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    <!-- Disable some C# warnings for the tests. -->
+    <NoWarn>78,162,164,168,169,219,251,252,414,429,642,649,652,675,1691,1717,1718,3001,3002,3003,3005,3008</NoWarn>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <CLRTestKind>BuildAndRun</CLRTestKind>
+    <SkipSigning Condition="'$(CrossGen)' == 'true'">true</SkipSigning>
   </PropertyGroup>
 
-  <!-- Enable alternative JIT for testing if specified -->
+  <!-- Expose the target OS in a more convenient fashion -->
   <PropertyGroup>
-    <_CLRTestPreCommands>IF NOT "%__TestEnv%"=="" call %__TestEnv%</_CLRTestPreCommands>
+    <OSGroup Condition="'$(OSGroup)'=='' and $(Configuration.StartsWith('Windows'))">Windows_NT</OSGroup>
+    <OSGroup Condition="'$(OSGroup)'=='' and $(Configuration.StartsWith('Linux'))">Linux</OSGroup>
+    <OSGroup Condition="'$(OSGroup)'=='' and $(Configuration.StartsWith('OSX'))">OSX</OSGroup>
+    <OSGroup Condition="'$(OSGroup)'=='' and $(Configuration.StartsWith('FreeBSD'))">FreeBSD</OSGroup>
+    <OSGroup Condition="'$(OSGroup)'==''">Windows_NT</OSGroup>
   </PropertyGroup>
- 
+
 </Project>

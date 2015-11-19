@@ -189,6 +189,79 @@ TODO: Talk about initializing strutures before use
 #include <corhdr.h>
 #include <specstrings.h>
 
+// For System V on the CLR type system number of registers to pass in and return a struct is the same.
+// The CLR type system allows only up to 2 eightbytes to be passed in registers. There is no SSEUP classification types.
+#define CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS   2 
+#define CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_RETURN_IN_REGISTERS 2
+#define CLR_SYSTEMV_MAX_STRUCT_BYTES_TO_PASS_IN_REGISTERS       16
+
+// System V struct passing
+// The Classification types are described in the ABI spec at http://www.x86-64.org/documentation/abi.pdf
+enum SystemVClassificationType : unsigned __int8
+{
+    SystemVClassificationTypeUnknown            = 0,
+    SystemVClassificationTypeStruct             = 1,
+    SystemVClassificationTypeNoClass            = 2,
+    SystemVClassificationTypeMemory             = 3,
+    SystemVClassificationTypeInteger            = 4,
+    SystemVClassificationTypeIntegerReference   = 5,
+    SystemVClassificationTypeSSE                = 6,
+    // SystemVClassificationTypeSSEUp           = Unused, // Not supported by the CLR.
+    // SystemVClassificationTypeX87             = Unused, // Not supported by the CLR.
+    // SystemVClassificationTypeX87Up           = Unused, // Not supported by the CLR.
+    // SystemVClassificationTypeComplexX87      = Unused, // Not supported by the CLR.
+    SystemVClassificationTypeMAX = 7,
+};
+
+// Represents classification information for a struct.
+struct SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR
+{
+    SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR()
+    {
+        Initialize();
+    }
+
+    bool                        passedInRegisters; // Whether the struct is passable/passed (this includes struct returning) in registers.
+    unsigned __int8             eightByteCount;    // Number of eightbytes for this struct.
+    SystemVClassificationType   eightByteClassifications[CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS]; // The eightbytes type classification.
+    unsigned __int8             eightByteSizes[CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS];           // The size of the eightbytes (an eightbyte could include padding. This represents the no padding size of the eightbyte).
+    unsigned __int8             eightByteOffsets[CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS];         // The start offset of the eightbytes (in bytes).
+
+
+    //------------------------------------------------------------------------
+    // CopyFrom: Copies a struct classification into this one.
+    //
+    // Arguments:
+    //    'copyFrom' the struct classification to copy from.
+    //
+    void CopyFrom(const SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR& copyFrom)
+    {
+        passedInRegisters = copyFrom.passedInRegisters;
+        eightByteCount = copyFrom.eightByteCount;
+
+        for (int i = 0; i < CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS; i++)
+        {
+            eightByteClassifications[i] = copyFrom.eightByteClassifications[i];
+            eightByteSizes[i] = copyFrom.eightByteSizes[i];
+            eightByteOffsets[i] = copyFrom.eightByteOffsets[i];
+        }
+    }
+
+    // Members
+private:
+    void Initialize()
+    {
+        passedInRegisters = false;
+        eightByteCount = 0;
+
+        for (int i = 0; i < CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS; i++)
+        {
+            eightByteClassifications[i] = SystemVClassificationTypeUnknown;
+            eightByteSizes[i] = 0;
+            eightByteOffsets[i] = 0;
+        }
+    }
+};
 
 // CorInfoHelpFunc defines the set of helpers (accessed via the ICorDynamicInfo::getHelperFtn())
 // These helpers can be called by native code which executes in the runtime.
@@ -545,8 +618,15 @@ enum CorInfoHelpFunc
     CORINFO_HELP_LOOP_CLONE_CHOICE_ADDR, // Return the reference to a counter to decide to take cloned path in debug stress.
     CORINFO_HELP_DEBUG_LOG_LOOP_CLONING, // Print a message that a loop cloning optimization has occurred in debug mode.
 
+#ifndef RYUJIT_CTPBUILD
+    CORINFO_HELP_THROW_ARGUMENTEXCEPTION,           // throw ArgumentException
+    CORINFO_HELP_THROW_ARGUMENTOUTOFRANGEEXCEPTION, // throw ArgumentOutOfRangeException
+#endif
+
     CORINFO_HELP_COUNT,
 };
+
+#define CORINFO_HELP_READYTORUN_ATYPICAL_CALLSITE 0x40000000
 
 //This describes the signature for a helper method.
 enum CorInfoHelpSig
@@ -1057,6 +1137,7 @@ enum CORINFO_ACCESS_FLAGS
     CORINFO_ACCESS_SET        = 0x0200, // Field set (stfld)
     CORINFO_ACCESS_ADDRESS    = 0x0400, // Field address (ldflda)
     CORINFO_ACCESS_INIT_ARRAY = 0x0800, // Field use for InitializeArray
+    CORINFO_ACCESS_ATYPICAL_CALLSITE = 0x4000, // Atypical callsite that cannot be disassembled by delay loading helper
     CORINFO_ACCESS_INLINECHECK= 0x8000, // Return fieldFlags and fieldAccessor only. Used by JIT64 during inlining.
 };
 
@@ -1705,6 +1786,7 @@ enum CORINFO_CALLINFO_FLAGS
     CORINFO_CALLINFO_VERIFICATION   = 0x0008,   // Gets extra verification information.
     CORINFO_CALLINFO_SECURITYCHECKS = 0x0010,   // Perform security checks.
     CORINFO_CALLINFO_LDFTN          = 0x0020,   // Resolving target of LDFTN
+    CORINFO_CALLINFO_ATYPICAL_CALLSITE = 0x0040, // Atypical callsite that cannot be disassembled by delay loading helper
 };
 
 enum CorInfoIsAccessAllowedResult
@@ -1969,7 +2051,12 @@ enum { LCL_FINALLY_MARK = 0xFC }; // FC = "Finally Call"
 #define CORINFO_PAGE_SIZE   0x1000                           // the page size on the machine
 
 // <TODO>@TODO: put this in the CORINFO_EE_INFO data structure</TODO>
+
+#ifndef FEATURE_PAL
 #define MAX_UNCHECKED_OFFSET_FOR_NULL_OBJECT ((32*1024)-1)   // when generating JIT code
+#else // !FEATURE_PAL
+#define MAX_UNCHECKED_OFFSET_FOR_NULL_OBJECT ((OS_PAGE_SIZE / 2) - 1)
+#endif // !FEATURE_PAL
 
 typedef void* CORINFO_MethodPtr;            // a generic method pointer
 
@@ -3325,6 +3412,12 @@ public:
             size_t FQNameCapacity  /* IN */
             ) = 0;
 
+    // returns whether the struct is enregisterable. Only valid on a System V VM. Returns true on success, false on failure.
+    virtual bool getSystemVAmd64PassStructInRegisterDescriptor(
+        /* IN */    CORINFO_CLASS_HANDLE        structHnd,
+        /* OUT */   SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR* structPassInRegDescPtr
+        ) = 0;
+
 #if !defined(RYUJIT_CTPBUILD)
     /*************************************************************************/
     //
@@ -3350,9 +3443,9 @@ public:
     // to return the string values to the runtime for deletion.
     // this avoid leaking the memory in the JIT.
     virtual void freeStringConfigValue(
-        wchar_t *value
+        __in_z wchar_t *value
         ) = 0;
-#endif // RYUJIT_CTPBUILD
+#endif // !RYUJIT_CTPBUILD
 };
 
 /*****************************************************************************

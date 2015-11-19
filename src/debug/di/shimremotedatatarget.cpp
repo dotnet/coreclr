@@ -130,6 +130,7 @@ void ShimRemoteDataTarget::Dispose()
         m_pProxy->ReleaseTransport(m_pTransport);
     }
 
+    m_pTransport = NULL;
     m_hr = CORDBG_E_OBJECT_NEUTERED;
 }
 
@@ -215,6 +216,10 @@ ShimRemoteDataTarget::GetPlatform(
          *pPlatform = CORDB_PLATFORM_POSIX_X86;
      #elif defined(DBG_TARGET_AMD64)
          *pPlatform = CORDB_PLATFORM_POSIX_AMD64;
+     #elif defined(DBG_TARGET_ARM)
+         *pPlatform = CORDB_PLATFORM_POSIX_ARM;
+     #elif defined(DBG_TARGET_ARM64)
+         *pPlatform = CORDB_PLATFORM_POSIX_ARM64;
      #else
          #error Unknown Processor.
      #endif
@@ -281,11 +286,18 @@ ShimRemoteDataTarget::GetThreadContext(
     BYTE * pContext)
 {
     ReturnFailureIfStateNotOk();
-
-    // ICorDebugDataTarget::GetThreadContext() and ICorDebugDataTarget::SetThreadContext() are currently only 
-    // required for interop-debugging and inspection of floating point registers, both of which are not 
-    // implemented on Mac.
-    _ASSERTE(!"The remote data target doesn't know how to get a thread's CONTEXT.");
+        
+    // GetThreadContext() is currently not implemented in ShimRemoteDataTarget, which is used with our pipe transport 
+    // (FEATURE_DBGIPC_TRANSPORT_DI). Pipe transport is used on POSIX system, but occasionally we can turn it on for Windows for testing,
+    // and then we'd like to have same behavior as on POSIX system (zero context).
+    //
+    // We don't have a good way to implement GetThreadContext() in ShimRemoteDataTarget yet, because we have no way to convert a thread ID to a 
+    // thread handle.  The function to do the conversion is OpenThread(), which is not implemented in PAL. Even if we had a handle, PAL implementation 
+    // of GetThreadContext() is very limited and doesn't work when we're not attached with ptrace. 
+    // Instead, we just zero out the seed CONTEXT for the stackwalk.  This tells the stackwalker to
+    // start the stackwalk with the first explicit frame.  This won't work when we do native debugging, 
+    // but that won't happen on the POSIX systems since they don't support native debugging.
+    ZeroMemory(pContext, contextSize);
     return E_NOTIMPL;
 }
 

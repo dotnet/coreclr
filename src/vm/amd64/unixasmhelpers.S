@@ -137,8 +137,8 @@ NESTED_END NDirectImportThunk, _TEXT
 // MOVDQA is not an atomic operation.  You need to call this function in a crst.
 // </NOTE>
 LEAF_ENTRY moveOWord, _TEXT
-        movdqu          xmm0, [rdi]
-        movdqu          [rsi], xmm0
+        movdqu          xmm0, xmmword ptr [rdi]
+        movdqu          xmmword ptr [rsi], xmm0
 
         ret
 LEAF_END moveOWord, _TEXT
@@ -157,20 +157,166 @@ NESTED_ENTRY JIT_RareDisableHelper, _TEXT, NoHandler
     alloc_stack         0x28
     END_PROLOGUE
     // First float return register
-    movdqa              [rsp], xmm0
+    movdqa              xmmword ptr [rsp], xmm0
     // Second float return register
-    movdqa              [rsp+0x10], xmm1
+    movdqa              xmmword ptr [rsp+0x10], xmm1
 
     call                C_FUNC(JIT_RareDisableHelperWorker)
 
-    movdqa              xmm0, [rsp]
-    movdqa              xmm1, [rsp+0x10]
+    movdqa              xmm0, xmmword ptr [rsp]
+    movdqa              xmm1, xmmword ptr [rsp+0x10]
     free_stack          0x28
     pop_register        rdx
     pop_register        rax
     ret
 
 NESTED_END JIT_RareDisableHelper, _TEXT
+
+#ifdef FEATURE_HIJACK
+
+//------------------------------------------------
+// OnHijackScalarTripThread
+//
+NESTED_ENTRY OnHijackScalarTripThread, _TEXT, NoHandler
+
+    // Make room for the real return address (rip)
+    push_register rax
+
+    PUSH_CALLEE_SAVED_REGISTERS
+
+    push_register rdx
+    // Push rax again - this is where integer/pointer return values are returned
+    push_register rax
+
+    mov                 rdi, rsp
+
+    alloc_stack         0x28
+
+    // First float return register
+    movdqa              [rsp], xmm0
+    // Second float return register
+    movdqa              [rsp+0x10], xmm1
+
+    END_PROLOGUE
+
+    call                C_FUNC(OnHijackScalarWorker)
+
+    movdqa              xmm0, [rsp]
+    movdqa              xmm1, [rsp+0x10]
+    free_stack          0x28
+    pop_register        rax
+    pop_register        rdx
+
+    POP_CALLEE_SAVED_REGISTERS
+    ret
+
+NESTED_END OnHijackScalarTripThread, _TEXT
+
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+//------------------------------------------------
+// OnHijackStructInRegsTripThread
+//
+NESTED_ENTRY OnHijackStructInRegsTripThread, _TEXT, NoHandler
+
+    // Make room for the real return address (rip)
+    push_register rax
+
+    PUSH_CALLEE_SAVED_REGISTERS
+
+    push_register rdx
+    // Push rax again - this is where part of the struct gets returned
+    push_register rax
+
+    mov                 rdi, rsp
+
+    alloc_stack         0x28
+
+    // First float return register
+    movdqa              [rsp], xmm0
+    // Second float return register
+    movdqa              [rsp+0x10], xmm1
+
+    END_PROLOGUE
+
+    call                C_FUNC(OnHijackStructInRegsWorker)
+
+    movdqa              xmm0, [rsp]
+    movdqa              xmm1, [rsp+0x10]
+    free_stack          0x28
+    pop_register        rax
+    pop_register        rdx
+
+    POP_CALLEE_SAVED_REGISTERS
+    ret
+
+NESTED_END OnHijackStructInRegsTripThread, _TEXT
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+
+//------------------------------------------------
+// OnHijackObjectTripThread
+//
+NESTED_ENTRY OnHijackObjectTripThread, _TEXT, NoHandler 
+
+    // Make room for the real return address (rip)
+    push_register rax
+
+    PUSH_CALLEE_SAVED_REGISTERS
+
+    push_register rdx
+    // Push rax again - this is where integer/pointer return values are returned
+    push_register rax
+
+    mov                 rdi, rsp
+
+    // align stack
+    alloc_stack         0x8
+
+    END_PROLOGUE
+
+    call                C_FUNC(OnHijackObjectWorker)
+
+    free_stack          0x8
+    pop_register        rax
+    pop_register        rdx
+
+    POP_CALLEE_SAVED_REGISTERS
+    ret
+
+NESTED_END OnHijackObjectTripThread, _TEXT
+
+//------------------------------------------------
+// OnHijackInteriorPointerTripThread
+//
+NESTED_ENTRY OnHijackInteriorPointerTripThread, _TEXT, NoHandler 
+
+    // Make room for the real return address (rip)
+    push_register rax
+
+    PUSH_CALLEE_SAVED_REGISTERS
+
+    push_register rdx
+    // Push rax again - this is where integer/pointer return values are returned
+    push_register rax
+
+    mov                 rdi, rsp
+
+    // align stack
+    alloc_stack         0x8
+
+    END_PROLOGUE
+
+    call                C_FUNC(OnHijackInteriorPointerWorker)
+
+    free_stack          0x8
+    pop_register        rax
+    pop_register        rdx
+
+    POP_CALLEE_SAVED_REGISTERS
+    ret
+
+NESTED_END OnHijackInteriorPointerTripThread, _TEXT
+
+#endif // FEATURE_HIJACK
 
 LEAF_ENTRY SinglecastDelegateInvokeStub, _TEXT                                        
                                                                                       
@@ -199,7 +345,7 @@ LEAF_END SinglecastDelegateInvokeStub, _TEXT
 // from the passed in context and finally sets the RSP to that frame and sets the return
 // address to the target frame's RIP.
 //
-// EXTERN_C void StartUnwindingNativeFrames(CONTEXT* context);
+// EXTERN_C void StartUnwindingNativeFrames(CONTEXT* context, PAL_SEHException* ex);
 LEAF_ENTRY StartUnwindingNativeFrames, _TEXT
         // Save the RBP to the stack so that the unwind can work at the instruction after
         // loading the RBP from the context, but before loading the RSP from the context.
@@ -223,7 +369,8 @@ LEAF_ENTRY StartUnwindingNativeFrames, _TEXT
 
         // Store return address to the stack
         push_register rax
-        push_nonvol_reg rbp
-        call    EXTERNAL_C_FUNC(__cxa_rethrow)
+        // The PAL_SEHException pointer
+        mov     rdi, rsi 
+        jmp     EXTERNAL_C_FUNC(ThrowExceptionHelper)
 LEAF_END StartUnwindingNativeFrames, _TEXT
 

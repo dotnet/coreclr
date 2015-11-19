@@ -35,6 +35,13 @@ namespace System.IO
         // StreamReader.Null is threadsafe.
         public new static readonly StreamReader Null = new NullStreamReader();
 
+        // Encoding.GetPreamble() always allocates and returns a new byte[] array for
+        // encodings that have a preamble.
+        // We can avoid repeated allocations for the default and commonly used Encoding.UTF8
+        // encoding by using our own private cached instance of the UTF8 preamble.
+        // This is lazily allocated the first time it is used.
+        private static byte[] s_utf8Preamble;
+
         // Using a 1K byte buffer and a 4K FileStream buffer works out pretty well
         // perf-wise.  On even a 40 MB text file, any perf loss by using a 4K
         // buffer is negated by the win of allocating a smaller byte[], which 
@@ -237,7 +244,20 @@ namespace System.IO
             byteLen = 0;
             bytePos = 0;
             _detectEncoding = detectEncodingFromByteOrderMarks;
-            _preamble = encoding.GetPreamble();
+
+            // Encoding.GetPreamble() always allocates and returns a new byte[] array for
+            // encodings that have a preamble.
+            // We can avoid repeated allocations for the default and commonly used Encoding.UTF8
+            // encoding by using our own private cached instance of the UTF8 preamble.
+            // We specifically look for Encoding.UTF8 because we know it has a preamble,
+            // whereas other instances of UTF8Encoding may not have a preamble enabled, and
+            // there's no public way to tell if the preamble is enabled for an instance other
+            // than calling GetPreamble(), which we're trying to avoid.
+            // This means that other instances of UTF8Encoding are excluded from this optimization.
+            _preamble = object.ReferenceEquals(encoding, Encoding.UTF8) ?
+                (s_utf8Preamble ?? (s_utf8Preamble = encoding.GetPreamble())) :
+                encoding.GetPreamble();
+
             _checkPreamble = (_preamble.Length > 0);
             _isBlocked = false;
             _closable = !leaveOpen;
@@ -451,7 +471,7 @@ namespace System.IO
             if (byteBuffer[0]==0xFE && byteBuffer[1]==0xFF) {
                 // Big Endian Unicode
 
-                encoding = new UnicodeEncoding(true, true);
+                encoding = Encoding.BigEndianUnicode;
                 CompressBuffer(2);
                 changedEncoding = true;
             }
@@ -459,13 +479,13 @@ namespace System.IO
             else if (byteBuffer[0]==0xFF && byteBuffer[1]==0xFE) {
                 // Little Endian Unicode, or possibly little endian UTF32
                 if (byteLen < 4 || byteBuffer[2] != 0 || byteBuffer[3] != 0) {
-                    encoding = new UnicodeEncoding(false, true);
+                    encoding = Encoding.Unicode;
                     CompressBuffer(2);
                     changedEncoding = true;
                 }
 #if FEATURE_UTF32   
                 else {
-                    encoding = new UTF32Encoding(false, true);
+                    encoding = Encoding.UTF32;
                     CompressBuffer(4);
                 changedEncoding = true;
             }

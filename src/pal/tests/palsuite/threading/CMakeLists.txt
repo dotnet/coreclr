@@ -1,8 +1,5 @@
 cmake_minimum_required(VERSION 2.8.12.2)
 
-# TODO: make these tests compile if they are needed
-# add_subdirectory(SetConsoleCtrlHandler)
-
 add_subdirectory(CreateEventA)
 add_subdirectory(CreateEventW)
 add_subdirectory(CreateMutexA_ReleaseMutex)
@@ -31,10 +28,8 @@ add_subdirectory(ResetEvent)
 add_subdirectory(ResumeThread)
 add_subdirectory(SetErrorMode)
 add_subdirectory(SetEvent)
-add_subdirectory(setthreadcontext)
 add_subdirectory(Sleep)
 add_subdirectory(SleepEx)
-add_subdirectory(SuspendThread)
 add_subdirectory(SwitchToThread)
 add_subdirectory(TerminateProcess)
 add_subdirectory(ThreadPriority)

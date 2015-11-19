@@ -720,6 +720,7 @@ public:
 
     void ComputeSuppressUnmanagedCodeAccessAttr(IMDInternalImport *pImport);
     BOOL HasSuppressUnmanagedCodeAccessAttr();
+    BOOL HasNativeCallableAttribute();
 
 #ifdef FEATURE_COMINTEROP 
     inline DWORD IsComPlusCall()
@@ -1610,8 +1611,9 @@ public:
     // does this function return an object reference?
     MetaSig::RETURNTYPE ReturnsObject(
 #ifdef _DEBUG 
-    bool supportStringConstructors = false
+        bool supportStringConstructors = false,
 #endif
+        MethodTable** pMT = NULL
         );
 
 

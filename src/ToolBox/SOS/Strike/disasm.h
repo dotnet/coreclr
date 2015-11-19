@@ -70,6 +70,8 @@ struct SOSEHInfo
 
 BOOL IsClonedFinally(DACEHInfo *pEHInfo);
 
+#ifndef FEATURE_PAL
+
 void DumpStackWorker (DumpStackFlag &DSFlag);
 
 void UnassemblyUnmanaged (DWORD_PTR IP, BOOL bSuppressLines);
@@ -78,9 +80,9 @@ BOOL GetCalleeSite (DWORD_PTR IP, DWORD_PTR &IPCallee);
 
 HRESULT CheckEEDll ();
 
-void DisasmAndClean (DWORD_PTR &IP, __out_ecount (length) __out_opt char *line, ULONG length);
+void DisasmAndClean (DWORD_PTR &IP, __out_ecount_opt(length) char *line, ULONG length);
 
-INT_PTR GetValueFromExpr(__in __in_z char *ptr, INT_PTR &value);
+INT_PTR GetValueFromExpr(___in __in_z char *ptr, INT_PTR &value);
 
 void NextTerm (__deref_inout_z char *& ptr);
 
@@ -95,12 +97,13 @@ enum eTargetType { ettUnk = 0, ettNative = 1, ettJitHelp = 2, ettStub = 3, ettMD
 // This is currently only called on x64
 eTargetType GetFinalTarget(DWORD_PTR callee, DWORD_PTR* finalMDorIP);
 
+#endif // FEATURE_PAL
+
 #ifdef _MSC_VER
 // SOS is essentially single-threaded. ignore "construction of local static object is not thread-safe"
 #pragma warning(push)
 #pragma warning(disable:4640)
 #endif // _MSC_VER
-
 
 //-----------------------------------------------------------------------------------------
 //
@@ -256,6 +259,7 @@ public:
 
     ULONG GetPlatform()             const { return IMAGE_FILE_MACHINE_AMD64; }
     ULONG GetContextSize()          const { return sizeof(AMD64_CONTEXT); }
+#ifndef FEATURE_PAL
     virtual void Unassembly(
                 TADDR IPBegin, 
                 TADDR IPEnd, 
@@ -265,6 +269,7 @@ public:
                 SOSEHInfo *pEHInfo,
                 BOOL bSuppressLines,
                 BOOL bDisplayOffsets) const;
+#endif
     virtual void IsReturnAddress(
                 TADDR retAddr, 
                 TADDR* whereCalled) const;

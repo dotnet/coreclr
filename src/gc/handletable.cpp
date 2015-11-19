@@ -669,6 +669,30 @@ void HndSetHandleExtraInfo(OBJECTHANDLE handle, UINT uType, LPARAM lExtraInfo)
         *pUserData = lExtraInfo;
     }
 }
+
+/*
+* HndCompareExchangeHandleExtraInfo
+*
+* Stores owner data with handle.
+*
+*/
+LPARAM HndCompareExchangeHandleExtraInfo(OBJECTHANDLE handle, UINT uType, LPARAM lOldExtraInfo, LPARAM lNewExtraInfo)
+{
+    WRAPPER_NO_CONTRACT;
+
+    // fetch the user data slot for this handle if we have the right type
+    LPARAM *pUserData = HandleValidateAndFetchUserDataPointer(handle, uType);
+
+    // is there a slot?
+    if (pUserData)
+    {
+        // yes - attempt to store the info
+        return (LPARAM)FastInterlockCompareExchangePointer((PVOID*)pUserData, (PVOID)lNewExtraInfo, (PVOID)lOldExtraInfo);
+    }
+
+    _ASSERTE(!"Shouldn't be trying to call HndCompareExchangeHandleExtraInfo on handle types without extra info");
+    return NULL;
+}
 #endif // !DACCESS_COMPILE
 
 /*
@@ -779,18 +803,6 @@ void HndWriteBarrier(OBJECTHANDLE handle, OBJECTREF objref)
     
     _ASSERTE (objref != NULL);
 
-    // find out generation
-    int generation = GCHeap::GetGCHeap()->WhichGeneration(value);
-
-#ifndef FEATURE_REDHAWK
-    //OverlappedData need special treatment: because all user data pointed by it needs to be reported by this handle,
-    //its age is consider to be min age of the user data, to be simple, we just make it 0
-    if (HandleFetchType (handle) == HNDTYPE_ASYNCPINNED && objref->GetGCSafeMethodTable () == g_pOverlappedDataClass)
-    {
-        generation = 0;
-    }
-#endif // !FEATURE_REDHAWK
-
     // find the write barrier for this handle
     BYTE *barrier = (BYTE *)((UINT_PTR)handle & HANDLE_SEGMENT_ALIGN_MASK);
     
@@ -814,16 +826,37 @@ void HndWriteBarrier(OBJECTHANDLE handle, OBJECTREF objref)
     volatile BYTE * pClumpAge = barrier + offset;
 
     // if this age is smaller than age of the clump, update the clump age
-    if (*pClumpAge > (BYTE)generation)
+    if (*pClumpAge != 0) // Perf optimization: if clumpAge is 0, nothing more to do
     {
-        // We have to be careful here. HndWriteBarrier is not under any synchronization
-        // Consider the scenario where 2 threads are hitting the line below at the same
-        // time. Only one will win. If the winner has an older age than the loser, we
-        // just created a potential GC hole  (The clump will not be reporting the 
-        // youngest handle in the clump, thus GC may skip the clump). To fix this
-        // we just set the clump age to 0, which means that whoever wins the race
-        // results are the same, as GC will always look at the clump
-        *pClumpAge = (BYTE)0;
+        // find out generation
+        int generation = GCHeap::GetGCHeap()->WhichGeneration(value);
+        UINT uType = HandleFetchType(handle);
+
+#ifndef FEATURE_REDHAWK
+        //OverlappedData need special treatment: because all user data pointed by it needs to be reported by this handle,
+        //its age is consider to be min age of the user data, to be simple, we just make it 0
+        if (uType == HNDTYPE_ASYNCPINNED && objref->GetGCSafeMethodTable () == g_pOverlappedDataClass)
+        {
+            generation = 0;
+        }
+#endif // !FEATURE_REDHAWK
+        
+        if (uType == HNDTYPE_DEPENDENT)
+        {
+            generation = 0;
+        }
+
+        if (*pClumpAge > (BYTE) generation)
+        {
+            // We have to be careful here. HndWriteBarrier is not under any synchronization
+            // Consider the scenario where 2 threads are hitting the line below at the same
+            // time. Only one will win. If the winner has an older age than the loser, we
+            // just created a potential GC hole  (The clump will not be reporting the 
+            // youngest handle in the clump, thus GC may skip the clump). To fix this
+            // we just set the clump age to 0, which means that whoever wins the race
+            // results are the same, as GC will always look at the clump
+            *pClumpAge = (BYTE)0;
+        }
     }
 }
 
@@ -1386,7 +1419,7 @@ void DEBUG_LogScanningStatistics(HandleTable *pTable, DWORD level)
         // for each generation we've collected,  dump the current stats
         for (int i = 0; i <= pTable->_DEBUG_iMaxGen; i++)
         {
-            __int64 totalBlocksScanned = pTable->_DEBUG_TotalBlocksScanned[i];
+            INT64 totalBlocksScanned = pTable->_DEBUG_TotalBlocksScanned[i];
 
             // dump the generation number and the number of blocks scanned
             LOG((LF_GC, level,     "--------------------------------------------------------------\n"));

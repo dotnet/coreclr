@@ -56,12 +56,12 @@ void InitWinRTStatus()
     const WCHAR wszComBaseDll[] = W("\\combase.dll");
     const SIZE_T cchComBaseDll = _countof(wszComBaseDll);
 
-    WCHAR wszComBasePath[MAX_PATH + 1];
+    WCHAR wszComBasePath[MAX_LONGPATH + 1];
     const SIZE_T cchComBasePath = _countof(wszComBasePath);
 
     ZeroMemory(wszComBasePath, cchComBasePath * sizeof(wszComBasePath[0]));
 
-    UINT cchSystemDirectory = WszGetSystemDirectory(wszComBasePath, MAX_PATH);
+    UINT cchSystemDirectory = WszGetSystemDirectory(wszComBasePath, MAX_LONGPATH);
 
     // Make sure that we're only probing in the system directory.  If we can't find the system directory, or
     // we find it but combase.dll doesn't fit into it, we'll fall back to a safe default of saying that WinRT
@@ -263,8 +263,8 @@ HRESULT FakeCoCreateInstanceEx(REFCLSID       rclsid,
     HRESULT hr = S_OK;
 
     // Call the function to get a class factory for the rclsid passed in.
-    ReleaseHolder<IClassFactory> classFactory;
     HModuleHolder hDll;
+    ReleaseHolder<IClassFactory> classFactory;
     IfFailRet(FakeCoCallDllGetClassObject(rclsid, wszDllPath, _IID_IClassFactory, (void**)&classFactory, &hDll));
 
     // Ask the class factory to create an instance of the
@@ -2930,8 +2930,7 @@ void SOViolation(const char *szFunction, const char *szFile, int lineNum, SOViol
                         "\nPlease open a bug against the feature owner.\n"
                         "\nNOTE: You can disable this ASSERT by setting COMPLUS_SOEnableBackoutStackValidation=0.\n"
                         "\nFor details about this feature, see, in a CLR enlistment,\n"
-                        "src\\ndp\\clr\\doc\\OtherDevDocs\\untriaged\\clrdev_web\\SO Guide for CLR Developers.doc\n",
-                            szFunction, szFile, lineNum);
+                        "src\\ndp\\clr\\doc\\OtherDevDocs\\untriaged\\clrdev_web\\SO Guide for CLR Developers.doc\n");
     }
     else 
     {
@@ -3631,7 +3630,7 @@ namespace Util
                 DWORD cCharsNeeded;
                 cCharsNeeded = GetEnvironmentVariableW(W("LOCALAPPDATA"), NULL, 0);
 
-                if ((cCharsNeeded != 0) && (cCharsNeeded < MAX_PATH))
+                if ((cCharsNeeded != 0) && (cCharsNeeded < MAX_LONGPATH))
                 {
                     wszLocalAppData = new WCHAR[cCharsNeeded];
                     cCharsNeeded = GetEnvironmentVariableW(W("LOCALAPPDATA"), wszLocalAppData, cCharsNeeded);
@@ -3784,6 +3783,7 @@ namespace Com
 {
     namespace __imp
     {
+        __success(return == S_OK)
         static
         HRESULT FindSubKeyDefaultValueForCLSID(REFCLSID rclsid, LPCWSTR wszSubKeyName, SString & ssValue)
         {
@@ -3804,6 +3804,7 @@ namespace Com
             return Clr::Util::Reg::ReadStringValue(HKEY_CLASSES_ROOT, ssKeyName.GetUnicode(), NULL, ssValue);
         }
 
+        __success(return == S_OK)
         static
         HRESULT FindSubKeyDefaultValueForCLSID(REFCLSID rclsid, LPCWSTR wszSubKeyName, __deref_out __deref_out_z LPWSTR* pwszValue)
         {

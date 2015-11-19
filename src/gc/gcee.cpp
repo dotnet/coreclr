@@ -390,9 +390,10 @@ size_t GCHeap::GetNow()
     return hp->get_time_now();
 }
 
+#if defined(GC_PROFILING) //UNIXTODO: Enable this for FEATURE_EVENT_TRACE
 void ProfScanRootsHelper(Object** ppObject, ScanContext *pSC, DWORD dwFlags)
 {
-#if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
+#if  defined(FEATURE_EVENT_TRACE)
     Object *pObj = *ppObject;
 #ifdef INTERIOR_POINTERS
     if (dwFlags & GC_CALL_INTERIOR)
@@ -408,10 +409,9 @@ void ProfScanRootsHelper(Object** ppObject, ScanContext *pSC, DWORD dwFlags)
     }
 #endif //INTERIOR_POINTERS
     ScanRootsHelper(&pObj, pSC, dwFlags);
-#endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
+#endif //  defined(FEATURE_EVENT_TRACE)
 }
 
-#if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
 // This is called only if we've determined that either:
 //     a) The Profiling API wants to do a walk of the heap, and it has pinned the
 //     profiler in place (so it cannot be detached), and it's thus safe to call into the
@@ -454,7 +454,6 @@ void GCProfileWalkHeapWorker(BOOL fProfilerPinned, BOOL fShouldWalkHeapRootsForE
             pGenGCHeap->finalize_queue->GcScanRoots(&ScanRootsHelper, 0, &SC);
 
 #endif // MULTIPLE_HEAPS
-
             // Handles are kept independent of wks/svr/concurrent builds
             SC.dwEtwRootKind = kEtwGCRootKindHandle;
             CNameSpace::GcScanHandlesForProfilerAndETW(max_generation, &SC);
@@ -482,12 +481,10 @@ void GCProfileWalkHeapWorker(BOOL fProfilerPinned, BOOL fShouldWalkHeapRootsForE
             // indicate that dependent handle scanning is over, so we can flush the buffered roots
             // to the profiler.  (This is for profapi only.  ETW will flush after the
             // entire heap was is complete, via ETW::GCLog::EndHeapDump.)
-#if defined (GC_PROFILING)
             if (fProfilerPinned && CORProfilerTrackConditionalWeakTableElements())
             {
                 g_profControlBlock.pProfInterface->EndConditionalWeakTableElementReferences(&SC.pHeapId);
             }
-#endif // defined (GC_PROFILING)
         }
 
         ProfilerWalkHeapContext profilerWalkHeapContext(fProfilerPinned, SC.pvEtwContext);
@@ -517,7 +514,7 @@ void GCProfileWalkHeapWorker(BOOL fProfilerPinned, BOOL fShouldWalkHeapRootsForE
         }
     }
 }
-#endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
+#endif // defined(GC_PROFILING)
 
 void GCProfileWalkHeap()
 {
@@ -543,7 +540,7 @@ void GCProfileWalkHeap()
     }
 #endif // defined (GC_PROFILING)
 
-#ifdef FEATURE_EVENT_TRACE
+#if  defined (GC_PROFILING)//UNIXTODO: Enable this for FEATURE_EVENT_TRACE
     // If the profiling API didn't want us to walk the heap but ETW does, then do the
     // walk here
     if (!fWalkedHeapForProfiler && 
@@ -678,16 +675,16 @@ void gc_heap::fire_etw_pin_object_event (BYTE* object, BYTE** ppObject)
 DWORD gc_heap::user_thread_wait (CLREvent *event, BOOL no_mode_change, int time_out_ms)
 {
     Thread* pCurThread = NULL;
-    BOOL mode = FALSE;
+    bool mode = false;
     DWORD dwWaitResult = NOERROR;
     
     if (!no_mode_change)
     {
         pCurThread = GetThread();
-        mode = pCurThread ? pCurThread->PreemptiveGCDisabled() : FALSE;
+        mode = pCurThread ? GCToEEInterface::IsPreemptiveGCDisabled(pCurThread) : false;
         if (mode)
         {
-            pCurThread->EnablePreemptiveGC();
+            GCToEEInterface::EnablePreemptiveGC(pCurThread);
         }
     }
 
@@ -695,7 +692,7 @@ DWORD gc_heap::user_thread_wait (CLREvent *event, BOOL no_mode_change, int time_
 
     if (!no_mode_change && mode)
     {
-        pCurThread->DisablePreemptiveGC();
+        GCToEEInterface::DisablePreemptiveGC(pCurThread);
     }
 
     return dwWaitResult;
@@ -790,7 +787,7 @@ DWORD WINAPI gc_heap::rh_bgc_thread_stub(void * pContext)
     // should not be acquired as part of this operation. This is necessary because this thread is created in
     // the context of a garbage collection and the lock is already held by the GC.
     ASSERT(GCHeap::GetGCHeap()->IsGCInProgress());
-    ThreadStore::AttachCurrentThread(false);
+    GCToEEInterface::AttachCurrentThread();
 
     // Inform the GC which Thread* we are.
     pStartContext->m_pRealContext->bgc_thread = GetThread();
@@ -801,4 +798,54 @@ DWORD WINAPI gc_heap::rh_bgc_thread_stub(void * pContext)
 
 #endif // BACKGROUND_GC && FEATURE_REDHAWK
 
+#ifdef FEATURE_BASICFREEZE
+segment_handle GCHeap::RegisterFrozenSegment(segment_info *pseginfo)
+{
+    heap_segment * seg = new (nothrow) heap_segment;
+    if (!seg)
+    {
+        return NULL;
+    }
+
+    BYTE* base_mem = (BYTE*)pseginfo->pvMem;
+    heap_segment_mem(seg) = base_mem + pseginfo->ibFirstObject;
+    heap_segment_allocated(seg) = base_mem + pseginfo->ibAllocated;
+    heap_segment_committed(seg) = base_mem + pseginfo->ibCommit;
+    heap_segment_reserved(seg) = base_mem + pseginfo->ibReserved;
+    heap_segment_next(seg) = 0;
+    heap_segment_used(seg) = heap_segment_allocated(seg);
+    heap_segment_plan_allocated(seg) = 0;
+    seg->flags = heap_segment_flags_readonly;
+
+#if defined (MULTIPLE_HEAPS) && !defined (ISOLATED_HEAPS)
+    gc_heap* heap = gc_heap::g_heaps[0];
+    heap_segment_heap(seg) = heap;
+#else
+    gc_heap* heap = pGenGCHeap;
+#endif //MULTIPLE_HEAPS && !ISOLATED_HEAPS
+
+    if (heap->insert_ro_segment(seg) == FALSE)
+    {
+        delete seg;
+        return NULL;
+    }
+
+    return reinterpret_cast< segment_handle >(seg);
+}
+
+void GCHeap::UnregisterFrozenSegment(segment_handle seg)
+{
+#if defined (MULTIPLE_HEAPS) && !defined (ISOLATED_HEAPS)
+    gc_heap* heap = gc_heap::g_heaps[0];
+#else
+    gc_heap* heap = pGenGCHeap;
+#endif //MULTIPLE_HEAPS && !ISOLATED_HEAPS
+
+    heap->remove_ro_segment(reinterpret_cast<heap_segment*>(seg));
+}
+#endif // FEATURE_BASICFREEZE
+
+
 #endif // !DACCESS_COMPILE
+
+

@@ -315,7 +315,7 @@ void CodeGen::genFloatCheckFinite(GenTree *tree, RegSet::RegisterPreference *pre
     inst_RV_IV(INS_cmp, reg, expMask, EA_4BYTE);
 
     // If exponent was all 1's, we need to throw ArithExcep
-    genJumpToThrowHlpBlk(EJ_je, Compiler::ACK_ARITH_EXCPN);
+    genJumpToThrowHlpBlk(EJ_je, SCK_ARITH_EXCPN);
 
     genCodeForTreeFloat_DONE(tree, op1->gtRegNum);
 }
@@ -479,6 +479,8 @@ void CodeGen::genFloatAssign(GenTree *tree)
         genUpdateLife(op2);
 
         goto CHK_VOLAT_UNALIGN;
+    default:
+        break;
     }
 
     // Is the op2 (RHS) more complex than op1 (LHS)?
@@ -729,6 +731,8 @@ void CodeGen::genLoadFloat(GenTreePtr tree, regNumber reg)
                     unalignedLoad = true;
                 }
             }
+            break;
+        default:
             break;
         }
 

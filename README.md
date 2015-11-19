@@ -6,10 +6,10 @@ The CoreCLR repo contains the complete runtime implementation for [.NET Core](ht
 Build Status
 ------------
 
-|         |Linux   |Windows |Mac OS X |FreeBSD  |
-|---------|:------:|:------:|:-------:|:-------:|
-|**Debug**|[![Build status](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_linux_debug/badge/icon)](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_linux_debug/)|[![Build status](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_windows_debug/badge/icon)](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_windows_debug/)|[![Build Status](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_mac_debug/badge/icon)](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_mac_debug/) |[![Build Status](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_freebsd_debug/badge/icon)](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_freebsd_debug/) |
-|**Release**|[![Build status](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_linux_release/badge/icon)](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_linux_release/)|[![Build status](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_windows_release/badge/icon)](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_windows_release/)|[![Build status](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_mac_release/badge/icon)](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_mac_release/) |[![Build status](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_freebsd_release/badge/icon)](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr_freebsd_release/) |
+|         |Ubuntu 14.04 |Centos 7.1 |OpenSuSE 13.2 |Windows |Mac OS X |FreeBSD |
+|---------|:------:|:------:|:------:|:------:|:-------:|:-------:|
+|**Debug**|[![Build status](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr/job/debug_ubuntu/badge/icon)](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr/job/debug_ubuntu/)|[![Build status](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr/job/debug_centos7.1/badge/icon)](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr/job/debug_centos7.1/)|[![Build status](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr/job/debug_opensuse13.2/badge/icon)](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr/job/debug_opensuse13.2/)|[![Build status](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr/job/debug_windows_nt/badge/icon)](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr/job/debug_windows_nt/)|[![Build Status](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr/job/debug_osx/badge/icon)](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr/job/debug_osx/) |[![Build Status](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr/job/debug_freebsd/badge/icon)](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr/job/debug_freebsd/) |
+|**Release**|[![Build status](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr/job/release_ubuntu/badge/icon)](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr/job/release_ubuntu/)|[![Build status](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr/job/release_centos7.1/badge/icon)](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr/job/release_centos7.1/)|[![Build status](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr/job/release_opensuse13.2/badge/icon)](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr/job/release_opensuse13.2/)|[![Build status](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr/job/release_windows_nt/badge/icon)](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr/job/release_windows_nt/)|[![Build Status](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr/job/release_osx/badge/icon)](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr/job/release_osx/) |[![Build Status](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr/job/release_freebsd/badge/icon)](http://dotnet-ci.cloudapp.net/job/dotnet_coreclr/job/release_freebsd/) |
 
 Get .NET Core
 -------------
@@ -31,6 +31,7 @@ Learn about CoreCLR and .NET Core
 
 The best ways to learn about CoreCLR are to try out the product instructions and to read the "Book of the Runtime" architecture documents that describe the inner workings of the product. New devs to the CLR team are encouraged to read these documents before making substative changes to the product. They are equally useful for open source contributors.
 
+- [.NET Core Roadmap](https://github.com/dotnet/core/blob/master/roadmap.md)
 - [Product instructions](Documentation/README.md)
 - [Introduction to the Common Language Runtime](Documentation/botr/intro-to-clr.md)
 - [Book of the Runtime](Documentation/README.md#book-of-the-runtime)

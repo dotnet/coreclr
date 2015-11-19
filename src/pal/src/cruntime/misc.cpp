@@ -35,7 +35,9 @@ Abstract:
 #if HAVE_CRT_EXTERNS_H
 #include <crt_externs.h>
 #endif  // HAVE_CRT_EXTERNS_H
+#if defined(_AMD64_) || defined(_x86_)
 #include <xmmintrin.h>
+#endif // defined(_AMD64_) || defined(_x86_)
 
 SET_DEFAULT_DEBUG_CHANNEL(CRT);
 
@@ -44,71 +46,6 @@ char **palEnvironment = NULL;
 CRITICAL_SECTION gcsEnvironment;
 
 using namespace CorUnix;
-
-namespace CorUnix
-{
-    int InternalRand(CPalThread *pthrCurrent);
-
-    /*++
-    Function:
-    InternalRand
-
-    Wrapper for rand.
-    --*/
-    int
-    InternalRand(
-        CPalThread *pthrCurrent
-        )
-    {
-        int nRet;
-        pthrCurrent->suspensionInfo.EnterUnsafeRegion();
-        nRet = rand();
-        pthrCurrent->suspensionInfo.LeaveUnsafeRegion();
-        return nRet;
-    }
-}
-
-/*++
-Function:
-  _rotl
-
-See MSDN doc.
---*/
-unsigned int
-__cdecl 
-_rotl( unsigned int value, int shift )
-{
-    unsigned int retval = 0;
-
-    PERF_ENTRY(_rotl);
-    ENTRY("_rotl( value:%u shift=%d )\n", value, shift );   
-    shift &= 0x1f;
-    retval = ( value << shift ) | ( value >> ( sizeof( int ) * CHAR_BIT - shift ));
-    LOGEXIT("_rotl returns unsigned int %u\n", retval);
-    PERF_EXIT(_rotl);
-    return retval;
-}
-
-/*++
-Function:
-  _rotr
-
-See MSDN doc.
---*/
-unsigned int
-__cdecl 
-_rotr( unsigned int value, int shift )
-{
-    unsigned int retval;
-
-    PERF_ENTRY(_rotr);
-    ENTRY("_rotr( value:%u shift=%d )\n", value, shift );    
-    shift &= 0x1f;
-    retval = ( value >> shift ) | ( value << ( sizeof( int ) * CHAR_BIT - shift ) );
-    LOGEXIT("_rotr returns unsigned int %u\n", retval);
-    PERF_EXIT(_rotr);
-    return retval;
-}
 
 /*++
 Function:
@@ -313,7 +250,7 @@ PAL_rand(void)
     PERF_ENTRY(rand);
     ENTRY("rand(void)\n");
 
-    ret = (InternalRand(InternalGetCurrentThread()) % (PAL_RAND_MAX + 1));
+    ret = (rand() % (PAL_RAND_MAX + 1));
 
     LOGEXIT("rand() returning %d\n", ret);
     PERF_EXIT(rand);
@@ -332,19 +269,19 @@ PAL_qsort(void *base, size_t nmemb, size_t size,
 
 /* reset ENTRY nesting level back to zero, qsort will invoke app-defined 
    callbacks and we want their entry traces... */
-#if !_NO_DEBUG_MESSAGES_
+#if _ENABLE_DEBUG_MESSAGES_
 {
     int old_level;
     old_level = DBG_change_entrylevel(0);
-#endif /* !_NO_DEBUG_MESSAGES_ */
+#endif /* _ENABLE_DEBUG_MESSAGES_ */
 
     qsort(base,nmemb,size,compar);
 
 /* ...and set nesting level back to what it was */
-#if !_NO_DEBUG_MESSAGES_
+#if _ENABLE_DEBUG_MESSAGES_
     DBG_change_entrylevel(old_level);
 }
-#endif /* !_NO_DEBUG_MESSAGES_ */
+#endif /* _ENABLE_DEBUG_MESSAGES_ */
 
     LOGEXIT("qsort returns\n");
     PERF_EXIT(qsort);
@@ -363,19 +300,19 @@ PAL_bsearch(const void *key, const void *base, size_t nmemb, size_t size,
 
 /* reset ENTRY nesting level back to zero, bsearch will invoke app-defined 
    callbacks and we want their entry traces... */
-#if !_NO_DEBUG_MESSAGES_
+#if _ENABLE_DEBUG_MESSAGES_
 {
     int old_level;
     old_level = DBG_change_entrylevel(0);
-#endif /* !_NO_DEBUG_MESSAGES_ */
+#endif /* _ENABLE_DEBUG_MESSAGES_ */
 
     retval = bsearch(key,base,nmemb,size,compar);
 
 /* ...and set nesting level back to what it was */
-#if !_NO_DEBUG_MESSAGES_
+#if _ENABLE_DEBUG_MESSAGES_
     DBG_change_entrylevel(old_level);
 }
-#endif /* !_NO_DEBUG_MESSAGES_ */
+#endif /* _ENABLE_DEBUG_MESSAGES_ */
 
     LOGEXIT("bsearch returns %p\n",retval);
     PERF_EXIT(bsearch);
@@ -546,7 +483,7 @@ BOOL MiscPutenv(const char *string, BOOL deleteIfEmpty)
         // set the variable's value to "". deleteIfEmpty will be FALSE in
         // that case.
         length = strlen(string);
-        copy = (char *) InternalMalloc(pthrCurrent, length);
+        copy = (char *) InternalMalloc(length);
         if (copy == NULL)
         {
             goto done;
@@ -561,7 +498,7 @@ BOOL MiscPutenv(const char *string, BOOL deleteIfEmpty)
         // See if we are replacing an item or adding one.
         
         // Make our copy up front, since we'll use it either way.
-        copy = InternalStrdup(pthrCurrent, string);
+        copy = InternalStrdup(string);
         if (copy == NULL)
         {
             goto done;
@@ -611,7 +548,7 @@ BOOL MiscPutenv(const char *string, BOOL deleteIfEmpty)
             
             if (sAllocatedEnviron) {
                 if (NULL == (newEnviron = 
-                        (char **)InternalRealloc(pthrCurrent, palEnvironment, (i + 2) * sizeof(char *))))
+                        (char **)InternalRealloc(palEnvironment, (i + 2) * sizeof(char *))))
                 {
                     goto done;
                 }
@@ -619,7 +556,7 @@ BOOL MiscPutenv(const char *string, BOOL deleteIfEmpty)
             else
             {
                 // Allocate palEnvironment ourselves so we can realloc it later.
-                newEnviron = (char **)InternalMalloc(pthrCurrent, (i + 2) * sizeof(char *));
+                newEnviron = (char **)InternalMalloc((i + 2) * sizeof(char *));
                 if (newEnviron == NULL)
                 {
                     goto done;
@@ -649,7 +586,7 @@ done:
     }
     if (NULL != copy)
     {
-        InternalFree(pthrCurrent, copy);
+        InternalFree(copy);
     }
     return result;
 }

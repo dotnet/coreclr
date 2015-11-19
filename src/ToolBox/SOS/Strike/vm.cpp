@@ -325,7 +325,7 @@ PrintVmStatsHeader(
 
 VOID
 PrintIndividualStat(
-    __in __in_z IN PSTR Name,
+    ___in __in_z IN PSTR Name,
     IN PINDIVIDUAL_STAT Stat
     )
 {
@@ -380,7 +380,7 @@ PrintIndividualStat(
 
 VOID
 PrintVmStats(
-    __in __in_z IN PSTR Name,
+    ___in __in_z IN PSTR Name,
     IN PVM_STATS Stats
     )
 {
@@ -398,7 +398,7 @@ PrintVmStats(
 PSTR
 VmProtectToString(
     IN DWORD Protect,
-    __out_ecount (capacity_buffer) OUT PSTR Buffer,
+    __out_ecount(capacity_Buffer) OUT PSTR Buffer,
     size_t capacity_Buffer
     )
 {
@@ -440,7 +440,7 @@ VmProtectToString(
 PSTR
 VmStateToString(
     IN DWORD State,
-    __out_ecount (capacity_buffer) OUT PSTR Buffer,
+    __out_ecount(capacity_Buffer) OUT PSTR Buffer,
     size_t capacity_Buffer
     )
 {
@@ -475,7 +475,7 @@ VmStateToString(
 PSTR
 VmTypeToString(
     IN DWORD Type,
-    __out_ecount (capacity_buffer) OUT PSTR Buffer,
+    __out_ecount(capacity_Buffer) OUT PSTR Buffer,
     size_t capacity_Buffer
     )
 {

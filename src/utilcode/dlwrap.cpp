@@ -86,12 +86,13 @@ VerQueryValueW_NoThrow(
 //    is available, and then it will remove unused functions.
 // Instead of specifying all libs for imported functions needed by the following codes, we just
 // remove them from compiling phase.
+__success(return)
 BOOL 
 CreateUrlCacheEntryW_NoThrow(
         IN LPCWSTR lpszUrlName,
         IN DWORD dwExpectedFileSize,
         IN LPCWSTR lpszFileExtension,
-        __out_ecount(MAX_PATH+1) LPWSTR lpszFileName,
+        __out_ecount(MAX_LONGPATH+1) LPWSTR lpszFileName,
         IN DWORD dwReserved
         )
 {

@@ -25,6 +25,9 @@
 #include "dwreport.h"
 #include "primitives.h"
 #include "dbgutil.h"
+#ifdef FEATURE_PAL            
+#include <dactablerva.h>
+#endif
 
 #include "dwbucketmanager.hpp"
 
@@ -3264,6 +3267,10 @@ ClrDataAccess::QueryInterface(THIS_
     {
         ifaceRet = static_cast<ISOSDacInterface2*>(this);
     }
+    else if (IsEqualIID(interfaceId, __uuidof(ISOSDacInterface3)))
+    {
+        ifaceRet = static_cast<ISOSDacInterface3*>(this);
+    }
     else
     {
         *iface = NULL;
@@ -5489,13 +5496,17 @@ ClrDataAccess::Initialize(void)
     // Determine our platform based on the pre-processor macros set when we were built
 
 #ifdef FEATURE_PAL
-     #if defined(DBG_TARGET_X86)
-         CorDebugPlatform hostPlatform = CORDB_PLATFORM_POSIX_X86;
-     #elif defined(DBG_TARGET_AMD64)
-         CorDebugPlatform hostPlatform = CORDB_PLATFORM_POSIX_AMD64;
-     #else
-         #error Unknown Processor.
-     #endif
+    #if defined(DBG_TARGET_X86)
+        CorDebugPlatform hostPlatform = CORDB_PLATFORM_POSIX_X86;
+    #elif defined(DBG_TARGET_AMD64)
+        CorDebugPlatform hostPlatform = CORDB_PLATFORM_POSIX_AMD64;
+    #elif defined(DBG_TARGET_ARM)
+        CorDebugPlatform hostPlatform = CORDB_PLATFORM_POSIX_ARM;
+    #elif defined(DBG_TARGET_ARM64)
+        CorDebugPlatform hostPlatform = CORDB_PLATFORM_POSIX_ARM64;
+    #else
+        #error Unknown Processor.
+    #endif
 #else
     #if defined(DBG_TARGET_X86)
         CorDebugPlatform hostPlatform = CORDB_PLATFORM_WINDOWS_X86;
@@ -6624,7 +6635,7 @@ ClrDataAccess::GetMetaDataFromHost(PEFile* peFile,
 {
     DWORD imageTimestamp, imageSize, dataSize;
     void* buffer = NULL;
-    WCHAR uniPath[MAX_PATH] = {0};
+    WCHAR uniPath[MAX_LONGPATH] = {0};
     bool isAlt = false;
     bool isNGEN = false;
     DAC_INSTANCE* inst = NULL;
@@ -6728,7 +6739,7 @@ ClrDataAccess::GetMetaDataFromHost(PEFile* peFile,
         
 #if defined(FEATURE_CORESYSTEM)
         const WCHAR* ilExtension[] = {W("dll"), W("winmd")};
-        WCHAR ngenImageName[MAX_PATH] = {0};
+        WCHAR ngenImageName[MAX_LONGPATH] = {0};
         if (wcscpy_s(ngenImageName, NumItems(ngenImageName), uniPath) != 0)
         {
             goto ErrExit;
@@ -6842,8 +6853,19 @@ ClrDataAccess::GetMDImport(const PEFile* peFile, const ReflectionModule* reflect
     {
         // Get the metadata
         PTR_SBuffer metadataBuffer = reflectionModule->GetDynamicMetadataBuffer();
-        mdBaseTarget = dac_cast<PTR_CVOID>((metadataBuffer->DacGetRawBuffer()).StartAddress());
-        mdSize = metadataBuffer->GetSize();
+        if (metadataBuffer != PTR_NULL)
+        {
+            mdBaseTarget = dac_cast<PTR_CVOID>((metadataBuffer->DacGetRawBuffer()).StartAddress());
+            mdSize = metadataBuffer->GetSize();
+        }
+        else
+        {
+            if (throwEx)
+            {
+                DacError(E_FAIL);
+            }
+            return NULL;
+        }
     }
     else
     {
@@ -7196,20 +7218,14 @@ HRESULT
 ClrDataAccess::GetDacGlobals()
 {
 #ifdef FEATURE_PAL
-    PVOID dacTableAddress = nullptr;
-    ULONG dacTableSize = 0;
-    DWORD err = PAL_GetDacTableAddress((PVOID)m_globalBase, &dacTableAddress, &dacTableSize);
-    if (err != ERROR_SUCCESS)
-    {
-        return CORDBG_E_MISSING_DEBUGGER_EXPORTS;
-    }
-
-    if (dacTableSize != sizeof(g_dacGlobals))
+#ifdef DAC_TABLE_SIZE
+    if (DAC_TABLE_SIZE != sizeof(g_dacGlobals))
     {
         return E_INVALIDARG;
     }
-
-    if (FAILED(ReadFromDataTarget(m_pTarget, (ULONG64)dacTableAddress, (BYTE*)&g_dacGlobals, dacTableSize)))
+#endif
+    ULONG64 dacTableAddress = m_globalBase + DAC_TABLE_RVA;
+    if (FAILED(ReadFromDataTarget(m_pTarget, dacTableAddress, (BYTE*)&g_dacGlobals, sizeof(g_dacGlobals))))
     {
         return CORDBG_E_MISSING_DEBUGGER_EXPORTS;
     }

@@ -271,6 +271,7 @@ static BYTE gLoadFromLabelIF[sizeof(LoadFromLabelInstructionFormat)];
 #ifndef CROSSGEN_COMPILE
 void LazyMachState::unwindLazyState(LazyMachState* baseState,
                                     MachState* unwoundstate,
+                                    DWORD threadId,
                                     int funCallDepth,
                                     HostCallPreference hostCallPreference)
 {
@@ -315,7 +316,12 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
 
     do {
 
+#ifndef FEATURE_PAL
         pvControlPc = Thread::VirtualUnwindCallFrame(&context, &nonVolContextPtrs);
+#else
+        PAL_VirtualUnwind(&context, &nonVolContextPtrs);
+        pvControlPc = GetIP(&context);
+#endif
 
         if (funCallDepth > 0)
         {
@@ -647,6 +653,8 @@ void UpdateRegDisplayFromCalleeSavedRegisters(REGDISPLAY * pRD, CalleeSavedRegis
     pContextPointers->X28 = (PDWORD64)&pCalleeSaved->x28;
 }
 
+#ifndef CROSSGEN_COMPILE
+
 void TransitionFrame::UpdateRegDisplay(const PREGDISPLAY pRD) 
 { 
     
@@ -656,7 +664,11 @@ void TransitionFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     // copy the argumetn registers
     ArgumentRegisters *pArgRegs = GetArgumentRegisters();
     for (int i = 0; i < ARGUMENTREGISTERS_SIZE; i++)
+#ifdef __clang__
+        *(&pRD->pCurrentContext->X0 + (sizeof(void*)*i)) = pArgRegs->x[i];
+#else
         pRD->pCurrentContext->X[i] = pArgRegs->x[i];
+#endif
 
     // copy the callee saved regs
     CalleeSavedRegisters *pCalleeSaved = GetCalleeSavedRegisters();
@@ -675,6 +687,8 @@ void TransitionFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     
 
 }
+
+#endif
 
 void TailCallFrame::UpdateRegDisplay(const PREGDISPLAY pRD) 
 { 
@@ -1197,10 +1211,6 @@ VOID ResetCurrentContext()
 }
 #endif
 
-extern "C" void ResolveWorkerChainLookupAsmStub()
-{
-    _ASSERTE(!"ARM64:NYI");
-}
 extern "C" void StubDispatchFixupPatchLabel()
 {
     _ASSERTE(!"ARM64:NYI");
@@ -1693,10 +1703,12 @@ void StubLinkerCPU::EmitCallManagedMethod(MethodDesc *pMD, BOOL fTailCall)
     }
 }
 
+#ifndef CROSSGEN_COMPILE
+
 EXTERN_C UINT32 _tls_index;
 void StubLinkerCPU::EmitGetThreadInlined(IntReg Xt)
 {
-#ifdef FEATURE_IMPLICIT_TLS
+#if defined(FEATURE_IMPLICIT_TLS) && !defined(FEATURE_PAL)
     // Trashes x8.
     IntReg X8 = IntReg(8);
     _ASSERTE(Xt != X8);
@@ -1720,8 +1732,6 @@ void StubLinkerCPU::EmitGetThreadInlined(IntReg Xt)
 
 }
 
-#ifndef CROSSGEN_COMPILE
-
 void StubLinkerCPU::EmitUnboxMethodStub(MethodDesc *pMD)
 {
     _ASSERTE(!pMD->RequiresInstMethodDescArg());
@@ -1737,3 +1747,50 @@ void StubLinkerCPU::EmitUnboxMethodStub(MethodDesc *pMD)
 #endif // CROSSGEN_COMPILE
 
 #endif // #ifndef DACCESS_COMPILE
+
+#ifdef FEATURE_READYTORUN
+PCODE DynamicHelpers::CreateHelper(LoaderAllocator * pAllocator, TADDR arg, PCODE target)
+{
+    UNREACHABLE();
+}
+
+PCODE DynamicHelpers::CreateHelperWithArg(LoaderAllocator * pAllocator, TADDR arg, PCODE target)
+{
+    UNREACHABLE();
+}
+
+PCODE DynamicHelpers::CreateHelper(LoaderAllocator * pAllocator, TADDR arg, TADDR arg2, PCODE target)
+{
+    UNREACHABLE();
+}
+
+PCODE DynamicHelpers::CreateHelperArgMove(LoaderAllocator * pAllocator, TADDR arg, PCODE target)
+{
+    UNREACHABLE();
+}
+
+PCODE DynamicHelpers::CreateReturn(LoaderAllocator * pAllocator)
+{
+    UNREACHABLE();
+}
+
+PCODE DynamicHelpers::CreateReturnConst(LoaderAllocator * pAllocator, TADDR arg)
+{
+    UNREACHABLE();
+}
+
+PCODE DynamicHelpers::CreateReturnIndirConst(LoaderAllocator * pAllocator, TADDR arg, INT8 offset)
+{
+    UNREACHABLE();
+}
+
+PCODE DynamicHelpers::CreateHelperWithTwoArgs(LoaderAllocator * pAllocator, TADDR arg, PCODE target)
+{
+    UNREACHABLE();
+}
+
+PCODE DynamicHelpers::CreateHelperWithTwoArgs(LoaderAllocator * pAllocator, TADDR arg, TADDR arg2, PCODE target)
+{
+    UNREACHABLE();
+}
+#endif

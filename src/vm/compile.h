@@ -115,9 +115,7 @@ CEEPreloader::AddFixup, which forwards it to the zapper
 #ifndef COMPILE_H_
 #define COMPILE_H_
 
-#ifndef FEATURE_PREJIT
-#error FEATURE_PREJIT is required for this file
-#endif // FEATURE_PREJIT
+#ifdef FEATURE_NATIVE_IMAGE_GENERATION
 
 struct ZapperLoaderModuleTableKey {
     ZapperLoaderModuleTableKey(Module *pDefinitionModule, 
@@ -183,7 +181,10 @@ typedef  SHash<ZapperLoaderModuleTableTraits> ZapperLoaderModuleTable;
 class CEECompileInfo : public ICorCompileInfo
 {
   public:
-    virtual ~CEECompileInfo() {}
+    virtual ~CEECompileInfo()
+    {
+        WRAPPER_NO_CONTRACT;
+    }
     
     HRESULT Startup(     BOOL                     fForceDebug, 
                          BOOL                     fForceProfiling,
@@ -326,6 +327,8 @@ class CEECompileInfo : public ICorCompileInfo
 
     BOOL IsEmptyString(mdString token,
                        CORINFO_MODULE_HANDLE module);
+
+    BOOL IsNativeCallableMethod(CORINFO_METHOD_HANDLE handle);
 
     BOOL IsCachingOfInliningHintsEnabled()
     {
@@ -917,5 +920,7 @@ class CompilationDomain : public AppDomain,
 
     void SetDependencyEmitter(IMetaDataAssemblyEmit *pEmitter);
 };
+
+#endif // FEATURE_NATIVE_IMAGE_GENERATION
 
 #endif // COMPILE_H_

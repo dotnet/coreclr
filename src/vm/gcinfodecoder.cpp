@@ -1615,6 +1615,25 @@ OBJECTREF* GcInfoDecoder::GetRegisterSlot(
 
 }
 
+#ifdef FEATURE_PAL
+OBJECTREF* GcInfoDecoder::GetCapturedRegister(
+    int             regNum,
+    PREGDISPLAY     pRD
+    )
+{
+    _ASSERTE(regNum >= 0 && regNum <= 14);
+    _ASSERTE(regNum != 13);  // sp
+
+    // The fields of CONTEXT are in the same order as
+    // the processor encoding numbers.
+
+    ULONG *pR0;
+    pR0 = &pRD->pCurrentContext->R0;
+
+    return (OBJECTREF*)(pR0 + regNum);
+}
+#endif // FEATURE_PAL
+
 
 bool GcInfoDecoder::IsScratchRegister(int regNum,  PREGDISPLAY pRD)
 {
@@ -1773,6 +1792,24 @@ void GcInfoDecoder::ReportRegisterToGC( // ARM64
 
     pCallBack(hCallBack, pObjRef, gcFlags DAC_ARG(DacSlotLocation(regNum, 0, false)));
 }
+
+#ifdef FEATURE_PAL
+OBJECTREF* GcInfoDecoder::GetCapturedRegister(
+    int             regNum,
+    PREGDISPLAY     pRD
+    )
+{
+    _ASSERTE(regNum >= 0 && regNum <= 28);
+
+    // The fields of CONTEXT are in the same order as
+    // the processor encoding numbers.
+
+    DWORD64 *pX0;
+    pX0 = &pRD->pCurrentContext->X0;
+
+    return (OBJECTREF*)(pX0 + regNum);
+}
+#endif // FEATURE_PAL
 
 #else // Unknown platform
 

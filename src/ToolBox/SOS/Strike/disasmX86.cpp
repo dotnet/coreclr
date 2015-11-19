@@ -50,7 +50,7 @@ struct Register
 };
 
 // Find the index for a register name
-inline RegIndex FindReg (__in __in_z char *ptr, __out_opt int *plen = NULL, __out_opt int *psize = NULL)
+inline RegIndex FindReg (___in __in_z char *ptr, __out_opt int *plen = NULL, __out_opt int *psize = NULL)
 {
     struct RegName
     {
@@ -168,8 +168,10 @@ inline RegIndex FindReg (__in __in_z char *ptr, __out_opt int *plen = NULL, __ou
     return NONE;
 }
 
+#ifndef FEATURE_PAL
+
 // Find the value of an expression.
-inline BOOL FindSrc (__in_z char *ptr, __in Register *reg, INT_PTR &value, BOOL &bDigit)
+inline BOOL FindSrc (__in_z char *ptr, ___in Register *reg, INT_PTR &value, BOOL &bDigit)
 {
     if (GetValueFromExpr (ptr, value))
     {
@@ -220,7 +222,7 @@ struct InstData
     INT_PTR value;
 };
 
-void FindMainReg (__in __in_z char *ptr, RegState &reg)
+void FindMainReg (___in __in_z char *ptr, RegState &reg)
 {
     int size = 0;
 
@@ -229,7 +231,7 @@ void FindMainReg (__in __in_z char *ptr, RegState &reg)
     reg.bFullReg = (reg.reg!=NONE && sizeof(void*)==size) ? TRUE : FALSE;
 }
 
-static void DecodeAddressIndirect (__in __in_z char *term, InstData& arg)
+static void DecodeAddressIndirect (___in __in_z char *term, InstData& arg)
 {
     arg.mode = BAD;
     arg.value = 0;
@@ -308,7 +310,7 @@ static void DecodeAddressIndirect (__in __in_z char *term, InstData& arg)
     }
 }
 
-void DecodeAddressTerm (__in __in_z char *term, InstData& arg)
+void DecodeAddressTerm (___in __in_z char *term, InstData& arg)
 {
     arg.mode = BAD;
     arg.reg[0].scale = 0;
@@ -334,7 +336,6 @@ void DecodeAddressTerm (__in __in_z char *term, InstData& arg)
         }
     }
 }
-
 
 // Return 0 for non-managed call.  Otherwise return MD address.
 TADDR MDForCall (TADDR callee)
@@ -525,7 +526,7 @@ void
     char *ptr;
 
     ULONG curLine = -1;
-    char  filename[MAX_PATH+1];
+    char  filename[MAX_PATH_FNAME+1];
     ULONG linenum;
 
     while (IP < IPEnd)
@@ -536,7 +537,7 @@ void
         // Print out line numbers if needed
         if (!bSuppressLines
             && SUCCEEDED(GetLineByOffset(TO_CDADDR(IP), 
-                           &linenum, filename, MAX_PATH+1)))
+                           &linenum, filename, MAX_PATH_FNAME+1)))
         {
             if (linenum != curLine)
             {
@@ -754,6 +755,8 @@ void
     }
 }
 
+#endif // FEATURE_PAL
+
 
 // Find the real callee site.  Handle JMP instruction.
 // Return TRUE if we get the address, FALSE if not.
@@ -807,7 +810,7 @@ BOOL GetCalleeSite (TADDR IP, TADDR &IPCallee)
     }
 }
 
-
+#ifndef FEATURE_PAL
 
 // GetFinalTarget is based on HandleCall, but avoids printing anything to the output.
 // This is currently only called on x64
@@ -864,6 +867,7 @@ eTargetType GetFinalTarget(TADDR callee, TADDR* finalMDorIP)
     return ettNative;
 }
 
+
 void ExpFuncStateInit (TADDR *IPRetAddr)
 {
     ULONG64 offset;
@@ -904,6 +908,8 @@ void ExpFuncStateInit (TADDR *IPRetAddr)
     }
 }
 
+#endif // FEATURE_PAL
+
 /**********************************************************************\
 * Routine Description:                                                 *
 *                                                                      *
@@ -925,6 +931,7 @@ BOOL
      TADDR     * exrAddr, 
      PEXCEPTION_RECORD exr) const
 {
+#ifndef FEATURE_PAL
 #ifdef SOS_TARGET_X86
     X86_CONTEXT * cxr = &pcxr->X86Context;
     size_t contextSize = offsetof(CONTEXT, ExtendedRegisters);
@@ -1006,8 +1013,11 @@ BOOL
     }
 
 #endif
-
     return TRUE;
+#else
+    ExtErr("AMD64Machine::GetExceptionContext not implemented\n");
+    return FALSE;
+#endif // FEATURE_PAL
 }
 
 
@@ -1133,7 +1143,7 @@ void
 ///
 /// This is dead code, not called from anywhere, not linked in the final product.
 ///
-static BOOL DecodeLine (__in __in_z char *line, __in __in_z const char *const inst, InstData& arg1, InstData& arg2)
+static BOOL DecodeLine (___in __in_z char *line, ___in __in_z const char *const inst, InstData& arg1, InstData& arg2)
 {
     char *ptr = line;
     if (inst[0] == '*' || !strncmp (ptr, inst, strlen (inst)))

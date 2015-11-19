@@ -621,7 +621,6 @@ PAL_wcstoul(
     PERF_ENTRY(wcstoul);
     ENTRY("wcstoul (nptr=%p (%S), endptr=%p, base=%d)\n", nptr?nptr:W16_NULLSTRING, nptr?nptr:W16_NULLSTRING,
           endptr, base);
-    THREADMarkDiagnostic("PAL_wcstoul -> strtoul");
 
     size = WideCharToMultiByte(CP_ACP, 0, nptr, -1, NULL, 0, NULL, NULL);
     if (!size)
@@ -712,7 +711,6 @@ PAL__wcstoui64(
     PERF_ENTRY(wcstoul);
     ENTRY("_wcstoui64 (nptr=%p (%S), endptr=%p, base=%d)\n", nptr?nptr:W16_NULLSTRING, nptr?nptr:W16_NULLSTRING,
           endptr, base);
-    THREADMarkDiagnostic("PAL__wcstoui64 -> strtoull");
 
     size = WideCharToMultiByte(CP_ACP, 0, nptr, -1, NULL, 0, NULL, NULL);
     if (!size)
@@ -797,7 +795,7 @@ PAL_towlower( wchar_16 c )
     
     if (!GetUnicodeData(c, &dataRec))
     {
-        TRACE( "Unable to retrive unicode data for the character %c.\n", c );
+        TRACE( "Unable to retrieve unicode data for the character %c.\n", c );
         LOGEXIT("towlower returns int %d\n", c );
         PERF_EXIT(towlower);
         return c;
@@ -856,7 +854,7 @@ PAL_towupper( wchar_16 c )
 
     if (!GetUnicodeData(c, &dataRec))
     {
-        TRACE( "Unable to retrive unicode data for the character %c.\n", c );
+        TRACE( "Unable to retrieve unicode data for the character %c.\n", c );
         LOGEXIT("towupper returns int %d\n", c );
         PERF_EXIT(towupper);
         return c;
@@ -908,7 +906,7 @@ PAL_iswupper( wchar_16 c )
 
     if (!GetUnicodeData(c, &dataRec))
     {
-        TRACE( "Unable to retrive unicode data for the character %c.\n", c );
+        TRACE( "Unable to retrieve unicode data for the character %c.\n", c );
         goto exit;
     }
     
@@ -954,7 +952,7 @@ PAL_iswlower( wchar_16 c )
     
     if (!GetUnicodeData(c, &dataRec))
     {
-        TRACE( "Unable to retrive unicode data for the character %c.\n", c );
+        TRACE( "Unable to retrieve unicode data for the character %c.\n", c );
         goto exit;
     }
     
@@ -1450,7 +1448,7 @@ PAL_wcsncat( wchar_16 * strDest, const wchar_16 *strSource, size_t count )
 static BOOL MISC_CRT_WCSTOD_IsValidCharacter( WCHAR c )
 {
     if ( c == '+' || c == '-' || c == '.' || ( c >= '0' && c <= '9' ) || 
-         c == 'e' || c == 'E' || c == 'd' || c == 'd' )
+         c == 'e' || c == 'E' || c == 'd' || c == 'D' )
     {
         return TRUE;
     }
@@ -1482,7 +1480,6 @@ PAL_wcstod( const wchar_16 * nptr, wchar_16 **endptr )
 
     PERF_ENTRY(wcstod);
     ENTRY( "wcstod( %p (%S), %p (%S) )\n", nptr, nptr, endptr , endptr );
-    THREADMarkDiagnostic("PAL_wcstod -> strtod");
 
     if ( !nptr )
     {
@@ -1527,7 +1524,7 @@ PAL_wcstod( const wchar_16 * nptr, wchar_16 **endptr )
                 /* See if strtod failed. */
                 if ( RetVal == 0.0 && ScanStop == lpStringRep )
                 {
-                    ASSERT( "An error occured in the conversion.\n" );
+                    ASSERT( "An error occurred in the conversion.\n" );
                     lpEndOfExpression = (LPWSTR)nptr;
                 }
             }

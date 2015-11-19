@@ -4775,8 +4775,8 @@ void SystemDomain::GetDevpathW(__out_ecount_opt(1) LPWSTR* pDevpath, DWORD* pdwD
                 RegKeyHolder userKey;
                 RegKeyHolder machineKey;
 
-                WCHAR pVersion[MAX_PATH];
-                DWORD dwVersion = MAX_PATH;
+                WCHAR pVersion[MAX_PATH_FNAME];
+                DWORD dwVersion = MAX_PATH_FNAME;
                 HRESULT hr = S_OK;
                 hr = FusionBind::GetVersion(pVersion, &dwVersion);
                 if(SUCCEEDED(hr)) {
@@ -8014,7 +8014,7 @@ BOOL AppDomain::AddAssemblyToCache(AssemblySpec* pSpec, DomainAssembly *pAssembl
     // check for context propagation
     if (bRetVal && pSpec->GetParentLoadContext() == LOADCTX_TYPE_LOADFROM && pAssembly->GetFile()->GetLoadContext() == LOADCTX_TYPE_DEFAULT)
     {
-        // LoadFrom propagation occured, store it in a way reachable by Load() (the "post-policy" one)
+        // LoadFrom propagation occurred, store it in a way reachable by Load() (the "post-policy" one)
         AssemblySpec loadSpec;
         loadSpec.CopyFrom(pSpec);
         loadSpec.SetParentAssembly(NULL);
@@ -8256,8 +8256,11 @@ public:
         }
         else
         {
-            IfFailRet(FString::Utf8_Unicode(szName, bIsAscii, wzBuffer, *pcchBuffer));
-            *pcchBuffer = cchName;
+            IfFailRet(FString::Utf8_Unicode(szName, bIsAscii, wzBuffer, cchBuffer));
+            if (pcchBuffer != nullptr)
+            {
+                *pcchBuffer = cchName;
+            }
             return S_OK;
         }
     }
@@ -11285,7 +11288,7 @@ BOOL AppDomain::StopEEAndUnwindThreads(unsigned int retryCount, BOOL *pFMarkUnlo
 
                 if (pThread->PreemptiveGCDisabledOther())
                 {
-        #ifdef FEATURE_HIJACK
+        #if defined(FEATURE_HIJACK) && !defined(PLATFORM_UNIX)
                     Thread::SuspendThreadResult str = pThread->SuspendThread();
                     if (str == Thread::STR_Success)
                     {
@@ -14833,7 +14836,7 @@ PTR_DomainAssembly AppDomain::FindAssembly(PTR_ICLRPrivAssembly pHostAssembly)
 
 #endif //FEATURE_HOSTED_BINDER
 
-#if !defined(DACCESS_COMPILE) && defined(FEATURE_CORECLR)
+#if !defined(DACCESS_COMPILE) && defined(FEATURE_CORECLR) && defined(FEATURE_NATIVE_IMAGE_GENERATION)
 
 void ZapperSetBindingPaths(ICorCompilationDomain *pDomain, SString &trustedPlatformAssemblies, SString &platformResourceRoots, SString &appPaths, SString &appNiPaths)
 {

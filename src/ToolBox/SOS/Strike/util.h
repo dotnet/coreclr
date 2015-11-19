@@ -21,9 +21,9 @@ inline void RestoreSOToleranceState() {}
 #include <clrdata.h>
 #include <palclr.h>
 #include <metahost.h>
+#include <new>
 
 #if !defined(FEATURE_PAL)
-#include <new>
 #include <dia2.h>
 #endif
 
@@ -33,12 +33,10 @@ inline void RestoreSOToleranceState() {}
 #pragma warning(default:4200)
 #endif
 #include "data.h"
-
 #endif //STRIKE
 
 #include "cordebug.h"
 #include "static_assert.h"
-
 
 typedef LPCSTR  LPCUTF8;
 typedef LPSTR   LPUTF8;
@@ -185,7 +183,7 @@ interface ICorDebugProcess;
 extern ICorDebugProcess * g_pCorDebugProcess;
 
 // This class is templated for easy modification.  We may need to update the CachedString
-// or related classes to use wchar_t instead of char in the future.
+// or related classes to use WCHAR instead of char in the future.
 template <class T, int count, int size>
 class StaticData
 {
@@ -608,7 +606,7 @@ private:
 };
 
 typedef BaseString<char, strlen, strcpy_s> String;
-typedef BaseString<wchar_t, wcslen, wcscpy_s> WString;
+typedef BaseString<WCHAR, _wcslen, wcscpy_s> WString;
 
 
 template<class T>
@@ -785,7 +783,7 @@ namespace Output
             const char *cstr = (const char *)str;
         
             int len = MultiByteToWideChar(CP_ACP, 0, cstr, -1, NULL, 0);
-            wchar_t *buffer = (wchar_t *)alloca(len*sizeof(wchar_t));
+            WCHAR *buffer = (WCHAR *)alloca(len*sizeof(WCHAR));
         
             MultiByteToWideChar(CP_ACP, 0, cstr, -1, buffer, len);
         
@@ -961,15 +959,15 @@ namespace Output
     /* Format class for wide char strings.
      */
     template <>
-    class Format<const wchar_t *>
+    class Format<const WCHAR *>
     {
     public:
-        Format(const wchar_t *value)
+        Format(const WCHAR *value)
             : mValue(value)
         {
         }
 
-        Format(const Format<const wchar_t *> &rhs)
+        Format(const Format<const WCHAR *> &rhs)
             : mValue(rhs.mValue)
         {
         }
@@ -984,7 +982,7 @@ namespace Output
 
         void OutputColumn(Alignment align, int width) const
         {
-            int precision = (int)wcslen(mValue);
+            int precision = (int)_wcslen(mValue);
             if (precision > width)
                 precision = width;
 
@@ -997,7 +995,7 @@ namespace Output
         }
 
     private:
-        const wchar_t *mValue;
+        const WCHAR *mValue;
     };
 
 
@@ -1288,17 +1286,17 @@ public:
 
     void WriteColumn(int col, const WString &str)
     {
-        WriteColumn(col, Output::Format<const wchar_t *>(str));
+        WriteColumn(col, Output::Format<const WCHAR *>(str));
     }
 
     void WriteColumn(int col, __in_z WCHAR *str)
     {
-        WriteColumn(col, Output::Format<const wchar_t *>(str));
+        WriteColumn(col, Output::Format<const WCHAR *>(str));
     }
 
     void WriteColumn(int col, const WCHAR *str)
     {
-        WriteColumn(col, Output::Format<const wchar_t *>(str));
+        WriteColumn(col, Output::Format<const WCHAR *>(str));
     }
     
     inline void WriteColumn(int col, __in_z char *str)
@@ -1324,9 +1322,9 @@ public:
         WriteColumn(col, result);
     }
     
-    void WriteColumnFormat(int col, const wchar_t *fmt, ...)
+    void WriteColumnFormat(int col, const WCHAR *fmt, ...)
     {
-        wchar_t result[128];
+        WCHAR result[128];
         
         va_list list;
         va_start(list, fmt);
@@ -1364,8 +1362,8 @@ private:
 HRESULT GetMethodDefinitionsFromName(DWORD_PTR ModulePtr, IXCLRDataModule* mod, const char* name, IXCLRDataMethodDefinition **ppMethodDefinitions, int numMethods, int *numMethodsNeeded);
 HRESULT GetMethodDescsFromName(DWORD_PTR ModulePtr, IXCLRDataModule* mod, const char* name, DWORD_PTR **pOut, int *numMethodDescs);
 
-HRESULT FileNameForModule (DacpModuleData *pModule, __out_ecount (MAX_PATH) WCHAR *fileName);
-HRESULT FileNameForModule (DWORD_PTR pModuleAddr, __out_ecount (MAX_PATH) WCHAR *fileName);
+HRESULT FileNameForModule (DacpModuleData *pModule, __out_ecount (MAX_LONGPATH) WCHAR *fileName);
+HRESULT FileNameForModule (DWORD_PTR pModuleAddr, __out_ecount (MAX_LONGPATH) WCHAR *fileName);
 void IP2MethodDesc (DWORD_PTR IP, DWORD_PTR &methodDesc, JITTypes &jitType,
                     DWORD_PTR &gcinfoAddr);
 const char *ElementTypeName (unsigned type);
@@ -1415,7 +1413,7 @@ int bitidx(SCALAR bitflag)
 HRESULT
 DllsName(
     ULONG_PTR addrContaining,
-    __out_ecount (MAX_PATH) WCHAR *dllName
+    __out_ecount (MAX_LONGPATH) WCHAR *dllName
     );
 
 inline
@@ -1621,7 +1619,7 @@ BOOL IsMiniDumpFile();
 void ReportOOM();
 
 BOOL SafeReadMemory (TADDR offset, PVOID lpBuffer, ULONG cb, PULONG lpcbBytesRead);
-#if !defined(_TARGET_WIN64_)
+#if !defined(_TARGET_WIN64_) && !defined(_ARM64_)
 // on 64-bit platforms TADDR and CLRDATA_ADDRESS are identical
 inline BOOL SafeReadMemory (CLRDATA_ADDRESS offset, PVOID lpBuffer, ULONG cb, PULONG lpcbBytesRead)
 { return SafeReadMemory(TO_TADDR(offset), lpBuffer, cb, lpcbBytesRead); }
@@ -1630,10 +1628,10 @@ inline BOOL SafeReadMemory (CLRDATA_ADDRESS offset, PVOID lpBuffer, ULONG cb, PU
 BOOL NameForMD_s (DWORD_PTR pMD, __out_ecount (capacity_mdName) WCHAR *mdName, size_t capacity_mdName);
 BOOL NameForMT_s (DWORD_PTR MTAddr, __out_ecount (capacity_mdName) WCHAR *mdName, size_t capacity_mdName);
 
-wchar_t *CreateMethodTableName(TADDR mt, TADDR cmt = NULL);
+WCHAR *CreateMethodTableName(TADDR mt, TADDR cmt = NULL);
 
 void isRetAddr(DWORD_PTR retAddr, DWORD_PTR* whereCalled);
-DWORD_PTR GetValueFromExpression (__in __in_z const char *const str);
+DWORD_PTR GetValueFromExpression (___in __in_z const char *const str);
 
 #ifndef FEATURE_PAL
 // ensure we always allocate on the process heap
@@ -1929,7 +1927,7 @@ BOOL IsObjectArray (DacpObjectData *pData);
  *      You must clean up the return value of this array by calling delete [] on it, or using the
  *      ArrayHolder class.
  */
-DWORD_PTR *ModuleFromName(__in __in_z __in_opt LPSTR name, int *numModules);
+DWORD_PTR *ModuleFromName(__in_opt LPSTR name, int *numModules);
 void GetInfoFromName(DWORD_PTR ModuleAddr, const char* name);
 void GetInfoFromModule (DWORD_PTR ModuleAddr, ULONG token, DWORD_PTR *ret=NULL);
 
@@ -2368,15 +2366,20 @@ private:
     volatile ULONG m_refCount;
 };
 
+#endif // !FEATURE_PAL
+
 class SymbolReader
 {
 private:
+#ifndef FEATURE_PAL
     ISymUnmanagedReader* m_pSymReader;
+#endif
 
 private:
     HRESULT GetNamedLocalVariable(ISymUnmanagedScope * pScope, ICorDebugILFrame * pILFrame, mdMethodDef methodToken, ULONG localIndex, __inout_ecount(paramNameLen) WCHAR* paramName, ULONG paramNameLen, ICorDebugValue** ppValue);
 
 public:
+#ifndef FEATURE_PAL
     SymbolReader() : m_pSymReader (NULL) {}
     ~SymbolReader()
     {
@@ -2386,6 +2389,10 @@ public:
             m_pSymReader = NULL;
         }
     }
+#else
+    SymbolReader() {}
+    ~SymbolReader() {}
+#endif
 
     HRESULT LoadSymbols(IMetaDataImport * pMD, ICorDebugModule * pModule);
     HRESULT LoadSymbols(IMetaDataImport * pMD, ULONG64 baseAddress, __in_z WCHAR* pModuleName, BOOL isInMemory);
@@ -2393,14 +2400,12 @@ public:
     HRESULT SymbolReader::ResolveSequencePoint(__in_z WCHAR* pFilename, ULONG32 lineNumber, mdMethodDef* pToken, ULONG32* pIlOffset);
 };
 
-#endif // !FEATURE_PAL
-
 HRESULT
 GetLineByOffset(
-        __in  ULONG64 IP,
-        __out ULONG *pLinenum,
+        ___in ULONG64 IP,
+        ___out ULONG *pLinenum,
         __out_ecount(cbFileName) LPSTR lpszFileName,
-        __in ULONG cbFileName);
+        ___in ULONG cbFileName);
 
 /// X86 Context
 #define X86_SIZE_OF_80387_REGISTERS      80
@@ -2788,7 +2793,6 @@ public:
             MoveToPage(start, size);
         }
     }
-
     
     void ClearStats()
     {
@@ -2799,8 +2803,6 @@ public:
 #endif
     }
     
-#ifndef FEATURE_PAL
-
     void PrintStats(const char *func)
     {
 #ifdef _DEBUG
@@ -2812,8 +2814,6 @@ public:
 #endif
     }
 
-#endif // !FEATURE_PAL
-    
 private:
     /* Sets the cache to the page specified by addr, or false if we could not move to
      * that page.
@@ -2850,11 +2850,9 @@ private:
 // Methods for creating a database out of the gc heap and it's roots in xml format or CLRProfiler format
 //
 
-#ifndef FEATURE_PAL
 #include <unordered_map>
 #include <unordered_set>
 #include <list>
-#endif
 
 class TypeTree;
 enum { FORMAT_XML=0, FORMAT_CLRPROFILER=1 };
@@ -2870,9 +2868,7 @@ private:
     bool m_verify;
     LinearReadCache mCache;
     
-#ifndef FEATURE_PAL
     std::unordered_map<TADDR, std::list<TADDR>> mDependentHandleMap;
-#endif
     
 public:           
     HeapTraverser(bool verify);
@@ -2912,7 +2908,6 @@ private:
     void TraceHandles();
 };
 
-#ifndef FEATURE_PAL
 
 class GCRootImpl
 {
@@ -2920,7 +2915,7 @@ private:
     struct MTInfo
     {
         TADDR MethodTable;
-        wchar_t  *TypeName;
+        WCHAR  *TypeName;
 
         TADDR *Buffer;
         CGCDesc *GCDesc;
@@ -2930,13 +2925,13 @@ private:
         size_t BaseSize;
         size_t ComponentSize;
         
-        const wchar_t *GetTypeName()
+        const WCHAR *GetTypeName()
         {
             if (!TypeName)
                 TypeName = CreateMethodTableName(MethodTable);
             
             if (!TypeName)
-                return L"<error>";
+                return W("<error>");
             
             return TypeName;
         }
@@ -2969,10 +2964,10 @@ private:
         RootNode *GCRefs;
         
         
-        const wchar_t *GetTypeName()
+        const WCHAR *GetTypeName()
         {
             if (!MTInfo)
-                return L"<unknown>";
+                return W("<unknown>");
                 
             return MTInfo->GetTypeName();
         }
@@ -3112,8 +3107,6 @@ private:
     LinearReadCache mCache;     // A linear cache which stops us from having to read from the target process more than 1-2 times per object.
 };
 
-#endif // !FEATURE_PAL
-
 //
 // Helper class used for type-safe bitflags
 //   T - the enum type specifying the individual bit flags
@@ -3222,7 +3215,7 @@ HRESULT CreateInstanceCustom(
 template <typename T>
 BOOL
 GetProcAddressT(
-    __in PCSTR FunctionName,
+    ___in PCSTR FunctionName,
     __in_opt PCWSTR DllName,
     __inout T* OutFunctionPointer,
     __inout HMODULE* InOutDllHandle
@@ -3257,9 +3250,9 @@ struct ImageInfo
 
 HRESULT
 GetClrModuleImages(
-    __in IXCLRDataModule* Module,
-    __in CLRDataModuleExtentType DesiredType,
-    __out ImageInfo* FirstAdd);
+    ___in IXCLRDataModule* Module,
+    ___in CLRDataModuleExtentType DesiredType,
+    ___out ImageInfo* FirstAdd);
 
 // Helper class used in ClrStackFromPublicInterface() to keep track of explicit EE Frames
 // (i.e., "internal frames") on the stack.  Call Init() with the appropriate

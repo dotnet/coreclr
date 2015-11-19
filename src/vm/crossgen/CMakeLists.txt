@@ -98,13 +98,35 @@ set(VM_CROSSGEN_SOURCES
     ../dbggcinfodecoder.cpp
     ../gcinfodecoder.cpp
     ../sha1.cpp
-    ../amd64/stublinkeramd64.cpp
     ../crossgencompile.cpp
 )
 
 include_directories(BEFORE ..)
 include_directories(${CLR_DIR}/src/gc)
-include_directories(../amd64)
+
+if(CLR_CMAKE_PLATFORM_ARCH_AMD64)
+  include_directories(../amd64)
+  list(APPEND VM_CROSSGEN_SOURCES 
+    ../amd64/stublinkeramd64.cpp
+  )
+elseif(CLR_CMAKE_PLATFORM_ARCH_I386)
+  include_directories(../i386)
+  list(APPEND VM_CROSSGEN_SOURCES 
+    ../i386/stublinkerx86.cpp
+  )
+elseif(CLR_CMAKE_PLATFORM_ARCH_ARM)
+  include_directories(../arm)
+  list(APPEND VM_CROSSGEN_SOURCES 
+    ../arm/stubs.cpp
+  )
+elseif(CLR_CMAKE_PLATFORM_ARCH_ARM64)
+  include_directories(../arm64)
+  list(APPEND VM_CROSSGEN_SOURCES 
+    ../arm64/stubs.cpp
+  )
+else()
+  clr_unknown_arch()
+endif()
 
 if (WIN32)
   list(APPEND VM_CROSSGEN_SOURCES
@@ -124,5 +146,11 @@ if (WIN32)
   # mscorlib.cpp does not compile with precompiled header file
   set_source_files_properties(../mscorlib.cpp PROPERTIES COMPILE_FLAGS "/Y-")
 endif (WIN32)
+
+if (CLR_CMAKE_PLATFORM_LINUX)
+  list(APPEND VM_CROSSGEN_SOURCES
+    ../perfmap.cpp
+  )
+endif (CLR_CMAKE_PLATFORM_LINUX)
 
 add_library(cee_crossgen ${VM_CROSSGEN_SOURCES})

@@ -25,7 +25,7 @@
 
 #define MAX_EXCEPTION_MSG   200
 
-// Set if fatal error (like stack overflow or out of memory) occured in this process.
+// Set if fatal error (like stack overflow or out of memory) occurred in this process.
 GVAL_IMPL_INIT(HRESULT, g_hrFatalError, S_OK);
 
 // Helper function to get an exception object from outside the exception.  In
@@ -1698,7 +1698,8 @@ void DECLSPEC_NORETURN ThrowOutOfMemory()
     
 #ifndef DACCESS_COMPILE
 
-    g_hrFatalError = COR_E_OUTOFMEMORY;
+    // Use volatile store to prevent compiler from optimizing the static variable away
+    VolatileStoreWithoutBarrier<HRESULT>(&g_hrFatalError, COR_E_OUTOFMEMORY);
 
     // Regular CLR builds - throw our pre-created OOM exception object
     PAL_CPP_THROW(Exception *, Exception::GetOOMException());

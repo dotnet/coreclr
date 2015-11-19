@@ -896,6 +896,7 @@ inline void VerifyExecutableAddress(const BYTE* address)
 // TODO: : when can we apply this to x86?
 #if defined(_WIN64)   
 #if defined(_DEBUG) 
+#ifndef FEATURE_PAL    
     MEMORY_BASIC_INFORMATION mbi;
     
     if (sizeof(mbi) == ClrVirtualQuery(address, &mbi, sizeof(mbi)))
@@ -913,6 +914,7 @@ inline void VerifyExecutableAddress(const BYTE* address)
                 ("VEA: address (0x%p) is not on an executable page.", address));
         }
     }
+#endif // !FEATURE_PAL    
 #endif // _DEBUG   
 #endif // _WIN64
 }
@@ -1102,6 +1104,8 @@ private:
     
     static void ApplyTraceFlag(Thread *thread);
     static void UnapplyTraceFlag(Thread *thread);
+
+    virtual void DebuggerDetachClean();
 
   public:
     static const BYTE *g_pMSCorEEStart, *g_pMSCorEEEnd;
@@ -1322,7 +1326,7 @@ public:
     // still send. 
     //
     // Returns true if send an event, false elsewise.
-    virtual bool SendEvent(Thread *thread, bool fInteruptedBySetIp);
+    virtual bool SendEvent(Thread *thread, bool fInteruptedBySetIp);   
 
     AppDomain           *m_pAppDomain;
 
@@ -1377,6 +1381,8 @@ class DebuggerPatchSkip : public DebuggerController
     void CopyInstructionBlock(BYTE *to, const BYTE* from);
 
     void DecodeInstruction(CORDB_ADDRESS_TYPE *code);
+
+    void DebuggerDetachClean();
 
     CORDB_ADDRESS_TYPE      *m_address;
     int                      m_iOrigDisp;        // the original displacement of a relative call or jump
