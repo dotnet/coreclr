@@ -1,6 +1,7 @@
 using System.Security;
 using System;
 using System.IO;
+using TestLibrary;
 
 /// <summary>
 /// System.IO.Path.GetFileNameWithoutExtension(string)
@@ -50,7 +51,7 @@ public class PathGetFileNameWithoutExtension
         const string c_TEST_DESC = "PosTest1:the source path is a file name with extension.";
         const string c_TEST_ID = "P001";
 
-        string sourcePath = @"C:\mydir\myfolder\test.txt";
+        string sourcePath = Utilities.IsWindows ? @"C:\mydir\myfolder\test.txt" : @"/home/user/test.txt";
         string FileName = "test";
 
         TestLibrary.TestFramework.BeginScenario(c_TEST_DESC);
@@ -81,7 +82,7 @@ public class PathGetFileNameWithoutExtension
         const string c_TEST_DESC = "PosTest2:the source path is not a file name without extension.";
         const string c_TEST_ID = "P002";
 
-        string sourcePath = @"C:\mydir\myfolder\test";
+        string sourcePath = Utilities.IsWindows ? @"C:\mydir\myfolder\test" : @"/home/user/test";
         string FileName = "test";
 
         TestLibrary.TestFramework.BeginScenario(c_TEST_DESC);
@@ -112,7 +113,7 @@ public class PathGetFileNameWithoutExtension
         const string c_TEST_DESC = "PosTest3:the last of character of source path is a directory separator character.";
         const string c_TEST_ID = "P003";
 
-        string sourcePath = @"C:\mydir\myfolder\";
+        string sourcePath = Utilities.IsWindows ? @"C:\mydir\myfolder\" : @"/home/user/myfolder/";
         string FileName = string.Empty;
 
         TestLibrary.TestFramework.BeginScenario(c_TEST_DESC);
@@ -243,7 +244,7 @@ public class PathGetFileNameWithoutExtension
         const string c_TEST_DESC = "NegTest1: the source path  contains  invalid characters";
         const string c_TEST_ID = "N001";
 
-        string sourcePath = "C:\\mydir\\myfolder>\\test.txt";
+        string sourcePath = Utilities.IsWindows ? "C:\\mydir\\myfolder>\\test.txt" : "/home/user\u0000/test.txt";
 
         TestLibrary.TestFramework.BeginScenario(c_TEST_DESC);
 

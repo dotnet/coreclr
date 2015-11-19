@@ -53,7 +53,7 @@ public class PathGetFullPath_Extended
         const string c_TEST_DESC = "NegTest1: the source path  contains  invalid characters";
         const string c_TEST_ID = "N001";
 
-        string sourcePath = "myfolder>\\test.txt";
+        string sourcePath = Utilities.IsWindows ? "myfolder>\\test.txt" : "myfolder\u0000/test.txt";
 
         TestLibrary.TestFramework.BeginScenario(c_TEST_DESC);
 
@@ -82,7 +82,7 @@ public class PathGetFullPath_Extended
         const string c_TEST_DESC = "NegTest2: the source path  contains  a wildcard characters";
         const string c_TEST_ID = "N002";
 
-        string sourcePath = "mydir\\da?\\test.txt";
+        string sourcePath = Utilities.IsWindows ? "mydir\\da?\\test.txt" : "mydir/da\u0000/test.txt";
 
         TestLibrary.TestFramework.BeginScenario(c_TEST_DESC);
 
@@ -223,6 +223,7 @@ public class PathGetFullPath_Extended
 
     public bool NegTest7()
     {
+        if (!Utilities.IsWindows) return true;
         bool retVal = true;
 
         const string c_TEST_DESC = "NegTest7: the source path is longer than the system-defined maximum length ";
