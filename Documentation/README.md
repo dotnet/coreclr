@@ -50,6 +50,11 @@ Build CoreCLR from Source
 - [Testing with CoreFX](building/testing-with-corefx.md)
 - [Creating a Custom DNX](building/custom-dnx-instructions.md)
 
+.NET Primer
+===========
+
+- [.NET Primer](dotnet-primer.md)
+
 Book of the Runtime
 ===================
 
