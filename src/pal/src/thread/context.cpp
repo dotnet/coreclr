@@ -35,6 +35,14 @@ SET_DEFAULT_DEBUG_CHANNEL(DEBUG);
 // in context2.S
 extern void CONTEXT_CaptureContext(LPCONTEXT lpContext);
 
+#if HAVE___BUILTIN___CLEAR_CACHE
+#define flush_cache(ADDR, LEN) \
+    __builtin___clear_cache((ADDR), (ADDR) + (LEN))
+#else
+#include <stddef.h>
+extern void flush_cache (void *addr, size_t len);
+#endif
+
 #ifdef _X86_
 #define CONTEXT_ALL_FLOATING (CONTEXT_FLOATING_POINT | CONTEXT_EXTENDED_REGISTERS)
 #elif defined(_AMD64_)
@@ -1303,8 +1311,7 @@ DBG_FlushInstructionCache(
                           IN LPCVOID lpBaseAddress,
                           IN SIZE_T dwSize)
 {
-    // Intrinsic should do the right thing across all platforms
-    __builtin___clear_cache((char *)lpBaseAddress, (char *)((INT_PTR)lpBaseAddress + dwSize));
+    flush_cache((char *)lpBaseAddress, dwSize);
 
     return TRUE;
 }

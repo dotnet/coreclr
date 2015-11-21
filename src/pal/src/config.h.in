@@ -16,6 +16,7 @@
 #cmakedefine01 HAVE_LIBUNWIND_H
 #cmakedefine01 HAVE_RUNETYPE_H
 
+#cmakedefine01 HAVE___BUILTIN___CLEAR_CACHE
 #cmakedefine01 HAVE_KQUEUE
 #cmakedefine01 HAVE_GETPWUID_R
 #cmakedefine01 HAVE_PTHREAD_SUSPEND
