@@ -43,10 +43,22 @@ for i in "$@"
     esac
 done
 
-__RootfsDir="$__CrossDir/rootfs/$__BuildArch"
 
 if [[ -n "$ROOTFS_DIR" ]]; then
     __RootfsDir=$ROOTFS_DIR
+else
+    __RootfsDir="$__CrossDir/rootfs"
+fi
+
+if [ ! -d "$__RootfsDir" ]; then
+    echo $__RootfsDir does not exist.
+    exit 1
+fi
+
+# Create an architecture specific subdirectory
+__RootfsDir="$__RootfsDir/$__BuildArch"
+if [ ! -d "$__RootfsDir" ]; then
+    mkdir "$__RootfsDir"
 fi
 
 umount $__RootfsDir/*
