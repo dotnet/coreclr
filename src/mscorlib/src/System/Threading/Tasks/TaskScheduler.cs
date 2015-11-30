@@ -301,10 +301,13 @@ namespace System.Threading.Tasks
         /// </summary>
         protected TaskScheduler()
         {
-            // Protected constructor. It's here to ensure all user implemented TaskSchedulers will be 
-            // registered in the active schedulers list.
-            Contract.Assert(s_activeTaskSchedulers != null, "Expected non-null s_activeTaskSchedulers");
-            s_activeTaskSchedulers.Add(this, null);
+			if (Task.s_asyncDebuggingEnabled)
+			{
+				// Protected constructor. It's here to ensure all user implemented TaskSchedulers will be 
+				// registered in the active schedulers list.
+				Contract.Assert(s_activeTaskSchedulers != null, "Expected non-null s_activeTaskSchedulers");
+				s_activeTaskSchedulers.Add(this, null);
+			}
         }
 
         /// <summary>
