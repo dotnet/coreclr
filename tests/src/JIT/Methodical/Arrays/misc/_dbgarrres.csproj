@@ -27,7 +27,7 @@
     </CodeAnalysisDependentAssemblyPaths>
   </ItemGroup>
   <PropertyGroup>
-    <DebugType></DebugType>
+    <DebugType>Full</DebugType>
     <Optimize></Optimize>
   </PropertyGroup>
   <ItemGroup>
