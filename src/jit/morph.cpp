@@ -6799,6 +6799,13 @@ GenTreePtr          Compiler::fgMorphCall(GenTreeCall* call)
                 callType = TYP_INT;
             }
 #endif
+#ifdef FEATURE_SIMD
+            // Return a dummy node, as the return is already removed.
+            if (varTypeIsSIMD(callType))
+            {
+                callType = TYP_DOUBLE;
+            }
+#endif
             result = gtNewZeroConNode(genActualType(callType));
             result = fgMorphTree(result);
         }
