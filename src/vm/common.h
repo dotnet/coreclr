@@ -89,6 +89,7 @@
 #include <math.h>
 #include <time.h>
 #include <limits.h>
+#include <assert.h>
 
 #include <olectl.h>
 
@@ -256,12 +257,27 @@ FORCEINLINE void* memcpyUnsafe(void *dest, const void *src, size_t len)
 //
 #if defined(_DEBUG) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
+    //If memcpy has been defined to PAL_memcpy, we undefine it so that this case
+    //can be covered by the if !defined(memcpy) block below
+    #ifdef FEATURE_PAL
+    #if IS_DEFINED_PAL(memcpy)
+    #undef memcpy
+    #endif //IS_DEFINED_PAL
+    #endif //FEATURE_PAL
+
         // You should be using CopyValueClass if you are doing an memcpy
         // in the CG heap.
-    #if !defined(memcpy) 
-    FORCEINLINE void* memcpyNoGCRefs(void * dest, const void * src, size_t len) {
+    #if !defined(memcpy)
+    inline void* memcpyNoGCRefs(void * dest, const void * src, size_t len) {
             WRAPPER_NO_CONTRACT;
-            return memcpy(dest, src, len);
+            //CHECK FOR OVERLAP HERE
+
+            #ifndef FEATURE_PAL
+                return memcpy(dest, src, len);
+            #else //FEATURE_PAL
+                return PAL_memcpy(dest, src, len);
+            #endif //FEATURE_PAL
+            
         }
     extern "C" void *  __cdecl GCSafeMemCpy(void *, const void *, size_t);
     #define memcpy(dest, src, len) GCSafeMemCpy(dest, src, len)
