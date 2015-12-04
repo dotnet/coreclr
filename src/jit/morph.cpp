@@ -15153,7 +15153,7 @@ void                Compiler::fgPromoteStructs()
                             lclNum, structSize);
                     continue;
                 }
-#endif _TARGET_ARM64_
+#endif // _TARGET_ARM64_
 #endif // FEATURE_MULTIREG_STRUCT_ARGS
 
                 if (varDsc->lvIsParam)
