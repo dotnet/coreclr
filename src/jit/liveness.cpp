@@ -2307,6 +2307,8 @@ bool Compiler::fgRemoveDeadStore(GenTree** pTree, LclVarDsc* varDsc, VARSET_TP l
             }
             switch(nextNode->OperGet())
             {
+            default:
+                break;
             case GT_IND:
                 asgNode = nextNode->gtNext;
                 break;
