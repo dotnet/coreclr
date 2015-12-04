@@ -8229,6 +8229,8 @@ int cTreeFlagsIR(Compiler *comp, GenTree *tree)
                 chars += printf("[OVERFLOW]");
             }
             break;
+        default:
+            break;
         }
         if (tree->gtFlags & GTF_EXCEPT)
         {
@@ -9026,7 +9028,7 @@ int         cOperandIR(Compiler* comp, GenTree* operand)
             if (operandChars > 0)
                 chars += printf(", ");
             operand = list->GetChild(1);
-            if ((operand->gtOper == GT_LIST))
+            if (operand->gtOper == GT_LIST)
             {
                 chars += cListIR(comp, operand);
             }
@@ -9434,7 +9436,8 @@ void        cNodeIR(Compiler* comp, GenTree* tree)
 
     switch (op)
     {
-
+    default:
+        break;
     case GT_FIELD:
 
         {
