@@ -11118,6 +11118,8 @@ CORINFO_CLASS_HANDLE Compiler::GetStructClassHandle(GenTreePtr tree)
 
         switch (tree->OperGet())
         {
+        default:
+            break;
         case GT_CALL:
             return tree->gtCall.gtRetClsHnd;
 
