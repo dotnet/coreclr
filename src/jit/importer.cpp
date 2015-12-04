@@ -17029,7 +17029,9 @@ void          Compiler::impMarkInlineCandidate(GenTreePtr callNode, CORINFO_CONT
      * inlining in throw blocks.  I should consider the same thing for catch and filter regions. */
 
     unsigned methAttr;
-    CORINFO_METHOD_HANDLE fncHandle = call->gtCallMethHnd;
+    CORINFO_METHOD_HANDLE fncHandle;
+
+    fncHandle = call->gtCallMethHnd;
     methAttr = info.compCompHnd->getMethodAttribs(fncHandle);
 
 #ifdef DEBUG
