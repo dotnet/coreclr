@@ -19382,7 +19382,7 @@ bool               Compiler::fgDumpFlowGraph(Phases phase)
         createDotFile = true;
     }
             
-    FILE*   fgxFile   = fgOpenFlowGraphFile(&dontClose, phase, createDotFile ? L"dot" : L"fgx");
+    FILE*   fgxFile   = fgOpenFlowGraphFile(&dontClose, phase, createDotFile ? W("dot") : W("fgx"));
 
     if (fgxFile == NULL)
     {

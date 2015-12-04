@@ -2171,7 +2171,7 @@ void                Compiler::compInitOptions(unsigned compileFlags)
 
         if (dumpIRPhase == nullptr)
         {
-            dumpIRPhase = L"*";
+            dumpIRPhase = W("*");
         }
 
         this->dumpIRPhase = dumpIRPhase;
@@ -2238,78 +2238,78 @@ void                Compiler::compInitOptions(unsigned compileFlags)
                     dumpedHelp = true;
                 }
 
-                if (wcsncmp(p, L"types", 5) == 0)
+                if (wcsncmp(p, W("types"), 5) == 0)
                 {
                    dumpIRTypes = true;
                 }
 
-                if (wcsncmp(p, L"locals", 6) == 0)
+                if (wcsncmp(p, W("locals"), 6) == 0)
                 {
                    dumpIRLocals = true;
                 }
 
-                if (wcsncmp(p, L"regs", 4) == 0)
+                if (wcsncmp(p, W("regs"), 4) == 0)
                 {
                    dumpIRRegs = true;
                 }
     
-                if (wcsncmp(p, L"ssa", 3) == 0)
+                if (wcsncmp(p, W("ssa"), 3) == 0)
                 {
                    dumpIRSsa = true;
                 }
 
-                if (wcsncmp(p, L"valnums", 7) == 0)
+                if (wcsncmp(p, W("valnums"), 7) == 0)
                 {
                    dumpIRValnums = true;
                 }
 
-                if (wcsncmp(p, L"costs", 5) == 0)
+                if (wcsncmp(p, W("costs"), 5) == 0)
                 {
                    dumpIRCosts = true;
                 }
 
-                if (wcsncmp(p, L"flags", 5) == 0)
+                if (wcsncmp(p, W("flags"), 5) == 0)
                 {
                    dumpIRFlags = true;
                 }
 
-                if (wcsncmp(p, L"kinds", 5) == 0)
+                if (wcsncmp(p, W("kinds"), 5) == 0)
                 {
                    dumpIRKinds = true;
                 }
 
-                if (wcsncmp(p, L"nodes", 5) == 0)
+                if (wcsncmp(p, W("nodes"), 5) == 0)
                 {
                    dumpIRNodes = true;
                 }
 
-                if (wcsncmp(p, L"exit", 4) == 0)
+                if (wcsncmp(p, W("exit"), 4) == 0)
                 {
                    dumpIRExit = true;
                 }
 
-                if (wcsncmp(p, L"nolists", 7) == 0)
+                if (wcsncmp(p, W("nolists"), 7) == 0)
                 {
                    dumpIRNoLists = true;
                 }
 
-                if (wcsncmp(p, L"noleafs", 7) == 0)
+                if (wcsncmp(p, W("noleafs"), 7) == 0)
                 {
                    dumpIRNoLeafs = true;
                 }
 
-                if (wcsncmp(p, L"nostmts", 7) == 0)
+                if (wcsncmp(p, W("nostmts"), 7) == 0)
                 {
                    dumpIRNoStmts = true;
                 }
 
-                if (wcsncmp(p, L"trees", 5) == 0)
+                if (wcsncmp(p, W("trees"), 5) == 0)
                 {
                    dumpIRTrees = true;
                    dumpIRLinear = false;
                 }
 
-                if (wcsncmp(p, L"structural", 10) == 0)
+                if (wcsncmp(p, W("structural"), 10) == 0)
                 {
                    dumpIRLinear = true;
                    dumpIRNoStmts = false;
@@ -2317,7 +2317,7 @@ void                Compiler::compInitOptions(unsigned compileFlags)
                    dumpIRNoLists = false;
                 }
 
-                if (wcsncmp(p, L"all", 3) == 0)
+                if (wcsncmp(p, W("all"), 3) == 0)
                 {
                    dumpIRLinear = true;
                    dumpIRKinds = true;
@@ -2333,19 +2333,19 @@ void                Compiler::compInitOptions(unsigned compileFlags)
                    dumpIRNoLists = false;
                 }
 
-                if (wcsncmp(p, L"linear", 6) == 0)
+                if (wcsncmp(p, W("linear"), 6) == 0)
                 {
                    dumpIRTrees = false;
                    dumpIRLinear = true;
                 }
 
-                if (wcsncmp(p, L"mixed", 5) == 0)
+                if (wcsncmp(p, W("mixed"), 5) == 0)
                 {
                    dumpIRTrees = true;
                    dumpIRLinear = true;
                 }
 
-                if (wcsncmp(p, L"dataflow", 8) == 0)
+                if (wcsncmp(p, W("dataflow"), 8) == 0)
                 {
                    dumpIRDataflow = true;
                    dumpIRNoLeafs = true;
@@ -2353,7 +2353,7 @@ void                Compiler::compInitOptions(unsigned compileFlags)
                    dumpIRNoStmts = true;
                 }
 
-                if (wcsncmp(p, L"blkhdrs", 7) == 0)
+                if (wcsncmp(p, W("blkhdrs"), 7) == 0)
                 {
                    dumpIRBlockHeaders = true;
                 }
@@ -6369,7 +6369,7 @@ const char* PhaseEnums[] =
 
 const LPWSTR PhaseShortNames[] =
 {
-#define CompPhaseNameMacro(enum_nm, string_nm, short_nm, hasChildren, parent) W(short_nm),
+#define CompPhaseNameMacro(enum_nm, string_nm, short_nm, hasChildren, parent) (const LPWSTR) W(short_nm),
 #include "compphases.h"
 };
 #endif // defined(FEATURE_JIT_METHOD_PERF) || DUMP_FLOWGRAPHS
