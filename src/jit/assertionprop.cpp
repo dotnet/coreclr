@@ -4257,8 +4257,8 @@ struct VNAssertionPropVisitorInfo
     BasicBlock* block;
     VNAssertionPropVisitorInfo(Compiler* pThis, BasicBlock* block, GenTreePtr stmt)
         : pThis(pThis)
-        , block(block)
         , stmt(stmt)
+        , block(block)
     { }
 };
 

@@ -3943,6 +3943,10 @@ void Lowering::getCastDescription(GenTreePtr treeNode, CastInfo* castInfo)
 
         switch (dstType)
         {
+        default:
+            assert(!"unreachable: getCastDescription");
+            break;
+
         case TYP_BYTE:
             typeMask = ssize_t((int)0xFFFFFF80);
             typeMin = SCHAR_MIN;
