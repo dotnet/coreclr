@@ -695,7 +695,6 @@ typedef unsigned short          regPairNoSmall; // arm: need 12 bits
   #define FEATURE_STRUCT_CLASSIFIER     1  // Uses a classifier function to determine if structs are passed/returned in more than one register
   #define MAX_PASS_MULTIREG_BYTES      32  // Maximum size of a struct that could be passed in more than one register
   #define MAX_RET_MULTIREG_BYTES       32  // Maximum size of a struct that could be returned in more than one register
-  #define
 #else // !UNIX_AMD64_ABI
   #define FEATURE_MULTIREG_STRUCTS      0  // Support for passing and/or returning structs in more than one register
   #define FEATURE_MULTIREG_STRUCT_ARGS  0  // Support for passing structs in more than one register  
