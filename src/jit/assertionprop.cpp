@@ -4067,12 +4067,12 @@ private:
 
 public:
     AssertionPropFlowCallback(Compiler* pCompiler, ASSERT_TP* jumpDestOut, ASSERT_TP* jumpDestGen)
-        : mJumpDestOut(jumpDestOut)
+        : preMergeOut(BitVecOps::UninitVal())
+        , preMergeJumpDestOut(BitVecOps::UninitVal())
+        , mJumpDestOut(jumpDestOut)
         , mJumpDestGen(jumpDestGen)
         , m_pCompiler(pCompiler)
         , apTraits(pCompiler->apTraits)
-        , preMergeOut(BitVecOps::UninitVal())
-        , preMergeJumpDestOut(BitVecOps::UninitVal())
     {
     }
 
