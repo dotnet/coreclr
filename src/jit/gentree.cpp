@@ -3225,11 +3225,11 @@ COMMON_CNS:
                         // associated with the interior GT_ADD and GT_LSH nodes:
                         //
                         //                      GT_ADD      -- reduce this interior GT_ADD by (-3,-3)
-                        //                      /   \ 
+                        //                      /   \       
                         //                  GT_ADD  'cns'   -- reduce this interior GT_ADD by (-2,-2)
-                        //                  /   \ 
+                        //                  /   \           
                         //               'adr'  GT_LSL      -- reduce this interior GT_LSL by (-1,-1)
-                        //                      /   \ 
+                        //                      /   \       
                         //                   'idx'  'mul'
                         //
                         if (addrmodeCount > 1)
@@ -12863,6 +12863,8 @@ CORINFO_CLASS_HANDLE Compiler::gtGetStructHandleIfPresent(GenTree* tree)
     {
         switch(tree->gtOper)
         {
+        default:
+            break;
         case GT_LDOBJ:      structHnd = tree->gtLdObj.gtClass;                                   break;
         case GT_CALL:       structHnd = tree->gtCall.gtRetClsHnd;                                break;
         case GT_RET_EXPR:   structHnd = tree->gtRetExpr.gtRetClsHnd;                             break;
