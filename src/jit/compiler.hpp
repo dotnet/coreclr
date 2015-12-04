@@ -18,7 +18,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 #include "emit.h" // for emitter::emitAddLabel
 
-#include "bitVec.h"
+#include "bitvec.h"
 
 #include "compilerbitsettraits.hpp"
 

@@ -27,7 +27,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 #include "blockset.h"
 #include "jitstd.h"
-#include "bitVec.h"
+#include "bitvec.h"
 #include "simplerhash.h"
 
 /*****************************************************************************/
