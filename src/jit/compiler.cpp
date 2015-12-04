@@ -4098,7 +4098,7 @@ bool                Compiler::compQuirkForPPP()
     }
     return false;
 }
-#endif _TARGET_AMD64_
+#endif // _TARGET_AMD64_
 
 /*****************************************************************************/
 
