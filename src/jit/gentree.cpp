@@ -3016,6 +3016,12 @@ COMMON_CNS:
                 // target intrinsics and would cost less to generate code.
                 switch (tree->gtIntrinsic.gtIntrinsicId)
                 {
+                default:
+                    assert(!"missing case for gtIntrinsicId");
+                    costEx = 12;
+                    costSz = 12;
+                    break;
+
                 case CORINFO_INTRINSIC_Sin:
                 case CORINFO_INTRINSIC_Cos:
                 case CORINFO_INTRINSIC_Sqrt:
