@@ -2632,6 +2632,8 @@ void Lowering::LowerCmp(GenTreePtr tree)
 
                                     switch (andOp1->TypeGet())
                                     {
+                                    default:
+                                        break;
                                     case TYP_BYTE:
                                         newIconVal = (signed char)andOp2CnsVal; 
                                         containable = FitsIn<signed char>(andOp2CnsVal);

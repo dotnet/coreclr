@@ -6777,7 +6777,7 @@ void CodeGen::genCompareInt(GenTreePtr treeNode)
 
 #ifdef _TARGET_X86_
     assert(!varTypeIsLong(op1Type) && !varTypeIsLong(op2Type));
-#endif _TARGET_X86_
+#endif // _TARGET_X86_
 
     // By default we use an int32 sized cmp instruction
     //
