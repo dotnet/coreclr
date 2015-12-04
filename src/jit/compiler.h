@@ -967,8 +967,8 @@ enum Phases
     PHASE_NUMBER_OF
 };
 
-const char* PhaseNames[];
-const char* PhaseEnums[];
+extern const char* PhaseNames[];
+extern const char* PhaseEnums[];
 extern const LPWSTR PhaseShortNames[];
 
 //---------------------------------------------------------------
