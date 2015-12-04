@@ -1474,10 +1474,10 @@ var_types       Compiler::impNormStructType(CORINFO_CLASS_HANDLE  structHnd,
     return structType;
 }
 
-/*****************************************************************************
-/* Given TYP_STRUCT value 'structVal', make certain it is 'canonical', that is
-   it is either a LDOBJ or a MKREFANY node */
-
+//****************************************************************************
+//  Given TYP_STRUCT value 'structVal', make sure it is 'canonical'
+//  is must be either a LDOBJ or a MKREFANY node 
+//
 GenTreePtr      Compiler::impNormStructVal(GenTreePtr    structVal,
                                            CORINFO_CLASS_HANDLE  structHnd,
                                            unsigned      curLevel,
@@ -6179,7 +6179,8 @@ var_types           Compiler::impImportCall (OPCODE         opcode,
         }
     }
 
-    CORINFO_CLASS_HANDLE actualMethodRetTypeSigClass = sig->retTypeSigClass;
+    CORINFO_CLASS_HANDLE actualMethodRetTypeSigClass;
+    actualMethodRetTypeSigClass = sig->retTypeSigClass;
     if (varTypeIsStruct(callRetTyp))
     {
         callRetTyp = impNormStructType(actualMethodRetTypeSigClass);
