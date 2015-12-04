@@ -403,7 +403,8 @@ GenTreePtr Compiler::optPropGetValueRec(unsigned lclNum, unsigned ssaNum, optPro
             {
                 if (valueKind == optPropKind::OPK_ARRAYLEN)
                 {
-                    if (value = getArrayLengthFromAllocation(treeRhs))
+                    value = getArrayLengthFromAllocation(treeRhs);
+                    if (value != nullptr)
                     {
                         if (!value->IsCnsIntOrI())
                         {
@@ -414,7 +415,8 @@ GenTreePtr Compiler::optPropGetValueRec(unsigned lclNum, unsigned ssaNum, optPro
                 }
                 else if(valueKind == optPropKind::OPK_OBJ_GETTYPE)
                 {
-                    if (value = getObjectHandleNodeFromAllocation(treeRhs))
+                    value = getObjectHandleNodeFromAllocation(treeRhs);
+                    if (value != nullptr)
                     {
                         if (!value->IsCnsIntOrI())
                         {
