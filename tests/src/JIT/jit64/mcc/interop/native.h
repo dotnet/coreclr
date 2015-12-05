@@ -5,8 +5,10 @@
 
 #if defined(_MSC_VER)
 #define MCC_API extern "C" __declspec(dllexport)
+#define WINAPI __stdcall
 #else
 #define MCC_API extern "C" __attribute__((visibility("default")))
+#define WINAPI
 #endif 
 
 // ---------------------------------

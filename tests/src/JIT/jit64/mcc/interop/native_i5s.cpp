@@ -5,7 +5,7 @@
 #include "native.h"
 
 
-MCC_API VType5 __stdcall  sum(
+MCC_API VType5 WINAPI  sum(
     unsigned __int64 c1, VType5 v1,
     double c2, VType5 v2,
     float c3, VType5 v3,
