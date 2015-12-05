@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-#define MCC_API extern "C" __declspec(dllexport)
+#include "native.h"
 
 struct MyValueType {
     float count;
@@ -25,7 +25,7 @@ struct MyValueType {
 };
 
 
-MCC_API MyValueType __stdcall  sum(
+MCC_API MyValueType WINAPI  sum(
     float a01, float a02, float a03,
     float a04, float a05, float a06,
     float a07, float a08, float a09,

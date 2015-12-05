@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-#define MCC_API extern "C" __declspec(dllexport)
+#include "native.h"
 
 
 struct MyValueType {
@@ -13,7 +13,7 @@ struct MyValueType {
 };
 
 
-MCC_API MyValueType __stdcall  sum(
+MCC_API MyValueType WINAPI  sum(
     unsigned __int64 a01, unsigned __int64 a02, unsigned __int64 a03,
     unsigned __int64 a04, unsigned __int64 a05, unsigned __int64 a06,
     unsigned __int64 a07, unsigned __int64 a08, unsigned __int64 a09,
