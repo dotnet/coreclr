@@ -30,7 +30,9 @@
     <Optimize>False</Optimize>
   </PropertyGroup>
   <ItemGroup>  
-    <Compile Include="mcc_i37.il ..\common\common.il" />
+    <Compile Include="mcc_i37.il ..\common\common.il pinvoke_i3s.windows.il" Condition="'$(OSGroup)' == 'Windows_NT'" />
+    <Compile Include="mcc_i37.il ..\common\common.il pinvoke_i3s.unix.il" Condition="'$(OSGroup)' == 'Linux' Or '$(OSGroup)' == 'FreeBSD'" />
+    <Compile Include="mcc_i37.il ..\common\common.il pinvoke_i3s.osx.il" Condition="'$(OSGroup)' == 'OSX'" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />

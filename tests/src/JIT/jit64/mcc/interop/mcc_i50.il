@@ -11,10 +11,6 @@
 {
   .class MyClass
   {
-    .method assembly static pinvokeimpl("native_i5c.dll" as "#1" cdecl) 
-        vararg valuetype MCCTest.VType5 Sum(float64, int32, int64, float32, int16, float64) cil managed preservesig {
-    }
-
     .method private static int32 Main(string[] args)
     {
       .entrypoint
