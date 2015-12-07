@@ -11,10 +11,6 @@
 {
   .class MyClass
   {
-    .method assembly static pinvokeimpl("native_i1s.dll" as "#1" stdcall) 
-        valuetype MCCTest.VType1 Sum(float32, float32, float32, float32, float32, float32, float32, float32, float32, float32, float32, float32) cil managed preservesig {
-    }
-
     .method private valuetype MCCTest.VType1 GetSum()
     {
       .maxstack  64

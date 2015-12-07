@@ -30,7 +30,9 @@
     <Optimize>False</Optimize>
   </PropertyGroup>
   <ItemGroup>  
-    <Compile Include="mcc_i80.il ..\common\common.il" />
+    <Compile Include="mcc_i80.il ..\common\common.il pinvoke_i8c.windows.il" Condition="'$(OSGroup)' == 'Windows_NT'" />
+    <Compile Include="mcc_i80.il ..\common\common.il pinvoke_i8c.unix.il" Condition="'$(OSGroup)' == 'Linux' Or '$(OSGroup)' == 'FreeBSD'" />
+    <Compile Include="mcc_i80.il ..\common\common.il pinvoke_i8c.osx.il" Condition="'$(OSGroup)' == 'OSX'" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
