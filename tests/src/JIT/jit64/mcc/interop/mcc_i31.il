@@ -11,7 +11,11 @@
 {
   .class MyClass
   {
-     .method private static int32 Main(string[] args)
+    .method assembly static pinvokeimpl("native_i3c" as "#1" cdecl) 
+        vararg valuetype MCCTest.VType3 Sum(float64, int32, int64, float32, int16, float64) cil managed preservesig {
+    }
+
+    .method private static int32 Main(string[] args)
     {
       .entrypoint
       .maxstack  64
