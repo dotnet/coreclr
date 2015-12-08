@@ -18,7 +18,7 @@ MCC_API VType1 __cdecl sum(float first, ...) {
     while (val != (float)-1) {
         sum += val;
         count++;
-        val = va_arg(args, double);
+        val = va_arg(args, float);
     }
     // reset variable arguments.
     va_end(args);
