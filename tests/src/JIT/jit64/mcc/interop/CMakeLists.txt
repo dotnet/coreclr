@@ -4,7 +4,6 @@ project(mcc_native)
 set(CMAKE_SHARED_LIBRARY_PREFIX "")
 
 add_library(native_i0c SHARED native_i0c.cpp)
-add_library(native_i1c SHARED native_i1c.cpp)
 add_library(native_i3c SHARED native_i3c.cpp)
 add_library(native_i5c SHARED native_i5c.cpp)
 add_library(native_i6c SHARED native_i6c.cpp)
@@ -23,7 +22,6 @@ add_library(native_i8s SHARED native_i8s.cpp)
 
 # add the install targets (this "installs" the native file on Windows systems)
 install(TARGETS native_i0c DESTINATION bin)
-install(TARGETS native_i1c DESTINATION bin)
 install(TARGETS native_i3c DESTINATION bin)
 install(TARGETS native_i5c DESTINATION bin)
 install(TARGETS native_i6c DESTINATION bin)
@@ -40,7 +38,6 @@ install(TARGETS native_i8s DESTINATION bin)
 
 # This "installs" the native file on System V systems
 set_target_properties(native_i0c PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/native_i0c)
-set_target_properties(native_i1c PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/native_i1c)
 set_target_properties(native_i3c PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/native_i3c)
 set_target_properties(native_i5c PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/native_i5c)
 set_target_properties(native_i6c PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/native_i6c)
