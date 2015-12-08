@@ -11,6 +11,13 @@
 {
   .class MyClass
   {
+    .method assembly static pinvokeimpl("native_i8s" as "#1" stdcall) 
+        valuetype MCCTest.VType8 Sum(unsigned int64, valuetype MCCTest.VType8, float64,	valuetype MCCTest.VType8, float32, valuetype MCCTest.VType8,
+									int32, valuetype MCCTest.VType8, unsigned int16, valuetype MCCTest.VType8, unsigned int32, valuetype MCCTest.VType8, 
+									float32, valuetype MCCTest.VType8, int64, valuetype MCCTest.VType8, float32, valuetype MCCTest.VType8,
+									float64, valuetype MCCTest.VType8, float32, valuetype MCCTest.VType8, int16, valuetype MCCTest.VType8) cil managed preservesig {
+    }
+
     .method private static int32 Main(string[] args)
     {
       .entrypoint

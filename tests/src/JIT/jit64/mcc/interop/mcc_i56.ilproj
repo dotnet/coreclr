@@ -30,9 +30,7 @@
     <Optimize>False</Optimize>
   </PropertyGroup>
   <ItemGroup>  
-    <Compile Include="mcc_i56.il ..\common\common.il pinvoke_i5s.windows.il" Condition="'$(OSGroup)' == 'Windows_NT'" />
-    <Compile Include="mcc_i56.il ..\common\common.il pinvoke_i5s.unix.il" Condition="'$(OSGroup)' == 'Linux' Or '$(OSGroup)' == 'FreeBSD'" />
-    <Compile Include="mcc_i56.il ..\common\common.il pinvoke_i5s.osx.il" Condition="'$(OSGroup)' == 'OSX'" />
+    <Compile Include="mcc_i56.il ..\common\common.il" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />

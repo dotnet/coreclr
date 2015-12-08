@@ -30,9 +30,7 @@
     <Optimize>False</Optimize>
   </PropertyGroup>
   <ItemGroup>  
-    <Compile Include="mcc_i61.il ..\common\common.il pinvoke_i6c.windows.il" Condition="'$(OSGroup)' == 'Windows_NT'" />
-    <Compile Include="mcc_i61.il ..\common\common.il pinvoke_i6c.unix.il" Condition="'$(OSGroup)' == 'Linux' Or '$(OSGroup)' == 'FreeBSD'" />
-    <Compile Include="mcc_i61.il ..\common\common.il pinvoke_i6c.osx.il" Condition="'$(OSGroup)' == 'OSX'" />
+    <Compile Include="mcc_i61.il ..\common\common.il" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
