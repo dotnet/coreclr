@@ -21,6 +21,7 @@
 ****/
 
 #define _SAFECRT_IMPL
+#define __GNUC_VA_LIST
 
 #define __STDC_LIMIT_MACROS
 #include "pal/palinternal.h"

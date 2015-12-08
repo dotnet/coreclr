@@ -57,8 +57,10 @@ Abstract:
 #include <sys/types.h>
 #include <sys/mman.h>
 
-#if defined(__LINUX__)
+#if defined(__LINUX__) && defined(__GLIBC__)
 #include <gnu/lib-names.h>
+#else
+#define LIBC_SO "libc.so"
 #endif
 
 using namespace CorUnix;

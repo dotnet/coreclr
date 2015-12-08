@@ -933,7 +933,7 @@ else() # Anything else is Linux
     unset(HAVE_LIBUNWIND_H CACHE)
     message(FATAL_ERROR "Cannot find libunwind. Try installing libunwind8 and libunwind8-dev (or the appropriate packages for your platform)")
   endif()
-  if(NOT HAVE_LTTNG_TRACEPOINT_H)
+  if(NOT HAVE_LTTNG_TRACEPOINT_H AND PAL_CMAKE_ENABLE_TRACE)
     unset(HAVE_LTTNG_TRACEPOINT_H CACHE)
     message(FATAL_ERROR "Cannot find liblttng-ust-dev. Try installing liblttng-ust-dev  (or the appropriate packages for your platform)")
   endif()

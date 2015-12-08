@@ -7,6 +7,8 @@ project(CoreCLR)
 # Enable @rpath support for shared libraries.
 set(MACOSX_RPATH ON)
 
+set(CLR_CMAKE_PLATFORM_LINUX_ALPINE 1)
+
 if(CMAKE_VERSION VERSION_EQUAL 3.0 OR CMAKE_VERSION VERSION_GREATER 3.0)
     cmake_policy(SET CMP0042 NEW)
 endif()
@@ -83,6 +85,13 @@ elseif(WIN32)
   else()
     clr_unknown_arch()
   endif()
+endif()
+
+if(CLR_CMAKE_PLATFORM_LINUX_ALPINE)
+  set(CLR_CMAKE_ENABLE_TRACE 0)
+  add_compile_options(-fshort-wchar)
+else()
+  set(CLR_CMAKE_ENABLE_TRACE 1)
 endif()
 
 if(WIN32)
@@ -217,9 +226,9 @@ elseif (CLR_CMAKE_PLATFORM_UNIX)
 
 endif(WIN32)
 
-if (WIN32 OR CLR_CMAKE_PLATFORM_LINUX)
+if ((WIN32 OR CLR_CMAKE_PLATFORM_LINUX) AND CLR_CMAKE_ENABLE_TRACE)
   add_definitions(-DFEATURE_EVENT_TRACE=1)
-endif (WIN32 OR CLR_CMAKE_PLATFORM_LINUX)
+endif ((WIN32 OR CLR_CMAKE_PLATFORM_LINUX) AND CLR_CMAKE_ENABLE_TRACE)
 
 if (CLR_CMAKE_PLATFORM_LINUX)
     add_definitions(-DFEATURE_EVENTSOURCE_XPLAT=1)
@@ -705,4 +714,4 @@ else ()
   endif ()
 endif (IS_64BIT_BUILD EQUAL 1)
 
-add_subdirectory(src)
+#add_subdirectory(src)
