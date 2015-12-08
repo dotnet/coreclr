@@ -88,10 +88,6 @@ JIT\Jit64\mcc\interop\mcc_i04.exe
 JIT\Jit64\mcc\interop\mcc_i05.exe
 JIT\Jit64\mcc\interop\mcc_i06.exe
 JIT\Jit64\mcc\interop\mcc_i07.exe
-JIT\Jit64\mcc\interop\mcc_i10.exe
-JIT\Jit64\mcc\interop\mcc_i11.exe
-JIT\Jit64\mcc\interop\mcc_i12.exe
-JIT\Jit64\mcc\interop\mcc_i13.exe
 JIT\Jit64\mcc\interop\mcc_i14.exe
 JIT\Jit64\mcc\interop\mcc_i15.exe
 JIT\Jit64\mcc\interop\mcc_i16.exe
