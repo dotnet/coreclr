@@ -1201,6 +1201,117 @@ void Lowering::TreeNodeInfoInit(GenTree* stmt)
             TreeNodeInfoInitBlockStore(tree->AsBlkOp());
             break;
 
+
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+        case GT_PUTARG_STK:
+        {
+            if (tree->TypeGet() != TYP_STRUCT)
+            {
+                TreeNodeInfoInitSimple(tree, info, kind);
+                break;
+            }
+
+            GenTreePutArgStk* putArgStkTree = tree->AsPutArgStk();
+            
+            GenTreePtr   dstAddr = tree;
+            GenTreePtr   srcAddr = tree->gtOp.gtOp1;
+
+            assert(srcAddr->OperGet() == GT_LDOBJ);
+            info->srcCount = srcAddr->gtLsraInfo.dstCount;
+
+            // If this is a stack variable address,
+            // make the op1 contained, so this way 
+            // there is no unnecessary copying between registers.
+            // To avoid assertion, increment the parent's source.
+            // It is recovered below.
+            if (srcAddr->gtGetOp1()->OperIsLocalAddr())
+            {
+                info->srcCount += 1;
+            }
+            
+            info->dstCount = 0;
+            
+            // In case of a CpBlk we could use a helper call. In case of putarg_stk we 
+            // can't do that since the helper call could kill some already set up outgoing args.
+            // TODO-Amd64-Unix: converge the code for putarg_stk with cpyblk/cpyobj.
+            // The cpyXXXX code is rather complex and this could cause it to be more complex, but
+            // it might be the right thing to do.
+            
+            // This threshold will decide from using the helper or let the JIT decide to inline
+            // a code sequence of its choice.
+            ssize_t helperThreshold = max(CPBLK_MOVS_LIMIT, CPBLK_UNROLL_LIMIT);
+            ssize_t size = putArgStkTree->gtNumSlots * TARGET_POINTER_SIZE;
+            
+            // TODO-X86-CQ: The helper call either is not supported on x86 or required more work
+            // (I don't know which).
+            
+            // If we have a buffer between XMM_REGSIZE_BYTES and CPBLK_UNROLL_LIMIT bytes, we'll use SSE2. 
+            // Structs and buffer with sizes <= CPBLK_UNROLL_LIMIT bytes are occurring in more than 95% of
+            // our framework assemblies, so this is the main code generation scheme we'll use.
+            if (size <= CPBLK_UNROLL_LIMIT && putArgStkTree->gtNumberReferenceSlots == 0)
+            {
+                // If we have a remainder smaller than XMM_REGSIZE_BYTES, we need an integer temp reg.
+                // 
+                // x86 specific note: if the size is odd, the last copy operation would be of size 1 byte.
+                // But on x86 only RBM_BYTE_REGS could be used as byte registers.  Therefore, exclude
+                // RBM_NON_BYTE_REGS from internal candidates.
+                if ((size & (XMM_REGSIZE_BYTES - 1)) != 0)
+                {
+                    info->internalIntCount++;
+                    regMaskTP regMask = l->allRegs(TYP_INT);
+                    
+#ifdef _TARGET_X86_
+                    if ((size % 2) != 0)
+                    {
+                        regMask &= ~RBM_NON_BYTE_REGS;
+                    }
+#endif
+                    info->setInternalCandidates(l, regMask);
+                }
+                
+                if (size >= XMM_REGSIZE_BYTES)
+                {
+                    // If we have a buffer larger than XMM_REGSIZE_BYTES, 
+                    // reserve an XMM register to use it for a 
+                    // series of 16-byte loads and stores.
+                    info->internalFloatCount = 1;
+                    info->addInternalCandidates(l, l->internalFloatRegCandidates());
+                }
+                
+                if (srcAddr->gtGetOp1()->OperIsLocalAddr())
+                {
+                    MakeSrcContained(putArgStkTree, srcAddr->gtGetOp1());
+                }
+                
+                // If src or dst are on stack, we don't have to generate the address into a register
+                // because it's just some constant+SP
+                putArgStkTree->gtPutArgStkKind = GenTreePutArgStk::PutArgStkKindUnroll;
+            }
+            else
+            {
+                info->internalIntCount += 3;
+                info->setInternalCandidates(l, (RBM_RDI | RBM_RCX | RBM_RSI));
+                if (srcAddr->gtGetOp1()->OperIsLocalAddr())
+                {
+                    MakeSrcContained(putArgStkTree, srcAddr->gtGetOp1());
+                }
+                
+                putArgStkTree->gtPutArgStkKind = GenTreePutArgStk::PutArgStkKindRepInstr;
+            }
+            
+            // Always mark the LDOBJ and ADDR as contained trees by the putarg_stk. The codegen will deal with this tree.
+            MakeSrcContained(putArgStkTree, srcAddr);
+            
+            // Balance up the inc above.
+            if (srcAddr->gtGetOp1()->OperIsLocalAddr())
+            {
+                info->srcCount -= 1;
+            }
+        }
+
+        break;
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+
         case GT_LCLHEAP:
         {
             info->srcCount = 1;
