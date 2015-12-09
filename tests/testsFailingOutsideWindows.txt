@@ -79,8 +79,6 @@ JIT/Regression/CLR-x86-JIT/V1-M12-Beta2/b51575/b51575/b51575.sh
 JIT/Regression/CLR-x86-JIT/V1-M13-RTM/b88793/b88793/b88793.sh
 JIT/Regression/CLR-x86-JIT/V1-M13-RTM/b91248/b91248/b91248.sh
 JIT/Regression/CLR-x86-JIT/V2.0-Beta2/b409748/b409748/b409748.sh
-<<<<<<< HEAD
-<<<<<<< 57c732e156742ed4aa7c316488a751964698cf33
 Loader/NativeLibs/FromNativePaths/FromNativePaths.sh
 JIT/Regression/CLR-x86-JIT/V1.2-Beta1/b101136/b101136/b101136.sh
 JIT/Regression/CLR-x86-JIT/V1.2-M02/b20785/b20785/b20785.sh
@@ -90,9 +88,3 @@ JIT/Regression/CLR-x86-JIT/V1-M10/b04914/b04914/b04914.sh
 JIT/Regression/CLR-x86-JIT/V1-M12-Beta2/b57367/b57367/b57367.sh
 JIT/Regression/CLR-x86-JIT/V2.0-Beta2/b399444/b399444a/b399444a.sh
 JIT/Regression/VS-ia64-JIT/V1.2-M02/b108129/b108129/b108129.sh
-=======
-Loader/NativeLibs/FromNativePaths/FromNativePaths.sh
->>>>>>> Enable for non-windows
-=======
-Loader/NativeLibs/FromNativePaths/FromNativePaths.sh
->>>>>>> 26b94fee9248e017cb7c1ea128ad706323de76c0
