@@ -80,98 +80,163 @@ namespace System.Text {
         //
         //
 
-        // Creates a new empty string builder (i.e., it represents String.Empty)
-        // with the default capacity (16 characters).
+        /// <summary>
+        /// Initializes a new instance of the StringBuilder class.
+        /// </summary>
         public StringBuilder()
         {
             m_MaxCapacity = int.MaxValue;
             m_ChunkChars = new char[DefaultCapacity];
         }
 
-        // Create a new empty string builder (i.e., it represents String.Empty)
-        // with the specified capacity.
+        /// <summary>
+        /// Initializes a new instance of the StringBuilder class using the specified capacity.
+        /// </summary>
         public StringBuilder(int capacity)
             : this(capacity, int.MaxValue)
         {
         }
 
-        // Creates a new string builder from the specified string.  If value
-        // is a null String (i.e., if it represents String.NullString)
-        // then the new string builder will also be null (i.e., it will also represent
-        //  String.NullString).
-        // 
+        /// <summary>
+        /// Initializes a new instance of the StringBuilder class using the specified string.
+        /// </summary>
+        /// <param name="value">The string used to initialize the value of the instance. If value is null, the new StringBuilder will contain the empty string (that is, it contains Empty).</param>
         public StringBuilder(String value)
-            : this(value, DefaultCapacity) {
+            : this(value, DefaultCapacity)
+        {
         }
 
-        // Creates a new string builder from the specified string with the specified 
-        // capacity.  If value is a null String (i.e., if it represents 
-        // String.NullString) then the new string builder will also be null 
-        // (i.e., it will also represent String.NullString).
-        // The maximum number of characters this string may contain is set by capacity.
-        // 
+        /// <summary>
+        /// Initializes a new instance of the StringBuilder class using the specified string and capacity.
+        /// </summary>
+        /// <param name="value">The string used to initialize the value of the instance. If value is null, the new StringBuilder will contain the empty string (that is, it contains Empty).</param>
+        /// <param name="capacity">The suggested starting size of the StringBuilder.</param>
         public StringBuilder(String value, int capacity)
-            : this(value, 0, ((value != null) ? value.Length : 0), capacity) {
+            : this(value, 0, ((value != null) ? value.Length : 0), capacity)
+        {
         }
 
-        // Creates a new string builder from the specifed substring with the specified
-        // capacity.  The maximum number of characters is set by capacity.
-        // 
+        /// <summary>
+        /// Initializes a new instance of the StringBuilder class from the specified substring and capacity.
+        /// </summary>
+        /// <param name="value">The string that contains the substring used to initialize the value of this instance. If value is null, the new StringBuilder will contain the empty string (that is, it contains Empty).</param>
+        /// <param name="startIndex">The position within value where the substring begins.</param>
+        /// <param name="length">The number of characters in the substring.</param>
+        /// <param name="capacity">The suggested starting size of the StringBuilder.</param>
         [System.Security.SecuritySafeCritical]  // auto-generated
-        public StringBuilder(String value, int startIndex, int length, int capacity) {
-            if (capacity<0) {
-                throw new ArgumentOutOfRangeException("capacity",
-                                                      Environment.GetResourceString("ArgumentOutOfRange_MustBePositive", "capacity"));
-            }
-            if (length<0) {
-                throw new ArgumentOutOfRangeException("length",
-                                                      Environment.GetResourceString("ArgumentOutOfRange_MustBeNonNegNum", "length"));
-            }
-            if (startIndex<0) {
+        public StringBuilder(String value, int startIndex, int length, int capacity)
+        {
+            if (capacity < 0)
+                throw new ArgumentOutOfRangeException("capacity", Environment.GetResourceString("ArgumentOutOfRange_MustBePositive", "capacity"));
+
+            if (length < 0)
+                throw new ArgumentOutOfRangeException("length", Environment.GetResourceString("ArgumentOutOfRange_MustBeNonNegNum", "length"));
+
+            if (startIndex < 0)
                 throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_StartIndex"));
-            }
+
             Contract.EndContractBlock();
 
-            if (value == null) {
+            if (value == null)
                 value = String.Empty;
-            }
-            if (startIndex > value.Length - length) {
+
+            if (startIndex > value.Length - length)
                 throw new ArgumentOutOfRangeException("length", Environment.GetResourceString("ArgumentOutOfRange_IndexLength"));
-            }
+
             m_MaxCapacity = Int32.MaxValue;
-            if (capacity == 0) {
+            if (capacity == 0)
                 capacity = DefaultCapacity;
-            }
             if (capacity < length)
                 capacity = length;
 
             m_ChunkChars = new char[capacity];
             m_ChunkLength = length;
 
-            unsafe {
-                fixed (char* sourcePtr = value)
-                    ThreadSafeCopy(sourcePtr + startIndex, m_ChunkChars, 0, length);
+            if (length > 0)
+            {
+                unsafe
+                {
+                    fixed (char* sourcePtr = value)
+                        ThreadSafeCopy(sourcePtr + startIndex, m_ChunkChars, 0, length);
+                }
             }
         }
 
-        // Creates an empty StringBuilder with a minimum capacity of capacity
-        // and a maximum capacity of maxCapacity.
-        public StringBuilder(int capacity, int maxCapacity) {
-            if (capacity>maxCapacity) {
-                throw new ArgumentOutOfRangeException("capacity", Environment.GetResourceString("ArgumentOutOfRange_Capacity"));
-            }
-            if (maxCapacity<1) {
-                throw new ArgumentOutOfRangeException("maxCapacity", Environment.GetResourceString("ArgumentOutOfRange_SmallMaxCapacity"));
-            }
-            if (capacity<0) {
-                throw new ArgumentOutOfRangeException("capacity",
-                                                      Environment.GetResourceString("ArgumentOutOfRange_MustBePositive", "capacity"));
-            }
+        /// <summary>
+        /// Initializes a new instance of the StringBuilder class using the specified StringBuilder.
+        /// </summary>
+        /// <param name="value">The StringBuilder used to initialize the value of the instance. If value is null, the new StringBuilder will contain the empty string (that is, it contains Empty).</param>
+        public StringBuilder(StringBuilder value)
+            : this(value, DefaultCapacity)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the StringBuilder class using the specified StringBuilder and capacity.
+        /// </summary>
+        /// <param name="value">The StringBuilder used to initialize the value of the instance. If value is null, the new StringBuilder will contain the empty string (that is, it contains Empty).</param>
+        /// <param name="capacity">The suggested starting size of the StringBuilder.</param>
+        public StringBuilder(StringBuilder value, int capacity)
+            : this(value, 0, ((value != null) ? value.Length : 0), capacity)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the StringBuilder class from the specified StringBuilder substring and capacity.
+        /// </summary>
+        /// <param name="value">The StringBuilder that contains the substring used to initialize the value of this instance. If value is null, the new StringBuilder will contain the empty string (that is, it contains Empty).</param>
+        /// <param name="startIndex">The position within value where the substring begins.</param>
+        /// <param name="length">The number of characters in the substring.</param>
+        /// <param name="capacity">The suggested starting size of the StringBuilder.</param>
+        public StringBuilder(StringBuilder value, int startIndex, int length, int capacity)
+        {
+            if (capacity < 0)
+                throw new ArgumentOutOfRangeException("capacity", Environment.GetResourceString("ArgumentOutOfRange_MustBePositive", "capacity"));
+
+            if (length < 0)
+                throw new ArgumentOutOfRangeException("length", Environment.GetResourceString("ArgumentOutOfRange_MustBeNonNegNum", "length"));
+
+            if (startIndex < 0)
+                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_StartIndex"));
+
             Contract.EndContractBlock();
 
-            if (capacity == 0) {
+            int valueLength = value == null ? 0 : value.Length;
+
+            if (startIndex > valueLength - length)
+                throw new ArgumentOutOfRangeException("length", Environment.GetResourceString("ArgumentOutOfRange_IndexLength"));
+
+            m_MaxCapacity = Int32.MaxValue;
+            if (capacity == 0)
+                capacity = DefaultCapacity;
+            if (capacity < length)
+                capacity = length;
+
+            m_ChunkChars = new char[capacity];
+            m_ChunkLength = length;
+
+            if (length > 0)
+                value.CopyTo(startIndex, m_ChunkChars, 0, length);
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the StringBuilder class that starts with a specified capacity and can grow to a specified maximum.
+        /// </summary>
+        /// <param name="capacity">The suggested starting size of the StringBuilder.</param>
+        /// <param name="maxCapacity">The maximum number of characters the StringBuilder can contain.</param>
+        public StringBuilder(int capacity, int maxCapacity)
+        {
+            if (capacity > maxCapacity)
+                throw new ArgumentOutOfRangeException("capacity", Environment.GetResourceString("ArgumentOutOfRange_Capacity"));
+            if (maxCapacity < 1)
+                throw new ArgumentOutOfRangeException("maxCapacity", Environment.GetResourceString("ArgumentOutOfRange_SmallMaxCapacity"));
+            if (capacity<0)
+                throw new ArgumentOutOfRangeException("capacity", Environment.GetResourceString("ArgumentOutOfRange_MustBePositive", "capacity"));
+
+            Contract.EndContractBlock();
+
+            if (capacity == 0)
                 capacity = Math.Min(DefaultCapacity, maxCapacity);
-            }
 
             m_MaxCapacity = maxCapacity;
             m_ChunkChars = new char[capacity];
@@ -2020,7 +2085,7 @@ namespace System.Text {
             int newBlockLength = Math.Max(minBlockCharCount, Math.Min(Length, MaxChunkSize));
 
             // Copy the current block to the new block, and initialize this to point at the new buffer. 
-            m_ChunkPrevious = new StringBuilder(this);
+            m_ChunkPrevious = new StringBuilder(m_ChunkLength, m_ChunkOffset, m_ChunkChars, m_ChunkPrevious, m_MaxCapacity);
             m_ChunkOffset += m_ChunkLength;
             m_ChunkLength = 0;
 
@@ -2040,13 +2105,13 @@ namespace System.Text {
         /// In particular the buffer is shared.  It is expected that 'from' chunk (which represents
         /// the whole list, is then updated to point to point to this new chunk. 
         /// </summary>
-        private StringBuilder(StringBuilder from)
+        private StringBuilder(int chunkLength, int chunkOffset, char[] chunkChars, StringBuilder chunkPrevious, int maxCapacity)
         {
-            m_ChunkLength = from.m_ChunkLength;
-            m_ChunkOffset = from.m_ChunkOffset;
-            m_ChunkChars = from.m_ChunkChars;
-            m_ChunkPrevious = from.m_ChunkPrevious;
-            m_MaxCapacity = from.m_MaxCapacity;
+            m_ChunkLength = chunkLength;
+            m_ChunkOffset = chunkOffset;
+            m_ChunkChars = chunkChars;
+            m_ChunkPrevious = chunkPrevious;
+            m_MaxCapacity = maxCapacity;
             VerifyClassInvariant();
         }
 
