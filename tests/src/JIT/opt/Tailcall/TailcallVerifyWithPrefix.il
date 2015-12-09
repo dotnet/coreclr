@@ -12,10 +12,10 @@
   .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
   .ver 4:0:0:0
 }
-.assembly extern System.Core
+.assembly extern System.Linq
 {
-  .publickeytoken = (B7 7A 5C 56 19 34 E0 89 )                         // .z\V.4..
-  .ver 3:5:0:0
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )                     
+  .ver 4:0:0:0
 }
 .assembly TailcallVerifyWithPrefix
 {
@@ -3409,8 +3409,8 @@
 
     }  // end handler
     IL_0083:  ldsfld     class [mscorlib]System.Collections.Generic.List`1<int64> TailcallVerify.Condition21::evenList
-    IL_0088:  call       class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0> [System.Core]System.Linq.Enumerable::Distinct<int64>(class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0>)
-    IL_008d:  call       int32 [System.Core]System.Linq.Enumerable::Count<int64>(class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0>)
+    IL_0088:  call       class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0> [System.Linq]System.Linq.Enumerable::Distinct<int64>(class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0>)
+    IL_008d:  call       int32 [System.Linq]System.Linq.Enumerable::Count<int64>(class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0>)
     IL_0092:  ldc.i4.1
     IL_0093:  beq.s      IL_00e4
 
@@ -3449,8 +3449,8 @@
     IL_00dd:  ldc.i4.s   101
     IL_00df:  stsfld     int32 TailcallVerify.Condition21::Result
     IL_00e4:  ldsfld     class [mscorlib]System.Collections.Generic.List`1<int64> TailcallVerify.Condition21::oddList
-    IL_00e9:  call       class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0> [System.Core]System.Linq.Enumerable::Distinct<int64>(class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0>)
-    IL_00ee:  call       int32 [System.Core]System.Linq.Enumerable::Count<int64>(class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0>)
+    IL_00e9:  call       class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0> [System.Linq]System.Linq.Enumerable::Distinct<int64>(class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0>)
+    IL_00ee:  call       int32 [System.Linq]System.Linq.Enumerable::Count<int64>(class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0>)
     IL_00f3:  ldc.i4.1
     IL_00f4:  beq.s      IL_0146
 
@@ -3802,8 +3802,8 @@
 
     }  // end handler
     IL_0083:  ldsfld     class [mscorlib]System.Collections.Generic.List`1<int64> TailcallVerify.Condition21::evenList
-    IL_0088:  call       class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0> [System.Core]System.Linq.Enumerable::Distinct<int64>(class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0>)
-    IL_008d:  call       int32 [System.Core]System.Linq.Enumerable::Count<int64>(class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0>)
+    IL_0088:  call       class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0> [System.Linq]System.Linq.Enumerable::Distinct<int64>(class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0>)
+    IL_008d:  call       int32 [System.Linq]System.Linq.Enumerable::Count<int64>(class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0>)
     IL_0092:  ldc.i4.2
     IL_0093:  beq.s      IL_00e4
 
@@ -3842,8 +3842,8 @@
     IL_00dd:  ldc.i4.s   101
     IL_00df:  stsfld     int32 TailcallVerify.Condition21::Result
     IL_00e4:  ldsfld     class [mscorlib]System.Collections.Generic.List`1<int64> TailcallVerify.Condition21::oddList
-    IL_00e9:  call       class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0> [System.Core]System.Linq.Enumerable::Distinct<int64>(class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0>)
-    IL_00ee:  call       int32 [System.Core]System.Linq.Enumerable::Count<int64>(class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0>)
+    IL_00e9:  call       class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0> [System.Linq]System.Linq.Enumerable::Distinct<int64>(class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0>)
+    IL_00ee:  call       int32 [System.Linq]System.Linq.Enumerable::Count<int64>(class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0>)
     IL_00f3:  ldc.i4.1
     IL_00f4:  beq.s      IL_0146
 
@@ -4148,8 +4148,8 @@
 
     }  // end handler
     IL_009c:  ldsfld     class [mscorlib]System.Collections.Generic.List`1<int64> TailcallVerify.Condition21::evenList
-    IL_00a1:  call       class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0> [System.Core]System.Linq.Enumerable::Distinct<int64>(class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0>)
-    IL_00a6:  call       int32 [System.Core]System.Linq.Enumerable::Count<int64>(class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0>)
+    IL_00a1:  call       class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0> [System.Linq]System.Linq.Enumerable::Distinct<int64>(class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0>)
+    IL_00a6:  call       int32 [System.Linq]System.Linq.Enumerable::Count<int64>(class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0>)
     IL_00ab:  ldc.i4.1
     IL_00ac:  beq.s      IL_00fe
 
@@ -4188,8 +4188,8 @@
     IL_00f7:  ldc.i4.s   101
     IL_00f9:  stsfld     int32 TailcallVerify.Condition21::Result
     IL_00fe:  ldsfld     class [mscorlib]System.Collections.Generic.List`1<int64> TailcallVerify.Condition21::oddList
-    IL_0103:  call       class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0> [System.Core]System.Linq.Enumerable::Distinct<int64>(class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0>)
-    IL_0108:  call       int32 [System.Core]System.Linq.Enumerable::Count<int64>(class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0>)
+    IL_0103:  call       class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0> [System.Linq]System.Linq.Enumerable::Distinct<int64>(class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0>)
+    IL_0108:  call       int32 [System.Linq]System.Linq.Enumerable::Count<int64>(class [mscorlib]System.Collections.Generic.IEnumerable`1<!!0>)
     IL_010d:  ldc.i4.1
     IL_010e:  beq.s      IL_0160
 
