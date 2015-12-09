@@ -969,7 +969,7 @@ enum Phases
 
 extern const char* PhaseNames[];
 extern const char* PhaseEnums[];
-extern const LPWSTR PhaseShortNames[];
+extern const LPCWSTR PhaseShortNames[];
 
 //---------------------------------------------------------------
 // Compilation time.
