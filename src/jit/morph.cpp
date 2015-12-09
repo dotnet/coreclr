@@ -6424,22 +6424,30 @@ GenTreePtr          Compiler::fgMorphCall(GenTreeCall* call)
 
             for (varNum = 0, varDsc = lvaTable; varNum < lvaCount; varNum++, varDsc++)
             {
-                if (varDsc->lvHasLdAddrOp || varDsc->lvAddrExposed)
+                // If the method is marked as an explicit tail call we will skip the
+                // following three hazard checks.
+                // We still must check for any struct parameters and set 'hasStructParam'
+                // so that we won't transform it into a recursive tail call.
+                // 
+                if (call->IsImplicitTailCall())
                 {
-                    hasAddrExposedVars = true;
-                    break;
-                }
-                if (varDsc->lvPromoted && varDsc->lvIsParam)
-                {
-                    hasStructPromotedParam = true;
-                    break;
-                }
-                if (varDsc->lvPinned)
-                {
-                    // A tail call removes the method from the stack, which means the pinning
-                    // goes away for the callee.  We can't allow that.
-                    hasPinnedVars = true;
-                    break;
+                    if (varDsc->lvHasLdAddrOp || varDsc->lvAddrExposed)
+                    {
+                        hasAddrExposedVars = true;
+                        break;
+                    }
+                    if (varDsc->lvPromoted && varDsc->lvIsParam)
+                    {
+                        hasStructPromotedParam = true;
+                        break;
+                    }
+                    if (varDsc->lvPinned)
+                    {
+                        // A tail call removes the method from the stack, which means the pinning
+                        // goes away for the callee.  We can't allow that.
+                        hasPinnedVars = true;
+                        break;
+                    }
                 }
                 if (varTypeIsStruct(varDsc->TypeGet()) && varDsc->lvIsParam)
                 {

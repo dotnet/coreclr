@@ -2662,6 +2662,7 @@ CodeGen::genStoreRegisterReturnInLclVar(GenTreePtr treeNode)
 
         // TODO-Amd64-Unix: Have Lubo Review this change
         // Test case JIT.opt.ETW.TailCallCases.TailCallCases has eightByteCount == 1
+        // This occurs with a TYP_STRUCT that is 3 bytes in size
         // commenting out this assert results in correct codegen
         //
         // assert(structDesc.eightByteCount == CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS);
