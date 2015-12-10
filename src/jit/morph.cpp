@@ -6395,7 +6395,7 @@ GenTreePtr          Compiler::fgMorphCall(GenTreeCall* call)
         }
 #endif
 #if FEATURE_TAILCALL_OPT
-        else if (call->CanTailCall())
+        else
         {
             // We are still not sure whether it can be a tail call. Because, when converting
             // a call to an implicit tail call, we must check that there are no locals with
@@ -6427,7 +6427,7 @@ GenTreePtr          Compiler::fgMorphCall(GenTreeCall* call)
                 // If the method is marked as an explicit tail call we will skip the
                 // following three hazard checks.
                 // We still must check for any struct parameters and set 'hasStructParam'
-                // so that we won't transform it into a recursive tail call.
+                // so that we won't transform the recursive tail call into a loop.
                 // 
                 if (call->IsImplicitTailCall())
                 {
