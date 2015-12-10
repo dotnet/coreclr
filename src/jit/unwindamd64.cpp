@@ -478,7 +478,12 @@ void Compiler::unwindReserveFuncHelper(FuncInfoDsc* func, bool isHotCode)
         func->unwindHeader.CountOfUnwindCodes = (BYTE)((sizeof(func->unwindCodes) - func->unwindCodeSlot) / sizeof(UNWIND_CODE));
 
         // Prepend the unwindHeader onto the unwind codes
-        assert(func->unwindCodeSlot >= offsetof(UNWIND_INFO, UnwindCode));
+
+        // ToDo - Investigate and fix this.
+        //  This is changed to a noway_assert to unblock the Linux Amd64 retail tests
+        //  The failing test is JIT.Regression.CLR-x86-JIT.V1-M11-Beta1.b49322.b49322.b49322
+        noway_assert(func->unwindCodeSlot >= offsetof(UNWIND_INFO, UnwindCode));
+
         UNWIND_INFO * pHeader = (UNWIND_INFO*)&func->unwindCodes[func->unwindCodeSlot -= offsetof(UNWIND_INFO, UnwindCode)];
         memcpy(pHeader, &func->unwindHeader, offsetof(UNWIND_INFO, UnwindCode));
 
