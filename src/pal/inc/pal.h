@@ -480,12 +480,16 @@ typedef long time_t;
 
 #define PAL_INITIALIZE_NONE            0x00
 #define PAL_INITIALIZE_SYNC_THREAD     0x01
+#define PAL_INITIALIZE_EXEC_ALLOCATOR  0x02
 
 // PAL_Initialize() flags
 #define PAL_INITIALIZE                 PAL_INITIALIZE_SYNC_THREAD
 
 // PAL_InitializeDLL() flags - don't start any of the helper threads
 #define PAL_INITIALIZE_DLL             PAL_INITIALIZE_NONE       
+
+// PAL_InitializeCoreCLR() flags
+#define PAL_INITIALIZE_CORECLR         (PAL_INITIALIZE | PAL_INITIALIZE_EXEC_ALLOCATOR)
 
 typedef DWORD (PALAPI *PTHREAD_START_ROUTINE)(LPVOID lpThreadParameter);
 typedef PTHREAD_START_ROUTINE LPTHREAD_START_ROUTINE;
@@ -3538,6 +3542,7 @@ SetErrorMode(
 #define MEM_MAPPED                      0x40000
 #define MEM_TOP_DOWN                    0x100000
 #define MEM_WRITE_WATCH                 0x200000
+#define MEM_RESERVE_EXECUTABLE          0x40000000 // reserve memory using executable memory allocator
 
 PALIMPORT
 HANDLE
@@ -3637,13 +3642,13 @@ PALIMPORT
 HMODULE
 PALAPI
 LoadLibraryA(
-         IN LPCSTR lpLibFileName);
+        IN LPCSTR lpLibFileName);
 
 PALIMPORT
 HMODULE
 PALAPI
 LoadLibraryW(
-         IN LPCWSTR lpLibFileName);
+        IN LPCWSTR lpLibFileName);
 
 PALIMPORT
 HMODULE
@@ -3662,17 +3667,17 @@ LoadLibraryExW(
         IN DWORD dwFlags);
 
 PALIMPORT
-HMODULE
+void *
 PALAPI
 PAL_LoadLibraryDirect(
-         IN LPCWSTR lpLibFileName);
+        IN LPCWSTR lpLibFileName);
 
 PALIMPORT
 HMODULE
 PALAPI
 PAL_RegisterLibraryDirect(
-         IN HMODULE dl_handle,
-         IN LPCWSTR lpLibFileName);
+        IN void *dl_handle,
+        IN LPCWSTR lpLibFileName);
 
 /*++
 Function:
@@ -5608,6 +5613,18 @@ PALIMPORT
 DWORD
 PALAPI
 GetCurrentProcessorNumber();
+
+/*++
+Function:
+PAL_HasGetCurrentProcessorNumber
+
+Checks if GetCurrentProcessorNumber is available in the current environment
+
+--*/
+PALIMPORT
+BOOL
+PALAPI
+PAL_HasGetCurrentProcessorNumber();
     
 #define FORMAT_MESSAGE_ALLOCATE_BUFFER 0x00000100
 #define FORMAT_MESSAGE_IGNORE_INSERTS  0x00000200
@@ -6727,6 +6744,11 @@ public:
     static bool IsEnabled();
 };
 
+//
+// NOTE: Catching hardware exceptions are only enabled in the DAC and SOS 
+// builds. A hardware exception in coreclr code will fail fast/terminate
+// the process.
+//
 #ifdef FEATURE_ENABLE_HARDWARE_EXCEPTIONS
 #define HardwareExceptionHolder CatchHardwareExceptionHolder __catchHardwareException;
 #else
@@ -6743,7 +6765,7 @@ extern "C++" {
 // filter to be called during the first pass to better emulate SEH
 // the xplat platforms that only have C++ exception support.
 //
-class NativeExceptionHolderBase : CatchHardwareExceptionHolder
+class NativeExceptionHolderBase
 {
     // Save the address of the holder head so the destructor 
     // doesn't have access the slow (on Linux) TLS value again.
@@ -6853,6 +6875,7 @@ public:
     };                                                                          \
     try                                                                         \
     {                                                                           \
+        HardwareExceptionHolder                                                 \
         auto __exceptionHolder = NativeExceptionHolderFactory::CreateHolder(&exceptionFilter); \
         __exceptionHolder.Push();                                               \
         tryBlock(__param);                                                      \

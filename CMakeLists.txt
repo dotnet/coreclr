@@ -294,8 +294,10 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   add_subdirectory(src/ToolBox/SOS/lldbplugin)
   add_subdirectory(src/pal)
   add_subdirectory(src/corefx)
+  add_subdirectory(src/coreclr/hosts/unixcoreruncommon)
   add_subdirectory(src/coreclr/hosts/unixcorerun)
   add_subdirectory(src/coreclr/hosts/unixcoreconsole)
+  add_subdirectory(src/ildasm/unixcoreclrloader)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 if(CLR_CMAKE_PLATFORM_DARWIN)
@@ -380,9 +382,6 @@ set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /MANIFEST:NO") #Do n
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /SUBSYSTEM:WINDOWS,6.00") #windows subsystem
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /LARGEADDRESSAWARE") # can handle addresses larger than 2 gigabytes
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /RELEASE") #sets the checksum in the header
-if (IS_64BIT_BUILD EQUAL 0)
-set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /SAFESEH:NO") #Image does not have Safe Exception Handlers..valid only for x86
-endif (IS_64BIT_BUILD EQUAL 0)
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /NXCOMPAT") #Compatible with Data Execution Prevention
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /DYNAMICBASE") #Use address space layout randomization
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /DEBUGTYPE:cv,fixup") #debugging format
@@ -489,17 +488,15 @@ if (WIN32)
 endif(WIN32)
 # Definition directives
 
-
+  if(IS_64BIT_BUILD)
+    add_definitions(-DBIT64=1)
+  endif(IS_64BIT_BUILD)
 
 if (CLR_CMAKE_PLATFORM_UNIX)
   add_definitions(-DFEATURE_PAL_SXS)
   add_definitions(-DFEATURE_COREFX_GLOBALIZATION)
   add_definitions(-DFEATURE_PAL)
 
-  if(IS_64BIT_BUILD)
-    add_definitions(-DBIT64=1)
-  endif(IS_64BIT_BUILD)
-  
   if(CLR_CMAKE_PLATFORM_DARWIN)
     add_definitions(-D_XOPEN_SOURCE)
   endif(CLR_CMAKE_PLATFORM_DARWIN)
@@ -592,7 +589,9 @@ if(WIN32)
 endif(WIN32)
 add_definitions(-DFEATURE_EXCEPTIONDISPATCHINFO)
 add_definitions(-DFEATURE_FRAMEWORK_INTERNAL)
-add_definitions(-DFEATURE_HIJACK)
+if(NOT CLR_CMAKE_PLATFORM_UNIX_TARGET_ARM)
+    add_definitions(-DFEATURE_HIJACK)
+endif(NOT CLR_CMAKE_PLATFORM_UNIX_TARGET_ARM)
 add_definitions(-DFEATURE_HOST_ASSEMBLY_RESOLVER)
 add_definitions(-DFEATURE_HOSTED_BINDER)
 if(WIN32)

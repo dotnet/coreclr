@@ -43,8 +43,6 @@ check_library_exists(pthread pthread_getattr_np "" HAVE_PTHREAD_GETATTR_NP)
 check_library_exists(pthread pthread_sigqueue "" HAVE_PTHREAD_SIGQUEUE)
 check_function_exists(sigreturn HAVE_SIGRETURN)
 check_function_exists(_thread_sys_sigreturn HAVE__THREAD_SYS_SIGRETURN)
-check_function_exists(setcontext HAVE_SETCONTEXT)
-check_function_exists(getcontext HAVE_GETCONTEXT)
 check_function_exists(copysign HAVE_COPYSIGN)
 check_function_exists(fsync HAVE_FSYNC)
 check_function_exists(futimes HAVE_FUTIMES)
@@ -290,6 +288,19 @@ int main(void)
 
   exit(-1 == max_priority || -1 == min_priority);
 }" HAVE_SCHED_GET_PRIORITY)
+set(CMAKE_REQUIRED_LIBRARIES pthread)
+check_cxx_source_runs("
+#include <stdlib.h>
+#include <sched.h>
+
+int main(void)
+{
+  if (sched_getcpu() >= 0)
+  {
+    exit(0);
+  }
+  exit(1);
+}" HAVE_SCHED_GETCPU)
 set(CMAKE_REQUIRED_LIBRARIES)
 check_cxx_source_runs("
 #include <stdlib.h>
@@ -330,6 +341,19 @@ int main()
 
   exit(ret);
 }" HAVE_CLOCK_MONOTONIC)
+check_cxx_source_runs("
+#include <stdlib.h>
+#include <time.h>
+#include <sys/time.h>
+
+int main()
+{
+  int ret;
+  struct timespec ts;
+  ret = clock_gettime(CLOCK_MONOTONIC_COARSE, &ts);
+
+  exit(ret);
+}" HAVE_CLOCK_MONOTONIC_COARSE)
 check_cxx_source_runs("
 #include <stdlib.h>
 #include <mach/mach_time.h>

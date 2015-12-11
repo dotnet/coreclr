@@ -444,7 +444,7 @@ build(globalParams + [CORECLR_LINUX_BUILD: linuxBuildJob.build.number,
                         }
                         
                         // Corefx native components
-                        copyArtifacts("dotnet_corefx_osx_nativecomp_debug") {
+                        copyArtifacts("dotnet_corefx_mac_nativecomp_debug") {
                             includePatterns('bin/**')
                             buildSelector {
                                 latestSuccessful(true)
@@ -452,7 +452,7 @@ build(globalParams + [CORECLR_LINUX_BUILD: linuxBuildJob.build.number,
                         }
                         
                         // Corefx os x binaries
-                        copyArtifacts("dotnet_corefx_osx_debug") {
+                        copyArtifacts("dotnet_corefx_mac_debug") {
                             includePatterns('bin/OSX*/**')
                             buildSelector {
                                 latestSuccessful(true)
@@ -491,7 +491,7 @@ build(globalParams + [CORECLR_LINUX_BUILD: linuxBuildJob.build.number,
                 // test.
                 // Windows CoreCLR build and OS X CoreCLR build (in parallel) ->
                 // OS X CoreCLR test
-                def flowJobName = getBuildJobName(configuration, architecture, os) + "_flow_wtg"
+                def flowJobName = getBuildJobName(configuration, architecture, os) + "_flow"
                 def fullTestJobName = Utilities.getFolderName(project) + '/' + newJob.name
                 def newFlowJob = buildFlowJob(Utilities.getFullJobName(project, flowJobName, isPR)) {
                     buildFlow("""
@@ -525,12 +525,11 @@ build(globalParams + [CORECLR_OSX_BUILD: osxBuildJob.build.number,
                 if (isPR) {
                     Utilities.addPRTestSCM(newFlowJob, project)
                     Utilities.addStandardPRParameters(newFlowJob, project)
-                    if (architecture == 'x64') {
-                        if (configuration == 'Release') {
-                            Utilities.addGithubPRTrigger(newFlowJob, "OSX ${architecture} ${configuration} Build and Test", "(?i).*test\\W+osx\\W+release.*", true /* trigger by phrase only */)
-                        } else {
-                            Utilities.addGithubPRTrigger(newFlowJob, "OSX ${architecture} ${configuration} Build and Test", "(?i).*test\\W+osx\\W+debug.*", true /* trigger by phrase only */)
-                        }
+                    if (configuration == 'Release') {
+                        // Tests will be run on x64 Release by default (no trigger phase required).
+                        Utilities.addGithubPRTrigger(newFlowJob, "OSX ${architecture} ${configuration} Build and Test", "(?i).*test\\W+osx\\W+release.*", false /* trigger by phrase only */)
+                    } else {
+                        Utilities.addGithubPRTrigger(newFlowJob, "OSX ${architecture} ${configuration} Build and Test", "(?i).*test\\W+osx\\W+debug.*", true /* trigger by phrase only */)
                     }
                 }
                 else {

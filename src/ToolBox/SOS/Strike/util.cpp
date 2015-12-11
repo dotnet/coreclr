@@ -4464,6 +4464,9 @@ protected:
 // get an ICorDebugProcess back
 // 
 class SOSDataTarget : public ICorDebugMutableDataTarget
+#ifdef FEATURE_PAL
+, public ICorDebugDataTarget4
+#endif
 {
 public:
     SOSDataTarget() : m_ref(0)
@@ -4478,7 +4481,7 @@ public:
     {
         if (InterfaceId == IID_IUnknown)
         {
-            *pInterface = static_cast<IUnknown *>(this);
+            *pInterface = static_cast<IUnknown *>(static_cast<ICorDebugDataTarget *>(this));
         }
         else if (InterfaceId == IID_ICorDebugDataTarget)
         {
@@ -4488,6 +4491,12 @@ public:
         {
             *pInterface = static_cast<ICorDebugMutableDataTarget *>(this);
         }
+#ifdef FEATURE_PAL
+        else if (InterfaceId == IID_ICorDebugDataTarget4)
+        {
+            *pInterface = static_cast<ICorDebugDataTarget4 *>(this);
+        }
+#endif
         else
         {
             *pInterface = NULL;
@@ -4547,6 +4556,10 @@ public:
         ULONG32 request,
         ULONG32 * pcbRead)
     {
+        if (g_ExtData == NULL)
+        {
+            return E_UNEXPECTED;
+        }
         return g_ExtData->ReadVirtual(address, pBuffer, request, (PULONG) pcbRead);
     }
 
@@ -4557,6 +4570,10 @@ public:
         BYTE * context)
     {
 #ifdef FEATURE_PAL
+        if (g_ExtSystem == NULL)
+        {
+            return E_UNEXPECTED;
+        }
         return g_ExtSystem->GetThreadContextById(dwThreadOSID, contextFlags, contextSize, context);
 #else
         ULONG ulThreadIDOrig;
@@ -4604,6 +4621,10 @@ public:
                                                    const BYTE * pBuffer,
                                                    ULONG32 bytesRequested)
     {
+        if (g_ExtData == NULL)
+        {
+            return E_UNEXPECTED;
+        }
         return g_ExtData->WriteVirtual(address, (PVOID)pBuffer, bytesRequested, NULL);
     }
 
@@ -4620,6 +4641,20 @@ public:
         return E_NOTIMPL;
     }
 
+#ifdef FEATURE_PAL
+    //
+    // ICorDebugDataTarget4
+    //
+    virtual HRESULT STDMETHODCALLTYPE VirtualUnwind(DWORD threadId, ULONG32 contextSize, PBYTE context)
+    {
+        if (g_ExtClient == NULL)
+        {
+            return E_UNEXPECTED;
+        }
+        return g_ExtClient->VirtualUnwind(threadId, contextSize, context);
+
+    }
+#endif // FEATURE_PAL
 
 protected:
     LONG m_ref;
@@ -4629,7 +4664,7 @@ HRESULT InitCorDebugInterfaceFromModule(ULONG64 ulBase, ICLRDebugging * pClrDebu
 {
     HRESULT hr;
 
-    ToRelease<IUnknown> pSOSDataTarget = new SOSDataTarget;
+    ToRelease<ICorDebugMutableDataTarget> pSOSDataTarget = new SOSDataTarget;
     pSOSDataTarget->AddRef();
 
     ToRelease<ICLRDebuggingLibraryProvider> pSOSLibraryProvider = new SOSLibraryProvider;
@@ -5247,7 +5282,7 @@ OutputVaList(
     va_list args)
 {
 #ifdef FEATURE_PAL
-    char str[1024];
+    char str[4096];
 
     // Try and format our string into a fixed buffer first and see if it fits
     int length = _vsnprintf(str, sizeof(str), format, args);
@@ -5548,9 +5583,15 @@ NoOutputHolder::~NoOutputHolder()
 // Code to support mapping RVAs to managed code line numbers.
 //
 
+#ifndef FEATURE_PAL
+
 // 
 // This function retrieves ImageInfo related to the module
 // containing the addressed passed in "Base".
+//
+// NOTE: This doesn't work on xplat/PAL because the managed
+// assembly PE isn't in the native debugger's module list.
+//
 HRESULT
 GetImageFromBase(
     ___in ULONG64 Base,
@@ -5815,7 +5856,6 @@ ConvertNativeToIlOffset(
     return Status;
 }
 
-
 // Based on a native offset, passed in the first argument this function
 // identifies the corresponding source file name and line number.
 HRESULT
@@ -5825,11 +5865,6 @@ GetLineByOffset(
     __out_ecount(cbFileName) LPSTR lpszFileName,
     ___in ULONG cbFileName)
 {
-
-#ifdef FEATURE_PAL
-    return E_FAIL;
-#else
-
     HRESULT hr = S_OK;
     ULONG64 displacement = 0;
 
@@ -5910,10 +5945,9 @@ fallback:
                     cbFileName,
                     NULL,
                     &displacement);
-
-#endif // FEATURE_PAL
 }
 
+#endif // FEATURE_PAL
 
 void TableOutput::ReInit(int numColumns, int defaultColumnWidth, Alignment alignmentDefault, int indent, int padding)
 {
@@ -6521,7 +6555,8 @@ WString MethodNameFromIP(CLRDATA_ADDRESS ip, BOOL bSuppressLines)
         {
             methodOutput = W("<unknown>");
         }
-            
+
+#ifndef FEATURE_PAL
         if (!bSuppressLines &&
             SUCCEEDED(GetLineByOffset(TO_CDADDR(ip), &linenum, filename, MAX_LONGPATH+1)))
         {
@@ -6531,6 +6566,7 @@ WString MethodNameFromIP(CLRDATA_ADDRESS ip, BOOL bSuppressLines)
             
             methodOutput += WString(W(" [")) + wfilename + W(" @ ") + Decimal(linenum) + W("]");
         }
+#endif // FEATURE_PAL
     }
     
     return methodOutput;
