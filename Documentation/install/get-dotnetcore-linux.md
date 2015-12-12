@@ -1,28 +1,38 @@
-Get .NET Core SDK on Windows
-============================
+Get .NET Core SDK on Linux
+==========================
 
 These instructions will lead you through acquiring the .NET Core SDK via the [.NET Core CLI toolset](https://github.com/dotnet/cli) and running a "Hello World" sample on Windows. 
 
 These instructions are for .NET Core console apps. If you want to try out ASP.NET 5 on top of .NET Core - which is a great idea - check out the [ASP.NET 5 instructions](https://github.com/aspnet/home).
 
-You can also acquire .NET Core directly via [NuGet restore](get-dotnetcore-windows.md) or [build from source](../building/windows-instructions.md). 
+You can also [build from source](../building/linux-instructions.md). 
+
+Environment
+===========
+
+These instructions are written assuming the Ubuntu 14.04 LTS, since that's the distro the team uses. Pull Requests are welcome to address other environments as long as they don't break the ability to use Ubuntu 14.04 LTS.
 
 Installing .NET CLI toolset
 ===========================
 
-There are two main ways to install the .NET CLI on Windows:
+There are two main ways to install the .NET CLI on Ubuntu:
 
-1. Using the MSI installer
-2. Uzing the ZIP for a "local install"
+1. Using the DEB package via an apt-get feed 
+2. Uzing the tarball (tar.gz file) for a "local install"
 
-In this guide, we are going to be focusing on using the MSI installer. Installing the CLI toolset via this route is very easy: you just need to download and run the [MSI file](https://dotnetcli.blob.core.windows.net/dotnet/dev/Installers/Latest/dotnet-win-x64.latest.msi). 
-
-After the install is done, you can verify that everything went according to plan by opening up a new PowerShell (or command) prompt and running
+In this guide we will be using the apt-get feed because it will also install all of the dependencies that .NET Core needs. 
 
 ```shell
+sudo sh -c 'echo "deb [arch=amd64] http://apt-mo.trafficmanager.net/repos/dotnet/ trusty main" > /etc/apt/sources.list.d/dotnetdev.list' 
+sudo apt-key adv --keyserver apt-mo.trafficmanager.net --recv-keys 417A0893
+sudo apt-get update
+sudo apt-get install dotnet
+```
+This will bring down the dotnet package and install it. In order to test out if everything worked, you can run the `dotnet` command from the terminal:
+
+``shell
 dotnet
 ```
-
 You should see the following output:
 
 ```shell
@@ -53,8 +63,7 @@ You need a Hello World application to run. You can write your own, if you'd like
 In order to do that, we will first create a directory and then use `dotnet new` inside it:
 
 ```shell
-mkdir testapp
-cd testapp
+mkdir testapp && cd testapp
 dotnet new
 ```
 
