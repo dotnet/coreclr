@@ -2907,7 +2907,7 @@ bool  Compiler::compRsvdRegCheck(FrameLayoutState curState)
 
     noway_assert(frameSize > calleeSavedRegMaxSz);
 
-#if defined(_TARGET_ARM64_)
+#if 1//defined(_TARGET_ARM64_)
 
     // TODO-ARM64-CQ: update this!
     return true; // just always assume we'll need it, for now

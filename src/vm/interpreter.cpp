@@ -9163,11 +9163,13 @@ void Interpreter::DoCallWork(bool virtualCall, void* thisArg, CORINFO_RESOLVED_T
             OpStackTypeSet(m_curStackHt, InterpreterType(CORINFO_TYPE_NATIVEINT));
             m_curStackHt++; didIntrinsic = true;
             break;
+#ifdef _WIN64
         case CORINFO_INTRINSIC_StubHelpers_GetStubContextAddr:
             OpStackSet<void*>(m_curStackHt, GetStubContextAddr());
             OpStackTypeSet(m_curStackHt, InterpreterType(CORINFO_TYPE_NATIVEINT));
             m_curStackHt++; didIntrinsic = true;
             break;
+#endif
 #endif // INTERP_ILSTUBS
         default:
 #if INTERP_TRACING

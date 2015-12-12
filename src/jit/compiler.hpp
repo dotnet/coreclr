@@ -2937,6 +2937,10 @@ bool               Compiler::fgIsBigOffset(size_t offset) {
 inline
 bool               Compiler::fgIsSignedDivOptimizable(GenTreePtr divisor)
 {
+    // TODO-ARM-CQ: Implement optimized mod in codegen
+#ifndef LEGACY_BACKEND
+    return false;
+#else // LEGACY_BACKEND
     if (!opts.MinOpts() && divisor->IsCnsIntOrI())
     {
         ssize_t ival = divisor->gtIntConCommon.IconValue();
@@ -2955,6 +2959,7 @@ bool               Compiler::fgIsSignedDivOptimizable(GenTreePtr divisor)
     }
 
     return false;
+#endif // !LEGACY_BACKEND
 }
 
 /************************************************************************************
@@ -2966,6 +2971,10 @@ bool               Compiler::fgIsSignedDivOptimizable(GenTreePtr divisor)
 inline
 bool               Compiler::fgIsUnsignedDivOptimizable(GenTreePtr divisor)
 {
+    // TODO-ARM-CQ: Implement optimized mod in codegen
+#ifndef LEGACY_BACKEND
+    return false;
+#else // LEGACY_BACKEND
     if (!opts.MinOpts() && divisor->IsCnsIntOrI())
     {
         size_t ival = divisor->gtIntCon.gtIconVal;
@@ -2975,6 +2984,7 @@ bool               Compiler::fgIsUnsignedDivOptimizable(GenTreePtr divisor)
     }
 
     return false;
+#endif // !LEGACY_BACKEND
 }
 
 
@@ -2987,6 +2997,10 @@ bool               Compiler::fgIsUnsignedDivOptimizable(GenTreePtr divisor)
 inline
 bool               Compiler::fgIsSignedModOptimizable(GenTreePtr divisor)
 {
+    // TODO-ARM-CQ: Implement optimized mod in codegen
+#ifndef LEGACY_BACKEND
+    return false;
+#else // LEGACY_BACKEND
     if (!opts.MinOpts() && divisor->IsCnsIntOrI())
     {
         size_t ival = divisor->gtIntCon.gtIconVal;
@@ -2996,6 +3010,7 @@ bool               Compiler::fgIsSignedModOptimizable(GenTreePtr divisor)
     }
 
     return false;
+#endif // !LEGACY_BACKEND
 }
 
 
@@ -3008,6 +3023,10 @@ bool               Compiler::fgIsSignedModOptimizable(GenTreePtr divisor)
 inline
 bool               Compiler::fgIsUnsignedModOptimizable(GenTreePtr divisor)
 {
+    // TODO-ARM-CQ: Implement optimized mod in codegen
+#ifndef LEGACY_BACKEND
+    return false;
+#else // LEGACY_BACKEND
     if (!opts.MinOpts() && divisor->IsCnsIntOrI())
     {
         size_t ival = divisor->gtIntCon.gtIconVal;
@@ -3017,6 +3036,7 @@ bool               Compiler::fgIsUnsignedModOptimizable(GenTreePtr divisor)
     }
 
     return false;
+#endif
 }
 
 

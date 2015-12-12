@@ -3482,6 +3482,9 @@ void                emitter::emitIns_R_S (instruction ins,
     case INS_ldrsh:
     case INS_ldrsb:
     case INS_vldr:
+    case INS_str:
+    case INS_strh:
+    case INS_strb:
     case INS_vmov:
     case INS_movw:
     case INS_movt:
@@ -3536,7 +3539,7 @@ void                emitter::emitIns_R_S (instruction ins,
     {
         if (isLowRegister(reg1)   &&
             (reg2 == REG_SP)      && 
-            (ins == INS_ldr)      &&
+            ((ins == INS_ldr) || (ins == INS_str)) &&
             ((disp & 0x03fc) == disp && disp <= 0x03f8))
         {
             fmt = IF_T1_J2; 
@@ -7830,30 +7833,112 @@ void emitter::emitInsMov(instruction ins, emitAttr attr, GenTree* node)
     {
     case GT_IND:
         {
-            GenTree* addr = node->gtGetOp1();
-            assert(!addr->isContained());
-            codeGen->genConsumeReg(addr);
-            emitIns_R_R(ins, attr, node->gtRegNum, addr->gtRegNum);
+            assert(emitInsIsLoad(ins));
+
+            GenTreeIndir* indir = node->AsIndir();
+            GenTree*      addr  = node->gtGetOp1();
+
+#if 0
+            // The value of 'ins' encodes the size to load 
+            // we use EA_8BYTE here because it is the size we want to write (into node->gtRegNum)
+            // it is also required when ins is INS_ldrsw
+            //
+            if (EA_SIZE(attr) < EA_8BYTE)
+            {
+                attr = EA_8BYTE;
+            }
+#endif
+
+            if (addr->isContained())
+            {
+                assert(addr->OperGet() == GT_LCL_VAR ||
+                       addr->OperGet() == GT_LEA);
+
+                int offset = 0;
+
+                if (addr->OperGet() == GT_LEA)
+                {
+                    offset = (int) addr->AsAddrMode()->gtOffset;
+                }
+                GenTree*  memBase = indir->Base();
+
+                if (indir->HasIndex())
+                {
+                    assert(offset == 0);
+                    GenTree*  index = indir->Index();
+                    
+                    emitIns_R_R_R(ins, attr, node->gtRegNum, 
+                                  memBase->gtRegNum, index->gtRegNum);
+                }
+                else
+                {
+                    emitIns_R_R_I(ins, attr, node->gtRegNum, 
+                                  memBase->gtRegNum, offset);
+                }
+            }
+            else
+            {
+                codeGen->genConsumeReg(addr);
+                emitIns_R_R(ins, attr, node->gtRegNum, addr->gtRegNum);
+            }
         }
         break;
 
     case GT_STOREIND:
         {
-            GenTree* addr = node->gtGetOp1();
-            GenTree* data = node->gtOp.gtOp2;
+            assert(emitInsIsStore(ins));
 
-            assert(!addr->isContained());
+            GenTreeIndir* indir   = node->AsIndir();
+            GenTree*      addr    = node->gtGetOp1();
+            GenTree*      data    = node->gtGetOp2();
+            regNumber     dataReg = REG_NA;
+            
             assert(!data->isContained());
-            codeGen->genConsumeReg(addr);
             codeGen->genConsumeReg(data);
+            dataReg = data->gtRegNum;
 
-            if (addr->OperGet() == GT_CLS_VAR_ADDR)
+#if 0
+            // The value of 'ins' encodes the size to store 
+            // we use EA_4BYTE here because it is the size of the register
+            // that we want to display when storing small values 
+            //
+            if (EA_SIZE(attr) < EA_4BYTE)
             {
-                emitIns_C_R(ins, attr, addr->gtClsVar.gtClsVarHnd, data->gtRegNum, 0);
+                attr = EA_4BYTE;
+            }
+#endif
+
+            if (addr->isContained())
+            {
+                assert(addr->OperGet() == GT_LCL_VAR_ADDR ||
+                       addr->OperGet() == GT_LEA);
+
+                int offset = 0;
+
+                if (addr->OperGet() == GT_LEA)
+                {
+                    offset = (int) addr->AsAddrMode()->gtOffset;
+                }
+                GenTree*  memBase = indir->Base();
+
+                if (indir->HasIndex())
+                {
+                    assert(offset == 0);
+                    GenTree*  index = indir->Index();
+                    
+                    emitIns_R_R_R(ins, attr, dataReg, 
+                                  memBase->gtRegNum, index->gtRegNum);
+                }
+                else
+                {
+                    emitIns_R_R_I(ins, attr, dataReg, 
+                                  memBase->gtRegNum, offset);
+                }
             }
             else
             {
-                emitIns_R_R(ins, attr, addr->gtRegNum, data->gtRegNum);
+                codeGen->genConsumeReg(addr);
+                emitIns_R_R(ins, attr, dataReg, addr->gtRegNum);
             }
         }
         break;
@@ -7916,6 +8001,127 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
         emitIns_R_R(ins, attr, dst->gtRegNum, src->gtRegNum);
         return dst->gtRegNum;
     }
+}
+
+// The callee must call genConsumeReg() for any non-contained srcs
+// and genProduceReg() for any non-contained dsts.
+
+regNumber emitter::emitInsTernary(instruction ins, emitAttr attr, GenTree* dst, GenTree* src1, GenTree* src2)
+{
+    regNumber result = REG_NA;
+
+    // dst can only be a reg
+    assert(!dst->isContained());
+
+    // find immed (if any) - it cannot be a dst
+    // Only one src can be an int.
+    GenTreeIntConCommon* intConst = nullptr;
+    GenTree* nonIntReg = nullptr;
+    
+    if (varTypeIsFloating(dst))
+    {
+        // src1 can only be a reg
+        assert(!src1->isContained());
+        // src2 can only be a reg
+        assert(!src2->isContained());
+    }
+    else // not floating point
+    {
+        // src2 can be immed or reg
+        assert(!src2->isContained() || src2->isContainedIntOrIImmed());
+
+        // Check src2 first as we can always allow it to be a contained immediate
+        if (src2->isContainedIntOrIImmed())
+        {
+            intConst = src2->AsIntConCommon();
+            nonIntReg = src1;
+        }
+        // Only for commutative operations do we check src1 and allow it to be a contained immediate
+        else if (dst->OperIsCommutative())
+        {
+            // src1 can be immed or reg
+            assert(!src1->isContained() || src1->isContainedIntOrIImmed());
+
+            // Check src1 and allow it to be a contained immediate
+            if (src1->isContainedIntOrIImmed())
+            {
+                assert(!src2->isContainedIntOrIImmed());
+                intConst = src1->AsIntConCommon();
+                nonIntReg = src2;
+            }
+        }
+        else
+        {
+            // src1 can only be a reg
+            assert(!src1->isContained());
+        }
+    }
+#if 0
+    bool isMulOverflow = false;
+    bool isUnsignedMul = false;
+    instruction ins2 = INS_invalid;
+    regNumber extraReg = REG_ZR;
+#endif
+    if (dst->gtOverflowEx())
+    {
+        NYI("Overflow not yet implemented");
+#if 0
+        if (ins == INS_add)
+        {
+            ins = INS_adds;
+        }
+        else if (ins == INS_sub)
+        {
+            ins = INS_subs;
+        }
+        else if (ins == INS_mul)
+        {
+            isMulOverflow = true;
+            isUnsignedMul = ((dst->gtFlags & GTF_UNSIGNED) != 0);
+            regMaskTP   tmpRegsMask = dst->gtRsvdRegs;
+            assert(genCountBits(tmpRegsMask) >= 1);
+            regMaskTP extraRegMask = genFindLowestBit(tmpRegsMask);
+            tmpRegsMask &= ~extraRegMask;
+            extraReg = genRegNumFromMask(extraRegMask);
+            ins2 = isUnsignedMul ? INS_umulh : INS_smulh;
+            assert(intConst == nullptr);   // overflow format doesn't support an int constant operand
+        }
+        else
+        {
+            assert(!"Invalid ins for overflow check");
+        }
+#endif
+    }
+    if (intConst != nullptr)
+    {
+        emitIns_R_R_I(ins, attr, dst->gtRegNum, nonIntReg->gtRegNum, intConst->IconValue());
+    }
+    else
+    {
+        emitIns_R_R_R(ins, attr, dst->gtRegNum, src1->gtRegNum, src2->gtRegNum);
+#if 0
+        if (isMulOverflow)
+        {
+            emitIns_R_R_R(ins2, attr, extraReg, src1->gtRegNum, src2->gtRegNum);
+            if (isUnsignedMul)
+            {
+                emitIns_R_I(INS_cmp, EA_8BYTE, extraReg, 0);
+            }
+            else
+            {
+                emitIns_R_R_I(INS_cmp, EA_8BYTE, extraReg, dst->gtRegNum, 63, INS_OPTS_ASR);
+            }
+        }
+#endif
+    }
+
+    if (dst->gtOverflowEx())
+    {
+        assert(!varTypeIsFloating(dst));
+        codeGen->genCheckOverflow(dst);
+    }
+
+    return dst->gtRegNum;
 }
 
 #endif // !LEGACY_BACKEND

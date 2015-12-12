@@ -723,13 +723,13 @@ void Lowering::LowerSwitch(GenTreePtr* pTree)
     if (fFirstCaseFollows || fDefaultFollows)
         minSwitchTabJumpCnt++;
 
-#if defined(_TARGET_ARM_)
+/*#if defined(_TARGET_ARM_)
     // On ARM for small switch tables we will
     // generate a sequence of compare and branch instructions
     // because the code to load the base of the switch
     // table is huge and hideous due to the relocation... :(
-    minSwitchTabJumpCnt += 2;
-#elif defined(_TARGET_ARM64_) // _TARGET_ARM_
+    minSwitchTabJumpCnt += 2;*/
+#if defined(_TARGET_ARM64_) || defined(_TARGET_ARM_)
     // In the case of ARM64 we'll stick to generate a sequence of
     // compare and branch for now to get switch working and revisit
     // to implement jump tables in the future.
@@ -1453,9 +1453,6 @@ void Lowering::LowerCall(GenTree* node)
     
     LowerArgsForCall(call);
 
-// RyuJIT arm is not set up for lowered call control
-#ifndef _TARGET_ARM_
-
     // note that everything generated from this point on runs AFTER the outgoing args are placed
     GenTree* result = nullptr;
 
@@ -1576,7 +1573,6 @@ void Lowering::LowerCall(GenTree* node)
         comp->fgInsertTreeInListBefore(result, insertionPoint, callStmt);
         call->gtControlExpr = result;
     }
-#endif //!_TARGET_ARM_
 
 #ifdef DEBUG
     comp->fgDebugCheckNodeLinks(comp->compCurBB, callStmt);
