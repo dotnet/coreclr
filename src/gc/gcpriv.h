@@ -269,6 +269,7 @@ void GCLogConfig (const char *fmt, ... );
 #define VirtualProtect ClrVirtualProtect
 
 #ifdef memcpy
+#error GC_MEMCPY
 #undef memcpy
 #endif //memcpy
 
