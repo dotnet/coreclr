@@ -414,7 +414,8 @@ void log_va_msg(const char *fmt, va_list args)
         gc_log_buffer[gc_log_buffer_offset] = '\r';
         gc_log_buffer[gc_log_buffer_offset + 1] = '\n';
 
-        #error memcpy
+        #define TEST_MAC_X check
+        #error TEST_MAC_X
         memcpy (gc_log_buffer + (gc_log_buffer_offset + 2), index_str, 8);
 
         gc_buffer_index++;
