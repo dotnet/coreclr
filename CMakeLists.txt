@@ -17,7 +17,7 @@ set(GENERATED_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/src/inc)
 
 function(clr_unknown_arch)
     if (WIN32)
-        message(FATAL_ERROR "Only AMD64 and I386 are supported")
+        message(FATAL_ERROR "Only AMD64, ARM64 and I386 are supported")
     else()
         message(FATAL_ERROR "Only AMD64, ARM64 and ARM are supported")
     endif()
@@ -80,6 +80,19 @@ elseif(WIN32)
   elseif(CLR_CMAKE_TARGET_ARCH STREQUAL x86)
     set(CLR_CMAKE_PLATFORM_ARCH_I386 1)
     set(IS_64BIT_BUILD 0)
+  elseif(CLR_CMAKE_TARGET_ARCH STREQUAL arm64)
+    set(CLR_CMAKE_PLATFORM_ARCH_ARM64 1)
+    set(IS_64BIT_BUILD 1)
+
+    # CMAKE_CXX_COMPILER will default to the compiler installed with
+    # Visual studio. Overwrite it to the compiler on the path.
+    # TODO, remove when cmake generator supports Arm64 as a target.
+
+    find_program(PATH_CXX_COMPILER cl)
+    set(CMAKE_CXX_COMPILER ${PATH_CXX_COMPILER})
+
+    message("Overwriting the CMAKE_CXX_COMPILER.")
+    message(CMAKE_CXX_COMPILER found:${CMAKE_CXX_COMPILER})
   else()
     clr_unknown_arch()
   endif()
@@ -145,6 +158,7 @@ function(preprocess_def_file inputFilename outputFilename)
     DEPENDS ${inputFilename}
     COMMENT "Preprocessing ${inputFilename}"
   )
+
   set_source_files_properties(${outputFilename}
                               PROPERTIES GENERATED TRUE)
 endfunction()
@@ -297,6 +311,7 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   add_subdirectory(src/coreclr/hosts/unixcoreruncommon)
   add_subdirectory(src/coreclr/hosts/unixcorerun)
   add_subdirectory(src/coreclr/hosts/unixcoreconsole)
+  add_subdirectory(src/ildasm/unixcoreclrloader)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 if(CLR_CMAKE_PLATFORM_DARWIN)
@@ -323,8 +338,6 @@ elseif (CLR_CMAKE_PLATFORM_UNIX)
   if(CMAKE_SYSTEM_PROCESSOR STREQUAL x86_64 OR CMAKE_SYSTEM_PROCESSOR STREQUAL amd64 OR CMAKE_SYSTEM_PROCESSOR STREQUAL aarch64)
     set(IS_64BIT_BUILD 1)  
   endif (CMAKE_SYSTEM_PROCESSOR STREQUAL x86_64 OR CMAKE_SYSTEM_PROCESSOR STREQUAL amd64 OR CMAKE_SYSTEM_PROCESSOR STREQUAL aarch64)
-  
-  add_definitions(-DFEATURE_IMPLICIT_TLS)
 endif(WIN32)
 
 if (OVERRIDE_CMAKE_CXX_FLAGS)
@@ -381,16 +394,15 @@ set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /MANIFEST:NO") #Do n
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /SUBSYSTEM:WINDOWS,6.00") #windows subsystem
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /LARGEADDRESSAWARE") # can handle addresses larger than 2 gigabytes
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /RELEASE") #sets the checksum in the header
-if (IS_64BIT_BUILD EQUAL 0)
-set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /SAFESEH:NO") #Image does not have Safe Exception Handlers..valid only for x86
-endif (IS_64BIT_BUILD EQUAL 0)
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /NXCOMPAT") #Compatible with Data Execution Prevention
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /DYNAMICBASE") #Use address space layout randomization
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /DEBUGTYPE:cv,fixup") #debugging format
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /PDBCOMPRESS") #shrink pdb size
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /DEBUG")
-set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /IGNORE:4197,4013,4254,4070,4221")
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /IGNORE:4197,4013,4254,4070")
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /INCREMENTAL:NO")
+
+set(CMAKE_STATIC_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS} /IGNORE:4221")
 
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /DEBUG /PDBCOMPRESS")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:1572864")
@@ -400,13 +412,20 @@ set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "/NOVCFEATURE")
 
 # Release build specific flags
 set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /LTCG /OPT:REF /OPT:ICF")
-set(CMAKE_STATIC_LINKER_FLAGS_RELEASE "${CMAKE_STATIC_LINKER_FLAGS_RELEASE} /LTCG /OPT:REF /OPT:ICF")
+set(CMAKE_STATIC_LINKER_FLAGS_RELEASE "${CMAKE_STATIC_LINKER_FLAGS_RELEASE} /LTCG")
 set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /LTCG /OPT:REF /OPT:ICF")
 
 # ReleaseWithDebugInfo build specific flags
 set(CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO} /LTCG /OPT:REF /OPT:ICF")
-set(CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO} /LTCG /OPT:REF /OPT:ICF")
+set(CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO} /LTCG")
 set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO} /LTCG /OPT:REF /OPT:ICF")
+
+# Temporary until cmake has VS generators for arm64
+if(CLR_CMAKE_PLATFORM_ARCH_ARM64)
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /machine:arm64")
+  set(CMAKE_STATIC_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS} /machine:arm64")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /machine:arm64")
+endif(CLR_CMAKE_PLATFORM_ARCH_ARM64)
 
 endif (WIN32)
 
@@ -490,17 +509,15 @@ if (WIN32)
 endif(WIN32)
 # Definition directives
 
-
+  if(IS_64BIT_BUILD)
+    add_definitions(-DBIT64=1)
+  endif(IS_64BIT_BUILD)
 
 if (CLR_CMAKE_PLATFORM_UNIX)
   add_definitions(-DFEATURE_PAL_SXS)
   add_definitions(-DFEATURE_COREFX_GLOBALIZATION)
   add_definitions(-DFEATURE_PAL)
 
-  if(IS_64BIT_BUILD)
-    add_definitions(-DBIT64=1)
-  endif(IS_64BIT_BUILD)
-  
   if(CLR_CMAKE_PLATFORM_DARWIN)
     add_definitions(-D_XOPEN_SOURCE)
   endif(CLR_CMAKE_PLATFORM_DARWIN)
@@ -519,20 +536,18 @@ add_definitions(-DNT_INST=0)
 add_definitions(-DCONDITION_HANDLING=1)
 add_definitions(-DNTDDI_VERSION=NTDDI_WIN8)
 
-if (IS_64BIT_BUILD EQUAL 1)
+if (CLR_CMAKE_PLATFORM_ARCH_AMD64)
   if (CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64)
     add_definitions(-DDBG_TARGET_AMD64_UNIX)
-    add_definitions(-D_TARGET_AMD64_=1)
-    add_definitions(-DDBG_TARGET_AMD64)
-  elseif (CLR_CMAKE_PLATFORM_UNIX_TARGET_ARM64)
+  endif()
+  add_definitions(-D_TARGET_AMD64_=1)
+  add_definitions(-DDBG_TARGET_AMD64)
+elseif(CLR_CMAKE_PLATFORM_ARCH_ARM64)
+  if (CLR_CMAKE_PLATFORM_UNIX_TARGET_ARM64)
     add_definitions(-DDBG_TARGET_ARM64_UNIX)
-    add_definitions(-D_TARGET_ARM64_=1)
-    add_definitions(-DDBG_TARGET_ARM64)
-  else ()
-    # Windows is assumed in this path -- fix this
-    add_definitions(-DDBG_TARGET_AMD64)
-    add_definitions(-D_TARGET_AMD64_=1)
-  endif (CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64)
+  endif()
+  add_definitions(-D_TARGET_ARM64_=1)
+  add_definitions(-DDBG_TARGET_ARM64)
 elseif (CLR_CMAKE_PLATFORM_ARCH_ARM)
   if (CLR_CMAKE_PLATFORM_UNIX_TARGET_ARM)
     add_definitions(-DDBG_TARGET_ARM_UNIX)
@@ -544,7 +559,7 @@ elseif (CLR_CMAKE_PLATFORM_ARCH_I386)
   add_definitions(-DDBG_TARGET_X86)
 else ()
   clr_unknown_arch()
-endif (IS_64BIT_BUILD EQUAL 1)
+endif (CLR_CMAKE_PLATFORM_ARCH_AMD64)
 
 if(WIN32)
     add_definitions(-D_CRT_SECURE_NO_WARNINGS)
@@ -555,15 +570,24 @@ add_definitions(-DWINVER=0x0602)
 add_definitions(-DWIN32_LEAN_AND_MEAN=1)
 add_definitions(-DDEBUGGING_SUPPORTED)
 if(WIN32)
-    # Disable edit and continue on Linux
-    add_definitions(-DEnC_SUPPORTED)
+  if(CLR_CMAKE_PLATFORM_ARCH_AMD64 OR CLR_CMAKE_PLATFORM_ARCH_I386)
+      # Only enable edit and continue on windows x86 and x64
+      # exclude Linux, arm & arm64
+      add_definitions(-DEnC_SUPPORTED)
+  endif(CLR_CMAKE_PLATFORM_ARCH_AMD64 OR CLR_CMAKE_PLATFORM_ARCH_I386)
 endif(WIN32)
 add_definitions(-DFEATURE_APPDOMAIN_RESOURCE_MONITORING)
 if(CLR_CMAKE_PLATFORM_ARCH_AMD64 OR CLR_CMAKE_PLATFORM_ARCH_ARM OR CLR_CMAKE_PLATFORM_ARCH_ARM64)
     add_definitions(-DFEATURE_ARRAYSTUB_AS_IL)
 endif()
-if (CLR_CMAKE_PLATFORM_UNIX)
+
+if (CLR_CMAKE_PLATFORM_UNIX OR CLR_CMAKE_PLATFORM_ARCH_ARM64)
     add_definitions(-DFEATURE_STUBS_AS_IL)
+    add_definitions(-DFEATURE_IMPLICIT_TLS)
+    set(FEATURE_IMPLICIT_TLS 1)
+endif()
+
+if (CLR_CMAKE_PLATFORM_UNIX)
     if (CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64)
       add_definitions(-DUNIX_AMD64_ABI)
     elseif (CLR_CMAKE_PLATFORM_UNIX_TARGET_ARM)
@@ -624,7 +648,10 @@ endif(WIN32)
 add_definitions(-DFEATURE_NORM_IDNA_ONLY)
 add_definitions(-DFEATURE_PREJIT)
 add_definitions(-DFEATURE_RANDOMIZED_STRING_HASHING)
-add_definitions(-DFEATURE_READYTORUN)
+if(NOT DEFINED CLR_CMAKE_PLATFORM_ARCH_ARM64)
+  add_definitions(-DFEATURE_READYTORUN)
+  set(FEATURE_READYTORUN 1)
+endif(NOT DEFINED CLR_CMAKE_PLATFORM_ARCH_ARM64)
 add_definitions(-DFEATURE_STANDALONE_SN)
 add_definitions(-DFEATURE_STRONGNAME_DELAY_SIGNING_ALLOWED)
 add_definitions(-DFEATURE_STRONGNAME_MIGRATION)
@@ -647,6 +674,9 @@ if(WIN32)
     add_definitions(-DFEATURE_X509)
     add_definitions(-DFEATURE_X509_SECURESTRINGS)
     add_definitions(-DPROFILING_SUPPORTED)
+    if (CLR_CMAKE_PLATFORM_ARCH_I386 OR CLR_CMAKE_PLATFORM_ARCH_ARM)
+        add_definitions(-DFEATURE_LAZY_COW_PAGES)
+    endif()
 endif(WIN32)
 add_definitions(-DFEATURE_MULTICOREJIT)
 add_definitions(-DFEATURE_USE_ASM_GC_WRITE_BARRIERS)
@@ -692,21 +722,16 @@ add_definitions(-DFX_BRANCH_SYNC_COUNTER_VALUE=0)
 add_definitions(-DUNICODE)
 add_definitions(-D_UNICODE)
 
-if (IS_64BIT_BUILD EQUAL 1)
-  if (CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64 EQUAL 1)
+if (CLR_CMAKE_PLATFORM_ARCH_AMD64)
     set(ARCH_SOURCES_DIR amd64)
-  elseif (CLR_CMAKE_PLATFORM_UNIX_TARGET_ARM64 EQUAL 1)
+elseif (CLR_CMAKE_PLATFORM_ARCH_ARM64)
     set(ARCH_SOURCES_DIR arm64)
-  else ()
-    # Windows is assumed in this path -- fix this
-    set(ARCH_SOURCES_DIR amd64)
-  endif ()
-else ()
-  if (CLR_CMAKE_PLATFORM_ARCH_ARM)
+elseif (CLR_CMAKE_PLATFORM_ARCH_ARM)
     set(ARCH_SOURCES_DIR arm)
-  else ()
+elseif (CLR_CMAKE_PLATFORM_ARCH_I386)
     set(ARCH_SOURCES_DIR i386)
-  endif ()
-endif (IS_64BIT_BUILD EQUAL 1)
+else ()
+    clr_unknown_arch()
+endif ()
 
 add_subdirectory(src)

@@ -58,11 +58,11 @@ inline BOOL ShouldTrackMovementForProfilerOrEtw()
 
 #define demotion_plug_len_th (6*1024*1024)
 
-#ifdef _WIN64
+#ifdef BIT64
 #define MARK_STACK_INITIAL_LENGTH 1024
 #else
 #define MARK_STACK_INITIAL_LENGTH 128
-#endif //_WIN64
+#endif // BIT64
 
 #define LOH_PIN_QUEUE_LENGTH 100
 #define LOH_PIN_DECAY 10
@@ -2071,7 +2071,7 @@ uint8_t* gc_heap::pad_for_alignment_large (uint8_t* newAlloc, int requiredAlignm
 
 #ifdef SERVER_GC
 
-#ifdef _WIN64
+#ifdef BIT64
 
 #define INITIAL_ALLOC ((size_t)((size_t)4*1024*1024*1024))
 #define LHEAP_ALLOC   ((size_t)(1024*1024*256))
@@ -2081,11 +2081,11 @@ uint8_t* gc_heap::pad_for_alignment_large (uint8_t* newAlloc, int requiredAlignm
 #define INITIAL_ALLOC ((size_t)(1024*1024*64))
 #define LHEAP_ALLOC   ((size_t)(1024*1024*32))
 
-#endif  // _WIN64
+#endif  // BIT64
 
 #else //SERVER_GC
 
-#ifdef _WIN64
+#ifdef BIT64
 
 #define INITIAL_ALLOC ((size_t)(1024*1024*256))
 #define LHEAP_ALLOC   ((size_t)(1024*1024*128))
@@ -2095,7 +2095,7 @@ uint8_t* gc_heap::pad_for_alignment_large (uint8_t* newAlloc, int requiredAlignm
 #define INITIAL_ALLOC ((size_t)(1024*1024*16))
 #define LHEAP_ALLOC   ((size_t)(1024*1024*16))
 
-#endif  // _WIN64
+#endif  // BIT64
 
 #endif //SERVER_GC
 
@@ -2299,7 +2299,7 @@ size_t      gc_heap::gc_gen0_desired_high;
 float       gc_heap::short_plugs_pad_ratio = 0;
 #endif //SHORT_PLUGS
 
-#if defined(_WIN64)
+#if defined(BIT64)
 #define MAX_ALLOWED_MEM_LOAD 85
 
 // consider putting this in dynamic data -
@@ -2308,13 +2308,15 @@ float       gc_heap::short_plugs_pad_ratio = 0;
 #define MIN_YOUNGEST_GEN_DESIRED (16*1024*1024)
 
 size_t      gc_heap::youngest_gen_desired_th;
+#endif //BIT64
 
-size_t      gc_heap::mem_one_percent;
+uint64_t    gc_heap::mem_one_percent;
+
+uint32_t    gc_heap::high_memory_load_th;
 
 uint64_t    gc_heap::total_physical_mem;
 
 uint64_t    gc_heap::available_physical_mem;
-#endif //_WIN64
 
 #ifdef BACKGROUND_GC
 CLREvent    gc_heap::bgc_start_event;
@@ -2967,7 +2969,7 @@ gc_heap::dt_high_frag_p (gc_tuning_point tp,
 }
 
 inline BOOL 
-gc_heap::dt_estimate_reclaim_space_p (gc_tuning_point tp, int gen_number, uint64_t total_mem)
+gc_heap::dt_estimate_reclaim_space_p (gc_tuning_point tp, int gen_number)
 {
     BOOL ret = FALSE;
 
@@ -2983,24 +2985,21 @@ gc_heap::dt_estimate_reclaim_space_p (gc_tuning_point tp, int gen_number, uint64
                 size_t est_maxgen_surv = (size_t)((float) (maxgen_total_size) * dd_surv (dd));
                 size_t est_maxgen_free = maxgen_total_size - est_maxgen_surv + dd_fragmentation (dd);
 
-#ifdef SIMPLE_DPRINTF
-                dprintf (GTC_LOG, ("h%d: Total gen2 size: %Id(s: %d%%), est gen2 dead space: %Id (s: %d, allocated: %Id), frag: %Id, 3%% of physical mem is %Id bytes",
+                dprintf (GTC_LOG, ("h%d: Total gen2 size: %Id, est gen2 dead space: %Id (s: %d, allocated: %Id), frag: %Id",
                             heap_number,
                             maxgen_total_size,
-                            (int)(100*dd_surv (dd)),
                             est_maxgen_free, 
                             (int)(dd_surv (dd) * 100),
                             maxgen_allocated,
-                            dd_fragmentation (dd),
-                            (size_t)((float)total_mem * 0.03)));
-#endif //SIMPLE_DPRINTF
+                            dd_fragmentation (dd)));
+
                 uint32_t num_heaps = 1;
 
 #ifdef MULTIPLE_HEAPS
                 num_heaps = gc_heap::n_heaps;
 #endif //MULTIPLE_HEAPS
 
-                size_t min_frag_th = min_reclaim_fragmentation_threshold(total_mem, num_heaps);
+                size_t min_frag_th = min_reclaim_fragmentation_threshold (num_heaps);
                 dprintf (GTC_LOG, ("h%d, min frag is %Id", heap_number, min_frag_th));
                 ret = (est_maxgen_free >= min_frag_th);
             }
@@ -3374,11 +3373,11 @@ size_t seg_mapping_word_of (uint8_t* add)
 #else //GROWABLE_SEG_MAPPING_TABLE
 BOOL seg_mapping_table_init()
 {
-#ifdef _WIN64
+#ifdef BIT64
     uint64_t total_address_space = (uint64_t)8*1024*1024*1024*1024;
 #else
     uint64_t total_address_space = (uint64_t)4*1024*1024*1024;
-#endif //_WIN64
+#endif // BIT64
 
     size_t num_entries = (size_t)(total_address_space / gc_heap::min_segment_size);
     seg_mapping_table = new seg_mapping[num_entries];
@@ -4293,9 +4292,9 @@ static size_t get_valid_segment_size (BOOL large_seg=FALSE)
     }
 
 #ifdef MULTIPLE_HEAPS
-#ifdef _WIN64
+#ifdef BIT64
     if (!large_seg)
-#endif //_WIN64
+#endif // BIT64
     {
         if (g_SystemInfo.dwNumberOfProcessors > 4)
             initial_seg_size /= 2;
@@ -5601,9 +5600,9 @@ void gc_mechanisms::init_mechanisms()
     allocations_allowed = TRUE;
 #endif //BACKGROUND_GC
 
-#ifdef _WIN64
+#ifdef BIT64
     entry_memory_load = 0;
-#endif //_WIN64
+#endif // BIT64
 
 #ifdef STRESS_HEAP
     stress_induced = FALSE;
@@ -5767,7 +5766,7 @@ void gc_heap::fix_allocation_context (alloc_context* acontext, BOOL for_gc_p,
 
 //used by the heap verification for concurrent gc.
 //it nulls out the words set by fix_allocation_context for heap_verification
-void repair_allocation (alloc_context* acontext)
+void repair_allocation (alloc_context* acontext, void*)
 {
     uint8_t*  point = acontext->alloc_ptr;
 
@@ -5780,7 +5779,7 @@ void repair_allocation (alloc_context* acontext)
     }
 }
 
-void void_allocation (alloc_context* acontext)
+void void_allocation (alloc_context* acontext, void*)
 {
     uint8_t*  point = acontext->alloc_ptr;
 
@@ -5793,22 +5792,38 @@ void void_allocation (alloc_context* acontext)
     }
 }
 
-void gc_heap::fix_allocation_contexts (BOOL for_gc_p)
-{
-    CNameSpace::GcFixAllocContexts ((void*)(size_t)for_gc_p, __this);
-    fix_youngest_allocation_area (for_gc_p);
-    fix_large_allocation_area (for_gc_p);
-}
-
 void gc_heap::repair_allocation_contexts (BOOL repair_p)
 {
-    CNameSpace::GcEnumAllocContexts (repair_p ? repair_allocation : void_allocation);
+    GCToEEInterface::GcEnumAllocContexts (repair_p ? repair_allocation : void_allocation, NULL);
 
     alloc_context* acontext = generation_alloc_context (youngest_generation);
     if (repair_p)
-        repair_allocation (acontext);
+        repair_allocation (acontext, NULL);
     else
-        void_allocation (acontext);
+        void_allocation (acontext, NULL);
+}
+
+struct fix_alloc_context_args
+{
+    BOOL for_gc_p;
+    void* heap;
+};
+
+void fix_alloc_context(alloc_context* acontext, void* param)
+{
+    fix_alloc_context_args* args = (fix_alloc_context_args*)param;
+    GCHeap::GetGCHeap()->FixAllocContext(acontext, FALSE, (void*)(size_t)(args->for_gc_p), args->heap);
+}
+
+void gc_heap::fix_allocation_contexts(BOOL for_gc_p)
+{
+    fix_alloc_context_args args;
+    args.for_gc_p = for_gc_p;
+    args.heap = __this;
+    GCToEEInterface::GcEnumAllocContexts(fix_alloc_context, &args);
+
+    fix_youngest_allocation_area(for_gc_p);
+    fix_large_allocation_area(for_gc_p);
 }
 
 void gc_heap::fix_older_allocation_area (generation* older_gen)
@@ -6969,11 +6984,11 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
                 top = saved_g_highest_address;
             }
             size_t ps = ha-la;
-#ifdef _WIN64
+#ifdef BIT64
             if (ps > (uint64_t)200*1024*1024*1024)
                 ps += (uint64_t)100*1024*1024*1024;
             else
-#endif //_WIN64
+#endif // BIT64
                 ps *= 2;
 
             if (saved_g_lowest_address < g_lowest_address)
@@ -8129,11 +8144,11 @@ void gc_heap::combine_mark_lists()
 #endif //MULTIPLE_HEAPS
 #endif //MARK_LIST
 
-#ifdef _WIN64
+#ifdef BIT64
 #define TOTAL_TIMES_TO_SHIFT 6
 #else
 #define TOTAL_TIMES_TO_SHIFT 5
-#endif // _WIN64
+#endif // BIT64
 
 size_t round_up_power2 (size_t size)
 {
@@ -9518,7 +9533,7 @@ HANDLE CreateLogFile(const CLRConfig::ConfigStringInfo & info, BOOL is_config)
             FILE_ATTRIBUTE_NORMAL,
             NULL);
 #else // FEATURE_REDHAWK
-    char logfile_name[MAX_LONGPATH+1];
+    char logfile_name[MAX_PATH+1];
     if (temp_logfile_name != 0)
     {
         int ret;
@@ -14603,16 +14618,12 @@ int gc_heap::generation_to_condemn (int n_initial,
             dprintf (GTC_LOG, ("ml: %d", ms.dwMemoryLoad));
         }
 
-        if (heap_number == 0)
-        {
-#ifdef _WIN64
-            available_physical_mem = ms.ullAvailPhys;
-#endif //_WIN64
-            local_settings->entry_memory_load = ms.dwMemoryLoad;
-        }
+        // Need to get it early enough for all heaps to use.
+        available_physical_mem = ms.ullAvailPhys;
+        local_settings->entry_memory_load = ms.dwMemoryLoad;
         
         // @TODO: Force compaction more often under GCSTRESS
-        if (ms.dwMemoryLoad >= 90 || low_memory_detected)
+        if (ms.dwMemoryLoad >= high_memory_load_th || low_memory_detected)
         {
 #ifdef SIMPLE_DPRINTF
             // stress log can't handle any parameter that's bigger than a void*.
@@ -14625,13 +14636,13 @@ int gc_heap::generation_to_condemn (int n_initial,
 
             high_memory_load = TRUE;
 
-            if (ms.dwMemoryLoad >= 97 || low_memory_detected)
+            if (ms.dwMemoryLoad >= v_high_memory_load_th || low_memory_detected)
             {
                 // TODO: Perhaps in 64-bit we should be estimating gen1's fragmentation as well since
                 // gen1/gen0 may take a lot more memory than gen2.
                 if (!high_fragmentation)
                 {
-                    high_fragmentation = dt_estimate_reclaim_space_p (tuning_deciding_condemned_gen, max_generation, ms.ullTotalPhys);
+                    high_fragmentation = dt_estimate_reclaim_space_p (tuning_deciding_condemned_gen, max_generation);
                 }
                 v_high_memory_load = TRUE;
             }
@@ -14709,7 +14720,7 @@ int gc_heap::generation_to_condemn (int n_initial,
     if (evaluate_elevation && (low_ephemeral_space || high_memory_load || v_high_memory_load))
     {
         *elevation_requested_p = TRUE;
-#ifdef _WIN64
+#ifdef BIT64
         // if we are in high memory load and have consumed 10% of the gen2 budget, do a gen2 now.
         if (high_memory_load || v_high_memory_load)
         {
@@ -14725,7 +14736,7 @@ int gc_heap::generation_to_condemn (int n_initial,
 
         if (n <= max_generation)
         {
-#endif //_WIN64
+#endif // BIT64
             if (high_fragmentation)
             {
                 //elevate to max_generation
@@ -14756,9 +14767,9 @@ int gc_heap::generation_to_condemn (int n_initial,
                 n = max (n, max_generation - 1);
                 dprintf (GTC_LOG, ("h%d: nf c %d", heap_number, n));
             }
-#ifdef _WIN64
+#ifdef BIT64
         }
-#endif //_WIN64
+#endif // BIT64
     }
 
     if ((n == (max_generation - 1)) && (n_alloc < (max_generation -1)))
@@ -14895,9 +14906,19 @@ exit:
 #endif //_PREFAST_
 
 inline
-size_t gc_heap::min_reclaim_fragmentation_threshold(uint64_t total_mem, uint32_t num_heaps)
+size_t gc_heap::min_reclaim_fragmentation_threshold (uint32_t num_heaps)
 {
-     return min ((size_t)((float)total_mem * 0.03), (100*1024*1024)) / num_heaps;
+    // if the memory load is higher, the threshold we'd want to collect gets lower.
+    size_t min_mem_based_on_available = 
+        (500 - (settings.entry_memory_load - high_memory_load_th) * 40) * 1024 * 1024 / num_heaps;
+    size_t ten_percent_size = (size_t)((float)generation_size (max_generation) * 0.10);
+    ULONGLONG three_percent_mem = mem_one_percent * 3 / num_heaps;
+
+#ifdef SIMPLE_DPRINTF
+    dprintf (GTC_LOG, ("min av: %Id, 10%% gen2: %Id, 3%% mem: %I64d", 
+        min_mem_based_on_available, ten_percent_size, three_percent_mem));
+#endif //SIMPLE_DPRINTF
+    return (size_t)(min (min_mem_based_on_available, min (ten_percent_size, three_percent_mem)));
 }
 
 inline
@@ -15488,10 +15509,10 @@ void gc_heap::gc1()
                     {
                         desired_per_heap = min_gc_size;
                     }
-#ifdef _WIN64
+#ifdef BIT64
                     desired_per_heap = joined_youngest_desired (desired_per_heap);
                     dprintf (2, ("final gen0 new_alloc: %Id", desired_per_heap));
-#endif //_WIN64
+#endif // BIT64
 
                     gc_data_global.final_youngest_desired = desired_per_heap;
                 }
@@ -20027,7 +20048,7 @@ size_t gc_heap::update_brick_table (uint8_t* tree, size_t current_brick,
 
 void gc_heap::plan_generation_start (generation* gen, generation* consing_gen, uint8_t* next_plug_to_allocate)
 {
-#ifdef _WIN64
+#ifdef BIT64
     // We should never demote big plugs to gen0.
     if (gen == youngest_generation)
     {
@@ -20059,7 +20080,7 @@ void gc_heap::plan_generation_start (generation* gen, generation* consing_gen, u
             mark_stack_large_bos++;
         }
     }
-#endif //_WIN64
+#endif // BIT64
 
     generation_plan_allocation_start (gen) =
         allocate_in_condemned_generations (consing_gen, Align (min_obj_size), -1);
@@ -22101,7 +22122,7 @@ void gc_heap::plan_phase (int condemned_gen_number)
     BOOL should_compact= FALSE;
     ephemeral_promotion = FALSE;
 
-#ifdef _WIN64
+#ifdef BIT64
     if ((!settings.concurrent) &&
         ((condemned_gen_number < max_generation) && 
          ((settings.gen0_reduction_count > 0) || (settings.entry_memory_load >= 95))))
@@ -22124,11 +22145,11 @@ void gc_heap::plan_phase (int condemned_gen_number)
     }
     else
     {
-#endif //_WIN64
+#endif // BIT64
         should_compact = decide_on_compacting (condemned_gen_number, fragmentation, should_expand);
-#ifdef _WIN64
+#ifdef BIT64
     }
-#endif //_WIN64
+#endif // BIT64
 
 #ifdef FEATURE_LOH_COMPACTION
     loh_compacted_p = FALSE;
@@ -23030,7 +23051,7 @@ void gc_heap::make_unused_array (uint8_t* x, size_t size, BOOL clearp, BOOL rese
 
     ((CObjectHeader*)x)->SetFree(size);
 
-#ifdef _WIN64
+#ifdef BIT64
 
 #if BIGENDIAN
 #error "This won't work on big endian platforms"
@@ -23076,7 +23097,7 @@ void gc_heap::clear_unused_array (uint8_t* x, size_t size)
 
     ((CObjectHeader*)x)->UnsetFree();
 
-#ifdef _WIN64
+#ifdef BIT64
 
 #if BIGENDIAN
 #error "This won't work on big endian platforms"
@@ -24503,13 +24524,9 @@ void gc_heap::compact_phase (int condemned_gen_number,
     reset_pinned_queue_bos();
     update_oldest_pinned_plug();
 
-    BOOL reused_seg = FALSE;
-    int heap_expand_mechanism = get_gc_data_per_heap()->get_mechanism (gc_heap_expand);
-    if ((heap_expand_mechanism == expand_reuse_bestfit) || 
-        (heap_expand_mechanism == expand_reuse_normal))
+    BOOL reused_seg = expand_reused_seg_p();
+    if (reused_seg)
     {
-        reused_seg = TRUE;
-
         for (int i = 1; i <= max_generation; i++)
         {
             generation_allocation_size (generation_of (i)) = 0;
@@ -28480,6 +28497,19 @@ BOOL gc_heap::process_free_space (heap_segment* seg,
     return FALSE;
 }
 
+BOOL gc_heap::expand_reused_seg_p()
+{
+    BOOL reused_seg = FALSE;
+    int heap_expand_mechanism = gc_data_per_heap.get_mechanism (gc_heap_expand);
+    if ((heap_expand_mechanism == expand_reuse_bestfit) || 
+        (heap_expand_mechanism == expand_reuse_normal))
+    {
+        reused_seg = TRUE;
+    }
+
+    return reused_seg;
+}
+
 BOOL gc_heap::can_expand_into_p (heap_segment* seg, size_t min_free_size, size_t min_cont_size,
                                  allocator* gen_allocator)
 {
@@ -29121,7 +29151,8 @@ generation* gc_heap::expand_heap (int condemned_generation,
 
     //reset the elevation state for next time.
     dprintf (2, ("Elevation: elevation = el_none"));
-    settings.should_lock_elevation = FALSE;
+    if (settings.should_lock_elevation && !expand_reused_seg_p())
+        settings.should_lock_elevation = FALSE;
 
     heap_segment* new_seg = new_heap_segment;
 
@@ -29737,7 +29768,7 @@ void  gc_heap::compute_promoted_allocation (int gen_number)
     compute_in (gen_number);
 }
 
-#ifdef _WIN64
+#ifdef BIT64
 inline
 size_t gc_heap::trim_youngest_desired (uint32_t memory_load,
                                        size_t total_new_allocation,
@@ -29784,7 +29815,14 @@ size_t gc_heap::joined_youngest_desired (size_t new_allocation)
 
             size_t final_total = 
                 trim_youngest_desired (dwMemoryLoad, total_new_allocation, total_min_allocation);
-            final_new_allocation  = Align ((final_total / num_heaps), get_alignment_constant (TRUE));
+            size_t max_new_allocation = 
+#ifdef MULTIPLE_HEAPS
+                                         dd_max_size (g_heaps[0]->dynamic_data_of (0));
+#else //MULTIPLE_HEAPS
+                                         dd_max_size (dynamic_data_of (0));
+#endif //MULTIPLE_HEAPS
+
+            final_new_allocation  = min (Align ((final_total / num_heaps), get_alignment_constant (TRUE)), max_new_allocation);
         }
     }
 
@@ -29795,7 +29833,7 @@ size_t gc_heap::joined_youngest_desired (size_t new_allocation)
 
     return final_new_allocation;
 }
-#endif //_WIN64 
+#endif // BIT64 
 
 inline
 gc_history_per_heap* gc_heap::get_gc_data_per_heap()
@@ -29873,9 +29911,9 @@ void gc_heap::compute_new_dynamic_data (int gen_number)
                 {
                     dd_desired_allocation (dd) = higher_bound;
                 }
-#if defined (_WIN64) && !defined (MULTIPLE_HEAPS)
+#if defined (BIT64) && !defined (MULTIPLE_HEAPS)
                 dd_desired_allocation (dd) = joined_youngest_desired (dd_desired_allocation (dd));
-#endif //_WIN64 && !MULTIPLE_HEAPS
+#endif // BIT64 && !MULTIPLE_HEAPS
                 trim_youngest_desired_low_memory();
                 dprintf (2, ("final gen0 new_alloc: %Id", dd_desired_allocation (dd)));
             }
@@ -29977,7 +30015,7 @@ void gc_heap::decommit_ephemeral_segment_pages()
     if (settings.condemned_generation >= (max_generation-1))
     {
         size_t new_slack_space = 
-#ifdef _WIN64
+#ifdef BIT64
                     max(min(min(get_valid_segment_size()/32, dd_max_size(dd)), (generation_size (max_generation) / 10)), dd_desired_allocation(dd));
 #else
 #ifdef FEATURE_CORECLR
@@ -29985,7 +30023,7 @@ void gc_heap::decommit_ephemeral_segment_pages()
 #else
                     dd_max_size (dd);
 #endif //FEATURE_CORECLR                                    
-#endif //_WIN64
+#endif // BIT64
 
         slack_space = min (slack_space, new_slack_space);
     }
@@ -30165,9 +30203,9 @@ BOOL gc_heap::decide_on_compacting (int condemned_gen_number,
         }
     }
 
-#ifdef _WIN64
+#ifdef BIT64
     BOOL high_memory = FALSE;
-#endif // _WIN64
+#endif // BIT64
 
     if (!should_compact)
     {
@@ -30193,7 +30231,7 @@ BOOL gc_heap::decide_on_compacting (int condemned_gen_number,
 #endif // BACKGROUND_GC
         }
 
-#ifdef _WIN64
+#ifdef BIT64
         // check for high memory situation
         if(!should_compact)
         {
@@ -30203,9 +30241,9 @@ BOOL gc_heap::decide_on_compacting (int condemned_gen_number,
 #endif // MULTIPLE_HEAPS
             
             ptrdiff_t reclaim_space = generation_size(max_generation) - generation_plan_size(max_generation);
-            if((settings.entry_memory_load >= 90) && (settings.entry_memory_load < 97))
+            if((settings.entry_memory_load >= high_memory_load_th) && (settings.entry_memory_load < v_high_memory_load_th))
             {
-                if(reclaim_space > (int64_t)(min_high_fragmentation_threshold(available_physical_mem, num_heaps)))
+                if(reclaim_space > (int64_t)(min_high_fragmentation_threshold (available_physical_mem, num_heaps)))
                 {
                     dprintf(GTC_LOG,("compacting due to fragmentation in high memory"));
                     should_compact = TRUE;
@@ -30213,9 +30251,9 @@ BOOL gc_heap::decide_on_compacting (int condemned_gen_number,
                 }
                 high_memory = TRUE;
             }
-            else if(settings.entry_memory_load >= 97)
+            else if(settings.entry_memory_load >= v_high_memory_load_th)
             {
-                if(reclaim_space > (ptrdiff_t)(min_reclaim_fragmentation_threshold(total_physical_mem, num_heaps)))
+                if(reclaim_space > (ptrdiff_t)(min_reclaim_fragmentation_threshold (num_heaps)))
                 {
                     dprintf(GTC_LOG,("compacting due to fragmentation in very high memory"));
                     should_compact = TRUE;
@@ -30224,7 +30262,7 @@ BOOL gc_heap::decide_on_compacting (int condemned_gen_number,
                 high_memory = TRUE;
             }
         }
-#endif // _WIN64
+#endif // BIT64
     }
 
     // The purpose of calling ensure_gap_allocation here is to make sure
@@ -30241,10 +30279,11 @@ BOOL gc_heap::decide_on_compacting (int condemned_gen_number,
     {
         //check the progress
         if (
-#ifdef _WIN64
+#ifdef BIT64
             (high_memory && !should_compact) ||
-#endif // _WIN64
-            generation_size (max_generation) <= generation_plan_size (max_generation))
+#endif // BIT64
+            (generation_plan_allocation_start (generation_of (max_generation - 1)) >= 
+                generation_allocation_start (generation_of (max_generation - 1))))
         {
             dprintf (2, (" Elevation: gen2 size: %d, gen2 plan size: %d, no progress, elevation = locked",
                      generation_size (max_generation),
@@ -30453,7 +30492,7 @@ CObjectHeader* gc_heap::allocate_large_object (size_t jsize, int64_t& alloc_byte
 
     size_t maxObjectSize = (INT32_MAX - 7 - Align(min_obj_size));
 
-#ifdef _WIN64
+#ifdef BIT64
     if (g_pConfig->GetGCAllowVeryLargeObjects())
     {
         maxObjectSize = (INT64_MAX - 7 - Align(min_obj_size));
@@ -33470,13 +33509,32 @@ HRESULT GCHeap::Initialize ()
     if (hr != S_OK)
         return hr;
 
-#if defined(_WIN64)
     GCMemoryStatus ms;
     GetProcessMemoryLoad (&ms);
     gc_heap::total_physical_mem = ms.ullTotalPhys;
     gc_heap::mem_one_percent = gc_heap::total_physical_mem / 100;
+#ifndef MULTIPLE_HEAPS
+    gc_heap::mem_one_percent /= g_SystemInfo.dwNumberOfProcessors;
+#endif //!MULTIPLE_HEAPS
+
+    // We should only use this if we are in the "many process" mode which really is only applicable
+    // to very powerful machines - before that's implemented, temporarily I am only enabling this for 80GB+ memory. 
+    // For now I am using an estimate to calculate these numbers but this should really be obtained 
+    // programmatically going forward.
+    // I am assuming 47 processes using WKS GC and 3 using SVR GC.
+    // I am assuming 3 in part due to the "very high memory load" is 97%.
+    int available_mem_th = 10;
+    if (gc_heap::total_physical_mem >= ((ULONGLONG)80 * 1024 * 1024 * 1024))
+    {
+        int adjusted_available_mem_th = 3 + (int)((float)47 / (float)(g_SystemInfo.dwNumberOfProcessors));
+        available_mem_th = min (available_mem_th, adjusted_available_mem_th);
+    }
+
+    gc_heap::high_memory_load_th = 100 - available_mem_th;
+
+#if defined(BIT64) 
     gc_heap::youngest_gen_desired_th = gc_heap::mem_one_percent;
-#endif // _WIN64
+#endif // BIT64
 
     WaitForGCEvent = new (nothrow) CLREvent;
 
@@ -34626,7 +34684,7 @@ BOOL should_collect_optimized (dynamic_data* dd, BOOL low_memory_p)
 HRESULT
 GCHeap::GarbageCollect (int generation, BOOL low_memory_p, int mode)
 {
-#if defined(_WIN64) 
+#if defined(BIT64) 
     if (low_memory_p)
     {
         size_t total_allocated = 0;
@@ -34655,7 +34713,7 @@ GCHeap::GarbageCollect (int generation, BOOL low_memory_p, int mode)
             return S_OK;
         }
     }
-#endif //_WIN64 
+#endif // BIT64 
 
 #ifdef MULTIPLE_HEAPS
     gc_heap* hpt = gc_heap::g_heaps[0];

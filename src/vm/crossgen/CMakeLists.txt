@@ -22,7 +22,6 @@ set(VM_CROSSGEN_SOURCES
     ../baseassemblyspec.cpp
     ../corebindresult.cpp
     ../coreassemblyspec.cpp
-    ../crossdomaincalls.cpp
     ../dataimage.cpp
     ../decodemd.cpp
     ../debuginfostore.cpp
@@ -34,8 +33,6 @@ set(VM_CROSSGEN_SOURCES
     ../field.cpp
     ../fieldmarshaler.cpp
     ../formattype.cpp
-    ../typeequivalencehash.cpp
-    ../gcdecode.cpp
     ../genericdict.cpp
     ../generics.cpp
     ../genmeth.cpp
@@ -68,7 +65,6 @@ set(VM_CROSSGEN_SOURCES
     ../pendingload.cpp
     ../precode.cpp
     ../olevariant.cpp
-    ../readytoruninfo.cpp
     ../security.cpp
     ../securitypolicy.cpp
     ../securityattributes.cpp
@@ -101,6 +97,12 @@ set(VM_CROSSGEN_SOURCES
     ../crossgencompile.cpp
 )
 
+if(FEATURE_READYTORUN)
+    list(APPEND VM_CROSSGEN_SOURCES
+      ../readytoruninfo.cpp
+    )
+endif(FEATURE_READYTORUN)
+
 include_directories(BEFORE ..)
 include_directories(${CLR_DIR}/src/gc)
 
@@ -113,6 +115,7 @@ elseif(CLR_CMAKE_PLATFORM_ARCH_I386)
   include_directories(../i386)
   list(APPEND VM_CROSSGEN_SOURCES 
     ../i386/stublinkerx86.cpp
+    ../gcdecode.cpp
   )
 elseif(CLR_CMAKE_PLATFORM_ARCH_ARM)
   include_directories(../arm)

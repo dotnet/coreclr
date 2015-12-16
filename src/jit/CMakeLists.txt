@@ -18,6 +18,7 @@ set( JIT_SOURCES
   block.cpp
   compiler.cpp
   disasm.cpp
+  earlyprop.cpp
   eeinterface.cpp
   ee_il_dll.cpp
   jiteh.cpp
@@ -31,6 +32,7 @@ set( JIT_SOURCES
   hashbv.cpp
   importer.cpp
   instr.cpp
+  jittelemetry.cpp
   lclvars.cpp
   liveness.cpp
   morph.cpp
@@ -56,6 +58,7 @@ set( JIT_SOURCES
   codegencommon.cpp
   assertionprop.cpp
   rangecheck.cpp
+  jittelemetry.cpp
   loopcloning.cpp
   lower.cpp
   lsra.cpp
@@ -85,6 +88,8 @@ elseif(CLR_CMAKE_PLATFORM_ARCH_I386)
     targetx86.cpp
     lowerxarch.cpp
     codegenxarch.cpp
+    codegenlegacy.cpp
+    stackfp.cpp
   )
 elseif(CLR_CMAKE_PLATFORM_ARCH_ARM64)
   set( ARCH_SOURCES
@@ -134,3 +139,7 @@ set(CLR_EXPORTED_SYMBOL_FILE ${CLRJIT_EXPORTS_DEF})
 add_subdirectory(dll)
 add_subdirectory(crossgen)
 add_subdirectory(standalone)
+
+if (CLR_CMAKE_PLATFORM_ARCH_I386 OR CLR_CMAKE_PLATFORM_ARCH_ARM)
+    add_subdirectory(protojit)
+endif (CLR_CMAKE_PLATFORM_ARCH_I386 OR CLR_CMAKE_PLATFORM_ARCH_ARM)
