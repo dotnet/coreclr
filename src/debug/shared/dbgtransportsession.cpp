@@ -93,11 +93,9 @@ HRESULT DbgTransportSession::Init(DebuggerIPCControlBlock *pDCB, AppDomainEnumer
     m_sStateLock.Init();
     m_fInitStateLock = true;
 
-#ifdef RIGHT_SIDE_COMPILE
     m_hSessionOpenEvent = WszCreateEvent(NULL, TRUE, FALSE, NULL); // Manual reset, not signalled
     if (m_hSessionOpenEvent == NULL)
         return E_OUTOFMEMORY;
-#endif // RIGHT_SIDE_COMPILE
 
     // Allocate some buffers to receive incoming events. The initial number is chosen arbitrarily, tune as
     // necessary. This array will need to grow if it fills with unread events (it takes our client a little
@@ -167,10 +165,8 @@ void DbgTransportSession::Shutdown()
 
         } // Leave m_sStateLock
 
-#ifdef RIGHT_SIDE_COMPILE
         // Signal the m_hSessionOpenEvent now to quickly error out any callers of WaitForSessionToOpen().
         SetEvent(m_hSessionOpenEvent);
-#endif // RIGHT_SIDE_COMPILE
     }
 
     // No other threads are now using session resources. We're free to deallocate them as we wish (if they
@@ -183,11 +179,10 @@ void DbgTransportSession::Shutdown()
         CloseHandle(m_rghEventReadyEvent[IPCET_DebugEvent]);
     if (m_pEventBuffers)
         delete [] m_pEventBuffers;
-
-#ifdef RIGHT_SIDE_COMPILE
     if (m_hSessionOpenEvent)
         CloseHandle(m_hSessionOpenEvent);
 
+#ifdef RIGHT_SIDE_COMPILE
     if (m_hProcessExited)
     {
         CloseHandle(m_hProcessExited);
@@ -212,7 +207,6 @@ void DbgTransportSession::Neuter()
 }
 #endif // !RIGHT_SIDE_COMPILE
 
-#ifdef RIGHT_SIDE_COMPILE
 // On the RS it may be useful to wait and see if the session can reach the SS_Open state. If the target
 // runtime has terminated for some reason then we'll never reach the open state. So the method below gives the
 // RS a way to try and establish a connection for a reasonable amount of time and to time out otherwise. They
@@ -230,6 +224,7 @@ bool DbgTransportSession::WaitForSessionToOpen(DWORD dwTimeout)
     return dwRet == WAIT_OBJECT_0;
 }
 
+#ifdef RIGHT_SIDE_COMPILE
 //---------------------------------------------------------------------------------------
 //
 // A valid ticket is returned if no other client is currently acting as the debugger.
@@ -1234,10 +1229,10 @@ void DbgTransportSession::TransportWorker()
 
         DbgTransportLog(LC_Proxy, "Forming new connection");
 
-#ifdef RIGHT_SIDE_COMPILE
         // The session is definitely not open at this point.
         ResetEvent(m_hSessionOpenEvent);
 
+#ifdef RIGHT_SIDE_COMPILE
         // On the right side we initiate the connection via Connect(). A failure is dealt with by waiting a
         // little while and retrying (the LS may take a little while to set up). If there's nobody listening
         // the debugger will eventually get bored waiting for us and shutdown the session, which will
@@ -1475,10 +1470,8 @@ void DbgTransportSession::TransportWorker()
                     _ASSERTE(!"Bad session state");
             } // Leave m_sStateLock
 
-#ifdef RIGHT_SIDE_COMPILE
             // Signal any WaitForSessionToOpen() waiters that we've gotten to SS_Open.
             SetEvent(m_hSessionOpenEvent);
-#endif // RIGHT_SIDE_COMPILE
 
             // We're ready to begin receiving normal incoming messages now.
         }
@@ -2045,10 +2038,8 @@ void DbgTransportSession::TransportWorker()
 
     _ASSERTE(m_eState == SS_Closed);
 
-#ifdef RIGHT_SIDE_COMPILE
     // The session is definitely not open at this point.
     ResetEvent(m_hSessionOpenEvent);
-#endif // RIGHT_SIDE_COMPILE
 
     // Close the connection if we haven't done so already.
     m_pipe.Disconnect();

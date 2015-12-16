@@ -587,6 +587,52 @@ PALAPI
 PAL_SetShutdownCallback(
     IN PSHUTDOWN_CALLBACK callback);
 
+/*++
+    PAL_InvokeOnRuntimeStartup
+
+Parameters:
+    DWORD dwProcessId - process id of runtime process
+    PPAL_STARTUP_CALLBACK pfnCallback - function to callback for coreclr module found
+    PVOID parameter - callback data
+
+Return value:
+    TRUE - succeeded, FALSE - failed
+
+Note:
+    The callback can be called on the current thread or a new thread if the coreclr
+    module hasn't been loaded in the process yet.
+
+    Only the first coreclr module is currently supported.
+--*/
+typedef VOID (*PPAL_STARTUP_CALLBACK)(
+    char *modulePath,
+    HMODULE hModule,
+    PVOID parameter);
+
+PALIMPORT
+BOOL
+PALAPI
+PAL_InvokeOnRuntimeStartup(
+    IN DWORD dwProcessId,
+    IN PPAL_STARTUP_CALLBACK pfnCallback,
+    IN PVOID parameter);
+
+/*++
+    PAL_NotifyRuntimeStarted
+
+    Signals the debugger waiting for runtime startup notification to continue.
+
+Parameters:
+    None
+
+Return value:
+    TRUE, wait for debugger to connect (semaphore exists), FALSE don't
+--*/
+PALIMPORT
+BOOL
+PALAPI
+PAL_NotifyRuntimeStarted();
+
 PALIMPORT
 void
 PALAPI
@@ -3411,7 +3457,7 @@ GetThreadTimes(
         OUT LPFILETIME lpExitTime,
         OUT LPFILETIME lpKernelTime,
         OUT LPFILETIME lpUserTime);
-		
+
 #define TLS_OUT_OF_INDEXES ((DWORD)0xFFFFFFFF)
 
 PALIMPORT
@@ -3908,9 +3954,9 @@ PALIMPORT
 HANDLE
 PALAPI
 HeapCreate(
-	       IN DWORD flOptions,
-	       IN SIZE_T dwInitialSize,
-	       IN SIZE_T dwMaximumSize);
+       IN DWORD flOptions,
+       IN SIZE_T dwInitialSize,
+       IN SIZE_T dwMaximumSize);
 
 PALIMPORT
 LPVOID
@@ -4442,10 +4488,10 @@ int
 PALAPI
 CompareStringOrdinal(
     IN LPCWSTR lpString1, 
-	IN int cchCount1, 
-	IN LPCWSTR lpString2, 
-	IN int cchCount2, 
-	IN BOOL bIgnoreCase);
+    IN int cchCount1, 
+    IN LPCWSTR lpString2, 
+    IN int cchCount2, 
+    IN BOOL bIgnoreCase);
 
 typedef struct _nlsversioninfoex { 
   DWORD  dwNLSVersionInfoSize; 
@@ -4460,15 +4506,15 @@ int
 PALAPI
 FindNLSStringEx(
     IN LPCWSTR lpLocaleName, 
-	IN DWORD dwFindNLSStringFlags, 
-	IN LPCWSTR lpStringSource, 
-	IN int cchSource, 
+    IN DWORD dwFindNLSStringFlags, 
+    IN LPCWSTR lpStringSource, 
+    IN int cchSource, 
     IN LPCWSTR lpStringValue, 
-	IN int cchValue, 
-	OUT LPINT pcchFound, 
-	IN LPNLSVERSIONINFOEX lpVersionInformation, 
-	IN LPVOID lpReserved, 
-	IN LPARAM lParam );
+    IN int cchValue, 
+    OUT LPINT pcchFound, 
+    IN LPNLSVERSIONINFOEX lpVersionInformation, 
+    IN LPVOID lpReserved, 
+    IN LPARAM lParam );
 
 typedef enum {
     COMPARE_STRING = 0x0001,
@@ -4479,10 +4525,10 @@ BOOL
 PALAPI
 IsNLSDefinedString(
     IN NLS_FUNCTION Function, 
-	IN DWORD dwFlags, 
-	IN LPNLSVERSIONINFOEX lpVersionInfo, 
-	IN LPCWSTR lpString, 
-	IN int cchStr );
+    IN DWORD dwFlags, 
+    IN LPNLSVERSIONINFOEX lpVersionInfo, 
+    IN LPCWSTR lpString, 
+    IN int cchStr );
 
 
 PALIMPORT
@@ -4490,8 +4536,8 @@ int
 PALAPI
 ResolveLocaleName(
     IN LPCWSTR lpNameToResolve,
-        OUT LPWSTR lpLocaleName,
-        IN int cchLocaleName );
+    OUT LPWSTR lpLocaleName,
+    IN int cchLocaleName );
 
 PALIMPORT
 BOOL 
@@ -4508,7 +4554,7 @@ int
 PALAPI
 GetSystemDefaultLocaleName(
     OUT LPWSTR lpLocaleName, 
-	IN int cchLocaleName);
+    IN int cchLocaleName);
 
 #ifdef UNICODE
 #define GetLocaleInfo GetLocaleInfoW
@@ -4519,7 +4565,7 @@ PALIMPORT
 LCID
 PALAPI
 GetUserDefaultLCID(
-           void);
+    void);
 #endif
 
 
@@ -4527,8 +4573,8 @@ PALIMPORT
 int
 PALAPI
 GetUserDefaultLocaleName(
-           OUT LPWSTR lpLocaleName,
-           IN int cchLocaleName);
+    OUT LPWSTR lpLocaleName,
+    IN int cchLocaleName);
 
 
 #define LCID_INSTALLED            0x00000001  // installed locale ids
