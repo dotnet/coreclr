@@ -186,6 +186,10 @@ Compiler::fgWalkResult      Compiler::optPropagateNonCSE(GenTreePtr *pTree, fgWa
     Compiler* comp = data->compiler;
 
     /* Calls get DONT_CSE implicitly */
+    // TODO: Handle intrinsics modeled as method calls??? (Think of obj.GetType() being the call?)
+    //       Will we miss opportunity for optimization without it? Or is it possible to CSE an expression 
+    //       with side effect, thus altering the program behavior?
+    //       We might have to add a GT_INTRINSIC check here? Keyword: IntrinsicsModeledAsACall
     if (tree->OperGet() == GT_CALL)
     {
         if (!IsSharedStaticHelper(tree))

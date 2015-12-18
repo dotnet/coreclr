@@ -11147,6 +11147,13 @@ GenTreePtr          Compiler::gtNewRefCOMfield(GenTreePtr   objPtr,
 
 bool                Compiler::gtNodeHasSideEffects(GenTreePtr tree, unsigned flags)
 {
+    // If this is an intrinsic, implemented as a call, it always has a side effect - 
+    // it can throw NullReferenceException if the target of the call is null.    
+    if (tree->OperGet() == GT_INTRINSIC && ((flags & GTF_CALL) != 0))
+    {
+        return true;
+    }
+
     if (flags & GTF_ASG)
     {
         if  ((tree->OperKind() & GTK_ASGOP) || 
@@ -11234,6 +11241,13 @@ bool                Compiler::gtNodeHasSideEffects(GenTreePtr tree, unsigned fla
 bool                Compiler::gtTreeHasSideEffects(GenTreePtr tree,
                                                    unsigned   flags /* = GTF_SIDE_EFFECT*/)
 {
+    // If this is an intrinsic, implemented as a call, it always has a side effect - 
+    // it can throw NullReferenceException if the target of the call is null.    
+    if (tree->OperGet() == GT_INTRINSIC && ((flags & GTF_CALL) != 0))
+    {
+        return true;
+    }
+
     // These are the side effect flags that we care about for this tree
     unsigned sideEffectFlags = tree->gtFlags & flags;
 
@@ -11438,6 +11452,8 @@ void                Compiler::gtExtractSideEffList(GenTreePtr expr, GenTreePtr *
         }
     }
 
+    // TODO: Handle intrinsics modeled as method calls?? (Think of obj.GetType() being the call?)
+    //       We might have to add a GT_INTRINSIC check here ? Keyword : IntrinsicsModeledAsACall
     if (expr->OperGet() == GT_CALL)
     {
         // Generally all GT_CALL nodes are considered to have side-effects.
@@ -11652,6 +11668,8 @@ bool            Compiler::gtHasCatchArg(GenTreePtr tree)
          i++)
     {
         GenTree *node = parentStack->Index(i);
+        // TODO: Handle intrinsics modeled as method calls?? (Think of obj.GetType() being the call?)
+        //        We might have to add a GT_INTRINSIC check here? Keyword: IntrinsicsModeledAsACall
         if (node->OperGet() == GT_CALL)
         {
             return true;
@@ -11727,6 +11745,8 @@ void Compiler::gtCheckQuirkAddrExposedLclVar(GenTreePtr tree, GenTreeStack* pare
 //  3) a local variable of type RuntimeType.
 bool Compiler::gtCanOptimizeTypeEquality(GenTreePtr tree)
 {
+    // TODO: Handle intrinsics modeled as method calls?? (Think of obj.GetType() being the call?)
+    //        We might have to add a GT_INTRINSIC check here? Keyword: IntrinsicsModeledAsACall
     if (tree->gtOper == GT_CALL)
     {
         if (tree->gtCall.gtCallType == CT_HELPER)

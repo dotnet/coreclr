@@ -4528,6 +4528,7 @@ void Compiler::optVnNonNullPropCurStmt(BasicBlock* block, GenTreePtr stmt, GenTr
 {
     ASSERT_TP empty = BitVecOps::MakeEmpty(apTraits);
     GenTreePtr newTree = nullptr;
+    // TODO: Handle intrinsic implemented as call. We might have to add a GT_INTRINSIC check here? Keyword: IntrinsicsModeledAsACall
     if (tree->OperGet() == GT_CALL)
     {
         newTree = optNonNullAssertionProp_Call(empty, tree, stmt);
