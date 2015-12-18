@@ -7,7 +7,7 @@ These instructions are for .NET Core console apps. If you want to try out ASP.NE
 
 .NET Core NuGet packages are available on the [.NET Core myget feed](https://www.myget.org/F/dotnet-core), which you can more easily view on [gallery](https://www.myget.org/gallery/dotnet-core) for the feed.
 
-The preferred approach to acquire .NET Core is via the [.NET Core DNX SDK](get-dotnetcore-dnx-windows.md). It's the easiest approach. Alternatively, you can [build from source](../building/windows-instructions.md). This "raw" approach falls between the two in difficulty.
+The preferred approach to acquire .NET Core is via the [.NET Core CLI tools](get-dotnetcore-windows.md). It's the easiest approach. Alternatively, you can [build from source](../building/windows-instructions.md). This "raw" approach falls between the two in difficulty.
 
 NuGet Restore Packages
 ======================
