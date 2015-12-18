@@ -3244,7 +3244,8 @@ InterlockedBinOpCommon:
 
 #ifndef LEGACY_BACKEND
     case CORINFO_INTRINSIC_Object_GetType:
-
+        // TODO: What if the object type is tail prefixed? Don't convert to intrinsic. 
+        //       Will we end up ignoring the tail call prefix in such case? Keyword: IntrinsicsModeledAsACall       
         op1 = impPopStack().val;
         op1 = new (this, GT_INTRINSIC) GenTreeIntrinsic(genActualType(callType), op1, intrinsicID, method);
 

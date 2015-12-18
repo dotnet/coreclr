@@ -13140,6 +13140,8 @@ bool                Compiler::fgFoldConditional(BasicBlock * block)
 
         noway_assert(stmt->gtNext == NULL);
 
+        // TODO: Handle intrinsics modeled as method calls?? (Think of an intrinsic that is modeled as a call returning an int).
+        //       Will we miss opportunity for optimization without it? We might have to add a GT_INTRINSIC check here? Keyword: IntrinsicsModeledAsACall
         if (stmt->gtStmt.gtStmtExpr->gtOper == GT_CALL)
         {
             noway_assert(fgRemoveRestOfBlock);
@@ -13347,6 +13349,8 @@ DONE_COND:
 
         noway_assert(stmt->gtNext == NULL);
 
+        // TODO: Handle intrinsics modeled as method calls?? (Think of intrinsic returning a null being the call?)
+        //       Will we miss opportunity for optimization without it? We might have to add a GT_INTRINSIC check here? Keyword: IntrinsicsModeledAsACall
         if (stmt->gtStmt.gtStmtExpr->gtOper == GT_CALL)
         {
             noway_assert(fgRemoveRestOfBlock);

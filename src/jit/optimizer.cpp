@@ -5068,6 +5068,8 @@ Compiler::fgWalkResult      Compiler::optIsVarAssgCB(GenTreePtr *pTree, fgWalkDa
             desc->ivaMaskInd = varRefKinds(desc->ivaMaskInd | refs);
         }
     }
+    // TODO: Handle intrinsics modeled as method calls?? (Think of obj.GetType() being the call?)
+    //      We might have to add a GT_INTRINSIC check here? Keyword: IntrinsicsModeledAsACall
     else if (tree->gtOper == GT_CALL)
     {
         isVarAssgDsc *  desc = (isVarAssgDsc*)data->pCallbackData;
@@ -5901,6 +5903,9 @@ bool Compiler::optHoistLoopExprsForTree(GenTreePtr tree,
         // If it's a call, it must be a helper call, and be pure.
         // Further, if it may run a cctor, it must be labeled as "Hoistable" 
         // (meaning it won't run a cctor because the class is not precise-init).
+        // TODO: Handle intrinsics modeled as method calls?? (Think of obj.GetType() being the call?)
+        //       Will we miss-hoist an expression with side effect? What would the result be if that happens?
+        //       We might have to add a GT_INTRINSIC check here? Keyword: IntrinsicsModeledAsACall
         if (treeIsHoistable && tree->OperGet() == GT_CALL)
         {
             GenTreeCall* call = tree->AsCall();
@@ -6536,6 +6541,9 @@ void                Compiler::optComputeLoopSideEffectsOfBlock(BasicBlock* blk)
             // Even after we set heapHavoc we still may want to know if a loop contains calls
             if (heapHavoc)
             {
+                // TODO: Handle intrinsics modeled as method calls?? (Think of obj.GetType() being the call?)
+                //       If we have the intrinsic, that is later converted to a call, would we miss this expression?
+                //       We might have to add a GT_INTRINSIC check here? Keyword: IntrinsicsModeledAsACall
                 if (oper == GT_CALL)
                 {
                     // Record that this loop contains a call

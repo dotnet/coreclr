@@ -7191,6 +7191,9 @@ bool Compiler::fgCastNeeded(GenTreePtr tree, var_types toType)
     {
         fromType = tree->CastToType();
     }
+    // TODO: Handle intrinsic modeled as calls. (Like obj.GetType()) 
+    // TODO: I think we are fine here since the else case below will cover the intrinsic that is 
+    //       rewritten later to a call. Please confirm that. Keyword: IntrinsicsModeledAsACall
     else if (tree->OperGet() == GT_CALL)
     {
         fromType = (var_types) tree->gtCall.gtReturnType;
@@ -21539,6 +21542,10 @@ void                Compiler::fgInline()
             expr = stmt->gtStmtExpr;
 
             // See if we can expand the inline candidate.
+            // TODO: Handle intrinsics modeled as method calls (Would we inline obj.GetType() here?) 
+            //        We might have to add a GT_INTRINSIC check here? Are we allowing inlining of such intrinsics?
+            //        Keyword: IntrinsicsModeledAsACall
+
             if ((expr->gtOper == GT_CALL) && ((expr->gtFlags & GTF_CALL_INLINE_CANDIDATE) != 0))
             {
                 fgMorphStmt = stmt;
@@ -21559,6 +21566,8 @@ void                Compiler::fgInline()
 
             // See if stmt is of the form GT_COMMA(call, nop)
             // If yes, we can get rid of GT_COMMA.            
+            // TODO: Handle intrinsics modeled as method calls???
+            //        We might have to add a GT_INTRINSIC check here as well? Keyword: IntrinsicsModeledAsACall
             if (expr->OperGet() == GT_COMMA &&
                 expr->gtOp.gtOp1->OperGet() == GT_CALL &&
                 expr->gtOp.gtOp2->OperGet() == GT_NOP)
