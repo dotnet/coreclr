@@ -11,15 +11,15 @@ Intro to .NET Core
 Learn about .NET Core
 ====================
 
-- [[WIP] Official .NET Core Docs](http://dotnet.readthedocs.org)
+- [[WIP] Official .NET Core Docs](http://dotnet.github.io/docs/)
 
 Get .NET Core
 =============
 
-- [Get .NET Core DNX SDK on Windows](install/get-dotnetcore-dnx-windows.md)
-- [Get .NET Core DNX SDK on OS X](install/get-dotnetcore-dnx-osx.md)
-- [Get .NET Core DNX SDK on Linux](install/get-dotnetcore-dnx-linux.md)
-- [Get .NET Core (Raw) on Windows](install/get-dotnetcore-windows.md)
+- [Get .NET Core on Windows](install/get-dotnetcore-windows.md)
+- [Get .NET Core on OS X](install/get-dotnetcore-osx.md)
+- [Get .NET Core on Linux](install/get-dotnetcore-linux.md)
+- [Get .NET Core (Raw) on Windows](install/get-dotnetcore-raw-windows.md)
 
 Project Docs
 ============
@@ -50,7 +50,6 @@ Build CoreCLR from Source
 - [Testing Changes on Windows](building/windows-test-instructions.md)
 - [Testing Changes on Linux, OS X, and FreeBSD](building/unix-test-instructions.md)
 - [Testing with CoreFX](building/testing-with-corefx.md)
-- [Creating a Custom DNX](building/custom-dnx-instructions.md)
 
 Book of the Runtime
 ===================

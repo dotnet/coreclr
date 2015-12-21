@@ -1,28 +1,29 @@
-Get .NET Core SDK on Windows
-============================
+Get .NET Core SDK on OS X
+=========================
 
 These instructions will lead you through acquiring the .NET Core SDK via the [.NET Core CLI toolset](https://github.com/dotnet/cli) and running a "Hello World" sample on Windows. 
 
 These instructions are for .NET Core console apps. If you want to try out ASP.NET 5 on top of .NET Core - which is a great idea - check out the [ASP.NET 5 instructions](https://github.com/aspnet/home).
 
-You can also acquire .NET Core directly via [NuGet restore](get-dotnetcore-windows.md) or [build from source](../building/windows-instructions.md). 
+You can also [build from source](../building/osx-instructions.md). 
 
 Installing .NET CLI toolset
 ===========================
 
-There are two main ways to install the .NET CLI on Windows:
+There are two main ways to install the .NET CLI on OS X:
 
-1. Using the MSI installer
-2. Uzing the ZIP for a "local install"
+1. Using the PKG package  
+2. Uzing the tarball (tar.gz file) for a "local install"
 
-In this guide, we are going to be focusing on using the MSI installer. Installing the CLI toolset via this route is very easy: you just need to download and run the [MSI file](https://dotnetcli.blob.core.windows.net/dotnet/dev/Installers/Latest/dotnet-win-x64.latest.msi). 
+In this guide we will be using the PKG package. Simply download this file [from the URL](https://dotnetcli.blob.core.windows.net/dotnet/dev/Installers/Latest/dotnet-osx-x64.latest.pkg) and open it up from disk, then follow the prompts. This will install the .NET CLI toolset on your system. 
 
-After the install is done, you can verify that everything went according to plan by opening up a new PowerShell (or command) prompt and running
+**Note:** we will be adding a [Homebrew]() package soon, so check out [.NET CLI repo](https://github.com/dotnet/cli) for more details. 
 
-```shell
+In order to test out if everything worked, you can run the `dotnet` command from the terminal:
+
+``shell
 dotnet
 ```
-
 You should see the following output:
 
 ```shell
@@ -53,8 +54,7 @@ You need a Hello World application to run. You can write your own, if you'd like
 In order to do that, we will first create a directory and then use `dotnet new` inside it:
 
 ```shell
-mkdir testapp
-cd testapp
+mkdir testapp && cd testapp
 dotnet new
 ```
 
@@ -69,3 +69,4 @@ You can run your app with the `dotnet run` command.
 
 	dotnet run
     Hello World!
+
