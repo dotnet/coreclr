@@ -87,7 +87,7 @@ public:
                 hi = i;
             }
         }
-        if ((hi == lo) && (length > 0) && array[lo] == value))
+        if ((hi == lo) && (length > 0) && (array[lo] == value))
             return lo;
         else
             // not found
