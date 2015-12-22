@@ -937,7 +937,7 @@ namespace System {
                 }
                 if ((hi == lo) && (length > 0)) {
                     try {
-                        c = comparer.Compare(objArray[i], value);
+                        c = comparer.Compare(objArray[lo], value);
                     }
                     catch (Exception e) {
                         throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_IComparerFailed"), e);
@@ -964,7 +964,7 @@ namespace System {
                 }
                 if ((hi == lo) && (length > 0)) {
                     try {
-                        c = comparer.Compare(array.GetValue(i), value);
+                        c = comparer.Compare(array.GetValue(lo), value);
                     }
                     catch (Exception e) {
                         throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_IComparerFailed"), e);
