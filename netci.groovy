@@ -74,8 +74,8 @@ def static addPRTrigger(def job, def architecture, def os, def configuration, is
                     break
                 case 'Ubuntu':
                 case 'OSX':
-                    // Only add the trigger for the flow job
-                    if (isFlowJob) {
+                    // Only add the trigger for the flow job and only for Release, since Debug is too slow
+                    if (isFlowJob && configuration == 'Release') {
                         Utilities.addGithubPRTrigger(job, "${os} ${architecture} ${configuration} Build and Test")
                     }
                     break
@@ -87,26 +87,37 @@ def static addPRTrigger(def job, def architecture, def os, def configuration, is
                 case 'Windows_NT':
                     Utilities.addGithubPRTrigger(job, "${os} ${architecture} ${configuration} Build and Test")
                     break
+                case 'FreeBSD':
+                    Utilities.addGithubPRTrigger(job, "${os} ${architecture} ${configuration} Build")
+                    break
                 default:
                     println("Unknown os: ${os}");
-                    // assert false
+                    assert false
                     break
             }
             break
         case 'arm64':
         case 'arm':
-            if (os == 'Ubuntu') {
-                Utilities.addGithubPRTrigger(job, "${os} ${architecture} Cross ${configuration} Build", "(?i).*test\\W+${os}\\W+${architecture}.*")
+            switch (os) {
+                case 'Ubuntu':
+                    Utilities.addGithubPRTrigger(job, "${os} ${architecture} Cross ${configuration} Build", "(?i).*test\\W+${os}\\W+${architecture}.*")
+                    break
+                case 'Windows_NT':
+                    // Set up a private trigger
+                    Utilities.addPrivateGithubPRTrigger(job, "${os} ${architecture} Cross ${configuration} Build",
+                        "(?i).*test\\W+${architecture}\\W+${osGroup}.*", ['Microsoft*dotnet-coreclr', 'Microsoft*dotnet-corefx'], null)
+                    break
             }
-            // No arm64 triggers yet for other OS's
             break
         case 'x86':
             // For windows, x86 runs by default
             if (os == 'Windows_NT') {
                 Utilities.addGithubPRTrigger(job, "${os} ${architecture} ${configuration} Build")
             }
-            // default trigger
-            Utilities.addGithubPRTrigger(job, "${os} ${architecture} ${configuration} Build", "(?i).*test\\W+${architecture}\\W+${osGroup}.*")
+            else {
+                // default trigger
+                Utilities.addGithubPRTrigger(job, "${os} ${architecture} ${configuration} Build", "(?i).*test\\W+${architecture}\\W+${osGroup}.*")
+            }
             break
         default:
             println("Unknown architecture: ${architecture}");
@@ -180,7 +191,7 @@ def static addPRTrigger(def job, def architecture, def os, def configuration, is
                                 buildCommands += "build.cmd ${lowerConfiguration} ${architecture}"
                                 
                                 // TEMPORARY. Don't run tests for PR jobs on x86
-                                if (architecture == 'x86' && !isPR) {
+                                if (architecture == 'x64' || !isPR) {
                                     buildCommands += "tests\\runtest.cmd ${lowerConfiguration} ${architecture}"
                                 }
                                 
@@ -226,7 +237,7 @@ def static addPRTrigger(def job, def architecture, def os, def configuration, is
                                 buildCommands += "src/pal/tests/palsuite/runpaltests.sh \${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration} \${WORKSPACE}/bin/paltestout"
                                 
                                 // Basic archiving of the build
-                                Utilities.addArchival(newJob, "bin/Product/**")
+                                Utilities.addArchival(newJob, "bin/Product/**,bin/obj/*/tests/**")
                                 // And pal tests
                                 Utilities.addXUnitDotNETResults(newJob, '**/pal_tests.xml')
                                 break
@@ -355,8 +366,8 @@ def static addPRTrigger(def job, def architecture, def os, def configuration, is
         --testNativeBinDir=\"\${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration}/tests\" \\
         --coreClrBinDir=\"\${WORKSPACE}/bin/Product/${osGroup}.${architecture}.${configuration}\" \\
         --mscorlibDir=\"\${WORKSPACE}/bin/Product/${osGroup}.${architecture}.${configuration}\" \\
-        --coreFxBinDir=\"\${WORKSPACE}/bin/${osGroup}.AnyCPU.Debug\" \\
-        --coreFxNativeBinDir=\"\${WORKSPACE}/bin/${osGroup}.${architecture}.Debug\"""")
+        --coreFxBinDir=\"\${WORKSPACE}/bin/${osGroup}.AnyCPU.Release\" \\
+        --coreFxNativeBinDir=\"\${WORKSPACE}/bin/${osGroup}.${architecture}.Release\"""")
                     }
                 }
                 
@@ -374,12 +385,12 @@ def static addPRTrigger(def job, def architecture, def os, def configuration, is
                     buildFlow("""
 // Build the input jobs in parallel
 parallel (
-    { coreclrBuildJob = build(globalParams, '${inputCoreCLRBuildName}') },
-    { windowsBuildJob = build(globalParams, '${inputWindowTestsBuildName}') }
+    { coreclrBuildJob = build(params, '${inputCoreCLRBuildName}') },
+    { windowsBuildJob = build(params, '${inputWindowTestsBuildName}') }
 )
     
 // And then build the test build
-build(globalParams + [CORECLR_BUILD: coreclrBuildJob.build.number, 
+build(params + [CORECLR_BUILD: coreclrBuildJob.build.number, 
                 CORECLR_WINDOWS_BUILD: windowsBuildJob.build.number], '${fullTestJobName}')    
 """)
                     // Needs a workspace

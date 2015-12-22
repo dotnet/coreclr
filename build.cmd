@@ -35,6 +35,7 @@ if /i "%1" == "arm64"    (set __BuildArch=arm64&&shift&goto Arg_Loop)
 
 if /i "%1" == "debug"    (set __BuildType=Debug&shift&goto Arg_Loop)
 if /i "%1" == "release"   (set __BuildType=Release&shift&goto Arg_Loop)
+if /i "%1" == "checked"    (set __BuildType=Checked&shift&goto Arg_Loop)
 
 if /i "%1" == "clean"   (set __CleanBuild=1&shift&goto Arg_Loop)
 
@@ -47,6 +48,8 @@ if /i "%1" == "vs2013" (set __VSVersion=%1&shift&goto Arg_Loop)
 if /i "%1" == "vs2015" (set __VSVersion=%1&shift&goto Arg_Loop)
 if /i "%1" == "skiptestbuild" (set __SkipTestBuild=1&shift&goto Arg_Loop)
 if /i "%1" == "docrossgen" (set __DoCrossgen=1&shift&goto Arg_Loop)
+
+if /i "%1" == "/toolset_dir" (set __ToolsetDir=%2&shift&shift&goto Arg_Loop)
 
 echo Invalid commandline argument: %1
 goto Usage
@@ -74,6 +77,7 @@ echo.
 
 :: MSBuild projects would need a rebuild
 set __MSBCleanBuildArgs=/t:rebuild
+
 
 :: Cleanup the previous output for the selected configuration
 if exist "%__BinDir%" rd /s /q "%__BinDir%"
@@ -139,14 +143,30 @@ if not exist %_msbuildexe% echo Error: Could not find MSBuild.exe.  Please see h
 
 :: All set to commence the build
 
-setlocal
+setlocal EnableDelayedExpansion
 if defined __MscorlibOnly goto PerformMScorlibBuild
 
 echo Commencing build of native components for %__BuildOS%.%__BuildArch%.%__BuildType%
 echo.
 
 rem arm64 builds currently use private toolset which has not been released yet
-if /i "%__BuildArch%" =="arm64" goto GenVSSolution
+if /i "%__BuildArch%" == "arm64"  (
+  REM TODO, remove once the toolset is open.
+
+  if not "%__BuildOS%" == "Windows_NT" goto GenVSSolution
+
+  if /i "%__ToolsetDir%" == "" (
+    echo "A toolset directory is required for the Arm64 Windows build."
+    exit /b 1
+  )
+)
+
+REM TODO, remove once the toolset is open.
+if /i "%__BuildArch%" == "arm64" set PATH=%PATH%;%__ToolsetDir%\cpp\bin
+if /i "%__BuildArch%" == "arm64" set LIB=%__ToolsetDir%\OS\lib
+if /i "%__BuildArch%" == "arm64" set INCLUDE=%__ToolsetDir%\cpp\inc;%__ToolsetDir%\OS\inc\Windows;%__ToolsetDir%\OS\inc\Windows\crt;%__ToolsetDir%\cpp\inc\vc;%__ToolsetDir%\OS\inc\win8;
+
+if /i "%__BuildArch%" == "arm64" goto GenVSSolution
 
 :: Set the environment for the native build
 set __VCBuildArch=x86_amd64
@@ -272,12 +292,13 @@ echo.
 echo Usage:
 echo %0 BuildArch BuildType [clean] [vsversion] where:
 echo.
-echo BuildArch can be: x64, x86
-echo BuildType can be: Debug, Release
+echo BuildArch can be: x64, x86, arm64
+echo BuildType can be: Debug, Release, Checked
 echo Clean - optional argument to force a clean build.
 echo VSVersion - optional argument to use VS2013 or VS2015 (default VS2015)
 echo windowsmscorlib - Build mscorlib for Windows
 echo linuxmscorlib - Build mscorlib for Linux
 echo osxmscorlib - Build mscorlib for OS X
 echo skiptestbuild - Skip building tests
+echo toolset_dir - toolset directory -- Arm64 use only.
 exit /b 1
