@@ -28,6 +28,7 @@
 //typedef __int64_t __int64;
 
 
+#define __GNUC_VA_LIST
 #define FORMAT_VALIDATIONS
 
 typedef double  _CRT_DOUBLE;

@@ -24,6 +24,11 @@
 #ifndef _INC_INTERNAL_SECURECRT
 #define _INC_INTERNAL_SECURECRT
 
+typedef unsigned long __uint64_t;
+typedef signed long __int64_t;
+typedef __int64_t int64_t;
+typedef __uint64_t uint64_t;
+
 /* more VS specific goodness */
 #define __out_ecount_z( x )
 #define __out_ecount( x )

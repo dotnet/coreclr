@@ -422,7 +422,7 @@ void CONTEXTToNativeContext(CONST CONTEXT *lpContext, native_context_t *native)
 
     if ((lpContext->ContextFlags & CONTEXT_FLOATING_POINT) == CONTEXT_FLOATING_POINT)
     {
-#ifdef _AMD64_
+#if 0 //_AMD64_
         FPREG_ControlWord(native) = lpContext->FltSave.ControlWord;
         FPREG_StatusWord(native) = lpContext->FltSave.StatusWord;
         FPREG_TagWord(native) = lpContext->FltSave.TagWord;
@@ -481,7 +481,7 @@ void CONTEXTFromNativeContext(const native_context_t *native, LPCONTEXT lpContex
     
     if ((contextFlags & CONTEXT_FLOATING_POINT) == CONTEXT_FLOATING_POINT)
     {
-#ifdef _AMD64_
+#if 0//def _AMD64_
         lpContext->FltSave.ControlWord = FPREG_ControlWord(native);
         lpContext->FltSave.StatusWord = FPREG_StatusWord(native);
         lpContext->FltSave.TagWord = FPREG_TagWord(native);

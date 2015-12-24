@@ -17,6 +17,11 @@ elseif(CLR_CMAKE_PLATFORM_ARCH_ARM64)
     return()
 endif()
 
+if(CLR_CMAKE_PLATFORM_LINUX_ALPINE)
+    message(WARNING "lldb is not supported on Alpine Linux yet")
+    return()
+endif()
+
 set(ENABLE_LLDBPLUGIN ${CLR_CMAKE_PLATFORM_UNIX} CACHE BOOL "Enable building the SOS plugin for LLDB.")
 set(REQUIRE_LLDBPLUGIN ${CLR_CMAKE_PLATFORM_LINUX} CACHE BOOL "Require building the SOS plugin for LLDB.")
 

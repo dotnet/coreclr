@@ -223,6 +223,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
     unwind
     unwind-generic
     uuid
+    intl
   )
 endif(CMAKE_SYSTEM_NAME STREQUAL Linux)
 
@@ -252,9 +253,9 @@ endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
 add_subdirectory(examples)
 
-if(CMAKE_SYSTEM_NAME STREQUAL Linux)
+if((CMAKE_SYSTEM_NAME STREQUAL Linux) AND PAL_CMAKE_ENABLE_TRACE)
 add_subdirectory(eventprovider)
-endif(CMAKE_SYSTEM_NAME STREQUAL Linux)
+endif((CMAKE_SYSTEM_NAME STREQUAL Linux) AND PAL_CMAKE_ENABLE_TRACE)
 
 # Install the static PAL library for VS
 install (TARGETS coreclrpal DESTINATION lib)

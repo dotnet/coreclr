@@ -21,5 +21,7 @@ add_subdirectory(miscellaneous)
 add_subdirectory(pal_specific)
 add_subdirectory(samples)
 add_subdirectory(threading)
-add_subdirectory(eventprovider)
+if(PAL_CMAKE_ENABLE_TRACE)
+    add_subdirectory(eventprovider)
+endif()
 
