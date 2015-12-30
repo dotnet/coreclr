@@ -654,7 +654,7 @@ void *PAL_memcpy (void *dest, const void *src, size_t count)
     #define memcpy_dummy memcpy
     #undef memcpy
     void *ret = memcpy(dest, src, count);
-    #define memcpy_dummy
+    #define memcpy memcpy_dummy
     return ret;
 }
 #endif //DEBUG
