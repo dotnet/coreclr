@@ -76,8 +76,8 @@ errno_t __cdecl memcpy_s(
         return EINVAL;
     }
 
-    //UINT_PTR x = (UINT_PTR)dst, y = (UINT_PTR)src;
-    //assert((x + count <= y) || (y + count <= x));
+    UINT_PTR x = (UINT_PTR)dst, y = (UINT_PTR)src;
+    assert((x + count <= y) || (y + count <= x));
     memcpy(dst, src, count);
     return 0;
 }

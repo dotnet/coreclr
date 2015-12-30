@@ -651,6 +651,10 @@ void *PAL_memcpy (void *dest, const void *src, size_t count)
 {
     UINT_PTR x = (UINT_PTR)dest, y = (UINT_PTR)src;
     assert((x + count <= y) || (y + count <= x));
-    return memcpy(dest, src, count);
+    #define memcpy_dummy memcpy
+    #undef memcpy
+    void *ret = memcpy(dest, src, count);
+    #define memcpy_dummy
+    return ret;
 }
 #endif //DEBUG
