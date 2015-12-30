@@ -649,8 +649,8 @@ See MSDN doc for memcpy
 --*/
 void *PAL_memcpy (void *dest, const void *src, size_t count)
 {
-    //UINT_PTR x = (UINT_PTR)dest, y = (UINT_PTR)src;
-    //assert((x + count <= y) || (y + count <= x));
+    UINT_PTR x = (UINT_PTR)dest, y = (UINT_PTR)src;
+    assert((x + count <= y) || (y + count <= x));
     return memcpy(dest, src, count);
 }
 #endif //DEBUG
