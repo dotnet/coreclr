@@ -77,20 +77,16 @@ Return value :
 BOOL 
 SEHInitialize (CPalThread *pthrCurrent, DWORD flags)
 {
-    BOOL bRet = FALSE;
-
 #if !HAVE_MACH_EXCEPTIONS
     if (!SEHInitializeSignals())
     {
         ERROR("SEHInitializeSignals failed!\n");
         SEHCleanup();
-        goto SEHInitializeExit;
+        return FALSE;
     }
 #endif
-    bRet = TRUE;
 
-SEHInitializeExit:
-    return bRet;
+    return TRUE;
 }
 
 /*++
@@ -263,7 +259,6 @@ __declspec(thread)
 static NativeExceptionHolderBase *t_nativeExceptionHolderHead = nullptr;
 
 NativeExceptionHolderBase::NativeExceptionHolderBase()
-    : CatchHardwareExceptionHolder()
 {
     m_head = nullptr;
     m_next = nullptr;

@@ -1,4 +1,4 @@
-@echo off
+echo off
 setlocal EnableDelayedExpansion
 
 :: Set the default arguments for build
@@ -31,9 +31,11 @@ if /i "%1" == "/?" goto Usage
 if /i "%1" == "x64"    (set __BuildArch=x64&&shift&goto Arg_Loop)
 if /i "%1" == "x86"    (set __BuildArch=x86&&shift&goto Arg_Loop)
 if /i "%1" == "arm"    (set __BuildArch=arm&&shift&goto Arg_Loop)
+if /i "%1" == "arm64"    (set __BuildArch=arm64&&shift&goto Arg_Loop)
 
 if /i "%1" == "debug"    (set __BuildType=Debug&shift&goto Arg_Loop)
 if /i "%1" == "release"   (set __BuildType=Release&shift&goto Arg_Loop)
+if /i "%1" == "checked"    (set __BuildType=Checked&shift&goto Arg_Loop)
 
 if /i "%1" == "clean"   (set __CleanBuild=1&shift&goto Arg_Loop)
 
@@ -46,6 +48,8 @@ if /i "%1" == "vs2013" (set __VSVersion=%1&shift&goto Arg_Loop)
 if /i "%1" == "vs2015" (set __VSVersion=%1&shift&goto Arg_Loop)
 if /i "%1" == "skiptestbuild" (set __SkipTestBuild=1&shift&goto Arg_Loop)
 if /i "%1" == "docrossgen" (set __DoCrossgen=1&shift&goto Arg_Loop)
+
+if /i "%1" == "/toolset_dir" (set __ToolsetDir=%2&shift&shift&goto Arg_Loop)
 
 echo Invalid commandline argument: %1
 goto Usage
@@ -61,6 +65,7 @@ set "__IntermediatesDir=%__RootBinDir%\obj\%__BuildOS%.%__BuildArch%.%__BuildTyp
 set "__PackagesBinDir=%__BinDir%\.nuget"
 set "__TestBinDir=%__RootBinDir%\tests\%__BuildOS%.%__BuildArch%.%__BuildType%"
 set "__TestIntermediatesDir=%__RootBinDir%\tests\obj\%__BuildOS%.%__BuildArch%.%__BuildType%"
+set "__GeneratedIntermediatesDir=%__IntermediatesDir%\Generated"
 
 :: Generate path to be set for CMAKE_INSTALL_PREFIX to contain forward slash
 set "__CMakeBinDir=%__BinDir%"
@@ -73,6 +78,7 @@ echo.
 
 :: MSBuild projects would need a rebuild
 set __MSBCleanBuildArgs=/t:rebuild
+
 
 :: Cleanup the previous output for the selected configuration
 if exist "%__BinDir%" rd /s /q "%__BinDir%"
@@ -138,11 +144,30 @@ if not exist %_msbuildexe% echo Error: Could not find MSBuild.exe.  Please see h
 
 :: All set to commence the build
 
-setlocal
+setlocal EnableDelayedExpansion
 if defined __MscorlibOnly goto PerformMScorlibBuild
 
 echo Commencing build of native components for %__BuildOS%.%__BuildArch%.%__BuildType%
 echo.
+
+rem arm64 builds currently use private toolset which has not been released yet
+if /i "%__BuildArch%" == "arm64"  (
+  REM TODO, remove once the toolset is open.
+
+  if not "%__BuildOS%" == "Windows_NT" goto GenVSSolution
+
+  if /i "%__ToolsetDir%" == "" (
+    echo "A toolset directory is required for the Arm64 Windows build."
+    exit /b 1
+  )
+)
+
+REM TODO, remove once the toolset is open.
+if /i "%__BuildArch%" == "arm64" set PATH=%PATH%;%__ToolsetDir%\cpp\bin
+if /i "%__BuildArch%" == "arm64" set LIB=%__ToolsetDir%\OS\lib
+if /i "%__BuildArch%" == "arm64" set INCLUDE=%__ToolsetDir%\cpp\inc;%__ToolsetDir%\OS\inc\Windows;%__ToolsetDir%\OS\inc\Windows\crt;%__ToolsetDir%\cpp\inc\vc;%__ToolsetDir%\OS\inc\win8;
+
+if /i "%__BuildArch%" == "arm64" goto GenVSSolution
 
 :: Set the environment for the native build
 set __VCBuildArch=x86_amd64
@@ -173,8 +198,35 @@ exit /b 1
 
 REM Build CoreCLR
 :BuildCoreCLR
+:: Run Steps to Generate ETW specific infrastructure the 
+if exist "%__GeneratedIntermediatesDir%" rd /s /q "%__GeneratedIntermediatesDir%" ::Ensure there are no stale files in the Generated Directory
+md "%__GeneratedIntermediatesDir%"
+md "%__GeneratedIntermediatesDir%\inc"
+set "genetw=%__SourceDir%\scripts\genWinEtw.py"
+
+mc -h "%__GeneratedIntermediatesDir%\inc" -r "%__GeneratedIntermediatesDir%" -b -co -um -p FireEtw "%__SourceDir%\VM\ClrEtwAll.man"
+IF ERRORLEVEL 1 goto FailedToGenEtwMetadata 
+
+echo generating clretwallmain.h and etmdummy.h
+"%PythonPath%"  "%genetw%" --man "%__SourceDir%\VM\ClrEtwAll.man" --exc "%__SourceDir%\VM\ClrEtwAllMeta.lst" --eventheader "%__GeneratedIntermediatesDir%\inc\ClrEtwAll.h" --macroheader "%__GeneratedIntermediatesDir%\inc\clretwallmain.h" --dummy "%__GeneratedIntermediatesDir%\inc\etmdummy.h" 
+IF  ERRORLEVEL 1 goto FailedToGenEtwMetadata 
+
+goto BuildVM
+
+:FailedToGenEtwMetadata
+echo Failed to generate ETW specific files.
+exit /b %ERRORLEVEL%
+
+:BuildVM
+
 set "__CoreCLRBuildLog=%__LogsDir%\CoreCLR_%__BuildOS%__%__BuildArch%__%__BuildType%.log"
-%_msbuildexe% "%__IntermediatesDir%\install.vcxproj" %__MSBCleanBuildArgs% /nologo /maxcpucount /nodeReuse:false /p:Configuration=%__BuildType% /p:Platform=%__BuildArch% /fileloggerparameters:Verbosity=normal;LogFile="%__CoreCLRBuildLog%"
+if /i "%__BuildArch%" == "arm64" (  
+  REM TODO, remove once we have msbuild support for this platform.
+
+  %_msbuildexe% "%__IntermediatesDir%\install.vcxproj" %__MSBCleanBuildArgs% /nologo /maxcpucount /nodeReuse:false /p:Configuration=%__BuildType% /p:UseEnv=true /fileloggerparameters:Verbosity=normal;LogFile="%__CoreCLRBuildLog%"
+) else (
+  %_msbuildexe% "%__IntermediatesDir%\install.vcxproj" %__MSBCleanBuildArgs% /nologo /maxcpucount /nodeReuse:false /p:Configuration=%__BuildType% /p:Platform=%__BuildArch% /fileloggerparameters:Verbosity=normal;LogFile="%__CoreCLRBuildLog%"
+)
 IF NOT ERRORLEVEL 1 goto PerformMScorlibBuild
 echo Native component build failed. Refer !__CoreCLRBuildLog! for details.
 exit /b 1
@@ -192,6 +244,8 @@ set Platform=
 
 if defined __MscorlibOnly set __AdditionalMSBuildArgs=/p:BuildNugetPackage=false
 
+if /i "%__BuildArch%" =="arm64" set __AdditionalMSBuildArgs=/p:BuildNugetPackage=false
+
 :: Set the environment for the managed build
 call "!VS%__VSProductVersion%COMNTOOLS!\VsDevCmd.bat"
 echo Commencing build of mscorlib for %__BuildOS%.%__BuildArch%.%__BuildType%
@@ -208,6 +262,13 @@ exit /b 1
 
 :CrossGenMscorlib
 if /i "%__BuildArch%" == "x86" (
+  if not defined __DoCrossgen (
+    echo Skipping Crossgen
+    goto PerformTestBuild
+  )
+)
+
+if /i "%__BuildArch%" == "arm64" (
   if not defined __DoCrossgen (
     echo Skipping Crossgen
     goto PerformTestBuild
@@ -253,12 +314,13 @@ echo.
 echo Usage:
 echo %0 BuildArch BuildType [clean] [vsversion] where:
 echo.
-echo BuildArch can be: x64, x86
-echo BuildType can be: Debug, Release
+echo BuildArch can be: x64, x86, arm64
+echo BuildType can be: Debug, Release, Checked
 echo Clean - optional argument to force a clean build.
 echo VSVersion - optional argument to use VS2013 or VS2015 (default VS2015)
 echo windowsmscorlib - Build mscorlib for Windows
 echo linuxmscorlib - Build mscorlib for Linux
 echo osxmscorlib - Build mscorlib for OS X
 echo skiptestbuild - Skip building tests
+echo toolset_dir - toolset directory -- Arm64 use only.
 exit /b 1

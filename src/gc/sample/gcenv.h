@@ -16,9 +16,19 @@
 #define _ASSERTE(_expr) ASSERT(_expr)
 #endif
 
+typedef wchar_t WCHAR;
+#define W(s) L##s
+
+#include "gcenv.structs.h"
 #include "gcenv.base.h"
+#include "gcenv.ee.h"
+#include "gcenv.os.h"
+#include "gcenv.interlocked.h"
+#include "gcenv.interlocked.inl"
 #include "gcenv.object.h"
 #include "gcenv.sync.h"
+
+#define MAX_LONGPATH 1024
 
 //
 // Thread
@@ -139,3 +149,6 @@ public:
 };
 
 extern EEConfig * g_pConfig;
+
+#include "etmdummy.h"
+#define ETW_EVENT_ENABLED(e,f) false

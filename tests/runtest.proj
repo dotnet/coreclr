@@ -42,7 +42,12 @@
   </Target>
 
 
+  <Import Project="$(__Exclude0)" Condition="'$(__Exclude0)' != '' AND '$(XunitTestBinBase)' != ''" /> 
   <Import Project="$(__Exclude)" Condition="'$(__Exclude)' != '' AND '$(XunitTestBinBase)' != ''" /> 
+  <PropertyGroup>
+    <HaveExcludes>False</HaveExcludes>
+    <HaveExcludes Condition="('$(__Exclude0)' != '') Or ('$(__Exclude)' != '')">True</HaveExcludes>
+  </PropertyGroup>
 
   <Target Name="CreateXunitWrapper" DependsOnTargets="CreateXunitFacts">
 
@@ -178,42 +183,14 @@ using CoreclrTestLib%3B
 
 namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").Replace("-","_"))
 {
-
-]]>
-      </_XunitProlog>
-
-      <_XunitEpilog Condition=" '$(_XunitEpilog)'=='' ">
-      <![CDATA[
-}
-
-]]>
-      </_XunitEpilog>
-    </PropertyGroup>
-
-    <ItemGroup>
-      <CanonicalExcludeList Include="%(ExcludeList.FullPath)" Condition="'$(__Exclude)' != ''"/>
-    </ItemGroup>
-
-    <ItemGroup>
-      <AllCMDsPresent Include="$(_CMDDIR)\**\*.cmd" />
-      <AllCMDExcludeFilter Include="@(CanonicalExcludeList)" Condition="'$(__Exclude)' != ''"/>
-      <AllCMDs Include="@(AllCMDsPresent)" Exclude="@(AllCMDExcludeFilter)"/>
-
-      <AllCommands Include="@(AllCMDs)" >
-        <_FactName>$([System.String]::Copy('%(AllCMDs.FullPath)').Replace("$(_CMDDIR)",'').Replace(".","_").Replace("\","_").Replace("-","_"))</_FactName>
-        <_ClassName>$([System.String]::Copy('%(AllCMDs.FullPath)').Replace("$(_CMDDIR)",'').Replace("cmd","").Replace(".","_").Replace("\","_").Replace("-","_"))</_ClassName>
-
-        <_XunitFact >
-          <![CDATA[
-             
-        public class %(AllCommands._ClassName)
+        internal class _Global
         {
-            static bool runningInWindows%3B
-            static string reportBase%3B
-            static string testBinaryBase%3B
-            static string coreRoot%3B
+            internal static bool runningInWindows%3B
+            internal static string reportBase%3B
+            internal static string testBinaryBase%3B
+            internal static string coreRoot%3B
 
-            static %(AllCommands._ClassName)()
+            static _Global()
             {
                 reportBase = System.IO.Path.GetFullPath(System.Environment.GetEnvironmentVariable(%22XunitTestReportDirBase%22))%3B
                 testBinaryBase = System.IO.Path.GetFullPath(System.Environment.GetEnvironmentVariable(%22XunitTestBinBase%22))%3B
@@ -233,7 +210,37 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
 
                 runningInWindows = System.Environment.GetEnvironmentVariable("OS").StartsWith("Windows")%3B
             }
+        }
 
+]]>
+      </_XunitProlog>
+
+      <_XunitEpilog Condition=" '$(_XunitEpilog)'=='' ">
+      <![CDATA[
+}
+
+]]>
+      </_XunitEpilog>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <CanonicalExcludeList Include="%(ExcludeList.FullPath)" Condition="$(HaveExcludes)"/>
+    </ItemGroup>
+
+    <ItemGroup>
+      <AllCMDsPresent Include="$(_CMDDIR)\**\*.cmd" />
+      <AllCMDExcludeFilter Include="@(CanonicalExcludeList)" Condition="$(HaveExcludes)"/>
+      <AllCMDs Include="@(AllCMDsPresent)" Exclude="@(AllCMDExcludeFilter)"/>
+
+      <AllCommands Include="@(AllCMDs)" >
+        <_FactName>$([System.String]::Copy('%(AllCMDs.FullPath)').Replace("$(_CMDDIR)",'').Replace(".","_").Replace("\","_").Replace("-","_"))</_FactName>
+        <_ClassName>$([System.String]::Copy('%(AllCMDs.FullPath)').Replace("$(_CMDDIR)",'').Replace("cmd","").Replace(".","_").Replace("\","_").Replace("-","_"))</_ClassName>
+
+        <_XunitFact >
+          <![CDATA[
+
+        public class %(AllCommands._ClassName)
+        {
             [Fact]
             public void %(AllCommands._FactName)()
             {
@@ -247,15 +254,15 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
                 {
                   CoreclrTestWrapperLib wrapper = new CoreclrTestWrapperLib()%3B
                   string testSubfolder = @"\$(Category)\$([System.String]::Copy('%(AllCMDs.RelativeDir)').Replace("$(_CMDDIR)\",''))"%3B
-                  outputFile = System.IO.Path.GetFullPath(reportBase + testSubfolder + @"%(AllCMDs.FileName).output.txt")%3B
-                  errorFile = System.IO.Path.GetFullPath(reportBase + testSubfolder + @"%(AllCMDs.FileName).error.txt")%3B
-                  testExecutable = System.IO.Path.GetFullPath(testBinaryBase + @"\$(Category)\$([System.String]::Copy('%(AllCMDs.FullPath)').Replace("$(_CMDDIR)",''))")%3B
+                  outputFile = System.IO.Path.GetFullPath(_Global.reportBase + testSubfolder + @"%(AllCMDs.FileName).output.txt")%3B
+                  errorFile = System.IO.Path.GetFullPath(_Global.reportBase + testSubfolder + @"%(AllCMDs.FileName).error.txt")%3B
+                  testExecutable = System.IO.Path.GetFullPath(_Global.testBinaryBase + @"\$(Category)\$([System.String]::Copy('%(AllCMDs.FullPath)').Replace("$(_CMDDIR)",''))")%3B
 
-                  if (!runningInWindows) {
+                  if (!_Global.runningInWindows) {
                       testExecutable = testExecutable.Replace(".cmd", ".sh")%3B
                   }
 
-                  System.IO.Directory.CreateDirectory(reportBase + testSubfolder)%3B
+                  System.IO.Directory.CreateDirectory(_Global.reportBase + testSubfolder)%3B
 
                   ret = wrapper.RunTest(testExecutable, outputFile, errorFile)%3B
                 }
@@ -270,7 +277,7 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
                                                  : System.IO.File.ReadAllText(errorFile) + "\n\n" +
                                                    "Raw output:      " + outputFile + "\n" +
                                                    "To run the test:\n" +
-                                                   "> set CORE_ROOT=" + coreRoot + "\n" +
+                                                   "> set CORE_ROOT=" + _Global.coreRoot + "\n" +
                                                    "> " + testExecutable + "\n"%3B
 
                     Assert.True(ret == CoreclrTestWrapperLib.EXIT_SUCCESS_CODE, msg)%3B

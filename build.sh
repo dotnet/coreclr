@@ -4,7 +4,7 @@ usage()
 {
     echo "Usage: $0 [BuildArch] [BuildType] [clean] [verbose] [coverage] [cross] [clangx.y] [ninja] [skipcoreclr] [skipmscorlib] [skiptests]"
     echo "BuildArch can be: x64, x86, arm, arm64"
-    echo "BuildType can be: Debug, Release"
+    echo "BuildType can be: Debug, Checked, Release"
     echo "clean - optional argument to force a clean build."
     echo "verbose - optional argument to enable verbose build output."
     echo "coverage - optional argument to enable code coverage build (currently supported only for Linux and OSX)."
@@ -27,6 +27,11 @@ setup_dirs()
     mkdir -p "$__BinDir"
     mkdir -p "$__LogsDir"
     mkdir -p "$__IntermediatesDir"
+
+    # Ensure there are no stale generated files
+    rm -rf "$__IntermediatesDir"
+    mkdir -p "$__GeneratedIntermediatesDir"
+    mkdir -p "$__GeneratedIntermediatesDir/inc"
 }
 
 # Performs "clean build" type actions (deleting and remaking directories)
@@ -67,6 +72,19 @@ build_coreclr()
     # All set to commence the build
 
     echo "Commencing build of native components for $__BuildOS.$__BuildArch.$__BuildType"
+    
+    echo "Laying out dynamically generated files consumed by the build system "
+    python "$__ProjectRoot/src/scripts/genXplatEventing.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --exc "$__ProjectRoot/src/vm/ClrEtwAllMeta.lst" --inc "$__GeneratedIntermediatesDir/inc" --dummy "$__GeneratedIntermediatesDir/inc/etmdummy.h" --testdir "$__GeneratedIntermediatesDir/eventprovider_tests"
+    
+    #determine the logging system
+    case $__BuildOS in
+        Linux)
+            python "$__ProjectRoot/src/scripts/genXplatLttng.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__GeneratedIntermediatesDir/"
+            ;;
+        *)
+            ;;
+    esac
+
     cd "$__IntermediatesDir"
 
     generator=""
@@ -181,7 +199,7 @@ echo "Commencing CoreCLR Repo build"
 # Argument types supported by this script:
 #
 # Build architecture - valid values are: x64, ARM.
-# Build Type         - valid values are: Debug, Release
+# Build Type         - valid values are: Debug, Checked, Release
 #
 # Set the default arguments for build
 
@@ -239,6 +257,10 @@ case $OSName in
         __BuildOS=NetBSD
         ;;
 
+    SunOS)
+        __BuildOS=SunOS
+        ;;
+
     *)
         echo "Unsupported OS $OSName detected, configuring as if for Linux"
         __BuildOS=Linux
@@ -291,6 +313,9 @@ for i in "$@"
         ;;
         debug)
         __BuildType=Debug
+        ;;
+		checked)
+        __BuildType=Checked
         ;;
         release)
         __BuildType=Release
@@ -345,6 +370,7 @@ __ToolsDir="$__RootBinDir/tools"
 __TestWorkingDir="$__RootBinDir/tests/$__BuildOS.$__BuildArch.$__BuildType"
 __IntermediatesDir="$__RootBinDir/obj/$__BuildOS.$__BuildArch.$__BuildType"
 __TestIntermediatesDir="$__RootBinDir/tests/obj/$__BuildOS.$__BuildArch.$__BuildType"
+export __GeneratedIntermediatesDir="$__IntermediatesDir/Generated"
 
 # Specify path to be set for CMAKE_INSTALL_PREFIX.
 # This is where all built CoreClr libraries will copied to.

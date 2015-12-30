@@ -19,15 +19,15 @@
 class ObjHeader
 {
 private:
-#if defined(_WIN64)
+#if defined(BIT64)
     uint32_t m_uAlignpad;
-#endif // _WIN64
+#endif // BIT64
     uint32_t m_uSyncBlockValue;
 
 public:
     uint32_t GetBits() { return m_uSyncBlockValue; }
-    void SetBit(uint32_t uBit) { FastInterlockOr(&m_uSyncBlockValue, uBit); }
-    void ClrBit(uint32_t uBit) { FastInterlockAnd(&m_uSyncBlockValue, ~uBit); }
+    void SetBit(uint32_t uBit) { Interlocked::Or(&m_uSyncBlockValue, uBit); }
+    void ClrBit(uint32_t uBit) { Interlocked::And(&m_uSyncBlockValue, ~uBit); }
     void SetGCBit() { m_uSyncBlockValue |= BIT_SBLK_GC_RESERVE; }
     void ClrGCBit() { m_uSyncBlockValue &= ~BIT_SBLK_GC_RESERVE; }
 };

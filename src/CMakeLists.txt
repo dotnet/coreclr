@@ -1,3 +1,4 @@
+include_directories($ENV{__GeneratedIntermediatesDir}/inc)
 include_directories("inc")
 include_directories("strongname/inc")
 include_directories("inc/winrt")
@@ -86,6 +87,7 @@ add_subdirectory(ToolBox)
 add_subdirectory(tools)
 add_subdirectory(unwinder)
 add_subdirectory(ildasm)
+add_subdirectory(ilasm)
 
 if(WIN32)
   add_subdirectory(ipcman)

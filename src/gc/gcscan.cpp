@@ -22,12 +22,12 @@
 
 //#define CATCH_GC  //catches exception during GC
 #ifdef DACCESS_COMPILE
-SVAL_IMPL_INIT(int32_t, CNameSpace, m_GcStructuresInvalidCnt, 1);
+SVAL_IMPL_INIT(int32_t, GCScan, m_GcStructuresInvalidCnt, 1);
 #else //DACCESS_COMPILE
-VOLATILE(int32_t) CNameSpace::m_GcStructuresInvalidCnt = 1;
+VOLATILE(int32_t) GCScan::m_GcStructuresInvalidCnt = 1;
 #endif //DACCESS_COMPILE
 
-bool CNameSpace::GetGcRuntimeStructuresValid ()
+bool GCScan::GetGcRuntimeStructuresValid ()
 {
     LIMITED_METHOD_CONTRACT;
     SUPPORTS_DAC;
@@ -36,11 +36,16 @@ bool CNameSpace::GetGcRuntimeStructuresValid ()
 }
 
 #ifdef DACCESS_COMPILE
+
+#ifndef FEATURE_REDHAWK
 void
-CNameSpace::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
+GCScan::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 {
+    UNREFERENCED_PARAMETER(flags);
     m_GcStructuresInvalidCnt.EnumMem();
 }
+#endif
+
 #else
 
 //
@@ -57,7 +62,7 @@ CNameSpace::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 // will still be correct and this scan allows us to spot a common optimization where no dependent handles are
 // due for retirement in this particular GC. This is an important optimization to take advantage of since
 // synchronizing the GC to calculate complete results is a costly operation.
-void CNameSpace::GcDhInitialScan(promote_func* fn, int condemned, int max_gen, ScanContext* sc)
+void GCScan::GcDhInitialScan(promote_func* fn, int condemned, int max_gen, ScanContext* sc)
 {
     // We allocate space for dependent handle scanning context during Ref_Initialize. Under server GC there
     // are actually as many contexts as heaps (and CPUs). Ref_GetDependentHandleContext() retrieves the
@@ -82,7 +87,7 @@ void CNameSpace::GcDhInitialScan(promote_func* fn, int condemned, int max_gen, S
 
 // This method is called after GcDhInitialScan and before each subsequent scan (GcDhReScan below). It
 // determines whether any handles are left that have unpromoted secondaries.
-bool CNameSpace::GcDhUnpromotedHandlesExist(ScanContext* sc)
+bool GCScan::GcDhUnpromotedHandlesExist(ScanContext* sc)
 {
     WRAPPER_NO_CONTRACT;
     // Locate our dependent handle context based on the GC context.
@@ -98,7 +103,7 @@ bool CNameSpace::GcDhUnpromotedHandlesExist(ScanContext* sc)
 // this method in a loop. The scan records state that let's us know when to terminate (no further handles to
 // be promoted or no promotions in the last scan). Returns true if at least one object was promoted as a
 // result of the scan.
-bool CNameSpace::GcDhReScan(ScanContext* sc)
+bool GCScan::GcDhReScan(ScanContext* sc)
 {
     // Locate our dependent handle context based on the GC context.
     DhContext *pDhContext = Ref_GetDependentHandleContext(sc);
@@ -110,7 +115,7 @@ bool CNameSpace::GcDhReScan(ScanContext* sc)
  * Scan for dead weak pointers
  */
 
-void CNameSpace::GcWeakPtrScan( promote_func* fn, int condemned, int max_gen, ScanContext* sc )
+void GCScan::GcWeakPtrScan( promote_func* fn, int condemned, int max_gen, ScanContext* sc )
 {
     // Clear out weak pointers that are no longer live.
     Ref_CheckReachable(condemned, max_gen, (uintptr_t)sc);
@@ -119,7 +124,7 @@ void CNameSpace::GcWeakPtrScan( promote_func* fn, int condemned, int max_gen, Sc
     Ref_ScanDependentHandlesForClearing(condemned, max_gen, sc, fn);
 }
 
-static void CALLBACK CheckPromoted(_UNCHECKED_OBJECTREF *pObjRef, uintptr_t *pExtraInfo, uintptr_t lp1, uintptr_t lp2)
+static void CALLBACK CheckPromoted(_UNCHECKED_OBJECTREF *pObjRef, uintptr_t * /*pExtraInfo*/, uintptr_t /*lp1*/, uintptr_t /*lp2*/)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -138,19 +143,22 @@ static void CALLBACK CheckPromoted(_UNCHECKED_OBJECTREF *pObjRef, uintptr_t *pEx
     }
 }
 
-void CNameSpace::GcWeakPtrScanBySingleThread( int condemned, int max_gen, ScanContext* sc )
+void GCScan::GcWeakPtrScanBySingleThread( int condemned, int max_gen, ScanContext* sc )
 {
+    UNREFERENCED_PARAMETER(condemned);
+    UNREFERENCED_PARAMETER(max_gen);
     GCToEEInterface::SyncBlockCacheWeakPtrScan(&CheckPromoted, (uintptr_t)sc, 0);
 }
 
-void CNameSpace::GcScanSizedRefs(promote_func* fn, int condemned, int max_gen, ScanContext* sc)
+void GCScan::GcScanSizedRefs(promote_func* fn, int condemned, int max_gen, ScanContext* sc)
 {
     Ref_ScanSizedRefHandles(condemned, max_gen, sc, fn);
 }
 
-void CNameSpace::GcShortWeakPtrScan(promote_func* fn,  int condemned, int max_gen, 
+void GCScan::GcShortWeakPtrScan(promote_func* fn,  int condemned, int max_gen, 
                                      ScanContext* sc)
 {
+    UNREFERENCED_PARAMETER(fn);
     Ref_CheckAlive(condemned, max_gen, (uintptr_t)sc);
 }
 
@@ -158,7 +166,7 @@ void CNameSpace::GcShortWeakPtrScan(promote_func* fn,  int condemned, int max_ge
  * Scan all stack roots in this 'namespace'
  */
  
-void CNameSpace::GcScanRoots(promote_func* fn,  int condemned, int max_gen, 
+void GCScan::GcScanRoots(promote_func* fn,  int condemned, int max_gen, 
                              ScanContext* sc)
 {
 #if defined ( _DEBUG) && defined (CATCH_GC)
@@ -166,37 +174,7 @@ void CNameSpace::GcScanRoots(promote_func* fn,  int condemned, int max_gen,
     PAL_TRY
 #endif // _DEBUG && CATCH_GC
     {
-        STRESS_LOG1(LF_GCROOTS, LL_INFO10, "GCScan: Promotion Phase = %d\n", sc->promotion);
-        {
-            // In server GC, we should be competing for marking the statics
-            if (GCHeap::MarkShouldCompeteForStatics())
-            {
-                if (condemned == max_gen && sc->promotion)
-                {
-                    GCToEEInterface::ScanStaticGCRefsOpportunistically(fn, sc);
-                }
-            }
-
-            Thread* pThread = NULL;
-            while ((pThread = GCToEEInterface::GetThreadList(pThread)) != NULL)
-            {
-                STRESS_LOG2(LF_GC|LF_GCROOTS, LL_INFO100, "{ Starting scan of Thread %p ID = %x\n", pThread, pThread->GetThreadId());
-
-                if (GCHeap::GetGCHeap()->IsThreadUsingAllocationContextHeap(
-                        GCToEEInterface::GetAllocContext(pThread), sc->thread_number))
-                {
-                    sc->thread_under_crawl = pThread;
-#ifdef FEATURE_EVENT_TRACE
-                    sc->dwEtwRootKind = kEtwGCRootKindStack;
-#endif // FEATURE_EVENT_TRACE
-                    GCToEEInterface::ScanStackRoots(pThread, fn, sc);
-#ifdef FEATURE_EVENT_TRACE
-                    sc->dwEtwRootKind = kEtwGCRootKindOther;
-#endif // FEATURE_EVENT_TRACE
-                }
-                STRESS_LOG2(LF_GC|LF_GCROOTS, LL_INFO100, "Ending scan of Thread %p ID = 0x%x }\n", pThread, pThread->GetThreadId());
-            }
-        }
+        GCToEEInterface::GcScanRoots(fn, condemned, max_gen, sc);
     }
 #if defined ( _DEBUG) && defined (CATCH_GC)
     PAL_EXCEPT(EXCEPTION_EXECUTE_HANDLER)
@@ -212,7 +190,7 @@ void CNameSpace::GcScanRoots(promote_func* fn,  int condemned, int max_gen,
  */
 
 
-void CNameSpace::GcScanHandles (promote_func* fn,  int condemned, int max_gen, 
+void GCScan::GcScanHandles (promote_func* fn,  int condemned, int max_gen, 
                                 ScanContext* sc)
 {
 
@@ -251,7 +229,7 @@ void CNameSpace::GcScanHandles (promote_func* fn,  int condemned, int max_gen,
  * Scan all handle roots in this 'namespace' for profiling
  */
 
-void CNameSpace::GcScanHandlesForProfilerAndETW (int max_gen, ScanContext* sc)
+void GCScan::GcScanHandlesForProfilerAndETW (int max_gen, ScanContext* sc)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -276,7 +254,7 @@ void CNameSpace::GcScanHandlesForProfilerAndETW (int max_gen, ScanContext* sc)
 /*
  * Scan dependent handles in this 'namespace' for profiling
  */
-void CNameSpace::GcScanDependentHandlesForProfilerAndETW (int max_gen, ProfilingScanContext* sc)
+void GCScan::GcScanDependentHandlesForProfilerAndETW (int max_gen, ProfilingScanContext* sc)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -286,31 +264,31 @@ void CNameSpace::GcScanDependentHandlesForProfilerAndETW (int max_gen, Profiling
 
 #endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
 
-void CNameSpace::GcRuntimeStructuresValid (BOOL bValid)
+void GCScan::GcRuntimeStructuresValid (BOOL bValid)
 {
     WRAPPER_NO_CONTRACT;
     if (!bValid)
     {
         int32_t result;
-        result = FastInterlockIncrement ((LONG*)&m_GcStructuresInvalidCnt);
+        result = Interlocked::Increment (&m_GcStructuresInvalidCnt);
         _ASSERTE (result > 0);
     }
     else
     {
         int32_t result;
-        result = FastInterlockDecrement ((LONG*)&m_GcStructuresInvalidCnt);
+        result = Interlocked::Decrement (&m_GcStructuresInvalidCnt);
         _ASSERTE (result >= 0);
     }
 }
 
-void CNameSpace::GcDemote (int condemned, int max_gen, ScanContext* sc)
+void GCScan::GcDemote (int condemned, int max_gen, ScanContext* sc)
 {
     Ref_RejuvenateHandles (condemned, max_gen, (uintptr_t)sc);
     if (!GCHeap::IsServerHeap() || sc->thread_number == 0)
         GCToEEInterface::SyncBlockCacheDemote(max_gen);
 }
 
-void CNameSpace::GcPromotionsGranted (int condemned, int max_gen, ScanContext* sc)
+void GCScan::GcPromotionsGranted (int condemned, int max_gen, ScanContext* sc)
 {
     Ref_AgeHandles(condemned, max_gen, (uintptr_t)sc);
     if (!GCHeap::IsServerHeap() || sc->thread_number == 0)
@@ -318,36 +296,7 @@ void CNameSpace::GcPromotionsGranted (int condemned, int max_gen, ScanContext* s
 }
 
 
-void CNameSpace::GcFixAllocContexts (void* arg, void *heap)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    if (GCHeap::UseAllocationContexts())
-    {
-        Thread  *thread = NULL;
-        while ((thread = GCToEEInterface::GetThreadList(thread)) != NULL)
-        {
-            GCHeap::GetGCHeap()->FixAllocContext(GCToEEInterface::GetAllocContext(thread), FALSE, arg, heap);
-        }
-    }
-}
-
-void CNameSpace::GcEnumAllocContexts (enum_alloc_context_func* fn)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    if (GCHeap::UseAllocationContexts())
-    {
-        Thread  *thread = NULL;
-        while ((thread = GCToEEInterface::GetThreadList(thread)) != NULL)
-        {
-            (*fn) (GCToEEInterface::GetAllocContext(thread));
-        }
-    }
-}
-
-
-size_t CNameSpace::AskForMoreReservedMemory (size_t old_size, size_t need_size)
+size_t GCScan::AskForMoreReservedMemory (size_t old_size, size_t need_size)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -368,7 +317,7 @@ size_t CNameSpace::AskForMoreReservedMemory (size_t old_size, size_t need_size)
     return old_size + need_size;
 }
 
-void CNameSpace::VerifyHandleTable(int condemned, int max_gen, ScanContext* sc)
+void GCScan::VerifyHandleTable(int condemned, int max_gen, ScanContext* sc)
 {
     LIMITED_METHOD_CONTRACT;
     Ref_VerifyHandleTable(condemned, max_gen, sc);

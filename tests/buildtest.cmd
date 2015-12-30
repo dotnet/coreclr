@@ -25,6 +25,7 @@ if /i "%1" == "x64"    (set __BuildArch=x64&shift&goto Arg_Loop)
 
 if /i "%1" == "debug"    (set __BuildType=Debug&shift&goto Arg_Loop)
 if /i "%1" == "release"   (set __BuildType=Release&shift&goto Arg_Loop)
+if /i "%1" == "checked"   (set __BuildType=Checked&shift&goto Arg_Loop)
 
 if /i "%1" == "clean"   (set __CleanBuild=1&shift&goto Arg_Loop)
 
@@ -50,6 +51,7 @@ if not defined __BuildArch set __BuildArch=x64
 if not defined __BuildType set __BuildType=Debug
 if not defined __BuildOS set __BuildOS=Windows_NT
 
+set "__BinDir=%__RootBinDir%\Product\%__BuildOS%.%__BuildArch%.%__BuildType%"
 set "__TestBinDir=%__RootBinDir%\tests\%__BuildOS%.%__BuildArch%.%__BuildType%"
 :: We have different managed and native intermediate dirs because the managed bits will include
 :: the configuration information deeper in the intermediates path.
@@ -161,7 +163,6 @@ setlocal
 call "!VS%__VSProductVersion%COMNTOOLS!\VsDevCmd.bat"
 if not defined VSINSTALLDIR echo Error: build.cmd should be run from a Visual Studio Command Prompt.  Please see https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md for build instructions. && exit /b 1
 
-
 :BuildTests
 
 echo Starting the Managed Tests Build
@@ -215,7 +216,7 @@ echo Usage:
 echo %0 BuildArch BuildType [clean] [vsversion] [crossgen] [priority N] [verbose] where:
 echo.
 echo BuildArch can be: x64
-echo BuildType can be: Debug, Release
+echo BuildType can be: Debug, Release, Checked
 echo Clean - optional argument to force a clean build.
 echo VSVersion - optional argument to use VS2013 or VS2015  (default VS2015)
 echo CrossGen - Enables the tests to run crossgen on the test executables before executing them. 

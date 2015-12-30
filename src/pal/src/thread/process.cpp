@@ -105,45 +105,42 @@ CAllowedObjectTypes aotProcess(otiProcess);
 //
 // The representative IPalObject for this process
 //
-
 IPalObject* CorUnix::g_pobjProcess;
 
 //
 // Critical section that protects process data (e.g., the
 // list of active threads)/
 //
-
 CRITICAL_SECTION g_csProcess;
 
 //
 // List and count of active threads
 //
-
 CPalThread* CorUnix::pGThreadList;
 DWORD g_dwThreadCount;
 
 //
 // The command line and app name for the process
 //
-
 LPWSTR g_lpwstrCmdLine = NULL;
 LPWSTR g_lpwstrAppDir = NULL;
 
-/* Thread ID of thread that has started the ExitProcess process */
+// Thread ID of thread that has started the ExitProcess process 
 Volatile<LONG> terminator = 0;
 
 // Process ID of this process.
 DWORD gPID = (DWORD) -1;
 
+// Function to call during PAL/process shutdown
+PSHUTDOWN_CALLBACK g_shutdownCallback = nullptr;
+
 //
 // Key used for associating CPalThread's with the underlying pthread
 // (through pthread_setspecific)
 //
-
 pthread_key_t CorUnix::thObjKey;
 
 #define PROCESS_PELOADER_FILENAME  "clix"
-
 
 static WCHAR W16_WHITESPACE[]= {0x0020, 0x0009, 0x000D, 0};
 static WCHAR W16_WHITESPACE_DQUOTE[]= {0x0020, 0x0009, 0x000D, '"', 0};
@@ -1145,8 +1142,8 @@ See MSDN doc.
 BOOL
 PALAPI
 GetExitCodeProcess(
-           IN HANDLE hProcess,
-           IN LPDWORD lpExitCode)
+    IN HANDLE hProcess,
+    IN LPDWORD lpExitCode)
 {
     CPalThread *pThread;
     PAL_ERROR palError = NO_ERROR;
@@ -1211,17 +1208,16 @@ PAL_NORETURN
 VOID
 PALAPI
 ExitProcess(
-        IN UINT uExitCode)
+    IN UINT uExitCode)
 {
     DWORD old_terminator;
 
     PERF_ENTRY_ONLY(ExitProcess);
     ENTRY("ExitProcess(uExitCode=0x%x)\n", uExitCode );
 
-    old_terminator = InterlockedCompareExchange(&terminator,
-                                                GetCurrentThreadId(),0);
+    old_terminator = InterlockedCompareExchange(&terminator, GetCurrentThreadId(), 0);
 
-    if(GetCurrentThreadId() == old_terminator)
+    if (GetCurrentThreadId() == old_terminator)
     {
         // This thread has already initiated termination. This can happen
         // in two ways:
@@ -1240,7 +1236,7 @@ ExitProcess(
             PROCEndProcess(GetCurrentProcess(), uExitCode, FALSE);
         }
     }
-    else if(0 != old_terminator)
+    else if (0 != old_terminator)
     {
         /* another thread has already initiated the termination process. we 
            could just block on the PALInitLock critical section, but then 
@@ -1250,13 +1246,13 @@ ExitProcess(
            Update: [TODO] PROCSuspendOtherThreads has been removed. Can this 
            code be changed? */
         WARN("termination already started from another thread; blocking.\n");
-        poll(NULL,0,INFTIM);
+        poll(NULL, 0, INFTIM);
     }
 
     /* ExitProcess may be called even if PAL is not initialized.
        Verify if process structure exist
     */
-    if ( PALInitLock() && PALIsInitialized() )
+    if (PALInitLock() && PALIsInitialized())
     {
         PROCEndProcess(GetCurrentProcess(), uExitCode, FALSE);
 
@@ -1276,7 +1272,6 @@ ExitProcess(
     for (;;);
 }
 
-
 /*++
 Function:
   TerminateProcess
@@ -1289,8 +1284,8 @@ See MSDN doc.
 BOOL
 PALAPI
 TerminateProcess(
-         IN HANDLE hProcess,
-         IN UINT uExitCode)
+    IN HANDLE hProcess,
+    IN UINT uExitCode)
 {
     BOOL ret;
 
@@ -1315,8 +1310,7 @@ Function:
   down any DLLs that are loaded.
 
 --*/
-static BOOL PROCEndProcess(HANDLE hProcess, UINT uExitCode,
-                           BOOL bTerminateUnconditionally)
+static BOOL PROCEndProcess(HANDLE hProcess, UINT uExitCode, BOOL bTerminateUnconditionally)
 {
     DWORD dwProcessId;
     BOOL ret = FALSE;
@@ -1401,6 +1395,26 @@ static BOOL PROCEndProcess(HANDLE hProcess, UINT uExitCode,
 
 /*++
 Function:
+  PAL_SetShutdownCallback
+
+Abstract:
+  Sets a callback that is executed when the PAL is shut down because of
+  ExitProcess, TerminateProcess or PAL_Shutdown but not PAL_Terminate/Ex.
+
+  NOTE: Currently only one callback can be set at a time.
+--*/
+PALIMPORT
+VOID
+PALAPI
+PAL_SetShutdownCallback(
+    IN PSHUTDOWN_CALLBACK callback)
+{
+    _ASSERTE(g_shutdownCallback == nullptr);
+    g_shutdownCallback = callback;
+}
+
+/*++
+Function:
   PROCCleanupProcess
   
   Do all cleanup work for TerminateProcess, but don't terminate the process.
@@ -1410,6 +1424,11 @@ Function:
 --*/
 void PROCCleanupProcess(BOOL bTerminateUnconditionally)
 {
+    if (g_shutdownCallback != nullptr)
+    {
+        g_shutdownCallback();
+    }
+
     /* Declare the beginning of shutdown */
     PALSetShutdownIntent();
 
@@ -2767,35 +2786,35 @@ CorUnix::TerminateCurrentProcessNoExit(BOOL bTerminateUnconditionally)
     BOOL locked;
     DWORD old_terminator;
 
-    old_terminator = InterlockedCompareExchange(&terminator,
-                                                    GetCurrentThreadId(),0);
+    old_terminator = InterlockedCompareExchange(&terminator, GetCurrentThreadId(), 0);
 
-    if(0 != old_terminator && GetCurrentThreadId() != old_terminator)
+    if (0 != old_terminator && GetCurrentThreadId() != old_terminator)
     {
-        /* another thread has already initiated the termination process. we
-        could just block on the PALInitLock critical section, but then
-        PROCSuspendOtherThreads would hang... so sleep forever here, we're
-        terminating anyway
+         /* another thread has already initiated the termination process. we
+            could just block on the PALInitLock critical section, but then
+            PROCSuspendOtherThreads would hang... so sleep forever here, we're
+            terminating anyway
+ 
+            Update: [TODO] PROCSuspendOtherThreads has been removed. Can this 
+            code be changed? */
 
-        Update: [TODO] PROCSuspendOtherThreads has been removed. Can this 
-           code be changed? */
-
-        /* note that if *this* thread has already started the termination
-        process, we want to proceed. the only way this can happen is if a
-        call to DllMain (from ExitProcess) brought us here (because DllMain
-        called ExitProcess, or TerminateProcess, or ExitThread);
-        TerminateProcess won't call DllMain, so there's no danger to get
-        caught in an infinite loop */
+         /* note that if *this* thread has already started the termination
+            process, we want to proceed. the only way this can happen is if a
+            call to DllMain (from ExitProcess) brought us here (because DllMain
+            called ExitProcess, or TerminateProcess, or ExitThread);
+            TerminateProcess won't call DllMain, so there's no danger to get
+            caught in an infinite loop */
          WARN("termination already started from another thread; blocking.\n");
-         poll(NULL,0,INFTIM);
+         poll(NULL, 0, INFTIM);
      }
 
      /* Try to lock the initialization count to prevent multiple threads from
-     terminating/initializing the PAL simultaneously */
+        terminating/initializing the PAL simultaneously */
+
      /* note : it's also important to take this lock before the process lock,
-     because Init/Shutdown take the init lock, and the functions they call
-     may take the process lock. We must do it in the same order to avoid
-     deadlocks */
+        because Init/Shutdown take the init lock, and the functions they call
+        may take the process lock. We must do it in the same order to avoid
+        deadlocks */
      locked = PALInitLock();
      if(locked && PALIsInitialized())
      {

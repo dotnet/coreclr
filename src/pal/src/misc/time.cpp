@@ -202,6 +202,7 @@ QueryPerformanceCounter(
 
     PERF_ENTRY(QueryPerformanceCounter);
     ENTRY("QueryPerformanceCounter()\n");
+    do
 #if HAVE_CLOCK_MONOTONIC
     {
         struct timespec ts;
@@ -209,7 +210,7 @@ QueryPerformanceCounter(
         {
             ASSERT("clock_gettime(CLOCK_MONOTONIC) failed; errno is %d (%s)\n", errno, strerror(errno));
             retval = FALSE;
-            goto EXIT;
+            break;
         }
         lpPerformanceCount->QuadPart = 
             (LONGLONG)ts.tv_sec * (LONGLONG)tccSecondsToNanoSeconds + (LONGLONG)ts.tv_nsec;
@@ -230,7 +231,7 @@ QueryPerformanceCounter(
         {
             ASSERT("time_base_to_time() failed; errno is %d (%s)\n", errno, strerror(errno));
             retval = FALSE;
-            goto EXIT;
+            break;
         }
         lpPerformanceCount->QuadPart = 
             (LONGLONG)tb.tb_high * (LONGLONG)tccSecondsToNanoSeconds + (LONGLONG)tb.tb_low;
@@ -242,13 +243,14 @@ QueryPerformanceCounter(
         {
             ASSERT("gettimeofday() failed; errno is %d (%s)\n", errno, strerror(errno));
             retval = FALSE;
-            goto EXIT;
+            break;
         }
         lpPerformanceCount->QuadPart = 
             (LONGLONG)tv.tv_sec * (LONGLONG)tccSecondsToMicroSeconds + (LONGLONG)tv.tv_usec;    
     }
 #endif // HAVE_CLOCK_MONOTONIC 
-EXIT:
+    while (false);
+
     LOGEXIT("QueryPerformanceCounter\n");
     PERF_EXIT(QueryPerformanceCounter);
     return retval;
@@ -337,12 +339,18 @@ GetTickCount64()
 {
     ULONGLONG retval = 0;
 
-#if HAVE_CLOCK_MONOTONIC
+#if HAVE_CLOCK_MONOTONIC_COARSE || HAVE_CLOCK_MONOTONIC
     {
+        clockid_t clockType = 
+#if HAVE_CLOCK_MONOTONIC_COARSE
+            CLOCK_MONOTONIC_COARSE; // good enough resolution, fastest speed
+#else
+            CLOCK_MONOTONIC;
+#endif
         struct timespec ts;
-        if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0)
+        if (clock_gettime(clockType, &ts) != 0)
         {
-            ASSERT("clock_gettime(CLOCK_MONOTONIC) failed; errno is %d (%s)\n", errno, strerror(errno));
+            ASSERT("clock_gettime(CLOCK_MONOTONIC*) failed; errno is %d (%s)\n", errno, strerror(errno));
             goto EXIT;
         }
         retval = (ts.tv_sec * tccSecondsToMillieSeconds)+(ts.tv_nsec / tccMillieSecondsToNanoSeconds);
