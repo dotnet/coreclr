@@ -160,9 +160,13 @@ function_name() to call the system's implementation
 
 /* C runtime functions needed to be renamed to avoid duplicate definition
    of those functions when including standard C header files */
+
+//POTENTIALLY UNDEF HERE
 #define div DUMMY_div
 #define div_t DUMMY_div_t
+#if !defined(_DEBUG)
 #define memcpy DUMMY_memcpy 
+#endif //!defined(_DEBUG)
 #define memcmp DUMMY_memcmp 
 #define memset DUMMY_memset 
 #define memmove DUMMY_memmove 
@@ -350,7 +354,9 @@ function_name() to call the system's implementation
 #undef atexit
 #undef div
 #undef div_t
+#if !defined(_DEBUG)
 #undef memcpy
+#endif //!defined(_DEBUG)
 #undef memcmp
 #undef memset
 #undef memmove
