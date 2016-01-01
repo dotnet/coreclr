@@ -1,0 +1,13 @@
+#
+# Copyright (c) Microsoft Corporation.  All rights reserved.
+#
+
+Version = 1.0
+Section = C Runtime
+Function = cosf
+Name = Positive Test for cosf
+TYPE = DEFAULT
+EXE1 = test1
+Description
+= Passes to cosf() a series of angle value, checking that
+= each one return the correct value.

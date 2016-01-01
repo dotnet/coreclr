@@ -267,10 +267,10 @@ FCIMPL2_VV(double, COMDouble::PowHelper, double x, double y)
     double r1;
 
     // TODO: we can get rid following code if VC fixes pow function someday.
-    if(_isnan(y)) {
+    if(isnan(y)) {
         return y; // IEEE 754-2008: NaN payload must be preserved
     }
-    if(_isnan(x)) {
+    if(isnan(x)) {
         return x; // IEEE 754-2008: NaN payload must be preserved
     }
     if(IS_DBL_INFINITY(y)) {
@@ -348,7 +348,7 @@ void assertDoublesWithinRange(double r1, double r2)
 {
     WRAPPER_NO_CONTRACT;
 
-    if (_finite(r1) && _finite(r2))
+    if (isfinite(r1) && isfinite(r2))
     {
         // Both numbers are finite--we need to check that they are close to
         // each other.  If they are large (> 1), the error could also be large,
@@ -359,7 +359,7 @@ void assertDoublesWithinRange(double r1, double r2)
         
         assert((error < (EPSILON * norm)) || (error < EPSILON));
     }
-    else if (!_isnan(r1) && !_isnan(r2))
+    else if (!isnan(r1) && !isnan(r2))
     {
         // At least one of r1 and r2 is infinite, so when multiplied by
         // (1 + EPSILON) they should be the same infinity.
@@ -381,10 +381,10 @@ FCIMPL2_VV(double, COMDouble::Pow, double x, double y)
 
     double r1, r2;
 
-    if(_isnan(y)) {
+    if(isnan(y)) {
         return y; // IEEE 754-2008: NaN payload must be preserved
     }
-    if(_isnan(x)) {
+    if(isnan(x)) {
         return x; // IEEE 754-2008: NaN payload must be preserved
     }
 
@@ -423,10 +423,10 @@ FCIMPL2_VV(double, COMDouble::Pow, double x, double y)
 
     double r1;
 
-    if(_isnan(y)) {
+    if(isnan(y)) {
         return y; // IEEE 754-2008: NaN payload must be preserved
     }
-    if(_isnan(x)) {
+    if(isnan(x)) {
         return x; // IEEE 754-2008: NaN payload must be preserved
     }
 
@@ -483,7 +483,7 @@ FCIMPL1_V(double, COMDouble::Round, double d)
             flrTempVal -= 1.0;
         }
     }
-    flrTempVal = _copysign(flrTempVal, d);
+    flrTempVal = copysign(flrTempVal, d);
     return flrTempVal;
 FCIMPLEND
 #endif // defined(_TARGET_X86_)

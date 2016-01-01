@@ -9965,8 +9965,8 @@ CHK_OVF:
 
                 assert (genActualType(tree->CastToType()) == tree->gtType);
 
-                if ((op1->gtType == TYP_FLOAT  && !_finite(forceCastToFloat(d1))) ||
-                    (op1->gtType == TYP_DOUBLE && !_finite(d1)))
+                if ((op1->gtType == TYP_FLOAT  && !isfinite(forceCastToFloat(d1))) ||
+                    (op1->gtType == TYP_DOUBLE && !isfinite(d1)))
                 {
                     // The floating point constant is not finite.  The ECMA spec says, in
                     // III 3.27, that "...if overflow occurs converting a floating point type
@@ -10006,7 +10006,7 @@ CHK_OVF:
                     case TYP_FLOAT:
                     case TYP_DOUBLE:
                         if (op1->gtType == TYP_FLOAT)
-                            d1 = forceCastToFloat(d1);  // it's only !_finite() after this conversion
+                            d1 = forceCastToFloat(d1);  // it's only !isfinite() after this conversion
                         goto CNS_DOUBLE;
                     default:
                         unreached();
@@ -10748,7 +10748,7 @@ CNS_LONG:
          * For unordered operations (i.e. the GTF_RELOP_NAN_UN flag is set)
          * the result is always true - return 1. */
 
-        if (_isnan(d1) || _isnan(d2))
+        if (isnan(d1) || isnan(d2))
         {
 #ifdef  DEBUG
             if  (verbose)

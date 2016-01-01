@@ -204,23 +204,189 @@ function_name() to call the system's implementation
 #define time_t PAL_time_t
 #define va_list DUMMY_va_list
 #define abs DUMMY_abs
+#define labs DUMMY_labs
 #define llabs DUMMY_llabs
-#define atan DUMMY_atan
-#define tan DUMMY_tan
-#define cos DUMMY_cos
-#define sin DUMMY_sin
-#define cosh DUMMY_cosh
-#define sinh DUMMY_sinh
-#define tanh DUMMY_tanh
-#define modf DUMMY_modf
-#define fmod DUMMY_fmod
-#define fmodf DUMMY_fmodf
-#define sqrt DUMMY_sqrt
-#define ceil DUMMY_ceil
-#define fabs DUMMY_fabs
-#define fabsf DUMMY_fabsf
-#define floor DUMMY_floor
-#define modff DUMMY_modff
+
+// 7.12.4 Trigonometric Functions
+#define acos        DUMMY_acos
+#define acosf       DUMMY_acosf
+
+#define asin        DUMMY_asin
+#define asinf       DUMMY_asinf
+
+#define atan        DUMMY_atan
+#define atanf       DUMMY_atanf
+
+#define atan2       DUMMY_atan2
+#define atan2f      DUMMY_atan2f
+
+#define cos         DUMMY_cos
+#define cosf        DUMMY_cosf
+
+#define sin         DUMMY_sin
+#define sinf        DUMMY_sinf
+
+#define tan         DUMMY_tan
+#define tanf        DUMMY_tanf
+
+// 7.12.5 Hyperbolic Functions
+#define acosh       DUMMY_acosh
+#define acoshf      DUMMY_acoshf
+
+#define asinh       DUMMY_asinh
+#define asinhf      DUMMY_asinhf
+
+#define atanh       DUMMY_atanh
+#define atanhf      DUMMY_atanhf
+
+#define cosh        DUMMY_cosh
+#define coshf       DUMMY_coshf
+
+#define sinh        DUMMY_sinh
+#define sinhf       DUMMY_sinhf
+
+#define tanh        DUMMY_tanh
+#define tanhf       DUMMY_tanhf
+
+// 7.12.6 Exponential and Logarithmic Functions
+#define exp         DUMMY_exp
+#define expf        DUMMY_expm1
+
+#define exp2        DUMMY_exp2
+#define exp2f       DUMMY_exp2f
+
+#define expm1       DUMMY_expm1
+#define expm1f      DUMMY_expm1f
+
+#define frexp       DUMMY_frexp
+#define frexpf      DUMMY_frexpf
+
+#define ilogb       DUMMY_ilogb
+#define ilogbf      DUMMY_ilogbf
+
+#define ldexp       DUMMY_ldexp
+#define ldexpf      DUMMY_ldexpf
+
+#define log         DUMMY_log
+#define logf        DUMMY_logf
+
+#define log10       DUMMY_log10
+#define log10f      DUMMY_log10f
+
+#define log1p       DUMMY_log1p
+#define log1pf      DUMMY_log1pf
+
+#define log2        DUMMY_log2
+#define log2f       DUMMY_log2f
+
+#define logb        DUMMY_logb
+#define logbf       DUMMY_logbf
+
+#define modf        DUMMY_modf
+#define modff       DUMMY_modff
+
+#define scalbn      DUMMY_scalbn
+#define scalbnf     DUMMY_scalbnf
+
+#define scalbln     DUMMY_scalbln
+#define scalblnf    DUMMY_scalblnf
+
+// 7.12.7 Power and Absolute-Value Functions
+#define cbrt        DUMMY_cbrt
+#define cbrtf       DUMMY_cbrtf
+
+#define fabs        DUMMY_fabs
+#define fabsf       DUMMY_fabsf
+
+#define hypot       DUMMY_hypot
+#define hypotf      DUMMY_hypotf
+
+#define pow         DUMMY_pow
+#define powf        DUMMY_powf
+
+#define sqrt        DUMMY_sqrt
+#define sqrtf       DUMMY_sqrtf
+
+// 7.12.8 Error and Gamma Functions
+#define erf         DUMMY_erf
+#define erff        DUMMY_erff
+
+#define erfc        DUMMY_erfc
+#define erfcf       DUMMY_erfcf
+
+#define lgamma      DUMMY_lgamma
+#define lgammaf     DUMMY_lgammaf
+
+#define tgamma      DUMMY_tgamma
+#define tgammaf     DUMMY_tgammaf
+
+// 7.12.9 Nearest Integer Functions
+#define ceil        DUMMY_ceil
+#define ceilf       DUMMY_ceilf
+
+#define floor       DUMMY_floor
+#define floorf      DUMMY_floorf
+
+#define nearbyint   DUMMY_nearbyint
+#define nearbyintf  DUMMY_nearbyintf
+
+#define rint        DUMMY_rint
+#define rintf       DUMMY_rintf
+
+#define lrint       DUMMY_lrint
+#define lrintf      DUMMY_lrintf
+
+#define llrint      DUMMY_llrint
+#define llrintf     DUMMY_llrintf
+
+#define round       DUMMY_round
+#define roundf      DUMMY_roundf
+
+#define lround      DUMMY_lround
+#define lroundf     DUMMY_lroundf
+
+#define llround     DUMMY_llround
+#define llroundf    DUMMY_llroundf
+
+#define trunc       DUMMY_trunc
+#define truncf      DUMMY_truncf
+    
+// 7.12.10 Remainder Functions
+#define fmod        DUMMY_fmod
+#define fmodf       DUMMY_fmodf
+
+#define remainder   DUMMY_remainder
+#define remainderf  DUMMY_remainderf
+
+#define remquo      DUMMY_remquo
+#define remquof     DUMMY_remquof
+
+// 7.12.11 Manipulation Functions
+#define copysign    DUMMY_copysign
+#define copysignf   DUMMY_copysignf
+
+#define nan         DUMMY_nan
+#define nanf        DUMMY_nanf
+
+#define nextafter   DUMMY_nextafter
+#define nextafterf  DUMMY_nextafterf
+
+#define nexttoward  DUMMY_nexttoward
+#define nexttowardf DUMMY_nexttoward
+
+// 7.12.12 Maximum, Minimum, and Positive Difference Functions
+#define fdim        DUMMY_fdim
+#define fdimf       DUMMY_fdimf
+
+#define fmax        DUMMY_fmax
+#define fmaxf       DUMMY_fmaxf
+
+#define fmin        DUMMY_fmin
+#define fminf       DUMMY_fminf
+
+// 7.12.13 Floating Multiply-Add Function
+#define fma         DUMMY_fma
+#define fmaf        DUMMY_fmaf
 
 /* RAND_MAX needed to be renamed to avoid duplicate definition when including 
    stdlib.h header files. PAL_RAND_MAX should have the same value as RAND_MAX 
@@ -439,13 +605,6 @@ function_name() to call the system's implementation
 #undef abs
 #undef labs
 #undef llabs
-#undef acos
-#undef asin
-#undef atan2
-#undef exp
-#undef log
-#undef log10
-#undef pow
 #undef rand
 #undef srand
 #undef errno
@@ -453,22 +612,196 @@ function_name() to call the system's implementation
 #undef wcsspn
 #undef open
 #undef glob
+
+// 7.12.0 General Macros
+#undef INFINITY
+#undef NAN
+
+// 7.12.3 Classification Macros
+#undef isfinite
+#undef isinf
+#undef isnan
+
+// 7.12.4 Trigonometric Functions
+#undef acos
+#undef acosf
+
+#undef asin
+#undef asinf
+
 #undef atan
-#undef tan
+#undef atanf
+
+#undef atan2
+#undef atan2f
+
 #undef cos
+#undef cosf
+
 #undef sin
+#undef sinf
+
+#undef tan
+#undef tanf
+
+// 7.12.5 Hyperbolic Functions
+#undef acosh
+#undef acoshf
+
+#undef asinh
+#undef asinhf
+
+#undef atanh
+#undef atanhf
+
 #undef cosh
+#undef coshf
+
 #undef sinh
+#undef sinhf
+
 #undef tanh
+#undef tanhf
+
+// 7.12.6 Exponential and Logarithmic Functions
+#undef exp
+#undef expf
+
+#undef exp2
+#undef exp2f
+
+#undef expm1
+#undef expm1f
+
+#undef frexp
+#undef frexpf
+
+#undef ilogb
+#undef ilogbf
+
+#undef ldexp
+#undef ldexpf
+
+#undef log
+#undef logf
+
+#undef log10
+#undef log10f
+
+#undef log1p
+#undef log1pf
+
+#undef log2
+#undef log2f
+
+#undef logb
+#undef logbf
+
 #undef modf
-#undef fmod
-#undef fmodf
-#undef sqrt
-#undef ceil
+#undef modff
+
+#undef scalbn
+#undef scalbnf
+
+#undef scalbln
+#undef scalblnf
+
+// 7.12.7 Power and Absolute-Value Functions
+#undef cbrt
+#undef cbrtf
+
 #undef fabs
 #undef fabsf
+
+#undef hypot
+#undef hypotf
+
+#undef pow
+#undef powf
+
+#undef sqrt
+#undef sqrtf
+
+// 7.12.8 Error and Gamma Functions
+#undef erf
+#undef erff
+
+#undef erfc
+#undef erfcf
+
+#undef lgamma
+#undef lgammaf
+
+#undef tgamma
+#undef tgammaf
+
+// 7.12.9 Nearest Integer Functions
+#undef ceil
+#undef ceilf
+
 #undef floor
-#undef modff
+#undef floorf
+
+#undef nearbyint
+#undef nearbyintf
+
+#undef rint
+#undef rintf
+
+#undef lrint
+#undef lrintf
+
+#undef llrint
+#undef llrintf
+
+#undef round
+#undef roundf
+
+#undef lround
+#undef lroundf
+
+#undef llround
+#undef llroundf
+
+#undef trunc
+#undef truncf
+    
+// 7.12.10 Remainder Functions
+#undef fmod
+#undef fmodf
+
+#undef remainder
+#undef remainderf
+
+#undef remquo
+#undef remquof
+
+// 7.12.11 Manipulation Functions
+#undef copysign
+#undef copysignf
+
+#undef nan
+#undef nanf
+
+#undef nextafter
+#undef nextafterf
+
+#undef nexttoward
+#undef nexttowardf
+
+// 7.12.12 Maximum, Minimum, and Positive Difference Functions
+#undef fdim
+#undef fdimf
+
+#undef fmax
+#undef fmaxf
+
+#undef fmin
+#undef fminf
+
+// 7.12.13 Floating Multiply-Add Function
+#undef fma
+#undef fmaf
 
 #undef wchar_t
 #undef ptrdiff_t

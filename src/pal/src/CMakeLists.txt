@@ -95,9 +95,9 @@ endif()
 set(SOURCES
   cruntime/file.cpp
   cruntime/filecrt.cpp
-  cruntime/finite.cpp
   cruntime/lstr.cpp
   cruntime/malloc.cpp
+  cruntime/math.cpp
   cruntime/mbstring.cpp
   cruntime/misc.cpp
   cruntime/misctls.cpp

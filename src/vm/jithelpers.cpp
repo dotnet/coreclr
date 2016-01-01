@@ -553,12 +553,12 @@ ftype BankersRound(ftype value)
 #endif
 
         // Else return the nearest even integer
-        return (ftype)_copysign(ceil(fabs(value+0.5)),
+        return (ftype)copysign(ceil(fabs(value+0.5)),
                          value);
     }
 
     // Otherwise round to closest
-    return (ftype)_copysign(floor(fabs(value)+0.5), 
+    return (ftype)copysign(floor(fabs(value)+0.5), 
                      value);
 }
 
@@ -709,12 +709,12 @@ HCIMPL2_VV(float, JIT_FltRem, float dividend, float divisor)
     // ***"negated for -infinity" has been removed from the spec
     //
 
-    if (divisor==0 || !_finite(dividend))
+    if (divisor==0 || !isfinite(dividend))
     {
         UINT32 NaN = CLR_NAN_32;
         return *(float *)(&NaN);
     }
-    else if (!_finite(divisor) && !_isnan(divisor))
+    else if (!isfinite(divisor) && !isnan(divisor))
     {
         return dividend;
     }
@@ -742,12 +742,12 @@ HCIMPL2_VV(double, JIT_DblRem, double dividend, double divisor)
     //
     // ***"negated for -infinity" has been removed from the spec
     //
-    if (divisor==0 || !_finite(dividend))
+    if (divisor==0 || !isfinite(dividend))
     {
         UINT64 NaN = CLR_NAN_64; 
         return *(double *)(&NaN);
     }
-    else if (!_finite(divisor) && !_isnan(divisor))
+    else if (!isfinite(divisor) && !isnan(divisor))
     {
         return dividend;
     }

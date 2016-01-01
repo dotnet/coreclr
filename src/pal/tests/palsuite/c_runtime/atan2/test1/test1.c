@@ -16,73 +16,116 @@
 
 #include <palsuite.h>
 
-#define DELTA 0.0000001 //Error acceptance level to the 7th decimal
-
-
 struct test
 {
-    double x;
-    double y;
-    double result;  // expected result
+	double y;         /* second component of the value to test the function with */
+    double x;         /* first component of the value to test the function with */
+    double expected;  /* expected result */
+	double variance;  /* maximum delta between the expected and actual result */
 };
 
-
-void DoTest(double x, double y, double expected)
+/**
+ * validate
+ *
+ * test validation function
+ */
+void __cdecl validate(double y, double x, double expected, double variance)
 {
-    double result;
-    double testDelta;
+    double result = atan2(y, x);
 
-    result = atan2(x, y);
+    /*
+     * The test is valid when the difference between the
+     * result and the expectation is less than DELTA
+     */
+    double delta = fabs(result - expected);
 
-    // The test is valid when the difference between the
-    // result and the expectation is less than DELTA
-    testDelta = fabs(result - expected);
-    if( testDelta >= DELTA )
+    if ((delta != 0) && (delta >= variance))
     {
-        Fail( "atan2(%g, %g) returned %g when it should have returned %g",
-                x, y, result, expected);
+        Fail("atan2(%g, %g) returned %20.15g when it should have returned %20.15g",
+             y, x, result, expected);
     }
 }
 
+/**
+ * validate
+ *
+ * test validation function for values returning NaN
+ */
+void __cdecl validate_isnan(double y, double x)
+{
+    double result = atan2(y, x);
+
+    if (!isnan(result))
+    {
+        Fail("atan2(%g, %g) returned %20.15g when it should have returned %20.15g",
+             y, x, result, NAN);
+    }
+}
+
+/**
+ * main
+ * 
+ * executable entry point
+ */
 int __cdecl main(int argc, char **argv)
 {
-    double pi = 3.1415926535;
-    int i;
-
     struct test tests[] = 
     {
-        {0, 0, 0},
-        {0, 1, 0},
-        {0.104528463, 0.994521895, 0.104719755},
-        {0.207911691, 0.978147601, 0.20943951},
-        {0.309016994, 0.951056516, 0.314159265},
-        {0.406736643, 0.913545458, 0.41887902},
-        {0.5, 0.866025404, 0.523598776},
-        {0.587785252, 0.809016994, 0.628318531},
-        {0.669130606, 0.743144825, 0.733038286},
-        {0.743144825, 0.669130606, 0.837758041},
-        {0.809016994, 0.587785252, 0.942477796},
-        {0.866025404, 0.5, 1.04719755},
-        {0.913545458, 0.406736643, 1.15191731},
-        {0.951056516, 0.309016994, 1.25663706},
-        {0.978147601, 0.207911691, 1.36135682},
-        {0.994521895, 0.104528463, 1.46607657},
-        {1, 4.48965922e-011, 1.57079633},    
+		/* y                       x                       expected                variance */
+		{  0,                      INFINITY,               0,                      0.000000000000001 },
+		{  0,                      0,                      0,                      0.000000000000001 },
+		{  0.31296179620778659,    0.94976571538163866,    0.31830988618379067,    0.000000000000001 },  // expected:  1 / pi
+        {  0.42077048331375735,    0.90716712923909839,    0.43429448190325183,    0.000000000000001 },  // expected:  log10(e)
+        {  0.59448076852482208,    0.80410982822879171,    0.63661977236758134,    0.000000000000001 },  // expected:  2 / pi
+        {  0.63896127631363480,    0.76923890136397213,    0.69314718055994531,    0.000000000000001 },  // expected:  ln(2)
+        {  0.64963693908006244,    0.76024459707563015,    0.70710678118654752,    0.000000000000001 },  // expected:  1 / sqrt(2)
+        {  0.70710678118654752,    0.70710678118654752,    0.78539816339744831,    0.000000000000001 },  // expected:  pi / 4,         value:  1 / sqrt(2)
+		{  1,                      1,                      0.78539816339744831,    0.000000000000001 },  // expected:  pi / 4
+		{  INFINITY,               INFINITY,               0.78539816339744831,    0.000000000000001 },  // expected:  pi / 4
+        {  0.84147098480789651,    0.54030230586813972,    1,                      0.00000000000001 },
+        {  0.90371945743584630,    0.42812514788535792,    1.1283791670955126,     0.00000000000001 },   // expected:  2 / sqrt(pi)
+        {  0.98776594599273553,    0.15594369476537447,    1.4142135623730950,     0.00000000000001 },   // expected:  sqrt(2)
+        {  0.99180624439366372,    0.12775121753523991,    1.4426950408889634,     0.00000000000001 },   // expected:  log2(e)
+        {  1,                      0,                      1.5707963267948966,     0.00000000000001 },   // expected:  pi / 2
+		{  INFINITY,               0,                      1.5707963267948966,     0.00000000000001 },   // expected:  pi / 2
+		{  INFINITY,               1,                      1.5707963267948966,     0.00000000000001 },   // expected:  pi / 2
+		{  0.74398033695749319,   -0.66820151019031295,    2.3025850929940457,     0.00000000000001 },   // expected:  ln(10)
+		{  0.41078129050290870,   -0.91173391478696510,    2.7182818284590452,     0.00000000000001 },   // expected:  e
+		{  0,                     -1,                      3.1415926535897932,     0.00000000000001 },   // expected:  pi
+		{  1,                      INFINITY,               0,                      0.000000000000001 },
     };
-
 
     if (PAL_Initialize(argc, argv) != 0)
     {
-	    return FAIL;
+        return FAIL;
     }
 
-    for( i = 0; i < sizeof(tests) / sizeof(struct test); i++)
+    for (int i = 0; i < (sizeof(tests) / sizeof(struct test)); i++)
     {
-        DoTest(tests[i].x, tests[i].y, tests[i].result);
-        DoTest(-tests[i].x, tests[i].y, -tests[i].result);
-        DoTest(tests[i].x, -tests[i].y, pi - tests[i].result);
-        DoTest(-tests[i].x, -tests[i].y, tests[i].result - pi);
+		const double pi = 3.1415926535897932;
+		
+        validate( tests[i].y,  tests[i].x,  tests[i].expected,      tests[i].variance);
+		validate(-tests[i].y,  tests[i].x, -tests[i].expected,      tests[i].variance);
+		validate( tests[i].y, -tests[i].x,  pi - tests[i].expected, tests[i].variance);
+		validate(-tests[i].y, -tests[i].x,  tests[i].expected - pi, tests[i].variance);
     }
+	
+	validate_isnan(-INFINITY, NAN);
+	validate_isnan( NAN,     -INFINITY);
+	validate_isnan( NAN,      INFINITY);
+	validate_isnan( INFINITY, NAN);
+	
+	validate_isnan( NAN,     -1);
+	validate_isnan( NAN,     -0.0);
+	validate_isnan( NAN,      0);
+	validate_isnan( NAN,      1);
+	
+	validate_isnan(-1,        NAN);
+	validate_isnan(-0.0,      NAN);
+	validate_isnan( 0,        NAN);
+	validate_isnan( 1,        NAN);
+	
+	validate_isnan( NAN,      NAN);
 
     PAL_Terminate();
     return PASS;
