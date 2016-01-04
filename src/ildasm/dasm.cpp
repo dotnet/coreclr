@@ -5622,7 +5622,7 @@ void DumpHeader(IMAGE_COR20_HEADER *CORHeader, void* GUICookie)
         sprintf_s(szString,SZSTRING_SIZE,"// Addr. of entry point:           0x%08x", VAL32(pOptHeader->AddressOfEntryPoint));
         printLine(GUICookie,szStr);
         dwAddrOfEntryPoint = VAL32(pOptHeader->AddressOfEntryPoint);
-        dwEntryPointSize = 6;
+        dwEntryPointSize = (VAL16(pCOFF->Machine) == IMAGE_FILE_MACHINE_ARMNT) ? 8 : 6; // ARM or x86
         sprintf_s(szString,SZSTRING_SIZE,"// Base of code:                   0x%08x", VAL32(pOptHeader->BaseOfCode));
         printLine(GUICookie,szStr);
         sprintf_s(szString,SZSTRING_SIZE,"// Base of data:                   0x%08x", VAL32(pOptHeader->BaseOfData));
@@ -6699,7 +6699,10 @@ void DumpEATEntries(void* GUICookie,
 
                             if(g_pPELoader->IsPE32())
                             {
-                                dwTokRVA = VAL32(*((DWORD*)(pCont+2))); // first two bytes - JumpIndirect (0x25FF)
+                                if (pNTHeader64->FileHeader.Machine == IMAGE_FILE_MACHINE_ARMNT)
+                                    dwTokRVA = VAL32(*((DWORD*)(pCont+4))); // ARM: ldr pc, [pc, #0] <addr>
+                                else
+                                    dwTokRVA = VAL32(*((DWORD*)(pCont+2))); // x86: first two bytes - JumpIndirect (0x25FF)
                                 dwTokRVA -= VAL32((DWORD)pOptHeader32->ImageBase);
                             }
                             else
