@@ -1879,7 +1879,8 @@ void Debugger::SendCreateProcess(DebuggerLockHolder * pDbgLockHolder)
     pDbgLockHolder->Acquire();
 }
 
-#ifdef FEATURE_CORECLR
+#if defined(FEATURE_CORECLR) && !defined(FEATURE_PAL)
+
 HANDLE g_hContinueStartupEvent = NULL;
 
 CLR_ENGINE_METRICS g_CLREngineMetrics = {
@@ -1890,9 +1891,6 @@ CLR_ENGINE_METRICS g_CLREngineMetrics = {
 
 bool IsTelestoDebugPackInstalled()
 {
-#ifdef FEATURE_PAL
-    return false;
-#else
     RegKeyHolder hKey;
     if (ERROR_SUCCESS != WszRegOpenKeyEx(HKEY_LOCAL_MACHINE, FRAMEWORK_REGISTRY_KEY_W, 0, KEY_READ, &hKey))
         return false;
@@ -1911,9 +1909,7 @@ bool IsTelestoDebugPackInstalled()
 
     // RegCloseKey called by holder
     return debugPackInstalled;
-#endif // FEATURE_PAL
 }
-
 
 #define StartupNotifyEventNamePrefix W("TelestoStartupEvent_")
 const int cchEventNameBufferSize = sizeof(StartupNotifyEventNamePrefix)/sizeof(WCHAR) + 8; // + hex DWORD (8).  NULL terminator is included in sizeof(StartupNotifyEventNamePrefix)
@@ -1952,7 +1948,8 @@ void NotifyDebuggerOfTelestoStartup()
     CloseHandle(g_hContinueStartupEvent);
     g_hContinueStartupEvent = NULL;
 }
-#endif // FEATURE_CORECLR
+
+#endif // FEATURE_CORECLR && !FEATURE_PAL
 
 //---------------------------------------------------------------------------------------
 //
@@ -1991,10 +1988,8 @@ HRESULT Debugger::Startup(void)
         // Iff the debug pack is installed, then go through the telesto debugging pipeline.
         LOG((LF_CORDB, LL_INFO10, "Debugging service is enabled because debug pack is installed or Watson support is enabled)\n"));
 
-#if !defined(FEATURE_DBGIPC_TRANSPORT_VM)
         // This may block while an attach occurs.
         NotifyDebuggerOfTelestoStartup();
-#endif
     }
     else
     {
@@ -2103,19 +2098,23 @@ HRESULT Debugger::Startup(void)
      if (FAILED(hr))
          ThrowHR(hr);
 
+     bool runtimeStarted = FALSE;
 #ifdef FEATURE_PAL
      PAL_SetShutdownCallback(ShutdownTransport);
+
+     // Returns true if a debugger asked for startup notification
+     runtimeStarted = PAL_NotifyRuntimeStarted();
 #endif // FEATURE_PAL
 
      bool waitForAttach = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_DbgWaitForDebuggerAttach) != 0;
-     if (waitForAttach)
+     if (waitForAttach || runtimeStarted)  
      {
+         // Wait until the RS/debugger connects
+         g_pDbgTransport->WaitForSessionToOpen(INFINITE);
+
          // Mark this process as launched by the debugger and the debugger as attached.
          g_CORDebuggerControlFlags |= DBCF_GENERATE_DEBUG_CODE;
          MarkDebuggerAttachedInternal();
-
-         LazyInit();
-         DebuggerController::Initialize();
      }
 #endif // FEATURE_DBGIPC_TRANSPORT_VM
 

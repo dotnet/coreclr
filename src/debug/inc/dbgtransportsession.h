@@ -337,15 +337,15 @@ public:
     void Neuter();
 #endif // !RIGHT_SIDE_COMPILE
 
-#ifdef RIGHT_SIDE_COMPILE
-    // On the RS it may be useful to wait and see if the session can reach the SS_Open state. If the target
-    // runtime has terminated for some reason then we'll never reach the open state. So the method below gives
+    // It may be useful to wait and see if the session can reach the SS_Open state. If the target runtime 
+    // has terminated for some reason then we'll never reach the open state. So the method below gives
     // the RS a way to try and establish a connection for a reasonable amount of time and to time out
     // otherwise. They could then call Shutdown on the session and report an error back to the rest of the
     // debugger. The method returns true if the session opened within the time given (in milliseconds) and
     // false otherwise.
     bool WaitForSessionToOpen(DWORD dwTimeout);
 
+#ifdef RIGHT_SIDE_COMPILE
     // A valid ticket is returned if no other client is currently acting as the debugger.
     bool UseAsDebugger(DebugTicket * pTicket);
 
@@ -670,11 +670,9 @@ private:
     // The current session state. This is updated atomically under m_sStateLock.
     SessionState    m_eState;
 
-#ifdef RIGHT_SIDE_COMPILE
     // Manual reset event that is signalled whenever the session state is SS_Open or SS_Closed (after waiting
     // on this event the caller should check to see which state it was).
     HANDLE          m_hSessionOpenEvent;
-#endif // RIGHT_SIDE_COMPILE
 
     // Thread responsible for initial Connect()/Accept() on a low level transport connection and
     // subsequently for all message reception on that connection. Any error will cause the thread to reset
