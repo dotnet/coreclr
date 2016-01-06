@@ -26,7 +26,7 @@ The `cross\build-rootfs.sh` script can be used to download the files needed for 
     Usage: build-rootfs.sh [BuildArch]
     BuildArch can be: arm, arm64
 
-The `build-rootfs.sh` script must be run as root as it has to make some symlinks to the system, it will by default generate the rootfs in `cross\rootfs\<BuildArch>` however this can be changed by setting the `ROOTFS_DIR` environment variable.
+The `build-rootfs.sh` script must be run as root as it has to make some symlinks to the system, it will by default generate the rootfs in `cross\rootfs\<BuildArch>` however this can be changed by setting the `ROOTFS_DIR` environment variable in which case it will be generated in `$ROOTFS_DIR/<BuildArch>`.
 
 For example, to generate an arm rootfs:
 
@@ -34,7 +34,7 @@ For example, to generate an arm rootfs:
 
 and if you wanted to generate the rootfs elsewhere:
 
-    ben@ubuntu ~/git/coreclr/ $ sudo ROOTFS_DIR=/home/ben/coreclr-cross/arm ./build-rootfs.sh arm
+    ben@ubuntu ~/git/coreclr/ $ sudo ROOTFS_DIR=/home/ben/coreclr-cross ./build-rootfs.sh arm
 
 Patching Urcu
 -------------
@@ -71,7 +71,7 @@ So, without `ROOTFS_DIR`:
 
 And with:
 
-    ben@ubuntu ~/git/coreclr/ $ ROOTFS_DIR=/home/ben/coreclr-cross/arm ./build.sh arm debug verbose clean cross
+    ben@ubuntu ~/git/coreclr/ $ ROOTFS_DIR=/home/ben/coreclr-cross ./build.sh arm debug verbose clean cross
 
 As usual the resulting binaries will be found in `bin/Product/BuildOS.BuildArch.BuildType/`
 
