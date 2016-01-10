@@ -304,34 +304,33 @@ namespace System.Reflection
         [System.Security.SecurityCritical]  // auto-generated
         private static IList<CustomAttributeData> GetCustomAttributes(RuntimeModule module, int tkTarget)
         {
-            CustomAttributeRecord[] records = GetCustomAttributeRecords(module, tkTarget);
+            var records = GetCustomAttributeRecordCollection(module, tkTarget);
 
-            CustomAttributeData[] customAttributes = new CustomAttributeData[records.Length];
-            for (int i = 0; i < records.Length; i++)
-                customAttributes[i] = new CustomAttributeData(module, records[i]);
-
-            return Array.AsReadOnly(customAttributes);
-        } 
-        #endregion 
-
-        #region Internal Static Members
-        [System.Security.SecurityCritical]  // auto-generated
-        internal unsafe static CustomAttributeRecord[] GetCustomAttributeRecords(RuntimeModule module, int targetToken)
-        {
-            MetadataImport scope = module.MetadataImport;
-
-            MetadataEnumResult tkCustomAttributeTokens;
-            scope.EnumCustomAttributes(targetToken, out tkCustomAttributeTokens);
-
-            CustomAttributeRecord[] records = new CustomAttributeRecord[tkCustomAttributeTokens.Length];
-
-            for (int i = 0; i < records.Length; i++)
+            CustomAttributeData[] customAttributes = null;
+            var recordIndex = 0;
+            foreach (var record in records)
             {
-                scope.GetCustomAttributeProps(
-                    tkCustomAttributeTokens[i], out records[i].tkCtor.Value, out records[i].blob);
+                // Create the customAttributes array only if it's going to be non-empty.
+                if (customAttributes == null)
+                {
+                    customAttributes = new CustomAttributeData[records.Count];
+                }
+
+                customAttributes[recordIndex++] = new CustomAttributeData(module, record);
             }
 
-            return records;
+            // If there weren't any custom attributes, return the empty array instance
+            // instead of allocating a new empty array.
+            return customAttributes == null ? Array.Empty<CustomAttributeData>() : (IList<CustomAttributeData>)Array.AsReadOnly(customAttributes);
+        }
+        #endregion
+
+        #region Internal Static Members
+
+        [System.Security.SecurityCritical]
+        internal unsafe static CustomAttributeRecordCollection GetCustomAttributeRecordCollection(RuntimeModule module, int targetToken)
+        {
+            return new CustomAttributeRecordCollection(module.MetadataImport, targetToken);
         }
 
         internal static CustomAttributeTypedArgument Filter(IList<CustomAttributeData> attrs, Type caType, int parameter)
@@ -578,6 +577,127 @@ namespace System.Reflection
                 return m_namedArgs;
             }
         }
+        #endregion
+
+        #region Record Enumeration / Enumerator
+
+        internal struct CustomAttributeRecordCollection : IReadOnlyList<CustomAttributeRecord>
+        {
+            private readonly MetadataImport _scope;
+            private readonly MetadataEnumResult _tkCustomAttributeTokens;
+
+            internal CustomAttributeRecordCollection(MetadataImport scope, int targetToken)
+            {
+                _scope = scope;
+                _scope.EnumCustomAttributes(targetToken, out _tkCustomAttributeTokens);
+            }
+
+            public CustomAttributeRecord this[int index]
+            {
+                get
+                {
+                    if (index < 0 || index >= this.Count)
+                    {
+                        throw new IndexOutOfRangeException();
+                    }
+                    Contract.EndContractBlock();
+
+                    CustomAttributeRecord currentRecord;
+                    _scope.GetCustomAttributeProps(
+                        _tkCustomAttributeTokens[index], out currentRecord.tkCtor.Value, out currentRecord.blob);
+                    return currentRecord;
+                }
+            }
+
+            public int Count
+            {
+                get
+                {
+                    Contract.Ensures(Contract.Result<int>() >= 0);
+                    Contract.EndContractBlock();
+
+                    return _tkCustomAttributeTokens.Length;
+                }
+            }
+
+            public CustomAttributeRecordEnumerator GetEnumerator()
+            {
+                return new CustomAttributeRecordEnumerator(_scope, _tkCustomAttributeTokens);
+            }
+
+            IEnumerator<CustomAttributeRecord> IEnumerable<CustomAttributeRecord>.GetEnumerator()
+            {
+                return GetEnumerator();
+            }
+
+            IEnumerator IEnumerable.GetEnumerator()
+            {
+                return GetEnumerator();
+            }
+        }
+
+        internal struct CustomAttributeRecordEnumerator : IEnumerator<CustomAttributeRecord>
+        {
+            private readonly MetadataImport _scope;
+            private readonly MetadataEnumResult _tkCustomAttributeTokens;
+            private int _nextIndex;  // I.e., current index + 1
+
+            internal CustomAttributeRecordEnumerator(MetadataImport scope, MetadataEnumResult customAttributeTokens)
+            {
+                _scope = scope;
+                _tkCustomAttributeTokens = customAttributeTokens;
+                _nextIndex = 0;
+            }
+
+            public CustomAttributeRecord Current
+            {
+                get
+                {
+                    if (_nextIndex <= 0)
+                    {
+                        throw new InvalidOperationException();
+                    }
+                    Contract.EndContractBlock();
+
+                    CustomAttributeRecord currentRecord;
+                    _scope.GetCustomAttributeProps(
+                        _tkCustomAttributeTokens[_nextIndex - 1], out currentRecord.tkCtor.Value, out currentRecord.blob);
+                    return currentRecord;
+                }
+            }
+
+            object IEnumerator.Current
+            {
+                get
+                {
+                    return this.Current;
+                }
+            }
+
+            public void Dispose()
+            {
+                // Nothing to dispose.
+            }
+
+            public bool MoveNext()
+            {
+                if (_nextIndex >= _tkCustomAttributeTokens.Length)
+                {
+                    return false;
+                }
+                else
+                {
+                    _nextIndex += 1;
+                    return true;
+                }
+            }
+
+            public void Reset()
+            {
+                _nextIndex = 0;
+            }
+        }
+
         #endregion
     }
 
@@ -1594,7 +1714,7 @@ namespace System.Reflection
                 throw new InvalidOperationException(Environment.GetResourceString("Arg_ReflectionOnlyCA"));
             Contract.EndContractBlock();
 
-            CustomAttributeRecord[] car = CustomAttributeData.GetCustomAttributeRecords(decoratedModule, decoratedMetadataToken);
+            var cars = CustomAttributeData.GetCustomAttributeRecordCollection(decoratedModule, decoratedMetadataToken);
 
             if (attributeFilterType != null)
             {
@@ -1609,10 +1729,8 @@ namespace System.Reflection
                 // we can cache the successful APTCA check between the decorated and the declared assembly.
                 Assembly lastAptcaOkAssembly = null;
 
-                for (int i = 0; i < car.Length; i++)
+                foreach (var caRecord in cars)
                 {
-                    CustomAttributeRecord caRecord = car[i];
-
                     if (FilterCustomAttributeRecord(caRecord, scope, ref lastAptcaOkAssembly,
                         decoratedModule, decoratedMetadataToken, attributeFilterType, mustBeInheritable, null, null,
                         out attributeType, out ctor, out ctorHasParameters, out isVarArg))
@@ -1624,10 +1742,8 @@ namespace System.Reflection
                 Contract.Assert(attributeFilterType == null);
                 Contract.Assert(!MetadataToken.IsNullToken(attributeCtorToken));
 
-                for (int i = 0; i < car.Length; i++)
+                foreach (var caRecord in cars)
                 {
-                    CustomAttributeRecord caRecord = car[i];
-
                     if (caRecord.tkCtor == attributeCtorToken)
                         return true;
                 }
@@ -1653,15 +1769,16 @@ namespace System.Reflection
             Contract.EndContractBlock();
 
             MetadataImport scope = decoratedModule.MetadataImport;
-            CustomAttributeRecord[] car = CustomAttributeData.GetCustomAttributeRecords(decoratedModule, decoratedMetadataToken);
+            var cars = CustomAttributeData.GetCustomAttributeRecordCollection(decoratedModule, decoratedMetadataToken);
+            var carCount = cars.Count;  // Relatively expensive, so call this once and reuse it.
 
             bool useObjectArray = (attributeFilterType == null || attributeFilterType.IsValueType || attributeFilterType.ContainsGenericParameters);
             Type arrayType = useObjectArray ? typeof(object) : attributeFilterType;
 
-            if (attributeFilterType == null && car.Length == 0)
+            if (attributeFilterType == null && carCount == 0)
                 return CreateAttributeArrayHelper(arrayType, 0);
 
-            object[] attributes = CreateAttributeArrayHelper(arrayType, car.Length);
+            object[] attributes = CreateAttributeArrayHelper(arrayType, carCount);
             int cAttributes = 0;
 
             // Custom attribute security checks are done with respect to the assembly *decorated* with the 
@@ -1678,10 +1795,9 @@ namespace System.Reflection
             // we can cache the successful APTCA check between the decorated and the declared assembly.
             Assembly lastAptcaOkAssembly = null;
 
-            for (int i = 0; i < car.Length; i++)
+            foreach (var caRecord in cars)
             {
                 object attribute = null;
-                CustomAttributeRecord caRecord = car[i];
 
                 IRuntimeMethodInfo ctor = null;
                 RuntimeType attributeType = null;
@@ -1827,7 +1943,7 @@ namespace System.Reflection
             // finally or CERs here.
             frame.Pop();
 
-            if (cAttributes == car.Length && pcaCount == 0)
+            if (cAttributes == carCount && pcaCount == 0)
                 return attributes;
 
             object[] result = CreateAttributeArrayHelper(arrayType, cAttributes + pcaCount);
@@ -2005,13 +2121,12 @@ namespace System.Reflection
         {
             RuntimeModule decoratedModule = decoratedAttribute.GetRuntimeModule();
             MetadataImport scope = decoratedModule.MetadataImport;
-            CustomAttributeRecord[] car = CustomAttributeData.GetCustomAttributeRecords(decoratedModule, decoratedAttribute.MetadataToken);
+            var cars = CustomAttributeData.GetCustomAttributeRecordCollection(decoratedModule, decoratedAttribute.MetadataToken);
 
             AttributeUsageAttribute attributeUsageAttribute = null;
 
-            for (int i = 0; i < car.Length; i++)
+            foreach (var caRecord in cars)
             {
-                CustomAttributeRecord caRecord = car[i];
                 RuntimeType attributeType = decoratedModule.ResolveType(scope.GetParentToken(caRecord.tkCtor), null, null) as RuntimeType;
 
                 if (attributeType != (RuntimeType)typeof(AttributeUsageAttribute))
