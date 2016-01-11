@@ -145,26 +145,28 @@ You need to restore/download the rest of the demo dependencies via NuGet, as the
 
 Make a packages/packages.config file with the following XML. These packages are the required dependencies of this particular app. Different apps will have different dependencies and require different packages.config - see [Issue #480](https://github.com/dotnet/coreclr/issues/480).
 
-	<?xml version="1.0" encoding="utf-8"?>
-	<packages>
-	  <package id="System.Console" version="4.0.0-beta-22703" />
-	  <package id="System.Diagnostics.Contracts" version="4.0.0-beta-22703" />
-	  <package id="System.Diagnostics.Debug" version="4.0.10-beta-22703" />
-	  <package id="System.Diagnostics.Tools" version="4.0.0-beta-22703" />
-	  <package id="System.Globalization" version="4.0.10-beta-22703" />
-	  <package id="System.IO" version="4.0.10-beta-22703" />
-	  <package id="System.IO.FileSystem.Primitives" version="4.0.0-beta-22703" />
-	  <package id="System.Reflection" version="4.0.10-beta-22703" />
-	  <package id="System.Resources.ResourceManager" version="4.0.0-beta-22703" />
-	  <package id="System.Runtime" version="4.0.20-beta-22703" />
-	  <package id="System.Runtime.Extensions" version="4.0.10-beta-22703" />
-	  <package id="System.Runtime.Handles" version="4.0.0-beta-22703" />
-	  <package id="System.Runtime.InteropServices" version="4.0.20-beta-22703" />
-	  <package id="System.Text.Encoding" version="4.0.10-beta-22703" />
-	  <package id="System.Text.Encoding.Extensions" version="4.0.10-beta-22703" />
-	  <package id="System.Threading" version="4.0.10-beta-22703" />
-	  <package id="System.Threading.Tasks" version="4.0.10-beta-22703" />
-	</packages>
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<packages>
+  <package id="System.Console" version="4.0.0-beta-22703" />
+  <package id="System.Diagnostics.Contracts" version="4.0.0-beta-22703" />
+  <package id="System.Diagnostics.Debug" version="4.0.10-beta-22703" />
+  <package id="System.Diagnostics.Tools" version="4.0.0-beta-22703" />
+  <package id="System.Globalization" version="4.0.10-beta-22703" />
+  <package id="System.IO" version="4.0.10-beta-22703" />
+  <package id="System.IO.FileSystem.Primitives" version="4.0.0-beta-22703" />
+  <package id="System.Reflection" version="4.0.10-beta-22703" />
+  <package id="System.Resources.ResourceManager" version="4.0.0-beta-22703" />
+  <package id="System.Runtime" version="4.0.20-beta-22703" />
+  <package id="System.Runtime.Extensions" version="4.0.10-beta-22703" />
+  <package id="System.Runtime.Handles" version="4.0.0-beta-22703" />
+  <package id="System.Runtime.InteropServices" version="4.0.20-beta-22703" />
+  <package id="System.Text.Encoding" version="4.0.10-beta-22703" />
+  <package id="System.Text.Encoding.Extensions" version="4.0.10-beta-22703" />
+  <package id="System.Threading" version="4.0.10-beta-22703" />
+  <package id="System.Threading.Tasks" version="4.0.10-beta-22703" />
+</packages>
+```
 
 And restore the packages with the packages.config:
 
@@ -175,16 +177,18 @@ Compile the Demo
 
 Now you need a Hello World application to run. You can write your own, if you'd like. Here's a very simple one:
 
-	using System;
+```csharp
+using System;
 
-	public class Program
-	{
-	    public static void Main (string[] args)
-	    {
-	        Console.WriteLine("Hello, Windows");
-	        Console.WriteLine("Love from CoreCLR.");
-	    }   
-	} 
+public class Program
+{
+    public static void Main (string[] args)
+    {
+        Console.WriteLine("Hello, Windows");
+        Console.WriteLine("Love from CoreCLR.");
+    }   
+} 
+```
 
 Personally, I'm partial to the one on corefxlab which will print a picture for you. Download the [corefxlab demo](https://raw.githubusercontent.com/dotnet/corefxlab/master/demos/CoreClrConsoleApplications/HelloWorld/HelloWorld.cs) to `\coreclr-demo`.
 
