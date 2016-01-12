@@ -29,8 +29,14 @@ namespace System.Runtime.Loader
         
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
-        private static extern IntPtr InitializeAssemblyLoadContext(IntPtr ptrAssemblyLoadContext);
-        
+        private static extern IntPtr InitializeAssemblyLoadContext(IntPtr ptrAssemblyLoadContext, bool fIsCollectible);
+
+#if FEATURE_COLLECTIBLE_ALC
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [SuppressUnmanagedCodeSecurity]
+        private static extern bool DestroyAssemblyLoadContext(IntPtr ptrNativeAssemblyLoadContext);
+#endif // FEATURE_COLLECTIBLE_ALC
+
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private static extern IntPtr LoadFromStream(IntPtr ptrNativeAssemblyLoadContext, IntPtr ptrAssemblyArray, int iAssemblyArrayLen, IntPtr ptrSymbols, int iSymbolArrayLen, ObjectHandleOnStack retAssembly);
@@ -45,19 +51,81 @@ namespace System.Runtime.Loader
         internal static extern void InternalStartProfile(string profile, IntPtr ptrNativeAssemblyLoadContext);
 #endif // FEATURE_MULTICOREJIT
 
+#if !FEATURE_COLLECTIBLE_ALC
         [System.Security.SecuritySafeCritical]
         protected AssemblyLoadContext()
         {
             // Initialize the VM side of AssemblyLoadContext if not already done.
             GCHandle gchALC = GCHandle.Alloc(this);
             IntPtr ptrALC = GCHandle.ToIntPtr(gchALC);
-            m_pNativeAssemblyLoadContext = InitializeAssemblyLoadContext(ptrALC);
+            m_pNativeAssemblyLoadContext = InitializeAssemblyLoadContext(ptrALC, false);
         }
 
         internal AssemblyLoadContext(bool fDummy)
         {
         }
-        
+#else // !FEATURE_COLLECTIBLE_ALC
+        [System.Security.SecuritySafeCritical]
+        protected AssemblyLoadContext()
+            : this(true) // TODO: Testing only, should default to false!
+        {
+        }
+
+        [System.Security.SecuritySafeCritical]
+        protected AssemblyLoadContext(bool isCollectible)
+        {
+            // Initialize the VM side of AssemblyLoadContext if not already done.
+            GCHandle gchALC = GCHandle.Alloc(this, isCollectible ? GCHandleType.WeakTrackResurrection : GCHandleType.Normal);
+            IntPtr ptrALC = GCHandle.ToIntPtr(gchALC);
+            
+            m_pNativeAssemblyLoadContext = InitializeAssemblyLoadContext(ptrALC, isCollectible);
+
+            m_isCollectible = isCollectible;
+            m_gchALC = gchALC;
+        }
+
+        ~AssemblyLoadContext()
+        {
+            if (!m_isCollectible)
+            {
+                // Should be unreachable, the GCHandle used for non-collectible contexts should
+                // keep it alive forever.
+                return;
+            }
+
+            if (m_pNativeAssemblyLoadContext == IntPtr.Zero || !m_gchALC.IsAllocated)
+            {
+                // Already cleaned up?
+                return;
+            }
+
+            if (Environment.HasShutdownStarted || AppDomain.CurrentDomain.IsFinalizingForUnload())
+            {
+                // TODO: We need this to prevent running the finalizer forever on shutdown, but
+                // I'm not sure if it needs to be completely clean. Maybe this condition should
+                // be passed to DestroyAssemblyLoadContext() so we can force it to cleanup?
+                return;
+            }
+
+            // TODO: What should happen if the derived class ressurects us?
+
+            // DestroyAssemblyLoadContext returns true if the native resources were released.
+            if (DestroyAssemblyLoadContext(m_pNativeAssemblyLoadContext))
+            {
+                // Free the handle for this instance.
+                m_gchALC.Free();
+
+                // Clear the pointer to the native instance.
+                m_pNativeAssemblyLoadContext = IntPtr.Zero;
+            }
+            else
+            {
+                // The native resources can't be released yet, keep trying.
+                GC.ReRegisterForFinalize(this);
+            }
+        }
+#endif // FEATURE_COLLECTIBLE_ALC
+
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private static extern void LoadFromPath(IntPtr ptrNativeAssemblyLoadContext, string ilPath, string niPath, ObjectHandleOnStack retAssembly);
@@ -349,7 +417,14 @@ namespace System.Runtime.Loader
         
         // Contains the reference to VM's representation of the AssemblyLoadContext
         private IntPtr m_pNativeAssemblyLoadContext;
-        
+
+#if FEATURE_COLLECTIBLE_ALC
+        private bool m_isCollectible;
+
+        // The GCHandle for this AssemblyLoadContext instance
+        private GCHandle m_gchALC;
+#endif // FEATURE_COLLECTIBLE_ALC
+
         // Each AppDomain contains the reference to its AssemblyLoadContext instance, if one is
         // specified by the host. By having the field as a static, we are
         // making it an AppDomain-wide field.

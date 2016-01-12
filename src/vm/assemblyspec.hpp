@@ -625,6 +625,10 @@ class AssemblySpecBindingCache
     
     BOOL StoreException(AssemblySpec *pSpec, Exception* pEx);
 
+#if defined(FEATURE_CORECLR) && defined(FEATURE_COLLECTIBLE_ALC)
+    BOOL RemoveAssembly(AssemblySpec *pSpec, DomainAssembly *pAssembly);
+#endif // defined(FEATURE_CORECLR) && defined(FEATURE_COLLECTIBLE_ALC)
+
     DWORD Hash(AssemblySpec *pSpec)
     {
         WRAPPER_NO_CONTRACT;

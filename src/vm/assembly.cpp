@@ -563,7 +563,8 @@ void Assembly::Terminate( BOOL signalProfiler )
 #endif // CROSSGEN_COMPILE
 
 Assembly * Assembly::Create(
-    BaseDomain *                 pDomain, 
+    BaseDomain *                 pDomain,
+    DomainAssembly *             pDomainAssembly,
     PEAssembly *                 pFile, 
     DebuggerAssemblyControlFlags debuggerFlags, 
     BOOL                         fIsCollectible, 
@@ -571,6 +572,33 @@ Assembly * Assembly::Create(
     LoaderAllocator *            pLoaderAllocator)
 {
     STANDARD_VM_CONTRACT;
+
+#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
+    SafeComHolder<ICollectibleAssemblyLoadContext> pAssemblyLoadContext = NULL;
+    BOOL fCollectibleALC = FALSE;
+
+    ICLRPrivBinder *pFileBinder = pFile->GetBindingContext();
+    if (pFileBinder != NULL)
+    {
+        ICLRPrivBinder *pBinder = reinterpret_cast<BINDER_SPACE::Assembly *>(pFileBinder)->GetBinder();
+
+        if (SUCCEEDED(pBinder->QueryInterface<ICollectibleAssemblyLoadContext>(&pAssemblyLoadContext)))
+        {
+            pAssemblyLoadContext->GetIsCollectible(&fCollectibleALC);
+
+            _ASSERTE(!fIsCollectible && pLoaderAllocator == NULL);
+
+            fIsCollectible = fCollectibleALC;
+            pLoaderAllocator = pDomainAssembly->GetLoaderAllocator();
+
+            if (fCollectibleALC)
+            {
+                _ASSERTE(pDomainAssembly->IsCollectible());
+                _ASSERTE(pLoaderAllocator->IsCollectible());
+            }
+        }
+    }
+#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
 
     NewHolder<Assembly> pAssembly (new Assembly(pDomain, pFile, debuggerFlags, fIsCollectible));
 
@@ -606,6 +634,19 @@ Assembly * Assembly::Create(
 #endif
     pAssembly.SuppressRelease();
     END_INTERIOR_STACK_PROBE;
+
+#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
+    if (fCollectibleALC)
+    {
+        AssemblyLoaderAllocator *pAssemblyLoaderAllocator = static_cast<AssemblyLoaderAllocator *>(pLoaderAllocator);
+
+        pAssemblyLoaderAllocator->SetDomainAssembly(pDomainAssembly);
+
+        pAssemblyLoaderAllocator->ActivateManagedTracking();
+
+        VERIFY(SUCCEEDED(pAssemblyLoadContext->ReferenceLoaderAllocator(pLoaderAllocator)));
+    }
+#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
     
     return pAssembly;
 } // Assembly::Create
@@ -900,7 +941,7 @@ Assembly *Assembly::CreateDynamic(AppDomain *pDomain, CreateDynamicAssemblyArgs 
         {
             GCX_PREEMP();
             // Assembly::Create will call SuppressRelease on the NewHolder that holds the LoaderAllocator when it transfers ownership
-            pAssem = Assembly::Create(pDomain, pFile, pDomainAssembly->GetDebuggerInfoBits(), args->access & ASSEMBLY_ACCESS_COLLECT ? TRUE : FALSE, pamTracker, pLoaderAllocator);
+            pAssem = Assembly::Create(pDomain, pDomainAssembly, pFile, pDomainAssembly->GetDebuggerInfoBits(), args->access & ASSEMBLY_ACCESS_COLLECT ? TRUE : FALSE, pamTracker, pLoaderAllocator);
             
             ReflectionModule* pModule = (ReflectionModule*) pAssem->GetManifestModule();
             pModule->SetCreatingAssembly( pCallerAssembly );

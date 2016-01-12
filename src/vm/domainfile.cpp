@@ -1701,6 +1701,9 @@ DomainAssembly::DomainAssembly(AppDomain *pDomain, PEFile *pFile, AssemblyLoadSe
     m_MissingDependenciesCheckStatus(CMD_Unknown),
     m_fSkipPolicyResolution(pLoadSecurity != NULL && !pLoadSecurity->ShouldResolvePolicy()),
     m_fDebuggerUnloadStarted(FALSE),
+#ifdef FEATURE_COLLECTIBLE_ALC
+    m_pLoaderAllocator(pLoaderAllocator),
+#endif // FEATURE_COLLECTIBLE_ALC
     m_fCollectible(pLoaderAllocator->IsCollectible()),
     m_fHostAssemblyPublished(false),
     m_fCalculatedShouldLoadDomainNeutral(false),
@@ -2806,7 +2809,7 @@ Retry:
 
                 // Go ahead and create new shared version of the assembly if possible
                 // <TODO> We will need to pass a valid OBJECREF* here in the future when we implement SCU </TODO>
-                assemblyHolder = pAssembly = Assembly::Create(pSharedDomain, GetFile(), GetDebuggerInfoBits(), FALSE, pamTracker, NULL);
+                assemblyHolder = pAssembly = Assembly::Create(pSharedDomain, this, GetFile(), GetDebuggerInfoBits(), FALSE, pamTracker, NULL);
 
                 if (MissingDependenciesCheckDone())
                     pAssembly->SetMissingDependenciesCheckDone();
@@ -2848,7 +2851,7 @@ Retry:
 
                 // <TODO> We will need to pass a valid OBJECTREF* here in the future when we implement SCU </TODO>
                 SharedDomain * pSharedDomain = SharedDomain::GetDomain();
-                assemblyHolder = pAssembly = Assembly::Create(pSharedDomain, GetFile(), GetDebuggerInfoBits(), FALSE, pamTracker, NULL);
+                assemblyHolder = pAssembly = Assembly::Create(pSharedDomain, this, GetFile(), GetDebuggerInfoBits(), FALSE, pamTracker, NULL);
                 pAssembly->SetIsTenured();
             }
 #endif  // FEATURE_LOADER_OPTIMIZATION
@@ -2859,7 +2862,7 @@ Retry:
             GetFile()->MakeMDImportPersistent();
             
             // <TODO> We will need to pass a valid OBJECTREF* here in the future when we implement SCU </TODO>
-            assemblyHolder = pAssembly = Assembly::Create(m_pDomain, GetFile(), GetDebuggerInfoBits(), FALSE, pamTracker, NULL);
+            assemblyHolder = pAssembly = Assembly::Create(m_pDomain, this, GetFile(), GetDebuggerInfoBits(), FALSE, pamTracker, NULL);
             assemblyHolder->SetIsTenured();
         }
 

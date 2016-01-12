@@ -291,6 +291,39 @@ BOOL LoaderAllocator::EnsureInstantiation(Module *pDefiningModule, Instantiation
 
     return fNewReferenceNeeded;
 }
+
+BOOL LoaderAllocator::ReleaseAllReferences()
+{
+    CONTRACTL
+    {
+        THROWS;
+        SO_INTOLERANT;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    // Check if this lock can be taken in all places that the function is called
+    _ASSERTE(GetDomain()->GetLoaderAllocatorReferencesLock()->Debug_CanTake());
+
+    if (!IsCollectible())
+        return FALSE;
+
+    CrstHolder ch(GetDomain()->GetLoaderAllocatorReferencesLock());
+
+    // Iterate through all references to other loader allocators and decrement their reference
+    // count
+    LoaderAllocatorSet::Iterator iter = m_LoaderAllocatorReferences.Begin();
+    while (iter != m_LoaderAllocatorReferences.End())
+    {
+        LoaderAllocator *pAllocator = *iter;
+        pAllocator->Release();
+        iter++;
+    }
+
+    m_LoaderAllocatorReferences.RemoveAll();
+
+    return TRUE;
+}
 #else // CROSSGEN_COMPILE
 BOOL LoaderAllocator::EnsureReference(LoaderAllocator *pOtherLA)
 {
@@ -521,14 +554,34 @@ void LoaderAllocator::GCLoaderAllocators(AppDomain * pAppDomain)
     while (pDomainLoaderAllocatorDestroyIterator != NULL)
     {
         _ASSERTE(!pDomainLoaderAllocatorDestroyIterator->IsAlive());
-        _ASSERTE(pDomainLoaderAllocatorDestroyIterator->m_pDomainAssemblyToDelete != NULL);
-        
-        delete pDomainLoaderAllocatorDestroyIterator->m_pDomainAssemblyToDelete;
+
+        DomainAssembly * pDomainAssembly = pDomainLoaderAllocatorDestroyIterator->m_pDomainAssemblyToDelete;
+        _ASSERTE(pDomainAssembly != NULL);
+
+        // Deleting pDomainAssembly can overwrite m_pLoaderAllocatorDestroyNext so we need to save it
+        LoaderAllocator *pNextDestroyedLoaderAllocator = pDomainLoaderAllocatorDestroyIterator->m_pLoaderAllocatorDestroyNext;
+
+        pDomainLoaderAllocatorDestroyIterator->CleanupStringLiteralMap();
+
+#if defined(FEATURE_CORECLR) && defined(FEATURE_COLLECTIBLE_ALC)
+        if (!pDomainAssembly->GetAssembly()->IsDynamic())
+        {
+            AssemblySpec spec;
+            spec.InitializeSpec(pDomainAssembly->GetFile());
+
+            pAppDomain->RemoveDomainAssemblyFromFileLoadList(pDomainAssembly);
+
+            VERIFY(pAppDomain->RemoveAssemblyFromCache(&spec, pDomainAssembly));
+            VERIFY(pAppDomain->RemoveNativeImageDependency(&spec));
+        }
+#endif // defined(FEATURE_CORECLR) && defined(FEATURE_COLLECTIBLE_ALC)
+
+        delete pDomainAssembly;
         // We really don't have to set it to NULL as the assembly is not reachable anymore, but just in case ...
         // (Also debugging NULL AVs if someone uses it accidentaly is so much easier)
         pDomainLoaderAllocatorDestroyIterator->m_pDomainAssemblyToDelete = NULL;
         
-        pDomainLoaderAllocatorDestroyIterator = pDomainLoaderAllocatorDestroyIterator->m_pLoaderAllocatorDestroyNext;
+        pDomainLoaderAllocatorDestroyIterator = pNextDestroyedLoaderAllocator;
     }
     
     // Deleting the DomainAssemblies will have created a list of LoaderAllocator's on the AppDomain
@@ -560,8 +613,6 @@ BOOL QCALLTYPE LoaderAllocator::Destroy(QCall::LoaderAllocatorHandle pLoaderAllo
         //if not fully loaded, it is still domain specific, so just get one from DomainAssembly
         BaseDomain *pDomain = pAssembly ? pAssembly->Parent() : pID->GetDomainAssembly()->GetAppDomain();
 
-        pLoaderAllocator->CleanupStringLiteralMap();
-
         // This will probably change for shared code unloading
         _ASSERTE(pDomain->IsAppDomain());
 
@@ -569,14 +620,14 @@ BOOL QCALLTYPE LoaderAllocator::Destroy(QCall::LoaderAllocatorHandle pLoaderAllo
 
         pLoaderAllocator->m_pDomainAssemblyToDelete = pAssembly->GetDomainAssembly(pAppDomain);
 
-        // Iterate through all references to other loader allocators and decrement their reference
-        // count
-        LoaderAllocatorSet::Iterator iter = pLoaderAllocator->m_LoaderAllocatorReferences.Begin();
-        while (iter != pLoaderAllocator->m_LoaderAllocatorReferences.End())
+#ifdef FEATURE_COLLECTIBLE_ALC
+        // Collectible LoaderAllocators created for AssemblyLoadContext need to release
+        // these references in its own finalizer, so we only release this LoaderAllocator's
+        // references if it was created by System.Reflection.Emit.
+        if (pAssembly == NULL || pAssembly->IsDynamic())
+#endif // FEATURE_COLLECTIBLE_ALC
         {
-            LoaderAllocator *pAllocator = *iter;
-            pAllocator->Release();
-            iter++;
+            pLoaderAllocator->ReleaseAllReferences();
         }
 
         // Release this loader allocator

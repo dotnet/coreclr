@@ -2324,6 +2324,61 @@ BOOL AssemblySpecBindingCache::StoreException(AssemblySpec *pSpec, Exception* pE
     }
 }
 
+#if defined(FEATURE_CORECLR) && defined(FEATURE_COLLECTIBLE_ALC)
+BOOL AssemblySpecBindingCache::RemoveAssembly(AssemblySpec *pSpec, DomainAssembly *pAssembly)
+{
+    CONTRACT(BOOL)
+    {
+        INSTANCE_CHECK;
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        PRECONDITION(m_pHeap == NULL);
+#ifdef FEATURE_HOSTED_BINDER
+        // Host binder based assembly spec's cannot currently be safely inserted into caches.
+        PRECONDITION(pSpec->GetHostBinder() == nullptr);
+#endif // FEATURE_HOSTED_BINDER
+        PRECONDITION(UnsafeVerifyLookupAssembly(this, pSpec, pAssembly));
+        POSTCONDITION(!UnsafeContains(this, pSpec));
+        INJECT_FAULT(COMPlusThrowOM(););
+    }
+    CONTRACT_END;
+
+    UPTR key = (UPTR)pSpec->Hash();
+
+#if defined(FEATURE_CORECLR)
+    // On CoreCLR, we will use the BinderID as the key 
+    ICLRPrivBinder* pBinderContextForLookup = pAssembly->GetFile()->GetBindingContext();
+    _ASSERTE(pBinderContextForLookup || pAssembly->GetFile()->IsSystem());
+    if (pBinderContextForLookup)
+    {
+        UINT_PTR binderID = 0;
+        HRESULT hr = pBinderContextForLookup->GetBinderID(&binderID);
+        _ASSERTE(SUCCEEDED(hr));
+        key = key^binderID;
+
+        if (!pSpec->GetBindingContext())
+        {
+            pSpec->SetBindingContext(pBinderContextForLookup);
+        }
+    }
+#endif // defined(FEATURE_CORECLR)
+
+    AssemblyBinding *entry = (AssemblyBinding *)m_map.LookupValue(key, pSpec);
+
+    if (entry == (AssemblyBinding *)INVALIDENTRY)
+    {
+        RETURN FALSE;
+    }
+
+    entry = (AssemblyBinding *)m_map.DeleteValue(key, pSpec);
+    _ASSERTE(entry != (AssemblyBinding *)INVALIDENTRY);
+    delete entry;
+    
+    RETURN TRUE;
+}
+#endif // defined(FEATURE_CORECLR) && defined(FEATURE_COLLECTIBLE_ALC)
+
 /* static */
 BOOL AssemblySpecHash::CompareSpecs(UPTR u1, UPTR u2)
 {

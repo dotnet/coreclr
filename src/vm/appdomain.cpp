@@ -5107,8 +5107,8 @@ void AppDomain::Init()
 
     m_pSecContext = new SecurityContext (GetLowFrequencyHeap());
 
-// Set up the binding caches
-    m_AssemblyCache.Init(&m_DomainCacheCrst, GetHighFrequencyHeap());
+    // Set up the binding caches
+    m_AssemblyCache.Init(&m_DomainCacheCrst);
     m_UnmanagedCache.InitializeTable(this, &m_DomainCacheCrst);
 
     m_MemoryPressure = 0;
@@ -6791,11 +6791,60 @@ DomainAssembly *AppDomain::LoadDomainAssemblyInternal(AssemblySpec* pIdentity,
     
     if (result == NULL)
     {
+#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
+        BOOL fIsCollectible = FALSE;
+        SafeComHolder<ICollectibleAssemblyLoadContext> pAssemblyLoadContext = NULL;
+
+        ICLRPrivBinder *pFileBinder = pFile->GetBindingContext();
+        if (pFileBinder != NULL)
+        {
+            ICLRPrivBinder *pBinder = reinterpret_cast<BINDER_SPACE::Assembly *>(pFileBinder)->GetBinder();
+
+            // Assemblies loaded with AssemblyLoadContext need to use a different LoaderAllocator if
+            // marked as collectible
+            if (SUCCEEDED(pBinder->QueryInterface<ICollectibleAssemblyLoadContext>(&pAssemblyLoadContext)))
+            {
+                pAssemblyLoadContext->GetIsCollectible(&fIsCollectible);
+            }
+        }
+
+        AssemblyLoaderAllocator *pLoaderAllocatorOverride = NULL;
+
+        if (fIsCollectible)
+        {
+            GCX_COOP();
+
+            LOADERALLOCATORREF pManagedLoaderAllocator = NULL;
+            GCPROTECT_BEGIN(pManagedLoaderAllocator);
+
+            {
+                GCX_PREEMP();
+
+                pLoaderAllocatorOverride = new AssemblyLoaderAllocator();
+
+                // Some of the initialization functions are not virtual. Call through the derived class
+                // to prevent calling the base class version.
+                pLoaderAllocatorOverride->Init(this);
+
+                // Setup the managed proxy now, but do not actually transfer ownership to it.
+                // Once everything is setup and nothing can fail anymore, the ownership will be
+                // atomically transfered by call to LoaderAllocator::ActivateManagedTracking().
+                pLoaderAllocatorOverride->SetupManagedTracking(&pManagedLoaderAllocator);
+            }
+
+            GCPROTECT_END();
+        }
+
+        LoaderAllocator *pLoaderAllocator = pLoaderAllocatorOverride == NULL ? this->GetLoaderAllocator() : pLoaderAllocatorOverride;
+#else // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
+        LoaderAllocator *pLoaderAllocator = this->GetLoaderAllocator();
+#endif
+
         // Allocate the DomainAssembly a bit early to avoid GC mode problems. We could potentially avoid
         // a rare redundant allocation by moving this closer to FileLoadLock::Create, but it's not worth it.
 
         NewHolder<DomainAssembly> pDomainAssembly;
-        pDomainAssembly = new DomainAssembly(this, pFile, pLoadSecurity, this->GetLoaderAllocator());
+        pDomainAssembly = new DomainAssembly(this, pFile, pLoadSecurity, pLoaderAllocator);
 
         LoadLockHolder lock(this);
 
@@ -7492,17 +7541,9 @@ AppDomain::SharePolicy AppDomain::GetSharePolicy()
 
 
 #ifdef FEATURE_CORECLR
-void AppDomain::CheckForMismatchedNativeImages(AssemblySpec * pSpec, const GUID * pGuid)
+static void NormalizeAssemblySpecForNativeDependencies(AssemblySpec * pSpec)
 {
     STANDARD_VM_CONTRACT;
-
-    //
-    // The native images are ever used only for trusted images in CoreCLR.
-    // We don't wish to open the IL file at runtime so we just forgo any
-    // eager consistency checking. But we still want to prevent mistmatched 
-    // NGen images from being used. We record all mappings between assembly 
-    // names and MVID, and fail once we detect mismatch.
-    //
 
     if (pSpec->IsStrongNamed() && pSpec->HasPublicKey())
     {
@@ -7521,6 +7562,21 @@ void AppDomain::CheckForMismatchedNativeImages(AssemblySpec * pSpec, const GUID 
 
     // Ignore the WinRT type while considering if two assemblies have the same identity.
     pSpec->SetWindowsRuntimeType(NULL, NULL);
+}
+
+void AppDomain::CheckForMismatchedNativeImages(AssemblySpec * pSpec, const GUID * pGuid)
+{
+    STANDARD_VM_CONTRACT;
+
+    //
+    // The native images are ever used only for trusted images in CoreCLR.
+    // We don't wish to open the IL file at runtime so we just forgo any
+    // eager consistency checking. But we still want to prevent mistmatched 
+    // NGen images from being used. We record all mappings between assembly 
+    // names and MVID, and fail once we detect mismatch.
+    //
+
+    NormalizeAssemblySpecForNativeDependencies(pSpec);
 
     CrstHolder ch(&m_DomainCrst);
 
@@ -7541,22 +7597,39 @@ void AppDomain::CheckForMismatchedNativeImages(AssemblySpec * pSpec, const GUID 
         //
         // No entry yet - create one
         //
-        AllocMemTracker amTracker;
-        AllocMemTracker *pamTracker = &amTracker;
 
-        NativeImageDependenciesEntry * pNewEntry = 
-            new (pamTracker->Track(GetLowFrequencyHeap()->AllocMem(S_SIZE_T(sizeof(NativeImageDependenciesEntry)))))
-                NativeImageDependenciesEntry();
+        NativeImageDependenciesEntry * pNewEntry = new NativeImageDependenciesEntry();
 
         pNewEntry->m_AssemblySpec.CopyFrom(pSpec);
-        pNewEntry->m_AssemblySpec.CloneFieldsToLoaderHeap(AssemblySpec::ALL_OWNED, GetLowFrequencyHeap(), pamTracker);
+        pNewEntry->m_AssemblySpec.CloneFields(AssemblySpec::ALL_OWNED);
 
         pNewEntry->m_guidMVID = *pGuid;
 
         m_NativeImageDependencies.Add(pNewEntry);
-        amTracker.SuppressRelease();
     }
 }
+
+#ifdef FEATURE_COLLECTIBLE_ALC
+BOOL AppDomain::RemoveNativeImageDependency(AssemblySpec * pSpec)
+{
+    STANDARD_VM_CONTRACT;
+
+    NormalizeAssemblySpecForNativeDependencies(pSpec);
+
+    CrstHolder ch(&m_DomainCrst);
+
+    NativeImageDependenciesEntry *pEntry = m_NativeImageDependencies.Lookup(pSpec);
+
+    if (pEntry == NULL)
+        return FALSE;
+
+    m_NativeImageDependencies.Remove(pSpec);
+    delete pEntry;
+
+    return TRUE;
+}
+#endif // FEATURE_COLLECTIBLE_ALC
+
 #endif // FEATURE_CORECLR
 
 
@@ -8088,6 +8161,46 @@ HMODULE AppDomain::FindUnmanagedImageInCache(LPCWSTR libraryName)
     RETURN (HMODULE) m_UnmanagedCache.LookupEntry(&spec, 0);
 }
 
+#if defined(FEATURE_CORECLR) && defined(FEATURE_COLLECTIBLE_ALC)
+BOOL AppDomain::RemoveDomainAssemblyFromFileLoadList(DomainAssembly *pDomainAssembly)
+{
+    CONTRACTL
+    {
+        MODE_ANY;
+        PRECONDITION(CheckPointer(pDomainAssembly));
+        INJECT_FAULT(COMPlusThrowOM(););
+    }
+    CONTRACTL_END;
+
+    LoadLockHolder lock(this);
+    FileLoadLock *fileLock = (FileLoadLock *)lock->FindFileLock(pDomainAssembly->GetFile());
+
+    if (fileLock == NULL)
+        return FALSE;
+
+    VERIFY(lock->Unlink(fileLock));
+
+    fileLock->Release();
+
+    return TRUE;
+}
+
+BOOL AppDomain::RemoveAssemblyFromCache(AssemblySpec* pSpec, DomainAssembly *pDomainAssembly)
+{
+    CONTRACTL
+    {
+        MODE_ANY;
+        PRECONDITION(CheckPointer(pSpec));
+        PRECONDITION(CheckPointer(pDomainAssembly));
+        INJECT_FAULT(COMPlusThrowOM(););
+    }
+    CONTRACTL_END;
+
+    CrstHolder holder(&m_DomainCacheCrst);
+
+    return m_AssemblyCache.RemoveAssembly(pSpec, pDomainAssembly);
+}
+#endif // defined(FEATURE_CORECLR) && defined(FEATURE_COLLECTIBLE_ALC)
 
 BOOL AppDomain::IsCached(AssemblySpec *pSpec)
 {

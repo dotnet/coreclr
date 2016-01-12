@@ -759,6 +759,10 @@ public:
     void NotifyDebuggerUnload();
     BOOL IsUnloading();
 
+#ifdef FEATURE_COLLECTIBLE_ALC
+    inline PTR_LoaderAllocator GetLoaderAllocator();
+#endif // FEATURE_COLLECTIBLE_ALC
+
     inline BOOL IsCollectible();
     // 
     //  GC API
@@ -837,6 +841,9 @@ private:
     ArrayList                               m_Modules;
     BOOL                                    m_fSkipPolicyResolution;
     BOOL                                    m_fDebuggerUnloadStarted;
+#ifdef FEATURE_COLLECTIBLE_ALC
+    PTR_LoaderAllocator                     m_pLoaderAllocator;
+#endif // FEATURE_COLLECTIBLE_ALC
     BOOL                                    m_fCollectible;
     Volatile<bool>                          m_fHostAssemblyPublished;
     Volatile<bool>                          m_fCalculatedShouldLoadDomainNeutral;

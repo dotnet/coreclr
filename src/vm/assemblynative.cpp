@@ -2493,8 +2493,9 @@ BOOL QCALLTYPE AssemblyNative::IsDesignerBindingContext(QCall::AssemblyHandle pA
 #endif // FEATURE_APPX
 
 #if defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
+
 /*static*/
-INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManagedAssemblyLoadContext)
+INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManagedAssemblyLoadContext, BOOL fIsCollectible)
 {
     QCALL_CONTRACT;
 
@@ -2511,7 +2512,8 @@ INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManag
     // Initialize the assembly binder instance in the VM
     PTR_AppDomain pCurDomain = AppDomain::GetCurrentDomain();
     CLRPrivBinderCoreCLR *pTPABinderContext = pCurDomain->GetTPABinderContext();
-    IfFailThrow(CLRPrivBinderAssemblyLoadContext::SetupContext(pCurDomain->GetId().m_dwId, pTPABinderContext, ptrManagedAssemblyLoadContext, &pBindContext));
+    IfFailThrow(CLRPrivBinderAssemblyLoadContext::SetupContext(pCurDomain->GetId().m_dwId, pTPABinderContext, ptrManagedAssemblyLoadContext, fIsCollectible, &pBindContext));
+
     _ASSERTE(pBindContext != NULL);
     
     ptrNativeAssemblyLoadContext = reinterpret_cast<INT_PTR>(pBindContext);
@@ -2520,6 +2522,26 @@ INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManag
     
     return ptrNativeAssemblyLoadContext;
 }
+
+#ifdef FEATURE_COLLECTIBLE_ALC
+
+/*static*/
+BOOL QCALLTYPE AssemblyNative::DestroyAssemblyLoadContext(INT_PTR ptrNativeAssemblyLoadContext)
+{
+    QCALL_CONTRACT;
+
+    BOOL fDestroyed = FALSE;
+
+    BEGIN_QCALL;
+
+    fDestroyed = CLRPrivBinderAssemblyLoadContext::DestroyContext(reinterpret_cast<CLRPrivBinderAssemblyLoadContext *>(ptrNativeAssemblyLoadContext));
+
+    END_QCALL;
+
+    return fDestroyed;
+}
+
+#endif // FEATURE_COLLECTIBLE_ALC
 
 /*static*/
 BOOL QCALLTYPE AssemblyNative::OverrideDefaultAssemblyLoadContextForCurrentDomain(INT_PTR ptrNativeAssemblyLoadContext)

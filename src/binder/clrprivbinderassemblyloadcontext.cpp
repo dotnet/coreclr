@@ -220,6 +220,30 @@ HRESULT CLRPrivBinderAssemblyLoadContext::FindAssemblyBySpec(
     return E_FAIL;
 }
 
+#ifdef FEATURE_COLLECTIBLE_ALC
+
+HRESULT CLRPrivBinderAssemblyLoadContext::GetIsCollectible(BOOL *pIsCollectible)
+{
+    *pIsCollectible = m_isCollectible;
+    return S_OK;
+}
+
+HRESULT CLRPrivBinderAssemblyLoadContext::ReferenceLoaderAllocator(LoaderAllocator *pLoaderAllocator)
+{
+    CrstHolder holder(m_loadersCrst);
+
+    // The same LoaderAllocator should not be used twice
+    _ASSERTE(m_loaderAllocators.Lookup(pLoaderAllocator) == NULL);
+
+    VERIFY(pLoaderAllocator->AddReferenceIfAlive());
+
+    m_loaderAllocators.Add(pLoaderAllocator);
+
+    return S_OK;
+}
+
+#endif // FEATURE_COLLECTIBLE_ALC
+
 //=============================================================================
 // Creates an instance of the AssemblyLoadContext Binder
 //
@@ -229,7 +253,8 @@ HRESULT CLRPrivBinderAssemblyLoadContext::FindAssemblyBySpec(
 /* static */
 HRESULT CLRPrivBinderAssemblyLoadContext::SetupContext(DWORD      dwAppDomainId,
                                             CLRPrivBinderCoreCLR *pTPABinder,
-                                            UINT_PTR ptrAssemblyLoadContext,                                            
+                                            UINT_PTR ptrAssemblyLoadContext, 
+                                            BOOL fIsCollectible,
                                             CLRPrivBinderAssemblyLoadContext **ppBindContext)
 {
     HRESULT hr = E_FAIL;
@@ -257,6 +282,10 @@ HRESULT CLRPrivBinderAssemblyLoadContext::SetupContext(DWORD      dwAppDomainId,
                 // AssemblyLoadContext instance
                 pBinder->m_ptrManagedAssemblyLoadContext = ptrAssemblyLoadContext;
 
+#ifdef FEATURE_COLLECTIBLE_ALC
+                pBinder->m_isCollectible = fIsCollectible;
+#endif // FEATURE_COLLECTIBLE_ALC
+
                 // Return reference to the allocated Binder instance
                 *ppBindContext = clr::SafeAddRef(pBinder.Extract());
             }
@@ -268,9 +297,89 @@ Exit:
     return hr;
 }
 
+#ifdef FEATURE_COLLECTIBLE_ALC
+
+/* static */
+BOOL CLRPrivBinderAssemblyLoadContext::DestroyContext(CLRPrivBinderAssemblyLoadContext *pBindContext)
+{
+    {
+        CrstHolder holder(pBindContext->m_loadersCrst);
+
+        LoaderAllocatorSet &loaderAllocators = pBindContext->m_loaderAllocators;
+
+        LoaderAllocatorSet::Iterator iter = loaderAllocators.Begin();
+        while (iter != loaderAllocators.End())
+        {
+            LoaderAllocator *pLoaderAllocator = *iter;
+
+            // This context should be holding onto a reference to the LoaderAllocator, so it
+            // should still be alive
+            _ASSERTE(pLoaderAllocator->IsAlive());
+
+            if (pLoaderAllocator->IsManagedScoutAlive())
+            {
+                // We can't destroy until there is no managed reference to any of our LoaderAllocators
+                return FALSE;
+            }
+
+            iter++;
+        }
+
+        iter = loaderAllocators.Begin();
+        while (iter != loaderAllocators.End())
+        {
+            LoaderAllocator *pLoaderAllocator = *iter;
+
+            pLoaderAllocator->ReleaseAllReferences();
+
+            // Release our reference to the LoaderAllocator so it can be deleted by the LoaderAllocator GC
+            VERIFY(pLoaderAllocator->Release());
+
+            iter++;
+        }
+    }
+
+    AppDomain *pAppDomain;
+
+    {
+        GCX_COOP();
+        DWORD dwAppDomainId = pBindContext->m_appContext.GetAppDomainId();
+        pAppDomain = SystemDomain::System()->GetAppDomainFromId((ADID)dwAppDomainId, ADV_RUNNINGIN);
+    }
+
+    // The managed LoaderAllocatorScout finalizer would normally trigger the LoaderAllocator GC
+    // but because we hold a reference that outlasts it, we need to trigger it as well
+    LoaderAllocator::GCLoaderAllocators(pAppDomain);
+    
+    // The managed AssemblyLoadContext should be the only remaining reference to the native
+    // binding context
+    VERIFY(pBindContext->Release() == 0);
+
+    return TRUE;
+}
+
+#endif // FEATURE_COLLECTIBLE_ALC
+
 CLRPrivBinderAssemblyLoadContext::CLRPrivBinderAssemblyLoadContext()
 {
     m_pTPABinder = NULL;
+
+#ifdef FEATURE_COLLECTIBLE_ALC
+    m_isCollectible = FALSE;
+
+    m_loadersCrst = new Crst(CrstType::CrstAssemblyLoadContextLoaderAllocators);
+#endif // FEATURE_COLLECTIBLE_ALC
+}
+
+CLRPrivBinderAssemblyLoadContext::~CLRPrivBinderAssemblyLoadContext()
+{
+#ifdef FEATURE_COLLECTIBLE_ALC
+    if (m_loadersCrst != NULL)
+    {
+        delete m_loadersCrst;
+        m_loadersCrst = NULL;
+    }
+#endif
 }
 
 #endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(MDILNIGEN)
