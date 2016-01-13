@@ -45,7 +45,7 @@ def static getBuildJobName(def configuration, def architecture, def os) {
             // These are cross builds
             return architecture.toLowerCase() + '_cross_' + configuration.toLowerCase() + '_' + os.toLowerCase()
         case 'x86':
-            return architecture.toLowerCase() + '_' + configuration.toLowerCase() + '_' + os.toLowerCase()
+            return architecture.toLowerCase() + '_lb_' + configuration.toLowerCase() + '_' + os.toLowerCase()
         default:
             println("Unknown architecture: ${architecture}");
             assert false
@@ -112,7 +112,7 @@ def static addPRTrigger(def job, def architecture, def os, def configuration, is
         case 'x86':
             // For windows, x86 runs by default
             if (os == 'Windows_NT') {
-                Utilities.addGithubPRTrigger(job, "${os} ${architecture} ${configuration} Build")
+                Utilities.addGithubPRTrigger(job, "${os} ${architecture} ${configuration} Legacy Backend Build and Test")
             }
             else {
                 // default trigger
@@ -213,9 +213,12 @@ def static addPRTrigger(def job, def architecture, def os, def configuration, is
                                     {
                                         buildCommands += "build.cmd ${lowerConfiguration} ${architecture}"
                                     }
-                                    // TEMPORARY. Don't run tests for PR jobs on x86
-                                    if (architecture == 'x64' || !isPR) {
+
+                                    if (architecture == 'x64') {
                                         buildCommands += "tests\\runtest.cmd ${lowerConfiguration} ${architecture}"
+                                    }
+                                    else if (architecture == 'x86') { // x86 has a different config file.
+                                        buildCommands += "tests\\runtest.cmd ${lowerConfiguration} ${architecture} /exclude0 x86_legacy_backend_issues.targets"
                                     }
                                 
                                     // Run the rest of the build    
@@ -231,13 +234,13 @@ def static addPRTrigger(def job, def architecture, def os, def configuration, is
                                     // For windows, pull full test results and test drops for x86/x64
                                     Utilities.addArchival(newJob, "bin/Product/**,bin/tests/tests.zip")
                                     // TEMPORARY. Don't run tests for PR jobs on x86
-                                    if (architecture == 'x86' && !isPR) {
-                                        Utilities.addXUnitDotNETResults(newJob, 'bin/**/TestRun*.xml')
-                                    }
+                                    //if (architecture == 'x86' && !isPR) {
+                                    //    Utilities.addXUnitDotNETResults(newJob, 'bin/**/TestRun*.xml')
+                                    //}
                                     break
                                 case 'arm64':
                                     buildCommands += "build.cmd ${lowerConfiguration} ${architecture} skiptestbuild /toolset_dir C:\\ats"
-                                    // Add archival.  No xunit results for x64 windows
+                                    // Add archival.  No xunit results for arm64 windows
                                     Utilities.addArchival(newJob, "bin/Product/**")
                                     break
                                 default:
