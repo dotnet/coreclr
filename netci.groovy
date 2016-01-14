@@ -485,6 +485,10 @@ def static addTriggers(def job, def isPR, def architecture, def os, def configur
                         Utilities.getFullJobName(project, getBuildJobName(configuration, architecture, os, scenario), isPR)
                     def inputWindowTestsBuildName = Utilities.getFolderName(project) + '/' + 
                         Utilities.getFullJobName(project, getBuildJobName(configuration, architecture, 'windows_nt', scenario), isPR)
+                    def serverGCString = ""
+                    if (os == 'Ubuntu' && isPR){
+                        serverGCString = "--useServerGC"
+                    }
 
                     def newJob = job(Utilities.getFullJobName(project, jobName, isPR)) {
                         // Add parameters for the inputs
@@ -546,7 +550,8 @@ def static addTriggers(def job, def isPR, def architecture, def os, def configur
             --coreClrBinDir=\"\${WORKSPACE}/bin/Product/${osGroup}.${architecture}.${configuration}\" \\
             --mscorlibDir=\"\${WORKSPACE}/bin/Product/${osGroup}.${architecture}.${configuration}\" \\
             --coreFxBinDir=\"\${WORKSPACE}/bin/${osGroup}.AnyCPU.Release\" \\
-            --coreFxNativeBinDir=\"\${WORKSPACE}/bin/${osGroup}.${architecture}.Release\"""")
+            --coreFxNativeBinDir=\"\${WORKSPACE}/bin/${osGroup}.${architecture}.Release\" \\
+            \${serverGCString}""")
                         }
                     }
                 
