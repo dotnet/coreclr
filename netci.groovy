@@ -335,6 +335,10 @@ def static addPRTrigger(def job, def architecture, def os, def configuration, is
                     def jobName = getBuildJobName(configuration, architecture, os) + "_tst"
                     def inputCoreCLRBuildName = Utilities.getFolderName(project) + '/' + 
                         Utilities.getFullJobName(project, getBuildJobName(configuration, architecture, os), isPR)
+                    def serverGCString = ""
+                    if (os == 'Ubuntu' && isPR){
+                        serverGCString = "--useServerGC"
+                    }
                     def name_suffix = ""
                     if (buildPri1Tests)
                     {
@@ -403,7 +407,8 @@ def static addPRTrigger(def job, def architecture, def os, def configuration, is
             --coreClrBinDir=\"\${WORKSPACE}/bin/Product/${osGroup}.${architecture}.${configuration}\" \\
             --mscorlibDir=\"\${WORKSPACE}/bin/Product/${osGroup}.${architecture}.${configuration}\" \\
             --coreFxBinDir=\"\${WORKSPACE}/bin/${osGroup}.AnyCPU.Release\" \\
-            --coreFxNativeBinDir=\"\${WORKSPACE}/bin/${osGroup}.${architecture}.Release\"""")
+            --coreFxNativeBinDir=\"\${WORKSPACE}/bin/${osGroup}.${architecture}.Release\" \\
+            \${serverGCString}""")
                         }
                     }
                 
