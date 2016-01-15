@@ -42,6 +42,10 @@
     void                genPutArgStk(GenTreePtr treeNode);
     unsigned            getBaseVarForPutArgStk(GenTreePtr treeNode);
 
+#ifdef _TARGET_XARCH_
+    unsigned            getFirstArgWithStackSlot();
+#endif // !_TARGET_XARCH_
+
     void                genCompareFloat(GenTreePtr treeNode);
 
     void                genCompareInt(GenTreePtr treeNode);
