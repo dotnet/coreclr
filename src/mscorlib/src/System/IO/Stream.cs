@@ -417,7 +417,12 @@ namespace System.IO {
         {            
             return TaskFactory<Int32>.FromAsyncTrim(
                         this, new ReadWriteParameters { Buffer = buffer, Offset = offset, Count = count },
-                        (stream, args, callback, state) => stream.BeginRead(args.Buffer, args.Offset, args.Count, callback, state), // cached by compiler
+                        (stream, args, callback, state) => stream.BeginReadInternal(args.Buffer, args.Offset, args.Count, callback, state, // cached by compiler
+#if FEATURE_CORECLR
+                            serializeAsynchronously: true), 
+#else
+                            serializeAsynchronously: false),
+#endif
                         (stream, asyncResult) => stream.EndRead(asyncResult)); // cached by compiler
         }
 
@@ -711,7 +716,12 @@ namespace System.IO {
         {            
             return TaskFactory<VoidTaskResult>.FromAsyncTrim(
                         this, new ReadWriteParameters { Buffer=buffer, Offset=offset, Count=count },
-                        (stream, args, callback, state) => stream.BeginWrite(args.Buffer, args.Offset, args.Count, callback, state), // cached by compiler
+                        (stream, args, callback, state) => stream.BeginWriteInternal(args.Buffer, args.Offset, args.Count, callback, state, // cached by compiler
+#if FEATURE_CORECLR
+                            serializeAsynchronously: true), 
+#else
+                            serializeAsynchronously: false),
+#endif
                         (stream, asyncResult) => // cached by compiler
                         {
                             stream.EndWrite(asyncResult);
