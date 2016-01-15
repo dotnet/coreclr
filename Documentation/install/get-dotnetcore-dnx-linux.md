@@ -17,23 +17,9 @@ These instructions are written assuming the Ubuntu 14.04 LTS, since that's the d
 Packages
 --------
 
-Install the `libunwind8`, `libssl-dev` and `unzip` packages:
+Install the dependencies:
 
-	sudo apt-get install libunwind8 libssl-dev unzip
-
-You also need a latest version of Mono, which is required for DNU. This is a temporary requirement.
-
-	sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF
-	echo "deb http://download.mono-project.com/repo/debian wheezy main" | sudo tee /etc/apt/sources.list.d/mono-xamarin.list
-	sudo apt-get update
-	sudo apt-get install mono-complete
-
-Certificates
-------------
-
-You need to import trusted root certificates in order to restore NuGet packages. You can do that with the `mozroots` tool.
-
-	mozroots --import --sync
+	sudo apt-get install libunwind8 libssl-dev unzip libicu-dev
 
 Installing DNVM
 ===============
