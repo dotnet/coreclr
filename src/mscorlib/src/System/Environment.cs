@@ -590,7 +590,7 @@ namespace System {
              * in case it is present.
              */
             if(s_CommandLineArgs != null)
-                return (string[])s_CommandLineArgs.Clone();
+                return s_CommandLineArgs;
 #endif
             return GetCommandLineArgsNative();
         }
