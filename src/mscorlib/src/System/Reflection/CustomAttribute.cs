@@ -304,11 +304,11 @@ namespace System.Reflection
         [System.Security.SecurityCritical]  // auto-generated
         private static IList<CustomAttributeData> GetCustomAttributes(RuntimeModule module, int tkTarget)
         {
-            var records = GetCustomAttributeRecordCollection(module, tkTarget);
+            CustomAttributeRecordCollection records = GetCustomAttributeRecordCollection(module, tkTarget);
 
             CustomAttributeData[] customAttributes = null;
-            var recordIndex = 0;
-            foreach (var record in records)
+            int recordIndex = 0;
+            foreach (CustomAttributeRecord record in records)
             {
                 // Create the customAttributes array only if it's going to be non-empty.
                 if (customAttributes == null)
@@ -1714,7 +1714,8 @@ namespace System.Reflection
                 throw new InvalidOperationException(Environment.GetResourceString("Arg_ReflectionOnlyCA"));
             Contract.EndContractBlock();
 
-            var cars = CustomAttributeData.GetCustomAttributeRecordCollection(decoratedModule, decoratedMetadataToken);
+            CustomAttributeData.CustomAttributeRecordCollection cars =
+                CustomAttributeData.GetCustomAttributeRecordCollection(decoratedModule, decoratedMetadataToken);
 
             if (attributeFilterType != null)
             {
@@ -1729,7 +1730,7 @@ namespace System.Reflection
                 // we can cache the successful APTCA check between the decorated and the declared assembly.
                 Assembly lastAptcaOkAssembly = null;
 
-                foreach (var caRecord in cars)
+                foreach (CustomAttributeRecord caRecord in cars)
                 {
                     if (FilterCustomAttributeRecord(caRecord, scope, ref lastAptcaOkAssembly,
                         decoratedModule, decoratedMetadataToken, attributeFilterType, mustBeInheritable, null, null,
@@ -1742,7 +1743,7 @@ namespace System.Reflection
                 Contract.Assert(attributeFilterType == null);
                 Contract.Assert(!MetadataToken.IsNullToken(attributeCtorToken));
 
-                foreach (var caRecord in cars)
+                foreach (CustomAttributeRecord caRecord in cars)
                 {
                     if (caRecord.tkCtor == attributeCtorToken)
                         return true;
@@ -1769,16 +1770,16 @@ namespace System.Reflection
             Contract.EndContractBlock();
 
             MetadataImport scope = decoratedModule.MetadataImport;
-            var cars = CustomAttributeData.GetCustomAttributeRecordCollection(decoratedModule, decoratedMetadataToken);
-            var carCount = cars.Count;  // Relatively expensive, so call this once and reuse it.
+            CustomAttributeData.CustomAttributeRecordCollection cars =
+                CustomAttributeData.GetCustomAttributeRecordCollection(decoratedModule, decoratedMetadataToken);
 
             bool useObjectArray = (attributeFilterType == null || attributeFilterType.IsValueType || attributeFilterType.ContainsGenericParameters);
             Type arrayType = useObjectArray ? typeof(object) : attributeFilterType;
 
-            if (attributeFilterType == null && carCount == 0)
+            if (attributeFilterType == null && cars.Count == 0)
                 return CreateAttributeArrayHelper(arrayType, 0);
 
-            object[] attributes = CreateAttributeArrayHelper(arrayType, carCount);
+            object[] attributes = CreateAttributeArrayHelper(arrayType, cars.Count);
             int cAttributes = 0;
 
             // Custom attribute security checks are done with respect to the assembly *decorated* with the 
@@ -1795,7 +1796,7 @@ namespace System.Reflection
             // we can cache the successful APTCA check between the decorated and the declared assembly.
             Assembly lastAptcaOkAssembly = null;
 
-            foreach (var caRecord in cars)
+            foreach (CustomAttributeRecord caRecord in cars)
             {
                 object attribute = null;
 
@@ -1943,7 +1944,7 @@ namespace System.Reflection
             // finally or CERs here.
             frame.Pop();
 
-            if (cAttributes == carCount && pcaCount == 0)
+            if (cAttributes == cars.Count && pcaCount == 0)
                 return attributes;
 
             object[] result = CreateAttributeArrayHelper(arrayType, cAttributes + pcaCount);
@@ -2121,11 +2122,12 @@ namespace System.Reflection
         {
             RuntimeModule decoratedModule = decoratedAttribute.GetRuntimeModule();
             MetadataImport scope = decoratedModule.MetadataImport;
-            var cars = CustomAttributeData.GetCustomAttributeRecordCollection(decoratedModule, decoratedAttribute.MetadataToken);
+            CustomAttributeData.CustomAttributeRecordCollection cars =
+                CustomAttributeData.GetCustomAttributeRecordCollection(decoratedModule, decoratedAttribute.MetadataToken);
 
             AttributeUsageAttribute attributeUsageAttribute = null;
 
-            foreach (var caRecord in cars)
+            foreach (CustomAttributeRecord caRecord in cars)
             {
                 RuntimeType attributeType = decoratedModule.ResolveType(scope.GetParentToken(caRecord.tkCtor), null, null) as RuntimeType;
 
