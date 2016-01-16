@@ -321,7 +321,9 @@ namespace System.Reflection
 
             // If there weren't any custom attributes, return the empty array instance
             // instead of allocating a new empty array.
-            return customAttributes == null ? Array.Empty<CustomAttributeData>() : (IList<CustomAttributeData>)Array.AsReadOnly(customAttributes);
+            // Array.AsReadOnly() returns a cached instance for an empty input array
+            // so won't cause an allocation in that case.
+            return Array.AsReadOnly(customAttributes ?? Array.Empty<CustomAttributeData>());
         }
         #endregion
 
