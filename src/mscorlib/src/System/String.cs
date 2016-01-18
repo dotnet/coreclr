@@ -2559,7 +2559,11 @@ namespace System {
                     }
                     return (value.Length == 1) ?
                             true :                 // First char is the same and thats all there is to compare
+#if FEATURE_CORECLR
+                            StartsWithOrdinal(value);
+#else
                             (nativeCompareOrdinalEx(this, 0, value, 0, value.Length) == 0);
+#endif
 
                 case StringComparison.OrdinalIgnoreCase:
                     if( this.Length < value.Length) {
@@ -2576,6 +2580,150 @@ namespace System {
                     throw new ArgumentException(Environment.GetResourceString("NotSupported_StringComparison"), "comparisonType");
             }                        
         }
+
+#if FEATURE_CORECLR
+        [Pure]
+        private unsafe Boolean StartsWithOrdinal(String startsWith)
+        {
+            var byteCount = startsWith.Length << 1;
+            // value.Length verified to be less than or equal to this.Length by calling function
+            if (byteCount > 512)
+            {
+                // incur transition to native costs if length > 512
+                return (nativeCompareOrdinalEx(this, 0, startsWith, 0, startsWith.Length) == 0);
+            }
+            
+            fixed (char* cpString = this)
+            fixed (char* cpStartsWith = startsWith)
+            {
+                var i = 0;
+                // using byte* cast to long* or char* to avoid 
+                // additions and multiplications of constant offsets in pointer arithmetic
+                var pString = (byte*)cpString;
+                var pStartsWith = (byte*)cpStartsWith;
+                var pExpected = pString;
+
+                if (byteCount >= 32)
+                {
+                    pExpected = pString + (byteCount & (~127));
+
+                    while (i < byteCount - 127)
+                    {
+                        i += 128;
+
+                        // Break is more efficent than return for unrolling
+                        // https://gist.github.com/adamsitnik/9d4f0107bdc15a802bbf#file-x86jit_break_vs_return_false
+                        if (*(long*)(pString) != *(long*)(pStartsWith)) break;
+                        if (*(long*)(pString + 8) != *(long*)(pStartsWith + 8)) break;
+                        if (*(long*)(pString + 16) != *(long*)(pStartsWith + 16)) break;
+                        if (*(long*)(pString + 24) != *(long*)(pStartsWith + 24)) break;
+
+                        if (*(long*)(pString + 32) != *(long*)(pStartsWith + 32)) break;
+                        if (*(long*)(pString + 40) != *(long*)(pStartsWith + 40)) break;
+                        if (*(long*)(pString + 48) != *(long*)(pStartsWith + 48)) break;
+                        if (*(long*)(pString + 56) != *(long*)(pStartsWith + 56)) break;
+
+                        if (*(long*)(pString + 64) != *(long*)(pStartsWith + 64)) break;
+                        if (*(long*)(pString + 72) != *(long*)(pStartsWith + 72)) break;
+                        if (*(long*)(pString + 80) != *(long*)(pStartsWith + 80)) break;
+                        if (*(long*)(pString + 88) != *(long*)(pStartsWith + 88)) break;
+
+                        if (*(long*)(pString + 96) != *(long*)(pStartsWith + 96)) break;
+                        if (*(long*)(pString + 104) != *(long*)(pStartsWith + 104)) break;
+                        if (*(long*)(pString + 112) != *(long*)(pStartsWith + 112)) break;
+                        if (*(long*)(pString + 120) != *(long*)(pStartsWith + 120)) break;
+
+                        pString += 128;
+                        pStartsWith += 128;
+                    }
+                    if (pString != pExpected)
+                    {
+                        return false;
+                    }
+
+                    while (i < byteCount - 63)
+                    {
+                        // Max 1 loop but break is more efficent than return for unrolling
+                        pExpected += 64;
+                        i += 64;
+
+                        if (*(long*)(pString) != *(long*)(pStartsWith)) break;
+                        if (*(long*)(pString + 8) != *(long*)(pStartsWith + 8)) break;
+                        if (*(long*)(pString + 16) != *(long*)(pStartsWith + 16)) break;
+                        if (*(long*)(pString + 24) != *(long*)(pStartsWith + 24)) break;
+
+                        if (*(long*)(pString + 32) != *(long*)(pStartsWith + 32)) break;
+                        if (*(long*)(pString + 40) != *(long*)(pStartsWith + 40)) break;
+                        if (*(long*)(pString + 48) != *(long*)(pStartsWith + 48)) break;
+                        if (*(long*)(pString + 56) != *(long*)(pStartsWith + 56)) break;
+
+                        pString += 64;
+                        pStartsWith += 64;
+                    }
+                    if (pString != pExpected)
+                    {
+                        return false;
+                    }
+
+                    while (i < byteCount - 31)
+                    {
+                        // Max 1 loop but break is more efficent than return for unrolling
+                        pExpected += 32;
+                        i += 32;
+
+                        if (*(long*)(pString) != *(long*)(pStartsWith)) break;
+                        if (*(long*)(pString + 8) != *(long*)(pStartsWith + 8)) break;
+                        if (*(long*)(pString + 16) != *(long*)(pStartsWith + 16)) break;
+                        if (*(long*)(pString + 24) != *(long*)(pStartsWith + 24)) break;
+
+                        pString += 32;
+                        pStartsWith += 32;
+                    }
+                    if (pString != pExpected)
+                    {
+                        return false;
+                    }
+                }
+
+                while (i < byteCount - 15)
+                {
+                    // Max 1 loop but break is more efficent than return for unrolling
+                    pExpected += 16;
+                    i += 16;
+                    if (*(long*)(pString) != *(long*)(pStartsWith)) break;
+                    if (*(long*)(pString + 8) != *(long*)(pStartsWith + 8)) break;
+                    pString += 16;
+                    pStartsWith += 16;
+                }
+                if (pString != pExpected)
+                {
+                    return false;
+                }
+
+                if (i < byteCount - 7)
+                {
+                    i += 8;
+                    if (*(long*)(pString) != *(long*)(pStartsWith)) return false;
+                    pString += 8;
+                    pStartsWith += 8;
+                }
+
+                if (i < byteCount - 3)
+                {
+                    i += 4;
+                    if (*(int*)(pString) != *(int*)(pStartsWith)) return false;
+                    pString += 4;
+                    pStartsWith += 4;
+                }
+
+                if (i < byteCount - 1)
+                {
+                    if (*(char*)(pString) != *(char*)(pStartsWith)) return false;
+                }
+            }
+            return true;
+        }
+#endif
 
         [Pure]
         public Boolean StartsWith(String value, Boolean ignoreCase, CultureInfo culture) {
