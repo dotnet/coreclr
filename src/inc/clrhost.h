@@ -83,7 +83,7 @@ extern int RFS_HashStack();
 void ClrFlsAssociateCallback(DWORD slot, PTLS_CALLBACK_FUNCTION callback);
 
 // Function pointer for fast TLS fetch - do not use directly
-typedef LPVOID (*POPTIMIZEDTLSGETTER)();
+typedef LPVOID* (*POPTIMIZEDTLSGETTER)();
 
 extern POPTIMIZEDTLSGETTER __ClrFlsGetBlock;
 

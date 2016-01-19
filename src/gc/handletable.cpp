@@ -314,7 +314,10 @@ OBJECTHANDLE HndCreateHandle(HHANDLETABLE hTable, uint32_t uType, OBJECTREF obje
     }
 #endif // _DEBUG && !FEATURE_REDHAWK
 
-    VALIDATEOBJECTREF(object);
+    if (object != NULL)
+    {
+        VALIDATEOBJECTREF(object);
+    }
 
     // fetch the handle table pointer
     HandleTable *pTable = Table(hTable);
@@ -412,7 +415,10 @@ void ValidateAssignObjrefForHandle(OBJECTREF objref, ADIndex appDomainIndex)
 
     BEGIN_DEBUG_ONLY_CODE;
 
-    VALIDATEOBJECTREF (objref);
+    if (objref != NULL)
+    {
+        VALIDATEOBJECTREF(objref);
+    }
 
     AppDomain *pDomain = SystemDomain::GetAppDomainAtIndex(appDomainIndex);
 
@@ -421,7 +427,7 @@ void ValidateAssignObjrefForHandle(OBJECTREF objref, ADIndex appDomainIndex)
     _ASSERTE(!pDomain->NoAccessToHandleTable());
 
 #if CHECK_APP_DOMAIN_LEAKS
-    if (g_pConfig->AppDomainLeaks())
+    if (g_pConfig->AppDomainLeaks() && objref != NULL)
     {
         if (appDomainIndex.m_dwIndex)
             objref->TryAssignAppDomain(pDomain);

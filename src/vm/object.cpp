@@ -2630,7 +2630,10 @@ OBJECTREF::OBJECTREF(const OBJECTREF & objref)
 
     STATIC_CONTRACT_VIOLATION(SOToleranceViolation);
 
-    VALIDATEOBJECT(objref.m_asObj);
+    if (objref.m_asObj != 0)
+    {
+        VALIDATEOBJECT(objref.m_asObj);
+    }
 
     // !!! If this assert is fired, there are two possibilities:
     // !!! 1.  You are doing a type cast, e.g.  *(OBJECTREF*)pObj
