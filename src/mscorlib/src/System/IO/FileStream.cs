@@ -1778,7 +1778,6 @@ namespace System.IO {
             return;
         }
 
-
         [System.Security.SecuritySafeCritical]  // auto-generated
         [HostProtection(ExternalThreading = true)]
         public override IAsyncResult BeginRead(byte[] array, int offset, int numBytes, AsyncCallback userCallback, Object stateObject)
