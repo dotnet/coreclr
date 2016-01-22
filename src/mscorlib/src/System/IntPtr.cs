@@ -101,12 +101,12 @@ namespace System {
 
         [System.Security.SecuritySafeCritical]  // auto-generated
         public unsafe override bool Equals(Object obj) {
-            if (obj is IntPtr) {
-                return (m_value == ((IntPtr)obj).m_value);
+            if (!(obj is IntPtr)) {
+                return false;
             }
-            return false;
+            return (m_value == ((IntPtr)obj).m_value);
         }
-    
+        
         [System.Security.SecuritySafeCritical]  // auto-generated
         public unsafe override int GetHashCode() {
             return unchecked((int)((long)m_value));

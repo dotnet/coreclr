@@ -109,7 +109,7 @@ namespace System {
         if (!(obj is Char)) {
           return false;
         }
-        return (m_value==((Char)obj).m_value);
+        return Equals((Char)obj);
       }
 
       [System.Runtime.Versioning.NonVersionable]
@@ -132,8 +132,7 @@ namespace System {
           if (!(value is Char)) {
               throw new ArgumentException (Environment.GetResourceString("Arg_MustBeChar"));
           }
-    
-          return (m_value-((Char)value).m_value);
+          return CompareTo((Char)value);
       }
 
       [Pure]
@@ -145,7 +144,7 @@ namespace System {
       [Pure]
       public override String ToString() {
           Contract.Ensures(Contract.Result<String>() != null);
-          return Char.ToString(m_value);
+          return ToString(null);
       }
 
       [Pure]

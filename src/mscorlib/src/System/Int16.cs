@@ -41,11 +41,10 @@ namespace System {
                 return 1;
             }
     
-            if (value is Int16) {
-                return m_value - ((Int16)value).m_value;
+            if (!(value is Int16)) {
+                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeInt16"));
             }
-    
-            throw new ArgumentException(Environment.GetResourceString("Arg_MustBeInt16"));
+            return CompareTo((Int16)value);
         }
 
         public int CompareTo(Int16 value) {
@@ -56,7 +55,7 @@ namespace System {
             if (!(obj is Int16)) {
                 return false;
             }
-            return m_value == ((Int16)obj).m_value;
+            return Equals((Int16)obj);
         }
 
         [System.Runtime.Versioning.NonVersionable]
@@ -74,19 +73,19 @@ namespace System {
         [System.Security.SecuritySafeCritical]  // auto-generated
         public override String ToString() {
             Contract.Ensures(Contract.Result<String>() != null);
-            return Number.FormatInt32(m_value, null, NumberFormatInfo.CurrentInfo);
+            return ToString((String)null);
         }
-        
+
         [System.Security.SecuritySafeCritical]  // auto-generated
         public String ToString(IFormatProvider provider) {
             Contract.Ensures(Contract.Result<String>() != null);
-            return Number.FormatInt32(m_value, null, NumberFormatInfo.GetInstance(provider));
-        }        
+            return ToString(null, provider);
+        }
 
         public String ToString(String format) {
             Contract.Ensures(Contract.Result<String>() != null);
             return ToString(format, NumberFormatInfo.CurrentInfo);
-        }        
+        }
     
         public String ToString(String format, IFormatProvider provider) {
             Contract.Ensures(Contract.Result<String>() != null);

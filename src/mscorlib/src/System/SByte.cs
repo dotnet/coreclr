@@ -45,7 +45,7 @@ namespace System {
             if (!(obj is SByte)) {
                 throw new ArgumentException (Environment.GetResourceString("Arg_MustBeSByte"));
             }
-            return m_value - ((SByte)obj).m_value;
+            return CompareTo((SByte)obj);
         }
 
         public int CompareTo(SByte value) {
@@ -57,7 +57,7 @@ namespace System {
             if (!(obj is SByte)) {
                 return false;
             }
-            return m_value == ((SByte)obj).m_value;
+            return Equals((SByte)obj);
         }
 
         [System.Runtime.Versioning.NonVersionable]
@@ -76,13 +76,13 @@ namespace System {
         [System.Security.SecuritySafeCritical]  // auto-generated
         public override String ToString() {
             Contract.Ensures(Contract.Result<String>() != null);
-            return Number.FormatInt32(m_value, null, NumberFormatInfo.CurrentInfo);
+            return ToString((String)null);
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
         public String ToString(IFormatProvider provider) {
             Contract.Ensures(Contract.Result<String>() != null);
-            return Number.FormatInt32(m_value, null, NumberFormatInfo.GetInstance(provider));
+            return ToString(null, provider);
         }
     
         public String ToString(String format) {

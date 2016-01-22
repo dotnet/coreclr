@@ -40,15 +40,10 @@ namespace System {
             if (value == null) {
                 return 1;
             }
-            if (value is Int32) {
-                // Need to use compare because subtraction will wrap
-                // to positive for very large neg numbers, etc.
-                int i = (int)value;
-                if (m_value < i) return -1;
-                if (m_value > i) return 1;
-                return 0;
+            if (!(value is Int32)) {
+                throw new ArgumentException (Environment.GetResourceString("Arg_MustBeInt32"));
             }
-            throw new ArgumentException (Environment.GetResourceString("Arg_MustBeInt32"));
+            return CompareTo((Int32)value);
         }
 
         public int CompareTo(int value) {
@@ -63,7 +58,7 @@ namespace System {
             if (!(obj is Int32)) {
                 return false;
             }
-            return m_value == ((Int32)obj).m_value;
+            return Equals((Int32)obj);
         }
 
         [System.Runtime.Versioning.NonVersionable]
@@ -81,21 +76,21 @@ namespace System {
         [Pure]
         public override String ToString() {
             Contract.Ensures(Contract.Result<String>() != null);
-            return Number.FormatInt32(m_value, null, NumberFormatInfo.CurrentInfo);
-        }
-
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        [Pure]
-        public String ToString(String format) {
-            Contract.Ensures(Contract.Result<String>() != null);
-            return Number.FormatInt32(m_value, format, NumberFormatInfo.CurrentInfo);
+            return ToString((String)null);
         }
     
         [System.Security.SecuritySafeCritical]  // auto-generated
         [Pure]
         public String ToString(IFormatProvider provider) {
             Contract.Ensures(Contract.Result<String>() != null);
-            return Number.FormatInt32(m_value, null, NumberFormatInfo.GetInstance(provider));
+            return ToString(null, provider);
+        }
+        
+        [System.Security.SecuritySafeCritical]  // auto-generated
+        [Pure]
+        public String ToString(String format) {
+            Contract.Ensures(Contract.Result<String>() != null);
+            return Number.FormatInt32(m_value, format, NumberFormatInfo.CurrentInfo);
         }
 
         [Pure]

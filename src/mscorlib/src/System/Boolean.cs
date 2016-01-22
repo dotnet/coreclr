@@ -83,10 +83,7 @@ namespace System {
       ==============================================================================*/
       // Converts the boolean value of this instance to a String.
       public override String ToString() {
-        if (false == m_value) {
-          return FalseLiteral;
-        }
-        return TrueLiteral;
+        return ToString(null);
       }
 
       public String ToString(IFormatProvider provider) {
@@ -103,7 +100,7 @@ namespace System {
           return false;
         }
     
-        return (m_value==((Boolean)obj).m_value);
+        return Equals((Boolean)obj);
       }
 
       [System.Runtime.Versioning.NonVersionable]
@@ -126,13 +123,8 @@ namespace System {
             if (!(obj is Boolean)) {
                 throw new ArgumentException (Environment.GetResourceString("Arg_MustBeBoolean"));
             }
-             
-            if (m_value==((Boolean)obj).m_value) {
-                return 0;
-            } else if (m_value==false) {
-                return -1;
-            }
-            return 1;
+            
+            return CompareTo((Boolean)obj);
         }
 
         public int CompareTo(Boolean value) {

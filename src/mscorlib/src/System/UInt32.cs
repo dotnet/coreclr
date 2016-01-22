@@ -41,15 +41,10 @@ namespace System {
             if (value == null) {
                 return 1;
             }
-            if (value is UInt32) {
-                // Need to use compare because subtraction will wrap
-                // to positive for very large neg numbers, etc.
-                uint i = (uint)value;
-                if (m_value < i) return -1;
-                if (m_value > i) return 1;
-                return 0;
+            if (!(value is UInt32)) {
+                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeUInt32"));
             }
-            throw new ArgumentException(Environment.GetResourceString("Arg_MustBeUInt32"));
+            return CompareTo((UInt32)value);
         }
 
         public int CompareTo(UInt32 value) {
@@ -64,7 +59,7 @@ namespace System {
             if (!(obj is UInt32)) {
                 return false;
             }
-            return m_value == ((UInt32)obj).m_value;
+            return Equals((UInt32)obj);
         }
 
         [System.Runtime.Versioning.NonVersionable]
@@ -82,13 +77,13 @@ namespace System {
         [System.Security.SecuritySafeCritical]  // auto-generated
         public override String ToString() {
             Contract.Ensures(Contract.Result<String>() != null);
-            return Number.FormatUInt32(m_value, null, NumberFormatInfo.CurrentInfo);
+            return ToString((String)null);
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
         public String ToString(IFormatProvider provider) {
             Contract.Ensures(Contract.Result<String>() != null);
-            return Number.FormatUInt32(m_value, null, NumberFormatInfo.GetInstance(provider));
+            return ToString(null, provider);
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
