@@ -5466,9 +5466,11 @@ namespace System
 
                     if (ace.m_ctor != null)
                     {
+#if !FEATURE_CORECLR
                         // Perform security checks if needed
                         if (ace.m_bNeedSecurityCheck)
                             RuntimeMethodHandle.PerformSecurityCheck(instance, ace.m_hCtorMethodHandle, this, (uint)INVOCATION_FLAGS.INVOCATION_FLAGS_CONSTRUCTOR_INVOKE);
+#endif
 
                         // Call ctor (value types wont have any)
                         try
