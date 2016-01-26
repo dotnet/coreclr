@@ -1936,7 +1936,7 @@ WorkingDir=JIT\opt\ETW\TailCallCases
 MaxAllowedDurationSeconds=600
 HostStyle=Any
 Expected=100
-Categories=JIT;EXPECTED_FAIL;REL_PASS
+Categories=JIT;EXPECTED_FAIL
 [nested-try-catch02.exe_14]
 RelativePath=baseservices\exceptions\generics\nested-try-catch02\nested-try-catch02.exe
 WorkingDir=baseservices\exceptions\generics\nested-try-catch02
@@ -5870,7 +5870,7 @@ WorkingDir=JIT\Directed\StructABI\StructABI
 MaxAllowedDurationSeconds=600
 HostStyle=Any
 Expected=100
-Categories=JIT;EXPECTED_FAIL
+Categories=JIT;EXPECTED_FAIL;ISSUE_2816
 [leave1.exe_2915]
 RelativePath=JIT\Directed\IL\leave\leave1\leave1.exe
 WorkingDir=JIT\Directed\IL\leave\leave1
@@ -13318,7 +13318,7 @@ WorkingDir=JIT\Methodical\Invoke\25params\25param2a_cs_d
 MaxAllowedDurationSeconds=600
 HostStyle=Any
 Expected=100
-Categories=JIT;EXPECTED_FAIL
+Categories=JIT;EXPECTED_PASS;ISSUE_2816
 [r8nandiv_cs_r.exe_4486]
 RelativePath=JIT\Methodical\NaN\r8NaNdiv_cs_r\r8NaNdiv_cs_r.exe
 WorkingDir=JIT\Methodical\NaN\r8NaNdiv_cs_r
@@ -19177,7 +19177,7 @@ WorkingDir=JIT\Methodical\Invoke\25params\25param2a_cs_do
 MaxAllowedDurationSeconds=600
 HostStyle=Any
 Expected=100
-Categories=JIT;EXPECTED_FAIL
+Categories=JIT;EXPECTED_FAIL;ISSUE_2816
 [_il_relconv_i8_i.exe_3892]
 RelativePath=JIT\Methodical\ELEMENT_TYPE_IU\_il_relconv_i8_i\_il_relconv_i8_i.exe
 WorkingDir=JIT\Methodical\ELEMENT_TYPE_IU\_il_relconv_i8_i
@@ -20654,7 +20654,7 @@ WorkingDir=JIT\Methodical\Invoke\25params\25param2a_cs_ro
 MaxAllowedDurationSeconds=600
 HostStyle=Any
 Expected=100
-Categories=JIT;EXPECTED_FAIL
+Categories=JIT;EXPECTED_FAIL;ISSUE_2816
 [weakreferenceisaliveb_psc.exe_2559]
 RelativePath=CoreMangLib\cti\system\weakreference\WeakReferenceIsAliveb_PSC\WeakReferenceIsAliveb_PSC.exe
 WorkingDir=CoreMangLib\cti\system\weakreference\WeakReferenceIsAliveb_PSC
@@ -21935,7 +21935,7 @@ WorkingDir=JIT\Methodical\int64\arrays\_rellcs_ulong
 MaxAllowedDurationSeconds=600
 HostStyle=Any
 Expected=100
-Categories=JIT;EXPECTED_FAIL;REL_PASS
+Categories=JIT;UNSTABLE
 [listienumerablegetenumerator2.exe_637]
 RelativePath=CoreMangLib\cti\system\collections\generic\list\ListIEnumerableGetEnumerator2\ListIEnumerableGetEnumerator2.exe
 WorkingDir=CoreMangLib\cti\system\collections\generic\list\ListIEnumerableGetEnumerator2
@@ -24616,7 +24616,7 @@ WorkingDir=JIT\Methodical\Invoke\25params\25param2a_cs_r
 MaxAllowedDurationSeconds=600
 HostStyle=Any
 Expected=100
-Categories=JIT;EXPECTED_FAIL
+Categories=JIT;EXPECTED_PASS;ISSUE_2816
 [_il_dbgu_native.exe_4533]
 RelativePath=JIT\Methodical\refany\_il_dbgu_native\_il_dbgu_native.exe
 WorkingDir=JIT\Methodical\refany\_il_dbgu_native
@@ -40555,7 +40555,7 @@ WorkingDir=JIT\jit64\gc\misc\struct6_2
 MaxAllowedDurationSeconds=600
 HostStyle=Any
 Expected=100
-Categories=JIT;EXPECTED_FAIL
+Categories=JIT;EXPECTED_PASS;ISSUE_2816
 [interlockedaddint_4.exe_153]
 RelativePath=baseservices\threading\interlocked\add\InterlockedAddInt_4\InterlockedAddInt_4.exe
 WorkingDir=baseservices\threading\interlocked\add\InterlockedAddInt_4
