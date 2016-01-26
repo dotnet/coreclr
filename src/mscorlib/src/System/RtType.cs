@@ -5412,6 +5412,9 @@ namespace System
                 bCanBeCached = false;
             }
 #endif
+#if FEATURE_CORECLR
+            bSecurityCheckOff = true;       // CoreCLR does not use security at all.   
+#endif
 
             Object instance = RuntimeTypeHandle.CreateInstance(this, publicOnly, bSecurityCheckOff, ref bCanBeCached, ref runtime_ctor, ref bNeedSecurityCheck);
 
