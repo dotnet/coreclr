@@ -302,4 +302,9 @@
              <Issue>2744</Issue>
         </ExcludeList>
     </ItemGroup>
+    <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(COMPlus_GCStress)' != ''">	
+        <ExcludeList Include="$(XunitTestBinBase)\JIT\Methodical\doublearray\**\*" >
+             <Issue>2759; These tests fail by design under GcStress</Issue>
+        </ExcludeList>
+    </ItemGroup>    
 </Project>
