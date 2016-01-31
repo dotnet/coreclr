@@ -253,9 +253,9 @@ endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
 add_subdirectory(examples)
 
-if(CMAKE_SYSTEM_NAME STREQUAL Linux)
+if(CMAKE_SYSTEM_NAME STREQUAL Linux AND PAL_CMAKE_PLATFORM_ARCH_AMD64)
     add_subdirectory($ENV{__IntermediatesDir}/Generated/eventprovider ${CMAKE_CURRENT_BINARY_DIR}/eventprovider)
-endif(CMAKE_SYSTEM_NAME STREQUAL Linux)
+endif(CMAKE_SYSTEM_NAME STREQUAL Linux AND PAL_CMAKE_PLATFORM_ARCH_AMD64)
 
 # Install the static PAL library for VS
 install (TARGETS coreclrpal DESTINATION lib)
