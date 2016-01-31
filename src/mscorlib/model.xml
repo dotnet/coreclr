@@ -7212,6 +7212,11 @@
       <Member Name="Join(System.String,System.Collections.Generic.IEnumerable&lt;System.String&gt;)" />
       <Member Name="Join(System.String,System.String[])" />
       <Member Name="Join(System.String,System.String[],System.Int32,System.Int32)" />
+      <Member Name="Join(System.Char,System.Object[])" />
+      <Member Name="Join&lt;T&gt;(System.Char,System.Collections.Generic.IEnumerable&lt;T&gt;)" />
+      <Member Name="Join(System.Char,System.Collections.Generic.IEnumerable&lt;System.String&gt;)" />
+      <Member Name="Join(System.Char,System.String[])" />
+      <Member Name="Join(System.Char,System.String[],System.Int32,System.Int32)" />
       <Member Name="LastIndexOf(System.Char)" />
       <Member Name="LastIndexOf(System.Char,System.Int32)" />
       <Member Name="LastIndexOf(System.Char,System.Int32,System.Int32)" />
