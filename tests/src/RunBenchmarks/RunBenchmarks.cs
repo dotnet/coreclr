@@ -8,26 +8,28 @@
 //  
 //  options:
 //  
-//     -f <xmlFile>   specify benchmark xml control file (default benchmarks.xml)
-//     -n <number>    specify number of runs for each benchmark (default is 1)
-//     -w             specify that warmup run should be done first
-//     -v             run in verbose mode
-//     -r <rootDir>   specify root directory to run from
-//     -s <suite>     specify a single benchmark suite to run (by name)
-//     -i <benchmark> specify benchmark to include by name (multiple -i's allowed)
-//     -e <benchmark> specify benchmark to exclude by name (multiple -e's allowed)
-//     -list          prints a list of the benchmark names and does nothing else
-//     -listsuites    prints a list of the suite names and does nothing else
-//     -listtags      prints a list of the tag names and does nothing else
-//     -coreclr       run benchmarks on CoreCLR (default DesktopCLR)
+//     -f <xmlFile>               specify benchmark xml control file (default benchmarks.xml)
+//     -n <number>                specify number of runs for each benchmark (default is 1)
+//     -w                         specify that warmup run should be done first
+//     -v                         run in verbose mode
+//     -r <rootDir>               specify root directory to run from
+//     -s <suite>                 specify a single benchmark suite to run (by name)
+//     -i <benchmark>             specify benchmark to include by name (multiple -i's allowed)
+//     -e <benchmark>             specify benchmark to exclude by name (multiple -e's allowed)
+//     -list                      prints a list of the benchmark names and does nothing else
+//     -listsuites                prints a list of the suite names and does nothing else
+//     -listtags                  prints a list of the tag names and does nothing else
+//     -runner                    run benchmarks on using runner(e.g. corerun, default is DesktopCLR)
 //     -complus_version <version> run benchmarks on particular DesktopCLR version
-//     -norun         prints what would be run, but nothing is executed
+//     -norun                     prints what would be run, but nothing is executed
+//     -tags <tags>               specify benchmarks with tags to include
+//     -notags <tags>             specify benchmarks with tags to exclude
 //
 // Benchmark .XML Control File format:
 //
 // <?xml version="1.0" encoding="UTF-8"?>
 // <benchmark-system>
-//     <benchmark-root-directory>ROOT_DIRECTORY</benchmark-root-directory>
+//     <benchmark-root-directory>ROOT_DIRECTORY</benchmark-root-directory> // optional, can be on command line
 //     <benchmark-suite>
 //         <name>SUITE_NAME</name>
 //             <benchmark>
@@ -174,7 +176,7 @@ namespace BenchmarkConsoleApplication
         public bool DoRun; // Actually execute the benchmarks
         public bool DoWarmUpRun; // Do a warmup run first.
         public bool DoVerbose; // Run in verbose mode.
-        public bool DoCoreCLR; // Use the CoreCLR as benchmark host.
+        public string Runner; // Use the runner to execute benchmarks (e.g. corerun.exe)
         public bool DoDebugBenchmark; // Execute benchmark under debugger (Windows).
         public bool DoListBenchmarks; // List out the benchmarks from .XML file
         public bool DoListBenchmarkSuites; // List out the benchmark suites from .XML file
@@ -203,7 +205,7 @@ namespace BenchmarkConsoleApplication
             NumberOfRunsPerBenchmark = 1,
             DoWarmUpRun = false,
             DoVerbose = false,
-            DoCoreCLR = false,
+            Runner = "",
             DoDebugBenchmark = false,
             DoListBenchmarks = false,
             DoListBenchmarkSuites = false,
@@ -275,6 +277,7 @@ namespace BenchmarkConsoleApplication
                     string arg = args[i++];
                     string benchmark;
                     string[] tags;
+                    string runner;
 
                     switch (arg)
                     {
@@ -332,8 +335,10 @@ namespace BenchmarkConsoleApplication
                             tags = arg.Split(ListSeparatorCharSet, StringSplitOptions.RemoveEmptyEntries);
                             controls.ExcludeTagList.AddRange(tags);
                             break;
-                        case "-coreclr":
-                            controls.DoCoreCLR = true;
+                        case "-runner":
+                            arg = args[i++];
+                            runner = arg;
+                            controls.Runner = runner;
                             break;
                         case "-debug":
                             controls.DoDebugBenchmark = true;
@@ -615,9 +620,15 @@ namespace BenchmarkConsoleApplication
             var xmlFile = new FileStream(benchmarkXmlFullFileName, FileMode.Open, FileAccess.Read);
             benchmarkXml.Load(xmlFile);
 
-            // Get root directory for benchmark system.
+            // Get root directory for benchmark system.  Command line argument overrides 
+            // specification in benchmark control file.
 
-            benchmarkRootDirectoryName = GetField(benchmarkXml.DocumentElement, "benchmark-root-directory");
+            benchmarkRootDirectoryName = Controls.BenchmarksRootDirectory;
+            if (benchmarkRootDirectoryName == "")
+            {
+                benchmarkRootDirectoryName = GetField(benchmarkXml.DocumentElement, "benchmark-root-directory");
+                Controls.BenchmarksRootDirectory = benchmarkRootDirectoryName;
+            }
             benchmarkRootDirectoryName = PlatformSpecificDirectoryName(benchmarkRootDirectoryName);
             Controls.BenchmarksRootDirectory = benchmarkRootDirectoryName;
 
@@ -791,7 +802,7 @@ namespace BenchmarkConsoleApplication
             bool doRun = Controls.DoRun;
             int numberOfRuns = Controls.NumberOfRunsPerBenchmark;
             bool doWarmUpRun = Controls.DoWarmUpRun;
-            bool doCoreCLR = Controls.DoCoreCLR;
+            string runner = Controls.Runner;
             bool doDebugBenchmark = Controls.DoDebugBenchmark;
             bool doVerbose = Controls.DoVerbose;
             string complusVersion = Controls.ComplusVersion;
@@ -816,10 +827,10 @@ namespace BenchmarkConsoleApplication
             string fileName = Path.Combine(workingDirectory, benchmark.ExeName);
             string args = benchmark.ExeArgs;
 
-            if (doCoreCLR)
+            if (runner != "")
             {
                 args = fileName + " " + args;
-                fileName = "corerun";
+                fileName = runner;
             }
 
             if (doDebugBenchmark)

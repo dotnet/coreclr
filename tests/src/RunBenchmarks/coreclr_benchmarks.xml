@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <benchmark-system>
-    <benchmark-root-directory>\git\repos\DotNet\coreclr\bin\tests\Windows_NT.x64.Release\JIT\Performance\CodeQuality</benchmark-root-directory>
     <benchmark-suite>
         <name>BenchStone</name>
         <benchmark>
@@ -177,32 +176,6 @@
             <directory>.\BenchF\SqMtx\SqMtx</directory>
             <executable>SqMtx.exe</executable>
             <expected-results>100</expected-results>
-        </benchmark>
-    </benchmark-suite>
-    <benchmark-suite>
-        <name>FractalPerf</name>
-        <benchmark>
-            <name>FractalPerf</name>
-            <directory>.\FractalPerf\FractalPerf</directory>
-            <executable>FractalPerf.exe</executable>
-            <expected-results>100</expected-results>
-        </benchmark>
-    </benchmark-suite>
-    <benchmark-suite>
-        <name>Serialization</name>
-        <benchmark>
-            <name>Deserialize</name>
-            <directory>.\Serialization\Deserialize</directory>
-            <executable>Deserialize.exe</executable>
-            <expected-results>100</expected-results>
-            <tags>broken</tags>
-        </benchmark>
-        <benchmark>
-            <name>Serialize</name>
-            <directory>.\Serialization\Serialize</directory>
-            <executable>Serialize.exe</executable>
-            <expected-results>100</expected-results>
-            <tags>broken</tags>
         </benchmark>
     </benchmark-suite>
     <benchmark-suite>
@@ -426,12 +399,14 @@
             <directory>.\Serialization\Deserialize</directory>
             <executable>Deserialize.exe</executable>
             <expected-results>100</expected-results>
+            <tags>broken</tags>
         </benchmark>
         <benchmark>
             <name>Serialize</name>
             <directory>.\Serialization\Serialize</directory>
             <executable>Serialize.exe</executable>
             <expected-results>100</expected-results>
+            <tags>broken</tags>
         </benchmark>
     </benchmark-suite>
     <benchmark-suite>
