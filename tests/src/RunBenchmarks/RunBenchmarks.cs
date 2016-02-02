@@ -347,8 +347,9 @@ namespace BenchmarkConsoleApplication
                     }
                 }
             }
-            catch (Exception)
+            catch (Exception exception)
             {
+                Console.WriteLine("Exception: {0}", exception);
                 Usage();
             }
         }
