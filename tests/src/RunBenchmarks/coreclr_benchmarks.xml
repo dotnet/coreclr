@@ -304,6 +304,7 @@
             <args>-ccommands\idea.dat &gt;out</args>
             <expected-results>100</expected-results>
             <run-in-shell>true</run-in-shell>
+            <tags>broken</tags>
         </benchmark>
         <benchmark>
             <name>Bytemark-lu</name>

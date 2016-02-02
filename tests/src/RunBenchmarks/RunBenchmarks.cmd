@@ -9,7 +9,7 @@ set BENCHMARK_RUNNER=-runner CoreRun.exe
 start DHandler.exe
 
 set BENCHMARK_CONTROLS=-v -w -n 5
-set BENCHMARK_CONTROLS=-v -n 1 -s Serialization
+set BENCHMARK_CONTROLS=-v -n 1 -s Bytemark
 set BENCHMARK_SET=-f %BENCHMARK_HOME%\coreclr_benchmarks.xml -notags broken
 set BENCHMARK_SWITCHES=%BENCHMARK_CONTROLS% -r %BENCHMARK_ROOT_DIR%
 
