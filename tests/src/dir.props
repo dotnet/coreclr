@@ -23,4 +23,8 @@
     <OSGroup Condition="'$(OSGroup)'==''">Windows_NT</OSGroup>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <PackagesConfigFileDirectory>$(MSBuildThisFileDirectory)config\</PackagesConfigFileDirectory>
+  </PropertyGroup>
+  
 </Project>
