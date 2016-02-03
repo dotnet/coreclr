@@ -817,7 +817,8 @@ combinedScenarios.each { scenario ->
                                     latestSuccessful(true)
                                 }
                             }
-                        
+                            
+                            //TEST
                             // Unpack the corefx binaries
                             shell("unpacker ./bin/build.pack ./bin")
                         
