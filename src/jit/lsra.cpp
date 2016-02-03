@@ -4526,7 +4526,9 @@ LinearScan::tryAllocateFreeReg(Interval *currentInterval, RefPosition *refPositi
 
     // An optimization for the common case where there is only one candidate -
     // avoid looping over all the other registers
-    regNumber singleReg = REG_NA;
+
+    regNumber singleReg   = REG_NA;
+
     if (genMaxOneBit(candidates))
     {
         regOrderSize = 1;
@@ -4537,41 +4539,43 @@ LinearScan::tryAllocateFreeReg(Interval *currentInterval, RefPosition *refPositi
     if (regType == TYP_STRUCT)
     {
 #ifdef _TARGET_ARM64_
-        // For now we can special case this case as it is used to
-        // pass arguments in pairs of consecutive registers
-        //
-        // TODO ARM64 - this is not complete and is really just a workaround
-        //     that allows us to pass 16-byte structs in argment registers 
-        //     Additional work is require to properly reserve the second register
-        //
-        if (genCountBits(candidates) == 2)
-        {
-            // We currently are only expecting to handle setting up argument registers
-            // with this code sequence
-            // So both register bits in candidates should be arg registers
-            //
-            if ((candidates & RBM_ARG_REGS) == candidates)
+        // We use two consecutive registers:
+        //    to pass in argument registers or
+        //    to load and the store into the outgoing arg space
+
+        // Make sure that we have two consecutive registers available
+        regMaskTP lowRegBit  = genFindLowestBit(candidates);
+        regMaskTP nextRegBit = lowRegBit << 1;
+        regMaskTP regPairMask = (lowRegBit | nextRegBit);
+        
+        do {
+            // Are there two consecutive register bits available?
+            if ((candidates & regPairMask) == regPairMask)
             {
-                // Make sure that we have two consecutive registers available
-                regMaskTP lowRegBit  = genFindLowestBit(candidates);
-                regMaskTP nextRegBit = lowRegBit << 1;
-                if (candidates == (lowRegBit | nextRegBit))
-                {
-                    // We use the same trick as above when regOrderSize, singleReg and regOrder are set 
-                    regOrderSize = 1;
-                    singleReg = genRegNumFromMask(lowRegBit);
-                    regOrder = &singleReg;
-                }
+                // We use the same trick as above when regOrderSize, singleReg and regOrder are set 
+                regOrderSize = 1;
+                singleReg = genRegNumFromMask(lowRegBit);
+                regOrder = &singleReg;
+                break;
             }
-        }
-#endif
+            // setup the next register pair bit
+            lowRegBit  = nextRegBit;
+            nextRegBit = lowRegBit << 1;  // shift left by one bit
+            regPairMask = (lowRegBit | nextRegBit);
+
+        } while (nextRegBit != 0);  // If we shifted out all of the bits then nextRegBit will become zero
+        // Note that shifting out all of the bits is an error, and we catch it with the following noway_assert
+
+        // Make sure we took the break to exit the while loop            
+        noway_assert(singleReg != REG_NA);
+#endif  // _TARGET_ARM64_
+
         // Unless we setup singleReg we have to issue an NYI error here
         if (singleReg == REG_NA)
         {
             // Need support for MultiReg sized structs
             NYI("Multireg struct - LinearScan::tryAllocateFreeReg");
         }
-
     }
 #endif // FEATURE_MULTIREG_STRUCTS   
     
@@ -5058,6 +5062,22 @@ void LinearScan::assignPhysReg( RegRecord * regRec, Interval * interval)
     }
 #endif // _TARGET_ARM_
 
+#if FEATURE_MULTIREG_STRUCTS
+    if (interval->registerType == TYP_STRUCT)
+    {
+#ifdef _TARGET_ARM64_
+        // We use two consecutive registers:
+        //    to pass in argument registers or
+        //    to load and the store into the outgoing arg space
+
+        RegRecord * nextRegRec = getRegisterRecord(REG_NEXT(regRec->regNum));
+        nextRegRec->assignedInterval = interval;
+#else
+        assert(!"Unhandled assignPhysReg with TYP_STRUCT");
+#endif //  _TARGET_ARM64_
+    }
+#endif // FEATURE_MULTIREG_STRUCTS
+
     interval->physReg = regRec->regNum;
     interval->isActive = true;
     if (interval->isLocalVar)
@@ -5186,6 +5206,22 @@ void LinearScan::unassignPhysReg( RegRecord * regRec, RefPosition* spillRefPosit
         nextRegRec->assignedInterval = nullptr;
     }
 #endif // _TARGET_ARM_
+
+#if FEATURE_MULTIREG_STRUCTS
+    if (assignedInterval->registerType == TYP_STRUCT)
+    {
+#ifdef _TARGET_ARM64_
+        // We use two consecutive registers:
+        //    to pass in argument registers or
+        //    to load and the store into the outgoing arg space
+
+        RegRecord * nextRegRec = getRegisterRecord(REG_NEXT(regRec->regNum));
+        nextRegRec->assignedInterval = nullptr;
+#else
+        assert(!"Unhandled assignPhysReg with TYP_STRUCT");
+#endif //  _TARGET_ARM64_
+    }
+#endif // FEATURE_MULTIREG_STRUCTS
 
 #ifdef DEBUG
     if (VERBOSE && !dumpTerse)

@@ -2993,8 +2993,6 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
 
     case GT_PUTARG_STK:
         {
-            noway_assert(targetType != TYP_STRUCT);
-
             // Get argument offset on stack.
             // Here we cross check that argument offset hasn't changed from lowering to codegen since
             // we are storing arg slot number in GT_PUTARG_STK node in lowering phase.
@@ -3004,7 +3002,7 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
             fgArgTabEntryPtr curArgTabEntry = compiler->gtArgEntryByNode(treeNode->AsPutArgStk()->gtCall, treeNode);
             assert(curArgTabEntry);
             assert(argOffset == (int)curArgTabEntry->slotNum * TARGET_POINTER_SIZE);
-#endif
+#endif // DEBUG
 
             GenTreePtr data = treeNode->gtOp.gtOp1;
             unsigned varNum;            
@@ -3041,15 +3039,46 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
                 varNum = compiler->lvaOutgoingArgSpaceVar;
             }
 
+            instruction storeIns;  
+            emitAttr    storeAttr;
+
+            if (targetType != TYP_STRUCT)
+            {
+                storeIns  = ins_Store(targetType);
+                storeAttr = emitTypeSize(targetType);
+            }
+            else // targetType == TYP_STRUCT
+            {
+                // We will use two store instructions each storing a register sized value
+                storeIns  = ins_Store(TYP_I_IMPL);
+                storeAttr = emitTypeSize(TYP_I_IMPL);
+#ifdef DEBUG
+                // We must have a multi-reg struct that takes two slots
+                assert(curArgTabEntry->numSlots == 2);
+#endif // DEBUG
+            }
+
             if (data->isContained())
             {
-                getEmitter()->emitIns_S_I(ins_Store(targetType), emitTypeSize(targetType), varNum,
-                                          argOffset, (int) data->AsIntConCommon()->IconValue());
+                getEmitter()->emitIns_S_I(storeIns, storeAttr, varNum, argOffset,
+                                          (int) data->AsIntConCommon()->IconValue());
             }
             else
             {
                 genConsumeReg(data);
-                getEmitter()->emitIns_S_R(ins_Store(targetType), emitTypeSize(targetType), data->gtRegNum, varNum, argOffset);
+
+                if (targetType != TYP_STRUCT)
+                {
+                    getEmitter()->emitIns_S_R(storeIns, storeAttr, data->gtRegNum, varNum, argOffset);
+                }
+                else
+                {
+                    noway_assert((treeNode->gtOp.gtOp1->OperGet() == GT_LDOBJ)   ||
+                                 (treeNode->gtOp.gtOp1->OperGet() == GT_LCL_VAR)    );
+
+                    getEmitter()->emitIns_S_R(storeIns, storeAttr, targetReg,           varNum, argOffset);
+                    getEmitter()->emitIns_S_R(storeIns, storeAttr, REG_NEXT(targetReg), varNum, argOffset+TARGET_POINTER_SIZE);
+                }
             }
         }
         break;
@@ -6197,10 +6226,22 @@ void CodeGen::genCodeForLdObj(GenTreeOp* treeNode)
         else // (remainingSize < TARGET_POINTER_SIZE)
         {
             int loadSize = remainingSize;
-            noway_assert((loadSize == 4) || (loadSize == 2) || (loadSize == 1));
             remainingSize = 0;
 
-            getEmitter()->emitIns_R_R_I(INS_ldr, emitAttr(loadSize), targetReg, addrReg, structOffset);
+            var_types loadType = TYP_UINT;
+            if (loadSize == 1)
+            {
+                loadType = TYP_UBYTE;
+            }
+            else if (loadSize == 2)
+            {
+                loadType = TYP_USHORT;
+            }
+
+            instruction loadIns  = ins_Load(loadType);
+            emitAttr    loadAttr = emitAttr(loadSize);
+
+            getEmitter()->emitIns_R_R_I(loadIns, loadAttr, targetReg, addrReg, structOffset);
         }
     }
 
