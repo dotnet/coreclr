@@ -13703,7 +13703,7 @@ WorkingDir=Regressions\common\AboveStackLimit
 MaxAllowedDurationSeconds=600
 HostStyle=Any
 Expected=100
-Categories=RT;EXPECTED_FAIL;ISSUE_3032
+Categories=RT;EXPECTED_PASS;ISSUE_3032
 [b14617.exe_5517]
 RelativePath=JIT\Regression\CLR-x86-JIT\V1.2-M01\b14617\b14617\b14617.exe
 WorkingDir=JIT\Regression\CLR-x86-JIT\V1.2-M01\b14617\b14617
@@ -40499,7 +40499,7 @@ WorkingDir=Regressions\coreclr\0099\AboveStackLimit
 MaxAllowedDurationSeconds=600
 HostStyle=Any
 Expected=100
-Categories=RT;EXPECTED_FAIL;ISSUE_3032
+Categories=RT;EXPECTED_PASS;ISSUE_3032
 [b565808.exe_5560]
 RelativePath=JIT\Regression\CLR-x86-JIT\v2.1\b565808\b565808\b565808.exe
 WorkingDir=JIT\Regression\CLR-x86-JIT\v2.1\b565808\b565808
