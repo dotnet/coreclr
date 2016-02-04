@@ -270,27 +270,51 @@ namespace System {
         // thread.  This isn't just about handles - it can happen with just 
         // about any finalizable resource.
         //
-        // Users should insert a call to this method near the end of a
-        // method where they must keep an object alive for the duration of that
-        // method, up until this method is called.  Here is an example:
+        // Users should insert a call to this method right after the last line
+        // of their code where their code still needs the object to be kept alive.
+        // The object which reference is passed into this method will not
+        // be eligible for collection until the call to this method happens.
+        // Once the call to this method has happened the object may immediately
+        // become elegible for collection. Here is an example:
         // 
-        // "...all you really need is one object with a Finalize method, and a 
+        // "...all you really need is one object with a Finalize
+        // (aka ~ClassName() in C#) method, and a
         // second object with a Close/Dispose/Done method.  Such as the following 
         // contrived example:
         //
-        // class Foo {
+        // class Problematic {
         //    Stream stream = ...;
         //    protected void Finalize() { stream.Close(); }
-        //    void Problem() { stream.MethodThatSpansGCs(); }
-        //    static void Main() { new Foo().Problem(); }
+        //
+        //    void Problem() {
+        //       // The "spans GC inside" is just for explanation purposes -
+        //       // GC may run on its own while any piece of user code is running
+        //       // and it actually runs rather often in mildly loaded server systems
+        //       // with may CPUs and lots of spare CPU time. This is not a fantasy.
+        //       stream.MethodThatSpansGCs();
+        //    }
+        //
+        //    static void Main() { new Problematic().Problem(); }
         // }
         // 
+        // The problem persists in Release when code runs without debugger
+        // even if user explicitly binds a reference to the object:
         //
-        // In this code, Foo will be finalized in the middle of 
+        //    static void Main() {
+        //       var problematic = new Problematic();
+        //       problematic.Problem();
+        //    }
+        //
+        // In the second example JIT may eliminate the reference and then the object
+        // may become eligible for collection in the middle of Problem() method.
+        //
+        // Technically this causes a race between Problem() and Finalize().
+        //
+        // Either way the object may be finalized in the middle of 
         // stream.MethodThatSpansGCs, thus closing a stream still in use."
         //
-        // If we insert a call to GC.KeepAlive(this) at the end of Problem(), then
-        // Foo doesn't get finalized and the stream stays open.
+        // If the user inserts a call to GC.KeepAlive(this) at the end of Problem(), then
+        // Foo doesn't get finalized and the stream stays open until Problem() completes.
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         public static void KeepAlive(Object obj)
