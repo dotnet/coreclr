@@ -820,7 +820,8 @@ void                CodeGen::genFuncletProlog(BasicBlock* block)
 
     if (genFuncletInfo.fiFrameType == 1)
     {
-        getEmitter()->emitIns_R_R_R_I(INS_stp, EA_PTRSIZE, REG_FP, REG_LR, REG_SPBASE, genFuncletInfo.fiSpDelta1, INS_OPTS_PRE_INDEX);
+        getEmitter()->emitIns_R_R_R_I(INS_stp, EA_PTRSIZE, REG_FP, REG_LR, 
+                                      REG_SPBASE, genFuncletInfo.fiSpDelta1, INS_OPTS_PRE_INDEX);
         compiler->unwindSaveRegPairPreindexed(REG_FP, REG_LR, genFuncletInfo.fiSpDelta1);
 
         assert(genFuncletInfo.fiSpDelta2 == 0);
@@ -833,14 +834,15 @@ void                CodeGen::genFuncletProlog(BasicBlock* block)
 
         assert(genFuncletInfo.fiSpDelta2 == 0);
 
-        getEmitter()->emitIns_R_R_R_I(INS_stp, EA_PTRSIZE, REG_FP, REG_LR, REG_SPBASE, genFuncletInfo.fiSP_to_FPLR_save_delta);
+        getEmitter()->emitIns_R_R_R_I(INS_stp, EA_PTRSIZE, REG_FP, REG_LR, 
+                                      REG_SPBASE, genFuncletInfo.fiSP_to_FPLR_save_delta);
         compiler->unwindSaveRegPair(REG_FP, REG_LR, genFuncletInfo.fiSP_to_FPLR_save_delta);
     }
     else
     {
         assert(genFuncletInfo.fiFrameType == 3);
-
-        getEmitter()->emitIns_R_R_R_I(INS_stp, EA_PTRSIZE, REG_FP, REG_LR, REG_SPBASE, genFuncletInfo.fiSpDelta1, INS_OPTS_PRE_INDEX);
+        getEmitter()->emitIns_R_R_R_I(INS_stp, EA_PTRSIZE, REG_FP, REG_LR, REG_SPBASE, 
+                                      genFuncletInfo.fiSpDelta1, INS_OPTS_PRE_INDEX);
         compiler->unwindSaveRegPairPreindexed(REG_FP, REG_LR, genFuncletInfo.fiSpDelta1);
 
         lowestCalleeSavedOffset += genFuncletInfo.fiSpDelta2; // We haven't done the second adjustment of SP yet.
@@ -852,7 +854,17 @@ void                CodeGen::genFuncletProlog(BasicBlock* block)
     if (genFuncletInfo.fiFrameType == 3)
     {
         assert(genFuncletInfo.fiSpDelta2 != 0);
-        getEmitter()->emitIns_R_R_I(INS_sub, EA_PTRSIZE, REG_SPBASE, REG_SPBASE, -genFuncletInfo.fiSpDelta2);
+        if (emitter::emitIns_valid_imm_for_add(-genFuncletInfo.fiSpDelta2, EA_8BYTE))
+        {
+            getEmitter()->emitIns_R_R_I(INS_sub, EA_PTRSIZE, REG_SPBASE, REG_SPBASE, -genFuncletInfo.fiSpDelta2);
+        }
+        else // fiSpDelta2 is too large to encode directly
+        {
+            // First setup X1 with the large offset constant
+            instGen_Set_Reg_To_Imm(EA_PTRSIZE, REG_R1, -genFuncletInfo.fiSpDelta2);
+            regTracker.rsTrackRegTrash(REG_R1);
+            getEmitter()->emitIns_R_R_R(INS_sub, EA_PTRSIZE, REG_SPBASE, REG_SPBASE, REG_R1);
+        }
         compiler->unwindAllocStack(-genFuncletInfo.fiSpDelta2);
     }
 
@@ -862,18 +874,90 @@ void                CodeGen::genFuncletProlog(BasicBlock* block)
     if (isFilter)
     {
         // This is the first block of a filter
+        // Note that register x1 = CallerSP of the containing function
+        // X1 is overwritten by the first Load (new callerSP)
+        // X2 is scratch when we have a large constant offset
 
-        getEmitter()->emitIns_R_R_I(ins_Load(TYP_I_IMPL), EA_PTRSIZE, REG_R1, REG_R1, genFuncletInfo.fiCallerSP_to_PSP_slot_delta);
-        regTracker.rsTrackRegTrash(REG_R1);
-        getEmitter()->emitIns_R_R_I(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_R1, REG_SPBASE, genFuncletInfo.fiSP_to_PSP_slot_delta);
-        getEmitter()->emitIns_R_R_I(INS_add, EA_PTRSIZE, REG_FPBASE, REG_R1, genFuncletInfo.fiFunction_CallerSP_to_FP_delta);
+        // First instruction
+        // Load the CallerSP of the main function (stored in the PSP of the dynamically containing funclet or function)
+        if (emitter::emitIns_valid_imm_for_ldst_offset(genFuncletInfo.fiCallerSP_to_PSP_slot_delta, EA_8BYTE))
+        {
+            getEmitter()->emitIns_R_R_I(ins_Load(TYP_I_IMPL), EA_PTRSIZE, REG_R1, 
+                                        REG_R1, genFuncletInfo.fiCallerSP_to_PSP_slot_delta);
+            regTracker.rsTrackRegTrash(REG_R1);
+        }
+        else
+        {
+            // Setup X2 with the large constant offset
+            instGen_Set_Reg_To_Imm(EA_PTRSIZE, REG_R2, genFuncletInfo.fiCallerSP_to_PSP_slot_delta);
+            regTracker.rsTrackRegTrash(REG_R2);
+            
+            // Load the CallerSP
+            getEmitter()->emitIns_R_R_R(ins_Load(TYP_I_IMPL), EA_PTRSIZE, REG_R1, REG_R1, REG_R2);
+            regTracker.rsTrackRegTrash(REG_R1);
+        }
+
+        // Second instruction
+        // Store the PSP value (aka CallerSP)
+        if (emitter::emitIns_valid_imm_for_ldst_offset(genFuncletInfo.fiSP_to_PSP_slot_delta, EA_8BYTE))
+        {            
+            getEmitter()->emitIns_R_R_I(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_R1, 
+                                        REG_SPBASE, genFuncletInfo.fiSP_to_PSP_slot_delta);
+        }
+        else
+        {
+            // Setup X2 with the large constant offset
+            instGen_Set_Reg_To_Imm(EA_PTRSIZE, REG_R2, genFuncletInfo.fiSP_to_PSP_slot_delta);
+            regTracker.rsTrackRegTrash(REG_R2);
+            
+            // Store the PSP value
+            getEmitter()->emitIns_R_R_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_R1, REG_SPBASE, REG_R2);
+        }
+
+        // Third instruction
+        // re-establish the frame pointer
+        if (emitter::emitIns_valid_imm_for_add(genFuncletInfo.fiFunction_CallerSP_to_FP_delta, EA_8BYTE))
+        {
+            getEmitter()->emitIns_R_R_I(INS_add, EA_PTRSIZE, REG_FPBASE, 
+                                        REG_R1, genFuncletInfo.fiFunction_CallerSP_to_FP_delta);
+        }
+        else
+        {
+            // Setup X2 with the large constant offset
+            instGen_Set_Reg_To_Imm(EA_PTRSIZE, REG_R2, genFuncletInfo.fiFunction_CallerSP_to_FP_delta);
+            regTracker.rsTrackRegTrash(REG_R2);
+            
+            // re-establish the frame pointer
+            getEmitter()->emitIns_R_R_R(INS_add, EA_PTRSIZE, REG_FPBASE, REG_R1, REG_R2);
+        }
     }
-    else
+    else    // This is a non-filter funclet
     {
-        // This is a non-filter funclet
-        getEmitter()->emitIns_R_R_Imm(INS_add, EA_PTRSIZE, REG_R3, REG_FPBASE, -genFuncletInfo.fiFunction_CallerSP_to_FP_delta);
+        // X3 is scratch, X2 can also become scratch
+        
+        // compute the CallerSP, given the frame pointer. x3 is scratch.
+        getEmitter()->emitIns_R_R_Imm(INS_add, EA_PTRSIZE, REG_R3, 
+                                      REG_FPBASE, -genFuncletInfo.fiFunction_CallerSP_to_FP_delta);
         regTracker.rsTrackRegTrash(REG_R3);
-        getEmitter()->emitIns_R_R_I(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_R3, REG_SPBASE, genFuncletInfo.fiSP_to_PSP_slot_delta);
+
+        // Can we encode 'fiSP_to_PSP' directly in the store instruction?
+        if (emitter::emitIns_valid_imm_for_ldst_offset(genFuncletInfo.fiSP_to_PSP_slot_delta, EA_8BYTE))
+        {
+            // Store the PSP value (aka CallerSP)
+            getEmitter()->emitIns_R_R_I(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_R3, 
+                                        REG_SPBASE, genFuncletInfo.fiSP_to_PSP_slot_delta);
+        }
+        else
+        {
+            // additionally X2 is scratch.
+
+            // Setup X2 with the large constant offset
+            instGen_Set_Reg_To_Imm(EA_PTRSIZE, REG_R2, genFuncletInfo.fiSP_to_PSP_slot_delta);
+            regTracker.rsTrackRegTrash(REG_R2);
+
+            // Store the PSP value (aka CallerSP)
+            getEmitter()->emitIns_R_R_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_R3, REG_SPBASE, REG_R2);
+        }
     }
 }
 
@@ -914,8 +998,19 @@ void                CodeGen::genFuncletEpilog()
  
     if (genFuncletInfo.fiFrameType == 3)
     {
-        assert(genFuncletInfo.fiSpDelta2 != 0);
-        getEmitter()->emitIns_R_R_I(INS_add, EA_PTRSIZE, REG_SPBASE, REG_SPBASE, -genFuncletInfo.fiSpDelta2);
+        // Note that genFuncletInfo.fiSpDelta2 is always a negative value
+        assert(genFuncletInfo.fiSpDelta2 < 0);
+        if (emitter::emitIns_valid_imm_for_add(-genFuncletInfo.fiSpDelta2, EA_8BYTE))
+        {
+            getEmitter()->emitIns_R_R_I(INS_add, EA_PTRSIZE, REG_SPBASE, REG_SPBASE, -genFuncletInfo.fiSpDelta2);
+        }
+        else // The offset is too large to encode directly
+        {
+            // First setup X1 with the large offset constant
+            instGen_Set_Reg_To_Imm(EA_PTRSIZE, REG_R1, -genFuncletInfo.fiSpDelta2);
+            regTracker.rsTrackRegTrash(REG_R1);
+            getEmitter()->emitIns_R_R_R(INS_add, EA_PTRSIZE, REG_SPBASE, REG_SPBASE, REG_R1);
+        }
         compiler->unwindAllocStack(-genFuncletInfo.fiSpDelta2);
 
         lowestCalleeSavedOffset += genFuncletInfo.fiSpDelta2;
@@ -926,7 +1021,8 @@ void                CodeGen::genFuncletEpilog()
     
     if (genFuncletInfo.fiFrameType == 1)
     {
-        getEmitter()->emitIns_R_R_R_I(INS_ldp, EA_PTRSIZE, REG_FP, REG_LR, REG_SPBASE, -genFuncletInfo.fiSpDelta1, INS_OPTS_POST_INDEX);
+        getEmitter()->emitIns_R_R_R_I(INS_ldp, EA_PTRSIZE, REG_FP, REG_LR, 
+                                      REG_SPBASE, -genFuncletInfo.fiSpDelta1, INS_OPTS_POST_INDEX);
         compiler->unwindSaveRegPairPreindexed(REG_FP, REG_LR, genFuncletInfo.fiSpDelta1);
 
         assert(genFuncletInfo.fiSpDelta2 == 0);
@@ -934,7 +1030,8 @@ void                CodeGen::genFuncletEpilog()
     }
     else if (genFuncletInfo.fiFrameType == 2)
     {
-        getEmitter()->emitIns_R_R_R_I(INS_ldp, EA_PTRSIZE, REG_FP, REG_LR, REG_SPBASE, genFuncletInfo.fiSP_to_FPLR_save_delta);
+        getEmitter()->emitIns_R_R_R_I(INS_ldp, EA_PTRSIZE, REG_FP, REG_LR, 
+                                      REG_SPBASE, genFuncletInfo.fiSP_to_FPLR_save_delta);
         compiler->unwindSaveRegPair(REG_FP, REG_LR, genFuncletInfo.fiSP_to_FPLR_save_delta);
 
         getEmitter()->emitIns_R_R_I(INS_add, EA_PTRSIZE, REG_SPBASE, REG_SPBASE, -genFuncletInfo.fiSpDelta1);
@@ -946,7 +1043,8 @@ void                CodeGen::genFuncletEpilog()
     {
         assert(genFuncletInfo.fiFrameType == 3);
 
-        getEmitter()->emitIns_R_R_R_I(INS_ldp, EA_PTRSIZE, REG_FP, REG_LR, REG_SPBASE, -genFuncletInfo.fiSpDelta1, INS_OPTS_POST_INDEX);
+        getEmitter()->emitIns_R_R_R_I(INS_ldp, EA_PTRSIZE, REG_FP, REG_LR, 
+                                      REG_SPBASE, -genFuncletInfo.fiSpDelta1, INS_OPTS_POST_INDEX);
         compiler->unwindSaveRegPairPreindexed(REG_FP, REG_LR, genFuncletInfo.fiSpDelta1);
     }
 

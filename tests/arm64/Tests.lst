@@ -1103,7 +1103,7 @@ WorkingDir=JIT\Regression\CLR-x86-EJIT\V1-M12-Beta2\b26323\b26323
 MaxAllowedDurationSeconds=600
 HostStyle=Any
 Expected=100
-Categories=JIT;EXPECTED_PASS;ISSUE_2925
+Categories=JIT;EXPECTED_PASS;DBG_FAIL;ISSUE_2925
 [b14770.exe_4861]
 RelativePath=JIT\Regression\CLR-x86-JIT\V1-M09.5-PDC\b14770\b14770\b14770.exe
 WorkingDir=JIT\Regression\CLR-x86-JIT\V1-M09.5-PDC\b14770\b14770
@@ -4057,7 +4057,7 @@ WorkingDir=JIT\Methodical\varargs\callconv\gc_ctor_il_r
 MaxAllowedDurationSeconds=600
 HostStyle=Any
 Expected=100
-Categories=JIT;EXPECTED_PASS;ISSUE_2925
+Categories=JIT;EXPECTED_PASS;DBG_FAIL;ISSUE_2925
 [delegstaticftn.exe_4735]
 RelativePath=JIT\opt\Inline\DelegStaticFtn\DelegStaticFtn.exe
 WorkingDir=JIT\opt\Inline\DelegStaticFtn
@@ -7256,7 +7256,7 @@ WorkingDir=JIT\Methodical\varargs\callconv\gc_ctor_il_d
 MaxAllowedDurationSeconds=600
 HostStyle=Any
 Expected=100
-Categories=JIT;EXPECTED_PASS;ISSUE_2925
+Categories=JIT;EXPECTED_PASS;DBG_FAIL;ISSUE_2925
 [interlockedaddlong_3.exe_157]
 RelativePath=baseservices\threading\interlocked\add\InterlockedAddLong_3\InterlockedAddLong_3.exe
 WorkingDir=baseservices\threading\interlocked\add\InterlockedAddLong_3
@@ -7809,7 +7809,7 @@ WorkingDir=CoreMangLib\cti\system\string\StringConcat8
 MaxAllowedDurationSeconds=600
 HostStyle=Any
 Expected=100
-Categories=RT;EXPECTED_FAIL
+Categories=RT;EXPECTED_FAIL;LONG_RUNNING
 [_dbgldc_mulovf.exe_4139]
 RelativePath=JIT\Methodical\int64\unsigned\_dbgldc_mulovf\_dbgldc_mulovf.exe
 WorkingDir=JIT\Methodical\int64\unsigned\_dbgldc_mulovf
@@ -13703,7 +13703,7 @@ WorkingDir=Regressions\common\AboveStackLimit
 MaxAllowedDurationSeconds=600
 HostStyle=Any
 Expected=100
-Categories=RT;EXPECTED_FAIL
+Categories=RT;EXPECTED_FAIL;ISSUE_3032
 [b14617.exe_5517]
 RelativePath=JIT\Regression\CLR-x86-JIT\V1.2-M01\b14617\b14617\b14617.exe
 WorkingDir=JIT\Regression\CLR-x86-JIT\V1.2-M01\b14617\b14617
@@ -21165,7 +21165,7 @@ WorkingDir=CoreMangLib\cti\system\string\StringConcat4
 MaxAllowedDurationSeconds=600
 HostStyle=Any
 Expected=100
-Categories=RT;EXPECTED_FAIL
+Categories=RT;EXPECTED_FAIL;LONG_RUNNING
 [inattributector.exe_2085]
 RelativePath=CoreMangLib\cti\system\runtime\interopservices\inattribute\InAttributeCtor\InAttributeCtor.exe
 WorkingDir=CoreMangLib\cti\system\runtime\interopservices\inattribute\InAttributeCtor
@@ -40499,7 +40499,7 @@ WorkingDir=Regressions\coreclr\0099\AboveStackLimit
 MaxAllowedDurationSeconds=600
 HostStyle=Any
 Expected=100
-Categories=RT;EXPECTED_FAIL
+Categories=RT;EXPECTED_FAIL;ISSUE_3032
 [b565808.exe_5560]
 RelativePath=JIT\Regression\CLR-x86-JIT\v2.1\b565808\b565808\b565808.exe
 WorkingDir=JIT\Regression\CLR-x86-JIT\v2.1\b565808\b565808
