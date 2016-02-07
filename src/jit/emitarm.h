@@ -88,14 +88,14 @@ private:
                                          VARSET_VALARG_TP GCvars,
                                          regMaskTP  gcrefRegs,
                                          regMaskTP  byrefRegs,
-                                         emitAttr   retSize);
+                                         insCallReturnRegisterTypes callReturnTypes);
 
     instrDesc      *emitNewInstrCallInd( int        argCnt,
                                          ssize_t    disp,
                                          VARSET_VALARG_TP GCvars,
                                          regMaskTP  gcrefRegs,
                                          regMaskTP  byrefRegs,
-                                         emitAttr   retSize);
+                                         insCallReturnRegisterTypes callReturnTypes);
 
     void            emitGetInsCns   (instrDesc *id, CnsVal *cv);
     int             emitGetInsAmdCns(instrDesc *id, CnsVal *cv);
@@ -430,7 +430,7 @@ public:
                                     INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo)     // used to report call sites to the EE
                                     void*           addr,
                                     ssize_t         argSize,
-                                    emitAttr        retSize,
+                                    insCallReturnRegisterTypes callReturnTypes,
                                     VARSET_VALARG_TP ptrVars,
                                     regMaskTP       gcrefRegs,
                                     regMaskTP       byrefRegs,

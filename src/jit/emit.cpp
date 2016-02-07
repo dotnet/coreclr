@@ -2953,6 +2953,36 @@ void                emitter::emitDispVarSet()
 
 /*****************************************************************************/
 #endif//DEBUG
+
+//------------------------------------------------------------------------
+// emitSetSecondRetRegGCType: Sets the GC type of the second return register for instrDescCGCA struct.
+//
+// Arguments:
+//    id            - The large call instr descriptor to set the second GC return register type on.
+//    secondRetSize - The EA_SIZE for second return register type.
+//
+// Return Value:
+//    None
+//
+
+void            emitter::emitSetSecondRetRegGCType(instrDescCGCA* id, emitAttr secondRetSize)
+{
+#if defined(FEATURE_MULTIREG_ARGS)
+    if (EA_IS_GCREF(secondRetSize))
+    {
+        id->idSecondGCref(GCT_GCREF);
+    }
+    else if (EA_IS_BYREF(secondRetSize))
+    {
+        id->idSecondGCref(GCT_BYREF);
+    }
+    else
+    {
+        id->idSecondGCref(GCT_NONE);
+    }
+#endif // defined(FEATURE_MULTIREG_ARGS)
+}
+
 /*****************************************************************************
  *
  *  Allocate an instruction descriptor for an indirect call.
@@ -2969,9 +2999,10 @@ emitter::instrDesc  * emitter::emitNewInstrCallInd(int        argCnt,
                                                    VARSET_VALARG_TP GCvars,
                                                    regMaskTP  gcrefRegs,
                                                    regMaskTP  byrefRegs,
-                                                   emitAttr   retSizeIn)
+                                                   insCallReturnRegisterTypes callReturnTypes)
 {
-    emitAttr  retSize = retSizeIn ? EA_ATTR(retSizeIn) : EA_PTRSIZE;
+    emitAttr       retSize = callReturnTypes.getFirstReturnRegisterType() ? 
+                             EA_ATTR(callReturnTypes.getFirstReturnRegisterType()) : EA_PTRSIZE;
 
     bool gcRefRegsInScratch = ((gcrefRegs & RBM_CALLEE_TRASH) != 0);
     /*
@@ -2980,13 +3011,15 @@ emitter::instrDesc  * emitter::emitNewInstrCallInd(int        argCnt,
         mode displacement, or we have some byref registers
      */
 
-    if  (!VarSetOps::IsEmpty(emitComp, GCvars)     ||   // any frame GCvars live
-         (gcRefRegsInScratch)        ||   // any register gc refs live in scratch regs
-         (byrefRegs != 0)            ||   // any register byrefs live
-         (disp < AM_DISP_MIN)        ||   // displacement too negative
-         (disp > AM_DISP_MAX)        ||   // displacement too positive
-         (argCnt > ID_MAX_SMALL_CNS) ||   // too many args
-         (argCnt < 0)                   ) // caller pops arguments
+    if  (!VarSetOps::IsEmpty(emitComp, GCvars)  ||                              // any frame GCvars live
+         (gcRefRegsInScratch)                   ||                              // any register gc refs live in scratch regs
+         (byrefRegs != 0)                       ||                              // any register byrefs live
+         (disp < AM_DISP_MIN)                   ||                              // displacement too negative
+         (disp > AM_DISP_MAX)                   ||                              // displacement too positive
+         (argCnt > ID_MAX_SMALL_CNS)            ||                              // too many args
+         (argCnt < 0)                                                           // caller pops arguments
+                                                                                // There is a second ref/byref return register.
+        FEATURE_MULTIREG_RET_ONLY(|| EA_IS_GCREF_OR_BYREF(callReturnTypes.getSecondReturnRegisterType())))
     {
         instrDescCGCA* id;
 
@@ -2999,6 +3032,10 @@ emitter::instrDesc  * emitter::emitNewInstrCallInd(int        argCnt,
         id->idcByrefRegs      = byrefRegs;
         id->idcArgCnt         = argCnt;
         id->idcDisp           = disp;
+
+#if FEATURE_MULTIREG_RET
+        emitSetSecondRetRegGCType(id, callReturnTypes.getSecondReturnRegisterType());
+#endif // FEATURE_MULTIREG_RET
 
         return  id;
     }
@@ -3033,13 +3070,14 @@ emitter::instrDesc  * emitter::emitNewInstrCallInd(int        argCnt,
  *  and an arbitrarily large argument count.
  */
 
-emitter::instrDesc *emitter::emitNewInstrCallDir(int        argCnt,
-                                                 VARSET_VALARG_TP GCvars,
-                                                 regMaskTP  gcrefRegs,
-                                                 regMaskTP  byrefRegs,
-                                                 emitAttr   retSizeIn)
+emitter::instrDesc *emitter::emitNewInstrCallDir(int                    argCnt,
+                                                 VARSET_VALARG_TP       GCvars,
+                                                 regMaskTP              gcrefRegs,
+                                                 regMaskTP              byrefRegs,
+                                                 insCallReturnRegisterTypes     callReturnTypes)
 {
-    emitAttr       retSize = retSizeIn ? EA_ATTR(retSizeIn) : EA_PTRSIZE;
+    emitAttr       retSize = callReturnTypes.getFirstReturnRegisterType() ? 
+                             EA_ATTR(callReturnTypes.getFirstReturnRegisterType()) : EA_PTRSIZE;
 
     /*
         Allocate a larger descriptor if new GC values need to be saved
@@ -3048,11 +3086,13 @@ emitter::instrDesc *emitter::emitNewInstrCallDir(int        argCnt,
      */
     bool gcRefRegsInScratch = ((gcrefRegs & RBM_CALLEE_TRASH) != 0);
 
-    if  (!VarSetOps::IsEmpty(emitComp, GCvars)     ||   // any frame GCvars live
-         gcRefRegsInScratch          ||   // any register gc refs live in scratch regs
-         (byrefRegs != 0)            ||   // any register byrefs live
-         (argCnt > ID_MAX_SMALL_CNS) ||   // too many args
-         (argCnt < 0)                   ) // caller pops arguments
+    if  (!VarSetOps::IsEmpty(emitComp, GCvars)  ||                              // any frame GCvars live
+         gcRefRegsInScratch                     ||                              // any register gc refs live in scratch regs
+         (byrefRegs != 0)                       ||                              // any register byrefs live
+         (argCnt > ID_MAX_SMALL_CNS)            ||                              // too many args
+         (argCnt < 0)                                                           // caller pops arguments
+                                                                                // There is a second ref/byref return register.
+         FEATURE_MULTIREG_RET_ONLY(             || EA_IS_GCREF_OR_BYREF(callReturnTypes.getSecondReturnRegisterType())))
     {
         instrDescCGCA* id = emitAllocInstrCGCA(retSize);
 
@@ -3065,6 +3105,10 @@ emitter::instrDesc *emitter::emitNewInstrCallDir(int        argCnt,
         id->idcByrefRegs      = byrefRegs;
         id->idcDisp           = 0;  
         id->idcArgCnt         = argCnt;
+
+#if FEATURE_MULTIREG_RET
+        emitSetSecondRetRegGCType(id, callReturnTypes.getSecondReturnRegisterType());
+#endif // FEATURE_MULTIREG_RET
 
         return  id;
     }

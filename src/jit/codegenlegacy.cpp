@@ -9389,8 +9389,8 @@ void                CodeGen::genCodeForTreeSmpOp(GenTreePtr tree,
                         regMaskTP argRegs = genRegMask(regFirst) | genRegMask(regSecond);
                         regSet.rsLockUsedReg(argRegs);
                         genEmitHelperCall(CORINFO_HELP_ASSIGN_BYREF,
-                            0,             // argSize
-                            EA_PTRSIZE);   // retSize
+                                          0,             // argSize
+                                          EA_PTRSIZE);   // retSize
                         regSet.rsUnlockUsedReg(argRegs);
                     }
 
@@ -9534,8 +9534,8 @@ void                CodeGen::genCodeForTreeSmpOp(GenTreePtr tree,
                         regMaskTP argRegs = genRegMask(regFirst) | genRegMask(regSecond);
                         regSet.rsLockUsedReg(argRegs);
                         genEmitHelperCall(CORINFO_HELP_ASSIGN_BYREF,
-                            0,             // argSize
-                            EA_PTRSIZE);   // retSize
+                                          0,              // argSize
+                                          EA_PTRSIZE);    // retSize
 
                         regSet.rsUnlockUsedReg(argRegs);
                         regTracker.rsTrackRegMaskTrash(RBM_CALLEE_TRASH_NOGC);
@@ -10207,8 +10207,8 @@ void                CodeGen::genCodeForTreeSmpOp(GenTreePtr tree,
                     regSet.rsLockUsedReg(RBM_ARG_0 | RBM_ARG_1 | RBM_ARG_2);
 
                     genEmitHelperCall(oper == GT_COPYBLK ? CORINFO_HELP_MEMCPY
-                        /* GT_INITBLK */ : CORINFO_HELP_MEMSET,
-                        0, EA_UNKNOWN);
+                                      /* GT_INITBLK */ : CORINFO_HELP_MEMSET,
+                                      0, EA_UNKNOWN);
 
                     regTracker.rsTrackRegMaskTrash(RBM_CALLEE_TRASH);
 
@@ -14708,8 +14708,8 @@ SIMPLE_OR_LONG:
             noway_assert((regSet.rsMaskLock & (RBM_LNGARG_0 | RBM_SHIFT_LNG)) == (RBM_LNGARG_0 | RBM_SHIFT_LNG));
 
             genEmitHelperCall(helper,
-                              0,             // argSize
-                              EA_8BYTE);     // retSize
+                              0,            // argSize
+                              EA_8BYTE);    // retSize
 
 #ifdef _TARGET_X86_
             /* The value in the register pair is trashed */
@@ -15918,6 +15918,8 @@ void        CodeGen::genEmitHelperCall(unsigned    helper,
 
     void * addr = NULL, **pAddr = NULL;
 
+    insCallReturnRegisterTypes   callReturnTypes(retSize);
+
     // Don't ask VM if it hasn't requested ELT hooks 
 #if defined(_TARGET_ARM_) && defined(DEBUG) && defined(PROFILING_SUPPORTED)
     if (!compiler->compProfilerHookNeeded && 
@@ -15955,7 +15957,7 @@ void        CodeGen::genEmitHelperCall(unsigned    helper,
                                  INDEBUG_LDISASM_COMMA(nullptr)
                                  NULL,                          // addr
                                  argSize,
-                                 retSize,
+                                 callReturnTypes,
                                  gcInfo.gcVarPtrSetCur,
                                  gcInfo.gcRegGCrefSetCur,
                                  gcInfo.gcRegByrefSetCur,
@@ -15973,7 +15975,7 @@ void        CodeGen::genEmitHelperCall(unsigned    helper,
                                  INDEBUG_LDISASM_COMMA(nullptr)
                                  addr,
                                  argSize,
-                                 retSize,
+                                 callReturnTypes,
                                  gcInfo.gcVarPtrSetCur,
                                  gcInfo.gcRegGCrefSetCur,
                                  gcInfo.gcRegByrefSetCur,
@@ -15998,7 +16000,7 @@ void        CodeGen::genEmitHelperCall(unsigned    helper,
                                  INDEBUG_LDISASM_COMMA(nullptr)
                                  addr,
                                  argSize,
-                                 retSize,
+                                 callReturnTypes,
                                  gcInfo.gcVarPtrSetCur,
                                  gcInfo.gcRegGCrefSetCur,
                                  gcInfo.gcRegByrefSetCur,
@@ -19161,8 +19163,8 @@ regMaskTP           CodeGen::genCodeForCall(GenTreePtr  call,
         }
 
         genEmitHelperCall(CORINFO_HELP_PROF_FCN_TAILCALL,
-                          0,               // argSize
-                          EA_UNKNOWN);     // retSize
+                          0,            // argSize
+                          EA_UNKNOWN);  // retSize
 
         // Restore back to the state that existed before profiler callback
         gcInfo.gcMarkRegSetNpt(scratchReg);

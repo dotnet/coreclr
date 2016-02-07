@@ -6976,7 +6976,6 @@ GenTreePtr                Compiler::impFixupStructReturn(GenTreePtr     call,
 {
     assert(call->gtOper == GT_CALL);
 
-
     if (!varTypeIsStruct(call))
     {
         return call;
@@ -7021,19 +7020,17 @@ GenTreePtr                Compiler::impFixupStructReturn(GenTreePtr     call,
     call->gtCall.gtReturnType = call->gtType;
 
     // Get the classification for the struct.
-    SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
-    eeGetSystemVAmd64PassStructInRegisterDescriptor(retClsHnd, &structDesc);
-    if (structDesc.passedInRegisters)
+    GenTreeCall* callPtr = call->AsCall();
+    eeGetSystemVAmd64PassStructInRegisterDescriptor(retClsHnd, &(callPtr->structDesc));
+    if (callPtr->structDesc.passedInRegisters)
     {
-        call->gtCall.SetRegisterReturningStructState(structDesc);
-
-        if (structDesc.eightByteCount <= 1)
+        if (callPtr->structDesc.eightByteCount <= 1)
         {
-            call->gtCall.gtReturnType = getEightByteType(structDesc, 0);
+            callPtr->gtReturnType = getEightByteType(callPtr->structDesc, 0);
         }
         else
         {
-            if (!call->gtCall.CanTailCall() && ((call->gtFlags & GTF_CALL_INLINE_CANDIDATE) == 0))
+            if (!callPtr->CanTailCall() && ((call->gtFlags & GTF_CALL_INLINE_CANDIDATE) == 0))
             {
                 // If we can tail call returning in registers struct or inline a method that returns
                 // a registers returned struct, then don't assign it to
@@ -7044,7 +7041,7 @@ GenTreePtr                Compiler::impFixupStructReturn(GenTreePtr     call,
     }
     else
     {
-        call->gtCall.gtCallMoreFlags |= GTF_CALL_M_RETBUFFARG;
+        callPtr->gtCallMoreFlags |= GTF_CALL_M_RETBUFFARG;
   }
 
     return call;
@@ -13881,15 +13878,23 @@ bool Compiler::impReturnInstruction(BasicBlock *block, int prefixFlags, OPCODE &
 
         op2 = impAssignStructPtr(retBuffAddr, op2, retClsHnd, (unsigned)CHECK_SPILL_ALL);
         impAppendTree(op2, (unsigned)CHECK_SPILL_NONE, impCurStmtOffs);
-        if (compIsProfilerHookNeeded())
-        {
-            // The profiler callback expects the address of the return buffer in eax
-            op1 = gtNewOperNode(GT_RETURN, TYP_BYREF, gtNewLclvNode(info.compRetBuffArg, TYP_BYREF));
-        }
-        else
+
+        // There are cases where the address of the implicit RetBuf should be returned in RAX.
+#if !defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+        // 1. In case of Windows AMD64 the profiler hook requires to have the RAX contain the implicit RetBuf.
+        //    In such case the return value of the function is changed to BYREF.
+        //    If profiler hook is not needed the return type of the function is VOID.
+        if (!compIsProfilerHookNeeded())
         {
             // return void
             op1 = new (this, GT_RETURN) GenTreeOp(GT_RETURN, TYP_VOID);
+        }
+        else
+#endif // !defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+        {
+            // 2. System V ABI requires to return the implicit return buffer in RAX.
+            //    Change the return type to be BYREF.
+            op1 = gtNewOperNode(GT_RETURN, TYP_BYREF, gtNewLclvNode(info.compRetBuffArg, TYP_BYREF));
         }
     }
     else if (varTypeIsStruct(info.compRetType))

@@ -6699,7 +6699,7 @@ void                emitter::emitIns_Call(EmitCallType  callType,
                                           INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo)     // used to report call sites to the EE
                                           void*         addr,
                                           ssize_t       argSize,
-                                          emitAttr      retSize,
+                                          insCallReturnRegisterTypes callReturnTypes,
                                           VARSET_VALARG_TP ptrVars,
                                           regMaskTP     gcrefRegs,
                                           regMaskTP     byrefRegs,
@@ -6801,7 +6801,7 @@ void                emitter::emitIns_Call(EmitCallType  callType,
 
         assert(callType == EC_INDIR_R);
 
-        id  = emitNewInstrCallInd(argCnt, disp, ptrVars, gcrefRegs, byrefRegs, retSize);
+        id  = emitNewInstrCallInd(argCnt, disp, ptrVars, gcrefRegs, byrefRegs, callReturnTypes);
     }
     else
     {
@@ -6811,7 +6811,7 @@ void                emitter::emitIns_Call(EmitCallType  callType,
         assert(callType == EC_FUNC_TOKEN ||
                callType == EC_FUNC_ADDR);
 
-        id  = emitNewInstrCallDir(argCnt, ptrVars, gcrefRegs, byrefRegs, retSize);
+        id  = emitNewInstrCallDir(argCnt, ptrVars, gcrefRegs, byrefRegs, callReturnTypes);
     }
 
     /* Update the emitter's live GC ref sets */
