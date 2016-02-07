@@ -1204,7 +1204,8 @@ void                CodeGen::sched_AM(instruction  ins,
 
 void                CodeGen::instEmit_indCall(GenTreePtr   call,
                                               size_t       argSize,
-                                              emitAttr     retSize)
+                                              emitAttr     retSize
+                                              FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(emitAttr retSize1))
 {
     GenTreePtr              addr;
 
@@ -1246,7 +1247,8 @@ void                CodeGen::instEmit_indCall(GenTreePtr   call,
                                       INDEBUG_LDISASM_COMMA(sigInfo)
                                       (void*) funcPtr,
                                       argSize,
-                                      retSize,
+                                      retSize
+                                      FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(retSize1),
                                       gcInfo.gcVarPtrSetCur,
                                       gcInfo.gcRegGCrefSetCur,
                                       gcInfo.gcRegByrefSetCur);
@@ -1258,7 +1260,6 @@ void                CodeGen::instEmit_indCall(GenTreePtr   call,
         /* Get hold of the address of the function pointer */
 
         addr = addr->gtOp.gtOp1;
-
     }
 
     if  (addr->gtFlags & GTF_REG_VAL)
@@ -1307,7 +1308,8 @@ void                CodeGen::instEmit_indCall(GenTreePtr   call,
                                           INDEBUG_LDISASM_COMMA(sigInfo)
                                           (void*) funcPtr,
                                           argSize,
-                                          retSize,
+                                          retSize
+                                          FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(retSize1),
                                           gcInfo.gcVarPtrSetCur,
                                           gcInfo.gcRegGCrefSetCur,
                                           gcInfo.gcRegByrefSetCur);
@@ -1371,7 +1373,8 @@ void                CodeGen::instEmit_indCall(GenTreePtr   call,
                               INDEBUG_LDISASM_COMMA(sigInfo)
                               NULL,                 // addr
                               argSize,
-                              retSize,
+                              retSize
+                              FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(retSize1),
                               gcInfo.gcVarPtrSetCur,
                               gcInfo.gcRegGCrefSetCur,
                               gcInfo.gcRegByrefSetCur,

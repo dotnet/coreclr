@@ -9242,8 +9242,9 @@ void                CodeGen::genFnEpilog(BasicBlock* block)
                                  methHnd,
                                  INDEBUG_LDISASM_COMMA(nullptr)
                                  addr,
-                                 0,                     /* argSize */
-                                 EA_UNKNOWN,            /* retSize */
+                                 0,                                                         // argSize 
+                                 EA_UNKNOWN                                                 // retSize
+                                 FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(EA_UNKNOWN),    // retSize1
                                  gcInfo.gcVarPtrSetCur,
                                  gcInfo.gcRegGCrefSetCur,
                                  gcInfo.gcRegByrefSetCur,
@@ -9593,8 +9594,9 @@ void                CodeGen::genFnEpilog(BasicBlock* block)
                                        methHnd,
                                        INDEBUG_LDISASM_COMMA(nullptr)
                                        addrInfo.addr,
-                                       0,                         /* argSize */
-                                       EA_UNKNOWN,                /* retSize */
+                                       0,                                                       // argSize
+                                       EA_UNKNOWN                                               // retSize
+                                       FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(EA_UNKNOWN),  // retSize1
                                        gcInfo.gcVarPtrSetCur,
                                        gcInfo.gcRegGCrefSetCur,
                                        gcInfo.gcRegByrefSetCur,

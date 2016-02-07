@@ -1461,63 +1461,50 @@ CodeGen::genStructReturn(GenTreePtr treeNode)
     var_types targetType = treeNode->TypeGet();
 
 #ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
-    if (targetType == TYP_VOID)
+    noway_assert((op1->OperGet() == GT_LCL_VAR) ||
+                    (op1->OperGet() == GT_CALL));
+
+    if (op1->OperGet() == GT_LCL_VAR)
     {
-        assert(op1 == nullptr);
-        if (compiler->info.compRetBuffArg != BAD_VAR_NUM)
-        {
-            // System V AMD64 spec requires that when a struct is returned by a hidden
-            // argument the RAX should contain the value of the hidden retbuf arg.
-            getEmitter()->emitIns_R_S(INS_mov, EA_BYREF, REG_RAX, compiler->info.compRetBuffArg, 0);
-        }        
+        assert(op1->isContained());
+
+        GenTreeLclVarCommon* lclVarPtr = op1->AsLclVarCommon();
+        LclVarDsc* varDsc = &(compiler->lvaTable[lclVarPtr->gtLclNum]);
+        assert(varDsc->lvIsMultiRegArgOrRet);
+
+        CORINFO_CLASS_HANDLE typeHnd = varDsc->lvVerTypeInfo.GetClassHandle();
+        assert(typeHnd != nullptr);
+
+        SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
+        compiler->eeGetSystemVAmd64PassStructInRegisterDescriptor(typeHnd, &structDesc);
+        assert(structDesc.passedInRegisters);
+        assert(structDesc.eightByteCount == CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS);
+
+        regNumber retReg0 = REG_NA;
+        unsigned __int8 offset0 = 0;
+        regNumber retReg1 = REG_NA;
+        unsigned __int8 offset1 = 0;
+
+        var_types type0 = TYP_UNKNOWN;
+        var_types type1 = TYP_UNKNOWN;
+
+        getStructTypeOffset(structDesc, &type0, &type1, &offset0, &offset1);
+        getStructReturnRegisters(type0, type1, &retReg0, &retReg1);
+
+        // Move the values into the return registers.
+        // 
+
+        assert(retReg0 != REG_NA && retReg1 != REG_NA);
+
+        getEmitter()->emitIns_R_S(ins_Load(type0), emitTypeSize(type0), retReg0, lclVarPtr->gtLclNum, offset0);
+        getEmitter()->emitIns_R_S(ins_Load(type1), emitTypeSize(type1), retReg1, lclVarPtr->gtLclNum, offset1);
     }
-    else
-    {
-        noway_assert((op1->OperGet() == GT_LCL_VAR) ||
-                     (op1->OperGet() == GT_CALL));
 
-        if (op1->OperGet() == GT_LCL_VAR)
-        {
-            assert(op1->isContained());
-
-            GenTreeLclVarCommon* lclVarPtr = op1->AsLclVarCommon();
-            LclVarDsc* varDsc = &(compiler->lvaTable[lclVarPtr->gtLclNum]);
-            assert(varDsc->lvIsMultiRegArgOrRet);
-
-            CORINFO_CLASS_HANDLE typeHnd = varDsc->lvVerTypeInfo.GetClassHandle();
-            assert(typeHnd != nullptr);
-
-            SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
-            compiler->eeGetSystemVAmd64PassStructInRegisterDescriptor(typeHnd, &structDesc);
-            assert(structDesc.passedInRegisters);
-            assert(structDesc.eightByteCount == CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS);
-
-            regNumber retReg0 = REG_NA;
-            unsigned __int8 offset0 = 0;
-            regNumber retReg1 = REG_NA;
-            unsigned __int8 offset1 = 0;
-
-            var_types type0 = TYP_UNKNOWN;
-            var_types type1 = TYP_UNKNOWN;
-
-            getStructTypeOffset(structDesc, &type0, &type1, &offset0, &offset1);
-            getStructReturnRegisters(type0, type1, &retReg0, &retReg1);
-
-            // Move the values into the return registers.
-            // 
-
-            assert(retReg0 != REG_NA && retReg1 != REG_NA);
-
-            getEmitter()->emitIns_R_S(ins_Load(type0), emitTypeSize(type0), retReg0, lclVarPtr->gtLclNum, offset0);
-            getEmitter()->emitIns_R_S(ins_Load(type1), emitTypeSize(type1), retReg1, lclVarPtr->gtLclNum, offset1);
-        }
-
-        // Nothing to do if the op1 of the return statement is a GT_CALL. The call already has the return
-        // registers in the proper return registers. 
-        // This assumes that registers never get spilled. There is an Issue 2966 created to track the need 
-        // for handling the GT_CALL case of two register returns and handle it properly for stress modes 
-        // and potential other changes that may break this assumption.
-    }
+    // Nothing to do if the op1 of the return statement is a GT_CALL. The call already has the return
+    // registers in the proper return registers. 
+    // This assumes that registers never get spilled. There is an Issue 2966 created to track the need 
+    // for handling the GT_CALL case of two register returns and handle it properly for stress modes 
+    // and potential other changes that may break this assumption.
 #else
     assert("!unreached");
 #endif   
@@ -2651,9 +2638,14 @@ CodeGen::genStoreRegisterReturnInLclVar(GenTreePtr treeNode)
         getStructReturnRegisters(type0, type1, &retReg0, &retReg1);
 
         assert(retReg0 != REG_NA && retReg1 != REG_NA);
-
+        
+        // Copy of a struct to a well typed location on the stack. No need to call the 
+        // GC-ness of each slot. Need to make the store of the two slots
+        // atomic for the purposes of GC.
+        getEmitter()->emitDisableGC();
         getEmitter()->emitIns_S_R(ins_Store(type0), emitTypeSize(type0), retReg0, lclVarPtr->gtLclNum, offset0);
         getEmitter()->emitIns_S_R(ins_Store(type1), emitTypeSize(type1), retReg1, lclVarPtr->gtLclNum, offset1);
+        getEmitter()->emitEnableGC();
 
         return true;
     }
@@ -5171,7 +5163,8 @@ void CodeGen::genEmitCall(int                   callType,
                           INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo)
                           void*                 addr
                           X86_ARG(ssize_t       argSize),
-                          emitAttr              retSize,
+                          emitAttr              retSize
+                          FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(emitAttr retSize1),
                           IL_OFFSETX            ilOffset,
                           regNumber             base,
                           bool                  isJump,
@@ -5185,7 +5178,8 @@ void CodeGen::genEmitCall(int                   callType,
                                INDEBUG_LDISASM_COMMA(sigInfo)
                                addr,
                                argSize,
-                               retSize,
+                               retSize
+                               FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(retSize1),
                                gcInfo.gcVarPtrSetCur,
                                gcInfo.gcRegGCrefSetCur,
                                gcInfo.gcRegByrefSetCur,
@@ -5203,7 +5197,8 @@ void CodeGen::genEmitCall(int                   callType,
                           INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo)
                           GenTreeIndir*         indir 
                           X86_ARG(ssize_t       argSize),
-                          emitAttr              retSize,
+                          emitAttr              retSize
+                          FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(emitAttr retSize1),
                           IL_OFFSETX            ilOffset)
 {
 #if !defined(_TARGET_X86_)
@@ -5216,7 +5211,8 @@ void CodeGen::genEmitCall(int                   callType,
                                INDEBUG_LDISASM_COMMA(sigInfo)
                                nullptr,
                                argSize,
-                               retSize,
+                               retSize
+                               FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(retSize1),
                                gcInfo.gcVarPtrSetCur,
                                gcInfo.gcRegGCrefSetCur,
                                gcInfo.gcRegByrefSetCur,
@@ -5523,20 +5519,23 @@ void CodeGen::genCallInstruction(GenTreePtr node)
                 GenTreePtr putArgRegNode = argListPtr->gtOp.gtOp1;
                 assert(putArgRegNode->gtOper == GT_PUTARG_REG);
                 regNumber argReg = REG_NA;
+
                 if (iterationNum == 0)
                 {
                     argReg = curArgTabEntry->regNum;
                 }
-                else if (iterationNum == 1)
-                {
-                    argReg = curArgTabEntry->otherRegNum;
-                }
                 else
                 {
-                    assert(false); // Illegal state.
+                    assert(iterationNum == 1);
+                    argReg = curArgTabEntry->otherRegNum;
                 }
 
                 genConsumeReg(putArgRegNode);
+                // Validate the putArgRegNode has the right type.
+#ifdef DEBUG
+                assert(putArgRegNode->TypeGet() == compiler->GetTypeFromClassificationAndSizes(curArgTabEntry->structDesc.eightByteClassifications[iterationNum],
+                                                                                               curArgTabEntry->structDesc.eightByteSizes[iterationNum]));
+#endif // DEBUG
                 if (putArgRegNode->gtRegNum != argReg)
                 {
                     inst_RV_RV(ins_Move_Extend(putArgRegNode->TypeGet(), putArgRegNode->InReg()), argReg, putArgRegNode->gtRegNum);
@@ -5664,14 +5663,29 @@ void CodeGen::genCallInstruction(GenTreePtr node)
 
     // Determine return value size.
     emitAttr retSize = EA_PTRSIZE;
-    if (call->gtType == TYP_REF ||
-        call->gtType == TYP_ARRAY)
+#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+    emitAttr retSize1 = EA_UNKNOWN;
+    if (varTypeIsStruct(call->gtType))
     {
-        retSize = EA_GCREF;
+        // Make sure it is a multi-register passed struct.
+        assert(call->structDesc.passedInRegisters &&
+               (call->structDesc.eightByteCount == CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_RETURN_IN_REGISTERS));
+
+        retSize = EA_ATTR(genTypeSize(compiler->getEightByteType(call->structDesc, 0)));
+        retSize1 = EA_ATTR(genTypeSize(compiler->getEightByteType(call->structDesc, 1)));
     }
-    else if (call->gtType == TYP_BYREF)
+    else
+#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
     {
-        retSize = EA_BYREF;
+        if (call->gtType == TYP_REF ||
+            call->gtType == TYP_ARRAY)
+        {
+            retSize = EA_GCREF;
+        }
+        else if (call->gtType == TYP_BYREF)
+        {
+            retSize = EA_BYREF;
+        }
     }
 
     bool fPossibleSyncHelperCall = false;
@@ -5705,7 +5719,8 @@ void CodeGen::genCallInstruction(GenTreePtr node)
 #if defined(_TARGET_X86_)
                             stackArgBytes,
 #endif // defined(_TARGET_X86_)
-                            retSize,
+                            retSize
+                            FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(retSize1),
                             ilOffset);
             }
             else
@@ -5719,7 +5734,8 @@ void CodeGen::genCallInstruction(GenTreePtr node)
 #if defined(_TARGET_X86_)
                             stackArgBytes,
 #endif // defined(_TARGET_X86_)
-                            retSize,
+                            retSize
+                            FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(retSize1),
                             ilOffset);
             }
         }
@@ -5735,7 +5751,8 @@ void CodeGen::genCallInstruction(GenTreePtr node)
 #if defined(_TARGET_X86_)
                         stackArgBytes,
 #endif // defined(_TARGET_X86_)
-                        retSize,
+                        retSize
+                        FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(retSize1),
                         ilOffset,
                         genConsumeReg(target));
         }
@@ -5750,7 +5767,8 @@ void CodeGen::genCallInstruction(GenTreePtr node)
 #ifdef _TARGET_X86_
                     stackArgBytes,
 #endif // _TARGET_X86_
-                    retSize,
+                    retSize
+                    FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(retSize1),
                     ilOffset);
     }
 #endif
@@ -5808,7 +5826,8 @@ void CodeGen::genCallInstruction(GenTreePtr node)
 #if defined(_TARGET_X86_)
                     stackArgBytes,
 #endif // _defined(_TARGET_X86_)
-                    retSize,
+                    retSize
+                    FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(retSize1),
                     ilOffset);
     }
 
@@ -8432,7 +8451,8 @@ void        CodeGen::genEmitHelperCall(unsigned    helper,
                                 INDEBUG_LDISASM_COMMA(nullptr)
                                 addr,
                                 argSize,
-                                retSize,
+                                retSize
+                                FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(EA_UNKNOWN),
                                 gcInfo.gcVarPtrSetCur,
                                 gcInfo.gcRegGCrefSetCur,
                                 gcInfo.gcRegByrefSetCur,

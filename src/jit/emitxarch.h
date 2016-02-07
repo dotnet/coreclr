@@ -163,18 +163,22 @@ private:
     instrDesc      *emitNewInstrAmd     (emitAttr attr, ssize_t dsp);
     instrDesc      *emitNewInstrAmdCns  (emitAttr attr, ssize_t dsp, int cns);
 
+    void            emitSetSecondRetRegGCType(instrDescCGCA* id, emitAttr secondRetSize);
+
     instrDesc      *emitNewInstrCallDir (int        argCnt,
                                          VARSET_VALARG_TP GCvars,
                                          regMaskTP  gcrefRegs,
                                          regMaskTP  byrefRegs,
-                                         emitAttr   retSize);
+                                         emitAttr   retSize
+                                         FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(emitAttr retSize1In));
 
     instrDesc      *emitNewInstrCallInd( int        argCnt,
                                          ssize_t    disp,
                                          VARSET_VALARG_TP GCvars,
                                          regMaskTP  gcrefRegs,
                                          regMaskTP  byrefRegs,
-                                         emitAttr   retSize);
+                                         emitAttr   retSize
+                                         FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(emitAttr retSize1In));
 
     void            emitGetInsCns   (instrDesc *id, CnsVal *cv);
     ssize_t         emitGetInsAmdCns(instrDesc *id, CnsVal *cv);
@@ -468,7 +472,8 @@ public:
                                     CORINFO_SIG_INFO* sigInfo,     // used to report call sites to the EE
                                     void*           addr,
                                     ssize_t         argSize,
-                                    emitAttr        retSize,
+                                    emitAttr        retSize
+                                    FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(emitAttr retSize1),
                                     VARSET_VALARG_TP ptrVars,
                                     regMaskTP       gcrefRegs,
                                     regMaskTP       byrefRegs,
@@ -481,7 +486,8 @@ public:
                                     INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo)     // used to report call sites to the EE
                                     void*           addr,
                                     ssize_t         argSize,
-                                    emitAttr        retSize,
+                                    emitAttr        retSize
+                                    FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(emitAttr retSize1),
                                     VARSET_VALARG_TP ptrVars,
                                     regMaskTP       gcrefRegs,
                                     regMaskTP       byrefRegs,

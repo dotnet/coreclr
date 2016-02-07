@@ -84,6 +84,8 @@ private:
     instrDesc      *emitNewInstrAmd     (emitAttr attr, int dsp);
     instrDesc      *emitNewInstrAmdCns  (emitAttr attr, int dsp, int cns);
 
+    void            emitSetSecondRetRegGCType(instrDescCGCA* id, emitAttr secondRetSize) {}
+
     instrDesc      *emitNewInstrCallDir (int        argCnt,
                                          VARSET_VALARG_TP GCvars,
                                          regMaskTP  gcrefRegs,
