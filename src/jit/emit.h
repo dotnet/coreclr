@@ -241,6 +241,55 @@ DECLARE_TYPED_ENUM(insGroupPlaceholderType,unsigned char)
 }
 END_DECLARE_TYPED_ENUM(insGroupPlaceholderType,unsigned char)
 
+// This is a struct that encapsulates the call instruction register return types.
+// It allows for specifying types for multi-register return calls.
+struct         insCallReturnRegisterTypes
+{
+public:
+    // Constructors
+    insCallReturnRegisterTypes()
+    {
+        firstRegisterType = EA_UNKNOWN;
+#if FEATURE_MULTIREG_RET
+        secondRegisterType = EA_UNKNOWN;
+#endif // FEATURE_MULTIREG_RET
+    }
+
+    insCallReturnRegisterTypes(emitAttr firstRegType)
+    {
+        firstRegisterType = firstRegType;
+#if FEATURE_MULTIREG_RET
+        secondRegisterType = EA_UNKNOWN;
+#endif // FEATURE_MULTIREG_RET
+    }
+
+#if FEATURE_MULTIREG_RET
+    insCallReturnRegisterTypes(emitAttr firstRegType, emitAttr secondRegType)
+    {
+        firstRegisterType = firstRegType;
+        secondRegisterType = secondRegType;
+    }
+#endif // FEATURE_MULTIREG_RET
+
+    // Getting the data.
+    emitAttr getFirstReturnRegisterType()
+    {
+        return firstRegisterType;
+    }
+
+#if FEATURE_MULTIREG_RET
+    emitAttr getSecondReturnRegisterType()
+    {
+        return secondRegisterType;
+    }
+#endif // FEATURE_MULTIREG_RET
+
+private:
+    // Data members
+    emitAttr firstRegisterType;
+    emitAttr secondRegisterType;
+};
+
 #if defined(_MSC_VER) && defined(_TARGET_ARM_)
 // ARM aligns structures that contain 64-bit ints or doubles on 64-bit boundaries. This causes unwanted
 // padding to be added to the end, so sizeof() is unnecessarily big.
@@ -1202,13 +1251,21 @@ protected:
         ssize_t         idacAmdVal;
     };
 
-    struct          instrDescCGCA  : instrDesc      // call with ...
+    struct          instrDescCGCA : instrDesc      // call with ...
     {
         VARSET_TP       idcGCvars;                 // ... updated GC vars or
         ssize_t         idcDisp;                   // ... big addrmode disp
         regMaskTP       idcGcrefRegs;              // ... gcref registers
         regMaskTP       idcByrefRegs;              // ... byref registers
         unsigned        idcArgCnt;                 // ... lots of args or (<0 ==> caller pops args)
+
+        GCtype          idSecondGCref() const { return (GCtype)_idcSecondRetRegGCType; }
+        void            idSecondGCref(GCtype gctype) { _idcSecondRetRegGCType = gctype; }
+
+    private:
+#ifdef FEATURE_MULTIREG_ARGS
+        GCtype          _idcSecondRetRegGCType  :2;      // ... GC type for the second return register.
+#endif // FEATURE_MULTIREG_ARGS
     };
 
     struct          instrDescArmFP : instrDesc  
@@ -1588,6 +1645,8 @@ private:
     bool            emitThisGCrefVset;  // Is "emitThisGCrefVars" up to date?
 
     regNumber       emitSyncThisObjReg; // where is "this" enregistered for synchronized methods?
+
+    void            emitSetSecondRetRegGCType(instrDescCGCA* id, emitAttr secondRetSize);
 
     static void     emitEncodeCallGCregs(regMaskTP regs, instrDesc *id);
     static unsigned emitDecodeCallGCregs(instrDesc *id);

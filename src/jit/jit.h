@@ -215,8 +215,10 @@
 
 #if defined(DEBUG) || defined(LATE_DISASM)
 #define INDEBUG_LDISASM_COMMA(x)    x,
+#define INDEBUG_LDISASM_SEMI(x)     x;
 #else 
 #define INDEBUG_LDISASM_COMMA(x)
+#define INDEBUG_LDISASM_SEMI(x)
 #endif
 
 #if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
@@ -687,6 +689,14 @@ private:
 
 #include "alloc.h"
 #include "target.h"
+
+#if FEATURE_MULTIREG_RET
+#define FEATURE_MULTIREG_RET_ONLY_ARG(x)   , x
+#define FEATURE_MULTIREG_RET_ONLY(x)   x
+#else // !FEATURE_MULTIREG_RET
+#define FEATURE_MULTIREG_RET_ONLY_ARG(x)
+#define FEATURE_MULTIREG_RET_ONLY(x)
+#endif // FEATURE_MULTIREG_RET
 
 #if FEATURE_TAILCALL_OPT
 

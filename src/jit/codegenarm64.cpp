@@ -1242,7 +1242,7 @@ void                CodeGen::genEmitGSCookieCheck(bool pushReg)
 
     BasicBlock  *gsCheckBlk = genCreateTempLabel();
     inst_JMP(genJumpKindForOper(GT_EQ, true), gsCheckBlk);
-    genEmitHelperCall(CORINFO_HELP_FAIL_FAST, 0, EA_UNKNOWN);
+    genEmitHelperCall(CORINFO_HELP_FAIL_FAST, 0, insCallReturnRegisterTypes(EA_UNKNOWN));
     genDefineTempLabel(gsCheckBlk);
 }
 
@@ -2835,7 +2835,7 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
             inst_JMP(genJumpKindForOper(GT_EQ, true), skipLabel);
             // emit the call to the EE-helper that stops for GC (or other reasons)
 
-            genEmitHelperCall(CORINFO_HELP_STOP_FOR_GC, 0, EA_UNKNOWN);
+            genEmitHelperCall(CORINFO_HELP_STOP_FOR_GC, 0, insCallReturnRegisterTypes(EA_UNKNOWN));
             genDefineTempLabel(skipLabel);
         }
         break;
@@ -3770,7 +3770,7 @@ void CodeGen::genCodeForInitBlk(GenTreeInitBlk* initBlkNode)
     genConsumeRegAndCopy(initVal, REG_ARG_1);
     genConsumeRegAndCopy(dstAddr, REG_ARG_0);
 
-    genEmitHelperCall(CORINFO_HELP_MEMSET, 0, EA_UNKNOWN);
+    genEmitHelperCall(CORINFO_HELP_MEMSET, 0, insCallReturnRegisterTypes(EA_UNKNOWN));
 }
 
 
@@ -3987,7 +3987,7 @@ void CodeGen::genCodeForCpObj(GenTreeCpObj* cpObjNode)
 
             default:
                 // We have a GC pointer, call the memory barrier.
-                genEmitHelperCall(CORINFO_HELP_ASSIGN_BYREF, 0, EA_PTRSIZE);
+                genEmitHelperCall(CORINFO_HELP_ASSIGN_BYREF, 0, insCallReturnRegisterTypes(EA_PTRSIZE));
                 gcPtrCount--;
                 break;
             }
@@ -4031,7 +4031,7 @@ void CodeGen::genCodeForCpBlk(GenTreeCpBlk* cpBlkNode)
     genConsumeRegAndCopy(srcAddr,   REG_ARG_1);
     genConsumeRegAndCopy(dstAddr,   REG_ARG_0);
 
-    genEmitHelperCall(CORINFO_HELP_MEMCPY, 0, EA_UNKNOWN);
+    genEmitHelperCall(CORINFO_HELP_MEMCPY, 0, insCallReturnRegisterTypes(EA_UNKNOWN));
 }
 
 
@@ -4913,67 +4913,6 @@ void CodeGen::genTransferRegGCState(regNumber dst, regNumber src)
    }
 }
 
-
-// generates an ip-relative call or indirect call via reg ('call reg')
-//     pass in 'addr' for a relative call or 'base' for a indirect register call
-//     methHnd - optional, only used for pretty printing 
-//     retSize - emitter type of return for GC purposes, should be EA_BYREF, EA_GCREF, or EA_PTRSIZE(not GC)
-// TODO-Cleanup: move to CodeGenCommon.cpp
-void CodeGen::genEmitCall(int                   callType,
-                          CORINFO_METHOD_HANDLE methHnd,
-                          INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo)
-                          void*                 addr,
-                          emitAttr              retSize,
-                          IL_OFFSETX            ilOffset,
-                          regNumber             base,
-                          bool                  isJump,
-                          bool                  isNoGC)
-{
-    
-    getEmitter()->emitIns_Call(emitter::EmitCallType(callType),
-                               methHnd,
-                               INDEBUG_LDISASM_COMMA(sigInfo)
-                               addr,
-                               0,
-                               retSize,
-                               gcInfo.gcVarPtrSetCur,
-                               gcInfo.gcRegGCrefSetCur,
-                               gcInfo.gcRegByrefSetCur,
-                               ilOffset,
-                               base, REG_NA, 0, 0,
-                               isJump, 
-                               emitter::emitNoGChelper(compiler->eeGetHelperNum(methHnd)));
-}
-
-// generates an indirect call via addressing mode (call []) given an indir node
-//     methHnd - optional, only used for pretty printing
-//     retSize - emitter type of return for GC purposes, should be EA_BYREF, EA_GCREF, or EA_PTRSIZE(not GC)
-// TODO-Cleanup: move to CodeGenCommon.cpp
-void CodeGen::genEmitCall(int                   callType,
-                          CORINFO_METHOD_HANDLE methHnd,
-                          INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo)
-                          GenTreeIndir*         indir,
-                          emitAttr              retSize,
-                          IL_OFFSETX            ilOffset)
-{
-    genConsumeAddress(indir->Addr());
-
-    getEmitter()->emitIns_Call(emitter::EmitCallType(callType),
-                               methHnd,
-                               INDEBUG_LDISASM_COMMA(sigInfo)
-                               nullptr,
-                               0,
-                               retSize,
-                               gcInfo.gcVarPtrSetCur,
-                               gcInfo.gcRegGCrefSetCur,
-                               gcInfo.gcRegByrefSetCur,
-                               ilOffset, 
-                               indir->Base()  ? indir->Base()->gtRegNum : REG_NA,
-                               indir->Index() ? indir->Index()->gtRegNum : REG_NA,
-                               indir->Scale(),
-                               indir->Offset());
-}
-
 // Produce code for a GT_CALL node
 void CodeGen::genCallInstruction(GenTreePtr node)
 {
@@ -5093,6 +5032,8 @@ void CodeGen::genCallInstruction(GenTreePtr node)
         retSize = EA_BYREF;
     }
 
+    insCallReturnRegisterTypes callReturnTypes(retSize);
+
 #ifdef DEBUGGING_SUPPORT
     // We need to propagate the IL offset information to the call instruction, so we can emit
     // an IL to native mapping record for the call, to support managed return value debugging.
@@ -5114,13 +5055,16 @@ void CodeGen::genCallInstruction(GenTreePtr node)
         //
         assert(genIsValidIntReg(target->gtRegNum));
 
-        genEmitCall(emitter::EC_INDIR_R,
-                    methHnd,
-                    INDEBUG_LDISASM_COMMA(sigInfo)
-                    nullptr, //addr
-                    retSize,
-                    ilOffset,
-                    genConsumeReg(target));
+        GenEmitCallInfo genEmitCallInfo = GenEmitCallInfo(GenCallTypeToEmit::GEN_EMIT_CALL_DIRECT,
+                                                          emitter::EC_INDIR_R,
+                                                          methHnd,
+                                                          INDEBUG_LDISASM_COMMA(sigInfo)
+                                                          nullptr, // addr
+                                                          callReturnTypes,
+                                                          ilOffset,
+                                                          genConsumeReg(target));
+
+        genEmitCall(genEmitCallInfo);
     }
     else
     {
@@ -5168,22 +5112,29 @@ void CodeGen::genCallInstruction(GenTreePtr node)
         // Load the call target address in x16
         instGen_Set_Reg_To_Imm(EA_8BYTE, REG_IP0, (ssize_t) addr);
 
-        // indirect call to constant address in IP0
-        genEmitCall(emitter::EC_INDIR_R,
-                    methHnd, 
-                    INDEBUG_LDISASM_COMMA(sigInfo)
-                    nullptr, //addr
-                    retSize,
-                    ilOffset,
-                    REG_IP0);
+        // indirect call to constant address in IP0 (using the direct call dispatch).
+        GenEmitCallInfo genEmitCallInfo = GenEmitCallInfo(GenCallTypeToEmit::GEN_EMIT_CALL_DIRECT,
+                                                          emitter::EC_INDIR_R,
+                                                          methHnd,
+                                                          INDEBUG_LDISASM_COMMA(sigInfo)
+                                                          nullptr, // addr
+                                                          callReturnTypes,
+                                                          ilOffset,
+                                                          REG_IP0);
+
+        genEmitCall(genEmitCallInfo);
 #else
         // Non-virtual direct call to known addresses
-        genEmitCall(emitter::EC_FUNC_TOKEN,
-                    methHnd, 
-                    INDEBUG_LDISASM_COMMA(sigInfo)
-                    addr,
-                    retSize,
-                    ilOffset);
+        GenEmitCallInfo genEmitCallInfo = GenEmitCallInfo(GenCallTypeToEmit::GEN_EMIT_CALL_DIRECT,
+                                                          emitter::EC_FUNC_TOKEN,
+                                                          methHnd,
+                                                          INDEBUG_LDISASM_COMMA(sigInfo)
+                                                          addr, // addr
+                                                          callReturnTypes,
+                                                          ilOffset);
+
+        genEmitCall(genEmitCallInfo);
+
 #endif
     }
 
@@ -6282,7 +6233,7 @@ CodeGen::genCreateAndStoreGCInfoX64(unsigned codeSize, unsigned prologSize DEBUG
 
 void        CodeGen::genEmitHelperCall(unsigned    helper,
                                        int         argSize,
-                                       emitAttr    retSize,
+                                       insCallReturnRegisterTypes callReturnTypes,
                                        regNumber   callTargetReg /*= REG_NA */)
 {
     void* addr  = nullptr;

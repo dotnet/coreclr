@@ -1470,7 +1470,7 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
             inst_JMP(genJumpKindForOper(GT_EQ, true), skipLabel);
             // emit the call to the EE-helper that stops for GC (or other reasons)
 
-            genEmitHelperCall(CORINFO_HELP_STOP_FOR_GC, 0, EA_UNKNOWN);
+            genEmitHelperCall(CORINFO_HELP_STOP_FOR_GC, 0, insCallReturnRegisterTypes(EA_UNKNOWN));
             genDefineTempLabel(skipLabel);
         }
         break;
@@ -2112,7 +2112,7 @@ void                CodeGen::genCreateAndStoreGCInfoX64(unsigned codeSize, unsig
 
 void        CodeGen::genEmitHelperCall(unsigned    helper,
                                        int         argSize,
-                                       emitAttr    retSize
+                                       insCallReturnRegisterTypes callReturnTypes
 #ifndef LEGACY_BACKEND
                                        ,regNumber   callTargetReg /*= REG_NA */
 #endif // !LEGACY_BACKEND

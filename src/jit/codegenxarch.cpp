@@ -259,7 +259,7 @@ void                CodeGen::genEmitGSCookieCheck(bool pushReg)
 
     BasicBlock  *gsCheckBlk = genCreateTempLabel();
     inst_JMP(genJumpKindForOper(GT_EQ, true), gsCheckBlk);
-    genEmitHelperCall(CORINFO_HELP_FAIL_FAST, 0, EA_UNKNOWN);
+    genEmitHelperCall(CORINFO_HELP_FAIL_FAST, 0, insCallReturnRegisterTypes(EA_UNKNOWN));
     genDefineTempLabel(gsCheckBlk);
 }
 
@@ -1436,8 +1436,7 @@ CodeGen::isStructReturn(GenTreePtr treeNode)
     }
 
 #ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
-    return varTypeIsStruct(treeNode) ||
-           (treeNode->TypeGet() == TYP_VOID && compiler->info.compRetBuffArg != BAD_VAR_NUM);
+    return varTypeIsStruct(treeNode);
 #else // !FEATURE_UNIX_AMD64_STRUCT_PASSING
     assert(!varTypeIsStruct(treeNode));
     return false;
@@ -1461,63 +1460,50 @@ CodeGen::genStructReturn(GenTreePtr treeNode)
     var_types targetType = treeNode->TypeGet();
 
 #ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
-    if (targetType == TYP_VOID)
+    noway_assert((op1->OperGet() == GT_LCL_VAR) ||
+                    (op1->OperGet() == GT_CALL));
+
+    if (op1->OperGet() == GT_LCL_VAR)
     {
-        assert(op1 == nullptr);
-        if (compiler->info.compRetBuffArg != BAD_VAR_NUM)
-        {
-            // System V AMD64 spec requires that when a struct is returned by a hidden
-            // argument the RAX should contain the value of the hidden retbuf arg.
-            getEmitter()->emitIns_R_S(INS_mov, EA_BYREF, REG_RAX, compiler->info.compRetBuffArg, 0);
-        }        
+        assert(op1->isContained());
+
+        GenTreeLclVarCommon* lclVarPtr = op1->AsLclVarCommon();
+        LclVarDsc* varDsc = &(compiler->lvaTable[lclVarPtr->gtLclNum]);
+        assert(varDsc->lvIsMultiRegArgOrRet);
+
+        CORINFO_CLASS_HANDLE typeHnd = varDsc->lvVerTypeInfo.GetClassHandle();
+        assert(typeHnd != nullptr);
+
+        SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
+        compiler->eeGetSystemVAmd64PassStructInRegisterDescriptor(typeHnd, &structDesc);
+        assert(structDesc.passedInRegisters);
+        assert(structDesc.eightByteCount == CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS);
+
+        regNumber retReg0 = REG_NA;
+        unsigned __int8 offset0 = 0;
+        regNumber retReg1 = REG_NA;
+        unsigned __int8 offset1 = 0;
+
+        var_types type0 = TYP_UNKNOWN;
+        var_types type1 = TYP_UNKNOWN;
+
+        getStructTypeOffset(structDesc, &type0, &type1, &offset0, &offset1);
+        getStructReturnRegisters(type0, type1, &retReg0, &retReg1);
+
+        // Move the values into the return registers.
+        // 
+
+        assert(retReg0 != REG_NA && retReg1 != REG_NA);
+
+        getEmitter()->emitIns_R_S(ins_Load(type0), emitTypeSize(type0), retReg0, lclVarPtr->gtLclNum, offset0);
+        getEmitter()->emitIns_R_S(ins_Load(type1), emitTypeSize(type1), retReg1, lclVarPtr->gtLclNum, offset1);
     }
-    else
-    {
-        noway_assert((op1->OperGet() == GT_LCL_VAR) ||
-                     (op1->OperGet() == GT_CALL));
 
-        if (op1->OperGet() == GT_LCL_VAR)
-        {
-            assert(op1->isContained());
-
-            GenTreeLclVarCommon* lclVarPtr = op1->AsLclVarCommon();
-            LclVarDsc* varDsc = &(compiler->lvaTable[lclVarPtr->gtLclNum]);
-            assert(varDsc->lvIsMultiRegArgOrRet);
-
-            CORINFO_CLASS_HANDLE typeHnd = varDsc->lvVerTypeInfo.GetClassHandle();
-            assert(typeHnd != nullptr);
-
-            SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
-            compiler->eeGetSystemVAmd64PassStructInRegisterDescriptor(typeHnd, &structDesc);
-            assert(structDesc.passedInRegisters);
-            assert(structDesc.eightByteCount == CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS);
-
-            regNumber retReg0 = REG_NA;
-            unsigned __int8 offset0 = 0;
-            regNumber retReg1 = REG_NA;
-            unsigned __int8 offset1 = 0;
-
-            var_types type0 = TYP_UNKNOWN;
-            var_types type1 = TYP_UNKNOWN;
-
-            getStructTypeOffset(structDesc, &type0, &type1, &offset0, &offset1);
-            getStructReturnRegisters(type0, type1, &retReg0, &retReg1);
-
-            // Move the values into the return registers.
-            // 
-
-            assert(retReg0 != REG_NA && retReg1 != REG_NA);
-
-            getEmitter()->emitIns_R_S(ins_Load(type0), emitTypeSize(type0), retReg0, lclVarPtr->gtLclNum, offset0);
-            getEmitter()->emitIns_R_S(ins_Load(type1), emitTypeSize(type1), retReg1, lclVarPtr->gtLclNum, offset1);
-        }
-
-        // Nothing to do if the op1 of the return statement is a GT_CALL. The call already has the return
-        // registers in the proper return registers. 
-        // This assumes that registers never get spilled. There is an Issue 2966 created to track the need 
-        // for handling the GT_CALL case of two register returns and handle it properly for stress modes 
-        // and potential other changes that may break this assumption.
-    }
+    // Nothing to do if the op1 of the return statement is a GT_CALL. The call already has the return
+    // registers in the proper return registers. 
+    // This assumes that registers never get spilled. There is an Issue 2966 created to track the need 
+    // for handling the GT_CALL case of two register returns and handle it properly for stress modes 
+    // and potential other changes that may break this assumption.
 #else
     assert("!unreached");
 #endif   
@@ -2275,7 +2261,7 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
             regNumber tmpReg = genRegNumFromMask(treeNode->gtRsvdRegs);
             assert(genIsValidIntReg(tmpReg));
 
-            genEmitHelperCall(CORINFO_HELP_STOP_FOR_GC, 0, EA_UNKNOWN, tmpReg);
+            genEmitHelperCall(CORINFO_HELP_STOP_FOR_GC, 0, insCallReturnRegisterTypes(EA_UNKNOWN), tmpReg);
             genDefineTempLabel(skipLabel);
         }
         break;
@@ -2651,6 +2637,12 @@ CodeGen::genStoreRegisterReturnInLclVar(GenTreePtr treeNode)
         getStructReturnRegisters(type0, type1, &retReg0, &retReg1);
 
         assert(retReg0 != REG_NA && retReg1 != REG_NA);
+
+        // Nothing to do if the op1 of the return statement is a GT_CALL. The call already has the return
+        // registers in the proper return registers. 
+        // This assumes that registers never get spilled. There is an Issue 2966 created to track the need 
+        // for handling the GT_CALL case of two register returns and handle it properly for stress modes 
+        // and potential other changes that may break this assumption.
 
         getEmitter()->emitIns_S_R(ins_Store(type0), emitTypeSize(type0), retReg0, lclVarPtr->gtLclNum, offset0);
         getEmitter()->emitIns_S_R(ins_Store(type1), emitTypeSize(type1), retReg1, lclVarPtr->gtLclNum, offset1);
@@ -3337,7 +3329,7 @@ void CodeGen::genCodeForInitBlk(GenTreeInitBlk* initBlkNode)
 
     genConsumeBlockOp(initBlkNode, REG_ARG_0, REG_ARG_1, REG_ARG_2);
 
-    genEmitHelperCall(CORINFO_HELP_MEMSET, 0, EA_UNKNOWN);
+    genEmitHelperCall(CORINFO_HELP_MEMSET, 0, insCallReturnRegisterTypes(EA_UNKNOWN));
 #else // !_TARGET_AMD64_
     NYI_X86("Helper call for InitBlk");
 #endif // !_TARGET_AMD64_
@@ -3820,7 +3812,7 @@ void CodeGen::genCodeForCpObj(GenTreeCpObj* cpObjNode)
                 break;
             default:
                 // We have a GC pointer, call the memory barrier.
-                genEmitHelperCall(CORINFO_HELP_ASSIGN_BYREF, 0, EA_PTRSIZE);
+                genEmitHelperCall(CORINFO_HELP_ASSIGN_BYREF, 0, insCallReturnRegisterTypes(EA_PTRSIZE));
                 gcPtrCount--;
                 i++;
             }
@@ -3866,7 +3858,7 @@ void CodeGen::genCodeForCpBlk(GenTreeCpBlk* cpBlkNode)
 
     genConsumeBlockOp(cpBlkNode, REG_ARG_0, REG_ARG_1, REG_ARG_2);
 
-    genEmitHelperCall(CORINFO_HELP_MEMCPY, 0, EA_UNKNOWN);
+    genEmitHelperCall(CORINFO_HELP_MEMCPY, 0, insCallReturnRegisterTypes(EA_UNKNOWN));
 #else // !_TARGET_AMD64_
     noway_assert(false && "Helper call for CpBlk is not needed.");
 #endif // !_TARGET_AMD64_
@@ -5162,72 +5154,6 @@ void CodeGen::genTransferRegGCState(regNumber dst, regNumber src)
    }
 }
 
-// generates an ip-relative call or indirect call via reg ('call reg')
-//     pass in 'addr' for a relative call or 'base' for a indirect register call
-//     methHnd - optional, only used for pretty printing 
-//     retSize - emitter type of return for GC purposes, should be EA_BYREF, EA_GCREF, or EA_PTRSIZE(not GC)
-void CodeGen::genEmitCall(int                   callType,
-                          CORINFO_METHOD_HANDLE methHnd,
-                          INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo)
-                          void*                 addr
-                          X86_ARG(ssize_t       argSize),
-                          emitAttr              retSize,
-                          IL_OFFSETX            ilOffset,
-                          regNumber             base,
-                          bool                  isJump,
-                          bool                  isNoGC)
-{
-#if !defined(_TARGET_X86_)
-    ssize_t               argSize = 0;
-#endif // !defined(_TARGET_X86_)
-    getEmitter()->emitIns_Call(emitter::EmitCallType(callType),
-                               methHnd,
-                               INDEBUG_LDISASM_COMMA(sigInfo)
-                               addr,
-                               argSize,
-                               retSize,
-                               gcInfo.gcVarPtrSetCur,
-                               gcInfo.gcRegGCrefSetCur,
-                               gcInfo.gcRegByrefSetCur,
-                               ilOffset,
-                               base, REG_NA, 0, 0,
-                               isJump, 
-                               emitter::emitNoGChelper(compiler->eeGetHelperNum(methHnd)));
-}
-
-// generates an indirect call via addressing mode (call []) given an indir node
-//     methHnd - optional, only used for pretty printing
-//     retSize - emitter type of return for GC purposes, should be EA_BYREF, EA_GCREF, or EA_PTRSIZE(not GC)
-void CodeGen::genEmitCall(int                   callType,
-                          CORINFO_METHOD_HANDLE methHnd,
-                          INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo)
-                          GenTreeIndir*         indir 
-                          X86_ARG(ssize_t       argSize),
-                          emitAttr              retSize,
-                          IL_OFFSETX            ilOffset)
-{
-#if !defined(_TARGET_X86_)
-    ssize_t               argSize = 0;
-#endif // !defined(_TARGET_X86_)
-    genConsumeAddress(indir->Addr());
-
-    getEmitter()->emitIns_Call(emitter::EmitCallType(callType),
-                               methHnd,
-                               INDEBUG_LDISASM_COMMA(sigInfo)
-                               nullptr,
-                               argSize,
-                               retSize,
-                               gcInfo.gcVarPtrSetCur,
-                               gcInfo.gcRegGCrefSetCur,
-                               gcInfo.gcRegByrefSetCur,
-                               ilOffset, 
-                               indir->Base()  ? indir->Base()->gtRegNum : REG_NA,
-                               indir->Index() ? indir->Index()->gtRegNum : REG_NA,
-                               indir->Scale(),
-                               indir->Offset());
-}
-
-
 //------------------------------------------------------------------------
 // genStoreInd: Generate code for a GT_STOREIND node.
 //
@@ -5476,8 +5402,8 @@ bool CodeGen::genEmitOptimizedGCWriteBarrier(GCInfo::WriteBarrierForm writeBarri
     // with rationalized RyuJIT IR. So, for now, just emit the helper call directly here.
 
     genEmitHelperCall(regToHelper[tgtAnywhere][reg],
-                      0,               // argSize
-                      EA_PTRSIZE);     // retSize
+                      0,                                // argSize
+                      insCallReturnRegisterTypes(EA_PTRSIZE));  // retSize
 
     return true;
 #else // !defined(_TARGET_X86_) || !NOGC_WRITE_BARRIERS
@@ -5523,20 +5449,22 @@ void CodeGen::genCallInstruction(GenTreePtr node)
                 GenTreePtr putArgRegNode = argListPtr->gtOp.gtOp1;
                 assert(putArgRegNode->gtOper == GT_PUTARG_REG);
                 regNumber argReg = REG_NA;
+
                 if (iterationNum == 0)
                 {
                     argReg = curArgTabEntry->regNum;
                 }
-                else if (iterationNum == 1)
-                {
-                    argReg = curArgTabEntry->otherRegNum;
-                }
                 else
                 {
-                    assert(false); // Illegal state.
+                    assert(iterationNum == 1);
+                    argReg = curArgTabEntry->otherRegNum;
                 }
 
                 genConsumeReg(putArgRegNode);
+                // Validate the putArgRegNode has the right type.
+
+                assert(putArgRegNode->TypeGet() == compiler->GetTypeFromClassificationAndSizes(curArgTabEntry->structDesc.eightByteClassifications[iterationNum],
+                                                                                               curArgTabEntry->structDesc.eightByteSizes[iterationNum]));
                 if (putArgRegNode->gtRegNum != argReg)
                 {
                     inst_RV_RV(ins_Move_Extend(putArgRegNode->TypeGet(), putArgRegNode->InReg()), argReg, putArgRegNode->gtRegNum);
@@ -5664,15 +5592,34 @@ void CodeGen::genCallInstruction(GenTreePtr node)
 
     // Determine return value size.
     emitAttr retSize = EA_PTRSIZE;
-    if (call->gtType == TYP_REF ||
-        call->gtType == TYP_ARRAY)
+    emitAttr retSize1 = EA_UNKNOWN;
+#if FEATURE_MULTIREG_RET
+    if (varTypeIsStruct(call->gtType))
     {
-        retSize = EA_GCREF;
+        // Make sure it is a multi-register passed struct,
+        // otherwise, for a struct passed in a single register 
+        // the call would have a normalized type that is not a struct type.
+        assert(call->structDesc.passedInRegisters &&
+               (call->structDesc.eightByteCount == CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_RETURN_IN_REGISTERS));
+
+        retSize = EA_ATTR(emitTypeSize(compiler->getEightByteType(call->structDesc, 0)));
+        retSize1 = EA_ATTR(emitTypeSize(compiler->getEightByteType(call->structDesc, 1)));
     }
-    else if (call->gtType == TYP_BYREF)
+    else
+#endif // FEATURE_MULTIREG_RET
     {
-        retSize = EA_BYREF;
+        if (call->gtType == TYP_REF ||
+            call->gtType == TYP_ARRAY)
+        {
+            retSize = EA_GCREF;
+        }
+        else if (call->gtType == TYP_BYREF)
+        {
+            retSize = EA_BYREF;
+        }
     }
+
+    insCallReturnRegisterTypes callReturnTypes(retSize FEATURE_MULTIREG_RET_ONLY_ARG(retSize1));
 
     bool fPossibleSyncHelperCall = false;
     CorInfoHelpFunc helperNum = CORINFO_HELP_UNDEF;
@@ -5698,29 +5645,33 @@ void CodeGen::genCallInstruction(GenTreePtr node)
                 // contained only if it can be encoded as PC-relative offset.
                 assert(target->AsIndir()->Base()->AsIntConCommon()->FitsInAddrBase(compiler));
 
-                genEmitCall(emitter::EC_FUNC_TOKEN_INDIR,
-                            methHnd,
-                            INDEBUG_LDISASM_COMMA(sigInfo)
-                            (void*) target->AsIndir()->Base()->AsIntConCommon()->IconValue(),
-#if defined(_TARGET_X86_)
-                            stackArgBytes,
-#endif // defined(_TARGET_X86_)
-                            retSize,
-                            ilOffset);
+                // Non-virtual direct call to known addresses
+                GenEmitCallInfo genEmitCallInfo = GenEmitCallInfo(GenCallTypeToEmit::GEN_EMIT_CALL_DIRECT,
+                                                                  emitter::EC_FUNC_TOKEN_INDIR,
+                                                                  methHnd,
+                                                                  INDEBUG_LDISASM_COMMA(sigInfo)
+                                                                  (void*) target->AsIndir()->Base()->AsIntConCommon()->IconValue() // addr
+                                                                  X86_ARG(stackArgBytes),
+                                                                  callReturnTypes,
+                                                                  ilOffset);
+
+                genEmitCall(genEmitCallInfo);
             }
             else
             {
                 GenTree* addr = target->gtGetOp1();
                 genConsumeAddress(addr);
-                genEmitCall(emitter::EC_INDIR_ARD,
-                            methHnd,
-                            INDEBUG_LDISASM_COMMA(sigInfo)
-                            target->AsIndir(),
-#if defined(_TARGET_X86_)
-                            stackArgBytes,
-#endif // defined(_TARGET_X86_)
-                            retSize,
-                            ilOffset);
+                
+                GenEmitCallInfo genEmitCallInfo = GenEmitCallInfo(GenCallTypeToEmit::GEN_EMIT_CALL_INDIRECT,
+                    emitter::EC_INDIR_ARD,
+                    methHnd,
+                    INDEBUG_LDISASM_COMMA(sigInfo)
+                    target->AsIndir() // indir
+                    X86_ARG(stackArgBytes),
+                    callReturnTypes,
+                    ilOffset);
+
+                genEmitCall(genEmitCallInfo);
             }
         }
         else
@@ -5728,30 +5679,33 @@ void CodeGen::genCallInstruction(GenTreePtr node)
             // We have already generated code for gtControlExpr evaluating it into a register.
             // We just need to emit "call reg" in this case.
             assert(genIsValidIntReg(target->gtRegNum));
-            genEmitCall(emitter::EC_INDIR_R,
-                        methHnd,
-                        INDEBUG_LDISASM_COMMA(sigInfo)
-                        nullptr, //addr
-#if defined(_TARGET_X86_)
-                        stackArgBytes,
-#endif // defined(_TARGET_X86_)
-                        retSize,
-                        ilOffset,
-                        genConsumeReg(target));
+
+            GenEmitCallInfo genEmitCallInfo = GenEmitCallInfo(GenCallTypeToEmit::GEN_EMIT_CALL_DIRECT,
+                                                              emitter::EC_INDIR_R,
+                                                              methHnd,
+                                                              INDEBUG_LDISASM_COMMA(sigInfo)
+                                                              (void*) nullptr // addr
+                                                              X86_ARG(stackArgBytes),
+                                                              callReturnTypes,
+                                                              ilOffset,
+                                                              genConsumeReg(target));
+
+            genEmitCall(genEmitCallInfo);
         }
     }
 #ifdef FEATURE_READYTORUN_COMPILER
     else if (call->gtEntryPoint.addr != nullptr)
     {
-        genEmitCall((call->gtEntryPoint.accessType == IAT_VALUE) ? emitter::EC_FUNC_TOKEN : emitter::EC_FUNC_TOKEN_INDIR,
-                    methHnd,
-                    INDEBUG_LDISASM_COMMA(sigInfo)
-                    (void*) call->gtEntryPoint.addr,
-#ifdef _TARGET_X86_
-                    stackArgBytes,
-#endif // _TARGET_X86_
-                    retSize,
-                    ilOffset);
+        GenEmitCallInfo genEmitCallInfo = GenEmitCallInfo(GenCallTypeToEmit::GEN_EMIT_CALL_DIRECT,
+                                                          (call->gtEntryPoint.accessType == IAT_VALUE) ? emitter::EC_FUNC_TOKEN : emitter::EC_FUNC_TOKEN_INDIR,
+                                                          methHnd,
+                                                          INDEBUG_LDISASM_COMMA(sigInfo)
+                                                          (void*) call->gtEntryPoint.addr // addr
+                                                          X86_ARG(stackArgBytes),
+                                                          callReturnTypes,
+                                                          ilOffset);
+
+        genEmitCall(genEmitCallInfo);
     }
 #endif
     else
@@ -5801,15 +5755,16 @@ void CodeGen::genCallInstruction(GenTreePtr node)
         }
 
         // Non-virtual direct calls to known addresses
-        genEmitCall(emitter::EC_FUNC_TOKEN,
-                    methHnd, 
-                    INDEBUG_LDISASM_COMMA(sigInfo)
-                    addr,
-#if defined(_TARGET_X86_)
-                    stackArgBytes,
-#endif // _defined(_TARGET_X86_)
-                    retSize,
-                    ilOffset);
+        GenEmitCallInfo genEmitCallInfo = GenEmitCallInfo(GenCallTypeToEmit::GEN_EMIT_CALL_DIRECT,
+                                                          emitter::EC_FUNC_TOKEN,
+                                                          methHnd,
+                                                          INDEBUG_LDISASM_COMMA(sigInfo)
+                                                          addr // addr
+                                                          X86_ARG(stackArgBytes),
+                                                          callReturnTypes,
+                                                          ilOffset);
+
+        genEmitCall(genEmitCallInfo);
     }
 
     // if it was a pinvoke we may have needed to get the address of a label
@@ -8053,8 +8008,6 @@ CodeGen::genPutStructArgStk(GenTreePtr treeNode, unsigned baseVarNum)
         assert(src->OperGet() == GT_LDOBJ);
         GenTreePtr   srcAddr = src->gtGetOp1();
 
-        gcInfo.gcMarkRegPtrVal(REG_RSI, srcAddr->TypeGet());
-
         unsigned slots = putArgStk->gtNumSlots;
 
         // We are always on the stack we don't need to use the write barrier. 
@@ -8107,15 +8060,26 @@ CodeGen::genPutStructArgStk(GenTreePtr treeNode, unsigned baseVarNum)
                     // but the logic for emitting a GC info record is not available (it is internal for the emitter only.)
                     // See emitGCVarLiveUpd function. If we could call it separately, we could do instGen(INS_movsq); and emission of gc info.
 
-                    getEmitter()->emitIns_R_AR(ins_Load(srcAddr->TypeGet()), emitTypeSize(srcAddr), REG_RCX, REG_RSI, 0);
-                    getEmitter()->emitIns_S_R(ins_Store(srcAddr->TypeGet()),
-                                                        emitTypeSize(srcAddr),
+                    var_types memType;
+                    if (gcPtrs[i] == TYPE_GC_REF)
+                    {
+                        memType = TYP_REF;
+                    }
+                    else
+                    {
+                        assert(gcPtrs[i] == TYPE_GC_BYREF);
+                        memType = TYP_BYREF;
+                    }
+
+                    getEmitter()->emitIns_R_AR(ins_Load(memType), emitTypeSize(memType), REG_RCX, REG_RSI, 0);
+                    getEmitter()->emitIns_S_R(ins_Store(memType),
+                                                        emitTypeSize(memType),
                                                         REG_RCX,
                                                         baseVarNum,
                                                         ((copiedSlots + putArgStk->gtSlotNum) * TARGET_POINTER_SIZE));
 
-                    getEmitter()->emitIns_R_I(INS_add, emitTypeSize(srcAddr), REG_RSI, TARGET_POINTER_SIZE);
-                    getEmitter()->emitIns_R_I(INS_add, EA_8BYTE, REG_RDI, TARGET_POINTER_SIZE);
+                    getEmitter()->emitIns_R_I(INS_add, EA_BYREF, REG_RSI, TARGET_POINTER_SIZE);
+                    getEmitter()->emitIns_R_I(INS_add, EA_BYREF, REG_RDI, TARGET_POINTER_SIZE);
                     copiedSlots++;
                     gcPtrCount--;
                     i++;
@@ -8129,7 +8093,6 @@ CodeGen::genPutStructArgStk(GenTreePtr treeNode, unsigned baseVarNum)
         }
 
         assert(gcPtrCount == 0);
-        gcInfo.gcMarkRegSetNpt(RBM_RSI);
     }
 }
 #endif //defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
@@ -8367,7 +8330,7 @@ CodeGen::genCreateAndStoreGCInfoX64(unsigned codeSize, unsigned prologSize DEBUG
 
 void        CodeGen::genEmitHelperCall(unsigned    helper,
                                        int         argSize,
-                                       emitAttr    retSize
+                                       insCallReturnRegisterTypes callReturnType
 #ifndef LEGACY_BACKEND
                                        ,regNumber   callTargetReg /*= REG_NA */
 #endif // !LEGACY_BACKEND
@@ -8432,7 +8395,7 @@ void        CodeGen::genEmitHelperCall(unsigned    helper,
                                 INDEBUG_LDISASM_COMMA(nullptr)
                                 addr,
                                 argSize,
-                                retSize,
+                                callReturnType,
                                 gcInfo.gcVarPtrSetCur,
                                 gcInfo.gcRegGCrefSetCur,
                                 gcInfo.gcRegByrefSetCur,

@@ -251,12 +251,12 @@ protected:
 #ifndef LEGACY_BACKEND
     void                genEmitHelperCall   (unsigned       helper,
                                              int            argSize,
-                                             emitAttr       retSize,
+                                             insCallReturnRegisterTypes callReturnTypes,
                                              regNumber      callTarget = REG_NA);
 #else
     void                genEmitHelperCall   (unsigned       helper,
                                              int            argSize,
-                                             emitAttr       retSize);
+                                             insCallReturnRegisterTypes callReturnTypes);
 #endif
 
     void                genGCWriteBarrier   (GenTreePtr               tree,
@@ -459,25 +459,99 @@ protected:
 
     void                genPrologPadForReJit();
 
-    void                genEmitCall(int                   callType,
-                                    CORINFO_METHOD_HANDLE methHnd,
-                                    INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo)
-                                    void*                 addr
-                                    X86_ARG(ssize_t       argSize),
-                                    emitAttr              retSize,
-                                    IL_OFFSETX            ilOffset,
-                                    regNumber             base   = REG_NA,
-                                    bool                  isJump = false,
-                                    bool                  isNoGC = false);
+    // Methods and data structures for emitting a call.
+    enum GenCallTypeToEmit : unsigned __int8
+    {
+        GEN_EMIT_CALL_UNKNOWN = 0,
+        GEN_EMIT_CALL_INDIRECT = 1,
+        GEN_EMIT_CALL_DIRECT = 2
+    };
 
-    void                genEmitCall(int                   callType, 
-                                    CORINFO_METHOD_HANDLE methHnd,
-                                    INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo)
-                                    GenTreeIndir*         indir
-                                    X86_ARG(ssize_t       argSize),
-                                    emitAttr              retSize,
-                                    IL_OFFSETX            ilOffset);
+    struct GenEmitCallInfo
+    {
+        // Constructor to initialize a direct call info.
+        GenEmitCallInfo(GenCallTypeToEmit           emitCallType,
+                        int                         callType,
+                        CORINFO_METHOD_HANDLE       methHnd,
+                        INDEBUG_LDISASM_COMMA       (CORINFO_SIG_INFO* sigInfo)
+                        void*                       addr
+                        X86_ARG(ssize_t             argSize),
+                        insCallReturnRegisterTypes  callReturnTypes,
+                        IL_OFFSETX                  ilOffset,
+                        regNumber                   base = REG_NA,
+                        bool                        isJump = false,
+                        bool                        isNoGC = false)
+        {
+            assert(emitCallType == GEN_EMIT_CALL_DIRECT);
 
+            this->emitCallType = emitCallType;
+            this->callType = callType;
+            this->methHnd = methHnd;
+            INDEBUG_LDISASM_SEMI(this->sigInfo = sigInfo)
+            this->addr = addr;
+            this->indir = nullptr;
+#ifdef _TARGET_X86_
+            this->argSize = argSize;
+#endif // _TARGET_X86_
+            this->callReturnTypes = callReturnTypes;
+            this->ilOffset = ilOffset;
+            this->base = base;
+            this->isJump = isJump;
+            this->isNoGC = isNoGC;
+        }
+
+        // Constructor to initialize a indirect call info.
+        GenEmitCallInfo(GenCallTypeToEmit           emitCallType,
+                        int                         callType,
+                        CORINFO_METHOD_HANDLE       methHnd,
+                        INDEBUG_LDISASM_COMMA       (CORINFO_SIG_INFO* sigInfo)
+                        GenTreeIndir*               indir
+                        X86_ARG(ssize_t             argSize),
+                        insCallReturnRegisterTypes  callReturnTypes,
+                        IL_OFFSETX                  ilOffset,
+                        regNumber                   base = REG_NA,
+                        bool                        isJump = false,
+                        bool                        isNoGC = false)
+        {
+            assert(emitCallType == GEN_EMIT_CALL_INDIRECT);
+            assert(indir != nullptr);
+
+            this->emitCallType = emitCallType;
+            this->callType = callType;
+            this->methHnd = methHnd;
+            INDEBUG_LDISASM_SEMI(this->sigInfo = sigInfo)
+            this->addr = nullptr;
+            this->indir = indir;
+#ifdef _TARGET_X86_
+            this->argSize = argSize;
+#endif // _TARGET_X86_
+            this->callReturnTypes = callReturnTypes;
+            this->ilOffset = ilOffset;
+            this->base = base;
+            this->isJump = isJump;
+            this->isNoGC = isNoGC;
+        }
+
+        GenCallTypeToEmit           emitCallType;
+        int                         callType;
+        CORINFO_METHOD_HANDLE       methHnd;
+        INDEBUG_LDISASM_SEMI        (CORINFO_SIG_INFO* sigInfo)
+        void*                       addr;
+        GenTreeIndir*               indir;
+#ifdef _TARGET_X86_
+        ssize_t                     argSize;
+#endif // _TARGET_X86_
+        insCallReturnRegisterTypes  callReturnTypes;
+        IL_OFFSETX                  ilOffset;
+        regNumber                   base;
+        bool                        isJump;
+        bool                        isNoGC;
+
+    private:
+        GenEmitCallInfo() { assert(!"This constructor not to be called.");  };
+    };
+
+    void                genEmitCall(GenEmitCallInfo emitCallInfo);
 
     //
     // Epilog functions
@@ -929,7 +1003,7 @@ public :
 
     void                instEmit_indCall(GenTreePtr     call,
                                          size_t         argSize,
-                                         emitAttr       retSize);
+                                         insCallReturnRegisterTypes callReturnTypes);
 
     void                instEmit_RM     (instruction    ins,
                                          GenTreePtr     tree,

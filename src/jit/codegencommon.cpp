@@ -2607,7 +2607,7 @@ void            CodeGen::genJumpToThrowHlpBlk(emitJumpKind          jumpKind,
         jumpKind = emitter::emitReverseJumpKind(jumpKind);
         inst_JMP(jumpKind, tgtBlk);
 
-        genEmitHelperCall(compiler->acdHelper(codeKind), 0, EA_UNKNOWN);
+        genEmitHelperCall(compiler->acdHelper(codeKind), 0, insCallReturnRegisterTypes(EA_UNKNOWN));
 
         /* Define the spot for the normal non-exception case to jump to */
 
@@ -3745,21 +3745,21 @@ void                CodeGen::genGCWriteBarrier(GenTreePtr tgt, GCInfo::WriteBarr
         genStackLevel += 4;
         inst_IV(INS_push, wbKind); 
         genEmitHelperCall(helper,
-                          4,               // argSize
-                          EA_PTRSIZE);     // retSize
+                          4,                                // argSize
+                          insCallReturnRegisterTypes(EA_PTRSIZE));  // retSizes
         genStackLevel -= 4;
     }
     else
     {
         genEmitHelperCall(helper,
-                          0,               // argSize
-                          EA_PTRSIZE);     // retSize
+                          0,                                // argSize
+                          insCallReturnRegisterTypes(EA_PTRSIZE));  // retSizes
     }
 
 #else // !FEATURE_COUNT_GC_WRITE_BARRIERS
     genEmitHelperCall(helper,
                       0,               // argSize
-                      EA_PTRSIZE);     // retSize
+                      insCallReturnRegisterTypes(EA_PTRSIZE));     // retSize
 #endif // !FEATURE_COUNT_GC_WRITE_BARRIERS
 }
 
@@ -7088,7 +7088,7 @@ void CodeGen::genProfilingEnterCallback(regNumber  initReg,
     // This will emit either 
     // "call ip-relative 32-bit offset" or 
     // "mov rax, helper addr; call rax"
-    genEmitHelperCall(CORINFO_HELP_PROF_FCN_ENTER, 0, EA_UNKNOWN);  
+    genEmitHelperCall(CORINFO_HELP_PROF_FCN_ENTER, 0, insCallReturnRegisterTypes(EA_UNKNOWN));
 
     // TODO-AMD64-CQ: Rather than reloading, see if this could be optimized by combining with prolog
     // generation logic that moves args around as required by first BB entry point conditions
@@ -7181,8 +7181,8 @@ void CodeGen::genProfilingEnterCallback(regNumber  initReg,
     // "call ip-relative 32-bit offset" or 
     // "mov rax, helper addr; call rax"
     genEmitHelperCall(CORINFO_HELP_PROF_FCN_ENTER,
-                      0,             // argSize. Again, we have to lie about it
-                      EA_UNKNOWN);   // retSize
+                      0,                                // argSize. Again, we have to lie about it
+                      insCallReturnRegisterTypes(EA_UNKNOWN));  // retSize
 
 #if defined(_TARGET_X86_)
     //
@@ -7298,7 +7298,7 @@ void                CodeGen::genProfilingLeaveCallback(unsigned helper /*= CORIN
     // We use R8 here. This will emit either 
     // "call ip-relative 32-bit offset" or 
     // "mov r8, helper addr; call r8"
-    genEmitHelperCall(helper, 0, EA_UNKNOWN, REG_ARG_2);
+    genEmitHelperCall(helper, 0, insCallReturnRegisterTypes(EA_UNKNOWN), REG_ARG_2);
 
 #else //!_TARGET_AMD64_
     NYI("RyuJIT: Emit Profiler Leave callback");
@@ -7322,7 +7322,7 @@ void                CodeGen::genProfilingLeaveCallback(unsigned helper /*= CORIN
 
     genEmitHelperCall(CORINFO_HELP_PROF_FCN_LEAVE,
                       sizeof(int) * 1,  // argSize
-                      EA_UNKNOWN);      // retSize
+                      insCallReturnRegisterTypes(EA_UNKNOWN));      // retSize
 
     //
     // Adjust the number of stack slots used by this managed method if necessary.
@@ -7389,7 +7389,7 @@ void                CodeGen::genProfilingLeaveCallback(unsigned helper /*= CORIN
 
     genEmitHelperCall(CORINFO_HELP_PROF_FCN_LEAVE,
                       0,                // argSize
-                      EA_UNKNOWN);      // retSize
+                      insCallReturnRegisterTypes(EA_UNKNOWN));      // retSize
 
     // Restore state that existed before profiler callback
     if (r0Trashed)
@@ -7598,7 +7598,7 @@ regMaskTP           CodeGen::genPInvokeMethodProlog(regMaskTP initRegs)
         // REG_PINVOKE_FRAME) for computing the target address.
         regSet.rsLockReg(RBM_ARG_REGS|RBM_PINVOKE_FRAME);
 
-        genEmitHelperCall(CORINFO_HELP_INIT_PINVOKE_FRAME, 0, EA_UNKNOWN);
+        genEmitHelperCall(CORINFO_HELP_INIT_PINVOKE_FRAME, 0, insCallReturnRegisterTypes(EA_UNKNOWN));
 
         regSet.rsUnlockReg(RBM_ARG_REGS|RBM_PINVOKE_FRAME);
 
@@ -9242,8 +9242,9 @@ void                CodeGen::genFnEpilog(BasicBlock* block)
                                  methHnd,
                                  INDEBUG_LDISASM_COMMA(nullptr)
                                  addr,
-                                 0,                     /* argSize */
-                                 EA_UNKNOWN,            /* retSize */
+                                 0,                                                         // argSize 
+                                 EA_UNKNOWN                                                 // retSize
+                                 FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(EA_UNKNOWN),    // retSize1
                                  gcInfo.gcVarPtrSetCur,
                                  gcInfo.gcRegGCrefSetCur,
                                  gcInfo.gcRegByrefSetCur,
@@ -9593,8 +9594,8 @@ void                CodeGen::genFnEpilog(BasicBlock* block)
                                        methHnd,
                                        INDEBUG_LDISASM_COMMA(nullptr)
                                        addrInfo.addr,
-                                       0,                         /* argSize */
-                                       EA_UNKNOWN,                /* retSize */
+                                       0,                                                       // argSize
+                                       insCallReturnRegisterTypes(),
                                        gcInfo.gcVarPtrSetCur,
                                        gcInfo.gcRegGCrefSetCur,
                                        gcInfo.gcRegByrefSetCur,
@@ -10239,6 +10240,63 @@ void                CodeGen::genCaptureFuncletPrologEpilogInfo()
 
 #endif // _TARGET_*
 
+// generates an indirect or direct call via appropriate addressing mode (call []) given GenEmitCallInfo data.
+// Arguments:
+//     emitCallInfo - Data describing the call and it's parameters.
+//
+// Return:
+//     None
+//
+void CodeGen::genEmitCall(GenEmitCallInfo emitCallInfo)
+{
+#if !defined(_TARGET_X86_)
+    ssize_t               argSize = 0;
+#else // defined(_TARGET_X86_)
+    ssize_t               argSize = emitCallInfo.argSize;
+#endif // defined(_TARGET_X86_)
+
+    if (emitCallInfo.emitCallType == GenCallTypeToEmit::GEN_EMIT_CALL_DIRECT)
+    {
+        assert(emitCallInfo.emitCallType == GenCallTypeToEmit::GEN_EMIT_CALL_DIRECT);
+        assert(emitCallInfo.indir == nullptr);
+
+        getEmitter()->emitIns_Call(emitter::EmitCallType(emitCallInfo.callType),
+                                   emitCallInfo.methHnd,
+                                   INDEBUG_LDISASM_COMMA(emitCallInfo.sigInfo)
+                                   emitCallInfo.addr,
+                                   argSize,
+                                   emitCallInfo.callReturnTypes,
+                                   gcInfo.gcVarPtrSetCur,
+                                   gcInfo.gcRegGCrefSetCur,
+                                   gcInfo.gcRegByrefSetCur,
+                                   emitCallInfo.ilOffset,
+                                   emitCallInfo.base, REG_NA, 0, 0,
+                                   emitCallInfo.isJump,
+                                   emitter::emitNoGChelper(compiler->eeGetHelperNum(emitCallInfo.methHnd)));
+    }
+    else
+    {
+        assert(emitCallInfo.emitCallType == GenCallTypeToEmit::GEN_EMIT_CALL_INDIRECT);
+        assert(emitCallInfo.indir != nullptr);
+
+        genConsumeAddress(emitCallInfo.indir->Addr());
+
+        getEmitter()->emitIns_Call(emitter::EmitCallType(emitCallInfo.callType),
+                                   emitCallInfo.methHnd,
+                                   INDEBUG_LDISASM_COMMA(emitCallInfo.sigInfo)
+                                   nullptr,
+                                   argSize,
+                                   emitCallInfo.callReturnTypes,
+                                   gcInfo.gcVarPtrSetCur,
+                                   gcInfo.gcRegGCrefSetCur,
+                                   gcInfo.gcRegByrefSetCur,
+                                   emitCallInfo.ilOffset,
+                                   (emitCallInfo.indir->Base() ? (emitCallInfo.indir->Base()->gtRegNum) : (REG_NA)),
+                                   (emitCallInfo.indir->Index() ? (emitCallInfo.indir->Index()->gtRegNum) : (REG_NA)),
+                                   emitCallInfo.indir->Scale(),
+                                   emitCallInfo.indir->Offset());
+    }
+}
 
 /*-----------------------------------------------------------------------------
  *
@@ -10918,8 +10976,8 @@ void                CodeGen::genPInvokeCallEpilog(LclVarDsc *  frameListRoot,
     /* emit the call to the EE-helper that stops for GC (or other reasons) */
 
     genEmitHelperCall(CORINFO_HELP_STOP_FOR_GC,
-                      0,             /* argSize */
-                      EA_UNKNOWN);   /* retSize */
+                      0,                                /* argSize */
+                      insCallReturnRegisterTypes(EA_UNKNOWN));  /* retSize */
 
 #ifdef _TARGET_ARM_
     // The helper preserves the return value on ARM
