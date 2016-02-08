@@ -292,6 +292,17 @@ namespace System {
         // In this code, Foo will be finalized in the middle of 
         // stream.MethodThatSpansGCs, thus closing a stream still in use."
         //
+        // The problem persists in "release" configuration when code runs without
+        // debugger even if the user explicitly binds a reference to the object:
+        //
+        //    static void Main() {
+        //       var foo = new Foo();
+        //       foo.Problem();
+        //    }
+        //
+        // In the second example JIT may eliminate the reference and then the object
+        // may become eligible for collection while Problem() method is in progress.
+        //
         // If we insert a call to GC.KeepAlive(this) at the end of Problem(), then
         // Foo doesn't get finalized and the stream stays open.
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
