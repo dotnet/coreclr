@@ -45,7 +45,13 @@ using namespace CorUnix;
 
 SET_DEFAULT_DEBUG_CHANNEL(EXCEPT);
 
+#ifdef SIGRTMIN
 #define INJECT_ACTIVATION_SIGNAL SIGRTMIN
+#endif
+
+#if !defined(INJECT_ACTIVATION_SIGNAL) && defined(FEATURE_HIJACK)
+#error FEATURE_HIJACK requires INJECT_ACTIVATION_SIGNAL to be defined
+#endif
 
 /* local type definitions *****************************************************/
 
@@ -70,7 +76,9 @@ static void sigquit_handler(int code, siginfo_t *siginfo, void *context);
 static void common_signal_handler(PEXCEPTION_POINTERS pointers, int code, 
                                   native_context_t *ucontext);
 
+#ifdef INJECT_ACTIVATION_SIGNAL
 static void inject_activation_handler(int code, siginfo_t *siginfo, void *context);
+#endif
 
 static void handle_signal(int signal_id, SIGFUNC sigfunc, struct sigaction *previousAction);
 static void restore_signal(int signal_id, struct sigaction *previousAction);
@@ -92,7 +100,7 @@ struct sigaction g_previous_sigquit;
 Function :
     SEHInitializeSignals
 
-    Set-up signal handlers to catch signals and translate them to exceptions
+    Set up signal handlers to catch signals and translate them to exceptions
 
 Parameters :
     None
@@ -104,7 +112,7 @@ BOOL SEHInitializeSignals()
 {
     TRACE("Initializing signal handlers\n");
 
-    /* we call handle signal for every possible signal, even
+    /* we call handle_signal for every possible signal, even
        if we don't provide a signal handler.
 
        handle_signal will set SA_RESTART flag for specified signal.
@@ -125,7 +133,9 @@ BOOL SEHInitializeSignals()
     handle_signal(SIGINT, sigint_handler, &g_previous_sigint);
     handle_signal(SIGQUIT, sigquit_handler, &g_previous_sigquit);
 
+#ifdef INJECT_ACTIVATION_SIGNAL
     handle_signal(INJECT_ACTIVATION_SIGNAL, inject_activation_handler, NULL);
+#endif
 
     /* The default action for SIGPIPE is process termination.
        Since SIGPIPE can be signaled when trying to write on a socket for which
@@ -154,7 +164,7 @@ Parameters :
 note :
 reason for this function is that during PAL_Terminate, we reach a point where 
 SEH isn't possible anymore (handle manager is off, etc). Past that point, 
-we can't avoid crashing on a signal     
+we can't avoid crashing on a signal.
 --*/
 void SEHCleanupSignals()
 {
@@ -484,6 +494,7 @@ static void sigquit_handler(int code, siginfo_t *siginfo, void *context)
     kill(gPID, code);
 }
 
+#ifdef INJECT_ACTIVATION_SIGNAL
 /*++
 Function :
     inject_activation_handler
@@ -523,6 +534,7 @@ static void inject_activation_handler(int code, siginfo_t *siginfo, void *contex
         }
     }
 }
+#endif
 
 /*++
 Function :
@@ -538,6 +550,7 @@ Parameters :
 --*/
 PAL_ERROR InjectActivationInternal(CorUnix::CPalThread* pThread)
 {
+#ifdef INJECT_ACTIVATION_SIGNAL
     int status = pthread_kill(pThread->GetPThreadSelf(), INJECT_ACTIVATION_SIGNAL);
     if (status != 0)
     {
@@ -550,6 +563,9 @@ PAL_ERROR InjectActivationInternal(CorUnix::CPalThread* pThread)
     }
 
     return NO_ERROR;
+#else
+    return ERROR_CANCELLED;
+#endif
 }
 
 /*++
@@ -604,13 +620,13 @@ Function :
 
 Parameters :
     PEXCEPTION_POINTERS pointers : exception information
-    native_context_t *ucontext : context structure given to signal handler
     int code : signal received
+    native_context_t *ucontext : context structure given to signal handler
 
     (no return value)
 Note:
-    the "pointers" parameter should contain a valid exception record pointer, 
-    but the contextrecord pointer will be overwritten.    
+    the "pointers" parameter should contain a valid exception record pointer,
+    but the ContextRecord pointer will be overwritten.
 --*/
 static void common_signal_handler(PEXCEPTION_POINTERS pointers, int code, 
                                   native_context_t *ucontext)
@@ -622,7 +638,7 @@ static void common_signal_handler(PEXCEPTION_POINTERS pointers, int code,
     // which is required for restoring context
     RtlCaptureContext(&context);
 
-    // Fill context record with required information. from pal.h :
+    // Fill context record with required information. from pal.h:
     // On non-Win32 platforms, the CONTEXT pointer in the
     // PEXCEPTION_POINTERS will contain at least the CONTEXT_CONTROL registers.
     CONTEXTFromNativeContext(ucontext, &context, CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_FLOATING_POINT);
@@ -632,10 +648,11 @@ static void common_signal_handler(PEXCEPTION_POINTERS pointers, int code,
     /* Unmask signal so we can receive it again */
     sigemptyset(&signal_set);
     sigaddset(&signal_set, code);
-    if(-1 == sigprocmask(SIG_UNBLOCK, &signal_set, NULL))
+    int sigmaskRet = pthread_sigmask(SIG_UNBLOCK, &signal_set, NULL);
+    if (sigmaskRet != 0)
     {
-        ASSERT("sigprocmask failed; error is %d (%s)\n", errno, strerror(errno));
-    } 
+        ASSERT("pthread_sigmask failed; error number is %d\n", sigmaskRet);
+    }
 
     SEHProcessException(pointers);
 }

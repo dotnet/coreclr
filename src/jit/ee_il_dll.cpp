@@ -163,6 +163,22 @@ CorJitResult CILJit::compileMethod (
         return g_realJitCompiler->compileMethod(compHnd, methodInfo, flags, entryAddress, nativeSizeOfCode);
     }
 
+    CORJIT_FLAGS jitFlags = { 0 };
+
+    DWORD jitFlagsSize = 0;
+#if COR_JIT_EE_VERSION > 460
+    if (flags == CORJIT_FLG_CALL_GETJITFLAGS)
+    {
+        jitFlagsSize = compHnd->getJitFlags(&jitFlags, sizeof(jitFlags));
+    }
+#endif
+
+    assert(jitFlagsSize <= sizeof(jitFlags));
+    if (jitFlagsSize == 0)
+    {
+        jitFlags.corJitFlags = flags;
+    }
+
     int                     result;
     void *                  methodCodePtr = NULL;
     CORINFO_METHOD_HANDLE   methodHandle  = methodInfo->ftn;
@@ -179,7 +195,7 @@ CorJitResult CILJit::compileMethod (
                            methodInfo,
                            &methodCodePtr,
                            nativeSizeOfCode,
-                           flags,
+                           &jitFlags,
                            NULL);
 
     if (result == CORJIT_OK)
@@ -320,7 +336,7 @@ unsigned           Compiler::eeGetArgSize(CORINFO_ARG_LIST_HANDLE list, CORINFO_
         // make certain the EE passes us back the right thing for refanys
         assert(argTypeJit != CORINFO_TYPE_REFANY || structSize == 2*sizeof(void*));
 
-#if FEATURE_MULTIREG_STRUCT_ARGS
+#if FEATURE_MULTIREG_ARGS
 #ifdef _TARGET_ARM64_
         if (structSize > MAX_PASS_MULTIREG_BYTES)
         {
@@ -328,7 +344,7 @@ unsigned           Compiler::eeGetArgSize(CORINFO_ARG_LIST_HANDLE list, CORINFO_
             return TARGET_POINTER_SIZE;
         }
 #endif // _TARGET_ARM64_
-#endif // FEATURE_MULTIREG_STRUCT_ARGS
+#endif // FEATURE_MULTIREG_ARGS
 
         return (unsigned)roundUp(structSize, TARGET_POINTER_SIZE);
     }
@@ -976,14 +992,15 @@ void Compiler::dumpSystemVClassificationType(SystemVClassificationType ct)
 {
     switch (ct)
     {
-    case SystemVClassificationTypeUnknown:              printf("UNKNOWN");          break;
-    case SystemVClassificationTypeStruct:               printf("Struct");           break;
-    case SystemVClassificationTypeNoClass:              printf("NoClass");          break;
-    case SystemVClassificationTypeMemory:               printf("Memory");           break;
-    case SystemVClassificationTypeInteger:              printf("Integer");          break;
-    case SystemVClassificationTypeIntegerReference:     printf("IntegerReference"); break;
-    case SystemVClassificationTypeSSE:                  printf("SSE");              break;
-    default:                                            printf("ILLEGAL");          break;
+    case SystemVClassificationTypeUnknown:              printf("UNKNOWN");              break;
+    case SystemVClassificationTypeStruct:               printf("Struct");               break;
+    case SystemVClassificationTypeNoClass:              printf("NoClass");              break;
+    case SystemVClassificationTypeMemory:               printf("Memory");               break;
+    case SystemVClassificationTypeInteger:              printf("Integer");              break;
+    case SystemVClassificationTypeIntegerReference:     printf("IntegerReference");     break;
+    case SystemVClassificationTypeIntegerByRef:         printf("IntegerByReference");   break;
+    case SystemVClassificationTypeSSE:                  printf("SSE");                  break;
+    default:                                            printf("ILLEGAL");              break;
     }
 }
 #endif // DEBUG

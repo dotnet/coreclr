@@ -3943,10 +3943,8 @@ void            CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg,
                 
                 regArgNum = genMapRegNumToRegArgNum(regNum, regType);
                 
-                if ((!doingFloat &&
-                    ((structDesc.eightByteClassifications[slotCounter] == SystemVClassificationTypeInteger) || 
-                     (structDesc.eightByteClassifications[slotCounter] == SystemVClassificationTypeIntegerReference))) ||
-                     (doingFloat && structDesc.eightByteClassifications[slotCounter] == SystemVClassificationTypeSSE))
+                if ((!doingFloat && (structDesc.IsIntegralSlot(slotCounter))) ||
+                     (doingFloat && (structDesc.IsSseSlot(slotCounter))))
                 {
                     // Store the reg for the first slot.
                     if (slots == 0)
@@ -3990,7 +3988,7 @@ void            CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg,
 
             slots = 1;
 
-#if FEATURE_MULTIREG_STRUCT_ARGS
+#if FEATURE_MULTIREG_ARGS
 #ifdef _TARGET_ARM64_
             if (varDsc->TypeGet() == TYP_STRUCT)
             {
@@ -4013,7 +4011,7 @@ void            CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg,
                 }
             }
 #endif // _TARGET_ARM64_
-#endif // FEATURE_MULTIREG_STRUCT_ARGS
+#endif // FEATURE_MULTIREG_ARGS
         }
 
 #ifdef _TARGET_ARM_
@@ -4187,7 +4185,7 @@ void            CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg,
                 {
                     destRegNum = varDsc->lvRegNum;
                 }
-#if FEATURE_MULTIREG_STRUCT_ARGS && defined(FEATURE_SIMD) && defined(_TARGET_AMD64_)
+#if FEATURE_MULTIREG_ARGS && defined(FEATURE_SIMD) && defined(_TARGET_AMD64_)
                 else
                 {
                     assert(regArgTab[argNum].slot == 2);
@@ -4850,7 +4848,7 @@ void            CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg,
             assert(!regArgTab[argNum].processed);
             regArgTab[argNum].processed = true;
             regArgMaskLive &= ~genRegMask(regNum);
-#ifdef FEATURE_MULTIREG_STRUCTS
+#if FEATURE_MULTIREG_ARGS
             int argRegCount = 1;
 #ifdef _TARGET_ARM_
             if (genActualType(destMemType) == TYP_DOUBLE)
@@ -4885,7 +4883,7 @@ void            CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg,
                 regNumber nextRegNum = genMapRegArgNumToRegNum(nextArgNum, regArgTab[nextArgNum].getRegType(compiler));
                 regArgMaskLive &= ~genRegMask(nextRegNum);               
             }
-#endif // FEATURE_MULTIREG_STRUCTS
+#endif // FEATURE_MULTIREG_ARGS
         }
     
         noway_assert(regArgMaskLiveSave != regArgMaskLive);   // if it doesn't change, we have an infinite loop
@@ -7560,6 +7558,7 @@ void CodeGen::genPrologPadForReJit()
 regMaskTP           CodeGen::genPInvokeMethodProlog(regMaskTP initRegs)
 {
     assert(compiler->compGeneratingProlog);
+    noway_assert(!compiler->opts.ShouldUsePInvokeHelpers());
     noway_assert(compiler->info.compCallUnmanaged);
 
     CORINFO_EE_INFO * pInfo = compiler->eeGetEEInfo();
@@ -7779,6 +7778,7 @@ regMaskTP           CodeGen::genPInvokeMethodProlog(regMaskTP initRegs)
 void                CodeGen::genPInvokeMethodEpilog()
 {
     noway_assert(compiler->info.compCallUnmanaged);
+    noway_assert(!compiler->opts.ShouldUsePInvokeHelpers());
     noway_assert(compiler->compCurBB == compiler->genReturnBB ||
                  (compiler->compTailCallUsed && (compiler->compCurBB->bbJumpKind == BBJ_THROW)) ||
                  (compiler->compJmpOpUsed && (compiler->compCurBB->bbFlags & BBF_HAS_JMP)));
@@ -8520,13 +8520,23 @@ void                CodeGen::genFnProlog()
     // since they are trashed by the jithelper call to setup the PINVOKE frame
     if (compiler->info.compCallUnmanaged)
     {
-        excludeMask |= (RBM_PINVOKE_FRAME | RBM_PINVOKE_TCB | RBM_PINVOKE_SCRATCH);
+        excludeMask |= RBM_PINVOKE_FRAME;
 
-        // We also must exclude the register used by compLvFrameListRoot when it is enregistered
-        //
-        LclVarDsc *  varDsc = &compiler->lvaTable[compiler->info.compLvFrameListRoot];
-        if (varDsc->lvRegister)
-            excludeMask |= genRegMask(varDsc->lvRegNum);
+        assert((!compiler->opts.ShouldUsePInvokeHelpers()) || (compiler->info.compLvFrameListRoot == BAD_VAR_NUM));
+        if (!compiler->opts.ShouldUsePInvokeHelpers())
+        {
+            noway_assert(compiler->info.compLvFrameListRoot < compiler->lvaCount);
+
+            excludeMask |= (RBM_PINVOKE_TCB | RBM_PINVOKE_SCRATCH);
+
+            // We also must exclude the register used by compLvFrameListRoot when it is enregistered
+            //
+            LclVarDsc *  varDsc = &compiler->lvaTable[compiler->info.compLvFrameListRoot];
+            if (varDsc->lvRegister)
+            {
+                excludeMask |= genRegMask(varDsc->lvRegNum);
+            }
+        }
     }
 #endif // INLINE_NDIRECT
 
@@ -11166,7 +11176,7 @@ void                CodeGen::genRestoreCalleeSavedFltRegs(unsigned lclFrameSize)
 
 
 //------------------------------------------------------------------------
-// Methods used to support FEATURE_MULTIREG_STRUCTS and HFA support for ARM32
+// Methods used to support FEATURE_MULTIREG_ARGS_OR_RET and HFA support for ARM32
 //------------------------------------------------------------------------
 
 #ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING

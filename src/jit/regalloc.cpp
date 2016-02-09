@@ -675,7 +675,7 @@ regNumber     Compiler::raUpdateRegStateForArg(RegState *regState, LclVarDsc *ar
 
     regState->rsCalleeRegArgMaskLiveIn |= genRegMask(inArgReg);
 
-#if FEATURE_MULTIREG_STRUCT_ARGS
+#if FEATURE_MULTIREG_ARGS
 #ifdef _TARGET_ARM64_
     if ((argDsc->lvOtherArgReg != REG_STK) && (argDsc->lvOtherArgReg != REG_NA))
     {
@@ -687,7 +687,7 @@ regNumber     Compiler::raUpdateRegStateForArg(RegState *regState, LclVarDsc *ar
         regState->rsCalleeRegArgMaskLiveIn |= genRegMask(secondArgReg);
     }
 #endif // TARGET_ARM64_
-#endif // FEATURE_MULTIREG_STRUCT_ARGS
+#endif // FEATURE_MULTIREG_ARGS
 
 #ifdef _TARGET_ARM_
     if (argDsc->lvType == TYP_DOUBLE)
@@ -6438,6 +6438,9 @@ void               Compiler::rpPredictRegUse()
         // it must not be in a register trashed by the callee
         if (info.compCallUnmanaged != 0)
         {
+            assert(!opts.ShouldUsePInvokeHelpers());
+            noway_assert(info.compLvFrameListRoot < lvaCount);
+
             LclVarDsc *     pinvokeVarDsc = &lvaTable[info.compLvFrameListRoot];
 
             if (pinvokeVarDsc->lvTracked)

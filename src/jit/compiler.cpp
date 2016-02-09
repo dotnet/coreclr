@@ -451,7 +451,7 @@ var_types    Compiler::argOrReturnTypeForStruct(unsigned size, CORINFO_CLASS_HAN
     case 3:
         useType = TYP_INT;
         break;
-#endif // _TARGET_AMD64_
+#endif // _TARGET_XARCH_
 
 #ifdef _TARGET_64BIT_
     case 4:
@@ -490,7 +490,7 @@ var_types    Compiler::argOrReturnTypeForStruct(unsigned size, CORINFO_CLASS_HAN
         break;
 
     default:
-#if FEATURE_MULTIREG_STRUCT_RET
+#if FEATURE_MULTIREG_RET
         if (forReturn)
         {
             if (size <= MAX_RET_MULTIREG_BYTES)
@@ -505,9 +505,9 @@ var_types    Compiler::argOrReturnTypeForStruct(unsigned size, CORINFO_CLASS_HAN
 #endif // _TARGET_ARM64_
             }
         }
-#endif // FEATURE_MULTIREG_STRUCT_RET
+#endif // FEATURE_MULTIREG_RET
 
-#if FEATURE_MULTIREG_STRUCT_ARGS
+#if FEATURE_MULTIREG_ARGS
         if (!forReturn)
         {
             if (size <= MAX_PASS_MULTIREG_BYTES)
@@ -522,7 +522,7 @@ var_types    Compiler::argOrReturnTypeForStruct(unsigned size, CORINFO_CLASS_HAN
 #endif // _TARGET_ARM64_
             }
         }
-#endif // FEATURE_MULTIREG_STRUCT_ARGS
+#endif // FEATURE_MULTIREG_ARGS
         break;
     }
     return useType;
@@ -1883,19 +1883,22 @@ unsigned ReinterpretHexAsDecimal(unsigned in)
 }
 
 inline
-void                Compiler::compInitOptions(unsigned compileFlags)
+void                Compiler::compInitOptions(CORJIT_FLAGS* jitFlags)
 {
 #ifdef UNIX_AMD64_ABI
     opts.compNeedToAlignFrame = false;
 #endif // UNIX_AMD64_ABI   
     memset(&opts, 0, sizeof(opts));
 
+    unsigned compileFlags = jitFlags->corJitFlags;
+
     if (compIsForInlining())
     {
         assert((compileFlags & CORJIT_FLG_LOST_WHEN_INLINING) == 0);
         assert(compileFlags & CORJIT_FLG_SKIP_VERIFICATION);
     }
-    
+
+    opts.jitFlags  = jitFlags;
     opts.eeFlags   = compileFlags;
     opts.compFlags = CLFLG_MAXOPT;      // Default value is for full optimization
 
@@ -3523,7 +3526,7 @@ bool  Compiler::compRsvdRegCheck(FrameLayoutState curState)
 //  
 void                 Compiler::compCompile(void * * methodCodePtr,
                                            ULONG  * methodCodeSize,
-                                           unsigned compileFlags)
+                                           CORJIT_FLAGS * compileFlags)
 {
     hashBv::Init(this);
 
@@ -3596,7 +3599,7 @@ void                 Compiler::compCompile(void * * methodCodePtr,
     fgRemoveEH();
 #endif // !FEATURE_EH
 
-    if (compileFlags & CORJIT_FLG_BBINSTR)
+    if (compileFlags->corJitFlags & CORJIT_FLG_BBINSTR)
     {
         fgInstrumentMethod();
     }
@@ -4143,7 +4146,7 @@ int           Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
                                     CORINFO_METHOD_INFO * methodInfo,
                                     void *              * methodCodePtr,
                                     ULONG               * methodCodeSize,
-                                    unsigned              compileFlags)
+                                    CORJIT_FLAGS        * compileFlags)
 {
 #ifdef FEATURE_JIT_METHOD_PERF
     static bool checkedForJitTimeLog = false;
@@ -4279,7 +4282,6 @@ int           Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
     {
         if (compIsForInlining())
         {
-            JITLOG((LL_INFO1000000, INLINER_FAILED "Inlinee marked as skipped.\n"));
             compInlineResult->setNever("Inlinee marked as skipped");
         }
         return CORJIT_SKIPPED;
@@ -4300,7 +4302,7 @@ int           Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
 
     // Set this before the first 'BADCODE'
     // Skip verification where possible
-    tiVerificationNeeded = ((compileFlags & CORJIT_FLG_SKIP_VERIFICATION) == 0);
+    tiVerificationNeeded = (compileFlags->corJitFlags & CORJIT_FLG_SKIP_VERIFICATION) == 0;
 
     assert(!compIsForInlining() || !tiVerificationNeeded); // Inlinees must have been verified.
 
@@ -4372,7 +4374,7 @@ int           Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
         CORINFO_METHOD_INFO * methodInfo;
         void *              * methodCodePtr;
         ULONG               * methodCodeSize;
-        unsigned              compileFlags;
+        CORJIT_FLAGS        * compileFlags;
 
         CorInfoInstantiationVerification instVerInfo;
         int result;
@@ -4680,7 +4682,7 @@ int           Compiler::compCompileHelper (CORINFO_MODULE_HANDLE            clas
                                            CORINFO_METHOD_INFO            * methodInfo,
                                            void *                         * methodCodePtr,
                                            ULONG                          * methodCodeSize,
-                                           unsigned                         compileFlags,
+                                           CORJIT_FLAGS                   * compileFlags,
                                            CorInfoInstantiationVerification instVerInfo)
     {
         CORINFO_METHOD_HANDLE methodHnd = info.compMethodHnd;
@@ -4838,7 +4840,6 @@ int           Compiler::compCompileHelper (CORINFO_MODULE_HANDLE            clas
         {
         case CORINFO_CALLCONV_VARARG:
         case CORINFO_CALLCONV_NATIVEVARARG:
-            NYI_ARM64("Varargs method");
             info.compIsVarArgs    = true;
             break;
         case CORINFO_CALLCONV_DEFAULT:
@@ -4889,7 +4890,7 @@ int           Compiler::compCompileHelper (CORINFO_MODULE_HANDLE            clas
             if (opts.eeFlags & CORJIT_FLG_PREJIT)
             {
                 // Cache inlining hint during NGen to avoid touching bodies of non-inlineable methods at runtime
-                JitInlineResult trialResult(info.compCompHnd, nullptr, methodHnd);
+                JitInlineResult trialResult(this, nullptr, methodHnd, "prejit1");
                 impCanInlineIL(methodHnd, methodInfo, forceInline, &trialResult);
                 if (trialResult.isFailure())
                 {
@@ -4935,7 +4936,7 @@ int           Compiler::compCompileHelper (CORINFO_MODULE_HANDLE            clas
             assert(compNativeSizeEstimate != NATIVE_SIZE_INVALID); 
 
             int callsiteNativeSizeEstimate = impEstimateCallsiteNativeSize(methodInfo);
-            JitInlineResult trialResult(info.compCompHnd, nullptr, methodHnd);
+            JitInlineResult trialResult(this, nullptr, methodHnd, "prejit2");
             
             impCanInlineNative(callsiteNativeSizeEstimate, 
                                compNativeSizeEstimate,
@@ -4998,7 +4999,6 @@ int           Compiler::compCompileHelper (CORINFO_MODULE_HANDLE            clas
             (fgBBcount > 5) &&
             !forceInline)
         {
-            JITLOG((LL_INFO1000000, INLINER_FAILED "Too many basic blocks in the inlinee.\n"));
             compInlineResult->setNever("Too many basic blocks in the inlinee");
             goto _Next;
         }
@@ -5519,7 +5519,7 @@ int           jitNativeCode ( CORINFO_METHOD_HANDLE     methodHnd,
                               CORINFO_METHOD_INFO*  methodInfo,
                               void *          * methodCodePtr,
                               ULONG           * methodCodeSize,
-                              unsigned          compileFlags,
+                              CORJIT_FLAGS    * compileFlags,
                               void *            inlineInfoPtr
                               )
 {
@@ -5574,7 +5574,7 @@ START:
         CORINFO_METHOD_INFO*  methodInfo;
         void *          * methodCodePtr;
         ULONG           * methodCodeSize;
-        unsigned          compileFlags;
+        CORJIT_FLAGS    * compileFlags;
         InlineInfo *      inlineInfo;
 
         int result;
@@ -5697,8 +5697,8 @@ START:
         jitFallbackCompile = true;
 
         // Update the flags for 'safer' code generation.
-        compileFlags |= CORJIT_FLG_MIN_OPT;
-        compileFlags &= ~(CORJIT_FLG_SIZE_OPT | CORJIT_FLG_SPEED_OPT);
+        compileFlags->corJitFlags |= CORJIT_FLG_MIN_OPT;
+        compileFlags->corJitFlags &= ~(CORJIT_FLG_SIZE_OPT | CORJIT_FLG_SPEED_OPT);
 
         goto START;
     }
@@ -5714,7 +5714,8 @@ START:
 // args:
 //   classType: classification type
 //   size: size of the eightbyte.
-//   
+//
+// static 
 var_types Compiler::GetTypeFromClassificationAndSizes(SystemVClassificationType classType, int size)
 {
     var_types type = TYP_UNKNOWN;
@@ -5744,6 +5745,9 @@ var_types Compiler::GetTypeFromClassificationAndSizes(SystemVClassificationType 
         break;
     case SystemVClassificationTypeIntegerReference:
         type = TYP_REF;
+        break;
+    case SystemVClassificationTypeIntegerByRef:
+        type = TYP_BYREF;
         break;
     case SystemVClassificationTypeSSE:
         if (size <= 4)
@@ -5801,6 +5805,10 @@ var_types Compiler::getEightByteType(const SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASS
     case SystemVClassificationTypeIntegerReference:
         assert(len == REGSIZE_BYTES);
         eightByteType = TYP_REF;
+        break;
+    case SystemVClassificationTypeIntegerByRef:
+        assert(len == REGSIZE_BYTES);
+        eightByteType = TYP_BYREF;
         break;
     case SystemVClassificationTypeSSE:
         if (structDesc.eightByteSizes[slotNum] <= 4)
@@ -9740,3 +9748,48 @@ HelperCallProperties Compiler::s_helperCallProperties;
 
 /*****************************************************************************/
 /*****************************************************************************/
+
+//------------------------------------------------------------------------
+// report: Dump, log, and report information about an inline decision.
+//
+// Notes:
+//    
+//    Called (automatically via the JitInlineResult dtor) when the inliner
+//    is done evaluating a candidate.
+//
+//    Dumps state of the inline candidate, and if a decision was reached
+//    sends it to the log and reports the decision back to the EE. 
+//    
+//    All this can be suppressed if desired by calling setReported() before 
+//    the JitInlineResult goes out of scope.
+
+void JitInlineResult::report() 
+{
+    // User may have suppressed reporting via setReported(). If so, do nothing.
+    if (inlReported)
+    {
+        return;
+    }
+
+    inlReported = true;
+
+#ifdef DEBUG
+
+    const char* format = "INLINER: during '%s' result '%s' reason '%s' for '%s' calling '%s'\n";
+    const char* caller = (inlInliner == nullptr) ? "n/a" : inlCompiler->eeGetMethodFullName(inlInliner);
+    const char* callee = (inlInlinee == nullptr) ? "n/a" : inlCompiler->eeGetMethodFullName(inlInlinee);
+
+    JITDUMP(format, inlContext, resultString(), inlReason, caller, callee);
+
+#endif // DEBUG
+
+    if (isDecided()) 
+    {
+        JITLOG_THIS(inlCompiler, (LL_INFO100000, format, inlContext, resultString(), inlReason, caller, callee));
+        COMP_HANDLE comp = inlCompiler->info.compCompHnd;
+        comp->reportInliningDecision(inlInliner, inlInlinee, result(), inlReason);
+    }
+}
+
+    
+

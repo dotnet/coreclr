@@ -202,41 +202,6 @@ add_library(coreclrpal
   ${PLATFORM_SOURCES}
 )
 
-if(CMAKE_SYSTEM_NAME STREQUAL Linux)
-  if(PAL_CMAKE_PLATFORM_ARCH_ARM)
-    target_link_libraries(coreclrpal
-      unwind-arm
-    )
-  endif()
-
-  if(PAL_CMAKE_PLATFORM_ARCH_AMD64)
-    target_link_libraries(coreclrpal
-      unwind-x86_64
-    )
-  endif()
-
-  target_link_libraries(coreclrpal
-    gcc_s
-    pthread
-    rt
-    dl
-    unwind
-    unwind-generic
-    uuid
-  )
-endif(CMAKE_SYSTEM_NAME STREQUAL Linux)
-
-if(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
-  find_library(UNWIND unwind)
-  find_library(INTL intl)
-  target_link_libraries(coreclrpal
-    pthread
-    rt
-    ${UNWIND}
-    ${INTL}
-  )
-endif(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
-
 if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
   find_library(COREFOUNDATION CoreFoundation)
   find_library(CORESERVICES CoreServices)
@@ -249,6 +214,64 @@ if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
     ${SYSTEM}
   )
 endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
+
+if(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
+  find_library(UNWIND unwind)
+  find_library(INTL intl)
+  target_link_libraries(coreclrpal
+    pthread
+    rt
+    ${UNWIND}
+    ${INTL}
+  )
+endif(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
+
+if(CMAKE_SYSTEM_NAME STREQUAL Linux)
+  if(PAL_CMAKE_PLATFORM_ARCH_ARM)
+    find_library(UNWIND_ARCH NAMES unwind-arm)
+  endif()
+
+  if(PAL_CMAKE_PLATFORM_ARCH_AMD64)
+    find_library(UNWIND_ARCH NAMES unwind-x86_64)
+  endif()
+
+  find_library(UNWIND NAMES unwind)
+  find_library(UNWIND_GENERIC NAMES unwind-generic)
+
+  target_link_libraries(coreclrpal
+    gcc_s
+    pthread
+    rt
+    dl
+    uuid
+  )
+
+  if(UNWIND STREQUAL UNWIND-NOTFOUND)
+    message(FATAL_ERROR "Cannot find libunwind. Try installing libunwind8-dev and libunwind8.")
+  endif(UNWIND STREQUAL UNWIND-NOTFOUND)
+
+  target_link_libraries(coreclrpal ${UNWIND})
+
+  if(NOT UNWIND_GENERIC STREQUAL UNWIND_GENERIC-NOTFOUND)
+    target_link_libraries(coreclrpal ${UNWIND_GENERIC})
+  endif(NOT UNWIND_GENERIC STREQUAL UNWIND_GENERIC-NOTFOUND)
+
+  if(NOT UNWIND_ARCH STREQUAL UNWIND_ARCH-NOTFOUND)
+    target_link_libraries(coreclrpal ${UNWIND_ARCH})
+  endif(NOT UNWIND_ARCH STREQUAL UNWIND_ARCH-NOTFOUND)
+
+endif(CMAKE_SYSTEM_NAME STREQUAL Linux)
+
+if(CMAKE_SYSTEM_NAME STREQUAL NetBSD)
+  find_library(UNWIND unwind)
+  find_library(INTL intl)
+  target_link_libraries(coreclrpal
+    pthread
+    rt
+    ${UNWIND}
+    ${INTL}
+  )
+endif(CMAKE_SYSTEM_NAME STREQUAL NetBSD)
 
 add_subdirectory(examples)
 

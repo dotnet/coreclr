@@ -85,7 +85,7 @@ enum CorJitFlag
     CORJIT_FLG_GCPOLL_CALLS        = 0x00000040, // Emit calls to JIT_POLLGC for thread suspension.
     CORJIT_FLG_MCJIT_BACKGROUND    = 0x00000080, // Calling from multicore JIT background thread, do not call JitComplete
 
-#ifdef FEATURE_LEGACYNETCF
+#if defined(FEATURE_LEGACYNETCF)
 
     CORJIT_FLG_NETCF_QUIRKS        = 0x00000100, // Mimic .NetCF JIT's quirks for generated code (currently just inlining heuristics)
 
@@ -121,27 +121,33 @@ enum CorJitFlag
 
 #endif // !defined(_TARGET_X86_) && !defined(_TARGET_AMD64_)
 
-#ifdef MDIL
-    CORJIT_FLG_MDIL                = 0x00004000, // Generate MDIL code instead of machine code
-#else // MDIL
-    CORJIT_FLG_CFI_UNWIND          = 0x00004000, // Emit CFI unwind info
-#endif // MDIL
+#if defined(MDIL)
 
-#ifdef MDIL
+    CORJIT_FLG_MDIL                = 0x00004000, // Generate MDIL code instead of machine code
+
     // Safe to overlap with CORJIT_FLG_MAKEFINALCODE below. Not used by the JIT, used internally by NGen only.
     CORJIT_FLG_MINIMAL_MDIL        = 0x00008000, // Generate MDIL code suitable for use to bind other assemblies.
 
     // Safe to overlap with CORJIT_FLG_READYTORUN below. Not used by the JIT, used internally by NGen only.
     CORJIT_FLG_NO_MDIL             = 0x00010000, // Generate an MDIL section but no code or CTL. Not used by the JIT, used internally by NGen only.
-#endif // MDIL
+
+#else // defined(MDIL)
+
+    CORJIT_FLG_CFI_UNWIND          = 0x00004000, // Emit CFI unwind info
 
 #if defined(FEATURE_INTERPRETER)
-    CORJIT_FLG_MAKEFINALCODE       = 0x00008000, // Use the final code generator, i.e., not the interpreter.
-#endif // FEATURE_INTERPRETER
 
-#ifdef FEATURE_READYTORUN_COMPILER
+    CORJIT_FLG_MAKEFINALCODE       = 0x00008000, // Use the final code generator, i.e., not the interpreter.
+
+#endif // defined(FEATURE_INTERPRETER)
+
+#if defined(FEATURE_READYTORUN_COMPILER)
+
     CORJIT_FLG_READYTORUN          = 0x00010000, // Use version-resilient code generation
-#endif
+
+#endif // defined(FEATURE_READYTORUN_COMPILER)
+
+#endif // !defined(MDIL)
 
     CORJIT_FLG_PROF_ENTERLEAVE     = 0x00020000, // Instrument prologues/epilogues
     CORJIT_FLG_PROF_REJIT_NOPS     = 0x00040000, // Insert NOPs to ensure code is re-jitable
@@ -159,14 +165,25 @@ enum CorJitFlag
     CORJIT_FLG_ALIGN_LOOPS         = 0x20000000, // add NOPs before loops to align them at 16 byte boundaries
     CORJIT_FLG_PUBLISH_SECRET_PARAM= 0x40000000, // JIT must place stub secret param into local 0.  (used by IL stubs)
     CORJIT_FLG_GCPOLL_INLINE       = 0x80000000, // JIT must inline calls to GCPoll when possible
+
+#if COR_JIT_EE_VERSION > 460
+    CORJIT_FLG_CALL_GETJITFLAGS    = 0xffffffff, // Indicates that the JIT should retrieve flags in the form of a
+                                                 // pointer to a CORJIT_FLAGS value via ICorJitInfo::getJitFlags().
+#endif
 };
 
 enum CorJitFlag2
 {
-#ifdef FEATURE_STACK_SAMPLING
-    CORJIT_FLG2_SAMPLING_JIT_BACKGROUND  
-                                   = 0x00000001, // JIT is being invoked as a result of stack sampling for hot methods in the background
+    CORJIT_FLG2_SAMPLING_JIT_BACKGROUND = 0x00000001, // JIT is being invoked as a result of stack sampling for hot methods in the background
+#if COR_JIT_EE_VERSION > 460
+    CORJIT_FLG2_USE_PINVOKE_HELPERS     = 0x00000002, // The JIT should use the PINVOKE_{BEGIN,END} helpers instead of emitting inline transitions
 #endif
+};
+
+struct CORJIT_FLAGS
+{
+    unsigned corJitFlags;  // Values are from CorJitFlag
+    unsigned corJitFlags2; // Values are from CorJitFlag2
 };
 
 /*****************************************************************************
@@ -566,6 +583,16 @@ public:
     // different value than if it was compiling for the host architecture.
     // 
     virtual DWORD getExpectedTargetArchitecture() = 0;
+
+#if COR_JIT_EE_VERSION > 460
+    // Fetches extended flags for a particular compilation instance. Returns
+    // the number of bytes written to the provided buffer.
+    virtual DWORD getJitFlags(
+        CORJIT_FLAGS* flags,       /* IN: Points to a buffer that will hold the extended flags. */
+        DWORD        sizeInBytes   /* IN: The size of the buffer. Note that this is effectively a
+                                          version number for the CORJIT_FLAGS value. */
+        ) = 0;
+#endif
 };
 
 /**********************************************************************************/

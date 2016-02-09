@@ -29,7 +29,6 @@ set __BuildOS=Windows_NT
 :: Default to highest Visual Studio version available
 set __VSVersion=vs2015
 
-if defined VS120COMNTOOLS set __VSVersion=vs2013
 if defined VS140COMNTOOLS set __VSVersion=vs2015
 
 :: Define a prefix for most output progress messages that come from this script. That makes
@@ -105,7 +104,6 @@ if /i "%1" == "linuxmscorlib"       (set __MscorlibOnly=1&set __BuildOS=Linux&sh
 if /i "%1" == "osxmscorlib"         (set __MscorlibOnly=1&set __BuildOS=OSX&shift&goto Arg_Loop)
 if /i "%1" == "windowsmscorlib"     (set __MscorlibOnly=1&set __BuildOS=Windows_NT&shift&goto Arg_Loop)
 
-if /i "%1" == "vs2013"              (set __VSVersion=%1&shift&goto Arg_Loop)
 if /i "%1" == "vs2015"              (set __VSVersion=%1&shift&goto Arg_Loop)
 if /i "%1" == "configureonly"       (set __ConfigureOnly=1&set __SkipMscorlibBuild=1&set __SkipTestBuild=1&shift&goto Arg_Loop)
 if /i "%1" == "skipconfigure"       (set __SkipConfigure=1&shift&goto Arg_Loop)
@@ -218,7 +216,6 @@ for /f "delims=" %%a in ('powershell -NoProfile -ExecutionPolicy RemoteSigned "&
 :CheckVS
 
 set __VSProductVersion=
-if /i "%__VSVersion%" == "vs2013" set __VSProductVersion=120
 if /i "%__VSVersion%" == "vs2015" set __VSProductVersion=140
 
 :: Check presence of VS
@@ -232,11 +229,6 @@ if not exist "%__VSToolsRoot%\..\IDE\devenv.exe"      goto NoVS
 if not exist "%__VSToolsRoot%\..\..\VC\vcvarsall.bat" goto NoVS
 if not exist "%__VSToolsRoot%\VsDevCmd.bat"           goto NoVS
 
-if /i "%__VSVersion%" =="vs2015" goto MSBuild14
-set _msbuildexe="%ProgramFiles(x86)%\MSBuild\12.0\Bin\MSBuild.exe"
-if not exist %_msbuildexe% set _msbuildexe="%ProgramFiles%\MSBuild\12.0\Bin\MSBuild.exe"
-if not exist %_msbuildexe% set _msbuildexe="%ProgramFiles(x86)%\MSBuild\14.0\Bin\MSBuild.exe"
-goto :CheckMSBuild14
 :MSBuild14
 set _msbuildexe="%ProgramFiles(x86)%\MSBuild\14.0\Bin\MSBuild.exe"
 set UseRoslynCompiler=true
@@ -457,6 +449,31 @@ if errorlevel 1 (
     exit /b 1
 )
 
+:GenerateNuget
+if /i "%__BuildArch%" =="arm64" goto :SkipNuget
+
+set "__BuildLog=%__LogsDir%\Nuget_%__BuildOS%__%__BuildArch%__%__BuildType%.log"
+set "__BuildWrn=%__LogsDir%\Nuget_%__BuildOS%__%__BuildArch%__%__BuildType%.wrn"
+set "__BuildErr=%__LogsDir%\Nuget_%__BuildOS%__%__BuildArch%__%__BuildType%.err"
+set __msbuildLogArgs=^
+/fileloggerparameters:Verbosity=normal;LogFile="%__BuildLog%" ^
+/fileloggerparameters1:WarningsOnly;LogFile="%__BuildWrn%" ^
+/fileloggerparameters2:ErrorsOnly;LogFile="%__BuildErr%" ^
+/consoleloggerparameters:Summary ^
+/verbosity:minimal
+
+set __msbuildArgs="%__ProjectFilesDir%\src\.nuget\Microsoft.NETCore.Runtime.CoreClr\Microsoft.NETCore.Runtime.CoreCLR.builds" /p:Platform=%__BuildArch%
+%_msbuildexe% %__msbuildArgs% %__msbuildLogArgs%
+if errorlevel 1 (
+    echo %__MsgPrefix%Error: Nuget package generation failed build failed. Refer to the build log files for details:
+    echo     %__BuildLog%
+    echo     %__BuildWrn%
+    echo     %__BuildErr%
+    exit /b 1
+)
+
+:SkipNuget
+
 :SkipCrossGenBuild
 
 REM endlocal to rid us of environment changes from vsdevenv.bat
@@ -608,8 +625,7 @@ echo.
 echo./? -? /h -h /help -help: view this message.
 echo Build architecture: one of x64, x86, arm, arm64 ^(default: x64^).
 echo Build type: one of Debug, Checked, Release ^(default: Debug^).
-echo Visual Studio version: one of VS2013 or VS2015 to force using a particular
-echo     Visual Studio version ^(default: VS2015^).
+echo Visual Studio version: ^(default: VS2015^).
 echo clean: force a clean build ^(default is to perform an incremental build^).
 echo docrossgen: do a crossgen build of mscorlib.
 echo msbuildargs ... : all arguments following this tag will be passed directly to msbuild.
@@ -641,7 +657,7 @@ echo        -- builds x64 and x86 architectures, Checked and Release build types
 exit /b 1
 
 :NoVS
-echo Visual Studio 2013+ ^(Community is free^) is a prerequisite to build this repository.
+echo Visual Studio 2015+ ^(Community is free^) is a prerequisite to build this repository.
 echo See: https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md#prerequisites
 exit /b 1
 
@@ -651,7 +667,7 @@ This is due to a bug in the Visual Studio installer. It does not install DIA SDK
 at the install location of previous Visual Studio version. The workaround is to copy the DIA SDK folder from the Visual Studio install location ^
 of the previous version to "%VSINSTALLDIR%" and then build.
 :: DIA SDK not included in Express editions
-echo Visual Studio 2013 Express does not include the DIA SDK. ^
-You need Visual Studio 2013+ (Community is free).
+echo Visual Studio Express does not include the DIA SDK. ^
+You need Visual Studio 2015+ (Community is free).
 echo See: https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md#prerequisites
 exit /b 1

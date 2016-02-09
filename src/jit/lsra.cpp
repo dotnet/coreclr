@@ -3414,12 +3414,12 @@ LinearScan::updateRegStateForArg(LclVarDsc* argDsc)
         else
         {
             JITDUMP("Int arg V%02u in reg %s\n", (argDsc - compiler->lvaTable), getRegName(argDsc->lvArgReg));
-#if FEATURE_MULTIREG_STRUCT_ARGS
+#if FEATURE_MULTIREG_ARGS
             if (argDsc->lvOtherArgReg != REG_NA)
             {
                 JITDUMP("(second half) in reg %s\n", getRegName(argDsc->lvOtherArgReg));
             }
-#endif
+#endif // FEATURE_MULTIREG_ARGS
             compiler->raUpdateRegStateForArg(intRegState, argDsc);
         }
     }
@@ -4533,7 +4533,7 @@ LinearScan::tryAllocateFreeReg(Interval *currentInterval, RefPosition *refPositi
         singleReg = genRegNumFromMask(candidates);
         regOrder = &singleReg;
     }
-#if FEATURE_MULTIREG_STRUCTS
+#if FEATURE_MULTIREG_ARGS
     if (regType == TYP_STRUCT)
     {
 #ifdef _TARGET_ARM64_
@@ -4564,7 +4564,7 @@ LinearScan::tryAllocateFreeReg(Interval *currentInterval, RefPosition *refPositi
                 }
             }
         }
-#endif
+#endif // _TARGET_ARM64_
         // Unless we setup singleReg we have to issue an NYI error here
         if (singleReg == REG_NA)
         {
@@ -4573,7 +4573,7 @@ LinearScan::tryAllocateFreeReg(Interval *currentInterval, RefPosition *refPositi
         }
 
     }
-#endif // FEATURE_MULTIREG_STRUCTS   
+#endif // FEATURE_MULTIREG_ARGS
     
     for (unsigned i = 0; i < regOrderSize && (candidates != RBM_NONE); i++)
     {

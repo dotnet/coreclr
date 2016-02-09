@@ -428,7 +428,7 @@ void                Compiler::lvaInitThisPtr(InitVarDscInfo *       varDscInfo)
         noway_assert(varDscInfo->intRegArgNum == 0);
 
         varDsc->lvArgReg  = genMapRegArgNumToRegNum(varDscInfo->allocRegArg(TYP_INT), varDsc->TypeGet());
-#if FEATURE_MULTIREG_STRUCT_ARGS
+#if FEATURE_MULTIREG__ARGS
         varDsc->lvOtherArgReg = REG_NA;
 #endif
         varDsc->setPrefReg(varDsc->lvArgReg, this);
@@ -473,7 +473,7 @@ void                Compiler::lvaInitRetBuffArg(InitVarDscInfo *    varDscInfo)
         varDsc->lvSingleDef = 1;
 #endif
         varDsc->lvArgReg  = genMapRegArgNumToRegNum(varDscInfo->allocRegArg(TYP_INT), varDsc->TypeGet());
-#if FEATURE_MULTIREG_STRUCT_ARGS
+#if FEATURE_MULTIREG__ARGS
         varDsc->lvOtherArgReg = REG_NA;
 #endif
         varDsc->setPrefReg(varDsc->lvArgReg, this);
@@ -671,16 +671,16 @@ void                Compiler::lvaInitUserArgs(InitVarDscInfo *      varDscInfo)
 
                 for (unsigned int i = 0; i < structDesc.eightByteCount; i++)
                 {
-                    switch (structDesc.eightByteClassifications[i])
+                    if (structDesc.IsIntegralSlot(i))
                     {
-                    case SystemVClassificationTypeInteger:
-                    case SystemVClassificationTypeIntegerReference:
                         intRegCount++;
-                        break;
-                    case SystemVClassificationTypeSSE:
+                    }
+                    else if (structDesc.IsSseSlot(i))
+                    {
                         floatRegCount++;
-                        break;
-                    default:
+                    }
+                    else
+                    {
                         assert(false && "Invalid eightbyte classification type.");
                         break;
                     }
@@ -727,9 +727,9 @@ void                Compiler::lvaInitUserArgs(InitVarDscInfo *      varDscInfo)
             // to the stack happens.
             unsigned firstAllocatedRegArgNum = 0;
 
-#if FEATURE_MULTIREG_STRUCT_ARGS
+#if FEATURE_MULTIREG_ARGS
             varDsc->lvOtherArgReg = REG_NA;
-#endif
+#endif // FEATURE_MULTIREG_ARGS
 
 #if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
             unsigned secondAllocatedRegArgNum = 0;
@@ -761,7 +761,7 @@ void                Compiler::lvaInitUserArgs(InitVarDscInfo *      varDscInfo)
 
             varDsc->lvIsRegArg = 1;
 
-#if FEATURE_MULTIREG_STRUCT_ARGS
+#if FEATURE_MULTIREG_ARGS
             if (varTypeIsStruct(argType))
             {
 #if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
@@ -791,7 +791,7 @@ void                Compiler::lvaInitUserArgs(InitVarDscInfo *      varDscInfo)
 #endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
             }
             else
-#endif // FEATURE_MULTIREG_STRUCT_ARGS
+#endif // FEATURE_MULTIREG_ARGS
             {
                 varDsc->lvArgReg = genMapRegArgNumToRegNum(firstAllocatedRegArgNum, argType);
             }
@@ -976,7 +976,7 @@ void                Compiler::lvaInitGenericsCtxt(InitVarDscInfo *  varDscInfo)
 
             varDsc->lvIsRegArg = 1;
             varDsc->lvArgReg   = genMapRegArgNumToRegNum(varDscInfo->regArgNum(TYP_INT), varDsc->TypeGet());
-#if FEATURE_MULTIREG_STRUCT_ARGS
+#if FEATURE_MULTIREG__ARGS
             varDsc->lvOtherArgReg = REG_NA;
 #endif
             varDsc->setPrefReg(varDsc->lvArgReg, this);
@@ -1034,7 +1034,7 @@ void                Compiler::lvaInitVarArgsHandle(InitVarDscInfo * varDscInfo)
 
             varDsc->lvIsRegArg = 1;
             varDsc->lvArgReg   = genMapRegArgNumToRegNum(varArgHndArgNum, TYP_I_IMPL);
-#if FEATURE_MULTIREG_STRUCT_ARGS
+#if FEATURE_MULTIREG__ARGS
             varDsc->lvOtherArgReg = REG_NA;
 #endif
             varDsc->setPrefReg(varDsc->lvArgReg, this);
@@ -2170,17 +2170,21 @@ void               Compiler::lvaDecRefCnts(GenTreePtr tree)
 
     if ((tree->gtOper == GT_CALL) && (tree->gtFlags & GTF_CALL_UNMANAGED))
     {
-        /* Get the special variable descriptor */
+        assert((!opts.ShouldUsePInvokeHelpers()) || (info.compLvFrameListRoot == BAD_VAR_NUM));
+        if (!opts.ShouldUsePInvokeHelpers())
+        {
+            /* Get the special variable descriptor */
 
-        lclNum = info.compLvFrameListRoot;
-            
-        noway_assert(lclNum <= lvaCount);
-        varDsc = lvaTable + lclNum;
-            
-        /* Decrement the reference counts twice */
+            lclNum = info.compLvFrameListRoot;
 
-        varDsc->decRefCnts(compCurBB->getBBWeight(this), this);  
-        varDsc->decRefCnts(compCurBB->getBBWeight(this), this);
+            noway_assert(lclNum <= lvaCount);
+            varDsc = lvaTable + lclNum;
+
+            /* Decrement the reference counts twice */
+
+            varDsc->decRefCnts(compCurBB->getBBWeight(this), this);  
+            varDsc->decRefCnts(compCurBB->getBBWeight(this), this);
+        }
     }
     else
     {
@@ -2225,17 +2229,21 @@ void               Compiler::lvaIncRefCnts(GenTreePtr tree)
 
     if ((tree->gtOper == GT_CALL) && (tree->gtFlags & GTF_CALL_UNMANAGED))
     {
-        /* Get the special variable descriptor */
+        assert((!opts.ShouldUsePInvokeHelpers()) || (info.compLvFrameListRoot == BAD_VAR_NUM));
+        if (!opts.ShouldUsePInvokeHelpers())
+        {
+            /* Get the special variable descriptor */
 
-        lclNum = info.compLvFrameListRoot;
-            
-        noway_assert(lclNum <= lvaCount);
-        varDsc = lvaTable + lclNum;
-            
-        /* Increment the reference counts twice */
+            lclNum = info.compLvFrameListRoot;
 
-        varDsc->incRefCnts(compCurBB->getBBWeight(this), this);  
-        varDsc->incRefCnts(compCurBB->getBBWeight(this), this);
+            noway_assert(lclNum <= lvaCount);
+            varDsc = lvaTable + lclNum;
+
+            /* Increment the reference counts twice */
+
+            varDsc->incRefCnts(compCurBB->getBBWeight(this), this);  
+            varDsc->incRefCnts(compCurBB->getBBWeight(this), this);
+        }
     }
     else
     {
@@ -2811,16 +2819,20 @@ void                Compiler::lvaMarkLclRefs(GenTreePtr tree)
     /* Is this a call to unmanaged code ? */
     if (tree->gtOper == GT_CALL && tree->gtFlags & GTF_CALL_UNMANAGED) 
     {
-        /* Get the special variable descriptor */
+        assert((!opts.ShouldUsePInvokeHelpers()) || (info.compLvFrameListRoot == BAD_VAR_NUM));
+        if (!opts.ShouldUsePInvokeHelpers())
+        {
+            /* Get the special variable descriptor */
 
-        unsigned lclNum = info.compLvFrameListRoot;
-            
-        noway_assert(lclNum <= lvaCount);
-        LclVarDsc * varDsc = lvaTable + lclNum;
+            unsigned lclNum = info.compLvFrameListRoot;
 
-        /* Increment the ref counts twice */
-        varDsc->incRefCnts(lvaMarkRefsWeight, this);
-        varDsc->incRefCnts(lvaMarkRefsWeight, this);
+            noway_assert(lclNum <= lvaCount);
+            LclVarDsc * varDsc = lvaTable + lclNum;
+
+            /* Increment the ref counts twice */
+            varDsc->incRefCnts(lvaMarkRefsWeight, this);
+            varDsc->incRefCnts(lvaMarkRefsWeight, this);
+        }
     }
 #endif
         
@@ -3177,15 +3189,19 @@ void                Compiler::lvaMarkLocalVars()
 
     if (info.compCallUnmanaged != 0)
     {
-        noway_assert(info.compLvFrameListRoot >= info.compLocalsCount &&
-                     info.compLvFrameListRoot <  lvaCount);
+        assert((!opts.ShouldUsePInvokeHelpers()) || (info.compLvFrameListRoot == BAD_VAR_NUM));
+        if (!opts.ShouldUsePInvokeHelpers())
+        {
+            noway_assert(info.compLvFrameListRoot >= info.compLocalsCount &&
+                         info.compLvFrameListRoot <  lvaCount);
 
-        lvaTable[info.compLvFrameListRoot].lvType       = TYP_I_IMPL;
+            lvaTable[info.compLvFrameListRoot].lvType       = TYP_I_IMPL;
 
-        /* Set the refCnt, it is used in the prolog and return block(s) */
+            /* Set the refCnt, it is used in the prolog and return block(s) */
 
-        lvaTable[info.compLvFrameListRoot].lvRefCnt     = 2;
-        lvaTable[info.compLvFrameListRoot].lvRefCntWtd  = 2 * BB_UNITY_WEIGHT;        
+            lvaTable[info.compLvFrameListRoot].lvRefCnt     = 2;
+            lvaTable[info.compLvFrameListRoot].lvRefCntWtd  = 2 * BB_UNITY_WEIGHT;
+        }
     }
 #endif
 

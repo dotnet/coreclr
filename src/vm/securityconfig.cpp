@@ -496,7 +496,7 @@ void* SecurityConfig::GetData( INT32 id )
     return NULL;
 }
 
-static BOOL CacheOutOfDate( FILETIME* configFileTime, __in_z WCHAR* configFileName, __in_opt __in_z WCHAR* cacheFileName )
+static BOOL CacheOutOfDate( FILETIME* configFileTime, __in_z WCHAR* configFileName, __in_z_opt WCHAR* cacheFileName )
 {
     CONTRACTL
     {
@@ -546,7 +546,7 @@ CLEANUP:
     return retval;
 }
 
-static BOOL CacheOutOfDate( FILETIME* cacheFileTime, HANDLE cache, __in_opt __in_z WCHAR* cacheFileName )
+static BOOL CacheOutOfDate( FILETIME* cacheFileTime, HANDLE cache, __in_z_opt WCHAR* cacheFileName )
 {
     CONTRACTL
     {

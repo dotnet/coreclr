@@ -406,33 +406,33 @@ public:
 class ICorModuleInfo_Hack
 {
 public:
-    virtual void ICorModuleInfo_Hack_dummy() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
+    virtual void ICorModuleInfo_Hack_dummy() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
 };
 
 class ICorClassInfo_Hack
 {
 public:
-    virtual void ICorClassInfo_Hack_dummy1() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy2() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy3() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy4() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy5() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy6() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy7() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy8() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy9() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy10() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy11() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy12() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy13() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy14() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
+    virtual void ICorClassInfo_Hack_dummy1() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
+    virtual void ICorClassInfo_Hack_dummy2() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
+    virtual void ICorClassInfo_Hack_dummy3() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
+    virtual void ICorClassInfo_Hack_dummy4() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
+    virtual void ICorClassInfo_Hack_dummy5() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
+    virtual void ICorClassInfo_Hack_dummy6() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
+    virtual void ICorClassInfo_Hack_dummy7() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
+    virtual void ICorClassInfo_Hack_dummy8() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
+    virtual void ICorClassInfo_Hack_dummy9() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
+    virtual void ICorClassInfo_Hack_dummy10() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
+    virtual void ICorClassInfo_Hack_dummy11() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
+    virtual void ICorClassInfo_Hack_dummy12() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
+    virtual void ICorClassInfo_Hack_dummy13() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
+    virtual void ICorClassInfo_Hack_dummy14() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
 
     virtual mdMethodDef __stdcall ICorClassInfo_Hack_getMethodDefFromMethod(CORINFO_METHOD_HANDLE hMethod) = 0;
 };
 
 class ICorStaticInfo_Hack : public virtual ICorMethodInfo_Hack, public virtual ICorModuleInfo_Hack, public virtual ICorClassInfo_Hack
 {
-    virtual void ICorStaticInfo_Hack_dummy() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
+    virtual void ICorStaticInfo_Hack_dummy() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
 };
 
 #endif // FEATURE_CORECLR
@@ -911,6 +911,7 @@ public:
     bool canGetVarArgsHandle(CORINFO_SIG_INFO *sig);
     void* getPInvokeUnmanagedTarget(CORINFO_METHOD_HANDLE method, void **ppIndirection);
     void* getAddressOfPInvokeFixup(CORINFO_METHOD_HANDLE method, void **ppIndirection);
+    void getAddressOfPInvokeTarget(CORINFO_METHOD_HANDLE method, CORINFO_CONST_LOOKUP *pLookup);
     CORINFO_JUST_MY_CODE_HANDLE getJustMyCodeHandle(CORINFO_METHOD_HANDLE method, CORINFO_JUST_MY_CODE_HANDLE **ppIndirection);
 
     void GetProfilingHandle(
@@ -1115,6 +1116,8 @@ public:
 
     // Performs any work JIT-related work that should be performed at process shutdown.
     void JitProcessShutdownWork();
+
+    DWORD getJitFlags(CORJIT_FLAGS* jitFlags, DWORD sizeInBytes);
 
 private:
     // Shrinking these buffers drastically reduces the amount of stack space
@@ -1546,7 +1549,7 @@ extern "C"
 #endif
 GARY_DECL(VMHELPDEF, hlpDynamicFuncTable, DYNAMIC_CORINFO_HELP_COUNT);
 
-#define SetJitHelperFunction(ftnNum, pFunc) _SetJitHelperFunction(DYNAMIC_##ftnNum, pFunc)
+#define SetJitHelperFunction(ftnNum, pFunc) _SetJitHelperFunction(DYNAMIC_##ftnNum, (void*)(pFunc))
 void    _SetJitHelperFunction(DynamicCorInfoHelpFunc ftnNum, void * pFunc);
 #ifdef ENABLE_FAST_GCPOLL_HELPER
 //These should only be called from ThreadStore::TrapReturningThreads!

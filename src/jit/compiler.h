@@ -274,13 +274,14 @@ public:
     unsigned char       lvOverlappingFields :1;  // True when we have a struct with possibly overlapping fields
     unsigned char       lvContainsHoles     :1;  // True when we have a promoted struct that contains holes
     unsigned char       lvCustomLayout      :1;  // True when this struct has "CustomLayout"
-#if FEATURE_MULTIREG_STRUCTS
-    unsigned char       lvDontPromote:1;         // Should struct promotion consider this local variable for promotion?
+#if FEATURE_MULTIREG_ARGS_OR_RET
+    unsigned char       lvIsMultiRegArgOrRet:1; // Is this argument variable holding a value passed or returned in multiple registers?
 #endif
 #ifdef _TARGET_ARM_
+    // TODO-Cleanup: Can this be subsumed by the above?
     unsigned char       lvIsHfaRegArg:1;        // Is this argument variable holding a HFA register argument.
     unsigned char       lvHfaTypeIsFloat:1;     // Is the HFA type float or double?
-#endif
+#endif // _TARGET_ARM_
 
 #ifdef DEBUG
     // TODO-Cleanup: See the note on lvSize() - this flag is only in use by asserts that are checking for struct
@@ -315,7 +316,7 @@ public:
     unsigned char       lvFldOffset;
     unsigned char       lvFldOrdinal;
 
-#if FEATURE_MULTIREG_STRUCT_ARGS
+#if FEATURE_MULTIREG_ARGS
     regNumber lvRegNumForSlot(unsigned slotNum)
     {
         if (slotNum == 0)
@@ -333,7 +334,7 @@ public:
 
         unreached();
     }
-#endif // FEATURE_MULTIREG_STRUCT_ARGS
+#endif // FEATURE_MULTIREG_ARGS
 
 private:
 
@@ -347,10 +348,10 @@ private:
 
     regNumberSmall      _lvArgReg;      // The register in which this argument is passed.
 
-#if FEATURE_MULTIREG_STRUCT_ARGS
+#if FEATURE_MULTIREG_ARGS
     regNumberSmall      _lvOtherArgReg;    // Used for the second part of the struct passed in a register.
                                            // Note this is defined but not used by ARM32
-#endif // FEATURE_MULTIREG_STRUCT_ARGS
+#endif // FEATURE_MULTIREG_ARGS
 
 #ifndef LEGACY_BACKEND
     union
@@ -429,7 +430,7 @@ public:
         assert(_lvArgReg == reg);
     }
 
-#if FEATURE_MULTIREG_STRUCT_ARGS
+#if FEATURE_MULTIREG_ARGS
     __declspec(property(get = GetOtherArgReg, put = SetOtherArgReg))
     regNumber           lvOtherArgReg;
 
@@ -443,7 +444,7 @@ public:
         _lvOtherArgReg = (regNumberSmall)reg;
         assert(_lvOtherArgReg == reg);
     }
-#endif // FEATURE_MULTIREG_STRUCT_ARGS
+#endif // FEATURE_MULTIREG_ARGS
 
 #ifdef FEATURE_SIMD
     // Is this is a SIMD struct?
@@ -877,14 +878,16 @@ class JitInlineResult
 public:
 
     // Construct a new JitInlineResult.
-    JitInlineResult(COMP_HANDLE            compiler,
+    JitInlineResult(Compiler*              compiler,
                     CORINFO_METHOD_HANDLE  inliner,
-                    CORINFO_METHOD_HANDLE  inlinee)
-        : inlComp(compiler)
+                    CORINFO_METHOD_HANDLE  inlinee,
+                    const char*            context)
+        : inlCompiler(compiler)
         , inlDecision(InlineDecision::UNDECIDED)
         , inlInliner(inliner)
         , inlInlinee(inlinee)
         , inlReason(nullptr)
+        , inlContext(context)
         , inlReported(false)
     {
         // empty
@@ -903,6 +906,26 @@ public:
                 return INLINE_FAIL;
             case InlineDecision::NEVER:
                 return INLINE_NEVER;
+            default:
+                assert(!"Unexpected: interim inline result");
+                unreached();
+        }
+    }
+
+    // Translate into string for dumping
+    const char* resultString() const 
+    { 
+        switch (inlDecision) {
+            case InlineDecision::SUCCESS:
+                return "success";
+            case InlineDecision::FAILURE:
+                return "failed this call site";
+            case InlineDecision::NEVER:
+                return "failed this callee";
+            case InlineDecision::CANDIDATE:
+                return "candidate";            
+            case InlineDecision::UNDECIDED:
+                return "undecided";
             default:
                 assert(!"Unexpected: interim inline result");
                 unreached();
@@ -1011,18 +1034,16 @@ public:
         setCommon(InlineDecision::NEVER, reason);
     }
     
-    // Ensure a decision has been made, and then then report it if
-    // necessary.
+    // Report/log/dump decision as appropriate
     ~JitInlineResult() 
     {
-        assert(inlDecision != InlineDecision::UNDECIDED);
         report();
     }
     
     const char * reason() const { return inlReason; }
     
     // setReported indicates that this particular result doesn't need
-    // to be reported back to the runtime, either becaus the runtime
+    // to be reported back to the runtime, either because the runtime
     // already knows, or we weren't actually inlining yet.
     void setReported() { inlReported = true; }
     
@@ -1039,21 +1060,15 @@ private:
         inlDecision = decision;
         inlReason = reason;
     }
-    
-    void report() 
-    {
-        if (!inlReported && isDecided()) 
-        {
-            inlComp->reportInliningDecision(inlInliner, inlInlinee, result(), inlReason);
-        }
-        inlReported = true;
-    }
-    
-    COMP_HANDLE             inlComp;
+
+    void report();
+
+    Compiler*               inlCompiler;
     InlineDecision          inlDecision;
     CORINFO_METHOD_HANDLE   inlInliner;
     CORINFO_METHOD_HANDLE   inlInlinee;
     const char*             inlReason;
+    const char*             inlContext;
     bool                    inlReported;
 };
 
@@ -1382,7 +1397,7 @@ struct fgArgTabEntry
     unsigned       tmpNum;      // the LclVar number if we had to force evaluation of this arg
 
     bool           isSplit      :1; // True when this argument is split between the registers and OutArg area 
-    bool           needTmp      :1; // True when we force this arguments evaluation into a temp LclVar
+    bool           needTmp      :1; // True when we force this argument's evaluation into a temp LclVar
     bool           needPlace    :1; // True when we must replace this argument with a placeholder node
     bool           isTmp        :1; // True when we setup a temp LclVar for this argument due to size issues with the struct 
     bool           processed    :1; // True when we have decided the evaluation order for this argument in the gtCallLateArgs 
@@ -1391,8 +1406,9 @@ struct fgArgTabEntry
     bool           isNonStandard:1; // True if it is an arg that is passed in a reg other than a standard arg reg
 
 #if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+    bool           isStruct     :1; // True if this is a struct arg
+
     regNumber             otherRegNum;              // The (second) register to use when passing this argument.
-    bool                  isStruct;                 // is this a struct arg
 
     SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
 #endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
@@ -1656,9 +1672,9 @@ public:
     DWORD expensiveDebugCheckLevel;
 #endif
 
-#if FEATURE_MULTIREG_STRUCT_RET
+#if FEATURE_MULTIREG_RET
     GenTreePtr               impAssignStructClassToVar(GenTreePtr op, CORINFO_CLASS_HANDLE hClass);
-#endif
+#endif // FEATURE_MULTIREG_RET
 
 #ifdef _TARGET_ARM_
 
@@ -7646,7 +7662,8 @@ public :
 
     struct Options
     {
-        unsigned            eeFlags;        // flags passed from the EE
+        CORJIT_FLAGS*       jitFlags;       // all flags passed from the EE
+        unsigned            eeFlags;        // CorJitFlag flags passed from the EE
         unsigned            compFlags;      // method attributes
 
         codeOptimize        compCodeOpt;    // what type of code optimizations
@@ -7705,6 +7722,10 @@ public :
 #else
         inline bool         IsReadyToRun() { return false; }
 #endif
+
+        // true if we should use the PINVOKE_{BEGIN,END} helpers instead of generating
+        // PInvoke transitions inline (e.g. when targeting CoreRT).
+        inline bool         ShouldUsePInvokeHelpers() { return (jitFlags->corJitFlags2 & CORJIT_FLG2_USE_PINVOKE_HELPERS) != 0; }
 
         // true if we must generate compatible code with Jit64 quirks
         inline bool         IsJit64Compat()
@@ -8066,6 +8087,56 @@ public :
     }
     info;
 
+    // Returns true if the method being compiled returns a non-void and non-struct value.
+    // Note that lvaInitTypeRef() normalizes compRetNativeType for struct returns in a 
+    // single register as per target arch ABI (e.g on Amd64 Windows structs of size 1, 2,
+    // 4 or 8 gets normalized to TYP_BYTE/TYP_SHORT/TYP_INT/TYP_LONG; On Arm Hfa structs).
+    // Methods returning such structs are considered to return non-struct return value and
+    // this method returns true in that case.
+    bool                compMethodReturnsNativeScalarType() 
+    {
+        return (info.compRetType != TYP_VOID) && !varTypeIsStruct(info.compRetNativeType);
+    }
+
+    // Returns true if the method being compiled returns RetBuf addr as its return value
+    bool                compMethodReturnsRetBufAddr() 
+    {
+        // Profiler Leave calllback expects the address of retbuf as return value for 
+        // methods with hidden RetBuf argument.  impReturnInstruction() when profiler
+        // callbacks are needed creates GT_RETURN(TYP_BYREF, op1 = Addr of RetBuf) for
+        // methods with hidden RetBufArg.
+        //
+        // TODO-AMD64-Unix - As per this ABI, addr of RetBuf needs to be returned by
+        // methods with hidden RetBufArg.  Right now we are special casing GT_RETURN
+        // of TYP_VOID in codegenxarch.cpp to generate "mov rax, addr of RetBuf".
+        // Instead we should consider explicitly materializing GT_RETURN of TYP_BYREF
+        // return addr of RetBuf in IR.
+        return compIsProfilerHookNeeded() && (info.compRetBuffArg != BAD_VAR_NUM);
+    }
+
+    // Returns true if the method returns a value in more than one return register
+    // TODO-ARM-Bug: Deal with multi-register genReturnLocaled structs?
+    // TODO-ARM64: Does this apply for ARM64 too?
+    bool                compMethodReturnsMultiRegRetType() 
+    {       
+#if FEATURE_MULTIREG_RET
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+        // Methods returning a struct in two registers is considered having a return value of TYP_STRUCT.
+        // Such method's compRetNativeType is TYP_STRUCT without a hidden RetBufArg
+        return varTypeIsStruct(info.compRetNativeType) && (info.compRetBuffArg == BAD_VAR_NUM);
+#endif 
+#endif
+        return false;
+    }
+
+    // Returns true if the method being compiled returns a value
+    bool                compMethodHasRetVal()
+    {
+        return compMethodReturnsNativeScalarType() ||
+               compMethodReturnsRetBufAddr() ||
+               compMethodReturnsMultiRegRetType();
+    }
+
 #if defined(DEBUG)
 
     void                compDispLocalVars();
@@ -8169,14 +8240,14 @@ public :
                                          CORINFO_METHOD_INFO * methodInfo,
                                          void *          * methodCodePtr,
                                          ULONG           * methodCodeSize,
-                                         unsigned          compileFlags);
+                                         CORJIT_FLAGS    * compileFlags);
     void                compCompileFinish();
     int                 compCompileHelper (CORINFO_MODULE_HANDLE            classPtr,
                                            COMP_HANDLE                      compHnd,
                                            CORINFO_METHOD_INFO            * methodInfo,
                                            void *                         * methodCodePtr,
                                            ULONG                          * methodCodeSize,
-                                           unsigned                         compileFlags,
+                                           CORJIT_FLAGS                   * compileFlags,
                                            CorInfoInstantiationVerification instVerInfo);
 
     norls_allocator *   compGetAllocator();
@@ -8403,7 +8474,7 @@ protected:
 
     unsigned            compMaxUncheckedOffsetForNullObject; 
 
-    void                compInitOptions (unsigned compileFlags);
+    void                compInitOptions (CORJIT_FLAGS* compileFlags);
 
     void                compSetProcessor();
     void                compInitDebuggingInfo();
@@ -8413,7 +8484,7 @@ protected:
 #endif
     void                compCompile  (void * * methodCodePtr,
                                       ULONG  * methodCodeSize,
-                                      unsigned compileFlags);
+                                      CORJIT_FLAGS * compileFlags);
 
     // Data required for generating profiler Enter/Leave/TailCall hooks
 #ifdef PROFILING_SUPPORTED
@@ -8991,7 +9062,7 @@ public:
     static HelperCallProperties s_helperCallProperties;
 
 #if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-    var_types GetTypeFromClassificationAndSizes(SystemVClassificationType classType, int size);
+    static var_types GetTypeFromClassificationAndSizes(SystemVClassificationType classType, int size);
     var_types getEightByteType(const SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR& structDesc, unsigned slotNum);
     void fgMorphSystemVStructArgs(GenTreeCall* call, bool hasStructArgument);
 #endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
@@ -9025,9 +9096,9 @@ LclVarDsc::LclVarDsc(Compiler* comp)
     // The morph will do the right thing to change 
     // to the right register if passed in register.
     _lvArgReg(REG_STK),
-#if FEATURE_MULTIREG_STRUCT_ARGS
+#if FEATURE_MULTIREG_ARGS
     _lvOtherArgReg(REG_STK),
-#endif // FEATURE_MULTIREG_STRUCT_ARGS
+#endif // FEATURE_MULTIREG_ARGS
 #if ASSERTION_PROP
     lvRefBlks(BlockSetOps::UninitVal()),
 #endif // ASSERTION_PROP

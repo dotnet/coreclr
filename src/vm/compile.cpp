@@ -879,7 +879,13 @@ HRESULT CEECompileInfo::SetCachedSigningLevel(HANDLE hNI, HANDLE *pModules, COUN
         handles.Append(hFile);
     }
 
-    IfFailGo(SetCachedSigningLevel(handles.GetElements(), handles.GetCount(), 0, hNI));
+    if (!SetCachedSigningLevel(handles.GetElements(), handles.GetCount(), 0, hNI))
+    {
+        hr = HRESULT_FROM_WIN32(GetLastError());
+        _ASSERTE(FAILED(hr));
+        goto ErrExit;
+    }
+
     for (COUNT_T i = 0; i < nModules; i++)
     {
         if (!SetCachedSigningLevel(handles.GetElements(), handles.GetCount(), 0, pModules[i]))
@@ -2651,6 +2657,13 @@ BOOL CEECompileInfo::AreAllClassesFullyLoaded(CORINFO_MODULE_HANDLE moduleHandle
 
 #endif // FEATURE_READYTORUN_COMPILER
 
+BOOL CEECompileInfo::HasCustomAttribute(CORINFO_METHOD_HANDLE method, LPCSTR customAttributeName)
+{
+    STANDARD_VM_CONTRACT;
+
+    MethodDesc * pMD = GetMethod(method);
+    return S_OK == pMD->GetMDImport()->GetCustomAttributeByName(pMD->GetMemberDef(), customAttributeName, NULL, NULL);
+}
 
 #define OMFConst_Read            0x0001
 #define OMFConst_Write           0x0002
