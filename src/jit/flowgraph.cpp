@@ -8215,7 +8215,12 @@ void                Compiler::fgAddInternal()
 #if INLINE_NDIRECT
     if (info.compCallUnmanaged != 0)
     {
-        info.compLvFrameListRoot = lvaGrabTemp(false DEBUGARG("Pinvoke FrameListRoot"));
+        // The P/Invoke helpers only require a frame variable, so only allocate the
+        // TCB variable if we're not using them.
+        if (!opts.ShouldUsePInvokeHelpers())
+        {
+            info.compLvFrameListRoot = lvaGrabTemp(false DEBUGARG("Pinvoke FrameListRoot"));
+        }
 
         lvaInlinedPInvokeFrameVar = lvaGrabTempWithImplicitUse(false DEBUGARG("Pinvoke FrameVar"));
 
@@ -8226,8 +8231,9 @@ void                Compiler::fgAddInternal()
         varDsc->lvExactSize = eeGetEEInfo()->inlinedCallFrameInfo.size;
 #if FEATURE_FIXED_OUT_ARGS
         // Grab and reserve space for TCB, Frame regs used in PInvoke epilog to pop the inlined frame.
-        // See genPInvokeMethodEpilog() for use of the grabbed var.
-        if (compJmpOpUsed)
+        // See genPInvokeMethodEpilog() for use of the grabbed var. This is only necessary if we are
+        // not using the P/Invoke helpers.
+        if (!opts.ShouldUsePInvokeHelpers() && compJmpOpUsed)
         {
             lvaPInvokeFrameRegSaveVar = lvaGrabTempWithImplicitUse(false DEBUGARG("PInvokeFrameRegSave Var"));
             varDsc = &lvaTable[lvaPInvokeFrameRegSaveVar];
@@ -22053,9 +22059,6 @@ void       Compiler::fgInvokeInlineeCompiler(GenTreeCall* call,
         if (!(info.compCompHnd->initClass(NULL /* field */, fncHandle /* method */,
                 inlineCandidateInfo->exactContextHnd /* context */) & CORINFO_INITCLASS_INITIALIZED))
         {
-            JITLOG((LL_INFO100000, INLINER_FAILED "Could not complete class init side effect: "
-                    "%s called by %s\n",
-                    eeGetMethodFullName(fncHandle), info.compFullName));
             inlineResult->setNever("Failed class init side-effect");
             return;
         }

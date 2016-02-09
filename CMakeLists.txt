@@ -243,8 +243,9 @@ endfunction()
 if (CMAKE_CONFIGURATION_TYPES) # multi-configuration generator?
     set(CMAKE_CONFIGURATION_TYPES "Debug;Checked;Release;RelWithDebInfo" CACHE STRING "" FORCE)
 endif (CMAKE_CONFIGURATION_TYPES)
-set(CMAKE_C_FLAGS_CHECKED "")
-set(CMAKE_CXX_FLAGS_CHECKED "")
+
+set(CMAKE_C_FLAGS_CHECKED ${CLR_C_FLAGS_CHECKED_INIT} CACHE STRING "Flags used by the compiler during checked builds.")
+set(CMAKE_CXX_FLAGS_CHECKED ${CLR_CXX_FLAGS_CHECKED_INIT} CACHE STRING "Flags used by the compiler during checked builds.")
 set(CMAKE_EXE_LINKER_FLAGS_CHECKED "")
 set(CMAKE_SHARED_LINKER_FLAGS_CHECKED "")
 
@@ -435,6 +436,10 @@ if (WIN32)
     add_compile_options(/guard:cf) 
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /guard:cf")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /guard:cf")
+
+    # Incremental linking with CFG is broken until next VS release.
+    # Disable it for EXE linking (since it is disabled for DLLs already further below)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /INCREMENTAL:NO")
   endif (NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)
 
   # Linker flags
@@ -689,9 +694,10 @@ if(FEATURE_EVENT_TRACE)
 endif(FEATURE_EVENT_TRACE)
 add_definitions(-DFEATURE_EXCEPTIONDISPATCHINFO)
 add_definitions(-DFEATURE_FRAMEWORK_INTERNAL)
-if(NOT CLR_CMAKE_PLATFORM_UNIX_TARGET_ARM)
+# NetBSD doesn't implement this feature
+if(NOT CLR_CMAKE_PLATFORM_UNIX_TARGET_ARM AND NOT CMAKE_SYSTEM_NAME STREQUAL NetBSD)
     add_definitions(-DFEATURE_HIJACK)
-endif(NOT CLR_CMAKE_PLATFORM_UNIX_TARGET_ARM)
+endif(NOT CLR_CMAKE_PLATFORM_UNIX_TARGET_ARM AND NOT CMAKE_SYSTEM_NAME STREQUAL NetBSD)
 add_definitions(-DFEATURE_HOST_ASSEMBLY_RESOLVER)
 add_definitions(-DFEATURE_HOSTED_BINDER)
 add_definitions(-DFEATURE_ICASTABLE)

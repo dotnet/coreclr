@@ -878,14 +878,16 @@ class JitInlineResult
 public:
 
     // Construct a new JitInlineResult.
-    JitInlineResult(COMP_HANDLE            compiler,
+    JitInlineResult(Compiler*              compiler,
                     CORINFO_METHOD_HANDLE  inliner,
-                    CORINFO_METHOD_HANDLE  inlinee)
-        : inlComp(compiler)
+                    CORINFO_METHOD_HANDLE  inlinee,
+                    const char*            context)
+        : inlCompiler(compiler)
         , inlDecision(InlineDecision::UNDECIDED)
         , inlInliner(inliner)
         , inlInlinee(inlinee)
         , inlReason(nullptr)
+        , inlContext(context)
         , inlReported(false)
     {
         // empty
@@ -904,6 +906,26 @@ public:
                 return INLINE_FAIL;
             case InlineDecision::NEVER:
                 return INLINE_NEVER;
+            default:
+                assert(!"Unexpected: interim inline result");
+                unreached();
+        }
+    }
+
+    // Translate into string for dumping
+    const char* resultString() const 
+    { 
+        switch (inlDecision) {
+            case InlineDecision::SUCCESS:
+                return "success";
+            case InlineDecision::FAILURE:
+                return "failed this call site";
+            case InlineDecision::NEVER:
+                return "failed this callee";
+            case InlineDecision::CANDIDATE:
+                return "candidate";            
+            case InlineDecision::UNDECIDED:
+                return "undecided";
             default:
                 assert(!"Unexpected: interim inline result");
                 unreached();
@@ -1012,18 +1034,16 @@ public:
         setCommon(InlineDecision::NEVER, reason);
     }
     
-    // Ensure a decision has been made, and then then report it if
-    // necessary.
+    // Report/log/dump decision as appropriate
     ~JitInlineResult() 
     {
-        assert(inlDecision != InlineDecision::UNDECIDED);
         report();
     }
     
     const char * reason() const { return inlReason; }
     
     // setReported indicates that this particular result doesn't need
-    // to be reported back to the runtime, either becaus the runtime
+    // to be reported back to the runtime, either because the runtime
     // already knows, or we weren't actually inlining yet.
     void setReported() { inlReported = true; }
     
@@ -1040,21 +1060,15 @@ private:
         inlDecision = decision;
         inlReason = reason;
     }
-    
-    void report() 
-    {
-        if (!inlReported && isDecided()) 
-        {
-            inlComp->reportInliningDecision(inlInliner, inlInlinee, result(), inlReason);
-        }
-        inlReported = true;
-    }
-    
-    COMP_HANDLE             inlComp;
+
+    void report();
+
+    Compiler*               inlCompiler;
     InlineDecision          inlDecision;
     CORINFO_METHOD_HANDLE   inlInliner;
     CORINFO_METHOD_HANDLE   inlInlinee;
     const char*             inlReason;
+    const char*             inlContext;
     bool                    inlReported;
 };
 
@@ -7708,6 +7722,10 @@ public :
 #else
         inline bool         IsReadyToRun() { return false; }
 #endif
+
+        // true if we should use the PINVOKE_{BEGIN,END} helpers instead of generating
+        // PInvoke transitions inline (e.g. when targeting CoreRT).
+        inline bool         ShouldUsePInvokeHelpers() { return (jitFlags->corJitFlags2 & CORJIT_FLG2_USE_PINVOKE_HELPERS) != 0; }
 
         // true if we must generate compatible code with Jit64 quirks
         inline bool         IsJit64Compat()
