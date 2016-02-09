@@ -38,6 +38,11 @@ namespace structinreg
         public float f1;
     }
 
+    struct Test35
+    {
+        public Foo3 foo1;
+        public Foo3 foo2;
+    }
 
     class Program0
     {
@@ -104,6 +109,24 @@ namespace structinreg
         }
 
         [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        Test35 test6(Test35 t5)
+        {
+            int fRes = t5.foo1.iFoo + t5.foo2.iFoo;
+            Console.WriteLine("From Test6 members: {0} {1}", t5.foo1.iFoo, t5.foo2.iFoo);
+            Console.WriteLine("From Test6: Res {0}", fRes);
+            if (fRes != 43) {
+                throw new Exception("Failed inside test6 test!");
+            }
+
+            Test35 tst5 = default(Test35);
+            tst5.foo1 = new Foo3();
+            tst5.foo2 = new Foo3();
+            tst5.foo1.iFoo = 28;
+            tst5.foo2.iFoo = 29;
+            return tst5;
+        }
+
+        [MethodImplAttribute(MethodImplOptions.NoInlining)]
         public static int Main1()
         {
             Program0 p = new Program0();
@@ -147,6 +170,19 @@ namespace structinreg
             if ((t5Res.i1 + t5Res.i2 + t5Res.f1) != 42.0)
             {
                 throw new Exception("Failed test5 test!");
+            }
+
+            Test35 test6 = default(Test35);
+            test6.foo1 = new Foo3();
+            test6.foo2 = new Foo3();
+            test6.foo1.iFoo = 21;
+            test6.foo2.iFoo = 22;
+
+            Test35 t6Res = p.test6(test6);
+
+            Console.WriteLine("test6 Result: {0}", t6Res.foo1.iFoo + t6Res.foo2.iFoo);
+            if ((t6Res.foo1.iFoo + t6Res.foo2.iFoo) != 57) {
+                throw new Exception("Failed test6 test!");
             }
 
             return 100;

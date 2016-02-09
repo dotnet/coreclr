@@ -5130,6 +5130,36 @@ void                emitter::emitIns_S_I  (instruction ins,
     emitCurIGsize += sz;
 }
 
+//------------------------------------------------------------------------
+// emitSetSecondRetRegGCType: Sets the GC type of the second retrun register for instrDescCGCA struct.
+//
+// Arguments:
+//    id            - The large call instr descriptor to set the second GC return register type on.
+//    secondRetSize - The EA_SIZE for second return register type.
+//
+// Return Value:
+//    None
+//
+
+void            emitter::emitSetSecondRetRegGCType(instrDescCGCA* id, emitAttr secondRetSize)
+{
+#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+    if (EA_IS_GCREF(secondRetSize))
+    {
+        id->idSecondRetRegGCType = GCT_GCREF;
+    }
+    else if (EA_IS_BYREF(secondRetSize))
+    {
+        id->idSecondRetRegGCType = GCT_BYREF;
+    }
+    else
+    {
+        id->idSecondRetRegGCType = GCT_NONE;
+    }
+#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+}
+
+
 /*****************************************************************************
  *
  *  Record that a jump instruction uses the short encoding
@@ -5319,7 +5349,8 @@ void                emitter::emitIns_Call(EmitCallType  callType,
                                           INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo)     // used to report call sites to the EE
                                           void*         addr,
                                           ssize_t       argSize,
-                                          emitAttr      retSize,
+                                          emitAttr      retSize
+                                          FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(emitAttr retSize1),
                                           VARSET_VALARG_TP ptrVars,
                                           regMaskTP     gcrefRegs,
                                           regMaskTP     byrefRegs,
@@ -5513,17 +5544,29 @@ void                emitter::emitIns_Call(EmitCallType  callType,
                callType == EC_INDIR_SR     || callType == EC_INDIR_C ||
                callType == EC_INDIR_ARD);
 
-        id  = emitNewInstrCallInd(argCnt, disp, ptrVars, gcrefRegs, byrefRegs, retSize);
+        id  = emitNewInstrCallInd(argCnt, 
+                                  disp, 
+                                  ptrVars, 
+                                  gcrefRegs, 
+                                  byrefRegs, 
+                                  retSize 
+                                  FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(retSize1));
     }
     else
     {
-        /* Helper/static/nonvirtual/function calls (direct or through handle),
-           and calls to an absolute addr. */
+        // Helper/static/nonvirtual/function calls (direct or through handle),
+        //   and calls to an absolute addr.
 
-        assert(callType == EC_FUNC_TOKEN || callType == EC_FUNC_TOKEN_INDIR ||
+        assert(callType == EC_FUNC_TOKEN || 
+               callType == EC_FUNC_TOKEN_INDIR ||
                callType == EC_FUNC_ADDR);
 
-        id  = emitNewInstrCallDir(argCnt, ptrVars, gcrefRegs, byrefRegs, retSize);
+        id  = emitNewInstrCallDir(argCnt, 
+                                  ptrVars, 
+                                  gcrefRegs, 
+                                  byrefRegs, 
+                                  retSize 
+                                  FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(retSize1));
     }
 
     /* Update the emitter's live GC ref sets */
@@ -10532,9 +10575,29 @@ size_t              emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE**
 
         // If the method returns a GC ref, mark EAX appropriately
         if (id->idGCref() == GCT_GCREF)
+        {
             gcrefRegs |= RBM_EAX;
-        else if  (id->idGCref() == GCT_BYREF)
+        }
+        else if (id->idGCref() == GCT_BYREF)
+        {
             byrefRegs |= RBM_EAX;
+        }
+
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+        // If the method is a multi register return, mark RDX appropriately (for Sstem V AMD64).
+        if (id->idIsLargeCall())
+        {
+            instrDescCGCA* idCall = (instrDescCGCA*)id;
+            if (idCall->idSecondRetRegGCType == GCT_GCREF)
+            {
+                gcrefRegs |= RBM_RDX;
+            }
+            else if (idCall->idGCref() == GCT_BYREF)
+            {
+                byrefRegs |= RBM_RDX;
+            }
+        }
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
 
         // If the GC register set has changed, report the new set
         if (gcrefRegs != emitThisGCrefRegs)

@@ -6976,7 +6976,6 @@ GenTreePtr                Compiler::impFixupStructReturn(GenTreePtr     call,
 {
     assert(call->gtOper == GT_CALL);
 
-
     if (!varTypeIsStruct(call))
     {
         return call;
@@ -7021,15 +7020,15 @@ GenTreePtr                Compiler::impFixupStructReturn(GenTreePtr     call,
     call->gtCall.gtReturnType = call->gtType;
 
     // Get the classification for the struct.
-    SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
-    eeGetSystemVAmd64PassStructInRegisterDescriptor(retClsHnd, &structDesc);
-    if (structDesc.passedInRegisters)
+    GenTreeCall* callPtr = call->AsCall();
+    eeGetSystemVAmd64PassStructInRegisterDescriptor(retClsHnd, &(callPtr->structDesc));
+    if (callPtr->structDesc.passedInRegisters)
     {
-        call->gtCall.SetRegisterReturningStructState(structDesc);
+        call->gtCall.SetRegisterReturningStructState(callPtr->structDesc);
 
-        if (structDesc.eightByteCount <= 1)
+        if (callPtr->structDesc.eightByteCount <= 1)
         {
-            call->gtCall.gtReturnType = getEightByteType(structDesc, 0);
+            call->gtCall.gtReturnType = getEightByteType(callPtr->structDesc, 0);
         }
         else
         {
@@ -13855,15 +13854,22 @@ bool Compiler::impReturnInstruction(BasicBlock *block, int prefixFlags, OPCODE &
 
         op2 = impAssignStructPtr(retBuffAddr, op2, retClsHnd, (unsigned)CHECK_SPILL_ALL);
         impAppendTree(op2, (unsigned)CHECK_SPILL_NONE, impCurStmtOffs);
-        if (compIsProfilerHookNeeded())
-        {
-            // The profiler callback expects the address of the return buffer in eax
-            op1 = gtNewOperNode(GT_RETURN, TYP_BYREF, gtNewLclvNode(info.compRetBuffArg, TYP_BYREF));
-        }
-        else
+
+#if !defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+        // As per the System V ABI, the address of RetBuf needs to be returned by
+        // methods with hidden RetBufArg in RAX. In such case GT_RETURN is of TYP_BYREF,
+        // returning the address of RetBuf.
+        if (!compIsProfilerHookNeeded())
         {
             // return void
             op1 = new (this, GT_RETURN) GenTreeOp(GT_RETURN, TYP_VOID);
+        }
+        else
+#endif // !defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+        {
+            // System V ABI requires to return the implicit return buffer in rax.
+            // The profiler callback expects the address of the return buffer in eax
+            op1 = gtNewOperNode(GT_RETURN, TYP_BYREF, gtNewLclvNode(info.compRetBuffArg, TYP_BYREF));
         }
     }
     else if (varTypeIsStruct(info.compRetType))
