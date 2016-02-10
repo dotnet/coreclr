@@ -179,7 +179,7 @@ def static addTriggers(def job, def isPR, def architecture, def os, def configur
                 }
                 break
             case 'pri1':
-                // Pri one gets a daily build, and only for release
+                // Pri one gets a push trigger, and only for release
                 if (architecture == 'x64' && configuration == 'Release') {
                     // We don't expect to see a job generated except in these scenarios
                     assert (os == 'Windows_NT') || (os in Constants.crossList)
@@ -456,7 +456,7 @@ def static addTriggers(def job, def isPR, def architecture, def os, def configur
                 case 'Windows_NT':
                     // Set up a private trigger
                     Utilities.addPrivateGithubPRTrigger(job, "${os} ${architecture} Cross ${configuration} Build",
-                        "(?i).*test\\W+${architecture}\\W+${osGroup}.*", null, ['jashook', 'RussKeldorph', 'gkhanna79', 'briansul', 'cmckinsey', 'jkotas', 'ramarag', 'markwilkie', 'rahku', 'tzwlai', 'weshaggard'])
+                        "(?i).*test\\W+${os}\\W+${architecture}.*", null, ['jashook', 'RussKeldorph', 'gkhanna79', 'briansul', 'cmckinsey', 'jkotas', 'ramarag', 'markwilkie', 'rahku', 'tzwlai', 'weshaggard', 'LLITCHEV'])
                     break
             }
             break
@@ -845,12 +845,11 @@ combinedScenarios.each { scenario ->
                     }
                     // Enable Server GC for Ubuntu PR builds
                     def serverGCString = ''
-                    
-                    /* For now, disable server GC since it's causing tests to take too long. May re-enable later with longer timeout.  
+                     
                     if (os == 'Ubuntu' && isPR){
                         serverGCString = '--useServerGC'
                     }
-                    */
+                    
 
                     def newJob = job(Utilities.getFullJobName(project, jobName, isPR)) {
                         // Add parameters for the inputs
@@ -955,10 +954,6 @@ build(params + [CORECLR_BUILD: coreclrBuildJob.build.number,
                     }
 
                     Utilities.standardJobSetup(newFlowJob, project, isPR, getFullBranchName(branchName))
-                    //Pri 1 tests need longer timeout
-                    if (scenario == 'pri1') {
-                        Utilities.setJobTimeout(newFlowJob, 240)
-                    }
                     addTriggers(newFlowJob, isPR, architecture, os, configuration, scenario, true)
                 } // configuration
             } // os
