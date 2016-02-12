@@ -56,11 +56,12 @@ namespace System.Threading
         public static bool enableWorkerTracking;
 
         [SecurityCritical]
-        public static ThreadPoolWorkQueue workQueue = new ThreadPoolWorkQueue();
+        public static ThreadPoolWorkQueue workQueue;
 
-        [System.Security.SecuritySafeCritical] // static constructors should be safe to call
-        static ThreadPoolGlobals()
+        [SecurityCritical]
+        internal static void Initialize()
         {
+            workQueue = new ThreadPoolWorkQueue();
         }
     }
 
@@ -1168,9 +1169,6 @@ namespace System.Threading
 
     internal sealed class QueueUserWorkItemCallback : IThreadPoolWorkItem
     {
-        [System.Security.SecuritySafeCritical]
-        static QueueUserWorkItemCallback() {}
-
         private WaitCallback callback;
         private ExecutionContext context;
         private Object state;
@@ -1197,6 +1195,7 @@ namespace System.Threading
         [SecurityCritical]
         internal QueueUserWorkItemCallback(WaitCallback waitCallback, Object stateObj, ExecutionContext ec)
         {
+            Contract.Assert(waitCallback != null, "Null callback passed to QueueUserWorkItemCallback!");
             callback = waitCallback;
             state = stateObj;
             context = ec;
@@ -1232,23 +1231,23 @@ namespace System.Threading
         }
 
         [System.Security.SecurityCritical]
-        static internal ContextCallback ccb = new ContextCallback(WaitCallback_Context);
+        static internal ContextCallback ccb;
 
         [System.Security.SecurityCritical]
-        static private void WaitCallback_Context(Object state)
+        static internal void Initialize()
         {
-            QueueUserWorkItemCallback obj = (QueueUserWorkItemCallback)state;
-            WaitCallback wc = obj.callback as WaitCallback;
-            Contract.Assert(null != wc);
-            wc(obj.state);
+            ccb = (state) => { ((QueueUserWorkItemCallback)state).WaitCallback_Context(); };
+        }
+
+        [System.Security.SecurityCritical]
+        private void WaitCallback_Context()
+        {
+            callback(state);
         }
     }
 
     internal sealed class QueueUserWorkItemCallbackDefaultContext : IThreadPoolWorkItem
     {
-        [System.Security.SecuritySafeCritical]
-        static QueueUserWorkItemCallbackDefaultContext() { }
-
         private WaitCallback callback;
         private Object state;
 
@@ -1274,6 +1273,7 @@ namespace System.Threading
         [SecurityCritical]
         internal QueueUserWorkItemCallbackDefaultContext(WaitCallback waitCallback, Object stateObj)
         {
+            Contract.Assert(waitCallback != null, "Null callback passed to QueueUserWorkItemCallbackDefaultContext!");
             callback = waitCallback;
             state = stateObj;
         }
@@ -1298,35 +1298,43 @@ namespace System.Threading
         }
 
         [System.Security.SecurityCritical]
-        static internal ContextCallback ccb = new ContextCallback(WaitCallback_Context);
+        static internal ContextCallback ccb;
 
         [System.Security.SecurityCritical]
-        static private void WaitCallback_Context(Object state)
+        static internal void Initialize()
         {
-            QueueUserWorkItemCallbackDefaultContext obj = (QueueUserWorkItemCallbackDefaultContext)state;
-            WaitCallback wc = obj.callback as WaitCallback;
-            Contract.Assert(null != wc);
-            obj.callback = null;
-            wc(obj.state);
+            ccb = (state) => { ((QueueUserWorkItemCallbackDefaultContext)state).WaitCallback_Context(); };
+        }
+
+        [System.Security.SecurityCritical]
+        private void WaitCallback_Context()
+        {
+            callback(state);
         }
     }
 
     internal class _ThreadPoolWaitOrTimerCallback
     {
-        [System.Security.SecuritySafeCritical]
-        static _ThreadPoolWaitOrTimerCallback() {}
-
         WaitOrTimerCallback _waitOrTimerCallback;
         ExecutionContext _executionContext;
         Object _state;
         [System.Security.SecurityCritical]
-        static private ContextCallback _ccbt = new ContextCallback(WaitOrTimerCallback_Context_t);
+        static private ContextCallback _ccbt;
         [System.Security.SecurityCritical]
-        static private ContextCallback _ccbf = new ContextCallback(WaitOrTimerCallback_Context_f);
+        static private ContextCallback _ccbf;
+
+        [System.Security.SecurityCritical]
+        static internal void Initialize()
+        {
+            _ccbt = (state) => { ((_ThreadPoolWaitOrTimerCallback)state).WaitOrTimerCallback_Context(true); };
+            _ccbf = (state) => { ((_ThreadPoolWaitOrTimerCallback)state).WaitOrTimerCallback_Context(false); };
+        }
 
         [System.Security.SecurityCritical]  // auto-generated
         internal _ThreadPoolWaitOrTimerCallback(WaitOrTimerCallback waitOrTimerCallback, Object state, bool compressStack, ref StackCrawlMark stackMark)
         {
+            Contract.Assert(waitOrTimerCallback != null, "Null callback passed to _ThreadPoolWaitOrTimerCallback!");
+
             _waitOrTimerCallback = waitOrTimerCallback;
             _state = state;
 
@@ -1338,23 +1346,10 @@ namespace System.Threading
                     ExecutionContext.CaptureOptions.IgnoreSyncCtx | ExecutionContext.CaptureOptions.OptimizeDefaultCase);
             }
         }
-        
-        [System.Security.SecurityCritical]
-        static private void WaitOrTimerCallback_Context_t(Object state)
-        {
-            WaitOrTimerCallback_Context(state, true);
-        }
 
-        [System.Security.SecurityCritical]
-        static private void WaitOrTimerCallback_Context_f(Object state)
+        private void WaitOrTimerCallback_Context(bool timedOut)
         {
-            WaitOrTimerCallback_Context(state, false);
-        }
-
-        static private void WaitOrTimerCallback_Context(Object state, bool timedOut)
-        {
-            _ThreadPoolWaitOrTimerCallback helper = (_ThreadPoolWaitOrTimerCallback)state;
-            helper._waitOrTimerCallback(helper._state, timedOut);
+            _waitOrTimerCallback(_state, timedOut);
         }
             
         // call back helper
@@ -1845,6 +1840,12 @@ namespace System.Threading
             if (!ThreadPoolGlobals.vmTpInitialized)
             {
                 ThreadPool.InitializeVMTp(ref ThreadPoolGlobals.enableWorkerTracking);
+
+                ThreadPoolGlobals.Initialize();
+                QueueUserWorkItemCallback.Initialize();
+                QueueUserWorkItemCallbackDefaultContext.Initialize();
+                _ThreadPoolWaitOrTimerCallback.Initialize();
+
                 ThreadPoolGlobals.vmTpInitialized = true;
             }
         }
@@ -1882,8 +1883,7 @@ namespace System.Threading
         [System.Security.SecuritySafeCritical]
         internal static void NotifyWorkItemProgress()
         {
-            if (!ThreadPoolGlobals.vmTpInitialized)
-                ThreadPool.InitializeVMTp(ref ThreadPoolGlobals.enableWorkerTracking);
+            EnsureVMInitialized();
             NotifyWorkItemProgressNative();
         }
 
