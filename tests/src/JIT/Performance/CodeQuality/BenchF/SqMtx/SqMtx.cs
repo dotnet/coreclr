@@ -16,7 +16,7 @@ public static class SqMtx
 #if DEBUG
     public const int Iterations = 1;
 #else
-    public const int Iterations = 4000;
+    public const int Iterations = 40000;
 #endif
 
     private const int MatrixSize = 40;

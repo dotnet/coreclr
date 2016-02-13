@@ -17,7 +17,7 @@ public static class Ackermann
 #if DEBUG
     public const int Iterations = 1;
 #else
-    public const int Iterations = 100000;
+    public const int Iterations = 1000000;
 #endif
 
     static int Acker(int m, int n) {

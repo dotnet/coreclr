@@ -17,7 +17,7 @@ public static class TreeSort
 #if DEBUG
     public const int Iterations = 1;
 #else
-    public const int Iterations = 1200;
+    public const int Iterations = 12500;
 #endif
 
     const int SortElements = 5000;

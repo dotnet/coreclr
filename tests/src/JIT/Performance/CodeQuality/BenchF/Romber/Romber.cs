@@ -17,7 +17,7 @@ public static class Romber
 #if DEBUG
     public const int Iterations = 1;
 #else
-    public const int Iterations = 640000;
+    public const int Iterations = 7500000;
 #endif
 
     private static T[][] AllocArray<T>(int n1, int n2)

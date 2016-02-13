@@ -17,7 +17,7 @@ public static class Simpsn
 #if DEBUG
     public const int Iterations = 1;
 #else
-    public const int Iterations = 90000;
+    public const int Iterations = 900000;
 #endif
 
     [MethodImpl(MethodImplOptions.NoInlining)]

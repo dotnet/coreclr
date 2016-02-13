@@ -17,7 +17,7 @@ public static class QuickSort
 #if DEBUG
     public const int Iterations = 1;
 #else
-    public const int Iterations = 80000;
+    public const int Iterations = 800000;
 #endif
 
     const int MAXNUM = 200;

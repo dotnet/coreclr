@@ -16,7 +16,7 @@ public class Puzzle
 #if DEBUG
     public const int Iterations = 1;
 #else
-    public const int Iterations = 400;
+    public const int Iterations = 4000;
 #endif
 
     private const int PuzzleSize = 511;

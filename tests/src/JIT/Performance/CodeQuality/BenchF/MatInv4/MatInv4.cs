@@ -15,7 +15,7 @@ public static class LLoops
 #if DEBUG
     public const int Iterations = 1;
 #else
-    public const int Iterations = 60;
+    public const int Iterations = 750;
 #endif
 
     private static float s_det;

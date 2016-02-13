@@ -24,7 +24,7 @@ public static class Array1
     private const int Iterations = 1;
     private const int Maxnum = 100;
 #else
-    private const int Iterations = 125;
+    private const int Iterations = 500;
     private const int Maxnum = 1000;
 #endif
 

@@ -17,7 +17,7 @@ public static class Pi
 #if DEBUG
     public const int Iterations = 1;
 #else
-    public const int Iterations = 100;
+    public const int Iterations = 1000;
 #endif
 
     static int[] ComputePi(int[] a) {

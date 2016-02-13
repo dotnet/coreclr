@@ -17,7 +17,7 @@ public static class BubbleSort
 #if DEBUG
     public const int Iterations = 1;
 #else
-    public const int Iterations = 55000;
+    public const int Iterations = 500000;
 #endif
 
     static void SortArray(int[] tab, int last) {

@@ -16,7 +16,7 @@ public static class AddArray2
 #if DEBUG
     public const int Iterations = 1;
 #else
-    public const int Iterations = 50;
+    public const int Iterations = 500;
 #endif
 
     private const int Dim = 200;

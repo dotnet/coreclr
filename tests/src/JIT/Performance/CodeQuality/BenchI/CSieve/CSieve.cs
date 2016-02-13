@@ -18,7 +18,7 @@ public static class CSieve
 #if DEBUG
     public const int Iterations = 1;
 #else
-    public const int Iterations = 200;
+    public const int Iterations = 500;
 #endif
 
     const int Size = 8190;

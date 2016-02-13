@@ -17,7 +17,7 @@ public static class Midpoint
 #if DEBUG
     public const int Iterations = 1;
 #else
-    public const int Iterations = 70000;
+    public const int Iterations = 700000;
 #endif
 
     static T[][] AllocArray<T>(int n1, int n2) {

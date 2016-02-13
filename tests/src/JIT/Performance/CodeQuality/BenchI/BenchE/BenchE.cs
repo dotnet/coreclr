@@ -16,7 +16,7 @@ public static class BenchE
 #if DEBUG
     public const int Iterations = 1;
 #else
-    public const int Iterations = 5000000;
+    public const int Iterations = 50000000;
 #endif
 
     private static int s_position;

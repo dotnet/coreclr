@@ -18,7 +18,7 @@ public static class BubbleSort2
     public const int Iterations = 1;
     public const int Bound = 5 * Iterations;
 #else
-    public const int Iterations = 15;
+    public const int Iterations = 40;
     public const int Bound = 500 * Iterations;
 #endif
 

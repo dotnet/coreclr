@@ -18,7 +18,7 @@ public static class NewtE
 #if DEBUG
     public const int Iterations = 1;
 #else
-    public const int Iterations = 1000000;
+    public const int Iterations = 5000000;
 #endif
 
     [MethodImpl(MethodImplOptions.NoInlining)]

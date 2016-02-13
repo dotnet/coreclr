@@ -16,7 +16,7 @@ public static class InProd
 #if DEBUG
     public const int Iterations = 1;
 #else
-    public const int Iterations = 70;
+    public const int Iterations = 100;
 #endif
 
     private const int RowSize = 10 * Iterations;
