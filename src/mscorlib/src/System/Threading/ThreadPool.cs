@@ -46,11 +46,11 @@ namespace System.Threading
     {
         //Per-appDomain quantum (in ms) for which the thread keeps processing
         //requests in the current domain.
-        public static uint tpQuantum = 30U;
+        public static uint tpQuantum;
 
-        public static int processorCount = Environment.ProcessorCount;
+        public static int processorCount;
 
-        public static bool tpHosted = ThreadPool.IsThreadPoolHosted(); 
+        public static bool tpHosted;
 
         public static volatile bool vmTpInitialized;
         public static bool enableWorkerTracking;
@@ -61,6 +61,9 @@ namespace System.Threading
         [SecurityCritical]
         internal static void Initialize()
         {
+            tpQuantum = 30U;
+            processorCount = Environment.ProcessorCount;
+            tpHosted = ThreadPool.IsThreadPoolHosted();
             workQueue = new ThreadPoolWorkQueue();
         }
     }
