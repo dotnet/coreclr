@@ -700,7 +700,7 @@ OBJECTREF   DupArrayForCloning(BASEARRAYREF pRef, BOOL bAllocateInLargeHeap)
     unsigned rank = arrayType.GetRank();
 
     DWORD numArgs =  rank*2;
-    INT32* args = (INT32*) _alloca(sizeof(INT32)*numArgs);
+    INT32* args = (INT32*) Alloca(sizeof(INT32)*numArgs);
 
     if (arrayType.GetInternalCorElementType() == ELEMENT_TYPE_ARRAY)
     {

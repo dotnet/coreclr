@@ -273,9 +273,9 @@ FCIMPL4(INT32, WaitHandleNative::CorWaitMultipleNative, Object* waitObjectsUNSAF
     arrayHolder.Initialize(numWaiters, (PTRARRAYREF*) &waitObjects);
     
     pWaitObjects = (PTRARRAYREF)waitObjects;  // array of objects on which to wait
-    HANDLE* internalHandles = (HANDLE*) _alloca(numWaiters*sizeof(HANDLE));
+    HANDLE* internalHandles = (HANDLE*) Alloca(numWaiters*sizeof(HANDLE));
 #ifndef FEATURE_CORECLR
-    BOOL *hasThreadAffinity = (BOOL*) _alloca(numWaiters*sizeof(BOOL));
+    BOOL *hasThreadAffinity = (BOOL*) Alloca(numWaiters*sizeof(BOOL));
 
     BOOL mayRequireThreadAffinity = FALSE;
 #endif // !FEATURE_CORECLR

@@ -1902,7 +1902,7 @@ void ZapHelperThunk::Save(ZapWriter * pZapWriter)
     DWORD pad = GetSize() - sizeof(DWORD);
     if (pad > 0)
     {
-        void * pPad = _alloca(pad);
+        void * pPad = Alloca(pad);
         memset(pPad, DEFAULT_CODE_BUFFER_INIT, pad);
         pZapWriter->Write(pPad, pad);
     }

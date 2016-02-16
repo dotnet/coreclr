@@ -224,7 +224,7 @@ GetFullPathNameW(
     }
     else
     {
-        fileNameA = static_cast<LPSTR>(alloca(fileNameLength));
+        fileNameA = static_cast<LPSTR>(Alloca(fileNameLength));
     }
     
     /* Now convert lpFileName to ANSI. */

@@ -341,7 +341,7 @@ HRESULT __cdecl PostErrorVA(                      // Returned error.
 #ifdef FEATURE_COMINTEROP        
 
     const DWORD cchMsg = 4096;
-    WCHAR      *rcMsg = (WCHAR*)alloca(cchMsg * sizeof(WCHAR));             // Error message.
+    WCHAR      *rcMsg = (WCHAR*)Alloca(cchMsg * sizeof(WCHAR));             // Error message.
     HRESULT     hr;
 
     BEGIN_ENTRYPOINT_NOTHROW;

@@ -30,7 +30,7 @@ int __cdecl main(int argc, char **argv)
 
 
     /* check that _alloca really gives us addressable memory */
-    testA = (char *)_alloca(20 * sizeof(char));
+    testA = (char *)Alloca(20 * sizeof(char));
     if (testA == NULL)
     {
         Fail ("The call to _alloca failed\n");

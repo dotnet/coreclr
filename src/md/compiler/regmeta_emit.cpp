@@ -1689,7 +1689,7 @@ HRESULT RegMeta::_DefineSetConstant(    // Return hresult.
         {
 #if BIGENDIAN
             void *pValueTemp;
-            pValueTemp = (void *)alloca(cbBlob);
+            pValueTemp = (void *)Alloca(cbBlob);
             IfFailGo(m_pStgdb->m_MiniMd.SwapConstant(pValue, dwCPlusTypeFlag, pValueTemp, cbBlob));
             pValue = pValueTemp;
 #endif

@@ -23,7 +23,7 @@ class UTSemReadWrite;
         else                                                \
         {                                                   \
             int cbBuffer = ((int)wcslen(wszInput) * 3) + 1; \
-            (szOutput) = (char *)_alloca(cbBuffer);         \
+            (szOutput) = (char *)Alloca(cbBuffer);         \
             Unicode2UTF((wszInput), (szOutput), cbBuffer);  \
         }                                                   \
     } while (0)

@@ -459,8 +459,8 @@ HRESULT DwCheckCompany(                 // S_OK or error.
     }
 
     // Allocate the buffer for the version info structure
-    // _alloca() can't return NULL -- raises STATUS_STACK_OVERFLOW.
-    BYTE* pVersionInfoBuffer = reinterpret_cast< BYTE* >(_alloca(bufSize));
+    // Alloca() can't return NULL -- raises STATUS_STACK_OVERFLOW.
+    BYTE* pVersionInfoBuffer = reinterpret_cast< BYTE* >(Alloca(bufSize));
 
     // Extract the version information blob. The version information
     // contains much more than the actual item of interest.
@@ -595,8 +595,8 @@ int DwGetAppDescription(                // Number of characters written.
     }
 
     // Allocate the buffer for the version info structure
-    // _alloca() can't return NULL -- raises STATUS_STACK_OVERFLOW.
-    BYTE* pVersionInfoBuffer = reinterpret_cast< BYTE* >(_alloca(bufSize));
+    // Alloca() can't return NULL -- raises STATUS_STACK_OVERFLOW.
+    BYTE* pVersionInfoBuffer = reinterpret_cast< BYTE* >(Alloca(bufSize));
 
     // Extract the version information blob. The version information
     // contains much more than the actual item of interest.
@@ -718,8 +718,8 @@ int DwGetAssemblyVersion(               // Number of characters written.
     }
 
     // Allocate the buffer for the version info structure
-    // _alloca() can't return NULL -- raises STATUS_STACK_OVERFLOW.
-    BYTE* pVersionInfoBuffer = reinterpret_cast< BYTE* >(_alloca(bufSize));
+    // Alloca() can't return NULL -- raises STATUS_STACK_OVERFLOW.
+    BYTE* pVersionInfoBuffer = reinterpret_cast< BYTE* >(Alloca(bufSize));
 
     // Extract the version information blob. The version information
     // contains much more than the actual item of interest.

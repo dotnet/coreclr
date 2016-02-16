@@ -872,7 +872,7 @@ Stub *UMThunkMarshInfo::CompileNExportThunk(LoaderHeap *pLoaderHeap, PInvokeStat
     // parameters with copy constructors where we perform value-to-reference transformation
     UINT nStackBytesIncoming = nStackBytes;
 
-    UINT *psrcofs = (UINT *)_alloca((nStackBytes / STACK_ELEM_SIZE) * sizeof(UINT));
+    UINT *psrcofs = (UINT *)Alloca((nStackBytes / STACK_ELEM_SIZE) * sizeof(UINT));
     UINT psrcofsregs[NUM_ARGUMENT_REGISTERS];
     UINT retbufofs = UNUSED_STACK_OFFSET;
 

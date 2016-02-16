@@ -72,12 +72,12 @@ private:
 };
 
 #define ALLOCA_CHECK() AllocaCheck __allocaChecker
-#define ALLOCA(size)  __allocaChecker.add(_alloca(size+sizeof(AllocaCheck::AllocaSentinal)), size);
+#define ALLOCA(size)  __allocaChecker.add(Alloca(size+sizeof(AllocaCheck::AllocaSentinal)), size);
 
 #else
 
 #define ALLOCA_CHECK() 
-#define ALLOCA(size)  _alloca(size)
+#define ALLOCA(size)  Alloca(size)
 
 #endif
 	

@@ -4298,7 +4298,7 @@ void DumpClauses(IJitManager* pJitMan, const METHODTOKEN& MethToken, UINT_PTR uM
 }
 
 #define STACK_ALLOC_ARRAY(numElements, type) \
-    ((type *)_alloca((numElements)*(sizeof(type))))
+    ((type *)Alloca((numElements)*(sizeof(type))))
 
 static void DoEHLog(
     DWORD lvl,

@@ -559,7 +559,7 @@ inline HRESULT BaseAssemblySpec::Init(mdToken tkAssemblyRef,
                                             NULL));       // [OUT] Flags.
 
         // Get the assembly name other naming properties
-        wszAssemblyName = (LPWSTR)_alloca(cchName * sizeof(WCHAR));
+        wszAssemblyName = (LPWSTR)Alloca(cchName * sizeof(WCHAR));
         IfFailRet(pImport->GetAssemblyProps(tkAssemblyRef,
                                             (const void **)&m_pbPublicKeyOrToken,
                                             &m_cbPublicKeyOrToken,
@@ -585,7 +585,7 @@ inline HRESULT BaseAssemblySpec::Init(mdToken tkAssemblyRef,
                                             NULL));       // [OUT] Flags.
 
         // Get the assembly name other naming properties
-        wszAssemblyName = (LPWSTR)_alloca(cchName * sizeof(WCHAR));
+        wszAssemblyName = (LPWSTR)Alloca(cchName * sizeof(WCHAR));
         IfFailRet(pImport->GetAssemblyRefProps(tkAssemblyRef,
                                             (const void **)&m_pbPublicKeyOrToken,
                                             &m_cbPublicKeyOrToken,

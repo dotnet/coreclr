@@ -976,7 +976,7 @@ CordbType::SigToType(CordbModule * pModule,
                 IfFailRet(E_OUTOFMEMORY);
             }
 
-            CordbType ** ppTypeInstantiations = reinterpret_cast<CordbType **>(_alloca( allocSize.Value()));
+            CordbType ** ppTypeInstantiations = reinterpret_cast<CordbType **>(Alloca( allocSize.Value()));
 
             for (unsigned int i = 0; i < cArgs;i++) 
             {
@@ -1082,7 +1082,7 @@ CordbType::SigToType(CordbModule * pModule,
                 IfFailRet(E_OUTOFMEMORY);
             }
 
-            CordbType ** ppTypeInstantiations = (CordbType **) _alloca( allocSize.Value() );
+            CordbType ** ppTypeInstantiations = (CordbType **) Alloca( allocSize.Value() );
 
             for (unsigned int i = 0; i <= cArgs; i++) 
             {

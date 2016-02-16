@@ -6974,7 +6974,7 @@ void dumpConvertedVarSet(Compiler* comp, VARSET_VALARG_TP vars)
     BYTE* pVarNumSet;   // trivial set: one byte per varNum, 0 means not in set, 1 means in set.
 
     size_t varNumSetBytes = comp->lvaCount * sizeof(BYTE);
-    pVarNumSet = (BYTE*)_alloca(varNumSetBytes);
+    pVarNumSet = (BYTE*)Alloca(varNumSetBytes);
     memset(pVarNumSet, 0, varNumSetBytes);          // empty the set
 
     VARSET_ITER_INIT(comp, iter, vars, varIndex);

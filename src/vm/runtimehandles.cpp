@@ -2874,7 +2874,7 @@ FCIMPL3(MethodDesc*, RuntimeMethodHandle::GetStubIfNeeded,
             size_t size = ntypars * sizeof(TypeHandle);
             if ((size / sizeof(TypeHandle)) != ntypars) // uint over/underflow
                 COMPlusThrow(kArgumentException);
-            inst = (TypeHandle*) _alloca(size);        
+            inst = (TypeHandle*) Alloca(size);
 
             for (DWORD i = 0; i < ntypars; i++) 
             {

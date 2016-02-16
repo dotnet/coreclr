@@ -398,7 +398,7 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
 #ifdef _DEBUG
     int count = 0;
     const DWORD cInstructions = 1000;
-    PTR_BYTE *instructionBytes = (PTR_BYTE*)alloca(cInstructions * sizeof(PTR_BYTE));
+    PTR_BYTE *instructionBytes = (PTR_BYTE*)Alloca(cInstructions * sizeof(PTR_BYTE));
     memset(instructionBytes, 0, cInstructions * sizeof(PTR_BYTE));
 #endif
     bool bset16bit=false;

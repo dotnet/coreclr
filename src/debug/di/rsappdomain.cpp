@@ -1029,7 +1029,7 @@ HRESULT CordbAppDomain::GetFunctionPointerType(ULONG32 cTypeArgs,
         return E_INVALIDARG;
     }
 
-    CordbType ** ppTypeInstantiations = reinterpret_cast<CordbType **>(_alloca(allocSize.Value()));
+    CordbType ** ppTypeInstantiations = reinterpret_cast<CordbType **>(Alloca(allocSize.Value()));
 
     for (unsigned int i = 0; i < cTypeArgs; i++)
     {
