@@ -952,7 +952,7 @@ BOOL Assembler::EmitField(FieldDescriptor* pFD)
             lVal /= sizeof(WCHAR);
 
 #if defined(ALIGN_ACCESS) || BIGENDIAN
-            void* pValueTemp = _alloca(lVal * sizeof(WCHAR));
+            void* pValueTemp = Alloca(lVal * sizeof(WCHAR));
             memcpy(pValueTemp, pValue, lVal * sizeof(WCHAR));
             pValue = pValueTemp;
 

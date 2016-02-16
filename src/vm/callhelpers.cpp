@@ -473,7 +473,7 @@ ARG_SLOT MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments)
         // Note that SizeOfFrameArgumentArray does overflow checks with sufficient margin to prevent overflows here
         DWORD dwAllocaSize = TransitionBlock::GetNegSpaceSize() + sizeof(TransitionBlock) + nStackBytes;
 
-        LPBYTE pAlloc = (LPBYTE)_alloca(dwAllocaSize);
+        LPBYTE pAlloc = (LPBYTE)Alloca(dwAllocaSize);
 
         pTransitionBlock = pAlloc + TransitionBlock::GetNegSpaceSize();
 

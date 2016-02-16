@@ -1711,10 +1711,10 @@ IAssemblyName *Zapper::GetAssemblyFusionName(IMetaDataAssemblyImport *pImport)
                                           &md,
                                           NULL));
 
-    szName = (LPWSTR) _alloca(cbName * sizeof(WCHAR));
-    md.szLocale = (LPWSTR) _alloca(md.cbLocale * sizeof(WCHAR));
-    md.rProcessor = (DWORD *) _alloca(md.ulProcessor * sizeof(DWORD));
-    md.rOS = (OSINFO *) _alloca(md.ulOS * sizeof(OSINFO));
+    szName = (LPWSTR) Alloca(cbName * sizeof(WCHAR));
+    md.szLocale = (LPWSTR) Alloca(md.cbLocale * sizeof(WCHAR));
+    md.rProcessor = (DWORD *) Alloca(md.ulProcessor * sizeof(DWORD));
+    md.rOS = (OSINFO *) Alloca(md.ulOS * sizeof(OSINFO));
 
     IfFailThrow(pImport->GetAssemblyProps(a,
                                           &pbPublicKeyToken, &cbPublicKeyToken, NULL,
@@ -1788,10 +1788,10 @@ IAssemblyName *Zapper::GetAssemblyRefFusionName(IMetaDataAssemblyImport *pImport
                                              NULL, NULL,
                                              NULL));
 
-    szName = (LPWSTR) _alloca(cbName * sizeof(WCHAR));
-    md.szLocale = (LPWSTR) _alloca(md.cbLocale * sizeof(WCHAR));
-    md.rProcessor = (DWORD *) _alloca(md.ulProcessor * sizeof(DWORD));
-    md.rOS = (OSINFO *) _alloca(md.ulOS * sizeof(OSINFO));
+    szName = (LPWSTR) Alloca(cbName * sizeof(WCHAR));
+    md.szLocale = (LPWSTR) Alloca(md.cbLocale * sizeof(WCHAR));
+    md.rProcessor = (DWORD *) Alloca(md.ulProcessor * sizeof(DWORD));
+    md.rOS = (OSINFO *) Alloca(md.ulOS * sizeof(OSINFO));
 
     IfFailThrow(pImport->GetAssemblyRefProps(ar,
                                              &pbPublicKeyOrToken, &cbPublicKeyOrToken,

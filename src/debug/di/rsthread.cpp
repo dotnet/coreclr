@@ -9368,7 +9368,7 @@ HRESULT CordbEval::GatherArgInfo(ICorDebugValue *pValue,
 
             _ASSERTE(fullArgTypeNodeCount > 0);
             unsigned int bufferSize = sizeof(DebuggerIPCE_TypeArgData) * fullArgTypeNodeCount;
-            DebuggerIPCE_TypeArgData *bufferFrom = (DebuggerIPCE_TypeArgData *) _alloca(bufferSize);
+            DebuggerIPCE_TypeArgData *bufferFrom = (DebuggerIPCE_TypeArgData *) Alloca(bufferSize);
 
             DebuggerIPCE_TypeArgData *curr = bufferFrom;
             CordbType::GatherTypeData(cv->m_type, &curr);
@@ -10332,7 +10332,7 @@ HRESULT CordbEval::NewParameterizedArray(ICorDebugType * pElementType,
     }
 
     // Just in case sizeof(SIZE_T) != sizeof(ULONG32)
-    SIZE_T * rgDimensionsSizeT = reinterpret_cast<SIZE_T *>(_alloca(allocSize.Value()));
+    SIZE_T * rgDimensionsSizeT = reinterpret_cast<SIZE_T *>(Alloca(allocSize.Value()));
 
     for (unsigned int i = 0; i < rank; i++)
     {

@@ -306,7 +306,7 @@ VOID EEClassHashTable::ConstructKeyFromData(PTR_EEClassHashEntry pEntry, // IN  
             INT32 iAllocSize;
             if (!ClrSafeInt<INT32>::addition(iNSLength, iNameLength, iAllocSize))
                 COMPlusThrowOM();
-            LPUTF8 pszOutNameSpace = (LPUTF8) _alloca(iAllocSize);
+            LPUTF8 pszOutNameSpace = (LPUTF8) Alloca(iAllocSize);
             if (iNSLength == 1)
             {
                 *pszOutNameSpace = '\0';

@@ -6643,7 +6643,7 @@ static STRINGREF MissingMemberException_FormatSignature_Internal(I1ARRAYREF* ppP
         return StringObject::NewString("Unknown signature");
     }
 
-    psig = (const BYTE*)_alloca(csig);
+    psig = (const BYTE*)Alloca(csig);
     CopyMemory((BYTE*)psig,
                (*ppPersistedSig)->GetDirectPointerToNonObjectElements(),
                csig);

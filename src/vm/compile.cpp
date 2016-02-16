@@ -2639,7 +2639,7 @@ void CEECompileInfo::EncodeTypeLayout(CORINFO_CLASS_HANDLE classHandle, SigBuild
         size_t cbGCRefMap = (dwSize / sizeof(TADDR) + 7) / 8;
         _ASSERTE(cbGCRefMap > 0);
 
-        BYTE * pGCRefMap = (BYTE *)_alloca(cbGCRefMap);
+        BYTE * pGCRefMap = (BYTE *)Alloca(cbGCRefMap);
 
         ComputeGCRefMap(pMT, pGCRefMap, cbGCRefMap);
 

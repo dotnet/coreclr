@@ -13280,7 +13280,7 @@ BOOL TypeLayoutCheck(MethodTable * pMT, PCCOR_SIGNATURE pBlob)
             size_t cbGCRefMap = (dwActualSize / sizeof(TADDR) + 7) / 8;
             _ASSERTE(cbGCRefMap > 0);
 
-            BYTE * pGCRefMap = (BYTE *)_alloca(cbGCRefMap);
+            BYTE * pGCRefMap = (BYTE *)Alloca(cbGCRefMap);
 
             ComputeGCRefMap(pMT, pGCRefMap, cbGCRefMap);
 

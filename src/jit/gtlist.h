@@ -64,7 +64,7 @@ GTNODE(MEMORYBARRIER    , "memoryBarrier" ,0,GTK_LEAF)
 
 GTNODE(CAST             , "cast"          ,0,GTK_UNOP|GTK_EXOP) // conversion to another type
 GTNODE(CKFINITE         , "ckfinite"      ,0,GTK_UNOP)          // Check for NaN
-GTNODE(LCLHEAP          , "lclHeap"       ,0,GTK_UNOP)          // alloca()
+GTNODE(LCLHEAP          , "lclHeap"       ,0,GTK_UNOP)          // Alloca()
 GTNODE(JMP              , "jump"          ,0,GTK_LEAF)          // Jump to another function
 
 

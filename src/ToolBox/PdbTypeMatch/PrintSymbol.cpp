@@ -1546,7 +1546,7 @@ void PrintType(IDiaSymbol *pSymbol)
         }
 
         if (pSymbol->get_types(0, &count, NULL) == S_OK) {
-          IDiaSymbol** rgpDiaSymbols = (IDiaSymbol**) _alloca(sizeof(IDiaSymbol *) * count);
+          IDiaSymbol** rgpDiaSymbols = (IDiaSymbol**) Alloca(sizeof(IDiaSymbol *) * count);
 
           if (pSymbol->get_types(count, &count, rgpDiaSymbols) == S_OK) {
             for (ULONG i = 0; i < count; i++) {

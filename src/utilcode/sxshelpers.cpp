@@ -1483,7 +1483,7 @@ HRESULT GetApplicationPathFromWin32Manifest(__out_ecount(dwBuffer) WCHAR* buffer
         if (GetLastError() == ERROR_INSUFFICIENT_BUFFER) 
         {
            
-            pInfo = (ACTIVATION_CONTEXT_DETAILED_INFORMATION*) alloca(nCount);
+            pInfo = (ACTIVATION_CONTEXT_DETAILED_INFORMATION*) Alloca(nCount);
             
             if (WszQueryActCtxW(0, hActCtx, NULL, ActivationContextDetailedInformation, 
                                 pInfo, nCount, &nCount) &&

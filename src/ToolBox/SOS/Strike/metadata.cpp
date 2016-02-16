@@ -41,7 +41,7 @@ static HRESULT NameForTypeDef_s(mdTypeDef tkTypeDef, IMetaDataImport *pImport,
     if (hr != S_OK) {
         return hr;
     }
-    WCHAR *name = (WCHAR*)_alloca((nameLen+1)*sizeof(WCHAR));
+    WCHAR *name = (WCHAR*)alloca((nameLen+1)*sizeof(WCHAR));
     wcscpy_s (name, nameLen+1, mdName);
     hr = NameForTypeDef_s(tkEnclosingClass,pImport,mdName, capacity_mdName);
     if (hr != S_OK) {
@@ -75,8 +75,8 @@ static HRESULT NameForTypeDefNew(mdTypeDef tkTypeDef, IMDInternalImport *pImport
 {
     DWORD flags;
     ULONG nameLen;
-    char *name = (char *)_alloca((mdNameLen+1)*sizeof(char));
-    char *namesp = (char *)_alloca((mdNameLen+1)*sizeof(char));
+    char *name = (char *)alloca((mdNameLen+1)*sizeof(char));
+    char *namesp = (char *)alloca((mdNameLen+1)*sizeof(char));
     
     HRESULT hr = pImport->GetNameOfTypeDef(tkTypeDef, name, namesp);
     if (FAILED(hr))
