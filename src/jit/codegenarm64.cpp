@@ -2946,7 +2946,14 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
             // Get the "jmpKind" using the gtOper kind
             // Note that whether it is an unsigned cmp is governed by the GTF_UNSIGNED flags
 
-            emitJumpKind jmpKind   = genJumpKindForOper(cmp->gtOper, (cmp->gtFlags & GTF_UNSIGNED) != 0);
+            bool ordered = (cmp->gtFlags & GTF_RELOP_NAN_UN) == 0;
+            bool isFloatingType = varTypeIsFloating(cmp->gtGetOp1()->TypeGet());
+
+            // We want to use special ordered comparisons if !unordered and comparing
+            // floating point types.
+            bool compareOrderedFloats = ordered && isFloatingType;
+
+            emitJumpKind jmpKind   = genJumpKindForOper(cmp->gtOper, ((cmp->gtFlags & GTF_UNSIGNED) != 0), compareOrderedFloats);
             BasicBlock * jmpTarget = compiler->compCurBB->bbJumpDest;
 
             inst_JMP(jmpKind, jmpTarget);
@@ -5731,7 +5738,14 @@ void CodeGen::genSetRegToCond(regNumber dstReg, GenTreePtr tree)
     // Get the "jmpKind" using the gtOper kind
     // Note that whether it is an unsigned cmp is governed by the GTF_UNSIGNED flags
 
-    emitJumpKind jmpKind = genJumpKindForOper(tree->gtOper, (tree->gtFlags & GTF_UNSIGNED) != 0);
+    bool ordered = (tree->gtFlags & GTF_RELOP_NAN_UN) == 0;
+    bool isFloatingType = varTypeIsFloating(tree->gtGetOp1()->TypeGet());
+
+    // We want to use special ordered comparisons if !unordered and comparing
+    // floating point types.
+    bool compareOrderedFloats = unordered && isFloatingType;
+
+    emitJumpKind jmpKind = genJumpKindForOper(tree->gtOper, ((tree->gtFlags & GTF_UNSIGNED) != 0), compareOrderedFloats);
 
     inst_SET(jmpKind, dstReg);
 }

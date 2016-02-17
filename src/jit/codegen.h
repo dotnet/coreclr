@@ -90,7 +90,7 @@ private:
                                                         else
                                                             return REG_SPBASE; }
 
-    static emitJumpKind genJumpKindForOper(genTreeOps cmp, bool isUnsigned);
+    static emitJumpKind genJumpKindForOper(genTreeOps cmp, bool isUnsigned, bool compareOrderedFloats = false);
 
 #ifdef _TARGET_XARCH_
     // For a given compare oper tree, returns the conditions to use with jmp/set in 'jmpKind' array. 

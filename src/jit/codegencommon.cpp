@@ -2456,7 +2456,8 @@ FOUND_AM:
 
 // static
 emitJumpKind         CodeGen::genJumpKindForOper(genTreeOps   cmp,
-                                                  bool         isUnsigned)
+                                                  bool         isUnsigned,
+                                                  bool         compareOrderedFloats)
 {
     const static
     BYTE            genJCCinsSgn[] =
@@ -2480,6 +2481,27 @@ emitJumpKind         CodeGen::genJumpKindForOper(genTreeOps   cmp,
         EJ_ja,      // GT_GT
     };
 
+#ifdef _TARGET_ARM64_
+
+    const static BYTE genJCinFf[] =
+    {
+        EJ_je,      // GT_EQ -- Jump if equal
+        EJ_jne,     // GT_NE -- Jump if not equal or unordered
+        EJ_jb,      // GT_CC -- Jump if less than, takes the place of GT_LT
+        EJ_jbe,     // GT_LS -- Jump if less than or equal, takes the place or GT_LE
+        EJ_jge,     // GT_GE -- Jump if greater than or equal
+        EJ_jg,      // GT_GT -- Jump if greater than
+    };
+
+    assert(genJCinFf[GT_EQ - GT_EQ] == EJ_je);
+    assert(genJCinFf[GT_NE - GT_EQ] == EJ_jne);
+    assert(genJCinFf[GT_LT - GT_EQ] == EJ_jb);
+    assert(genJCinFf[GT_LE - GT_EQ] == EJ_jbe);
+    assert(genJCinFf[GT_GE - GT_EQ] == EJ_jge);
+    assert(genJCinFf[GT_GT - GT_EQ] == EJ_jg);
+
+#endif // _TARGET_ARM64_
+
     assert(genJCCinsSgn[GT_EQ - GT_EQ] == EJ_je );
     assert(genJCCinsSgn[GT_NE - GT_EQ] == EJ_jne);
     assert(genJCCinsSgn[GT_LT - GT_EQ] == EJ_jl );
@@ -2495,6 +2517,17 @@ emitJumpKind         CodeGen::genJumpKindForOper(genTreeOps   cmp,
     assert(genJCCinsUns[GT_GT - GT_EQ] == EJ_ja );
 
     assert(GenTree::OperIsCompare(cmp));
+
+#ifdef _TARGET_ARM64_
+
+    // If arm64, ordered comparisons for Floating point types will need to use
+    // alternate jump kinds
+    if (compareOrderedFloats)
+    {
+        return (emitJumpKind) genJCinFf[cmp - GT_EQ];
+    }
+
+#endif // _TARGET_ARM64_
 
     if (isUnsigned)
     {
