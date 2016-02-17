@@ -710,9 +710,9 @@ OPTIMIZECAST:
                 if  (!tree->gtOverflow()                  &&
                      !gtIsActiveCSE_Candidate(oper)       &&
                      (opts.compFlags & CLFLG_TREETRANS)   &&
-                     optNarrowTree(oper, srcType, dstType, false))
+                     optNarrowTree(oper, srcType, dstType, tree->gtVNPair, false))
                 {
-                    optNarrowTree(oper, srcType, dstType,  true);
+                    optNarrowTree(oper, srcType, dstType,  tree->gtVNPair, true);
                     
                     /* If oper is changed into a cast to TYP_INT, or to a GT_NOP, we may need to discard it */
                     if (oper->gtOper == GT_CAST && oper->CastToType() == genActualType(oper->CastFromType()))
@@ -5659,14 +5659,19 @@ void Compiler::fgMorphCallInlineHelper(GenTreeCall* call, JitInlineResult* resul
 {
     if  (lvaCount >= MAX_LV_NUM_COUNT_FOR_INLINING)
     {
-        result->setFailure("Too many local variables in the inliner");
+        // For now, attributing this to call site, though it's really
+        // more of a budget issue (lvaCount currently includes all
+        // caller and prospective callee locals). We still might be
+        // able to inline other callees into this caller, or inline
+        // this callee in other callers.
+        result->noteFatal(InlineObservation::CALLSITE_TOO_MANY_LOCALS);
         return;
     }
 
     if (call->IsVirtual())
     {
-       result->setFailure("Virtual call");
-       return;
+        result->noteFatal(InlineObservation::CALLSITE_IS_VIRTUAL);
+        return;
     }
 
     // impMarkInlineCandidate() is expected not to mark tail prefixed calls
@@ -5681,14 +5686,14 @@ void Compiler::fgMorphCallInlineHelper(GenTreeCall* call, JitInlineResult* resul
 
     if (opts.compNeedSecurityCheck)
     {
-        result->setFailure("Caller needs security check");
+        result->noteFatal(InlineObservation::CALLER_NEEDS_SECURITY_CHECK);
         return;
     }
 
     if ((call->gtFlags & GTF_CALL_INLINE_CANDIDATE) == 0)
     {
-       result->setFailure("Not an inline candidate");
-       return;
+        result->noteFatal(InlineObservation::CALLSITE_NOT_CANDIDATE);
+        return;
     }
     
     //
@@ -7340,15 +7345,8 @@ GenTreePtr Compiler::fgMorphOneAsgBlockOp(GenTreePtr tree)
         if (size == REGSIZE_BYTES)
         {
             BYTE gcPtr;
-
             info.compCompHnd->getClassGClayout(clsHnd, &gcPtr);
-
-            if       (gcPtr == TYPE_GC_NONE)
-                type = TYP_I_IMPL;
-            else if  (gcPtr == TYPE_GC_REF)
-                type = TYP_REF;
-            else if  (gcPtr == TYPE_GC_BYREF)
-                type = TYP_BYREF;
+            type = getJitGCType(gcPtr);
         }
     }
 
