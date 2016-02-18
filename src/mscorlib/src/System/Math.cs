@@ -183,7 +183,7 @@ namespace System {
 	  public static int RoundIntInternal(int i, int digits, MidpointRounding mode, int remCount) 
 	  {
             int rounded = Truncate2Internal(i, remCount); //Number truncated (i.e., redundant numbers are plainly removed) up to the position defined by digits 
-			int lastDigit = Math.Abs(i) / roundPower10Int[remCount - 1] % 10;
+			int lastDigit = Math.Abs(i) / roundPower10Int[remCount - 1] % 10; //First digit right after the last one in the variable rounded
 	
             if (lastDigit > 5 || (lastDigit == 5 && mode == MidpointRounding.AwayFromZero)) rounded = rounded + (i >= 0 ? 1 : -1); //Rounding always up
             else if (lastDigit == 5)
