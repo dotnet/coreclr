@@ -72,6 +72,21 @@ namespace System {
             return m_value == obj;
         }
 
+		public static int Round(int i, int digits) 
+		{
+			return Math.Round(i, digits);
+		}
+
+		public static int Round(int i, int digits, MidpointRounding mode) 
+		{
+			return Math.Round(i, digits, mode);
+		}
+
+		public static int Truncate2(int i, int digits) 
+		{
+			return Math.Truncate2(i, digits);
+		}
+		
         // The absolute value of the int contained.
         public override int GetHashCode() {
             return m_value;
