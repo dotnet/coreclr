@@ -25,13 +25,21 @@ namespace System {
       private static double doubleRoundLimit = 1e16d;
 
       private const int maxRoundingDigits = 15;
-      
+      private const int maxRoundingDigitsInt = 9;
+            
       // This table is required for the Round function which can specify the number of digits to round to
       private static double[] roundPower10Double = new double[] { 
           1E0, 1E1, 1E2, 1E3, 1E4, 1E5, 1E6, 1E7, 1E8,
           1E9, 1E10, 1E11, 1E12, 1E13, 1E14, 1E15
       };          
 
+	  //Required by int.Round and the Math.Round overloads accepting int arguments
+	  private static int[] roundPower10Int = new int[] 
+	  { 
+		1, 10, 100, 1000, 10000, 100000, 
+		1000000, 10000000, 100000000, 1000000000 
+	  };
+	  
       public const double PI = 3.14159265358979323846;
       public const double E  = 2.7182818284590452354;
     
@@ -153,6 +161,57 @@ namespace System {
         return Decimal.Round(d, decimals, mode);
       }
 
+	  public static int Round(int i, int digits) 
+	  {
+		   if ((digits <= 0) || (digits > maxRoundingDigitsInt))
+               throw new ArgumentOutOfRangeException("digits", Environment.GetResourceString("ArgumentOutOfRange_RoundingDigits"));
+           Contract.EndContractBlock();
+		   
+		   return Round(i, digits, MidpointRounding.ToEven);
+	  }
+
+	  public static int Round(int i, int digits, MidpointRounding mode) 
+	  {
+		    if ((digits <= 0) || (digits > maxRoundingDigitsInt)) 
+				throw new ArgumentOutOfRangeException("digits", Environment.GetResourceString("ArgumentOutOfRange_RoundingDigits"));
+            Contract.EndContractBlock();
+		   
+   		    int remCount = (int)Math.Ceiling(Math.Log10(Math.Abs(i))) - digits; //Number of digits to be rounded/removed			
+			return (remCount < 1 ? i : RoundIntInternal(i, digits, mode, remCount));
+	  }
+		
+	  public static int RoundIntInternal(int i, int digits, MidpointRounding mode, int remCount) 
+	  {
+            int rounded = Truncate2Internal(i, remCount); //Number truncated (i.e., redundant numbers are plainly removed) up to the position defined by digits 
+			int lastDigit = Math.Abs(i) / roundPower10Int[remCount - 1] % 10;
+	
+            if (lastDigit > 5 || (lastDigit == 5 && mode == MidpointRounding.AwayFromZero)) rounded = rounded + (i >= 0 ? 1 : -1); //Rounding always up
+            else if (lastDigit == 5)
+            {
+				//Rounding up only if the previous-to-last digit is uneven
+                if ((Math.Abs(i) / roundPower10Int[remCount] % 10) % 2 != 0) 
+				{
+					rounded = rounded + (i >= 0 ? 1 : -1);
+				}
+            }
+            return rounded;		  
+	  }
+	
+	  public static int Truncate2(int i, int digits) 
+	  {
+		    if ((digits <= 0) || (digits > maxRoundingDigitsInt)) 
+				throw new ArgumentOutOfRangeException("digits", Environment.GetResourceString("ArgumentOutOfRange_RoundingDigits"));
+            Contract.EndContractBlock();
+			
+ 		    int remCount = (int)Math.Ceiling(Math.Log10(Math.Abs(i))) - digits; //Number of digits to be removed			
+		    return (remCount < 1 ? i : Math.Truncate2Internal(i, remCount));
+      }
+      
+      private static int Truncate2Internal(int i, int remCount)
+      {
+          return i / roundPower10Int[remCount];
+      }
+      
       [System.Security.SecurityCritical]  // auto-generated
       [MethodImplAttribute(MethodImplOptions.InternalCall)]
       private static unsafe extern double SplitFractionDouble(double* value);
