@@ -172,7 +172,8 @@ namespace System {
                 throw new ArgumentOutOfRangeException("digits", Environment.GetResourceString("ArgumentOutOfRange_RoundingDigits"));
             Contract.EndContractBlock();
 	
-			if (i == 0) return 0; 	   
+			if (i == 0) 
+			    return 0;	  
    		    int remCount = (int)Ceiling(Log10(Abs(i))) - digits; //Number of digits to be rounded/removed			
 			return (remCount < 1 ? i : RoundIntInternal(i, digits, mode, remCount));
 	  }
@@ -200,7 +201,8 @@ namespace System {
                 throw new ArgumentOutOfRangeException("digits", Environment.GetResourceString("ArgumentOutOfRange_RoundingDigits"));
             Contract.EndContractBlock();
 	
-			if (i == 0) return 0;		
+			if (i == 0) 
+			    return 0;		
  		    int remCount = (int)Ceiling(Log10(Abs(i))) - digits; //Number of digits to be removed			
 		    return (remCount < 1 ? i : Truncate2Internal(i, remCount));
       }
