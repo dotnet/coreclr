@@ -196,7 +196,7 @@ namespace System {
 	
 	  public static int Truncate2(int i, int digits) 
 	  {
-            if ((digits < 0) || (digits > maxRoundingDigits))
+            if ((digits <= 0) || (digits > maxRoundingDigits))
                 throw new ArgumentOutOfRangeException("digits", Environment.GetResourceString("ArgumentOutOfRange_RoundingDigits"));
             Contract.EndContractBlock();
 	
