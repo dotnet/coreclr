@@ -8,8 +8,10 @@ project(coreclrpal)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-# Enable @rpath support for shared libraries.
-set(MACOSX_RPATH ON)
+if(CORECLR_SET_RPATH)
+    # Enable @rpath support for shared libraries.
+    set(MACOSX_RPATH ON)
+endif(CORECLR_SET_RPATH)
 
 if(CMAKE_VERSION VERSION_EQUAL 3.0 OR CMAKE_VERSION VERSION_GREATER 3.0)
     cmake_policy(SET CMP0042 NEW)
@@ -68,7 +70,6 @@ endif()
 # turn off capability to remove unused functions (which was enabled in debug build with sanitizers)
 set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "${CMAKE_SHARED_LINKER_FLAGS_DEBUG} -Wl,--no-gc-sections")
 
-add_compile_options(-fno-builtin)
 add_compile_options(-fPIC)
 
 if(PAL_CMAKE_PLATFORM_ARCH_AMD64)
@@ -200,6 +201,11 @@ add_library(coreclrpal
   ${SOURCES}
   ${ARCH_SOURCES}
   ${PLATFORM_SOURCES}
+)
+
+add_library(tracepointprovider
+  STATIC
+  misc/tracepointprovider.cpp
 )
 
 if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
