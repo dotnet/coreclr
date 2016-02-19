@@ -168,7 +168,7 @@ namespace System {
 
 	  public static int Round(int i, int digits, MidpointRounding mode) 
 	  {
-		    if (i == 0) return 0;
+		    if (i == 0) { return 0; } //The tests fail if the curly brackets aren't included?! It shouldn't be the case
 		    if ((digits <= 0) || (digits > maxRoundingDigitsInt)) 
 				throw new ArgumentOutOfRangeException("digits", Environment.GetResourceString("ArgumentOutOfRange_RoundingDigits"));
             Contract.EndContractBlock();
@@ -196,7 +196,7 @@ namespace System {
 	
 	  public static int Truncate2(int i, int digits) 
 	  {
-		    if (i == 0) return 0;
+		    if (i == 0) { return 0; } //The tests fail if the curly brackets aren't included?! It shouldn't be the case
 		    if ((digits <= 0) || (digits > maxRoundingDigitsInt)) 
 				throw new ArgumentOutOfRangeException("digits", Environment.GetResourceString("ArgumentOutOfRange_RoundingDigits"));
             Contract.EndContractBlock();
