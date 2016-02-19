@@ -168,12 +168,13 @@ namespace System {
 
 	  public static int Round(int i, int digits, MidpointRounding mode) 
 	  {
-		    if ((digits <= 0) || (digits > maxRoundingDigitsInt)) 
-				throw new ArgumentOutOfRangeException("digits", Environment.GetResourceString("ArgumentOutOfRange_RoundingDigits"));
-            Contract.EndContractBlock();
+	       if (i == 0) return 0;
+		   if ((digits <= 0) || (digits > maxRoundingDigitsInt)) 
+		     	throw new ArgumentOutOfRangeException("digits", Environment.GetResourceString("ArgumentOutOfRange_RoundingDigits"));
+           Contract.EndContractBlock();
 		   
-   		    int remCount = (i == 0 ? 0 : (int)Math.Ceiling(Math.Log10(Math.Abs(i))) - digits); //Number of digits to be rounded/removed			
-			return (remCount < 1 ? i : RoundIntInternal(i, digits, mode, remCount));
+   		   int remCount = (int)Math.Ceiling(Math.Log10(Math.Abs(i))) - digits; //Number of digits to be rounded/removed			
+		   return (remCount < 1 ? i : RoundIntInternal(i, digits, mode, remCount));
 	  }
 		
 	  public static int RoundIntInternal(int i, int digits, MidpointRounding mode, int remCount) 
@@ -184,7 +185,7 @@ namespace System {
             if (lastDigit > 5 || (lastDigit == 5 && mode == MidpointRounding.AwayFromZero)) rounded = rounded + (i >= 0 ? 1 : -1); //Rounding always up
             else if (lastDigit == 5)
             {
-				//Rounding up only if the previous-to-last digit is uneven
+				//Rounding up only if the last digit in the variable rounded is uneven
                 if ((Math.Abs(i) / roundPower10Int[remCount] % 10) % 2 != 0) 
 				{
 					rounded = rounded + (i >= 0 ? 1 : -1);
@@ -195,11 +196,12 @@ namespace System {
 	
 	  public static int Truncate2(int i, int digits) 
 	  {
+	        if (i == 0) return 0;
 		    if ((digits <= 0) || (digits > maxRoundingDigitsInt)) 
 				throw new ArgumentOutOfRangeException("digits", Environment.GetResourceString("ArgumentOutOfRange_RoundingDigits"));
             Contract.EndContractBlock();
 			
- 		    int remCount = (i == 0 ? 0 : (int)Math.Ceiling(Math.Log10(Math.Abs(i))) - digits); //Number of digits to be removed			
+ 		    int remCount = (int)Math.Ceiling(Math.Log10(Math.Abs(i))) - digits; //Number of digits to be removed			
 		    return (remCount < 1 ? i : Math.Truncate2Internal(i, remCount));
       }
       
