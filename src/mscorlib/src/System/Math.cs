@@ -163,10 +163,6 @@ namespace System {
 
 	  public static int Round(int i, int digits) 
 	  {
-		   if ((digits <= 0) || (digits > maxRoundingDigitsInt))
-               throw new ArgumentOutOfRangeException("digits", Environment.GetResourceString("ArgumentOutOfRange_RoundingDigits"));
-           Contract.EndContractBlock();
-		   
 		   return Round(i, digits, MidpointRounding.ToEven);
 	  }
 
