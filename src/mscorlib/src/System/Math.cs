@@ -168,13 +168,13 @@ namespace System {
 
 	  public static int Round(int i, int digits, MidpointRounding mode) 
 	  {
-	       if (i == 0) return 0;
-		   if ((digits <= 0) || (digits > maxRoundingDigitsInt)) 
-		     	throw new ArgumentOutOfRangeException("digits", Environment.GetResourceString("ArgumentOutOfRange_RoundingDigits"));
-           Contract.EndContractBlock();
+		    if (i == 0) return 0;
+		    if ((digits <= 0) || (digits > maxRoundingDigitsInt)) 
+				throw new ArgumentOutOfRangeException("digits", Environment.GetResourceString("ArgumentOutOfRange_RoundingDigits"));
+            Contract.EndContractBlock();
 		   
-   		   int remCount = (int)Math.Ceiling(Math.Log10(Math.Abs(i))) - digits; //Number of digits to be rounded/removed			
-		   return (remCount < 1 ? i : RoundIntInternal(i, digits, mode, remCount));
+   		    int remCount = (int)Math.Ceiling(Math.Log10(Math.Abs(i))) - digits; //Number of digits to be rounded/removed			
+			return (remCount < 1 ? i : RoundIntInternal(i, digits, mode, remCount));
 	  }
 		
 	  public static int RoundIntInternal(int i, int digits, MidpointRounding mode, int remCount) 
@@ -196,7 +196,7 @@ namespace System {
 	
 	  public static int Truncate2(int i, int digits) 
 	  {
-	        if (i == 0) return 0;
+		    if (i == 0) return 0;
 		    if ((digits <= 0) || (digits > maxRoundingDigitsInt)) 
 				throw new ArgumentOutOfRangeException("digits", Environment.GetResourceString("ArgumentOutOfRange_RoundingDigits"));
             Contract.EndContractBlock();
