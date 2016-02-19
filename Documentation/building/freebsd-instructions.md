@@ -265,3 +265,8 @@ To install clang development snapshot: `sudo pkg install llvm-devel`
 clang35 and clang36 download llvm35 and llvm36 packages as a dependency. 
 
 llvm37 and llvm-devel include clang and lldb. Since clang is included with llvm 3.7 and onward, there is no clang37 package.
+
+Once the new version of clang is installed you will need to add the argument clang3.x to your ./build.sh command in order to use the version of clang you installed. The command below would tell build.sh to use the version of clang installed by the llvm37 port. 
+```
+./build.sh clang3.7
+```
