@@ -481,8 +481,8 @@ namespace System.Text {
                 // if the specified length is greater than the current length
                 if (delta > 0)
                 {
-                    // the end of the string value of the current StringBuilder object is padded with the Unicode NULL character
-                    Append('\0', delta);        // We could improve on this, but who does this anyway?
+                    // just set the Capacity to the new value
+                    Capacity = value;
                 }
                 // if the specified length is less than or equal to the current length
                 else
