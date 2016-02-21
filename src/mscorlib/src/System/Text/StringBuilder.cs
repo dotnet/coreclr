@@ -481,8 +481,8 @@ namespace System.Text {
                 // if the specified length is greater than the current length
                 if (delta > 0)
                 {
-                    // just set the Capacity to the new value
                     Capacity = value;
+                    m_ChunkLength += value;
                 }
                 // if the specified length is less than or equal to the current length
                 else
