@@ -64,21 +64,6 @@ INLINE_OBSERVATION(TOO_MANY_ARGUMENTS,        bool,   "too many arguments",     
 INLINE_OBSERVATION(TOO_MANY_LOCALS,           bool,   "too many locals",               FATAL,       CALLEE)
 INLINE_OBSERVATION(UNSUPPORTED_OPCODE,        bool,   "unsupported opcode",            FATAL,       CALLEE)
 
-#ifdef FEATURE_LEGACYNETCF
-
-INLINE_OBSERVATION(WP7QUIRK_ADDRESS_TAKEN,    bool,   "WinPhone7 quirk address taken", FATAL,       CALLEE)
-INLINE_OBSERVATION(WP7QUIRK_CONTROL_FLOW,     bool,   "WinPhone7 quirk has ctl flow",  FATAL,       CALLEE)
-INLINE_OBSERVATION(WP7QUIRK_HAS_EH,           bool,   "WinPhone7 quirk has eh",        FATAL,       CALLEE)
-INLINE_OBSERVATION(WP7QUIRK_HAS_FP_ARG,       bool,   "WinPhone7 quirk has float arg", FATAL,       CALLEE)
-INLINE_OBSERVATION(WP7QUIRK_HAS_FP_RET,       bool,   "WinPhone7 quirk has float ret", FATAL,       CALLEE)
-INLINE_OBSERVATION(WP7QUIRK_HAS_LOCALS,       bool,   "WinPhone7 quirk has locals",    FATAL,       CALLEE)
-INLINE_OBSERVATION(WP7QUIRK_IL_TOO_BIG,       bool,   "WinPhone7 quirk il too big",    FATAL,       CALLEE)
-INLINE_OBSERVATION(WP7QUIRK_LDARG_ORDER,      bool,   "WinPhone7 quirk ldarg order",   FATAL,       CALLEE)
-INLINE_OBSERVATION(WP7QUIRK_PREFIX,           bool,   "WinPhone7 quirk has prefix",    FATAL,       CALLEE)
-INLINE_OBSERVATION(WP7QUIRK_THROW,            bool,   "WinPhone7 quirk has throw",     FATAL,       CALLEE)
-
-#endif // FEATURE_LEGACYNETCF
-
 // ------ Callee Performance ------- 
 
 INLINE_OBSERVATION(LDFLD_STATIC_VALUECLASS,   bool,   "ldsfld of value class",         PERFORMANCE, CALLEE)
@@ -87,7 +72,10 @@ INLINE_OBSERVATION(TOO_MUCH_IL,               bool,   "too many il bytes",      
 
 // ------ Callee Information ------- 
 
-INLINE_OBSERVATION(HAS_FORCE_INLINE,          bool,   "has aggressive inline attr",    INFORMATION, CALLEE)
+INLINE_OBSERVATION(BELOW_ALWAYS_INLINE_SIZE,  bool,   "below ALWAYS_INLINE size",      INFORMATION, CALLEE)
+INLINE_OBSERVATION(CAN_INLINE_IL,             bool,   "IL passes basic checks",        INFORMATION, CALLEE)
+INLINE_OBSERVATION(CHECK_CAN_INLINE_IL,       bool,   "IL passes detailed checks",     INFORMATION, CALLEE)
+INLINE_OBSERVATION(HAS_FORCE_INLINE,          bool,   "aggressive inline attribute",   INFORMATION, CALLEE)
 INLINE_OBSERVATION(MAXSTACK,                  int,    "maxstack",                      INFORMATION, CALLEE)
 INLINE_OBSERVATION(NATIVE_SIZE_ESTIMATE,      double, "native size estimate",          INFORMATION, CALLEE)
 INLINE_OBSERVATION(NUMBER_OF_ARGUMENTS,       int,    "number of arguments",           INFORMATION, CALLEE)
@@ -139,13 +127,16 @@ INLINE_OBSERVATION(RETURN_TYPE_MISMATCH,      bool,   "return type mismatch",   
 INLINE_OBSERVATION(STFLD_NEEDS_HELPER,        bool,   "stfld needs helper",            FATAL,       CALLSITE)
 INLINE_OBSERVATION(TOO_MANY_LOCALS,           bool,   "too many locals",               FATAL,       CALLSITE)
 
-// ------ Call Site Peformance ------- 
+// ------ Call Site Performance ------- 
 
 
 // ------ Call Site Information ------- 
 
+INLINE_OBSERVATION(ARGS_OK,                   bool,   "arguments suitable",            INFORMATION, CALLSITE)
 INLINE_OBSERVATION(BENEFIT_MULTIPLIER,        double, "benefit multiplier",            INFORMATION, CALLSITE)
+INLINE_OBSERVATION(LOCALS_OK,                 bool,   "locals suitable",               INFORMATION, CALLSITE)
 INLINE_OBSERVATION(NATIVE_SIZE_ESTIMATE,      double, "native size estimate",          INFORMATION, CALLSITE)
+INLINE_OBSERVATION(NATIVE_SIZE_ESTIMATE_OK,   bool,   "native size estimate ok",       INFORMATION, CALLSITE)
 
 // ------ Final Sentinel ------- 
 

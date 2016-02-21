@@ -4261,33 +4261,6 @@ void        Compiler::fgFindJumpTargets(const BYTE * codeAddr,
         pSm->Start(this);
     }
 
-#ifdef FEATURE_LEGACYNETCF
-
-    // NetCF had some strict restrictions on inlining.  Specifically they
-    // would only inline methods that fit a specific pattern of loading
-    // arguments inorder, starting with zero, with no skipping, but not
-    // needing to load all of them.  Then a 'body' section that could do
-    // anything besides control flow.  And a final ending ret opcode.
-    // Lastly they did not allow starg or ldarga.
-    // These simplifications allowed them to skip past the ldargs, when
-    // inlining, and just use the caller's EE stack as the callee's EE
-    // stack, after optionally popping a few 'arguments' from the end.
-    //
-    // stateNetCFQuirks is a simple state machine to track that state
-    // and allow us to match those restrictions.
-    // State -1 means we're not tracking (no quirks mode)
-    // State 0 though 0x0000FFFF tracks what the *next* ldarg should be
-    //    to match the pattern
-    // State 0x00010000 and above means we are in the 'body' section and
-    //    thus no more ldarg's are allowed.
-    int stateNetCFQuirks = -1;
-    if (compIsForInlining() && (opts.eeFlags & CORJIT_FLG_NETCF_QUIRKS))
-    {
-        stateNetCFQuirks = 0;
-    }
-
-#endif // FEATURE_LEGACYNETCF
-    
     while (codeAddr < codeEndp)
     {
         unsigned    sz;
@@ -4302,20 +4275,6 @@ DECODE_OPCODE:
 
         if (opcode >= CEE_COUNT)
             BADCODE3("Illegal opcode", ": %02X", (int) opcode);
-
-#ifdef FEATURE_LEGACYNETCF
-
-        // If this is the first non-ldarg, then transition states
-        if ((0 == (stateNetCFQuirks & 0x10000)) && 
-            ((opcode < CEE_LDARG_0) || (opcode > CEE_LDARG_3)) &&
-            (opcode != CEE_LDARG_S) && (opcode != CEE_LDARG) && (opcode != CEE_PREFIX1))
-        {
-            // Maximum number of arguments is 2^16 - 1
-            // so this value will never line up with any ldarg
-            stateNetCFQuirks = 0x10000;
-        }
-
-#endif // FEATURE_LEGACYNETCF
 
         if ((opcode >= CEE_LDARG_0 && opcode <= CEE_STLOC_S) ||
             (opcode >= CEE_LDARG   && opcode <= CEE_STLOC))
@@ -4384,7 +4343,7 @@ DECODE_OPCODE:
                 noway_assert(codeAddr < codeEndp - sz);
                 if ((OPCODE) getU1LittleEndian(codeAddr + sz) == CEE_RET)
                 {
-                    compInlineeHints = (InlInlineHints)(compInlineeHints | InlLooksLikeWrapperMethod);
+                    compInlineeHints = (InlineHints)(compInlineeHints | InlLooksLikeWrapperMethod);
 #ifdef DEBUG
                     //printf("CALL->RET pattern found in %s\n", info.compFullName);
 #endif
@@ -4432,19 +4391,6 @@ DECODE_OPCODE:
             if (codeAddr > codeEndp - sz)
                 goto TOO_FAR;
 
-#ifdef FEATURE_LEGACYNETCF
-
-            if (compIsForInlining()) 
-            {
-                if (stateNetCFQuirks >= 0)
-                {
-                    compInlineResult->noteFatal(InlineObservation::CALLEE_WP7QUIRK_CONTROL_FLOW);
-                    return;
-                }
-            }
-
-#endif // FEATURE_LEGACYNETCF
-
             /* Compute the target address of the jump */
 
             jmpDist = (sz==1) ? getI1LittleEndian(codeAddr)
@@ -4479,17 +4425,6 @@ DECODE_OPCODE:
 
             if (compIsForInlining())
             {
-
-#ifdef FEATURE_LEGACYNETCF
-
-                if (stateNetCFQuirks >= 0)
-                {
-                    compInlineResult->noteFatal(InlineObservation::CALLEE_WP7QUIRK_CONTROL_FLOW);
-                    return;
-                }
-
-#endif // FEATURE_LEGACYNETCF
-
                 compInlineResult->noteFatal(InlineObservation::CALLEE_HAS_SWITCH);
                 return;
             }
@@ -4547,20 +4482,6 @@ DECODE_OPCODE:
         case CEE_TAILCALL:
             if (codeAddr >= codeEndp)
                 goto TOO_FAR;
-
-#ifdef FEATURE_LEGACYNETCF
-
-            if (compIsForInlining())
-            {
-                if (stateNetCFQuirks >= 0)
-                {
-                    compInlineResult->noteFatal(InlineObservation::CALLEE_WP7QUIRK_PREFIX);
-                    return;
-                }
-            }
-
-#endif // FEATURE_LEGACYNETCF
-
             break;
 
         case CEE_STARG:
@@ -4573,20 +4494,6 @@ DECODE_OPCODE:
 
         // Other opcodes that we know inliner won't handle.
         case CEE_THROW:
-
-#ifdef FEATURE_LEGACYNETCF
-
-            if (compIsForInlining())
-            {
-                if (stateNetCFQuirks >= 0)
-                {
-                    compInlineResult->noteFatal(InlineObservation::CALLEE_WP7QUIRK_THROW);
-                    return;
-                }
-            }
-
-#endif // FEATURE_LEGACYNETCF
-
             if (seenJump)
                 break;
         case CEE_ISINST:
@@ -4693,13 +4600,13 @@ INL_HANDLE_COMPARE:
                             unsigned slot0 = pushedStack.getSlot0();
                             if (fgStack::isArgument(slot0))
                             {
-                                compInlineeHints = (InlInlineHints)(compInlineeHints | InlArgFeedsConstantTest);
+                                compInlineeHints = (InlineHints)(compInlineeHints | InlArgFeedsConstantTest);
                                 //Check for the double whammy of an incoming constant argument feeding a
                                 //constant test.
                                 varNum = fgStack::slotTypeToArgNum(slot0);
                                 if (impInlineInfo->inlArgInfo[varNum].argNode->OperIsConst())
                                 {
-                                    compInlineeHints = (InlInlineHints)(compInlineeHints
+                                    compInlineeHints = (InlineHints)(compInlineeHints
                                                                         | InlIncomingConstFeedsCond);
                                 }
                             }
@@ -4715,13 +4622,13 @@ INL_HANDLE_COMPARE:
                 if ((fgStack::isConstant(slot0) && fgStack::isArgument(slot1))
                     ||(fgStack::isConstant(slot1) && fgStack::isArgument(slot0)))
                 {
-                    compInlineeHints = (InlInlineHints)(compInlineeHints | InlArgFeedsConstantTest);
+                    compInlineeHints = (InlineHints)(compInlineeHints | InlArgFeedsConstantTest);
                 }
                 //Arg feeds range check
                 if ((fgStack::isArrayLen(slot0) && fgStack::isArgument(slot1))
                     ||(fgStack::isArrayLen(slot1) && fgStack::isArgument(slot0)))
                 {
-                    compInlineeHints = (InlInlineHints)(compInlineeHints | InlArgFeedsRngChk);
+                    compInlineeHints = (InlineHints)(compInlineeHints | InlArgFeedsRngChk);
                 }
 
                 //Check for an incoming arg that's a constant.
@@ -4730,7 +4637,7 @@ INL_HANDLE_COMPARE:
                     varNum = fgStack::slotTypeToArgNum(slot0);
                     if (impInlineInfo->inlArgInfo[varNum].argNode->OperIsConst())
                     {
-                        compInlineeHints = (InlInlineHints)(compInlineeHints | InlIncomingConstFeedsCond);
+                        compInlineeHints = (InlineHints)(compInlineeHints | InlIncomingConstFeedsCond);
                     }
                 }
                 if (fgStack::isArgument(slot1))
@@ -4738,7 +4645,7 @@ INL_HANDLE_COMPARE:
                     varNum = fgStack::slotTypeToArgNum(slot1);
                     if (impInlineInfo->inlArgInfo[varNum].argNode->OperIsConst())
                     {
-                        compInlineeHints = (InlInlineHints)(compInlineeHints | InlIncomingConstFeedsCond);
+                        compInlineeHints = (InlineHints)(compInlineeHints | InlIncomingConstFeedsCond);
                     }
                 }
             }
@@ -4747,41 +4654,11 @@ ARG_PUSH:
             if (compIsForInlining())
             {
                 pushedStack.pushArgument(varNum);
-
-#ifdef FEATURE_LEGACYNETCF
-
-                if (stateNetCFQuirks >= 0)
-                {
-                    unsigned expectedVarNum = (unsigned)stateNetCFQuirks;
-                    stateNetCFQuirks++;
-                    if (varNum != expectedVarNum)
-                    {
-                        compInlineResult->noteFatal(InlineObservation::CALLEE_WP7QUIRK_LDARG_ORDER);
-                        return;
-                    }
-                }
-
-#endif // FEATURE_LEGACYNETCF
-
-            }   
+            }
 
             break;
 
 ADDR_TAKEN:
-
-#ifdef FEATURE_LEGACYNETCF
-
-            if (compIsForInlining())
-            {
-                if (stateNetCFQuirks >= 0)
-                {
-                    compInlineResult->noteFatal(InlineObservation::CALLEE_WP7QUIRK_ADDRESS_TAKEN);
-                    return;
-                }
-            }
-
-#endif // FEATURE_LEGACYNETCF
-
             noway_assert(sz == sizeof(BYTE) || sz == sizeof(WORD));
             if (codeAddr > codeEndp - sz)
                 goto TOO_FAR;
@@ -4956,7 +4833,7 @@ TOO_FAR:
     //This allows for CALL, RET, and one more non-ld/st instruction.
     if ((opts.instrCount - ldStCount) < 4 || ((double)ldStCount/(double)opts.instrCount) > .90)
     {
-        compInlineeHints = (InlInlineHints)(compInlineeHints | InlMethodMostlyLdSt);
+        compInlineeHints = (InlineHints)(compInlineeHints | InlMethodMostlyLdSt);
     }
 
     if (pSm)
@@ -4994,8 +4871,8 @@ TOO_FAR:
                 if (verbose)
                 {
                     printf("\n\nInline expansion aborted because of impCanInlineNative: %s %s\n",
-                       compInlineResult->isNever() ? "INLINE_NEVER" : "INLINE_FAIL",
-                       compInlineResult->reason());
+                       compInlineResult->resultString(),
+                       compInlineResult->reasonString());
                 }
 #endif
 
@@ -5009,7 +4886,7 @@ TOO_FAR:
        {
           // This method's IL was small enough that we didn't use the size model to estimate
           // inlinability. Note that as the latest candidate reason.
-          compInlineResult->setCandidate("below ALWAYS_INLINE size");
+          compInlineResult->noteCandidate(InlineObservation::CALLEE_BELOW_ALWAYS_INLINE_SIZE);
        }
     }
 
@@ -5629,19 +5506,6 @@ GOT_ENDP:
             noway_assert(jmpAddr != DUMMY_INIT(BAD_IL_OFFSET));
             curBBdesc->bbJumpOffs = jmpAddr;
             break;
-
-#ifdef FEATURE_LEGACYNETCF
-        case BBJ_EHFILTERRET:
-            if (opts.eeFlags & CORJIT_FLG_NETCF_QUIRKS)
-            {
-                // NetCF incorrectly allowed sequence of endfilter instructions at the end of the filter. Ignore the redundant endfilter instructions.
-                while (codeAddr + 1 < codeEndp && getU1LittleEndian(codeAddr) == CEE_PREFIX1 && getU1LittleEndian(codeAddr+1) == (CEE_ENDFILTER & 0xFF))
-                    codeAddr += 2;
-
-                nxtBBoffs = (IL_OFFSET)(codeAddr - codeBegp);
-            }
-            break;
-#endif
 
         default:
             break;
@@ -21869,8 +21733,8 @@ Compiler::fgWalkResult      Compiler::fgDebugCheckInlineCandidates(GenTreePtr* p
 #endif // DEBUG
 
 
-void       Compiler::fgInvokeInlineeCompiler(GenTreeCall* call,
-                                             JitInlineResult* inlineResult)
+void       Compiler::fgInvokeInlineeCompiler(GenTreeCall*  call,
+                                             InlineResult* inlineResult)
 {
     noway_assert(call->gtOper == GT_CALL);
     noway_assert((call->gtFlags & GTF_CALL_INLINE_CANDIDATE) != 0);
@@ -22064,7 +21928,7 @@ void       Compiler::fgInvokeInlineeCompiler(GenTreeCall* call,
                inlineCandidateInfo->methInfo.ILCodeSize,
                inlineDepth,
                info.compFullName,
-               inlineResult->reason());
+               inlineResult->reasonString());
     }
 
     if (verbose)
@@ -22078,7 +21942,7 @@ void       Compiler::fgInvokeInlineeCompiler(GenTreeCall* call,
 #endif
 
     // We inlined...
-    inlineResult->setSuccess();
+    inlineResult->noteSuccess();
 }
 
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

@@ -11558,10 +11558,6 @@ DO_LDFTN:
                 // and the field it is reading, thus it is now unverifiable to not immediately precede with
                 // ldtoken <filed token>, and we now check accessibility
                 if ((callInfo.methodFlags & CORINFO_FLG_INTRINSIC) &&
-#ifdef FEATURE_LEGACYNETCF
-                    // Obfluscators are producing non-standard patterns that are causing old phone apps to fail
-                    !(opts.eeFlags & CORJIT_FLG_NETCF_QUIRKS) &&
-#endif
                     (info.compCompHnd->getIntrinsicID(callInfo.hMethod) == CORINFO_INTRINSIC_InitializeArray))
                 {
                     if (prevOpcode != CEE_LDTOKEN)
@@ -15509,11 +15505,11 @@ int   Compiler::impEstimateCallsiteNativeSize(CORINFO_METHOD_INFO *  methInfo)
 /*****************************************************************************
  */
 
-void             Compiler::impCanInlineNative(int              callsiteNativeEstimate,  
-                                              int              calleeNativeSizeEstimate,                                            
-                                              InlInlineHints   inlineHints,
-                                              InlineInfo*      pInlineInfo,     // NULL for static inlining hint for ngen. 
-                                              JitInlineResult* inlineResult)
+void             Compiler::impCanInlineNative(int           callsiteNativeEstimate,
+                                              int           calleeNativeSizeEstimate,
+                                              InlineHints   inlineHints,
+                                              InlineInfo*   pInlineInfo,     // NULL for static inlining hint for ngen.
+                                              InlineResult* inlineResult)
 {
     assert(pInlineInfo != NULL &&  compIsForInlining() ||  // Perform the actual inlining.
            pInlineInfo == NULL && !compIsForInlining()     // Calculate the static inlining hint for ngen.
@@ -15777,7 +15773,7 @@ void             Compiler::impCanInlineNative(int              callsiteNativeEst
                  threshold / NATIVE_CALL_SIZE_MULTIPLIER, multiplier));
 
        // Still a viable candidate....update status
-       inlineResult->setCandidate("Native size estimate within threshold");
+       inlineResult->noteCandidate(InlineObservation::CALLSITE_NATIVE_SIZE_ESTIMATE_OK);
     }
 
 #undef NATIVE_CALL_SIZE_MULTIPLIER
@@ -15793,8 +15789,8 @@ void             Compiler::impCanInlineNative(int              callsiteNativeEst
 
 void Compiler::impCanInlineIL(CORINFO_METHOD_HANDLE    fncHandle,
                               CORINFO_METHOD_INFO *    methInfo,
-                              bool forceInline,
-                              JitInlineResult* inlineResult)
+                              bool                     forceInline,
+                              InlineResult*            inlineResult)
 {
     unsigned codeSize = methInfo->ILCodeSize;
 
@@ -15847,8 +15843,10 @@ void Compiler::impCanInlineIL(CORINFO_METHOD_HANDLE    fncHandle,
 
     if (forceInline) 
     {
+        // This looks a bit redundant; it's because we haven't yet
+        // extracted policy from observation....
         inlineResult->note(InlineObservation::CALLEE_HAS_FORCE_INLINE);
-        inlineResult->setCandidate("Inline is a force inline");
+        inlineResult->noteCandidate(InlineObservation::CALLEE_HAS_FORCE_INLINE);
         return;
     }       
  
@@ -15876,61 +15874,19 @@ void Compiler::impCanInlineIL(CORINFO_METHOD_HANDLE    fncHandle,
         return;
     }
 
-#ifdef FEATURE_LEGACYNETCF
-
-    // Check for NetCF quirks mode and the NetCF restrictions
-    if (opts.eeFlags & CORJIT_FLG_NETCF_QUIRKS)
-    {
-       if (codeSize > 16)
-       {
-          compInlineResult->noteFatal(InlineObservation::CALLEE_WP7QUIRK_IL_TOO_BIG);
-          return;
-       }
-
-       if (methInfo->EHcount)
-       {
-          compInlineResult->noteFatal(InlineObservation::CALLEE_WP7QUIRK_HAS_EH);
-          return;
-       }
-
-       if (methInfo->locals.numArgs > 0)
-       {
-          compInlineResult->noteFatal(InlineObservation::CALLEE_WP7QUIRK_HAS_LOCALS);
-          return;
-       }
-
-       if (methInfo->args.retType == CORINFO_TYPE_FLOAT)
-       {
-          compInlineResult->noteFatal(InlineObservation::CALLEE_WP7QUIRK_HAS_FP_RET);
-          return;
-       }
-
-       CORINFO_ARG_LIST_HANDLE argLst = methInfo->args.args;
-       for(unsigned i = methInfo->args.numArgs; i > 0; --i, argLst = info.compCompHnd->getArgNext(argLst))
-       {
-           if (TYP_FLOAT == eeGetArgType(argLst, &methInfo->args))
-           {
-               compInlineResult->noteFatal(InlineObservation::CALLEE_WP7QUIRK_HAS_FP_ARG);
-               return;
-           }
-       }
-    }
-
-#endif // FEATURE_LEGACYNETCF
-
     // Still a viable candidate...
-    inlineResult->setCandidate("impCanInlineIL");
+    inlineResult->noteCandidate(InlineObservation::CALLEE_CAN_INLINE_IL);
 }
 
 /*****************************************************************************
  */
 
 void  Compiler::impCheckCanInline(GenTreePtr                call,
-                                             CORINFO_METHOD_HANDLE     fncHandle,
-                                             unsigned                  methAttr,
-                                             CORINFO_CONTEXT_HANDLE    exactContextHnd,
-                                             InlineCandidateInfo    ** ppInlineCandidateInfo,
-                                             JitInlineResult*          inlineResult)
+                                  CORINFO_METHOD_HANDLE     fncHandle,
+                                  unsigned                  methAttr,
+                                  CORINFO_CONTEXT_HANDLE    exactContextHnd,
+                                  InlineCandidateInfo**     ppInlineCandidateInfo,
+                                  InlineResult*             inlineResult)
 {
 #if defined(DEBUG) || MEASURE_INLINING
     ++Compiler::jitCheckCanInlineCallCount;    // This is actually the number of methods that starts the inline attempt.
@@ -15946,7 +15902,7 @@ void  Compiler::impCheckCanInline(GenTreePtr                call,
         CORINFO_METHOD_HANDLE fncHandle;
         unsigned methAttr;
         CORINFO_CONTEXT_HANDLE exactContextHnd;
-        JitInlineResult* result;
+        InlineResult* result;
         InlineCandidateInfo ** ppInlineCandidateInfo;
     } param = {0};
 
@@ -16105,7 +16061,7 @@ void  Compiler::impCheckCanInline(GenTreePtr                call,
 
         *(pParam->ppInlineCandidateInfo) = pInfo;
 
-        pParam->result->setCandidate("impCheckCanInline");
+        pParam->result->noteCandidate(InlineObservation::CALLEE_CHECK_CAN_INLINE_IL);
   
 _exit:
         ;
@@ -16120,7 +16076,7 @@ _exit:
 void Compiler::impInlineRecordArgInfo(InlineInfo *  pInlineInfo,
                                       GenTreePtr    curArgVal,
                                       unsigned      argNum,
-                                      JitInlineResult* inlineResult)
+                                      InlineResult* inlineResult)
 {
     InlArgInfo *  inlCurArgInfo = &pInlineInfo->inlArgInfo[argNum];
 
@@ -16218,7 +16174,7 @@ void Compiler::impInlineRecordArgInfo(InlineInfo *  pInlineInfo,
     // This doesn't mean that other information or other args
     // will not prevent inlining of this method.
     //
-    inlineResult->setCandidate("impInlineRecordArgInfo");
+    inlineResult->noteCandidate(InlineObservation::CALLSITE_ARGS_OK);
 }
 
 /*****************************************************************************
@@ -16229,12 +16185,12 @@ void  Compiler::impInlineInitVars(InlineInfo * pInlineInfo)
 {
     assert(!compIsForInlining());    
     
-    GenTreePtr             call         = pInlineInfo->iciCall;
-    CORINFO_METHOD_INFO *  methInfo     = &pInlineInfo->inlineCandidateInfo->methInfo; 
-    unsigned               clsAttr      = pInlineInfo->inlineCandidateInfo->clsAttr;
-    InlArgInfo      *      inlArgInfo   = pInlineInfo->inlArgInfo;
-    InlLclVarInfo   *      lclVarInfo   = pInlineInfo->lclVarInfo;   
-    JitInlineResult *      inlineResult = pInlineInfo->inlineResult;
+    GenTreePtr            call         = pInlineInfo->iciCall;
+    CORINFO_METHOD_INFO*  methInfo     = &pInlineInfo->inlineCandidateInfo->methInfo;
+    unsigned              clsAttr      = pInlineInfo->inlineCandidateInfo->clsAttr;
+    InlArgInfo*           inlArgInfo   = pInlineInfo->inlArgInfo;
+    InlLclVarInfo*        lclVarInfo   = pInlineInfo->lclVarInfo;
+    InlineResult*         inlineResult = pInlineInfo->inlineResult;
     
     const bool hasRetBuffArg = impMethodInfo_hasRetBuffArg(methInfo);
 
@@ -16563,7 +16519,7 @@ void  Compiler::impInlineInitVars(InlineInfo * pInlineInfo)
     pInlineInfo->hasSIMDTypeArgLocalOrReturn = foundSIMDType;
 #endif // FEATURE_SIMD
 
-    inlineResult->setCandidate("impInlineInitVars");
+    inlineResult->noteCandidate(InlineObservation::CALLSITE_LOCALS_OK);
 }
 
 
@@ -16862,7 +16818,7 @@ void          Compiler::impMarkInlineCandidate(GenTreePtr callNode, CORINFO_CONT
     GenTreeCall* call = callNode->AsCall();
     CORINFO_METHOD_HANDLE callerHandle = info.compMethodHnd;
     CORINFO_METHOD_HANDLE calleeHandle = call->gtCall.gtCallType == CT_USER_FUNC ? call->gtCall.gtCallMethHnd : nullptr;
-    JitInlineResult inlineResult(this, callerHandle, calleeHandle, "impMarkInlineCandidate");
+    InlineResult inlineResult(this, callerHandle, calleeHandle, "impMarkInlineCandidate");
     
     /* Don't inline if not optimized code */
     if  (opts.compDbgCode)
