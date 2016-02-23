@@ -81,11 +81,6 @@ namespace System {
 		{
 			return Math.Round(i, digits, mode);
 		}
-
-		public static int Truncate2(int i, int digits) 
-		{
-			return Math.Truncate2(i, digits);
-		}
 		
         // The absolute value of the int contained.
         public override int GetHashCode() {
