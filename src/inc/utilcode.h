@@ -40,6 +40,7 @@
 #include "entrypoints.h"
 
 #include "clrnt.h"
+#include "ostype.h"
 
 // Values for the names of Watson
 const WCHAR kWatsonName1[] = W("drwatson");
@@ -1522,8 +1523,6 @@ public:
 private:
     LPWSTR m_wszString;
 };
-
-#include "ostype.h"
 
 #define CLRGetTickCount64() GetTickCount64()
 
@@ -5756,5 +5755,4 @@ struct SpinConstants
 extern SpinConstants g_SpinConstants;
 
 // ======================================================================================
-
 #endif // __UtilCode_h__

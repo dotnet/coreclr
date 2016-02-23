@@ -25,6 +25,17 @@ BOOL gExInfoIsServer = TRUE;
 #define NON_SUPPORTED_PLATFORM_MSGBOX_TEXT              W("The minimum supported platform is Windows 2000")
 #define NON_SUPPORTED_PLATFORM_TERMINATE_ERROR_CODE     0xBAD1BAD1
 
+#if !defined(FEATURE_PAL)
+
+#include "delayloadhelpers.h"
+
+DELAY_LOADED_MODULE(kernel32);
+DELAY_LOADED_MODULE_EX(api-ms-win-core-kernel32-legacy-l1-1-1, api_ms_win_core_kernel32_legacy_l1_1_1);
+
+DELAY_LOADED_FUNCTION_WITH_APISET_FALLBACK(kernel32, api_ms_win_core_kernel32_legacy_l1_1_1, VerifyVersionInfoW);
+
+#endif // !defined(FEATURE_PAL)
+
 //*****************************************************************************
 // One time initialization of the OS version
 //*****************************************************************************
@@ -53,7 +64,15 @@ void InitRunningOnVersionStatus ()
     dwlConditionMask = VER_SET_CONDITION(dwlConditionMask, CLR_VER_MAJORVERSION, VER_GREATER_EQUAL);
     dwlConditionMask = VER_SET_CONDITION(dwlConditionMask, CLR_VER_MINORVERSION, VER_GREATER_EQUAL);
 
-    if(VerifyVersionInfo(&sVer, CLR_VER_MAJORVERSION | CLR_VER_PLATFORMID | CLR_VER_MINORVERSION, dwlConditionMask))
+    decltype(VerifyVersionInfoW) *fpVerifyVersionInfoW = nullptr;
+    DWORD dwLastError = ERROR_SUCCESS;
+    LOOKUP_API_VIA_APISET_FALLBACK(kernel32, api_ms_win_core_kernel32_legacy_l1_1_1, VerifyVersionInfoW, &fpVerifyVersionInfoW, dwLastError)
+    if (dwLastError != ERROR_SUCCESS)
+    {
+        goto CHECK_SUPPORTED;
+    }
+
+    if((*fpVerifyVersionInfoW)(&sVer, CLR_VER_MAJORVERSION | CLR_VER_PLATFORMID | CLR_VER_MINORVERSION, dwlConditionMask))
     {
         gRunningOnStatus = RUNNING_ON_WIN8;
         fSupportedPlatform = TRUE;
@@ -74,7 +93,7 @@ void InitRunningOnVersionStatus ()
     dwlConditionMask = VER_SET_CONDITION(dwlConditionMask, CLR_VER_MAJORVERSION, VER_GREATER_EQUAL);
     dwlConditionMask = VER_SET_CONDITION(dwlConditionMask, CLR_VER_MINORVERSION, VER_GREATER_EQUAL);
 
-    if(VerifyVersionInfo(&sVer, CLR_VER_MAJORVERSION | CLR_VER_PLATFORMID | CLR_VER_MINORVERSION, dwlConditionMask))
+    if((*fpVerifyVersionInfoW)(&sVer, CLR_VER_MAJORVERSION | CLR_VER_PLATFORMID | CLR_VER_MINORVERSION, dwlConditionMask))
     {
         gRunningOnStatus = RUNNING_ON_WIN7;
         fSupportedPlatform = TRUE;
@@ -93,7 +112,7 @@ void InitRunningOnVersionStatus ()
     VER_SET_CONDITION(dwlConditionMask, CLR_VER_PLATFORMID, VER_EQUAL);
     VER_SET_CONDITION(dwlConditionMask, CLR_VER_MAJORVERSION, VER_GREATER_EQUAL);
 
-    if(VerifyVersionInfo(&sVer, CLR_VER_MAJORVERSION | CLR_VER_PLATFORMID, dwlConditionMask))
+    if((*fpVerifyVersionInfoW)(&sVer, CLR_VER_MAJORVERSION | CLR_VER_PLATFORMID, dwlConditionMask))
     {
         gRunningOnStatus = RUNNING_ON_VISTA;
         fSupportedPlatform = TRUE;
@@ -114,7 +133,7 @@ void InitRunningOnVersionStatus ()
     VER_SET_CONDITION(dwlConditionMask, CLR_VER_MAJORVERSION, VER_GREATER_EQUAL);
     VER_SET_CONDITION(dwlConditionMask, CLR_VER_MINORVERSION, VER_GREATER_EQUAL);
 
-    if(VerifyVersionInfo(&sVer, CLR_VER_MAJORVERSION | CLR_VER_PLATFORMID | CLR_VER_MINORVERSION, dwlConditionMask))
+    if((*fpVerifyVersionInfoW)(&sVer, CLR_VER_MAJORVERSION | CLR_VER_PLATFORMID | CLR_VER_MINORVERSION, dwlConditionMask))
     {
         gRunningOnStatus = RUNNING_ON_WIN2003;
         fSupportedPlatform = TRUE;
@@ -130,7 +149,7 @@ void InitRunningOnVersionStatus ()
     VER_SET_CONDITION(dwlConditionMask, CLR_VER_MAJORVERSION, VER_GREATER_EQUAL);
     VER_SET_CONDITION(dwlConditionMask, CLR_VER_MINORVERSION, VER_GREATER_EQUAL);
 
-    if(VerifyVersionInfo(&sVer, CLR_VER_MAJORVERSION | CLR_VER_PLATFORMID | CLR_VER_MINORVERSION, dwlConditionMask))
+    if((*fpVerifyVersionInfoW)(&sVer, CLR_VER_MAJORVERSION | CLR_VER_PLATFORMID | CLR_VER_MINORVERSION, dwlConditionMask))
     {
         gRunningOnStatus = RUNNING_ON_WINXP;
         fSupportedPlatform = TRUE;
@@ -152,7 +171,7 @@ void InitRunningOnVersionStatus ()
     VER_SET_CONDITION(dwlConditionMask, CLR_VER_MAJORVERSION, VER_GREATER_EQUAL);
     VER_SET_CONDITION(dwlConditionMask, CLR_VER_MINORVERSION, VER_GREATER_EQUAL);
 
-    if(VerifyVersionInfo(&sVer, CLR_VER_MAJORVERSION | CLR_VER_PLATFORMID | CLR_VER_MINORVERSION, dwlConditionMask))
+    if((*fpVerifyVersionInfoW)(&sVer, CLR_VER_MAJORVERSION | CLR_VER_PLATFORMID | CLR_VER_MINORVERSION, dwlConditionMask))
     {
         gRunningOnStatus = RUNNING_ON_WINNT5;
         fSupportedPlatform = TRUE;
@@ -181,7 +200,7 @@ CHECK_SUPPORTED:
     dwlConditionMask = 0;
     VER_SET_CONDITION(dwlConditionMask, CLR_VER_PRODUCT_TYPE, VER_EQUAL);
 
-    if(VerifyVersionInfo(&sVerX, CLR_VER_PRODUCT_TYPE, dwlConditionMask))
+    if((*fpVerifyVersionInfoW)(&sVerX, CLR_VER_PRODUCT_TYPE, dwlConditionMask))
     {
         gExInfoIsServer = 1;
     }
@@ -194,7 +213,7 @@ CHECK_SUPPORTED:
     dwlConditionMask = 0;
     VER_SET_CONDITION(dwlConditionMask, CLR_VER_PRODUCT_TYPE, VER_EQUAL);
 
-    if(VerifyVersionInfo(&sVerX, CLR_VER_PRODUCT_TYPE, dwlConditionMask))
+    if((*fpVerifyVersionInfoW)(&sVerX, CLR_VER_PRODUCT_TYPE, dwlConditionMask))
     {
         gExInfoIsServer = 1;
     }

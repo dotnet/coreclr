@@ -92,6 +92,14 @@ if(WIN32)
         comnls_wks
         comcrypt_wks
         msvcrt.lib
+    )
+
+    # ONECORE_TODO: Enable this for Windows Arm64
+    if (NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)
+        list(APPEND CORECLR_LIBRARIES
+        )
+    else()
+        list(APPEND CORECLR_LIBRARIES
         kernel32.lib
         advapi32.lib
         ole32.lib
@@ -103,7 +111,8 @@ if(WIN32)
         bcrypt.lib
         crypt32.lib
         RuntimeObject.lib
-    )
+        )
+    endif()
 else()
     list(APPEND CORECLR_LIBRARIES
         ${START_WHOLE_ARCHIVE} # force all PAL objects to be included so all exports are available  
@@ -121,7 +130,21 @@ if(CLR_CMAKE_PLATFORM_UNIX AND FEATURE_EVENT_TRACE)
   )
 endif(CLR_CMAKE_PLATFORM_UNIX AND FEATURE_EVENT_TRACE)
 
-target_link_libraries(coreclr ${CORECLR_LIBRARIES}) 
+if(WIN32)
+
+    # ONECORE_TODO: Enable this for Windows Arm64
+    if (NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)
+
+        # This tells CMake that it should not pull in the transitive closure of the libraries used to build coreclr libraray when other projects (e.g. ilasm)
+        # reference coreclr library for their linking. This is required to ensure that unique dependencies of coreclr (e.g. onecore.lib) do not leak to other
+        # components.
+        target_link_libraries(coreclr PRIVATE "${WINDOWS_SDK_LIB_PATH}onecore.lib" PUBLIC ${CORECLR_LIBRARIES}) 
+    else()
+        target_link_libraries(coreclr ${CORECLR_LIBRARIES})
+    endif()
+else()
+    target_link_libraries(coreclr ${CORECLR_LIBRARIES})
+endif()
 
 if(WIN32)
     # Add dac table & debug resource to coreclr

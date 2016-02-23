@@ -128,7 +128,9 @@ if not defined __BuildSequential (
 
 if not defined CORE_ROOT (
     set noCore_RootSet=true
-    set "CORE_ROOT=%__BinDir%"
+
+    REM Point to the flat layout where CoreCLR is present alongwith its APISet dependencies
+    set "CORE_ROOT=%__BinDir%\layout\flat"
 )
 
 ::Check if the test Binaries are built

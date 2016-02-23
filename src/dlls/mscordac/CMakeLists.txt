@@ -79,6 +79,17 @@ if(WIN32)
         ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/mscordaccore.exp # export file
         ${COREDAC_LIBRARIES}
         mdwinmd_dac
+    )
+
+    # ONECORE_TODO: Enable this for Windows Arm64
+    if (NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)
+        list(APPEND COREDAC_LIBRARIES
+        "${WINDOWS_SDK_LIB_PATH}onecore.lib"
+        ${STATIC_MT_CRT_LIB_ONECORE}
+        ${STATIC_MT_VCRT_LIB_ONECORE}
+      )
+    else()
+        list(APPEND COREDAC_LIBRARIES
         kernel32.lib
         advapi32.lib
         ole32.lib
@@ -86,7 +97,9 @@ if(WIN32)
         uuid.lib
         user32.lib
         ${STATIC_MT_CRT_LIB}
-    )
+      )
+    endif()
+
 else(WIN32)
     list(APPEND COREDAC_LIBRARIES
         mscorrc_debug

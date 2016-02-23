@@ -21,6 +21,16 @@
 #include "strongname.h"
 #include "corpriv.h"
 
+#if !defined(FEATURE_PAL)
+
+#include "delayloadhelpers.h"
+
+DELAY_LOADED_MODULE(shlwapi);
+DELAY_LOADED_MODULE_EX(api-ms-win-core-url-l1-1-0, API_MS_WIN_CORE_URL_L1_1_0);
+
+DELAY_LOADED_FUNCTION_WITH_APISET_FALLBACK(shlwapi, API_MS_WIN_CORE_URL_L1_1_0, PathIsURLW);
+#endif // !defined(FEATURE_PAL)
+
 namespace BINDER_SPACE
 {
     namespace
@@ -148,8 +158,15 @@ namespace BINDER_SPACE
 
     BOOL IsURL(SString &urlOrPath)
     {
+#if defined(FEATURE_PAL)        
         // This is also in defined rotor pal
         return PathIsURLW(urlOrPath);
+#else // !FEATURE_PAL
+        decltype(PathIsURLW) *fpPathIsURLW = nullptr;
+        DWORD dwLastError = ERROR_SUCCESS;
+        LOOKUP_API_VIA_APISET_FALLBACK(shlwapi, API_MS_WIN_CORE_URL_L1_1_0, PathIsURLW, &fpPathIsURLW, dwLastError)
+        return (*fpPathIsURLW)(urlOrPath);
+#endif // FEATURE_PAL        
     }
 
     void MutateUrlToPath(SString &urlOrPath)

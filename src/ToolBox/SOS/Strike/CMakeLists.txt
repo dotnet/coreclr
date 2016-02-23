@@ -66,6 +66,7 @@ if(WIN32)
   preprocess_def_file(${CMAKE_CURRENT_SOURCE_DIR}/sos.def ${CMAKE_CURRENT_BINARY_DIR}/sos.def)
   list(APPEND SOS_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/sos.def)
 
+  # ONECORE_TODO: Fix this for OneCore linking
   set(SOS_LIBRARY
     corguids
     debugshim

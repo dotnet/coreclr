@@ -63,11 +63,13 @@ if(CLR_CMAKE_PLATFORM_UNIX)
 else()
     target_link_libraries(ildasm
         ${ILDASM_LINK_LIBRARIES}
+        advapi32
         coreclr
         msvcrt
         ole32
         oleaut32
         shell32
+        user32
     )
 
     # We will generate PDB only for the debug configuration

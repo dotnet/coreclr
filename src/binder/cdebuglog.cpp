@@ -34,6 +34,17 @@
 #define DEBUG_LOG_HTML_END           L"\r\n</pre></html>"
 #define DEBUG_LOG_NEW_LINE           L"\r\n"
 
+#if !defined(FEATURE_PAL)
+
+#include "delayloadhelpers.h"
+
+DELAY_LOADED_MODULE(shlwapi);
+DELAY_LOADED_MODULE_EX(api-ms-win-core-shlwapi-legacy-l1-1-0, API_MS_WIN_CORE_SHLWAPI_LEGACY_L1_1_0);
+
+DELAY_LOADED_FUNCTION_WITH_APISET_FALLBACK(shlwapi, API_MS_WIN_CORE_SHLWAPI_LEGACY_L1_1_0, PathFindFileNameW);
+
+#endif // !defined(FEATURE_PAL)
+
 namespace BINDER_SPACE
 {
     namespace
@@ -64,7 +75,14 @@ namespace BINDER_SPACE
             IF_FAIL_GO(StringCbCopy(szPath, cbSzPath, pszName));
             szPathString.CloseBuffer(static_cast<COUNT_T>(pszNameLen));
             
+#if defined(FEATURE_PAL)
             pszFileName = PathFindFileName(szPath);
+#else // !FEATURE_PAL
+            decltype(PathFindFileNameW) *fpPathFindFileNameW = nullptr;
+            DWORD dwLastError = ERROR_SUCCESS;
+            LOOKUP_API_VIA_APISET_FALLBACK(shlwapi, API_MS_WIN_CORE_SHLWAPI_LEGACY_L1_1_0, PathFindFileNameW, &fpPathFindFileNameW, dwLastError)
+            pszFileName = (*fpPathFindFileNameW)(szPath);
+#endif // FEATURE_PAL            
 
             if (pszFileName <= szPath)
             {
@@ -390,7 +408,16 @@ namespace BINDER_SPACE
         {
             m_logFileName.Set(L"WhereRefBind!Host=(LocalMachine)!FileName=(");
 
-            LPCWSTR pwzFileName = PathFindFileNameW(sCodeBase.GetUnicode());
+            LPCWSTR pwzFileName = NULL;
+
+#if defined(FEATURE_PAL)
+            pwzFileName = PathFindFileNameW(sCodeBase.GetUnicode());
+#else // !FEATURE_PAL
+            decltype(PathFindFileNameW) *fpPathFindFileNameW = nullptr;
+            DWORD dwLastError = ERROR_SUCCESS;
+            LOOKUP_API_VIA_APISET_FALLBACK(shlwapi, API_MS_WIN_CORE_SHLWAPI_LEGACY_L1_1_0, PathFindFileNameW, &fpPathFindFileNameW, dwLastError)
+            pwzFileName = (*fpPathFindFileNameW)(sCodeBase.GetUnicode());
+#endif // FEATURE_PAL            
             if (pwzFileName != NULL)
             {
                 m_logFileName.Append(pwzFileName);

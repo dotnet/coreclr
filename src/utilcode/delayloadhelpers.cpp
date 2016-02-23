@@ -58,7 +58,8 @@ namespace DelayLoad
             IfFailRet(InitializeLock());
 
             HModuleHolder hMod = ::LoadLibraryW(m_wzDllName);
-            hr = (hMod == nullptr) ? HRESULT_FROM_GetLastError() : S_OK;
+            DWORD dwLastError = GetLastError();
+            hr = (hMod == nullptr) ? HRESULT_FROM_WIN32(dwLastError): S_OK;
             _ASSERTE(FAILED(hr) == (hMod == nullptr));
 
             {   // Lock scope
@@ -67,6 +68,7 @@ namespace DelayLoad
                 {
                     m_hr = hr;
                     m_hMod = hMod.Extract();
+                    m_dwLastError = dwLastError;
                     m_fInitialized = true;
                 }
             }
@@ -75,6 +77,13 @@ namespace DelayLoad
         _ASSERTE(m_fInitialized);
         *pHMODULE = m_hMod;
         return m_hr;
+    }
+
+    DWORD Module::GetError()
+    {
+        STATIC_CONTRACT_LIMITED_METHOD;
+
+        return m_dwLastError;
     }
 
     //=================================================================================================================
@@ -94,7 +103,8 @@ namespace DelayLoad
             IfFailRet(m_pModule->GetValue(&hMod));
 
             LPVOID pvFunc = reinterpret_cast<LPVOID>(::GetProcAddress(hMod, m_szFunctionName));
-            hr = (pvFunc == nullptr) ? HRESULT_FROM_GetLastError() : S_OK;
+            DWORD dwLastError = GetLastError();
+            hr = (pvFunc == nullptr) ? HRESULT_FROM_WIN32(dwLastError) : S_OK;
             
             {   // Lock scope
                 CRITSEC_Holder lock(g_pLock);
@@ -102,6 +112,7 @@ namespace DelayLoad
                 {
                     m_hr = hr;
                     m_pvFunction = pvFunc;
+                    m_dwLastError = dwLastError;
                     m_fInitialized = true;
                 }
             }
@@ -109,6 +120,14 @@ namespace DelayLoad
 
         _ASSERTE(m_fInitialized);
         *ppvFunc = m_pvFunction;
+        m_dwLastError = ERROR_SUCCESS;
         return m_hr;
+    }
+
+    DWORD Function::GetError()
+    {
+        STATIC_CONTRACT_LIMITED_METHOD;
+
+        return m_dwLastError;
     }
 }

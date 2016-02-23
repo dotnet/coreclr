@@ -97,12 +97,15 @@ elseif(CLR_CMAKE_PLATFORM_UNIX_TARGET_ARM64)
 elseif(CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64)
   set(CLR_CMAKE_PLATFORM_ARCH_AMD64 1)
 elseif(WIN32)
+
   if (CLR_CMAKE_TARGET_ARCH STREQUAL x64)
     set(CLR_CMAKE_PLATFORM_ARCH_AMD64 1)
     set(IS_64BIT_BUILD 1)
+    set(WINDOWS_SDK_ARCH "x64")
   elseif(CLR_CMAKE_TARGET_ARCH STREQUAL x86)
     set(CLR_CMAKE_PLATFORM_ARCH_I386 1)
     set(IS_64BIT_BUILD 0)
+    set(WINDOWS_SDK_ARCH "x86")
   elseif(CLR_CMAKE_TARGET_ARCH STREQUAL arm64)
     set(CLR_CMAKE_PLATFORM_ARCH_ARM64 1)
     set(IS_64BIT_BUILD 1)
@@ -116,9 +119,36 @@ elseif(WIN32)
 
     message("Overwriting the CMAKE_CXX_COMPILER.")
     message(CMAKE_CXX_COMPILER found:${CMAKE_CXX_COMPILER})
+
+    set(WINDOWS_SDK_ARCH "arm64")
   else()
     clr_unknown_arch()
   endif()
+
+  # ONECORE_TODO: Enable this for Windows Arm64
+  if (NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)
+    # Set path to Windows SDK to link into platform libraries
+    if ((NOT DEFINED ENV{WindowsSdkDir}) OR (NOT DEFINED ENV{WindowsSDKVersion}))
+      message(FATAL_ERROR "Windows SDK not installed: Please install it from https://dev.windows.com/en-us/downloads/") 
+    else()
+      set(WINDOWS_SDK_LIB_PATH "$ENV{WindowsSdkDir}lib\\$ENV{WindowsSDKVersion}um\\${WINDOWS_SDK_ARCH}\\")
+    endif()
+
+    # Set path to OneCore version of CRT
+    if (NOT DEFINED ENV{VCInstallDir})
+      message(FATAL_ERROR "VC++ 2015 or later not installed: Please install it from Visual Studio 2015 or later setup.") 
+    else()
+      set(VC_LIB_PATH_ONECORE "$ENV{VCInstallDir}lib\\onecore\\")
+      if (CLR_CMAKE_TARGET_ARCH STREQUAL x64)
+        set(VC_LIB_PATH_ONECORE "${VC_LIB_PATH_ONECORE}amd64\\")
+      elseif(CLR_CMAKE_TARGET_ARCH STREQUAL x86)
+        # Nothing to do - default path is the one we want
+      else()
+        clr_unknown_arch()
+      endif()
+    endif()
+  endif()
+
 endif()
 
 if(CLR_CMAKE_PLATFORM_UNIX)
@@ -617,8 +647,23 @@ endif (CLR_CMAKE_PLATFORM_UNIX)
 # Libraries
 
 if (WIN32)
+
+    # Define the CRT lib references that link into Desktop imports
     set(STATIC_MT_CRT_LIB  "libcmt$<$<OR:$<CONFIG:Debug>,$<CONFIG:Checked>>:d>.lib")
+    set(STATIC_MT_VCRT_LIB  "libvcruntime$<$<OR:$<CONFIG:Debug>,$<CONFIG:Checked>>:d>.lib")
     set(STATIC_MT_CPP_LIB  "libcpmt$<$<OR:$<CONFIG:Debug>,$<CONFIG:Checked>>:d>.lib")
+
+    # ONECORE_TODO: Enable this for Windows Arm64
+    if (NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)
+      # Define the CRT lib references that link into OneCore imports
+      set(STATIC_MT_CRT_LIB_ONECORE  "${VC_LIB_PATH_ONECORE}libcmt$<$<OR:$<CONFIG:Debug>,$<CONFIG:Checked>>:d>.lib")
+      set(STATIC_MT_VCRT_LIB_ONECORE  "${VC_LIB_PATH_ONECORE}libvcruntime$<$<OR:$<CONFIG:Debug>,$<CONFIG:Checked>>:d>.lib")
+      set(STATIC_MT_CPP_LIB_ONECORE  "${VC_LIB_PATH_ONECORE}libcpmt$<$<OR:$<CONFIG:Debug>,$<CONFIG:Checked>>:d>.lib")
+
+      # Define the uCRT lib reference
+      set(STATIC_MT_UCRT_LIB  "libucrt$<$<OR:$<CONFIG:Debug>,$<CONFIG:Checked>>:d>.lib")
+    endif()
+    
 endif(WIN32)
 
 # Definition directives
