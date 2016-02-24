@@ -21311,33 +21311,55 @@ void Compiler::fgRemoveContainedEmbeddedStatements(GenTreePtr tree, GenTreeStmt*
     }
 }
 
-/*****************************************************************************
- * Check if we have a recursion loop or if the recursion is too deep while doing the inlining.
- * Return true if a recursion loop is found or if the inlining recursion is too deep.
- * Also return the depth.
- */
+//------------------------------------------------------------------------
+// fgCheckForInlineDepthAndRecursion: compute depth of the candidate, and
+// check for recursion and excessive depth
+//
+// Return Value:
+//    The depth of the inline candidate. The root method is a depth 0, top-level
+//    candidates at depth 1, etc.
+//
+// Notes:
+//    We generally disallow recursive inlines by policy. However, they are
+//    supported by the underlying machinery.
+//
+//    Likewise the depth limit is a policy consideration, and serves mostly
+//    as a safeguard to prevent runaway inlining of small methods.
 
-bool          Compiler::fgIsUnboundedInlineRecursion(inlExpPtr               expLst,
-                                                     BYTE*                   ilCode,
-                                                     DWORD*                  finalDepth)
+unsigned     Compiler::fgCheckInlineDepthAndRecursion(InlineInfo* inlineInfo)
 {
+    BYTE*          candidateCode = inlineInfo->inlineCandidateInfo->methInfo.ILCode;
+    InlineContext* inlineContext = inlineInfo->iciStmt->gtStmt.gtInlineContext;
+    InlineResult*  inlineResult  = inlineInfo->inlineResult;
+
+    // There should be a context for all candidates.
+    assert(inlineContext != nullptr);
+
     const DWORD MAX_INLINING_RECURSION_DEPTH = 20;
     DWORD depth = 0;
-    bool result = false;
 
-    for (; expLst != nullptr; expLst = expLst->ixlParent)
+    for (; inlineContext != nullptr; inlineContext = inlineContext->getParent())
     {
         // Hard limit just to catch pathological cases
         depth++;
-        if  ((expLst->ixlCode == ilCode) || (depth > MAX_INLINING_RECURSION_DEPTH))
+
+        if (inlineContext->getCode() == candidateCode)
         {
-           result = true;
-           break;
+            // This inline candidate has the same IL code buffer as an already
+            // inlined method does.
+            inlineResult->noteFatal(InlineObservation::CALLSITE_IS_RECURSIVE);
+            break;
+        }
+
+        if (depth > MAX_INLINING_RECURSION_DEPTH)
+        {
+            inlineResult->noteFatal(InlineObservation::CALLSITE_IS_TOO_DEEP);
+            break;
         }
     }
 
-    *finalDepth = depth;
-    return result;
+    inlineResult->noteInt(InlineObservation::CALLSITE_DEPTH, depth);
+    return depth;
 }
 
 /*****************************************************************************
@@ -21360,11 +21382,7 @@ void                Compiler::fgInline()
     noway_assert(block != nullptr);
 
     // Set the root inline context on all statements
-    inlExpLst* expDsc = new (this, CMK_Inlining) inlExpLst();
-
-#if defined(DEBUG)
-    expDsc->methodName = info.compFullName;
-#endif
+    InlineContext* rootContext = InlineContext::newRoot(this);
 
     for (; block != nullptr; block = block->bbNext)
     {
@@ -21372,7 +21390,7 @@ void                Compiler::fgInline()
              stmt;
              stmt = stmt->gtNextStmt)
         {
-           stmt->gtInlineExpList = expDsc;
+            stmt->gtInlineContext = rootContext;
         }
     }
 
@@ -21394,7 +21412,7 @@ void                Compiler::fgInline()
         {
             expr = stmt->gtStmtExpr;
 
-            // See if we can expand the inline candidate.
+            // See if we can expand the inline candidate
             if ((expr->gtOper == GT_CALL) && ((expr->gtFlags & GTF_CALL_INLINE_CANDIDATE) != 0))
             {
                 fgMorphStmt = stmt;
@@ -21462,7 +21480,7 @@ void                Compiler::fgInline()
     if  (verbose || (fgInlinedCount > 0 && fgPrintInlinedMethods))
     {
        printf("**************** Inline Tree\n");
-       expDsc->Dump();
+       rootContext->Dump(this);
     }
 
 #endif // DEBUG
@@ -21761,10 +21779,9 @@ void       Compiler::fgInvokeInlineeCompiler(GenTreeCall*  call,
     // Store the link to inlineCandidateInfo into inlineInfo
     inlineInfo.inlineCandidateInfo = inlineCandidateInfo;
 
-    DWORD inlineDepth = 0;
-    BYTE * candidateIL = inlineCandidateInfo->methInfo.ILCode;
-    inlExpPtr expList = inlineInfo.iciStmt->gtStmt.gtInlineExpList;
-    if (fgIsUnboundedInlineRecursion(expList, candidateIL, &inlineDepth))
+    unsigned inlineDepth = fgCheckInlineDepthAndRecursion(&inlineInfo);
+
+    if (inlineResult->isFailure())
     {
 #ifdef DEBUG
         if (verbose)
@@ -21772,7 +21789,6 @@ void       Compiler::fgInvokeInlineeCompiler(GenTreeCall*  call,
             printf("Recursive or deep inline recursion detected. Will not expand this INLINECANDIDATE \n");
         }
 #endif // DEBUG
-        inlineResult->noteFatal(InlineObservation::CALLSITE_IS_RECURSIVE_OR_DEEP);
         return;
     }
 
@@ -21923,11 +21939,10 @@ void       Compiler::fgInvokeInlineeCompiler(GenTreeCall*  call,
 
     if (verbose || fgPrintInlinedMethods)
     {
-        printf("Successfully inlined %s (%d IL bytes) (depth %d) into %s [%s]\n",
+        printf("Successfully inlined %s (%d IL bytes) (depth %d) [%s]\n",
                eeGetMethodFullName(fncHandle),
                inlineCandidateInfo->methInfo.ILCodeSize,
                inlineDepth,
-               info.compFullName,
                inlineResult->reasonString());
     }
 
@@ -21990,24 +22005,9 @@ void Compiler::fgInsertInlineeBlocks(InlineInfo* pInlineInfo)
 #endif // defined(DEBUG) || MEASURE_INLINING
 
     //
-    // Obtain an inlExpLst struct and update the gtInlineExpList field in the inlinee's statements
+    // Create a new inline context and mark the inlined statements with it
     //
-    inlExpLst* expDsc = new (this, CMK_Inlining) inlExpLst;
-    inlExpLst *parentLst = iciStmt->gtStmt.gtInlineExpList;
-    noway_assert(parentLst != nullptr);
-    BYTE *parentIL = pInlineInfo->inlineCandidateInfo->methInfo.ILCode;
-    expDsc->ixlCode = parentIL;
-    expDsc->ixlParent = parentLst;
-    // Push on front here will put siblings in reverse lexical
-    // order which we undo in the dumper
-    expDsc->ixlSibling = parentLst->ixlChild;
-    parentLst->ixlChild = expDsc;
-    expDsc->ixlChild = nullptr;
-    expDsc->ilOffset = iciStmt->AsStmt()->gtStmtILoffsx;
-#ifdef DEBUG
-    expDsc->methodName = eeGetMethodFullName(pInlineInfo->fncHandle);
-    expDsc->depth = parentLst->depth + 1;
-#endif
+    InlineContext* calleeContext = InlineContext::newSuccess(this, pInlineInfo);
 
     for (block = InlineeCompiler->fgFirstBB;
          block != nullptr;
@@ -22017,7 +22017,7 @@ void Compiler::fgInsertInlineeBlocks(InlineInfo* pInlineInfo)
              stmt;
              stmt = stmt->gtNextStmt)
         {
-            stmt->gtInlineExpList = expDsc;
+            stmt->gtInlineContext = calleeContext;
         }
     }
 

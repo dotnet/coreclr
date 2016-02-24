@@ -2336,6 +2336,7 @@ struct GenTreeColon: public GenTreeOp
 
 /* gtCall   -- method call      (GT_CALL) */
 typedef class fgArgInfo *  fgArgInfoPtr;
+enum class InlineObservation;
 
 struct GenTreeCall final : public GenTree
 {
@@ -2358,11 +2359,6 @@ struct GenTreeCall final : public GenTree
     regMaskTP         gtCallRegUsedMask;      // mask of registers used to pass parameters
 #ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
     SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
-
-    void SetRegisterReturningStructState(const SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR& structDescIn)
-    {
-        structDesc.CopyFrom(structDescIn);
-    }
 #endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
 
 #define     GTF_CALL_M_EXPLICIT_TAILCALL       0x0001  // GT_CALL -- the call is "tail" prefixed and importer has performed tail call checks
@@ -2505,6 +2501,12 @@ struct GenTreeCall final : public GenTree
 #ifdef FEATURE_READYTORUN_COMPILER
     // Call target lookup info for method call from a Ready To Run module
     CORINFO_CONST_LOOKUP gtEntryPoint;
+#endif
+
+#ifdef DEBUG
+    // For non-inline candidates, track the first observation
+    // that blocks candidacy.
+    InlineObservation gtInlineObservation;
 #endif
 
     GenTreeCall(var_types type) : 
@@ -3169,15 +3171,13 @@ struct GenTreeRetExpr: public GenTree
 
 /* gtStmt   -- 'statement expr' (GT_STMT) */
 
+class InlineContext;
+
 struct GenTreeStmt: public GenTree
 {
-    GenTreePtr      gtStmtExpr;     // root of the expression tree
-    GenTreePtr      gtStmtList;     // first node (for forward walks)
-
-    inlExpPtr       gtInlineExpList; // The inline expansion list of this statement.
-                                     // This is a list of CORINFO_METHOD_HANDLEs 
-                                     // that shows the history of inline expansion 
-                                     // which leads to this statement. 
+    GenTreePtr      gtStmtExpr;      // root of the expression tree
+    GenTreePtr      gtStmtList;      // first node (for forward walks)
+    InlineContext*  gtInlineContext; // The inline context for this statement.
   
 #if defined(DEBUGGING_SUPPORT) || defined(DEBUG)
     IL_OFFSETX      gtStmtILoffsx;   // instr offset (if available)
@@ -3247,7 +3247,7 @@ struct GenTreeStmt: public GenTree
         : GenTree(GT_STMT, TYP_VOID)
         , gtStmtExpr(expr)
         , gtStmtList(nullptr)
-        , gtInlineExpList(nullptr)
+        , gtInlineContext(nullptr)
 #if defined(DEBUGGING_SUPPORT) || defined(DEBUG)
         , gtStmtILoffsx(offset)
 #endif

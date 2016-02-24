@@ -1057,7 +1057,7 @@ namespace System {
             }
             
             int[] sepList = new int[Length];            
-            int numReplaces = MakeSeparatorList(separator, ref sepList);            
+            int numReplaces = MakeSeparatorList(separator, sepList);            
             
             // Handle the special case of no replaces.
             if (0 == numReplaces) {
@@ -1114,7 +1114,7 @@ namespace System {
 
             int[] sepList = new int[Length];
             int[] lengthList = new int[Length];                        
-            int numReplaces = MakeSeparatorList(separator, ref sepList, ref lengthList);
+            int numReplaces = MakeSeparatorList(separator, sepList, lengthList);
 
             // Handle the special case of no replaces.
             if (0 == numReplaces) {
@@ -1224,7 +1224,7 @@ namespace System {
         //       sepList    -- an array of ints for split char indicies.
         //--------------------------------------------------------------------    
         [System.Security.SecuritySafeCritical]  // auto-generated
-        private unsafe int MakeSeparatorList(char[] separator, ref int[] sepList) {
+        private unsafe int MakeSeparatorList(char[] separator, int[] sepList) {
             int foundCount=0;
 
             if (separator == null || separator.Length ==0) {
@@ -1264,7 +1264,7 @@ namespace System {
         //       lengthList -- an array of ints for split string lengths.
         //--------------------------------------------------------------------    
         [System.Security.SecuritySafeCritical]  // auto-generated
-        private unsafe int MakeSeparatorList(String[] separators, ref int[] sepList, ref int[] lengthList) {
+        private unsafe int MakeSeparatorList(String[] separators, int[] sepList, int[] lengthList) {
             Contract.Assert(separators != null && separators.Length > 0, "separators != null && separators.Length > 0");
             
             int foundCount = 0;
@@ -2851,12 +2851,17 @@ namespace System {
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.Ensures(Contract.Result<String>().Length == this.Length + value.Length);
             Contract.EndContractBlock();
+            
             int oldLength = Length;
             int insertLength = value.Length;
+            
+            if (oldLength == 0)
+                return value;
+            if (insertLength == 0)
+                return this;
+            
             // In case this computation overflows, newLength will be negative and FastAllocateString throws OutOfMemoryException
             int newLength = oldLength + insertLength;
-            if (newLength == 0)
-                return String.Empty;
             String result = FastAllocateString(newLength);
             unsafe
             {
@@ -2937,9 +2942,13 @@ namespace System {
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.Ensures(Contract.Result<String>().Length == this.Length - count);
             Contract.EndContractBlock();
+            
+            if (count == 0)
+                return this;
             int newLength = Length - count;
             if (newLength == 0)
                 return String.Empty;
+            
             String result = FastAllocateString(newLength);
             unsafe
             {
@@ -3237,20 +3246,19 @@ namespace System {
                 (str2 == null ? 0 : str2.Length));
             Contract.EndContractBlock();
 
-            if (str0==null && str1==null && str2==null) {
-                return String.Empty;
+            if (IsNullOrEmpty(str0))
+            {
+                return Concat(str1, str2);
             }
 
-            if (str0==null) {
-                str0 = String.Empty;
+            if (IsNullOrEmpty(str1))
+            {
+                return Concat(str0, str2);
             }
 
-            if (str1==null) {
-                str1 = String.Empty;
-            }
-
-            if (str2 == null) {
-                str2 = String.Empty;
+            if (IsNullOrEmpty(str2))
+            {
+                return Concat(str0, str1);
             }
 
             int totalLength = str0.Length + str1.Length + str2.Length;
@@ -3273,24 +3281,24 @@ namespace System {
                 (str3 == null ? 0 : str3.Length));
             Contract.EndContractBlock();
 
-            if (str0==null && str1==null && str2==null && str3==null) {
-                return String.Empty;
+            if (IsNullOrEmpty(str0))
+            {
+                return Concat(str1, str2, str3);
             }
 
-            if (str0==null) {
-                str0 = String.Empty;
+            if (IsNullOrEmpty(str1))
+            {
+                return Concat(str0, str2, str3);
             }
 
-            if (str1==null) {
-                str1 = String.Empty;
+            if (IsNullOrEmpty(str2))
+            {
+                return Concat(str0, str1, str3);
             }
 
-            if (str2 == null) {
-                str2 = String.Empty;
-            }
-            
-            if (str3 == null) {
-                str3 = String.Empty;
+            if (IsNullOrEmpty(str3))
+            {
+                return Concat(str0, str1, str2);
             }
 
             int totalLength = str0.Length + str1.Length + str2.Length + str3.Length;

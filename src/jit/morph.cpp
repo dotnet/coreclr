@@ -5615,9 +5615,7 @@ bool        Compiler::fgMorphCallInline(GenTreePtr node)
     GenTreeCall* call = node->AsCall();
 
     // Prepare to record information about this inline
-    CORINFO_METHOD_HANDLE callerHandle = call->gtCall.gtInlineCandidateInfo->ilCallerHandle;
-    CORINFO_METHOD_HANDLE calleeHandle = call->gtCall.gtCallType == CT_USER_FUNC ? call->gtCall.gtCallMethHnd : nullptr;
-    InlineResult inlineResult(this, callerHandle, calleeHandle, "fgMorphCallInline");
+    InlineResult inlineResult(this, call, "fgMorphCallInline");
 
     // Attempt the inline
     fgMorphCallInlineHelper(call, &inlineResult);
@@ -5628,6 +5626,15 @@ bool        Compiler::fgMorphCallInline(GenTreePtr node)
     // If we failed to inline, we have a bit of work to do to cleanup
     if (inlineResult.isFailure())
     {
+
+#ifdef DEBUG
+
+        // Before we do any cleanup. create a failing InlineContext to
+        // capture details of the inlining attempt.
+        InlineContext::newFailure(this, fgMorphStmt, &inlineResult);
+
+#endif
+
         // It was an inline candidate, but we haven't expanded it.
         if (call->gtCall.gtReturnType != TYP_VOID)
         {
@@ -5692,7 +5699,37 @@ void Compiler::fgMorphCallInlineHelper(GenTreeCall* call, InlineResult* result)
 
     if ((call->gtFlags & GTF_CALL_INLINE_CANDIDATE) == 0)
     {
-        result->noteFatal(InlineObservation::CALLSITE_NOT_CANDIDATE);
+        InlineObservation currentObservation = InlineObservation::CALLSITE_NOT_CANDIDATE;
+
+#ifdef DEBUG
+        // Try and recover the reason left behind when the jit decided
+        // this call was not a candidate.
+        InlineObservation priorObservation = call->gtInlineObservation;
+
+        if (inlIsValidObservation(priorObservation))
+        {
+            currentObservation = priorObservation;
+        }
+#endif
+
+        // Would like to just call noteFatal here, since this
+        // observation blocked candidacy, but policy comes into play
+        // here too.  Also note there's no need to re-report these
+        // failures, since we reported them during the initial
+        // candidate scan.
+        InlineImpact impact = inlGetImpact(currentObservation);
+
+        if (impact == InlineImpact::FATAL)
+        {
+            result->noteFatal(currentObservation);
+        }
+        else
+        {
+            result->note(currentObservation);
+        }
+
+        result->setReported();
+
         return;
     }
     
@@ -16096,11 +16133,7 @@ bool Compiler::fgFitsInOrNotLoc(GenTreePtr tree, unsigned width)
 
 void Compiler::fgAddFieldSeqForZeroOffset(GenTreePtr op1, FieldSeqNode* fieldSeq)
 {
-#ifdef FEATURE_REF_ZERO_OFFSET_ALLOWED
     assert(op1->TypeGet() == TYP_BYREF || op1->TypeGet() == TYP_I_IMPL || op1->TypeGet() == TYP_REF);
-#else
-    assert(op1->TypeGet() == TYP_BYREF || op1->TypeGet() == TYP_I_IMPL);
-#endif
 
     switch (op1->OperGet())
     {

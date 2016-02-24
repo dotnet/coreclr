@@ -5129,6 +5129,10 @@ GenTreeCall*          Compiler::gtNewCallNode(gtCallTypes     callType,
     node->gtCall.gtEntryPoint.addr = nullptr;
 #endif
 
+#ifdef DEBUG
+    node->gtCall.gtInlineObservation = InlineObservation::CALLEE_UNUSED_INITIAL;
+#endif
+
 #ifdef DEBUGGING_SUPPORT
     // Spec: Managed Retval sequence points needs to be generated while generating debug info for debuggable code.
     //
@@ -6308,8 +6312,16 @@ GenTreePtr          Compiler::gtCloneExpr(GenTree * tree,
         }
         copy->gtCall.gtRetClsHnd = tree->gtCall.gtRetClsHnd;
 
+#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+        copy->gtCall.structDesc.CopyFrom(tree->gtCall.structDesc);
+#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)  
+
 #ifdef FEATURE_READYTORUN_COMPILER
         copy->gtCall.gtEntryPoint = tree->gtCall.gtEntryPoint;
+#endif
+
+#ifdef DEBUG
+        copy->gtCall.gtInlineObservation = tree->gtCall.gtInlineObservation;
 #endif
 
         break;

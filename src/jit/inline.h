@@ -7,18 +7,67 @@
 // This file contains enum and class definitions and related
 // information that the jit uses to make inlining decisions.
 //
-// -- Overview of classes and enums defined here --
+// -- ENUMS --
 //
-// InlineDecision -- enum, overall decision made about an inline
-// InlineTarget -- enum, target of a particular observation
-// InlineImpact -- enum, impact of a particular observation
-// InlineObservation -- enum, facts observed when considering an inline
-// InlineResult -- class, accumulates observations and makes a decision
-// InlineCandidateInfo -- struct, detailed information needed for inlining
-// InlArgInfo -- struct, information about a candidate's argument
-// InlLclVarInfo -- struct, information about a candidate's local variable
-// InlineHints -- enum, alternative form of observations
-// InlineInfo -- struct, basic information needed for inlining
+// InlineDecision      - overall decision made about an inline
+// InlineTarget        - target of a particular observation
+// InlineImpact        - impact of a particular observation
+// InlineObservation   - facts observed when considering an inline
+// InlineHints         - alternative form of observations
+//
+// -- CLASSES --
+//
+// InlineResult        - accumulates observations and makes a decision
+// InlineCandidateInfo - basic information needed for inlining
+// InlArgInfo          - information about a candidate's argument
+// InlLclVarInfo       - information about a candidate's local variable
+// InlineInfo          - detailed information needed for inlining
+// InlineContext       - class, remembers what inlines happened
+// InlinePolicy        - (forthcoming)
+//
+// Enums are used throughout to provide various descriptions.
+//
+// Classes are used as follows. There are 4 sitations where inline
+// candidacy is evaluated.  In each case an InlineResult is allocated
+// on the stack to collect information about the inline candidate.
+//
+// 1. Importer Candidate Screen (impMarkInlineCandidate)
+//
+// Creates: InlineCandidateInfo
+//
+// During importing, the IL being imported is scanned to identify
+// inline candidates. This happens both when the root method is being
+// imported as well as when prospective inlines are being imported.
+// Candidates are marked in the IL and given an InlineCandidateInfo.
+//
+// 2. Inlining Optimization Pass (fgInline/fgMorphCallInline)
+//
+// Creates / Uses: InlineContext
+// Creates: InlineInfo, InlArgInfo, InlLocalVarInfo
+//
+// During the inlining optimation pass, each candidate is further
+// analyzed. Viable candidates will eventually inspire creation of an
+// InlineInfo and a set of InlArgInfos (for call arguments) and 
+// InlLocalVarInfos (for callee locals).
+//
+// The analysis will also examine InlineContexts from relevant prior
+// inlines. If the inline is successful, a new InlineContext will be
+// created to remember this inline. In DEBUG builds, failing inlines
+// also create InlineContexts.
+//
+// 3 & 4. Prejit suitability screens (compCompileHelper)
+//
+// When prejitting, each method is scanned to see if it is a viable
+// inline candidate. The scanning happens in two stages.
+//
+// A note on InlinePolicy
+//
+// In the current code base, the inlining policy is distributed across
+// the various parts of the code that drive the inlining process
+// forward. Subsequent refactoring will extract some or all of this
+// policy into a separate InlinePolicy object, to make it feasible to
+// create and experiment with alternative policies, while preserving
+// the existing policy as a baseline and fallback.
 
 #ifndef _INLINE_H_
 #define _INLINE_H_
@@ -88,6 +137,14 @@ enum class InlineObservation
 #undef INLINE_OBSERVATION
 };
 
+#ifdef DEBUG
+
+// Sanity check the observation value
+
+bool inlIsValidObservation(InlineObservation obs);
+
+#endif // DEBUG
+
 // Get a string describing this observation
 
 const char* inlGetDescriptionString(InlineObservation obs);
@@ -115,21 +172,17 @@ class InlineResult
 {
 public:
 
-    // Construct a new InlineResult.
+    // Construct a new InlineResult to help evaluate a
+    // particular call for inlining.
     InlineResult(Compiler*              compiler,
-                 CORINFO_METHOD_HANDLE  inliner,
-                 CORINFO_METHOD_HANDLE  inlinee,
-                 const char*            context)
-        : inlCompiler(compiler)
-        , inlDecision(InlineDecision::UNDECIDED)
-        , inlObservation(InlineObservation::CALLEE_UNUSED_INITIAL)
-        , inlInliner(inliner)
-        , inlInlinee(inlinee)
-        , inlContext(context)
-        , inlReported(false)
-    {
-        // empty
-    }
+                 GenTreeCall*           call,
+                 const char*            context);
+
+    // Construct a new InlineResult to evaluate a particular
+    // method to see if it is inlineable.
+    InlineResult(Compiler*              compiler,
+                 CORINFO_METHOD_HANDLE  method,
+                 const char*            context);
 
     // Translate into CorInfoInline for reporting back to the runtime.
     //
@@ -314,10 +367,28 @@ public:
         report();
     }
 
+    // The observation leading to this particular result
+    InlineObservation getObservation() const
+    {
+        return inlObservation;
+    }
+
+    // The callee handle for this result
+    CORINFO_METHOD_HANDLE getCallee() const
+    {
+        return inlCallee;
+    }
+
+    // The call being considered
+    GenTreeCall* getCall() const
+    {
+        return inlCall;
+    }
+
     // The reason for this particular result
-    const char * reasonString() const 
-    { 
-        return inlGetDescriptionString(inlObservation); 
+    const char * reasonString() const
+    {
+        return inlGetDescriptionString(inlObservation);
     }
 
     // setReported indicates that this particular result doesn't need
@@ -372,7 +443,7 @@ private:
     // Helper for setting decision and reason
     void setCommon(InlineDecision decision, InlineObservation obs)
     {
-        // assert(inlIsValidObservation(obs));
+        assert(inlIsValidObservation(obs));
         assert(decision != InlineDecision::UNDECIDED);
         inlDecision = decision;
         inlObservation = obs;
@@ -384,8 +455,9 @@ private:
     Compiler*               inlCompiler;
     InlineDecision          inlDecision;
     InlineObservation       inlObservation;
-    CORINFO_METHOD_HANDLE   inlInliner;
-    CORINFO_METHOD_HANDLE   inlInlinee;
+    GenTreeCall*            inlCall;
+    CORINFO_METHOD_HANDLE   inlCaller;
+    CORINFO_METHOD_HANDLE   inlCallee;
     const char*             inlContext;
     bool                    inlReported;
 };
@@ -489,6 +561,77 @@ struct InlineInfo
     BasicBlock      * iciBlock;      // The basic block iciStmt is in.
 };
 
+// InlineContext tracks the inline history in a method.
+//
+// Notes:
+//
+// InlineContexts form a tree with the root method as the root and
+// inlines as children. Nested inlines are represented as granchildren
+// and so on.
+//
+// Leaves in the tree represent successful inlines of leaf methods.
+// In DEBUG builds we also keep track of failed inline attempts.
+//
+// During inlining, all statements in the IR refer back to the
+// InlineContext that is responsible for those statements existing.
+// This makes it possible to detect recursion and to keep track of the
+// depth of each inline attempt.
+
+class InlineContext
+{
+public:
+
+    // New context for the root instance
+    static InlineContext* newRoot(Compiler* compiler);
+
+    // New context for a successful inline
+    static InlineContext* newSuccess(Compiler*   compiler,
+                                     InlineInfo* inlineInfo);
+
+#ifdef DEBUG
+
+    // New context for a failing inline
+    static InlineContext* newFailure(Compiler *    compiler,
+                                     GenTree*      stmt,
+                                     InlineResult* inlineResult);
+
+    // Dump the context and all descendants
+    void Dump(Compiler* compiler, int indent = 0);
+
+#endif
+
+    // Get the parent context for this context.
+    InlineContext* getParent() const
+    {
+        return inlParent;
+    }
+
+    // Get the code pointer for this context.
+    BYTE* getCode() const
+    {
+        return inlCode;
+    }
+
+private:
+
+    InlineContext();
+
+private:
+
+    InlineContext*        inlParent;      // logical caller (parent)
+    InlineContext*        inlChild;       // first child
+    InlineContext*        inlSibling;     // next child of the parent
+    IL_OFFSETX            inlOffset;      // call site location within parent
+    BYTE*                 inlCode;        // address of IL buffer for the method
+    InlineObservation     inlObservation; // what lead to this inline
+
+#ifdef DEBUG
+    CORINFO_METHOD_HANDLE inlCallee;      // handle to the method
+    unsigned              inlTreeID;      // ID of the GenTreeCall
+    bool                  inlSuccess;     // true if this was a successful inline
+#endif
+
+};
 
 #endif // _INLINE_H_
 

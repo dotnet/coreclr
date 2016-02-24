@@ -2878,6 +2878,7 @@ GenTreePtr      Compiler::impIntrinsic(CORINFO_CLASS_HANDLE     clsHnd,
                                        CORINFO_SIG_INFO *       sig,
                                        int                      memberRef,
                                        bool                     readonlyCall,
+                                       bool                     tailCall,
                                        CorInfoIntrinsics *      pIntrinsicID)
 {
     bool mustExpand = false;
@@ -2956,8 +2957,13 @@ GenTreePtr      Compiler::impIntrinsic(CORINFO_CLASS_HANDLE     clsHnd,
 #ifdef LEGACY_BACKEND
         if (IsTargetIntrinsic(intrinsicID))
 #else
-        // Intrinsics that are not implemented directly by target intructions will
-        // be rematerialized as users calls in rationalizer.
+        // Intrinsics that are not implemented directly by target instructions will
+        // be re-materialized as users calls in rationalizer. For prefixed tail calls, 
+        // don't do this optimization, because 
+        //  a) For back compatibility reasons on desktop.Net 4.6 / 4.6.1
+        //  b) It will be non-trivial task or too late to re-materialize a surviving 
+        //     tail prefixed GT_INTRINSIC as tail call in rationalizer.
+        if (!IsIntrinsicImplementedByUserCall(intrinsicID) || !tailCall)
 #endif
         {
             switch (sig->numArgs)
@@ -3016,14 +3022,15 @@ GenTreePtr      Compiler::impIntrinsic(CORINFO_CLASS_HANDLE     clsHnd,
                 default:
                     NO_WAY("Unsupported number of args for Math Instrinsic");
             }
-        }
         
 #ifndef LEGACY_BACKEND
-        if (IsIntrinsicImplementedByUserCall(intrinsicID))
-        {
-            op1->gtFlags |= GTF_CALL;
-        }
+            if (IsIntrinsicImplementedByUserCall(intrinsicID))
+            {
+                op1->gtFlags |= GTF_CALL;
+            }
 #endif
+        }
+
         retNode = op1;
         break;
 
@@ -5640,7 +5647,9 @@ var_types           Compiler::impImportCall (OPCODE         opcode,
     // the time being that the callee might be compiled by the other JIT and thus the return
     // value will need to be widened by us (or not widened at all...)
 
-    bool            checkForSmallType = opts.IsJit64Compat();
+    // ReadyToRun code sticks with default calling convention that does not widen small return types.
+
+    bool            checkForSmallType = opts.IsJit64Compat() || opts.IsReadyToRun();
     bool            bIntrinsicImported = false;
 
     CORINFO_SIG_INFO calliSig;
@@ -5773,8 +5782,7 @@ var_types           Compiler::impImportCall (OPCODE         opcode,
         // <NICE> Factor this into getCallInfo </NICE>
         if ((mflags & CORINFO_FLG_INTRINSIC) && !pConstrainedResolvedToken)
         {
-            call = impIntrinsic(clsHnd, methHnd, sig, pResolvedToken->token, readonlyCall, &intrinsicID);
-
+            call = impIntrinsic(clsHnd, methHnd, sig, pResolvedToken->token, readonlyCall, (canTailCall && (tailCall != 0)), &intrinsicID);
 
             if (call != nullptr)
             {
@@ -7045,30 +7053,28 @@ GenTreePtr                Compiler::impFixupStructReturn(GenTreePtr     call,
     call->gtCall.gtReturnType = call->gtType;
 
     // Get the classification for the struct.
-    SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
-    eeGetSystemVAmd64PassStructInRegisterDescriptor(retClsHnd, &structDesc);
-    if (structDesc.passedInRegisters)
+    GenTreeCall* callNode = call->AsCall();
+    eeGetSystemVAmd64PassStructInRegisterDescriptor(retClsHnd, &(callNode->structDesc));
+    if (callNode->structDesc.passedInRegisters)
     {
-        call->gtCall.SetRegisterReturningStructState(structDesc);
-
-        if (structDesc.eightByteCount <= 1)
+        if (callNode->structDesc.eightByteCount <= 1)
         {
-            call->gtCall.gtReturnType = getEightByteType(structDesc, 0);
+            callNode->gtReturnType = getEightByteType(callNode->structDesc, 0);
         }
         else
         {
-            if (!call->gtCall.CanTailCall() && ((call->gtFlags & GTF_CALL_INLINE_CANDIDATE) == 0))
+            if ((!callNode->CanTailCall()) && (!callNode->IsInlineCandidate()))
             {
-                // If we can tail call returning in registers struct or inline a method that returns
-                // a registers returned struct, then don't assign it to
-                // a variable back and forth.
+                // No need to assign the struct in two registers to a local var if:
+                // 1. It is a tail call.
+                // 2. The call is marked for a later inlining.
                 return impAssignStructClassToVar(call, retClsHnd);
             }
         }
     }
     else
     {
-        call->gtCall.gtCallMoreFlags |= GTF_CALL_M_RETBUFFARG;
+        callNode->gtCallMoreFlags |= GTF_CALL_M_RETBUFFARG;
   }
 
     return call;
@@ -15762,7 +15768,7 @@ void             Compiler::impCanInlineNative(int           callsiteNativeEstima
         }
         else 
         {
-            // Static hint case.... here the "callee" is the function being assessed. (PLS VERIFY)
+            // Static hint case.... here the "callee" is the function being assessed.
             inlineResult->noteFatal(InlineObservation::CALLEE_EXCEEDS_THRESHOLD);
         }
     }
@@ -16816,9 +16822,7 @@ void          Compiler::impMarkInlineCandidate(GenTreePtr callNode, CORINFO_CONT
     }
     
     GenTreeCall* call = callNode->AsCall();
-    CORINFO_METHOD_HANDLE callerHandle = info.compMethodHnd;
-    CORINFO_METHOD_HANDLE calleeHandle = call->gtCall.gtCallType == CT_USER_FUNC ? call->gtCall.gtCallMethHnd : nullptr;
-    InlineResult inlineResult(this, callerHandle, calleeHandle, "impMarkInlineCandidate");
+    InlineResult inlineResult(this, call, "impMarkInlineCandidate");
     
     /* Don't inline if not optimized code */
     if  (opts.compDbgCode)

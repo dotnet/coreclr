@@ -2686,6 +2686,7 @@ protected :
                                              CORINFO_SIG_INFO *     sig,
                                              int                    memberRef,
                                              bool                   readonlyCall,
+                                             bool                   tailCall,
                                              CorInfoIntrinsics *    pIntrinsicID);
     GenTreePtr          impArrayAccessIntrinsic(CORINFO_CLASS_HANDLE    clsHnd,
                                                 CORINFO_SIG_INFO *      sig,
@@ -4637,13 +4638,10 @@ private:
 
     unsigned            fgBigOffsetMorphingTemps[TYP_COUNT];
 
-    static bool         fgIsUnboundedInlineRecursion(inlExpPtr expLst,
-                                                     BYTE *    ilCode,
-                                                     DWORD*    depth);
-
-    void                fgInvokeInlineeCompiler(GenTreeCall*   call, InlineResult* result);
-    void                fgInsertInlineeBlocks (InlineInfo * pInlineInfo);
-    GenTreePtr          fgInlinePrependStatements(InlineInfo * inlineInfo);
+    unsigned            fgCheckInlineDepthAndRecursion(InlineInfo* inlineInfo);
+    void                fgInvokeInlineeCompiler(GenTreeCall* call, InlineResult* result);
+    void                fgInsertInlineeBlocks (InlineInfo* pInlineInfo);
+    GenTreePtr          fgInlinePrependStatements(InlineInfo* inlineInfo);
 
 #if defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
     GenTreePtr          fgGetStructAsStructPtr(GenTreePtr tree);
@@ -7418,9 +7416,8 @@ public :
         inline bool         IsJit64Compat()
         {
 #if defined(_TARGET_AMD64_) && !defined(FEATURE_CORECLR)
-            // JIT64 interop not required for ReadyToRun since it can simply fall-back
-            return !IsReadyToRun();
-#else // defined(_TARGET_AMD64_) && !defined(FEATURE_CORECLR)
+            return true;
+#else
             return false;
 #endif
         }
