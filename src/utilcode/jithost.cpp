@@ -39,7 +39,7 @@ int JitHost::getIntConfigValue(const wchar_t* name, int defaultValue)
     WRAPPER_NO_CONTRACT;
 
     // Translate JIT call into runtime configuration query
-    CLRConfig::ConfigDWORDInfo info{ name, defaultValue, CLRConfig::REGUTIL_default };
+    CLRConfig::ConfigDWORDInfo info{ name, defaultValue, CLRConfig::EEConfig_default };
 
     // Perform a CLRConfig look up on behalf of the JIT.
     return CLRConfig::GetConfigValue(info);
@@ -50,7 +50,7 @@ const wchar_t* JitHost::getStringConfigValue(const wchar_t* name)
     WRAPPER_NO_CONTRACT;
 
     // Translate JIT call into runtime configuration query
-    CLRConfig::ConfigStringInfo info{ name, CLRConfig::REGUTIL_default };
+    CLRConfig::ConfigStringInfo info{ name, CLRConfig::EEConfig_default };
 
     // Perform a CLRConfig look up on behalf of the JIT.
     return CLRConfig::GetConfigValue(info);
