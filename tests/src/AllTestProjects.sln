@@ -887,6 +887,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "DevDiv_816617", "DevDiv_816
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevDiv_816617", "JIT\Regression\JitBlue\DevDiv_816617\DevDiv_816617.csproj", "{DB8B2975-3E1F-4D22-946A-92A579D75257}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "testgh1700", "Regressions\coreclr\gh1700\testgh1700.csproj", "{795B172E-E537-4339-9683-EA4057AFC759}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
