@@ -176,8 +176,44 @@ void                CodeGen::genEmitGSCookieCheck(bool pushReg)
 
     // Make sure that EAX is reported as live GC-ref so that any GC that kicks in while
     // executing GS cookie check will not collect the object pointed to by EAX.
-    if (!pushReg && (compiler->info.compRetType == TYP_REF))
-        gcInfo.gcRegGCrefSetCur |= RBM_INTRET;    
+    if (!pushReg)
+    {
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+        if (varTypeIsStruct(compiler->info.compRetType))
+        {
+            if (compiler->info.retStructDesc.passedInRegisters)
+            {
+                assert(compiler->info.retStructDesc.eightByteCount > 0 &&
+                       compiler->info.retStructDesc.eightByteCount <= CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS);
+
+                for (unsigned i = 0; i < compiler->info.retStructDesc.eightByteCount; i++)
+                {
+                    var_types eightByteType = compiler->getEightByteType(compiler->info.retStructDesc, i);
+
+                    if (eightByteType == TYP_REF)
+                    {
+                        gcInfo.gcRegGCrefSetCur |= ((i == 0) ? RBM_INTRET : RBM_INTRET_1);
+                    }
+                    else if(eightByteType == TYP_BYREF)
+                    {
+                        gcInfo.gcRegByrefSetCur |= ((i == 0) ? RBM_INTRET : RBM_INTRET_1);
+                    }
+                }
+            }
+        }
+        else
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+        {
+            if (compiler->info.compRetType == TYP_REF)
+            {
+                gcInfo.gcRegGCrefSetCur |= RBM_INTRET;
+            }
+            else if(compiler->info.compRetType == TYP_BYREF)
+            {
+                gcInfo.gcRegByrefSetCur |= RBM_INTRET;
+            }
+        }
+    }
 
     regNumber regGSCheck;
     if (!pushReg)
@@ -188,7 +224,13 @@ void                CodeGen::genEmitGSCookieCheck(bool pushReg)
         if (compiler->lvaKeepAliveAndReportThis() && compiler->lvaTable[compiler->info.compThisArg].lvRegister &&
             (compiler->lvaTable[compiler->info.compThisArg].lvRegNum == REG_ECX))
         {
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+            // On System V RDX is used as a second return register for a struct.
+            // Use a diiferent callee-trashed register, so the return value will not get trashed.
+            regGSCheck = REG_RSI;
+#else // !FEATURE_UNIX_AMD64_STRUCT_PASSING
             regGSCheck = REG_RDX;
+#endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING
         }
         else
         {

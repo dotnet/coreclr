@@ -7772,6 +7772,9 @@ public :
         #define         CPU_ARM            0x0300    // The generic ARM CPU
 
         unsigned        genCPU; // What CPU are we running on
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+        SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR retStructDesc; // The structDesc of the return type of the method.
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
     }
     info;
 

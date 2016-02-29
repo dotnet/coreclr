@@ -4930,6 +4930,14 @@ int           Compiler::compCompileHelper (CORINFO_MODULE_HANDLE            clas
         }
         info.compRetNativeType = info.compRetType         = JITtype2varType(methodInfo->args.retType);
 
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+        // Set the strcutDesc for the return type if struct.
+        if (varTypeIsStruct(info.compRetType))
+        {
+            eeGetSystemVAmd64PassStructInRegisterDescriptor(info.compMethodInfo->args.retTypeClass, &(info.retStructDesc));
+        }
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+
 #if INLINE_NDIRECT
         info.compCallUnmanaged   = 0;
         info.compLvFrameListRoot = BAD_VAR_NUM;
