@@ -161,12 +161,8 @@ namespace System {
         return Decimal.Round(d, decimals, mode);
       }
 
-	  public static int Round(int i, int digits) 
-	  {
-		   return Round(i, digits, MidpointRounding.ToEven);
-	  }
-
-	  public static int Round(int i, int digits, MidpointRounding mode) 
+      //Removed its public visibility. This will be included in CoreFX. I am letting this method here for reference.
+	  private static int Round(int i, int digits, MidpointRounding mode) 
 	  {
 		    if ((digits <= 0) || (digits > maxRoundingDigitsInt)) 
 				throw new ArgumentOutOfRangeException("digits", Environment.GetResourceString("ArgumentOutOfRange_RoundingDigits"));
@@ -175,25 +171,35 @@ namespace System {
 			if (i == 0) return 0;
    		    
 			int remCount = (int)Math.Ceiling(Math.Log10(Math.Abs(i))) - digits; //Number of digits to be rounded/removed			
-			return (remCount < 1 ? i : roundPower10Int[remCount] * RoundIntInternal(i, digits, mode, remCount));
+			return (remCount < 1 ? i : RoundIntInternal(i, digits, mode, remCount));
 	  }
 		
-	  private static int RoundIntInternal(int i, int digits, MidpointRounding mode, int remCount) 
-	  {
-            int rounded = Truncate2Internal(i, remCount); //Number truncated (i.e., redundant numbers are plainly removed) up to the position defined by digits 
-			int lastDigit = Math.Abs(i) / roundPower10Int[remCount - 1] % 10; //First digit right after the last one in the variable rounded
-	
-            if (lastDigit > 5 || (lastDigit == 5 && mode == MidpointRounding.AwayFromZero)) rounded = rounded + (i >= 0 ? 1 : -1); //Rounding always up
-            else if (lastDigit == 5)
-            {
-				//Rounding up only if the last digit in the variable rounded is uneven
-                if ((Math.Abs(i) / roundPower10Int[remCount] % 10) % 2 != 0) 
-				{
-					rounded = rounded + (i >= 0 ? 1 : -1);
-				}
-            }
-            return rounded;		  
-	  }
+      private static int RoundIntInternal(int i, int digits, MidpointRounding mode, int remCount)
+      {
+          int rounded = Truncate2Internal(i, remCount); //Number truncated (i.e., redundant numbers are plainly removed) up to the position defined by digits 
+          if (rounded < i)
+          {
+              int nextDigit = Math.Abs(i) / roundPower10Int[remCount - 1] % 10; //Next to the last rounded digit
+              int greaterEqual = (nextDigit < 5 ? -1 : 1);
+              if (nextDigit == 5) //If nextDigit equals 5, MidpointRounding.ToEven might be applicable (greaterEqual == 0) or not
+              {
+                  int middle = nextDigit * roundPower10Int[remCount - 1];
+                  if (i - (rounded * roundPower10Int[remCount]) == middle) greaterEqual = 0;
+              }
+
+              if (greaterEqual == 1 || (greaterEqual == 0 && mode == MidpointRounding.AwayFromZero)) rounded = rounded + (i >= 0 ? 1 : -1); //Rounding always up
+              else if (greaterEqual == 0) //MidpointRounding.ToEven is analysed
+              {
+                  //Rounding up only if the last digit of the rounded number is uneven
+                  if ((Math.Abs(i) / roundPower10Int[remCount] % 10) % 2 != 0)
+                  {
+                      rounded = rounded + (i >= 0 ? 1 : -1);
+                  }
+              }
+          }
+          
+          return rounded * roundPower10Int[remCount]; 
+      }
 
       private static int Truncate2Internal(int i, int remCount)
       {
