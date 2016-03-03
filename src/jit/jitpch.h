@@ -22,6 +22,7 @@
 #endif
 #include "jit.h"
 #include "iallocator.h"
+#include "histogram.hpp"
 #include "hashbv.h"
 #include "compiler.h"
 #include "dataflow.h"

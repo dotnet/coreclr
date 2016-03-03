@@ -631,33 +631,6 @@ size_t              unsigned_abs(ssize_t x)
 #endif // _TARGET_64BIT_
 
 /*****************************************************************************/
-
-#if CALL_ARG_STATS || COUNT_BASIC_BLOCKS || COUNT_LOOPS || EMITTER_STATS || MEASURE_NODE_SIZE
-
-class histo
-{
-public:
-                    histo(IAllocator* alloc, unsigned* sizeTab, unsigned sizeCnt = 0);
-                   ~histo();
-
-    void            histoClr();
-    void            histoDsp(FILE* fout);
-    void            histoRec(unsigned __int64 siz, unsigned cnt);
-    void            histoRec(unsigned siz, unsigned cnt);
-
-private:
-
-    void            histoEnsureAllocated();
-
-    IAllocator*     histoAlloc;
-    unsigned        histoSizCnt;
-    unsigned*       histoSizTab;
-    unsigned*       histoCounts;
-};
-
-#endif // CALL_ARG_STATS || COUNT_BASIC_BLOCKS || COUNT_LOOPS || EMITTER_STATS || MEASURE_NODE_SIZE
-
-/*****************************************************************************/
 #ifdef  ICECAP
 #include "icapexp.h"
 #include "icapctrl.h"

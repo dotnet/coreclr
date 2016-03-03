@@ -32,6 +32,7 @@ set( JIT_SOURCES
   gentree.cpp
   gschecks.cpp
   hashbv.cpp
+  histogram.cpp
   importer.cpp
   inline.cpp
   inlinepolicy.cpp
