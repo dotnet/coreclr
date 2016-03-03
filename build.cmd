@@ -506,7 +506,7 @@ set DOTNET_CMD=%DOTNET_PATH%bin\dotnet.exe
 
 REM Restore and publish the dummy app so that the flat layout is generated containing ApiSets.
 pushd %__NugetLayoutRoot%
-"%DOTNET_CMD%" restore "%__LayoutProjectJson%" --no-cache --source "%__PackagesBinDir%\pkg" --source https://www.myget.org/F/dotnet-core
+"%DOTNET_CMD%" restore "%__LayoutProjectJson%" --source "%__PackagesBinDir%\pkg" --source https://www.myget.org/F/dotnet-core
 if errorlevel 1 (
     echo Unable to restore %__CoreCLRNupkg% nuget package for flat layout generation.
     popd
