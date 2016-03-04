@@ -70,11 +70,14 @@ if(CLR_CMAKE_PLATFORM_UNIX)
 else()
   target_link_libraries(ilasm
     ${ILASM_LINK_LIBRARIES}
-    coreclr
+    advapi32
+    shlwapi
     msvcrt
     ole32
     oleaut32
     shell32
+    user32
+    coreclr
   )
 
   install (FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/ilasm.pdb DESTINATION PDB)

@@ -23,11 +23,14 @@ namespace DelayLoad
         LPCWSTR const   m_wzDllName;
         HMODULE         m_hMod;
         HRESULT         m_hr;
+        DWORD           m_dwLastError;
         Volatile<bool>  m_fInitialized;
 
         // Returns a non-ref-counted HMODULE; will load the module if necessary.
         // Do not FreeLibrary the returned value.
         HRESULT GetValue(HMODULE *pHMODULE);
+
+        DWORD GetError();
     };
 }
 
@@ -47,12 +50,15 @@ namespace DelayLoad
 //          // Use hModKernel32 as needed. Do not FreeLibrary the value!
 //      }
 
-#define DELAY_LOADED_MODULE(DLL_NAME) \
+#define DELAY_LOADED_MODULE_EX(DLL_NAME, FRIENDLY_DLL_NAME) \
     namespace DelayLoad { \
         namespace Modules { \
-            SELECTANY Module DLL_NAME = { L#DLL_NAME W(".dll"), nullptr, S_OK, false }; \
+            SELECTANY Module FRIENDLY_DLL_NAME = { L#DLL_NAME W(".dll"), nullptr, S_OK, ERROR_MOD_NOT_FOUND,false }; \
         } \
     }
+
+#define DELAY_LOADED_MODULE(DLL_NAME) \
+    DELAY_LOADED_MODULE_EX(DLL_NAME, DLL_NAME)
 
 namespace DelayLoad
 {
@@ -66,6 +72,7 @@ namespace DelayLoad
         LPCSTR const    m_szFunctionName;
         PVOID           m_pvFunction;
         HRESULT         m_hr;
+        DWORD           m_dwLastError;
         Volatile<bool>  m_fInitialized;
 
         // On success, ppvFunc is set to point to the entrypoint corresponding to
@@ -78,6 +85,8 @@ namespace DelayLoad
         {
             return GetValue(reinterpret_cast<LPVOID*>(ppFunc));
         }
+
+        DWORD GetError();
     };
 }
 
@@ -102,11 +111,31 @@ namespace DelayLoad
 //      }
 
 #define DELAY_LOADED_FUNCTION(DLL_NAME, FUNC_NAME) \
-    DELAY_LOADED_MODULE(DLL_NAME) \
     namespace DelayLoad { \
         namespace DLL_NAME { \
-            SELECTANY Function FUNC_NAME = { &Modules::##DLL_NAME, #FUNC_NAME, nullptr, S_OK, false }; \
+            SELECTANY Function FUNC_NAME = { &Modules::##DLL_NAME, #FUNC_NAME, nullptr, S_OK, ERROR_PROC_NOT_FOUND, false }; \
         } \
+    }
+
+#define DELAY_LOADED_FUNCTION_WITH_APISET_FALLBACK(LEGACY_DLL_NAME, FRIENDLY_APISET_DLL_NAME, FUNC_NAME) \
+    DELAY_LOADED_FUNCTION(LEGACY_DLL_NAME, FUNC_NAME); \
+    DELAY_LOADED_FUNCTION(FRIENDLY_APISET_DLL_NAME, FUNC_NAME)
+
+#define LOOKUP_API_VIA_APISET_FALLBACK(LEGACY_DLL_NAME, FRIENDLY_APISET_DLL_NAME, FUNC_NAME, FUNC_PTR, LAST_ERROR) \
+    LAST_ERROR = ERROR_SUCCESS;                                                                     \
+    if (FAILED(DelayLoad::##LEGACY_DLL_NAME::##FUNC_NAME.GetValue(FUNC_PTR)))                       \
+    {                                                                                               \
+        LAST_ERROR = DelayLoad::##LEGACY_DLL_NAME::##FUNC_NAME.GetError();                          \
+        if (RunningOnWin8())                                                                        \
+        {                                                                                           \
+            if (FAILED(DelayLoad::##FRIENDLY_APISET_DLL_NAME::##FUNC_NAME.GetValue(FUNC_PTR)))      \
+            {                                                                                       \
+                LAST_ERROR = DelayLoad::##FRIENDLY_APISET_DLL_NAME::##FUNC_NAME.GetError();         \
+            } else                                                                                  \
+            {                                                                                       \
+                LAST_ERROR = ERROR_SUCCESS;                                                         \
+            }                                                                                       \
+        }                                                                                           \
     }
 
 #endif // DelayLoadHelpers_h

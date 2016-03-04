@@ -383,6 +383,17 @@ CopyFileWrapper(
 }
 
 
+#if !defined(FEATURE_PAL)
+
+#include "delayloadhelpers.h"
+
+DELAY_LOADED_MODULE(kernel32);
+DELAY_LOADED_MODULE_EX(api-ms-win-core-kernel32-legacy-l1-1-1, api_ms_win_core_kernel32_legacy_l1_1_1);
+
+DELAY_LOADED_FUNCTION_WITH_APISET_FALLBACK(kernel32, api_ms_win_core_kernel32_legacy_l1_1_1, MoveFileW);
+
+#endif // !defined(FEATURE_PAL)
+
 BOOL
 MoveFileWrapper(
         _In_ LPCWSTR lpExistingFileName,
@@ -398,7 +409,7 @@ MoveFileWrapper(
 
     HRESULT hr  = S_OK;
     BOOL    ret = FALSE;
-    DWORD lastError;
+    DWORD lastError = ERROR_SUCCESS;
 
     BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(SetLastError(COR_E_STACKOVERFLOW); return FALSE;)
 
@@ -409,13 +420,25 @@ MoveFileWrapper(
 
         if (SUCCEEDED(LongFile::NormalizePath(Existingpath)) && SUCCEEDED(LongFile::NormalizePath(Newpath)))
         {
-            ret = MoveFileW(
-                    Existingpath.GetUnicode(),
-                    Newpath.GetUnicode()
-                    );
+            decltype(MoveFileW) *fpMoveFileW = nullptr;
+#if !defined(FEATURE_PAL)            
+            LOOKUP_API_VIA_APISET_FALLBACK(kernel32, api_ms_win_core_kernel32_legacy_l1_1_1, MoveFileW, &fpMoveFileW, lastError)
+#else // defined(FEATURE_PAL)            
+            fpMoveFileW = MoveFileW;
+#endif // !defined(FEATURE_PAL)                        
+            if (lastError == ERROR_SUCCESS)
+            {
+                ret = (*fpMoveFileW)(
+                        Existingpath.GetUnicode(),
+                        Newpath.GetUnicode()
+                        );
+                lastError = GetLastError();
+            }
         }
-            
-        lastError = GetLastError();
+        else
+        {
+            lastError = GetLastError();
+        }
     }
     EX_CATCH_HRESULT(hr);
     END_SO_INTOLERANT_CODE

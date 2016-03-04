@@ -233,6 +233,20 @@ bool ClrDirectoryEnumerator::Next()
     }        
 }
 
+#if !defined(FEATURE_PAL)
+
+#include "delayloadhelpers.h"
+
+DELAY_LOADED_MODULE(advapi32);
+DELAY_LOADED_MODULE_EX(API-MS-Win-EventLog-Legacy-L1-1-0, API_MS_WIN_EventLog_Legacy_L1_1_0);
+
+DELAY_LOADED_FUNCTION_WITH_APISET_FALLBACK(advapi32, API_MS_WIN_EventLog_Legacy_L1_1_0, RegisterEventSourceW);
+DELAY_LOADED_FUNCTION_WITH_APISET_FALLBACK(advapi32, API_MS_WIN_EventLog_Legacy_L1_1_0, ReportEventW);
+DELAY_LOADED_FUNCTION_WITH_APISET_FALLBACK(advapi32, API_MS_WIN_EventLog_Legacy_L1_1_0, DeregisterEventSource);
+
+#endif // !defined(FEATURE_PAL)
+
+
 DWORD ClrReportEvent(
     LPCWSTR     pEventSource,
     WORD        wType,
@@ -252,7 +266,29 @@ DWORD ClrReportEvent(
     CONTRACTL_END;
 
 #ifndef FEATURE_PAL
-    HANDLE h = ::RegisterEventSourceW(
+
+    // Dynamicaly lookup the APIs for OneCore compatibility
+    
+    // Lookup the APIs
+    DWORD dwLastError = ERROR_SUCCESS;
+
+    decltype(RegisterEventSourceW) *fpRegisterEventSourceW = nullptr;
+    decltype(ReportEventW) *fpReportEventW = nullptr;
+    decltype(DeregisterEventSource) *fpDeregisterEventSource = nullptr;
+    
+    LOOKUP_API_VIA_APISET_FALLBACK(advapi32, API_MS_WIN_EventLog_Legacy_L1_1_0, RegisterEventSourceW, &fpRegisterEventSourceW, dwLastError)
+    if (dwLastError != ERROR_SUCCESS)
+        return dwLastError;
+
+    LOOKUP_API_VIA_APISET_FALLBACK(advapi32, API_MS_WIN_EventLog_Legacy_L1_1_0, ReportEventW, &fpReportEventW, dwLastError)
+    if (dwLastError != ERROR_SUCCESS)
+        return dwLastError;
+
+    LOOKUP_API_VIA_APISET_FALLBACK(advapi32, API_MS_WIN_EventLog_Legacy_L1_1_0, DeregisterEventSource, &fpDeregisterEventSource, dwLastError)
+    if (dwLastError != ERROR_SUCCESS)
+        return dwLastError;    
+
+    HANDLE h = (*fpRegisterEventSourceW)(
         NULL, // uses local computer 
         pEventSource);
     if (h == NULL)
@@ -270,7 +306,7 @@ DWORD ClrReportEvent(
     // Attempt to report the event to the event log. Note that if the operation fails
     // (for example because of low memory conditions) it isn't fatal so we can safely ignore 
     // the return code from ReportEventW.
-    BOOL ret = ::ReportEventW(
+    BOOL ret = (*fpReportEventW)(
         h,                 // event log handle
         wType,
         wCategory,
@@ -283,7 +319,7 @@ DWORD ClrReportEvent(
 
     DWORD dwRetStatus = GetLastError();
 
-    ::DeregisterEventSource(h);
+    (*fpDeregisterEventSource)(h);
 
     return (ret == TRUE)?ERROR_SUCCESS:dwRetStatus;
 #else // FEATURE_PAL

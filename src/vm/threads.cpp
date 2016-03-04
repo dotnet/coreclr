@@ -5772,7 +5772,8 @@ BOOL Thread::PrepareApartmentAndContext()
     // dispatch on, as appropriate.
 #endif //FEATURE_COMINTEROP_APARTMENT_SUPPORT
 
-#ifdef FEATURE_COMINTEROP
+// We do not need this for CoreCLR AppX scenarios - .NET Native does not have this as well
+#if defined(FEATURE_COMINTEROP) && !defined(FEATURE_CORECLR)
     // Our IInitializeSpy will be registered in AppX always, in classic processes
     // only if the internal config switch is on.
     if (AppX::IsAppXProcess() || g_pConfig->EnableRCWCleanupOnSTAShutdown())
@@ -5784,7 +5785,7 @@ BOOL Thread::PrepareApartmentAndContext()
 
         m_fInitializeSpyRegistered = true;
     }
-#endif // FEATURE_COMINTEROP
+#endif // defined(FEATURE_COMINTEROP) && !defined(FEATURE_CORECLR)
 
     return TRUE;
 }

@@ -471,6 +471,54 @@ if errorlevel 1 (
     exit /b 1
 )
 
+:CreateFlatLayout
+echo Generating flat layout to fetch APISets
+ 
+set __NugetLayoutRoot=%__BinDir%\layout
+set __NugetLayoutFlat=%__NugetLayoutRoot%\flat
+set __NugetLayoutPackages=%__NugetLayoutRoot%\packages
+set __LayoutProjectJson=%__NugetLayoutRoot%\project.json
+set __SharedFramework=dnxcore50
+set __LayoutProjectJsonContents={ "dependencies": { "System.Runtime": "4.0.20-beta-23302", "Microsoft.NETCore.Windows.ApiSets": "1.0.1-rc3-23803"}, "frameworks": { "%__SharedFramework%": { "imports": "portable-net45+win8"} } }
+set __LayoutProgram=%__NugetLayoutRoot%\program.cs
+set __LayoutProgramContents=using System; namespace HelloWorldSample {    public static class Program { public static void Main() { } } }
+ 
+REM Create the root layout folder
+if not exist "%__NugetLayoutRoot%"           md "%__NugetLayoutRoot%"
+if not exist "%__NugetLayoutFlat%"           md "%__NugetLayoutFlat%"
+if not exist "%__NugetLayoutPackages%"       md "%__NugetLayoutPackages%"
+ 
+REM Write the project.json and dummy program.cs
+echo %__LayoutProjectJsonContents% > %__LayoutProjectJson%
+echo %__LayoutProgramContents% > %__LayoutProgram%
+ 
+REM Now, perform a Restore
+set TOOLRUNTIME_DIR=%~dp0Tools
+set DOTNET_PATH=%TOOLRUNTIME_DIR%\dotnetcli\
+set DOTNET_CMD=%DOTNET_PATH%bin\dotnet.exe
+
+REM Restore and publish the dummy app so that the flat layout is generated containing ApiSets.
+pushd %__NugetLayoutRoot%
+"%DOTNET_CMD%" restore "%__LayoutProjectJson%" --source "%__PackagesBinDir%\pkg" --source https://www.myget.org/F/dotnet-core
+if errorlevel 1 (
+    echo Unable to restore %__LayoutProjectJson% for flat layout generation.
+    popd
+    exit /b 1
+)
+
+"%DOTNET_CMD%" publish "%__LayoutProjectJson%" -r win7-%__BuildArch% -f %__SharedFramework% -o "%__NugetLayoutFlat%"
+if errorlevel 1 (
+    echo Unable to publish %__LayoutProjectJson% for flat layout generation.
+    popd
+    exit /b 1
+)
+popd
+
+REM Copy the APISets restored to __BinDir
+del "%__NugetLayoutFlat%\layout.*"
+del "%__NugetLayoutFlat%\System.*"
+xcopy /s /y "%__NugetLayoutFlat%\*.*" "%__BinDir%"
+
 :SkipNuget
 
 :SkipCrossGenBuild

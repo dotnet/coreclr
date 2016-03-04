@@ -271,11 +271,13 @@ inline void Thread::RevokeApartmentSpy()
 {
     LIMITED_METHOD_CONTRACT;
 
+#if !defined(FEATURE_CORECLR)
     if (m_fInitializeSpyRegistered)
     {
         VERIFY(SUCCEEDED(CoRevokeInitializeSpy(m_uliInitializeSpyCookie)));
         m_fInitializeSpyRegistered = false;
     }
+#endif // !FEATURE_CORECLR    
 }
 
 inline LPVOID Thread::GetLastSTACtxCookie(BOOL *pfNAContext)

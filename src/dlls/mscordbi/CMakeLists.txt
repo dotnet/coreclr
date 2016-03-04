@@ -49,10 +49,22 @@ set(COREDBI_LIBRARIES
 ) 
 
 if(WIN32)
+
     list(APPEND COREDBI_LIBRARIES
         ipcmanager-staticcrt
         mdhotdata-staticcrt
         mdwinmd_dbi
+    )
+
+    # ONECORE_TODO: Enable this for Windows Arm64
+    if (NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)
+      list(APPEND COREDBI_LIBRARIES
+        "${WINDOWS_SDK_LIB_PATH}onecore.lib"
+        ${STATIC_MT_CRT_LIB_ONECORE}
+        ${STATIC_MT_VCRT_LIB_ONECORE}
+      )
+    else()
+      list(APPEND COREDBI_LIBRARIES
         kernel32.lib
         advapi32.lib
         ole32.lib
@@ -61,8 +73,9 @@ if(WIN32)
         user32.lib
         version.lib
         ${STATIC_MT_CRT_LIB}
-    )
-
+      )
+    endif()
+    
     target_link_libraries(mscordbi ${COREDBI_LIBRARIES})
 
 elseif(CLR_CMAKE_PLATFORM_UNIX)
