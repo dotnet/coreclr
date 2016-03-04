@@ -8,15 +8,21 @@ Requirements
 
 You need a Debian based host and the following packages needs to be installed:
 
-    ben@ubuntu ~/git/coreclr/ $ sudo apt-get install qemu qemu-user-static binfmt-support debootstrap
+```sh
+ben@ubuntu ~/git/coreclr/ $ sudo apt-get install qemu qemu-user-static binfmt-support debootstrap
+```
 
 In addition, to cross compile CoreCLR the binutils for the target are required. So for arm you need:
 
-    ben@ubuntu ~/git/coreclr/ $ sudo apt-get install binutils-arm-linux-gnueabihf
+```sh
+ben@ubuntu ~/git/coreclr/ $ sudo apt-get install binutils-arm-linux-gnueabihf
+```
 
 and conversely for arm64:
 
-    ben@ubuntu ~/git/coreclr/ $ sudo apt-get install binutils-aarch64-linux-gnu
+```sh
+ben@ubuntu ~/git/coreclr/ $ sudo apt-get install binutils-aarch64-linux-gnu
+```
 
 
 Generating the rootfs
@@ -30,11 +36,15 @@ The `build-rootfs.sh` script must be run as root as it has to make some symlinks
 
 For example, to generate an arm rootfs:
 
-    ben@ubuntu ~/git/coreclr/ $ sudo ./cross/build-rootfs.sh arm
+```sh
+ben@ubuntu ~/git/coreclr/ $ sudo ./cross/build-rootfs.sh arm
+```
 
 and if you wanted to generate the rootfs elsewhere:
 
-    ben@ubuntu ~/git/coreclr/ $ sudo ROOTFS_DIR=/home/ben/coreclr-cross/arm ./build-rootfs.sh arm
+```sh
+ben@ubuntu ~/git/coreclr/ $ sudo ROOTFS_DIR=/home/ben/coreclr-cross/arm ./build-rootfs.sh arm
+```
 
 Patching Urcu
 -------------
@@ -67,11 +77,15 @@ Once the rootfs has been generated, it will be possible to cross compile CoreCLR
 
 So, without `ROOTFS_DIR`:
 
-    ben@ubuntu ~/git/coreclr/ $ ./build.sh arm debug verbose clean cross
+```sh
+ben@ubuntu ~/git/coreclr/ $ ./build.sh arm debug verbose clean cross
+```
 
 And with:
 
-    ben@ubuntu ~/git/coreclr/ $ ROOTFS_DIR=/home/ben/coreclr-cross/arm ./build.sh arm debug verbose clean cross
+```sh
+ben@ubuntu ~/git/coreclr/ $ ROOTFS_DIR=/home/ben/coreclr-cross/arm ./build.sh arm debug verbose clean cross
+```
 
 As usual the resulting binaries will be found in `bin/Product/BuildOS.BuildArch.BuildType/`
 
@@ -96,7 +110,7 @@ The output is at bin\Product\<BuildOS>.x64.Debug\mscorlib.dll.
 
 The CoreCLR native components need to be built on the target platform.  This can be done with the following command:
 
-```
+```sh
 ellismg@linux:~/git/coreclr$ ./build.sh skipmscorlib
 ```
 
@@ -116,6 +130,6 @@ The output is at bin\<BuildOS>.AnyCPU.Debug.
 
 The CoreFX native components need to be built on the target platform.  This can be done with the following command:
 
-```
+```sh
 ellismg@linux:~/git/corefx$ ./build.sh native
 ```
