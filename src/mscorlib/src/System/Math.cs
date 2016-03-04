@@ -177,7 +177,7 @@ namespace System {
       private static int RoundIntInternal(int i, int digits, MidpointRounding mode, int remCount)
       {
           int rounded = Truncate2Internal(i, remCount); //Number truncated (i.e., redundant numbers are plainly removed) up to the position defined by digits 
-          if (rounded < i)
+          if (rounded != i)
           {
               int nextDigit = Math.Abs(i) / roundPower10Int[remCount - 1] % 10; //Next to the last rounded digit
               int greaterEqual = (nextDigit < 5 ? -1 : 1);
