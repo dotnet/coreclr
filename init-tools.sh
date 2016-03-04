@@ -64,7 +64,7 @@ esac
 
 # Initialize Linux Distribution name and .NET CLI package name.
 
-initDistroName $OS
+initDistroName $OSName
 if [ "$__DistroName" == "centos" ]; then
     __DOTNET_PKG=dotnet-centos-x64
 fi
