@@ -582,7 +582,6 @@ namespace System.Text {
                 {
                     if (idx++ < m_ChunkChars.Length)
                     {
-                        idx++;
                         --repeatCount;
                     }
                     else
