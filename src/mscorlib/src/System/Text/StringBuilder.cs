@@ -582,8 +582,9 @@ namespace System.Text {
                 {
                     if (idx < m_ChunkChars.Length)
                     {
-                        idx++;
-                        --repeatCount;
+                        int diff = m_ChunkChars.Length - idx;
+                        idx += diff;
+                        repeatCount -= diff;
                     }
                     else
                     {
