@@ -580,8 +580,9 @@ namespace System.Text {
             {
                 while (repeatCount > 0)
                 {
-                    if (idx++ < m_ChunkChars.Length)
+                    if (idx < m_ChunkChars.Length)
                     {
+                        idx++;
                         --repeatCount;
                     }
                     else
