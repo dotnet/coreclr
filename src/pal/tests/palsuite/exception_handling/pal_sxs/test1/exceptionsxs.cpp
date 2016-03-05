@@ -71,7 +71,11 @@ void sigsegv_handler(int code, siginfo_t *siginfo, void *context)
 
 #endif
 
+#ifdef __i386__
 int __cdecl main(int argc, char *argv[])
+#else
+int main(int argc, char *argv[])
+#endif
 {
 #if !defined(__FreeBSD__) && !defined(__NetBSD__)
     struct sigaction newAction;
