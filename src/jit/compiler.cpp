@@ -14,6 +14,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #ifdef _MSC_VER
 #pragma hdrstop
 #endif // _MSC_VER
+#include "hostallocator.h"
 #include "emit.h"
 #include "ssabuilder.h"
 #include "valuenum.h"
@@ -246,10 +247,10 @@ NodeSizeStats genNodeSizeStats;
 NodeSizeStats genNodeSizeStatsPerFunc;
 
 unsigned    genTreeNcntHistBuckets[] = { 10, 20, 30, 40, 50, 100, 200, 300, 400, 500, 1000, 5000, 10000, 0 };
-histo       genTreeNcntHist(DefaultAllocator::Singleton(), genTreeNcntHistBuckets);
+histo       genTreeNcntHist(HostAllocator::getHostAllocator(), genTreeNcntHistBuckets);
 
 unsigned    genTreeNsizHistBuckets[] = { 1000, 5000, 10000, 50000, 100000, 500000, 1000000, 0 };
-histo       genTreeNsizHist(DefaultAllocator::Singleton(), genTreeNsizHistBuckets);
+histo       genTreeNsizHist(HostAllocator::getHostAllocator(), genTreeNsizHistBuckets);
 #endif // MEASURE_NODE_SIZE
 
 /*****************************************************************************
@@ -300,16 +301,16 @@ unsigned    argTotalGTF_ASGinArgs;
 unsigned    argMaxTempsPerMethod;
 
 unsigned    argCntBuckets[] = { 0, 1, 2, 3, 4, 5, 6, 10, 0 };
-histo       argCntTable(DefaultAllocator::Singleton(), argCntBuckets);
+histo       argCntTable(HostAllocator::getHostAllocator(), argCntBuckets);
 
 unsigned    argDWordCntBuckets[] = { 0, 1, 2, 3, 4, 5, 6, 10, 0 };
-histo       argDWordCntTable(DefaultAllocator::Singleton(), argDWordCntBuckets);
+histo       argDWordCntTable(HostAllocator::getHostAllocator(), argDWordCntBuckets);
 
 unsigned    argDWordLngCntBuckets[] = { 0, 1, 2, 3, 4, 5, 6, 10, 0 };
-histo       argDWordLngCntTable(DefaultAllocator::Singleton(), argDWordLngCntBuckets);
+histo       argDWordLngCntTable(HostAllocator::getHostAllocator(), argDWordLngCntBuckets);
 
 unsigned    argTempsCntBuckets[] = { 0, 1, 2, 3, 4, 5, 6, 10, 0 };
-histo       argTempsCntTable(DefaultAllocator::Singleton(), argTempsCntBuckets);
+histo       argTempsCntTable(HostAllocator::getHostAllocator(), argTempsCntBuckets);
 
 #endif // CALL_ARG_STATS
 
@@ -336,12 +337,12 @@ histo       argTempsCntTable(DefaultAllocator::Singleton(), argTempsCntBuckets);
 //          --------------------------------------------------
 
 unsigned    bbCntBuckets[] = { 1, 2, 3, 5, 10, 20, 50, 100, 1000, 10000, 0 };
-histo       bbCntTable(DefaultAllocator::Singleton(), bbCntBuckets);
+histo       bbCntTable(HostAllocator::getHostAllocator(), bbCntBuckets);
 
 /* Histogram for the IL opcode size of methods with a single basic block */
 
 unsigned    bbSizeBuckets[] = { 1, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 0 };
-histo       bbOneBBSizeTable(DefaultAllocator::Singleton(), bbSizeBuckets);
+histo       bbOneBBSizeTable(HostAllocator::getHostAllocator(), bbSizeBuckets);
 
 #endif // COUNT_BASIC_BLOCKS
 
@@ -373,12 +374,12 @@ bool        loopOverflowThisMethod;     // True if we exceeded the max # of loop
 /* Histogram for number of loops in a method */
 
 unsigned    loopCountBuckets[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 0 };
-histo       loopCountTable(DefaultAllocator::Singleton(), loopCountBuckets);
+histo       loopCountTable(HostAllocator::getHostAllocator(), loopCountBuckets);
 
 /* Histogram for number of loop exits */
 
 unsigned    loopExitCountBuckets[] = { 0, 1, 2, 3, 4, 5, 6, 0 };
-histo       loopExitCountTable(DefaultAllocator::Singleton(), loopExitCountBuckets);
+histo       loopExitCountTable(HostAllocator::getHostAllocator(), loopExitCountBuckets);
 
 #endif // COUNT_LOOPS
 
@@ -2113,7 +2114,7 @@ void                Compiler::compInitOptions(CORJIT_FLAGS* jitFlags)
             {
                 // NOTE: The Assembly name list is allocated in the process heap, not in the no-release heap, which is reclaimed
                 // for every compilation. This is ok because we only allocate once, due to the static.
-                s_pAltJitExcludeAssembliesList = new (ProcessHeapAllocator::Singleton()) AssemblyNamesList2(wszAltJitExcludeAssemblyList, ProcessHeapAllocator::Singleton());
+                s_pAltJitExcludeAssembliesList = new (HostAllocator::getHostAllocator()) AssemblyNamesList2(wszAltJitExcludeAssemblyList, HostAllocator::getHostAllocator());
             }
         }
 
@@ -4924,80 +4925,83 @@ int           Compiler::compCompileHelper (CORINFO_MODULE_HANDLE            clas
 
         lvaInitTypeRef();
 
-        bool hasBeenMarkedAsBadInlinee = false;
-        bool forceInline = !!(info.compFlags & CORINFO_FLG_FORCEINLINE);
-
         if (!compIsForInlining())
         {
             compInitDebuggingInfo();
-
-            if (opts.eeFlags & CORJIT_FLG_PREJIT)
-            {
-                // Cache inlining hint during NGen to avoid touching bodies of non-inlineable methods at runtime
-                InlineResult trialResult(this, methodHnd, "prejit1");
-                impCanInlineIL(methodHnd, methodInfo, forceInline, &trialResult);
-                if (trialResult.isFailure())
-                {
-                    // It is a bad inlinee according to impCanInlineIL.
-                    // This decision better not be context-dependent.
-                    assert(trialResult.isNever());
-
-                    // Don't bother with the second stage of the evaluation for this method.
-                    hasBeenMarkedAsBadInlinee = true;
-                }
-                else
-                {
-                    // Since we're not actually inlining anything, don't report success.
-                    trialResult.setReported();
-                }
-            }
         }
 
-        /* Find and create the basic blocks */
+        const bool forceInline = !!(info.compFlags & CORINFO_FLG_FORCEINLINE);
 
-        fgFindBasicBlocks();        
+        if (!compIsForInlining() && (opts.eeFlags & CORJIT_FLG_PREJIT))
+        {
+            // We're prejitting the root method. We also will analyze it as
+            // a potential inline candidate.
+            InlineResult prejitResult(this, methodHnd, "prejit");
+
+            // Do the initial inline screen.
+            impCanInlineIL(methodHnd, methodInfo, forceInline, &prejitResult);
+
+            // Find the basic blocks. We must do this regardless of
+            // inlineability, since we are prejitting this method.
+            //
+            // Among other things, this will set
+            // compNativeSizeEstimate and compInlineeHints for the
+            // subset of methods we check below.
+            fgFindBasicBlocks();
+
+            // If this method is still a viable inline candidate,
+            // do the profitability screening.
+            if (prejitResult.isCandidate())
+            {
+                // Only needed if the inline is discretionary (not forced)
+                // and the size is over the always threshold.
+                if (!forceInline && (methodInfo->ILCodeSize > ALWAYS_INLINE_SIZE))
+                {
+                    // We should have run the CodeSeq state machine
+                    // and got the native size estimate.
+                    assert(compNativeSizeEstimate != NATIVE_SIZE_INVALID);
+
+                    // Estimate the call site impact
+                    int callsiteNativeSizeEstimate = impEstimateCallsiteNativeSize(methodInfo);
+
+                    // See if we're willing to pay for inlining this method
+                    impCanInlineNative(callsiteNativeSizeEstimate,
+                                       compNativeSizeEstimate,
+                                       compInlineeHints,
+                                       nullptr, // Calculate static inlining hint.
+                                       &prejitResult);
+                }
+            }
+
+            // Handle the results of the inline analysis.
+            if (prejitResult.isFailure())
+            {
+                // This method is a bad inlinee according to our
+                // analysis.  We will let the InlineResult destructor
+                // mark it as noinline in the prejit image to save the
+                // jit some work.
+                //
+                // This decision better not be context-dependent.
+                assert(prejitResult.isNever());
+            }
+            else
+            {
+                // This looks like a viable inline candidate.  Since
+                // we're not actually inlining, don't report anything.
+                prejitResult.setReported();
+            }
+        }
+        else
+        {
+            // We are jitting the root method, or inlining.
+            fgFindBasicBlocks();
+        }
+
+        // If we're inlining and the candidate is bad, bail out.
         if (compDonotInline())
         {
             goto _Next;
         }          
-
-        //
-        // Now, we might have calculated the compNativeSizeEstimate in fgFindJumpTargets.
-        // If we haven't marked this method as a bad inlinee as a result of impCanInlineIL, 
-        // check to see if it is a bad inlinee according to impCanInlineNative.
-        //        
-        if (!compIsForInlining()                       && // We are compiling a method (not inlining one).
-            !hasBeenMarkedAsBadInlinee                 && // The method hasn't been marked as bad inlinee.
-            (opts.eeFlags & CORJIT_FLG_PREJIT)         && // This is NGEN.
-            !forceInline                               && // The size of the method matters.
-            (methodInfo->ILCodeSize > ALWAYS_INLINE_SIZE))
-        {
-            assert(methodInfo->ILCodeSize <= impInlineSize); // Otherwise it must have been marked as a bad inlinee by impCanInlineIL. 
-
-            // We must have run the CodeSeq state machine and got the native size estimate.
-            assert(compNativeSizeEstimate != NATIVE_SIZE_INVALID); 
-
-            int callsiteNativeSizeEstimate = impEstimateCallsiteNativeSize(methodInfo);
-            InlineResult trialResult(this, methodHnd, "prejit2");
-            
-            impCanInlineNative(callsiteNativeSizeEstimate, 
-                               compNativeSizeEstimate,
-                               compInlineeHints,
-                               nullptr, // Calculate static inlining hint.
-                               &trialResult);
-
-            if (trialResult.isFailure())
-            {
-                // Bingo! It is a bad inlinee according to impCanInlineNative.
-                // This decision better not be context-dependent.
-                assert(trialResult.isNever());
-            }
-            else 
-            {
-               // Since we're not actually inlining, don't report success.
-               trialResult.setReported();
-            }
-        }
 
         compSetOptimizationLevel();
 
