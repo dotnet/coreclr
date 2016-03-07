@@ -778,109 +778,92 @@ void ConfigMethodRange::initRanges(__in_z LPCWSTR rangeStr)
  *  Histogram class.
  */
 
-histo::histo(IAllocator* alloc, unsigned * sizeTab, unsigned sizeCnt) :
-    histoAlloc(alloc),
-    histoCounts(nullptr)
+Histogram::Histogram(IAllocator* allocator, const unsigned* const sizeTable)
+    : m_allocator(allocator)
+    , m_sizeTable(sizeTable)
+    , m_counts(nullptr)
 {
-    if (sizeCnt == 0)
+    unsigned sizeCount = 0;
+    do
     {
-        do
+        sizeCount++;
+    }
+    while ((sizeTable[sizeCount] != 0) && (sizeCount < 1000));
+
+    m_sizeCount = sizeCount;
+}
+
+Histogram::~Histogram()
+{
+    m_allocator->Free(m_counts);
+}
+
+// We need to lazy allocate the histogram data so static `Histogram` variables don't try to
+// call the host memory allocator in the loader lock, which doesn't work.
+void Histogram::ensureAllocated()
+{
+    if (m_counts == nullptr)
+    {
+        m_counts = new (m_allocator) unsigned[m_sizeCount + 1];
+        memset(m_counts, 0, (m_sizeCount + 1) * sizeof(*m_counts));
+    }
+}
+
+void Histogram::dump(FILE* output)
+{
+    ensureAllocated();
+
+    unsigned t = 0;
+    for (unsigned i = 0; i < m_sizeCount; i++)
+    {
+        t += m_counts[i];
+    }
+
+    for (unsigned c = 0, i = 0; i <= m_sizeCount; i++)
+    {
+        if (i == m_sizeCount)
         {
-            sizeCnt++;
-        }
-        while ((sizeTab[sizeCnt] != 0) && (sizeCnt < 1000));
-    }
-
-    histoSizCnt = sizeCnt;
-    histoSizTab = sizeTab;
-}
-
-histo::~histo()
-{
-    histoAlloc->Free(histoCounts);
-}
-
-// We need to lazy allocate the histogram data so static "histo" variables don't try to call the CLR memory allocator
-// in the loader lock, which doesn't work.
-void                histo::histoEnsureAllocated()
-{
-    if (histoCounts == nullptr)
-    {
-        histoCounts = new (histoAlloc) unsigned[histoSizCnt + 1];
-        histoClr();
-    }
-}
-
-void                histo::histoClr()
-{
-    histoEnsureAllocated();
-    memset(histoCounts, 0, (histoSizCnt + 1) * sizeof(*histoCounts));
-}
-
-void                histo::histoDsp(FILE* fout)
-{
-    histoEnsureAllocated();
-
-    unsigned        i;
-    unsigned        c;
-    unsigned        t;
-
-    for (i = t = 0; i <= histoSizCnt; i++)
-    {
-        t += histoCounts[i];
-    }
-
-    for (i = c = 0; i <= histoSizCnt; i++)
-    {
-        if  (i == histoSizCnt)
-        {
-            if  (!histoCounts[i])
+            if (m_counts[i] == 0)
+            {
                 break;
+            }
 
-            fprintf(fout, "      >    %7u", histoSizTab[i-1]);
+            fprintf(output, "      >    %7u", m_sizeTable[i - 1]);
         }
         else
         {
             if (i == 0)
             {
-                fprintf(fout, "     <=    ");
+                fprintf(output, "     <=    ");
             }
             else
             {
-                fprintf(fout, "%7u .. ", histoSizTab[i-1]+1);
+                fprintf(output, "%7u .. ", m_sizeTable[i - 1] + 1);
             }
 
-            fprintf(fout, "%7u", histoSizTab[i]);
+            fprintf(output, "%7u", m_sizeTable[i]);
         }
 
-        c += histoCounts[i];
+        c += m_counts[i];
 
-        fprintf(fout, " ===> %7u count (%3u%% of total)\n", histoCounts[i], (int)(100.0 * c / t));
+        fprintf(output, " ===> %7u count (%3u%% of total)\n", m_counts[i], (int)(100.0 * c / t));
     }
 }
 
-void                histo::histoRec(unsigned __int64 siz, unsigned cnt)
+void Histogram::record(unsigned size)
 {
-    assert(FitsIn<unsigned>(siz));
-    histoRec((unsigned)siz, cnt);
-}
+    ensureAllocated();
 
-void                histo::histoRec(unsigned siz, unsigned cnt)
-{
-    histoEnsureAllocated();
-
-    unsigned        i;
-    unsigned    *   t;
-
-    for (i = 0, t = histoSizTab;
-         i < histoSizCnt;
-         i++  , t++)
+    unsigned i;
+    for (i = 0; i < m_sizeCount; i++)
     {
-        if  (*t >= siz)
+        if (m_sizeTable[i] >= size)
+        {
             break;
+        }
     }
 
-    histoCounts[i] += cnt;
+    m_counts[i]++;
 }
 
 #endif // CALL_ARG_STATS || COUNT_BASIC_BLOCKS || COUNT_LOOPS || EMITTER_STATS || MEASURE_NODE_SIZE
@@ -1194,6 +1177,7 @@ void HelperCallProperties::init()
 
         case CORINFO_HELP_NEW_CROSSCONTEXT:
         case CORINFO_HELP_NEWFAST:
+        case CORINFO_HELP_READYTORUN_NEW:
 
             mayFinalize   = true;  // These may run a finalizer
             isAllocator   = true;
@@ -1215,7 +1199,7 @@ void HelperCallProperties::init()
         case CORINFO_HELP_NEW_MDARR:
         case CORINFO_HELP_NEWARR_1_DIRECT:
         case CORINFO_HELP_NEWARR_1_OBJ:
-
+        case CORINFO_HELP_READYTORUN_NEWARR_1:
 
             mayFinalize   = true;  // These may run a finalizer
             isAllocator   = true;
@@ -1263,7 +1247,8 @@ void HelperCallProperties::init()
         case CORINFO_HELP_ISINSTANCEOFARRAY:
         case CORINFO_HELP_ISINSTANCEOFCLASS:
         case CORINFO_HELP_ISINSTANCEOFANY:
-            
+        case CORINFO_HELP_READYTORUN_ISINSTANCEOF:
+
             isPure   = true;
             noThrow  = true;   // These return null for a failing cast
             break;
@@ -1274,7 +1259,8 @@ void HelperCallProperties::init()
         case CORINFO_HELP_CHKCASTCLASS:
         case CORINFO_HELP_CHKCASTANY:
         case CORINFO_HELP_CHKCASTCLASS_SPECIAL:
-            
+        case CORINFO_HELP_READYTORUN_CHKCAST:
+
             // These throw for a failing cast
             // But if given a null input arg will return null
             isPure = true;
@@ -1314,6 +1300,7 @@ void HelperCallProperties::init()
         case CORINFO_HELP_GETSTATICFIELDADDR_TLS:
         case CORINFO_HELP_GETGENERICS_GCSTATIC_BASE:
         case CORINFO_HELP_GETGENERICS_NONGCSTATIC_BASE:
+        case CORINFO_HELP_READYTORUN_STATIC_BASE:
 
             // These may invoke static class constructors
             // These can throw InvalidProgram exception if the class can not be constructed
