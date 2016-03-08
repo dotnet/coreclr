@@ -25,21 +25,13 @@ namespace System {
       private static double doubleRoundLimit = 1e16d;
 
       private const int maxRoundingDigits = 15;
-      private const int maxRoundingDigitsInt = 9;
-            
+      
       // This table is required for the Round function which can specify the number of digits to round to
       private static double[] roundPower10Double = new double[] { 
           1E0, 1E1, 1E2, 1E3, 1E4, 1E5, 1E6, 1E7, 1E8,
           1E9, 1E10, 1E11, 1E12, 1E13, 1E14, 1E15
       };          
 
-	  //Required by int.Round and the Math.Round overloads accepting int arguments
-	  private static int[] roundPower10Int = new int[] 
-	  { 
-		1, 10, 100, 1000, 10000, 100000, 
-		1000000, 10000000, 100000000, 1000000000 
-	  };
-	  
       public const double PI = 3.14159265358979323846;
       public const double E  = 2.7182818284590452354;
     
@@ -161,51 +153,6 @@ namespace System {
         return Decimal.Round(d, decimals, mode);
       }
 
-      //Removed its public visibility. This will be included in CoreFX. I am letting this method here for reference.
-	  private static int Round(int i, int digits, MidpointRounding mode) 
-	  {
-		    if ((digits <= 0) || (digits > maxRoundingDigitsInt)) 
-				throw new ArgumentOutOfRangeException("digits", Environment.GetResourceString("ArgumentOutOfRange_RoundingDigits"));
-            Contract.EndContractBlock();
-		    
-			if (i == 0) return 0;
-   		    
-			int remCount = (int)Math.Ceiling(Math.Log10(Math.Abs(i))) - digits; //Number of digits to be rounded/removed			
-			return (remCount < 1 ? i : RoundIntInternal(i, digits, mode, remCount));
-	  }
-		
-      private static int RoundIntInternal(int i, int digits, MidpointRounding mode, int remCount)
-      {
-          int rounded = Truncate2Internal(i, remCount); //Number truncated (i.e., redundant numbers are plainly removed) up to the position defined by digits 
-          if (rounded != i)
-          {
-              int nextDigit = Math.Abs(i) / roundPower10Int[remCount - 1] % 10; //Next to the last rounded digit
-              int greaterEqual = (nextDigit < 5 ? -1 : 1);
-              if (nextDigit == 5) //If nextDigit equals 5, MidpointRounding.ToEven might be applicable (greaterEqual == 0) or not
-              {
-                  int middle = nextDigit * roundPower10Int[remCount - 1];
-                  if (i - (rounded * roundPower10Int[remCount]) == middle) greaterEqual = 0;
-              }
-
-              if (greaterEqual == 1 || (greaterEqual == 0 && mode == MidpointRounding.AwayFromZero)) rounded = rounded + (i >= 0 ? 1 : -1); //Rounding always up
-              else if (greaterEqual == 0) //MidpointRounding.ToEven is analysed
-              {
-                  //Rounding up only if the last digit of the rounded number is uneven
-                  if ((Math.Abs(i) / roundPower10Int[remCount] % 10) % 2 != 0)
-                  {
-                      rounded = rounded + (i >= 0 ? 1 : -1);
-                  }
-              }
-          }
-          
-          return rounded * roundPower10Int[remCount]; 
-      }
-
-      private static int Truncate2Internal(int i, int remCount)
-      {
-          return i / roundPower10Int[remCount];
-      }
-      
       [System.Security.SecurityCritical]  // auto-generated
       [MethodImplAttribute(MethodImplOptions.InternalCall)]
       private static unsafe extern double SplitFractionDouble(double* value);
