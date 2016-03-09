@@ -199,7 +199,10 @@ isMSBuildOnNETCoreSupported()
     if [ "$__BuildArch" == "x64" ]; then
         if [ "$__BuildOS" == "Linux" ]; then
             if [ "$__DistroName" == "ubuntu" ]; then
-                __isMSBuildOnNETCoreSupported=1
+                __OSVersion=$(lsb_release -rs)
+                if [ "$__OSVersion" == "14.04" ]; then
+                    __isMSBuildOnNETCoreSupported=1
+                fi
             elif [ "$__DistroName" == "rhel" ]; then
                 __isMSBuildOnNETCoreSupported=1
             elif [ "$__DistroName" == "debian" ]; then
@@ -245,14 +248,16 @@ build_mscorlib()
         exit 1
     fi
 
-    if [ $__SkipCoreCLR == 0 -a -e $__BinDir/crossgen ]; then
-        echo "Generating native image for mscorlib."
-        $__BinDir/crossgen $__BinDir/mscorlib.dll
-        if [ $? -ne 0 ]; then
-            echo "Failed to generate native image for mscorlib."
-            exit 1
-        fi
-    fi
+    if [ $__CrossBuild != 1 ]; then
+       if [ $__SkipCoreCLR == 0 -a -e $__BinDir/crossgen ]; then
+           echo "Generating native image for mscorlib."
+           $__BinDir/crossgen $__BinDir/mscorlib.dll
+           if [ $? -ne 0 ]; then
+               echo "Failed to generate native image for mscorlib."
+               exit 1
+           fi
+       fi
+    fi 
 }
 
 generate_NugetPackages()
