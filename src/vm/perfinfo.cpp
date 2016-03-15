@@ -17,16 +17,24 @@ PerfInfo::PerfInfo(int _pid) {
     OpenFile(path);
 }
 
-void PerfInfo::WriteRecord(SString& command, SString& path, SString& guid) {
-
+void PerfInfo::LogNativeImage(object* obj) {
     CONTRACTL{
         THROWS;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
+        PRECONDITION(obj != NULL);
     } CONTRACTL_END;
 
+    WriteLine("NILoad", "value");
+
+}
+
+void WriteLine(SString& type, SString& value) {
+
+    STANDARD_VM_CONTRACT;
+
     SString line;
-    line.Printf("%S;%S;%S", command, path, guid);
+    line.Printf("%S%c%S", type, delimiter, value);
 
     EX_TRY
     {
@@ -43,7 +51,6 @@ void PerfInfo::WriteRecord(SString& command, SString& path, SString& guid) {
     }
     EX_CATCH{} EX_END_CATCH(SwallowAllExceptions);
 }
-
 
 void PerfInfo::OpenFile(SString& path) {
     STANDARD_VM_CONTRACT;

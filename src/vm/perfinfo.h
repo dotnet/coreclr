@@ -9,7 +9,7 @@ class PerfInfo {
 public:
     PerfInfo(int pid);
     ~PerfInfo();
-    void WriteRecord(SString& command, SString& path, SString& guid); 
+    void LogNativeImage(object*); 
 
 private:
     int pid;
@@ -18,6 +18,8 @@ private:
     const char delimiter = ';';
 
     void OpenFile(SString& path);
+
+    void WriteLine(SString& type, SString& value);
 
 }
 
