@@ -5,10 +5,15 @@
 PerfInfo::PerfInfo(int _pid) {
     LIMITED_METHOD_CONTRACT;
 
+    WCHAR tempPath[MAX_LONGPATH+1];
+    if (!GetTempPathW(MAX_LONGPATH, tempPath)) {
+        return;
+    }
+
     pid = _pid;
 
     SString path;
-    path.Printf("loader-%d.map", pid);
+    path.Printf("%sperfinfo-%d.map", tempPath, pid);
     OpenFile(path);
 }
 
