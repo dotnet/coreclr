@@ -33,6 +33,10 @@ void WriteLine(SString& type, SString& value) {
 
     STANDARD_VM_CONTRACT;
 
+    if (stream == NULL) {
+        return;
+    }
+
     SString line;
     line.Printf("%S%c%S", type, delimiter, value);
 
