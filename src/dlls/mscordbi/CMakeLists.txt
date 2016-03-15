@@ -94,8 +94,12 @@ elseif(CLR_CMAKE_PLATFORM_UNIX)
     add_dependencies(mscordbi mscordaccore)
 endif(WIN32)
 
+strip_symbols(mscordbi STRIP_DESTINATION_FILE)
+
 # add the install targets
-install (TARGETS mscordbi DESTINATION .)
+install(FILES $<TARGET_FILE:mscordbi> DESTINATION .)
 if(WIN32)
-    install (FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/mscordbi.pdb DESTINATION PDB)
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/mscordbi.pdb DESTINATION PDB)
+else()
+    install(FILES ${STRIP_DESTINATION_FILE} DESTINATION .)
 endif(WIN32)

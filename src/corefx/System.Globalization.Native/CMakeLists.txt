@@ -73,4 +73,8 @@ else()
     add_definitions(-DU_DISABLE_RENAMING=1)
 endif()
 
-install (TARGETS System.Globalization.Native DESTINATION .)
+strip_symbols(System.Globalization.Native STRIP_DESTINATION_FILE)
+
+# add the install targets
+install(FILES $<TARGET_FILE:System.Globalization.Native> DESTINATION .)
+install(FILES ${STRIP_DESTINATION_FILE} DESTINATION .)

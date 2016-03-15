@@ -92,5 +92,8 @@ if (CLR_CMAKE_PLATFORM_UNIX)
     target_link_libraries(sosplugin ${LLDB})
 endif()
 
+strip_symbols(sosplugin STRIP_DESTINATION_FILE)
+
 # add the install targets
-install (TARGETS sosplugin DESTINATION .)
+install(FILES $<TARGET_FILE:sosplugin> DESTINATION .)
+install(FILES ${STRIP_DESTINATION_FILE} DESTINATION .)

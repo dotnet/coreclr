@@ -145,10 +145,13 @@ add_library_clr(sos SHARED ${SOS_SOURCES})
 add_dependencies(sos mscordaccore)
 target_link_libraries(sos ${SOS_LIBRARY})
 
+strip_symbols(sos STRIP_DESTINATION_FILE)
+
 # add the install targets
-install (TARGETS sos DESTINATION .)
+install(FILES $<TARGET_FILE:sos> DESTINATION .)
 if(WIN32)
-  install (FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/sos.pdb DESTINATION PDB)
-else(WIN32)
-  install (FILES sosdocsunix.txt DESTINATION .)
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/sos.pdb DESTINATION PDB)
+else()
+  install(FILES sosdocsunix.txt DESTINATION .)
+  install(FILES ${STRIP_DESTINATION_FILE} DESTINATION .)
 endif(WIN32)
