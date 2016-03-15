@@ -2,14 +2,14 @@
 #include "perfinfo.h"
 #include "pal.h"
 
-PerfInfo::PerfInfo(int pid) {
+PerfInfo::PerfInfo(int _pid) {
     LIMITED_METHOD_CONTRACT;
 
-    this->pid = pid;
+    pid = _pid;
 
     SString path;
     path.Printf("loader-%d.map", pid);
-    this->OpenFile(path);
+    OpenFile(path);
 }
 
 void PerfInfo::WriteRecord(SString& command, SString& path, SString& guid) {
@@ -30,7 +30,7 @@ void PerfInfo::WriteRecord(SString& command, SString& path, SString& guid) {
         ULONG inCount = line.GetCount();
         ULONG outCount;
 
-        this->stream->Write(strLine, inCount, &outCount);
+        stream->Write(strLine, inCount, &outCount);
 
         if (inCount != outCount) {
             // error encountered
@@ -43,13 +43,13 @@ void PerfInfo::WriteRecord(SString& command, SString& path, SString& guid) {
 void PerfInfo::OpenFile(SString& path) {
     STANDARD_VM_CONTRACT;
 
-    this->stream = new (nothrow) CFileStream();
+    stream = new (nothrow) CFileStream();
 
-    if (this->stream != NULL) {
-        HRESULT hr = this->stream->OpenForWrite(path.GetUnicode());
+    if (stream != NULL) {
+        HRESULT hr = stream->OpenForWrite(path.GetUnicode());
         if (FAILED(hr)) {
-            delete this->stream;
-            this->stream = NULL;
+            delete stream;
+            stream = NULL;
         }
     }
 }
@@ -57,7 +57,7 @@ void PerfInfo::OpenFile(SString& path) {
 PerfInfo::~PerfInfo() {
     LIMITED_METHOD_CONTRACT;
 
-    delete this->stream;
+    delete stream;
     stream = NULL;
 }
 
