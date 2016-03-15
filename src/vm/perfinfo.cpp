@@ -1,8 +1,8 @@
 #include "common.h"
-#include "luca_loaderwriter.h"
+#include "perfinfo.h"
 #include "pal.h"
 
-LoaderWriter::LoaderWriter(int pid) {
+PerfInfo::PerfInfo(int pid) {
     LIMITED_METHOD_CONTRACT;
 
     this->pid = pid;
@@ -12,7 +12,7 @@ LoaderWriter::LoaderWriter(int pid) {
     this->OpenFile(path);
 }
 
-void LoaderWriter::WriteRecord(SString& command, SString& path, SString& guid) {
+void PerfInfo::WriteRecord(SString& command, SString& path, SString& guid) {
 
     CONTRACTL{
         THROWS;
@@ -40,7 +40,7 @@ void LoaderWriter::WriteRecord(SString& command, SString& path, SString& guid) {
 }
 
 
-void LoaderWriter::OpenFile(SString& path) {
+void PerfInfo::OpenFile(SString& path) {
     STANDARD_VM_CONTRACT;
 
     this->stream = new (nothrow) CFileStream();
@@ -54,7 +54,7 @@ void LoaderWriter::OpenFile(SString& path) {
     }
 }
 
-LoaderWriter::~LoaderWriter() {
+PerfInfo::~PerfInfo() {
     LIMITED_METHOD_CONTRACT;
 
     delete this->stream;

@@ -1,14 +1,14 @@
-#ifndef LUCA_LOADERWRITER_H
-#define LUCA_LOADERWRITER_H
+#ifndef PERFINFO_H
+#define PERFINFO_H
 
 
 #include "sstring.h"
 #include "fstream.h"
 
-class LoaderWriter {
+class PerfInfo {
 public:
-    LoaderWriter(int pid);
-    ~LoaderWriter();
+    PerfInfo(int pid);
+    ~PerfInfo();
     void WriteRecord(SString& command, SString& path, SString& guid); 
 
 private:
