@@ -76,5 +76,5 @@ endif()
 strip_symbols(System.Globalization.Native STRIP_DESTINATION_FILE)
 
 # add the install targets
-install(FILES $<TARGET_FILE:System.Globalization.Native> DESTINATION .)
+install(TARGETS System.Globalization.Native DESTINATION .)
 install(FILES ${STRIP_DESTINATION_FILE} DESTINATION .)
