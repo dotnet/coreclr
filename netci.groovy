@@ -560,7 +560,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                             break
                         case 'longgc':
                             if (configuration in ['Checked', 'Release']) {
-                                Utilities.addGithubPRTrigger(job, "${os} ${architectue} ${configuration} Long-Running GC Build and Test", "(?i).*test\\W+${os}\\W+${scenario}.*")
+                                Utilities.addGithubPRTrigger(job, "${os} ${architecture} ${configuration} Long-Running GC Build and Test", "(?i).*test\\W+${os}\\W+${scenario}.*")
                             }
                             break
                         case 'minopts':
