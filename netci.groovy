@@ -836,6 +836,12 @@ combinedScenarios.each { scenario ->
                             case 'default':
                                 // Nothing skipped
                                 break
+                            case 'longgc':
+                                // only run on x64 Windows for now
+                                if (os != 'Windows_NT' && architecture != 'x64') {
+                                    return
+                                }
+                                break
                             default:
                                 println("Unknown scenario: ${scenario}")
                                 assert false
