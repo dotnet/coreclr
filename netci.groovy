@@ -261,6 +261,9 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
             case 'r2r':
                 //r2r jobs that aren't pri1 can only be triggered by phrase
                 break
+            case 'longgc':
+                // long GC runs are only triggered by the phrase
+                break
             case 'pri1r2r':
                 //pri1 r2r gets a push trigger for checked/release
                 if (configuration == 'Checked' || configuration == 'Release') {
@@ -390,6 +393,9 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                             if (configuration == 'Release') {
                                 Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Priority 1 Build and Test", "(?i).*test\\W+${os}\\W+${scenario}.*")
                             }
+                            break
+                        case 'longgc':
+                            // currently not enabled on OSX
                             break
                         case 'ilrt':
                             if (configuration == 'Release') {
@@ -1151,6 +1157,9 @@ combinedScenarios.each { scenario ->
                             case 'pri1':
                                 // Nothing skipped
                                 break
+                            case 'longgc':
+                                // Everything skipped
+                                return
                             case 'ilrt':
                                 break
                             case 'r2r':
