@@ -30,4 +30,7 @@ add_dependencies(corerun
     coreclr
 )
 
-install (TARGETS corerun DESTINATION .)
+strip_symbols(corerun STRIP_DESTINATION_FILE)
+
+install(TARGETS corerun DESTINATION .)
+install(FILES ${STRIP_DESTINATION_FILE} DESTINATION .)

@@ -105,8 +105,12 @@ endif(WIN32)
 
 target_link_libraries(mscordaccore ${COREDAC_LIBRARIES})
 
+strip_symbols(mscordaccore STRIP_DESTINATION_FILE)
+
 # add the install targets
-install (TARGETS mscordaccore DESTINATION .)
+install(FILES $<TARGET_FILE:mscordaccore> DESTINATION .)
 if(WIN32)
-    install (FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/mscordaccore.pdb DESTINATION PDB)
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/mscordaccore.pdb DESTINATION PDB)
+else()
+    install(FILES ${STRIP_DESTINATION_FILE} DESTINATION .)
 endif(WIN32)

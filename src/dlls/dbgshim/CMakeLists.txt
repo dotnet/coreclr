@@ -70,8 +70,12 @@ endif(WIN32)
 
 target_link_libraries(dbgshim ${DBGSHIM_LIBRARIES})
 
+strip_symbols(dbgshim STRIP_DESTINATION_FILE)
+
 # add the install targets
-install (TARGETS dbgshim DESTINATION .)
+install(FILES $<TARGET_FILE:dbgshim> DESTINATION .)
 if(WIN32)
-    install (FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/dbgshim.pdb DESTINATION PDB)
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/dbgshim.pdb DESTINATION PDB)
+else()
+    install(FILES ${STRIP_DESTINATION_FILE} DESTINATION .)
 endif(WIN32)

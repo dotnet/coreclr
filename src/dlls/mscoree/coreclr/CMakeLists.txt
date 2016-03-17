@@ -140,7 +140,8 @@ if(WIN32)
         clr_unknown_arch()
     endif()
 
-    add_custom_command(TARGET coreclr
+    add_custom_command(
+        TARGET coreclr
         POST_BUILD
         COMMAND ${CMAKE_CXX_COMPILER} /P /EP /TP ${PREPROCESS_DEFINITIONS} ${INC_DIR} /Fi${CMAKE_CURRENT_BINARY_DIR}/daccess.i  ${CLR_DIR}/src/debug/daccess/daccess.cpp
         COMMAND ${BuildToolsDir}/dactablegen.exe /dac:${CMAKE_CURRENT_BINARY_DIR}/daccess.i /pdb:${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/coreclr.pdb /dll:$<TARGET_FILE:coreclr> /bin:${CMAKE_CURRENT_BINARY_DIR}/wks.bin
@@ -159,8 +160,12 @@ else()
     )
 endif(WIN32)
 
+strip_symbols(coreclr STRIP_DESTINATION_FILE)
+
 # add the install targets
-install (TARGETS coreclr DESTINATION .)
+install(FILES $<TARGET_FILE:coreclr> DESTINATION .)
 if(WIN32)
-    install (FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/coreclr.pdb DESTINATION PDB)
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/coreclr.pdb DESTINATION PDB)
+else()
+    install(FILES ${STRIP_DESTINATION_FILE} DESTINATION .)
 endif(WIN32)

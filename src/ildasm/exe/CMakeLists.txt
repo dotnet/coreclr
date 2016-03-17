@@ -69,10 +69,13 @@ else()
         oleaut32
         shell32
     )
-
-    # We will generate PDB only for the debug configuration
-    install (FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/ildasm.pdb DESTINATION PDB)
-
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
-install (TARGETS ildasm DESTINATION .)
+strip_symbols(ildasm STRIP_DESTINATION_FILE)
+
+install(TARGETS ildasm DESTINATION .)
+if(WIN32)
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/ildasm.pdb DESTINATION PDB)
+else()
+  install(FILES ${STRIP_DESTINATION_FILE} DESTINATION .)
+endif(WIN32)

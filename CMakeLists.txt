@@ -154,6 +154,27 @@ else()
     if (AWK STREQUAL "AWK-NOTFOUND")
         message(FATAL_ERROR "AWK not found")
     endif()
+ 
+    if (CMAKE_SYSTEM_NAME STREQUAL Darwin)
+
+      # Ensure that dsymutil and strip is present
+      find_program(DSYMUTIL dsymutil)
+      if (DSYMUTIL STREQUAL "DSYMUTIL-NOTFOUND")
+          message(FATAL_ERROR "dsymutil not found")
+      endif()
+      find_program(STRIP strip)
+      if (STRIP STREQUAL "STRIP-NOTFOUND")
+          message(FATAL_ERROR "strip not found")
+      endif()
+
+    else (CMAKE_SYSTEM_NAME STREQUAL Darwin)
+
+      # Ensure that objcopy is present
+      find_program(OBJCOPY objcopy)
+      if (OBJCOPY STREQUAL "OBJCOPY-NOTFOUND")
+          message(FATAL_ERROR "objcopy not found")
+      endif()
+    endif (CMAKE_SYSTEM_NAME STREQUAL Darwin)
 endif(WIN32)
 
 # Build a list of compiler definitions by putting -D in front of each define.
@@ -240,6 +261,41 @@ function(add_precompiled_header header cppFile targetSources)
     # Add cppFile to SourcesVar
     set(${targetSources} ${${targetSources}} ${cppFile} PARENT_SCOPE)
   endif(MSVC)
+endfunction()
+
+function(strip_symbols targetName outputFilename)
+  if (CLR_CMAKE_PLATFORM_UNIX)
+    if (UPPERCASE_CMAKE_BUILD_TYPE STREQUAL RELEASE)
+      set(STRIP_SOURCE_FILE $<TARGET_FILE:${targetName}>)
+
+      if (CMAKE_SYSTEM_NAME STREQUAL Darwin)
+        set(STRIP_DESTINATION_FILE ${CMAKE_CURRENT_BINARY_DIR}/$<TARGET_FILE_NAME:${targetName}>.dSYM)
+
+        add_custom_command(
+          TARGET ${targetName}
+          POST_BUILD
+          VERBATIM 
+          COMMAND ${DSYMUTIL} --flat ${STRIP_SOURCE_FILE} --out=${STRIP_DESTINATION_FILE}
+          COMMAND ${STRIP} -S ${STRIP_SOURCE_FILE}
+          COMMENT Stripping symbols from ${STRIP_SOURCE_FILE} into file ${STRIP_DESTINATION_FILE}
+        )
+      else (CMAKE_SYSTEM_NAME STREQUAL Darwin)
+        set(STRIP_DESTINATION_FILE ${CMAKE_CURRENT_BINARY_DIR}/$<TARGET_FILE_NAME:${targetName}>.dbg)
+
+        add_custom_command(
+          TARGET ${targetName}
+          POST_BUILD
+          VERBATIM 
+          COMMAND ${OBJCOPY} --only-keep-debug ${STRIP_SOURCE_FILE} ${STRIP_DESTINATION_FILE}
+          COMMAND ${OBJCOPY} --strip-unneeded ${STRIP_SOURCE_FILE}
+          COMMAND ${OBJCOPY} --add-gnu-debuglink=${STRIP_DESTINATION_FILE} ${STRIP_SOURCE_FILE}
+          COMMENT Stripping symbols from ${STRIP_SOURCE_FILE} into file ${STRIP_DESTINATION_FILE}
+        )
+      endif (CMAKE_SYSTEM_NAME STREQUAL Darwin)
+
+      set(${outputFilename} ${STRIP_DESTINATION_FILE} PARENT_SCOPE)
+    endif (UPPERCASE_CMAKE_BUILD_TYPE STREQUAL RELEASE)
+  endif (CLR_CMAKE_PLATFORM_UNIX)
 endfunction()
 
 # Includes

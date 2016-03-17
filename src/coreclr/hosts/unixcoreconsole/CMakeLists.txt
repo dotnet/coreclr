@@ -30,4 +30,7 @@ add_dependencies(coreconsole
     coreclr
 )
 
-install (TARGETS coreconsole DESTINATION .)
+strip_symbols(coreconsole STRIP_DESTINATION_FILE)
+
+install(TARGETS coreconsole DESTINATION .)
+install(FILES ${STRIP_DESTINATION_FILE} DESTINATION .)

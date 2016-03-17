@@ -46,8 +46,12 @@ target_link_libraries(ryujit
    ${RYUJIT_LINK_LIBRARIES}
 )
 
+strip_symbols(ryujit STRIP_DESTINATION_FILE)
+
 # add the install targets
-install (TARGETS ryujit DESTINATION .)
+install(FILES $<TARGET_FILE:ryujit> DESTINATION .)
 if(WIN32)
-    install (FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/ryujit.pdb DESTINATION PDB)
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/ryujit.pdb DESTINATION PDB)
+else()
+    install(FILES ${STRIP_DESTINATION_FILE} DESTINATION .)
 endif(WIN32)
