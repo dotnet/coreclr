@@ -1537,12 +1537,13 @@ namespace System {
             if (!(valueType.IsEnum || Type.IsIntegerType(valueType)))
                 throw new ArgumentException(Environment.GetResourceString("Arg_MustBeEnumBaseTypeOrEnum"), "value");
 
-            Array values = GetEnumRawConstantValues();
+            string[] names;
+            Array values;
+            GetEnumData(out names, out values);
             int index = BinarySearch(values, value);
 
             if (index >= 0)
             {
-                string[] names = GetEnumNames();
                 return names[index];
             }
 
