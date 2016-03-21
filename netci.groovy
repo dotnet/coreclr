@@ -526,7 +526,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                         default:
                             break
                     }   
-                case 'OpenSUSE13.2':
+                case 'OpenSUSE13.2': //comment
                     if (configuration == 'Checked' && !isFlowJob && scenario == 'default') {
                         Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build")
                     }
