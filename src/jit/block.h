@@ -1110,6 +1110,48 @@ struct flowList
     {}
 };
 
+
+enum DfsStackState
+{
+    State_Invalid,
+    State_Pre,
+    State_Post
+};
+
+struct DfsBlockEntry
+{
+    DfsStackState       dfsStackState;
+    BasicBlock*         dfsBlock;
+
+    DfsBlockEntry()
+        : dfsStackState(State_Invalid)
+        , dfsBlock(NULL)
+    {}
+
+    DfsBlockEntry(DfsStackState state, BasicBlock* basicBlock)
+        : dfsStackState(state)
+        , dfsBlock(basicBlock)
+    {}
+};
+
+struct DfsNumEntry
+{
+    DfsStackState       dfsStackState;
+    unsigned            dfsNum;
+
+    DfsNumEntry()
+        : dfsStackState(State_Invalid)
+        , dfsNum(0)
+    {}
+
+    DfsNumEntry(DfsStackState state, unsigned bbNum)
+        : dfsStackState(state)
+        , dfsNum(bbNum)
+    {}
+};
+
+
+
 /*****************************************************************************/
 
 extern  BasicBlock*     __cdecl verAllocBasicBlock();

@@ -2407,7 +2407,7 @@ BlockSet_ValRet_T   Compiler::fgDomFindStartNodes()
     return startNodes;
 }
 
-/** A simple DFS traversal of the flow graph.
+/** A simple non-recursive DFS traversal of the flow graph.
   * It computes both preorder and postorder numbering.
   */
 void Compiler::fgDfsInvPostOrderHelper(BasicBlock* block, BlockSet& visited, unsigned* count)
@@ -2415,25 +2415,51 @@ void Compiler::fgDfsInvPostOrderHelper(BasicBlock* block, BlockSet& visited, uns
     // Assume we haven't visited this node yet (callers ensure this).
     assert(!BlockSetOps::IsMember(this, visited, block->bbNum));
 
+    ArrayStack<DfsBlockEntry> stack(this);
+
+    DfsBlockEntry firstEntry(State_Pre, block);
+    stack.Push(firstEntry);
     // Flag the node we just visited to avoid backtracking.
     BlockSetOps::AddElemD(this, visited, block->bbNum);
 
-    unsigned cSucc = block->NumSucc(this);
-    for (unsigned j = 0; j < cSucc; ++j)
+    while (stack.Height() != 0)
     {
-        BasicBlock* succ = block->GetSucc(j, this);
-        // If this is a node we haven't seen before, go ahead and recurse
-        if (!BlockSetOps::IsMember(this, visited, succ->bbNum))
+        DfsBlockEntry entry = stack.Pop();
+
+        if (entry.dfsStackState == State_Pre)
         {
-            fgDfsInvPostOrderHelper(succ, visited, count);
+            // pre-visit
+
+            DfsBlockEntry postEntry(State_Post, entry.dfsBlock);
+            stack.Push(postEntry);
+
+            unsigned cSucc = (entry.dfsBlock)->NumSucc(this);
+            for (unsigned j = 0; j < cSucc; ++j)
+            {
+                BasicBlock* succ = (entry.dfsBlock)->GetSucc(j, this);
+
+                // If this is a node we haven't seen before, go ahead and recurse
+                if (!BlockSetOps::IsMember(this, visited, succ->bbNum))
+                {
+                    DfsBlockEntry succEntry(State_Pre, succ);
+                    stack.Push(succEntry);
+                    BlockSetOps::AddElemD(this, visited, succ->bbNum);
+                }
+            }
+        }
+        else
+        {
+            // post-visit
+
+            assert(entry.dfsStackState == State_Post);
+
+            unsigned invCount = fgBBcount - *count + 1;
+            assert(1 <= invCount && invCount <= fgBBNumMax);
+            fgBBInvPostOrder[invCount] = entry.dfsBlock;
+            (entry.dfsBlock)->bbDfsNum = invCount;
+            ++(*count);
         }
     }
-
-    unsigned invCount = fgBBcount - *count + 1;
-    assert(1 <= invCount && invCount <= fgBBNumMax);
-    fgBBInvPostOrder[invCount] = block;
-    block->bbDfsNum = invCount;
-    ++(*count);
 }
 
 void Compiler::fgComputeDoms()
@@ -2801,12 +2827,49 @@ void Compiler::fgTraverseDomTree(unsigned         bbNum,
         // values must be zero.
         noway_assert(fgDomTreePostOrder[bbNum] == 0);
 
+        ArrayStack<DfsNumEntry> stack(this);
+
+        DfsNumEntry firstEntry(State_Pre, bbNum);
+        stack.Push(firstEntry);
         fgDomTreePreOrder[bbNum] = (*preNum)++;
-        for (BasicBlockList* current = domTree[bbNum]; current != nullptr; current = current->next)
+
+        while (stack.Height() != 0)
         {
-            fgTraverseDomTree(current->block->bbNum, domTree, preNum, postNum);
+            DfsNumEntry entry = stack.Pop();
+
+            if (entry.dfsStackState == State_Pre)
+            {
+                // pre-visit action
+
+                noway_assert(fgDomTreePreOrder[entry.dfsNum] != 0);
+                noway_assert(fgDomTreePostOrder[entry.dfsNum] == 0);
+
+                DfsNumEntry postEntry(State_Post, entry.dfsNum);
+                stack.Push(postEntry);
+
+                for (BasicBlockList* child = domTree[entry.dfsNum]; child != nullptr; child = child->next)
+                {
+                    unsigned childNum = child->block->bbNum;
+
+                    // this is a tree so never could have been visited
+                    assert(fgDomTreePreOrder[childNum] == 0);
+
+                    DfsNumEntry childEntry(State_Pre, childNum);
+                    stack.Push(childEntry);
+                    fgDomTreePreOrder[childNum] = (*preNum)++;
+                }
+            }
+            else
+            {
+                // post-visit action
+
+                assert(entry.dfsStackState == State_Post);
+                assert(fgDomTreePreOrder[entry.dfsNum] != 0);
+                assert(fgDomTreePostOrder[entry.dfsNum] == 0);
+
+                fgDomTreePostOrder[entry.dfsNum] = (*postNum)++;
+            }
         }
-        fgDomTreePostOrder[bbNum] = (*postNum)++;
     }
 }
 
