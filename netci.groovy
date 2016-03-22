@@ -66,7 +66,7 @@ class Constants {
                'gcstress0xc_minopts_heapverify1' : ['COMPlus_GCStress'  : '0xC', 'COMPlus_JITMinOpts'  : '1', 'COMPlus_HeapVerify'  : '1']
                ]
     // This is the basic set of scenarios
-    def static basicScenarios = ['default', 'pri1', 'ilrt', 'r2r', 'pri1r2r']
+    def static basicScenarios = ['default', 'pri1', 'ilrt', 'r2r', 'pri1r2r', 'longgc']
     // This is the set of configurations
     def static configurationList = ['Debug', 'Checked', 'Release']
     // This is the set of architectures
@@ -263,6 +263,9 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
             case 'r2r':
                 //r2r jobs that aren't pri1 can only be triggered by phrase
                 break
+            case 'longgc':
+                // long GC runs are only triggered by the phrase
+                break
             case 'pri1r2r':
                 //pri1 r2r gets a push trigger for checked/release
                 if (configuration == 'Checked' || configuration == 'Release') {
@@ -392,6 +395,9 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                             if (configuration == 'Release') {
                                 Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Priority 1 Build and Test", "(?i).*test\\W+${os}\\W+${scenario}.*")
                             }
+                            break
+                        case 'longgc':
+                            // currently not enabled on OSX
                             break
                         case 'ilrt':
                             if (configuration == 'Release') {
@@ -558,6 +564,11 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                         case 'pri1r2r':
                             if (configuration == 'Checked' || configuration == 'Release') {
                                 Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} R2R pri1 Build & Test", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")
+                            }
+                            break
+                        case 'longgc':
+                            if (configuration in ['Checked', 'Release']) {
+                                Utilities.addGithubPRTrigger(job, "${os} ${architecture} ${configuration} Long-Running GC Build and Test", "(?i).*test\\W+${os}\\W+${scenario}.*")
                             }
                             break
                         case 'minopts':
@@ -833,6 +844,12 @@ combinedScenarios.each { scenario ->
                             case 'default':
                                 // Nothing skipped
                                 break
+                            case 'longgc':
+                                // only run on x64 Windows for now
+                                if (os != 'Windows_NT' && architecture != 'x64') {
+                                    return
+                                }
+                                break
                             default:
                                 println("Unknown scenario: ${scenario}")
                                 assert false
@@ -890,6 +907,9 @@ combinedScenarios.each { scenario ->
                                         buildCommands += "build.cmd ${lowerConfiguration} ${architecture} docrossgen skiptests"
                                         buildCommands += "set __TestIntermediateDir=int&&tests\\buildtest.cmd ${lowerConfiguration} ${architecture} crossgen Priority 1"
                                     }
+                                    else if (scenario == 'longgc') {
+                                        buildCommands += "tests\\buildtest.cmd ${lowerConfiguration} ${architecture} longgctests"
+                                    }
                                     else {
                                         println("Unknown scenario: ${scenario}")
                                         assert false
@@ -929,7 +949,14 @@ combinedScenarios.each { scenario ->
                                             }                                            
                                         }
                                         else if (architecture == 'x64') {
-                                            buildCommands += "tests\\runtest.cmd ${lowerConfiguration} ${architecture}"
+                                            if (scenario == 'longgc') {
+                                                // long GC tests are currently in the x64 ignore list, so we need to
+                                                // not use an ignore list.
+                                                buildCommands += "tests\\runtest.cmd ${lowerConfiguration} ${architecture} Exclude0"
+                                            } 
+                                            else {
+                                                buildCommands += "tests\\runtest.cmd ${lowerConfiguration} ${architecture}"
+                                            }
                                         }
                                         else if (architecture == 'x86') {
                                             buildCommands += "tests\\runtest.cmd ${lowerConfiguration} ${architecture} Exclude0 x86_legacy_backend_issues.targets"
@@ -1132,6 +1159,9 @@ combinedScenarios.each { scenario ->
                             case 'pri1':
                                 // Nothing skipped
                                 break
+                            case 'longgc':
+                                // Everything skipped
+                                return
                             case 'ilrt':
                                 break
                             case 'r2r':
