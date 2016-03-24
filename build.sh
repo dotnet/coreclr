@@ -4,6 +4,7 @@ PYTHON=${PYTHON:-python}
 
 usage()
 {
+    echo "echo"
     echo "Usage: $0 [BuildArch] [BuildType] [clean] [verbose] [coverage] [cross] [clangx.y] [ninja] [configureonly] [skipconfigure] [skipnative] [skipmscorlib] [skiptests] [cmakeargs]"
     echo "BuildArch can be: x64, x86, arm, arm64"
     echo "BuildType can be: Debug, Checked, Release"
