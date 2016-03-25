@@ -8042,17 +8042,27 @@ Compiler::gtDispLeaf(GenTree *tree, IndentStack* indentStack)
         return;
     }
 
+    bool isLclFld = false;
+
     switch  (tree->gtOper)
     {
         unsigned        varNum;
         LclVarDsc *     varDsc;
+
+    case GT_LCL_FLD:
+    case GT_LCL_FLD_ADDR:
+    case GT_STORE_LCL_FLD:
+        isLclFld = true;
+        __fallthrough;
 
     case GT_PHI_ARG:
     case GT_LCL_VAR:
     case GT_LCL_VAR_ADDR:
     case GT_STORE_LCL_VAR:
         printf(" ");
-        gtDispLclVar(tree->gtLclVarCommon.gtLclNum);
+        varNum = tree->gtLclVarCommon.gtLclNum;
+        varDsc = &lvaTable[varNum];
+        gtDispLclVar(varNum);
         if (tree->gtLclVarCommon.HasSsaName())
         {
             if (tree->gtFlags & GTF_VAR_USEASG)
@@ -8065,8 +8075,29 @@ Compiler::gtDispLeaf(GenTree *tree, IndentStack* indentStack)
                 printf("%s:%d", (tree->gtFlags & GTF_VAR_DEF) ? "d" : "u", tree->gtLclVarCommon.gtSsaNum);
             }
         }
-       
-        varDsc = &lvaTable[tree->gtLclVarCommon.gtLclNum];
+
+        if (isLclFld)
+        {
+            printf("[+%u]", tree->gtLclFld.gtLclOffs);
+            gtDispFieldSeq(tree->gtLclFld.gtFieldSeq);
+        }
+
+        if (varDsc->lvRegister)
+        {
+            printf(" ");
+            varDsc->PrintVarReg();
+        }
+#ifndef LEGACY_BACKEND
+        else if (tree->InReg())
+        {
+#if CPU_LONG_USES_REGPAIR
+            if (isRegPairType(tree->TypeGet()))
+                printf(" %s", compRegPairName(tree->gtRegPair));
+            else
+#endif
+                printf(" %s", compRegVarName(tree->gtRegNum));
+        }
+#endif // !LEGACY_BACKEND
         
         if (varDsc->lvPromoted)
         {
@@ -8094,7 +8125,7 @@ Compiler::gtDispLeaf(GenTree *tree, IndentStack* indentStack)
                 }
                 
                 printf("\n");                    
-                printf("                                                           ");
+                printf("                                                  ");
                 printIndent(indentStack);
                 printf("    %-6s V%02u.%s (offs=0x%02x) -> ",
                        varTypeName(fieldVarDsc->TypeGet()),
@@ -8110,7 +8141,7 @@ Compiler::gtDispLeaf(GenTree *tree, IndentStack* indentStack)
                     fieldVarDsc->PrintVarReg();
                 }
 
-                if ((fieldVarDsc->lvTracked) &&
+                if (fieldVarDsc->lvTracked &&
                     fgLocalVarLivenessDone &&  // Includes local variable liveness
                     ((tree->gtFlags & GTF_VAR_DEATH) != 0))
                 {
@@ -8118,57 +8149,15 @@ Compiler::gtDispLeaf(GenTree *tree, IndentStack* indentStack)
                 }
             }
         }
-            
-        goto LCL_COMMON;
-
-    case GT_LCL_FLD:
-    case GT_LCL_FLD_ADDR:
-    case GT_STORE_LCL_FLD:
-        printf(" ");
-        gtDispLclVar(tree->gtLclVarCommon.gtLclNum);
-        if (tree->gtLclVarCommon.HasSsaName())
+        else // a normal not-promoted lclvar
         {
-            if (tree->gtFlags & GTF_VAR_USEASG)
+            if (varDsc->lvTracked &&
+                fgLocalVarLivenessDone &&
+                ((tree->gtFlags & GTF_VAR_DEATH) != 0))
             {
-                assert(tree->gtFlags & GTF_VAR_DEF);
-                printf("ud:%d->%d", tree->gtLclVarCommon.gtSsaNum, GetSsaNumForLocalVarDef(tree));
-            }
-            else
-            {
-                printf("%s:%d", (tree->gtFlags & GTF_VAR_DEF) ? "d" : "u", tree->gtLclVarCommon.gtSsaNum);
+                printf(" (last use)");
             }
         }
-        printf("[+%u]", tree->gtLclFld.gtLclOffs);
-        gtDispFieldSeq(tree->gtLclFld.gtFieldSeq);
-
-    LCL_COMMON:
-
-        varNum = tree->gtLclVarCommon.gtLclNum;
-        varDsc = &lvaTable[varNum];
-
-        if (varDsc->lvRegister)
-        {
-            printf(" ");
-            varDsc->PrintVarReg();
-        }
-#ifndef LEGACY_BACKEND
-        else if (tree->InReg())
-        {
-#if CPU_LONG_USES_REGPAIR
-            if (isRegPairType(tree->TypeGet()))
-                printf(" %s", compRegPairName(tree->gtRegPair));
-            else
-#endif
-                printf(" %s", compRegVarName(tree->gtRegNum));
-        }
-#endif // !LEGACY_BACKEND
-
-        if (fgLocalVarLivenessDone &&
-            ((tree->gtFlags & GTF_VAR_DEATH) != 0))
-        {
-            printf(" (last use)");
-        }
-
         break;
 
     case GT_REG_VAR:
@@ -8187,7 +8176,7 @@ Compiler::gtDispLeaf(GenTree *tree, IndentStack* indentStack)
         varNum = tree->gtRegVar.gtLclNum;
         varDsc = &lvaTable[varNum];
 
-        if ((varDsc->lvTracked) &&
+        if (varDsc->lvTracked &&
             fgLocalVarLivenessDone &&
             ((tree->gtFlags & GTF_VAR_DEATH) != 0))
         {
