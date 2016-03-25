@@ -7967,9 +7967,7 @@ void                Compiler::fgAddInternal()
         {
             lvaTable[genReturnLocal].lvType = TYP_STRUCT;
             lvaSetStruct(genReturnLocal, info.compMethodInfo->args.retTypeClass, true);
-#if FEATURE_MULTIREG_ARGS_OR_RET
             lvaTable[genReturnLocal].lvIsMultiRegArgOrRet = true;
-#endif
         }
         else
         {

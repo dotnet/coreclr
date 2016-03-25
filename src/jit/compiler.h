@@ -275,9 +275,7 @@ public:
     unsigned char       lvOverlappingFields :1;  // True when we have a struct with possibly overlapping fields
     unsigned char       lvContainsHoles     :1;  // True when we have a promoted struct that contains holes
     unsigned char       lvCustomLayout      :1;  // True when this struct has "CustomLayout"
-#if FEATURE_MULTIREG_ARGS_OR_RET
-    unsigned char       lvIsMultiRegArgOrRet:1; // Is this argument variable holding a value passed or returned in multiple registers?
-#endif
+    unsigned char       lvIsMultiRegArgOrRet:1;  // Is this a variable something that would be passed or returned in multiple registers?
 #ifdef _TARGET_ARM_
     // TODO-Cleanup: Can this be subsumed by the above?
     unsigned char       lvIsHfaRegArg:1;        // Is this argument variable holding a HFA register argument.
