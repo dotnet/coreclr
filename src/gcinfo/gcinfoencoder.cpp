@@ -24,7 +24,6 @@
 
 #ifndef STANDALONE_BUILD
 #include "log.h"
-#include "simplerhash.h"
 #endif
 
 #ifdef MEASURE_GCINFO
@@ -219,6 +218,11 @@ public:
     }    
 #endif
 
+    static void* operator new(size_t size, IAllocator* allocator)
+    {
+        return allocator->Alloc(size);
+    }
+
 private:
     size_t * m_pData;
     size_t * m_pEndData;
@@ -265,7 +269,32 @@ public:
     unsigned operator*()
     {
         assert(!end() && (m_curBit != 0));
-        unsigned bitPosition = BitPosition(m_curBit);
+
+#ifndef _TARGET_AMD64_
+        const unsigned Prime = 37;
+
+        static const char hashTable[Prime] =
+        {
+            -1,  0,  1, 26,  2, 23, 27, -1,  3, 16,
+            24, 30, 28, 11, -1, 13,  4,  7, 17, -1,
+            25, 22, 31, 15, 29, 10, 12,  6, -1, 21,
+            14,  9,  5, 20,  8, 19, 18
+        };
+
+        _ASSERTE(Prime >= 8 * sizeof(m_curBit));
+        _ASSERTE(sizeof(hashTable) == Prime);
+
+
+        unsigned hash   = m_curBit % Prime;
+        unsigned bitPosition  = hashTable[hash];
+        _ASSERTE(bitPosition != (unsigned char)-1);
+#else
+        // not enabled for x86 because BSF is extremely slow on Atom
+        // (15 clock cycles vs 1-3 on any other Intel CPU post-P4)
+        DWORD bitPosition;
+        BitScanForward(&bitPosition, m_curBit);
+#endif
+
         return bitPosition + m_curBase;
     }
     bool end()
@@ -280,21 +309,285 @@ private:
     unsigned    m_curBase;
 };
 
-class LiveStateFuncs
+class LiveStateHashTable
 {
-public:
-    static int GetHashCode(const BitArray * key)
+private:
+    struct Node
     {
-        return key->GetHashCode();
+        Node*     m_next;   // Assume that the alignment requirement of Key and Value are no greater than Node*, so put m_next to avoid unnecessary padding.
+        BitArray* m_key;
+        unsigned  m_hashCode;
+        UINT32    m_val;
+    };
+
+    IAllocator* m_allocator;  // IAllocator to use in this table.
+    Node**      m_table;      // pointer to table
+    unsigned    m_tableSize;  // size of table (a prime)
+    unsigned    m_tableCount; // number of elements in table
+    unsigned    m_tableMax;   // maximum occupied count
+
+    // Find the next prime number >= the given value.  
+    static bool NextPrime(unsigned number, unsigned* prime)
+    {
+        static unsigned primes[] =
+        {
+            11, 23, 59, 131, 239, 433, 761, 1399, 2473, 4327, 7499, 12793, 22433,  46559, 96581, 200341,
+            4155127, 861719, 1787021, 3705617, 7684087, 15933877, 33040633, 68513161, 142069021, 294594427, 733045421
+        };
+
+        for (int i = 0; i < (int)(sizeof(primes) / sizeof(primes[0])); i++)
+        {
+            if (primes[i] >= number)
+            {
+                *prime = primes[i];
+                return true;
+            }
+        }
+
+        return false;
     }
 
-    static bool Equals(const BitArray * k1, const BitArray * k2)
+    // Resizes a hash table for growth.  The new size is computed based
+    // on the current population, growth factor, and maximum density factor.
+    bool Grow()
     {
-        return *k1 == *k2;
+        const unsigned GrowthFactorNumerator = 3;
+        const unsigned GrowthFactorDenominator = 2;
+        const unsigned DensityFactorNumerator = 3;
+        const unsigned DensityFactorDenominator = 4;
+        const unsigned MinimumSize = 7;
+
+        unsigned newSize = (unsigned)(m_tableCount
+                                      * GrowthFactorNumerator / GrowthFactorDenominator
+                                      * DensityFactorDenominator / DensityFactorNumerator);
+        if (newSize < MinimumSize)
+        {
+            newSize = MinimumSize;
+        }
+
+        if (!NextPrime(newSize, &newSize))
+        {
+            return false;
+        }
+
+        Node** newTable = reinterpret_cast<Node**>(m_allocator->ArrayAlloc(newSize, sizeof(Node*)));
+        for (unsigned i = 0; i < newSize; i++)
+        {
+            newTable[i] = nullptr;
+        }
+
+        // Move all entries over to the new table.
+        for (unsigned i = 0; i < m_tableSize; i++)
+        {
+            for (Node* n = m_table[i], *next = nullptr; n != nullptr; n = next)
+            {
+                unsigned newIndex = n->m_hashCode % newSize;
+                next = n->m_next;
+                n->m_next = newTable[newIndex];
+                newTable[newIndex] = n;
+            }
+        }
+
+        if (m_table != nullptr)
+        {
+            m_allocator->Free(m_table);
+        }
+
+        m_table = newTable;
+        m_tableSize = newSize;
+        m_tableMax = (unsigned)(newSize * DensityFactorNumerator / DensityFactorDenominator);
+        return true;
+    }
+
+public:
+    class KeyIterator
+    {
+        friend class LiveStateHashTable;
+
+        // The method implementations have to be here for portability.
+        // Some compilers won't compile the separate implementation in shash.inl
+
+        Node**      m_table;
+        Node*       m_node;
+        unsigned    m_tableSize;
+        unsigned    m_index;
+
+    public:
+        KeyIterator(const LiveStateHashTable* table, bool begin)
+            : m_table(table->m_table),
+              m_node(nullptr),
+              m_tableSize(table->m_tableSize),
+              m_index(begin ? 0 : table->m_tableSize)
+        {
+            if (begin && table->m_tableCount > 0)
+            {
+                assert(m_table != nullptr);
+                for (;;)
+                {
+                    if (m_index >= m_tableSize)
+                    {
+                        return;
+                    }
+
+                    if (m_table[m_index] != nullptr)
+                    {
+                        m_node = m_table[m_index];
+                        return;
+                    }
+
+                    m_index++;
+                }
+            }
+        }
+
+        const BitArray* Get() const
+        {
+            assert(m_node != nullptr);
+            return m_node->m_key;
+        }
+
+        void SetValue(const UINT32& value) const
+        {
+            assert(m_node != nullptr);
+            m_node->m_val = value;
+        }
+
+        void Next()
+        {
+            if (m_node != nullptr)
+            {
+                m_node = m_node->m_next;
+                if (m_node != nullptr)
+                {
+                    return;
+                }
+
+                m_index++;
+            }
+
+            for (;;)
+            {
+                if (m_index >= m_tableSize)
+                {
+                    m_node = nullptr;
+                    return;
+                }
+
+                if (m_table[m_index] != nullptr)
+                {
+                    m_node = m_table[m_index];
+                    return;
+                }
+
+                m_index++;
+            }
+        }
+
+        bool Equal(const KeyIterator& i) const
+        { 
+            return i.m_node == m_node; 
+        }
+    };
+
+    LiveStateHashTable(IAllocator* allocator)
+        : m_allocator(allocator),
+          m_table(nullptr),
+          m_tableSize(0),
+          m_tableCount(0),
+          m_tableMax(0)
+    {
+        assert(m_allocator != nullptr);
+    }
+
+    // If the table contains a mapping for "key", returns "true" and
+    // sets "*val" to the value to which "key" maps.  Otherwise,
+    // returns false, and does not modify "*val".
+    bool Lookup(const BitArray* k, UINT32* val) const
+    {
+        if (m_tableSize == 0 || m_tableCount == 0)
+        {
+            return nullptr;
+        }
+
+        unsigned index = k->GetHashCode() % m_tableSize;
+
+        Node* n = m_table[index];
+        for ( ; n != nullptr && !(*k == *n->m_key); n = n->m_next)
+        {
+        }
+
+        if (n != nullptr)
+        {
+            *val = n->m_val;
+            return true;
+        }
+
+        return false;
+    }
+    
+    // Causes the table to map "key" to "val".
+    bool Set(BitArray* k, UINT32 val)
+    {
+        unsigned hashCode = k->GetHashCode();
+        unsigned index;
+
+        if (m_tableSize != 0)
+        {
+            index = hashCode % m_tableSize;
+
+            Node* n = m_table[index];
+            for ( ; n != nullptr && !(*k == *n->m_key); n = n->m_next)
+            {
+            }
+
+            if (n != nullptr)
+            {
+                n->m_val = val;
+                return true;
+            }
+
+            if (m_tableCount == m_tableMax)
+            {
+                if (!Grow())
+                {
+                    return false;
+                }
+
+                index = hashCode % m_tableSize;
+            }
+        }
+        else
+        {
+            if (!Grow())
+            {
+                return false;
+            }
+
+            index = hashCode % m_tableSize;
+        }
+
+        Node* newNode = reinterpret_cast<Node*>(m_allocator->Alloc(sizeof(Node)));
+        newNode->m_key = k;
+        newNode->m_val = val;
+        newNode->m_hashCode = hashCode;
+        newNode->m_next = m_table[index];
+
+        m_table[index] = newNode;
+        m_tableCount++;
+        return true;
+    }
+
+    // Begin and End pointers for iteration over entire table. 
+    KeyIterator Begin() const
+    {
+        return KeyIterator(this, true);
+    }
+
+    KeyIterator End() const
+    {
+        return KeyIterator(this, false);
     }
 };
-
-typedef SimplerHashTable< const BitArray *, LiveStateFuncs, UINT32, DefaultSimplerHashBehavior > LiveStateHashTable;
 
 #ifdef MEASURE_GCINFO
 // Fi = fully-interruptible; we count any method that has one or more interruptible ranges
@@ -416,8 +709,8 @@ GcInfoEncoder::GcInfoEncoder(
             )
     :   m_Info1( pJitAllocator ),
         m_Info2( pJitAllocator ),
-        m_InterruptibleRanges(),
-        m_LifetimeTransitions()
+        m_InterruptibleRanges( pJitAllocator ),
+        m_LifetimeTransitions( pJitAllocator )
 #ifdef VERIFY_GCINFO
         , m_DbgEncoder(pCorJitInfo, pMethodInfo, pJitAllocator)
 #endif    
@@ -785,23 +1078,13 @@ void GcInfoEncoder::SetSizeOfStackOutgoingAndScratchArea( UINT32 size )
 }
 #endif // FIXED_STACK_PARAMETER_SCRATCH_AREA
 
-class SlotTableIndexesQuickSort : public CQuickSort<UINT32>
+class SlotTableIndexesQuickSort
 {
-    GcSlotDesc* m_SlotTable;
-    
-public:
-    SlotTableIndexesQuickSort(
-        GcSlotDesc*   slotTable,
-        UINT32*   pBase,
-        size_t               count
-        )
-        : CQuickSort<UINT32>( pBase, count ), m_SlotTable(slotTable)
-    {}
-
-    int Compare( UINT32* a, UINT32* b )
+private:
+    static int Compare(GcSlotDesc* slotTable, UINT32 a, UINT32 b)
     {
-        GcSlotDesc* pFirst = &(m_SlotTable[*a]);
-        GcSlotDesc* pSecond = &(m_SlotTable[*b]);
+        GcSlotDesc* pFirst = &(slotTable[a]);
+        GcSlotDesc* pSecond = &(slotTable[b]);
 
         int firstFlags = pFirst->Flags ^ GC_SLOT_UNTRACKED;
         int secondFlags = pSecond->Flags ^ GC_SLOT_UNTRACKED;
@@ -835,6 +1118,65 @@ public:
         // If we get here, the slots are identical
         _ASSERTE(!"Duplicate slots definitions found in GC information!");
         return 0;
+    }
+
+    static void Swap(UINT32* indices, size_t a, size_t b)
+    {
+        UINT32 temp = indices[a];
+        indices[a] = indices[b];
+        indices[b] = temp;
+    }
+
+    static void SortRange(GcSlotDesc* slotTable, UINT32* indices, SSIZE_T left, SSIZE_T right)
+    {
+        for (;;)
+        {
+            // if less than two elements you're done.
+            if (left >= right)
+                return;
+
+            // The mid-element is the pivot, move it to the left.
+            Swap(indices, left, (left + right) / 2);
+            SSIZE_T last = left;
+            
+            // move everything that is smaller than the pivot to the left.
+            for (SSIZE_T i = left + 1; i <= right; i++)
+            {
+                if (Compare(slotTable, indices[i], indices[left]) < 0)
+                {
+                    Swap(indices, i, ++last);
+                }
+            }
+            
+            // Put the pivot to the point where it is in between smaller and larger elements.
+            Swap(indices, left, last);
+            
+            // Sort each partition.
+            SSIZE_T leftLast = last - 1;
+            SSIZE_T rightFirst = last + 1;
+            if (leftLast - left < right - rightFirst)
+            {   // Left partition is smaller, sort it recursively
+                SortRange(slotTable, indices, left, leftLast);
+                // Tail call to sort the right (bigger) partition
+                left = rightFirst;
+                //right = right;
+                continue;
+            }
+            else
+            {   // Right partition is smaller, sort it recursively
+                SortRange(slotTable, indices, rightFirst, right);
+                // Tail call to sort the left (bigger) partition
+                //left = left;
+                right = leftLast;
+                continue;
+            }
+        }
+    }
+
+public:
+    static void Sort(GcSlotDesc* slotTable, UINT32* indices, size_t count)
+    {
+        SortRange(slotTable, indices, 0, count - 1);
     }
 };
 
@@ -1286,12 +1628,7 @@ void GcInfoEncoder::Build()
             sortedSlotIndexes[i] = i;
         }
         
-        SlotTableIndexesQuickSort slotTableIndexesQuickSort(
-            m_SlotTable,
-            sortedSlotIndexes,
-            m_NumSlots
-            );
-        slotTableIndexesQuickSort.Sort();
+        SlotTableIndexesQuickSort::Sort(m_SlotTable, sortedSlotIndexes, m_NumSlots);
 
         for(UINT32 i = 0; i < m_NumSlots; i++)
         {
@@ -1783,7 +2120,7 @@ void GcInfoEncoder::Build()
                 UINT32 liveStateOffset = 0;
                 if (!hashMap.Lookup(&liveState, &liveStateOffset))
                 {
-                    BitArray * newLiveState = new (m_pAllocator->Alloc(sizeof(BitArray))) BitArray(m_pAllocator, size_tCount);
+                    BitArray * newLiveState = new (m_pAllocator) BitArray(m_pAllocator, size_tCount);
                     *newLiveState = liveState;
                     hashMap.Set(newLiveState, (UINT32)(-1));
                 }
@@ -1811,7 +2148,7 @@ void GcInfoEncoder::Build()
             UINT32 liveStateOffset = 0;
             if (!hashMap.Lookup(&liveState, &liveStateOffset))
             {
-                BitArray * newLiveState = new (m_pAllocator->Alloc(sizeof(BitArray))) BitArray(m_pAllocator, size_tCount);
+                BitArray * newLiveState = new (m_pAllocator) BitArray(m_pAllocator, size_tCount);
                 *newLiveState = liveState;
                 hashMap.Set(newLiveState, (UINT32)(-1));
             }
@@ -2624,6 +2961,8 @@ BitStreamWriter::BitStreamWriter( IAllocator* pAllocator )
 {
     m_pAllocator = pAllocator;
     m_BitCount = 0;
+    m_MemoryBlocksHead = nullptr;
+    m_MemoryBlocksTail = nullptr;
 #ifdef _DEBUG
     m_MemoryBlocksCount = 0;
 #endif
@@ -2686,11 +3025,11 @@ void BitStreamWriter::CopyTo( BYTE* buffer )
     int i,c;
     BYTE* source = NULL;
 
-    MemoryBlockDesc* pMemBlockDesc = m_MemoryBlocks.GetHead();
+    MemoryBlockDesc* pMemBlockDesc = m_MemoryBlocksHead;
     if( pMemBlockDesc == NULL )
         return;
         
-    while( m_MemoryBlocks.GetNext( pMemBlockDesc ) != NULL )
+    while (pMemBlockDesc->m_Next != NULL)
     {
         source = (BYTE*) pMemBlockDesc->StartAddress;
         // @TODO: use memcpy instead
@@ -2699,8 +3038,7 @@ void BitStreamWriter::CopyTo( BYTE* buffer )
             *( buffer++ ) = *( source++ );
         }
 
-        pMemBlockDesc = m_MemoryBlocks.GetNext( pMemBlockDesc );
-        _ASSERTE( pMemBlockDesc != NULL );
+        pMemBlockDesc = pMemBlockDesc->m_Next;
     }
 
     source = (BYTE*) pMemBlockDesc->StartAddress;
@@ -2718,12 +3056,13 @@ void BitStreamWriter::CopyTo( BYTE* buffer )
 void BitStreamWriter::Dispose()
 {
 #ifdef MUST_CALL_JITALLOCATOR_FREE
-    MemoryBlockDesc* pMemBlockDesc;
-    while( NULL != ( pMemBlockDesc = m_MemoryBlocks.RemoveHead() ) )
+    for (MemoryBlockDesc* block = m_MemoryBlocksHead; block != nullptr; block = block->m_Next)
     {
         m_pAllocator->Free( pMemBlockDesc->StartAddress );
         m_pAllocator->Free( pMemBlockDesc );
     }
+    m_MemoryBlocksHead = nullptr;
+    m_MemoryBlocksTail = nullptr;
 #endif
 }
 
