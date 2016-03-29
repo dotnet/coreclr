@@ -538,6 +538,12 @@ public:
             CORINFO_CONST_LOOKUP *   pLookup
             );
 
+    void getReadyToRunDelegateHelper(
+            CORINFO_RESOLVED_TOKEN * pResolvedToken,
+            CORINFO_CLASS_HANDLE     cls,
+            CORINFO_CONST_LOOKUP *   pLookup
+            );
+
     CorInfoInitClassResult initClass(
             CORINFO_FIELD_HANDLE    field,
             CORINFO_METHOD_HANDLE   method,

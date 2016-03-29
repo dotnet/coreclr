@@ -2667,7 +2667,7 @@ CORINFO_METHOD_HANDLE ZapInfo::GetDelegateCtor(CORINFO_METHOD_HANDLE   methHnd,
                                                CORINFO_METHOD_HANDLE   targetMethodHnd,
                                                DelegateCtorArgs *      pCtorData)
 {
-    // For ReadyToRun, this optimization is done via ZapInfo::getReadyToRunHelper
+    // For ReadyToRun, this optimization is done via ZapInfo::getReadyToRunDelegateHelper
     if (IsReadyToRunCompilation())
         return methHnd;
 
@@ -3422,6 +3422,21 @@ void ZapInfo::getReadyToRunHelper(
 
     pLookup->accessType = IAT_PVALUE;
     pLookup->addr = pImport;
+#endif
+}
+
+void ZapInfo::getReadyToRunDelegateHelper(
+        CORINFO_RESOLVED_TOKEN * pResolvedToken,
+        CORINFO_CLASS_HANDLE     cls,
+        CORINFO_CONST_LOOKUP *   pLookup
+        )
+{
+#ifdef FEATURE_READYTORUN_COMPILER
+    _ASSERTE(IsReadyToRunCompilation());
+
+    pLookup->accessType = IAT_PVALUE;
+    pLookup->addr = m_pImage->GetImportTable()->GetDynamicHelperCell(
+            (CORCOMPILE_FIXUP_BLOB_KIND)(ENCODE_DELEGATE_CTOR), pResolvedToken->hMethod, pResolvedToken);
 #endif
 }
 

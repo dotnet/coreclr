@@ -2390,6 +2390,14 @@ public:
             CORINFO_CONST_LOOKUP *   pLookup
             ) = 0;
 
+#if COR_JIT_EE_VERSION > 460
+    virtual void getReadyToRunDelegateHelper(
+            CORINFO_RESOLVED_TOKEN * pResolvedToken,
+            CORINFO_CLASS_HANDLE     cls,
+            CORINFO_CONST_LOOKUP *   pLookup
+            ) = 0;
+#endif
+
     virtual const char* getHelperName(
             CorInfoHelpFunc
             ) = 0;

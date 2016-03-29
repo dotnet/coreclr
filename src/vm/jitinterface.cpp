@@ -6092,6 +6092,17 @@ void CEEInfo::getReadyToRunHelper(
 }
 
 /***********************************************************************/
+void CEEInfo::getReadyToRunDelegateHelper(
+        CORINFO_RESOLVED_TOKEN * pResolvedToken,
+        CORINFO_CLASS_HANDLE     cls,
+        CORINFO_CONST_LOOKUP *   pLookup
+        )
+{
+    LIMITED_METHOD_CONTRACT;
+    UNREACHABLE();      // only called during NGen
+}
+
+/***********************************************************************/
 // see code:Nullable#NullableVerification
 
 CORINFO_CLASS_HANDLE  CEEInfo::getTypeForBox(CORINFO_CLASS_HANDLE  cls)
