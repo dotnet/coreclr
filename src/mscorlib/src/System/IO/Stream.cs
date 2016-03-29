@@ -48,6 +48,26 @@ namespace System.IO {
         // improvement in Copy performance.
         private const int _DefaultCopyBufferSize = 81920;
 
+        // Necessary so we don't allocate a new byte[1] array 
+        // every time we call ReadByte or WriteByte. This is 
+        // marked [ThreadStatic] to keep it thread-safe, 
+        // without having to resort to synchronization.
+        [ThreadStatic]
+        private static byte[] s_oneByteBuffer;
+
+        // The backing field is [ThreadStatic] 
+        // so no thread-safety problems here
+        private static byte[] OneByteBuffer
+        {
+            get
+            {
+                if (s_oneByteBuffer == null)
+                    s_oneByteBuffer = new byte[1];
+
+                return s_oneByteBuffer;
+            }
+        }
+
 #if NEW_EXPERIMENTAL_ASYNC_IO
         // To implement Async IO operations on streams that don't support async IO
 
@@ -760,34 +780,30 @@ namespace System.IO {
 
         // Reads one byte from the stream by calling Read(byte[], int, int). 
         // Will return an unsigned byte cast to an int or -1 on end of stream.
-        // This implementation does not perform well because it allocates a new
-        // byte[] each time you call it, and should be overridden by any 
-        // subclass that maintains an internal buffer.  Then, it can help perf
-        // significantly for people who are reading one byte at a time.
         public virtual int ReadByte()
         {
             Contract.Ensures(Contract.Result<int>() >= -1);
             Contract.Ensures(Contract.Result<int>() < 256);
 
-            byte[] oneByteArray = new byte[1];
+            byte[] oneByteArray = OneByteBuffer;
+            byte captured = oneByteArray[0]; // avoid problems with reentrancy; see https://github.com/dotnet/coreclr/pull/1509
             int r = Read(oneByteArray, 0, 1);
             if (r==0)
                 return -1;
-            return oneByteArray[0];
+            byte result = oneByteArray[0];
+            oneByteArray[0] = captured;
+            return result;
         }
 
         public abstract void Write(byte[] buffer, int offset, int count);
 
-        // Writes one byte from the stream by calling Write(byte[], int, int).
-        // This implementation does not perform well because it allocates a new
-        // byte[] each time you call it, and should be overridden by any 
-        // subclass that maintains an internal buffer.  Then, it can help perf
-        // significantly for people who are writing one byte at a time.
         public virtual void WriteByte(byte value)
         {
-            byte[] oneByteArray = new byte[1];
+            byte[] oneByteArray = OneByteBuffer;
+            byte captured = oneByteArray[0]; // avoid problems with reentrancy; see https://github.com/dotnet/coreclr/pull/1509
             oneByteArray[0] = value;
             Write(oneByteArray, 0, 1);
+            oneByteArray[0] = captured;
         }
 
         [HostProtection(Synchronization=true)]
