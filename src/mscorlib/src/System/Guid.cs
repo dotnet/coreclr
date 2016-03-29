@@ -365,217 +365,297 @@ namespace System {
             }
         }
 
-
-        private static bool TryParseGuid(String g, GuidStyles flags, ref GuidResult result)
+        private static bool TryParseGuid(string g, GuidStyles flags, ref GuidResult result)
         {
-            if (g == null) {
+            if (g == null)
+            {
                 result.SetFailure(ParseFailureKind.Format, "Format_GuidUnrecognized");
                 return false;
             }
-            String guidString = g.Trim();  //Remove Whitespace
+            
+            // Consume leading and trailing whitespace
+            int start = 0;
+            while (start < g.Length && char.IsWhiteSpace(g[start]))
+            {
+                start++;
+            }
 
-            if (guidString.Length == 0) {
+            int end = g.Length;
+            while (end > start && char.IsWhiteSpace(g[end - 1]))
+            {
+                end--;
+            }
+
+            int length = end - start;
+            if (length == 0)
+            {
+                // Empty string (or only whitespace)
                 result.SetFailure(ParseFailureKind.Format, "Format_GuidUnrecognized");
                 return false;
             }
 
-            // Check for dashes
-            bool dashesExistInString = (guidString.IndexOf('-', 0) >= 0);
-
-            if (dashesExistInString) {
-                if ((flags & (GuidStyles.AllowDashes | GuidStyles.RequireDashes)) == 0) {
-                    // dashes are not allowed
-                    result.SetFailure(ParseFailureKind.Format, "Format_GuidUnrecognized");
-                    return false;
+            bool dashesExistInString = false;
+            bool bracesExistInString = false;
+            bool parenthesisExistInString = false;
+            for (int i = start; i < end; i++)
+            {
+                char c = g[i];
+                if (c == '-')
+                {
+                    dashesExistInString = true;
                 }
-            }
-            else {
-                if ((flags & GuidStyles.RequireDashes) != 0) {
-                    // dashes are required
-                    result.SetFailure(ParseFailureKind.Format, "Format_GuidUnrecognized");
-                    return false;
+                else if (c == '{')
+                {
+                    bracesExistInString = true;
                 }
-            }
-
-            // Check for braces
-            bool bracesExistInString = (guidString.IndexOf('{', 0) >= 0);
-
-            if (bracesExistInString) {
-                if ((flags & (GuidStyles.AllowBraces | GuidStyles.RequireBraces)) == 0) {
-                    // braces are not allowed
-                    result.SetFailure(ParseFailureKind.Format, "Format_GuidUnrecognized");
-                    return false;
-                }
-            }
-            else {
-                if ((flags & GuidStyles.RequireBraces) != 0) {
-                    // braces are required
-                    result.SetFailure(ParseFailureKind.Format, "Format_GuidUnrecognized");
-                    return false;
+                else if (c == '(')
+                {
+                    parenthesisExistInString  = true;
                 }
             }
 
-            // Check for parenthesis
-            bool parenthesisExistInString = (guidString.IndexOf('(', 0) >= 0);
- 
-            if (parenthesisExistInString) {
-                if ((flags & (GuidStyles.AllowParenthesis | GuidStyles.RequireParenthesis)) == 0) {
-                    // parenthesis are not allowed
-                    result.SetFailure(ParseFailureKind.Format, "Format_GuidUnrecognized");
-                    return false;
-                }
+            if (dashesExistInString && (flags & (GuidStyles.AllowDashes | GuidStyles.RequireDashes)) == 0)
+            {
+                // dashes are not allowed
+                result.SetFailure(ParseFailureKind.Format, "Format_GuidUnrecognized");
+                return false;
             }
-            else {
-                if ((flags & GuidStyles.RequireParenthesis) != 0) {
-                    // parenthesis are required
-                    result.SetFailure(ParseFailureKind.Format, "Format_GuidUnrecognized");
-                    return false;
-                }
+            else if (!dashesExistInString && (flags & GuidStyles.RequireDashes) != 0)
+            {
+                // dashes are required
+                result.SetFailure(ParseFailureKind.Format, "Format_GuidUnrecognized");
+                return false;
             }
 
-            try {
+            if (bracesExistInString && (flags & (GuidStyles.AllowBraces | GuidStyles.RequireBraces)) == 0)
+            {
+                // braces are not allowed
+                result.SetFailure(ParseFailureKind.Format, "Format_GuidUnrecognized");
+                return false;
+            }
+            else if (!bracesExistInString && (flags & GuidStyles.RequireBraces) != 0)
+            {
+                // braces are required
+                result.SetFailure(ParseFailureKind.Format, "Format_GuidUnrecognized");
+                return false;
+            }
+
+            if (parenthesisExistInString && (flags & (GuidStyles.AllowParenthesis | GuidStyles.RequireParenthesis)) == 0)
+            {
+                // parenthesis are not allowed
+                result.SetFailure(ParseFailureKind.Format, "Format_GuidUnrecognized");
+                return false;
+            }
+            else if (!parenthesisExistInString  && (flags & GuidStyles.RequireParenthesis) != 0)
+            {
+                // parenthesis are required
+                result.SetFailure(ParseFailureKind.Format, "Format_GuidUnrecognized");
+                return false;
+            }
+
+            try
+            {
                 // let's get on with the parsing
-                if (dashesExistInString) {
+                if (dashesExistInString)
+                {
                     // Check if it's of the form [{|(]dddddddd-dddd-dddd-dddd-dddddddddddd[}|)]
-                    return TryParseGuidWithDashes(guidString, ref result);
+                    return TryParseGuidWithDashes(g, start, length, ref result);
                 }
-                else if (bracesExistInString) {
+                else if (bracesExistInString)
+                {
                     // Check if it's of the form {0xdddddddd,0xdddd,0xdddd,{0xdd,0xdd,0xdd,0xdd,0xdd,0xdd,0xdd,0xdd}}
-                    return TryParseGuidWithHexPrefix(guidString, ref result);
+                    return TryParseGuidWithHexPrefix(g, start, length, ref result);
                 }
-                else {
+                else
+                {
                     // Check if it's of the form dddddddddddddddddddddddddddddddd
-                    return TryParseGuidWithNoStyle(guidString, ref result);
+                    return TryParseGuidWithNoStyle(g, start, length, ref result);
                 }
             }
-            catch(IndexOutOfRangeException ex) {
+            catch (IndexOutOfRangeException ex)
+            {
                 result.SetFailure(ParseFailureKind.FormatWithInnerException, "Format_GuidUnrecognized", null, null, ex);
                 return false;
             }
-            catch (ArgumentException ex) {
+            catch (ArgumentException ex)
+            {
                 result.SetFailure(ParseFailureKind.FormatWithInnerException, "Format_GuidUnrecognized", null, null, ex);
                 return false;
-            }           
+            }
         }
 
-        
         // Check if it's of the form {0xdddddddd,0xdddd,0xdddd,{0xdd,0xdd,0xdd,0xdd,0xdd,0xdd,0xdd,0xdd}}
-        private static bool TryParseGuidWithHexPrefix(String guidString, ref GuidResult result) {
-            int numStart = 0;
-            int numLen = 0;
-
-            // Eat all of the whitespace
-            guidString = EatAllWhitespace(guidString);
-
+        private static bool TryParseGuidWithHexPrefix(string guidString, int start, int length, ref GuidResult result)
+        {
             // Check for leading '{'
-            if(String.IsNullOrEmpty(guidString) || guidString[0] != '{') {
+            ConsumeWhitespace(guidString, ref start);
+            if (guidString[start] != '{')
+            {
                 result.SetFailure(ParseFailureKind.Format, "Format_GuidBrace");
                 return false;
             }
 
             // Check for '0x'
-            if(!IsHexPrefix(guidString, 1)) {
+            start++;
+            if (!IsHexPrefix(guidString, ref start))
+            {
                 result.SetFailure(ParseFailureKind.Format, "Format_GuidHexPrefix", "{0xdddddddd, etc}");
                 return false;
             }
 
             // Find the end of this hex number (since it is not fixed length)
-            numStart = 3;
-            numLen = guidString.IndexOf(',', numStart) - numStart;
-            if(numLen <= 0) {
+            int numEnd = -1;
+            for (int i = start; i < start + length; i++)
+            {
+                if (guidString[i] == ',')
+                {
+                    numEnd = i;
+                    break;
+                }
+            }
+            if (numEnd <= start)
+            {
                 result.SetFailure(ParseFailureKind.Format, "Format_GuidComma");
                 return false;
             }
 
-
-            if (!StringToInt(guidString.Substring(numStart, numLen) /*first DWORD*/, -1, ParseNumbers.IsTight, out result.parsedGuid._a, ref result))
+            if (!StringToInt(guidString, start, numEnd - start, true, out result.parsedGuid._a, ref result))
                 return false;
 
             // Check for '0x'
-            if(!IsHexPrefix(guidString, numStart+numLen+1)) {
+            start = numEnd + 1;
+            if (!IsHexPrefix(guidString, ref start))
+            {
                 result.SetFailure(ParseFailureKind.Format, "Format_GuidHexPrefix", "{0xdddddddd, 0xdddd, etc}");
                 return false;
             }
+
             // +3 to get by ',0x'
-            numStart = numStart + numLen + 3;
-            numLen = guidString.IndexOf(',', numStart) - numStart;
-            if(numLen <= 0) {
+            numEnd = -1;
+            for (int i = start; i < start + length; i++)
+            {
+                if (guidString[i] == ',')
+                {
+                    numEnd = i;
+                    break;
+                }
+            }
+            if (numEnd <= start)
+            {
                 result.SetFailure(ParseFailureKind.Format, "Format_GuidComma");
                 return false;
             }
 
             // Read in the number
-            if (!StringToShort(guidString.Substring(numStart, numLen) /*first DWORD*/, -1, ParseNumbers.IsTight, out result.parsedGuid._b, ref result))
+            if (!StringToShort(guidString, start, numEnd - start, true, out result.parsedGuid._b, ref result))
                 return false;
+
             // Check for '0x'
-            if(!IsHexPrefix(guidString, numStart+numLen+1)) {
+            start = numEnd + 1;
+            if (!IsHexPrefix(guidString, ref start))
+            {
                 result.SetFailure(ParseFailureKind.Format, "Format_GuidHexPrefix", "{0xdddddddd, 0xdddd, 0xdddd, etc}");
                 return false;
             }
             // +3 to get by ',0x'
-            numStart = numStart + numLen + 3;
-            numLen = guidString.IndexOf(',', numStart) - numStart;
-            if(numLen <= 0) {
+            numEnd = -1;
+            for (int i = start; i < start + length; i++)
+            {
+                if (guidString[i] == ',')
+                {
+                    numEnd = i;
+                    break;
+                }
+            }
+            if (numEnd <= start)
+            {
                 result.SetFailure(ParseFailureKind.Format, "Format_GuidComma");
                 return false;
             }
 
             // Read in the number
-            if (!StringToShort(guidString.Substring(numStart, numLen) /*first DWORD*/, -1, ParseNumbers.IsTight, out result.parsedGuid._c, ref result))
+            if (!StringToShort(guidString, start, numEnd - start, true, out result.parsedGuid._c, ref result))
                 return false;
-            
+
             // Check for '{'
-            if(guidString.Length <= numStart+numLen+1 || guidString[numStart+numLen+1] != '{') {
+            start = numEnd + 1;
+            ConsumeWhitespace(guidString, ref start);
+            if (start >= length || guidString[start] != '{')
+            {
                 result.SetFailure(ParseFailureKind.Format, "Format_GuidBrace");
                 return false;
             }
 
             // Prepare for loop
-            numLen++;
+            start++;
             byte[] bytes = new byte[8];
-
-            for(int i = 0; i < 8; i++)
+            for (int i = 0; i < 8; i++)
             {
                 // Check for '0x'
-                if(!IsHexPrefix(guidString, numStart+numLen+1)) {
+                if (!IsHexPrefix(guidString, ref start))
+                {
                     result.SetFailure(ParseFailureKind.Format, "Format_GuidHexPrefix", "{... { ... 0xdd, ...}}");
                     return false;
                 }
 
-                // +3 to get by ',0x' or '{0x' for first case
-                numStart = numStart + numLen + 3;
-
                 // Calculate number length
-                if(i < 7)  // first 7 cases
+                if (i < 7)  // first 7 cases
                 {
-                    numLen = guidString.IndexOf(',', numStart) - numStart;
-                    if(numLen <= 0) {
+                    numEnd = -1;
+                    for (int j = start; j < start + length; j++)
+                    {
+                        if (guidString[j] == ',')
+                        {
+                            numEnd = j;
+                            break;
+                        }
+                    }
+                    if (numEnd <= start)
+                    {
                         result.SetFailure(ParseFailureKind.Format, "Format_GuidComma");
                         return false;
-                    }                            
+                    }
                 }
                 else       // last case ends with '}', not ','
                 {
-                    numLen = guidString.IndexOf('}', numStart) - numStart;
-                    if(numLen <= 0) {
+                    numEnd = -1;
+                    for (int j = start; j < start + length; j++)
+                    {
+                        if (guidString[j] == '}')
+                        {
+                            numEnd = j;
+                            break;
+                        }
+                    }
+                    if (numEnd <= start)
+                    {
                         result.SetFailure(ParseFailureKind.Format, "Format_GuidBraceAfterLastNumber");
                         return false;
-                    }                                
+                    }
                 }
 
                 // Read in the number
                 int signedNumber;
-                if (!StringToInt(guidString.Substring(numStart, numLen), -1, ParseNumbers.IsTight, out signedNumber, ref result)) {
+                if (!StringToInt(guidString, start, numEnd - start, true, out signedNumber, ref result))
+                {
                     return false;
                 }
                 uint number = (uint)signedNumber;
-
                 // check for overflow
-                if(number > 255) {
-                    result.SetFailure(ParseFailureKind.Format, "Overflow_Byte");            
+                if (number > 255)
+                {
+                    result.SetFailure(ParseFailureKind.Format, "Overflow_Byte");
                     return false;
                 }
                 bytes[i] = (byte)number;
+                if (i < 7)
+                {
+                    start = numEnd + 1;
+                }
+                else
+                {
+                    start = numEnd;
+                }
             }
 
             result.parsedGuid._d = bytes[0];
@@ -588,306 +668,277 @@ namespace System {
             result.parsedGuid._k = bytes[7];
 
             // Check for last '}'
-            if(numStart+numLen+1 >= guidString.Length || guidString[numStart+numLen+1] != '}') {
+            ConsumeWhitespace(guidString, ref start);
+            if (start >= length || guidString[start] != '}')
+            {
                 result.SetFailure(ParseFailureKind.Format, "Format_GuidEndBrace");
                 return false;
             }
 
             // Check if we have extra characters at the end
-            if( numStart+numLen+1 != guidString.Length -1) {
+            ConsumeWhitespace(guidString, ref start);
+            if (start + 1 != length - 1)
+            {
                 result.SetFailure(ParseFailureKind.Format, "Format_ExtraJunkAtEnd");
                 return false;
             }
-            
+
             return true;
         }
-        
+
         // Check if it's of the form dddddddddddddddddddddddddddddddd
-        private static bool TryParseGuidWithNoStyle(String guidString, ref GuidResult result) {
-            int startPos=0;
-            int temp;
-            long templ;
-            int currentPos = 0;
-
-            if(guidString.Length != 32) {
+        private static bool TryParseGuidWithNoStyle(string guidString, int start, int length, ref GuidResult result)
+        {
+            if (length != 32)
+            {
                 result.SetFailure(ParseFailureKind.Format, "Format_GuidInvLen");
                 return false;
             }
 
-            for(int i= 0; i< guidString.Length; i++) {
-                char ch = guidString[i];
-                if(ch >= '0' && ch <= '9') {
-                    continue;
+            for (int i = start; i < start + length; i++)
+            {
+                char c = guidString[i];
+                if (!(c >= '0' && c <= '9') && !(c >= 'a' && c <= 'f') && !(c >= 'A' && c <= 'F'))
+                {
+                    result.SetFailure(ParseFailureKind.Format, "Format_GuidInvalidChar");
+                    return false;
                 }
-                else {
-                    char upperCaseCh = Char.ToUpper(ch, CultureInfo.InvariantCulture);
-                    if(upperCaseCh >= 'A' && upperCaseCh <= 'F') {
-                        continue;
-                    }
-                }
-
-                result.SetFailure(ParseFailureKind.Format, "Format_GuidInvalidChar");
-                return false;
             }
 
-            if (!StringToInt(guidString.Substring(startPos, 8) /*first DWORD*/, -1, ParseNumbers.IsTight, out result.parsedGuid._a, ref result))
+            int currentPosition = start;
+            int tempInt;
+            long tempLong;
+
+            if (!StringToInt(guidString, currentPosition, 8, false, out result.parsedGuid._a, ref result))
+                return false;
+            currentPosition += 8;
+
+            if (!StringToShort(guidString, currentPosition, 4, false, out result.parsedGuid._b, ref result))
+                return false;
+            currentPosition += 4;
+
+            if (!StringToShort(guidString, currentPosition, 4, false, out result.parsedGuid._c, ref result))
+                return false;
+            currentPosition += 4;
+
+            if (!StringToInt(guidString, currentPosition, 4, false, out tempInt, ref result))
+                return false;
+            currentPosition += 4;
+
+            if (!StringToLong(guidString, currentPosition, 12, false, long.MaxValue, out tempLong, ref result))
                 return false;
 
-            startPos += 8;
-            if (!StringToShort(guidString.Substring(startPos, 4), -1, ParseNumbers.IsTight, out result.parsedGuid._b, ref result))
-                return false;
-
-            startPos += 4;
-            if (!StringToShort(guidString.Substring(startPos, 4), -1, ParseNumbers.IsTight, out result.parsedGuid._c, ref result))
-                return false;
-
-            startPos += 4;
-            if (!StringToInt(guidString.Substring(startPos, 4), -1, ParseNumbers.IsTight, out temp, ref result))
-                return false;
-
-            startPos += 4;
-            currentPos = startPos;
-
-            if (!StringToLong(guidString, ref currentPos, ParseNumbers.NoSpace, out templ, ref result))
-                return false;
-
-            if (currentPos - startPos!=12) {
-                result.SetFailure(ParseFailureKind.Format, "Format_GuidInvLen");
-                return false;
-            }
-
-            result.parsedGuid._d = (byte)(temp>>8);
-            result.parsedGuid._e = (byte)(temp);
-            temp = (int)(templ >> 32);
-            result.parsedGuid._f = (byte)(temp>>8);
-            result.parsedGuid._g = (byte)(temp);
-            temp = (int)(templ);
-            result.parsedGuid._h = (byte)(temp>>24);
-            result.parsedGuid._i = (byte)(temp>>16);
-            result.parsedGuid._j = (byte)(temp>>8);
-            result.parsedGuid._k = (byte)(temp);
+            result.parsedGuid._d = (byte)(tempInt >> 8);
+            result.parsedGuid._e = (byte)(tempInt);
+            tempInt = (int)(tempLong >> 32);
+            result.parsedGuid._f = (byte)(tempInt >> 8);
+            result.parsedGuid._g = (byte)(tempInt);
+            tempInt = (int)(tempLong);
+            result.parsedGuid._h = (byte)(tempInt >> 24);
+            result.parsedGuid._i = (byte)(tempInt >> 16);
+            result.parsedGuid._j = (byte)(tempInt >> 8);
+            result.parsedGuid._k = (byte)(tempInt);
 
             return true;
         }
-
 
         // Check if it's of the form [{|(]dddddddd-dddd-dddd-dddd-dddddddddddd[}|)]
-        private static bool TryParseGuidWithDashes(String guidString, ref GuidResult result) {
-            int startPos=0;
-            int temp;
-            long templ;
-            int currentPos = 0;
+        private static bool TryParseGuidWithDashes(string guidString, int start, int length, ref GuidResult result)
+        {
+            int currentPos = start;
 
-            // check to see that it's the proper length
-            if (guidString[0]=='{') {
-                if (guidString.Length!=38 || guidString[37]!='}') {
+            // Check to see that it's the proper length
+            char firstChar = guidString[currentPos];
+            if (firstChar == '{')
+            {
+                if (length != 38 || guidString[currentPos + 37] != '}')
+                {
                     result.SetFailure(ParseFailureKind.Format, "Format_GuidInvLen");
                     return false;
                 }
-                startPos=1;
+                currentPos += 1;
             }
-            else if (guidString[0]=='(') {
-                if (guidString.Length!=38 || guidString[37]!=')') {
+            else if (firstChar == '(')
+            {
+                if (length != 38 || guidString[currentPos + 37] != ')')
+                {
                     result.SetFailure(ParseFailureKind.Format, "Format_GuidInvLen");
                     return false;
                 }
-                startPos=1;
+                currentPos += 1;
             }
-            else if(guidString.Length != 36) {
+            else if (length != 36)
+            {
                 result.SetFailure(ParseFailureKind.Format, "Format_GuidInvLen");
                 return false;
             }
 
-            if (guidString[8+startPos] != '-' ||
-                guidString[13+startPos] != '-' ||
-                guidString[18+startPos] != '-' ||
-                guidString[23+startPos] != '-') {
+            if (guidString[8 + currentPos] != '-' ||
+                guidString[13 + currentPos] != '-' ||
+                guidString[18 + currentPos] != '-' ||
+                guidString[23 + currentPos] != '-')
+            {
                 result.SetFailure(ParseFailureKind.Format, "Format_GuidDashes");
                 return false;
             }
 
-            currentPos = startPos;
-            if (!StringToInt(guidString, ref currentPos, 8, ParseNumbers.NoSpace, out temp, ref result))
+            int tempInt;
+            long tempLong;
+            if (!StringToInt(guidString, currentPos, 8, false, out tempInt, ref result))
                 return false;
-            result.parsedGuid._a = temp;
-            ++currentPos; //Increment past the '-';
+            result.parsedGuid._a = tempInt;
+            currentPos += 9; // Increment past the '-'
 
-            if (!StringToInt(guidString, ref currentPos, 4, ParseNumbers.NoSpace, out temp, ref result))
+            if (!StringToInt(guidString, currentPos, 4, false, out tempInt, ref result))
                 return false;
-            result.parsedGuid._b = (short)temp;
-            ++currentPos; //Increment past the '-';
+            result.parsedGuid._b = (short)tempInt;
+            currentPos += 5; // Increment past the '-'
 
-            if (!StringToInt(guidString, ref currentPos, 4, ParseNumbers.NoSpace, out temp, ref result))
+            if (!StringToInt(guidString, currentPos, 4, false, out tempInt, ref result))
                 return false;
-            result.parsedGuid._c = (short)temp;
-            ++currentPos; //Increment past the '-';
+            result.parsedGuid._c = (short)tempInt;
+            currentPos += 5; // Increment past the '-'
 
-            if (!StringToInt(guidString, ref currentPos, 4, ParseNumbers.NoSpace, out temp, ref result))
+            if (!StringToInt(guidString, currentPos, 4, false, out tempInt, ref result))
                 return false;
-            ++currentPos; //Increment past the '-';
-            startPos=currentPos;
+            currentPos += 5; // Increment past the '-'
 
-            if (!StringToLong(guidString, ref currentPos, ParseNumbers.NoSpace, out templ, ref result))
+            if (!StringToLong(guidString, currentPos, 12, false, long.MaxValue, out tempLong, ref result))
                 return false;
+            currentPos += 12;
 
-            if (currentPos - startPos != 12) {
-                result.SetFailure(ParseFailureKind.Format, "Format_GuidInvLen");
-                return false;
-            }
-            result.parsedGuid._d = (byte)(temp>>8);
-            result.parsedGuid._e = (byte)(temp);
-            temp = (int)(templ >> 32);
-            result.parsedGuid._f = (byte)(temp>>8);
-            result.parsedGuid._g = (byte)(temp);
-            temp = (int)(templ);
-            result.parsedGuid._h = (byte)(temp>>24);
-            result.parsedGuid._i = (byte)(temp>>16);
-            result.parsedGuid._j = (byte)(temp>>8);
-            result.parsedGuid._k = (byte)(temp);
+            result.parsedGuid._d = (byte)(tempInt >> 8);
+            result.parsedGuid._e = (byte)(tempInt);
+            tempInt = (int)(tempLong >> 32);
+            result.parsedGuid._f = (byte)(tempInt >> 8);
+            result.parsedGuid._g = (byte)(tempInt);
+            tempInt = (int)(tempLong);
+            result.parsedGuid._h = (byte)(tempInt >> 24);
+            result.parsedGuid._i = (byte)(tempInt >> 16);
+            result.parsedGuid._j = (byte)(tempInt >> 8);
+            result.parsedGuid._k = (byte)(tempInt);
 
             return true;
         }
 
-
-        //
-        // StringToShort, StringToInt, and StringToLong are wrappers around COMUtilNative integer parsing routines;
-
-        [System.Security.SecuritySafeCritical]
-        private static unsafe bool StringToShort(String str, int requiredLength, int flags, out short result, ref GuidResult parseResult) {
-            return StringToShort(str, null, requiredLength, flags, out result, ref parseResult);
-        }
-        [System.Security.SecuritySafeCritical]
-        private static unsafe bool StringToShort(String str, ref int parsePos, int requiredLength, int flags, out short result, ref GuidResult parseResult) {
-            fixed(int * ppos = &parsePos) {
-                return StringToShort(str, ppos, requiredLength, flags, out result, ref parseResult);
-            }
-        }
-        [System.Security.SecurityCritical]
-        private static unsafe bool StringToShort(String str, int* parsePos, int requiredLength, int flags, out short result, ref GuidResult parseResult) {
-            result = 0;
-            int x;
-            bool retValue = StringToInt(str, parsePos, requiredLength, flags, out x, ref parseResult);
-            result = (short)x;
-            return retValue;
-        }
-
-        [System.Security.SecuritySafeCritical]
-        private static unsafe bool StringToInt(String str, int requiredLength, int flags, out int result, ref GuidResult parseResult) {
-            return StringToInt(str, null, requiredLength, flags, out result, ref parseResult);
-        }
-        [System.Security.SecuritySafeCritical]
-        private static unsafe bool StringToInt(String str, ref int parsePos, int requiredLength, int flags, out int result, ref GuidResult parseResult) {
-            fixed(int * ppos = &parsePos) {
-                return StringToInt(str, ppos, requiredLength, flags, out result, ref parseResult);
-            }
-        }
-        [System.Security.SecurityCritical]
-        private static unsafe bool StringToInt(String str, int* parsePos, int requiredLength, int flags, out int result, ref GuidResult parseResult) {
-            result = 0;
-
-            int currStart = (parsePos == null) ? 0 : (*parsePos);
-            try {
-                result = ParseNumbers.StringToInt(str, 16, flags, parsePos);
-            }
-            catch (OverflowException ex) {
-                if (parseResult.throwStyle == GuidParseThrowStyle.All) {
-                    throw;
-                }
-                else if (parseResult.throwStyle == GuidParseThrowStyle.AllButOverflow) {
-                    throw new FormatException(Environment.GetResourceString("Format_GuidUnrecognized"), ex);
-                }
-                else {
-                    parseResult.SetFailure(ex);
-                    return false;
-                }
-            }
-            catch (Exception ex) {
-                if (parseResult.throwStyle == GuidParseThrowStyle.None) {
-                    parseResult.SetFailure(ex);
-                    return false;
-                }
-                else {                
-                    throw;
-                }
-            }
-
-            //If we didn't parse enough characters, there's clearly an error.
-            if (requiredLength != -1 && parsePos != null &&  (*parsePos) - currStart != requiredLength) {
-                parseResult.SetFailure(ParseFailureKind.Format, "Format_GuidInvalidChar");
-                return false;
-            }
-            return true;
-        }
-        [System.Security.SecuritySafeCritical]
-        private static unsafe bool StringToLong(String str, int flags, out long result, ref GuidResult parseResult) {
-            return StringToLong(str, null, flags, out result, ref parseResult);
-        }
-        [System.Security.SecuritySafeCritical]
-        private static unsafe bool StringToLong(String str, ref int parsePos, int flags, out long result, ref GuidResult parseResult) {
-            fixed(int * ppos = &parsePos) {
-                return StringToLong(str, ppos, flags, out result, ref parseResult);
-            }
-        }
-        [System.Security.SecuritySafeCritical]
-        private static unsafe bool StringToLong(String str, int* parsePos, int flags, out long result, ref GuidResult parseResult) {
-            result = 0;
-
-            try {
-                result = ParseNumbers.StringToLong(str, 16, flags, parsePos);
-            }
-            catch (OverflowException ex) {
-                if (parseResult.throwStyle == GuidParseThrowStyle.All) {
-                    throw;
-                }
-                else if (parseResult.throwStyle == GuidParseThrowStyle.AllButOverflow) {
-                    throw new FormatException(Environment.GetResourceString("Format_GuidUnrecognized"), ex);
-                }
-                else {
-                    parseResult.SetFailure(ex);
-                    return false;
-                }
-            }
-            catch (Exception ex) {
-                if (parseResult.throwStyle == GuidParseThrowStyle.None) {
-                    parseResult.SetFailure(ex);
-                    return false;
-                }
-                else {                
-                    throw;
-                }
-            }
-            return true;
-        }
-
-
-        private static String EatAllWhitespace(String str)
+        private static bool StringToShort(string s, int parsePos, int requiredLength, bool ignoreWhitespace, out short result, ref GuidResult parseResult)
         {
-            int newLength = 0;
-            char[] chArr = new char[str.Length];
-            char curChar;
+            int resultInt;
+            bool succeeded = StringToInt(s, parsePos, requiredLength, ignoreWhitespace, out resultInt, ref parseResult);
+            result = (short)resultInt;
+            return succeeded;
+        }
 
-            // Now get each char from str and if it is not whitespace add it to chArr
-            for(int i = 0; i < str.Length; i++)
+        private static bool StringToInt(string s, int parsePos, int requiredLength, bool ignoreWhitespace, out int result, ref GuidResult parseResult)
+        {
+            long resultLong;
+            bool succeeded = StringToLong(s, parsePos, requiredLength, ignoreWhitespace, uint.MaxValue, out resultLong, ref parseResult);
+            // We are guaranteed to get a result of <= int.MaxValue so this cast works
+            result = (int)resultLong;
+            return succeeded;
+        }
+
+        private static bool StringToLong(string s, int parsePos, int requiredLength, bool ignoreWhitespace, long maxValue, out long result, ref GuidResult parseResult)
+        {
+            result = 0;
+            try
             {
-                curChar = str[i];
-                if(!Char.IsWhiteSpace(curChar))
+                result = StringToLongThrows(s, parsePos, requiredLength, ignoreWhitespace, maxValue);
+                return true;
+            }
+            catch (OverflowException ex)
+            {
+                if (parseResult.throwStyle == GuidParseThrowStyle.All)
                 {
-                    chArr[newLength++] = curChar;
+                    throw;
+                }
+                else if (parseResult.throwStyle == GuidParseThrowStyle.AllButOverflow)
+                {
+                    throw new FormatException();
+                }
+                else
+                {
+                    parseResult.SetFailure(ex);
+                    return false;
                 }
             }
-
-            // Return a new string based on chArr
-            return new String(chArr, 0, newLength);
+            catch (Exception ex)
+            {
+                if (parseResult.throwStyle == GuidParseThrowStyle.None)
+                {
+                    parseResult.SetFailure(ex);
+                    return false;
+                }
+                else
+                {
+                    throw;
+                }
+            }
         }
 
-        private static bool IsHexPrefix(String str, int i)
+        private static long StringToLongThrows(string s, int parsePos, int requiredLength, bool ignoreWhitespace, long maxValue)
         {
-            if(str.Length > i+1 && str[i] == '0' && (Char.ToLower(str[i+1], CultureInfo.InvariantCulture) == 'x'))
-                return true;
-            else
-                return false;
+            long result = 0;
+            for (int i = parsePos; i < parsePos + requiredLength; i++)
+            {
+                int digitValue = 0;
+                char c = s[i];
+                if (c >= '0' && c <= '9')
+                {
+                    digitValue = c - '0';
+                }
+                else if (c >= 'a' && c <= 'f')
+                {
+                    digitValue = c + 10 - 'a';
+                }
+                else if (c >= 'A' && c <= 'F')
+                {
+                    digitValue = c + 10 - 'A';
+                }
+                else if (ignoreWhitespace && char.IsWhiteSpace(c))
+                {
+                    continue;
+                }
+                else
+                {
+                    // Invalid character
+                    throw new FormatException();
+                }
+                long previousResult = result;
+                result = (result * 16) + digitValue;
+                if (result < previousResult || result > maxValue)
+                {
+                    // Overflow occured
+                    throw new OverflowException();
+                }
+            }
+            return result;
         }
 
+        private static void ConsumeWhitespace(string guidString, ref int start)
+        {
+            while (start < guidString.Length && char.IsWhiteSpace(guidString[start]))
+            {
+                start++;
+            }
+        }
+
+        private static bool IsHexPrefix(string guidString, ref int start)
+        {
+            ConsumeWhitespace(guidString, ref start);
+            if (guidString[start] != '0')
+            {
+                return false;
+            }
+            start++;
+            ConsumeWhitespace(guidString, ref start);
+            if (start < guidString.Length && (guidString[start] == 'x' || guidString[start] == 'X'))
+            {
+                start++;
+                return true;
+            }
+            return false;
+        }
 
         // Returns an unsigned byte array containing the GUID.
         public byte[] ToByteArray()
