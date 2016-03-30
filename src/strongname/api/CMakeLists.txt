@@ -24,4 +24,3 @@ endif(CLR_CMAKE_PLATFORM_UNIX)
 
 add_subdirectory(dac)
 add_subdirectory(wks)
-add_subdirectory(crossgen)

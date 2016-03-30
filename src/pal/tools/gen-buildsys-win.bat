@@ -25,7 +25,7 @@ if /i "%3" == "arm64" (
 if defined CMakePath goto DoGen
 
 :: Eval the output from probe-win1.ps1
-for /f "delims=" %%a in ('powershell -NoProfile -ExecutionPolicy RemoteSigned "& .\probe-win.ps1"') do %%a
+for /f "delims=" %%a in ('powershell -NoProfile -ExecutionPolicy RemoteSigned "& "%basePath%\probe-win.ps1""') do %%a
 
 :DoGen
 if "%USE_VS%" == "0" (

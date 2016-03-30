@@ -1,5 +1,10 @@
 include(${CLR_DIR}/dac.cmake)
 
+set(UTILCODE_DAC_SOURCES 
+  ${UTILCODE_COMMON_SOURCES}
+  ${UTILCODE_DIR}/hostimpl.cpp
+)
+
 add_definitions(-DSELF_NO_HOST)
 
 if(CLR_CMAKE_PLATFORM_UNIX)
