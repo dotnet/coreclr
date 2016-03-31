@@ -2334,9 +2334,48 @@ struct GenTreeColon: public GenTreeOp
         {}
 };
 
-/* gtCall   -- method call      (GT_CALL) */
+// gtCall   -- method call      (GT_CALL)
 typedef class fgArgInfo *  fgArgInfoPtr;
 enum class InlineObservation;
+
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+// Return type descriptor of a GT_CALL node.
+// x64 Unix, Arm64, Arm32 and x86 allow a value to be returned in multiple
+// registers. For such calls this struct provides the following info 
+// on their return type
+//    - type of value returned in each return register
+//    - return register numbers in which the value is returned
+//    - a spill mask for lsra/codegen purpose
+//
+// For now as part of code refactoring for x64 unix, ReturnTypeDesc will
+// abstract unix struct descriptor.
+struct ReturnTypeDesc
+{
+private:
+    SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
+
+#ifdef DEBUG
+    bool m_inited;
+#endif
+
+public:
+    ReturnTypeDesc()
+    {
+#ifdef DEBUG
+        m_inited = false;
+#endif
+    }
+
+    void Initialize(Compiler* comp, CORINFO_CLASS_HANDLE retClsHnd);
+
+    // Returns the number of return registers in which the return type is returned.
+    // Returns -1 if the return type is not returned in registers.
+    int GetReturnRegCount();
+
+    var_types GetFirstReturnRegType();
+    var_types GetSecondReturnRegType();
+};
+#endif //FEATURE_UNIX_AMD64_STRUCT_PASSING
 
 struct GenTreeCall final : public GenTree
 {
@@ -2357,9 +2396,10 @@ struct GenTreeCall final : public GenTree
     CORINFO_SIG_INFO* callSig;                // Used by tail calls and to register callsites with the EE
 
     regMaskTP         gtCallRegUsedMask;      // mask of registers used to pass parameters
+
 #ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
-    SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+    ReturnTypeDesc    gtReturnTypeDesc;
+#endif 
 
 #define     GTF_CALL_M_EXPLICIT_TAILCALL       0x0001  // GT_CALL -- the call is "tail" prefixed and importer has performed tail call checks
 #define     GTF_CALL_M_TAILCALL                0x0002  // GT_CALL -- the call is a tailcall
@@ -2428,6 +2468,12 @@ struct GenTreeCall final : public GenTree
         return 0;
     }
 #endif // !LEGACY_BACKEND
+
+    // Returns true if the call has retBuf argument
+    bool HasRetBufArg() { return (gtCallMoreFlags & GTF_CALL_M_RETBUFFARG) != 0; }
+
+    // Returns true if the call is returning a multi-reg struct value
+    bool HasMultiRegRetVal() { return varTypeIsStruct(gtType) && !HasRetBufArg(); }
 
     // Returns true if VM has flagged this method as CORINFO_FLG_PINVOKE.
     bool IsPInvoke()                { return (gtCallMoreFlags & GTF_CALL_M_PINVOKE) != 0; }
