@@ -238,13 +238,64 @@ function(preprocess_def_file inputFilename outputFilename)
                               PROPERTIES GENERATED TRUE)
 endfunction()
 
+
 function(generate_exports_file inputFilename outputFilename)
+
+  # Calculate name and version of awk in Linux distribution
+  # .awk : Oldest version 
+  # .gawk: GNU Awk (Standard for modern Linux distribution)
+  # .mawk: Fast Awk (written by Mike Brennan for Debian, Gentoo)
+  # .nawk: New Awk (A new version of the program)
+  include(FindPackageHandleStandardArgs)
+  if(AWK_BIN)
+     set(AWK_FIND_QUIETLY TRUE)
+  endif(AWK_BIN)
+  set(AWK_NAMES awk gawk mawk nawk)
+  find_program(AWK_BIN NAMES ${AWK_NAMES})
+  FIND_PACKAGE_HANDLE_STANDARD_ARGS(AWK DEFAULT_MSG AWK_BIN)
+
+  if(AWK_FOUND)
+    EXECUTE_PROCESS(COMMAND ${AWK_BIN} -Wv
+    RESULT_VARIABLE RET_VALUE
+    OUTPUT_VARIABLE AWK_VERSION
+    ERROR_QUIET
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+    if(NOT${RET_VALUE} EQUAL 0 OR AWK_VERSION STREQUAL "")
+      EXECUTE_PROCESS(COMMAND ${AWK_BIN} --version
+      RESULT_VARIABLE RET_VALUE
+      OUTPUT_VARIABLE AWK_VERSION
+      ERROR_QUIET
+      OUTPUT_STRIP_TRAILING_WHITESPACE)
+    endif(NOT${RET_VALUE} EQUAL 0 OR AWK_VERSION STREQUAL "")
+
+    if(${RET_VALUE} EQUAL 0)
+      string(REGEX REPLACE "\n.*" "" AWK_VERSION "${AWK_VERSION}")
+      if(NOT AWK_FIND_QUIETLY)
+        message(STATUS "AWK version: ${AWK_VERSION}")
+      endif(NOT AWK_FIND_QUIETLY)
+      string(REGEX REPLACE " " ";" AWK_VERSION "${AWK_VERSION}")
+      list(GET AWK_VERSION 0 FILTERED_AWK_INFO)  
+      list(GET AWK_VERSION 1 FILTERED_AWK_NAME)  
+      list(GET AWK_VERSION 2 FILTERED_AWK_VERSION)  
+    else(${RET_VALUE} EQUAL 0)
+      set(AWK_VERSION)
+    endif(${RET_VALUE} EQUAL 0)
+  else(AWK_FOUND)
+    set(AWK_BIN)
+    set(AWK_VERSION)
+  endif(AWK_FOUND)
 
   if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
     set(AWK_SCRIPT generateexportedsymbols.awk)
+  elseif(CMAKE_SYSTEM_NAME STREQUAL Linux)
+     if(FILTERED_AWK_INFO STREQUAL "GNU" AND FILTERED_AWK_NAME STREQUAL "Awk" AND FILTERED_AWK_VERSION VERSION_GREATER 4.0.0)
+        set(AWK_SCRIPT generateversionscript-gawk-400.awk)
+     else(FILTERED_AWK_INFO STREQUAL "GNU" AND FILTERED_AWK_NAME STREQUAL "Awk" AND FILTERED_AWK_VERSION VERSION_GREATER 4.0.0)
+        set(AWK_SCRIPT generateversionscript.awk)
+     endif()
   else()
     set(AWK_SCRIPT generateversionscript.awk)
-  endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
+  endif()
 
   add_custom_command(
     OUTPUT ${outputFilename}
