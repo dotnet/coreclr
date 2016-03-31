@@ -5726,16 +5726,11 @@ void CodeGen::genCallInstruction(GenTreePtr node)
 
 #ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
     emitAttr secondRetSize = EA_UNKNOWN;
-    if (varTypeIsStruct(call->gtType))
+    if (call->HasMultiRegRetVal())
     {
-        // Make sure it is a multi-register returned struct,  
-        // otherwise, for a struct passed in a single register   
-        // the call would have a normalized type that is not a struct type.  
-        assert(call->structDesc.passedInRegisters &&
-               (call->structDesc.eightByteCount == CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_RETURN_IN_REGISTERS));
-
-        retSize = emitTypeSize(compiler->getEightByteType(call->structDesc, 0));
-        secondRetSize = emitTypeSize(compiler->getEightByteType(call->structDesc, 1));
+        ReturnTypeDesc* retTypeDesc = &(call->gtReturnTypeDesc);
+        retSize = emitTypeSize(retTypeDesc->GetFirstReturnRegType());
+        secondRetSize = emitTypeSize(retTypeDesc->GetSecondReturnRegType());
     }
     else
 #endif // FEATURE_UNIX_AMD64_STRUCT_PASSING  

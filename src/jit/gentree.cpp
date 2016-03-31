@@ -6308,9 +6308,9 @@ GenTreePtr          Compiler::gtCloneExpr(GenTree * tree,
         }
         copy->gtCall.gtRetClsHnd = tree->gtCall.gtRetClsHnd;
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-        copy->gtCall.structDesc.CopyFrom(tree->gtCall.structDesc);
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)  
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+        copy->gtCall.gtReturnTypeDesc = tree->gtCall.gtReturnTypeDesc;
+#endif
 
 #ifdef FEATURE_READYTORUN_COMPILER
         copy->gtCall.gtEntryPoint = tree->gtCall.gtEntryPoint;
@@ -13415,4 +13415,75 @@ bool GenTree::isCommutativeSIMDIntrinsic()
         return false;
     }
 }
+#endif //FEATURE_SIMD
+
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+
+// Initialize Return Type Descriptor given type handle.
+// 
+// Arguments
+//    comp        -  Compiler Instance
+//    retClsHnd   -  VM handle to the type returned
+//
+void ReturnTypeDesc::Initialize(Compiler* comp, CORINFO_CLASS_HANDLE retClsHnd)
+{
+    assert(!m_inited);
+    assert(retClsHnd != NO_CLASS_HANDLE);
+
+    comp->eeGetSystemVAmd64PassStructInRegisterDescriptor(retClsHnd, &structDesc);
+
+#ifdef DEBUG
+    m_inited = true;
 #endif
+}
+
+// Get the count of return registers in which the return value is returned.
+//
+// Arguments:
+//     None
+// 
+// Returns:
+//    The number of return registers in which the return type is returned.
+//    Returns -1 if the return type is not returned in registers.
+int ReturnTypeDesc::GetReturnRegCount()
+{
+    assert(m_inited);
+
+    if (structDesc.passedInRegisters && structDesc.eightByteCount <= 2)
+    {
+        return structDesc.eightByteCount;
+    }
+
+    return -1;
+}
+
+// Get var_type of the first return register.
+//
+// Arguments:
+//    None
+//
+// Returns
+//    var_type of the first return register
+//
+// Assumption: Caller is expected to call this method only if return reg count >=1
+var_types ReturnTypeDesc::GetFirstReturnRegType()
+{
+    assert(GetReturnRegCount() >= 1);
+    return Compiler::getEightByteType(structDesc, 0);
+}
+
+// Get var_type of the second return register.
+//
+// Arguments:
+//    None
+//
+// Returns
+//    var_type of the second return register
+//
+// Assumption: Caller is expected to call this method only if return reg count == 2
+var_types ReturnTypeDesc::GetSecondReturnRegType()
+{
+    assert(GetReturnRegCount() == 2);
+    return Compiler::getEightByteType(structDesc, 1);
+}
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
