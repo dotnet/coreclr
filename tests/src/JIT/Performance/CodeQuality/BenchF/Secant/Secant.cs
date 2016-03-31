@@ -17,7 +17,7 @@ public static class Secant
 #if DEBUG
     public const int Iterations = 1;
 #else
-    public const int Iterations = 3000000;
+    public const int Iterations = 50000000;
 #endif
 
     public static volatile object VolatileObject;

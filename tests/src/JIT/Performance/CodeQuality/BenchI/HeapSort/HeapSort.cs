@@ -17,7 +17,7 @@ public static class HeapSort
 #if DEBUG
     public const int Iterations = 1;
 #else
-    public const int Iterations = 2500;
+    public const int Iterations = 25000;
 #endif
 
     const int ArraySize = 5500;

@@ -16,7 +16,7 @@ public static class BenchMk2
 #if DEBUG
     public const int Iterations = 1;
 #else
-    public const int Iterations = 4000000;
+    public const int Iterations = 40000000;
 #endif
 
     private static int s_i, s_n;

@@ -17,7 +17,7 @@ public static class InvMt
 #if DEBUG
     public const int Iterations = 1;
 #else
-    public const int Iterations = 80;
+    public const int Iterations = 800;
 #endif
 
     private const int MatSize = Iterations;

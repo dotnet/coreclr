@@ -17,7 +17,7 @@ public static class NewtR
 #if DEBUG
     public const int Iterations = 1;
 #else
-    public const int Iterations = 80000000;
+    public const int Iterations = 1000000000;
 #endif
 
     public static volatile object VolatileObject;

@@ -17,7 +17,7 @@ public static class AddArray
 #if DEBUG
     public const int Iterations = 1;
 #else
-    public const int Iterations = 15000;
+    public const int Iterations = 150000;
 #endif
 
     const int Size = 6000;

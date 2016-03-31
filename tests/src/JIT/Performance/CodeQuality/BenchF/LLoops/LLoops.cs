@@ -65,7 +65,7 @@ public class LLoops
 #if DEBUG
     public const int Iterations = 1;
 #else
-    public const int Iterations = 4000;
+    public const int Iterations = 40000;
 #endif
 
     private const double MaxErr = 1.0e-6;

@@ -17,7 +17,7 @@ public static class Bisect
 #if DEBUG
     public const int Iterations = 1;
 #else
-    public const int Iterations = 400000;
+    public const int Iterations = 4000000;
 #endif
 
     public static volatile object VolatileObject;

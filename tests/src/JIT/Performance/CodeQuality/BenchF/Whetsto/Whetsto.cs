@@ -17,7 +17,7 @@ public static class Whetsto
 #if DEBUG
     public const int Iterations = 1;
 #else
-    public const int Iterations = 50000;
+    public const int Iterations = 250000;
 #endif
 
     private static int s_j, s_k, s_l;

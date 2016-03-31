@@ -16,7 +16,7 @@ public static class DMath
 #if DEBUG
     public const int Iterations = 1;
 #else
-    public const int Iterations = 100000;
+    public const int Iterations = 500000;
 #endif
 
     private const double Deg2Rad = 57.29577951;

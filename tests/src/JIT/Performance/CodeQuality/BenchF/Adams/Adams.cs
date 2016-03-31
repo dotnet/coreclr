@@ -17,7 +17,7 @@ public static class Adams
 #if DEBUG
     public const int Iterations = 1;
 #else
-    public const int Iterations = 200000;
+    public const int Iterations = 20000000;
 #endif
 
     public static volatile object VolatileObject;

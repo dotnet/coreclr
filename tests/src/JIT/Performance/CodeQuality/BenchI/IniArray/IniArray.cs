@@ -17,7 +17,7 @@ public static class IniArray
 #if DEBUG
     public const int Iterations = 1;
 #else
-    public const int Iterations = 10000000;
+    public const int Iterations = 200000000;
 #endif
 
     const int Allotted = 16;
