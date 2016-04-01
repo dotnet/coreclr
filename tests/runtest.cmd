@@ -184,7 +184,7 @@ echo %__MsgPrefix%CORE_ROOT that will be used is: %CORE_ROOT%
 echo %__MsgPrefix%Starting the test run ...
 
 set __BuildLogRootName=TestRunResults
-call :msbuild "%__ProjectFilesDir%\runtest.proj" /p:RunTests=true /clp:showcommandline
+call :msbuild "%__ProjectFilesDir%\runtest.proj" /p:Runtests=true /clp:showcommandline
 
 if errorlevel 1 (
     echo Test Run failed. Refer to the following:
@@ -192,9 +192,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-if not defined %__PerfTests% (
-	call :SkipRunPerfTests
-)
+if not defined __PerfTests goto :SkipRunPerfTests
 
 :RunPerfTests 
 echo %__MsgPrefix%CORE_ROOT that will be used is: %CORE_ROOT%  
