@@ -350,7 +350,32 @@ Compiler::fgMakeEmbeddedStmt(BasicBlock* block, GenTree* tree, GenTree* parentSt
     assert(fgBlockContainsStatementBounded(block, parentStmt));
 
     GenTreePtr newStmtFirstNode = fgGetFirstNode(tree);
-    GenTreePtr parentStmtFirstNode = parentStmt->gtStmt.gtStmtList;
+
+    // Get the first node of the first parent statement.
+    // If the tree parameter's last stament is a call with controlExpr, the above statement 
+    // will expand and include the controlExpr. If the same call is the first statement 
+    // in the parentStmt list parameter, we need to expand also the parentStmtFirstNode (below), 
+    // so we detect first statement for the new embedded statement properly.
+    //
+    // An example is the following case:
+    // tree parameter - [000861] below:
+    // N001(3, 10)[000858] ------------ / --*  const(h)  long   0xe19f302858 ftn REG NA
+    // N002(5, 12)[000859] ------------control expr / --*  indir     long
+    // N023(14, 5)[000099] H - C - G------ - / --*  call help byref  HELPER.CORINFO_HELP_READYTORUN_STATIC_BASE $3c4
+    // N024(17, 7)[000102] --CXG------ - / --*  indir     ref    <l:$35f, c : $35e>
+    // (18, 8)[000861] DACXG------ - *st.lclVar ref    V32 rat3
+
+    // The expanded tree node (or newStmtFirstNode = fgGetFirstNode(tree)):
+    // N001(3, 10)[000858] ------------             *  const(h)  long   0xe19f302858 ftn REG NA
+
+    // The parentStmt->gtStmt.gtStmtList tree (first statement in the parentStmt list) is:
+    // N023(14, 5)[000099] H - C - G------ - *call help byref  HELPER.CORINFO_HELP_READYTORUN_STATIC_BASE $3c4
+    // 
+    // Note: If the call to fgGetFirstNode(parentStmt->gtStmt.gtStmtList) is not done, the parentStmtFirstNode
+    // does not include the controlExpr expanded node (from newStmtFirstNode in parentStmtFirstNode).
+    //
+    GenTreePtr parentStmtFirstNode = fgGetFirstNode(parentStmt->gtStmt.gtStmtList);
+
     GenTreePtr prevStmt = parentStmt;
     bool newTopLevelStmt = false;
     bool splitParentStmt = false;
