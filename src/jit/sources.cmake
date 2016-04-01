@@ -53,7 +53,7 @@ set( JIT_SOURCES
   ${JIT_DIR}/valuenum.cpp
 )
 
-if(CLR_CMAKE_PLATFORM_ARCH_AMD64)
+if(CLR_CMAKE_TARGET_ARCH_AMD64)
   set( ARCH_SOURCES
     ${JIT_DIR}/targetamd64.cpp
     ${JIT_DIR}/unwindamd64.cpp
@@ -63,7 +63,7 @@ if(CLR_CMAKE_PLATFORM_ARCH_AMD64)
     ${JIT_DIR}/simdcodegenxarch.cpp
     ${JIT_DIR}/simd.cpp
   )
-elseif(CLR_CMAKE_PLATFORM_ARCH_ARM)
+elseif(CLR_CMAKE_TARGET_ARCH_ARM)
   set( ARCH_SOURCES
     ${JIT_DIR}/emitarm.cpp
     ${JIT_DIR}/targetarm.cpp
@@ -73,7 +73,7 @@ elseif(CLR_CMAKE_PLATFORM_ARCH_ARM)
     ${JIT_DIR}/codegenlegacy.cpp
     ${JIT_DIR}/registerfp.cpp
   )
-elseif(CLR_CMAKE_PLATFORM_ARCH_I386)
+elseif(CLR_CMAKE_TARGET_ARCH_I386)
   set( ARCH_SOURCES
     ${JIT_DIR}/emitxarch.cpp
     ${JIT_DIR}/targetx86.cpp
@@ -82,7 +82,7 @@ elseif(CLR_CMAKE_PLATFORM_ARCH_I386)
     ${JIT_DIR}/codegenlegacy.cpp
     ${JIT_DIR}/stackfp.cpp
   )
-elseif(CLR_CMAKE_PLATFORM_ARCH_ARM64)
+elseif(CLR_CMAKE_TARGET_ARCH_ARM64)
   set( ARCH_SOURCES
     ${JIT_DIR}/codegenarm64.cpp
     ${JIT_DIR}/emitarm64.cpp
