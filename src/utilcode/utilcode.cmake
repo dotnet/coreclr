@@ -1,3 +1,11 @@
+if(WIN32)
+    add_compile_options(/wd4996)
+endif(WIN32)
+  
+if(CLR_CMAKE_PLATFORM_UNIX)
+    add_compile_options(-fPIC)
+endif(CLR_CMAKE_PLATFORM_UNIX)
+
 set(UTILCODE_COMMON_SOURCES
   ${UTILCODE_DIR}/clrhost_nodependencies.cpp
   ${UTILCODE_DIR}/ccomprc.cpp

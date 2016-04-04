@@ -34,7 +34,7 @@ if(WIN32)
     #use static crt
     add_definitions(-MT) 
 
-    if (CLR_CMAKE_PLATFORM_ARCH_AMD64)
+    if (CLR_CMAKE_TARGET_ARCH_AMD64)
         set(CORDBDI_SOURCES
           ${CORDBDI_SOURCES}
           ${ARCH_SOURCES_DIR}/floatconversion.asm
@@ -43,7 +43,7 @@ if(WIN32)
 elseif(CLR_CMAKE_PLATFORM_UNIX)
     add_compile_options(-fPIC)
 
-    if(CLR_CMAKE_PLATFORM_ARCH_AMD64)
+    if(CLR_CMAKE_TARGET_ARCH_AMD64)
       set(CORDBDI_SOURCES
         ${CORDBDI_SOURCES}
         ${ARCH_SOURCES_DIR}/floatconversion.S

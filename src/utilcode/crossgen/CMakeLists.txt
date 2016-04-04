@@ -1,6 +1,6 @@
 include(${CLR_DIR}/crossgen.cmake)
 set(UTILCODE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/..)
-include(../sources.cmake)
+include(../utilcode.cmake)
 
 set(UTILCODE_CROSSGEN_SOURCES 
   ${UTILCODE_COMMON_SOURCES}

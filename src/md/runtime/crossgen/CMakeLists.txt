@@ -1,7 +1,6 @@
 include(${CLR_DIR}/crossgen.cmake)
 include(../../md_wks.cmake)
-include(../sources.cmake)
-
-add_definitions(-DNO_COR)
+set(MDRUNTIME_DIR ${CMAKE_CURRENT_SOURCE_DIR}/..)
+include(../mdruntime.cmake)
 
 add_library_clr(mdruntime_crossgen ${MDRUNTIME_SOURCES})

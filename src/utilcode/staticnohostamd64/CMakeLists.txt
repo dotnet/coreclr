@@ -1,4 +1,7 @@
 add_definitions(-DSELF_NO_HOST)
+#TODO
+remove_definitions(-D_TARGET_ARM64_=1)
+add_definitions(-D_TARGET_AMD64_=1)
 
 set(UTILCODE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/..)
 include(../utilcode.cmake)

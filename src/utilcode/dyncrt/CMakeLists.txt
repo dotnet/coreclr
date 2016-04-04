@@ -1,3 +1,6 @@
+set(UTILCODE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/..)
+include(../utilcode.cmake)
+
 set(UTILCODE_SOURCES 
   ${UTILCODE_COMMON_SOURCES}
   ${UTILCODE_DIR}/perflog.cpp
