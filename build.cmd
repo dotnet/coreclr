@@ -4,7 +4,6 @@ setlocal EnableDelayedExpansion EnableExtensions
 set __ThisScriptShort=%0
 set __ThisScriptFull="%~f0"
 set __ThisScriptPath="%~dp0"
-set __SkipTestBuild=1
 
 :: Note that the msbuild project files (specifically, dir.proj) will use the following variables, if set:
 ::      __BuildArch         -- default: x64
@@ -53,7 +52,7 @@ set __ConfigureOnly=
 set __SkipConfigure=
 set __SkipMscorlibBuild=
 set __SkipNativeBuild=
-set __SkipTestBuild=
+set __SkipTestBuild=1
 set __DoCrossgen=
 set __BuildSequential=
 set __msbuildCleanBuildArgs=
