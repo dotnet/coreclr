@@ -37,5 +37,24 @@
     </Project>
   </ItemGroup>
 
+  <ItemGroup Condition="'$(__BuildType)' == 'Release'">
+    <Project Condition="'$(TargetsLinux)' == 'true' and '$(DistroName)' == 'rhel'" Include="rhel/Microsoft.NETCore.Runtime.CoreCLR-symbols.pkgproj">
+      <OSGroup>Linux</OSGroup>
+      <Platform>amd64</Platform>
+    </Project>
+    <Project Condition="'$(TargetsLinux)' == 'true' and '$(DistroName)' == 'debian'" Include="debian/Microsoft.NETCore.Runtime.CoreCLR-symbols.pkgproj">
+      <OSGroup>Linux</OSGroup>
+      <Platform>amd64</Platform>
+    </Project>
+    <Project Condition="'$(TargetsLinux)' == 'true' and '$(DistroName)' == 'ubuntu'" Include="ubuntu/Microsoft.NETCore.Runtime.CoreCLR-symbols.pkgproj">
+      <OSGroup>Linux</OSGroup>
+      <Platform>amd64</Platform>
+    </Project>
+    <Project Condition="'$(TargetsOSX)' == 'true'" Include="osx/Microsoft.NETCore.Runtime.CoreCLR-symbols.pkgproj">
+      <OSGroup>OSX</OSGroup>
+      <Platform>amd64</Platform>
+    </Project>
+  </ItemGroup>
+
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.traversal.targets))\dir.traversal.targets" />
 </Project>

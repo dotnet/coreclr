@@ -29,16 +29,27 @@
     <ProjectReference Include="rhel\Microsoft.NETCore.Runtime.CoreCLR.pkgproj">
       <Platform>amd64</Platform>
     </ProjectReference>
+    <ProjectReference Include="rhel\Microsoft.NETCore.Runtime.CoreCLR-symbols.pkgproj">
+      <Platform>amd64</Platform>
+    </ProjectReference>
     <ProjectReference Include="debian\Microsoft.NETCore.Runtime.CoreCLR.pkgproj">
+      <Platform>amd64</Platform>
+    </ProjectReference>
+    <ProjectReference Include="debian\Microsoft.NETCore.Runtime.CoreCLR-symbols.pkgproj">
       <Platform>amd64</Platform>
     </ProjectReference>
     <ProjectReference Include="osx\Microsoft.NETCore.Runtime.CoreCLR.pkgproj">
       <Platform>amd64</Platform>
     </ProjectReference>
+    <ProjectReference Include="osx\Microsoft.NETCore.Runtime.CoreCLR-symbols.pkgproj">
+      <Platform>amd64</Platform>
+    </ProjectReference>
     <ProjectReference Include="ubuntu\Microsoft.NETCore.Runtime.CoreCLR.pkgproj">
       <Platform>amd64</Platform>
     </ProjectReference>
-
+    <ProjectReference Include="ubuntu\Microsoft.NETCore.Runtime.CoreCLR-symbols.pkgproj">
+      <Platform>amd64</Platform>
+    </ProjectReference>
   </ItemGroup>
 
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
