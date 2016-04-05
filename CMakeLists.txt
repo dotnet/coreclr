@@ -8,8 +8,6 @@ set(CLR_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(VM_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/vm)
 set(GENERATED_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/src/inc)
 
-include(coreclrArch.cmake)
-
 include(common.cmake)
 
 if(CLR_CMAKE_PLATFORM_UNIX)
