@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 //
 // GC Object Pointer Location Series Stuff
@@ -169,9 +168,9 @@ public:
     {
         // If it doesn't contain pointers, there isn't a GCDesc
         PTR_MethodTable mt(pMT);
-#ifndef BINDER
+
         _ASSERTE(mt->ContainsPointersOrCollectible());
-#endif
+
         return PTR_CGCDesc(mt);
     }
 

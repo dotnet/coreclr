@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: eventtracebase.h
 // Abstract: This module implements base Event Tracing support (excluding some of the
@@ -110,10 +109,10 @@ enum EtwThreadFlags
 #define ETWFireEvent(EventName)
 
 #define ETW_TRACING_INITIALIZED(RegHandle) (TRUE)
-#define ETW_EVENT_ENABLED(Context, EventDescriptor) (TRUE)
-#define ETW_CATEGORY_ENABLED(Context, Level, Keyword) (TRUE)
+#define ETW_EVENT_ENABLED(Context, EventDescriptor) (XplatEventLogger::IsEventLoggingEnabled())
+#define ETW_CATEGORY_ENABLED(Context, Level, Keyword) (XplatEventLogger::IsEventLoggingEnabled())
 #define ETW_TRACING_ENABLED(Context, EventDescriptor) (EventEnabled##EventDescriptor())
-#define ETW_TRACING_CATEGORY_ENABLED(Context, Level, Keyword) (TRUE)
+#define ETW_TRACING_CATEGORY_ENABLED(Context, Level, Keyword) (XplatEventLogger::IsEventLoggingEnabled())
 #define ETW_PROVIDER_ENABLED(ProviderSymbol) (TRUE)
 
 #endif // !defined(FEATURE_PAL)
@@ -133,7 +132,6 @@ enum EtwThreadFlags
 #endif // FEATURE_EVENT_TRACE
 
 #endif // FEATURE_REDHAWK
-#ifdef FEATURE_EVENT_TRACE
 
 // During a heap walk, this is the storage for keeping track of all the nodes and edges
 // being batched up by ETW, and for remembering whether we're also supposed to call into
@@ -151,6 +149,8 @@ public:
     BOOL fProfilerPinned;
     LPVOID pvEtwContext;
 };
+
+#ifdef FEATURE_EVENT_TRACE
 
 class Object;
 #if !defined(FEATURE_PAL)
@@ -644,8 +644,8 @@ namespace ETW
                                                        BOOL fIsTreatAsSafe);
 #else
     public:
-        static VOID StrongNameVerificationStart(DWORD dwInFlags,LPWSTR strFullyQualifiedAssemblyName) {};
-        static VOID StrongNameVerificationStop(DWORD dwInFlags,ULONG result, LPWSTR strFullyQualifiedAssemblyName) {};
+        static VOID StrongNameVerificationStart(DWORD dwInFlags, _In_z_ LPWSTR strFullyQualifiedAssemblyName) {};
+        static VOID StrongNameVerificationStop(DWORD dwInFlags,ULONG result, _In_z_ LPWSTR strFullyQualifiedAssemblyName) {};
 
         static void FireFieldTransparencyComputationStart(LPCWSTR wszFieldName,
                                                           LPCWSTR wszModuleName,
@@ -1068,7 +1068,6 @@ McGenEventProviderEnabled(
 
 
 struct ProfilingScanContext;
-struct ProfilerWalkHeapContext;
 class Object;
 
 namespace ETW

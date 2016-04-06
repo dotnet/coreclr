@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // EEToProfInterfaceImpl.cpp
 // 
@@ -366,6 +365,11 @@ static HRESULT CoCreateProfiler(
 
 EEToProfInterfaceImpl::CHashTableImpl::CHashTableImpl(ULONG iBuckets)
     : CHashTable(iBuckets)
+{
+    WRAPPER_NO_CONTRACT;
+}
+
+EEToProfInterfaceImpl::CHashTableImpl::~CHashTableImpl()
 {
     WRAPPER_NO_CONTRACT;
 }
@@ -2155,7 +2159,7 @@ HRESULT EEToProfInterfaceImpl::SetEventMask(DWORD dwEventMask, DWORD dwEventMask
     if (dwTestOnlyAllowedEventMask != 0)
     {
         // Remove from the immutable flag list those flags that a test-only profiler may
-        // need to set post-startup (specified via COMPLUS_TestOnlyAllowedEventMask)
+        // need to set post-startup (specified via COMPlus_TestOnlyAllowedEventMask)
         dwImmutableEventFlags &= ~dwTestOnlyAllowedEventMask;  
 
         // And add to the "allowable after attach" list the same test-only flags.

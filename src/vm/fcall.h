@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // FCall.H
 //
 
@@ -212,7 +211,7 @@
 //
 
 
-#if !defined(__FCall_h__) && !defined(CLR_STANDALONE_BINDER)
+#ifndef __FCall_h__
 #define __FCall_h__
 
 #include "gms.h"
@@ -884,9 +883,9 @@ void HCallAssert(void*& cache, void* target);
 // 
 // see code:ObjectNative::GetClass for an example
 //
-#define FC_INNER_PROLOG(outterfuncname)                         \
+#define FC_INNER_PROLOG(outerfuncname)                          \
     LPVOID __me;                                                \
-    __me = GetEEFuncEntryPointMacro(outterfuncname);            \
+    __me = GetEEFuncEntryPointMacro(outerfuncname);             \
     FC_CAN_TRIGGER_GC();                                        \
     INCONTRACT(FCallCheck __fCallCheck(__FILE__, __LINE__));
 

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // 
 
@@ -440,6 +441,7 @@ namespace System.Reflection.Emit
             if (m == null) 
                 throw new ArgumentNullException("m");
             Contract.EndContractBlock();
+#if !FEATURE_CORECLR
 
             RuntimeModule rtModule;
             ModuleBuilder mb = m as ModuleBuilder;
@@ -476,6 +478,7 @@ namespace System.Reflection.Emit
                 new SecurityPermission(SecurityPermissionFlag.ControlEvidence).Demand();
 #pragma warning restore 618
 #endif //FEATURE_CORECLR
+#endif //!FEATURE_CORECLR
         }
 
         [System.Security.SecurityCritical]  // auto-generated
@@ -483,6 +486,7 @@ namespace System.Reflection.Emit
         {
             if (owner == null)
                 throw new ArgumentNullException("owner");
+#if !FEATURE_CORECLR
 
             RuntimeType rtOwner = owner as RuntimeType;
             if (rtOwner == null)
@@ -518,6 +522,7 @@ namespace System.Reflection.Emit
                 new SecurityPermission(SecurityPermissionFlag.ControlEvidence).Demand();
 #pragma warning restore 618
 #endif //FEATURE_CORECLR
+#endif //!FEATURE_CORECLR
         }
 
         //

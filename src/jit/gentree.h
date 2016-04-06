@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -173,7 +172,7 @@ struct FieldSeqNode
     // Make sure this provides methods that allow it to be used as a KeyFuncs type in SimplerHash.
     static int GetHashCode(FieldSeqNode fsn)
     {
-        return reinterpret_cast<int>(fsn.m_fieldHnd) ^ reinterpret_cast<int>(fsn.m_next);
+        return static_cast<int>(reinterpret_cast<intptr_t>(fsn.m_fieldHnd)) ^ static_cast<int>(reinterpret_cast<intptr_t>(fsn.m_next));
     }
 
     static bool Equals(FieldSeqNode fsn1, FieldSeqNode fsn2)
@@ -640,6 +639,10 @@ public:
             assert(vnk == VNK_Conservative);
             return gtVNPair.SetConservative(vn);
         }
+    }
+    void                SetVNs(ValueNumPair vnp)
+    {
+        gtVNPair = vnp;
     }
     void                ClearVN()
     {
@@ -1409,11 +1412,19 @@ public:
     bool                        IsNothingNode       () const;
     void                        gtBashToNOP         ();
 
-    void                        SetOper             (genTreeOps oper);  // set gtOper
+    // Value number update action enumeration
+    enum ValueNumberUpdate
+    {
+        CLEAR_VN,       // Clear value number
+        PRESERVE_VN     // Preserve value number
+    };
+
+    void                        SetOper(genTreeOps oper, ValueNumberUpdate vnUpdate = CLEAR_VN);  // set gtOper
     void                        SetOperResetFlags   (genTreeOps oper);  // set gtOper and reset flags
 
     void                        ChangeOperConst     (genTreeOps oper);  // ChangeOper(constOper)
-    void                        ChangeOper          (genTreeOps oper);  // set gtOper and only keep GTF_COMMON_MASK flags
+    // set gtOper and only keep GTF_COMMON_MASK flags
+    void                        ChangeOper(genTreeOps oper, ValueNumberUpdate vnUpdate = CLEAR_VN);
     void                        ChangeOperUnchecked (genTreeOps oper);
 
     bool IsLocal() const
@@ -2108,7 +2119,7 @@ struct GenTreeLclVar: public GenTreeLclVarCommon
                             DEBUG_ARG(largeNode)),
             gtLclILoffs(ilOffs)
             {
-                assert(OperIsLocal(oper));
+                assert(OperIsLocal(oper) || OperIsLocalAddr(oper));
             }
     
 #if DEBUGGABLE_GENTREE
@@ -2325,6 +2336,7 @@ struct GenTreeColon: public GenTreeOp
 
 /* gtCall   -- method call      (GT_CALL) */
 typedef class fgArgInfo *  fgArgInfoPtr;
+enum class InlineObservation;
 
 struct GenTreeCall final : public GenTree
 {
@@ -2347,11 +2359,6 @@ struct GenTreeCall final : public GenTree
     regMaskTP         gtCallRegUsedMask;      // mask of registers used to pass parameters
 #ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
     SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
-
-    void SetRegisterReturningStructState(const SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR& structDescIn)
-    {
-        structDesc.CopyFrom(structDescIn);
-    }
 #endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
 
 #define     GTF_CALL_M_EXPLICIT_TAILCALL       0x0001  // GT_CALL -- the call is "tail" prefixed and importer has performed tail call checks
@@ -2496,6 +2503,12 @@ struct GenTreeCall final : public GenTree
     CORINFO_CONST_LOOKUP gtEntryPoint;
 #endif
 
+#ifdef DEBUG
+    // For non-inline candidates, track the first observation
+    // that blocks candidacy.
+    InlineObservation gtInlineObservation;
+#endif
+
     GenTreeCall(var_types type) : 
         GenTree(GT_CALL, type) 
     {
@@ -2636,8 +2649,7 @@ struct GenTreeIndex: public GenTreeOp
         gtStructElemClass(nullptr)  // We always initialize this after construction.
         {
 #ifdef DEBUG
-            static ConfigDWORD fJitSkipArrayBoundCheck;
-            if (fJitSkipArrayBoundCheck.val(CLRConfig::INTERNAL_JitSkipArrayBoundCheck) == 1)
+            if (JitConfig.JitSkipArrayBoundCheck() == 1)
             {
                 // Skip bounds check
             }
@@ -3158,15 +3170,13 @@ struct GenTreeRetExpr: public GenTree
 
 /* gtStmt   -- 'statement expr' (GT_STMT) */
 
+class InlineContext;
+
 struct GenTreeStmt: public GenTree
 {
-    GenTreePtr      gtStmtExpr;     // root of the expression tree
-    GenTreePtr      gtStmtList;     // first node (for forward walks)
-
-    inlExpPtr       gtInlineExpList; // The inline expansion list of this statement.
-                                     // This is a list of CORINFO_METHOD_HANDLEs 
-                                     // that shows the history of inline expansion 
-                                     // which leads to this statement. 
+    GenTreePtr      gtStmtExpr;      // root of the expression tree
+    GenTreePtr      gtStmtList;      // first node (for forward walks)
+    InlineContext*  gtInlineContext; // The inline context for this statement.
   
 #if defined(DEBUGGING_SUPPORT) || defined(DEBUG)
     IL_OFFSETX      gtStmtILoffsx;   // instr offset (if available)
@@ -3236,7 +3246,7 @@ struct GenTreeStmt: public GenTree
         : GenTree(GT_STMT, TYP_VOID)
         , gtStmtExpr(expr)
         , gtStmtList(nullptr)
-        , gtInlineExpList(nullptr)
+        , gtInlineContext(nullptr)
 #if defined(DEBUGGING_SUPPORT) || defined(DEBUG)
         , gtStmtILoffsx(offset)
 #endif
@@ -3264,7 +3274,8 @@ struct GenTreeStmt: public GenTree
 
 struct GenTreeLdObj: public GenTreeUnOp
 {
-    CORINFO_CLASS_HANDLE gtClass;   // object being loaded            
+    CORINFO_CLASS_HANDLE gtClass;   // object being loaded   
+                                    // TODO-Cleanup: Consider adding the GC layout information to this node
     GenTreePtr *    gtFldTreeList;  // The list of trees that represents the fields of this struct
 
     GenTreeLdObj(var_types type, GenTreePtr op, CORINFO_CLASS_HANDLE cls) : 

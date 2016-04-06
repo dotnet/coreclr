@@ -2,10 +2,14 @@ project(ryujit)
 add_definitions(-DFEATURE_NO_HOST)
 add_definitions(-DSELF_NO_HOST)
 add_definitions(-DFEATURE_READYTORUN_COMPILER)
-add_definitions(-DFEATURE_REF_ZERO_OFFSET_ALLOWED)
 remove_definitions(-DFEATURE_MERGE_JIT_AND_ENGINE)
 
-add_library(ryujit
+if(CLR_CMAKE_PLATFORM_LINUX OR CLR_CMAKE_PLATFORM_NETBSD)
+    # This is required to force using our own PAL, not one that we are loaded with.
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Xlinker -Bsymbolic -Bsymbolic-functions")
+endif(CLR_CMAKE_PLATFORM_LINUX OR CLR_CMAKE_PLATFORM_NETBSD)
+
+add_library_clr(ryujit
    SHARED
    ${SHARED_LIB_SOURCES}
 )
@@ -43,7 +47,4 @@ target_link_libraries(ryujit
 )
 
 # add the install targets
-install (TARGETS ryujit DESTINATION .)
-if(WIN32)
-    install (FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/ryujit.pdb DESTINATION PDB)
-endif(WIN32)
+install_clr(ryujit)

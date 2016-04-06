@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // ZapMetadata.h
 //
@@ -13,10 +12,6 @@
 
 #ifndef __ZAPMETADATA_H__
 #define __ZAPMETADATA_H__
-
-#ifdef CLR_STANDALONE_BINDER
-#include "nativedata.h"
-#endif
 
 //-----------------------------------------------------------------------------
 //
@@ -31,13 +26,9 @@ protected:
     IMetaDataEmit * m_pEmit;
 
 public:
-#ifdef CLR_STANDALONE_BINDER
-    ZapMetaData();
-#else
     ZapMetaData()
     {
     }
-#endif
 
     ~ZapMetaData()
     {
@@ -45,16 +36,6 @@ public:
     }
 
     void SetMetaData(IUnknown * pEmit);
-
-#ifdef CLR_STANDALONE_BINDER
-    void SetAssembly(__in_z LPWSTR name,
-                     __in_z LPWSTR culture,
-                     NativeAssemblyData * nad);
-
-    void SetAssemblyReference(__in_z LPWSTR name,
-                              __in_z LPWSTR culture,
-                              NativeAssemblyData *nad);
-#endif
 
     virtual DWORD GetSize();
 
@@ -69,24 +50,6 @@ public:
     }
 
     virtual void Save(ZapWriter * pZapWriter);
-#ifdef CLR_STANDALONE_BINDER
-protected:
-
-
-    void FixupMetaData();
-    ULONG AddString(__in_z LPWSTR pName, __in int length);
-    int StripExtension(__in_z LPWSTR pName);
-    ULONG AddString(LPCSTR pName, int length);
-    int StripExtension(LPCSTR pName);
-    ULONG AddBlob(LPCVOID blob, COUNT_T cbBlob);
-    void SetMVIDOfModule(LPCVOID mvid);
-
-    BOOL  m_bFixedUp;
-    SArray<BYTE> m_metadataHeap;
-    SArray<BYTE> m_stringHeap;
-    SArray<BYTE> m_guidHeap;
-    SArray<BYTE> m_blobHeap;
-#endif
 };
 
 //-----------------------------------------------------------------------------
@@ -209,11 +172,6 @@ public:
     ZapILMetaData(ZapImage * pImage)
         : m_pImage(pImage)
     {
-#ifdef CLR_STANDALONE_BINDER
-        m_metaDataStart = pImage->m_ModuleDecoder.GetMetadata(&m_metaDataSize);
-        pImage->GetCompileInfo()->GetMetadataRvaInfo(&m_firstMethodRvaOffset,
-            &m_methodDefRecordSize, &m_methodDefCount, &m_firstFieldRvaOffset, &m_fieldRvaRecordSize, &m_fieldRvaCount);
-#endif
     }
 
     void Preallocate(COUNT_T cbILImage)
@@ -227,10 +185,6 @@ public:
     void CopyIL();
     void CopyMetaData();
     void CopyRVAFields();
-
-#ifdef CLR_STANDALONE_BINDER
-    virtual DWORD GetSize();
-#endif
 
     virtual void Save(ZapWriter * pZapWriter);
 
@@ -263,24 +217,6 @@ private:
     };
 
     SHash< RVADataTraits > m_rvaData;
-
-#ifdef CLR_STANDALONE_BINDER
-public:
-    void EmitFieldRVA(mdToken fieldDefToken, RVA fieldRVA);
-
-private:
-    LPCVOID m_metaDataStart;
-    COUNT_T m_metaDataSize;
-
-    DWORD   m_firstMethodRvaOffset;
-    DWORD   m_methodDefRecordSize;
-    DWORD   m_methodDefCount;
-    DWORD   m_firstFieldRvaOffset;
-    DWORD   m_fieldRvaRecordSize;
-    DWORD   m_fieldRvaCount;
-
-    MapSHash<mdToken, DWORD> m_fieldToRVAMapping;
-#endif
 };
 
 #endif // __ZAPMETADATA_H__

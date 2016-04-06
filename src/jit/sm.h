@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 //
@@ -68,30 +67,12 @@ public :
     }
 
 #ifdef DEBUG
-
-    WORD                StateMatchedCounts[NUM_SM_STATES]; // counts of matched states. 
-    
-    bool                b0Args, b1Args, b2Args, b3AndMoreArgs, bNoLocals, bNoCalls;
-
-    size_t              codeSize;         // The size of the code including prolog and epilogs.
-    size_t              BBCodeSize;       // The size of the code excluding prolog and epilogs.
-    unsigned            prologSize;    
-    unsigned            epilogSize;
-    unsigned            epilogCount;
-    unsigned            instrCount; 
-
-    const char        * StateDesc(SM_STATE_ID stateID);
-    void                PrintSampleHeader();
-    void                PrintSampleResult();
-
-    void                Test();
-    void                TestSeq(SM_OPCODE * CodeSeq);
+    WORD        StateMatchedCounts[NUM_SM_STATES];
+    const char* StateDesc(SM_STATE_ID stateID);
 #endif
 
     static SM_OPCODE    MapToSMOpcode(OPCODE opcode);
-
 };
-
 
 #endif /* __sm_h__ */
 

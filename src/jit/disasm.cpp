@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 /***********************************************************************
 *
 * File: dis.cpp
@@ -1532,9 +1531,7 @@ void    DisAssembler::disAsmCode(BYTE* hotCodePtr, size_t hotCodeSize, BYTE* col
 #endif // !DEBUG
 
 #ifdef DEBUG
-    static ConfigString fJITLateDisasmTo;
-
-    LPWSTR fileName = fJITLateDisasmTo.val(CLRConfig::INTERNAL_JITLateDisasmTo);
+    const wchar_t* fileName = JitConfig.JitLateDisasmTo();
     if (fileName != nullptr)
     {
         errno_t ec = _wfopen_s(&disAsmFile, fileName, W("a+"));

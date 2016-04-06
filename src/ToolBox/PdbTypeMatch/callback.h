@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #include "dia2.h"
 
@@ -18,13 +17,14 @@ public:
         return m_nRefCount;
     }
     ULONG STDMETHODCALLTYPE Release() {
-        if ( (--m_nRefCount) == 0 )
+        ULONG newRefCount = --m_nRefCount;
+        if ( newRefCount == 0 )
             delete this;
-        return m_nRefCount;
+        return newRefCount;
     }
     HRESULT STDMETHODCALLTYPE QueryInterface( REFIID rid, void **ppUnk ) {
         if ( ppUnk == NULL ) {
-            return E_INVALIDARG;
+            return E_POINTER;
         }
         if (rid == __uuidof( IDiaLoadCallback2 ) )
             *ppUnk = (IDiaLoadCallback2 *)this;

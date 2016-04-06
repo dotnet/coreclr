@@ -16,6 +16,7 @@ set(UTILCODE_COMMON_SOURCES
   makepath.cpp
   splitpath.cpp
   clrconfig.cpp
+  configuration.cpp
   collections.cpp
   posterror.cpp
   fstream.cpp
@@ -60,6 +61,8 @@ set(UTILCODE_COMMON_SOURCES
   debug.cpp
   pedecoder.cpp
   winfix.cpp
+  longfilepathwrappers.cpp 
+  jithost.cpp
 )
 
 # These source file do not yet compile on Linux.

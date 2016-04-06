@@ -54,12 +54,12 @@ if(CLR_CMAKE_PLATFORM_UNIX)
         palrt
     )
 
-    # FreeBSD implements dlopen in libc
-    if(NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
+    # FreeBSD and NetBSD implement dlopen(3) in libc
+    if(NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD AND NOT CMAKE_SYSTEM_NAME STREQUAL NetBSD)
         target_link_libraries(ildasm
             dl
         )
-    endif(NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
+    endif(NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD AND NOT CMAKE_SYSTEM_NAME STREQUAL NetBSD)
 else()
     target_link_libraries(ildasm
         ${ILDASM_LINK_LIBRARIES}
@@ -69,10 +69,6 @@ else()
         oleaut32
         shell32
     )
-
-    # We will generate PDB only for the debug configuration
-    install (FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/ildasm.pdb DESTINATION PDB)
-
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
-install (TARGETS ildasm DESTINATION .)
+install_clr(ildasm)

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -130,5 +129,29 @@ void UTIL_SetLastErrorFromMach(kern_return_t MachReturn);
 #ifdef __cplusplus
 }
 #endif // __cplusplus
+class StringHolder
+   {
+       private:
+           LPSTR data;
+       public:
+        StringHolder() : data(NULL) { }
+        ~StringHolder()
+        { 
+            PAL_free( data); 
+        }
 
+        operator LPSTR () { return data;}
+
+        StringHolder& operator= (LPSTR value) 
+        {
+            data = value;
+            return *this;
+        }
+
+        BOOL IsNull()
+        {
+          return data == NULL;
+        }
+
+   };
 #endif /* _PAL_UTILS_H_ */

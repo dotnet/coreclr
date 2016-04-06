@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================================
 **
@@ -20,6 +19,7 @@
 
 int __cdecl main(int argc, char *argv[])
 {
+    int n65535 = 65535; /* Walkaround compiler strictness */
 
     if (PAL_Initialize(argc, argv))
     {
@@ -31,7 +31,7 @@ int __cdecl main(int argc, char *argv[])
     DoNumTest(convert("-1"), convert("%x"), -1);
     DoNumTest(convert("0x1234"), convert("%x"), 0x1234);
     DoNumTest(convert("012"), convert("%x"), 0x12);
-    DoShortNumTest(convert("-1"), convert("%hx"), 65535);
+    DoShortNumTest(convert("-1"), convert("%hx"), n65535);
     DoShortNumTest(convert("10000"), convert("%hx"), 0);
     DoNumTest(convert("-1"), convert("%lx"), -1);
     DoNumTest(convert("10000"), convert("%lx"), 65536);

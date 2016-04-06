@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -32,7 +31,7 @@ const instruction       emitJumpKindInstructions[] =
 {
     INS_nop,
 
-    #define JMP_SMALL(en, rev, ins, condcode) INS_##ins,
+    #define JMP_SMALL(en, rev, ins) INS_##ins,
     #include "emitjmps.h"
 };
 
@@ -40,16 +39,7 @@ const emitJumpKind      emitReverseJumpKinds[] =
 {
     EJ_NONE,
 
-    #define JMP_SMALL(en, rev, ins, condcode) EJ_##rev,
-    #include "emitjmps.h"
-};
-
-
-const unsigned          emitJumpKindCondCodes[] =
-{
-    15, // illegal
-
-    #define JMP_SMALL(en, rev, ins, condcode) condcode,
+    #define JMP_SMALL(en, rev, ins) EJ_##rev,
     #include "emitjmps.h"
 };
 
@@ -90,16 +80,6 @@ const unsigned          emitJumpKindCondCodes[] =
 {
     assert(jumpKind < EJ_COUNT);
     return emitReverseJumpKinds[jumpKind];
-}
-
-/*****************************************************************************
- * Look up the condition code for a give jump kind
- */
-
-/*static*/ unsigned         emitter::emitJumpKindCondCode(emitJumpKind jumpKind)
-{
-    assert(EJ_NONE < jumpKind && jumpKind < EJ_COUNT);
-    return emitJumpKindCondCodes[jumpKind];
 }
 
 /*****************************************************************************
@@ -6640,8 +6620,7 @@ DONE_CALL:
     {
         // set JitEmitPrintRefRegs=1 will print out emitThisGCrefRegs and emitThisByrefRegs
         // at the beginning of this method.
-        static ConfigDWORD fJitEmitPrintRefRegs;
-        if (fJitEmitPrintRefRegs.val(CLRConfig::INTERNAL_JitEmitPrintRefRegs) != 0) {
+        if (JitConfig.JitEmitPrintRefRegs() != 0) {
             printf("Before emitOutputInstr for id->idDebugOnlyInfo()->idNum=0x%02x\n", id->idDebugOnlyInfo()->idNum);
             printf("  emitThisGCrefRegs(0x%p)=", dspPtr(&emitThisGCrefRegs));
                 printRegMaskInt(emitThisGCrefRegs);
@@ -6655,8 +6634,7 @@ DONE_CALL:
 
         // For example, set JitBreakEmitOutputInstr=a6 will break when this method is called for
         // emitting instruction a6, (i.e. IN00a6 in jitdump).
-        static ConfigDWORD fJitBreakEmitOutputInstr;
-        if ((unsigned)fJitBreakEmitOutputInstr.val(CLRConfig::INTERNAL_JitBreakEmitOutputInstr) == id->idDebugOnlyInfo()->idNum)
+        if ((unsigned)JitConfig.JitBreakEmitOutputInstr() == id->idDebugOnlyInfo()->idNum)
         {
             assert(!"JitBreakEmitOutputInstr reached");
         }

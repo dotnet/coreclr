@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 // Implementation of the GC environment
@@ -85,7 +84,7 @@ bool GCToOSInterface::SetCurrentThreadIdealAffinity(GCThreadAffinity* affinity)
         proc.Group = (WORD)affinity->Group;
         proc.Number = (BYTE)affinity->Processor;
         proc.Reserved = 0;
-        
+
         success = !!SetThreadIdealProcessorEx(GetCurrentThread(), &proc, NULL);
     }
     else
@@ -94,7 +93,7 @@ bool GCToOSInterface::SetCurrentThreadIdealAffinity(GCThreadAffinity* affinity)
         {
             proc.Number = affinity->Processor;
             success = !!SetThreadIdealProcessorEx(GetCurrentThread(), &proc, NULL);
-        }        
+        }
     }
 #endif
 
@@ -283,6 +282,26 @@ uint32_t GCToOSInterface::GetCurrentProcessCpuCount()
     return g_SystemInfo.dwNumberOfProcessors;
 }
 
+// If the process's memory is restricted (ie, beyond what's available on the machine), return that limit.
+// Return:
+//  non zero if it has succeeded, 0 if it has failed
+// Remarks:
+//  If a process runs with a restricted memory limit, and we are successful at getting 
+//  that limit, it returns the limit. If there's no limit specified, or there's an error 
+//  at getting that limit, it returns 0.
+uint64_t GCToOSInterface::GetRestrictedPhysicalMemoryLimit()
+{
+    return 0;
+}
+
+// Get the current physical memory this process is using.
+// Return:
+//  non zero if it has succeeded, 0 if it has failed
+size_t GCToOSInterface::GetCurrentPhysicalMemory()
+{
+    return 0;
+}
+
 // Get global memory status
 // Parameters:
 //  ms - pointer to the structure that will be filled in with the memory status
@@ -412,17 +431,6 @@ bool GCToOSInterface::CreateThread(GCThreadFunction function, void* param, GCThr
     CloseHandle(gc_thread);
 
     return true;
-}
-
-// Open a file
-// Parameters:
-//  filename - name of the file to open
-//  mode     - mode to open the file in (like in the CRT fopen)
-// Return:
-//  FILE* of the opened file
-FILE* GCToOSInterface::OpenFile(const WCHAR* filename, const WCHAR* mode)
-{
-    return _wfopen(filename, mode);
 }
 
 // Initialize the critical section

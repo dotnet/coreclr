@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 .intel_syntax noprefix
 #include "unixasmmacros.inc"
@@ -46,7 +45,7 @@ LEAF_ENTRY JIT_WriteBarrier_Debug, _TEXT
         mov     rax, [r10]
         cmp     rax, r11
         je      DoneShadow
-        mov     r11, INVALIDGCVALUE
+        movabs  r11, INVALIDGCVALUE
         mov     [r10], r11
 
         jmp     DoneShadow

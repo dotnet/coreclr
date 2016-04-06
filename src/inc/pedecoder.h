@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // --------------------------------------------------------------------------------
 // PEDecoder.h
 //
@@ -93,12 +92,14 @@ inline CHECK CheckOverflow(RVA value1, COUNT_T value2)
 #endif
 
 // Machine code for native images
-#if defined(__LINUX__)
-#define IMAGE_FILE_MACHINE_NATIVE_OS_OVERRIDE 0x7B79
-#elif defined(__APPLE__)
+#if defined(__APPLE__)
 #define IMAGE_FILE_MACHINE_NATIVE_OS_OVERRIDE 0x4644
 #elif defined(__FreeBSD__)
 #define IMAGE_FILE_MACHINE_NATIVE_OS_OVERRIDE 0xADC4
+#elif defined(__linux__)
+#define IMAGE_FILE_MACHINE_NATIVE_OS_OVERRIDE 0x7B79
+#elif defined(__NetBSD__)
+#define IMAGE_FILE_MACHINE_NATIVE_OS_OVERRIDE 0x1993
 #else
 #define IMAGE_FILE_MACHINE_NATIVE_OS_OVERRIDE 0
 #endif
@@ -377,6 +378,8 @@ class PEDecoder
     // Flat mapping utilities - using PointerToRawData instead of (Relative)VirtualAddress
     IMAGE_SECTION_HEADER *RvaToSection(RVA rva) const;
     IMAGE_SECTION_HEADER *OffsetToSection(COUNT_T fileOffset) const;
+
+    void SetRelocated();
 
   private:
 

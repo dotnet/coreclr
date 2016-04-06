@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // ==++==
 // 
@@ -447,7 +446,8 @@ struct PtrKeyFuncs: public KeyFuncsDefEquals<const T*>
 public:
     static unsigned GetHashCode(const T* ptr)
     {
-        return (unsigned)ptr;  // Hmm.  Maybe (unsigned) ought to be "ssize_t" -- or this ought to be ifdef'd by size.
+        // Hmm.  Maybe (unsigned) ought to be "ssize_t" -- or this ought to be ifdef'd by size.
+        return static_cast<unsigned>(reinterpret_cast<uintptr_t>(ptr));
     }
 };
 

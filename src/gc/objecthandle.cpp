@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*
  * Wraps handle table to implement various handle types (Strong, Weak, etc.)
@@ -517,6 +516,7 @@ void CALLBACK ScanPointerForProfilerAndETW(_UNCHECKED_OBJECTREF *pObjRef, uintpt
     }
 #endif // GC_PROFILING
 
+#if defined(FEATURE_EVENT_TRACE)
     // Notify ETW of the handle
     if (ETW::GCLog::ShouldWalkHeapRootsForEtw())
     {
@@ -535,6 +535,7 @@ void CALLBACK ScanPointerForProfilerAndETW(_UNCHECKED_OBJECTREF *pObjRef, uintpt
             0,              // dwGCFlags,
             rootFlags);     // ETW handle flags
     }
+#endif // defined(FEATURE_EVENT_TRACE) 
 }
 #endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
 

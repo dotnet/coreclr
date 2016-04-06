@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full
-// license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 #include <assert.h>
@@ -396,7 +395,8 @@ GetLocaleInfoInt
 Obtains integer locale information
 Returns 1 for success, 0 otherwise
 */
-extern "C" int32_t GetLocaleInfoInt(const UChar* localeName, LocaleNumberData localeNumberData, int32_t* value)
+extern "C" int32_t GlobalizationNative_GetLocaleInfoInt(
+    const UChar* localeName, LocaleNumberData localeNumberData, int32_t* value)
 {
     UErrorCode status = U_ZERO_ERROR;
     char locale[ULOC_FULLNAME_CAPACITY];
@@ -521,10 +521,8 @@ GetLocaleInfoGroupingSizes
 Obtains grouping sizes for decimal and currency
 Returns 1 for success, 0 otherwise
 */
-extern "C" int32_t GetLocaleInfoGroupingSizes(const UChar* localeName,
-                                              LocaleNumberData localeGroupingData,
-                                              int32_t* primaryGroupSize,
-                                              int32_t* secondaryGroupSize)
+extern "C" int32_t GlobalizationNative_GetLocaleInfoGroupingSizes(
+    const UChar* localeName, LocaleNumberData localeGroupingData, int32_t* primaryGroupSize, int32_t* secondaryGroupSize)
 {
     UErrorCode status = U_ZERO_ERROR;
     char locale[ULOC_FULLNAME_CAPACITY];

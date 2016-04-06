@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // File: debugger.cpp
 //
@@ -984,6 +983,7 @@ Debugger::Debugger()
 
     m_fShutdownMode = false;
     m_fDisabled = false;
+    m_rgHijackFunction = NULL;
 
 #ifdef _DEBUG
     InitDebugEventCounting();
@@ -1046,7 +1046,13 @@ MemoryRange Debugger::s_hijackFunction[kMaxHijackFunctions] =
      GetMemoryRangeForFunction(RedirectedHandledJITCaseForUserSuspend_Stub,
                                RedirectedHandledJITCaseForUserSuspend_StubEnd),
      GetMemoryRangeForFunction(RedirectedHandledJITCaseForYieldTask_Stub,
-                               RedirectedHandledJITCaseForYieldTask_StubEnd)};
+                               RedirectedHandledJITCaseForYieldTask_StubEnd)
+#if defined(HAVE_GCCOVER) && defined(_TARGET_AMD64_)
+     ,
+     GetMemoryRangeForFunction(RedirectedHandledJITCaseForGCStress_Stub,
+                               RedirectedHandledJITCaseForGCStress_StubEnd)
+#endif // HAVE_GCCOVER && _TARGET_AMD64_
+    };
 #endif // FEATURE_HIJACK && !PLATFORM_UNIX
 
 // Save the necessary information for the debugger to recognize an IP in one of the thread redirection 
@@ -2239,9 +2245,9 @@ HRESULT Debugger::StartupPhase2(Thread * pThread)
     if (!CORDebuggerAttached())
     {
         #define DBG_ATTACH_ON_STARTUP_ENV_VAR W("COMPlus_DbgAttachOnStartup")
-
+        PathString temp;
         // We explicitly just check the env because we don't want a switch this invasive to be global.
-        DWORD fAttach = WszGetEnvironmentVariable(DBG_ATTACH_ON_STARTUP_ENV_VAR, NULL, 0) > 0;
+        DWORD fAttach = WszGetEnvironmentVariable(DBG_ATTACH_ON_STARTUP_ENV_VAR, temp) > 0;
 
         if (fAttach)
         {
@@ -15161,8 +15167,7 @@ HRESULT Debugger::InitAppDomainIPC(void)
     } hEnsureCleanup(this);
 
     DWORD dwStrLen = 0;
-    SString szExeNamePathString;
-    WCHAR * szExeName = szExeNamePathString.OpenUnicodeBuffer(MAX_LONGPATH);
+    SString szExeName;
     int i;
 
     // all fields in the object can be zero initialized.
@@ -15211,15 +15216,14 @@ HRESULT Debugger::InitAppDomainIPC(void)
 
     // also initialize the process name
     dwStrLen = WszGetModuleFileName(NULL,
-                                    szExeName,
-                                    MAX_LONGPATH);
+                                    szExeName);
 
-    szExeNamePathString.CloseBuffer(dwStrLen);
+    
     // If we couldn't get the name, then use a nice default.
     if (dwStrLen == 0)
     {
-        wcscpy_s(szExeName, COUNTOF(szExeName), W("<NoProcessName>"));
-        dwStrLen = (DWORD)wcslen(szExeName);
+        szExeName.Set(W("<NoProcessName>"));
+        dwStrLen = szExeName.GetCount();
     }
 
     // If we got the name, copy it into a buffer. dwStrLen is the
@@ -17089,6 +17093,7 @@ Debugger::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 {
     DAC_ENUM_VTHIS();
     SUPPORTS_DAC;
+    _ASSERTE(m_rgHijackFunction != NULL);
 
     if ( flags != CLRDATA_ENUM_MEM_TRIAGE)
     {

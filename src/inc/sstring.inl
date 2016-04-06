@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // 
 
@@ -1258,7 +1257,7 @@ inline WCHAR *SString::GetRawUnicode() const
     LIMITED_METHOD_CONTRACT;
     SUPPORTS_DAC_HOST_ONLY;
 
-    return (WCHAR *) m_buffer;
+    return (WCHAR *)m_buffer;
 }
 
 // Private helper:
@@ -1688,6 +1687,28 @@ inline WCHAR *SString::OpenUnicodeBuffer(COUNT_T countChars)
 
     OpenBuffer(REPRESENTATION_UNICODE, countChars);
     SS_RETURN GetRawUnicode();
+}
+
+//----------------------------------------------------------------------------
+// Return a copy of the underlying  buffer, the caller is responsible for managing
+// the returned memory
+//----------------------------------------------------------------------------
+inline WCHAR *SString::GetCopyOfUnicodeString()
+{
+    SS_CONTRACT(WCHAR*)
+    {
+        GC_NOTRIGGER;
+        PRECONDITION(CheckPointer(this));
+        SS_POSTCONDITION(CheckPointer(buffer));
+        THROWS;
+    }
+    SS_CONTRACT_END;
+    NewArrayHolder<WCHAR> buffer = NULL;
+
+    buffer = new WCHAR[GetCount() +1];
+    wcscpy_s(buffer, GetCount() + 1, GetUnicode());
+    
+    SS_RETURN buffer.Extract();
 }
 
 //----------------------------------------------------------------------------

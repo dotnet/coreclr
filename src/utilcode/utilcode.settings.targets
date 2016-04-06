@@ -38,12 +38,14 @@
         <CppCompile Include="$(UtilCodeSrcDir)\SString.cpp" />
         <CppCompile Include="$(UtilCodeSrcDir)\SString_COM.cpp" />
         <CppCompile Include="$(UtilCodeSrcDir)\FString.cpp" />
+        <CppCompile Include="$(UtilCodeSrcDir)\longfilepathwrappers.cpp" />
         
         <CppCompile Include="$(UtilCodeSrcDir)\NamespaceUtil.cpp" />
         <CppCompile Include="$(UtilCodeSrcDir)\MakePath.cpp" />
         <CppCompile Include="$(UtilCodeSrcDir)\SplitPath.cpp" />
         
         <CppCompile Include="$(UtilCodeSrcDir)\ClrConfig.cpp" />
+        <CppCompile Include="$(UtilCodeSrcDir)\configuration.cpp" />
         <CppCompile Include="$(UtilCodeSrcDir)\RegUtil.cpp" />
         <CppCompile Include="$(UtilCodeSrcDir)\RegistryWrapper.cpp" />
         
@@ -124,5 +126,7 @@
         <CppCompile Include="$(UtilCodeSrcDir)\SecurityUtil.cpp" />
 
         <CppCompile Include="$(UtilCodeSrcDir)\AppXUtil.cpp" Condition="'$(FeatureAppX)' == 'true'"/>
+
+        <CppCompile Include="$(UtilCodeSrcDir)\jithost.cpp" />
     </ItemGroup>   
 </Project>

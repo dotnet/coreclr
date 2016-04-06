@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full
-// license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 #include <stdint.h>
@@ -39,7 +38,8 @@ Return values:
 0: internal error during conversion.
 >0: the length of the converted string (not including the null terminator).
 */
-extern "C" int32_t ToAscii(uint32_t flags, const UChar* lpSrc, int32_t cwSrcLength, UChar* lpDst, int32_t cwDstLength)
+extern "C" int32_t GlobalizationNative_ToAscii(
+    uint32_t flags, const UChar* lpSrc, int32_t cwSrcLength, UChar* lpDst, int32_t cwDstLength)
 {
     UErrorCode err = U_ZERO_ERROR;
     UIDNAInfo info = UIDNA_INFO_INITIALIZER;
@@ -64,7 +64,8 @@ Return values:
 0: internal error during conversion.
 >0: the length of the converted string (not including the null terminator).
 */
-extern "C" int32_t ToUnicode(int32_t flags, const UChar* lpSrc, int32_t cwSrcLength, UChar* lpDst, int32_t cwDstLength)
+extern "C" int32_t GlobalizationNative_ToUnicode(
+    int32_t flags, const UChar* lpSrc, int32_t cwSrcLength, UChar* lpDst, int32_t cwDstLength)
 {
     UErrorCode err = U_ZERO_ERROR;
     UIDNAInfo info = UIDNA_INFO_INITIALIZER;

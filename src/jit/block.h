@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -147,37 +146,6 @@ struct EntryState
     unsigned        esStackDepth    : 24;       // size of esStack
     StackEntry*     esStack;                    // ptr to  stack
 };
-
-
-//-----------------------------------------------------------------------------
-//
-//  The following keeps track of the currently expanded inline functions.
-//  Any method currently on the list should not be inlined since that
-//  implies that it's being called recursively.
-//  We track the IL code body so we don't get confused by generics.
-//
-
-struct inlExpLst
-{
-   // Default constructor, suitable for root instance
-   inlExpLst();
-
-   inlExpLst*      ixlParent;    // logical caller (parent)
-   inlExpLst*      ixlChild;     // first child
-   inlExpLst*      ixlSibling;   // next child of the parent
-   IL_OFFSETX      ilOffset;     // call site location within parent
-   BYTE*           ixlCode;      // address of IL buffer for the method
-
-#ifdef DEBUG
-   const char *    methodName;
-   unsigned        depth;
-
-   // Dump this entry and all descendants
-   void Dump(int indent = 0);
-#endif
-};
-
-typedef inlExpLst* inlExpPtr;
 
 // This encapsulates the "exception handling" successors of a block.  That is,
 // if a basic block BB1 occurs in a try block, we consider the first basic block

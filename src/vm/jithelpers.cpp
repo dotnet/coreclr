@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
@@ -6893,17 +6892,17 @@ void F_CALL_VA_CONV JIT_TailCall(PCODE copyArgs, PCODE target, ...)
 // *****************************************************************************
 //  JitHelperLogging usage:
 //      1) Ngen using:
-//              COMPLUS_HardPrejitEnabled=0 
+//              COMPlus_HardPrejitEnabled=0 
 //
 //         This allows us to instrument even ngen'd image calls to JIT helpers. 
 //         Remember to clear the key after ngen-ing and before actually running 
 //         the app you want to log.
 //
 //      2) Then set:
-//              COMPLUS_JitHelperLogging=1
-//              COMPLUS_LogEnable=1
-//              COMPLUS_LogLevel=1
-//              COMPLUS_LogToFile=1
+//              COMPlus_JitHelperLogging=1
+//              COMPlus_LogEnable=1
+//              COMPlus_LogLevel=1
+//              COMPlus_LogToFile=1
 //
 //      3) Run the app that you want to log; Results will be in COMPLUS.LOG(.X)
 //

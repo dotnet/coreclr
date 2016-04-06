@@ -375,6 +375,9 @@
 		<File
 			RelativePath=".\CLRConfig.cpp"
 			>
+		<File
+			RelativePath=".\configuration.cpp"
+			>
 		</File>
 		<File
 			RelativePath=".\clrhost.cpp"
@@ -598,6 +601,14 @@
 		</File>
 		<File
 			RelativePath=".\winfix.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\longfilepathwrappers.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\jithost.cpp"
 			>
 		</File>
 	</Files>

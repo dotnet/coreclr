@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ECALL.CPP -
 //
 // Handles our private native calling interface.
@@ -224,12 +223,8 @@ DWORD ECall::GetIDForMethod(MethodDesc *pMD)
     }
     CONTRACTL_END;
 
-#ifndef MDIL
     // We should not go here for NGened methods
-    // However, we will come here for MDIL binder generated images because the 
-    // IDs for FCALLS are not exernally known (and certainly not constant).
     _ASSERTE(!pMD->IsZapped());
-#endif
 
     INT ImplsIndex = FindImplsIndexForClass(pMD->GetMethodTable());
     if (ImplsIndex < 0)

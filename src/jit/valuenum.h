@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 // Defines the class "ValueNumStore", which maintains value numbers for a compilation.
@@ -215,7 +214,7 @@ private:
 #ifdef DEBUG
     // This helps test some performance pathologies related to "evaluation" of VNF_MapSelect terms,
     // especially relating to the heap.  We count the number of applications of such terms we consider,
-    // and if this exceeds a limit, indicated by a COMPLUS_ variable, we assert.
+    // and if this exceeds a limit, indicated by a COMPlus_ variable, we assert.
     unsigned m_numMapSels;
 #endif
 
@@ -397,7 +396,13 @@ public:
     // (liberal/conservative) to read from the SSA def referenced in the phi argument.
     ValueNum VNForMapSelect(ValueNumKind vnk, var_types typ, ValueNum op1VN, ValueNum op2VN);
 
-    ValueNum VNForMapSelectWork(ValueNumKind vnk, var_types typ, ValueNum op1VN, ValueNum op2VN, unsigned* pBudget);
+    // A method that does the work for VNForMapSelect and may call itself recursively.
+    ValueNum VNForMapSelectWork(ValueNumKind vnk,
+                                var_types typ,
+                                ValueNum op1VN,
+                                ValueNum op2VN,
+                                unsigned* pBudget,
+                                bool* pUsedRecursiveVN);
 
     // A specialized version of VNForFunc that is used for VNF_MapStore and provides some logging when verbose is set
     ValueNum VNForMapStore(var_types typ, ValueNum arg0VN, ValueNum arg1VN, ValueNum arg2VN);
@@ -579,7 +584,7 @@ public:
     };
 
     // Check if "vn" is "new [] (type handle, size)"
-    bool IsVNNewArr(ValueNum vn);
+    bool IsVNNewArr(ValueNum vn, VNFuncApp* funcApp);
 
     // Check if "vn" IsVNNewArr and return <= 0 if arr size cannot be determined, else array size.
     int GetNewArrSize(ValueNum vn);
@@ -1210,15 +1215,15 @@ FORCEINLINE T ValueNumStore::SafeGetConstantValue(Chunk* c, unsigned offset)
     case TYP_REF:
         return CoerceTypRefToT<T>(c, offset);
     case TYP_BYREF:
-        return (T) reinterpret_cast<VarTypConv<TYP_BYREF>::Type*>(c->m_defs)[offset];
+        return static_cast<T>(reinterpret_cast<VarTypConv<TYP_BYREF>::Type*>(c->m_defs)[offset]);
     case TYP_INT:
-        return (T) reinterpret_cast<VarTypConv<TYP_INT>::Type*>(c->m_defs)[offset];
+        return static_cast<T>(reinterpret_cast<VarTypConv<TYP_INT>::Type*>(c->m_defs)[offset]);
     case TYP_LONG:
-        return (T) reinterpret_cast<VarTypConv<TYP_LONG>::Type*>(c->m_defs)[offset];
+        return static_cast<T>(reinterpret_cast<VarTypConv<TYP_LONG>::Type*>(c->m_defs)[offset]);
     case TYP_FLOAT:
-        return (T) reinterpret_cast<VarTypConv<TYP_FLOAT>::Lang*>(c->m_defs)[offset];
+        return static_cast<T>(reinterpret_cast<VarTypConv<TYP_FLOAT>::Lang*>(c->m_defs)[offset]);
     case TYP_DOUBLE:
-        return (T) reinterpret_cast<VarTypConv<TYP_DOUBLE>::Lang*>(c->m_defs)[offset];
+        return static_cast<T>(reinterpret_cast<VarTypConv<TYP_DOUBLE>::Lang*>(c->m_defs)[offset]);
     default:
         assert(false);
         return (T)0;
@@ -1246,22 +1251,16 @@ inline bool ValueNumStore::VNFuncIsComparison(VNFunc vnf)
     return GenTree::OperIsCompare(gtOp) != 0;
 }
 
+template <>
+inline size_t ValueNumStore::CoerceTypRefToT(Chunk* c, unsigned offset)
+{
+    return reinterpret_cast<size_t>(reinterpret_cast<VarTypConv<TYP_REF>::Type*>(c->m_defs)[offset]);
+}
+
 template <typename T>
 inline T ValueNumStore::CoerceTypRefToT(Chunk* c, unsigned offset)
 {
     noway_assert(sizeof(T) >= sizeof(VarTypConv<TYP_REF>::Type));
-    return (T) reinterpret_cast<VarTypConv<TYP_REF>::Type*>(c->m_defs)[offset];
-}
-
-template <>
-inline float ValueNumStore::CoerceTypRefToT<float>(Chunk* c, unsigned offset)
-{
-    unreached();
-}
-
-template <>
-inline double ValueNumStore::CoerceTypRefToT<double>(Chunk* c, unsigned offset)
-{
     unreached();
 }
 

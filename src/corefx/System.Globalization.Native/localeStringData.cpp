@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full
-// license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 #include <assert.h>
@@ -165,8 +164,8 @@ GetLocaleInfoString
 Obtains string locale information.
 Returns 1 for success, 0 otherwise
 */
-extern "C" int32_t
-GetLocaleInfoString(const UChar* localeName, LocaleStringData localeStringData, UChar* value, int32_t valueLength)
+extern "C" int32_t GlobalizationNative_GetLocaleInfoString(
+    const UChar* localeName, LocaleStringData localeStringData, UChar* value, int32_t valueLength)
 {
     UErrorCode status = U_ZERO_ERROR;
     char locale[ULOC_FULLNAME_CAPACITY];
@@ -296,7 +295,8 @@ GetLocaleTimeFormat
 Obtains time format information (in ICU format, it needs to be coverted to .NET Format).
 Returns 1 for success, 0 otherwise
 */
-extern "C" int32_t GetLocaleTimeFormat(const UChar* localeName, int shortFormat, UChar* value, int32_t valueLength)
+extern "C" int32_t GlobalizationNative_GetLocaleTimeFormat(
+    const UChar* localeName, int shortFormat, UChar* value, int32_t valueLength)
 {
     UErrorCode err = U_ZERO_ERROR;
     char locale[ULOC_FULLNAME_CAPACITY];

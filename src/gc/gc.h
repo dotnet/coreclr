@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 /*++
@@ -15,13 +14,9 @@ Module Name:
 #ifndef __GC_H
 #define __GC_H
 
-#ifndef BINDER
-
 #ifdef PROFILING_SUPPORTED
 #define GC_PROFILING       //Turn on profiling
 #endif // PROFILING_SUPPORTED
-
-#endif
 
 /*
  * Promotion Function Prototypes
@@ -37,7 +32,7 @@ typedef gc_heap_segment_stub *segment_handle;
 
 struct segment_info
 {
-    LPVOID pvMem; // base of the allocation, not the first object (must add ibFirstObject)
+    void * pvMem; // base of the allocation, not the first object (must add ibFirstObject)
     size_t ibFirstObject;   // offset to the base of the first object in the segment
     size_t ibAllocated; // limit of allocated memory in the segment (>= firstobject)
     size_t ibCommit; // limit of committed memory in the segment (>= alllocated)
@@ -245,7 +240,7 @@ typedef void (* gen_walk_fn)(void *context, int generation, uint8_t *range_start
 struct ProfilingScanContext : ScanContext
 {
     BOOL fProfilerPinned;
-    LPVOID pvEtwContext;
+    void * pvEtwContext;
     void *pHeapId;
     
     ProfilingScanContext(BOOL fProfilerPinnedParam) : ScanContext()
@@ -381,17 +376,11 @@ public:
 
     static GCHeap *GetGCHeap()
     {
-#ifdef CLR_STANDALONE_BINDER
-        return NULL;
-#else
         LIMITED_METHOD_CONTRACT;
 
         _ASSERTE(g_pGCHeap != NULL);
         return g_pGCHeap;
-#endif
     }
-    
-#ifndef CLR_STANDALONE_BINDER
 
 #ifndef DACCESS_COMPILE
     static BOOL IsGCInProgress(BOOL bConsiderGCStart = FALSE)
@@ -505,8 +494,6 @@ public:
         return pGCHeap;
     }
 #endif // DACCESS_COMPILE
-
-#endif // !CLR_STANDALONE_BINDER
 
 private:
     typedef enum
@@ -675,7 +662,7 @@ public:
 extern VOLATILE(int32_t) m_GCLock;
 
 // Go through and touch (read) each page straddled by a memory block.
-void TouchPages(LPVOID pStart, uint32_t cb);
+void TouchPages(void * pStart, size_t cb);
 
 // For low memory notification from host
 extern int32_t g_bLowMemoryFromHost;

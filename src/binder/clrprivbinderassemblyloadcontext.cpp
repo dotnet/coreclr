@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #include "common.h"
 #include "assemblybinder.hpp"
@@ -9,7 +8,7 @@
 #include "clrprivbinderassemblyloadcontext.h"
 #include "clrprivbinderutil.h"
 
-#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(MDILNIGEN)
+#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
 using namespace BINDER_SPACE;
 
@@ -83,7 +82,7 @@ HRESULT CLRPrivBinderAssemblyLoadContext::BindAssemblyByName(IAssemblyName     *
                 // Thus, if default binder has been overridden, then invoke it in an attempt to perform the binding for it make the call
                 // of what to do next. The host-overridden binder can either fail the bind or return reference to an existing assembly
                 // that has been loaded.
-                hr = AssemblyBinder::BindUsingHostAssemblyResolver(this, pAssemblyName, pIAssemblyName, &pCoreCLRFoundAssembly);
+                hr = AssemblyBinder::BindUsingHostAssemblyResolver(GetManagedAssemblyLoadContext(), pAssemblyName, pIAssemblyName, &pCoreCLRFoundAssembly);
                 if (SUCCEEDED(hr))
                 {
                     // We maybe returned an assembly that was bound to a different AssemblyLoadContext instance.
@@ -273,4 +272,4 @@ CLRPrivBinderAssemblyLoadContext::CLRPrivBinderAssemblyLoadContext()
     m_pTPABinder = NULL;
 }
 
-#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(MDILNIGEN)
+#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: METHODTABLEBUILDER.CPP
 //
@@ -2944,16 +2943,6 @@ MethodTableBuilder::EnumerateClassMethods()
                     }
                 }
 
-#if defined(MDIL)
-                // Interfaces with sparse vtables are not currently supported in the triton toolchain.
-                if (GetAppDomain()->IsMDILCompilationDomain())
-                {
-                    GetSvcLogger()->Log(W("Warning: Sparse v-table detected.\n"));
-                    BuildMethodTableThrowException(COR_E_BADIMAGEFORMAT,
-                                                    IDS_CLASSLOAD_BADSPECIALMETHOD,
-                                                    tok);
-                }
-#endif // defined(MDIL)
 #ifdef FEATURE_COMINTEROP 
                 // Record vtable gap in mapping list. The map is an optional field, so ensure we've allocated
                 // these fields first.
@@ -8221,8 +8210,7 @@ VOID    MethodTableBuilder::PlaceInstanceFields(MethodTable ** pByValueClassCach
                     if (bmtFP->NumInstanceFieldsOfSize[j] != 0)
                         break;
                     // TODO: since we will refuse to place GC references we should filter them out here.
-                    // otherwise the "back-filling" process stops completely. If you change it here,
-                    // please change it in the corresponding place in src\tools\mdilbind\compactLayoutReader.cpp
+                    // otherwise the "back-filling" process stops completely.
                     // (PlaceInstanceFields)
                     // the following code would fix the issue (a replacement for the code above this comment):
                     // if (bmtFP->NumInstanceFieldsOfSize[j] != 0 &&

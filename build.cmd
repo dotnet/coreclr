@@ -3,6 +3,7 @@ setlocal EnableDelayedExpansion EnableExtensions
 
 set __ThisScriptShort=%0
 set __ThisScriptFull="%~f0"
+set __ThisScriptPath="%~dp0"
 
 :: Note that the msbuild project files (specifically, dir.proj) will use the following variables, if set:
 ::      __BuildArch         -- default: x64
@@ -29,7 +30,6 @@ set __BuildOS=Windows_NT
 :: Default to highest Visual Studio version available
 set __VSVersion=vs2015
 
-if defined VS120COMNTOOLS set __VSVersion=vs2013
 if defined VS140COMNTOOLS set __VSVersion=vs2015
 
 :: Define a prefix for most output progress messages that come from this script. That makes
@@ -57,6 +57,7 @@ set __DoCrossgen=
 set __BuildSequential=
 set __msbuildCleanBuildArgs=
 set __msbuildExtraArgs=
+set __SignTypeReal=
 
 set __BuildAll=
 
@@ -68,6 +69,7 @@ set __BuildArchArm64=0
 set __BuildTypeDebug=0
 set __BuildTypeChecked=0
 set __BuildTypeRelease=0
+set __GCStressLevel=0
 
 REM __PassThroughArgs is a set of things that will be passed through to nested calls to build.cmd
 REM when using "all".
@@ -102,10 +104,10 @@ if /i "%1" == "clean"               (set __CleanBuild=1&shift&goto Arg_Loop)
 
 if /i "%1" == "freebsdmscorlib"     (set __MscorlibOnly=1&set __BuildOS=FreeBSD&shift&goto Arg_Loop)
 if /i "%1" == "linuxmscorlib"       (set __MscorlibOnly=1&set __BuildOS=Linux&shift&goto Arg_Loop)
+if /i "%1" == "netbsdmscorlib"      (set __MscorlibOnly=1&set __BuildOS=NetBSD&shift&goto Arg_Loop)
 if /i "%1" == "osxmscorlib"         (set __MscorlibOnly=1&set __BuildOS=OSX&shift&goto Arg_Loop)
 if /i "%1" == "windowsmscorlib"     (set __MscorlibOnly=1&set __BuildOS=Windows_NT&shift&goto Arg_Loop)
 
-if /i "%1" == "vs2013"              (set __VSVersion=%1&shift&goto Arg_Loop)
 if /i "%1" == "vs2015"              (set __VSVersion=%1&shift&goto Arg_Loop)
 if /i "%1" == "configureonly"       (set __ConfigureOnly=1&set __SkipMscorlibBuild=1&set __SkipTestBuild=1&shift&goto Arg_Loop)
 if /i "%1" == "skipconfigure"       (set __SkipConfigure=1&shift&goto Arg_Loop)
@@ -114,7 +116,9 @@ if /i "%1" == "skipnative"          (set __SkipNativeBuild=1&shift&goto Arg_Loop
 if /i "%1" == "skiptests"           (set __SkipTestBuild=1&shift&goto Arg_Loop)
 if /i "%1" == "docrossgen"          (set __DoCrossgen=1&shift&goto Arg_Loop)
 if /i "%1" == "sequential"          (set __BuildSequential=1&shift&goto Arg_Loop)
+if /i "%1" == "disableoss"          (set __SignTypeReal="/p:SignType=real"&shift&goto Arg_Loop)
 if /i "%1" == "priority"            (set __TestPriority=%2&set __PassThroughArgs=%__PassThroughArgs% %2&shift&shift&goto Arg_Loop)
+if /i "%1" == "gcstresslevel"       (set __GCStressLevel=%2&set __PassThroughArgs=%__PassThroughArgs% %2&shift&shift&goto Arg_Loop)
 
 @REM For backwards compatibility, continue accepting "skiptestbuild", which was the original name of the option.
 if /i "%1" == "skiptestbuild"       (set __SkipTestBuild=1&shift&goto Arg_Loop)
@@ -139,12 +143,12 @@ goto Usage
 :ArgsDone
 
 if defined __ConfigureOnly if defined __SkipConfigure (
-    echo "Error: option 'configureonly' is incompatible with 'skipconfigure'
+    echo "Error: option 'configureonly' is incompatible with 'skipconfigure'"
     goto Usage
 )
 
 if defined __SkipMscorlibBuild if defined __MscorlibOnly (
-    echo Error: option 'skipmscorlib' is incompatible with 'freebsdmscorlib', 'linuxmscorlib', 'osxmscorlib', and 'windowsmscorlib'.
+    echo Error: option 'skipmscorlib' is incompatible with 'freebsdmscorlib', 'linuxmscorlib', 'netbsdmscorlib', 'osxmscorlib' and 'windowsmscorlib'.
     goto Usage
 )
 
@@ -177,11 +181,9 @@ echo %__MsgPrefix%Commencing CoreCLR Repo build
 set "__BinDir=%__RootBinDir%\Product\%__BuildOS%.%__BuildArch%.%__BuildType%"
 set "__IntermediatesDir=%__RootBinDir%\obj\%__BuildOS%.%__BuildArch%.%__BuildType%"
 set "__PackagesBinDir=%__BinDir%\.nuget"
-set "__TestBinDir=%__RootBinDir%\tests\%__BuildOS%.%__BuildArch%.%__BuildType%"
+set "__TestRootDir=%__RootBinDir%\tests"
+set "__TestBinDir=%__TestRootDir%\%__BuildOS%.%__BuildArch%.%__BuildType%"
 set "__TestIntermediatesDir=%__RootBinDir%\tests\obj\%__BuildOS%.%__BuildArch%.%__BuildType%"
-
-:: Use this variable to locate dynamically generated files; the actual location though will be different.
-set "__GeneratedIntermediatesDir=%__IntermediatesDir%\Generated_latest"
 
 :: Generate path to be set for CMAKE_INSTALL_PREFIX to contain forward slash
 set "__CMakeBinDir=%__BinDir%"
@@ -212,13 +214,16 @@ if defined __MscorlibOnly goto CheckVS
 
 echo %__MsgPrefix%Checking prerequisites
 
+:: Validate that PowerShell is accessibile.
+for %%X in (powershell.exe) do (set __PSDir=%%~$PATH:X)
+if not defined __PSDir goto NoPS
+
 :: Eval the output from probe-win1.ps1
 for /f "delims=" %%a in ('powershell -NoProfile -ExecutionPolicy RemoteSigned "& ""%__SourceDir%\pal\tools\probe-win.ps1"""') do %%a
 
 :CheckVS
 
 set __VSProductVersion=
-if /i "%__VSVersion%" == "vs2013" set __VSProductVersion=120
 if /i "%__VSVersion%" == "vs2015" set __VSProductVersion=140
 
 :: Check presence of VS
@@ -232,11 +237,6 @@ if not exist "%__VSToolsRoot%\..\IDE\devenv.exe"      goto NoVS
 if not exist "%__VSToolsRoot%\..\..\VC\vcvarsall.bat" goto NoVS
 if not exist "%__VSToolsRoot%\VsDevCmd.bat"           goto NoVS
 
-if /i "%__VSVersion%" =="vs2015" goto MSBuild14
-set _msbuildexe="%ProgramFiles(x86)%\MSBuild\12.0\Bin\MSBuild.exe"
-if not exist %_msbuildexe% set _msbuildexe="%ProgramFiles%\MSBuild\12.0\Bin\MSBuild.exe"
-if not exist %_msbuildexe% set _msbuildexe="%ProgramFiles(x86)%\MSBuild\14.0\Bin\MSBuild.exe"
-goto :CheckMSBuild14
 :MSBuild14
 set _msbuildexe="%ProgramFiles(x86)%\MSBuild\14.0\Bin\MSBuild.exe"
 set UseRoslynCompiler=true
@@ -256,6 +256,13 @@ if not defined __BuildSequential (
 
 REM =========================================================================================
 REM ===
+REM === Restore Build Tools
+REM ===
+REM =========================================================================================
+call %__ThisScriptPath%init-tools.cmd  
+
+REM =========================================================================================
+REM ===
 REM === Start the build steps
 REM ===
 REM =========================================================================================
@@ -272,28 +279,13 @@ echo %__MsgPrefix%Commencing build of native components for %__BuildOS%.%__Build
 REM Use setlocal to restrict environment changes form vcvarsall.bat and more to just this native components build section.
 setlocal EnableDelayedExpansion EnableExtensions
 
-if /i not "%__BuildArch%" == "arm64" goto NotArm64Build
-
+if /i "%__BuildArch%" == "arm64" ( 
 rem arm64 builds currently use private toolset which has not been released yet
 REM TODO, remove once the toolset is open.
-
-if /i "%__ToolsetDir%" == "" (
-    echo %__MsgPrefix%Error: A toolset directory is required for the Arm64 Windows build. Use the toolset_dir argument.
-    exit /b 1
-)
-
-set PATH=%PATH%;%__ToolsetDir%\cpp\bin
-set LIB=%__ToolsetDir%\OS\lib;%__ToolsetDir%\cpp\lib
-set INCLUDE=^
-%__ToolsetDir%\cpp\inc;^
-%__ToolsetDir%\OS\inc\Windows;^
-%__ToolsetDir%\OS\inc\Windows\crt;^
-%__ToolsetDir%\cpp\inc\vc;^
-%__ToolsetDir%\OS\inc\win8
+call :PrivateToolSet
 
 goto GenVSSolution
-
-:NotArm64Build
+)
 
 :: Set the environment for the native build
 set __VCBuildArch=x86_amd64
@@ -325,45 +317,6 @@ if not exist "%__IntermediatesDir%\install.vcxproj" (
     echo %__MsgPrefix%Error: failed to generate native component build project!
     exit /b 1
 )
-
-REM =========================================================================================
-REM ===
-REM === Build ETW infrastructure
-REM ===
-REM =========================================================================================
-
-echo %__MsgPrefix%Generating ETW files
-
-if not defined PythonPath (
-    echo %__MsgPrefix%Error: Couldn't find Python.
-    exit /b 1
-)
-
-:: Ensure there are no stale files in the Generated Directory
-if exist "%__GeneratedIntermediatesDir%" rd /s /q "%__GeneratedIntermediatesDir%"
-md "%__GeneratedIntermediatesDir%"
-md "%__GeneratedIntermediatesDir%\inc"
-set "genetw=%__SourceDir%\scripts\genWinEtw.py"
-
-mc -h "%__GeneratedIntermediatesDir%\inc" -r "%__GeneratedIntermediatesDir%" -b -co -um -p FireEtw "%__SourceDir%\VM\ClrEtwAll.man"
-IF ERRORLEVEL 1 goto FailedToGenEtwMetadata
-
-"%PythonPath%"  "%genetw%" --man "%__SourceDir%\VM\ClrEtwAll.man" --exc "%__SourceDir%\VM\ClrEtwAllMeta.lst" --eventheader "%__GeneratedIntermediatesDir%\inc\ClrEtwAll.h" --macroheader "%__GeneratedIntermediatesDir%\inc\clretwallmain.h" --dummy "%__GeneratedIntermediatesDir%\inc\etmdummy.h"
-IF  ERRORLEVEL 1 goto FailedToGenEtwMetadata
-
-:: Do not use this variable; it is used below to support incremental build.
-set "__GeneratedIntermediatesDirPresent=%__IntermediatesDir%\Generated"
-"%PythonPath%" -c "import sys;sys.path.insert(0,r\"%__SourceDir%\scripts\"); from Utilities import *;UpdateDirectory(r\"%__GeneratedIntermediatesDirPresent%\",r\"%__GeneratedIntermediatesDir%\")"
-IF  ERRORLEVEL 1 goto FailedToGenEtwMetadata
-
-set __GeneratedIntermediatesDir="%__GeneratedIntermediatesDirPresent%"
-goto DoneGenEtwMetadata
-
-:FailedToGenEtwMetadata
-echo %__MsgPrefix%Error: failed to generate ETW files.
-exit /b %ERRORLEVEL%
-
-:DoneGenEtwMetadata
 
 REM =========================================================================================
 REM ===
@@ -442,7 +395,7 @@ set __msbuildLogArgs=^
 /consoleloggerparameters:Summary ^
 /verbosity:minimal
 
-set __msbuildArgs="%__ProjectFilesDir%\build.proj" %__msbuildCommonArgs% %__msbuildLogArgs%
+set __msbuildArgs="%__ProjectFilesDir%\build.proj" %__msbuildCommonArgs% %__msbuildLogArgs% %__SignTypeReal%
 
 set __BuildNugetPackage=true
 if defined __MscorlibOnly       set __BuildNugetPackage=false
@@ -463,15 +416,7 @@ if defined __MscorlibOnly (
     exit /b 0
 )
 
-REM Consider doing crossgen build of mscorlib.
-
-if /i "%__BuildArch%" == "x86" (
-    if not defined __DoCrossgen (
-        echo %__MsgPrefix%Skipping Crossgen
-        goto SkipCrossGenBuild
-    )
-)
-
+REM Consider doing crossgen build of mscorlib unless we are skipping it intentionally
 if /i "%__BuildArch%" == "arm64" (
     if not defined __DoCrossgen (
         echo %__MsgPrefix%Skipping Crossgen
@@ -488,6 +433,31 @@ if errorlevel 1 (
     echo     %__CrossGenMScorlibLog%
     exit /b 1
 )
+
+:GenerateNuget
+if /i "%__BuildArch%" =="arm64" goto :SkipNuget
+
+set "__BuildLog=%__LogsDir%\Nuget_%__BuildOS%__%__BuildArch%__%__BuildType%.log"
+set "__BuildWrn=%__LogsDir%\Nuget_%__BuildOS%__%__BuildArch%__%__BuildType%.wrn"
+set "__BuildErr=%__LogsDir%\Nuget_%__BuildOS%__%__BuildArch%__%__BuildType%.err"
+set __msbuildLogArgs=^
+/fileloggerparameters:Verbosity=normal;LogFile="%__BuildLog%" ^
+/fileloggerparameters1:WarningsOnly;LogFile="%__BuildWrn%" ^
+/fileloggerparameters2:ErrorsOnly;LogFile="%__BuildErr%" ^
+/consoleloggerparameters:Summary ^
+/verbosity:minimal
+
+set __msbuildArgs="%__ProjectFilesDir%\src\.nuget\Microsoft.NETCore.Runtime.CoreClr\Microsoft.NETCore.Runtime.CoreCLR.builds" /p:Platform=%__BuildArch%
+%_msbuildexe% %__msbuildArgs% %__msbuildLogArgs%
+if errorlevel 1 (
+    echo %__MsgPrefix%Error: Nuget package generation failed build failed. Refer to the build log files for details:
+    echo     %__BuildLog%
+    echo     %__BuildWrn%
+    echo     %__BuildErr%
+    exit /b 1
+)
+
+:SkipNuget
 
 :SkipCrossGenBuild
 
@@ -524,6 +494,14 @@ if defined __BuildSequential (
 if defined __TestPriority (
     set "__BuildtestArgs=%__BuildtestArgs% Priority %__TestPriority%"
 )
+
+if %__GCStressLevel% GTR 0 (
+    set "__BuildtestArgs=%__BuildtestArgs% gcstresslevel %__GCStressLevel%"   
+)
+
+rem arm64 builds currently use private toolset which has not been released yet
+REM TODO, remove once the toolset is open.
+if /i "%__BuildArch%" == "arm64" call :PrivateToolSet 
 
 call %__ProjectDir%\tests\buildtest.cmd %__BuildtestArgs%
 
@@ -640,16 +618,16 @@ echo.
 echo./? -? /h -h /help -help: view this message.
 echo Build architecture: one of x64, x86, arm, arm64 ^(default: x64^).
 echo Build type: one of Debug, Checked, Release ^(default: Debug^).
-echo Visual Studio version: one of VS2013 or VS2015 to force using a particular
-echo     Visual Studio version ^(default: VS2015^).
+echo Visual Studio version: ^(default: VS2015^).
 echo clean: force a clean build ^(default is to perform an incremental build^).
 echo docrossgen: do a crossgen build of mscorlib.
 echo msbuildargs ... : all arguments following this tag will be passed directly to msbuild.
-echo mscorlib version: one of freebsdmscorlib, linuxmscorlib, osxmscorlib,
+echo mscorlib version: one of freebsdmscorlib, linuxmscorlib, netbsdmscorlib, osxmscorlib,
 echo     or windowsmscorlib. If one of these is passed, only mscorlib is built,
-echo     for the specified platform ^(FreeBSD, Linux, OS X, or Windows,
+echo     for the specified platform ^(FreeBSD, Linux, NetBSD, OS X or Windows,
 echo     respectively^).
 echo priority ^<N^> : specify a set of test that will be built and run, with priority N.
+echo gcstresslevel ^<N^> : specify the GCStress level the tests should run under.
 echo sequential: force a non-parallel build ^(default is to build in parallel
 echo     using all processors^).
 echo configureonly: skip all builds; only run CMake ^(default: CMake and builds are run^)
@@ -657,6 +635,7 @@ echo skipconfigure: skip CMake ^(default: CMake is run^)
 echo skipmscorlib: skip building mscorlib ^(default: mscorlib is built^).
 echo skipnative: skip building native components ^(default: native components are built^).
 echo skiptests: skip building tests ^(default: tests are built^).
+echo disableoss: Disable Open Source Signing for mscorlib.
 echo toolset_dir ^<dir^> : set the toolset directory -- Arm64 use only. Required for Arm64 builds.
 echo.
 echo If "all" is specified, then all build architectures and types are built. If, in addition,
@@ -672,8 +651,14 @@ echo     build all x64 x86 Checked Release
 echo        -- builds x64 and x86 architectures, Checked and Release build types for each
 exit /b 1
 
+:NoPS
+echo PowerShell is a prerequisite to build this repository, but it is not accessible.
+echo Ensure that it is defined in the PATH environment variable.
+echo Typically it should be %%SYSTEMROOT%%\System32\WindowsPowerShell\v1.0\.
+exit /b 1
+
 :NoVS
-echo Visual Studio 2013+ ^(Community is free^) is a prerequisite to build this repository.
+echo Visual Studio 2015+ ^(Community is free^) is a prerequisite to build this repository.
 echo See: https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md#prerequisites
 exit /b 1
 
@@ -683,7 +668,26 @@ This is due to a bug in the Visual Studio installer. It does not install DIA SDK
 at the install location of previous Visual Studio version. The workaround is to copy the DIA SDK folder from the Visual Studio install location ^
 of the previous version to "%VSINSTALLDIR%" and then build.
 :: DIA SDK not included in Express editions
-echo Visual Studio 2013 Express does not include the DIA SDK. ^
-You need Visual Studio 2013+ (Community is free).
+echo Visual Studio Express does not include the DIA SDK. ^
+You need Visual Studio 2015+ (Community is free).
 echo See: https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md#prerequisites
 exit /b 1
+
+:PrivateToolSet
+
+echo %__MsgPrefix% Setting Up the usage of __ToolsetDir:%__ToolsetDir%
+
+if /i "%__ToolsetDir%" == "" (
+    echo %__MsgPrefix%Error: A toolset directory is required for the Arm64 Windows build. Use the toolset_dir argument.
+    exit /b 1
+)
+
+set PATH=%__ToolsetDir%\cpp\bin;%PATH%
+set LIB=%__ToolsetDir%\OS\lib;%__ToolsetDir%\cpp\lib
+set INCLUDE=^
+%__ToolsetDir%\cpp\inc;^
+%__ToolsetDir%\OS\inc\Windows;^
+%__ToolsetDir%\OS\inc\Windows\crt;^
+%__ToolsetDir%\cpp\inc\vc;^
+%__ToolsetDir%\OS\inc\win8
+exit /b 0

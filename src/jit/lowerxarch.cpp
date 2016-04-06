@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -298,23 +297,31 @@ void Lowering::TreeNodeInfoInit(GenTree* stmt)
 #endif // !defined(_TARGET_64BIT_)
             {
 #ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
-                if (varTypeIsStruct(tree) &&
-                    tree->gtOp.gtOp1->OperGet() == GT_LCL_VAR)
+                if (varTypeIsStruct(tree))
                 {
-#ifdef DEBUG
-                    GenTreeLclVarCommon* lclVarPtr = tree->gtOp.gtOp1->AsLclVarCommon();
-                    LclVarDsc* varDsc = &(compiler->lvaTable[lclVarPtr->gtLclNum]);
-                    assert(varDsc->lvDontPromote);
-#endif // DEBUG
-                    // If this is a two eightbyte return, make the var
-                    // contained by the return expression. The code gen will put
-                    // the values in the right registers for return.
-                    info->srcCount = (tree->TypeGet() == TYP_VOID) ? 0 : 1;
-                    info->dstCount = 0;
-                    MakeSrcContained(tree, tree->gtOp.gtOp1);
-                    break;
+                    noway_assert((tree->gtOp.gtOp1->OperGet() == GT_LCL_VAR) ||
+                                 (tree->gtOp.gtOp1->OperGet() == GT_CALL));
+
+                    if (tree->gtOp.gtOp1->OperGet() == GT_LCL_VAR)
+                    {
+                        GenTreeLclVarCommon* lclVarPtr = tree->gtOp.gtOp1->AsLclVarCommon();
+                        LclVarDsc* varDsc = &(compiler->lvaTable[lclVarPtr->gtLclNum]);
+                        assert(varDsc->lvIsMultiRegArgOrRet);
+
+                        // If this is a two eightbyte return, make the var
+                        // contained by the return expression. The code gen will put
+                        // the values in the right registers for return.
+                        info->srcCount = (tree->TypeGet() == TYP_VOID) ? 0 : 1;
+                        info->dstCount = 0;
+                        MakeSrcContained(tree, tree->gtOp.gtOp1);
+                        break;
+                    }
+
+                    // If the return gtOp1 is GT_CALL, just fallthrough. The return registers should already be set properly by the GT_CALL.
                 }
 #endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+                // TODO-AMD64-Unix: When the GT_CALL for multi-register return structs is changed to use 2 destinations,
+                // change the code below to use 2 src for such op1s (this is the case of op1 being a GT_CALL).
                 info->srcCount = (tree->TypeGet() == TYP_VOID) ? 0 : 1;
                 info->dstCount = 0;
 
@@ -1762,21 +1769,26 @@ Lowering::TreeNodeInfoInitBlockStore(GenTreeBlkOp* blkNode)
             // Always favor unrolling vs rep stos.
             if (size <= INITBLK_UNROLL_LIMIT && initVal->IsCnsIntOrI())
             {
-                // Replace the integer constant in initVal 
-                // to fill an 8-byte word with the fill value of the InitBlk
-                assert(initVal->gtIntCon.gtIconVal == (initVal->gtIntCon.gtIconVal & 0xFF));
+                // The fill value of an initblk is interpreted to hold a
+                // value of (unsigned int8) however a constant of any size
+                // may practically reside on the evaluation stack. So extract
+                // the lower byte out of the initVal constant and replicate
+                // it to a larger constant whose size is sufficient to support
+                // the largest width store of the desired inline expansion.
+
+                ssize_t fill = initVal->gtIntCon.gtIconVal & 0xFF;
 #ifdef _TARGET_AMD64_
                 if (size < REGSIZE_BYTES)
                 {
-                    initVal->gtIntCon.gtIconVal = 0x01010101 * initVal->gtIntCon.gtIconVal;
+                    initVal->gtIntCon.gtIconVal = 0x01010101 * fill;
                 }
                 else
                 {
-                    initVal->gtIntCon.gtIconVal = 0x0101010101010101LL * initVal->gtIntCon.gtIconVal;
+                    initVal->gtIntCon.gtIconVal = 0x0101010101010101LL * fill;
                     initVal->gtType = TYP_LONG;
                 }
 #else // !_TARGET_AMD64_
-                initVal->gtIntCon.gtIconVal = 0x01010101 * initVal->gtIntCon.gtIconVal;
+                initVal->gtIntCon.gtIconVal = 0x01010101 * fill;
 #endif // !_TARGET_AMD64_
 
                 MakeSrcContained(blkNode, blockSize);
@@ -2410,8 +2422,7 @@ void Lowering::SetIndirAddrOpCounts(GenTreePtr indirTree)
         // (in LowerVirtualStubCall()), but we don't have any GTF_* flags left for that purpose.  As a workaround
         // an explicit check is made here.
         //
-        // TODO-x86: Right now lowering of virst stub dispatch call is a NYI.  Once it is implemented, we should
-        // take a relook at this.
+        // On x86, direct VSD is done via a relative branch, and in fact it MUST be contained.
         MakeSrcContained(indirTree, addr);
     }
     else if (addr->OperGet() == GT_LEA)

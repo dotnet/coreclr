@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //===========================================================================
 // File: TlbExport.CPP
 //
@@ -277,10 +276,13 @@ void ExportTypeLibFromLoadedAssembly(
 
     TypeLibExporter exporter;           // Exporter object.
     LPCWSTR     szModule=0;             // Module filename.
-    WCHAR       rcDrive[_MAX_DRIVE] = {0};
-    WCHAR       rcDir[_MAX_DIR] = {0};
-    WCHAR       rcFile[_MAX_FNAME] = {0};
-    WCHAR       rcTlb[_MAX_PATH+5] = {0};     // Buffer for the tlb filename.
+    StackSString ssDrive;
+    StackSString ssDir;
+    StackSString ssFile;
+    size_t      cchDrive;
+    size_t      cchDir;
+    size_t      cchFile;
+    CQuickWSTR  rcTlb;     // Buffer for the tlb filename.
     int         bDynamic=0;             // If true, dynamic module.
     Module      *pModule;               // The Assembly's SecurityModule.
     
@@ -311,9 +313,9 @@ void ExportTypeLibFromLoadedAssembly(
             szTlb = W("");
         else
         {
-            SplitPath(szModule, rcDrive, _MAX_DRIVE, rcDir, _MAX_DIR, rcFile, _MAX_FNAME, 0, 0);
-            MakePath(rcTlb, rcDrive, rcDir, rcFile, szTypeLibExt);
-            szTlb = rcTlb;
+            SplitPath(szModule, &ssDrive, &ssDir, &ssFile, nullptr);
+            MakePath(rcTlb, ssDrive.GetUnicode(), ssDir.GetUnicode(), ssFile.GetUnicode(), szTypeLibExt);
+            szTlb = rcTlb.Ptr();
         }
     }
 

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // File: RegMeta_IMetaDataImport.cpp
 // 
@@ -68,17 +67,11 @@ STDMETHODIMP RegMeta::SetModuleProps(   // S_OK or error.
     IfFailGo(m_pStgdb->m_MiniMd.GetModuleRecord(1, &pModule));
     if (szName != NULL)
     {
-        WCHAR       rcFile[_MAX_PATH]={0};
-        WCHAR       rcExt[_MAX_PATH]={0};
-        WCHAR       rcNewFileName[_MAX_PATH]={0};
+        LPCWSTR szFile = NULL;
+        size_t  cchFile;
 
-        // If the total name is less than _MAX_PATH, the components are, too.
-        if (wcslen(szName) >= _MAX_PATH)
-            IfFailGo(E_INVALIDARG);
-
-        SplitPath(szName, NULL, 0, NULL, 0, rcFile, COUNTOF(rcFile), rcExt, COUNTOF(rcExt));
-        MakePath(rcNewFileName, NULL, NULL, rcFile, rcExt);
-        IfFailGo(m_pStgdb->m_MiniMd.PutStringW(TBL_Module, ModuleRec::COL_Name, pModule, rcNewFileName));
+        SplitPathInterior(szName, NULL, 0, NULL, 0, &szFile, &cchFile, NULL, 0);
+        IfFailGo(m_pStgdb->m_MiniMd.PutStringW(TBL_Module, ModuleRec::COL_Name, pModule, szFile));
     }
 
     IfFailGo(UpdateENCLog(TokenFromRid(1, mdtModule)));

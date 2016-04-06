@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 // Code that is used by both the Unix corerun and coreconsole.
@@ -17,6 +16,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include "coreruncommon.h"
+#include <unistd.h>
 
 #define SUCCEEDED(Status) ((Status) >= 0)
 
@@ -53,7 +53,7 @@ typedef int (*ExecuteAssemblyFunction)(
             const char* managedAssemblyPath,
             unsigned int* exitCode);
 
-#if defined(__LINUX__)
+#if defined(__linux__)
 #define symlinkEntrypointExecutable "/proc/self/exe"
 #elif !defined(__APPLE__)
 #define symlinkEntrypointExecutable "/proc/curproc/exe"
@@ -67,12 +67,20 @@ bool GetEntrypointExecutableAbsolutePath(std::string& entrypointExecutable)
 
     // Get path to the executable for the current process using
     // platform specific means.
-#if defined(__LINUX__) || !defined(__APPLE__)
-    
-    // On non-Mac OS, return the symlink that will be resolved by GetAbsolutePath
-    // to fetch the entrypoint EXE absolute path, inclusive of filename.
-    entrypointExecutable.assign(symlinkEntrypointExecutable);
-    result = true;
+#if defined(__linux__)
+    // On Linux, fetch the entry point EXE absolute path, inclusive of filename.
+    char exe[PATH_MAX];
+    ssize_t res = readlink(symlinkEntrypointExecutable, exe, PATH_MAX - 1);
+    if (res != -1)
+    {
+        exe[res] = '\0';
+        entrypointExecutable.assign(exe);
+        result = true;
+    }
+    else
+    {
+        result = false;
+    }
 #elif defined(__APPLE__)
     
     // On Mac, we ask the OS for the absolute path to the entrypoint executable
@@ -89,7 +97,12 @@ bool GetEntrypointExecutableAbsolutePath(std::string& entrypointExecutable)
             result = true;
         }
     }
- #endif 
+#else
+    // On non-Mac OS, return the symlink that will be resolved by GetAbsolutePath
+    // to fetch the entrypoint EXE absolute path, inclusive of filename.
+    entrypointExecutable.assign(symlinkEntrypointExecutable);
+    result = true;
+#endif 
 
     return result;
 }
@@ -255,6 +268,20 @@ int ExecuteManagedAssembly(
     // Indicates failure
     int exitCode = -1;
 
+#ifdef _ARM_
+    // LIBUNWIND-ARM has a bug of side effect with DWARF mode
+    // Ref: https://github.com/dotnet/coreclr/issues/3462
+    // This is why Fedora is disabling it by default as well.
+    // Assuming that we cannot enforce the user to set
+    // environmental variables for third party packages,
+    // we set the environmental variable of libunwind locally here.
+
+    // Without this, any exception handling will fail, so let's do this
+    // as early as possible.
+    // 0x1: DWARF / 0x2: FRAME / 0x4: EXIDX
+    putenv(const_cast<char *>("UNW_ARM_UNWIND_METHOD=6"));
+#endif // _ARM_
+
     std::string coreClrDllPath(clrFilesAbsolutePath);
     coreClrDllPath.append("/");
     coreClrDllPath.append(coreClrDll);
@@ -301,12 +328,14 @@ int ExecuteManagedAssembly(
             // Server GC is off by default, while concurrent GC is on by default.
             // Actual checking of these string values is done in coreclr_initialize.
             const char* useServerGc = std::getenv(serverGcVar);
-            if (useServerGc == nullptr) {
+            if (useServerGc == nullptr)
+            {
                 useServerGc = "0";
             }
             
             const char* useConcurrentGc = std::getenv(concurrentGcVar);
-            if (useConcurrentGc == nullptr) {
+            if (useConcurrentGc == nullptr)
+            {
                 useConcurrentGc = "1";
             }
             

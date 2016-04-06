@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // File: DllImport.cpp
 //
@@ -2585,15 +2584,7 @@ void NDirectStubLinker::DoNDirect(ILCodeStream *pcsEmit, DWORD dwStubFlags, Meth
 #endif // FEATURE_COMINTEROP
             {
                 EmitLoadStubContext(pcsEmit, dwStubFlags);
-                
-#ifdef MDIL
-                if (GetAppDomain()->IsMDILCompilationDomain())
-                {
-                    // GetNDirectTarget is understood by the compiler and generates the CALL_PINVOKE instruction
-                    pcsEmit->EmitCALL(pcsEmit->GetToken(MscorlibBinder::GetMethod(METHOD__STUBHELPERS__GET_NDIRECT_TARGET)), 1, 1);
-                }
-                else
-#endif // MDIL
+
                 {
                     // Perf: inline the helper for now
                     //pcsEmit->EmitCALL(METHOD__STUBHELPERS__GET_NDIRECT_TARGET, 1, 1);

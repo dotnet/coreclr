@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: assem.cpp
 //
@@ -258,6 +257,10 @@ BOOL Assembler::Init()
 #ifdef FEATURE_CORECLR
 #ifdef FEATURE_PAL
     g_loader = CoreCLRLoader::Create(g_pszExeFile);
+    if (g_loader == NULL)
+    {
+        return FALSE;
+    }
     metaDataGetDispenser = (MetaDataGetDispenserFunc)g_loader->LoadFunction("MetaDataGetDispenser");
 #else
     metaDataGetDispenser = (MetaDataGetDispenserFunc)MetaDataGetDispenser;

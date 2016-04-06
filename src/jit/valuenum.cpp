@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -84,8 +83,7 @@ ValueNumStore::ValueNumStore(Compiler* comp, IAllocator* alloc)
     ChunkNum cn = m_chunks.Push(specialConstChunk);
     assert(cn == 0);
 
-  static ConfigDWORD fMapSelBudget;
-  m_mapSelectBudget = fMapSelBudget.val(CLRConfig::INTERNAL_JitVNMapSelBudget);
+  m_mapSelectBudget = JitConfig.JitVNMapSelBudget();
 }
 
 // static.
@@ -1135,13 +1133,30 @@ ValueNum ValueNumStore::VNForFunc(var_types typ, VNFunc func, ValueNum arg0VN, V
     }
 }
 
+//------------------------------------------------------------------------------
+// VNForMapStore : Evaluate VNF_MapStore with the given arguments.
+//
+//
+// Arguments:
+//    typ  -    Value type
+//    arg0VN  - Map value number
+//    arg1VN  - Index value number
+//    arg2VN  - New value for map[index]
+//
+// Return Value:
+//    Value number for the result of the evaluation.
+
 ValueNum ValueNumStore::VNForMapStore(var_types typ, ValueNum arg0VN, ValueNum arg1VN, ValueNum arg2VN)
 {
     ValueNum result = VNForFunc(typ, VNF_MapStore, arg0VN, arg1VN, arg2VN);
 #ifdef DEBUG
     if (m_pComp->verbose)
     {
-        printf("    VNForMapStore(" STR_VN "%x, " STR_VN "%x, " STR_VN "%x):%s returns ", arg0VN, arg1VN, arg2VN, varTypeName(typ));
+        printf("    VNForMapStore(" STR_VN "%x, " STR_VN "%x, " STR_VN "%x):%s returns ",
+               arg0VN,
+               arg1VN,
+               arg2VN,
+               varTypeName(typ));
         m_pComp->vnPrint(result, 1);
         printf("\n");
     }
@@ -1149,10 +1164,30 @@ ValueNum ValueNumStore::VNForMapStore(var_types typ, ValueNum arg0VN, ValueNum a
     return result;
 }
 
+//------------------------------------------------------------------------------
+// VNForMapSelect : Evaluate VNF_MapSelect with the given arguments.
+//
+//
+// Arguments:
+//    vnk  -    Value number kind
+//    typ  -    Value type
+//    arg0VN  - Map value number
+//    arg1VN  - Index value number
+//
+// Return Value:
+//    Value number for the result of the evaluation.
+//
+// Notes:
+//    This requires a "ValueNumKind" because it will attempt, given "select(phi(m1, ..., mk), ind)", to evaluate
+//    "select(m1, ind)", ..., "select(mk, ind)" to see if they agree.  It needs to know which kind of value number
+//    (liberal/conservative) to read from the SSA def referenced in the phi argument.
+
+
 ValueNum ValueNumStore::VNForMapSelect(ValueNumKind vnk, var_types typ, ValueNum arg0VN, ValueNum arg1VN)
 {
     unsigned budget = m_mapSelectBudget;
-    ValueNum result = VNForMapSelectWork(vnk, typ, arg0VN, arg1VN, &budget);
+    bool usedRecursiveVN = false;
+    ValueNum result = VNForMapSelectWork(vnk, typ, arg0VN, arg1VN, &budget, &usedRecursiveVN);
 #ifdef DEBUG
     if (m_pComp->verbose)
     {
@@ -1164,13 +1199,41 @@ ValueNum ValueNumStore::VNForMapSelect(ValueNumKind vnk, var_types typ, ValueNum
     return result;
 }
 
-ValueNum ValueNumStore::VNForMapSelectWork(ValueNumKind vnk, var_types typ, ValueNum arg0VN, ValueNum arg1VN, unsigned* pBudget)
+//------------------------------------------------------------------------------
+// VNForMapSelectWork : A method that does the work for VNForMapSelect and may call itself recursively.
+//
+//
+// Arguments:
+//    vnk  -             Value number kind
+//    typ  -             Value type
+//    arg0VN  -          Zeroth argument
+//    arg1VN  -          First argument
+//    pBudget -          Remaining budget for the outer evaluation
+//    pUsedRecursiveVN - Out-parameter that is set to true iff RecursiveVN was returned from this method
+//                       or from a method called during one of recursive invocations.
+//
+// Return Value:
+//    Value number for the result of the evaluation.
+//
+// Notes:
+//    This requires a "ValueNumKind" because it will attempt, given "select(phi(m1, ..., mk), ind)", to evaluate
+//    "select(m1, ind)", ..., "select(mk, ind)" to see if they agree.  It needs to know which kind of value number
+//    (liberal/conservative) to read from the SSA def referenced in the phi argument.
+
+ValueNum ValueNumStore::VNForMapSelectWork(ValueNumKind vnk,
+                                           var_types typ,
+                                           ValueNum arg0VN,
+                                           ValueNum arg1VN,
+                                           unsigned* pBudget,
+                                           bool* pUsedRecursiveVN)
 {
     // This label allows us to directly implement a tail call by setting up the arguments, and doing a goto to here.
 TailCall:
     assert(arg0VN != NoVN && arg1VN != NoVN);
     assert(arg0VN == VNNormVal(arg0VN));  // Arguments carry no exceptions.
     assert(arg1VN == VNNormVal(arg1VN));  // Arguments carry no exceptions.
+
+    *pUsedRecursiveVN = false;
 
 #ifdef DEBUG
     // Provide a mechanism for writing tests that ensure we don't call this ridiculously often.
@@ -1179,8 +1242,7 @@ TailCall:
     // This printing is sometimes useful in debugging.
     // if ((m_numMapSels % 1000) == 0) printf("%d VNF_MapSelect applications.\n", m_numMapSels);
 #endif
-    static ConfigDWORD fMapSelLim;
-    unsigned selLim = fMapSelLim.val(CLRConfig::INTERNAL_JitVNMapSelLimit);
+    unsigned selLim = JitConfig.JitVNMapSelLimit();
     assert(selLim == 0 || m_numMapSels < selLim);
 #endif
     ValueNum res;
@@ -1204,6 +1266,7 @@ TailCall:
         // If it's recursive, stop the recursion.
         if (SelectIsBeingEvaluatedRecursively(arg0VN, arg1VN))
         {
+            *pUsedRecursiveVN = true;
             return RecursiveVN;
         }
         
@@ -1240,7 +1303,8 @@ TailCall:
 #endif
                     // This is the equivalent of the recursive tail call:
                     // return VNForMapSelect(vnk, typ, funcApp.m_args[0], arg1VN);
-                    arg0VN = funcApp.m_args[0];  // Make sure we capture any exceptions from the "i" and "v" of the store...
+                    // Make sure we capture any exceptions from the "i" and "v" of the store...
+                    arg0VN = funcApp.m_args[0];
                     goto TailCall;
                 }
             }
@@ -1284,7 +1348,12 @@ TailCall:
                     {
                         bool allSame = true;
                         ValueNum argRest = phiFuncApp.m_args[1];
-                        ValueNum sameSelResult = VNForMapSelectWork(vnk, typ, phiArgVN, arg1VN, pBudget);
+                        ValueNum sameSelResult = VNForMapSelectWork(vnk,
+                                                                    typ,
+                                                                    phiArgVN,
+                                                                    arg1VN,
+                                                                    pBudget,
+                                                                    pUsedRecursiveVN);
                         while (allSame && argRest != ValueNumStore::NoVN)
                         {
                             ValueNum cur = argRest;
@@ -1314,7 +1383,14 @@ TailCall:
                             }
                             else
                             {
-                                ValueNum curResult = VNForMapSelectWork(vnk, typ, phiArgVN, arg1VN, pBudget);
+                                bool usedRecursiveVN = false;
+                                ValueNum curResult = VNForMapSelectWork(vnk,
+                                                                        typ,
+                                                                        phiArgVN,
+                                                                        arg1VN,
+                                                                        pBudget,
+                                                                        &usedRecursiveVN);
+                                *pUsedRecursiveVN |= usedRecursiveVN;
                                 if (sameSelResult == ValueNumStore::RecursiveVN)
                                     sameSelResult = curResult;
                                 if (curResult != ValueNumStore::RecursiveVN && curResult != sameSelResult)
@@ -1328,7 +1404,13 @@ TailCall:
                             m_fixedPointMapSels.Pop();
 
                             // To avoid exponential searches, we make sure that this result is memo-ized.
-                            GetVNFunc2Map()->Set(fstruct, sameSelResult);
+                            // The result is always valid for memoization if we didn't rely on RecursiveVN to get it.
+                            // If RecursiveVN was used, we are processing a loop and we can't memo-ize this intermediate
+                            // result if, e.g., this block is in a multi-entry loop.
+                            if (!*pUsedRecursiveVN)
+                            {
+                                GetVNFunc2Map()->Set(fstruct, sameSelResult);
+                            }
 
                             return sameSelResult;
                         }
@@ -1392,7 +1474,7 @@ bool ValueNumStore::SelectIsBeingEvaluatedRecursively(ValueNum map, ValueNum ind
 bool ValueNumStore::FixedPointMapSelsTopHasValue(ValueNum map, ValueNum index)
 {
     if (m_fixedPointMapSels.Size() == 0) return false;
-    VNDefFunc2Arg top = m_fixedPointMapSels.Top();
+    VNDefFunc2Arg& top = m_fixedPointMapSels.TopRef();
     return top.m_func == VNF_MapSelect
         && top.m_arg0 == map
         && top.m_arg1 == index;
@@ -1824,13 +1906,13 @@ ValueNum ValueNumStore::EvalCastForConstantArgs(var_types typ, VNFunc func, Valu
                 case TYP_FLOAT:
                     assert(typ == TYP_FLOAT);
                      if (srcIsUnsigned)
-                         return VNForFloatCon(float(UINT64(arg0Val)));
+                         return VNForFloatCon(FloatingPointUtils::convertUInt64ToFloat(UINT64(arg0Val)));
                      else
                          return VNForFloatCon(float(arg0Val));
                 case TYP_DOUBLE:
                     assert(typ == TYP_DOUBLE);
                      if (srcIsUnsigned)
-                         return VNForDoubleCon(double(UINT64(arg0Val)));
+                         return VNForDoubleCon(FloatingPointUtils::convertUInt64ToDouble(UINT64(arg0Val)));
                      else
                          return VNForDoubleCon(double(arg0Val));
                 default:
@@ -2940,20 +3022,24 @@ ValueNum ValueNumStore::GetArrForLenVn(ValueNum vn)
     return NoVN;
 }
 
-bool ValueNumStore::IsVNNewArr(ValueNum vn)
+bool ValueNumStore::IsVNNewArr(ValueNum vn, VNFuncApp* funcApp)
 {
     if (vn == NoVN) return false;
-    VNFuncApp funcAttr;
-    return (GetVNFunc(vn, &funcAttr) && funcAttr.m_func == VNF_JitNewArr);
+    bool result = false;
+    if (GetVNFunc(vn, funcApp))
+    {
+        result = (funcApp->m_func == VNF_JitNewArr) ||
+                 (funcApp->m_func == VNF_JitReadyToRunNewArr);
+    }
+    return result;
 }
 
 int ValueNumStore::GetNewArrSize(ValueNum vn)
 {
-    if (vn == NoVN) return 0;
-    VNFuncApp funcAttr;
-    if (GetVNFunc(vn, &funcAttr) && funcAttr.m_func == VNF_JitNewArr)
+    VNFuncApp funcApp;
+    if (IsVNNewArr(vn, &funcApp))
     {
-        ValueNum arg1VN = funcAttr.m_args[1];
+        ValueNum arg1VN = funcApp.m_args[1];
         if (IsVNConstant(arg1VN) && TypeOfVN(arg1VN) == TYP_INT)
         {
             return ConstantValue<int>(arg1VN);
@@ -3931,8 +4017,9 @@ void Compiler::fgValueNumber()
             // We use the VNF_InitVal(i) from here so we know that this value is loop-invariant
             // in all loops.
             ValueNum initVal = vnStore->VNForFunc(varDsc->TypeGet(), VNF_InitVal, vnStore->VNForIntCon(i));
-            varDsc->GetPerSsaData(SsaConfig::FIRST_SSA_NUM)->m_vnPair.SetBoth(initVal);
-            varDsc->GetPerSsaData(SsaConfig::FIRST_SSA_NUM)->m_defLoc.m_blk = fgFirstBB;
+            LclSsaVarDsc* ssaDef = varDsc->GetPerSsaData(SsaConfig::FIRST_SSA_NUM);
+            ssaDef->m_vnPair.SetBoth(initVal);
+            ssaDef->m_defLoc.m_blk = fgFirstBB;
         }
         else if (info.compInitMem || varDsc->lvMustInit ||
                  (varDsc->lvTracked && VarSetOps::IsMember(this, fgFirstBB->bbLiveIn, varDsc->lvVarIndex)))
@@ -3989,8 +4076,9 @@ void Compiler::fgValueNumber()
 #endif
             assert(initVal != ValueNumStore::NoVN);
 
-            varDsc->GetPerSsaData(SsaConfig::FIRST_SSA_NUM)->m_vnPair.SetBoth(initVal);
-            varDsc->GetPerSsaData(SsaConfig::FIRST_SSA_NUM)->m_defLoc.m_blk = fgFirstBB;
+            LclSsaVarDsc* ssaDef = varDsc->GetPerSsaData(SsaConfig::FIRST_SSA_NUM);
+            ssaDef->m_vnPair.SetBoth(initVal);
+            ssaDef->m_defLoc.m_blk = fgFirstBB;
         }
     }
     // Give "Heap" an initial value number (about which we know nothing).
@@ -4208,8 +4296,11 @@ void Compiler::fgValueNumberBlock(BasicBlock* blk, bool newVNsForPhis)
 #ifdef DEBUG
                 ValueNum oldPhiAppVN = phiAppVN;
 #endif
-                phiAppVN = vnStore->VNForFunc(TYP_REF, VNF_Phi, vnStore->VNForIntCon(phiArgs->GetSsaNum()), phiAppVN);
-                JITDUMP("  Building phi application: $%x = phi(%d, $%x).\n", phiAppVN, phiArgs->GetSsaNum(), oldPhiAppVN);
+                unsigned phiArgSSANum = phiArgs->GetSsaNum();
+                ValueNum phiArgSSANumVN = vnStore->VNForIntCon(phiArgSSANum);
+                JITDUMP("  Building phi application: $%x = SSA# %d.\n", phiArgSSANumVN, phiArgSSANum);
+                phiAppVN = vnStore->VNForFunc(TYP_REF, VNF_Phi, phiArgSSANumVN, phiAppVN);
+                JITDUMP("  Building phi application: $%x = phi($%x, $%x).\n", phiAppVN, phiArgSSANumVN, oldPhiAppVN);
                 phiArgs = phiArgs->m_nextArg;
             }
             if (allSame)
@@ -6298,123 +6389,173 @@ void Compiler::fgValueNumberHelperCallFunc(GenTreeCall* call, VNFunc vnf, ValueN
 {
     unsigned nArgs = ValueNumStore::VNFuncArity(vnf);
     assert(vnf != VNF_Boundary);
+    GenTreeArgList* args = call->gtCallArgs;
+    bool generateUniqueVN = false;
+    bool useEntryPointAddrAsArg0 = false;
+
     switch (vnf)
     {
     case VNF_JitNew:
         {
-            GenTreeArgList* args = call->gtCallArgs;
-            ValueNumPair vnp0; ValueNumPair vnp0x = ValueNumStore::VNPForEmptyExcSet();
-            vnStore->VNPUnpackExc(args->Current()->gtVNPair, &vnp0, &vnp0x);
-            // Generate unique VN so, VNForFunc generates a uniq value number for new.
-            ValueNumPair vnpUniq;
-            vnpUniq.SetBoth(vnStore->VNForExpr(call->TypeGet()));
-            call->gtVNPair = vnStore->VNPWithExc(vnStore->VNPairForFunc(call->TypeGet(), vnf, vnp0, vnpUniq), vnp0x);
+            generateUniqueVN = true;
+            vnpExc = ValueNumStore::VNPForEmptyExcSet();
         }
         break;
 
     case VNF_JitNewArr:
         {
-            GenTreeArgList* args = call->gtCallArgs;
-            ValueNumPair vnp0; ValueNumPair vnp0x = ValueNumStore::VNPForEmptyExcSet();
-            vnStore->VNPUnpackExc(args->Current()->gtVNPair, &vnp0, &vnp0x);
-            args = args->Rest();
-            ValueNumPair vnp1; ValueNumPair vnp1x = ValueNumStore::VNPForEmptyExcSet();
-            vnStore->VNPUnpackExc(args->Current()->gtVNPair, &vnp1, &vnp1x);
-
-            // Generate unique VN so, VNForFunc generates a uniq value number for new.
-            ValueNumPair vnpUniq;  vnpUniq.SetBoth(vnStore->VNForExpr(call->TypeGet()));
+            generateUniqueVN = true;
+            ValueNumPair vnp1 = vnStore->VNPNormVal(args->Rest()->Current()->gtVNPair);
 
             // The New Array helper may throw an overflow exception
             vnpExc = vnStore->VNPExcSetSingleton(vnStore->VNPairForFunc(TYP_REF, VNF_NewArrOverflowExc, vnp1));
-
-            // Also include in the argument exception sets
-            vnpExc = vnStore->VNPExcSetUnion(vnpExc, vnp0x);
-            vnpExc = vnStore->VNPExcSetUnion(vnpExc, vnp1x);
-
-            call->gtVNPair = vnStore->VNPWithExc(vnStore->VNPairForFunc(call->TypeGet(), vnf, vnp0, vnp1, vnpUniq), vnpExc);
         }
         break;
 
     case VNF_BoxNullable:
         {
-            GenTreeArgList* args = call->gtCallArgs;
-            ValueNumPair vnp0; ValueNumPair vnp0x = ValueNumStore::VNPForEmptyExcSet();
-            vnStore->VNPUnpackExc(args->Current()->gtVNPair, &vnp0, &vnp0x);
-            args = args->Rest();
-            ValueNumPair vnp1; ValueNumPair vnp1x = ValueNumStore::VNPForEmptyExcSet();
-            vnStore->VNPUnpackExc(args->Current()->gtVNPair, &vnp1, &vnp1x);
-
             // Generate unique VN so, VNForFunc generates a uniq value number for box nullable.
-            ValueNumPair vnpUniq;  
-            vnpUniq.SetBoth(vnStore->VNForExpr(call->TypeGet()));
-
             // Alternatively instead of using vnpUniq below in VNPairForFunc(...), 
             // we could use the value number of what the byref arg0 points to.
             // 
             // But retrieving the value number of what the byref arg0 points to is quite a bit more work
             // and doing so only very rarely allows for an additional optimization.
+            generateUniqueVN = true;
+        }
+        break;
 
-            // Also include in the argument exception sets
-            vnpExc = vnStore->VNPExcSetUnion(vnpExc, vnp0x);
-            vnpExc = vnStore->VNPExcSetUnion(vnpExc, vnp1x);
+    case VNF_JitReadyToRunNew:
+        {
+            generateUniqueVN = true;
+            vnpExc = ValueNumStore::VNPForEmptyExcSet();
+            useEntryPointAddrAsArg0 = true;
+        }
+        break;
 
-            call->gtVNPair = vnStore->VNPWithExc(vnStore->VNPairForFunc(call->TypeGet(), vnf, vnp0, vnp1, vnpUniq), vnpExc);
+    case VNF_JitReadyToRunNewArr:
+        {
+            generateUniqueVN = true;
+            ValueNumPair vnp1 = vnStore->VNPNormVal(args->Current()->gtVNPair);
+
+            // The New Array helper may throw an overflow exception
+            vnpExc = vnStore->VNPExcSetSingleton(vnStore->VNPairForFunc(TYP_REF, VNF_NewArrOverflowExc, vnp1));
+            useEntryPointAddrAsArg0 = true;
+        }
+        break;
+
+    case VNF_ReadyToRunStaticBase:
+    case VNF_ReadyToRunIsInstanceOf:
+    case VNF_ReadyToRunCastClass:
+        {
+            useEntryPointAddrAsArg0 = true;
         }
         break;
 
     default:
-        GenTreeArgList* args = call->gtCallArgs;
-        assert(s_helperCallProperties.IsPure(eeGetHelperNum(call->gtCallMethHnd)));
-
-        if (nArgs == 0)
         {
-            call->gtVNPair.SetBoth(vnStore->VNForFunc(call->TypeGet(), vnf));
+            assert(s_helperCallProperties.IsPure(eeGetHelperNum(call->gtCallMethHnd)));
+        }
+        break;
+    }
+
+    if (generateUniqueVN)
+    {
+        nArgs--;
+    }
+
+    ValueNumPair vnpUniq;
+    if (generateUniqueVN)
+    {
+        // Generate unique VN so, VNForFunc generates a unique value number.
+        vnpUniq.SetBoth(vnStore->VNForExpr(call->TypeGet()));
+    }
+
+    if (nArgs == 0)
+    {
+        if (generateUniqueVN)
+        {
+            call->gtVNPair = vnStore->VNPairForFunc(call->TypeGet(), vnf, vnpUniq);
         }
         else
         {
-            // Has at least one argument.
+            call->gtVNPair.SetBoth(vnStore->VNForFunc(call->TypeGet(), vnf));
+        }
+    }
+    else
+    {
+        // Has at least one argument.
+        ValueNumPair vnp0; ValueNumPair vnp0x = ValueNumStore::VNPForEmptyExcSet();
+#ifdef FEATURE_READYTORUN_COMPILER
+        if (useEntryPointAddrAsArg0)
+        {
+            ValueNum callAddrVN = vnStore->VNForPtrSizeIntCon((ssize_t)call->gtCall.gtEntryPoint.addr);
+            vnp0 = ValueNumPair(callAddrVN, callAddrVN);
+        }
+        else
+#endif
+        {
+            assert(!useEntryPointAddrAsArg0);
             ValueNumPair vnp0wx = args->Current()->gtVNPair;
-            ValueNumPair vnp0; ValueNumPair vnp0x = ValueNumStore::VNPForEmptyExcSet();
             vnStore->VNPUnpackExc(vnp0wx, &vnp0, &vnp0x);
 
             // Also include in the argument exception sets
             vnpExc = vnStore->VNPExcSetUnion(vnpExc, vnp0x);
 
             args = args->Rest();
-            if (nArgs == 1)
+        }
+        if (nArgs == 1)
+        {
+            if (generateUniqueVN)
             {
-                call->gtVNPair = vnStore->VNPairForFunc(call->TypeGet(), vnf, vnp0);
+                call->gtVNPair = vnStore->VNPairForFunc(call->TypeGet(), vnf, vnp0, vnpUniq);
             }
             else
             {
-                // Has at least two arguments.
-                ValueNumPair vnp1wx = args->Current()->gtVNPair;
-                ValueNumPair vnp1; ValueNumPair vnp1x = ValueNumStore::VNPForEmptyExcSet();
-                vnStore->VNPUnpackExc(vnp1wx, &vnp1, &vnp1x);
-                vnpExc = vnStore->VNPExcSetUnion(vnpExc, vnp1x);
+                call->gtVNPair = vnStore->VNPairForFunc(call->TypeGet(), vnf, vnp0);
+            }
+        }
+        else
+        {
+            // Has at least two arguments.
+            ValueNumPair vnp1wx = args->Current()->gtVNPair;
+            ValueNumPair vnp1; ValueNumPair vnp1x = ValueNumStore::VNPForEmptyExcSet();
+            vnStore->VNPUnpackExc(vnp1wx, &vnp1, &vnp1x);
+            vnpExc = vnStore->VNPExcSetUnion(vnpExc, vnp1x);
 
-                args = args->Rest();
-                if (nArgs == 2)
+            args = args->Rest();
+            if (nArgs == 2)
+            {
+                if (generateUniqueVN)
                 {
-                    call->gtVNPair = vnStore->VNPairForFunc(call->TypeGet(), vnf, vnp0, vnp1);
+                    call->gtVNPair = vnStore->VNPairForFunc(call->TypeGet(), vnf, vnp0, vnp1, vnpUniq);
                 }
                 else
                 {
-                    ValueNumPair vnp2wx = args->Current()->gtVNPair;
-                    ValueNumPair vnp2; ValueNumPair vnp2x = ValueNumStore::VNPForEmptyExcSet();
-                    vnStore->VNPUnpackExc(vnp2wx, &vnp2, &vnp2x);
-                    vnpExc = vnStore->VNPExcSetUnion(vnpExc, vnp2x);
+                    call->gtVNPair = vnStore->VNPairForFunc(call->TypeGet(), vnf, vnp0, vnp1);
+                }
+            }
+            else
+            {
+                ValueNumPair vnp2wx = args->Current()->gtVNPair;
+                ValueNumPair vnp2; ValueNumPair vnp2x = ValueNumStore::VNPForEmptyExcSet();
+                vnStore->VNPUnpackExc(vnp2wx, &vnp2, &vnp2x);
+                vnpExc = vnStore->VNPExcSetUnion(vnpExc, vnp2x);
 
-                    args = args->Rest();
-                    assert(nArgs == 3);  // Our current maximum.
-                    assert(args == NULL);
+                args = args->Rest();
+                assert(nArgs == 3);  // Our current maximum.
+                assert(args == NULL);
+                if (generateUniqueVN)
+                {
+                    call->gtVNPair = vnStore->VNPairForFunc(call->TypeGet(), vnf, vnp0, vnp1, vnp2, vnpUniq);
+                }
+                else
+                {
                     call->gtVNPair = vnStore->VNPairForFunc(call->TypeGet(), vnf, vnp0, vnp1, vnp2);
                 }
             }
-            // Add the accumulated exceptions.
-            call->gtVNPair = vnStore->VNPWithExc(call->gtVNPair, vnpExc);
         }
-        break;
+        // Add the accumulated exceptions.
+        call->gtVNPair = vnStore->VNPWithExc(call->gtVNPair, vnpExc);
     }
 }
 
@@ -6570,11 +6711,19 @@ VNFunc Compiler::fgValueNumberHelperMethVNFunc(CorInfoHelpFunc helpFunc)
         vnf = VNF_JitNew;
         break;
 
+    case CORINFO_HELP_READYTORUN_NEW:
+        vnf = VNF_JitReadyToRunNew;
+        break;
+
     case CORINFO_HELP_NEWARR_1_DIRECT:
     case CORINFO_HELP_NEWARR_1_OBJ:
     case CORINFO_HELP_NEWARR_1_VC:
     case CORINFO_HELP_NEWARR_1_ALIGN8:
         vnf = VNF_JitNewArr;
+        break;
+
+    case CORINFO_HELP_READYTORUN_NEWARR_1:
+        vnf = VNF_JitReadyToRunNewArr;
         break;
 
     case CORINFO_HELP_GETGENERICS_GCSTATIC_BASE:
@@ -6589,6 +6738,8 @@ VNFunc Compiler::fgValueNumberHelperMethVNFunc(CorInfoHelpFunc helpFunc)
         vnf = VNF_GetsharedGcstaticBaseNoctor; break;
     case CORINFO_HELP_GETSHARED_NONGCSTATIC_BASE_NOCTOR:
         vnf = VNF_GetsharedNongcstaticBaseNoctor; break;
+    case CORINFO_HELP_READYTORUN_STATIC_BASE:
+        vnf = VNF_ReadyToRunStaticBase; break;
     case CORINFO_HELP_GETSHARED_GCSTATIC_BASE_DYNAMICCLASS:
         vnf = VNF_GetsharedGcstaticBaseDynamicclass; break;
     case CORINFO_HELP_GETSHARED_NONGCSTATIC_BASE_DYNAMICCLASS:
@@ -6633,11 +6784,18 @@ VNFunc Compiler::fgValueNumberHelperMethVNFunc(CorInfoHelpFunc helpFunc)
     case CORINFO_HELP_CHKCASTINTERFACE:
     case CORINFO_HELP_CHKCASTANY:
         vnf = VNF_CastClass; break;
+
+    case CORINFO_HELP_READYTORUN_CHKCAST:
+        vnf = VNF_ReadyToRunCastClass; break;
+
     case CORINFO_HELP_ISINSTANCEOFCLASS:
     case CORINFO_HELP_ISINSTANCEOFINTERFACE:
     case CORINFO_HELP_ISINSTANCEOFARRAY:
     case CORINFO_HELP_ISINSTANCEOFANY:
         vnf = VNF_IsInstanceOf; break;
+
+    case CORINFO_HELP_READYTORUN_ISINSTANCEOF:
+        vnf = VNF_ReadyToRunIsInstanceOf; break;
 
     case CORINFO_HELP_LDELEMA_REF:
         vnf = VNF_LdElemA; break;

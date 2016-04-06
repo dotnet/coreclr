@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ============================================================
 //
 // CoreAssemblySpec.cpp
@@ -342,13 +341,13 @@ HRESULT BaseAssemblySpec::ParseName()
 
         if (pIUnknownBinder != NULL)
         {
-#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(MDILNIGEN)
+#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
             if (pDomain->GetFusionContext() != pDomain->GetTPABinderContext())
             {
                 pAppContext = (static_cast<CLRPrivBinderAssemblyLoadContext *>(pIUnknownBinder))->GetAppContext();
             }
             else
-#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(MDILNIGEN)
+#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
             {
                 pAppContext = (static_cast<CLRPrivBinderCoreCLR *>(pIUnknownBinder))->GetAppContext();
             }

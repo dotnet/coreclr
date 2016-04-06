@@ -12,27 +12,29 @@ if(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
 elseif(CMAKE_SYSTEM_NAME STREQUAL SunOS)
   set(CMAKE_REQUIRED_INCLUDES /opt/local/include)
 endif()
-if(NOT CMAKE_SYSTEM_NAME STREQUAL Darwin AND NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
+if(NOT CMAKE_SYSTEM_NAME STREQUAL Darwin AND NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD AND NOT CMAKE_SYSTEM_NAME STREQUAL NetBSD)
   set(CMAKE_REQUIRED_DEFINITIONS "-D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L")
 endif()
 
 list(APPEND CMAKE_REQUIRED_DEFINITIONS -D_FILE_OFFSET_BITS=64)
 
 check_include_files(ieeefp.h HAVE_IEEEFP_H)
-check_include_files(alloca.h HAVE_ALLOCA_H)
 check_include_files(sys/vmparam.h HAVE_SYS_VMPARAM_H)
 check_include_files(mach/vm_types.h HAVE_MACH_VM_TYPES_H)
 check_include_files(mach/vm_param.h HAVE_MACH_VM_PARAM_H)
+check_include_files("sys/param.h;sys/types.h;machine/npx.h" HAVE_MACHINE_NPX_H)
+check_include_files("sys/param.h;sys/cdefs.h;machine/reg.h" HAVE_MACHINE_REG_H)
+check_include_files(machine/vmparam.h HAVE_MACHINE_VMPARAM_H)
 check_include_files(procfs.h HAVE_PROCFS_H)
 check_include_files(crt_externs.h HAVE_CRT_EXTERNS_H)
 check_include_files(sys/time.h HAVE_SYS_TIME_H)
 check_include_files(pthread_np.h HAVE_PTHREAD_NP_H)
 check_include_files(sys/lwp.h HAVE_SYS_LWP_H)
+check_include_files(lwp.h HAVE_LWP_H)
 check_include_files(libunwind.h HAVE_LIBUNWIND_H)
 check_include_files(runetype.h HAVE_RUNETYPE_H)
 check_include_files(lttng/tracepoint.h HAVE_LTTNG_TRACEPOINT_H)
 check_include_files(uuid/uuid.h HAVE_LIBUUID_H)
-check_include_files(uuid.h HAVE_BSD_UUID_H)
 
 check_function_exists(kqueue HAVE_KQUEUE)
 check_function_exists(getpwuid_r HAVE_GETPWUID_R)
@@ -43,10 +45,13 @@ check_library_exists(pthread pthread_continue_np "" HAVE_PTHREAD_CONTINUE_NP)
 check_library_exists(pthread pthread_resume_np "" HAVE_PTHREAD_RESUME_NP)
 check_library_exists(pthread pthread_attr_get_np "" HAVE_PTHREAD_ATTR_GET_NP)
 check_library_exists(pthread pthread_getattr_np "" HAVE_PTHREAD_GETATTR_NP)
+check_library_exists(pthread pthread_getcpuclockid "" HAVE_PTHREAD_GETCPUCLOCKID)
 check_library_exists(pthread pthread_sigqueue "" HAVE_PTHREAD_SIGQUEUE)
 check_function_exists(sigreturn HAVE_SIGRETURN)
 check_function_exists(_thread_sys_sigreturn HAVE__THREAD_SYS_SIGRETURN)
+set(CMAKE_REQUIRED_LIBRARIES m)
 check_function_exists(copysign HAVE_COPYSIGN)
+set(CMAKE_REQUIRED_LIBRARIES)
 check_function_exists(fsync HAVE_FSYNC)
 check_function_exists(futimes HAVE_FUTIMES)
 check_function_exists(utimes HAVE_UTIMES)
@@ -68,11 +73,34 @@ check_function_exists(directio HAVE_DIRECTIO)
 check_function_exists(semget HAS_SYSV_SEMAPHORES)
 check_function_exists(pthread_mutex_init HAS_PTHREAD_MUTEXES)
 check_function_exists(ttrace HAVE_TTRACE)
+set(CMAKE_REQUIRED_LIBRARIES unwind unwind-generic)
+check_cxx_source_compiles("
+#include <libunwind.h>
+
+int main(int argc, char **argv) {
+  unw_cursor_t cursor;
+  unw_save_loc_t saveLoc;
+  int reg = UNW_REG_IP;
+  unw_get_save_loc(&cursor, reg, &saveLoc);
+
+  return 0;
+}" HAVE_UNW_GET_SAVE_LOC)
+check_cxx_source_compiles("
+#include <libunwind.h>
+
+int main(int argc, char **argv) {
+  unw_addr_space_t as;
+  unw_get_accessors(as);
+
+  return 0;
+}" HAVE_UNW_GET_ACCESSORS)
+set(CMAKE_REQUIRED_LIBRARIES)
 
 check_struct_has_member ("struct stat" st_atimespec "sys/types.h;sys/stat.h" HAVE_STAT_TIMESPEC)
 check_struct_has_member ("struct stat" st_atimensec "sys/types.h;sys/stat.h" HAVE_STAT_NSEC)
 check_struct_has_member ("struct tm" tm_gmtoff time.h HAVE_TM_GMTOFF)
 check_struct_has_member ("ucontext_t" uc_mcontext.gregs[0] ucontext.h HAVE_GREGSET_T)
+check_struct_has_member ("ucontext_t" uc_mcontext.__gregs[0] ucontext.h HAVE___GREGSET_T)
 
 set(CMAKE_EXTRA_INCLUDE_FILES machine/reg.h)
 check_type_size("struct reg" BSD_REGS_T)
@@ -96,10 +124,20 @@ check_type_size(off_t SIZEOF_OFF_T)
 
 check_cxx_symbol_exists(SYS_yield sys/syscall.h HAVE_YIELD_SYSCALL)
 check_cxx_symbol_exists(INFTIM poll.h HAVE_INFTIM)
-check_cxx_symbol_exists(CHAR_BIT sys/limits.h HAVE_CHAR_BIT)
+check_cxx_symbol_exists(CHAR_BIT limits.h HAVE_CHAR_BIT)
 check_cxx_symbol_exists(_DEBUG sys/user.h USER_H_DEFINES_DEBUG)
 check_cxx_symbol_exists(_SC_PHYS_PAGES unistd.h HAVE__SC_PHYS_PAGES)
 check_cxx_symbol_exists(_SC_AVPHYS_PAGES unistd.h HAVE__SC_AVPHYS_PAGES)
+
+check_cxx_source_runs("
+#include <uuid.h>
+
+int main(void) {
+  uuid_t uuid;
+  uint32_t status;
+  uuid_create(&uuid, &status);
+  return 0;
+}" HAVE_BSD_UUID_H)
 
 check_cxx_source_runs("
 #include <sys/param.h>
@@ -914,10 +952,9 @@ if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
   set(PAL_PT_DETACH PT_DETACH)
   set(PAL_PT_READ_D PT_READ_D)
   set(PAL_PT_WRITE_D PT_WRITE_D)
-  set(JA_JP_LOCALE_NAME ja_JP.SJIS)
-  set(KO_KR_LOCALE_NAME ko_KR.eucKR)
-  set(ZH_TW_LOCALE_NAME zh_TG.BIG5)
   set(HAS_FTRUNCATE_LENGTH_ISSUE 1)
+  set(HAVE_SCHED_OTHER_ASSIGNABLE 1)
+
 elseif(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
   if(NOT HAVE_LIBUNWIND_H)
     unset(HAVE_LIBUNWIND_H CACHE)
@@ -933,17 +970,35 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
   set(PAL_PT_DETACH PT_DETACH)
   set(PAL_PT_READ_D PT_READ_D)
   set(PAL_PT_WRITE_D PT_WRITE_D)
-  set(JA_JP_LOCALE_NAME ja_JP_LOCALE_NOT_FOUND)
-  set(KO_KR_LOCALE_NAME ko_KR_LOCALE_NOT_FOUND)
-  set(ZH_TW_LOCALE_NAME zh_TW_LOCALE_NOT_FOUND)
   set(HAS_FTRUNCATE_LENGTH_ISSUE 0)
+  set(BSD_REGS_STYLE "((reg).r_##rr)")
+  set(HAVE_SCHED_OTHER_ASSIGNABLE 1)
 
   if(EXISTS "/lib/libc.so.7")
     set(FREEBSD_LIBC "/lib/libc.so.7")
   else()
     message(FATAL_ERROR "Cannot find libc on this system.")
   endif()
-  
+
+elseif(CMAKE_SYSTEM_NAME STREQUAL NetBSD)
+  if(NOT HAVE_LIBUNWIND_H)
+    unset(HAVE_LIBUNWIND_H CACHE)
+    message(FATAL_ERROR "Cannot find libunwind. Try installing libunwind8 and libunwind8-dev (or the appropriate packages for your platform)")
+  endif()
+  if(NOT HAVE_BSD_UUID_H)
+    unset(HAVE_BSD_UUID_H CACHE)
+    message(FATAL_ERROR "Cannot find uuid.h")
+  endif()
+  set(DEADLOCK_WHEN_THREAD_IS_SUSPENDED_WHILE_BLOCKED_ON_MUTEX 0)
+  set(PAL_PTRACE "ptrace((cmd), (pid), (void*)(addr), (data))")
+  set(PAL_PT_ATTACH PT_ATTACH)
+  set(PAL_PT_DETACH PT_DETACH)
+  set(PAL_PT_READ_D PT_READ_D)
+  set(PAL_PT_WRITE_D PT_WRITE_D)
+  set(HAS_FTRUNCATE_LENGTH_ISSUE 0)
+  set(BSD_REGS_STYLE "((reg).regs[_REG_##RR])")
+  set(HAVE_SCHED_OTHER_ASSIGNABLE 0)
+
 elseif(CMAKE_SYSTEM_NAME STREQUAL SunOS)
   if(NOT HAVE_LIBUNWIND_H)
     unset(HAVE_LIBUNWIND_H CACHE)
@@ -959,16 +1014,13 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL SunOS)
   set(PAL_PT_DETACH PT_DETACH)
   set(PAL_PT_READ_D PT_READ_D)
   set(PAL_PT_WRITE_D PT_WRITE_D)
-  set(JA_JP_LOCALE_NAME ja_JP_LOCALE_NOT_FOUND)
-  set(KO_KR_LOCALE_NAME ko_KR_LOCALE_NOT_FOUND)
-  set(ZH_TW_LOCALE_NAME zh_TW_LOCALE_NOT_FOUND)
   set(HAS_FTRUNCATE_LENGTH_ISSUE 0)
 else() # Anything else is Linux
   if(NOT HAVE_LIBUNWIND_H)
     unset(HAVE_LIBUNWIND_H CACHE)
     message(FATAL_ERROR "Cannot find libunwind. Try installing libunwind8 and libunwind8-dev (or the appropriate packages for your platform)")
   endif()
-  if(NOT HAVE_LTTNG_TRACEPOINT_H)
+  if(NOT HAVE_LTTNG_TRACEPOINT_H AND FEATURE_EVENT_TRACE)
     unset(HAVE_LTTNG_TRACEPOINT_H CACHE)
     message(FATAL_ERROR "Cannot find liblttng-ust-dev. Try installing liblttng-ust-dev  (or the appropriate packages for your platform)")
   endif()
@@ -982,11 +1034,8 @@ else() # Anything else is Linux
   set(PAL_PT_DETACH PTRACE_DETACH)
   set(PAL_PT_READ_D PTRACE_PEEKDATA)
   set(PAL_PT_WRITE_D PTRACE_POKEDATA)
-  set(JA_JP_LOCALE_NAME ja_JP_LOCALE_NOT_FOUND)
-  set(KO_KR_LOCALE_NAME ko_KR_LOCALE_NOT_FOUND)
-  set(ZH_TW_LOCALE_NAME zh_TW_LOCALE_NOT_FOUND)
   set(HAS_FTRUNCATE_LENGTH_ISSUE 0)
+  set(HAVE_SCHED_OTHER_ASSIGNABLE 1)
 endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.in ${CMAKE_CURRENT_BINARY_DIR}/config.h)
-

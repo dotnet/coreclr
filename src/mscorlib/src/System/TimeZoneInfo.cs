@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -1174,7 +1175,9 @@ namespace System {
             m_displayName = c_localId;
             m_baseUtcOffset = TimeSpan.Zero;
          
-            // find the best matching baseUtcOffset and display strings based on the current utcNow value
+            // find the best matching baseUtcOffset and display strings based on the current utcNow value.
+            // NOTE: read the display strings from the the tzfile now in case they can't be loaded later
+            // from the globalization data.
             DateTime utcNow = DateTime.UtcNow;
             for (int i = 0; i < dts.Length && dts[i] <= utcNow; i++) {
                 int type = typeOfLocalTime[i];
@@ -1202,6 +1205,10 @@ namespace System {
             }
             m_displayName = m_standardDisplayName;
 
+            GetDisplayName(Interop.GlobalizationInterop.TimeZoneDisplayNameType.Generic, ref m_displayName);
+            GetDisplayName(Interop.GlobalizationInterop.TimeZoneDisplayNameType.Standard, ref m_standardDisplayName);
+            GetDisplayName(Interop.GlobalizationInterop.TimeZoneDisplayNameType.DaylightSavings, ref m_daylightDisplayName);
+
             // TZif supports seconds-level granularity with offsets but TimeZoneInfo only supports minutes since it aligns
             // with DateTimeOffset, SQL Server, and the W3C XML Specification
             if (m_baseUtcOffset.Ticks % TimeSpan.TicksPerMinute != 0) {
@@ -1215,6 +1222,30 @@ namespace System {
 
             ValidateTimeZoneInfo(m_id, m_baseUtcOffset, m_adjustmentRules, out m_supportsDaylightSavingTime);
         }
+
+        private void GetDisplayName(Interop.GlobalizationInterop.TimeZoneDisplayNameType nameType, ref string displayName)
+        {
+            string timeZoneDisplayName;
+            bool result = Interop.CallStringMethod(
+                (locale, id, type, stringBuilder) => Interop.GlobalizationInterop.GetTimeZoneDisplayName(
+                    locale,
+                    id,
+                    type,
+                    stringBuilder,
+                    stringBuilder.Capacity),
+                CultureInfo.CurrentUICulture.Name,
+                m_id,
+                nameType,
+                out timeZoneDisplayName);
+
+            // If there is an unknown error, don't set the displayName field.
+            // It will be set to the abbreviation that was read out of the tzfile.
+            if (result)
+            {
+                displayName = timeZoneDisplayName;
+            }
+        }
+
 #endif // PLATFORM_UNIX
 
         private TimeZoneInfo(
@@ -3471,33 +3502,58 @@ namespace System {
             // fall back to reading from the local machine 
             // when the cache is not fully populated               
             if (!cachedData.m_allSystemTimeZonesRead) {
-#if FEATURE_WIN32_REGISTRY
-                result = TryGetTimeZoneByRegistryKey(id, out match, out e);
-#elif PLATFORM_UNIX
-                result = TryGetTimeZoneByFile(id, out match, out e);
-#endif // FEATURE_WIN32_REGISTRY
-
-                if (result == TimeZoneInfoResult.Success) {
-                    if (cachedData.m_systemTimeZones == null)
-                        cachedData.m_systemTimeZones = new Dictionary<string, TimeZoneInfo>();
-
-                    cachedData.m_systemTimeZones.Add(id, match);
-
-                    if (dstDisabled && match.m_supportsDaylightSavingTime) {
-                        // we found a cache hit but we want a time zone without DST and this one has DST data
-                        value = CreateCustomTimeZone(match.m_id, match.m_baseUtcOffset, match.m_displayName, match.m_standardDisplayName);
-                    }
-                    else {
-                        value = new TimeZoneInfo(match.m_id, match.m_baseUtcOffset, match.m_displayName, match.m_standardDisplayName,
-                                              match.m_daylightDisplayName, match.m_adjustmentRules, false);
-                    }
-                }
-                else {
-                    value = null;
-                }
+                result = TryGetTimeZoneFromLocalMachine(id, dstDisabled, out value, out e, cachedData);
             }
+#if PLATFORM_UNIX
+            // On UNIX, there may be some tzfiles that aren't in the zones.tab file, and thus aren't returned from GetSystemTimeZones().
+            // If a caller asks for one of these zones before calling GetSystemTimeZones(), the time zone is returned successfully. But if
+            // GetSystemTimeZones() is called first, FindSystemTimeZoneById will throw TimeZoneNotFoundException, which is inconsistent.
+            // To fix this, even if m_allSystemTimeZonesRead is true, try reading the tzfile from disk, but don't add the time zone to the
+            // list returned from GetSystemTimeZones(). These time zones will only be available if asked for directly.
+            else {
+                result = TryGetTimeZoneFromLocalMachine(id, dstDisabled, out value, out e, cachedData);
+            }
+#else
             else {
                 result = TimeZoneInfoResult.TimeZoneNotFoundException;
+                value = null;
+            }
+#endif // PLATFORM_UNIX
+
+            return result;
+        }
+
+        private static TimeZoneInfoResult TryGetTimeZoneFromLocalMachine(string id, bool dstDisabled, out TimeZoneInfo value, out Exception e, CachedData cachedData)
+        {
+            TimeZoneInfoResult result;
+            TimeZoneInfo match;
+
+#if FEATURE_WIN32_REGISTRY
+            result = TryGetTimeZoneByRegistryKey(id, out match, out e);
+#elif PLATFORM_UNIX
+            result = TryGetTimeZoneByFile(id, out match, out e);
+#endif // FEATURE_WIN32_REGISTRY
+
+            if (result == TimeZoneInfoResult.Success)
+            {
+                if (cachedData.m_systemTimeZones == null)
+                    cachedData.m_systemTimeZones = new Dictionary<string, TimeZoneInfo>();
+
+                cachedData.m_systemTimeZones.Add(id, match);
+
+                if (dstDisabled && match.m_supportsDaylightSavingTime)
+                {
+                    // we found a cache hit but we want a time zone without DST and this one has DST data
+                    value = CreateCustomTimeZone(match.m_id, match.m_baseUtcOffset, match.m_displayName, match.m_standardDisplayName);
+                }
+                else
+                {
+                    value = new TimeZoneInfo(match.m_id, match.m_baseUtcOffset, match.m_displayName, match.m_standardDisplayName,
+                                          match.m_daylightDisplayName, match.m_adjustmentRules, false);
+                }
+            }
+            else
+            {
                 value = null;
             }
 

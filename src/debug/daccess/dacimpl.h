@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // File: dacimpl.h
 // 
@@ -858,7 +857,8 @@ class ClrDataAccess
       public ICLRDataEnumMemoryRegions,
       public ISOSDacInterface,
       public ISOSDacInterface2,
-      public ISOSDacInterface3
+      public ISOSDacInterface3,
+      public ISOSDacInterface4
 {
 public:
     ClrDataAccess(ICorDebugDataTarget * pTarget, ICLRDataTarget * pLegacyTarget=0);
@@ -1197,6 +1197,9 @@ public:
     virtual HRESULT STDMETHODCALLTYPE GetGCInterestingInfoData(CLRDATA_ADDRESS interestingInfoAddr, struct DacpGCInterestingInfoData *data);
     virtual HRESULT STDMETHODCALLTYPE GetGCInterestingInfoStaticData(struct DacpGCInterestingInfoData *data);
     virtual HRESULT STDMETHODCALLTYPE GetGCGlobalMechanisms(size_t* globalMechanisms);
+
+    // ISOSDacInterface4
+    virtual HRESULT STDMETHODCALLTYPE GetClrNotification(CLRDATA_ADDRESS arguments[], int count, int *pNeeded);
 
     //
     // ClrDataAccess.

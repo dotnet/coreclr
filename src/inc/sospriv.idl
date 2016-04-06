@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 /*****************************************************************************
  **                                                                         **
  ** sospriv.idl - The private interface that SOS uses to query the runtime  **
@@ -347,4 +346,14 @@ interface ISOSDacInterface3 : IUnknown
     HRESULT GetGCInterestingInfoData(CLRDATA_ADDRESS interestingInfoAddr, struct DacpGCInterestingInfoData *data);
     HRESULT GetGCInterestingInfoStaticData(struct DacpGCInterestingInfoData *data);
     HRESULT GetGCGlobalMechanisms(size_t* globalMechanisms);
+};
+
+[
+    object,
+    local,
+    uuid(74B9D34C-A612-4B07-93DD-5462178FCE11)
+]
+interface ISOSDacInterface4 : IUnknown
+{
+    HRESULT GetClrNotification(CLRDATA_ADDRESS arguments[], int count, int *pNeeded);
 };

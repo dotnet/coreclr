@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -30,10 +29,6 @@ Abstract:
 #include "pal/malloc.hpp"
 #include "signal.hpp"
 
-#if HAVE_ALLOCA_H
-#include "alloca.h"
-#endif
-
 #if HAVE_MACH_EXCEPTIONS
 #include "machexception.h"
 #else
@@ -57,6 +52,7 @@ const UINT RESERVED_SEH_BIT = 0x800000;
 /* Internal variables definitions **********************************************/
 
 PHARDWARE_EXCEPTION_HANDLER g_hardwareExceptionHandler = NULL;
+PGET_GCMARKER_EXCEPTION_CODE g_getGcMarkerExceptionCode = NULL;
 
 /* Internal function definitions **********************************************/
 
@@ -135,6 +131,26 @@ PAL_SetHardwareExceptionHandler(
 
 /*++
 Function:
+    PAL_SetGetGcMarkerExceptionCode
+
+    Register a function that determines if the specified IP has code that is a GC marker for GCCover.
+
+Parameters:
+    getGcMarkerExceptionCode - the function to register
+
+Return value:
+    None
+--*/
+VOID
+PALAPI 
+PAL_SetGetGcMarkerExceptionCode(
+    IN PGET_GCMARKER_EXCEPTION_CODE getGcMarkerExceptionCode)
+{
+    g_getGcMarkerExceptionCode = getGcMarkerExceptionCode;
+}
+
+/*++
+Function:
     SEHProcessException
 
     Build the PAL exception and sent it to any handler registered.
@@ -185,7 +201,7 @@ PAL_ERROR SEHEnable(CPalThread *pthrCurrent)
 {
 #if HAVE_MACH_EXCEPTIONS
     return pthrCurrent->EnableMachExceptions();
-#elif __LINUX__ || defined(__FreeBSD__)
+#elif __linux__ || defined(__FreeBSD__) || defined(__NetBSD__)
     // TODO: This needs to be implemented. Cannot put an ASSERT here
     // because it will make other parts of PAL fail.
     return NO_ERROR;
@@ -214,7 +230,7 @@ PAL_ERROR SEHDisable(CPalThread *pthrCurrent)
     return pthrCurrent->DisableMachExceptions();
     // TODO: This needs to be implemented. Cannot put an ASSERT here
     // because it will make other parts of PAL fail.
-#elif __LINUX__ || defined(__FreeBSD__)
+#elif __linux__ || defined(__FreeBSD__) || defined(__NetBSD__)
     return NO_ERROR;
 #else // HAVE_MACH_EXCEPTIONS
 #error not yet implemented

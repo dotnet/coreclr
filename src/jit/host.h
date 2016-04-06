@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*****************************************************************************/
 
@@ -33,6 +32,20 @@ int logf(const char*, ...);
 void gcDump_logf(const char* fmt, ...);
 
 void logf(unsigned level, const char* fmt, ...);
+
+#if defined(CROSSGEN_COMPILE) && !defined(PLATFORM_UNIX) && !defined(fprintf)
+// On Windows, CrossGen configures its stdout to allow Unicode output only.
+// The following wrapper allows fprintf to work with stdout.
+inline int fprintfCrossgen(FILE *stream, const char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    int ret = stream == stdout ? logf_stdout(fmt, args) : vfprintf(stream, fmt, args);
+    va_end(args);
+    return ret;
+}
+#define fprintf fprintfCrossgen
+#endif
 
 extern  "C" 
 void    __cdecl     assertAbort(const char *why, const char *file, unsigned line);

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // ZapImport.cpp
 //
@@ -482,13 +481,6 @@ public:
         return ZapNodeType_ExternalMethodThunk;
     }
 
-#if defined(TARGET_THUMB2) && defined(BINDER)
-    virtual BOOL IsThumb2Code()
-    {
-        return TRUE;
-    }
-#endif
-
     virtual void EncodeSignature(ZapImportTable * pTable, SigBuilder * pSigBuilder)
     {
         CORINFO_METHOD_HANDLE handle = (CORINFO_METHOD_HANDLE)GetHandle();
@@ -677,7 +669,7 @@ void ZapImportSectionSignatures::PlaceStubDispatchCell(ZapImport * pImport)
     {
         // Create the delay load helper
         ReadyToRunHelper helper = (ReadyToRunHelper)(READYTORUN_HELPER_DelayLoad_MethodCall | READYTORUN_HELPER_FLAG_VSD);
-        ZapNode * pDelayLoadHelper = m_pImage->GetImportTable()->GetPlacedIndirectHelperThunk(helper, (PVOID)m_dwIndex);
+        ZapNode * pDelayLoadHelper = m_pImage->GetImportTable()->GetPlacedIndirectHelperThunk(helper, (PVOID)(SIZE_T)m_dwIndex);
         pCell->SetDelayLoadHelper(pDelayLoadHelper);
     }
     else
@@ -778,7 +770,7 @@ void ZapImportSectionSignatures::PlaceExternalMethodCell(ZapImport * pImport)
     if (IsReadyToRunCompilation())
     {
         // Create the delay load helper
-        ZapNode * pDelayLoadHelper = m_pImage->GetImportTable()->GetPlacedIndirectHelperThunk(READYTORUN_HELPER_DelayLoad_MethodCall, (PVOID)m_dwIndex);
+        ZapNode * pDelayLoadHelper = m_pImage->GetImportTable()->GetPlacedIndirectHelperThunk(READYTORUN_HELPER_DelayLoad_MethodCall, (PVOID)(SIZE_T)m_dwIndex);
         pCell->SetDelayLoadHelper(pDelayLoadHelper);
     }
     else
@@ -810,13 +802,6 @@ public:
     {
         return ZapNodeType_VirtualMethodThunk;
     }
-
-#if defined(TARGET_THUMB2) && defined(BINDER)
-    virtual BOOL IsThumb2Code()
-    {
-        return TRUE;
-    }
-#endif
 
     virtual void EncodeSignature(ZapImportTable * pTable, SigBuilder * pSigBuilder)
     {
@@ -1777,7 +1762,7 @@ void ZapImportSectionSignatures::PlaceDynamicHelperCell(ZapImport * pImport)
     ReadyToRunHelper helperNum = GetDelayLoadHelperForDynamicHelper(
         (CORCOMPILE_FIXUP_BLOB_KIND)(pCell->GetKind() & ~CORINFO_HELP_READYTORUN_ATYPICAL_CALLSITE));
 
-    ZapNode * pDelayLoadHelper = m_pImage->GetImportTable()->GetPlacedIndirectHelperThunk(helperNum, (PVOID)m_dwIndex, 
+    ZapNode * pDelayLoadHelper = m_pImage->GetImportTable()->GetPlacedIndirectHelperThunk(helperNum, (PVOID)(SIZE_T)m_dwIndex, 
         (pCell->GetKind() & CORINFO_HELP_READYTORUN_ATYPICAL_CALLSITE) ? pCell : NULL);
 
     pCell->SetDelayLoadHelper(pDelayLoadHelper);
@@ -1901,6 +1886,7 @@ public:
     }
 };
 
+#ifdef _TARGET_ARM_
 static void MovRegImm(BYTE* p, int reg)
 {
     *(WORD *)(p + 0) = 0xF240;
@@ -1908,6 +1894,7 @@ static void MovRegImm(BYTE* p, int reg)
     *(WORD *)(p + 4) = 0xF2C0;
     *(WORD *)(p + 6) = (UINT16)(reg << 8);
 }
+#endif // _TARGET_ARM_
 
 DWORD ZapIndirectHelperThunk::SaveWorker(ZapWriter * pZapWriter)
 {
@@ -2118,7 +2105,7 @@ void ZapImportTable::PlaceIndirectHelperThunk(ZapNode * pImport)
 ZapNode * ZapImportTable::GetIndirectHelperThunk(ReadyToRunHelper helperNum, PVOID pArg)
 {
     ZapNode * pImport = GetImport<ZapIndirectHelperThunk, ZapNodeType_IndirectHelperThunk>((void *)helperNum, pArg);
-#if defined(_TARGET_ARM_) && !defined(BINDER)
+#if defined(_TARGET_ARM_)
     pImport = m_pImage->GetInnerPtr(pImport, THUMB_CODE);
 #endif
     return pImport;
@@ -2141,7 +2128,7 @@ ZapNode * ZapImportTable::GetPlacedIndirectHelperThunk(ReadyToRunHelper helperNu
     }
     if (!pImport->IsPlaced())
         PlaceIndirectHelperThunk(pImport);
-#if defined(_TARGET_ARM_) && !defined(BINDER)
+#if defined(_TARGET_ARM_)
     pImport = m_pImage->GetInnerPtr(pImport, THUMB_CODE);
 #endif
     return pImport;

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -557,7 +556,7 @@ private:
 
 // UnwindFragmentInfo: represents all the unwind information for a single fragment of a function or funclet.
 // A fragment is a section with a code size less than the maximum unwind code size: either 512K bytes, or
-// that specified by COMPLUS_JitSplitFunctionSize. In most cases, there will be exactly one fragment.
+// that specified by COMPlus_JitSplitFunctionSize. In most cases, there will be exactly one fragment.
 
 class UnwindFragmentInfo : public UnwindBase
 {

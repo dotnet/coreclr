@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ============================================================
 //
 // AssemblyBinder.cpp
@@ -52,16 +51,16 @@ BOOL IsCompilationProcess();
 extern BOOL RuntimeIsLegacyNetCF(DWORD adid);
 #endif
 
-#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(MDILNIGEN)
+#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 #include "clrprivbindercoreclr.h"
 #include "clrprivbinderassemblyloadcontext.h"
 // Helper function in the VM, invoked by the Binder, to invoke the host assembly resolver
-extern HRESULT RuntimeInvokeHostAssemblyResolver(CLRPrivBinderAssemblyLoadContext *pLoadContextToBindWithin, IAssemblyName *pIAssemblyName, ICLRPrivAssembly **ppLoadedAssembly);
+extern HRESULT RuntimeInvokeHostAssemblyResolver(INT_PTR pManagedAssemblyLoadContextToBindWithin, IAssemblyName *pIAssemblyName, ICLRPrivAssembly **ppLoadedAssembly);
 
 // Helper to check if we have a host assembly resolver set
 extern BOOL RuntimeCanUseAppPathAssemblyResolver(DWORD adid);
 
-#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(MDILNIGEN)
+#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
 namespace BINDER_SPACE
 {
@@ -174,9 +173,18 @@ namespace BINDER_SPACE
                                                           dwCCFullAssemblyPath,
                                                           pwzFullAssemblyPath,
                                                           NULL);
+                if (dwCCFullAssemblyPath > MAX_LONGPATH)
+                {
+                    fullAssemblyPath.CloseBuffer();
+                    pwzFullAssemblyPath = fullAssemblyPath.OpenUnicodeBuffer(dwCCFullAssemblyPath - 1);
+                    dwCCFullAssemblyPath = WszGetFullPathName(assemblyPath.GetUnicode(),
+                                                              dwCCFullAssemblyPath,
+                                                              pwzFullAssemblyPath,
+                                                              NULL);
+                }
                 fullAssemblyPath.CloseBuffer(dwCCFullAssemblyPath);
 
-                if ((dwCCFullAssemblyPath == 0) || (dwCCFullAssemblyPath > (MAX_LONGPATH + 1)))
+                if (dwCCFullAssemblyPath == 0)
                 {
                     hr = HRESULT_FROM_GetLastError();
                 }
@@ -1107,12 +1115,12 @@ namespace BINDER_SPACE
                 // Dynamic binds need to be always considered a failure for binding closures
                 IF_FAIL_GO(FUSION_E_APP_DOMAIN_LOCKED);
             }
-#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(MDILNIGEN)
+#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
             else if (IgnoreRefDefMatch(dwBindFlags))
             {
                 // Skip RefDef matching if we have been asked to.
             }
-#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(MDILNIGEN)            
+#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
             else
             {
                 // Can't give higher serciving than already bound
@@ -1436,13 +1444,13 @@ namespace BINDER_SPACE
 
             bool fUseAppPathsBasedResolver = !excludeAppPaths;
             
-#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(MDILNIGEN)           
+#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
             // If Host Assembly Resolver is specified, then we will use that as the override for the default resolution mechanism (that uses AppPath probing).
             if (fUseAppPathsBasedResolver && !RuntimeCanUseAppPathAssemblyResolver(pApplicationContext->GetAppDomainId()))
             {
                 fUseAppPathsBasedResolver = false;
             }
-#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(MDILNIGEN)
+#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
              
             // This loop executes twice max.  First time through we probe AppNiPaths, the second time we probe AppPaths
             bool parseNiPaths = true;
@@ -1855,8 +1863,8 @@ namespace BINDER_SPACE
 
 #endif //CROSSGEN_COMPILE
 
-#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(MDILNIGEN)
-HRESULT AssemblyBinder::BindUsingHostAssemblyResolver (/* in */ CLRPrivBinderAssemblyLoadContext *pLoadContextToBindWithin,
+#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+HRESULT AssemblyBinder::BindUsingHostAssemblyResolver (/* in */ INT_PTR pManagedAssemblyLoadContextToBindWithin,
                                                        /* in */ AssemblyName       *pAssemblyName,
                                                       /* in */ IAssemblyName      *pIAssemblyName,
                                                       /* out */ Assembly           **ppAssembly)
@@ -1864,15 +1872,11 @@ HRESULT AssemblyBinder::BindUsingHostAssemblyResolver (/* in */ CLRPrivBinderAss
     HRESULT hr = E_FAIL;
     BINDER_LOG_ENTER(W("AssemblyBinder::BindUsingHostAssemblyResolver"));
     
-    _ASSERTE(pLoadContextToBindWithin != NULL);
-    
-    // Get the application context within which the assembly will be bound and loaded
-    ApplicationContext *pApplicationContext = pLoadContextToBindWithin->GetAppContext();
-    _ASSERTE(pApplicationContext != NULL);
+    _ASSERTE(pManagedAssemblyLoadContextToBindWithin != NULL);
     
     // Call into the VM to use the HostAssemblyResolver and load the assembly
     ICLRPrivAssembly *pLoadedAssembly = NULL;
-    hr = RuntimeInvokeHostAssemblyResolver(pLoadContextToBindWithin, pIAssemblyName, &pLoadedAssembly);
+    hr = RuntimeInvokeHostAssemblyResolver(pManagedAssemblyLoadContextToBindWithin, pIAssemblyName, &pLoadedAssembly);
     if (SUCCEEDED(hr))
     {
         _ASSERTE(pLoadedAssembly != NULL);
@@ -1992,7 +1996,7 @@ Exit:
     BINDER_LOG_LEAVE_HR(W("AssemblyBinder::BindUsingPEImage"), hr);
     return hr;
 }
-#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(MDILNIGEN)
+#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 };
 
 

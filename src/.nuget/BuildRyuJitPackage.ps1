@@ -32,7 +32,10 @@ Param(
 
     # The directory that contains the .nuspec files that will be used to create the
     # cross-platform and combined packages.
-    [string]$nuspecDir
+    [string]$nuspecDir,
+
+    # The build number, if any.
+    [string]$buildNumber = $null
 )
 
 function Get-Latest-Blob-Name
@@ -59,9 +62,25 @@ function Get-Latest-Blob-Name
     return $chosenBlob
 }
 
+# Set the CWD
+[System.Environment]::CurrentDirectory = Get-Location
+
 # Get the list of blobs in storage
-$json = (azure storage blob list -a $storageAccount -k $storageKey $storageContainer --json) -join ""
-$blobs = ConvertFrom-Json $json
+$json = ""
+$blobs = @()
+try
+{
+    $tmpFileName = [System.IO.Path]::GetTempFileName()
+    azure storage blob list -a $storageAccount -k $storageKey $storageContainer --json > $tmpFileName
+    $json = [System.IO.File]::ReadAllText($tmpFileName)
+    $blobs = ConvertFrom-Json $json
+}
+catch
+{
+    Write-Error "Could not fetch blobs from Azure."
+    Write-Error "Response: $json"
+    exit 1
+}
 
 # Find, fetch, and extract the latest Ubuntu and OSX blobs
 [System.Reflection.Assembly]::LoadWithPartialName("System.IO.Compression.FileSystem") | Out-Null
@@ -84,7 +103,7 @@ if (!$osxBlob)
 azure storage blob download -m -q -a $storageAccount -k $storageKey $storageContainer $ubuntuBlob
 if ($LastExitCode -ne 0)
 {
-    Write-Error "Failed to fetch Ubuntu drop $ubuntuDrop from Azure."
+    Write-Error "Failed to fetch Ubuntu drop $ubuntuBlob from Azure."
     exit 1
 }
 
@@ -146,10 +165,16 @@ $packages = @(
     "Microsoft.DotNet.RyuJit"
 )
 
+$packageVersion = "1.0.6-prerelease"
+if ($buildNumber)
+{
+    $packageVersion = $packageVersion + "-" + $buildNumber
+}
+
 # Note: nuget appears to exit with code 0 in every case, so there's no way to detect failure here
 #       other than looking at the output.
 foreach ($package in $packages) {
-    Invoke-Expression "$nugetPath pack $packageOutputDir\$package.nuspec -NoPackageAnalysis -NoDefaultExludes -OutputDirectory $packageOutputDir"
+    Invoke-Expression "$nugetPath pack $packageOutputDir\$package.nuspec -NoPackageAnalysis -NoDefaultExcludes -OutputDirectory $packageOutputDir -Version $packageVersion"
     Invoke-Expression "$nugetPath push -NonInteractive $packageOutputDir\$package.nupkg -s $feed $apiKey"
 }
 

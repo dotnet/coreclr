@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 /*****************************************************************************/
 
 #ifndef _EMIT_H_
@@ -657,6 +656,13 @@ protected:
 #endif // ARM or x86-LEGACY_BACKEND
 
         // On Amd64, this is where the second DWORD begins
+        // On System V a call could return a struct in 2 registers. The instrDescCGCA struct below has  member that 
+        // stores the GC-ness of the second register.
+        // It is added to the instrDescCGCA and not here (the base struct) since it is not needed by all the instructions.
+        // This struct (instrDesc) is very carefully kept to be no more than 128 bytes. There is no more space to add members
+        // for keeping GC-ness of the second return registers. It will also bloat the base struct unnecessarily
+        // since the GC-ness of the second register is only needed for call instructions.
+        // The instrDescCGCA struct's member keeping the GC-ness of the first return register is _idcSecondRetRegGCType.
         GCtype          _idGCref     :2;  // GCref operand? (value is a "GCtype")
 
         // Note that we use the _idReg1 and _idReg2 fields to hold
@@ -936,9 +942,6 @@ protected:
                 iiaEncodedInstrCount = (count << iaut_SHIFT) | iaut_INST_COUNT;
             }
 
-            // Note that we use the _idReg3 and _idReg4 fields to hold
-            // the live gcrefReg mask for the call instructions on arm
-            //
             struct
             {
                 regNumber    _idReg3       :REGNUM_BITS;
@@ -1210,6 +1213,24 @@ protected:
         regMaskTP       idcGcrefRegs;              // ... gcref registers
         regMaskTP       idcByrefRegs;              // ... byref registers
         unsigned        idcArgCnt;                 // ... lots of args or (<0 ==> caller pops args)
+
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+        // This method handle the GC-ness of the second register in a 2 register returned struct on System V.
+        GCtype          idSecondGCref() const { return (GCtype)_idcSecondRetRegGCType; }
+        void            idSecondGCref(GCtype gctype) { _idcSecondRetRegGCType = gctype; }
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+
+    private:
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+        // This member stores the GC-ness of the second register in a 2 register returned struct on System V.
+        // It is added to the call struct since it is not needed by the base instrDesc struct, which keeps GC-ness
+        // of the first register for the instCall nodes.
+        // The base instrDesc is very carefully kept to be no more than 128 bytes. There is no more space to add members
+        // for keeping GC-ness of the second return registers. It will also bloat the base struct unnecessarily
+        // since the GC-ness of the second register is only needed for call instructions.
+        // The base struct's member keeping the GC-ness of the first return register is _idGCref.
+        GCtype          _idcSecondRetRegGCType : 2;      // ... GC type for the second return register.  
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING  
     };
 
     struct          instrDescArmFP : instrDesc  
@@ -1589,6 +1610,10 @@ private:
     bool            emitThisGCrefVset;  // Is "emitThisGCrefVars" up to date?
 
     regNumber       emitSyncThisObjReg; // where is "this" enregistered for synchronized methods?
+
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+    void            emitSetSecondRetRegGCType(instrDescCGCA* id, emitAttr secondRetSize); 
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
 
     static void     emitEncodeCallGCregs(regMaskTP regs, instrDesc *id);
     static unsigned emitDecodeCallGCregs(instrDesc *id);

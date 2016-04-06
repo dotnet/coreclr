@@ -8,8 +8,10 @@ project(coreclrpal)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-# Enable @rpath support for shared libraries.
-set(MACOSX_RPATH ON)
+if(CORECLR_SET_RPATH)
+    # Enable @rpath support for shared libraries.
+    set(MACOSX_RPATH ON)
+endif(CORECLR_SET_RPATH)
 
 if(CMAKE_VERSION VERSION_EQUAL 3.0 OR CMAKE_VERSION VERSION_GREATER 3.0)
     cmake_policy(SET CMP0042 NEW)
@@ -45,10 +47,6 @@ if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
   )
 endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
-if(CMAKE_SYSTEM_NAME STREQUAL Linux)
-  add_definitions(-D__LINUX__=1)
-endif(CMAKE_SYSTEM_NAME STREQUAL Linux)
-
 add_definitions(-DPLATFORM_UNIX=1)
 add_definitions(-DLP64COMPATIBLE=1)
 add_definitions(-DFEATURE_PAL=1)
@@ -60,7 +58,6 @@ if(PAL_CMAKE_PLATFORM_ARCH_AMD64)
   add_definitions(-D_WIN64=1)
 elseif(PAL_CMAKE_PLATFORM_ARCH_ARM)
   add_definitions(-DBIT32=1)
-  add_definitions(-D_WIN32=1)
 elseif(PAL_CMAKE_PLATFORM_ARCH_ARM64)
   add_definitions(-DBIT64=1)
   add_definitions(-D_WIN64=1)
@@ -69,7 +66,6 @@ endif()
 # turn off capability to remove unused functions (which was enabled in debug build with sanitizers)
 set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "${CMAKE_SHARED_LINKER_FLAGS_DEBUG} -Wl,--no-gc-sections")
 
-add_compile_options(-fno-builtin)
 add_compile_options(-fPIC)
 
 if(PAL_CMAKE_PLATFORM_ARCH_AMD64)
@@ -139,6 +135,7 @@ set(SOURCES
   misc/error.cpp
   misc/errorstrings.cpp
   misc/fmtmessage.cpp
+  misc/identity.cpp
   misc/miscpalapi.cpp
   misc/msgbox.cpp
   misc/strutil.cpp
@@ -202,40 +199,10 @@ add_library(coreclrpal
   ${PLATFORM_SOURCES}
 )
 
-if(CMAKE_SYSTEM_NAME STREQUAL Linux)
-  if(PAL_CMAKE_PLATFORM_ARCH_ARM)
-    target_link_libraries(coreclrpal
-      unwind-arm
-    )
-  endif()
-
-  if(PAL_CMAKE_PLATFORM_ARCH_AMD64)
-    target_link_libraries(coreclrpal
-      unwind-x86_64
-    )
-  endif()
-    
-  target_link_libraries(coreclrpal
-    gcc_s
-    pthread
-    rt
-    dl
-    unwind
-    unwind-generic
-    uuid
-  )
-endif(CMAKE_SYSTEM_NAME STREQUAL Linux)
-
-if(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
-  find_library(UNWIND unwind)
-  find_library(INTL intl)
-  target_link_libraries(coreclrpal
-    pthread
-    rt
-    ${UNWIND}
-    ${INTL}
-  )
-endif(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
+add_library(tracepointprovider
+  STATIC
+  misc/tracepointprovider.cpp
+)
 
 if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
   find_library(COREFOUNDATION CoreFoundation)
@@ -250,11 +217,69 @@ if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
   )
 endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
-add_subdirectory(examples)
+if(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
+  find_library(UNWIND unwind)
+  find_library(INTL intl)
+  target_link_libraries(coreclrpal
+    pthread
+    rt
+    ${UNWIND}
+    ${INTL}
+  )
+endif(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
 
 if(CMAKE_SYSTEM_NAME STREQUAL Linux)
-    add_subdirectory($ENV{__GeneratedIntermediatesDir}/eventprovider ${CMAKE_CURRENT_BINARY_DIR}/eventprovider)
+  if(PAL_CMAKE_PLATFORM_ARCH_ARM)
+    find_library(UNWIND_ARCH NAMES unwind-arm)
+  endif()
+
+  if(PAL_CMAKE_PLATFORM_ARCH_AMD64)
+    find_library(UNWIND_ARCH NAMES unwind-x86_64)
+  endif()
+
+  find_library(UNWIND NAMES unwind)
+  find_library(UNWIND_GENERIC NAMES unwind-generic)
+
+  target_link_libraries(coreclrpal
+    gcc_s
+    pthread
+    rt
+    dl
+    uuid
+  )
+
+  if(UNWIND STREQUAL UNWIND-NOTFOUND)
+    message(FATAL_ERROR "Cannot find libunwind. Try installing libunwind8-dev and libunwind8.")
+  endif(UNWIND STREQUAL UNWIND-NOTFOUND)
+
+  target_link_libraries(coreclrpal ${UNWIND})
+
+  if(NOT UNWIND_GENERIC STREQUAL UNWIND_GENERIC-NOTFOUND)
+    target_link_libraries(coreclrpal ${UNWIND_GENERIC})
+  endif(NOT UNWIND_GENERIC STREQUAL UNWIND_GENERIC-NOTFOUND)
+
+  if(NOT UNWIND_ARCH STREQUAL UNWIND_ARCH-NOTFOUND)
+    target_link_libraries(coreclrpal ${UNWIND_ARCH})
+  endif(NOT UNWIND_ARCH STREQUAL UNWIND_ARCH-NOTFOUND)
+
 endif(CMAKE_SYSTEM_NAME STREQUAL Linux)
+
+if(CMAKE_SYSTEM_NAME STREQUAL NetBSD)
+  find_library(UNWIND unwind)
+  find_library(INTL intl)
+  target_link_libraries(coreclrpal
+    pthread
+    rt
+    ${UNWIND}
+    ${INTL}
+  )
+endif(CMAKE_SYSTEM_NAME STREQUAL NetBSD)
+
+add_subdirectory(examples)
+
+if(FEATURE_EVENT_TRACE)
+    add_subdirectory($ENV{__IntermediatesDir}/Generated/eventprovider ${CMAKE_CURRENT_BINARY_DIR}/eventprovider)
+endif(FEATURE_EVENT_TRACE)
 
 # Install the static PAL library for VS
 install (TARGETS coreclrpal DESTINATION lib)

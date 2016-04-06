@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 namespace System {
 
@@ -563,7 +564,12 @@ namespace System {
                 }
 
                 // Read in the number
-                uint number = (uint)Convert.ToInt32(guidString.Substring(numStart, numLen),16);
+                int signedNumber;
+                if (!StringToInt(guidString.Substring(numStart, numLen), -1, ParseNumbers.IsTight, out signedNumber, ref result)) {
+                    return false;
+                }
+                uint number = (uint)signedNumber;
+
                 // check for overflow
                 if(number > 255) {
                     result.SetFailure(ParseFailureKind.Format, "Overflow_Byte");            

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -27,6 +26,7 @@ Revision History:
 #include "pal/process.h"
 #include "pal/module.h"
 #include "pal/malloc.hpp"
+#include "pal/stackstring.hpp"
 
 #include <errno.h>
 #include <unistd.h> 
@@ -34,10 +34,10 @@ Revision History:
 #include <pthread.h>
 #include <dlfcn.h>
 
-#if HAVE_LIBUUID_H
-#include <uuid/uuid.h>
-#elif HAVE_BSD_UUID_H
+#if HAVE_BSD_UUID_H
 #include <uuid.h>
+#elif HAVE_LIBUUID_H
+#include <uuid/uuid.h>
 #endif
 
 #include <pal_endian.h>
@@ -51,80 +51,6 @@ SET_DEFAULT_DEBUG_CHANNEL(MISC);
 static const char RANDOM_DEVICE_NAME[] ="/dev/random";
 static const char URANDOM_DEVICE_NAME[]="/dev/urandom";
 
-
-/*++
-
-Initialization logic for LTTng tracepoint providers.
-
---*/
-#if defined(__LINUX__)
-
-static const char tpLibName[] = "libcoreclrtraceptprovider.so";
-
-
-/*++
-
-NOTE: PAL_InitializeTracing MUST NOT depend on anything in the PAL itself
-as it is called prior to PAL initialization.
-
---*/
-static
-void
-PAL_InitializeTracing(void)
-{
-    // Get the path to the currently executing shared object (libcoreclr.so).
-    Dl_info info;
-    int succeeded = dladdr((void *)PAL_InitializeTracing, &info);
-    if(!succeeded)
-    {
-        return;
-    }
-
-    // Copy the path and modify the shared object name to be the tracepoint provider.
-    char tpProvPath[MAX_LONGPATH];
-    int pathLen = strlen(info.dli_fname);
-    int tpLibNameLen = strlen(tpLibName);
-
-    // Find the length of the full path without the shared object name, including the trailing slash.
-    int lastTrailingSlashLen = -1;
-    for(int i=pathLen-1; i>=0; i--)
-    {
-        if(info.dli_fname[i] == '/')
-        {
-            lastTrailingSlashLen = i+1;
-            break;
-        }
-    }
-
-    // Make sure we found the last trailing slash.
-    if(lastTrailingSlashLen == -1)
-    {
-        return;
-    }
-
-    // Make sure that the final path is shorter than MAX_PATH.
-    // +1 ensures that the string can be NULL-terminated.
-    if((lastTrailingSlashLen + tpLibNameLen + 1) > MAX_LONGPATH)
-    {
-        return;
-    }
-
-    // Copy the path without the shared object name.
-    memcpy(&tpProvPath, info.dli_fname, lastTrailingSlashLen);
-
-    // Append the shared object name for the tracepoint provider.
-    memcpy(&tpProvPath[lastTrailingSlashLen], &tpLibName, tpLibNameLen);
-
-    // NULL-terminate the string.
-    tpProvPath[lastTrailingSlashLen + tpLibNameLen] = '\0';
-
-    // Load the tracepoint provider.
-    // It's OK if this fails - that just means that tracing dependencies aren't available.
-    dlopen(tpProvPath, RTLD_NOW | RTLD_GLOBAL);
-}
-
-#endif
-
 /*++
 
 Function :
@@ -136,20 +62,16 @@ Function :
     
     On failure it returns FALSE and sets the 
     proper LastError code.
-    
-See rotor_pal.doc for more details.
 
 --*/
 BOOL 
-PALAPI
-PAL_GetPALDirectoryW( OUT LPWSTR lpDirectoryName, IN UINT cchDirectoryName ) 
+PAL_GetPALDirectoryW(PathWCharString& lpDirectoryName) 
 {
-    LPWSTR lpFullPathAndName = NULL;
-    LPWSTR lpEndPoint = NULL;
+    LPCWSTR lpFullPathAndName = NULL;
+    LPCWSTR lpEndPoint = NULL;
     BOOL bRet = FALSE;
 
     PERF_ENTRY(PAL_GetPALDirectoryW);
-    ENTRY( "PAL_GetPALDirectoryW( %p, %d )\n", lpDirectoryName, cchDirectoryName );
 
     MODSTRUCT *module = LOADGetPalLibrary();
     if (!module)
@@ -169,41 +91,111 @@ PAL_GetPALDirectoryW( OUT LPWSTR lpDirectoryName, IN UINT cchDirectoryName )
         /* The path that we return is required to have
            the trailing slash on the end.*/
         lpEndPoint++;
-    }
-    if ( lpFullPathAndName && lpEndPoint && *lpEndPoint != '\0' )
-    {
-        while ( cchDirectoryName - 1 && lpFullPathAndName != lpEndPoint )
-        {
-            *lpDirectoryName = *lpFullPathAndName;
-            lpFullPathAndName++;
-            lpDirectoryName++;
-            cchDirectoryName--;
-        }
-            
-        if ( lpFullPathAndName == lpEndPoint )
-        {
-            *lpDirectoryName = '\0';
-            bRet = TRUE;
-            goto EXIT;
-        }
-        else
+    
+        
+        if(!lpDirectoryName.Set(lpFullPathAndName,lpEndPoint - lpFullPathAndName))
         {
             ASSERT( "The buffer was not large enough.\n" );
             SetLastError( ERROR_INSUFFICIENT_BUFFER );
             goto EXIT;
         }
+
+        bRet = TRUE;
     }
     else
     {
         ASSERT( "Unable to determine the path.\n" );
+        /* Error path, should not be executed. */
+        SetLastError( ERROR_INTERNAL_ERROR );
     }
     
-    /* Error path, should not be executed. */
-    SetLastError( ERROR_INTERNAL_ERROR );
 EXIT:    
+    PERF_EXIT(PAL_GetPALDirectoryW);
+    return bRet;
+}
+
+BOOL
+PAL_GetPALDirectoryA(PathCharString& lpDirectoryName)
+{
+    BOOL bRet;
+    PathWCharString directory;
+
+    PERF_ENTRY(PAL_GetPALDirectoryA);
+
+    bRet = PAL_GetPALDirectoryW(directory);
+
+    if (bRet) 
+    {
+        
+        int length = WideCharToMultiByte(CP_ACP, 0, directory.GetString(), -1, NULL, 0, NULL, 0);
+        LPSTR DirectoryName = lpDirectoryName.OpenStringBuffer(length);
+        if (NULL == DirectoryName)
+        {
+            SetLastError( ERROR_INSUFFICIENT_BUFFER );
+            bRet = FALSE;
+        }
+        
+        length = WideCharToMultiByte(CP_ACP, 0, directory.GetString(), -1, DirectoryName, length, NULL, 0);
+
+        if (0 == length)
+        {
+            bRet = FALSE;
+            length++;
+        }
+    
+        lpDirectoryName.CloseBuffer(length - 1);
+    }
+
+    PERF_EXIT(PAL_GetPALDirectoryA);
+    return bRet;
+}
+
+/*++
+
+Function :
+
+    PAL_GetPALDirectoryW
+    
+    Returns the fully qualified path name
+    where the PALL DLL was loaded from.
+    
+    On failure it returns FALSE and sets the 
+    proper LastError code.
+    
+See rotor_pal.doc for more details.
+
+--*/
+PALIMPORT
+BOOL 
+PALAPI
+PAL_GetPALDirectoryW( OUT LPWSTR lpDirectoryName, IN OUT UINT* cchDirectoryName ) 
+{
+    PathWCharString directory;
+    BOOL bRet;
+    PERF_ENTRY(PAL_GetPALDirectoryW);
+    ENTRY( "PAL_GetPALDirectoryW( %p, %d )\n", lpDirectoryName, *cchDirectoryName );
+
+    bRet = PAL_GetPALDirectoryW(directory);
+
+    if (bRet) {
+        
+        if (directory.GetCount() > *cchDirectoryName)
+        {
+            SetLastError( ERROR_INSUFFICIENT_BUFFER );
+            bRet = FALSE;
+        }
+        else
+        { 
+            PAL_wcscpy(lpDirectoryName, directory.GetString());
+        }
+
+        *cchDirectoryName = directory.GetCount();
+    }
+
     LOGEXIT( "PAL_GetPALDirectoryW returns BOOL %d.\n", bRet);
     PERF_EXIT(PAL_GetPALDirectoryW);
     return bRet;
+
 }
 
 PALIMPORT
@@ -211,25 +203,34 @@ BOOL
 PALAPI
 PAL_GetPALDirectoryA(
              OUT LPSTR lpDirectoryName,
-             IN UINT cchDirectoryName)
+             IN UINT*  cchDirectoryName)
 {
     BOOL bRet;
-    WCHAR PALDirW[_MAX_PATH];
+    PathCharString directory;
 
     PERF_ENTRY(PAL_GetPALDirectoryA);
-    ENTRY( "PAL_GetPALDirectoryA( %p, %d )\n", lpDirectoryName, cchDirectoryName );
+    ENTRY( "PAL_GetPALDirectoryA( %p, %d )\n", lpDirectoryName, *cchDirectoryName );
 
-    bRet = PAL_GetPALDirectoryW(PALDirW, _MAX_PATH);
-    if (bRet) {
-        if (WideCharToMultiByte(CP_ACP, 0, 
-            PALDirW, -1, lpDirectoryName, cchDirectoryName, NULL, 0)) {
-            bRet = TRUE;
-        } else {
+    bRet = PAL_GetPALDirectoryA(directory);
+
+    if (bRet) 
+    {
+        if (directory.GetCount() > *cchDirectoryName)
+        {
+            SetLastError( ERROR_INSUFFICIENT_BUFFER );
+            bRet = FALSE;
+            *cchDirectoryName = directory.GetCount();
+        }
+        else if (strcpy_s(lpDirectoryName, directory.GetCount(), directory.GetString()) == SAFECRT_SUCCESS) 
+        {
+        }
+        else 
+        {
             bRet = FALSE;
         }
     }
 
-    LOGEXIT( "PAL_GetPALDirectoryW returns BOOL %d.\n", bRet);
+    LOGEXIT( "PAL_GetPALDirectoryA returns BOOL %d.\n", bRet);
     PERF_EXIT(PAL_GetPALDirectoryA);
     return bRet;
 }
@@ -353,15 +354,7 @@ HRESULT
 PALAPI
 CoCreateGuid(OUT GUID * pguid)
 {
-#if HAVE_LIBUUID_H
-    uuid_generate_random(*(uuid_t*)pguid);
-
-    // Change the byte order of the Data1, 2 and 3, since the uuid_generate_random
-    // generates them with big endian while GUIDS need to have them in little endian.
-    pguid->Data1 = SWAP32(pguid->Data1);
-    pguid->Data2 = SWAP16(pguid->Data2);
-    pguid->Data3 = SWAP16(pguid->Data3);
-#elif HAVE_BSD_UUID_H
+#if HAVE_BSD_UUID_H
     uuid_t uuid;
     uint32_t status;
     uuid_create(&uuid, &status);
@@ -373,6 +366,14 @@ CoCreateGuid(OUT GUID * pguid)
 
     // Encode the uuid with little endian.
     uuid_enc_le(pguid, &uuid);
+#elif HAVE_LIBUUID_H
+    uuid_generate_random(*(uuid_t*)pguid);
+
+    // Change the byte order of the Data1, 2 and 3, since the uuid_generate_random
+    // generates them with big endian while GUIDS need to have them in little endian.
+    pguid->Data1 = SWAP32(pguid->Data1);
+    pguid->Data2 = SWAP16(pguid->Data2);
+    pguid->Data3 = SWAP16(pguid->Data3);
 #else
     #error Don't know how to generate UUID on this platform
 #endif

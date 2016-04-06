@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // EEConfig.H
 //
 
@@ -1127,10 +1126,10 @@ private: //----------------------------------------------------------------
 #endif
 
 #ifdef _TARGET_AMD64_
-    // Assemblies for which we will not load a native image. This is from the COMPLUS_DisableNativeImageLoadList
+    // Assemblies for which we will not load a native image. This is from the COMPlus_DisableNativeImageLoadList
     // variable / reg key. It performs the same function as the config file key "<disableNativeImageLoad>" (except
     // that is it just a list of assembly names, which the config file key can specify full assembly identities).
-    // This was added to support COMPLUS_UseLegacyJit, to support the rollout of RyuJIT to replace JIT64, where
+    // This was added to support COMPlus_UseLegacyJit, to support the rollout of RyuJIT to replace JIT64, where
     // the user can cause the CLR to fall back to JIT64 for JITting but not for NGEN. This allows the user to
     // force JITting for a specified list of NGEN assemblies.
     AssemblyNamesList * pDisableNativeImageLoadList;

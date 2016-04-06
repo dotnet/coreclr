@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // util.hpp
 //
@@ -26,7 +25,6 @@
 
                   
 // Prevent the use of UtilMessageBox and WszMessageBox from inside the EE.
-#ifndef CLR_STANDALONE_BINDER
 #undef UtilMessageBoxCatastrophic
 #undef UtilMessageBoxCatastrophicNonLocalized
 #undef UtilMessageBoxCatastrophic
@@ -45,7 +43,6 @@
 #define UtilMessageBoxVA __error("Use one of the EEMessageBox APIs (defined in eemessagebox.h) from inside the EE")
 #define UtilMessageBoxNonLocalizedVA __error("Use one of the EEMessageBox APIs (defined in eemessagebox.h) from inside the EE")
 #define WszMessageBox __error("Use one of the EEMessageBox APIs (defined in eemessagebox.h) from inside the EE")
-#endif
 
 //========================================================================
 // More convenient names for integer types of a guaranteed size.
@@ -1004,7 +1001,6 @@ typedef Wrapper<LPVOID, DoNothing<LPVOID>, VoidFreeWinAllocatedBlock, NULL> WinA
 
 #endif // !FEATURE_PAL
 
-#ifndef CLR_STANDALONE_BINDER
 // For debugging, we can track arbitrary Can't-Stop regions.
 // In V1.0, this was on the Thread object, but we need to track this for threads w/o a Thread object.
 FORCEINLINE void IncCantStopCount()
@@ -1034,7 +1030,6 @@ inline bool IsInCantStopRegion()
     return (GetCantStopCount() > 0);
 }
 #endif // _DEBUG
-#endif // !CLR_STANDALONE_BINDER
 
 
 // PAL does not support per-thread locales. The holder is no-op for FEATURE_PALs
@@ -1078,7 +1073,12 @@ struct JITNotification
     }
 };
 
-GPTR_DECL(JITNotification,g_pNotificationTable);
+// The maximum number of TADDR sized arguments that the SOS exception notification can use
+#define MAX_CLR_NOTIFICATION_ARGS 3
+GARY_DECL(size_t, g_clrNotificationArguments, MAX_CLR_NOTIFICATION_ARGS);
+extern void InitializeClrNotifications();
+
+GPTR_DECL(JITNotification, g_pNotificationTable);
 GVAL_DECL(ULONG32, g_dacNotificationFlags);
 
 #if defined(FEATURE_PAL) && !defined(DACCESS_COMPILE)

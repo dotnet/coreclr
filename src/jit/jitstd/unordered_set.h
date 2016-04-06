@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // ==++==
 //
@@ -150,7 +149,8 @@ template <typename Value, typename Hash, typename Pred, typename Alloc>
 unordered_set<Value, Hash, Pred, Alloc>&
     unordered_set<Value, Hash, Pred, Alloc>::operator=(unordered_set const& other)
 {
-    return base_type::operator=(other);
+    base_type::operator=(other);
+    return *this;
 }
 
 } // end of namespace jitstd.

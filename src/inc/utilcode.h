@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // UtilCode.h
 //
@@ -513,7 +512,7 @@ inline void *__cdecl operator new(size_t, void *_P)
 void * __cdecl
 operator new(size_t n);
 
-_Ret_bytecap_(_Size) void * __cdecl
+_Ret_bytecap_(n) void * __cdecl
 operator new[](size_t n);
 
 void __cdecl
@@ -844,7 +843,8 @@ private:
     HRESULT GetLibrary(LocaleID langId, HRESOURCEDLL* phInst);
 #ifndef DACCESS_COMPILE
     HRESULT LoadLibraryHelper(HRESOURCEDLL *pHInst,
-                              __out_ecount(rcPathSize) WCHAR *rcPath, const DWORD rcPathSize);
+                              SString& rcPath);
+    HRESULT LoadLibraryThrows(HRESOURCEDLL * pHInst);
     HRESULT LoadLibrary(HRESOURCEDLL * pHInst);
     HRESULT LoadResourceFile(HRESOURCEDLL * pHInst, LPCWSTR lpFileName);
 #endif
@@ -1162,10 +1162,18 @@ void    SplitPathInterior(
     __out_opt LPCWSTR *pwszFileName, __out_opt size_t *pcchFileName,
     __out_opt LPCWSTR *pwszExt,      __out_opt size_t *pcchExt);
 
+#ifndef FEATURE_CORECLR
 void    MakePath(__out_ecount (MAX_LONGPATH) register WCHAR *path, 
                  __in LPCWSTR drive, 
                  __in LPCWSTR dir, 
                  __in LPCWSTR fname, 
+                 __in LPCWSTR ext);
+#endif
+
+void    MakePath(__out CQuickWSTR &path,
+                 __in LPCWSTR drive,
+                 __in LPCWSTR dir,
+                 __in LPCWSTR fname,
                  __in LPCWSTR ext);
 
 WCHAR * FullPath(__out_ecount (maxlen) WCHAR *UserBuf, const WCHAR *path, size_t maxlen);
@@ -1180,6 +1188,8 @@ void    SplitPath(__in SString const &path,
                   __inout_opt SString *dir,
                   __inout_opt SString *fname,
                   __inout_opt SString *ext);
+
+#if !defined(NO_CLRCONFIG)
 
 //*****************************************************************************
 //
@@ -1514,6 +1524,8 @@ public:
 private:
     LPWSTR m_wszString;
 };
+
+#endif // defined(NO_CLRCONFIG)
 
 #include "ostype.h"
 
@@ -4167,6 +4179,8 @@ public:
     }
 };
 
+#if !defined(NO_CLRCONFIG)
+
 /**************************************************************************/
 /* simple wrappers around the REGUTIL and MethodNameList routines that make
    the lookup lazy */
@@ -4272,6 +4286,8 @@ private:
 
     BYTE m_inited;
 };
+
+#endif // !defined(NO_CLRCONFIG)
 
 //*****************************************************************************
 // Convert a pointer to a string into a GUID.
@@ -4468,7 +4484,7 @@ BOOL GetRegistryLongValue(HKEY    hKeyParent,              // Parent key.
                           long    *pValue,                 // Put value here, if found.
                           BOOL    fReadNonVirtualizedKey); // Whether to read 64-bit hive on WOW64
 
-HRESULT GetCurrentModuleFileName(__out_ecount(*pcchBuffer) LPWSTR pBuffer, __inout DWORD *pcchBuffer);
+HRESULT GetCurrentModuleFileName(SString& pBuffer);
 
 //*****************************************************************************
 // Retrieve information regarding what registered default debugger
@@ -4695,7 +4711,7 @@ public:
 #endif // !FEATURE_PAL
 };
 
-#if !defined(DACCESS_COMPILE) && !defined(CLR_STANDALONE_BINDER)
+#if !defined(DACCESS_COMPILE)
 
 // check if current thread is a GC thread (concurrent or server)
 inline BOOL IsGCSpecialThread ()
@@ -4879,7 +4895,7 @@ inline BOOL IsStackWalkerThread()
     STATIC_CONTRACT_MODE_ANY;
     STATIC_CONTRACT_CANNOT_TAKE_LOCK;
 
-#if defined(DACCESS_COMPILE) || defined(CLR_STANDALONE_BINDER)
+#if defined(DACCESS_COMPILE)
     return FALSE;
 #else
     return ClrFlsGetValue (TlsIdx_StackWalkerWalkingThread) != NULL;
@@ -4894,13 +4910,13 @@ inline BOOL IsGCThread ()
     STATIC_CONTRACT_SUPPORTS_DAC;
     STATIC_CONTRACT_SO_TOLERANT;
 
-#if !defined(DACCESS_COMPILE) && !defined(CLR_STANDALONE_BINDER)
+#if !defined(DACCESS_COMPILE)
     return IsGCSpecialThread () || IsSuspendEEThread ();
 #else
     return FALSE;
 #endif
 }
-#ifndef CLR_STANDALONE_BINDER
+
 class ClrFlsThreadTypeSwitch
 {
 public:
@@ -4991,7 +5007,6 @@ private:
     PVOID m_PreviousValue;
     PredefinedTlsSlots m_slot;
 };
-#endif // !CLR_STANDALONE_BINDER
 
 //*********************************************************************************
 
@@ -5310,7 +5325,7 @@ BOOL IsIPInModule(HMODULE_TGT hModule, PCODE ip);
 struct CoreClrCallbacks
 {
     typedef IExecutionEngine* (__stdcall * pfnIEE_t)();
-    typedef HRESULT (__stdcall * pfnGetCORSystemDirectory_t)(LPWSTR pbuffer, DWORD cchBuffer, DWORD* pdwlength);
+    typedef HRESULT (__stdcall * pfnGetCORSystemDirectory_t)(SString& pbuffer);
     typedef void* (__stdcall * pfnGetCLRFunction_t)(LPCSTR functionName);
 
     HINSTANCE                   m_hmodCoreCLR;
@@ -5544,8 +5559,8 @@ inline T* InterlockedCompareExchangeT(
 
 // Returns the directory for HMODULE. So, if HMODULE was for "C:\Dir1\Dir2\Filename.DLL",
 // then this would return "C:\Dir1\Dir2\" (note the trailing backslash).
-HRESULT GetHModuleDirectory(HMODULE hMod, __out_z __out_ecount(cchPath) LPWSTR wszPath, size_t cchPath);
-SString & GetHModuleDirectory(HMODULE hMod, SString &ssDir);
+HRESULT GetHModuleDirectory(HMODULE hMod, SString& wszPath);
+HRESULT CopySystemDirectory(const SString& pPathString, SString& pbuffer);
 
 HMODULE LoadLocalizedResourceDLLForSDK(_In_z_ LPCWSTR wzResourceDllName, _In_opt_z_ LPCWSTR modulePath=NULL, bool trySelf=true);
 // This is a slight variation that can be used for anything else

@@ -1,8 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Copyright (c) Geoff Norton. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -31,15 +29,15 @@ Abstract:
 #include <exception>
     
 #if HAVE_LIBUNWIND_H
-#ifndef __LINUX__
+#ifndef __linux__
 #define UNW_LOCAL_ONLY
-#endif // !__LINUX__       
+#endif // !__linux__       
 #include <libunwind.h>
-#ifdef __LINUX__
+#ifdef __linux__
 #ifdef HAVE_LIBUNWIND_PTRACE
 #include <libunwind-ptrace.h>
 #endif // HAVE_LIBUNWIND_PTRACE
-#endif // __LINUX__    
+#endif // __linux__    
 #endif // HAVE_LIBUNWIND_H
 
 
@@ -99,17 +97,29 @@ static void WinContextToUnwindCursor(CONTEXT *winContext, unw_cursor_t *cursor)
     unw_set_reg(cursor, UNW_X86_64_R14, winContext->R14);
     unw_set_reg(cursor, UNW_X86_64_R15, winContext->R15);
 #elif defined(_ARM_)
-    unw_set_reg(cursor, UNW_ARM_R13, winContext->Sp);
-    unw_set_reg(cursor, UNW_ARM_R14, winContext->Lr);
-    unw_set_reg(cursor, UNW_ARM_R15, winContext->Pc);
-    unw_set_reg(cursor, UNW_ARM_R4, winContext->R4);
-    unw_set_reg(cursor, UNW_ARM_R5, winContext->R5);
-    unw_set_reg(cursor, UNW_ARM_R6, winContext->R6);
-    unw_set_reg(cursor, UNW_ARM_R7, winContext->R7);
-    unw_set_reg(cursor, UNW_ARM_R8, winContext->R8);
-    unw_set_reg(cursor, UNW_ARM_R9, winContext->R9);
-    unw_set_reg(cursor, UNW_ARM_R10, winContext->R10);
-    unw_set_reg(cursor, UNW_ARM_R11, winContext->R11);
+    // Assuming that unw_set_reg() on cursor will point the cursor to the
+    // supposed stack frame is dangerous for libunwind-arm in Linux.
+    // It is because libunwind's unw_cursor_t has other data structure
+    // initialized by unw_init_local(), which are not updated by
+    // unw_set_reg().
+    unw_context_t context;
+    context.regs[0] = 0;
+    context.regs[1] = 0;
+    context.regs[2] = 0;
+    context.regs[3] = 0;
+    context.regs[4] = winContext->R4;
+    context.regs[5] = winContext->R5;
+    context.regs[6] = winContext->R6;
+    context.regs[7] = winContext->R7;
+    context.regs[8] = winContext->R8;
+    context.regs[9] = winContext->R9;
+    context.regs[10] = winContext->R10;
+    context.regs[11] = winContext->R11;
+    context.regs[12] = 0;
+    context.regs[13] = winContext->Sp;
+    context.regs[14] = winContext->Lr;
+    context.regs[15] = winContext->Pc;
+    unw_init_local(cursor, &context);
 #endif
 }
 #endif
@@ -126,9 +136,10 @@ static void UnwindContextToWinContext(unw_cursor_t *cursor, CONTEXT *winContext)
     unw_get_reg(cursor, UNW_X86_64_R14, (unw_word_t *) &winContext->R14);
     unw_get_reg(cursor, UNW_X86_64_R15, (unw_word_t *) &winContext->R15);
 #elif defined(_ARM_)
-    unw_get_reg(cursor, UNW_ARM_R13, (unw_word_t *) &winContext->Sp);
+    unw_get_reg(cursor, UNW_REG_SP, (unw_word_t *) &winContext->Sp);
+    unw_get_reg(cursor, UNW_REG_IP, (unw_word_t *) &winContext->Pc);
+    winContext->Pc &= ~0x1;
     unw_get_reg(cursor, UNW_ARM_R14, (unw_word_t *) &winContext->Lr);
-    unw_get_reg(cursor, UNW_ARM_R15, (unw_word_t *) &winContext->Pc);
     unw_get_reg(cursor, UNW_ARM_R4, (unw_word_t *) &winContext->R4);
     unw_get_reg(cursor, UNW_ARM_R5, (unw_word_t *) &winContext->R5);
     unw_get_reg(cursor, UNW_ARM_R6, (unw_word_t *) &winContext->R6);
@@ -159,19 +170,19 @@ static void UnwindContextToWinContext(unw_cursor_t *cursor, CONTEXT *winContext)
 
 static void GetContextPointer(unw_cursor_t *cursor, unw_context_t *unwContext, int reg, SIZE_T **contextPointer)
 {
-#if defined(__APPLE__)
-    // Returning NULL indicates that we don't have context pointers available
-    *contextPointer = NULL;
-#else
+#if defined(HAVE_UNW_GET_SAVE_LOC)
     unw_save_loc_t saveLoc;
     unw_get_save_loc(cursor, reg, &saveLoc);
     if (saveLoc.type == UNW_SLT_MEMORY)
     {
         SIZE_T *pLoc = (SIZE_T *)saveLoc.u.addr;
         // Filter out fake save locations that point to unwContext 
-        if ((pLoc < (SIZE_T *)unwContext) || ((SIZE_T *)(unwContext + 1) <= pLoc))
+        if (unwContext == NULL || (pLoc < (SIZE_T *)unwContext) || ((SIZE_T *)(unwContext + 1) <= pLoc))
             *contextPointer = (SIZE_T *)saveLoc.u.addr;
     }
+#else
+    // Returning NULL indicates that we don't have context pointers available
+    *contextPointer = NULL;
 #endif
 }
 
@@ -304,7 +315,7 @@ BOOL PAL_VirtualUnwind(CONTEXT *context, KNONVOLATILE_CONTEXT_POINTERS *contextP
 
 // These methods are only used on the AMD64 build
 #ifdef _AMD64_
-#ifdef __LINUX__
+#ifdef HAVE_UNW_GET_ACCESSORS
 
 static struct LibunwindCallbacksInfoType
 {
@@ -483,7 +494,6 @@ BOOL PAL_VirtualUnwindOutOfProc(CONTEXT *context,
     LockHolder lockHolder(&lock.cs);
 
     int st;
-    unw_context_t unwContext;
     unw_cursor_t cursor;
     unw_addr_space_t addrSpace = 0;
     void *libunwindUptPtr = NULL;
@@ -491,7 +501,7 @@ BOOL PAL_VirtualUnwindOutOfProc(CONTEXT *context,
 
     LibunwindCallbacksInfo.Context = context;
     LibunwindCallbacksInfo.readMemCallback = readMemCallback;
-    WinContextToUnwindContext(context, &unwContext);
+
     addrSpace = unw_create_addr_space(&unwind_accessors, 0);
 #ifdef HAVE_LIBUNWIND_PTRACE    
     libunwindUptPtr = _UPT_create(pid);
@@ -514,7 +524,7 @@ BOOL PAL_VirtualUnwindOutOfProc(CONTEXT *context,
 
     if (contextPointers != NULL)
     {
-        GetContextPointers(&cursor, &unwContext, contextPointers);
+        GetContextPointers(&cursor, NULL, contextPointers);
     }
     result = TRUE;
 
@@ -531,7 +541,7 @@ Exit:
     }    
     return result;
 }
-#else // __LINUX__
+#else // HAVE_UNW_GET_ACCESSORS
 
 BOOL PAL_VirtualUnwindOutOfProc(CONTEXT *context, 
                                 KNONVOLATILE_CONTEXT_POINTERS *contextPointers, 
@@ -542,7 +552,7 @@ BOOL PAL_VirtualUnwindOutOfProc(CONTEXT *context,
     return FALSE;
 }
 
-#endif // !__LINUX__
+#endif // !HAVE_UNW_GET_ACCESSORS
 #endif // _AMD64_
 
 /*++

@@ -21,6 +21,7 @@ WARNING:   When setting properties based on their current state (for example:
   <ItemGroup>
     <CLRTestBashEnvironmentVariable Condition="'$(CrossGen)' == 'true'" Include="complus_zaprequire=2" />
     <CLRTestBashEnvironmentVariable Condition="'$(CrossGen)' == 'true'" Include="complus_zaprequireexcludelist=corerun" />
+    <CLRTestBashEnvironmentVariable Condition="'$(GCStressLevel)' != '' and '$(GCStressLevel)' != '0'" Include="complus_gcstress=$(GCStressLevel)" />
   </ItemGroup>
 
     <!--
@@ -45,7 +46,7 @@ fi
       <CrossgenBashScript Condition="'$(CLRTestKind)' == 'BuildAndRun'">
         <![CDATA[
 if [ ! -f $(MSBuildProjectName).ni.exe ]; then
-  "$CORE_ROOT/crossgen.exe" /Platform_Assemblies_Paths $CORE_ROOT%3B. $(MSBuildProjectName).exe
+  "$CORE_ROOT/crossgen" /Platform_Assemblies_Paths $CORE_ROOT%3B$PWD $(MSBuildProjectName).exe
 fi        
         ]]>        
       </CrossgenBashScript>
@@ -135,6 +136,22 @@ fi
     <Message Text="Project depends on $(_CLRTestToRunFileFullPath)." Condition="'$(_CLRTestNeedsProjectToRun)' == 'True'" />
 
     <PropertyGroup>        
+      <BashCLRTestEnvironmentCompatibilityCheck Condition="'$(GCStressIncompatible)' == 'true'"><![CDATA[
+$(BashCLRTestEnvironmentCompatibilityCheck)
+if [ ! -z "$COMPlus_GCStress" ]
+then
+  echo SKIPPING EXECUTION BECAUSE COMPlus_GCStress IS SET
+  exit 0
+fi
+      ]]></BashCLRTestEnvironmentCompatibilityCheck>
+      <BashCLRTestEnvironmentCompatibilityCheck Condition="'$(JitOptimizationSensitive)' == 'true'"><![CDATA[
+$(BashCLRTestEnvironmentCompatibilityCheck)
+if [ \( ! -z "$COMPlus_JitStress" \) -o \( ! -z "$COMPlus_JitStressRegs" \) -o \( ! -z "$COMPlus_JITMinOpts" \) ]
+then
+  echo SKIPPING EXECUTION BECAUSE ONE OR MORE OF (COMPlus_JitStress, COMPlus_JitStressRegs, COMPlus_JITMinOpts) IS SET
+  exit 0
+fi
+      ]]></BashCLRTestEnvironmentCompatibilityCheck>
       <BashCLRTestExitCodePrep Condition="$(_CLRTestNeedsToRun)">
 <![CDATA[CLRTestExpectedExitCode=$(CLRTestExitCode)
 echo BEGIN EXECUTION]]>
@@ -174,12 +191,20 @@ fi
         fi]]></Command>
         <Description>Run testcases under debugger.</Description>
       </BashCLRTestExecutionScriptArgument>
+
+      <BashCLRTestExecutionScriptArgument Include="coreroot">
+        <HasParam>true</HasParam>
+        <ParamText>=*</ParamText> <!-- Bash specific -->
+        <ParamName>coreRootFullPath</ParamName>
+        <Command><![CDATA[        CORE_ROOT="${i#*=}"]]></Command>
+        <Description>Set CORE_ROOT to the specified value before running the test.</Description>
+      </BashCLRTestExecutionScriptArgument>
     </ItemGroup>
 
 
     <ItemGroup>
-      <CLRTestBashEnvironmentVariable Condition="'$(CrossGen)' == 'true' AND '$(_CLRTestNeedsProjectToRun)' == 'true'" Include="set complus_zaprequirelist=$(_CLRTestToRunFileFullPath)" />
-      <CLRTestBashEnvironmentVariable Condition="'$(CrossGen)' == 'true' AND '$(_CLRTestNeedsProjectToRun)' == 'false'" Include="set complus_zaprequirelist=$(MSBuildProjectName)" />
+      <CLRTestBashEnvironmentVariable Condition="'$(CrossGen)' == 'true' AND '$(_CLRTestNeedsProjectToRun)' == 'true'" Include="complus_zaprequirelist=$(_CLRTestToRunFileFullPath)" />
+      <CLRTestBashEnvironmentVariable Condition="'$(CrossGen)' == 'true' AND '$(_CLRTestNeedsProjectToRun)' == 'false'" Include="complus_zaprequirelist=$(MSBuildProjectName)" />
     </ItemGroup>
     
     <PropertyGroup>
@@ -204,9 +229,9 @@ CLRTestExitCode=$?
     </PropertyGroup>
 
     <PropertyGroup>
-      <BatchEnvironmentVariables>
+      <BashEnvironmentVariables>
         @(CLRTestBashEnvironmentVariable -> '%(Identity)', '%0d%0a')
-      </BatchEnvironmentVariables>
+      </BashEnvironmentVariables>
     </PropertyGroup>
      
     <Message Text="MSBuildProjectDirectory:$(MSBuildProjectDirectory)" />
@@ -238,7 +263,7 @@ usage()
     echo "Usage: $0  $(_CLRTestParamList)"
     echo 
     echo "Arguments:"
-@(BatchCLRTestExecutionScriptArgument -> '    echo "-%(Identity)=%(ParamName)"
+@(BashCLRTestExecutionScriptArgument -> '    echo "-%(Identity)=%(ParamName)"
     echo      "%(Description)"', '
 ')
     echo "-?,-h,--help    show this message"
@@ -267,9 +292,13 @@ $(BashCLRTestArgPrep)
       <!-- NOTE! semicolons must be escaped with %3B boooo -->
       <_CLRTestExecutionScriptText>
         <![CDATA[
+cd "$%28dirname "$0")"
+
 # The __TestEnv variable may be used to specify something to run before the test.
 $__TestEnv
 
+$(BashEnvironmentVariables)
+$(BashCLRTestEnvironmentCompatibilityCheck)
 $(BashCLRTestArgPrep)
 $(BashCLRTestExitCodePrep)
 # CrossGen Script (when /p:CrossGen=true)
@@ -277,11 +306,11 @@ $(CrossgenBashScript)
 # IlasmRoundTrip Script
 $(IlasmRoundTripBashScript)
 # PreCommands
-$(_BashCLRTestPreCommands)
+$(BashCLRTestPreCommands)
 # Launch
 $(BashCLRTestLaunchCmds)
 # PostCommands
-$(_BashCLRTestPostCommands)
+$(BashCLRTestPostCommands)
 $(BashCLRTestExitCodeCheck)
       ]]>
       </_CLRTestExecutionScriptText>

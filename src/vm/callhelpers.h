@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 /*============================================================
 **
 ** File:    callhelpers.h
@@ -447,6 +446,20 @@ void FillInRegTypeMap(int argOffset, CorElementType typ, BYTE * pMap);
 /* Macros used to indicate a call to managed code is starting/ending   */
 /***********************************************************************/
 
+#ifdef FEATURE_PAL
+// Install a native exception holder that doesn't catch any exceptions but its presence
+// in a stack range of native frames indicates that there was a call from native to
+// managed code. It is used by the DispatchManagedException to detect the case when
+// the INSTALL_MANAGED_EXCEPTION_DISPATCHER was not at the managed to native boundary.
+// For example in the PreStubWorker, which can be called from both native and managed
+// code.
+#define INSTALL_CALL_TO_MANAGED_EXCEPTION_HOLDER() \
+    NativeExceptionHolderNoCatch __exceptionHolder;    \
+    __exceptionHolder.Push();                           
+#else // FEATURE_PAL
+#define INSTALL_CALL_TO_MANAGED_EXCEPTION_HOLDER()
+#endif // FEATURE_PAL
+
 enum EEToManagedCallFlags
 {
     EEToManagedDefault                  = 0x0000,
@@ -478,6 +491,7 @@ enum EEToManagedCallFlags
         }                                                                       \
     }                                                                           \
     BEGIN_SO_TOLERANT_CODE(CURRENT_THREAD);                                     \
+    INSTALL_CALL_TO_MANAGED_EXCEPTION_HOLDER();                                 \
     INSTALL_COMPLUS_EXCEPTION_HANDLER_NO_DECLARE();
 
 #define END_CALL_TO_MANAGED()                                                   \

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*
  * Generational GC handle manager.  Main Entrypoint Layer.
@@ -391,11 +390,11 @@ void ValidateFetchObjrefForHandle(OBJECTREF objref, ADIndex appDomainIndex)
     _ASSERTE(!pDomain->NoAccessToHandleTable());
 
 #if CHECK_APP_DOMAIN_LEAKS
-    if (g_pConfig->AppDomainLeaks())
+    if (g_pConfig->AppDomainLeaks() && objref != NULL)
     {
         if (appDomainIndex.m_dwIndex)
             objref->TryAssignAppDomain(pDomain);
-        else if (objref != 0)
+        else
             objref->TrySetAppDomainAgile();
     }
 #endif
@@ -421,11 +420,11 @@ void ValidateAssignObjrefForHandle(OBJECTREF objref, ADIndex appDomainIndex)
     _ASSERTE(!pDomain->NoAccessToHandleTable());
 
 #if CHECK_APP_DOMAIN_LEAKS
-    if (g_pConfig->AppDomainLeaks())
+    if (g_pConfig->AppDomainLeaks() && objref != NULL)
     {
         if (appDomainIndex.m_dwIndex)
             objref->TryAssignAppDomain(pDomain);
-        else if (objref != 0)
+        else
             objref->TrySetAppDomainAgile();
     }
 #endif

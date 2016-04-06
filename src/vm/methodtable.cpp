@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: methodtable.cpp
 //
@@ -2288,14 +2287,16 @@ const char* GetSystemVClassificationTypeName(SystemVClassificationType t)
 {
     switch (t)
     {
-    case SystemVClassificationTypeUnknown:          return "Unknown";
-    case SystemVClassificationTypeStruct:           return "Struct";
-    case SystemVClassificationTypeNoClass:          return "NoClass";
-    case SystemVClassificationTypeMemory:           return "Memory";
-    case SystemVClassificationTypeInteger:          return "Integer";
-    case SystemVClassificationTypeIntegerReference: return "IntegerReference";
-    case SystemVClassificationTypeSSE:              return "SSE";
-    default:                                        return "ERROR";
+    case SystemVClassificationTypeUnknown:              return "Unknown";
+    case SystemVClassificationTypeStruct:               return "Struct";
+    case SystemVClassificationTypeNoClass:              return "NoClass";
+    case SystemVClassificationTypeMemory:               return "Memory";
+    case SystemVClassificationTypeInteger:              return "Integer";
+    case SystemVClassificationTypeIntegerReference:     return "IntegerReference";
+    case SystemVClassificationTypeIntegerByRef:         return "IntegerByReference";
+    case SystemVClassificationTypeSSE:                  return "SSE";
+    case SystemVClassificationTypeTypedReference:       return "TypedReference";
+    default:                                            return "ERROR";
     }
 };
 #endif // _DEBUG && LOGGING
@@ -2320,6 +2321,7 @@ static SystemVClassificationType ReClassifyField(SystemVClassificationType origi
 {
     _ASSERTE((newFieldClassification == SystemVClassificationTypeInteger) ||
              (newFieldClassification == SystemVClassificationTypeIntegerReference) ||
+             (newFieldClassification == SystemVClassificationTypeIntegerByRef) ||
              (newFieldClassification == SystemVClassificationTypeSSE));
 
     switch (newFieldClassification)
@@ -2349,6 +2351,11 @@ static SystemVClassificationType ReClassifyField(SystemVClassificationType origi
         // IntegerReference can only merge with IntegerReference.
         _ASSERTE(originalClassification == SystemVClassificationTypeIntegerReference);
         return SystemVClassificationTypeIntegerReference;
+
+    case SystemVClassificationTypeIntegerByRef:
+        // IntegerByReference can only merge with IntegerByReference.
+        _ASSERTE(originalClassification == SystemVClassificationTypeIntegerByRef);
+        return SystemVClassificationTypeIntegerByRef;
 
     default:
         _ASSERTE(false); // Unexpected type.
@@ -2425,7 +2432,6 @@ bool MethodTable::ClassifyEightBytesWithManagedLayout(SystemVStructRegisterPassi
         LPCUTF8 fieldName;
         pField->GetName_NoThrow(&fieldName);
 #endif // _DEBUG
-
         if (fieldClassificationType == SystemVClassificationTypeStruct)
         {
             TypeHandle th = pField->GetApproxFieldTypeHandleThrowing();
@@ -2455,6 +2461,67 @@ bool MethodTable::ClassifyEightBytesWithManagedLayout(SystemVStructRegisterPassi
                 return false;
             }
 
+            continue;
+        }
+
+        if (fieldClassificationType == SystemVClassificationTypeTypedReference || 
+            CorInfoType2UnixAmd64Classification(GetClass_NoLogging()->GetInternalCorElementType()) == SystemVClassificationTypeTypedReference)
+        {
+            // The TypedReference is a very special type.
+            // In source/metadata it has two fields - Type and Value and both are defined of type IntPtr.
+            // When the VM creates a layout of the type it changes the type of the Value to ByRef type and the
+            // type of the Type field is left to IntPtr (TYPE_I internally - native int type.)
+            // This requires a special treatment of this type. The code below handles the both fields (and this entire type).
+
+            for (unsigned i = 0; i < 2; i++)
+            {
+                fieldSize = 8;
+                fieldOffset = (i == 0 ? 0 : 8);
+                normalizedFieldOffset = fieldOffset + startOffsetOfStruct;
+                fieldClassificationType = (i == 0 ? SystemVClassificationTypeIntegerByRef : SystemVClassificationTypeInteger);
+                if ((normalizedFieldOffset % fieldSize) != 0)
+                {
+                    // The spec requires that struct values on the stack from register passed fields expects
+                    // those fields to be at their natural alignment.
+
+                    LOG((LF_JIT, LL_EVERYTHING, "     %*sxxxx Field %d %s: offset %d (normalized %d), size %d not at natural alignment; not enregistering struct\n",
+                        nestingLevel * 5, "", fieldNum, fieldNum, (i == 0 ? "Value" : "Type"), fieldOffset, normalizedFieldOffset, fieldSize));
+                    return false;
+                }
+
+                helperPtr->largestFieldOffset = (int)normalizedFieldOffset;
+
+                // Set the data for a new field.
+
+                // The new field classification must not have been initialized yet.
+                _ASSERTE(helperPtr->fieldClassifications[helperPtr->currentUniqueOffsetField] == SystemVClassificationTypeNoClass);
+
+                // There are only a few field classifications that are allowed.
+                _ASSERTE((fieldClassificationType == SystemVClassificationTypeInteger) ||
+                    (fieldClassificationType == SystemVClassificationTypeIntegerReference) ||
+                    (fieldClassificationType == SystemVClassificationTypeIntegerByRef) ||
+                    (fieldClassificationType == SystemVClassificationTypeSSE));
+
+                helperPtr->fieldClassifications[helperPtr->currentUniqueOffsetField] = fieldClassificationType;
+                helperPtr->fieldSizes[helperPtr->currentUniqueOffsetField] = fieldSize;
+                helperPtr->fieldOffsets[helperPtr->currentUniqueOffsetField] = normalizedFieldOffset;
+
+                LOG((LF_JIT, LL_EVERYTHING, "     %*s**** Field %d %s: offset %d (normalized %d), size %d, currentUniqueOffsetField %d, field type classification %s, chosen field classification %s\n",
+                    nestingLevel * 5, "", fieldNum, (i == 0 ? "Value" : "Type"), fieldOffset, normalizedFieldOffset, fieldSize, helperPtr->currentUniqueOffsetField,
+                    GetSystemVClassificationTypeName(fieldClassificationType),
+                    GetSystemVClassificationTypeName(helperPtr->fieldClassifications[helperPtr->currentUniqueOffsetField])));
+
+                helperPtr->currentUniqueOffsetField++;
+                _ASSERTE(helperPtr->currentUniqueOffsetField < SYSTEMV_MAX_NUM_FIELDS_IN_REGISTER_PASSED_STRUCT);
+#ifdef _DEBUG
+                ++fieldNum;
+#endif // _DEBUG
+            }
+
+            // Both fields of the special TypedReference struct are handled.
+            pField = pFieldEnd;
+
+            // Done classifying the System.TypedReference struct fields.
             continue;
         }
 
@@ -2522,6 +2589,7 @@ bool MethodTable::ClassifyEightBytesWithManagedLayout(SystemVStructRegisterPassi
         // There are only a few field classifications that are allowed.
         _ASSERTE((fieldClassificationType == SystemVClassificationTypeInteger) ||
                  (fieldClassificationType == SystemVClassificationTypeIntegerReference) ||
+                 (fieldClassificationType == SystemVClassificationTypeIntegerByRef) ||
                  (fieldClassificationType == SystemVClassificationTypeSSE));
 
         helperPtr->fieldClassifications[helperPtr->currentUniqueOffsetField] = fieldClassificationType;
@@ -2589,6 +2657,7 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
             nestingLevel * 5, "", this->GetDebugClassName()));
         return false;
     }
+
 #ifdef _DEBUG
     LOG((LF_JIT, LL_EVERYTHING, "%*s**** Classify for native struct %s (%p), startOffset %d, total struct size %d\n",
         nestingLevel * 5, "", this->GetDebugClassName(), this, startOffsetOfStruct, helperPtr->structSize));
@@ -2926,6 +2995,7 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
         // There are only a few field classifications that are allowed.
         _ASSERTE((fieldClassificationType == SystemVClassificationTypeInteger) ||
             (fieldClassificationType == SystemVClassificationTypeIntegerReference) ||
+            (fieldClassificationType == SystemVClassificationTypeIntegerByRef) ||
             (fieldClassificationType == SystemVClassificationTypeSSE));
 
         helperPtr->fieldClassifications[helperPtr->currentUniqueOffsetField] = fieldClassificationType;
@@ -3023,13 +3093,20 @@ void  MethodTable::AssignClassifiedEightByteTypes(SystemVStructRegisterPassingHe
             else if ((helperPtr->eightByteClassifications[currentEightByte] == SystemVClassificationTypeInteger) ||
                 (fieldClassificationType == SystemVClassificationTypeInteger))
             {
-                _ASSERTE(fieldClassificationType != SystemVClassificationTypeIntegerReference);
+                _ASSERTE((fieldClassificationType != SystemVClassificationTypeIntegerReference) && 
+                    (fieldClassificationType != SystemVClassificationTypeIntegerByRef));
+
                 helperPtr->eightByteClassifications[currentEightByte] = SystemVClassificationTypeInteger;
             }
             else if ((helperPtr->eightByteClassifications[currentEightByte] == SystemVClassificationTypeIntegerReference) ||
                 (fieldClassificationType == SystemVClassificationTypeIntegerReference))
             {
                 helperPtr->eightByteClassifications[currentEightByte] = SystemVClassificationTypeIntegerReference;
+            }
+            else if ((helperPtr->eightByteClassifications[currentEightByte] == SystemVClassificationTypeIntegerByRef) ||
+                (fieldClassificationType == SystemVClassificationTypeIntegerByRef))
+            {
+                helperPtr->eightByteClassifications[currentEightByte] = SystemVClassificationTypeIntegerByRef;
             }
             else
             {
@@ -7655,25 +7732,6 @@ BOOL MethodTable::IsStructRequiringStackAllocRetBuf()
     // Disable this optimization. It has limited value (only kicks in on x86, and only for less common structs),
     // causes bugs and introduces odd ABI differences not compatible with ReadyToRun.
     return FALSE;
-
-#if 0
-
-#if defined(_WIN64)
-    // We have not yet updated the 64-bit JIT compiler to follow this directive, so there's
-    // no reason to stack-allocate the return buffers.
-    return FALSE;
-#elif defined(MDIL) || defined(_TARGET_ARM_) 
-    // WPB 481466 RetBuf GC hole (When jitting on ARM32 CoreCLR.dll MDIL is not defined)
-    // 
-    // This optimization causes versioning problems for MDIL which we haven't addressed yet
-    return FALSE;
-#else
-    return IsValueType()
-        && ContainsPointers()
-        && GetNumInstanceFieldBytes() <= MaxStructBytesForLocalVarRetBuffBytes;
-#endif
-
-#endif
 }
 
 //==========================================================================================

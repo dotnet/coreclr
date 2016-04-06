@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /***
 *input.c - C formatted input, used by scanf, etc.
@@ -74,11 +73,7 @@
 
 #define _MBTOWC(x,y,z) _minimal_chartowchar( x, y )
 
-#ifdef UNICODE
-#define _istspace(x)    isspace( ( char )( x & 0x00FF ) )
-#else
-#define _istspace(x)    isspace(x)
-#endif
+#define _istspace(x)    isspace((unsigned char)x)
 
 #define _malloc_crt PAL_malloc
 #define _realloc_crt PAL_realloc
@@ -1317,4 +1312,3 @@ static int __cdecl _whiteout(int* counter, miniFILE* fileptr)
 }
 
 #endif  /* CPRFLAG */
-

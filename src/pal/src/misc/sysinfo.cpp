@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -34,6 +33,7 @@ Revision History:
 #endif
 
 #include <sys/param.h>
+
 #if HAVE_SYS_VMPARAM_H
 #include <sys/vmparam.h>
 #endif  // HAVE_SYS_VMPARAM_H
@@ -45,6 +45,10 @@ Revision History:
 #if HAVE_MACH_VM_PARAM_H
 #include <mach/vm_param.h>
 #endif  // HAVE_MACH_VM_PARAM_H
+
+#if HAVE_MACHINE_VMPARAM_H
+#include <machine/vmparam.h>
+#endif  // HAVE_MACHINE_VMPARAM_H
 
 #if defined(_TARGET_MAC64)
 #include <mach/vm_statistics.h>
@@ -72,7 +76,7 @@ Revision History:
 
 SET_DEFAULT_DEBUG_CHANNEL(MISC);
 
-#if defined(__hppa__) || ( defined (_IA64_) && defined (_HPUX_) )
+#if defined(_HPUX_) && ( defined (_IA64_) || defined (__hppa__) )
 #include <sys/pstat.h>
 #include <sys/vmparam.h>
 #endif
@@ -131,7 +135,7 @@ GetSystemInfo(
     lpSystemInfo->dwActiveProcessorMask_PAL_Undefined = 0;
 
 #if HAVE_SYSCONF
-#if defined(__hppa__) || ( defined (_IA64_) && defined (_HPUX_) )
+#if defined(_HPUX_) && ( defined (_IA64_) || defined (__hppa__) )
     struct pst_dynamic psd;
     if (pstat_getdynamic(&psd, sizeof(psd), (size_t)1, 0) != -1) {
         nrcpus = psd.psd_proc_cnt;
@@ -167,7 +171,7 @@ GetSystemInfo(
 
 #ifdef VM_MAXUSER_ADDRESS
     lpSystemInfo->lpMaximumApplicationAddress = (PVOID) VM_MAXUSER_ADDRESS;
-#elif defined(__sun__) || defined(_AIX) || defined(__hppa__) || ( defined (_IA64_) && defined (_HPUX_) ) || defined(__LINUX__)
+#elif defined(__sun__) || defined(_AIX) || defined(__hppa__) || ( defined (_IA64_) && defined (_HPUX_) ) || defined(__linux__)
     lpSystemInfo->lpMaximumApplicationAddress = (PVOID) -1;
 #elif defined(USERLIMIT)
     lpSystemInfo->lpMaximumApplicationAddress = (PVOID) USERLIMIT;
@@ -342,7 +346,7 @@ PAL_GetLogicalProcessorCacheSizeFromOS()
 {
     size_t cacheSize = 0;
 
-#if HAVE_SYSCONF && defined(__LINUX__)
+#if HAVE_SYSCONF && defined(__linux__)
     cacheSize = max(cacheSize, sysconf(_SC_LEVEL1_DCACHE_SIZE));
     cacheSize = max(cacheSize, sysconf(_SC_LEVEL1_ICACHE_SIZE));
     cacheSize = max(cacheSize, sysconf(_SC_LEVEL2_CACHE_SIZE));
@@ -352,4 +356,3 @@ PAL_GetLogicalProcessorCacheSizeFromOS()
 
     return cacheSize;
 }
-

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ===========================================================================
 // File: Prestub.cpp
 //
@@ -210,10 +209,11 @@ void DACNotifyCompilationFinished(MethodDesc *methodDesc)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
-        MODE_ANY;
+        SO_INTOLERANT;
+        MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
+
     // Is the list active?
     JITNotifications jn(g_pNotificationTable);
     if (jn.IsActive())
@@ -780,15 +780,19 @@ Stub * CreateInstantiatingILStub(MethodDesc* pTargetMD, void* pHiddenArg)
     CONTRACT_END;
 
     SigTypeContext typeContext;
+    MethodTable* pStubMT;
     if (pTargetMD->HasMethodInstantiation())
     {
         // The pHiddenArg shall be a MethodDesc*
-        SigTypeContext::InitTypeContext(static_cast<MethodDesc *>(pHiddenArg), &typeContext);
+        MethodDesc* pMD = static_cast<MethodDesc *>(pHiddenArg);
+        SigTypeContext::InitTypeContext(pMD, &typeContext);
+        pStubMT = pMD->GetMethodTable();
     }
     else
     {
         // The pHiddenArg shall be a MethodTable*
         SigTypeContext::InitTypeContext(TypeHandle::FromPtr(pHiddenArg), &typeContext);
+        pStubMT = static_cast<MethodTable *>(pHiddenArg);
     }
 
     MetaSig msig(pTargetMD);
@@ -837,7 +841,7 @@ Stub * CreateInstantiatingILStub(MethodDesc* pTargetMD, void* pHiddenArg)
     pTargetMD->GetSig(&pSig,&cbSig);
     PTR_Module pLoaderModule = pTargetMD->GetLoaderModule();
     MethodDesc * pStubMD = ILStubCache::CreateAndLinkNewILStubMethodDesc(pTargetMD->GetLoaderAllocator(),
-                                                            pLoaderModule->GetILStubCache()->GetOrCreateStubMethodTable(pLoaderModule),
+                                                            pStubMT,
                                                             ILSTUB_INSTANTIATINGSTUB, 
                                                             pTargetMD->GetModule(),
                                                             pSig, cbSig,
@@ -2345,6 +2349,14 @@ PCODE DynamicHelperFixup(TransitionBlock * pTransitionBlock, TADDR * pCell, DWOR
         fReliable = true;
     case ENCODE_DELEGATE_CTOR:
         pMD = ZapSig::DecodeMethod(pModule, pInfoModule, pBlob, &th);
+        if (pMD->RequiresInstArg())
+        {
+            pMD = MethodDesc::FindOrCreateAssociatedMethodDesc(pMD,
+                th.AsMethodTable(),
+                FALSE /* forceBoxedEntryPoint */,
+                pMD->GetMethodInstantiation(),
+                FALSE /* allowInstParam */);
+        }
         pMD->EnsureActive();
         break;
     default:
@@ -2615,7 +2627,7 @@ extern "C" SIZE_T STDCALL DynamicHelperWorker(TransitionBlock * pTransitionBlock
     TypeHandle th;
     MethodDesc * pMD = NULL;
     FieldDesc * pFD = NULL;
-    CORCOMPILE_FIXUP_BLOB_KIND kind = (CORCOMPILE_FIXUP_BLOB_KIND)0;
+    CORCOMPILE_FIXUP_BLOB_KIND kind = ENCODE_NONE;
 
     {
         GCX_PREEMP_THREAD_EXISTS(CURRENT_THREAD);

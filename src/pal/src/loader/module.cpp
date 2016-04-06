@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -31,7 +30,7 @@ Abstract:
 #include "pal/utils.h"
 #include "pal/init.h"
 #include "pal/modulename.h"
-#include "pal/misc.h"
+#include "pal/environ.h"
 #include "pal/virtual.h"
 #include "pal/map.hpp"
 #include "pal/stackstring.hpp"
@@ -45,9 +44,7 @@ Abstract:
 #else   // NEED_DLCOMPAT
 #include <dlfcn.h>
 #endif  // NEED_DLCOMPAT
-#if HAVE_ALLOCA_H
-#include <alloca.h>
-#endif  // HAVE_ALLOCA_H
+#include <stdlib.h>
 
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
@@ -57,7 +54,7 @@ Abstract:
 #include <sys/types.h>
 #include <sys/mman.h>
 
-#if defined(__LINUX__)
+#if defined(__linux__)
 #include <gnu/lib-names.h>
 #endif
 
@@ -94,7 +91,6 @@ MODSTRUCT exe_module;
 MODSTRUCT *pal_module = nullptr;
 
 char * g_szCoreCLRPath = nullptr;
-size_t g_cbszCoreCLRPath = MAX_LONGPATH * sizeof(char);
 
 int MaxWCharToAcpLength = 3;
 
@@ -178,10 +174,10 @@ LoadLibraryExA(
     }
 
     /* do the Dos/Unix conversion on our own copy of the name */
-    lpstr = InternalStrdup(lpLibFileName);
+    lpstr = strdup(lpLibFileName);
     if (!lpstr)
     {
-        ERROR("InternalStrdup failure!\n");
+        ERROR("strdup failure!\n");
         SetLastError(ERROR_NOT_ENOUGH_MEMORY);
         goto Done;
     }
@@ -544,6 +540,7 @@ GetModuleFileNameW(
     if (name_length >= (INT)nSize)
     {
         TRACE("Buffer too small (%u) to copy module's file name (%u).\n", nSize, name_length);
+        retval = (INT)nSize;
         SetLastError(ERROR_INSUFFICIENT_BUFFER);
         goto done;
     }
@@ -747,12 +744,17 @@ PAL_LOADLoadPEFile(HANDLE hFile)
 #ifdef _DEBUG
     if (loadedBase != nullptr)
     {
-        char* envVar = getenv("PAL_ForcePEMapFailure");
-        if (envVar && strlen(envVar) > 0)
+        char* envVar = EnvironGetenv("PAL_ForcePEMapFailure");
+        if (envVar)
         {
-            TRACE("Forcing failure of PE file map, and retry\n");
-            PAL_LOADUnloadPEFile(loadedBase); // unload it
-            loadedBase = MAPMapPEFile(hFile); // load it again
+            if (strlen(envVar) > 0)
+            {
+                TRACE("Forcing failure of PE file map, and retry\n");
+                PAL_LOADUnloadPEFile(loadedBase); // unload it
+                loadedBase = MAPMapPEFile(hFile); // load it again
+            }
+
+            InternalFree(envVar);
         }
     }
 #endif // _DEBUG
@@ -1267,14 +1269,9 @@ static bool LOADConvertLibraryPathWideStringToMultibyteString(
     if (*multibyteLibraryPathLengthRef == 0)
     {
         DWORD dwLastError = GetLastError();
-        if (dwLastError == ERROR_INSUFFICIENT_BUFFER)
-        {
-            ERROR("wideLibraryPath converted to a multibyte string is longer than MAX_LONGPATH (%d)!\n", MAX_LONGPATH);
-        }
-        else
-        {
-            ASSERT("WideCharToMultiByte failure! error is %d\n", dwLastError);
-        }
+        
+        ASSERT("WideCharToMultiByte failure! error is %d\n", dwLastError);
+        
         SetLastError(ERROR_INVALID_PARAMETER);
         return false;
     }
@@ -1621,6 +1618,8 @@ static HMODULE LOADLoadLibrary(LPCSTR shortAsciiName, BOOL fDynamic)
         shortAsciiName = "libc.dylib";
 #elif defined(__FreeBSD__)
         shortAsciiName = FREEBSD_LIBC;
+#elif defined(__NetBSD__)
+        shortAsciiName = "libc.so";
 #else
         shortAsciiName = LIBC_SO;
 #endif
@@ -1700,20 +1699,22 @@ MODSTRUCT *LOADGetPalLibrary()
         // Make sure it's terminated with a slash.
         if (g_szCoreCLRPath == nullptr)
         {
-            g_szCoreCLRPath = (char*) InternalMalloc(g_cbszCoreCLRPath);
+            size_t  cbszCoreCLRPath = strlen(info.dli_fname) + 1;
+            g_szCoreCLRPath = (char*) InternalMalloc(cbszCoreCLRPath);
 
             if (g_szCoreCLRPath == nullptr)
             {
                 ERROR("LOADGetPalLibrary: InternalMalloc failed!");
                 goto exit;
             }
+
+            if (strcpy_s(g_szCoreCLRPath, cbszCoreCLRPath, info.dli_fname) != SAFECRT_SUCCESS)
+            {
+                ERROR("LOADGetPalLibrary: strcpy_s failed!");
+                goto exit;
+            }
         }
         
-        if (strcpy_s(g_szCoreCLRPath, g_cbszCoreCLRPath, info.dli_fname) != SAFECRT_SUCCESS)
-        {
-            ERROR("LOADGetPalLibrary: strcpy_s failed!");
-            goto exit;
-        }
         pal_module = (MODSTRUCT *)LOADLoadLibrary(info.dli_fname, FALSE);
     }
 

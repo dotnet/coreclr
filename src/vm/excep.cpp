@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -4979,8 +4978,12 @@ BOOL InstallUnhandledExceptionFilter() {
     // We will be here only for CoreCLR on WLC since we dont
     // register UEF for SL.
     if (g_pOriginalUnhandledExceptionFilter == FILTER_NOT_INSTALLED) {
-        g_pOriginalUnhandledExceptionFilter =
-            SetUnhandledExceptionFilter(COMUnhandledExceptionFilter);
+
+        #pragma prefast(push)
+        #pragma prefast(suppress:28725, "Calling to SetUnhandledExceptionFilter is intentional in this case.")
+        g_pOriginalUnhandledExceptionFilter = SetUnhandledExceptionFilter(COMUnhandledExceptionFilter);
+        #pragma prefast(pop)
+
         // make sure is set (ie. is not our special value to indicate unset)
         LOG((LF_EH, LL_INFO10, "InstallUnhandledExceptionFilter registered UEF with OS for CoreCLR!\n"));
     }
@@ -5014,7 +5017,12 @@ void UninstallUnhandledExceptionFilter() {
 #else // !FEATURE_UEF_CHAINMANAGER
     // We will be here only for CoreCLR on WLC or on Mac SL.
     if (g_pOriginalUnhandledExceptionFilter != FILTER_NOT_INSTALLED) {
+
+        #pragma prefast(push)
+        #pragma prefast(suppress:28725, "Calling to SetUnhandledExceptionFilter is intentional in this case.")
         SetUnhandledExceptionFilter(g_pOriginalUnhandledExceptionFilter);
+        #pragma prefast(pop)
+
         g_pOriginalUnhandledExceptionFilter = FILTER_NOT_INSTALLED;
         LOG((LF_EH, LL_INFO10, "UninstallUnhandledExceptionFilter unregistered UEF from OS for CoreCLR!\n"));
     }
@@ -5657,6 +5665,7 @@ LONG __stdcall COMUnhandledExceptionFilter(     // EXCEPTION_CONTINUE_SEARCH or 
         return retVal;
     }
 
+#ifndef FEATURE_CORECLR
 #ifdef _DEBUG
     // V4 onwards, we will reach here in the UEF only on the following conditions:
     //
@@ -5675,18 +5684,28 @@ LONG __stdcall COMUnhandledExceptionFilter(     // EXCEPTION_CONTINUE_SEARCH or 
     //
     // 4) A corrupting exception may become unhandled.
     //
-    // This is applicable to CoreCLR as well. We wont enter the UEF (and thus come here) on Silverlight,
-    // but we could when being used by WLC as we register the UEF for them.
+    // This is not applicable to CoreCLR, as this unhandled exception filter is always set up, and all hardware exceptions in
+    // managed code, including those that are not process-corrupting, such as integer division by zero, will end up here.
 
     // Assert these conditions here - we shouldnt be here for any other unhandled exception processing.
     Thread *pThread = GetThread();
-    _ASSERTE((pThread == NULL) || // condition 3
-             (pThread->GetExceptionState()->IsExceptionInProgress() &&
-              pThread->GetExceptionState()->GetFlags()->ReversePInvokeEscapingException()) || // condition 2
-             ((!ExecutionManager::IsManagedCode((PCODE)pExceptionInfo->ExceptionRecord->ExceptionAddress))) // condition 1
-             CORRUPTING_EXCEPTIONS_ONLY(||(CEHelper::IsProcessCorruptedStateException(pExceptionInfo->ExceptionRecord->ExceptionCode)) ||) // condition 4
-             CORRUPTING_EXCEPTIONS_ONLY((CEHelper::IsProcessCorruptedStateException(pThread->GetThrowable())))); // condition 4
+    if ((pThread != NULL) && // condition 3
+        !(pThread->GetExceptionState()->IsExceptionInProgress() &&
+            pThread->GetExceptionState()->GetFlags()->ReversePInvokeEscapingException()) && // condition 2
+        (ExecutionManager::IsManagedCode((PCODE)pExceptionInfo->ExceptionRecord->ExceptionAddress))) // condition 1
+    {
+#ifdef FEATURE_CORRUPTING_EXCEPTIONS
+        if (!CEHelper::IsProcessCorruptedStateException(pExceptionInfo->ExceptionRecord->ExceptionCode)) // condition 4
+        {
+            GCX_COOP();
+            _ASSERTE(CEHelper::IsProcessCorruptedStateException(pThread->GetThrowable())); // condition 4
+        }
+#else // !FEATURE_CORRUPTING_EXCEPTIONS
+        _ASSERTE(false);
+#endif // FEATURE_CORRUPTING_EXCEPTIONS
+    }
 #endif // _DEBUG
+#endif // !FEATURE_CORECLR
 
     retVal = InternalUnhandledExceptionFilter(pExceptionInfo);
 
@@ -7097,7 +7116,24 @@ bool IsInterceptableException(Thread *pThread)
             );
 }
 
-// Did we hit an DO_A_GC_HERE marker in JITTed code?
+// Determines whether we hit an DO_A_GC_HERE marker in JITted code, and returns the 
+// appropriate exception code, or zero if the code is not a GC marker.
+DWORD GetGcMarkerExceptionCode(LPVOID ip)
+{
+#if defined(HAVE_GCCOVER) && defined(FEATURE_CORECLR)
+    WRAPPER_NO_CONTRACT;
+
+    if (GCStress<cfg_any>::IsEnabled() && IsGcCoverageInterrupt(ip))
+    {
+        return STATUS_CLR_GCCOVER_CODE;
+    }
+#else // !(defined(HAVE_GCCOVER) && defined(FEATURE_CORECLR))
+    LIMITED_METHOD_CONTRACT;
+#endif // defined(HAVE_GCCOVER) && defined(FEATURE_CORECLR)
+    return 0;
+}
+
+// Did we hit an DO_A_GC_HERE marker in JITted code?
 bool IsGcMarker(DWORD exceptionCode, CONTEXT *pContext)
 {
 #ifdef HAVE_GCCOVER

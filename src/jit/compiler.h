@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -26,6 +25,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #include "jit.h"
 #include "opcode.h"
 #include "block.h"
+#include "inline.h"
 #include "jiteh.h"
 #include "instr.h"
 #include "regalloc.h"
@@ -275,13 +275,14 @@ public:
     unsigned char       lvOverlappingFields :1;  // True when we have a struct with possibly overlapping fields
     unsigned char       lvContainsHoles     :1;  // True when we have a promoted struct that contains holes
     unsigned char       lvCustomLayout      :1;  // True when this struct has "CustomLayout"
-#if FEATURE_MULTIREG_STRUCTS
-    unsigned char       lvDontPromote:1;         // Should struct promotion consider this local variable for promotion?
+#if FEATURE_MULTIREG_ARGS_OR_RET
+    unsigned char       lvIsMultiRegArgOrRet:1; // Is this argument variable holding a value passed or returned in multiple registers?
 #endif
 #ifdef _TARGET_ARM_
+    // TODO-Cleanup: Can this be subsumed by the above?
     unsigned char       lvIsHfaRegArg:1;        // Is this argument variable holding a HFA register argument.
     unsigned char       lvHfaTypeIsFloat:1;     // Is the HFA type float or double?
-#endif
+#endif // _TARGET_ARM_
 
 #ifdef DEBUG
     // TODO-Cleanup: See the note on lvSize() - this flag is only in use by asserts that are checking for struct
@@ -316,7 +317,7 @@ public:
     unsigned char       lvFldOffset;
     unsigned char       lvFldOrdinal;
 
-#if FEATURE_MULTIREG_STRUCT_ARGS
+#if FEATURE_MULTIREG_ARGS
     regNumber lvRegNumForSlot(unsigned slotNum)
     {
         if (slotNum == 0)
@@ -334,7 +335,7 @@ public:
 
         unreached();
     }
-#endif // FEATURE_MULTIREG_STRUCT_ARGS
+#endif // FEATURE_MULTIREG_ARGS
 
 private:
 
@@ -348,10 +349,10 @@ private:
 
     regNumberSmall      _lvArgReg;      // The register in which this argument is passed.
 
-#if FEATURE_MULTIREG_STRUCT_ARGS
+#if FEATURE_MULTIREG_ARGS
     regNumberSmall      _lvOtherArgReg;    // Used for the second part of the struct passed in a register.
                                            // Note this is defined but not used by ARM32
-#endif // FEATURE_MULTIREG_STRUCT_ARGS
+#endif // FEATURE_MULTIREG_ARGS
 
 #ifndef LEGACY_BACKEND
     union
@@ -430,7 +431,7 @@ public:
         assert(_lvArgReg == reg);
     }
 
-#if FEATURE_MULTIREG_STRUCT_ARGS
+#if FEATURE_MULTIREG_ARGS
     __declspec(property(get = GetOtherArgReg, put = SetOtherArgReg))
     regNumber           lvOtherArgReg;
 
@@ -444,7 +445,7 @@ public:
         _lvOtherArgReg = (regNumberSmall)reg;
         assert(_lvOtherArgReg == reg);
     }
-#endif // FEATURE_MULTIREG_STRUCT_ARGS
+#endif // FEATURE_MULTIREG_ARGS
 
 #ifdef FEATURE_SIMD
     // Is this is a SIMD struct?
@@ -595,6 +596,20 @@ public:
                (lvType == TYP_BLK) ||
                (lvPromoted && lvUnusedStruct));
         return (unsigned)(roundUp(lvExactSize, sizeof(void*)));
+    }
+
+    bool                lvIsMultiregStruct()
+    {
+#if FEATURE_MULTIREG_ARGS_OR_RET
+#ifdef _TARGET_ARM64_
+        if ((TypeGet() == TYP_STRUCT) &&
+            (lvSize()  == 2 * TARGET_POINTER_SIZE))
+        {
+            return true;
+        }
+#endif  // _TARGET_ARM64_
+#endif  // FEATURE_MULTIREG_ARGS_OR_RET
+        return false;
     }
 
 #if defined(DEBUGGING_SUPPORT) || defined(DEBUG)
@@ -777,160 +792,6 @@ public:
 };
 
 LinearScanInterface *getLinearScanAllocator(Compiler *comp);
-
-/*****************************************************************************
- *                  Inlining support
- */
-
-
-// Flags lost during inlining.
-    
-#define CORJIT_FLG_LOST_WHEN_INLINING   (CORJIT_FLG_BBOPT |                         \
-                                         CORJIT_FLG_BBINSTR |                       \
-                                         CORJIT_FLG_PROF_ENTERLEAVE |               \
-                                         CORJIT_FLG_DEBUG_EnC |                     \
-                                         CORJIT_FLG_DEBUG_INFO                      \
-                                        )
-
-enum InlInlineHints
-{
-    //Static inline hints are here.
-    InlLooksLikeWrapperMethod = 0x0001,     // The inline candidate looks like it's a simple wrapper method.
-
-    InlArgFeedsConstantTest   = 0x0002,     // One or more of the incoming arguments feeds into a test
-                                            //against a constant.  This is a good candidate for assertion
-                                            //prop.
-
-    InlMethodMostlyLdSt       = 0x0004,     //This method is mostly loads and stores.
-
-    InlMethodContainsCondThrow= 0x0008,     //Method contains a conditional throw, so it does not bloat the
-                                            //code as much.
-    InlArgFeedsRngChk         = 0x0010,     //Incoming arg feeds an array bounds check.  A good assertion
-                                            //prop candidate.
-
-    //Dynamic inline hints are here.  Only put hints that add to the multiplier in here.
-    InlIncomingConstFeedsCond = 0x0100,     //Incoming argument is constant and feeds a conditional.
-    InlAllDynamicHints        = InlIncomingConstFeedsCond
-};
-struct InlineCandidateInfo
-{ 
-    DWORD                 dwRestrictions;   
-    CORINFO_METHOD_INFO   methInfo;     
-    unsigned              methAttr;
-    CORINFO_CLASS_HANDLE  clsHandle;
-    unsigned              clsAttr;  
-    var_types             fncRetType;
-    CORINFO_METHOD_HANDLE ilCallerHandle; //the logical IL caller of this inlinee.
-    CORINFO_CONTEXT_HANDLE exactContextHnd;
-    CorInfoInitClassResult initClassResult;
-};
-
-struct InlArgInfo
-{
-    unsigned    argIsUsed     :1;   // is this arg used at all?
-    unsigned    argIsInvariant:1;   // the argument is a constant or a local variable address
-    unsigned    argIsLclVar   :1;   // the argument is a local variable
-    unsigned    argIsThis     :1;   // the argument is the 'this' pointer
-    unsigned    argHasSideEff :1;   // the argument has side effects
-    unsigned    argHasGlobRef :1;   // the argument has a global ref
-    unsigned    argHasTmp     :1;   // the argument will be evaluated to a temp
-    unsigned    argIsByRefToStructLocal:1;  // Is this arg an address of a struct local or a normed struct local or a field in them?
-    unsigned    argHasLdargaOp:1;   // Is there LDARGA(s) operation on this argument?
-
-    unsigned    argTmpNum;          // the argument tmp number
-    GenTreePtr  argNode;
-    GenTreePtr  argBashTmpNode;     // tmp node created, if it may be replaced with actual arg
-};
-
-struct InlLclVarInfo
-{
-    var_types       lclTypeInfo;
-    typeInfo        lclVerTypeInfo;
-    bool            lclHasLdlocaOp; // Is there LDLOCA(s) operation on this argument?
-};
-
-#ifndef LEGACY_BACKEND
-const unsigned int   MAX_INL_ARGS =      32;     // does not include obj pointer
-const unsigned int   MAX_INL_LCLS =      32;
-#else // LEGACY_BACKEND
-const unsigned int   MAX_INL_ARGS =      10;     // does not include obj pointer
-const unsigned int   MAX_INL_LCLS =      8;
-#endif // LEGACY_BACKEND
-
-class JitInlineResult
-{
-public:
-    JitInlineResult() : inlInlineResult((CorInfoInline)0), inlInliner(NULL), inlInlinee(NULL)
-#ifdef DEBUG
-    , inlReason("Invalid inline result"),
-#else
-    , inlReason(NULL),
-#endif
-    reported(false)
-    {
-    }
-    explicit JitInlineResult(CorInfoInline          inlineResult,
-                             CORINFO_METHOD_HANDLE  inliner,
-                             CORINFO_METHOD_HANDLE  inlinee,
-                             const char *           reason = NULL)
-        : inlInlineResult(inlineResult), inlInliner(inliner), inlInlinee(inlinee), inlReason(reason),
-        reported(false)
-    {
-        assert(dontInline(inlineResult) == (reason != NULL));
-    }
-    inline CorInfoInline result() const { return inlInlineResult; }
-    inline const char * reason() const { return inlReason; }
-    //only call this if you explicitly do not want to report an inline failure.
-    void setReported() { reported = true; }
-    inline void report(COMP_HANDLE compCompHnd)
-    {
-        if (!reported)
-        {
-            compCompHnd->reportInliningDecision(inlInliner, inlInlinee, inlInlineResult, inlReason);
-        }
-        reported = true;
-    }
-private:
-    CorInfoInline           inlInlineResult;
-    CORINFO_METHOD_HANDLE   inlInliner;
-    CORINFO_METHOD_HANDLE   inlInlinee;
-    const char * inlReason;
-    bool reported;
-};
-inline bool dontInline(const JitInlineResult& val) {
-    return(dontInline(val.result()));
-}
-
-
-struct InlineInfo
-{        
-    Compiler        * InlinerCompiler;  // The Compiler instance for the caller (i.e. the inliner)
-    Compiler        * InlineRoot;       // The Compiler instance that is the root of the inlining tree of which the owner of "this" is a member.
-
-    CORINFO_METHOD_HANDLE fncHandle;
-    InlineCandidateInfo * inlineCandidateInfo;
-
-    JitInlineResult   inlineResult; 
-
-    GenTreePtr retExpr;      // The return expression of the inlined candidate.
-   
-    CORINFO_CONTEXT_HANDLE tokenLookupContextHandle; // The context handle that will be passed to
-                                                     // impTokenLookupContextHandle in Inlinee's Compiler.
-  
-    unsigned          argCnt;
-    InlArgInfo        inlArgInfo[MAX_INL_ARGS + 1];
-    int               lclTmpNum[MAX_INL_LCLS];    // map local# -> temp# (-1 if unused)
-    InlLclVarInfo     lclVarInfo[MAX_INL_LCLS + MAX_INL_ARGS + 1];  // type information from local sig    
-
-    bool              thisDereferencedFirst;
-#ifdef FEATURE_SIMD
-    bool              hasSIMDTypeArgLocalOrReturn;
-#endif // FEATURE_SIMD
-                     
-    GenTree         * iciCall;       // The GT_CALL node to be inlined.
-    GenTree         * iciStmt;       // The statement iciCall is in.
-    BasicBlock      * iciBlock;      // The basic block iciStmt is in.  
-};
 
 // Information about arrays: their element type and size, and the offset of the first element.
 // We label GT_IND's that are array indices with GTF_IND_ARR_INDEX, and, for such nodes,
@@ -1176,6 +1037,10 @@ struct FuncInfoDsc
     BYTE                unwindCodes[offsetof(UNWIND_INFO, UnwindCode) + (0xFF*sizeof(UNWIND_CODE))];
     unsigned            unwindCodeSlot;
 
+#ifdef UNIX_AMD64_ABI
+    jitstd::vector<CFI_CODE>* cfiCodes;
+#endif // UNIX_AMD64_ABI
+
 #elif defined(_TARGET_ARMARCH_)
 
     UnwindInfo          uwi;        // Unwind information for this function/funclet's hot  section
@@ -1223,7 +1088,7 @@ struct fgArgTabEntry
     unsigned       tmpNum;      // the LclVar number if we had to force evaluation of this arg
 
     bool           isSplit      :1; // True when this argument is split between the registers and OutArg area 
-    bool           needTmp      :1; // True when we force this arguments evaluation into a temp LclVar
+    bool           needTmp      :1; // True when we force this argument's evaluation into a temp LclVar
     bool           needPlace    :1; // True when we must replace this argument with a placeholder node
     bool           isTmp        :1; // True when we setup a temp LclVar for this argument due to size issues with the struct 
     bool           processed    :1; // True when we have decided the evaluation order for this argument in the gtCallLateArgs 
@@ -1232,8 +1097,9 @@ struct fgArgTabEntry
     bool           isNonStandard:1; // True if it is an arg that is passed in a reg other than a standard arg reg
 
 #if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+    bool           isStruct     :1; // True if this is a struct arg
+
     regNumber             otherRegNum;              // The (second) register to use when passing this argument.
-    bool                  isStruct;                 // is this a struct arg
 
     SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
 #endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
@@ -1497,9 +1363,9 @@ public:
     DWORD expensiveDebugCheckLevel;
 #endif
 
-#if FEATURE_MULTIREG_STRUCT_RET
+#if FEATURE_MULTIREG_RET
     GenTreePtr               impAssignStructClassToVar(GenTreePtr op, CORINFO_CLASS_HANDLE hClass);
-#endif
+#endif // FEATURE_MULTIREG_RET
 
 #ifdef _TARGET_ARM_
 
@@ -2273,6 +2139,11 @@ public :
     unsigned short      lvaTrackedCount;    // actual # of locals being tracked
     unsigned            lvaTrackedCountInSizeTUnits;  // min # of size_t's sufficient to hold a bit for all the locals being tracked
 
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+    // Only for AMD64 System V cache the first caller stack homed argument.
+    unsigned            lvaFirstStackIncomingArgNum;  // First argument with stack slot in the caller.
+#endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING
+
 #ifdef DEBUG
     VARSET_TP           lvaTrackedVars;     // set of tracked variables
 #endif
@@ -2652,6 +2523,9 @@ public :
 
     InlineInfo         * impInlineInfo;      
 
+    // Get the maximum IL size allowed for an inline
+    unsigned             getImpInlineSize() const { return impInlineSize; }
+
     // The Compiler* that is the root of the inlining tree of which "this" is a member.
     Compiler*            impInlineRoot();
 
@@ -2726,8 +2600,10 @@ protected :
     //-------------------- Stack manipulation ---------------------------------
 
     unsigned            impStkSize;   // Size of the full stack
-    StackEntry          impSmallStack[16];  // Use this array is possible
 
+#define SMALL_STACK_SIZE 16           // number of elements in impSmallStack
+
+    StackEntry          impSmallStack[SMALL_STACK_SIZE];  // Use this array if possible
 
     struct SavedStack                   // used to save/restore stack contents.
     {
@@ -2829,6 +2705,7 @@ protected :
                                              CORINFO_SIG_INFO *     sig,
                                              int                    memberRef,
                                              bool                   readonlyCall,
+                                             bool                   tailCall,
                                              CorInfoIntrinsics *    pIntrinsicID);
     GenTreePtr          impArrayAccessIntrinsic(CORINFO_CLASS_HANDLE    clsHnd,
                                                 CORINFO_SIG_INFO *      sig,
@@ -3174,7 +3051,6 @@ private:
     void                impLoadArg(unsigned ilArgNum, IL_OFFSET offset);
     void                impLoadLoc(unsigned ilLclNum, IL_OFFSET offset);
     bool                impReturnInstruction(BasicBlock *block, int prefixFlags, OPCODE &opcode);
-    void                impAbortInline(bool abortThisInlineOnly, bool contextDependent, const char *reason);
 
 #if defined(_TARGET_ARM_)
     void                impMarkLclDstNotPromotable(unsigned tmpNum, GenTreePtr op, CORINFO_CLASS_HANDLE hClass);
@@ -3220,10 +3096,6 @@ private:
     static unsigned jitIciStmtIsTheLastInBB;
     static unsigned jitInlineeContainsOnlyOneBB;
 
-    #define             INLINER_FAILED                  "\nINLINER FAILED: "
-    #define             INLINER_WARNING                 "\nINLINER WARNING: "
-    #define             INLINER_INFO                    "\nINLINER INFO: "
-
 #endif // defined(DEBUG) || MEASURE_INLINING
 
 #ifdef DEBUG
@@ -3236,30 +3108,29 @@ private:
 
     static BOOL         impIsAddressInLocal(GenTreePtr tree, GenTreePtr * lclVarTreeOut);
 
-    int                 impEstimateCallsiteNativeSize (CORINFO_METHOD_INFO *  methInfo);
-
-    JitInlineResult     impCanInlineNative (int   callsiteNativeEstimate, 
-                                            int   calleeNativeSizeEstimate,
-                                            InlInlineHints inlineHints,
-                                            InlineInfo * pInlineInfo);
+    void                impMakeDiscretionaryInlineObservations(InlineInfo*   pInlineInfo,
+                                                               InlineResult* inlineResult);
 
     // STATIC inlining decision based on the IL code. 
-    JitInlineResult     impCanInlineIL (CORINFO_METHOD_HANDLE  fncHandle,
-                                        CORINFO_METHOD_INFO *  methInfo,
-                                        bool forceInline);
+    void                impCanInlineIL(CORINFO_METHOD_HANDLE  fncHandle,
+                                       CORINFO_METHOD_INFO*   methInfo,
+                                       bool                   forceInline,
+                                       InlineResult*          inlineResult);
 
-    JitInlineResult     impCheckCanInline(GenTreePtr                call,
-                                          CORINFO_METHOD_HANDLE     fncHandle,
-                                          unsigned                  methAttr,
-                                          CORINFO_CONTEXT_HANDLE    exactContextHnd,
-                                          InlineCandidateInfo    ** ppInlineCandidateInfo);
+    void                impCheckCanInline(GenTreePtr              call,
+                                          CORINFO_METHOD_HANDLE   fncHandle,
+                                          unsigned                methAttr,
+                                          CORINFO_CONTEXT_HANDLE  exactContextHnd,
+                                          InlineCandidateInfo**   ppInlineCandidateInfo,
+                                          InlineResult*           inlineResult);
 
-    JitInlineResult     impInlineRecordArgInfo(InlineInfo *  pInlineInfo,
-                                               GenTreePtr    curArgVal,
-                                               unsigned      argNum);
+    void                impInlineRecordArgInfo(InlineInfo*       pInlineInfo,
+                                               GenTreePtr        curArgVal,
+                                               unsigned          argNum,
+                                               InlineResult*     inlineResult);
 
-    JitInlineResult     impInlineInitVars     (InlineInfo *  pInlineInfo);
-
+    void                impInlineInitVars(InlineInfo*  pInlineInfo);
+   
     unsigned            impInlineFetchLocal(unsigned  lclNum                           
                                             DEBUGARG(const char * reason) );
 
@@ -3913,6 +3784,9 @@ public :
         }
     }
 
+    // Convert a BYTE which represents the VM's CorInfoGCtype to the JIT's var_types
+    var_types   getJitGCType(BYTE gcType);
+
     // Get the "primitive" type, if any, that is used to pass or return
     // values of the given struct type.
     var_types    argOrReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd, bool forReturn);
@@ -4459,8 +4333,7 @@ protected :
     unsigned            fgStressBBProf()
     {
 #ifdef DEBUG
-        static ConfigDWORD fJitStressBBProf;
-        unsigned result = fJitStressBBProf.val(CLRConfig::INTERNAL_JitStressBBProf);
+        unsigned result = JitConfig.JitStressBBProf();
         if (result == 0)
         {
             if (compStressCompile(STRESS_BB_PROFILE, 15))
@@ -4669,7 +4542,12 @@ private:
                                                               GenTreePtr tmpAssignmentInsertionPoint, GenTreePtr paramAssignmentInsertionPoint);
     static int          fgEstimateCallStackSize(GenTreeCall* call);
     GenTreePtr          fgMorphCall         (GenTreeCall*   call);
-    GenTreePtr          fgMorphCallInline   (GenTreePtr     call);
+    void                fgMorphCallInline      (GenTreeCall* call, InlineResult* result);
+    void                fgMorphCallInlineHelper(GenTreeCall* call, InlineResult* result);
+#if DEBUG
+    void                fgNoteNonInlineCandidate(GenTreePtr     tree, GenTreeCall* call);
+    static fgWalkPreFn  fgFindNonInlineCandidate;
+#endif
     GenTreePtr          fgOptimizeDelegateConstructor(GenTreePtr call, CORINFO_CONTEXT_HANDLE * ExactContextHnd);
     GenTreePtr          fgMorphLeaf         (GenTreePtr     tree);
     void                fgAssignSetVarDef   (GenTreePtr     tree);
@@ -4773,13 +4651,10 @@ private:
 
     unsigned            fgBigOffsetMorphingTemps[TYP_COUNT];
 
-    static bool         fgIsUnboundedInlineRecursion(inlExpPtr expLst,
-                                                     BYTE *    ilCode,
-                                                     DWORD&    depth);
-
-    JitInlineResult     fgInvokeInlineeCompiler(GenTreeCall*   call);
-    void                fgInsertInlineeBlocks (InlineInfo * pInlineInfo);
-    GenTreePtr          fgInlinePrependStatements(InlineInfo * inlineInfo);
+    unsigned            fgCheckInlineDepthAndRecursion(InlineInfo* inlineInfo);
+    void                fgInvokeInlineeCompiler(GenTreeCall* call, InlineResult* result);
+    void                fgInsertInlineeBlocks (InlineInfo* pInlineInfo);
+    GenTreePtr          fgInlinePrependStatements(InlineInfo* inlineInfo);
 
 #if defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
     GenTreePtr          fgGetStructAsStructPtr(GenTreePtr tree);
@@ -5336,6 +5211,7 @@ protected:
     bool                optNarrowTree   (GenTreePtr     tree,
                                          var_types      srct,
                                          var_types      dstt,
+                                         ValueNumPair   vnpNarrow,
                                          bool           doit);
 
     /**************************************************************************
@@ -6895,6 +6771,21 @@ private:
     void                unwindEmitFuncHelper(FuncInfoDsc* func, void* pHotCode, void* pColdCode, bool isHotCode);
     UNATIVE_OFFSET      unwindGetCurrentOffset(FuncInfoDsc* func);
 
+    void                unwindBegPrologWindows();
+    void                unwindPushWindows(regNumber reg);
+    void                unwindAllocStackWindows(unsigned size);
+    void                unwindSetFrameRegWindows(regNumber reg, unsigned offset);
+    void                unwindSaveRegWindows(regNumber reg, unsigned offset);
+
+#ifdef UNIX_AMD64_ABI
+    void                unwindBegPrologCFI();
+    void                unwindPushCFI(regNumber reg);
+    void                unwindAllocStackCFI(unsigned size);
+    void                unwindSetFrameRegCFI(regNumber reg, unsigned offset);
+    void                unwindSaveRegCFI(regNumber reg, unsigned offset);
+    int                 mapRegNumToDwarfReg(regNumber reg);
+    void                createCfiCode(FuncInfoDsc* func, UCHAR codeOffset, UCHAR opcode, USHORT dwarfReg, INT offset = 0);
+#endif // UNIX_AMD64_ABI
 #elif defined(_TARGET_ARM_)
 
     void                unwindPushPopMaskInt(regMaskTP mask, bool useOpsize16);
@@ -7394,7 +7285,7 @@ public :
 
     Compiler          * InlineeCompiler;        // The Compiler instance for the inlinee
 
-    JitInlineResult     compInlineResult;       // The result of importing the inlinee method.
+    InlineResult*       compInlineResult;       // The result of importing the inlinee method.
                                                                                               
     bool                compDoAggressiveInlining;  // If true, mark every method as CORINFO_FLG_FORCEINLINE
     bool                compJmpOpUsed;          // Does the method do a JMP
@@ -7462,7 +7353,8 @@ public :
 
     struct Options
     {
-        unsigned            eeFlags;        // flags passed from the EE
+        CORJIT_FLAGS*       jitFlags;       // all flags passed from the EE
+        unsigned            eeFlags;        // CorJitFlag flags passed from the EE
         unsigned            compFlags;      // method attributes
 
         codeOptimize        compCodeOpt;    // what type of code optimizations
@@ -7522,13 +7414,23 @@ public :
         inline bool         IsReadyToRun() { return false; }
 #endif
 
+        // true if we should use the PINVOKE_{BEGIN,END} helpers instead of generating
+        // PInvoke transitions inline (e.g. when targeting CoreRT).
+        inline bool         ShouldUsePInvokeHelpers()
+        {
+#if COR_JIT_EE_VERSION > 460
+            return (jitFlags->corJitFlags2 & CORJIT_FLG2_USE_PINVOKE_HELPERS) != 0;
+#else
+            return false;
+#endif
+        }
+
         // true if we must generate compatible code with Jit64 quirks
         inline bool         IsJit64Compat()
         {
 #if defined(_TARGET_AMD64_) && !defined(FEATURE_CORECLR)
-            // JIT64 interop not required for ReadyToRun since it can simply fall-back
-            return !IsReadyToRun();
-#else // defined(_TARGET_AMD64_) && !defined(FEATURE_CORECLR)
+            return true;
+#else
             return false;
 #endif
         }
@@ -7616,7 +7518,7 @@ public :
         bool                disAsm2;        // Display native code after it is generated using external disassembler
         bool                dspOrder;       // Display names of each of the methods that we ngen/jit
         bool                dspUnwind;      // Display the unwind info output
-        bool                dspDiffable;    // Makes the Jit Dump 'diff-able' (currently uses same COMPLUS_* flag as disDiffable)
+        bool                dspDiffable;    // Makes the Jit Dump 'diff-able' (currently uses same COMPlus_* flag as disDiffable)
         bool                compLargeBranches; // Force using large conditional branches
         bool                dspGCtbls;      // Display the GC tables
 #endif
@@ -7656,6 +7558,7 @@ public :
         opts;
 
 #ifdef ALT_JIT
+    static bool s_pAltJitExcludeAssembliesListInitialized;
     static AssemblyNamesList2* s_pAltJitExcludeAssembliesList;
 #endif // ALT_JIT
 
@@ -7704,7 +7607,7 @@ public :
         /* hide/trivialize other areas */                                                       \
                                                                                                 \
         STRESS_MODE(REGS) STRESS_MODE(DBL_ALN) STRESS_MODE(LCL_FLDS) STRESS_MODE(UNROLL_LOOPS)  \
-        STRESS_MODE(MAKE_CSE) STRESS_MODE(INLINE) STRESS_MODE(CLONE_EXPR)                       \
+        STRESS_MODE(MAKE_CSE) STRESS_MODE(LEGACY_INLINE) STRESS_MODE(CLONE_EXPR)                \
         STRESS_MODE(USE_FCOMI) STRESS_MODE(USE_CMOV) STRESS_MODE(FOLD)                          \
         STRESS_MODE(BB_PROFILE) STRESS_MODE(OPT_BOOLS_GC) STRESS_MODE(REMORPH_TREES)            \
         STRESS_MODE(64RSLT_MUL) STRESS_MODE(DO_WHILE_LOOPS) STRESS_MODE(MIN_OPTS)               \
@@ -7715,6 +7618,7 @@ public :
         STRESS_MODE(UNSAFE_BUFFER_CHECKS)                                                       \
         STRESS_MODE(NULL_OBJECT_CHECK)                                                          \
         STRESS_MODE(PINVOKE_RESTORE_ESP)                                                        \
+        STRESS_MODE(RANDOM_INLINE)                                                              \
                                                                                                 \
         STRESS_MODE(GENERIC_VARN) STRESS_MODE(COUNT_VARN)                                       \
                                                                                                 \
@@ -7745,11 +7649,24 @@ public :
     bool                compStressCompile(compStressArea    stressArea,
                                           unsigned          weightPercentage);
 
+#ifdef DEBUG
+
+    bool                compInlineStress()
+    {
+        return compStressCompile(STRESS_LEGACY_INLINE, 50);
+    }
+
+    bool                compRandomInlineStress()
+    {
+        return compStressCompile(STRESS_RANDOM_INLINE, 50);
+    }
+
+#endif // DEBUG
+
     bool                compTailCallStress()
     {
 #ifdef DEBUG
-        static ConfigDWORD fTailcallStress;
-        return (fTailcallStress.val(CLRConfig::INTERNAL_TailcallStress) !=0
+        return (JitConfig.TailcallStress() !=0
                || compStressCompile(STRESS_TAILCALL, 5)
                );
 #else
@@ -7772,6 +7689,10 @@ public :
         return BLENDED_CODE;
 #endif
     }
+
+#ifdef DEBUG
+    CLRRandom*      inlRNG;
+#endif
 
     //--------------------- Info about the procedure --------------------------
 
@@ -7882,6 +7803,67 @@ public :
     }
     info;
 
+    // Returns true if the method being compiled returns a non-void and non-struct value.
+    // Note that lvaInitTypeRef() normalizes compRetNativeType for struct returns in a 
+    // single register as per target arch ABI (e.g on Amd64 Windows structs of size 1, 2,
+    // 4 or 8 gets normalized to TYP_BYTE/TYP_SHORT/TYP_INT/TYP_LONG; On Arm Hfa structs).
+    // Methods returning such structs are considered to return non-struct return value and
+    // this method returns true in that case.
+    bool                compMethodReturnsNativeScalarType() 
+    {
+        return (info.compRetType != TYP_VOID) && !varTypeIsStruct(info.compRetNativeType);
+    }
+
+    // Returns true if the method being compiled returns RetBuf addr as its return value
+    bool                compMethodReturnsRetBufAddr() 
+    {
+        // There are cases where implicit RetBuf argument should be explicitly returned in a register.  
+        // In such cases the return type is changed to TYP_BYREF and appropriate IR is generated.  
+        // These cases are:  
+        // 1. Profiler Leave calllback expects the address of retbuf as return value for   
+        //    methods with hidden RetBuf argument.  impReturnInstruction() when profiler  
+        //    callbacks are needed creates GT_RETURN(TYP_BYREF, op1 = Addr of RetBuf) for  
+        //    methods with hidden RetBufArg.  
+        //  
+        // 2. As per the System V ABI, the address of RetBuf needs to be returned by  
+        //    methods with hidden RetBufArg in RAX. In such case GT_RETURN is of TYP_BYREF,  
+        //    returning the address of RetBuf.  
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+        return (info.compRetBuffArg != BAD_VAR_NUM);
+#else // FEATURE_UNIX_AMD64_STRUCT_PASSING  
+        return (compIsProfilerHookNeeded()) && (info.compRetBuffArg != BAD_VAR_NUM);
+#endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING  
+    }
+
+    // Returns true if the method returns a value in more than one return register
+    // TODO-ARM-Bug: Deal with multi-register genReturnLocaled structs?
+    // TODO-ARM64: Does this apply for ARM64 too?
+    bool                compMethodReturnsMultiRegRetType() 
+    {       
+#if FEATURE_MULTIREG_RET
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+        // Methods returning a struct in two registers is considered having a return value of TYP_STRUCT.
+        // Such method's compRetNativeType is TYP_STRUCT without a hidden RetBufArg
+        return varTypeIsStruct(info.compRetNativeType) && (info.compRetBuffArg == BAD_VAR_NUM);
+#endif 
+#endif
+        return false;
+    }
+
+#if FEATURE_MULTIREG_ARGS
+    // Given a GenTree node of TYP_STRUCT that represents a pass by value argument
+    // return the gcPtr layout for the pointers sized fields 
+    void getStructGcPtrsFromOp(GenTreePtr op, BYTE *gcPtrsOut);
+#endif // FEATURE_MULTIREG_ARGS
+
+    // Returns true if the method being compiled returns a value
+    bool                compMethodHasRetVal()
+    {
+        return compMethodReturnsNativeScalarType() ||
+               compMethodReturnsRetBufAddr() ||
+               compMethodReturnsMultiRegRetType();
+    }
+
 #if defined(DEBUG)
 
     void                compDispLocalVars();
@@ -7956,7 +7938,7 @@ public :
     static void         compStartup     ();     // One-time initialization
     static void         compShutdown    ();     // One-time finalization
 
-    void                compInit        (norls_allocator * pAlloc, InlineInfo * inlineInfo);
+    void                compInit        (ArenaAllocator * pAlloc, InlineInfo * inlineInfo);
     void                compDone        ();
 
     static void         compDisplayStaticSizes(FILE* fout);
@@ -7974,7 +7956,7 @@ public :
 #ifdef DEBUG
     // Components used by the compiler may write unit test suites, and
     // have them run within this method.  They will be run only once per process, and only
-    // in debug.  (Perhaps should be under the control of a COMPLUS flag.)
+    // in debug.  (Perhaps should be under the control of a COMPlus_ flag.)
     // These should fail by asserting.
     void                compDoComponentUnitTestsOnce();
 #endif // DEBUG
@@ -7985,17 +7967,17 @@ public :
                                          CORINFO_METHOD_INFO * methodInfo,
                                          void *          * methodCodePtr,
                                          ULONG           * methodCodeSize,
-                                         unsigned          compileFlags);
+                                         CORJIT_FLAGS    * compileFlags);
     void                compCompileFinish();
     int                 compCompileHelper (CORINFO_MODULE_HANDLE            classPtr,
                                            COMP_HANDLE                      compHnd,
                                            CORINFO_METHOD_INFO            * methodInfo,
                                            void *                         * methodCodePtr,
                                            ULONG                          * methodCodeSize,
-                                           unsigned                         compileFlags,
+                                           CORJIT_FLAGS                   * compileFlags,
                                            CorInfoInstantiationVerification instVerInfo);
 
-    norls_allocator *   compGetAllocator();
+    ArenaAllocator *   compGetAllocator();
 
 #if MEASURE_MEM_ALLOC
     struct MemStats
@@ -8095,7 +8077,6 @@ public :
 
     bool                compIsForImportOnly();
     bool                compIsForInlining();
-    void                compSetInlineResult(const JitInlineResult& result);
     bool                compDonotInline();
 
 #ifdef DEBUG
@@ -8200,7 +8181,7 @@ protected :
     bool skipMethod();
 #endif
 
-    norls_allocator *   compAllocator;
+    ArenaAllocator *   compAllocator;
 
 public:
     // This one presents an implementation of the "IAllocator" abstract class that uses "compAllocator",
@@ -8220,7 +8201,7 @@ protected:
 
     unsigned            compMaxUncheckedOffsetForNullObject; 
 
-    void                compInitOptions (unsigned compileFlags);
+    void                compInitOptions (CORJIT_FLAGS* compileFlags);
 
     void                compSetProcessor();
     void                compInitDebuggingInfo();
@@ -8230,7 +8211,7 @@ protected:
 #endif
     void                compCompile  (void * * methodCodePtr,
                                       ULONG  * methodCodeSize,
-                                      unsigned compileFlags);
+                                      CORJIT_FLAGS * compileFlags);
 
     // Data required for generating profiler Enter/Leave/TailCall hooks
 #ifdef PROFILING_SUPPORTED
@@ -8598,16 +8579,6 @@ public:
                                                     // This can be overwritten by setting complus_JITInlineSize env variable.
 #define IMPLEMENTATION_MAX_INLINE_SIZE  _UI16_MAX   // Maximum method size supported by this implementation 
                                          
-#define NATIVE_SIZE_INVALID  (-10000)                
-
-    static bool             s_compInSamplingMode;
-    bool                    compIsMethodForLRSampling;  // Is this the method suitable as a sample for the linear regression?
-    int                     compNativeSizeEstimate;     // The estimated native size of this method.
-    InlInlineHints          compInlineeHints;           // Inlining hints from the inline candidate.
-
-#ifdef DEBUG   
-    CodeSeqSM               fgCodeSeqSm;                // The code sequence state machine used in the inliner.
-#endif    
 private:
 #ifdef FEATURE_JIT_METHOD_PERF
     JitTimer*                     pCompJitTimer;           // Timer data structure (by phases) for current compilation.
@@ -8808,7 +8779,7 @@ public:
     static HelperCallProperties s_helperCallProperties;
 
 #if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-    var_types GetTypeFromClassificationAndSizes(SystemVClassificationType classType, int size);
+    static var_types GetTypeFromClassificationAndSizes(SystemVClassificationType classType, int size);
     var_types getEightByteType(const SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR& structDesc, unsigned slotNum);
     void fgMorphSystemVStructArgs(GenTreeCall* call, bool hasStructArgument);
 #endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
@@ -8838,6 +8809,13 @@ void * CompAllocator::ArrayAlloc(size_t elems, size_t elemSize)
 inline
 LclVarDsc::LclVarDsc(Compiler* comp)
     :
+    // Initialize the ArgRegs to REG_STK.
+    // The morph will do the right thing to change 
+    // to the right register if passed in register.
+    _lvArgReg(REG_STK),
+#if FEATURE_MULTIREG_ARGS
+    _lvOtherArgReg(REG_STK),
+#endif // FEATURE_MULTIREG_ARGS
 #if ASSERTION_PROP
     lvRefBlks(BlockSetOps::UninitVal()),
 #endif // ASSERTION_PROP
@@ -8894,8 +8872,8 @@ extern  size_t     gcPtrMapNSize;
  */
 
 #if COUNT_BASIC_BLOCKS
-extern  histo       bbCntTable;
-extern  histo       bbOneBBSizeTable;
+extern  Histogram   bbCntTable;
+extern  Histogram   bbOneBBSizeTable;
 #endif
 
 
@@ -8922,8 +8900,8 @@ extern unsigned    constIterLoopCount;          // counts the # of loops with a 
 extern bool        hasMethodLoops;              // flag to keep track if we already counted a method as having loops
 extern unsigned    loopsThisMethod;             // counts the number of loops in the current method
 extern bool        loopOverflowThisMethod;      // True if we exceeded the max # of loops in the method.
-extern histo       loopCountTable;              // Histogram of loop counts
-extern histo       loopExitCountTable;          // Histogram of loop exit counts
+extern Histogram   loopCountTable;              // Histogram of loop counts
+extern Histogram   loopExitCountTable;          // Histogram of loop exit counts
 
 #endif // COUNT_LOOPS
 
@@ -8961,8 +8939,8 @@ struct NodeSizeStats
 };
 extern NodeSizeStats genNodeSizeStats;          // Total node size stats
 extern NodeSizeStats genNodeSizeStatsPerFunc;   // Per-function node size stats
-extern histo genTreeNcntHist;
-extern histo genTreeNsizHist;
+extern Histogram genTreeNcntHist;
+extern Histogram genTreeNsizHist;
 #endif // MEASURE_NODE_SIZE
 
 /*****************************************************************************

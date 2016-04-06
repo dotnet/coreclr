@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // __forceinline implementation of the Interlocked class methods
 //
 
@@ -188,12 +187,12 @@ __forceinline T Interlocked::CompareExchangePointer(T volatile *destination, T e
 {
 #ifdef _MSC_VER
 #ifdef BIT64
-    return (T)(TADDR)_InterlockedCompareExchangePointer((void* volatile *)destination, exchange, comparand);
+    return (T)(TADDR)_InterlockedCompareExchangePointer((void* volatile *)destination, (void*)exchange, (void*)comparand);
 #else
     return (T)(TADDR)_InterlockedCompareExchange((long volatile *)(void* volatile *)destination, (long)(void*)exchange, (long)(void*)comparand);
 #endif
 #else
-    return (T)(TADDR)__sync_val_compare_and_swap((void* volatile *)destination, comparand, exchange);
+    return (T)(TADDR)__sync_val_compare_and_swap((void* volatile *)destination, (void*)comparand, (void*)exchange);
 #endif
 }
 

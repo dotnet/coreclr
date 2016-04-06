@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // DbgShim.h
 // 
@@ -10,6 +9,23 @@
 #include <windows.h>
 
 typedef VOID (*PSTARTUP_CALLBACK)(IUnknown *pCordb, PVOID parameter, HRESULT hr);
+
+EXTERN_C HRESULT
+CreateProcessForLaunch(
+    __in LPWSTR lpCommandLine,
+    __in BOOL bSuspendProcess,
+    __in LPVOID lpEnvironment,
+    __in LPCWSTR lpCurrentDirectory,
+    __out PDWORD pProcessId,
+    __out HANDLE *pResumeHandle);
+
+EXTERN_C HRESULT
+ResumeProcess(
+    __in HANDLE hResumeHandle);
+
+EXTERN_C HRESULT
+CloseResumeHandle(
+    __in HANDLE hResumeHandle);
 
 EXTERN_C HRESULT
 RegisterForRuntimeStartup(
@@ -57,4 +73,3 @@ EXTERN_C HRESULT
 CreateDebuggingInterfaceFromVersion(
     __in LPCWSTR szDebuggeeVersion, 
     __out IUnknown ** ppCordb);
-

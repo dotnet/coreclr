@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -564,6 +563,7 @@ regMaskTP           CodeGenInterface::genGetRegMask(GenTreePtr tree)
     return regMask;
 }
 
+
 /*****************************************************************************
 *           TRACKING OF FLAGS
 *****************************************************************************/
@@ -808,6 +808,10 @@ regMaskTP Compiler::compNoGCHelperCallKillSet(CorInfoHelpFunc helper)
     case CORINFO_HELP_PROF_FCN_LEAVE:
     case CORINFO_HELP_PROF_FCN_TAILCALL:
         return RBM_PROFILER_LEAVE_TRASH;
+
+    case CORINFO_HELP_ASSIGN_BYREF:
+        // this helper doesn't trash RSI and RDI
+        return RBM_CALLEE_TRASH_NOGC & ~(RBM_RSI | RBM_RDI);
 
     default:
         return RBM_CALLEE_TRASH_NOGC;
@@ -2440,67 +2444,137 @@ FOUND_AM:
     return  true;
 }
 
-
-
 /*****************************************************************************
- *  The condition to use for (the jmp/set for) the given type of operation
- *
- *  In case of amd64, this routine should be used when there is no gentree available
- *  and one needs to generate jumps based on integer comparisons.  When gentree is
- *  available always use its overloaded version.
- *  
- */
+*  The condition to use for (the jmp/set for) the given type of operation
+*
+*  In case of amd64, this routine should be used when there is no gentree available
+*  and one needs to generate jumps based on integer comparisons.  When gentree is
+*  available always use its overloaded version.
+*
+*/
 
 // static
-emitJumpKind         CodeGen::genJumpKindForOper(genTreeOps   cmp,
-                                                  bool         isUnsigned)
+emitJumpKind         CodeGen::genJumpKindForOper(genTreeOps  cmp, CompareKind compareKind)
 {
     const static
-    BYTE            genJCCinsSgn[] =
+    BYTE            genJCCinsSigned[] =
     {
+#if defined(_TARGET_XARCH_)
         EJ_je,      // GT_EQ
         EJ_jne,     // GT_NE
         EJ_jl,      // GT_LT
         EJ_jle,     // GT_LE
         EJ_jge,     // GT_GE
         EJ_jg,      // GT_GT
+#elif defined(_TARGET_ARMARCH_)
+        EJ_eq,      // GT_EQ
+        EJ_ne,      // GT_NE
+        EJ_lt,      // GT_LT
+        EJ_le,      // GT_LE
+        EJ_ge,      // GT_GE
+        EJ_gt,      // GT_GT
+#endif
     };
 
     const static
-    BYTE            genJCCinsUns[] =       /* unsigned comparison */
+    BYTE            genJCCinsUnsigned[] =       /* unsigned comparison */
     {
+#if defined(_TARGET_XARCH_)
         EJ_je,      // GT_EQ
         EJ_jne,     // GT_NE
         EJ_jb,      // GT_LT
         EJ_jbe,     // GT_LE
         EJ_jae,     // GT_GE
         EJ_ja,      // GT_GT
+#elif defined(_TARGET_ARMARCH_)
+        EJ_eq,      // GT_EQ
+        EJ_ne,      // GT_NE
+        EJ_lo,      // GT_LT
+        EJ_ls,      // GT_LE
+        EJ_hs,      // GT_GE
+        EJ_hi,      // GT_GT
+#endif
     };
 
-    assert(genJCCinsSgn[GT_EQ - GT_EQ] == EJ_je );
-    assert(genJCCinsSgn[GT_NE - GT_EQ] == EJ_jne);
-    assert(genJCCinsSgn[GT_LT - GT_EQ] == EJ_jl );
-    assert(genJCCinsSgn[GT_LE - GT_EQ] == EJ_jle);
-    assert(genJCCinsSgn[GT_GE - GT_EQ] == EJ_jge);
-    assert(genJCCinsSgn[GT_GT - GT_EQ] == EJ_jg );
+    const static
+    BYTE            genJCCinsLogical[] =       /* logical operation */
+    {
+#if defined(_TARGET_XARCH_)
+        EJ_je,      // GT_EQ   (Z == 1)
+        EJ_jne,     // GT_NE   (Z == 0)
+        EJ_js,      // GT_LT   (S == 1)
+        EJ_NONE,    // GT_LE
+        EJ_jns,     // GT_GE   (S == 0)
+        EJ_NONE,    // GT_GT
+#elif defined(_TARGET_ARMARCH_)
+        EJ_eq,      // GT_EQ   (Z == 1)
+        EJ_ne,      // GT_NE   (Z == 0)
+        EJ_mi,      // GT_LT   (N == 1)
+        EJ_NONE,    // GT_LE
+        EJ_pl,      // GT_GE   (N == 0)
+        EJ_NONE,    // GT_GT
+#endif
+    };
 
-    assert(genJCCinsUns[GT_EQ - GT_EQ] == EJ_je );
-    assert(genJCCinsUns[GT_NE - GT_EQ] == EJ_jne);
-    assert(genJCCinsUns[GT_LT - GT_EQ] == EJ_jb );
-    assert(genJCCinsUns[GT_LE - GT_EQ] == EJ_jbe);
-    assert(genJCCinsUns[GT_GE - GT_EQ] == EJ_jae);
-    assert(genJCCinsUns[GT_GT - GT_EQ] == EJ_ja );
+#if defined(_TARGET_XARCH_)
+    assert(genJCCinsSigned[GT_EQ - GT_EQ] == EJ_je);
+    assert(genJCCinsSigned[GT_NE - GT_EQ] == EJ_jne);
+    assert(genJCCinsSigned[GT_LT - GT_EQ] == EJ_jl);
+    assert(genJCCinsSigned[GT_LE - GT_EQ] == EJ_jle);
+    assert(genJCCinsSigned[GT_GE - GT_EQ] == EJ_jge);
+    assert(genJCCinsSigned[GT_GT - GT_EQ] == EJ_jg);
 
+    assert(genJCCinsUnsigned[GT_EQ - GT_EQ] == EJ_je);
+    assert(genJCCinsUnsigned[GT_NE - GT_EQ] == EJ_jne);
+    assert(genJCCinsUnsigned[GT_LT - GT_EQ] == EJ_jb);
+    assert(genJCCinsUnsigned[GT_LE - GT_EQ] == EJ_jbe);
+    assert(genJCCinsUnsigned[GT_GE - GT_EQ] == EJ_jae);
+    assert(genJCCinsUnsigned[GT_GT - GT_EQ] == EJ_ja);
+
+    assert(genJCCinsLogical[GT_EQ - GT_EQ] == EJ_je);
+    assert(genJCCinsLogical[GT_NE - GT_EQ] == EJ_jne);
+    assert(genJCCinsLogical[GT_LT - GT_EQ] == EJ_js);
+    assert(genJCCinsLogical[GT_GE - GT_EQ] == EJ_jns);
+#elif defined(_TARGET_ARMARCH_)
+    assert(genJCCinsSigned[GT_EQ - GT_EQ] == EJ_eq);
+    assert(genJCCinsSigned[GT_NE - GT_EQ] == EJ_ne);
+    assert(genJCCinsSigned[GT_LT - GT_EQ] == EJ_lt);
+    assert(genJCCinsSigned[GT_LE - GT_EQ] == EJ_le);
+    assert(genJCCinsSigned[GT_GE - GT_EQ] == EJ_ge);
+    assert(genJCCinsSigned[GT_GT - GT_EQ] == EJ_gt);
+
+    assert(genJCCinsUnsigned[GT_EQ - GT_EQ] == EJ_eq);
+    assert(genJCCinsUnsigned[GT_NE - GT_EQ] == EJ_ne);
+    assert(genJCCinsUnsigned[GT_LT - GT_EQ] == EJ_lo);
+    assert(genJCCinsUnsigned[GT_LE - GT_EQ] == EJ_ls);
+    assert(genJCCinsUnsigned[GT_GE - GT_EQ] == EJ_hs);
+    assert(genJCCinsUnsigned[GT_GT - GT_EQ] == EJ_hi);
+
+    assert(genJCCinsLogical[GT_EQ - GT_EQ] == EJ_eq);
+    assert(genJCCinsLogical[GT_NE - GT_EQ] == EJ_ne);
+    assert(genJCCinsLogical[GT_LT - GT_EQ] == EJ_mi);
+    assert(genJCCinsLogical[GT_GE - GT_EQ] == EJ_pl);
+#else
+    assert(!"unknown arch");
+#endif
     assert(GenTree::OperIsCompare(cmp));
 
-    if (isUnsigned)
+    emitJumpKind result = EJ_COUNT;
+
+    if (compareKind == CK_UNSIGNED)
     {
-        return (emitJumpKind) genJCCinsUns[cmp - GT_EQ];
+        result = (emitJumpKind)genJCCinsUnsigned[cmp - GT_EQ];
     }
-    else
+    else if (compareKind == CK_SIGNED)
     {
-        return (emitJumpKind) genJCCinsSgn[cmp - GT_EQ];
+        result = (emitJumpKind)genJCCinsSigned[cmp - GT_EQ];
     }
+    else if (compareKind == CK_LOGICAL)
+    {
+        result = (emitJumpKind)genJCCinsLogical[cmp - GT_EQ];
+    }
+    assert(result != EJ_COUNT);
+    return result;
 }
 
 /*****************************************************************************
@@ -2600,15 +2674,22 @@ void            CodeGen::genJumpToThrowHlpBlk(emitJumpKind          jumpKind,
         /* The code to throw the exception will be generated inline, and
            we will jump around it in the normal non-exception case */
 
-        BasicBlock * tgtBlk = genCreateTempLabel();
-        jumpKind = emitter::emitReverseJumpKind(jumpKind);
-        inst_JMP(jumpKind, tgtBlk);
+        BasicBlock * tgtBlk = nullptr;
+        emitJumpKind reverseJumpKind = emitter::emitReverseJumpKind(jumpKind);
+        if (reverseJumpKind != jumpKind)
+        {
+            tgtBlk = genCreateTempLabel();
+            inst_JMP(reverseJumpKind, tgtBlk);
+        }
 
         genEmitHelperCall(compiler->acdHelper(codeKind), 0, EA_UNKNOWN);
 
         /* Define the spot for the normal non-exception case to jump to */
-
-        genDefineTempLabel(tgtBlk);
+        if (tgtBlk != nullptr)
+        {
+            assert(reverseJumpKind != jumpKind);
+            genDefineTempLabel(tgtBlk);
+        }
     }
 }
 
@@ -2634,27 +2715,30 @@ void            CodeGen::genCheckOverflow(GenTreePtr tree)
 #ifdef _TARGET_ARM64_
     if (tree->OperGet() == GT_MUL)
     {
-        jumpKind = EJ_jne;
+        jumpKind = EJ_ne;
     }
     else
 #endif
     {
-        bool  isUnsignedOverflow = ((tree->gtFlags & GTF_UNSIGNED) != 0);  
+        bool  isUnsignedOverflow = ((tree->gtFlags & GTF_UNSIGNED) != 0);
 
-        if (isUnsignedOverflow)
+#if defined(_TARGET_XARCH_)
+
+        jumpKind = isUnsignedOverflow ? EJ_jb : EJ_jo;
+
+#elif defined(_TARGET_ARMARCH_)
+
+        jumpKind = isUnsignedOverflow ? EJ_lo : EJ_vs;
+
+        if (jumpKind == EJ_lo)
         {
-            jumpKind = EJ_jb;
-#ifdef _TARGET_ARMARCH_
             if ((tree->OperGet() != GT_SUB) && (tree->gtOper != GT_ASG_SUB))
             {
-                jumpKind =  EJ_jae;
+                jumpKind =  EJ_hs;
             }
-#endif
         }
-        else
-        {
-            jumpKind = EJ_jo;
-        }
+
+#endif // defined(_TARGET_ARMARCH_)
     }
 
     // Jump to the block which will throw the expection
@@ -2956,13 +3040,11 @@ void                CodeGen::genGenerateCode(void * * codePtr,
     // ugliness of having the failure here.
     if (!compiler->jitFallbackCompile)
     {
-        // Use COMPLUS_JitNoForceFallback=1 to prevent NOWAY assert testing from happening,
+        // Use COMPlus_JitNoForceFallback=1 to prevent NOWAY assert testing from happening,
         // especially that caused by enabling JIT stress.
-        static ConfigDWORD fJitNoForceFallback;
-        if (!fJitNoForceFallback.val(CLRConfig::INTERNAL_JitNoForceFallback))
+        if (!JitConfig.JitNoForceFallback())
         {
-            static ConfigDWORD fJitForceFallback;
-            if (fJitForceFallback.val(CLRConfig::INTERNAL_JitForceFallback) ||
+            if (JitConfig.JitForceFallback() ||
                 compiler->compStressCompile(Compiler::STRESS_GENERIC_VARN, 5) )
             {
                 NO_WAY_NOASSERT("Stress failure");
@@ -3175,23 +3257,6 @@ void                CodeGen::genGenerateCode(void * * codePtr,
     grossNCsize += codeSize + dataSize;
 
 #endif // DISPLAY_SIZES
-
-    
-#ifdef DEBUG 
-    if (compiler->compIsMethodForLRSampling)
-    {
-        // Print this sample.
-        compiler->fgCodeSeqSm.codeSize    = codeSize;
-        compiler->fgCodeSeqSm.prologSize  = prologSize;    
-        compiler->fgCodeSeqSm.epilogSize  = epilogSize;   
-        compiler->fgCodeSeqSm.epilogCount = getEmitter()->emitGetEpilogCnt();
-
-        noway_assert(codeSize >= prologSize + epilogSize * compiler->fgCodeSeqSm.epilogCount);         
-        compiler->fgCodeSeqSm.BBCodeSize = codeSize - prologSize - epilogSize * compiler->fgCodeSeqSm.epilogCount;
-
-        compiler->fgCodeSeqSm.PrintSampleResult();          
-    }
-#endif // DEBUG
 
     compiler->EndPhase(PHASE_EMIT_GCEH);
 }
@@ -3935,15 +4000,36 @@ void            CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg,
             for (unsigned slotCounter = 0; slotCounter < structDesc.eightByteCount; slotCounter++)
             {
                 regNumber regNum = varDsc->lvRegNumForSlot(slotCounter);
+                var_types regType;
 
-                var_types regType = compiler->getEightByteType(structDesc, slotCounter);
+#ifdef FEATURE_SIMD
+                // Assumption 1:
+                // RyuJit backend depends on the assumption that on 64-Bit targets Vector3 size is rounded off
+                // to TARGET_POINTER_SIZE and hence Vector3 locals on stack can be treated as TYP_SIMD16 for
+                // reading and writing purposes.  Hence while homing a Vector3 type arg on stack we should
+                // home entire 16-bytes so that the upper-most 4-bytes will be zeroed when written to stack.
+                //
+                // Assumption 2:
+                // RyuJit backend is making another implicit assumption that Vector3 type args when passed in
+                // registers or on stack, the upper most 4-bytes will be zero.  
+                //
+                // TODO-64bit: assumptions 1 and 2 hold within RyuJIT generated code. It is not clear whether
+                // these assumptions hold when a Vector3 type arg is passed by native code. Example: PInvoke
+                // returning Vector3 type value or RPInvoke passing Vector3 type args.
+                if (varDsc->lvType == TYP_SIMD12)
+                {
+                    regType = TYP_DOUBLE;
+                }
+                else
+#endif
+                {
+                    regType = compiler->getEightByteType(structDesc, slotCounter);
+                }
                 
                 regArgNum = genMapRegNumToRegArgNum(regNum, regType);
                 
-                if ((!doingFloat &&
-                    ((structDesc.eightByteClassifications[slotCounter] == SystemVClassificationTypeInteger) || 
-                     (structDesc.eightByteClassifications[slotCounter] == SystemVClassificationTypeIntegerReference))) ||
-                     (doingFloat && structDesc.eightByteClassifications[slotCounter] == SystemVClassificationTypeSSE))
+                if ((!doingFloat && (structDesc.IsIntegralSlot(slotCounter))) ||
+                     (doingFloat && (structDesc.IsSseSlot(slotCounter))))
                 {
                     // Store the reg for the first slot.
                     if (slots == 0)
@@ -3987,30 +4073,23 @@ void            CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg,
 
             slots = 1;
 
-#if FEATURE_MULTIREG_STRUCT_ARGS
-#ifdef _TARGET_ARM64_
-            if (varDsc->TypeGet() == TYP_STRUCT)
+#if FEATURE_MULTIREG_ARGS
+            if (varDsc->lvIsMultiregStruct())
             {
-                if (varDsc->lvExactSize > REGSIZE_BYTES)
-                {
-                    assert(varDsc->lvExactSize <= 2*REGSIZE_BYTES);
+                // Note that regArgNum+1 represents an argument index not an actual argument register.  
+                // see genMapRegArgNumToRegNum(unsigned argNum, var_types type)
 
-                    // Note that regArgNum+1 represents an argument index not an actual argument register.  
-                    // see genMapRegArgNumToRegNum(unsigned argNum, var_types type)
-
-                    // This is the setup for the second half of a MULTIREG struct arg
-                    noway_assert(regArgNum+1 < regState->rsCalleeRegArgNum);
-                    // we better not have added it already (there better not be multiple vars representing this argument register)
-                    noway_assert(regArgTab[regArgNum+1].slot == 0);
+                // This is the setup for the second half of a MULTIREG struct arg
+                noway_assert(regArgNum+1 < regState->rsCalleeRegArgNum);
+                // we better not have added it already (there better not be multiple vars representing this argument register)
+                noway_assert(regArgTab[regArgNum+1].slot == 0);
                     
-                    regArgTab[regArgNum+1].varNum = varNum;
-                    regArgTab[regArgNum+1].slot = 2;
+                regArgTab[regArgNum+1].varNum = varNum;
+                regArgTab[regArgNum+1].slot = 2;
 
-                    slots++;
-                }
+                slots = 2;
             }
-#endif // _TARGET_ARM64_
-#endif // FEATURE_MULTIREG_STRUCT_ARGS
+#endif // FEATURE_MULTIREG_ARGS
         }
 
 #ifdef _TARGET_ARM_
@@ -4184,7 +4263,7 @@ void            CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg,
                 {
                     destRegNum = varDsc->lvRegNum;
                 }
-#if FEATURE_MULTIREG_STRUCT_ARGS && defined(FEATURE_SIMD) && defined(_TARGET_AMD64_)
+#if FEATURE_MULTIREG_ARGS && defined(FEATURE_SIMD) && defined(_TARGET_AMD64_)
                 else
                 {
                     assert(regArgTab[argNum].slot == 2);
@@ -4847,7 +4926,7 @@ void            CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg,
             assert(!regArgTab[argNum].processed);
             regArgTab[argNum].processed = true;
             regArgMaskLive &= ~genRegMask(regNum);
-#ifdef FEATURE_MULTIREG_STRUCTS
+#if FEATURE_MULTIREG_ARGS
             int argRegCount = 1;
 #ifdef _TARGET_ARM_
             if (genActualType(destMemType) == TYP_DOUBLE)
@@ -4882,7 +4961,7 @@ void            CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg,
                 regNumber nextRegNum = genMapRegArgNumToRegNum(nextArgNum, regArgTab[nextArgNum].getRegType(compiler));
                 regArgMaskLive &= ~genRegMask(nextRegNum);               
             }
-#endif // FEATURE_MULTIREG_STRUCTS
+#endif // FEATURE_MULTIREG_ARGS
         }
     
         noway_assert(regArgMaskLiveSave != regArgMaskLive);   // if it doesn't change, we have an infinite loop
@@ -6655,7 +6734,14 @@ void        CodeGen::genZeroInitFrame(int        untrLclHi,
 #ifdef _TARGET_ARM_
             getEmitter()->emitIns_R_R_I(INS_str, EA_PTRSIZE, rZero1, rAddr, 0);
 #else // _TARGET_ARM_
-            getEmitter()->emitIns_R_R_I(INS_str, EA_PTRSIZE, REG_ZR, rAddr, (uCntBytes - REGSIZE_BYTES) == 0 ? 0 : INS_OPTS_POST_INDEX);
+            if ((uCntBytes - REGSIZE_BYTES) == 0)
+            {
+                getEmitter()->emitIns_R_R_I(INS_str, EA_PTRSIZE, REG_ZR, rAddr, 0);
+            }
+            else
+            {
+                getEmitter()->emitIns_R_R_I(INS_str, EA_PTRSIZE, REG_ZR, rAddr, REGSIZE_BYTES, INS_OPTS_POST_INDEX);
+            }
 #endif // !_TARGET_ARM_
             uCntBytes -= REGSIZE_BYTES;
         }
@@ -7557,6 +7643,7 @@ void CodeGen::genPrologPadForReJit()
 regMaskTP           CodeGen::genPInvokeMethodProlog(regMaskTP initRegs)
 {
     assert(compiler->compGeneratingProlog);
+    noway_assert(!compiler->opts.ShouldUsePInvokeHelpers());
     noway_assert(compiler->info.compCallUnmanaged);
 
     CORINFO_EE_INFO * pInfo = compiler->eeGetEEInfo();
@@ -7776,6 +7863,7 @@ regMaskTP           CodeGen::genPInvokeMethodProlog(regMaskTP initRegs)
 void                CodeGen::genPInvokeMethodEpilog()
 {
     noway_assert(compiler->info.compCallUnmanaged);
+    noway_assert(!compiler->opts.ShouldUsePInvokeHelpers());
     noway_assert(compiler->compCurBB == compiler->genReturnBB ||
                  (compiler->compTailCallUsed && (compiler->compCurBB->bbJumpKind == BBJ_THROW)) ||
                  (compiler->compJmpOpUsed && (compiler->compCurBB->bbFlags & BBF_HAS_JMP)));
@@ -8517,13 +8605,23 @@ void                CodeGen::genFnProlog()
     // since they are trashed by the jithelper call to setup the PINVOKE frame
     if (compiler->info.compCallUnmanaged)
     {
-        excludeMask |= (RBM_PINVOKE_FRAME | RBM_PINVOKE_TCB | RBM_PINVOKE_SCRATCH);
+        excludeMask |= RBM_PINVOKE_FRAME;
 
-        // We also must exclude the register used by compLvFrameListRoot when it is enregistered
-        //
-        LclVarDsc *  varDsc = &compiler->lvaTable[compiler->info.compLvFrameListRoot];
-        if (varDsc->lvRegister)
-            excludeMask |= genRegMask(varDsc->lvRegNum);
+        assert((!compiler->opts.ShouldUsePInvokeHelpers()) || (compiler->info.compLvFrameListRoot == BAD_VAR_NUM));
+        if (!compiler->opts.ShouldUsePInvokeHelpers())
+        {
+            noway_assert(compiler->info.compLvFrameListRoot < compiler->lvaCount);
+
+            excludeMask |= (RBM_PINVOKE_TCB | RBM_PINVOKE_SCRATCH);
+
+            // We also must exclude the register used by compLvFrameListRoot when it is enregistered
+            //
+            LclVarDsc *  varDsc = &compiler->lvaTable[compiler->info.compLvFrameListRoot];
+            if (varDsc->lvRegister)
+            {
+                excludeMask |= genRegMask(varDsc->lvRegNum);
+            }
+        }
     }
 #endif // INLINE_NDIRECT
 
@@ -9229,15 +9327,17 @@ void                CodeGen::genFnEpilog(BasicBlock* block)
                                  methHnd,
                                  INDEBUG_LDISASM_COMMA(nullptr)
                                  addr,
-                                 0,                     /* argSize */
-                                 EA_UNKNOWN,            /* retSize */
+                                 0,                     // argSize
+                                 EA_UNKNOWN,            // retSize
                                  gcInfo.gcVarPtrSetCur,
                                  gcInfo.gcRegGCrefSetCur,
                                  gcInfo.gcRegByrefSetCur,
-                                 BAD_IL_OFFSET,         /* IL offset*/
-                                 indCallReg,            /* ireg */
-                                 REG_NA, 0, 0,          /* xreg, xmul, disp */
-                                 true);                 /* isJump */
+                                 BAD_IL_OFFSET,         // IL offset
+                                 indCallReg,            // ireg
+                                 REG_NA,                // xreg
+                                 0,                     // xmul
+                                 0,                     // disp
+                                 true);                 // isJump
     }
     else
     {
@@ -9580,8 +9680,9 @@ void                CodeGen::genFnEpilog(BasicBlock* block)
                                        methHnd,
                                        INDEBUG_LDISASM_COMMA(nullptr)
                                        addrInfo.addr,
-                                       0,                         /* argSize */
-                                       EA_UNKNOWN,                /* retSize */
+                                       0,                                                      // argSize
+                                       EA_UNKNOWN                                              // retSize
+                                       FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(EA_UNKNOWN), // secondRetSize
                                        gcInfo.gcVarPtrSetCur,
                                        gcInfo.gcRegGCrefSetCur,
                                        gcInfo.gcRegByrefSetCur,
@@ -10872,8 +10973,8 @@ void                CodeGen::genPInvokeCallEpilog(LclVarDsc *  frameListRoot,
     clab_nostop = genCreateTempLabel();
 
     /* Generate the conditional jump */
-
-    inst_JMP(genJumpKindForOper(GT_EQ, true), clab_nostop);
+    emitJumpKind jmpEqual = genJumpKindForOper(GT_EQ, CK_SIGNED);
+    inst_JMP(jmpEqual, clab_nostop);
 
 #ifdef _TARGET_ARM_
     // The helper preserves the return value on ARM
@@ -11163,7 +11264,7 @@ void                CodeGen::genRestoreCalleeSavedFltRegs(unsigned lclFrameSize)
 
 
 //------------------------------------------------------------------------
-// Methods used to support FEATURE_MULTIREG_STRUCTS and HFA support for ARM32
+// Methods used to support FEATURE_MULTIREG_ARGS_OR_RET and HFA support for ARM32
 //------------------------------------------------------------------------
 
 #ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING

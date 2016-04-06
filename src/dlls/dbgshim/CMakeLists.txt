@@ -24,13 +24,13 @@ if(CLR_CMAKE_PLATFORM_UNIX)
     add_compile_options(-fPIC)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
-if(CLR_CMAKE_PLATFORM_LINUX)
+if(CLR_CMAKE_PLATFORM_LINUX OR CLR_CMAKE_PLATFORM_NETBSD)
     # This option is necessary to ensure that the overloaded delete operator defined inside
     # of the utilcode will be used instead of the standard library delete operator.
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Xlinker -Bsymbolic -Bsymbolic-functions")
-endif(CLR_CMAKE_PLATFORM_LINUX)
+endif(CLR_CMAKE_PLATFORM_LINUX OR CLR_CMAKE_PLATFORM_NETBSD)
 
-add_library(dbgshim SHARED ${DBGSHIM_SOURCES})
+add_library_clr(dbgshim SHARED ${DBGSHIM_SOURCES})
 
 set(DBGSHIM_LIBRARIES
     debug-pal
@@ -52,6 +52,14 @@ if(WIN32)
         version.lib
         psapi.lib
     )
+
+    # ARM64_TODO: Enable this for Windows Arm64
+    if (NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)
+        list(APPEND DBGSHIM_LIBRARIES 
+            ${STATIC_MT_VCRT_LIB}
+        )
+    endif()
+  
 else()
     list(APPEND DBGSHIM_LIBRARIES
         coreclrpal
@@ -63,7 +71,4 @@ endif(WIN32)
 target_link_libraries(dbgshim ${DBGSHIM_LIBRARIES})
 
 # add the install targets
-install (TARGETS dbgshim DESTINATION .)
-if(WIN32)
-    install (FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/dbgshim.pdb DESTINATION PDB)
-endif(WIN32)
+install_clr(dbgshim)

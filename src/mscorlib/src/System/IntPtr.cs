@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -108,7 +109,16 @@ namespace System {
     
         [System.Security.SecuritySafeCritical]  // auto-generated
         public unsafe override int GetHashCode() {
+#if FEATURE_CORECLR
+    #if WIN32
+            return unchecked((int)m_value);
+    #else
+            long l = (long)m_value;
+            return (unchecked((int)l) ^ (int)(l >> 32));
+    #endif
+#else
             return unchecked((int)((long)m_value));
+#endif
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated

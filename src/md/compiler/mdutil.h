@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // MDUtil.h
 // 
@@ -44,9 +43,8 @@ public:
         mdTypeDef   *ptd);                  // [OUT] typedef corresponding the typeref
 
     static HRESULT GetClassFromDir(
-        __in __in_z LPWSTR      wzClassname,            // Fully qualified class name.
-        __in __in_z LPWSTR      dir,                    // Directory to try.
-        int         iLen,                   // Length of the directory.
+        __in __in_z LPWSTR      wzClassname, // Fully qualified class name.
+        __in SString&      dir,              // Directory to try.
         mdTypeRef   tr,                     // TypeRef to resolve.
         IMetaModelCommon *pCommon,          // Scope in which the TypeRef is defined.
         REFIID      riid, 
@@ -54,7 +52,7 @@ public:
         mdTypeDef   *ptd);                  // [OUT] typedef
 
     static HRESULT FindTypeDef(
-        __in __in_z LPWSTR      wzModule,               // name of the module that we are going to open
+        __in __in_z LPCWSTR      wzModule,  // name of the module that we are going to open
         mdTypeRef   tr,                     // TypeRef to resolve.
         IMetaModelCommon *pCommon,          // Scope in which the TypeRef is defined.
         REFIID      riid, 

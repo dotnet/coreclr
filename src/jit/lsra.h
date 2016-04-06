@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 /*****************************************************************************/
 
 #ifndef _LSRA_H_
@@ -15,8 +14,6 @@ class Interval;
 class RefPosition;
 class LinearScan;
 class RegRecord;
-class LinearScanMemoryAllocatorInterval;
-class LinearScanMemoryAllocatorRefPosition;
 
 template<class T>
 class ArrayStack;
@@ -100,24 +97,48 @@ RefTypeIsDef(RefType refType) { return ((refType & RefTypeDef) == RefTypeDef); }
 
 typedef regNumber * VarToRegMap;
 
-typedef StructArrayList<Interval,    /* initial element count */ 32, /* multiplicative chunk size growth factor */ 2, LinearScanMemoryAllocatorInterval>    IntervalList;
-typedef StructArrayList<RefPosition, /* initial element count */ 64, /* multiplicative chunk size growth factor */ 2, LinearScanMemoryAllocatorRefPosition> RefPositionList;
-
-// Wrapper for norls_allocator
-class LinearScanMemoryAllocatorRefPosition
+template <typename ElementType, CompMemKind MemKind>
+class ListElementAllocator
 {
+private:
+    template <typename U, CompMemKind CMK>
+    friend class ListElementAllocator;
+
+    Compiler* m_compiler;
+
 public:
-    static void   * Alloc (void *context, SIZE_T cb);
-    static void     Free (void *context, void *pv)     {}
+    ListElementAllocator(Compiler* compiler)
+        : m_compiler(compiler)
+    {
+    }
+
+    template <typename U>
+    ListElementAllocator(const ListElementAllocator<U, MemKind>& other)
+        : m_compiler(other.m_compiler)
+    {
+    }
+
+    ElementType* allocate(size_t count)
+    {
+        return reinterpret_cast<ElementType*>(m_compiler->compGetMem(sizeof(ElementType) * count, MemKind));
+    }
+
+    void deallocate(ElementType* pointer, size_t count)
+    {
+    }
+
+    template <typename U>
+    struct rebind
+    {
+        typedef ListElementAllocator<U, MemKind> allocator;
+    };
 };
 
-class LinearScanMemoryAllocatorInterval
-{
-public:
-    static void   * Alloc (void *context, SIZE_T cb);
-    static void     Free (void *context, void *pv)     {}
-};
+typedef ListElementAllocator<Interval, CMK_LSRA_Interval> LinearScanMemoryAllocatorInterval;
+typedef ListElementAllocator<RefPosition, CMK_LSRA_RefPosition> LinearScanMemoryAllocatorRefPosition;
 
+typedef jitstd::list<Interval, LinearScanMemoryAllocatorInterval> IntervalList;
+typedef jitstd::list<RefPosition, LinearScanMemoryAllocatorRefPosition> RefPositionList;
 
 class Referenceable
 {
@@ -281,8 +302,6 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 class LinearScan : public LinearScanInterface
 {
-    friend class LinearScanMemoryAllocatorInterval;
-    friend class LinearScanMemoryAllocatorRefPosition;
     friend class RefPosition;
     friend class Interval;
     friend class Lowering;
@@ -360,12 +379,12 @@ public:
     // than the one it was spilled from
     void            insertCopyOrReload(GenTreePtr tree, RefPosition* refPosition);
 
-#ifdef FEATURE_SIMD
+#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
     // Insert code to save and restore the upper half of a vector that lives
     // in a callee-save register at the point of a call (the upper half is
     // not preserved).
     void            insertUpperVectorSaveAndReload(GenTreePtr tree, RefPosition* refPosition, BasicBlock* block);
-#endif // FEATURE_SIMD
+#endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
 
     // resolve along one block-block edge
     enum ResolveType { ResolveSplit, ResolveJoin, ResolveCritical, ResolveSharedCritical, ResolveTypeCount };
@@ -408,7 +427,7 @@ public:
 private:
     //------------------------------------------------------------------------
     // Should we stress lsra?
-    // This uses the same COMPLUS variable as rsStressRegs (COMPLUS_JitStressRegs)
+    // This uses the same COMPLUS variable as rsStressRegs (COMPlus_JitStressRegs)
     // However, the possible values and their interpretation are entirely different.
     //
     // The mask bits are currently divided into fields in which each non-zero value
@@ -433,7 +452,13 @@ private:
     // Hence the "SmallFPSet" has 5 elements.
 
 #if defined(_TARGET_AMD64_)
-    static const regMaskTP  LsraLimitSmallIntSet = RBM_LOWINT;
+#ifdef UNIX_AMD64_ABI
+    // On System V the RDI and RSI are not callee saved. Use R12 ans R13 as callee saved registers.
+    static const regMaskTP  LsraLimitSmallIntSet = (RBM_EAX | RBM_ECX | RBM_EBX | RBM_ETW_FRAMED_EBP | RBM_R12 | RBM_R13);
+#else // !UNIX_AMD64_ABI
+    // On Windows Amd64 use the RDI and RSI as callee saved registers.
+    static const regMaskTP  LsraLimitSmallIntSet = (RBM_EAX | RBM_ECX | RBM_EBX | RBM_ETW_FRAMED_EBP | RBM_ESI | RBM_EDI);
+#endif // !UNIX_AMD64_ABI
     static const regMaskTP  LsraLimitSmallFPSet  = (RBM_XMM0 | RBM_XMM1 | RBM_XMM2 | RBM_XMM6 | RBM_XMM7 );
 #elif defined(_TARGET_ARM_)
     static const regMaskTP  LsraLimitSmallIntSet = (RBM_R0|RBM_R1|RBM_R2|RBM_R3|RBM_R4);
@@ -569,10 +594,10 @@ private:
                                              ArrayStack<LocationInfo> *stack,
                                              LsraLocation loc);
 
-#ifdef FEATURE_SIMD
+#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
     VARSET_VALRET_TP buildUpperVectorSaveRefPositions(GenTree *tree, LsraLocation currentLoc);
     void             buildUpperVectorRestoreRefPositions(GenTree *tree, LsraLocation currentLoc, VARSET_VALARG_TP liveLargeVectors);
-#endif //FEATURE_SIMD
+#endif //FEATURE_PARTIAL_SIMD_CALLEE_SAVE
 
 #if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
     // For AMD64 on SystemV machines. This method 
@@ -721,13 +746,14 @@ private:
     regNumber allocateBusyReg(Interval *current, RefPosition *refPosition);
     regNumber assignCopyReg(RefPosition * refPosition);
 
-    void assignPhysReg( RegRecord * physRegInterval, Interval * interval);
+    void checkAndAssignInterval(RegRecord * regRec, Interval * interval);
+    void assignPhysReg(RegRecord * regRec, Interval * interval);
     void assignPhysReg( regNumber reg, Interval * interval) { assignPhysReg(getRegisterRecord(reg), interval); }
 
-    void unassignPhysReg( RegRecord* reg, RefPosition* spillRefPosition);
+    void checkAndClearInterval(RegRecord * regRec, RefPosition* spillRefPosition);
+    void unassignPhysReg(RegRecord * regRec, RefPosition* spillRefPosition);
     void unassignPhysRegNoSpill( RegRecord* reg);
     void unassignPhysReg( regNumber reg) { unassignPhysReg(getRegisterRecord(reg), nullptr); }
-
 
     void spillInterval(Interval* interval, RefPosition* fromRefPosition, RefPosition* toRefPosition);
 
@@ -990,7 +1016,7 @@ private:
     VARSET_TP           currentLiveVars;
     // Set of floating point variables to consider for callee-save registers.
     VARSET_TP           fpCalleeSaveCandidateVars;
-#ifdef FEATURE_SIMD
+#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
 #if defined(_TARGET_AMD64_)
     static const var_types     LargeVectorType = TYP_SIMD32;
     static const var_types     LargeVectorSaveType = TYP_SIMD16;
@@ -1005,7 +1031,7 @@ private:
     VARSET_TP           largeVectorVars;
     // Set of large vector (TYP_SIMD32 on AVX) variables to consider for callee-save registers.
     VARSET_TP           largeVectorCalleeSaveCandidateVars;
-#endif // FEATURE_SIMD
+#endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
 };
 
 /*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -1262,9 +1288,9 @@ public:
     bool            RequiresRegister()
     {
         return (refType == RefTypeDef || refType == RefTypeUse
-#ifdef FEATURE_SIMD
+#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
                || refType == RefTypeUpperVectorSaveDef || refType == RefTypeUpperVectorSaveUse
-#endif // FEATURE_SIMD
+#endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
                );
     }
 

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ECallList.H
 //
 // This file contains definitions of FCall entrypoints
@@ -232,7 +231,6 @@ FCFuncStart(gStringFuncs)
     FCFuncElement("IndexOfAny", COMString::IndexOfCharArray)
     FCFuncElement("LastIndexOf", COMString::LastIndexOfChar)
     FCFuncElement("LastIndexOfAny", COMString::LastIndexOfCharArray)
-    FCFuncElementSig("ReplaceInternal", &gsig_IM_Char_Char_RetStr, COMString::Replace)
     FCFuncElementSig("ReplaceInternal", &gsig_IM_Str_Str_RetStr, COMString::ReplaceString)
     FCFuncElement("PadHelper", COMString::PadHelper)
 #ifdef FEATURE_COMINTEROP
@@ -498,10 +496,8 @@ FCFuncStart(gMetaDataImport)
     FCFuncElement("_GetName", MetaDataImport::GetName) 
     FCFuncElement("_GetUserString", MetaDataImport::GetUserString) 
     FCFuncElement("_GetScopeProps", MetaDataImport::GetScopeProps)  
-#ifndef FEATURE_CORECLR
     FCFuncElement("_GetClassLayout", MetaDataImport::GetClassLayout) 
     FCFuncElement("_GetSignatureFromToken", MetaDataImport::GetSignatureFromToken) 
-#endif // FEATURE_CORECLR
     FCFuncElement("_GetNamespace", MetaDataImport::GetNamespace) 
     FCFuncElement("_GetEventProps", MetaDataImport::GetEventProps)
     FCFuncElement("_GetFieldDefProps", MetaDataImport::GetFieldDefProps)
@@ -576,7 +572,9 @@ FCFuncStart(gRuntimeMethodHandle)
     QCFuncElement("GetCallerType", RuntimeMethodHandle::GetCallerType)
     FCFuncElement("GetLoaderAllocator", RuntimeMethodHandle::GetLoaderAllocator)
     FCFuncElement("GetSpecialSecurityFlags", ReflectionInvocation::GetSpecialSecurityFlags)
+#ifndef FEATURE_CORECLR
     FCFuncElement("PerformSecurityCheck", ReflectionInvocation::PerformSecurityCheck)
+#endif // FEATURE_CORECLR
 FCFuncEnd()
 
 FCFuncStart(gCOMDefaultBinderFuncs)
@@ -1115,8 +1113,8 @@ FCFuncStart(gAssemblyFuncs)
 #endif
     QCFuncElement("GetModules", AssemblyNative::GetModules)
     QCFuncElement("GetModule", AssemblyNative::GetModule)
-#ifndef FEATURE_CORECLR
     FCFuncElement("GetReferencedAssemblies", AssemblyNative::GetReferencedAssemblies)
+#ifndef FEATURE_CORECLR
     QCFuncElement("GetForwardedTypes", AssemblyNative::GetForwardedTypes)
 #endif  // FEATURE_CORECLR
     QCFuncElement("GetExportedTypes", AssemblyNative::GetExportedTypes)
@@ -1187,7 +1185,7 @@ FCFuncStart(gAssemblyNameFuncs)
     FCFuncElement("nGetPublicKeyToken", AssemblyNameNative::GetPublicKeyToken)
 #ifndef FEATURE_CORECLR
     FCFuncElement("EscapeCodeBase", AssemblyNameNative::EscapeCodeBase)
-#endif // !FEATURE_CORECLR
+#endif // !FEATURE_CORECLR 
     FCFuncElement("nInit", AssemblyNameNative::Init)
     FCFuncElement("ReferenceMatchesDefinitionInternal", AssemblyNameNative::ReferenceMatchesDefinition)
 FCFuncEnd()
@@ -1460,7 +1458,7 @@ FCFuncStart(gCLRConfigFuncs)
 FCFuncEnd()
 #endif // ifndef FEATURE_CORECLR
 
-#if defined(FEATURE_LEGACYSURFACE) && !defined(FEATURE_COREFX_GLOBALIZATION)
+#if !defined(FEATURE_COREFX_GLOBALIZATION)
 FCFuncStart(gCompareInfoFuncs)
     QCFuncElement("InternalGetGlobalizedHashCode", COMNlsInfo::InternalGetGlobalizedHashCode)
     QCFuncElement("InternalCompareString", COMNlsInfo::InternalCompareString)
@@ -1525,7 +1523,7 @@ FCFuncStart(gTextInfoFuncs)
     QCFuncElement("InternalCompareStringOrdinalIgnoreCase", COMNlsInfo::InternalCompareStringOrdinalIgnoreCase)
     QCFuncElement("InternalTryFindStringOrdinalIgnoreCase", COMNlsInfo::InternalTryFindStringOrdinalIgnoreCase)
 FCFuncEnd()
-#endif // defined(FEATURE_LEGACYSURFACE) && !defined(FEATURE_COREFX_GLOBALIZATION)
+#endif // !defined(FEATURE_COREFX_GLOBALIZATION)
 
 #ifdef FEATURE_COREFX_GLOBALIZATION
 FCFuncStart(gCompareInfoFuncs)
@@ -2069,6 +2067,11 @@ FCFuncStart(gVersioningHelperFuncs)
     FCFuncElement("GetRuntimeId", GetRuntimeId_Wrapper)
 FCFuncEnd()
 
+FCFuncStart(gStreamFuncs)
+    FCFuncElement("HasOverriddenBeginEndRead", StreamNative::HasOverriddenBeginEndRead)
+    FCFuncElement("HasOverriddenBeginEndWrite", StreamNative::HasOverriddenBeginEndWrite)
+FCFuncEnd()
+
 #ifndef FEATURE_CORECLR
 FCFuncStart(gConsoleStreamFuncs)
     FCFuncElement("WaitForAvailableConsoleInput", ConsoleStreamHelper::WaitForAvailableConsoleInput)
@@ -2190,18 +2193,16 @@ FCClassElement("Buffer", "System", gBufferFuncs)
 // that start with Cx where x is any small letter (strcmp is used for verification).
 FCClassElement("CLRConfig", "System", gCLRConfigFuncs)
 #endif // FEATURE_CORECLR
-#if defined(FEATURE_LEGACYSURFACE) && !defined(FEATURE_COREFX_GLOBALIZATION)
+#if !defined(FEATURE_COREFX_GLOBALIZATION)
 FCClassElement("CalendarData", "System.Globalization", gCalendarDataFuncs)
-#endif // defined(FEATURE_LEGACYSURFACE) && !defined(FEATURE_COREFX_GLOBALIZATION)
+#endif // !defined(FEATURE_COREFX_GLOBALIZATION)
 #ifndef FEATURE_CORECLR
 FCClassElement("ChannelServices", "System.Runtime.Remoting.Channels", gChannelServicesFuncs)
 #endif // FEATURE_CORECLR
 #ifdef FEATURE_CAS_POLICY
 FCClassElement("CodeAccessSecurityEngine", "System.Security", gCodeAccessSecurityEngineFuncs)
 #endif
-#if defined(FEATURE_LEGACYSURFACE) || defined(FEATURE_COREFX_GLOBALIZATION)
 FCClassElement("CompareInfo", "System.Globalization", gCompareInfoFuncs)
-#endif // defined(FEATURE_LEGACYSURFACE)
 FCClassElement("CompatibilitySwitch", "System.Runtime.Versioning", gCompatibilitySwitchFuncs)
 #ifdef FEATURE_COMPRESSEDSTACK    
 FCClassElement("CompressedStack", "System.Threading", gCompressedStackFuncs)
@@ -2216,7 +2217,7 @@ FCClassElement("Console", "System", gConsoleFuncs)
 FCClassElement("Context", "System.Runtime.Remoting.Contexts", gContextFuncs)
 #endif
 FCClassElement("CriticalHandle", "System.Runtime.InteropServices", gCriticalHandleFuncs)
-#if defined(FEATURE_LEGACYSURFACE) && !defined(FEATURE_COREFX_GLOBALIZATION)
+#if !defined(FEATURE_COREFX_GLOBALIZATION)
 FCClassElement("CultureData", "System.Globalization", gCultureDataFuncs)
 FCClassElement("CultureInfo", "System.Globalization", gCultureInfoFuncs)
 #endif
@@ -2236,9 +2237,9 @@ FCClassElement("DependentHandle", "System.Runtime.CompilerServices", gDependentH
 #ifdef FEATURE_COMPRESSEDSTACK
 FCClassElement("DomainCompressedStack", "System.Threading", gDomainCompressedStackFuncs)    
 #endif // FEATURE_COMPRESSEDSTACK    
-#if defined(FEATURE_LEGACYSURFACE) && !defined(FEATURE_COREFX_GLOBALIZATION)
+#if !defined(FEATURE_COREFX_GLOBALIZATION)
 FCClassElement("EncodingTable", "System.Globalization", gEncodingTableFuncs)
-#endif // defined(FEATURE_LEGACYSURFACE) && !defined(FEATURE_COREFX_GLOBALIZATION)
+#endif // !defined(FEATURE_COREFX_GLOBALIZATION)
 FCClassElement("Enum", "System", gEnumFuncs)
 FCClassElement("Environment", "System", gEnvironmentFuncs)
 #ifdef FEATURE_COMINTEROP
@@ -2420,6 +2421,7 @@ FCClassElement("SizedReference", "System", gSizedRefHandleFuncs)
 FCClassElement("StackBuilderSink", "System.Runtime.Remoting.Messaging", gStackBuilderSinkFuncs)
 #endif    
 FCClassElement("StackTrace", "System.Diagnostics", gDiagnosticsStackTrace)
+FCClassElement("Stream", "System.IO", gStreamFuncs)
 FCClassElement("String", "System", gStringFuncs)
 FCClassElement("StringBuilder", "System.Text", gStringBufferFuncs)
 FCClassElement("StringExpressionSet", "System.Security.Util", gCOMStringExpressionSetFuncs)
@@ -2427,9 +2429,9 @@ FCClassElement("StubHelpers", "System.StubHelpers", gStubHelperFuncs)
 #if defined(FEATURE_SYNCHRONIZATIONCONTEXT_WAIT) || defined(FEATURE_APPX)
 FCClassElement("SynchronizationContext", "System.Threading", gContextSynchronizationFuncs)
 #endif // FEATURE_SYNCHRONIZATIONCONTEXT_WAIT || FEATURE_APPX
-#if defined(FEATURE_LEGACYSURFACE) && !defined(FEATURE_COREFX_GLOBALIZATION)
+#if !defined(FEATURE_COREFX_GLOBALIZATION)
 FCClassElement("TextInfo", "System.Globalization", gTextInfoFuncs)
-#endif // defined(FEATURE_LEGACYSURFACE) && !defined(FEATURE_COREFX_GLOBALIZATION)
+#endif // !defined(FEATURE_COREFX_GLOBALIZATION)
 FCClassElement("Thread", "System.Threading", gThreadFuncs)
 FCClassElement("ThreadPool", "System.Threading", gThreadPoolFuncs)
 #ifndef FEATURE_CORECLR

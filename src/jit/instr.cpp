@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -285,20 +284,23 @@ void                CodeGen::inst_SET(emitJumpKind   condition,
     /* Convert the condition to an insCond value */
     switch (condition)
     {
-    case EJ_je  : cond = INS_COND_EQ; break;
-    case EJ_jne : cond = INS_COND_NE; break;
-    case EJ_jae : cond = INS_COND_HS; break;
-    case EJ_jb  : cond = INS_COND_LO; break;
+    case EJ_eq  : cond = INS_COND_EQ; break;
+    case EJ_ne  : cond = INS_COND_NE; break;
+    case EJ_hs  : cond = INS_COND_HS; break;
+    case EJ_lo  : cond = INS_COND_LO; break;
 
-    case EJ_js  : cond = INS_COND_MI; break;
-    case EJ_jns : cond = INS_COND_PL; break;
-    case EJ_ja  : cond = INS_COND_HI; break;
-    case EJ_jbe : cond = INS_COND_LS; break;
+    case EJ_mi  : cond = INS_COND_MI; break;
+    case EJ_pl  : cond = INS_COND_PL; break;
+    case EJ_vs  : cond = INS_COND_VS; break;
+    case EJ_vc  : cond = INS_COND_VC; break;
 
-    case EJ_jge : cond = INS_COND_GE; break;
-    case EJ_jl  : cond = INS_COND_LT; break;
-    case EJ_jg  : cond = INS_COND_GT; break;
-    case EJ_jle : cond = INS_COND_LE; break;
+    case EJ_hi  : cond = INS_COND_HI; break;
+    case EJ_ls  : cond = INS_COND_LS; break;
+    case EJ_ge  : cond = INS_COND_GE; break;
+    case EJ_lt  : cond = INS_COND_LT; break;
+
+    case EJ_gt  : cond = INS_COND_GT; break;
+    case EJ_le  : cond = INS_COND_LE; break;
  
     default:      NO_WAY("unexpected condition type"); return;
     }
@@ -1203,9 +1205,10 @@ void                CodeGen::sched_AM(instruction  ins,
  *  Emit a "call [r/m]" instruction (the r/m operand given by a tree).
  */
 
-void                CodeGen::instEmit_indCall(GenTreePtr   call,
-                                              size_t       argSize,
-                                              emitAttr     retSize)
+void                CodeGen::instEmit_indCall(GenTreePtr                                call,
+                                              size_t                                    argSize,
+                                              emitAttr                                  retSize
+                                              FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(emitAttr    secondRetSize))
 {
     GenTreePtr              addr;
 
@@ -1242,15 +1245,16 @@ void                CodeGen::instEmit_indCall(GenTreePtr   call,
         {
             ssize_t     funcPtr = addr->gtIntCon.gtIconVal;
 
-            getEmitter()->emitIns_Call( emitter::EC_FUNC_ADDR,
-                                      NULL,    // methHnd
-                                      INDEBUG_LDISASM_COMMA(sigInfo)
-                                      (void*) funcPtr,
-                                      argSize,
-                                      retSize,
-                                      gcInfo.gcVarPtrSetCur,
-                                      gcInfo.gcRegGCrefSetCur,
-                                      gcInfo.gcRegByrefSetCur);
+            getEmitter()->emitIns_Call(emitter::EC_FUNC_ADDR,
+                                       NULL,    // methHnd
+                                       INDEBUG_LDISASM_COMMA(sigInfo)
+                                       (void*) funcPtr,
+                                       argSize,
+                                       retSize
+                                       FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(secondRetSize),
+                                       gcInfo.gcVarPtrSetCur,
+                                       gcInfo.gcRegGCrefSetCur,
+                                       gcInfo.gcRegByrefSetCur);
             return;
         }
     }
@@ -1303,15 +1307,16 @@ void                CodeGen::instEmit_indCall(GenTreePtr   call,
             {
                 ssize_t     funcPtr = addr->gtIntCon.gtIconVal;
 
-                getEmitter()->emitIns_Call( emitter::EC_FUNC_ADDR,
-                                          NULL,    // methHnd
-                                          INDEBUG_LDISASM_COMMA(sigInfo)
-                                          (void*) funcPtr,
-                                          argSize,
-                                          retSize,
-                                          gcInfo.gcVarPtrSetCur,
-                                          gcInfo.gcRegGCrefSetCur,
-                                          gcInfo.gcRegByrefSetCur);
+                getEmitter()->emitIns_Call(emitter::EC_FUNC_ADDR,
+                                           NULL,    // methHnd
+                                           INDEBUG_LDISASM_COMMA(sigInfo)
+                                           (void*) funcPtr,
+                                           argSize,
+                                           retSize
+                                           FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(secondRetSize),
+                                           gcInfo.gcVarPtrSetCur,
+                                           gcInfo.gcRegGCrefSetCur,
+                                           gcInfo.gcRegByrefSetCur);
                 return;
             }
         }
@@ -1367,17 +1372,21 @@ void                CodeGen::instEmit_indCall(GenTreePtr   call,
 
 #endif // CPU_LOAD_STORE_ARCH
 
-    getEmitter()->emitIns_Call( emitCallType,
-                              NULL,   // methHnd
-                              INDEBUG_LDISASM_COMMA(sigInfo)
-                              NULL,                 // addr
-                              argSize,
-                              retSize,
-                              gcInfo.gcVarPtrSetCur,
-                              gcInfo.gcRegGCrefSetCur,
-                              gcInfo.gcRegByrefSetCur,
-                              BAD_IL_OFFSET,        // ilOffset
-                              brg, xrg, mul, cns);  // addressing mode values
+    getEmitter()->emitIns_Call(emitCallType,
+                               NULL,   // methHnd
+                               INDEBUG_LDISASM_COMMA(sigInfo)
+                               NULL,                 // addr
+                               argSize,
+                               retSize
+                               FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(secondRetSize),
+                               gcInfo.gcVarPtrSetCur,
+                               gcInfo.gcRegGCrefSetCur,
+                               gcInfo.gcRegByrefSetCur,
+                               BAD_IL_OFFSET,        // ilOffset
+                               brg,
+                               xrg,
+                               mul,
+                               cns);  // addressing mode values
 }
 
 #ifdef LEGACY_BACKEND
@@ -3898,13 +3907,12 @@ void                CodeGen::instGen_Return(unsigned stkArgSize)
  *  Emit a MemoryBarrier instruction
  *
  *     Note: all MemoryBarriers instructions can be removed by
- *           SET COMPLUS_JitNoMemoryBarriers=1
+ *           SET COMPlus_JitNoMemoryBarriers=1
  */
 void                CodeGen::instGen_MemoryBarrier()
 {
 #ifdef DEBUG
-    static ConfigDWORD fJitNoMemoryBarriers;
-    if (fJitNoMemoryBarriers.val(CLRConfig::INTERNAL_JitNoMemoryBarriers) == 1)
+    if (JitConfig.JitNoMemoryBarriers() == 1)
         return;
 #endif // DEBUG
 

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 /*
@@ -56,7 +55,7 @@ int32_t g_bLowMemoryFromHost = 0;
 
 #ifdef WRITE_BARRIER_CHECK
 
-#define INVALIDGCVALUE (LPVOID)((size_t)0xcccccccd)
+#define INVALIDGCVALUE (void *)((size_t)0xcccccccd)
 
     // called by the write barrier to update the shadow heap
 void updateGCShadow(Object** ptr, Object* val)

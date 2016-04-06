@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*****************************************************************************/
 
@@ -315,10 +314,10 @@ public:
 #ifdef DEBUG
     /*****************************************************************************
         *  Should we stress register tracking logic ?
-        *  This is set via COMPLUS_JitStressRegs.
+        *  This is set via COMPlus_JitStressRegs.
         *  The following values are ordered, such that any value greater than RS_xx
         *  implies RS_xx.
-        *  LSRA defines a different set of values, but uses the same COMPLUS_JitStressRegs
+        *  LSRA defines a different set of values, but uses the same COMPlus_JitStressRegs
         *  value, with the same notion of relative ordering.
         *  1 = rsPickReg() picks 'bad' registers.
         *  2 = codegen spills at safe points. This is still flaky

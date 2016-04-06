@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // UtilMessageBox.cpp
 //
@@ -355,20 +354,19 @@ int UtilMessageBoxNonLocalizedVA(
         StackSString formattedMessage;
         StackSString formattedTitle;
         SString details(lpDetails);
-        StackSString fileName;
+        PathString fileName;
         BOOL fDisplayMsgBox = TRUE;
         
         // Format message string using optional parameters
         formattedMessage.VPrintf(lpText, args);
        
         // Try to get filename of Module and add it to title
-        if (showFileNameInTitle && WszGetModuleFileName(NULL, fileName.OpenUnicodeBuffer(MAX_LONGPATH), MAX_LONGPATH))
+        if (showFileNameInTitle && WszGetModuleFileName(NULL, fileName))
         {           
             LPCWSTR wszName = NULL;
             size_t cchName = 0;
 
-            // Close the buffer we opened before the call to WszGetModuleFileName.
-            fileName.CloseBuffer();            
+                  
             
             SplitPathInterior(fileName, NULL, NULL, NULL, NULL, &wszName, &cchName, NULL, NULL);
             formattedTitle.Printf(W("%s - %s"), wszName, lpTitle);

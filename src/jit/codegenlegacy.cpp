@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -2008,7 +2007,8 @@ void                CodeGen::genRangeCheck(GenTreePtr  oper)
         /* Generate "jae <fail_label>" */
 
         noway_assert(oper->gtOper == GT_ARR_BOUNDS_CHECK);
-        genJumpToThrowHlpBlk(EJ_jae, SCK_RNGCHK_FAIL, bndsChk->gtIndRngFailBB);
+        emitJumpKind jmpGEU = genJumpKindForOper(GT_GE, CK_UNSIGNED);
+        genJumpToThrowHlpBlk(jmpGEU, SCK_RNGCHK_FAIL, bndsChk->gtIndRngFailBB);
     }
     else
     {
@@ -2035,7 +2035,8 @@ void                CodeGen::genRangeCheck(GenTreePtr  oper)
             /* Generate "cmp [arrRef+LenOffs], ixv" */
             inst_AT_IV(INS_cmp, EA_4BYTE, arrRef, ixv, lenOffset);
             // Generate "jbe <fail_label>"
-            genJumpToThrowHlpBlk(EJ_jbe, SCK_RNGCHK_FAIL, bndsChk->gtIndRngFailBB);
+            emitJumpKind jmpLEU = genJumpKindForOper(GT_LE, CK_UNSIGNED);
+            genJumpToThrowHlpBlk(jmpLEU, SCK_RNGCHK_FAIL, bndsChk->gtIndRngFailBB);
         }
         else if (arrLen->IsCnsIntOrI())
         {
@@ -2055,7 +2056,8 @@ void                CodeGen::genRangeCheck(GenTreePtr  oper)
              /* Generate "cmp arrLen, ixv" */
             inst_RV_IV(INS_cmp, arrLen->gtRegNum, ixv, EA_4BYTE);
             // Generate "jbe <fail_label>"
-            genJumpToThrowHlpBlk(EJ_jbe, SCK_RNGCHK_FAIL, bndsChk->gtIndRngFailBB);
+            emitJumpKind jmpLEU = genJumpKindForOper(GT_LE, CK_UNSIGNED);
+            genJumpToThrowHlpBlk(jmpLEU, SCK_RNGCHK_FAIL, bndsChk->gtIndRngFailBB);
         }
     }
 
@@ -2273,8 +2275,8 @@ regMaskTP           CodeGen::genMakeAddrArrElem(GenTreePtr      arrElem,
                         arrReg,
                         compiler->eeGetArrayDataOffset(elemType) + sizeof(int) * dim);
 #endif
-
-        genJumpToThrowHlpBlk(EJ_jae, SCK_RNGCHK_FAIL);
+        emitJumpKind jmpGEU = genJumpKindForOper(GT_GE, CK_UNSIGNED);
+        genJumpToThrowHlpBlk(jmpGEU, SCK_RNGCHK_FAIL);
 
         if (dim == 0)
         {
@@ -3062,7 +3064,8 @@ void                CodeGen::genEmitGSCookieCheck(bool pushReg)
     }
 
     gsCheckBlk = genCreateTempLabel();
-    inst_JMP(genJumpKindForOper(GT_EQ, true), gsCheckBlk);
+    emitJumpKind jmpEqual = genJumpKindForOper(GT_EQ, CK_SIGNED);
+    inst_JMP(jmpEqual, gsCheckBlk);
     genEmitHelperCall(CORINFO_HELP_FAIL_FAST, 0, EA_UNKNOWN);
     genDefineTempLabel(gsCheckBlk);
 
@@ -3474,7 +3477,7 @@ regMaskTP           CodeGen::WriteBarrier(GenTreePtr tgt,
 
 }
 
-
+#ifdef _TARGET_X86_
 /*****************************************************************************
  *
  *  Generate the appropriate conditional jump(s) right after the low 32 bits
@@ -3484,10 +3487,12 @@ regMaskTP           CodeGen::WriteBarrier(GenTreePtr tgt,
 void                CodeGen::genJccLongHi(genTreeOps   cmp,
                                           BasicBlock * jumpTrue,
                                           BasicBlock * jumpFalse,
-                                          bool         unsOper )
+                                          bool         isUnsigned )
 {
     if (cmp != GT_NE)
+    {
         jumpFalse->bbFlags |= BBF_JMP_TARGET|BBF_HAS_LABEL;
+    }
 
     switch (cmp)
     {
@@ -3501,7 +3506,7 @@ void                CodeGen::genJccLongHi(genTreeOps   cmp,
 
     case GT_LT:
     case GT_LE:
-        if (unsOper)
+        if (isUnsigned)
         {
             inst_JMP(EJ_ja , jumpFalse);
             inst_JMP(EJ_jb , jumpTrue);
@@ -3515,7 +3520,7 @@ void                CodeGen::genJccLongHi(genTreeOps   cmp,
 
     case GT_GE:
     case GT_GT:
-        if (unsOper)
+        if (isUnsigned)
         {
             inst_JMP(EJ_jb , jumpFalse);
             inst_JMP(EJ_ja , jumpTrue);
@@ -3572,7 +3577,107 @@ void            CodeGen::genJccLongLo(genTreeOps  cmp,
         noway_assert(!"expected comparison");
     }
 }
+#elif defined(_TARGET_ARM_)
+/*****************************************************************************
+*
+*  Generate the appropriate conditional jump(s) right after the low 32 bits
+*  of two long values have been compared.
+*/
 
+void                CodeGen::genJccLongHi(genTreeOps   cmp,
+                                          BasicBlock * jumpTrue,
+                                          BasicBlock * jumpFalse,
+                                          bool         isUnsigned)
+{
+    if (cmp != GT_NE)
+    {
+        jumpFalse->bbFlags |= BBF_JMP_TARGET | BBF_HAS_LABEL;
+    }
+
+    switch (cmp)
+    {
+    case GT_EQ:
+        inst_JMP(EJ_ne, jumpFalse);
+        break;
+
+    case GT_NE:
+        inst_JMP(EJ_ne, jumpTrue);
+        break;
+
+    case GT_LT:
+    case GT_LE:
+        if (isUnsigned)
+        {
+            inst_JMP(EJ_hi, jumpFalse);
+            inst_JMP(EJ_lo, jumpTrue);
+        }
+        else
+        {
+            inst_JMP(EJ_gt, jumpFalse);
+            inst_JMP(EJ_lt, jumpTrue);
+        }
+        break;
+
+    case GT_GE:
+    case GT_GT:
+        if (isUnsigned)
+        {
+            inst_JMP(EJ_lo, jumpFalse);
+            inst_JMP(EJ_hi, jumpTrue);
+        }
+        else
+        {
+            inst_JMP(EJ_lt, jumpFalse);
+            inst_JMP(EJ_gt, jumpTrue);
+        }
+        break;
+
+    default:
+        noway_assert(!"expected a comparison operator");
+    }
+}
+
+/*****************************************************************************
+*
+*  Generate the appropriate conditional jump(s) right after the high 32 bits
+*  of two long values have been compared.
+*/
+
+void            CodeGen::genJccLongLo(genTreeOps  cmp,
+                                      BasicBlock* jumpTrue,
+                                      BasicBlock* jumpFalse)
+{
+    switch (cmp)
+    {
+    case GT_EQ:
+        inst_JMP(EJ_eq, jumpTrue);
+        break;
+
+    case GT_NE:
+        inst_JMP(EJ_ne, jumpTrue);
+        break;
+
+    case GT_LT:
+        inst_JMP(EJ_lo, jumpTrue);
+        break;
+
+    case GT_LE:
+        inst_JMP(EJ_ls, jumpTrue);
+        break;
+
+    case GT_GE:
+        inst_JMP(EJ_hs, jumpTrue);
+        break;
+
+    case GT_GT:
+        inst_JMP(EJ_hi, jumpTrue);
+        break;
+
+    default:
+        noway_assert(!"expected comparison");
+    }
+}
+#endif
 /*****************************************************************************
  *
  *  Called by genCondJump() for TYP_LONG.
@@ -3720,14 +3825,8 @@ void                CodeGen::genCondJumpLng(GenTreePtr     cond,
                 jumpTrue = genTransitionBlockStackFP(&compCurFPState, compiler->compCurBB, jumpTrue);
             }
 #endif
-            if (cmp == GT_EQ)
-            {
-                inst_JMP(EJ_je,  jumpTrue);
-            }
-            else
-            {
-                inst_JMP(EJ_jne, jumpTrue);
-            }
+            emitJumpKind jmpKind = genJumpKindForOper(cmp, CK_SIGNED);
+            inst_JMP(jmpKind, jumpTrue);
         }
         else // specialCaseCmp == false
         {
@@ -3972,9 +4071,8 @@ emitJumpKind            CodeGen::genCondSetFlags(GenTreePtr cond)
     regMaskTP     regNeed;
     regMaskTP     addrReg1 = RBM_NONE;
     regMaskTP     addrReg2 = RBM_NONE;
-    emitJumpKind  jumpKind = EJ_jmp; // We borrow EJ_jmp for the cases where we don't know yet 
-                                     // which conditional instruction to use. 
-    
+    emitJumpKind  jumpKind = EJ_COUNT;   // Initialize with an invalid value
+
     bool  byteCmp;
     bool  shortCmp;
                   
@@ -4147,15 +4245,24 @@ emitJumpKind            CodeGen::genCondSetFlags(GenTreePtr cond)
                 */   
                 switch (cmp)
                 {
-                    case GT_EQ: jumpKind = EJ_je;      break;
-                    case GT_NE: jumpKind = EJ_jne;     break;
-                    case GT_LT: break;
-                    case GT_LE: jumpKind = EJ_je;      break;
-                    case GT_GE: break;
-                    case GT_GT: jumpKind = EJ_jne;     break;
-                    default:
-                        noway_assert(!"Unexpected comparison OpCode");
-                        break;
+#ifdef _TARGET_ARM_
+                case GT_EQ: jumpKind = EJ_eq;      break;
+                case GT_NE: jumpKind = EJ_ne;      break;
+                case GT_LT: jumpKind = EJ_NONE;    break;
+                case GT_LE: jumpKind = EJ_eq;      break;
+                case GT_GE: jumpKind = EJ_NONE;    break;
+                case GT_GT: jumpKind = EJ_ne;      break;
+#elif defined(_TARGET_X86_)
+                case GT_EQ: jumpKind = EJ_je;      break;
+                case GT_NE: jumpKind = EJ_jne;     break;
+                case GT_LT: jumpKind = EJ_NONE;    break;
+                case GT_LE: jumpKind = EJ_je;      break;
+                case GT_GE: jumpKind = EJ_NONE;    break;
+                case GT_GT: jumpKind = EJ_jne;     break;
+#endif // TARGET
+                default:
+                    noway_assert(!"Unexpected comparison OpCode");
+                    break;
                 }
             }
             else
@@ -4178,20 +4285,32 @@ emitJumpKind            CodeGen::genCondSetFlags(GenTreePtr cond)
                     -----------------------------------------------------
                     |     > 0    |      N/A          |       N/A        |
                     -----------------------------------------------------
-                */   
+                */
+
                 switch (cmp)
                 {
-                    case GT_EQ: jumpKind = EJ_je;      break;
-                    case GT_NE: jumpKind = EJ_jne;     break;
-                    case GT_LT: jumpKind = EJ_js;      break;
-                    case GT_LE: break;
-                    case GT_GE: jumpKind = EJ_jns;     break;
-                    case GT_GT: break;
-                    default:
-                        noway_assert(!"Unexpected comparison OpCode");
-                        break;
+#ifdef _TARGET_ARM_
+                case GT_EQ: jumpKind = EJ_eq;      break;
+                case GT_NE: jumpKind = EJ_ne;      break;
+                case GT_LT: jumpKind = EJ_mi;      break;
+                case GT_LE: jumpKind = EJ_NONE;    break;
+                case GT_GE: jumpKind = EJ_pl;      break;
+                case GT_GT: jumpKind = EJ_NONE;    break;
+#elif defined(_TARGET_X86_)
+                case GT_EQ: jumpKind = EJ_je;      break;
+                case GT_NE: jumpKind = EJ_jne;     break;
+                case GT_LT: jumpKind = EJ_js;      break;
+                case GT_LE: jumpKind = EJ_NONE;    break;
+                case GT_GE: jumpKind = EJ_jns;     break;
+                case GT_GT: jumpKind = EJ_NONE;    break;
+#endif // TARGET
+                default:
+                    noway_assert(!"Unexpected comparison OpCode");
+                    break;
                 }
+                assert(jumpKind == genJumpKindForOper(cmp, CK_LOGICAL));
             }
+            assert(jumpKind != EJ_COUNT);   // Ensure that it was assigned a valid value above
 
             /* Is the value a simple local variable? */
 
@@ -4201,7 +4320,7 @@ emitJumpKind            CodeGen::genCondSetFlags(GenTreePtr cond)
 
                 if (genFlagsAreVar(op1->gtLclVarCommon.gtLclNum))
                 {
-                    if (jumpKind != EJ_jmp)
+                    if (jumpKind != EJ_NONE)
                     {
                         addrReg1 = RBM_NONE;
                         genUpdateLife(op1);
@@ -4227,7 +4346,7 @@ emitJumpKind            CodeGen::genCondSetFlags(GenTreePtr cond)
 
             if  (flags)
             {
-                if (jumpKind != EJ_jmp)
+                if (jumpKind != EJ_NONE)
                 {
                     goto DONE_FLAGS;
                 }
@@ -4612,7 +4731,7 @@ DONE_OP1:
 
 DONE:
     
-    jumpKind = genJumpKindForOper(cmp, unsignedCmp);
+    jumpKind = genJumpKindForOper(cmp, unsignedCmp ? CK_UNSIGNED : CK_SIGNED);
 
 DONE_FLAGS: // We have determined what jumpKind to use
 
@@ -4625,7 +4744,7 @@ DONE_FLAGS: // We have determined what jumpKind to use
     genDoneAddressable(op1, addrReg1, RegSet::KEEP_REG);
     genDoneAddressable(op2, addrReg2, RegSet::KEEP_REG);
 
-    noway_assert(jumpKind != EJ_jmp);
+    noway_assert(jumpKind != EJ_COUNT);   // Ensure that it was assigned a valid value
 
     return jumpKind;
 }
@@ -5118,11 +5237,11 @@ void                CodeGen::genCodeForTreeLeaf(GenTreePtr tree,
         reg = REG_STK;
         break;
 
-#ifdef  DEBUG
     default:
+#ifdef DEBUG
         compiler->gtDispTree(tree);
-        noway_assert(!"unexpected leaf");
 #endif
+        noway_assert(!"unexpected leaf");
     }
 
     noway_assert(reg != DUMMY_INIT(REG_CORRUPT));
@@ -6090,8 +6209,7 @@ bool                CodeGen::genCodeForQmarkWithCMOV(GenTreePtr tree,
     noway_assert(colon->gtOper == GT_COLON);
 
 #ifdef DEBUG
-    static ConfigDWORD fJitNoCMOV;
-    if (fJitNoCMOV.val(CLRConfig::INTERNAL_JitNoCMOV))
+    if (JitConfig.JitNoCMOV())
     {
         return false;
     }
@@ -6476,7 +6594,8 @@ void                CodeGen::genCodeForMult64(GenTreePtr tree,
         getEmitter()->emitIns_R_I(INS_cmp, EA_4BYTE, regTmpHi, 0);
 
         // Jump to the block which will throw the expection
-        genJumpToThrowHlpBlk(EJ_jne, SCK_OVERFLOW);
+        emitJumpKind jmpNotEqual = genJumpKindForOper(GT_NE, CK_SIGNED);
+        genJumpToThrowHlpBlk(jmpNotEqual, SCK_OVERFLOW);
 
         // Unlock regLo [and regHi] after generating code for the gtOverflow() case
         //
@@ -7834,9 +7953,9 @@ void                CodeGen::genCodeForSignedMod(GenTreePtr tree,
 
         regTracker.rsTrackRegTrash(reg);
 
-        /* Generate "jns skip" */
-
-        inst_JMP(EJ_jns, skip);
+        /* Check and branch for a postive value */
+        emitJumpKind jmpGEL = genJumpKindForOper(GT_GE, CK_LOGICAL);
+        inst_JMP(jmpGEL, skip);
 
         /* Generate the rest of the sequence and we're done */
 
@@ -7962,9 +8081,11 @@ void                CodeGen::genCodeForSignedDiv(GenTreePtr tree,
 
             inst_RV_SH(INS_SHIFT_RIGHT_ARITHM, emitTypeSize(treeType), reg, genLog2(ival), INS_FLAGS_SET);
 
-            /* Generate "jns onNegDivisee" followed by "adc reg, 0" */
+            // Check and branch for a postive value, skipping the INS_ADDC instruction
+            emitJumpKind jmpGEL = genJumpKindForOper(GT_GE, CK_LOGICAL);
+            inst_JMP(jmpGEL, onNegDivisee);
 
-            inst_JMP  (EJ_jns, onNegDivisee);
+            // Add the carry flag to 'reg'
             inst_RV_IV(INS_ADDC, reg, 0, emitActualTypeSize(treeType));
 
             /* Define the 'onNegDivisee' label and we're done */
@@ -7989,9 +8110,13 @@ void                CodeGen::genCodeForSignedDiv(GenTreePtr tree,
             onNegDivisee:
             sar     reg, log2(ival)
             */
+
             instGen_Compare_Reg_To_Zero(emitTypeSize(treeType), reg);
 
-            inst_JMP  (EJ_jns, onNegDivisee);
+            // Check and branch for a postive value, skipping the INS_add instruction
+            emitJumpKind jmpGEL = genJumpKindForOper(GT_GE, CK_LOGICAL);
+            inst_JMP(jmpGEL, onNegDivisee);
+
             inst_RV_IV(INS_add, reg, (int)ival-1, emitActualTypeSize(treeType));
 
             /* Define the 'onNegDivisee' label and we're done */
@@ -9116,7 +9241,8 @@ void                CodeGen::genCodeForTreeSmpOp(GenTreePtr tree,
                 getEmitter()->emitIns_S_R(INS_cmp, EA_PTRSIZE, REG_SPBASE, compiler->lvaReturnEspCheck, 0);
 
                 BasicBlock  *   esp_check = genCreateTempLabel();
-                inst_JMP(genJumpKindForOper(GT_EQ, true), esp_check);
+                emitJumpKind jmpEqual = genJumpKindForOper(GT_EQ, CK_SIGNED);
+                inst_JMP(jmpEqual, esp_check);
                 getEmitter()->emitIns(INS_BREAKPOINT);
                 genDefineTempLabel(esp_check);
             }
@@ -10109,7 +10235,9 @@ void                CodeGen::genCodeForTreeSmpOp(GenTreePtr tree,
                         getEmitter()->emitIns_R_I(INS_add, dstType, regDst, 2 * TARGET_POINTER_SIZE);
                         regTracker.rsTrackRegTrash(regDst);
                         getEmitter()->emitIns_R_I(INS_sub, EA_4BYTE, regLoopIndex, 1, INS_FLAGS_SET);
-                        inst_JMP(EJ_jg, loopTopBlock);
+                        emitJumpKind jmpGTS = genJumpKindForOper(GT_GT, CK_SIGNED);
+                        inst_JMP(jmpGTS, loopTopBlock);
+
                         regTracker.rsTrackRegIntCns(regLoopIndex, 0);
 
                         length -= (pairStoreLoopCount * (2 * TARGET_POINTER_SIZE));
@@ -10431,11 +10559,11 @@ LockBinOpCommon:
             NYI("Handle GT_LDOBJ, or eliminate them earlier.");
             unreached();
 
-#ifdef  DEBUG
         default:
+#ifdef DEBUG
             compiler->gtDispTree(tree);
-            noway_assert(!"unexpected unary/binary operator");
 #endif
+            noway_assert(!"unexpected unary/binary operator");
     } // end switch (oper)
 
     unreached();
@@ -10716,6 +10844,9 @@ REG_OK:
             regNumber hiReg = (op1->gtFlags & GTF_REG_VAL) ? genRegPairHi(op1->gtRegPair)
                                                            : REG_NA;
 
+            emitJumpKind jmpNotEqual = genJumpKindForOper(GT_NE, CK_SIGNED);
+            emitJumpKind jmpLTS = genJumpKindForOper(GT_LT, CK_SIGNED);
+
             switch (dstType)
             {
             case TYP_INT:   // conv.ovf.i8.i4
@@ -10735,7 +10866,7 @@ REG_OK:
                 instGen_Compare_Reg_To_Zero(EA_4BYTE, reg);
                 if (tree->gtFlags & GTF_UNSIGNED)       // conv.ovf.u8.i4       (i4 > 0 and upper bits 0)
                 {
-                    genJumpToThrowHlpBlk(EJ_jl, SCK_OVERFLOW);
+                    genJumpToThrowHlpBlk(jmpLTS, SCK_OVERFLOW);
                     goto UPPER_BITS_ZERO;
                 }
 
@@ -10764,8 +10895,7 @@ REG_OK:
                 done = genCreateTempLabel();
 
                 // Is the loDWord positive or negative
-
-                inst_JMP(EJ_jl, neg);
+                inst_JMP(jmpLTS, neg);
 
                 // If loDWord is positive, hiDWord should be 0 (sign extended loDWord)
 
@@ -10778,7 +10908,7 @@ REG_OK:
                     inst_TT_IV(INS_cmp, op1, 0x00000000, 4);
                 }
 
-                genJumpToThrowHlpBlk(EJ_jne, SCK_OVERFLOW);
+                genJumpToThrowHlpBlk(jmpNotEqual, SCK_OVERFLOW);
                 inst_JMP(EJ_jmp, done);
 
                 // If loDWord is negative, hiDWord should be -1 (sign extended loDWord)
@@ -10793,7 +10923,7 @@ REG_OK:
                 {
                     inst_TT_IV(INS_cmp, op1, 0xFFFFFFFFL, 4);
                 }
-                genJumpToThrowHlpBlk(EJ_jne, SCK_OVERFLOW);
+                genJumpToThrowHlpBlk(jmpNotEqual, SCK_OVERFLOW);
 
                 // Done
 
@@ -10813,8 +10943,8 @@ UPPER_BITS_ZERO:
                 {
                     inst_TT_IV(INS_cmp, op1, 0, 4);
                 }
-
-                genJumpToThrowHlpBlk(EJ_jne, SCK_OVERFLOW);
+               
+                genJumpToThrowHlpBlk(jmpNotEqual, SCK_OVERFLOW);
                 break;
 
             default:
@@ -11002,7 +11132,8 @@ UPPER_BITS_ZERO:
         if (unsv)
         {
             inst_RV_IV(INS_TEST, reg, typeMask, emitActualTypeSize(baseType));
-            genJumpToThrowHlpBlk(EJ_jne, SCK_OVERFLOW);
+            emitJumpKind jmpNotEqual = genJumpKindForOper(GT_NE, CK_SIGNED);
+            genJumpToThrowHlpBlk(jmpNotEqual, SCK_OVERFLOW);
         }
         else
         {
@@ -11014,12 +11145,14 @@ UPPER_BITS_ZERO:
             noway_assert(typeMin != DUMMY_INIT(~0) && typeMax != DUMMY_INIT(0));
 
             inst_RV_IV(INS_cmp, reg, typeMax, emitActualTypeSize(baseType));
-            genJumpToThrowHlpBlk(EJ_jg, SCK_OVERFLOW);
+            emitJumpKind jmpGTS = genJumpKindForOper(GT_GT, CK_SIGNED);
+            genJumpToThrowHlpBlk(jmpGTS, SCK_OVERFLOW);
 
             // Compare with the MIN
 
             inst_RV_IV(INS_cmp, reg, typeMin, emitActualTypeSize(baseType));
-            genJumpToThrowHlpBlk(EJ_jl, SCK_OVERFLOW);
+            emitJumpKind jmpLTS = genJumpKindForOper(GT_LT, CK_SIGNED);
+            genJumpToThrowHlpBlk(jmpLTS, SCK_OVERFLOW);
         }
 
         genCodeForTree_DONE(tree, reg);
@@ -12120,8 +12253,7 @@ void                CodeGen::genCodeForTreeSpecialOp(GenTreePtr tree,
 #ifdef FEATURE_ENABLE_NO_RANGE_CHECKS
             // MUST NEVER CHECK-IN WITH THIS ENABLED.
             // This is just for convenience in doing performance investigations and requires x86ret builds
-            static ConfigDWORD fJitNoRngChk;
-            if (!fJitNoRngChk.val(CLRConfig::PRIVATE_JitNoRangeChks))
+            if (!JitConfig.JitNoRngChk())
 #endif
                 genRangeCheck(tree);
         }
@@ -13727,7 +13859,8 @@ REG_VAR_LONG:
                     {
                         noway_assert((op2->gtFlags & GTF_UNSIGNED) == 0); // conv.ovf.u8.un should be bashed to conv.u8.un
                         instGen_Compare_Reg_To_Zero(EA_4BYTE, regHi);     // set flags
-                        genJumpToThrowHlpBlk(EJ_jl, SCK_OVERFLOW);
+                        emitJumpKind jmpLTS = genJumpKindForOper(GT_LT, CK_SIGNED);
+                        genJumpToThrowHlpBlk(jmpLTS, SCK_OVERFLOW);
                     }
 
                     /* Move the value into the target */
@@ -15137,7 +15270,8 @@ USE_SAR_FOR_CAST:
                     {
                         regNumber hiReg = genRegPairHi(regPair);
                         instGen_Compare_Reg_To_Zero(EA_4BYTE, hiReg); // set flags
-                        genJumpToThrowHlpBlk(EJ_jl, SCK_OVERFLOW);
+                        emitJumpKind jmpLTS = genJumpKindForOper(GT_LT, CK_SIGNED);
+                        genJumpToThrowHlpBlk(jmpLTS, SCK_OVERFLOW);
                     }
                 }
                 goto DONE;
@@ -15188,27 +15322,29 @@ USE_SAR_FOR_CAST:
 #endif
             case TYP_LONG:
             case TYP_ULONG:
+               {
+                    noway_assert(tree->gtOverflow()); // conv.ovf.u8 or conv.ovf.i8
 
-                noway_assert(tree->gtOverflow()); // conv.ovf.u8 or conv.ovf.i8
+                    genComputeRegPair(op1, REG_PAIR_NONE, RBM_ALLINT & ~needReg, RegSet::FREE_REG);
+                    regPair = op1->gtRegPair;
 
-                genComputeRegPair(op1, REG_PAIR_NONE, RBM_ALLINT & ~needReg, RegSet::FREE_REG);
-                regPair = op1->gtRegPair;
+                    // Do we need to set the sign-flag, or can we checked if it is set?
+                    // and not do this "test" if so.
 
-                // Do we need to set the sign-flag, or can be check if it
-                // set, and not do this "test" if so.
+                    if (op1->gtFlags & GTF_REG_VAL)
+                    {
+                        regNumber hiReg = genRegPairHi(op1->gtRegPair);
+                        noway_assert(hiReg != REG_STK);
+                        instGen_Compare_Reg_To_Zero(EA_4BYTE, hiReg); // set flags
+                    }
+                    else
+                    {
+                        inst_TT_IV(INS_cmp, op1, 0, sizeof(int));
+                    }
 
-                if (op1->gtFlags & GTF_REG_VAL)
-                {
-                    regNumber hiReg = genRegPairHi(op1->gtRegPair);
-                    noway_assert(hiReg != REG_STK);
-                    instGen_Compare_Reg_To_Zero(EA_4BYTE, hiReg); // set flags
+                    emitJumpKind jmpLTS = genJumpKindForOper(GT_LT, CK_SIGNED);
+                    genJumpToThrowHlpBlk(jmpLTS, SCK_OVERFLOW);
                 }
-                else
-                {
-                    inst_TT_IV(INS_cmp, op1, 0, sizeof(int));
-                }
-
-                genJumpToThrowHlpBlk(EJ_jl, SCK_OVERFLOW);
                 goto DONE;
 
             default:
@@ -15731,13 +15867,14 @@ void            CodeGen::genTableSwitch(regNumber      reg,
     if (jumpCnt < minSwitchTabJumpCnt)
     {
         /* Does the first case label follow? */
+        emitJumpKind jmpEqual = genJumpKindForOper(GT_EQ, CK_SIGNED);
 
         if  (fFirstCaseFollows)
         {
             /* Check for the default case */
-
             inst_RV_IV(INS_cmp, reg, jumpCnt - 1, EA_4BYTE);
-            inst_JMP  (EJ_jae, jumpTab[jumpCnt-1]);
+            emitJumpKind jmpGEU = genJumpKindForOper(GT_GE, CK_UNSIGNED);
+            inst_JMP(jmpGEU, jumpTab[jumpCnt - 1]);
 
             /* No need to jump to the first case */
 
@@ -15760,7 +15897,7 @@ void            CodeGen::genTableSwitch(regNumber      reg,
             while (jumpCnt > 0)
             {
                 inst_RV_IV(INS_sub, reg, 1, EA_4BYTE, INS_FLAGS_SET);
-                inst_JMP(EJ_je, *jumpTab++);
+                inst_JMP(jmpEqual, *jumpTab++);
                 jumpCnt--;
             }
         }
@@ -15768,7 +15905,7 @@ void            CodeGen::genTableSwitch(regNumber      reg,
         {
             /* Check for case0 first */
             instGen_Compare_Reg_To_Zero(EA_4BYTE, reg); // set flags
-            inst_JMP  (EJ_je, *jumpTab);
+            inst_JMP(jmpEqual, *jumpTab);
 
             /* No need to jump to the first case or the default */
 
@@ -15791,7 +15928,7 @@ void            CodeGen::genTableSwitch(regNumber      reg,
             while (jumpCnt > 0)
             {
                 inst_RV_IV(INS_sub, reg, 1, EA_4BYTE, INS_FLAGS_SET);
-                inst_JMP(EJ_je, *jumpTab++);
+                inst_JMP(jmpEqual, *jumpTab++);
                 jumpCnt--;
             }
 
@@ -15812,7 +15949,8 @@ void            CodeGen::genTableSwitch(regNumber      reg,
     /* First take care of the default case */
 
     inst_RV_IV(INS_cmp, reg, jumpCnt - 1, EA_4BYTE);
-    inst_JMP  (EJ_jae, jumpTab[jumpCnt-1]);
+    emitJumpKind jmpGEU = genJumpKindForOper(GT_GE, CK_UNSIGNED);
+    inst_JMP(jmpGEU, jumpTab[jumpCnt - 1]);
 
     /* Generate the jump table contents */
 
@@ -20440,7 +20578,8 @@ regMaskTP           CodeGen::genCodeForCall(GenTreePtr  call,
 
             esp_check = genCreateTempLabel();
 
-            inst_JMP(genJumpKindForOper(GT_EQ, true), esp_check);
+            emitJumpKind jmpEqual = genJumpKindForOper(GT_EQ, CK_SIGNED);
+            inst_JMP(jmpEqual, esp_check);
 
             getEmitter()->emitIns(INS_BREAKPOINT);
 
@@ -20613,7 +20752,8 @@ regMaskTP           CodeGen::genCodeForCall(GenTreePtr  call,
             getEmitter()->emitIns_S_R(INS_cmp, EA_4BYTE, REG_SPBASE, compiler->lvaCallEspCheck, 0);
 
         BasicBlock  *   esp_check = genCreateTempLabel();
-        inst_JMP(genJumpKindForOper(GT_EQ, true), esp_check);
+        emitJumpKind jmpEqual = genJumpKindForOper(GT_EQ, CK_SIGNED);
+        inst_JMP(jmpEqual, esp_check);
         getEmitter()->emitIns(INS_BREAKPOINT);
         genDefineTempLabel(esp_check);
     }
@@ -20878,7 +21018,8 @@ regNumber           CodeGen::genLclHeap(GenTreePtr size)
         getEmitter()->emitIns_S_R(INS_cmp, EA_PTRSIZE, REG_SPBASE, compiler->lvaReturnEspCheck, 0);
 
         BasicBlock  *   esp_check = genCreateTempLabel();
-        inst_JMP(genJumpKindForOper(GT_EQ, true), esp_check);
+        emitJumpKind jmpEqual = genJumpKindForOper(GT_EQ, CK_SIGNED);
+        inst_JMP(jmpEqual, esp_check);
         getEmitter()->emitIns(INS_BREAKPOINT);
         genDefineTempLabel(esp_check);
     }
@@ -21004,7 +21145,8 @@ regNumber           CodeGen::genLclHeap(GenTreePtr size)
 
         // If 0 we bail out
         instGen_Compare_Reg_To_Zero(easz, regCnt); // set flags
-        inst_JMP(EJ_je, endLabel);
+        emitJumpKind jmpEqual = genJumpKindForOper(GT_EQ, CK_SIGNED);
+        inst_JMP(jmpEqual, endLabel);
 
         // Align to STACK_ALIGN
         inst_RV_IV(INS_add, regCnt,  (STACK_ALIGN - 1), emitActualTypeSize(type));
@@ -21051,14 +21193,12 @@ regNumber           CodeGen::genLclHeap(GenTreePtr size)
 #if defined(_TARGET_X86_)
 
         inst_IV(INS_push_hide, 0);   // --- push 0
-
         // Are we done?
         inst_RV(INS_dec, regCnt, type);
 
 #elif defined(_TARGET_ARM_)
 
         inst_IV(INS_push, (unsigned) (genRegMask(regZero1) | genRegMask(regZero2)));
-
         // Are we done?
         inst_RV_IV(INS_sub, regCnt, 2, emitActualTypeSize(type), INS_FLAGS_SET);
 
@@ -21066,7 +21206,8 @@ regNumber           CodeGen::genLclHeap(GenTreePtr size)
         assert(!"Codegen missing");
 #endif // TARGETS
 
-        inst_JMP(EJ_jne, loop);
+        emitJumpKind jmpNotEqual = genJumpKindForOper(GT_NE, CK_SIGNED);
+        inst_JMP(jmpNotEqual, loop);
 
         // Move the final value of ESP into regCnt
         inst_RV_RV(INS_mov, regCnt, REG_SPBASE);
@@ -21107,7 +21248,7 @@ regNumber           CodeGen::genLclHeap(GenTreePtr size)
           */
 #ifdef _TARGET_ARM_
         inst_RV_RV_RV(INS_sub, regCnt, REG_SPBASE, regCnt, EA_4BYTE, INS_FLAGS_SET);
-        inst_JMP(EJ_jae, loop);
+        inst_JMP(EJ_hs, loop);
 #else
         inst_RV(INS_NEG, regCnt, TYP_I_IMPL);
         inst_RV_RV(INS_add, regCnt, REG_SPBASE, TYP_I_IMPL);
@@ -21146,7 +21287,8 @@ regNumber           CodeGen::genLclHeap(GenTreePtr size)
         noway_assert(size->gtFlags & GTF_REG_VAL);
         regCnt = size->gtRegNum;
         inst_RV_RV(INS_cmp, REG_SPBASE, regCnt, TYP_I_IMPL);
-        inst_JMP(EJ_jae, loop);
+        emitJumpKind jmpGEU = genJumpKindForOper(GT_GE, CK_UNSIGNED);
+        inst_JMP(jmpGEU, loop);
 
         // Move the final value to ESP
         inst_RV_RV(INS_mov, REG_SPBASE, regCnt);

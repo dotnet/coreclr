@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 #include "common.h"
@@ -2919,6 +2918,10 @@ void SystemDomain::LoadBaseSystemClasses()
     _ASSERTE(g_pStringClass->GetBaseSize() == ObjSizeOf(StringObject)+sizeof(WCHAR));
     _ASSERTE(g_pStringClass->GetComponentSize() == 2);
 
+    // Used by Buffer::BlockCopy
+    g_pByteArrayMT = ClassLoader::LoadArrayTypeThrowing(
+        TypeHandle(MscorlibBinder::GetElementType(ELEMENT_TYPE_U1))).AsArray()->GetMethodTable();
+
 #ifndef CROSSGEN_COMPILE
     ECall::PopulateManagedStringConstructors();
 
@@ -4767,12 +4770,10 @@ void SystemDomain::GetDevpathW(__out_ecount_opt(1) LPWSTR* pDevpath, DWORD* pdwD
 
         if(m_fDevpath == FALSE) {
             DWORD dwPath = 0;
-            dwPath = WszGetEnvironmentVariable(APPENV_DEVPATH, 0, 0);
+            PathString m_pwDevpathholder; 
+            dwPath = WszGetEnvironmentVariable(APPENV_DEVPATH, m_pwDevpathholder);
             if(dwPath) {
-                m_pwDevpath = (WCHAR*) new WCHAR[dwPath];
-                m_dwDevpath = WszGetEnvironmentVariable(APPENV_DEVPATH,
-                                                        m_pwDevpath,
-                                                        dwPath);
+                m_pwDevpath = m_pwDevpathholder.GetCopyOfUnicodeString();
             }
             else {
                 RegKeyHolder userKey;
@@ -13828,14 +13829,30 @@ DWORD* SetupCompatibilityFlags()
         SO_TOLERANT;
     } CONTRACTL_END;
 
-    WCHAR buf[2] = { '\0', '\0' };
+    LPCWSTR buf;
+    bool return_null = true;
 
     FAULT_NOT_FATAL(); // we can simply give up
 
-    if (WszGetEnvironmentVariable(W("UnsupportedCompatSwitchesEnabled"), buf, COUNTOF(buf)) == 0)
-        return NULL;
+    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(SetLastError(COR_E_STACKOVERFLOW); return NULL;)
+    InlineSString<4> bufString;
+    
+    if (WszGetEnvironmentVariable(W("UnsupportedCompatSwitchesEnabled"), bufString) != 0)
+    {
+        buf = bufString.GetUnicode();
+        if (buf[0] != '1' || buf[1] != '\0')
+        {
+            return_null = true;
+        }
+        else
+        {
+            return_null = false;
+        }
 
-    if (buf[0] != '1' || buf[1] != '\0')
+    }
+    END_SO_INTOLERANT_CODE
+
+    if (return_null)
         return NULL;
 
     static const LPCWSTR rgFlagNames[] = {
@@ -13849,17 +13866,21 @@ DWORD* SetupCompatibilityFlags()
         return NULL;
     ZeroMemory(pFlags, size * sizeof(DWORD));
 
+    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(SetLastError(COR_E_STACKOVERFLOW); return NULL;)
+    InlineSString<4> bufEnvString;
     for (int i = 0; i < COUNTOF(rgFlagNames); i++)
     {
-        if (WszGetEnvironmentVariable(rgFlagNames[i], buf, COUNTOF(buf)) == 0)
+        if (WszGetEnvironmentVariable(rgFlagNames[i], bufEnvString) == 0)
             continue;
 
+        buf = bufEnvString.GetUnicode();
         if (buf[0] != '1' || buf[1] != '\0')
             continue;
 
         pFlags[i / 32] |= 1 << (i % 32);
     }
-
+    END_SO_INTOLERANT_CODE
+    
     return pFlags;
 }
 
@@ -14227,7 +14248,7 @@ BOOL RuntimeCanUseAppPathAssemblyResolver(DWORD adid)
 }
 
 // Returns S_OK if the assembly was successfully loaded
-HRESULT RuntimeInvokeHostAssemblyResolver(CLRPrivBinderAssemblyLoadContext *pLoadContextToBindWithin, IAssemblyName *pIAssemblyName, ICLRPrivAssembly **ppLoadedAssembly)
+HRESULT RuntimeInvokeHostAssemblyResolver(INT_PTR pManagedAssemblyLoadContextToBindWithin, IAssemblyName *pIAssemblyName, ICLRPrivAssembly **ppLoadedAssembly)
 {
     CONTRACTL
     {
@@ -14256,9 +14277,6 @@ HRESULT RuntimeInvokeHostAssemblyResolver(CLRPrivBinderAssemblyLoadContext *pLoa
         
         GCPROTECT_BEGIN(_gcRefs);
         
-        // Get the pointer to the managed assembly load context
-        INT_PTR ptrManagedAssemblyLoadContext = pLoadContextToBindWithin->GetManagedAssemblyLoadContext();
-        
         // Prepare to invoke System.Runtime.Loader.AssemblyLoadContext.Resolve method.
         //
         // First, initialize an assembly spec for the requested assembly
@@ -14280,7 +14298,7 @@ HRESULT RuntimeInvokeHostAssemblyResolver(CLRPrivBinderAssemblyLoadContext *pLoa
             // Setup the arguments for the call
             ARG_SLOT args[2] =
             {
-                PtrToArgSlot(ptrManagedAssemblyLoadContext), // IntPtr for managed assembly load context instance
+                PtrToArgSlot(pManagedAssemblyLoadContextToBindWithin), // IntPtr for managed assembly load context instance
                 ObjToArgSlot(_gcRefs.oRefAssemblyName), // AssemblyName instance
             };
 

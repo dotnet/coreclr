@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -919,7 +920,8 @@ namespace System.IO {
                 return true;
         
         }
-                
+
+#if !FEATURE_CORECLR
         // Returns a cryptographically strong random 8.3 string that can be 
         // used as either a folder name or a file name.
 #if FEATURE_PAL
@@ -995,7 +997,8 @@ namespace System.IO {
             if (r==0) __Error.WinIOError();
             return sb.ToString();
         }
-    
+#endif // FEATURE_CORECLR
+
         // Tests if a path includes a file extension. The result is
         // true if the characters that follow the last directory
         // separator ('\\' or '/') or volume separator (':') in the path include 

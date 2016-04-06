@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ===========================================================================
 // File: MultiCoreJITPlayer.cpp
 //
@@ -1470,13 +1469,7 @@ HRESULT MulticoreJitProfilePlayer::ProcessProfile(const wchar_t * pFileName)
 
         _ASSERTE(m_pThread != NULL);
 
-        unsigned stackSize = 64 * sizeof(SIZE_T) * 1024; // 256 Kb for 32-bit, 512 Kb for 64-bit
-
-#ifdef _DEBUG
-        stackSize *= 2;   // Double it for CHK build
-#endif
-
-        if (m_pThread->CreateNewThread(stackSize, StaticJITThreadProc, this))
+        if (m_pThread->CreateNewThread(0, StaticJITThreadProc, this))
         {
             int t = (int) m_pThread->StartThread();
 

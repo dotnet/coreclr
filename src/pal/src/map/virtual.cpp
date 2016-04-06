@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -2351,6 +2350,19 @@ ResetWriteWatch(
     // TODO: implement this method
     // Until it is implemented, return non-zero value as an indicator of failure
     return 1;
+}
+
+/*++
+Function :
+    ReserveMemoryFromExecutableAllocator
+
+    This function is used to reserve a region of virual memory (not commited)
+    that is located close to the coreclr library. The memory comes from the virtual
+    address range that is managed by ExecutableMemoryAllocator.
+--*/
+void* ReserveMemoryFromExecutableAllocator(SIZE_T allocationSize)
+{
+    return g_executableMemoryAllocator.AllocateMemory(allocationSize);
 }
 
 /*++

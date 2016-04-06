@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 #include "common.h"
@@ -24,6 +23,7 @@
 #include "runtimehandles.h"
 #include "vars.hpp"
 #include "cycletimer.h"
+#include "defaultallocator.h"
 #ifdef FEATURE_REMOTING
 #include "remoting.h"
 #endif
@@ -10838,7 +10838,7 @@ Interpreter::AddrToMDMap* Interpreter::GetAddrToMdMap()
 
     if (s_addrToMDMap == NULL)
     {
-        s_addrToMDMap = new AddrToMDMap(/* use default allocator */ NULL);
+        s_addrToMDMap = new AddrToMDMap(DefaultAllocator::Singleton());
     }
     return s_addrToMDMap;
 }
@@ -10900,7 +10900,7 @@ Interpreter::MethodHandleToInterpMethInfoPtrMap* Interpreter::GetMethodHandleToI
 
     if (s_methodHandleToInterpMethInfoPtrMap == NULL)
     {
-        s_methodHandleToInterpMethInfoPtrMap = new MethodHandleToInterpMethInfoPtrMap(/* use default allocator */ NULL);
+        s_methodHandleToInterpMethInfoPtrMap = new MethodHandleToInterpMethInfoPtrMap(DefaultAllocator::Singleton());
     }
     return s_methodHandleToInterpMethInfoPtrMap;
 }

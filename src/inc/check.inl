@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #ifndef CHECK_INL_
 #define CHECK_INL_
@@ -24,10 +23,8 @@ inline LONG *CHECK::InitTls()
 
 #pragma pop_macro("HeapAlloc")
 #pragma pop_macro("GetProcessHeap")
-#ifndef CLR_STANDALONE_BINDER
     ClrFlsSetValue(TlsIdx_Check, pCount);
     ClrFlsAssociateCallback(TlsIdx_Check, ReleaseCheckTls);
-#endif //!CLR_STANDALONE_BINDER
     return pCount;
 }
 
@@ -50,7 +47,7 @@ FORCEINLINE BOOL CHECK::EnterAssert()
     if (s_neverEnforceAsserts)
         return FALSE;
 
-#if defined(_DEBUG_IMPL) && !defined(CLR_STANDALONE_BINDER)
+#ifdef _DEBUG_IMPL
     m_pCount = (LONG *)ClrFlsGetValue(TlsIdx_Check);
     if (!m_pCount)
     {
@@ -75,14 +72,14 @@ FORCEINLINE BOOL CHECK::EnterAssert()
 
 FORCEINLINE void CHECK::LeaveAssert()
 {
-#if defined(_DEBUG_IMPL) && !defined(CLR_STANDALONE_BINDER)
+#ifdef _DEBUG_IMPL
     *m_pCount = 0;
 #endif
 }
 
 FORCEINLINE BOOL CHECK::IsInAssert()
 {
-#if defined(_DEBUG_IMPL) && !defined(CLR_STANDALONE_BINDER)
+#ifdef _DEBUG_IMPL
     if (!m_pCount)
         m_pCount = (LONG *)ClrFlsGetValue(TlsIdx_Check);
 

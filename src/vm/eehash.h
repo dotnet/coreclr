@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -562,10 +561,8 @@ public:
     }
 };
 
-#ifndef BINDER
 typedef EEHashTable<PTR_VOID, EEPtrHashTableHelper<PTR_VOID>, FALSE> EEPtrHashTable;
 typedef DPTR(EEPtrHashTable) PTR_EEPtrHashTable;
-#endif // !BINDER
 
 // Define a hash of generic instantiations (represented by a SigTypeContext).
 class EEInstantiationHashTableHelper

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /***
 *output.c - printf style output to a FILE
@@ -1739,4 +1738,3 @@ __inline __int64 __cdecl get_int64_arg (
 #endif  /* _UNICODE */
 
 #endif // __GNUC_VA_LIST
-

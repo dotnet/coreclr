@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 /*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -78,20 +77,19 @@ class ConfigMethodRange
 public:
     bool contains(class ICorJitInfo* info, CORINFO_METHOD_HANDLE method);
 
-    inline void ensureInit(const CLRConfig::ConfigStringInfo & info)
+    inline void ensureInit(const wchar_t* rangeStr)
     {
         // make sure that the memory was zero initialized
         _ASSERTE(m_inited == 0 || m_inited == 1);
 
         if (!m_inited)
         {
-            init(info);
+            initRanges(rangeStr);
             _ASSERTE(m_inited == 1);
         }
     }
 
 private:
-    void init(const CLRConfig::ConfigStringInfo & info);
     void initRanges(__in_z LPCWSTR rangeStr);
 
 private:
@@ -427,7 +425,7 @@ class AssemblyNamesList2
 public:
 
     // Take a Unicode string list of assembly names, parse it, and store it.
-    AssemblyNamesList2(__in LPWSTR list, __in IAllocator* alloc);
+    AssemblyNamesList2(const wchar_t* list, __in IAllocator* alloc);
 
     ~AssemblyNamesList2();
 
@@ -510,6 +508,19 @@ struct ListNode
         node->next = nullptr;
         return node;
     }
+};
+
+/*****************************************************************************
+* Floating point utility class 
+*/
+class FloatingPointUtils {
+public:
+
+    static double convertUInt64ToDouble(unsigned __int64 u64);
+
+    static float convertUInt64ToFloat(unsigned __int64 u64);
+
+    static unsigned __int64 convertDoubleToUInt64(double d);
 };
 
 #endif // _UTILS_H_

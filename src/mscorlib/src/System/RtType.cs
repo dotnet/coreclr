@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 //
@@ -5412,6 +5413,9 @@ namespace System
                 bCanBeCached = false;
             }
 #endif
+#if FEATURE_CORECLR
+            bSecurityCheckOff = true;       // CoreCLR does not use security at all.   
+#endif
 
             Object instance = RuntimeTypeHandle.CreateInstance(this, publicOnly, bSecurityCheckOff, ref bCanBeCached, ref runtime_ctor, ref bNeedSecurityCheck);
 
@@ -5466,9 +5470,11 @@ namespace System
 
                     if (ace.m_ctor != null)
                     {
+#if !FEATURE_CORECLR
                         // Perform security checks if needed
                         if (ace.m_bNeedSecurityCheck)
                             RuntimeMethodHandle.PerformSecurityCheck(instance, ace.m_hCtorMethodHandle, this, (uint)INVOCATION_FLAGS.INVOCATION_FLAGS_CONSTRUCTOR_INVOKE);
+#endif
 
                         // Call ctor (value types wont have any)
                         try

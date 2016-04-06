@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // File: DacDbiImpl.cpp
 // 
@@ -5082,6 +5081,9 @@ void DacDbiInterfaceImpl::Hijack(
     // (The hijack function already has the context)
     _ASSERTE((pOriginalContext == NULL) == (cbSizeContext == 0));
     _ASSERTE(EHijackReason::IsValid(reason));
+#ifdef PLATFORM_UNIX
+    _ASSERTE(!"Not supported on this platform");
+#endif
 
     //
     // If we hijack a thread which might not be managed we can set vmThread = NULL

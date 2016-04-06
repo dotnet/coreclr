@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -31,7 +30,7 @@ Abstract:
 #include "pal/process.h"
 #include "pal/module.h"
 #include "pal/dbgmsg.h"
-#include "pal/misc.h"
+#include "pal/environ.h"
 #include "pal/init.h"
 
 #include <signal.h>
@@ -52,12 +51,17 @@ Abstract:
 #include "pal/fakepoll.h"
 #endif  // HAVE_POLL
 #include <limits.h>
+
 #if HAVE_SYS_LWP_H
 #include <sys/lwp.h>
+#endif
+#if HAVE_LWP_H
+#include <lwp.h>
+#endif
 // If we don't have sys/lwp.h but do expect to use _lwp_self, declare it to silence compiler warnings
-#elif HAVE__LWP_SELF
+#if HAVE__LWP_SELF && !HAVE_SYS_LWP_H && !HAVE_LWP_H
 extern "C" int _lwp_self ();
-#endif // HAVE_LWP_H
+#endif
 
 using namespace CorUnix;
 
@@ -202,6 +206,8 @@ Function:
 VOID TLSCleanup()
 {
     SPINLOCKDestroy(&free_threads_spinlock);
+
+    pthread_key_delete(thObjKey);
 }
 
 /*++
@@ -617,11 +623,13 @@ CorUnix::InternalCreateThread(
         dwStackSize = CPalThread::s_dwDefaultThreadStackSize;
     }
 
+#ifdef PTHREAD_STACK_MIN
     if (PTHREAD_STACK_MIN > pthreadStackSize)
     {
         WARN("default stack size is reported as %d, but PTHREAD_STACK_MIN is "
              "%d\n", pthreadStackSize, PTHREAD_STACK_MIN);
     }
+#endif
     
     if (pthreadStackSize < dwStackSize)
     {
@@ -1160,7 +1168,7 @@ CorUnix::InternalSetThreadPriority(
     {
         goto InternalSetThreadPriorityExit;
     }
-        
+
     pTargetThread->Lock(pThread);
 
     /* validate the requested priority */
@@ -1210,6 +1218,17 @@ CorUnix::InternalSetThreadPriority(
         palError = ERROR_INTERNAL_ERROR;
         goto InternalSetThreadPriorityExit;
     }
+
+#if !HAVE_SCHED_OTHER_ASSIGNABLE
+    /* Defining thread priority for SCHED_OTHER is implementation defined.
+       Some platforms like NetBSD cannot reassign it as they are dynamic.
+    */
+    if (policy == SCHED_OTHER)
+    {
+        TRACE("Pthread priority levels for SCHED_OTHER cannot be reassigned on this platform\n");
+        goto InternalSetThreadPriorityExit;
+    }
+#endif
 
 #if HAVE_SCHED_GET_PRIORITY
     max_priority = sched_get_priority_max(policy);
@@ -1407,7 +1426,9 @@ CorUnix::GetThreadTimesInternal(
 
     pTargetThread->Lock(pThread);
 
+#if HAVE_PTHREAD_GETCPUCLOCKID
     if (pthread_getcpuclockid(pTargetThread->GetPThreadSelf(), &cid) != 0)
+#endif
     {
         ASSERT("Unable to get clock from thread\n", hThread);
         SetLastError(ERROR_INTERNAL_ERROR);
@@ -1659,7 +1680,7 @@ CorUnix::InitializeGlobalThreadData(
     // Read in the environment to see whether we need to change the default
     // thread stack size.
     //
-    pszStackSize = MiscGetenv(PAL_THREAD_DEFAULT_STACK_SIZE);
+    pszStackSize = EnvironGetenv(PAL_THREAD_DEFAULT_STACK_SIZE);
     if (NULL != pszStackSize)
     {
         // Environment variable exists
@@ -1669,6 +1690,8 @@ CorUnix::InitializeGlobalThreadData(
         {
             CPalThread::s_dwDefaultThreadStackSize = dw;
         }
+
+        InternalFree(pszStackSize);
     }
 
 #if !HAVE_MACH_EXCEPTIONS
@@ -2716,83 +2739,42 @@ PAL_InjectActivation(
 #if HAVE_MACH_EXCEPTIONS
 
 extern mach_port_t s_ExceptionPort;
-extern mach_port_t s_TopExceptionPort;
-
-// Returns a pointer to the handler node that should be initialized next. The first time this is called for a
-// thread the bottom node will be returned. Thereafter the top node will be returned. Also returns the Mach
-// exception port that should be registered.
-CorUnix::CThreadMachExceptionHandlerNode *CorUnix::CThreadMachExceptionHandlers::GetNodeForInitialization(mach_port_t *pExceptionPort)
-{
-    if (m_bottom.m_nPorts == -1)
-    {
-        // Thread hasn't registered handlers before. Return the bottom handler node and exception port.
-        *pExceptionPort = s_ExceptionPort;
-        return &m_bottom;
-    }
-    else
-    {
-        // Othewise use the top handler node and register the top exception port.
-        *pExceptionPort = s_TopExceptionPort;
-        return &m_top;
-    }
-}
 
 // Get handler details for a given type of exception. If successful the structure pointed at by pHandler is
-// filled in and true is returned. Otherwise false is returned. The fTopException argument indicates whether
-// the handlers found at the time of a call to ICLRRuntimeHost2::RegisterMacEHPort() should be searched (if
-// not, or a handler is not found there, we'll fallback to looking at the handlers discovered at the point
-// when the CLR first saw this thread).
-bool CorUnix::CThreadMachExceptionHandlers::GetHandler(exception_type_t eException,
-                                                       bool fTopException,
-                                                       CorUnix::MachExceptionHandler *pHandler)
+// filled in and true is returned. Otherwise false is returned.
+bool CorUnix::CThreadMachExceptionHandlers::GetHandler(exception_type_t eException, CorUnix::MachExceptionHandler *pHandler)
 {
     exception_mask_t bmExceptionMask = (1 << eException);
-    int idxHandler = -1;
-    CThreadMachExceptionHandlerNode *pNode = NULL;
-
-    // Check top handlers first if we've been asked to and they have been initialized.
-    if (fTopException && m_top.m_nPorts != -1)
-    {
-        pNode = &m_top;
-        idxHandler = GetIndexOfHandler(bmExceptionMask, pNode);
-    }
-
-    // If we haven't identified a handler yet continue looking with the bottom handlers.
-    if (idxHandler == -1)
-    {
-        pNode = &m_bottom;
-        idxHandler = GetIndexOfHandler(bmExceptionMask, pNode);
-    }
+    int idxHandler = GetIndexOfHandler(bmExceptionMask);
 
     // Did we find a handler?
     if (idxHandler == -1)
         return false;
 
     // Found one, so initialize the output structure with the details.
-    pHandler->m_mask = pNode->m_masks[idxHandler];
-    pHandler->m_handler = pNode->m_handlers[idxHandler];
-    pHandler->m_behavior = pNode->m_behaviors[idxHandler];
-    pHandler->m_flavor = pNode->m_flavors[idxHandler];
+    pHandler->m_mask = m_masks[idxHandler];
+    pHandler->m_handler = m_handlers[idxHandler];
+    pHandler->m_behavior = m_behaviors[idxHandler];
+    pHandler->m_flavor = m_flavors[idxHandler];
 
     return true;
 }
 
 // Look for a handler for the given exception within the given handler node. Return its index if successful or
 // -1 otherwise.
-int CorUnix::CThreadMachExceptionHandlers::GetIndexOfHandler(exception_mask_t bmExceptionMask,
-                                                             CorUnix::CThreadMachExceptionHandlerNode *pNode)
+int CorUnix::CThreadMachExceptionHandlers::GetIndexOfHandler(exception_mask_t bmExceptionMask)
 {
     // Check all handler entries for one handling the exception mask.
-    for (int i = 0; i < pNode->m_nPorts; i++)
+    for (mach_msg_type_number_t i = 0; i < m_nPorts; i++)
     {
-        if (pNode->m_masks[i] & bmExceptionMask &&      // Entry covers this exception type
-            pNode->m_handlers[i] != MACH_PORT_NULL &&   // And the handler isn't null
-            pNode->m_handlers[i] != s_ExceptionPort)    // And the handler isn't ourselves
-        {
+        // Entry covers this exception type and the handler isn't null
+        if (m_masks[i] & bmExceptionMask && m_handlers[i] != MACH_PORT_NULL)
+        { 
+            _ASSERTE(m_handlers[i] != s_ExceptionPort);
+
             // One more check; has the target handler port become dead?
             mach_port_type_t ePortType;
-            if (mach_port_type(mach_task_self(), pNode->m_handlers[i], &ePortType) == KERN_SUCCESS &&
-                !(ePortType & MACH_PORT_TYPE_DEAD_NAME))
+            if (mach_port_type(mach_task_self(), m_handlers[i], &ePortType) == KERN_SUCCESS && !(ePortType & MACH_PORT_TYPE_DEAD_NAME))
             {
                 // Got a matching entry.
                 return i;

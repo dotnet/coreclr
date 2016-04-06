@@ -1,21 +1,24 @@
-##
-## Copyright (c) Microsoft. All rights reserved.
-## Licensed under the MIT license. See LICENSE file in the project root for full license information.
-##
+#
+## Licensed to the .NET Foundation under one or more agreements.
+## The .NET Foundation licenses this file to you under the MIT license.
+## See the LICENSE file in the project root for more information.
+#
 #
 #USAGE:
 #Add Events: modify <root>src/vm/ClrEtwAll.man
 #Look at the Code in  <root>/src/inc/genXplatLttng.py for using subroutines in this file
 #
 
-import os 
+# Python 2 compatibility
+from __future__ import print_function
+
+import os
 import xml.dom.minidom as DOM
 
 stdprolog="""
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /******************************************************************
 
@@ -59,22 +62,21 @@ palDataTypeMapping ={
         "win:Binary"        :"const BYTE"
         }
 # A Template represents an ETW template can contain 1 or more AbstractTemplates
-# The AbstractTemplate contains FunctionSignature 
+# The AbstractTemplate contains FunctionSignature
 # FunctionSignature consist of FunctionParameter representing each parameter in it's signature
 
 class AbstractTemplate:
     def __init__(self,abstractTemplateName,abstractFnFrame):
         self.abstractTemplateName = abstractTemplateName
         self.AbstractFnFrame      = abstractFnFrame
-    
 
 class Template:
 
     def __init__(self,templateName):
         self.template                  = templateName
-        self.allAbstractTemplateTypes  = [] # list of AbstractTemplateNames 
-        self.allAbstractTemplateLUT    = {} #dictionary of AbstractTemplate 
-    
+        self.allAbstractTemplateTypes  = [] # list of AbstractTemplateNames
+        self.allAbstractTemplateLUT    = {} #dictionary of AbstractTemplate
+
     def append(self,abstractTemplateName,abstractFnFrame):
         self.allAbstractTemplateTypes.append(abstractTemplateName)
         self.allAbstractTemplateLUT[abstractTemplateName] = AbstractTemplate(abstractTemplateName,abstractFnFrame)
@@ -90,12 +92,12 @@ class Template:
            frame =  self.getFnFrame(subtemplate)
            if frame.getParam(name):
                return frame.getParam(name)
-        return None 
+        return None
 
 class FunctionSignature:
 
     def __init__(self):
-        self.LUT       = {} # dictionary of FunctionParameter 
+        self.LUT       = {} # dictionary of FunctionParameter
         self.paramlist = [] # list of parameters to maintain their order in signature
 
     def append(self,variable,fnparam):
@@ -114,7 +116,7 @@ class FunctionParameter:
         self.winType  = winType   #ETW type as given in the manifest
         self.name     = name      #parameter name as given in the manifest
         self.prop     = prop      #any special property as determined by the manifest and developer
-        #self.count               #indicates if the parameter is a pointer 
+        #self.count               #indicates if the parameter is a pointer
         if  count == "win:null":
             self.count    = "win:null"
         elif count or winType == "win:GUID" or count == "win:count":
@@ -122,7 +124,6 @@ class FunctionParameter:
             self.count    = "win:count"
         else:
             self.count    = "win:null"
-
 
 def getTopLevelElementsByTagName(Node,tag):
 
@@ -134,7 +135,7 @@ def getTopLevelElementsByTagName(Node,tag):
     return dataNodes
 
 def bucketizeAbstractTemplates(template,fnPrototypes,var_Dependecies):
-    # At this point we have the complete argument list, now break them into chunks of 10 
+    # At this point we have the complete argument list, now break them into chunks of 10
     # As Abstract Template supports a maximum of 10 arguments
     abstractTemplateName = template;
     subevent_cnt         = 1;
@@ -147,7 +148,7 @@ def bucketizeAbstractTemplates(template,fnPrototypes,var_Dependecies):
                 abstractFnFrame.append(dependency,fnPrototypes.getParam(dependency))
 
             frameCount = abstractFnFrame.getLength()
-            if frameCount == 10: 
+            if frameCount == 10:
 
                 templateProp.append(abstractTemplateName,abstractFnFrame)
                 abstractTemplateName = template + "_" + str(subevent_cnt)
@@ -167,10 +168,9 @@ def bucketizeAbstractTemplates(template,fnPrototypes,var_Dependecies):
                         # 2. Check if the frame has enough space, if there is continue adding missing dependencies
                         # 3. Else Save the current Frame and start a new frame and follow step 1 and 2
                         # 4. Add the current parameter and proceed
-                
-                #create a new fn frame 
-                abstractFnFrame      = FunctionSignature()
 
+                #create a new fn frame
+                abstractFnFrame      = FunctionSignature()
 
     #subevent_cnt == 1 represents argumentless templates
     if abstractFnFrame.getLength() > 0 or subevent_cnt == 1:
@@ -200,11 +200,11 @@ def parseTemplateNodes(templateNodes):
                 attrib_name = attrib.name
                 if attrib_name not in ignoredXmlTemplateAttribes and attrib_name not in usedXmlTemplateAttribes:
                     raise ValueError('unknown attribute: '+ attrib_name + ' in template:'+ template)
-        
+
         for dataNode in dataNodes:
             variable    = dataNode.getAttribute('name')
             wintype     = dataNode.getAttribute('inType')
-                                    
+
             #count and length are the same
             wincount  = dataNode.getAttribute('count')
             winlength = dataNode.getAttribute('length');
@@ -213,36 +213,35 @@ def parseTemplateNodes(templateNodes):
             var_dependency = [variable]
             if  winlength:
                 if wincount:
-                    raise Exception("both count and length property found on: " + variable + "in template: " + template) 
+                    raise Exception("both count and length property found on: " + variable + "in template: " + template)
                 wincount = winlength
 
             if (wincount.isdigit() and int(wincount) ==1):
                 wincount = ''
-            
+
             if  wincount:
                 if (wincount.isdigit()):
                     var_Props = wincount
-                elif  fnPrototypes.getParam(wincount): 
+                elif  fnPrototypes.getParam(wincount):
                     var_Props = wincount
                     var_dependency.insert(0,wincount)
-        
+
             #construct the function signature
 
-            
             if  wintype == "win:GUID":
                 var_Props = "sizeof(GUID)/sizeof(int)"
-            
+
             var_Dependecies[variable] = var_dependency
             fnparam        = FunctionParameter(wintype,variable,wincount,var_Props)
             fnPrototypes.append(variable,fnparam)
 
         structNodes = getTopLevelElementsByTagName(templateNode,'struct')
-       
+
         count = 0;
         for structToBeMarshalled in structNodes:
             struct_len     = "Arg"+ str(count) + "_Struct_Len_"
             struct_pointer = "Arg"+ str(count) + "_Struct_Pointer_"
-            count += 1 
+            count += 1
 
             #populate the Property- used in codegen
             structname   = structToBeMarshalled.getAttribute('name')
@@ -250,19 +249,19 @@ def parseTemplateNodes(templateNodes):
 
             if not countVarName:
                 raise ValueError('Struct '+ structname+ ' in template:'+ template + 'does not have an attribute count')
-                
+
             var_Props                       = countVarName + "*" + struct_len + "/sizeof(int)"
             var_Dependecies[struct_len]     = [struct_len]
             var_Dependecies[struct_pointer] = [countVarName,struct_len,struct_pointer]
-            
+
             fnparam_len            = FunctionParameter("win:ULong",struct_len,"win:null",None)
             fnparam_pointer        = FunctionParameter("win:Struct",struct_pointer,"win:count",var_Props)
-            
+
             fnPrototypes.append(struct_len,fnparam_len)
             fnPrototypes.append(struct_pointer,fnparam_pointer)
 
         allTemplates[template] = bucketizeAbstractTemplates(template,fnPrototypes,var_Dependecies)
-    
+
     return allTemplates
 
 def generateClrallEvents(eventNodes,allTemplates):
@@ -317,7 +316,7 @@ def generateClrallEvents(eventNodes,allTemplates):
                 del line[-1]
             if len(fnptypeline) > 0:
                 del fnptypeline[-1]
-        
+
         fnptype.extend(fnptypeline)
         fnptype.append("\n)\n{\n")
         fnbody.append(lindent)
@@ -327,10 +326,10 @@ def generateClrallEvents(eventNodes,allTemplates):
         fnbody.extend(line)
         fnbody.append(");\n")
         fnbody.append("}\n\n")
-                        
+
         clrallEvents.extend(fnptype)
         clrallEvents.extend(fnbody)
-       
+
     return ''.join(clrallEvents)
 
 def generateClrXplatEvents(eventNodes, allTemplates):
@@ -370,11 +369,11 @@ def generateClrXplatEvents(eventNodes, allTemplates):
             #remove trailing commas
             if len(fnptypeline) > 0:
                 del fnptypeline[-1]
-        
+
         fnptype.extend(fnptypeline)
         fnptype.append("\n);\n")
         clrallEvents.extend(fnptype)
-    
+
     return ''.join(clrallEvents)
 
 #generates the dummy header file which is used by the VM as entry point to the logging Functions
@@ -385,7 +384,7 @@ def generateclrEtwDummy(eventNodes,allTemplates):
         templateName = eventNode.getAttribute('template')
 
         fnptype     = []
-        #generate FireEtw functions 
+        #generate FireEtw functions
         fnptype.append("#define FireEtw")
         fnptype.append(eventName)
         fnptype.append("(");
@@ -398,11 +397,11 @@ def generateclrEtwDummy(eventNodes,allTemplates):
                     fnparam     = fnSig.getParam(params)
                     line.append(fnparam.name)
                     line.append(", ")
-                
+
             #remove trailing commas
             if len(line) > 0:
                 del line[-1]
-        
+
         fnptype.extend(line)
         fnptype.append(") 0\n")
         clretmEvents.extend(fnptype)
@@ -422,7 +421,6 @@ def generateClralltestEvents(sClrEtwAllMan):
             templateName = eventNode.getAttribute('template')
             clrtestEvents.append(" EventXplatEnabled" + eventName + "();\n")
             clrtestEvents.append("Error |= FireEtXplat" + eventName + "(\n")
-
 
             line =[]
             if templateName :
@@ -453,7 +451,7 @@ def generateClralltestEvents(sClrEtwAllMan):
 
                         line.append(argline)
                         line.append(",\n")
-                    
+
                 #remove trailing commas
                 if len(line) > 0:
                     del line[-1]
@@ -463,31 +461,33 @@ def generateClralltestEvents(sClrEtwAllMan):
 
     return ''.join(clrtestEvents)
 
-
-
-
 def generateSanityTest(sClrEtwAllMan,testDir):
+
+    if not testDir:
+        return
+    print('Generating Event Logging Tests')
+
     if not os.path.exists(testDir):
         os.makedirs(testDir)
 
     cmake_file = testDir + "/CMakeLists.txt"
-    test_cpp   = testDir + "/clralltestevents.cpp"
+    test_cpp   = "clralltestevents.cpp"
     testinfo   = testDir + "/testinfo.dat"
     Cmake_file = open(cmake_file,'w')
-    Test_cpp   = open(test_cpp,'w')
+    Test_cpp   = open(testDir + "/" + test_cpp,'w')
     Testinfo   = open(testinfo,'w')
-    
+
     #CMake File:
-    print >>Cmake_file, stdprolog_cmake
-    print >>Cmake_file, """
+    Cmake_file.write(stdprolog_cmake)
+    Cmake_file.write("""
     cmake_minimum_required(VERSION 2.8.12.2)
     set(CMAKE_INCLUDE_CURRENT_DIR ON)
     set(SOURCES
-    """
-    print >>Cmake_file, test_cpp
-    print >>Cmake_file, """
+    """)
+    Cmake_file.write(test_cpp)
+    Cmake_file.write("""
         )
-    include_directories($ENV{__GeneratedIntermediatesDir}/inc)
+    include_directories(${GENERATED_INCLUDE_DIR})
     include_directories(${COREPAL_SOURCE_DIR}/inc/rt)
 
     add_executable(eventprovidertest
@@ -495,7 +495,7 @@ def generateSanityTest(sClrEtwAllMan,testDir):
                    )
     set(EVENT_PROVIDER_DEPENDENCIES "")
     set(EVENT_PROVIDER_LINKER_OTPTIONS "")
-    if(CMAKE_SYSTEM_NAME STREQUAL Linux)
+    if(FEATURE_EVENT_TRACE)
         add_definitions(-DFEATURE_EVENT_TRACE=1)
             list(APPEND EVENT_PROVIDER_DEPENDENCIES
                  coreclrtraceptprovider
@@ -505,15 +505,15 @@ def generateSanityTest(sClrEtwAllMan,testDir):
                  ${EVENT_PROVIDER_DEPENDENCIES}
                  )
 
-    endif(CMAKE_SYSTEM_NAME STREQUAL Linux)
+    endif(FEATURE_EVENT_TRACE)
 
     add_dependencies(eventprovidertest  ${EVENT_PROVIDER_DEPENDENCIES} coreclrpal)
     target_link_libraries(eventprovidertest
                           coreclrpal
                           ${EVENT_PROVIDER_LINKER_OTPTIONS}
                           )
-    """
-    print >>Testinfo, """
+    """)
+    Testinfo.write("""
  Copyright (c) Microsoft Corporation.  All rights reserved.
  #
 
@@ -525,11 +525,11 @@ def generateSanityTest(sClrEtwAllMan,testDir):
  EXE1 = eventprovidertest
  Description
  =This is a sanity test to check that there are no crashes in Xplat eventing
-    """
+    """)
 
     #Test.cpp
-    print >>Test_cpp, stdprolog
-    print >>Test_cpp, """
+    Test_cpp.write(stdprolog)
+    Test_cpp.write("""
 /*=====================================================================
 **
 ** Source:   clralltestevents.cpp
@@ -562,7 +562,7 @@ unsigned int win_UInt32 = 4;
 unsigned short win_UInt16 = 12;
 unsigned char win_UInt8 = 9;
 int win_Int32 = 12;
-BYTE* win_Binary =(BYTE*)var21 ; 
+BYTE* win_Binary =(BYTE*)var21 ;
 int __cdecl main(int argc, char **argv)
 {
 
@@ -577,10 +577,10 @@ int __cdecl main(int argc, char **argv)
             ULONG Error = ERROR_SUCCESS;
 #if defined(FEATURE_EVENT_TRACE)
             Trace("\\n Starting functional  eventing APIs tests  \\n");
-"""
+""")
 
-    print >>Test_cpp, generateClralltestEvents(sClrEtwAllMan)
-    print >>Test_cpp,"""
+    Test_cpp.write(generateClralltestEvents(sClrEtwAllMan))
+    Test_cpp.write("""
 /* Shutdown the PAL.
  */
 
@@ -595,17 +595,23 @@ int __cdecl main(int argc, char **argv)
           return PASS;
                                  }
 
-"""
+""")
     Cmake_file.close()
     Test_cpp.close()
     Testinfo.close()
 
 def generateEtmDummyHeader(sClrEtwAllMan,clretwdummy):
+
+    if not clretwdummy:
+        return
+
+    print(' Generating Dummy Event Headers')
     tree           = DOM.parse(sClrEtwAllMan)
 
     incDir = os.path.dirname(os.path.realpath(clretwdummy))
     if not os.path.exists(incDir):
         os.makedirs(incDir)
+
     Clretwdummy    = open(clretwdummy,'w')
     Clretwdummy.write(stdprolog + "\n")
 
@@ -615,16 +621,21 @@ def generateEtmDummyHeader(sClrEtwAllMan,clretwdummy):
         eventNodes = providerNode.getElementsByTagName('event')
         #pal: create etmdummy.h
         Clretwdummy.write(generateclrEtwDummy(eventNodes, allTemplates) + "\n")
-    
+
     Clretwdummy.close()
 
-def generatePlformIndependentFiles(sClrEtwAllMan,incDir,etmDummyFile, testDir):
+def generatePlformIndependentFiles(sClrEtwAllMan,incDir,etmDummyFile):
+
+    generateEtmDummyHeader(sClrEtwAllMan,etmDummyFile)
     tree           = DOM.parse(sClrEtwAllMan)
+
+    if not incDir:
+        return
+
+    print(' Generating Event Headers')
     if not os.path.exists(incDir):
         os.makedirs(incDir)
 
-    generateSanityTest(sClrEtwAllMan,testDir)
-    generateEtmDummyHeader(sClrEtwAllMan,etmDummyFile)
     clrallevents   = incDir + "/clretwallmain.h"
     clrxplatevents = incDir + "/clrxplatevents.h"
 
@@ -640,12 +651,11 @@ def generatePlformIndependentFiles(sClrEtwAllMan,incDir,etmDummyFile, testDir):
         templateNodes = providerNode.getElementsByTagName('template')
         allTemplates  = parseTemplateNodes(templateNodes)
         eventNodes = providerNode.getElementsByTagName('event')
-        #vm header: 
+        #vm header:
         Clrallevents.write(generateClrallEvents(eventNodes, allTemplates) + "\n")
 
         #pal: create clrallevents.h
         Clrxplatevents.write(generateClrXplatEvents(eventNodes, allTemplates) + "\n")
-
 
     Clrxplatevents.close()
     Clrallevents.close()
@@ -662,7 +672,7 @@ def parseExclusionList(exclusionListFile):
 
     for line in ExclusionFile:
         line = line.strip()
-        
+
         #remove comments
         if not line or line.startswith('#'):
             continue
@@ -703,7 +713,7 @@ def getStackWalkBit(eventProvider, taskName, eventSymbol, stackSet):
 
         if len(tokens) != 3:
             raise Exception("Error, possible error in the script which introduced the enrty "+ entry)
-        
+
         eventCond  = tokens[0] == eventProvider or tokens[0] == "*"
         taskCond   = tokens[1] == taskName      or tokens[1] == "*"
         symbolCond = tokens[2] == eventSymbol   or tokens[2] == "*"
@@ -740,7 +750,6 @@ def checkConsistency(sClrEtwAllMan,exclusionListFile):
                 if not(fnParam and fnParam.winType == sLookupFieldType):
                     raise Exception(exclusionListFile + ":No " + sLookupFieldName + " field of type " + sLookupFieldType + " for event symbol " +  eventSymbol)
 
-            
             # If some versions of an event are on the nostack/stack lists,
             # and some versions are not on either the nostack or stack list,
             # then developer likely forgot to specify one of the versions
@@ -754,7 +763,7 @@ def checkConsistency(sClrEtwAllMan,exclusionListFile):
                 if ( not eventStackBitFromNoStackList) or ( not eventStackBitFromExplicitStackList):
                     stackSupportSpecified[eventValue] = True
                 else:
-                    stackSupportSpecified[eventValue] = False 
+                    stackSupportSpecified[eventValue] = False
             else:
                 # We've checked this event before.
                 if stackSupportSpecified[eventValue]:
@@ -778,11 +787,11 @@ def main(argv):
                                     help='full path to manifest containig the description of events')
     required.add_argument('--exc',  type=str, required=True,
                                     help='full path to exclusion list')
-    required.add_argument('--inc',  type=str, required=True,
+    required.add_argument('--inc',  type=str, default=None,
                                     help='full path to directory where the header files will be generated')
-    required.add_argument('--dummy',  type=str, required=True,
+    required.add_argument('--dummy',  type=str,default=None,
                                     help='full path to file that will have dummy definitions of FireEtw functions')
-    required.add_argument('--testdir',  type=str, required=True,
+    required.add_argument('--testdir',  type=str, default=None,
                                     help='full path to directory where the test assets will be deployed' )
     args, unknown = parser.parse_known_args(argv)
     if unknown:
@@ -796,11 +805,8 @@ def main(argv):
     testDir           = args.testdir
 
     checkConsistency(sClrEtwAllMan, exclusionListFile)
-    generatePlformIndependentFiles(sClrEtwAllMan,incdir,etmDummyFile,testDir)
-
+    generatePlformIndependentFiles(sClrEtwAllMan,incdir,etmDummyFile)
+    generateSanityTest(sClrEtwAllMan,testDir)
 if __name__ == '__main__':
     return_code = main(sys.argv[1:])
     sys.exit(return_code)
-
-
-

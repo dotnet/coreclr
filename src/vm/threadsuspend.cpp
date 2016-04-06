@@ -1,7 +1,6 @@
-
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // threadsuspend.CPP
 // 
@@ -4038,6 +4037,7 @@ int RedirectedHandledJITCaseExceptionFilter(
     // Copy the saved context record into the EH context;
     ReplaceExceptionContextRecord(pExcepPtrs->ContextRecord, pCtx);
 
+    DWORD espValue = pCtx->Esp;
     if (pThread->GetSavedRedirectContext())
     {
         delete pCtx;
@@ -4063,7 +4063,7 @@ int RedirectedHandledJITCaseExceptionFilter(
     EXCEPTION_REGISTRATION_RECORD *pCurSEH = GetCurrentSEHRecord();
 
     // Unlink all records above the target resume ESP
-    PopSEHRecords((LPVOID)(size_t)pCtx->Esp);
+    PopSEHRecords((LPVOID)(size_t)espValue);
 
     // Link the special OS handler back in to the top
     pCurSEH->Next = GetCurrentSEHRecord();
@@ -7348,7 +7348,8 @@ void STDCALL OnHijackStructInRegsWorker(HijackArgs * pArgs)
     int orefCount = 0;
     for (int i = 0; i < eeClass->GetNumberEightBytes(); i++)
     {
-        if (eeClass->GetEightByteClassification(i) == SystemVClassificationTypeIntegerReference)
+        if ((eeClass->GetEightByteClassification(i) == SystemVClassificationTypeIntegerReference) ||
+            (eeClass->GetEightByteClassification(i) == SystemVClassificationTypeIntegerByRef))
         {
             oref[orefCount++] = ObjectToOBJECTREF(*(Object **) &pArgs->ReturnValue[i]);
         }
@@ -7396,7 +7397,8 @@ void STDCALL OnHijackStructInRegsWorker(HijackArgs * pArgs)
         orefCount = 0;
         for (int i = 0; i < eeClass->GetNumberEightBytes(); i++)
         {
-            if (eeClass->GetEightByteClassification(i) == SystemVClassificationTypeIntegerReference)
+            if ((eeClass->GetEightByteClassification(i) == SystemVClassificationTypeIntegerReference) ||
+                (eeClass->GetEightByteClassification(i) == SystemVClassificationTypeIntegerByRef))
             {
                 *((OBJECTREF *) &pArgs->ReturnValue[i]) = oref[orefCount++];
             }
@@ -7909,7 +7911,7 @@ BOOL Thread::HandledJITCase(BOOL ForTaskSwitchIn)
 #ifdef FEATURE_ENABLE_GCPOLL
             // On platforms that support both hijacking and GC polling
             // decide whether to hijack based on a configuration value.  
-            // COMPLUS_GCPollType = 1 is the setting that enables hijacking
+            // COMPlus_GCPollType = 1 is the setting that enables hijacking
             // in GCPOLL enabled builds.
             EEConfig::GCPollType pollType = g_pConfig->GetGCPollType();
             if (EEConfig::GCPOLL_TYPE_HIJACK == pollType || EEConfig::GCPOLL_TYPE_DEFAULT == pollType)
@@ -8446,23 +8448,23 @@ void PALAPI HandleGCSuspensionForInterruptedThread(CONTEXT *interruptedContext)
         ClrFlsValueSwitch threadStackWalking(TlsIdx_StackWalkerWalkingThread, pThread);
 
         // Hijack the return address to point to the appropriate routine based on the method's return type.
-        void *pvHijackAddr = OnHijackScalarTripThread;
+        void *pvHijackAddr = reinterpret_cast<void*>(OnHijackScalarTripThread);
         MethodDesc *pMethodDesc = codeInfo.GetMethodDesc();
         MethodTable* pMT = NULL;
         MetaSig::RETURNTYPE type = pMethodDesc->ReturnsObject(INDEBUG_COMMA(false) &pMT);
         if (type == MetaSig::RETOBJ)
         {
-            pvHijackAddr = OnHijackObjectTripThread;
+            pvHijackAddr = reinterpret_cast<void*>(OnHijackObjectTripThread);
         }
         else if (type == MetaSig::RETBYREF)
         {
-            pvHijackAddr = OnHijackInteriorPointerTripThread;
+            pvHijackAddr = reinterpret_cast<void*>(OnHijackInteriorPointerTripThread);
         }
 #ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
         else if (type == MetaSig::RETVALUETYPE)
         {
             pThread->SetHijackReturnTypeClass(pMT->GetClass());
-            pvHijackAddr = OnHijackStructInRegsTripThread;
+            pvHijackAddr = reinterpret_cast<void*>(OnHijackStructInRegsTripThread);
         }
 #endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
 

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ===========================================================================
 
 #include "common.h"
@@ -803,6 +802,8 @@ DWORD __stdcall FinalizerThread::FinalizerThreadStart(void *args)
 
     if (s_FinalizerThreadOK)
     {
+        INSTALL_UNHANDLED_MANAGED_EXCEPTION_TRAP;
+
 #ifdef _DEBUG       // The only purpose of this try/finally is to trigger an assertion
         EE_TRY_FOR_FINALLY(void *, unused, NULL)
         {
@@ -860,16 +861,19 @@ DWORD __stdcall FinalizerThread::FinalizerThreadStart(void *args)
             hEventShutDownToFinalizer->Wait(INFINITE,FALSE);
             GetFinalizerThread()->DisablePreemptiveGC();
 
-            GCHeap::GetGCHeap()->SetFinalizeQueueForShutdown (FALSE);
-
-            // Finalize all registered objects during shutdown, even they are still reachable.
-            // we have been asked to quit, so must be shutting down      
+            // We have been asked to quit, so must be shutting down
             _ASSERTE(g_fEEShutDown);
             _ASSERTE(GetFinalizerThread()->PreemptiveGCDisabled());
 
-            // This will apply any policy for swallowing exceptions during normal
-            // processing, without allowing the finalizer thread to disappear on us.
-            ManagedThreadBase::FinalizerBase(FinalizeObjectsOnShutdown);
+            if (CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_FinalizeOnShutdown) != 0)
+            {
+                // Finalize all registered objects during shutdown, even they are still reachable.
+                GCHeap::GetGCHeap()->SetFinalizeQueueForShutdown(FALSE);
+
+                // This will apply any policy for swallowing exceptions during normal
+                // processing, without allowing the finalizer thread to disappear on us.
+                ManagedThreadBase::FinalizerBase(FinalizeObjectsOnShutdown);
+            }
 
             _ASSERTE(GetFinalizerThread()->GetDomain()->IsDefaultDomain());
 
@@ -913,6 +917,7 @@ DWORD __stdcall FinalizerThread::FinalizerThreadStart(void *args)
         }
         EE_END_FINALLY;
 #endif
+        UNINSTALL_UNHANDLED_MANAGED_EXCEPTION_TRAP;
     }
     // finalizer should always park in default domain
     _ASSERTE(GetThread()->GetDomain()->IsDefaultDomain());
@@ -1206,17 +1211,24 @@ BOOL FinalizerThread::FinalizerThreadWatchDog()
             pGenGCHeap->background_gc_wait();
 #endif //BACKGROUND_GC
 
-        _ASSERTE ((g_fEEShutDown & ShutDown_Finalize1) || g_fFastExitProcess);
-        ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_FOR_SHUTDOWN);
+        _ASSERTE((g_fEEShutDown & ShutDown_Finalize1) || g_fFastExitProcess);
 
-        g_fSuspendOnShutdown = TRUE;
-        
-        // Do not balance the trap returning threads.
-        // We are shutting down CLR.  Only Finalizer/Shutdown threads can
-        // return from DisablePreemptiveGC.
-        ThreadStore::TrapReturningThreads(TRUE);
+        if (CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_FinalizeOnShutdown) != 0)
+        {
+            // When running finalizers on shutdown (including for reachable objects), suspend threads for shutdown before
+            // running finalizers, so that the reachable objects will not be used after they are finalized.
 
-        ThreadSuspend::RestartEE(FALSE, TRUE);
+            ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_FOR_SHUTDOWN);
+
+            g_fSuspendOnShutdown = TRUE;
+
+            // Do not balance the trap returning threads.
+            // We are shutting down CLR.  Only Finalizer/Shutdown threads can
+            // return from DisablePreemptiveGC.
+            ThreadStore::TrapReturningThreads(TRUE);
+
+            ThreadSuspend::RestartEE(FALSE, TRUE);
+        }
 
         if (g_fFastExitProcess)
         {

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full
-// license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 #include <assert.h>
@@ -296,7 +295,7 @@ UCollator* CloneCollatorWithOptions(const UCollator* pCollator, int32_t options,
     return pClonedCollator;
 }
 
-extern "C" SortHandle* GetSortHandle(const char* lpLocaleName)
+extern "C" SortHandle* GlobalizationNative_GetSortHandle(const char* lpLocaleName)
 {
     SortHandle* pSortHandle = new SortHandle();
 
@@ -316,7 +315,7 @@ extern "C" SortHandle* GetSortHandle(const char* lpLocaleName)
     return pSortHandle;
 }
 
-extern "C" void CloseSortHandle(SortHandle* pSortHandle)
+extern "C" void GlobalizationNative_CloseSortHandle(SortHandle* pSortHandle)
 {
     ucol_close(pSortHandle->regular);
     pSortHandle->regular = nullptr;
@@ -368,12 +367,8 @@ const UCollator* GetCollatorFromSortHandle(SortHandle* pSortHandle, int32_t opti
 Function:
 CompareString
 */
-extern "C" int32_t CompareString(SortHandle* pSortHandle,
-                                 const UChar* lpStr1,
-                                 int32_t cwStr1Length,
-                                 const UChar* lpStr2,
-                                 int32_t cwStr2Length,
-                                 int32_t options)
+extern "C" int32_t GlobalizationNative_CompareString(
+    SortHandle* pSortHandle, const UChar* lpStr1, int32_t cwStr1Length, const UChar* lpStr2, int32_t cwStr2Length, int32_t options)
 {
     static_assert(UCOL_EQUAL == 0, "managed side requires 0 for equal strings");
     static_assert(UCOL_LESS < 0, "managed side requires less than zero for a < b");
@@ -395,8 +390,13 @@ extern "C" int32_t CompareString(SortHandle* pSortHandle,
 Function:
 IndexOf
 */
-extern "C" int32_t
-IndexOf(SortHandle* pSortHandle, const UChar* lpTarget, int32_t cwTargetLength, const UChar* lpSource, int32_t cwSourceLength, int32_t options)
+extern "C" int32_t GlobalizationNative_IndexOf(
+                        SortHandle* pSortHandle, 
+                        const UChar* lpTarget, 
+                        int32_t cwTargetLength, 
+                        const UChar* lpSource, 
+                        int32_t cwSourceLength, 
+                        int32_t options)
 {
     static_assert(USEARCH_DONE == -1, "managed side requires -1 for not found");
 
@@ -422,8 +422,13 @@ IndexOf(SortHandle* pSortHandle, const UChar* lpTarget, int32_t cwTargetLength, 
 Function:
 LastIndexOf
 */
-extern "C" int32_t LastIndexOf(
-    SortHandle* pSortHandle, const UChar* lpTarget, int32_t cwTargetLength, const UChar* lpSource, int32_t cwSourceLength, int32_t options)
+extern "C" int32_t GlobalizationNative_LastIndexOf(
+                        SortHandle* pSortHandle, 
+                        const UChar* lpTarget, 
+                        int32_t cwTargetLength, 
+                        const UChar* lpSource, 
+                        int32_t cwSourceLength, 
+                        int32_t options)
 {
     static_assert(USEARCH_DONE == -1, "managed side requires -1 for not found");
 
@@ -473,11 +478,8 @@ static bool AreEqualOrdinalIgnoreCase(UChar32 one, UChar32 two)
 Function:
 IndexOfOrdinalIgnoreCase
 */
-extern "C" int32_t
-IndexOfOrdinalIgnoreCase(
-    const UChar* lpTarget, int32_t cwTargetLength, 
-    const UChar* lpSource, int32_t cwSourceLength, 
-    int32_t findLast)
+extern "C" int32_t GlobalizationNative_IndexOfOrdinalIgnoreCase(
+    const UChar* lpTarget, int32_t cwTargetLength, const UChar* lpSource, int32_t cwSourceLength, int32_t findLast)
 {
     int32_t result = -1;
 
@@ -521,8 +523,13 @@ IndexOfOrdinalIgnoreCase(
 /*
  Return value is a "Win32 BOOL" (1 = true, 0 = false)
  */
-extern "C" int32_t StartsWith(
-    SortHandle* pSortHandle, const UChar* lpTarget, int32_t cwTargetLength, const UChar* lpSource, int32_t cwSourceLength, int32_t options)
+extern "C" int32_t GlobalizationNative_StartsWith(
+                        SortHandle* pSortHandle, 
+                        const UChar* lpTarget, 
+                        int32_t cwTargetLength, 
+                        const UChar* lpSource, 
+                        int32_t cwSourceLength, 
+                        int32_t options)
 {
     int32_t result = FALSE;
     UErrorCode err = U_ZERO_ERROR;
@@ -583,8 +590,13 @@ extern "C" int32_t StartsWith(
 /*
  Return value is a "Win32 BOOL" (1 = true, 0 = false)
  */
-extern "C" int32_t EndsWith(
-    SortHandle* pSortHandle, const UChar* lpTarget, int32_t cwTargetLength, const UChar* lpSource, int32_t cwSourceLength, int32_t options)
+extern "C" int32_t GlobalizationNative_EndsWith(
+                        SortHandle* pSortHandle, 
+                        const UChar* lpTarget, 
+                        int32_t cwTargetLength, 
+                        const UChar* lpSource, 
+                        int32_t cwSourceLength, 
+                        int32_t options)
 {
     int32_t result = FALSE;
     UErrorCode err = U_ZERO_ERROR;
@@ -618,12 +630,13 @@ extern "C" int32_t EndsWith(
     return result;
 }
 
-extern "C" int32_t GetSortKey(SortHandle* pSortHandle,
-                              const UChar* lpStr,
-                              int32_t cwStrLength,
-                              uint8_t* sortKey,
-                              int32_t cbSortKeyLength,
-                              int32_t options)
+extern "C" int32_t GlobalizationNative_GetSortKey(
+                        SortHandle* pSortHandle, 
+                        const UChar* lpStr, 
+                        int32_t cwStrLength, 
+                        uint8_t* sortKey, 
+                        int32_t cbSortKeyLength, 
+                        int32_t options)
 {
     UErrorCode err = U_ZERO_ERROR;
     const UCollator* pColl = GetCollatorFromSortHandle(pSortHandle, options, &err);
@@ -637,8 +650,8 @@ extern "C" int32_t GetSortKey(SortHandle* pSortHandle,
     return result;
 }
 
-extern "C" int32_t
-CompareStringOrdinalIgnoreCase(const UChar* lpStr1, int32_t cwStr1Length, const UChar* lpStr2, int32_t cwStr2Length)
+extern "C" int32_t GlobalizationNative_CompareStringOrdinalIgnoreCase(
+    const UChar* lpStr1, int32_t cwStr1Length, const UChar* lpStr2, int32_t cwStr2Length)
 {
     assert(lpStr1 != nullptr);
     assert(cwStr1Length >= 0);

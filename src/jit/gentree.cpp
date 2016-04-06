@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -1761,7 +1760,7 @@ AGAIN:
                 hash ^= tree->gtCast.gtCastType;
                 break;
             case GT_LDOBJ:
-                hash ^= reinterpret_cast<unsigned>(tree->gtLdObj.gtClass);
+                hash ^= static_cast<unsigned>(reinterpret_cast<uintptr_t>(tree->gtLdObj.gtClass));
                 break;
             case GT_INDEX:
                 hash += tree->gtIndex.gtIndElemSize;
@@ -4526,21 +4525,16 @@ void            GenTree::InsertAfterSelf(GenTree* node, GenTreeStmt* stmt /* = n
 //    'parent' must be non-null
 //
 // Notes:
-//    For non System V systems with native struct passing (i.e. FEATURE_UNIX_AMD64_STRUCT_PASSING not defined)
-//    this method must not be called for GT_LDOBJ (which isn't used for RyuJIT, which is the only context
-//    in which this method is used).
-//    If FEATURE_UNIX_AMD64_STRUCT_PASSING is defined we can get here with GT_LDOBJ tree. This happens when
-//    a struct is passed in two registers. The GT_LDOBJ is converted to a GT_LIST with two GT_LCL_FLDs later
-//    in Lower/LowerXArch.
+//    When FEATURE_MULTIREG_ARGS is defined we can get here with GT_LDOBJ tree. 
+//    This happens when we have a struct that is passed in multiple registers.
+//
+//    Also note that when FEATURE_UNIX_AMD64_STRUCT_PASSING is defined the GT_LDOBJ 
+//    later gets converted to a GT_LIST with two GT_LCL_FLDs in Lower/LowerXArch.
 //
 
 GenTreePtr*         GenTree::gtGetChildPointer(GenTreePtr parent)
 
 {
-#ifndef FEATURE_UNIX_AMD64_STRUCT_PASSING
-    noway_assert(parent->OperGet() != GT_LDOBJ);
-#endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING
-
     switch (parent->OperGet())
     {
     default:
@@ -4549,42 +4543,50 @@ GenTreePtr*         GenTree::gtGetChildPointer(GenTreePtr parent)
         if (this == parent->gtOp.gtOp2)                    return &(parent->gtOp.gtOp2);
         break;
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#if !FEATURE_MULTIREG_ARGS
+        // Note that when FEATURE_MULTIREG_ARGS==1 
+        //  a GT_LDOBJ node is handled above by the default case
     case GT_LDOBJ:
         // Any GT_LDOBJ with a field must be lowered before this point.
-        noway_assert(parent->AsLdObj()->gtFldTreeList == nullptr);
+        noway_assert(!"GT_LDOBJ encountered in GenTree::gtGetChildPointer");
         break;
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // !FEATURE_MULTIREG_ARGS
 
     case GT_CMPXCHG:
         if (this == parent->gtCmpXchg.gtOpLocation)        return &(parent->gtCmpXchg.gtOpLocation);
         if (this == parent->gtCmpXchg.gtOpValue)           return &(parent->gtCmpXchg.gtOpValue);
         if (this == parent->gtCmpXchg.gtOpComparand)       return &(parent->gtCmpXchg.gtOpComparand);
         break;
+
     case GT_ARR_BOUNDS_CHECK:
 #ifdef FEATURE_SIMD
     case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
-        if (this == parent->gtBoundsChk.gtArrLen)       return &(parent->gtBoundsChk.gtArrLen);
-        if (this == parent->gtBoundsChk.gtIndex)        return &(parent->gtBoundsChk.gtIndex);
-        if (this == parent->gtBoundsChk.gtIndRngFailBB) return &(parent->gtBoundsChk.gtIndRngFailBB);
+        if (this == parent->gtBoundsChk.gtArrLen)          return &(parent->gtBoundsChk.gtArrLen);
+        if (this == parent->gtBoundsChk.gtIndex)           return &(parent->gtBoundsChk.gtIndex);
+        if (this == parent->gtBoundsChk.gtIndRngFailBB)    return &(parent->gtBoundsChk.gtIndRngFailBB);
         break;
+
     case GT_ARR_ELEM:
         if (this == parent->gtArrElem.gtArrObj)            return &(parent->gtArrElem.gtArrObj);
         for (int i = 0; i < GT_ARR_MAX_RANK; i++)
             if (this == parent->gtArrElem.gtArrInds[i])    return &(parent->gtArrElem.gtArrInds[i]);
         break;
+
     case GT_ARR_OFFSET:
         if (this == parent->gtArrOffs.gtOffset)            return &(parent->gtArrOffs.gtOffset);
         if (this == parent->gtArrOffs.gtIndex)             return &(parent->gtArrOffs.gtIndex);
         if (this == parent->gtArrOffs.gtArrObj)            return &(parent->gtArrOffs.gtArrObj);
         break;
+
     case GT_FIELD:
         if (this == parent->AsField()->gtFldObj)           return &(parent->AsField()->gtFldObj);
         break;
+
     case GT_RET_EXPR:
         if (this == parent->gtRetExpr.gtInlineCandidate)   return &(parent->gtRetExpr.gtInlineCandidate);
         break;
+
     case GT_CALL:
         {
             GenTreeCall* call = parent->AsCall();
@@ -4600,10 +4602,12 @@ GenTreePtr*         GenTree::gtGetChildPointer(GenTreePtr parent)
             }
         }
         break;
+
     case GT_STMT:
         noway_assert(!"Illegal node for gtGetChildPointer()");
         unreached();
     }
+
     return nullptr;
 }
 
@@ -5123,6 +5127,10 @@ GenTreeCall*          Compiler::gtNewCallNode(gtCallTypes     callType,
 
 #ifdef FEATURE_READYTORUN_COMPILER
     node->gtCall.gtEntryPoint.addr = nullptr;
+#endif
+
+#ifdef DEBUG
+    node->gtCall.gtInlineObservation = InlineObservation::CALLEE_UNUSED_INITIAL;
 #endif
 
 #ifdef DEBUGGING_SUPPORT
@@ -6304,8 +6312,16 @@ GenTreePtr          Compiler::gtCloneExpr(GenTree * tree,
         }
         copy->gtCall.gtRetClsHnd = tree->gtCall.gtRetClsHnd;
 
+#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+        copy->gtCall.structDesc.CopyFrom(tree->gtCall.structDesc);
+#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)  
+
 #ifdef FEATURE_READYTORUN_COMPILER
         copy->gtCall.gtEntryPoint = tree->gtCall.gtEntryPoint;
+#endif
+
+#ifdef DEBUG
+        copy->gtCall.gtInlineObservation = tree->gtCall.gtInlineObservation;
 #endif
 
         break;
@@ -9938,7 +9954,7 @@ CHK_OVF:
                 case TYP_DOUBLE:
                     if ((tree->gtFlags & GTF_UNSIGNED) && lval1 < 0)
                     {
-                        d1 = (double) (unsigned __int64) lval1;
+                        d1 = FloatingPointUtils::convertUInt64ToDouble((unsigned __int64)lval1);
                     }
                     else
                     {
@@ -10058,29 +10074,8 @@ CHK_OVF:
                     lval1 = INT64(d1);      goto CNS_LONG;
 
                 case TYP_ULONG:
-                    if (d1 >= 0.0)
-                    {
-                        // Work around a C++ issue where it doesn't properly convert large positive doubles
-                        const double two63  = 2147483648.0 * 4294967296.0;
-                        if (d1 < two63) {
-                            lval1 = UINT64(d1);
-                        }
-                        else {        
-                            // subtract 0x8000000000000000, do the convert then add it back again
-                            lval1 = INT64(d1 - two63) + I64(0x8000000000000000);
-                        }
-                        goto CNS_LONG;
-                    }
-                    
-                    // This double cast to account for an ECMA spec hole.
-                    // When converting from a double to an unsigned the ECMA
-                    // spec states that a conforming implementation should 
-                    // "truncate to zero." However that doesn't make much sense
-                    // when the double in question is negative and the target
-                    // is unsigned. gcc converts a negative double to zero when
-                    // cast to an unsigned. To make gcc conform to MSVC behavior
-                    // this cast is necessary.
-                    lval1 = UINT64(INT64(d1));     goto CNS_LONG;
+                    lval1 = FloatingPointUtils::convertDoubleToUInt64(d1);
+                    goto CNS_LONG;
 
                 case TYP_FLOAT:
                     d1 = forceCastToFloat(d1);  

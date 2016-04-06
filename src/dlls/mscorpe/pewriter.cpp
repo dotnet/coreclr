@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 #include "stdafx.h"
 
 #include "blobfetcher.h"
@@ -1545,7 +1544,6 @@ void PEWriter::setSectionIndex(IMAGE_SECTION_HEADER * h, unsigned sectionIndex) 
             h->SectionIndex = VAL32(m_iSeedSections + DWORD(s - SpecialNames));
             break;
         }
-        s++;
     }
 
 }
@@ -2183,14 +2181,14 @@ HRESULT PEWriter::write(__in LPCWSTR fileName) {
     HRESULT hr;
 
 #ifdef ENC_DELTA_HACK
-    WCHAR szFileName[256];
-    DWORD len = WszGetEnvironmentVariable(L"COMP_ENC_EMIT", szFileName, NumItems(szFileName));
+    PathString szFileName;
+    DWORD len = WszGetEnvironmentVariable(L"COMP_ENC_EMIT", szFileName);
     _ASSERTE(len < sizeof(szFileName));
     if (len > 0)
     {
         _ASSERTE(!m_pSeedFileDecoder);
-
-        wcscat_s(szFileName, sizeof(szFileName)/sizeof(szFileName[0]), L".dil");
+        szFileName.Append(L".dil");
+       
         HANDLE pDelta = WszCreateFile(szFileName,
                            GENERIC_WRITE,
                            FILE_SHARE_READ | FILE_SHARE_WRITE,

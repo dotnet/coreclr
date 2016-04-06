@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ===========================================================================
 // File: UTIL.CPP
 //
@@ -3251,6 +3250,8 @@ BOOL GcNotifications::SetNotification(GcEvtArgs ev)
     return TRUE;
 }
 
+GARY_IMPL(size_t, g_clrNotificationArguments, MAX_CLR_NOTIFICATION_ARGS);
+
 #ifdef DACCESS_COMPILE
 
 GcNotification *GcNotifications::InitializeNotificationTable(UINT TableSize)
@@ -3274,11 +3275,18 @@ BOOL GcNotifications::UpdateOutOfProcTable()
 {
     return ::UpdateOutOfProcTable<GcNotification>(g_pGcNotificationTable, m_gcTable - 1, GetTableSize() + 1);
 }
-#endif // DACCESS_COMPILE
 
+#else // DACCESS_COMPILE
 
-void DACNotifyExceptionHelper(TADDR *args,UINT argCount)
+static CrstStatic g_clrNotificationCrst;
+
+void DACRaiseException(TADDR *args, UINT argCount)
 {
+    STATIC_CONTRACT_NOTHROW;
+    STATIC_CONTRACT_GC_NOTRIGGER;
+    STATIC_CONTRACT_MODE_ANY;
+    STATIC_CONTRACT_SO_TOLERANT;
+
     struct Param
     {
         TADDR *args;
@@ -3288,16 +3296,47 @@ void DACNotifyExceptionHelper(TADDR *args,UINT argCount)
     param.argCount = argCount;
 
     PAL_TRY(Param *, pParam, &param)
-    {  
-        if (IsDebuggerPresent() && !CORDebuggerAttached()) 
-        {
-            RaiseException(CLRDATA_NOTIFY_EXCEPTION, 0, pParam->argCount, (ULONG_PTR *) pParam->args);
-        }
+    {
+        RaiseException(CLRDATA_NOTIFY_EXCEPTION, 0, pParam->argCount, (ULONG_PTR *)pParam->args);
     }
     PAL_EXCEPT(EXCEPTION_EXECUTE_HANDLER)
-    {        
+    {
     }
     PAL_ENDTRY
+}
+
+void DACNotifyExceptionHelper(TADDR *args, UINT argCount)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        SO_INTOLERANT;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    _ASSERTE(argCount <= MAX_CLR_NOTIFICATION_ARGS);
+
+    if (IsDebuggerPresent() && !CORDebuggerAttached())
+    {
+        CrstHolder lh(&g_clrNotificationCrst);
+
+        for (UINT i = 0; i < argCount; i++)
+        {
+            g_clrNotificationArguments[i] = args[i];
+        }
+
+        DACRaiseException(args, argCount);
+
+        g_clrNotificationArguments[0] = NULL;
+    }
+}
+
+void InitializeClrNotifications()
+{
+    g_clrNotificationCrst.Init(CrstClrNotification, CRST_UNSAFE_ANYMODE);
+    g_clrNotificationArguments[0] = NULL;
 }
 
 // <TODO> FIX IN BETA 2
@@ -3319,23 +3358,49 @@ void DACNotifyExceptionHelper(TADDR *args,UINT argCount)
 #pragma warning(disable: 4748)
 #pragma optimize("", off)
 #endif  // _MSC_VER
-    // called from the runtime
+
+// called from the runtime
 void DACNotify::DoJITNotification(MethodDesc *MethodDescPtr)
 {
-    WRAPPER_NO_CONTRACT;
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        SO_INTOLERANT;
+        MODE_PREEMPTIVE;
+    }
+    CONTRACTL_END;
+
     TADDR Args[2] = { JIT_NOTIFICATION, (TADDR) MethodDescPtr };
-    DACNotifyExceptionHelper(Args,2);
+    DACNotifyExceptionHelper(Args, 2);
 }
 
 void DACNotify::DoJITDiscardNotification(MethodDesc *MethodDescPtr)
 {
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        SO_INTOLERANT;
+        MODE_PREEMPTIVE;
+    }
+    CONTRACTL_END;
+
     TADDR Args[2] = { JIT_DISCARD_NOTIFICATION, (TADDR) MethodDescPtr };
-    DACNotifyExceptionHelper(Args,2);
+    DACNotifyExceptionHelper(Args, 2);
 }    
    
 void DACNotify::DoModuleLoadNotification(Module *ModulePtr)
 {
-    WRAPPER_NO_CONTRACT;
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        SO_INTOLERANT;
+        MODE_PREEMPTIVE;
+    }
+    CONTRACTL_END;
+
     if ((g_dacNotificationFlags & CLRDATA_NOTIFY_ON_MODULE_LOAD) != 0)
     {
         TADDR Args[2] = { MODULE_LOAD_NOTIFICATION, (TADDR) ModulePtr};
@@ -3345,7 +3410,15 @@ void DACNotify::DoModuleLoadNotification(Module *ModulePtr)
 
 void DACNotify::DoModuleUnloadNotification(Module *ModulePtr)
 {
-    WRAPPER_NO_CONTRACT;
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        SO_INTOLERANT;
+        MODE_PREEMPTIVE;
+    }
+    CONTRACTL_END;
+
     if ((g_dacNotificationFlags & CLRDATA_NOTIFY_ON_MODULE_UNLOAD) != 0)
     {
         TADDR Args[2] = { MODULE_UNLOAD_NOTIFICATION, (TADDR) ModulePtr};
@@ -3355,6 +3428,15 @@ void DACNotify::DoModuleUnloadNotification(Module *ModulePtr)
 
 void DACNotify::DoExceptionNotification(Thread* ThreadPtr)
 {
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        SO_INTOLERANT;
+        MODE_PREEMPTIVE;
+    }
+    CONTRACTL_END;
+
     if ((g_dacNotificationFlags & CLRDATA_NOTIFY_ON_EXCEPTION) != 0)
     {
         TADDR Args[2] = { EXCEPTION_NOTIFICATION, (TADDR) ThreadPtr};
@@ -3364,7 +3446,15 @@ void DACNotify::DoExceptionNotification(Thread* ThreadPtr)
 
 void DACNotify::DoGCNotification(const GcEvtArgs& args)
 {
-    WRAPPER_NO_CONTRACT;
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        SO_INTOLERANT;
+        MODE_PREEMPTIVE;
+    }
+    CONTRACTL_END;
+
     if (args.typ == GC_MARK_END)
     {
         TADDR Args[3] = { GC_NOTIFICATION, (TADDR) args.typ, args.condemnedGeneration };
@@ -3374,7 +3464,15 @@ void DACNotify::DoGCNotification(const GcEvtArgs& args)
 
 void DACNotify::DoExceptionCatcherEnterNotification(MethodDesc *MethodDescPtr, DWORD nativeOffset)
 {
-    WRAPPER_NO_CONTRACT;
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        SO_INTOLERANT;
+        MODE_COOPERATIVE;
+    }
+    CONTRACTL_END;
+
     if ((g_dacNotificationFlags & CLRDATA_NOTIFY_ON_EXCEPTION_CATCH_ENTER) != 0)
     {
         TADDR Args[3] = { CATCH_ENTER_NOTIFICATION, (TADDR) MethodDescPtr, (TADDR)nativeOffset };
@@ -3388,7 +3486,9 @@ void DACNotify::DoExceptionCatcherEnterNotification(MethodDesc *MethodDescPtr, D
 #endif  // _MSC_VER
 // </TODO>
 
-    // called from the DAC
+#endif // DACCESS_COMPILE
+
+// called from the DAC
 int DACNotify::GetType(TADDR Args[])
 {
     // Type is an enum, and will thus fit into an int.

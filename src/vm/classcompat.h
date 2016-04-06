@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ===========================================================================
 // File: CLASS.H
 
@@ -635,7 +634,7 @@ private:
                                               UINT idResWhy,
                                               mdMethodDef tokMethodDef)
     {
-        WRAPPER_NO_CONTRACT;
+        STANDARD_VM_CONTRACT;
         bmtError->resIDWhy = idResWhy;
         bmtError->dMethodDefInError = tokMethodDef;
         bmtError->szMethodNameForError = NULL;
@@ -648,7 +647,7 @@ private:
         UINT idResWhy,
         LPCUTF8 szMethodName)
     {
-        WRAPPER_NO_CONTRACT;
+        STANDARD_VM_CONTRACT;
         bmtError->resIDWhy = idResWhy;
         bmtError->dMethodDefInError = mdMethodDefNil;
         bmtError->szMethodNameForError = szMethodName;
@@ -660,7 +659,7 @@ private:
                                               UINT idResWhy,
                                               mdMethodDef tokMethodDef = mdMethodDefNil)
     {
-        WRAPPER_NO_CONTRACT;
+        STANDARD_VM_CONTRACT;
         BuildMethodTableThrowException(COR_E_TYPELOAD, idResWhy, tokMethodDef);
     }
 
@@ -668,7 +667,7 @@ private:
         UINT idResWhy,
         LPCUTF8 szMethodName)
     {
-        WRAPPER_NO_CONTRACT;
+        STANDARD_VM_CONTRACT;
         BuildMethodTableThrowException(COR_E_TYPELOAD, idResWhy, szMethodName);
     }
 

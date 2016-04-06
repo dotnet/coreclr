@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -133,14 +132,14 @@ void PROCAbort();
 
 /*++
 Function:
-  PROCShutdownProcess
+  PROCNotifyProcessShutdown
   
   Calls the abort handler to do any shutdown cleanup. Call be
   called from the unhandled native exception handler.
 
 (no return value)
 --*/
-void PROCShutdownProcess();
+void PROCNotifyProcessShutdown();
 
 /*++
 Function:
@@ -152,19 +151,6 @@ Return
   TRUE if it succeeded, FALSE otherwise
 --*/
 BOOL InitializeFlushProcessWriteBuffers();
-
-#if HAVE_MACH_EXCEPTIONS
-/*++
-Function:
-  PROCThreadFromMachPort
-  
-  Given a Mach thread port, return the CPalThread associated with it.
-
-Return
-    CPalThread*
---*/
-CorUnix::CPalThread *PROCThreadFromMachPort(mach_port_t hThread);
-#endif // HAVE_MACH_EXCEPTIONS
 
 #ifdef __cplusplus
 }

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // THREADS.CPP
 // 
@@ -1408,7 +1407,7 @@ DWORD_PTR Thread::OBJREF_HASH = OBJREF_TABSIZE;
 //             GetThreadGenericFullCheck() to actually be called when GetThread() is
 //             called, given the optimizations around GetThread():
 //             * code:InitThreadManager ensures that non-PAL, debug, x86/x64 builds that
-//                 run with COMPLUS_EnforceEEThreadNotRequiredContracts set are forced to
+//                 run with COMPlus_EnforceEEThreadNotRequiredContracts set are forced to
 //                 use GetThreadGeneric instead of the dynamically generated optimized
 //                 TLS getter.
 //             * The non-PAL, debug, x86/x64 GetThreadGeneric() (implemented in the
@@ -1526,11 +1525,11 @@ AppDomain* STDCALL GetAppDomainGeneric()
 // FLS getter to avoid unnecessary indirection via execution engine. It will be used if we get high TLS slot
 // from the OS where we cannot use the fast optimized assembly helpers. (It happens pretty often in hosted scenarios).
 //
-VOID * ClrFlsGetBlockDirect()
+LPVOID* ClrFlsGetBlockDirect()
 {
     LIMITED_METHOD_CONTRACT;
 
-    return UnsafeTlsGetValue(CExecutionEngine::GetTlsIndex());
+    return (LPVOID*)UnsafeTlsGetValue(CExecutionEngine::GetTlsIndex());
 }
 
 extern "C" void * ClrFlsGetBlock();
@@ -1660,10 +1659,10 @@ void InitThreadManager()
     CExecutionEngine::CheckThreadState(0, FALSE);
 
     DWORD masterSlotIndex = CExecutionEngine::GetTlsIndex();
-    POPTIMIZEDTLSGETTER pGetter = MakeOptimizedTlsGetter(masterSlotIndex, (PVOID)ClrFlsGetBlock, TLS_GETTER_MAX_SIZE);
+    CLRFLSGETBLOCK pGetter = (CLRFLSGETBLOCK)MakeOptimizedTlsGetter(masterSlotIndex, (PVOID)ClrFlsGetBlock, TLS_GETTER_MAX_SIZE);
     __ClrFlsGetBlock = pGetter ? pGetter : ClrFlsGetBlockDirect;
 #else
-    __ClrFlsGetBlock = (POPTIMIZEDTLSGETTER) CExecutionEngine::GetTlsData;
+    __ClrFlsGetBlock = CExecutionEngine::GetTlsData;
 #endif // FEATURE_IMPLICIT_TLS
 
     IfFailThrow(Thread::CLRSetThreadStackGuarantee(Thread::STSGuarantee_Force));
@@ -10634,8 +10633,10 @@ TADDR Thread::GetStaticFieldAddrNoCreate(FieldDesc *pFD, PTR_AppDomain pDomain)
     if (pFD->IsByValue())
     {
         _ASSERTE(result != NULL);
-        result = dac_cast<TADDR>
-            ((* PTR_UNCHECKED_OBJECTREF(result))->GetData());
+        PTR_Object obj = *PTR_UNCHECKED_OBJECTREF(result);
+        if (obj == NULL)
+            return NULL;
+        result = dac_cast<TADDR>(obj->GetData());
     }
 
     return result;

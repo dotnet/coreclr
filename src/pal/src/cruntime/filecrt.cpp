@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -309,26 +308,6 @@ CorUnix::InternalOpen(
         nRet = open(szPath, nFlags, mode);
 #endif
     return nRet;
-}
-
-
-/*++
-PAL_unlink
-
-Wrapper function for unlink.
-
-Input parameters:
-
-szPath = a symbolic link or a hard link to a file
-
-Return value:
-    Returns 0 on success and -1 on failure
---*/
-int
-__cdecl
-PAL_unlink(const char *szPath)
-{
-    return unlink(szPath);
 }
 
 

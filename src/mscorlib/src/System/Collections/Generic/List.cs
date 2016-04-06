@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -45,7 +46,8 @@ namespace System.Collections.Generic {
             
         // Constructs a List. The list is initially empty and has a capacity
         // of zero. Upon adding the first element to the list the capacity is
-        // increased to 16, and then increased in multiples of two as required.
+        // increased to _defaultCapacity, and then increased in multiples of two
+        // as required.
         public List() {
             _items = _emptyArray;
         }
@@ -996,16 +998,23 @@ namespace System.Collections.Generic {
             Contract.EndContractBlock();
 
             if( _size > 0) {
-                IComparer<T> comparer = new Array.FunctorComparer<T>(comparison);
+                IComparer<T> comparer = Comparer<T>.Create(comparison);
                 Array.Sort(_items, 0, _size, comparer);
             }
         }
 
-        // ToArray returns a new Object array containing the contents of the List.
+        // ToArray returns an array containing the contents of the List.
         // This requires copying the List, which is an O(n) operation.
         public T[] ToArray() {
             Contract.Ensures(Contract.Result<T[]>() != null);
             Contract.Ensures(Contract.Result<T[]>().Length == Count);
+
+#if FEATURE_CORECLR
+            if (_size == 0)
+            {
+                return _emptyArray;
+            }
+#endif
 
             T[] array = new T[_size];
             Array.Copy(_items, 0, array, 0, _size);
@@ -1040,108 +1049,6 @@ namespace System.Collections.Generic {
                 }
             }
             return true;
-        } 
-
-        internal static IList<T> Synchronized(List<T> list) {
-            return new SynchronizedList(list);
-        }
-
-        [Serializable()]
-        internal class SynchronizedList : IList<T> {
-            private List<T> _list;
-            private Object _root;
-    
-            internal SynchronizedList(List<T> list) {
-                _list = list;
-                _root = ((System.Collections.ICollection)list).SyncRoot;
-            }
-
-            public int Count {
-                get {
-                    lock (_root) { 
-                        return _list.Count; 
-                    }
-                }
-            }
-
-            public bool IsReadOnly {
-                get {
-                    return ((ICollection<T>)_list).IsReadOnly;
-                }
-            }
-
-            public void Add(T item) {
-                lock (_root) { 
-                    _list.Add(item); 
-                }
-            }
-
-            public void Clear() {
-                lock (_root) { 
-                    _list.Clear(); 
-                }
-            }
-
-            public bool Contains(T item) {
-                lock (_root) { 
-                    return _list.Contains(item);
-                }
-            }
-
-            public void CopyTo(T[] array, int arrayIndex) {
-                lock (_root) { 
-                    _list.CopyTo(array, arrayIndex);
-                }
-            }
-
-            public bool Remove(T item) {
-                lock (_root) { 
-                    return _list.Remove(item);
-                }
-            }
-
-            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() {
-                lock (_root) { 
-                    return _list.GetEnumerator();
-                }
-            }
-
-            IEnumerator<T> IEnumerable<T>.GetEnumerator() {
-                lock (_root) { 
-                    return ((IEnumerable<T>)_list).GetEnumerator();
-                }
-            }
-
-            public T this[int index] {
-                get {
-                    lock(_root) {
-                        return _list[index];
-                    }
-                }
-                set {
-                    lock(_root) {
-                        _list[index] = value;
-                    }
-                }
-            }
-
-            public int IndexOf(T item) {
-                lock (_root) {
-                    return _list.IndexOf(item);
-                }
-            }
-
-            public void Insert(int index, T item) {
-                lock (_root) {
-                    _list.Insert(index, item);
-                }
-            }
-
-            public void RemoveAt(int index) {
-                lock (_root) {
-                    _list.RemoveAt(index);
-                }
-            }
         }
 
         [Serializable]

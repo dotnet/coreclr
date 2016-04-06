@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: contractimpl.h
 //
@@ -474,7 +473,6 @@ protected:
     BOOL                m_fUseFatIdsForUniqueness;
     UINT32              m_entryCount;
 
-#ifndef BINDER
     //------------------------------------------------------------------------
     // Returns the next available ID
     inline UINT32 GetNextID()
@@ -496,7 +494,6 @@ protected:
         CONSISTENCY_CHECK(id != TYPE_ID_THIS_CLASS);
         return id;
     }
-#endif
 
 public:
     // Starting values for shared and unshared domains
@@ -511,14 +508,12 @@ public:
 
     //------------------------------------------------------------------------
     // Ctor
-#ifndef BINDER
     TypeIDMap()
         : m_lock(CrstTypeIDMap, CrstFlags(CRST_REENTRANCY))
     {
         WRAPPER_NO_CONTRACT;
         static_assert_no_msg(TypeIDProvider::INVALID_TYPE_ID == static_cast<UINT32>(INVALIDENTRY));
     }
-#endif
 
     //------------------------------------------------------------------------
     // Dtor
@@ -876,7 +871,6 @@ protected:
 
 typedef DPTR(class DispatchMap) PTR_DispatchMap;
 // ===========================================================================
-#ifndef BINDER
 class DispatchMap
 {
 protected:
@@ -999,8 +993,6 @@ public:
         DispatchMapEntry *Entry();
     };  // class Iterator
 };  // class DispatchMap
-
-#endif // BINDER
 
 #ifdef LOGGING 
 struct StubDispatchStats

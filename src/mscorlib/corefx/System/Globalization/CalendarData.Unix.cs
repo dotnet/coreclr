@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
@@ -27,14 +28,6 @@ namespace System.Globalization
         AbbrevMonthGenitiveNames = 12,
         EraNames = 13,
         AbbrevEraNames = 14,
-    }
-
-    // needs to be kept in sync with CalendarDataResult in System.Globalization.Native
-    internal enum CalendarDataResult
-    {
-        Success = 0,
-        UnknownError = 1,
-        InsufficentBuffer = 2,
     }
 
     internal partial class CalendarData
@@ -96,41 +89,18 @@ namespace System.Globalization
         [SecuritySafeCritical]
         private static bool GetCalendarInfo(string localeName, CalendarId calendarId, CalendarDataType dataType, out string calendarString)
         {
-            calendarString = null;
-
-            const int initialStringSize = 80;
-            const int maxDoubleAttempts = 5;
-
-            for (int i = 0; i < maxDoubleAttempts; i++)
-            {
-                StringBuilder stringBuilder = StringBuilderCache.Acquire((int)(initialStringSize * Math.Pow(2, i)));
-
-                CalendarDataResult result = Interop.GlobalizationInterop.GetCalendarInfo(
-                    localeName,
-                    calendarId,
-                    dataType,
-                    stringBuilder,
-                    stringBuilder.Capacity);
-
-                if (result == CalendarDataResult.Success)
-                {
-                    calendarString = StringBuilderCache.GetStringAndRelease(stringBuilder);
-                    return true;
-                }
-                else
-                {
-                    StringBuilderCache.Release(stringBuilder);
-
-                    if (result != CalendarDataResult.InsufficentBuffer)
-                    {
-                        return false;
-                    }
-
-                    // else, it is an InsufficentBuffer error, so loop and increase the string size
-                }
-            }
-
-            return false;
+            return Interop.CallStringMethod(
+                (locale, calId, type, stringBuilder) =>
+                    Interop.GlobalizationInterop.GetCalendarInfo(
+                        locale,
+                        calId,
+                        type,
+                        stringBuilder,
+                        stringBuilder.Capacity),
+                localeName,
+                calendarId,
+                dataType,
+                out calendarString);
         }
 
         private static bool EnumDatePatterns(string localeName, CalendarId calendarId, CalendarDataType dataType, out string[] datePatterns)

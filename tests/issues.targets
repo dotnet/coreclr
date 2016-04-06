@@ -37,9 +37,6 @@
         <ExcludeList Include="$(XunitTestBinBase)\JIT\Regression\VS-ia64-JIT\V1.2-M02\b108129\b108129\*" >
             <Issue>2234</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)\JIT\SIMD\VectorArgs\*" >
-            <Issue>2328</Issue>
-        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)\JIT\opt\Tailcall\TailcallVerifyWithPrefix\TailcallVerifyWithPrefix.cmd" >
              <Issue>2329</Issue>
         </ExcludeList>
@@ -300,6 +297,135 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)\JIT\Directed\pinning\object-pin\object-pin\object-pin.cmd" >
              <Issue>2452</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\JIT\Methodical\Boxing\xlang\_dbgsin_cs_il\_dbgsin_cs_il.cmd" >
+             <Issue>3216</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\JIT\Methodical\Boxing\xlang\_odbgsin_cs_il\_odbgsin_cs_il.cmd" >
+             <Issue>3216</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\JIT\Methodical\Boxing\xlang\_relsin_cs_il\_relsin_cs_il.cmd" >
+             <Issue>3216</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\JIT\Methodical\Boxing\xlang\_orelsin_cs_il\_orelsin_cs_il.cmd" >
+             <Issue>3216</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Interop\StringMarshalling\LPSTR\LPSTRTest\LPSTRTest.cmd" >
+             <Issue>3572</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Interop\StringMarshalling\LPTSTR\LPTSTRTest\LPTSTRTest.cmd" >
+             <Issue>3571</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Interop\BestFitMapping\BestFitMapping\BestFitMapping.cmd" >
+             <Issue>3571</Issue>
+	</ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\API\WeakReference\Finalize2\*">
+             <Issue>3391</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\API\WeakReference\NullHandle\*">
+             <Issue>3391</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\API\WeakReference\Target\*">
+             <Issue>3391</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\API\WeakReference\IsAlive\*">
+             <Issue>3391</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\API\WeakReference\IsAlive_neg\*">
+             <Issue>3391</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\Features\Finalizer\finalizeother\finalizedirectedgraph\*">
+             <Issue>3391</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\LargeMemory\Allocation\finalizertest\*">
+             <Issue>3391</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\LargeMemory\Allocation\finalizertest\*">
+             <Issue>3391</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\LargeMemory\API\gc\reregisterforfinalize\*">
+             <Issue>3391</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\LargeMemory\API\gc\collect\*">
+             <Issue>3391</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\Scenarios\DoublinkList\doublinknoleak2\*">
+             <Issue>3391</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\Scenarios\DoublinkList\doublinknoleak\*">
+             <Issue>3391</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\Scenarios\LeakWheel\leakwheel\*">
+             <Issue>3391</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\Scenarios\SingLinkList\singlinkgen\*">
+             <Issue>3391</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\Scenarios\WeakReference\getgencollect\*">
+             <Issue>3391</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\Scenarios\WeakReference\weakref\*">
+             <Issue>3391</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\LargeMemory\API\gc\getgeneration\*">
+             <Issue>3391</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\Scenarios\BaseFinal\basefinal\*">
+             <Issue>3391</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\Coverage\concurrentspin2\*">
+             <Issue>3392</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\Coverage\smalloom\*">
+             <Issue>3392</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\Coverage\271010\*">
+             <Issue>3392</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\Features\BackgroundGC\concurrentspin2\*">
+             <Issue>3392</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\Features\BackgroundGC\foregroundgc\*">
+             <Issue>3392</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\Features\LOHCompaction\lohcompact_stress\*">
+             <Issue>3392</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\Features\LOHCompaction\lohcompactscenariorepro\*">
+             <Issue>3392</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\Features\LOHCompaction\lohcompactapi2\*">
+             <Issue>3392</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\Features\LOHFragmentation\lohfragmentation\*">
+             <Issue>3392</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\Features\PartialCompaction\partialcompactiontest\*">
+             <Issue>3392</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\Features\PartialCompaction\partialcompactionwloh\*">
+             <Issue>3392</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\Features\PartialCompaction\eco1\*">
+             <Issue>3392</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\Features\SustainedLowLatency\sustainedlowlatency_race_reverse\*">
+             <Issue>3392</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\Features\SustainedLowLatency\scenario\*">
+             <Issue>3392</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\Features\SustainedLowLatency\sustainedlowlatency_race\*">
+             <Issue>3392</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\Regressions\dev10bugs\536168\536168\*">
+             <Issue>3392</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\GC\Scenarios\muldimjagary\muldimjagary\*">
+             <Issue>3392</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\baseservices\exceptions\regressions\Dev11\147911\test147911\*">
+             <Issue>3651</Issue>
         </ExcludeList>
     </ItemGroup>
 </Project>

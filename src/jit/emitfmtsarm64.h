@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //////////////////////////////////////////////////////////////////////////////
 
 
@@ -119,7 +118,8 @@ IF_DEF(BI_0B,       IS_NONE,               JMP)      // BI_0B   ......iiiiiiiiii
 IF_DEF(BI_0C,       IS_NONE,               CALL)     // BI_0C   ......iiiiiiiiii iiiiiiiiiiiiiiii               simm26:00   bl
 IF_DEF(BI_1A,       IS_NONE,               JMP)      // BI_1A   X.......iiiiiiii iiiiiiiiiiittttt      Rt       simm19:00   cbz cbnz
 IF_DEF(BI_1B,       IS_NONE,               JMP)      // BI_1B   B.......bbbbbiii iiiiiiiiiiittttt      Rt imm6  simm14:00   tbz tbnz
-IF_DEF(BR_1A,       IS_NONE,               CALL)     // BR_1A   ................ ......nnnnn.....         Rn                br blr ret
+IF_DEF(BR_1A,       IS_NONE,               CALL)     // BR_1A   ................ ......nnnnn.....         Rn                ret
+IF_DEF(BR_1B,       IS_NONE,               CALL)     // BR_1B   ................ ......nnnnn.....         Rn                br blr
 
 IF_DEF(LS_1A,       IS_NONE,               JMP)      // LS_1A   .X......iiiiiiii iiiiiiiiiiittttt      Rt    PC imm(1MB)
 IF_DEF(LS_2A,       IS_NONE,               NONE)     // LS_2A   .X.......X...... ......nnnnnttttt      Rt Rn

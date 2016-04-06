@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // FRAMES.CPP
 
 
@@ -482,21 +481,27 @@ VOID Frame::Pop(Thread *pThread)
     m_Next = NULL;
 }
 
-#ifdef FEATURE_PAL     
-Frame::~Frame()        
+#if defined(FEATURE_PAL) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+void Frame::PopIfChained()
 {      
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_COOPERATIVE;
+        SO_TOLERANT;
+    }
+    CONTRACTL_END;
+
     if (m_Next != NULL)
     {
+        GCX_COOP();
         // When the frame is destroyed, make sure it is no longer in the
         // frame chain managed by the Thread.
-        Thread* pThread = GetThread();
-        if (pThread != NULL && pThread->GetFrame() == this)
-        {
-            Pop(pThread);
-        }
+        Pop();
     }
 }      
-#endif // FEATURE_PAL
+#endif // FEATURE_PAL && !DACCESS_COMPILE && !CROSSGEN_COMPILE
 
 //-----------------------------------------------------------------------
 #endif // #ifndef DACCESS_COMPILE
@@ -1466,6 +1471,8 @@ BOOL TransitionFrame::Protects(OBJECTREF * ppORef)
 {
     WRAPPER_NO_CONTRACT;
     IsObjRefProtectedScanContext sc (ppORef);
+    // Set the stack limit for the scan to the SP of the managed frame above the transition frame
+    sc.stack_limit = GetSP();
     GcScanRoots (IsObjRefProtected, &sc);
     return sc.oref_protected;
 }

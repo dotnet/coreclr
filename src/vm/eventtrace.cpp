@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: eventtrace.cpp
 // Abstract: This module implements Event Tracing support
@@ -4870,7 +4869,7 @@ VOID ETW::InfoLog::RuntimeInformation(INT32 type)
             PCWSTR szDtraceOutput1=W(""),szDtraceOutput2=W("");
             UINT8 startupMode = 0;
             UINT startupFlags = 0;
-            WCHAR dllPath[MAX_LONGPATH+1] = {0};
+            PathString dllPath;
             UINT8 Sku = 0;
             _ASSERTE(g_fEEManagedEXEStartup ||   //CLR started due to a managed exe
                 g_fEEIJWStartup ||               //CLR started as a mixed mode Assembly
@@ -4900,7 +4899,7 @@ VOID ETW::InfoLog::RuntimeInformation(INT32 type)
             LPCGUID comGUID=&g_EEComObjectGuid;
 
             PCWSTR lpwszCommandLine = W("");
-            PCWSTR lpwszRuntimeDllPath = (PCWSTR)dllPath;
+            
 
 #ifndef FEATURE_CORECLR
             startupFlags = CorHost2::GetStartupFlags();
@@ -4955,12 +4954,12 @@ VOID ETW::InfoLog::RuntimeInformation(INT32 type)
                 startupMode = ETW::InfoLog::InfoStructs::Other;
             }
 
-            _ASSERTE (NumItems(dllPath) > MAX_LONGPATH);
+          
             // if WszGetModuleFileName fails, we return an empty string
-            if (!WszGetModuleFileName(GetCLRModule(), dllPath, MAX_LONGPATH)) {
-                dllPath[0] = 0;
+            if (!WszGetModuleFileName(GetCLRModule(), dllPath)) {
+                dllPath.Set(W("\0"));
             }
-            dllPath[MAX_LONGPATH] = 0;
+            
 
             if(type == ETW::InfoLog::InfoStructs::Callback)
             {
@@ -4978,7 +4977,7 @@ VOID ETW::InfoLog::RuntimeInformation(INT32 type)
                                                   startupMode,
                                                   lpwszCommandLine,
                                                   comGUID,
-                                                  lpwszRuntimeDllPath );
+                                                  dllPath );
             }
             else
             {
@@ -4996,7 +4995,7 @@ VOID ETW::InfoLog::RuntimeInformation(INT32 type)
                                                 startupMode,
                                                 lpwszCommandLine,
                                                 comGUID,
-                                                lpwszRuntimeDllPath );
+                                                dllPath );
             }
         }
     } EX_CATCH { } EX_END_CATCH(SwallowAllExceptions);

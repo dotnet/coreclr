@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // This file contains the classes, methods, and field used by the EE from mscorlib
 
 //
@@ -1495,6 +1494,10 @@ DEFINE_CLASS(STACK_TRACE,           Diagnostics,            StackTrace)
 DEFINE_METHOD(STACK_TRACE,          GET_MANAGED_STACK_TRACE_HELPER, GetManagedStackTraceStringHelper, SM_Bool_RetStr)
 
 DEFINE_CLASS(STREAM,                IO,                     Stream)
+DEFINE_METHOD(STREAM,               BEGIN_READ,             BeginRead,  IM_ArrByte_Int_Int_AsyncCallback_Object_RetIAsyncResult)
+DEFINE_METHOD(STREAM,               END_READ,               EndRead,    IM_IAsyncResult_RetInt)
+DEFINE_METHOD(STREAM,               BEGIN_WRITE,            BeginWrite, IM_ArrByte_Int_Int_AsyncCallback_Object_RetIAsyncResult)
+DEFINE_METHOD(STREAM,               END_WRITE,              EndWrite,   IM_IAsyncResult_RetVoid)
 
 // Defined as element type alias
 // DEFINE_CLASS(INTPTR,                System,                 IntPtr)

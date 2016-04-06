@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 // Implementation of the GC environment
@@ -307,12 +306,6 @@ bool IsGCSpecialThread()
 
 #endif // 0
 
-bool PalHasCapability(PalCapability capability)
-{
-    // TODO: Implement for background GC
-    return false;
-}
-
 WINBASEAPI
 UINT
 WINAPI
@@ -394,14 +387,14 @@ WINBASEAPI
 DWORD
 WINAPI
 GetCurrentThreadId(
-    VOID)
+    void)
 {
     // TODO: Implement
     return 1;
 }
 
 WINBASEAPI
-VOID
+void
 WINAPI
 YieldProcessor()
 {
@@ -417,7 +410,7 @@ DebugBreak()
 }
 
 WINBASEAPI
-VOID
+void
 WINAPI
 MemoryBarrier()
 {

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 #if defined(_TARGET_XARCH_)
@@ -164,18 +163,20 @@ private:
     instrDesc      *emitNewInstrAmd     (emitAttr attr, ssize_t dsp);
     instrDesc      *emitNewInstrAmdCns  (emitAttr attr, ssize_t dsp, int cns);
 
-    instrDesc      *emitNewInstrCallDir (int        argCnt,
-                                         VARSET_VALARG_TP GCvars,
-                                         regMaskTP  gcrefRegs,
-                                         regMaskTP  byrefRegs,
-                                         emitAttr   retSize);
+    instrDesc      *emitNewInstrCallDir (int                                    argCnt,
+                                         VARSET_VALARG_TP                       GCvars,
+                                         regMaskTP                              gcrefRegs,
+                                         regMaskTP                              byrefRegs,
+                                         emitAttr                               retSize
+                                         FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(emitAttr secondRegSize));
 
-    instrDesc      *emitNewInstrCallInd( int        argCnt,
-                                         ssize_t    disp,
-                                         VARSET_VALARG_TP GCvars,
-                                         regMaskTP  gcrefRegs,
-                                         regMaskTP  byrefRegs,
-                                         emitAttr   retSize);
+    instrDesc      *emitNewInstrCallInd( int                                    argCnt,
+                                         ssize_t                                disp,
+                                         VARSET_VALARG_TP                       GCvars,
+                                         regMaskTP                              gcrefRegs,
+                                         regMaskTP                              byrefRegs,
+                                         emitAttr                               retSize
+                                         FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(emitAttr secondRegSize));
 
     void            emitGetInsCns   (instrDesc *id, CnsVal *cv);
     ssize_t         emitGetInsAmdCns(instrDesc *id, CnsVal *cv);
@@ -464,35 +465,37 @@ public:
         EC_COUNT
     };
 
-    void            emitIns_Call   (EmitCallType    callType,
-                                    CORINFO_METHOD_HANDLE methHnd,
-                                    CORINFO_SIG_INFO* sigInfo,     // used to report call sites to the EE
-                                    void*           addr,
-                                    ssize_t         argSize,
-                                    emitAttr        retSize,
-                                    VARSET_VALARG_TP ptrVars,
-                                    regMaskTP       gcrefRegs,
-                                    regMaskTP       byrefRegs,
-                                    GenTreeIndir *  indir,
-                                    bool            isJump = false,
-                                    bool            isNoGC = false);
+    void            emitIns_Call   (EmitCallType                            callType,
+                                    CORINFO_METHOD_HANDLE                   methHnd,
+                                    CORINFO_SIG_INFO*                       sigInfo,     // used to report call sites to the EE
+                                    void*                                   addr,
+                                    ssize_t                                 argSize,
+                                    emitAttr                                retSize
+                                    FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(emitAttr  secondRegSize),
+                                    VARSET_VALARG_TP                        ptrVars,
+                                    regMaskTP                               gcrefRegs,
+                                    regMaskTP                               byrefRegs,
+                                    GenTreeIndir *                          indir,
+                                    bool                                    isJump = false,
+                                    bool                                    isNoGC = false);
 
-    void            emitIns_Call   (EmitCallType    callType,
-                                    CORINFO_METHOD_HANDLE methHnd,
+    void            emitIns_Call   (EmitCallType                            callType,
+                                    CORINFO_METHOD_HANDLE                   methHnd,
                                     INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo)     // used to report call sites to the EE
-                                    void*           addr,
-                                    ssize_t         argSize,
-                                    emitAttr        retSize,
-                                    VARSET_VALARG_TP ptrVars,
-                                    regMaskTP       gcrefRegs,
-                                    regMaskTP       byrefRegs,
-                                    IL_OFFSETX      ilOffset = BAD_IL_OFFSET,
-                                    regNumber       ireg = REG_NA,
-                                    regNumber       xreg = REG_NA,
-                                    unsigned        xmul = 0,
-                                    ssize_t         disp = 0,
-                                    bool            isJump = false,
-                                    bool            isNoGC = false);
+                                    void*                                   addr,
+                                    ssize_t                                 argSize,
+                                    emitAttr                                retSize
+                                    FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(emitAttr  secondRegSize),
+                                    VARSET_VALARG_TP                        ptrVars,
+                                    regMaskTP                               gcrefRegs,
+                                    regMaskTP                               byrefRegs,
+                                    IL_OFFSETX                              ilOffset = BAD_IL_OFFSET,
+                                    regNumber                               ireg = REG_NA,
+                                    regNumber                               xreg = REG_NA,
+                                    unsigned                                xmul = 0,
+                                    ssize_t                                 disp = 0,
+                                    bool                                    isJump = false,
+                                    bool                                    isNoGC = false);
 
 #ifdef _TARGET_AMD64_
     // Is the last instruction emitted a call instruction?

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // OBJECT.INL
 //
@@ -14,7 +13,6 @@
 
 #include "object.h"
 
-#if !defined(BINDER)
 inline PTR_VOID Object::UnBox()       // if it is a value class, get the pointer to the first field
 {
     LIMITED_METHOD_DAC_CONTRACT;
@@ -175,7 +173,6 @@ inline DWORD ArrayBase::GetNumComponents() const
     SUPPORTS_DAC;
     return m_NumComponents; 
 }
-#endif //!BINDER
 
 inline /* static */ unsigned ArrayBase::GetDataPtrOffset(MethodTable* pMT)
 {
@@ -209,7 +206,6 @@ inline /* static */ unsigned ArrayBase::GetLowerBoundsOffset(MethodTable* pMT)
         dac_cast<PTR_ArrayClass>(pMT->GetClass())->GetRank() *
         sizeof(INT32);
 }
-#ifndef BINDER
 
 // Get the element type for the array, this works whether the the element
 // type is stored in the array or not
@@ -301,7 +297,5 @@ inline TypeHandle Object::GetGCSafeTypeHandle() const
     else 
         return TypeHandle(pMT);
 }
-
-#endif //!BINDER
 
 #endif  // _OBJECT_INL_

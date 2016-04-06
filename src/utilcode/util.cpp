@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 //  util.cpp
 //
@@ -2893,7 +2892,7 @@ void SOTolerantViolation(const char *szFunction, const char *szFile, int lineNum
 
 //
 // SONotMainlineViolation is used to report any code with SO_NOT_MAINLINE being run in a test environment
-// with COMPLUS_NO_SO_NOT_MAINLINE enabled
+// with COMPlus_NO_SO_NOT_MAINLINE enabled
 //
 void SONotMainlineViolation(const char *szFunction, const char *szFile, int lineNum) 
 {
@@ -2902,7 +2901,7 @@ void SONotMainlineViolation(const char *szFunction, const char *szFile, int line
 
 //
 // SONotMainlineViolation is used to report any code with SO_NOT_MAINLINE being run in a test environment
-// with COMPLUS_NO_SO_NOT_MAINLINE enabled
+// with COMPlus_NO_SO_NOT_MAINLINE enabled
 //
 void SOBackoutViolation(const char *szFunction, const char *szFile, int lineNum) 
 {
@@ -2969,8 +2968,8 @@ void SOViolation(const char *szFunction, const char *szFile, int lineNum, SOViol
                         "CONTRACT VIOLATION by %s at \"%s\" @ %d\n\n" 
                         "SO-not-mainline function being called with not-mainline checking enabled.\n"
                         "\nPlease open a bug against the feature owner.\n"
-                        "\nNOTE: You can disable this ASSERT by setting COMPLUS_SOEnableDefaultRWValidation=0.\n"
-                        "      or by turning of not-mainline checking by by setting COMPLUS_NO_SO_NOT_MAINLINE=0.\n"
+                        "\nNOTE: You can disable this ASSERT by setting COMPlus_SOEnableDefaultRWValidation=0.\n"
+                        "      or by turning of not-mainline checking by by setting COMPlus_NO_SO_NOT_MAINLINE=0.\n"
                         "\nFor details about this feature, see, in a CLR enlistment,\n"
                         "src\\ndp\\clr\\doc\\OtherDevDocs\\untriaged\\clrdev_web\\SO Guide for CLR Developers.doc\n",
                             szFunction, szFile, lineNum);
@@ -2982,7 +2981,7 @@ void SOViolation(const char *szFunction, const char *szFile, int lineNum, SOViol
                         "SO Backout Marker overrun.\n\n" 
                         "A dtor or handler path exceeded the backout code stack consumption limit.\n"
                         "\nPlease open a bug against the feature owner.\n"
-                        "\nNOTE: You can disable this ASSERT by setting COMPLUS_SOEnableBackoutStackValidation=0.\n"
+                        "\nNOTE: You can disable this ASSERT by setting COMPlus_SOEnableBackoutStackValidation=0.\n"
                         "\nFor details about this feature, see, in a CLR enlistment,\n"
                         "src\\ndp\\clr\\doc\\OtherDevDocs\\untriaged\\clrdev_web\\SO Guide for CLR Developers.doc\n");
     }
@@ -2993,7 +2992,7 @@ void SOViolation(const char *szFunction, const char *szFile, int lineNum, SOViol
                         "CONTRACT VIOLATION by %s at \"%s\" @ %d\n\n" 
                         "SO-intolerant function called outside an SO probe.\n"
                         "\nPlease open a bug against the feature owner.\n"
-                        "\nNOTE: You can disable this ASSERT by setting COMPLUS_SOEnableDefaultRWValidation=0.\n"
+                        "\nNOTE: You can disable this ASSERT by setting COMPlus_SOEnableDefaultRWValidation=0.\n"
                         "\nFor details about this feature, see, in a CLR enlistment,\n"
                         "src\\ndp\\clr\\doc\\OtherDevDocs\\untriaged\\clrdev_web\\SO Guide for CLR Developers.doc\n",
                             szFunction, szFile, lineNum);
@@ -3239,6 +3238,8 @@ FileLockHolder::~FileLockHolder()
 
 void FileLockHolder::Acquire(LPCWSTR lockName, HANDLE hInterrupt, BOOL* pInterrupted)
 {
+    WRAPPER_NO_CONTRACT;
+
     DWORD dwErr = 0;
     DWORD dwAccessDeniedRetry = 0;
     const DWORD MAX_ACCESS_DENIED_RETRIES = 10;
@@ -3558,53 +3559,7 @@ BOOL IsClrHostedLegacyComObject(REFCLSID rclsid)
 }
 #endif // FEATURE_COMINTEROP
 
-// Returns the directory for HMODULE. So, if HMODULE was for "C:\Dir1\Dir2\Filename.DLL",
-// then this would return "C:\Dir1\Dir2\" (note the trailing backslash).
-HRESULT GetHModuleDirectory(
-    __in                          HMODULE   hMod,
-    __out_z __out_ecount(cchPath) LPWSTR    wszPath,
-                                  size_t    cchPath)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        CANNOT_TAKE_LOCK;
-    }
-    CONTRACTL_END;
 
-    DWORD dwRet = WszGetModuleFileName(hMod, wszPath, static_cast<DWORD>(cchPath));
-
-    if (dwRet == cchPath)
-    {   // If there are cchPath characters in the string, it means that the string
-        // itself is longer than cchPath and GetModuleFileName had to truncate at cchPath.
-        return HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
-    }
-    else if (dwRet == 0)
-    {   // Some other error.
-        return HRESULT_FROM_GetLastError();
-    }
-
-    LPWSTR wszEnd = wcsrchr(wszPath, W('\\'));
-    if (wszEnd == NULL)
-    {   // There was no backslash? Not sure what's going on.
-        return E_UNEXPECTED;
-    }
-
-    // Include the backslash in the resulting string.
-    *(++wszEnd) = W('\0');
-
-    return S_OK;
-}
-
-SString & GetHModuleDirectory(HMODULE hMod, SString &ssDir)
-{
-    LPWSTR wzDir = ssDir.OpenUnicodeBuffer(_MAX_PATH);
-    HRESULT hr = GetHModuleDirectory(hMod, wzDir, _MAX_PATH);
-    ssDir.CloseBuffer(FAILED(hr) ? 0 : static_cast<COUNT_T>(wcslen(wzDir)));
-    IfFailThrow(hr);
-    return ssDir;
-}
 
 #if !defined(FEATURE_CORECLR) && !defined(SELF_NO_HOST) && !defined(FEATURE_UTILCODE_NO_DEPENDENCIES)
 
@@ -3937,39 +3892,14 @@ namespace Win32
 
         // Try to use what the SString already has allocated. If it does not have anything allocated
         // or it has < 20 characters allocated, then bump the size requested to _MAX_PATH.
-        DWORD dwSize = (DWORD)(ssFileName.GetUnicodeAllocation()) + 1;
-        dwSize = (dwSize < 20) ? (_MAX_PATH) : (dwSize);
-        DWORD dwResult = WszGetModuleFileName(hModule, ssFileName.OpenUnicodeBuffer(dwSize - 1), dwSize);
+        
+        DWORD dwResult = WszGetModuleFileName(hModule, ssFileName);
 
-        // if there was a failure, dwResult == 0;
-        // if there was insufficient buffer, dwResult == dwSize;
-        // if there was sufficient buffer and a successful write, dwResult < dwSize
-        ssFileName.CloseBuffer(dwResult < dwSize ? dwResult : 0);
 
         if (dwResult == 0)
             ThrowHR(HRESULT_FROM_GetLastError());
 
-        // Ok, we didn't have enough buffer. Let's loop, doubling the buffer each time, until we succeed.
-        while (dwResult == dwSize)
-        {
-            dwSize = dwSize * 2;
-            dwResult = WszGetModuleFileName(hModule, ssFileName.OpenUnicodeBuffer(dwSize - 1), dwSize);
-            ssFileName.CloseBuffer(dwResult < dwSize ? dwResult : 0);
-
-            if (dwResult == 0)
-                ThrowHR(HRESULT_FROM_GetLastError());
-        }
-
-        // Most of the runtime is not able to handle long filenames. fAllowLongFileNames
-        // has a default value of false, so that callers will not accidentally get long
-        // file names returned.
-        if (!fAllowLongFileNames && ssFileName.BeginsWith(SL(LONG_FILENAME_PREFIX_W)))
-        {
-            ssFileName.Clear();
-            ThrowHR(E_UNEXPECTED);
-        }
-
-        _ASSERTE(dwResult != 0 && dwResult < dwSize);
+        _ASSERTE(dwResult != 0 );
     }
 
     // Returns heap-allocated string in *pwszFileName
@@ -4031,16 +3961,6 @@ namespace Win32
         if (!(dwLengthWritten < dwLengthRequired))
             ThrowHR(E_UNEXPECTED);
 
-        // Most of the runtime is not able to handle long filenames. fAllowLongFileNames
-        // has a default value of false, so that callers will not accidentally get long
-        // file names returned.
-        if (!fAllowLongFileNames && ssFileName.BeginsWith(SL(LONG_FILENAME_PREFIX_W)))
-        {
-            ssPathName.Clear();
-            if (pdwFilePartIdx != NULL)
-                *pdwFilePartIdx = 0;
-            ThrowHR(E_UNEXPECTED);
-        }
     }
 } // namespace Win32
 

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // File:  main.cpp
 //
 
@@ -96,7 +95,7 @@ WCHAR       *pwzDeltaFiles[1024];
 char        szInputFilename[MAX_FILENAME_LENGTH*3];
 WCHAR       wzInputFilename[MAX_FILENAME_LENGTH];
 WCHAR       wzOutputFilename[MAX_FILENAME_LENGTH];
-WCHAR       wzIncludePathBuffer[MAX_FILENAME_LENGTH];
+
 
 #ifdef _PREFAST_
 #pragma warning(push)
@@ -250,7 +249,8 @@ extern "C" int _cdecl wmain(int argc, __in WCHAR **argv)
                     {
                       pAsm->m_dwIncludeDebugInfo = 0x101;
 #ifdef FEATURE_CORECLR
-                      printf("Warning: PDB is ignored under 'DEB' option for ilasm on CoreCLR.\n");
+                      // PDB is ignored under 'DEB' option for ilasm on CoreCLR.
+                      // https://github.com/dotnet/coreclr/issues/2982
 #else
                       pAsm->m_fGeneratePDB = TRUE;
 #endif
@@ -282,7 +282,8 @@ extern "C" int _cdecl wmain(int argc, __in WCHAR **argv)
                     else if (!_stricmp(szOpt, "PDB"))
                     {
 #ifdef FEATURE_CORECLR
-                      printf("Warning: 'PDB' option is ignored for ilasm on CoreCLR.\n");
+                      // 'PDB' option is ignored for ilasm on CoreCLR.
+                      // https://github.com/dotnet/coreclr/issues/2982
 #else
                       pAsm->m_fGeneratePDB = TRUE;
 #endif
@@ -627,8 +628,12 @@ extern "C" int _cdecl wmain(int argc, __in WCHAR **argv)
             }
             if(wzIncludePath == NULL)
             {
-                if(0!=WszGetEnvironmentVariable(W("ILASM_INCLUDE"),wzIncludePathBuffer,MAX_FILENAME_LENGTH))
-                    wzIncludePath = wzIncludePathBuffer;
+                PathString wzIncludePathBuffer;
+                if (0 != WszGetEnvironmentVariable(W("ILASM_INCLUDE"), wzIncludePathBuffer))
+                {
+                    wzIncludePath = wzIncludePathBuffer.GetCopyOfUnicodeString();
+
+                }
             }
             //------------ Assembler initialization done. Now, to business -----------------------
             if((pParser = new AsmParse(NULL, pAsm)))

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -23,9 +22,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #if FEATURE_FP_REGALLOC
 Compiler::enumConfigRegisterFP Compiler::raConfigRegisterFP()
 {
-    static ConfigDWORD dwJitRegisterFP;
-
-    DWORD val = dwJitRegisterFP.val(CLRConfig::EXTERNAL_JitRegisterFP);
+    DWORD val = JitConfig.JitRegisterFP();
 
     return (enumConfigRegisterFP) (val & 0x3);
 }
@@ -64,8 +61,7 @@ DWORD Compiler::getCanDoubleAlign()
     if (compStressCompile(STRESS_DBL_ALN, 20))
         return MUST_DOUBLE_ALIGN;
 
-    static ConfigDWORD fJitDoubleAlign;
-    return fJitDoubleAlign.val_DontUse_(CLRConfig::INTERNAL_JitDoubleAlign, DEFAULT_DOUBLE_ALIGN);
+    return JitConfig.JitDoubleAlign();
 #else
     return DEFAULT_DOUBLE_ALIGN;
 #endif
@@ -676,10 +672,12 @@ regNumber     Compiler::raUpdateRegStateForArg(RegState *regState, LclVarDsc *ar
 
     regState->rsCalleeRegArgMaskLiveIn |= genRegMask(inArgReg);
 
-#if FEATURE_MULTIREG_STRUCT_ARGS
+#if FEATURE_MULTIREG_ARGS
 #ifdef _TARGET_ARM64_
-    if (argDsc->lvOtherArgReg != REG_NA)
+    if ((argDsc->lvOtherArgReg != REG_STK) && (argDsc->lvOtherArgReg != REG_NA))
     {
+        assert(argDsc->lvIsMultiregStruct());
+
         regNumber secondArgReg = argDsc->lvOtherArgReg;
 
         noway_assert(regState->rsIsFloat == false);
@@ -688,7 +686,7 @@ regNumber     Compiler::raUpdateRegStateForArg(RegState *regState, LclVarDsc *ar
         regState->rsCalleeRegArgMaskLiveIn |= genRegMask(secondArgReg);
     }
 #endif // TARGET_ARM64_
-#endif // FEATURE_MULTIREG_STRUCT_ARGS
+#endif // FEATURE_MULTIREG_ARGS
 
 #ifdef _TARGET_ARM_
     if (argDsc->lvType == TYP_DOUBLE)
@@ -1245,7 +1243,7 @@ regMaskTP            Compiler::rpPredictRegPick(var_types    type,
                     }
                 }
 #endif
-                // See if COMPLUS_JitRegisterFP is restricting this FP register
+                // See if COMPlus_JitRegisterFP is restricting this FP register
                 //
                 if ((restrictMask & regBits) != regBits)
                     continue;
@@ -6261,8 +6259,7 @@ void               Compiler::rpPredictRegUse()
 #endif
 
 #ifdef  DEBUG
-    static ConfigDWORD jitNoRegLoc;
-    BOOL fJitNoRegLoc = jitNoRegLoc.val(CLRConfig::INTERNAL_JitNoRegLoc);
+    BOOL fJitNoRegLoc = JitConfig.JitNoRegLoc();
     if (fJitNoRegLoc)
         regAvail = RBM_NONE;
 #endif
@@ -6396,8 +6393,7 @@ void               Compiler::rpPredictRegUse()
         }
 
 #ifdef DEBUG
-        static ConfigDWORD fJitMaxRegAllocPasses;
-        if (fJitMaxRegAllocPasses.val(CLRConfig::INTERNAL_JitAssertOnMaxRAPasses))
+        if (JitConfig.JitAssertOnMaxRAPasses())
         {
             noway_assert(rpPasses < rpPassesMax &&
                    "This may not a bug, but dev team should look and see what is happening");
@@ -6439,6 +6435,9 @@ void               Compiler::rpPredictRegUse()
         // it must not be in a register trashed by the callee
         if (info.compCallUnmanaged != 0)
         {
+            assert(!opts.ShouldUsePInvokeHelpers());
+            noway_assert(info.compLvFrameListRoot < lvaCount);
+
             LclVarDsc *     pinvokeVarDsc = &lvaTable[info.compLvFrameListRoot];
 
             if (pinvokeVarDsc->lvTracked)

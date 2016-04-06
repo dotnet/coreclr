@@ -1,16 +1,16 @@
-﻿;==++==
-;
-;   Copyright (c) Microsoft Corporation.  All rights reserved.
-;
-;==--==
-;
+﻿; Licensed to the .NET Foundation under one or more agreements.
+; The .NET Foundation licenses this file to you under the MIT license.
+; See the LICENSE file in the project root for more information.
+
 ; These are the managed resources for mscorlib.dll.
 ; See those first three bytes in the file?  This is in UTF-8.  Leave the
 ; Unicode byte order mark (U+FEFF) written in UTF-8 at the start of this file.
 
 ; For resource info, see the ResourceManager documentation and the ResGen tool,
 ; which is a managed app using ResourceWriter.
-; ResGen now supports C++ & C# style #ifdef's, like #ifndef FOO and #if BAR
+; ResGen now supports limited preprocessing of txt files, you can use
+; #if SYMBOL and #if !SYMBOL to control what sets of resources are included in
+; the resulting resources.
 
 ; The naming scheme is: [Namespace.] ExceptionName _ Reason
 ; We'll suppress "System." where possible.

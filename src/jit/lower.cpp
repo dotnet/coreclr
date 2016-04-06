@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -147,9 +146,10 @@ genTreeOps getHiOper(genTreeOps oper)
     case GT_OR:  return GT_OR;      break;
     case GT_AND: return GT_AND;     break;
     case GT_XOR: return GT_XOR;     break;
+    default:
+        assert(!"getHiOper called for invalid oper");
+        return GT_NONE;
     }
-    assert(!"getHiOper called for invalid oper");
-    return GT_NONE;
 }
 #endif // !defined(_TARGET_64BIT_)
 
@@ -419,30 +419,50 @@ void Lowering::DecomposeNode(GenTreePtr* pTree, Compiler::fgWalkData* data)
             GenTree* hiOp1 = op1->gtGetOp2();
             GenTree* loOp2 = op2->gtGetOp1();
             GenTree* hiOp2 = op2->gtGetOp2();
+
             // Now, remove op1 and op2 from the node list.
             comp->fgSnipNode(curStmt, op1);
             comp->fgSnipNode(curStmt, op2);
+
             // We will reuse "tree" for the loResult, which will now be of TYP_INT, and its operands
             // will be the lo halves of op1 from above.
             loResult = tree;
             loResult->gtType = TYP_INT;
             loResult->gtOp.gtOp1 = loOp1;
             loResult->gtOp.gtOp2 = loOp2;
+
             // The various halves will be correctly threaded internally. We simply need to
             // relink them into the proper order, i.e. loOp1 is followed by loOp2, and then
             // the loResult node.
             // (This rethreading, and that below, are where we need to address the reverse ops case).
-            loOp1->gtNext = loOp2;
-            loOp2->gtPrev = loOp1;
-            loOp2->gtNext = loResult;
-            loResult->gtPrev = loOp2;
+            // The current order is (after snipping op1 and op2):
+            // ... loOp1-> ... hiOp1->loOp2First ... loOp2->hiOp2First ... hiOp2
+            // The order we want is:
+            // ... loOp1->loOp2First ... loOp2->loResult
+            // ... hiOp1->hiOp2First ... hiOp2->hiResult
+            // i.e. we swap hiOp1 and loOp2, and create (for now) separate loResult and hiResult trees
+            GenTree* loOp2First = hiOp1->gtNext;
+            GenTree* hiOp2First = loOp2->gtNext;
 
-            // We will now create a new tree for the hiResult, and then thread these nodes as above.
+            // First, we will NYI if both hiOp1 and loOp2 have side effects.
+            NYI_IF(((loOp2->gtFlags & GTF_ALL_EFFECT) != 0) && ((hiOp1->gtFlags & GTF_ALL_EFFECT) != 0),
+                   "Binary long operator with non-reorderable sub expressions");
+
+            // Now, we reorder the loOps and the loResult.
+            loOp1->gtNext      = loOp2First;
+            loOp2First->gtPrev = loOp1;
+            loOp2->gtNext      = loResult;
+            loResult->gtPrev   = loOp2;
+
+            // Next, reorder the hiOps and the hiResult.
             hiResult = new (comp, oper) GenTreeOp(getHiOper(oper), TYP_INT, hiOp1, hiOp2);
-            hiOp1->gtNext = hiOp2;
-            hiOp2->gtPrev = hiOp1;
-            hiOp2->gtNext = hiResult;
-            hiResult->gtPrev = hiOp2;
+            hiOp1->gtNext      = hiOp2First;
+            hiOp2First->gtPrev = hiOp1;
+            hiOp2->gtNext      = hiResult;
+            hiResult->gtPrev   = hiOp2;
+
+            // Below, we'll put the loResult and hiResult trees together, using the more
+            // general fgInsertTreeInListAfter() method.
         }
         break;
     case GT_SUB:
@@ -601,9 +621,18 @@ void Lowering::LowerNode(GenTreePtr* ppTree, Compiler::fgWalkData* data)
         if ((*ppTree)->TypeGet() == TYP_SIMD12)
         {
 #ifdef _TARGET_64BIT_
-            // On 64-bit architectures, size of Vector3 local on stack will be
-            // rounded to TARGET_POINTER_SIZE and hence will be 16 bytes. Therefore,
-            // Vector3 locals on stack could be read/written as if they were TYP_SIMD16
+            // Assumption 1:
+            // RyuJit backend depends on the assumption that on 64-Bit targets Vector3 size is rounded off
+            // to TARGET_POINTER_SIZE and hence Vector3 locals on stack can be treated as TYP_SIMD16 for
+            // reading and writing purposes. 
+            //
+            // Assumption 2:
+            // RyuJit backend is making another implicit assumption that Vector3 type args when passed in
+            // registers or on stack, the upper most 4-bytes will be zero.  
+            //
+            // TODO-64bit: assumptions 1 and 2 hold within RyuJIT generated code. It is not clear whether
+            // these assumptions hold when a Vector3 type arg is passed by native code. Example: PInvoke
+            // returning Vector3 type value or RPInvoke passing Vector3 type args.
             (*ppTree)->gtType = TYP_SIMD16;
 #else
             NYI("Lowering of TYP_SIMD12 locals");
@@ -2475,6 +2504,24 @@ void Lowering::InsertPInvokeMethodProlog()
     noway_assert(comp->info.compCallUnmanaged);
     noway_assert(comp->lvaInlinedPInvokeFrameVar != BAD_VAR_NUM);
 
+    if (comp->opts.ShouldUsePInvokeHelpers())
+    {
+        // Initialize the P/Invoke frame by calling CORINFO_HELP_INIT_PINVOKE_FRAME:
+        //
+        // OpaqueFrame opaqueFrame;
+        // CORINFO_HELP_INIT_PINVOKE_FRAME(&opaqueFrame);
+
+        GenTree* frameAddr = new(comp, GT_LCL_VAR_ADDR)
+            GenTreeLclVar(GT_LCL_VAR_ADDR, TYP_BYREF, comp->lvaInlinedPInvokeFrameVar, BAD_IL_OFFSET);
+
+        GenTree* helperCall = comp->gtNewHelperCallNode(CORINFO_HELP_INIT_PINVOKE_FRAME, TYP_VOID, 0, comp->gtNewArgList(frameAddr));
+
+        GenTreeStmt* stmt = LowerMorphAndSeqTree(helperCall);
+        comp->fgInsertStmtAtBeg(comp->fgFirstBB, stmt);
+
+        return;
+    }
+
     CORINFO_EE_INFO* pInfo = comp->eeGetEEInfo();
     const CORINFO_EE_INFO::InlinedCallFrameInfo& callFrameInfo = pInfo->inlinedCallFrameInfo;
 
@@ -2555,6 +2602,11 @@ void Lowering::InsertPInvokeMethodEpilog(BasicBlock *returnBB
     assert(returnBB != nullptr);
     assert(comp->info.compCallUnmanaged);
 
+    if (comp->opts.ShouldUsePInvokeHelpers())
+    {
+        return;
+    }
+
     // Method doing Pinvoke calls has exactly one return block unless it has "jmp" or tail calls.
 #ifdef DEBUG
     bool endsWithTailCallOrJmp = false;
@@ -2612,14 +2664,6 @@ void Lowering::InsertPInvokeMethodEpilog(BasicBlock *returnBB
 // field of the frame (methodHandle may be indirected & have a reloc)
 void Lowering::InsertPInvokeCallProlog(GenTreeCall* call)
 {
-    // emit the following sequence
-    //
-    // frame.callTarget := methodHandle
-    // (x86) frame.callSiteTracker = SP
-    //       frame.callSiteReturnAddress = return address
-    // thread->gcState = 0
-    // (non-stub) - update top Frame on TCB
-    //
     GenTree* insertBefore = call;
     if (call->gtCallType == CT_INDIRECT)
     {
@@ -2632,6 +2676,31 @@ void Lowering::InsertPInvokeCallProlog(GenTreeCall* call)
     gtCallTypes callType = (gtCallTypes)call->gtCallType;
 
     noway_assert(comp->lvaInlinedPInvokeFrameVar != BAD_VAR_NUM);
+
+#if COR_JIT_EE_VERSION > 460
+    if (comp->opts.ShouldUsePInvokeHelpers())
+    {
+        // First argument is the address of the frame variable.
+        GenTree* frameAddr = new(comp, GT_LCL_VAR_ADDR)
+            GenTreeLclVar(GT_LCL_VAR_ADDR, TYP_BYREF, comp->lvaInlinedPInvokeFrameVar, BAD_IL_OFFSET);
+
+        // Insert call to CORINFO_HELP_JIT_PINVOKE_BEGIN
+        GenTree* helperCall = comp->gtNewHelperCallNode(CORINFO_HELP_JIT_PINVOKE_BEGIN, TYP_VOID, 0, comp->gtNewArgList(frameAddr));
+
+        comp->fgMorphTree(helperCall);
+        comp->fgInsertTreeBeforeAsEmbedded(helperCall, insertBefore, comp->compCurStmt->AsStmt(), currBlock);
+        return;
+    }
+#endif
+
+    // emit the following sequence
+    //
+    // frame.callTarget := methodHandle
+    // (x86) frame.callSiteTracker = SP
+    //       frame.callSiteReturnAddress = return address
+    // thread->gcState = 0
+    // (non-stub) - update top Frame on TCB
+    //
 
     // ----------------------------------------------------------------------------------
     // Setup frame.callSiteTarget (what it referred to in the JIT)
@@ -2751,10 +2820,28 @@ void Lowering::InsertPInvokeCallProlog(GenTreeCall* call)
     comp->fgInsertTreeBeforeAsEmbedded(storeGCState, insertBefore, comp->compCurStmt->AsStmt(), currBlock);
 }
 
-
 // insert the code that goes after every inlined pinvoke call
 void Lowering::InsertPInvokeCallEpilog(GenTreeCall* call)
 {
+#if COR_JIT_EE_VERSION > 460
+    if (comp->opts.ShouldUsePInvokeHelpers())
+    {
+        noway_assert(comp->lvaInlinedPInvokeFrameVar != BAD_VAR_NUM);
+
+        // First argument is the address of the frame variable.
+        GenTree* frameAddr = new(comp, GT_LCL_VAR)
+            GenTreeLclVar(GT_LCL_VAR, TYP_BYREF, comp->lvaInlinedPInvokeFrameVar, BAD_IL_OFFSET);
+        frameAddr->gtOper = GT_LCL_VAR_ADDR;
+
+        // Insert call to CORINFO_HELP_JIT_PINVOKE_END
+        GenTree* helperCall = comp->gtNewHelperCallNode(CORINFO_HELP_JIT_PINVOKE_END, TYP_VOID, 0, comp->gtNewArgList(frameAddr));
+
+        comp->fgMorphTree(helperCall);
+        comp->fgInsertTreeAfterAsEmbedded(helperCall, call, comp->compCurStmt->AsStmt(), currBlock);
+        return;
+    }
+#endif
+
     CORINFO_EE_INFO* pInfo = comp->eeGetEEInfo();
     GenTreeStmt* newStmt;
     GenTreeStmt* topStmt = comp->compCurStmt->AsStmt();
@@ -2794,6 +2881,55 @@ GenTree* Lowering::LowerNonvirtPinvokeCall(GenTreeCall* call)
     //------------------------------------------------------
     // Non-virtual/Indirect calls: PInvoke calls.
 
+    // PInvoke lowering varies depending on the flags passed in by the EE. By default,
+    // GC transitions are generated inline; if CORJIT_FLG2_USE_PINVOKE_HELPERS is specified,
+    // GC transitions are instead performed using helper calls. Examples of each case are given
+    // below. Note that the data structure that is used to store information about a call frame
+    // containing any P/Invoke calls is initialized in the method prolog (see
+    // InsertPInvokeMethod{Prolog,Epilog} for details).
+    //
+    // Inline transitions:
+    //     InlinedCallFrame inlinedCallFrame;
+    //
+    //     ...
+    //
+    //     // Set up frame information
+    //     inlinedCallFrame.callTarget = methodHandle;
+    //     inlinedCallFrame.callSiteTracker = SP; (x86 only)
+    //     inlinedCallFrame.callSiteReturnAddress = &label; (the address of the instruction immediately following the call)
+    //     thread->m_pFrame = &inlinedCallFrame; (non-IL-stub only)
+    //
+    //     // Switch the thread's GC mode to preemptive mode
+    //     thread->m_fPreemptiveGCDisabled = 0;
+    //
+    //     // Call the unmanged method
+    //     target();
+    //
+    //     // Switch the thread's GC mode back to cooperative mode
+    //     thread->m_fPreemptiveGCDisabled = 1;
+    //
+    //     // Rendezvous with a running collection if necessary
+    //     if (g_TrapReturningThreads)
+    //         RareDisablePreemptiveGC();
+    //
+    // Transistions using helpers:
+    //
+    //     OpaqueFrame opaqueFrame;
+    //
+    //     ...
+    //
+    //     // Call the JIT_PINVOKE_BEGIN helper
+    //     JIT_PINVOKE_BEGIN(&opaqueFrame);
+    //
+    //     // Call the unmanaged method
+    //     target();
+    //
+    //     // Call the JIT_PINVOKE_END helper
+    //     JIT_PINVOKE_END(&opaqueFrame);
+    //
+    // Note that the JIT_PINVOKE_{BEGIN.END} helpers currently use the default calling convention for the target platform.
+    // They may be changed in the near future s.t. they preserve all register values.
+
     GenTree* result = nullptr;
     void* addr = nullptr;
 
@@ -2811,25 +2947,40 @@ GenTree* Lowering::LowerNonvirtPinvokeCall(GenTreeCall* call)
 
     if (call->gtCallType != CT_INDIRECT)
     {
-        GenTree* indir = nullptr;
-
         noway_assert(call->gtCallType == CT_USER_FUNC);
         CORINFO_METHOD_HANDLE methHnd  = call->gtCallMethHnd;
 
-        void* pAddr;
-        addr = comp->info.compCompHnd->getAddressOfPInvokeFixup(methHnd, (void**)&pAddr);
+        CORINFO_CONST_LOOKUP lookup;
+#if COR_JIT_EE_VERSION > 460
+        comp->info.compCompHnd->getAddressOfPInvokeTarget(methHnd, &lookup);
+#else
+        void* pIndirection;
+        lookup.accessType = IAT_PVALUE;
+        lookup.addr = comp->info.compCompHnd->getAddressOfPInvokeFixup(methHnd, &pIndirection);
+        if (lookup.addr == nullptr)
+        {
+            lookup.accessType = IAT_PPVALUE;
+            lookup.addr = pIndirection;
+        }
+#endif
 
-        if (addr != nullptr)
+        GenTree* address = AddrGen(lookup.addr);
+        switch (lookup.accessType)
         {
-            indir = Ind(AddrGen(addr));
+            case IAT_VALUE:
+                result = address;
+                break;
+
+            case IAT_PVALUE:
+                result = Ind(address);
+                break;
+
+            case IAT_PPVALUE:
+                result = Ind(Ind(address));
+                break;
         }
-        else
-        {
-            // double indirection
-            indir = Ind(Ind(AddrGen(pAddr)));
-        }
-        result = indir;
     }
+
     InsertPInvokeCallEpilog(call);
 
     return result;
@@ -2942,8 +3093,6 @@ GenTree* Lowering::LowerVirtualStubCall(GenTreeCall* call)
     // THIS IS VERY TIGHTLY TIED TO THE PREDICATES IN
     // vm\i386\cGenCpu.h, esp. isCallRegisterIndirect.
     
-    NYI_X86("Virtual Stub dispatched call lowering");
-
 #ifdef _TARGET_64BIT_
     // Non-tail calls: Jump Stubs are not taken into account by VM for mapping an AV into a NullRef
     // exception. Therefore, JIT needs to emit an explicit null check.  Note that Jit64 too generates
@@ -2968,6 +3117,8 @@ GenTree* Lowering::LowerVirtualStubCall(GenTreeCall* call)
     // via dictionary lookup.  
     if (call->gtCallType == CT_INDIRECT)
     {
+        NYI_X86("Virtual Stub dispatched call lowering via dictionary lookup");
+        
         // The importer decided we needed a stub call via a computed
         // stub dispatch address, i.e. an address which came from a dictionary lookup.
         //   - The dictionary lookup produces an indirected address, suitable for call
@@ -2996,13 +3147,18 @@ GenTree* Lowering::LowerVirtualStubCall(GenTreeCall* call)
 
         // Direct stub calls, though the stubAddr itself may still need to be
         // accesed via an indirection.        
-        GenTree* tmp = AddrGen(stubAddr);
-        tmp->gtRegNum = REG_VIRTUAL_STUB_PARAM;
+        GenTree* addr = AddrGen(stubAddr);
+        GenTree* indir = Ind(addr);
 
-        tmp = Ind(tmp);
-        tmp->gtRegNum = REG_JUMP_THUNK_PARAM;
-
-        result = tmp;
+        // On x86 we generate this:
+        //        call dword ptr [rel32]  ;  FF 15 ---rel32----
+        // So we don't use a register.
+#ifndef _TARGET_X86_
+        // on x64 we must materialize the target using specific registers.
+        addr->gtRegNum = REG_VIRTUAL_STUB_PARAM;
+        indir->gtRegNum = REG_JUMP_THUNK_PARAM;
+#endif
+        result = indir;
     }
 
     // TODO-Cleanup: start emitting random NOPS

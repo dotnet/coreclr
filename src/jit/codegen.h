@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 // This class contains all the data & functionality for code generation
@@ -91,9 +90,9 @@ private:
                                                         else
                                                             return REG_SPBASE; }
 
-    static emitJumpKind genJumpKindForOper(genTreeOps cmp, bool isUnsigned);
+    enum CompareKind { CK_SIGNED, CK_UNSIGNED, CK_LOGICAL };
+    static emitJumpKind genJumpKindForOper(genTreeOps cmp, CompareKind compareKind);
 
-#ifdef _TARGET_XARCH_
     // For a given compare oper tree, returns the conditions to use with jmp/set in 'jmpKind' array. 
     // The corresponding elements of jmpToTrueLabel indicate whether the target of the jump is to the
     // 'true' label or a 'false' label.  
@@ -102,11 +101,11 @@ private:
     // branch to on compare condition being true.  'false' label corresponds to the target to
     // branch to on condition being false.
     static void genJumpKindsForTree(GenTreePtr cmpTree, emitJumpKind jmpKind[2], bool jmpToTrueLabel[2]);
+
 #if !defined(_TARGET_64BIT_)
     static void genJumpKindsForTreeLongHi(GenTreePtr cmpTree, emitJumpKind jmpKind[2], bool jmpToTrueLabel[2]);
     static void genJumpKindsForTreeLongLo(GenTreePtr cmpTree, emitJumpKind jmpKind[2], bool jmpToTrueLabel[2]);
 #endif //!defined(_TARGET_64BIT_)
-#endif // _TARGET_XARCH_
 
     static bool         genShouldRoundFP();
 
@@ -305,6 +304,14 @@ protected:
     void                genCheckUseBlockInit();
 
 #if defined(_TARGET_ARM64_)
+    bool                genInstrWithConstant(instruction ins,  
+                                             emitAttr    attr, 
+                                             regNumber   reg1, 
+                                             regNumber   reg2,
+                                             ssize_t     imm, 
+                                             regNumber   tmpReg,
+                                             bool        inUnwindRegion = false);
+
     void                genStackPointerAdjustment(ssize_t   spAdjustment,
                                                   regNumber tmpReg,
                                                   bool*     pTmpRegIsZero);
@@ -460,23 +467,25 @@ protected:
 
     void                genPrologPadForReJit();
 
-    void                genEmitCall(int                   callType,
-                                    CORINFO_METHOD_HANDLE methHnd,
-                                    INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo)
-                                    void*                 addr
-                                    X86_ARG(ssize_t       argSize),
-                                    emitAttr              retSize,
-                                    IL_OFFSETX            ilOffset,
-                                    regNumber             base   = REG_NA,
-                                    bool                  isJump = false,
-                                    bool                  isNoGC = false);
-
+    void                genEmitCall(int                                                 callType,
+                                    CORINFO_METHOD_HANDLE                               methHnd,
+                                    INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO*             sigInfo)
+                                    void*                                               addr
+                                    X86_ARG(ssize_t                                     argSize),
+                                    emitAttr                                            retSize
+                                    FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(emitAttr secondRetSize),
+                                    IL_OFFSETX                                          ilOffset,
+                                    regNumber                                           base   = REG_NA,
+                                    bool                                                isJump = false,
+                                    bool                                                isNoGC = false);
+    
     void                genEmitCall(int                   callType, 
                                     CORINFO_METHOD_HANDLE methHnd,
                                     INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo)
                                     GenTreeIndir*         indir
                                     X86_ARG(ssize_t       argSize),
-                                    emitAttr              retSize,
+                                    emitAttr              retSize
+                                    FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(emitAttr secondRetSize),
                                     IL_OFFSETX            ilOffset);
 
 
@@ -930,7 +939,8 @@ public :
 
     void                instEmit_indCall(GenTreePtr     call,
                                          size_t         argSize,
-                                         emitAttr       retSize);
+                                         emitAttr       retSize
+                                         FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(emitAttr    secondRetSize));
 
     void                instEmit_RM     (instruction    ins,
                                          GenTreePtr     tree,

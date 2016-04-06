@@ -1,14 +1,11 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #ifndef STUBLINKERX86_H_
 #define STUBLINKERX86_H_
 
-#ifndef CLR_STANDALONE_BINDER
 #include "stublink.h"
-#endif // !CLR_STANDALONE_BINDER
 
 struct ArrayOpScript;
 class MetaSig;
@@ -159,7 +156,6 @@ class X86CondCode {
 //----------------------------------------------------------------------
 // StubLinker with extensions for generating X86 code.
 //----------------------------------------------------------------------
-#ifndef CLR_STANDALONE_BINDER
 class StubLinkerCPU : public StubLinker
 {
     public:
@@ -439,7 +435,6 @@ class StubLinkerCPU : public StubLinker
         static void Init();
 
 };
-#endif // !CLR_STANDALONE_BINDER
 
 inline TADDR rel32Decode(/*PTR_INT32*/ TADDR pRel32)
 {

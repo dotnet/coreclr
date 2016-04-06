@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #ifndef GCENV_H_
 #define GCENV_H_
@@ -65,5 +64,11 @@ namespace ETW
         GC_ROOT_OVERFLOW = 5
     } GC_ROOT_KIND;
 };
+
+#ifdef PLATFORM_UNIX
+#define _tcslen wcslen
+#define _tcscpy wcscpy
+#define _tfopen _wfopen
+#endif
 
 #endif // GCENV_H_

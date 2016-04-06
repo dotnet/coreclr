@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: typehandle.h
 //
@@ -461,11 +460,7 @@ public:
     // The module where this type lives for the purposes of loading and prejitting
     // Note: NGen time result might differ from runtime result for parametrized types (generics, arrays, etc.)
     // See code:ClassLoader::ComputeLoaderModule or file:clsload.hpp#LoaderModule for more information
-#ifndef BINDER
     PTR_Module GetLoaderModule() const;
-#else
-    MdilModule* GetLoaderModule() const;
-#endif
 
     // The assembly that defined this type (== GetModule()->GetAssembly())
     Assembly * GetAssembly() const;

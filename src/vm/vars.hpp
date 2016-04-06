@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // vars.hpp
 //
@@ -63,7 +62,6 @@ typedef unsigned short wchar_t;
 #define _WCHAR_T_DEFINED
 #endif
 
-#ifndef CLR_STANDALONE_BINDER
 #include "util.hpp"
 #include <corpriv.h>
 #include <cordbpriv.h>
@@ -78,8 +76,6 @@ typedef unsigned short wchar_t;
 #ifdef FEATURE_CAS_POLICY
 #include "certificatecache.h"
 #endif
-
-#endif //CLR_STANDALONE_BINDER
 
 #include "profilepriv.h"
 
@@ -341,8 +337,9 @@ class REF : public OBJECTREF
 
 };
 
-#define VALIDATEOBJECTREF(objref) ((objref).Validate())
-#define VALIDATEOBJECT(obj) obj->Validate()
+// the while (0) syntax below is to force a trailing semicolon on users of the macro
+#define VALIDATEOBJECTREF(objref) do {if ((objref) != NULL) (objref).Validate();} while (0)
+#define VALIDATEOBJECT(obj) do {if ((obj) != NULL) (obj)->Validate();} while (0)
 
 #define ObjectToOBJECTREF(obj)     (OBJECTREF(obj))
 #define OBJECTREFToObject(objref)  ((objref).operator-> ())
@@ -374,8 +371,6 @@ class EEConfig;
 class ClassLoaderList;
 class Module;
 class ArrayTypeDesc;
-
-#ifndef BINDER
 
 #define EXTERN extern
 
@@ -427,6 +422,8 @@ GPTR_DECL(MethodTable,      g_ArgumentHandleMT);
 GPTR_DECL(MethodTable,      g_ArgIteratorMT);
 GPTR_DECL(MethodTable,      g_TypedReferenceMT);
 
+GPTR_DECL(MethodTable,      g_pByteArrayMT);
+
 #ifdef FEATURE_COMINTEROP
 GPTR_DECL(MethodTable,      g_pBaseCOMObject);
 GPTR_DECL(MethodTable,      g_pBaseRuntimeClass);
@@ -469,7 +466,6 @@ EXTERN OBJECTHANDLE         g_pPreallocatedSentinelObject;
 // We use this object to return a preallocated System.Exception instance when we have nothing
 // better to return.
 EXTERN OBJECTHANDLE         g_pPreallocatedBaseException;
-#endif // !BINDER
 
 GPTR_DECL(Thread,g_pFinalizerThread);
 GPTR_DECL(Thread,g_pSuspensionThread);
@@ -477,8 +473,6 @@ GPTR_DECL(Thread,g_pSuspensionThread);
 // Global SyncBlock cache
 typedef DPTR(SyncTableEntry) PTR_SyncTableEntry;
 GPTR_DECL(SyncTableEntry, g_pSyncTable);
-
-#if !defined(BINDER)
 
 #ifdef FEATURE_COMINTEROP
 // Global RCW cleanup list
@@ -758,7 +752,6 @@ GVAL_DECL(SIZE_T, g_runtimeLoadedBaseAddress);
 GVAL_DECL(SIZE_T, g_runtimeVirtualSize);
 #endif // !FEATURE_PAL
 
-#endif /* !BINDER */
 
 #ifndef MAXULONG
 #define MAXULONG    0xffffffff
@@ -876,7 +869,6 @@ struct ModuleIndex
 
 typedef DPTR(GSCookie) PTR_GSCookie;
 
-#ifndef CLR_STANDALONE_BINDER
 #ifndef DACCESS_COMPILE
 // const is so that it gets placed in the .text section (which is read-only)
 // volatile is so that accesses to it do not get optimized away because of the const
@@ -924,4 +916,3 @@ enum HostCallPreference
 };
 
 #endif /* _VARS_HPP */
-#endif /* !CLR_STANDALONE_BINDER */

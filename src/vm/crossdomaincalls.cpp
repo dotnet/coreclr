@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // File: CrossDomainCalls.cpp
 // 
@@ -780,9 +779,7 @@ BOOL CrossDomainChannel::GetTargetAddressFast(DWORD optFlags, MethodTable *pSrvM
 
     _ASSERTE(m_pTargetAddress);
 #ifdef _DEBUG 
-#ifndef MDIL // Triton binder doesn't have method names available
     _ASSERTE(!strcmp(m_pSrvMD->GetName(), m_pCliMD->GetName()));
-#endif
     DefineFullyQualifiedNameForClass();
     LPCUTF8 szSrvTypeName = GetFullyQualifiedNameForClassNestedAware(pSrvMT);
     LPCUTF8 pszMethodName = m_pCliMD->GetName();

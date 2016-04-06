@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // File: OleVariant.cpp
 // 
@@ -1101,7 +1100,7 @@ void VariantData::NewVariant(VariantData * const& dest, const CVTypes type, INT6
     }
 }
 
-void SafeVariantClearHelper(VARIANT* pVar)
+void SafeVariantClearHelper(_Inout_ VARIANT* pVar)
 {
     STATIC_CONTRACT_SO_INTOLERANT;
     WRAPPER_NO_CONTRACT;

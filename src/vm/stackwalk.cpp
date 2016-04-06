@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // STACKWALK.CPP
 
 
@@ -790,14 +789,8 @@ UINT_PTR Thread::VirtualUnwindToFirstManagedCallFrame(T_CONTEXT* pContext)
 
         if (uControlPc == 0)
         {
-            // This displays the managed stack in case the unwind has walked out of the stack and
-            // a managed exception was being unwound.
-            DefaultCatchHandler(NULL /*pExceptionInfo*/, NULL /*Throwable*/, TRUE /*useLastThrownObject*/,
-                                TRUE /*isTerminating*/, FALSE /*isThreadBaseFIlter*/, FALSE /*sendAppDomainEvents*/);
-
-            EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
+            break;
         }
-
 #endif // !FEATURE_PAL
     }
 
@@ -1564,8 +1557,8 @@ BOOL StackFrameIterator::IsValid(void)
         // we started?
         //DevDiv 168789: In GCStress >= 4 two threads could race on triggering GC;
         //  if the one that just made p/invoke call is second and hits the trap instruction
-        //  before call to syncronize with GC, it will push RedirectedThreadFrame concurrently 
-        //  with GC stackwalking.
+        //  before call to syncronize with GC, it will push a frame [ResumableFrame on Unix 
+        //  and RedirectedThreadFrame on Windows] concurrently with GC stackwalking.
         //  In normal case (no GCStress), after p/invoke, IL_STUB will check if GC is in progress and syncronize.
         BOOL bRedirectedPinvoke = FALSE;
 
@@ -1576,7 +1569,8 @@ BOOL StackFrameIterator::IsValid(void)
                               (m_pRealStartFrame->GetVTablePtr() == InlinedCallFrame::GetMethodFrameVPtr()) && 
                               (m_pThread->GetFrame() != NULL) &&
                               (m_pThread->GetFrame() != FRAME_TOP) &&
-                              (m_pThread->GetFrame()->GetVTablePtr() == RedirectedThreadFrame::GetMethodFrameVPtr()));
+                              ((m_pThread->GetFrame()->GetVTablePtr() == ResumableFrame::GetMethodFrameVPtr()) ||
+                               (m_pThread->GetFrame()->GetVTablePtr() == RedirectedThreadFrame::GetMethodFrameVPtr())));
 #endif // FEATURE_HIJACK
 
         _ASSERTE( (m_pStartFrame != NULL) ||
@@ -1689,8 +1683,6 @@ StackWalkAction StackFrameIterator::Filter(void)
 ProcessFuncletsForGCReporting:
                 do
                 {
-                    fRecheckCurrentFrame = false;
-                    
                     // When enumerating GC references for "liveness" reporting, depending upon the architecture,
                     // the responsibility of who reports what varies:
                     //
@@ -1751,46 +1743,54 @@ ProcessFuncletsForGCReporting:
                         // only source of evidence about it.
                         // This is different from Windows where the full stack is preserved until an exception is fully handled
                         // and so we can detect it just from walking the stack.
-                        if (!fSkippingFunclet && (pTracker != NULL))
+                        if (!fRecheckCurrentFrame && !fSkippingFunclet && (pTracker != NULL))
                         {
-                            bool fFoundFuncletParent = false;
+                            // The stack walker is not skipping frames now, which means it didn't find a funclet frame that
+                            // would require skipping the current frame. If we find a tracker with caller of actual handling
+                            // frame matching the current frame, it means that the funclet stack frame was reclaimed.
+                            StackFrame sfFuncletParent;
+                            ExceptionTracker* pCurrTracker = pTracker;
+                            bool hasFuncletStarted = m_crawl.pThread->GetExceptionState()->GetCurrentEHClauseInfo()->IsManagedCodeEntered();
 
-                            // First check if the current frame is a caller of a funclet of a collapsed exception tracker
-                            StackFrame sfFuncletParent = pTracker->GetCallerOfCollapsedActualHandlingFrame();
-                            if (!sfFuncletParent.IsNull() && ExceptionTracker::IsUnwoundToTargetParentFrame(&m_crawl, sfFuncletParent))
+                            while (pCurrTracker != NULL)
                             {
-                                fFoundFuncletParent = true;
-                            }
-                            else
-                            {
-                                ExceptionTracker* pCurrTracker = pTracker;
-
-                                // Scan all previous trackers and see if the current frame is a caller of any of
-                                // the handling frames. 
-                                while ((pCurrTracker = pCurrTracker->GetPreviousExceptionTracker()) != NULL)
+                                if (hasFuncletStarted)
                                 {
-                                    sfFuncletParent = pCurrTracker->GetCallerOfActualHandlingFrame();
-                                    if (ExceptionTracker::IsUnwoundToTargetParentFrame(&m_crawl, sfFuncletParent))
+                                    sfFuncletParent = pCurrTracker->GetCallerOfEnclosingClause();
+                                    if (!sfFuncletParent.IsNull() && ExceptionTracker::IsUnwoundToTargetParentFrame(&m_crawl, sfFuncletParent))
                                     {
-                                        pTracker = pCurrTracker;
-                                        fFoundFuncletParent = true;
-
                                         break;
                                     }
                                 }
+
+                                sfFuncletParent = pCurrTracker->GetCallerOfCollapsedEnclosingClause();
+                                if (!sfFuncletParent.IsNull() && ExceptionTracker::IsUnwoundToTargetParentFrame(&m_crawl, sfFuncletParent))
+                                {
+                                    break;
+                                }
+
+                                // Funclets handling exception for trackers older than the current one were always started,
+                                // since the current tracker was created due to an exception in the funclet belonging to 
+                                // the previous tracker.
+                                hasFuncletStarted = true;
+                                pCurrTracker = pCurrTracker->GetPreviousExceptionTracker();
                             }
 
-                            if (fFoundFuncletParent)
+                            if (pCurrTracker != NULL)
                             {
-                                // We have found that the current frame is a caller of a handling frame.
+                                // The current frame is a parent of a funclet that was already unwound and removed from the stack
                                 // Set the members the same way we would set them on Windows when we
                                 // would detect this just from stack walking.
                                 m_sfParent = sfFuncletParent;
                                 m_sfFuncletParent = sfFuncletParent;
                                 m_fProcessNonFilterFunclet = true;
+                                m_fDidFuncletReportGCReferences = false;
+                                fSkippingFunclet = true;
                             }
                         }
 #endif // FEATURE_PAL
+
+                        fRecheckCurrentFrame = false;
                         // Do we already have a reference to a funclet parent?
                         if (!m_sfFuncletParent.IsNull())
                         {
@@ -1995,6 +1995,7 @@ ProcessFuncletsForGCReporting:
                                         // Since we are in GC reference reporting mode,
                                         // then avoid code duplication and go to
                                         // funclet processing.
+                                        fRecheckCurrentFrame = true;
                                         goto ProcessFuncletsForGCReporting;
                                     }
                                 }
@@ -2100,6 +2101,7 @@ ProcessFuncletsForGCReporting:
                                 // If we are in GC reference reporting mode,
                                 // then avoid code duplication and go to
                                 // funclet processing.
+                                fRecheckCurrentFrame = true;
                                 goto ProcessFuncletsForGCReporting;
                             }
                             else

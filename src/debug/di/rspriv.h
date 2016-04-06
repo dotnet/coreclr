@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // rspriv.
 // 
@@ -1266,14 +1265,14 @@ public:
         LOG((LF_CORDB, LL_EVERYTHING, "Memory: CordbBase object deleted: this=%p, id=%p, Refcount=0x%x\n", this, m_id, m_RefCount));
 
 #ifdef _DEBUG
-        InterlockedDecrement(&s_TotalObjectCount);
-        _ASSERTE(s_TotalObjectCount >= 0);
+        LONG newTotalObjectsCount = InterlockedDecrement(&s_TotalObjectCount);
+        _ASSERTE(newTotalObjectsCount >= 0);
 #endif
 
         // Don't shutdown logic until everybody is done with it.
         // If we leak objects, this may mean that we never shutdown logging at all!
 #if defined(_DEBUG) && defined(LOGGING)
-        if (s_TotalObjectCount == 0)
+        if (newTotalObjectsCount == 0)
         {
             ShutdownLogging();
         }

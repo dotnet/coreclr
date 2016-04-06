@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ===========================================================================
 // File: JITinterface.H
 //
@@ -407,33 +406,33 @@ public:
 class ICorModuleInfo_Hack
 {
 public:
-    virtual void ICorModuleInfo_Hack_dummy() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
+    virtual void ICorModuleInfo_Hack_dummy() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
 };
 
 class ICorClassInfo_Hack
 {
 public:
-    virtual void ICorClassInfo_Hack_dummy1() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy2() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy3() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy4() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy5() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy6() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy7() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy8() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy9() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy10() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy11() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy12() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy13() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy14() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
+    virtual void ICorClassInfo_Hack_dummy1() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
+    virtual void ICorClassInfo_Hack_dummy2() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
+    virtual void ICorClassInfo_Hack_dummy3() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
+    virtual void ICorClassInfo_Hack_dummy4() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
+    virtual void ICorClassInfo_Hack_dummy5() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
+    virtual void ICorClassInfo_Hack_dummy6() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
+    virtual void ICorClassInfo_Hack_dummy7() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
+    virtual void ICorClassInfo_Hack_dummy8() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
+    virtual void ICorClassInfo_Hack_dummy9() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
+    virtual void ICorClassInfo_Hack_dummy10() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
+    virtual void ICorClassInfo_Hack_dummy11() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
+    virtual void ICorClassInfo_Hack_dummy12() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
+    virtual void ICorClassInfo_Hack_dummy13() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
+    virtual void ICorClassInfo_Hack_dummy14() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
 
     virtual mdMethodDef __stdcall ICorClassInfo_Hack_getMethodDefFromMethod(CORINFO_METHOD_HANDLE hMethod) = 0;
 };
 
 class ICorStaticInfo_Hack : public virtual ICorMethodInfo_Hack, public virtual ICorModuleInfo_Hack, public virtual ICorClassInfo_Hack
 {
-    virtual void ICorStaticInfo_Hack_dummy() { WRAPPER_NO_CONTRACT; UNREACHABLE(); };
+    virtual void ICorStaticInfo_Hack_dummy() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
 };
 
 #endif // FEATURE_CORECLR
@@ -551,20 +550,6 @@ public:
     CORINFO_CLASS_HANDLE getBuiltinClass(CorInfoClassId classId);
     void getGSCookie(GSCookie * pCookieVal, GSCookie ** ppCookieVal);
 
-#ifdef  MDIL
-    unsigned getNumTypeParameters(CORINFO_METHOD_HANDLE method);
-
-    CorElementType getTypeOfTypeParameter(CORINFO_METHOD_HANDLE method, unsigned index);
-    CORINFO_CLASS_HANDLE getTypeParameter(CORINFO_METHOD_HANDLE method, bool classTypeParameter, unsigned index);
-    unsigned getStructTypeToken(InlineContext *inlineContext, CORINFO_ARG_LIST_HANDLE argList);
-    unsigned getEnclosingClassToken(InlineContext *inlineContext, CORINFO_METHOD_HANDLE method);
-    InlineContext * computeInlineContext(InlineContext *outerContext, unsigned inlinedMethodToken, unsigned constraintTypeToken, CORINFO_METHOD_HANDLE method);
-    unsigned translateToken(InlineContext *inlineContext, CORINFO_MODULE_HANDLE scopeHnd, unsigned token);
-    CorInfoType getFieldElementType(unsigned fieldToken, CORINFO_MODULE_HANDLE scope, CORINFO_METHOD_HANDLE methHnd);
-    unsigned getCurrentMethodToken(InlineContext *inlineContext, CORINFO_METHOD_HANDLE method);
-    unsigned getStubMethodFlags(CORINFO_METHOD_HANDLE method);
-#endif
-
     // "System.Int32" ==> CORINFO_TYPE_INT..
     CorInfoType getTypeForPrimitiveValueClass(
             CORINFO_CLASS_HANDLE        cls
@@ -646,16 +631,6 @@ public:
                        CORINFO_FIELD_INFO    *pResult
                       );
     static CorInfoHelpFunc getSharedStaticsHelper(FieldDesc * pField, MethodTable * pFieldMT);
-
-#ifdef MDIL
-    virtual DWORD getFieldOrdinal(CORINFO_MODULE_HANDLE  tokenScope,
-                                            unsigned               fieldToken);
-
-    unsigned getMemberParent(CORINFO_MODULE_HANDLE  scopeHnd, unsigned metaTOK);
-
-    // given a token representing an MD array of structs, get the element type token
-    unsigned getArrayElementToken(CORINFO_MODULE_HANDLE  scopeHnd, unsigned metaTOK);
-#endif
 
     bool isFieldStatic(CORINFO_FIELD_HANDLE fldHnd);
 
@@ -765,7 +740,8 @@ public:
             unsigned * pOffsetAfterIndirection
             );
 
-    CorInfoIntrinsics getIntrinsicID(CORINFO_METHOD_HANDLE method);
+    CorInfoIntrinsics getIntrinsicID(CORINFO_METHOD_HANDLE method,
+                                     bool * pMustExpand = NULL);
 
     bool isInSIMDModule(CORINFO_CLASS_HANDLE classHnd);
 
@@ -783,13 +759,6 @@ public:
     BOOL shouldEnforceCallvirtRestriction(
             CORINFO_MODULE_HANDLE   scope);
 
-#ifdef  MDIL
-    virtual unsigned getTypeTokenForFieldOrMethod(
-            unsigned                fieldOrMethodToken
-            );
-
-    virtual unsigned getTokenForType(CORINFO_CLASS_HANDLE  cls);
-#endif
     // Check constraints on method type arguments (only).
     // The parent class should be checked separately using satisfiesClassConstraints(parent).
     BOOL satisfiesMethodConstraints(
@@ -912,6 +881,7 @@ public:
     bool canGetVarArgsHandle(CORINFO_SIG_INFO *sig);
     void* getPInvokeUnmanagedTarget(CORINFO_METHOD_HANDLE method, void **ppIndirection);
     void* getAddressOfPInvokeFixup(CORINFO_METHOD_HANDLE method, void **ppIndirection);
+    void getAddressOfPInvokeTarget(CORINFO_METHOD_HANDLE method, CORINFO_CONST_LOOKUP *pLookup);
     CORINFO_JUST_MY_CODE_HANDLE getJustMyCodeHandle(CORINFO_METHOD_HANDLE method, CORINFO_JUST_MY_CODE_HANDLE **ppIndirection);
 
     void GetProfilingHandle(
@@ -1085,19 +1055,6 @@ public:
 
     DWORD getExpectedTargetArchitecture();
 
-    int getIntConfigValue(
-        const wchar_t *name,
-        int defaultValue
-        );
-
-    wchar_t *getStringConfigValue(
-        const wchar_t *name
-        );
-
-    void freeStringConfigValue(
-        __in_z wchar_t *value
-        );
-
     CEEInfo(MethodDesc * fd = NULL, bool fVerifyOnly = false) :
         m_pOverride(NULL),
         m_pMethodBeingCompiled(fd),
@@ -1116,6 +1073,8 @@ public:
 
     // Performs any work JIT-related work that should be performed at process shutdown.
     void JitProcessShutdownWork();
+
+    DWORD getJitFlags(CORJIT_FLAGS* jitFlags, DWORD sizeInBytes);
 
 private:
     // Shrinking these buffers drastically reduces the amount of stack space
@@ -1547,7 +1506,7 @@ extern "C"
 #endif
 GARY_DECL(VMHELPDEF, hlpDynamicFuncTable, DYNAMIC_CORINFO_HELP_COUNT);
 
-#define SetJitHelperFunction(ftnNum, pFunc) _SetJitHelperFunction(DYNAMIC_##ftnNum, pFunc)
+#define SetJitHelperFunction(ftnNum, pFunc) _SetJitHelperFunction(DYNAMIC_##ftnNum, (void*)(pFunc))
 void    _SetJitHelperFunction(DynamicCorInfoHelpFunc ftnNum, void * pFunc);
 #ifdef ENABLE_FAST_GCPOLL_HELPER
 //These should only be called from ThreadStore::TrapReturningThreads!
@@ -1614,6 +1573,7 @@ void *GenFastGetSharedStaticBase(bool bCheckCCtor);
 #ifdef HAVE_GCCOVER
 void SetupGcCoverage(MethodDesc* pMD, BYTE* nativeCode);
 void SetupGcCoverageForNativeImage(Module* module);
+bool IsGcCoverageInterrupt(LPVOID ip);
 BOOL OnGcCoverageInterrupt(PT_CONTEXT regs);
 void DoGcStress (PT_CONTEXT regs, MethodDesc *pMD);
 #endif //HAVE_GCCOVER

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 #include "common.h"
@@ -2709,7 +2708,7 @@ HRESULT ClrSafeArrayGetVartype(SAFEARRAY *psa, VARTYPE *pvt)
 //--------------------------------------------------------------------------------
 // // safe VariantChangeType
 // Release helper, enables and disables GC during call-outs
-HRESULT SafeVariantChangeType(VARIANT* pVarRes, VARIANT* pVarSrc,
+HRESULT SafeVariantChangeType(_Inout_ VARIANT* pVarRes, _In_ VARIANT* pVarSrc,
                               unsigned short wFlags, VARTYPE vt)
 {
     CONTRACTL
@@ -2745,7 +2744,7 @@ HRESULT SafeVariantChangeType(VARIANT* pVarRes, VARIANT* pVarSrc,
 }
 
 //--------------------------------------------------------------------------------
-HRESULT SafeVariantChangeTypeEx(VARIANT* pVarRes, VARIANT* pVarSrc,
+HRESULT SafeVariantChangeTypeEx(_Inout_ VARIANT* pVarRes, _In_ VARIANT* pVarSrc,
                           LCID lcid, unsigned short wFlags, VARTYPE vt)
 {
     CONTRACTL

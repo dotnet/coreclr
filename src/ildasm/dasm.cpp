@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #include "ildasmpch.h"
 #include <crtdbg.h>
@@ -340,6 +339,10 @@ BOOL Init()
 #ifdef FEATURE_CORECLR
 #ifdef FEATURE_PAL
     g_loader = CoreCLRLoader::Create(g_pszExeFile);
+    if (g_loader == NULL)
+    {
+        return FALSE;
+    }
     metaDataGetDispenser = (MetaDataGetDispenserFunc)g_loader->LoadFunction("MetaDataGetDispenser");
     getMetaDataInternalInterface = (GetMetaDataInternalInterfaceFunc)g_loader->LoadFunction("GetMetaDataInternalInterface");
     getMetaDataInternalInterfaceFromPublic = (GetMetaDataInternalInterfaceFromPublicFunc)g_loader->LoadFunction("GetMetaDataInternalInterfaceFromPublic");
@@ -2557,7 +2560,7 @@ void DumpCustomAttributeProps(mdToken tkCA, mdToken tkType, mdToken tkOwner, BYT
                 break;
 
             default :
-                strcat_s(szString, SZSTRING_REMAINING_SIZE(szptr),ERRORMSG("UNKNOWN_OWNER"));
+                strcat_s(szptr, SZSTRING_REMAINING_SIZE(szptr),ERRORMSG("UNKNOWN_OWNER"));
                 break;
         }
         szptr = &szString[strlen(szString)];
@@ -4349,7 +4352,7 @@ BOOL DumpProp(mdToken FuncToken, const char *pszClassName, DWORD dwClassAttrs, v
         if(DumpBody)
         {
             pch = szptr+1;
-            strcpy_s(pch,SZSTRING_REMAINING_SIZE(szptr),ProperName((char*)psz));
+            strcpy_s(pch,SZSTRING_REMAINING_SIZE(pch),ProperName((char*)psz));
         }
         qbMemberSig.Shrink(0);
         PrettyPrintMethodSig(szString, &uStringLen, &qbMemberSig, pComSig, cComSig,
@@ -6506,10 +6509,9 @@ void DumpStatistics(IMAGE_COR20_HEADER *CORHeader, void* GUICookie)
 #pragma warning(pop)
 #endif
 
-void DumpHexbytes(__inout __nullterminated char* szString,BYTE *pb, DWORD fromPtr, DWORD toPtr, DWORD limPtr)
+void DumpHexbytes(__inout __nullterminated char* szptr,BYTE *pb, DWORD fromPtr, DWORD toPtr, DWORD limPtr)
 {
     char sz[256];
-    char* szptr = &szString[strlen(szString)];
     int k = 0,i;
     DWORD curPtr = 0;
     bool printsz = FALSE;
@@ -7874,12 +7876,13 @@ DoneInitialization:
                     {   // initialized data
                         szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr),"%s%8.8X = %s (",szTls,fromPtr,KEYWORD("bytearray"));
                         printLine(g_pFile,szString);
-                        sprintf_s(szString,SZSTRING_REMAINING_SIZE(szptr),"%s                ",g_szAsmCodeIndent);
+                        szptr = szString;
+                        szptr+=sprintf_s(szptr,SZSTRING_SIZE,"%s                ",g_szAsmCodeIndent);
                         pb =  g_pPELoader->base()
                                 + VAL32(pSecHdr->PointerToRawData)
                                 + fromPtr - VAL32(pSecHdr->VirtualAddress);
                         // now fromPtr is the beginning of the BLOB, and toPtr is [exclusive] end of it
-                        DumpHexbytes(szString, pb, fromPtr, toPtr, limPtr);
+                        DumpHexbytes(szptr, pb, fromPtr, toPtr, limPtr);
                     }
                     // to preserve alignment, dump filler if any
                     if(limPtr == toPtr) // don't need filler if it's the last item in section

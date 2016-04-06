@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*
  * Generational GC handle manager.  Core Table Implementation.
@@ -1434,7 +1433,7 @@ uint32_t SegmentInsertBlockFromFreeListWorker(TableSegment *pSegment, uint32_t u
             if (uBlock >= uCommitLine)
             {
                 // figure out where to commit next
-                LPVOID pvCommit = pSegment->rgValue + (uCommitLine * HANDLE_HANDLES_PER_BLOCK);
+                void * pvCommit = pSegment->rgValue + (uCommitLine * HANDLE_HANDLES_PER_BLOCK);
 
                 // we should commit one more page of handles
                 uint32_t dwCommit = g_SystemInfo.dwPageSize;
@@ -1844,7 +1843,7 @@ void SegmentTrimExcessPages(TableSegment *pSegment)
         if (dwHi > dwLo)
         {
             // decommit the memory
-            GCToOSInterface::VirtualDecommit((LPVOID)dwLo, dwHi - dwLo);
+            GCToOSInterface::VirtualDecommit((void *)dwLo, dwHi - dwLo);
 
             // update the commit line
             pSegment->bCommitLine = (uint8_t)((dwLo - (size_t)pSegment->rgValue) / HANDLE_BYTES_PER_BLOCK);
@@ -1984,14 +1983,16 @@ uint32_t BlockAllocHandlesInitial(TableSegment *pSegment, uint32_t uType, uint32
         uint32_t uAlloc = uRemain;
 
         // compute the default mask based on that count
-        uint32_t dwNewMask = (MASK_EMPTY << uAlloc);
-
+        uint32_t dwNewMask;
         // are we allocating all of them?
         if (uAlloc >= HANDLE_HANDLES_PER_MASK)
         {
-            // shift above has unpredictable results in this case
-            dwNewMask = MASK_FULL;
+            dwNewMask = MASK_FULL; // avoid unpredictable shift
             uAlloc = HANDLE_HANDLES_PER_MASK;
+        }
+        else
+        {
+            dwNewMask = (MASK_EMPTY << uAlloc);
         }
 
         // set the free mask

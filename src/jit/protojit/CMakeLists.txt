@@ -1,8 +1,9 @@
 project(protojit)
 
 remove_definitions(-DFEATURE_MERGE_JIT_AND_ENGINE)
+add_definitions(-DALT_JIT)
 
-add_library(protojit
+add_library_clr(protojit
    SHARED
    ${SHARED_LIB_SOURCES}
 )

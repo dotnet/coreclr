@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 #ifndef __GCENV_STRUCTS_INCLUDED__
 #define __GCENV_STRUCTS_INCLUDED__
 //
@@ -30,6 +29,20 @@ struct GCMemoryStatus
 };
 
 typedef void * HANDLE;
+
+#ifdef PLATFORM_UNIX
+
+typedef char TCHAR;
+#define _T(s) s
+
+#else
+
+#ifndef _INC_WINDOWS
+typedef wchar_t TCHAR;
+#define _T(s) L##s
+#endif
+
+#endif
 
 #ifdef PLATFORM_UNIX
 
@@ -76,7 +89,7 @@ public:
 
     void SetToCurrentThread()
     {
-        m_uiId = ::GetCurrentThreadId();        
+        m_uiId = ::GetCurrentThreadId();
     }
 
     void Clear()
@@ -88,19 +101,6 @@ public:
 #endif // PLATFORM_UNIX
 
 #ifndef _INC_WINDOWS
-
-typedef union _LARGE_INTEGER {
-    struct {
-#if BIGENDIAN
-        int32_t HighPart;
-        uint32_t LowPart;
-#else
-        uint32_t LowPart;
-        int32_t HighPart;
-#endif
-    } u;
-    int64_t QuadPart;
-} LARGE_INTEGER, *PLARGE_INTEGER;
 
 #ifdef PLATFORM_UNIX
 

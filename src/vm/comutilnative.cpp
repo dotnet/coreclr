@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -1403,7 +1402,6 @@ void QCALLTYPE ExceptionNative::GetMessageFromNativeResources(ExceptionMessageKi
     END_QCALL;
 }
 
-
 // BlockCopy
 // This method from one primitive array to another based
 //  upon an offset into each an a byte count.
@@ -1417,20 +1415,37 @@ FCIMPL5(VOID, Buffer::BlockCopy, ArrayBase *src, int srcOffset, ArrayBase *dst, 
     if (src==NULL || dst==NULL)
         FCThrowArgumentNullVoid((src==NULL) ? W("src") : W("dst"));
 
-    // Size of the Arrays in bytes
-    SIZE_T srcLen = src->GetNumComponents() * src->GetComponentSize();
-    SIZE_T dstLen = srcLen;
+    SIZE_T srcLen, dstLen;
 
-    // We only want to allow arrays of primitives, no Objects.
-    const CorElementType srcET = src->GetArrayElementType();
-    if (!CorTypeInfo::IsPrimitiveType_NoThrow(srcET))
-        FCThrowArgumentVoid(W("src"), W("Arg_MustBePrimArray"));
+    //
+    // Use specialized fast path for byte arrays because of it is what Buffer::BlockCopy is 
+    // typically used for.
+    //
 
-    if (src != dst) {
-        const CorElementType dstET = dst->GetArrayElementType();
-        if (!CorTypeInfo::IsPrimitiveType_NoThrow(dstET))
-            FCThrowArgumentVoid(W("dest"), W("Arg_MustBePrimArray"));
-        dstLen = dst->GetNumComponents() * dst->GetComponentSize();
+    MethodTable * pByteArrayMT = g_pByteArrayMT;
+    _ASSERTE(pByteArrayMT != NULL);
+    if (src->GetMethodTable() == pByteArrayMT &&  dst->GetMethodTable() == pByteArrayMT)
+    {
+        srcLen = src->GetNumComponents();
+        dstLen = dst->GetNumComponents();
+    }
+    else
+    {
+        // Size of the Arrays in bytes
+        srcLen = src->GetNumComponents() * src->GetComponentSize();
+        dstLen = srcLen;
+
+        // We only want to allow arrays of primitives, no Objects.
+        const CorElementType srcET = src->GetArrayElementType();
+        if (!CorTypeInfo::IsPrimitiveType_NoThrow(srcET))
+            FCThrowArgumentVoid(W("src"), W("Arg_MustBePrimArray"));
+
+        if (src != dst) {
+            const CorElementType dstET = dst->GetArrayElementType();
+            if (!CorTypeInfo::IsPrimitiveType_NoThrow(dstET))
+                FCThrowArgumentVoid(W("dest"), W("Arg_MustBePrimArray"));
+            dstLen = dst->GetNumComponents() * dst->GetComponentSize();
+        }
     }
 
     if (srcOffset < 0 || dstOffset < 0 || count < 0) {
@@ -3159,3 +3174,76 @@ INT32 QCALLTYPE CoreFxGlobalization::HashSortKey(PCBYTE pSortKey, INT32 cbSortKe
     return retVal;
 }
 #endif //FEATURE_COREFX_GLOBALIZATION
+
+static MethodTable * g_pStreamMT;
+static WORD g_slotBeginRead, g_slotEndRead;
+static WORD g_slotBeginWrite, g_slotEndWrite;
+
+static bool HasOverriddenStreamMethod(MethodTable * pMT, WORD slot)
+{
+    CONTRACTL{
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        SO_TOLERANT;
+    } CONTRACTL_END;
+
+    PCODE actual = pMT->GetRestoredSlot(slot);
+    PCODE base = g_pStreamMT->GetRestoredSlot(slot);
+    if (actual == base)
+        return false;
+
+    if (!g_pStreamMT->IsZapped())
+    {
+        // If mscorlib is JITed, the slots can be patched and thus we need to compare the actual MethodDescs 
+        // to detect match reliably
+        if (MethodTable::GetMethodDescForSlotAddress(actual) == MethodTable::GetMethodDescForSlotAddress(base))
+            return false;
+    }
+
+    return true;
+}
+
+FCIMPL1(FC_BOOL_RET, StreamNative::HasOverriddenBeginEndRead, Object *stream)
+{
+    FCALL_CONTRACT;
+
+    if (stream == NULL)
+        FC_RETURN_BOOL(TRUE);
+
+    if (g_pStreamMT == NULL || g_slotBeginRead == 0 || g_slotEndRead == 0)
+    {
+        HELPER_METHOD_FRAME_BEGIN_RET_1(stream);
+        g_pStreamMT = MscorlibBinder::GetClass(CLASS__STREAM);
+        g_slotBeginRead = MscorlibBinder::GetMethod(METHOD__STREAM__BEGIN_READ)->GetSlot();
+        g_slotEndRead = MscorlibBinder::GetMethod(METHOD__STREAM__END_READ)->GetSlot();
+        HELPER_METHOD_FRAME_END();
+    }
+
+    MethodTable * pMT = stream->GetMethodTable();
+
+    FC_RETURN_BOOL(HasOverriddenStreamMethod(pMT, g_slotBeginRead) || HasOverriddenStreamMethod(pMT, g_slotEndRead));
+}
+FCIMPLEND
+
+FCIMPL1(FC_BOOL_RET, StreamNative::HasOverriddenBeginEndWrite, Object *stream)
+{
+    FCALL_CONTRACT;
+
+    if (stream == NULL) 
+        FC_RETURN_BOOL(TRUE);
+
+    if (g_pStreamMT == NULL || g_slotBeginWrite == 0 || g_slotEndWrite == 0)
+    {
+        HELPER_METHOD_FRAME_BEGIN_RET_1(stream);
+        g_pStreamMT = MscorlibBinder::GetClass(CLASS__STREAM);
+        g_slotBeginWrite = MscorlibBinder::GetMethod(METHOD__STREAM__BEGIN_WRITE)->GetSlot();
+        g_slotEndWrite = MscorlibBinder::GetMethod(METHOD__STREAM__END_WRITE)->GetSlot();
+        HELPER_METHOD_FRAME_END();
+    }
+
+    MethodTable * pMT = stream->GetMethodTable();
+
+    FC_RETURN_BOOL(HasOverriddenStreamMethod(pMT, g_slotBeginWrite) || HasOverriddenStreamMethod(pMT, g_slotEndWrite));
+}
+FCIMPLEND

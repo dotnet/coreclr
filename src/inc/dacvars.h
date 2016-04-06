@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // This file contains the globals and statics that are visible to DAC.
 // It is used for the following:
 // 1. in daccess.h to build the table of DAC globals
@@ -236,6 +235,7 @@ DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pPredefinedArrayTypes, ::g_pPr
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_ArgumentHandleMT, ::g_ArgumentHandleMT)
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_ArgIteratorMT, ::g_ArgIteratorMT)
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_TypedReferenceMT, ::g_TypedReferenceMT)
+DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pByteArrayMT, ::g_pByteArrayMT)
 
 #ifdef FEATURE_COMINTEROP
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pBaseCOMObject, ::g_pBaseCOMObject)
@@ -333,6 +333,8 @@ DEFINE_DACVAR(ULONG, PTR_CLRPrivBinderAppX, CLRPrivBinderAppX__s_pSingleton, CLR
 DEFINE_DACVAR(ULONG, DWORD, dac__g_MiniMetaDataBuffMaxSize, ::g_MiniMetaDataBuffMaxSize)
 DEFINE_DACVAR(ULONG, TADDR, dac__g_MiniMetaDataBuffAddress, ::g_MiniMetaDataBuffAddress)
 #endif // FEATURE_MINIMETADATA_IN_TRIAGEDUMPS
+
+DEFINE_DACVAR(ULONG, SIZE_T, dac__g_clrNotificationArguments, ::g_clrNotificationArguments)
 
 #undef DEFINE_DACVAR
 #undef DEFINE_DACVAR_SVR

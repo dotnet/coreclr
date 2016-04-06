@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 #include "common.h"
@@ -996,12 +995,12 @@ void MdaPInvokeLog::LogPInvoke(NDirectMethodDesc* pMD, HINSTANCE hMod)
         StackSString sszEntryPoint;
         sszEntryPoint.SetUTF8(pMD->GetEntrypointName());
 
-        WCHAR szDllFullName[_MAX_PATH] = {0};
+        PathString szDllFullName ;
         WCHAR szDrive[_MAX_PATH] = {0};
         WCHAR szPath[_MAX_PATH] = {0};
         WCHAR szFileName[_MAX_PATH] = {0};
         WCHAR szExt[_MAX_PATH] = {0};
-        WszGetModuleFileName(hMod, szDllFullName, _MAX_PATH);      
+        WszGetModuleFileName(hMod, szDllFullName);      
         SplitPath(szDllFullName, szDrive, _MAX_PATH, szPath, _MAX_PATH, szFileName, _MAX_PATH, szExt, _MAX_PATH);
 
         StackSString sszDllName;
@@ -1870,16 +1869,14 @@ void MdaLoaderLock::ReportViolation(HINSTANCE hInst)
         MdaXmlMessage msg(this->AsMdaAssistant(), TRUE, &pXml);
 
         DWORD cName = 0;
-        WCHAR szName[_MAX_PATH * 2];
+        PathString szName;
         if (hInst)
         {
-            cName = _MAX_PATH * 2 - 1;
-            cName = WszGetModuleFileName(hInst, szName, cName);
+            cName = WszGetModuleFileName(hInst, szName);
         }
 
         if (cName)
         {
-            szName[cName] = W('\0');
             msg.SendMessagef(MDARC_LOADER_LOCK_DLL, szName);
         }
         else

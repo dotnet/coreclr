@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full
-// license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 #include <assert.h>
@@ -111,7 +110,7 @@ int32_t FixupLocaleName(UChar* value, int32_t valueLength)
     return i;
 }
 
-extern "C" int32_t GetLocaleName(const UChar* localeName, UChar* value, int32_t valueLength)
+extern "C" int32_t GlobalizationNative_GetLocaleName(const UChar* localeName, UChar* value, int32_t valueLength)
 {
     UErrorCode status = U_ZERO_ERROR;
 
@@ -131,7 +130,7 @@ extern "C" int32_t GetLocaleName(const UChar* localeName, UChar* value, int32_t 
     return UErrorCodeToBool(status);
 }
 
-extern "C" int32_t GetDefaultLocaleName(UChar* value, int32_t valueLength)
+extern "C" int32_t GlobalizationNative_GetDefaultLocaleName(UChar* value, int32_t valueLength)
 {
     char localeNameBuffer[ULOC_FULLNAME_CAPACITY];
     UErrorCode status = U_ZERO_ERROR;

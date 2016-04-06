@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -824,98 +823,6 @@ PAL_ftell(PAL_FILE * f)
     due to implicitly casting the native long lRetVal to LONG when returning. */    
     return (LONG)lRetVal;
 }
-
-/*++
-
-Function:
-
-    fgetpos
-
-See msdn for more details.
---*/
-
-int
-__cdecl
-PAL_fgetpos (
-    PAL_FILE   *f,
-    PAL_fpos_t *pos
-)
-{
-#ifdef __LINUX__
-    // TODO: implement for Linux if required
-    ASSERT(FALSE);
-    return -1;
-#else
-    int    nRetVal = -1;
-    fpos_t native_pos;
-
-    PERF_ENTRY(fgetpos);
-    ENTRY("fgetpos( f=%p, pos=%p )\n", f, pos);
-    
-    _ASSERTE(f != NULL);
-    _ASSERTE(pos != NULL);
-
-    if (pos) {
-        native_pos = *pos;
-        nRetVal = fgetpos (f->bsdFilePtr, &native_pos);
-        *pos = native_pos;
-    }
-    else {
-        ERROR ("Error: NULL pos pointer\n");
-        errno = EINVAL;
-    }
-  
-    LOGEXIT( "fgetpos returning error code %d, pos %d\n", nRetVal, pos ? *pos : 0);
-    PERF_EXIT(fgetpos);
-    return nRetVal;
-#endif // __LINUX__
-}
-
-/*++
-
-Function:
-
-    fsetpos
-
-See msdn for more details.
---*/
-
-int
-__cdecl
-PAL_fsetpos (
-    PAL_FILE         *f,
-    const PAL_fpos_t *pos
-)
-{
-#ifdef __LINUX__
-    // TODO: implement for Linux if required
-    ASSERT(FALSE);
-    return  -1;
-#else
-    int    nRetVal = -1;
-    fpos_t native_pos;
-
-    PERF_ENTRY(fsetpos);
-    ENTRY("fsetpos( f=%p, pos=%p )\n", f, pos);
-
-    _ASSERTE(f != NULL);
-    _ASSERTE(pos != NULL);
-
-    if (pos) {
-        native_pos = *pos;
-        nRetVal = fsetpos (f->bsdFilePtr, &native_pos);
-    }
-    else {
-        ERROR ("Error: NULL pos pointer\n");
-        errno = EINVAL;
-    }
-  
-    LOGEXIT( "fsetpos returning error code %d\n", nRetVal);
-    PERF_EXIT(fsetpos);
-    return nRetVal;
-#endif // __LINUX__
-}
-
 
 /*++
 Function :

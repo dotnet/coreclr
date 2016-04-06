@@ -1,8 +1,6 @@
-//
-// Copyright (c) Geoff Norton. All rights reserved.
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #include "asmconstants.h"
 #include "unixasmmacros.inc"
@@ -151,7 +149,7 @@ NESTED_END PrecodeFixupThunk, _TEXT
 
 NESTED_ENTRY ThePreStub, _TEXT, NoHandler
 
-    PROLOG_WITH_TRANSITION_BLOCK 0, 0
+    PROLOG_WITH_TRANSITION_BLOCK
 
     add x0, sp, #__PWTB_TransitionBlock // pTransitionBlock
     mov x1, METHODDESC_REGISTER // pMethodDesc
@@ -160,7 +158,7 @@ NESTED_ENTRY ThePreStub, _TEXT, NoHandler
 
     mov x9, x0
 
-    EPILOG_WITH_TRANSITION_BLOCK_TAILCALL 0, 0
+    EPILOG_WITH_TRANSITION_BLOCK_TAILCALL
     EPILOG_BRANCH_REG  x9
 
 NESTED_END ThePreStub, _TEXT
@@ -182,7 +180,7 @@ LEAF_END ThePreStubPatch, _TEXT
 // The stub dispatch thunk which transfers control to VSD_ResolveWorker.
 NESTED_ENTRY ResolveWorkerAsmStub, _TEXT, NoHandler
 
-    PROLOG_WITH_TRANSITION_BLOCK 0, 0
+    PROLOG_WITH_TRANSITION_BLOCK
 
     add x0, sp, #__PWTB_TransitionBlock // pTransitionBlock
     and x1, x11, #-4 // Indirection cell
@@ -191,7 +189,7 @@ NESTED_ENTRY ResolveWorkerAsmStub, _TEXT, NoHandler
     bl C_FUNC(VSD_ResolveWorker)
     mov x9, x0
    
-    EPILOG_WITH_TRANSITION_BLOCK_TAILCALL 0, 0
+    EPILOG_WITH_TRANSITION_BLOCK_TAILCALL
 
     EPILOG_BRANCH_REG x9
 
@@ -392,7 +390,7 @@ NESTED_END VirtualMEthodFixupStub, _TEXT
 
 NESTED_ENTRY ExternalMethodFixupStub, _TEXT, NoHandler
 
-    PROLOG_WITH_TRANSITION_BLOCK 0, 0
+    PROLOG_WITH_TRANSITION_BLOCK
 
     add x0, sp, #__PWTB_TransitionBlock // pTransitionBlock
     mov x1, x12 // pThunk
@@ -402,7 +400,7 @@ NESTED_ENTRY ExternalMethodFixupStub, _TEXT, NoHandler
     // mov the address we patched to in x12 so that we can tail call to it
     mov x12, x0
 
-    EPILOG_WITH_TRANSITION_BLOCK_TAILCALL 0, 0
+    EPILOG_WITH_TRANSITION_BLOCK_TAILCALL
     PATCH_LABEL ExternalMethodFixupPatchLabel
     EPILOG_BRANCH_REG   x12
 

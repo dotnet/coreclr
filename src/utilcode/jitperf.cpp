@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #include "stdafx.h"
 #include "jitperf.h"
@@ -9,6 +8,7 @@
 #include "clrhost.h"
 #include "contract.h"
 #include "utilcode.h"
+#include "sstring.h"
 
 //=============================================================================
 // ALL THE JIT PERF STATS GATHERING CODE IS COMPILED ONLY IF THE ENABLE_JIT_PERF WAS DEFINED.
@@ -63,10 +63,8 @@ void InitJitPerf(void)
         CANNOT_TAKE_LOCK;
     } CONTRACTL_END;
 
-    wchar_t lpszValue[2];
-    DWORD cchValue = 2;
-
-    g_fJitPerfOn = WszGetEnvironmentVariable (W("JIT_PERF_OUTPUT"), lpszValue, cchValue);
+    InlineSString<4> lpszValue;
+    g_fJitPerfOn = WszGetEnvironmentVariable (W("JIT_PERF_OUTPUT"), lpszValue);
     if (g_fJitPerfOn) 
     {
         g_csJit = ClrCreateCriticalSection(CrstJitPerf,CRST_UNSAFE_ANYMODE);

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // --------------------------------------------------------------------------------
 // DomainFile.cpp
 //
@@ -943,6 +942,11 @@ void DomainFile::CheckZapRequired()
 
     if (m_pFile->HasNativeImage() || !IsZapRequired())
         return;
+
+#ifdef FEATURE_READYTORUN
+    if(m_pFile->GetLoaded()->HasReadyToRunHeader())
+        return;
+#endif
 
     // Flush any log messages
     GetFile()->FlushExternalLog();
@@ -2348,7 +2352,7 @@ void DomainAssembly::FindNativeImage()
         {
             SString sbuf;
             StackScratchBuffer scratch;
-            sbuf.Printf("COMPLUS_NgenBind_ZapForbid violation: %s.", GetSimpleName());
+            sbuf.Printf("COMPlus_NgenBind_ZapForbid violation: %s.", GetSimpleName());
             DbgAssertDialog(__FILE__, __LINE__, sbuf.GetUTF8(scratch));
         }
 #endif
@@ -3443,18 +3447,6 @@ void DomainAssembly::GetOptimizedIdentitySignature(CORCOMPILE_ASSEMBLY_SIGNATURE
     PEImageLayoutHolder ilLayout(GetFile()->GetAnyILWithRef());
     pSignature->timeStamp = ilLayout->GetTimeDateStamp();
     pSignature->ilImageSize = ilLayout->GetVirtualSize();
-#ifdef MDIL    
-    if (g_fIsNGenEmbedILProcess)
-    {
-        PEImageHolder pILImage(GetFile()->GetILimage());
-        DWORD dwActualILSize; 
-        if (pILImage->GetLoadedLayout()->GetILSizeFromMDILCLRCtlData(&dwActualILSize))
-        {
-            // Use actual source IL size instead of MDIL size
-            pSignature->ilImageSize = dwActualILSize;
-        }
-    }
-#endif  // MDIL
 }
 
 BOOL DomainAssembly::CheckZapDependencyIdentities(PEImage *pNativeImage)

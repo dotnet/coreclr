@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // vars.cpp - Global Var definitions
 //
@@ -88,6 +87,8 @@ GPTR_IMPL(MethodTable,      g_pOverlappedDataClass);
 GPTR_IMPL(MethodTable,      g_ArgumentHandleMT);
 GPTR_IMPL(MethodTable,      g_ArgIteratorMT);
 GPTR_IMPL(MethodTable,      g_TypedReferenceMT);
+
+GPTR_IMPL(MethodTable,      g_pByteArrayMT);
 
 #ifdef FEATURE_COMINTEROP
 GPTR_IMPL(MethodTable,      g_pBaseCOMObject);

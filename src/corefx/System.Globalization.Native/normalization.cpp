@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full
-// license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 #include <stdint.h>
@@ -49,7 +48,8 @@ Return values:
 1: lpStr is normalized.
 -1: internal error during normalization.
 */
-extern "C" int32_t IsNormalized(NormalizationForm normalizationForm, const UChar* lpStr, int32_t cwStrLength)
+extern "C" int32_t GlobalizationNative_IsNormalized(
+    NormalizationForm normalizationForm, const UChar* lpStr, int32_t cwStrLength)
 {
     UErrorCode err = U_ZERO_ERROR;
     const UNormalizer2* pNormalizer = GetNormalizerForForm(normalizationForm, &err);
@@ -77,7 +77,7 @@ Return values:
 0: internal error during normalization.
 >0: the length of the normalized string (not counting the null terminator).
 */
-extern "C" int32_t NormalizeString(
+extern "C" int32_t GlobalizationNative_NormalizeString(
     NormalizationForm normalizationForm, const UChar* lpSrc, int32_t cwSrcLength, UChar* lpDst, int32_t cwDstLength)
 {
     UErrorCode err = U_ZERO_ERROR;

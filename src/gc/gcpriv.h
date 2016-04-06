@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // optimize for speed
 
 
@@ -142,12 +141,12 @@ inline void FATAL_GC_ERROR()
 
 #if defined (SYNCHRONIZATION_STATS) || defined (STAGE_STATS)
 #define BEGIN_TIMING(x) \
-    LARGE_INTEGER x##_start; \
-    x##_start = GCToOSInterface::QueryPerformanceCounter ()
+    int64_t x##_start; \
+    x##_start = GCToOSInterface::QueryPerformanceCounter()
 
 #define END_TIMING(x) \
-    LARGE_INTEGER x##_end; \
-    x##_end = GCToOSInterface::QueryPerformanceCounter (); \
+    int64_t x##_end; \
+    x##_end = GCToOSInterface::QueryPerformanceCounter(); \
     x += x##_end - x##_start
 
 #else
@@ -605,13 +604,13 @@ public:
 
 // GC specific statistics, tracking counts and timings for GCs occuring in the system.
 // This writes the statistics to a file every 60 seconds, if a file is specified in
-// COMPLUS_GcMixLog
+// COMPlus_GcMixLog
 
 struct GCStatistics
     : public StatisticsBase
 {
-    // initialized to the contents of COMPLUS_GcMixLog, or NULL, if not present
-    static WCHAR* logFileName;
+    // initialized to the contents of COMPlus_GcMixLog, or NULL, if not present
+    static TCHAR* logFileName;
     static FILE*  logFile;
 
     // number of times we executed a background GC, a foreground GC, or a
@@ -2478,6 +2477,13 @@ protected:
 #endif // BIT64
     PER_HEAP_ISOLATED
     size_t get_total_heap_size ();
+    PER_HEAP_ISOLATED
+    size_t get_total_committed_size();
+
+    PER_HEAP_ISOLATED
+    void get_memory_info (uint32_t* memory_load, 
+                          uint64_t* available_physical=NULL,
+                          uint64_t* available_page_file=NULL);
     PER_HEAP
     size_t generation_size (int gen_number);
     PER_HEAP_ISOLATED
@@ -2506,6 +2512,8 @@ protected:
                                      uint8_t* end);
     PER_HEAP
     size_t generation_sizes (generation* gen);
+    PER_HEAP
+    size_t committed_size();
     PER_HEAP
     size_t approximate_new_allocation();
     PER_HEAP
@@ -2923,7 +2931,7 @@ public:
 
 #ifdef SHORT_PLUGS
     PER_HEAP_ISOLATED
-    float short_plugs_pad_ratio;
+    double short_plugs_pad_ratio;
 #endif //SHORT_PLUGS
 
 #ifdef BIT64
@@ -2941,7 +2949,10 @@ public:
     uint64_t total_physical_mem;
 
     PER_HEAP_ISOLATED
-    uint64_t available_physical_mem;
+    uint64_t entry_available_physical_mem;
+
+    PER_HEAP_ISOLATED
+    bool restricted_physical_memory_p;
 
     PER_HEAP_ISOLATED
     size_t last_gc_index;

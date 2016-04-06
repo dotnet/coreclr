@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // File: debugger.h
 //
@@ -2884,6 +2883,9 @@ private:
         kRedirectedForDbgThreadControl,
         kRedirectedForUserSuspend,
         kRedirectedForYieldTask,
+#if defined(HAVE_GCCOVER) && defined(_TARGET_AMD64_)
+        kRedirectedForGCStress,
+#endif // HAVE_GCCOVER && _TARGET_AMD64_
         kMaxHijackFunctions,
     };
 
@@ -2972,6 +2974,10 @@ void RedirectedHandledJITCaseForUserSuspend_StubEnd();
 
 void RedirectedHandledJITCaseForYieldTask_Stub();
 void RedirectedHandledJITCaseForYieldTask_StubEnd();
+#if defined(HAVE_GCCOVER) && defined(_TARGET_AMD64_)
+void RedirectedHandledJITCaseForGCStress_Stub();
+void RedirectedHandledJITCaseForGCStress_StubEnd();
+#endif // HAVE_GCCOVER && _TARGET_AMD64_
 };
 
 
@@ -3078,6 +3084,9 @@ public:
 
 class DebuggerPendingFuncEvalTable : private CHashTableAndData<CNewZeroData>
 {
+  public:
+    virtual ~DebuggerPendingFuncEvalTable() = default;
+
   private:
 
     BOOL Cmp(SIZE_T k1, const HASHENTRY * pc2)
@@ -3161,6 +3170,11 @@ typedef DPTR(struct DebuggerModuleEntry) PTR_DebuggerModuleEntry;
 
 class DebuggerModuleTable : private CHashTableAndData<CNewZeroData>
 {
+#ifdef DACCESS_COMPILE
+  public:
+    virtual ~DebuggerModuleTable() = default;
+#endif
+
   private:
 
     BOOL Cmp(SIZE_T k1, const HASHENTRY * pc2)
@@ -3200,7 +3214,7 @@ public:
 #ifndef DACCESS_COMPILE
 
     DebuggerModuleTable();
-    ~DebuggerModuleTable();
+    virtual ~DebuggerModuleTable();
 
     void AddModule(DebuggerModule *module);
 
@@ -3267,6 +3281,9 @@ struct DebuggerMethodInfoEntry
 class DebuggerMethodInfoTable : private CHashTableAndData<CNewZeroData>
 {
     VPTR_BASE_CONCRETE_VTABLE_CLASS(DebuggerMethodInfoTable);
+
+  public:
+    virtual ~DebuggerMethodInfoTable() = default;
 
   private:
     BOOL Cmp(SIZE_T k1, const HASHENTRY * pc2)
@@ -3967,4 +3984,3 @@ void FixupDispatcherContext(T_DISPATCHER_CONTEXT* pDispatcherContext, T_CONTEXT*
 #endif
 
 #endif /* DEBUGGER_H_ */
-

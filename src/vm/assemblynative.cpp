@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -2365,8 +2364,8 @@ void QCALLTYPE AssemblyNative::CreateVersionInfoResource(LPCWSTR    pwzFilename,
     const void  *pvData=0;              // Pointer to the resource.
     ULONG       cbData;                 // Size of the resource data.
     ULONG       cbWritten;
-    WCHAR       szFile[MAX_PATH_FNAME+1];     // File name for resource file.
-    WCHAR       szPath[MAX_LONGPATH+1];     // Path name for resource file.
+    PathString       szFile;     // File name for resource file.
+    PathString       szPath;     // Path name for resource file.
     HandleHolder hFile;
 
     res.SetInfo(pwzFilename, 
@@ -2388,9 +2387,9 @@ void QCALLTYPE AssemblyNative::CreateVersionInfoResource(LPCWSTR    pwzFilename,
     // messages including the path/file name</TODO>
 
     // Persist to a file.
-    if (!WszGetTempPath(MAX_LONGPATH, szPath))
+    if (!WszGetTempPath(szPath))
         COMPlusThrowWin32();
-    if (!WszGetTempFileName(szPath, W("RES"), 0, szFile))
+    if (!WszGetTempFileName(szPath.GetUnicode(), W("RES"), 0, szFile))
         COMPlusThrowWin32();
 
     hFile = WszCreateFile(szFile, GENERIC_READ|GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
@@ -2533,14 +2532,14 @@ INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManag
     {
         // We are initializing the managed instance of Assembly Load Context that would represent the TPA binder.
         // First, confirm we do not have an existing managed ALC attached to the TPA binder.
-        INT_PTR ptrTPAAssemblyLoadContext = pTPABinderContext->GetManagedTPABinderInstance();
+        INT_PTR ptrTPAAssemblyLoadContext = pTPABinderContext->GetManagedAssemblyLoadContext();
         if ((ptrTPAAssemblyLoadContext != NULL) && (ptrTPAAssemblyLoadContext != ptrManagedAssemblyLoadContext))
         {
             COMPlusThrow(kInvalidOperationException, IDS_HOST_ASSEMBLY_RESOLVER_INCOMPATIBLE_TPA_BINDING_CONTEXT);
         }
 
         // Attach the managed TPA binding context with the native one.
-        pTPABinderContext->SetManagedTPABinderInstance(ptrManagedAssemblyLoadContext);
+        pTPABinderContext->SetManagedAssemblyLoadContext(ptrManagedAssemblyLoadContext);
         ptrNativeAssemblyLoadContext = reinterpret_cast<INT_PTR>(pTPABinderContext);
     }
    

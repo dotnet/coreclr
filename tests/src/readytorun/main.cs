@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 using System;
@@ -100,7 +101,15 @@ class Program
     static void TestInterop()
     {
         // Verify both intra-module and inter-module PInvoke interop
-        MyClass.GetTickCount();
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            MyClass.GetTickCount();
+        }
+        else
+        {
+            MyClass.GetCurrentThreadId();
+        }
+
         MyClass.TestInterop();
     }
 
@@ -240,6 +249,47 @@ class Program
         new MyClass().GetType().ToString();
     }
 
+    [MethodImplAttribute(MethodImplOptions.NoInlining)]
+    static void TestStaticBaseCSE()
+    {
+        // There should be just one call to CORINFO_HELP_READYTORUN_STATIC_BASE
+        // in the generated code.
+        s++;
+        s++;
+        Assert.AreEqual(s, 2);
+        s = 0;
+    }
+
+    [MethodImplAttribute(MethodImplOptions.NoInlining)]
+    static void TestIsInstCSE()
+    {
+        // There should be just one call to CORINFO_HELP_READYTORUN_ISINSTANCEOF
+        // in the generated code.
+        object o1 = (s < 1) ? (object)"foo" : (object)1;
+        Assert.AreEqual(o1 is string, true);
+        Assert.AreEqual(o1 is string, true);
+    }
+
+    [MethodImplAttribute(MethodImplOptions.NoInlining)]
+    static void TestCastClassCSE()
+    {
+        // There should be just one call to CORINFO_HELP_READYTORUN_CHKCAST
+        // in the generated code.
+        object o1 = (s < 1) ? (object)"foo" : (object)1;
+        string str1 = (string)o1;
+        string str2 = (string)o1;
+        Assert.AreEqual(str1, str2);
+    }
+
+    [MethodImplAttribute(MethodImplOptions.NoInlining)]
+    static void TestRangeCheckElimination()
+    {
+        // Range checks for array accesses should be eliminated by the compiler.
+        int[] array = new int[5];
+        array[2] = 2;
+        Assert.AreEqual(array[2], 2);
+    }
+
 #if CORECLR
     class MyLoadContext : AssemblyLoadContext
     {
@@ -249,7 +299,7 @@ class Program
 
         public void TestMultipleLoads()
         {
-            Assembly a = LoadFromAssemblyPath(Path.Combine(Directory.GetCurrentDirectory(), "NI", "test.ni.dll"));
+            Assembly a = LoadFromAssemblyPath(Path.Combine(Directory.GetCurrentDirectory(), "test.ni.dll"));
             Assert.AreEqual(AssemblyLoadContext.GetLoadContext(a), this);
         }
 
@@ -322,6 +372,14 @@ class Program
 #endif
 
         TestFieldLayoutNGenMixAndMatch();
+
+        TestStaticBaseCSE();
+
+        TestIsInstCSE();
+
+        TestCastClassCSE();
+
+        TestRangeCheckElimination();
     }
 
     static int Main()
@@ -344,4 +402,6 @@ class Program
     }
 
     static bool LLILCJitEnabled;
+
+    static int s;
 }

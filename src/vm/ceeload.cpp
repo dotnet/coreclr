@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ===========================================================================
 // File: CEELOAD.CPP
 // 
@@ -1865,8 +1864,6 @@ PTR_Module Module::ComputePreferredZapModule(Module * pDefinitionModule,
 //
 // Is pModule likely a dependency of pOtherModule? Heuristic used by preffered zap module algorithm.
 // It can return both false positives and negatives.
-//
-// Keep in sync with tools\mdilbind\mdilmodule.cpp
 //
 static bool IsLikelyDependencyOf(Module * pModule, Module * pOtherModule)
 {
@@ -9200,26 +9197,11 @@ void Module::ExpandAll(DataImage *image)
     mdToken tk;
     DWORD assemblyFlags = GetAssembly()->GetFlags();
 
-    // construct a compact layout writer if necessary
-#ifdef MDIL
-    ICompactLayoutWriter *pCompactLayoutWriter = NULL;
-    if (!GetAppDomain()->IsNoMDILCompilationDomain())
-    {
-        pCompactLayoutWriter = ICompactLayoutWriter::MakeCompactLayoutWriter(this, image->m_pZapImage);
-    }
-#endif //MDIL
     //
     // Explicitly load the global class.
     //
 
     MethodTable *pGlobalMT = GetGlobalMethodTable();
-#ifdef MDIL
-    if (pCompactLayoutWriter != NULL && pGlobalMT != NULL)
-    {
-        EEClass *pGlocalClass = pGlobalMT->GetClass();
-        pGlocalClass->WriteCompactLayout(pCompactLayoutWriter, image->m_pZapImage);
-    }
-#endif //MDIL
 
     //
     // Load all classes.  This also fills out the
@@ -9265,15 +9247,6 @@ void Module::ExpandAll(DataImage *image)
             
             if (t.IsNull()) // Skip this type
                 continue; 
-
-#ifdef MDIL
-            if (pCompactLayoutWriter != NULL)
-            {
-                MethodTable *pMT = t.AsMethodTable();
-                EEClass *pClass = pMT->GetClass();
-                pClass->WriteCompactLayout(pCompactLayoutWriter, image->m_pZapImage);
-            }
-#endif // MDIL
 
             if (!t.HasInstantiation())
             {
@@ -9527,12 +9500,6 @@ void Module::ExpandAll(DataImage *image)
         m_pBinder->BindAll();
     }
 
-#ifdef MDIL
-    if (pCompactLayoutWriter)
-    {
-        pCompactLayoutWriter->Flush();
-    }
-#endif // MDIL
 } // Module::ExpandAll
 
 /* static */
@@ -13922,7 +13889,7 @@ static void ProfileDataAllocateTokenDefinitions(ProfileEmitter * pEmitter, Modul
     mdProfileData->size = sizeof(CORBBTPROF_BLOB_ENTRY);
 }
 
-// Responsible for writing out the profile data if the COMPLUS_BBInstr 
+// Responsible for writing out the profile data if the COMPlus_BBInstr 
 // environment variable is set.  This is called when the module is unloaded
 // (usually at shutdown).
 HRESULT Module::WriteMethodProfileDataLogFile(bool cleanup)

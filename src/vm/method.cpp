@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ===========================================================================
 // File: Method.CPP
 //
@@ -5194,7 +5193,7 @@ LPVOID NDirectMethodDesc::FindEntryPoint(HINSTANCE hMod) const
     if (GetEntrypointName()[0] == '#')
     {
         long ordinal = atol(GetEntrypointName()+1);
-        return GetProcAddress(hMod, (LPCSTR)(size_t)((UINT16)ordinal));
+        return reinterpret_cast<LPVOID>(GetProcAddress(hMod, (LPCSTR)(size_t)((UINT16)ordinal)));
     }
 
     // Just look for the unmangled name.  If it is unicode fcn, we are going

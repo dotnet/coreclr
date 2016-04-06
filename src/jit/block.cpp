@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -38,8 +37,7 @@ flowList* ShuffleHelper(unsigned hash, flowList* res)
 unsigned SsaStressHashHelper()
 {
     // hash = 0: turned off, hash = 1: use method hash, hash = *: use custom hash.
-    static ConfigDWORD fJitSsaStress;
-    unsigned hash = fJitSsaStress.val(CLRConfig::INTERNAL_JitSsaStress);
+    unsigned hash = JitConfig.JitSsaStress();
 
     if (hash == 0)
     {
@@ -637,69 +635,4 @@ unsigned PtrKeyFuncs<BasicBlock>::GetHashCode(const BasicBlock* ptr)
     return ptr->bbNum;
 }
 
-//------------------------------------------------------------------------
-// inlExpLst: default constructor for an inlExpList
-//
-// Notes: use for the root instance. We set ixlCode to nullptr here
-// (rather than the IL buffer address of the root method) to preserve
-// existing behavior, which is to allow one recursive inline.
-
-inlExpLst::inlExpLst() : ixlParent(nullptr), ixlChild(nullptr), 
-                         ixlSibling(nullptr), ilOffset(BAD_IL_OFFSET), 
-                         ixlCode(nullptr)
-{
-#ifdef DEBUG
-   methodName = nullptr;
-   depth = 0;
-#endif
-}
-
-
-#ifdef DEBUG
-
-//------------------------------------------------------------------------
-// Dump: Dump an inlExpLst entry and all descendants to stdout
-//
-// Arguments:
-//    indent: indentation level for this node
-
-void inlExpLst::Dump(int indent)
-{
-    // Handle fact that siblings are in reverse order.
-    if (ixlSibling != nullptr) 
-    {
-        ixlSibling->Dump(indent);
-    }
-    
-    // Dump this node
-    if (ixlParent == nullptr)
-    {
-        // root
-        printf("Inlines into %s\n", methodName);
-    }
-    else 
-    {
-        for (int i = 0; i < indent; i++) 
-        { 
-            printf(" ");
-        }
-        
-        if (ilOffset == BAD_IL_OFFSET) 
-        {
-            printf("[IL=?] %s\n", methodName);
-        }
-        else 
-        {
-            IL_OFFSET offset = jitGetILoffs(ilOffset);
-            printf("[IL=%d] %s\n", offset, methodName);
-        }
-    }
-    
-    // Recurse to first child
-    if (ixlChild != nullptr) 
-    {
-        ixlChild->Dump(indent + 2);
-    }
-}
-#endif
 

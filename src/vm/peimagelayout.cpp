@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 // 
@@ -99,6 +98,8 @@ PEImageLayout* PEImageLayout::Map(HANDLE hFile, PEImage* pOwner)
 void PEImageLayout::ApplyBaseRelocations()
 {
     STANDARD_VM_CONTRACT;
+
+    SetRelocated();
 
     //
     // Note that this is not a univeral routine for applying relocations. It handles only the subset
@@ -318,9 +319,9 @@ RawImageLayout::RawImageLayout(const void *mapped, PEImage* pOwner, BOOL bTakeOw
     if (bTakeOwnership)
     {
 #ifndef FEATURE_PAL
-        WCHAR wszDllName[MAX_LONGPATH];
-        WszGetModuleFileName((HMODULE)mapped, wszDllName, MAX_LONGPATH);
-        wszDllName[MAX_LONGPATH - 1] = W('\0');
+        PathString wszDllName;
+        WszGetModuleFileName((HMODULE)mapped, wszDllName);
+        
         m_LibraryHolder=CLRLoadLibraryEx(wszDllName,NULL,GetLoadWithAlteredSearchPathFlag());
 #else // !FEATURE_PAL
         _ASSERTE(!"bTakeOwnership Should not be used on FEATURE_PAL");
@@ -541,23 +542,11 @@ MappedImageLayout::MappedImageLayout(HANDLE hFile, PEImage* pOwner)
         TESTHOOKCALL(ImageMapped(GetPath(),m_FileView,IM_IMAGEMAP));            
         IfFailThrow(Init((void *) m_FileView));
 
-        // This should never happen in correctly setup system, but do a quick check right anyway to 
-        // avoid running too far with bogus data
-#ifdef MDIL
-        // In MDIL we need to be permissive of MSIL assemblies pretending to be native images,
-        // to support forced fall back to JIT
-        if ((HasNativeHeader() && !IsNativeMachineFormat()) || !HasCorHeader())
-            ThrowHR(COR_E_BADIMAGEFORMAT);
-
-        if (HasNativeHeader()) 
-            ApplyBaseRelocations();
-#else
-        if (!IsNativeMachineFormat() || !HasCorHeader() || !HasNativeHeader())
+        if (!IsNativeMachineFormat() || !HasCorHeader() || (!HasNativeHeader() && !HasReadyToRunHeader()))
              ThrowHR(COR_E_BADIMAGEFORMAT);
 
         //Do base relocation for PE, if necessary.
         ApplyBaseRelocations();
-#endif // MDIL
     }
 #else //FEATURE_PREJIT
     //Do nothing.  The file cannot be mapped unless it is an ngen image.
@@ -704,30 +693,6 @@ StreamImageLayout::StreamImageLayout(IStream* pIStream,PEImage* pOwner)
     Init(m_FileView,(COUNT_T)cbRead);
 }
 #endif // FEATURE_FUSION
-
-#ifdef MDIL
-BOOL PEImageLayout::GetILSizeFromMDILCLRCtlData(DWORD* pdwActualILSize)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    IMAGE_SECTION_HEADER* pMDILSection = FindSection(".mdil");
-    if (pMDILSection)
-    {
-        TADDR pMDILSectionStart = GetRvaData(VAL32(pMDILSection->VirtualAddress));
-        MDILHeader* mdilHeader = (MDILHeader*)pMDILSectionStart;
-        ClrCtlData* pClrCtlData = (ClrCtlData*)(pMDILSectionStart + mdilHeader->hdrSize);
-        *pdwActualILSize = pClrCtlData->ilImageSize;
-        return TRUE;
-    }
-    return FALSE;
-}
-#endif // MDIL
 
 #endif // !DACESS_COMPILE
 

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 namespace System 
@@ -1195,6 +1196,7 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         static extern internal uint GetSpecialSecurityFlags(IRuntimeMethodInfo method);
 
+#if !FEATURE_CORECLR
         [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         static extern internal void PerformSecurityCheck(Object obj, RuntimeMethodHandleInternal method, RuntimeType parent, uint invocationFlags);
@@ -1206,6 +1208,7 @@ namespace System
             GC.KeepAlive(method);
             return;
         }
+#endif //!FEATURE_CORECLR
         #endregion
 
         [System.Security.SecuritySafeCritical]  // auto-generated

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 // Defines the functions understood by the value-numbering system.
@@ -31,7 +30,8 @@ ValueNumFuncDef(Cast, 2, false, false, false)               // VNF_Cast: Cast Op
 
 ValueNumFuncDef(CastClass, 2, false, false, false)          // Args: 0: Handle of class being cast to, 1: object being cast.
 ValueNumFuncDef(IsInstanceOf, 2, false, false, false)       // Args: 0: Handle of class being queried, 1: object being queried.
-
+ValueNumFuncDef(ReadyToRunCastClass, 2, false, false, false)          // Args: 0: Helper stub address, 1: object being cast.
+ValueNumFuncDef(ReadyToRunIsInstanceOf, 2, false, false, false)       // Args: 0: Helper stub address, 1: object being queried.
 
 ValueNumFuncDef(LdElemA, 3, false, false, false)            // Args: 0: array value; 1: index value; 2: type handle of element.
 
@@ -97,6 +97,7 @@ ValueNumFuncDef(GetsharedGcstaticBase, 2, false, true, true)
 ValueNumFuncDef(GetsharedNongcstaticBase, 2, false, true, true)
 ValueNumFuncDef(GetsharedGcstaticBaseNoctor, 1, false, true, true)
 ValueNumFuncDef(GetsharedNongcstaticBaseNoctor, 1, false, true, true)
+ValueNumFuncDef(ReadyToRunStaticBase, 1, false, true, true)
 ValueNumFuncDef(GetsharedGcstaticBaseDynamicclass, 2, false, true, true)
 ValueNumFuncDef(GetsharedNongcstaticBaseDynamicclass, 2, false, true, true)
 ValueNumFuncDef(GetgenericsGcthreadstaticBase, 1, false, true, true)
@@ -117,6 +118,8 @@ ValueNumFuncDef(GetStaticAddrTLS, 1, false, true, false)
 
 ValueNumFuncDef(JitNew, 2, false, true, false)
 ValueNumFuncDef(JitNewArr, 3, false, true, false)
+ValueNumFuncDef(JitReadyToRunNew, 2, false, true, false)
+ValueNumFuncDef(JitReadyToRunNewArr, 3, false, true, false)
 ValueNumFuncDef(BoxNullable, 3, false, false, false)
 
 ValueNumFuncDef(LT_UN, 2, false, false, false)

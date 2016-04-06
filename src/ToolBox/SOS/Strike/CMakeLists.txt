@@ -1,10 +1,12 @@
 # Set the RPATH of sos so that it can find dependencies without needing to set LD_LIBRARY_PATH
 # For more information: http://www.cmake.org/Wiki/CMake_RPATH_handling.
-if(CLR_CMAKE_PLATFORM_DARWIN)
+if (CORECLR_SET_RPATH)
+  if(CLR_CMAKE_PLATFORM_DARWIN)
     set(CMAKE_INSTALL_RPATH "@loader_path")
-else()
+  else()
     set(CMAKE_INSTALL_RPATH "\$ORIGIN")
-endif(CLR_CMAKE_PLATFORM_DARWIN)
+  endif(CLR_CMAKE_PLATFORM_DARWIN)
+endif (CORECLR_SET_RPATH)
 
 if(CLR_CMAKE_PLATFORM_ARCH_AMD64)
   add_definitions(-DSOS_TARGET_AMD64=1)
@@ -15,12 +17,10 @@ elseif(CLR_CMAKE_PLATFORM_ARCH_I386)
   add_definitions(-DSOS_TARGET_X86=1)
   add_definitions(-D_TARGET_X86_=1)
   add_definitions(-DDBG_TARGET_32BIT)
-  add_definitions(-DDBG_TARGET_WIN32=1)
 elseif(CLR_CMAKE_PLATFORM_ARCH_ARM)
   add_definitions(-DSOS_TARGET_ARM=1)
   add_definitions(-D_TARGET_WIN32_=1)
   add_definitions(-DDBG_TARGET_32BIT)
-  add_definitions(-DDBG_TARGET_WIN32=1)
 endif()
 add_definitions(-DSTRIKE)  
 
@@ -32,7 +32,7 @@ include_directories(${CLR_DIR}/src/gcdump)
 include_directories(${CLR_DIR}/src/debug/shim)
 
 if(WIN32)
-  include_directories("inc")
+  include_directories(inc)
   include_directories("$ENV{VSInstallDir}/DIA SDK/include")
 
   add_definitions(-DUSE_STL)
@@ -83,12 +83,21 @@ if(WIN32)
     psapi.lib
     ntdll.lib
   )
+
+  # ARM64_TODO: Enable this for Windows Arm64
+  if (NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)
+      list(APPEND SOS_LIBRARY 
+        ${STATIC_MT_VCRT_LIB}
+      )
+  endif()
+    
 else(WIN32)
   add_definitions(-DFEATURE_ENABLE_HARDWARE_EXCEPTIONS)
   add_definitions(-DPAL_STDCPP_COMPAT=1)
   add_compile_options(-Wno-null-arithmetic)
   add_compile_options(-Wno-format)
 
+  include_directories(BEFORE xplat)
   include_directories(BEFORE ../lldbplugin/inc)
 
   add_compile_options(-fPIC)
@@ -132,14 +141,13 @@ endif()
 
 list(APPEND SOS_SOURCES ${SOS_SOURCES_ARCH})
 
-add_library(sos SHARED ${SOS_SOURCES})
+add_library_clr(sos SHARED ${SOS_SOURCES})
 add_dependencies(sos mscordaccore)
 target_link_libraries(sos ${SOS_LIBRARY})
 
 # add the install targets
-install (TARGETS sos DESTINATION .)
-if(WIN32)
-  install (FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/sos.pdb DESTINATION PDB)
-else(WIN32)
-  install (FILES sosdocsunix.txt DESTINATION .)
-endif(WIN32)
+install_clr(sos)
+
+if(NOT WIN32)
+  install(FILES sosdocsunix.txt DESTINATION .)
+endif(NOT WIN32)

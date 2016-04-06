@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 .macro NESTED_ENTRY Name, Section, Handler
         LEAF_ENTRY \Name, \Section
@@ -126,7 +125,7 @@ C_FUNC(\Name\()_End):
 // FloatRegisters::d2
 // FloatRegisters::d1
 // FloatRegisters::d0
-.macro PROLOG_WITH_TRANSITION_BLOCK extraLocals, SaveFPArgs
+.macro PROLOG_WITH_TRANSITION_BLOCK extraLocals = 0, SaveFPArgs = 1
 
         __PWTB_FloatArgumentRegisters = \extraLocals
 
@@ -216,7 +215,7 @@ C_FUNC(\Name\()_End):
 // Provides a matching epilog to PROLOG_WITH_TRANSITION_BLOCK and ends by preparing for tail-calling.
 // Since this is a tail call argument registers are restored.
 //
-.macro EPILOG_WITH_TRANSITION_BLOCK_TAILCALL extraLocals, SaveFPArgs
+.macro EPILOG_WITH_TRANSITION_BLOCK_TAILCALL extraLocals = 0, SaveFPArgs =1
 
         __PWTB_FloatArgumentRegisters = \extraLocals
 

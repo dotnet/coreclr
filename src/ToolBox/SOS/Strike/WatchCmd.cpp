@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #include "WatchCmd.h"
 
@@ -93,16 +92,8 @@ HRESULT WatchCmd::Remove(int index)
 HRESULT WatchCmd::Print(int expansionIndex, __in_z WCHAR* expansionPath, __in_z WCHAR* pFilterName)
 {
     HRESULT Status = S_OK;
-    if ((Status = CheckEEDll()) != S_OK)
-    {
-        EENotLoadedMessage(Status);
-        return Status;
-    }                                                           
-    if ((Status = LoadClrDebugDll()) != S_OK)
-    {
-        DACMessage(Status);
-        return Status;
-    } 
+    INIT_API_EE();
+    INIT_API_DAC();
     EnableDMLHolder dmlHolder(TRUE);
     IfFailRet(InitCorDebugInterface());
 
@@ -215,6 +206,8 @@ HRESULT WatchCmd::RenameList(__in_z WCHAR* pOldName, __in_z WCHAR* pNewName)
 HRESULT WatchCmd::SaveList(__in_z WCHAR* pSaveName)
 {
     HRESULT Status = S_OK;
+    INIT_API_EE();
+    INIT_API_DAC();
     IfFailRet(InitCorDebugInterface());
 
     RemoveList(pSaveName);
