@@ -41,16 +41,16 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(__BuildType)' == 'Release'">
-    <ProjectReference Include="rhel\Microsoft.NETCore.Runtime.CoreCLR.Symbols.pkgproj">
+    <ProjectReference Include="rhel\Microsoft.NETCore.Runtime.CoreCLR.symbols.pkgproj">
       <Platform>amd64</Platform>
     </ProjectReference>
-    <ProjectReference Include="debian\Microsoft.NETCore.Runtime.CoreCLR.Symbols.pkgproj">
+    <ProjectReference Include="debian\Microsoft.NETCore.Runtime.CoreCLR.symbols.pkgproj">
       <Platform>amd64</Platform>
     </ProjectReference>
-    <ProjectReference Include="osx\Microsoft.NETCore.Runtime.CoreCLR.Symbols.pkgproj">
+    <ProjectReference Include="osx\Microsoft.NETCore.Runtime.CoreCLR.symbols.pkgproj">
       <Platform>amd64</Platform>
     </ProjectReference>
-    <ProjectReference Include="ubuntu\Microsoft.NETCore.Runtime.CoreCLR.Symbols.pkgproj">
+    <ProjectReference Include="ubuntu\Microsoft.NETCore.Runtime.CoreCLR.symbols.pkgproj">
       <Platform>amd64</Platform>
     </ProjectReference>
   </ItemGroup>

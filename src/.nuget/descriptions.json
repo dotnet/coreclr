@@ -10,7 +10,7 @@
         "CommonTypes": [ ]
     },
     {
-        "Name": "Microsoft.NETCore.Runtime.CoreCLR-symbols",
+        "Name": "Microsoft.NETCore.Runtime.CoreCLR.symbols",
         "Description": "The .NET Core runtime symbol files",
         "CommonTypes": [ ]
     }
