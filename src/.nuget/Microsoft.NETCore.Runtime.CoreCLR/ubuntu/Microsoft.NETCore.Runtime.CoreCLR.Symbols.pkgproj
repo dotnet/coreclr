@@ -5,19 +5,26 @@
   <PropertyGroup>
     <Version>1.0.2</Version>
     <SkipPackageFileCheck>true</SkipPackageFileCheck>
-    <PackageTargetRuntime>osx.10.10-$(PackagePlatform)</PackageTargetRuntime>
+    <PackageTargetRuntime>ubuntu.14.04-$(PackagePlatform)</PackageTargetRuntime>
     <!-- only build for x64 -->
     <PackagePlatforms>x64;</PackagePlatforms>
   </PropertyGroup>
   
   <ItemGroup>
+    
+    <ArchitectureSpecificNativeFile Include="$(BinDir)libcoreclr.so.dbg"/>
+    <ArchitectureSpecificNativeFile Include="$(BinDir)libcoreclrtraceptprovider.so.dbg"/>
+    <ArchitectureSpecificNativeFile Include="$(BinDir)libdbgshim.so.dbg"/>
+    <ArchitectureSpecificNativeFile Include="$(BinDir)libmscordaccore.so.dbg"/>
+    <ArchitectureSpecificNativeFile Include="$(BinDir)libmscordbi.so.dbg"/>
+    <ArchitectureSpecificNativeFile Include="$(BinDir)libsos.so.dbg"/>
+    <ArchitectureSpecificNativeFile Include="$(BinDir)libsosplugin.so.dbg"/>
+    <ArchitectureSpecificNativeFile Include="$(BinDir)System.Globalization.Native.so.dbg"/>
+    <ArchitectureSpecificNativeFile Include="_.pdb" />
 
-    <ArchitectureSpecificNativeFile Include="$(BinDir)libcoreclr.dylib.dwarf"/>
-    <ArchitectureSpecificNativeFile Include="$(BinDir)libdbgshim.dylib.dwarf"/>
-    <ArchitectureSpecificNativeFile Include="$(BinDir)libmscordaccore.dylib.dwarf"/>
-    <ArchitectureSpecificNativeFile Include="$(BinDir)libmscordbi.dylib.dwarf"/>
-    <ArchitectureSpecificNativeFile Include="$(BinDir)libsos.dylib.dwarf"/>
-    <ArchitectureSpecificNativeFile Include="$(BinDir)System.Globalization.Native.dylib.dwarf"/>
+    <File Include="$(SourcePlaceholderFile)">
+      <TargetPath>src</TargetPath>
+    </File>
 
     <File Include="@(ArchitectureSpecificNativeFile)">
       <TargetPath>runtimes/$(PackageTargetRuntime)/native</TargetPath>
