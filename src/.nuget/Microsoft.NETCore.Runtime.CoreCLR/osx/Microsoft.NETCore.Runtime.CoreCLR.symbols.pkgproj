@@ -18,11 +18,6 @@
     <ArchitectureSpecificNativeFile Include="$(BinDir)libmscordbi.dylib.dwarf"/>
     <ArchitectureSpecificNativeFile Include="$(BinDir)libsos.dylib.dwarf"/>
     <ArchitectureSpecificNativeFile Include="$(BinDir)System.Globalization.Native.dylib.dwarf"/>
-    <ArchitectureSpecificNativeFile Include="_.pdb" />
-
-    <File Include="$(SourcePlaceholderFile)">
-      <TargetPath>src</TargetPath>
-    </File>
 
     <File Include="@(ArchitectureSpecificNativeFile)">
       <TargetPath>runtimes/$(PackageTargetRuntime)/native</TargetPath>

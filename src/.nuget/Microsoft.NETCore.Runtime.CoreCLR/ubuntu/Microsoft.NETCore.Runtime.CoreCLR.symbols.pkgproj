@@ -11,7 +11,6 @@
   </PropertyGroup>
   
   <ItemGroup>
-    
     <ArchitectureSpecificNativeFile Include="$(BinDir)libcoreclr.so.dbg"/>
     <ArchitectureSpecificNativeFile Include="$(BinDir)libcoreclrtraceptprovider.so.dbg"/>
     <ArchitectureSpecificNativeFile Include="$(BinDir)libdbgshim.so.dbg"/>
@@ -20,11 +19,6 @@
     <ArchitectureSpecificNativeFile Include="$(BinDir)libsos.so.dbg"/>
     <ArchitectureSpecificNativeFile Include="$(BinDir)libsosplugin.so.dbg"/>
     <ArchitectureSpecificNativeFile Include="$(BinDir)System.Globalization.Native.so.dbg"/>
-    <ArchitectureSpecificNativeFile Include="_.pdb" />
-
-    <File Include="$(SourcePlaceholderFile)">
-      <TargetPath>src</TargetPath>
-    </File>
 
     <File Include="@(ArchitectureSpecificNativeFile)">
       <TargetPath>runtimes/$(PackageTargetRuntime)/native</TargetPath>
