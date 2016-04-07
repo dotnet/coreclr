@@ -1,5 +1,6 @@
 @if not defined __echo @echo off
 setlocal EnableDelayedExpansion EnableExtensions
+echo dummy
 
 set __ThisScriptShort=%0
 set __ThisScriptFull="%~f0"
