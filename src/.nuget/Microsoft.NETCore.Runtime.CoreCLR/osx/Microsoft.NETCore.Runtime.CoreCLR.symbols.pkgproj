@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
+  
+  <PropertyGroup>
+    <Version>1.0.2</Version>
+    <SkipPackageFileCheck>true</SkipPackageFileCheck>
+    <PackageTargetRuntime>osx.10.10-$(PackagePlatform)</PackageTargetRuntime>
+    <!-- only build for x64 -->
+    <PackagePlatforms>x64;</PackagePlatforms>
+  </PropertyGroup>
+  
+  <ItemGroup>
+
+    <ArchitectureSpecificNativeFile Include="$(BinDir)libcoreclr.dylib.dwarf"/>
+    <ArchitectureSpecificNativeFile Include="$(BinDir)libdbgshim.dylib.dwarf"/>
+    <ArchitectureSpecificNativeFile Include="$(BinDir)libmscordaccore.dylib.dwarf"/>
+    <ArchitectureSpecificNativeFile Include="$(BinDir)libmscordbi.dylib.dwarf"/>
+    <ArchitectureSpecificNativeFile Include="$(BinDir)libsos.dylib.dwarf"/>
+    <ArchitectureSpecificNativeFile Include="$(BinDir)System.Globalization.Native.dylib.dwarf"/>
+
+    <File Include="@(ArchitectureSpecificNativeFile)">
+      <TargetPath>runtimes/$(PackageTargetRuntime)/native</TargetPath>
+    </File>
+
+    <File Include="@(ArchitectureSpecificToolFile)">
+      <TargetPath>tools</TargetPath>
+    </File>
+  </ItemGroup>
+
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
+</Project>
