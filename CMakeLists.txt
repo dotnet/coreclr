@@ -180,7 +180,7 @@ elseif (CLR_CMAKE_TARGET_ARCH_ARM64)
 elseif (CLR_CMAKE_TARGET_ARCH_ARM)
   if (CLR_CMAKE_PLATFORM_UNIX)
     add_definitions(-DDBG_TARGET_ARM_UNIX)
-  endif (CLR_CMAKE_PLATFORM_UNIX_TARGET_ARM)
+  endif (CLR_CMAKE_PLATFORM_UNIX)
   add_definitions(-D_TARGET_ARM_=1)
   add_definitions(-DDBG_TARGET_32BIT=1)
   add_definitions(-DDBG_TARGET_ARM=1)
@@ -709,7 +709,7 @@ if(WIN32)
 endif()
 
 #########################coreclr.cmake####################
-# Enable for UNIX altjit on Windows - set(CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64 1)
+# Enable for UNIX altjit on Windows - set(CLR_CMAKE_PLATFORM_UNIX_AMD64 1)
 # Enable for UNIX altjit on Windows - add_definitions(-DCLR_CMAKE_PLATFORM_UNIX=1)
 
 # Disable the following line for UNIX altjit on Windows
@@ -751,9 +751,9 @@ if (CLR_CMAKE_PLATFORM_UNIX)
     add_definitions(-D_XOPEN_SOURCE)
   endif(CLR_CMAKE_PLATFORM_DARWIN)
 
-  if (CLR_CMAKE_PLATFORM_UNIX_TARGET_AMD64)
+  if (CLR_CMAKE_PLATFORM_UNIX_AMD64)
     add_definitions(-DUNIX_AMD64_ABI)
-  elseif (CLR_CMAKE_PLATFORM_UNIX_TARGET_ARM)
+  elseif (CLR_CMAKE_PLATFORM_UNIX_ARM)
     add_definitions(-DUNIX_ARM_ABI)
   endif()
 
