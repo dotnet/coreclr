@@ -78,10 +78,7 @@
 #include <windows.h>
 #include <wchar.h>
 #include <stdio.h>
-#include "utilcode.h"
 #include "corjit.h"
-#include "slist.h"     // for SList
-#include "arraylist.h"
 #include "iallocator.h"
 #include "stdmacros.h"
 #include "eexcp.h"
@@ -229,18 +226,19 @@ private:
     {
     public:
         size_t* StartAddress;
-        SLink m_Link;
+        MemoryBlockDesc* m_Next;
 
         inline void Init()
         {
-            m_Link.m_pNext = NULL;
+            m_Next = NULL;
         }
     };
 
     IAllocator* m_pAllocator;
     size_t m_BitCount;
     UINT32 m_FreeBitsInCurrentSlot;
-    SList<MemoryBlockDesc> m_MemoryBlocks;
+    MemoryBlockDesc* m_MemoryBlocksHead;
+    MemoryBlockDesc* m_MemoryBlocksTail;
     const static int m_MemoryBlockSize = 128;    // must be a multiple of the pointer size
     size_t* m_pCurrentSlot;            // bits are written through this pointer
     size_t* m_OutOfBlockSlot;        // sentinel value to determine when the block is full
@@ -268,7 +266,17 @@ private:
 
         pMemBlockDesc->Init();
         pMemBlockDesc->StartAddress = m_pCurrentSlot;
-        m_MemoryBlocks.InsertTail( pMemBlockDesc );
+        if (m_MemoryBlocksTail != nullptr)
+        {
+            _ASSERTE(m_MemoryBlocksHead != nullptr);
+            m_MemoryBlocksTail->m_Next = pMemBlockDesc;
+        }
+        else
+        {
+            _ASSERTE(m_MemoryBlocksTail == nullptr);
+            m_MemoryBlocksHead = pMemBlockDesc;
+        }
+        m_MemoryBlocksTail = pMemBlockDesc;
 
 #ifdef _DEBUG
            m_MemoryBlocksCount++;
@@ -307,6 +315,78 @@ enum GENERIC_CONTEXTPARAM_TYPE
 
 class GcInfoEncoder
 {
+private:
+    template <typename ElementType, size_t InitialChunkCapacity>
+    class List
+    {
+    private:
+        struct Chunk
+        {
+            Chunk* m_next;
+            ElementType m_items[];
+        };
+
+        IAllocator* m_allocator;
+        Chunk* m_firstChunk;
+        Chunk* m_lastChunk;
+        size_t m_itemsInLastChunk;
+        size_t m_lastChunkCapacity;
+        size_t m_totalItems;
+
+    public:
+        List(IAllocator* allocator)
+            : m_allocator(allocator), m_firstChunk(nullptr), m_lastChunk(nullptr), m_totalItems(0)
+        {
+        }
+
+        ElementType* AppendThrowing()
+        {
+            if (m_lastChunk == nullptr || m_itemsInLastChunk == m_lastChunkCapacity)
+            {
+                size_t chunkCapacity = m_firstChunk == nullptr ? InitialChunkCapacity : m_lastChunkCapacity * 2;
+                size_t baseSize = (sizeof(Chunk) + __alignof(ElementType) - 1) & ~(__alignof(ElementType) - 1);
+                size_t totalSize = baseSize + sizeof(ElementType) * chunkCapacity;
+
+                Chunk* newChunk = (Chunk*)m_allocator->Alloc(totalSize);
+                if (m_lastChunk != nullptr)
+                {
+                    m_lastChunk->m_next = newChunk;
+                }
+                else
+                {
+                    m_firstChunk = newChunk;
+                }
+
+                newChunk->m_next = nullptr;
+                m_lastChunk = newChunk;
+
+                m_itemsInLastChunk = 0;
+                m_lastChunkCapacity = chunkCapacity;
+            }
+
+            m_totalItems++;
+            m_itemsInLastChunk++;
+
+            return &m_lastChunk->m_items[m_itemsInLastChunk - 1];
+        }
+
+        size_t Count()
+        {
+            return m_totalItems;
+        }
+
+        void CopyTo(ElementType* dest)
+        {
+            size_t chunkCapacity = InitialChunkCapacity;
+            for (Chunk* chunk = m_firstChunk; chunk != nullptr; chunk = chunk->m_next, chunkCapacity *= 2)
+            {
+                size_t itemsInChunk = chunk == m_lastChunk ? m_itemsInLastChunk : chunkCapacity;
+                memcpy(dest, chunk->m_items, itemsInChunk * sizeof(ElementType));
+                dest += itemsInChunk;
+            }
+        }
+    };
+
 public:
     GcInfoEncoder(
             ICorJitInfo*                pCorJitInfo,
@@ -484,8 +564,8 @@ private:
     BitStreamWriter     m_Info1;    // Used for everything except for chunk encodings
     BitStreamWriter     m_Info2;    // Used for chunk encodings
 
-    StructArrayList<InterruptibleRange, 8, 2, InterruptibleRangeAllocator> m_InterruptibleRanges;
-    StructArrayList<LifetimeTransition, 64, 2, LifetimeTransitionAllocator> m_LifetimeTransitions;
+    List<InterruptibleRange, 8> m_InterruptibleRanges;
+    List<LifetimeTransition, 64> m_LifetimeTransitions;
 
     bool   m_IsVarArg;
     bool   m_WantsReportOnlyLeaf;
