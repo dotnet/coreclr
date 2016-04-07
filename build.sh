@@ -223,6 +223,8 @@ isMSBuildOnNETCoreSupported()
     fi
 }
 
+echo "DONT MERGE ME"
+
 build_mscorlib_ni()
 {
     if [ $__SkipCoreCLR == 0 -a -e $__BinDir/crossgen ]; then
