@@ -6039,24 +6039,7 @@ NOINLINE HCIMPL1(void, JIT_VerificationRuntimeCheck_Internal, CORINFO_METHOD_HAN
 #ifdef FEATURE_CORECLR
         // Transparent methods that contains unverifiable code is not allowed.
         MethodDesc *pMethod = GetMethod(methHnd_);
-
-#if defined(FEATURE_CORECLR_COVERAGE_BUILD) && defined(FEATURE_STRONGNAME_DELAY_SIGNING_ALLOWED)
-        // For code coverage builds we have an issue where the inserted IL is not verifiable.
-        // This means that transparent methods in platform assemblies will throw verification exceptions.
-        // Temporary fix is to allow transparent methods in platform assemblies to be unverifiable only on coverage builds.
-        // Paranoia: allow this only on non ret builds - all builds except the RET type will have
-        // FEATURE_STRONGNAME_DELAY_SIGNING_ALLOWED defined. So we can use that to figure out if this is a RET build
-        // type that someone is trying to relax that constraint on and not allow that.
-        if (!pMethod->GetModule()->GetFile()->GetAssembly()->IsProfileAssembly())
-        {
-            // Only throw if pMethod is not in any platform assembly.
-            SecurityTransparent::ThrowMethodAccessException(pMethod);
-        }
-#else // defined(FEATURE_CORECLR_COVERAGE_BUILD) && defined(FEATURE_STRONGNAME_DELAY_SIGNING_ALLOWED)
-
         SecurityTransparent::ThrowMethodAccessException(pMethod);
-#endif // defined(FEATURE_CORECLR_COVERAGE_BUILD) && defined(FEATURE_STRONGNAME_DELAY_SIGNING_ALLOWED)
-
 #else // FEATURE_CORECLR        
     //
     // inject a full-demand for unmanaged code permission at runtime
@@ -6693,8 +6676,8 @@ void F_CALL_VA_CONV JIT_TailCall(PCODE copyArgs, PCODE target, ...)
     CONTEXT   ctx;
 
     // Unwind back to our caller in managed code
-    static PRUNTIME_FUNCTION my_pdata;
-    static ULONG_PTR         my_imagebase;
+    static PT_RUNTIME_FUNCTION my_pdata;
+    static ULONG_PTR           my_imagebase;
 
     ctx.ContextFlags = CONTEXT_ALL;
     RtlCaptureContext(&ctx);
@@ -7052,7 +7035,7 @@ void InitJitHelperLogging()
                     hlpFuncCount->count = 0;
 #ifdef _TARGET_AMD64_
                     ULONGLONG           uImageBase;
-                    PRUNTIME_FUNCTION   pFunctionEntry;            
+                    PT_RUNTIME_FUNCTION   pFunctionEntry;            
                     pFunctionEntry  = RtlLookupFunctionEntry((ULONGLONG)hlpFunc->pfnHelper, &uImageBase, NULL);
 
                     if (pFunctionEntry != NULL)
@@ -7097,7 +7080,7 @@ void InitJitHelperLogging()
 
 #ifdef _TARGET_AMD64_
                     ULONGLONG           uImageBase;
-                    PRUNTIME_FUNCTION   pFunctionEntry;            
+                    PT_RUNTIME_FUNCTION   pFunctionEntry;            
                     pFunctionEntry  = RtlLookupFunctionEntry((ULONGLONG)hlpFunc->pfnHelper, &uImageBase, NULL);
 
                     if (pFunctionEntry != NULL)

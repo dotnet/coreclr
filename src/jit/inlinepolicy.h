@@ -9,7 +9,8 @@
 //
 // -- CLASSES --
 //
-// LegacyPolicy        - policy to provide legacy inline behavior
+// LegalPolicy         - partial class providing common legality checks
+// LegacyPolicy        - policy that provides legacy inline behavior
 // RandomPolicy        - randomized inlining
 // DiscretionaryPolicy - legacy variant with uniform size policy
 
@@ -19,29 +20,59 @@
 #include "jit.h"
 #include "inline.h"
 
-class CodeSeqSM;
-
-// LegacyPolicy implements the inlining policy used by the jit in its
-// initial release.
+// LegalPolicy is a partial policy that encapsulates the common
+// legality and ability checks the inliner must make.
 //
-// Generally speaking, the legacy policy expects the inlining attempt
+// Generally speaking, the legal policy expects the inlining attempt
 // to fail fast when a fatal or equivalent observation is made. So
 // once an observation causes failure, no more observations are
 // expected. However for the prejit scan case (where the jit is not
 // actually inlining, but is assessing a method's general
-// inlinability) the legacy policy allows multiple failing
+// inlinability) the legal policy allows multiple failing
 // observations provided they have the same impact. Only the first
 // observation that puts the policy into a failing state is
 // remembered. Transitions from failing states to candidate or success
 // states are not allowed.
 
-class LegacyPolicy : public InlinePolicy
+class LegalPolicy : public InlinePolicy
+{
+
+public:
+
+    // Constructor
+    LegalPolicy(bool isPrejitRoot)
+        : InlinePolicy(isPrejitRoot)
+    {
+        // empty
+    }
+
+    // Handle an observation that must cause inlining to fail.
+    void NoteFatal(InlineObservation obs) override;
+
+protected:
+
+    // Helper methods
+    void NoteInternal(InlineObservation obs);
+    void SetCandidate(InlineObservation obs);
+    void SetFailure(InlineObservation obs);
+    void SetNever(InlineObservation obs);
+};
+
+// Forward declaration for the state machine class used by the
+// LegacyPolicy
+
+class CodeSeqSM;
+
+// LegacyPolicy implements the inlining policy used by the jit in its
+// initial release.
+
+class LegacyPolicy : public LegalPolicy
 {
 public:
 
     // Construct a LegacyPolicy
     LegacyPolicy(Compiler* compiler, bool isPrejitRoot)
-        : InlinePolicy(isPrejitRoot)
+        : LegalPolicy(isPrejitRoot)
         , m_RootCompiler(compiler)
         , m_StateMachine(nullptr)
         , m_CodeSize(0)
@@ -68,7 +99,6 @@ public:
     // Policy observations
     void NoteSuccess() override;
     void NoteBool(InlineObservation obs, bool value) override;
-    void NoteFatal(InlineObservation obs) override;
     void NoteInt(InlineObservation obs, int value) override;
 
     // Policy determinations
@@ -77,17 +107,15 @@ public:
     // Policy policies
     bool PropagateNeverToRuntime() const override { return true; }
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(INLINE_DATA)
+
     const char* GetName() const override { return "LegacyPolicy"; }
-#endif
+
+#endif // (DEBUG) || defined(INLINE_DATA)
 
 protected:
 
     // Helper methods
-    void NoteInternal(InlineObservation obs);
-    void SetCandidate(InlineObservation obs);
-    void SetFailure(InlineObservation obs);
-    void SetNever(InlineObservation obs);
     double DetermineMultiplier();
     int DetermineNativeSizeEstimate();
     int DetermineCallsiteNativeSizeEstimate(CORINFO_METHOD_INFO* methodInfo);
@@ -122,7 +150,7 @@ protected:
 // RandomPolicy implements a policy that inlines at random.
 // It is mostly useful for stress testing.
 
-class RandomPolicy : public InlinePolicy
+class RandomPolicy : public LegalPolicy
 {
 public:
 
@@ -132,7 +160,6 @@ public:
     // Policy observations
     void NoteSuccess() override;
     void NoteBool(InlineObservation obs, bool value) override;
-    void NoteFatal(InlineObservation obs) override;
     void NoteInt(InlineObservation obs, int value) override;
 
     // Policy determinations
@@ -145,12 +172,6 @@ public:
 
 private:
 
-    // Helper methods
-    void NoteInternal(InlineObservation obs);
-    void SetCandidate(InlineObservation obs);
-    void SetFailure(InlineObservation obs);
-    void SetNever(InlineObservation obs);
-
     // Data members
     Compiler*               m_RootCompiler;
     CLRRandom*              m_Random;
@@ -158,6 +179,10 @@ private:
     bool                    m_IsForceInline :1;
     bool                    m_IsForceInlineKnown :1;
 };
+
+#endif // DEBUG
+
+#if defined(DEBUG) || defined(INLINE_DATA)
 
 // DiscretionaryPolicy is a variant of the legacy policy.  It differs
 // in that there is no ALWAYS_INLINE class, there is no IL size limit,
@@ -184,24 +209,56 @@ public:
     void DetermineProfitability(CORINFO_METHOD_INFO* methodInfo) override;
 
     // Externalize data
-    void DumpData() const override;
-    void DumpSchema() const override;
+    void DumpData(FILE* file) const override;
+    void DumpSchema(FILE* file) const override;
 
     // Miscellaneous
     const char* GetName() const override { return "DiscretionaryPolicy"; }
 
 private:
+    
+    void ComputeOpcodeBin(OPCODE opcode);
+    enum { MAX_ARGS = 4 };
 
     unsigned    m_Depth;
     unsigned    m_BlockCount;
     unsigned    m_Maxstack;
     unsigned    m_ArgCount;
+    CorInfoType m_ArgType[MAX_ARGS];
+    size_t      m_ArgSize[MAX_ARGS];
     unsigned    m_LocalCount;
     CorInfoType m_ReturnType;
+    size_t      m_ReturnSize;
+    unsigned    m_ArgAccessCount;
+    unsigned    m_LocalAccessCount;
+    unsigned    m_IntConstantCount;
+    unsigned    m_FloatConstantCount;
+    unsigned    m_IntLoadCount;
+    unsigned    m_FloatLoadCount;
+    unsigned    m_IntStoreCount;
+    unsigned    m_FloatStoreCount;
+    unsigned    m_SimpleMathCount;
+    unsigned    m_ComplexMathCount;
+    unsigned    m_OverflowMathCount;
+    unsigned    m_IntArrayLoadCount;
+    unsigned    m_FloatArrayLoadCount;
+    unsigned    m_RefArrayLoadCount;
+    unsigned    m_StructArrayLoadCount;
+    unsigned    m_IntArrayStoreCount;
+    unsigned    m_FloatArrayStoreCount;
+    unsigned    m_RefArrayStoreCount;
+    unsigned    m_StructArrayStoreCount;
+    unsigned    m_StructOperationCount;
+    unsigned    m_ObjectModelCount;
+    unsigned    m_FieldLoadCount;
+    unsigned    m_FieldStoreCount;
+    unsigned    m_StaticFieldLoadCount;
+    unsigned    m_StaticFieldStoreCount;
+    unsigned    m_LoadAddressCount;
     unsigned    m_ThrowCount;
     unsigned    m_CallCount;
 };
 
-#endif // DEBUG
+#endif // defined(DEBUG) || defined(INLINE_DATA)
 
 #endif // _INLINE_POLICY_H_

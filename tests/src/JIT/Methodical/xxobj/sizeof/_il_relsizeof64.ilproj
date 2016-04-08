@@ -27,10 +27,11 @@
     </CodeAnalysisDependentAssemblyPaths>
   </ItemGroup>
   <PropertyGroup>
-    
+    <DebugType>PdbOnly</DebugType>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="64sizeof64.il" />
+    <Compile Condition="'$(Platform)' == 'x86'" Include="sizeof64.il" />
+    <Compile Condition="'$(Platform)' != 'x86'" Include="64sizeof64.il" />
   </ItemGroup>
   <ItemGroup>
     <None Include="$(JitPackagesConfigFileDirectory)minimal\project.json" />

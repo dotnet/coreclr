@@ -1009,13 +1009,13 @@ public:
 };
 
 // A set of blocks.
-typedef SimplerHashTable<BasicBlock*, PtrKeyFuncs<BasicBlock>, bool, DefaultSimplerHashBehavior> BlkSet;
+typedef SimplerHashTable<BasicBlock*, PtrKeyFuncs<BasicBlock>, bool, JitSimplerHashBehavior> BlkSet;
 
 // A map of block -> set of blocks, can be used as sparse block trees.
-typedef SimplerHashTable<BasicBlock*, PtrKeyFuncs<BasicBlock>, BlkSet*, DefaultSimplerHashBehavior> BlkToBlkSetMap;
+typedef SimplerHashTable<BasicBlock*, PtrKeyFuncs<BasicBlock>, BlkSet*, JitSimplerHashBehavior> BlkToBlkSetMap;
 
 // Map from Block to Block.  Used for a variety of purposes.
-typedef SimplerHashTable<BasicBlock*, PtrKeyFuncs<BasicBlock>, BasicBlock*, DefaultSimplerHashBehavior> BlockToBlockMap;
+typedef SimplerHashTable<BasicBlock*, PtrKeyFuncs<BasicBlock>, BasicBlock*, JitSimplerHashBehavior> BlockToBlockMap;
 
 // In compiler terminology the control flow between two BasicBlocks
 // is typically referred to as an "edge".  Most well known are the
@@ -1107,6 +1107,50 @@ struct flowList
         , flEdgeWeightMin(0)
         , flEdgeWeightMax(0)
         , flDupCount(0)
+    {}
+};
+
+// This enum represents a pre/post-visit action state to emulate a depth-first
+// spanning tree traversal of a tree or graph.
+enum DfsStackState
+{
+    DSS_Invalid,      // The initialized, invalid error state
+    DSS_Pre,          // The DFS pre-order (first visit) traversal state
+    DSS_Post          // The DFS post-order (last visit) traversal state
+};
+
+// These structs represents an entry in a stack used to emulate a non-recursive
+// depth-first spanning tree traversal of a graph. The entry contains either a
+// block pointer or a block number depending on which is more useful.
+struct DfsBlockEntry
+{
+    DfsStackState       dfsStackState;  // The pre/post traversal action for this entry
+    BasicBlock*         dfsBlock;       // The corresponding block for the action
+
+    DfsBlockEntry()
+        : dfsStackState(DSS_Invalid)
+        , dfsBlock(nullptr)
+    {}
+
+    DfsBlockEntry(DfsStackState state, BasicBlock* basicBlock)
+        : dfsStackState(state)
+        , dfsBlock(basicBlock)
+    {}
+};
+
+struct DfsNumEntry
+{
+    DfsStackState       dfsStackState;  // The pre/post traversal action for this entry
+    unsigned            dfsNum;         // The corresponding block number for the action
+
+    DfsNumEntry()
+        : dfsStackState(DSS_Invalid)
+        , dfsNum(0)
+    {}
+
+    DfsNumEntry(DfsStackState state, unsigned bbNum)
+        : dfsStackState(state)
+        , dfsNum(bbNum)
     {}
 };
 

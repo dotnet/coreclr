@@ -78,30 +78,19 @@ namespace System {
             {
                 public ResourceHelper m_resourceHelper;
                 public String m_key;
-                public CultureInfo m_culture;
                 public String m_retVal;
                 public bool m_lockWasTaken;
 
-                public GetResourceStringUserData(ResourceHelper resourceHelper, String key, CultureInfo culture)
+                public GetResourceStringUserData(ResourceHelper resourceHelper, String key)
                 {
                     m_resourceHelper = resourceHelper;
                     m_key = key;
-                    m_culture = culture;
                 }
             }
             
-            [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-            internal String GetResourceString(String key) {
-                if (key == null || key.Length == 0) {
-                    Contract.Assert(false, "Environment::GetResourceString with null or empty key.  Bug in caller, or weird recursive loading problem?");
-                    return "[Resource lookup failed - null or empty resource name]";
-                }
-                return GetResourceString(key, null);
-            }
-
             [System.Security.SecuritySafeCritical]  // auto-generated
             [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-            internal String GetResourceString(String key, CultureInfo culture)  {
+            internal String GetResourceString(String key)  {
                 if (key == null || key.Length == 0) {
                     Contract.Assert(false, "Environment::GetResourceString with null or empty key.  Bug in caller, or weird recursive loading problem?");
                     return "[Resource lookup failed - null or empty resource name]";
@@ -126,7 +115,7 @@ namespace System {
                 // returning, we're going into an infinite loop and we should 
                 // return a bogus string.  
 
-                GetResourceStringUserData userData = new GetResourceStringUserData(this, key, culture);
+                GetResourceStringUserData userData = new GetResourceStringUserData(this, key);
 
                 RuntimeHelpers.TryCode tryCode = new RuntimeHelpers.TryCode(GetResourceStringCode);
                 RuntimeHelpers.CleanupCode cleanupCode = new RuntimeHelpers.CleanupCode(GetResourceStringBackoutCode);
@@ -145,7 +134,6 @@ namespace System {
                 GetResourceStringUserData userData = (GetResourceStringUserData) userDataIn;
                 ResourceHelper rh = userData.m_resourceHelper;
                 String key = userData.m_key;
-                CultureInfo culture = userData.m_culture;
 
                 Monitor.Enter(rh, ref userData.m_lockWasTaken);
 
@@ -1306,19 +1294,6 @@ namespace System {
 
             return m_resHelper.GetResourceString(key);
         }
-
-        // #threadCultureInfo
-        // Currently in silverlight, CurrentCulture and CurrentUICulture are isolated 
-        // within an AppDomain. This is in contrast to the desktop, in which cultures 
-        // leak across AppDomain boundaries with the thread. 
-        // 
-        // Note that mscorlib transitions to the default domain to perform resource 
-        // lookup. This causes problems for the silverlight changes: since culture isn't
-        // passed, resource string lookup won't necessarily use the culture of the thread 
-        // originating the request. To get around that problem, we pass the CultureInfo 
-        // so that the ResourceManager GetString(x, cultureInfo) overload can be used. 
-        // We first perform the same check as in CultureInfo to make sure it's safe to 
-        // let the CultureInfo travel across AppDomains. 
 
         [System.Security.SecuritySafeCritical]  // auto-generated
         internal static String GetResourceString(String key) {

@@ -365,10 +365,6 @@ typedef enum
     // Otherwise, by default, only platform assemblies can perform those operations.
     APPDOMAIN_ENABLE_PINVOKE_AND_CLASSIC_COMINTEROP = 0x10, 
 
-#if defined(FEATURE_WINDOWSPHONE) && defined(FEATURE_STRONGNAME_TESTKEY_ALLOWED)
-    APPDOMAIN_SET_TEST_KEY = 0x20,
-#endif // defined(FEATURE_WINDOWSPHONE) && defined(FEATURE_STRONGNAME_TESTKEY_ALLOWED)
-
     APPDOMAIN_ENABLE_PLATFORM_SPECIFIC_APPS = 0x40,
     APPDOMAIN_ENABLE_ASSEMBLY_LOADFILE = 0x80,
 
@@ -2059,25 +2055,6 @@ interface ICLRExecutionManager : IUnknown
 }
 
 #endif // FEATURE_CORECLR
-
-#ifdef FEATURE_LEGACYNETCF_DBG_HOST_CONTROL
-/* This is an interface that NetCF created first for the phone.
-   It allows the host (SL) to pause the user interface thread
-   when a managed debugger has suspended the application.
-*/
-[
-    uuid(F2833A0C-F944-48d8-940E-F59425EDBFCF),
-    version(1.0),
-    helpstring("NetCF Host debugger control interface"),
-    pointer_default(unique),
-    local
-]
-interface IHostNetCFDebugControlManager : IUnknown
-{
-    HRESULT NotifyPause(DWORD dwReserved);
-    HRESULT NotifyResume(DWORD dwReserved);
-}
-#endif
 
 //*****************************************************************************
 // Interface to utilize HostProtection

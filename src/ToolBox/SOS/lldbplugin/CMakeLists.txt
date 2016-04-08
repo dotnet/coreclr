@@ -67,6 +67,7 @@ include_directories(inc)
 include_directories("${LLDB_H}")
 include_directories(${CLR_DIR}/src/debug/inc)
 include_directories(${CLR_DIR}/src/inc)
+include_directories(${CLR_DIR}/src/coreclr/hosts/inc)
 include_directories(${CLR_DIR}/src/coreclr/hosts/unixcoreruncommon)
 
 set(SOURCES
@@ -77,13 +78,13 @@ set(SOURCES
     services.cpp
 )
 
-if(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG)
+if(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL CHECKED)
     list(APPEND SOURCES
         coreruncommand.cpp
         ${CLR_DIR}/src/coreclr/hosts/unixcorerun/corerun.cpp
         ${CLR_DIR}/src/coreclr/hosts/unixcoreruncommon/coreruncommon.cpp
     )
-endif(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG)
+endif(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL CHECKED)
 
 add_library(sosplugin SHARED ${SOURCES})
 add_dependencies(sosplugin sos)

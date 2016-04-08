@@ -12,6 +12,7 @@ REM ===
 REM =========================================================================================
 
 set __OutputDir=
+set __Arch= 
 
 :Arg_Loop
 if "%1" == "" goto ArgsDone
@@ -23,6 +24,7 @@ if /i "%1" == "-h"    goto Usage
 if /i "%1" == "/help" goto Usage
 if /i "%1" == "-help" goto Usage
 
+if /i "%1" == "/arch"             (set __Arch=%2&shift&shift&goto Arg_Loop) 
 if /i "%1" == "/outputdir"        (set __OutputDir=%2&shift&shift&goto Arg_Loop)
 
 echo Invalid command-line argument: %1
@@ -31,7 +33,7 @@ goto Usage
 :ArgsDone
 
 if not defined __OutputDir goto Usage
-
+if not defined __Arch goto Usage 
 
 REM =========================================================================================
 REM ===
@@ -40,7 +42,7 @@ REM ===
 REM =========================================================================================
 
 set __DotNetToolDir=%__ThisScriptPath%..\Tools
-set __DotNetCmd=%__DotNetToolDir%\dotnetcli\bin\dotnet.exe
+set __DotNetCmd=%__DotNetToolDir%\dotnetcli\dotnet.exe 
 set __PackageDir=%__ThisScriptPath%..\Packages
 set __TmpDir=%Temp%\coreclr_gcstress_%RANDOM%
 
@@ -76,10 +78,13 @@ REM ============================================================================
 REM Write dependency information to project.json
 echo { ^
     "dependencies": { ^
-    "Microsoft.NETCore.CoreDisTools": "1.0.0-prerelease-00001" ^
+    "runtime.win7-%__Arch%.Microsoft.NETCore.CoreDisTools": "1.0.1-prerelease-00001" ^
     }, ^
     "frameworks": { "dnxcore50": { } } ^
     } > "%__JasonFilePath%"
+
+echo Jason file: %__JasonFilePath%
+type "%__JasonFilePath%"
 
 REM Download the package
 echo Downloading CoreDisTools package
@@ -89,7 +94,9 @@ call %DOTNETCMD%
 if errorlevel 1 goto Fail
 
 REM Get downloaded dll path
-FOR /F "delims=" %%i IN ('dir %__PackageDir%\coredistools.dll /b/s') DO set __LibPath=%%i
+echo Locating coredistools.dll
+FOR /F "delims=" %%i IN ('dir %__PackageDir%\coredistools.dll /b/s ^| findstr /R "runtime.win[0-9]*-%__Arch%"') DO set __LibPath=%%i
+echo CoreDisTools library path: %__LibPath%
 if not exist "%__LibPath%" (
     echo Failed to locate the downloaded library: %__LibPath%
     goto Fail
@@ -123,6 +130,6 @@ echo.
 echo Download coredistool for GC stress testing
 echo.
 echo Usage:
-echo     %__ThisScriptShort% /outputdir ^<coredistools_lib_install_path^>
+echo     %__ThisScriptShort% /arch ^<TargetArch^> /outputdir ^<coredistools_lib_install_path^>
 echo.
 exit /b 1

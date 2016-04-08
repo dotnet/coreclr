@@ -17,6 +17,7 @@ set(UTILCODE_COMMON_SOURCES
   ${UTILCODE_DIR}/makepath.cpp
   ${UTILCODE_DIR}/splitpath.cpp
   ${UTILCODE_DIR}/clrconfig.cpp
+  ${UTILCODE_DIR}/configuration.cpp
   ${UTILCODE_DIR}/collections.cpp
   ${UTILCODE_DIR}/posterror.cpp
   ${UTILCODE_DIR}/fstream.cpp

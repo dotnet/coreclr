@@ -1554,22 +1554,6 @@ public:
                                    bool enumThis);
 #endif
 
-#ifdef FEATURE_CORECLR
-public:
-    enum AppDomainCompatMode
-    {
-        APPDOMAINCOMPAT_NONE
-#ifdef FEATURE_LEGACYNETCF
-        , APPDOMAINCOMPAT_APP_EARLIER_THAN_WP8 // for "AppDomainCompatSwitch" == "WindowsPhone_3.7.0.0" or "AppDomainCompatSwitch" == "WindowsPhone_3.8.0.0"
-#endif
-    };
-    void SetAppDomainCompatMode(AppDomainCompatMode compatMode);
-    AppDomainCompatMode GetAppDomainCompatMode();
-    
-private:
-    AppDomainCompatMode m_CompatMode;
-#endif // FEATURE_CORECLR   
-
 };  // class BaseDomain
 
 enum
@@ -2866,66 +2850,6 @@ public:
 
         return (m_dwFlags & IGNORE_UNHANDLED_EXCEPTIONS);
     }
-
-#if defined(FEATURE_CORECLR)    
-    void SetEnablePInvokeAndClassicComInterop()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        m_dwFlags |= ENABLE_PINVOKE_AND_CLASSIC_COMINTEROP;
-    }
-
-    BOOL EnablePInvokeAndClassicComInterop()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        return (m_dwFlags & ENABLE_PINVOKE_AND_CLASSIC_COMINTEROP);
-    }
-
-    void SetAllowPlatformSpecificAppAssemblies()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        m_dwFlags |= ENABLE_SKIP_PLAT_CHECKS;
-    }
-
-    BOOL AllowPlatformSpecificAppAssemblies()
-    {
-        LIMITED_METHOD_CONTRACT;
-        if(IsCompilationDomain())
-            return TRUE;
-
-        return (m_dwFlags & ENABLE_SKIP_PLAT_CHECKS);
-    }
-
-    void SetAllowLoadFile()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        m_dwFlags |= ENABLE_ASSEMBLY_LOADFILE;
-    }
-
-    BOOL IsLoadFileAllowed()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        return (m_dwFlags & ENABLE_ASSEMBLY_LOADFILE);
-    }
-
-    void DisableTransparencyEnforcement()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        m_dwFlags |= DISABLE_TRANSPARENCY_ENFORCEMENT;
-    }
-
-    BOOL IsTransparencyEnforcementDisabled()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        return (m_dwFlags & DISABLE_TRANSPARENCY_ENFORCEMENT);
-    }
-#endif // defined(FEATURE_CORECLR)
 
     void SetPassiveDomain()
     {

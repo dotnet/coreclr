@@ -3608,7 +3608,7 @@ void CodeGen::genStructPutArgUnroll(GenTreePutArgStk* putArgNode, unsigned baseV
 
     assert(src->isContained());
 
-    assert(src->gtOper == GT_LDOBJ);
+    assert(src->gtOper == GT_OBJ);
 
     if (!src->gtOp.gtOp1->isContained())
     {
@@ -3628,7 +3628,7 @@ void CodeGen::genStructPutArgUnroll(GenTreePutArgStk* putArgNode, unsigned baseV
         size_t slots = size / XMM_REGSIZE_BYTES;
 
         assert(putArgNode->gtGetOp1()->isContained());
-        assert(putArgNode->gtGetOp1()->gtOp.gtOper == GT_LDOBJ);
+        assert(putArgNode->gtGetOp1()->gtOp.gtOper == GT_OBJ);
 
         // TODO: In the below code the load and store instructions are for 16 bytes, but the 
         //          type is EA_8BYTE. The movdqa/u are 16 byte instructions, so it works, but
@@ -3636,7 +3636,7 @@ void CodeGen::genStructPutArgUnroll(GenTreePutArgStk* putArgNode, unsigned baseV
         while (slots-- > 0)
         {
             // Load
-            genCodeForLoadOffset(INS_movdqu, EA_8BYTE, xmmReg, src->gtGetOp1(), offset); // Load the address of the child of the LdObj node.
+            genCodeForLoadOffset(INS_movdqu, EA_8BYTE, xmmReg, src->gtGetOp1(), offset); // Load the address of the child of the Obj node.
 
             // Store
             emit->emitIns_S_R(INS_movdqu,
@@ -5012,7 +5012,7 @@ void CodeGen::genConsumePutStructArgStk(GenTreePutArgStk* putArgNode, regNumber 
 
     // Get the GT_ADDR node, which is GT_LCL_VAR_ADDR (asserted below.)
     GenTree* src = putArgNode->gtGetOp1();
-    assert((src->gtOper == GT_LDOBJ) || ((src->gtOper == GT_IND && varTypeIsSIMD(src))));
+    assert((src->gtOper == GT_OBJ) || ((src->gtOper == GT_IND && varTypeIsSIMD(src))));
     src = src->gtGetOp1();
     
     size_t size = putArgNode->getArgSize();
@@ -5650,8 +5650,8 @@ void CodeGen::genCallInstruction(GenTreePtr node)
             {
                 assert(arg->OperGet() == GT_PUTARG_STK);
 
-                GenTreeLdObj* ldObj = arg->gtGetOp1()->AsLdObj();
-                stackArgBytes = compiler->info.compCompHnd->getClassSize(ldObj->gtClass);
+                GenTreeObj* obj = arg->gtGetOp1()->AsObj();
+                stackArgBytes = compiler->info.compCompHnd->getClassSize(obj->gtClass);
             }
             else
 #endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
@@ -5728,14 +5728,10 @@ void CodeGen::genCallInstruction(GenTreePtr node)
     emitAttr secondRetSize = EA_UNKNOWN;
     if (varTypeIsStruct(call->gtType))
     {
-        // Make sure it is a multi-register returned struct,  
-        // otherwise, for a struct passed in a single register   
-        // the call would have a normalized type that is not a struct type.  
-        assert(call->structDesc.passedInRegisters &&
-               (call->structDesc.eightByteCount == CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_RETURN_IN_REGISTERS));
-
-        retSize = emitTypeSize(compiler->getEightByteType(call->structDesc, 0));
-        secondRetSize = emitTypeSize(compiler->getEightByteType(call->structDesc, 1));
+        assert(call->HasMultiRegRetVal());
+        ReturnTypeDesc* retTypeDesc = &(call->gtReturnTypeDesc);
+        retSize = emitTypeSize(retTypeDesc->GetReturnRegType(1));
+        secondRetSize = emitTypeSize(retTypeDesc->GetReturnRegType(2));
     }
     else
 #endif // FEATURE_UNIX_AMD64_STRUCT_PASSING  
@@ -7201,13 +7197,6 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
             // We only need to check for a negative value in sourceReg
             inst_RV_IV(INS_cmp, sourceReg, 0, size);
             genJumpToThrowHlpBlk(EJ_jl, SCK_OVERFLOW);
-            if (dstType == TYP_ULONG)
-            {
-                // cast from TYP_INT to TYP_ULONG
-                // The upper bits on sourceReg will already be zero by definition (x64)
-                srcType = TYP_ULONG;
-                size = EA_8BYTE;  
-            }
         }
         else
         {
@@ -7259,8 +7248,16 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
             }
         }
 
-        if (targetReg != sourceReg)
-            inst_RV_RV(ins, targetReg, sourceReg, srcType, size);
+        if (targetReg != sourceReg
+#ifdef _TARGET_AMD64_
+            // On amd64, we can hit this path for a same-register
+            // 4-byte to 8-byte widening conversion, and need to
+            // emit the instruction to set the high bits correctly.
+            || (EA_ATTR(genTypeSize(dstType)) == EA_8BYTE
+                && EA_ATTR(genTypeSize(srcType)) == EA_4BYTE)
+#endif // _TARGET_AMD64_
+            )
+          inst_RV_RV(ins, targetReg, sourceReg, srcType, size);
     }
     else // non-overflow checking cast
     {
@@ -7327,7 +7324,14 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
         else if (ins == INS_mov)
         {
             noway_assert(!needAndAfter);
-            if (targetReg != sourceReg)
+            if (targetReg != sourceReg
+#ifdef _TARGET_AMD64_
+                // On amd64, 'mov' is the opcode used to zero-extend from
+                // 4 bytes to 8 bytes.
+                || (EA_ATTR(genTypeSize(dstType)) == EA_8BYTE
+                    && EA_ATTR(genTypeSize(srcType)) == EA_4BYTE)
+#endif // _TARGET_AMD64_
+                )
             {
                 inst_RV_RV(ins, targetReg, sourceReg, srcType, size);
             }
@@ -7663,6 +7667,16 @@ int CodeGenInterface::genSPtoFPdelta()
 {
     int delta;
 
+#ifdef PLATFORM_UNIX
+
+    // We require frame chaining on Unix to support native tool unwinding (such as
+    // unwinding by the native debugger). We have a CLR-only extension to the
+    // unwind codes (UWOP_SET_FPREG_LARGE) to support SP->FP offsets larger than 240.
+    // If Unix ever supports EnC, the RSP == RBP assumption will have to be reevaluated.
+    delta = genTotalFrameSize();
+
+#else // !PLATFORM_UNIX
+
     // As per Amd64 ABI, RBP offset from initial RSP can be between 0 and 240 if
     // RBP needs to be reported in unwind codes.  This case would arise for methods
     // with localloc.
@@ -7686,6 +7700,8 @@ int CodeGenInterface::genSPtoFPdelta()
     {
         delta = genTotalFrameSize();
     }
+
+#endif // !PLATFORM_UNIX
 
     return delta;
 }
@@ -8203,7 +8219,7 @@ CodeGen::genPutStructArgStk(GenTreePtr treeNode, unsigned baseVarNum)
         genConsumePutStructArgStk(putArgStk, REG_RDI, REG_RSI, REG_NA, baseVarNum);
         GenTreePtr   dstAddr = putArgStk;
         GenTreePtr   src = putArgStk->gtOp.gtOp1;
-        assert(src->OperGet() == GT_LDOBJ);
+        assert(src->OperGet() == GT_OBJ);
         GenTreePtr   srcAddr = src->gtGetOp1();
 
         unsigned slots = putArgStk->gtNumSlots;
@@ -8482,7 +8498,7 @@ void
 CodeGen::genCreateAndStoreGCInfoX64(unsigned codeSize, unsigned prologSize DEBUG_ARG(void* codePtr))
 {
     IAllocator* allowZeroAlloc = new (compiler, CMK_GC) AllowZeroAllocator(compiler->getAllocatorGC());
-    GcInfoEncoder* gcInfoEncoder = new (compiler, CMK_GC) GcInfoEncoder(compiler->info.compCompHnd, compiler->info.compMethodInfo, allowZeroAlloc);
+    GcInfoEncoder* gcInfoEncoder = new (compiler, CMK_GC) GcInfoEncoder(compiler->info.compCompHnd, compiler->info.compMethodInfo, allowZeroAlloc, NOMEM);
     assert(gcInfoEncoder);
 
     // Follow the code pattern of the x86 gc info encoder (genCreateAndStoreGCInfoJIT32).

@@ -125,7 +125,7 @@ Compiler::fgWalkResult Compiler::gsMarkPtrsAndAssignGroups(GenTreePtr *pTree, fg
         fIsBlk = true;
         // fallthrough
     case GT_IND:
-    case GT_LDOBJ:
+    case GT_OBJ:
     case GT_ARR_ELEM:
     case GT_ARR_INDEX:
     case GT_ARR_OFFSET:
@@ -484,9 +484,7 @@ void Compiler::gsParamsToShadows()
             dst = gtNewOperNode(GT_ADDR, TYP_BYREF, dst);
 
             opAssign = gtNewCpObjNode(dst, src, clsHnd, false);
-#if FEATURE_MULTIREG_ARGS_OR_RET
             lvaTable[shadowVar].lvIsMultiRegArgOrRet = lvaTable[lclNum].lvIsMultiRegArgOrRet;
-#endif // FEATURE_MULTIREG_ARGS_OR_RET
         }
         else
         {

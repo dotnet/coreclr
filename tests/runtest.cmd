@@ -54,7 +54,9 @@ if /i "%1" == "Exclude"             (set __Exclude=%2&shift&shift&goto Arg_Loop)
 if /i "%1" == "Exclude0"            (set __Exclude0=%2&shift&shift&goto Arg_Loop)
 if /i "%1" == "TestEnv"             (set __TestEnv=%2&shift&shift&goto Arg_Loop)
 if /i "%1" == "sequential"          (set __BuildSequential=1&shift&goto Arg_Loop)
+if /i "%1" == "crossgen"            (set __DoCrossgen=1&shift&goto Arg_Loop)
 if /i "%1" == "GenerateLayoutOnly"  (set __GenerateLayoutOnly=1&set __SkipWrapperGeneration=true&shift&goto Arg_Loop)
+if /i "%1" == "PerfTests"           (set __PerfTests=true&set __SkipWrapperGeneration=true&shift&goto Arg_Loop)
 
 if /i not "%1" == "msbuildargs" goto SkipMsbuildArgs
 :: All the rest of the args will be collected and passed directly to msbuild.
@@ -104,7 +106,6 @@ if not exist %_msbuildexe% set _msbuildexe="%ProgramFiles(x86)%\MSBuild\14.0\Bin
 goto :CheckMSBuild14
 :MSBuild14
 set _msbuildexe="%ProgramFiles(x86)%\MSBuild\14.0\Bin\MSBuild.exe"
-set UseRoslynCompiler=true
 :CheckMSBuild14
 if not exist %_msbuildexe% set _msbuildexe="%ProgramFiles%\MSBuild\14.0\Bin\MSBuild.exe"
 if not exist %_msbuildexe% echo Error: Could not find MSBuild.exe.  Please see https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md for build instructions. && exit /b 1
@@ -147,7 +148,7 @@ REM These log files are created automatically by the test run process. Q: what d
 set __TestRunHtmlLog=%__LogsDir%\TestRun_%__BuildOS%__%__BuildArch%__%__BuildType%.html
 set __TestRunXmlLog=%__LogsDir%\TestRun_%__BuildOS%__%__BuildArch%__%__BuildType%.xml
 
-
+if "%__PerfTests%"=="true" goto RunPerfTests
 if "%__SkipWrapperGeneration%"=="true" goto SkipWrapperGeneration
 
 set __BuildLogRootName=Tests_XunitWrapper
@@ -157,6 +158,11 @@ if errorlevel 1 exit /b 1
 :SkipWrapperGeneration
 
 call :ResolveDependecies
+
+if not defined __DoCrossgen goto :SkipPrecompileFX
+call :PrecompileFX
+
+:SkipPrecompileFX
 
 if  defined __GenerateLayoutOnly (
     exit /b 1
@@ -185,6 +191,22 @@ if errorlevel 1 (
     exit /b 1
 )
 
+if not defined __PerfTests goto :SkipRunPerfTests
+
+:RunPerfTests 
+echo %__MsgPrefix%CORE_ROOT that will be used is: %CORE_ROOT%  
+echo %__MsgPrefix%Starting the test run ...  
+
+set __BuildLogRootName=PerfTestRunResults  
+echo Running perf tests  
+call :msbuild "%__ProjectFilesDir%\runtest.proj" /t:RunPerfTests /clp:showcommandline  
+
+if errorlevel 1 (  
+   echo Test Run failed. Refer to the following:  
+   echo     Html report: %__TestRunHtmlLog%  
+)  
+
+:SkipRunPerfTests
 
 REM =========================================================================================
 REM ===
@@ -202,6 +224,32 @@ REM ===
 REM === Helper routines
 REM ===
 REM =========================================================================================
+
+REM Compile the managed assemblies in Core_ROOT before running the tests
+:PrecompileAssembly
+
+REM Skip mscorlib since it is already precompiled.
+if /I "%3" == "mscorlib.dll" exit /b 0
+if /I "%3" == "mscorlib.ni.dll" exit /b 0
+
+"%1\crossgen.exe" /Platform_Assemblies_Paths "%CORE_ROOT%" "%2" >nul 2>nul
+set /a __exitCode = %errorlevel%
+if "%__exitCode%" == "-2146230517" (
+    echo %2 is not a managed assembly.
+    exit /b 0
+)
+
+if %__exitCode% neq 0 (
+    echo Unable to precompile %2
+    exit /b 0
+)
+    
+echo Successfully precompiled %2
+exit /b 0
+
+:PrecompileFX
+for %%F in (%CORE_ROOT%\*.dll) do call :PrecompileAssembly "%CORE_ROOT%" "%%F" %%~nF%%~xF
+exit /b 0
 
 :msbuild
 @REM Subroutine to invoke msbuild. All arguments are passed to msbuild. The first argument should be the
@@ -254,8 +302,13 @@ if defined __TestEnv call %__TestEnv%
 if defined COMPlus_GCStress set __Result=true
 endlocal & set __IsGCTest=%__Result%
 if "%__IsGCTest%"=="true" (
-    call tests\setup-runtime-dependencies.cmd /outputdir %CORE_ROOT%
+    call tests\setup-runtime-dependencies.cmd /arch %__BuildArch% /outputdir %CORE_ROOT%
+    if errorlevel 1 (
+        echo Failed to donwload runtime packages
+        exit /b 1
+    )
 )
+
 set __BuildLogRootName=Tests_GenerateRuntimeLayout
 call :msbuild "%__ProjectFilesDir%\runtest.proj" /p:GenerateRuntimeLayout=true 
 if errorlevel 1 (

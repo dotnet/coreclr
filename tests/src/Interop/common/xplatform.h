@@ -24,11 +24,11 @@
 //  include 
 #ifdef _WIN32
 	#include <windows.h>
-	#include <wchar.h>
 	#include <tchar.h>
 #else
 	#include "types.h"
 #endif
+#include <wchar.h>
 
 
 // dllexport
@@ -100,13 +100,24 @@ typedef union tagCY {
 	long int64;
 } CY, CURRENCY;
 
+
+class IUnknown
+{
+public:
+  virtual int  QueryInterface(void* riid,void** ppvObject);
+  virtual unsigned long  AddRef();
+  virtual unsigned long  Release();
+};
+
 #define CoTaskMemAlloc(p) malloc(p)
 #define CoTaskMemFree(p) free(p)
 
 // function implementation
 size_t strncpy_s(char* strDest, size_t numberOfElements, const char *strSource, size_t count)
 {
-	return snprintf(strDest, count, "%s", strSource);
+    // NOTE: Need to pass count + 1 since strncpy_s does not count null,
+    // while snprintf does. 
+	return snprintf(strDest, count + 1, "%s", strSource);
 }
 
 size_t strcpy_s(char *dest, size_t n, char const *src)

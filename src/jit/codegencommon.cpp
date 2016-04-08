@@ -842,9 +842,9 @@ void Compiler::compUpdateLifeVar(GenTreePtr tree, VARSET_TP* pLastUseVars)
 #if !defined(_TARGET_AMD64_) // no addr nodes on AMD and experimenting with with encountering vars in 'random' order
     if (ForCodeGen)
     {
-        if (tree->gtOper == GT_LDOBJ)
+        if (tree->gtOper == GT_OBJ)
         {
-            // The tree must have the particular form LDOBJ(ADDR(LCL)); no need to do the check below.
+            // The tree must have the particular form OBJ(ADDR(LCL)); no need to do the check below.
             assert(indirAddrLocal != NULL);
         }
         else if (tree->OperIsIndir())
@@ -1739,9 +1739,9 @@ unsigned CodeGenInterface::InferStructOpSizeAlign(GenTreePtr op, unsigned *align
         op = op->gtOp.gtOp2;
     }
 
-    if (op->gtOper == GT_LDOBJ)
+    if (op->gtOper == GT_OBJ)
     {
-        CORINFO_CLASS_HANDLE clsHnd = op->gtLdObj.gtClass;
+        CORINFO_CLASS_HANDLE clsHnd = op->AsObj()->gtClass;
         opSize    = compiler->info.compCompHnd->getClassSize(clsHnd);
         alignment = roundUp(compiler->info.compCompHnd->getClassAlignmentRequirement(clsHnd), TARGET_POINTER_SIZE);
     }
@@ -4150,7 +4150,7 @@ void            CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg,
                                  (varDsc->lvType == TYP_STRUCT) ||
                                  (varDsc->lvAddrExposed && compiler->info.compIsVarArgs));
 #else // LEGACY_BACKEND
-                    noway_assert(varDsc->lvType == TYP_STRUCT || (varDsc->lvAddrExposed && compiler->info.compIsVarArgs));
+                    noway_assert(varDsc->lvType == TYP_STRUCT || (varDsc->lvAddrExposed && (compiler->info.compIsVarArgs || compiler->opts.compUseSoftFP)));
 #endif // LEGACY_BACKEND
 #endif // !_TARGET_X86_
                 }            
@@ -4799,7 +4799,7 @@ void            CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg,
 
 
             noway_assert(varDsc->lvIsParam && varDsc->lvIsRegArg);
-#ifndef _WIN64
+#ifndef _TARGET_64BIT_
             //Right now we think that incoming arguments are not pointer sized.  When we eventually
             //understand the calling convention... this still won't be true.  But maybe we'll have a better
             //idea of how to ignore it.
@@ -4807,7 +4807,7 @@ void            CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg,
             // On Arm, a long can be passed in register
             noway_assert(genTypeSize(genActualType(varDsc->TypeGet())) == sizeof(void *));
 #endif
-#endif //_WIN64
+#endif //_TARGET_64BIT_
 
             noway_assert(varDsc->lvIsInReg() && !regArgTab[argNum].circular);
 
@@ -5679,25 +5679,11 @@ void CodeGen::genPushCalleeSavedRegisters()
             assert(spAdjustment3 > 0);
             assert((spAdjustment3 % 16) == 0);
 
-            // Try to push the frame pointer setup down, so the unwind codes match better (there is no corresponding instruction in the epilog).
-            bool isFPEstablished = false;
-            int maxFPOffset = spAdjustment3 + alignmentAdjustment2;
-            if (!emitter::emitIns_valid_imm_for_add(maxFPOffset, EA_PTRSIZE))
-            {
-                getEmitter()->emitIns_R_R_I(INS_add, EA_PTRSIZE, REG_FPBASE, REG_SPBASE, alignmentAdjustment2);
-                compiler->unwindSetFrameReg(REG_FPBASE, alignmentAdjustment2);
-                isFPEstablished = true;
-            }
+            getEmitter()->emitIns_R_R_I(INS_add, EA_PTRSIZE, REG_FPBASE, REG_SPBASE, alignmentAdjustment2);
+            compiler->unwindSetFrameReg(REG_FPBASE, alignmentAdjustment2);
 
             genStackPointerAdjustment(-spAdjustment3, initReg, pInitRegZeroed);
             offset += spAdjustment3;
-
-            if (!isFPEstablished)
-            {
-                getEmitter()->emitIns_R_R_I(INS_add, EA_PTRSIZE, REG_FPBASE, REG_SPBASE, maxFPOffset);
-                compiler->unwindSetFrameReg(REG_FPBASE, maxFPOffset);
-                isFPEstablished = true;
-            }
         }
         else
         {
@@ -6308,17 +6294,9 @@ void            CodeGen::genPopCalleeSavedRegisters(bool jmpEpilog)
 
 #elif defined(_TARGET_ARM64_)
 
-void            CodeGen::genPopCalleeSavedRegistersAndFreeLclFrame(bool               jmpEpilog,
-                                                                   /* IN OUT */ bool* pUnwindStarted)
+void            CodeGen::genPopCalleeSavedRegistersAndFreeLclFrame(bool jmpEpilog)
 {
     assert(compiler->compGeneratingEpilog);
-
-    // We're going to generate an unwindable instruction. If not, we need to optimize this.
-    if (!*pUnwindStarted)
-    {
-        compiler->unwindBegEpilog();
-        *pUnwindStarted = true;
-    }
 
     regMaskTP rsRestoreRegs = regSet.rsGetModifiedRegsMask() & RBM_CALLEE_SAVED;
 
@@ -6343,13 +6321,28 @@ void            CodeGen::genPopCalleeSavedRegistersAndFreeLclFrame(bool         
         if ((compiler->lvaOutgoingArgSpaceSize == 0) && (totalFrameSize < 512))
         {
             frameType = 1;
+            if (compiler->compLocallocUsed)
+            {
+                // Restore sp from fp
+                //      mov sp, fp
+                inst_RV_RV(INS_mov, REG_SPBASE, REG_FPBASE);
+                compiler->unwindSetFrameReg(REG_FPBASE, 0);
+            }
 
             regsToRestoreMask &= ~(RBM_FP | RBM_LR); // We'll restore FP/LR at the end, and post-index SP.
             calleeSaveSPOffset = totalFrameSize - genCountBits(regsToRestoreMask) * REGSIZE_BYTES;
+
         }
         else if (totalFrameSize <= 512)
         {
             frameType = 2;
+            if (compiler->compLocallocUsed)
+            {
+                // Restore sp from fp
+                //      sub sp, fp, #outsz
+                getEmitter()->emitIns_R_R_I(INS_sub, EA_PTRSIZE, REG_SPBASE, REG_FPBASE, compiler->lvaOutgoingArgSpaceSize);
+                compiler->unwindSetFrameReg(REG_FPBASE, compiler->lvaOutgoingArgSpaceSize);
+            }
 
             regsToRestoreMask &= ~(RBM_FP | RBM_LR); // We'll restore FP/LR at the end, and post-index SP.
             calleeSaveSPOffset = totalFrameSize - genCountBits(regsToRestoreMask) * REGSIZE_BYTES;
@@ -6381,12 +6374,22 @@ void            CodeGen::genPopCalleeSavedRegistersAndFreeLclFrame(bool         
                 int alignmentAdjustment2 = spAdjustment2 - spAdjustment2Unaligned;
                 assert((alignmentAdjustment2 == 0) || (alignmentAdjustment2 == REGSIZE_BYTES));
 
-                // Generate:
-                //      add sp,sp,#outsz                ; if #outsz is not 16-byte aligned, we need to be more careful
-                int spAdjustment3 = compiler->lvaOutgoingArgSpaceSize - alignmentAdjustment2;
-                assert(spAdjustment3 > 0);
-                assert((spAdjustment3 % 16) == 0);
-                genStackPointerAdjustment(spAdjustment3, REG_IP0, nullptr);
+                if (compiler->compLocallocUsed)
+                {
+                    // Restore sp from fp. No need to update sp after this since we've set up fp before adjusting sp in prolog.
+                    //      sub sp, fp, #alignmentAdjustment2
+                    getEmitter()->emitIns_R_R_I(INS_sub, EA_PTRSIZE, REG_SPBASE, REG_FPBASE, alignmentAdjustment2);
+                    compiler->unwindSetFrameReg(REG_FPBASE, alignmentAdjustment2);
+                }
+                else
+                {
+                    // Generate:
+                    //      add sp,sp,#outsz                ; if #outsz is not 16-byte aligned, we need to be more careful
+                    int spAdjustment3 = compiler->lvaOutgoingArgSpaceSize - alignmentAdjustment2;
+                    assert(spAdjustment3 > 0);
+                    assert((spAdjustment3 % 16) == 0);
+                    genStackPointerAdjustment(spAdjustment3, REG_IP0, nullptr);
+                }
 
                 // Generate:
                 //      ldp fp,lr,[sp]
@@ -6395,6 +6398,14 @@ void            CodeGen::genPopCalleeSavedRegistersAndFreeLclFrame(bool         
             }
             else
             {
+                if (compiler->compLocallocUsed)
+                {
+                    // Restore sp from fp
+                    //      sub sp, fp, #outsz
+                    getEmitter()->emitIns_R_R_I(INS_sub, EA_PTRSIZE, REG_SPBASE, REG_FPBASE, compiler->lvaOutgoingArgSpaceSize);
+                    compiler->unwindSetFrameReg(REG_FPBASE, compiler->lvaOutgoingArgSpaceSize);
+                }
+
                 // Generate:
                 //      ldp fp,lr,[sp,#outsz]
                 //      add sp,sp,#remainingFrameSz     ; might need to load this constant in a scratch register if it's large
@@ -7438,7 +7449,7 @@ void                CodeGen::genProfilingLeaveCallback(unsigned helper /*= CORIN
     emitAttr attr = EA_UNKNOWN;
 
     if (compiler->info.compRetType == TYP_VOID ||
-        (!compiler->info.compIsVarArgs && (varTypeIsFloating(compiler->info.compRetType) || compiler->IsHfa(compiler->info.compMethodInfo->args.retTypeClass))))
+        (!compiler->opts.compUseSoftFP && !compiler->info.compIsVarArgs && (varTypeIsFloating(compiler->info.compRetType) || compiler->IsHfa(compiler->info.compMethodInfo->args.retTypeClass))))
     {
         r0Trashed = false;
     }
@@ -7608,7 +7619,22 @@ void CodeGen::genPrologPadForReJit()
 
 #ifdef _TARGET_XARCH_
     if (!(compiler->opts.eeFlags & CORJIT_FLG_PROF_REJIT_NOPS))
+    {
         return;
+    }
+
+#if FEATURE_EH_FUNCLETS
+
+    // No need to generate pad (nops) for funclets.
+    // When compiling the main function (and not a funclet)
+    // the value of funCurrentFunc->funKind is equal to FUNC_ROOT.
+    if (compiler->funCurrentFunc()->funKind != FUNC_ROOT)
+    {
+        return;
+    }
+
+#endif // FEATURE_EH_FUNCLETS
+
     unsigned size = getEmitter()->emitGetPrologOffsetEstimate();
     if (size < 5)
     {
@@ -9392,33 +9418,9 @@ void                CodeGen::genFnEpilog(BasicBlock* block)
 
     bool jmpEpilog = ((block->bbFlags & BBF_HAS_JMP) != 0);
 
-    // We delay starting the unwind codes until we have an instruction which we know
-    // needs an unwind code.
+    compiler->unwindBegEpilog();
 
-    bool unwindStarted = false;
-
-    // Tear down the stack frame
-
-    if (compiler->compLocallocUsed)
-    {
-        if (!unwindStarted)
-        {
-            compiler->unwindBegEpilog();
-            unwindStarted = true;
-        }
-        // mov FP into SP
-        inst_RV_RV(INS_mov, REG_SPBASE, REG_FPBASE);
-        compiler->unwindSetFrameReg(REG_FPBASE, 0);
-    }
-
-    genPopCalleeSavedRegistersAndFreeLclFrame(jmpEpilog, &unwindStarted);
-
-    if (!unwindStarted)
-    {
-        // If we haven't generated anything yet, we're certainly going to generate at least one instruction next.
-        compiler->unwindBegEpilog();
-        unwindStarted = true;
-    }
+    genPopCalleeSavedRegistersAndFreeLclFrame(jmpEpilog);
 
     if (jmpEpilog)
     {
@@ -11288,6 +11290,26 @@ bool Compiler::IsRegisterPassable(CORINFO_CLASS_HANDLE hClass)
 bool Compiler::IsRegisterPassable(GenTreePtr tree)
 {
     return IsRegisterPassable(gtGetStructHandleIfPresent(tree));
+}
+
+//-----------------------------------------------------------------------------------
+// IsMultiRegReturnedType: Returns true if the type is returned in multiple registers
+// 
+// Arguments:
+//     hClass   -  type handle
+//
+// Return Value:
+//     true if type is returned in multiple registers, false otherwise.
+bool Compiler::IsMultiRegReturnedType(CORINFO_CLASS_HANDLE hClass)
+{
+    if (hClass == NO_CLASS_HANDLE)
+    {
+        return false;
+    }
+
+    SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
+    eeGetSystemVAmd64PassStructInRegisterDescriptor(hClass, &structDesc);
+    return structDesc.passedInRegisters && (structDesc.eightByteCount > 1);
 }
 #endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
 

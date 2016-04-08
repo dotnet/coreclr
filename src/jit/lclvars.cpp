@@ -136,7 +136,7 @@ void                Compiler::lvaInitTypeRef()
     {
 #ifdef _TARGET_ARM_
         // TODO-ARM64-NYI: HFA
-        if (!info.compIsVarArgs && IsHfa(info.compMethodInfo->args.retTypeClass))
+        if (!info.compIsVarArgs && !opts.compUseSoftFP && IsHfa(info.compMethodInfo->args.retTypeClass))
         {
             info.compRetNativeType = TYP_STRUCT;
         }
@@ -570,13 +570,13 @@ void                Compiler::lvaInitUserArgs(InitVarDscInfo *      varDscInfo)
 #ifdef _TARGET_ARM_
 
         var_types hfaType = (varTypeIsStruct(argType)) ? GetHfaType(typeHnd) : TYP_UNDEF;
-        bool isHfaArg = !info.compIsVarArgs && varTypeIsFloating(hfaType);
+        bool isHfaArg = !info.compIsVarArgs && !opts.compUseSoftFP && varTypeIsFloating(hfaType);
 
         // On ARM we pass the first 4 words of integer arguments and non-HFA structs in registers.
         // But we pre-spill user arguments in varargs methods and structs.
         // 
         unsigned cAlign;
-        bool  preSpill = info.compIsVarArgs;
+        bool  preSpill = info.compIsVarArgs || opts.compUseSoftFP;
 
         switch (argType)
         {
@@ -912,7 +912,7 @@ void                Compiler::lvaInitUserArgs(InitVarDscInfo *      varDscInfo)
 #else // !FEATURE_UNIX_AMD64_STRUCT_PASSING
         compArgSize += argSize;
 #endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING
-        if (info.compIsVarArgs)
+        if (info.compIsVarArgs || opts.compUseSoftFP)
         {
 #if defined(_TARGET_X86_)
             varDsc->lvStkOffs       = compArgSize;
@@ -1819,7 +1819,7 @@ unsigned   Compiler::lvaGetFieldLocal(LclVarDsc *  varDsc, unsigned int fldOffse
         }
     }
 
-    noway_assert(!"Cannot find field local.");
+    // This is the not-found error return path, the caller should check for BAD_VAR_NUM
     return BAD_VAR_NUM;
 }
 
@@ -2770,9 +2770,9 @@ void                LclVarDsc::lvaDisqualifyVar()
 #endif // ASSERTION_PROP
 
 #ifndef LEGACY_BACKEND
-/********************************************************************************** 
- * Get type of a variable when passed as an argument.
- */
+/**********************************************************************************
+* Get type of a variable when passed as an argument.
+*/
 var_types           LclVarDsc::lvaArgType()
 {
     var_types type = TypeGet();
@@ -2782,29 +2782,33 @@ var_types           LclVarDsc::lvaArgType()
     {
         switch (lvExactSize)
         {
-           case 1: type = TYP_BYTE;  break;
-           case 2: type = TYP_SHORT; break;
-           case 4: type = TYP_INT;   break;
-           case 8:
-              switch (*lvGcLayout)
-              {
-                 case TYPE_GC_NONE:
-                    type = TYP_I_IMPL;
-                    break;
-                 case TYPE_GC_REF:
-                    type = TYP_REF;
-                    break;
-                 case TYPE_GC_BYREF:
-                    type = TYP_BYREF;
-                    break;
-                 default:
-                    unreached();
-              }
-              break;
+        case 1: type = TYP_BYTE;  break;
+        case 2: type = TYP_SHORT; break;
+        case 4: type = TYP_INT;   break;
+        case 8:
+            switch (*lvGcLayout)
+            {
+            case TYPE_GC_NONE:
+                type = TYP_I_IMPL;
+                break;
 
-           default:
-               type = TYP_BYREF;
-               break;
+            case TYPE_GC_REF:
+                type = TYP_REF;
+                break;
+
+            case TYPE_GC_BYREF:
+                type = TYP_BYREF;
+                break;
+
+            default:
+                unreached();
+            }
+            break;
+
+        default:
+            type = TYP_BYREF;
+            break;
+
         }
     }
 #else
@@ -3363,15 +3367,20 @@ void Compiler::lvaAllocOutgoingArgSpace()
         lvaTable[lvaOutgoingArgSpaceVar].lvRefCnt     = 1;
         lvaTable[lvaOutgoingArgSpaceVar].lvRefCntWtd  = BB_UNITY_WEIGHT;
 
-#if defined(PROFILING_SUPPORTED) && defined(_TARGET_AMD64_) && !defined(UNIX_AMD64_ABI) // No 4 slots for outgoing params on System V.
-        // If we are generating profiling Enter/Leave/TailCall hooks, make sure
-        // that outgoing arg space size is minimum 4 slots.  This will ensure
-        // that even methods without any calls will have 4-slot outgoing arg area.
-        if (compIsProfilerHookNeeded() && (lvaOutgoingArgSpaceSize == 0))
+        if (lvaOutgoingArgSpaceSize == 0)
         {
-            lvaOutgoingArgSpaceSize = 4 * REGSIZE_BYTES;            
+            if (compUsesThrowHelper || compIsProfilerHookNeeded())
+            {
+                // Need to make sure the MIN_ARG_AREA_FOR_CALL space is added to the frame if:
+                // 1. there are calls to THROW_HEPLPER methods.
+                // 2. we are generating profiling Enter/Leave/TailCall hooks. This will ensure
+                //    that even methods without any calls will have outgoing arg area space allocated.
+                //
+                // An example for these two cases is Windows Amd64, where the ABI requires to have 4 slots for 
+                // the outgoing arg space if the method makes any calls.
+                lvaOutgoingArgSpaceSize = MIN_ARG_AREA_FOR_CALL;
+            }
         }
-#endif // PROFILING_SUPPORTED && _TARGET_AMD64_ && !UNIX_AMD64_ABI
     }
 
     noway_assert(lvaOutgoingArgSpaceVar >= info.compLocalsCount &&
@@ -4597,7 +4606,7 @@ int Compiler::lvaAssignVirtualFrameOffsetToArg(unsigned lclNum, unsigned argSize
             if (!compIsProfilerHookNeeded())
 #endif
             {
-                bool cond = (info.compIsVarArgs &&
+                bool cond = ((info.compIsVarArgs || opts.compUseSoftFP) &&
                     // Does cur stk arg require double alignment?
                     ((varDsc->lvType == TYP_STRUCT && varDsc->lvStructDoubleAlign) ||
                     (varDsc->lvType == TYP_DOUBLE) ||

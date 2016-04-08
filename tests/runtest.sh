@@ -40,6 +40,7 @@ function print_usage {
     echo '  -v, --verbose                : Show output from each test.'
     echo '  -h|--help                    : Show usage information.'
     echo '  --useServerGC                : Enable server GC for this test run'
+    echo '  --test-en                    : Script to set environment variables for tests'
     echo ''
     echo 'Runtime Code Coverage options:'
     echo '  --coreclr-coverage           : Optional argument to get coreclr code coverage reports'
@@ -343,11 +344,38 @@ function create_core_overlay {
     cp -f "$coreFxNativeBinDir/Native/"*."$libExtension" "$coreOverlayDir/" 2>/dev/null
 
     cp -f "$coreClrBinDir/"* "$coreOverlayDir/" 2>/dev/null
-    cp -f "$mscorlibDir/mscorlib.dll" "$coreOverlayDir/"
     cp -n "$testDependenciesDir"/* "$coreOverlayDir/" 2>/dev/null
-    if [ -f "$coreOverlayDir/mscorlib.ni.dll" ]; then
-        rm -f "$coreOverlayDir/mscorlib.ni.dll"
-    fi
+}
+
+function precompile_overlay_assemblies {
+
+    if [ $doCrossgen == 1 ]; then
+    
+        local overlayDir=$CORE_ROOT
+        
+        filesToPrecompile=$(ls -trh $overlayDir/*.dll)
+        for fileToPrecompile in ${filesToPrecompile}
+        do
+            local filename=${fileToPrecompile}
+            # Precompile any assembly except mscorlib since we already have its NI image available.
+            if [[ "$filename" != *"mscorlib.dll"* ]]; then
+                if [[ "$filename" != *"mscorlib.ni.dll"* ]]; then
+                    echo Precompiling $filename
+                    $overlayDir/crossgen /Platform_Assemblies_Paths $overlayDir $filename 2>/dev/null
+                    local exitCode=$?
+                    if [ $exitCode == -2146230517 ]; then
+                        echo $filename is not a managed assembly.    
+                    elif [ $exitCode != 0 ]; then
+                        echo Unable to precompile $filename.
+                    else
+                        echo Successfully precompiled $filename
+                    fi
+                fi
+            fi
+        done
+    else
+        echo Skipping crossgen of FX assemblies.
+    fi    
 }
 
 function copy_test_native_bin_to_test_root {
@@ -621,12 +649,15 @@ coreFxNativeBinDir=
 coreClrObjs=
 coreClrSrc=
 coverageOutputDir=
+testEnv=
 
 ((disableEventLogging = 0))
 ((serverGC = 0))
 
 # Handle arguments
 verbose=0
+doCrossgen=0
+
 for i in "$@"
 do
     case $i in
@@ -636,6 +667,9 @@ do
             ;;
         -v|--verbose)
             verbose=1
+            ;;
+        --crossgen)
+            doCrossgen=1
             ;;
         --testRootDir=*)
             testRootDir=${i#*=}
@@ -688,6 +722,9 @@ do
         --coverage-output-dir=*)
             coverageOutputDir=${i#*=}
             ;;
+        --test-env=*)
+            testEnv=${i#*=}
+            ;;            
         *)
             echo "Unknown switch: $i"
             print_usage
@@ -752,12 +789,32 @@ fi
 
 xunit_output_begin
 create_core_overlay
+precompile_overlay_assemblies
 copy_test_native_bin_to_test_root
 load_unsupported_tests
 load_failing_tests
 
-if [ -n "$COMPlus_GCStress" ]; then
-    scriptPath=$(dirname $0)
+scriptPath=$(dirname $0)
+
+# Check if environment variables are provided
+if [ ! -z "$testEnv" ]; then
+    # Check if this is GC stress testing
+    GCStressLevel=`(source $testEnv; echo $COMPlus_GCStress)`
+    # Set __TestEnv that will be executed just before running tests
+    absTestEnvPath=`readlink -f ${testEnv}`
+    export __TestEnv='source '${absTestEnvPath}
+fi
+
+# Still support setting COMPlus_GCStress before runtest.sh but recommend
+# using --test-env option. 
+if [ -z "$GCStressLevel" ]; then
+    if [ -n "$COMPlus_GCStress" ]; then
+        GCStressLevel=`echo $COMPlus_GCStress`
+    fi
+fi
+
+# Download runtime dependent libraries
+if [ ! -z "$GCStressLevel" ]; then
     ${scriptPath}/setup-runtime-dependencies.sh --outputDir=$coreOverlayDir
     if [ $? -ne 0 ] 
     then
@@ -765,7 +822,7 @@ if [ -n "$COMPlus_GCStress" ]; then
         exit $EXIT_CODE_EXCEPTION
     fi
 fi
- 
+
 cd "$testRootDir"
 if [ -z "$testDirectories" ]
 then

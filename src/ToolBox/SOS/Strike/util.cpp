@@ -4160,7 +4160,7 @@ HRESULT LoadClrDebugDll(void)
         int err = PAL_InitializeDLL();
         if(err != 0)
         {
-            return E_FAIL;
+            return CORDBG_E_UNSUPPORTED;
         }
         char dacModulePath[MAX_LONGPATH];
         strcpy_s(dacModulePath, _countof(dacModulePath), g_ExtServices->GetCoreClrDirectory());
@@ -4169,13 +4169,13 @@ HRESULT LoadClrDebugDll(void)
         HMODULE hdac = LoadLibraryA(dacModulePath);
         if (hdac == NULL)
         {
-            return E_FAIL;
+            return CORDBG_E_MISSING_DEBUGGER_EXPORTS;
         }
         PFN_CLRDataCreateInstance pCLRDataCreateInstance = (PFN_CLRDataCreateInstance)GetProcAddress(hdac, "CLRDataCreateInstance");
         if (pCLRDataCreateInstance == NULL)
         {
             FreeLibrary(hdac);
-            return E_FAIL;
+            return CORDBG_E_MISSING_DEBUGGER_EXPORTS;
         }
         ICLRDataTarget *target = new DataTarget();
         hr = pCLRDataCreateInstance(__uuidof(IXCLRDataProcess), target, (void**)&s_clrDataProcess);
@@ -4557,6 +4557,8 @@ public:
             *pPlatform = CORDB_PLATFORM_WINDOWS_AMD64;
         else if(platformKind == IMAGE_FILE_MACHINE_ARMNT)
             *pPlatform = CORDB_PLATFORM_WINDOWS_ARM;
+        else if(platformKind == IMAGE_FILE_MACHINE_ARM64)
+            *pPlatform = CORDB_PLATFORM_WINDOWS_ARM64;
         else
             return E_FAIL;        
 #endif        

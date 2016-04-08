@@ -174,15 +174,23 @@ else()
       if (STRIP STREQUAL "STRIP-NOTFOUND")
           message(FATAL_ERROR "strip not found")
       endif()
-
-    else (CMAKE_SYSTEM_NAME STREQUAL Darwin)
-
+    elseif (CMAKE_SYSTEM_NAME STREQUAL Linux)
       # Ensure that objcopy is present
-      find_program(OBJCOPY objcopy)
+      if(DEFINED ENV{CROSSCOMPILE})
+        if(CMAKE_SYSTEM_PROCESSOR STREQUAL armv7l)
+          find_program(OBJCOPY arm-linux-gnueabihf-objcopy)
+        elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL aarch64)
+          find_program(OBJCOPY aarch64-linux-gnu-objcopy)
+        else()
+          clr_unknown_arch()
+        endif()
+      else()
+        find_program(OBJCOPY objcopy)
+      endif()
       if (OBJCOPY STREQUAL "OBJCOPY-NOTFOUND")
           message(FATAL_ERROR "objcopy not found")
       endif()
-    endif (CMAKE_SYSTEM_NAME STREQUAL Darwin)
+    endif ()
 endif(WIN32)
 
 # Build a list of compiler definitions by putting -D in front of each define.
@@ -295,7 +303,7 @@ function(strip_symbols targetName outputFilename)
           COMMAND ${STRIP} -u -r ${strip_source_file}
           COMMENT Stripping symbols from ${strip_source_file} into file ${strip_destination_file}
         )
-      else(CMAKE_SYSTEM_NAME STREQUAL Darwin)
+      elseif(CMAKE_SYSTEM_NAME STREQUAL Linux)
         set(strip_destination_file ${strip_source_file}.dbg)
 
         add_custom_command(
@@ -303,7 +311,7 @@ function(strip_symbols targetName outputFilename)
           POST_BUILD
           VERBATIM 
           COMMAND ${OBJCOPY} --only-keep-debug ${strip_source_file} ${strip_destination_file}
-          COMMAND ${OBJCOPY} --strip-unneeded ${strip_source_file}
+          COMMAND ${OBJCOPY} --strip-debug ${strip_source_file}
           COMMAND ${OBJCOPY} --add-gnu-debuglink=${strip_destination_file} ${strip_source_file}
           COMMENT Stripping symbols from ${strip_source_file} into file ${strip_destination_file}
         )
@@ -433,11 +441,16 @@ else ()
 endif (CLR_CMAKE_TARGET_ARCH_AMD64)
 
 if(CLR_CMAKE_PLATFORM_UNIX_ARM)
-    # Because we don't use CMAKE_C_COMPILER/CMAKE_CXX_COMPILER to use clang
-    # we have to set the triple by adding a compiler argument
-    add_compile_options(-target armv7-linux-gnueabihf)
-    add_compile_options(-mthumb)
-    add_compile_options(-mfpu=vfpv3)
+   # Because we don't use CMAKE_C_COMPILER/CMAKE_CXX_COMPILER to use clang
+   # we have to set the triple by adding a compiler argument
+   add_compile_options(-mthumb)
+   add_compile_options(-mfpu=vfpv3)
+   if(ARM_SOFTFP)
+     add_compile_options(-mfloat-abi=softfp)
+     add_compile_options(-target armv7-linux-gnueabi)
+   else()
+     add_compile_options(-target armv7-linux-gnueabihf)
+   endif(ARM_SOFTFP)
 endif(CLR_CMAKE_PLATFORM_UNIX_ARM)
 
 if (CLR_CMAKE_PLATFORM_UNIX)
@@ -686,15 +699,9 @@ endif(CLR_CMAKE_PLATFORM_UNIX)
 if(CLR_CMAKE_PLATFORM_UNIX)
   add_subdirectory(src/ToolBox/SOS/lldbplugin)
   add_subdirectory(src/pal)
-  add_subdirectory(src/coreclr/hosts/unixcoreruncommon)
-  add_subdirectory(src/coreclr/hosts/unixcorerun)
-  add_subdirectory(src/coreclr/hosts/unixcoreconsole)
+  add_subdirectory(src/coreclr/hosts)
   add_subdirectory(src/ildasm/unixcoreclrloader)
 endif(CLR_CMAKE_PLATFORM_UNIX)
-
-if(CLR_CMAKE_PLATFORM_DARWIN)
-  add_subdirectory(src/coreclr/hosts/osxbundlerun)
-endif(CLR_CMAKE_PLATFORM_DARWIN)
 
 # Add this subdir. We install the headers for the jit.
 add_subdirectory(src/pal/prebuilt/inc)
@@ -716,6 +723,7 @@ set(CMAKE_CXX_STANDARD_LIBRARIES "") # do not link against standard win32 libs i
 
 # Include the basic prebuilt headers - required for getting fileversion resource details.
 include_directories("${CLR_DIR}/src/pal/prebuilt/inc")
+include_directories("bin/obj")
 
 if (CLR_CMAKE_PLATFORM_UNIX)
   include_directories("${CLR_DIR}/src/pal/inc")
@@ -813,7 +821,6 @@ if(FEATURE_EVENT_TRACE)
     endif(CLR_CMAKE_PLATFORM_UNIX)
 endif(FEATURE_EVENT_TRACE)
 add_definitions(-DFEATURE_EXCEPTIONDISPATCHINFO)
-add_definitions(-DFEATURE_FRAMEWORK_INTERNAL)
 # NetBSD doesn't implement this feature
 if(NOT CLR_CMAKE_PLATFORM_UNIX_ARM AND NOT CMAKE_SYSTEM_NAME STREQUAL NetBSD)
     add_definitions(-DFEATURE_HIJACK)
@@ -826,9 +833,6 @@ if (CLR_CMAKE_PLATFORM_UNIX OR CLR_CMAKE_PLATFORM_ARCH_ARM64)
   set(FEATURE_IMPLICIT_TLS 1)
 endif(CLR_CMAKE_PLATFORM_UNIX OR CLR_CMAKE_PLATFORM_ARCH_ARM64)
 add_definitions(-DFEATURE_ISYM_READER)
-add_definitions(-DFEATURE_LEGACYNETCF)
-add_definitions(-DFEATURE_LEGACYNETCF_DBG_HOST_CONTROL)
-add_definitions(-DFEATURE_LEGACYNETCFFAS)
 add_definitions(-DFEATURE_LOADER_OPTIMIZATION)
 add_definitions(-DFEATURE_MANAGED_ETW)
 add_definitions(-DFEATURE_MANAGED_ETW_CHANNELS)
@@ -864,12 +868,9 @@ endif(WIN32)
 add_definitions(-DFEATURE_STANDALONE_SN)
 add_definitions(-DFEATURE_STRONGNAME_DELAY_SIGNING_ALLOWED)
 add_definitions(-DFEATURE_STRONGNAME_MIGRATION)
-if(WIN32)
-    add_definitions(-DFEATURE_STRONGNAME_TESTKEY_ALLOWED)
-endif(WIN32)
-if (CLR_CMAKE_PLATFORM_UNIX OR CLR_CMAKE_PLATFORM_ARCH_ARM64)
+if ((CLR_CMAKE_PLATFORM_UNIX OR CLR_CMAKE_PLATFORM_ARCH_ARM64) AND NOT CLR_CMAKE_PLATFORM_ARCH_ARM)
     add_definitions(-DFEATURE_STUBS_AS_IL)
-endif(CLR_CMAKE_PLATFORM_UNIX OR CLR_CMAKE_PLATFORM_ARCH_ARM64)
+endif ((CLR_CMAKE_PLATFORM_UNIX OR CLR_CMAKE_PLATFORM_ARCH_ARM64) AND NOT CLR_CMAKE_PLATFORM_ARCH_ARM)
 add_definitions(-DFEATURE_SVR_GC)
 add_definitions(-DFEATURE_SYMDIFF)
 add_definitions(-DFEATURE_SYNTHETIC_CULTURES)

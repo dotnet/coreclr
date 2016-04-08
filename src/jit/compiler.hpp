@@ -2530,10 +2530,6 @@ var_types          Compiler::lvaGetRealType(unsigned lclNum)
     return lvaTable[lclNum].TypeGet();
 }
 
-/*****************************************************************************/
-inline void         Compiler::lvaAdjustRefCnts() {}
-
-
 /*
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -2578,7 +2574,7 @@ inline
 var_types Compiler::mangleVarArgsType(var_types type)
 {
 #ifdef _TARGET_ARMARCH_
-    if (info.compIsVarArgs)
+    if (info.compIsVarArgs || opts.compUseSoftFP)
     {
         switch (type) {
         case TYP_FLOAT:

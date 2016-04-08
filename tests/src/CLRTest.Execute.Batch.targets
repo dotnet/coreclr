@@ -36,12 +36,25 @@ WARNING:   When setting properties based on their current state (for example:
 <!-- CrossGen will create output if it needs to crossgen. Otherwise there will be silence. -->
       <CrossgenBatchScript Condition="'$(CLRTestKind)' == 'RunOnly'">
         <![CDATA[
-if not exist "$([MSBuild]::MakeRelative($(OutputPath), $(_CLRTestToRunFileFullPath)).Replace(".exe", ".ni.exe"))""%CORE_ROOT%\crossgen.exe" /Platform_Assemblies_Paths %CORE_ROOT%%3B. $([MSBuild]::MakeRelative($(OutputPath), $(_CLRTestToRunFileFullPath)))        
+if not exist "$([MSBuild]::MakeRelative($(OutputPath), $(_CLRTestToRunFileFullPath)).Replace(".exe", ".ni.exe"))" (
+"%CORE_ROOT%\crossgen.exe" /Platform_Assemblies_Paths %CORE_ROOT%%3B%~dp0 $([MSBuild]::MakeRelative($(OutputPath), $(_CLRTestToRunFileFullPath)))
+IF NOT "!ERRORLEVEL!"=="0" (
+    ECHO Crossgen failed with exitcode - !ERRORLEVEL!
+    Exit /b 1
+    )
+)        
         ]]>
       </CrossgenBatchScript>
       <CrossgenBatchScript Condition="'$(CLRTestKind)' == 'BuildAndRun'">
         <![CDATA[
-if not exist "$(MSBuildProjectName).ni.exe" "%CORE_ROOT%\crossgen.exe" /Platform_Assemblies_Paths %CORE_ROOT%%3B%~dp0 $(MSBuildProjectName).exe      
+if not exist "$(MSBuildProjectName).ni.exe" (
+    echo "%CORE_ROOT%\crossgen.exe" /Platform_Assemblies_Paths %CORE_ROOT%%3B%~dp0 $(MSBuildProjectName).exe
+    "%CORE_ROOT%\crossgen.exe" /Platform_Assemblies_Paths %CORE_ROOT%%3B%~dp0 $(MSBuildProjectName).exe
+    IF NOT "!ERRORLEVEL!"=="0" (
+    ECHO Crossgen failed with exitcode - !ERRORLEVEL!
+    Exit /b 1
+    )
+  )      
         ]]>
       </CrossgenBatchScript>
     </PropertyGroup>
@@ -216,9 +229,17 @@ IF NOT "%CLRTestExitCode%"=="%CLRTestExpectedExitCode%" (
 
     <PropertyGroup> 
       <_CLRTestRunFile Condition="'$(CLRTestIsHosted)'=='true'">"%CORE_ROOT%\corerun.exe"</_CLRTestRunFile>
+      <BatchCLRTestLaunchCmds><![CDATA[
+IF NOT "%CLRCustomTestLauncher%"=="" (
+  set LAUNCHER=call %CLRCustomTestLauncher% %~dp0
+) ELSE (
+  set LAUNCHER=%_DebuggerFullPath% $(_CLRTestRunFile)
+)
+      ]]></BatchCLRTestLaunchCmds>
       <BatchCLRTestLaunchCmds Condition=" '$(IlasmRoundTrip)'=='true' "><![CDATA[
-ECHO $(_CLRTestRunFile) $(TargetAssemblyName) %CLRTestExecutionArguments% %Host_Args%
-$(_CLRTestRunFile) $(TargetAssemblyName) %CLRTestExecutionArguments% %Host_Args%
+$(BatchCLRTestLaunchCmds)
+ECHO %LAUNCHER% $(TargetAssemblyName) %CLRTestExecutionArguments% %Host_Args%
+%LAUNCHER% $(TargetAssemblyName) %CLRTestExecutionArguments% %Host_Args%
 
 IF NOT "!ERRORLEVEL!"=="%CLRTestExpectedExitCode%" (
   ECHO END EXECUTION OF IL{D}ASM BINARY - FAILED !ERRORLEVEL! vs %CLRTestExpectedExitCode%
@@ -228,8 +249,8 @@ IF NOT "!ERRORLEVEL!"=="%CLRTestExpectedExitCode%" (
       ]]></BatchCLRTestLaunchCmds>
       <BatchCLRTestLaunchCmds><![CDATA[
 $(BatchCLRTestLaunchCmds)
-ECHO %_DebuggerFullPath% $(_CLRTestRunFile) $(InputAssemblyName) %CLRTestExecutionArguments% %Host_Args%
-%_DebuggerFullPath% $(_CLRTestRunFile) $(InputAssemblyName) %CLRTestExecutionArguments% %Host_Args%
+ECHO %LAUNCHER% $(InputAssemblyName) %CLRTestExecutionArguments% %Host_Args%
+%LAUNCHER% $(InputAssemblyName) %CLRTestExecutionArguments% %Host_Args%
 set CLRTestExitCode=!ERRORLEVEL!
       ]]></BatchCLRTestLaunchCmds>
     </PropertyGroup>
