@@ -138,8 +138,13 @@ endif(WIN32)
 if(CLR_CMAKE_PLATFORM_ARCH_AMD64)
   set(SOS_SOURCES_ARCH
     disasmX86.cpp
-#    disasmARM64.cpp
   )
+  if(WIN32)
+    list(APPEND 
+      SOS_SOURCES_ARCH  
+      disasmARM64.cpp
+    )
+  endif(WIN32)
 elseif(CLR_CMAKE_PLATFORM_ARCH_I386)
   set(SOS_SOURCES_ARCH 
     disasmX86.cpp
