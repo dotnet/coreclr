@@ -101,6 +101,60 @@ if (WIN32)
     endforeach (Definition)
   endforeach (Config)
 
+  if(NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /guard:cf")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /guard:cf")
+  endif (NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)
+
+  # Incremental linking with CFG is broken until next VS release.
+  # This needs to be appended to the last for each build type to override the default flag.
+  set(NO_INCREMENTAL_LINKER_FLAGS "/INCREMENTAL:NO")
+
+  # Linker flags
+  #
+  # Disable the following line for UNIX altjit on Windows
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /MANIFEST:NO") #Do not create Side-by-Side Assembly Manifest
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /SUBSYSTEM:WINDOWS,6.00") #windows subsystem
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /LARGEADDRESSAWARE") # can handle addresses larger than 2 gigabytes
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /RELEASE") #sets the checksum in the header
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /NXCOMPAT") #Compatible with Data Execution Prevention
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /DYNAMICBASE") #Use address space layout randomization
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /DEBUGTYPE:cv,fixup") #debugging format
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /PDBCOMPRESS") #shrink pdb size
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /DEBUG")
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /IGNORE:4197,4013,4254,4070,4221")
+
+  set(CMAKE_STATIC_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS} /IGNORE:4221")
+
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /DEBUG /PDBCOMPRESS")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:1572864")
+
+  # Debug build specific flags
+  set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "/NOVCFEATURE ${NO_INCREMENTAL_LINKER_FLAGS}")
+  set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${NO_INCREMENTAL_LINKER_FLAGS}")
+
+  # Checked build specific flags
+  set(CMAKE_SHARED_LINKER_FLAGS_CHECKED "${CMAKE_SHARED_LINKER_FLAGS_CHECKED} /OPT:REF /OPT:NOICF /NOVCFEATURE ${NO_INCREMENTAL_LINKER_FLAGS}")
+  set(CMAKE_STATIC_LINKER_FLAGS_CHECKED "${CMAKE_STATIC_LINKER_FLAGS_CHECKED}")
+  set(CMAKE_EXE_LINKER_FLAGS_CHECKED "${CMAKE_EXE_LINKER_FLAGS_CHECKED} /OPT:REF /OPT:NOICF ${NO_INCREMENTAL_LINKER_FLAGS}")
+
+  # Release build specific flags
+  set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /LTCG /OPT:REF /OPT:ICF ${NO_INCREMENTAL_LINKER_FLAGS}")
+  set(CMAKE_STATIC_LINKER_FLAGS_RELEASE "${CMAKE_STATIC_LINKER_FLAGS_RELEASE} /LTCG")
+  set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /LTCG /OPT:REF /OPT:ICF ${NO_INCREMENTAL_LINKER_FLAGS}")
+
+  # ReleaseWithDebugInfo build specific flags
+  set(CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO} /LTCG /OPT:REF /OPT:ICF ${NO_INCREMENTAL_LINKER_FLAGS}")
+  set(CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO} /LTCG")
+  set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO} /LTCG /OPT:REF /OPT:ICF ${NO_INCREMENTAL_LINKER_FLAGS}")
+
+  # Temporary until cmake has VS generators for arm64
+  if(CLR_CMAKE_PLATFORM_ARCH_ARM64)
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /machine:arm64")
+    set(CMAKE_STATIC_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS} /machine:arm64")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /machine:arm64")
+  endif(CLR_CMAKE_PLATFORM_ARCH_ARM64)
+
 elseif (CLR_CMAKE_PLATFORM_UNIX)
   # Set the values to display when interactively configuring CMAKE_BUILD_TYPE
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "DEBUG;CHECKED;RELEASE;RELWITHDEBINFO")
@@ -163,6 +217,7 @@ elseif (CLR_CMAKE_PLATFORM_UNIX)
 
 endif(WIN32)
 
+OPTION(CMAKE_ENABLE_CODE_COVERAGE "Enable code coverage" OFF)
 
 #----------------------------------------
 # Detect and set platform variable names
@@ -348,19 +403,6 @@ else ()
   clr_unknown_arch()
 endif (CLR_CMAKE_TARGET_ARCH_AMD64)
 
-if(CLR_CMAKE_PLATFORM_UNIX_ARM)
-   # Because we don't use CMAKE_C_COMPILER/CMAKE_CXX_COMPILER to use clang
-   # we have to set the triple by adding a compiler argument
-   add_compile_options(-mthumb)
-   add_compile_options(-mfpu=vfpv3)
-   if(ARM_SOFTFP)
-     add_compile_options(-mfloat-abi=softfp)
-     add_compile_options(-target armv7-linux-gnueabi)
-   else()
-     add_compile_options(-target armv7-linux-gnueabihf)
-   endif(ARM_SOFTFP)
-endif(CLR_CMAKE_PLATFORM_UNIX_ARM)
-
 if (CLR_CMAKE_PLATFORM_UNIX)
   if(CLR_CMAKE_PLATFORM_LINUX)
     if(CLR_CMAKE_PLATFORM_UNIX_AMD64)
@@ -388,7 +430,12 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   if(CLR_CMAKE_PLATFORM_FREEBSD)
     message("Detected FreeBSD amd64")
   endif(CLR_CMAKE_PLATFORM_FREEBSD)
+endif(CLR_CMAKE_PLATFORM_UNIX)
 
+#--------------------------------------
+# Compile Options
+#--------------------------------------
+if (CLR_CMAKE_PLATFORM_UNIX)
   # Disable frame pointer optimizations so profilers can get better call stacks
   add_compile_options(-fno-omit-frame-pointer)
 
@@ -434,6 +481,19 @@ if (CLR_CMAKE_PLATFORM_UNIX)
 
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
+if(CLR_CMAKE_PLATFORM_UNIX_ARM)
+   # Because we don't use CMAKE_C_COMPILER/CMAKE_CXX_COMPILER to use clang
+   # we have to set the triple by adding a compiler argument
+   add_compile_options(-mthumb)
+   add_compile_options(-mfpu=vfpv3)
+   if(ARM_SOFTFP)
+     add_compile_options(-mfloat-abi=softfp)
+     add_compile_options(-target armv7-linux-gnueabi)
+   else()
+     add_compile_options(-target armv7-linux-gnueabihf)
+   endif(ARM_SOFTFP)
+endif(CLR_CMAKE_PLATFORM_UNIX_ARM)
+
 if (WIN32)
   # Compile options for targeting windows
 
@@ -476,62 +536,8 @@ if (WIN32)
   if(NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)
     # enable control-flow-guard support for native components for non-Arm64 builds
     add_compile_options(/guard:cf) 
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /guard:cf")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /guard:cf")
   endif (NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)
-
-  # Incremental linking with CFG is broken until next VS release.
-  # This needs to be appended to the last for each build type to override the default flag.
-  set(NO_INCREMENTAL_LINKER_FLAGS "/INCREMENTAL:NO")
-
-  # Linker flags
-  #
-  # Disable the following line for UNIX altjit on Windows
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /MANIFEST:NO") #Do not create Side-by-Side Assembly Manifest
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /SUBSYSTEM:WINDOWS,6.00") #windows subsystem
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /LARGEADDRESSAWARE") # can handle addresses larger than 2 gigabytes
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /RELEASE") #sets the checksum in the header
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /NXCOMPAT") #Compatible with Data Execution Prevention
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /DYNAMICBASE") #Use address space layout randomization
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /DEBUGTYPE:cv,fixup") #debugging format
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /PDBCOMPRESS") #shrink pdb size
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /DEBUG")
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /IGNORE:4197,4013,4254,4070,4221")
-
-  set(CMAKE_STATIC_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS} /IGNORE:4221")
-
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /DEBUG /PDBCOMPRESS")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:1572864")
-
-  # Debug build specific flags
-  set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "/NOVCFEATURE ${NO_INCREMENTAL_LINKER_FLAGS}")
-  set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${NO_INCREMENTAL_LINKER_FLAGS}")
-
-  # Checked build specific flags
-  set(CMAKE_SHARED_LINKER_FLAGS_CHECKED "${CMAKE_SHARED_LINKER_FLAGS_CHECKED} /OPT:REF /OPT:NOICF /NOVCFEATURE ${NO_INCREMENTAL_LINKER_FLAGS}")
-  set(CMAKE_STATIC_LINKER_FLAGS_CHECKED "${CMAKE_STATIC_LINKER_FLAGS_CHECKED}")
-  set(CMAKE_EXE_LINKER_FLAGS_CHECKED "${CMAKE_EXE_LINKER_FLAGS_CHECKED} /OPT:REF /OPT:NOICF ${NO_INCREMENTAL_LINKER_FLAGS}")
-
-  # Release build specific flags
-  set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /LTCG /OPT:REF /OPT:ICF ${NO_INCREMENTAL_LINKER_FLAGS}")
-  set(CMAKE_STATIC_LINKER_FLAGS_RELEASE "${CMAKE_STATIC_LINKER_FLAGS_RELEASE} /LTCG")
-  set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /LTCG /OPT:REF /OPT:ICF ${NO_INCREMENTAL_LINKER_FLAGS}")
-
-  # ReleaseWithDebugInfo build specific flags
-  set(CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO} /LTCG /OPT:REF /OPT:ICF ${NO_INCREMENTAL_LINKER_FLAGS}")
-  set(CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO} /LTCG")
-  set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO} /LTCG /OPT:REF /OPT:ICF ${NO_INCREMENTAL_LINKER_FLAGS}")
-
-# Temporary until cmake has VS generators for arm64
-if(CLR_CMAKE_PLATFORM_ARCH_ARM64)
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /machine:arm64")
-  set(CMAKE_STATIC_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS} /machine:arm64")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /machine:arm64")
-endif(CLR_CMAKE_PLATFORM_ARCH_ARM64)
-
 endif (WIN32)
-
-OPTION(CMAKE_ENABLE_CODE_COVERAGE "Enable code coverage" OFF)
 
 if(CMAKE_ENABLE_CODE_COVERAGE)
 
@@ -551,12 +557,6 @@ if(CMAKE_ENABLE_CODE_COVERAGE)
   endif(CLR_CMAKE_PLATFORM_UNIX)
 
 endif(CMAKE_ENABLE_CODE_COVERAGE)
-
-# Start of projects that require usage of platform include files
-
-
-
-# End of projects that require usage of platform include files
 
 ########################common.cmake##########################
 # Enable for UNIX altjit on Windows - set(CLR_CMAKE_PLATFORM_UNIX_AMD64 1)
@@ -580,6 +580,14 @@ if (WIN32)
 endif(WIN32)
 
 ########################part of coreclr.cmake
+
+if (WIN32)
+  set(FEATURE_EVENT_TRACE 1)
+endif()
+if(CLR_CMAKE_PLATFORM_LINUX AND CLR_CMAKE_PLATFORM_ARCH_AMD64)
+  set(FEATURE_EVENT_TRACE 1)
+endif()
+
 
 if(CLR_CMAKE_PLATFORM_UNIX)
   add_subdirectory(src/corefx)
@@ -649,13 +657,6 @@ if(WIN32)
     add_definitions(-DEnC_SUPPORTED)
   endif(CLR_CMAKE_PLATFORM_ARCH_AMD64 OR CLR_CMAKE_PLATFORM_ARCH_I386)  
 endif(WIN32)
-
-if (WIN32)
-  set(FEATURE_EVENT_TRACE 1)
-endif()
-if(CLR_CMAKE_PLATFORM_LINUX AND CLR_CMAKE_PLATFORM_ARCH_AMD64)
-  set(FEATURE_EVENT_TRACE 1)
-endif()
 
 # Features - please keep them alphabetically sorted
 
@@ -782,15 +783,14 @@ add_definitions(-D_SECURE_SCL=0)
 add_definitions(-DUNICODE)
 add_definitions(-D_UNICODE)
 
-# Compiler options
+# Microsoft.Dotnet.BuildTools.Coreclr version
+set(BuildToolsVersion "1.0.4-prerelease")
+set(BuildToolsDir "${CLR_DIR}/packages/Microsoft.DotNet.BuildTools.CoreCLR/${BuildToolsVersion}")
 
+# Compiler options
 if(WIN32)
   add_compile_options(/FIWarningControl.h) # force include of WarningControl.h
   add_compile_options(/Zl) # omit default library name in .OBJ
 endif(WIN32)
-
-# Microsoft.Dotnet.BuildTools.Coreclr version
-set(BuildToolsVersion "1.0.4-prerelease")
-set(BuildToolsDir "${CLR_DIR}/packages/Microsoft.DotNet.BuildTools.CoreCLR/${BuildToolsVersion}")
 
 add_subdirectory(src)
