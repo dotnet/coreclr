@@ -10,9 +10,22 @@ set(CLR_DIR ${CMAKE_CURRENT_SOURCE_DIR}/..)
 set(VM_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../src/vm)
 set(GENERATED_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/../src/inc)
 
+include(../functions.cmake)
 include(../common.cmake)
-include(../coreclr.cmake)
+include(../CompileOptions.cmake)
+if (WIN32)
+  set(FEATURE_EVENT_TRACE 1)
+endif()
+if(CLR_CMAKE_PLATFORM_LINUX AND CLR_CMAKE_PLATFORM_ARCH_AMD64)
+  set(FEATURE_EVENT_TRACE 1)
+endif()
+if(WIN32)
+  add_compile_options(/FIWarningControl.h) # force include of WarningControl.h
+  add_compile_options(/Zl) # omit default library name in .OBJ
+endif(WIN32)
+include(../CompileDefinitions.cmake)
 
+include_directories("../bin/obj")
 include_directories("../src/inc")
 include_directories("../src/strongname/inc")
 include_directories("../src/inc/winrt")
@@ -27,12 +40,6 @@ include_directories("${GENERATED_INCLUDE_DIR}")
 
 # Include the basic prebuilt headers - required for getting fileversion resource details.
 include_directories("../src/pal/prebuilt/inc")
-
-if (CLR_CMAKE_PLATFORM_UNIX)
-  include_directories("../src/pal/inc")
-  include_directories("../src/pal/inc/rt")
-  include_directories("../src/pal/src/safecrt")
-endif (CLR_CMAKE_PLATFORM_UNIX)
 
 function(add_library_clr)
     add_library(${ARGV})
