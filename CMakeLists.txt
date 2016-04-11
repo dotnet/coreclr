@@ -1,49 +1,100 @@
 # Require at least version 2.8.12 of CMake
 cmake_minimum_required(VERSION 2.8.12)
 
+if(CMAKE_VERSION VERSION_EQUAL 3.0 OR CMAKE_VERSION VERSION_GREATER 3.0)
+    cmake_policy(SET CMP0042 NEW)
+endif()
+
 # Set the project name
 project(CoreCLR)
 
+# Include cmake functions
+include(functions.cmake)
+
+# Set commonly used directory names
 set(CLR_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(VM_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/vm)
 set(GENERATED_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/src/inc)
 
-########################common.cmake##########################
-
 set(CORECLR_SET_RPATH ON)
-
 if(CORECLR_SET_RPATH)
     # Enable @rpath support for shared libraries.
     set(MACOSX_RPATH ON)
 endif(CORECLR_SET_RPATH)
 
-if(CMAKE_VERSION VERSION_EQUAL 3.0 OR CMAKE_VERSION VERSION_GREATER 3.0)
-    cmake_policy(SET CMP0042 NEW)
+# Ensure that python is present
+find_program(PYTHON python)
+if (PYTHON STREQUAL "PYTHON-NOTFOUND")
+    message(FATAL_ERROR "PYTHON not found: Please install Python 2.7.9 or later from https://www.python.org/downloads/")
 endif()
 
-function(clr_unknown_arch)
-    if (WIN32)
-        message(FATAL_ERROR "Only AMD64, ARM64 and I386 are supported")
-    else()
-        message(FATAL_ERROR "Only AMD64, ARM64 and ARM are supported")
-    endif()
-endfunction()
+# Ensure other tools are present
+if(WIN32)
+    enable_language(ASM_MASM)
 
-# Detect Platform and architecture
+    # Ensure that MC is present
+    find_program(MC mc)
+    if (MC STREQUAL "MC-NOTFOUND")
+        message(FATAL_ERROR "MC not found")
+    endif()
+else()
+    enable_language(ASM)
+
+    # Ensure that awk is present
+    find_program(AWK awk)
+    if (AWK STREQUAL "AWK-NOTFOUND")
+        message(FATAL_ERROR "AWK not found")
+    endif()
+ 
+    if (CMAKE_SYSTEM_NAME STREQUAL Darwin)
+
+      # Ensure that dsymutil and strip is present
+      find_program(DSYMUTIL dsymutil)
+      if (DSYMUTIL STREQUAL "DSYMUTIL-NOTFOUND")
+          message(FATAL_ERROR "dsymutil not found")
+      endif()
+      find_program(STRIP strip)
+      if (STRIP STREQUAL "STRIP-NOTFOUND")
+          message(FATAL_ERROR "strip not found")
+      endif()
+    elseif (CMAKE_SYSTEM_NAME STREQUAL Linux)
+      # Ensure that objcopy is present
+      if(DEFINED ENV{CROSSCOMPILE})
+        if(CMAKE_SYSTEM_PROCESSOR STREQUAL armv7l)
+          find_program(OBJCOPY arm-linux-gnueabihf-objcopy)
+        elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL aarch64)
+          find_program(OBJCOPY aarch64-linux-gnu-objcopy)
+        else()
+          clr_unknown_arch()
+        endif()
+      else()
+        find_program(OBJCOPY objcopy)
+      endif()
+      if (OBJCOPY STREQUAL "OBJCOPY-NOTFOUND")
+          message(FATAL_ERROR "objcopy not found")
+      endif()
+    endif ()
+endif(WIN32)
+
+#----------------------------------------
+# Detect and set platform variable names
+#     - for non-windows build platform & architecture is detected using inbuilt CMAKE variables
+#     - for windows we use the passed in parameter to CMAKE to determine build arch
+#----------------------------------------
 if(CMAKE_SYSTEM_NAME STREQUAL Linux)
-    set(CLR_CMAKE_PLATFORM_UNIX 1)
+    set(CLR_CMAKE_PLATFORM_UNIX 1) # variant of unix
     # CMAKE_SYSTEM_PROCESSOR returns the value of `uname -p`.
     # For the AMD/Intel 64bit architecure two different strings are common.
     # Linux and Darwin identify it as "x86_64" while FreeBSD uses the
     # "amd64" string. Accept either of the two here.
     if(CMAKE_SYSTEM_PROCESSOR STREQUAL x86_64 OR CMAKE_SYSTEM_PROCESSOR STREQUAL amd64)
-        set(CLR_CMAKE_PLATFORM_UNIX_AMD64 1)
+        set(CLR_CMAKE_PLATFORM_UNIX_AMD64 1) # amd64 arch and unix OS
     elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL armv7l)
-        set(CLR_CMAKE_PLATFORM_UNIX_ARM 1)
+        set(CLR_CMAKE_PLATFORM_UNIX_ARM 1) # arm arch and unix OS
     elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL aarch64)
-        set(CLR_CMAKE_PLATFORM_UNIX_ARM64 1)
+        set(CLR_CMAKE_PLATFORM_UNIX_ARM64 1) # arm64 arch and unix OS
     else()
-        clr_unknown_arch()
+        clr_unknown_arch() # unsupported architecture
     endif()
     set(CLR_CMAKE_PLATFORM_LINUX 1)
 endif(CMAKE_SYSTEM_NAME STREQUAL Linux)
@@ -92,30 +143,46 @@ if(CMAKE_SYSTEM_NAME STREQUAL SunOS)
   set(CLR_CMAKE_PLATFORM_SUNOS 1)
 endif(CMAKE_SYSTEM_NAME STREQUAL SunOS)
 
-
-# Set host architecture variables
+#--------------------------------------------
+# This repo builds two set of binaries
+# 1. binaries which execute on target arch machine
+#        - for such binaries host architecture & target architecture are same
+# 2. binaries which execute on host machine but target another architecture
+#        - host architecture is different from target architecture
+#        - eg. crossgen.exe - runs on x64 machine and generates nis targeting arm64
+#-------------------------------------------------------------
+# Set HOST architecture variables
 if(CLR_CMAKE_PLATFORM_UNIX_ARM)
+  # host arch is arm
   set(CLR_CMAKE_PLATFORM_ARCH_ARM 1)
   set(CLR_CMAKE_HOST_ARCH "arm")
 elseif(CLR_CMAKE_PLATFORM_UNIX_ARM64)
-  set(CLR_CMAKE_PLATFORM_ARCH_ARM64 1)
+  # host arch is arm64
+  set(CLR_CMAKE_PLATFORM_ARCH_ARM64 1) 
   set(CLR_CMAKE_HOST_ARCH "arm64")
 elseif(CLR_CMAKE_PLATFORM_UNIX_AMD64)
+  # host arch is amd64
   set(CLR_CMAKE_PLATFORM_ARCH_AMD64 1)
   set(CLR_CMAKE_HOST_ARCH "x64")
 elseif(WIN32)
+  # CLR_CMAKE_HOST_ARCH is passed in as param to cmake
   if (CLR_CMAKE_HOST_ARCH STREQUAL x64)
+    # host arch is amd64
     set(CLR_CMAKE_PLATFORM_ARCH_AMD64 1)
   elseif(CLR_CMAKE_HOST_ARCH STREQUAL x86)
+    # host arch is x86
     set(CLR_CMAKE_PLATFORM_ARCH_I386 1)
   elseif(CLR_CMAKE_HOST_ARCH STREQUAL arm64)
+    # host arch is arm64
     set(CLR_CMAKE_PLATFORM_ARCH_ARM64 1)
   else()
     clr_unknown_arch()
   endif()
 endif()
 
-# if target arch not defined then host & target are same
+# Set TARGET architecture variables
+# Target arch will be a cmake param (optional) for both windows as well as non-windows build
+# if target arch is not specified then host & target are same
 if(NOT DEFINED CLR_CMAKE_TARGET_ARCH)
   set(CLR_CMAKE_TARGET_ARCH ${CLR_CMAKE_HOST_ARCH})
 endif(NOT DEFINED CLR_CMAKE_TARGET_ARCH)
@@ -140,209 +207,9 @@ if(NOT(CLR_CMAKE_TARGET_ARCH STREQUAL CLR_CMAKE_HOST_ARCH))
   endif()
 endif()
 
-# Ensure that python is present
-find_program(PYTHON python)
-if (PYTHON STREQUAL "PYTHON-NOTFOUND")
-    message(FATAL_ERROR "PYTHON not found: Please install Python 2.7.9 or later from https://www.python.org/downloads/")
-endif()
-
-if(WIN32)
-    enable_language(ASM_MASM)
-
-    # Ensure that MC is present
-    find_program(MC mc)
-    if (MC STREQUAL "MC-NOTFOUND")
-        message(FATAL_ERROR "MC not found")
-    endif()
-else()
-    enable_language(ASM)
-
-    # Ensure that awk is present
-    find_program(AWK awk)
-    if (AWK STREQUAL "AWK-NOTFOUND")
-        message(FATAL_ERROR "AWK not found")
-    endif()
- 
-    if (CMAKE_SYSTEM_NAME STREQUAL Darwin)
-
-      # Ensure that dsymutil and strip is present
-      find_program(DSYMUTIL dsymutil)
-      if (DSYMUTIL STREQUAL "DSYMUTIL-NOTFOUND")
-          message(FATAL_ERROR "dsymutil not found")
-      endif()
-      find_program(STRIP strip)
-      if (STRIP STREQUAL "STRIP-NOTFOUND")
-          message(FATAL_ERROR "strip not found")
-      endif()
-    elseif (CMAKE_SYSTEM_NAME STREQUAL Linux)
-      # Ensure that objcopy is present
-      if(DEFINED ENV{CROSSCOMPILE})
-        if(CMAKE_SYSTEM_PROCESSOR STREQUAL armv7l)
-          find_program(OBJCOPY arm-linux-gnueabihf-objcopy)
-        elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL aarch64)
-          find_program(OBJCOPY aarch64-linux-gnu-objcopy)
-        else()
-          clr_unknown_arch()
-        endif()
-      else()
-        find_program(OBJCOPY objcopy)
-      endif()
-      if (OBJCOPY STREQUAL "OBJCOPY-NOTFOUND")
-          message(FATAL_ERROR "objcopy not found")
-      endif()
-    endif ()
-endif(WIN32)
-
-# Build a list of compiler definitions by putting -D in front of each define.
-function(get_compile_definitions DefinitionName)
-    # Get the current list of definitions
-    get_directory_property(COMPILE_DEFINITIONS_LIST COMPILE_DEFINITIONS)
-
-    foreach(DEFINITION IN LISTS COMPILE_DEFINITIONS_LIST)
-        if (${DEFINITION} MATCHES "^\\$<\\$<CONFIG:([^>]+)>:([^>]+)>$")
-            # The entries that contain generator expressions must have the -D inside of the
-            # expression. So we transform e.g. $<$<CONFIG:Debug>:_DEBUG> to $<$<CONFIG:Debug>:-D_DEBUG>
-            set(DEFINITION "$<$<CONFIG:${CMAKE_MATCH_1}>:-D${CMAKE_MATCH_2}>")
-        else()
-            set(DEFINITION -D${DEFINITION})
-        endif()
-        list(APPEND DEFINITIONS ${DEFINITION})
-    endforeach()
-    set(${DefinitionName} ${DEFINITIONS} PARENT_SCOPE)
-endfunction(get_compile_definitions)
-
-# Build a list of include directories by putting -I in front of each include dir.
-function(get_include_directories IncludeDirectories)
-    get_directory_property(dirs INCLUDE_DIRECTORIES)
-    foreach(dir IN LISTS dirs)
-        list(APPEND INC_DIRECTORIES -I${dir})
-    endforeach()
-    set(${IncludeDirectories} ${INC_DIRECTORIES} PARENT_SCOPE)
-endfunction(get_include_directories)
-
-# Set the passed in RetSources variable to the list of sources with added current source directory
-# to form absolute paths.
-# The parameters after the RetSources are the input files.
-function(convert_to_absolute_path RetSources)
-    set(Sources ${ARGN})
-    foreach(Source IN LISTS Sources)
-        list(APPEND AbsolutePathSources ${CMAKE_CURRENT_SOURCE_DIR}/${Source})
-    endforeach()
-    set(${RetSources} ${AbsolutePathSources} PARENT_SCOPE)
-endfunction(convert_to_absolute_path)
-
-#Preprocess exports definition file
-function(preprocess_def_file inputFilename outputFilename)
-  get_compile_definitions(PREPROCESS_DEFINITIONS)
-
-  add_custom_command(
-    OUTPUT ${outputFilename}
-    COMMAND ${CMAKE_CXX_COMPILER} /P /EP /TC ${PREPROCESS_DEFINITIONS}  /Fi${outputFilename}  ${inputFilename}
-    DEPENDS ${inputFilename}
-    COMMENT "Preprocessing ${inputFilename}"
-  )
-
-  set_source_files_properties(${outputFilename}
-                              PROPERTIES GENERATED TRUE)
-endfunction()
-
-function(generate_exports_file inputFilename outputFilename)
-
-  if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
-    set(AWK_SCRIPT generateexportedsymbols.awk)
-  else()
-    set(AWK_SCRIPT generateversionscript.awk)
-  endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
-
-  add_custom_command(
-    OUTPUT ${outputFilename}
-    COMMAND ${AWK} -f ${CMAKE_SOURCE_DIR}/${AWK_SCRIPT} ${inputFilename} >${outputFilename}
-    DEPENDS ${inputFilename} ${CMAKE_SOURCE_DIR}/${AWK_SCRIPT}
-    COMMENT "Generating exports file ${outputFilename}"
-  )
-  set_source_files_properties(${outputFilename}
-                              PROPERTIES GENERATED TRUE)
-endfunction()
-
-function(add_precompiled_header header cppFile targetSources)
-  if(MSVC)
-    set(precompiledBinary "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/stdafx.pch")
-
-    set_source_files_properties(${cppFile}
-                                PROPERTIES COMPILE_FLAGS "/Yc\"${header}\" /Fp\"${precompiledBinary}\""
-                                           OBJECT_OUTPUTS "${precompiledBinary}")
-    set_source_files_properties(${${targetSources}}
-                                PROPERTIES COMPILE_FLAGS "/Yu\"${header}\" /Fp\"${precompiledBinary}\""
-                                           OBJECT_DEPENDS "${precompiledBinary}")
-    # Add cppFile to SourcesVar
-    set(${targetSources} ${${targetSources}} ${cppFile} PARENT_SCOPE)
-  endif(MSVC)
-endfunction()
-
-function(strip_symbols targetName outputFilename)
-  if(CLR_CMAKE_PLATFORM_UNIX)
-    if(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL RELEASE)
-
-      # On the older version of cmake (2.8.12) used on Ubuntu 14.04 the TARGET_FILE
-      # generator expression doesn't work correctly returning the wrong path and on
-      # the newer cmake versions the LOCATION property isn't supported anymore.
-      if(CMAKE_VERSION VERSION_EQUAL 3.0 OR CMAKE_VERSION VERSION_GREATER 3.0)
-          set(strip_source_file $<TARGET_FILE:${targetName}>)
-      else()
-          get_property(strip_source_file TARGET ${targetName} PROPERTY LOCATION)
-      endif()
-
-      if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
-        set(strip_destination_file ${strip_source_file}.dwarf)
-
-        add_custom_command(
-          TARGET ${targetName}
-          POST_BUILD
-          VERBATIM 
-          COMMAND ${DSYMUTIL} --flat --minimize ${strip_source_file}
-          COMMAND ${STRIP} -u -r ${strip_source_file}
-          COMMENT Stripping symbols from ${strip_source_file} into file ${strip_destination_file}
-        )
-      elseif(CMAKE_SYSTEM_NAME STREQUAL Linux)
-        set(strip_destination_file ${strip_source_file}.dbg)
-
-        add_custom_command(
-          TARGET ${targetName}
-          POST_BUILD
-          VERBATIM 
-          COMMAND ${OBJCOPY} --only-keep-debug ${strip_source_file} ${strip_destination_file}
-          COMMAND ${OBJCOPY} --strip-debug ${strip_source_file}
-          COMMAND ${OBJCOPY} --add-gnu-debuglink=${strip_destination_file} ${strip_source_file}
-          COMMENT Stripping symbols from ${strip_source_file} into file ${strip_destination_file}
-        )
-      endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
-
-      set(${outputFilename} ${strip_destination_file} PARENT_SCOPE)
-    endif(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL RELEASE)
-  endif(CLR_CMAKE_PLATFORM_UNIX)
-endfunction()
-
-function(install_clr targetName)
-  strip_symbols(${targetName} strip_destination_file)
-
-  # On the older version of cmake (2.8.12) used on Ubuntu 14.04 the TARGET_FILE
-  # generator expression doesn't work correctly returning the wrong path and on
-  # the newer cmake versions the LOCATION property isn't supported anymore.
-  if(CMAKE_VERSION VERSION_EQUAL 3.0 OR CMAKE_VERSION VERSION_GREATER 3.0)
-      set(install_source_file $<TARGET_FILE:${targetName}>)
-  else()
-      get_property(install_source_file TARGET ${targetName} PROPERTY LOCATION)
-  endif()
-
-  install(PROGRAMS ${install_source_file} DESTINATION .)
-  if(WIN32)
-      install(FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/${targetName}.pdb DESTINATION PDB)
-  else()
-      install(FILES ${strip_destination_file} DESTINATION .)
-  endif()
-endfunction()
-
-# Includes
+#-----------------------------------------------------
+# Initialize Cmake compiler flags and other variables
+#-----------------------------------------------------
 
 if (CMAKE_CONFIGURATION_TYPES) # multi-configuration generator?
     set(CMAKE_CONFIGURATION_TYPES "Debug;Checked;Release;RelWithDebInfo" CACHE STRING "" FORCE)
@@ -389,7 +256,9 @@ elseif (CLR_CMAKE_PLATFORM_UNIX)
 
 endif(WIN32)
 
+#------------------------------------
 # Definitions
+#-----------------------------------
 if (CLR_CMAKE_PLATFORM_ARCH_AMD64)
   add_definitions(-D_AMD64_)
   add_definitions(-D_WIN64)
