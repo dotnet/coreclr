@@ -76,6 +76,56 @@ else()
     endif ()
 endif(WIN32)
 
+#-----------------------------------------------------
+# Initialize Cmake compiler flags and other variables
+#-----------------------------------------------------
+
+if (CMAKE_CONFIGURATION_TYPES) # multi-configuration generator?
+    set(CMAKE_CONFIGURATION_TYPES "Debug;Checked;Release;RelWithDebInfo" CACHE STRING "" FORCE)
+endif (CMAKE_CONFIGURATION_TYPES)
+
+set(CMAKE_C_FLAGS_CHECKED ${CLR_C_FLAGS_CHECKED_INIT} CACHE STRING "Flags used by the compiler during checked builds.")
+set(CMAKE_CXX_FLAGS_CHECKED ${CLR_CXX_FLAGS_CHECKED_INIT} CACHE STRING "Flags used by the compiler during checked builds.")
+set(CMAKE_EXE_LINKER_FLAGS_CHECKED "")
+set(CMAKE_SHARED_LINKER_FLAGS_CHECKED "")
+
+if (WIN32)
+  # For multi-configuration toolset (as Visual Studio)
+  # set the different configuration defines.
+  foreach (Config DEBUG CHECKED RELEASE RELWITHDEBINFO)
+    foreach (Definition IN LISTS CLR_DEFINES_${Config}_INIT)
+      set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS $<$<CONFIG:${Config}>:${Definition}>)
+    endforeach (Definition)
+  endforeach (Config)
+
+elseif (CLR_CMAKE_PLATFORM_UNIX)
+  # Set the values to display when interactively configuring CMAKE_BUILD_TYPE
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "DEBUG;CHECKED;RELEASE;RELWITHDEBINFO")
+
+  # Use uppercase CMAKE_BUILD_TYPE for the string comparisons below
+  string(TOUPPER ${CMAKE_BUILD_TYPE} UPPERCASE_CMAKE_BUILD_TYPE)
+
+  # For single-configuration toolset
+  # set the different configuration defines.
+  if (UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG)
+    # First DEBUG
+    set_property(DIRECTORY  PROPERTY COMPILE_DEFINITIONS ${CLR_DEFINES_DEBUG_INIT})
+  elseif (UPPERCASE_CMAKE_BUILD_TYPE STREQUAL CHECKED)
+    # Then CHECKED
+    set_property(DIRECTORY PROPERTY COMPILE_DEFINITIONS ${CLR_DEFINES_CHECKED_INIT})
+  elseif (UPPERCASE_CMAKE_BUILD_TYPE STREQUAL RELEASE)
+    # Then RELEASE
+    set_property(DIRECTORY PROPERTY COMPILE_DEFINITIONS ${CLR_DEFINES_RELEASE_INIT})
+  elseif (UPPERCASE_CMAKE_BUILD_TYPE STREQUAL RELWITHDEBINFO)
+    # And then RELWITHDEBINFO
+    set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS ${CLR_DEFINES_RELWITHDEBINFO_INIT})
+  else ()
+    message(FATAL_ERROR "Unknown build type! Set CMAKE_BUILD_TYPE to DEBUG, CHECKED, RELEASE, or RELWITHDEBINFO!")
+  endif ()
+
+endif(WIN32)
+
+
 #----------------------------------------
 # Detect and set platform variable names
 #     - for non-windows build platform & architecture is detected using inbuilt CMAKE variables
@@ -206,55 +256,6 @@ if(NOT(CLR_CMAKE_TARGET_ARCH STREQUAL CLR_CMAKE_HOST_ARCH))
     message(FATAL_ERROR "Invalid host and target arch combination")
   endif()
 endif()
-
-#-----------------------------------------------------
-# Initialize Cmake compiler flags and other variables
-#-----------------------------------------------------
-
-if (CMAKE_CONFIGURATION_TYPES) # multi-configuration generator?
-    set(CMAKE_CONFIGURATION_TYPES "Debug;Checked;Release;RelWithDebInfo" CACHE STRING "" FORCE)
-endif (CMAKE_CONFIGURATION_TYPES)
-
-set(CMAKE_C_FLAGS_CHECKED ${CLR_C_FLAGS_CHECKED_INIT} CACHE STRING "Flags used by the compiler during checked builds.")
-set(CMAKE_CXX_FLAGS_CHECKED ${CLR_CXX_FLAGS_CHECKED_INIT} CACHE STRING "Flags used by the compiler during checked builds.")
-set(CMAKE_EXE_LINKER_FLAGS_CHECKED "")
-set(CMAKE_SHARED_LINKER_FLAGS_CHECKED "")
-
-if (WIN32)
-  # For multi-configuration toolset (as Visual Studio)
-  # set the different configuration defines.
-  foreach (Config DEBUG CHECKED RELEASE RELWITHDEBINFO)
-    foreach (Definition IN LISTS CLR_DEFINES_${Config}_INIT)
-      set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS $<$<CONFIG:${Config}>:${Definition}>)
-    endforeach (Definition)
-  endforeach (Config)
-
-elseif (CLR_CMAKE_PLATFORM_UNIX)
-  # Set the values to display when interactively configuring CMAKE_BUILD_TYPE
-  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "DEBUG;CHECKED;RELEASE;RELWITHDEBINFO")
-
-  # Use uppercase CMAKE_BUILD_TYPE for the string comparisons below
-  string(TOUPPER ${CMAKE_BUILD_TYPE} UPPERCASE_CMAKE_BUILD_TYPE)
-
-  # For single-configuration toolset
-  # set the different configuration defines.
-  if (UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG)
-    # First DEBUG
-    set_property(DIRECTORY  PROPERTY COMPILE_DEFINITIONS ${CLR_DEFINES_DEBUG_INIT})
-  elseif (UPPERCASE_CMAKE_BUILD_TYPE STREQUAL CHECKED)
-    # Then CHECKED
-    set_property(DIRECTORY PROPERTY COMPILE_DEFINITIONS ${CLR_DEFINES_CHECKED_INIT})
-  elseif (UPPERCASE_CMAKE_BUILD_TYPE STREQUAL RELEASE)
-    # Then RELEASE
-    set_property(DIRECTORY PROPERTY COMPILE_DEFINITIONS ${CLR_DEFINES_RELEASE_INIT})
-  elseif (UPPERCASE_CMAKE_BUILD_TYPE STREQUAL RELWITHDEBINFO)
-    # And then RELWITHDEBINFO
-    set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS ${CLR_DEFINES_RELWITHDEBINFO_INIT})
-  else ()
-    message(FATAL_ERROR "Unknown build type! Set CMAKE_BUILD_TYPE to DEBUG, CHECKED, RELEASE, or RELWITHDEBINFO!")
-  endif ()
-
-endif(WIN32)
 
 #------------------------------------
 # Definitions
