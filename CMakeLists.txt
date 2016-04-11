@@ -246,9 +246,9 @@ endfunction()
 function(generate_exports_file inputFilename outputFilename)
 
   if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
-    set(AWK_SCRIPT generateexportedsymbols.awk)
+    set(AWK_SCRIPT generateexportedsymbols_darwin.awk)
   else()
-    set(AWK_SCRIPT generateversionscript.awk)
+    set(AWK_SCRIPT generateexportedsymbols_common.awk)
   endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
   add_custom_command(
