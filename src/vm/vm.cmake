@@ -395,8 +395,8 @@ if(CLR_CMAKE_TARGET_ARCH_AMD64)
     )
 elseif(CLR_CMAKE_TARGET_ARCH_I386)
     set(VM_SOURCES_DAC_AND_WKS_ARCH
-        gcdecode.cpp
-        exinfo.cpp
+        ${VM_DIR}/gcdecode.cpp
+        ${VM_DIR}/exinfo.cpp
         ${VM_DIR}/${ARCH_SOURCES_DIR}/cgenx86.cpp
         ${VM_DIR}/${ARCH_SOURCES_DIR}/excepx86.cpp
         ${VM_DIR}/${ARCH_SOURCES_DIR}/gmsx86.cpp
