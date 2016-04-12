@@ -1,4 +1,6 @@
 set(CROSS_ROOTFS $ENV{ROOTFS_DIR})
+set(EXTRA_CROSS_COMPILE_FLAGS $ENV{EXTRA_CROSS_COMPILE_FLAGS})
+separate_arguments(EXTRA_CROSS_COMPILE_FLAGS)
 
 set(CMAKE_SYSTEM_NAME Linux)
 set(CMAKE_SYSTEM_VERSION 1)
@@ -8,6 +10,7 @@ add_compile_options(-target armv7-linux-gnueabi)
 add_compile_options(-mthumb)
 add_compile_options(-mfpu=vfpv3)
 add_compile_options(--sysroot=${CROSS_ROOTFS})
+add_compile_options(${EXTRA_CROSS_COMPILE_FLAGS})
 
 set(CROSS_LINK_FLAGS "${CROSS_LINK_FLAGS} -target arm-linux-gnueabi")
 set(CROSS_LINK_FLAGS "${CROSS_LINK_FLAGS} -B${CROSS_ROOTFS}/usr/lib/arm-linux-gnueabi")
