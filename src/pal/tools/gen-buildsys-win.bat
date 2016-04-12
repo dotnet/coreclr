@@ -1,4 +1,4 @@
-@echo off
+@if not defined __echo @echo off
 rem
 rem This file invokes cmake and generates the build system for windows.
 
@@ -30,9 +30,9 @@ for /f "delims=" %%a in ('powershell -NoProfile -ExecutionPolicy RemoteSigned "&
 
 :DoGen
 if "%USE_VS%" == "0" (
-    "%CMakePath%" "-DCMAKE_USER_MAKE_RULES_OVERRIDE=%basePath%\windows-compiler-override.txt" "-DCLR_CMAKE_HOST_ARCH=%3" -G "Visual Studio %__VSString% Win64" %1
+    "%CMakePath%" "-DCMAKE_USER_MAKE_RULES_OVERRIDE=%basePath%\windows-compiler-override.txt" "-DCLR_CMAKE_HOST_ARCH=%3" "-DCLR_CMAKE_TARGET_ARCH=%4" -G "Visual Studio %__VSString% Win64" %1
 ) else (
-    "%CMakePath%" "-DCMAKE_USER_MAKE_RULES_OVERRIDE=%basePath%\windows-compiler-override.txt" "-DCLR_CMAKE_HOST_ARCH=%3" "-DCLR_CMAKE_TARGET_ARCH=%4" -G "Visual Studio %__VSString%" %1
+    "%CMakePath%" "-DCMAKE_USER_MAKE_RULES_OVERRIDE=%basePath%\windows-compiler-override.txt" "-DCLR_CMAKE_HOST_ARCH=%3" -G "Visual Studio %__VSString%" %1
 )
 endlocal
 GOTO :DONE
