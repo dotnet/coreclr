@@ -235,10 +235,10 @@ GlobalMemoryStatusEx(
 
     // Get the physical memory size
 #if HAVE_SYSCONF && HAVE__SC_PHYS_PAGES
-    int64_t physical_memory;
+    uint64_t physical_memory;
 
     // Get the Physical memory size
-    physical_memory = sysconf( _SC_PHYS_PAGES ) * sysconf( _SC_PAGE_SIZE );
+    physical_memory = (uint64_t)sysconf( _SC_PHYS_PAGES ) * (uint64_t)sysconf( _SC_PAGE_SIZE );
     lpBuffer->ullTotalPhys = (DWORDLONG)physical_memory;
     fRetVal = TRUE;
 #elif HAVE_SYSCTL
@@ -271,7 +271,7 @@ GlobalMemoryStatusEx(
     if (lpBuffer->ullTotalPhys > 0)
     {
 #ifndef __APPLE__
-        lpBuffer->ullAvailPhys = sysconf(SYSCONF_PAGES) * sysconf(_SC_PAGE_SIZE);
+        lpBuffer->ullAvailPhys = (uint64_t)sysconf(SYSCONF_PAGES) * (uint64_t)sysconf(_SC_PAGE_SIZE);
         INT64 used_memory = lpBuffer->ullTotalPhys - lpBuffer->ullAvailPhys;
         lpBuffer->dwMemoryLoad = (DWORD)((used_memory * 100) / lpBuffer->ullTotalPhys);
 #else
