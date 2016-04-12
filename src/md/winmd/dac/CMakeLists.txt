@@ -1,3 +1,5 @@
+set(MDWINMD_DIR ${CMAKE_CURRENT_SOURCE_DIR}/..)
+include(../mdwinmd.cmake)
 
 include(${CLR_DIR}/dac.cmake)
 include(../../md_dbi.cmake)

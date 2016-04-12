@@ -1,0 +1,5 @@
+add_definitions(-D_TARGET_ARM64_=1)
+add_definitions(-DDBG_TARGET_64BIT=1)
+add_definitions(-DDBG_TARGET_ARM64=1)
+add_definitions(-DDBG_TARGET_WIN64=1)
+add_definitions(-DBIT64=1)

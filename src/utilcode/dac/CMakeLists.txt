@@ -1,5 +1,21 @@
 include(${CLR_DIR}/dac.cmake)
 
+set(UTILCODE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/..)
+include(../utilcode.cmake)
+
+set(UTILCODE_DAC_SOURCES 
+  ${UTILCODE_COMMON_SOURCES}
+  ${UTILCODE_DIR}/hostimpl.cpp
+)
+
+if(WIN32)
+    add_compile_options(/wd4996)
+endif(WIN32)
+
+if(CLR_CMAKE_PLATFORM_UNIX)
+    add_compile_options(-fPIC)
+endif(CLR_CMAKE_PLATFORM_UNIX)
+
 add_definitions(-DSELF_NO_HOST)
 
 if(CLR_CMAKE_PLATFORM_UNIX)

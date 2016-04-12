@@ -1,4 +1,3 @@
-add_subdirectory(daccess)
 add_subdirectory(dbgutil)
 add_subdirectory(ildbsymlib)
 add_subdirectory(ee)
