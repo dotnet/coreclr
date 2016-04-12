@@ -270,6 +270,10 @@ elseif (CLR_CMAKE_PLATFORM_UNIX)
 
 endif(WIN32)
 
+if(CLR_CMAKE_PLATFORM_LINUX)  
+  set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -Wa,--noexecstack")  
+endif(CLR_CMAKE_PLATFORM_LINUX)  
+
 #------------------------------------
 # Definitions
 #-----------------------------------

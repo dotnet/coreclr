@@ -55,32 +55,30 @@ set( JIT_SOURCES
 
 if(CLR_CMAKE_TARGET_ARCH_AMD64)
   set( ARCH_SOURCES
-    ${JIT_DIR}/targetamd64.cpp
-    ${JIT_DIR}/unwindamd64.cpp
+    ${JIT_DIR}/codegenxarch.cpp
     ${JIT_DIR}/emitxarch.cpp
     ${JIT_DIR}/lowerxarch.cpp
-    ${JIT_DIR}/codegenxarch.cpp
-    ${JIT_DIR}/simdcodegenxarch.cpp
     ${JIT_DIR}/simd.cpp
+    ${JIT_DIR}/simdcodegenxarch.cpp
+    ${JIT_DIR}/targetamd64.cpp
+    ${JIT_DIR}/unwindamd64.cpp
   )
 elseif(CLR_CMAKE_TARGET_ARCH_ARM)
   set( ARCH_SOURCES
-    ${JIT_DIR}/emitarm.cpp
-    ${JIT_DIR}/targetarm.cpp
-    ${JIT_DIR}/lowerarm.cpp
     ${JIT_DIR}/codegenarm.cpp
+    ${JIT_DIR}/emitarm.cpp
+    ${JIT_DIR}/lowerarm.cpp
+    ${JIT_DIR}/targetarm.cpp
     ${JIT_DIR}/unwindarm.cpp
-    ${JIT_DIR}/codegenlegacy.cpp
-    ${JIT_DIR}/registerfp.cpp
   )
 elseif(CLR_CMAKE_TARGET_ARCH_I386)
   set( ARCH_SOURCES
-    ${JIT_DIR}/emitxarch.cpp
-    ${JIT_DIR}/targetx86.cpp
-    ${JIT_DIR}/lowerxarch.cpp
     ${JIT_DIR}/codegenxarch.cpp
-    ${JIT_DIR}/codegenlegacy.cpp
-    ${JIT_DIR}/stackfp.cpp
+    ${JIT_DIR}/emitxarch.cpp
+    ${JIT_DIR}/lowerxarch.cpp
+    ${JIT_DIR}/simd.cpp
+    ${JIT_DIR}/simdcodegenxarch.cpp
+    ${JIT_DIR}/targetx86.cpp
   )
 elseif(CLR_CMAKE_TARGET_ARCH_ARM64)
   set( ARCH_SOURCES
@@ -95,9 +93,35 @@ else()
   clr_unknown_arch()
 endif()
 
+# The following defines all the source files used by the "legacy" back-end (#ifdef LEGACY_BACKEND).
+# It is always safe to include both legacy and non-legacy files in the build, as everything is properly
+# #ifdef'ed, though it makes the build slightly slower to do so. Note there is only a legacy backend for
+# x86 and ARM.
+
+if(CLR_CMAKE_PLATFORM_ARCH_AMD64)
+  set( ARCH_LEGACY_SOURCES
+  )
+elseif(CLR_CMAKE_PLATFORM_ARCH_ARM)
+  set( ARCH_LEGACY_SOURCES
+    ${JIT_DIR}/codegenlegacy.cpp
+    ${JIT_DIR}/registerfp.cpp
+  )
+elseif(CLR_CMAKE_PLATFORM_ARCH_I386)
+  set( ARCH_LEGACY_SOURCES
+    ${JIT_DIR}/codegenlegacy.cpp
+    ${JIT_DIR}/stackfp.cpp
+  )
+elseif(CLR_CMAKE_PLATFORM_ARCH_ARM64)
+  set( ARCH_LEGACY_SOURCES
+  )
+else()
+  clr_unknown_arch()
+endif()
+
 set( SOURCES
   ${JIT_SOURCES}
   ${ARCH_SOURCES}
+  ${ARCH_LEGACY_SOURCES}
  )
 
 add_precompiled_header(jitpch.h ${JIT_DIR}/jitpch.cpp SOURCES)

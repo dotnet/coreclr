@@ -56,8 +56,6 @@ JIT/Regression/VS-ia64-JIT/V1.2-M02/b108129/b108129/b108129.sh
 JIT/Regression/VS-ia64-JIT/V1.2-M02/b12011/b12011/b12011.sh
 JIT/opt/Tailcall/TailcallVerifyWithPrefix/TailcallVerifyWithPrefix.sh
 Loader/NativeLibs/FromNativePaths/FromNativePaths.sh
-JIT/Directed/coverage/importer/Desktop/badldsfld_il_d/badldsfld_il_d.sh
-JIT/Directed/coverage/importer/Desktop/badldsfld_il_r/badldsfld_il_r.sh
 JIT/Directed/coverage/importer/Desktop/bleref_il_d/bleref_il_d.sh
 JIT/Directed/coverage/importer/Desktop/bleref_il_r/bleref_il_r.sh
 JIT/Directed/coverage/importer/Desktop/ldelemnullarr1_il_d/ldelemnullarr1_il_d.sh
@@ -171,15 +169,12 @@ JIT/Regression/Dev11/External/dev11_145295/CSharpPart/CSharpPart.sh
 Interop/SimpleStruct/SimpleStruct/SimpleStruct.sh
 Interop/StructMarshalling/PInvoke/MarshalStructAsLayoutExp/MarshalStructAsLayoutExp.sh
 Interop/StructMarshalling/PInvoke/MarshalStructAsLayoutSeq/MarshalStructAsLayoutSeq.sh
-Interop/ArrayMarshalling/ByValArray/MarshalArrayByValTest/MarshalArrayByValTest.sh
-Interop/StringMarshalling/LPTSTR/LPTSTRTest/LPTSTRTest.sh
 GC/LargeMemory/Allocation/finalizertest/finalizertest.sh
 GC/LargeMemory/API/gc/reregisterforfinalize/reregisterforfinalize.sh
 GC/LargeMemory/API/gc/collect/collect.sh
 GC/LargeMemory/API/gc/getgeneration/getgeneration.sh
 GC/Scenarios/DoublinkList/doublinknoleak/doublinknoleak.sh
 GC/Scenarios/BaseFinal/basefinal/basefinal.sh
-GC/Coverage/concurrentspin2/concurrentspin2.sh
 GC/Coverage/smalloom/smalloom.sh
 GC/Coverage/271010/271010.sh
 GC/Features/BackgroundGC/concurrentspin2/concurrentspin2.sh
@@ -195,6 +190,5 @@ GC/Features/SustainedLowLatency/sustainedlowlatency_race_reverse/sustainedlowlat
 GC/Features/SustainedLowLatency/scenario/scenario.sh
 GC/Features/SustainedLowLatency/sustainedlowlatency_race/sustainedlowlatency_race.sh
 GC/Regressions/dev10bugs/536168/536168/536168.sh
-
 JIT/Regression/CLR-x86-EJIT/V1-M09.5-PDC/b14426/b14426/b14426.sh
 JIT/Performance/CodeQuality/BenchmarksGame/pidigits/pi-digits/pi-digits.sh
