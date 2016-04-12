@@ -5,7 +5,8 @@ rem This file invokes cmake and generates the build system for windows.
 set argC=0
 for %%x in (%*) do Set /A argC+=1
 
-if NOT %argC%==3 GOTO :USAGE
+if %argC% LSS 3 GOTO :USAGE
+if %argC% GTR 4 GOTO :USAGE
 if %1=="/?" GOTO :USAGE
 
 setlocal

@@ -366,34 +366,34 @@ REM === Cross Target Components build section.
 REM ===
 REM =========================================================================================
 rem cross build only enabled for arm64
-setlocal EnableDelayedExpansion EnableExtensions
-if /i "%__BuildArch%" == "arm64" ( 
-    set __CrossCompIntermediatesDir=%__IntermediatesDir%\crosscomponents    
-    set __hostBuildArch=amd64
-    set __CMakeBinDir=%__CMakeBinDir%\x64
+setlocal enabledelayedexpansion
+set "__CrossCompIntermediatesDir=%__IntermediatesDir%\crosscomponents"  
+set __hostBuildArch=x64
+set __CMakeBinDir=%__CMakeBinDir%/%__hostBuildArch%
+if /i "%__BuildArch%" == "arm64" (
     if not exist "%__CrossCompIntermediatesDir%" md "%__CrossCompIntermediatesDir%"
     pushd "%__CrossCompIntermediatesDir%"
     call "%__VSToolsRoot%\..\..\VC\vcvarsall.bat" x86_amd64
     call "%__SourceDir%\pal\tools\gen-buildsys-win.bat" "%__ProjectDir%\crosscomponents" %__VSVersion% %__hostBuildArch% %__BuildArch%
     popd
 
-    set "__BuildLog=%__LogsDir%\CoreCLR_%__BuildOS%__%__BuildArch%__%__BuildType%.log"
-    set "__BuildWrn=%__LogsDir%\CoreCLR_%__BuildOS%__%__BuildArch%__%__BuildType%.wrn"
-    set "__BuildErr=%__LogsDir%\CoreCLR_%__BuildOS%__%__BuildArch%__%__BuildType%.err"
+    set "__BuildLog=%__LogsDir%\CrossComponents_%__BuildOS%__%__BuildArch%__%__BuildType%.log"
+    set "__BuildWrn=%__LogsDir%\CrossComponents_%__BuildOS%__%__BuildArch%__%__BuildType%.wrn"
+    set "__BuildErr=%__LogsDir%\CrossComponents_%__BuildOS%__%__BuildArch%__%__BuildType%.err"
     set __msbuildLogArgs=^
-    /fileloggerparameters:Verbosity=normal;LogFile="%__BuildLog%" ^
-    /fileloggerparameters1:WarningsOnly;LogFile="%__BuildWrn%" ^
-    /fileloggerparameters2:ErrorsOnly;LogFile="%__BuildErr%" ^
+    /fileloggerparameters:Verbosity=normal;LogFile="!__BuildLog!" ^
+    /fileloggerparameters1:WarningsOnly;LogFile="!__BuildWrn!" ^
+    /fileloggerparameters2:ErrorsOnly;LogFile="!__BuildErr!" ^
     /consoleloggerparameters:Summary ^
     /verbosity:minimal
 
-    set __msbuildArgs="%__CrossCompIntermediatesDir%\install.vcxproj" %__msbuildCommonArgs% %__msbuildLogArgs% /p:Configuration=%__BuildType% /p:Platform=%__hostBuildArch%
-    %_msbuildexe% %__msbuildArgs%
+    set __msbuildArgs="%__CrossCompIntermediatesDir%\install.vcxproj" %__msbuildCommonArgs% !__msbuildLogArgs! /p:Configuration=%__BuildType% /p:Platform=%__hostBuildArch%
+    %_msbuildexe% !__msbuildArgs!
     if errorlevel 1 (
         echo %__MsgPrefix%Error: cross target component build failed. Refer to the build log files for details:
-        echo     %__BuildLog%
-        echo     %__BuildWrn%
-        echo     %__BuildErr%
+        echo     !__BuildLog!
+        echo     !__BuildWrn!
+        echo     !__BuildErr!
        exit /b 1
     )
 )

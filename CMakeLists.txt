@@ -39,6 +39,16 @@ if(WIN32)
     if (MC STREQUAL "MC-NOTFOUND")
         message(FATAL_ERROR "MC not found")
     endif()
+
+    if(CLR_CMAKE_HOST_ARCH STREQUAL arm64)
+      # CMAKE_CXX_COMPILER will default to the compiler installed with 
+      # Visual studio. Overwrite it to the compiler on the path. 
+      # TODO, remove when cmake generator supports Arm64 as a target.  
+      find_program(PATH_CXX_COMPILER cl) 
+      set(CMAKE_CXX_COMPILER ${PATH_CXX_COMPILER})  
+      message("Overwriting the CMAKE_CXX_COMPILER.") 
+      message(CMAKE_CXX_COMPILER found:${CMAKE_CXX_COMPILER}) 
+    endif()
 else()
     enable_language(ASM)
 
