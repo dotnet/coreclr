@@ -370,6 +370,7 @@ setlocal EnableDelayedExpansion EnableExtensions
 if /i "%__BuildArch%" == "arm64" ( 
     set __CrossCompIntermediatesDir=%__IntermediatesDir%\crosscomponents    
     set __hostBuildArch=amd64
+    set __CMakeBinDir=%__CMakeBinDir%\x64
     if not exist "%__CrossCompIntermediatesDir%" md "%__CrossCompIntermediatesDir%"
     pushd "%__CrossCompIntermediatesDir%"
     call "%__VSToolsRoot%\..\..\VC\vcvarsall.bat" x86_amd64
