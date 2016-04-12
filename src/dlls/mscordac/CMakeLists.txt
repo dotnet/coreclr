@@ -89,7 +89,7 @@ if(WIN32)
     )
 
     # ARM64_TODO: Enable this for Windows Arm64
-    if (NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)
+    if (NOT CLR_CMAKE_TARGET_ARCH_ARM64)
         list(APPEND COREDAC_LIBRARIES 
           ${STATIC_MT_VCRT_LIB}
         )
@@ -104,6 +104,19 @@ else(WIN32)
 endif(WIN32)
 
 target_link_libraries(mscordaccore ${COREDAC_LIBRARIES})
+add_subdirectory(../../md/compiler/dac ../../md/compiler/dac)
+add_subdirectory(../../md/runtime/dac ../../md/runtime/dac)
+add_subdirectory(../../md/enc/dac ../../md/enc/dac)
+add_subdirectory(../../md/hotdata/dac ../../md/hotdata/dac)
+if(WIN32)
+  add_subdirectory(../../md/winmd/dac ../../md/winmd/dac)
+endif(WIN32)
+add_subdirectory(../../strongname/api/dac ../../strongname/api/dac)
+add_subdirectory(../../utilcode/dac ../../utilcode/dac)
+add_subdirectory(../../unwinder/dac ../../unwinder/dac)
+add_subdirectory(../../debug/daccess ../../debug/daccess)
+add_subdirectory(../../debug/ee/dac ../../debug/ee/dac)
+add_subdirectory(../../vm/dac ../../vm/dac)
 
 # add the install targets
 install_clr(mscordaccore)

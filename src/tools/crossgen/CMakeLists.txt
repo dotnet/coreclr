@@ -64,7 +64,20 @@ endif(CLR_CMAKE_PLATFORM_UNIX)
 
 add_subdirectory(../../zap/crossgen ../../zap/crossgen)
 add_subdirectory(../../vm/crossgen ../../vm/crossgen)
+add_subdirectory(../../md/compiler/crossgen ../../md/compiler/crossgen)
+add_subdirectory(../../md/runtime/crossgen ../../md/runtime/crossgen)
+add_subdirectory(../../md/enc/crossgen ../../md/enc/crossgen)
+add_subdirectory(../../md/hotdata/crossgen ../../md/hotdata/crossgen)
 add_subdirectory(../../vm/crossgen_mscorlib ../../vm/crossgen_mscorlib)
+add_subdirectory(../../jit/crossgen ../../jit/crossgen)
+add_subdirectory(../../gcinfo/crossgen ../../gcinfo/crossgen)
+add_subdirectory(../../strongname/api/crossgen ../../strongname/api/crossgen)
+add_subdirectory(../../utilcode/crossgen ../../utilcode/crossgen)
+add_subdirectory(../../binder/v3binder_crossgen ../../binder/v3binder_crossgen)
+
+if(WIN32)
+  add_subdirectory(../../md/winmd/crossgen ../../md/winmd/crossgen)
+endif(WIN32)
 
 # add the install targets
 install_clr(crossgen)

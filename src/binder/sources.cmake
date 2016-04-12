@@ -1,0 +1,21 @@
+set(BINDER_COMMON_SOURCES
+    ${BINDER_DIR}/variables.cpp
+    ${BINDER_DIR}/utils.cpp
+    ${BINDER_DIR}/assemblyname.cpp
+    ${BINDER_DIR}/propertymap.cpp
+    ${BINDER_DIR}/applicationcontext.cpp
+    ${BINDER_DIR}/assembly.cpp
+    ${BINDER_DIR}/failurecache.cpp
+    ${BINDER_DIR}/assemblybinder.cpp
+    ${BINDER_DIR}/stringlexer.cpp
+    ${BINDER_DIR}/clrprivbindercoreclr.cpp
+    ${BINDER_DIR}/binderinterface.cpp
+    ${BINDER_DIR}/debuglog.cpp
+    ${BINDER_DIR}/bindinglog.cpp
+    ${BINDER_DIR}/cdebuglog.cpp
+    ${BINDER_DIR}/textualidentityparser.cpp
+    ${BINDER_DIR}/assemblyidentitycache.cpp
+    ${BINDER_DIR}/coreclrbindercommon.cpp
+    ${BINDER_DIR}/fusionassemblyname.cpp
+    ${BINDER_DIR}/fusionhelpers.cpp
+)

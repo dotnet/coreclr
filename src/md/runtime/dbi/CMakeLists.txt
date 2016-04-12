@@ -1,3 +1,5 @@
 include(../../md_dbi.cmake)
-add_precompiled_header(stdafx.h ../stdafx.cpp MDRUNTIME_SOURCES)
+set(MDRUNTIME_DIR ${CMAKE_CURRENT_SOURCE_DIR}/..)
+include(../mdruntime.cmake)
+
 add_library_clr(mdruntime-dbi ${MDRUNTIME_SOURCES})
