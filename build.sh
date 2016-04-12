@@ -19,6 +19,7 @@ usage()
     echo "skipnative - do not build native components."
     echo "skipmscorlib - do not build mscorlib.dll."
     echo "skiptests - skip the tests in the 'tests' subdirectory."
+    echo "skippack - do not make a nuget package"
     echo "disableoss - Disable Open Source Signing for mscorlib."
     echo "cmakeargs - user-settable additional arguments passed to CMake."
 
@@ -281,6 +282,11 @@ build_mscorlib()
 
 generate_NugetPackages()
 {
+    if [ $__SkipPack == 1 ]; then
+       echo "Skipping generating nuget package"
+       return
+    fi
+     
     # We can only generate nuget package if we also support building mscorlib as part of this build.
     if [ $__isMSBuildOnNETCoreSupported == 0 ]; then
         echo "Microsoft.NETCore.Runtime.CoreCLR nuget package generation unsupported."
@@ -409,6 +415,7 @@ __ConfigureOnly=0
 __SkipConfigure=0
 __SkipCoreCLR=0
 __SkipMSCorLib=0
+__SkipPack=0
 __CleanBuild=0
 __VerboseBuild=0
 __SignTypeReal=""
@@ -522,6 +529,10 @@ while :; do
 
         skipmscorlib)
             __SkipMSCorLib=1
+            ;;
+
+        skippack)
+            __SkipPack=1
             ;;
 
         includetests)
