@@ -246,9 +246,9 @@ endif()
 # Set TARGET architecture variables
 # Target arch will be a cmake param (optional) for both windows as well as non-windows build
 # if target arch is not specified then host & target are same
-if(NOT DEFINED CLR_CMAKE_TARGET_ARCH)
+if(NOT DEFINED CLR_CMAKE_TARGET_ARCH OR CLR_CMAKE_TARGET_ARCH STREQUAL "" )
   set(CLR_CMAKE_TARGET_ARCH ${CLR_CMAKE_HOST_ARCH})
-endif(NOT DEFINED CLR_CMAKE_TARGET_ARCH)
+endif()
 
 # Set target architecture variables
 if (CLR_CMAKE_TARGET_ARCH STREQUAL x64)
