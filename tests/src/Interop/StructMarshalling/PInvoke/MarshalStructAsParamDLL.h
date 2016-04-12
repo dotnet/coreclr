@@ -1,4 +1,3 @@
-#include "platformdefines.cpp"
 #include <xplatform.h>
 
 const int NumArrElements = 2;
@@ -22,7 +21,7 @@ void ChangeInnerSequential(InnerSequential* p)
 
 	char const * lpstr = "changed string";
 	size_t size = sizeof(char) * (strlen(lpstr) + 1);
-	LPSTR temp = (LPSTR)TP_CoTaskMemAlloc( size );
+	LPSTR temp = (LPSTR)CoTaskMemAlloc( size );
 	memset(temp, 0, size);
 	if(temp)
 	{
@@ -44,7 +43,7 @@ bool IsCorrectInnerSequential(InnerSequential* p)
 
 	char const * lpstr = "some string";
 	size_t size = sizeof(char) * (strlen(lpstr) + 1);
-	LPSTR temp = (LPSTR)TP_CoTaskMemAlloc( size );
+	LPSTR temp = (LPSTR)CoTaskMemAlloc( size );
 	memset(temp, 0, size);
 
 	if( strcmp((char*)p->f3, temp) != 0 )
@@ -76,7 +75,7 @@ void ChangeINNER2(INNER2* p)
 	p->f2 = 77.0;
 	char const * temp = "changed string";
 	size_t len = strlen(temp);
-	LPCSTR str = (LPCSTR)TP_CoTaskMemAlloc( sizeof(char)*(len+1) );
+	LPCSTR str = (LPCSTR)CoTaskMemAlloc( sizeof(char)*(len+1) );
 	strcpy((char*)str,temp);
 	p->f3 = str;
 }
@@ -135,7 +134,7 @@ void ChangeInnerExplicit(InnerExplicit* p)
 
 	char const * temp = "changed string";
 	size_t len = strlen(temp);
-	LPCSTR str = (LPCSTR)TP_CoTaskMemAlloc( sizeof(char)*(len+1) );
+	LPCSTR str = (LPCSTR)CoTaskMemAlloc( sizeof(char)*(len+1) );
 	strcpy((char*)str,temp);
 	p->f3 = str;
 }
@@ -165,7 +164,7 @@ void ChangeInnerArraySequential(InnerArraySequential* p)
 		(p->arr)[i].f2 = 77.0;
 
 		size_t size = sizeof(char) * (strlen(lpstr) + 1);
-		temp = (LPSTR)TP_CoTaskMemAlloc( size );
+		temp = (LPSTR)CoTaskMemAlloc( size );
 		memset(temp, 0, size);
 		if(temp)
 		{
@@ -252,12 +251,12 @@ void ChangeOUTER3(OUTER3* p)
 		(p->arr)[i].f1 = 77;
 		(p->arr)[i].f2 = 77.0;
 	
-		str = (LPCSTR)TP_CoTaskMemAlloc( sizeof(char)*(len+1) );
+		str = (LPCSTR)CoTaskMemAlloc( sizeof(char)*(len+1) );
 		strcpy((char*)str,temp);
 		(p->arr)[i].f3 = str;
 	}
 
-	str = (LPCSTR)TP_CoTaskMemAlloc( sizeof(char)*(len+1) );
+	str = (LPCSTR)CoTaskMemAlloc( sizeof(char)*(len+1) );
 	strcpy((char*)str,temp);
 	p->f4 = str;
 }
@@ -295,7 +294,7 @@ void ChangeCharSetAnsiSequential(CharSetAnsiSequential* p)
 {
 	char const * strSource = "change string";
 	size_t size = strlen(strSource) + 1;
-	LPSTR temp = (LPSTR)TP_CoTaskMemAlloc(size);
+	LPSTR temp = (LPSTR)CoTaskMemAlloc(size);
 	if(temp != NULL)
 	{
 		strcpy((char*)temp,strSource);
@@ -337,7 +336,7 @@ void ChangeCharSetUnicodeSequential(CharSetUnicodeSequential* p)
 	LPCWSTR strSource = u"change string";
 #endif
 	int len = wcslen(strSource);
-	LPCWSTR temp = (LPCWSTR)TP_CoTaskMemAlloc(sizeof(WCHAR)*(len+1));
+	LPCWSTR temp = (LPCWSTR)CoTaskMemAlloc(sizeof(WCHAR)*(len+1));
 	if(temp != NULL)
 	{
 		wcscpy_s((WCHAR*)temp, (len+1)*sizeof(WCHAR), strSource);
@@ -358,7 +357,13 @@ bool IsCorrectCharSetUnicodeSequential(CharSetUnicodeSequential* p)
 	LPCWSTR expected= u"some string";
 #endif
 	LPCWSTR actual = p->f1;
-	if(0 != TP_wcmp_s((WCHAR*)actual, (WCHAR*)expected))
+	int lenExpected = wcslen(expected);
+	int lenActual = wcslen(actual);
+	if(lenExpected != lenActual)
+	{
+		return false;
+	}
+	if(0 != wmemcmp((WCHAR*)actual, (WCHAR*)expected, lenExpected))
 	{
 		return false;
 	}
@@ -451,7 +456,7 @@ void ChangeS3(S3* p)
 	char const * strSource = "change string";
 	int len = strlen(strSource);
 	
-	LPCSTR temp = (LPCSTR)TP_CoTaskMemAlloc((sizeof(char)*len) + 1);
+	LPCSTR temp = (LPCSTR)CoTaskMemAlloc((sizeof(char)*len) + 1);
 	if(temp != NULL)
 	{
 		/*TP_CoTaskMemFree((void *)p->str);*/
@@ -470,7 +475,7 @@ bool IsCorrectS3(S3* p)
 
 	char const * lpstr = "some string";
 	size_t size = sizeof(char) * (strlen(lpstr) + 1);
-	LPSTR temp = (LPSTR)TP_CoTaskMemAlloc( size );
+	LPSTR temp = (LPSTR)CoTaskMemAlloc( size );
 	memset(temp, 0, size);
 
 	if(!p->flag || strcmp((char*)p->str, temp) != 0)
@@ -517,7 +522,7 @@ void ChangeS5(S5* str)
 	Enum1 eInstance = e2;
 	char const * strSource = "change string";	
 	int len = strlen(strSource);
-	LPCSTR temp = (LPCSTR)TP_CoTaskMemAlloc(sizeof(char)*(len+1));
+	LPCSTR temp = (LPCSTR)CoTaskMemAlloc(sizeof(char)*(len+1));
 	if(temp != NULL)
 	{
 		strcpy((char*)temp,strSource);
@@ -532,7 +537,7 @@ bool IsCorrectS5(S5* str)
 
 	char const * lpstr = "some string";
 	size_t size = sizeof(char) * (strlen(lpstr) + 1);
-	LPSTR temp = (LPSTR)TP_CoTaskMemAlloc( size );
+	LPSTR temp = (LPSTR)CoTaskMemAlloc( size );
 	memset(temp, 0, size);
 
 	if(str->s4.age != 32 || strcmp((char*)str->s4.name, temp) != 0)
@@ -577,8 +582,8 @@ bool IsCorrectStringStructSequentialAnsi(StringStructSequentialAnsi* str)
 
 void ChangeStringStructSequentialAnsi(StringStructSequentialAnsi* str)
 {
-	char* newFirst = (char*)TP_CoTaskMemAlloc(sizeof(char)*513);
-	char* newLast = (char*)TP_CoTaskMemAlloc(sizeof(char)*513);
+	char* newFirst = (char*)CoTaskMemAlloc(sizeof(char)*513);
+	char* newLast = (char*)CoTaskMemAlloc(sizeof(char)*513);
 	for (int i = 0; i < 512; ++i)
 	{
 		newFirst[i] = 'b';
@@ -625,8 +630,8 @@ bool IsCorrectStringStructSequentialUnicode(StringStructSequentialUnicode* str)
 
 void ChangeStringStructSequentialUnicode(StringStructSequentialUnicode* str)
 {
-	WCHAR* newFirst = (WCHAR*)TP_CoTaskMemAlloc(sizeof(WCHAR)*257);
-	WCHAR* newLast = (WCHAR*)TP_CoTaskMemAlloc(sizeof(WCHAR)*257);
+	WCHAR* newFirst = (WCHAR*)CoTaskMemAlloc(sizeof(WCHAR)*257);
+	WCHAR* newLast = (WCHAR*)CoTaskMemAlloc(sizeof(WCHAR)*257);
 	for (int i = 0; i < 256; ++i)
 	{
 		newFirst[i] = L'b';
@@ -676,7 +681,7 @@ void ChangeS8(S8* str)
 {
 	char const * lpstr = "world";
 	size_t size = sizeof(char) * (strlen(lpstr) + 1);
-	LPSTR temp = (LPSTR)TP_CoTaskMemAlloc( size );
+	LPSTR temp = (LPSTR)CoTaskMemAlloc( size );
 	memset(temp, 0, size);
 	if(temp)
 	{
