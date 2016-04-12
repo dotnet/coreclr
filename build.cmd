@@ -1,6 +1,10 @@
 @if not defined __echo @echo off
 setlocal EnableDelayedExpansion EnableExtensions
 
+echo Dummy test that make the job fails.
+echo Force to fail.
+exit /b 1
+
 set __ThisScriptShort=%0
 set __ThisScriptFull="%~f0"
 set __ThisScriptPath="%~dp0"
