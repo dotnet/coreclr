@@ -49,6 +49,69 @@ namespace AppX
 #endif
 };
 
+// Helpers for various WinRT functions that need to be delay loaded for CoreCLR
+// since they are not present on all supported platforms.
+
+#include "delayloadhelpers.h"
+
+// Declare the list of functions to be delay-loaded
+DELAY_LOADED_MODULE("api-ms-win-core-winrt-string-l1-1-0", API_MS_WIN_CORE_WINRT_STRING_L1_1_0)
+
+DELAY_LOADED_FUNCTION_BEGIN_LIST(API_MS_WIN_CORE_WINRT_STRING_L1_1_0)
+DELAY_LOADED_FUNCTION_EX(API_MS_WIN_CORE_WINRT_STRING_L1_1_0, WindowsCreateString)
+DELAY_LOADED_FUNCTION_EX(API_MS_WIN_CORE_WINRT_STRING_L1_1_0, WindowsGetStringRawBuffer)
+DELAY_LOADED_FUNCTION_EX(API_MS_WIN_CORE_WINRT_STRING_L1_1_0, WindowsCreateStringReference)
+DELAY_LOADED_FUNCTION_EX(API_MS_WIN_CORE_WINRT_STRING_L1_1_0, WindowsDeleteString)
+DELAY_LOADED_FUNCTION_EX(API_MS_WIN_CORE_WINRT_STRING_L1_1_0, WindowsGetStringLen)
+DELAY_LOADED_FUNCTION_END_LIST(API_MS_WIN_CORE_WINRT_STRING_L1_1_0)
+
+
+EXTERN_C HRESULT WindowsCreateString(LPCWSTR sourceString, UINT32 length, HSTRING *string)
+{
+    HRESULT hr = S_OK;
+
+    typedef HRESULT pFuncWindowsCreateString(LPCWSTR sourceString, UINT32 length, HSTRING *string);
+
+    pFuncWindowsCreateString *pWindowsCreateString = nullptr;
+    IfFailThrow(DelayLoad::API_MS_WIN_CORE_WINRT_STRING_L1_1_0::WindowsCreateString.GetValue(&pWindowsCreateString));
+    IfFailRet((*pWindowsCreateString)(sourceString, length, string));
+
+    return hr;
+}
+
+EXTERN_C HRESULT WindowsDeleteString(HSTRING string)
+{
+    HRESULT hr = S_OK;
+
+    typedef HRESULT pFuncWindowsDeleteString(HSTRING string);
+
+    pFuncWindowsDeleteString *pWindowsDeleteString = nullptr;
+    IfFailThrow(DelayLoad::API_MS_WIN_CORE_WINRT_STRING_L1_1_0::WindowsDeleteString.GetValue(&pWindowsDeleteString));
+    IfFailRet((*pWindowsDeleteString)(string));
+    return hr;
+}
+
+EXTERN_C PCWSTR WindowsGetStringRawBuffer(HSTRING string, UINT32 *length)
+{
+    typedef PCWSTR pFuncWindowsGetStringRawBuffer(HSTRING string, UINT32 *length);
+
+    pFuncWindowsGetStringRawBuffer *pWindowsGetStringRawBuffer = nullptr;
+    IfFailThrow(DelayLoad::API_MS_WIN_CORE_WINRT_STRING_L1_1_0::WindowsGetStringRawBuffer.GetValue(&pWindowsGetStringRawBuffer));
+    return ((*pWindowsGetStringRawBuffer)(string, length));
+}
+
+EXTERN_C HRESULT WindowsCreateStringReference(PCWSTR sourceString, UINT32 length, HSTRING_HEADER *hstringHeader, HSTRING *string)
+{
+    HRESULT hr = S_OK;
+
+    typedef HRESULT pFuncWindowsCreateStringReference(LPCWSTR sourceString, UINT32 length, HSTRING_HEADER *hstringHeader, HSTRING *string);
+
+    pFuncWindowsCreateStringReference *pWindowsCreateStringReference = nullptr;
+    IfFailThrow(DelayLoad::API_MS_WIN_CORE_WINRT_STRING_L1_1_0::WindowsCreateStringReference.GetValue(&pWindowsCreateStringReference));
+    IfFailRet((*pWindowsCreateStringReference)(sourceString, length, hstringHeader, string));
+
+    return hr;
+}
 #else // FEATURE_CORECLR
 
 //---------------------------------------------------------------------------------------------
