@@ -15,7 +15,7 @@
 #include "common.h"
 
 #ifdef FEATURE_APPX
-#include <roapi.h>
+#include "windowsruntime.h"
 #include <windows.ui.core.h>
 #endif
 #include "synchronizationcontextnative.h"
