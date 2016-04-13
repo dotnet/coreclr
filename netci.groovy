@@ -71,6 +71,9 @@ class Constants {
     def static configurationList = ['Debug', 'Checked', 'Release']
     // This is the set of architectures
     def static architectureList = ['arm', 'arm64', 'x64', 'x86']
+    // This is the list of trigger phrases. Initially empty, it will be added to by addTriggers and used
+    // By the job that prints all trigger phrases.
+    def static triggerPhrases = []
 }
 
 def static setMachineAffinity(def job, def os, def architecture) {
@@ -431,16 +434,19 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                     if (scenario == 'default') {
                         assert !isFlowJob
                         Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build", "(?i).*test\\W+${os}.*")
+                        Constants.triggerPhrases += "${os} ${architecture} ${configuration} Build: \'test ${os}\'"
                     }
                     else if (scenario == 'pri1' && isFlowJob) {
                         assert (configuration == 'Release')
                         Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Pri 1 Build & Test", "(?i).*test\\W+${os}\\W+${scenario}.*")
+                        Constants.triggerPhrases += "${os} ${architecture} ${configuration} Pri 1 Build & Test: \'test ${os} ${scenario}\'"
                     }
                     break
                 case 'Ubuntu15.10':
                     assert !isFlowJob
                     assert scenario == 'default'
                     Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build", '(?i).*test\\W+Ubuntu15\\.10.*')
+                    Constants.triggerPhrases += "${os} ${architecture} ${configuration} Build: \'test Ubuntu15.10\'"
                     break
                 case 'Ubuntu':
                 case 'OSX':
@@ -460,86 +466,103 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                         case 'pri1':
                             if (configuration == 'Release') {
                                 Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Priority 1 Build and Test", "(?i).*test\\W+${os}\\W+${scenario}.*")
+                                Constants.triggerPhrases += "${os} ${architecture} ${configuration} Pri 1 Build & Test: \'test ${os} ${scenario}\'"
                             }
                             break
                         case 'ilrt':
                             if (configuration == 'Release') {
                                 Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} IL RoundTrip Build and Test", "(?i).*test\\W+${os}\\W+${scenario}.*")
+                                Constants.triggerPhrases += "${os} ${architecture} ${configuration} IL RoundTrip Build and Test: \'test ${os} ${scenario}\'"
                             }
                             break
                         case 'r2r':
                             if (configuration == 'Release' || configuration == 'Checked') {
-                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} R2R pri0 Build & Test", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")  
+                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} R2R pri0 Build & Test", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")
+                                Constants.triggerPhrases += "${os} ${architecture} ${configuration} R2R pri0 Build & Test: \'test ${os} ${configuration} ${scenario}\'"
                             }
                             break
                         case 'pri1r2r':
                             if (configuration == 'Release' || configuration == 'Checked') {
-                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} R2R pri1 Build & Test", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")  
+                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} R2R pri1 Build & Test", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")
+                                Constants.triggerPhrases += "${os} ${architecture} ${configuration} R2R pri1 Build & Test: \'test ${os} ${configuration} ${scenario}\'"
                             }
                             break
                         case 'gcstress15_pri1r2r':
                             if (configuration == 'Release' || configuration == 'Checked') {
-                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} GCStress 15 R2R pri1 Build & Test", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")  
+                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} GCStress 15 R2R pri1 Build & Test", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")
+                                Constants.triggerPhrases += "${os} ${architecture} ${configuration} GCStress 15 R2R pri1 Build & Test: \'test ${os} ${configuration} ${scenario}\'"
                             }
                             break
                         case 'longgc':
                             if (configuration == 'Release' || configuration == 'Checked') {
                                 Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Long-Running GC Build & Test", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")
+                                Constants.triggerPhrases += "${os} ${architecture} ${configuration} Long-Running GC Build & Test: \'test ${os} ${configuration} ${scenario}\'"
                             }
                             break
                         case 'minopts':
                             assert (os == 'Windows_NT') || (os in Constants.crossList)
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test (Jit - MinOpts)",
                                "(?i).*test\\W+${os}\\W+${scenario}.*")
+                            Constants.triggerPhrases += "${os} ${architecture} ${configuration} Build and Test (Jit - MinOpts): \'test ${os} ${scenario}\'"
                             break
                         case 'jitstress1':
                             assert (os == 'Windows_NT') || (os in Constants.crossList)
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test (Jit - JitStress=1)",
                                "(?i).*test\\W+${os}\\W+${scenario}.*")
+                            Constants.triggerPhrases += "${os} ${architecture} ${configuration} Build and Test (Jit - JitStress=1): \'test ${os} ${scenario}\'"
                             break
                         case 'jitstress2':
                             assert (os == 'Windows_NT') || (os in Constants.crossList)
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test (Jit - JitStress=2)",
                                "(?i).*test\\W+${os}\\W+${scenario}.*")
+                            Constants.triggerPhrases += "${os} ${architecture} ${configuration} Build and Test (Jit - JitStress=2): \'test ${os} ${scenario}\'"
                             break                           
                         case 'forcerelocs':
                             assert (os == 'Windows_NT') || (os in Constants.crossList)
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test (Jit - ForceRelocs)",
                                "(?i).*test\\W+${os}\\W+${scenario}.*")
+                            Constants.triggerPhrases += "${os} ${architecture} ${configuration} Build and Test (Jit - ForceRelocs): \'test ${os} ${scenario}\'"
                         case 'jitstressregs1':
                             assert (os == 'Windows_NT') || (os in Constants.crossList)
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test (Jit - JitStressRegs=1)",
                                "(?i).*test\\W+${os}\\W+${scenario}.*")
+                            Constants.triggerPhrases += "${os} ${architecture} ${configuration} Build and Test (Jit - JitStressRegs=1): \'test ${os} ${scenario}\'"
                             break                           
                         case 'jitstressregs2':
                             assert (os == 'Windows_NT') || (os in Constants.crossList)
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test (Jit - JitStressRegs=2)",
                                "(?i).*test\\W+${os}\\W+${scenario}.*")
+                            Constants.triggerPhrases += "${os} ${architecture} ${configuration} Build and Test (Jit - JitStressRegs=2): \'test ${os} ${scenario}\'"
                             break                                                   
                         case 'jitstressregs3':
                             assert (os == 'Windows_NT') || (os in Constants.crossList)
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test (Jit - JitStressRegs=3)",
                                "(?i).*test\\W+${os}\\W+${scenario}.*")
+                            Constants.triggerPhrases += "${os} ${architecture} ${configuration} Build and Test (Jit - JitStressRegs=3): \'test ${os} ${scenario}\'"
                             break                                                   
                         case 'jitstressregs4':      
                             assert (os == 'Windows_NT') || (os in Constants.crossList)
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test (Jit - JitStressRegs=4)",
                                "(?i).*test\\W+${os}\\W+${scenario}.*")
+                            Constants.triggerPhrases += "${os} ${architecture} ${configuration} Build and Test (Jit - JitStressRegs=4): \'test ${os} ${scenario}\'"
                             break                                                   
                         case 'jitstressregs8':
                             assert (os == 'Windows_NT') || (os in Constants.crossList)
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test (Jit - JitStressRegs=8)",
                                "(?i).*test\\W+${os}\\W+${scenario}.*")
+                            Constants.triggerPhrases += "${os} ${architecture} ${configuration} Build and Test (Jit - JitStressRegs=8): \'test ${os} ${scenario}\'"
                             break
                         case 'jitstressregs0x10':
                             assert (os == 'Windows_NT') || (os in Constants.crossList)
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test (Jit - JitStressRegs=0x10)",
                                "(?i).*test\\W+${os}\\W+${scenario}.*")
+                            Constants.triggerPhrases += "${os} ${architecture} ${configuration} Build and Test (Jit - JitStressRegs=0x10): \'test ${os} ${scenario}\'"
                             break
                         case 'jitstressregs0x80':
                             assert (os == 'Windows_NT') || (os in Constants.crossList)
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test (Jit - JitStressRegs=0x80)",
                                "(?i).*test\\W+${os}\\W+${scenario}.*")
+                            Constants.triggerPhrases += "${os} ${architecture} ${configuration} Build and Test (Jit - JitStressRegs=0x80): \'test ${os} ${scenario}\'"
                             break
                         case 'jitstress2_jitstressregs1':
                         case 'jitstress2_jitstressregs2':
@@ -562,6 +585,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                             assert (os == 'Windows_NT') || (os in Constants.crossList)
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test (Jit - ${displayStr})",
                                "(?i).*test\\W+${os}\\W+${scenario}.*")
+                            Constants.triggerPhrases += "${os} ${architecture} ${configuration} Build and Test (Jit - ${displayStr}): \'test ${os} ${scenario}\'"
                             break
                         case 'corefx_baseline':
                         case 'corefx_minopts':
@@ -578,6 +602,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                             assert (os == 'Windows_NT') || (os in Constants.crossList)
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test (Jit - ${displayName})",
                                "(?i).*test\\W+${os}\\W+${scenario}.*")
+                            Constants.triggerPhrases += "${os} ${architecture} ${configuration} Build and Test (Jit - ${displayName}): \'test ${os} ${scenario}\'"
                             break                          
                         default:
                             println("Unknown scenario: ${scenario}");
@@ -590,21 +615,25 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                         case 'pri1':
                             if (configuration == 'Release') {
                                 Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Priority 1 Build and Test", "(?i).*test\\W+${os}\\W+${scenario}.*")
+                                Constants.triggerPhrases += "${os} ${architecture} ${configuration} Pri 1 Build & Test: \'test ${os} ${scenario}\'"
                             }
                             break
                         case 'r2r':
                             if (configuration == 'Checked' || configuration == 'Release') {
                                 Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} R2R pri0 Build & Test", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")
+                                Constants.triggerPhrases += "${os} ${architecture} ${configuration} R2R pri0 Build & Test: \'test ${os} ${configuration} ${scenario}\'"
                             }
                             break
                         case 'pri1r2r':
                             if (configuration == 'Checked' || configuration == 'Release') {
                                 Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} R2R pri1 Build & Test", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")
+                                Constants.triggerPhrases += "${os} ${architecture} ${configuration} R2R pri1 Build & Test: \'test ${os} ${configuration} ${scenario}\'"
                             }
                             break
                         case 'gcstress15_pri1r2r':
                             if (configuration == 'Release' || configuration == 'Checked') {
-                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} GCStress 15 R2R pri1 Build & Test", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")  
+                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} GCStress 15 R2R pri1 Build & Test", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")
+                                Constants.triggerPhrases += "${os} ${architecture} ${configuration} GCStress 15 R2R pri1 Build & Test: \'test ${os} ${configuration} ${scenario}\'"  
                             }
                             break
                         default:
@@ -627,83 +656,98 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                         case 'ilrt':
                             if (configuration == 'Release') {
                                 Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} IL RoundTrip Build and Test", "(?i).*test\\W+${os}\\W+${scenario}.*")
+                                Constants.triggerPhrases += "${os} ${architecture} ${configuration} IL RoundTrip Build and Test: \'test ${os} ${scenario}\'"
                             }
                             break
                         case 'r2r':
                             if (configuration == 'Checked' || configuration == 'Release') {
                                 Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} R2R pri0 Build & Test", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")
+                                Constants.triggerPhrases += "${os} ${architecture} ${configuration} R2R pri0 Build & Test: \'test ${os} ${configuration} ${scenario}\'"
                             }
                             break
                         case 'pri1r2r':
                             if (configuration == 'Checked' || configuration == 'Release') {
                                 Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} R2R pri1 Build & Test", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")
+                                Constants.triggerPhrases += "${os} ${architecture} ${configuration} R2R pri1 Build & Test: \'test ${os} ${configuration} ${scenario}\'"
                             }
                             break
                         case 'gcstress15_pri1r2r':
                             if (configuration == 'Release' || configuration == 'Checked') {
-                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} GCStress 15 R2R pri1 Build & Test", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")  
+                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} GCStress 15 R2R pri1 Build & Test", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")
+                                Constants.triggerPhrases += "${os} ${architecture} ${configuration} GCStress 15 R2R pri1 Build & Test: \'test ${os} ${configuration} ${scenario}\'"    
                             }
                             break
                         case 'longgc':
                             if (configuration == 'Release' || configuration == 'Checked') {
                                 Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Long-Running GC Build & Test", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")
+                                Constants.triggerPhrases += "${os} ${architecture} ${configuration} Long-Running GC Build & Test: \'test ${os} ${configuration} ${scenario}\'"
                             }
                             break
                         case 'minopts':
                             assert (os == 'Windows_NT') || (os in Constants.crossList)
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test (Jit - MinOpts)",
                                "(?i).*test\\W+${os}\\W+${scenario}.*")
+                            Constants.triggerPhrases += "${os} ${architecture} ${configuration} Build and Test (Jit - MinOpts): \'test ${os} ${scenario}\'"
                             break
-                        case 'forcerelocs':                         
-                            assert (os == 'Windows_NT') || (os in Constants.crossList)
-                            Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test (Jit - ForceRelocs)",
-                               "(?i).*test\\W+${os}\\W+${scenario}.*")
-                            break                           
                         case 'jitstress1':
                             assert (os == 'Windows_NT') || (os in Constants.crossList)
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test (Jit - JitStress=1)",
                                "(?i).*test\\W+${os}\\W+${scenario}.*")
+                            Constants.triggerPhrases += "${os} ${architecture} ${configuration} Build and Test (Jit - JitStress=1): \'test ${os} ${scenario}\'"
                             break
                         case 'jitstress2':
                             assert (os == 'Windows_NT') || (os in Constants.crossList)
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test (Jit - JitStress=2)",
                                "(?i).*test\\W+${os}\\W+${scenario}.*")
-                            break
+                            Constants.triggerPhrases += "${os} ${architecture} ${configuration} Build and Test (Jit - JitStress=2): \'test ${os} ${scenario}\'"
+                            break                           
+                        case 'forcerelocs':
+                            assert (os == 'Windows_NT') || (os in Constants.crossList)
+                            Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test (Jit - ForceRelocs)",
+                               "(?i).*test\\W+${os}\\W+${scenario}.*")
+                            Constants.triggerPhrases += "${os} ${architecture} ${configuration} Build and Test (Jit - ForceRelocs): \'test ${os} ${scenario}\'"
                         case 'jitstressregs1':
                             assert (os == 'Windows_NT') || (os in Constants.crossList)
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test (Jit - JitStressRegs=1)",
                                "(?i).*test\\W+${os}\\W+${scenario}.*")
-                            break                       
+                            Constants.triggerPhrases += "${os} ${architecture} ${configuration} Build and Test (Jit - JitStressRegs=1): \'test ${os} ${scenario}\'"
+                            break                           
                         case 'jitstressregs2':
                             assert (os == 'Windows_NT') || (os in Constants.crossList)
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test (Jit - JitStressRegs=2)",
                                "(?i).*test\\W+${os}\\W+${scenario}.*")
-                            break                       
+                            Constants.triggerPhrases += "${os} ${architecture} ${configuration} Build and Test (Jit - JitStressRegs=2): \'test ${os} ${scenario}\'"
+                            break                                                   
                         case 'jitstressregs3':
                             assert (os == 'Windows_NT') || (os in Constants.crossList)
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test (Jit - JitStressRegs=3)",
                                "(?i).*test\\W+${os}\\W+${scenario}.*")
-                            break                       
+                            Constants.triggerPhrases += "${os} ${architecture} ${configuration} Build and Test (Jit - JitStressRegs=3): \'test ${os} ${scenario}\'"
+                            break                                                   
                         case 'jitstressregs4':      
                             assert (os == 'Windows_NT') || (os in Constants.crossList)
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test (Jit - JitStressRegs=4)",
                                "(?i).*test\\W+${os}\\W+${scenario}.*")
-                            break                       
+                            Constants.triggerPhrases += "${os} ${architecture} ${configuration} Build and Test (Jit - JitStressRegs=4): \'test ${os} ${scenario}\'"
+                            break                                                   
                         case 'jitstressregs8':
                             assert (os == 'Windows_NT') || (os in Constants.crossList)
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test (Jit - JitStressRegs=8)",
                                "(?i).*test\\W+${os}\\W+${scenario}.*")
-                            break                       
+                            Constants.triggerPhrases += "${os} ${architecture} ${configuration} Build and Test (Jit - JitStressRegs=8): \'test ${os} ${scenario}\'"
+                            break
                         case 'jitstressregs0x10':
                             assert (os == 'Windows_NT') || (os in Constants.crossList)
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test (Jit - JitStressRegs=0x10)",
                                "(?i).*test\\W+${os}\\W+${scenario}.*")
-                            break                       
+                            Constants.triggerPhrases += "${os} ${architecture} ${configuration} Build and Test (Jit - JitStressRegs=0x10): \'test ${os} ${scenario}\'"
+                            break
                         case 'jitstressregs0x80':
                             assert (os == 'Windows_NT') || (os in Constants.crossList)
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test (Jit - JitStressRegs=0x80)",
                                "(?i).*test\\W+${os}\\W+${scenario}.*")
-                            break       
+                            Constants.triggerPhrases += "${os} ${architecture} ${configuration} Build and Test (Jit - JitStressRegs=0x80): \'test ${os} ${scenario}\'"
+                            break
                         case 'jitstress2_jitstressregs1':
                         case 'jitstress2_jitstressregs2':
                         case 'jitstress2_jitstressregs3':
@@ -725,6 +769,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                             assert (os == 'Windows_NT') || (os in Constants.crossList)
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test (Jit - ${displayStr})",
                                "(?i).*test\\W+${os}\\W+${scenario}.*")
+                            Constants.triggerPhrases += "${os} ${architecture} ${configuration} Build and Test (Jit - ${displayStr}): \'test ${os} ${scenario}\'"
                             break                                   
                         case 'corefx_baseline':
                         case 'corefx_minopts':
@@ -741,6 +786,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                             assert (os == 'Windows_NT') || (os in Constants.crossList)
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test (Jit - ${displayName})",
                                "(?i).*test\\W+${os}\\W+${scenario}.*")
+                            Constants.triggerPhrases += "${os} ${architecture} ${configuration} Build and Test (Jit - ${displayName}): \'test ${os} ${scenario}\'"
                             break                       
                         default:
                             println("Unknown scenario: ${scenario}");
@@ -772,6 +818,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                             break
                         case "arm64":
                            Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} Cross ${configuration} Build", "(?i).*test\\W+${os}\\W+${architecture}.*")
+                           Constants.triggerPhrases += "${os} ${architecture} Cross ${configuration} Build: \'test ${os} ${architecture}\'"
                            break
                     }
 					break
@@ -807,12 +854,14 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                 else {
                     // default trigger
                     Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build", "(?i).*test\\W+${architecture}\\W+${osGroup}.*")
+                    Constants.triggerPhrases += "${os} ${architecture} ${configuration} Build: \'test ${architecture} ${osGroup}\'"
                 }
             }
             else if (scenario == 'r2r') {
                 if (os == 'Windows_NT') {
                     if (configuration == 'Release') {
                         Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} R2R pri0 Legacy Backend Build & Test", "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}\\W+${scenario}.*")
+                        Constants.triggerPhrases += "${os} ${architecture} ${configuration} R2R pri0 Legacy Backend Build & Test: \'test ${os} ${architecture} ${configuration} ${scenario}\'"
                     }
                 }
             }
@@ -820,19 +869,22 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                 if (os == 'Windows_NT') {
                     if (configuration == 'Release') {
                         Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} R2R pri1 Legacy Backend Build & Test", "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}\\W+${scenario}.*")
+                        Constants.triggerPhrases += "${os} ${architecture} ${configuration} R2R pri1 Legacy Backend Build & Test: \'test ${os} ${architecture} ${configuration} ${scenario}\'"
                     }
                 }
             }
             else if (scenario == 'gcstress15_pri1r2r'){
                 if (os == 'Windows_NT'){
                     if (configuration == 'Release'){
-                        Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} GCStress 15 R2R pri1 Build & Test", "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}\\W+${scenario}.*")  
+                        Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} GCStress 15 R2R pri1 Build & Test", "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}\\W+${scenario}.*")
+                        Constants.triggerPhrases += "${os} ${architecture} ${configuration} GCStress 15 R2R pri1 Build & Test: \'test ${os} ${architecture} ${configuration} ${scenario}\'"
                     }
                 }
             } else if (scenario == 'longgc') {
                 if (os == 'Windows_NT'){
                     if (configuration == 'Release' || configuration == 'Checked'){
-                        Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Long-Running GC Build & Test", "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}\\W+${scenario}.*")  
+                        Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Long-Running GC Build & Test", "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}\\W+${scenario}.*")
+                        Constants.triggerPhrases += "${os} ${architecture} ${configuration} Long-Running GC Build & Test: \'test ${os} ${architecture} ${configuration} ${scenario}\'"
                     }
                 }
             }
@@ -1516,3 +1568,16 @@ build(params + [CORECLR_BUILD: coreclrBuildJob.build.number,
         } // architecture
     } // isPR
 } // scenario
+
+
+def triggerPhraseJob = job("trigger_phrases") {}
+setMachineAffinity(triggerPhraseJob, 'Ubuntu', 'x64')
+triggerPhraseJob.with {
+    steps {
+        Constants.triggerPhrases.each { phrase ->
+            shell("echo " + phrase + "\n")
+        }
+    }
+}
+Utilities.standardJobSetup(triggerPhraseJob, project, true, "*/${branch}")
+Utilities.addGithubPRTriggerForBranch(triggerPhraseJob, branch, "Trigger Phrase List", "(?i).*test\\W+triggers.*")
