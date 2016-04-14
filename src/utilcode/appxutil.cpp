@@ -871,7 +871,7 @@ namespace AppX
 #include "windowsruntime.h"
 
 // Declare the list of functions to be delay-loaded
-DELAY_LOADED_MODULE("api-ms-win-core-winrt-string-l1-1-0", API_MS_WIN_CORE_WINRT_STRING_L1_1_0)
+DELAY_LOADED_MODULE(api-ms-win-core-winrt-string-l1-1-0, API_MS_WIN_CORE_WINRT_STRING_L1_1_0)
 
 DELAY_LOADED_FUNCTION_BEGIN_LIST(API_MS_WIN_CORE_WINRT_STRING_L1_1_0)
 DELAY_LOADED_FUNCTION_EX(API_MS_WIN_CORE_WINRT_STRING_L1_1_0, WindowsCreateString)
@@ -881,7 +881,7 @@ DELAY_LOADED_FUNCTION_EX(API_MS_WIN_CORE_WINRT_STRING_L1_1_0, WindowsDeleteStrin
 DELAY_LOADED_FUNCTION_EX(API_MS_WIN_CORE_WINRT_STRING_L1_1_0, WindowsGetStringLen)
 DELAY_LOADED_FUNCTION_END_LIST(API_MS_WIN_CORE_WINRT_STRING_L1_1_0)
 
-DELAY_LOADED_MODULE("api-ms-win-core-winrt-l1-1-0", API_MS_WIN_CORE_WINRT_L1_1_0)
+DELAY_LOADED_MODULE(api-ms-win-core-winrt-l1-1-0, API_MS_WIN_CORE_WINRT_L1_1_0)
 
 DELAY_LOADED_FUNCTION_BEGIN_LIST(API_MS_WIN_CORE_WINRT_L1_1_0)
 DELAY_LOADED_FUNCTION_EX(API_MS_WIN_CORE_WINRT_L1_1_0, RoGetActivationFactory)
@@ -889,17 +889,22 @@ DELAY_LOADED_FUNCTION_EX(API_MS_WIN_CORE_WINRT_L1_1_0, RoUninitialize)
 DELAY_LOADED_FUNCTION_EX(API_MS_WIN_CORE_WINRT_L1_1_0, RoInitialize)
 DELAY_LOADED_FUNCTION_END_LIST(API_MS_WIN_CORE_WINRT_L1_1_0)
 
-DELAY_LOADED_MODULE("api-ms-win-core-winrt-roparameterizediid-l1-1-0", API_MS_WIN_CORE_WINRT_ROPARAMETERIZEDIID_L1_1_0)
+DELAY_LOADED_MODULE(api-ms-win-core-winrt-roparameterizediid-l1-1-0, API_MS_WIN_CORE_WINRT_ROPARAMETERIZEDIID_L1_1_0)
 
 DELAY_LOADED_FUNCTION_BEGIN_LIST(API_MS_WIN_CORE_WINRT_ROPARAMETERIZEDIID_L1_1_0)
 DELAY_LOADED_FUNCTION_EX(API_MS_WIN_CORE_WINRT_ROPARAMETERIZEDIID_L1_1_0, RoGetParameterizedTypeInstanceIID)
 DELAY_LOADED_FUNCTION_END_LIST(API_MS_WIN_CORE_WINRT_ROPARAMETERIZEDIID_L1_1_0)
 
-DELAY_LOADED_MODULE("api-ms-win-ro-typeresolution-l1-1-0", API_MS_WIN_RO_TYPERESOLUTION_L1_1_0)
+DELAY_LOADED_MODULE(api-ms-win-ro-typeresolution-l1-1-0, API_MS_WIN_RO_TYPERESOLUTION_L1_1_0)
 
 DELAY_LOADED_FUNCTION_BEGIN_LIST(API_MS_WIN_RO_TYPERESOLUTION_L1_1_0)
 DELAY_LOADED_FUNCTION_EX(API_MS_WIN_RO_TYPERESOLUTION_L1_1_0, RoParseTypeName)
 DELAY_LOADED_FUNCTION_END_LIST(API_MS_WIN_RO_TYPERESOLUTION_L1_1_0)
+
+void TriggerFailFast()
+{
+    RaiseFailFastException(NULL, NULL, FAIL_FAST_GENERATE_EXCEPTION_ADDRESS);
+}
 
 HRESULT WINAPI WindowsCreateString(LPCWSTR sourceString, UINT32 length, HSTRING *string)
 {
@@ -908,7 +913,11 @@ HRESULT WINAPI WindowsCreateString(LPCWSTR sourceString, UINT32 length, HSTRING 
     typedef HRESULT WINAPI pFuncWindowsCreateString(LPCWSTR sourceString, UINT32 length, HSTRING *string);
 
     pFuncWindowsCreateString *pWindowsCreateString = nullptr;
-    IfFailThrow(DelayLoad::API_MS_WIN_CORE_WINRT_STRING_L1_1_0::WindowsCreateString.GetValue(&pWindowsCreateString));
+    if (FAILED(DelayLoad::API_MS_WIN_CORE_WINRT_STRING_L1_1_0::WindowsCreateString.GetValue(&pWindowsCreateString)))
+    {
+        TriggerFailFast();
+    }
+
     IfFailRet((*pWindowsCreateString)(sourceString, length, string));
 
     return hr;
@@ -921,7 +930,11 @@ HRESULT WINAPI WindowsDeleteString(HSTRING string)
     typedef HRESULT WINAPI pFuncWindowsDeleteString(HSTRING string);
 
     pFuncWindowsDeleteString *pWindowsDeleteString = nullptr;
-    IfFailThrow(DelayLoad::API_MS_WIN_CORE_WINRT_STRING_L1_1_0::WindowsDeleteString.GetValue(&pWindowsDeleteString));
+    if (FAILED(DelayLoad::API_MS_WIN_CORE_WINRT_STRING_L1_1_0::WindowsDeleteString.GetValue(&pWindowsDeleteString)))
+    {
+        TriggerFailFast();
+    }
+
     IfFailRet((*pWindowsDeleteString)(string));
     return hr;
 }
@@ -931,7 +944,11 @@ PCWSTR WINAPI WindowsGetStringRawBuffer(HSTRING string, UINT32 *length)
     typedef PCWSTR WINAPI pFuncWindowsGetStringRawBuffer(HSTRING string, UINT32 *length);
 
     pFuncWindowsGetStringRawBuffer *pWindowsGetStringRawBuffer = nullptr;
-    IfFailThrow(DelayLoad::API_MS_WIN_CORE_WINRT_STRING_L1_1_0::WindowsGetStringRawBuffer.GetValue(&pWindowsGetStringRawBuffer));
+    if (FAILED(DelayLoad::API_MS_WIN_CORE_WINRT_STRING_L1_1_0::WindowsGetStringRawBuffer.GetValue(&pWindowsGetStringRawBuffer)))
+    {
+        TriggerFailFast();
+    }
+
     return ((*pWindowsGetStringRawBuffer)(string, length));
 }
 
@@ -942,7 +959,11 @@ HRESULT WINAPI WindowsCreateStringReference(PCWSTR sourceString, UINT32 length, 
     typedef HRESULT WINAPI pFuncWindowsCreateStringReference(LPCWSTR sourceString, UINT32 length, HSTRING_HEADER *hstringHeader, HSTRING *string);
 
     pFuncWindowsCreateStringReference *pWindowsCreateStringReference = nullptr;
-    IfFailThrow(DelayLoad::API_MS_WIN_CORE_WINRT_STRING_L1_1_0::WindowsCreateStringReference.GetValue(&pWindowsCreateStringReference));
+    if (FAILED(DelayLoad::API_MS_WIN_CORE_WINRT_STRING_L1_1_0::WindowsCreateStringReference.GetValue(&pWindowsCreateStringReference)))
+    {
+        TriggerFailFast();
+    }
+
     IfFailRet((*pWindowsCreateStringReference)(sourceString, length, hstringHeader, string));
 
     return hr;
@@ -954,7 +975,11 @@ UINT32 WINAPI WindowsGetStringLen (HSTRING string)
 
     pFuncWindowsGetStringLen *pWindowsGetStringLen = nullptr;
 
-    IfFailThrow(DelayLoad::API_MS_WIN_CORE_WINRT_STRING_L1_1_0::WindowsGetStringLen.GetValue(&pWindowsGetStringLen));
+    if (FAILED(DelayLoad::API_MS_WIN_CORE_WINRT_STRING_L1_1_0::WindowsGetStringLen.GetValue(&pWindowsGetStringLen)))
+    {
+        TriggerFailFast();
+    }
+
     return ((*pWindowsGetStringLen)(string));
 }
 
@@ -965,7 +990,11 @@ HRESULT WINAPI RoGetActivationFactory (HSTRING activatableClassId, REFIID  iid, 
     typedef HRESULT WINAPI pFuncRoGetActivationFactory(HSTRING activatableClassId, REFIID  iid, void **factory);
 
     pFuncRoGetActivationFactory *pRoGetActivationFactory = nullptr;
-    IfFailThrow(DelayLoad::API_MS_WIN_CORE_WINRT_L1_1_0::RoGetActivationFactory.GetValue(&pRoGetActivationFactory));
+    if (FAILED(DelayLoad::API_MS_WIN_CORE_WINRT_L1_1_0::RoGetActivationFactory.GetValue(&pRoGetActivationFactory)))
+    {
+        TriggerFailFast();
+    }
+
     IfFailRet((*pRoGetActivationFactory)(activatableClassId, iid, factory));
 
     return hr;
@@ -978,7 +1007,11 @@ HRESULT WINAPI RoInitialize (RO_INIT_TYPE initType)
     typedef HRESULT WINAPI pFuncRoInitialize(RO_INIT_TYPE initType);
 
     pFuncRoInitialize *pRoInitialize = nullptr;
-    IfFailThrow(DelayLoad::API_MS_WIN_CORE_WINRT_L1_1_0::RoInitialize.GetValue(&pRoInitialize));
+    if (FAILED(DelayLoad::API_MS_WIN_CORE_WINRT_L1_1_0::RoInitialize.GetValue(&pRoInitialize)))
+    {
+        TriggerFailFast();
+    }
+
     IfFailRet((*pRoInitialize)(initType));
 
     return hr;
@@ -989,7 +1022,11 @@ void WINAPI RoUninitialize (void)
     typedef void WINAPI pFuncRoUninitialize(void);
 
     pFuncRoUninitialize *pRoUninitialize = nullptr;
-    IfFailThrow(DelayLoad::API_MS_WIN_CORE_WINRT_L1_1_0::RoUninitialize.GetValue(&pRoUninitialize));
+    if (FAILED(DelayLoad::API_MS_WIN_CORE_WINRT_L1_1_0::RoUninitialize.GetValue(&pRoUninitialize)))
+    {
+        TriggerFailFast();
+    }
+
     (*pRoUninitialize)();
 }
 
@@ -1008,7 +1045,11 @@ HRESULT WINAPI RoGetParameterizedTypeInstanceIID(UINT32 nameElementCount,
                                                         ROPARAMIIDHANDLE   *pExtra);
 
     pFuncRoGetParameterizedTypeInstanceIID *pRoGetParameterizedTypeInstanceIID = nullptr;
-    IfFailThrow(DelayLoad::API_MS_WIN_CORE_WINRT_ROPARAMETERIZEDIID_L1_1_0::RoGetParameterizedTypeInstanceIID.GetValue(&pRoGetParameterizedTypeInstanceIID));
+    if (FAILED(DelayLoad::API_MS_WIN_CORE_WINRT_ROPARAMETERIZEDIID_L1_1_0::RoGetParameterizedTypeInstanceIID.GetValue(&pRoGetParameterizedTypeInstanceIID)))
+    {
+        TriggerFailFast();
+    }
+
     IfFailRet((*pRoGetParameterizedTypeInstanceIID)(nameElementCount, nameElements, 
                                                         metaDataLocator, iid, pExtra));
 
@@ -1022,7 +1063,11 @@ HRESULT WINAPI RoParseTypeName(HSTRING typeName, DWORD   *partsCount, HSTRING **
     typedef HRESULT WINAPI pFuncRoParseTypeName(HSTRING typeName, DWORD   *partsCount, HSTRING **typeNameParts);
 
     pFuncRoParseTypeName *pRoParseTypeName = nullptr;
-    IfFailThrow(DelayLoad::API_MS_WIN_RO_TYPERESOLUTION_L1_1_0::RoParseTypeName.GetValue(&pRoParseTypeName));
+    if (FAILED(DelayLoad::API_MS_WIN_RO_TYPERESOLUTION_L1_1_0::RoParseTypeName.GetValue(&pRoParseTypeName)))
+    {
+        TriggerFailFast();
+    }
+    
     IfFailRet((*pRoParseTypeName)(typeName, partsCount, typeNameParts));
 
     return hr;
