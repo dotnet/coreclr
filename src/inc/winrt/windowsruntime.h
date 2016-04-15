@@ -5,7 +5,23 @@
 #ifndef WindowsRuntime_h
 #define WindowsRuntime_h
 
+#if defined(FEATURE_DELAYLOAD_WINRT) && !defined(DACCESS_COMPILE)
+// On CoreCLR, we delayload into various WinRT helper functions since they may not be available on all supported platforms (e.g. Win7).
+// Delayloading is achieved by the helpers, with the same name as the original functions, defined in utilcode.
+//
+// Certain WinRT functions declare their linkage as declspec(dllimport) explicitly. As a result, we need to define _ROAPI_ so that the declarations 
+// for such functions do not result in inconsistent linkage issues.
+//
+// Defining/undefining of __ROAPI_ addresses this concern.
+#define _ROAPI_
 #include <roapi.h>
+#undef _ROAPI_
+#include <rometadataresolution.h>
+#include <Roparameterizediid.h>
+#else // !(defined(FEATURE_DELAYLOAD_WINRT) && !defined(DACCESS_COMPILE))
+#include <roapi.h>
+#endif // defined(FEATURE_DELAYLOAD_WINRT) && !defined(DACCESS_COMPILE)
+
 #include <windowsstring.h>
 #include "holder.h"
 

@@ -47,12 +47,13 @@ namespace DelayLoad
 //          // Use hModKernel32 as needed. Do not FreeLibrary the value!
 //      }
 
-#define DELAY_LOADED_MODULE(DLL_NAME) \
+#define DELAY_LOADED_MODULE(DLL_NAME, FRIENDLY_DLL_NAME) \
     namespace DelayLoad { \
         namespace Modules { \
-            SELECTANY Module DLL_NAME = { L#DLL_NAME W(".dll"), nullptr, S_OK, false }; \
+            SELECTANY Module FRIENDLY_DLL_NAME = { L#DLL_NAME W(".dll"), nullptr, S_OK, false }; \
         } \
     }
+
 
 namespace DelayLoad
 {
@@ -102,12 +103,24 @@ namespace DelayLoad
 //      }
 
 #define DELAY_LOADED_FUNCTION(DLL_NAME, FUNC_NAME) \
-    DELAY_LOADED_MODULE(DLL_NAME) \
+    DELAY_LOADED_MODULE(DLL_NAME, DLL_NAME) \
     namespace DelayLoad { \
         namespace DLL_NAME { \
             SELECTANY Function FUNC_NAME = { &Modules::##DLL_NAME, #FUNC_NAME, nullptr, S_OK, false }; \
         } \
     }
+
+// Macros to declare a list of functions to be delay loaded from a given module
+#define DELAY_LOADED_FUNCTION_BEGIN_LIST(FRIENDLY_DLL_NAME) \
+    namespace DelayLoad { \
+        namespace FRIENDLY_DLL_NAME {
+
+
+#define DELAY_LOADED_FUNCTION_EX(FRIENDLY_DLL_NAME, FUNC_NAME) SELECTANY Function FUNC_NAME = { &Modules::##FRIENDLY_DLL_NAME, #FUNC_NAME, nullptr, S_OK, false }; 
+
+
+#define DELAY_LOADED_FUNCTION_END_LIST(FRIENDLY_DLL_NAME) } }
+
 
 #endif // DelayLoadHelpers_h
 
