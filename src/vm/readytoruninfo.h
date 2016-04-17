@@ -107,6 +107,7 @@ public:
         BOOL Next();
 
         MethodDesc * GetMethodDesc();
+        MethodDesc * GetMethodDesc_NoRestore();
         PCODE GetMethodStartAddress();
     };
 
