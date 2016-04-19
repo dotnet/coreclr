@@ -185,16 +185,15 @@ void                CodeGen::genEmitGSCookieCheck(bool pushReg)
         // Handle multi-reg return type values
         if (compiler->compMethodReturnsMultiRegRetType())
         {
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
             ReturnTypeDesc retTypeDesc;
             retTypeDesc.Initialize(compiler, compiler->info.compMethodInfo->args.retTypeClass);
+            unsigned regCount = retTypeDesc.GetReturnRegCount();
+            assert(regCount == MAX_RET_REG_COUNT);
 
-            assert(retTypeDesc.GetReturnRegCount() == CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_RETURN_IN_REGISTERS);
-
-            // Set the GC-ness of the struct return registers.
-            gcInfo.gcMarkRegPtrVal(REG_INTRET, retTypeDesc.GetReturnRegType(0));
-            gcInfo.gcMarkRegPtrVal(REG_INTRET_1, retTypeDesc.GetReturnRegType(1));
-#endif 
+            for (unsigned i = 0; i < regCount; ++i)
+            {
+                gcInfo.gcMarkRegPtrVal(retTypeDesc.GetABIReturnReg(i), retTypeDesc.GetReturnRegType(i));
+            }
         }
         else if (compiler->compMethodReturnsRetBufAddr())
         {
@@ -1499,6 +1498,8 @@ CodeGen::isStructReturn(GenTreePtr treeNode)
 // Return Value:
 //    None
 //
+// Assumption:
+//    op1 of GT_RETURN node is either GT_LCL_VAR or multi-reg GT_CALL
 void
 CodeGen::genStructReturn(GenTreePtr treeNode)
 {
@@ -1507,9 +1508,6 @@ CodeGen::genStructReturn(GenTreePtr treeNode)
     var_types targetType = treeNode->TypeGet();
 
 #ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
-    noway_assert((op1->OperGet() == GT_LCL_VAR) ||
-                 (op1->OperGet() == GT_CALL));
-
     if (op1->OperGet() == GT_LCL_VAR)
     {
         assert(op1->isContained());
@@ -1520,7 +1518,7 @@ CodeGen::genStructReturn(GenTreePtr treeNode)
 
         ReturnTypeDesc retTypeDesc;
         retTypeDesc.Initialize(compiler, varDsc->lvVerTypeInfo.GetClassHandle());
-        assert(retTypeDesc.GetReturnRegCount() == CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_RETURN_IN_REGISTERS);
+        assert(retTypeDesc.GetReturnRegCount() == MAX_RET_REG_COUNT);
 
         var_types type0 = retTypeDesc.GetReturnRegType(0);
         var_types type1 = retTypeDesc.GetReturnRegType(1);
@@ -1535,14 +1533,25 @@ CodeGen::genStructReturn(GenTreePtr treeNode)
     }
     else
     {
-        // Assumption: multi-reg return value of a GT_CALL node is never spilled.
-        // TODO-BUG: support for multi-reg call nodes.
+        assert(op1->IsMultiRegCall());
+        genConsumeRegs(op1);
 
-        assert(op1->OperGet() == GT_CALL);
-        assert((op1->gtFlags & GTF_SPILLED) == 0);
+        GenTreeCall* call = op1->AsCall();
+        ReturnTypeDesc* retTypeDesc = call->GetReturnTypeDesc();
+        unsigned regCount = retTypeDesc->GetReturnRegCount();
+
+        // TODO-Review: Handle circularity between allocated regs and ABI return regs
+        for (unsigned i = 0; i < regCount; ++i)
+        {
+            var_types regType = retTypeDesc->GetReturnRegType(i);
+            regNumber returnReg = retTypeDesc->GetABIReturnReg(i);
+            regNumber allocatedReg = call->GetRegNumByIdx(i);
+            if (allocatedReg != returnReg)
+            {
+                inst_RV_RV(ins_Copy(regType), returnReg, allocatedReg, regType);
+            }
+        }
     }
-
-
 #else
     assert("!unreached");
 #endif   
@@ -1947,9 +1956,11 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
 
     case GT_STORE_LCL_VAR:
         {  
+            GenTreePtr op1 = treeNode->gtGetOp1();
+
             // var = call, where call returns a multi-reg return value
             // case is handled separately.
-            if (treeNode->IsMultiRegCallStoreToLocal())
+            if (op1->IsMultiRegCall())
             {
                 genMultiRegCallStoreToLocal(treeNode);
             }
@@ -1971,8 +1982,7 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
                     break;
                 }
 #endif // !defined(_TARGET_64BIT_)
-
-                GenTreePtr op1 = treeNode->gtGetOp1();
+                
                 genConsumeRegs(op1);
 
                 if (treeNode->gtRegNum == REG_NA)
@@ -2622,12 +2632,12 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
 //    None
 //
 // Assumption:
-//    The child of store is a GT_CALL node.
+//    The child of store is a multi-reg call node.
 //
 void
 CodeGen::genMultiRegCallStoreToLocal(GenTreePtr treeNode)
 {
-    assert(treeNode->IsMultiRegCallStoreToLocal());
+    assert(treeNode->OperGet() == GT_STORE_LCL_VAR);    
 
 #ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
     // Structs of size >=9 and <=16 are returned in two return registers on x64 Unix.
@@ -2635,15 +2645,15 @@ CodeGen::genMultiRegCallStoreToLocal(GenTreePtr treeNode)
 
     // Assumption: struct local var needs to be in memory
     noway_assert(!treeNode->InReg());
-
-    GenTree* op1 = treeNode->gtGetOp1();
+    
+    GenTree* op1 = treeNode->gtGetOp1();    
     GenTreeCall* actualOp1 = op1->gtSkipReloadOrCopy()->AsCall();
     assert(actualOp1->HasMultiRegRetVal());
 
     genConsumeRegs(op1);
 
     ReturnTypeDesc* retTypeDesc = actualOp1->GetReturnTypeDesc();
-    assert(retTypeDesc->GetReturnRegCount() == CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_RETURN_IN_REGISTERS); 
+    assert(retTypeDesc->GetReturnRegCount() == MAX_RET_REG_COUNT);
 
     var_types type0 = retTypeDesc->GetReturnRegType(0);
     var_types type1 = retTypeDesc->GetReturnRegType(1);
@@ -4487,12 +4497,13 @@ void CodeGen::genCodeForShift(GenTreePtr operand, GenTreePtr shiftBy,
 void CodeGen::genUnspillRegIfNeeded(GenTree *tree)
 {
     regNumber dstReg = tree->gtRegNum;
-
     GenTree* unspillTree = tree;
+
     if (tree->gtOper == GT_RELOAD)
     {
         unspillTree = tree->gtOp.gtOp1;
     }
+
     if (unspillTree->gtFlags & GTF_SPILLED)
     {
         if (genIsRegCandidateLocal(unspillTree))
@@ -4724,6 +4735,7 @@ regNumber CodeGen::genConsumeReg(GenTree *tree)
     {
         genRegCopy(tree);
     }
+
     // Handle the case where we have a lclVar that needs to be copied before use (i.e. because it
     // interferes with one of the other sources (or the target, if it's a "delayed use" register)). 
     // TODO-Cleanup: This is a special copyReg case in LSRA - consider eliminating these and
@@ -4774,7 +4786,7 @@ regNumber CodeGen::genConsumeReg(GenTree *tree)
     }
     else
     {
-        gcInfo.gcMarkRegSetNpt(genRegMask(tree->gtRegNum));
+        gcInfo.gcMarkRegSetNpt(tree->gtGetRegMask());
     }
 
     genCheckConsumeNode(tree);
@@ -5079,6 +5091,18 @@ void CodeGen::genProduceReg(GenTree *tree)
             ((tree->gtFlags & GTF_VAR_DEATH) == 0))
         {
             gcInfo.gcMarkRegPtrVal(tree->gtRegNum, tree->TypeGet());
+
+            // Multi-reg call node will produce more than one register result.
+            // Mark the other regs produced by call node.
+            if (tree->IsMultiRegCall())
+            {
+                GenTreeCall* call = tree->AsCall();
+                ReturnTypeDesc* retTypeDesc = call->GetReturnTypeDesc();
+                for (unsigned i = 1; i < retTypeDesc->GetReturnRegCount(); ++i)
+                {
+                    gcInfo.gcMarkRegPtrVal(call->GetRegNumByIdx(i), retTypeDesc->GetReturnRegType(i));
+                }
+            }
         }
     }
     tree->SetInReg();
@@ -5610,20 +5634,19 @@ void CodeGen::genCallInstruction(GenTreePtr node)
     }
 
     // Determine return value size(s).
+    ReturnTypeDesc* retTypeDesc = call->GetReturnTypeDesc();
     emitAttr retSize = EA_PTRSIZE;
-
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
     emitAttr secondRetSize = EA_UNKNOWN;
-    if (varTypeIsStruct(call->gtType))
+
+    if (call->HasMultiRegRetVal())
     {
-        assert(call->HasMultiRegRetVal());
-        ReturnTypeDesc* retTypeDesc = call->GetReturnTypeDesc();
         retSize = emitTypeSize(retTypeDesc->GetReturnRegType(0));
         secondRetSize = emitTypeSize(retTypeDesc->GetReturnRegType(1));
     }
     else
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING  
     {
+        assert(!varTypeIsStruct(call));
+
         if (call->gtType == TYP_REF ||
             call->gtType == TYP_ARRAY)
         {
@@ -5821,25 +5844,41 @@ void CodeGen::genCallInstruction(GenTreePtr node)
 #endif // _TARGET_X86_
         {
             regNumber returnReg;
-            // TODO-Cleanup: For UNIX AMD64, we should not be allocating a return register for struct
-            // returns that are on stack.
-            // For the SIMD case, however, we do want a "return register", as the consumer of the call
-            // will want the value in a register. In future we should flexibly allocate this return
-            // register, but that should be done with a general cleanup of the allocation of return
-            // registers for structs.
-            if (varTypeIsFloating(returnType)
-                FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY( || varTypeIsSIMD(returnType)))
+
+            if (call->HasMultiRegRetVal())
             {
-                returnReg = REG_FLOATRET;
+                assert(retTypeDesc != nullptr);
+                unsigned regCount = retTypeDesc->GetReturnRegCount();
+
+                // TODO-Review: handle circular dependency while moving ABI regs to call node allocated regs
+                for (unsigned i = 0; i < regCount; ++i)
+                {
+                    var_types regType = retTypeDesc->GetReturnRegType(i);
+                    returnReg = retTypeDesc->GetABIReturnReg(i);
+                    regNumber allocatedReg = call->GetRegNumByIdx(i);
+                    if (returnReg != allocatedReg)
+                    {
+                        inst_RV_RV(ins_Copy(regType), allocatedReg, returnReg, regType);
+                    }
+                }
             }
             else
-            {
-                returnReg = REG_INTRET;
+            {                
+                if (varTypeIsFloating(returnType))
+                {
+                    returnReg = REG_FLOATRET;
+                }
+                else
+                {
+                    returnReg = REG_INTRET;
+                }
+
+                if (call->gtRegNum != returnReg)
+                {
+                    inst_RV_RV(ins_Copy(returnType), call->gtRegNum, returnReg, returnType);
+                }                
             }
-            if (call->gtRegNum != returnReg)
-            {
-                inst_RV_RV(ins_Copy(returnType), call->gtRegNum, returnReg, returnType);
-            }
+
             genProduceReg(call);
         }
     }
