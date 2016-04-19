@@ -1950,6 +1950,9 @@ typedef enum
     // The Windows Runtime content type flag is set in the metadata for this module's
     // assembly
     COR_PRF_MODULE_WINDOWS_RUNTIME  = 0x00000040,
+
+    // The module had been generated via CROSSGEN using the /ReadyToRun option
+    COR_PRF_MODULE_READYTORUN       = 0x00000080,
 }   COR_PRF_MODULE_FLAGS;
 /*
  * The ICorProfilerCallback2 interface is used by the CLR to notify a

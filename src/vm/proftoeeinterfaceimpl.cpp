@@ -4110,6 +4110,14 @@ DWORD ProfToEEInterfaceImpl::GetModuleFlags(Module * pModule)
 
         // Intentionally not checking for flat, since NGEN PEImages never have flat
         // layouts.
+
+#ifdef FEATURE_READYTORUN
+        PEImageLayout * pPEImageLayout = pPEFile->GetLoaded();
+        if (pPEImageLayout != nullptr && pPEImageLayout->HasReadyToRunHeader())
+        {
+            dwRet |= COR_PRF_MODULE_READYTORUN;
+        }
+#endif // FEATURE_READYTORUN
     }
     else
     {
