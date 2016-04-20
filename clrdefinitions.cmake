@@ -67,11 +67,11 @@ if(WIN32)
   add_definitions(-D_WIN32_WINNT=0x0602)
   add_definitions(-DWIN32_LEAN_AND_MEAN=1)
   if(CLR_CMAKE_PLATFORM_ARCH_AMD64 OR CLR_CMAKE_PLATFORM_ARCH_I386)
-    add_definitions(-D_CRT_SECURE_NO_WARNINGS)
     # Only enable edit and continue on windows x86 and x64
     # exclude Linux, arm & arm64
     add_definitions(-DEnC_SUPPORTED)
   endif(CLR_CMAKE_PLATFORM_ARCH_AMD64 OR CLR_CMAKE_PLATFORM_ARCH_I386)  
+  add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 endif(WIN32)
 
 # Features - please keep them alphabetically sorted
