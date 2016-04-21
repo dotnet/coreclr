@@ -1135,6 +1135,10 @@ void                CodeGen::genCaptureFuncletPrologEpilogInfo()
 
     unsigned saveRegsCount = genCountBits(rsMaskSaveRegs);
     unsigned saveRegsPlusPSPSize = saveRegsCount * REGSIZE_BYTES + /* PSPSym */ REGSIZE_BYTES;
+    if (compiler->info.compIsVarArgs)
+    {
+        saveRegsPlusPSPSize += MAX_REG_ARG * REGSIZE_BYTES;
+    }
     unsigned saveRegsPlusPSPSizeAligned = (unsigned)roundUp(saveRegsPlusPSPSize, STACK_ALIGN);
 
     assert(compiler->lvaOutgoingArgSpaceSize % REGSIZE_BYTES == 0);
