@@ -68,6 +68,9 @@ PerfMap::PerfMap(int pid)
 PerfMap::PerfMap()
 {
     LIMITED_METHOD_CONTRACT;
+
+    // Initialize with no failures.
+    m_ErrorEncountered = false;
 }
 
 // Clean-up resources.
