@@ -2305,8 +2305,6 @@ namespace System.IO {
         private const int ERROR_INVALID_PARAMETER = 87;
         private const int ERROR_IO_PENDING = 997;
 
-
-        // __ConsoleStream also uses this code. 
         [System.Security.SecurityCritical]  // auto-generated
         private unsafe int ReadFileNative(SafeFileHandle handle, byte[] bytes, int offset, int count, NativeOverlapped* overlapped, out int hr)
         {

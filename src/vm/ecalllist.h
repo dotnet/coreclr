@@ -2046,12 +2046,6 @@ FCFuncStart(gConfigHelper)
 FCFuncEnd()
 #endif // FEATURE_CORECLR
 
-#ifndef FEATURE_CORECLR
-FCFuncStart(gConsoleFuncs)    
-    QCFuncElement("GetTitleNative", ConsoleNative::GetTitle) 
-FCFuncEnd()
-#endif // ifndef FEATURE_CORECLR
-
 FCFuncStart(gVersioningHelperFuncs)
     FCFuncElement("GetRuntimeId", GetRuntimeId_Wrapper)
 FCFuncEnd()
@@ -2060,12 +2054,6 @@ FCFuncStart(gStreamFuncs)
     FCFuncElement("HasOverriddenBeginEndRead", StreamNative::HasOverriddenBeginEndRead)
     FCFuncElement("HasOverriddenBeginEndWrite", StreamNative::HasOverriddenBeginEndWrite)
 FCFuncEnd()
-
-#ifndef FEATURE_CORECLR
-FCFuncStart(gConsoleStreamFuncs)
-    FCFuncElement("WaitForAvailableConsoleInput", ConsoleStreamHelper::WaitForAvailableConsoleInput)
-FCFuncEnd()
-#endif
 
 #if defined(FEATURE_COMINTEROP) && defined(FEATURE_REFLECTION_ONLY_LOAD)
 FCFuncStart(gWindowsRuntimeMetadata)
@@ -2199,9 +2187,6 @@ FCClassElement("CompressedStack", "System.Threading", gCompressedStackFuncs)
 #ifdef FEATURE_CAS_POLICY
 FCClassElement("Config", "System.Security.Util", gPolicyConfigFuncs)
 #endif // FEATURE_CAS_POLICY
-#ifndef FEATURE_CORECLR
-FCClassElement("Console", "System", gConsoleFuncs)
-#endif // ifndef FEATURE_CORECLR
 #ifdef FEATURE_REMOTING    
 FCClassElement("Context", "System.Runtime.Remoting.Contexts", gContextFuncs)
 #endif
@@ -2485,10 +2470,6 @@ FCClassElement("XplatEventLogger", "System.Diagnostics.Tracing", gEventLogger)
 #ifdef FEATURE_CAS_POLICY
 FCClassElement("Zone", "System.Security.Policy", gCOMSecurityZone)
 #endif // FEATURE_CAS_POLICY
-#ifndef FEATURE_CORECLR
-FCClassElement("__ConsoleStream", "System.IO", gConsoleStreamFuncs)
-#endif
-
 
 #undef FCFuncElement
 #undef FCFuncElementSig
