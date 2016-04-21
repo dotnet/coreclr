@@ -284,8 +284,14 @@ namespace System.Collections.Generic {
         }
 
         IEnumerator<KeyValuePair<TKey, TValue>> IEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator() {
-            return new Enumerator(this, Enumerator.KeyValuePair);
-        }        
+            PooledIEnumerator<KeyValuePair<TKey, TValue>, Enumerator> enumerator;
+            if (!ObjectPool<PooledIEnumerator<KeyValuePair<TKey, TValue>, Enumerator>>.Shared.TryRent(out enumerator))
+            {
+                enumerator = new PooledIEnumerator<KeyValuePair<TKey, TValue>, Enumerator>();
+            }
+            enumerator.Enumerator = new Enumerator(this, Enumerator.KeyValuePair);
+            return enumerator;
+        }
 
         [System.Security.SecurityCritical]  // auto-generated_required
         public virtual void GetObjectData(SerializationInfo info, StreamingContext context) {
@@ -599,7 +605,13 @@ namespace System.Collections.Generic {
         }
 
         IEnumerator IEnumerable.GetEnumerator() {
-            return new Enumerator(this, Enumerator.KeyValuePair);
+            PooledIEnumerator<KeyValuePair<TKey, TValue>, Enumerator> enumerator;
+            if (!ObjectPool<PooledIEnumerator<KeyValuePair<TKey, TValue>, Enumerator>>.Shared.TryRent(out enumerator))
+            {
+                enumerator = new PooledIEnumerator<KeyValuePair<TKey, TValue>, Enumerator>();
+            }
+            enumerator.Enumerator = new Enumerator(this, Enumerator.KeyValuePair);
+            return enumerator;
         }
     
         bool ICollection.IsSynchronized {
