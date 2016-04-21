@@ -81,7 +81,6 @@
 
 #ifndef FEATURE_CORECLR
 #include "confighelper.h"
-#include "console.h"
 #endif
 
 #ifdef MDA_SUPPORTED 

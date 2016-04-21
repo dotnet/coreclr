@@ -221,7 +221,7 @@ namespace System.IO
                 // is generally the right thing to do.
                 if (stream != null) {
                     // Note: flush on the underlying stream can throw (ex., low disk space)
-                    if (disposing || (LeaveOpen && stream is __ConsoleStream))
+                    if (disposing)
                     {
                         CheckAsyncTaskInProgress();
 
