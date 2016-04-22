@@ -19,6 +19,8 @@ Revision History:
 
 --*/
 
+// Hey buddy don't merge me
+
 #include "pal/utf8.h"
 
 #define FASTLOOP
