@@ -1700,7 +1700,8 @@ void BulkTypeValue::Clear()
 //
 //
 
-#if !defined(FEATURE_PAL)
+BYTE* m_BulkTypeEventBuffer[65536];
+
 void BulkTypeEventLogger::FireBulkTypeEvent()
 {
     LIMITED_METHOD_CONTRACT;
@@ -1721,56 +1722,53 @@ void BulkTypeEventLogger::FireBulkTypeEvent()
     // array).  But the system limit of 128 descriptors per event kicks in way
     // before the 64K event size limit, and we already limit our batch size
     // (m_nBulkTypeValueCount) to stay within the 128 descriptor limit.
-    EVENT_DATA_DESCRIPTOR EventData[128];
-    UINT16 nClrInstanceID = GetClrInstanceId();
 
     UINT iDesc = 0;
 
-    _ASSERTE(iDesc < _countof(EventData));
-    EventDataDescCreate(&EventData[iDesc++], &m_nBulkTypeValueCount, sizeof(m_nBulkTypeValueCount));
-
-    _ASSERTE(iDesc < _countof(EventData));
-    EventDataDescCreate(&EventData[iDesc++], &nClrInstanceID, sizeof(nClrInstanceID));
+    UINT iSize = 0;
 
     for (int iTypeData = 0; iTypeData < m_nBulkTypeValueCount; iTypeData++)
     {
         // Do fixed-size data as one bulk copy
-        _ASSERTE(iDesc < _countof(EventData));
-        EventDataDescCreate(
-            &EventData[iDesc++], 
-            &(m_rgBulkTypeValues[iTypeData].fixedSizedData), 
-            sizeof(m_rgBulkTypeValues[iTypeData].fixedSizedData));
-
+        memcpy(
+                m_BulkTypeEventBuffer + iSize,
+                &(m_rgBulkTypeValues[iTypeData].fixedSizedData),
+                sizeof(m_rgBulkTypeValues[iTypeData].fixedSizedData));
+        iSize += sizeof(m_rgBulkTypeValues[iTypeData].fixedSizedData);
         // Do var-sized data individually per field
 
         // Type name (nonexistent and thus empty on FEATURE_REDHAWK)
-        _ASSERTE(iDesc < _countof(EventData));
 #ifdef FEATURE_REDHAWK
-        EventDataDescCreate(&EventData[iDesc++], W(""), sizeof(WCHAR));
+        memcpy(
+                m_BulkTypeEventBuffer + iSize,
+                W(""),
+                sizeof(WCHAR));
+        iSize += sizeof(WCHAR);
 #else   // FEATURE_REDHAWK
         LPCWSTR wszName = m_rgBulkTypeValues[iTypeData].sName.GetUnicode();
-        EventDataDescCreate(
-            &EventData[iDesc++], 
-            (wszName == NULL) ? W("") : wszName,
-            (wszName == NULL) ? sizeof(WCHAR) : (m_rgBulkTypeValues[iTypeData].sName.GetCount() + 1) * sizeof(WCHAR));
+        UINT nameSize = (wszName == NULL) ? sizeof(WCHAR) : (m_rgBulkTypeValues[iTypeData].sName.GetCount() + 1) * sizeof(WCHAR);
+        memcpy(
+                m_BulkTypeEventBuffer + iSize,
+                (wszName == NULL) ? W("") : wszName,
+                nameSize);
+        iSize += nameSize;
 #endif // FEATURE_REDHAWK
 
         // Type parameter count
 #ifndef FEATURE_REDHAWK
         m_rgBulkTypeValues[iTypeData].cTypeParameters = m_rgBulkTypeValues[iTypeData].rgTypeParameters.GetCount();
 #endif // FEATURE_REDHAWK
-        _ASSERTE(iDesc < _countof(EventData));
-        EventDataDescCreate(
-            &EventData[iDesc++], 
-            &(m_rgBulkTypeValues[iTypeData].cTypeParameters),
-            sizeof(m_rgBulkTypeValues[iTypeData].cTypeParameters));
+        memcpy(
+                m_BulkTypeEventBuffer + iSize,
+                &(m_rgBulkTypeValues[iTypeData].cTypeParameters),
+                sizeof(m_rgBulkTypeValues[iTypeData].cTypeParameters));
+        iSize += sizeof(m_rgBulkTypeValues[iTypeData].cTypeParameters);
 
         // Type parameter array
         if (m_rgBulkTypeValues[iTypeData].cTypeParameters > 0)
         {
-            _ASSERTE(iDesc < _countof(EventData));
-            EventDataDescCreate(
-                &EventData[iDesc++], 
+            memcpy(
+                    m_BulkTypeEventBuffer + iSize,
 #ifdef FEATURE_REDHAWK
                 ((m_rgBulkTypeValues[iTypeData].cTypeParameters == 1) ?
                     &(m_rgBulkTypeValues[iTypeData].ullSingleTypeParameter) :
@@ -1779,22 +1777,17 @@ void BulkTypeEventLogger::FireBulkTypeEvent()
                 m_rgBulkTypeValues[iTypeData].rgTypeParameters.GetElements(),
 #endif
                 sizeof(ULONGLONG) * m_rgBulkTypeValues[iTypeData].cTypeParameters);
+                iSize += sizeof(ULONGLONG) * m_rgBulkTypeValues[iTypeData].cTypeParameters;
         }
     }
 
-    Win32EventWrite(Microsoft_Windows_DotNETRuntimeHandle, &BulkType, iDesc, EventData);
+    FireEtwBulkType(m_nBulkTypeValueCount, GetClrInstanceId(), iSize, m_BulkTypeEventBuffer);
 
     // Reset state
     m_nBulkTypeValueCount = 0;
     m_nBulkTypeValueByteCount = 0;
 }
 
-#else
-void BulkTypeEventLogger::FireBulkTypeEvent()
-{
-// UNIXTODO: "Eventing Not Implemented"
-}
-#endif //!defined(FEATURE_PAL)
 #ifndef FEATURE_REDHAWK
 
 //---------------------------------------------------------------------------------------
@@ -4225,7 +4218,6 @@ Return Value:
 
 --*/
 
-#if !defined(FEATURE_PAL)
 void InitializeEventTracing()
 {
     CONTRACTL
@@ -4241,7 +4233,7 @@ void InitializeEventTracing()
     HRESULT hr = ETW::TypeSystemLog::PreRegistrationInit();
     if (FAILED(hr))
         return;
-
+#if !defined(FEATURE_PAL)
     // Register CLR providers with the OS
     if (g_pEtwTracer == NULL)
     {
@@ -4249,6 +4241,7 @@ void InitializeEventTracing()
         if (tempEtwTracer != NULL && tempEtwTracer->Register () == ERROR_SUCCESS)
             g_pEtwTracer = tempEtwTracer.Extract ();
     }
+#endif
 
     g_nClrInstanceId = GetRuntimeId() & 0x0000FFFF; // This will give us duplicate ClrInstanceId after UINT16_MAX
 
@@ -4256,6 +4249,8 @@ void InitializeEventTracing()
     // providers can do so now
     ETW::TypeSystemLog::PostRegistrationInit();
 }
+
+#if !defined(FEATURE_PAL)
 HRESULT ETW::CEtwTracer::Register()
 {
     WRAPPER_NO_CONTRACT;
@@ -4415,7 +4410,7 @@ extern "C"
         BOOLEAN bIsPublicTraceHandle = (context->RegistrationHandle==Microsoft_Windows_DotNETRuntimeHandle);
         
         BOOLEAN bIsPrivateTraceHandle = (context->RegistrationHandle==Microsoft_Windows_DotNETRuntimePrivateHandle);
-        
+
         BOOLEAN bIsRundownTraceHandle = (context->RegistrationHandle==Microsoft_Windows_DotNETRuntimeRundownHandle);
 
 
@@ -4502,13 +4497,9 @@ extern "C"
 
     }
 }
-#else
-
-void InitializeEventTracing(){}
-
-#endif // !defined(FEATURE_PAL)
 #endif // FEATURE_REDHAWK
 
+#endif
 #ifndef FEATURE_REDHAWK
 
 /****************************************************************************/
