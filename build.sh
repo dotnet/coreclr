@@ -146,7 +146,7 @@ build_coreclr()
 
     if [ $__SkipConfigure == 0 ]; then
         # if managed build is suported, then set __GenerateVersionSource to true
-        if [ $__SkipMSCorLib == 0 ]; then __GenerateVersionSource=true; fi
+        if [ $__isMSBuildOnNETCoreSupported == 1 ]; then __GenerateVersionSource=true; fi
         # Drop version.c file
         __versionSourceFile=$__IntermediatesDir/version.cpp
         if [ $__GenerateVersionSource == true ]; then
