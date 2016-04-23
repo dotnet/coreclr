@@ -854,7 +854,7 @@ namespace System.IO {
                 ValidateCopyToArguments(destination, bufferSize);
                 
                 return cancellationToken.IsCancellationRequested ?
-                    Task.FromCancellation(cancellationToken) :
+                    Task.FromCanceled(cancellationToken) :
                     Task.CompletedTask;
             }
 

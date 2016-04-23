@@ -5591,7 +5591,7 @@ namespace System.Threading.Tasks
         [FriendAccessAllowed]
         internal static Task FromCancellation(CancellationToken cancellationToken)
         {
-            return FromCancellation(cancellationToken);
+            return FromCanceled(cancellationToken);
         }
         
         /// <summary>Creates a <see cref="Task{TResult}"/> that's completed due to cancellation with the specified token.</summary>
