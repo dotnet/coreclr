@@ -134,8 +134,10 @@ namespace System.IO {
         public virtual Task CopyToAsync(Stream destination, Int32 bufferSize, CancellationToken cancellationToken)
         {
             ValidateCopyToArguments(destination, bufferSize);
-
-            return CopyToAsyncInternal(destination, bufferSize, cancellationToken);
+            
+            return cancellationToken.IsCancellationRequested ?
+                Task.FromCanceled(cancellationToken) :
+                CopyToAsyncInternal(destination, bufferSize, cancellationToken);
         }
 
         private async Task CopyToAsyncInternal(Stream destination, Int32 bufferSize, CancellationToken cancellationToken)
