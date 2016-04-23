@@ -119,10 +119,13 @@ namespace System.IO {
             int bufferSize = _DefaultCopyBufferSize;
             if (CanSeek)
             {
-                long remaining = Length - Position;
-                if (remaining <= 0)
+                long length = Length;
+                long position = Position;
+                if (length <= position) // Handles negative overflows
                     return Task.CompletedTask; // No bytes to copy, so this is a noop
-                bufferSize = (int)Math.Min(bufferSize, remaining);
+                long remaining = length - position;
+                if (remaining <= length) // In the case of a positive overflow, stick to the default size
+                    bufferSize = (int)Math.Min(bufferSize, remaining);
             }
             
             return CopyToAsync(destination, bufferSize);
@@ -167,10 +170,13 @@ namespace System.IO {
             int bufferSize = _DefaultCopyBufferSize;
             if (CanSeek)
             {
-                long remaining = Length - Position;
-                if (remaining <= 0)
-                    return; // No bytes left, so this is a noop
-                bufferSize = (int)Math.Min(bufferSize, remaining);
+                long length = Length;
+                long position = Position;
+                if (length <= position) // Handles negative overflows
+                    return; // No bytes to copy, so this is a noop
+                long remaining = length - position;
+                if (remaining <= length) // In the case of a positive overflow, stick to the default size
+                    bufferSize = (int)Math.Min(bufferSize, remaining);
             }
             
             CopyTo(destination, bufferSize);
