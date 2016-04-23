@@ -5583,6 +5583,28 @@ namespace System.Threading.Tasks
             Contract.Assert(succeeded, "This should always succeed on a new task.");
             return task;
         }
+        
+#if !FEATURE_CORECLR 
+        /// <summary>Creates a <see cref="Task"/> that's completed due to cancellation with the specified token.</summary>
+        /// <param name="cancellationToken">The token with which to complete the task.</param>
+        /// <returns>The canceled task.</returns>
+        [FriendAccessAllowed]
+        internal static Task FromCancellation(CancellationToken cancellationToken)
+        {
+            return FromCancellation(cancellationToken);
+        }
+        
+        /// <summary>Creates a <see cref="Task{TResult}"/> that's completed due to cancellation with the specified token.</summary>
+        /// <typeparam name="TResult">The type of the result returned by the task.</typeparam>
+        /// <param name="cancellationToken">The token with which to complete the task.</param>
+        /// <returns>The canceled task.</returns>
+        [FriendAccessAllowed]
+        internal static Task<TResult> FromCancellation<TResult>(CancellationToken cancellationToken)
+        {
+            return FromCanceled<TResult>(cancellationToken);
+        }
+#endif
+        
         #endregion
 
         #region Run methods
