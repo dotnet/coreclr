@@ -5573,7 +5573,7 @@ namespace System.Threading.Tasks
         /// <typeparam name="TResult">The type of the result returned by the task.</typeparam>
         /// <param name="exception">The exception with which to complete the task.</param>
         /// <returns>The canceled task.</returns>
-        internal static Task<TResult> FromCanceled<TResult>(OperationCanceledException exception)
+        internal static Task<TResult> FromCancellation<TResult>(OperationCanceledException exception)
         {
             if (exception == null) throw new ArgumentNullException("exception");
             Contract.EndContractBlock();

@@ -385,7 +385,7 @@ namespace System.IO {
             }
             catch (OperationCanceledException oce)
             {
-                return Task.FromCanceled<int>(oce);
+                return Task.FromCancellation<int>(oce);
             }
             catch (Exception exception)
             {
@@ -605,7 +605,7 @@ namespace System.IO {
             }
             catch (OperationCanceledException oce)
             {
-                return Task.FromCanceled<VoidTaskResult>(oce);
+                return Task.FromCancellation<VoidTaskResult>(oce);
             }
             catch (Exception exception)
             {
