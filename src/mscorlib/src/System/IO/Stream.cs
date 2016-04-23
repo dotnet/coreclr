@@ -116,7 +116,16 @@ namespace System.IO {
         [ComVisible(false)]
         public Task CopyToAsync(Stream destination)
         {
-            return CopyToAsync(destination, _DefaultCopyBufferSize);
+            int bufferSize = _DefaultCopyBufferSize;
+            if (CanSeek)
+            {
+                long remaining = Length - Position;
+                if (remaining <= 0)
+                    return Task.CompletedTask; // No bytes to copy, so this is a noop
+                bufferSize = (int)Math.Min(bufferSize, remaining);
+            }
+            
+            return CopyToAsync(destination, bufferSize);
         }
 
         [HostProtection(ExternalThreading = true)]
@@ -155,7 +164,16 @@ namespace System.IO {
         // the current position.
         public void CopyTo(Stream destination)
         {
-            CopyTo(destination, _DefaultCopyBufferSize);
+            int bufferSize = _DefaultCopyBufferSize;
+            if (CanSeek)
+            {
+                long remaining = Length - Position;
+                if (remaining <= 0)
+                    return; // No bytes left, so this is a noop
+                bufferSize = (int)Math.Min(bufferSize, remaining);
+            }
+            
+            CopyTo(destination, bufferSize);
         }
 
         public void CopyTo(Stream destination, int bufferSize)
