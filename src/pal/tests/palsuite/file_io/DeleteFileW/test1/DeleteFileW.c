@@ -19,6 +19,7 @@
 //  delete a file without proper permissions
 //
 
+// Don't merge this
 
 #include <palsuite.h>
 
