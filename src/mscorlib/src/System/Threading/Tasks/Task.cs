@@ -5511,7 +5511,7 @@ namespace System.Threading.Tasks
             return signaledTaskIndex;
         }
 
-        #region FromResult / FromException / FromCanceled
+        #region FromResult / FromException / FromCancellation
 
         /// <summary>Creates a <see cref="Task{TResult}"/> that's completed successfully with the specified result.</summary>
         /// <typeparam name="TResult">The type of the result returned by the task.</typeparam>
@@ -5549,12 +5549,32 @@ namespace System.Threading.Tasks
         /// <summary>Creates a <see cref="Task"/> that's completed due to cancellation with the specified token.</summary>
         /// <param name="cancellationToken">The token with which to complete the task.</param>
         /// <returns>The canceled task.</returns>
-        public static Task FromCanceled(CancellationToken cancellationToken)
+        [FriendAccessAllowed]
+        internal static Task FromCancellation(CancellationToken cancellationToken)
         {
-            if (!cancellationToken.IsCancellationRequested)
-                throw new ArgumentOutOfRangeException("cancellationToken");
+            if (!cancellationToken.IsCancellationRequested) throw new ArgumentOutOfRangeException("cancellationToken");
             Contract.EndContractBlock();
             return new Task(true, TaskCreationOptions.None, cancellationToken);
+        }
+
+        /// <summary>Creates a <see cref="Task"/> that's completed due to cancellation with the specified token.</summary>
+        /// <param name="cancellationToken">The token with which to complete the task.</param>
+        /// <returns>The canceled task.</returns>
+        public static Task FromCanceled(CancellationToken cancellationToken)
+        {
+            return FromCancellation(cancellationToken);
+        }
+
+        /// <summary>Creates a <see cref="Task{TResult}"/> that's completed due to cancellation with the specified token.</summary>
+        /// <typeparam name="TResult">The type of the result returned by the task.</typeparam>
+        /// <param name="cancellationToken">The token with which to complete the task.</param>
+        /// <returns>The canceled task.</returns>
+        [FriendAccessAllowed]
+        internal static Task<TResult> FromCancellation<TResult>(CancellationToken cancellationToken)
+        {
+            if (!cancellationToken.IsCancellationRequested) throw new ArgumentOutOfRangeException("cancellationToken");
+            Contract.EndContractBlock();
+            return new Task<TResult>(true, default(TResult), TaskCreationOptions.None, cancellationToken);
         }
 
         /// <summary>Creates a <see cref="Task{TResult}"/> that's completed due to cancellation with the specified token.</summary>
@@ -5563,10 +5583,7 @@ namespace System.Threading.Tasks
         /// <returns>The canceled task.</returns>
         public static Task<TResult> FromCanceled<TResult>(CancellationToken cancellationToken)
         {
-            if (!cancellationToken.IsCancellationRequested)
-                throw new ArgumentOutOfRangeException("cancellationToken");
-            Contract.EndContractBlock();
-            return new Task<TResult>(true, default(TResult), TaskCreationOptions.None, cancellationToken);
+            return FromCancellation<TResult>(cancellationToken);
         }
 
         /// <summary>Creates a <see cref="Task{TResult}"/> that's completed due to cancellation with the specified exception.</summary>
@@ -5583,28 +5600,6 @@ namespace System.Threading.Tasks
             Contract.Assert(succeeded, "This should always succeed on a new task.");
             return task;
         }
-        
-#if !FEATURE_CORECLR 
-        /// <summary>Creates a <see cref="Task"/> that's completed due to cancellation with the specified token.</summary>
-        /// <param name="cancellationToken">The token with which to complete the task.</param>
-        /// <returns>The canceled task.</returns>
-        [FriendAccessAllowed]
-        internal static Task FromCancellation(CancellationToken cancellationToken)
-        {
-            return FromCanceled(cancellationToken);
-        }
-        
-        /// <summary>Creates a <see cref="Task{TResult}"/> that's completed due to cancellation with the specified token.</summary>
-        /// <typeparam name="TResult">The type of the result returned by the task.</typeparam>
-        /// <param name="cancellationToken">The token with which to complete the task.</param>
-        /// <returns>The canceled task.</returns>
-        [FriendAccessAllowed]
-        internal static Task<TResult> FromCancellation<TResult>(CancellationToken cancellationToken)
-        {
-            return FromCanceled<TResult>(cancellationToken);
-        }
-#endif
-        
         #endregion
 
         #region Run methods
@@ -5723,7 +5718,7 @@ namespace System.Threading.Tasks
 
             // Short-circuit if we are given a pre-canceled token
             if (cancellationToken.IsCancellationRequested)
-                return Task.FromCanceled(cancellationToken);
+                return Task.FromCancellation(cancellationToken);
 
             // Kick off initial Task, which will call the user-supplied function and yield a Task.
             Task<Task> task1 = Task<Task>.Factory.StartNew(function, cancellationToken, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
@@ -5774,7 +5769,7 @@ namespace System.Threading.Tasks
 
             // Short-circuit if we are given a pre-canceled token
             if (cancellationToken.IsCancellationRequested)
-                return Task.FromCanceled<TResult>(cancellationToken);
+                return Task.FromCancellation<TResult>(cancellationToken);
 
             // Kick off initial Task, which will call the user-supplied function and yield a Task.
             Task<Task<TResult>> task1 = Task<Task<TResult>>.Factory.StartNew(function, cancellationToken, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
@@ -5881,7 +5876,7 @@ namespace System.Threading.Tasks
             if (cancellationToken.IsCancellationRequested)
             {
                 // return a Task created as already-Canceled
-                return Task.FromCanceled(cancellationToken);
+                return Task.FromCancellation(cancellationToken);
             }
             else if (millisecondsDelay == 0)
             {
