@@ -3339,13 +3339,73 @@ namespace System {
             if (values == null)
                 throw new ArgumentNullException("values");
             Contract.Ensures(Contract.Result<String>() != null);
-            // Spec#: Consider a postcondition saying the length of this string == the sum of each string in array
             Contract.EndContractBlock();
-            int totalLength=0;
 
+            // It's possible that the input values array could be changed concurrently on another
+            // thread, such that we can't trust that each read of values[i] will be equivalent.
+            // Worst case, we can make a defensive copy of the array and use that, but we first
+            // optimistically try the allocation and copies assuming that the array isn't changing,
+            // which represents the 99.999% case, in particular since string.Concat is used for
+            // string concatenation by the languages, with the input array being a params array.
+
+            // Sum the lengths of all input strings
+            long totalLengthLong = 0;
+            for (int i = 0; i < values.Length; i++)
+            {
+                string value = values[i];
+                if (value != null)
+                {
+                    totalLengthLong += value.Length;
+                }
+            }
+
+            // If it's too long, fail, or if it's empty, return an empty string.
+            if (totalLengthLong > int.MaxValue)
+            {
+                throw new OutOfMemoryException();
+            }
+            int totalLength = (int)totalLengthLong;
+            if (totalLength == 0)
+            {
+                return string.Empty;
+            }
+
+            // Allocate a new string and copy each input string into it
+            string result = FastAllocateString(totalLength);
+            int copiedLength = 0;
+            for (int i = 0; i < values.Length; i++)
+            {
+                string value = values[i];
+                if (!string.IsNullOrEmpty(value))
+                {
+                    int valueLen = value.Length;
+                    if (valueLen > totalLength - copiedLength)
+                    {
+                        // Something changed concurrently.  Fall back to a defensive copy.
+                        return ConcatWithDefensiveCopy(values);
+                    }
+
+                    FillStringChecked(result, copiedLength, value);
+                    copiedLength += valueLen;
+                }
+            }
+
+            // If we copied exactly the right amount, return the new string.  Otherwise,
+            // something changed concurrently to mutate the input array: fall back to
+            // doing the concatenation again, but this time with a defensive copy. This
+            // fall back should be extremely rare.
+            return copiedLength == totalLength ? 
+                result : 
+                ConcatWithDefensiveCopy(values);
+        }
+
+        private static String ConcatWithDefensiveCopy(string[] values)
+        {
+            int totalLength = 0;
+            
             // Always make a copy to prevent changing the array on another thread.
             String[] internalValues = new String[values.Length];
-            
+
             for (int i=0; i<values.Length; i++) {
                 string value = values[i];
                 internalValues[i] = ((value==null)?(String.Empty):(value));
