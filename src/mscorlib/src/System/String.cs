@@ -3174,7 +3174,17 @@ namespace System {
                     throw new OutOfMemoryException();
                 }
             }
-            return ConcatArray(sArgs, totalLength);
+
+            string result = FastAllocateString(totalLength);
+            int currPos = 0;
+            for (int i = 0; i < sArgs.Length; i++)
+            {
+                Contract.Assert(currPos <= totalLength - sArgs[i].Length, "[String.Concat](currPos <= totalLength - sArgs[i].Length)");
+                FillStringChecked(result, currPos, sArgs[i]);
+                currPos += sArgs[i].Length;
+            }
+
+            return result;
         }
 
         [ComVisible(false)]
@@ -3319,22 +3329,6 @@ namespace System {
             return result;
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        private static String ConcatArray(String[] values, int totalLength) {
-            String result =  FastAllocateString(totalLength);
-            int currPos=0;
-
-            for (int i=0; i<values.Length; i++) {
-                Contract.Assert((currPos <= totalLength - values[i].Length), 
-                                "[String.ConcatArray](currPos <= totalLength - values[i].Length)");
-
-                FillStringChecked(result, currPos, values[i]);
-                currPos+=values[i].Length;
-            }
-
-            return result;
-        }
-
         public static String Concat(params String[] values) {
             if (values == null)
                 throw new ArgumentNullException("values");
@@ -3381,8 +3375,8 @@ namespace System {
                     int valueLen = value.Length;
                     if (valueLen > totalLength - copiedLength)
                     {
-                        // Something changed concurrently.  Fall back to a defensive copy.
-                        return ConcatWithDefensiveCopy(values);
+                        copiedLength = -1;
+                        break;
                     }
 
                     FillStringChecked(result, copiedLength, value);
@@ -3394,29 +3388,7 @@ namespace System {
             // something changed concurrently to mutate the input array: fall back to
             // doing the concatenation again, but this time with a defensive copy. This
             // fall back should be extremely rare.
-            return copiedLength == totalLength ? 
-                result : 
-                ConcatWithDefensiveCopy(values);
-        }
-
-        private static String ConcatWithDefensiveCopy(string[] values)
-        {
-            int totalLength = 0;
-            
-            // Always make a copy to prevent changing the array on another thread.
-            String[] internalValues = new String[values.Length];
-
-            for (int i=0; i<values.Length; i++) {
-                string value = values[i];
-                internalValues[i] = ((value==null)?(String.Empty):(value));
-                totalLength += internalValues[i].Length;
-                // check for overflow
-                if (totalLength < 0) {
-                    throw new OutOfMemoryException();
-                }
-            }
-            
-            return ConcatArray(internalValues, totalLength);
+            return copiedLength == totalLength ? result : Concat((string[])values.Clone());
         }
         
         [System.Security.SecuritySafeCritical]  // auto-generated
