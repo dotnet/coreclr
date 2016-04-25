@@ -39,6 +39,8 @@ function print_usage {
     echo '  --sequential                 : Run tests sequentially (default is to run in parallel).'
     echo '  --playlist=<path>            : Run only the tests that are specified in the file at <path>, in the same format as'
     echo '                                 runFailingTestsOnly'
+    echo '  --skipcopycoreoverlay        : Skip copy coreOverlay step. Runs faster for running unit test multiple times'
+    echo '                                 while debugging.'
     echo '  -v, --verbose                : Show output from each test.'
     echo '  -h|--help                    : Show usage information.'
     echo '  --useServerGC                : Enable server GC for this test run'
@@ -342,6 +344,12 @@ function create_core_overlay {
     # Create the overlay
     coreOverlayDir=$testRootDir/Tests/coreoverlay
     export CORE_ROOT="$coreOverlayDir"
+
+    # Skip create the overylay if set
+    if ((skipCopyCoreOverlay > 0)); then
+        return
+    fi
+
     if [ -e "$coreOverlayDir" ]; then
         rm -f -r "$coreOverlayDir"
     fi
@@ -709,6 +717,7 @@ playlistFile=
 # Handle arguments
 verbose=0
 doCrossgen=0
+skipCopyCoreOverlay=0
 
 for i in "$@"
 do
@@ -780,6 +789,9 @@ do
         --test-env=*)
             testEnv=${i#*=}
             ;;            
+        --skipcopycoreoverlay)
+            ((skipCopyCoreOverlay = 1))
+            ;;
         *)
             echo "Unknown switch: $i"
             print_usage
