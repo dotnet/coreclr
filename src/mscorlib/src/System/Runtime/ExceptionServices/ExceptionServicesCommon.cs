@@ -104,7 +104,19 @@ namespace System.Runtime.ExceptionServices {
                 throw new ArgumentNullException("source", Environment.GetResourceString("ArgumentNull_Obj"));
             }
             
-            return new ExceptionDispatchInfo(source);
+            var edi = new ExceptionDispatchInfo(source);
+
+            // If there's no stack trace stored in the ExceptionDispatchInfo, use the current stack.
+            if (edi.m_remoteStackTrace == null && edi.m_stackTrace == null)
+            {
+                edi.m_remoteStackTrace = 
+                    Environment.StackTrace +
+                    Environment.NewLine + 
+                    Environment.GetResourceString("Exception_EndStackTraceFromPreviousCapture") +
+                    Environment.NewLine;
+            }
+
+            return edi;
         }
     
         // Return the exception object represented by this ExceptionDispatchInfo instance

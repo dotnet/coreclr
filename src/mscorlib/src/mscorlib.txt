@@ -42,6 +42,7 @@ Exception_WasThrown = Exception of type '{0}' was thrown.
 
 ; The following are used in the implementation of ExceptionDispatchInfo
 Exception_EndStackTraceFromPreviousThrow = --- End of stack trace from previous location where exception was thrown ---
+Exception_EndStackTraceFromPreviousCapture = --- End of stack trace from previous location where exception was captured ---
 
 Arg_ParamName_Name = Parameter name: {0}
 ArgumentOutOfRange_ActualValue = Actual value was {0}.
