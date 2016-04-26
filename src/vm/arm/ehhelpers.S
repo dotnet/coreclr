@@ -127,7 +127,8 @@ OFFSET_OF_FRAME=(4 + SIZEOF__GSCookie)
         // frame pointer for accessing the locals in the parent method.
         NESTED_ENTRY CallEHFilterFunclet, _TEXT, NoHandler
 
-        PROLOG_PUSH  "{lr}"
+        PROLOG_PUSH  "{r4-r11, lr}"
+        PROLOG_STACK_SAVE r7
         alloc_stack  4
 
         // On entry:
@@ -143,6 +144,6 @@ OFFSET_OF_FRAME=(4 + SIZEOF__GSCookie)
         blx r2
 
         free_stack   4
-        EPILOG_POP   "{pc}"
+        EPILOG_POP   "{r4-r11, pc}"
 
         NESTED_END CallEHFilterFunclet, _TEXT
