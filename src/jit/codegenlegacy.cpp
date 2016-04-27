@@ -13236,9 +13236,6 @@ void                CodeGen::genCodeForBBlist()
 #if FEATURE_EH_FUNCLETS
                 || (block->bbNext->bbFlags & BBF_FUNCLET_BEG)
 #endif // FEATURE_EH_FUNCLETS
-#if defined(_TARGET_ARM_)
-                || !BasicBlock::sameEHRegion(block, block->bbNext)
-#endif
                 || (!isFramePointerUsed() && compiler->fgIsThrowHlpBlk(block->bbNext))
                 || block->bbNext == compiler->fgFirstColdBlock
                 )
