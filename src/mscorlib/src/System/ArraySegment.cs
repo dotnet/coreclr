@@ -112,9 +112,23 @@ namespace System
         
         public override int GetHashCode()
         {
-            return null == _array
-                        ? 0
-                        : _array.GetHashCode() ^ _offset ^ _count;
+            if (_array == null)
+            {
+                return 0;
+            }
+            
+#if !FEATURE_CORECLR
+            // Old implementation: Xor everything.
+            // This isn't optimal since it treats _offset and _count interchangeably,
+            // but we keep it around in the full framework for compat.
+            return _array.GetHashCode() ^ _offset ^ _count;
+#else
+            // Taken from ValueTuple.CombineHashCodes
+            int hash = _array.GetHashCode();
+            hash = ((hash << 5) + hash) ^ _offset;
+            hash = ((hash << 5) + hash) ^ _count;
+            return hash;
+#endif // !FEATURE_CORECLR
         }
 
         public override bool Equals(Object obj)
