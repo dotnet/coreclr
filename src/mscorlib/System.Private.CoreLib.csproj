@@ -173,6 +173,14 @@
       <ResGenDefines>$(DefineConstants)</ResGenDefines>
     </SplitTextStringResource>
   </ItemGroup>
+
+  <Target Name="CDefineChecker" BeforeTargets="Build">
+    <!-- Compiler Definition Verification -->
+    <Message Importance="High" Text="============" />
+    <Exec Command='python $(MSBuildThisFileDirectory)../scripts/check-definitions.py $(MSBuildThisFileDirectory)../../cmake.definitions "$(DefineConstants)"' />
+    <Message Importance="High" Text="============" />
+  </Target>
+
   <ItemGroup>
     <EmbeddedResource Include="$(NlpObjDir)\charinfo.nlp">
       <LogicalName>charinfo.nlp</LogicalName>
