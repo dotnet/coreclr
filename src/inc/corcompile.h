@@ -727,7 +727,6 @@ enum CORCOMPILE_FIXUP_BLOB_KIND
     ENCODE_CHECK_FIELD_OFFSET,
 
     ENCODE_DELEGATE_CTOR,
-    ENCODE_METHOD_NATIVE_ENTRY,                     /* NativeCallable method token */
 
     ENCODE_MODULE_HANDLE      = 0x50,               /* Module token */
     ENCODE_STATIC_FIELD_ADDRESS,                    /* For accessing a static field */
@@ -741,6 +740,7 @@ enum CORCOMPILE_FIXUP_BLOB_KIND
     ENCODE_VARARGS_METHODREF,
     ENCODE_VARARGS_SIG,
     ENCODE_ACTIVE_DEPENDENCY,                       /* Conditional active dependency */
+    ENCODE_METHOD_NATIVE_ENTRY,                     /* NativeCallable method token */
 };
 
 enum EncodeMethodSigFlags
@@ -837,6 +837,7 @@ typedef enum
 {
 #ifdef FEATURE_CORECLR
     CORECLR_INFO,
+    CROSSGEN_COMPILER_INFO,
 #else
     CLR_INFO,
     NGEN_COMPILER_INFO,
@@ -932,10 +933,13 @@ struct CORCOMPILE_DEPENDENCY
 
 /*********************************************************************************/
 // Flags used to encode HelperTable
-
+#if defined(_TARGET_ARM64_)
+#define HELPER_TABLE_ENTRY_LEN      16
+#else
 #define HELPER_TABLE_ENTRY_LEN      8
-#define HELPER_TABLE_ALIGN          8
+#endif //defined(_TARGET_ARM64_)
 
+#define HELPER_TABLE_ALIGN          8
 #define CORCOMPILE_HELPER_PTR       0x80000000 // The entry is pointer to the helper (jump thunk otherwise)
 
 // The layout of this struct is required to be

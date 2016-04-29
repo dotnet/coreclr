@@ -1486,6 +1486,7 @@ public:
     bool                bbInCatchHandlerILRange (BasicBlock * blk);
     bool                bbInFilterILRange       (BasicBlock * blk);
     bool                bbInTryRegions          (unsigned regionIndex, BasicBlock * blk);
+    bool                bbInExnFlowRegions      (unsigned regionIndex, BasicBlock * blk);
     bool                bbInHandlerRegions      (unsigned regionIndex, BasicBlock * blk);
     bool                bbInCatchHandlerRegions (BasicBlock * tryBlk, BasicBlock * hndBlk);
     unsigned short      bbFindInnermostCommonTryRegion (BasicBlock  * bbOne, BasicBlock  * bbTwo);
@@ -1525,9 +1526,14 @@ public:
     // Return the EH descriptor for the most nested filter or handler region this BasicBlock is a member of (or nullptr if this block is not in a filter or handler region).
     EHblkDsc*           ehGetBlockHndDsc(BasicBlock* block);
 
+    // Return the EH descriptor for the most nested region that may handle exceptions raised in this BasicBlock (or nullptr if this block's exceptions propagate to caller).
+    EHblkDsc*           ehGetBlockExnFlowDsc(BasicBlock* block);
+
     EHblkDsc*           ehIsBlockTryLast(BasicBlock* block);
     EHblkDsc*           ehIsBlockHndLast(BasicBlock* block);
     bool                ehIsBlockEHLast(BasicBlock* block);
+
+    bool                ehBlockHasExnFlowDsc(BasicBlock* block);
 
     // Return the region index of the most nested EH region this block is in.
     unsigned            ehGetMostNestedRegionIndex(BasicBlock* block, bool* inTryRegion);
@@ -2025,6 +2031,7 @@ public:
     void                    gtGetArgMsg     (GenTreePtr             call,
                                              GenTreePtr             arg,
                                              unsigned               argNum,
+                                             int                    listCount,
                                              char*                  bufp,
                                              unsigned               bufLength);
     void                    gtGetLateArgMsg (GenTreePtr             call,
@@ -2523,11 +2530,12 @@ public :
     InlineInfo*          impInlineInfo;
     InlineStrategy*      m_inlineStrategy;
 
-    // Get the maximum IL size allowed for an inline
-    unsigned             getImpInlineSize() const { return impInlineSize; }
-
     // The Compiler* that is the root of the inlining tree of which "this" is a member.
     Compiler*            impInlineRoot();
+
+#if defined(DEBUG) || defined(INLINE_DATA)
+    unsigned __int64     getInlineCycleCount() { return m_compCycles; }
+#endif // defined(DEBUG) || defined(INLINE_DATA)
 
     bool                 fgNoStructPromotion;        // Set to TRUE to turn off struct promotion for this method.
     bool                 fgNoStructParamPromotion;   // Set to TRUE to turn off struct promotion for parameters this method.
@@ -3087,8 +3095,6 @@ private:
 #endif // DEBUG
 
     bool                seenConditionalJump;
-
-    unsigned            impInlineSize; // max IL size for inlining
 
     static BOOL         impIsAddressInLocal(GenTreePtr tree, GenTreePtr * lclVarTreeOut);
 
@@ -6009,6 +6015,11 @@ private:
 
     void                rpPredictRefAssign  (unsigned       lclNum);
 
+    regMaskTP           rpPredictBlkAsgRegUse(GenTreePtr    tree,
+                                              rpPredictReg  predictReg,
+                                              regMaskTP     lockedRegs,
+                                              regMaskTP     rsvdRegs);
+
     regMaskTP           rpPredictTreeRegUse (GenTreePtr     tree,
                                              rpPredictReg   predictReg,
                                              regMaskTP      lockedRegs,
@@ -7728,8 +7739,10 @@ public :
 #endif // defined(DEBUG) || defined(LATE_DISASM)
 
 #ifdef DEBUG
-        unsigned        compMethodHashPrivate;
-        unsigned        compMethodHash();
+        // Method hash is logcally const, but computed
+        // on first demand.
+        mutable unsigned compMethodHashPrivate;
+        unsigned         compMethodHash() const;
 #endif
 
 #ifdef PSEUDORANDOM_NOP_INSERTION
@@ -8588,10 +8601,10 @@ public:
     static fgWalkPreFn      gsMarkPtrsAndAssignGroups;  // Shadow param analysis tree-walk
     static fgWalkPreFn      gsReplaceShadowParams;      // Shadow param replacement tree-walk
 
-#define ALWAYS_INLINE_SIZE               16         // Method with <= ALWAYS_INLINE_SIZE IL bytes will always be inlined.
-#define DEFAULT_MAX_INLINE_SIZE         100         // Method with >  DEFAULT_MAX_INLINE_SIZE IL bytes will never be inlined.
+#define DEFAULT_MAX_INLINE_SIZE         100         // Methods with >  DEFAULT_MAX_INLINE_SIZE IL bytes will never be inlined.
                                                     // This can be overwritten by setting complus_JITInlineSize env variable.
-#define IMPLEMENTATION_MAX_INLINE_SIZE  _UI16_MAX   // Maximum method size supported by this implementation 
+
+#define DEFAULT_MAX_INLINE_DEPTH         20         // Methods at more than this level deep will not be inlined
                                          
 private:
 #ifdef FEATURE_JIT_METHOD_PERF
@@ -8807,7 +8820,7 @@ public:
 #endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
 
     void          fgMorphMultiregStructArgs(GenTreeCall* call);
-    GenTreePtr    fgMorphMultiregStructArg (GenTreePtr   arg);
+    GenTreePtr    fgMorphMultiregStructArg (GenTreePtr   arg, fgArgTabEntryPtr fgEntryPtr);
 
 }; // end of class Compiler
 

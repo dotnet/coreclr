@@ -1168,7 +1168,6 @@ public:
 #endif //ALLOW_SXS_JIT
 };
 
-
 //*****************************************************************************
 //
 // This class manages IJitManagers and ICorJitCompilers.  It has only static
@@ -1275,7 +1274,7 @@ public:
     static void ClearCaches( void );
     static BOOL IsCacheCleanupRequired();
 
-    static LPWSTR         GetJitName();
+    static LPCWSTR         GetJitName();
 
     static void           Unload(LoaderAllocator *pLoaderAllocator);
 

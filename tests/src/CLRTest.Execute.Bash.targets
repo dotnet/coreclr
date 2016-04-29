@@ -161,14 +161,10 @@ fi
 $(BashCLRTestEnvironmentCompatibilityCheck)
 if [ \( ! -z "$COMPlus_JitStress" \) -o \( ! -z "$COMPlus_JitStressRegs" \) -o \( ! -z "$COMPlus_JITMinOpts" \) ]
 then
-  echo SKIPPING EXECUTION BECAUSE ONE OR MORE OF (COMPlus_JitStress, COMPlus_JitStressRegs, COMPlus_JITMinOpts) IS SET
+  echo "SKIPPING EXECUTION BECAUSE ONE OR MORE OF (COMPlus_JitStress, COMPlus_JitStressRegs, COMPlus_JITMinOpts) IS SET"
   exit 0
 fi
       ]]></BashCLRTestEnvironmentCompatibilityCheck>
-      <BashCLRTestGCLongTestSkipCondition Condition="'$(GCLongRunning)' == 'true' And '$(IsLongRunningGCTest)' != 'true'"><![CDATA[
-echo Skipping execution because this is not a long-running GC test
-exit 0
-      ]]></BashCLRTestGCLongTestSkipCondition>
       <BashCLRTestExitCodePrep Condition="$(_CLRTestNeedsToRun)">
 <![CDATA[CLRTestExpectedExitCode=$(CLRTestExitCode)
 echo BEGIN EXECUTION]]>
@@ -316,7 +312,6 @@ $__TestEnv
 
 $(BashEnvironmentVariables)
 $(BashCLRTestEnvironmentCompatibilityCheck)
-$(BashCLRTestGCLongTestSkipCondition)
 $(BashCLRTestArgPrep)
 $(BashCLRTestExitCodePrep)
 # CrossGen Script (when /p:CrossGen=true)

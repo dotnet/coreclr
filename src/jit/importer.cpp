@@ -67,21 +67,6 @@ void                Compiler::impInit()
 #endif
 
     seenConditionalJump = false;  
-       
-#ifndef DEBUG
-    impInlineSize = DEFAULT_MAX_INLINE_SIZE;
-#else
-    impInlineSize = JitConfig.JitInlineSize();
-
-    if (compInlineStress())
-        impInlineSize *= 10;
-
-    if (impInlineSize > IMPLEMENTATION_MAX_INLINE_SIZE)
-        impInlineSize = IMPLEMENTATION_MAX_INLINE_SIZE;
-
-    assert(impInlineSize >= ALWAYS_INLINE_SIZE);
-    assert(impInlineSize <= IMPLEMENTATION_MAX_INLINE_SIZE);
-#endif
 }
 
 /*****************************************************************************
@@ -2159,7 +2144,7 @@ void                Compiler::impSpillLclRefs(ssize_t lclNum)
            live on entry to the handler.
            Just spill 'em all without considering the liveness */
 
-        bool xcptnCaught = compCurBB->hasTryIndex() &&
+        bool xcptnCaught = ehBlockHasExnFlowDsc(compCurBB) &&
                            (tree->gtFlags & (GTF_CALL | GTF_EXCEPT));
 
         /* Skip the tree if it doesn't have an affected reference,
@@ -2636,12 +2621,12 @@ GenTreePtr  Compiler::impImplicitIorI4Cast(GenTreePtr  tree,
 GenTreePtr  Compiler::impImplicitR4orR8Cast(GenTreePtr  tree,
                                             var_types   dstTyp)
 {
-#ifdef _TARGET_64BIT_
+#ifndef LEGACY_BACKEND
    if (varTypeIsFloating(tree) && varTypeIsFloating(dstTyp) && (dstTyp != tree->gtType))
    {
        tree = gtNewCastNode(dstTyp, tree, dstTyp);
    }
-#endif // _TARGET_64BIT_
+#endif // !LEGACY_BACKEND
 
     return tree;
 }
@@ -9833,7 +9818,7 @@ ARR_LD_POST_VERIFY:
                 {
                     arrayElem = typeInfo::nativeInt();
                 }
-#endif // _TARGET_64_BIT
+#endif // _TARGET_64BIT_
                 Verify(tiArray.IsNullObjRef() ||
                        typeInfo::AreEquivalent(verGetArrayElemType(tiArray), arrayElem), "bad array");
 
@@ -9902,7 +9887,6 @@ ARR_LD_POST_VERIFY:
             }
             else
             {
-                // On Amd64 add an explicit cast between float and double
                 op2 = impImplicitR4orR8Cast(op2, op1->TypeGet());
                 op1 = gtNewAssignNode(op1, op2);
             }
@@ -10837,7 +10821,6 @@ STIND_POST_VERIFY:
 
             impBashVarAddrsToI(op1, op2);
 
-            // On Amd64 add an explicit cast between float and double
             op2 = impImplicitR4orR8Cast(op2, lclTyp);
 
 #ifdef _TARGET_64BIT_

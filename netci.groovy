@@ -13,12 +13,14 @@ def static getOSGroup(def os) {
     def osGroupMap = ['Ubuntu':'Linux',
         'RHEL7.2': 'Linux',
         'Ubuntu15.10': 'Linux',
+        'Ubuntu16.04': 'Linux',
         'Debian8.2':'Linux',
         'OSX':'OSX',
         'Windows_NT':'Windows_NT',
         'FreeBSD':'FreeBSD',
         'CentOS7.1': 'Linux',
-        'OpenSUSE13.2': 'Linux']
+        'OpenSUSE13.2': 'Linux',
+        'LinuxARMEmulator': 'Linux']
     def osGroup = osGroupMap.get(os, null) 
     assert osGroup != null : "Could not find os group for ${os}"
     return osGroupMap[os]
@@ -30,7 +32,7 @@ class Constants {
     // The Windows_NT_BuildOnly OS is a way to speed up the Non-NT builds temporarily by avoiding
     // test execution in the build flow runs.  It generates the exact same build
     // as Windows_NT but without the tests.
-    def static osList = ['Ubuntu', 'Debian8.2', 'OSX', 'Windows_NT', 'Windows_NT_BuildOnly', 'FreeBSD', 'CentOS7.1', 'OpenSUSE13.2', 'Ubuntu15.10', 'RHEL7.2']
+    def static osList = ['Ubuntu', 'Debian8.2', 'OSX', 'Windows_NT', 'Windows_NT_BuildOnly', 'FreeBSD', 'CentOS7.1', 'OpenSUSE13.2', 'Ubuntu15.10', 'RHEL7.2', 'LinuxARMEmulator', 'Ubuntu16.04']
     def static crossList = ['Ubuntu', 'OSX', 'CentOS7.1', 'RHEL7.2', 'Debian8.2', 'OpenSUSE13.2']
     // This is a set of JIT stress modes combined with the set of variables that
     // need to be set to actually enable that stress mode.  The key of the map is the stress mode and
@@ -67,7 +69,7 @@ class Constants {
                'gcstress0xc_minopts_heapverify1' : ['COMPlus_GCStress'  : '0xC', 'COMPlus_JITMinOpts'  : '1', 'COMPlus_HeapVerify'  : '1']
                ]
     // This is the basic set of scenarios
-    def static basicScenarios = ['default', 'pri1', 'ilrt', 'r2r', 'pri1r2r', 'gcstress15_pri1r2r', 'longgc']
+    def static basicScenarios = ['default', 'pri1', 'ilrt', 'r2r', 'pri1r2r', 'gcstress15_pri1r2r', 'longgc', 'coverage']
     // This is the set of configurations
     def static configurationList = ['Debug', 'Checked', 'Release']
     // This is the set of architectures
@@ -111,6 +113,10 @@ def static isR2R(def scenario) {
     return (scenario == 'r2r' || scenario == 'pri1r2r')
 }
 
+def static isCoverage(def scenario) {
+    return (scenario == 'coverage')
+}
+
 def static setTestJobTimeOut(newJob, scenario) {
     if (isGCStressRelatedTesting(scenario)) {
         Utilities.setJobTimeout(newJob, 1440)
@@ -123,6 +129,9 @@ def static setTestJobTimeOut(newJob, scenario) {
     }
     else if (isR2R(scenario)) {
         Utilities.setJobTimeout(newJob, 240)
+    }
+    else if (isCoverage(scenario)) {
+        Utilities.setJobTimeout(newJob, 1440)  
     }
     // Non-test jobs use the default timeout value.
 }
@@ -249,9 +258,8 @@ static void addEmailPublisher(def job, def recipient) {
 // Adds a trigger for the PR build if one is needed.  If isFlowJob is true, then this is the
 // flow job that rolls up the build and test for non-windows OS's.  // If the job is a windows build only job,
 // it's just used for internal builds
-
 // If you add a job with a trigger phrase, please add that phrase to coreclr/Documentation/project-docs/ci-trigger-phrases.md
-def static addTriggers(def job, def branch, def isPR, def architecture, def os, def configuration, def scenario, def isFlowJob, def isWindowsBuildOnlyJob) {
+def static addTriggers(def job, def branch, def isPR, def architecture, def os, def configuration, def scenario, def isFlowJob, def isWindowsBuildOnlyJob, def isLinuxEmulatorBuild) {
     if (isWindowsBuildOnlyJob) {
         return
     }
@@ -350,7 +358,11 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                 }
                 break
             case 'longgc':
-                // long GC jobs are triggered by phrase only.
+                assert (os == 'Ubuntu' || os == 'Windows_NT' || os == 'OSX')
+                assert configuration == 'Release'
+                assert architecture == 'x64'
+                Utilities.addPeriodicTrigger(job, '@daily')
+                addEmailPublisher(job, 'dotnetgctests@microsoft.com')
                 break
             case 'ilrt':
                 assert !(os in bidailyCrossList)
@@ -362,6 +374,12 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                         Utilities.addPeriodicTrigger(job, '@daily')
                     }
                 }
+                break
+            case 'coverage':
+                assert (os == 'Ubuntu' || os == 'Windows_NT')
+                assert configuration == 'Release'
+                assert architecture == 'x64'
+                Utilities.addPeriodicTrigger(job, '@weekly')
                 break
             case 'jitstressregs1':
             case 'jitstressregs2':
@@ -424,6 +442,13 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
     def osGroup = getOSGroup(os)
     switch (architecture) {
         case 'x64':
+            if (scenario == 'coverage') {
+                assert configuration == 'Release'
+                if (os == 'Ubuntu') {
+                    Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Coverage Build & Test", "(?i).*test\\W+coverage.*")
+                }
+                break
+            }
             switch (os) {
                 // OpenSUSE, Debian & RedHat get trigger phrases for pri 0 build, and pri 1 build & test
                 case 'OpenSUSE13.2':
@@ -437,6 +462,11 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                         assert (configuration == 'Release')
                         Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Pri 1 Build & Test", "(?i).*test\\W+${os}\\W+${scenario}.*")
                     }
+                    break
+                case 'Ubuntu16.04':
+                    assert !isFlowJob
+                    assert scenario == 'default'
+                    Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build", '(?i).*test\\W+Ubuntu16\\.04.*')
                     break
                 case 'Ubuntu15.10':
                     assert !isFlowJob
@@ -484,7 +514,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                             }
                             break
                         case 'longgc':
-                            if (configuration == 'Release' || configuration == 'Checked') {
+                            if (configuration == 'Release') {
                                 Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Long-Running GC Build & Test", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")
                             }
                             break
@@ -646,7 +676,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                             }
                             break
                         case 'longgc':
-                            if (configuration == 'Release' || configuration == 'Checked') {
+                            if (configuration == 'Release') {
                                 Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Long-Running GC Build & Test", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")
                             }
                             break
@@ -768,32 +798,37 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                 case 'Ubuntu':
                     switch(architecture) {
                         case "arm":
-                            // Removing the regex will cause this to run on each PR.
-                            Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} Cross ${configuration} Build")
+                            if (!isLinuxEmulatorBuild) {
+                                // Removing the regex will cause this to run on each PR.
+                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} Cross ${configuration} Build")
+                            }
+                            else {
+                                Utilities.addGithubPRTriggerForBranch(job, branch, "Linux ARM Emulator Build", "(?i).*test\\W+Linux\\W+arm\\W+emulator.*")
+                            }
                             break
                         case "arm64":
                            Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} Cross ${configuration} Build", "(?i).*test\\W+${os}\\W+${architecture}.*")
                            break
                     }
-					break
+                    break
                 case 'Windows_NT':
-				    switch(architecture) {
-					    case "arm":
-						    // Not yet supported.
-						    break
+                    switch(architecture) {
+                        case "arm":
+                            // Not yet supported.
+                            break
                         case "arm64":
                             // Set up a private trigger
-					        def contextString = "${os} ${architecture} Cross ${configuration} Build"
-							// Debug builds only.
-					        if (configuration != 'Debug') {
-					            contextString += " and Test"
-					        }
+                            def contextString = "${os} ${architecture} Cross ${configuration} Build"
+                            // Debug builds only.
+                            if (configuration != 'Debug') {
+                                contextString += " and Test"
+                            }
                             Utilities.addPrivateGithubPRTriggerForBranch(job, branch, contextString,
                             "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}.*", null, ['erozenfeld', 'kyulee1', 'pgavlin', 'russellhadley', 'swaroop-sridhar', 'JosephTremoulet', 'jashook', 'RussKeldorph', 'gkhanna79', 'briansull', 'cmckinsey', 'jkotas', 'ramarag', 'markwilkie', 'rahku', 'tzwlai', 'weshaggard', 'LLITCHEV'])
                             addEmailPublisher(job, 'dotnetonarm64@microsoft.com')
                             break
-					}
-				    break
+                    }
+                    break
             }
             break
         case 'x86':
@@ -832,7 +867,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                 }
             } else if (scenario == 'longgc') {
                 if (os == 'Windows_NT'){
-                    if (configuration == 'Release' || configuration == 'Checked'){
+                    if (configuration == 'Release'){
                         Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Long-Running GC Build & Test", "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}\\W+${scenario}.*")  
                     }
                 }
@@ -860,12 +895,25 @@ combinedScenarios.each { scenario ->
                         isBuildOnly = true
                         os = 'Windows_NT'
                     }
-                    
-					// Skip totally unimplemented (in CI) configurations.
+
+                    // If the OS is LinuxARMEmulator and arch is arm, set the isLinuxEmulatorBuild
+                    // flag to true and reset the os to Ubuntu
+                    // The isLinuxEmulatorBuild flag will be used at a later time to execute the right
+                    // set of build commands
+                    // The tuples (LinuxARMEmulator, other architectures) are not handled and control returns
+                    def isLinuxEmulatorBuild = false
+                    if (os == 'LinuxARMEmulator' && architecture == 'arm') {
+                        isLinuxEmulatorBuild = true
+                        os = 'Ubuntu'
+                    } else if (os == 'LinuxARMEmulator') {
+                        return
+                    }
+
+                    // Skip totally unimplemented (in CI) configurations.
                     switch (architecture) {
                         case 'arm64':
                             // Windows only
-                            if (os != 'Windows_NT') {
+                            if (os != 'Windows_NT' || isBuildOnly) {
                                 return
                             }
                             break
@@ -912,7 +960,6 @@ combinedScenarios.each { scenario ->
                         }
                     }
                     else {
-                        def basicCrossList = ['Ubuntu', 'OSX', 'CentOS7.1']
                         // Skip scenarios
                         switch (scenario) {
                             case 'pri1':
@@ -971,12 +1018,25 @@ combinedScenarios.each { scenario ->
                                 }
                                 break
                             case 'longgc':
-                                if (os != 'Windows_NT') {
+                                if (os != 'Windows_NT' && os != 'Ubuntu' && os != 'OSX') {
                                     return
                                 }
-                                
-                                // only x64 or x86 for now
                                 if (architecture != 'x64') {
+                                    return
+                                }
+                                if (configuration != 'Release') {
+                                    return
+                                }
+                                break
+                            // We need Windows & Ubuntu x64 Release bits for the code coverage build
+                            case 'coverage':
+                                if (os != 'Windows_NT' && os != 'Ubuntu') {
+                                    return
+                                }
+                                if (architecture != 'x64') {
+                                    return
+                                }
+                                if (configuration != 'Release') {
                                     return
                                 }
                                 break
@@ -1001,7 +1061,7 @@ combinedScenarios.each { scenario ->
 
                     // Add all the standard options
                     Utilities.standardJobSetup(newJob, project, isPR, "*/${branch}")
-                    addTriggers(newJob, branch, isPR, architecture, os, configuration, scenario, false, isBuildOnly)
+                    addTriggers(newJob, branch, isPR, architecture, os, configuration, scenario, false, isBuildOnly, isLinuxEmulatorBuild)
                 
                     def buildCommands = [];
                     def osGroup = getOSGroup(os)
@@ -1044,9 +1104,14 @@ combinedScenarios.each { scenario ->
                                         //Build pri1 R2R tests with GC stress level 15
                                         buildCommands += "build.cmd ${lowerConfiguration} ${architecture} skiptests"
                                         buildCommands += "set __TestIntermediateDir=int&&tests\\buildtest.cmd ${lowerConfiguration} ${architecture} crossgen Priority 1 gcstresslevel 15"
-                                    } else if (scenario == 'longgc') {
+                                    }
+                                    else if (scenario == 'longgc') {
                                         buildCommands += "build.cmd ${lowerConfiguration} ${architecture} skiptests"
                                         buildCommands += "set __TestIntermediateDir=int&&tests\\buildtest.cmd ${lowerConfiguration} ${architecture} longgctests"
+                                    }
+                                    else if (scenario == 'coverage') {
+                                        buildCommands += "build.cmd ${lowerConfiguration} ${architecture} skiptests"
+                                        buildCommands += "set __TestIntermediateDir=int&&tests\\buildtest.cmd ${lowerConfiguration} ${architecture} crossgen Priority 1"
                                     }
                                     else {
                                         println("Unknown scenario: ${scenario}")
@@ -1144,10 +1209,10 @@ combinedScenarios.each { scenario ->
 
                                     // Debug runs take too long to run. So build job only.
                                     if (lowerConfiguration == "debug") {
-                                       buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${architecture} /toolset_dir C:\\ats"
+                                       buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${architecture} /toolset_dir C:\\ats2"
                                     }
                                     else {
-                                       buildCommands += "set __TestIntermediateDir=int&&build.cmd skiptests ${lowerConfiguration} ${architecture} /toolset_dir C:\\ats"
+                                       buildCommands += "set __TestIntermediateDir=int&&build.cmd skiptests ${lowerConfiguration} ${architecture} /toolset_dir C:\\ats2"
                                        // Test build and run are launched together.
                                        buildCommands += "Z:\\arm64\\common\\scripts\\arm64PostLauncher.cmd %WORKSPACE% ${architecture} ${lowerConfiguration}"
                                        Utilities.addXUnitDotNETResults(newJob, 'bin/tests/testResults.xml')
@@ -1164,6 +1229,7 @@ combinedScenarios.each { scenario ->
                             break
                         case 'Ubuntu':
                         case 'Ubuntu15.10':
+                        case 'Ubuntu16.04':
                         case 'Debian8.2':
                         case 'OSX':
                         case 'FreeBSD':
@@ -1180,16 +1246,42 @@ combinedScenarios.each { scenario ->
                                         {
                                             buildCommands += "./build.sh skipmscorlib verbose ${lowerConfiguration} ${architecture}"
                                         }
+                                        else if (scenario == 'coverage')
+                                        {
+                                            assert os == 'Ubuntu'
+                                            assert lowerConfiguration == 'release'
+                                            buildCommands += "./build.sh coverage verbose ${lowerConfiguration} ${architecture}"
+
+                                            // Remove folders from obj that we don't expect to be covered. May update this later.
+                                            buildCommands += "rm -rf ./bin/obj/Linux.x64.Release/src/ToolBox"
+                                            buildCommands += "rm -rf ./bin/obj/Linux.x64.Release/src/debug"
+                                            buildCommands += "rm -rf ./bin/obj/Linux.x64.Release/src/ilasm"
+                                            buildCommands += "rm -rf ./bin/obj/Linux.x64.Release/src/ildasm"
+                                            buildCommands += "rm -rf ./bin/obj/Linux.x64.Release/src/dlls/dbgshim"
+                                            buildCommands += "rm -rf ./bin/obj/Linux.x64.Release/src/dlls/mscordac"
+                                            buildCommands += "rm -rf ./bin/obj/Linux.x64.Release/src/dlls/mscordbi"
+                                        }
                                         else
                                         {
                                             buildCommands += "./build.sh verbose ${lowerConfiguration} ${architecture}"
                                         }
                                         buildCommands += "src/pal/tests/palsuite/runpaltests.sh \${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration} \${WORKSPACE}/bin/paltestout"
+
+                                        // Delete PAL test obj files after we run them, if this is a coverage job
+                                        if (scenario == 'coverage') {
+                                            buildCommands += "rm -rf ./bin/obj/Linux.x64.Release/src/pal/tests"
+                                        }
                                     
                                         // Set time out
                                         setTestJobTimeOut(newJob, scenario)
                                         // Basic archiving of the build
-                                        Utilities.addArchival(newJob, "bin/Product/**,bin/obj/*/tests/**/*.dylib,bin/obj/*/tests/**/*.so")
+                                        if (scenario == 'coverage')
+                                        {
+                                            Utilities.addArchival(newJob, "bin/Product/**,bin/obj/Linux.x64.Release/src/**")
+                                        }
+                                        else {
+                                            Utilities.addArchival(newJob, "bin/Product/**,bin/obj/*/tests/**/*.dylib,bin/obj/*/tests/**/*.so")
+                                        }
                                         // And pal tests
                                         Utilities.addXUnitDotNETResults(newJob, '**/pal_tests.xml')
                                     }
@@ -1231,14 +1323,33 @@ combinedScenarios.each { scenario ->
                                     Utilities.addArchival(newJob, "bin/Product/**")
                                     break
                                 case 'arm':
-                                    // We don't run the cross build except on Ubuntu
+                                    // All builds for ARM architecture are run on Ubuntu currently
                                     assert os == 'Ubuntu'
-                                    buildCommands += """echo \"Using rootfs in /opt/arm-liux-genueabihf-root\"
-                                        ROOTFS_DIR=/opt/arm-linux-genueabihf-root ./build.sh skipmscorlib arm cross verbose ${lowerConfiguration}"""
+                                    if (!isLinuxEmulatorBuild) {
+                                        buildCommands += """echo \"Using rootfs in /opt/arm-liux-genueabihf-root\"
+                                            ROOTFS_DIR=/opt/arm-linux-genueabihf-root ./build.sh skipmscorlib arm cross verbose ${lowerConfiguration}"""
                                         
-                                    // Basic archiving of the build, no pal tests
-                                    Utilities.addArchival(newJob, "bin/Product/**")
-                                    break
+                                        // Basic archiving of the build, no pal tests
+                                        Utilities.addArchival(newJob, "bin/Product/**")
+                                        break
+                                    }
+                                    else {
+                                        // Remove old copy of coreclr and copy the latest version of coreclr
+                                        // This need to be done as it is not possible to clone the repository inside the chroot jail
+                                        buildCommands += "sudo rm -rf /opt/linux-arm-emulator-root/home/coreclr; sudo mkdir /opt/linux-arm-emulator-root/home/coreclr; sudo cp -R ./ /opt/linux-arm-emulator-root/home/coreclr"
+
+                                        // Chroot into the Linux ARM emulator environment and execute the build
+                                        buildCommands += """echo \"Chrooting into Linux ARM emulator environment\"
+                                                            sudo chroot /opt/linux-arm-emulator-root/ /bin/bash -x <<EOF
+                                                            source /dotnet/setenv/setenv_coreclr.sh
+                                                            cd home/coreclr
+                                                            ./build.sh arm clean verbose skipmscorlib
+EOF"""
+
+                                        // Basic archiving of the build, no pal tests
+                                        Utilities.addArchival(newJob, "/opt/linux-arm-emulator-root/home/coreclr/bin/Product/**")
+                                        break
+                                    }
                                 default:
                                     println("Unknown architecture: ${architecture}");
                                     assert false
@@ -1337,11 +1448,19 @@ combinedScenarios.each { scenario ->
                                 }
                                 break
                             case 'longgc':
-                                //Skip configs that aren't Checked or Release (so just Debug, for now)
-                                if (configuration != 'Checked' && configuration != 'Release') {
+                                // Long GC tests take a long time on non-Release builds
+                                if (configuration != 'Release') {
                                     return
                                 }
                                 break
+                            case 'coverage':
+                                //We only want Ubuntu Release for coverage
+                                if (os != 'Ubuntu') {
+                                    return
+                                }
+                                if (configuration != 'Release') {
+                                    return
+                                }
                             case 'default':
                                 // Nothing skipped
                                 break
@@ -1355,8 +1474,13 @@ combinedScenarios.each { scenario ->
                     def lowerConfiguration = configuration.toLowerCase()
                     def osGroup = getOSGroup(os)
                     def jobName = getJobName(configuration, architecture, os, scenario, false) + "_tst"
+                    // Unless this is a coverage test run, we want to copy over the default build of coreclr.
+                    def inputScenario = 'default'
+                    if (scenario == 'coverage') {
+                        inputScenario = 'coverage'
+                    }
                     def inputCoreCLRBuildName = projectFolder + '/' + 
-                        Utilities.getFullJobName(project, getJobName(configuration, architecture, os, 'default', false), isPR)
+                        Utilities.getFullJobName(project, getJobName(configuration, architecture, os, inputScenario, false), isPR)
                     // If this is a stress scenario, there isn't any difference in the build job
                     // so we didn't create a build only job for windows_nt specific to that stress mode.  Just copy
                     // from the default scenario
@@ -1376,10 +1500,9 @@ combinedScenarios.each { scenario ->
                     // of in parallel. Only used for long GC tests.
                     def sequentialString = ''
                     
-                    // Whether or not this test run should only run failing test.
-                    // Only used for long GC tests, because they are all ignored in
-                    // normal test runs.
-                    def runFailingString = ''
+                    // Whether or not this test run should run a specific playlist.
+                    // Only used for long GC tests.
+                    def playlistString = ''
                      
                     if (os == 'Ubuntu' && isPR){
                         serverGCString = '--useServerGC'
@@ -1396,11 +1519,9 @@ combinedScenarios.each { scenario ->
                         // the only test running (many of them allocate until OOM).
                         sequentialString = '--sequential'
                         
-                        // Long GC tests all exist in the ignore list because
-                        // they can't run during normal test runs. This is not
-                        // particularly pretty but, until we get a more generalized
-                        // mechanism for coming up with test playlists, it works.
-                        runFailingString = '--runFailingTestsOnly'
+                        // The Long GC playlist contains all of the tests that are
+                        // going to be run.
+                        playlistString = '--playlist=./tests/longRunningGcTests.txt'
                     }
                     
 
@@ -1432,72 +1553,127 @@ combinedScenarios.each { scenario ->
                                     buildNumber('${CORECLR_WINDOWS_BUILD}')
                                 }
                             }
-                        
-                            def corefxFolder = Utilities.getFolderName('dotnet/corefx') + '/' + Utilities.getFolderName(branch)
-                        
-                            // Corefx components.  Depending on the OS, we might get this in different ways.  As corefx
-                            // transitions to a full stack build on native OS's we will get this data from other places.
-                            if (os == 'Ubuntu' || os == 'OSX') {
-                                // Ubuntu/OSX tars up the data
-                                def osJobName = (os == 'Ubuntu') ? 'ubuntu14.04' : 'osx'
-                                copyArtifacts("${corefxFolder}/${osJobName}_release") {
-                                    includePatterns('bin/build.tar.gz')
-                                    buildSelector {
-                                        latestSuccessful(true)
-                                    }
-                                }
-                        
-                                // Unpack the corefx binaries
-                                shell("tar -xf ./bin/build.tar.gz")
+
+                            if (scenario == 'coverage') {
+                                // Move coreclr to clr directory
+                                shell("rm -rf .clr; mkdir .clr; mv * .clr; mv .git .clr; mv .clr clr")
+                                
+                                // Unzip the tests first.  Exit with 0
+                                shell("unzip -q -o ./clr/bin/tests/tests.zip -d ./clr/bin/tests/Windows_NT.${architecture}.${configuration} || exit 0")
+
+                                shell("ls clr/bin")
+                                // Get corefx
+                                shell("git clone https://github.com/dotnet/corefx fx")
+                                shell("ls")
+                                shell("pwd")
+                                // Build Linux corefx
+                                shell("./fx/build.sh x64 release Linux skiptests")
+                                // Check contents of bin directory - this can be removed after we confirm everything is as expected
+                                shell("ls ./fx/bin")
+
+                                // Run corefx tests
+                                shell("""./fx/run-test.sh \\
+                --coreclr-bins \$(pwd)/clr/bin/Product/${osGroup}.${architecture}.${configuration} \\
+                --mscorlib-bins \$(pwd)/clr/bin/Product/${osGroup}.${architecture}.${configuration} \\
+                --corefx-tests \$(pwd)/fx/bin/tests/${osGroup}.AnyCPU.${configuration} \\
+                --corefx-native-bins \$(pwd)/fx/bin/${osGroup}.${architecture}.${configuration}""")
+
+
+                                // Run coreclr tests w/ workstation GC
+                                shell("""./clr/tests/runtest.sh \\
+                --testRootDir=\"\$(pwd)/clr/bin/tests/Windows_NT.${architecture}.${configuration}\" \\
+                --testNativeBinDir=\"\$(pwd)/clr/bin/obj/${osGroup}.${architecture}.${configuration}/tests\" \\
+                --coreClrBinDir=\"\$(pwd)/clr/bin/Product/${osGroup}.${architecture}.${configuration}\" \\
+                --mscorlibDir=\"\$(pwd)/clr/bin/Product/${osGroup}.${architecture}.${configuration}\" \\
+                --coreFxBinDir=\"\$(pwd)/fx/bin/${osGroup}.AnyCPU.Release\" \\
+                --coreFxNativeBinDir=\"\$(pwd)/fx/bin/${osGroup}.${architecture}.Release\" \\
+                --crossgen --coreclr-coverage\" """)
+
+                                // Run coreclr GC tests w/ server GC enabled & produce coverage reports
+                                shell("""./clr/tests/runtest.sh \\
+                --testRootDir=\"\$(pwd)/clr/bin/tests/Windows_NT.${architecture}.${configuration}/GC\" \\
+                --testNativeBinDir=\"\$(pwd)/clr/bin/obj/${osGroup}.${architecture}.${configuration}/tests\" \\
+                --coreOverlayDir=\"\$(pwd)/clr/bin/tests/Windows_NT.${architecture}.${configuration}/Tests/coreoverlay\" \\
+                --crossgen --useServerGC --coreclr-coverage \\
+                --coreclr-objs=\"\$(pwd)/clr/bin/obj/${osGroup}.${architecture}.${configuration}\" \\
+                --coreclr-src=\"\$(pwd)/clr/src\" \\
+                --coverage-output-dir=\"\${WORKSPACE}/coverage\" """)
+
                             }
                             else {
-                                copyArtifacts("${corefxFolder}/nativecomp_${os.toLowerCase()}_release") {
-                                    includePatterns('bin/**')
-                                    buildSelector {
-                                        latestSuccessful(true)
+
+                                def corefxFolder = Utilities.getFolderName('dotnet/corefx') + '/' + Utilities.getFolderName(branch)
+                        
+                                // Corefx components.  Depending on the OS, we might get this in different ways.  As corefx
+                                // transitions to a full stack build on native OS's we will get this data from other places.
+                                if (os == 'Ubuntu' || os == 'OSX') {
+                                    // Ubuntu/OSX tars up the data
+                                    def osJobName = (os == 'Ubuntu') ? 'ubuntu14.04' : 'osx'
+                                    copyArtifacts("${corefxFolder}/${osJobName}_release") {
+                                        includePatterns('bin/build.tar.gz')
+                                        buildSelector {
+                                            latestSuccessful(true)
+                                        }
+                                    }
+                            
+                                    // Unpack the corefx binaries
+                                    shell("tar -xf ./bin/build.tar.gz")
+                                }
+                                else {
+                                    copyArtifacts("${corefxFolder}/nativecomp_${os.toLowerCase()}_release") {
+                                        includePatterns('bin/**')
+                                        buildSelector {
+                                            latestSuccessful(true)
+                                        }
+                                    }
+                                
+                                    // CoreFX Linux binaries
+                                    copyArtifacts("${corefxFolder}/${os.toLowerCase()}_release_bld") {
+                                        includePatterns('bin/build.pack')
+                                        buildSelector {
+                                            latestSuccessful(true)
+                                        }
+                                    }
+                            
+                                    // Unpack the corefx binaries
+                                    shell("unpacker ./bin/build.pack ./bin")
+                                }
+
+                                // Unzip the tests first.  Exit with 0
+                                shell("unzip -q -o ./bin/tests/tests.zip -d ./bin/tests/Windows_NT.${architecture}.${configuration} || exit 0")
+                            
+                                // Execute the tests
+                                // If we are running a stress mode, we'll set those variables first
+                                def testEnvOpt = ""
+                                if (Constants.jitStressModeScenarios.containsKey(scenario)) {
+                                    def scriptFileName = "\$WORKSPACE/set_stress_test_env.sh"
+                                    def createScriptCmds = genStressModeScriptStep(os, scenario, Constants.jitStressModeScenarios[scenario], scriptFileName)
+                                    if (createScriptCmds != "") {
+                                        shell("${createScriptCmds}")
+                                        testEnvOpt = "--test-env=" + scriptFileName
                                     }
                                 }
-                            
-                                // CoreFX Linux binaries
-                                copyArtifacts("${corefxFolder}/${os.toLowerCase()}_release_bld") {
-                                    includePatterns('bin/build.pack')
-                                    buildSelector {
-                                        latestSuccessful(true)
-                                    }
+                                
+                                if (isGCStressRelatedTesting(scenario)) {
+                                    shell('./init-tools.sh')
                                 }
-                        
-                                // Unpack the corefx binaries
-                                shell("unpacker ./bin/build.pack ./bin")
+                                
+                                shell("""./tests/runtest.sh \\
+                --testRootDir=\"\${WORKSPACE}/bin/tests/Windows_NT.${architecture}.${configuration}\" \\
+                --testNativeBinDir=\"\${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration}/tests\" \\
+                --coreClrBinDir=\"\${WORKSPACE}/bin/Product/${osGroup}.${architecture}.${configuration}\" \\
+                --mscorlibDir=\"\${WORKSPACE}/bin/Product/${osGroup}.${architecture}.${configuration}\" \\
+                --coreFxBinDir=\"\${WORKSPACE}/bin/${osGroup}.AnyCPU.Release\" \\
+                --coreFxNativeBinDir=\"\${WORKSPACE}/bin/${osGroup}.${architecture}.Release\" \\
+                ${testEnvOpt} ${serverGCString} ${crossgenStr} ${sequentialString} ${playlistString}""")
                             }
-                            
-                            // Unzip the tests first.  Exit with 0
-                            shell("unzip -q -o ./bin/tests/tests.zip -d ./bin/tests/Windows_NT.${architecture}.${configuration} || exit 0")
-                        
-                            // Execute the tests
-                            // If we are running a stress mode, we'll set those variables first
-                            def testEnvOpt = ""
-                            if (Constants.jitStressModeScenarios.containsKey(scenario)) {
-                                def scriptFileName = "\$WORKSPACE/set_stress_test_env.sh"
-                                def createScriptCmds = genStressModeScriptStep(os, scenario, Constants.jitStressModeScenarios[scenario], scriptFileName)
-                                if (createScriptCmds != "") {
-                                    shell("${createScriptCmds}")
-                                    testEnvOpt = "--test-env=" + scriptFileName
-                                }
-                            }
-                            
-                            if (isGCStressRelatedTesting(scenario)) {
-                                shell('./init-tools.sh')
-                            }
-                            
-                            shell("""./tests/runtest.sh \\
-            --testRootDir=\"\${WORKSPACE}/bin/tests/Windows_NT.${architecture}.${configuration}\" \\
-            --testNativeBinDir=\"\${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration}/tests\" \\
-            --coreClrBinDir=\"\${WORKSPACE}/bin/Product/${osGroup}.${architecture}.${configuration}\" \\
-            --mscorlibDir=\"\${WORKSPACE}/bin/Product/${osGroup}.${architecture}.${configuration}\" \\
-            --coreFxBinDir=\"\${WORKSPACE}/bin/${osGroup}.AnyCPU.Release\" \\
-            --coreFxNativeBinDir=\"\${WORKSPACE}/bin/${osGroup}.${architecture}.Release\" \\
-            ${testEnvOpt} ${serverGCString} ${crossgenStr} ${sequentialString} ${runFailingString}""")
                         }
+                    }
+
+                    if (scenario == 'coverage') {
+                        // Publish coverage reports
+                        Utilities.addHtmlPublisher(newJob, '${WORKSPACE}/coverage', 'Code Coverage Report', 'coreclr.html')
+                        addEmailPublisher(newJob, 'clrcoverage@microsoft.com')
                     }
 
                     setMachineAffinity(newJob, os, architecture)
@@ -1530,8 +1706,9 @@ build(params + [CORECLR_BUILD: coreclrBuildJob.build.number,
 """)
                     }
 
+                    setMachineAffinity(newFlowJob, os, architecture)
                     Utilities.standardJobSetup(newFlowJob, project, isPR, "*/${branch}")
-                    addTriggers(newFlowJob, branch, isPR, architecture, os, configuration, scenario, true, false)
+                    addTriggers(newFlowJob, branch, isPR, architecture, os, configuration, scenario, true, false, false)
                 } // configuration
             } // os
         } // architecture

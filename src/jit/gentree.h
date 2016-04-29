@@ -1097,6 +1097,43 @@ public:
         return  (OperKind(gtOper) & GTK_LOGOP  ) != 0;
     }
 
+    static
+    bool            OperIsShift(genTreeOps gtOper)
+    {
+        return (gtOper == GT_LSH) ||
+               (gtOper == GT_RSH) ||
+               (gtOper == GT_RSZ);
+    }
+
+    bool            OperIsShift() const
+    {
+        return OperIsShift(OperGet());
+    }
+
+    static
+    bool            OperIsRotate(genTreeOps gtOper)
+    {
+        return (gtOper == GT_ROL) ||
+               (gtOper == GT_ROR);
+    }
+
+    bool            OperIsRotate() const
+    {
+        return OperIsRotate(OperGet());
+    }
+
+    static
+    bool            OperIsShiftOrRotate(genTreeOps gtOper)
+    {
+        return OperIsShift(gtOper) ||
+               OperIsRotate(gtOper);
+    }
+
+    bool            OperIsShiftOrRotate() const
+    {
+        return OperIsShiftOrRotate(OperGet());
+    }
+
     int             OperIsArithmetic() const
     {
         genTreeOps op = OperGet();
@@ -1113,12 +1150,7 @@ public:
                 || op==GT_XOR
                 || op==GT_AND
 
-                || op==GT_LSH
-                || op==GT_RSH
-                || op==GT_RSZ
-
-                || op==GT_ROL
-                || op==GT_ROR;
+                || OperIsShiftOrRotate(op);
     }
 
     static
@@ -1799,9 +1831,11 @@ struct GenTreeIntConCommon: public GenTree
 #endif
         }
 
+        bool ImmedValNeedsReloc(Compiler* comp);
+        bool GenTreeIntConCommon::ImmedValCanBeFolded(Compiler* comp, genTreeOps op);
+
 #ifdef _TARGET_XARCH_
         bool FitsInAddrBase(Compiler* comp);
-        bool ImmedValNeedsReloc(Compiler* comp);
         bool AddrNeedsReloc(Compiler* comp);
 #endif
 

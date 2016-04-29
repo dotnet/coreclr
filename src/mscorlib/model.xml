@@ -8057,7 +8057,6 @@
       <Member Name="get_Position" />
       <Member Name="get_ReadTimeout" />
       <Member Name="get_WriteTimeout" />
-      <Member Status="ImplRoot" Name="InternalCopyTo(System.IO.Stream,System.Int32)" />
       <Member Name="Read(System.Byte[],System.Int32,System.Int32)" />
       <Member Name="ReadByte" />
       <Member Name="ReadAsync(System.Byte[],System.Int32,System.Int32)"  />
@@ -10310,6 +10309,8 @@
       <Member Name="FromException&lt;TResult&gt;(System.Exception)" />
       <Member Name="FromCanceled(System.Threading.CancellationToken)" />
       <Member Name="FromCanceled&lt;TResult&gt;(System.Threading.CancellationToken)" />
+      <Member Status="ApiFxInternal" Name="FromCancellation(System.Threading.CancellationToken)" />
+      <Member Status="ApiFxInternal" Name="FromCancellation&lt;TResult&gt;(System.Threading.CancellationToken)" />
       <Member Name="Run(System.Action)" />
       <Member Name="Run(System.Action,System.Threading.CancellationToken)" />
       <Member Name="Run&lt;TResult&gt;(System.Func&lt;TResult&gt;)" />

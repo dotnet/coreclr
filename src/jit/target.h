@@ -1083,9 +1083,18 @@ typedef unsigned short          regPairNoSmall; // arm: need 12 bits
   #define RBM_PROFILER_ENTER_TRASH  RBM_CALLEE_TRASH
   #define RBM_PROFILER_LEAVE_TRASH  (RBM_CALLEE_TRASH & ~(RBM_FLOATRET | RBM_INTRET))
 
-  // The registers trashed by the CORINFO_HELP_STOP_FOR_GC helper
-  // See vm\amd64\amshelpers.asm for more details.
+  // The registers trashed by the CORINFO_HELP_STOP_FOR_GC helper.
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+  // See vm\amd64\unixasmhelpers.S for more details.
+  //
+  // On Unix a struct of size >=9 and <=16 bytes in size is returned in two return registers.
+  // The return registers could be any two from the set { RAX, RDX, XMM0, XMM1 }.
+  // STOP_FOR_GC helper preserves all the 4 possible return registers.
+  #define RBM_STOP_FOR_GC_TRASH     (RBM_CALLEE_TRASH & ~(RBM_FLOATRET | RBM_INTRET | RBM_FLOATRET_1 | RBM_INTRET_1))
+#else
+  // See vm\amd64\asmhelpers.asm for more details.
   #define RBM_STOP_FOR_GC_TRASH     (RBM_CALLEE_TRASH & ~(RBM_FLOATRET | RBM_INTRET))
+#endif
 
   // What sort of reloc do we use for [disp32] address mode
   #define IMAGE_REL_BASED_DISP32   IMAGE_REL_BASED_REL32
@@ -1441,7 +1450,7 @@ typedef unsigned short          regPairNoSmall; // arm: need 12 bits
   #define FEATURE_WRITE_BARRIER    1       // Generate the proper WriteBarrier calls for GC    
   #define FEATURE_FIXED_OUT_ARGS   1       // Preallocate the outgoing arg area in the prolog
   #define FEATURE_STRUCTPROMOTE    1       // JIT Optimization to promote fields of structs into registers
-  #define FEATURE_MULTIREG_STRUCT_PROMOTE 0  // True when we want to promote fields of a multireg struct into registers
+  #define FEATURE_MULTIREG_STRUCT_PROMOTE 1  // True when we want to promote fields of a multireg struct into registers
   #define FEATURE_FASTTAILCALL     0       // Tail calls made as epilog+jmp
   #define FEATURE_TAILCALL_OPT     0       // opportunistic Tail calls (i.e. without ".tail" prefix) made as fast tail calls.
   #define FEATURE_SET_FLAGS        1       // Set to true to force the JIT to mark the trees with GTF_SET_FLAGS when the flags need to be set

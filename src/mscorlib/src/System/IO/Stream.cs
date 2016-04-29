@@ -20,9 +20,7 @@ using System.Threading.Tasks;
 
 using System.Runtime;
 using System.Runtime.InteropServices;
-#if NEW_EXPERIMENTAL_ASYNC_IO
 using System.Runtime.CompilerServices;
-#endif
 using System.Runtime.ExceptionServices;
 using System.Security;
 using System.Security.Permissions;
@@ -48,7 +46,6 @@ namespace System.IO {
         // improvement in Copy performance.
         private const int _DefaultCopyBufferSize = 81920;
 
-#if NEW_EXPERIMENTAL_ASYNC_IO
         // To implement Async IO operations on streams that don't support async IO
 
         [NonSerialized]
@@ -62,7 +59,6 @@ namespace System.IO {
             // WaitHandle, we don't need to worry about Disposing it.
             return LazyInitializer.EnsureInitialized(ref _asyncActiveSemaphore, () => new SemaphoreSlim(1, 1));
         }
-#endif
 
         public abstract bool CanRead {
             [Pure]
@@ -137,19 +133,7 @@ namespace System.IO {
         [ComVisible(false)]
         public virtual Task CopyToAsync(Stream destination, Int32 bufferSize, CancellationToken cancellationToken)
         {
-            if (destination == null)
-                throw new ArgumentNullException("destination");
-            if (bufferSize <= 0)
-                throw new ArgumentOutOfRangeException("bufferSize", Environment.GetResourceString("ArgumentOutOfRange_NeedPosNum"));
-            if (!CanRead && !CanWrite)
-                throw new ObjectDisposedException(null, Environment.GetResourceString("ObjectDisposed_StreamClosed"));
-            if (!destination.CanRead && !destination.CanWrite)
-                throw new ObjectDisposedException("destination", Environment.GetResourceString("ObjectDisposed_StreamClosed"));
-            if (!CanRead)
-                throw new NotSupportedException(Environment.GetResourceString("NotSupported_UnreadableStream"));
-            if (!destination.CanWrite)
-                throw new NotSupportedException(Environment.GetResourceString("NotSupported_UnwritableStream"));
-            Contract.EndContractBlock();
+            ValidateCopyToArguments(destination, bufferSize);
 
             return CopyToAsyncInternal(destination, bufferSize, cancellationToken);
         }
@@ -174,54 +158,18 @@ namespace System.IO {
         // the current position.
         public void CopyTo(Stream destination)
         {
-            if (destination == null)
-                throw new ArgumentNullException("destination");
-            if (!CanRead && !CanWrite)
-                throw new ObjectDisposedException(null, Environment.GetResourceString("ObjectDisposed_StreamClosed"));
-            if (!destination.CanRead && !destination.CanWrite)
-                throw new ObjectDisposedException("destination", Environment.GetResourceString("ObjectDisposed_StreamClosed"));
-            if (!CanRead)
-                throw new NotSupportedException(Environment.GetResourceString("NotSupported_UnreadableStream"));
-            if (!destination.CanWrite)
-                throw new NotSupportedException(Environment.GetResourceString("NotSupported_UnwritableStream"));
-            Contract.EndContractBlock();
-
-            InternalCopyTo(destination, _DefaultCopyBufferSize);
+            CopyTo(destination, _DefaultCopyBufferSize);
         }
 
         public void CopyTo(Stream destination, int bufferSize)
         {
-            if (destination == null)
-                throw new ArgumentNullException("destination");
-            if (bufferSize <= 0)
-                throw new ArgumentOutOfRangeException("bufferSize",
-                        Environment.GetResourceString("ArgumentOutOfRange_NeedPosNum"));
-            if (!CanRead && !CanWrite)
-                throw new ObjectDisposedException(null, Environment.GetResourceString("ObjectDisposed_StreamClosed"));
-            if (!destination.CanRead && !destination.CanWrite)
-                throw new ObjectDisposedException("destination", Environment.GetResourceString("ObjectDisposed_StreamClosed"));
-            if (!CanRead)
-                throw new NotSupportedException(Environment.GetResourceString("NotSupported_UnreadableStream"));
-            if (!destination.CanWrite)
-                throw new NotSupportedException(Environment.GetResourceString("NotSupported_UnwritableStream"));
-            Contract.EndContractBlock();
-
-            InternalCopyTo(destination, bufferSize);
-        }
-
-        private void InternalCopyTo(Stream destination, int bufferSize)
-        {
-            Contract.Requires(destination != null);
-            Contract.Requires(CanRead);
-            Contract.Requires(destination.CanWrite);
-            Contract.Requires(bufferSize > 0);
+            ValidateCopyToArguments(destination, bufferSize);
             
             byte[] buffer = new byte[bufferSize];
             int read;
             while ((read = Read(buffer, 0, buffer.Length)) != 0)
                 destination.Write(buffer, 0, read);
         }
-
 
         // Stream used to require that all cleanup logic went into Close(),
         // which was thought up before we invented IDisposable.  However, we
@@ -301,9 +249,6 @@ namespace System.IO {
             Contract.Ensures(Contract.Result<IAsyncResult>() != null);
             if (!CanRead) __Error.ReadNotSupported();
 
-#if !NEW_EXPERIMENTAL_ASYNC_IO
-            return BlockingBeginRead(buffer, offset, count, callback, state);
-#else
             // To avoid a race with a stream's position pointer & generating race conditions 
             // with internal buffer indexes in our own streams that 
             // don't natively support async IO operations when there are multiple 
@@ -357,7 +302,6 @@ namespace System.IO {
 
             
             return asyncResult; // return it
-#endif
         }
 
         public virtual int EndRead(IAsyncResult asyncResult)
@@ -367,9 +311,6 @@ namespace System.IO {
             Contract.Ensures(Contract.Result<int>() >= 0);
             Contract.EndContractBlock();
 
-#if !NEW_EXPERIMENTAL_ASYNC_IO
-            return BlockingEndRead(asyncResult);
-#else
             var readTask = _activeReadWriteTask;
 
             if (readTask == null)
@@ -393,7 +334,6 @@ namespace System.IO {
             {
                 FinishTrackingAsyncOperation();
             }
-#endif
         }
 
         [HostProtection(ExternalThreading = true)]
@@ -410,7 +350,7 @@ namespace System.IO {
             // If cancellation was requested, bail early with an already completed task.
             // Otherwise, return a task that represents the Begin/End methods.
             return cancellationToken.IsCancellationRequested
-                        ? Task.FromCancellation<int>(cancellationToken)
+                        ? Task.FromCanceled<int>(cancellationToken)
                         : BeginEndReadAsync(buffer, offset, count);
         }
 
@@ -457,9 +397,7 @@ namespace System.IO {
         {
             Contract.Ensures(Contract.Result<IAsyncResult>() != null);
             if (!CanWrite) __Error.WriteNotSupported();
-#if !NEW_EXPERIMENTAL_ASYNC_IO
-            return BlockingBeginWrite(buffer, offset, count, callback, state);
-#else
+            
             // To avoid a race condition with a stream's position pointer & generating conditions 
             // with internal buffer indexes in our own streams that 
             // don't natively support async IO operations when there are multiple 
@@ -513,10 +451,8 @@ namespace System.IO {
                 RunReadWriteTask(asyncResult);
 
             return asyncResult; // return it
-#endif
         }
 
-#if NEW_EXPERIMENTAL_ASYNC_IO
         private void RunReadWriteTaskWhenReady(Task asyncWaiter, ReadWriteTask readWriteTask)
         {
             Contract.Assert(readWriteTask != null);  // Should be Contract.Requires, but CCRewrite is doing a poor job with
@@ -559,7 +495,6 @@ namespace System.IO {
             Contract.Assert(_asyncActiveSemaphore != null, "Must have been initialized in order to get here.");
             _asyncActiveSemaphore.Release();
         }
-#endif
 
         public virtual void EndWrite(IAsyncResult asyncResult)
         {
@@ -567,9 +502,6 @@ namespace System.IO {
                 throw new ArgumentNullException("asyncResult");
             Contract.EndContractBlock();
 
-#if !NEW_EXPERIMENTAL_ASYNC_IO
-            BlockingEndWrite(asyncResult);
-#else
             var writeTask = _activeReadWriteTask;
             if (writeTask == null)
             {
@@ -593,10 +525,8 @@ namespace System.IO {
             {
                 FinishTrackingAsyncOperation();
             }
-#endif
         }
 
-#if NEW_EXPERIMENTAL_ASYNC_IO
         // Task used by BeginRead / BeginWrite to do Read / Write asynchronously.
         // A single instance of this task serves four purposes:
         // 1. The work item scheduled to run the Read / Write operation
@@ -706,7 +636,6 @@ namespace System.IO {
 
             bool ITaskCompletionAction.InvokeMayRunArbitraryCode { get { return true; } }
         }
-#endif
 
         [HostProtection(ExternalThreading = true)]
         [ComVisible(false)]
@@ -724,7 +653,7 @@ namespace System.IO {
             // If cancellation was requested, bail early with an already completed task.
             // Otherwise, return a task that represents the Begin/End methods.
             return cancellationToken.IsCancellationRequested
-                        ? Task.FromCancellation(cancellationToken)
+                        ? Task.FromCanceled(cancellationToken)
                         : BeginEndWriteAsync(buffer, offset, count);
         }
 
@@ -871,6 +800,23 @@ namespace System.IO {
         {
             SynchronousAsyncResult.EndWrite(asyncResult);
         }
+        
+        internal void ValidateCopyToArguments(Stream destination, int bufferSize)
+        {
+            if (destination == null)
+                throw new ArgumentNullException("destination");
+            if (bufferSize <= 0)
+                throw new ArgumentOutOfRangeException("bufferSize", Environment.GetResourceString("ArgumentOutOfRange_NeedPosNum"));
+            if (!CanRead && !CanWrite)
+                throw new ObjectDisposedException(null, Environment.GetResourceString("ObjectDisposed_StreamClosed"));
+            if (!destination.CanRead && !destination.CanWrite)
+                throw new ObjectDisposedException("destination", Environment.GetResourceString("ObjectDisposed_StreamClosed"));
+            if (!CanRead)
+                throw new NotSupportedException(Environment.GetResourceString("NotSupported_UnreadableStream"));
+            if (!destination.CanWrite)
+                throw new NotSupportedException(Environment.GetResourceString("NotSupported_UnwritableStream"));
+            Contract.EndContractBlock();
+        }
 
         [Serializable]
         private sealed class NullStream : Stream
@@ -900,6 +846,17 @@ namespace System.IO {
                 get { return 0; }
                 set {}
             }
+            
+            public override Task CopyToAsync(Stream destination, int bufferSize, CancellationToken cancellationToken)
+            {
+                // Validate arguments here for compat, since previously this method
+                // was inherited from Stream (which did check its arguments).
+                ValidateCopyToArguments(destination, bufferSize);
+                
+                return cancellationToken.IsCancellationRequested ?
+                    Task.FromCanceled(cancellationToken) :
+                    Task.CompletedTask;
+            }
 
             protected override void Dispose(bool disposing)
             {
@@ -914,7 +871,7 @@ namespace System.IO {
             public override Task FlushAsync(CancellationToken cancellationToken)
             {
                 return cancellationToken.IsCancellationRequested ?
-                    Task.FromCancellation(cancellationToken) :
+                    Task.FromCanceled(cancellationToken) :
                     Task.CompletedTask;
             }
 
@@ -980,7 +937,7 @@ namespace System.IO {
             public override Task WriteAsync(Byte[] buffer, int offset, int count, CancellationToken cancellationToken)
             {
                 return cancellationToken.IsCancellationRequested ?
-                    Task.FromCancellation(cancellationToken) :
+                    Task.FromCanceled(cancellationToken) :
                     Task.CompletedTask;
             }
 

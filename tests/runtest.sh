@@ -37,6 +37,8 @@ function print_usage {
     echo '                                 line, as paths to .sh files relative to the directory specified by --testRootDir.'
     echo '  --disableEventLogging        : Disable the events logged by both VM and Managed Code'
     echo '  --sequential                 : Run tests sequentially (default is to run in parallel).'
+    echo '  --playlist=<path>            : Run only the tests that are specified in the file at <path>, in the same format as'
+    echo '                                 runFailingTestsOnly'
     echo '  -v, --verbose                : Show output from each test.'
     echo '  -h|--help                    : Show usage information.'
     echo '  --useServerGC                : Enable server GC for this test run'
@@ -78,13 +80,18 @@ xunitTestOutputPath=
 OSName=$(uname -s)
 libExtension=
 case $OSName in
+    Darwin)
+        libExtension="dylib"
+        ;;
+
     Linux)
         libExtension="so"
         ;;
 
-    Darwin)
-        libExtension="dylib"
+    NetBSD)
+        libExtension="so"
         ;;
+
     *)
         echo "Unsupported OS $OSName detected, configuring as if for Linux"
         libExtension="so"
@@ -409,6 +416,7 @@ function copy_test_native_bin_to_test_root {
 # Variables for unsupported and failing tests
 declare -a unsupportedTests
 declare -a failingTests
+declare -a playlistTests
 ((runFailingTestsOnly = 0))
 
 function load_unsupported_tests {
@@ -427,6 +435,13 @@ function load_failing_tests {
     done <"$(dirname "$0")/testsFailingOutsideWindows.txt"
 }
 
+function load_playlist_tests {
+    # Load the list of tests that are enabled as a part of this test playlist.
+    while IFS='' read -r line || [ -n "$line" ]; do
+        playlistTests[${#playlistTests[@]}]=$line
+    done <"${playlistFile}"
+}
+
 function is_unsupported_test {
     for unsupportedTest in "${unsupportedTests[@]}"; do
         if [ "$1" == "$unsupportedTest" ]; then
@@ -439,6 +454,15 @@ function is_unsupported_test {
 function is_failing_test {
     for failingTest in "${failingTests[@]}"; do
         if [ "$1" == "$failingTest" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+function is_playlist_test {
+    for playlistTest in "${playlistTests[@]}"; do
+        if [ "$1" == "$playlistTest" ]; then
             return 0
         fi
     done
@@ -467,6 +491,17 @@ function skip_failing_test {
     return 2 # skip the test
 }
 
+function skip_non_playlist_test {
+    # This function runs in a background process. It should not echo anything, and should not use global variables. This
+    # function is analogous to run_test, and causes the test to be skipped with the message below.
+
+    local scriptFilePath=$1
+    local outputFilePath=$2
+
+    echo "Test is not included in the running playlist." >"$outputFilePath"
+    return 2 # skip the test
+}
+
 function run_test {
     # This function runs in a background process. It should not echo anything, and should not use global variables.
 
@@ -490,7 +525,13 @@ function run_test {
 }
 
 # Variables for running tests in the background
-((maxProcesses = $(getconf _NPROCESSORS_ONLN) * 3 / 2)) # long tests delay process creation, use a few more processors
+if [ `uname` = "NetBSD" ]; then
+    NumProc=$(getconf NPROCESSORS_ONLN)
+else
+    NumProc=$(getconf _NPROCESSORS_ONLN)
+fi
+((maxProcesses = $NumProc * 3 / 2)) # long tests delay process creation, use a few more processors
+
 ((nextProcessIndex = 0))
 ((processCount = 0))
 declare -a scriptFilePaths
@@ -553,8 +594,13 @@ function finish_remaining_tests {
 
 function start_test {
     local scriptFilePath=$1
-
     if ((runFailingTestsOnly == 1)) && ! is_failing_test "$scriptFilePath"; then
+        return
+    fi
+    
+    # Skip any test that's not in the current playlist, if a playlist was
+    # given to us.
+    if [ -n "$playlistFile" ] && ! is_playlist_test "$scriptFilePath"; then
         return
     fi
 
@@ -655,6 +701,7 @@ coreClrObjs=
 coreClrSrc=
 coverageOutputDir=
 testEnv=
+playlistFile=
 
 ((disableEventLogging = 0))
 ((serverGC = 0))
@@ -714,6 +761,9 @@ do
             ;;
         --useServerGC)
             ((serverGC = 1))
+            ;;
+        --playlist=*)
+            playlistFile=${i#*=}
             ;;
         --coreclr-coverage)
             CoreClrCoverage=ON
@@ -797,8 +847,18 @@ xunit_output_begin
 create_core_overlay
 precompile_overlay_assemblies
 copy_test_native_bin_to_test_root
-load_unsupported_tests
-load_failing_tests
+
+if [ -n "$playlistFile" ]
+then
+    # Use a playlist file exclusively, if it was provided
+    echo "Executing playlist $playlistFile"
+    load_playlist_tests
+else
+    load_unsupported_tests
+    load_failing_tests
+fi
+
+
 
 scriptPath=$(dirname $0)
 

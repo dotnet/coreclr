@@ -682,6 +682,11 @@ void                Compiler::compShutdown()
 
     emitter::emitDone();
 
+#if defined(DEBUG) || defined(INLINE_DATA)
+    // Finish off any in-progress inline xml
+    InlineStrategy::FinalizeXml();
+#endif // defined(DEBUG) || defined(INLINE_DATA)
+
 #if defined(DEBUG) || MEASURE_NODE_SIZE || MEASURE_BLOCK_SIZE || DISPLAY_SIZES || CALL_ARG_STATS
     if  (genMethodCnt == 0)
     {
@@ -4292,7 +4297,7 @@ DoneCleanUp:
 }
 
 #ifdef DEBUG
-unsigned        Compiler::Info::compMethodHash()
+unsigned        Compiler::Info::compMethodHash() const
 {
     if (compMethodHashPrivate == 0)
     {
@@ -4373,6 +4378,7 @@ void Compiler::compCompileFinish()
 #if defined(DEBUG) || defined(INLINE_DATA)
 
     m_inlineStrategy->DumpData();
+    m_inlineStrategy->DumpXml();
 
 #endif
 

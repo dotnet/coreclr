@@ -3099,7 +3099,10 @@ void                CodeGen::genGenerateCode(void * * codePtr,
     trackedStackPtrsContig = false;
 #elif defined(_TARGET_ARM_)
     // On arm due to prespilling of arguments, tracked stk-ptrs may not be contiguous
-    trackedStackPtrsContig = !compiler->opts.compDbgEnC && !compiler->compIsProfilerHookNeeded();  
+    trackedStackPtrsContig = !compiler->opts.compDbgEnC && !compiler->compIsProfilerHookNeeded();
+#elif defined(_TARGET_ARM64_)
+    // Incoming vararg registers are homed on the top of the stack. Tracked var may not be contiguous.
+    trackedStackPtrsContig = !compiler->opts.compDbgEnC && !compiler->info.compIsVarArgs;
 #else
     trackedStackPtrsContig = !compiler->opts.compDbgEnC;
 #endif
@@ -6356,8 +6359,9 @@ void            CodeGen::genPopCalleeSavedRegistersAndFreeLclFrame(bool jmpEpilo
             }
 
             regsToRestoreMask &= ~(RBM_FP | RBM_LR); // We'll restore FP/LR at the end, and post-index SP.
-            calleeSaveSPOffset = totalFrameSize - genCountBits(regsToRestoreMask) * REGSIZE_BYTES;
 
+            // Compute callee save SP offset which is at the top of local frame while the FP/LR is saved at the bottom of stack.
+            calleeSaveSPOffset = compiler->compLclFrameSize + 2 * REGSIZE_BYTES;
         }
         else if (totalFrameSize <= 512)
         {
@@ -6371,7 +6375,9 @@ void            CodeGen::genPopCalleeSavedRegistersAndFreeLclFrame(bool jmpEpilo
             }
 
             regsToRestoreMask &= ~(RBM_FP | RBM_LR); // We'll restore FP/LR at the end, and post-index SP.
-            calleeSaveSPOffset = totalFrameSize - genCountBits(regsToRestoreMask) * REGSIZE_BYTES;
+
+            // Compute callee save SP offset which is at the top of local frame while the FP/LR is saved at the bottom of stack.
+            calleeSaveSPOffset = compiler->compLclFrameSize + 2 * REGSIZE_BYTES;
         }
         else
         {
@@ -6381,9 +6387,6 @@ void            CodeGen::genPopCalleeSavedRegistersAndFreeLclFrame(bool jmpEpilo
             assert(calleeSaveSPDeltaUnaligned >= 0);
             assert((calleeSaveSPDeltaUnaligned % 8) == 0); // It better at least be 8 byte aligned.
             calleeSaveSPDelta = AlignUp((UINT)calleeSaveSPDeltaUnaligned, STACK_ALIGN);
-
-            calleeSaveSPOffset = calleeSaveSPDelta - calleeSaveSPDeltaUnaligned;
-            assert((calleeSaveSPOffset == 0) || (calleeSaveSPOffset == REGSIZE_BYTES)); // At most one alignment slot between SP and where we store the callee-saved registers.
 
             regsToRestoreMask &= ~(RBM_FP | RBM_LR); // We'll restore FP/LR at the end, and (hopefully) post-index SP.
 
@@ -6438,8 +6441,13 @@ void            CodeGen::genPopCalleeSavedRegistersAndFreeLclFrame(bool jmpEpilo
 
                 genEpilogRestoreRegPair(REG_FP, REG_LR, compiler->lvaOutgoingArgSpaceSize, remainingFrameSz, REG_IP0, nullptr);
             }
+
+            // Unlike frameType=1 or frameType=2 that restore SP at the end,
+            // frameType=3 already adjusted SP above to delete local frame.
+            // There is at most one alignment slot between SP and where we store the callee-saved registers.
+            calleeSaveSPOffset = calleeSaveSPDelta - calleeSaveSPDeltaUnaligned;
+            assert((calleeSaveSPOffset == 0) || (calleeSaveSPOffset == REGSIZE_BYTES));
         }
-        assert(calleeSaveSPOffset >= 0);
     }
     else
     {
@@ -10528,7 +10536,7 @@ void                CodeGen::genSetPSPSym(regNumber initReg,
     // has been established.
     //
     // We generate:
-    //     mov     [rsp+20h], rsp       // store the Initial-SP (our current rsp) in the PSPsym
+    //     mov     [rbp-20h], rsp       // store the Initial-SP (our current rsp) in the PSPsym
 
     getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_SPBASE, compiler->lvaPSPSym, 0);
 
@@ -11418,6 +11426,66 @@ unsigned Compiler::GetHfaSlots(CORINFO_CLASS_HANDLE hClass)
 
 
 #endif // _TARGET_ARM_
+
+
+#ifdef _TARGET_XARCH_
+
+//------------------------------------------------------------------------
+// genMapShiftInsToShiftByConstantIns: Given a general shift/rotate instruction,
+// map it to the specific x86/x64 shift opcode for a shift/rotate by a constant.
+// X86/x64 has a special encoding for shift/rotate-by-constant-1.
+//
+// Arguments:
+//    ins: the base shift/rotate instruction
+//    shiftByValue: the constant value by which we are shifting/rotating
+//
+instruction CodeGen::genMapShiftInsToShiftByConstantIns(instruction ins, int shiftByValue)
+{
+    assert(ins == INS_rcl  ||
+           ins == INS_rcr  ||
+           ins == INS_rol  ||
+           ins == INS_ror  ||
+           ins == INS_shl  ||
+           ins == INS_shr  ||
+           ins == INS_sar);
+
+    // Which format should we use?
+
+    instruction shiftByConstantIns;
+
+    if (shiftByValue == 1)
+    {
+        // Use the shift-by-one format.
+
+        assert(INS_rcl + 1 == INS_rcl_1);
+        assert(INS_rcr + 1 == INS_rcr_1);
+        assert(INS_rol + 1 == INS_rol_1);
+        assert(INS_ror + 1 == INS_ror_1);
+        assert(INS_shl + 1 == INS_shl_1);
+        assert(INS_shr + 1 == INS_shr_1);
+        assert(INS_sar + 1 == INS_sar_1);
+
+        shiftByConstantIns = (instruction)(ins + 1);
+    }
+    else
+    {
+        // Use the shift-by-NNN format.
+
+        assert(INS_rcl + 2 == INS_rcl_N);
+        assert(INS_rcr + 2 == INS_rcr_N);
+        assert(INS_rol + 2 == INS_rol_N);
+        assert(INS_ror + 2 == INS_ror_N);
+        assert(INS_shl + 2 == INS_shl_N);
+        assert(INS_shr + 2 == INS_shr_N);
+        assert(INS_sar + 2 == INS_sar_N);
+
+        shiftByConstantIns = (instruction)(ins + 2);
+    }
+
+    return shiftByConstantIns;
+}
+
+#endif // _TARGET_XARCH_
 
 /*****************************************************************************/
 #ifdef DEBUGGING_SUPPORT

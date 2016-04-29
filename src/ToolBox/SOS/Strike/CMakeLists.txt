@@ -28,6 +28,7 @@ elseif(CLR_CMAKE_PLATFORM_ARCH_I386)
 elseif(CLR_CMAKE_PLATFORM_ARCH_ARM)
   add_definitions(-DSOS_TARGET_ARM=1)
   add_definitions(-D_TARGET_WIN32_=1)
+  add_definitions(-D_TARGET_ARM_=1)
   add_definitions(-DDBG_TARGET_32BIT)
 elseif(CLR_CMAKE_PLATFORM_ARCH_ARM64)
   add_definitions(-DSOS_TARGET_ARM64=1)
@@ -85,6 +86,7 @@ if(WIN32)
     dbgutil
     ${STATIC_MT_CRT_LIB}
     ${STATIC_MT_CPP_LIB}
+    ${STATIC_MT_VCRT_LIB}
     kernel32.lib
     user32.lib
     ole32.lib
@@ -96,14 +98,6 @@ if(WIN32)
     psapi.lib
     ntdll.lib
   )
-
-  # ARM64_TODO: Enable this for Windows Arm64
-  if (NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)
-      list(APPEND SOS_LIBRARY 
-        ${STATIC_MT_VCRT_LIB}
-      )
-  endif()
-    
 else(WIN32)
   add_definitions(-DFEATURE_ENABLE_HARDWARE_EXCEPTIONS)
   add_definitions(-DPAL_STDCPP_COMPAT=1)

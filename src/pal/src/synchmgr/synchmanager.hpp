@@ -448,10 +448,11 @@ namespace CorUnix
         // Per-object-type specific data
         //
         // Process (otiProcess)
+        IPalObject *m_pProcessObject; // process that owns m_pProcLocalData, this is stored without a reference
         CProcProcessLocalData * m_pProcLocalData;
         
     public:
-        CSynchWaitController() : m_pProcLocalData(NULL) {}
+        CSynchWaitController() : m_pProcessObject(NULL), m_pProcLocalData(NULL) {}
         virtual ~CSynchWaitController() = default;
         
         //
@@ -472,7 +473,7 @@ namespace CorUnix
 
         CProcProcessLocalData * GetProcessLocalData(void);
 
-        void SetProcessLocalData(CProcProcessLocalData * pProcLocalData);
+        void SetProcessData(IPalObject* pProcessObject, CProcProcessLocalData * pProcLocalData);
     };  
 
     class CSynchStateController : public CSynchControllerBase, 
@@ -528,6 +529,7 @@ namespace CorUnix
             SynchWorkerCmdRemoteSignal,
             SynchWorkerCmdDelegatedObjectSignaling,
             SynchWorkerCmdShutdown,
+            SynchWorkerCmdTerminationRequest,
             SynchWorkerCmdLast
         };
 
@@ -539,6 +541,10 @@ namespace CorUnix
             DWORD dwPid;
             DWORD dwExitCode;
             bool fIsActualExitCode;
+
+            // Object that owns pProcLocalData. This is stored, with a reference, to 
+            // ensure that pProcLocalData is not deleted.
+            IPalObject *pProcessObject;
             CProcProcessLocalData * pProcLocalData;
         } MonitoredProcessesListNode;
 
@@ -616,7 +622,7 @@ namespace CorUnix
             // initialization code.
             return s_pObjSynchMgr; 
         }
-        
+
         //
         // Inline utility methods
         //
@@ -872,6 +878,8 @@ namespace CorUnix
             PAPCFUNC pfnAPC,
             ULONG_PTR uptrData);
 
+        virtual PAL_ERROR SendTerminationRequestToWorkerThread();
+
         virtual bool AreAPCsPending(CPalThread * pthrTarget);
 
         virtual PAL_ERROR DispatchPendingAPCs(CPalThread * pthrCurrent);
@@ -990,6 +998,7 @@ namespace CorUnix
         PAL_ERROR RegisterProcessForMonitoring(
             CPalThread * pthrCurrent,
             CSynchData *psdSynchData,
+            IPalObject *pProcessObject,
             CProcProcessLocalData * pProcLocalData);
 
         PAL_ERROR UnRegisterProcessForMonitoring(

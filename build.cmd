@@ -195,7 +195,7 @@ set "__PackagesBinDir=%__BinDir%\.nuget"
 set "__TestRootDir=%__RootBinDir%\tests"
 set "__TestBinDir=%__TestRootDir%\%__BuildOS%.%__BuildArch%.%__BuildType%"
 set "__TestIntermediatesDir=%__RootBinDir%\tests\obj\%__BuildOS%.%__BuildArch%.%__BuildType%"
-set "__CrossComponentBinDir=%__BinDir%
+set "__CrossComponentBinDir=%__BinDir%"
 if defined __CrossArch set __CrossComponentBinDir=%__CrossComponentBinDir%\%__CrossArch%
 
 :: Generate path to be set for CMAKE_INSTALL_PREFIX to contain forward slash
@@ -233,7 +233,7 @@ for %%X in (powershell.exe) do (set __PSDir=%%~$PATH:X)
 if not defined __PSDir goto :NoPS
 
 :: Validate Powershell version
-set PS_VERSION_LOG=%~dp0ps-version.log
+set "PS_VERSION_LOG=%__LogsDir%\ps-version.log"
 powershell -NoProfile -ExecutionPolicy unrestricted -Command "$PSVersionTable.PSVersion.Major" > %PS_VERSION_LOG%
 set /P PS_VERSION=< %PS_VERSION_LOG%
 if %PS_VERSION% LEQ 2 (
@@ -294,7 +294,7 @@ REM ============================================================================
 
 :: Generate _version.h
 if exist "%__RootBinDir%\obj\_version.h" del "%__RootBinDir%\obj\_version.h"
-%_msbuildexe% "%__ProjectFilesDir%\build.proj" /t:GenerateVersionHeader /p:NativeVersionHeaderFile="%__RootBinDir%\obj\_version.h" /p:GenerateVersionHeader=true %__OfficialBuildIdArg%
+%_msbuildexe% "%__ProjectFilesDir%\build.proj" /t:GenerateVersionHeader /v:minimal /p:NativeVersionHeaderFile="%__RootBinDir%\obj\_version.h" /p:GenerateVersionHeader=true %__OfficialBuildIdArg%
 if defined __MscorlibOnly goto PerformMScorlibBuild
 
 if defined __SkipNativeBuild (
@@ -708,12 +708,17 @@ if /i "%__ToolsetDir%" == "" (
     exit /b 1
 )
 
-set PATH=%__ToolsetDir%\cpp\bin;%PATH%
-set LIB=%__ToolsetDir%\cpp\libWin9CoreSystem;%__ToolsetDir%\OS\lib;%__ToolsetDir%\cpp\lib
+set PATH=%__ToolsetDir%\VC_sdk\bin;%PATH%
+set LIB=%__ToolsetDir%\VC_sdk\lib\arm64;%__ToolsetDir%\sdpublic\sdk\lib\arm64
 set INCLUDE=^
-%__ToolsetDir%\cpp\inc;^
-%__ToolsetDir%\OS\inc\Windows;^
-%__ToolsetDir%\OS\inc\Windows\crt;^
-%__ToolsetDir%\cpp\inc\vc;^
-%__ToolsetDir%\OS\inc\win8
+%__ToolsetDir%\VC_sdk\inc;^
+%__ToolsetDir%\sdpublic\sdk\inc;^
+%__ToolsetDir%\sdpublic\shared\inc;^
+%__ToolsetDir%\sdpublic\shared\inc\minwin;^
+%__ToolsetDir%\sdpublic\sdk\inc\ucrt;^
+%__ToolsetDir%\sdpublic\sdk\inc\minwin;^
+%__ToolsetDir%\sdpublic\sdk\inc\mincore;^
+%__ToolsetDir%\sdpublic\sdk\inc\abi;^
+%__ToolsetDir%\sdpublic\sdk\inc\clientcore;^
+%__ToolsetDir%\diasdk\include
 exit /b 0

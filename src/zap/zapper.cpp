@@ -695,7 +695,10 @@ void Zapper::LoadAndInitializeJITForNgen(LPCWSTR pwzJitName, OUT HINSTANCE* phJi
 
     HRESULT hr = E_FAIL;
 
-#ifdef FEATURE_MERGE_JIT_AND_ENGINE
+#if defined(FEATURE_CORECLR) || defined(FEATURE_MERGE_JIT_AND_ENGINE)
+    // Note: FEATURE_MERGE_JIT_AND_ENGINE is defined for the Desktop crossgen compilation as well.
+    //
+    // For Crossgen, we always look up the JIT from the same location as CoreCLR. 
     PathString CoreClrFolder;
     extern HINSTANCE g_hThisInst;
     if (WszGetModuleFileName(g_hThisInst, CoreClrFolder))
@@ -849,10 +852,19 @@ void Zapper::InitEE(BOOL fForceDebug, BOOL fForceProfile, BOOL fForceInstrument)
         ThrowLastError();
     }
 #else
-    LPCWSTR pwzJitName = CorCompileGetRuntimeDllName(NGEN_COMPILER_INFO);
+
+    CorCompileRuntimeDlls ngenDllId;
+
+#if !defined(FEATURE_CORECLR)    
+    ngenDllId = NGEN_COMPILER_INFO;
+#else // FEATURE_CORECLR
+    ngenDllId = CROSSGEN_COMPILER_INFO;
+#endif
+
+    LPCWSTR pwzJitName = CorCompileGetRuntimeDllName(ngenDllId);
     LoadAndInitializeJITForNgen(pwzJitName, &m_hJitLib, &m_pJitCompiler);
     
-#if defined(_TARGET_AMD64_) && !defined(CROSSGEN_COMPILE)
+#if defined(_TARGET_AMD64_) && !defined(CROSSGEN_COMPILE) && !defined(FEATURE_CORECLR)
     // For reasons related to servicing, and RyuJIT rollout on .NET 4.6 and beyond, we only use RyuJIT when the registry
     // value UseRyuJIT (type DWORD), under key HKLM\SOFTWARE\Microsoft\.NETFramework, is set to 1. Otherwise, we fall back
     // to JIT64.
@@ -875,7 +887,7 @@ void Zapper::InitEE(BOOL fForceDebug, BOOL fForceProfile, BOOL fForceInstrument)
         // obfuscator tries to directly call the main JIT's getJit() function.
         m_pJitCompiler->setRealJit(fallbackICorJitCompiler);
     }
-#endif // defined(_TARGET_AMD64_) && !defined(CROSSGEN_COMPILE)
+#endif // defined(_TARGET_AMD64_) && !defined(CROSSGEN_COMPILE) && !defined(FEATURE_CORECLR)
 #endif // FEATURE_MERGE_JIT_AND_ENGINE
 
 #ifdef ALLOW_SXS_JIT_NGEN

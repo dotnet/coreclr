@@ -562,10 +562,13 @@ public:
 #if defined(DEBUG) || defined(INLINE_DATA)
 
     // Dump the full subtree, including failures
-    void Dump(int indent = 0);
+    void Dump(unsigned indent = 0);
 
     // Dump only the success subtree, with rich data
-    void DumpData(int indent = 0);
+    void DumpData(unsigned indent = 0);
+
+    // Dump full subtree in xml format
+    void DumpXml(FILE* file = stderr, unsigned indent = 0);
 
 #endif // defined(DEBUG) || defined(INLINE_DATA)
 
@@ -661,6 +664,18 @@ public:
     // Root context
     InlineContext* GetRootContext();
 
+    // Get IL size for maximum allowable inline
+    unsigned GetMaxInlineILSize()
+    {
+        return m_MaxInlineSize;
+    }
+
+    // Get depth of maximum allowable inline
+    unsigned GetMaxInlineDepth()
+    {
+        return m_MaxInlineDepth;
+    }
+
     // Number of successful inlines into the root.
     unsigned GetInlineCount()
     {
@@ -679,11 +694,22 @@ public:
     // Dump textual description of inlines done so far.
     void Dump();
 
-
     // Dump data-format description of inlines done so far.
     void DumpData();
 
+    // Dump xml-formatted description of inlines
+    void DumpXml(FILE* file = stderr, unsigned indent = 0);
+    static void FinalizeXml(FILE* file = stderr);
+
 #endif // defined(DEBUG) || defined(INLINE_DATA)
+
+    // Some inline limit values
+    enum
+    {
+        ALWAYS_INLINE_SIZE = 16,
+        IMPLEMENTATION_MAX_INLINE_SIZE = _UI16_MAX,
+        IMPLEMENTATION_MAX_INLINE_DEPTH = 1000
+    };
 
 private:
 
@@ -696,7 +722,10 @@ private:
     // Cap on allowable increase in jit time due to inlining.
     // Multiplicative, so BUDGET = 10 means up to 10x increase
     // in jit time.
-    enum { BUDGET = 10 };
+    enum
+    {
+        BUDGET = 10
+    };
 
     // Estimate the jit time change because of this inline.
     int EstimateTime(InlineContext* context);
@@ -709,7 +738,8 @@ private:
     int EstimateSize(InlineContext* context);
 
 #if defined(DEBUG) || defined(INLINE_DATA)
-    static bool    s_DumpDataHeader;
+    static bool    s_HasDumpedDataHeader;
+    static bool    s_HasDumpedXmlHeader;
 #endif // defined(DEBUG) || defined(INLINE_DATA)
 
     Compiler*      m_Compiler;
@@ -718,6 +748,8 @@ private:
     unsigned       m_CandidateCount;
     unsigned       m_InlineAttemptCount;
     unsigned       m_InlineCount;
+    unsigned       m_MaxInlineSize;
+    unsigned       m_MaxInlineDepth;
     int            m_InitialTimeBudget;
     int            m_InitialTimeEstimate;
     int            m_CurrentTimeBudget;

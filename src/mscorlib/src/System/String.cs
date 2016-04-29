@@ -93,22 +93,14 @@ namespace System {
             if (values.Length == 0 || values[0] == null)
                 return String.Empty;
 
-            if (separator == null)
-                separator = String.Empty;
-
             StringBuilder result = StringBuilderCache.Acquire();
 
-            String value = values[0].ToString();           
-            if (value != null)
-                result.Append(value);
+            result.Append(values[0].ToString());
 
             for (int i = 1; i < values.Length; i++) {
                 result.Append(separator);
                 if (values[i] != null) {
-                    // handle the case where their ToString() override is broken
-                    value = values[i].ToString();
-                    if (value != null)
-                        result.Append(value);
+                    result.Append(values[i].ToString());
                 }
             }
             return StringBuilderCache.GetStringAndRelease(result);
@@ -121,30 +113,23 @@ namespace System {
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.EndContractBlock();
 
-            if (separator == null)
-                separator = String.Empty;
-
             using(IEnumerator<T> en = values.GetEnumerator()) {
                 if (!en.MoveNext())
                     return String.Empty;
 
                 StringBuilder result = StringBuilderCache.Acquire();
-                if (en.Current != null) {
-                    // handle the case that the enumeration has null entries
-                    // and the case where their ToString() override is broken
-                    string value = en.Current.ToString();
-                    if (value != null)
-                        result.Append(value);
+                T currentValue = en.Current;
+
+                if (currentValue != null) {
+                    result.Append(currentValue.ToString());
                 }
 
                 while (en.MoveNext()) {
+                    currentValue = en.Current;
+
                     result.Append(separator);
-                    if (en.Current != null) {
-                        // handle the case that the enumeration has null entries
-                        // and the case where their ToString() override is broken
-                        string value = en.Current.ToString();
-                        if (value != null)
-                            result.Append(value);
+                    if (currentValue != null) {
+                        result.Append(currentValue.ToString());
                     }
                 }            
                 return StringBuilderCache.GetStringAndRelease(result);
@@ -3169,6 +3154,7 @@ namespace System {
             return Concat(objArgs);
         }
 
+        [System.Security.SecuritySafeCritical]
         public static String Concat(params Object[] args) {
             if (args==null) {
                 throw new ArgumentNullException("args");
@@ -3189,7 +3175,17 @@ namespace System {
                     throw new OutOfMemoryException();
                 }
             }
-            return ConcatArray(sArgs, totalLength);
+
+            string result = FastAllocateString(totalLength);
+            int currPos = 0;
+            for (int i = 0; i < sArgs.Length; i++)
+            {
+                Contract.Assert(currPos <= totalLength - sArgs[i].Length, "[String.Concat](currPos <= totalLength - sArgs[i].Length)");
+                FillStringChecked(result, currPos, sArgs[i]);
+                currPos += sArgs[i].Length;
+            }
+
+            return result;
         }
 
         [ComVisible(false)]
@@ -3202,12 +3198,10 @@ namespace System {
             StringBuilder result = StringBuilderCache.Acquire();
             using(IEnumerator<T> en = values.GetEnumerator()) {
                 while (en.MoveNext()) {
-                    if (en.Current != null) {
-                        // handle the case that the enumeration has null entries
-                        // and the case where their ToString() override is broken
-                        string value = en.Current.ToString();
-                        if (value != null)
-                            result.Append(value);
+                    T currentValue = en.Current;
+
+                    if (currentValue != null) {
+                        result.Append(currentValue.ToString());
                     }
                 }            
             }
@@ -3225,9 +3219,7 @@ namespace System {
             StringBuilder result = StringBuilderCache.Acquire();
             using(IEnumerator<String> en = values.GetEnumerator()) {
                 while (en.MoveNext()) {
-                    if (en.Current != null) {
-                        result.Append(en.Current);
-                    }
+                     result.Append(en.Current);
                 }            
             }
             return StringBuilderCache.GetStringAndRelease(result);            
@@ -3338,44 +3330,67 @@ namespace System {
             return result;
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        private static String ConcatArray(String[] values, int totalLength) {
-            String result =  FastAllocateString(totalLength);
-            int currPos=0;
-
-            for (int i=0; i<values.Length; i++) {
-                Contract.Assert((currPos <= totalLength - values[i].Length), 
-                                "[String.ConcatArray](currPos <= totalLength - values[i].Length)");
-
-                FillStringChecked(result, currPos, values[i]);
-                currPos+=values[i].Length;
-            }
-
-            return result;
-        }
-
+        [System.Security.SecuritySafeCritical]
         public static String Concat(params String[] values) {
             if (values == null)
                 throw new ArgumentNullException("values");
             Contract.Ensures(Contract.Result<String>() != null);
-            // Spec#: Consider a postcondition saying the length of this string == the sum of each string in array
             Contract.EndContractBlock();
-            int totalLength=0;
 
-            // Always make a copy to prevent changing the array on another thread.
-            String[] internalValues = new String[values.Length];
-            
-            for (int i=0; i<values.Length; i++) {
+            // It's possible that the input values array could be changed concurrently on another
+            // thread, such that we can't trust that each read of values[i] will be equivalent.
+            // Worst case, we can make a defensive copy of the array and use that, but we first
+            // optimistically try the allocation and copies assuming that the array isn't changing,
+            // which represents the 99.999% case, in particular since string.Concat is used for
+            // string concatenation by the languages, with the input array being a params array.
+
+            // Sum the lengths of all input strings
+            long totalLengthLong = 0;
+            for (int i = 0; i < values.Length; i++)
+            {
                 string value = values[i];
-                internalValues[i] = ((value==null)?(String.Empty):(value));
-                totalLength += internalValues[i].Length;
-                // check for overflow
-                if (totalLength < 0) {
-                    throw new OutOfMemoryException();
+                if (value != null)
+                {
+                    totalLengthLong += value.Length;
                 }
             }
-            
-            return ConcatArray(internalValues, totalLength);
+
+            // If it's too long, fail, or if it's empty, return an empty string.
+            if (totalLengthLong > int.MaxValue)
+            {
+                throw new OutOfMemoryException();
+            }
+            int totalLength = (int)totalLengthLong;
+            if (totalLength == 0)
+            {
+                return string.Empty;
+            }
+
+            // Allocate a new string and copy each input string into it
+            string result = FastAllocateString(totalLength);
+            int copiedLength = 0;
+            for (int i = 0; i < values.Length; i++)
+            {
+                string value = values[i];
+                if (!string.IsNullOrEmpty(value))
+                {
+                    int valueLen = value.Length;
+                    if (valueLen > totalLength - copiedLength)
+                    {
+                        copiedLength = -1;
+                        break;
+                    }
+
+                    FillStringChecked(result, copiedLength, value);
+                    copiedLength += valueLen;
+                }
+            }
+
+            // If we copied exactly the right amount, return the new string.  Otherwise,
+            // something changed concurrently to mutate the input array: fall back to
+            // doing the concatenation again, but this time with a defensive copy. This
+            // fall back should be extremely rare.
+            return copiedLength == totalLength ? result : Concat((string[])values.Clone());
         }
         
         [System.Security.SecuritySafeCritical]  // auto-generated
