@@ -1004,6 +1004,8 @@ HRESULT MergeTokenManager::QueryInterface(REFIID riid, void **ppUnk)
     *ppUnk = 0;
 
     if (riid == IID_IMapToken)
+        *ppUnk = (IMapToken *) this;
+    else if (riid == IID_IUnknown)
         *ppUnk = (IUnknown *) (IMapToken *) this;
     else
         return (E_NOINTERFACE);
@@ -1124,6 +1126,8 @@ HRESULT CMapToken::QueryInterface(REFIID riid, void **ppUnk)
     *ppUnk = 0;
 
     if (riid == IID_IMapToken)
+        *ppUnk = (IMapToken *) this;
+    else if (riid == IID_IUnknown)
         *ppUnk = (IUnknown *) (IMapToken *) this;
     else
         return (E_NOINTERFACE);
