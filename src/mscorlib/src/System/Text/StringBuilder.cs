@@ -304,16 +304,7 @@ namespace System.Text {
                 {
                     int newLen = value - m_ChunkOffset;
                     char[] newArray = new char[newLen];
-                    
-                    unsafe
-                    {
-                        fixed (char* psrc = m_ChunkChars) fixed (char* pdest = newArray)
-                        {
-                            int byteCount = m_ChunkLength * sizeof(char);
-                            Buffer.MemoryCopy(psrc, pdest, byteCount, byteCount);
-                        }
-                    }
-                    
+                    Buffer.BlockCopy(m_ChunkChars, 0, newArray, 0, m_ChunkLength * sizeof(char));
                     m_ChunkChars = newArray;
                 }
             }
@@ -511,15 +502,7 @@ namespace System.Text {
                         char[] newArray = new char[newLen];
 
                         Contract.Assert(newLen > chunk.m_ChunkChars.Length, "the new chunk should be larger than the one it is replacing");
-                        
-                        unsafe
-                        {
-                            fixed (char* psrc = chunk.m_ChunkChars) fixed (char* pdest = newArray)
-                            {
-                                int byteCount = chunk.m_ChunkLength * sizeof(char);
-                                Buffer.MemoryCopy(psrc, pdest, byteCount, byteCount);
-                            }
-                        }
+                        Buffer.BlockCopy(chunk.m_ChunkChars, 0, newArray, 0, chunk.m_ChunkLength * sizeof(char));
                         
                         m_ChunkChars = newArray;
                         m_ChunkPrevious = chunk.m_ChunkPrevious;                        
@@ -1552,14 +1535,7 @@ namespace System.Text {
                     else if (replacementsCount >= replacements.Length)
                     {
                         int[] newArray = new int[replacements.Length * 3 / 2 + 4];     // grow by 1.5X but more in the begining
-                        unsafe
-                        {
-                            fixed (int* psrc = replacements) fixed (int* pdest = newArray)
-                            {
-                                int byteCount = replacements.Length * sizeof(int);
-                                Buffer.MemoryCopy(psrc, pdest, byteCount, byteCount);
-                            }
-                        }
+                        Buffer.BlockCopy(replacements, 0, newArray, 0, replacements.Length * sizeof(int));
                         replacements = newArray;
                     }
                     replacements[replacementsCount++] = indexInChunk;
