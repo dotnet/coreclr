@@ -48,9 +48,11 @@
 
 #endif //_WIN32
 
+#ifndef WINAPI
+#define WINAPI  __stdcall
+#endif
 
-#define WINAPI   _cdecl
-#ifndef __stdcall
+#ifndef _MSC_VER
 #if __i386__
 #define __stdcall __attribute__((stdcall))
 #define _cdecl __attribute__((cdecl))
@@ -61,10 +63,6 @@
 #define __cdecl
 #endif
 #endif
-
-
-
-
 
 // Ensure that both UNICODE and _UNICODE are set.
 #ifdef UNICODE
