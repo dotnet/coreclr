@@ -287,10 +287,8 @@ LOCAL_LABEL(LNullThis):
 //
         NESTED_ENTRY TheUMEntryPrestub,_TEXT,NoHandler
 
-        .save {r0-r4,r7,r8,lr}
-        push {r0-r4,r7,r8,lr} // add r8 to make stack aligned by 8B
-        .setfp r7, sp, #20
-        add r7, sp, #20
+        PROLOG_PUSH "{r0-r4,r7,r8,lr}" // add r8 to make stack aligned by 8B
+        PROLOG_STACK_SAVE_OFFSET r7, #20
         vpush {d0-d7}
 
         CHECK_STACK_ALIGNMENT
@@ -519,10 +517,8 @@ ThePreStubPatchLabel:
 // The call in ndirect import precode points to this function.
         NESTED_ENTRY NDirectImportThunk, _TEXT, NoHandler
 
-        .save {r0-r4,r7,r8,lr}
-        push {r0-r4,r7,r8,lr}                                 // Spill general argument registers, return address and
-        .setfp r7, sp, #20
-        add r7, sp, #20
+        PROLOG_PUSH "{r0-r4,r7,r8,lr}"                  // Spill general argument registers, return address and
+        PROLOG_STACK_SAVE_OFFSET r7, #20
                                                         // arbitrary register to keep stack aligned
         vpush {d0-d7}                                   // Spill floating point argument registers
 
@@ -799,10 +795,8 @@ LOCAL_LABEL(stackProbe_loop):
     NESTED_ENTRY VirtualMethodFixupStub, _TEXT, NoHandler
 
     // Save arguments and return address
-    .save {r0-r3, r7,r8, lr}
-    push {r0-r3, r7,r8, lr} // keep increase by 8B for alignment
-    .setfp r7, sp, #20
-    add r7, sp, #20
+    PROLOG_PUSH "{r0-r3, r7,r8, lr}" // keep increase by 8B for alignment
+    PROLOG_STACK_SAVE_OFFSET r7, #20
 
     // Align stack
     alloc_stack  SIZEOF__FloatArgumentRegisters + 4
@@ -916,8 +910,7 @@ LOCAL_LABEL(stackProbe_loop):
     NESTED_ENTRY JIT_RareDisableHelper, _TEXT, NoHandler
 
     PROLOG_PUSH "{r0-r1, r7,r8, r11, lr}" // save integer return value
-    .setfp r7, sp, #8
-    add r7, sp, #8
+    PROLOG_STACK_SAVE_OFFSET r7, #8
     vpush {d0-d3}                  // floating point return value
 
     CHECK_STACK_ALIGNMENT
