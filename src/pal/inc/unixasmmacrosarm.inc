@@ -208,12 +208,21 @@ C_FUNC(\Name\()_End):
         mov \Register, sp
 .endm
 
+.macro PROLOG_STACK_SAVE_WITH_OFFSET Register, Offset
+        .setfp \Register, sp, \Offset
+        add \Register, sp, \Offset
+.endm
+
 .macro EPILOG_STACK_FREE Size
         add sp, sp, \Size
 .endm
 
 .macro EPILOG_STACK_RESTORE Register
         mov sp, \Register
+.endm
+
+.macro EPILOG_STACK_RESTORE_WITH_OFFSET Register, Offset
+        sub sp, \Register, \Offset
 .endm
 
 .macro EPILOG_BRANCH Target
