@@ -1442,7 +1442,7 @@ FCIMPL5(VOID, Buffer::BlockCopy, ArrayBase *src, int srcOffset, ArrayBase *dst, 
             FCThrowArgumentVoid(W("src"), W("Arg_MustBePrimArray"));
     }
     
-    // Optimization: If copying to/fro the same array, then
+    // Optimization: If copying to/from the same array, then
     // we know that dstLen and srcLen must be the same.
     if (src == dst)
     {
