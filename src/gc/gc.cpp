@@ -7189,10 +7189,10 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
             card_table_mark_array (ct) = NULL;
 #endif //MARK_ARRAY
 
-        g_card_table = translate_card_table (ct);
+        uint32_t* translated_ct = translate_card_table (ct);
 
         dprintf (GC_TABLE_LOG, ("card table: %Ix(translated: %Ix), seg map: %Ix, mark array: %Ix", 
-            (size_t)ct, (size_t)g_card_table, (size_t)seg_mapping_table, (size_t)card_table_mark_array (ct)));
+            (size_t)ct, (size_t)translated_ct, (size_t)seg_mapping_table, (size_t)card_table_mark_array (ct)));
 
 #ifdef BACKGROUND_GC
         if (hp->should_commit_mark_array())
@@ -7223,7 +7223,7 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
 #endif //BACKGROUND_GC
 
         {
-            bool write_barrier_updated = false;
+            bool card_table_and_write_barrier_updated = false;
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
             if (gc_can_use_concurrent)
             {
@@ -7243,13 +7243,19 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
                     saved_g_lowest_address,
                     saved_g_highest_address);
 
+                // Update the global card table after the runtime is suspended. While this thread is blocked trying to suspend
+                // the runtime above, another thread may successfully suspend the runtime, blocking this thread in suspend_EE()
+                // above, and call copy_brick_card_table(). Updating the card table before the runtime is suspended would be
+                // problematic since the global lowest and highest addresses of the GC heap have not been updated yet.
+                g_card_table = translated_ct;
+
                 // Since the runtime is already suspended, update the write barrier here as well.
                 // This passes a bool telling whether we need to switch to the post
                 // grow version of the write barrier.  This test tells us if the new
                 // segment was allocated at a lower address than the old, requiring
                 // that we start doing an upper bounds check in the write barrier.
                 StompWriteBarrierResize(true, la != saved_g_lowest_address);
-                write_barrier_updated = true;
+                card_table_and_write_barrier_updated = true;
 
                 if (!is_runtime_suspended)
                 {
@@ -7258,8 +7264,10 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
             }
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 
-            if (!write_barrier_updated)
+            if (!card_table_and_write_barrier_updated)
             {
+                g_card_table = translated_ct;
+
                 // This passes a bool telling whether we need to switch to the post
                 // grow version of the write barrier.  This test tells us if the new
                 // segment was allocated at a lower address than the old, requiring
