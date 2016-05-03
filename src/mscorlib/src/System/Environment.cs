@@ -1123,6 +1123,7 @@ namespace System {
 
                 if (m_os==null) { // We avoid the lock since we don't care if two threads will set this at the same time.
 
+#if !PLATFORM_UNIX
                     Microsoft.Win32.Win32Native.OSVERSIONINFO osvi = new Microsoft.Win32.Win32Native.OSVERSIONINFO();
                     if (!GetVersion(osvi)) {
                         throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_GetVersion"));
@@ -1131,6 +1132,7 @@ namespace System {
                     Microsoft.Win32.Win32Native.OSVERSIONINFOEX osviEx = new Microsoft.Win32.Win32Native.OSVERSIONINFOEX();
                     if (!GetVersionEx(osviEx))
                         throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_GetVersion"));
+#endif
 
 #if PLATFORM_UNIX
                     PlatformID id = PlatformID.Unix;
@@ -1138,8 +1140,13 @@ namespace System {
                     PlatformID id = PlatformID.Win32NT;
 #endif // PLATFORM_UNIX
 
+#if PLATFORM_UNIX
+                    Version v = new Version(0, 0, 0, 0); // NYI
+                    m_os = new OperatingSystem(id, v); // No "service pack"
+#else
                     Version v =  new Version(osvi.MajorVersion, osvi.MinorVersion, osvi.BuildNumber, (osviEx.ServicePackMajor << 16) |osviEx.ServicePackMinor);
                     m_os = new OperatingSystem(id, v, osvi.CSDVersion);
+#endif
                 }
                 Contract.Assert(m_os != null, "m_os != null");
                 return m_os;
