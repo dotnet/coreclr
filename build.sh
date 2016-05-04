@@ -276,6 +276,15 @@ build_mscorlib()
     fi 
 }
 
+resolve_runtime_depedendence()
+{
+    ${scriptPath}/setup-runtime-dependencies.sh --outputDir=$__BinDir
+    if [ $? -ne 0 ] 
+    then
+        echo 'Failed to download coredistools library'
+        exit 1
+    fi
+}
 
 
 generate_NugetPackages()
@@ -615,6 +624,9 @@ build_coreclr
 # Build mscorlib.
 
 build_mscorlib
+
+# Resolve runtime dependences
+resolve_runtime_depedendence
 
 # Generate nuget packages
 

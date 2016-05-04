@@ -157,8 +157,6 @@ if errorlevel 1 exit /b 1
 
 :SkipWrapperGeneration
 
-call :ResolveDependecies
-
 if not defined __DoCrossgen goto :SkipPrecompileFX
 call :PrecompileFX
 
@@ -270,28 +268,6 @@ if errorlevel 1 (
     echo     %__BuildWrn%
     echo     %__BuildErr%
     exit /b 1
-)
-
-exit /b 0
-
-:ResolveDependecies:
-
-if "%CORE_ROOT%" == "" (
-    echo %__MsgPrefix%Error: Ensure you have done a successful build of the Product and Run - runtest BuildArch BuildType {path to product binaries}.
-    exit /b 1
-)
-:: Pull down dependent packages needed for testing
-setlocal
-if defined __TestEnv call %__TestEnv%
-if defined COMPlus_GCStress set __Result=true
-endlocal & set __IsGCTest=%__Result%
-if "%__IsGCTest%"=="true" (
-@echo on
-    tests\setup-runtime-dependencies.cmd /arch %__BuildArch% /outputdir %CORE_ROOT%
-    if errorlevel 1 (
-        echo Failed to donwload runtime packages
-        exit /b 1
-    )
 )
 
 exit /b 0
