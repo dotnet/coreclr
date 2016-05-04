@@ -1519,7 +1519,7 @@ public:
                 pe = ERROR_ALREADY_EXISTS;
                 break;
             case ENOSPC:
-                pe = ERROR_DISK_FULL;
+                pe = ERROR_TOO_MANY_SEMAPHORES;
                 break;
             default:
                 pe = ERROR_INVALID_PARAMETER;
