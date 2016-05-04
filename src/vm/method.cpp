@@ -139,7 +139,6 @@ BOOL MethodDesc::IsIntrospectionOnly()
 }
 
 /*********************************************************************/
-#ifndef FEATURE_CORECLR
 #ifndef DACCESS_COMPILE
 BOOL NDirectMethodDesc::HasDefaultDllImportSearchPathsAttribute()
 {
@@ -172,7 +171,6 @@ BOOL NDirectMethodDesc::HasDefaultDllImportSearchPathsAttribute()
     return (ndirect.m_wFlags  & kDefaultDllImportSearchPathsStatus) != 0;
 }
 #endif //!DACCESS_COMPILE
-#endif // !FEATURE_CORECLR
 
 //*******************************************************************************
 #ifndef DACCESS_COMPILE

@@ -7047,7 +7047,6 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
     bool libNameIsRelativePath = Path::IsRelative(wszLibName);
     if (hmod == NULL)
     {
-#ifndef FEATURE_CORECLR
         // First checks if the method has DefaultDllImportSearchPathsAttribute. If method has the attribute
         // then dllImportSearchPathFlag is set to its value.
         // Otherwise checks if the assembly has the attribute. 
@@ -7072,11 +7071,12 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
             }
         }
 
+#ifndef FEATURE_CORECLR
         if (!attributeIsFound)
         {
             CheckUnificationList(pMD, &dllImportSearchPathFlag, &searchAssemblyDirectory);
         }
-#endif // !FEATURE_CORECLR
+#endif
 
         if (!libNameIsRelativePath)
         {
