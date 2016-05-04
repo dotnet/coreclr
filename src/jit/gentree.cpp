@@ -1091,9 +1091,15 @@ Compiler::fgWalkResult  Compiler::fgWalkTree(GenTreePtr  * pTree,
     return result;
 }
 
-// Sets the register to the "no register assignment" value, depending upon the type
-// of the node, and whether it fits any of the special cases for register pairs.
-
+// ------------------------------------------------------------------------------------------
+// gtClearReg: Sets the register to the "no register assignment" value, depending upon
+// the type of the node, and whether it fits any of the special cases for register pairs.
+//
+// Arguments:
+//     compiler  -  compiler instance
+//
+// Return Value:
+//     None
 void
 GenTree::gtClearReg(Compiler* compiler)
 {
@@ -1109,6 +1115,101 @@ GenTree::gtClearReg(Compiler* compiler)
     {
         gtRegNum = REG_NA;
     }
+
+    // Also clear multi-reg state if this is a call node
+    if (IsCall())
+    {
+        this->AsCall()->ClearOtherRegs();
+    }
+}
+
+//-----------------------------------------------------------
+// CopyReg: Copy the _gtRegNum/_gtRegPair/gtRegTag fields.
+//
+// Arguments:
+//     from   -  GenTree node from which to copy
+//
+// Return Value:
+//     None
+void 
+GenTree::CopyReg(GenTreePtr from)
+{
+    // To do the copy, use _gtRegPair, which must be bigger than _gtRegNum. Note that the values
+    // might be undefined (so gtRegTag == GT_REGTAG_NONE).
+    _gtRegPair = from->_gtRegPair;
+    C_ASSERT(sizeof(_gtRegPair) >= sizeof(_gtRegNum));
+    INDEBUG(gtRegTag = from->gtRegTag;)
+
+    // Also copy multi-reg state if this is a call node
+    if (IsCall())
+    {
+        assert(from->IsCall());
+        this->AsCall()->CopyOtherRegs(from->AsCall());
+    }
+}
+
+//---------------------------------------------------------------
+// gtGetRegMask: Get the reg mask of the node.
+//
+// Arguments:
+//    None
+//
+// Return Value:
+//    Reg Mask of GenTree node.
+//
+regMaskTP 
+GenTree::gtGetRegMask() const
+{
+    regMaskTP resultMask;
+
+#if CPU_LONG_USES_REGPAIR
+    if (isRegPairType(TypeGet()))
+    {
+        resultMask = genRegPairMask(gtRegPair);
+    }
+    else
+#endif
+    {
+        resultMask = genRegMask(gtRegNum);
+    }
+
+    if (IsCall())
+    {
+        // temporarily cast away const-ness as AsCall() method is not declared const
+        GenTree* temp = const_cast<GenTree*>(this);
+        resultMask |= temp->AsCall()->GetOtherRegMask();
+    }
+
+    return resultMask;
+}
+
+//---------------------------------------------------------------
+// GetOtherRegMask: Get the reg mask of gtOtherRegs of call node
+//
+// Arguments:
+//    None
+//
+// Return Value:
+//    Reg mask of gtOtherRegs of call node.
+//
+regMaskTP  
+GenTreeCall::GetOtherRegMask() const
+{
+    regMaskTP resultMask = RBM_NONE;
+
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+    for (unsigned i = 0; i < MAX_RET_REG_COUNT - 1; ++i)
+    {
+        if (genIsValidReg(gtOtherRegs[i]))
+        {
+            resultMask |= genRegMask(gtOtherRegs[i]);
+            continue;
+        }
+        break;
+    }
+#endif
+
+    return resultMask;
 }
 
 /*****************************************************************************
@@ -5163,6 +5264,9 @@ GenTreeCall*          Compiler::gtNewCallNode(gtCallTypes     callType,
     }
 #endif
 
+    // Initialize gtOtherRegs 
+    node->ClearOtherRegs();
+
     return node;
 }
 
@@ -7657,6 +7761,18 @@ void                Compiler::gtDispRegVal(GenTree *  tree)
 
     default: 
         break;
+    }
+
+    if (tree->IsMultiRegCall())
+    {
+        // 0th reg is gtRegNum, which is already printed above.
+        // Print the remaining regs of a multi-reg call node.
+        GenTreeCall* call = tree->AsCall();
+        unsigned regCount = call->GetReturnTypeDesc()->GetReturnRegCount();
+        for (unsigned i = 1; i < regCount; ++i)
+        {
+            printf(",%s", compRegVarName(call->GetRegNumByIdx(i)));
+        }        
     }
 
     if  (tree->gtFlags & GTF_REG_VAL)

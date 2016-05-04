@@ -114,9 +114,30 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 */
 
-void lsraAssignRegToTree(GenTreePtr tree, regNumber reg)
+//--------------------------------------------------------------
+// lsraAssignRegToTree: Assign the given reg to tree node.
+//
+// Arguments:
+//    tree    -    Gentree node
+//    reg     -    register to be assigned
+//    regIdx  -    register idx, if tree is a multi-reg call node.
+//                 regIdx will be zero for single-reg result producing tree nodes.
+//
+// Return Value:
+//    None
+//
+void lsraAssignRegToTree(GenTreePtr tree, regNumber reg, unsigned regIdx)
 {
-    tree->gtRegNum  = reg;
+    if (regIdx == 0)
+    {
+        tree->gtRegNum = reg;
+    }
+    else
+    {
+        assert(tree->IsMultiRegCall());
+        GenTreeCall* call = tree->AsCall();
+        call->SetRegNumByIdx(reg, regIdx);
+    }
 }
 
 // allRegs represents a set of registers that can
@@ -635,30 +656,66 @@ LinearScan::associateRefPosWithInterval(RefPosition *rp)
     }
 }
 
-RefPosition *
-LinearScan::newRefPosition(
-    regNumber reg, LsraLocation theLocation,
-    RefType theRefType, GenTree * theTreeNode,
-    regMaskTP mask)
+//---------------------------------------------------------------------------
+// newRefPosition: allocate and initialize a new RefPosition.
+//
+// Arguments:
+//     reg             -  reg number that identifies RegRecord to be associated 
+//                        with this RefPosition
+//     theLocation     -  LSRA location of RefPosition
+//     theRefType      -  RefPosition type
+//     theTreeNode     -  GenTree node for which this RefPosition is created
+//     mask            -  Set of valid registers for this RefPosition
+//     multiRegIdx     -  register position if this RefPosition corresponds to a
+//                        multi-reg call node.
+//
+// Return Value:
+//     a new RefPosition
+//                       
+RefPosition*
+LinearScan::newRefPosition(regNumber reg, 
+                           LsraLocation theLocation,
+                           RefType theRefType, 
+                           GenTree* theTreeNode,
+                           regMaskTP mask,
+                           unsigned multiRegIdx /* = 0 */)
 {
-    RefPosition *newRP = newRefPositionRaw(theLocation, theTreeNode, theRefType);
+    RefPosition* newRP = newRefPositionRaw(theLocation, theTreeNode, theRefType);
 
     newRP->setReg(getRegisterRecord(reg));
-
     newRP->registerAssignment = mask;
+
+    newRP->multiRegIdx = multiRegIdx;
+    assert(multiRegIdx == newRP->multiRegIdx);
+
     associateRefPosWithInterval(newRP);
 
     DBEXEC(VERBOSE, newRP->dump());
     return newRP;
 }
 
-
-
-RefPosition *
-LinearScan::newRefPosition(
-    Interval * theInterval, LsraLocation theLocation,
-    RefType theRefType, GenTree * theTreeNode,
-    regMaskTP mask)
+//---------------------------------------------------------------------------
+// newRefPosition: allocate and initialize a new RefPosition.
+//
+// Arguments:
+//     theInterval     -  interval to which RefPosition is associated with.
+//     theLocation     -  LSRA location of RefPosition
+//     theRefType      -  RefPosition type
+//     theTreeNode     -  GenTree node for which this RefPosition is created
+//     mask            -  Set of valid registers for this RefPosition
+//     multiRegIdx     -  register position if this RefPosition corresponds to a
+//                        multi-reg call node.
+//
+// Return Value:
+//     a new RefPosition
+//                       
+RefPosition*
+LinearScan::newRefPosition(Interval* theInterval, 
+                           LsraLocation theLocation,
+                           RefType theRefType, 
+                           GenTree* theTreeNode,
+                           regMaskTP mask,
+                           unsigned multiRegIdx /* = 0 */)
 {
 #ifdef DEBUG
     if (theInterval != nullptr && regType(theInterval->registerType) == FloatRegisterType)
@@ -686,12 +743,12 @@ LinearScan::newRefPosition(
     if (insertFixedRef)
     {
         regNumber physicalReg = genRegNumFromMask(mask);
-        RefPosition *pos = newRefPosition (physicalReg, theLocation,  RefTypeFixedReg, nullptr, mask);
+        RefPosition* pos = newRefPosition (physicalReg, theLocation,  RefTypeFixedReg, nullptr, mask);
         assert(theInterval != nullptr);
         assert((allRegs(theInterval->registerType) & mask) != 0);
     }
 
-    RefPosition *newRP = newRefPositionRaw(theLocation, theTreeNode, theRefType);
+    RefPosition* newRP = newRefPositionRaw(theLocation, theTreeNode, theRefType);
 
     newRP->setInterval(theInterval);
 
@@ -711,6 +768,9 @@ LinearScan::newRefPosition(
     }
 #endif // !_TARGET_AMD64_
     newRP->registerAssignment = mask;
+
+    newRP->multiRegIdx = multiRegIdx;
+    assert(multiRegIdx == newRP->multiRegIdx);
 
     associateRefPosWithInterval(newRP);
 
@@ -3130,7 +3190,6 @@ LinearScan::buildRefPositionsForNode(GenTree *tree,
     buildInternalRegisterUsesForNode(tree, currentLoc, internalRefs, internalCount);
 
     RegisterType registerType = getDefType(tree);
-
     regMaskTP candidates = getDefCandidates(tree);
     regMaskTP useCandidates = getUseCandidates(tree);
 
@@ -3145,52 +3204,48 @@ LinearScan::buildRefPositionsForNode(GenTree *tree,
     }
 #endif // DEBUG
 
-    int targetRegs = produce;
-
 #if defined(_TARGET_AMD64_)
-    assert(produce <= 1);
+    // Multi-reg call node is the only node that could produce multi-reg value
+    assert(produce <= 1 || (tree->IsMultiRegCall() && produce == MAX_RET_REG_COUNT));
 #elif defined(_TARGET_ARM_)
     assert(!varTypeIsMultiReg(tree->TypeGet()));
 #endif // _TARGET_xxx_
 
+    // Add kill positions before adding def positions
+    buildKillPositionsForNode(tree, currentLoc + 1);
+
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
     VARSET_TP       VARSET_INIT_NOCOPY(liveLargeVectors, VarSetOps::UninitVal());
-#endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-
-    // push defs
-    if (produce == 0)
+    if (RBM_FLT_CALLEE_SAVED != RBM_NONE)
     {
-        buildKillPositionsForNode(tree, currentLoc + 1);
-
-#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-        if (RBM_FLT_CALLEE_SAVED != RBM_NONE)
-        {
-            // Build RefPositions for saving any live large vectors.
-            // This must be done after the kills, so that we know which large vectors are still live.
-            VarSetOps::AssignNoCopy(compiler, liveLargeVectors, buildUpperVectorSaveRefPositions(tree, currentLoc));
-        }
+        // Build RefPositions for saving any live large vectors.
+        // This must be done after the kills, so that we know which large vectors are still live.
+        VarSetOps::AssignNoCopy(compiler, liveLargeVectors, buildUpperVectorSaveRefPositions(tree, currentLoc));
+    }
 #endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
+    
+    ReturnTypeDesc* retTypeDesc = nullptr;
+    bool isMultiRegCall = tree->IsMultiRegCall();
+    if (isMultiRegCall)
+    {
+        retTypeDesc = tree->AsCall()->GetReturnTypeDesc();
+        assert((int)genCountBits(candidates) == produce);
+        assert(candidates == retTypeDesc->GetABIReturnRegs());
     }
 
+    // push defs
     for (int i=0; i < produce; i++)
-    {
+    {        
         LsraLocation lastDefLocation = currentLoc + 1;
-
-        // If this is the last def add the phys reg defs
-        bool generatedKills = false;
-        if (i == produce-1) 
-        {
-            generatedKills = buildKillPositionsForNode(tree, lastDefLocation);
-
-#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-            // Build RefPositions for saving any live large vectors.
-            // This must be done after the kills, so that we know which large vectors are still live.
-            VarSetOps::AssignNoCopy(compiler, liveLargeVectors, buildUpperVectorSaveRefPositions(tree, currentLoc));
-#endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-        }
         regMaskTP currCandidates = candidates;
-
         Interval *interval = varDefInterval;
+
+        if (isMultiRegCall)
+        {
+            registerType = retTypeDesc->GetReturnRegType(i);
+            currCandidates = genRegMask(retTypeDesc->GetABIReturnReg(i));
+        }
+
         if (interval == nullptr)
         {
             // Make a new interval
@@ -3204,10 +3259,12 @@ LinearScan::buildRefPositionsForNode(GenTree *tree,
                 assert(!tree->IsReuseRegVal());
                 interval->isConstant = true;
             }
+
             if ((currCandidates & useCandidates) != RBM_NONE)
             {
                 interval->updateRegisterPreferences(currCandidates & useCandidates);
             }
+
             if (isSpecialPutArg)
             {
                 interval->isSpecialPutArg = true;
@@ -3230,8 +3287,9 @@ LinearScan::buildRefPositionsForNode(GenTree *tree,
             stack->Push(LocationInfo(lastDefLocation, interval, tree));
         }
 
+        // TODO-Review: why defLocation different for last RefPosition?
         LsraLocation defLocation = (i == produce-1) ? lastDefLocation : currentLoc;
-        RefPosition *pos = newRefPosition(interval, defLocation, defRefType, defNode, currCandidates);
+        RefPosition* pos = newRefPosition(interval, defLocation, defRefType, defNode, currCandidates, (unsigned)i);
         if (info.isLocalDefUse)
         {
             pos->isLocalDefUse = true;
@@ -3241,6 +3299,7 @@ LinearScan::buildRefPositionsForNode(GenTree *tree,
         interval->updateRegisterPreferences(currCandidates);
         interval->updateRegisterPreferences(useCandidates);
     }
+
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
     buildUpperVectorRestoreRefPositions(tree, currentLoc, liveLargeVectors);
 #endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
@@ -6739,7 +6798,7 @@ LinearScan::resolveLocalRef(GenTreePtr treeNode, RefPosition * currentRefPositio
 void
 LinearScan::writeRegisters(RefPosition *currentRefPosition, GenTree *tree)
 {
-    lsraAssignRegToTree(tree, currentRefPosition->assignedReg());
+    lsraAssignRegToTree(tree, currentRefPosition->assignedReg(), currentRefPosition->getMultiRegIdx());
 }
 
 //------------------------------------------------------------------------ 

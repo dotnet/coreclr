@@ -722,13 +722,19 @@ private:
 
     RefPosition *   newRefPositionRaw(LsraLocation nodeLocation, GenTree* treeNode, RefType refType);
 
-    RefPosition *   newRefPosition(Interval * theInterval, LsraLocation theLocation,
-                                   RefType theRefType, GenTree * theTreeNode,
-                                   regMaskTP mask);
+    RefPosition*    newRefPosition(Interval* theInterval, 
+                                   LsraLocation theLocation,
+                                   RefType theRefType, 
+                                   GenTree* theTreeNode,
+                                   regMaskTP mask,
+                                   unsigned multiRegIdx = 0);
 
-    RefPosition *   newRefPosition(regNumber reg, LsraLocation theLocation,
-                                   RefType theRefType, GenTree * theTreeNode,
-                                   regMaskTP mask);
+    RefPosition*    newRefPosition(regNumber reg, 
+                                   LsraLocation theLocation,
+                                   RefType theRefType, 
+                                   GenTree* theTreeNode,
+                                   regMaskTP mask,
+                                   unsigned multiRegIdx = 0);
 
     void applyCalleeSaveHeuristics(RefPosition* rp);
 
@@ -1333,6 +1339,14 @@ public:
 #endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
                );
     }
+
+    // Used by RefTypeDef/Use positions of a multi-reg call node.
+    // Indicates the position of the register that this ref position refers for.
+    // The max bits needed is based on max value of MAX_RET_REG_COUNT value
+    // across all targets and that happens 4 on on Arm.
+    unsigned        multiRegIdx  : 2;
+
+    unsigned        getMultiRegIdx() { return multiRegIdx;  }
 
     // Last Use - this may be true for multiple RefPositions in the same Interval
     bool            lastUse      : 1;
