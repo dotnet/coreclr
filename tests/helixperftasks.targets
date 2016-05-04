@@ -14,17 +14,12 @@
       <Output TaskParameter="PerfTestAssemblies" ItemName="CoreCLRPerfTest" />
     </GetPerfTestAssemblies>
 
-    <PropertyGroup>
-      <TestRuntimeDependenciesJson>$(TestRuntimeProjectJson)</TestRuntimeDependenciesJson>
-      <TestRuntimeProjectLockJson>$(TestRuntimeProjectLockJson)</TestRuntimeProjectLockJson>
-    </PropertyGroup>
-
     <ItemGroup>
      <DnuSourceList Include="$(CORE_ROOT)\.nuget\pkg" />
     </ItemGroup>
 
     <!-- Restore the runtime dependencies -->
-    <Exec Command="$(DnuRestoreCommand) &quot;$(TestRuntimeDependenciesJson)&quot;"
+    <Exec Command="$(DnuRestoreCommand) &quot;$(TestRuntimeProjectJson)&quot;"
            StandardOutputImportance="Low"
            CustomErrorRegularExpression="^Unable to resolve .*"
            IgnoreExitCode="true"
