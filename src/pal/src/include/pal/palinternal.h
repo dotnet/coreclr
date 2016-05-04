@@ -686,7 +686,7 @@ inline T* InterlockedCompareExchangePointerT(
 
 #include "volatile.h"
 
-const char StackOverflowMessage[] = "Process is terminated due to StackOverflowException.\n";
+const char StackOverflowMessage[] = "Process was terminated due to StackOverflowException.\n";
 
 #endif // __cplusplus
 
