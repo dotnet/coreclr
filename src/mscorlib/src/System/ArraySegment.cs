@@ -123,10 +123,22 @@ namespace System
             // but we keep it around in the full framework for compat.
             return _array.GetHashCode() ^ _offset ^ _count;
 #else
-            // Taken from ValueTuple.CombineHashCodes
-            int hash = _array.GetHashCode();
-            hash = ((hash << 5) + hash) ^ _offset;
+            // Modified Bernstein hash: start with 5381,
+            // multiply by 33, xor with the next hash.
+            // NOTE: (hash << 5) + hash is equal to hash * 33.
+            
+            int hash = (33 * 5381) ^ _offset;
             hash = ((hash << 5) + hash) ^ _count;
+            
+            int arrayHash = _array.GetHashCode();
+            // Note quite sure why, but it looks like the result of object.GetHashCode
+            // only returns 26 bits in the return value- the upper 6 are set to zero.
+            // See src/vm/syncblk.h for more.
+            // As a result, we take the array hash and shift it 6 to the left
+            // before xoring, so we don't waste those upper bits.
+            Contract.Assert((arrayHash & 0xFC000000) == 0, "The upper 6 bits of an object.GetHashCode should be zero");
+            hash ^= arrayHash << 6;
+            
             return hash;
 #endif // !FEATURE_CORECLR
         }
