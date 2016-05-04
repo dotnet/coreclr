@@ -15,8 +15,8 @@
     </GetPerfTestAssemblies>
 
     <PropertyGroup>
-      <TestRuntimeDependenciesJson>$(SourceDir)Common\test_runtime\project.json</TestRuntimeDependenciesJson>
-      <TestRuntimeProjectLockJson>$(SourceDir)Common\test_runtime\project.lock.json</TestRuntimeProjectLockJson>
+      <TestRuntimeDependenciesJson>$(TestRuntimeProjectJson)</TestRuntimeDependenciesJson>
+      <TestRuntimeProjectLockJson>$(TestRuntimeProjectLockJson)</TestRuntimeProjectLockJson>
     </PropertyGroup>
 
     <ItemGroup>

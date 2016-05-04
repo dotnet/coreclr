@@ -55,6 +55,7 @@
   <PropertyGroup>
     <TestRuntimeProjectJsonDir>$(BaseOutputPath)\test_runtime</TestRuntimeProjectJsonDir>
     <TestRuntimeProjectJson>$(TestRuntimeProjectJsonDir)\project.json</TestRuntimeProjectJson>
+    <TestRuntimeProjectLockJson>$(TestRuntimeProjectJsonDir)\project.lock.json</TestRuntimeProjectLockJson>
   </PropertyGroup>
 
   <!-- Default priority building values. -->
