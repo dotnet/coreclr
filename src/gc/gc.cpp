@@ -7067,6 +7067,7 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
                                 (size_t)saved_g_lowest_address,
                                 (size_t)saved_g_highest_address));
 
+        bool write_barrier_updated = false;
         uint32_t virtual_reserve_flags = VirtualReserveFlags::None;
         uint32_t* saved_g_card_table = g_card_table;
         uint32_t* ct = 0;
@@ -7189,7 +7190,50 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
             card_table_mark_array (ct) = NULL;
 #endif //MARK_ARRAY
 
-        g_card_table = translate_card_table (ct);
+#ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+        if (gc_can_use_concurrent)
+        {
+            // The current design of software write watch requires that the runtime is suspended during resize. Suspending
+            // on resize is preferred because it is a far less frequent operation than GetWriteWatch() / ResetWriteWatch().
+            // Suspending here allows copying dirty state from the old table into the new table, and not have to merge old
+            // table info lazily as done for card tables.
+
+            BOOL is_runtime_suspended = IsSuspendEEThread();
+            if (!is_runtime_suspended)
+            {
+                // Note on points where the runtime is suspended anywhere in this function. Upon an attempt to suspend the
+                // runtime, a different thread may suspend first, causing this thread to block at the point of the suspend call.
+                // So, at any suspend point, externally visible state needs to be consistent, as code that depends on that state
+                // may run while this thread is blocked. This includes updates to g_card_table, g_lowest_address, and
+                // g_highest_address.
+                suspend_EE();
+            }
+
+            SoftwareWriteWatch::SetResizedUntranslatedTable(
+                mem + sw_ww_table_offset,
+                saved_g_lowest_address,
+                saved_g_highest_address);
+
+            g_card_table = translate_card_table(ct);
+
+            // Since the runtime is already suspended, update the write barrier here as well.
+            // This passes a bool telling whether we need to switch to the post
+            // grow version of the write barrier.  This test tells us if the new
+            // segment was allocated at a lower address than the old, requiring
+            // that we start doing an upper bounds check in the write barrier.
+            StompWriteBarrierResize(true, la != saved_g_lowest_address);
+            write_barrier_updated = true;
+
+            if (!is_runtime_suspended)
+            {
+                restart_EE();
+            }
+        }
+        else
+#endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+        {
+            g_card_table = translate_card_table(ct);
+        }
 
         dprintf (GC_TABLE_LOG, ("card table: %Ix(translated: %Ix), seg map: %Ix, mark array: %Ix", 
             (size_t)ct, (size_t)g_card_table, (size_t)seg_mapping_table, (size_t)card_table_mark_array (ct)));
@@ -7222,52 +7266,6 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
         }
 #endif //BACKGROUND_GC
 
-        {
-            bool write_barrier_updated = false;
-#ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
-            if (gc_can_use_concurrent)
-            {
-                // The current design of software write watch requires that the runtime is suspended during resize. Suspending
-                // on resize is preferred because it is a far less frequent operation than GetWriteWatch() / ResetWriteWatch().
-                // Suspending here allows copying dirty state from the old table into the new table, and not have to merge old
-                // table info lazily as done for card tables.
-
-                BOOL is_runtime_suspended = IsSuspendEEThread();
-                if (!is_runtime_suspended)
-                {
-                    suspend_EE();
-                }
-
-                SoftwareWriteWatch::SetResizedUntranslatedTable(
-                    mem + sw_ww_table_offset,
-                    saved_g_lowest_address,
-                    saved_g_highest_address);
-
-                // Since the runtime is already suspended, update the write barrier here as well.
-                // This passes a bool telling whether we need to switch to the post
-                // grow version of the write barrier.  This test tells us if the new
-                // segment was allocated at a lower address than the old, requiring
-                // that we start doing an upper bounds check in the write barrier.
-                StompWriteBarrierResize(true, la != saved_g_lowest_address);
-                write_barrier_updated = true;
-
-                if (!is_runtime_suspended)
-                {
-                    restart_EE();
-                }
-            }
-#endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
-
-            if (!write_barrier_updated)
-            {
-                // This passes a bool telling whether we need to switch to the post
-                // grow version of the write barrier.  This test tells us if the new
-                // segment was allocated at a lower address than the old, requiring
-                // that we start doing an upper bounds check in the write barrier.
-                StompWriteBarrierResize(!!IsSuspendEEThread(), la != saved_g_lowest_address);
-            }
-        }
-
         // We need to make sure that other threads executing checked write barriers
         // will see the g_card_table update before g_lowest/highest_address updates.
         // Otherwise, the checked write barrier may AV accessing the old card table
@@ -7278,6 +7276,19 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
 
         g_lowest_address = saved_g_lowest_address;
         VolatileStore(&g_highest_address, saved_g_highest_address);
+
+        if (!write_barrier_updated)
+        {
+            // This passes a bool telling whether we need to switch to the post
+            // grow version of the write barrier.  This test tells us if the new
+            // segment was allocated at a lower address than the old, requiring
+            // that we start doing an upper bounds check in the write barrier.
+            // This will also suspend the runtime if the write barrier type needs
+            // to be changed, so we are doing this after all global state has
+            // been updated. See the comment above suspend_EE() above for more
+            // info.
+            StompWriteBarrierResize(!!IsSuspendEEThread(), la != saved_g_lowest_address);
+        }
 
         return 0;
         
