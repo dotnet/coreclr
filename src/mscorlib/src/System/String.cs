@@ -913,11 +913,11 @@ namespace System {
                     int hash1 = 5381;
 #endif
                     int hash2 = hash1;
+                    int len = this.Length;
 
 #if WIN32
                     // 32 bit machines.
                     int* pint = (int *)src;
-                    int len = this.Length;
                     while (len > 2)
                     {
                         hash1 = ((hash1 << 5) + hash1 + (hash1 >> 27)) ^ pint[0];
@@ -931,15 +931,17 @@ namespace System {
                         hash1 = ((hash1 << 5) + hash1 + (hash1 >> 27)) ^ pint[0];
                     }
 #else
-                    int     c;
+                    int c;
                     char *s = src;
-                    while ((c = s[0]) != 0) {
+                    while (len > 0) {
+                        c = s[0];
                         hash1 = ((hash1 << 5) + hash1) ^ c;
-                        c = s[1];
-                        if (c == 0)
+                        if (len == 1)
                             break;
+                        c = s[1];
                         hash2 = ((hash2 << 5) + hash2) ^ c;
                         s += 2;
+                        len -= 2;
                     }
 #endif
 #if DEBUG
