@@ -130,15 +130,23 @@ namespace System
             int hash = (33 * 5381) ^ _offset;
             hash = ((hash << 5) + hash) ^ _count;
             
-            int arrayHash = _array.GetHashCode();
-            // Note quite sure why, but it looks like the result of object.GetHashCode
-            // only returns 26 bits in the return value- the upper 6 are set to zero.
-            // See src/vm/syncblk.h for more.
-            // As a result, we take the array hash and shift it 6 to the left
-            // before xoring, so we don't waste those upper bits.
-            Contract.Assert((arrayHash & 0xFC000000) == 0, "The upper 6 bits of an object.GetHashCode should be zero");
-            hash ^= arrayHash << 6;
+            // Move the lower 8 bits to the top.
             
+            // EXPLANATION:
+            // Since as it currently stands object.GetHashCode
+            // only returns 26 bits in the return value (the top
+            // 6 are zero), and since _offset and _count are
+            // typically low, simply xoring with the array's hash
+            // would usually leave the top bits wasted.
+            
+            // Transferring the lower bits of hash to the top
+            // here allows us to not waste those upper bits,
+            // while also being resilient if Object's hash
+            // code algorithm changes in the future.
+            hash = (hash << 24) | (hash >> 8);
+            
+            // Finally, xor in the array's hash
+            hash ^= _array.GetHashCode();
             return hash;
 #endif // !FEATURE_CORECLR
         }
