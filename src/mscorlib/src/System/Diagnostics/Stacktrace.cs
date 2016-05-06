@@ -3,9 +3,10 @@
 // See the LICENSE file in the project root for more information.
 
 namespace System.Diagnostics {
+    using System;
+    using System.Collections;
     using System.Text;
     using System.Threading;
-    using System;
     using System.Security;
     using System.Security.Permissions;
     using System.IO;
@@ -39,6 +40,10 @@ namespace System.Diagnostics {
 
         [NonSerialized]
         private IntPtr[] rgMethodHandle;
+        private String[] rgAssemblyPath;
+        private IntPtr[] rgInMemorySymbols;
+        private int[] rgiInMemorySymbolsSize;
+        private int[] rgiMethodToken;
         private String[] rgFilename;
         private int[] rgiLineNumber;
         private int[] rgiColumnNumber;
@@ -49,18 +54,23 @@ namespace System.Diagnostics {
         private int iFrameCount;
         private bool fNeedFileInfo;
 
+        static Type s_symbolsType = null;
         
-        public StackFrameHelper(bool fNeedFileLineColInfo, Thread target)
+        public StackFrameHelper(bool fNeedFileLine, Thread target)
         {
             targetThread = target;
             rgMethodBase = null;
             rgMethodHandle = null;
+            rgiMethodToken = null;
             rgiOffset = null;
             rgiILOffset = null;
+            rgAssemblyPath = null;
+            rgInMemorySymbols = null;
+            rgiInMemorySymbolsSize = null;
+            dynamicMethods = null;
             rgFilename = null;
             rgiLineNumber = null;
             rgiColumnNumber = null;
-            dynamicMethods = null;
 
 #if FEATURE_EXCEPTIONDISPATCHINFO
             rgiLastFrameFromForeignExceptionStackTrace = null;
@@ -75,7 +85,56 @@ namespace System.Diagnostics {
             // override it.
             iFrameCount = 0;
 
-            fNeedFileInfo = fNeedFileLineColInfo;
+            fNeedFileInfo = fNeedFileLine;
+        }
+
+        //
+        // Initializes the rgFilename, rgiLineNumber and rgiColumnNumber fields using the portable PDB reader.
+        //
+        internal void InitializeSourceInfo()
+        {
+            if (!fNeedFileInfo) {
+                return;
+            }
+
+            if (s_symbolsType == null) {
+                try {
+                    Assembly metadataAssembly = Assembly.Load("System.Diagnostics.StackTrace.Symbols, Version=1.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a");
+                    if (metadataAssembly == null) {
+                        return;
+                    }
+                    s_symbolsType = metadataAssembly.GetType("System.Diagnostics.StackTrace.Symbols");
+                    if (s_symbolsType == null) {
+                        return;
+                    }
+                }
+                catch {
+                    return;
+                }
+            }
+
+            for (int index = 0; index < iFrameCount; index++) {
+                // If there was some reason not to try get get the symbols from the portable PDB reader like the module was
+                // ENC or the source/line info was already retrieved, the assembly path is null.
+                if (rgAssemblyPath[index] != null || rgInMemorySymbols[index] != IntPtr.Zero) {
+                    try {
+                        object[] parameters = new object[8];
+                        parameters[0] = rgAssemblyPath[index];
+                        parameters[1] = rgInMemorySymbols[index];
+                        parameters[2] = rgiInMemorySymbolsSize[index];
+                        parameters[3] = rgiMethodToken[index];
+                        parameters[4] = rgiILOffset[index];
+
+                        s_symbolsType.InvokeMember("GetSourceLineInfo", BindingFlags.InvokeMethod, null, null, parameters);
+
+                        rgFilename[index] = (string)parameters[5];
+                        rgiLineNumber[index] = (int)parameters[6];
+                        rgiColumnNumber[index] = (int)parameters[7];
+                    }
+                    catch {
+                    }
+                }
+            }
         }
     
         [System.Security.SecuritySafeCritical]
@@ -98,9 +157,9 @@ namespace System.Diagnostics {
 
         public virtual int GetOffset(int i) { return rgiOffset[i];}
         public virtual int GetILOffset(int i) { return rgiILOffset[i];}
-        public virtual String GetFilename(int i) { return rgFilename[i];}
-        public virtual int GetLineNumber(int i) { return rgiLineNumber[i];}
-        public virtual int GetColumnNumber(int i) { return rgiColumnNumber[i];}
+        public virtual String GetFilename(int i) { return rgFilename == null ? null : rgFilename[i];}
+        public virtual int GetLineNumber(int i) { return rgiLineNumber == null ? 0 : rgiLineNumber[i];}
+        public virtual int GetColumnNumber(int i) { return rgiColumnNumber == null ? 0 : rgiColumnNumber[i];}
 
 #if FEATURE_EXCEPTIONDISPATCHINFO
         public virtual bool IsLastFrameFromForeignExceptionStackTrace(int i) 
@@ -382,8 +441,8 @@ namespace System.Diagnostics {
             m_iMethodsToSkip += iSkip;
     
             StackFrameHelper StackF = new StackFrameHelper(fNeedFileInfo, targetThread);
-    
             GetStackFramesInternal(StackF, 0, e);
+            StackF.InitializeSourceInfo();
     
             m_iNumOfFrames = StackF.GetNumberOfFrames();
 
@@ -410,7 +469,7 @@ namespace System.Diagnostics {
 
                     if (fNeedFileInfo)
                     {
-                        sfTemp.SetFileName(StackF.GetFilename (i));
+                        sfTemp.SetFileName(StackF.GetFilename(i));
                         sfTemp.SetLineNumber(StackF.GetLineNumber(i));
                         sfTemp.SetColumnNumber(StackF.GetColumnNumber(i));
                     } 

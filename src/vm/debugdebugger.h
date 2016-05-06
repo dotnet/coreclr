@@ -81,9 +81,14 @@ public:
     BASEARRAYREF rgMethodBase; 
     PTRARRAYREF dynamicMethods;    
     BASEARRAYREF rgMethodHandle; 
+    PTRARRAYREF rgAssemblyPath;
+    BASEARRAYREF rgInMemorySymbols;
+    I4ARRAYREF rgiInMemorySymbolsSize;
+    I4ARRAYREF rgiMethodToken;
     PTRARRAYREF rgFilename;
     I4ARRAYREF rgiLineNumber;
     I4ARRAYREF rgiColumnNumber;
+
 #if defined(FEATURE_EXCEPTIONDISPATCHINFO)
     BOOLARRAYREF rgiLastFrameFromForeignExceptionStackTrace;
 #endif // defined(FEATURE_EXCEPTIONDISPATCHINFO)
