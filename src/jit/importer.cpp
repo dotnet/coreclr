@@ -16461,7 +16461,7 @@ BOOL                Compiler::impInlineIsGuaranteedThisDerefBeforeAnySideEffects
 
 void          Compiler::impMarkInlineCandidate(GenTreePtr callNode, 
                                                CORINFO_CONTEXT_HANDLE exactContextHnd, 
-                                               CORINFO_CALL_INFO * callInfo)
+                                               CORINFO_CALL_INFO* callInfo)
 {
     if  (!opts.OptEnabled(CLFLG_INLINING))
     {                 

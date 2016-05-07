@@ -3141,7 +3141,7 @@ private:
 
     void                impMarkInlineCandidate(GenTreePtr call,
                                                CORINFO_CONTEXT_HANDLE exactContextHnd,
-                                               CORINFO_CALL_INFO * callInfo);
+                                               CORINFO_CALL_INFO* callInfo);
 
     bool                impTailCallRetTypeCompatible(var_types callerRetType, 
                                                      CORINFO_CLASS_HANDLE callerRetTypeClass,
