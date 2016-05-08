@@ -5380,9 +5380,9 @@ bool                Compiler::impTailCallRetTypeCompatible(var_types callerRetTy
     if (callerRetType == calleeRetType)
     {
         return true;
-    }    
+    }
 
-#ifdef _TARGET_AMD64_
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
     // Jit64 compat:
     if (callerRetType == TYP_VOID)
     {
@@ -5410,7 +5410,7 @@ bool                Compiler::impTailCallRetTypeCompatible(var_types callerRetTy
     {
         return (varTypeIsIntegral(calleeRetType) || isCalleeRetTypMBEnreg) && (callerRetTypeSize == calleeRetTypeSize);
     }
-#endif // _TARGET_AMD64_
+#endif // _TARGET_AMD64_ || _TARGET_ARM64_
 
     return false;
 }
@@ -5620,13 +5620,6 @@ var_types           Compiler::impImportCall (OPCODE         opcode,
         canTailCall = false;
         szCanTailCallFailReason = "Caller requires a security check.";
     }
-
-#ifdef _TARGET_ARM64_
-    // Don't do opportunistic tail calls in ARM64 for now.
-    // TODO-ARM64-NYI:  Get this to work.
-    canTailCall = false;
-    szCanTailCallFailReason = "Arm64.";
-#endif // _TARGET_ARM64_
 
     // We only need to cast the return value of pinvoke inlined calls that return small types
 
@@ -13551,25 +13544,8 @@ GenTreePtr Compiler::impAssignStructClassToVar(GenTreePtr op, CORINFO_CLASS_HAND
     // This code will be called only if the struct return has not been normalized (i.e. 2 eightbytes - max allowed.)
     assert(IsMultiRegReturnedType(hClass));
 
-    // The return value is based on eightbytes, so all the fields need to be on stack
-    // before loading the eightbyte in the corresponding return register.
-    //
-    // TODO-Amd64-Unix-CQ: Right now codegen assumes that tmpNum lcl var is on stack and 
-    // and does not live in a register.  For example, consider a case where Vector3/4
-    // return value of a call is assigned to tmpNum.  In such a case tmpNum will be of
-    // SIMD type and will be allocated a register unless explicitly marked as DoNotEnregister.
-    // Code quality can be improved by not marking enregistrable struct type tmpNum
-    // as DoNotEnregister=true.
-
-    // Mark the var so that fields are not promoted and stay together
+    // Mark the var so that fields are not promoted and stay together.
     lvaTable[tmpNum].lvIsMultiRegArgOrRet = true;
-
-    // For now to workaround codegen limitation marking tmpNum as DoNotEnregister
-    // if it can be enregistered.
-    if (varTypeIsEnregisterableStruct(op))
-    {
-        lvaTable[tmpNum].lvDoNotEnregister = true;
-    }
 #endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
 
     return ret;
@@ -13905,12 +13881,13 @@ bool Compiler::impReturnInstruction(BasicBlock *block, int prefixFlags, OPCODE &
         impAppendTree(op2, (unsigned)CHECK_SPILL_NONE, impCurStmtOffs);
 
         // There are cases where the address of the implicit RetBuf should be returned explicitly (in RAX).  
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-        // System V ABI requires to return the implicit return buffer explicitly (in RAX).
+#if defined(_TARGET_AMD64_)
+        // x64 (System V and Win64) calling convention requires to 
+        // return the implicit return buffer explicitly (in RAX).
         // Change the return type to be BYREF.  
         op1 = gtNewOperNode(GT_RETURN, TYP_BYREF, gtNewLclvNode(info.compRetBuffArg, TYP_BYREF));
-#else // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-        // In case of Windows AMD64 the profiler hook requires to return the implicit RetBuf explicitly (in RAX).  
+#else // !defined(_TARGET_AMD64_)
+        // In case of non-AMD64 targets the profiler hook requires to return the implicit RetBuf explicitly (in RAX).  
         // In such case the return value of the function is changed to BYREF.  
         // If profiler hook is not needed the return type of the function is TYP_VOID.  
         if (compIsProfilerHookNeeded())
@@ -13922,7 +13899,7 @@ bool Compiler::impReturnInstruction(BasicBlock *block, int prefixFlags, OPCODE &
             // return void  
             op1 = new (this, GT_RETURN) GenTreeOp(GT_RETURN, TYP_VOID);
         }
-#endif // !defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)  
+#endif // !defined(_TARGET_AMD64_)  
     }
     else if (varTypeIsStruct(info.compRetType))
     {
