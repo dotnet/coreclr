@@ -130,21 +130,6 @@ namespace System
             int hash = (33 * 5381) ^ _offset;
             hash = ((hash << 5) + hash) ^ _count;
             
-            // Move the lower 8 bits to the top.
-            
-            // EXPLANATION:
-            // Since as it currently stands object.GetHashCode
-            // only returns 26 bits in the return value (the top
-            // 6 are zero), and since _offset and _count are
-            // typically low, simply xoring with the array's hash
-            // would usually leave the top bits wasted.
-            
-            // Transferring the lower bits of hash to the top
-            // here allows us to not waste those upper bits,
-            // while also being resilient if Object's hash
-            // code algorithm changes in the future.
-            hash = (hash << 24) | (hash >> 8);
-            
             // Finally, xor in the array's hash
             hash ^= _array.GetHashCode();
             return hash;
