@@ -444,7 +444,7 @@ LOCAL_LABEL(UMThunkStub_WrongAppDomain):
         ldr                 r2, [r3, #UMThunkMarshInfo__m_cbActualArgSize]
         cbz                 r2, LOCAL_LABEL(UM2MThunk_WrapperHelper_ArgumentsSetup)
 
-        add                 r0, r5, #UMThunkStub_StackArgsOffset // Source pointer
+        add                 r0, r5, #UMThunkStub_StackArgsSize // Source pointer
         add                 r0, r0, r2
         lsr                 r1, r2, #2      // Count of stack slots to copy
 
