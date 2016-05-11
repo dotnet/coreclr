@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
@@ -95,7 +96,7 @@
       IL_0031:  ldstr      "Caller"
       IL_0036:  callvirt   instance int32 [mscorlib]System.String::IndexOf(string)
       IL_003b:  ldc.i4.m1
-      IL_003c:  bne.un.s   IL_006e
+      IL_003c:  beq.s      IL_006e
 
       IL_003e:  ldstr      "FAILED: Found the word 'Caller' in the stacktrace."
       IL_0043:  call       void [System.Console]System.Console::WriteLine(string)
