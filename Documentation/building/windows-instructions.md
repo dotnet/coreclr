@@ -150,28 +150,28 @@ Make a packages/packages.config file with the following XML. These packages are 
 
 	<?xml version="1.0" encoding="utf-8"?>
 	<packages>
-	  <package id="System.Console" version="4.0.0-beta-22703" />
-	  <package id="System.Diagnostics.Contracts" version="4.0.0-beta-22703" />
-	  <package id="System.Diagnostics.Debug" version="4.0.10-beta-22703" />
-	  <package id="System.Diagnostics.Tools" version="4.0.0-beta-22703" />
-	  <package id="System.Globalization" version="4.0.10-beta-22703" />
-	  <package id="System.IO" version="4.0.10-beta-22703" />
-	  <package id="System.IO.FileSystem.Primitives" version="4.0.0-beta-22703" />
-	  <package id="System.Reflection" version="4.0.10-beta-22703" />
-	  <package id="System.Resources.ResourceManager" version="4.0.0-beta-22703" />
-	  <package id="System.Runtime" version="4.0.20-beta-22703" />
-	  <package id="System.Runtime.Extensions" version="4.0.10-beta-22703" />
-	  <package id="System.Runtime.Handles" version="4.0.0-beta-22703" />
-	  <package id="System.Runtime.InteropServices" version="4.0.20-beta-22703" />
-	  <package id="System.Text.Encoding" version="4.0.10-beta-22703" />
-	  <package id="System.Text.Encoding.Extensions" version="4.0.10-beta-22703" />
-	  <package id="System.Threading" version="4.0.10-beta-22703" />
-	  <package id="System.Threading.Tasks" version="4.0.10-beta-22703" />
+	  <package id="System.Console" version="4.0.0-beta-22816" />
+	  <package id="System.Diagnostics.Contracts" version="4.0.0-beta-22816" />
+	  <package id="System.Diagnostics.Debug" version="4.0.10-beta-22816" />
+	  <package id="System.Diagnostics.Tools" version="4.0.0-beta-22816" />
+	  <package id="System.Globalization" version="4.0.10-beta-22816" />
+	  <package id="System.IO" version="4.0.10-beta-22816" />
+	  <package id="System.IO.FileSystem.Primitives" version="4.0.0-beta-22816" />
+	  <package id="System.Reflection" version="4.0.10-beta-22816" />
+	  <package id="System.Resources.ResourceManager" version="4.0.0-beta-22816" />
+	  <package id="System.Runtime" version="4.0.20-beta-22816" />
+	  <package id="System.Runtime.Extensions" version="4.0.10-beta-22816" />
+	  <package id="System.Runtime.Handles" version="4.0.0-beta-22816" />
+	  <package id="System.Runtime.InteropServices" version="4.0.20-beta-22816" />
+	  <package id="System.Text.Encoding" version="4.0.10-beta-22816" />
+	  <package id="System.Text.Encoding.Extensions" version="4.0.10-beta-22816" />
+	  <package id="System.Threading" version="4.0.10-beta-22816" />
+	  <package id="System.Threading.Tasks" version="4.0.10-beta-22816" />
 	</packages>
 
 And restore the packages with the packages.config:
 
-	C:\coreclr-demo>nuget restore packages\packages.config -Source https://www.myget.org/F/dotnet-corefx/ -PackagesDirectory packages
+	C:\coreclr-demo>nuget restore packages\packages.config -Source https://www.nuget.org/api/v2 -PackagesDirectory packages
 
 Compile the Demo
 ================
@@ -208,6 +208,6 @@ The easiest way to do this is with a little batch magic. Say "no" to any request
 You're ready to run Hello World! To do that, run corerun, passing the path to the managed exe, plus any arguments. In this case, no arguments are necessary.
 
 	C:\coreclr-demo>cd runtime
-	C:\coreclr-demo\runtime>CoreRun.exe HelloWorld.exe
+	C:\coreclr-demo\runtime>HelloWorld.exe
 
 Over time, this process will get easier. Thanks for trying out CoreCLR. Feel free to try a more interesting demo.
