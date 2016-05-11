@@ -2708,7 +2708,6 @@ bool                    Compiler::compCanEncodePtrArgCntMax()
 #endif
 }
 
-
 /*****************************************************************************
  *
  *  Call the given function pointer for all nodes in the tree. The 'visitor'
