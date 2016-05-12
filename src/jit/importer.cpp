@@ -6903,7 +6903,7 @@ bool  Compiler::impMethodInfo_hasRetBuffArg(CORINFO_METHOD_INFO * methInfo)
     //
   #ifdef _TARGET_ARM_
     // On ARM HFAs are returned in registers.
-    if (!info.compIsVarArgs && IsHfa(methInfo->args.retTypeClass))
+    if (!info.compIsVarArgs && !opts.compUseSoftFP && IsHfa(methInfo->args.retTypeClass))
     {
         return false;
     }
