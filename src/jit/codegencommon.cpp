@@ -4397,12 +4397,16 @@ void            CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg,
                                         srcRegNum,
                                         varNum,
                                         baseOffset);
+#ifndef FEATURE_UNIX_AMD64_STRUCT_PASSING
+            // This assert fires on UNIX_AMD64 here:  crossgen mscorlib.dll
+            // Assertion failed 'varDsc->lvSize() >= baseOffset+(unsigned)size' in 'System.Runtime.InteropServices.ArrayWithOffset:Equals(struct):bool:this' (IL size 45)
 
             // Check if we are writing past the end of the struct
             if (varTypeIsStruct(varDsc))
             {
                 assert(varDsc->lvSize() >= baseOffset+(unsigned)size);
             }
+#endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING
 
             if (regArgTab[argNum].slot == 1)
                 psiMoveToStack(varNum);
