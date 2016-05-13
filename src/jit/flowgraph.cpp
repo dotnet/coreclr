@@ -21607,7 +21607,7 @@ void Compiler::fgNoteNonInlineCandidate(GenTreePtr   tree,
 
 #endif
 
-#if defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(FEATURE_HFA) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
 
 /*********************************************************************************
  *
@@ -21739,7 +21739,7 @@ void Compiler::fgAttachStructInlineeToAsg(GenTreePtr tree, GenTreePtr child, COR
     tree->CopyFrom(gtNewCpObjNode(dstAddr, srcAddr, retClsHnd, false), this);
 }
 
-#endif // defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // defined(FEATURE_HFA) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
 
 /*****************************************************************************
  * Callback to replace the inline return expression place holder (GT_RET_EXPR)
@@ -21754,12 +21754,12 @@ Compiler::fgWalkResult      Compiler::fgUpdateInlineReturnExpressionPlaceHolder(
 
     if (tree->gtOper == GT_RET_EXPR)
     {
-#if defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if FEATURE_MULTIREG_RET
         // We are going to copy the tree from the inlinee, so save the handle now.
         CORINFO_CLASS_HANDLE retClsHnd = varTypeIsStruct(tree)
                                        ? tree->gtRetExpr.gtRetClsHnd
                                        : NO_CLASS_HANDLE;
-#endif // defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // FEATURE_MULTIREG_RET
 
         do
         {
@@ -21797,12 +21797,14 @@ Compiler::fgWalkResult      Compiler::fgUpdateInlineReturnExpressionPlaceHolder(
         }
         while (tree->gtOper == GT_RET_EXPR);
 
-#if defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-#if defined(_TARGET_ARM_)
+#if FEATURE_MULTIREG_RET
+#if defined(FEATURE_HFA)
         if (retClsHnd != NO_CLASS_HANDLE && comp->IsHfa(retClsHnd))
 #elif defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
         if (retClsHnd != NO_CLASS_HANDLE && comp->IsRegisterPassable(retClsHnd))
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#else
+        assert(!"Unhandled target");
+#endif // FEATURE_HFA 
         {
             GenTreePtr parent = data->parent;
             // See assert below, we only look one level above for an asg parent.
@@ -21817,10 +21819,10 @@ Compiler::fgWalkResult      Compiler::fgUpdateInlineReturnExpressionPlaceHolder(
                 tree->CopyFrom(comp->fgAssignStructInlineeToVar(tree, retClsHnd), comp);
             }
         }
-#endif // defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // FEATURE_MULTIREG_RET
     }
 
-#if defined(DEBUG) && (defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING))
+#if defined(DEBUG) && FEATURE_MULTIREG_RET
     // Make sure we don't have a tree like so: V05 = (, , , retExpr);
     // Since we only look one level above for the parent for '=' and
     // do not check if there is a series of COMMAs. See above.
@@ -21838,7 +21840,7 @@ Compiler::fgWalkResult      Compiler::fgUpdateInlineReturnExpressionPlaceHolder(
             // empty
         }
 
-#if defined(_TARGET_ARM_)
+#if defined(FEATURE_HFA)
         noway_assert(!varTypeIsStruct(comma) ||
                      comma->gtOper != GT_RET_EXPR ||
                      (!comp->IsHfa(comma->gtRetExpr.gtRetClsHnd)));
@@ -21848,7 +21850,7 @@ Compiler::fgWalkResult      Compiler::fgUpdateInlineReturnExpressionPlaceHolder(
                      (!comp->IsRegisterPassable(comma->gtRetExpr.gtRetClsHnd)));
 #endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
     }
-#endif // defined(DEBUG) && (defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING))
+#endif // defined(DEBUG) && FEATURE_MULTIREG_RET
 
     return WALK_CONTINUE;
 }
