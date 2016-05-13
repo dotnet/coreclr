@@ -545,14 +545,13 @@ var_types    Compiler::argOrReturnTypeForStruct(unsigned size, CORINFO_CLASS_HAN
         {
             if (size <= MAX_RET_MULTIREG_BYTES)
             {
-#ifdef _TARGET_ARM64_
-                assert(size > TARGET_POINTER_SIZE);
-
-                // For structs that are 9 to 16 bytes in size set useType to TYP_STRUCT, 
-                // as this means a 9-16 byte struct value in two registers
-                //
-                useType = TYP_STRUCT;
-#endif // _TARGET_ARM64_
+#if defined(_TARGET_ARM64_)
+                // TODO-ARM64-HFA - implement HFA returns   
+#elif defined(_TARGET_ARM_)
+                // currently returns TYP_UNKNOWN
+#else
+                assert(!"Unhandled target.");
+#endif // _TARGET_XXX_
             }
         }
 #endif // FEATURE_MULTIREG_RET
@@ -562,14 +561,21 @@ var_types    Compiler::argOrReturnTypeForStruct(unsigned size, CORINFO_CLASS_HAN
         {
             if (size <= MAX_PASS_MULTIREG_BYTES)
             {
-#ifdef _TARGET_ARM64_
+#if defined(_TARGET_ARM64_)
                 assert(size > TARGET_POINTER_SIZE);
 
-                // For structs that are 9 to 16 bytes in size set useType to TYP_STRUCT, 
-                // as this means a 9-16 byte struct value in two registers
-                //
-                useType = TYP_STRUCT;
-#endif // _TARGET_ARM64_
+                // On ARM64 structs that are 16 bytes or smaller are always passed by value
+                // or if the struct is an HFA is is also passed by value
+                if ((size <= (TARGET_POINTER_SIZE * 2)) || IsHfa(clsHnd))
+                {
+                    // set useType to TYP_STRUCT to indicate that this is passed by value in registers
+                    useType = TYP_STRUCT;
+                }
+#elif defined(_TARGET_ARM_)
+                // currently returns TYP_UNKNOWN
+#else
+                assert(!"Unhandled target.");
+#endif // _TARGET_XXX_
             }
         }
 #endif // FEATURE_MULTIREG_ARGS

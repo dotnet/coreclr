@@ -293,13 +293,13 @@ regMaskTP               Compiler::genReturnRegForTree(GenTreePtr tree)
 {
     var_types type = tree->TypeGet();
 
-#ifdef _TARGET_ARM_
+#ifdef FEATURE_HFA
     if (type == TYP_STRUCT && IsHfa(tree))
     {
         int retSlots = GetHfaSlots(tree);
         return ((1 << retSlots) - 1) << REG_FLOATRET;
     }
-#endif
+#endif // FETAURE_HFA
 
     const  static
     regMaskTP returnMap[TYP_COUNT] =
@@ -672,22 +672,6 @@ regNumber     Compiler::raUpdateRegStateForArg(RegState *regState, LclVarDsc *ar
 
     regState->rsCalleeRegArgMaskLiveIn |= genRegMask(inArgReg);
 
-#if FEATURE_MULTIREG_ARGS
-#ifdef _TARGET_ARM64_
-    if ((argDsc->lvOtherArgReg != REG_STK) && (argDsc->lvOtherArgReg != REG_NA))
-    {
-        assert(argDsc->lvIsMultiregStruct());
-
-        regNumber secondArgReg = argDsc->lvOtherArgReg;
-
-        noway_assert(regState->rsIsFloat == false);
-        noway_assert(genRegMask(secondArgReg) & RBM_ARG_REGS);
-
-        regState->rsCalleeRegArgMaskLiveIn |= genRegMask(secondArgReg);
-    }
-#endif // TARGET_ARM64_
-#endif // FEATURE_MULTIREG_ARGS
-
 #ifdef _TARGET_ARM_
     if (argDsc->lvType == TYP_DOUBLE)
     {
@@ -710,8 +694,12 @@ regNumber     Compiler::raUpdateRegStateForArg(RegState *regState, LclVarDsc *ar
         regState->rsCalleeRegArgMaskLiveIn |= genRegMask((regNumber)(inArgReg+1));
         
     }
-    else if (argDsc->lvType == TYP_STRUCT)
+#endif // _TARGET_ARM_
+
+#if FEATURE_MULTIREG_ARGS
+    if (argDsc->lvType == TYP_STRUCT)
     {
+#ifdef FEATURE_HFA
         if (argDsc->lvIsHfaRegArg)
         {
             assert(regState->rsIsFloat);
@@ -723,6 +711,7 @@ regNumber     Compiler::raUpdateRegStateForArg(RegState *regState, LclVarDsc *ar
             }
         }
         else
+#endif // FEATURE_HFA
         {
             unsigned cSlots = argDsc->lvSize() / TARGET_POINTER_SIZE;
             for (unsigned i=1; i < cSlots; i++)
@@ -732,12 +721,27 @@ regNumber     Compiler::raUpdateRegStateForArg(RegState *regState, LclVarDsc *ar
                 {
                     break;
                 }
-                assert(!regState->rsIsFloat);
+                assert(regState->rsIsFloat == false);
                 regState->rsCalleeRegArgMaskLiveIn |= genRegMask(nextArgReg);
             }
         }
     }
-#endif // _TARGET_ARM_
+#ifdef _TARGET_ARM64_
+    if ((argDsc->lvOtherArgReg != REG_STK) && (argDsc->lvOtherArgReg != REG_NA))
+    {
+        assert(argDsc->lvIsMultiregStruct());
+
+        regNumber secondArgReg = argDsc->lvOtherArgReg;
+
+        noway_assert(regState->rsIsFloat == false);
+        noway_assert(genRegMask(secondArgReg) & RBM_ARG_REGS);
+
+        assert((regState->rsCalleeRegArgMaskLiveIn & genRegMask(secondArgReg)) != 0);
+
+        regState->rsCalleeRegArgMaskLiveIn |= genRegMask(secondArgReg);
+    }
+#endif // TARGET_ARM64_
+#endif // FEATURE_MULTIREG_ARGS
 
     return inArgReg;
 }
