@@ -4005,12 +4005,14 @@ void            CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg,
 #if FEATURE_MULTIREG_ARGS
             if (varDsc->lvIsMultiregStruct())
             {
+#ifdef FEATURE_HFA
                 if (varDsc->lvIsHfaRegArg)
                 {
                     // We have an HFA argument, set slots to the number of registers used
                     slots = varDsc->lvHfaSlots();
                 }
                 else
+#endif // FEATURE_HFA
                 {
                     // We have a non-HFA multireg argument, set slots to two
                     slots = 2;
