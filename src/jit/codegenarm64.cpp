@@ -6478,7 +6478,8 @@ void CodeGen::genPutArgStk(GenTreePtr treeNode)
                     // so update 'source' to point this GT_LCL_VAR_ADDR node
                     // and continue to the codegen for the LCL_VAR node below
                     //
-                    varNode = addrNode->AsLclVarCommon();
+                    varNode  = addrNode->AsLclVarCommon();
+                    addrNode = nullptr;
                 }
             }
 
