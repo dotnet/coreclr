@@ -9952,9 +9952,7 @@ void Module::Save(DataImage *image)
     GetReliabilityContract();
     IsPreV4Assembly();
 
-#ifndef FEATURE_CORECLR
     HasDefaultDllImportSearchPathsAttribute();
-#endif
 
     // Precompute property information to avoid runtime metadata lookup
     PopulatePropertyInfoMap();

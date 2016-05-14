@@ -3109,13 +3109,11 @@ void MethodDesc::Save(DataImage *image)
         // Make sure that the marshaling required flag is computed
         pNMD->MarshalingRequired();
         
-#ifndef FEATURE_CORECLR
         if (!pNMD->IsQCall())
         {
             //Cache DefaultImportDllImportSearchPaths attribute.
             pNMD->HasDefaultDllImportSearchPathsAttribute();
         }
-#endif
 
         image->StoreStructure(pNMD->GetWriteableData(),
                                 sizeof(NDirectWriteableData),
