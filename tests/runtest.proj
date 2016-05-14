@@ -372,16 +372,21 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
   },
   "frameworks": {
     "dnxcore50": {}
+  },
+  "runtimes": {
+    "$(TestNugetRuntimeId)":{}
   }
-}        
+}
 
         ]]>
       </TestRuntimeJsonContents>
     </PropertyGroup>
 
+    <MakeDir Directories="$(TestRuntimeProjectJsonDir)" Condition="!Exists('$(TestRuntimeProjectJsonDir)')" />
+
     <!-- Write the file -->
     <WriteLinesToFile
-      File="src\Common\test_runtime\project.json"
+      File="$(TestRuntimeProjectJson)"
       Lines="$(TestRuntimeJsonContents)"
       Overwrite="true" />
 

@@ -317,6 +317,8 @@ public:
 
     DWORD getJitFlags(CORJIT_FLAGS* jitFlags, DWORD sizeInBytes);
 
+    bool runWithErrorTrap(void (*function)(void*), void* param);
+
     // ICorDynamicInfo
 
     DWORD getThreadTLSIndex(void **ppIndirection);
@@ -544,10 +546,11 @@ public:
     CorInfoHelpFunc getBoxHelper(CORINFO_CLASS_HANDLE cls);
     CorInfoHelpFunc getUnBoxHelper(CORINFO_CLASS_HANDLE cls);
 
-    void getReadyToRunHelper(
-            CORINFO_RESOLVED_TOKEN * pResolvedToken,
-            CorInfoHelpFunc          id,
-            CORINFO_CONST_LOOKUP *   pLookup
+    bool getReadyToRunHelper(
+            CORINFO_RESOLVED_TOKEN *        pResolvedToken,
+            CORINFO_LOOKUP_KIND *           pGenericLookupKind,
+            CorInfoHelpFunc                 id,
+            CORINFO_CONST_LOOKUP *          pLookup
             );
 
     void getReadyToRunDelegateCtorHelper(

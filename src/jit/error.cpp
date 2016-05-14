@@ -170,6 +170,15 @@ void notYetImplemented(const char * msg, const char * filename, unsigned line)
 #endif // !DEBUG
 #endif // FUNC_INFO_LOGGING
 
+#ifdef DEBUG
+    Compiler* pCompiler = JitTls::GetCompiler();
+    if (pCompiler != nullptr)
+    {
+        // Assume we're within a compFunctionTrace boundary, which might not be true.
+        pCompiler->compFunctionTraceEnd(nullptr, 0, true);
+    }
+#endif // DEBUG 
+
     DWORD value = JitConfig.AltJitAssertOnNYI();
 
     // 0 means just silently skip
@@ -195,15 +204,6 @@ void notYetImplemented(const char * msg, const char * filename, unsigned line)
 }
 
 #endif // #if !defined(_TARGET_X86_) || !defined(LEGACY_BACKEND)
-
-/*****************************************************************************/
-LONG __EEfilter(PEXCEPTION_POINTERS pExceptionPointers, LPVOID lpvParam)
-{
-   ErrorTrapParam *pErrorTrapParam = (ErrorTrapParam *)lpvParam;
-   ICorJitInfo * m_jitInfo = pErrorTrapParam->jitInfo;
-   pErrorTrapParam->exceptionPointers = *pExceptionPointers;
-   return m_jitInfo->FilterException(pExceptionPointers);
-}
 
 /*****************************************************************************/
 LONG __JITfilter(PEXCEPTION_POINTERS pExceptionPointers, LPVOID lpvParam)
@@ -328,11 +328,15 @@ BOOL vlogf(unsigned level, const char* fmt, va_list args)
     return JitTls::GetLogEnv()->compHnd->logMsg(level, fmt, args);
 } 
 
-int logf_stdout(const char* fmt, va_list args)
+int vflogf(FILE* file, const char* fmt, va_list args)
 {
-    //
-    // Fast logging to stdout
-    //
+    // 0-length string means flush
+    if (fmt[0] == '\0')
+    {
+        fflush(file);
+        return 0;
+    }
+
     const int BUFF_SIZE = 8192;
     char buffer[BUFF_SIZE];
     int written = _vsnprintf_s(&buffer[0], BUFF_SIZE, _TRUNCATE, fmt, args);
@@ -341,32 +345,18 @@ int logf_stdout(const char* fmt, va_list args)
     {
         OutputDebugStringA(buffer);
     }
+   
+    // We use fputs here so that this executes as fast a possible
+    fputs(&buffer[0], file);
+    return written;
+}
 
-    if (fmt[0] == 0)                // null string means flush
-    {
-        fflush(stdout);
-    }
-    else
-    {
-#if defined(CROSSGEN_COMPILE) && !defined(PLATFORM_UNIX)
-        // Crossgen has forced stdout into UNICODE only mode:
-        //     _setmode(_fileno(stdout), _O_U8TEXT); 
-        //
-        wchar_t wbuffer[BUFF_SIZE];
-
-        // Convert char* 'buffer' to a wchar_t* string.
-        size_t convertedChars = 0;
-        mbstowcs_s(&convertedChars, &wbuffer[0], BUFF_SIZE, buffer, _TRUNCATE);
-
-        fputws(&wbuffer[0], stdout);
-#else // CROSSGEN_COMPILE
-        //
-        // We use fputs here so that this executes as fast a possible
-        //
-        fputs(&buffer[0], stdout);
-#endif // CROSSGEN_COMPILE
-    }
-
+int flogf(FILE* file, const char* fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    int written = vflogf(file, fmt, args);
+    va_end(args);
     return written;
 }
 
@@ -395,7 +385,7 @@ int logf(const char* fmt, ...)
     {
         // if the EE refuses to log it, we try to send it to stdout
         va_start(args, fmt);
-        written = logf_stdout(fmt, args);
+        written = vflogf(jitstdout, fmt, args);
         va_end(args);
     }
 #if 0  // Enable this only when you need it
@@ -454,7 +444,7 @@ void gcDump_logf(const char* fmt, ...)
     {
         // if the EE refuses to log it, we try to send it to stdout
         va_start(args, fmt);
-        logf_stdout(fmt, args);
+        vflogf(jitstdout, fmt, args);
         va_end(args);
     }
 #if 0  // Enable this only when you need it

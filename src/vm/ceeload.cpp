@@ -83,9 +83,9 @@
 #include "peimagelayout.inl"
 #include "ildbsymlib.h"
 
-#if defined(FEATURE_HOSTED_BINDER) && defined(FEATURE_APPX_BINDER)
+#if defined(FEATURE_APPX_BINDER)
 #include "clrprivbinderappx.h"
-#endif //defined(FEATURE_HOSTED_BINDER) && defined(FEATURE_APPX_BINDER)
+#endif // defined(FEATURE_APPX_BINDER)
 
 #if defined(PROFILING_SUPPORTED)
 #include "profilermetadataemitvalidator.h"
@@ -5634,13 +5634,10 @@ Assembly * Module::GetAssemblyIfLoadedFromNativeAssemblyRefWithRefDefMismatch(md
             // This extended check is designed only to find assemblies loaded via an AssemblySpecBindingCache based binder. Verify that's what we found.
             if(pAssemblyCandidate != NULL)
             {
-#ifdef FEATURE_HOSTED_BINDER
                 if (!pAssemblyCandidate->GetManifestFile()->HasHostAssembly())
-#endif // FEATURE_HOSTED_BINDER
                 {
                     pAssembly = pAssemblyCandidate;
                 }
-#ifdef FEATURE_HOSTED_BINDER
                 else
                 {
                     DWORD binderFlags = 0;
@@ -5659,7 +5656,6 @@ Assembly * Module::GetAssemblyIfLoadedFromNativeAssemblyRefWithRefDefMismatch(md
                         _ASSERTE("Non-AssemblySpecBindingCache based assembly found with extended search" && !(IsStackWalkerThread() || IsGCThread()) && IsGenericInstantiationLookupCompareThread());
                     }
                 }
-#endif // FEATURE_HOSTED_BINDER
             }
         }
     }
@@ -5760,7 +5756,6 @@ Module::GetAssemblyIfLoaded(
                 _ASSERTE(szWinRtClassName != NULL);
                 
                 CLRPrivBinderWinRT * pWinRtBinder = pAppDomainExamine->GetWinRtBinder();
-#ifdef FEATURE_HOSTED_BINDER
                 if (pWinRtBinder == nullptr)
                 {   // We are most likely in AppX mode (calling AppX::IsAppXProcess() for verification is painful in DACCESS)
 #ifndef DACCESS_COMPILE
@@ -5797,7 +5792,6 @@ Module::GetAssemblyIfLoaded(
 #endif // defined(FEATURE_APPX_BINDER)
                     }
                 }
-#endif //FEATURE_HOSTED_BINDER
                 
                 if (pWinRtBinder != nullptr)
                 {

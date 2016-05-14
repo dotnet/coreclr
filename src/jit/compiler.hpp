@@ -632,7 +632,7 @@ bool                isRegParamType(var_types type)
 #endif // !_TARGET_X86_
 }
 
-#ifdef _TARGET_AMD64_
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
 /*****************************************************************************/
  // Returns true if 'type' is a struct that can be enregistered for call args 
  //                         or can be returned by value in multiple registers.
@@ -680,7 +680,7 @@ bool   Compiler::VarTypeIsMultiByteAndCanEnreg(var_types type,
 
     return result;
 }
-#endif //_TARGET_AMD64_
+#endif //_TARGET_AMD64_ || _TARGET_ARM64_
 
 
 /*****************************************************************************/
@@ -1525,9 +1525,16 @@ bool                GenTree::IsVarAddr() const
 inline
 bool                GenTree::gtOverflow() const
 {
+#if !defined(_TARGET_64BIT_) && !defined(LEGACY_BACKEND)
+    assert(gtOper == GT_MUL      || gtOper == GT_CAST     ||
+           gtOper == GT_ADD      || gtOper == GT_SUB      ||
+           gtOper == GT_ASG_ADD  || gtOper == GT_ASG_SUB  ||
+           gtOper == GT_ADD_HI   || gtOper == GT_SUB_HI);
+#else
     assert(gtOper == GT_MUL      || gtOper == GT_CAST     ||
            gtOper == GT_ADD      || gtOper == GT_SUB      ||
            gtOper == GT_ASG_ADD  || gtOper == GT_ASG_SUB);
+#endif
 
     if (gtFlags & GTF_OVERFLOW)
     {
@@ -1546,6 +1553,9 @@ bool                GenTree::gtOverflowEx() const
 {
     if   ( gtOper == GT_MUL      || gtOper == GT_CAST     ||
            gtOper == GT_ADD      || gtOper == GT_SUB      ||
+#if !defined(_TARGET_64BIT_) && !defined(LEGACY_BACKEND)
+           gtOper == GT_ADD_HI   || gtOper == GT_SUB_HI   ||
+#endif
            gtOper == GT_ASG_ADD  || gtOper == GT_ASG_SUB)
     {
         return gtOverflow();
@@ -4675,8 +4685,6 @@ inline bool         BasicBlock::endsWithJmpMethod(Compiler *comp)
     return false;
 }
 
-#if FEATURE_FASTTAILCALL
-
 // Returns true if the basic block ends with either
 //  i) GT_JMP or
 // ii) tail call (implicit or explicit)
@@ -4783,8 +4791,6 @@ inline bool BasicBlock::endsWithTailCallConvertibleToLoop(Compiler* comp, GenTre
     bool tailCallsConvertibleToLoopOnly = true;
     return endsWithTailCall(comp, fastTailCallsOnly, tailCallsConvertibleToLoopOnly, tailCall);
 }
-
-#endif // FEATURE_FASTTAILCALL
 
 // Returns the last top level stmt of a given basic block.
 // Returns nullptr if the block is empty.

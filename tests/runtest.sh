@@ -15,44 +15,44 @@ function print_usage {
     echo '    --coreFxNativeBinDir="corefx/bin/Linux.x64.Debug"'
     echo ''
     echo 'Required arguments:'
-    echo '  --testRootDir=<path>           : Root directory of the test build (e.g. coreclr/bin/tests/Windows_NT.x64.Debug).'
-    echo '  --testNativeBinDir=<path>      : Directory of the native CoreCLR test build (e.g. coreclr/bin/obj/Linux.x64.Debug/tests).'
+    echo '  --testRootDir=<path>             : Root directory of the test build (e.g. coreclr/bin/tests/Windows_NT.x64.Debug).'
+    echo '  --testNativeBinDir=<path>        : Directory of the native CoreCLR test build (e.g. coreclr/bin/obj/Linux.x64.Debug/tests).'
     echo '  (Also required: Either --coreOverlayDir, or all of the switches --coreOverlayDir overrides)'
     echo ''
     echo 'Optional arguments:'
-    echo '  --coreOverlayDir=<path>        : Directory containing core binaries and test dependencies. If not specified, the'
-    echo '                                   default is testRootDir/Tests/coreoverlay. This switch overrides --coreClrBinDir,'
-    echo '                                   --mscorlibDir, --coreFxBinDir, and --coreFxNativeBinDir.'
-    echo '  --coreClrBinDir=<path>         : Directory of the CoreCLR build (e.g. coreclr/bin/Product/Linux.x64.Debug).'
-    echo '  --mscorlibDir=<path>           : Directory containing the built mscorlib.dll. If not specified, it is expected to be'
-    echo '                                   in the directory specified by --coreClrBinDir.'
-    echo '  --coreFxBinDir=<path>[;<path>] : List of one or more directories with CoreFX build outputs (semicolon-delimited)'
-    echo '                                   (e.g. corefx/bin/Linux.AnyCPU.Debug;corefx/bin/Unix.AnyCPU.Debug;corefx/bin/AnyOS.AnyCPU.Debug).'
-    echo '                                   If files with the same name are present in multiple directories, the first one wins.'
-    echo '  --coreFxNativeBinDir=<path>    : Directory of the CoreFX native build (e.g. corefx/bin/Linux.x64.Debug).'
-    echo '  --testDir=<path>               : Run tests only in the specified directory. The path is relative to the directory'
-    echo '                                   specified by --testRootDir. Multiple of this switch may be specified.'
-    echo '  --testDirFile=<path>           : Run tests only in the directories specified by the file at <path>. Paths are listed'
-    echo '                                   one line, relative to the directory specified by --testRootDir.'
-    echo '  --runFailingTestsOnly          : Run only the tests that are disabled on this platform due to unexpected failures.'
-    echo '                                   Failing tests are listed in coreclr/tests/failingTestsOutsideWindows.txt, one per'
-    echo '                                   line, as paths to .sh files relative to the directory specified by --testRootDir.'
-    echo '  --disableEventLogging          : Disable the events logged by both VM and Managed Code'
-    echo '  --sequential                   : Run tests sequentially (default is to run in parallel).'
-    echo '  --playlist=<path>              : Run only the tests that are specified in the file at <path>, in the same format as'
-    echo '                                   runFailingTestsOnly'
-    echo '  -v, --verbose                  : Show output from each test.'
-    echo '  -h|--help                      : Show usage information.'
-    echo '  --useServerGC                  : Enable server GC for this test run'
-    echo '  --test-en                      : Script to set environment variables for tests'
+    echo '  --coreOverlayDir=<path>          : Directory containing core binaries and test dependencies. If not specified, the'
+    echo '                                     default is testRootDir/Tests/coreoverlay. This switch overrides --coreClrBinDir,'
+    echo '                                     --mscorlibDir, --coreFxBinDir, and --coreFxNativeBinDir.'
+    echo '  --coreClrBinDir=<path>           : Directory of the CoreCLR build (e.g. coreclr/bin/Product/Linux.x64.Debug).'
+    echo '  --mscorlibDir=<path>             : Directory containing the built mscorlib.dll. If not specified, it is expected to be'
+    echo '                                       in the directory specified by --coreClrBinDir.'
+    echo '  --coreFxBinDir="<path>[;<path>]" : List of one or more directories with CoreFX build outputs (semicolon-delimited)'
+    echo '                                     (e.g. "corefx/bin/Linux.AnyCPU.Debug;corefx/bin/Unix.AnyCPU.Debug;corefx/bin/AnyOS.AnyCPU.Debug").'
+    echo '                                     If files with the same name are present in multiple directories, the first one wins.'
+    echo '  --coreFxNativeBinDir=<path>      : Directory of the CoreFX native build (e.g. corefx/bin/Linux.x64.Debug).'
+    echo '  --testDir=<path>                 : Run tests only in the specified directory. The path is relative to the directory'
+    echo '                                     specified by --testRootDir. Multiple of this switch may be specified.'
+    echo '  --testDirFile=<path>             : Run tests only in the directories specified by the file at <path>. Paths are listed'
+    echo '                                     one line, relative to the directory specified by --testRootDir.'
+    echo '  --runFailingTestsOnly            : Run only the tests that are disabled on this platform due to unexpected failures.'
+    echo '                                     Failing tests are listed in coreclr/tests/failingTestsOutsideWindows.txt, one per'
+    echo '                                     line, as paths to .sh files relative to the directory specified by --testRootDir.'
+    echo '  --disableEventLogging            : Disable the events logged by both VM and Managed Code'
+    echo '  --sequential                     : Run tests sequentially (default is to run in parallel).'
+    echo '  --playlist=<path>                : Run only the tests that are specified in the file at <path>, in the same format as'
+    echo '                                     runFailingTestsOnly'
+    echo '  -v, --verbose                    : Show output from each test.'
+    echo '  -h|--help                        : Show usage information.'
+    echo '  --useServerGC                    : Enable server GC for this test run'
+    echo '  --test-en                        : Script to set environment variables for tests'
     echo ''
     echo 'Runtime Code Coverage options:'
-    echo '  --coreclr-coverage             : Optional argument to get coreclr code coverage reports'
-    echo '  --coreclr-objs=<path>          : Location of root of the object directory'
-    echo '                                   containing the linux/mac coreclr build'
-    echo '  --coreclr-src=<path>           : Location of root of the directory'
-    echo '                                   containing the coreclr source files'
-    echo '  --coverage-output-dir=<path>   : Directory where coverage output will be written to'
+    echo '  --coreclr-coverage               : Optional argument to get coreclr code coverage reports'
+    echo '  --coreclr-objs=<path>            : Location of root of the object directory'
+    echo '                                     containing the linux/mac coreclr build'
+    echo '  --coreclr-src=<path>             : Location of root of the directory'
+    echo '                                     containing the coreclr source files'
+    echo '  --coverage-output-dir=<path>     : Directory where coverage output will be written to'
     echo ''
 }
 
@@ -322,9 +322,6 @@ function create_core_overlay {
     if [ ! -d "$coreClrBinDir" ]; then
         exit_with_error "$errorSource" "Directory specified by --coreClrBinDir does not exist: $coreClrBinDir"
     fi
-    if [ -z "$mscorlibDir" ]; then
-        mscorlibDir=$coreClrBinDir
-    fi
     if [ ! -f "$mscorlibDir/mscorlib.dll" ]; then
         exit_with_error "$errorSource" "mscorlib.dll was not found in: $mscorlibDir"
     fi
@@ -427,27 +424,31 @@ declare -a failingTests
 declare -a playlistTests
 ((runFailingTestsOnly = 0))
 
+# Get an array of items by reading the specified file line by line.
+function read_array {
+    local theArray=()
+
+    # bash in Mac OS X doesn't support 'readarray', so using alternate way instead.
+    # readarray -t theArray < "$1"
+    while IFS='' read -r line || [ -n "$line" ]; do
+        theArray[${#theArray[@]}]=$line
+    done < "$1"
+    echo ${theArray[@]}
+}
+
 function load_unsupported_tests {
     # Load the list of tests that are not supported on this platform. These tests are disabled (skipped) permanently.
-    # 'readarray' is not used here, as it includes the trailing linefeed in lines placed in the array.
-    while IFS='' read -r line || [ -n "$line" ]; do
-        unsupportedTests[${#unsupportedTests[@]}]=$line
-    done <"$(dirname "$0")/testsUnsupportedOutsideWindows.txt"
+    unsupportedTests=($(read_array "$(dirname "$0")/testsUnsupportedOutsideWindows.txt"))
 }
 
 function load_failing_tests {
     # Load the list of tests that fail on this platform. These tests are disabled (skipped) temporarily, pending investigation.
-    # 'readarray' is not used here, as it includes the trailing linefeed in lines placed in the array.
-    while IFS='' read -r line || [ -n "$line" ]; do
-        failingTests[${#failingTests[@]}]=$line
-    done <"$(dirname "$0")/testsFailingOutsideWindows.txt"
+    failingTests=($(read_array "$(dirname "$0")/testsFailingOutsideWindows.txt"))
 }
 
 function load_playlist_tests {
     # Load the list of tests that are enabled as a part of this test playlist.
-    while IFS='' read -r line || [ -n "$line" ]; do
-        playlistTests[${#playlistTests[@]}]=$line
-    done <"${playlistFile}"
+    playlistTests=($(read_array "${playlistFile}"))
 }
 
 function is_unsupported_test {
@@ -646,8 +647,7 @@ function set_test_directories {
     then
         exit_with_error "$errorSource" "Test directories file not found at $listFileName"
     fi
-
-    readarray testDirectories < "$listFileName"
+    testDirectories=($(read_array "$listFileName"))
 }
 
 function run_tests_in_directory {
@@ -814,6 +814,9 @@ fi
 
 # Copy native interop test libraries over to the mscorlib path in
 # order for interop tests to run on linux.
+if [ -z "$mscorlibDir" ]; then
+	mscorlibDir=$coreClrBinDir
+fi
 if [ -d $mscorlibDir/bin ]; then
     cp $mscorlibDir/bin/* $mscorlibDir   
 fi

@@ -19,6 +19,7 @@
 // DiscretionaryPolicy - legacy variant with uniform size policy
 // ModelPolicy         - policy based on statistical modelling
 // FullPolicy          - inlines everything up to size and depth limits
+// SizePolicy          - tries not to increase method sizes
 
 #ifndef _INLINE_POLICY_H_
 #define _INLINE_POLICY_H_
@@ -307,7 +308,7 @@ class FullPolicy : public DiscretionaryPolicy
 {
 public:
 
-    // Construct a ModelPolicy
+    // Construct a FullPolicy
     FullPolicy(Compiler* compiler, bool isPrejitRoot);
 
     // Policy determinations
@@ -315,6 +316,56 @@ public:
 
     // Miscellaneous
     const char* GetName() const override { return "FullPolicy"; }
+};
+
+// SizePolicy is an experimental policy that will inline as much
+// as possible without increasing the (estimated) method size.
+//
+// It may be useful down the road as a policy to use for methods
+// that are rarely executed (eg class constructors).
+
+class SizePolicy : public DiscretionaryPolicy
+{
+public:
+
+    // Construct a SizePolicy
+    SizePolicy(Compiler* compiler, bool isPrejitRoot);
+
+    // Policy determinations
+    void DetermineProfitability(CORINFO_METHOD_INFO* methodInfo) override;
+
+    // Miscellaneous
+    const char* GetName() const override { return "SizePolicy"; }
+};
+
+// The ReplayPolicy performs only inlines specified by an external
+// inline replay log.
+
+class ReplayPolicy : public DiscretionaryPolicy
+{
+public:
+
+    // Construct a ReplayPolicy
+    ReplayPolicy(Compiler* compiler, InlineContext* inlineContext, bool isPrejitRoot);
+
+    // Policy determinations
+    void DetermineProfitability(CORINFO_METHOD_INFO* methodInfo) override;
+
+    // Miscellaneous
+    const char* GetName() const override { return "ReplayPolicy"; }
+
+    static void FinalizeXml();
+
+private:
+
+    bool FindMethod();
+    bool FindContext(InlineContext* context);
+    bool FindInline(CORINFO_METHOD_HANDLE callee);
+    bool FindInline(unsigned token);
+
+    static bool    s_WroteReplayBanner;
+    static FILE*   s_ReplayFile;
+    InlineContext* m_InlineContext;
 };
 
 #endif // defined(DEBUG) || defined(INLINE_DATA)

@@ -42,11 +42,22 @@ regMaskTP calleeSaveRegs(RegisterType rt)
 struct LocationInfo
 {
     LsraLocation  loc;
-    Interval    * interval;
-    GenTree     * treeNode;
+    
+    // Reg Index in case of multi-reg result producing call node.
+    // Indicates the position of the register that this location refers to.
+    // The max bits needed is based on max value of MAX_RET_REG_COUNT value
+    // across all targets and that happens 4 on on Arm.  Hence index value
+    // would be 0..MAX_RET_REG_COUNT-1. 
+    unsigned      multiRegIdx : 2;
 
-    LocationInfo(LsraLocation l, Interval *i, GenTree *t)
-    : loc(l), interval(i), treeNode(t) {}
+    Interval*     interval;
+    GenTree*      treeNode;
+
+    LocationInfo(LsraLocation l, Interval* i, GenTree* t, unsigned regIdx = 0)
+    : loc(l), multiRegIdx(regIdx), interval(i), treeNode(t)
+    {
+        assert(multiRegIdx == regIdx);
+    }
 
     // default constructor for data structures
     LocationInfo() {}
@@ -66,20 +77,9 @@ struct LsraBlockInfo
 // The low order 2 bits will be 1 for defs, and 2 for uses
 enum RefType : unsigned char
 {
-    RefTypeInvalid             = 0x00,
-    RefTypeDef                 = 0x01,
-    RefTypeUse                 = 0x02,
-    RefTypeKill                = 0x04,
-    RefTypeBB                  = 0x08,
-    RefTypeFixedReg            = 0x10,
-    RefTypeExpUse              = (0x20 | RefTypeUse),
-    RefTypeParamDef            = (0x10 | RefTypeDef),
-    RefTypeDummyDef            = (0x20 | RefTypeDef),
-    RefTypeZeroInit            = (0x30 | RefTypeDef),
-    RefTypeUpperVectorSaveDef  = (0x40 | RefTypeDef),
-    RefTypeUpperVectorSaveUse  = (0x40 | RefTypeUse),
-    RefTypeKillGCRefs          = 0x80,
-    RefTypeBound,
+#define DEF_REFTYPE(memberName, memberValue, shortName) memberName = memberValue,
+#include "lsra_reftypes.h"
+#undef DEF_REFTYPE
 };
 
 // position in a block (for resolution)
@@ -377,7 +377,7 @@ public:
     // Insert a copy in the case where a tree node value must be moved to a different
     // register at the point of use, or it is reloaded to a different register
     // than the one it was spilled from
-    void            insertCopyOrReload(GenTreePtr tree, RefPosition* refPosition);
+    void            insertCopyOrReload(GenTreePtr tree, unsigned multiRegIdx, RefPosition* refPosition);
 
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
     // Insert code to save and restore the upper half of a vector that lives
@@ -658,6 +658,8 @@ private:
                                               LsraLocation currentLoc);
 
     regMaskTP       allRegs(RegisterType rt);
+    regMaskTP       allRegs(GenTree* tree);
+    regMaskTP       allMultiRegCallNodeRegs(GenTreeCall* tree);
     regMaskTP       allSIMDRegs();
     regMaskTP       internalFloatRegCandidates();
 
@@ -722,12 +724,17 @@ private:
 
     RefPosition *   newRefPositionRaw(LsraLocation nodeLocation, GenTree* treeNode, RefType refType);
 
-    RefPosition *   newRefPosition(Interval * theInterval, LsraLocation theLocation,
-                                   RefType theRefType, GenTree * theTreeNode,
-                                   regMaskTP mask);
+    RefPosition*    newRefPosition(Interval* theInterval, 
+                                   LsraLocation theLocation,
+                                   RefType theRefType, 
+                                   GenTree* theTreeNode,
+                                   regMaskTP mask,
+                                   unsigned multiRegIdx = 0);
 
-    RefPosition *   newRefPosition(regNumber reg, LsraLocation theLocation,
-                                   RefType theRefType, GenTree * theTreeNode,
+    RefPosition*    newRefPosition(regNumber reg, 
+                                   LsraLocation theLocation,
+                                   RefType theRefType, 
+                                   GenTree* theTreeNode,
                                    regMaskTP mask);
 
     void applyCalleeSaveHeuristics(RefPosition* rp);
@@ -942,12 +949,9 @@ private:
     }
 
 #ifdef DEBUG
-    unsigned int        intervalCount;
     // This is used for dumping
     RefPosition*        activeRefPosition;
 #endif // DEBUG
-
-    unsigned int        refPositionCount;
 
     IntervalList        intervals;
 
@@ -1274,6 +1278,7 @@ public:
         , nodeLocation(nodeLocation)
         , registerAssignment(RBM_NONE)
         , refType(refType)
+        , multiRegIdx(0)
         , lastUse(false)
         , reload(false)
         , spillAfter(false)
@@ -1333,6 +1338,21 @@ public:
 #endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
                );
     }
+
+    // Used by RefTypeDef/Use positions of a multi-reg call node.
+    // Indicates the position of the register that this ref position refers to.
+    // The max bits needed is based on max value of MAX_RET_REG_COUNT value
+    // across all targets and that happens 4 on on Arm.  Hence index value
+    // would be 0..MAX_RET_REG_COUNT-1. 
+    unsigned        multiRegIdx  : 2;
+
+    void            setMultiRegIdx(unsigned idx)
+    {
+        multiRegIdx = idx;
+        assert(multiRegIdx == idx);
+    }
+
+    unsigned        getMultiRegIdx() { return multiRegIdx;  }
 
     // Last Use - this may be true for multiple RefPositions in the same Interval
     bool            lastUse      : 1;

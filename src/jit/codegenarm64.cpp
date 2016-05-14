@@ -2065,7 +2065,9 @@ void                CodeGen::genCodeForBBlist()
             break;
 
         case BBJ_EHCATCHRET:
-            getEmitter()->emitIns_R_L(INS_adr, EA_4BYTE_DSP_RELOC, block->bbJumpDest, REG_INTRET);
+            // For long address (default): `adrp + add` will be emitted.
+            // For short address (proven later): `adr` will be emitted.
+            getEmitter()->emitIns_R_L(INS_adr, EA_PTRSIZE, block->bbJumpDest, REG_INTRET);
 
             __fallthrough;
 
@@ -2248,10 +2250,17 @@ void                CodeGen::genSetRegToConst(regNumber targetReg, var_types tar
             }
             else
             {
+                // Get a temp integer register to compute long address.
+                regMaskTP addrRegMask = tree->gtRsvdRegs;
+                regNumber addrReg = genRegNumFromMask(addrRegMask);
+                noway_assert(addrReg != REG_NA);
+
                 // We must load the FP constant from the constant pool
                 // Emit a data section constant for the float or double constant.
                 CORINFO_FIELD_HANDLE hnd = emit->emitFltOrDblConst(dblConst);
-                emit->emitIns_R_C(INS_ldr, size, targetReg, hnd, 0);
+                // For long address (default): `adrp + ldr + fmov` will be emitted.
+                // For short address (proven later), `ldr` will be emitted.
+                emit->emitIns_R_C(INS_ldr, size, targetReg, addrReg, hnd, 0);
             }
         }
         break;
@@ -3271,6 +3280,9 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
     case GT_LABEL:
         genPendingCallLabel = genCreateTempLabel();
         treeNode->gtLabel.gtLabBB = genPendingCallLabel;
+
+        // For long address (default): `adrp + add` will be emitted.
+        // For short address (proven later): `adr` will be emitted.
         emit->emitIns_R_L(INS_adr, EA_PTRSIZE, genPendingCallLabel, targetReg);
         break;
 
@@ -3352,118 +3364,6 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
         break;
     }
 }
-
-
-// Generate code for division (or mod) by power of two
-// or negative powers of two.  (meaning -1 * a power of two, not 2^(-1))
-// Op2 must be a contained integer constant.
-void
-CodeGen::genCodeForPow2Div(GenTreeOp* tree)
-{
-#if 0
-    GenTree *dividend = tree->gtOp.gtOp1;
-    GenTree *divisor  = tree->gtOp.gtOp2;
-    genTreeOps  oper  = tree->OperGet();
-    emitAttr    size  = emitTypeSize(tree);
-    emitter    *emit  = getEmitter();
-    regNumber targetReg  = tree->gtRegNum;
-    var_types targetType = tree->TypeGet();
-
-    bool isSigned = oper == GT_MOD || oper == GT_DIV;
-
-    // precondition: extended dividend is in RDX:RAX
-    // which means it is either all zeros or all ones
-
-    noway_assert(divisor->isContained());
-    GenTreeIntConCommon* divImm = divisor->AsIntConCommon();
-    int64_t imm = divImm->IconValue();
-    ssize_t abs_imm = abs(imm);
-    noway_assert(isPow2(abs_imm));
-    
-
-    if (isSigned)
-    {
-        if (imm == 1)
-        {
-            if (targetReg != REG_RAX)
-                inst_RV_RV(INS_mov, targetReg, REG_RAX, targetType);
-
-            return;
-        }
-
-        if (abs_imm == 2)
-        {
-            if (oper == GT_MOD)
-            {
-                emit->emitIns_R_I(INS_and, size, REG_RAX, 1); // result is 0 or 1
-                // xor with rdx will flip all bits if negative
-                emit->emitIns_R_R(INS_xor, size, REG_RAX, REG_RDX); // 111.11110 or 0
-            }
-            else
-            {
-                assert(oper == GT_DIV);
-                // add 1 if it's negative
-                emit->emitIns_R_R(INS_sub, size, REG_RAX, REG_RDX);
-            }
-        }
-        else
-        {
-            // add imm-1 if negative
-            emit->emitIns_R_I(INS_and, size, REG_RDX, abs_imm - 1);
-            emit->emitIns_R_R(INS_add, size, REG_RAX, REG_RDX);
-        }
-
-        if (oper == GT_DIV)
-        {
-            unsigned shiftAmount = genLog2(unsigned(abs_imm));
-            inst_RV_SH(INS_sar, size, REG_RAX, shiftAmount);
-
-            if (imm < 0)
-            {
-                emit->emitIns_R(INS_neg, size, REG_RAX);
-            }
-        }
-        else
-        {
-            assert(oper == GT_MOD);
-            if (abs_imm > 2)
-            {
-                emit->emitIns_R_I(INS_and, size, REG_RAX, abs_imm - 1);
-            }
-            // RDX contains 'imm-1' if negative
-            emit->emitIns_R_R(INS_sub, size, REG_RAX, REG_RDX);
-        }
-
-        if (targetReg != REG_RAX)
-        {
-            inst_RV_RV(INS_mov, targetReg, REG_RAX, targetType);
-        }
-    }
-    else
-    {
-        assert (imm > 0);
-
-        if (targetReg != dividend->gtRegNum)
-        {
-            inst_RV_RV(INS_mov, targetReg, dividend->gtRegNum, targetType);
-        }
-
-        if (oper == GT_UDIV)
-        {
-            inst_RV_SH(INS_shr, size, targetReg, genLog2(unsigned(imm)));
-        }
-        else 
-        {
-            assert(oper == GT_UMOD);
-
-            emit->emitIns_R_I(INS_and, size, targetReg, imm -1);
-        }
-    }
-#else // !0
-    NYI("genCodeForPow2Div");
-#endif // !0
-}
-
 
 /***********************************************************************************************
  *  Generate code for localloc
@@ -4148,7 +4048,6 @@ void CodeGen::genCodeForCpBlk(GenTreeCpBlk* cpBlkNode)
 void
 CodeGen::genTableBasedSwitch(GenTree* treeNode)
 {
-    NYI("Emit table based switch");
     genConsumeOperands(treeNode->AsOp());
     regNumber idxReg = treeNode->gtOp.gtOp1->gtRegNum;
     regNumber baseReg = treeNode->gtOp.gtOp2->gtRegNum;
@@ -4156,21 +4055,21 @@ CodeGen::genTableBasedSwitch(GenTree* treeNode)
     regNumber tmpReg = genRegNumFromMask(treeNode->gtRsvdRegs);
 
     // load the ip-relative offset (which is relative to start of fgFirstBB)
-    //getEmitter()->emitIns_R_ARX(INS_mov, EA_4BYTE, baseReg, baseReg, idxReg, 4, 0);
+    getEmitter()->emitIns_R_R_R(INS_ldr, EA_4BYTE, baseReg, baseReg, idxReg, INS_OPTS_LSL);
 
     // add it to the absolute address of fgFirstBB
     compiler->fgFirstBB->bbFlags |= BBF_JMP_TARGET;
-    //getEmitter()->emitIns_R_L(INS_lea, EA_PTRSIZE, compiler->fgFirstBB, tmpReg);
-    //getEmitter()->emitIns_R_R(INS_add, EA_PTRSIZE, baseReg, tmpReg);
+    getEmitter()->emitIns_R_L(INS_adr, EA_PTRSIZE, compiler->fgFirstBB, tmpReg);
+    getEmitter()->emitIns_R_R_R(INS_add, EA_PTRSIZE, baseReg, baseReg, tmpReg);
+
     // jmp baseReg
-    // getEmitter()->emitIns_R(INS_i_jmp, emitTypeSize(TYP_I_IMPL), baseReg);
+    getEmitter()->emitIns_R(INS_br, emitTypeSize(TYP_I_IMPL), baseReg);
 }
 
 // emits the table and an instruction to get the address of the first element
 void
 CodeGen::genJumpTable(GenTree* treeNode)
 {
-    NYI("Emit Jump table");
     noway_assert(compiler->compCurBB->bbJumpKind == BBJ_SWITCH);
     assert(treeNode->OperGet() == GT_JMPTABLE);
 
@@ -4200,9 +4099,10 @@ CodeGen::genJumpTable(GenTree* treeNode)
     // Access to inline data is 'abstracted' by a special type of static member
     // (produced by eeFindJitDataOffs) which the emitter recognizes as being a reference
     // to constant data, not a real static field.
-    getEmitter()->emitIns_R_C(INS_lea,
+    getEmitter()->emitIns_R_C(INS_adr,
         emitTypeSize(TYP_I_IMPL),
         treeNode->gtRegNum,
+        REG_NA,
         compiler->eeFindJitDataOffs(jmpTabBase),
         0);
     genProduceReg(treeNode);
@@ -4706,7 +4606,7 @@ void CodeGen::genUnspillRegIfNeeded(GenTree *tree)
         }
         else
         {
-            TempDsc* t = regSet.rsUnspillInPlace(unspillTree);
+            TempDsc* t = regSet.rsUnspillInPlace(unspillTree, unspillTree->gtRegNum);
             getEmitter()->emitIns_R_S(ins_Load(unspillTree->gtType),
                             emitActualTypeSize(unspillTree->gtType),
                             dstReg,
@@ -5172,12 +5072,10 @@ void CodeGen::genCallInstruction(GenTreePtr node)
 #endif // DEBUG
 
     // If fast tail call, then we are done.  In this case we setup the args (both reg args
-    // and stack args in incoming arg area) and call target in rax.  Epilog sequence would
-    // generate "br x0".
+    // and stack args in incoming arg area) and call target in IP0.  Epilog sequence would
+    // generate "br IP0".
     if (call->IsFastTailCall())
     {
-        NYI_ARM64("CodeGen - IsFastTailCall");
-
         // Don't support fast tail calling JIT helpers
         assert(callType != CT_HELPER);
 
@@ -5185,14 +5083,13 @@ void CodeGen::genCallInstruction(GenTreePtr node)
         assert(target != nullptr);
 
         genConsumeReg(target);
-#if 0
-        if (target->gtRegNum != REG_RAX)
+
+        if (target->gtRegNum != REG_IP0)
         {
-            inst_RV_RV(INS_mov, REG_RAX, target->gtRegNum);
+            inst_RV_RV(INS_mov, REG_IP0, target->gtRegNum);
         }
-#endif
         return;
-    }   
+    }
 
     // For a pinvoke to unmanged code we emit a label to clear 
     // the GC pointer state before the callsite.
@@ -5361,7 +5258,6 @@ void CodeGen::genJmpMethod(GenTreePtr jmp)
         return;
     }
 
-#if 0
     // Make sure register arguments are in their initial registers
     // and stack arguments are put back as well.
     unsigned        varNum;
@@ -5399,7 +5295,7 @@ void CodeGen::genJmpMethod(GenTreePtr jmp)
         }
         else if (varDsc->lvRegNum == REG_STK)
         {
-            // Skip args which are currently living in stack.            
+            // Skip args which are currently living in stack.
             continue;
         }
 
@@ -5407,9 +5303,11 @@ void CodeGen::genJmpMethod(GenTreePtr jmp)
         // a stack argument currently living in a register.  In either case the following
         // assert should hold.
         assert(varDsc->lvRegNum != REG_STK);
+        assert(varDsc->TypeGet() != TYP_STRUCT);
+        var_types storeType = genActualType(varDsc->TypeGet());
+        emitAttr storeSize = emitActualTypeSize(storeType);
 
-        var_types  loadType = varDsc->lvaArgType();
-        getEmitter()->emitIns_S_R(ins_Store(loadType), emitTypeSize(loadType), varDsc->lvRegNum, varNum, 0);
+        getEmitter()->emitIns_S_R(ins_Store(storeType), storeSize, varDsc->lvRegNum, varNum, 0);
 
         // Update lvRegNum life and GC info to indicate lvRegNum is dead and varDsc stack slot is going live.
         // Note that we cannot modify varDsc->lvRegNum here because another basic block may not be expecting it.
@@ -5417,7 +5315,7 @@ void CodeGen::genJmpMethod(GenTreePtr jmp)
         regMaskTP tempMask = genRegMask(varDsc->lvRegNum);
         regSet.RemoveMaskVars(tempMask);
         gcInfo.gcMarkRegSetNpt(tempMask);
-        if (varDsc->lvTracked)
+        if (compiler->lvaIsGCTracked(varDsc))
         {
             VarSetOps::AddElemD(compiler, gcInfo.gcVarPtrSetCur, varNum);
         }
@@ -5453,14 +5351,24 @@ void CodeGen::genJmpMethod(GenTreePtr jmp)
 
         // Is register argument already in the right register?
         // If not load it from its stack location.
-        var_types  loadType  = varDsc->lvaArgType();
-        regNumber  argReg    = varDsc->lvArgReg;    // incoming arg register
+        regNumber argReg = varDsc->lvArgReg;    // incoming arg register
+        regNumber argRegNext = REG_NA;
 
         if (varDsc->lvRegNum != argReg)
         {
-            assert(genIsValidReg(argReg)); 
-
-            getEmitter()->emitIns_R_S(ins_Load(loadType), emitTypeSize(loadType), argReg, varNum, 0);
+            var_types loadType = TYP_UNDEF;
+            if (varTypeIsStruct(varDsc))
+            {
+                // Must be <= 16 bytes or else it wouldn't be passed in registers
+                noway_assert(EA_SIZE_IN_BYTES(varDsc->lvSize()) <= MAX_PASS_MULTIREG_BYTES);
+                loadType = compiler->getJitGCType(varDsc->lvGcLayout[0]);
+            }
+            else
+            {
+                loadType = compiler->mangleVarArgsType(genActualType(varDsc->TypeGet()));
+            }
+            emitAttr loadSize = emitActualTypeSize(loadType);
+            getEmitter()->emitIns_R_S(ins_Load(loadType), loadSize, argReg, varNum, 0);
 
             // Update argReg life and GC Info to indicate varDsc stack slot is dead and argReg is going live.
             // Note that we cannot modify varDsc->lvRegNum here because another basic block may not be expecting it.
@@ -5468,29 +5376,39 @@ void CodeGen::genJmpMethod(GenTreePtr jmp)
             // and after which reg life and gc info will be recomputed for the new block in genCodeForBBList().
             regSet.AddMaskVars(genRegMask(argReg));
             gcInfo.gcMarkRegPtrVal(argReg, loadType);
-            if (varDsc->lvTracked)
+
+            if (varDsc->lvIsMultiregStruct())
             {
-                VarSetOps::RemoveElemD(compiler, gcInfo.gcVarPtrSetCur, varNum);            
+                // Restore the next register.
+                argRegNext = genMapRegArgNumToRegNum(genMapRegNumToRegArgNum(argReg, loadType) + 1, loadType);
+                loadType = compiler->getJitGCType(varDsc->lvGcLayout[1]);
+                loadSize = emitActualTypeSize(loadType);
+                getEmitter()->emitIns_R_S(ins_Load(loadType), loadSize, argRegNext, varNum, TARGET_POINTER_SIZE);
+
+                regSet.AddMaskVars(genRegMask(argRegNext));
+                gcInfo.gcMarkRegPtrVal(argRegNext, loadType);
+            }
+
+            if (compiler->lvaIsGCTracked(varDsc))
+            {
+                VarSetOps::RemoveElemD(compiler, gcInfo.gcVarPtrSetCur, varNum);
             }
         }
 
-        // In case of a jmp call to a vararg method also pass the float/double arg in the corresponding int arg register.        
+        // In case of a jmp call to a vararg method ensure only integer registers are passed.
         if (compiler->info.compIsVarArgs)
         {
-            regNumber intArgReg;
-            if (varTypeIsFloating(loadType))
+            assert((genRegMask(argReg) & RBM_ARG_REGS) != RBM_NONE);
+
+            fixedIntArgMask |= genRegMask(argReg);
+
+            if (varDsc->lvIsMultiregStruct())
             {
-                intArgReg = compiler->getCallArgIntRegister(argReg);
-                inst_RV_RV(INS_mov_xmm2i, argReg, intArgReg, loadType);
-            }
-            else
-            {
-                intArgReg = argReg;
+                assert(argRegNext != REG_NA);
+                fixedIntArgMask |= genRegMask(argRegNext);
             }
 
-            fixedIntArgMask |= genRegMask(intArgReg);
-
-            if (intArgReg == REG_ARG_0)
+            if (argReg == REG_ARG_0)
             {
                 assert(firstArgVarNum == BAD_VAR_NUM);
                 firstArgVarNum = varNum;
@@ -5498,11 +5416,11 @@ void CodeGen::genJmpMethod(GenTreePtr jmp)
         }
     }
 
-    // Jmp call to a vararg method - if the method has fewer than 4 fixed arguments,
-    // load the remaining arg registers (both int and float) from the corresponding
+    // Jmp call to a vararg method - if the method has fewer than 8 fixed arguments,
+    // load the remaining integer arg registers from the corresponding
     // shadow stack slots.  This is for the reason that we don't know the number and type
     // of non-fixed params passed by the caller, therefore we have to assume the worst case
-    // of caller passing float/double args both in int and float arg regs.
+    // of caller passing all 8 integer arg regs.
     //
     // The caller could have passed gc-ref/byref type var args.  Since these are var args
     // the callee no way of knowing their gc-ness.  Therefore, mark the region that loads
@@ -5512,7 +5430,7 @@ void CodeGen::genJmpMethod(GenTreePtr jmp)
         assert(compiler->info.compIsVarArgs);
         assert(firstArgVarNum != BAD_VAR_NUM);
 
-        regMaskTP remainingIntArgMask = RBM_ARG_REGS & ~fixedIntArgMask;        
+        regMaskTP remainingIntArgMask = RBM_ARG_REGS & ~fixedIntArgMask;
         if (remainingIntArgMask != RBM_NONE)
         {
             getEmitter()->emitDisableGC();
@@ -5524,21 +5442,14 @@ void CodeGen::genJmpMethod(GenTreePtr jmp)
                 if ((remainingIntArgMask & argRegMask) != 0)
                 {
                     remainingIntArgMask &= ~argRegMask;
-                    getEmitter()->emitIns_R_S(INS_mov, EA_8BYTE, argReg, firstArgVarNum, argOffset);
-
-                    // also load it in corresponding float arg reg
-                    regNumber floatReg = compiler->getCallArgFloatRegister(argReg);
-                    inst_RV_RV(INS_mov_i2xmm, floatReg, argReg);
+                    getEmitter()->emitIns_R_S(INS_ldr, EA_8BYTE, argReg, firstArgVarNum, argOffset);
                 }
 
                 argOffset += REGSIZE_BYTES;
-            } 
+            }
             getEmitter()->emitEnableGC();
         }
     }
-#else // !0
-    NYI("genJmpMethod");
-#endif // !0
 }
 
 // produce code for a GT_LEA subnode
@@ -6453,10 +6364,7 @@ void CodeGen::genPutArgStk(GenTreePtr treeNode)
     // All other calls - stk arg is setup in out-going arg area.
     if (putInIncomingArgArea)
     {
-        // The first varNum is guaranteed to be the first incoming arg of the method being compiled.
-        // See lvaInitTypeRef() for the order in which lvaTable entries are initialized.
-        varNum = 0;
-#ifdef DEBUG
+        varNum = getFirstArgWithStackSlot();
 #if FEATURE_FASTTAILCALL
         // This must be a fast tail call.
         assert(treeNode->AsPutArgStk()->gtCall->AsCall()->IsFastTailCall());
@@ -6464,11 +6372,9 @@ void CodeGen::genPutArgStk(GenTreePtr treeNode)
         // Since it is a fast tail call, the existence of first incoming arg is guaranteed
         // because fast tail call requires that in-coming arg area of caller is >= out-going
         // arg area required for tail call.
-        LclVarDsc* varDsc = compiler->lvaTable;mit
+        LclVarDsc* varDsc = &(compiler->lvaTable[varNum]);
         assert(varDsc != nullptr);
-        assert(varDsc->lvIsRegArg && ((varDsc->lvArgReg == REG_ARG_0) || (varDsc->lvArgReg == REG_FLTARG_0))); 
 #endif // FEATURE_FASTTAILCALL
-#endif
     }
     else
     {

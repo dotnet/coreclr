@@ -231,11 +231,11 @@ TODO: Talk about initializing strutures before use
 #if COR_JIT_EE_VERSION > 460
 
 // Update this one
-SELECTANY const GUID JITEEVersionIdentifier = { /* 8c8e61ca-2b88-4bc5-b03f-d390acdc7fc3 */
-    0x8c8e61ca,
-    0x2b88,
-    0x4bc5,
-    { 0xb0, 0x3f, 0xd3, 0x90, 0xac, 0xdc, 0x7f, 0xc3 }
+SELECTANY const GUID JITEEVersionIdentifier = { /* 7a6aa61a-78b1-4dfb-9e06-655fb4774d7f */
+    0x7a6aa61a,
+    0x78b1,
+    0x4dfb,
+    { 0x9e, 0x6, 0x65, 0x5f, 0xb4, 0x77, 0x4d, 0x7f }
 };
 
 #else
@@ -432,7 +432,10 @@ enum CorInfoHelpFunc
     CORINFO_HELP_NEWFAST,
     CORINFO_HELP_NEWSFAST,          // allocator for small, non-finalizer, non-array object
     CORINFO_HELP_NEWSFAST_ALIGN8,   // allocator for small, non-finalizer, non-array object, 8 byte aligned
-    CORINFO_HELP_NEW_MDARR,         // multi-dim array helper (with or without lower bounds)
+    CORINFO_HELP_NEW_MDARR,         // multi-dim array helper (with or without lower bounds - dimensions passed in as vararg)
+#if COR_JIT_EE_VERSION > 460
+    CORINFO_HELP_NEW_MDARR_NONVARARG,// multi-dim array helper (with or without lower bounds - dimensions passed in as unmanaged array)
+#endif
     CORINFO_HELP_NEWARR_1_DIRECT,   // helper for any one dimensional array creation
     CORINFO_HELP_NEWARR_1_OBJ,      // optimized 1-D object arrays
     CORINFO_HELP_NEWARR_1_VC,       // optimized 1-D value class arrays
@@ -636,8 +639,8 @@ enum CorInfoHelpFunc
     CORINFO_HELP_READYTORUN_CHKCAST,
     CORINFO_HELP_READYTORUN_STATIC_BASE,
     CORINFO_HELP_READYTORUN_VIRTUAL_FUNC_PTR,
-
 #if COR_JIT_EE_VERSION > 460
+    CORINFO_HELP_READYTORUN_GENERIC_HANDLE,
     CORINFO_HELP_READYTORUN_DELEGATE_CTOR,
 #else
     #define CORINFO_HELP_READYTORUN_DELEGATE_CTOR CORINFO_HELP_EE_PRESTUB
@@ -687,6 +690,9 @@ enum CorInfoHelpFunc
 
     CORINFO_HELP_JIT_PINVOKE_BEGIN, // Transition to preemptive mode before a P/Invoke, frame is the first argument
     CORINFO_HELP_JIT_PINVOKE_END,   // Transition to cooperative mode after a P/Invoke, frame is the first argument
+
+    CORINFO_HELP_JIT_REVERSE_PINVOKE_ENTER, // Transition to cooperative mode in reverse P/Invoke prolog, frame is the first argument
+    CORINFO_HELP_JIT_REVERSE_PINVOKE_EXIT,  // Transition to preemptive mode in reverse P/Invoke epilog, frame is the first argument
 #endif
 
     CORINFO_HELP_COUNT,
@@ -1303,11 +1309,28 @@ enum CORINFO_RUNTIME_LOOKUP_KIND
     CORINFO_LOOKUP_CLASSPARAM,
 };
 
+#if COR_JIT_EE_VERSION > 460
+
+struct CORINFO_LOOKUP_KIND
+{
+    bool                        needsRuntimeLookup;
+    CORINFO_RUNTIME_LOOKUP_KIND runtimeLookupKind;
+
+    // The 'runtimeLookupFlags' field is just for internal VM / ZAP communication, 
+    // not to be used by the JIT.
+    WORD                        runtimeLookupFlags;
+} ;
+
+#else
+
 struct CORINFO_LOOKUP_KIND
 {
     bool                        needsRuntimeLookup;
     CORINFO_RUNTIME_LOOKUP_KIND runtimeLookupKind;
 } ;
+
+#endif
+
 
 // CORINFO_RUNTIME_LOOKUP indicates the details of the runtime lookup
 // operation to be performed.
@@ -1773,7 +1796,7 @@ struct CORINFO_EE_INFO
         unsigned    offsetOfReturnAddress;
     }
     inlinedCallFrameInfo;
-   
+
     // Offsets into the Thread structure
     unsigned    offsetOfThreadFrame;            // offset of the current Frame
     unsigned    offsetOfGCState;                // offset of the preemptive/cooperative state of the Thread
@@ -1788,6 +1811,11 @@ struct CORINFO_EE_INFO
 
     // Array offsets
     unsigned    offsetOfObjArrayData;
+
+#if COR_JIT_EE_VERSION > 460
+    // Reverse PInvoke offsets
+    unsigned    sizeOfReversePInvokeFrame;
+#endif
 
     CORINFO_OS  osType;
     unsigned    osMajor;
@@ -2394,19 +2422,27 @@ public:
             CORINFO_CLASS_HANDLE        cls
             ) = 0;
 
-    virtual void getReadyToRunHelper(
-            CORINFO_RESOLVED_TOKEN * pResolvedToken,
-            CorInfoHelpFunc          id,
-            CORINFO_CONST_LOOKUP *   pLookup
+#if COR_JIT_EE_VERSION > 460
+    virtual bool getReadyToRunHelper(
+            CORINFO_RESOLVED_TOKEN *        pResolvedToken,
+            CORINFO_LOOKUP_KIND *           pGenericLookupKind,
+            CorInfoHelpFunc                 id,
+            CORINFO_CONST_LOOKUP *          pLookup
             ) = 0;
 
-#if COR_JIT_EE_VERSION > 460
     virtual void getReadyToRunDelegateCtorHelper(
             CORINFO_RESOLVED_TOKEN * pTargetMethod,
             CORINFO_CLASS_HANDLE     delegateType,
             CORINFO_CONST_LOOKUP *   pLookup
             ) = 0;
+#else
+    virtual void getReadyToRunHelper(
+            CORINFO_RESOLVED_TOKEN * pResolvedToken,
+            CorInfoHelpFunc          id,
+            CORINFO_CONST_LOOKUP *   pLookup
+            ) = 0;
 #endif
+
 
     virtual const char* getHelperName(
             CorInfoHelpFunc
@@ -2722,6 +2758,17 @@ public:
     //Throws an exception defined by the given throw helper.
     virtual void ThrowExceptionForHelper(
             const CORINFO_HELPER_DESC * throwHelper) = 0;
+
+#if COR_JIT_EE_VERSION > 460
+    // Runs the given function under an error trap. This allows the JIT to make calls
+    // to interface functions that may throw exceptions without needing to be aware of
+    // the EH ABI, exception types, etc. Returns true if the given function completed
+    // successfully and false otherwise.
+    virtual bool runWithErrorTrap(
+        void (*function)(void*), // The function to run
+        void* parameter          // The context parameter that will be passed to the function and the handler
+        ) = 0;
+#endif
 
 /*****************************************************************************
  * ICorStaticInfo contains EE interface methods which return values that are

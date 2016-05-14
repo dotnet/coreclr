@@ -6666,6 +6666,19 @@ bool         Compiler::fgInDifferentRegions(BasicBlock *blk1, BasicBlock *blk2)
     return ((blk1->bbFlags & BBF_COLD)!= (blk2->bbFlags & BBF_COLD));
 }
 
+bool         Compiler::fgIsBlockCold(BasicBlock *blk)
+{
+    noway_assert(blk != NULL);
+
+    if (fgFirstColdBlock == NULL)
+    {
+        return false;
+    }
+
+    return ((blk->bbFlags & BBF_COLD) != 0);
+}
+
+
 /*****************************************************************************
  * This function returns true if tree is a GT_COMMA node with a call
  * that unconditionally throws an exception
@@ -19175,7 +19188,7 @@ ONE_FILE_PER_METHOD:;
     }
     else if (wcscmp(filename, W("stdout")) == 0)
     {
-        fgxFile = stdout;
+        fgxFile = jitstdout;
         *wbDontClose = true;
     }
     else if (wcscmp(filename, W("stderr")) == 0)
@@ -19514,7 +19527,7 @@ bool               Compiler::fgDumpFlowGraph(Phases phase)
 
     if (dontClose)
     {
-        // fgxFile is stdout or stderr
+        // fgxFile is jitstdout or stderr
         fprintf(fgxFile, "\n");
     }
     else
@@ -21429,7 +21442,7 @@ void                Compiler::fgInline()
             if ((expr->gtOper == GT_CALL) && ((expr->gtFlags & GTF_CALL_INLINE_CANDIDATE) != 0))
             {
                 GenTreeCall* call = expr->AsCall();
-                InlineResult inlineResult(this, call, "fgInline");
+                InlineResult inlineResult(this, call, stmt->gtInlineContext, "fgInline");
 
                 fgMorphStmt = stmt;
 
@@ -21555,7 +21568,7 @@ Compiler::fgWalkResult      Compiler::fgFindNonInlineCandidate(GenTreePtr* pTree
 void Compiler::fgNoteNonInlineCandidate(GenTreePtr   tree,
                                         GenTreeCall* call)
 {
-    InlineResult inlineResult(this, call, "fgNotInlineCandidate");
+    InlineResult inlineResult(this, call, nullptr, "fgNotInlineCandidate");
     InlineObservation currentObservation = InlineObservation::CALLSITE_NOT_CANDIDATE;
 
     // Try and recover the reason left behind when the jit decided
@@ -21922,7 +21935,7 @@ void       Compiler::fgInvokeInlineeCompiler(GenTreeCall*  call,
     param.fncHandle = fncHandle;
     param.inlineCandidateInfo = inlineCandidateInfo;
     param.inlineInfo = &inlineInfo;
-    setErrorTrap(info.compCompHnd, Param*, pParam, &param)
+    bool success = eeRunWithErrorTrap<Param>([](Param* pParam)
     {
         // Init the local var info of the inlinee
         pParam->pThis->impInlineInitVars(pParam->inlineInfo);
@@ -21988,8 +22001,8 @@ void       Compiler::fgInvokeInlineeCompiler(GenTreeCall*  call,
                 }
             }
         }
-    }
-    impErrorTrap()
+    }, &param);
+    if (!success)
     {
 #ifdef DEBUG
         if (verbose)
@@ -22006,7 +22019,6 @@ void       Compiler::fgInvokeInlineeCompiler(GenTreeCall*  call,
             inlineResult->NoteFatal(InlineObservation::CALLSITE_COMPILATION_ERROR);
         }
     }
-    endErrorTrap();
 
     if (inlineResult->IsFailure())
     {

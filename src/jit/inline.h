@@ -218,7 +218,7 @@ class InlinePolicy
 public:
 
     // Factory method for getting policies
-    static InlinePolicy* GetPolicy(Compiler* compiler, bool isPrejitRoot);
+    static InlinePolicy* GetPolicy(Compiler* compiler, InlineContext* context, bool isPrejitRoot);
 
     // Obligatory virtual dtor
     virtual ~InlinePolicy() {}
@@ -289,13 +289,14 @@ public:
     // particular call for inlining.
     InlineResult(Compiler*              compiler,
                  GenTreeCall*           call,
-                 const char*            context);
+                 InlineContext*         inlineContext,
+                 const char*            description);
 
     // Construct a new InlineResult to evaluate a particular
     // method to see if it is inlineable.
     InlineResult(Compiler*              compiler,
                  CORINFO_METHOD_HANDLE  method,
-                 const char*            context);
+                 const char*            description);
 
     // Has the policy determined this inline should fail?
     bool IsFailure() const
@@ -442,6 +443,12 @@ public:
         m_Reported = true;
     }
 
+    // Get the InlineContext for this inline
+    InlineContext* GetInlineContext() const
+    {
+        return m_InlineContext;
+    }
+
 private:
 
     // No copying or assignment allowed.
@@ -454,9 +461,10 @@ private:
     Compiler*               m_RootCompiler;
     InlinePolicy*           m_Policy;
     GenTreeCall*            m_Call;
+    InlineContext*          m_InlineContext;
     CORINFO_METHOD_HANDLE   m_Caller;     // immediate caller's handle
     CORINFO_METHOD_HANDLE   m_Callee;
-    const char*             m_Context;
+    const char*             m_Description;
     bool                    m_Reported;
 };
 
@@ -570,6 +578,12 @@ public:
     // Dump full subtree in xml format
     void DumpXml(FILE* file = stderr, unsigned indent = 0);
 
+    // Get callee handle
+    CORINFO_METHOD_HANDLE GetCallee() const
+    {
+        return m_Callee;
+    }
+
 #endif // defined(DEBUG) || defined(INLINE_DATA)
 
     // Get the parent context for this context.
@@ -591,7 +605,7 @@ public:
     }
 
     // Get the observation that supported or disqualified this inline.
-    InlineObservation GetObservation()
+    InlineObservation GetObservation() const
     {
         return m_Observation;
     }
@@ -606,6 +620,12 @@ public:
     unsigned GetCodeSizeEstimate() const
     {
         return m_CodeSizeEstimate;
+    }
+
+    // True if this is the root context
+    bool IsRoot() const
+    {
+        return m_Parent == nullptr;
     }
 
 private:
@@ -656,7 +676,7 @@ public:
                               InlineResult*   inlineResult);
 
     // Compiler associated with this strategy
-    Compiler* GetCompiler()
+    Compiler* GetCompiler() const
     {
         return m_Compiler;
     }
@@ -665,21 +685,33 @@ public:
     InlineContext* GetRootContext();
 
     // Get IL size for maximum allowable inline
-    unsigned GetMaxInlineILSize()
+    unsigned GetMaxInlineILSize() const
     {
         return m_MaxInlineSize;
     }
 
     // Get depth of maximum allowable inline
-    unsigned GetMaxInlineDepth()
+    unsigned GetMaxInlineDepth() const
     {
         return m_MaxInlineDepth;
     }
 
-    // Number of successful inlines into the root.
-    unsigned GetInlineCount()
+    // Number of successful inlines into the root
+    unsigned GetInlineCount() const
     {
         return m_InlineCount;
+    }
+
+    // Return the current code size estimate for this method
+    int GetCurrentSizeEstimate() const
+    {
+        return m_CurrentSizeEstimate;
+    }
+
+    // Return the initial code size estimate for this method
+    int GetInitialSizeEstimate() const
+    {
+        return m_InitialSizeEstimate;
     }
 
     // Inform strategy that there's a new inline candidate.
