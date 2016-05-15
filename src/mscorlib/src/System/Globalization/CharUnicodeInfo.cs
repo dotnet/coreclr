@@ -147,9 +147,9 @@ namespace System.Globalization {
             Contract.Assert(index >= 0 && index < s.Length, "index < s.Length");
             if (index < s.Length - 1) {
                 int temp1 = (int)s[index] - HIGH_SURROGATE_START;
-                if (temp1 >= 0 && temp1 <= 0x3ff) {
+                if ((uint)temp1 <= 0x3ff) {
                     int temp2 = (int)s[index+1] - LOW_SURROGATE_START;
-                    if (temp2 >= 0 && temp2 <= 0x3ff) {
+                    if ((uint)temp2 <= 0x3ff) {
                         // Convert the surrogate to UTF32 and get the result.
                         return ((temp1 * 0x400) + temp2 + UNICODE_PLANE01_START);
                     }
@@ -187,9 +187,9 @@ namespace System.Globalization {
             charLength = 1;
             if (index < s.Length - 1) {
                 int temp1 = (int)s[index] - HIGH_SURROGATE_START;
-                if (temp1 >= 0 && temp1 <= 0x3ff) {
+                if ((uint)temp1 <= 0x3ff) {
                     int temp2 = (int)s[index+1] - LOW_SURROGATE_START;
-                    if (temp2 >= 0 && temp2 <= 0x3ff) {
+                    if ((uint)temp2 <= 0x3ff) {
                         // Convert the surrogate to UTF32 and get the result.
                         charLength++;
                         return ((temp1 * 0x400) + temp2 + UNICODE_PLANE01_START);
@@ -447,7 +447,7 @@ namespace System.Globalization {
             // Get the level 2 item from the highest 12 bit (8 - 19) of ch.
             ushort index = s_pCategoryLevel1Index[ch >> 8];
             // Get the level 2 WORD offset from the 4 - 7 bit of ch.  This provides the base offset of the level 3 table.
-            // Note that & has the lower precedence than addition, so don't forget the parathesis.
+            // Note that & has lower precedence than addition, so don't forget the parenthesis.
             index = s_pCategoryLevel1Index[index + ((ch >> 4) & 0x000f)];
             byte* pBytePtr = (byte*)&(s_pCategoryLevel1Index[index]);
             // Get the result from the 0 -3 bit of ch.
