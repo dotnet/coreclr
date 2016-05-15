@@ -4761,9 +4761,6 @@ GenTreePtr Compiler::impTransformThis (GenTreePtr thisPtr,
     }
 }
 
-/*****************************************************************************/
-#if defined(INLINE_NDIRECT)
-/*****************************************************************************/
 
 bool                Compiler::impCanPInvokeInline(var_types callRetTyp)
 {
@@ -4900,9 +4897,6 @@ void            Compiler::impCheckForPInvokeCall(
         call->gtCall.gtCallMoreFlags |= GTF_CALL_M_UNMGD_THISCALL;
 }
 
-/*****************************************************************************/
-#endif // INLINE_NDIRECT
-/*****************************************************************************/
 
 GenTreePtr          Compiler::impImportIndirectCall(CORINFO_SIG_INFO * sig, IL_OFFSETX ilOffset)
 {
@@ -4942,8 +4936,6 @@ GenTreePtr          Compiler::impImportIndirectCall(CORINFO_SIG_INFO * sig, IL_O
 }
 
 /*****************************************************************************/
-
-#ifdef INLINE_NDIRECT
 
 void            Compiler::impPopArgsForUnmanagedCall(
     GenTreePtr call,
@@ -5028,7 +5020,6 @@ void            Compiler::impPopArgsForUnmanagedCall(
         call->gtFlags |= args->gtFlags & GTF_GLOB_EFFECT;
 }
 
-#endif // INLINE_NDIRECT
 
 //------------------------------------------------------------------------
 // impInitClass: Build a node to initialize the class before accessing the
@@ -6260,8 +6251,6 @@ var_types           Compiler::impImportCall (OPCODE         opcode,
 
     //--------------------------- Inline NDirect ------------------------------
 
-#if defined(INLINE_NDIRECT)
-
     if (!compIsForInlining())
     {
         impCheckForPInvokeCall(call, methHnd, sig, mflags);
@@ -6283,9 +6272,7 @@ var_types           Compiler::impImportCall (OPCODE         opcode,
         
         goto DONE;
     }
-    else
-#endif  //INLINE_NDIRECT
-    if  ((opcode == CEE_CALLI) &&
+    else if  ((opcode == CEE_CALLI) &&
          (
           ((sig->callConv & CORINFO_CALLCONV_MASK) == CORINFO_CALLCONV_STDCALL)  ||
           ((sig->callConv & CORINFO_CALLCONV_MASK) == CORINFO_CALLCONV_C)        ||
