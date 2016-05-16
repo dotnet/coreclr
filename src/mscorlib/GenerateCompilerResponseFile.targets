@@ -16,7 +16,8 @@
       <Clean Include="$(IntermediateOutputPath)\moduleName.rsp" />
     </ItemGroup>
     <PropertyGroup>
-      <CompilerResponseFile>$(IntermediateOutputPath)\moduleName.rsp</CompilerResponseFile>
+      <CompilerResponseFile Condition="'$(CompilerResponseFile)'!=''">$(IntermediateOutputPath)\moduleName.rsp;$(CompilerResponseFile)</CompilerResponseFile>
+      <CompilerResponseFile Condition="'$(CompilerResponseFile)'==''">$(IntermediateOutputPath)\moduleName.rsp</CompilerResponseFile>
     </PropertyGroup>
   </Target>
 </Project>
