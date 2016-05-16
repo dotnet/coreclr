@@ -214,10 +214,14 @@ namespace System {
             for (int i=0;i<lengths.Length;i++)
                 if (lengths[i] < 0)
                     throw new ArgumentOutOfRangeException("lengths["+i+']', Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
-                            
+            
             fixed(int* pLengths = lengths)
-                fixed(int* pLowerBounds = lowerBounds)
-                    return InternalCreate((void*)t.TypeHandle.Value,lengths.Length,pLengths,pLowerBounds);
+            fixed(int* pLowerBounds = lowerBounds)
+            {
+                Array array = InternalCreate((void*)t.TypeHandle.Value, lengths.Length, pLengths, pLowerBounds);
+                array._lowerBound0 = pLowerBounds[0];
+                return array;
+            }
         }
         [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -651,11 +655,22 @@ namespace System {
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         public extern int GetUpperBound(int dimension);
 
+        private int _lowerBound0 = 0;
+
+        public int GetLowerBound(int dimension)
+        {
+            if (dimension == 0)
+            {
+                return _lowerBound0;
+            }
+            return GetLowerBoundInternal(dimension);
+        }
+
         [System.Security.SecuritySafeCritical]  // auto-generated
         [Pure]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public extern int GetLowerBound(int dimension);
+        private extern int GetLowerBoundInternal(int dimension);
 
         [System.Security.SecurityCritical]  // auto-generated
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
