@@ -6563,22 +6563,6 @@ private:
     DWORD   m_priorityOfLastError;
 };  // class LoadLibErrorTracker
 
-static HMODULE LocalLoadLibraryHelperInternal(LPCWSTR name, DWORD flags)
-{
-    LIMITED_METHOD_CONTRACT;
-    
-    HMODULE hmod = NULL;
-    
-#if WIN32
-    hmod = CLRLoadLibraryEx(name, NULL, flags);
-#else
-    // We only support flags in Windows
-    hmod = CLRLoadLibrary(name);
-#endif
-   
-    return hmod;
-}
-
 //  Local helper function for the LoadLibraryModule function below
 static HMODULE LocalLoadLibraryHelper( LPCWSTR name, DWORD flags, LoadLibErrorTracker *pErrorTracker )
 {
@@ -6586,13 +6570,15 @@ static HMODULE LocalLoadLibraryHelper( LPCWSTR name, DWORD flags, LoadLibErrorTr
 
     HMODULE hmod = NULL;
 
+#ifndef FEATURE_PAL
+
     if ((flags & 0xFFFFFF00) != 0
 #ifndef FEATURE_CORESYSTEM
         && NDirect::SecureLoadLibrarySupported()
 #endif // !FEATURE_CORESYSTEM
         )
     {
-        hmod = LocalLoadLibraryHelperInternal( name, flags & 0xFFFFFF00);
+        hmod = CLRLoadLibraryEx(name, NULL, flags & 0xFFFFFF00);
         if(hmod != NULL)
         {
             return hmod;
@@ -6606,7 +6592,12 @@ static HMODULE LocalLoadLibraryHelper( LPCWSTR name, DWORD flags, LoadLibErrorTr
         }
     }
 
-    hmod = LocalLoadLibraryHelperInternal(name, flags & 0xFF);
+    hmod = CLRLoadLibraryEx(name, NULL, flags & 0xFF);
+    
+#else // !FEATURE_PAL
+    hmod = CLRLoadLibrary(name);
+#endif // !FEATURE_PAL
+        
     if (hmod == NULL)
     {
         pErrorTracker->TrackErrorCode(GetLastError());
