@@ -4,9 +4,6 @@
         <ExcludeList Include="$(XunitTestBinBase)\JIT\Directed\lifetime\lifetime2\lifetime2.cmd" >
              <Issue>1037</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)\JIT\opt\Tailcall\TailcallVerifyWithPrefix\TailcallVerifyWithPrefix.cmd" >
-             <Issue>2329</Issue>
-        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)\JIT\Methodical\delegate\_simpleoddpower_il_d\_simpleoddpower_il_d.cmd" >
              <Issue>2407</Issue>
         </ExcludeList>

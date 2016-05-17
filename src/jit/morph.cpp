@@ -7126,6 +7126,7 @@ GenTreePtr          Compiler::fgMorphCall(GenTreeCall* call)
                          stmtExpr->gtGetOp1()->AsLclVarCommon()->gtLclNum == nextStmtExpr->gtGetOp1()->AsLclVarCommon()->gtLclNum);
             deleteReturn = true;
         }
+
         if (deleteReturn)
         {
             fgRemoveStmt(compCurBB, fgMorphStmt->gtNext);

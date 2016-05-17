@@ -1984,6 +1984,12 @@ void                Compiler::impSpillStackEnsure(bool spillLeaves)
     {
         GenTreePtr      tree = verCurrentState.esStack[level].val;
 
+        // Don't spill explicit tail call result. A tail-prefixed call is converted to a jump.
+        if (tree->OperGet() == GT_CALL && tree->AsCall()->IsTailPrefixedCall())
+        {
+            continue;
+        }
+
         if (!spillLeaves && tree->OperIsLeaf())
             continue;
 
@@ -10722,7 +10728,7 @@ _CONV:
                 // If 'op1' is an expression, create an assignment node.
                 // Helps analyses (like CSE) to work fine.
 
-                if (op1->gtOper != GT_CALL)
+                if (op1->OperGet() != GT_CALL)
                 {
                     op1 = gtUnusedValNode(op1);
                 }
