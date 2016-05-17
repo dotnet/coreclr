@@ -323,9 +323,9 @@ namespace System.Diagnostics {
         private void BuildStackFrame(int skipFrames, bool fNeedFileInfo)
         {
             StackFrameHelper StackF = new StackFrameHelper(fNeedFileInfo, null);
-    
-            StackTrace.GetStackFramesInternal (StackF, 0, null); 
-    
+            StackTrace.GetStackFramesInternal (StackF, 0, null);
+            StackF.InitializeSourceInfo();
+
             int iNumOfFrames = StackF.GetNumberOfFrames();
     
             skipFrames += StackTrace.CalculateFramesToSkip (StackF, iNumOfFrames);

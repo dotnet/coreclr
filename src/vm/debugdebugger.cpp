@@ -438,53 +438,62 @@ FCIMPL3(void, DebugStackTrace::GetStackFramesInternal,
 
     if (data.cElements != 0)
     {
-#ifdef FEATURE_COMINTEROP        
+#if defined(FEATURE_ISYM_READER) && defined(FEATURE_COMINTEROP)
         if (pStackFrameHelper->fNeedFileInfo)
         {
              // Calls to COM up ahead.
             EnsureComStarted();
         }
-#endif // FEATURE_COMINTEROP
-
-        MethodTable *pMT = MscorlibBinder::GetClass(CLASS__METHOD_HANDLE);
-        TypeHandle arrayHandle = ClassLoader::LoadArrayTypeThrowing(TypeHandle(pMT), ELEMENT_TYPE_SZARRAY);
+#endif // FEATURE_ISYM_READER && FEATURE_COMINTEROP
 
         // Allocate memory for the MethodInfo objects
-        BASEARRAYREF MethodInfoArray = (BASEARRAYREF) AllocatePrimitiveArray(ELEMENT_TYPE_I, data.cElements);
-        //printf("\nmethod table = %X\n", pMT);
-
-        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgMethodHandle), (OBJECTREF)MethodInfoArray,
+        BASEARRAYREF methodInfoArray = (BASEARRAYREF) AllocatePrimitiveArray(ELEMENT_TYPE_I, data.cElements);
+        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgMethodHandle), (OBJECTREF)methodInfoArray,
                             pStackFrameHelper->GetAppDomain());
 
         // Allocate memory for the Offsets 
-        OBJECTREF Offsets = AllocatePrimitiveArray(ELEMENT_TYPE_I4, data.cElements);
-
-        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgiOffset), (OBJECTREF)Offsets,
+        OBJECTREF offsets = AllocatePrimitiveArray(ELEMENT_TYPE_I4, data.cElements);
+        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgiOffset), (OBJECTREF)offsets,
                             pStackFrameHelper->GetAppDomain());
 
         // Allocate memory for the ILOffsets 
-        OBJECTREF ILOffsets = AllocatePrimitiveArray(ELEMENT_TYPE_I4, data.cElements);
-
-        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgiILOffset), (OBJECTREF)ILOffsets,
+        OBJECTREF ilOffsets = AllocatePrimitiveArray(ELEMENT_TYPE_I4, data.cElements);
+        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgiILOffset), (OBJECTREF)ilOffsets,
                             pStackFrameHelper->GetAppDomain());
 
-        // if we need Filename, linenumber, etc., then allocate memory for the same
+        // Allocate memory for the array of assembly file names
+        PTRARRAYREF assemblyPathArray = (PTRARRAYREF) AllocateObjectArray(data.cElements, g_pStringClass);
+        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgAssemblyPath), (OBJECTREF)assemblyPathArray,
+                            pStackFrameHelper->GetAppDomain());
+
+        // Allocate memory for the InMemoryAddress
+        BASEARRAYREF inMemoryAddressArray = (BASEARRAYREF) AllocatePrimitiveArray(ELEMENT_TYPE_I, data.cElements);
+        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgInMemoryAddress), (OBJECTREF)inMemoryAddressArray,
+                            pStackFrameHelper->GetAppDomain());
+
+        // Allocate memory for the InMemorySize
+        OBJECTREF inMemorySizeArray = AllocatePrimitiveArray(ELEMENT_TYPE_I4, data.cElements);
+        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgiInMemorySize), (OBJECTREF)inMemorySizeArray,
+                            pStackFrameHelper->GetAppDomain());
+
+        // Allocate memory for the MethodTokens
+        OBJECTREF methodTokens = AllocatePrimitiveArray(ELEMENT_TYPE_I4, data.cElements);
+        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgiMethodToken), (OBJECTREF)methodTokens,
+                            pStackFrameHelper->GetAppDomain());
+        
         // Allocate memory for the Filename string objects
-        PTRARRAYREF FilenameArray = (PTRARRAYREF) AllocateObjectArray(data.cElements, g_pStringClass);
-
-        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgFilename), (OBJECTREF)FilenameArray,
+        PTRARRAYREF filenameArray = (PTRARRAYREF) AllocateObjectArray(data.cElements, g_pStringClass);
+        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgFilename), (OBJECTREF)filenameArray,
                             pStackFrameHelper->GetAppDomain());
 
-        // Allocate memory for the Offsets 
-        OBJECTREF LineNumbers = AllocatePrimitiveArray(ELEMENT_TYPE_I4, data.cElements);
-
-        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgiLineNumber), (OBJECTREF)LineNumbers,
+        // Allocate memory for the LineNumbers
+        OBJECTREF lineNumbers = AllocatePrimitiveArray(ELEMENT_TYPE_I4, data.cElements);
+        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgiLineNumber), (OBJECTREF)lineNumbers,
                             pStackFrameHelper->GetAppDomain());
 
-        // Allocate memory for the ILOffsets 
-        OBJECTREF ColumnNumbers = AllocatePrimitiveArray(ELEMENT_TYPE_I4, data.cElements);
-
-        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgiColumnNumber), (OBJECTREF)ColumnNumbers,
+        // Allocate memory for the ColumnNumbers
+        OBJECTREF columnNumbers = AllocatePrimitiveArray(ELEMENT_TYPE_I4, data.cElements);
+        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgiColumnNumber), (OBJECTREF)columnNumbers,
                             pStackFrameHelper->GetAppDomain());
 
 #if defined(FEATURE_EXCEPTIONDISPATCHINFO)
@@ -501,12 +510,12 @@ FCIMPL3(void, DebugStackTrace::GetStackFramesInternal,
             IsLastFrameFromForeignStackTraceFlags = AllocatePrimitiveArray(ELEMENT_TYPE_BOOLEAN, data.cElements);
 
             SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgiLastFrameFromForeignExceptionStackTrace), (OBJECTREF)IsLastFrameFromForeignStackTraceFlags,
-                            pStackFrameHelper->GetAppDomain());
+                                pStackFrameHelper->GetAppDomain());
         }
         else
         {
             SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgiLastFrameFromForeignExceptionStackTrace), NULL,
-                            pStackFrameHelper->GetAppDomain());
+                                pStackFrameHelper->GetAppDomain());
         }
 #endif // defined(FEATURE_EXCEPTIONDISPATCHINFO)
 
@@ -530,17 +539,14 @@ FCIMPL3(void, DebugStackTrace::GetStackFramesInternal,
         
         if (iNumDynamics)
         {            
-            PTRARRAYREF DynamicDataArray = (PTRARRAYREF) AllocateObjectArray(iNumDynamics, g_pObjectClass);
-            
-            SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->dynamicMethods), (OBJECTREF)DynamicDataArray,
+            PTRARRAYREF dynamicDataArray = (PTRARRAYREF) AllocateObjectArray(iNumDynamics, g_pObjectClass);
+            SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->dynamicMethods), (OBJECTREF)dynamicDataArray,
                                 pStackFrameHelper->GetAppDomain());
         }
         
         int iNumValidFrames = 0;
-        for (int i=0; i<data.cElements; i++)
+        for (int i = 0; i < data.cElements; i++)
         {
-            size_t *pElem = (size_t*)pStackFrameHelper->rgMethodHandle->GetDataPtr();
-
             // The managed stacktrace classes always returns typical method definition, so we don't need to bother providing exact instantiation.
             // Generics::GetExactInstantiationsOfMethodAndItsClassFromCallInformation(data.pElements[i].pFunc, data.pElements[i].pExactGenericArgsToken, &pExactMethod, &thExactType);
             MethodDesc* pFunc = data.pElements[i].pFunc;
@@ -550,17 +556,31 @@ FCIMPL3(void, DebugStackTrace::GetStackFramesInternal,
                 pFunc = pFunc->StripMethodInstantiation();
             _ASSERTE(pFunc->IsRuntimeMethodHandle());
 
+            // Method handle
+            size_t *pElem = (size_t*)pStackFrameHelper->rgMethodHandle->GetDataPtr();
             pElem[iNumValidFrames] = (size_t)pFunc;
 
-            // native offset
-            I4 *pI4 = (I4 *)((I4ARRAYREF)pStackFrameHelper->rgiOffset)
-                                        ->GetDirectPointerToNonObjectElements();
-            pI4 [iNumValidFrames] = data.pElements[i].dwOffset; 
+            // Native offset
+            I4 *pI4 = (I4 *)((I4ARRAYREF)pStackFrameHelper->rgiOffset)->GetDirectPointerToNonObjectElements();
+            pI4[iNumValidFrames] = data.pElements[i].dwOffset;
 
             // IL offset
-            I4 *pILI4 = (I4 *)((I4ARRAYREF)pStackFrameHelper->rgiILOffset)
-                                        ->GetDirectPointerToNonObjectElements();
-            pILI4 [iNumValidFrames] = data.pElements[i].dwILOffset; 
+            I4 *pILI4 = (I4 *)((I4ARRAYREF)pStackFrameHelper->rgiILOffset)->GetDirectPointerToNonObjectElements();
+            pILI4[iNumValidFrames] = data.pElements[i].dwILOffset;
+
+            // Zero out the line number
+            I4 *pI4Line = (I4 *)((I4ARRAYREF)pStackFrameHelper->rgiLineNumber)->GetDirectPointerToNonObjectElements();
+            pI4Line[iNumValidFrames] = 0;
+
+            // Zero out the column number
+            I4 *pI4Column = (I4 *)((I4ARRAYREF)pStackFrameHelper->rgiColumnNumber)->GetDirectPointerToNonObjectElements();
+            pI4Column[iNumValidFrames] = 0;
+
+            // NULL the source file name
+            pStackFrameHelper->rgFilename->SetAt(iNumValidFrames, NULL);
+
+            // NULL the assembly path string
+            pStackFrameHelper->rgAssemblyPath->SetAt(iNumValidFrames, NULL);
 
 #if defined(FEATURE_EXCEPTIONDISPATCHINFO)
             if (data.fDoWeHaveAnyFramesFromForeignStackTrace)
@@ -572,7 +592,6 @@ FCIMPL3(void, DebugStackTrace::GetStackFramesInternal,
             }
 #endif // defined(FEATURE_EXCEPTIONDISPATCHINFO)
 
-            BOOL fFileInfoSet = FALSE;
             MethodDesc *pMethod = data.pElements[i].pFunc;
 
             // If there are any dynamic methods, and this one is one of them, store
@@ -585,18 +604,16 @@ FCIMPL3(void, DebugStackTrace::GetStackFramesInternal,
                     OBJECTREF pResolver = pDMD->GetLCGMethodResolver()->GetManagedResolver();
                     _ASSERTE(pResolver != NULL);
                     
-                    ((PTRARRAYREF)pStackFrameHelper->dynamicMethods)->SetAt (iCurDynamic++, pResolver);
+                    ((PTRARRAYREF)pStackFrameHelper->dynamicMethods)->SetAt(iCurDynamic++, pResolver);
                 }
-                else
-                if (pMethod->GetMethodTable()->Collectible())
+                else if (pMethod->GetMethodTable()->Collectible())
                 {
                     OBJECTREF pLoaderAllocator = pMethod->GetMethodTable()->GetLoaderAllocator()->GetExposedObject();
                     _ASSERTE(pLoaderAllocator != NULL);
-                    ((PTRARRAYREF)pStackFrameHelper->dynamicMethods)->SetAt (iCurDynamic++, pLoaderAllocator);
+                    ((PTRARRAYREF)pStackFrameHelper->dynamicMethods)->SetAt(iCurDynamic++, pLoaderAllocator);
                 }
             }
 
-#ifdef FEATURE_ISYM_READER
             Module *pModule = pMethod->GetModule();
 
             // If it's an EnC method, then don't give back any line info, b/c the PDB is out of date.
@@ -610,23 +627,23 @@ FCIMPL3(void, DebugStackTrace::GetStackFramesInternal,
 #ifdef EnC_SUPPORTED                
             if (pModule->IsEditAndContinueEnabled())
             {
-                EditAndContinueModule *eacm = (EditAndContinueModule *) pModule;
+                EditAndContinueModule *eacm = (EditAndContinueModule *)pModule;
                 if (eacm->GetApplyChangesCount() != 1)
                 {
-                    fIsEnc = true;        
-                }                    
+                    fIsEnc = true;
+                }
             }
 #endif
-            
-            // check if the user wants the filenumber, linenumber info...
+            BOOL fFileInfoSet = FALSE;
+
+#ifdef FEATURE_ISYM_READER
+            // Check if the user wants the filenumber, linenumber info...
             if (!fIsEnc && pStackFrameHelper->fNeedFileInfo)
             {
-                // Use the MethodDesc...
                 ULONG32 sourceLine = 0;
                 ULONG32 sourceColumn = 0;
                 WCHAR wszFileName[MAX_LONGPATH];
                 ULONG32 fileNameLength = 0;
-
                 {
                     // Note: we need to enable preemptive GC when accessing the unmanages symbol store.
                     GCX_PREEMP();
@@ -749,7 +766,6 @@ FCIMPL3(void, DebugStackTrace::GetStackFramesInternal,
                                         hr = documents [j]->GetURL (MAX_LONGPATH, &fileNameLength, wszFileName);
                                         _ASSERTE ( SUCCEEDED(hr) || (hr == E_OUTOFMEMORY) || (hr == HRESULT_FROM_WIN32(ERROR_NOT_ENOUGH_MEMORY)) );
 
-
                                         // indicate that the requisite information has been set!
                                         fFileInfoSet = TRUE;
 
@@ -770,13 +786,11 @@ FCIMPL3(void, DebugStackTrace::GetStackFramesInternal,
 
                 } // GCX_PREEMP()
                 
-                if (fFileInfoSet == TRUE)
+                if (fFileInfoSet)
                 {
                     // Set the line and column numbers
-                    I4 *pI4Line = (I4 *)((I4ARRAYREF)pStackFrameHelper->rgiLineNumber)
-                        ->GetDirectPointerToNonObjectElements();
-                    I4 *pI4Column = (I4 *)((I4ARRAYREF)pStackFrameHelper->rgiColumnNumber)
-                        ->GetDirectPointerToNonObjectElements();
+                    I4 *pI4Line = (I4 *)((I4ARRAYREF)pStackFrameHelper->rgiLineNumber)->GetDirectPointerToNonObjectElements();
+                    I4 *pI4Column = (I4 *)((I4ARRAYREF)pStackFrameHelper->rgiColumnNumber) ->GetDirectPointerToNonObjectElements();
 
                     pI4Line [iNumValidFrames] = sourceLine;  
                     pI4Column [iNumValidFrames] = sourceColumn;  
@@ -788,34 +802,48 @@ FCIMPL3(void, DebugStackTrace::GetStackFramesInternal,
             }
 #endif // FEATURE_ISYM_READER
 
-            if (fFileInfoSet == FALSE)
+            // If the above isym reader code did NOT set the source info either because it is ifdef'ed out (on xplat)
+            // or because the pdb is the new portable format on Windows then set the information needed to called the
+            // portable pdb reader in the StackTraceHelper. The source/line info isn't valid on ENC'ed modules.
+            if (!fFileInfoSet && !fIsEnc)
             {
-                I4 *pI4Line = (I4 *)((I4ARRAYREF)pStackFrameHelper->rgiLineNumber)
-                                            ->GetDirectPointerToNonObjectElements();
-                I4 *pI4Column = (I4 *)((I4ARRAYREF)pStackFrameHelper->rgiColumnNumber)
-                                            ->GetDirectPointerToNonObjectElements();
-                pI4Line [iNumValidFrames] = 0;
-                pI4Column [iNumValidFrames] = 0;
+                // Save MethodToken for the function
+                I4 *pMemberDef = (I4 *)((I4ARRAYREF)pStackFrameHelper->rgiMethodToken)->GetDirectPointerToNonObjectElements();
+                pMemberDef[iNumValidFrames] = pMethod->GetMemberDef();
 
-                pStackFrameHelper->rgFilename->SetAt(iNumValidFrames, NULL);
-                
+                size_t *pInMemoryAddress = (size_t *)pStackFrameHelper->rgInMemoryAddress->GetDataPtr();
+                I4 *pInMemorySize = (I4 *)((I4ARRAYREF)pStackFrameHelper->rgiInMemorySize)->GetDirectPointerToNonObjectElements();
+
+                // If there is a in memory symbol stream
+                CGrowableStream* stream = pModule->GetInMemorySymbolStream();
+                if (stream != NULL)
+                {
+                    MemoryRange range = stream->GetRawBuffer();
+                    pInMemoryAddress[iNumValidFrames] = (size_t)range.StartAddress();
+                    pInMemorySize[iNumValidFrames] = (I4)range.Size();
+                }
+                else
+                {
+                    PEFile *pPEFile = pModule->GetFile();
+
+                    // Set the pdb path (assembly file name) if the module is not ENC
+                    const SString& assemblyPath = pPEFile->GetPath();
+                    if (!assemblyPath.IsEmpty())
+                    {
+                        OBJECTREF obj = (OBJECTREF)StringObject::NewString(assemblyPath);
+                        pStackFrameHelper->rgAssemblyPath->SetAt(iNumValidFrames, obj);
+
+                        COUNT_T peSize;
+                        pInMemoryAddress[iNumValidFrames] = (size_t)pPEFile->GetLoadedImageContents(&peSize);
+                        pInMemorySize[iNumValidFrames] = (I4)peSize;
+                    }
+                }
             }
 
             iNumValidFrames++;
         }
 
         pStackFrameHelper->iFrameCount = iNumValidFrames;
-
-        /*
-        int *pArray = (int*)OBJECTREFToObject(pStackFrameHelper->rgMethodHandle);
-        printf("array { MT - %X, size = %d", pArray[0], pArray[1]);
-        for (int i=0; i<pArray[1]; i++)
-        {
-            printf(", method desc in array[%d] = %X", i, pArray[i + 2]);
-        }
-        printf("}\n");
-        */
-
     }
     else
     {
