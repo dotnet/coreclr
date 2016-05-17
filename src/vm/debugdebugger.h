@@ -81,9 +81,14 @@ public:
     BASEARRAYREF rgMethodBase; 
     PTRARRAYREF dynamicMethods;    
     BASEARRAYREF rgMethodHandle; 
+
+    // if rgAssemblyPath[i] != null, rgInMemoryAddress[i] is the in-memory PE file address
+    // if rgAssemblyPath[i] == null, rgInMemoryAddress[i] is the in-memory PDB file address
+    // if rgAssemblyPath[i] == null and rgInMemoryAddress[i] == IntPtr.Zero, don't do anything
     PTRARRAYREF rgAssemblyPath;
-    BASEARRAYREF rgInMemorySymbols;
-    I4ARRAYREF rgiInMemorySymbolsSize;
+    BASEARRAYREF rgInMemoryAddress;
+    I4ARRAYREF rgiInMemorySize;
+
     I4ARRAYREF rgiMethodToken;
     PTRARRAYREF rgFilename;
     I4ARRAYREF rgiLineNumber;

@@ -466,14 +466,14 @@ FCIMPL3(void, DebugStackTrace::GetStackFramesInternal,
         SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgAssemblyPath), (OBJECTREF)assemblyPathArray,
                             pStackFrameHelper->GetAppDomain());
 
-        // Allocate memory for the InMemorySymbols
-        BASEARRAYREF inMemorySymbolsArray = (BASEARRAYREF) AllocatePrimitiveArray(ELEMENT_TYPE_I, data.cElements);
-        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgInMemorySymbols), (OBJECTREF)inMemorySymbolsArray,
+        // Allocate memory for the InMemoryAddress
+        BASEARRAYREF inMemoryAddressArray = (BASEARRAYREF) AllocatePrimitiveArray(ELEMENT_TYPE_I, data.cElements);
+        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgInMemoryAddress), (OBJECTREF)inMemoryAddressArray,
                             pStackFrameHelper->GetAppDomain());
 
-        // Allocate memory for the InMemorySymbolsSize
-        OBJECTREF inMemorySymbolsSizeArray = AllocatePrimitiveArray(ELEMENT_TYPE_I4, data.cElements);
-        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgiInMemorySymbolsSize), (OBJECTREF)inMemorySymbolsSizeArray,
+        // Allocate memory for the InMemorySize
+        OBJECTREF inMemorySizeArray = AllocatePrimitiveArray(ELEMENT_TYPE_I4, data.cElements);
+        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgiInMemorySize), (OBJECTREF)inMemorySizeArray,
                             pStackFrameHelper->GetAppDomain());
 
         // Allocate memory for the MethodTokens
@@ -811,26 +811,31 @@ FCIMPL3(void, DebugStackTrace::GetStackFramesInternal,
                 I4 *pMemberDef = (I4 *)((I4ARRAYREF)pStackFrameHelper->rgiMethodToken)->GetDirectPointerToNonObjectElements();
                 pMemberDef[iNumValidFrames] = pMethod->GetMemberDef();
 
+                size_t *pInMemoryAddress = (size_t *)pStackFrameHelper->rgInMemoryAddress->GetDataPtr();
+                I4 *pInMemorySize = (I4 *)((I4ARRAYREF)pStackFrameHelper->rgiInMemorySize)->GetDirectPointerToNonObjectElements();
+
                 // If there is a in memory symbol stream
                 CGrowableStream* stream = pModule->GetInMemorySymbolStream();
                 if (stream != NULL)
                 {
                     MemoryRange range = stream->GetRawBuffer();
-
-                    size_t *pInMemorySymbols = (size_t *)pStackFrameHelper->rgInMemorySymbols->GetDataPtr();
-                    pInMemorySymbols[iNumValidFrames] = (size_t)range.StartAddress();
-
-                    I4 *pInMemorySymbolsSize = (I4 *)((I4ARRAYREF)pStackFrameHelper->rgiInMemorySymbolsSize)->GetDirectPointerToNonObjectElements();
-                    pInMemorySymbolsSize[iNumValidFrames] = (I4)range.Size();
+                    pInMemoryAddress[iNumValidFrames] = (size_t)range.StartAddress();
+                    pInMemorySize[iNumValidFrames] = (I4)range.Size();
                 }
                 else
                 {
+                    PEFile *pPEFile = pModule->GetFile();
+
                     // Set the pdb path (assembly file name) if the module is not ENC
-                    const SString& assemblyPath = pModule->GetFile()->GetPath();
+                    const SString& assemblyPath = pPEFile->GetPath();
                     if (!assemblyPath.IsEmpty())
                     {
                         OBJECTREF obj = (OBJECTREF)StringObject::NewString(assemblyPath);
                         pStackFrameHelper->rgAssemblyPath->SetAt(iNumValidFrames, obj);
+
+                        COUNT_T peSize;
+                        pInMemoryAddress[iNumValidFrames] = (size_t)pPEFile->GetLoadedImageContents(&peSize);
+                        pInMemorySize[iNumValidFrames] = (I4)peSize;
                     }
                 }
             }

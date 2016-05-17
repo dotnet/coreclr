@@ -40,9 +40,14 @@ namespace System.Diagnostics {
 
         [NonSerialized]
         private IntPtr[] rgMethodHandle;
+
+        // if rgAssemblyPath[i] != null, rgInMemoryAddress[i] is the in-memory PE file address
+        // if rgAssemblyPath[i] == null, rgInMemoryAddress[i] is the in-memory PDB file address
+        // if rgAssemblyPath[i] == null and rgInMemoryAddress[i] == IntPtr.Zero, don't do anything
         private String[] rgAssemblyPath;
-        private IntPtr[] rgInMemorySymbols;
-        private int[] rgiInMemorySymbolsSize;
+        private IntPtr[] rgInMemoryAddress;
+        private int[] rgiInMemorySize;
+
         private int[] rgiMethodToken;
         private String[] rgFilename;
         private int[] rgiLineNumber;
@@ -54,7 +59,10 @@ namespace System.Diagnostics {
         private int iFrameCount;
         private bool fNeedFileInfo;
 
-        static Type s_symbolsType = null;
+        private delegate void GetSourceLineInfoDelegate(string assemblyPath, IntPtr inMemoryAddress, int inMemorySize, int methodToken, int ilOffset,
+            out string sourceFile, out int sourceLine, out int sourceColumn);
+
+        private static GetSourceLineInfoDelegate s_getSourceLineInfo = null;
         
         public StackFrameHelper(bool fNeedFileLine, Thread target)
         {
@@ -65,8 +73,8 @@ namespace System.Diagnostics {
             rgiOffset = null;
             rgiILOffset = null;
             rgAssemblyPath = null;
-            rgInMemorySymbols = null;
-            rgiInMemorySymbolsSize = null;
+            rgInMemoryAddress = null;
+            rgiInMemorySize = null;
             dynamicMethods = null;
             rgFilename = null;
             rgiLineNumber = null;
@@ -93,50 +101,51 @@ namespace System.Diagnostics {
         //
         internal void InitializeSourceInfo()
         {
-            if (!fNeedFileInfo) {
+            if (!fNeedFileInfo)
                 return;
-            }
 
-            if (s_symbolsType == null) {
-                try {
+            if (s_getSourceLineInfo == null)
+            {
+                try
+                {
                     Assembly metadataAssembly = Assembly.Load("System.Diagnostics.StackTrace.Symbols, Version=1.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a");
-                    if (metadataAssembly == null) {
+                    if (metadataAssembly == null)
                         return;
-                    }
-                    s_symbolsType = metadataAssembly.GetType("System.Diagnostics.StackTrace.Symbols");
-                    if (s_symbolsType == null) {
+
+                    Type symbolsType = metadataAssembly.GetType("System.Diagnostics.StackTrace.Symbols");
+                    if (symbolsType == null)
                         return;
-                    }
+
+                    MethodInfo symbolsMethod = symbolsType.GetMethod("GetSourceLineInfo");
+                    if (symbolsMethod == null)
+                        return;
+
+                    s_getSourceLineInfo = (GetSourceLineInfoDelegate)symbolsMethod.CreateDelegate(typeof(GetSourceLineInfoDelegate));
                 }
-                catch {
+                catch
+                {
                     return;
                 }
             }
 
-            for (int index = 0; index < iFrameCount; index++) {
+            for (int index = 0; index < iFrameCount; index++)
+            {
                 // If there was some reason not to try get get the symbols from the portable PDB reader like the module was
-                // ENC or the source/line info was already retrieved, the assembly path is null.
-                if (rgAssemblyPath[index] != null || rgInMemorySymbols[index] != IntPtr.Zero) {
-                    try {
-                        object[] parameters = new object[8];
-                        parameters[0] = rgAssemblyPath[index];
-                        parameters[1] = rgInMemorySymbols[index];
-                        parameters[2] = rgiInMemorySymbolsSize[index];
-                        parameters[3] = rgiMethodToken[index];
-                        parameters[4] = rgiILOffset[index];
-
-                        s_symbolsType.InvokeMember("GetSourceLineInfo", BindingFlags.InvokeMethod, null, null, parameters);
-
-                        rgFilename[index] = (string)parameters[5];
-                        rgiLineNumber[index] = (int)parameters[6];
-                        rgiColumnNumber[index] = (int)parameters[7];
+                // ENC or the source/line info was already retrieved, the assembly path and in-memory address are null/zero.
+                if (rgAssemblyPath[index] != null || rgInMemoryAddress[index] != IntPtr.Zero)
+                {
+                    try
+                    {
+                        s_getSourceLineInfo(rgAssemblyPath[index], rgInMemoryAddress[index], rgiInMemorySize[index], rgiMethodToken[index], rgiILOffset[index],
+                            out rgFilename[index], out rgiLineNumber[index], out rgiColumnNumber[index]);
                     }
-                    catch {
+                    catch
+                    {
                     }
                 }
             }
         }
-    
+
         [System.Security.SecuritySafeCritical]
         public virtual MethodBase GetMethodBase(int i) 
         { 
