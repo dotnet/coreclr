@@ -1060,8 +1060,7 @@ typedef PTR_StringObject STRINGREF;
  *
  * Special String implementation for performance.   
  *
- *   m_StringLength - Length of string in number of WCHARs. The high two bits of this field
- *                    are used to indicate if the String has characters higher than 0x7F
+ *   m_StringLength - Length of string in number of WCHARs
  *   m_Characters   - The string buffer
  *
  */
