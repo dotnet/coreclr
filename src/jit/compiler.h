@@ -7901,6 +7901,9 @@ public :
         // Methods returning a struct in two registers is considered having a return value of TYP_STRUCT.
         // Such method's compRetNativeType is TYP_STRUCT without a hidden RetBufArg
         return varTypeIsStruct(info.compRetNativeType) && (info.compRetBuffArg == BAD_VAR_NUM);
+#elif defined(_TARGET_ARM_)
+        // TODO-ARM IsHfa check
+        return varTypeIsStruct(info.compRetType) && (info.compRetBuffArg == BAD_VAR_NUM);
 #endif 
 #endif
         return false;
