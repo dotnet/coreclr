@@ -7902,8 +7902,8 @@ public :
         // Such method's compRetNativeType is TYP_STRUCT without a hidden RetBufArg
         return varTypeIsStruct(info.compRetNativeType) && (info.compRetBuffArg == BAD_VAR_NUM);
 #elif defined(_TARGET_ARM_)
-        // TODO-ARM IsHfa check
-        return varTypeIsStruct(info.compRetType) && (info.compRetBuffArg == BAD_VAR_NUM);
+        // TODO-ARM HFA Support
+        return varTypeIsStruct(info.compRetNativeType) && (info.compRetBuffArg == BAD_VAR_NUM);
 #endif 
 #endif
         return false;
