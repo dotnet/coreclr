@@ -7162,7 +7162,7 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
 #ifdef FEATURE_CORECLR
     if (hmod == NULL)
     {
-        LoadFromNativeDllSearchDirectories(pDomain, wszLibName, loadWithAlteredPathFlags, pErrorTracker);
+        hmod = LoadFromNativeDllSearchDirectories(pDomain, wszLibName, loadWithAlteredPathFlags, pErrorTracker);
     }
 
 #endif // FEATURE_CORECLR
