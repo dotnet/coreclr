@@ -1708,11 +1708,11 @@ namespace System {
             if (keys.Rank != 1 || (items != null && items.Rank != 1))
                 throw new RankException(Environment.GetResourceString("Rank_MultiDimNotSupported"));
             int keysLowerBound = keys.GetLowerBound(0);
-            if (items != null && keysLowerBound != items.GetLowerBound(0)))
+            if (items != null && keysLowerBound != items.GetLowerBound(0))
                 throw new ArgumentException(Environment.GetResourceString("Arg_LowerBoundsMustMatch"));
             if (index < keysLowerBound || length < 0)
                 throw new ArgumentOutOfRangeException((length<0 ? "length" : "index"), Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
-            if (keys.Length - (index - keysLowerBound) < length || (items != null && (index - items.GetLowerBound(0)) > items.Length - length))
+            if (keys.Length - (index - keysLowerBound) < length || (items != null && (index - keysLowerBound) > items.Length - length))
                 throw new ArgumentException(Environment.GetResourceString("Argument_InvalidOffLen"));
 
             Contract.EndContractBlock();
