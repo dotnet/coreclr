@@ -583,13 +583,6 @@ PALAPI
 PAL_NotifyRuntimeStarted();
 
 PALIMPORT
-VOID
-PALAPI
-PAL_CleanupTargetProcess(
-    IN int pid, 
-    IN UINT64 disambiguationKey);
-
-PALIMPORT
 void
 PALAPI
 PAL_InitializeDebug(
