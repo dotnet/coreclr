@@ -591,7 +591,7 @@ namespace System {
         [Pure]
         [System.Security.SecuritySafeCritical]  // auto-generated
         public bool Equals(String value, StringComparison comparisonType) {
-            if ((uint)comparisonType > StringComparison.OrdinalIgnoreCase)
+            if ((uint)comparisonType > (uint)StringComparison.OrdinalIgnoreCase)
                 throw new ArgumentException(Environment.GetResourceString("NotSupported_StringComparison"), "comparisonType");
             Contract.EndContractBlock();
 
@@ -657,7 +657,7 @@ namespace System {
         [Pure]
         [System.Security.SecuritySafeCritical]  // auto-generated
         public static bool Equals(String a, String b, StringComparison comparisonType) {
-            if ((uint)comparisonType > StringComparison.OrdinalIgnoreCase)
+            if ((uint)comparisonType > (uint)StringComparison.OrdinalIgnoreCase)
                 throw new ArgumentException(Environment.GetResourceString("NotSupported_StringComparison"), "comparisonType");
             Contract.EndContractBlock();
 
@@ -1013,7 +1013,7 @@ namespace System {
                 throw new ArgumentOutOfRangeException("count",
                     Environment.GetResourceString("ArgumentOutOfRange_NegativeCount"));
 
-            if ((uint)options > StringSplitOptions.RemoveEmptyEntries)
+            if ((uint)options > (uint)StringSplitOptions.RemoveEmptyEntries)
                 throw new ArgumentException(Environment.GetResourceString("Arg_EnumIllegalVal", options));
             Contract.Ensures(Contract.Result<String[]>() != null);
             Contract.EndContractBlock();
@@ -1067,7 +1067,7 @@ namespace System {
                     Environment.GetResourceString("ArgumentOutOfRange_NegativeCount"));
             }
 
-            if ((uint)options > StringSplitOptions.RemoveEmptyEntries) {
+            if ((uint)options > (uint)StringSplitOptions.RemoveEmptyEntries) {
                 throw new ArgumentException(Environment.GetResourceString("Arg_EnumIllegalVal", (int)options));
             }
             Contract.EndContractBlock();
@@ -2017,7 +2017,7 @@ namespace System {
         [Pure]
         [System.Security.SecuritySafeCritical]  // auto-generated
         public static int Compare(String strA, int indexA, String strB, int indexB, int length, StringComparison comparisonType) {
-            if ((uint)comparisonType > StringComparison.OrdinalIgnoreCase) {
+            if ((uint)comparisonType > (uint)StringComparison.OrdinalIgnoreCase) {
                 throw new ArgumentException(Environment.GetResourceString("NotSupported_StringComparison"), "comparisonType");
             }
             Contract.EndContractBlock();
@@ -2196,7 +2196,7 @@ namespace System {
                 throw new ArgumentNullException("value");                                
             }
 
-            if ((uint)comparisonType > StringComparison.OrdinalIgnoreCase) {
+            if ((uint)comparisonType > (uint)StringComparison.OrdinalIgnoreCase) {
                 throw new ArgumentException(Environment.GetResourceString("NotSupported_StringComparison"), "comparisonType");
             }
             Contract.EndContractBlock();
@@ -2601,7 +2601,7 @@ namespace System {
                 throw new ArgumentNullException("value");                                
             }
 
-            if( (uint)comparisonType > StringComparison.OrdinalIgnoreCase) {
+            if( (uint)comparisonType > (uint)StringComparison.OrdinalIgnoreCase) {
                 throw new ArgumentException(Environment.GetResourceString("NotSupported_StringComparison"), "comparisonType");
             }
             Contract.EndContractBlock();
