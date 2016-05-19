@@ -4057,6 +4057,8 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* callNode)
 
 #if defined(UNIX_AMD64_ABI)
         opts.compNeedToAlignFrame = true;
+#endif
+#if 0
         // First slots go in registers only, no stack needed.
         // TODO-Amd64-Unix-CQ This calculation is only accurate for integer arguments,
         // and ignores floating point args (it is overly conservative in that case).
