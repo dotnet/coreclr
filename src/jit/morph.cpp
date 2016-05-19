@@ -4057,6 +4057,21 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* callNode)
     {
         unsigned preallocatedArgCount = call->fgArgInfo->GetNextSlotNum();
 
+#if defined(UNIX_AMD64_ABI)
+        opts.compNeedToAlignFrame = true;
+        // First slots go in registers only, no stack needed.
+        // TODO-Amd64-Unix-CQ This calculation is only accurate for integer arguments,
+        // and ignores floating point args (it is overly conservative in that case).
+        if (argSlots <= MAX_REG_ARG)
+        {
+            preallocatedArgCount = nonRegPassedStructSlots;
+        }
+        else
+        {
+            preallocatedArgCount = argSlots + nonRegPassedStructSlots - MAX_REG_ARG;
+        }
+#endif  // UNIX_AMD64_ABI
+
         // Check if we need to increase the size of our Outgoing Arg Space
         if (preallocatedArgCount * REGSIZE_BYTES > lvaOutgoingArgSpaceSize)
         {
