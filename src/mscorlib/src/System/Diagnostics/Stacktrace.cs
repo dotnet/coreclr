@@ -121,11 +121,7 @@ namespace System.Diagnostics {
             {
                 if (s_symbolsMethodInfo == null)
                 {
-                    Assembly metadataAssembly = Assembly.Load("System.Diagnostics.StackTrace, Version=1.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a");
-                    if (metadataAssembly == null)
-                        return;
-
-                    s_symbolsType = metadataAssembly.GetType("System.Diagnostics.StackTraceSymbols");
+                    s_symbolsType = Type.GetType("System.Diagnostics.StackTraceSymbols, System.Diagnostics.StackTrace, Version=1.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a", throwOnError: false);
                     if (s_symbolsType == null)
                         return;
 
@@ -137,7 +133,7 @@ namespace System.Diagnostics {
                 if (getSourceLineInfo == null)
                 {
                     // Create an instance of System.Diagnostics.Stacktrace.Symbols
-                    object target = s_symbolsType.GetConstructor(new Type[] { }).Invoke(null);
+                    object target = Activator.CreateInstance(s_symbolsType);
 
                     // Create an instance delegate for the GetSourceLineInfo method
                     getSourceLineInfo = (GetSourceLineInfoDelegate)s_symbolsMethodInfo.CreateDelegate(typeof(GetSourceLineInfoDelegate), target);
