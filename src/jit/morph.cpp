@@ -1642,6 +1642,25 @@ void fgArgInfo::ArgsComplete()
                     // Spill multireg struct arguments that are expensive to evaluate twice
                     curArgTabEntry->needTmp = true;
                 }
+                else if (argx->OperGet() == GT_OBJ)
+                {
+                    GenTreeObj*           argObj     = argx->AsObj();
+                    CORINFO_CLASS_HANDLE  objClass   = argObj->gtClass;
+                    unsigned              structSize = compiler->info.compCompHnd->getClassSize(objClass);
+                    switch (structSize)
+                    {
+                    case 11:
+                    case 13:
+                    case 14:
+                    case 15:
+                        // Spill any GT_OBJ multireg structs that are difficult to extract
+                        curArgTabEntry->needTmp = true;
+                        break;
+
+                    default:
+                        break;
+                    }
+                }
             }
         }
 #endif // FEATURE_MULTIREG_ARGS
@@ -4036,41 +4055,9 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* callNode)
     // calls to update lvaOutgoingArgSpaceSize.
     if (!call->IsFastTailCall())
     {
-        unsigned        preallocatedArgCount;
+        unsigned preallocatedArgCount = call->fgArgInfo->GetNextSlotNum();
 
-#if defined(_TARGET_ARM_)
-        // First slots go in registers only, no stack needed.
-        // TODO-ARMArch-CQ: This calculation is only accurate for integer arguments,
-        // and ignores floating point args (it is overly conservative in that case).
-        if (argSlots <= MAX_REG_ARG)
-        {
-            preallocatedArgCount = 0;
-        }
-        else
-        {
-            preallocatedArgCount = argSlots - MAX_REG_ARG;
-        }
-#elif defined(_TARGET_ARM64_)
-        // @ToDo: all targets should use this method of setting preallocatedArgCount
-        preallocatedArgCount = call->fgArgInfo->GetNextSlotNum();
-#elif defined(UNIX_AMD64_ABI)
-        opts.compNeedToAlignFrame = true;
-        // First slots go in registers only, no stack needed.
-        // TODO-Amd64-Unix-CQ This calculation is only accurate for integer arguments,
-        // and ignores floating point args (it is overly conservative in that case).
-        if (argSlots <= MAX_REG_ARG)
-        {
-            preallocatedArgCount = nonRegPassedStructSlots;
-        }
-        else
-        {
-            preallocatedArgCount = argSlots + nonRegPassedStructSlots - MAX_REG_ARG;
-        }
-#elif defined(_TARGET_AMD64_)
-        preallocatedArgCount = max(4, argSlots);
-#else
-#error Unsupported or unset target architecture
-#endif // _TARGET_*
+        // Check if we need to increase the size of our Outgoing Arg Space
         if (preallocatedArgCount * REGSIZE_BYTES > lvaOutgoingArgSpaceSize)
         {
             lvaOutgoingArgSpaceSize = preallocatedArgCount * REGSIZE_BYTES;
@@ -4082,7 +4069,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* callNode)
             // stack alignment boundary.
             if (compLocallocUsed)
             {
-                lvaOutgoingArgSpaceSize = (lvaOutgoingArgSpaceSize + (STACK_ALIGN - 1)) & ~(STACK_ALIGN - 1);
+                lvaOutgoingArgSpaceSize = (unsigned) roundUp(lvaOutgoingArgSpaceSize, STACK_ALIGN);
             }
         }        
 #ifdef DEBUG
@@ -4538,7 +4525,8 @@ GenTreePtr    Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPt
         type[0] = getJitGCType(gcPtrs[0]);
         type[1] = getJitGCType(gcPtrs[1]);
 
-        if ((argValue->OperGet() == GT_LCL_FLD) || (argValue->OperGet() == GT_LCL_VAR))
+        if ((argValue->OperGet() == GT_LCL_FLD) ||
+            (argValue->OperGet() == GT_LCL_VAR))
         {
             // We can safely widen this to 16 bytes since we are loading from 
             // a GT_LCL_VAR or a GT_LCL_FLD which is properly padded and 
@@ -4547,9 +4535,11 @@ GenTreePtr    Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPt
             elemSize = TARGET_POINTER_SIZE;
             structSize = 2 * TARGET_POINTER_SIZE;
         }
-        else
+        else // we must have a GT_OBJ
         {
-            // We need to load the struct from an arbitraty address
+            assert(argValue->OperGet() == GT_OBJ);
+
+            // We need to load the struct from an arbitrary address
             // and we can't read past the end of the structSize
             // We adjust the second load type here
             // 
