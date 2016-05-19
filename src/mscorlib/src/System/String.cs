@@ -2626,7 +2626,7 @@ namespace System {
                     if( this.Length < value.Length || m_firstChar != value.m_firstChar) {
                         return false;
                     }
-                    return value.Length == 1 && StartsWithOrdinalHelper(this, value);
+                    return value.Length == 1 || StartsWithOrdinalHelper(this, value);
 
                 case StringComparison.OrdinalIgnoreCase:
                     return this.Length >= value.Length &&
