@@ -4577,53 +4577,6 @@ GenTreePtr    Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPt
             }
         }      
     }
-    else
-#endif
-    {
-        assert(structSize <= 2 * TARGET_POINTER_SIZE);
-        BYTE gcPtrs[2] = { TYPE_GC_NONE, TYPE_GC_NONE };
-        info.compCompHnd->getClassGClayout(objClass, &gcPtrs[0]);
-        elemCount = 2;
-        type[0] = getJitGCType(gcPtrs[0]);
-        type[1] = getJitGCType(gcPtrs[1]);
-
-        if ((argValue->OperGet() == GT_LCL_FLD) ||
-            (argValue->OperGet() == GT_LCL_VAR))
-        {
-            // We can safely widen this to 16 bytes since we are loading from 
-            // a GT_LCL_VAR or a GT_LCL_FLD which is properly padded and 
-            // lives in the stack frame or will be a promoted field.
-            //
-            elemSize = TARGET_POINTER_SIZE;
-            structSize = 2 * TARGET_POINTER_SIZE;
-        }
-        else // we must have a GT_OBJ
-        {
-            assert(argValue->OperGet() == GT_OBJ);
-
-            // We need to load the struct from an arbitrary address
-            // and we can't read past the end of the structSize
-            // We adjust the second load type here
-            // 
-            if (structSize < 2 * TARGET_POINTER_SIZE)
-            {
-                switch (structSize - TARGET_POINTER_SIZE) {
-                case 1:
-                    type[1] = TYP_BYTE;
-                    break;
-                case 2:
-                    type[1] = TYP_SHORT;
-                    break;
-                case 4:
-                    type[1] = TYP_INT;
-                    break;
-                default:
-                    noway_assert(!"NYI: odd sized struct in fgMorphMultiregStructArg");
-                    break;
-                }
-            }
-        }      
-    }
     // We should still have a TYP_STRUCT
     assert(argValue->TypeGet() == TYP_STRUCT);
 
