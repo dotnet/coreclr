@@ -2374,7 +2374,7 @@ namespace System {
             if ((uint)startIndex > this.Length)
                 throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_Index"));
 
-            if ((uint)startIndex > this.Length - count)
+            if ((uint)count > this.Length - startIndex)
                 throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_Count"));
             Contract.EndContractBlock();
 
