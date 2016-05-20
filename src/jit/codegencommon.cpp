@@ -4398,11 +4398,14 @@ void            CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg,
                                         varNum,
                                         baseOffset);
 
+#ifndef FEATURE_UNIX_AMD64_STRUCT_PASSING
             // Check if we are writing past the end of the struct
             if (varTypeIsStruct(varDsc))
             {
                 assert(varDsc->lvSize() >= baseOffset+(unsigned)size);
             }
+#endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING
+
 
             if (regArgTab[argNum].slot == 1)
                 psiMoveToStack(varNum);
