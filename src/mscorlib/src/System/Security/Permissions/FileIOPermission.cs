@@ -567,6 +567,7 @@ namespace System.Security.Permissions {
 
             for (int i = 0; i < str.Length; ++i)
             {
+                Path.CheckInvalidPathChars(str[i]);
             }
 #endif
         }
@@ -993,7 +994,7 @@ namespace System.Security.Permissions {
         /// IMPORTANT: This method should only be used after calling GetFullPath on the path to verify
         /// </summary>
         [System.Security.SecuritySafeCritical]
-        internal static void QuickDemand(FileIOPermissionAccess access, string fullPath, bool checkForDuplicates, bool needFullPath)
+        internal static void QuickDemand(FileIOPermissionAccess access, string fullPath, bool checkForDuplicates = false, bool needFullPath = false)
         {
 #if FEATURE_CAS_POLICY
             if (!CodeAccessSecurityEngine.QuickCheckForAllDemands())

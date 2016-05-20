@@ -104,12 +104,11 @@ namespace System.IO {
 #endif // !PLATFORM_UNIX
 
 
-        // Make this public sometime.
         // The max total path is 260, and the max individual component length is 255. 
         // For example, D:\<256 char file name> isn't legal, even though it's under 260 chars.
         internal static readonly int MaxPath = PathInternal.MaxShortPath;
 
-        private static readonly int MaxDirectoryLength = 255;
+        internal static readonly int MaxPathComponentLength = PathInternal.MaxComponentLength;
 
         // Windows API definitions
         internal const int MAX_PATH = 260;  // From WinDef.h
@@ -158,6 +157,12 @@ namespace System.IO {
         // path is null or if the file path denotes a root (such as "\", "C:", or
         // "\\server\share").
         public static String GetDirectoryName(String path)
+        {
+            return GetDirectoryNameInternal(path);
+        }
+
+        [System.Security.SecuritySafeCritical]
+        private static string GetDirectoryNameInternal(string path)
         {
             if (path != null)
             {
@@ -666,7 +671,7 @@ namespace System.IO {
                     }
 #endif
                     int thisPos = newBuffer.Length - 1;
-                    if (thisPos - lastDirectorySeparatorPos > MaxDirectoryLength)
+                    if (thisPos - lastDirectorySeparatorPos > MaxPathComponentLength)
                     {
                         throw new PathTooLongException(Environment.GetResourceString("IO.PathTooLong"));
                     }
@@ -743,7 +748,7 @@ namespace System.IO {
                 index++;
             } // end while
 
-            if (newBuffer.Length - 1 - lastDirectorySeparatorPos > MaxDirectoryLength)
+            if (newBuffer.Length - 1 - lastDirectorySeparatorPos > MaxPathComponentLength)
             {
                 throw new PathTooLongException(Environment.GetResourceString("IO.PathTooLong"));
             }
