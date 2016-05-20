@@ -636,6 +636,9 @@ namespace System {
                     // Take the slow path.
                     return (TextInfo.CompareOrdinalIgnoreCase(this, value) == 0);
 #endif
+                default:
+                    Contract.Assert(false, "Shouldn't be possible to reach here; the StringComparison has been validated to be in range!");
+                    return default(bool);
             }
         }
 
@@ -704,6 +707,9 @@ namespace System {
                         return (TextInfo.CompareOrdinalIgnoreCase(a, b) == 0);
 #endif
                     }
+                default:
+                    Contract.Assert(false, "Shouldn't be possible to reach here; the StringComparison has been validated to be in range!");
+                    return default(bool);
             }
         }
 
@@ -1860,6 +1866,9 @@ namespace System {
                     // Take the slow path.
                     return TextInfo.CompareOrdinalIgnoreCase(strA, strB);
 #endif
+                default:
+                    Contract.Assert(false, "Shouldn't be possible to reach here; the StringComparison has been validated to be in range!");
+                    return default(int);
             }
         }
 
@@ -2094,6 +2103,9 @@ namespace System {
 #else
                     return (TextInfo.CompareOrdinalIgnoreCaseEx(strA, indexA, strB, indexB, lengthA, lengthB));
 #endif
+                default:
+                    Contract.Assert(false, "Shouldn't be possible to reach here; the StringComparison has been validated to be in range!");
+                    return default(int);
             }
 
         }
@@ -2231,6 +2243,9 @@ namespace System {
 #else                    
                     return this.Length >= value.Length && (TextInfo.CompareOrdinalIgnoreCaseEx(this, this.Length - value.Length, value, 0, value.Length, value.Length) == 0);
 #endif
+                default:
+                    Contract.Assert(false, "Shouldn't be possible to reach here; the StringComparison has been validated to be in range!");
+                    return default(bool);
             }                        
         }
 
@@ -2384,6 +2399,8 @@ namespace System {
                         return CultureInfo.InvariantCulture.CompareInfo.IndexOf(this, value, startIndex, count, CompareOptions.IgnoreCase);
                     else
                         return TextInfo.IndexOfStringOrdinalIgnoreCase(this, value, startIndex, count);
+                default:
+                    throw new ArgumentException(Environment.GetResourceString("NotSupported_StringComparison"), "comparisonType");
             }  
         }
 
@@ -2517,6 +2534,8 @@ namespace System {
                         return CultureInfo.InvariantCulture.CompareInfo.LastIndexOf(this, value, startIndex, count, CompareOptions.IgnoreCase);
                     else
                         return TextInfo.LastIndexOfStringOrdinalIgnoreCase(this, value, startIndex, count);
+                default:
+                    throw new ArgumentException(Environment.GetResourceString("NotSupported_StringComparison"), "comparisonType");
             }  
         }
         
@@ -2635,6 +2654,9 @@ namespace System {
 #else
                     (TextInfo.CompareOrdinalIgnoreCaseEx(this, 0, value, 0, value.Length, value.Length) == 0);
 #endif
+                default:
+                    Contract.Assert(false, "Shouldn't be possible to reach here; the StringComparison has been validated to be in range!");
+                    return default(bool);
             }                        
         }
 
