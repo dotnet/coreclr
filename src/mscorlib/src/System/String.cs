@@ -2650,9 +2650,9 @@ namespace System {
                 case StringComparison.OrdinalIgnoreCase:
                     return this.Length >= value.Length &&
 #if FEATURE_COREFX_GLOBALIZATION
-                    (CompareInfo.CompareOrdinalIgnoreCase(this, 0, value.Length, value, 0, value.Length) == 0);
+                        CompareInfo.CompareOrdinalIgnoreCase(this, 0, value.Length, value, 0, value.Length) == 0;
 #else
-                    (TextInfo.CompareOrdinalIgnoreCaseEx(this, 0, value, 0, value.Length, value.Length) == 0);
+                        TextInfo.CompareOrdinalIgnoreCaseEx(this, 0, value, 0, value.Length, value.Length) == 0;
 #endif
                 default:
                     Contract.Assert(false, "Shouldn't be possible to reach here; the StringComparison has been validated to be in range!");
