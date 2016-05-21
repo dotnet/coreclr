@@ -140,7 +140,7 @@ namespace System.Threading.Tasks
     [HostProtection(Synchronization = true, ExternalThreading = true)]
     [DebuggerTypeProxy(typeof(SystemThreadingTasks_TaskDebugView))]
     [DebuggerDisplay("Id = {Id}, Status = {Status}, Method = {DebuggerDisplayMethodDescription}")]
-    public class Task : IThreadPoolWorkItem, IAsyncResult, IDisposable
+    public class Task : DeferrableWorkItem, IAsyncResult, IDisposable
     {
         [ThreadStatic]
         internal static Task t_currentTask;  // The currently executing task.
@@ -2689,11 +2689,11 @@ namespace System.Threading.Tasks
         }
 
         /// <summary>
-        /// IThreadPoolWorkItem override, which is the entry function for this task when the TP scheduler decides to run it.
+        /// DeferrableWorkItem override, which is the entry function for this task when the TP scheduler decides to run it.
         /// 
         /// </summary>
         [SecurityCritical]
-        void IThreadPoolWorkItem.ExecuteWorkItem()
+        internal override void ExecuteWorkItem()
         {
             ExecuteEntry(false);
         }
@@ -2703,7 +2703,7 @@ namespace System.Threading.Tasks
         /// before Task would otherwise be able to observe it.  
         /// </summary>
         [SecurityCritical]
-        void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae)
+        internal override void MarkAborted(ThreadAbortException tae)
         {
             // If the task has marked itself as Completed, then it either a) already observed this exception (so we shouldn't handle it here)
             // or b) completed before the exception ocurred (in which case it shouldn't count against this Task).
@@ -2716,7 +2716,7 @@ namespace System.Threading.Tasks
 
         /// <summary>
         /// Outermost entry function to execute this task. Handles all aspects of executing a task on the caller thread.
-        /// Currently this is called by IThreadPoolWorkItem.ExecuteWorkItem(), and TaskManager.TryExecuteInline. 
+        /// Currently this is called by DeferrableWorkItem.ExecuteWorkItem(), and TaskManager.TryExecuteInline. 
         /// 
         /// </summary>
         /// <param name="bPreventDoubleExecution"> Performs atomic updates to prevent double execution. Should only be set to true
@@ -2957,9 +2957,14 @@ namespace System.Threading.Tasks
             Contract.Requires(continuationAction != null);
 
             // Create the best AwaitTaskContinuation object given the request.
-            // If this remains null by the end of the function, we can use the 
-            // continuationAction directly without wrapping it.
             TaskContinuation tc = null;
+
+            // Capture Context
+            ExecutionContext context = flowExecutionContext ? 
+                ExecutionContext.Capture(
+                    ref stackMark,
+                    ExecutionContext.CaptureOptions.IgnoreSyncCtx | ExecutionContext.CaptureOptions.OptimizeDefaultCase) :
+                null;
 
             // If the user wants the continuation to run on the current "context" if there is one...
             if (continueOnCapturedContext)
@@ -2973,7 +2978,7 @@ namespace System.Threading.Tasks
                 var syncCtx = SynchronizationContext.CurrentNoFlow;
                 if (syncCtx != null && syncCtx.GetType() != typeof(SynchronizationContext))
                 {
-                    tc = new SynchronizationContextAwaitTaskContinuation(syncCtx, continuationAction, flowExecutionContext, ref stackMark);
+                    tc = GetSynchronizationContextAwaitTaskContinuation(syncCtx, continuationAction, context);
                 }
                 else
                 {
@@ -2982,7 +2987,7 @@ namespace System.Threading.Tasks
                     var scheduler = TaskScheduler.InternalCurrent;
                     if (scheduler != null && scheduler != TaskScheduler.Default)
                     {
-                        tc = new TaskSchedulerAwaitTaskContinuation(scheduler, continuationAction, flowExecutionContext, ref stackMark);
+                        tc = GetTaskSchedulerAwaitTaskContinuation(scheduler, continuationAction, context);
                     }
                 }
             }
@@ -2994,7 +2999,7 @@ namespace System.Threading.Tasks
                 // ExecutionContext, we need to capture it and wrap it in an AwaitTaskContinuation.
                 // Otherwise, we're targeting the default scheduler and we don't need to flow ExecutionContext, so
                 // we don't actually need a continuation object.  We can just store/queue the action itself.
-                tc = new AwaitTaskContinuation(continuationAction, flowExecutionContext: true, stackMark: ref stackMark);
+                tc = GetAwaitTaskContinuation(continuationAction, context);
             }
 
             // Now register the continuation, and if we couldn't register it because the task is already completing,
@@ -3011,6 +3016,48 @@ namespace System.Threading.Tasks
                 if (!AddTaskContinuation(continuationAction, addBeforeOthers: false))
                     AwaitTaskContinuation.UnsafeScheduleAction(continuationAction, this);
             }
+        }
+
+        private TaskContinuation GetSynchronizationContextAwaitTaskContinuation(SynchronizationContext syncCtx, Action continuationAction, ExecutionContext context)
+        {
+            if (context == ExecutionContext.PreAllocatedDefault)
+            {
+                return new SynchronizationContextAwaitTaskContinuation(syncCtx, continuationAction);
+            }
+            else if (context == null)
+            {
+                return new SynchronizationContextAwaitTaskContinuationNoContext(syncCtx, continuationAction);
+            }
+
+            return new SynchronizationContextAwaitTaskContinuationWithContext(syncCtx, continuationAction, context);
+        }
+
+        private TaskContinuation GetTaskSchedulerAwaitTaskContinuation(TaskScheduler scheduler, Action continuationAction, ExecutionContext context)
+        {
+            if (context == ExecutionContext.PreAllocatedDefault)
+            {
+                return new TaskSchedulerAwaitTaskContinuation(scheduler, continuationAction);
+            }
+            else if (context == null)
+            {
+                return new TaskSchedulerAwaitTaskContinuationNoContext(scheduler, continuationAction);
+            }
+
+            return new TaskSchedulerAwaitTaskContinuationWithContext(scheduler, continuationAction, context);
+        }
+
+        private TaskContinuation GetAwaitTaskContinuation(Action continuationAction, ExecutionContext context)
+        {
+            if (context == ExecutionContext.PreAllocatedDefault)
+            {
+                return new AwaitTaskContinuation(continuationAction);
+            }
+            else if (context == null)
+            {
+                return new AwaitTaskContinuationNoContext(continuationAction);
+            }
+
+            return new AwaitTaskContinuationWithContext(continuationAction, context);
         }
 
         /// <summary>Creates an awaitable that asynchronously yields back to the current context when awaited.</summary>
@@ -6689,7 +6736,7 @@ namespace System.Threading.Tasks
 
     }
 
-    internal sealed class CompletionActionInvoker : IThreadPoolWorkItem
+    internal sealed class CompletionActionInvoker : DeferrableWorkItem
     {
         private readonly ITaskCompletionAction m_action;
         private readonly Task m_completingTask;
@@ -6701,15 +6748,9 @@ namespace System.Threading.Tasks
         }
 
         [SecurityCritical]
-        void IThreadPoolWorkItem.ExecuteWorkItem()
+        internal override void ExecuteWorkItem()
         {
             m_action.Invoke(m_completingTask);
-        }
-
-        [SecurityCritical]
-        void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae)
-        {
-            /* NOP */
         }
     }
 

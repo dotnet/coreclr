@@ -139,7 +139,7 @@ namespace System.Threading.Tasks
             // to capture both the Action delegate and the ExecutionContext in a single object).  
             // In the future, if performance requirements drove a need, those four 
             // allocations could be reduced to one.  This would be achieved by having TaskWrapperAsyncResult
-            // also implement ITaskCompletionAction (and optionally IThreadPoolWorkItem).  It would need
+            // also implement ITaskCompletionAction (and optionally DeferrableWorkItem).  It would need
             // additional fields to store the AsyncCallback and an ExecutionContext.  Once configured, 
             // it would be set into the Task as a continuation.  Its Invoke method would then be run when 
             // the antecedent completed, and, doing all of the necessary work to flow ExecutionContext, 
