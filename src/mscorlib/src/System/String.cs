@@ -362,7 +362,7 @@ namespace System {
                 // Single int read aligns pointers for the following long reads
                 // PERF: No length check needed as there is always an int32 worth of string allocated
                 //       This read can also include the null terminator which both strings will have
-                if (*(int*)a != *(int*)b) return false;
+                if (*(int*)a != *(int*)b) goto ReturnFalse;
                 length -= 2; a += 2; b += 2;
 
                 // for AMD64 bit platform we unroll by 12 and
