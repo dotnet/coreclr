@@ -780,7 +780,7 @@ UMThunkStub_WrongAppDomain
     bl                  UM2MDoADCallBack
 
     ; restore integral return value
-    ldr                 x0, [fp, #16]
+    ldp                 x0, x1, [fp, #16]
 
     ; restore FP or HFA return value
     RESTORE_FLOAT_ARGUMENT_REGISTERS sp, 0
@@ -858,7 +858,7 @@ UM2MThunk_WrapperHelper_RegArgumentsSetup
     blr                 x16
 
     ; save integral return value
-    str                 x0, [x19]
+    stp                 x0, x1, [x19]
     ; save FP/HFA return values
     SAVE_FLOAT_ARGUMENT_REGISTERS x19, -1 * (SIZEOF__FloatArgumentRegisters + 16)
 
@@ -931,13 +931,13 @@ UM2MThunk_WrapperHelper_RegArgumentsSetup
     PROLOG_SAVE_REG_PAIR   x25, x26, #64
     PROLOG_SAVE_REG_PAIR   x27, x28, #80
 
-    str x0, [sp, #96]
+    stp x0, x1, [sp, #96]
     ; HFA return value can be in d0-d3
     stp d0, d1, [sp, #112]
     stp d2, d3, [sp, #128]
     mov x0, sp
     bl OnHijackScalarWorker
-    ldr x0, [sp, #96]
+    ldp x0, x1, [sp, #96]
     ldp d0, d1, [sp, #112]
     ldp d2, d3, [sp, #128]
 

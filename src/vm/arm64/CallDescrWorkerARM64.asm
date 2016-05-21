@@ -119,7 +119,7 @@ LNoDoubleHFAReturn
 
 LIntReturn
         ;; Save return value into retbuf for int
-        str     x0, [x19, #(CallDescrData__returnValue + 0)]
+        stp     x0, x1, [x19, #(CallDescrData__returnValue + 0)]
 
 LReturnDone
 
