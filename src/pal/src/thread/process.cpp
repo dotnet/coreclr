@@ -1678,7 +1678,7 @@ public:
         GetRVA_PFN getrva;
         char *pszLast;
         SIZE_T read;
-        DWORD rva;
+        LPCVOID address;
 
         *pCoreClrIsReady = false;
 
@@ -1716,7 +1716,8 @@ public:
             goto exit;
         }
 
-        rva = (*getrva)();
+        // Calculate the address of the g_coreclrProcessIsReady
+        address = ((BYTE *)module->BaseAddress) + (*getrva)();
 
         hProcess = OpenProcess(READ_CONTROL, FALSE, m_processId);
         if (hProcess == NULL)
@@ -1725,17 +1726,16 @@ public:
             goto exit;
         }
 
-        // Get the contents of g_coreclrProcessIsReady in the coreclr process
-        if (ReadProcessMemory(hProcess, ((BYTE *)module->BaseAddress) + rva, &coreclrProcessIsReadyContents, sizeof(coreclrProcessIsReadyContents), &read))
+        // Get the contents of g_coreclrProcessIsReady in the coreclr process. The errors from read memory
+        // are ignored in case we hit the post-fork pre-execv race where the coreclr module is loaded at a 
+        // different address and/or is a different version of coreclr with a different RVA. The resulting 
+        // address could be invalid if read actually happens after the execv.
+        if (ReadProcessMemory(hProcess, address, &coreclrProcessIsReadyContents, sizeof(coreclrProcessIsReadyContents), &read))
         {
             if (read == sizeof(coreclrProcessIsReadyContents) && coreclrProcessIsReadyContents == m_processId)
             {
                 *pCoreClrIsReady = true;
             }
-        }
-        else
-        {
-            pe = GetLastError();
         }
 
     exit:
