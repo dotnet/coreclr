@@ -231,11 +231,11 @@ TODO: Talk about initializing strutures before use
 #if COR_JIT_EE_VERSION > 460
 
 // Update this one
-SELECTANY const GUID JITEEVersionIdentifier = { /* 7a6aa61a-78b1-4dfb-9e06-655fb4774d7f */
-    0x7a6aa61a,
-    0x78b1,
-    0x4dfb,
-    { 0x9e, 0x6, 0x65, 0x5f, 0xb4, 0x77, 0x4d, 0x7f }
+SELECTANY const GUID JITEEVersionIdentifier = { /* 718c4238-2a85-45de-88ad-9b1fed806547 */
+    0x718c4238,
+    0x2a85,
+    0x45de,
+    { 0x88, 0xad, 0x9b, 0x1f, 0xed, 0x80, 0x65, 0x47 }
 };
 
 #else
@@ -659,13 +659,11 @@ enum CorInfoHelpFunc
     CORINFO_HELP_EE_PERSONALITY_ROUTINE,// Not real JIT helper. Used in native images.
     CORINFO_HELP_EE_PERSONALITY_ROUTINE_FILTER_FUNCLET,// Not real JIT helper. Used in native images to detect filter funclets.
 
+    // ASSIGN_REF_EAX - CHECKED_ASSIGN_REF_EBP: NOGC_WRITE_BARRIERS JIT helper calls
     //
-    // Keep platform-specific helpers at the end so that the ids for the platform neutral helpers stay same accross platforms
+    // For unchecked versions EDX is required to point into GC heap.
     //
-
-#if defined(_TARGET_X86_) || defined(_HOST_X86_) // _HOST_X86_ is for altjit
-                                    // NOGC_WRITE_BARRIERS JIT helper calls
-                                    // Unchecked versions EDX is required to point into GC heap
+    // NOTE: these helpers are only used for x86.
     CORINFO_HELP_ASSIGN_REF_EAX,    // EAX holds GC ptr, do a 'mov [EDX], EAX' and inform GC
     CORINFO_HELP_ASSIGN_REF_EBX,    // EBX holds GC ptr, do a 'mov [EDX], EBX' and inform GC
     CORINFO_HELP_ASSIGN_REF_ECX,    // ECX holds GC ptr, do a 'mov [EDX], ECX' and inform GC
@@ -679,7 +677,6 @@ enum CorInfoHelpFunc
     CORINFO_HELP_CHECKED_ASSIGN_REF_ESI,
     CORINFO_HELP_CHECKED_ASSIGN_REF_EDI,
     CORINFO_HELP_CHECKED_ASSIGN_REF_EBP,
-#endif
 
     CORINFO_HELP_LOOP_CLONE_CHOICE_ADDR, // Return the reference to a counter to decide to take cloned path in debug stress.
     CORINFO_HELP_DEBUG_LOG_LOOP_CLONING, // Print a message that a loop cloning optimization has occurred in debug mode.
@@ -975,9 +972,7 @@ enum CorInfoIntrinsics
     CORINFO_INTRINSIC_TypeNEQ,
     CORINFO_INTRINSIC_Object_GetType,
     CORINFO_INTRINSIC_StubHelpers_GetStubContext,
-#ifdef _WIN64
     CORINFO_INTRINSIC_StubHelpers_GetStubContextAddr,
-#endif // _WIN64
     CORINFO_INTRINSIC_StubHelpers_GetNDirectTarget,
     CORINFO_INTRINSIC_InterlockedAdd32,
     CORINFO_INTRINSIC_InterlockedAdd64,
@@ -1776,6 +1771,13 @@ struct CORINFO_CPU
     DWORD           dwExtendedFeatures;
 };
 
+enum CORINFO_RUNTIME_ABI
+{
+    CORINFO_DESKTOP_ABI = 0x100,
+    CORINFO_CORECLR_ABI = 0x200,
+    CORINFO_CORERT_ABI = 0x300,
+};
+
 // For some highly optimized paths, the JIT must generate code that directly
 // manipulates internal EE data structures. The getEEInfo() helper returns
 // this structure containing the needed offsets and values.
@@ -1815,6 +1817,16 @@ struct CORINFO_EE_INFO
 #if COR_JIT_EE_VERSION > 460
     // Reverse PInvoke offsets
     unsigned    sizeOfReversePInvokeFrame;
+
+    // OS Page size
+    size_t      osPageSize;
+
+    // Null object offset
+    size_t      maxUncheckedOffsetForNullObject;
+
+    // Target ABI. Combined with target architecture and OS to determine
+    // GC, EH, and unwind styles.
+    CORINFO_RUNTIME_ABI targetAbi;
 #endif
 
     CORINFO_OS  osType;
@@ -1831,17 +1843,20 @@ enum { LCL_FINALLY_MARK = 0xFC }; // FC = "Finally Call"
  * The following is the internal structure of an object that the compiler knows about
  * when it generates code
  **********************************************************************************/
-#include <pshpack4.h>
+
+#if COR_JIT_EE_VERSION <= 460
 
 #define CORINFO_PAGE_SIZE   0x1000                           // the page size on the machine
-
-// <TODO>@TODO: put this in the CORINFO_EE_INFO data structure</TODO>
 
 #ifndef FEATURE_PAL
 #define MAX_UNCHECKED_OFFSET_FOR_NULL_OBJECT ((32*1024)-1)   // when generating JIT code
 #else // !FEATURE_PAL
 #define MAX_UNCHECKED_OFFSET_FOR_NULL_OBJECT ((OS_PAGE_SIZE / 2) - 1)
 #endif // !FEATURE_PAL
+
+#endif // COR_JIT_EE_VERISION <= 460
+
+#include <pshpack4.h>
 
 typedef void* CORINFO_MethodPtr;            // a generic method pointer
 
