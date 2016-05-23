@@ -1471,7 +1471,8 @@ class PAL_RuntimeStartupHelper
     // Debugger waits on this semaphore and the runtime signals it on startup.
     sem_t *m_startupSem;
 
-    // Debuggee waits on this semaphore and the debugger signals it after the callback returns.
+    // Debuggee waits on this semaphore and the debugger signals it after the startup callback 
+    // registered (m_callback) returns.
     sem_t *m_continueSem;
 
 public:
@@ -1667,6 +1668,25 @@ public:
         }
     }
 
+    //
+    // There are three race conditions that need to be considered here:
+    //
+    // 1) On launch, between the fork and execv in the PAL's CreateProcess where the target process 
+    //    may contain a coreclr module image if the debugger process is running managed code. This 
+    //    makes just checking if the coreclr module exists not enough.
+    //
+    // 2) On launch (after the execv) or attach when the coreclr is loaded but before the DAC globals 
+    //    table is initialized where it is too soon to use/initialize the DAC on the debugger side. This
+    //    window is closed by checking if the value of the g_coreclrProcessIsReady DWORD in the coreclr 
+    //    process is the coreclr process PID.
+    //
+    // 3) On launch or attach between the time dbgshim is notified that the runtime is ready 
+    //    (g_coreclrProcessIsReady is set and the "startup" semaphore is signaled) and when the coreclr 
+    //    side transport pipe is created and ready to accept connections. Creating the tranport pipes 
+    //    happens asynchronously from the main thread waiting on the "continue" event. The fix for this
+    //    window is in the transport session logic on the debugger side where if the connect to the 
+    //    target fails it sleeps for a 1sec and retries.
+    //
     PAL_ERROR IsCoreClrProcessReady(ProcessModules *module, bool *pCoreClrIsReady)
     {
         typedef DWORD PALAPI (*GetRVA_PFN)();
@@ -1707,12 +1727,14 @@ public:
             goto exit;
         }
 
-        // Load dac and call entry point to get g_coreclrProcessIsReady RVA
+        // Load dac and call entry point to get g_coreclrProcessIsReady RVA. If this
+        // entry point doesn't exist that means we have an older version (RC2) of
+        // coreclr/dac so return "coreclr is ready" since with the RC2 the coreclr
+        // module being loaded is all we have to go on.
         getrva = (GetRVA_PFN)dlsym(dl_handle, "GetCoreClrProcessIsReadyRVA");
         if (getrva == NULL)
         {
-            WARN("dlsym(GetCoreClrProcessIsReadyRVA) failed; dlerror says '%s'\n", dlerror());
-            pe = ERROR_MOD_NOT_FOUND;
+            *pCoreClrIsReady = true;
             goto exit;
         }
 
@@ -1750,63 +1772,66 @@ public:
         return pe;
     }
 
-    PAL_ERROR InvokeStartupCallback(bool *pCoreClrIsReady)
+    PAL_ERROR InvokeStartupCallbackIfReady(bool *pCoreClrIsReady)
     {
+        ProcessModules *listHead = NULL;
         PAL_ERROR pe = NO_ERROR;
+        DWORD count;
 
         *pCoreClrIsReady = false;
 
-        if (!m_canceled)
+        if (m_canceled)
         {
-            // Enumerate all the modules in the process and invoke the callback 
-            // for the coreclr module if found.
-            DWORD count;
-            ProcessModules *listHead = CreateProcessModules(m_processId, &count);
-            if (listHead == NULL)
+            goto exit;
+        }
+
+        // Enumerate all the modules in the process and invoke the callback 
+        // for the coreclr module if found.
+        listHead = CreateProcessModules(m_processId, &count);
+        if (listHead == NULL)
+        {
+            TRACE("CreateProcessModules failed for pid %d\n", m_processId);
+            pe = ERROR_INVALID_PARAMETER;
+            goto exit;
+        }
+
+        for (ProcessModules *entry = listHead; entry != NULL; entry = entry->Next)
+        {
+            pe = IsCoreClrProcessReady(entry, pCoreClrIsReady);
+            if (pe != NO_ERROR)
             {
-                TRACE("CreateProcessModules failed for pid %d\n", m_processId);
-                pe = ERROR_INVALID_PARAMETER;
                 goto exit;
             }
 
-            for (ProcessModules *entry = listHead; entry != NULL; entry = entry->Next)
-            {
-                pe = IsCoreClrProcessReady(entry, pCoreClrIsReady);
-                if (pe != NO_ERROR)
-                {
-                    goto exit;
-                }
-
-                if (*pCoreClrIsReady)
-                {
-                    PAL_CPP_TRY
-                    {
-                        TRACE("InvokeStartupCallback executing callback %p %s\n", entry->BaseAddress, entry->Name);
-                        m_callback(entry->Name, entry->BaseAddress, m_parameter);
-                    }
-                    PAL_CPP_CATCH_ALL
-                    {
-                    }
-                    PAL_CPP_ENDTRY
-
-                    // Currently only the first coreclr module in a process is supported
-                    break;
-                }
-            }
-
-        exit:
             if (*pCoreClrIsReady)
             {
-                // Wake up all the runtimes
-                if (sem_post(m_continueSem) != 0)
+                PAL_CPP_TRY
                 {
-                    ASSERT("sem_post(continueSem) failed: errno is %d (%s)\n", errno, strerror(errno));
+                    TRACE("InvokeStartupCallbackIfReady executing callback %p %s\n", entry->BaseAddress, entry->Name);
+                    m_callback(entry->Name, entry->BaseAddress, m_parameter);
                 }
+                PAL_CPP_CATCH_ALL
+                {
+                }
+                PAL_CPP_ENDTRY
+
+                // Currently only the first coreclr module in a process is supported
+                break;
             }
-            if (listHead != NULL)
+        }
+
+    exit:
+        // Wake up the runtime if ready or canceled
+        if (m_canceled || *pCoreClrIsReady)
+        {
+            if (sem_post(m_continueSem) != 0)
             {
-                DestroyProcessModules(listHead);
+                ASSERT("sem_post(continueSem) failed: errno is %d (%s)\n", errno, strerror(errno));
             }
+        }
+        if (listHead != NULL)
+        {
+            DestroyProcessModules(listHead);
         }
 
         return pe;
@@ -1816,7 +1841,7 @@ public:
     {
         bool coreclrIsReady = false;
 
-        PAL_ERROR pe = InvokeStartupCallback(&coreclrIsReady);
+        PAL_ERROR pe = InvokeStartupCallbackIfReady(&coreclrIsReady);
         if (pe == NO_ERROR)
         {
             if (!coreclrIsReady)
@@ -1824,7 +1849,7 @@ public:
                 // Wait until the coreclr runtime (debuggee) starts up
                 if (sem_wait(m_startupSem) == 0)
                 {
-                    pe = InvokeStartupCallback(&coreclrIsReady);
+                    pe = InvokeStartupCallbackIfReady(&coreclrIsReady);
                 }
                 else
                 {
