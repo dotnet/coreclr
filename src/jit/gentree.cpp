@@ -238,13 +238,13 @@ void                GenTree::InitNodeSize()
 
     // Now set all of the appropriate entries to 'large'
 
-    // On ARM and System V struct returning there
-    // is code that does GT_ASG-tree.CopyObj call.
+    // On ARM32, ARM64 and System V for struct returning 
+    // there is code that does GT_ASG-tree.CopyObj call.
     // CopyObj is a large node and the GT_ASG is small, which triggers an exception.
-#if defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(FEATURE_HFA) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
     GenTree::s_gtNodeSizes[GT_ASG             ] = TREE_NODE_SZ_LARGE;
     GenTree::s_gtNodeSizes[GT_RETURN          ] = TREE_NODE_SZ_LARGE;
-#endif // defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // defined(FEATURE_HFA) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
 
     GenTree::s_gtNodeSizes[GT_CALL            ] = TREE_NODE_SZ_LARGE;
     GenTree::s_gtNodeSizes[GT_CAST            ] = TREE_NODE_SZ_LARGE;
@@ -276,12 +276,12 @@ void                GenTree::InitNodeSize()
 #ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
     GenTree::s_gtNodeSizes[GT_PUTARG_STK      ] = TREE_NODE_SZ_LARGE;
 #endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
-#if defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(FEATURE_HFA) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
     // In importer for Hfa and register returned structs we rewrite GT_ASG to GT_COPYOBJ/GT_CPYBLK
     // Make sure the sizes agree.
     assert(GenTree::s_gtNodeSizes[GT_COPYOBJ] <= GenTree::s_gtNodeSizes[GT_ASG]);
     assert(GenTree::s_gtNodeSizes[GT_COPYBLK] <= GenTree::s_gtNodeSizes[GT_ASG]);
-#endif // !(defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING))
+#endif // !(defined(FEATURE_HFA) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING))
 
     assert(GenTree::s_gtNodeSizes[GT_RETURN] == GenTree::s_gtNodeSizes[GT_ASG]);
 
@@ -5630,7 +5630,7 @@ GenTreePtr          Compiler::gtNewAssignNode(GenTreePtr dst, GenTreePtr src DEB
 
     // ARM has HFA struct return values, HFA return values are received in registers from GT_CALL,
     // using struct assignment.
-#ifdef _TARGET_ARM_
+#ifdef FEATURE_HFA
     assert(isPhiDefn || type != TYP_STRUCT || IsHfa(dst) || IsHfa(src));
 #elif defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
     // You need to use GT_COPYBLK for assigning structs
@@ -7386,6 +7386,10 @@ Compiler::gtDispNodeName(GenTree *tree)
     {
         sprintf_s(bufp, sizeof(buf), " %s(h)%c", name, 0);
     }
+    else if (tree->gtOper == GT_PUTARG_STK)
+    {
+        sprintf_s(bufp, sizeof(buf), " %s [+0x%02x]%c", name, tree->AsPutArgStk()->getArgOffset(), 0);
+    }
     else if (tree->gtOper == GT_CALL)
     {
         const char *  callType = "call";
@@ -9091,21 +9095,17 @@ void                Compiler::gtGetLateArgMsg(GenTreePtr        call,
         else
         {
 #ifdef _TARGET_ARM64_
-            if (curArgTabEntry->numRegs == 2)
+            if (curArgTabEntry->numRegs >= 2)
             {
-                regNumber argReg2 = REG_NEXT(argReg);
                 if (listCount == -1)
                 {
-                    sprintf_s(bufp, bufLength, "arg%d %s,%s%c", curArgTabEntry->argNum, compRegVarName(argReg), compRegVarName(argReg2), 0);
+                    sprintf_s(bufp, bufLength, "arg%d %s,%s%c", curArgTabEntry->argNum, compRegVarName(argReg), compRegVarName(REG_NEXT(argReg)), 0);
                 }
-                else if (listCount == 1)
+                else // listCount is 0,1,2 or 3
                 {
-                    sprintf_s(bufp, bufLength, "arg%d hi %s%c", curArgTabEntry->argNum, compRegVarName(argReg2), 0);
-                }
-                else 
-                {
-                    assert(listCount == 0);
-                    sprintf_s(bufp, bufLength, "arg%d lo %s%c", curArgTabEntry->argNum, compRegVarName(argReg), 0);
+                    assert(listCount <= MAX_MULTIREG_ARGS);
+                    regNumber multiReg = (regNumber)((unsigned)(argReg)+listCount);
+                    sprintf_s(bufp, bufLength, "arg%d m%d %s%c", curArgTabEntry->argNum, listCount, compRegVarName(multiReg), 0);
                 }
             }
             else
@@ -13780,8 +13780,9 @@ void ReturnTypeDesc::Initialize(Compiler* comp, CORINFO_CLASS_HANDLE retClsHnd)
 //     and yet to be implemented for other multi-reg return
 //     targets (Arm64/Arm32/x86).
 //
-// TODO-ARM: Implement this routine to support HFA returns.
-// TODO-X86: Implement this routine to support long returns.
+// TODO-ARM:   Implement this routine to support HFA returns.
+// TODO-ARM64: Implement this routine to support HFA returns.
+// TODO-X86:   Implement this routine to support long returns.
 regNumber ReturnTypeDesc::GetABIReturnReg(unsigned idx)
 {
     unsigned count = GetReturnRegCount();
@@ -13854,8 +13855,9 @@ regNumber ReturnTypeDesc::GetABIReturnReg(unsigned idx)
 //    This routine can be used when the caller is not particular about the order
 //    of return registers and wants to know the set of return registers.
 //
-// TODO-ARM: Implement this routine to support HFA returns.
-// TODO-X86: Implement this routine to support long returns.
+// TODO-ARM:   Implement this routine to support HFA returns.
+// TODO-ARM64: Implement this routine to support HFA returns.
+// TODO-X86:   Implement this routine to support long returns.
 //
 //static
 regMaskTP ReturnTypeDesc::GetABIReturnRegs()

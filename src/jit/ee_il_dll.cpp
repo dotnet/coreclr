@@ -439,15 +439,45 @@ unsigned           Compiler::eeGetArgSize(CORINFO_ARG_LIST_HANDLE list, CORINFO_
         assert(argTypeJit != CORINFO_TYPE_REFANY || structSize == 2*sizeof(void*));
 
 #if FEATURE_MULTIREG_ARGS
-#ifdef _TARGET_ARM64_
+        // For each target that supports passing struct args in multiple registers 
+        // apply the target specific rules for them here:
+#if defined(_TARGET_ARM64_)
+        // For ARM64 structs that are larger that 32 bytes are
+        // passed by reference to a local copy of the value type
+        // For HFA types the struct are passed by value using FP registers
+        // For structs that are 16 bytes or smaller they are passed by value
+        // using up to two integer registers
+        // if the struct is more than 16 bytes and is not an HFA it is
+        // passed by reference to a local copy of the value type
         if (structSize > MAX_PASS_MULTIREG_BYTES)
         {
             // This struct is passed by reference using a single 'slot'
             return TARGET_POINTER_SIZE;
         }
-#endif // _TARGET_ARM64_
+        else
+        {
+            // Is the struct larger than 16 bytes
+            if (structSize > (2 * TARGET_POINTER_SIZE))
+            {
+                var_types hfaType = GetHfaType(argClass);   // set to float or double if it is an HFA, otherwise TYP_UNDEF
+                bool      isHfa = (hfaType != TYP_UNDEF);
+                if (!isHfa)
+                {
+                    // This struct is passed by reference using a single 'slot'
+                    return TARGET_POINTER_SIZE;
+                }
+            }
+        }
+        // otherwise will we pass this struct by value in multiple registers
+        //
+#elif defined(_TARGET_ARM_)
+        //  otherwise will we pass this struct by value in multiple registers
+#else // 
+        NYI("unknown target");
+#endif // defined(_TARGET_XXX_)
 #endif // FEATURE_MULTIREG_ARGS
 
+        // we pass this struct by value in multiple registers
         return (unsigned)roundUp(structSize, TARGET_POINTER_SIZE);
     }
     else
