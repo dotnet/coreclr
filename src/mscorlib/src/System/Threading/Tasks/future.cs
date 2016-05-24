@@ -1575,7 +1575,102 @@ namespace System.Threading.Tasks
         #endregion
 
         #endregion
-        
+
+        /// <summary>A cached task for default(TResult).</summary>
+        internal readonly static Task<TResult> s_defaultResultTask = AsyncTaskCache.CreateCacheableTask(default(TResult));
+
+        /// <summary>
+        /// Gets a task for the specified result.  This will either
+        /// be a cached or new task, never null.
+        /// </summary>
+        /// <param name="result">The result for which we need a task.</param>
+        /// <returns>The completed task containing the result.</returns>
+        [SecuritySafeCritical] // for JitHelpers.UnsafeCast
+        internal static Task<TResult> GetTaskForResult(TResult result)
+        {
+            Contract.Ensures(
+                EqualityComparer<TResult>.Default.Equals(result, Contract.Result<Task<TResult>>().Result),
+                "The returned task's Result must return the same value as the specified result value.");
+
+            // The goal of this function is to be give back a cached task if possible,
+            // or to otherwise give back a new task.  To give back a cached task,
+            // we need to be able to evaluate the incoming result value, and we need
+            // to avoid as much overhead as possible when doing so, as this function
+            // is invoked as part of the return path from every async method.
+            // Most tasks won't be cached, and thus we need the checks for those that are 
+            // to be as close to free as possible. This requires some trickiness given the 
+            // lack of generic specialization in .NET.
+            //
+            // Be very careful when modifying this code.  It has been tuned
+            // to comply with patterns recognized by both 32-bit and 64-bit JITs.
+            // If changes are made here, be sure to look at the generated assembly, as
+            // small tweaks can have big consequences for what does and doesn't get optimized away.
+            //
+            // Note that this code only ever accesses a static field when it knows it'll
+            // find a cached value, since static fields (even if readonly and integral types) 
+            // require special access helpers in this NGEN'd and domain-neutral.
+
+            if (null != (object)default(TResult)) // help the JIT avoid the value type branches for ref types
+            {
+                // Special case simple value types:
+                // - Boolean
+                // - Byte, SByte
+                // - Char
+                // - Decimal
+                // - Int32, UInt32
+                // - Int64, UInt64
+                // - Int16, UInt16
+                // - IntPtr, UIntPtr
+                // As of .NET 4.5, the (Type)(object)result pattern used below
+                // is recognized and optimized by both 32-bit and 64-bit JITs.
+
+                // For Boolean, we cache all possible values.
+                if (typeof(TResult) == typeof(Boolean)) // only the relevant branches are kept for each value-type generic instantiation
+                {
+                    Boolean value = (Boolean)(object)result;
+                    Task<Boolean> task = value ? AsyncTaskCache.TrueTask : AsyncTaskCache.FalseTask;
+                    return JitHelpers.UnsafeCast<Task<TResult>>(task); // UnsafeCast avoids type check we know will succeed
+                }
+                // For Int32, we cache a range of common values, e.g. [-1,4).
+                else if (typeof(TResult) == typeof(Int32))
+                {
+                    // Compare to constants to avoid static field access if outside of cached range.
+                    // We compare to the upper bound first, as we're more likely to cache miss on the upper side than on the 
+                    // lower side, due to positive values being more common than negative as return values.
+                    Int32 value = (Int32)(object)result;
+                    if (value < AsyncTaskCache.EXCLUSIVE_INT32_MAX &&
+                        value >= AsyncTaskCache.INCLUSIVE_INT32_MIN)
+                    {
+                        Task<Int32> task = AsyncTaskCache.Int32Tasks[value - AsyncTaskCache.INCLUSIVE_INT32_MIN];
+                        return JitHelpers.UnsafeCast<Task<TResult>>(task); // UnsafeCast avoids a type check we know will succeed
+                    }
+                }
+                // For other known value types, we only special-case 0 / default(TResult).
+                else if (
+                    (typeof(TResult) == typeof(UInt32) && default(UInt32) == (UInt32)(object)result) ||
+                    (typeof(TResult) == typeof(Byte) && default(Byte) == (Byte)(object)result) ||
+                    (typeof(TResult) == typeof(SByte) && default(SByte) == (SByte)(object)result) ||
+                    (typeof(TResult) == typeof(Char) && default(Char) == (Char)(object)result) ||
+                    (typeof(TResult) == typeof(Decimal) && default(Decimal) == (Decimal)(object)result) ||
+                    (typeof(TResult) == typeof(Int64) && default(Int64) == (Int64)(object)result) ||
+                    (typeof(TResult) == typeof(UInt64) && default(UInt64) == (UInt64)(object)result) ||
+                    (typeof(TResult) == typeof(Int16) && default(Int16) == (Int16)(object)result) ||
+                    (typeof(TResult) == typeof(UInt16) && default(UInt16) == (UInt16)(object)result) ||
+                    (typeof(TResult) == typeof(IntPtr) && default(IntPtr) == (IntPtr)(object)result) ||
+                    (typeof(TResult) == typeof(UIntPtr) && default(UIntPtr) == (UIntPtr)(object)result))
+                {
+                    return s_defaultResultTask;
+                }
+            }
+            else if (result == null) // optimized away for value types
+            {
+                return s_defaultResultTask;
+            }
+
+            // No cached task is available.  Manufacture a new one for this result.
+            return new Task<TResult>(result);
+        }
+
         /// <summary>
         /// Subscribes an <see cref="IObserver{TResult}"/> to receive notification of the final state of this <see cref="Task{TResult}"/>.
         /// </summary>
@@ -1618,6 +1713,44 @@ namespace System.Threading.Tasks
 #endif
     }
 
+    /// <summary>Provides a cache of closed generic tasks for async methods.</summary>
+    internal static class AsyncTaskCache
+    {
+        // All static members are initialized inline to ensure type is beforefieldinit
+
+        /// <summary>A cached Task{Boolean}.Result == true.</summary>
+        internal readonly static Task<Boolean> TrueTask = CreateCacheableTask(true);
+        /// <summary>A cached Task{Boolean}.Result == false.</summary>
+        internal readonly static Task<Boolean> FalseTask = CreateCacheableTask(false);
+
+        /// <summary>The cache of Task{Int32}.</summary>
+        internal readonly static Task<Int32>[] Int32Tasks = CreateInt32Tasks();
+        /// <summary>The minimum value, inclusive, for which we want a cached task.</summary>
+        internal const Int32 INCLUSIVE_INT32_MIN = -1;
+        /// <summary>The maximum value, exclusive, for which we want a cached task.</summary>
+        internal const Int32 EXCLUSIVE_INT32_MAX = 9;
+        /// <summary>Creates an array of cached tasks for the values in the range [INCLUSIVE_MIN,EXCLUSIVE_MAX).</summary>
+        private static Task<Int32>[] CreateInt32Tasks()
+        {
+            Contract.Assert(EXCLUSIVE_INT32_MAX >= INCLUSIVE_INT32_MIN, "Expected max to be at least min");
+            var tasks = new Task<Int32>[EXCLUSIVE_INT32_MAX - INCLUSIVE_INT32_MIN];
+            for (int i = 0; i < tasks.Length; i++)
+            {
+                tasks[i] = CreateCacheableTask(i + INCLUSIVE_INT32_MIN);
+            }
+            return tasks;
+        }
+
+        /// <summary>Creates a non-disposable task.</summary>
+        /// <typeparam name="TResult">Specifies the result type.</typeparam>
+        /// <param name="result">The result for the task.</param>
+        /// <returns>The cacheable task.</returns>
+        internal static Task<TResult> CreateCacheableTask<TResult>(TResult result)
+        {
+            return new Task<TResult>(false, result, (TaskCreationOptions)InternalTaskOptions.DoNotDispose, default(CancellationToken));
+        }
+    }
+
 #if SUPPORT_IOBSERVABLE
     // Class that calls RemoveContinuation if Dispose() is called before task completion
     internal class DisposableSubscription : IDisposable
@@ -1644,8 +1777,8 @@ namespace System.Threading.Tasks
     }
 #endif
 
-    // Proxy class for better debugging experience
-    internal class SystemThreadingTasks_FutureDebugView<TResult>
+        // Proxy class for better debugging experience
+        internal class SystemThreadingTasks_FutureDebugView<TResult>
     {
         private Task<TResult> m_task;
 
