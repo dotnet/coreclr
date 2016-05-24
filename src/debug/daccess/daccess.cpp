@@ -98,6 +98,14 @@ GetModuleInst(void)
     return g_thisModule;
 }
 
+#ifdef FEATURE_PAL
+EXTERN_C DWORD PALAPI
+GetCoreClrProcessIsReadyRVA()
+{
+    return CORECLR_PROCESS_IS_READY_RVA;
+}
+#endif // FEATURE_PAL
+
 HRESULT
 ConvertUtf8(__in LPCUTF8 utf8,
             ULONG32 bufLen,

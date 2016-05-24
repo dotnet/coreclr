@@ -207,5 +207,4 @@ void TwoWayPipe::CleanupTargetProcess()
 {
     unlink(m_inPipeName);
     unlink(m_outPipeName);
-    PAL_CleanupTargetProcess(m_id, m_disambiguationKey);
 }

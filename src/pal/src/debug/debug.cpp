@@ -78,7 +78,7 @@ extern "C" void DBG_DebugBreak_End();
 
 /* ------------------- Constant definitions ----------------------------------*/
 
-#if !HAVE_VM_READ && !HAVE_PROCFS_CTL
+#if !HAVE_VM_READ && !HAVE_PROCFS_MEM
 const BOOL DBG_ATTACH       = TRUE;
 const BOOL DBG_DETACH       = FALSE;
 #endif
@@ -94,15 +94,15 @@ static const char PAL_RUN_ON_DEBUG_BREAK[]   = "PAL_RUN_ON_DEBUG_BREAK";
 
 /* ------------------- Static function prototypes ----------------------------*/
 
-#if !HAVE_VM_READ && !HAVE_PROCFS_CTL && !HAVE_TTRACE
+#if !HAVE_VM_READ && !HAVE_PROCFS_MEM && !HAVE_TTRACE
 static int
 DBGWriteProcMem_Int(DWORD processId, int *addr, int data);
 static int
 DBGWriteProcMem_IntWithMask(DWORD processId, int *addr, int data,
                             unsigned int mask);
-#endif  // !HAVE_VM_READ && !HAVE_PROCFS_CTL && !HAVE_TTRACE
+#endif  // !HAVE_VM_READ && !HAVE_PROCFS_MEM && !HAVE_TTRACE
 
-#if !HAVE_VM_READ && !HAVE_PROCFS_CTL
+#if !HAVE_VM_READ && !HAVE_PROCFS_MEM
 
 static BOOL 
 DBGAttachProcess(CPalThread *pThread, HANDLE hProcess, DWORD dwProcessId);
@@ -113,7 +113,7 @@ DBGDetachProcess(CPalThread *pThread, HANDLE hProcess, DWORD dwProcessId);
 static int
 DBGSetProcessAttached(CPalThread *pThread, HANDLE hProcess, BOOL bAttach);
 
-#endif // !HAVE_VM_READ && !HAVE_PROCFS_CTL
+#endif // !HAVE_VM_READ && !HAVE_PROCFS_MEM
 
 extern "C" {
 
@@ -566,7 +566,7 @@ SetThreadContext(
     return ret;
 }
 
-#if !HAVE_VM_READ && !HAVE_PROCFS_CTL && !HAVE_TTRACE
+#if !HAVE_VM_READ && !HAVE_PROCFS_MEM && !HAVE_TTRACE
 /*++
 Function:
   DBGWriteProcMem_Int
@@ -658,9 +658,9 @@ DBGWriteProcMem_IntWithMask(IN DWORD processId,
     }    
     return DBGWriteProcMem_Int(processId, addr, data);
 }
-#endif  // !HAVE_VM_READ && !HAVE_PROCFS_CTL && !HAVE_TTRACE
+#endif  // !HAVE_VM_READ && !HAVE_PROCFS_MEM && !HAVE_TTRACE
 
-#if !HAVE_VM_READ && !HAVE_PROCFS_CTL
+#if !HAVE_VM_READ && !HAVE_PROCFS_MEM
 
 /*++
 Function:
@@ -1015,7 +1015,7 @@ DBGSetProcessAttachedExit:
     return ret;
 }
 
-#endif // !HAVE_VM_READ && !HAVE_PROCFS_CTL
+#endif // !HAVE_VM_READ && !HAVE_PROCFS_MEM
 
 /*++
 Function:
@@ -1271,7 +1271,7 @@ ReadProcessMemory(
     kern_return_t result;
     vm_map_t task;
     LONG_PTR bytesToRead;
-#elif HAVE_PROCFS_CTL
+#elif HAVE_PROCFS_MEM
     int fd = -1;
     char memPath[64];
     off_t offset;
@@ -1280,10 +1280,10 @@ ReadProcessMemory(
     int* ptrInt;
     int* lpTmpBuffer;
 #endif
-#if !HAVE_PROCFS_CTL && !HAVE_TTRACE
+#if !HAVE_PROCFS_MEM && !HAVE_TTRACE
     int* lpBaseAddressAligned;
     SIZE_T offset;
-#endif  // !HAVE_PROCFS_CTL && !HAVE_TTRACE
+#endif  // !HAVE_PROCFS_MEM && !HAVE_TTRACE
 
     PERF_ENTRY(ReadProcessMemory);
     ENTRY("ReadProcessMemory (hProcess=%p,lpBaseAddress=%p, lpBuffer=%p, "
@@ -1395,8 +1395,8 @@ ReadProcessMemory(
     }
     ret = TRUE;
 #else   // HAVE_VM_READ
-#if HAVE_PROCFS_CTL
-    snprintf(memPath, sizeof(memPath), "/proc/%u/%s", processId, PROCFS_MEM_NAME);
+#if HAVE_PROCFS_MEM
+    snprintf(memPath, sizeof(memPath), "/proc/%u/mem", processId);
     fd = InternalOpen(memPath, O_RDONLY);
     if (fd == -1)
     {
@@ -1422,7 +1422,7 @@ ReadProcessMemory(
     numberOfBytesRead = read(fd, lpBuffer, nSize);
     ret = TRUE;
 
-#else   // HAVE_PROCFS_CTL
+#else   // HAVE_PROCFS_MEM
     // Attach the process before calling ttrace/ptrace otherwise it fails.
     if (DBGAttachProcess(pThread, hProcess, processId))
     {
@@ -1507,9 +1507,9 @@ ReadProcessMemory(
         /* Failed to attach processId */
         goto EXIT;    
     }
-#endif  // HAVE_PROCFS_CTL
+#endif  // HAVE_PROCFS_MEM
 
-#if HAVE_PROCFS_CTL
+#if HAVE_PROCFS_MEM
 PROCFSCLEANUP:
     if (fd != -1)
     {
@@ -1523,14 +1523,14 @@ CLEANUP2:
     }
 #endif  // !HAVE_TTRACE
 
-#if !HAVE_PROCFS_CTL
+#if !HAVE_PROCFS_MEM
 CLEANUP1:
     if (!DBGDetachProcess(pThread, hProcess, processId))
     {
         /* Failed to detach processId */
         ret = FALSE;
     }
-#endif  // HAVE_PROCFS_CTL
+#endif  // HAVE_PROCFS_MEM
 #endif  // HAVE_VM_READ
 
 EXIT:
@@ -1567,7 +1567,7 @@ WriteProcessMemory(
 #if HAVE_VM_READ
     kern_return_t result;
     vm_map_t task;
-#elif HAVE_PROCFS_CTL
+#elif HAVE_PROCFS_MEM
     int fd = -1;
     char memPath[64];
     LONG_PTR bytesWritten;
@@ -1670,8 +1670,8 @@ WriteProcessMemory(
     numberOfBytesWritten = nSize;
     ret = TRUE;
 #else   // HAVE_VM_READ
-#if HAVE_PROCFS_CTL
-    snprintf(memPath, sizeof(memPath), "/proc/%u/%s", processId, PROCFS_MEM_NAME);
+#if HAVE_PROCFS_MEM
+    snprintf(memPath, sizeof(memPath), "/proc/%u/mem", processId);
     fd = InternalOpen(memPath, O_WRONLY);
     if (fd == -1)
     {
@@ -1705,7 +1705,7 @@ WriteProcessMemory(
     numberOfBytesWritten = bytesWritten;
     ret = TRUE;
 
-#else   // HAVE_PROCFS_CTL
+#else   // HAVE_PROCFS_MEM
     /* Attach the process before calling ptrace otherwise it fails */
     if (DBGAttachProcess(pThread, hProcess, processId))
     {
@@ -1804,9 +1804,9 @@ WriteProcessMemory(
         /* Failed to attach processId */
         goto EXIT;
     }
-#endif // HAVE_PROCFS_CTL
+#endif // HAVE_PROCFS_MEM
 
-#if HAVE_PROCFS_CTL
+#if HAVE_PROCFS_MEM
 PROCFSCLEANUP:
     if (fd != -1)
     {
@@ -1820,14 +1820,14 @@ CLEANUP2:
     }
 #endif  // !HAVE_TTRACE
 
-#if !HAVE_PROCFS_CTL
+#if !HAVE_PROCFS_MEM
 CLEANUP1:
     if (!DBGDetachProcess(pThread, hProcess, processId))
     {
         /* Failed to detach processId */
         ret = FALSE;
     }
-#endif  // !HAVE_PROCFS_CTL
+#endif  // !HAVE_PROCFS_MEM
 #endif  // HAVE_VM_READ
 
 EXIT:
