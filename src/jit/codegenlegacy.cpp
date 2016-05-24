@@ -20525,12 +20525,12 @@ regMaskTP           CodeGen::genCodeForCall(GenTreePtr  call,
 
             /* mov   ecx, dword ptr [frame.callSiteTracker] */
 
-            getEmitter()->emitIns_R_S (INS_mov,
-                                      EA_4BYTE,
-                                      REG_ARG_0,
+            getEmitter()->emitIns_R_S (ins_Load(TYP_I_IMPL),
+                                      EA_PTRSIZE,
+                                      REG_OPT_RSVD,
                                       compiler->lvaInlinedPInvokeFrameVar,
                                       pInfo->inlinedCallFrameInfo.offsetOfCallSiteSP);
-            regTracker.rsTrackRegTrash(REG_ARG_0);
+            regTracker.rsTrackRegTrash(REG_OPT_RSVD);
 
             /* Generate the conditional jump */
 
@@ -20539,15 +20539,15 @@ regMaskTP           CodeGen::genCodeForCall(GenTreePtr  call,
                 if (argSize)
                 {
                     getEmitter()->emitIns_R_I  (INS_add,
-                                              EA_4BYTE,
-                                              REG_ARG_0,
+                                              EA_PTRSIZE,
+                                              REG_OPT_RSVD,
                                               argSize);
                 }
             }
 
             /* cmp   ecx, esp */
 
-            getEmitter()->emitIns_R_R(INS_cmp, EA_4BYTE, REG_ARG_0, REG_SPBASE);
+            getEmitter()->emitIns_R_R(INS_cmp, EA_PTRSIZE, REG_OPT_RSVD, REG_SPBASE);
 
             esp_check = genCreateTempLabel();
 
@@ -22319,7 +22319,7 @@ regNumber          CodeGen::genPInvokeCallProlog(LclVarDsc*            frameList
         regTracker.rsTrackRegTrash(tcbReg);
     }
 
-#ifdef _TARGET_X86_
+#if defined(_TARGET_X86_) || defined(_TARGET_ARM_)
     /* mov   dword ptr [frame.callSiteTracker], esp */
 
     getEmitter()->emitIns_S_R  (ins_Store(TYP_I_IMPL),
