@@ -957,6 +957,9 @@ combinedScenarios.each { scenario ->
                     // Skip totally unimplemented (in CI) configurations.
                     switch (architecture) {
                         case 'arm64':
+                            // Don't test arm64 in release branch.
+                            return
+
                             // Windows only
                             if (os != 'Windows_NT' || isBuildOnly) {
                                 return
