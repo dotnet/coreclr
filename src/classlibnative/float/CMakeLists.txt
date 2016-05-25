@@ -3,7 +3,7 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 include_directories("../inc")
 
 set(FLOAT_SOURCES
-    floatnative.cpp
+    floatdouble.cpp
 )
 
 if(CLR_CMAKE_PLATFORM_UNIX)

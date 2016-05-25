@@ -2,13 +2,12 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 // 
-// File: FloatNative.cpp
+// File: FloatDouble.cpp
 // 
 
 #include <common.h>
 
-#include "floatnative.h"
-#include "floatclass.h"
+#include "floatdouble.h"
 
 #define IS_DBL_INFINITY(x) ((*((UINT64 *)((void *)&x)) & UI64(0x7FFFFFFFFFFFFFFF)) == UI64(0x7FF0000000000000))
 #define IS_DBL_ONE(x)      ((*((UINT64 *)((void *)&x))) == UI64(0x3FF0000000000000))
@@ -24,7 +23,7 @@
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////
 ///
-///                         Beggining of /fp:fast scope    
+///                         beginning of /fp:fast scope    
 ///
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////

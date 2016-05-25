@@ -43,7 +43,7 @@
 #include "system.h"
 #include "comutilnative.h"
 #include "comsynchronizable.h"
-#include "floatclass.h"
+#include "floatdouble.h"
 #include "decimal.h"
 #include "currency.h"
 #include "comdatetime.h"

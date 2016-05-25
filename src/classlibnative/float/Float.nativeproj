@@ -28,7 +28,7 @@
   </PropertyGroup>
   <!--Leaf Project Items-->
   <ItemGroup>
-    <CppCompile Include="FloatNative.cpp" />
+    <CppCompile Include="floatdouble.cpp" />
   </ItemGroup>
   <!--Import the targets-->
   <Import Project="$(_NTDRIVE)$(_NTROOT)\ndp\clr\clr.targets" />

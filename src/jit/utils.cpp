@@ -1700,7 +1700,7 @@ unsigned __int64 FloatingPointUtils::convertDoubleToUInt64(double d) {
 
 // Rounds a double-precision floating-point value to the nearest integer,
 // and rounds midpoint values to the nearest even number.
-// Note this should align with classlib in floatnative.cpp
+// Note this should align with classlib in floatdouble.cpp
 // Specializing for x86 using a x87 instruction is optional since
 // this outcome is identical across targets.
 double FloatingPointUtils::round(double d)
