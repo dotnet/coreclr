@@ -8,11 +8,11 @@
 
 Module Name:
 
-    finite.cpp
+    math.cpp
 
 Abstract:
 
-    Implementation of _finite function (Windows specific runtime function).
+    Implementation of math family functions.
 
 
 
