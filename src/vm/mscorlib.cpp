@@ -44,6 +44,7 @@
 #include "comutilnative.h"
 #include "comsynchronizable.h"
 #include "floatdouble.h"
+#include "floatsingle.h"
 #include "decimal.h"
 #include "currency.h"
 #include "comdatetime.h"

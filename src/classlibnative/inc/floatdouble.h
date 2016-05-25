@@ -10,35 +10,26 @@
 
 class COMDouble {
 public:
-    FCDECL1_V(static double, Floor, double d);
-    FCDECL1_V(static double, Sqrt, double d);
-    FCDECL1_V(static double, Log, double d);
-    FCDECL1_V(static double, Log10, double d);
-    FCDECL1_V(static double, Exp, double d);
+    FCDECL1_V(static double, Abs, double x);
+    FCDECL1_V(static double, Acos, double x);
+    FCDECL1_V(static double, Asin, double x);
+    FCDECL1_V(static double, Atan, double x);
+    FCDECL2_VV(static double, Atan2, double y, double x);
+    FCDECL1_V(static double, Ceil, double x);
+    FCDECL1_V(static double, Cos, double x);
+    FCDECL1_V(static double, Cosh, double x);
+    FCDECL1_V(static double, Exp, double x);
+    FCDECL1_V(static double, Floor, double x);
+    FCDECL1_V(static double, Log, double x);
+    FCDECL1_V(static double, Log10, double x);
+    FCDECL1(static double, ModF, double* iptr);
     FCDECL2_VV(static double, Pow, double x, double y);
-    FCDECL1_V(static double, Acos, double d);
-    FCDECL1_V(static double, Asin, double d);
-    FCDECL1_V(static double, Atan, double d);
-    FCDECL2_VV(static double, Atan2, double x, double y);
-    FCDECL1_V(static double, Cos, double d);
-    FCDECL1_V(static double, Sin, double d);
-    FCDECL1_V(static double, Tan, double d);
-    FCDECL1_V(static double, Cosh, double d);
-    FCDECL1_V(static double, Sinh, double d);
-    FCDECL1_V(static double, Tanh, double d);
-    FCDECL1_V(static double, Round, double d);
-    FCDECL1_V(static double, Ceil, double d);
-    FCDECL1_V(static float, AbsFlt, float f);
-    FCDECL1_V(static double, AbsDbl, double d);
-    FCDECL1(static double, ModFDouble, double* d);
-
-#if defined(_TARGET_X86_)
-//private:
-    FCDECL2_VV(static double, PowHelper, double x, double y);
-    FCDECL2_VV(static double, PowHelperSimple, double x, double y);
-#endif
-
+    FCDECL1_V(static double, Round, double x);
+    FCDECL1_V(static double, Sin, double x);
+    FCDECL1_V(static double, Sinh, double x);
+    FCDECL1_V(static double, Sqrt, double x);
+    FCDECL1_V(static double, Tan, double x);
+    FCDECL1_V(static double, Tanh, double x);
 };
-    
 
 #endif // _FLOATDOUBLE_H_

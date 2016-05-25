@@ -1,29 +1,40 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
-// 
+//
 // File: FloatDouble.cpp
-// 
+//
 
 #include <common.h>
 
 #include "floatdouble.h"
 
-#define IS_DBL_INFINITY(x) ((*((UINT64 *)((void *)&x)) & UI64(0x7FFFFFFFFFFFFFFF)) == UI64(0x7FF0000000000000))
-#define IS_DBL_ONE(x)      ((*((UINT64 *)((void *)&x))) == UI64(0x3FF0000000000000))
-#define IS_DBL_NEGATIVEONE(x)      ((*((UINT64 *)((void *)&x))) == UI64(0xBFF0000000000000))
+#define IS_DBL_INFINITY(x)         (((*((INT64*)((void*)&x))) & I64(0x7FFFFFFFFFFFFFFF)) == I64(0x7FF0000000000000))
 
+// The default compilation mode is /fp:precise, which disables floating-point intrinsics. This
+// default compilation mode has previously caused performance regressions in floating-point code.
+// We enable /fp:fast semantics for the majority of the math functions, as it will speed up performance
+// and is really unlikely to cause any other code regressions.
 
-// Default compilation mode is /fp:precise, which disables fp intrinsics. This has caused
-// regression in floating point code. I've grouped all the helpers that are really simple
-// (where /fp:fast semantics are really unlikely to cause any regression) and grouped them 
-// here in order to get back to Everett performance numbers
+// Sin, Cos, and Tan on AMD64 Windows were previously implemented in vm\amd64\JitHelpers_Fast.asm
+// by calling x87 floating point code (fsin, fcos, fptan) because the CRT helpers were too slow. This
+// is no longer the case and the CRT call is used on all platforms.
+
+// Log, Log10 and Exp were previously slower with /fp:fast on SSE2 enabled hardware (see #500373).
+// This is no longer the case and they now consume use the /fp:fast versions.
+
+// Exp(+/-INFINITY) did not previously return the expected results of +0.0 (for -INFINITY)
+// and +INFINITY (for +INFINITY) so these cases were handled specially. As this is no longer
+// the case and the expected results are now returned, the special handling has been removed.
+
+// Previously there was more special handling for the x86 Windows version of Pow.
+// This additional handling was unnecessary and has since been removed.
 
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////
 ///
-///                         beginning of /fp:fast scope    
+///                         beginning of /fp:fast scope
 ///
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////
@@ -33,163 +44,225 @@
 #pragma float_control(precise, off)
 #endif
 
-/*====================================Floor=====================================
+/*=====================================Abs======================================
 **
 ==============================================================================*/
-FCIMPL1_V(double, COMDouble::Floor, double d) 
+FCIMPL1_V(double, COMDouble::Abs, double x)
     FCALL_CONTRACT;
 
-    return (double) floor(d);
-FCIMPLEND
-
-
-/*====================================Ceil=====================================
-**
-==============================================================================*/
-FCIMPL1_V(double, COMDouble::Ceil, double d) 
-    FCALL_CONTRACT;
-
-    return (double) ceil(d);
-FCIMPLEND
-
-/*=====================================Sqrt=====================================
-**
-==============================================================================*/
-FCIMPL1_V(double, COMDouble::Sqrt, double d) 
-    FCALL_CONTRACT;
-
-    return (double) sqrt(d);
+    return (double)fabs(x);
 FCIMPLEND
 
 /*=====================================Acos=====================================
 **
 ==============================================================================*/
-FCIMPL1_V(double, COMDouble::Acos, double d) 
+FCIMPL1_V(double, COMDouble::Acos, double x)
     FCALL_CONTRACT;
 
-    return (double) acos(d);
+    return (double)acos(x);
 FCIMPLEND
-
 
 /*=====================================Asin=====================================
 **
 ==============================================================================*/
-FCIMPL1_V(double, COMDouble::Asin, double d) 
+FCIMPL1_V(double, COMDouble::Asin, double x)
     FCALL_CONTRACT;
 
-    return (double) asin(d);
-FCIMPLEND
-
-
-/*=====================================AbsFlt=====================================
-**
-==============================================================================*/
-FCIMPL1_V(float, COMDouble::AbsFlt, float f) 
-    FCALL_CONTRACT;
-
-    FCUnique(0x14);
-
-    return fabsf(f);
-FCIMPLEND
-
-/*=====================================AbsDbl=====================================
-**
-==============================================================================*/
-FCIMPL1_V(double, COMDouble::AbsDbl, double d) 
-    FCALL_CONTRACT;
-
-    return fabs(d);
+    return (double)asin(x);
 FCIMPLEND
 
 /*=====================================Atan=====================================
 **
 ==============================================================================*/
-FCIMPL1_V(double, COMDouble::Atan, double d) 
+FCIMPL1_V(double, COMDouble::Atan, double x)
     FCALL_CONTRACT;
 
-    return (double) atan(d);
+    return (double)atan(x);
 FCIMPLEND
 
-/*=====================================Atan2=====================================
+/*=====================================Atan2====================================
 **
 ==============================================================================*/
-FCIMPL2_VV(double, COMDouble::Atan2, double x, double y) 
+FCIMPL2_VV(double, COMDouble::Atan2, double y, double x)
     FCALL_CONTRACT;
 
-        // the intrinsic for Atan2 does not produce Nan for Atan2(+-inf,+-inf)
-    if (IS_DBL_INFINITY(x) && IS_DBL_INFINITY(y)) {
-        return(x / y);      // create a NaN
+    // atan2(+/-INFINITY, +/-INFINITY) produces +/-0.78539816339744828 (x is +INFINITY) and
+    // +/-2.3561944901923448 (x is -INFINITY) instead of the expected value of NaN. We handle
+    // that case here ourselves.
+    if (IS_DBL_INFINITY(y) && IS_DBL_INFINITY(x)) {
+        return (double)(y / x);
     }
-    return (double) atan2(x, y);
+
+    return (double)atan2(y, x);
 FCIMPLEND
 
-// COMDouble::Sin/Cos/Tan are all implemented in JitHelpers_Fast.asm as x87 floating
-// point for code AMD64 (on Windows) because the CRT helpers is too slow (apparently they don't
-// have a /fp:fast v ersion).
-#if !defined(_TARGET_AMD64_) || defined(FEATURE_PAL)
-
-/*=====================================Sin=====================================
+/*====================================Ceil======================================
 **
 ==============================================================================*/
-FCIMPL1_V(double, COMDouble::Sin, double d) 
+FCIMPL1_V(double, COMDouble::Ceil, double x)
     FCALL_CONTRACT;
 
-    return (double) sin(d);
+    return (double)ceil(x);
 FCIMPLEND
 
-/*=====================================Cos=====================================
+/*=====================================Cos======================================
 **
 ==============================================================================*/
-FCIMPL1_V(double, COMDouble::Cos, double d) 
+FCIMPL1_V(double, COMDouble::Cos, double x)
     FCALL_CONTRACT;
 
-    return (double) cos(d);
+    return (double)cos(x);
 FCIMPLEND
 
-/*=====================================Tan=====================================
+/*=====================================Cosh=====================================
 **
 ==============================================================================*/
-FCIMPL1_V(double, COMDouble::Tan, double d) 
+FCIMPL1_V(double, COMDouble::Cosh, double x)
     FCALL_CONTRACT;
 
-    return (double) tan(d);
+    return (double)cosh(x);
 FCIMPLEND
 
-#endif // !defined(_TARGET_AMD64_) || defined(FEATURE_PAL)
-
-/*=====================================Sinh====================================
+/*=====================================Exp======================================
 **
 ==============================================================================*/
-FCIMPL1_V(double, COMDouble::Sinh, double d) 
+FCIMPL1_V(double, COMDouble::Exp, double x)
     FCALL_CONTRACT;
 
-    return (double) sinh(d);
+    return (double)exp(x);
 FCIMPLEND
 
-/*=====================================Cosh====================================
+/*====================================Floor=====================================
 **
 ==============================================================================*/
-FCIMPL1_V(double, COMDouble::Cosh, double d) 
+FCIMPL1_V(double, COMDouble::Floor, double x)
     FCALL_CONTRACT;
 
-    return (double) cosh(d);
+    return (double)floor(x);
 FCIMPLEND
 
-/*=====================================Tanh====================================
+/*=====================================Log======================================
 **
 ==============================================================================*/
-FCIMPL1_V(double, COMDouble::Tanh, double d) 
+FCIMPL1_V(double, COMDouble::Log, double x)
     FCALL_CONTRACT;
 
-    return (double) tanh(d);
+    return (double)log(x);
 FCIMPLEND
 
-FCIMPL1(double, COMDouble::ModFDouble, double* pdblValue)
+/*====================================Log10=====================================
+**
+==============================================================================*/
+FCIMPL1_V(double, COMDouble::Log10, double x)
     FCALL_CONTRACT;
 
-    double      dblFrac;
-    dblFrac = modf(*pdblValue, pdblValue);
-    return dblFrac;
+    return (double)log10(x);
+FCIMPLEND
+
+/*=====================================ModF=====================================
+**
+==============================================================================*/
+FCIMPL1(double, COMDouble::ModF, double* iptr)
+    FCALL_CONTRACT;
+
+    return (double)modf(*iptr, iptr);
+FCIMPLEND
+
+/*=====================================Pow======================================
+**
+==============================================================================*/
+FCIMPL2_VV(double, COMDouble::Pow, double x, double y)
+    FCALL_CONTRACT;
+
+    // The CRT version of pow preserves the NaN payload of x over the NaN payload of y.
+
+    if(_isnan(y)) {
+        return y; // IEEE 754-2008: NaN payload must be preserved
+    }
+
+    if(_isnan(x)) {
+        return x; // IEEE 754-2008: NaN payload must be preserved
+    }
+
+    // The CRT version of pow does not return NaN for pow(-1.0, +/-INFINITY) and
+    // instead returns +1.0.
+
+    if(IS_DBL_INFINITY(y) && (x == -1.0)) {
+        INT64 result = CLR_NAN_64;
+        return (*((double*)((INT64*)&result)));
+    }
+
+    return (double)pow(x, y);
+FCIMPLEND
+
+/*====================================Round=====================================
+**
+==============================================================================*/
+FCIMPL1_V(double, COMDouble::Round, double x)
+    FCALL_CONTRACT;
+
+    // If the number has no fractional part do nothing
+    // This shortcut is necessary to workaround precision loss in borderline cases on some platforms
+    if (x == (double)((INT64)x)) {
+        return x;
+    }
+
+    // We had a number that was equally close to 2 integers.
+    // We need to return the even one.
+
+    double tempVal = (x + 0.5);
+    double flrTempVal = floor(tempVal);
+
+    if ((flrTempVal == tempVal) && (fmod(tempVal, 2.0) != 0)) {
+        flrTempVal -= 1.0;
+    }
+
+    return _copysign(flrTempVal, x);
+FCIMPLEND
+
+/*=====================================Sin======================================
+**
+==============================================================================*/
+FCIMPL1_V(double, COMDouble::Sin, double x)
+    FCALL_CONTRACT;
+
+    return (double)sin(x);
+FCIMPLEND
+
+/*=====================================Sinh=====================================
+**
+==============================================================================*/
+FCIMPL1_V(double, COMDouble::Sinh, double x)
+    FCALL_CONTRACT;
+
+    return (double)sinh(x);
+FCIMPLEND
+
+/*=====================================Sqrt=====================================
+**
+==============================================================================*/
+FCIMPL1_V(double, COMDouble::Sqrt, double x)
+    FCALL_CONTRACT;
+
+    return (double)sqrt(x);
+FCIMPLEND
+
+/*=====================================Tan======================================
+**
+==============================================================================*/
+FCIMPL1_V(double, COMDouble::Tan, double x)
+    FCALL_CONTRACT;
+
+    return (double)tan(x);
+FCIMPLEND
+
+/*=====================================Tanh=====================================
+**
+==============================================================================*/
+FCIMPL1_V(double, COMDouble::Tanh, double x)
+    FCALL_CONTRACT;
+
+    return (double)tanh(x);
 FCIMPLEND
 
 #ifdef _MSC_VER
@@ -200,290 +273,8 @@ FCIMPLEND
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////
 ///
-///                         End of /fp:fast scope    
+///                         End of /fp:fast scope
 ///
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////
-//
-// Log, Log10 and Exp are slower with /fp:fast on SSE2 enabled HW (see #500373)
-// So we'll leave them as fp precise for the moment
-
-/*=====================================Log======================================
-**This is the natural log
-==============================================================================*/
-FCIMPL1_V(double, COMDouble::Log, double d) 
-    FCALL_CONTRACT;
-
-    return (double) log(d);
-FCIMPLEND
-
-
-/*====================================Log10=====================================
-**This is log-10
-==============================================================================*/
-FCIMPL1_V(double, COMDouble::Log10, double d) 
-    FCALL_CONTRACT;
-
-    return (double) log10(d);
-FCIMPLEND
-
-
-/*=====================================Exp======================================
-**
-==============================================================================*/
-FCIMPL1_V(double, COMDouble::Exp, double x) 
-    FCALL_CONTRACT;
-
-        // The C intrinsic below does not handle +- infinity properly
-        // so we handle these specially here
-    if (IS_DBL_INFINITY(x)) {
-        if (x < 0)      
-            return(+0.0);
-        return(x);      // Must be + infinity
-    }
-    return((double) exp(x));
-FCIMPLEND
-
-#if defined(_TARGET_X86_)
-/*=====================================Pow======================================
-**This is the power function.  Simple powers are done inline, and special
-  cases are sent to the CRT via the helper. 
-==============================================================================*/
-FCIMPL2_VV(double, COMDouble::PowHelperSimple, double x, double y)
-{
-    FCALL_CONTRACT;
-
-    return (double) pow(x,y);
-}
-FCIMPLEND
-
-FCIMPL2_VV(double, COMDouble::PowHelper, double x, double y) 
-{
-    FCALL_CONTRACT;
-
-    double r1;
-
-    // TODO: we can get rid following code if VC fixes pow function someday.
-    if(_isnan(y)) {
-        return y; // IEEE 754-2008: NaN payload must be preserved
-    }
-    if(_isnan(x)) {
-        return x; // IEEE 754-2008: NaN payload must be preserved
-    }
-    if(IS_DBL_INFINITY(y)) {
-        if(IS_DBL_ONE(x)) {
-            return x;        
-        }
-
-        if(IS_DBL_NEGATIVEONE(x)) {
-            *((INT64 *)(&r1)) = CLR_NAN_64;
-            return r1;
-        }    
-    }
-    
-    return (double) pow(x, y);
-}
-FCIMPLEND
-
-#if defined (_DEBUG)
-__declspec(naked) static double F_CALL_CONV PowRetail(double x, double y)
-#else
-__declspec(naked) double F_CALL_CONV COMDouble::Pow(double x, double y)
-#endif
-{
-    WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
-
-    // Arguments:
-    // exponent: esp+4
-    // base:     esp+12
-    
-    _asm
-    {
-        mov     ecx, [esp+8]           ; high dword of exponent
-        mov     edx, [esp+16]          ; high dword of base
-        
-        and     ecx,  7ff00000H        ; check for special exponent
-        cmp     ecx,  7ff00000H
-        je      callHelper
-
-        and     edx,  7ff00000H        ; check for special base
-        cmp     edx,  7ff00000H
-        je      callHelper
-
-        test    edx,  7ff00000H        ; see if the base has a zero exponent
-        jz      test_if_we_have_zero_base
-
-base_is_not_zero:
-
-        mov     cl,  [esp+19]          ; Handle negative base in the helper
-        and     cl,  80H
-        jnz     callHelper
-
-	jmp	COMDouble::PowHelperSimple	;
-
-test_if_we_have_zero_base:
-            
-        mov     eax, [esp+16]
-        and     eax, 000fffffH
-        or      eax, [esp+12]
-        jnz     base_is_not_zero
-        ; fall through to the helper
-
-callHelper:
-
-        jmp     COMDouble::PowHelper   ; The helper will return control
-                                       ; directly to our caller.
-    }
-}
-
-#ifdef _DEBUG
-
-#define EPSILON 0.0000000001
-
-void assertDoublesWithinRange(double r1, double r2)
-{
-    WRAPPER_NO_CONTRACT;
-
-    if (_finite(r1) && _finite(r2))
-    {
-        // Both numbers are finite--we need to check that they are close to
-        // each other.  If they are large (> 1), the error could also be large,
-        // which is acceptable, so we compare the error against EPSILON*norm.
-
-        double norm = max(fabs(r1), fabs(r2));
-        double error = fabs(r1-r2);
-        
-        assert((error < (EPSILON * norm)) || (error < EPSILON));
-    }
-    else if (!_isnan(r1) && !_isnan(r2))
-    {
-        // At least one of r1 and r2 is infinite, so when multiplied by
-        // (1 + EPSILON) they should be the same infinity.
-
-        assert((r1 * (1 + EPSILON)) == (r2 * (1 + EPSILON)));
-    }
-    else
-    {
-        // Otherwise at least one of r1 or r2 is a Nan.  Is that case, they better be in
-        // the same class.
-
-        assert(_fpclass(r1) == _fpclass(r2));
-    }
-}
-
-FCIMPL2_VV(double, COMDouble::Pow, double x, double y) 
-{
-    FCALL_CONTRACT;
-
-    double r1, r2;
-
-    if(_isnan(y)) {
-        return y; // IEEE 754-2008: NaN payload must be preserved
-    }
-    if(_isnan(x)) {
-        return x; // IEEE 754-2008: NaN payload must be preserved
-    }
-
-    if(IS_DBL_INFINITY(y)) {
-        if(IS_DBL_ONE(x)) {
-            return x;        
-        }
-
-        if(IS_DBL_NEGATIVEONE(x)) {
-            *((INT64 *)(&r1)) = CLR_NAN_64;
-            return r1;
-        }    
-    }  
-
-    // Note that PowRetail expects the argument order to be reversed
-    
-    r1 = (double) PowRetail(y, x);
-    
-    r2 = (double) pow(x, y);
-
-    // Can't do a floating point compare in case r1 and r2 aren't 
-    // valid fp numbers.
-
-    assertDoublesWithinRange(r1, r2);
-
-    return (double) r1; 
-}
-FCIMPLEND
-
-#endif  // _DEBUG
-
-#else   // !defined(_TARGET_X86_)
-FCIMPL2_VV(double, COMDouble::Pow, double x, double y)
-{
-    FCALL_CONTRACT;
-
-    double r1;
-
-    if(_isnan(y)) {
-        return y; // IEEE 754-2008: NaN payload must be preserved
-    }
-    if(_isnan(x)) {
-        return x; // IEEE 754-2008: NaN payload must be preserved
-    }
-
-    if(IS_DBL_INFINITY(y)) {
-        if(IS_DBL_ONE(x)) {
-            return x;        
-        }
-
-        if(IS_DBL_NEGATIVEONE(x)) {
-            *((INT64 *)(&r1)) = CLR_NAN_64;
-            return r1;
-        }    
-    }
-    
-    return (double) pow(x, y);
-}
-FCIMPLEND
-
-#endif  // defined(_TARGET_X86_)
-
-
-/*====================================Round=====================================
-**
-==============================================================================*/
-#if defined(_TARGET_X86_)
-__declspec(naked)
-double __fastcall COMDouble::Round(double d)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    __asm {
-        fld QWORD PTR [ESP+4]
-        frndint
-        ret 8
-    }
-}
-
-#else // !defined(_TARGET_X86_)
-FCIMPL1_V(double, COMDouble::Round, double d) 
-    FCALL_CONTRACT;
-
-    double tempVal;
-    double flrTempVal;
-    // If the number has no fractional part do nothing
-    // This shortcut is necessary to workaround precision loss in borderline cases on some platforms
-    if ( d == (double)(__int64)d )
-        return d;
-    tempVal = (d+0.5);
-    //We had a number that was equally close to 2 integers. 
-    //We need to return the even one.
-    flrTempVal = floor(tempVal);
-    if (flrTempVal==tempVal) {
-        if (0 != fmod(tempVal, 2.0)) {
-            flrTempVal -= 1.0;
-        }
-    }
-    flrTempVal = _copysign(flrTempVal, d);
-    return flrTempVal;
-FCIMPLEND
-#endif // defined(_TARGET_X86_)
-
-

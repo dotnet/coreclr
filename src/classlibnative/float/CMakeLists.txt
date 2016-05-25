@@ -4,6 +4,7 @@ include_directories("../inc")
 
 set(FLOAT_SOURCES
     floatdouble.cpp
+    floatsingle.cpp
 )
 
 if(CLR_CMAKE_PLATFORM_UNIX)
