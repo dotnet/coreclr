@@ -1267,6 +1267,12 @@ combinedScenarios.each { scenario ->
                         }
                     }
                     else {
+                        // If this is a r2r jitstress, jitstressregs, jitminopts or forcerelocs scenario
+                        // and configuration is not Checked, bail out.
+                        if (configuration != 'Checked' && Constants.r2rJitStressScenarios.indexOf(scenario) != -1) {
+                            return;
+                        }
+
                         // Skip scenarios
                         switch (scenario) {
                             case 'pri1':
@@ -1781,6 +1787,11 @@ combinedScenarios.each { scenario ->
                         if (os == 'RHEL7.2' || os == 'Debian8.2' || os == 'OpenSUSE13.2') {
                             return
                         }
+                    }
+                    // If this is a r2r jitstress, jitstressregs, jitminopts or forcerelocs scenario
+                    // and configuration is not Checked, bail out.
+                    else if (configuration != 'Checked' && Constants.r2rJitStressScenarios.indexOf(scenario) != -1) {
+                        return;
                     }
                     // For CentOS, we only want Checked/Release pri1 builds.
                     else if (os == 'CentOS7.1') {
