@@ -734,6 +734,8 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetRetBuffArgOffset()
 #if _TARGET_X86_
     // x86 is special as always
     ret += this->HasThis() ? offsetof(ArgumentRegisters, EDX) : offsetof(ArgumentRegisters, ECX);
+#elif _TARGET_ARM64_
+    ret += (int) offsetof(ArgumentRegisters, x[8]);
 #else
     if (this->HasThis())
         ret += sizeof(void *);
@@ -761,7 +763,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetVASigCookieOffset()
         ret += sizeof(void*);
     }
 
-    if (this->HasRetBuffArg())
+    if (this->HasRetBuffArg() && IsRetBuffPassedAsFirstArg())
     {
         ret += sizeof(void*);
     }
@@ -814,7 +816,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetParamTypeArgOffset()
         ret += sizeof(void*);
     }
 
-    if (this->HasRetBuffArg())
+    if (this->HasRetBuffArg() && IsRetBuffPassedAsFirstArg())
     {
         ret += sizeof(void*);
     }
@@ -845,7 +847,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
         if (this->HasThis())
             numRegistersUsed++;
 
-        if (this->HasRetBuffArg())
+        if (this->HasRetBuffArg() && IsRetBuffPassedAsFirstArg())
             numRegistersUsed++;
 
         _ASSERTE(!this->IsVarArg() || !this->HasParamType());
@@ -1446,7 +1448,7 @@ void ArgIteratorTemplate<ARGITERATOR_BASE>::ForceSigWalk()
     if (this->HasThis())
         numRegistersUsed++;
 
-    if (this->HasRetBuffArg())
+    if (this->HasRetBuffArg() && IsRetBuffPassedAsFirstArg())
         numRegistersUsed++;
 
     if (this->IsVarArg())
@@ -1686,6 +1688,16 @@ inline BOOL HasRetBuffArg(MetaSig * pSig)
     WRAPPER_NO_CONTRACT;
     ArgIterator argit(pSig);
     return argit.HasRetBuffArg();
+}
+
+inline BOOL IsRetBuffPassedAsFirstArg()
+{
+    WRAPPER_NO_CONTRACT;
+#ifndef _TARGET_ARM64_
+    return TRUE;
+#else
+    return FALSE;
+#endif        
 }
 
 #endif // __CALLING_CONVENTION_INCLUDED
