@@ -1349,7 +1349,9 @@ void DbgTransportSession::TransportWorker()
             eStatus = SCS_NetworkFailure;
         else
         {
-            if (m_pipe.WaitForConnection())
+            DWORD pid = GetCurrentProcessId(); 
+            if ((m_pipe.GetState() == TwoWayPipe::Created || m_pipe.CreateServer(pid)) && 
+                 m_pipe.WaitForConnection())
             {
                 eStatus = SCS_Success;
             }
