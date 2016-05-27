@@ -918,6 +918,8 @@ fi
 scriptPath=$(dirname $0)
 ${scriptPath}/setup-runtime-dependencies.sh --outputDir=$coreOverlayDir
 
+export __TestEnv=$testEnv
+
 cd "$testRootDir"
 if [ -z "$testDirectories" ]
 then
