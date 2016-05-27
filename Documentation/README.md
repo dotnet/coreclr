@@ -8,15 +8,11 @@ Intro to .NET Core
 
 .NET Core is a self-contained .NET runtime and framework that implements [ECMA 335](project-docs/dotnet-standards.md). It can be (and has been) ported to multiple architectures and platforms. It supports a variety of installation options, having no specific deployment requirements itself.
 
-Learn about .NET Core
+Getting Started with .NET Core
 ====================
 
-- [[WIP] Official .NET Core Docs](http://dotnet.github.io/docs/)
-
-Get .NET Core
-=============
-
 - [Installing the .NET Core SDK](https://www.microsoft.com/net/core)
+- [[WIP] Official .NET Core Docs](http://dotnet.github.io/docs/)
 
 Project Docs
 ============
