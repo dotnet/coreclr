@@ -16,10 +16,7 @@ Learn about .NET Core
 Get .NET Core
 =============
 
-- [Get .NET Core DNX SDK on Windows](install/get-dotnetcore-dnx-windows.md)
-- [Get .NET Core DNX SDK on OS X](install/get-dotnetcore-dnx-osx.md)
-- [Get .NET Core DNX SDK on Linux](install/get-dotnetcore-dnx-linux.md)
-- [Get .NET Core (Raw) on Windows](install/get-dotnetcore-windows.md)
+- [Installing the .NET Core SDK](https://www.microsoft.com/net/core)
 
 Project Docs
 ============
