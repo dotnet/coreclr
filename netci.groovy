@@ -79,7 +79,7 @@ class Constants {
     def static architectureList = ['arm', 'arm64', 'x64', 'x86ryujit', 'x86lb']
 }
 
-def static setMachineAffinity(def job, def os, def architecture) {
+def static setMachineAffinity(def job, def os, def architecture, def scenario) {
     if (architecture == 'arm64' && os == 'Windows_NT') {
         // For cross compilation
         job.with {
@@ -87,6 +87,11 @@ def static setMachineAffinity(def job, def os, def architecture) {
         }
     } else if ((architecture == 'arm' || architecture == 'arm64') && os == 'Ubuntu') {
         Utilities.setMachineAffinity(job, os, 'arm-cross-latest');
+    } else if (isLongGc(scenario) && os == 'Ubuntu') {
+        // long GC jobs turn off VM overcommit to lessen the chance of getting killed
+        // by the OOM killer. This needs sudo. Since outerloop machines have sudo, 
+        // we'll run the GC jobs on those machines.
+        Utilities.setMachineAffinity(job, os, 'outer-latest-or-auto')
     } else {
         Utilities.setMachineAffinity(job, os, 'latest-or-auto');
     }
@@ -1376,7 +1381,7 @@ combinedScenarios.each { scenario ->
                     // Create the new job
                     def newJob = job(Utilities.getFullJobName(project, jobName, isPR)) {}
 
-                    setMachineAffinity(newJob, os, architecture)
+                    setMachineAffinity(newJob, os, architecture, scenario)
 
                     // Add all the standard options
                     Utilities.standardJobSetup(newJob, project, isPR, "*/${branch}")
@@ -2122,6 +2127,12 @@ combinedScenarios.each { scenario ->
                                 if (isGCStressRelatedTesting(scenario)) {
                                     shell('./init-tools.sh')
                                 }
+                                
+                                if (isLongGc(scenario) && os == 'Ubuntu') {
+                                    // disable VM overcommit for long GC tests.
+                                    shell("VM_OVERCOMMIT_SAVED=`cat /proc/sys/vm/overcommit_memory`")
+                                    shell("sudo sh -c 'echo 2 > /proc/sys/vm/overcommit_memory'")
+                                }
 
                                 shell("""./tests/runtest.sh \\
                 --testRootDir=\"\${WORKSPACE}/bin/tests/Windows_NT.${architecture}.${configuration}\" \\
@@ -2131,6 +2142,12 @@ combinedScenarios.each { scenario ->
                 --coreFxBinDir=\"\${WORKSPACE}/bin/${osGroup}.AnyCPU.Release;\${WORKSPACE}/bin/Unix.AnyCPU.Release;\${WORKSPACE}/bin/AnyOS.AnyCPU.Release\" \\
                 --coreFxNativeBinDir=\"\${WORKSPACE}/bin/${osGroup}.${architecture}.Release\" \\
                 ${testEnvOpt} ${serverGCString} ${crossgenStr} ${runcrossgentestsStr} ${runjitstressStr} ${runjitstressregsStr} ${runjitmioptsStr} ${runjitforcerelocsStr} ${sequentialString} ${playlistString}""")
+                
+                                if (isLongGc(scenario) && os == 'Ubuntu') {
+                                    // unfortunately, VM overcommit is /not/ per shell, so we will need to restore the state
+                                    // when we're done.
+                                    shell('sudo sh -c \"echo $VM_OVERCOMMIT_SAVED > /proc/sys/vm/overcommit_memory\"')
+                                }
                             }
                         }
                     }
@@ -2141,7 +2158,7 @@ combinedScenarios.each { scenario ->
                         addEmailPublisher(newJob, 'clrcoverage@microsoft.com')
                     }
 
-                    setMachineAffinity(newJob, os, architecture)
+                    setMachineAffinity(newJob, os, architecture, scenario)
                     Utilities.standardJobSetup(newJob, project, isPR, "*/${branch}")
                     // Set timeouts to 240.
                     setTestJobTimeOut(newJob, scenario)
@@ -2171,7 +2188,7 @@ build(params + [CORECLR_BUILD: coreclrBuildJob.build.number,
 """)
                     }
 
-                    setMachineAffinity(newFlowJob, os, architecture)
+                    setMachineAffinity(newFlowJob, os, architecture, scenario)
                     Utilities.standardJobSetup(newFlowJob, project, isPR, "*/${branch}")
                     addTriggers(newFlowJob, branch, isPR, architecture, os, configuration, scenario, true, false, false)
                 } // configuration
