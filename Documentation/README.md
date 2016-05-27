@@ -11,7 +11,7 @@ Intro to .NET Core
 Getting Started
 ===============
 
-- [Install the .NET Core SDK](https://www.microsoft.com/net/core)
+- [Installing the .NET Core SDK](https://www.microsoft.com/net/core)
 - [[WIP] Official .NET Core Docs](http://dotnet.github.io/docs/)
 
 Project Docs
