@@ -804,7 +804,7 @@ FCIMPL4(void, DebugStackTrace::GetStackFramesInternal,
 #endif // FEATURE_ISYM_READER
 
                 // If the above isym reader code did NOT set the source info either because it is ifdef'ed out (on xplat)
-                // or because the pdb is the new portable format on Windows then set the information needed to called the
+                // or because the pdb is the new portable format on Windows then set the information needed to call the
                 // portable pdb reader in the StackTraceHelper.
                 if (fPortablePDB)
                 {
