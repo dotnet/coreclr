@@ -655,7 +655,7 @@ FCIMPL4(void, DebugStackTrace::GetStackFramesInternal,
                     if (pISymUnmanagedReader != NULL)
                     {
                         // Found a ISymUnmanagedReader for the regular PDB so don't attempt to 
-                        // reader it as a portable PDB in mscorlib's StackFrameHelper.
+                        // read it as a portable PDB in mscorlib's StackFrameHelper.
                         fPortablePDB = FALSE;
 
                         ReleaseHolder<ISymUnmanagedMethod> pISymUnmanagedMethod;  
