@@ -16,11 +16,19 @@
 
 #include <palsuite.h>
 
-// double has a machine epsilon of approx: 2.22e-16. However, due to floating-point precision
-// errors, this is too accurate when comparing values computed by different math library implementations.
-// Using the single-precision machine epsilon as our PAL_EPSILON should be 'good enough' for the purposes
-// of the testing as it ensures we get the expected value and that it is at least 7 digits precise.
-#define PAL_EPSILON 1.19e-07
+// binary64 (double) has a machine epsilon of 2^-52 (approx. 2.22e-16). However, this 
+// is slightly too accurate when writing tests meant to run against libm implementations
+// for various platforms. 2^-50 (approx. 8.88e-16) seems to be as accurate as we can get.
+//
+// The tests themselves will take PAL_EPSILON and adjust it according to the expected result
+// so that the delta used for comparison will compare the most significant digits and ignore
+// any digits that are outside the double precision range (15-17 digits).
+
+// For example, a test with an expect result in the format of 0.xxxxxxxxxxxxxxxxx will use
+// PAL_EPSILON for the variance, while an expected result in the format of 0.0xxxxxxxxxxxxxxxxx
+// will use PAL_EPSILON / 10 and and expected result in the format of x.xxxxxxxxxxxxxxxx will
+// use PAL_EPSILON * 10.
+#define PAL_EPSILON 8.8817841970012523e-16
 
 #define PAL_NAN     sqrt(-1.0)
 #define PAL_POSINF -log(0.0)
