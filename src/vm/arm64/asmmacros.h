@@ -52,7 +52,7 @@ __PWTB_FloatArgumentRegisters SETA $extraLocals
 __PWTB_FloatArgumentRegisters SETA 0
         ENDIF
 
-        IF __PWTB_FloatArgumentRegisters:MOD:16 != 0
+        IF __PWTB_FloatArgumentRegisters:MOD:16 == 0
 __PWTB_FloatArgumentRegisters SETA __PWTB_FloatArgumentRegisters + 8
         ENDIF
 
@@ -65,7 +65,7 @@ __PWTB_TransitionBlock SETA __PWTB_FloatArgumentRegisters
 __PWTB_StackAlloc SETA __PWTB_TransitionBlock
 __PWTB_ArgumentRegisters SETA __PWTB_StackAlloc + 96 
 
-        PROLOG_SAVE_REG_PAIR   fp, lr, #-160!
+        PROLOG_SAVE_REG_PAIR   fp, lr, #-168!
         ; Spill callee saved registers 
         PROLOG_SAVE_REG_PAIR   x19, x20, #16
         PROLOG_SAVE_REG_PAIR   x21, x22, #32
@@ -98,7 +98,7 @@ __PWTB_ArgumentRegisters SETA __PWTB_StackAlloc + 96
         EPILOG_RESTORE_REG_PAIR   x23, x24, #48
         EPILOG_RESTORE_REG_PAIR   x25, x26, #64
         EPILOG_RESTORE_REG_PAIR   x27, x28, #80
-        EPILOG_RESTORE_REG_PAIR   fp, lr,   #160!
+        EPILOG_RESTORE_REG_PAIR   fp, lr,   #168!
 		EPILOG_RETURN
     MEND	
 	
@@ -121,7 +121,7 @@ __PWTB_ArgumentRegisters SETA __PWTB_StackAlloc + 96
         EPILOG_RESTORE_REG_PAIR   x23, x24, #48
         EPILOG_RESTORE_REG_PAIR   x25, x26, #64
         EPILOG_RESTORE_REG_PAIR   x27, x28, #80
-        EPILOG_RESTORE_REG_PAIR   fp, lr,   #160!
+        EPILOG_RESTORE_REG_PAIR   fp, lr,   #168!
     MEND
 
 ;-----------------------------------------------------------------------------
