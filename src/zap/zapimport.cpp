@@ -2161,18 +2161,18 @@ DWORD ZapIndirectHelperThunk::SaveWorker(ZapWriter * pZapWriter)
         // x11 contains indirection cell
         // Do nothing x11 contains our first param
 
-        //  movz x8, #index
+        //  movz x9, #index
         DWORD index = GetSectionIndex();
         _ASSERTE(index <= 0x7F);
         *(DWORD*)p = 0xd2800008 | (index << 5);
         p += 4;
 
-        // move Module* -> x9
-        // ldr x9, [PC+0x14]
+        // move Module* -> x10
+        // ldr x10, [PC+0x14]
         *(DWORD*)p = 0x580000A9;
         p += 4;
 
-        //ldr x9, [x9]
+        //ldr x10, [x10]
         *(DWORD*)p = 0xf9400129;
         p += 4;
     }

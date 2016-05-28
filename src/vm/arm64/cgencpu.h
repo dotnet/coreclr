@@ -109,9 +109,9 @@ struct CalleeSavedRegisters {
 //--------------------------------------------------------------------
 typedef DPTR(struct ArgumentRegisters) PTR_ArgumentRegisters;
 struct ArgumentRegisters {
-    INT64 x[8]; // x0 ....x7
+    INT64 x[9]; // x0 ....x7 & x8 can contain return buffer address
 };
-#define NUM_ARGUMENT_REGISTERS 8
+#define NUM_ARGUMENT_REGISTERS 9
 
 #define ARGUMENTREGISTERS_SIZE sizeof(ArgumentRegisters)
 

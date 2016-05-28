@@ -167,18 +167,18 @@ Done
 ; The call in ndirect import precode points to this function.
         NESTED_ENTRY NDirectImportThunk
 
-        PROLOG_SAVE_REG_PAIR           fp, lr, #-144!
+        PROLOG_SAVE_REG_PAIR           fp, lr, #-160!
         SAVE_ARGUMENT_REGISTERS        sp, 16
-        SAVE_FLOAT_ARGUMENT_REGISTERS  sp, 80 
+        SAVE_FLOAT_ARGUMENT_REGISTERS  sp, 88 
 
         mov     x0, x12
         bl      NDirectImportWorker
         mov     x12, x0
 
         ; pop the stack and restore original register state
-        RESTORE_FLOAT_ARGUMENT_REGISTERS  sp, 80
+        RESTORE_FLOAT_ARGUMENT_REGISTERS  sp, 88
         RESTORE_ARGUMENT_REGISTERS        sp, 16
-        EPILOG_RESTORE_REG_PAIR           fp, lr, #144!
+        EPILOG_RESTORE_REG_PAIR           fp, lr, #160!
 
         ; If we got back from NDirectImportWorker, the MD has been successfully
         ; linked. Proceed to execute the original DLL call.
@@ -366,9 +366,9 @@ Exit
     NESTED_ENTRY VirtualMethodFixupStub
 
     ; Save arguments and return address
-    PROLOG_SAVE_REG_PAIR           fp, lr, #-144!
+    PROLOG_SAVE_REG_PAIR           fp, lr, #-160!
     SAVE_ARGUMENT_REGISTERS        sp, 16
-    SAVE_FLOAT_ARGUMENT_REGISTERS  sp, 80 
+    SAVE_FLOAT_ARGUMENT_REGISTERS  sp, 88 
 
     ; Refer to ZapImportVirtualThunk::Save
     ; for details on this.
@@ -385,8 +385,8 @@ Exit
 
     ; pop the stack and restore original register state
     RESTORE_ARGUMENT_REGISTERS        sp, 16
-    RESTORE_FLOAT_ARGUMENT_REGISTERS  sp, 80
-    EPILOG_RESTORE_REG_PAIR           fp, lr, #144!
+    RESTORE_FLOAT_ARGUMENT_REGISTERS  sp, 88
+    EPILOG_RESTORE_REG_PAIR           fp, lr, #160!
 
     PATCH_LABEL VirtualMethodFixupPatchLabel
 
@@ -474,7 +474,7 @@ ComCallPreStub_FrameOffset       SETA (ComCallPreStub_StackAlloc - (SIZEOF__ComM
 ComCallPreStub_ErrorReturnOffset SETA SIZEOF__FloatArgumentRegisters
 
     ; Save arguments and return address
-    PROLOG_SAVE_REG_PAIR           fp, lr, #-80!
+    PROLOG_SAVE_REG_PAIR           fp, lr, #-88!
     PROLOG_STACK_ALLOC  ComCallPreStub_StackAlloc 
 
     SAVE_ARGUMENT_REGISTERS        sp, (16+ComCallPreStub_StackAlloc)
@@ -495,7 +495,7 @@ ComCallPreStub_ErrorReturnOffset SETA SIZEOF__FloatArgumentRegisters
     RESTORE_ARGUMENT_REGISTERS        sp, (16+ComCallPreStub_StackAlloc)
 
     EPILOG_STACK_FREE ComCallPreStub_StackAlloc
-    EPILOG_RESTORE_REG_PAIR           fp, lr, #80!
+    EPILOG_RESTORE_REG_PAIR           fp, lr, #88!
 
     ; and tailcall to the actual method
     EPILOG_BRANCH_REG x12
@@ -505,7 +505,7 @@ ComCallPreStub_ErrorExit
     
     ; pop the stack
     EPILOG_STACK_FREE ComCallPreStub_StackAlloc
-    EPILOG_RESTORE_REG_PAIR           fp, lr, #80!
+    EPILOG_RESTORE_REG_PAIR           fp, lr, #88!
 
     EPILOG_RETURN
 
@@ -538,7 +538,7 @@ GenericComCallStub_StackAlloc     SETA GenericComCallStub_StackAlloc + 8
 GenericComCallStub_FrameOffset       SETA (GenericComCallStub_StackAlloc - (SIZEOF__ComMethodFrame - SIZEOF__ArgumentRegisters - 2 * 8))
 
     ; Save arguments and return address
-    PROLOG_SAVE_REG_PAIR           fp, lr, #-80!
+    PROLOG_SAVE_REG_PAIR           fp, lr, #-88!
     PROLOG_STACK_ALLOC  GenericComCallStub_StackAlloc 
 
     SAVE_ARGUMENT_REGISTERS        sp, (16+GenericComCallStub_StackAlloc)
@@ -550,7 +550,7 @@ GenericComCallStub_FrameOffset       SETA (GenericComCallStub_StackAlloc - (SIZE
     
     ; pop the stack
     EPILOG_STACK_FREE GenericComCallStub_StackAlloc
-    EPILOG_RESTORE_REG_PAIR           fp, lr, #80!
+    EPILOG_RESTORE_REG_PAIR           fp, lr, #88!
 
     EPILOG_RETURN
 
@@ -595,6 +595,7 @@ COMToCLRDispatchHelper_RegSetup
     ldp x2, x3, [x1, #(SIZEOF__ComMethodFrame - SIZEOF__ArgumentRegisters + 16)]
     ldp x4, x5, [x1, #(SIZEOF__ComMethodFrame - SIZEOF__ArgumentRegisters + 32)]
     ldp x6, x7, [x1, #(SIZEOF__ComMethodFrame - SIZEOF__ArgumentRegisters + 48)]
+    ldr x8, [x1, #(SIZEOF__ComMethodFrame - SIZEOF__ArgumentRegisters + 64)]
 
     ldr x1, [x1, #(SIZEOF__ComMethodFrame - SIZEOF__ArgumentRegisters + 8)]
 
@@ -614,9 +615,9 @@ COMToCLRDispatchHelper_RegSetup
     NESTED_ENTRY TheUMEntryPrestub,,UMEntryPrestubUnwindFrameChainHandler
 
     ; Save arguments and return address
-    PROLOG_SAVE_REG_PAIR           fp, lr, #-144!
+    PROLOG_SAVE_REG_PAIR           fp, lr, #-160!
     SAVE_ARGUMENT_REGISTERS        sp, 16
-    SAVE_FLOAT_ARGUMENT_REGISTERS  sp, 80 
+    SAVE_FLOAT_ARGUMENT_REGISTERS  sp, 88
 
     mov x0, x12
     bl  TheUMEntryPrestubWorker
@@ -626,8 +627,8 @@ COMToCLRDispatchHelper_RegSetup
 
     ; pop the stack and restore original register state
     RESTORE_ARGUMENT_REGISTERS        sp, 16
-    RESTORE_FLOAT_ARGUMENT_REGISTERS  sp, 80
-    EPILOG_RESTORE_REG_PAIR           fp, lr, #144!
+    RESTORE_FLOAT_ARGUMENT_REGISTERS  sp, 88
+    EPILOG_RESTORE_REG_PAIR           fp, lr, #160!
 
     ; and tailcall to the actual method
     EPILOG_BRANCH_REG x12
@@ -640,16 +641,16 @@ COMToCLRDispatchHelper_RegSetup
     NESTED_ENTRY UMThunkStub,,UMThunkStubUnwindFrameChainHandler
 
     ; Save arguments and return address
-    PROLOG_SAVE_REG_PAIR           fp, lr, #-96! ; 64 for regArgs, 8 for x19 & 8 for x12
+    PROLOG_SAVE_REG_PAIR           fp, lr, #-112! ; 72 for regArgs, 8 for x19 & 8 for x12 & 8 for 16-byte align
     ; save callee saved reg x19. x19 is used in the method to store thread*
-    PROLOG_SAVE_REG                x19, #88
+    PROLOG_SAVE_REG                x19, #96
 
     SAVE_ARGUMENT_REGISTERS        sp, 16
 
     GBLA UMThunkStub_HiddenArg ; offset of saved UMEntryThunk *
     GBLA UMThunkStub_StackArgs ; offset of original stack args (total size of UMThunkStub frame)
-UMThunkStub_HiddenArg SETA 80
-UMThunkStub_StackArgs SETA 96
+UMThunkStub_HiddenArg SETA 88
+UMThunkStub_StackArgs SETA 112
 
     ; save UMEntryThunk*
     str                 x12, [sp, #UMThunkStub_HiddenArg]
@@ -727,8 +728,8 @@ UMThunkStub_PostCall
     str                 w4, [x19, #Thread__m_fPreemptiveGCDisabled]
 
     EPILOG_STACK_RESTORE
-    EPILOG_RESTORE_REG                x19, #88
-    EPILOG_RESTORE_REG_PAIR           fp, lr, #96!
+    EPILOG_RESTORE_REG                x19, #96
+    EPILOG_RESTORE_REG_PAIR           fp, lr, #112!
 
     EPILOG_RETURN
 
@@ -1156,7 +1157,7 @@ Fail
     NESTED_END ResolveWorkerChainLookupAsmStub
 
 ;; ------------------------------------------------------------------
-;; void ResolveWorkerAsmStub(args in regs x0-x7 & stack, x11:IndirectionCellAndFlags, x12:DispatchToken)
+;; void ResolveWorkerAsmStub(args in regs x0-x7 & stack and possibly retbuf arg in x8, x11:IndirectionCellAndFlags, x12:DispatchToken)
 ;;
 ;; The stub dispatch thunk which transfers control to VSD_ResolveWorker.
         NESTED_ENTRY ResolveWorkerAsmStub
@@ -1183,8 +1184,8 @@ Fail
 
     add x0, sp, #__PWTB_TransitionBlock ; pTransitionBlock
     mov x1, x11 ; Indirection cell
-    mov x2, x8 ; sectionIndex
-    mov x3, x9 ; Module*
+    mov x2, x9 ; sectionIndex
+    mov x3, x10 ; Module*
     bl ExternalMethodFixupWorker
     mov x12, x0
     
@@ -1202,8 +1203,8 @@ Fail
 
         add x0, sp, #__PWTB_TransitionBlock ; pTransitionBlock
         mov x1, x11 ; Indirection cell
-        mov x2, x8 ; sectionIndex
-        mov x3, x9 ; Module*		
+        mov x2, x9 ; sectionIndex
+        mov x3, x10 ; Module*		
         mov x4, $frameFlags
         bl DynamicHelperWorker
         cbnz x0, %FT0
@@ -1223,7 +1224,7 @@ Fail
         
 #ifdef FEATURE_PREJIT
 ;; ------------------------------------------------------------------
-;; void StubDispatchFixupStub(args in regs x0-x7 & stack, x11:IndirectionCellAndFlags, x12:DispatchToken)
+;; void StubDispatchFixupStub(args in regs x0-x7 & stack and possibly retbuff arg in x8, x11:IndirectionCellAndFlags, x12:DispatchToken)
 ;;
 ;; The stub dispatch thunk which transfers control to StubDispatchFixupWorker.
         NESTED_ENTRY StubDispatchFixupStub
