@@ -104,6 +104,7 @@ Copy these files into the demo directory.
 	C:\git\coreclr>copy bin\Product\Windows_NT.x64.debug\CoreRun.exe \coreclr-demo\runtime
 	C:\git\coreclr>copy bin\Product\Windows_NT.x64.debug\coreclr.dll \coreclr-demo\runtime
 	C:\git\coreclr>copy bin\Product\Windows_NT.x64.debug\mscorlib.dll \coreclr-demo\runtime
+	C:\git\coreclr>copy bin\Product\Windows_NT.x64.debug\System.Private.CoreLib.dll \coreclr-demo\runtime
 
 Build the Framework
 ===================
