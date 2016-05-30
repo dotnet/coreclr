@@ -129,7 +129,8 @@ For the purposes of this demo, you need to copy a few required assemblies to the
 	C:\git\corefx>copy bin\Windows_NT.AnyCPU.Debug\System.IO\System.IO.dll \coreclr-demo\runtime
 	C:\git\corefx>copy bin\Windows_NT.AnyCPU.Debug\System.IO.FileSystem.Primitives\System.IO.FileSystem.Primitives.dll \coreclr-demo\runtime
 	C:\git\corefx>copy bin\Windows_NT.AnyCPU.Debug\System.Runtime\System.Runtime.dll \coreclr-demo\runtime
-	C:\git\corefx>copy bin\Windows_NT.AnyCPU.Debug\System.Runtime.Extensions\System.Runtime.Extensions.dll \coreclr-demo\runtime	C:\git\corefx>copy bin\Windows_NT.AnyCPU.Debug\System.Runtime.InteropServices\System.Runtime.InteropServices.dll \coreclr-demo\runtime
+	C:\git\corefx>copy bin\Windows_NT.AnyCPU.Debug\System.Runtime.Extensions\System.Runtime.Extensions.dll \coreclr-demo\runtime
+	C:\git\corefx>copy bin\Windows_NT.AnyCPU.Debug\System.Runtime.InteropServices\System.Runtime.InteropServices.dll \coreclr-demo\runtime
 	C:\git\corefx>copy bin\Windows_NT.AnyCPU.Debug\System.Threading.Tasks\System.Threading.Tasks.dll \coreclr-demo\runtime	
 
 Restore NuGet Packages
@@ -173,16 +174,16 @@ Now you need a Hello World application to run. You can write your own, if you'd 
 
 	public class Program
 	{
-	    public static void Main (string[] args)
+	    public static void Main()
 	    {
 	        Console.WriteLine("Hello, Windows");
 	        Console.WriteLine("Love from CoreCLR.");
-	    }   
-	} 
+	    }
+	}
 
 Personally, I'm partial to the one on corefxlab which will print a picture for you. Download the [corefxlab demo](https://raw.githubusercontent.com/dotnet/corefxlab/master/demos/CoreClrConsoleApplications/HelloWorld/HelloWorld.cs) to `\coreclr-demo`.
 
-Then you just need to build it, with csc, the .NET Framework C# compiler. It may be easier to do this step within the "Developer Command Prompt for VS2013", if csc is not in your path. Because you need to compile the app against the .NET Core surface area, you need to pass references to the contract assemblies you restored using NuGet:
+Then you just need to build it, with csc, the .NET Framework C# compiler. It may be easier to do this step within the "Developer Command Prompt for VS2015", if csc is not in your path. Because you need to compile the app against the .NET Core surface area, you need to pass references to the contract assemblies you restored using NuGet:
 
 ```
 csc /nostdlib /noconfig /r:packages\System.Runtime.4.0.21-beta-23516\ref\dotnet5.1\System.Runtime.dll /r:packages\System.Console.4.0.0-beta-23516\ref\dotnet5.1\System.Console.dll /out:runtime\hello.exe hello.cs
@@ -199,6 +200,8 @@ You'll also need the following facade assemblies from your packages folder:
 You're ready to run Hello World! To do that, run corerun, passing the path to the managed exe, plus any arguments. In this case, no arguments are necessary.
 
 	C:\coreclr-demo>cd runtime
-	C:\coreclr-demo\runtime>CoreRun.exe HelloWorld.exe
+	C:\coreclr-demo\runtime>CoreRun.exe hello.exe
+
+If `CoreRun.exe` fails for some reason, you will see an empty output. To diagnose the issue, you can use `/v` to switch verbose mode on: `CoreRun.exe /v hello.exe`.
 
 Over time, this process will get easier. Thanks for trying out CoreCLR. Feel free to try a more interesting demo.
