@@ -126,13 +126,14 @@ For the purposes of this demo, you need to copy a few required assemblies to the
 ```bat
 C:\git\corefx>copy bin\Windows_NT.AnyCPU.Debug\System.Console\System.Console.dll \coreclr-demo\runtime
 C:\git\corefx>copy bin\Windows_NT.AnyCPU.Debug\System.Diagnostics.Debug\System.Diagnostics.Debug.dll \coreclr-demo\runtime
-C:\git\corefx>copy bin\Windows_NT.AnyCPU.Debug\System.Threading\System.Threading.dll \coreclr-demo\runtime
-C:\git\corefx>copy bin\Windows_NT.AnyCPU.Debug\System.IO\System.IO.dll \coreclr-demo\runtime
-C:\git\corefx>copy bin\Windows_NT.AnyCPU.Debug\System.IO.FileSystem.Primitives\System.IO.FileSystem.Primitives.dll \coreclr-demo\runtime
-C:\git\corefx>copy bin\Windows_NT.AnyCPU.Debug\System.Runtime\System.Runtime.dll \coreclr-demo\runtime
-C:\git\corefx>copy bin\Windows_NT.AnyCPU.Debug\System.Runtime.Extensions\System.Runtime.Extensions.dll \coreclr-demo\runtime
-C:\git\corefx>copy bin\Windows_NT.AnyCPU.Debug\System.Runtime.InteropServices\System.Runtime.InteropServices.dll \coreclr-demo\runtime
-C:\git\corefx>copy bin\Windows_NT.AnyCPU.Debug\System.Threading.Tasks\System.Threading.Tasks.dll \coreclr-demo\runtime
+C:\git\corefx>copy bin\AnyOS.AnyCPU.Debug\System.IO\System.IO.dll \coreclr-demo\runtime
+C:\git\corefx>copy bin\AnyOS.AnyCPU.Debug\System.IO.FileSystem.Primitives\System.IO.FileSystem.Primitives.dll \coreclr-demo\runtime
+C:\git\corefx>copy bin\AnyOS.AnyCPU.Debug\System.Runtime\System.Runtime.dll \coreclr-demo\runtime
+C:\git\corefx>copy bin\AnyOS.AnyCPU.Debug\System.Runtime.InteropServices\System.Runtime.InteropServices.dll \coreclr-demo\runtime
+C:\git\corefx>copy bin\AnyOS.AnyCPU.Debug\System.Text.Encoding\System.Text.Encoding.dll \coreclr-demo\runtime
+C:\git\corefx>copy bin\AnyOS.AnyCPU.Debug\System.Text.Encoding.Extensions\System.Text.Encoding.Extensions.dll \coreclr-demo\runtime
+C:\git\corefx>copy bin\AnyOS.AnyCPU.Debug\System.Threading\System.Threading.dll \coreclr-demo\runtime
+C:\git\corefx>copy bin\AnyOS.AnyCPU.Debug\System.Threading.Tasks\System.Threading.Tasks.dll \coreclr-demo\runtime
 ```
 
 You also need to copy reference assemblies, which will be used during compilation.
@@ -170,13 +171,6 @@ csc /nostdlib /noconfig /r:ref\System.Runtime.dll /r:ref\System.Console.dll /out
 
 Run the demo
 ============
-
-You'll also need the following facade assemblies from your packages folder:
-
-```bat
-C:\coreclr-demo>copy packages\System.Text.Encoding.4.0.11-beta-23516\lib\netcore50\System.Text.Encoding.dll runtime
-C:\coreclr-demo>copy packages\System.Text.Encoding.Extensions.4.0.11-beta-23516\lib\netcore50\System.Text.Encoding.Extensions.dll runtime
-```
 
 You're ready to run Hello World! To do that, run corerun, passing the path to the managed exe, plus any arguments. In this case, no arguments are necessary.
 
