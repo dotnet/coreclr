@@ -223,6 +223,22 @@ GenTreePtr          Compiler::fgMorphIntoHelperCall(GenTreePtr      tree,
 
     tree = fgMorphArgs(tree->AsCall());
 
+#if defined(_TARGET_X86_) && !defined(LEGACY_BACKEND)
+    if (varTypeIsLong(tree))
+    {
+        GenTreeCall* callNode = tree->AsCall();
+        ReturnTypeDesc* retTypeDesc = callNode->GetReturnTypeDesc();
+        retTypeDesc->Reset();
+        retTypeDesc->Initialize(this, callNode->gtRetClsHnd);
+        
+        NYI("Helper with TYP_LONG return type");
+
+        // For helpers that return longs, we need to make sure they are converted
+        // to tmp = call like we do in the importer for other calls with long
+        // return types.
+    }
+#endif
+
     return tree;
 }
 

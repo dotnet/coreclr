@@ -21551,7 +21551,6 @@ Compiler::fgWalkResult      Compiler::fgUpdateInlineReturnExpressionPlaceHolder(
                                        : NO_CLASS_HANDLE;
 #endif // defined(FEATURE_HFA) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
 
-
         do
         {
             // Obtained the expanded inline candidate
@@ -21587,6 +21586,26 @@ Compiler::fgWalkResult      Compiler::fgUpdateInlineReturnExpressionPlaceHolder(
 #endif // DEBUG
         }
         while (tree->gtOper == GT_RET_EXPR);
+
+#if defined(_TARGET_X86_) && !defined(LEGACY_BACKEND)
+        if (tree->gtOper == GT_CALL && tree->AsCall()->HasMultiRegRetVal())
+        {
+            // For var = call() with long return types, we need to set
+            // lvIsMultiRegArgOrRet so we do not promote the var.
+            GenTreePtr parent = data->parent;
+            if (parent->gtOper == GT_ASG)
+            {
+                GenTree* op1 = parent->gtOp.gtOp1;
+                if (op1->gtOper == GT_LCL_VAR)
+                {
+                    GenTreeLclVarCommon* varNode = op1->AsLclVarCommon();
+                    unsigned varNum = varNode->gtLclNum;
+                    assert(varNum < comp->lvaCount);
+                    comp->lvaTable[varNum].lvIsMultiRegArgOrRet = true;
+                }
+            }
+        }
+#endif
 
 #if defined(FEATURE_HFA) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
 #if defined(FEATURE_HFA)
