@@ -20522,15 +20522,15 @@ regMaskTP           CodeGen::genCodeForCall(GenTreePtr  call,
             BasicBlock  *   esp_check;
 
             CORINFO_EE_INFO * pInfo = compiler->eeGetEEInfo();
-
+#ifdef _TARGET_X86_
             /* mov   ecx, dword ptr [frame.callSiteTracker] */
 
-            getEmitter()->emitIns_R_S (ins_Load(TYP_I_IMPL),
-                                      EA_PTRSIZE,
-                                      REG_OPT_RSVD,
+            getEmitter()->emitIns_R_S (INS_mov,
+                                      EA_4BYTE,
+                                      REG_ARG_0,
                                       compiler->lvaInlinedPInvokeFrameVar,
                                       pInfo->inlinedCallFrameInfo.offsetOfCallSiteSP);
-            regTracker.rsTrackRegTrash(REG_OPT_RSVD);
+            regTracker.rsTrackRegTrash(REG_ARG_0);
 
             /* Generate the conditional jump */
 
@@ -20540,11 +20540,11 @@ regMaskTP           CodeGen::genCodeForCall(GenTreePtr  call,
                 {
                     getEmitter()->emitIns_R_I  (INS_add,
                                               EA_PTRSIZE,
-                                              REG_OPT_RSVD,
+                                              REG_ARG_0,
                                               argSize);
                 }
             }
-
+#endif
             /* cmp   ecx, esp */
 
             getEmitter()->emitIns_R_R(INS_cmp, EA_PTRSIZE, REG_OPT_RSVD, REG_SPBASE);
@@ -22319,7 +22319,7 @@ regNumber          CodeGen::genPInvokeCallProlog(LclVarDsc*            frameList
         regTracker.rsTrackRegTrash(tcbReg);
     }
 
-#if defined(_TARGET_X86_) || defined(_TARGET_ARM_)
+#if defined(_TARGET_X86_)
     /* mov   dword ptr [frame.callSiteTracker], esp */
 
     getEmitter()->emitIns_S_R  (ins_Store(TYP_I_IMPL),
