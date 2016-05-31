@@ -393,6 +393,9 @@ public:
     {
         assert(lvIsHfa());
         assert(lvType==TYP_STRUCT);
+#ifdef _TARGET_ARM_
+        return lvExactSize / sizeof(float);
+#else
         if (lvHfaTypeIsFloat())
         {
             return lvExactSize / sizeof(float);
@@ -401,6 +404,7 @@ public:
         {
             return lvExactSize / sizeof(double);
         }
+#endif // _TARGET_ARM_
     }
 
 private:

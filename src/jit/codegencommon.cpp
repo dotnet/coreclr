@@ -4336,17 +4336,6 @@ void            CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg,
             }
         }
 
-#if defined(_TARGET_ARM_)
-        if (varDsc->lvType == TYP_DOUBLE)
-        {
-            if (regArgTab[argNum].slot == 2)
-            {
-                // We handled the entire double when processing the first half (slot == 1)
-                continue;
-            }
-        }
-#endif
-
         noway_assert(regArgTab[argNum].circular  == false);
 
         noway_assert(varDsc->lvIsParam);
@@ -4393,7 +4382,14 @@ void            CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg,
         else
         {
             // Since slot is typically 1, baseOffset is typically 0
-            int baseOffset = (regArgTab[argNum].slot - 1) * slotSize;
+            int slot = regArgTab[argNum].slot;
+            
+#ifdef _TARGET_ARM_
+            if (storeType == TYP_DOUBLE)
+                slot = (slot + 1) / 2;
+#endif // _TARGET_ARM_
+            
+            int baseOffset = (slot - 1) * slotSize;
 
             getEmitter()->emitIns_S_R(ins_Store(storeType),
                                         size,
@@ -4405,6 +4401,9 @@ void            CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg,
             // Check if we are writing past the end of the struct
             if (varTypeIsStruct(varDsc))
             {
+#ifdef FEATURE_HFA
+                if (!varDsc->lvIsHfaRegArg())
+#endif // FEATURE_HFA
                 assert(varDsc->lvSize() >= baseOffset+(unsigned)size);
             }
 #endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING
