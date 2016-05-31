@@ -22319,7 +22319,7 @@ regNumber          CodeGen::genPInvokeCallProlog(LclVarDsc*            frameList
         regTracker.rsTrackRegTrash(tcbReg);
     }
 
-#if defined(_TARGET_X86_)
+#ifdef _TARGET_X86_
     /* mov   dword ptr [frame.callSiteTracker], esp */
 
     getEmitter()->emitIns_S_R  (ins_Store(TYP_I_IMPL),
