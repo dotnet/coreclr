@@ -12963,3 +12963,105 @@ namespace System.Threading.Tasks
         public void SetObserved() { }
     }
 }
+
+namespace System.Security.Cryptography
+{
+    public abstract class HashAlgorithm : System.IDisposable, System.Security.Cryptography.ICryptoTransform
+    {
+        protected internal byte[] HashValue;
+        protected int HashSizeValue;
+        protected int State;
+        protected HashAlgorithm() { }
+        public virtual bool CanReuseTransform { get { return default(bool); } }
+        public virtual bool CanTransformMultipleBlocks { get { return default(bool); } }
+        public virtual byte[] Hash { get { return default(byte[]); } }
+        public virtual int HashSize { get { return default(int); } }
+        public virtual int InputBlockSize { get { return default(int); } }
+        public virtual int OutputBlockSize { get { return default(int); } }
+        public void Clear() { }
+        public byte[] ComputeHash(byte[] buffer) { return default(byte[]); }
+        public byte[] ComputeHash(byte[] buffer, int offset, int count) { return default(byte[]); }
+        public byte[] ComputeHash(System.IO.Stream inputStream) { return default(byte[]); }
+        public static HashAlgorithm Create() { return default(HashAlgorithm); }
+        public static HashAlgorithm Create(string hashName) { return default(HashAlgorithm); }
+        public void Dispose() { }
+        protected virtual void Dispose(bool disposing) { }
+        protected abstract void HashCore(byte[] array, int ibStart, int cbSize);
+        protected abstract byte[] HashFinal();
+        public abstract void Initialize();
+        public int TransformBlock(byte[] inputBuffer, int inputOffset, int inputCount, byte[] outputBuffer, int outputOffset) { return default(int); }
+        public byte[] TransformFinalBlock(byte[] inputBuffer, int inputOffset, int inputCount) { return default(byte[]); }
+    }
+
+    public abstract class SymmetricAlgorithm : System.IDisposable
+    {
+        protected byte[] IVValue;
+        protected byte[] KeyValue;
+        protected int BlockSizeValue;
+        protected int FeedbackSizeValue;
+        protected int KeySizeValue;
+        protected CipherMode ModeValue;
+        protected KeySizes[] LegalBlockSizesValue;
+        protected KeySizes[] LegalKeySizesValue;
+        protected PaddingMode PaddingValue;
+        protected SymmetricAlgorithm() { }
+        public virtual int BlockSize { get; set; }
+        public virtual int FeedbackSize { get; set; }
+        public virtual byte[] IV { get; set; }
+        public virtual byte[] Key { get; set; }
+        public virtual int KeySize { get; set; }
+        public virtual KeySizes[] LegalBlockSizes { get; }
+        public virtual KeySizes[] LegalKeySizes { get; }
+        public virtual CipherMode Mode { get; set; }
+        public virtual PaddingMode Padding { get; set; }
+        public void Clear() { }
+        public static SymmetricAlgorithm Create() { return default(SymmetricAlgorithm); }
+        public static SymmetricAlgorithm Create(string algName) { return default(SymmetricAlgorithm); }
+        public virtual ICryptoTransform CreateDecryptor() { return default(ICryptoTransform); }
+        public abstract ICryptoTransform CreateDecryptor(byte[] rgbKey, byte[] rgbIV);
+        public virtual ICryptoTransform CreateEncryptor() { return default(ICryptoTransform); }
+        public abstract ICryptoTransform CreateEncryptor(byte[] rgbKey, byte[] rgbIV);
+        public void Dispose() { }
+        protected virtual void Dispose(bool disposing) { }
+        public abstract void GenerateIV();
+        public abstract void GenerateKey();
+        public bool ValidKeySize(int bitLength) { return default(bool); }
+    }
+
+
+    public interface ICryptoTransform : System.IDisposable
+    {
+        int InputBlockSize { get; }
+        int OutputBlockSize { get; }
+        bool CanTransformMultipleBlocks { get; }
+        bool CanReuseTransform { get; }
+        int TransformBlock(byte[] inputBuffer, int inputOffset, int inputCount, byte[] outputBuffer, int outputOffset);
+        byte[] TransformFinalBlock(byte[] inputBuffer, int inputOffset, int inputCount);
+    }
+
+    public sealed class KeySizes
+    {
+        public KeySizes(int minSize, int maxSize, int skipSize) { }
+        public int MaxSize { get; }
+        public int MinSize { get; }
+        public int SkipSize { get; }
+    }
+
+    public enum PaddingMode
+    {
+        ANSIX923 = 4,
+        ISO10126 = 5,
+        None = 1,
+        PKCS7 = 2,
+        Zeros = 3,
+    }
+
+    public enum CipherMode
+    {
+        CBC = 1,
+        CFB = 4,
+        CTS = 5,
+        ECB = 2,
+        OFB = 3,
+    }
+}
