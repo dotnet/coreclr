@@ -4358,8 +4358,14 @@ void            CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg,
 #endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING
             if (varDsc->lvIsHfaRegArg())
             {
+#ifdef _TARGET_ARM_
+                // On ARM32 the storeType for HFA args is always TYP_FLOAT
+                storeType = TYP_FLOAT;
+                slotSize  = (unsigned) emitActualTypeSize(storeType);
+#else // TARGET_ARM64
                 storeType = genActualType(varDsc->GetHfaType());
                 slotSize  = (unsigned) emitActualTypeSize(storeType);
+#endif // TARGET_ARM64
             }
         }
         else  // Not a struct type
@@ -4382,14 +4388,7 @@ void            CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg,
         else
         {
             // Since slot is typically 1, baseOffset is typically 0
-            int slot = regArgTab[argNum].slot;
-            
-#ifdef _TARGET_ARM_
-            if (storeType == TYP_DOUBLE)
-                slot = (slot + 1) / 2;
-#endif // _TARGET_ARM_
-            
-            int baseOffset = (slot - 1) * slotSize;
+            int baseOffset = (regArgTab[argNum].slot - 1) * slotSize;
 
             getEmitter()->emitIns_S_R(ins_Store(storeType),
                                         size,
