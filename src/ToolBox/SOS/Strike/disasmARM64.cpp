@@ -49,6 +49,13 @@ namespace ARM64GCDump
 #error This file should be used to support SOS targeting ARM64 debuggees
 #endif
 
+#ifdef FEATURE_PAL
+void SwitchToFiber(void*)
+{
+    // TODO: Fix for linux
+    assert(false);
+}
+#endif // FEATURE_PAL
 
 void ARM64Machine::IsReturnAddress(TADDR retAddr, TADDR* whereCalled) const
 {
