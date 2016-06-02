@@ -1133,7 +1133,16 @@ bool IsGcCoverageInterrupt(LPVOID ip)
     }
 
     // Now it's safe to dereference the IP to check the instruction
+    // The instruction is of variable length depending on the architecture
+    // Check gccover.h and ensure that you switch on the proper length
+    // to avoid narrowing issues
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
     UINT8 instructionCode = *reinterpret_cast<UINT8 *>(ip);
+#elif defined(_TARGET_ARM64_)
+    UINT32 instructionCode = *reinterpret_cast<UINT32 *>(ip);
+#else
+#error Implement me for your architecture
+#endif
     switch (instructionCode)
     {
         case INTERRUPT_INSTR:

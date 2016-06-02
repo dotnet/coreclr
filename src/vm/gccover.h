@@ -101,8 +101,8 @@ public:
 // "Arm Architecture Reference Manual ARMv8"
 //
 #define INTERRUPT_INSTR                 0xBADC0DE0
-#define INTERRUPT_INSTR_CALL            0xBADC0DE1         
-#define INTERRUPT_INSTR_PROTECT_RET     0xBADC0DE2  
+#define INTERRUPT_INSTR_CALL            0xBADC0DE1
+#define INTERRUPT_INSTR_PROTECT_RET     0xBADC0DE2
 
 #endif // _TARGET_*
 
