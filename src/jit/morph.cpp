@@ -2840,7 +2840,6 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* callNode)
         call->fgArgInfo = new (this, CMK_Unknown) fgArgInfo(this, call, numArgs);
     }
 
-
     fgFixupStructReturn(call);
 
     /* First we morph the argument subtrees ('this' pointer, arguments, etc.).
@@ -2996,6 +2995,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* callNode)
     SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
 #endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
 
+    bool expectRetBuffArg      = call->HasRetBufArg();
     bool hasStructArgument     = false;   // @TODO-ARM64-UNIX: Remove this bool during a future refactoring 
     bool hasMultiregStructArgs = false;
     for (args = call->gtCallArgs; args; args = args->gtOp.gtOp2)
@@ -3813,6 +3813,20 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* callNode)
             assert(size == 1);
 #endif
 #endif
+            // If 'expectRetBuffArg' is true then this argument is the RetBufArg
+            if (expectRetBuffArg)
+            {
+                assert(passUsingFloatRegs == false);
+              
+                if (hasFixedRetBuffReg())
+                {
+                    // Change the register used to pass the next argument to the fixed return buffer register
+                    nextRegNum = theFixedRetBuffReg();
+                }
+
+                // We no longer are expect the RetBufArg
+                expectRetBuffArg = false;
+            }
 
 #ifndef LEGACY_BACKEND
             // If there are nonstandard args (outside the calling convention) they were inserted above
@@ -3916,7 +3930,11 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* callNode)
                     }
                     else
                     {
-                        intArgRegNum += size;
+                        // Don't increment intArgRegNum when 'nextRegNum' is the fixed return buffer register
+                        if (nextRegNum != theFixedRetBuffReg())
+                        {
+                            intArgRegNum += size;
+                        }
 
 #if defined(_TARGET_AMD64_) && !defined(UNIX_AMD64_ABI)
                         fltArgSkippedRegMask |= genMapArgNumToRegMask(fltArgRegNum, TYP_DOUBLE);
@@ -4015,7 +4033,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* callNode)
     if  (!lateArgsComputed)
     {
         call->fgArgInfo->ArgsComplete();
-
+        // @ToDo-Cleanup: gtCallRegUsedMask is only used by the LEGACY JIT
         call->gtCallRegUsedMask = genIntAllRegArgMask(intArgRegNum) & ~argSkippedRegMask;
         if (fltArgRegNum > 0)
         {
@@ -4095,7 +4113,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* callNode)
 #ifdef DEBUG
         if (verbose)
         {
-            printf("argSlots=%d, preallocatedArgCount=%d, nextSlotNum=%d, lvaOutgoingArgSpaceSize=%d",
+            printf("argSlots=%d, preallocatedArgCount=%d, nextSlotNum=%d, lvaOutgoingArgSpaceSize=%d\n",
                    argSlots, preallocatedArgCount, call->fgArgInfo->GetNextSlotNum(), lvaOutgoingArgSpaceSize);
         }
 #endif
@@ -5677,7 +5695,7 @@ GenTreePtr          Compiler::fgMorphStackArgForVarArgs(unsigned lclNum, var_typ
         GenTreePtr ptrArg = gtNewOperNode(GT_SUB, TYP_I_IMPL,
                                             gtNewLclvNode(lvaVarargsBaseOfStkArgs, TYP_I_IMPL),
                                             gtNewIconNode(varDsc->lvStkOffs 
-                                                        - codeGen->intRegState.rsCalleeRegArgNum*sizeof(void*)
+                                                        - codeGen->intRegState.rsCalleeRegArgCount*sizeof(void*)
                                                         + lclOffs));
 
         // Access the argument through the local

@@ -3463,8 +3463,8 @@ LinearScan::updateRegStateForArg(LclVarDsc* argDsc)
     else
 #endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
     {
-        RegState              * intRegState = &compiler->codeGen->intRegState;
-        RegState              * floatRegState = &compiler->codeGen->floatRegState;
+        RegState*  intRegState   = &compiler->codeGen->intRegState;
+        RegState*  floatRegState = &compiler->codeGen->floatRegState;
         // In the case of AMD64 we'll still use the floating point registers
         // to model the register usage for argument on vararg calls, so
         // we will ignore the varargs condition to determine whether we use 
@@ -3684,7 +3684,10 @@ LinearScan::buildIntervals()
             continue;
         }
 
-        if (argDsc->lvIsRegArg) updateRegStateForArg(argDsc);
+        if (argDsc->lvIsRegArg)
+        {
+            updateRegStateForArg(argDsc);
+        }
 
         if (isCandidateVar(argDsc))
         {

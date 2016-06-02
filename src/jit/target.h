@@ -1670,6 +1670,13 @@ typedef unsigned short          regPairNoSmall; // arm: need 12 bits
 
   #define FIRST_ARG_STACK_OFFS    (2*REGSIZE_BYTES)   // Caller's saved FP and return address
 
+  // On ARM64 the calling convention defines REG_R8 (x8) as an additional argument register
+  // It isn't allocated for the normal user arguments, so it isn't counted by MAX_REG_ARG
+  // whether we use this register to pass the RetBuff is controlled by the function hasFixedRetBuffReg() 
+  //
+  #define REG_ARG_RET_BUFF         REG_R8
+  #define RBM_ARG_RET_BUFF         RBM_R8
+
   #define MAX_REG_ARG              8
   #define MAX_FLOAT_REG_ARG        8
 
@@ -1718,7 +1725,7 @@ typedef unsigned short          regPairNoSmall; // arm: need 12 bits
   #define RBM_FLTARG_6             RBM_V6
   #define RBM_FLTARG_7             RBM_V7
 
-  #define RBM_ARG_REGS            (RBM_ARG_0|RBM_ARG_1|RBM_ARG_2|RBM_ARG_3|RBM_ARG_4|RBM_ARG_5|RBM_ARG_6|RBM_ARG_7)
+  #define RBM_ARG_REGS            (RBM_ARG_0|RBM_ARG_1|RBM_ARG_2|RBM_ARG_3|RBM_ARG_4|RBM_ARG_5|RBM_ARG_6|RBM_ARG_7|RBM_ARG_RET_BUFF)
   #define RBM_FLTARG_REGS         (RBM_FLTARG_0|RBM_FLTARG_1|RBM_FLTARG_2|RBM_FLTARG_3|RBM_FLTARG_4|RBM_FLTARG_5|RBM_FLTARG_6|RBM_FLTARG_7)
 
   SELECTANY const regNumber fltArgRegs [] = {REG_V0, REG_V1, REG_V2, REG_V3, REG_V4, REG_V5, REG_V6, REG_V7 };
@@ -1747,7 +1754,6 @@ typedef unsigned short          regPairNoSmall; // arm: need 12 bits
 #else
   #error Unsupported or unset target architecture
 #endif
-
 
 #ifdef _TARGET_XARCH_
 
@@ -1884,11 +1890,42 @@ inline bool         genIsValidDoubleReg(regNumber reg)
 #endif // defined(LEGACY_BACKEND) && defined(_TARGET_ARM_)
 
 /*****************************************************************************
+*
+*  Returns true if our target architecture uses a fixed return buffer register
+*/
+inline bool         hasFixedRetBuffReg()
+{
+#ifdef _TARGET_ARM64_
+    return true;
+#else
+    return false;
+#endif
+}
+
+/*****************************************************************************
+*
+*  Returns the regNumber ofthe fixed  if the register is a valid integer argument register
+*/
+inline regNumber         theFixedRetBuffReg()
+{
+#ifdef _TARGET_ARM64_
+    return REG_ARG_RET_BUFF;
+#else
+    return REG_NA;
+#endif
+}
+
+/*****************************************************************************
  *
  *  Returns true if the register is a valid integer argument register 
+ *  This method also returns true on Arm64 when 'reg' is the RetBuff register 
  */
 inline bool         isValidIntArgReg(regNumber reg)
 {
+    if (hasFixedRetBuffReg() && (reg == theFixedRetBuffReg()))
+    {
+        return true;
+    }
     return (genRegMask(reg) & RBM_ARG_REGS) != 0;
 }
 
