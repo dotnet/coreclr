@@ -4336,17 +4336,6 @@ void            CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg,
             }
         }
 
-#if defined(_TARGET_ARM_)
-        if (varDsc->lvType == TYP_DOUBLE)
-        {
-            if (regArgTab[argNum].slot == 2)
-            {
-                // We handled the entire double when processing the first half (slot == 1)
-                continue;
-            }
-        }
-#endif
-
         noway_assert(regArgTab[argNum].circular  == false);
 
         noway_assert(varDsc->lvIsParam);
@@ -4369,8 +4358,14 @@ void            CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg,
 #endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING
             if (varDsc->lvIsHfaRegArg())
             {
+#ifdef _TARGET_ARM_
+                // On ARM32 the storeType for HFA args is always TYP_FLOAT
+                storeType = TYP_FLOAT;
+                slotSize  = (unsigned) emitActualTypeSize(storeType);
+#else // TARGET_ARM64
                 storeType = genActualType(varDsc->GetHfaType());
                 slotSize  = (unsigned) emitActualTypeSize(storeType);
+#endif // TARGET_ARM64
             }
         }
         else  // Not a struct type
@@ -4405,6 +4400,9 @@ void            CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg,
             // Check if we are writing past the end of the struct
             if (varTypeIsStruct(varDsc))
             {
+#ifdef FEATURE_HFA
+                if (!varDsc->lvIsHfaRegArg())
+#endif // FEATURE_HFA
                 assert(varDsc->lvSize() >= baseOffset+(unsigned)size);
             }
 #endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING
