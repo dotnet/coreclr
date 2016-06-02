@@ -1895,7 +1895,7 @@ inline bool         genIsValidDoubleReg(regNumber reg)
 */
 inline bool         hasFixedRetBuffReg()
 {
-#ifdef _TARGET_ARM64_
+#if 0 //def _TARGET_ARM64_
     return true;
 #else
     return false;
