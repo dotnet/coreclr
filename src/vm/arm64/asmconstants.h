@@ -76,24 +76,27 @@ ASMCONSTANTS_C_ASSERT(   CORINFO_NullReferenceException_ASM
 
 
 // Offset of the array containing the address of captured registers in MachState
-#define MachState__captureX19_X29 0x0
-ASMCONSTANTS_C_ASSERT(MachState__captureX19_X29 == offsetof(MachState, captureX19_X29))
+#define MachState__captureX19_X30 0x0
+ASMCONSTANTS_C_ASSERT(MachState__captureX19_X30 == offsetof(MachState, captureX19_X30))
 
 // Offset of the array containing the address of preserved registers in MachState
-#define MachState__ptrX19_X29 0x58
-ASMCONSTANTS_C_ASSERT(MachState__ptrX19_X29 == offsetof(MachState, ptrX19_X29))
+#define MachState__ptrX19_X30 0x60
+ASMCONSTANTS_C_ASSERT(MachState__ptrX19_X30 == offsetof(MachState, ptrX19_X30))
 
-#define MachState__isValid 0xc0
+#define MachState__isValid 0xd0
 ASMCONSTANTS_C_ASSERT(MachState__isValid == offsetof(MachState, _isValid))
 
-#define LazyMachState_captureX19_X29 MachState__captureX19_X29
-ASMCONSTANTS_C_ASSERT(LazyMachState_captureX19_X29 == offsetof(LazyMachState, captureX19_X29))
+#define LazyMachState_captureX19_X30 MachState__captureX19_X30
+ASMCONSTANTS_C_ASSERT(LazyMachState_captureX19_X30 == offsetof(LazyMachState, captureX19_X30))
 
 #define LazyMachState_captureSp     (MachState__isValid+8) // padding for alignment
 ASMCONSTANTS_C_ASSERT(LazyMachState_captureSp == offsetof(LazyMachState, captureSp))
 
 #define LazyMachState_captureIp     (LazyMachState_captureSp+8)
 ASMCONSTANTS_C_ASSERT(LazyMachState_captureIp == offsetof(LazyMachState, captureIp))
+
+#define LazyMachState_captureFp     (LazyMachState_captureIp+8)
+ASMCONSTANTS_C_ASSERT(LazyMachState_captureFp == offsetof(LazyMachState, captureFp))
 
 #define VASigCookie__pNDirectILStub 0x8
 ASMCONSTANTS_C_ASSERT(VASigCookie__pNDirectILStub == offsetof(VASigCookie, pNDirectILStub))

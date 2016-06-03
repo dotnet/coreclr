@@ -17,12 +17,12 @@
 
 #define __gmscpu_h__
 
-// X19 - X29
-#define NUM_NONVOLATILE_CONTEXT_POINTERS 11
+// X19 -X30
+#define NUM_NONVOLATILE_CONTEXT_POINTERS 12
 
 struct MachState {
-    ULONG64        captureX19_X29[NUM_NONVOLATILE_CONTEXT_POINTERS]; // preserved registers
-    PTR_ULONG64    ptrX19_X29[NUM_NONVOLATILE_CONTEXT_POINTERS]; // pointers to preserved registers
+    ULONG64        captureX19_X30[NUM_NONVOLATILE_CONTEXT_POINTERS]; // preserved registers
+    PTR_ULONG64    ptrX19_X30[NUM_NONVOLATILE_CONTEXT_POINTERS]; // pointers to preserved registers
     TADDR          _pc;
     TADDR          _sp;        
     BOOL           _isValid;
@@ -35,6 +35,7 @@ struct LazyMachState : public MachState{
 
     TADDR          captureSp;         // Stack pointer at the time of capture
     TADDR          captureIp;         // Instruction pointer at the time of capture
+    TADDR          captureFp;         // Frame pointer at the time of capture
 
     void setLazyStateFromUnwind(MachState* copy);
     static void unwindLazyState(LazyMachState* baseState,
@@ -57,21 +58,21 @@ inline void LazyMachState::setLazyStateFromUnwind(MachState* copy)
     _pc = copy->_pc;
 
     // Now copy the preserved register pointers. Note that some of the pointers could be
-    // pointing to copy->captureX19_X29[]. If that is case then while copying to destination
-    // ensure that they point to corresponding element in captureX19_X29[] of destination.
-    ULONG64* srcLowerBound = &copy->captureX19_X29[0];
-    ULONG64* srcUpperBound = (ULONG64*)((BYTE*)copy + offsetof(MachState, ptrX19_X29));
+    // pointing to copy->captureX19_X30[]. If that is case then while copying to destination
+    // ensure that they point to corresponding element in captureX19_X30[] of destination.
+    ULONG64* srcLowerBound = &copy->captureX19_X30[0];
+    ULONG64* srcUpperBound = (ULONG64*)((BYTE*)copy + offsetof(MachState, ptrX19_X30));
 
 
     for (int i = 0; i<NUM_NONVOLATILE_CONTEXT_POINTERS; i++)
     {
-        if (copy->ptrX19_X29[i] >= srcLowerBound && copy->ptrX19_X29[i] < srcUpperBound)
+        if (copy->ptrX19_X30[i] >= srcLowerBound && copy->ptrX19_X30[i] < srcUpperBound)
         {
-            ptrX19_X29[i] = (PTR_ULONG64)((BYTE*)copy->ptrX19_X29[i] - (BYTE*)srcLowerBound + (BYTE*)captureX19_X29);
+            ptrX19_X30[i] = (PTR_ULONG64)((BYTE*)copy->ptrX19_X30[i] - (BYTE*)srcLowerBound + (BYTE*)captureX19_X30);
         }
         else
         {
-            ptrX19_X29[i] = copy->ptrX19_X29[i];
+            ptrX19_X30[i] = copy->ptrX19_X30[i];
         }
     }
 
