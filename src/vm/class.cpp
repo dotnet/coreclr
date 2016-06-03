@@ -3114,6 +3114,24 @@ void EEClass::AddChunk (MethodDescChunk* pNewChunk)
 }
 
 //*******************************************************************************
+// Reverses the linked list of MethodDescChunks.  Used to keep the methods
+// in the same order as the meta-data so that reflection also returns
+// methods in lexical order.  
+void EEClass::ReverseChunks()
+{
+	PTR_MethodDescChunk chunks = GetChunks();
+	PTR_MethodDescChunk reversed = NULL;
+	while (chunks != NULL)
+	{
+		PTR_MethodDescChunk next = chunks->GetNextChunk();
+		chunks->SetNextChunk(reversed);
+		reversed = chunks;
+		chunks = next;
+	}
+	SetChunks(reversed);
+}
+
+//*******************************************************************************
 void EEClass::AddChunkIfItHasNotBeenAdded (MethodDescChunk* pNewChunk)
 {
     STATIC_CONTRACT_NOTHROW;
