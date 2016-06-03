@@ -17,6 +17,7 @@
       <DisabledProjects Include="TestWrappers*\*\*.csproj" />
       <DisabledProjects Include="*\**\cs_template.csproj" />
       <DisabledProjects Include="Common\Coreclr.TestWrapper\Coreclr.TestWrapper.csproj" />
+      <DisabledProjects Condition="'$(OsEnvironment)' != 'Windows_NT'" Include="Common\Desktop.Coreclr.TestWrapper\Desktop.Coreclr.TestWrapper.csproj" />
       <DisabledProjects Include="Common\test_runtime\test_runtime.csproj" />
       <DisabledProjects Include="GC\Performance\Framework\GCPerfTestFramework.csproj" />
       <DisabledProjects Include="Loader\classloader\generics\regressions\DD117522\Test.csproj" />

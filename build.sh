@@ -4,7 +4,7 @@ PYTHON=${PYTHON:-python}
 
 usage()
 {
-    echo "Usage: $0 [BuildArch] [BuildType] [clean] [verbose] [coverage] [cross] [clangx.y] [ninja] [configureonly] [skipconfigure] [skipnative] [skipmscorlib] [skiptests] [cmakeargs] [bindir]"
+    echo "Usage: $0 [BuildArch] [BuildType] [clean] [verbose] [coverage] [cross] [clangx.y] [ninja] [configureonly] [skipconfigure] [skipnative] [skipmscorlib] [skiptests] [cmakeargs] [bindir] [priority <N>] [gcstresslevel <N>] [sequential] [ilasmroundtrip]"
     echo "BuildArch can be: x64, x86, arm, arm-softfp, arm64"
     echo "BuildType can be: debug, checked, release"
     echo "clean - optional argument to force a clean build."
@@ -25,6 +25,10 @@ usage()
     echo "skipgenerateversion - disable version generation even if MSBuild is supported."
     echo "cmakeargs - user-settable additional arguments passed to CMake."
     echo "bindir - output directory (defaults to $__ProjectRoot/bin)"
+    echo "priority <N> - optional argument to specify a set of test that will be built and run, with priority N."
+    echo "gcstresslevel <N> - optional argument to specify the GCStress level the tests should run under."
+    echo "sequential - fore a non-parallel build (Default is to buildin parallel using all processors)"
+    echo "ilasmroundtrip - optional argument to enable detailed file logging for the msbuild tasks into the msbuild log file."
 
     exit 1
 }
@@ -50,6 +54,12 @@ setup_dirs()
     mkdir -p "$__BinDir"
     mkdir -p "$__LogsDir"
     mkdir -p "$__IntermediatesDir"
+
+    mkdir -p "$__TestRootDir"
+    mkdir -p "$__TestBinDir"
+    mkdir -p "$__TestIntermediateDir"
+    mkdir -p "$__NativeTestIntermediateDir"
+    mkdir -p "$__ManagedTestIntermediateDir"
 }
 
 # Performs "clean build" type actions (deleting and remaking directories)
@@ -60,8 +70,7 @@ clean()
     rm -rf "$__BinDir"
     rm -rf "$__IntermediatesDir"
 
-    rm -rf "$__TestWorkingDir"
-    rm -rf "$__TestIntermediatesDir"
+    rm -rf "$__TestRootDir"
 
     rm -rf "$__LogsDir/*_$__BuildOS__$__BuildArch__$__BuildType.*"
     rm -rf "$__ProjectRoot/Tools"
@@ -311,6 +320,66 @@ build_CoreLib()
     fi 
 }
 
+build_tests()
+{
+    if [ $__isMSBuildOnNETCoreSupported == 0 ]; then
+        echo "Test build unsupported."
+        return
+    fi
+
+    # Skip the test build if we have been asked to do so.
+    if [ $__SkipTests == 1 ]; then
+        echo "Skipping tests build."
+        return
+    fi
+
+    # Restore buildTools
+    restoreBuildTools
+
+    echo "Commencing build of test components for $__BuildOS.$__BuildArch.$__BuildType"
+
+     __msbuildArgs=
+    if [ $__BuildSequential == 1 ]; then
+        __msbuildArgs=$__msbuildArgs" /maxcpucount"
+    fi
+
+    if [ $__ILAsmRoundtrip == 1 ]; then
+        __msbuildArgs=$__msbuildArgs" /p:IlasmRoundTrip=true"
+    fi
+
+    if [ $__TestPriority != 0 ]; then
+        __msbuildArgs=$__msbuildArgs" /p:CLRTestPriorityToBuild=$__TestPriority"
+    fi
+
+    if [ $__GCStressLevel -gt 0 ]; then
+        __msbuildArgs=$__msbuildArgs" /p:GCStressLevel=$__GCStressLevel"
+    fi
+
+    # Roslyn does not support writing PDBs on Unix.
+    # The DebugSymbols define wil be false and the DebugType will be none.
+    __msbuildArgs=$__msbuildArgs" /p:DebugSymbols=false /p:DebugType=none"
+
+    # Invoke MSBuild
+    echo "Generating test components"
+    $__ProjectRoot/Tools/corerun "$__MSBuildPath" /nologo "$__ProjectRoot/tests/build.proj" /verbosity:minimal "/fileloggerparameters:Verbosity=normal;LogFile=$__LogsDir/TestBuild_Managed_${__BuildOS}_${__BuildArch}_${__BuildType}.log" /t:Build /p:__BuildOS=$__BuildOS /p:__BuildArch=$__BuildArch /p:__BuildType=$__BuildType /p:__BinDir=$__TestBinDir /p:__IntermediatesDir=$__IntermediatesDir /p:BuildNugetPackage=false /p:UseSharedCompilation=false $__msbuildArgs
+
+    if [ $? -ne 0 ]; then
+        echo "Failed to build test components."
+        exit 1
+    fi
+
+    CORE_ROOT=$__TestBinDir/Tests/Core_Root
+
+    echo "Creating test overlay..."
+
+    $__ProjectRoot/Tools/corerun "$__MSBuildPath" /nologo "$__ProjectRoot/tests/runtest.proj" /verbosity:minimal /p:CORE_ROOT=$CORE_ROOT /t:CreateTestOverlay
+
+    if [ $? -ne 0 ]; then
+        echo "Failed to create test overlay."
+        exit 1
+    fi
+}
+
 generate_NugetPackages()
 {
     # We can only generate nuget package if we also support building mscorlib as part of this build.
@@ -451,6 +520,8 @@ __SkipRestore=""
 __SkipNuget=0
 __SkipCoreCLR=0
 __SkipMSCorLib=0
+# The default value of __SkipTests is off temporarily.
+__SkipTests=1
 __CleanBuild=0
 __VerboseBuild=0
 __SignTypeReal=""
@@ -463,6 +534,10 @@ __DistroRid=""
 __cmakeargs=""
 __OfficialBuildIdArg=
 __SkipGenerateVersion=0
+__ILAsmRoundtrip=0
+__BuildSequential=0
+__TestPriority=0
+__GCStressLevel=0
 
 while :; do
     if [ $# -le 0 ]; then
@@ -552,6 +627,7 @@ while :; do
             __ConfigureOnly=1
             __SkipCoreCLR=1
             __SkipMSCorLib=1
+            __SkipTests=1
             __IncludeTests=
             ;;
 
@@ -582,6 +658,7 @@ while :; do
 
         skiptests)
             __IncludeTests=
+            __SkipTests=1
             ;;
 
         skiprestore)
@@ -622,6 +699,21 @@ while :; do
             fi
             ;;
 
+        ilasmroundtrip)
+            __ILAsmRoundtrip=1
+            ;;
+        sequential)
+            __BuildSequential=1
+            ;;
+        priority)
+            __TestPriority=$2
+            shift
+            ;;
+        gcstresslevel)
+            __GCStressLevel=$2
+            shift
+            ;;
+
         *)
             if [[ $1 == "/p:OfficialBuildId="* ]]; then
                 __OfficialBuildIdArg=$1
@@ -660,9 +752,12 @@ initDistroRid
 __BinDir="$__RootBinDir/Product/$__BuildOS.$__BuildArch.$__BuildType"
 __PackagesBinDir="$__BinDir/.nuget"
 __ToolsDir="$__RootBinDir/tools"
-__TestWorkingDir="$__RootBinDir/tests/$__BuildOS.$__BuildArch.$__BuildType"
 export __IntermediatesDir="$__RootBinDir/obj/$__BuildOS.$__BuildArch.$__BuildType"
-__TestIntermediatesDir="$__RootBinDir/tests/obj/$__BuildOS.$__BuildArch.$__BuildType"
+__TestRootDir="$__RootBinDir/tests"
+__TestBinDir="$__TestRootDir/$__BuildOS.$__BuildArch.$__BuildType"
+__TestIntermediateDir="$__TestRootDir/obj/$__BuildOS.$__BuildArch.$__BuildType"
+__NativeTestIntermediateDir="$__TestIntermediateDir/Native"
+__ManagedTestIntermediateDir="$__TestIntermediateDir/Managed"
 __isMSBuildOnNETCoreSupported=0
 
 # Init if MSBuild for .NET Core is supported for this platform
@@ -715,6 +810,10 @@ build_coreclr
 # Build System.Private.CoreLib.
 
 build_CoreLib
+
+# Build test cases.
+
+build_tests
 
 # Generate nuget packages
 if [ $__SkipNuget != 1 ]; then
