@@ -3119,16 +3119,16 @@ void EEClass::AddChunk (MethodDescChunk* pNewChunk)
 // methods in lexical order.  
 void EEClass::ReverseChunks()
 {
-	PTR_MethodDescChunk chunks = GetChunks();
-	PTR_MethodDescChunk reversed = NULL;
-	while (chunks != NULL)
-	{
-		PTR_MethodDescChunk next = chunks->GetNextChunk();
-		chunks->SetNextChunk(reversed);
-		reversed = chunks;
-		chunks = next;
-	}
-	SetChunks(reversed);
+    PTR_MethodDescChunk chunks = GetChunks();
+    PTR_MethodDescChunk reversed = NULL;
+    while (chunks != NULL)
+    {
+        PTR_MethodDescChunk next = chunks->GetNextChunk();
+        chunks->SetNextChunk(reversed);
+        reversed = chunks;
+        chunks = next;
+   }
+    SetChunks(reversed);
 }
 
 //*******************************************************************************

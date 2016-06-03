@@ -7057,11 +7057,11 @@ VOID MethodTableBuilder::AllocAndInitMethodDescs()
         AllocAndInitMethodDescChunk(startIndex, NumDeclaredMethods() - startIndex, sizeOfMethodDescs);
     }
 
-	// The chunks are a linked list, and naturally for a list that is in reverse order of
-	// the way we iterated meta-data.   Reverse the chunks so that the methods are in
-	// meta-data order.   This makes reflection's GetMethods() routine return them in 
-	// meta-data order.   System.Diagnostics.Tracing.EventSource Depends on this.  
-	GetHalfBakedClass()->ReverseChunks();
+    // The chunks are a linked list, and naturally for a list that is in reverse order of
+    // the way we iterated meta-data.   Reverse the chunks so that the methods are in
+    // meta-data order.   This makes reflection's GetMethods() routine return them in 
+    // meta-data order.   System.Diagnostics.Tracing.EventSource Depends on this.  
+    GetHalfBakedClass()->ReverseChunks();
 }
 
 //*******************************************************************************
