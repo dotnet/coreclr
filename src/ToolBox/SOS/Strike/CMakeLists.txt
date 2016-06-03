@@ -35,6 +35,7 @@ elseif(CLR_CMAKE_PLATFORM_ARCH_ARM64)
   add_definitions(-D_TARGET_WIN64_=1)
   add_definitions(-DDBG_TARGET_64BIT)
   add_definitions(-DDBG_TARGET_WIN64=1)
+  add_definitions(-D_TARGET_ARM64_=1)
 endif()
 add_definitions(-DSTRIKE)  
 

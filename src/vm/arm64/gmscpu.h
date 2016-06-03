@@ -17,8 +17,8 @@
 
 #define __gmscpu_h__
 
-// X19 - X29
-#define NUM_NONVOLATILE_CONTEXT_POINTERS 11
+// X19 - X30
+#define NUM_NONVOLATILE_CONTEXT_POINTERS 12
 
 struct MachState {
     ULONG64        captureX19_X29[NUM_NONVOLATILE_CONTEXT_POINTERS]; // preserved registers
@@ -35,6 +35,7 @@ struct LazyMachState : public MachState{
 
     TADDR          captureSp;         // Stack pointer at the time of capture
     TADDR          captureIp;         // Instruction pointer at the time of capture
+    TADDR          captureFp;         // Frame pointer at the time of capture
 
     void setLazyStateFromUnwind(MachState* copy);
     static void unwindLazyState(LazyMachState* baseState,
