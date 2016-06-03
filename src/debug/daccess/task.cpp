@@ -11,6 +11,7 @@
 //*****************************************************************************
 
 #include "stdafx.h"
+#include <cstdio>
 
 // XXX Microsoft - Why aren't these extra MD APIs in a header?
 STDAPI GetMDPublicInterfaceFromInternal(
@@ -346,10 +347,12 @@ ClrDataTask::CreateStackWalk(
     
     DAC_ENTER_SUB(m_dac);
     
+    ClrDataStackWalk* walkClass = NULL;
+    
     EX_TRY
     {
-        ClrDataStackWalk* walkClass =
-            new (nothrow) ClrDataStackWalk(m_dac, m_thread, flags);
+        walkClass = new (nothrow) ClrDataStackWalk(m_dac, m_thread, flags);
+        
         if (!walkClass)
         {
             status = E_OUTOFMEMORY;
@@ -365,6 +368,11 @@ ClrDataTask::CreateStackWalk(
     }
     EX_CATCH
     {
+        if (walkClass)
+        {
+            delete walkClass;    
+        }
+        
         if (!DacExceptionFilter(GET_EXCEPTION(), m_dac, &status))
         {
             EX_RETHROW;
