@@ -427,8 +427,6 @@ void Compiler::fgPerStatementLocalVarLiveness(GenTreePtr startNode, GenTreePtr a
                 }
             }
 
-#if INLINE_NDIRECT
-
             // If this is a p/invoke unmanaged call or if this is a tail-call
             // and we have an unmanaged p/invoke call in the method,
             // then we're going to run the p/invoke epilog.
@@ -456,8 +454,6 @@ void Compiler::fgPerStatementLocalVarLiveness(GenTreePtr startNode, GenTreePtr a
                     }
                 }
             }
-
-#endif // INLINE_NDIRECT
 
             break;
 
@@ -628,8 +624,6 @@ void                Compiler::fgPerBlockLocalVarLiveness()
 #endif // LEGACY_BACKEND
         }
 
-#if INLINE_NDIRECT
-
         /* Get the TCB local and mark it as used */
 
         if (block->bbJumpKind == BBJ_RETURN && info.compCallUnmanaged)
@@ -650,8 +644,6 @@ void                Compiler::fgPerBlockLocalVarLiveness()
                 }
             }
         }
-
-#endif // INLINE_NDIRECT
 
 #ifdef DEBUG
         if  (verbose)
@@ -1154,16 +1146,13 @@ void                Compiler::fgExtendDbgLifetimes()
 VARSET_VALRET_TP    Compiler::fgGetHandlerLiveVars(BasicBlock *block)
 {
     noway_assert(block);
-    noway_assert(block->hasTryIndex());
+    noway_assert(ehBlockHasExnFlowDsc(block));
 
     VARSET_TP VARSET_INIT_NOCOPY(liveVars, VarSetOps::MakeEmpty(this));
-    unsigned  XTnum = block->getTryIndex();
+    EHblkDsc* HBtab = ehGetBlockExnFlowDsc(block);
 
     do
     {
-        noway_assert(XTnum < compHndBBtabCount);
-        EHblkDsc* HBtab = ehGetDsc(XTnum);
-
         /* Either we enter the filter first or the catch/finally */
 
         if (HBtab->HasFilter())
@@ -1186,11 +1175,16 @@ VARSET_VALRET_TP    Compiler::fgGetHandlerLiveVars(BasicBlock *block)
 
         /* If we have nested try's edbEnclosing will provide them */
         noway_assert((HBtab->ebdEnclosingTryIndex == EHblkDsc::NO_ENCLOSING_INDEX) ||
-                     (HBtab->ebdEnclosingTryIndex  > XTnum));
+                     (HBtab->ebdEnclosingTryIndex  > ehGetIndex(HBtab)));
 
-        XTnum = HBtab->ebdEnclosingTryIndex;
+        unsigned outerIndex = HBtab->ebdEnclosingTryIndex;
+        if (outerIndex == EHblkDsc::NO_ENCLOSING_INDEX)
+        {
+            break;
+        }
+        HBtab = ehGetDsc(outerIndex);
 
-    } while (XTnum != EHblkDsc::NO_ENCLOSING_INDEX);
+    } while (true);
 
     return liveVars;
 }
@@ -1293,9 +1287,9 @@ void                Compiler::fgLiveVarAnalysis(bool updateInternalOnly)
 
             heapLiveIn = (heapLiveOut && !block->bbHeapDef) || block->bbHeapUse;
 
-            /* Is this block part of a 'try' statement? */
+            /* Can exceptions from this block be handled (in this function)? */
 
-            if  (block->hasTryIndex())
+            if  (ehBlockHasExnFlowDsc(block))
             {
                 VARSET_TP VARSET_INIT_NOCOPY(liveVars, fgGetHandlerLiveVars(block));
 
@@ -1520,7 +1514,7 @@ VARSET_VALRET_TP    Compiler::fgUpdateLiveSet(VARSET_VALARG_TP  liveSet,
                 //
                 assert(VarSetOps::IsEmptyIntersection(this, newLiveSet, varBits) ||
                        opts.compDbgCode || lvaTable[tree->gtLclVarCommon.gtLclNum].lvAddrExposed ||
-                       (compCurBB != NULL && compCurBB->hasTryIndex()));
+                       (compCurBB != NULL && ehBlockHasExnFlowDsc(compCurBB)));
                 VarSetOps::UnionD(this, newLiveSet, varBits);
             }
         }
@@ -1740,8 +1734,6 @@ SKIP_QMARK:
 
         if (tree->gtOper == GT_CALL)
         {
-#if INLINE_NDIRECT
-
             // if this is a tail-call and we have any unmanaged p/invoke calls in
             // the method then we're going to run the p/invoke epilog
             // So we mark the FrameRoot as used by this instruction.
@@ -1852,7 +1844,6 @@ SKIP_QMARK:
                     }
                 }
             }
-#endif // INLINE_NDIRECT
         }
 
         // Is this a use/def of a local variable?
@@ -2729,7 +2720,7 @@ void                Compiler::fgInterBlockLocalVarLiveness()
 
         VARSET_TP VARSET_INIT_NOCOPY(volatileVars, VarSetOps::MakeEmpty(this));
 
-        if  (block->hasTryIndex())
+        if  (ehBlockHasExnFlowDsc(block))
         {
             VarSetOps::Assign(this, volatileVars, fgGetHandlerLiveVars(block));
 

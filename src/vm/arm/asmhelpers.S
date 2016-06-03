@@ -32,7 +32,7 @@
 //void CallDescrWorkerInternal(CallDescrData * pCallDescrData)//
         NESTED_ENTRY CallDescrWorkerInternal,_TEXT,NoHandler
         PROLOG_PUSH         "{r4,r5,r7,lr}"
-        PROLOG_STACK_SAVE   r7
+        PROLOG_STACK_SAVE_OFFSET   r7, #8
 
         mov     r5,r0 // save pCallDescrData in r5
 
@@ -129,7 +129,7 @@ LOCAL_LABEL(LReturnDone):
         vldm    sp, {d0-d3}
 #endif
 
-        EPILOG_STACK_RESTORE    r7
+        EPILOG_STACK_RESTORE_OFFSET   r7, #8
         EPILOG_POP              "{r4,r5,r7,pc}"
 
         NESTED_END CallDescrWorkerInternal,_TEXT
@@ -174,7 +174,7 @@ LOCAL_LABEL(LReturnDone):
         // Spill callee saved registers and return address.
         PROLOG_PUSH         "{r4-r11,lr}"
         
-        PROLOG_STACK_SAVE   r7
+        PROLOG_STACK_SAVE_OFFSET   r7, #12
 
         //
         // This is the code that would have to run to setup this frame
@@ -241,7 +241,7 @@ LOCAL_LABEL(GoodGSCookie):
         // 
         // epilog
         //
-        EPILOG_STACK_RESTORE    r7
+        EPILOG_STACK_RESTORE_OFFSET   r7, #12
         EPILOG_POP              "{r4-r11,lr}"
         bx lr
         
@@ -287,7 +287,8 @@ LOCAL_LABEL(LNullThis):
 //
         NESTED_ENTRY TheUMEntryPrestub,_TEXT,NoHandler
 
-        push {r0-r4,lr}
+        PROLOG_PUSH "{r0-r4,r7,r8,lr}" // add r8 to make stack aligned by 8B
+        PROLOG_STACK_SAVE_OFFSET r7, #20
         vpush {d0-d7}
 
         CHECK_STACK_ALIGNMENT
@@ -300,7 +301,7 @@ LOCAL_LABEL(LNullThis):
 
         // Epilog
         vpop {d0-d7}
-        pop {r0-r4,lr}
+        pop {r0-r4,r7,r8,lr}
         bx r12
 
         NESTED_END TheUMEntryPrestub,_TEXT
@@ -311,12 +312,14 @@ LOCAL_LABEL(LNullThis):
         NESTED_ENTRY UMThunkStub,_TEXT,NoHandler
         PROLOG_PUSH         "{r4,r5,r7,r11,lr}"
         push                {r0-r3,r12}
-        PROLOG_STACK_SAVE   r7
+        PROLOG_STACK_SAVE_OFFSET   r7, #28
 
-        //GBLA UMThunkStub_HiddenArg // offset of saved UMEntryThunk *
-        //GBLA UMThunkStub_StackArgs // offset of original stack args (total size of UMThunkStub frame)
-UMThunkStub_HiddenArg = 4*4
-UMThunkStub_StackArgs = 10*4
+        //GBLA UMThunkStub_HiddenArgOffest // offset of saved UMEntryThunk *
+        //GBLA UMThunkStub_StackArgsOffest // offset of original stack args
+        //GBLA UMThunkStub_StackArgsSize   // total size of UMThunkStub frame
+UMThunkStub_HiddenArgOffset = (-3)*4
+UMThunkStub_StackArgsOffset = 3*4
+UMThunkStub_StackArgsSize = 10*4
 
         CHECK_STACK_ALIGNMENT
 
@@ -335,7 +338,7 @@ LOCAL_LABEL(UMThunkStub_HaveThread):
         cbnz                r3, LOCAL_LABEL(UMThunkStub_DoTrapReturningThreads)
 
 LOCAL_LABEL(UMThunkStub_InCooperativeMode):
-        ldr                 r12, [r7, #UMThunkStub_HiddenArg]
+        ldr                 r12, [r7, #UMThunkStub_HiddenArgOffset]
 
         ldr                 r0, [r5, #Thread__m_pDomain]
         ldr                 r1, [r12, #UMEntryThunk__m_dwDomainId]
@@ -347,7 +350,7 @@ LOCAL_LABEL(UMThunkStub_InCooperativeMode):
         ldr                 r2, [r3, #UMThunkMarshInfo__m_cbActualArgSize]
         cbz                 r2, LOCAL_LABEL(UMThunkStub_ArgumentsSetup)
 
-        add                 r0, r7, #UMThunkStub_StackArgs // Source pointer
+        add                 r0, r7, #UMThunkStub_StackArgsOffset // Source pointer
         add                 r0, r0, r2
         lsr                 r1, r2, #2      // Count of stack slots to copy
 
@@ -364,7 +367,8 @@ LOCAL_LABEL(UMThunkStub_ArgumentsSetup):
         ldr                 r4, [r3, #UMThunkMarshInfo__m_pILStub]
 
         // reload argument registers
-        ldm                 r7, {r0-r3}
+        sub                 r0, r7, #28
+        ldm                 r0, {r0-r3}
 
         CHECK_STACK_ALIGNMENT
 
@@ -374,7 +378,7 @@ LOCAL_LABEL(UMThunkStub_PostCall):
         mov                 r4, 0
         str                 r4, [r5, #Thread__m_fPreemptiveGCDisabled]
 
-        EPILOG_STACK_RESTORE r7
+        EPILOG_STACK_RESTORE_OFFSET    r7, #28
         free_stack           4 * 5
         EPILOG_POP           "{r4,r5,r7,r11,pc}"
 
@@ -390,7 +394,7 @@ LOCAL_LABEL(UMThunkStub_DoTrapReturningThreads):
         sub                 sp, #SIZEOF__FloatArgumentRegisters
         vstm                sp, {d0-d7}
         mov                 r0, r5              // Thread* pThread
-        ldr                 r1, [r7, #UMThunkStub_HiddenArg]  // UMEntryThunk* pUMEntry
+        ldr                 r1, [r7, #UMThunkStub_HiddenArgOffset]  // UMEntryThunk* pUMEntry
         bl                  C_FUNC(UMThunkStubRareDisableWorker)
         vldm                sp, {d0-d7}
         add                 sp, #SIZEOF__FloatArgumentRegisters
@@ -400,7 +404,7 @@ LOCAL_LABEL(UMThunkStub_WrongAppDomain):
         sub                 sp, #SIZEOF__FloatArgumentRegisters
         vstm                sp, {d0-d7}
 
-        ldr                 r0, [r7, #UMThunkStub_HiddenArg]  // UMEntryThunk* pUMEntry
+        ldr                 r0, [r7, #UMThunkStub_HiddenArgOffset]  // UMEntryThunk* pUMEntry
         mov                 r2, r7              // void * pArgs
         // remaining arguments are unused
         bl                  C_FUNC(UM2MDoADCallBack)
@@ -424,7 +428,7 @@ LOCAL_LABEL(UMThunkStub_WrongAppDomain):
         NESTED_ENTRY UM2MThunk_WrapperHelper, _TEXT, NoHandler
 
         PROLOG_PUSH         "{r4-r7,r11,lr}"
-        PROLOG_STACK_SAVE   r7
+        PROLOG_STACK_SAVE_OFFSET   r7, #12
 
         CHECK_STACK_ALIGNMENT
 
@@ -440,7 +444,7 @@ LOCAL_LABEL(UMThunkStub_WrongAppDomain):
         ldr                 r2, [r3, #UMThunkMarshInfo__m_cbActualArgSize]
         cbz                 r2, LOCAL_LABEL(UM2MThunk_WrapperHelper_ArgumentsSetup)
 
-        add                 r0, r5, #UMThunkStub_StackArgs // Source pointer
+        add                 r0, r5, #UMThunkStub_StackArgsSize // Source pointer
         add                 r0, r0, r2
         lsr                 r1, r2, #2      // Count of stack slots to copy
 
@@ -480,7 +484,7 @@ LOCAL_LABEL(UM2MThunk_WrapperHelper_ArgumentsSetup):
         vldm                sp, {d0-d3}
 #endif
 
-        EPILOG_STACK_RESTORE r7
+        EPILOG_STACK_RESTORE_OFFSET r7, #12
         EPILOG_POP          "{r4-r7,r11,pc}"
 
         NESTED_END UM2MThunk_WrapperHelper, _TEXT
@@ -516,7 +520,8 @@ ThePreStubPatchLabel:
 // The call in ndirect import precode points to this function.
         NESTED_ENTRY NDirectImportThunk, _TEXT, NoHandler
 
-        push {r0-r4,lr}                                 // Spill general argument registers, return address and
+        PROLOG_PUSH "{r0-r4,r7,r8,lr}"                  // Spill general argument registers, return address and
+        PROLOG_STACK_SAVE_OFFSET r7, #20
                                                         // arbitrary register to keep stack aligned
         vpush {d0-d7}                                   // Spill floating point argument registers
 
@@ -527,7 +532,7 @@ ThePreStubPatchLabel:
         mov     r12, r0
 
         vpop {d0-d7}
-        pop {r0-r4,lr}
+        pop {r0-r4,r7,r8,lr}
 
         // If we got back from NDirectImportWorker, the MD has been successfully
         // linked. Proceed to execute the original DLL call.
@@ -676,8 +681,8 @@ LOCAL_LABEL(Done):
         NESTED_ENTRY RedirectedHandledJITCaseFor\reason\()_Stub, _TEXT, NoHandler
 
         PROLOG_PUSH "{r7,lr}"   // return address
-        alloc_stack 4           // stack slot to save the CONTEXT *
         PROLOG_STACK_SAVE r7
+        alloc_stack 4           // stack slot to save the CONTEXT *
 
         //REDIRECTSTUB_SP_OFFSET_CONTEXT is defined in asmconstants.h
         //If CONTEXT is not saved at 0 offset from SP it must be changed as well.
@@ -793,7 +798,8 @@ LOCAL_LABEL(stackProbe_loop):
     NESTED_ENTRY VirtualMethodFixupStub, _TEXT, NoHandler
 
     // Save arguments and return address
-    push {r0-r3, lr}
+    PROLOG_PUSH "{r0-r3, r7,r8, lr}" // keep increase by 8B for alignment
+    PROLOG_STACK_SAVE_OFFSET r7, #20
 
     // Align stack
     alloc_stack  SIZEOF__FloatArgumentRegisters + 4
@@ -820,7 +826,7 @@ LOCAL_LABEL(stackProbe_loop):
     // pop the stack and restore original register state
     vldm               sp, {d0-d7}
     free_stack SIZEOF__FloatArgumentRegisters + 4
-    pop {r0-r3, lr}
+    pop {r0-r3, r7,r8, lr}
 
     PATCH_LABEL VirtualMethodFixupPatchLabel
 
@@ -906,7 +912,8 @@ LOCAL_LABEL(stackProbe_loop):
 //
     NESTED_ENTRY JIT_RareDisableHelper, _TEXT, NoHandler
 
-    PROLOG_PUSH "{r0-r1, r11, lr}" // save integer return value
+    PROLOG_PUSH "{r0-r1, r7,r8, r11, lr}" // save integer return value
+    PROLOG_STACK_SAVE_OFFSET r7, #8
     vpush {d0-d3}                  // floating point return value
 
     CHECK_STACK_ALIGNMENT
@@ -914,7 +921,7 @@ LOCAL_LABEL(stackProbe_loop):
     bl          C_FUNC(JIT_RareDisableHelperWorker)
 
     vpop {d0-d3}
-    EPILOG_POP "{r0-r1, r11, pc}"
+    EPILOG_POP "{r0-r1, r7,r8, r11, pc}"
 
     NESTED_END JIT_RareDisableHelper, _TEXT
 
@@ -1353,3 +1360,54 @@ DelayLoad_Helper\suffix:
     DynamicHelper DynamicHelperFrameFlags_ObjectArg | DynamicHelperFrameFlags_ObjectArg2, _ObjObj
 
 #endif // FEATURE_READYTORUN
+
+#ifdef FEATURE_HIJACK
+
+// ------------------------------------------------------------------
+// Hijack function for functions which return a reference type
+        NESTED_ENTRY OnHijackObjectTripThread, _TEXT, NoHandler
+        PROLOG_PUSH "{r0,r4-r11,lr}"
+
+        CHECK_STACK_ALIGNMENT
+
+        mov r0, sp
+        bl OnHijackObjectWorker
+
+        EPILOG_POP "{r0,r4-r11,pc}"
+        NESTED_END OnHijackObjectTripThread, _TEXT
+
+// ------------------------------------------------------------------
+// Hijack function for functions which return an interior pointer within an object allocated in managed heap
+        NESTED_ENTRY OnHijackInteriorPointerTripThread, _TEXT, NoHandler
+        PROLOG_PUSH "{r0,r4-r11,lr}"
+
+        CHECK_STACK_ALIGNMENT
+
+        mov r0, sp
+        bl C_FUNC(OnHijackInteriorPointerWorker)
+
+        EPILOG_POP "{r0,r4-r11,pc}"
+        NESTED_END OnHijackInteriorPointerTripThread, _TEXT
+
+// ------------------------------------------------------------------
+// Hijack function for functions which return a value type
+        NESTED_ENTRY OnHijackScalarTripThread, _TEXT, NoHandler
+        PROLOG_PUSH "{r0,r4-r11,lr}"
+
+        PROLOG_VPUSH "{d0-d3}"    // saving as d0-d3 can have the floating point return value
+        PROLOG_PUSH "{r1}"        // saving as r1 can have partial return value when return is > 32 bits
+        alloc_stack 4             // 8 byte align
+
+        CHECK_STACK_ALIGNMENT
+
+        add r0, sp, #40
+        bl C_FUNC(OnHijackScalarWorker)
+
+        free_stack 4
+        EPILOG_POP "{r1}"
+        EPILOG_VPOP "{d0-d3}"
+
+        EPILOG_POP "{r0,r4-r11,pc}"
+        NESTED_END OnHijackScalarTripThread, _TEXT
+#endif
+

@@ -403,7 +403,7 @@ void log_va_msg(const char *fmt, va_list args)
 
     pBuffer[0] = '\n';
     int buffer_start = 1;
-    int pid_len = sprintf_s (&pBuffer[buffer_start], BUFFERSIZE - buffer_start, "[%5d]", GCToOSInterface::GetCurrentThreadIdForLogging());
+    int pid_len = sprintf_s (&pBuffer[buffer_start], BUFFERSIZE - buffer_start, "[%5d]", (uint32_t)GCToOSInterface::GetCurrentThreadIdForLogging());
     buffer_start += pid_len;
     memset(&pBuffer[buffer_start], '-', BUFFERSIZE - buffer_start);
     int msg_len = _vsnprintf(&pBuffer[buffer_start], BUFFERSIZE - buffer_start, fmt, args );
@@ -2329,8 +2329,6 @@ uint32_t    gc_heap::high_memory_load_th;
 uint64_t    gc_heap::total_physical_mem;
 
 uint64_t    gc_heap::entry_available_physical_mem;
-
-bool        gc_heap::restricted_physical_memory_p = false;
 
 #ifdef BACKGROUND_GC
 CLREvent    gc_heap::bgc_start_event;
@@ -5100,7 +5098,7 @@ void gc_heap::destroy_thread_support ()
     }
 }
 
-#if !defined(FEATURE_REDHAWK) && !defined(FEATURE_CORECLR)
+#if !defined(FEATURE_REDHAWK) && !defined(FEATURE_PAL)
 void set_thread_group_affinity_for_heap(int heap_number, GCThreadAffinity* affinity)
 {
     affinity->Group = GCThreadAffinity::None;
@@ -5114,7 +5112,7 @@ void set_thread_group_affinity_for_heap(int heap_number, GCThreadAffinity* affin
     {
         if (bit_number == gpn)
         {
-            dprintf(3, ("using processor group %d, mask %x%Ix for heap %d\n", gn, mask, heap_number));
+            dprintf(3, ("using processor group %d, mask %Ix for heap %d\n", gn, mask, heap_number));
             affinity->Processor = gpn;
             affinity->Group = gn;
             heap_select::set_cpu_group_for_heap(heap_number, (uint8_t)gn);
@@ -5157,29 +5155,20 @@ void set_thread_affinity_mask_for_heap(int heap_number, GCThreadAffinity* affini
             {
                 if (bit_number == heap_number)
                 {
-                    dprintf (3, ("Using processor %d for heap %d\n", proc_number, heap_number));
+                    dprintf (3, ("Using processor %d for heap %d", proc_number, heap_number));
                     affinity->Processor = proc_number;
                     heap_select::set_proc_no_for_heap(heap_number, proc_number);
                     if (NumaNodeInfo::CanEnableGCNumaAware())
-                    { // have the processor number, find the numa node
-#if !defined(FEATURE_CORESYSTEM)
-                        uint8_t node_no = 0;
-                        if (NumaNodeInfo::GetNumaProcessorNode(proc_number, &node_no))
-                            heap_select::set_numa_node_for_heap(heap_number, node_no);
-#else
-                        uint16_t gn, gpn;
+                    {
                         uint16_t node_no = 0;
-                        CPUGroupInfo::GetGroupForProcessor((uint16_t)heap_number, &gn, &gpn);
-                        
                         PROCESSOR_NUMBER proc_no;
-                        proc_no.Group = gn;
-                        proc_no.Number = (uint8_t)gpn;
+                        proc_no.Group = 0;
+                        proc_no.Number = (uint8_t)proc_number;
                         proc_no.Reserved = 0;
                         if (NumaNodeInfo::GetNumaProcessorNodeEx(&proc_no, &node_no))
                         {
                             heap_select::set_numa_node_for_heap(heap_number, (uint8_t)node_no);
                         }
-#endif
                     }
                     return;
                 }
@@ -5199,7 +5188,7 @@ bool gc_heap::create_gc_thread ()
     affinity.Group = GCThreadAffinity::None;
     affinity.Processor = GCThreadAffinity::None;
 
-#if !defined(FEATURE_REDHAWK) && !defined(FEATURE_CORECLR)
+#if !defined(FEATURE_REDHAWK) && !defined(FEATURE_PAL)
     //We are about to set affinity for GC threads, it is a good place to setup NUMA and
     //CPU groups, because the process mask, processor number, group number are all
     //readyly available.
@@ -5208,7 +5197,7 @@ bool gc_heap::create_gc_thread ()
     else
         set_thread_affinity_mask_for_heap(heap_number, &affinity);
 
-#endif // !FEATURE_REDHAWK && !FEATURE_CORECLR
+#endif // !FEATURE_REDHAWK && !FEATURE_PAL
 
     return GCToOSInterface::CreateThread(gc_thread_stub, this, &affinity);
 }
@@ -7026,11 +7015,9 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
         {
             //modify the higest address so the span covered
             //is twice the previous one.
-            GCMemoryStatus st;
-            GCToOSInterface::GetMemoryStatus (&st);
-            uint8_t* top = (uint8_t*)0 + Align ((size_t)(st.ullTotalVirtual));
-            // On non-Windows systems, we get only an approximate ullTotalVirtual
-            // value that can possibly be slightly lower than the saved_g_highest_address.
+            uint8_t* top = (uint8_t*)0 + Align (GCToOSInterface::GetVirtualMemoryLimit());
+            // On non-Windows systems, we get only an approximate value that can possibly be
+            // slightly lower than the saved_g_highest_address.
             // In such case, we set the top to the saved_g_highest_address so that the
             // card and brick tables always cover the whole new range.
             if (top < saved_g_highest_address)
@@ -7067,9 +7054,11 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
                                 (size_t)saved_g_lowest_address,
                                 (size_t)saved_g_highest_address));
 
+        bool write_barrier_updated = false;
         uint32_t virtual_reserve_flags = VirtualReserveFlags::None;
         uint32_t* saved_g_card_table = g_card_table;
         uint32_t* ct = 0;
+        uint32_t* translated_ct = 0;
         short* bt = 0;
 
         size_t cs = size_card_of (saved_g_lowest_address, saved_g_highest_address);
@@ -7189,10 +7178,10 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
             card_table_mark_array (ct) = NULL;
 #endif //MARK_ARRAY
 
-        g_card_table = translate_card_table (ct);
+        translated_ct = translate_card_table (ct);
 
         dprintf (GC_TABLE_LOG, ("card table: %Ix(translated: %Ix), seg map: %Ix, mark array: %Ix", 
-            (size_t)ct, (size_t)g_card_table, (size_t)seg_mapping_table, (size_t)card_table_mark_array (ct)));
+            (size_t)ct, (size_t)translated_ct, (size_t)seg_mapping_table, (size_t)card_table_mark_array (ct)));
 
 #ifdef BACKGROUND_GC
         if (hp->should_commit_mark_array())
@@ -7209,7 +7198,7 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
                 goto fail;
             }
 
-            if (!commit_mark_array_new_seg (hp, new_seg, saved_g_lowest_address))
+            if (!commit_mark_array_new_seg (hp, new_seg, translated_ct, saved_g_lowest_address))
             {
                 dprintf (GC_TABLE_LOG, ("failed to commit mark array for the new seg"));
                 set_fgm_result (fgm_commit_table, logging_ma_commit_size, loh_p);
@@ -7222,50 +7211,49 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
         }
 #endif //BACKGROUND_GC
 
-        {
-            bool write_barrier_updated = false;
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
-            if (gc_can_use_concurrent)
+        if (gc_can_use_concurrent)
+        {
+            // The current design of software write watch requires that the runtime is suspended during resize. Suspending
+            // on resize is preferred because it is a far less frequent operation than GetWriteWatch() / ResetWriteWatch().
+            // Suspending here allows copying dirty state from the old table into the new table, and not have to merge old
+            // table info lazily as done for card tables.
+
+            BOOL is_runtime_suspended = IsSuspendEEThread();
+            if (!is_runtime_suspended)
             {
-                // The current design of software write watch requires that the runtime is suspended during resize. Suspending
-                // on resize is preferred because it is a far less frequent operation than GetWriteWatch() / ResetWriteWatch().
-                // Suspending here allows copying dirty state from the old table into the new table, and not have to merge old
-                // table info lazily as done for card tables.
-
-                BOOL is_runtime_suspended = IsSuspendEEThread();
-                if (!is_runtime_suspended)
-                {
-                    suspend_EE();
-                }
-
-                SoftwareWriteWatch::SetResizedUntranslatedTable(
-                    mem + sw_ww_table_offset,
-                    saved_g_lowest_address,
-                    saved_g_highest_address);
-
-                // Since the runtime is already suspended, update the write barrier here as well.
-                // This passes a bool telling whether we need to switch to the post
-                // grow version of the write barrier.  This test tells us if the new
-                // segment was allocated at a lower address than the old, requiring
-                // that we start doing an upper bounds check in the write barrier.
-                StompWriteBarrierResize(true, la != saved_g_lowest_address);
-                write_barrier_updated = true;
-
-                if (!is_runtime_suspended)
-                {
-                    restart_EE();
-                }
+                // Note on points where the runtime is suspended anywhere in this function. Upon an attempt to suspend the
+                // runtime, a different thread may suspend first, causing this thread to block at the point of the suspend call.
+                // So, at any suspend point, externally visible state needs to be consistent, as code that depends on that state
+                // may run while this thread is blocked. This includes updates to g_card_table, g_lowest_address, and
+                // g_highest_address.
+                suspend_EE();
             }
+
+            g_card_table = translated_ct;
+
+            SoftwareWriteWatch::SetResizedUntranslatedTable(
+                mem + sw_ww_table_offset,
+                saved_g_lowest_address,
+                saved_g_highest_address);
+
+            // Since the runtime is already suspended, update the write barrier here as well.
+            // This passes a bool telling whether we need to switch to the post
+            // grow version of the write barrier.  This test tells us if the new
+            // segment was allocated at a lower address than the old, requiring
+            // that we start doing an upper bounds check in the write barrier.
+            StompWriteBarrierResize(true, la != saved_g_lowest_address);
+            write_barrier_updated = true;
+
+            if (!is_runtime_suspended)
+            {
+                restart_EE();
+            }
+        }
+        else
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
-
-            if (!write_barrier_updated)
-            {
-                // This passes a bool telling whether we need to switch to the post
-                // grow version of the write barrier.  This test tells us if the new
-                // segment was allocated at a lower address than the old, requiring
-                // that we start doing an upper bounds check in the write barrier.
-                StompWriteBarrierResize(!!IsSuspendEEThread(), la != saved_g_lowest_address);
-            }
+        {
+            g_card_table = translated_ct;
         }
 
         // We need to make sure that other threads executing checked write barriers
@@ -7279,6 +7267,19 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
         g_lowest_address = saved_g_lowest_address;
         VolatileStore(&g_highest_address, saved_g_highest_address);
 
+        if (!write_barrier_updated)
+        {
+            // This passes a bool telling whether we need to switch to the post
+            // grow version of the write barrier.  This test tells us if the new
+            // segment was allocated at a lower address than the old, requiring
+            // that we start doing an upper bounds check in the write barrier.
+            // This will also suspend the runtime if the write barrier type needs
+            // to be changed, so we are doing this after all global state has
+            // been updated. See the comment above suspend_EE() above for more
+            // info.
+            StompWriteBarrierResize(!!IsSuspendEEThread(), la != saved_g_lowest_address);
+        }
+
         return 0;
         
 fail:
@@ -7286,10 +7287,7 @@ fail:
 
         if (mem)
         {
-            if (g_card_table != saved_g_card_table)
-            {
-                g_card_table = saved_g_card_table; 
-            }
+            assert(g_card_table == saved_g_card_table);
 
             //delete (uint32_t*)((uint8_t*)ct - sizeof(card_table_info));
             if (!GCToOSInterface::VirtualRelease (mem, alloc_size_aligned))
@@ -13172,7 +13170,7 @@ try_again:
                 if ((max_hp == org_hp) && (end < finish))
                 {   
                     start = end; end = finish; 
-                    delta = dd_min_size(dd)/4; //Use the same threshold as tier 1 for now. Tune it later
+                    delta = dd_min_size(dd)/2; // Make it twice as hard to balance to remote nodes on NUMA.
                     goto try_again;
                 }
 
@@ -19044,33 +19042,7 @@ void gc_heap::get_memory_info (uint32_t* memory_load,
                                uint64_t* available_physical,
                                uint64_t* available_page_file)
 {
-    if (restricted_physical_memory_p)
-    {
-        size_t working_set_size = GCToOSInterface::GetCurrentPhysicalMemory();
-        if (working_set_size)
-        {
-            if (memory_load)
-                *memory_load = (uint32_t)((float)working_set_size * 100.0 / (float)total_physical_mem);
-            if (available_physical)
-                *available_physical = total_physical_mem - working_set_size;
-            // Available page file doesn't mean much when physical memory is restricted since
-            // we don't know how much of it is available to this process so we are not going to 
-            // bother to make another OS call for it.
-            if (available_page_file)
-                *available_page_file = 0;
-
-            return;
-        }
-    }
-    
-    GCMemoryStatus ms;
-    GCToOSInterface::GetMemoryStatus(&ms);
-    if (memory_load)
-        *memory_load = ms.dwMemoryLoad;
-    if (available_physical)
-        *available_physical = ms.ullAvailPhys;
-    if (available_page_file)
-        *available_page_file = ms.ullAvailPageFile;
+    GCToOSInterface::GetMemoryStatus(memory_load, available_physical, available_page_file);
 }
 
 void fire_mark_event (int heap_num, int root_type, size_t bytes_marked)
@@ -25269,6 +25241,7 @@ void gc_heap::verify_mark_array_cleared (heap_segment* seg, uint32_t* mark_array
 
 BOOL gc_heap::commit_mark_array_new_seg (gc_heap* hp, 
                                          heap_segment* seg,
+                                         uint32_t* new_card_table,
                                          uint8_t* new_lowest_address)
 {
     UNREFERENCED_PARAMETER(hp); // compiler bug? -- this *is*, indeed, referenced
@@ -25307,18 +25280,23 @@ BOOL gc_heap::commit_mark_array_new_seg (gc_heap* hp,
             return FALSE;
         }
 
-        if (hp->card_table != g_card_table)
+        if (new_card_table == 0)
+        {
+            new_card_table = g_card_table;
+        }
+
+        if (hp->card_table != new_card_table)
         {
             if (new_lowest_address == 0)
             {
                 new_lowest_address = g_lowest_address;
             }
 
-            uint32_t* ct = &g_card_table[card_word (gcard_of (new_lowest_address))];
+            uint32_t* ct = &new_card_table[card_word (gcard_of (new_lowest_address))];
             uint32_t* ma = (uint32_t*)((uint8_t*)card_table_mark_array (ct) - size_mark_array_of (0, new_lowest_address));
 
             dprintf (GC_TABLE_LOG, ("table realloc-ed: %Ix->%Ix, MA: %Ix->%Ix", 
-                                    hp->card_table, g_card_table,
+                                    hp->card_table, new_card_table,
                                     hp->mark_array, ma));
 
             if (!commit_mark_array_by_range (commit_start, commit_end, ma))
@@ -27041,7 +27019,7 @@ uint32_t gc_heap::bgc_thread_function()
     Thread* current_thread = GetThread();
     BOOL cooperative_mode = TRUE;
     bgc_thread_id.SetToCurrentThread();
-    dprintf (1, ("bgc_thread_id is set to %Ix", GCToOSInterface::GetCurrentThreadIdForLogging()));
+    dprintf (1, ("bgc_thread_id is set to %x", (uint32_t)GCToOSInterface::GetCurrentThreadIdForLogging()));
     //this also indicates that the thread is ready.
     background_gc_create_event.Set();
     while (1)
@@ -33706,22 +33684,7 @@ HRESULT GCHeap::Initialize ()
     if (hr != S_OK)
         return hr;
 
-    // If there's a physical memory limit set on this process, it needs to be checked very early on, 
-    // before we set various memory info.
-    uint64_t physical_memory_limit = GCToOSInterface::GetRestrictedPhysicalMemoryLimit();
-
-    if (physical_memory_limit)
-        gc_heap::restricted_physical_memory_p = true;
-
-    GCMemoryStatus ms;
-    GCToOSInterface::GetMemoryStatus (&ms);
-    gc_heap::total_physical_mem = ms.ullTotalPhys;
-
-    if (gc_heap::restricted_physical_memory_p)
-    {
-        // A sanity check in case someone set a larger limit than there is actual physical memory.
-        gc_heap::total_physical_mem = min (gc_heap::total_physical_mem, physical_memory_limit);
-    }
+    gc_heap::total_physical_mem = GCToOSInterface::GetPhysicalMemoryLimit();
 
     gc_heap::mem_one_percent = gc_heap::total_physical_mem / 100;
 #ifndef MULTIPLE_HEAPS
@@ -35882,7 +35845,6 @@ size_t GCHeap::GetValidGen0MaxSize(size_t seg_size)
 
     if ((gen0size == 0) || !GCHeap::IsValidGen0MaxSize(gen0size))
     {
-#if !defined(FEATURE_REDHAWK)
 #ifdef SERVER_GC
         // performance data seems to indicate halving the size results
         // in optimal perf.  Ask for adjusted gen0 size.
@@ -35896,11 +35858,9 @@ size_t GCHeap::GetValidGen0MaxSize(size_t seg_size)
             GCToOSInterface::GetLargestOnDieCacheSize(TRUE),
             GCToOSInterface::GetLogicalCpuCount()));
 
-        GCMemoryStatus ms;
-        GCToOSInterface::GetMemoryStatus (&ms);
         // if the total min GC across heaps will exceed 1/6th of available memory,
         // then reduce the min GC size until it either fits or has been reduced to cache size.
-        while ((gen0size * gc_heap::n_heaps) > (ms.ullAvailPhys / 6))
+        while ((gen0size * gc_heap::n_heaps) > GCToOSInterface::GetPhysicalMemoryLimit() / 6)
         {
             gen0size = gen0size / 2;
             if (gen0size <= trueSize)
@@ -35914,9 +35874,6 @@ size_t GCHeap::GetValidGen0MaxSize(size_t seg_size)
 #else //SERVER_GC
         gen0size = max((4*GCToOSInterface::GetLargestOnDieCacheSize(TRUE)/5),(256*1024));
 #endif //SERVER_GC
-#else //!FEATURE_REDHAWK
-        gen0size = (256*1024);
-#endif //!FEATURE_REDHAWK
     }
 
     // Generation 0 must never be more than 1/2 the segment size.

@@ -848,23 +848,18 @@ void Rationalizer::MorphAsgIntoStoreLcl(GenTreeStmt* stmt, GenTreePtr pTree)
     GenTreePtr lhs = pTree->gtGetOp1();
     GenTreePtr rhs = pTree->gtGetOp2();
 
-    assert(lhs->OperGet() == GT_LCL_VAR ||
-           lhs->OperGet() == GT_LCL_FLD);
+    genTreeOps lhsOper = lhs->OperGet();
+    genTreeOps storeOper;
 
+    assert(lhsOper == GT_LCL_VAR || lhsOper == GT_LCL_FLD);
+
+    storeOper = storeForm(lhsOper);
 #ifdef DEBUG
-    if (lhs->OperGet() == GT_LCL_VAR)
-    {
-        JITDUMP("rewriting GT_ASG(GT_LCL_VAR, X) to GT_STORE_LCL_VAR(X)\n");
-    }
-    else
-    {
-        assert(lhs->OperGet() == GT_LCL_FLD);
-        JITDUMP("rewriting GT_ASG(GT_LCL_FLD, X) to GT_STORE_LCL_FLD(X)\n");
-    }
+    JITDUMP("rewriting asg(%s, X) to %s(X)\n", GenTree::NodeName(lhsOper), GenTree::NodeName(storeOper));
 #endif // DEBUG
 
     GenTreeLclVarCommon* var = lhs->AsLclVarCommon();
-    pTree->SetOper(storeForm(var->OperGet()));
+    pTree->SetOper(storeOper);
     GenTreeLclVarCommon* dst = pTree->AsLclVarCommon();
     dst->SetLclNum(var->gtLclNum);
     dst->SetSsaNum(var->gtSsaNum);
@@ -1648,7 +1643,7 @@ void Rationalizer::RewriteNodeAsCall(GenTreePtr* ppTree, Compiler::fgWalkData* d
     call = comp->fgMorphArgs(call);
     call->CopyCosts(tree);
 #ifdef FEATURE_READYTORUN_COMPILER
-    call->gtCall.gtEntryPoint = entryPoint;
+    call->gtCall.setEntryPoint(entryPoint);
 #endif
 
     // Replace "tree" with "call"

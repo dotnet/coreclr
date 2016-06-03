@@ -1,11 +1,24 @@
+There are two primary ways to configure runtime behavior: CoreCLR hosts can pass in key-value string pairs during runtime initialization, or users can set special variables in the environment or registry. Today, the set of configuration options that can be set via the former method is relatively small, but moving forward, we expect to add more options there. Each set of options is described below.
 
-#CLR Configuration Knobs
+## Host Configuration Knobs
 
-This Document is machine-generated from commit 26efa5f on 03/17/16. It might be out of date.
+These can be passed in by a host during initialization. Note that the values are all passed in as strings, so if the type is boolean, the value would be the string "true" or "false", and if it's a numeric value, it would be in the form "123".
 
-When using these configurations from environment variables, the variable need to have `COMPlus_` prefix in its name. e.g. To set DumpJittedMethods to 1, add `COMPlus_DumpJittedMethods=1` to envvars.
+Name | Description | Type
+-----|-------------|------
+System.GC.Concurrent|Enable concurrent GC|boolean
+System.GC.Server|Enable server GC|boolean
+System.GC.RetainVM|Put segments that should be deleted on a standby list for future use instead of releasing them back to the OS|boolean
+System.Threading.ThreadPool.MinThreads|Override MinThreads for the ThreadPool worker pool|numeric
+System.Threading.ThreadPool.MaxThreads|Override MaxThreads for the ThreadPool worker pool|numeric
 
-See also [Dumps and Other Tools](../botr/ryujit-overview.md#dumps-and-other-tools) for more information.
+## Environment/Registry Configuration Knobs
+
+This table is machine-generated from commit 82ed770 on 05/31/16. It might be out of date.
+
+When using these configurations from environment variables, the variables need to have the `COMPlus_` prefix in their names. e.g. To set DumpJittedMethods to 1, add the environment variable `COMPlus_DumpJittedMethods=1`.
+
+See also [Setting configuration variables](../building/viewing-jit-dumps.md#setting-configuration-variables) for more information.
 
 Name | Description | Type | Class | Default Value | Flags 
 -----|-------------|------|-------|---------------|-------
@@ -120,7 +133,6 @@ Name | Description | Type | Class | Default Value | Flags
 `DbgTransportLogClass` | mask to control what is logged in DbgTransportLog | DWORD | INTERNAL | | 
 `DbgTransportProxyAddress` | allows specifying the transport proxy address | STRING | UNSUPPORTED | | REGUTIL_default
 `DbgTrapOnSkip` | allows breaking when we skip a breakpoint | DWORD | INTERNAL | 0 | REGUTIL_default
-`DbgWaitForDebuggerAttach` | Makes CoreCLR wait for a managed debugger to attach on process start (1) or regular process start (0) | DWORD | UNSUPPORTED | 0 | 
 `DbgWaitTimeout` | specifies the timeout value for waits | DWORD | INTERNAL | 1 | REGUTIL_default
 `DbgWFDETimeout` | specifies the timeout value for wait when waiting for a debug event | DWORD | UNSUPPORTED | 25 | REGUTIL_default
 `RaiseExceptionOnAssert` | Raise a first chance (if set to 1) or second chance (if set to 2) exception on asserts. | DWORD | INTERNAL | 0 | REGUTIL_default
@@ -182,7 +194,7 @@ Name | Description | Type | Class | Default Value | Flags
 `GCPollType` |  | DWORD | EXTERNAL | | 
 `NewGCCalc` |  | STRING | EXTERNAL | | REGUTIL_default
 `GCprnLvl` | Specifies the maximum level of GC logging | DWORD | UNSUPPORTED | | 
-`GCRetainVM` | When set we put the segments that should be deleted on a standby list (instead of releasing them back to the OS) which will be considered to satisfy new segment requests (note that the same thing can be specified via API which is the supported way) | DWORD | UNSUPPORTED | | 
+`GCRetainVM` | When set we put the segments that should be deleted on a standby list (instead of releasing them back to the OS) which will be considered to satisfy new segment requests (note that the same thing can be specified via API which is the supported way) | DWORD | UNSUPPORTED | 0 | 
 `GCSegmentSize` | Specifies the managed heap segment size | DWORD | UNSUPPORTED | | 
 `GCLOHCompact` | Specifies the LOH compaction mode | DWORD | UNSUPPORTED | | 
 `gcAllowVeryLargeObjects` | allow allocation of 2GB+ objects on GC heap | DWORD | EXTERNAL | 0 | 

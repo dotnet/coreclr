@@ -46,16 +46,16 @@ void                Compiler::lvaInit()
     lvaShadowSPslotsVar = BAD_VAR_NUM;
 #endif // !FEATURE_EH_FUNCLETS
     lvaInlinedPInvokeFrameVar = BAD_VAR_NUM;
+    lvaReversePInvokeFrameVar = BAD_VAR_NUM;
 #if FEATURE_FIXED_OUT_ARGS
-#if INLINE_NDIRECT
     lvaPInvokeFrameRegSaveVar = BAD_VAR_NUM;
-#endif // !INLINE_NDIRECT
     lvaOutgoingArgSpaceVar = BAD_VAR_NUM;
 #endif // FEATURE_FIXED_OUT_ARGS
 #ifdef _TARGET_ARM_
     lvaPromotedStructAssemblyScratchVar = BAD_VAR_NUM;
 #endif // _TARGET_ARM_
     lvaLocAllocSPvar = BAD_VAR_NUM;
+    lvaNewObjArrayArgs = BAD_VAR_NUM;
     lvaGSSecurityCookie  = BAD_VAR_NUM;
 #ifdef _TARGET_X86_
     lvaVarargsBaseOfStkArgs = BAD_VAR_NUM;
@@ -134,14 +134,13 @@ void                Compiler::lvaInitTypeRef()
     // Change the compRetNativeType if we are returning a struct by value in a register
     if (!hasRetBuffArg && varTypeIsStruct(info.compRetNativeType))
     {
-#ifdef _TARGET_ARM_
-        // TODO-ARM64-NYI: HFA
-        if (!info.compIsVarArgs && !opts.compUseSoftFP && IsHfa(info.compMethodInfo->args.retTypeClass))
+#if FEATURE_MULTIREG_RET && defined(FEATURE_HFA)
+        if (!info.compIsVarArgs && IsHfa(info.compMethodInfo->args.retTypeClass))
         {
             info.compRetNativeType = TYP_STRUCT;
         }
         else
-#endif
+#endif // FEATURE_MULTIREG_RET && defined(FEATURE_HFA)
         {
 #ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING            
             ReturnTypeDesc retTypeDesc;
@@ -534,52 +533,67 @@ void                Compiler::lvaInitUserArgs(InitVarDscInfo *      varDscInfo)
 
     regMaskTP doubleAlignMask = RBM_NONE;
     for (unsigned i = 0;
-         i < argSigLen; 
-         i++, varDscInfo->varNum++, varDscInfo->varDsc++, argLst = info.compCompHnd->getArgNext(argLst))
+        i < argSigLen;
+        i++, varDscInfo->varNum++, varDscInfo->varDsc++, argLst = info.compCompHnd->getArgNext(argLst))
     {
         LclVarDsc * varDsc = varDscInfo->varDsc;
         CORINFO_CLASS_HANDLE typeHnd = NULL;
 
-        CorInfoTypeWithMod corInfoType = info.compCompHnd->getArgType(&info.compMethodInfo->args, 
-                                                                      argLst,
-                                                                      &typeHnd);
+        CorInfoTypeWithMod corInfoType = info.compCompHnd->getArgType(&info.compMethodInfo->args,
+            argLst,
+            &typeHnd);
         varDsc->lvIsParam = 1;
 #if ASSERTION_PROP
         varDsc->lvSingleDef = 1;
 #endif
 
-        lvaInitVarDsc(  varDsc,
-                        varDscInfo->varNum,
-                        strip(corInfoType),
-                        typeHnd,
-                        argLst,
-                        &info.compMethodInfo->args);
+        lvaInitVarDsc(varDsc,
+            varDscInfo->varNum,
+            strip(corInfoType),
+            typeHnd,
+            argLst,
+            &info.compMethodInfo->args);
 
         // For ARM, ARM64, and AMD64 varargs, all arguments go in integer registers
         var_types argType = mangleVarArgsType(varDsc->TypeGet());
+        var_types origArgType = argType;
         unsigned argSize = eeGetArgSize(argLst, &info.compMethodInfo->args);
         unsigned cSlots = argSize / TARGET_POINTER_SIZE;    // the total number of slots of this argument
+        bool      isHfaArg = false;
+        var_types hfaType  = TYP_UNDEF;
 
+        // Methods that use VarArg or SoftFP cannot have HFA arguments
+        if (!info.compIsVarArgs && !opts.compUseSoftFP)
+        {
+            // If the argType is a struct, then check if it is an HFA
+            if (varTypeIsStruct(argType))
+            {
+                hfaType = GetHfaType(typeHnd);   // set to float or double if it is an HFA, otherwise TYP_UNDEF
+                isHfaArg = varTypeIsFloating(hfaType);
+            }
+        }
+        if (isHfaArg)
+        {
+            // We have an HFA argument, so from here on our treat the type as a float or double.
+            // The orginal struct type is available by using origArgType
+            // We also update the cSlots to be the number of float/double fields in the HFA
+            argType = hfaType;
+            cSlots = varDsc->lvHfaSlots();
+        }
         // The number of slots that must be enregistered if we are to consider this argument enregistered.
         // This is normally the same as cSlots, since we normally either enregister the entire object,
         // or none of it. For structs on ARM, however, we only need to enregister a single slot to consider
         // it enregistered, as long as we can split the rest onto the stack.
-        // TODO-ARM64-NYI: we can enregister a struct <= 16 bytes into two consecutive registers, if there are enough remaining argument registers.
-        // TODO-ARM64-NYI: HFA
-        unsigned cSlotsToEnregister = cSlots;
+        unsigned  cSlotsToEnregister = cSlots;
 
 #ifdef _TARGET_ARM_
-
-        var_types hfaType = (varTypeIsStruct(argType)) ? GetHfaType(typeHnd) : TYP_UNDEF;
-        bool isHfaArg = !info.compIsVarArgs && !opts.compUseSoftFP && varTypeIsFloating(hfaType);
-
         // On ARM we pass the first 4 words of integer arguments and non-HFA structs in registers.
         // But we pre-spill user arguments in varargs methods and structs.
-        // 
+        //
         unsigned cAlign;
         bool  preSpill = info.compIsVarArgs || opts.compUseSoftFP;
 
-        switch (argType)
+        switch (origArgType)
         {
         case TYP_STRUCT:
             assert(varDsc->lvSize() == argSize);
@@ -604,12 +618,6 @@ void                Compiler::lvaInitUserArgs(InitVarDscInfo *      varDscInfo)
             break;
         }
 
-        if (isHfaArg)
-        {
-            // We've got the HFA size and alignment, so from here on out treat
-            // the type as a float or double.
-            argType = hfaType;
-        }
         if (isRegParamType(argType))
         {
             compArgSize += varDscInfo->alignReg(argType, cAlign) * REGSIZE_BYTES;
@@ -751,14 +759,14 @@ void                Compiler::lvaInitUserArgs(InitVarDscInfo *      varDscInfo)
                 firstAllocatedRegArgNum = varDscInfo->allocRegArg(argType, cSlots);
             }
 
-#ifdef _TARGET_ARM_
             if (isHfaArg)
             {
                 // We need to save the fact that this HFA is enregistered
-                varDsc->lvIsHfaRegArg = true;
-                varDsc->SetHfaType(argType);
+                varDsc->lvSetIsHfa();
+                varDsc->lvSetIsHfaRegArg();
+                varDsc->SetHfaType(hfaType);
+                varDsc->lvIsMultiRegArgOrRet = (varDsc->lvHfaSlots() > 1);
             }
-#endif // _TARGET_ARM_
 
             varDsc->lvIsRegArg = 1;
 
@@ -913,7 +921,7 @@ void                Compiler::lvaInitUserArgs(InitVarDscInfo *      varDscInfo)
 #else // !FEATURE_UNIX_AMD64_STRUCT_PASSING
         compArgSize += argSize;
 #endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING
-        if (info.compIsVarArgs || opts.compUseSoftFP)
+        if (info.compIsVarArgs || isHfaArg || opts.compUseSoftFP)
         {
 #if defined(_TARGET_X86_)
             varDsc->lvStkOffs       = compArgSize;
@@ -1435,13 +1443,13 @@ void   Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE     typeHnd,
             return;
         }
 
-#ifdef _TARGET_ARM_        
-        // For ARM don't struct promote if we have an CUSTOMLAYOUT flag on an HFA type 
-        if (StructHasCustomLayout(typeFlags) &&  IsHfa(typeHnd))
+        // Don't struct promote if we have an CUSTOMLAYOUT flag on an HFA type 
+        if (StructHasCustomLayout(typeFlags) && IsHfa(typeHnd))
         {
             return;
         }
 
+#ifdef _TARGET_ARM_
         // On ARM, we have a requirement on the struct alignment; see below.
         unsigned structAlignment = roundUp(info.compCompHnd->getClassAlignmentRequirement(typeHnd), TARGET_POINTER_SIZE);
 #endif // _TARGET_ARM
@@ -1560,7 +1568,8 @@ void   Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE     typeHnd,
         if (sortFields)
         {
             // Sort the fields according to the increasing order of the field offset.
-            // This is needed because the fields need to be pushed on stack (for GT_LDOBJ) in order.
+            // This is needed because the fields need to be pushed on stack (when referenced
+            // as a struct) in order.
             qsort(StructPromotionInfo->fields, 
                   StructPromotionInfo->fieldCnt, 
                   sizeof(*StructPromotionInfo->fields), 
@@ -1600,17 +1609,17 @@ void   Compiler::lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo 
     
 #endif
 
-#ifdef _TARGET_ARM_
+    // TODO-PERF - Allow struct promotion for HFA register arguments
+
     // Explicitly check for HFA reg args and reject them for promotion here.
     // Promoting HFA args will fire an assert in lvaAssignFrameOffsets 
     // when the HFA reg arg is struct promoted.
     //
-    if (varDsc->lvIsHfaRegArg)
+    if (varDsc->lvIsHfaRegArg())
     {     
         StructPromotionInfo->canPromote = false;
         return;
     }
-#endif
 
     CORINFO_CLASS_HANDLE typeHnd = varDsc->lvVerTypeInfo.GetClassHandle();
     lvaCanPromoteStructType(typeHnd, StructPromotionInfo, true);
@@ -1795,6 +1804,14 @@ void   Compiler::lvaPromoteLongVars()
             fieldVarDsc->lvIsParam        = isParam;
         }
     }
+
+#ifdef DEBUG
+    if (verbose)
+    {
+        printf("\nlvaTable after lvaPromoteLongVars\n");
+        lvaTableDump();
+    }
+#endif // DEBUG
 }
 #endif // !_TARGET_64BIT_
 
@@ -1955,6 +1972,25 @@ void   Compiler::lvaSetStruct(unsigned varNum, CORINFO_CLASS_HANDLE typeHnd, boo
             varDsc->lvBaseType = simdBaseType;
         }
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HFA
+        // for structs that are small enough, we check and set lvIsHfa and lvHfaTypeIsFloat
+        if (varDsc->lvExactSize <= MAX_PASS_MULTIREG_BYTES)
+        {
+            var_types hfaType = GetHfaType(typeHnd);   // set to float or double if it is an HFA, otherwise TYP_UNDEF
+            if (varTypeIsFloating(hfaType))
+            {
+                varDsc->_lvIsHfa = true;
+                varDsc->lvSetHfaTypeIsFloat(hfaType == TYP_FLOAT);
+
+                // hfa variables can never contain GC pointers
+                assert(varDsc->lvStructGcCount == 0);
+                // The size of this struct should be evenly divisible by 4 or 8
+                assert((varDsc->lvExactSize % genTypeSize(hfaType)) == 0);
+                // The number of elements in the HFA should fit into our MAX_ARG_REG_COUNT limit
+                assert((varDsc->lvExactSize / genTypeSize(hfaType)) <= MAX_ARG_REG_COUNT);
+            }
+        }
+#endif // FEATURE_HFA
     }
     else
     {
@@ -2828,7 +2864,6 @@ var_types           LclVarDsc::lvaArgType()
 
 void                Compiler::lvaMarkLclRefs(GenTreePtr tree)
 {
-#if INLINE_NDIRECT
     /* Is this a call to unmanaged code ? */
     if (tree->gtOper == GT_CALL && tree->gtFlags & GTF_CALL_UNMANAGED) 
     {
@@ -2847,7 +2882,6 @@ void                Compiler::lvaMarkLclRefs(GenTreePtr tree)
             varDsc->incRefCnts(lvaMarkRefsWeight, this);
         }
     }
-#endif
         
     /* Is this an assigment? */
 
@@ -2967,11 +3001,7 @@ void                Compiler::lvaMarkLclRefs(GenTreePtr tree)
 #ifdef _TARGET_XARCH_
     /* Special case: integer shift node by a variable amount */
 
-    if  (tree->gtOper == GT_LSH ||
-         tree->gtOper == GT_RSH ||
-         tree->gtOper == GT_RSZ ||
-         tree->gtOper == GT_ROL ||
-         tree->gtOper == GT_ROR)
+    if  (tree->OperIsShiftOrRotate())
     {
         if  (tree->gtType == TYP_INT)
         {
@@ -3193,9 +3223,6 @@ void                Compiler::lvaMarkLocalVars()
         printf("\n*************** In lvaMarkLocalVars()");
 #endif
 
-
-#if INLINE_NDIRECT
-
     /* If there is a call to an unmanaged target, we already grabbed a
        local slot for the current thread control block.
      */
@@ -3216,7 +3243,6 @@ void                Compiler::lvaMarkLocalVars()
             lvaTable[info.compLvFrameListRoot].lvRefCntWtd  = 2 * BB_UNITY_WEIGHT;
         }
     }
-#endif
 
     lvaAllocOutgoingArgSpace();
 
@@ -3913,6 +3939,22 @@ void                Compiler::lvaAssignFrameOffsets(FrameLayoutState curState)
  */
 void Compiler::lvaFixVirtualFrameOffsets()
 {
+    LclVarDsc * varDsc;
+
+#if FEATURE_EH_FUNCLETS && defined(_TARGET_AMD64_)
+    if (ehNeedsPSPSym())
+    {
+        // We need to fix the offset of the PSPSym so there is no padding between it and the outgoing argument space.
+        // Without this code, lvaAlignFrame might have put the padding lower than the PSPSym, which would be between
+        // the PSPSym and the outgoing argument space.
+        assert(lvaPSPSym != BAD_VAR_NUM);
+        varDsc = &lvaTable[lvaPSPSym];
+        assert(varDsc->lvFramePointerBased);        // We always access it RBP-relative.
+        assert(!varDsc->lvMustInit);                // It is never "must init".
+        varDsc->lvStkOffs = codeGen->genCallerSPtoInitialSPdelta() + lvaLclSize(lvaOutgoingArgSpaceVar);
+    }
+#endif
+
     // The delta to be added to virtual offset to adjust it relative to frame pointer or SP
     int delta = 0;
 
@@ -3943,7 +3985,6 @@ void Compiler::lvaFixVirtualFrameOffsets()
 #endif //_TARGET_AMD64_
 
     unsigned lclNum;
-    LclVarDsc * varDsc;
     for (lclNum = 0, varDsc = lvaTable;
          lclNum < lvaCount;
          lclNum++  , varDsc++)
@@ -4017,17 +4058,6 @@ void Compiler::lvaFixVirtualFrameOffsets()
     }
 
     lvaCachedGenericContextArgOffs += delta;
-
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_AMD64_)
-    if (ehNeedsPSPSym())
-    {
-        assert(lvaPSPSym != BAD_VAR_NUM);
-        varDsc = &lvaTable[lvaPSPSym];
-        varDsc->lvFramePointerBased = false;
-        varDsc->lvMustInit = false;
-        varDsc->lvStkOffs = lvaLclSize(lvaOutgoingArgSpaceVar); // put the PSPSym just above the outgoing arg space
-    }
-#endif
 
 #if FEATURE_FIXED_OUT_ARGS
 
@@ -4731,6 +4761,16 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
     // If the frame pointer is used, then we'll save FP/LR at the bottom of the stack.
     // Otherwise, we won't store FP, and we'll store LR at the top, with the other callee-save
     // registers (if any).
+
+    int initialStkOffs = 0;
+    if (info.compIsVarArgs)
+    {
+        // For varargs we always save all of the integer register arguments
+        // so that they are contiguous with the incoming stack arguments.
+        initialStkOffs = MAX_REG_ARG * REGSIZE_BYTES;
+        stkOffs -= initialStkOffs;
+    }
+
     if (isFramePointerUsed())
     {
         // Subtract off FP and LR.
@@ -4741,6 +4781,7 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
     {
         stkOffs -= compCalleeRegsPushed * REGSIZE_BYTES;
     }
+
 #else // !_TARGET_ARM64_
     stkOffs -= compCalleeRegsPushed * REGSIZE_BYTES;
 #endif // !_TARGET_ARM64_
@@ -5093,6 +5134,15 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
                 if  (!varDsc->lvIsRegArg)
                     continue;
 
+#ifdef _TARGET_ARM64_
+                if (info.compIsVarArgs)
+                {
+                    // Stack offset to varargs (parameters) should point to home area which will be preallocated.
+                    varDsc->lvStkOffs = -initialStkOffs + genMapIntRegNumToRegArgNum(varDsc->GetArgReg()) * REGSIZE_BYTES;
+                    continue;
+                }
+#endif
+
 #ifdef _TARGET_ARM_
                 // On ARM we spill the registers in codeGen->regSet.rsMaskPreSpillRegArg
                 // in the prolog, thus they don't need stack frame space.
@@ -5284,10 +5334,7 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
     {
         // On AMD64, if we need a PSPSym, allocate it last, immediately above the outgoing argument
         // space. Any padding will be higher on the stack than this
-        // (including the padding added by lvaAlignFrame()). Here, we will give it an offset, but really we
-        // will set its value at the end of lvaFixVirtualFrameOffsets, as for lvaOutgoingArgSpace.
-        // There is a comment above that the P/Invoke vars "need to be assigned last". We are ignoring
-        // that here (TODO-AMD64-Bug?: is that ok? JIT64 does things this way).
+        // (including the padding added by lvaAlignFrame()).
         noway_assert(codeGen->isFramePointerUsed());  // We need an explicit frame pointer
         assert(lvaPSPSym != BAD_VAR_NUM);   // We should have created the PSPSym variable
         stkOffs = lvaAllocLocalAndSetVirtualOffset(lvaPSPSym, TARGET_POINTER_SIZE, stkOffs);
@@ -5321,6 +5368,14 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
     // compLclFrameSize equals our negated virtual stack offset minus the pushed registers and return address
     // and the pushed frame pointer register which for some strange reason isn't part of 'compCalleeRegsPushed'.
     int pushedCount = compCalleeRegsPushed;
+
+#ifdef _TARGET_ARM64_
+    if (info.compIsVarArgs)
+    {
+        pushedCount += MAX_REG_ARG;
+    }
+#endif
+
 #ifdef _TARGET_XARCH_
     if (codeGen->doubleAlignOrFramePointerUsed())
         pushedCount += 1;                        // pushed EBP (frame pointer)
@@ -5898,10 +5953,9 @@ void   Compiler::lvaDumpEntry(unsigned lclNum, FrameLayoutState curState, size_t
         }
     }
 
-#ifdef _TARGET_ARM_
-    if (varDsc->lvIsHfaRegArg)
+    if (varDsc->lvIsHfaRegArg())
     {
-        if (varDsc->lvHfaTypeIsFloat)
+        if (varDsc->lvHfaTypeIsFloat())
         {
             printf(" (enregistered HFA: float) ");
         }
@@ -5910,7 +5964,6 @@ void   Compiler::lvaDumpEntry(unsigned lclNum, FrameLayoutState curState, size_t
             printf(" (enregistered HFA: double)");
         }
     }
-#endif // _TARGET_ARM_
 
     if (varDsc->lvDoNotEnregister)           
     {

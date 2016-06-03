@@ -1474,21 +1474,27 @@ DEFINE_CLASS(STACK_BUILDER_SINK,    Messaging,              StackBuilderSink)
 DEFINE_METHOD(STACK_BUILDER_SINK,   PRIVATE_PROCESS_MESSAGE,_PrivateProcessMessage,     IM_IntPtr_ArrObj_Obj_RefArrObj_RetObj)
 #endif
 
-DEFINE_CLASS_U(Diagnostics,            StackFrameHelper,           StackFrameHelper)
-DEFINE_FIELD_U(targetThread,               StackFrameHelper,   TargetThread)
+DEFINE_CLASS_U(Diagnostics,                StackFrameHelper,   StackFrameHelper)
+DEFINE_FIELD_U(targetThread,               StackFrameHelper,   targetThread)
 DEFINE_FIELD_U(rgiOffset,                  StackFrameHelper,   rgiOffset)
 DEFINE_FIELD_U(rgiILOffset,                StackFrameHelper,   rgiILOffset)
 DEFINE_FIELD_U(rgMethodBase,               StackFrameHelper,   rgMethodBase)
 DEFINE_FIELD_U(dynamicMethods,             StackFrameHelper,   dynamicMethods)
 DEFINE_FIELD_U(rgMethodHandle,             StackFrameHelper,   rgMethodHandle)
+DEFINE_FIELD_U(rgAssemblyPath,             StackFrameHelper,   rgAssemblyPath)
+DEFINE_FIELD_U(rgLoadedPeAddress,          StackFrameHelper,   rgLoadedPeAddress)
+DEFINE_FIELD_U(rgiLoadedPeSize,            StackFrameHelper,   rgiLoadedPeSize)
+DEFINE_FIELD_U(rgInMemoryPdbAddress,       StackFrameHelper,   rgInMemoryPdbAddress)
+DEFINE_FIELD_U(rgiInMemoryPdbSize,         StackFrameHelper,   rgiInMemoryPdbSize)
+DEFINE_FIELD_U(rgiMethodToken,             StackFrameHelper,   rgiMethodToken)
 DEFINE_FIELD_U(rgFilename,                 StackFrameHelper,   rgFilename)
 DEFINE_FIELD_U(rgiLineNumber,              StackFrameHelper,   rgiLineNumber)
 DEFINE_FIELD_U(rgiColumnNumber,            StackFrameHelper,   rgiColumnNumber)
 #if defined(FEATURE_EXCEPTIONDISPATCHINFO)
 DEFINE_FIELD_U(rgiLastFrameFromForeignExceptionStackTrace,            StackFrameHelper,   rgiLastFrameFromForeignExceptionStackTrace)
 #endif // defined(FEATURE_EXCEPTIONDISPATCHINFO)
+DEFINE_FIELD_U(getSourceLineInfo,          StackFrameHelper,   getSourceLineInfo)
 DEFINE_FIELD_U(iFrameCount,                StackFrameHelper,   iFrameCount)
-DEFINE_FIELD_U(fNeedFileInfo,              StackFrameHelper,   fNeedFileInfo)
 
 DEFINE_CLASS(STACK_TRACE,           Diagnostics,            StackTrace)
 DEFINE_METHOD(STACK_TRACE,          GET_MANAGED_STACK_TRACE_HELPER, GetManagedStackTraceStringHelper, SM_Bool_RetStr)
@@ -1674,6 +1680,7 @@ DEFINE_METHOD(FIRSTCHANCE_EVENTARGS,  CTOR,                   .ctor,            
 DEFINE_CLASS(ASSEMBLYLOADCONTEXT,  Loader,                AssemblyLoadContext)    
 DEFINE_METHOD(ASSEMBLYLOADCONTEXT,  RESOLVE,          Resolve,                      SM_IntPtr_AssemblyName_RetAssemblyBase)
 DEFINE_METHOD(ASSEMBLYLOADCONTEXT,  RESOLVEUNMANAGEDDLL,          ResolveUnmanagedDll,                      SM_Str_IntPtr_RetIntPtr)
+DEFINE_METHOD(ASSEMBLYLOADCONTEXT,  RESOLVEUSINGEVENT,          ResolveUsingResolvingEvent,                      SM_IntPtr_AssemblyName_RetAssemblyBase)
 
 #endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
 
@@ -2203,9 +2210,21 @@ DEFINE_CLASS(MODULEBASE,        Reflection,         Module)
 
 #ifdef FEATURE_ICASTABLE
 DEFINE_CLASS(ICASTABLE,         CompilerServices,   ICastable)
-DEFINE_METHOD(ICASTABLE,        ISINSTANCEOF,       IsInstanceOfInterface, IM_RuntimeTypeHandle_RefException_RetBool)
-DEFINE_METHOD(ICASTABLE,        GETIMPLTYPE,        GetImplType, IM_RuntimeTypeHandle_RetRuntimeTypeHandle)
+
+DEFINE_CLASS(ICASTABLEHELPERS,         CompilerServices,   ICastableHelpers)
+DEFINE_METHOD(ICASTABLEHELPERS,        ISINSTANCEOF,       IsInstanceOfInterface, SM_ICastable_RtType_RefException_RetBool)
+DEFINE_METHOD(ICASTABLEHELPERS,        GETIMPLTYPE,        GetImplType, SM_ICastable_RtType_RetRtType)
+
 #endif // FEATURE_ICASTABLE
+
+DEFINE_CLASS(CUTF8MARSHALER, StubHelpers, UTF8Marshaler)
+DEFINE_METHOD(CUTF8MARSHALER, CONVERT_TO_NATIVE, ConvertToNative, SM_Int_Str_IntPtr_RetIntPtr)
+DEFINE_METHOD(CUTF8MARSHALER, CONVERT_TO_MANAGED, ConvertToManaged, SM_IntPtr_RetStr)
+DEFINE_METHOD(CUTF8MARSHALER, CLEAR_NATIVE, ClearNative, SM_IntPtr_RetVoid)
+
+DEFINE_CLASS(UTF8BUFFERMARSHALER, StubHelpers, UTF8BufferMarshaler)
+DEFINE_METHOD(UTF8BUFFERMARSHALER, CONVERT_TO_NATIVE, ConvertToNative, NoSig)
+DEFINE_METHOD(UTF8BUFFERMARSHALER, CONVERT_TO_MANAGED, ConvertToManaged, NoSig)
 
 #undef DEFINE_CLASS
 #undef DEFINE_METHOD

@@ -3289,7 +3289,7 @@ namespace System {
                                       AppDomainSetup info)
         {
             if (friendlyName == null)
-                throw new ArgumentNullException(Environment.GetResourceString("ArgumentNull_String"));
+                throw new ArgumentNullException("friendlyName", Environment.GetResourceString("ArgumentNull_String"));
 
             Contract.EndContractBlock();
 
@@ -3628,7 +3628,7 @@ namespace System {
                         if (Path.IsRelative(propertyValues[i]))
                             throw new ArgumentException( Environment.GetResourceString( "Argument_AbsolutePathRequired" ) );
 
-                        newSetup.ApplicationBase=Path.NormalizePath(propertyValues[i],true);
+                        newSetup.ApplicationBase = NormalizePath(propertyValues[i], fullCheck: true);
 
                     }
 #if FEATURE_CAS_POLICY
@@ -3636,10 +3636,10 @@ namespace System {
                     {
                         providedSecurityInfo=new Evidence();
                         providedSecurityInfo.AddHostEvidence(new Url(propertyValues[i]));
-                        ad.SetDataHelper(propertyNames[i],propertyValues[i],null);                        
+                        ad.SetDataHelper(propertyNames[i],propertyValues[i],null);
                     }
 #endif // FEATURE_CAS_POLICY
-#if FEATURE_LOADER_OPTIMIZATION                    
+#if FEATURE_LOADER_OPTIMIZATION
                     else
                     if(propertyNames[i]=="LOADER_OPTIMIZATION")
                     {
@@ -3655,8 +3655,8 @@ namespace System {
                             default: throw new ArgumentException(Environment.GetResourceString("Argument_UnrecognizedLoaderOptimization"), "LOADER_OPTIMIZATION");
                         }
                     }
-#endif // FEATURE_LOADER_OPTIMIZATION                    
-#if FEATURE_CORECLR      
+#endif // FEATURE_LOADER_OPTIMIZATION
+#if FEATURE_CORECLR
                     else
                     if(propertyNames[i]=="NATIVE_DLL_SEARCH_DIRECTORIES")
                     {
@@ -3710,7 +3710,7 @@ namespace System {
                             if (Path.IsRelative(path))
                                 throw new ArgumentException( Environment.GetResourceString( "Argument_AbsolutePathRequired" ) );
 
-                            string appPath=Path.NormalizePath(path,true);
+                            string appPath = NormalizePath(path, fullCheck: true);
                             normalisedAppPathList.Append(appPath);
                             normalisedAppPathList.Append(Path.PathSeparator);
                         }
@@ -3719,12 +3719,12 @@ namespace System {
                         {
                             normalisedAppPathList.Remove(normalisedAppPathList.Length - 1, 1);
                         }
-                        ad.SetDataHelper(propertyNames[i],normalisedAppPathList.ToString(),null);        // not supported by fusion, so set explicitly                
+                        ad.SetDataHelper(propertyNames[i],normalisedAppPathList.ToString(),null);        // not supported by fusion, so set explicitly
                     }
                     else
                     if(propertyNames[i]!= null)
                     {
-                        ad.SetDataHelper(propertyNames[i],propertyValues[i],null);     // just propagate                   
+                        ad.SetDataHelper(propertyNames[i],propertyValues[i],null);     // just propagate
                     }
 #endif
 
@@ -3813,6 +3813,23 @@ namespace System {
 #endif // FEATURE_CLICKONCE
         }
 
+        [SecuritySafeCritical]
+        internal static string NormalizePath(string path, bool fullCheck)
+        {
+#if FEATURE_PATHCOMPAT
+            // Appcontext switches can't currently be safely hit during AppDomain bringup
+            return Path.LegacyNormalizePath(
+                path: path,
+                fullCheck: fullCheck,
+                maxPathLength: PathInternal.MaxShortPath,
+                expandShortPaths: true);
+#else
+            return Path.NormalizePath(
+                path: path,
+                fullCheck: fullCheck,
+                expandShortPaths: true);
+#endif
+        }
 
 #if FEATURE_APTCA
         // Called from DomainAssembly in Conditional APTCA cases

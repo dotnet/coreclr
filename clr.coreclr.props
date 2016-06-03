@@ -31,7 +31,7 @@
     <FeatureMainClrModuleUsesCoreName>true</FeatureMainClrModuleUsesCoreName>
     <FeatureMergeCultureSupportAndEngine>true</FeatureMergeCultureSupportAndEngine>
     <FeatureMergeJitAndEngine>true</FeatureMergeJitAndEngine>
-    <FeatureMulticoreJIT Condition="'$(TargetArch)'!='arm'">true</FeatureMulticoreJIT>
+    <FeatureMulticoreJIT>true</FeatureMulticoreJIT>
     <FeatureNormIdnaOnly>true</FeatureNormIdnaOnly>
     <FeaturePrejit>true</FeaturePrejit>
     <FeatureStandaloneSn>true</FeatureStandaloneSn>
@@ -60,18 +60,12 @@
     <FeatureCominteropWinRTManagedActivation>true</FeatureCominteropWinRTManagedActivation>
     <FeatureHostAssemblyResolver>true</FeatureHostAssemblyResolver>
     <FeatureLazyCOWPages Condition="('$(TargetArch)' == 'i386') or ('$(TargetArch)' == 'arm')">true</FeatureLazyCOWPages>
-    <FeatureLatin1>true</FeatureLatin1>
-    <FeatureEncodingNls>true</FeatureEncodingNls>
-    <FeatureAscii>true</FeatureAscii>
-    <FeatureUtf7>true</FeatureUtf7>
-    <FeatureUtf32>true</FeatureUtf32>
     <FeatureRandomizedStringHashing>true</FeatureRandomizedStringHashing>
     <!-- The rejit feature is available only on supported architectures (x86 & x64) -->
     <FeatureReJIT Condition="('$(TargetArch)' == 'i386') or ('$(TargetArch)' == 'amd64')">true</FeatureReJIT>
     <FeatureWindowsPhone>true</FeatureWindowsPhone>
     <FeatureManagedEtw>true</FeatureManagedEtw>
     <FeatureManagedEtwChannels>true</FeatureManagedEtwChannels>
-    <FeatureHostedBinder>true</FeatureHostedBinder>
     <BinderDebugLog Condition="'$(_BuildType)'=='dbg'">true</BinderDebugLog>
     <FeatureAppX>true</FeatureAppX>
     <FeatureWinMDResilient>true</FeatureWinMDResilient>
@@ -88,7 +82,7 @@
     <FeaturePal>true</FeaturePal>
     <FeatureXplatEventSource>true</FeatureXplatEventSource>
 
-    <FeatureStubsAsIL>true</FeatureStubsAsIL>
+    <FeatureStubsAsIL Condition="'$(TargetArch)' != 'arm'">true</FeatureStubsAsIL>
 
     <!-- Windows specific features -->
     <FeatureWin32Registry>false</FeatureWin32Registry>
@@ -101,5 +95,9 @@
     <FeatureManagedEtw>false</FeatureManagedEtw>
 
     <FeatureCoreFxGlobalization>true</FeatureCoreFxGlobalization>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetsUnix)' != 'true'">
+    <FeatureImplicitLongPath>true</FeatureImplicitLongPath>
   </PropertyGroup>
 </Project>

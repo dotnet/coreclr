@@ -340,8 +340,16 @@ namespace System {
 
             // If we add very long file name support ("\\?\") to the Path class then this is unnecesary,
             // but we do not plan on doing this for now.
+
+            // Long path checks can be quirked, and as loading default quirks too early in the setup of an AppDomain is risky
+            // we'll avoid checking path lengths- we'll still fail at MAX_PATH later if we're !useAppBase when we call Path's
+            // NormalizePath.
             if (!useAppBase)
-                path = System.Security.Util.URLString.PreProcessForExtendedPathRemoval(path, false);
+                path = Security.Util.URLString.PreProcessForExtendedPathRemoval(
+                    checkPathLength: false,
+                    url: path,
+                    isFileUrl: false);
+
 
             int len = path.Length;
             if (len == 0)
@@ -471,7 +479,9 @@ namespace System {
 
                     bool slash = false;
                     if ((path[0] == '/') || (path[0] == '\\')) {
-                        String pathRoot = Path.GetPathRoot(appBase);
+                        string pathRoot = AppDomain.NormalizePath(appBase, fullCheck: false);
+                        pathRoot = pathRoot.Substring(0, IO.PathInternal.GetRootLength(pathRoot));
+
                         if (pathRoot.Length == 0) { // URL
                             int index = appBase.IndexOf(":/", StringComparison.Ordinal);
                             if (index == -1)
@@ -516,7 +526,7 @@ namespace System {
                     path = StringBuilderCache.GetStringAndRelease(result);
                 }
                 else
-                    path = Path.GetFullPathInternal(path);
+                    path = AppDomain.NormalizePath(path, fullCheck: true);
             }
 
             return path;

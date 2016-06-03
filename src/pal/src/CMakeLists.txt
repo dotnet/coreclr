@@ -91,15 +91,16 @@ elseif(PAL_CMAKE_PLATFORM_ARCH_ARM64)
   )
 endif()
 
-if(CLR_CMAKE_PLATFORM_UNIX_TARGET_ARM)
-set_source_files_properties(exception/seh.cpp PROPERTIES COMPILE_FLAGS -Wno-error=inline-asm)
-endif(CLR_CMAKE_PLATFORM_UNIX_TARGET_ARM)
+if(PAL_CMAKE_PLATFORM_ARCH_ARM)
+  set_source_files_properties(exception/seh.cpp PROPERTIES COMPILE_FLAGS -Wno-error=inline-asm)
+endif(PAL_CMAKE_PLATFORM_ARCH_ARM)
+
 set(SOURCES
   cruntime/file.cpp
   cruntime/filecrt.cpp
-  cruntime/finite.cpp
   cruntime/lstr.cpp
   cruntime/malloc.cpp
+  cruntime/math.cpp
   cruntime/mbstring.cpp
   cruntime/misc.cpp
   cruntime/misctls.cpp
@@ -183,6 +184,7 @@ set(SOURCES
   safecrt/wsplitpath_s.c
   safecrt/xtoa_s.c
   safecrt/xtow_s.c
+  sharedmemory/sharedmemory.cpp
   shmemory/shmemory.cpp
   sync/cs.cpp
   synchobj/event.cpp

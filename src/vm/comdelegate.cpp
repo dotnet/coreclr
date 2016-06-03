@@ -2102,10 +2102,24 @@ FCIMPL3(void, COMDelegate::DelegateConstruct, Object* refThisUNSAFE, Object* tar
                                 // <TODO>it looks like we need to pass an ownerType in here.
                                 //  Why can we take a delegate to an interface method anyway?  </TODO>
                                 // 
-                                pMeth = pMTTarg->FindDispatchSlotForInterfaceMD(pMeth).GetMethodDesc();
-                                if (pMeth == NULL)
+                                MethodDesc * pDispatchSlotMD = pMTTarg->FindDispatchSlotForInterfaceMD(pMeth).GetMethodDesc();
+                                if (pDispatchSlotMD == NULL)
                                 {
                                     COMPlusThrow(kArgumentException, W("Arg_DlgtTargMeth"));
+                                }
+
+                                if (pMeth->HasMethodInstantiation())
+                                {
+                                    pMeth = MethodDesc::FindOrCreateAssociatedMethodDesc(
+                                        pDispatchSlotMD,
+                                        pDispatchSlotMD->GetMethodTable(),
+                                        (!pDispatchSlotMD->IsStatic() && pDispatchSlotMD->GetMethodTable()->IsValueType()),
+                                        pMeth->GetMethodInstantiation(),
+                                        FALSE /* allowInstParam */);
+                                }
+                                else
+                                {
+                                    pMeth = pDispatchSlotMD;
                                 }
                             }
                         }
@@ -2412,7 +2426,7 @@ PCODE COMDelegate::GetInvokeMethodStub(EEImplMethodDesc* pMD)
         STANDARD_VM_CHECK;
         POSTCONDITION(RETVAL != NULL);
 
-        INJECT_FAULT(COMPlusThrowOM()); 
+        INJECT_FAULT(COMPlusThrowOM());
     }
     CONTRACT_END;
 
@@ -2459,7 +2473,7 @@ PCODE COMDelegate::GetInvokeMethodStub(EEImplMethodDesc* pMD)
         // If the call was indeed for async delegate invocation, we will just throw an exception.
         if ((pMD == pClass->m_pBeginInvokeMethod) || (pMD == pClass->m_pEndInvokeMethod))
         {
-            COMPlusThrow(kNotSupportedException);
+            COMPlusThrow(kPlatformNotSupportedException);
         }
 
 #endif //FEATURE_REMOTING
@@ -2468,7 +2482,7 @@ PCODE COMDelegate::GetInvokeMethodStub(EEImplMethodDesc* pMD)
         COMPlusThrow(kInvalidProgramException);
     }
 
-    RETURN ret;    
+    RETURN ret;
 }
 
 FCIMPL1(Object*, COMDelegate::InternalAlloc, ReflectClassBaseObject * pTargetUNSAFE)

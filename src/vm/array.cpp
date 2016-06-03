@@ -527,7 +527,7 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
     }
 
     // The type is sufficiently initialized for most general purpose accessor methods to work.
-    // Mark the type as restored to avoid avoid asserts. Note that this also enables IBC logging.
+    // Mark the type as restored to avoid asserts. Note that this also enables IBC logging.
     pMTWriteableData->SetIsFullyLoadedForBuildMethodTable();
 
     {
@@ -1128,7 +1128,7 @@ void GenerateArrayOpScript(ArrayMethodDesc *pMD, ArrayOpScript *paos)
     MetaSig msig(pMD);
     _ASSERTE(!msig.IsVarArg());     // No array signature is varargs, code below does not expect it.
 
-    switch (pcls->GetArrayElementType())
+    switch (pMT->GetApproxArrayElementTypeHandle().GetInternalCorElementType())
     {
         // These are all different because of sign extension
 

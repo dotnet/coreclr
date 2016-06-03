@@ -235,6 +235,10 @@ public:
     virtual void NoteFatal(InlineObservation obs) = 0;
     virtual void NoteInt(InlineObservation obs, int value) = 0;
 
+    // Optional observations. Most policies ignore these.
+    virtual void NoteContext(InlineContext* context) { (void) context; }
+    virtual void NoteOffset(IL_OFFSETX offset) { (void) offset; }
+
     // Policy determinations
     virtual void DetermineProfitability(CORINFO_METHOD_INFO* methodInfo) = 0;
 
@@ -289,13 +293,14 @@ public:
     // particular call for inlining.
     InlineResult(Compiler*              compiler,
                  GenTreeCall*           call,
-                 const char*            context);
+                 GenTreeStmt*           stmt,
+                 const char*            description);
 
     // Construct a new InlineResult to evaluate a particular
     // method to see if it is inlineable.
     InlineResult(Compiler*              compiler,
                  CORINFO_METHOD_HANDLE  method,
-                 const char*            context);
+                 const char*            description);
 
     // Has the policy determined this inline should fail?
     bool IsFailure() const
@@ -442,6 +447,12 @@ public:
         m_Reported = true;
     }
 
+    // Get the InlineContext for this inline
+    InlineContext* GetInlineContext() const
+    {
+        return m_InlineContext;
+    }
+
 private:
 
     // No copying or assignment allowed.
@@ -454,9 +465,10 @@ private:
     Compiler*               m_RootCompiler;
     InlinePolicy*           m_Policy;
     GenTreeCall*            m_Call;
+    InlineContext*          m_InlineContext;
     CORINFO_METHOD_HANDLE   m_Caller;     // immediate caller's handle
     CORINFO_METHOD_HANDLE   m_Callee;
-    const char*             m_Context;
+    const char*             m_Description;
     bool                    m_Reported;
 };
 
@@ -562,10 +574,19 @@ public:
 #if defined(DEBUG) || defined(INLINE_DATA)
 
     // Dump the full subtree, including failures
-    void Dump(int indent = 0);
+    void Dump(unsigned indent = 0);
 
     // Dump only the success subtree, with rich data
-    void DumpData(int indent = 0);
+    void DumpData(unsigned indent = 0);
+
+    // Dump full subtree in xml format
+    void DumpXml(FILE* file = stderr, unsigned indent = 0);
+
+    // Get callee handle
+    CORINFO_METHOD_HANDLE GetCallee() const
+    {
+        return m_Callee;
+    }
 
 #endif // defined(DEBUG) || defined(INLINE_DATA)
 
@@ -588,7 +609,7 @@ public:
     }
 
     // Get the observation that supported or disqualified this inline.
-    InlineObservation GetObservation()
+    InlineObservation GetObservation() const
     {
         return m_Observation;
     }
@@ -603,6 +624,18 @@ public:
     unsigned GetCodeSizeEstimate() const
     {
         return m_CodeSizeEstimate;
+    }
+
+    // Get the offset of the call site
+    IL_OFFSETX GetOffset() const
+    {
+        return m_Offset;
+    }
+
+    // True if this is the root context
+    bool IsRoot() const
+    {
+        return m_Parent == nullptr;
     }
 
 private:
@@ -653,7 +686,7 @@ public:
                               InlineResult*   inlineResult);
 
     // Compiler associated with this strategy
-    Compiler* GetCompiler()
+    Compiler* GetCompiler() const
     {
         return m_Compiler;
     }
@@ -661,10 +694,41 @@ public:
     // Root context
     InlineContext* GetRootContext();
 
-    // Number of successful inlines into the root.
-    unsigned GetInlineCount()
+    // Context for the last sucessful inline
+    // (or root if no inlines)
+    InlineContext* GetLastContext() const
+    {
+        return m_LastContext;
+    }
+
+    // Get IL size for maximum allowable inline
+    unsigned GetMaxInlineILSize() const
+    {
+        return m_MaxInlineSize;
+    }
+
+    // Get depth of maximum allowable inline
+    unsigned GetMaxInlineDepth() const
+    {
+        return m_MaxInlineDepth;
+    }
+
+    // Number of successful inlines into the root
+    unsigned GetInlineCount() const
     {
         return m_InlineCount;
+    }
+
+    // Return the current code size estimate for this method
+    int GetCurrentSizeEstimate() const
+    {
+        return m_CurrentSizeEstimate;
+    }
+
+    // Return the initial code size estimate for this method
+    int GetInitialSizeEstimate() const
+    {
+        return m_InitialSizeEstimate;
     }
 
     // Inform strategy that there's a new inline candidate.
@@ -674,16 +738,45 @@ public:
     // time budget.
     bool BudgetCheck(unsigned ilSize);
 
+    // Check if this method is not allowing inlines.
+    static bool IsNoInline(ICorJitInfo* info, CORINFO_METHOD_HANDLE method);
+
 #if defined(DEBUG) || defined(INLINE_DATA)
 
     // Dump textual description of inlines done so far.
     void Dump();
 
-
     // Dump data-format description of inlines done so far.
     void DumpData();
+    void DumpDataEnsurePolicyIsSet();
+    void DumpDataHeader(FILE* file);
+    void DumpDataSchema(FILE* file);
+    void DumpDataContents(FILE* file);
+
+    // Dump xml-formatted description of inlines
+    void DumpXml(FILE* file = stderr, unsigned indent = 0);
+    static void FinalizeXml(FILE* file = stderr);
+
+    // Cache for file position of this method in the inline xml
+    long GetMethodXmlFilePosition()
+    {
+        return m_MethodXmlFilePosition;
+    }
+
+    void SetMethodXmlFilePosition(long val)
+    {
+        m_MethodXmlFilePosition = val;
+    }
 
 #endif // defined(DEBUG) || defined(INLINE_DATA)
+
+    // Some inline limit values
+    enum
+    {
+        ALWAYS_INLINE_SIZE = 16,
+        IMPLEMENTATION_MAX_INLINE_SIZE = _UI16_MAX,
+        IMPLEMENTATION_MAX_INLINE_DEPTH = 1000
+    };
 
 private:
 
@@ -696,7 +789,10 @@ private:
     // Cap on allowable increase in jit time due to inlining.
     // Multiplicative, so BUDGET = 10 means up to 10x increase
     // in jit time.
-    enum { BUDGET = 10 };
+    enum
+    {
+        BUDGET = 10
+    };
 
     // Estimate the jit time change because of this inline.
     int EstimateTime(InlineContext* context);
@@ -709,15 +805,20 @@ private:
     int EstimateSize(InlineContext* context);
 
 #if defined(DEBUG) || defined(INLINE_DATA)
-    static bool    s_DumpDataHeader;
+    static bool          s_HasDumpedDataHeader;
+    static bool          s_HasDumpedXmlHeader;
+    static CritSecObject s_XmlWriterLock;
 #endif // defined(DEBUG) || defined(INLINE_DATA)
 
     Compiler*      m_Compiler;
     InlineContext* m_RootContext;
     InlinePolicy*  m_LastSuccessfulPolicy;
+    InlineContext* m_LastContext;
     unsigned       m_CandidateCount;
     unsigned       m_InlineAttemptCount;
     unsigned       m_InlineCount;
+    unsigned       m_MaxInlineSize;
+    unsigned       m_MaxInlineDepth;
     int            m_InitialTimeBudget;
     int            m_InitialTimeEstimate;
     int            m_CurrentTimeBudget;
@@ -725,6 +826,11 @@ private:
     int            m_InitialSizeEstimate;
     int            m_CurrentSizeEstimate;
     bool           m_HasForceViaDiscretionary;
+
+#if defined(DEBUG) || defined(INLINE_DATA)
+    long           m_MethodXmlFilePosition;
+#endif // defined(DEBUG) || defined(INLINE_DATA)
+
 };
 
 #endif // _INLINE_H_

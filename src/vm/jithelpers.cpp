@@ -2446,14 +2446,13 @@ BOOL ObjIsInstanceOf(Object *pObject, TypeHandle toTypeHnd, BOOL throwCastExcept
     // to a given type.
     else if (toTypeHnd.IsInterface() && fromTypeHnd.GetMethodTable()->IsICastable())
     {
-        // Make actuall call to obj.IsInstanceOfInterface(interfaceTypeObj, out exception)
+        // Make actuall call to ICastableHelpers.IsInstanceOfInterface(obj, interfaceTypeObj, out exception)
         OBJECTREF exception = NULL;
         GCPROTECT_BEGIN(exception);
-        MethodTable *pFromTypeMT = fromTypeHnd.GetMethodTable();
-        MethodDesc *pIsInstanceOfMD = pFromTypeMT->GetMethodDescForInterfaceMethod(MscorlibBinder::GetMethod(METHOD__ICASTABLE__ISINSTANCEOF)); //GC triggers
-        OBJECTREF managedType = toTypeHnd.GetManagedClassObject(); //GC triggers
+        
+        PREPARE_NONVIRTUAL_CALLSITE(METHOD__ICASTABLEHELPERS__ISINSTANCEOF);
 
-        PREPARE_NONVIRTUAL_CALLSITE_USING_METHODDESC(pIsInstanceOfMD);
+        OBJECTREF managedType = toTypeHnd.GetManagedClassObject(); //GC triggers
 
         DECLARE_ARGHOLDER_ARRAY(args, 3);
         args[ARGNUM_0] = OBJECTREF_TO_ARGHOLDER(obj);
@@ -3444,6 +3443,25 @@ HCIMPL2VA(Object*, JIT_NewMDArr, CORINFO_CLASS_HANDLE classHnd, unsigned dwNumAr
 
     ret = allocNewMDArr(typeHnd, dwNumArgs, dimsAndBounds);
     va_end(dimsAndBounds);
+
+    HELPER_METHOD_FRAME_END();
+    return OBJECTREFToObject(ret);
+}
+HCIMPLEND
+
+/*************************************************************/
+HCIMPL3(Object*, JIT_NewMDArrNonVarArg, CORINFO_CLASS_HANDLE classHnd, unsigned dwNumArgs, INT32 * pArgList)
+{
+    FCALL_CONTRACT;
+
+    OBJECTREF    ret = 0;
+    HELPER_METHOD_FRAME_BEGIN_RET_1(ret);    // Set up a frame
+
+    TypeHandle typeHnd(classHnd);
+    typeHnd.CheckRestore();
+    _ASSERTE(typeHnd.GetMethodTable()->IsArray());
+
+    ret = AllocateArrayEx(typeHnd, pArgList, dwNumArgs);
 
     HELPER_METHOD_FRAME_END();
     return OBJECTREFToObject(ret);

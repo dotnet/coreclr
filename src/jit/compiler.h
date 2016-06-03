@@ -59,6 +59,10 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 #include "simd.h"
 
+// This is only used locally in the JIT to indicate that 
+// a verification block should be inserted 
+#define SEH_VERIFICATION_EXCEPTION 0xe0564552   // VER
+
 /*****************************************************************************
  *                  Forward declarations
  */
@@ -275,19 +279,19 @@ public:
     unsigned char       lvOverlappingFields :1;  // True when we have a struct with possibly overlapping fields
     unsigned char       lvContainsHoles     :1;  // True when we have a promoted struct that contains holes
     unsigned char       lvCustomLayout      :1;  // True when this struct has "CustomLayout"
-    unsigned char       lvIsMultiRegArgOrRet:1; // Is this a struct that would be passed or returned in multiple registers?
+    unsigned char       lvIsMultiRegArgOrRet:1;  // Is this a struct that would be passed or returned in multiple registers?
 
-#ifdef _TARGET_ARM_
-    // TODO-Cleanup: Can this be subsumed by the above?
-    unsigned char       lvIsHfaRegArg:1;        // Is this argument variable holding a HFA register argument.
-    unsigned char       lvHfaTypeIsFloat:1;     // Is the HFA type float or double?
-#endif // _TARGET_ARM_
+#ifdef FEATURE_HFA
+    unsigned char       _lvIsHfa            :1;  // Is this a struct variable who's class handle is an HFA type
+    unsigned char       _lvIsHfaRegArg      :1;  // Is this a HFA argument variable?    // TODO-CLEANUP: Remove this and replace with (lvIsRegArg && lvIsHfa())
+    unsigned char       _lvHfaTypeIsFloat   :1;  // Is the HFA type float or double?
+#endif // FEATURE_HFA
 
 #ifdef DEBUG
     // TODO-Cleanup: See the note on lvSize() - this flag is only in use by asserts that are checking for struct
     // types, and is needed because of cases where TYP_STRUCT is bashed to an integral type.
     // Consider cleaning this up so this workaround is not required.
-    unsigned char       lvUnusedStruct   :1; // All references to this promoted struct are through its field locals.
+    unsigned char       lvUnusedStruct   :1;    // All references to this promoted struct are through its field locals.
                                                 // I.e. there is no longer any reference to the struct directly.
                                                 // In this case we can simply remove this struct local.
 #endif
@@ -335,6 +339,75 @@ public:
         unreached();
     }
 #endif // FEATURE_MULTIREG_ARGS
+
+    bool lvIsHfa() const
+    {
+#ifdef FEATURE_HFA
+        return _lvIsHfa;
+#else
+        return false;
+#endif
+    }
+
+    void lvSetIsHfa()
+    {
+#ifdef FEATURE_HFA
+        _lvIsHfa = true;
+#endif
+    }
+
+    bool lvIsHfaRegArg() const
+    {
+#ifdef FEATURE_HFA
+        return _lvIsHfaRegArg;
+#else
+        return false;
+#endif
+    }
+
+    void lvSetIsHfaRegArg()
+    {
+#ifdef FEATURE_HFA
+        _lvIsHfaRegArg = true;
+#endif
+    }
+
+    bool lvHfaTypeIsFloat() const
+    {
+#ifdef FEATURE_HFA
+        return _lvHfaTypeIsFloat;
+#else
+        return false;
+#endif
+    }
+
+    void lvSetHfaTypeIsFloat(bool value)
+    {
+#ifdef FEATURE_HFA
+        _lvHfaTypeIsFloat = value;
+#endif
+    }
+
+    // on Arm64 - Returns 1-4 indicating the number of register slots used by the HFA
+    // on Arm32 - Returns the total number of single FP register slots used by the HFA, max is 8
+    //
+    unsigned lvHfaSlots() const
+    {
+        assert(lvIsHfa());
+        assert(lvType==TYP_STRUCT);
+#ifdef _TARGET_ARM_
+        return lvExactSize / sizeof(float);
+#else //  _TARGET_ARM64_
+        if (lvHfaTypeIsFloat())
+        {
+            return lvExactSize / sizeof(float);
+        }
+        else
+        {
+            return lvExactSize / sizeof(double);
+        }
+#endif //  _TARGET_ARM64_
+    }
 
 private:
 
@@ -594,19 +667,26 @@ public:
         assert(varTypeIsStruct(lvType) ||
                (lvType == TYP_BLK) ||
                (lvPromoted && lvUnusedStruct));
-        return (unsigned)(roundUp(lvExactSize, sizeof(void*)));
+        return (unsigned)(roundUp(lvExactSize, TARGET_POINTER_SIZE));
     }
 
     bool                lvIsMultiregStruct()
     {
 #if FEATURE_MULTIREG_ARGS_OR_RET
-#ifdef _TARGET_ARM64_
-        if ((TypeGet() == TYP_STRUCT) &&
-            (lvSize()  == 2 * TARGET_POINTER_SIZE))
+        if (TypeGet() == TYP_STRUCT)
         {
-            return true;
+            if (lvIsHfa() && (lvHfaSlots() > 1))
+            {
+                return true;
+            }
+#if defined(_TARGET_ARM64_)
+            // lvSize() performs a roundUp operation so it only returns multiples of TARGET_POINTER_SIZE
+            else if (lvSize() == (2 * TARGET_POINTER_SIZE))
+            {
+                return true;
+            }
+#endif // _TARGET_ARM64_
         }
-#endif  // _TARGET_ARM64_
 #endif  // FEATURE_MULTIREG_ARGS_OR_RET
         return false;
     }
@@ -656,24 +736,17 @@ public:
     void                addPrefReg(regMaskTP  regMask, Compiler * pComp);
     bool                IsFloatRegType() const
                         {
-                            return
-#ifdef _TARGET_ARM_
-                                lvIsHfaRegArg ||
-#endif
-                                isFloatRegType(lvType);
+                            return isFloatRegType(lvType) || lvIsHfaRegArg();
                         }
-#ifdef _TARGET_ARM_
     var_types           GetHfaType() const
                         {
-                            assert(lvIsHfaRegArg);
-                            return lvIsHfaRegArg ? (lvHfaTypeIsFloat ? TYP_FLOAT : TYP_DOUBLE) : TYP_UNDEF;
+                            return lvIsHfa() ? (lvHfaTypeIsFloat() ? TYP_FLOAT : TYP_DOUBLE) : TYP_UNDEF;
                         }
     void                SetHfaType(var_types type)
                         {
                             assert(varTypeIsFloating(type));
-                            lvHfaTypeIsFloat = (type == TYP_FLOAT);
+                            lvSetHfaTypeIsFloat(type == TYP_FLOAT);
                         }
-#endif //_TARGET_ARM_
 
 #ifndef LEGACY_BACKEND
     var_types           lvaArgType();
@@ -867,43 +940,6 @@ struct CompTimeInfo
 
     CompTimeInfo(unsigned byteCodeBytes);
 #endif
-};
-
-// TBD: Move this to UtilCode.
-
-// The CLR requires that critical section locks be initialized via its ClrCreateCriticalSection API...but
-// that can't be called until the CLR is initialized. If we have static data that we'd like to protect by a
-// lock, and we have a statically allocated lock to protect that data, there's an issue in how to initialize
-// that lock. We could insert an initialize call in the startup path, but one might prefer to keep the code
-// more local. For such situations, CritSecObject solves the initialization problem, via a level of
-// indirection. A pointer to the lock is initially null, and when we query for the lock pointer via "Val()".
-// If the lock has not yet been allocated, this allocates one (here a leaf lock), and uses a
-// CompareAndExchange-based lazy-initialization to update the field. If this fails, the allocated lock is
-// destroyed. This will work as long as the first locking attempt occurs after enough CLR initialization has
-// happened to make ClrCreateCriticalSection calls legal.
-class CritSecObject
-{
-    // CRITSEC_COOKIE is an opaque pointer type.
-    CRITSEC_COOKIE m_pCs;
-public:
-    CritSecObject()
-    {
-        m_pCs = NULL;
-    }
-    CRITSEC_COOKIE Val()
-    {
-        if (m_pCs == NULL)
-        {
-            // CompareExchange-based lazy init.
-            CRITSEC_COOKIE newCs = ClrCreateCriticalSection(CrstLeafLock, CRST_DEFAULT);
-            CRITSEC_COOKIE observed = InterlockedCompareExchangeT(&m_pCs, newCs, NULL);
-            if (observed != NULL)
-            {
-                ClrDeleteCriticalSection(newCs);
-            }
-        }
-        return m_pCs;
-    }
 };
 
 #ifdef FEATURE_JIT_METHOD_PERF
@@ -1117,6 +1153,9 @@ struct fgArgTabEntry
     {
         return isBackFilled;
     }
+#ifdef DEBUG
+    void Dump();
+#endif
 };
 typedef struct fgArgTabEntry *  fgArgTabEntryPtr;
 
@@ -1205,8 +1244,10 @@ public:
     void            RecordStkLevel     (unsigned        stkLvl);
     unsigned        RetrieveStkLevel   ();
 
-    unsigned            ArgCount ()  { return argCount; }
-    fgArgTabEntryPtr *  ArgTable ()  { return argTable; }
+    unsigned            ArgCount ()      { return argCount; }
+    fgArgTabEntryPtr *  ArgTable ()      { return argTable; }
+    unsigned            GetNextSlotNum() { return nextSlotNum; }
+
 };
 
 
@@ -1363,29 +1404,25 @@ public:
 #endif
 
 #if FEATURE_MULTIREG_RET
-    GenTreePtr               impAssignStructClassToVar(GenTreePtr op, CORINFO_CLASS_HANDLE hClass);
+    GenTreePtr               impAssignMultiRegTypeToVar(GenTreePtr op, CORINFO_CLASS_HANDLE hClass);
 #endif // FEATURE_MULTIREG_RET
-
-#ifdef _TARGET_ARM_
 
     //-------------------------------------------------------------------------
     // Functions to handle homogeneous floating-point aggregates (HFAs) in ARM.
     // HFAs are one to four element structs where each element is the same
     // type, either all float or all double. They are treated specially
     // in the ARM Procedure Call Standard, specifically, they are passed in
-    // floating-point registers.
+    // floating-point registers instead of the general purpose registers.
     //
 
     bool                            IsHfa(CORINFO_CLASS_HANDLE hClass);
     bool                            IsHfa(GenTreePtr tree);
 
     var_types                       GetHfaType(GenTreePtr tree);
-    unsigned                        GetHfaSlots(GenTreePtr tree);
+    unsigned                        GetHfaCount(GenTreePtr tree);
 
     var_types                       GetHfaType(CORINFO_CLASS_HANDLE hClass);
-    unsigned                        GetHfaSlots(CORINFO_CLASS_HANDLE hClass);
-
-#endif // _TARGET_ARM_
+    unsigned                        GetHfaCount(CORINFO_CLASS_HANDLE hClass);
 
     //-------------------------------------------------------------------------
     // The following is used for struct passing on System V system.
@@ -1486,6 +1523,7 @@ public:
     bool                bbInCatchHandlerILRange (BasicBlock * blk);
     bool                bbInFilterILRange       (BasicBlock * blk);
     bool                bbInTryRegions          (unsigned regionIndex, BasicBlock * blk);
+    bool                bbInExnFlowRegions      (unsigned regionIndex, BasicBlock * blk);
     bool                bbInHandlerRegions      (unsigned regionIndex, BasicBlock * blk);
     bool                bbInCatchHandlerRegions (BasicBlock * tryBlk, BasicBlock * hndBlk);
     unsigned short      bbFindInnermostCommonTryRegion (BasicBlock  * bbOne, BasicBlock  * bbTwo);
@@ -1525,9 +1563,14 @@ public:
     // Return the EH descriptor for the most nested filter or handler region this BasicBlock is a member of (or nullptr if this block is not in a filter or handler region).
     EHblkDsc*           ehGetBlockHndDsc(BasicBlock* block);
 
+    // Return the EH descriptor for the most nested region that may handle exceptions raised in this BasicBlock (or nullptr if this block's exceptions propagate to caller).
+    EHblkDsc*           ehGetBlockExnFlowDsc(BasicBlock* block);
+
     EHblkDsc*           ehIsBlockTryLast(BasicBlock* block);
     EHblkDsc*           ehIsBlockHndLast(BasicBlock* block);
     bool                ehIsBlockEHLast(BasicBlock* block);
+
+    bool                ehBlockHasExnFlowDsc(BasicBlock* block);
 
     // Return the region index of the most nested EH region this block is in.
     unsigned            ehGetMostNestedRegionIndex(BasicBlock* block, bool* inTryRegion);
@@ -1930,6 +1973,11 @@ public:
 
     unsigned                gtSetEvalOrder  (GenTree *      tree);
 
+#if FEATURE_STACK_FP_X87
+    bool                    gtFPstLvlRedo;
+    void                    gtComputeFPlvls   (GenTreePtr     tree);
+#endif // FEATURE_STACK_FP_X87
+
     void                    gtSetStmtInfo   (GenTree *      stmt);
 
     // Returns "true" iff "node" has any of the side effects in "flags".
@@ -2025,6 +2073,7 @@ public:
     void                    gtGetArgMsg     (GenTreePtr             call,
                                              GenTreePtr             arg,
                                              unsigned               argNum,
+                                             int                    listCount,
                                              char*                  bufp,
                                              unsigned               bufLength);
     void                    gtGetLateArgMsg (GenTreePtr             call,
@@ -2207,11 +2256,10 @@ public :
     unsigned            lvaVarargsBaseOfStkArgs;    // Pointer (computed based on incoming varargs handle) to the start of the stack arguments
 #endif // _TARGET_X86_
 
-#if INLINE_NDIRECT
     unsigned            lvaInlinedPInvokeFrameVar;  // variable representing the InlinedCallFrame
+    unsigned            lvaReversePInvokeFrameVar;  // variable representing the reverse PInvoke frame
 #if FEATURE_FIXED_OUT_ARGS
     unsigned            lvaPInvokeFrameRegSaveVar;  // variable representing the RegSave for PInvoke inlining.
-#endif
 #endif
     unsigned            lvaMonAcquired; // boolean variable introduced into in synchronized methods 
                                         // that tracks whether the lock has been taken
@@ -2260,6 +2308,8 @@ public :
     unsigned            lvaCachedGenericContextArgOffset();   // For CORINFO_CALLCONV_PARAMTYPE and if generic context is passed as THIS pointer
     
     unsigned            lvaLocAllocSPvar;               // variable which has the result of the last alloca/localloc
+
+    unsigned            lvaNewObjArrayArgs;             // variable with arguments for new MD array helper
 
     // TODO-Review: Prior to reg predict we reserve 24 bytes for Spill temps.
     //              after the reg predict we will use a computed maxTmpSize 
@@ -2523,11 +2573,12 @@ public :
     InlineInfo*          impInlineInfo;
     InlineStrategy*      m_inlineStrategy;
 
-    // Get the maximum IL size allowed for an inline
-    unsigned             getImpInlineSize() const { return impInlineSize; }
-
     // The Compiler* that is the root of the inlining tree of which "this" is a member.
     Compiler*            impInlineRoot();
+
+#if defined(DEBUG) || defined(INLINE_DATA)
+    unsigned __int64     getInlineCycleCount() { return m_compCycles; }
+#endif // defined(DEBUG) || defined(INLINE_DATA)
 
     bool                 fgNoStructPromotion;        // Set to TRUE to turn off struct promotion for this method.
     bool                 fgNoStructParamPromotion;   // Set to TRUE to turn off struct promotion for parameters this method.
@@ -2635,6 +2686,8 @@ protected :
 
     void                impImportAndPushBox (CORINFO_RESOLVED_TOKEN * pResolvedToken);
 
+    void                impImportNewObjArray(CORINFO_RESOLVED_TOKEN* pResolvedToken,
+                                             CORINFO_CALL_INFO* pCallInfo);
 
     bool                impCanPInvokeInline(var_types callRetTyp);
     bool                impCanPInvokeInlineCallSite(var_types callRetTyp);
@@ -2644,10 +2697,8 @@ protected :
                                                 unsigned mflags);
     GenTreePtr          impImportIndirectCall(CORINFO_SIG_INFO * sig,
                                               IL_OFFSETX ilOffset = BAD_IL_OFFSET);
-#ifdef INLINE_NDIRECT
     void                impPopArgsForUnmanagedCall(GenTreePtr call,
                                                    CORINFO_SIG_INFO * sig);
-#endif // INLINE_NDIRECT
 
     void                impInsertHelperCall(CORINFO_HELPER_DESC * helperCall);
     void                impHandleAccessAllowed(CorInfoIsAccessAllowedResult result,
@@ -2665,12 +2716,15 @@ protected :
                                              GenTreePtr     newobjThis,
                                              int            prefixFlags,
                                              CORINFO_CALL_INFO* callInfo,
-                                             IL_OFFSETX     ilOffset = BAD_IL_OFFSET);
+                                             IL_OFFSET      rawILOffset);
 
     bool                impMethodInfo_hasRetBuffArg(CORINFO_METHOD_INFO * methInfo);
 
     GenTreePtr          impFixupCallStructReturn(GenTreePtr           call,
                                                  CORINFO_CLASS_HANDLE retClsHnd);
+
+    GenTreePtr          impFixupCallLongReturn(GenTreePtr           call,
+                                               CORINFO_CLASS_HANDLE retClsHnd);
 
     GenTreePtr          impFixupStructReturnType(GenTreePtr       op,
                                                  CORINFO_CLASS_HANDLE retClsHnd);
@@ -2806,12 +2860,13 @@ public:
         return impTokenToHandle(pResolvedToken, pRuntimeLookup, mustRestoreHandle, TRUE);
     }
 
-    GenTreePtr          impLookupToTree(CORINFO_LOOKUP *pLookup,
+    GenTreePtr          impLookupToTree(CORINFO_RESOLVED_TOKEN *pResolvedToken, 
+                                        CORINFO_LOOKUP *pLookup,
                                         unsigned flags,
                                         void *compileTimeHandle);
 
-    GenTreePtr          impRuntimeLookupToTree(CORINFO_RUNTIME_LOOKUP_KIND kind,
-                                               CORINFO_RUNTIME_LOOKUP *pLookup,
+    GenTreePtr          impRuntimeLookupToTree(CORINFO_RESOLVED_TOKEN *pResolvedToken, 
+                                               CORINFO_LOOKUP *pLookup,
                                                void * compileTimeHandle);
 
     GenTreePtr          impReadyToRunLookupToTree(CORINFO_CONST_LOOKUP *pLookup,
@@ -2821,7 +2876,8 @@ public:
     GenTreePtr          impReadyToRunHelperToTree(CORINFO_RESOLVED_TOKEN * pResolvedToken,
                                         CorInfoHelpFunc helper,
                                         var_types type,
-                                        GenTreePtr arg = NULL);
+                                        GenTreeArgList* arg = NULL,
+                                        CORINFO_LOOKUP_KIND * pGenericLookupKind = NULL);
 
     GenTreePtr          impCastClassOrIsInstToTree(GenTreePtr op1, 
                                         GenTreePtr op2,
@@ -3053,7 +3109,7 @@ private:
     void                impLoadLoc(unsigned ilLclNum, IL_OFFSET offset);
     bool                impReturnInstruction(BasicBlock *block, int prefixFlags, OPCODE &opcode);
 
-#if defined(_TARGET_ARM_)
+#ifdef _TARGET_ARM_
     void                impMarkLclDstNotPromotable(unsigned tmpNum, GenTreePtr op, CORINFO_CLASS_HANDLE hClass);
 #endif
 
@@ -3087,8 +3143,6 @@ private:
 #endif // DEBUG
 
     bool                seenConditionalJump;
-
-    unsigned            impInlineSize; // max IL size for inlining
 
     static BOOL         impIsAddressInLocal(GenTreePtr tree, GenTreePtr * lclVarTreeOut);
 
@@ -3128,9 +3182,11 @@ private:
                                                 GenTreePtr additionalTreesToBeEvaluatedBefore,
                                                 GenTreePtr variableBeingDereferenced,
                                                 InlArgInfo * inlArgInfo);
-    void                impMarkInlineCandidate(GenTreePtr call, CORINFO_CONTEXT_HANDLE exactContextHnd);
 
-    
+    void                impMarkInlineCandidate(GenTreePtr call,
+                                               CORINFO_CONTEXT_HANDLE exactContextHnd,
+                                               CORINFO_CALL_INFO* callInfo);
+
     bool                impTailCallRetTypeCompatible(var_types callerRetType, 
                                                      CORINFO_CLASS_HANDLE callerRetTypeClass,
                                                      var_types calleeRetType,
@@ -3398,6 +3454,8 @@ public :
     void                fgConvertSyncReturnToLeave(BasicBlock* block);
 
 #endif // !_TARGET_X86_
+
+    void                fgAddReversePInvokeEnterExit();
 
     bool                fgMoreThanOneReturnBlock();
 
@@ -4420,11 +4478,6 @@ private:
     void                fgSetBlockOrder   (BasicBlock *   block);
 
 
-#if FEATURE_STACK_FP_X87
-    bool                fgFPstLvlRedo;
-    void                fgComputeFPlvls   (GenTreePtr     tree);
-#endif // FEATURE_STACK_FP_X87
-
     //------------------------- Morphing --------------------------------------
 
     unsigned            fgPtrArgCntCur;
@@ -4640,11 +4693,11 @@ private:
     void                fgInsertInlineeBlocks (InlineInfo* pInlineInfo);
     GenTreePtr          fgInlinePrependStatements(InlineInfo* inlineInfo);
 
-#if defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(FEATURE_HFA) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
     GenTreePtr          fgGetStructAsStructPtr(GenTreePtr tree);
     GenTreePtr          fgAssignStructInlineeToVar(GenTreePtr child, CORINFO_CLASS_HANDLE retClsHnd);
     void                fgAttachStructInlineeToAsg(GenTreePtr tree, GenTreePtr child, CORINFO_CLASS_HANDLE retClsHnd);
-#endif // defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // defined(FEATURE_HFA) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
     static fgWalkPreFn  fgUpdateInlineReturnExpressionPlaceHolder;
 
 #ifdef DEBUG
@@ -5358,7 +5411,7 @@ protected :
                         }
 
 #ifdef DEBUG
-    bool                optConfigDisableCSE(bool lexicalCSE);
+    bool                optConfigDisableCSE();
     bool                optConfigDisableCSE2();
 #endif
     void                optOptimizeCSEs();
@@ -6009,6 +6062,11 @@ private:
 
     void                rpPredictRefAssign  (unsigned       lclNum);
 
+    regMaskTP           rpPredictBlkAsgRegUse(GenTreePtr    tree,
+                                              rpPredictReg  predictReg,
+                                              regMaskTP     lockedRegs,
+                                              regMaskTP     rsvdRegs);
+
     regMaskTP           rpPredictTreeRegUse (GenTreePtr     tree,
                                              rpPredictReg   predictReg,
                                              regMaskTP      lockedRegs,
@@ -6343,6 +6401,38 @@ public :
 
     GenTreePtr                  eeGetPInvokeCookie(CORINFO_SIG_INFO *szMetaSig);
 
+    // Returns the page size for the target machine as reported by the EE.
+    inline size_t               eeGetPageSize()
+    {
+#if COR_JIT_EE_VERSION > 460
+        return eeGetEEInfo()->osPageSize;
+#else // COR_JIT_EE_VERSION <= 460
+        return CORINFO_PAGE_SIZE;
+#endif // COR_JIT_EE_VERSION > 460
+    }
+
+    // Returns the frame size at which we will generate a loop to probe the stack.
+    inline size_t               getVeryLargeFrameSize()
+    {
+#ifdef _TARGET_ARM_
+        // The looping probe code is 40 bytes, whereas the straight-line probing for
+        // the (0x2000..0x3000) case is 44, so use looping for anything 0x2000 bytes
+        // or greater, to generate smaller code.
+        return 2 * eeGetPageSize();
+#else
+        return 3 * eeGetPageSize();
+#endif
+    }
+
+    inline bool                 generateCFIUnwindCodes()
+    {
+#if COR_JIT_EE_VERSION > 460 && defined(UNIX_AMD64_ABI)
+        return eeGetEEInfo()->targetAbi == CORINFO_CORERT_ABI;
+#else
+        return false;
+#endif
+    }
+
     // Exceptions
 
     unsigned                    eeGetEHcount        (CORINFO_METHOD_HANDLE handle);
@@ -6438,6 +6528,16 @@ public :
     void                        eeGetSystemVAmd64PassStructInRegisterDescriptor(/*IN*/  CORINFO_CLASS_HANDLE structHnd,
                                                                                 /*OUT*/ SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR* structPassInRegDescPtr);
 #endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+
+    bool eeTryResolveToken(CORINFO_RESOLVED_TOKEN* resolvedToken);
+
+    template<typename ParamType>
+    bool eeRunWithErrorTrap(void (*function)(ParamType*), ParamType* param)
+    {
+        return eeRunWithErrorTrapImp(reinterpret_cast<void (*)(void*)>(function), reinterpret_cast<void*>(param));
+    }
+
+    bool eeRunWithErrorTrapImp(void (*function)(void*), void* param);
 
     // Utility functions
 
@@ -7433,10 +7533,33 @@ public :
 #endif
         }
 
-        // true if we must generate compatible code with Jit64 quirks
+        // true if we should use insert the REVERSE_PINVOKE_{ENTER,EXIT} helpers in the method
+        // prolog/epilog
+        inline bool         IsReversePInvoke()
+        {
+#if COR_JIT_EE_VERSION > 460
+            return (jitFlags->corJitFlags2 & CORJIT_FLG2_REVERSE_PINVOKE) != 0;
+#else
+            return false;
+#endif
+        }
+
+        // true if we must generate code compatible with JIT32 quirks
+        inline bool         IsJit32Compat()
+        {
+#if defined(_TARGET_X86_) && COR_JIT_EE_VERSION > 460
+            return (jitFlags->corJitFlags2 & CORJIT_FLG2_DESKTOP_QUIRKS) != 0;
+#else
+            return false;
+#endif
+        }
+
+        // true if we must generate code compatible with Jit64 quirks
         inline bool         IsJit64Compat()
         {
-#if defined(_TARGET_AMD64_) && !defined(FEATURE_CORECLR)
+#if defined(_TARGET_AMD64_) && COR_JIT_EE_VERSION > 460
+            return (jitFlags->corJitFlags2 & CORJIT_FLG2_DESKTOP_QUIRKS) != 0;
+#elif defined(_TARGET_AMD64_) && !defined(FEATURE_CORECLR)
             return true;
 #else
             return false;
@@ -7527,7 +7650,7 @@ public :
         bool                dspOrder;       // Display names of each of the methods that we ngen/jit
         bool                dspUnwind;      // Display the unwind info output
         bool                dspDiffable;    // Makes the Jit Dump 'diff-able' (currently uses same COMPlus_* flag as disDiffable)
-        bool                compLargeBranches; // Force using large conditional branches
+        bool                compLongAddress;// Force using large pseudo instructions for long address (IF_LARGEJMP/IF_LARGEADR/IF_LARGLDC)
         bool                dspGCtbls;      // Display the GC tables
 #endif
 
@@ -7727,10 +7850,12 @@ public :
         const char*     compFullName;
 #endif // defined(DEBUG) || defined(LATE_DISASM)
 
-#ifdef DEBUG
-        unsigned        compMethodHashPrivate;
-        unsigned        compMethodHash();
-#endif
+#if defined(DEBUG) || defined(INLINE_DATA)
+        // Method hash is logcally const, but computed
+        // on first demand.
+        mutable unsigned compMethodHashPrivate;
+        unsigned         compMethodHash() const;
+#endif // defined(DEBUG) || defined(INLINE_DATA)
 
 #ifdef PSEUDORANDOM_NOP_INSERTION
         // things for pseudorandom nop insertion
@@ -7774,10 +7899,8 @@ public :
         UNATIVE_OFFSET  compTotalHotCodeSize;       // Total number of bytes of Hot Code in the method
         UNATIVE_OFFSET  compTotalColdCodeSize;      // Total number of bytes of Cold Code in the method
 
-#if INLINE_NDIRECT
         unsigned        compCallUnmanaged;          // count of unmanaged calls
         unsigned        compLvFrameListRoot;        // lclNum for the Frame root
-#endif
         unsigned        compXcptnsCount;            // Number of exception-handling clauses read in the method's IL.
                                                     // You should generally use compHndBBtabCount instead: it is the
                                                     // current number of EH clauses (after additions like synchronized
@@ -7820,7 +7943,7 @@ public :
     // Returns true if the method being compiled returns a non-void and non-struct value.
     // Note that lvaInitTypeRef() normalizes compRetNativeType for struct returns in a 
     // single register as per target arch ABI (e.g on Amd64 Windows structs of size 1, 2,
-    // 4 or 8 gets normalized to TYP_BYTE/TYP_SHORT/TYP_INT/TYP_LONG; On Arm Hfa structs).
+    // 4 or 8 gets normalized to TYP_BYTE/TYP_SHORT/TYP_INT/TYP_LONG; On Arm HFA structs).
     // Methods returning such structs are considered to return non-struct return value and
     // this method returns true in that case.
     bool                compMethodReturnsNativeScalarType() 
@@ -7842,11 +7965,14 @@ public :
         // 2. As per the System V ABI, the address of RetBuf needs to be returned by  
         //    methods with hidden RetBufArg in RAX. In such case GT_RETURN is of TYP_BYREF,  
         //    returning the address of RetBuf.  
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+        //
+        // 3. Windows 64-bit native calling convention also requires the address of RetBuff
+        //    to be returned in RAX.
+#ifdef _TARGET_AMD64_
         return (info.compRetBuffArg != BAD_VAR_NUM);
-#else // FEATURE_UNIX_AMD64_STRUCT_PASSING  
+#else // !_TARGET_AMD64_  
         return (compIsProfilerHookNeeded()) && (info.compRetBuffArg != BAD_VAR_NUM);
-#endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING  
+#endif // !_TARGET_AMD64_
     }
 
     // Returns true if the method returns a value in more than one return register
@@ -7854,14 +7980,14 @@ public :
     // TODO-ARM64: Does this apply for ARM64 too?
     bool                compMethodReturnsMultiRegRetType() 
     {       
-#if FEATURE_MULTIREG_RET
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#if FEATURE_MULTIREG_RET && (defined(FEATURE_UNIX_AMD64_STRUCT_PASSING) || defined(_TARGET_ARM_))
         // Methods returning a struct in two registers is considered having a return value of TYP_STRUCT.
         // Such method's compRetNativeType is TYP_STRUCT without a hidden RetBufArg
         return varTypeIsStruct(info.compRetNativeType) && (info.compRetBuffArg == BAD_VAR_NUM);
-#endif 
-#endif
+#else 
         return false;
+#endif // FEATURE_MULTIREG_RET && (defined(FEATURE_UNIX_AMD64_STRUCT_PASSING) || defined(_TARGET_ARM_))
+
     }
 
 #if FEATURE_MULTIREG_ARGS
@@ -8055,7 +8181,7 @@ public :
             nraTotalSizeUsed  += ms.nraTotalSizeUsed;
         }
 
-        void Print(FILE* f); // Print these stats to stdout.
+        void Print(FILE* f); // Print these stats to jitstdout.
     };
 
     static CritSecObject s_memStatsLock;    // This lock protects the data structures below.
@@ -8211,9 +8337,12 @@ public:
 #endif // DEBUG
 #endif // MEASURE_MEM_ALLOC
 
+    void                compFunctionTraceStart();
+    void                compFunctionTraceEnd(void* methodCodePtr, ULONG methodCodeSize, bool isNYI);
+
 protected:
 
-    unsigned            compMaxUncheckedOffsetForNullObject; 
+    size_t              compMaxUncheckedOffsetForNullObject; 
 
     void                compInitOptions (CORJIT_FLAGS* compileFlags);
 
@@ -8359,10 +8488,6 @@ public:
     // An uninited this ptr can be used to access fields, but cannot
     // be used to call a member function.
     BOOL            verTrackObjCtorInitState;
-
-    // Argument of ICorJitInfo::resolveToken. It is used to determine the handling
-    // of ICorJitInfo::resolveToken failure during verification.
-    CORINFO_RESOLVED_TOKEN * verResolveTokenInProgress;
 
     void            verInitBBEntryState(BasicBlock* block,
                                         EntryState* currentState);
@@ -8588,10 +8713,10 @@ public:
     static fgWalkPreFn      gsMarkPtrsAndAssignGroups;  // Shadow param analysis tree-walk
     static fgWalkPreFn      gsReplaceShadowParams;      // Shadow param replacement tree-walk
 
-#define ALWAYS_INLINE_SIZE               16         // Method with <= ALWAYS_INLINE_SIZE IL bytes will always be inlined.
-#define DEFAULT_MAX_INLINE_SIZE         100         // Method with >  DEFAULT_MAX_INLINE_SIZE IL bytes will never be inlined.
+#define DEFAULT_MAX_INLINE_SIZE         100         // Methods with >  DEFAULT_MAX_INLINE_SIZE IL bytes will never be inlined.
                                                     // This can be overwritten by setting complus_JITInlineSize env variable.
-#define IMPLEMENTATION_MAX_INLINE_SIZE  _UI16_MAX   // Maximum method size supported by this implementation 
+
+#define DEFAULT_MAX_INLINE_DEPTH         20         // Methods at more than this level deep will not be inlined
                                          
 private:
 #ifdef FEATURE_JIT_METHOD_PERF
@@ -8807,7 +8932,7 @@ public:
 #endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
 
     void          fgMorphMultiregStructArgs(GenTreeCall* call);
-    GenTreePtr    fgMorphMultiregStructArg (GenTreePtr   arg);
+    GenTreePtr    fgMorphMultiregStructArg (GenTreePtr   arg, fgArgTabEntryPtr fgEntryPtr);
 
 }; // end of class Compiler
 
@@ -9060,18 +9185,8 @@ extern const BYTE          genActualTypes[];
 
 /*****************************************************************************/
 
-// Define the frame size at which we will generate a loop to probe the stack.
-// VERY_LARGE_FRAME_SIZE_REG_MASK is the set of registers we need to use for the probing loop.
-
-#ifdef _TARGET_ARM_
-// The looping probe code is 40 bytes, whereas the straight-line probing for
-// the (0x2000..0x3000) case is 44, so use looping for anything 0x2000 bytes
-// or greater, to generate smaller code.
-
-#define VERY_LARGE_FRAME_SIZE           (2 * CORINFO_PAGE_SIZE)
-#else
-#define VERY_LARGE_FRAME_SIZE           (3 * CORINFO_PAGE_SIZE)
-#endif
+// VERY_LARGE_FRAME_SIZE_REG_MASK is the set of registers we need to use for
+// the probing loop generated for very large stack frames (see `getVeryLargeFrameSize`).
 
 #ifdef _TARGET_ARM_
 #define VERY_LARGE_FRAME_SIZE_REG_MASK  (RBM_R4 | RBM_R5 | RBM_R6)

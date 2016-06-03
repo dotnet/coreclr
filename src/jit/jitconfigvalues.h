@@ -57,7 +57,8 @@ CONFIG_INTEGER(JitHashHalt, W("JitHashHalt"), -1) // Same as JitHalt, but for a 
 CONFIG_INTEGER(JitInlineAdditionalMultiplier, W("JitInlineAdditionalMultiplier"), 0)
 CONFIG_INTEGER(JitInlinePrintStats, W("JitInlinePrintStats"), 0)
 CONFIG_INTEGER(JitInlineSize, W("JITInlineSize"), DEFAULT_MAX_INLINE_SIZE)
-CONFIG_INTEGER(JitLargeBranches, W("JitLargeBranches"), 0) // Force using the largest conditional branch format
+CONFIG_INTEGER(JitInlineDepth, W("JITInlineDepth"), DEFAULT_MAX_INLINE_DEPTH)
+CONFIG_INTEGER(JitLongAddress, W("JitLongAddress"), 0) // Force using the large pseudo instruction form for long address
 CONFIG_INTEGER(JitMaxTempAssert, W("JITMaxTempAssert"), 1)
 CONFIG_INTEGER(JitMaxUncheckedOffset, W("JitMaxUncheckedOffset"), 8)
 CONFIG_INTEGER(JitMinOpts, W("JITMinOpts"), 0) // Forces MinOpts
@@ -160,11 +161,11 @@ CONFIG_INTEGER(EnableAVX, W("EnableAVX"), 1) // Enable AVX instruction set for w
 CONFIG_INTEGER(EnableAVX, W("EnableAVX"), 0) // Enable AVX instruction set for wide operations as default
 #endif // defined(_TARGET_AMD64_)
 
-#if (!defined(DEBUG) && !defined(_DEBUG)) || (defined(CROSSGEN_COMPILE) && !defined(FEATURE_CORECLR))
+#if !defined(DEBUG) && !defined(_DEBUG)
 CONFIG_INTEGER(JitEnableNoWayAssert, W("JitEnableNoWayAssert"), 0)
-#else // (defined(DEBUG) || defined(_DEBUG)) && (!defined(CROSSGEN_COMPILE) || defined(FEATURE_CORECLR))
+#else // defined(DEBUG) || defined(_DEBUG)
 CONFIG_INTEGER(JitEnableNoWayAssert, W("JitEnableNoWayAssert"), 1)
-#endif // (!defined(DEBUG) && !defined(_DEBUG)) || (defined(CROSSGEN_COMPILE) && !defined(FEATURE_CORECLR))
+#endif // !defined(DEBUG) && !defined(_DEBUG)
 
 CONFIG_INTEGER(JitAggressiveInlining, W("JitAggressiveInlining"), 0) // Aggressive inlining of all methods
 CONFIG_INTEGER(JitELTHookEnabled, W("JitELTHookEnabled"), 0) // On ARM, setting this will emit Enter/Leave/TailCall callbacks
@@ -191,9 +192,15 @@ CONFIG_STRING(TailCallOpt, W("TailCallOpt"))
 
 #if defined(DEBUG) || defined(INLINE_DATA)
 CONFIG_INTEGER(JitInlineDumpData, W("JitInlineDumpData"), 0)
+CONFIG_INTEGER(JitInlineDumpXml, W("JitInlineDumpXml"), 0)   // 1 = full xml (all methods), 2 = minimal xml (only method with inlines)
 CONFIG_INTEGER(JitInlineLimit, W("JitInlineLimit"), -1)
 CONFIG_INTEGER(JitInlinePolicyDiscretionary, W("JitInlinePolicyDiscretionary"), 0)
 CONFIG_INTEGER(JitInlinePolicyModel, W("JitInlinePolicyModel"), 0)
+CONFIG_INTEGER(JitInlinePolicyFull, W("JitInlinePolicyFull"), 0)
+CONFIG_INTEGER(JitInlinePolicySize, W("JitInlinePolicySize"), 0)
+CONFIG_INTEGER(JitInlinePolicyReplay, W("JitInlinePolicyReplay"), 0)
+CONFIG_STRING(JitNoInlineRange, W("JitNoInlineRange"))
+CONFIG_STRING(JitInlineReplayFile, W("JitInlineReplayFile"))
 #endif // defined(DEBUG) || defined(INLINE_DATA)
 
 #undef CONFIG_INTEGER

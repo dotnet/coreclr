@@ -142,7 +142,7 @@ static HRESULT GetAssemblyName(
 
 #if defined(FEATURE_CORECLR) || defined(CROSSGEN_COMPILE)
 
-STDAPI NGenWorker(LPCWSTR pwzFilename, DWORD dwFlags, LPCWSTR pwzPlatformAssembliesPaths, LPCWSTR pwzTrustedPlatformAssemblies, LPCWSTR pwzPlatformResourceRoots, LPCWSTR pwzAppPaths, LPCWSTR pwzOutputFilename=NULL, LPCWSTR pwzPlatformWinmdPaths=NULL, ICorSvcLogger *pLogger = NULL)
+STDAPI NGenWorker(LPCWSTR pwzFilename, DWORD dwFlags, LPCWSTR pwzPlatformAssembliesPaths, LPCWSTR pwzTrustedPlatformAssemblies, LPCWSTR pwzPlatformResourceRoots, LPCWSTR pwzAppPaths, LPCWSTR pwzOutputFilename=NULL, LPCWSTR pwzPlatformWinmdPaths=NULL, ICorSvcLogger *pLogger = NULL, LPCWSTR pwszCLRJITPath = nullptr)
 {    
     HRESULT hr = S_OK;
 
@@ -208,6 +208,11 @@ STDAPI NGenWorker(LPCWSTR pwzFilename, DWORD dwFlags, LPCWSTR pwzPlatformAssembl
 
         if (pwzPlatformWinmdPaths != nullptr)
             zap->SetPlatformWinmdPaths(pwzPlatformWinmdPaths);
+
+#if defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+        if (pwszCLRJITPath != nullptr)
+            zap->SetCLRJITPath(pwszCLRJITPath);
+#endif // defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
 
         zap->SetForceFullTrust(!!(dwFlags & NGENWORKER_FLAGS_FULLTRUSTDOMAIN));
 
@@ -695,24 +700,41 @@ void Zapper::LoadAndInitializeJITForNgen(LPCWSTR pwzJitName, OUT HINSTANCE* phJi
 
     HRESULT hr = E_FAIL;
 
-#ifdef FEATURE_MERGE_JIT_AND_ENGINE
+#if defined(FEATURE_CORECLR) || defined(FEATURE_MERGE_JIT_AND_ENGINE)
+    // Note: FEATURE_MERGE_JIT_AND_ENGINE is defined for the Desktop crossgen compilation as well.
+    //
     PathString CoreClrFolder;
     extern HINSTANCE g_hThisInst;
+
+#if defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+    if (m_CLRJITPath.GetCount() > 0)
+    {
+        // If we have been asked to load a specific JIT binary, load it.
+        CoreClrFolder.Set(m_CLRJITPath);
+        hr = S_OK;
+    }
+    else 
+#endif // defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
     if (WszGetModuleFileName(g_hThisInst, CoreClrFolder))
     {
-        if (SUCCEEDED(CopySystemDirectory(CoreClrFolder, CoreClrFolder)))
+        hr = CopySystemDirectory(CoreClrFolder, CoreClrFolder);
+        if (SUCCEEDED(hr))
         {
             CoreClrFolder.Append(pwzJitName);
 
-            *phJit = ::WszLoadLibrary(CoreClrFolder);
-            if (*phJit == NULL)
-            {
-                hr = HRESULT_FROM_GetLastError();
-            }
-            else
-            {
-                hr = S_OK;
-            }
+        }
+    }
+
+    if (SUCCEEDED(hr))
+    {
+        *phJit = ::WszLoadLibrary(CoreClrFolder);
+        if (*phJit == NULL)
+        {
+            hr = HRESULT_FROM_GetLastError();
+        }
+        else
+        {
+            hr = S_OK;
         }
     }
 #else
@@ -849,10 +871,19 @@ void Zapper::InitEE(BOOL fForceDebug, BOOL fForceProfile, BOOL fForceInstrument)
         ThrowLastError();
     }
 #else
-    LPCWSTR pwzJitName = CorCompileGetRuntimeDllName(NGEN_COMPILER_INFO);
+
+    CorCompileRuntimeDlls ngenDllId;
+
+#if !defined(FEATURE_CORECLR)    
+    ngenDllId = NGEN_COMPILER_INFO;
+#else // FEATURE_CORECLR
+    ngenDllId = CROSSGEN_COMPILER_INFO;
+#endif
+
+    LPCWSTR pwzJitName = CorCompileGetRuntimeDllName(ngenDllId);
     LoadAndInitializeJITForNgen(pwzJitName, &m_hJitLib, &m_pJitCompiler);
     
-#if defined(_TARGET_AMD64_) && !defined(CROSSGEN_COMPILE)
+#if defined(_TARGET_AMD64_) && !defined(CROSSGEN_COMPILE) && !defined(FEATURE_CORECLR)
     // For reasons related to servicing, and RyuJIT rollout on .NET 4.6 and beyond, we only use RyuJIT when the registry
     // value UseRyuJIT (type DWORD), under key HKLM\SOFTWARE\Microsoft\.NETFramework, is set to 1. Otherwise, we fall back
     // to JIT64.
@@ -875,7 +906,7 @@ void Zapper::InitEE(BOOL fForceDebug, BOOL fForceProfile, BOOL fForceInstrument)
         // obfuscator tries to directly call the main JIT's getJit() function.
         m_pJitCompiler->setRealJit(fallbackICorJitCompiler);
     }
-#endif // defined(_TARGET_AMD64_) && !defined(CROSSGEN_COMPILE)
+#endif // defined(_TARGET_AMD64_) && !defined(CROSSGEN_COMPILE) && !defined(FEATURE_CORECLR)
 #endif // FEATURE_MERGE_JIT_AND_ENGINE
 
 #ifdef ALLOW_SXS_JIT_NGEN
@@ -1919,7 +1950,7 @@ void Zapper::SetContextInfo(LPCWSTR assemblyName)
     // check for mscorlib, and isExe == true, then CompilationDomain::SetContextInfo will call
     // into mscorlib and cause the resulting mscorlib.ni.dll to be slightly different (checked
     // build only).
-    if (assemblyName != NULL && _wcsnicmp(assemblyName, W("mscorlib"), 8) == 0 && (wcslen(assemblyName) == 8 || assemblyName[8] == W(',')))
+    if (assemblyName != NULL && _wcsnicmp(assemblyName, CoreLibName_W, CoreLibNameLen) == 0 && (wcslen(assemblyName) == CoreLibNameLen || assemblyName[CoreLibNameLen] == W(',')))
     {
         return;
     }
@@ -2249,7 +2280,7 @@ void Zapper::ComputeDependenciesInCurrentDomain(LPCWSTR pAssemblyString, CORCOMP
     }
     else
     {
-#if defined(FEATURE_HOSTED_BINDER) && defined(FEATURE_APPX) && !defined(FEATURE_CORECLR)
+#if defined(FEATURE_APPX) && !defined(FEATURE_CORECLR)
         if (m_pOpt->m_fAutoNGen)
         {
             // Make sure we're not been spoofed into loading an assembly that might be unsafe to load.
@@ -4000,6 +4031,13 @@ void Zapper::PrintErrorMessage(CorZapLogLevel level, HRESULT hr)
     GetHRMsg(hr, message);
     Print(level, W("%s"), message.GetUnicode());
 }
+
+#if defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+void Zapper::SetCLRJITPath(LPCWSTR pwszCLRJITPath)
+{
+    m_CLRJITPath.Set(pwszCLRJITPath);
+}
+#endif // defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
 
 #if defined(FEATURE_CORECLR) || defined(CROSSGEN_COMPILE)
 

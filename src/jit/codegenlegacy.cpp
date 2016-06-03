@@ -5341,8 +5341,6 @@ void                CodeGen::genCodeForTreeLeaf_GT_JMP(GenTreePtr tree)
     }
 #endif // PROFILING_SUPPORTED
 
-#if INLINE_NDIRECT
-
     /* This code is cloned from the regular processing of GT_RETURN values.  We have to remember to
      * call genPInvokeMethodEpilog anywhere that we have a method return.  We should really
      * generate trees for the PInvoke prolog and epilog so we can remove these special cases.
@@ -5352,8 +5350,6 @@ void                CodeGen::genCodeForTreeLeaf_GT_JMP(GenTreePtr tree)
     {
         genPInvokeMethodEpilog();
     }
-
-#endif
 
     // Make sure register arguments are in their initial registers
     // and stack arguments are put back as well.
@@ -5465,7 +5461,7 @@ void                CodeGen::genCodeForTreeLeaf_GT_JMP(GenTreePtr tree)
         else
 #endif // _TARGET_64BIT_
 #ifdef _TARGET_ARM_
-        if (varDsc->lvIsHfaRegArg)
+        if (varDsc->lvIsHfaRegArg())
         {
             const var_types   elemType = varDsc->GetHfaType();
             const instruction loadOp   = ins_Load(elemType);
@@ -7170,7 +7166,7 @@ DONE_LEA_ADD:
         {
             /* Get the temp we spilled into. */
 
-            TempDsc * temp = regSet.rsUnspillInPlace(op1);
+            TempDsc * temp = regSet.rsUnspillInPlace(op1, op1->gtRegNum);
 
             /* For 8bit operations, we need to make sure that op2 is
                in a byte-addressable registers */
@@ -8593,9 +8589,7 @@ void                CodeGen::genCodeForShift(GenTreePtr tree,
                                              regMaskTP  destReg,
                                              regMaskTP  bestReg)
 {
-    assert(tree->OperGet() == GT_LSH ||
-           tree->OperGet() == GT_RSH ||
-           tree->OperGet() == GT_RSZ);
+    assert(tree->OperIsShift());
 
     const genTreeOps oper    = tree->OperGet();
     GenTreePtr      op1      = tree->gtOp.gtOp1;
@@ -8853,7 +8847,664 @@ void                CodeGen::genCodeForRelop(GenTreePtr tree,
     genCodeForTree_DONE(tree, reg);
 }
 
+void                CodeGen::genCodeForBlkOp(GenTreePtr tree,
+                                             regMaskTP  destReg)
+{
+    genTreeOps      oper     = tree->OperGet();
+    GenTreePtr      op1      = tree->gtOp.gtOp1;
+    GenTreePtr      op2      = tree->gtGetOp2();
+    regMaskTP       needReg  = destReg;
+    regMaskTP       regs     = regSet.rsMaskUsed;
+    GenTreePtr      opsPtr[3];
+    regMaskTP       regsPtr[3];
 
+    noway_assert(oper == GT_COPYBLK || oper == GT_INITBLK);
+    noway_assert(op1->IsList());
+
+#ifdef _TARGET_ARM_
+    if (tree->AsBlkOp()->IsVolatile())
+    {
+        // Emit a memory barrier instruction before the InitBlk/CopyBlk
+        instGen_MemoryBarrier();
+    }
+#endif
+    {
+        GenTreePtr destPtr, srcPtrOrVal;
+        destPtr = op1->gtOp.gtOp1;
+        srcPtrOrVal = op1->gtOp.gtOp2;
+        noway_assert(destPtr->TypeGet() == TYP_BYREF || varTypeIsIntegral(destPtr->TypeGet()));
+        noway_assert((oper == GT_COPYBLK &&
+            (srcPtrOrVal->TypeGet() == TYP_BYREF || varTypeIsIntegral(srcPtrOrVal->TypeGet())))
+            ||
+            (oper == GT_INITBLK &&
+            varTypeIsIntegral(srcPtrOrVal->TypeGet())));
+
+        noway_assert(op1 && op1->IsList());
+        noway_assert(destPtr && srcPtrOrVal);
+
+#if CPU_USES_BLOCK_MOVE 
+        regs = (oper == GT_INITBLK) ? RBM_EAX : RBM_ESI;   // What is the needReg for Val/Src
+
+        /* Some special code for block moves/inits for constant sizes */
+
+        //
+        // Is this a fixed size COPYBLK?
+        //      or a fixed size INITBLK with a constant init value?
+        //
+        if ((op2->IsCnsIntOrI()) &&
+            ((oper == GT_COPYBLK) || (srcPtrOrVal->IsCnsIntOrI())))
+        {
+            size_t length = (size_t)op2->gtIntCon.gtIconVal;
+            size_t initVal = 0;
+            instruction ins_P, ins_PR, ins_B;
+
+            if (oper == GT_INITBLK)
+            {
+                ins_P = INS_stosp;
+                ins_PR = INS_r_stosp;
+                ins_B = INS_stosb;
+
+                /* Properly extend the init constant from a U1 to a U4 */
+                initVal = 0xFF & ((unsigned)op1->gtOp.gtOp2->gtIntCon.gtIconVal);
+
+                /* If it is a non-zero value we have to replicate      */
+                /* the byte value four times to form the DWORD         */
+                /* Then we change this new value into the tree-node      */
+
+                if (initVal)
+                {
+                    initVal = initVal | (initVal << 8) | (initVal << 16) | (initVal << 24);
+#ifdef _TARGET_64BIT_
+                    if (length > 4)
+                    {
+                        initVal = initVal | (initVal << 32);
+                        op1->gtOp.gtOp2->gtType = TYP_LONG;
+                    }
+                    else
+                    {
+                        op1->gtOp.gtOp2->gtType = TYP_INT;
+                    }
+#endif // _TARGET_64BIT_
+                }
+                op1->gtOp.gtOp2->gtIntCon.gtIconVal = initVal;
+            }
+            else
+            {
+                ins_P = INS_movsp;
+                ins_PR = INS_r_movsp;
+                ins_B = INS_movsb;
+            }
+
+            // Determine if we will be using SSE2
+            unsigned movqLenMin = 8;
+            unsigned movqLenMax = 24;
+
+            bool bWillUseSSE2 = false;
+            bool bWillUseOnlySSE2 = false;
+            bool bNeedEvaluateCnst = true;   // If we only use SSE2, we will just load the constant there. 
+
+#ifdef _TARGET_64BIT_
+
+            // Until we get SSE2 instructions that move 16 bytes at a time instead of just 8
+            // there is no point in wasting space on the bigger instructions
+
+#else // !_TARGET_64BIT_
+
+            if (compiler->opts.compCanUseSSE2)
+            {
+                unsigned curBBweight = compiler->compCurBB->getBBWeight(compiler);
+
+                /* Adjust for BB weight */
+                if (curBBweight == BB_ZERO_WEIGHT)
+                {
+                    // Don't bother with this optimization in
+                    // rarely run blocks
+                    movqLenMax = movqLenMin = 0;
+                }
+                else if (curBBweight < BB_UNITY_WEIGHT)
+                {
+                    // Be less aggressive when we are inside a conditional
+                    movqLenMax = 16;
+                }
+                else if (curBBweight >= (BB_LOOP_WEIGHT*BB_UNITY_WEIGHT) / 2)
+                {
+                    // Be more aggressive when we are inside a loop
+                    movqLenMax = 48;
+                }
+
+                if ((compiler->compCodeOpt() == Compiler::FAST_CODE) || (oper == GT_INITBLK))
+                {
+                    // Be more aggressive when optimizing for speed
+                    // InitBlk uses fewer instructions
+                    movqLenMax += 16;
+                }
+
+                if (compiler->compCodeOpt() != Compiler::SMALL_CODE &&
+                    length >= movqLenMin &&
+                    length <= movqLenMax)
+                {
+                    bWillUseSSE2 = true;
+
+                    if ((length % 8) == 0)
+                    {
+                        bWillUseOnlySSE2 = true;
+                        if (oper == GT_INITBLK && (initVal == 0))
+                        {
+                            bNeedEvaluateCnst = false;
+                            noway_assert((op1->gtOp.gtOp2->OperGet() == GT_CNS_INT));
+                        }
+                    }
+                }
+            }
+
+#endif // !_TARGET_64BIT_
+
+            const bool bWillTrashRegSrc = ((oper == GT_COPYBLK) && !bWillUseOnlySSE2);
+            /* Evaluate dest and src/val */
+
+            if (op1->gtFlags & GTF_REVERSE_OPS)
+            {
+                if (bNeedEvaluateCnst)
+                {
+                    genComputeReg(op1->gtOp.gtOp2, regs, RegSet::EXACT_REG, RegSet::KEEP_REG, bWillTrashRegSrc);
+                }
+                genComputeReg(op1->gtOp.gtOp1, RBM_EDI, RegSet::EXACT_REG, RegSet::KEEP_REG, !bWillUseOnlySSE2);
+                if (bNeedEvaluateCnst)
+                {
+                    genRecoverReg(op1->gtOp.gtOp2, regs, RegSet::KEEP_REG);
+                }
+            }
+            else
+            {
+                genComputeReg(op1->gtOp.gtOp1, RBM_EDI, RegSet::EXACT_REG, RegSet::KEEP_REG, !bWillUseOnlySSE2);
+                if (bNeedEvaluateCnst)
+                {
+                    genComputeReg(op1->gtOp.gtOp2, regs, RegSet::EXACT_REG, RegSet::KEEP_REG, bWillTrashRegSrc);
+                }
+                genRecoverReg(op1->gtOp.gtOp1, RBM_EDI, RegSet::KEEP_REG);
+            }
+
+            bool bTrashedESI = false;
+            bool bTrashedEDI = false;
+
+            if (bWillUseSSE2)
+            {
+                int      blkDisp = 0;
+                regNumber xmmReg = REG_XMM0;
+
+                if (oper == GT_INITBLK)
+                {
+                    if (initVal)
+                    {
+                        getEmitter()->emitIns_R_R(INS_mov_i2xmm, EA_4BYTE, xmmReg, REG_EAX);
+                        getEmitter()->emitIns_R_R(INS_punpckldq, EA_4BYTE, xmmReg, xmmReg);
+                    }
+                    else
+                    {
+                        getEmitter()->emitIns_R_R(INS_xorps, EA_8BYTE, xmmReg, xmmReg);
+                    }
+                }
+
+                JITLOG_THIS(compiler, (LL_INFO100, "Using XMM instructions for %3d byte %s while compiling %s\n",
+                    length, (oper == GT_INITBLK) ? "initblk" : "copyblk", compiler->info.compFullName));
+
+                while (length > 7)
+                {
+                    if (oper == GT_INITBLK)
+                    {
+                        getEmitter()->emitIns_AR_R(INS_movq, EA_8BYTE, xmmReg, REG_EDI, blkDisp);
+                    }
+                    else
+                    {
+                        getEmitter()->emitIns_R_AR(INS_movq, EA_8BYTE, xmmReg, REG_ESI, blkDisp);
+                        getEmitter()->emitIns_AR_R(INS_movq, EA_8BYTE, xmmReg, REG_EDI, blkDisp);
+                    }
+                    blkDisp += 8;
+                    length -= 8;
+                }
+
+                if (length > 0)
+                {
+                    noway_assert(bNeedEvaluateCnst);
+                    noway_assert(!bWillUseOnlySSE2);
+
+                    if (oper == GT_COPYBLK)
+                    {
+                        inst_RV_IV(INS_add, REG_ESI, blkDisp, emitActualTypeSize(srcPtrOrVal->TypeGet()));
+                        bTrashedESI = true;
+                    }
+
+                    inst_RV_IV(INS_add, REG_EDI, blkDisp, emitActualTypeSize(destPtr->TypeGet()));
+                    bTrashedEDI = true;
+
+                    if (length >= REGSIZE_BYTES)
+                    {
+                        instGen(ins_P);
+                        length -= REGSIZE_BYTES;
+                    }
+                }
+            }
+            else if (compiler->compCodeOpt() == Compiler::SMALL_CODE)
+            {
+                /* For small code, we can only use ins_DR to generate fast
+                    and small code. We also can't use "rep movsb" because
+                    we may not atomically reading and writing the DWORD */
+
+                noway_assert(bNeedEvaluateCnst);
+
+                goto USE_DR;
+            }
+            else if (length <= 4 * REGSIZE_BYTES)
+            {
+                noway_assert(bNeedEvaluateCnst);
+
+                while (length >= REGSIZE_BYTES)
+                {
+                    instGen(ins_P);
+                    length -= REGSIZE_BYTES;
+                }
+
+                bTrashedEDI = true;
+                if (oper == GT_COPYBLK)
+                    bTrashedESI = true;
+            }
+            else
+            {
+            USE_DR:
+                noway_assert(bNeedEvaluateCnst);
+
+                /* set ECX to length/REGSIZE_BYTES (in pointer-sized words) */
+                genSetRegToIcon(REG_ECX, length / REGSIZE_BYTES, TYP_I_IMPL);
+
+                length &= (REGSIZE_BYTES - 1);
+
+                instGen(ins_PR);
+
+                regTracker.rsTrackRegTrash(REG_ECX);
+
+                bTrashedEDI = true;
+                if (oper == GT_COPYBLK)
+                    bTrashedESI = true;
+            }
+
+            /* Now take care of the remainder */
+
+#ifdef _TARGET_64BIT_
+            if (length > 4)
+            {
+                noway_assert(bNeedEvaluateCnst);
+                noway_assert(length < 8);
+
+                instGen((oper == GT_INITBLK) ? INS_stosd : INS_movsd);
+                length -= 4;
+
+                bTrashedEDI = true;
+                if (oper == GT_COPYBLK)
+                    bTrashedESI = true;
+            }
+
+#endif // _TARGET_64BIT_
+
+            if (length)
+            {
+                noway_assert(bNeedEvaluateCnst);
+
+                while (length--)
+                {
+                    instGen(ins_B);
+                }
+
+                bTrashedEDI = true;
+                if (oper == GT_COPYBLK)
+                    bTrashedESI = true;
+            }
+
+            noway_assert(bTrashedEDI == !bWillUseOnlySSE2);
+            if (bTrashedEDI)
+                regTracker.rsTrackRegTrash(REG_EDI);
+            if (bTrashedESI)
+                regTracker.rsTrackRegTrash(REG_ESI);
+            // else No need to trash EAX as it wasnt destroyed by the "rep stos"
+
+            genReleaseReg(op1->gtOp.gtOp1);
+            if (bNeedEvaluateCnst) genReleaseReg(op1->gtOp.gtOp2);
+
+        }
+        else
+        {
+            //
+            // This a variable-sized COPYBLK/INITBLK,
+            //   or a fixed size INITBLK with a variable init value,
+            //
+
+            // What order should the Dest, Val/Src, and Size be calculated
+
+            compiler->fgOrderBlockOps(tree, RBM_EDI, regs, RBM_ECX,
+                opsPtr, regsPtr); // OUT arguments
+
+            noway_assert(((oper == GT_INITBLK) && (regs == RBM_EAX)) || ((oper == GT_COPYBLK) && (regs == RBM_ESI)));
+            genComputeReg(opsPtr[0], regsPtr[0], RegSet::EXACT_REG, RegSet::KEEP_REG, (regsPtr[0] != RBM_EAX));
+            genComputeReg(opsPtr[1], regsPtr[1], RegSet::EXACT_REG, RegSet::KEEP_REG, (regsPtr[1] != RBM_EAX));
+            genComputeReg(opsPtr[2], regsPtr[2], RegSet::EXACT_REG, RegSet::KEEP_REG, (regsPtr[2] != RBM_EAX));
+
+            genRecoverReg(opsPtr[0], regsPtr[0], RegSet::KEEP_REG);
+            genRecoverReg(opsPtr[1], regsPtr[1], RegSet::KEEP_REG);
+
+            noway_assert((op1->gtOp.gtOp1->gtFlags & GTF_REG_VAL) &&  // Dest
+                (op1->gtOp.gtOp1->gtRegNum == REG_EDI));
+
+            noway_assert((op1->gtOp.gtOp2->gtFlags & GTF_REG_VAL) &&  // Val/Src
+                (genRegMask(op1->gtOp.gtOp2->gtRegNum) == regs));
+
+            noway_assert((op2->gtFlags & GTF_REG_VAL) &&              // Size
+                (op2->gtRegNum == REG_ECX));
+
+            if (oper == GT_INITBLK)
+                instGen(INS_r_stosb);
+            else
+                instGen(INS_r_movsb);
+
+            regTracker.rsTrackRegTrash(REG_EDI);
+            regTracker.rsTrackRegTrash(REG_ECX);
+
+            if (oper == GT_COPYBLK)
+                regTracker.rsTrackRegTrash(REG_ESI);
+            // else No need to trash EAX as it wasnt destroyed by the "rep stos"
+
+            genReleaseReg(opsPtr[0]);
+            genReleaseReg(opsPtr[1]);
+            genReleaseReg(opsPtr[2]);
+        }
+
+#else // !CPU_USES_BLOCK_MOVE 
+
+#ifndef _TARGET_ARM_
+        // Currently only the ARM implementation is provided
+#error "COPYBLK/INITBLK non-ARM && non-CPU_USES_BLOCK_MOVE"
+#endif
+        //
+        // Is this a fixed size COPYBLK?
+        //      or a fixed size INITBLK with a constant init value?
+        //
+        if ((op2->OperGet() == GT_CNS_INT) &&
+            ((oper == GT_COPYBLK) || (srcPtrOrVal->OperGet() == GT_CNS_INT)))
+        {
+            GenTreePtr  dstOp = op1->gtOp.gtOp1;
+            GenTreePtr  srcOp = op1->gtOp.gtOp2;
+            unsigned    length = (unsigned)op2->gtIntCon.gtIconVal;
+            unsigned    fullStoreCount = length / TARGET_POINTER_SIZE;
+            unsigned    initVal = 0;
+            bool        useLoop = false;
+
+            if (oper == GT_INITBLK)
+            {
+                /* Properly extend the init constant from a U1 to a U4 */
+                initVal = 0xFF & ((unsigned)srcOp->gtIntCon.gtIconVal);
+
+                /* If it is a non-zero value we have to replicate      */
+                /* the byte value four times to form the DWORD         */
+                /* Then we store this new value into the tree-node      */
+
+                if (initVal != 0)
+                {
+                    initVal = initVal | (initVal << 8) | (initVal << 16) | (initVal << 24);
+                    op1->gtOp.gtOp2->gtIntCon.gtIconVal = initVal;
+                }
+            }
+
+            // Will we be using a loop to implement this INITBLK/COPYBLK?
+            if (((oper == GT_COPYBLK) && (fullStoreCount >= 8)) ||
+                ((oper == GT_INITBLK) && (fullStoreCount >= 16)))
+            {
+                useLoop = true;
+            }
+
+            regMaskTP    usedRegs;
+            regNumber    regDst;
+            regNumber    regSrc;
+            regNumber    regTemp;
+
+            /* Evaluate dest and src/val */
+
+            if (op1->gtFlags & GTF_REVERSE_OPS)
+            {
+                genComputeReg(srcOp, (needReg & ~dstOp->gtRsvdRegs), RegSet::ANY_REG, RegSet::KEEP_REG, useLoop);
+                assert(srcOp->gtFlags & GTF_REG_VAL);
+
+                genComputeReg(dstOp, needReg, RegSet::ANY_REG, RegSet::KEEP_REG, useLoop);
+                assert(dstOp->gtFlags & GTF_REG_VAL);
+                regDst = dstOp->gtRegNum;
+
+                genRecoverReg(srcOp, needReg, RegSet::KEEP_REG);
+                regSrc = srcOp->gtRegNum;
+            }
+            else
+            {
+                genComputeReg(dstOp, (needReg & ~srcOp->gtRsvdRegs), RegSet::ANY_REG, RegSet::KEEP_REG, useLoop);
+                assert(dstOp->gtFlags & GTF_REG_VAL);
+
+                genComputeReg(srcOp, needReg, RegSet::ANY_REG, RegSet::KEEP_REG, useLoop);
+                assert(srcOp->gtFlags & GTF_REG_VAL);
+                regSrc = srcOp->gtRegNum;
+
+                genRecoverReg(dstOp, needReg, RegSet::KEEP_REG);
+                regDst = dstOp->gtRegNum;
+            }
+            assert(dstOp->gtFlags & GTF_REG_VAL);
+            assert(srcOp->gtFlags & GTF_REG_VAL);
+
+            regDst = dstOp->gtRegNum;
+            regSrc = srcOp->gtRegNum;
+            usedRegs = (genRegMask(regSrc) | genRegMask(regDst));
+            bool dstIsOnStack = (dstOp->gtOper == GT_ADDR && (dstOp->gtFlags & GTF_ADDR_ONSTACK));
+            emitAttr dstType = (varTypeIsGC(dstOp) && !dstIsOnStack) ? EA_BYREF : EA_PTRSIZE;
+            emitAttr srcType;
+
+            if (oper == GT_COPYBLK)
+            {
+                // Prefer a low register,but avoid one of the ones we've already grabbed
+                regTemp = regSet.rsGrabReg(regSet.rsNarrowHint(regSet.rsRegMaskCanGrab() & ~usedRegs, RBM_LOW_REGS));
+                usedRegs |= genRegMask(regTemp);
+                bool srcIsOnStack = (srcOp->gtOper == GT_ADDR && (srcOp->gtFlags & GTF_ADDR_ONSTACK));
+                srcType = (varTypeIsGC(srcOp) && !srcIsOnStack) ? EA_BYREF : EA_PTRSIZE;
+            }
+            else
+            {
+                regTemp = REG_STK;
+                srcType = EA_PTRSIZE;
+            }
+
+            instruction  loadIns = ins_Load(TYP_I_IMPL);   // INS_ldr
+            instruction  storeIns = ins_Store(TYP_I_IMPL);  // INS_str
+
+            int       finalOffset;
+
+            // Can we emit a small number of ldr/str instructions to implement this INITBLK/COPYBLK?
+            if (!useLoop)
+            {
+                for (unsigned i = 0; i < fullStoreCount; i++)
+                {
+                    if (oper == GT_COPYBLK)
+                    {
+                        getEmitter()->emitIns_R_R_I(loadIns, EA_4BYTE, regTemp, regSrc, i * TARGET_POINTER_SIZE);
+                        getEmitter()->emitIns_R_R_I(storeIns, EA_4BYTE, regTemp, regDst, i * TARGET_POINTER_SIZE);
+                        gcInfo.gcMarkRegSetNpt(genRegMask(regTemp));
+                        regTracker.rsTrackRegTrash(regTemp);
+                    }
+                    else
+                    {
+                        getEmitter()->emitIns_R_R_I(storeIns, EA_4BYTE, regSrc, regDst, i * TARGET_POINTER_SIZE);
+                    }
+                }
+
+                finalOffset = fullStoreCount * TARGET_POINTER_SIZE;
+                length -= finalOffset;
+            }
+            else  // We will use a loop to implement this INITBLK/COPYBLK
+            {
+                unsigned   pairStoreLoopCount = fullStoreCount / 2;
+
+                // We need a second temp register for CopyBlk
+                regNumber  regTemp2 = REG_STK;
+                if (oper == GT_COPYBLK)
+                {
+                    // Prefer a low register, but avoid one of the ones we've already grabbed
+                    regTemp2 = regSet.rsGrabReg(regSet.rsNarrowHint(regSet.rsRegMaskCanGrab() & ~usedRegs, RBM_LOW_REGS));
+                    usedRegs |= genRegMask(regTemp2);
+                }
+
+                // Pick and initialize the loop counter register
+                regNumber regLoopIndex;
+                regLoopIndex = regSet.rsGrabReg(regSet.rsNarrowHint(regSet.rsRegMaskCanGrab() & ~usedRegs, RBM_LOW_REGS));
+                genSetRegToIcon(regLoopIndex, pairStoreLoopCount, TYP_INT);
+
+                // Create and define the Basic Block for the loop top
+                BasicBlock * loopTopBlock = genCreateTempLabel();
+                genDefineTempLabel(loopTopBlock);
+
+                // The loop body
+                if (oper == GT_COPYBLK)
+                {
+                    getEmitter()->emitIns_R_R_I(loadIns, EA_4BYTE, regTemp, regSrc, 0);
+                    getEmitter()->emitIns_R_R_I(loadIns, EA_4BYTE, regTemp2, regSrc, TARGET_POINTER_SIZE);
+                    getEmitter()->emitIns_R_R_I(storeIns, EA_4BYTE, regTemp, regDst, 0);
+                    getEmitter()->emitIns_R_R_I(storeIns, EA_4BYTE, regTemp2, regDst, TARGET_POINTER_SIZE);
+                    getEmitter()->emitIns_R_I(INS_add, srcType, regSrc, 2 * TARGET_POINTER_SIZE);
+                    gcInfo.gcMarkRegSetNpt(genRegMask(regTemp));
+                    gcInfo.gcMarkRegSetNpt(genRegMask(regTemp2));
+                    regTracker.rsTrackRegTrash(regSrc);
+                    regTracker.rsTrackRegTrash(regTemp);
+                    regTracker.rsTrackRegTrash(regTemp2);
+                }
+                else // GT_INITBLK
+                {
+                    getEmitter()->emitIns_R_R_I(storeIns, EA_4BYTE, regSrc, regDst, 0);
+                    getEmitter()->emitIns_R_R_I(storeIns, EA_4BYTE, regSrc, regDst, TARGET_POINTER_SIZE);
+                }
+
+                getEmitter()->emitIns_R_I(INS_add, dstType, regDst, 2 * TARGET_POINTER_SIZE);
+                regTracker.rsTrackRegTrash(regDst);
+                getEmitter()->emitIns_R_I(INS_sub, EA_4BYTE, regLoopIndex, 1, INS_FLAGS_SET);
+                emitJumpKind jmpGTS = genJumpKindForOper(GT_GT, CK_SIGNED);
+                inst_JMP(jmpGTS, loopTopBlock);
+
+                regTracker.rsTrackRegIntCns(regLoopIndex, 0);
+
+                length -= (pairStoreLoopCount * (2 * TARGET_POINTER_SIZE));
+
+                if (length & TARGET_POINTER_SIZE)
+                {
+                    if (oper == GT_COPYBLK)
+                    {
+                        getEmitter()->emitIns_R_R_I(loadIns, EA_4BYTE, regTemp, regSrc, 0);
+                        getEmitter()->emitIns_R_R_I(storeIns, EA_4BYTE, regTemp, regDst, 0);
+                    }
+                    else
+                    {
+                        getEmitter()->emitIns_R_R_I(storeIns, EA_4BYTE, regSrc, regDst, 0);
+                    }
+                    finalOffset = TARGET_POINTER_SIZE;
+                    length -= TARGET_POINTER_SIZE;
+                }
+                else
+                {
+                    finalOffset = 0;
+                }
+            }
+
+            if (length & sizeof(short))
+            {
+                loadIns = ins_Load(TYP_USHORT);   // INS_ldrh
+                storeIns = ins_Store(TYP_USHORT);  // INS_strh
+
+                if (oper == GT_COPYBLK)
+                {
+                    getEmitter()->emitIns_R_R_I(loadIns, EA_2BYTE, regTemp, regSrc, finalOffset);
+                    getEmitter()->emitIns_R_R_I(storeIns, EA_2BYTE, regTemp, regDst, finalOffset);
+                    gcInfo.gcMarkRegSetNpt(genRegMask(regTemp));
+                    regTracker.rsTrackRegTrash(regTemp);
+                }
+                else
+                {
+                    getEmitter()->emitIns_R_R_I(storeIns, EA_2BYTE, regSrc, regDst, finalOffset);
+                }
+                length -= sizeof(short);
+                finalOffset += sizeof(short);
+            }
+
+            if (length & sizeof(char))
+            {
+                loadIns = ins_Load(TYP_UBYTE);   // INS_ldrb
+                storeIns = ins_Store(TYP_UBYTE);  // INS_strb
+
+                if (oper == GT_COPYBLK)
+                {
+                    getEmitter()->emitIns_R_R_I(loadIns, EA_1BYTE, regTemp, regSrc, finalOffset);
+                    getEmitter()->emitIns_R_R_I(storeIns, EA_1BYTE, regTemp, regDst, finalOffset);
+                    gcInfo.gcMarkRegSetNpt(genRegMask(regTemp));
+                    regTracker.rsTrackRegTrash(regTemp);
+                }
+                else
+                {
+                    getEmitter()->emitIns_R_R_I(storeIns, EA_1BYTE, regSrc, regDst, finalOffset);
+                }
+                length -= sizeof(char);
+            }
+            assert(length == 0);
+
+            genReleaseReg(dstOp);
+            genReleaseReg(srcOp);
+        }
+        else
+        {
+            //
+            // This a variable-sized COPYBLK/INITBLK,
+            //   or a fixed size INITBLK with a variable init value,
+            //
+
+            // What order should the Dest, Val/Src, and Size be calculated
+
+            compiler->fgOrderBlockOps(tree, RBM_ARG_0, RBM_ARG_1, RBM_ARG_2,
+                opsPtr, regsPtr); // OUT arguments
+
+            genComputeReg(opsPtr[0], regsPtr[0], RegSet::EXACT_REG, RegSet::KEEP_REG);
+            genComputeReg(opsPtr[1], regsPtr[1], RegSet::EXACT_REG, RegSet::KEEP_REG);
+            genComputeReg(opsPtr[2], regsPtr[2], RegSet::EXACT_REG, RegSet::KEEP_REG);
+
+            genRecoverReg(opsPtr[0], regsPtr[0], RegSet::KEEP_REG);
+            genRecoverReg(opsPtr[1], regsPtr[1], RegSet::KEEP_REG);
+
+            noway_assert((op1->gtOp.gtOp1->gtFlags & GTF_REG_VAL) && // Dest
+                (op1->gtOp.gtOp1->gtRegNum == REG_ARG_0));
+
+            noway_assert((op1->gtOp.gtOp2->gtFlags & GTF_REG_VAL) && // Val/Src
+                (op1->gtOp.gtOp2->gtRegNum == REG_ARG_1));
+
+            noway_assert((op2->gtFlags & GTF_REG_VAL) &&             // Size
+                (op2->gtRegNum == REG_ARG_2));
+
+            regSet.rsLockUsedReg(RBM_ARG_0 | RBM_ARG_1 | RBM_ARG_2);
+
+            genEmitHelperCall(oper == GT_COPYBLK ? CORINFO_HELP_MEMCPY
+                /* GT_INITBLK */ : CORINFO_HELP_MEMSET,
+                0, EA_UNKNOWN);
+
+            regTracker.rsTrackRegMaskTrash(RBM_CALLEE_TRASH);
+
+            regSet.rsUnlockUsedReg(RBM_ARG_0 | RBM_ARG_1 | RBM_ARG_2);
+            genReleaseReg(opsPtr[0]);
+            genReleaseReg(opsPtr[1]);
+            genReleaseReg(opsPtr[2]);
+        }
+
+        if ((oper == GT_COPYBLK) && tree->AsBlkOp()->IsVolatile())
+        {
+            // Emit a memory barrier instruction after the CopyBlk 
+            instGen_MemoryBarrier();
+        }
+#endif // !CPU_USES_BLOCK_MOVE 
+    }
+}
 BasicBlock dummyBB;
 
 #ifdef _PREFAST_
@@ -9145,8 +9796,6 @@ void                CodeGen::genCodeForTreeSmpOp(GenTreePtr tree,
 
         case GT_RETURN:
 
-#if INLINE_NDIRECT
-
             // TODO: this should be done AFTER we called exit mon so that
             //       we are sure that we don't have to keep 'this' alive
 
@@ -9158,8 +9807,6 @@ void                CodeGen::genCodeForTreeSmpOp(GenTreePtr tree,
 
                 genPInvokeMethodEpilog();
             }
-
-#endif
 
             /* Is there a return value and/or an exit statement? */
 
@@ -9708,656 +10355,8 @@ void                CodeGen::genCodeForTreeSmpOp(GenTreePtr tree,
         case GT_COPYBLK:
         case GT_INITBLK:
 
-            noway_assert(oper == GT_COPYBLK || oper == GT_INITBLK);
-            noway_assert(op1->IsList());
-
-#ifdef _TARGET_ARM_
-            if (tree->AsBlkOp()->IsVolatile())
-            {
-                // Emit a memory barrier instruction before the InitBlk/CopyBlk
-                instGen_MemoryBarrier();
-            }
-#endif
-            {
-                GenTreePtr destPtr, srcPtrOrVal;
-                destPtr = op1->gtOp.gtOp1;
-                srcPtrOrVal = op1->gtOp.gtOp2;
-                noway_assert(destPtr->TypeGet() == TYP_BYREF || varTypeIsIntegral(destPtr->TypeGet()));
-                noway_assert((oper == GT_COPYBLK &&
-                    (srcPtrOrVal->TypeGet() == TYP_BYREF || varTypeIsIntegral(srcPtrOrVal->TypeGet())))
-                    ||
-                    (oper == GT_INITBLK &&
-                    varTypeIsIntegral(srcPtrOrVal->TypeGet())));
-
-                noway_assert(op1 && op1->IsList());
-                noway_assert(destPtr && srcPtrOrVal);
-
-#if CPU_USES_BLOCK_MOVE 
-                regs = (oper == GT_INITBLK) ? RBM_EAX : RBM_ESI;   // What is the needReg for Val/Src
-
-                /* Some special code for block moves/inits for constant sizes */
-
-                //
-                // Is this a fixed size COPYBLK?
-                //      or a fixed size INITBLK with a constant init value?
-                //
-                if ((op2->IsCnsIntOrI()) &&
-                    ((oper == GT_COPYBLK) || (srcPtrOrVal->IsCnsIntOrI())))
-                {
-                    size_t length = (size_t)op2->gtIntCon.gtIconVal;
-                    size_t initVal = 0;
-                    instruction ins_P, ins_PR, ins_B;
-
-                    if (oper == GT_INITBLK)
-                    {
-                        ins_P = INS_stosp;
-                        ins_PR = INS_r_stosp;
-                        ins_B = INS_stosb;
-
-                        /* Properly extend the init constant from a U1 to a U4 */
-                        initVal = 0xFF & ((unsigned)op1->gtOp.gtOp2->gtIntCon.gtIconVal);
-
-                        /* If it is a non-zero value we have to replicate      */
-                        /* the byte value four times to form the DWORD         */
-                        /* Then we change this new value into the tree-node      */
-
-                        if (initVal)
-                        {
-                            initVal = initVal | (initVal << 8) | (initVal << 16) | (initVal << 24);
-#ifdef _TARGET_64BIT_
-                            if (length > 4)
-                            {
-                                initVal = initVal | (initVal << 32);
-                                op1->gtOp.gtOp2->gtType = TYP_LONG;
-                            }
-                            else
-                            {
-                                op1->gtOp.gtOp2->gtType = TYP_INT;
-                            }
-#endif // _TARGET_64BIT_
-                        }
-                        op1->gtOp.gtOp2->gtIntCon.gtIconVal = initVal;
-                    }
-                    else
-                    {
-                        ins_P = INS_movsp;
-                        ins_PR = INS_r_movsp;
-                        ins_B = INS_movsb;
-                    }
-
-                    // Determine if we will be using SSE2
-                    unsigned movqLenMin = 8;
-                    unsigned movqLenMax = 24;
-
-                    bool bWillUseSSE2 = false;
-                    bool bWillUseOnlySSE2 = false;
-                    bool bNeedEvaluateCnst = true;   // If we only use SSE2, we will just load the constant there. 
-
-#ifdef _TARGET_64BIT_
-
-                    // Until we get SSE2 instructions that move 16 bytes at a time instead of just 8
-                    // there is no point in wasting space on the bigger instructions
-
-#else // !_TARGET_64BIT_
-
-                    if (compiler->opts.compCanUseSSE2)
-                    {
-                        unsigned curBBweight = compiler->compCurBB->getBBWeight(compiler);
-
-                        /* Adjust for BB weight */
-                        if (curBBweight == BB_ZERO_WEIGHT)
-                        {
-                            // Don't bother with this optimization in
-                            // rarely run blocks
-                            movqLenMax = movqLenMin = 0;
-                        }
-                        else if (curBBweight < BB_UNITY_WEIGHT)
-                        {
-                            // Be less aggressive when we are inside a conditional
-                            movqLenMax = 16;
-                        }
-                        else if (curBBweight >= (BB_LOOP_WEIGHT*BB_UNITY_WEIGHT) / 2)
-                        {
-                            // Be more aggressive when we are inside a loop
-                            movqLenMax = 48;
-                        }
-
-                        if ((compiler->compCodeOpt() == Compiler::FAST_CODE) || (oper == GT_INITBLK))
-                        {
-                            // Be more aggressive when optimizing for speed
-                            // InitBlk uses fewer instructions
-                            movqLenMax += 16;
-                        }
-
-                        if (compiler->compCodeOpt() != Compiler::SMALL_CODE &&
-                            length >= movqLenMin &&
-                            length <= movqLenMax)
-                        {
-                            bWillUseSSE2 = true;
-
-                            if ((length % 8) == 0)
-                            {
-                                bWillUseOnlySSE2 = true;
-                                if (oper == GT_INITBLK && (initVal == 0))
-                                {
-                                    bNeedEvaluateCnst = false;
-                                    noway_assert((op1->gtOp.gtOp2->OperGet() == GT_CNS_INT));
-                                }
-                            }
-                        }
-                    }
-
-#endif // !_TARGET_64BIT_
-
-                    const bool bWillTrashRegSrc = ((oper == GT_COPYBLK) && !bWillUseOnlySSE2);
-                    /* Evaluate dest and src/val */
-
-                    if (op1->gtFlags & GTF_REVERSE_OPS)
-                    {
-                        if (bNeedEvaluateCnst)
-                        {
-                            genComputeReg(op1->gtOp.gtOp2, regs, RegSet::EXACT_REG, RegSet::KEEP_REG, bWillTrashRegSrc);
-                        }
-                        genComputeReg(op1->gtOp.gtOp1, RBM_EDI, RegSet::EXACT_REG, RegSet::KEEP_REG, !bWillUseOnlySSE2);
-                        if (bNeedEvaluateCnst)
-                        {
-                            genRecoverReg(op1->gtOp.gtOp2, regs, RegSet::KEEP_REG);
-                        }
-                    }
-                    else
-                    {
-                        genComputeReg(op1->gtOp.gtOp1, RBM_EDI, RegSet::EXACT_REG, RegSet::KEEP_REG, !bWillUseOnlySSE2);
-                        if (bNeedEvaluateCnst)
-                        {
-                            genComputeReg(op1->gtOp.gtOp2, regs, RegSet::EXACT_REG, RegSet::KEEP_REG, bWillTrashRegSrc);
-                        }
-                        genRecoverReg(op1->gtOp.gtOp1, RBM_EDI, RegSet::KEEP_REG);
-                    }
-
-                    bool bTrashedESI = false;
-                    bool bTrashedEDI = false;
-
-                    if (bWillUseSSE2)
-                    {
-                        int      blkDisp = 0;
-                        regNumber xmmReg = REG_XMM0;
-
-                        if (oper == GT_INITBLK)
-                        {
-                            if (initVal)
-                            {
-                                getEmitter()->emitIns_R_R(INS_mov_i2xmm, EA_4BYTE, xmmReg, REG_EAX);
-                                getEmitter()->emitIns_R_R(INS_punpckldq, EA_4BYTE, xmmReg, xmmReg);
-                            }
-                            else
-                            {
-                                getEmitter()->emitIns_R_R(INS_xorps, EA_8BYTE, xmmReg, xmmReg);
-                            }
-                        }
-
-                        JITLOG_THIS(compiler, (LL_INFO100, "Using XMM instructions for %3d byte %s while compiling %s\n",
-                            length, (oper == GT_INITBLK) ? "initblk" : "copyblk", compiler->info.compFullName));
-
-                        while (length > 7)
-                        {
-                            if (oper == GT_INITBLK)
-                            {
-                                getEmitter()->emitIns_AR_R(INS_movq, EA_8BYTE, xmmReg, REG_EDI, blkDisp);
-                            }
-                            else
-                            {
-                                getEmitter()->emitIns_R_AR(INS_movq, EA_8BYTE, xmmReg, REG_ESI, blkDisp);
-                                getEmitter()->emitIns_AR_R(INS_movq, EA_8BYTE, xmmReg, REG_EDI, blkDisp);
-                            }
-                            blkDisp += 8;
-                            length -= 8;
-                        }
-
-                        if (length > 0)
-                        {
-                            noway_assert(bNeedEvaluateCnst);
-                            noway_assert(!bWillUseOnlySSE2);
-
-                            if (oper == GT_COPYBLK)
-                            {
-                                inst_RV_IV(INS_add, REG_ESI, blkDisp, emitActualTypeSize(srcPtrOrVal->TypeGet()));
-                                bTrashedESI = true;
-                            }
-
-                            inst_RV_IV(INS_add, REG_EDI, blkDisp, emitActualTypeSize(destPtr->TypeGet()));
-                            bTrashedEDI = true;
-
-                            if (length >= REGSIZE_BYTES)
-                            {
-                                instGen(ins_P);
-                                length -= REGSIZE_BYTES;
-                            }
-                        }
-                    }
-                    else if (compiler->compCodeOpt() == Compiler::SMALL_CODE)
-                    {
-                        /* For small code, we can only use ins_DR to generate fast
-                           and small code. We also can't use "rep movsb" because
-                           we may not atomically reading and writing the DWORD */
-
-                        noway_assert(bNeedEvaluateCnst);
-
-                        goto USE_DR;
-                    }
-                    else if (length <= 4 * REGSIZE_BYTES)
-                    {
-                        noway_assert(bNeedEvaluateCnst);
-
-                        while (length >= REGSIZE_BYTES)
-                        {
-                            instGen(ins_P);
-                            length -= REGSIZE_BYTES;
-                        }
-
-                        bTrashedEDI = true;
-                        if (oper == GT_COPYBLK)
-                            bTrashedESI = true;
-                    }
-                    else
-                    {
-                    USE_DR:
-                        noway_assert(bNeedEvaluateCnst);
-
-                        /* set ECX to length/REGSIZE_BYTES (in pointer-sized words) */
-                        genSetRegToIcon(REG_ECX, length / REGSIZE_BYTES, TYP_I_IMPL);
-
-                        length &= (REGSIZE_BYTES - 1);
-
-                        instGen(ins_PR);
-
-                        regTracker.rsTrackRegTrash(REG_ECX);
-
-                        bTrashedEDI = true;
-                        if (oper == GT_COPYBLK)
-                            bTrashedESI = true;
-                    }
-
-                    /* Now take care of the remainder */
-
-#ifdef _TARGET_64BIT_
-                    if (length > 4)
-                    {
-                        noway_assert(bNeedEvaluateCnst);
-                        noway_assert(length < 8);
-
-                        instGen((oper == GT_INITBLK) ? INS_stosd : INS_movsd);
-                        length -= 4;
-
-                        bTrashedEDI = true;
-                        if (oper == GT_COPYBLK)
-                            bTrashedESI = true;
-                    }
-
-#endif // _TARGET_64BIT_
-
-                    if (length)
-                    {
-                        noway_assert(bNeedEvaluateCnst);
-
-                        while (length--)
-                        {
-                            instGen(ins_B);
-                        }
-
-                        bTrashedEDI = true;
-                        if (oper == GT_COPYBLK)
-                            bTrashedESI = true;
-                    }
-
-                    noway_assert(bTrashedEDI == !bWillUseOnlySSE2);
-                    if (bTrashedEDI)
-                        regTracker.rsTrackRegTrash(REG_EDI);
-                    if (bTrashedESI)
-                        regTracker.rsTrackRegTrash(REG_ESI);
-                    // else No need to trash EAX as it wasnt destroyed by the "rep stos"
-
-                    genReleaseReg(op1->gtOp.gtOp1);
-                    if (bNeedEvaluateCnst) genReleaseReg(op1->gtOp.gtOp2);
-
-                }
-                else
-                {
-                    //
-                    // This a variable-sized COPYBLK/INITBLK,
-                    //   or a fixed size INITBLK with a variable init value,
-                    //
-
-                    // What order should the Dest, Val/Src, and Size be calculated
-
-                    compiler->fgOrderBlockOps(tree, RBM_EDI, regs, RBM_ECX,
-                        opsPtr, regsPtr); // OUT arguments
-
-                    noway_assert(((oper == GT_INITBLK) && (regs == RBM_EAX)) || ((oper == GT_COPYBLK) && (regs == RBM_ESI)));
-                    genComputeReg(opsPtr[0], regsPtr[0], RegSet::EXACT_REG, RegSet::KEEP_REG, (regsPtr[0] != RBM_EAX));
-                    genComputeReg(opsPtr[1], regsPtr[1], RegSet::EXACT_REG, RegSet::KEEP_REG, (regsPtr[1] != RBM_EAX));
-                    genComputeReg(opsPtr[2], regsPtr[2], RegSet::EXACT_REG, RegSet::KEEP_REG, (regsPtr[2] != RBM_EAX));
-
-                    genRecoverReg(opsPtr[0], regsPtr[0], RegSet::KEEP_REG);
-                    genRecoverReg(opsPtr[1], regsPtr[1], RegSet::KEEP_REG);
-
-                    noway_assert((op1->gtOp.gtOp1->gtFlags & GTF_REG_VAL) &&  // Dest
-                        (op1->gtOp.gtOp1->gtRegNum == REG_EDI));
-
-                    noway_assert((op1->gtOp.gtOp2->gtFlags & GTF_REG_VAL) &&  // Val/Src
-                        (genRegMask(op1->gtOp.gtOp2->gtRegNum) == regs));
-
-                    noway_assert((op2->gtFlags & GTF_REG_VAL) &&              // Size
-                        (op2->gtRegNum == REG_ECX));
-
-                    if (oper == GT_INITBLK)
-                        instGen(INS_r_stosb);
-                    else
-                        instGen(INS_r_movsb);
-
-                    regTracker.rsTrackRegTrash(REG_EDI);
-                    regTracker.rsTrackRegTrash(REG_ECX);
-
-                    if (oper == GT_COPYBLK)
-                        regTracker.rsTrackRegTrash(REG_ESI);
-                    // else No need to trash EAX as it wasnt destroyed by the "rep stos"
-
-                    genReleaseReg(opsPtr[0]);
-                    genReleaseReg(opsPtr[1]);
-                    genReleaseReg(opsPtr[2]);
-                }
-
-#else // !CPU_USES_BLOCK_MOVE 
-
-#ifndef _TARGET_ARM_
-                // Currently only the ARM implementation is provided
-#error "COPYBLK/INITBLK non-ARM && non-CPU_USES_BLOCK_MOVE"
-#endif
-                //
-                // Is this a fixed size COPYBLK?
-                //      or a fixed size INITBLK with a constant init value?
-                //
-                if ((op2->OperGet() == GT_CNS_INT) &&
-                    ((oper == GT_COPYBLK) || (srcPtrOrVal->OperGet() == GT_CNS_INT)))
-                {
-                    GenTreePtr  dstOp = op1->gtOp.gtOp1;
-                    GenTreePtr  srcOp = op1->gtOp.gtOp2;
-                    unsigned    length = (unsigned)op2->gtIntCon.gtIconVal;
-                    unsigned    fullStoreCount = length / TARGET_POINTER_SIZE;
-                    unsigned    initVal = 0;
-                    bool        useLoop = false;
-
-                    if (oper == GT_INITBLK)
-                    {
-                        /* Properly extend the init constant from a U1 to a U4 */
-                        initVal = 0xFF & ((unsigned)srcOp->gtIntCon.gtIconVal);
-
-                        /* If it is a non-zero value we have to replicate      */
-                        /* the byte value four times to form the DWORD         */
-                        /* Then we store this new value into the tree-node      */
-
-                        if (initVal != 0)
-                        {
-                            initVal = initVal | (initVal << 8) | (initVal << 16) | (initVal << 24);
-                            op1->gtOp.gtOp2->gtIntCon.gtIconVal = initVal;
-                        }
-                    }
-
-                    // Will we be using a loop to implement this INITBLK/COPYBLK?
-                    if (((oper == GT_COPYBLK) && (fullStoreCount >= 8)) ||
-                        ((oper == GT_INITBLK) && (fullStoreCount >= 16)))
-                    {
-                        useLoop = true;
-                    }
-
-                    regMaskTP    usedRegs;
-                    regNumber    regDst;
-                    regNumber    regSrc;
-                    regNumber    regTemp;
-
-                    /* Evaluate dest and src/val */
-
-                    if (op1->gtFlags & GTF_REVERSE_OPS)
-                    {
-                        genComputeReg(srcOp, (needReg & ~dstOp->gtRsvdRegs), RegSet::ANY_REG, RegSet::KEEP_REG, useLoop);
-                        assert(srcOp->gtFlags & GTF_REG_VAL);
-
-                        genComputeReg(dstOp, needReg, RegSet::ANY_REG, RegSet::KEEP_REG, useLoop);
-                        assert(dstOp->gtFlags & GTF_REG_VAL);
-                        regDst = dstOp->gtRegNum;
-
-                        genRecoverReg(srcOp, needReg, RegSet::KEEP_REG);
-                        regSrc = srcOp->gtRegNum;
-                    }
-                    else
-                    {
-                        genComputeReg(dstOp, (needReg & ~srcOp->gtRsvdRegs), RegSet::ANY_REG, RegSet::KEEP_REG, useLoop);
-                        assert(dstOp->gtFlags & GTF_REG_VAL);
-
-                        genComputeReg(srcOp, needReg, RegSet::ANY_REG, RegSet::KEEP_REG, useLoop);
-                        assert(srcOp->gtFlags & GTF_REG_VAL);
-                        regSrc = srcOp->gtRegNum;
-
-                        genRecoverReg(dstOp, needReg, RegSet::KEEP_REG);
-                        regDst = dstOp->gtRegNum;
-                    }
-                    assert(dstOp->gtFlags & GTF_REG_VAL);
-                    assert(srcOp->gtFlags & GTF_REG_VAL);
-
-                    regDst = dstOp->gtRegNum;
-                    regSrc = srcOp->gtRegNum;
-                    usedRegs = (genRegMask(regSrc) | genRegMask(regDst));
-                    bool dstIsOnStack = (dstOp->gtOper == GT_ADDR && (dstOp->gtFlags & GTF_ADDR_ONSTACK));
-                    emitAttr dstType = (varTypeIsGC(dstOp) && !dstIsOnStack) ? EA_BYREF : EA_PTRSIZE;
-                    emitAttr srcType;
-
-                    if (oper == GT_COPYBLK)
-                    {
-                        // Prefer a low register,but avoid one of the ones we've already grabbed
-                        regTemp = regSet.rsGrabReg(regSet.rsNarrowHint(regSet.rsRegMaskCanGrab() & ~usedRegs, RBM_LOW_REGS));
-                        usedRegs |= genRegMask(regTemp);
-                        bool srcIsOnStack = (srcOp->gtOper == GT_ADDR && (srcOp->gtFlags & GTF_ADDR_ONSTACK));
-                        srcType = (varTypeIsGC(srcOp) && !srcIsOnStack) ? EA_BYREF : EA_PTRSIZE;
-                    }
-                    else
-                    {
-                        regTemp = REG_STK;
-                        srcType = EA_PTRSIZE;
-                    }
-
-                    instruction  loadIns = ins_Load(TYP_I_IMPL);   // INS_ldr
-                    instruction  storeIns = ins_Store(TYP_I_IMPL);  // INS_str
-
-                    int       finalOffset;
-
-                    // Can we emit a small number of ldr/str instructions to implement this INITBLK/COPYBLK?
-                    if (!useLoop)
-                    {
-                        for (unsigned i = 0; i < fullStoreCount; i++)
-                        {
-                            if (oper == GT_COPYBLK)
-                            {
-                                getEmitter()->emitIns_R_R_I(loadIns, EA_4BYTE, regTemp, regSrc, i * TARGET_POINTER_SIZE);
-                                getEmitter()->emitIns_R_R_I(storeIns, EA_4BYTE, regTemp, regDst, i * TARGET_POINTER_SIZE);
-                                gcInfo.gcMarkRegSetNpt(genRegMask(regTemp));
-                                regTracker.rsTrackRegTrash(regTemp);
-                            }
-                            else
-                            {
-                                getEmitter()->emitIns_R_R_I(storeIns, EA_4BYTE, regSrc, regDst, i * TARGET_POINTER_SIZE);
-                            }
-                        }
-
-                        finalOffset = fullStoreCount * TARGET_POINTER_SIZE;
-                        length -= finalOffset;
-                    }
-                    else  // We will use a loop to implement this INITBLK/COPYBLK
-                    {
-                        unsigned   pairStoreLoopCount = fullStoreCount / 2;
-
-                        // We need a second temp register for CopyBlk
-                        regNumber  regTemp2 = REG_STK;
-                        if (oper == GT_COPYBLK)
-                        {
-                            // Prefer a low register, but avoid one of the ones we've already grabbed
-                            regTemp2 = regSet.rsGrabReg(regSet.rsNarrowHint(regSet.rsRegMaskCanGrab() & ~usedRegs, RBM_LOW_REGS));
-                            usedRegs |= genRegMask(regTemp2);
-                        }
-
-                        // Pick and initialize the loop counter register
-                        regNumber regLoopIndex;
-                        regLoopIndex = regSet.rsGrabReg(regSet.rsNarrowHint(regSet.rsRegMaskCanGrab() & ~usedRegs, RBM_LOW_REGS));
-                        genSetRegToIcon(regLoopIndex, pairStoreLoopCount, TYP_INT);
-
-                        // Create and define the Basic Block for the loop top
-                        BasicBlock * loopTopBlock = genCreateTempLabel();
-                        genDefineTempLabel(loopTopBlock);
-
-                        // The loop body
-                        if (oper == GT_COPYBLK)
-                        {
-                            getEmitter()->emitIns_R_R_I(loadIns, EA_4BYTE, regTemp, regSrc, 0);
-                            getEmitter()->emitIns_R_R_I(loadIns, EA_4BYTE, regTemp2, regSrc, TARGET_POINTER_SIZE);
-                            getEmitter()->emitIns_R_R_I(storeIns, EA_4BYTE, regTemp, regDst, 0);
-                            getEmitter()->emitIns_R_R_I(storeIns, EA_4BYTE, regTemp2, regDst, TARGET_POINTER_SIZE);
-                            getEmitter()->emitIns_R_I(INS_add, srcType, regSrc, 2 * TARGET_POINTER_SIZE);
-                            gcInfo.gcMarkRegSetNpt(genRegMask(regTemp));
-                            gcInfo.gcMarkRegSetNpt(genRegMask(regTemp2));
-                            regTracker.rsTrackRegTrash(regSrc);
-                            regTracker.rsTrackRegTrash(regTemp);
-                            regTracker.rsTrackRegTrash(regTemp2);
-                        }
-                        else // GT_INITBLK
-                        {
-                            getEmitter()->emitIns_R_R_I(storeIns, EA_4BYTE, regSrc, regDst, 0);
-                            getEmitter()->emitIns_R_R_I(storeIns, EA_4BYTE, regSrc, regDst, TARGET_POINTER_SIZE);
-                        }
-
-                        getEmitter()->emitIns_R_I(INS_add, dstType, regDst, 2 * TARGET_POINTER_SIZE);
-                        regTracker.rsTrackRegTrash(regDst);
-                        getEmitter()->emitIns_R_I(INS_sub, EA_4BYTE, regLoopIndex, 1, INS_FLAGS_SET);
-                        emitJumpKind jmpGTS = genJumpKindForOper(GT_GT, CK_SIGNED);
-                        inst_JMP(jmpGTS, loopTopBlock);
-
-                        regTracker.rsTrackRegIntCns(regLoopIndex, 0);
-
-                        length -= (pairStoreLoopCount * (2 * TARGET_POINTER_SIZE));
-
-                        if (length & TARGET_POINTER_SIZE)
-                        {
-                            if (oper == GT_COPYBLK)
-                            {
-                                getEmitter()->emitIns_R_R_I(loadIns, EA_4BYTE, regTemp, regSrc, 0);
-                                getEmitter()->emitIns_R_R_I(storeIns, EA_4BYTE, regTemp, regDst, 0);
-                            }
-                            else
-                            {
-                                getEmitter()->emitIns_R_R_I(storeIns, EA_4BYTE, regSrc, regDst, 0);
-                            }
-                            finalOffset = TARGET_POINTER_SIZE;
-                            length -= TARGET_POINTER_SIZE;
-                        }
-                        else
-                        {
-                            finalOffset = 0;
-                        }
-                    }
-
-                    if (length & sizeof(short))
-                    {
-                        loadIns = ins_Load(TYP_USHORT);   // INS_ldrh
-                        storeIns = ins_Store(TYP_USHORT);  // INS_strh
-
-                        if (oper == GT_COPYBLK)
-                        {
-                            getEmitter()->emitIns_R_R_I(loadIns, EA_2BYTE, regTemp, regSrc, finalOffset);
-                            getEmitter()->emitIns_R_R_I(storeIns, EA_2BYTE, regTemp, regDst, finalOffset);
-                            gcInfo.gcMarkRegSetNpt(genRegMask(regTemp));
-                            regTracker.rsTrackRegTrash(regTemp);
-                        }
-                        else
-                        {
-                            getEmitter()->emitIns_R_R_I(storeIns, EA_2BYTE, regSrc, regDst, finalOffset);
-                        }
-                        length -= sizeof(short);
-                        finalOffset += sizeof(short);
-                    }
-
-                    if (length & sizeof(char))
-                    {
-                        loadIns = ins_Load(TYP_UBYTE);   // INS_ldrb
-                        storeIns = ins_Store(TYP_UBYTE);  // INS_strb
-
-                        if (oper == GT_COPYBLK)
-                        {
-                            getEmitter()->emitIns_R_R_I(loadIns, EA_1BYTE, regTemp, regSrc, finalOffset);
-                            getEmitter()->emitIns_R_R_I(storeIns, EA_1BYTE, regTemp, regDst, finalOffset);
-                            gcInfo.gcMarkRegSetNpt(genRegMask(regTemp));
-                            regTracker.rsTrackRegTrash(regTemp);
-                        }
-                        else
-                        {
-                            getEmitter()->emitIns_R_R_I(storeIns, EA_1BYTE, regSrc, regDst, finalOffset);
-                        }
-                        length -= sizeof(char);
-                    }
-                    assert(length == 0);
-
-                    genReleaseReg(dstOp);
-                    genReleaseReg(srcOp);
-                }
-                else
-                {
-                    //
-                    // This a variable-sized COPYBLK/INITBLK,
-                    //   or a fixed size INITBLK with a variable init value,
-                    //
-
-                    // What order should the Dest, Val/Src, and Size be calculated
-
-                    compiler->fgOrderBlockOps(tree, RBM_ARG_0, RBM_ARG_1, RBM_ARG_2,
-                        opsPtr, regsPtr); // OUT arguments
-
-                    genComputeReg(opsPtr[0], regsPtr[0], RegSet::EXACT_REG, RegSet::KEEP_REG);
-                    genComputeReg(opsPtr[1], regsPtr[1], RegSet::EXACT_REG, RegSet::KEEP_REG);
-                    genComputeReg(opsPtr[2], regsPtr[2], RegSet::EXACT_REG, RegSet::KEEP_REG);
-
-                    genRecoverReg(opsPtr[0], regsPtr[0], RegSet::KEEP_REG);
-                    genRecoverReg(opsPtr[1], regsPtr[1], RegSet::KEEP_REG);
-
-                    noway_assert((op1->gtOp.gtOp1->gtFlags & GTF_REG_VAL) && // Dest
-                        (op1->gtOp.gtOp1->gtRegNum == REG_ARG_0));
-
-                    noway_assert((op1->gtOp.gtOp2->gtFlags & GTF_REG_VAL) && // Val/Src
-                        (op1->gtOp.gtOp2->gtRegNum == REG_ARG_1));
-
-                    noway_assert((op2->gtFlags & GTF_REG_VAL) &&             // Size
-                        (op2->gtRegNum == REG_ARG_2));
-
-                    regSet.rsLockUsedReg(RBM_ARG_0 | RBM_ARG_1 | RBM_ARG_2);
-
-                    genEmitHelperCall(oper == GT_COPYBLK ? CORINFO_HELP_MEMCPY
-                        /* GT_INITBLK */ : CORINFO_HELP_MEMSET,
-                        0, EA_UNKNOWN);
-
-                    regTracker.rsTrackRegMaskTrash(RBM_CALLEE_TRASH);
-
-                    regSet.rsUnlockUsedReg(RBM_ARG_0 | RBM_ARG_1 | RBM_ARG_2);
-                    genReleaseReg(opsPtr[0]);
-                    genReleaseReg(opsPtr[1]);
-                    genReleaseReg(opsPtr[2]);
-                }
-
-                if ((oper == GT_COPYBLK) && tree->AsBlkOp()->IsVolatile())
-                {
-                    // Emit a memory barrier instruction after the CopyBlk 
-                    instGen_MemoryBarrier();
-                }
-#endif // !CPU_USES_BLOCK_MOVE 
-
-                reg = REG_NA;
-            }
-
-            genCodeForTree_DONE(tree, reg);
+            genCodeForBlkOp(tree, destReg);
+            genCodeForTree_DONE(tree, REG_NA);
             return;
 
         case GT_EQ:
@@ -12619,15 +12618,13 @@ void                CodeGen::genCodeForBBlist()
         regSet.rsSetRegsModified(RBM_INT_CALLEE_SAVED & ~RBM_FPBASE);
     }
 
-#if INLINE_NDIRECT
     /* If we have any pinvoke calls, we might potentially trash everything */
 
-    if  (compiler->info.compCallUnmanaged)
+    if (compiler->info.compCallUnmanaged)
     {
         noway_assert(isFramePointerUsed());  // Setup of Pinvoke frame currently requires an EBP style frame
         regSet.rsSetRegsModified(RBM_INT_CALLEE_SAVED & ~RBM_FPBASE);
     }
-#endif // INLINE_NDIRECT
 
     /* Initialize the pointer tracking code */
 
@@ -14361,149 +14358,6 @@ SIMPLE_OR_LONG:
 
             goto DONE;
 
-#if LONG_MATH_REGPARAM
-
-        case GT_MUL:    if (tree->gtOverflow())
-                        {
-                            if (tree->gtFlags & GTF_UNSIGNED)
-                                helper = CORINFO_HELP_ULMUL_OVF; goto MATH;
-                            else
-                                helper = CORINFO_HELP_LMUL_OVF;  goto MATH;
-                        }
-                        else
-                        {
-                            helper = CORINFO_HELP_LMUL;          goto MATH;
-                        }
-
-        case GT_DIV:    helper = CORINFO_HELP_LDIV;          goto MATH;
-        case GT_UDIV:   helper = CORINFO_HELP_ULDIV;         goto MATH;
-
-        case GT_MOD:    helper = CORINFO_HELP_LMOD;          goto MATH;
-        case GT_UMOD:   helper = CORINFO_HELP_ULMOD;         goto MATH;
-
-        MATH:
-
-            // TODO: Be smarter about the choice of register pairs
-
-            /* Which operand are we supposed to compute first? */
-
-            if  (tree->gtFlags & GTF_REVERSE_OPS)
-            {
-                /* Compute the second operand into EBX:ECX */
-
-                genComputeRegPair(op2, REG_PAIR_ECXEBX, RBM_NONE, RegSet::KEEP_REG, false);
-                noway_assert(op2->gtFlags & GTF_REG_VAL);
-                noway_assert(op2->gtRegPair == REG_PAIR_ECXEBX);
-
-                /* Compute the first  operand into EDX:EAX */
-
-                genComputeRegPair(op1, REG_PAIR_EAXEDX, RBM_NONE, RegSet::KEEP_REG, false);
-                noway_assert(op1->gtFlags & GTF_REG_VAL);
-                noway_assert(op1->gtRegPair == REG_PAIR_EAXEDX);
-
-                /* Lock EDX:EAX so that it doesn't get trashed */
-
-                noway_assert((regSet.rsMaskLock &  RBM_EDX) == 0);
-                              regSet.rsMaskLock |= RBM_EDX;
-                noway_assert((regSet.rsMaskLock &  RBM_EAX) == 0);
-                              regSet.rsMaskLock |= RBM_EAX;
-
-                /* Make sure the second operand hasn't been displaced */
-
-                genRecoverRegPair(op2, REG_PAIR_ECXEBX, RegSet::KEEP_REG);
-
-                /* We can unlock EDX:EAX now */
-
-                noway_assert((regSet.rsMaskLock &  RBM_EDX) != 0);
-                              regSet.rsMaskLock -= RBM_EDX;
-                noway_assert((regSet.rsMaskLock &  RBM_EAX) != 0);
-                              regSet.rsMaskLock -= RBM_EAX;
-            }
-            else
-            {
-                // Special case: both operands promoted from int
-                // i.e. (long)i1 * (long)i2.
-
-                if (oper == GT_MUL
-                    && op1->gtOper         == GT_CAST
-                    && op2->gtOper         == GT_CAST
-                    && op1->CastFromType() == TYP_INT
-                    && op2->CastFromType() == TYP_INT)
-                {
-                    /* Change to an integer multiply temporarily */
-
-                    tree->gtOp.gtOp1 = op1->gtCast.CastOp();
-                    tree->gtOp.gtOp2 = op2->gtCast.CastOp();
-                    tree->gtType     = TYP_INT;
-                    genCodeForTree(tree, 0);
-                    tree->gtType     = TYP_LONG;
-
-                    /* The result is now in EDX:EAX */
-
-                    regPair  = REG_PAIR_EAXEDX;
-                    goto DONE;
-                }
-                else
-                {
-                    /* Compute the first  operand into EAX:EDX */
-
-                    genComputeRegPair(op1, REG_PAIR_EAXEDX, RBM_NONE, RegSet::KEEP_REG, false);
-                    noway_assert(op1->gtFlags & GTF_REG_VAL);
-                    noway_assert(op1->gtRegPair == REG_PAIR_EAXEDX);
-
-                    /* Compute the second operand into ECX:EBX */
-
-                    genComputeRegPair(op2, REG_PAIR_ECXEBX, RBM_NONE, RegSet::KEEP_REG, false);
-                    noway_assert(op2->gtRegPair == REG_PAIR_ECXEBX);
-                    noway_assert(op2->gtFlags & GTF_REG_VAL);
-
-                    /* Lock ECX:EBX so that it doesn't get trashed */
-
-                    noway_assert((regSet.rsMaskLock &  RBM_EBX) == 0);
-                                  regSet.rsMaskLock |= RBM_EBX;
-                    noway_assert((regSet.rsMaskLock &  RBM_ECX) == 0);
-                                  regSet.rsMaskLock |= RBM_ECX;
-
-                    /* Make sure the first operand hasn't been displaced */
-
-                    genRecoverRegPair(op1, REG_PAIR_EAXEDX, RegSet::KEEP_REG);
-
-                    /* We can unlock ECX:EBX now */
-
-                    noway_assert((regSet.rsMaskLock &  RBM_EBX) != 0);
-                                  regSet.rsMaskLock -= RBM_EBX;
-                    noway_assert((regSet.rsMaskLock &  RBM_ECX) != 0);
-                                  regSet.rsMaskLock -= RBM_ECX;
-                }
-            }
-
-            /* Perform the math by calling a helper function */
-
-            noway_assert(op1->gtRegPair == REG_PAIR_EAXEDX);
-            noway_assert(op2->gtRegPair == REG_PAIR_ECXEBX);
-
-            genEmitHelperCall(CPX,
-                             2*sizeof(__int64), // argSize
-                             sizeof(void*));    // retSize
-
-            /* The values in both register pairs now trashed */
-
-            regTracker.rsTrackRegTrash(REG_EAX);
-            regTracker.rsTrackRegTrash(REG_EDX);
-            regTracker.rsTrackRegTrash(REG_EBX);
-            regTracker.rsTrackRegTrash(REG_ECX);
-
-            /* Release both operands */
-
-            genReleaseRegPair(op1);
-            genReleaseRegPair(op2);
-
-            noway_assert(op1->gtFlags & GTF_REG_VAL);
-            regPair  = op1->gtRegPair;
-            goto DONE;
-
-#else // not LONG_MATH_REGPARAM
-
         case GT_UMOD:
 
             regPair = genCodeForLongModInt(tree, needReg);
@@ -14550,8 +14404,6 @@ SIMPLE_OR_LONG:
             regPair = tree->gtRegPair;
 #endif
             goto DONE;
-
-#endif // not LONG_MATH_REGPARAM
 
         case GT_LSH: helper = CORINFO_HELP_LLSH; goto SHIFT;
         case GT_RSH: helper = CORINFO_HELP_LRSH; goto SHIFT;
@@ -15354,7 +15206,6 @@ USE_SAR_FOR_CAST:
 
         case GT_RETURN:
 
-#if INLINE_NDIRECT
             /* TODO: 
              * This code is cloned from the regular processing of GT_RETURN values.  We have to remember to
              * call genPInvokeMethodEpilog anywhere that we have a GT_RETURN statement.  We should really
@@ -15372,8 +15223,6 @@ USE_SAR_FOR_CAST:
 
                 genPInvokeMethodEpilog();
             }
-
-#endif
 
 #if CPU_LONG_USES_REGPAIR
             /* There must be a long return value */
@@ -15780,7 +15629,6 @@ void                CodeGen::genCodeForTreeFlt(GenTreePtr tree,
     if (tree->OperGet() == GT_RETURN)
     {
         //Make sure to get ALL THE EPILOG CODE
-#if INLINE_NDIRECT
 
         // TODO: this should be done AFTER we called exit mon so that
         //       we are sure that we don't have to keep 'this' alive
@@ -15793,8 +15641,6 @@ void                CodeGen::genCodeForTreeFlt(GenTreePtr tree,
 
             genPInvokeMethodEpilog();
         }
-
-#endif
 
         //The profiling hook does not trash registers, so it's safe to call after we emit the code for
         //the GT_RETURN tree.
@@ -18951,9 +18797,7 @@ regMaskTP           CodeGen::genCodeForCall(GenTreePtr  call,
 
     unsigned        saveStackLvl;
 
-#if     INLINE_NDIRECT
     BasicBlock  *   returnLabel = DUMMY_INIT(NULL);
-#endif
     LclVarDsc   *   frameListRoot = NULL;
 
     unsigned        savCurIntArgReg;
@@ -19032,8 +18876,6 @@ regMaskTP           CodeGen::genCodeForCall(GenTreePtr  call,
 
     argSize = 0;
 
-#if INLINE_NDIRECT
-
     /* We need to get a label for the return address with the proper stack depth. */
     /* For the callee pops case (the default) that is before the args are pushed. */
 
@@ -19042,8 +18884,6 @@ regMaskTP           CodeGen::genCodeForCall(GenTreePtr  call,
     {
        returnLabel = genCreateTempLabel();
     }
-#endif
-
 
     /*
         Make sure to save the current argument register status
@@ -19063,8 +18903,6 @@ regMaskTP           CodeGen::genCodeForCall(GenTreePtr  call,
         argSize += genPushArgList(call);
     }
 
-#if INLINE_NDIRECT
-
     /* We need to get a label for the return address with the proper stack depth. */
     /* For the caller pops case (cdecl) that is after the args are pushed. */
 
@@ -19076,7 +18914,6 @@ regMaskTP           CodeGen::genCodeForCall(GenTreePtr  call,
         /* Make sure that we now have a label */
         noway_assert(returnLabel != DUMMY_INIT(NULL));
     }
-#endif
 
     if (callType == CT_INDIRECT)
     {
@@ -19132,14 +18969,11 @@ regMaskTP           CodeGen::genCodeForCall(GenTreePtr  call,
 
     regMaskTP       spillRegs = calleeTrashedRegs & regSet.rsMaskUsed;
 
-#if     INLINE_NDIRECT
-
     /* We need to save all GC registers to the InlinedCallFrame.
        Instead, just spill them to temps. */
 
     if (call->gtFlags & GTF_CALL_UNMANAGED)
         spillRegs |= (gcInfo.gcRegGCrefSetCur|gcInfo.gcRegByrefSetCur) & regSet.rsMaskUsed;
-#endif
 
     // Ignore fptrRegs as it is needed only to perform the indirect call
 
@@ -19749,7 +19583,6 @@ regMaskTP           CodeGen::genCodeForCall(GenTreePtr  call,
 #endif
             }
 
-#if INLINE_NDIRECT
             if (call->gtFlags & GTF_CALL_UNMANAGED)
             {
                 //------------------------------------------------------
@@ -19898,7 +19731,6 @@ regMaskTP           CodeGen::genCodeForCall(GenTreePtr  call,
                 // Done with PInvoke calls
                 break;
             }
-#endif // INLINE_NDIRECT
 
             if  (callType == CT_INDIRECT)
             {
@@ -20535,19 +20367,17 @@ regMaskTP           CodeGen::genCodeForCall(GenTreePtr  call,
     }
 #endif // _TARGET_X86_
 
-#if     INLINE_NDIRECT
-
     if (call->gtFlags & GTF_CALL_UNMANAGED)
     {
         genDefineTempLabel(returnLabel);
 
+#ifdef _TARGET_X86_
         if (getInlinePInvokeCheckEnabled())
         {
             noway_assert(compiler->lvaInlinedPInvokeFrameVar != BAD_VAR_NUM);
             BasicBlock  *   esp_check;
 
             CORINFO_EE_INFO * pInfo = compiler->eeGetEEInfo();
-
             /* mov   ecx, dword ptr [frame.callSiteTracker] */
 
             getEmitter()->emitIns_R_S (INS_mov,
@@ -20564,15 +20394,14 @@ regMaskTP           CodeGen::genCodeForCall(GenTreePtr  call,
                 if (argSize)
                 {
                     getEmitter()->emitIns_R_I  (INS_add,
-                                              EA_4BYTE,
+                                              EA_PTRSIZE,
                                               REG_ARG_0,
                                               argSize);
                 }
             }
-
             /* cmp   ecx, esp */
 
-            getEmitter()->emitIns_R_R(INS_cmp, EA_4BYTE, REG_ARG_0, REG_SPBASE);
+            getEmitter()->emitIns_R_R(INS_cmp, EA_PTRSIZE, REG_ARG_0, REG_SPBASE);
 
             esp_check = genCreateTempLabel();
 
@@ -20585,12 +20414,12 @@ regMaskTP           CodeGen::genCodeForCall(GenTreePtr  call,
 
             genDefineTempLabel(esp_check);
         }
-    }
 #endif
+    }
 
     /* Are we supposed to pop the arguments? */
 
-#if defined(_TARGET_X86_) && defined(INLINE_NDIRECT)
+#if defined(_TARGET_X86_)
     if (call->gtFlags & GTF_CALL_UNMANAGED)
     {
         if ((compiler->opts.eeFlags & CORJIT_FLG_PINVOKE_RESTORE_ESP) ||
@@ -20630,7 +20459,7 @@ regMaskTP           CodeGen::genCodeForCall(GenTreePtr  call,
             }
         }
     }
-#endif // _TARGET_X86_ && INLINE_NDIRECT
+#endif // _TARGET_X86_
 
     if  (call->gtFlags & GTF_CALL_POP_ARGS)
     {
@@ -20678,7 +20507,7 @@ regMaskTP           CodeGen::genCodeForCall(GenTreePtr  call,
         {
             assert(call->gtCall.gtRetClsHnd != NULL);
             assert(compiler->IsHfa(call->gtCall.gtRetClsHnd));
-            int retSlots = compiler->GetHfaSlots(call->gtCall.gtRetClsHnd);
+            int retSlots = compiler->GetHfaCount(call->gtCall.gtRetClsHnd);
             assert(retSlots > 0 && retSlots <= MAX_HFA_RET_SLOTS);
             assert(MAX_HFA_RET_SLOTS < sizeof(int) * 8);
             retVal = ((1 << retSlots) - 1) << REG_FLOATRET;
@@ -20707,7 +20536,6 @@ regMaskTP           CodeGen::genCodeForCall(GenTreePtr  call,
         noway_assert(!"unexpected/unhandled fn return type");
     }
 
-#if INLINE_NDIRECT
     // We now have to generate the "call epilog" (if it was a call to unmanaged code).
     /* if it is a call to unmanaged code, frameListRoot must be set */
 
@@ -20725,8 +20553,6 @@ regMaskTP           CodeGen::genCodeForCall(GenTreePtr  call,
             genUpdateRegLife(frameListRoot, isBorn, isDying DEBUGARG(call));
         }
     }
-
-#endif  //INLINE_NDIRECT
 
 #ifdef DEBUG
     if (compiler->opts.compStackCheckOnCall
@@ -21093,7 +20919,7 @@ regNumber           CodeGen::genLclHeap(GenTreePtr size)
                 // Re-bias amount to be number of bytes to adjust the SP 
                 amount <<= STACK_ALIGN_SHIFT;
                 size->gtIntCon.gtIconVal = amount;  // update the GT_CNS value in the node
-                if (amount < CORINFO_PAGE_SIZE)   // must be < not <=
+                if (amount < compiler->eeGetPageSize())   // must be < not <=
                 {
                     // Since the size is a page or less, simply adjust ESP 
                     
@@ -21278,7 +21104,7 @@ regNumber           CodeGen::genLclHeap(GenTreePtr size)
         inst_RV_RV(INS_mov, regTemp, REG_SPBASE, TYP_I_IMPL);
         regTracker.rsTrackRegTrash(regTemp);
 
-        inst_RV_IV(INS_sub, regTemp, CORINFO_PAGE_SIZE, EA_PTRSIZE);
+        inst_RV_IV(INS_sub, regTemp, compiler->eeGetPageSize(), EA_PTRSIZE);
         inst_RV_RV(INS_mov, REG_SPBASE, regTemp, TYP_I_IMPL);
 
         genRecoverReg(size, RBM_ALLINT, RegSet::KEEP_REG); // not purely the 'size' tree anymore; though it is derived from 'size'
@@ -21736,8 +21562,6 @@ GenTreePtr Compiler::fgLegacyPerStatementLocalVarLiveness(GenTreePtr startNode, 
                 }
             }
 
-#if INLINE_NDIRECT
-
             // If this is a p/invoke unmanaged call or if this is a tail-call
             // and we have an unmanaged p/invoke call in the method,
             // then we're going to run the p/invoke epilog.
@@ -21761,8 +21585,6 @@ GenTreePtr Compiler::fgLegacyPerStatementLocalVarLiveness(GenTreePtr startNode, 
                     }
                 }
             }
-
-#endif // INLINE_NDIRECT
 
             break;
 
@@ -21801,4 +21623,999 @@ GenTreePtr Compiler::fgLegacyPerStatementLocalVarLiveness(GenTreePtr startNode, 
 _return:
     return tree;
 }
+
+/*****************************************************************************/
+
+/*****************************************************************************
+ * Initialize the TCB local and the NDirect stub, afterwards "push"
+ * the hoisted NDirect stub.
+ *
+ * 'initRegs' is the set of registers which will be zeroed out by the prolog
+ *             typically initRegs is zero
+ *
+ * The layout of the NDirect Inlined Call Frame is as follows:
+ * (see VM/frames.h and VM/JITInterface.cpp for more information)
+ *
+ *   offset     field name                        when set
+ *  --------------------------------------------------------------
+ *    +00h      vptr for class InlinedCallFrame   method prolog
+ *    +04h      m_Next                            method prolog
+ *    +08h      m_Datum                           call site
+ *    +0ch      m_pCallSiteTracker (callsite ESP) call site and zeroed in method prolog
+ *    +10h      m_pCallerReturnAddress            call site
+ *    +14h      m_pCalleeSavedRegisters           not set by JIT
+ *    +18h      JIT retval spill area (int)       before call_gc
+ *    +1ch      JIT retval spill area (long)      before call_gc
+ *    +20h      Saved value of EBP                method prolog
+ */
+
+regMaskTP           CodeGen::genPInvokeMethodProlog(regMaskTP initRegs)
+{
+    assert(compiler->compGeneratingProlog);
+    noway_assert(!compiler->opts.ShouldUsePInvokeHelpers());
+    noway_assert(compiler->info.compCallUnmanaged);
+
+    CORINFO_EE_INFO * pInfo = compiler->eeGetEEInfo();
+    noway_assert(compiler->lvaInlinedPInvokeFrameVar != BAD_VAR_NUM);
+
+    /* let's find out if compLvFrameListRoot is enregistered */
+
+    LclVarDsc *     varDsc = &compiler->lvaTable[compiler->info.compLvFrameListRoot];
+
+    noway_assert(!varDsc->lvIsParam);
+    noway_assert(varDsc->lvType == TYP_I_IMPL);
+
+    DWORD threadTlsIndex, *pThreadTlsIndex;
+
+    threadTlsIndex = compiler->info.compCompHnd->getThreadTLSIndex((void**) &pThreadTlsIndex);
+#if defined(_TARGET_X86_)
+    if (threadTlsIndex == (DWORD)-1 || pInfo->osType != CORINFO_WINNT)
+#else
+    if (true)
+#endif
+    {
+        // Instead of calling GetThread(), and getting GS cookie and
+        // InlinedCallFrame vptr through indirections, we'll call only one helper.
+        // The helper takes frame address in REG_PINVOKE_FRAME, returns TCB in REG_PINVOKE_TCB
+        // and uses REG_PINVOKE_SCRATCH as scratch register.
+        getEmitter()->emitIns_R_S (INS_lea,
+                                 EA_PTRSIZE,
+                                 REG_PINVOKE_FRAME,
+                                 compiler->lvaInlinedPInvokeFrameVar,
+                                 pInfo->inlinedCallFrameInfo.offsetOfFrameVptr);
+        regTracker.rsTrackRegTrash(REG_PINVOKE_FRAME);
+
+        // We're about to trask REG_PINVOKE_TCB, it better not be in use!
+        assert((regSet.rsMaskUsed & RBM_PINVOKE_TCB) == 0);
+
+        // Don't use the argument registers (including the special argument in
+        // REG_PINVOKE_FRAME) for computing the target address.
+        regSet.rsLockReg(RBM_ARG_REGS|RBM_PINVOKE_FRAME);
+
+        genEmitHelperCall(CORINFO_HELP_INIT_PINVOKE_FRAME, 0, EA_UNKNOWN);
+
+        regSet.rsUnlockReg(RBM_ARG_REGS|RBM_PINVOKE_FRAME);
+
+        if (varDsc->lvRegister)
+        {
+            regNumber regTgt = varDsc->lvRegNum;
+
+            // we are about to initialize it. So turn the bit off in initRegs to prevent
+            // the prolog reinitializing it.
+            initRegs &= ~genRegMask(regTgt);
+
+            if (regTgt != REG_PINVOKE_TCB)
+            {
+                // move TCB to the its register if necessary
+                getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, regTgt, REG_PINVOKE_TCB);
+                regTracker.rsTrackRegTrash(regTgt);
+            }
+        }
+        else
+        {
+            // move TCB to its stack location
+            getEmitter()->emitIns_S_R (ins_Store(TYP_I_IMPL),
+                                     EA_PTRSIZE,
+                                     REG_PINVOKE_TCB,
+                                     compiler->info.compLvFrameListRoot,
+                                     0);
+        }
+
+        // We are done, the rest of this function deals with the inlined case.
+        return initRegs;
+    }
+
+    regNumber      regTCB;
+
+    if (varDsc->lvRegister)
+    {
+        regTCB = varDsc->lvRegNum;
+
+        // we are about to initialize it. So turn the bit off in initRegs to prevent
+        // the prolog reinitializing it.
+        initRegs &= ~genRegMask(regTCB);
+    }
+    else // varDsc is allocated on the Stack
+    {
+        regTCB = REG_PINVOKE_TCB;
+    }
+
+    /* get TCB,  mov reg, FS:[compiler->info.compEEInfo.threadTlsIndex] */
+
+    // TODO-ARM-CQ: should we inline TlsGetValue here?
+#if !defined(_TARGET_ARM_) && !defined(_TARGET_AMD64_)
+#define WIN_NT_TLS_OFFSET (0xE10)
+#define WIN_NT5_TLS_HIGHOFFSET (0xf94)
+
+    if (threadTlsIndex < 64)
+    {
+        //  mov  reg, FS:[0xE10+threadTlsIndex*4]
+        getEmitter()->emitIns_R_C (ins_Load(TYP_I_IMPL),
+                                 EA_PTRSIZE,
+                                 regTCB,
+                                 FLD_GLOBAL_FS,
+                                 WIN_NT_TLS_OFFSET + threadTlsIndex * sizeof(int));
+        regTracker.rsTrackRegTrash(regTCB);
+    }
+    else
+    {
+        noway_assert(pInfo->osMajor >= 5);
+
+        DWORD basePtr   = WIN_NT5_TLS_HIGHOFFSET;
+        threadTlsIndex -= 64;
+
+        // mov reg, FS:[0x2c] or mov reg, fs:[0xf94]
+        // mov reg, [reg+threadTlsIndex*4]
+
+        getEmitter()->emitIns_R_C (ins_Load(TYP_I_IMPL),
+                                 EA_PTRSIZE,
+                                 regTCB,
+                                 FLD_GLOBAL_FS,
+                                 basePtr);
+        getEmitter()->emitIns_R_AR(ins_Load(TYP_I_IMPL),
+                                 EA_PTRSIZE,
+                                 regTCB,
+                                 regTCB,
+                                 threadTlsIndex*sizeof(int));
+        regTracker.rsTrackRegTrash(regTCB);
+    }
+#endif
+
+    /* save TCB in local var if not enregistered */
+
+    if (!varDsc->lvRegister)
+    {
+        getEmitter()->emitIns_S_R (ins_Store(TYP_I_IMPL),
+                                 EA_PTRSIZE,
+                                 regTCB,
+                                 compiler->info.compLvFrameListRoot,
+                                 0);
+    }
+
+    /* set frame's vptr */
+
+    const void * inlinedCallFrameVptr, **pInlinedCallFrameVptr;
+    inlinedCallFrameVptr = compiler->info.compCompHnd->getInlinedCallFrameVptr((void**) &pInlinedCallFrameVptr);
+    noway_assert(inlinedCallFrameVptr != NULL); // if we have the TLS index, vptr must also be known
+
+    instGen_Store_Imm_Into_Lcl(TYP_I_IMPL, EA_HANDLE_CNS_RELOC, (ssize_t) inlinedCallFrameVptr,
+                               compiler->lvaInlinedPInvokeFrameVar, 
+                               pInfo->inlinedCallFrameInfo.offsetOfFrameVptr,
+                               REG_PINVOKE_SCRATCH);
+
+    // Set the GSCookie
+    GSCookie gsCookie, * pGSCookie;
+    compiler->info.compCompHnd->getGSCookie(&gsCookie, &pGSCookie);
+    noway_assert(gsCookie != 0); // if we have the TLS index, GS cookie must also be known
+
+    instGen_Store_Imm_Into_Lcl(TYP_I_IMPL, EA_PTRSIZE, (ssize_t) gsCookie,
+                               compiler->lvaInlinedPInvokeFrameVar,
+                               pInfo->inlinedCallFrameInfo.offsetOfGSCookie,
+                               REG_PINVOKE_SCRATCH);
+
+    /* Get current frame root (mov reg2, [reg+offsetOfThreadFrame]) and
+       set next field in frame */
+
+    getEmitter()->emitIns_R_AR (ins_Load(TYP_I_IMPL),
+                              EA_PTRSIZE,
+                              REG_PINVOKE_SCRATCH,
+                              regTCB,
+                              pInfo->offsetOfThreadFrame);
+    regTracker.rsTrackRegTrash(REG_PINVOKE_SCRATCH);
+
+    getEmitter()->emitIns_S_R (ins_Store(TYP_I_IMPL),
+                             EA_PTRSIZE,
+                             REG_PINVOKE_SCRATCH,
+                             compiler->lvaInlinedPInvokeFrameVar,
+                             pInfo->inlinedCallFrameInfo.offsetOfFrameLink);
+
+    noway_assert(isFramePointerUsed());  // Setup of Pinvoke frame currently requires an EBP style frame
+
+    /* set EBP value in frame */
+    getEmitter()->emitIns_S_R (ins_Store(TYP_I_IMPL),
+                             EA_PTRSIZE,
+                             genFramePointerReg(),
+                             compiler->lvaInlinedPInvokeFrameVar,
+                             pInfo->inlinedCallFrameInfo.offsetOfCalleeSavedFP);
+
+    /* reset track field in frame */
+    instGen_Store_Imm_Into_Lcl(TYP_I_IMPL, EA_PTRSIZE, 0,
+                               compiler->lvaInlinedPInvokeFrameVar,
+                               pInfo->inlinedCallFrameInfo.offsetOfReturnAddress,
+                               REG_PINVOKE_SCRATCH);
+
+    /* get address of our frame */
+
+    getEmitter()->emitIns_R_S (INS_lea,
+                             EA_PTRSIZE,
+                             REG_PINVOKE_SCRATCH,
+                             compiler->lvaInlinedPInvokeFrameVar,
+                             pInfo->inlinedCallFrameInfo.offsetOfFrameVptr);
+    regTracker.rsTrackRegTrash(REG_PINVOKE_SCRATCH);
+
+    /* now "push" our N/direct frame */
+
+    getEmitter()->emitIns_AR_R (ins_Store(TYP_I_IMPL),
+                              EA_PTRSIZE,
+                              REG_PINVOKE_SCRATCH,
+                              regTCB,
+                              pInfo->offsetOfThreadFrame);
+
+    return initRegs;
+}
+
+
+/*****************************************************************************
+ *  Unchain the InlinedCallFrame.
+ *  Technically, this is not part of the epilog; it is called when we are generating code for a GT_RETURN node
+ *  or tail call.
+ */
+void                CodeGen::genPInvokeMethodEpilog()
+{
+    noway_assert(compiler->info.compCallUnmanaged);
+    noway_assert(!compiler->opts.ShouldUsePInvokeHelpers());
+    noway_assert(compiler->compCurBB == compiler->genReturnBB ||
+                 (compiler->compTailCallUsed && (compiler->compCurBB->bbJumpKind == BBJ_THROW)) ||
+                 (compiler->compJmpOpUsed && (compiler->compCurBB->bbFlags & BBF_HAS_JMP)));
+
+    CORINFO_EE_INFO *   pInfo = compiler->eeGetEEInfo();
+    noway_assert(compiler->lvaInlinedPInvokeFrameVar != BAD_VAR_NUM);
+
+    getEmitter()->emitDisableRandomNops();
+    //debug check to make sure that we're not using ESI and/or EDI across this call, except for
+    //compLvFrameListRoot.
+    unsigned regTrashCheck = 0;
+
+    /* XXX Tue 5/29/2007
+     * We explicitly add interference for these in CodeGen::rgPredictRegUse.  If you change the code
+     * sequence or registers used, make sure to update the interference for compiler->genReturnLocal.
+     */
+    LclVarDsc   *       varDsc = &compiler->lvaTable[compiler->info.compLvFrameListRoot];
+    regNumber           reg;
+    regNumber           reg2 = REG_PINVOKE_FRAME;
+
+
+    //
+    // Two cases for epilog invocation:
+    //
+    // 1. Return
+    //    We can trash the ESI/EDI registers.
+    //
+    // 2. Tail call
+    //    When tail called, we'd like to preserve enregistered args,
+    //    in ESI/EDI so we can pass it to the callee.
+    //
+    // For ARM, don't modify SP for storing and restoring the TCB/frame registers.
+    // Instead use the reserved local variable slot.
+    //
+    if (compiler->compCurBB->bbFlags & BBF_HAS_JMP)
+    {
+        if (compiler->rpMaskPInvokeEpilogIntf & RBM_PINVOKE_TCB)
+        {
+#if FEATURE_FIXED_OUT_ARGS
+            // Save the register in the reserved local var slot.
+            getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_PINVOKE_TCB, compiler->lvaPInvokeFrameRegSaveVar, 0);
+#else
+            inst_RV(INS_push, REG_PINVOKE_TCB, TYP_I_IMPL);
+#endif
+        }
+        if (compiler->rpMaskPInvokeEpilogIntf & RBM_PINVOKE_FRAME)
+        {
+#if FEATURE_FIXED_OUT_ARGS
+            // Save the register in the reserved local var slot.
+            getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_PINVOKE_FRAME, compiler->lvaPInvokeFrameRegSaveVar, REGSIZE_BYTES);
+#else
+            inst_RV(INS_push, REG_PINVOKE_FRAME, TYP_I_IMPL);
+#endif
+        }
+    }
+
+    if (varDsc->lvRegister)
+    {
+        reg = varDsc->lvRegNum;
+        if (reg == reg2)
+            reg2 = REG_PINVOKE_TCB;
+
+        regTrashCheck |= genRegMask(reg2);
+    }
+    else
+    {
+        /* mov esi, [tcb address]    */
+
+        getEmitter()->emitIns_R_S (ins_Load(TYP_I_IMPL),
+                                 EA_PTRSIZE,
+                                 REG_PINVOKE_TCB,
+                                 compiler->info.compLvFrameListRoot,
+                                 0);
+        regTracker.rsTrackRegTrash(REG_PINVOKE_TCB);
+        reg = REG_PINVOKE_TCB;
+
+        regTrashCheck = RBM_PINVOKE_TCB | RBM_PINVOKE_FRAME;
+    }
+
+    /* mov edi, [ebp-frame.next] */
+
+    getEmitter()->emitIns_R_S  (ins_Load(TYP_I_IMPL),
+                              EA_PTRSIZE,
+                              reg2,
+                              compiler->lvaInlinedPInvokeFrameVar,
+                              pInfo->inlinedCallFrameInfo.offsetOfFrameLink);
+    regTracker.rsTrackRegTrash(reg2);
+
+    /* mov [esi+offsetOfThreadFrame], edi */
+
+    getEmitter()->emitIns_AR_R (ins_Store(TYP_I_IMPL),
+                              EA_PTRSIZE,
+                              reg2,
+                              reg,
+                              pInfo->offsetOfThreadFrame);
+
+    noway_assert(!(regSet.rsMaskUsed & regTrashCheck));
+
+    if (compiler->genReturnLocal != BAD_VAR_NUM &&
+        compiler->lvaTable[compiler->genReturnLocal].lvTracked &&
+        compiler->lvaTable[compiler->genReturnLocal].lvRegister)
+    {
+        //really make sure we're not clobbering compiler->genReturnLocal.
+        noway_assert(!(genRegMask(compiler->lvaTable[compiler->genReturnLocal].lvRegNum)
+                       & ( (varDsc->lvRegister ? genRegMask(varDsc->lvRegNum) : 0)
+                           | RBM_PINVOKE_TCB | RBM_PINVOKE_FRAME)));
+    }
+
+    (void)regTrashCheck;
+
+    // Restore the registers ESI and EDI.
+    if (compiler->compCurBB->bbFlags & BBF_HAS_JMP)
+    {
+        if (compiler->rpMaskPInvokeEpilogIntf & RBM_PINVOKE_FRAME)
+        {
+#if FEATURE_FIXED_OUT_ARGS
+            // Restore the register from the reserved local var slot.
+            getEmitter()->emitIns_R_S(ins_Load(TYP_I_IMPL), EA_PTRSIZE, REG_PINVOKE_FRAME, compiler->lvaPInvokeFrameRegSaveVar, REGSIZE_BYTES);
+#else
+            inst_RV(INS_pop, REG_PINVOKE_FRAME, TYP_I_IMPL);
+#endif
+            regTracker.rsTrackRegTrash(REG_PINVOKE_FRAME);
+        }
+        if (compiler->rpMaskPInvokeEpilogIntf & RBM_PINVOKE_TCB)
+        {
+#if FEATURE_FIXED_OUT_ARGS
+            // Restore the register from the reserved local var slot.
+            getEmitter()->emitIns_R_S(ins_Load(TYP_I_IMPL), EA_PTRSIZE, REG_PINVOKE_TCB, compiler->lvaPInvokeFrameRegSaveVar, 0);
+#else
+            inst_RV(INS_pop, REG_PINVOKE_TCB, TYP_I_IMPL);
+#endif
+            regTracker.rsTrackRegTrash(REG_PINVOKE_TCB);
+        }
+    }
+    getEmitter()->emitEnableRandomNops();
+}
+
+
+/*****************************************************************************
+    This function emits the call-site prolog for direct calls to unmanaged code.
+    It does all the necessary setup of the InlinedCallFrame.
+    frameListRoot specifies the local containing the thread control block.
+    argSize or methodToken is the value to be copied into the m_datum
+            field of the frame (methodToken may be indirected & have a reloc)
+    The function returns  the register now containing the thread control block,
+    (it could be either enregistered or loaded into one of the scratch registers)
+*/
+
+regNumber          CodeGen::genPInvokeCallProlog(LclVarDsc*            frameListRoot,
+                                                  int                   argSize,
+                                                  CORINFO_METHOD_HANDLE methodToken,
+                                                  BasicBlock*           returnLabel)
+{
+    // Some stack locals might be 'cached' in registers, we need to trash them
+    // from the regTracker *and* also ensure the gc tracker does not consider
+    // them live (see the next assert).  However, they might be live reg vars
+    // that are non-pointers CSE'd from pointers.
+    // That means the register will be live in rsMaskVars, so we can't just
+    // call gcMarkSetNpt().
+    {
+        regMaskTP deadRegs = regTracker.rsTrashRegsForGCInterruptability() & ~RBM_ARG_REGS;
+        gcInfo.gcRegGCrefSetCur &= ~deadRegs;
+        gcInfo.gcRegByrefSetCur &= ~deadRegs;
+
+#ifdef DEBUG
+        deadRegs &= regSet.rsMaskVars;
+        if (deadRegs)
+        {
+            for (LclVarDsc * varDsc = compiler->lvaTable;
+                 ((varDsc < (compiler->lvaTable + compiler->lvaCount)) && deadRegs);
+                 varDsc++ )
+            {
+                if (!varDsc->lvTracked || !varDsc->lvRegister)
+                    continue;
+
+                if (!VarSetOps::IsMember(compiler, compiler->compCurLife, varDsc->lvVarIndex))
+                    continue;
+
+                regMaskTP varRegMask = genRegMask(varDsc->lvRegNum);
+                if (isRegPairType(varDsc->lvType) && varDsc->lvOtherReg != REG_STK)
+                    varRegMask |= genRegMask(varDsc->lvOtherReg);
+
+                if (varRegMask & deadRegs)
+                {
+                    // We found the enregistered var that should not be live if it
+                    // was a GC pointer.
+                    noway_assert(!varTypeIsGC(varDsc));
+                    deadRegs &= ~varRegMask;
+                }
+            }
+        }
+#endif // DEBUG
+    }
+
+    /* Since we are using the InlinedCallFrame, we should have spilled all
+       GC pointers to it - even from callee-saved registers */
+
+    noway_assert(((gcInfo.gcRegGCrefSetCur|gcInfo.gcRegByrefSetCur) & ~RBM_ARG_REGS) == 0);
+
+    /* must specify only one of these parameters */
+    noway_assert((argSize == 0) || (methodToken == NULL));
+
+    /* We are about to call unmanaged code directly.
+       Before we can do that we have to emit the following sequence:
+
+       mov  dword ptr [frame.callTarget], MethodToken
+       mov  dword ptr [frame.callSiteTracker], esp
+       mov  reg, dword ptr [tcb_address]
+       mov  byte  ptr [tcb+offsetOfGcState], 0
+
+     */
+
+    CORINFO_EE_INFO * pInfo = compiler->eeGetEEInfo();
+
+    noway_assert(compiler->lvaInlinedPInvokeFrameVar != BAD_VAR_NUM);
+    
+    /* mov   dword ptr [frame.callSiteTarget], value */
+
+    if (methodToken == NULL)
+    {
+        /* mov   dword ptr [frame.callSiteTarget], argSize */
+        instGen_Store_Imm_Into_Lcl(TYP_INT, EA_4BYTE, argSize,
+                                   compiler->lvaInlinedPInvokeFrameVar,
+                                   pInfo->inlinedCallFrameInfo.offsetOfCallTarget);
+    }
+    else
+    {
+        void * embedMethHnd, * pEmbedMethHnd;
+
+        embedMethHnd = (void*)compiler->info.compCompHnd->embedMethodHandle(
+                                          methodToken,
+                                          &pEmbedMethHnd);
+
+        noway_assert((!embedMethHnd) != (!pEmbedMethHnd));
+
+        if (embedMethHnd != NULL)
+        {
+            /* mov   dword ptr [frame.callSiteTarget], "MethodDesc" */
+
+            instGen_Store_Imm_Into_Lcl(TYP_I_IMPL, EA_HANDLE_CNS_RELOC, (ssize_t) embedMethHnd,
+                                      compiler->lvaInlinedPInvokeFrameVar,
+                                      pInfo->inlinedCallFrameInfo.offsetOfCallTarget);
+        }
+        else
+        {
+            /* mov   reg, dword ptr [MethodDescIndir]
+               mov   dword ptr [frame.callSiteTarget], reg */
+
+            regNumber reg = regSet.rsPickFreeReg();
+
+#if CPU_LOAD_STORE_ARCH
+            instGen_Set_Reg_To_Imm (EA_HANDLE_CNS_RELOC,
+                                    reg,
+                                    (ssize_t) pEmbedMethHnd);
+            getEmitter()->emitIns_R_AR(ins_Load(TYP_I_IMPL), EA_PTRSIZE, reg, reg, 0);
+#else // !CPU_LOAD_STORE_ARCH
+#ifdef _TARGET_AMD64_
+            if (reg != REG_RAX)
+            {
+                instGen_Set_Reg_To_Imm (EA_HANDLE_CNS_RELOC,
+                                        reg,
+                                        (ssize_t) pEmbedMethHnd);
+                getEmitter()->emitIns_R_AR(ins_Load(TYP_I_IMPL), EA_PTRSIZE, reg, reg, 0);
+            }
+            else
+#endif // _TARGET_AMD64_
+            {
+                getEmitter()->emitIns_R_AI(ins_Load(TYP_I_IMPL), EA_PTR_DSP_RELOC,
+                                         reg, (ssize_t) pEmbedMethHnd);
+            }
+#endif // !CPU_LOAD_STORE_ARCH
+            regTracker.rsTrackRegTrash(reg);
+            getEmitter()->emitIns_S_R (ins_Store(TYP_I_IMPL),
+                                     EA_PTRSIZE,
+                                     reg,
+                                     compiler->lvaInlinedPInvokeFrameVar,
+                                     pInfo->inlinedCallFrameInfo.offsetOfCallTarget);
+        }
+    }
+
+    regNumber tcbReg = REG_NA;
+
+    if (frameListRoot->lvRegister)
+    {
+        tcbReg = frameListRoot->lvRegNum;
+    }
+    else
+    {
+        tcbReg = regSet.rsGrabReg(RBM_ALLINT);
+
+        /* mov reg, dword ptr [tcb address]    */
+
+        getEmitter()->emitIns_R_S  (ins_Load(TYP_I_IMPL),
+                                  EA_PTRSIZE,
+                                  tcbReg,
+                                  (unsigned)(frameListRoot - compiler->lvaTable),
+                                  0);
+        regTracker.rsTrackRegTrash(tcbReg);
+    }
+
+#ifdef _TARGET_X86_
+    /* mov   dword ptr [frame.callSiteTracker], esp */
+
+    getEmitter()->emitIns_S_R  (ins_Store(TYP_I_IMPL),
+                              EA_PTRSIZE,
+                              REG_SPBASE,
+                              compiler->lvaInlinedPInvokeFrameVar,
+                              pInfo->inlinedCallFrameInfo.offsetOfCallSiteSP);
+#endif // _TARGET_X86_
+
+    /* mov   dword ptr [frame.callSiteReturnAddress], label */
+    
+#if CPU_LOAD_STORE_ARCH
+    regNumber tmpReg = regSet.rsGrabReg(RBM_ALLINT & ~genRegMask(tcbReg));
+    getEmitter()->emitIns_J_R (INS_adr,
+                             EA_PTRSIZE,
+                             returnLabel,
+                             tmpReg);
+    regTracker.rsTrackRegTrash(tmpReg);
+    getEmitter()->emitIns_S_R (ins_Store(TYP_I_IMPL),
+                             EA_PTRSIZE,
+                             tmpReg,
+                             compiler->lvaInlinedPInvokeFrameVar,
+                             pInfo->inlinedCallFrameInfo.offsetOfReturnAddress);
+#else // !CPU_LOAD_STORE_ARCH
+    // TODO-AMD64-CQ: Consider changing to a rip relative sequence on x64.
+    getEmitter()->emitIns_J_S (ins_Store(TYP_I_IMPL),
+                             EA_PTRSIZE,
+                             returnLabel,
+                             compiler->lvaInlinedPInvokeFrameVar,
+                             pInfo->inlinedCallFrameInfo.offsetOfReturnAddress);
+#endif // !CPU_LOAD_STORE_ARCH
+
+#if CPU_LOAD_STORE_ARCH
+    instGen_Set_Reg_To_Zero(EA_1BYTE, tmpReg);
+
+    noway_assert(tmpReg != tcbReg);
+
+    getEmitter()->emitIns_AR_R(ins_Store(TYP_BYTE),
+                             EA_1BYTE,
+                             tmpReg,
+                             tcbReg,
+                             pInfo->offsetOfGCState);
+#else // !CPU_LOAD_STORE_ARCH
+    /* mov   byte  ptr [tcbReg+offsetOfGcState], 0 */
+
+    getEmitter()->emitIns_I_AR (ins_Store(TYP_BYTE),
+                              EA_1BYTE,
+                              0,
+                              tcbReg,
+                              pInfo->offsetOfGCState);
+#endif // !CPU_LOAD_STORE_ARCH
+
+    return tcbReg;
+}
+
+/*****************************************************************************
+ *
+   First we have to mark in the hoisted NDirect stub that we are back
+   in managed code. Then we have to check (a global flag) whether GC is
+   pending or not. If so, we just call into a jit-helper.
+   Right now we have this call always inlined, i.e. we always skip around
+   the jit-helper call.
+   Note:
+   The tcb address is a regular local (initialized in the prolog), so it is either
+   enregistered or in the frame:
+
+        tcb_reg = [tcb_address is enregistered] OR [mov ecx, tcb_address]
+        mov  byte ptr[tcb_reg+offsetOfGcState], 1
+        cmp  'global GC pending flag', 0
+        je   @f
+        [mov  ECX, tcb_reg]  OR [ecx was setup above]     ; we pass the tcb value to callGC
+        [mov  [EBP+spill_area+0], eax]                    ; spill the int  return value if any
+        [mov  [EBP+spill_area+4], edx]                    ; spill the long return value if any
+        call @callGC
+        [mov  eax, [EBP+spill_area+0] ]                   ; reload the int  return value if any
+        [mov  edx, [EBP+spill_area+4] ]                   ; reload the long return value if any
+    @f:
+ */
+
+void                CodeGen::genPInvokeCallEpilog(LclVarDsc *  frameListRoot,
+                                                  regMaskTP    retVal)
+{
+    BasicBlock  *       clab_nostop;
+    CORINFO_EE_INFO *   pInfo = compiler->eeGetEEInfo();
+    regNumber           reg2;
+    regNumber           reg3;
+#ifdef _TARGET_ARM_
+        reg3 = REG_R3;
+#else
+        reg3 = REG_EDX;
+#endif
+#ifdef _TARGET_AMD64_
+    TempDsc * retTmp = NULL;
+#endif
+
+    getEmitter()->emitDisableRandomNops();
+
+    if (frameListRoot->lvRegister)
+    {
+        /* make sure that register is live across the call */
+
+        reg2 = frameListRoot->lvRegNum;
+        noway_assert(genRegMask(reg2) & RBM_INT_CALLEE_SAVED);
+    }
+    else
+    {
+        /* mov   reg2, dword ptr [tcb address]    */
+#ifdef _TARGET_ARM_
+        reg2 = REG_R2;
+#else
+        reg2 = REG_ECX;
+#endif
+
+        getEmitter()->emitIns_R_S  (ins_Load(TYP_I_IMPL),
+                                  EA_PTRSIZE,
+                                  reg2,
+                                  (unsigned)(frameListRoot - compiler->lvaTable),
+                                  0);
+        regTracker.rsTrackRegTrash(reg2);
+    }
+
+
+#ifdef _TARGET_ARM_
+    /* mov   r3, 1 */
+    /* strb  [r2+offsetOfGcState], r3 */
+    instGen_Set_Reg_To_Imm(EA_PTRSIZE, reg3, 1);
+    getEmitter()->emitIns_AR_R (ins_Store(TYP_BYTE),
+                              EA_1BYTE,
+                              reg3,
+                              reg2,
+                              pInfo->offsetOfGCState);
+#else
+    /* mov   byte ptr [tcb+offsetOfGcState], 1 */
+    getEmitter()->emitIns_I_AR (ins_Store(TYP_BYTE),
+                              EA_1BYTE,
+                              1,
+                              reg2,
+                              pInfo->offsetOfGCState);
+#endif
+
+    /* test global flag (we return to managed code) */
+
+    LONG * addrOfCaptureThreadGlobal, **pAddrOfCaptureThreadGlobal;
+
+    addrOfCaptureThreadGlobal = compiler->info.compCompHnd->getAddrOfCaptureThreadGlobal((void**) &pAddrOfCaptureThreadGlobal);
+    noway_assert((!addrOfCaptureThreadGlobal) != (!pAddrOfCaptureThreadGlobal));
+
+    // Can we directly use addrOfCaptureThreadGlobal?
+
+    if (addrOfCaptureThreadGlobal)
+    {
+#ifdef _TARGET_ARM_
+        instGen_Set_Reg_To_Imm (EA_HANDLE_CNS_RELOC,
+                                reg3,
+                                (ssize_t)addrOfCaptureThreadGlobal);
+        getEmitter()->emitIns_R_R_I (ins_Load(TYP_INT),
+                                   EA_4BYTE,
+                                   reg3,
+                                   reg3,
+                                   0);
+        regTracker.rsTrackRegTrash(reg3);
+        getEmitter()->emitIns_R_I (INS_cmp,
+                                 EA_4BYTE,
+                                 reg3,
+                                 0);
+#elif defined(_TARGET_AMD64_)
+
+        if (IMAGE_REL_BASED_REL32 != compiler->eeGetRelocTypeHint(addrOfCaptureThreadGlobal))
+        {
+            instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, reg3, (ssize_t)addrOfCaptureThreadGlobal);
+
+            getEmitter()->emitIns_I_AR(INS_cmp, EA_4BYTE, 0, reg3, 0);
+        }
+        else
+        {
+            getEmitter()->emitIns_I_AI(INS_cmp, EA_4BYTE_DSP_RELOC, 0, (ssize_t)addrOfCaptureThreadGlobal);
+        }
+
+#else
+        getEmitter()->emitIns_C_I  (INS_cmp,
+                                  EA_PTR_DSP_RELOC,
+                                  FLD_GLOBAL_DS,
+                                  (ssize_t) addrOfCaptureThreadGlobal,
+                                  0);
+#endif
+    }
+    else
+    {
+#ifdef _TARGET_ARM_
+        instGen_Set_Reg_To_Imm (EA_HANDLE_CNS_RELOC,
+                                reg3,
+                                (ssize_t)pAddrOfCaptureThreadGlobal);
+        getEmitter()->emitIns_R_R_I (ins_Load(TYP_INT),
+                                   EA_4BYTE,
+                                   reg3,
+                                   reg3,
+                                   0);
+        regTracker.rsTrackRegTrash(reg3);
+        getEmitter()->emitIns_R_R_I (ins_Load(TYP_INT),
+                                   EA_4BYTE,
+                                   reg3,
+                                   reg3,
+                                   0);
+        getEmitter()->emitIns_R_I (INS_cmp,
+                                 EA_4BYTE,
+                                 reg3,
+                                 0);
+#else // !_TARGET_ARM_
+
+#ifdef _TARGET_AMD64_
+        if (IMAGE_REL_BASED_REL32 != compiler->eeGetRelocTypeHint(pAddrOfCaptureThreadGlobal))
+        {
+            instGen_Set_Reg_To_Imm(EA_PTR_DSP_RELOC, REG_ECX, (ssize_t)pAddrOfCaptureThreadGlobal);
+            getEmitter()->emitIns_R_AR(ins_Load(TYP_I_IMPL), EA_PTRSIZE, REG_ECX, REG_ECX, 0);
+            regTracker.rsTrackRegTrash(REG_ECX);
+        }
+        else
+#endif // _TARGET_AMD64_
+        {
+            getEmitter()->emitIns_R_AI(ins_Load(TYP_I_IMPL), EA_PTR_DSP_RELOC, REG_ECX,
+                                     (ssize_t)pAddrOfCaptureThreadGlobal);
+            regTracker.rsTrackRegTrash(REG_ECX);
+        }
+
+        getEmitter()->emitIns_I_AR(INS_cmp, EA_4BYTE, 0, REG_ECX, 0);
+#endif // !_TARGET_ARM_
+    }
+
+    /* */
+    clab_nostop = genCreateTempLabel();
+
+    /* Generate the conditional jump */
+    emitJumpKind jmpEqual = genJumpKindForOper(GT_EQ, CK_SIGNED);
+    inst_JMP(jmpEqual, clab_nostop);
+
+#ifdef _TARGET_ARM_
+    // The helper preserves the return value on ARM
+#else
+    /* save return value (if necessary) */
+    if  (retVal != RBM_NONE)
+    {
+        if (retVal == RBM_INTRET || retVal == RBM_LNGRET)
+        {
+#ifdef _TARGET_AMD64_
+            retTmp = compiler->tmpGetTemp(TYP_LONG);
+            inst_ST_RV(INS_mov, retTmp, 0, REG_INTRET, TYP_LONG);
+#elif defined(_TARGET_X86_)
+            /* push eax */
+
+            inst_RV(INS_push, REG_INTRET, TYP_INT);
+
+            if (retVal == RBM_LNGRET)
+            {
+                /* push edx */
+
+                inst_RV(INS_push, REG_EDX, TYP_INT);
+            }
+#endif // _TARGET_AMD64_
+        }
+    }
+#endif
+
+    /* emit the call to the EE-helper that stops for GC (or other reasons) */
+
+    genEmitHelperCall(CORINFO_HELP_STOP_FOR_GC,
+                      0,             /* argSize */
+                      EA_UNKNOWN);   /* retSize */
+
+#ifdef _TARGET_ARM_
+    // The helper preserves the return value on ARM
+#else
+    /* restore return value (if necessary) */
+
+    if  (retVal != RBM_NONE)
+    {
+        if (retVal == RBM_INTRET || retVal == RBM_LNGRET)
+        {
+#ifdef _TARGET_AMD64_
+
+            assert(retTmp != NULL);
+            inst_RV_ST(INS_mov, REG_INTRET, retTmp, 0, TYP_LONG);
+            regTracker.rsTrackRegTrash(REG_INTRET);
+            compiler->tmpRlsTemp(retTmp);
+
+#elif defined(_TARGET_X86_)
+            if (retVal == RBM_LNGRET)
+            {
+                /* pop edx */
+
+                inst_RV(INS_pop, REG_EDX, TYP_INT);
+                regTracker.rsTrackRegTrash(REG_EDX);
+            }
+
+            /* pop eax */
+
+            inst_RV(INS_pop, REG_INTRET, TYP_INT);
+            regTracker.rsTrackRegTrash(REG_INTRET);
+#endif // _TARGET_AMD64_
+        }
+    }
+#endif
+
+    /* genCondJump() closes the current emitter block */
+
+    genDefineTempLabel(clab_nostop);
+
+    // This marks the InlinedCallFrame as "inactive".  In fully interruptible code, this is not atomic with
+    // the above code.  So the process is:
+    // 1) Return to cooperative mode
+    // 2) Check to see if we need to stop for GC
+    // 3) Return from the p/invoke (as far as the stack walker is concerned).
+
+    /* mov  dword ptr [frame.callSiteTracker], 0 */
+
+    instGen_Store_Imm_Into_Lcl(TYP_I_IMPL, EA_PTRSIZE, 0,
+                              compiler->lvaInlinedPInvokeFrameVar,
+                              pInfo->inlinedCallFrameInfo.offsetOfReturnAddress);
+
+    getEmitter()->emitEnableRandomNops();
+}
+
+/*****************************************************************************/
+
+/*****************************************************************************
+*           TRACKING OF FLAGS
+*****************************************************************************/
+
+void                CodeGen::genFlagsEqualToNone()
+{
+    genFlagsEqReg = REG_NA;
+    genFlagsEqVar = (unsigned)-1;
+    genFlagsEqLoc.Init();
+}
+
+/*****************************************************************************
+ *
+ *  Record the fact that the flags register has a value that reflects the
+ *  contents of the given register.
+ */
+
+void                CodeGen::genFlagsEqualToReg(GenTreePtr tree,
+                                                regNumber  reg)
+{
+    genFlagsEqLoc.CaptureLocation(getEmitter());
+    genFlagsEqReg = reg;
+
+    /* previous setting of flags by a var becomes invalid */
+
+    genFlagsEqVar = 0xFFFFFFFF;
+
+    /* Set appropriate flags on the tree */
+
+    if (tree)
+    {
+        tree->gtFlags |= GTF_ZSF_SET;
+        assert(tree->gtSetFlags());
+    }
+}
+
+/*****************************************************************************
+ *
+ *  Record the fact that the flags register has a value that reflects the
+ *  contents of the given local variable.
+ */
+
+void                CodeGen::genFlagsEqualToVar(GenTreePtr tree,
+                                                unsigned   var)
+{
+    genFlagsEqLoc.CaptureLocation(getEmitter());
+    genFlagsEqVar = var;
+
+    /* previous setting of flags by a register becomes invalid */
+
+    genFlagsEqReg = REG_NA;
+
+    /* Set appropriate flags on the tree */
+
+    if (tree)
+    {
+        tree->gtFlags |= GTF_ZSF_SET;
+        assert(tree->gtSetFlags());
+    }
+}
+
+/*****************************************************************************
+ *
+ *  Return an indication of whether the flags register is set to the current
+ *  value of the given register/variable. The return value is as follows:
+ *
+ *      false  ..  nothing
+ *      true   ..  the zero flag (ZF) and sign flag (SF) is set
+ */
+
+bool                 CodeGen::genFlagsAreReg(regNumber reg)
+{
+    if  ((genFlagsEqReg == reg) && genFlagsEqLoc.IsCurrentLocation(getEmitter()))
+    {
+        return true;
+    }
+
+    return false;
+}
+
+bool                 CodeGen::genFlagsAreVar(unsigned  var)
+{
+    if  ((genFlagsEqVar == var) && genFlagsEqLoc.IsCurrentLocation(getEmitter()))
+    {
+        return true;
+    }
+
+    return false;
+}
+
+/*****************************************************************************
+ * This utility function returns true iff the execution path from "from"
+ * (inclusive) to "to" (exclusive) contains a death of the given var
+ */
+bool
+CodeGen::genContainsVarDeath(GenTreePtr from, GenTreePtr to, unsigned varNum)
+{
+    GenTreePtr tree;
+    for (tree = from; tree != NULL && tree != to; tree = tree->gtNext)
+    {
+        if (tree->IsLocal() && (tree->gtFlags & GTF_VAR_DEATH))
+        {
+            unsigned dyingVarNum = tree->gtLclVarCommon.gtLclNum;
+            if (dyingVarNum == varNum) return true;
+            LclVarDsc * varDsc = &(compiler->lvaTable[varNum]);
+            if (varDsc->lvPromoted)
+            {
+                assert(varDsc->lvType == TYP_STRUCT);
+                unsigned firstFieldNum = varDsc->lvFieldLclStart;
+                if (varNum >= firstFieldNum && varNum < firstFieldNum + varDsc->lvFieldCnt)
+                {
+                    return true;
+                }
+            }
+        }
+    }
+    assert(tree != NULL);
+    return false;
+}
+
 #endif // LEGACY_BACKEND

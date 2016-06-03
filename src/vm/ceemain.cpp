@@ -803,9 +803,6 @@ do { \
 #define IfFailGoLog(EXPR) IfFailGotoLog(EXPR, ErrExit)
 #endif
 
-void            jitOnDllProcessAttach();
-
-
 void EEStartupHelper(COINITIEE fFlags)
 {
     CONTRACTL
@@ -853,16 +850,6 @@ void EEStartupHelper(COINITIEE fFlags)
             IfFailGo(g_pConfig->SetupConfiguration());
 #endif // !FEATURE_CORECLR && !CROSSGEN_COMPILE
         }
-
-#ifdef CROSSGEN_COMPILE
-//ARM64TODO: Enable when jit is brought in
- #if defined(_TARGET_ARM64_)
-        //_ASSERTE(!"ARM64:NYI");    
-        
- #else
-        jitOnDllProcessAttach();
- #endif // defined(_TARGET_ARM64_)
-#endif
 
 #ifndef CROSSGEN_COMPILE
         // Initialize Numa and CPU group information
@@ -1969,12 +1956,6 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
 #endif // FEATURE_INTERPRETER
         
         FastInterlockExchange((LONG*)&g_fForbidEnterEE, TRUE);
-
-#if defined(DEBUGGING_SUPPORTED) && defined(FEATURE_PAL)
-        // Terminate the debugging services in the first phase for PAL based platforms
-        // because EEDllMain's DLL_PROCESS_DETACH is NOT going to be called.
-        TerminateDebugger();
-#endif // DEBUGGING_SUPPORTED && FEATURE_PAL
 
         if (g_fProcessDetach)
         {
@@ -4207,12 +4188,7 @@ static void TerminateDebugger(void)
 
         // This will kill the helper thread, delete the Debugger object, and free all resources.
         g_pDebugInterface->StopDebugger();
-        g_pDebugInterface = NULL;
     }
-
-    // Delete this after Debugger, since Debugger may use this.
-    EEDbgInterfaceImpl::Terminate();
-    _ASSERTE(g_pEEDbgInterfaceImpl == NULL); // Terminate nulls this out for us.
 
     g_CORDebuggerControlFlags = DBCF_NORMAL_OPERATION;
 

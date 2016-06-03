@@ -164,10 +164,10 @@ namespace System.Threading.Tasks
         internal object m_stateObject; // A state object that can be optionally supplied, passed to action.
         internal TaskScheduler m_taskScheduler; // The task scheduler this task runs under. 
 
-        internal readonly Task m_parent; // A task's parent, or null if parent-less.
-
-
         internal volatile int m_stateFlags;
+
+        private Task ParentForDebugger => m_contingentProperties?.m_parent; // Private property used by a debugger to access this Task's parent
+        private int StateFlagsForDebugger => m_stateFlags; // Private property used by a debugger to access this Task's state flags
 
         // State constants for m_stateFlags;
         // The bits of m_stateFlags are allocated as follows:
@@ -250,7 +250,7 @@ namespace System.Threading.Tasks
         {
             // Additional context
 
-            internal ExecutionContext m_capturedContext; // The execution context to run the task within, if any.
+            internal ExecutionContext m_capturedContext; // The execution context to run the task within, if any. Only set from non-concurrent contexts.
 
             // Completion fields (exceptions and event)
 
@@ -273,6 +273,8 @@ namespace System.Threading.Tasks
             // A list of child tasks that threw an exception (TCEs don't count),
             // but haven't yet been waited on by the parent, lazily initialized.
             internal volatile List<Task> m_exceptionalChildren;
+            // A task's parent, or null if parent-less. Only set during Task construction.
+            internal Task m_parent; 
 
             /// <summary>
             /// Sets the internal completion event.
@@ -305,7 +307,7 @@ namespace System.Threading.Tasks
 
         // This field will only be instantiated to some non-null value if any ContingentProperties need to be set.
         // This will be a ContingentProperties instance or a type derived from it
-        internal volatile ContingentProperties m_contingentProperties;
+        internal ContingentProperties m_contingentProperties;
 
         // Special internal constructor to create an already-completed task.
         // if canceled==true, create a Canceled task, or else create a RanToCompletion task.
@@ -316,25 +318,15 @@ namespace System.Threading.Tasks
             if (canceled)
             {
                 m_stateFlags = TASK_STATE_CANCELED | TASK_STATE_CANCELLATIONACKNOWLEDGED | optionFlags;
-                ContingentProperties props;
-                m_contingentProperties = props = new ContingentProperties(); // can't have children, so just instantiate directly
-                props.m_cancellationToken = ct;
-                props.m_internalCancellationRequested = CANCELLATION_REQUESTED;
+                m_contingentProperties = new ContingentProperties() // can't have children, so just instantiate directly
+                {
+                    m_cancellationToken = ct,
+                    m_internalCancellationRequested = CANCELLATION_REQUESTED,
+                };
             }
             else
                 m_stateFlags = TASK_STATE_RAN_TO_COMPLETION | optionFlags;
         }
-
-        // Uncomment if/when we want Task.FromException
-        //// Special internal constructor to create an already-Faulted task.
-        //internal Task(Exception exception)
-        //{
-        //    Contract.Assert(exception != null);
-        //    ContingentProperties props;
-        //    m_contingentProperties = props = new ContingentProperties(); // can't have children, so just instantiate directly
-        //    props.m_exceptionsHolder.Add(exception);
-        //    m_stateFlags = TASK_STATE_FAULTED;
-        //}
 
         /// <summary>Constructor for use with promise-style tasks that aren't configurable.</summary>
         internal Task()
@@ -356,10 +348,15 @@ namespace System.Threading.Tasks
                 throw new ArgumentOutOfRangeException("creationOptions");
             }
 
-            // m_parent is readonly, and so must be set in the constructor.
             // Only set a parent if AttachedToParent is specified.
             if ((creationOptions & TaskCreationOptions.AttachedToParent) != 0)
-                m_parent = Task.InternalCurrent;
+            {
+                Task parent = Task.InternalCurrent;
+                if (parent != null)
+                {
+                    EnsureContingentPropertiesInitializedUnsafe().m_parent = parent;
+                }
+            }
 
             TaskConstructorCore(null, state, default(CancellationToken), creationOptions, InternalTaskOptions.PromiseTask, null);
         }
@@ -561,13 +558,12 @@ namespace System.Threading.Tasks
             }
             Contract.EndContractBlock();
 
-            // This is readonly, and so must be set in the constructor
             // Keep a link to your parent if: (A) You are attached, or (B) you are self-replicating.
-            if (((creationOptions & TaskCreationOptions.AttachedToParent) != 0) ||
-                ((internalOptions & InternalTaskOptions.SelfReplicating) != 0)
-                )
+            if (parent != null &&
+                ((creationOptions & TaskCreationOptions.AttachedToParent) != 0 ||
+                 (internalOptions & InternalTaskOptions.SelfReplicating) != 0))
             {
-                m_parent = parent;
+                EnsureContingentPropertiesInitializedUnsafe().m_parent = parent;
             }
 
             TaskConstructorCore(action, state, cancellationToken, creationOptions, internalOptions, scheduler);
@@ -640,12 +636,13 @@ namespace System.Threading.Tasks
             // We can safely call the creator task's AddNewChild() method to register it, 
             // because at this point we are already on its thread of execution.
 
-            if (m_parent != null
+            Task parent = m_contingentProperties?.m_parent;
+            if (parent != null
                 && ((creationOptions & TaskCreationOptions.AttachedToParent) != 0)
-                && ((m_parent.CreationOptions & TaskCreationOptions.DenyChildAttach) == 0)
+                && ((parent.CreationOptions & TaskCreationOptions.DenyChildAttach) == 0)
                 )
             {
-                m_parent.AddNewChild();
+                parent.AddNewChild();
             }
 
             // if we have a non-null cancellationToken, allocate the contingent properties to save it
@@ -668,7 +665,7 @@ namespace System.Threading.Tasks
         {
             // There is no need to worry about concurrency issues here because we are in the constructor path of the task --
             // there should not be any race conditions to set m_contingentProperties at this point.
-            ContingentProperties props = EnsureContingentPropertiesInitialized(needsProtection: false);
+            ContingentProperties props = EnsureContingentPropertiesInitializedUnsafe();
             props.m_cancellationToken = cancellationToken;
 
             try
@@ -716,11 +713,12 @@ namespace System.Threading.Tasks
             {
                 // If we have an exception related to our CancellationToken, then we need to subtract ourselves
                 // from our parent before throwing it.
-                if ((m_parent != null) &&
+                Task parent = m_contingentProperties?.m_parent;
+                if ((parent != null) &&
                     ((Options & TaskCreationOptions.AttachedToParent) != 0)
-                     && ((m_parent.Options & TaskCreationOptions.DenyChildAttach) == 0))
+                     && ((parent.Options & TaskCreationOptions.DenyChildAttach) == 0))
                 {
-                    m_parent.DisregardChild();
+                    parent.DisregardChild();
                 }
                 throw;
             }
@@ -973,7 +971,7 @@ namespace System.Threading.Tasks
                 m_stateFlags |= Task.TASK_STATE_TASKSCHEDULED_WAS_FIRED;
 
                 Task currentTask = Task.InternalCurrent;
-                Task parentTask = this.m_parent;
+                Task parentTask = m_contingentProperties?.m_parent;
                 etwLog.TaskScheduled(ts.Id, currentTask == null ? 0 : currentTask.Id,
                                      this.Id, parentTask == null ? 0 : parentTask.Id, (int)this.Options,
                                      System.Threading.Thread.GetDomainID());
@@ -995,7 +993,7 @@ namespace System.Threading.Tasks
         {
             Contract.Assert(Task.InternalCurrent == this || this.IsSelfReplicatingRoot, "Task.AddNewChild(): Called from an external context");
 
-            var props = EnsureContingentPropertiesInitialized(needsProtection: true);
+            var props = EnsureContingentPropertiesInitialized();
 
             if (props.m_completionCountdown == 1 && !IsSelfReplicatingRoot)
             {
@@ -1018,7 +1016,7 @@ namespace System.Threading.Tasks
         {
             Contract.Assert(Task.InternalCurrent == this, "Task.DisregardChild(): Called from an external context");
 
-            var props = EnsureContingentPropertiesInitialized(needsProtection: true);
+            var props = EnsureContingentPropertiesInitialized();
             Contract.Assert(props.m_completionCountdown >= 2, "Task.DisregardChild(): Expected parent count to be >= 2");
             Interlocked.Decrement(ref props.m_completionCountdown);
         }
@@ -1467,7 +1465,7 @@ namespace System.Threading.Tasks
             get
             {
                 // check both the internal cancellation request flag and the CancellationToken attached to this task
-                var props = m_contingentProperties;
+                var props = Volatile.Read(ref m_contingentProperties);
                 return props != null &&
                     (props.m_internalCancellationRequested == CANCELLATION_REQUESTED ||
                      props.m_cancellationToken.IsCancellationRequested);
@@ -1478,34 +1476,21 @@ namespace System.Threading.Tasks
         /// Ensures that the contingent properties field has been initialized.
         /// ASSUMES THAT m_stateFlags IS ALREADY SET!
         /// </summary>
-        /// <param name="needsProtection">true if this needs to be done in a thread-safe manner; otherwise, false.</param>
         /// <returns>The initialized contingent properties object.</returns>
-        internal ContingentProperties EnsureContingentPropertiesInitialized(bool needsProtection)
+        internal ContingentProperties EnsureContingentPropertiesInitialized()
         {
-            var props = m_contingentProperties;
-            return props != null ? props : EnsureContingentPropertiesInitializedCore(needsProtection);
+            return LazyInitializer.EnsureInitialized(ref m_contingentProperties, () => new ContingentProperties());
         }
 
         /// <summary>
-        /// Initializes the contingent properties object.  This assumes a check has already been done for nullness.
+        /// Without synchronization, ensures that the contingent properties field has been initialized.
+        /// ASSUMES THAT m_stateFlags IS ALREADY SET!
         /// </summary>
-        /// <param name="needsProtection">true if this needs to be done in a thread-safe manner; otherwise, false.</param>
         /// <returns>The initialized contingent properties object.</returns>
-        private ContingentProperties EnsureContingentPropertiesInitializedCore(bool needsProtection)
+        internal ContingentProperties EnsureContingentPropertiesInitializedUnsafe()
         {
-            if (needsProtection)
-            {
-                return LazyInitializer.EnsureInitialized<ContingentProperties>(ref m_contingentProperties, s_createContingentProperties);
-            }
-            else
-            {
-                Contract.Assert(m_contingentProperties == null, "Expected props to be null after checking and with needsProtection == false");
-                return m_contingentProperties = new ContingentProperties();
-            }
+            return m_contingentProperties ?? (m_contingentProperties = new ContingentProperties());
         }
-
-        // Cached functions for lazily initializing contingent properties
-        private static readonly Func<ContingentProperties> s_createContingentProperties = () => new ContingentProperties();
 
         /// <summary>
         /// This internal property provides access to the CancellationToken that was set on the task 
@@ -1515,7 +1500,7 @@ namespace System.Threading.Tasks
         {
             get
             {
-                var props = m_contingentProperties;
+                var props = Volatile.Read(ref m_contingentProperties);
                 return (props == null) ? default(CancellationToken) : props.m_cancellationToken;
             }
         }
@@ -1659,7 +1644,7 @@ namespace System.Threading.Tasks
         {
             get
             {
-                var contingentProps = EnsureContingentPropertiesInitialized(needsProtection: true);
+                var contingentProps = EnsureContingentPropertiesInitialized();
                 if (contingentProps.m_completionEvent == null)
                 {
                     bool wasCompleted = IsCompleted;
@@ -1706,7 +1691,7 @@ namespace System.Threading.Tasks
         {
             get
             {
-                var props = m_contingentProperties;
+                var props = Volatile.Read(ref m_contingentProperties);
                 return props != null ? props.m_completionCountdown - 1 : 0;
             }
         }
@@ -1718,7 +1703,7 @@ namespace System.Threading.Tasks
         {
             get
             {
-                var props = m_contingentProperties;
+                var props = Volatile.Read(ref m_contingentProperties);
                 return (props != null) && (props.m_exceptionsHolder != null) && (props.m_exceptionsHolder.ContainsFaultList);
             }
         }
@@ -1755,9 +1740,7 @@ namespace System.Threading.Tasks
                 }
                 else
                 {
-                    var props = m_contingentProperties;
-                    if (props != null && props.m_capturedContext != null) return props.m_capturedContext;
-                    else return ExecutionContext.PreAllocatedDefault;
+                    return m_contingentProperties?.m_capturedContext ?? ExecutionContext.PreAllocatedDefault;
                 }
             }
             set
@@ -1769,7 +1752,7 @@ namespace System.Threading.Tasks
                 }
                 else if (!value.IsPreAllocatedDefault) // not the default context, then inflate the contingent properties and set it
                 {
-                    EnsureContingentPropertiesInitialized(needsProtection: false).m_capturedContext = value;
+                    EnsureContingentPropertiesInitializedUnsafe().m_capturedContext = value;
                 }
                 //else do nothing, this is the default context
             }
@@ -1856,7 +1839,7 @@ namespace System.Threading.Tasks
                 }
 
                 // Dispose of the underlying completion event if it exists
-                var cp = m_contingentProperties;
+                var cp = Volatile.Read(ref m_contingentProperties);
                 if (cp != null)
                 {
                     // Make a copy to protect against racing Disposes.
@@ -2018,7 +2001,7 @@ namespace System.Threading.Tasks
             //
 
             // Lazily initialize the holder, ensuring only one thread wins.
-            var props = EnsureContingentPropertiesInitialized(needsProtection: true);
+            var props = EnsureContingentPropertiesInitialized();
             if (props.m_exceptionsHolder == null)
             {
                 TaskExceptionHolder holder = new TaskExceptionHolder(this);
@@ -2125,11 +2108,7 @@ namespace System.Threading.Tasks
         internal ExceptionDispatchInfo GetCancellationExceptionDispatchInfo()
         {
             Contract.Assert(IsCanceled, "Must only be used when the task has canceled.");
-            var props = m_contingentProperties;
-            if (props == null) return null;
-            var holder = props.m_exceptionsHolder;
-            if (holder == null) return null;
-            return holder.GetCancellationExceptionDispatchInfo(); // may be null
+            return Volatile.Read(ref m_contingentProperties)?.m_exceptionsHolder?.GetCancellationExceptionDispatchInfo(); // may be null
         }
 
         /// <summary>
@@ -2160,10 +2139,11 @@ namespace System.Threading.Tasks
         /// </summary>
         internal void UpdateExceptionObservedStatus()
         {
-            if ((m_parent != null)
+            Task parent = m_contingentProperties?.m_parent;
+            if ((parent != null)
                 && ((Options & TaskCreationOptions.AttachedToParent) != 0)
-                && ((m_parent.CreationOptions & TaskCreationOptions.DenyChildAttach) == 0)
-                && Task.InternalCurrent == m_parent)
+                && ((parent.CreationOptions & TaskCreationOptions.DenyChildAttach) == 0)
+                && Task.InternalCurrent == parent)
             {
                 m_stateFlags |= TASK_STATE_EXCEPTIONOBSERVEDBYPARENT;
             }
@@ -2213,7 +2193,7 @@ namespace System.Threading.Tasks
             }
             else
             {
-                var props = m_contingentProperties;
+                var props = Volatile.Read(ref m_contingentProperties);
 
                 if (props == null || // no contingent properties means no children, so it's safe to complete ourselves
                     (props.m_completionCountdown == 1 && !IsSelfReplicatingRoot) ||
@@ -2317,7 +2297,7 @@ namespace System.Threading.Tasks
 
             // Set the completion event if it's been lazy allocated.
             // And if we made a cancellation registration, it's now unnecessary.
-            var cp = m_contingentProperties;
+            var cp = Volatile.Read(ref m_contingentProperties);
             if (cp != null)
             {
                 cp.SetCompleted();
@@ -2344,11 +2324,12 @@ namespace System.Threading.Tasks
             m_action = null;
 
             // Notify parent if this was an attached task
-            if (m_parent != null
-                 && ((m_parent.CreationOptions & TaskCreationOptions.DenyChildAttach) == 0)
+            Task parent = m_contingentProperties?.m_parent;
+            if (parent != null
+                 && ((parent.CreationOptions & TaskCreationOptions.DenyChildAttach) == 0)
                  && (((TaskCreationOptions)(m_stateFlags & OptionsMask)) & TaskCreationOptions.AttachedToParent) != 0)
             {
-                m_parent.ProcessChildCompletion(this);
+                parent.ProcessChildCompletion(this);
             }
 
             // Activate continuations (if any).
@@ -2363,9 +2344,9 @@ namespace System.Threading.Tasks
             Contract.Requires(childTask != null);
             Contract.Requires(childTask.IsCompleted, "ProcessChildCompletion was called for an uncompleted task");
 
-            Contract.Assert(childTask.m_parent == this, "ProcessChildCompletion should only be called for a child of this task");
+            Contract.Assert(childTask.m_contingentProperties?.m_parent == this, "ProcessChildCompletion should only be called for a child of this task");
 
-            var props = m_contingentProperties;
+            var props = Volatile.Read(ref m_contingentProperties);
 
             // if the child threw and we haven't observed it we need to save it for future reference
             if (childTask.IsFaulted && !childTask.IsExceptionObservedByParent)
@@ -2410,23 +2391,23 @@ namespace System.Threading.Tasks
             // simultaneously on the same task from two different contexts.  This can result in m_exceptionalChildren
             // being nulled out while it is being processed, which could lead to a NullReferenceException.  To
             // protect ourselves, we'll cache m_exceptionalChildren in a local variable.
-            var props = m_contingentProperties;
-            List<Task> tmp = (props != null) ? props.m_exceptionalChildren : null;
+            var props = Volatile.Read(ref m_contingentProperties);
+            List<Task> exceptionalChildren = props?.m_exceptionalChildren;
 
-            if (tmp != null)
+            if (exceptionalChildren != null)
             {
                 // This lock is necessary because even though AddExceptionsFromChildren is last to execute, it may still 
                 // be racing with the code segment at the bottom of Finish() that prunes the exceptional child array. 
-                lock (tmp)
+                lock (exceptionalChildren)
                 {
-                    foreach (Task task in tmp)
+                    foreach (Task task in exceptionalChildren)
                     {
                         // Ensure any exceptions thrown by children are added to the parent.
                         // In doing this, we are implicitly marking children as being "handled".
                         Contract.Assert(task.IsCompleted, "Expected all tasks in list to be completed");
                         if (task.IsFaulted && !task.IsExceptionObservedByParent)
                         {
-                            TaskExceptionHolder exceptionHolder = task.m_contingentProperties.m_exceptionsHolder;
+                            TaskExceptionHolder exceptionHolder = Volatile.Read(ref task.m_contingentProperties).m_exceptionsHolder;
                             Contract.Assert(exceptionHolder != null);
 
                             // No locking necessary since child task is finished adding exceptions
@@ -2454,7 +2435,7 @@ namespace System.Threading.Tasks
         /// <param name="delegateRan">Whether the delegate was executed.</param>
         internal void FinishThreadAbortedTask(bool bTAEAddedToExceptionHolder, bool delegateRan)
         {
-            Contract.Assert(!bTAEAddedToExceptionHolder || (m_contingentProperties != null && m_contingentProperties.m_exceptionsHolder != null),
+            Contract.Assert(!bTAEAddedToExceptionHolder || m_contingentProperties?.m_exceptionsHolder != null,
                             "FinishThreadAbortedTask() called on a task whose exception holder wasn't initialized");
 
             // this will only be false for non-root self replicating task copies, because all of their exceptions go to the root task.
@@ -3475,9 +3456,7 @@ namespace System.Threading.Tasks
         internal void RecordInternalCancellationRequest()
         {
             // Record the cancellation request.
-            var props = EnsureContingentPropertiesInitialized(needsProtection: true);
-            props.m_internalCancellationRequested = CANCELLATION_REQUESTED;
-
+            EnsureContingentPropertiesInitialized().m_internalCancellationRequested = CANCELLATION_REQUESTED;
         }
 
         // Breaks out logic for recording a cancellation request
@@ -3537,7 +3516,7 @@ namespace System.Threading.Tasks
             Interlocked.Exchange(ref m_stateFlags, m_stateFlags | TASK_STATE_CANCELED);
 
             // Fire completion event if it has been lazily initialized
-            var cp = m_contingentProperties;
+            var cp = Volatile.Read(ref m_contingentProperties);
             if (cp != null)
             {
                 cp.SetCompleted();
@@ -5511,7 +5490,7 @@ namespace System.Threading.Tasks
             return signaledTaskIndex;
         }
 
-        #region FromResult / FromException / FromCancellation
+        #region FromResult / FromException / FromCanceled
 
         /// <summary>Creates a <see cref="Task{TResult}"/> that's completed successfully with the specified result.</summary>
         /// <typeparam name="TResult">The type of the result returned by the task.</typeparam>
@@ -5549,32 +5528,12 @@ namespace System.Threading.Tasks
         /// <summary>Creates a <see cref="Task"/> that's completed due to cancellation with the specified token.</summary>
         /// <param name="cancellationToken">The token with which to complete the task.</param>
         /// <returns>The canceled task.</returns>
-        [FriendAccessAllowed]
-        internal static Task FromCancellation(CancellationToken cancellationToken)
-        {
-            if (!cancellationToken.IsCancellationRequested) throw new ArgumentOutOfRangeException("cancellationToken");
-            Contract.EndContractBlock();
-            return new Task(true, TaskCreationOptions.None, cancellationToken);
-        }
-
-        /// <summary>Creates a <see cref="Task"/> that's completed due to cancellation with the specified token.</summary>
-        /// <param name="cancellationToken">The token with which to complete the task.</param>
-        /// <returns>The canceled task.</returns>
         public static Task FromCanceled(CancellationToken cancellationToken)
         {
-            return FromCancellation(cancellationToken);
-        }
-
-        /// <summary>Creates a <see cref="Task{TResult}"/> that's completed due to cancellation with the specified token.</summary>
-        /// <typeparam name="TResult">The type of the result returned by the task.</typeparam>
-        /// <param name="cancellationToken">The token with which to complete the task.</param>
-        /// <returns>The canceled task.</returns>
-        [FriendAccessAllowed]
-        internal static Task<TResult> FromCancellation<TResult>(CancellationToken cancellationToken)
-        {
-            if (!cancellationToken.IsCancellationRequested) throw new ArgumentOutOfRangeException("cancellationToken");
+            if (!cancellationToken.IsCancellationRequested)
+                throw new ArgumentOutOfRangeException("cancellationToken");
             Contract.EndContractBlock();
-            return new Task<TResult>(true, default(TResult), TaskCreationOptions.None, cancellationToken);
+            return new Task(true, TaskCreationOptions.None, cancellationToken);
         }
 
         /// <summary>Creates a <see cref="Task{TResult}"/> that's completed due to cancellation with the specified token.</summary>
@@ -5583,7 +5542,10 @@ namespace System.Threading.Tasks
         /// <returns>The canceled task.</returns>
         public static Task<TResult> FromCanceled<TResult>(CancellationToken cancellationToken)
         {
-            return FromCancellation<TResult>(cancellationToken);
+            if (!cancellationToken.IsCancellationRequested)
+                throw new ArgumentOutOfRangeException("cancellationToken");
+            Contract.EndContractBlock();
+            return new Task<TResult>(true, default(TResult), TaskCreationOptions.None, cancellationToken);
         }
 
         /// <summary>Creates a <see cref="Task{TResult}"/> that's completed due to cancellation with the specified exception.</summary>
@@ -5600,6 +5562,26 @@ namespace System.Threading.Tasks
             Contract.Assert(succeeded, "This should always succeed on a new task.");
             return task;
         }
+        
+        /// <summary>Creates a <see cref="Task"/> that's completed due to cancellation with the specified token.</summary>
+        /// <param name="cancellationToken">The token with which to complete the task.</param>
+        /// <returns>The canceled task.</returns>
+        [FriendAccessAllowed]
+        internal static Task FromCancellation(CancellationToken cancellationToken)
+        {
+            return FromCanceled(cancellationToken);
+        }
+        
+        /// <summary>Creates a <see cref="Task{TResult}"/> that's completed due to cancellation with the specified token.</summary>
+        /// <typeparam name="TResult">The type of the result returned by the task.</typeparam>
+        /// <param name="cancellationToken">The token with which to complete the task.</param>
+        /// <returns>The canceled task.</returns>
+        [FriendAccessAllowed]
+        internal static Task<TResult> FromCancellation<TResult>(CancellationToken cancellationToken)
+        {
+            return FromCanceled<TResult>(cancellationToken);
+        }
+        
         #endregion
 
         #region Run methods
@@ -5718,7 +5700,7 @@ namespace System.Threading.Tasks
 
             // Short-circuit if we are given a pre-canceled token
             if (cancellationToken.IsCancellationRequested)
-                return Task.FromCancellation(cancellationToken);
+                return Task.FromCanceled(cancellationToken);
 
             // Kick off initial Task, which will call the user-supplied function and yield a Task.
             Task<Task> task1 = Task<Task>.Factory.StartNew(function, cancellationToken, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
@@ -5769,7 +5751,7 @@ namespace System.Threading.Tasks
 
             // Short-circuit if we are given a pre-canceled token
             if (cancellationToken.IsCancellationRequested)
-                return Task.FromCancellation<TResult>(cancellationToken);
+                return Task.FromCanceled<TResult>(cancellationToken);
 
             // Kick off initial Task, which will call the user-supplied function and yield a Task.
             Task<Task<TResult>> task1 = Task<Task<TResult>>.Factory.StartNew(function, cancellationToken, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
@@ -5876,7 +5858,7 @@ namespace System.Threading.Tasks
             if (cancellationToken.IsCancellationRequested)
             {
                 // return a Task created as already-Canceled
-                return Task.FromCancellation(cancellationToken);
+                return Task.FromCanceled(cancellationToken);
             }
             else if (millisecondsDelay == 0)
             {

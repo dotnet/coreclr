@@ -330,14 +330,19 @@ typedef unsigned short          regPairNoSmall; // arm: need 12 bits
 
 /*****************************************************************************/
 
-#define VALNUM_CSE_ENABLED      1
-
-/*****************************************************************************/
-
 #if defined(_TARGET_X86_)
 
   #define CPU_LOAD_STORE_ARCH      0
+
+#ifdef LEGACY_BACKEND
   #define CPU_LONG_USES_REGPAIR    1
+#else
+  #define CPU_LONG_USES_REGPAIR    0       // RyuJIT x86 doesn't use the regPairNo field to record register pairs for long
+                                           // type tree nodes, and instead either decomposes them (for non-atomic operations)
+                                           // or stores multiple regNumber values for operations such as calls where the
+                                           // register definitions are effectively "atomic".
+#endif // LEGACY_BACKEND
+
   #define CPU_HAS_FP_SUPPORT       1
   #define ROUND_FLOAT              1       // round intermed float expression results
   #define CPU_HAS_BYTE_REGS        1
@@ -376,9 +381,17 @@ typedef unsigned short          regPairNoSmall; // arm: need 12 bits
   #define FEATURE_FASTTAILCALL     0       // Tail calls made as epilog+jmp
   #define FEATURE_TAILCALL_OPT     0       // opportunistic Tail calls (without ".tail" prefix) made as fast tail calls.
   #define FEATURE_SET_FLAGS        0       // Set to true to force the JIT to mark the trees with GTF_SET_FLAGS when the flags need to be set
+#ifdef LEGACY_BACKEND
   #define FEATURE_MULTIREG_ARGS_OR_RET  0  // Support for passing and/or returning single values in more than one register
   #define FEATURE_MULTIREG_ARGS         0  // Support for passing a single argument in more than one register  
   #define FEATURE_MULTIREG_RET          0  // Support for returning a single value in more than one register  
+#else
+  #define FEATURE_MULTIREG_ARGS_OR_RET  1  // Support for passing and/or returning single values in more than one register
+  #define FEATURE_MULTIREG_ARGS         0  // Support for passing a single argument in more than one register  
+  #define FEATURE_MULTIREG_RET          1  // Support for returning a single value in more than one register  
+  #define MAX_RET_MULTIREG_BYTES        8  // Maximum size of a struct that could be returned in more than one register
+#endif
+
   #define MAX_ARG_REG_COUNT             2  // Maximum registers used to pass an argument.
   #define MAX_RET_REG_COUNT             2  // Maximum registers used to return a value.
 
@@ -398,7 +411,7 @@ typedef unsigned short          regPairNoSmall; // arm: need 12 bits
 #else // LEGACY_BACKEND
   #define FEATURE_STACK_FP_X87     1       // Use flat register file model    
 #endif // LEGACY_BACKEND
-  #define FEATURE_X87_DOUBLES      (1-VALNUM_CSE_ENABLED)       // FP tree temps always use x87 doubles (when 1) or can be double or float (when 0)
+  #define FEATURE_X87_DOUBLES      0       // FP tree temps always use x87 doubles (when 1) or can be double or float (when 0).
   #define ETW_EBP_FRAMED           1       // if 1 we cannot use EBP as a scratch register and must create EBP based frames for most methods
   #define CSE_CONSTS               1       // Enable if we want to CSE constants
 
@@ -412,7 +425,7 @@ typedef unsigned short          regPairNoSmall; // arm: need 12 bits
   #define REG_PREV(reg)           ((regNumber)((unsigned)(reg) - 1))
 
   #define REG_FP_FIRST             REG_XMM0
-  #define REG_FP_LAST              REG_XMM15
+  #define REG_FP_LAST              REG_XMM7
   #define FIRST_FP_ARGREG          REG_XMM0
   #define LAST_FP_ARGREG           REG_XMM3
   #define REG_FLTARG_0             REG_XMM0
@@ -558,7 +571,7 @@ typedef unsigned short          regPairNoSmall; // arm: need 12 bits
   // We don't allow using ebp as a source register. Maybe we should only prevent this for ETW_EBP_FRAMED (but that is always set right now).
   #define RBM_WRITE_BARRIER_SRC    (RBM_EAX|RBM_ECX|RBM_EBX|RBM_ESI|RBM_EDI)
 
-  #define RBM_CALLEE_TRASH_NOGC    RBM_NONE
+  #define RBM_CALLEE_TRASH_NOGC    RBM_EDX
 #endif // NOGC_WRITE_BARRIERS
 
   // IL stub's secret parameter (CORJIT_FLG_PUBLISH_SECRET_PARAM)
@@ -578,8 +591,10 @@ typedef unsigned short          regPairNoSmall; // arm: need 12 bits
   #define REG_PINVOKE_SCRATCH      REG_EAX
   #define RBM_PINVOKE_SCRATCH      RBM_EAX
 
+#ifdef LEGACY_BACKEND
   #define REG_SPILL_CHOICE         REG_EAX
   #define RBM_SPILL_CHOICE         RBM_EAX
+#endif // LEGACY_BACKEND
 
   // The following defines are useful for iterating a regNumber
   #define REG_FIRST                REG_EAX
@@ -702,15 +717,15 @@ typedef unsigned short          regPairNoSmall; // arm: need 12 bits
   #define FEATURE_MULTIREG_ARGS         1  // Support for passing a single argument in more than one register  
   #define FEATURE_MULTIREG_RET          1  // Support for returning a single value in more than one register
   #define FEATURE_STRUCT_CLASSIFIER     1  // Uses a classifier function to determine if structs are passed/returned in more than one register
-  #define MAX_PASS_MULTIREG_BYTES      32  // Maximum size of a struct that could be passed in more than one register
-  #define MAX_RET_MULTIREG_BYTES       32  // Maximum size of a struct that could be returned in more than one register
-  #define MAX_ARG_REG_COUNT             2  // Maximum registers used to pass an argument.
+  #define MAX_PASS_MULTIREG_BYTES      32  // Maximum size of a struct that could be passed in more than one register (Max is two SIMD16s)
+  #define MAX_RET_MULTIREG_BYTES       32  // Maximum size of a struct that could be returned in more than one register  (Max is two SIMD16s)
+  #define MAX_ARG_REG_COUNT             2  // Maximum registers used to pass a single argument in multiple registers.
   #define MAX_RET_REG_COUNT             2  // Maximum registers used to return a value.
 #else // !UNIX_AMD64_ABI
   #define FEATURE_MULTIREG_ARGS_OR_RET  0  // Support for passing and/or returning single values in more than one register
   #define FEATURE_MULTIREG_ARGS         0  // Support for passing a single argument in more than one register  
   #define FEATURE_MULTIREG_RET          0  // Support for returning a single value in more than one register  
-  #define MAX_ARG_REG_COUNT             1  // Maximum registers used to pass an argument.
+  #define MAX_ARG_REG_COUNT             1  // Maximum registers used to pass a single argument (no arguments are passed using multiple registers)
   #define MAX_RET_REG_COUNT             1  // Maximum registers used to return a value.
 #endif // !UNIX_AMD64_ABI
 
@@ -950,9 +965,6 @@ typedef unsigned short          regPairNoSmall; // arm: need 12 bits
   #define REG_PINVOKE_SCRATCH      REG_EAX
   #define RBM_PINVOKE_SCRATCH      RBM_EAX
 
-  #define REG_SPILL_CHOICE         REG_EAX
-  #define RBM_SPILL_CHOICE         RBM_EAX
-
   // The following defines are useful for iterating a regNumber
   #define REG_FIRST                REG_EAX
   #define REG_INT_FIRST            REG_EAX
@@ -1083,9 +1095,18 @@ typedef unsigned short          regPairNoSmall; // arm: need 12 bits
   #define RBM_PROFILER_ENTER_TRASH  RBM_CALLEE_TRASH
   #define RBM_PROFILER_LEAVE_TRASH  (RBM_CALLEE_TRASH & ~(RBM_FLOATRET | RBM_INTRET))
 
-  // The registers trashed by the CORINFO_HELP_STOP_FOR_GC helper
-  // See vm\amd64\amshelpers.asm for more details.
+  // The registers trashed by the CORINFO_HELP_STOP_FOR_GC helper.
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+  // See vm\amd64\unixasmhelpers.S for more details.
+  //
+  // On Unix a struct of size >=9 and <=16 bytes in size is returned in two return registers.
+  // The return registers could be any two from the set { RAX, RDX, XMM0, XMM1 }.
+  // STOP_FOR_GC helper preserves all the 4 possible return registers.
+  #define RBM_STOP_FOR_GC_TRASH     (RBM_CALLEE_TRASH & ~(RBM_FLOATRET | RBM_INTRET | RBM_FLOATRET_1 | RBM_INTRET_1))
+#else
+  // See vm\amd64\asmhelpers.asm for more details.
   #define RBM_STOP_FOR_GC_TRASH     (RBM_CALLEE_TRASH & ~(RBM_FLOATRET | RBM_INTRET))
+#endif
 
   // What sort of reloc do we use for [disp32] address mode
   #define IMAGE_REL_BASED_DISP32   IMAGE_REL_BASED_REL32
@@ -1136,8 +1157,9 @@ typedef unsigned short          regPairNoSmall; // arm: need 12 bits
   #define FEATURE_STRUCT_CLASSIFIER     0  // Uses a classifier function to determine is structs are passed/returned in more than one register
   #define MAX_PASS_MULTIREG_BYTES      32  // Maximum size of a struct that could be passed in more than one register (Max is an HFA of 4 doubles)
   #define MAX_RET_MULTIREG_BYTES       32  // Maximum size of a struct that could be returned in more than one register (Max is an HFA of 4 doubles)
-  #define MAX_ARG_REG_COUNT             4  // Maximum registers used to pass an argument.
+  #define MAX_ARG_REG_COUNT             4  // Maximum registers used to pass a single argument in multiple registers. (max is 4 floats or doubles using an HFA)
   #define MAX_RET_REG_COUNT             4  // Maximum registers used to return a value.
+
 #ifdef FEATURE_USE_ASM_GC_WRITE_BARRIERS
   #define NOGC_WRITE_BARRIERS      0       // We DO-NOT have specialized WriteBarrier JIT Helpers that DO-NOT trash the RBM_CALLEE_TRASH registers
 #else
@@ -1324,10 +1346,12 @@ typedef unsigned short          regPairNoSmall; // arm: need 12 bits
   #define REG_PINVOKE_SCRATCH      REG_R6
   #define RBM_PINVOKE_SCRATCH      RBM_R6
 
+#ifdef LEGACY_BACKEND
   #define REG_SPILL_CHOICE         REG_LR
   #define RBM_SPILL_CHOICE         RBM_LR
   #define REG_SPILL_CHOICE_FLT     REG_F14
   #define RBM_SPILL_CHOICE_FLT    (RBM_F14|RBM_F15)
+#endif // LEGACY_BACKEND
 
   // The following defines are useful for iterating a regNumber
   #define REG_FIRST                REG_R0
@@ -1397,8 +1421,7 @@ typedef unsigned short          regPairNoSmall; // arm: need 12 bits
 
   #define RBM_ARG_REGS            (RBM_ARG_0|RBM_ARG_1|RBM_ARG_2|RBM_ARG_3)
   #define RBM_FLTARG_REGS         (RBM_F0|RBM_F1|RBM_F2|RBM_F3|RBM_F4|RBM_F5|RBM_F6|RBM_F7|RBM_F8|RBM_F9|RBM_F10|RBM_F11|RBM_F12|RBM_F13|RBM_F14|RBM_F15)
-  #define RBM_DBL_REGS            (RBM_F0|RBM_F2|RBM_F4|RBM_F6|RBM_F8|RBM_F10|RBM_F12|RBM_F14|RBM_F16|RBM_F18|RBM_F20|RBM_F22|RBM_F24|RBM_F26|RBM_F28|RBM_F30)
-
+  #define RBM_DBL_REGS            RBM_ALLDOUBLE
 
   SELECTANY const regNumber fltArgRegs [] = {REG_F0, REG_F1, REG_F2, REG_F3, REG_F4, REG_F5, REG_F6, REG_F7, REG_F8, REG_F9, REG_F10, REG_F11, REG_F12, REG_F13, REG_F14, REG_F15 };
   SELECTANY const regMaskTP fltArgMasks[] = {RBM_F0, RBM_F1, RBM_F2, RBM_F3, RBM_F4, RBM_F5, RBM_F6, RBM_F7, RBM_F8, RBM_F9, RBM_F10, RBM_F11, RBM_F12, RBM_F13, RBM_F14, RBM_F15 };
@@ -1441,17 +1464,18 @@ typedef unsigned short          regPairNoSmall; // arm: need 12 bits
   #define FEATURE_WRITE_BARRIER    1       // Generate the proper WriteBarrier calls for GC    
   #define FEATURE_FIXED_OUT_ARGS   1       // Preallocate the outgoing arg area in the prolog
   #define FEATURE_STRUCTPROMOTE    1       // JIT Optimization to promote fields of structs into registers
-  #define FEATURE_MULTIREG_STRUCT_PROMOTE 0  // True when we want to promote fields of a multireg struct into registers
-  #define FEATURE_FASTTAILCALL     0       // Tail calls made as epilog+jmp
+  #define FEATURE_MULTIREG_STRUCT_PROMOTE 1  // True when we want to promote fields of a multireg struct into registers
+  #define FEATURE_FASTTAILCALL     1       // Tail calls made as epilog+jmp
   #define FEATURE_TAILCALL_OPT     0       // opportunistic Tail calls (i.e. without ".tail" prefix) made as fast tail calls.
   #define FEATURE_SET_FLAGS        1       // Set to true to force the JIT to mark the trees with GTF_SET_FLAGS when the flags need to be set
   #define FEATURE_MULTIREG_ARGS_OR_RET  1  // Support for passing and/or returning single values in more than one register  
   #define FEATURE_MULTIREG_ARGS         1  // Support for passing a single argument in more than one register  
   #define FEATURE_MULTIREG_RET          0  // Support for returning a single value in more than one register  
-  #define FEATURE_STRUCT_CLASSIFIER     0   // Uses a classifier function to determine is structs are passed/returned in more than one register
-  #define MAX_PASS_MULTIREG_BYTES      16   // Maximum size of a struct that could be passed in more than one register
-  #define MAX_ARG_REG_COUNT             2  // Maximum registers used to pass an argument.
-  #define MAX_RET_REG_COUNT             2  // Maximum registers used to return a value.
+  #define FEATURE_STRUCT_CLASSIFIER     0  // Uses a classifier function to determine is structs are passed/returned in more than one register
+  #define MAX_PASS_MULTIREG_BYTES      32  // Maximum size of a struct that could be passed in more than one register (max is 4 doubles using an HFA)
+  #define MAX_RET_MULTIREG_BYTES        0  // Maximum size of a struct that could be returned in more than one register (Max is an HFA of 4 doubles)
+  #define MAX_ARG_REG_COUNT             4  // Maximum registers used to pass a single argument in multiple registers. (max is 4 floats or doubles using an HFA)
+  #define MAX_RET_REG_COUNT             1  // Maximum registers used to return a value.
 
 #ifdef FEATURE_USE_ASM_GC_WRITE_BARRIERS
   #define NOGC_WRITE_BARRIERS      1       // We have specialized WriteBarrier JIT Helpers that DO-NOT trash the RBM_CALLEE_TRASH registers
@@ -1496,13 +1520,14 @@ typedef unsigned short          regPairNoSmall; // arm: need 12 bits
   #define RBM_CALLEE_SAVED        (RBM_INT_CALLEE_SAVED | RBM_FLT_CALLEE_SAVED)
   #define RBM_CALLEE_TRASH        (RBM_INT_CALLEE_TRASH | RBM_FLT_CALLEE_TRASH)
   #define RBM_CALLEE_TRASH_NOGC   (RBM_R12|RBM_R13|RBM_R14|RBM_R15)
+  #define REG_DEFAULT_HELPER_CALL_TARGET REG_R12
 
   #define RBM_ALLINT              (RBM_INT_CALLEE_SAVED | RBM_INT_CALLEE_TRASH)
   #define RBM_ALLFLOAT            (RBM_FLT_CALLEE_SAVED | RBM_FLT_CALLEE_TRASH)
   #define RBM_ALLDOUBLE            RBM_ALLFLOAT
 
-  #define REG_VAR_ORDER            REG_R8,REG_R9,REG_R10,REG_R11,REG_R12,REG_R13,REG_R14,REG_R15,\
-                                   REG_R7,REG_R6,REG_R5,REG_R4,REG_R3,REG_R2,REG_R1,REG_R0,\
+  #define REG_VAR_ORDER            REG_R9,REG_R10,REG_R11,REG_R12,REG_R13,REG_R14,REG_R15,\
+                                   REG_R8,REG_R7,REG_R6,REG_R5,REG_R4,REG_R3,REG_R2,REG_R1,REG_R0,\
                                    REG_R19,REG_R20,REG_R21,REG_R22,REG_R23,REG_R24,REG_R25,REG_R26,REG_R27,REG_R28,\
 
   #define REG_VAR_ORDER_FLT        REG_V16, REG_V17, REG_V18, REG_V19, \
@@ -1531,12 +1556,12 @@ typedef unsigned short          regPairNoSmall; // arm: need 12 bits
   #define REG_L_STK                REG_ZR
 
   //  This is the first register in REG_TMP_ORDER
-  #define REG_TMP_0                REG_R8
-  #define RBM_TMP_0                RBM_R8
+  #define REG_TMP_0                REG_R9
+  #define RBM_TMP_0                RBM_R9
 
   //  This is the second register in REG_TMP_ORDER
-  #define REG_TMP_1                REG_R9
-  #define RBM_TMP_1                RBM_R9
+  #define REG_TMP_1                REG_R10
+  #define RBM_TMP_1                RBM_R10
 
   // register to hold shift amount; no special register is required on ARM64.
   #define REG_SHIFT                REG_NA
@@ -1544,8 +1569,8 @@ typedef unsigned short          regPairNoSmall; // arm: need 12 bits
   #define PREDICT_REG_SHIFT        PREDICT_REG
 
   // This is a general scratch register that does not conflict with the argument registers
-  #define REG_SCRATCH              REG_R8
-  #define RBM_SCRATCH              RBM_R8
+  #define REG_SCRATCH              REG_R9
+  #define RBM_SCRATCH              RBM_R9
 
   // This is a general register that can be optionally reserved for other purposes during codegen
   #define REG_OPT_RSVD             REG_IP1
@@ -1588,18 +1613,18 @@ typedef unsigned short          regPairNoSmall; // arm: need 12 bits
   #define RBM_VIRTUAL_STUB_PARAM          RBM_R11
   #define PREDICT_REG_VIRTUAL_STUB_PARAM  PREDICT_REG_R11
 
+  // R2R indirect call. Use the same registers as VSD
+  #define REG_R2R_INDIRECT_PARAM          REG_R11
+  #define RBM_R2R_INDIRECT_PARAM          RBM_R11
+  #define PREDICT_REG_RER_INDIRECT_PARAM  PREDICT_REG_R11
+
   // Registers used by PInvoke frame setup
-  #define REG_PINVOKE_FRAME        REG_R8
-  #define RBM_PINVOKE_FRAME        RBM_R8
-  #define REG_PINVOKE_TCB          REG_R9
-  #define RBM_PINVOKE_TCB          RBM_R9
+  #define REG_PINVOKE_FRAME        REG_R9
+  #define RBM_PINVOKE_FRAME        RBM_R9
+  #define REG_PINVOKE_TCB          REG_R10
+  #define RBM_PINVOKE_TCB          RBM_R10
   #define REG_PINVOKE_SCRATCH      REG_R10
   #define RBM_PINVOKE_SCRATCH      RBM_R10
-
-  #define REG_SPILL_CHOICE         REG_R8
-  #define RBM_SPILL_CHOICE         RBM_R8
-  #define REG_SPILL_CHOICE_FLT     REG_F16
-  #define RBM_SPILL_CHOICE_FLT     RBM_F16
 
   // The following defines are useful for iterating a regNumber
   #define REG_FIRST                REG_R0
@@ -1647,7 +1672,6 @@ typedef unsigned short          regPairNoSmall; // arm: need 12 bits
 
   #define MAX_REG_ARG              8
   #define MAX_FLOAT_REG_ARG        8
-  #define MAX_HFA_RET_SLOTS        8
 
   #define REG_ARG_FIRST            REG_R0
   #define REG_ARG_LAST             REG_R7
@@ -1676,8 +1700,26 @@ typedef unsigned short          regPairNoSmall; // arm: need 12 bits
   #define RBM_ARG_6                RBM_R6
   #define RBM_ARG_7                RBM_R7
 
+  #define REG_FLTARG_0             REG_V0
+  #define REG_FLTARG_1             REG_V1
+  #define REG_FLTARG_2             REG_V2
+  #define REG_FLTARG_3             REG_V3
+  #define REG_FLTARG_4             REG_V4
+  #define REG_FLTARG_5             REG_V5
+  #define REG_FLTARG_6             REG_V6
+  #define REG_FLTARG_7             REG_V7
+
+  #define RBM_FLTARG_0             RBM_V0
+  #define RBM_FLTARG_1             RBM_V1
+  #define RBM_FLTARG_2             RBM_V2
+  #define RBM_FLTARG_3             RBM_V3
+  #define RBM_FLTARG_4             RBM_V4
+  #define RBM_FLTARG_5             RBM_V5
+  #define RBM_FLTARG_6             RBM_V6
+  #define RBM_FLTARG_7             RBM_V7
+
   #define RBM_ARG_REGS            (RBM_ARG_0|RBM_ARG_1|RBM_ARG_2|RBM_ARG_3|RBM_ARG_4|RBM_ARG_5|RBM_ARG_6|RBM_ARG_7)
-  #define RBM_FLTARG_REGS         (RBM_V0|RBM_V1|RBM_V2|RBM_V3|RBM_V4|RBM_V5|RBM_V6|RBM_V7)
+  #define RBM_FLTARG_REGS         (RBM_FLTARG_0|RBM_FLTARG_1|RBM_FLTARG_2|RBM_FLTARG_3|RBM_FLTARG_4|RBM_FLTARG_5|RBM_FLTARG_6|RBM_FLTARG_7)
 
   SELECTANY const regNumber fltArgRegs [] = {REG_V0, REG_V1, REG_V2, REG_V3, REG_V4, REG_V5, REG_V6, REG_V7 };
   SELECTANY const regMaskTP fltArgMasks[] = {RBM_V0, RBM_V1, RBM_V2, RBM_V3, RBM_V4, RBM_V5, RBM_V6, RBM_V7 };
@@ -1686,13 +1728,21 @@ typedef unsigned short          regPairNoSmall; // arm: need 12 bits
   #define LBL_DIST_SMALL_MAX_POS  (+1048575)
 
   #define LBL_SIZE_SMALL          (4)
-  #define LBL_SIZE_LARGE          (8)   // NYI
+  #define LBL_SIZE_LARGE          (8)
 
   #define JCC_DIST_SMALL_MAX_NEG  (-1048576)
-  #define JCC_DIST_SMALL_MAX_POS  (+1048572)
+  #define JCC_DIST_SMALL_MAX_POS  (+1048575)
 
   #define JCC_SIZE_SMALL          (4)
-  #define JCC_SIZE_LARGE          (8)   // NYI
+  #define JCC_SIZE_LARGE          (8)
+
+  #define LDC_DIST_SMALL_MAX_NEG  (-1048576)
+  #define LDC_DIST_SMALL_MAX_POS  (+1048575)
+
+  #define LDC_SIZE_SMALL          (4)
+  #define LDC_SIZE_LARGE          (8)
+
+  #define JMP_SIZE_SMALL          (4)
 
 #else
   #error Unsupported or unset target architecture

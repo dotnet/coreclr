@@ -51,11 +51,11 @@
 #include "cgensys.h"
 #include "peimagelayout.inl"
 
-#if defined(FEATURE_HOSTED_BINDER) && defined(FEATURE_APPX_BINDER)
+#if defined(FEATURE_APPX_BINDER)
 #include "appxutil.h"
 #include "clrprivbinderappx.h"
 #include "clrprivtypecachewinrt.h"
-#endif // defined(FEATURE_HOSTED_BINDER) && defined(FEATURE_APPX_BINDER)
+#endif // defined(FEATURE_APPX_BINDER)
 
 #ifdef FEATURE_COMINTEROP
 #include "clrprivbinderwinrt.h"
@@ -75,6 +75,8 @@
 #endif
 
 #include "argdestination.h"
+
+#include "versionresilienthashcode.h"
 
 #ifdef CROSSGEN_COMPILE
 CompilationDomain * theDomain;
@@ -161,7 +163,7 @@ HRESULT CEECompileInfo::CreateDomain(ICorCompilationDomain **ppDomain,
     if (pEmitter)
         pCompilationDomain->SetDependencyEmitter(pEmitter);
     
-#if defined(FEATURE_HOSTED_BINDER) && defined(FEATURE_APPX_BINDER)
+#if defined(FEATURE_APPX_BINDER)
     if (AppX::IsAppXProcess())
     {
         HRESULT hr = S_OK;
@@ -171,7 +173,7 @@ HRESULT CEECompileInfo::CreateDomain(ICorCompilationDomain **ppDomain,
         IfFailThrow(pBinder->QueryInterface(IID_ICLRPrivBinder, &pBinderInterface));
         pCompilationDomain->SetLoadContextHostBinder(pBinderInterface);
     }
-#endif // defined(FEATURE_HOSTED_BINDER) && defined(FEATURE_APPX_BINDER)
+#endif // defined(FEATURE_APPX_BINDER)
 
 #ifdef DEBUGGING_SUPPORTED 
     // Notify the debugger here, before the thread transitions into the
@@ -2007,7 +2009,8 @@ void CEECompileInfo::EncodeMethod(
                           LPVOID                pEncodeModuleContext,
                           ENCODEMODULE_CALLBACK pfnEncodeModule,
                           CORINFO_RESOLVED_TOKEN * pResolvedToken,
-                          CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken)
+                          CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken,
+                          BOOL                  fEncodeUsingResolvedTokenSpecStreams)
 {
     STANDARD_VM_CONTRACT;
 
@@ -2020,7 +2023,8 @@ void CEECompileInfo::EncodeMethod(
                               pSigBuilder,
                               pEncodeModuleContext, 
                               pfnEncodeModule, NULL,
-                              pResolvedToken, pConstrainedResolvedToken);
+                              pResolvedToken, pConstrainedResolvedToken,
+                              fEncodeUsingResolvedTokenSpecStreams);
     _ASSERTE(fSuccess);
 
     COOPERATIVE_TRANSITION_END();
@@ -2520,6 +2524,24 @@ BOOL CEECompileInfo::AreAllClassesFullyLoaded(CORINFO_MODULE_HANDLE moduleHandle
     STANDARD_VM_CONTRACT;
 
     return ((Module *)moduleHandle)->AreAllClassesFullyLoaded();
+}
+
+int CEECompileInfo::GetVersionResilientTypeHashCode(CORINFO_MODULE_HANDLE moduleHandle, mdToken token)
+{
+    STANDARD_VM_CONTRACT;
+
+    int dwHashCode;
+    if (!::GetVersionResilientTypeHashCode(((Module *)moduleHandle)->GetMDImport(), token, &dwHashCode))
+        ThrowHR(COR_E_BADIMAGEFORMAT);
+
+    return dwHashCode;
+}
+
+int CEECompileInfo::GetVersionResilientMethodHashCode(CORINFO_METHOD_HANDLE methodHandle)
+{
+    STANDARD_VM_CONTRACT;
+
+    return ::GetVersionResilientMethodHashCode(GetMethod(methodHandle));
 }
 
 #endif // FEATURE_READYTORUN_COMPILER
@@ -4917,6 +4939,8 @@ CEEPreloader::CEEPreloader(Module *pModule,
 
     GetAppDomain()->ToCompilationDomain()->SetTargetImage(m_image, this);
 
+    m_methodCompileLimit = pModule->GetMDImport()->GetCountWithTokenKind(mdtMethodDef) * 10;
+
 #ifdef FEATURE_FULL_NGEN
     m_fSpeculativeTriage = FALSE;
     m_fDictionariesPopulated = FALSE;
@@ -5126,7 +5150,7 @@ void CEEPreloader::MethodReferencedByCompiledCode(CORINFO_METHOD_HANDLE handle)
 
         if (pEntry->fScheduled)
             return;        
-        m_uncompiledMethods.Append(pMD);
+        AppendUncompiledMethod(pMD);
     }
     else
     {
@@ -5336,7 +5360,7 @@ void CEEPreloader::AddToUncompiledMethods(MethodDesc *pMD, BOOL fForStubs)
     }
 
     // Add it to the set of uncompiled methods
-    m_uncompiledMethods.Append(pMD);
+    AppendUncompiledMethod(pMD);
 }
 
 //
@@ -6885,9 +6909,10 @@ CORINFO_METHOD_HANDLE CEEPreloader::LookupMethodDef(mdMethodDef token)
                                      token,
                                      FALSE);
 
-    // READYTORUN: FUTURE: Generics
     if (IsReadyToRunCompilation() && pMD->HasClassOrMethodInstantiation())
-        return NULL;
+    {
+        _ASSERTE(IsCompilationProcess() && pMD->GetModule_NoLogging() == GetAppDomain()->ToCompilationDomain()->GetTargetModule());
+    }
 
     pMD = pMD->FindOrCreateTypicalSharedInstantiation();
 

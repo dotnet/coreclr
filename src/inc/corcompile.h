@@ -683,11 +683,15 @@ enum CORCOMPILE_GCREFMAP_TOKENS
 // Tags for fixup blobs
 enum CORCOMPILE_FIXUP_BLOB_KIND
 {
-    ENCODE_NONE                 = 0,
+    ENCODE_NONE                         = 0,
     
-    ENCODE_MODULE_OVERRIDE      = 0x80,             /* When the high bit is set, override of the module immediately follows */
+    ENCODE_MODULE_OVERRIDE              = 0x80,     /* When the high bit is set, override of the module immediately follows */
 
-    ENCODE_TYPE_HANDLE          = 0x10,             /* Type handle */
+    ENCODE_DICTIONARY_LOOKUP_THISOBJ    = 0x07,
+    ENCODE_DICTIONARY_LOOKUP_TYPE       = 0x08,
+    ENCODE_DICTIONARY_LOOKUP_METHOD     = 0x09,
+
+    ENCODE_TYPE_HANDLE                  = 0x10,     /* Type handle */
     ENCODE_METHOD_HANDLE,                           /* Method handle */
     ENCODE_FIELD_HANDLE,                            /* Field handle */
 
@@ -727,9 +731,9 @@ enum CORCOMPILE_FIXUP_BLOB_KIND
     ENCODE_CHECK_FIELD_OFFSET,
 
     ENCODE_DELEGATE_CTOR,
-    ENCODE_METHOD_NATIVE_ENTRY,                     /* NativeCallable method token */
 
-    ENCODE_MODULE_HANDLE      = 0x50,               /* Module token */
+
+    ENCODE_MODULE_HANDLE                = 0x50,     /* Module token */
     ENCODE_STATIC_FIELD_ADDRESS,                    /* For accessing a static field */
     ENCODE_MODULE_ID_FOR_STATICS,                   /* For accessing static fields */
     ENCODE_MODULE_ID_FOR_GENERIC_STATICS,           /* For accessing static fields */
@@ -741,6 +745,7 @@ enum CORCOMPILE_FIXUP_BLOB_KIND
     ENCODE_VARARGS_METHODREF,
     ENCODE_VARARGS_SIG,
     ENCODE_ACTIVE_DEPENDENCY,                       /* Conditional active dependency */
+    ENCODE_METHOD_NATIVE_ENTRY,                     /* NativeCallable method token */
 };
 
 enum EncodeMethodSigFlags
@@ -837,6 +842,7 @@ typedef enum
 {
 #ifdef FEATURE_CORECLR
     CORECLR_INFO,
+    CROSSGEN_COMPILER_INFO,
 #else
     CLR_INFO,
     NGEN_COMPILER_INFO,
@@ -932,10 +938,13 @@ struct CORCOMPILE_DEPENDENCY
 
 /*********************************************************************************/
 // Flags used to encode HelperTable
-
+#if defined(_TARGET_ARM64_)
+#define HELPER_TABLE_ENTRY_LEN      16
+#else
 #define HELPER_TABLE_ENTRY_LEN      8
-#define HELPER_TABLE_ALIGN          8
+#endif //defined(_TARGET_ARM64_)
 
+#define HELPER_TABLE_ALIGN          8
 #define CORCOMPILE_HELPER_PTR       0x80000000 // The entry is pointer to the helper (jump thunk otherwise)
 
 // The layout of this struct is required to be
@@ -1755,7 +1764,8 @@ class ICorCompileInfo
             LPVOID encodeContext,
             ENCODEMODULE_CALLBACK pfnEncodeModule,
             CORINFO_RESOLVED_TOKEN * pResolvedToken = NULL,
-            CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken = NULL) = 0;
+            CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken = NULL,
+            BOOL fEncodeUsingResolvedTokenSpecStreams = FALSE) = 0;
 
     // Returns non-null methoddef or memberref token if it is sufficient to encode the method (no generic instantiations, etc.)
     virtual mdToken TryEncodeMethodAsToken(
@@ -1863,6 +1873,10 @@ class ICorCompileInfo
     virtual void EncodeTypeLayout(CORINFO_CLASS_HANDLE classHandle, SigBuilder * pSigBuilder) = 0;
 
     virtual BOOL AreAllClassesFullyLoaded(CORINFO_MODULE_HANDLE moduleHandle) = 0;
+
+    virtual int GetVersionResilientTypeHashCode(CORINFO_MODULE_HANDLE moduleHandle, mdToken token) = 0;
+
+    virtual int GetVersionResilientMethodHashCode(CORINFO_METHOD_HANDLE methodHandle) = 0;
 #endif
 
     virtual BOOL HasCustomAttribute(CORINFO_METHOD_HANDLE method, LPCSTR customAttributeName) = 0;

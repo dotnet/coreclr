@@ -201,6 +201,20 @@ void Lowering::TreeNodeInfoInit(GenTree* stmt)
         case GT_CNS_DBL:
             info->srcCount = 0;
             info->dstCount = 1;
+            {
+                GenTreeDblCon *dblConst = tree->AsDblCon();
+                double constValue = dblConst->gtDblCon.gtDconVal;
+
+                if (emitter::emitIns_valid_imm_for_fmov(constValue))
+                {
+                    // Directly encode constant to instructions.
+                }
+                else
+                {
+                    // Reserve int to load constant from memory (IF_LARGELDC)
+                    info->internalIntCount = 1;
+                }
+            }
             break;
 
         case GT_QMARK:
@@ -526,10 +540,7 @@ void Lowering::TreeNodeInfoInit(GenTree* stmt)
                     {
                         // Fast tail call - make sure that call target is always computed in IP0
                         // so that epilog sequence can generate "br xip0" to achieve fast tail call.
-                        
-                        NYI_ARM64("Lower - Fast tail call");
-
-                        ctrlExpr->gtLsraInfo.setSrcCandidates(l, genRegMask(REG_IP0));  // ip0?
+                        ctrlExpr->gtLsraInfo.setSrcCandidates(l, genRegMask(REG_IP0));
                     }
                 }
 
@@ -626,7 +637,7 @@ void Lowering::TreeNodeInfoInit(GenTree* stmt)
 
                                 // To avoid redundant moves, request that the argument child tree be 
                                 // computed in the register in which the argument is passed to the call.
-                                putArgChild ->gtLsraInfo.setSrcCandidates(l, targetMask);
+                                putArgChild->gtLsraInfo.setSrcCandidates(l, targetMask);
 
                                 // We consume one source for each item in this list
                                 info->srcCount++;
@@ -639,6 +650,9 @@ void Lowering::TreeNodeInfoInit(GenTree* stmt)
                         }
                         else
                         {
+#ifdef DEBUG
+                            compiler->gtDispTree(argNode);
+#endif
                             noway_assert(!"Unsupported TYP_STRUCT arg kind");
                         }
 
@@ -694,7 +708,7 @@ void Lowering::TreeNodeInfoInit(GenTree* stmt)
                 {
                     GenTreePtr arg = args->gtOp.gtOp1;
 
-                    // Skip arguments that havew been moved to the Late Arg list
+                    // Skip arguments that have been moved to the Late Arg list
                     if (!(args->gtFlags & GTF_LATE_ARG))
                     {
                         if (arg->gtOper == GT_PUTARG_STK)
@@ -722,17 +736,14 @@ void Lowering::TreeNodeInfoInit(GenTree* stmt)
 
                 // If it is a fast tail call, it is already preferenced to use IP0.
                 // Therefore, no need set src candidates on call tgt again.
-                if (tree->gtCall.IsVarargs() && 
-                    callHasFloatRegArgs &&                 
+                if (tree->gtCall.IsVarargs() &&
+                    callHasFloatRegArgs &&
                     !tree->gtCall.IsFastTailCall() &&
                     (ctrlExpr != nullptr))
                 {
                     // Don't assign the call target to any of the argument registers because
                     // we will use them to also pass floating point arguments as required
                     // by Arm64 ABI.
-                    
-                    NYI_ARM64("Lower - IsVarargs");
-
                     ctrlExpr->gtLsraInfo.setSrcCandidates(l, l->allRegs(TYP_INT) & ~(RBM_ARG_REGS));
                 }
             }
@@ -808,7 +819,7 @@ void Lowering::TreeNodeInfoInit(GenTree* stmt)
                         else if (!compiler->info.compInitMem)
                         {
                             // No need to initialize allocated stack space.
-                            if (sizeVal < CORINFO_PAGE_SIZE)
+                            if (sizeVal < compiler->eeGetPageSize())
                             {
                                 info->internalIntCount = 0;
                             }
@@ -1040,33 +1051,43 @@ void Lowering::TreeNodeInfoInitPutArgStk(GenTree* argNode, fgArgTabEntryPtr info
     argNode->gtLsraInfo.srcCount = 1;
     argNode->gtLsraInfo.dstCount = 0;
 
-    // Do we have a TYP_STRUCT argument, if so it must be a 16-byte pass-by-value struct
-    if (putArgChild->TypeGet() == TYP_STRUCT)
+    // Do we have a TYP_STRUCT argument (or a GT_LIST), if so it must be a multireg pass-by-value struct
+    if ((putArgChild->TypeGet() == TYP_STRUCT) || (putArgChild->OperGet() == GT_LIST))
     {
-        // We will use two store instructions that each write a register sized value
+        // We will use store instructions that each write a register sized value
 
-        // We must have a multi-reg struct 
-        assert(info->numSlots >= 2);
-
-        // We can use a ldp/stp sequence so we need two internal registers
-        argNode->gtLsraInfo.internalIntCount = 2;
-
-        if (putArgChild->OperGet() == GT_OBJ)
+        if (putArgChild->OperGet() == GT_LIST)
         {
-            GenTreePtr objChild = putArgChild->gtOp.gtOp1;
-            if (objChild->OperGet() == GT_LCL_VAR_ADDR)
-            {
-                // We will generate all of the code for the GT_PUTARG_STK, the GT_OBJ and the GT_LCL_VAR_ADDR
-                // as one contained operation
-                //                            
-                MakeSrcContained(putArgChild, objChild);
-            }
+            // We consume all of the items in the GT_LIST
+            argNode->gtLsraInfo.srcCount = info->numSlots;
         }
+        else
+        {
+            // We could use a ldp/stp sequence so we need two internal registers
+            argNode->gtLsraInfo.internalIntCount = 2;
 
-        // We will generate all of the code for the GT_PUTARG_STK and it's child node 
-        // as one contained operation
-        //                            
-        MakeSrcContained(argNode, putArgChild);
+            if (putArgChild->OperGet() == GT_OBJ)
+            {
+                GenTreePtr objChild = putArgChild->gtOp.gtOp1;
+                if (objChild->OperGet() == GT_LCL_VAR_ADDR)
+                {
+                    // We will generate all of the code for the GT_PUTARG_STK, the GT_OBJ and the GT_LCL_VAR_ADDR
+                    // as one contained operation
+                    //                            
+                    MakeSrcContained(putArgChild, objChild);
+                }
+            }
+
+            // We will generate all of the code for the GT_PUTARG_STK and it's child node 
+            // as one contained operation
+            //                            
+            MakeSrcContained(argNode, putArgChild);
+        }
+    }
+    else
+    {
+        // We must not have a multi-reg struct 
+        assert(info->numSlots == 1);
     }
 }
 

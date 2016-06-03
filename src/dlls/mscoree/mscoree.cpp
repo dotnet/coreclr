@@ -32,9 +32,7 @@
 extern ICLRRuntimeInfo *g_pCLRRuntime;
 #endif // !FEATURE_CORECLR && !CROSSGEN_COMPILE
 
-#ifdef FEATURE_HOSTED_BINDER
 #include "clrprivhosting.h"
-#endif
 
 #ifndef FEATURE_CORECLR
 #include "clr/win32.h"
@@ -70,12 +68,6 @@ HINSTANCE g_hThisInst;  // This library.
 //*****************************************************************************
 // Handle lifetime of loaded library.
 //*****************************************************************************
-
-#ifdef FEATURE_MERGE_JIT_AND_ENGINE
-void            jitOnDllProcessAttach();
-void            jitOnDllProcessDetach();
-#endif // FEATURE_MERGE_JIT_AND_ENGINE
-
 
 #ifdef FEATURE_CORECLR
 
@@ -183,21 +175,12 @@ BOOL WINAPI DllMain(HANDLE hInstance, DWORD dwReason, LPVOID lpReserved)
             {
                 return FALSE;
             }
-
-#ifdef FEATURE_MERGE_JIT_AND_ENGINE
-            jitOnDllProcessAttach();
-#endif // FEATURE_MERGE_JIT_AND_ENGINE
         }
         break;
 
     case DLL_PROCESS_DETACH:
         {
             EEDllMain((HINSTANCE)hInstance, dwReason, lpReserved);
-
-#ifdef FEATURE_MERGE_JIT_AND_ENGINE
-            jitOnDllProcessDetach();
-#endif // FEATURE_MERGE_JIT_AND_ENGINE
-
         }
         break;
 
@@ -260,9 +243,7 @@ STDAPI InternalDllGetClassObject(
     if (rclsid == CLSID_CorMetaDataDispenser || rclsid == CLSID_CorMetaDataDispenserRuntime ||
         rclsid == CLSID_CorRuntimeHost || rclsid == CLSID_CLRRuntimeHost ||
         rclsid == CLSID_TypeNameFactory
-#ifdef FEATURE_HOSTED_BINDER
         || rclsid == __uuidof(CLRPrivRuntime)
-#endif
        )
     {
         hr = MetaDataDllGetClassObject(rclsid, riid, ppv);

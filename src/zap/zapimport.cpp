@@ -1009,13 +1009,13 @@ void ZapImportTable::EncodeField(CORCOMPILE_FIXUP_BLOB_KIND kind, CORINFO_FIELD_
 }
 
 void ZapImportTable::EncodeMethod(CORCOMPILE_FIXUP_BLOB_KIND kind, CORINFO_METHOD_HANDLE handle, SigBuilder * pSigBuilder,
-        CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken)
+        CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken, BOOL fEncodeUsingResolvedTokenSpecStreams)
 {
     CORINFO_CLASS_HANDLE clsHandle = GetJitInfo()->getMethodClass(handle);
     CORINFO_MODULE_HANDLE referencingModule = GetJitInfo()->getClassModule(clsHandle);
     referencingModule = TryEncodeModule(kind, referencingModule, pSigBuilder);
     GetCompileInfo()->EncodeMethod(referencingModule, handle, pSigBuilder, this, EncodeModuleHelper,
-        pResolvedToken, pConstrainedResolvedToken);
+        pResolvedToken, pConstrainedResolvedToken, fEncodeUsingResolvedTokenSpecStreams);
 }
 
 // ======================================================================================
@@ -1697,7 +1697,22 @@ public:
 
     CORCOMPILE_FIXUP_BLOB_KIND GetKind()
     {
-        return (CORCOMPILE_FIXUP_BLOB_KIND)(int)GetHandle();
+        int kind = (int)GetHandle();
+
+        if ((kind & 1) == 1)
+        {
+            return (CORCOMPILE_FIXUP_BLOB_KIND)(kind >> 1);
+        }
+        else
+        {
+            _ASSERTE(
+                (GetBlob()->GetSize() > 0) && (
+                    GetBlob()->GetData()[0] == ENCODE_DICTIONARY_LOOKUP_THISOBJ ||
+                    GetBlob()->GetData()[0] == ENCODE_DICTIONARY_LOOKUP_METHOD ||
+                    GetBlob()->GetData()[0] == ENCODE_DICTIONARY_LOOKUP_TYPE));
+
+            return (CORCOMPILE_FIXUP_BLOB_KIND)GetBlob()->GetData()[0];
+        }
     }
 
     virtual void EncodeSignature(ZapImportTable * pTable, SigBuilder * pSigBuilder)
@@ -1728,6 +1743,9 @@ static ReadyToRunHelper GetDelayLoadHelperForDynamicHelper(CORCOMPILE_FIXUP_BLOB
     case ENCODE_THREAD_STATIC_BASE_GC_HELPER:
     case ENCODE_CCTOR_TRIGGER:
     case ENCODE_FIELD_ADDRESS:
+    case ENCODE_DICTIONARY_LOOKUP_THISOBJ:
+    case ENCODE_DICTIONARY_LOOKUP_TYPE:
+    case ENCODE_DICTIONARY_LOOKUP_METHOD:
         return READYTORUN_HELPER_DelayLoad_Helper;
 
     case ENCODE_CHKCAST_HELPER:
@@ -1773,9 +1791,64 @@ void ZapImportSectionSignatures::PlaceDynamicHelperCell(ZapImport * pImport)
     m_pImage->GetImportTable()->PlaceImportBlob(pCell);
 }
 
+ZapImport * ZapImportTable::GetDictionaryLookupCell(CORCOMPILE_FIXUP_BLOB_KIND kind, CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_LOOKUP_KIND * pLookup)
+{
+    _ASSERTE(pLookup->needsRuntimeLookup);
+
+    SigBuilder sigBuilder;
+
+    sigBuilder.AppendData(kind & ~CORINFO_HELP_READYTORUN_ATYPICAL_CALLSITE);
+
+    if ((kind & ~CORINFO_HELP_READYTORUN_ATYPICAL_CALLSITE) == ENCODE_DICTIONARY_LOOKUP_THISOBJ)
+    {
+        CORINFO_CLASS_HANDLE hClassContext = GetJitInfo()->getMethodClass(pResolvedToken->tokenContext);
+        GetCompileInfo()->EncodeClass(m_pImage->GetModuleHandle(), hClassContext, &sigBuilder, NULL, NULL);
+    }
+
+    switch (pLookup->runtimeLookupFlags)
+    {
+    case READYTORUN_FIXUP_TypeHandle:
+        {
+            if (pResolvedToken->pTypeSpec == NULL)
+            {
+                _ASSERTE(!"Invalid IL that directly references __Canon");
+                ThrowHR(E_NOTIMPL);
+            }
+
+            sigBuilder.AppendData(ENCODE_TYPE_HANDLE);
+            if (pResolvedToken->tokenType == CORINFO_TOKENKIND_Newarr)
+                sigBuilder.AppendElementType(ELEMENT_TYPE_SZARRAY);
+            sigBuilder.AppendBlob((PVOID)pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
+        }
+        break;
+
+    case READYTORUN_FIXUP_MethodHandle:
+        EncodeMethod(ENCODE_METHOD_HANDLE, pResolvedToken->hMethod, &sigBuilder, pResolvedToken, NULL, TRUE);
+        break;
+
+    case READYTORUN_FIXUP_MethodEntry:
+        EncodeMethod(ENCODE_METHOD_ENTRY, pResolvedToken->hMethod, &sigBuilder, pResolvedToken, NULL, TRUE);
+        break;
+
+    case READYTORUN_FIXUP_VirtualEntry:
+        EncodeMethod(ENCODE_VIRTUAL_ENTRY, pResolvedToken->hMethod, &sigBuilder, pResolvedToken, NULL, TRUE);
+        break;
+
+        // TODO: support for the rest of the dictionary signature kinds
+
+    default:
+        _ASSERTE(!"Invalid R2R fixup kind!");
+        ThrowHR(E_NOTIMPL);
+    }
+
+    _ASSERTE(((DWORD)pResolvedToken->tokenContext & 1) == 0);
+
+    return GetImportForSignature<ZapDynamicHelperCell, ZapNodeType_DynamicHelperCell>((void*)pResolvedToken->tokenContext, &sigBuilder);
+}
+
 ZapImport * ZapImportTable::GetDynamicHelperCell(CORCOMPILE_FIXUP_BLOB_KIND kind, CORINFO_CLASS_HANDLE handle)
 {
-    ZapImport * pImport = GetImport<ZapDynamicHelperCell, ZapNodeType_DynamicHelperCell>((void *)kind, handle);
+    ZapImport * pImport = GetImport<ZapDynamicHelperCell, ZapNodeType_DynamicHelperCell>((void *)(uintptr_t)((kind << 1) | 1), handle);
 
     if (!pImport->HasBlob())
     {
@@ -1805,7 +1878,7 @@ ZapImport * ZapImportTable::GetDynamicHelperCell(CORCOMPILE_FIXUP_BLOB_KIND kind
         GetCompileInfo()->EncodeClass(m_pImage->GetModuleHandle(), delegateType, &sigBuilder, NULL, NULL);
     }
 
-    return GetImportForSignature<ZapDynamicHelperCell, ZapNodeType_DynamicHelperCell>((void *)kind, &sigBuilder);
+    return GetImportForSignature<ZapDynamicHelperCell, ZapNodeType_DynamicHelperCell>((void *)(uintptr_t)((kind << 1) | 1), &sigBuilder);
 }
 
 ZapImport * ZapImportTable::GetDynamicHelperCell(CORCOMPILE_FIXUP_BLOB_KIND kind, CORINFO_FIELD_HANDLE handle, CORINFO_RESOLVED_TOKEN * pResolvedToken)
@@ -1815,7 +1888,7 @@ ZapImport * ZapImportTable::GetDynamicHelperCell(CORCOMPILE_FIXUP_BLOB_KIND kind
     EncodeField((CORCOMPILE_FIXUP_BLOB_KIND)(kind & ~CORINFO_HELP_READYTORUN_ATYPICAL_CALLSITE),
         handle, &sigBuilder, pResolvedToken);
 
-    return GetImportForSignature<ZapDynamicHelperCell, ZapNodeType_DynamicHelperCell>((void *)kind, &sigBuilder);
+    return GetImportForSignature<ZapDynamicHelperCell, ZapNodeType_DynamicHelperCell>((void *)(uintptr_t)((kind << 1) | 1), &sigBuilder);
 }
 
 class ZapIndirectHelperThunk : public ZapImport
@@ -1907,7 +1980,7 @@ DWORD ZapIndirectHelperThunk::SaveWorker(ZapWriter * pZapWriter)
 {
     ZapImage * pImage = ZapImage::GetImage(pZapWriter);
 
-    BYTE buffer[42];
+    BYTE buffer[44];
     BYTE * p = buffer;
 
 #if defined(_TARGET_X86_)
@@ -2082,6 +2155,62 @@ DWORD ZapIndirectHelperThunk::SaveWorker(ZapWriter * pZapWriter)
     // bx r12
     *(WORD *)p = 0x4760;
     p += 2;
+#elif defined(_TARGET_ARM64_)
+    if (IsDelayLoadHelper())
+    {
+        // x11 contains indirection cell
+        // Do nothing x11 contains our first param
+
+        //  movz x8, #index
+        DWORD index = GetSectionIndex();
+        _ASSERTE(index <= 0x7F);
+        *(DWORD*)p = 0xd2800008 | (index << 5);
+        p += 4;
+
+        // move Module* -> x9
+        // ldr x9, [PC+0x14]
+        *(DWORD*)p = 0x580000A9;
+        p += 4;
+
+        //ldr x9, [x9]
+        *(DWORD*)p = 0xf9400129;
+        p += 4;
+    }
+    else
+    if (IsLazyHelper())
+    {
+        // Move Module* -> x1
+        // ldr x1, [PC+0x14]
+        *(DWORD*)p = 0x580000A1;
+        p += 4;
+
+        // ldr x1, [x1]
+        *(DWORD*)p = 0xf9400021;
+        p += 4;
+    }
+
+    // branch to helper
+    // ldr x12, [PC+0x14]
+    *(DWORD*)p = 0x580000AC;
+    p += 4;
+
+    // ldr x12, [x12]
+    *(DWORD *)p = 0xf940018c;
+    p += 4;
+
+    // br x12
+    *(DWORD *)p = 0xd61f0180;
+    p += 4;
+
+    // [Module*]
+    if (pImage != NULL)
+        pImage->WriteReloc(buffer, (int)(p - buffer), pImage->GetImportTable()->GetHelperImport(READYTORUN_HELPER_Module), 0, IMAGE_REL_BASED_PTR);
+    p += 8;
+
+    // [helper]
+    if (pImage != NULL)
+        pImage->WriteReloc(buffer, (int)(p - buffer), pImage->GetImportTable()->GetHelperImport(GetReadyToRunHelper()), 0, IMAGE_REL_BASED_PTR);
+    p += 8;
 #else
     PORTABILITY_ASSERT("ZapIndirectHelperThunk::SaveWorker");
 #endif

@@ -805,11 +805,10 @@ PTR_MethodTable InterfaceInfo_t::GetApproxMethodTable(Module * pContainingModule
     {
         GCStress<cfg_any>::MaybeTrigger();
 
-        // Make call to obj.GetImplType(interfaceTypeObj)
-        MethodDesc *pGetImplTypeMD = pServerMT->GetMethodDescForInterfaceMethod(MscorlibBinder::GetMethod(METHOD__ICASTABLE__GETIMPLTYPE));
-        OBJECTREF ownerManagedType = ownerType.GetManagedClassObject(); //GC triggers
+        // Make call to ICastableHelpers.GetImplType(obj, interfaceTypeObj)
+        PREPARE_NONVIRTUAL_CALLSITE(METHOD__ICASTABLEHELPERS__GETIMPLTYPE);
 
-        PREPARE_NONVIRTUAL_CALLSITE_USING_METHODDESC(pGetImplTypeMD);
+        OBJECTREF ownerManagedType = ownerType.GetManagedClassObject(); //GC triggers
         
         DECLARE_ARGHOLDER_ARRAY(args, 2);
         args[ARGNUM_0] = OBJECTREF_TO_ARGHOLDER(*pServer);
@@ -2512,7 +2511,6 @@ bool MethodTable::ClassifyEightBytesWithManagedLayout(SystemVStructRegisterPassi
                     GetSystemVClassificationTypeName(helperPtr->fieldClassifications[helperPtr->currentUniqueOffsetField])));
 
                 helperPtr->currentUniqueOffsetField++;
-                _ASSERTE(helperPtr->currentUniqueOffsetField < SYSTEMV_MAX_NUM_FIELDS_IN_REGISTER_PASSED_STRUCT);
 #ifdef _DEBUG
                 ++fieldNum;
 #endif // _DEBUG
@@ -2601,8 +2599,8 @@ bool MethodTable::ClassifyEightBytesWithManagedLayout(SystemVStructRegisterPassi
                GetSystemVClassificationTypeName(fieldClassificationType),
                GetSystemVClassificationTypeName(helperPtr->fieldClassifications[helperPtr->currentUniqueOffsetField])));
 
-        helperPtr->currentUniqueOffsetField++;
         _ASSERTE(helperPtr->currentUniqueOffsetField < SYSTEMV_MAX_NUM_FIELDS_IN_REGISTER_PASSED_STRUCT);
+        helperPtr->currentUniqueOffsetField++;
     } // end per-field for loop
 
     AssignClassifiedEightByteTypes(helperPtr, nestingLevel);
@@ -2919,6 +2917,7 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
             case NFT_STRINGUNI:
             case NFT_STRINGANSI:
             case NFT_ANSICHAR:
+            case NFT_STRINGUTF8:
             case NFT_WINBOOL:
             case NFT_CBOOL:
             case NFT_DELEGATE:
@@ -3009,10 +3008,9 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
             GetSystemVClassificationTypeName(fieldClassificationType),
             GetSystemVClassificationTypeName(helperPtr->fieldClassifications[helperPtr->currentUniqueOffsetField])));
 
+        _ASSERTE(helperPtr->currentUniqueOffsetField < SYSTEMV_MAX_NUM_FIELDS_IN_REGISTER_PASSED_STRUCT);
         helperPtr->currentUniqueOffsetField++;
         ((BYTE*&)pFieldMarshaler) += MAXFIELDMARSHALERSIZE;
-        _ASSERTE(helperPtr->currentUniqueOffsetField < SYSTEMV_MAX_NUM_FIELDS_IN_REGISTER_PASSED_STRUCT);
-
     } // end per-field for loop
 
     AssignClassifiedEightByteTypes(helperPtr, nestingLevel);

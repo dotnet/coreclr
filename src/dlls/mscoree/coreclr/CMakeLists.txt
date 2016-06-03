@@ -24,7 +24,7 @@ else()
     if(CMAKE_SYSTEM_NAME STREQUAL Linux OR CMAKE_SYSTEM_NAME STREQUAL FreeBSD OR CMAKE_SYSTEM_NAME STREQUAL NetBSD)
         # This option is necessary to ensure that the overloaded delete operator defined inside
         # of the utilcode will be used instead of the standard library delete operator.
-        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Xlinker -Bsymbolic -Bsymbolic-functions")
+        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Xlinker -Bsymbolic -Xlinker -Bsymbolic-functions")
 
         # The following linked options can be inserted into the linker libraries list to 
         # ensure proper resolving of circular references between a subset of the libraries.
@@ -65,6 +65,10 @@ if (CLR_CMAKE_PLATFORM_UNIX)
     set(LIB_UNWINDER unwinder_wks)
 endif (CLR_CMAKE_PLATFORM_UNIX)
 
+if(FEATURE_MERGE_JIT_AND_ENGINE)
+    set(CLRJIT_STATIC clrjit_static)
+endif(FEATURE_MERGE_JIT_AND_ENGINE)
+
 # IMPORTANT! Please do not rearrange the order of the libraries. The linker on Linux is
 # order dependent and changing the order can result in undefined symbols in the shared 
 # library.
@@ -82,7 +86,7 @@ set(CORECLR_LIBRARIES
     mdhotdata_full
     bcltype
     ceefgen
-    clrjit_static
+    ${CLRJIT_STATIC}
     comfloat_wks
     corguids
     gcinfo # Condition="'$(TargetCpu)'=='amd64' or '$(TargetCpu)' == 'arm' or '$(TargetCpu)' == 'arm64'"

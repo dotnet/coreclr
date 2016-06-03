@@ -36,9 +36,22 @@ Run tests:
 >     --testNativeBinDir=~/coreclr/bin/obj/Linux.x64.Debug/tests
 >     --coreClrBinDir=~/coreclr/bin/Product/Linux.x64.Debug
 >     --mscorlibDir=/media/coreclr/bin/Product/Linux.x64.Debug
->     --coreFxBinDir=~/corefx/bin/Linux.AnyCPU.Debug
+>     --coreFxBinDir="~/corefx/bin/Linux.AnyCPU.Release;~/corefx/bin/Unix.AnyCPU.Release;~/corefx/bin/AnyOS.AnyCPU.Release"
 >     --coreFxNativeBinDir=~/corefx/bin/Linux.x64.Debug
 > ```
+
+The method above will copy dependencies from the set of directories provided to create an 'overlay' directory.
+If you already have an overlay directory prepared with the dependencies you need, you can specify `--coreOverlayDir`
+instead of `--coreClrBinDir`, `--mscorlibDir`, `--coreFxBinDir`, and `--coreFxNativeBinDir`. It would look something like:
+
+
+> ```bash
+> ~/coreclr$ tests/runtest.sh
+>     --testRootDir=~/test/Windows_NT.x64.Debug
+>     --testNativeBinDir=~/coreclr/bin/obj/Linux.x64.Debug/tests
+>     --coreOverlayDir=/path/to/directory/containing/overlay
+> ```
+
 
 Test results will go into:
 

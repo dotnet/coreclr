@@ -4604,7 +4604,6 @@ DECODE_OPCODE:
         case CEE_CALLI:
             //Needs weight value in SMWeights.cpp
         case CEE_LOCALLOC:
-        case CEE_CPBLK:
         case CEE_MKREFANY:
         case CEE_RETHROW:
             //Consider making this only for not force inline.
@@ -6666,6 +6665,19 @@ bool         Compiler::fgInDifferentRegions(BasicBlock *blk1, BasicBlock *blk2)
     return ((blk1->bbFlags & BBF_COLD)!= (blk2->bbFlags & BBF_COLD));
 }
 
+bool         Compiler::fgIsBlockCold(BasicBlock *blk)
+{
+    noway_assert(blk != NULL);
+
+    if (fgFirstColdBlock == NULL)
+    {
+        return false;
+    }
+
+    return ((blk->bbFlags & BBF_COLD) != 0);
+}
+
+
 /*****************************************************************************
  * This function returns true if tree is a GT_COMMA node with a call
  * that unconditionally throws an exception
@@ -7023,17 +7035,19 @@ GenTreePtr    Compiler::fgOptimizeDelegateConstructor(GenTreePtr call, CORINFO_C
             {
                 // The first argument of the helper is delegate this pointer
                 GenTreeArgList* helperArgs = gtNewArgList(call->gtCall.gtCallObjp);
+                CORINFO_CONST_LOOKUP entryPoint;
 
                 // The second argument of the helper is the target object pointers
                 helperArgs->gtOp.gtOp2 = gtNewArgList(call->gtCall.gtCallArgs->gtOp.gtOp1);
 
                 call = gtNewHelperCallNode(CORINFO_HELP_READYTORUN_DELEGATE_CTOR, TYP_VOID, GTF_EXCEPT, helperArgs);
 #if COR_JIT_EE_VERSION > 460
-                info.compCompHnd->getReadyToRunDelegateCtorHelper(targetMethod->gtFptrVal.gtLdftnResolvedToken, clsHnd, &call->gtCall.gtEntryPoint);
+                info.compCompHnd->getReadyToRunDelegateCtorHelper(targetMethod->gtFptrVal.gtLdftnResolvedToken, clsHnd, &entryPoint);
 #else
                 info.compCompHnd->getReadyToRunHelper(targetMethod->gtFptrVal.gtLdftnResolvedToken,
-                    CORINFO_HELP_READYTORUN_DELEGATE_CTOR, &call->gtCall.gtEntryPoint);
+                    CORINFO_HELP_READYTORUN_DELEGATE_CTOR, &entryPoint);
 #endif
+                call->gtCall.setEntryPoint(entryPoint);
             }
         }
         else
@@ -7484,8 +7498,7 @@ GenTreePtr Compiler::fgGetCritSectOfStaticMethod()
 
 void                Compiler::fgAddSyncMethodEnterExit()
 {
-    if ((info.compFlags & CORINFO_FLG_SYNCH) == 0)
-        return;
+    assert((info.compFlags & CORINFO_FLG_SYNCH) != 0);
 
     // We need to do this transformation before funclets are created.
     assert(!fgFuncletsCreated);
@@ -7795,6 +7808,72 @@ void                Compiler::fgConvertSyncReturnToLeave(BasicBlock* block)
 
 #endif // !_TARGET_X86_
 
+//------------------------------------------------------------------------
+// fgAddReversePInvokeEnterExit: Add enter/exit calls for reverse PInvoke methods
+//
+// Arguments:
+//      None.
+//
+// Return Value:
+//      None.
+
+void Compiler::fgAddReversePInvokeEnterExit()
+{
+    assert(opts.IsReversePInvoke());
+
+#if COR_JIT_EE_VERSION > 460
+    lvaReversePInvokeFrameVar = lvaGrabTempWithImplicitUse(false DEBUGARG("Reverse Pinvoke FrameVar"));
+
+    LclVarDsc* varDsc = &lvaTable[lvaReversePInvokeFrameVar];
+    varDsc->lvType = TYP_BLK;
+    varDsc->lvExactSize = eeGetEEInfo()->sizeOfReversePInvokeFrame;
+
+    GenTreePtr      tree;
+
+    // Add enter pinvoke exit callout at the start of prolog
+
+    tree = gtNewOperNode(GT_ADDR, TYP_I_IMPL, gtNewLclvNode(lvaReversePInvokeFrameVar, TYP_BLK));
+
+    tree = gtNewHelperCallNode(CORINFO_HELP_JIT_REVERSE_PINVOKE_ENTER,
+        TYP_VOID, 0,
+        gtNewArgList(tree));
+
+    fgEnsureFirstBBisScratch();
+
+    fgInsertStmtAtBeg(fgFirstBB, tree);
+
+#ifdef DEBUG
+    if (verbose)
+    {
+        printf("\nReverse PInvoke method - Add reverse pinvoke enter in first basic block [%08p]\n", dspPtr(fgFirstBB));
+        gtDispTree(tree);
+        printf("\n");
+    }
+#endif
+
+    // Add reverse pinvoke exit callout at the end of epilog
+
+    tree = gtNewOperNode(GT_ADDR, TYP_I_IMPL, gtNewLclvNode(lvaReversePInvokeFrameVar, TYP_BLK));
+
+    tree = gtNewHelperCallNode(CORINFO_HELP_JIT_REVERSE_PINVOKE_EXIT,
+        TYP_VOID, 0,
+        gtNewArgList(tree));
+
+    assert(genReturnBB != nullptr);
+
+    fgInsertStmtAtEnd(genReturnBB, tree);
+
+#ifdef DEBUG
+    if (verbose)
+    {
+        printf("\nReverse PInvoke method - Add reverse pinvoke exit in return basic block [%08p]\n", dspPtr(genReturnBB));
+        gtDispTree(tree);
+        printf("\n");
+    }
+#endif
+
+#endif // COR_JIT_EE_VERSION > 460
+}
 
 /*****************************************************************************
  *
@@ -7900,12 +7979,6 @@ void                Compiler::fgAddInternal()
 
     /* Assume we will generate a single shared return sequence */
 
-    // This is the node for the oneReturn statement.
-    // It could be as simple as a CallNode if we only have
-    // only one callout. It will be a comma tree of CallNodes
-    // if we have multiple callouts.
-    //
-    GenTreePtr  oneReturnStmtNode = NULL;
     ULONG       returnWeight      = 0;
     bool        oneReturn;
     bool        allProfWeight;
@@ -7913,13 +7986,13 @@ void                Compiler::fgAddInternal()
     //
     //  We will generate just one epilog (return block)
     //   when we are asked to generate enter/leave callbacks
+    //   or for methods with PInvoke
     //   or for methods calling into unmanaged code
     //   or for synchronized methods.
     //
     if ( compIsProfilerHookNeeded()    ||
-#if INLINE_NDIRECT
          (info.compCallUnmanaged != 0) ||
-#endif
+         opts.IsReversePInvoke() ||
          ((info.compFlags & CORINFO_FLG_SYNCH) != 0))
     {
         // We will generate only one return block
@@ -7997,7 +8070,10 @@ void                Compiler::fgAddInternal()
     // BBJ_RETURN block gets placed at the top-level, not within an EH region. (Otherwise,
     // we'd have to be really careful when creating the synchronized method try/finally
     // not to include the BBJ_RETURN block.)
-    fgAddSyncMethodEnterExit();
+    if ((info.compFlags & CORINFO_FLG_SYNCH) != 0)
+    {
+        fgAddSyncMethodEnterExit();
+    }
 #endif // !_TARGET_X86_
 
     if  (oneReturn)
@@ -8109,7 +8185,6 @@ void                Compiler::fgAddInternal()
         genReturnLocal = BAD_VAR_NUM;
     }
 
-#if INLINE_NDIRECT
     if (info.compCallUnmanaged != 0)
     {
         // The P/Invoke helpers only require a frame variable, so only allocate the
@@ -8139,7 +8214,6 @@ void                Compiler::fgAddInternal()
         }
 #endif
     }
-#endif
 
     // Do we need to insert a "JustMyCode" callback?
 
@@ -8287,34 +8361,13 @@ void                Compiler::fgAddInternal()
                                        gtNewArgList(tree));
         }
 
-        /* Add the exitCrit expression to the oneReturnStmtNode */
-        if (oneReturnStmtNode != NULL)
-        {
-            //
-            // We add the newly created "tree" to op1, so we can evaluate the last added
-            // expression first.
-            //
-            oneReturnStmtNode = gtNewOperNode(GT_COMMA,
-                                              TYP_VOID,
-                                              tree,
-                                              oneReturnStmtNode);
-
-        }
-        else
-        {
-            oneReturnStmtNode = tree;
-        }
-
+        fgInsertStmtAtEnd(genReturnBB, tree);
 
 #ifdef DEBUG
         if (verbose)
         {
             printf("\nSynchronized method - Add exit expression ");
             printTreeID(tree);
-            printf(" to oneReturnStmtNode ");
-            printTreeID(oneReturnStmtNode);
-            printf("\nCurrent oneReturnStmtNode is\n");
-            gtDispTree(oneReturnStmtNode);
             printf("\n");
         }
 #endif
@@ -8358,6 +8411,11 @@ void                Compiler::fgAddInternal()
 
     }
 
+    if (opts.IsReversePInvoke())
+    {
+        fgAddReversePInvokeEnterExit();
+    }
+
     //
     //  Add 'return' expression to the return block if we made it as "oneReturn" before.
     //
@@ -8368,13 +8426,6 @@ void                Compiler::fgAddInternal()
         //
         // Make the 'return' expression.
         //
-
-        // spill any value that is currently in the oneReturnStmtNode
-        if (oneReturnStmtNode != nullptr)
-        {
-            fgInsertStmtAtEnd(genReturnBB, oneReturnStmtNode);
-            oneReturnStmtNode = nullptr;
-        }
 
         //make sure to reload the return value as part of the return (it is saved by the "real return").
         if (genReturnLocal != BAD_VAR_NUM)
@@ -8721,254 +8772,6 @@ BasicBlock* Compiler::fgSplitEdge(BasicBlock* curr, BasicBlock* succ)
     return newBlock;
 }
 
-
-#if FEATURE_STACK_FP_X87
-
-/*****************************************************************************/
-/*****************************************************************************/
-
-void                Compiler::fgComputeFPlvls(GenTreePtr tree)
-{
-    genTreeOps      oper;
-    unsigned        kind;
-    bool            isflt;
-    unsigned        savFPstkLevel;
-
-    noway_assert(tree);
-    noway_assert(tree->gtOper != GT_STMT);
-
-    /* Figure out what kind of a node we have */
-
-    oper  = tree->OperGet();
-    kind  = tree->OperKind();
-    isflt = varTypeIsFloating(tree->TypeGet()) ? 1 : 0;
-
-    /* Is this a constant or leaf node? */
-
-    if  (kind & (GTK_CONST|GTK_LEAF))
-    {
-        codeGen->genFPstkLevel += isflt;
-        goto DONE;
-    }
-
-    /* Is it a 'simple' unary/binary operator? */
-
-    if  (kind & GTK_SMPOP)
-    {
-        GenTreePtr      op1 = tree->gtOp.gtOp1;
-        GenTreePtr      op2 = tree->gtGetOp2();
-
-        /* Check for some special cases */
-
-        switch (oper)
-        {
-        case GT_IND:
-
-            fgComputeFPlvls(op1);
-
-            /* Indirect loads of FP values push a new value on the FP stack */
-
-            codeGen->genFPstkLevel += isflt;
-            goto DONE;
-
-        case GT_CAST:
-
-            fgComputeFPlvls(op1);
-
-            /* Casts between non-FP and FP push on / pop from the FP stack */
-
-            if  (varTypeIsFloating(op1->TypeGet()))
-            {
-                if  (isflt == false)
-                    codeGen->genFPstkLevel--;
-            }
-            else
-            {
-                if  (isflt != false)
-                    codeGen->genFPstkLevel++;
-            }
-
-            goto DONE;
-
-        case GT_LIST:   /* GT_LIST presumably part of an argument list */
-        case GT_COMMA:  /* Comma tosses the result of the left operand */
-
-            savFPstkLevel = codeGen->genFPstkLevel;
-            fgComputeFPlvls(op1);
-            codeGen->genFPstkLevel = savFPstkLevel;
-
-            if  (op2)
-                fgComputeFPlvls(op2);
-
-            goto DONE;
-
-        default:
-            break;
-        }
-
-        if  (!op1)
-        {
-            if  (!op2)
-                goto DONE;
-
-            fgComputeFPlvls(op2);
-            goto DONE;
-        }
-
-        if  (!op2)
-        {
-            fgComputeFPlvls(op1);
-            if (oper == GT_ADDR)
-            {
-                /* If the operand was floating point pop the value from the stack */
-                if (varTypeIsFloating(op1->TypeGet()))
-                {
-                    noway_assert(codeGen->genFPstkLevel);
-                    codeGen->genFPstkLevel--;
-                }
-            }
-
-            // This is a special case to handle the following
-            // optimization: conv.i4(round.d(d)) -> round.i(d)
-
-            if (oper== GT_INTRINSIC && tree->gtIntrinsic.gtIntrinsicId == CORINFO_INTRINSIC_Round &&
-                tree->TypeGet()==TYP_INT)
-            {
-                codeGen->genFPstkLevel--;
-            }
-
-            goto DONE;
-        }
-
-        /* FP assignments need a bit special handling */
-
-        if  (isflt && (kind & GTK_ASGOP))
-        {
-            /* The target of the assignment won't get pushed */
-
-            if  (tree->gtFlags & GTF_REVERSE_OPS)
-            {
-                fgComputeFPlvls(op2);
-                fgComputeFPlvls(op1);
-                 op1->gtFPlvl--;
-                codeGen->genFPstkLevel--;
-            }
-            else
-            {
-                fgComputeFPlvls(op1);
-                op1->gtFPlvl--;
-                codeGen->genFPstkLevel--;
-                fgComputeFPlvls(op2);
-            }
-
-            codeGen->genFPstkLevel--;
-            goto DONE;
-        }
-
-        /* Here we have a binary operator; visit operands in proper order */
-
-        if  (tree->gtFlags & GTF_REVERSE_OPS)
-        {
-            fgComputeFPlvls(op2);
-            fgComputeFPlvls(op1);
-        }
-        else
-        {
-            fgComputeFPlvls(op1);
-            fgComputeFPlvls(op2);
-        }
-
-        /*
-            Binary FP operators pop 2 operands and produce 1 result;
-            assignments consume 1 value and don't produce any.
-         */
-
-        if  (isflt)
-            codeGen->genFPstkLevel--;
-
-        /* Float compares remove both operands from the FP stack */
-
-        if  (kind & GTK_RELOP)
-        {
-            if  (varTypeIsFloating(op1->TypeGet()))
-                codeGen->genFPstkLevel -= 2;
-        }
-
-        goto DONE;
-    }
-
-    /* See what kind of a special operator we have here */
-
-    switch  (oper)
-    {
-    case GT_FIELD:
-        fgComputeFPlvls(tree->gtField.gtFldObj);
-        codeGen->genFPstkLevel += isflt;
-        break;
-
-    case GT_CALL:
-
-        if  (tree->gtCall.gtCallObjp)
-            fgComputeFPlvls(tree->gtCall.gtCallObjp);
-
-        if  (tree->gtCall.gtCallArgs)
-        {
-            savFPstkLevel = codeGen->genFPstkLevel;
-            fgComputeFPlvls(tree->gtCall.gtCallArgs);
-            codeGen->genFPstkLevel = savFPstkLevel;
-        }
-
-        if  (tree->gtCall.gtCallLateArgs)
-        {
-            savFPstkLevel = codeGen->genFPstkLevel;
-            fgComputeFPlvls(tree->gtCall.gtCallLateArgs);
-            codeGen->genFPstkLevel = savFPstkLevel;
-        }
-
-        codeGen->genFPstkLevel += isflt;
-        break;
-
-    case GT_ARR_ELEM:
-
-        fgComputeFPlvls(tree->gtArrElem.gtArrObj);
-
-        unsigned dim;
-        for (dim = 0; dim < tree->gtArrElem.gtArrRank; dim++)
-            fgComputeFPlvls(tree->gtArrElem.gtArrInds[dim]);
-
-        /* Loads of FP values push a new value on the FP stack */
-        codeGen->genFPstkLevel += isflt;
-        break;
-
-    case GT_CMPXCHG:
-        //Evaluate the trees left to right
-        fgComputeFPlvls(tree->gtCmpXchg.gtOpLocation);
-        fgComputeFPlvls(tree->gtCmpXchg.gtOpValue);
-        fgComputeFPlvls(tree->gtCmpXchg.gtOpComparand);
-        noway_assert(!isflt);
-        break;
-
-    case GT_ARR_BOUNDS_CHECK:
-        fgComputeFPlvls(tree->gtBoundsChk.gtArrLen);
-        fgComputeFPlvls(tree->gtBoundsChk.gtIndex);
-        noway_assert(!isflt);
-        break;
-
-#ifdef DEBUG
-    default:
-        noway_assert(!"Unhandled special operator in fgComputeFPlvls()");
-        break;
-#endif
-    }
-
-DONE:
-
-    noway_assert((unsigned char)codeGen->genFPstkLevel == codeGen->genFPstkLevel);
-
-    tree->gtFPlvl = (unsigned char)codeGen->genFPstkLevel;
-}
-
-#endif // FEATURE_STACK_FP_X87
 
 /*****************************************************************************/
 /*****************************************************************************/
@@ -19175,7 +18978,7 @@ ONE_FILE_PER_METHOD:;
     }
     else if (wcscmp(filename, W("stdout")) == 0)
     {
-        fgxFile = stdout;
+        fgxFile = jitstdout;
         *wbDontClose = true;
     }
     else if (wcscmp(filename, W("stderr")) == 0)
@@ -19514,7 +19317,7 @@ bool               Compiler::fgDumpFlowGraph(Phases phase)
 
     if (dontClose)
     {
-        // fgxFile is stdout or stderr
+        // fgxFile is jitstdout or stderr
         fprintf(fgxFile, "\n");
     }
     else
@@ -21329,7 +21132,7 @@ void Compiler::fgRemoveContainedEmbeddedStatements(GenTreePtr tree, GenTreeStmt*
 
 //------------------------------------------------------------------------
 // fgCheckForInlineDepthAndRecursion: compute depth of the candidate, and
-// check for recursion and excessive depth
+// check for recursion.
 //
 // Return Value:
 //    The depth of the inline candidate. The root method is a depth 0, top-level
@@ -21350,13 +21153,11 @@ unsigned     Compiler::fgCheckInlineDepthAndRecursion(InlineInfo* inlineInfo)
 
     // There should be a context for all candidates.
     assert(inlineContext != nullptr);
-
-    const DWORD MAX_INLINING_RECURSION_DEPTH = 20;
-    DWORD depth = 0;
+    int depth = 0;
 
     for (; inlineContext != nullptr; inlineContext = inlineContext->GetParent())
     {
-        // Hard limit just to catch pathological cases
+
         depth++;
 
         if (inlineContext->GetCode() == candidateCode)
@@ -21367,9 +21168,8 @@ unsigned     Compiler::fgCheckInlineDepthAndRecursion(InlineInfo* inlineInfo)
             break;
         }
 
-        if (depth > MAX_INLINING_RECURSION_DEPTH)
+        if (depth > InlineStrategy::IMPLEMENTATION_MAX_INLINE_DEPTH)
         {
-            inlineResult->NoteFatal(InlineObservation::CALLSITE_IS_TOO_DEEP);
             break;
         }
     }
@@ -21432,7 +21232,7 @@ void                Compiler::fgInline()
             if ((expr->gtOper == GT_CALL) && ((expr->gtFlags & GTF_CALL_INLINE_CANDIDATE) != 0))
             {
                 GenTreeCall* call = expr->AsCall();
-                InlineResult inlineResult(this, call, "fgInline");
+                InlineResult inlineResult(this, call, stmt, "fgInline");
 
                 fgMorphStmt = stmt;
 
@@ -21558,7 +21358,7 @@ Compiler::fgWalkResult      Compiler::fgFindNonInlineCandidate(GenTreePtr* pTree
 void Compiler::fgNoteNonInlineCandidate(GenTreePtr   tree,
                                         GenTreeCall* call)
 {
-    InlineResult inlineResult(this, call, "fgNotInlineCandidate");
+    InlineResult inlineResult(this, call, nullptr, "fgNotInlineCandidate");
     InlineObservation currentObservation = InlineObservation::CALLSITE_NOT_CANDIDATE;
 
     // Try and recover the reason left behind when the jit decided
@@ -21597,7 +21397,7 @@ void Compiler::fgNoteNonInlineCandidate(GenTreePtr   tree,
 
 #endif
 
-#if defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(FEATURE_HFA) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
 
 /*********************************************************************************
  *
@@ -21729,7 +21529,7 @@ void Compiler::fgAttachStructInlineeToAsg(GenTreePtr tree, GenTreePtr child, COR
     tree->CopyFrom(gtNewCpObjNode(dstAddr, srcAddr, retClsHnd, false), this);
 }
 
-#endif // defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // defined(FEATURE_HFA) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
 
 /*****************************************************************************
  * Callback to replace the inline return expression place holder (GT_RET_EXPR)
@@ -21744,12 +21544,13 @@ Compiler::fgWalkResult      Compiler::fgUpdateInlineReturnExpressionPlaceHolder(
 
     if (tree->gtOper == GT_RET_EXPR)
     {
-#if defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(FEATURE_HFA) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
         // We are going to copy the tree from the inlinee, so save the handle now.
         CORINFO_CLASS_HANDLE retClsHnd = varTypeIsStruct(tree)
                                        ? tree->gtRetExpr.gtRetClsHnd
                                        : NO_CLASS_HANDLE;
-#endif // defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // defined(FEATURE_HFA) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+
 
         do
         {
@@ -21787,12 +21588,14 @@ Compiler::fgWalkResult      Compiler::fgUpdateInlineReturnExpressionPlaceHolder(
         }
         while (tree->gtOper == GT_RET_EXPR);
 
-#if defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-#if defined(_TARGET_ARM_)
+#if defined(FEATURE_HFA) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(FEATURE_HFA)
         if (retClsHnd != NO_CLASS_HANDLE && comp->IsHfa(retClsHnd))
 #elif defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
         if (retClsHnd != NO_CLASS_HANDLE && comp->IsRegisterPassable(retClsHnd))
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#else
+        assert(!"Unhandled target");
+#endif // FEATURE_HFA 
         {
             GenTreePtr parent = data->parent;
             // See assert below, we only look one level above for an asg parent.
@@ -21807,10 +21610,10 @@ Compiler::fgWalkResult      Compiler::fgUpdateInlineReturnExpressionPlaceHolder(
                 tree->CopyFrom(comp->fgAssignStructInlineeToVar(tree, retClsHnd), comp);
             }
         }
-#endif // defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // defined(FEATURE_HFA) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
     }
 
-#if defined(DEBUG) && (defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING))
+#if defined(DEBUG) && defined(FEATURE_HFA) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
     // Make sure we don't have a tree like so: V05 = (, , , retExpr);
     // Since we only look one level above for the parent for '=' and
     // do not check if there is a series of COMMAs. See above.
@@ -21828,7 +21631,7 @@ Compiler::fgWalkResult      Compiler::fgUpdateInlineReturnExpressionPlaceHolder(
             // empty
         }
 
-#if defined(_TARGET_ARM_)
+#if defined(FEATURE_HFA)
         noway_assert(!varTypeIsStruct(comma) ||
                      comma->gtOper != GT_RET_EXPR ||
                      (!comp->IsHfa(comma->gtRetExpr.gtRetClsHnd)));
@@ -21838,7 +21641,7 @@ Compiler::fgWalkResult      Compiler::fgUpdateInlineReturnExpressionPlaceHolder(
                      (!comp->IsRegisterPassable(comma->gtRetExpr.gtRetClsHnd)));
 #endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
     }
-#endif // defined(DEBUG) && (defined(_TARGET_ARM_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING))
+#endif // defined(DEBUG) && defined(FEATURE_HFA) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
 
     return WALK_CONTINUE;
 }
@@ -21925,7 +21728,7 @@ void       Compiler::fgInvokeInlineeCompiler(GenTreeCall*  call,
     param.fncHandle = fncHandle;
     param.inlineCandidateInfo = inlineCandidateInfo;
     param.inlineInfo = &inlineInfo;
-    setErrorTrap(info.compCompHnd, Param*, pParam, &param)
+    bool success = eeRunWithErrorTrap<Param>([](Param* pParam)
     {
         // Init the local var info of the inlinee
         pParam->pThis->impInlineInitVars(pParam->inlineInfo);
@@ -21991,8 +21794,8 @@ void       Compiler::fgInvokeInlineeCompiler(GenTreeCall*  call,
                 }
             }
         }
-    }
-    impErrorTrap()
+    }, &param);
+    if (!success)
     {
 #ifdef DEBUG
         if (verbose)
@@ -22009,7 +21812,6 @@ void       Compiler::fgInvokeInlineeCompiler(GenTreeCall*  call,
             inlineResult->NoteFatal(InlineObservation::CALLSITE_COMPILATION_ERROR);
         }
     }
-    endErrorTrap();
 
     if (inlineResult->IsFailure())
     {

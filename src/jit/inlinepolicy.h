@@ -11,9 +11,15 @@
 //
 // LegalPolicy         - partial class providing common legality checks
 // LegacyPolicy        - policy that provides legacy inline behavior
+//
+// These experimental policies are available only in
+// DEBUG or release+INLINE_DATA builds of the jit.
+//
 // RandomPolicy        - randomized inlining
 // DiscretionaryPolicy - legacy variant with uniform size policy
 // ModelPolicy         - policy based on statistical modelling
+// FullPolicy          - inlines everything up to size and depth limits
+// SizePolicy          - tries not to increase method sizes
 
 #ifndef _INLINE_POLICY_H_
 #define _INLINE_POLICY_H_
@@ -290,6 +296,89 @@ public:
 
     // Miscellaneous
     const char* GetName() const override { return "ModelPolicy"; }
+};
+
+// FullPolicy is an experimental policy that will always inline if
+// possible, subject to externally settable depth and size limits.
+//
+// It's useful for unconvering the full set of possible inlines for
+// methods.
+
+class FullPolicy : public DiscretionaryPolicy
+{
+public:
+
+    // Construct a FullPolicy
+    FullPolicy(Compiler* compiler, bool isPrejitRoot);
+
+    // Policy determinations
+    void DetermineProfitability(CORINFO_METHOD_INFO* methodInfo) override;
+
+    // Miscellaneous
+    const char* GetName() const override { return "FullPolicy"; }
+};
+
+// SizePolicy is an experimental policy that will inline as much
+// as possible without increasing the (estimated) method size.
+//
+// It may be useful down the road as a policy to use for methods
+// that are rarely executed (eg class constructors).
+
+class SizePolicy : public DiscretionaryPolicy
+{
+public:
+
+    // Construct a SizePolicy
+    SizePolicy(Compiler* compiler, bool isPrejitRoot);
+
+    // Policy determinations
+    void DetermineProfitability(CORINFO_METHOD_INFO* methodInfo) override;
+
+    // Miscellaneous
+    const char* GetName() const override { return "SizePolicy"; }
+};
+
+// The ReplayPolicy performs only inlines specified by an external
+// inline replay log.
+
+class ReplayPolicy : public DiscretionaryPolicy
+{
+public:
+
+    // Construct a ReplayPolicy
+    ReplayPolicy(Compiler* compiler, bool isPrejitRoot);
+
+    // Optional observations
+    void NoteContext(InlineContext* context) override
+    {
+        m_InlineContext = context;
+    }
+
+    void NoteOffset(IL_OFFSETX offset) override
+    {
+        m_Offset = offset;
+    }
+
+    // Policy determinations
+    void DetermineProfitability(CORINFO_METHOD_INFO* methodInfo) override;
+
+    // Miscellaneous
+    const char* GetName() const override { return "ReplayPolicy"; }
+
+    static void FinalizeXml();
+
+private:
+
+    bool FindMethod();
+    bool FindContext(InlineContext* context);
+    bool FindInline(CORINFO_METHOD_HANDLE callee);
+    bool FindInline(unsigned token, unsigned hash, unsigned offset);
+
+    static bool          s_WroteReplayBanner;
+    static FILE*         s_ReplayFile;
+    static CritSecObject s_XmlReaderLock;
+    InlineContext*       m_InlineContext;
+    IL_OFFSETX           m_Offset;
 };
 
 #endif // defined(DEBUG) || defined(INLINE_DATA)

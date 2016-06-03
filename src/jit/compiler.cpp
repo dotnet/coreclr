@@ -73,14 +73,12 @@ void Compiler::JitLogEE(unsigned level, const char* fmt, ...)
 {
     va_list args;
 
-#ifndef CROSSGEN_COMPILE
     if (verbose)
     {
         va_start(args, fmt);
-        logf_stdout(fmt, args);
+        vflogf(jitstdout, fmt, args);
         va_end(args);
     }
-#endif
 
     va_start(args, fmt);
     vlogf(level, fmt, args);
@@ -548,13 +546,9 @@ var_types    Compiler::argOrReturnTypeForStruct(unsigned size, CORINFO_CLASS_HAN
             if (size <= MAX_RET_MULTIREG_BYTES)
             {
 #ifdef _TARGET_ARM64_
-                assert(size > TARGET_POINTER_SIZE);
-
-                // For structs that are 9 to 16 bytes in size set useType to TYP_STRUCT, 
-                // as this means a 9-16 byte struct value in two registers
-                //
-                useType = TYP_STRUCT;
-#endif // _TARGET_ARM64_
+                // TODO-ARM64-HFA - Implement x0,x1 returns   
+                // TODO-ARM64     - Implement HFA returns   
+#endif // _TARGET_XXX_
             }
         }
 #endif // FEATURE_MULTIREG_RET
@@ -567,10 +561,13 @@ var_types    Compiler::argOrReturnTypeForStruct(unsigned size, CORINFO_CLASS_HAN
 #ifdef _TARGET_ARM64_
                 assert(size > TARGET_POINTER_SIZE);
 
-                // For structs that are 9 to 16 bytes in size set useType to TYP_STRUCT, 
-                // as this means a 9-16 byte struct value in two registers
-                //
-                useType = TYP_STRUCT;
+                // On ARM64 structs that are 9-16 bytes are passed by value
+                // or if the struct is an HFA it is passed by value
+                if ((size <= (TARGET_POINTER_SIZE * 2)) || IsHfa(clsHnd))
+                {
+                    // set useType to TYP_STRUCT to indicate that this is passed by value in registers
+                    useType = TYP_STRUCT;
+                }
 #endif // _TARGET_ARM64_
             }
         }
@@ -657,7 +654,7 @@ void                Compiler::compStartup()
     // Static vars of ValueNumStore
     ValueNumStore::InitValueNumStoreStatics();
 
-    compDisplayStaticSizes(stdout);
+    compDisplayStaticSizes(jitstdout);
 }
 
 /*****************************************************************************
@@ -682,6 +679,11 @@ void                Compiler::compShutdown()
 
     emitter::emitDone();
 
+#if defined(DEBUG) || defined(INLINE_DATA)
+    // Finish reading and/or writing inline xml
+    InlineStrategy::FinalizeXml();
+#endif // defined(DEBUG) || defined(INLINE_DATA)
+
 #if defined(DEBUG) || MEASURE_NODE_SIZE || MEASURE_BLOCK_SIZE || DISPLAY_SIZES || CALL_ARG_STATS
     if  (genMethodCnt == 0)
     {
@@ -690,7 +692,7 @@ void                Compiler::compShutdown()
 #endif
 
     // Where should we write our statistics output?
-    FILE* fout = stdout;
+    FILE* fout = jitstdout;
 
 #ifdef FEATURE_JIT_METHOD_PERF
     if (compJitTimeLogFilename != NULL)
@@ -921,10 +923,10 @@ void                Compiler::compShutdown()
 #endif
     {
         fprintf(fout, "\nAll allocations:\n");
-        s_aggMemStats.Print(stdout);
+        s_aggMemStats.Print(jitstdout);
 
         fprintf(fout, "\nLargest method:\n");
-        s_maxCompMemStats.Print(stdout);
+        s_maxCompMemStats.Print(jitstdout);
     }
 
 #endif // MEASURE_MEM_ALLOC
@@ -934,7 +936,7 @@ void                Compiler::compShutdown()
     if (JitConfig.DisplayLoopHoistStats() != 0)
 #endif // DEBUG
     {
-        PrintAggregateLoopHoistStats(stdout);
+        PrintAggregateLoopHoistStats(jitstdout);
     }
 #endif // LOOP_HOIST_STATS
 
@@ -1324,8 +1326,6 @@ void                Compiler::compInit(ArenaAllocator * pAlloc, InlineInfo * inl
 
     //Used by fgFindJumpTargets for inlining heuristics.
     opts.instrCount  = 0;
-
-    compMaxUncheckedOffsetForNullObject = MAX_UNCHECKED_OFFSET_FOR_NULL_OBJECT;
 
     for (unsigned i = 0; i < MAX_LOOP_NUM; i++)
     {
@@ -1866,7 +1866,6 @@ unsigned ReinterpretHexAsDecimal(unsigned in)
     return result;
 }
 
-inline
 void                Compiler::compInitOptions(CORJIT_FLAGS* jitFlags)
 {
 #ifdef UNIX_AMD64_ABI
@@ -2460,7 +2459,7 @@ void                Compiler::compInitOptions(CORJIT_FLAGS* jitFlags)
     opts.disAsm2        = false;
     opts.dspUnwind      = false;
     s_dspMemStats       = false;
-    opts.compLargeBranches = false;
+    opts.compLongAddress = false;
     opts.compJitELTHookEnabled = false;
 
 #ifdef LATE_DISASM
@@ -2529,8 +2528,8 @@ void                Compiler::compInitOptions(CORJIT_FLAGS* jitFlags)
         if (JitConfig.DisplayMemStats() != 0)
             s_dspMemStats = true;
 
-        if (JitConfig.JitLargeBranches() != 0)
-            opts.compLargeBranches = true;
+        if (JitConfig.JitLongAddress() != 0)
+            opts.compLongAddress = true;
     }
 
     if (verboseDump)
@@ -2765,8 +2764,7 @@ void                Compiler::compInitOptions(CORJIT_FLAGS* jitFlags)
     // Now, set compMaxUncheckedOffsetForNullObject for STRESS_NULL_OBJECT_CHECK
     if (compStressCompile(STRESS_NULL_OBJECT_CHECK, 30))
     {
-        compMaxUncheckedOffsetForNullObject = 
-            (unsigned) JitConfig.JitMaxUncheckedOffset();
+        compMaxUncheckedOffsetForNullObject = (size_t)JitConfig.JitMaxUncheckedOffset();
         if (verbose) {
             printf("STRESS_NULL_OBJECT_CHECK: compMaxUncheckedOffsetForNullObject=0x%X\n", compMaxUncheckedOffsetForNullObject);
         }
@@ -2821,7 +2819,7 @@ void JitDump(const char* pcFormat, ...)
 {
     va_list lst;    
     va_start(lst, pcFormat);
-    logf_stdout(pcFormat, lst);
+    vflogf(jitstdout, pcFormat, lst);
     va_end(lst);
 }
 
@@ -3407,6 +3405,53 @@ bool  Compiler::compRsvdRegCheck(FrameLayoutState curState)
 }
 #endif // _TARGET_ARMARCH_
 
+void                Compiler::compFunctionTraceStart()
+{
+#ifdef DEBUG
+    if (compIsForInlining())
+        return;
+
+    if ((JitConfig.JitFunctionTrace() != 0) && !opts.disDiffable)
+    {
+        LONG newJitNestingLevel = InterlockedIncrement(&Compiler::jitNestingLevel);
+        if (newJitNestingLevel <= 0)
+        {
+            printf("{ Illegal nesting level %d }\n", newJitNestingLevel);
+        }
+
+        for (LONG i = 0; i < newJitNestingLevel - 1; i++)
+            printf("  ");
+        printf("{ Start Jitting %s\n", info.compFullName); /* } editor brace matching workaround for this printf */
+    }
+#endif // DEBUG
+}
+
+void                Compiler::compFunctionTraceEnd(void* methodCodePtr, ULONG methodCodeSize, bool isNYI)
+{
+#ifdef DEBUG
+    assert(!compIsForInlining());
+
+    if ((JitConfig.JitFunctionTrace() != 0) && !opts.disDiffable)
+    {
+        LONG newJitNestingLevel = InterlockedDecrement(&Compiler::jitNestingLevel);
+        if (newJitNestingLevel < 0)
+        {
+            printf("{ Illegal nesting level %d }\n", newJitNestingLevel);
+        }
+
+        for (LONG i = 0; i < newJitNestingLevel; i++)
+            printf("  ");
+        /* { editor brace-matching workaround for following printf */
+        printf("} Jitted Entry %03x at" FMT_ADDR "method %s size %08x%s\n", 
+            Compiler::jitTotalMethodCompiled,
+            DBG_ADDR(methodCodePtr),
+            info.compFullName,
+            methodCodeSize,
+            isNYI ? " NYI" : (compIsForImportOnly() ? " import only" : ""));
+    }
+#endif // DEBUG 
+}
+
 //*********************************************************************************************
 // #Phases
 // 
@@ -3436,21 +3481,7 @@ void                 Compiler::compCompile(void * * methodCodePtr,
 
     EndPhase(PHASE_PRE_IMPORT);
 
-#ifdef DEBUG
-    bool funcTrace = JitConfig.JitFunctionTrace() != 0;
-
-    if (!compIsForInlining())
-    {
-        LONG newJitNestingLevel = InterlockedIncrement(&Compiler::jitNestingLevel);
-        assert(newJitNestingLevel > 0);
-        if (funcTrace && !opts.disDiffable)
-        {
-            for (LONG i = 0; i < newJitNestingLevel - 1; i++)
-                printf("  ");
-            printf("{ Start Jitting %s\n", info.compFullName); /* } editor brace matching workaround for this printf */
-        }
-    }
-#endif // DEBUG
+    compFunctionTraceStart();
 
     /* Convert the instrs in each basic block to a tree based intermediate representation */
 
@@ -3484,7 +3515,10 @@ void                 Compiler::compCompile(void * * methodCodePtr,
 
     // Maybe the caller was not interested in generating code
     if (compIsForImportOnly())
+    {
+        compFunctionTraceEnd(nullptr, 0, false);
         return;
+    }
 
 #if !FEATURE_EH
     // If we aren't yet supporting EH in a compiler bring-up, remove as many EH handlers as possible, so
@@ -3884,28 +3918,20 @@ void                 Compiler::compCompile(void * * methodCodePtr,
     ++Compiler::jitTotalMethodCompiled;
 #endif // defined(DEBUG)
 
-#ifdef DEBUG
-    LONG newJitNestingLevel = InterlockedDecrement(&Compiler::jitNestingLevel);
-    assert(newJitNestingLevel >= 0);
-
-    if (funcTrace && !opts.disDiffable)
-    {
-        for (LONG i = 0; i < newJitNestingLevel; i++)
-            printf("  ");
-        /* { editor brace-matching workaround for following printf */
-        printf("} Jitted Entry %03x at" FMT_ADDR "method %s size %08x\n", 
-               Compiler::jitTotalMethodCompiled, DBG_ADDR(*methodCodePtr),
-               info.compFullName, *methodCodeSize);
-    }
+    compFunctionTraceEnd(*methodCodePtr, *methodCodeSize, false);
 
 #if FUNC_INFO_LOGGING
     if (compJitFuncInfoFile != NULL)
     {
         assert(!compIsForInlining());
+#ifdef DEBUG // We only have access to info.compFullName in DEBUG builds.
         fprintf(compJitFuncInfoFile, "%s\n", info.compFullName);
+#elif FEATURE_SIMD
+        fprintf(compJitFuncInfoFile, " %s\n", eeGetMethodFullName(info.compMethodHnd));
+#endif
+        fprintf(compJitFuncInfoFile, "");         // in our logic this causes a flush
     }
 #endif // FUNC_INFO_LOGGING
-#endif // DEBUG 
 }
 
 /*****************************************************************************/
@@ -3997,8 +4023,16 @@ void* forceFrameJIT;       // used to force to frame &useful for fastchecked deb
 bool Compiler::skipMethod()
 {
     static ConfigMethodRange fJitRange;
-    fJitRange.ensureInit(JitConfig.JitRange());
-    if (!fJitRange.contains(info.compCompHnd, info.compMethodHnd))
+    fJitRange.EnsureInit(JitConfig.JitRange());
+    assert(!fJitRange.Error());
+
+    // Normally JitConfig.JitRange() is null, we don't want to skip
+    // jitting any methods.
+    //
+    // So, the logic below relies on the fact that a null range string
+    // passed to ConfigMethodRange represents the set of all methods.
+
+    if (!fJitRange.Contains(info.compCompHnd, info.compMethodHnd))
         return true;
 
     if (JitConfig.JitExclude().contains(info.compMethodName, info.compClassName, &info.compMethodInfo->args))
@@ -4075,8 +4109,11 @@ int           Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
     this->dumpIRBlockHeaders = compIsForInlining() ? impInlineInfo->InlinerCompiler->dumpIRBlockHeaders : NULL;
     this->dumpIRExit         = compIsForInlining() ? impInlineInfo->InlinerCompiler->dumpIRExit : NULL;
 
-    info.compMethodHashPrivate = 0;
 #endif
+
+#if defined(DEBUG) || defined(INLINE_DATA)
+    info.compMethodHashPrivate = 0;
+#endif // defined(DEBUG) || defined(INLINE_DATA)
 
 #if FUNC_INFO_LOGGING
     LPCWSTR tmpJitFuncInfoFilename = JitConfig.JitFuncInfoFile();
@@ -4089,12 +4126,12 @@ int           Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
         if (oldFuncInfoFileName == NULL)
         {
             assert(compJitFuncInfoFile == NULL);
-            compJitFuncInfoFile = _wfsopen(compJitFuncInfoFilename, W("a"), _SH_DENYWR); // allow reading the file before the end of compilation
+            compJitFuncInfoFile = _wfopen(compJitFuncInfoFilename, W("a"));
         }
     }
 #endif // FUNC_INFO_LOGGING
 
-//  if (s_compMethodsCount==0) setvbuf(stdout, NULL, _IONBF, 0);
+//  if (s_compMethodsCount==0) setvbuf(jitstdout, NULL, _IONBF, 0);
 
     info.compCompHnd     = compHnd;
     info.compMethodHnd   = methodHnd;
@@ -4109,6 +4146,12 @@ int           Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
 #if defined(ALT_JIT) && defined(UNIX_AMD64_ABI)
     info.compMatchedVM = false;
 #endif // UNIX_AMD64_ABI
+
+#if COR_JIT_EE_VERSION > 460
+    compMaxUncheckedOffsetForNullObject = eeGetEEInfo()->maxUncheckedOffsetForNullObject;
+#else // COR_JIT_EE_VERSION <= 460
+    compMaxUncheckedOffsetForNullObject = MAX_UNCHECKED_OFFSET_FOR_NULL_OBJECT;
+#endif // COR_JIT_EE_VERSION > 460
 
     // Set the context for token lookup.
     if (compIsForInlining())
@@ -4160,16 +4203,14 @@ int           Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
         return CORJIT_SKIPPED;
     }
 
+    // Opt-in to jit stress based on method hash ranges.
+    //
+    // Note the default (with JitStressRange not set) is that all
+    // methods will be subject to stress.
     static ConfigMethodRange fJitStressRange;
-    fJitStressRange.ensureInit(JitConfig.JitStressRange());
-    if (fJitStressRange.contains(info.compCompHnd, info.compMethodHnd))
-    {
-        bRangeAllowStress = true;
-    }
-    else
-    {
-        bRangeAllowStress = false;
-    }
+    fJitStressRange.EnsureInit(JitConfig.JitStressRange());
+    assert(!fJitStressRange.Error());
+    bRangeAllowStress = fJitStressRange.Contains(info.compCompHnd, info.compMethodHnd);
 
 #endif // DEBUG
 
@@ -4291,8 +4332,8 @@ DoneCleanUp:
     return  param.result;
 }
 
-#ifdef DEBUG
-unsigned        Compiler::Info::compMethodHash()
+#if defined(DEBUG) || defined(INLINE_DATA)
+unsigned        Compiler::Info::compMethodHash() const
 {
     if (compMethodHashPrivate == 0)
     {
@@ -4300,7 +4341,7 @@ unsigned        Compiler::Info::compMethodHash()
     }
     return compMethodHashPrivate;
 }
-#endif
+#endif // defined(DEBUG) || defined(INLINE_DATA)
 
 void Compiler::compCompileFinish()
 {
@@ -4309,22 +4350,26 @@ void Compiler::compCompileFinish()
 #endif
 
 #if MEASURE_MEM_ALLOC
-    ClrEnterCriticalSection(s_memStatsLock.Val());
-    genMemStats.nraTotalSizeAlloc = compGetAllocator()->getTotalBytesAllocated();
-    genMemStats.nraTotalSizeUsed  = compGetAllocator()->getTotalBytesUsed();
-    s_aggMemStats.Add(genMemStats);
-    if (genMemStats.allocSz > s_maxCompMemStats.allocSz)
     {
-        s_maxCompMemStats = genMemStats;
+        // Grab the relevant lock.
+        CritSecHolder statsLock(s_memStatsLock);
+
+        // Make the updates.
+        genMemStats.nraTotalSizeAlloc = compGetAllocator()->getTotalBytesAllocated();
+        genMemStats.nraTotalSizeUsed  = compGetAllocator()->getTotalBytesUsed();
+        s_aggMemStats.Add(genMemStats);
+        if (genMemStats.allocSz > s_maxCompMemStats.allocSz)
+        {
+            s_maxCompMemStats = genMemStats;
+        }
     }
-    ClrLeaveCriticalSection(s_memStatsLock.Val());
 
 #ifdef DEBUG
     if (s_dspMemStats || verbose)
     {
         printf("\nAllocations for %s (MethodHash=%08x)\n",
                info.compFullName, info.compMethodHash());
-        genMemStats.Print(stdout);
+        genMemStats.Print(jitstdout);
     }
 #endif // DEBUG
 #endif // MEASURE_MEM_ALLOC
@@ -4373,6 +4418,7 @@ void Compiler::compCompileFinish()
 #if defined(DEBUG) || defined(INLINE_DATA)
 
     m_inlineStrategy->DumpData();
+    m_inlineStrategy->DumpXml();
 
 #endif
 
@@ -4716,10 +4762,8 @@ int           Compiler::compCompileHelper (CORINFO_MODULE_HANDLE            clas
         }
         info.compRetNativeType = info.compRetType         = JITtype2varType(methodInfo->args.retType);
 
-#if INLINE_NDIRECT
         info.compCallUnmanaged   = 0;
         info.compLvFrameListRoot = BAD_VAR_NUM;
-#endif
 
 #if FEATURE_FIXED_OUT_ARGS
         lvaOutgoingArgSpaceSize  = 0;
@@ -6311,7 +6355,7 @@ void CompTimeSummaryInfo::AddInfo(CompTimeInfo& info)
 {
     if (info.m_timerFailure) return;  // Don't update if there was a failure.
 
-    ClrEnterCriticalSection(s_compTimeSummaryLock.Val());
+    CritSecHolder timeLock(s_compTimeSummaryLock);
     m_numMethods++;
 
     bool includeInFiltered = IncludedInFilteredData(info);
@@ -6343,8 +6387,6 @@ void CompTimeSummaryInfo::AddInfo(CompTimeInfo& info)
     }
     m_total.m_parentPhaseEndSlop += info.m_parentPhaseEndSlop;
     m_maximum.m_parentPhaseEndSlop = max(m_maximum.m_parentPhaseEndSlop, info.m_parentPhaseEndSlop);
-
-    ClrLeaveCriticalSection(s_compTimeSummaryLock.Val());
 }
 
 // Static
@@ -6515,7 +6557,8 @@ void JitTimer::PrintCsvHeader()
         return;
     }
 
-    ClrEnterCriticalSection(s_csvLock.Val());
+    CritSecHolder csvLock(s_csvLock);
+
     if (_waccess(jitTimeLogCsv, 0) == -1)
     {
         // File doesn't exist, so create it and write the header
@@ -6537,7 +6580,6 @@ void JitTimer::PrintCsvHeader()
         fprintf(fp, "\"CPS\"\n");
         fclose(fp);
     }
-    ClrLeaveCriticalSection(s_csvLock.Val());
 }
 
 void JitTimer::PrintCsvMethodStats(Compiler* comp)
@@ -6551,7 +6593,7 @@ void JitTimer::PrintCsvMethodStats(Compiler* comp)
     // eeGetMethodFullName uses locks, so don't enter crit sec before this call.
     const char* methName = comp->eeGetMethodFullName(comp->info.compMethodHnd);
 
-    ClrEnterCriticalSection(s_csvLock.Val());
+    CritSecHolder csvLock(s_csvLock);
 
     FILE* fp = _wfopen(jitTimeLogCsv, W("a"));
     fprintf(fp, "\"%s\",", methName);
@@ -6569,8 +6611,6 @@ void JitTimer::PrintCsvMethodStats(Compiler* comp)
     fprintf(fp, "%I64u,", m_info.m_totalCycles);
     fprintf(fp, "%f\n", CycleTimer::CyclesPerSecond());
     fclose(fp);
-
-    ClrLeaveCriticalSection(s_csvLock.Val());
 }
 
 // Completes the timing of the current method, and adds it to "sum".
@@ -6679,11 +6719,11 @@ void Compiler::PrintAggregateLoopHoistStats(FILE* f)
 
 void Compiler::AddLoopHoistStats()
 {
-     ClrEnterCriticalSection(s_loopHoistStatsLock.Val());
-     s_loopsConsidered +=             m_loopsConsidered;
-     s_loopsWithHoistedExpressions += m_loopsWithHoistedExpressions;
-     s_totalHoistedExpressions +=     m_totalHoistedExpressions;
-     ClrLeaveCriticalSection(s_loopHoistStatsLock.Val());
+    CritSecHolder statsLock(s_loopHoistStatsLock);
+
+    s_loopsConsidered +=             m_loopsConsidered;
+    s_loopsWithHoistedExpressions += m_loopsWithHoistedExpressions;
+    s_totalHoistedExpressions +=     m_totalHoistedExpressions;
 }
 
 void Compiler::PrintPerMethodLoopHoistStats()

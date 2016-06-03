@@ -4,7 +4,7 @@ PYTHON=${PYTHON:-python}
 
 usage()
 {
-    echo "Usage: $0 [BuildArch] [BuildType] [clean] [verbose] [coverage] [cross] [clangx.y] [ninja] [configureonly] [skipconfigure] [skipnative] [skipmscorlib] [skiptests] [cmakeargs]"
+    echo "Usage: $0 [BuildArch] [BuildType] [clean] [verbose] [coverage] [cross] [clangx.y] [ninja] [configureonly] [skipconfigure] [skipnative] [skipmscorlib] [skiptests] [cmakeargs] [bindir]"
     echo "BuildArch can be: x64, x86, arm, arm-softfp, arm64"
     echo "BuildType can be: debug, checked, release"
     echo "clean - optional argument to force a clean build."
@@ -19,27 +19,25 @@ usage()
     echo "skipnative - do not build native components."
     echo "skipmscorlib - do not build mscorlib.dll."
     echo "skiptests - skip the tests in the 'tests' subdirectory."
+    echo "skiprestore - skip restoring nuget packages."
+    echo "skipnuget - skip building nuget packages."
     echo "disableoss - Disable Open Source Signing for mscorlib."
-    echo "generateversion - if building native only, pass this in to get a version on the build output."
+    echo "skipgenerateversion - disable version generation even if MSBuild is supported."
     echo "cmakeargs - user-settable additional arguments passed to CMake."
+    echo "bindir - output directory (defaults to $__ProjectRoot/bin)"
 
     exit 1
 }
 
-initDistroName()
+initDistroRid()
 {
     if [ "$__BuildOS" == "Linux" ]; then
-        # Detect Distro
-        if [ "$(cat /etc/*-release | grep -cim1 ubuntu)" -eq 1 ]; then
-            export __DistroName=ubuntu
-        elif [ "$(cat /etc/*-release | grep -cim1 centos)" -eq 1 ]; then
-            export __DistroName=rhel
-        elif [ "$(cat /etc/*-release | grep -cim1 rhel)" -eq 1 ]; then
-            export __DistroName=rhel
-        elif [ "$(cat /etc/*-release | grep -cim1 debian)" -eq 1 ]; then
-            export __DistroName=debian
+        if [ ! -e /etc/os-release ]; then
+            echo "WARNING: Can not determine runtime id for current distro."
+            export __DistroRid=""
         else
-            export __DistroName=""
+            source /etc/os-release
+            export __DistroRid="$ID.$VERSION_ID-$__HostArch"
         fi
     fi
 }
@@ -79,12 +77,17 @@ check_prereqs()
     hash cmake 2>/dev/null || { echo >&2 "Please install cmake before running this script"; exit 1; }
 
     # Check for clang
-    hash clang-$__ClangMajorVersion.$__ClangMinorVersion 2>/dev/null ||  hash clang$__ClangMajorVersion$__ClangMinorVersion 2>/dev/null ||  hash clang 2>/dev/null || { echo >&2 "Please install clang before running this script"; exit 1; }
+    hash clang-$__ClangMajorVersion.$__ClangMinorVersion 2>/dev/null ||  hash clang$__ClangMajorVersion$__ClangMinorVersion 2>/dev/null ||  hash clang 2>/dev/null || { echo >&2 "Please install clang-$__ClangMajorVersion.$__ClangMinorVersion before running this script"; exit 1; }
 
 }
 
 build_coreclr()
 {
+
+    if [ $__SkipCoreCLR == 1 ]; then
+        echo "Skipping CoreCLR build."
+        return
+    fi
 
 # Event Logging Infrastructure
    __GeneratedIntermediate="$__IntermediatesDir/Generated"
@@ -145,14 +148,14 @@ build_coreclr()
     fi
 
     if [ $__SkipConfigure == 0 ]; then
-        # if managed build is suported, then set __GenerateVersionSource to true
-        if [ $__SkipMSCorLib == 0 ]; then __GenerateVersionSource=true; fi
+        # if msbuild is not supported, then set __SkipGenerateVersion to 1
+        if [ $__isMSBuildOnNETCoreSupported == 0 ]; then __SkipGenerateVersion=1; fi
         # Drop version.c file
         __versionSourceFile=$__IntermediatesDir/version.cpp
-        if [ $__GenerateVersionSource == true ]; then
+        if [ $__SkipGenerateVersion == 0 ]; then
             "$__ProjectRoot/init-tools.sh" > "$__ProjectRoot/init-tools.log"
-            echo "Running: \"$__ProjectRoot/Tools/corerun\" \"$__ProjectRoot/Tools/MSBuild.exe\" \"$__ProjectRoot/build.proj\" /t:GenerateVersionSourceFile /p:NativeVersionSourceFile=$__versionSourceFile /p:GenerateVersionSourceFile=true /v:minimal $__OfficialBuildIdArg"
-            "$__ProjectRoot/Tools/corerun" "$__ProjectRoot/Tools/MSBuild.exe" "$__ProjectRoot/build.proj" /t:GenerateVersionSourceFile /p:NativeVersionSourceFile=$__versionSourceFile /p:GenerateVersionSourceFile=true /v:minimal $__OfficialBuildIdArg
+            echo "Running: \"$__ProjectRoot/Tools/corerun\" \"$__ProjectRoot/Tools/MSBuild.exe\" \"$__ProjectRoot/build.proj\" /v:minimal /t:GenerateVersionSourceFile /p:NativeVersionSourceFile=$__versionSourceFile /p:GenerateVersionSourceFile=true /v:minimal $__OfficialBuildIdArg"
+            "$__ProjectRoot/Tools/corerun" "$__ProjectRoot/Tools/MSBuild.exe" "$__ProjectRoot/build.proj" /v:minimal /t:GenerateVersionSourceFile /p:NativeVersionSourceFile=$__versionSourceFile /p:GenerateVersionSourceFile=true /v:minimal $__OfficialBuildIdArg
         else
             __versionSourceLine="static char sccsid[] __attribute__((used)) = \"@(#)No version information produced\";"
             echo $__versionSourceLine > $__versionSourceFile
@@ -160,11 +163,6 @@ build_coreclr()
         # Regenerate the CMake solution
         echo "Invoking \"$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh\" \"$__ProjectRoot\" $__ClangMajorVersion $__ClangMinorVersion $__BuildArch $__BuildType $__CodeCoverage $__IncludeTests $generator $__cmakeargs"
         "$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh" "$__ProjectRoot" $__ClangMajorVersion $__ClangMinorVersion $__BuildArch $__BuildType $__CodeCoverage $__IncludeTests $generator "$__cmakeargs"
-    fi
-
-    if [ $__SkipCoreCLR == 1 ]; then
-        echo "Skipping CoreCLR build."
-        return
     fi
 
     # Check that the makefiles were created.
@@ -211,53 +209,76 @@ isMSBuildOnNETCoreSupported()
     # This needs to be updated alongwith corresponding changes to netci.groovy.
     __isMSBuildOnNETCoreSupported=0
 
-    if [ "$__BuildArch" == "x64" ]; then
-        if [ "$__BuildOS" == "Linux" ]; then
-            if [ "$__DistroName" == "ubuntu" ]; then
-                __OSVersion=$(lsb_release -rs)
-                if [ "$__OSVersion" == "14.04" ]; then
+    if [ "$__HostArch" == "x64" ]; then
+        if [ "$__HostOS" == "Linux" ]; then
+            case "$__DistroRid" in
+                "centos.7-x64")
                     __isMSBuildOnNETCoreSupported=1
-                fi
-            elif [ "$__DistroName" == "rhel" ]; then
-                __isMSBuildOnNETCoreSupported=1
-            elif [ "$__DistroName" == "debian" ]; then
-                __isMSBuildOnNETCoreSupported=1
-            fi
-        elif [ "$__BuildOS" == "OSX" ]; then
+                    ;;
+                "debian.8-x64")
+                    __isMSBuildOnNETCoreSupported=1
+                    ;;
+                "fedora.23-x64")
+                    __isMSBuildOnNETCoreSupported=1
+                    ;;
+                "opensuse.13.2-x64")
+                    __isMSBuildOnNETCoreSupported=1
+                    ;;
+                "rhel.7.2-x64")
+                    __isMSBuildOnNETCoreSupported=1
+                    ;;
+                "ubuntu.14.04-x64")
+                    __isMSBuildOnNETCoreSupported=1
+                    ;;
+                "ubuntu.16.04-x64")
+                    __isMSBuildOnNETCoreSupported=1
+                    ;;
+                *)
+            esac
+        elif [ "$__HostOS" == "OSX" ]; then
             __isMSBuildOnNETCoreSupported=1
         fi
-    elif [ "$__BuildArch" == "arm" ] || [ "$__BuildArch" == "arm64" ] ; then
-        if [ "$__BuildOS" == "Linux" ]; then
-            if [ "$__DistroName" == "ubuntu" ]; then
-                __isMSBuildOnNETCoreSupported=1
-            fi
-        fi
-
     fi
 }
 
-build_mscorlib_ni()
+build_CoreLib_ni()
 {
     if [ $__SkipCoreCLR == 0 -a -e $__BinDir/crossgen ]; then
-        echo "Generating native image for mscorlib."
+        echo "Generating native image for System.Private.CoreLib."
+        $__BinDir/crossgen $__BinDir/System.Private.CoreLib.dll
+        if [ $? -ne 0 ]; then
+            echo "Failed to generate native image for System.Private.CoreLib."
+            exit 1
+        fi
+
+        echo "Generating native image for MScorlib Facade."
         $__BinDir/crossgen $__BinDir/mscorlib.dll
         if [ $? -ne 0 ]; then
-            echo "Failed to generate native image for mscorlib."
+            echo "Failed to generate native image for mscorlib facade."
             exit 1
+        fi
+
+        if [ "$__BuildOS" == "Linux" ]; then
+            echo "Generating symbol file for System.Private.CoreLib."
+            $__BinDir/crossgen /CreatePerfMap $__BinDir $__BinDir/System.Private.CoreLib.ni.dll
+            if [ $? -ne 0 ]; then
+                echo "Failed to generate symbol file for System.Private.CoreLib."
+                exit 1
+            fi
         fi
     fi
 }
 
-build_mscorlib()
+build_CoreLib()
 {
 
     if [ $__isMSBuildOnNETCoreSupported == 0 ]; then
-        echo "Mscorlib.dll build unsupported."
+        echo "System.Private.CoreLib.dll build unsupported."
         return
     fi
 
     if [ $__SkipMSCorLib == 1 ]; then
-       echo "Skipping building mscorlib."
+       echo "Skipping building System.Private.CoreLib."
        return
     fi
 
@@ -265,13 +286,13 @@ build_mscorlib()
 
     restoreBuildTools
 
-    echo "Commencing build of mscorlib components for $__BuildOS.$__BuildArch.$__BuildType"
+    echo "Commencing build of managed components for $__BuildOS.$__BuildArch.$__BuildType"
 
     # Invoke MSBuild
-    $__ProjectRoot/Tools/corerun "$__MSBuildPath" /nologo "$__ProjectRoot/build.proj" /verbosity:minimal "/fileloggerparameters:Verbosity=normal;LogFile=$__LogsDir/MSCorLib_$__BuildOS__$__BuildArch__$__BuildType.log" /t:Build /p:__BuildOS=$__BuildOS /p:__BuildArch=$__BuildArch /p:__BuildType=$__BuildType /p:__IntermediatesDir=$__IntermediatesDir /p:BuildNugetPackage=false /p:UseSharedCompilation=false ${__SignTypeReal}
+    $__ProjectRoot/Tools/corerun "$__MSBuildPath" /nologo "$__ProjectRoot/build.proj" /verbosity:minimal "/fileloggerparameters:Verbosity=normal;LogFile=$__LogsDir/System.Private.CoreLib_$__BuildOS__$__BuildArch__$__BuildType.log" /t:Build /p:__BuildOS=$__BuildOS /p:__BuildArch=$__BuildArch /p:__BuildType=$__BuildType /p:__IntermediatesDir=$__IntermediatesDir /p:__RootBinDir=$__RootBinDir /p:BuildNugetPackage=false /p:UseSharedCompilation=false ${__SignTypeReal}
 
     if [ $? -ne 0 ]; then
-        echo "Failed to build mscorlib."
+        echo "Failed to build managed components."
         exit 1
     fi
 
@@ -279,42 +300,42 @@ build_mscorlib()
     if [ $__CrossBuild != 1 ]; then
        # The architecture of host pc must be same architecture with target.
        if [[ ( "$__HostArch" == "$__BuildArch" ) ]]; then
-           build_mscorlib_ni
+           build_CoreLib_ni
        elif [[ ( "$__HostArch" == "x64" ) && ( "$__BuildArch" == "x86" ) ]]; then
-           build_mscorlib_ni
+           build_CoreLib_ni
        elif [[ ( "$__HostArch" == "arm64" ) && ( "$__BuildArch" == "arm" ) ]]; then
-           build_mscorlib_ni
+           build_CoreLib_ni
        else 
            exit 1
        fi
     fi 
 }
 
-
-
 generate_NugetPackages()
 {
     # We can only generate nuget package if we also support building mscorlib as part of this build.
     if [ $__isMSBuildOnNETCoreSupported == 0 ]; then
-        echo "Microsoft.NETCore.Runtime.CoreCLR nuget package generation unsupported."
+        echo "Nuget package generation unsupported."
         return
     fi
 
     # Since we can build mscorlib for this OS, did we build the native components as well?
     if [ $__SkipCoreCLR == 1 ]; then
-        echo "Unable to generate Microsoft.NETCore.Runtime.CoreCLR nuget package since native components were not built."
+        echo "Unable to generate nuget packages since native components were not built."
         return
     fi
 
     if [ $__SkipMSCorLib == 1 ]; then
+        # Restore buildTools, since we skipped doing so with the mscorlib build.
+        restoreBuildTools
+
        echo "Unable to generate Microsoft.NETCore.Runtime.CoreCLR nuget package since mscorlib was not built."
-       return
     fi
 
     echo "Generating nuget packages for "$__BuildOS
 
-    # Invoke MSBuild
-    $__ProjectRoot/Tools/corerun "$__MSBuildPath" /nologo "$__ProjectRoot/src/.nuget/Microsoft.NETCore.Runtime.CoreCLR/Microsoft.NETCore.Runtime.CoreCLR.builds" /verbosity:minimal "/fileloggerparameters:Verbosity=normal;LogFile=$__LogsDir/Nuget_$__BuildOS__$__BuildArch__$__BuildType.log" /t:Build /p:__BuildOS=$__BuildOS /p:__BuildArch=$__BuildArch /p:__BuildType=$__BuildType /p:__IntermediatesDir=$__IntermediatesDir /p:BuildNugetPackage=false /p:UseSharedCompilation=false
+    # Build the packages
+    $__ProjectRoot/Tools/corerun "$__MSBuildPath" /nologo "$__ProjectRoot/src/.nuget/packages.builds" /verbosity:minimal "/fileloggerparameters:Verbosity=normal;LogFile=$__LogsDir/Nuget_$__BuildOS__$__BuildArch__$__BuildType.log" /t:Build /p:__BuildOS=$__BuildOS /p:__BuildArch=$__BuildArch /p:__BuildType=$__BuildType /p:__IntermediatesDir=$__IntermediatesDir /p:__RootBinDir=$__RootBinDir /p:BuildNugetPackage=false /p:UseSharedCompilation=false
 
     if [ $? -ne 0 ]; then
         echo "Failed to generate Nuget packages."
@@ -337,7 +358,7 @@ __ProjectRoot="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # Use uname to determine what the CPU is.
 CPUName=$(uname -p)
 # Some Linux platforms report unknown for platform, but the arch for machine.
-if [ $CPUName == "unknown" ]; then
+if [ "$CPUName" == "unknown" ]; then
     CPUName=$(uname -m)
 fi
 
@@ -377,31 +398,38 @@ OSName=$(uname -s)
 case $OSName in
     Linux)
         __BuildOS=Linux
+        __HostOS=Linux
         ;;
 
     Darwin)
         __BuildOS=OSX
+        __HostOS=OSX
         ;;
 
     FreeBSD)
         __BuildOS=FreeBSD
+        __HostOS=FreeBSD
         ;;
 
     OpenBSD)
         __BuildOS=OpenBSD
+        __HostOS=OpenBSD
         ;;
 
     NetBSD)
         __BuildOS=NetBSD
+        __HostOS=NetBSD
         ;;
 
     SunOS)
         __BuildOS=SunOS
+        __HostOS=SunOS
         ;;
 
     *)
         echo "Unsupported OS $OSName detected, configuring as if for Linux"
         __BuildOS=Linux
+        __HostOS=Linux
         ;;
 esac
 
@@ -414,26 +442,27 @@ __ProjectDir="$__ProjectRoot"
 __SourceDir="$__ProjectDir/src"
 __PackagesDir="$__ProjectDir/packages"
 __RootBinDir="$__ProjectDir/bin"
-__LogsDir="$__RootBinDir/Logs"
 __UnprocessedBuildArgs=
 __MSBCleanBuildArgs=
 __UseNinja=0
 __ConfigureOnly=0
 __SkipConfigure=0
+__SkipRestore=""
+__SkipNuget=0
 __SkipCoreCLR=0
 __SkipMSCorLib=0
 __CleanBuild=0
 __VerboseBuild=0
 __SignTypeReal=""
 __CrossBuild=0
-__ClangMajorVersion=3
-__ClangMinorVersion=5
+__ClangMajorVersion=0
+__ClangMinorVersion=0
 __MSBuildPath=$__ProjectRoot/Tools/MSBuild.exe
 __NuGetPath="$__PackagesDir/NuGet.exe"
-__DistroName=""
+__DistroRid=""
 __cmakeargs=""
 __OfficialBuildIdArg=
-__GenerateVersionSource=false
+__SkipGenerateVersion=0
 
 while :; do
     if [ $# -le 0 ]; then
@@ -544,8 +573,8 @@ while :; do
             __SkipMSCorLib=1
             ;;
 
-        generateversion)
-            __GenerateVersionSource=true
+        skipgenerateversion)
+            __SkipGenerateVersion=1
             ;;
 
         includetests)
@@ -553,6 +582,14 @@ while :; do
 
         skiptests)
             __IncludeTests=
+            ;;
+
+        skiprestore)
+            __SkipRestore="/p:RestoreDuringBuild=true"
+            ;;
+
+        skipnuget)
+            __SkipNuget=1
             ;;
 
         disableoss)
@@ -569,6 +606,22 @@ while :; do
             fi
             ;;
 
+        bindir)
+            if [ -n "$2" ]; then
+                __RootBinDir="$2"
+                if [ ! -d $__RootBinDir ]; then
+                    mkdir $__RootBinDir
+                fi
+                __RootBinParent=$(dirname $__RootBinDir)
+                __RootBinName=${__RootBinDir##*/}
+                __RootBinDir="$(cd $__RootBinParent &>/dev/null && printf %s/%s $PWD $__RootBinName)"
+                shift
+            else
+                echo "ERROR: 'bindir' requires a non-empty option argument"
+                exit 1
+            fi
+            ;;
+
         *)
             if [[ $1 == "/p:OfficialBuildId="* ]]; then
                 __OfficialBuildIdArg=$1
@@ -581,13 +634,27 @@ while :; do
     shift
 done
 
+# Set default clang version
+if [[ $__ClangMajorVersion == 0 && $__ClangMinorVersion == 0 ]]; then
+    if [ $__CrossBuild == 1 ]; then
+        __ClangMajorVersion=3
+        __ClangMinorVersion=6
+    else
+        __ClangMajorVersion=3
+        __ClangMinorVersion=5
+    fi
+fi
+
+# Set dependent variables
+__LogsDir="$__RootBinDir/Logs"
+
 if [[ $__ConfigureOnly == 1 && $__SkipConfigure == 1 ]]; then
     echo "configureonly and skipconfigure are mutually exclusive!"
     exit 1
 fi
 
 # init the distro name
-initDistroName
+initDistroRid
 
 # Set the remaining variables based upon the determined build configuration
 __BinDir="$__RootBinDir/Product/$__BuildOS.$__BuildArch.$__BuildType"
@@ -645,13 +712,14 @@ check_prereqs
 
 build_coreclr
 
-# Build mscorlib.
+# Build System.Private.CoreLib.
 
-build_mscorlib
+build_CoreLib
 
 # Generate nuget packages
-
-generate_NugetPackages
+if [ $__SkipNuget != 1 ]; then
+    generate_NugetPackages
+fi
 
 
 # Build complete

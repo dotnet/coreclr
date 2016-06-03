@@ -34,7 +34,7 @@ enum ReturnValues
 #define NumItems(s) (sizeof(s) / sizeof(s[0]))
 
 STDAPI CreatePDBWorker(LPCWSTR pwzAssemblyPath, LPCWSTR pwzPlatformAssembliesPaths, LPCWSTR pwzTrustedPlatformAssemblies, LPCWSTR pwzPlatformResourceRoots, LPCWSTR pwzAppPaths, LPCWSTR pwzAppNiPaths, LPCWSTR pwzPdbPath, BOOL fGeneratePDBLinesInfo, LPCWSTR pwzManagedPdbSearchPath, LPCWSTR pwzPlatformWinmdPaths);
-STDAPI NGenWorker(LPCWSTR pwzFilename, DWORD dwFlags, LPCWSTR pwzPlatformAssembliesPaths, LPCWSTR pwzTrustedPlatformAssemblies, LPCWSTR pwzPlatformResourceRoots, LPCWSTR pwzAppPaths, LPCWSTR pwzOutputFilename=NULL, LPCWSTR pwzPlatformWinmdPaths=NULL, ICorSvcLogger *pLogger = NULL);
+STDAPI NGenWorker(LPCWSTR pwzFilename, DWORD dwFlags, LPCWSTR pwzPlatformAssembliesPaths, LPCWSTR pwzTrustedPlatformAssemblies, LPCWSTR pwzPlatformResourceRoots, LPCWSTR pwzAppPaths, LPCWSTR pwzOutputFilename=NULL, LPCWSTR pwzPlatformWinmdPaths=NULL, ICorSvcLogger *pLogger = NULL, LPCWSTR pwszCLRJITPath = nullptr);
 void SetSvcLogger(ICorSvcLogger *pCorSvcLogger);
 #ifdef FEATURE_CORECLR
 void SetMscorlibPath(LPCWSTR wzSystemDirectory);
@@ -155,6 +155,10 @@ void PrintUsageHelper()
        W("    /Tuning              - Generate an instrumented image to collect\n")
        W("                           scenario traces, which can be used with ibcmerge.exe\n")
 #endif
+#if defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+       W("    /JITPath\n")
+       W("                         - Specifies the absolute file path to JIT compiler to be used.\n")
+#endif // defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
 #ifdef FEATURE_READYTORUN_COMPILER
        W("    /ReadyToRun          - Generate images resilient to the runtime and\n")
        W("                           dependency versions\n")
@@ -259,7 +263,7 @@ bool StringEndsWith(LPCWSTR pwzString, LPCWSTR pwzCandidate)
 #ifdef FEATURE_CORECLR
 //
 // When using the Phone binding model (TrustedPlatformAssemblies), automatically
-// detect which path mscorlib.[ni.]dll lies in.
+// detect which path CoreLib.[ni.]dll lies in.
 //
 bool ComputeMscorlibPathFromTrustedPlatformAssemblies(SString& pwzMscorlibPath, LPCWSTR pwzTrustedPlatformAssemblies)
 {
@@ -278,8 +282,8 @@ bool ComputeMscorlibPathFromTrustedPlatformAssemblies(SString& pwzMscorlibPath, 
             wszSingleTrustedPath++;
         }
 
-        if (StringEndsWith(wszSingleTrustedPath, DIRECTORY_SEPARATOR_STR_W W("mscorlib.dll")) ||
-            StringEndsWith(wszSingleTrustedPath, DIRECTORY_SEPARATOR_STR_W W("mscorlib.ni.dll")))
+        if (StringEndsWith(wszSingleTrustedPath, DIRECTORY_SEPARATOR_STR_W CoreLibName_IL_W) ||
+            StringEndsWith(wszSingleTrustedPath, DIRECTORY_SEPARATOR_STR_W CoreLibName_NI_W))
         {
             pwzMscorlibPath.Set(wszSingleTrustedPath);
             SString::Iterator pwzSeparator = pwzMscorlibPath.End();
@@ -320,7 +324,7 @@ void PopulateTPAList(SString path, LPCWSTR pwszMask, SString &refTPAList, bool f
             LPCWSTR pwszFilename = folderEnumerator.GetFileName();
             if (fCompilingMscorlib)
             {
-                // When compiling mscorlib.dll, no ".ni.dll" should be on the TPAList.
+                // When compiling CoreLib, no ".ni.dll" should be on the TPAList.
                 if (StringEndsWith((LPWSTR)pwszFilename, W(".ni.dll")))
                 {
                     fAddFileToTPAList = false;
@@ -331,18 +335,18 @@ void PopulateTPAList(SString path, LPCWSTR pwszMask, SString &refTPAList, bool f
                 // When creating PDBs, we must ensure that .ni.dlls are in the TPAList
                 if (!fCreatePDB)
                 {
-                    // Only mscorlib.ni.dll should be in the TPAList for the compilation of non-mscorlib assemblies.
+                    // Only CoreLib's ni.dll should be in the TPAList for the compilation of non-mscorlib assemblies.
                     if (StringEndsWith((LPWSTR)pwszFilename, W(".ni.dll")))
                     {
-                        if (!StringEndsWith((LPWSTR)pwszFilename, W("mscorlib.ni.dll")))
+                        if (!StringEndsWith((LPWSTR)pwszFilename, CoreLibName_NI_W))
                         {
                             fAddFileToTPAList = false;
                         }
                     }
                 }
                 
-                // Ensure that mscorlib.dll is also not on the TPAlist for this case.                
-                if (StringEndsWith((LPWSTR)pwszFilename, W("mscorlib.dll")))
+                // Ensure that CoreLib's IL version is also not on the TPAlist for this case.                
+                if (StringEndsWith((LPWSTR)pwszFilename, CoreLibName_IL_W))
                 {
                     fAddFileToTPAList = false;
                 }
@@ -450,6 +454,10 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
     LPCWSTR pwzOutputFilename = NULL;
     LPCWSTR pwzPublicKeys = nullptr;
 
+#if defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+    LPCWSTR pwszCLRJITPath = nullptr;
+#endif // defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+
     HRESULT hr;
 
 #ifndef PLATFORM_UNIX
@@ -526,6 +534,16 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
             // We dont explicitly set the flag here again so that if "/PartialTrust" is specified, then it will successfully override the default
             // fulltrust behaviour.
         }
+#if !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+        else if (MatchParameter(*argv, W("JITPath")) && (argc > 1))
+        {
+            pwszCLRJITPath = argv[1];
+            
+            // skip JIT Path
+            argv++;
+            argc--;
+        }
+#endif // !defined(FEATURE_MERGE_JIT_AND_ENGINE)
 #endif
 #ifdef FEATURE_WINMD_RESILIENT
         else if (MatchParameter(*argv, W("WinMDResilient")))
@@ -849,7 +867,7 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
     }
     
     // Are we compiling mscorlib.dll? 
-    bool fCompilingMscorlib = StringEndsWith((LPWSTR)pwzFilename, W("mscorlib.dll"));
+    bool fCompilingMscorlib = StringEndsWith((LPWSTR)pwzFilename, CoreLibName_IL_W);
 
     if (fCompilingMscorlib)
         dwFlags &= ~NGENWORKER_FLAGS_READYTORUN;
@@ -925,6 +943,11 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
          pwzAppPaths,
          pwzOutputFilename,
          pwzPlatformWinmdPaths
+#if defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)      
+        ,
+        NULL, // ICorSvcLogger
+        pwszCLRJITPath   
+#endif // defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
          );
     }
     

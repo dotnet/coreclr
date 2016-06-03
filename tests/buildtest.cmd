@@ -32,10 +32,10 @@ set __ILAsmRoundtrip=
 set __BuildSequential=
 set __TestPriority=
 set __LongGCTests=
+set __GCSimulatorTests=
 set __msbuildCleanBuildArgs=
 set __msbuildExtraArgs=
 set __verbosity=normal
-set __GCStressLevel=0
 
 :Arg_Loop
 if "%1" == "" goto ArgsDone
@@ -65,8 +65,8 @@ if /i "%1" == "crossgen"            (set __crossgen=true&shift&goto Arg_Loop)
 if /i "%1" == "ilasmroundtrip"      (set __ILAsmRoundtrip=true&shift&goto Arg_Loop)
 if /i "%1" == "sequential"          (set __BuildSequential=1&shift&goto Arg_Loop)
 if /i "%1" == "priority"            (set __TestPriority=%2&shift&shift&goto Arg_Loop)
-if /i "%1" == "gcstresslevel"       (set __GCStressLevel=%2&shift&shift&goto Arg_Loop)
 if /i "%1" == "longgctests"         (set __LongGCTests=1&shift&goto Arg_Loop)
+if /i "%1" == "gcsimulator"         (set __GCSimulatorTests=1&shift&goto Arg_Loop)
 
 if /i "%1" == "verbose"             (set __verbosity=detailed&shift&goto Arg_Loop)
 
@@ -180,6 +180,12 @@ REM ===
 REM =========================================================================================
 call %__ProjectDir%\init-tools.cmd 
 
+REM =========================================================================================
+REM ===
+REM === Resolve runtime dependences
+REM ===
+REM =========================================================================================
+call %__TestDir%\setup-runtime-dependencies.cmd /arch %__BuildArch% /outputdir %__BinDir%
 
 REM =========================================================================================
 REM ===
@@ -257,11 +263,6 @@ if not defined VSINSTALLDIR (
 
 set __msbuildManagedBuildArgs=%__msbuildCleanBuildArgs%
 
-if defined __crossgen (
-    echo Building tests with CrossGen enabled.
-    set __msbuildManagedBuildArgs=%__msbuildManagedBuildArgs% /p:CrossGen=true
-)
-
 if defined __ILAsmRoundtrip (
     echo Building tests with IlasmRoundTrip enabled.
     set __msbuildManagedBuildArgs=%__msbuildManagedBuildArgs% /p:IlasmRoundTrip=true
@@ -272,14 +273,14 @@ if defined __TestPriority (
     set __msbuildManagedBuildArgs=%__msbuildManagedBuildArgs% /p:CLRTestPriorityToBuild=%__TestPriority%
 )
 
-if %__GCStressLevel% GTR 0 (
-    echo Tests will run under GCStressLevel = %__GCStressLevel%
-    set __msbuildManagedBuildArgs=%__msbuildManagedBuildArgs% /p:GCStressLevel=%__GCStressLevel%   
-)
-
 if defined __LongGCTests (
     echo Building tests with Long GC tests enabled.
     set __msbuildManagedBuildArgs=%__msbuildManagedBuildArgs% /p:GCLongRunning=true
+)
+
+if defined __GCSimulatorTests (
+    echo Building GCSimulator tests
+    set __msbuildManagedBuildArgs=%__msbuildManagedBuildArgs% /p:GCSimulatorRun=true
 )
 
 set __BuildLogRootName=Tests_Managed
@@ -364,9 +365,13 @@ echo clean: force a clean build ^(default is to perform an incremental build^).
 echo CrossGen: enables the tests to run crossgen on the test executables before executing them. 
 echo msbuildargs ... : all arguments following this tag will be passed directly to msbuild.
 echo priority ^<N^> : specify a set of test that will be built and run, with priority N.
-echo gcstresslevel ^<N^> : specify the GCStress level the tests should run under.
+echo     0: Build only priority 0 cases as essential testcases (default)
+echo     1: Build all tests with priority 0 and 1
+echo     666: Build all tests with priority 0, 1 ... 666
 echo sequential: force a non-parallel build ^(default is to build in parallel
 echo     using all processors^).
+echo longgctests: Build tests so that runtests.cmd will do a long-running GC test.
+echo gcsimulator: Build tests so that runtests.cmd will do a GCSimulator test run.
 echo IlasmRoundTrip: enables ilasm round trip build and run of the tests before executing them.
 echo verbose: enables detailed file logging for the msbuild tasks into the msbuild log file.
 exit /b 1
@@ -397,12 +402,17 @@ if /i "%__ToolsetDir%" == "" (
     exit /b 1
 )
 
-set PATH=%__ToolsetDir%\cpp\bin;%PATH%
-set LIB=%__ToolsetDir%\cpp\libWin9CoreSystem;%__ToolsetDir%\OS\lib;%__ToolsetDir%\cpp\lib
+set PATH=%__ToolsetDir%\VC_sdk\bin;%PATH%
+set LIB=%__ToolsetDir%\VC_sdk\lib\arm64;%__ToolsetDir%\sdpublic\sdk\lib\arm64
 set INCLUDE=^
-%__ToolsetDir%\cpp\inc;^
-%__ToolsetDir%\OS\inc\Windows;^
-%__ToolsetDir%\OS\inc\Windows\crt;^
-%__ToolsetDir%\cpp\inc\vc;^
-%__ToolsetDir%\OS\inc\win8
+%__ToolsetDir%\VC_sdk\inc;^
+%__ToolsetDir%\sdpublic\sdk\inc;^
+%__ToolsetDir%\sdpublic\shared\inc;^
+%__ToolsetDir%\sdpublic\shared\inc\minwin;^
+%__ToolsetDir%\sdpublic\sdk\inc\ucrt;^
+%__ToolsetDir%\sdpublic\sdk\inc\minwin;^
+%__ToolsetDir%\sdpublic\sdk\inc\mincore;^
+%__ToolsetDir%\sdpublic\sdk\inc\abi;^
+%__ToolsetDir%\sdpublic\sdk\inc\clientcore;^
+%__ToolsetDir%\diasdk\include
 exit /b 0

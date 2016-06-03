@@ -93,22 +93,14 @@ namespace System {
             if (values.Length == 0 || values[0] == null)
                 return String.Empty;
 
-            if (separator == null)
-                separator = String.Empty;
-
             StringBuilder result = StringBuilderCache.Acquire();
 
-            String value = values[0].ToString();           
-            if (value != null)
-                result.Append(value);
+            result.Append(values[0].ToString());
 
             for (int i = 1; i < values.Length; i++) {
                 result.Append(separator);
                 if (values[i] != null) {
-                    // handle the case where their ToString() override is broken
-                    value = values[i].ToString();
-                    if (value != null)
-                        result.Append(value);
+                    result.Append(values[i].ToString());
                 }
             }
             return StringBuilderCache.GetStringAndRelease(result);
@@ -121,30 +113,23 @@ namespace System {
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.EndContractBlock();
 
-            if (separator == null)
-                separator = String.Empty;
-
             using(IEnumerator<T> en = values.GetEnumerator()) {
                 if (!en.MoveNext())
                     return String.Empty;
 
                 StringBuilder result = StringBuilderCache.Acquire();
-                if (en.Current != null) {
-                    // handle the case that the enumeration has null entries
-                    // and the case where their ToString() override is broken
-                    string value = en.Current.ToString();
-                    if (value != null)
-                        result.Append(value);
+                T currentValue = en.Current;
+
+                if (currentValue != null) {
+                    result.Append(currentValue.ToString());
                 }
 
                 while (en.MoveNext()) {
+                    currentValue = en.Current;
+
                     result.Append(separator);
-                    if (en.Current != null) {
-                        // handle the case that the enumeration has null entries
-                        // and the case where their ToString() override is broken
-                        string value = en.Current.ToString();
-                        if (value != null)
-                            result.Append(value);
+                    if (currentValue != null) {
+                        result.Append(currentValue.ToString());
                     }
                 }            
                 return StringBuilderCache.GetStringAndRelease(result);
@@ -567,16 +552,17 @@ namespace System {
 
         // Determines whether two strings match.
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-        public override bool Equals(Object obj) {
-            if (this == null)                        //this is necessary to guard against reverse-pinvokes and
-                throw new NullReferenceException();  //other callers who do not use the callvirt instruction
+        public override bool Equals(Object obj)
+        {
+            if (this == null)                        // this is necessary to guard against reverse-pinvokes and
+                throw new NullReferenceException();  // other callers who do not use the callvirt instruction
 
-            String str = obj as String;
+            if (object.ReferenceEquals(this, obj))
+                return true;
+
+            string str = obj as string;
             if (str == null)
                 return false;
-
-            if (Object.ReferenceEquals(this, obj))
-                return true;
 
             if (this.Length != str.Length)
                 return false;
@@ -587,15 +573,20 @@ namespace System {
         // Determines whether two strings match.
         [Pure]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-        public bool Equals(String value) {
-            if (this == null)                        //this is necessary to guard against reverse-pinvokes and
-                throw new NullReferenceException();  //other callers who do not use the callvirt instruction
+        public bool Equals(String value)
+        {
+            if (this == null)                        // this is necessary to guard against reverse-pinvokes and
+                throw new NullReferenceException();  // other callers who do not use the callvirt instruction
 
+            if (object.ReferenceEquals(this, value))
+                return true;
+
+            // NOTE: No need to worry about casting to object here.
+            // If either side of an == comparison between strings
+            // is null, Roslyn generates a simple ceq instruction
+            // instead of calling string.op_Equality.
             if (value == null)
                 return false;
-
-            if (Object.ReferenceEquals(this, value))
-                return true;
             
             if (this.Length != value.Length)
                 return false;
@@ -1456,6 +1447,16 @@ namespace System {
 
             return s;
         }
+                
+        [System.Security.SecuritySafeCritical]  // auto-generated
+        unsafe internal int GetBytesFromEncoding(byte* pbNativeBuffer, int cbNativeBuffer,Encoding encoding)
+        {
+            // encoding == Encoding.UTF8
+            fixed (char* pwzChar = &this.m_firstChar)
+            {
+                return encoding.GetBytes(pwzChar, m_stringLength, pbNativeBuffer, cbNativeBuffer);
+            }            
+        }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
         unsafe internal int ConvertToAnsi(byte *pbNativeBuffer, int cbNativeBuffer, bool fBestFit, bool fThrowOnUnmappableChar)
@@ -2298,8 +2299,46 @@ namespace System {
 
         [Pure]
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public extern int IndexOf(char value, int startIndex, int count);
+        public unsafe int IndexOf(char value, int startIndex, int count) {
+            if (startIndex < 0 || startIndex > Length)
+                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_Index"));
+
+            if (count < 0 || count > Length - startIndex)
+                throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_Count"));
+
+            fixed (char* pChars = &m_firstChar)
+            {
+                char* pCh = pChars + startIndex;
+
+                while (count >= 4)
+                {
+                    if (*pCh == value) goto ReturnIndex;
+                    if (*(pCh + 1) == value) goto ReturnIndex1;
+                    if (*(pCh + 2) == value) goto ReturnIndex2;
+                    if (*(pCh + 3) == value) goto ReturnIndex3;
+
+                    count -= 4;
+                    pCh += 4;
+                }
+
+                while (count > 0)
+                {
+                    if (*pCh == value)
+                        goto ReturnIndex;
+
+                    count--;
+                    pCh++;
+                }
+
+                return -1;
+
+                ReturnIndex3: pCh++;
+                ReturnIndex2: pCh++;
+                ReturnIndex1: pCh++;
+                ReturnIndex:
+                return (int)(pCh - pChars);
+            }
+        }
     
         // Returns the index of the first occurrence of any specified character in the current instance.
         // The search starts at startIndex and runs to startIndex + count -1.
@@ -2425,8 +2464,50 @@ namespace System {
 
         [Pure]
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public extern int LastIndexOf(char value, int startIndex, int count);
+        public unsafe int LastIndexOf(char value, int startIndex, int count) {
+            if (Length == 0)
+                return -1;
+
+            if (startIndex < 0 || startIndex >= Length)
+                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_Index"));
+
+            if (count < 0 || count - 1 > startIndex)
+                throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_Count"));
+
+            fixed (char* pChars = &m_firstChar)
+            {
+                char* pCh = pChars + startIndex;
+
+                //We search [startIndex..EndIndex]
+                while (count >= 4)
+                {
+                    if (*pCh == value) goto ReturnIndex;
+                    if (*(pCh - 1) == value) goto ReturnIndex1;
+                    if (*(pCh - 2) == value) goto ReturnIndex2;
+                    if (*(pCh - 3) == value) goto ReturnIndex3;
+
+                    count -= 4;
+                    pCh -= 4;
+                }
+
+                while (count > 0)
+                {
+                    if (*pCh == value)
+                        goto ReturnIndex;
+
+                    count--;
+                    pCh--;
+                }
+
+                return -1;
+
+                ReturnIndex3: pCh--;
+                ReturnIndex2: pCh--;
+                ReturnIndex1: pCh--;
+                ReturnIndex:
+                return (int)(pCh - pChars);
+            }
+        }
     
         // Returns the index of the last occurrence of any specified character in the current instance.
         // The search starts at startIndex and runs backwards to startIndex - count + 1.
@@ -2547,28 +2628,63 @@ namespace System {
         //
         [Pure]
         public String PadLeft(int totalWidth) {
-            return PadHelper(totalWidth, ' ', false);
+            return PadLeft(totalWidth, ' ');
         }
 
         [Pure]
+        [System.Security.SecuritySafeCritical]  // auto-generated
         public String PadLeft(int totalWidth, char paddingChar) {
-            return PadHelper(totalWidth, paddingChar, false);
+            if (totalWidth < 0)
+                throw new ArgumentOutOfRangeException("totalWidth", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+            int oldLength = Length;
+            int count = totalWidth - oldLength;
+            if (count <= 0)
+                return this;
+            String result = FastAllocateString(totalWidth);
+            unsafe
+            {
+                fixed (char* dst = &result.m_firstChar)
+                {
+                    for (int i = 0; i < count; i++)
+                        dst[i] = paddingChar;
+                    fixed (char* src = &m_firstChar)
+                    {
+                        wstrcpy(dst + count, src, oldLength);
+                    }
+                }
+            }
+            return result;
         }
 
         [Pure]
         public String PadRight(int totalWidth) {
-            return PadHelper(totalWidth, ' ', true);
+            return PadRight(totalWidth, ' ');
         }
 
         [Pure]
-        public String PadRight(int totalWidth, char paddingChar) {
-            return PadHelper(totalWidth, paddingChar, true);
-        }
-    
-    
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private extern String PadHelper(int totalWidth, char paddingChar, bool isRightPadded);
+        public String PadRight(int totalWidth, char paddingChar) {
+            if (totalWidth < 0)
+                throw new ArgumentOutOfRangeException("totalWidth", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+            int oldLength = Length;
+            int count = totalWidth - oldLength;
+            if (count <= 0)
+                return this;
+            String result = FastAllocateString(totalWidth);
+            unsafe
+            {
+                fixed (char* dst = &result.m_firstChar)
+                {
+                    fixed (char* src = &m_firstChar)
+                    {
+                        wstrcpy(dst, src, oldLength);
+                    }
+                    for (int i = 0; i < count; i++)
+                        dst[oldLength + i] = paddingChar;
+                }
+            }
+            return result;
+        }
     
         // Determines whether a specified string is a prefix of the current instance
         //
@@ -3169,6 +3285,7 @@ namespace System {
             return Concat(objArgs);
         }
 
+        [System.Security.SecuritySafeCritical]
         public static String Concat(params Object[] args) {
             if (args==null) {
                 throw new ArgumentNullException("args");
@@ -3189,7 +3306,17 @@ namespace System {
                     throw new OutOfMemoryException();
                 }
             }
-            return ConcatArray(sArgs, totalLength);
+
+            string result = FastAllocateString(totalLength);
+            int currPos = 0;
+            for (int i = 0; i < sArgs.Length; i++)
+            {
+                Contract.Assert(currPos <= totalLength - sArgs[i].Length, "[String.Concat](currPos <= totalLength - sArgs[i].Length)");
+                FillStringChecked(result, currPos, sArgs[i]);
+                currPos += sArgs[i].Length;
+            }
+
+            return result;
         }
 
         [ComVisible(false)]
@@ -3202,12 +3329,10 @@ namespace System {
             StringBuilder result = StringBuilderCache.Acquire();
             using(IEnumerator<T> en = values.GetEnumerator()) {
                 while (en.MoveNext()) {
-                    if (en.Current != null) {
-                        // handle the case that the enumeration has null entries
-                        // and the case where their ToString() override is broken
-                        string value = en.Current.ToString();
-                        if (value != null)
-                            result.Append(value);
+                    T currentValue = en.Current;
+
+                    if (currentValue != null) {
+                        result.Append(currentValue.ToString());
                     }
                 }            
             }
@@ -3225,9 +3350,7 @@ namespace System {
             StringBuilder result = StringBuilderCache.Acquire();
             using(IEnumerator<String> en = values.GetEnumerator()) {
                 while (en.MoveNext()) {
-                    if (en.Current != null) {
-                        result.Append(en.Current);
-                    }
+                     result.Append(en.Current);
                 }            
             }
             return StringBuilderCache.GetStringAndRelease(result);            
@@ -3338,44 +3461,67 @@ namespace System {
             return result;
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        private static String ConcatArray(String[] values, int totalLength) {
-            String result =  FastAllocateString(totalLength);
-            int currPos=0;
-
-            for (int i=0; i<values.Length; i++) {
-                Contract.Assert((currPos <= totalLength - values[i].Length), 
-                                "[String.ConcatArray](currPos <= totalLength - values[i].Length)");
-
-                FillStringChecked(result, currPos, values[i]);
-                currPos+=values[i].Length;
-            }
-
-            return result;
-        }
-
+        [System.Security.SecuritySafeCritical]
         public static String Concat(params String[] values) {
             if (values == null)
                 throw new ArgumentNullException("values");
             Contract.Ensures(Contract.Result<String>() != null);
-            // Spec#: Consider a postcondition saying the length of this string == the sum of each string in array
             Contract.EndContractBlock();
-            int totalLength=0;
 
-            // Always make a copy to prevent changing the array on another thread.
-            String[] internalValues = new String[values.Length];
-            
-            for (int i=0; i<values.Length; i++) {
+            // It's possible that the input values array could be changed concurrently on another
+            // thread, such that we can't trust that each read of values[i] will be equivalent.
+            // Worst case, we can make a defensive copy of the array and use that, but we first
+            // optimistically try the allocation and copies assuming that the array isn't changing,
+            // which represents the 99.999% case, in particular since string.Concat is used for
+            // string concatenation by the languages, with the input array being a params array.
+
+            // Sum the lengths of all input strings
+            long totalLengthLong = 0;
+            for (int i = 0; i < values.Length; i++)
+            {
                 string value = values[i];
-                internalValues[i] = ((value==null)?(String.Empty):(value));
-                totalLength += internalValues[i].Length;
-                // check for overflow
-                if (totalLength < 0) {
-                    throw new OutOfMemoryException();
+                if (value != null)
+                {
+                    totalLengthLong += value.Length;
                 }
             }
-            
-            return ConcatArray(internalValues, totalLength);
+
+            // If it's too long, fail, or if it's empty, return an empty string.
+            if (totalLengthLong > int.MaxValue)
+            {
+                throw new OutOfMemoryException();
+            }
+            int totalLength = (int)totalLengthLong;
+            if (totalLength == 0)
+            {
+                return string.Empty;
+            }
+
+            // Allocate a new string and copy each input string into it
+            string result = FastAllocateString(totalLength);
+            int copiedLength = 0;
+            for (int i = 0; i < values.Length; i++)
+            {
+                string value = values[i];
+                if (!string.IsNullOrEmpty(value))
+                {
+                    int valueLen = value.Length;
+                    if (valueLen > totalLength - copiedLength)
+                    {
+                        copiedLength = -1;
+                        break;
+                    }
+
+                    FillStringChecked(result, copiedLength, value);
+                    copiedLength += valueLen;
+                }
+            }
+
+            // If we copied exactly the right amount, return the new string.  Otherwise,
+            // something changed concurrently to mutate the input array: fall back to
+            // doing the concatenation again, but this time with a defensive copy. This
+            // fall back should be extremely rare.
+            return copiedLength == totalLength ? result : Concat((string[])values.Clone());
         }
         
         [System.Security.SecuritySafeCritical]  // auto-generated

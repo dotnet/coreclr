@@ -7,12 +7,13 @@
  
   <!-- Compilation options -->
   <PropertyGroup>
-    <AvailablePlatforms>amd64,x86,arm,arm64</AvailablePlatforms>
+    <AvailablePlatforms>amd64,x86,arm,arm-softfp,arm64</AvailablePlatforms>
     <Configuration Condition=" '$(Configuration)' == '' ">$(BuildType)</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">$(BuildArch)</Platform>
     <!-- The CLR properties use amd64 as their platform string, we want to keep in sync with those, so set Platform appropriately,
          though still use the 'x64' output path (see use of BuildArch below) -->
     <Platform Condition=" '$(Platform)' == 'x64' ">amd64</Platform>
+    <Platform Condition=" '$(Platform)' == 'arm-softfp' ">arm</Platform>
     <ProjectGuid>{3DA06C3A-2E7B-4CB7-80ED-9B12916013F9}</ProjectGuid>
 
     <OutputType>Library</OutputType>
@@ -29,7 +30,6 @@
     <HighEntropyVA>true</HighEntropyVA>
     <ErrorReport>prompt</ErrorReport>
     <Optimize Condition="'$(Optimize)' == ''">true</Optimize>
-    <GenerateNativeVersionInfo Condition="'$(OsEnvironment)'=='Windows_NT'">true</GenerateNativeVersionInfo>
     <CLSCompliant>true</CLSCompliant>
     <WarningLevel>4</WarningLevel>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
@@ -40,7 +40,7 @@
     <SignAssembly>true</SignAssembly>
     <DelaySign>true</DelaySign>
 
-    <DefineConstants>$(DefineConstants);NEW_EXPERIMENTAL_ASYNC_IO;_USE_NLS_PLUS_TABLE;RESOURCE_SATELLITE_CONFIG;INSIDE_CLR;CODE_ANALYSIS_BASELINE</DefineConstants>
+    <DefineConstants>$(DefineConstants);_USE_NLS_PLUS_TABLE;RESOURCE_SATELLITE_CONFIG;INSIDE_CLR;CODE_ANALYSIS_BASELINE</DefineConstants>
   </PropertyGroup>
 
   <!-- Add Serviceable attribute to the project's metadata -->
@@ -178,6 +178,10 @@
   </ItemGroup>
 
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.Targets" />
+
+  <PropertyGroup>
+    <StrongNameSig>Silverlight</StrongNameSig>
+  </PropertyGroup>
 
   <!-- Import signing tools -->
   <Import Condition="Exists('$(ToolsDir)\sign.targets')" Project="$(ToolsDir)\sign.targets" />

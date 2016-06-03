@@ -20,7 +20,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #pragma hdrstop
 #endif
 
-#if defined(DEBUG) || defined(FEATURE_JIT_METHOD_PERF)
+#if defined(DEBUG) || defined(FEATURE_JIT_METHOD_PERF) || defined(FEATURE_SIMD)
 
 #pragma warning(push)
 #pragma warning(disable:4701) // difficult to get rid of C4701 with 'sig' below
@@ -199,6 +199,6 @@ const char* Compiler::eeGetMethodFullName (CORINFO_METHOD_HANDLE  hnd)
 
 #pragma warning(pop)
 
-#endif // DEBUG || FEATURE_JIT_METHOD_PERF
+#endif // defined(DEBUG) || defined(FEATURE_JIT_METHOD_PERF) || defined(FEATURE_SIMD)
 
 /*****************************************************************************/

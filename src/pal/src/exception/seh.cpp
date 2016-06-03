@@ -77,7 +77,7 @@ BOOL
 SEHInitialize (CPalThread *pthrCurrent, DWORD flags)
 {
 #if !HAVE_MACH_EXCEPTIONS
-    if (!SEHInitializeSignals())
+    if (!SEHInitializeSignals(flags))
     {
         ERROR("SEHInitializeSignals failed!\n");
         SEHCleanup();
@@ -211,6 +211,8 @@ Return value:
 VOID
 SEHProcessException(PEXCEPTION_POINTERS pointers)
 {
+    pointers->ContextRecord->ContextFlags |= CONTEXT_EXCEPTION_ACTIVE;
+
     if (!IsInDebugBreak(pointers->ExceptionRecord->ExceptionAddress))
     {
         PAL_SEHException exception(pointers->ExceptionRecord, pointers->ContextRecord);

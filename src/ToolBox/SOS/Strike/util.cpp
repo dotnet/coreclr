@@ -2113,9 +2113,9 @@ HRESULT FileNameForModule (DacpModuleData *pModule, __out_ecount (MAX_LONGPATH) 
 
 void AssemblyInfo(DacpAssemblyData *pAssembly)
 {
-    ExtOut("ClassLoader:        %p\n", (ULONG64)pAssembly->ClassLoader);
+    ExtOut("ClassLoader:        %p\n", SOS_PTR(pAssembly->ClassLoader));
     if ((ULONG64)pAssembly->AssemblySecDesc != NULL)
-        ExtOut("SecurityDescriptor: %p\n", (ULONG64)pAssembly->AssemblySecDesc);
+        ExtOut("SecurityDescriptor: %p\n", SOS_PTR(pAssembly->AssemblySecDesc));
     ExtOut("  Module Name\n");
     
     ArrayHolder<CLRDATA_ADDRESS> Modules = new CLRDATA_ADDRESS[pAssembly->ModuleCount];
@@ -2194,12 +2194,12 @@ const char *GetStageText(DacpAppDomainDataStage stage)
 \**********************************************************************/
 void DomainInfo (DacpAppDomainData *pDomain)
 {
-    ExtOut("LowFrequencyHeap:   %p\n", (ULONG64)pDomain->pLowFrequencyHeap);
-    ExtOut("HighFrequencyHeap:  %p\n", (ULONG64)pDomain->pHighFrequencyHeap);
-    ExtOut("StubHeap:           %p\n", (ULONG64)pDomain->pStubHeap);
+    ExtOut("LowFrequencyHeap:   %p\n", SOS_PTR(pDomain->pLowFrequencyHeap));
+    ExtOut("HighFrequencyHeap:  %p\n", SOS_PTR(pDomain->pHighFrequencyHeap));
+    ExtOut("StubHeap:           %p\n", SOS_PTR(pDomain->pStubHeap));
     ExtOut("Stage:              %s\n", GetStageText(pDomain->appDomainStage));
     if ((ULONG64)pDomain->AppSecDesc != NULL)
-        ExtOut("SecurityDescriptor: %p\n", (ULONG64)pDomain->AppSecDesc);
+        ExtOut("SecurityDescriptor: %p\n", SOS_PTR(pDomain->AppSecDesc));
     ExtOut("Name:               ");
 
     if (g_sos->GetAppDomainName(pDomain->AppDomainPtr, mdNameLen, g_mdName, NULL)!=S_OK)
@@ -2274,7 +2274,7 @@ BOOL NameForMD_s (DWORD_PTR pMD, __out_ecount (capacity_mdName) WCHAR *mdName, s
     //
     if (!IsMiniDumpFile() && MethodDescData.Request(g_sos,StartAddr) != S_OK)
     {
-        ExtOut("%p is not a MethodDesc\n", (ULONG64)StartAddr);
+        ExtOut("%p is not a MethodDesc\n", SOS_PTR(StartAddr));
         return FALSE;
     }
 
@@ -4548,6 +4548,8 @@ public:
             *pPlatform = CORDB_PLATFORM_POSIX_X86;
         else if(platformKind == IMAGE_FILE_MACHINE_AMD64)
             *pPlatform = CORDB_PLATFORM_POSIX_AMD64;
+        else if(platformKind == IMAGE_FILE_MACHINE_ARMNT)
+            *pPlatform = CORDB_PLATFORM_POSIX_ARM;
         else
             return E_FAIL;
 #else
@@ -5279,27 +5281,6 @@ void WhitespaceOut(int count)
         g_ExtControl->Output(DEBUG_OUTPUT_NORMAL, FixedIndentString);
 }
 
-HRESULT 
-OutputVaList(
-    ULONG mask,
-    PCSTR format,
-    va_list args)
-{
-#ifdef FEATURE_PAL
-    char str[4096];
-
-    // Try and format our string into a fixed buffer first and see if it fits
-    int length = _vsnprintf(str, sizeof(str), format, args);
-    if (length > 0)
-    {
-        return g_ExtControl->Output(mask, "%s", str);
-    }
-    return E_FAIL;
-#else
-    return g_ExtControl->OutputVaList(mask, format, args);
-#endif // FEATURE_PAL
-}
-
 void DMLOut(PCSTR format, ...)
 {
     if (Output::IsOutputSuppressed())
@@ -5308,7 +5289,7 @@ void DMLOut(PCSTR format, ...)
     va_list args;
     va_start(args, format);
     ExtOutIndent();
-    
+
 #ifndef FEATURE_PAL
     if (IsDMLEnabled() && !Output::IsDMLExposed())
     {
@@ -5317,7 +5298,7 @@ void DMLOut(PCSTR format, ...)
     else
 #endif
     {
-        OutputVaList(DEBUG_OUTPUT_NORMAL, format, args);
+        g_ExtControl->OutputVaList(DEBUG_OUTPUT_NORMAL, format, args);
     }
 
     va_end(args);
@@ -5347,7 +5328,7 @@ void ExtOut(PCSTR Format, ...)
     
     va_start(Args, Format);
     ExtOutIndent();
-    OutputVaList(DEBUG_OUTPUT_NORMAL, Format, Args);
+    g_ExtControl->OutputVaList(DEBUG_OUTPUT_NORMAL, Format, Args);
     va_end(Args);
 }
 
@@ -5359,7 +5340,7 @@ void ExtWarn(PCSTR Format, ...)
     va_list Args;
     
     va_start(Args, Format);
-    OutputVaList(DEBUG_OUTPUT_WARNING, Format, Args);
+    g_ExtControl->OutputVaList(DEBUG_OUTPUT_WARNING, Format, Args);
     va_end(Args);
 }
 
@@ -5368,7 +5349,7 @@ void ExtErr(PCSTR Format, ...)
     va_list Args;
     
     va_start(Args, Format);
-    OutputVaList(DEBUG_OUTPUT_ERROR, Format, Args);
+    g_ExtControl->OutputVaList(DEBUG_OUTPUT_ERROR, Format, Args);
     va_end(Args);
 }
 
@@ -5379,10 +5360,10 @@ void ExtDbgOut(PCSTR Format, ...)
     if (Output::g_bDbgOutput)
     {
         va_list Args;
-    
+
         va_start(Args, Format);
         ExtOutIndent();
-        OutputVaList(DEBUG_OUTPUT_NORMAL, Format, Args);
+        g_ExtControl->OutputVaList(DEBUG_OUTPUT_NORMAL, Format, Args);
         va_end(Args);
     }
 #endif
@@ -6486,7 +6467,7 @@ WString GetFrameFromAddress(TADDR frameAddr, IXCLRDataStackWalk *pStackWalk, BOO
     WString frameOutput;
     frameOutput += W("[");
 
-    if (SUCCEEDED(g_sos->GetFrameName(vtAddr, mdNameLen, g_mdName, NULL)))
+    if (SUCCEEDED(g_sos->GetFrameName(TO_CDADDR(vtAddr), mdNameLen, g_mdName, NULL)))
         frameOutput += g_mdName;
     else
         frameOutput += W("Frame");

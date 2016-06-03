@@ -1995,9 +1995,16 @@ PCODE DynamicHelpers::CreateHelper(LoaderAllocator * pAllocator, TADDR arg, PCOD
     END_DYNAMIC_HELPER_EMIT();
 }
 
-PCODE DynamicHelpers::CreateHelperWithArg(LoaderAllocator * pAllocator, TADDR arg, PCODE target)
+void DynamicHelpers::EmitHelperWithArg(BYTE*& p, LoaderAllocator * pAllocator, TADDR arg, PCODE target)
 {
-    BEGIN_DYNAMIC_HELPER_EMIT(10);
+    CONTRACTL
+    {
+        GC_NOTRIGGER;
+        PRECONDITION(p != NULL && target != NULL);
+    }
+    CONTRACTL_END;
+
+    // Move an an argument into the second argument register and jump to a target function.
 
     *p++ = 0xBA; // mov edx, XXXXXX
     *(INT32 *)p = (INT32)arg;
@@ -2006,6 +2013,13 @@ PCODE DynamicHelpers::CreateHelperWithArg(LoaderAllocator * pAllocator, TADDR ar
     *p++ = X86_INSTR_JMP_REL32; // jmp rel32
     *(INT32 *)p = rel32UsingJumpStub((INT32 *)p, target);
     p += 4;
+}
+
+PCODE DynamicHelpers::CreateHelperWithArg(LoaderAllocator * pAllocator, TADDR arg, PCODE target)
+{
+    BEGIN_DYNAMIC_HELPER_EMIT(10);
+
+    EmitHelperWithArg(p, pAllocator, arg, target);
 
     END_DYNAMIC_HELPER_EMIT();
 }
@@ -2137,6 +2151,95 @@ PCODE DynamicHelpers::CreateHelperWithTwoArgs(LoaderAllocator * pAllocator, TADD
     p += 4;
 
     END_DYNAMIC_HELPER_EMIT();
+}
+
+PCODE DynamicHelpers::CreateDictionaryLookupHelper(LoaderAllocator * pAllocator, CORINFO_RUNTIME_LOOKUP * pLookup)
+{
+    STANDARD_VM_CONTRACT;
+
+    // It's available only via the run-time helper function
+    if (pLookup->indirections == CORINFO_USEHELPER)
+    {
+        BEGIN_DYNAMIC_HELPER_EMIT(10);
+
+        // ecx contains the generic context parameter
+        // mov edx,pLookup->signature
+        // jmp pLookup->helper
+        EmitHelperWithArg(p, pAllocator, (TADDR)pLookup->signature, CEEJitInfo::getHelperFtnStatic(pLookup->helper));
+
+        END_DYNAMIC_HELPER_EMIT();
+    }
+    else
+    {
+        int indirectionsSize = 0;
+        for (WORD i = 0; i < pLookup->indirections; i++)
+            indirectionsSize += (pLookup->offsets[i] >= 0x80 ? 6 : 3);
+
+        int codeSize = indirectionsSize + (pLookup->testForNull ? 21 : 3);
+
+        BEGIN_DYNAMIC_HELPER_EMIT(codeSize);
+
+        if (pLookup->testForNull)
+        {
+            // ecx contains the generic context parameter. Save a copy of it in the eax register
+            // mov eax,ecx
+            *(UINT16*)p = 0xc889; p += 2;
+        }
+
+        for (WORD i = 0; i < pLookup->indirections; i++)
+        {
+            // mov ecx,qword ptr [ecx+offset]
+            if (pLookup->offsets[i] >= 0x80)
+            {
+                *(UINT16*)p = 0x898b; p += 2;
+                *(UINT32*)p = (UINT32)pLookup->offsets[i]; p += 4;
+            }
+            else
+            {
+                *(UINT16*)p = 0x498b; p += 2;
+                *p++ = (BYTE)pLookup->offsets[i];
+            }
+        }
+
+        // No null test required
+        if (!pLookup->testForNull)
+        {
+            // No fixups needed for R2R
+
+            // mov eax,ecx
+            *(UINT16*)p = 0xc889; p += 2;
+            *p++ = 0xC3;    // ret
+        }
+        else
+        {
+            // ecx contains the value of the dictionary slot entry
+
+            _ASSERTE(pLookup->indirections != 0);
+
+            // test ecx,ecx
+            *(UINT16*)p = 0xc985; p += 2;
+
+            // je 'HELPER_CALL' (a jump of 3 bytes)
+            *(UINT16*)p = 0x0374; p += 2;
+
+            // mov eax,ecx
+            *(UINT16*)p = 0xc889; p += 2;
+            *p++ = 0xC3;    // ret
+
+            // 'HELPER_CALL'
+            {
+                // Put the generic context back into rcx (was previously saved in eax)
+                // mov ecx,eax
+                *(UINT16*)p = 0xc189; p += 2;
+
+                // mov edx,pLookup->signature
+                // jmp pLookup->helper
+                EmitHelperWithArg(p, pAllocator, (TADDR)pLookup->signature, CEEJitInfo::getHelperFtnStatic(pLookup->helper));
+            }
+        }
+
+        END_DYNAMIC_HELPER_EMIT();
+    }
 }
 
 #endif // FEATURE_READYTORUN

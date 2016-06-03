@@ -41,9 +41,9 @@
     void                genPutArgStk(GenTreePtr treeNode);
     unsigned            getBaseVarForPutArgStk(GenTreePtr treeNode);
 
-#ifdef _TARGET_XARCH_
+#if defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)
     unsigned            getFirstArgWithStackSlot();
-#endif // !_TARGET_XARCH_
+#endif // _TARGET_XARCH_ || _TARGET_ARM64_
 
     void                genCompareFloat(GenTreePtr treeNode);
 
@@ -138,9 +138,11 @@
                                              var_types      type  = TYP_INT,
                                              insFlags       flags = INS_FLAGS_DONT_CARE);
 
-    void                genCodeForShift     (GenTreePtr dst,
-                                             GenTreePtr src,
-                                             GenTreePtr treeNode);
+    void                genCodeForShift          (GenTreePtr tree);
+
+#ifdef _TARGET_XARCH_
+    void                genCodeForShiftRMW       (GenTreeStoreInd* storeInd);
+#endif // _TARGET_XARCH_
 
     void                genCodeForCpObj          (GenTreeCpObj* cpObjNode);
 

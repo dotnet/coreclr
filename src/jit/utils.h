@@ -82,40 +82,76 @@ public:
     }
 };
 
-#ifdef DEBUG
-/**************************************************************************/
+#if defined(DEBUG) || defined(INLINE_DATA)
 
-/* to be used as static variables - no constructors/destructors, assumes zero 
-   initialized memory */
+// ConfigMethodRange describes a set of methods, specified via their
+// hash codes. This can be used for binary search and/or specifying an
+// explicit method set.
+//
+// Note method hash codes are not necessarily unique. For instance
+// many IL stubs may have the same hash.
+//
+// If range string is null or just whitespace, range includes all
+// methods.
+//
+// Parses values as decimal numbers.
+//
+// Examples:
+//
+//  [string with just spaces] : all methods
+//                   12345678 : a single method
+//          12345678-23456789 : a range of methods
+// 99998888 12345678-23456789 : a range of methods plus a single method
 
 class ConfigMethodRange
 {
 
 public:
-    bool contains(class ICorJitInfo* info, CORINFO_METHOD_HANDLE method);
 
-    inline void ensureInit(const wchar_t* rangeStr)
+    // Default capacity
+    enum
     {
-        // make sure that the memory was zero initialized
+        DEFAULT_CAPACITY = 50
+    };
+
+    // Does the range include this method's hash?
+    bool Contains(class ICorJitInfo* info, CORINFO_METHOD_HANDLE method);
+
+    // Ensure the range string has been parsed.
+    void EnsureInit(const wchar_t* rangeStr, unsigned capacity = DEFAULT_CAPACITY)
+    {
+        // Make sure that the memory was zero initialized
         assert(m_inited == 0 || m_inited == 1);
 
         if (!m_inited)
         {
-            initRanges(rangeStr);
+            InitRanges(rangeStr, capacity);
             assert(m_inited == 1);
         }
     }
 
-private:
-    void initRanges(__in_z LPCWSTR rangeStr);
+    // Error checks
+    bool Error()          const { return m_badChar != 0; }
+    size_t BadCharIndex() const { return m_badChar - 1; }
 
 private:
-    unsigned char m_lastRange;                   // count of low-high pairs
-    unsigned char m_inited;
-    unsigned m_ranges[100];                      // ranges of functions to Jit (low, high pairs).  
+
+    struct Range
+    {
+        unsigned m_low;
+        unsigned m_high;
+    };
+
+    void InitRanges(const wchar_t* rangeStr, unsigned capacity);
+
+    unsigned  m_entries;    // number of entries in the range array
+    unsigned  m_lastRange;  // count of low-high pairs
+    unsigned  m_inited;     // 1 if range string has been parsed
+    size_t    m_badChar;    // index + 1 of any bad character in range string
+    Range*    m_ranges;     // ranges of functions to include
 };
 
-#endif // DEBUG
+#endif // defined(DEBUG) || defined(INLINE_DATA)
 
 class Compiler;
 
@@ -539,7 +575,81 @@ public:
 
     static unsigned __int64 convertDoubleToUInt64(double d);
 
-    static double round(double d);
+    static double round(double x);
 };
+
+
+// The CLR requires that critical section locks be initialized via its ClrCreateCriticalSection API...but
+// that can't be called until the CLR is initialized. If we have static data that we'd like to protect by a
+// lock, and we have a statically allocated lock to protect that data, there's an issue in how to initialize
+// that lock. We could insert an initialize call in the startup path, but one might prefer to keep the code
+// more local. For such situations, CritSecObject solves the initialization problem, via a level of
+// indirection. A pointer to the lock is initially null, and when we query for the lock pointer via "Val()".
+// If the lock has not yet been allocated, this allocates one (here a leaf lock), and uses a
+// CompareAndExchange-based lazy-initialization to update the field. If this fails, the allocated lock is
+// destroyed. This will work as long as the first locking attempt occurs after enough CLR initialization has
+// happened to make ClrCreateCriticalSection calls legal.
+
+class CritSecObject
+{
+public:
+
+    CritSecObject()
+    {
+        m_pCs = NULL;
+    }
+
+    CRITSEC_COOKIE Val()
+    {
+        if (m_pCs == NULL)
+        {
+            // CompareExchange-based lazy init.
+            CRITSEC_COOKIE newCs = ClrCreateCriticalSection(CrstLeafLock, CRST_DEFAULT);
+            CRITSEC_COOKIE observed = InterlockedCompareExchangeT(&m_pCs, newCs, NULL);
+            if (observed != NULL)
+            {
+                ClrDeleteCriticalSection(newCs);
+            }
+        }
+        return m_pCs;
+    }
+
+private:
+
+    // CRITSEC_COOKIE is an opaque pointer type.
+    CRITSEC_COOKIE m_pCs;
+
+    // No copying or assignment allowed.
+    CritSecObject(const CritSecObject&) = delete;
+    CritSecObject& operator=(const CritSecObject&) = delete;
+};
+
+// Stack-based holder for a critial section lock.
+// Ensures lock is released.
+
+class CritSecHolder
+{
+public:
+
+    CritSecHolder(CritSecObject& critSec)
+        : m_CritSec(critSec)
+    {
+        ClrEnterCriticalSection(m_CritSec.Val());
+    }
+
+    ~CritSecHolder()
+    {
+        ClrLeaveCriticalSection(m_CritSec.Val());
+    }
+
+private:
+
+    CritSecObject& m_CritSec;
+
+    // No copying or assignment allowed.
+    CritSecHolder(const CritSecHolder&) = delete;
+    CritSecHolder& operator=(const CritSecHolder&) = delete;
+};
+
 
 #endif // _UTILS_H_

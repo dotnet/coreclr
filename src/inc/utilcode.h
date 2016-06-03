@@ -29,6 +29,7 @@
 #include "winnls.h"
 #include "check.h"
 #include "safemath.h"
+#include "new.hpp"
 
 #ifdef PAL_STDCPP_COMPAT
 #include <type_traits>
@@ -47,15 +48,36 @@ const WCHAR kWatsonName2[] = W("drwtsn32");
 
 #include "random.h"
 
-// Windows CoreSystem has a different naming scheme for some dlls, which we must take account of when doing
-// LoadLibrary and the like.
-#if defined(FEATURE_CORESYSTEM)
-#define WINDOWS_KERNEL32_DLLNAME_A "kernelbase"
-#define WINDOWS_KERNEL32_DLLNAME_W W("kernelbase")
-#elif !defined(FEATURE_CORESYSTEM) || defined(CROSS_COMPILE)
 #define WINDOWS_KERNEL32_DLLNAME_A "kernel32"
 #define WINDOWS_KERNEL32_DLLNAME_W W("kernel32")
-#endif
+
+#if defined(FEATURE_CORECLR)
+#define CoreLibName_W W("System.Private.CoreLib")
+#define CoreLibName_IL_W W("System.Private.CoreLib.dll")
+#define CoreLibName_NI_W W("System.Private.CoreLib.ni.dll")
+#define CoreLibName_TLB_W W("System.Private.CoreLib.tlb")
+#define CoreLibName_A "System.Private.CoreLib"
+#define CoreLibName_IL_A "System.Private.CoreLib.dll"
+#define CoreLibName_NI_A "System.Private.CoreLib.ni.dll"
+#define CoreLibName_TLB_A "System.Private.CoreLib.tlb"
+#define CoreLibNameLen 22
+#define CoreLibSatelliteName_A "System.Private.CoreLib.resources"
+#define CoreLibSatelliteNameLen 32
+#define LegacyCoreLibName_A "mscorlib"
+#else // !defined(FEATURE_CORECLR)
+#define CoreLibName_W W("mscorlib")
+#define CoreLibName_IL_W W("mscorlib.dll")
+#define CoreLibName_NI_W W("mscorlib.ni.dll")
+#define CoreLibName_TLB_W W("mscorlib.tlb")
+#define CoreLibName_A "mscorlib"
+#define CoreLibName_IL_A "mscorlib.dll"
+#define CoreLibName_NI_A "mscorlib.ni.dll"
+#define CoreLibName_TLB_A "mscorlib.tlb"
+#define CoreLibNameLen 8
+#define CoreLibSatelliteName_A "mscorlib.resources"
+#define CoreLibSatelliteNameLen 18
+#define LegacyCoreLibName_A "mscorlib"
+#endif // defined(FEATURE_CORECLR)
 
 class StringArrayList;
 
@@ -191,12 +213,6 @@ typedef LPSTR   LPUTF8;
 #ifndef sizeofmember
 // Returns the size of a class or struct member.
 #define sizeofmember(c,m) (sizeof(((c*)0)->m))
-#endif
-
-#if defined(_MSC_VER) && _MSC_VER < 1900
-#define NOEXCEPT
-#else
-#define NOEXCEPT noexcept
 #endif
 
 //=--------------------------------------------------------------------------=
@@ -1544,11 +1560,6 @@ public:
 
 #if !defined(FEATURE_REDHAWK)&& !defined(FEATURE_PAL)
 private:	// apis types
-#if !defined(FEATURE_CORESYSTEM)
-    //GetNumaProcessorNode()
-    typedef BOOL
-    (WINAPI *PGNPN)(UCHAR, PUCHAR);
-#endif
 
     //GetNumaHighestNodeNumber()
     typedef BOOL
@@ -1558,21 +1569,14 @@ private:	// apis types
     (WINAPI *PVAExN)(HANDLE,LPVOID,SIZE_T,DWORD,DWORD,DWORD);
 
     // api pfns and members
-#if !defined(FEATURE_CORESYSTEM)
-    static PGNPN    m_pGetNumaProcessorNode;
-#endif
     static PGNHNN   m_pGetNumaHighestNodeNumber;
     static PVAExN   m_pVirtualAllocExNuma;
 
 public: 	// functions
-#if !defined(FEATURE_CORESYSTEM)
-    static BOOL GetNumaProcessorNode(UCHAR proc_no, PUCHAR node_no);
-#endif
 
     static LPVOID VirtualAllocExNuma(HANDLE hProc, LPVOID lpAddr, SIZE_T size,
                                      DWORD allocType, DWORD prot, DWORD node);
 
-#if !defined(FEATURE_CORECLR) || defined(FEATURE_CORESYSTEM)
 private:
     //GetNumaProcessorNodeEx()
     typedef BOOL
@@ -1581,7 +1585,6 @@ private:
 
 public:
     static BOOL GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, PUSHORT node_no);
-#endif
 #endif
 };
 
@@ -1634,7 +1637,6 @@ private:
     //GetThreadGroupAffinity()
     typedef BOOL
     (WINAPI *PGTGA)(HANDLE, GROUP_AFFINITY *);
-#if !defined(FEATURE_CORESYSTEM) && !defined(FEATURE_CORECLR)
     //GetCurrentProcessorNumberEx()
     typedef void
     (WINAPI *PGCPNEx)(PROCESSOR_NUMBER *);
@@ -1644,16 +1646,12 @@ private:
     //NtQuerySystemInformationEx()
     //typedef int
     //(WINAPI *PNTQSIEx)(SYSTEM_INFORMATION_CLASS, PULONG, ULONG, PVOID, ULONG, PULONG);
-#endif
-
     static PGLPIEx m_pGetLogicalProcessorInformationEx;
     static PSTGA   m_pSetThreadGroupAffinity;
     static PGTGA   m_pGetThreadGroupAffinity;
-#if !defined(FEATURE_CORESYSTEM) && !defined(FEATURE_CORECLR)
     static PGCPNEx m_pGetCurrentProcessorNumberEx;
     static PGST    m_pGetSystemTimes;
     //static PNTQSIEx m_pNtQuerySystemInformationEx;
-#endif
 
 public:
     static BOOL GetLogicalProcessorInformationEx(DWORD relationship,
@@ -1661,11 +1659,9 @@ public:
     static BOOL SetThreadGroupAffinity(HANDLE h,
 		    GROUP_AFFINITY *groupAffinity, GROUP_AFFINITY *previousGroupAffinity);
     static BOOL GetThreadGroupAffinity(HANDLE h, GROUP_AFFINITY *groupAffinity);
-#if !defined(FEATURE_CORESYSTEM) && !defined(FEATURE_CORECLR)
     static BOOL GetSystemTimes(FILETIME *idleTime, FILETIME *kernelTime, FILETIME *userTime);
     static void ChooseCPUGroupAffinity(GROUP_AFFINITY *gf);
     static void ClearCPUGroupAffinity(GROUP_AFFINITY *gf);
-#endif
 #endif
 };
 
@@ -4526,9 +4522,29 @@ void PutThumb2BlRel24(UINT16 * p, INT32 imm24);
 INT32 GetArm64Rel28(UINT32 * pCode);
 
 //*****************************************************************************
+//  Extract the PC-Relative page address from an adrp instruction
+//*****************************************************************************
+INT32 GetArm64Rel21(UINT32 * pCode);
+
+//*****************************************************************************
+//  Extract the page offset from an add instruction
+//*****************************************************************************
+INT32 GetArm64Rel12(UINT32 * pCode);
+
+//*****************************************************************************
 //  Deposit the PC-Relative offset 'imm28' into a b or bl instruction 
 //*****************************************************************************
 void PutArm64Rel28(UINT32 * pCode, INT32 imm28);
+
+//*****************************************************************************
+//  Deposit the PC-Relative page address 'imm21' into an adrp instruction
+//*****************************************************************************
+void PutArm64Rel21(UINT32 * pCode, INT32 imm21);
+
+//*****************************************************************************
+//  Deposit the page offset 'imm12' into an add instruction
+//*****************************************************************************
+void PutArm64Rel12(UINT32 * pCode, INT32 imm12);
 
 //*****************************************************************************
 // Returns whether the offset fits into bl instruction
@@ -4544,6 +4560,22 @@ inline bool FitsInThumb2BlRel24(INT32 imm24)
 inline bool FitsInRel28(INT32 val32)
 {
     return (val32 >= -0x08000000) && (val32 < 0x08000000);
+}
+
+//*****************************************************************************
+// Returns whether the offset fits into an Arm64 adrp instruction
+//*****************************************************************************
+inline bool FitsInRel21(INT32 val32)
+{
+    return (val32 >= 0) && (val32 <= 0x001FFFFF);
+}
+
+//*****************************************************************************
+// Returns whether the offset fits into an Arm64 add instruction
+//*****************************************************************************
+inline bool FitsInRel12(INT32 val32)
+{
+    return (val32 >= 0) && (val32 <= 0x00000FFF);
 }
 
 //*****************************************************************************

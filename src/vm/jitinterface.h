@@ -16,6 +16,12 @@
 #include "corcompile.h"
 #endif // FEATURE_PREJIT
 
+#ifndef FEATURE_PAL
+#define MAX_UNCHECKED_OFFSET_FOR_NULL_OBJECT ((32*1024)-1)   // when generating JIT code
+#else // !FEATURE_PAL
+#define MAX_UNCHECKED_OFFSET_FOR_NULL_OBJECT ((OS_PAGE_SIZE / 2) - 1)
+#endif // !FEATURE_PAL
+
 class Stub;
 class MethodDesc;
 class FieldDesc;
@@ -543,8 +549,9 @@ public:
     CorInfoHelpFunc getBoxHelper(CORINFO_CLASS_HANDLE cls);
     CorInfoHelpFunc getUnBoxHelper(CORINFO_CLASS_HANDLE cls);
 
-    void getReadyToRunHelper(
+    bool getReadyToRunHelper(
             CORINFO_RESOLVED_TOKEN * pResolvedToken,
+            CORINFO_LOOKUP_KIND *    pGenericLookupKind,
             CorInfoHelpFunc          id,
             CORINFO_CONST_LOOKUP *   pLookup
             );
@@ -641,6 +648,10 @@ public:
 
     // Resolve metadata token into runtime method handles.
     void resolveToken(/* IN, OUT */ CORINFO_RESOLVED_TOKEN * pResolvedToken);
+
+    // Attempt to resolve a metadata token into a runtime method handle. Returns true
+    // if resolution succeeded and false otherwise.
+    bool tryResolveToken(/* IN, OUT */ CORINFO_RESOLVED_TOKEN * pResolvedToken);
 
     void getFieldInfo (CORINFO_RESOLVED_TOKEN * pResolvedToken,
                        CORINFO_METHOD_HANDLE  callerHandle,
@@ -944,10 +955,10 @@ public:
                                           void **ppIndirection);
     CORINFO_METHOD_HANDLE embedMethodHandle(CORINFO_METHOD_HANDLE handle,
                                             void **ppIndirection);
-    void embedGenericHandle(
-                        CORINFO_RESOLVED_TOKEN * pResolvedToken,
-                        BOOL                     fEmbedParent,
-                        CORINFO_GENERICHANDLE_RESULT *pResult);
+
+	void embedGenericHandle(CORINFO_RESOLVED_TOKEN * pResolvedToken,
+		BOOL                     fEmbedParent,
+		CORINFO_GENERICHANDLE_RESULT *pResult);
 
     CORINFO_LOOKUP_KIND getLocationOfThisType(CORINFO_METHOD_HANDLE context);
 
@@ -1091,7 +1102,11 @@ public:
     // Performs any work JIT-related work that should be performed at process shutdown.
     void JitProcessShutdownWork();
 
+    void setJitFlags(const CORJIT_FLAGS& jitFlags);
+
     DWORD getJitFlags(CORJIT_FLAGS* jitFlags, DWORD sizeInBytes);
+
+    bool runWithErrorTrap(void (*function)(void*), void* param);
 
 private:
     // Shrinking these buffers drastically reduces the amount of stack space
@@ -1128,6 +1143,27 @@ public:
 
     MethodDesc * GetMethodForSecurity(CORINFO_METHOD_HANDLE callerHandle);
 
+    // Prepare the information about how to do a runtime lookup of the handle with shared
+    // generic variables.
+    void ComputeRuntimeLookupForSharedGenericToken(DictionaryEntryKind entryKind,
+                                                   CORINFO_RESOLVED_TOKEN * pResolvedToken,
+                                                   CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken /* for ConstrainedMethodEntrySlot */,
+                                                   MethodDesc * pTemplateMD /* for method-based slots */,
+                                                   CORINFO_LOOKUP *pResultLookup);
+
+    static void ComputeRuntimeLookupForSharedGenericTokenStatic(DictionaryEntryKind entryKind,
+                                                                CORINFO_RESOLVED_TOKEN * pResolvedToken,
+                                                                CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken /* for ConstrainedMethodEntrySlot */,
+                                                                MethodDesc * pTemplateMD /* for method-based slots */,
+                                                                LoaderAllocator* pAllocator,
+                                                                DWORD numGenericArgs,
+                                                                DictionaryLayout* pDictionaryLayout,
+                                                                DWORD typeDictionaryIndex,
+                                                                CORINFO_LOOKUP *pResultLookup,
+                                                                BOOL fEnableTypeHandleLookupOptimization,
+                                                                BOOL fInstrument,
+                                                                BOOL fMethodSpecContainsCallingConventionFlag);
+
 protected:
     // NGen provides its own modifications to EE-JIT interface. From technical reason it cannot simply inherit 
     // from code:CEEInfo class (because it has dependencies on VM that NGen does not want).
@@ -1139,6 +1175,7 @@ protected:
     MethodDesc*             m_pMethodBeingCompiled;             // Top-level method being compiled
     bool                    m_fVerifyOnly;
     Thread *                m_pThread;                          // Cached current thread for faster JIT-EE transitions
+    CORJIT_FLAGS            m_jitFlags;
 
     CORINFO_METHOD_HANDLE getMethodBeingCompiled()
     {
@@ -1162,14 +1199,6 @@ protected:
     // The main entrypoints for module activation tracking
     void ScanToken(Module * pModule, CORINFO_RESOLVED_TOKEN * pResolvedToken, TypeHandle th, MethodDesc * pMD = NULL);
     void ScanTokenForDynamicScope(CORINFO_RESOLVED_TOKEN * pResolvedToken, TypeHandle th, MethodDesc * pMD = NULL);
-
-    // Prepare the information about how to do a runtime lookup of the handle with shared
-    // generic variables.
-    void ComputeRuntimeLookupForSharedGenericToken(DictionaryEntryKind entryKind,
-                                                   CORINFO_RESOLVED_TOKEN * pResolvedToken,
-                                                   CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken /* for ConstrainedMethodEntrySlot */,
-                                                   MethodDesc * pTemplateMD /* for method-based slots */,
-                                                   CORINFO_LOOKUP *pResultLookup);
 };
 
 

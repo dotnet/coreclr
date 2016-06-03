@@ -1060,11 +1060,7 @@ typedef PTR_StringObject STRINGREF;
  *
  * Special String implementation for performance.   
  *
- *   m_ArrayLength  - Length of buffer (m_Characters) in number of WCHARs
- *   m_StringLength - Length of string in number of WCHARs, may be smaller
- *                    than the m_ArrayLength implying that there is extra
- *                    space at the end. The high two bits of this field are used
- *                    to indicate if the String has characters higher than 0x7F
+ *   m_StringLength - Length of string in number of WCHARs
  *   m_Characters   - The string buffer
  *
  */
@@ -2075,7 +2071,10 @@ private:
 #ifdef FEATURE_REMOTING    
     OBJECTREF     m_ExposedContext;
 #endif    
-#ifndef FEATURE_CORECLR
+#ifdef FEATURE_CORECLR
+    OBJECTREF     m_ExecutionContext;
+    OBJECTREF     m_SynchronizationContext;
+#else
     EXECUTIONCONTEXTREF     m_ExecutionContext;
 #endif
     OBJECTREF     m_Name;

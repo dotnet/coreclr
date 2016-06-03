@@ -983,8 +983,32 @@ protected:
         void            idCodeSize(unsigned sz) { _idCodeSize = sz; assert(sz == _idCodeSize);     }
 
 #elif defined(_TARGET_ARM64_)
+        unsigned        idCodeSize() const      {
+                                                    int size = 4;
+                                                    switch (idInsFmt())
+                                                    {
+                                                        case IF_LARGEADR:
+                                                            // adrp + add
+                                                        case IF_LARGEJMP:
+                                                            // b<cond> + b<uncond>
+                                                            size = 8;
+                                                            break;
+                                                        case IF_LARGELDC:
+                                                            if (isVectorRegister(idReg1()))
+                                                            {
+                                                                // adrp + ldr + fmov
+                                                                size = 12;
+                                                            }
+                                                            else
+                                                            {
+                                                                // adrp + ldr
+                                                                size = 8;
+                                                            }
+                                                            break;
+                                                    }
 
-        unsigned        idCodeSize() const      { return 4; }
+                                                    return size;
+                                                 }
 
 #elif defined(_TARGET_ARM_)
 
@@ -1131,6 +1155,7 @@ protected:
         bool            idIsDspReloc() const   { assert(!idIsTiny()); return _idDspReloc != 0;    }
         void            idSetIsDspReloc(bool val = true)
                                                { assert(!idIsTiny()); _idDspReloc = val;          }
+        bool            idIsReloc()            { return idIsDspReloc() || idIsCnsReloc();         }
         
 #endif
 
@@ -1511,7 +1536,9 @@ private:
     regNumber            emitInsBinary  (instruction ins, emitAttr attr, GenTree* dst, GenTree* src);
     regNumber            emitInsTernary (instruction ins, emitAttr attr, GenTree* dst, GenTree* src1, GenTree* src2);
     void                 emitInsMov(instruction ins, emitAttr attr, GenTree *node);
-    void                 emitHandleMemOp(GenTree *mem, instrDesc *id, bool isSrc);
+    insFormat            emitMapFmtForIns(insFormat fmt, instruction ins);
+    insFormat            emitMapFmtAtoM(insFormat fmt);
+    void                 emitHandleMemOp(GenTreeIndir* indir, instrDesc* id, insFormat fmt, instruction ins);
     void                 spillIntArgRegsToShadowSlots();
 #endif // !LEGACY_BACKEND
 
@@ -1794,10 +1821,10 @@ public:
     void            emitSetFrameRangeArgs(int offsLo, int offsHi);
 
     static instruction      emitJumpKindToIns(emitJumpKind jumpKind);
+    static emitJumpKind     emitInsToJumpKind(instruction ins);
     static emitJumpKind     emitReverseJumpKind(emitJumpKind jumpKind);
 
 #ifdef _TARGET_ARM_
-    static emitJumpKind     emitInsToJumpKind(instruction ins);
     static unsigned         emitJumpKindCondCode(emitJumpKind jumpKind);
 #endif
 

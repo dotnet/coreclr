@@ -7,6 +7,10 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   #-fms-compatibility      Enable full Microsoft Visual C++ compatibility
   #-fms-extensions         Accept some non-standard constructs supported by the Microsoft compiler
 
+  # Make signed arithmetic overflow of addition, subtraction, and multiplication wrap around
+  # using twos-complement representation (this is normally undefined according to the C++ spec).
+  add_compile_options(-fwrapv)
+
   if(CLR_CMAKE_PLATFORM_DARWIN)
     # We cannot enable "stack-protector-strong" on OS X due to a bug in clang compiler (current version 7.0.2)
     add_compile_options(-fstack-protector)
@@ -41,6 +45,10 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   # to a struct or a class that has virtual members or a base class. In that case, clang
   # may not generate the same object layout as MSVC.
   add_compile_options(-Wno-incompatible-ms-struct)
+
+  # Some architectures (e.g., ARM) assume char type is unsigned while CoreCLR assumes char is signed
+  # as x64 does. It has been causing issues in ARM (https://github.com/dotnet/coreclr/issues/4746)
+  add_compile_options(-fsigned-char)
 
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
@@ -83,6 +91,7 @@ if (WIN32)
   add_compile_options(/Zm200) # Specify Precompiled Header Memory Allocation Limit of 150MB
   add_compile_options(/wd4960 /wd4961 /wd4603 /wd4627 /wd4838 /wd4456 /wd4457 /wd4458 /wd4459 /wd4091 /we4640)
   add_compile_options(/Zi) # enable debugging information
+  add_compile_options(/ZH:SHA_256) # use SHA256 for generating hashes of compiler processed source files.
 
   if (CLR_CMAKE_PLATFORM_ARCH_I386)
     add_compile_options(/Gz)
@@ -96,19 +105,20 @@ if (WIN32)
   add_compile_options($<$<CONFIG:Debug>:/homeparams>) # Force parameters passed in registers to be written to the stack
   endif (CLR_CMAKE_PLATFORM_ARCH_AMD64)
 
-  if(NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)
-    # enable control-flow-guard support for native components for non-Arm64 builds
-    add_compile_options(/guard:cf) 
+  # enable control-flow-guard support for native components for non-Arm64 builds
+  add_compile_options(/guard:cf) 
 
-    # Statically linked CRT (libcmt[d].lib, libvcruntime[d].lib and libucrt[d].lib) by default. This is done to avoid  
-    # linking in VCRUNTIME140.DLL for a simplified xcopy experience by reducing the dependency on VC REDIST.  
-    #  
-    # For Release builds, we shall dynamically link into uCRT [ucrtbase.dll] (which is pushed down as a Windows Update on downlevel OS) but  
-    # wont do the same for debug/checked builds since ucrtbased.dll is not redistributable and Debug/Checked builds are not  
-    # production-time scenarios.  
-    add_compile_options($<$<OR:$<CONFIG:Release>,$<CONFIG:Relwithdebinfo>>:/MT>)  
-    add_compile_options($<$<OR:$<CONFIG:Debug>,$<CONFIG:Checked>>:/MTd>)  
-  endif (NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)
+  # Statically linked CRT (libcmt[d].lib, libvcruntime[d].lib and libucrt[d].lib) by default. This is done to avoid  
+  # linking in VCRUNTIME140.DLL for a simplified xcopy experience by reducing the dependency on VC REDIST.  
+  #  
+  # For Release builds, we shall dynamically link into uCRT [ucrtbase.dll] (which is pushed down as a Windows Update on downlevel OS) but  
+  # wont do the same for debug/checked builds since ucrtbased.dll is not redistributable and Debug/Checked builds are not  
+  # production-time scenarios.  
+  add_compile_options($<$<OR:$<CONFIG:Release>,$<CONFIG:Relwithdebinfo>>:/MT>)  
+  add_compile_options($<$<OR:$<CONFIG:Debug>,$<CONFIG:Checked>>:/MTd>)  
+
+  set(CMAKE_ASM_MASM_FLAGS "${CMAKE_ASM_MASM_FLAGS} /ZH:SHA_256")
+  
 endif (WIN32)
 
 if(CMAKE_ENABLE_CODE_COVERAGE)

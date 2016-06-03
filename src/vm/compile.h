@@ -282,7 +282,8 @@ class CEECompileInfo : public ICorCompileInfo
                        LPVOID                  encodeContext,
                        ENCODEMODULE_CALLBACK   pfnEncodeModule,
                        CORINFO_RESOLVED_TOKEN * pResolvedToken,
-                       CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken);
+                       CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken,
+                       BOOL                    fEncodeUsingResolvedTokenSpecStreams);
 
     virtual mdToken TryEncodeMethodAsToken(CORINFO_METHOD_HANDLE handle, 
                                            CORINFO_RESOLVED_TOKEN * pResolvedToken,
@@ -397,6 +398,10 @@ class CEECompileInfo : public ICorCompileInfo
     void EncodeTypeLayout(CORINFO_CLASS_HANDLE classHandle, SigBuilder * pSigBuilder);
 
     BOOL AreAllClassesFullyLoaded(CORINFO_MODULE_HANDLE moduleHandle);
+
+    int GetVersionResilientTypeHashCode(CORINFO_MODULE_HANDLE moduleHandle, mdToken token);
+
+    int GetVersionResilientMethodHashCode(CORINFO_METHOD_HANDLE methodHandle);
 #endif
 
     BOOL HasCustomAttribute(CORINFO_METHOD_HANDLE method, LPCSTR customAttributeName);
@@ -521,6 +526,17 @@ class CEEPreloader : public ICorCompilePreloader
 
     // Array of methods that we need to compile.
     SArray<MethodDesc*> m_uncompiledMethods;
+
+    int m_methodCompileLimit;
+
+    void AppendUncompiledMethod(MethodDesc *pMD)
+    {
+        if (m_methodCompileLimit > 0)
+        {
+            m_uncompiledMethods.Append(pMD);
+            m_methodCompileLimit--;
+        }
+    }
 
     struct DuplicateMethodEntry
     {

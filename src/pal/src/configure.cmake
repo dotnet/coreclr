@@ -665,13 +665,85 @@ int main(void) {
   char path[1024];
 #endif
 
-  sprintf(path, \"/proc/%u/$1\", getpid());
-  fd = open(path, $2);
+  sprintf(path, \"/proc/%u/ctl\", getpid());
+  fd = open(path, O_WRONLY);
   if (fd == -1) {
     exit(1);
   }
   exit(0);
 }" HAVE_PROCFS_CTL)
+set(CMAKE_REQUIRED_LIBRARIES)
+check_cxx_source_runs("
+#include <fcntl.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+
+int main(void) {
+  int fd;
+#ifdef PATH_MAX
+  char path[PATH_MAX];
+#elif defined(MAXPATHLEN)
+  char path[MAXPATHLEN];
+#else
+  char path[1024];
+#endif
+
+  sprintf(path, \"/proc/%u/maps\", getpid());
+  fd = open(path, O_RDONLY);
+  if (fd == -1) {
+    exit(1);
+  }
+  exit(0);
+}" HAVE_PROCFS_MAPS)
+set(CMAKE_REQUIRED_LIBRARIES)
+check_cxx_source_runs("
+#include <fcntl.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+
+int main(void) {
+  int fd;
+#ifdef PATH_MAX
+  char path[PATH_MAX];
+#elif defined(MAXPATHLEN)
+  char path[MAXPATHLEN];
+#else
+  char path[1024];
+#endif
+
+  sprintf(path, \"/proc/%u/stat\", getpid());
+  fd = open(path, O_RDONLY);
+  if (fd == -1) {
+    exit(1);
+  }
+  exit(0);
+}" HAVE_PROCFS_STAT)
+set(CMAKE_REQUIRED_LIBRARIES)
+check_cxx_source_runs("
+#include <fcntl.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+
+int main(void) {
+  int fd;
+#ifdef PATH_MAX
+  char path[PATH_MAX];
+#elif defined(MAXPATHLEN)
+  char path[MAXPATHLEN];
+#else
+  char path[1024];
+#endif
+
+  sprintf(path, \"/proc/%u/status\", getpid());
+  fd = open(path, O_RDONLY);
+  if (fd == -1) {
+    exit(1);
+  }
+  exit(0);
+}" HAVE_PROCFS_STATUS)
 set(CMAKE_REQUIRED_LIBRARIES m)
 check_cxx_source_runs("
 #include <math.h>
@@ -703,7 +775,25 @@ check_cxx_source_runs("
 
 int main(void) {
   double infinity = 1.0 / 0.0;
-  if (!isnan(pow(1.0, infinity))) {
+  if (pow(1.0, infinity) != 1.0 || pow(1.0, -infinity) != 1.0) {
+    exit(1)
+  }
+  if (!isnan(pow(-1.0, infinity)) || !isnan(pow(-1.0, -infinity))) {
+    exit(1);
+  }
+  if (pow(0.0, infinity) != 0.0) {
+    exit(1);
+  }
+  if (pow(0.0, -infinity) != infinity) {
+    exit(1);
+  }
+  if (pow(-1.1, infinity) != infinity || pow(1.1, infinity) != infinity) {
+    exit(1);
+  }
+  if (pow(-1.1, -infinity) != 0.0 || pow(1.1, infinity) != 0.0) {
+    exit(1);
+  }
+  if (pow(-0.0, -1) != -infinity) {
     exit(1);
   }
   if (pow(0.0, -1) != infinity) {
@@ -938,6 +1028,41 @@ int main(int argc, char **argv)
         libUnwindContext = uContext;
         return 0;
 }" UNWIND_CONTEXT_IS_UCONTEXT_T)
+
+set(CMAKE_REQUIRED_LIBRARIES pthread)
+check_cxx_source_compiles("
+#include <errno.h>
+#include <pthread.h>
+#include <time.h>
+
+int main()
+{
+    pthread_mutexattr_t mutexAttributes;
+    pthread_mutexattr_init(&mutexAttributes);
+    pthread_mutexattr_setpshared(&mutexAttributes, PTHREAD_PROCESS_SHARED);
+    pthread_mutexattr_settype(&mutexAttributes, PTHREAD_MUTEX_RECURSIVE);
+    pthread_mutexattr_setrobust(&mutexAttributes, PTHREAD_MUTEX_ROBUST);
+
+    pthread_mutex_t mutex;
+    pthread_mutex_init(&mutex, &mutexAttributes);
+
+    pthread_mutexattr_destroy(&mutexAttributes);
+
+    struct timespec timeoutTime;
+    timeoutTime.tv_sec = 1; // not the right way to specify absolute time, but just checking availability of timed lock
+    timeoutTime.tv_nsec = 0;
+    pthread_mutex_timedlock(&mutex, &timeoutTime);
+    pthread_mutex_consistent(&mutex);
+
+    pthread_mutex_destroy(&mutex);
+
+    int error = EOWNERDEAD;
+    error = ENOTRECOVERABLE;
+    error = ETIMEDOUT;
+    error = 0;
+    return error;
+}" HAVE_FULLY_FEATURED_PTHREAD_MUTEXES)
+set(CMAKE_REQUIRED_LIBRARIES)
 
 if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
   if(NOT HAVE_LIBUUID_H)

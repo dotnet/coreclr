@@ -16,6 +16,7 @@
     IMPORT PreStubWorker
     IMPORT NDirectImportWorker
     IMPORT VSD_ResolveWorker
+    IMPORT StubDispatchFixupWorker
     IMPORT JIT_InternalThrow
     IMPORT ComPreStubWorker
     IMPORT COMToCLRWorker
@@ -33,6 +34,9 @@
     IMPORT OnHijackObjectWorker
     IMPORT OnHijackInteriorPointerWorker
     IMPORT OnHijackScalarWorker
+#ifdef FEATURE_READYTORUN
+    IMPORT DynamicHelperWorker
+#endif
 
     IMPORT  g_ephemeral_low
     IMPORT  g_ephemeral_high
@@ -1171,6 +1175,74 @@ Fail
         EPILOG_BRANCH_REG  x9
 
         NESTED_END
+
+#ifdef FEATURE_READYTORUN
+
+    NESTED_ENTRY DelayLoad_MethodCall
+    PROLOG_WITH_TRANSITION_BLOCK
+
+    add x0, sp, #__PWTB_TransitionBlock ; pTransitionBlock
+    mov x1, x11 ; Indirection cell
+    mov x2, x8 ; sectionIndex
+    mov x3, x9 ; Module*
+    bl ExternalMethodFixupWorker
+    mov x12, x0
+    
+    EPILOG_WITH_TRANSITION_BLOCK_TAILCALL
+    ; Share patch label
+    b ExternalMethodFixupPatchLabel
+    NESTED_END
+
+    MACRO
+        DynamicHelper $frameFlags, $suffix
+
+        NESTED_ENTRY DelayLoad_Helper$suffix
+        
+        PROLOG_WITH_TRANSITION_BLOCK
+
+        add x0, sp, #__PWTB_TransitionBlock ; pTransitionBlock
+        mov x1, x11 ; Indirection cell
+        mov x2, x8 ; sectionIndex
+        mov x3, x9 ; Module*		
+        mov x4, $frameFlags
+        bl DynamicHelperWorker
+        cbnz x0, %FT0
+        ldr x0, [sp, #__PWTB_ArgumentRegisters]
+        EPILOG_WITH_TRANSITION_BLOCK_RETURN
+0		
+        mov x12, x0
+        EPILOG_WITH_TRANSITION_BLOCK_TAILCALL
+        EPILOG_BRANCH_REG  x12
+        NESTED_END
+    MEND
+
+    DynamicHelper DynamicHelperFrameFlags_Default
+    DynamicHelper DynamicHelperFrameFlags_ObjectArg, _Obj
+    DynamicHelper DynamicHelperFrameFlags_ObjectArg | DynamicHelperFrameFlags_ObjectArg2, _ObjObj
+#endif // FEATURE_READYTORUN		
+        
+#ifdef FEATURE_PREJIT
+;; ------------------------------------------------------------------
+;; void StubDispatchFixupStub(args in regs x0-x7 & stack, x11:IndirectionCellAndFlags, x12:DispatchToken)
+;;
+;; The stub dispatch thunk which transfers control to StubDispatchFixupWorker.
+        NESTED_ENTRY StubDispatchFixupStub
+
+        PROLOG_WITH_TRANSITION_BLOCK
+
+        add x0, sp, #__PWTB_TransitionBlock ; pTransitionBlock
+        and x1, x11, #-4 ; Indirection cell
+        mov x2, #0 ; sectionIndex
+        mov x3, #0 ; pModule
+        bl StubDispatchFixupWorker
+        mov x9, x0
+
+        EPILOG_WITH_TRANSITION_BLOCK_TAILCALL
+
+        EPILOG_BRANCH_REG  x9
+
+        NESTED_END
+#endif
 
 ; Must be at very end of file
     END

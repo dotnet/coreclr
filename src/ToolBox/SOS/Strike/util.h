@@ -692,7 +692,7 @@ namespace Output
             {
                 if (mFormat == Formats::Default || mFormat == Formats::Pointer)
                 {
-                    ExtOut("%p", (__int64)mValue);
+                    ExtOut("%p", SOS_PTR(mValue));
                 }
                 else
                 {
@@ -745,7 +745,7 @@ namespace Output
                     if (precision > width)
                         precision = width;
 
-                    ExtOut(leftAlign ? "%-*.*p" : "%*.*p", width, precision, (__int64)mValue);
+                    ExtOut(leftAlign ? "%-*.*p" : "%*.*p", width, precision, SOS_PTR(mValue));
                 }
                 else
                 {
@@ -1032,6 +1032,7 @@ DefineFormatClass(ThreadID, Formats::Hex, Output::DML_ThreadID);
 DefineFormatClass(RCWrapper, Formats::Pointer, Output::DML_RCWrapper);
 DefineFormatClass(CCWrapper, Formats::Pointer, Output::DML_CCWrapper);
 DefineFormatClass(InstructionPtr, Formats::Pointer, Output::DML_IP);
+DefineFormatClass(NativePtr, Formats::Pointer, Output::DML_None);
 
 DefineFormatClass(Decimal, Formats::Decimal, Output::DML_None);
 DefineFormatClass(Pointer, Formats::Pointer, Output::DML_None);

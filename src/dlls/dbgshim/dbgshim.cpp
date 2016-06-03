@@ -54,14 +54,20 @@ Notes:
 
 */
 
+#ifdef FEATURE_PAL
+#define INITIALIZE_SHIM { if (PAL_InitializeDLL() != 0) return E_FAIL; }
+#else
+#define INITIALIZE_SHIM
+#endif
+
 // Contract for public APIs. These must be NOTHROW.
 #define PUBLIC_CONTRACT \
+    INITIALIZE_SHIM \
     CONTRACTL \
     { \
         NOTHROW; \
     } \
-    CONTRACTL_END; \
-
+    CONTRACTL_END;
 
 //-----------------------------------------------------------------------------
 // Public API.
@@ -261,9 +267,10 @@ public:
 
     HRESULT Register()
     {
-        if (PAL_RegisterForRuntimeStartup(m_processId, RuntimeStartupHandler, this, &m_unregisterToken) != NO_ERROR)
+        DWORD pe = PAL_RegisterForRuntimeStartup(m_processId, RuntimeStartupHandler, this, &m_unregisterToken);
+        if (pe != NO_ERROR)
         {
-            return E_INVALIDARG;
+            return HRESULT_FROM_WIN32(pe);
         }
         return S_OK;
     }
@@ -1780,33 +1787,3 @@ CLRCreateInstance(
     return E_NOTIMPL;
 #endif
 }
-
-#ifdef FEATURE_PAL
-
-EXTERN_C BOOL WINAPI
-DllMain(HANDLE instance, DWORD reason, LPVOID reserved)
-{
-    int err = 0;
-
-    switch (reason)
-    {
-        case DLL_PROCESS_ATTACH:
-        {
-            err = PAL_InitializeDLL();
-            break;
-        }
-
-        case DLL_THREAD_ATTACH:
-            err = PAL_EnterTop();
-            break;
-    }
-
-    if (err != 0)
-    {
-        return FALSE;
-    }
-
-    return TRUE;
-}
-
-#endif // FEATURE_PAL

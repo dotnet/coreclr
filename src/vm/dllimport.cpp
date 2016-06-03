@@ -1835,7 +1835,7 @@ void NDirectStubLinker::SetCallingConvention(CorPinvokeMap unmngCallConv, BOOL f
     LIMITED_METHOD_CONTRACT;
     ULONG uNativeCallingConv = 0;
 
-#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM_)
+#if !defined(_TARGET_X86_)
     if (fIsVarArg)
     {
         // The JIT has to use a different calling convention for unmanaged vararg targets on 64-bit and ARM:
@@ -1843,7 +1843,7 @@ void NDirectStubLinker::SetCallingConvention(CorPinvokeMap unmngCallConv, BOOL f
         uNativeCallingConv = CORINFO_CALLCONV_NATIVEVARARG;
     }
     else
-#endif // _TARGET_AMD64_ || _TARGET_ARM_
+#endif // !_TARGET_X86_
     {
         switch (unmngCallConv)
         {
@@ -6563,7 +6563,6 @@ private:
     DWORD   m_priorityOfLastError;
 };  // class LoadLibErrorTracker
 
-
 //  Local helper function for the LoadLibraryModule function below
 static HMODULE LocalLoadLibraryHelper( LPCWSTR name, DWORD flags, LoadLibErrorTracker *pErrorTracker )
 {
@@ -6572,14 +6571,14 @@ static HMODULE LocalLoadLibraryHelper( LPCWSTR name, DWORD flags, LoadLibErrorTr
     HMODULE hmod = NULL;
 
 #ifndef FEATURE_PAL
-    
+
     if ((flags & 0xFFFFFF00) != 0
 #ifndef FEATURE_CORESYSTEM
         && NDirect::SecureLoadLibrarySupported()
 #endif // !FEATURE_CORESYSTEM
         )
     {
-        hmod = CLRLoadLibraryEx( name, NULL, flags & 0xFFFFFF00);
+        hmod = CLRLoadLibraryEx(name, NULL, flags & 0xFFFFFF00);
         if(hmod != NULL)
         {
             return hmod;
@@ -6594,11 +6593,11 @@ static HMODULE LocalLoadLibraryHelper( LPCWSTR name, DWORD flags, LoadLibErrorTr
     }
 
     hmod = CLRLoadLibraryEx(name, NULL, flags & 0xFF);
-
+    
 #else // !FEATURE_PAL
     hmod = CLRLoadLibrary(name);
 #endif // !FEATURE_PAL
-
+        
     if (hmod == NULL)
     {
         pErrorTracker->TrackErrorCode(GetLastError());
@@ -7042,12 +7041,19 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
     }
 #endif // FEATURE_CORESYSTEM && !FEATURE_PAL
 
+#ifdef FEATURE_CORECLR
+    if (hmod == NULL)
+    {
+        // NATIVE_DLL_SEARCH_DIRECTORIES set by host is considered well known path 
+        hmod = LoadFromNativeDllSearchDirectories(pDomain, wszLibName, loadWithAlteredPathFlags, pErrorTracker);
+    }
+#endif // FEATURE_CORECLR   
+
     DWORD dllImportSearchPathFlag = 0;
     BOOL searchAssemblyDirectory = TRUE;
     bool libNameIsRelativePath = Path::IsRelative(wszLibName);
     if (hmod == NULL)
     {
-#ifndef FEATURE_CORECLR
         // First checks if the method has DefaultDllImportSearchPathsAttribute. If method has the attribute
         // then dllImportSearchPathFlag is set to its value.
         // Otherwise checks if the assembly has the attribute. 
@@ -7072,11 +7078,12 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
             }
         }
 
+#ifndef FEATURE_CORECLR
         if (!attributeIsFound)
         {
             CheckUnificationList(pMD, &dllImportSearchPathFlag, &searchAssemblyDirectory);
         }
-#endif // !FEATURE_CORECLR
+#endif
 
         if (!libNameIsRelativePath)
         {
@@ -7159,14 +7166,6 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
 #endif // !FEATURE_CORECLR
         }
     }
-
-#ifdef FEATURE_CORECLR
-    if (hmod == NULL)
-    {
-        LoadFromNativeDllSearchDirectories(pDomain, wszLibName, loadWithAlteredPathFlags, pErrorTracker);
-    }
-
-#endif // FEATURE_CORECLR
 
     // This call searches the application directory instead of the location for the library.
     if (hmod == NULL)

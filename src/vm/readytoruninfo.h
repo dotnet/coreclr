@@ -34,6 +34,7 @@ class ReadyToRunInfo
 
     NativeFormat::NativeReader      m_nativeReader;
     NativeFormat::NativeArray       m_methodDefEntryPoints;
+    NativeFormat::NativeHashtable   m_instMethodEntryPoints;
     NativeFormat::NativeHashtable   m_availableTypesHashtable;
 
     Crst                            m_Crst;
@@ -125,6 +126,8 @@ private:
 
 class DynamicHelpers
 {
+private:
+    static void EmitHelperWithArg(BYTE*& pCode, LoaderAllocator * pAllocator, TADDR arg, PCODE target);
 public:
     static PCODE CreateHelper(LoaderAllocator * pAllocator, TADDR arg, PCODE target);
     static PCODE CreateHelperWithArg(LoaderAllocator * pAllocator, TADDR arg, PCODE target);
@@ -135,6 +138,7 @@ public:
     static PCODE CreateReturnIndirConst(LoaderAllocator * pAllocator, TADDR arg, INT8 offset);
     static PCODE CreateHelperWithTwoArgs(LoaderAllocator * pAllocator, TADDR arg, PCODE target);
     static PCODE CreateHelperWithTwoArgs(LoaderAllocator * pAllocator, TADDR arg, TADDR arg2, PCODE target);
+    static PCODE CreateDictionaryLookupHelper(LoaderAllocator * pAllocator, CORINFO_RUNTIME_LOOKUP * pLookup);
 };
 
 #endif // _READYTORUNINFO_H_

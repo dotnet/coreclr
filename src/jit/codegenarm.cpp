@@ -226,15 +226,12 @@ void                CodeGen::genCodeForBBlist()
         regSet.rsSetRegsModified(RBM_INT_CALLEE_SAVED & ~RBM_FPBASE);
     }
 
-#if INLINE_NDIRECT
     /* If we have any pinvoke calls, we might potentially trash everything */
-    if  (compiler->info.compCallUnmanaged)
+    if (compiler->info.compCallUnmanaged)
     {
         noway_assert(isFramePointerUsed());  // Setup of Pinvoke frame currently requires an EBP style frame
         regSet.rsSetRegsModified(RBM_INT_CALLEE_SAVED & ~RBM_FPBASE);
     }
-
-#endif // INLINE_NDIRECT
 
     genPendingCallLabel = nullptr;
 
@@ -1152,7 +1149,7 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
     case GT_LSH:
     case GT_RSH:
     case GT_RSZ:
-        genCodeForShift(treeNode->gtGetOp1(), treeNode->gtGetOp2(), treeNode);
+        genCodeForShift(treeNode);
         // genCodeForShift() calls genProduceReg()
         break;
 
@@ -1746,22 +1743,17 @@ instruction CodeGen::genGetInsForOper(genTreeOps oper, var_types type)
     return ins;
 }
 
-/** Generates the code sequence for a GenTree node that
- * represents a bit shift operation (<<, >>, >>>).
- *
- * Arguments: operand:  the value to be shifted by shiftBy bits.
- *            shiftBy:  the number of bits to shift the operand.
- *            parent:   the actual bitshift node (that specifies the
- *                      type of bitshift to perform.
- *
- * Preconditions:    a) All GenTrees are register allocated.
- *                   b) Either shiftBy is a contained constant or
- *                      it's an expression sitting in RCX.
- *                   c) The actual bit shift node is not stack allocated
- *                      nor contained (not yet supported).
- */
-void CodeGen::genCodeForShift(GenTreePtr operand, GenTreePtr shiftBy,
-                              GenTreePtr parent)
+//------------------------------------------------------------------------
+// genCodeForShift: Generates the code sequence for a GenTree node that
+// represents a bit shift or rotate operation (<<, >>, >>>, rol, ror).
+//
+// Arguments:
+//    tree - the bit shift node (that specifies the type of bit shift to perform).
+//
+// Assumptions:
+//    a) All GenTrees are register allocated.
+//
+void CodeGen::genCodeForShift(GenTreePtr tree)
 {
     NYI("genCodeForShift");
 }
@@ -1826,7 +1818,7 @@ void CodeGen::genUnspillRegIfNeeded(GenTree *tree)
         }
         else
         {
-            TempDsc* t = regSet.rsUnspillInPlace(unspillTree);
+            TempDsc* t = regSet.rsUnspillInPlace(unspillTree, unspillTree->gtRegNum);
             compiler->tmpRlsTemp(t);
             getEmitter()->emitIns_R_S(ins_Load(unspillTree->gtType),
                             emitActualTypeSize(unspillTree->gtType),

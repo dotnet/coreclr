@@ -342,49 +342,6 @@ FCIMPL5(INT32, COMString::CompareOrdinalEx, StringObject* strA, INT32 indexA, St
 }
 FCIMPLEND
 
-/*=================================IndexOfChar==================================
-**Action:
-**Returns:
-**Arguments:
-**Exceptions:
-==============================================================================*/
-
-FCIMPL4 (INT32, COMString::IndexOfChar, StringObject* thisRef, CLR_CHAR value, INT32 startIndex, INT32 count )
-{
-    FCALL_CONTRACT;
-
-    VALIDATEOBJECT(thisRef);
-    if (thisRef==NULL)
-        FCThrow(kNullReferenceException);
-
-    WCHAR *thisChars;
-    int thisLength;
-
-    thisRef->RefInterpretGetStringValuesDangerousForGC(&thisChars, &thisLength);
-
-    if (startIndex < 0 || startIndex > thisLength) {
-        FCThrowArgumentOutOfRange(W("startIndex"), W("ArgumentOutOfRange_Index"));
-    }
-
-    if (count   < 0 || count > thisLength - startIndex) {
-        FCThrowArgumentOutOfRange(W("count"), W("ArgumentOutOfRange_Count"));
-    }
-
-    int endIndex = startIndex + count;
-    for (int i=startIndex; i<endIndex; i++)
-    {
-        if (thisChars[i]==((WCHAR)value))
-        {
-            FC_GC_POLL_RET();
-            return i;
-        }
-    }
-
-    FC_GC_POLL_RET();
-    return -1;
-}
-FCIMPLEND
-
 /*===============================IndexOfCharArray===============================
 **Action:
 **Returns:
@@ -442,56 +399,6 @@ FCIMPL4(INT32, COMString::IndexOfCharArray, StringObject* thisRef, CHARArray* va
 }
 FCIMPLEND
 
-
-/*===============================LastIndexOfChar================================
-**Action:
-**Returns:
-**Arguments:
-**Exceptions:
-==============================================================================*/
-
-FCIMPL4(INT32, COMString::LastIndexOfChar, StringObject* thisRef, CLR_CHAR value, INT32 startIndex, INT32 count )
-{
-    FCALL_CONTRACT;
-
-    VALIDATEOBJECT(thisRef);
-    WCHAR *thisChars;
-    int thisLength;
-
-    if (thisRef==NULL) {
-        FCThrow(kNullReferenceException);
-    }
-
-    thisRef->RefInterpretGetStringValuesDangerousForGC(&thisChars, &thisLength);
-
-    if (thisLength == 0) {
-        FC_GC_POLL_RET();
-        return -1;
-    }
-
-
-    if (startIndex<0 || startIndex>=thisLength) {
-        FCThrowArgumentOutOfRange(W("startIndex"), W("ArgumentOutOfRange_Index"));
-    }
-
-    if (count<0 || count - 1 > startIndex) {
-        FCThrowArgumentOutOfRange(W("count"), W("ArgumentOutOfRange_Count"));
-    }
-
-    int endIndex = startIndex - count + 1;
-
-    //We search [startIndex..EndIndex]
-    for (int i=startIndex; i>=endIndex; i--) {
-        if (thisChars[i]==((WCHAR)value)) {
-            FC_GC_POLL_RET();
-            return i;
-        }
-    }
-
-    FC_GC_POLL_RET();
-    return -1;
-}
-FCIMPLEND
 /*=============================LastIndexOfCharArray=============================
 **Action:
 **Returns:
@@ -596,71 +503,6 @@ FCIMPL1(INT32, COMString::Length, StringObject* str) {
 }
 FCIMPLEND
 
-
-/*==================================PadHelper===================================
-**Action:
-**Returns:
-**Arguments:
-**Exceptions:
-==============================================================================*/
-FCIMPL4(Object*, COMString::PadHelper, StringObject* thisRefUNSAFE, INT32 totalWidth, CLR_CHAR paddingChar, CLR_BOOL isRightPadded)
-{
-    FCALL_CONTRACT;
-
-    STRINGREF refRetVal = NULL;
-    STRINGREF thisRef = (STRINGREF) thisRefUNSAFE;
-    HELPER_METHOD_FRAME_BEGIN_RET_1(thisRef);
-
-    WCHAR *thisChars, *padChars;
-    INT32 thisLength;
-
-
-    if (thisRef==NULL) {
-        COMPlusThrow(kNullReferenceException, W("NullReference_This"));
-    }
-
-    thisRef->RefInterpretGetStringValuesDangerousForGC(&thisChars, &thisLength);
-
-    //Don't let them pass in a negative totalWidth
-    if (totalWidth<0) {
-        COMPlusThrowArgumentOutOfRange(W("totalWidth"), W("ArgumentOutOfRange_NeedNonNegNum"));
-    }
-
-    //If the string is longer than the length which they requested, give them
-    //back the old string.
-    if (totalWidth<thisLength) {
-        refRetVal = thisRef;
-        goto lExit;
-    }
-
-    refRetVal = StringObject::NewString(totalWidth);
-
-    // Reget thisChars, since if NewString triggers GC, thisChars may become trash.
-    thisRef->RefInterpretGetStringValuesDangerousForGC(&thisChars, &thisLength);
-    padChars = refRetVal->GetBuffer();
-
-    if (isRightPadded) {
-
-        memcpyNoGCRefs(padChars, thisChars, thisLength * sizeof(WCHAR));
-
-        for (int i=thisLength; i<totalWidth; i++) {
-            padChars[i] = paddingChar;
-        }
-    } else {
-        INT32 startingPos = totalWidth-thisLength;
-        memcpyNoGCRefs(padChars+startingPos, thisChars, thisLength * sizeof(WCHAR));
-
-        for (int i=0; i<startingPos; i++) {
-            padChars[i] = paddingChar;
-        }
-    }
-    _ASSERTE(padChars[totalWidth] == 0);
-
-lExit: ;
-    HELPER_METHOD_FRAME_END();
-    return OBJECTREFToObject(refRetVal);
-}
-FCIMPLEND
 
 // HELPER METHODS
 // 

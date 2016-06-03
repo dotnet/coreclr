@@ -17,6 +17,10 @@ Abstract:
 
 --*/
 
+#include "pal/dbgmsg.h"
+
+SET_DEFAULT_DEBUG_CHANNEL(SYNC); // some headers have code with asserts, so do this first
+
 #include "synchmanager.hpp"
 
 #include <sys/types.h>
@@ -373,7 +377,8 @@ namespace CorUnix
             
             palErr = pSynchManager->RegisterProcessForMonitoring(m_pthrOwner,
                                                                  m_psdSynchData, 
-                                                                 pProcLocalData);            
+                                                                 m_pProcessObject,
+                                                                 pProcLocalData);
             if (NO_ERROR != palErr)
             {
                 goto RWT_exit;
@@ -507,15 +512,19 @@ namespace CorUnix
 
     /*++
     Method:
-      CSynchWaitController::SetProcessLocalData
+      CSynchWaitController::SetProcessData
 
     Accessor Set method for process local data of the target object
     --*/
-    void CSynchWaitController::SetProcessLocalData(CProcProcessLocalData * pProcLocalData)
+    void CSynchWaitController::SetProcessData(IPalObject* pProcessObject, CProcProcessLocalData * pProcLocalData)
     {   
         VALIDATEOBJECT(m_psdSynchData);
 
         _ASSERTE(InternalGetCurrentThread() == m_pthrOwner);
+        _ASSERT_MSG(m_pProcessObject == nullptr, "SetProcessData should not be called more than once");
+        _ASSERT_MSG(pProcessObject != nullptr && pProcessObject->GetObjectType()->GetId() == otiProcess, "Invalid process object passed to SetProcessData");
+
+        m_pProcessObject = pProcessObject;
         m_pProcLocalData = pProcLocalData;
     }
 

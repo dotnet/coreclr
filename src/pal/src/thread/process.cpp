@@ -28,6 +28,7 @@ Abstract:
 #include "pal/process.h"
 #include "pal/init.h"
 #include "pal/critsect.h"
+#include "pal/debug.h"
 #include "pal/dbgmsg.h"
 #include "pal/utils.h"
 #include "pal/environ.h"
@@ -41,14 +42,17 @@ Abstract:
 #include "pal/fakepoll.h"
 #endif  // HAVE_POLL
 
+#include <unistd.h>
 #include <sys/mman.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <signal.h>
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <debugmacrosext.h>
 #include <semaphore.h>
+#include <stdint.h>
 
 #ifdef __APPLE__
 #include <sys/sysctl.h>
@@ -89,6 +93,12 @@ PALAPI
 StartupHelperThread(
     LPVOID p);
 
+static 
+BOOL 
+GetProcessIdDisambiguationKey(
+    IN DWORD processId, 
+    OUT UINT64 *disambiguationKey);
+
 //
 // Helper memory page used by the FlushProcessWriteBuffers
 //
@@ -127,8 +137,18 @@ LPWSTR g_lpwstrAppDir = NULL;
 // Thread ID of thread that has started the ExitProcess process 
 Volatile<LONG> terminator = 0;
 
-// Process ID of this process.
+// Process and session ID of this process.
 DWORD gPID = (DWORD) -1;
+DWORD gSID = (DWORD) -1;
+
+// The lowest common supported semaphore length, including null character
+// NetBSD-7.99.25: 15 characters
+// MacOSX 10.11: 31 -- Core 1.0 RC2 compatibility
+#if defined(__NetBSD__)
+#define CLR_SEM_MAX_NAMELEN 15
+#else
+#define CLR_SEM_MAX_NAMELEN (NAME_MAX - 4)
+#endif
 
 // Function to call during PAL/process shutdown/abort
 Volatile<PSHUTDOWN_CALLBACK> g_shutdownCallback = nullptr;
@@ -190,6 +210,26 @@ GetCurrentProcessId(
     LOGEXIT("GetCurrentProcessId returns DWORD %#x\n", gPID);
     PERF_EXIT(GetCurrentProcessId);
     return gPID;
+}
+
+
+/*++
+Function:
+  GetCurrentSessionId
+
+See MSDN doc.
+--*/
+DWORD
+PALAPI
+GetCurrentSessionId(
+            VOID)
+{
+    PERF_ENTRY(GetCurrentSessionId);
+    ENTRY("GetCurrentSessionId()\n" );
+
+    LOGEXIT("GetCurrentSessionId returns DWORD %#x\n", gSID);
+    PERF_EXIT(GetCurrentSessionId);
+    return gSID;
 }
 
 
@@ -1394,8 +1434,26 @@ static bool IsCoreClrModule(const char* pModulePath)
 // to clean up its semaphore. 
 // Note to anyone modifying these names in the future: Semaphore names on OS X are limited
 // to SEM_NAME_LEN characters, including null. SEM_NAME_LEN is 31 (at least on OS X 10.11).
+// NetBSD limits semaphore names to 15 characters, including null (at least up to 7.99.25).
+// Keep 31 length for Core 1.0 RC2 compatibility
+#if defined(__NetBSD__)
+static const char* RuntimeStartupSemaphoreName = "/clrst%08llx";
+static const char* RuntimeContinueSemaphoreName = "/clrct%08llx";
+#else
 static const char* RuntimeStartupSemaphoreName = "/clrst%08x%016llx";
-static const char* RuntimeContinueSemaphoreName = "/clrco%08x%016llx";
+static const char* RuntimeContinueSemaphoreName = "/clrct%08x%016llx";
+#endif
+
+#if defined(__NetBSD__)
+static uint64_t HashSemaphoreName(uint64_t a, uint64_t b)
+{
+    return (a ^ b) & 0xffffffff;
+}
+#else
+#define HashSemaphoreName(a,b) a,b
+#endif
+
+static const char* PipeNameFormat = "/tmp/clr-debug-pipe-%d-%llu-%s";
 
 class PAL_RuntimeStartupHelper
 {
@@ -1405,7 +1463,6 @@ class PAL_RuntimeStartupHelper
     PVOID m_parameter;
     DWORD m_threadId;
     HANDLE m_threadHandle;
-
     DWORD m_processId;
 
     // A value that, used in conjunction with the process ID, uniquely identifies a process.
@@ -1415,7 +1472,8 @@ class PAL_RuntimeStartupHelper
     // Debugger waits on this semaphore and the runtime signals it on startup.
     sem_t *m_startupSem;
 
-    // Debuggee waits on this semaphore and the debugger signals it after the callback returns.
+    // Debuggee waits on this semaphore and the debugger signals it after the startup callback 
+    // registered (m_callback) returns.
     sem_t *m_continueSem;
 
 public:
@@ -1436,12 +1494,12 @@ public:
     {
         if (m_startupSem != SEM_FAILED)
         {
-            char startupSemName[NAME_MAX - 4];
+            char startupSemName[CLR_SEM_MAX_NAMELEN];
             sprintf_s(startupSemName,
                       sizeof(startupSemName),
                       RuntimeStartupSemaphoreName,
-                      m_processId,
-                      m_processIdDisambiguationKey);
+                      HashSemaphoreName(m_processId,
+                                        m_processIdDisambiguationKey));
 
             sem_close(m_startupSem);
             sem_unlink(startupSemName);
@@ -1449,12 +1507,12 @@ public:
 
         if (m_continueSem != SEM_FAILED)
         {
-            char continueSemName[NAME_MAX - 4];
+            char continueSemName[CLR_SEM_MAX_NAMELEN];
             sprintf_s(continueSemName,
                       sizeof(continueSemName),
                       RuntimeContinueSemaphoreName,
-                      m_processId,
-                      m_processIdDisambiguationKey);
+                      HashSemaphoreName(m_processId,
+                                        m_processIdDisambiguationKey));
 
             sem_close(m_continueSem);
             sem_unlink(continueSemName);
@@ -1482,11 +1540,42 @@ public:
         return ref;
     }
 
+    PAL_ERROR GetSemError()
+    {
+        PAL_ERROR pe;
+        switch (errno)
+        {
+            case ENOENT:
+                pe = ERROR_NOT_FOUND;
+                break;
+            case EACCES:
+                pe = ERROR_INVALID_ACCESS;
+                break;
+            case EINVAL:
+            case ENAMETOOLONG:
+                pe = ERROR_INVALID_NAME;
+                break;
+            case ENOMEM:
+                pe = ERROR_OUTOFMEMORY;
+                break;
+            case EEXIST:
+                pe = ERROR_ALREADY_EXISTS;
+                break;
+            case ENOSPC:
+                pe = ERROR_TOO_MANY_SEMAPHORES;
+                break;
+            default:
+                pe = ERROR_INVALID_PARAMETER;
+                break;
+        }
+        return pe;
+    }
+
     PAL_ERROR Register()
     {
         CPalThread *pThread = InternalGetCurrentThread();
-        char startupSemName[NAME_MAX - 4];
-        char continueSemName[NAME_MAX - 4];
+        char startupSemName[CLR_SEM_MAX_NAMELEN];
+        char continueSemName[CLR_SEM_MAX_NAMELEN];
         PAL_ERROR pe = NO_ERROR;
 
         // See semaphore name format for details about this value. We store it so that
@@ -1498,34 +1587,33 @@ public:
         sprintf_s(startupSemName,
                   sizeof(startupSemName),
                   RuntimeStartupSemaphoreName,
-                  m_processId,
-                  m_processIdDisambiguationKey);
+                  HashSemaphoreName(m_processId,
+                                    m_processIdDisambiguationKey));
 
         sprintf_s(continueSemName,
                   sizeof(continueSemName),
                   RuntimeContinueSemaphoreName,
-                  m_processId,
-                  m_processIdDisambiguationKey);
+                  HashSemaphoreName(m_processId,
+                                    m_processIdDisambiguationKey));
 
-        TRACE("PAL_RuntimeStartupHelper.Register startup '%s' continue '%s'\n", startupSemName, continueSemName);
+        TRACE("PAL_RuntimeStartupHelper.Register creating startup '%s' continue '%s'\n", startupSemName, continueSemName);
 
         // Create the continue semaphore first so we don't race with PAL_NotifyRuntimeStarted. This open will fail if another 
         // debugger is trying to attach to this process because the name will already exist.
-        m_continueSem = sem_open(continueSemName, O_CREAT | O_EXCL | O_RDWR, S_IRWXU, 0);
+        m_continueSem = sem_open(continueSemName, O_CREAT | O_EXCL, S_IRWXU, 0);
         if (m_continueSem == SEM_FAILED)
         {
             TRACE("sem_open(continue) failed: errno is %d (%s)\n", errno, strerror(errno));
-            pe = ERROR_INVALID_PARAMETER;
+            pe = GetSemError();
             goto exit;
         }
 
-        // Create the debuggee startup semaphore so the runtime (debuggee) knows to wait for a debugger 
-        // connection.
-        m_startupSem = sem_open(startupSemName, O_CREAT | O_EXCL | O_RDWR, S_IRWXU, 0);
+        // Create the debuggee startup semaphore so the runtime (debuggee) knows to wait for a debugger connection.
+        m_startupSem = sem_open(startupSemName, O_CREAT | O_EXCL, S_IRWXU, 0);
         if (m_startupSem == SEM_FAILED)
         {
             TRACE("sem_open(startup) failed: errno is %d (%s)\n", errno, strerror(errno));
-            pe = ERROR_INVALID_PARAMETER;
+            pe = GetSemError();
             goto exit;
         }
 
@@ -1581,16 +1669,48 @@ public:
         }
     }
 
-    PAL_ERROR InvokeStartupCallback(bool *pCoreClrExists)
+    //
+    // There are a couple race conditions that need to be considered here:
+    //
+    // * On launch, between the fork and execv in the PAL's CreateProcess where the target process 
+    //   may contain a coreclr module image if the debugger process is running managed code. This 
+    //   makes just checking if the coreclr module exists not enough.
+    //
+    // * On launch (after the execv) or attach when the coreclr is loaded but before the DAC globals 
+    //   table is initialized where it is too soon to use/initialize the DAC on the debugger side.
+    //
+    // They are both fixed by check if the one of transport pipe files has been created.
+    //
+    bool IsCoreClrProcessReady()
     {
-        PAL_ERROR pe = NO_ERROR;
+        char pipeName[MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH];  
 
-        *pCoreClrExists = false;
+        PAL_GetTransportPipeName(pipeName, m_processId, "in");
+
+        struct stat buf;
+        if (stat(pipeName, &buf) == 0) 
+        {
+            TRACE("IsCoreClrProcessReady: stat(%s) SUCCEEDED\n", pipeName);
+            return true;
+        }
+        TRACE("IsCoreClrProcessReady: stat(%s) FAILED: errno is %d (%s)\n", pipeName, errno, strerror(errno));
+        return false;
+    }
+
+    PAL_ERROR InvokeStartupCallback()
+    {
+        ProcessModules *listHead = NULL;
+        PAL_ERROR pe = NO_ERROR;
+        DWORD count;
+
+        if (m_canceled)
+        {
+            goto exit;
+        }
 
         // Enumerate all the modules in the process and invoke the callback 
         // for the coreclr module if found.
-        DWORD count;
-        ProcessModules *listHead = CreateProcessModules(m_processId, &count);
+        listHead = CreateProcessModules(m_processId, &count);
         if (listHead == NULL)
         {
             TRACE("CreateProcessModules failed for pid %d\n", m_processId);
@@ -1602,11 +1722,9 @@ public:
         {
             if (IsCoreClrModule(entry->Name))
             {
-                *pCoreClrExists = true;
-
                 PAL_CPP_TRY
                 {
-                    TRACE("InvokeStartupCallback executing callback %s\n", entry->Name);
+                    TRACE("InvokeStartupCallback executing callback %p %s\n", entry->BaseAddress, entry->Name);
                     m_callback(entry->Name, entry->BaseAddress, m_parameter);
                 }
                 PAL_CPP_CATCH_ALL
@@ -1620,15 +1738,11 @@ public:
         }
 
     exit:
-        if (*pCoreClrExists)
+        // Wake up the runtime 
+        if (sem_post(m_continueSem) != 0)
         {
-            // Wake up all the runtimes
-            if (sem_post(m_continueSem) != 0)
-            {
-                ASSERT("sem_post(continueSem) failed: errno is %d (%s)\n", errno, strerror(errno));
-            }
+            ASSERT("sem_post(continueSem) failed: errno is %d (%s)\n", errno, strerror(errno));
         }
-
         if (listHead != NULL)
         {
             DestroyProcessModules(listHead);
@@ -1638,34 +1752,28 @@ public:
 
     void StartupHelperThread()
     {
-        bool coreclrExists = false;
+        PAL_ERROR pe = NO_ERROR;
 
-        PAL_ERROR pe = InvokeStartupCallback(&coreclrExists);
-        if (pe == NO_ERROR)
+        if (IsCoreClrProcessReady())
         {
-            if (!coreclrExists && !m_canceled)
+            pe = InvokeStartupCallback();
+        }
+        else {
+            TRACE("sem_wait(startup)\n");
+
+            // Wait until the coreclr runtime (debuggee) starts up
+            if (sem_wait(m_startupSem) == 0)
             {
-                // Wait until the coreclr runtime (debuggee) starts up
-                if (sem_wait(m_startupSem) == 0)
-                {
-                    if (!m_canceled)
-                    {
-                        pe = InvokeStartupCallback(&coreclrExists);
-                        if (pe == NO_ERROR)
-                        {
-                            // We should always find a coreclr module
-                            _ASSERTE(coreclrExists);
-                        }
-                    }
-                }
-                else 
-                {
-                    TRACE("sem_wait(startup) failed: errno is %d (%s)\n", errno, strerror(errno));
-                    pe = ERROR_INVALID_HANDLE;
-                }
+                pe = InvokeStartupCallback();
+            }
+            else
+            {
+                TRACE("sem_wait(startup) failed: errno is %d (%s)\n", errno, strerror(errno));
+                pe = GetSemError();
             }
         }
 
+        // Invoke the callback on errors
         if (pe != NO_ERROR && !m_canceled)
         {
             SetLastError(pe);
@@ -1777,8 +1885,8 @@ BOOL
 PALAPI
 PAL_NotifyRuntimeStarted()
 {
-    char szStartupSemName[NAME_MAX - 4];
-    char szContinueSemName[NAME_MAX - 4];
+    char startupSemName[CLR_SEM_MAX_NAMELEN];
+    char continueSemName[CLR_SEM_MAX_NAMELEN];
     sem_t *startupSem = SEM_FAILED;
     sem_t *continueSem = SEM_FAILED;
     BOOL result = TRUE;
@@ -1786,26 +1894,25 @@ PAL_NotifyRuntimeStarted()
     UINT64 processIdDisambiguationKey = 0;
     GetProcessIdDisambiguationKey(gPID, &processIdDisambiguationKey);
 
-    sprintf_s(szStartupSemName, sizeof(szStartupSemName), RuntimeStartupSemaphoreName, gPID, processIdDisambiguationKey);
-    sprintf_s(szContinueSemName, sizeof(szContinueSemName), RuntimeContinueSemaphoreName, gPID, processIdDisambiguationKey);
+    sprintf_s(startupSemName, sizeof(startupSemName), RuntimeStartupSemaphoreName, HashSemaphoreName(gPID, processIdDisambiguationKey));
+    sprintf_s(continueSemName, sizeof(continueSemName), RuntimeContinueSemaphoreName, HashSemaphoreName(gPID, processIdDisambiguationKey));
 
-    TRACE("PAL_NotifyRuntimeStarted opening startup '%s' continue '%s'\n", szStartupSemName, szContinueSemName);
+    TRACE("PAL_NotifyRuntimeStarted opening continue '%s' startup '%s'\n", continueSemName, startupSemName);
+
 
     // Open the debugger startup semaphore. If it doesn't exists, then we do nothing and
     // the function is successful.
-    startupSem = sem_open(szStartupSemName, O_RDWR);
+    startupSem = sem_open(startupSemName, 0);
     if (startupSem == SEM_FAILED)
     {
-        TRACE("sem_open(%s) failed: %d (%s)\n", szStartupSemName, errno, strerror(errno));
+        TRACE("sem_open(%s) failed: %d (%s)\n", startupSemName, errno, strerror(errno));
         goto exit;
     }
 
-    // Open the debuggee continue semaphore. If we can open the startup sem and not this one
-    // something is seriously wrong.
-    continueSem = sem_open(szContinueSemName, O_RDWR);
+    continueSem = sem_open(continueSemName, 0);
     if (continueSem == SEM_FAILED)
     {
-        ASSERT("sem_open(%s) failed: %d (%s)\n", szContinueSemName, errno, strerror(errno));
+        ASSERT("sem_open(%s) failed: %d (%s)\n", continueSemName, errno, strerror(errno));
         result = FALSE;
         goto exit;
     }
@@ -1818,7 +1925,7 @@ PAL_NotifyRuntimeStarted()
         goto exit;
     }
 
-    // Now wait until the debugger notification is finished
+    // Now wait until the debugger's runtime startup notification is finished
     if (sem_wait(continueSem) != 0)
     {
         ASSERT("sem_wait(continueSem) failed: errno is %d (%s)\n", errno, strerror(errno));
@@ -1911,7 +2018,7 @@ GetProcessIdDisambiguationKey(DWORD processId, UINT64 *disambiguationKey)
 
     return TRUE;
 
-#elif defined(HAVE_PROCFS_CTL)
+#elif HAVE_PROCFS_STAT
 
     // Here we read /proc/<pid>/stat file to get the start time for the process.
     // We return this value (which is expressed in jiffies since boot time).
@@ -1965,9 +2072,31 @@ GetProcessIdDisambiguationKey(DWORD processId, UINT64 *disambiguationKey)
 
 #else
     // If this is not OS X and we don't have /proc, we just return FALSE.
-    WARN(!"GetProcessIdDisambiguationKey was called but is not implemented on this platform!");
+    WARN("GetProcessIdDisambiguationKey was called but is not implemented on this platform!");
     return FALSE;
 #endif
+}
+
+/*++
+ Function:
+  PAL_GetTransportPipeName 
+
+  Builds the transport pipe names from the process id.
+--*/
+void 
+PALAPI
+PAL_GetTransportPipeName(char *name, DWORD id, const char *suffix)
+{
+    UINT64 disambiguationKey = 0;
+    BOOL ret = GetProcessIdDisambiguationKey(id, &disambiguationKey);
+
+    // If GetProcessIdDisambiguationKey failed for some reason, it should set the value 
+    // to 0. We expect that anyone else making the pipe name will also fail and thus will
+    // also try to use 0 as the value.
+    _ASSERTE(ret == TRUE || disambiguationKey == 0);
+
+    int chars = _snprintf(name, MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH, PipeNameFormat, id, disambiguationKey, suffix);
+    _ASSERTE(chars > 0 && chars < MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH);
 }
 
 /*++
@@ -2597,8 +2726,9 @@ CreateProcessModules(
 
     free(line); // We didn't allocate line, but as per contract of getline we should free it
     pclose(vmmapFile);
+exit:
 
-#elif defined(HAVE_PROCFS_CTL)
+#elif HAVE_PROCFS_MAPS 
 
     // Here we read /proc/<pid>/maps file in order to parse it and figure out what it says 
     // about a library we are looking for. This file looks something like this:
@@ -2677,10 +2807,11 @@ CreateProcessModules(
 
     free(line); // We didn't allocate line, but as per contract of getline we should free it
     fclose(mapsFile);
+exit:
+
 #else
     _ASSERTE(!"Not implemented on this platform");
 #endif
-exit:
     return listHead;
 }
 
@@ -2718,8 +2849,7 @@ Function:
 __attribute__((destructor)) 
 void PROCNotifyProcessShutdown()
 {
-    TRACE("PROCNotifyProcessShutdown %p\n", g_shutdownCallback.RawValue());
-
+    // Call back into the coreclr to clean up the debugger transport pipes
     PSHUTDOWN_CALLBACK callback = InterlockedExchangePointer(&g_shutdownCallback, NULL);
     if (callback != NULL)
     {

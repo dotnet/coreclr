@@ -908,7 +908,6 @@ void FillExceptionData(ExceptionData* pedata, IErrorInfo* pErrInfo, IRestrictedE
 }
 #endif // CROSSGEN_COMPILE
 
-#ifndef FEATURE_CORECLR
 //---------------------------------------------------------------------------
 //returns true if pImport has DefaultDllImportSearchPathsAttribute
 //if true, also returns dllImportSearchPathFlag and searchAssemblyDirectory values.
@@ -945,7 +944,6 @@ BOOL GetDefaultDllImportSearchPathsAttributeValue(IMDInternalImport *pImport, md
     *pDllImportSearchPathFlag = args[0].val.u4;
     return TRUE;
 }
-#endif // !FEATURE_CORECLR
 
 
 //---------------------------------------------------------------------------
@@ -5384,9 +5382,7 @@ TypeHandle GetWinRTType(SString* ssTypeName, BOOL bThrowIfNotFound)
 
     SString ssAssemblyName(SString::Utf8Literal, "WindowsRuntimeAssemblyName, ContentType=WindowsRuntime");
     DomainAssembly *pAssembly = LoadDomainAssembly(&ssAssemblyName, NULL, 
-#ifdef FEATURE_HOSTED_BINDER
                                                    NULL, 
-#endif
                                                    bThrowIfNotFound, FALSE, ssTypeName);
     if (pAssembly != NULL)
     {

@@ -943,7 +943,6 @@
       <Member MemberType="Property" Name="Default" />
       <Member Name="GetAssemblyName(System.String)" />
       <Member Name="GetLoadContext(System.Reflection.Assembly)" />
-      <Member Name="InitializeDefaultContext(System.Runtime.Loader.AssemblyLoadContext)" />
       <Member Name="LoadFromAssemblyName(System.Reflection.AssemblyName)" />
       <Member Name="Load(System.Reflection.AssemblyName)" />
       <Member Name="LoadFromAssemblyPath(System.String)" />
@@ -951,6 +950,7 @@
       <Member Name="LoadFromStream(System.IO.Stream)" />
       <Member Name="LoadFromStream(System.IO.Stream,System.IO.Stream)" />
       <Member Name="Resolve(System.IntPtr,System.Reflection.AssemblyName)" />
+      <Member Name="ResolveUsingResolvingEvent(System.IntPtr,System.Reflection.AssemblyName)" />
       <Member Name="ResolveUnmanagedDll(System.String,System.IntPtr)" />
       <Member Name="LoadUnmanagedDll(System.String)" />
       <Member Name="LoadUnmanagedDllFromPath(System.String)" />
@@ -5538,6 +5538,10 @@
       <Member Name="IsInstanceOfInterface(System.RuntimeTypeHandle,System.Exception@)" /> <!-- EE -->
       <Member Name="GetImplType(System.RuntimeTypeHandle)" /> <!-- EE -->
     </Type>
+    <Type Name="System.Runtime.CompilerServices.ICastableHelpers"> 
+      <Member Name="IsInstanceOfInterface(System.Runtime.CompilerServices.ICastable,System.RuntimeType, System.Exception@)" /> <!-- EE -->
+      <Member Name="GetImplType(System.Runtime.CompilerServices.ICastable,System.RuntimeType)" /> <!-- EE -->
+    </Type>  
     <Type Name="System.Runtime.CompilerServices.IsExplicitlyDereferenced"> <!-- for MC++ -->
     </Type>
     <Type Name="System.Runtime.CompilerServices.IsImplicitlyDereferenced">  <!-- for MC++ -->
@@ -5581,6 +5585,7 @@
       <Member MemberType="Field" Name="value__" />
     </Type>
     <Type Name="System.Runtime.CompilerServices.RuntimeHelpers">
+      <Member Name="GetUninitializedObject(System.Type)" />
       <Member Name="EnsureSufficientExecutionStack" />
       <Member Name="get_OffsetToStringData" />
       <Member Name="GetObjectValue(System.Object)" />
@@ -5915,6 +5920,8 @@
       <Member Name="PrelinkAll(System.Type)" />
       <Member Name="PtrToStringAnsi(System.IntPtr)" />
       <Member Name="PtrToStringAnsi(System.IntPtr,System.Int32)" />
+      <Member Name="PtrToStringUTF8(System.IntPtr)" />
+      <Member Name="PtrToStringUTF8(System.IntPtr,System.Int32)" />
       <Member Name="PtrToStringUni(System.IntPtr)" />
       <Member Name="PtrToStringUni(System.IntPtr,System.Int32)" />
       <Member Name="PtrToStructure(System.IntPtr,System.Object)" />
@@ -5994,6 +6001,7 @@
       <Member Name="StringToCoTaskMemUni(System.String)" />
       <Member Name="StringToHGlobalAnsi(System.String)" />
       <Member Name="StringToHGlobalUni(System.String)" />
+      <Member Name="StringToCoTaskMemUTF8(System.String)" />
       <Member Name="StructureToPtr&lt;T&gt;(T,System.IntPtr,System.Boolean)" />
       <Member Name="UnsafeAddrOfPinnedArrayElement&lt;T&gt;(T[],System.Int32)" />
       <Member Name="WriteByte(System.Object,System.Int32,System.Byte)" />
@@ -6006,6 +6014,7 @@
       <Member Name="ZeroFreeCoTaskMemAnsi(System.IntPtr)" />
       <Member Name="ZeroFreeGlobalAllocAnsi(System.IntPtr)" />
       <Member Name="ZeroFreeGlobalAllocUnicode(System.IntPtr)" />
+      <Member Name="ZeroFreeCoTaskMemUTF8(System.IntPtr)" />
     </Type>
     <Type Name="System.Runtime.InteropServices.MarshalAsAttribute">
       <Member MemberType="Field" Name="ArraySubType" />
@@ -6124,6 +6133,7 @@
       <Member MemberType="Field" Name="LPStruct" />
       <Member MemberType="Field" Name="LPTStr" />
       <Member MemberType="Field" Name="LPWStr" />
+      <Member MemberType="Field" Name="LPUTF8Str" />
       <Member MemberType="Field" Name="R4" />
       <Member MemberType="Field" Name="R8" />
       <Member MemberType="Field" Name="SafeArray" />
@@ -8057,7 +8067,6 @@
       <Member Name="get_Position" />
       <Member Name="get_ReadTimeout" />
       <Member Name="get_WriteTimeout" />
-      <Member Status="ImplRoot" Name="InternalCopyTo(System.IO.Stream,System.Int32)" />
       <Member Name="Read(System.Byte[],System.Int32,System.Int32)" />
       <Member Name="ReadByte" />
       <Member Name="ReadAsync(System.Byte[],System.Int32,System.Int32)"  />
@@ -10101,6 +10110,15 @@
       <Member Name="ConvertToManaged(System.IntPtr)" />
       <Member Name="ClearNative(System.IntPtr)" />
     </Type>
+     <Type Status="ImplRoot" Name="System.StubHelpers.UTF8Marshaler">
+      <Member Name="ConvertToNative(System.Int32,System.String,System.IntPtr)" />
+      <Member Name="ConvertToManaged(System.IntPtr)" />
+      <Member Name="ClearNative(System.IntPtr)" />
+    </Type>    
+      <Type Status="ImplRoot" Name="System.StubHelpers.UTF8BufferMarshaler">
+      <Member Name="ConvertToNative(System.Text.StringBuilder,System.IntPtr,System.Int32)" />
+      <Member Name="ConvertToManaged(System.Text.StringBuilder,System.IntPtr)" />      
+    </Type>    
     <Type Status="ApiFxInternal" Name="System.StubHelpers.EventArgsMarshaler" Condition="FEATURE_COMINTEROP">
       <Member Name="CreateNativeNCCEventArgsInstance(System.Int32,System.Object,System.Object,System.Int32,System.Int32)"/>
       <Member Name="CreateNativePCEventArgsInstance(System.String)" />
@@ -10310,6 +10328,8 @@
       <Member Name="FromException&lt;TResult&gt;(System.Exception)" />
       <Member Name="FromCanceled(System.Threading.CancellationToken)" />
       <Member Name="FromCanceled&lt;TResult&gt;(System.Threading.CancellationToken)" />
+      <Member Status="ApiFxInternal" Name="FromCancellation(System.Threading.CancellationToken)" />
+      <Member Status="ApiFxInternal" Name="FromCancellation&lt;TResult&gt;(System.Threading.CancellationToken)" />
       <Member Name="Run(System.Action)" />
       <Member Name="Run(System.Action,System.Threading.CancellationToken)" />
       <Member Name="Run&lt;TResult&gt;(System.Func&lt;TResult&gt;)" />
@@ -10374,6 +10394,8 @@
       <Member Status="ImplRoot" Name="GetDelegateContinuationsForDebugger" />
       <Member Status="ImplRoot" Name="GetActiveTaskFromId(System.Int32)" />
       <Member Status="ImplRoot" Name="GetActiveTasks" />
+      <Member Status="ImplRoot" Name="get_ParentForDebugger" />
+      <Member Status="ImplRoot" Name="get_StateFlagsForDebugger" />
     </Type>
     <Type Status="ImplRoot" Name="System.Threading.Tasks.SystemThreadingTasks_TaskDebugView">
       <Member Status="ImplRoot" Name="#ctor(System.Threading.Tasks.Task)" />

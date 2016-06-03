@@ -55,7 +55,7 @@ SVAL_IMPL_INIT(DWORD, PEFile, s_NGENDebugFlags, 0);
 
 #include "sha1.h"
 
-#if defined(FEATURE_HOSTED_BINDER) && defined(FEATURE_FUSION)
+#if defined(FEATURE_FUSION)
 #include "clrprivbinderfusion.h"
 #include "clrprivbinderappx.h"
 #include "clrprivbinderloadfile.h" 
@@ -98,9 +98,7 @@ PEFile::PEFile(PEImage *identity, BOOL fCheckAuthenticodeSignature/*=TRUE*/) :
     ,m_pSecurityManager(NULL)
     ,m_securityManagerLock(CrstPEFileSecurityManager)
 #endif // FEATURE_CAS_POLICY
-#ifdef FEATURE_HOSTED_BINDER
     ,m_pHostAssembly(nullptr)
-#endif // FEATURE_HOSTED_BINDER
 {
     CONTRACTL
     {
@@ -176,12 +174,10 @@ PEFile::~PEFile()
         CoTaskMemFree(m_certificate);
 #endif // FEATURE_CAS_POLICY
 
-#ifdef FEATURE_HOSTED_BINDER
     if (m_pHostAssembly != NULL)
     {
         m_pHostAssembly->Release();
     }
-#endif
 }
 
 #ifndef  DACCESS_COMPILE
@@ -746,7 +742,6 @@ BOOL PEFile::Equals(PEFile *pFile)
         return FALSE;
     }
 
-#ifdef FEATURE_HOSTED_BINDER
     // Different host assemblies cannot be equal unless they are associated with the same host binder
     // It's ok if only one has a host binder because multiple threads can race to load the same assembly
     // and that may cause temporary candidate PEAssembly objects that never get bound to a host assembly
@@ -765,8 +760,6 @@ BOOL PEFile::Equals(PEFile *pFile)
             return FALSE;
 
     }
-#endif // FEATURE_HOSTED_BINDER
-
 
     // Same identity is equal
     if (m_identity != NULL && pFile->m_identity != NULL
@@ -1748,11 +1741,11 @@ static void RuntimeVerifyLog(DWORD level, LoggableAssembly *pLogAsm, const WCHAR
 static const LPCWSTR CorCompileRuntimeDllNames[NUM_RUNTIME_DLLS] =
 {
 #ifdef FEATURE_CORECLR
-    MAKEDLLNAME_W(W("CORECLR"))
+    MAKEDLLNAME_W(W("coreclr")),
 #else
     MAKEDLLNAME_W(W("CLR")),
-    MAKEDLLNAME_W(W("CLRJIT"))
 #endif
+    MAKEDLLNAME_W(W("clrjit"))
 };
 
 #if !defined(FEATURE_CORECLR) && !defined(CROSSGEN_COMPILE)
@@ -1828,7 +1821,7 @@ extern HMODULE CorCompileGetRuntimeDll(CorCompileRuntimeDlls id)
 
     // Currently special cased for every entry.
 #ifdef FEATURE_CORECLR
-    static_assert_no_msg(NUM_RUNTIME_DLLS == 1);
+    static_assert_no_msg(NUM_RUNTIME_DLLS == 2);
     static_assert_no_msg(CORECLR_INFO == 0);
 #else // !FEATURE_CORECLR
     static_assert_no_msg(NUM_RUNTIME_DLLS == 2);
@@ -1991,7 +1984,7 @@ BOOL PEAssembly::CheckNativeImageVersion(PEImage *peimage)
         CorCompileConfigFlags instrumentationConfigFlags = (CorCompileConfigFlags) (configFlags & CORCOMPILE_CONFIG_INSTRUMENTATION);
         if ((info->wConfigFlags & instrumentationConfigFlags) != instrumentationConfigFlags)
         {
-            ExternalLog(LL_ERROR, "Instrumented native image for Mscorlib.dll expected.");
+            ExternalLog(LL_ERROR, "Instrumented native image for System.Private.CoreLib.dll expected.");
             ThrowHR(COR_E_NI_AND_RUNTIME_VERSION_MISMATCH);
         }
     }
@@ -2977,22 +2970,14 @@ PEAssembly::PEAssembly(
                 IMetaDataEmit* pEmit, 
                 PEFile *creator, 
                 BOOL system,
-                BOOL introspectionOnly/*=FALSE*/
-#ifdef FEATURE_HOSTED_BINDER
-                ,
+                BOOL introspectionOnly/*=FALSE*/,
                 PEImage * pPEImageIL /*= NULL*/,
                 PEImage * pPEImageNI /*= NULL*/,
-                ICLRPrivAssembly * pHostAssembly /*= NULL*/
-#endif
-                )
+                ICLRPrivAssembly * pHostAssembly /*= NULL*/)
 
   : PEFile(pBindResultInfo ? (pBindResultInfo->GetPEImage() ? pBindResultInfo->GetPEImage() : 
                                                               (pBindResultInfo->HasNativeImage() ? pBindResultInfo->GetNativeImage() : NULL)
-#ifdef FEATURE_HOSTED_BINDER
                               ): pPEImageIL? pPEImageIL:(pPEImageNI? pPEImageNI:NULL), FALSE),
-#else
-                              ): NULL, FALSE),
-#endif
     m_creator(clr::SafeAddRef(creator)),
     m_bIsFromGAC(FALSE),
     m_bIsOnTpaList(FALSE)
@@ -3007,9 +2992,7 @@ PEAssembly::PEAssembly(
         CONSTRUCTOR_CHECK;
         PRECONDITION(CheckPointer(pEmit, NULL_OK));
         PRECONDITION(CheckPointer(creator, NULL_OK));
-#ifdef FEATURE_HOSTED_BINDER
         PRECONDITION(pBindResultInfo == NULL || (pPEImageIL == NULL && pPEImageNI == NULL));
-#endif
         STANDARD_VM_CHECK;
     }
     CONTRACTL_END;
@@ -3028,12 +3011,10 @@ PEAssembly::PEAssembly(
 
     // We check the precondition above that either pBindResultInfo is null or both pPEImageIL and pPEImageNI are,
     // so we'll only get a max of one native image passed in.
-#ifdef FEATURE_HOSTED_BINDER
     if (pPEImageNI != NULL)
     {
         SetNativeImage(pPEImageNI);
     }
-#endif
 
 #ifdef FEATURE_PREJIT
     if (pBindResultInfo && pBindResultInfo->HasNativeImage())
@@ -3081,7 +3062,6 @@ PEAssembly::PEAssembly(
         ThrowHR(COR_E_BADIMAGEFORMAT, BFA_EMPTY_ASSEMDEF_NAME);
     }
 
-#ifdef FEATURE_HOSTED_BINDER
     // Set the host assembly and binding context as the AssemblySpec initialization
     // for CoreCLR will expect to have it set.
     if (pHostAssembly != nullptr)
@@ -3095,7 +3075,6 @@ PEAssembly::PEAssembly(
         _ASSERTE(pHostAssembly == nullptr);
         pBindResultInfo->GetBindAssembly(&m_pHostAssembly);
     }
-#endif // FEATURE_HOSTED_BINDER        
     
 #if _DEBUG
     GetCodeBaseOrName(m_debugName);
@@ -3113,8 +3092,6 @@ PEAssembly::PEAssembly(
 }
 #endif // FEATURE_FUSION
 
-
-#if defined(FEATURE_HOSTED_BINDER)
 
 #ifdef FEATURE_FUSION
 
@@ -3189,9 +3166,6 @@ PEAssembly *PEAssembly::Open(
 }
 
 #endif // FEATURE_FUSION
-
-#endif // FEATURE_HOSTED_BINDER 
-
 
 PEAssembly::~PEAssembly()
 {
@@ -3638,7 +3612,7 @@ PEAssembly *PEAssembly::DoOpenMemory(
     if (!image->CheckILFormat())
         ThrowHR(COR_E_BADIMAGEFORMAT, BFA_BAD_IL);
 
-#if defined(FEATURE_HOSTED_BINDER) && !defined(FEATURE_CORECLR)
+#if !defined(FEATURE_CORECLR)
     if(pBinderToUse != NULL && !isIntrospectionOnly)
     {
         ReleaseHolder<ICLRPrivAssembly> pAsm;
@@ -3649,7 +3623,7 @@ PEAssembly *PEAssembly::DoOpenMemory(
         _ASSERTE(pFile);
         RETURN pFile;
     }
-#endif //  FEATURE_HOSTED_BINDER && !FEATURE_CORECLR
+#endif // !FEATURE_CORECLR
 
 #ifdef FEATURE_FUSION    
     RETURN new PEAssembly(image, NULL, NULL, NULL, NULL, NULL, NULL, pParentAssembly, FALSE, isIntrospectionOnly);
@@ -5159,7 +5133,6 @@ TADDR PEFile::GetMDInternalRWAddress()
 }
 #endif
 
-#if defined(FEATURE_HOSTED_BINDER)
 // Returns the ICLRPrivBinder* instance associated with the PEFile
 PTR_ICLRPrivBinder PEFile::GetBindingContext()
 {
@@ -5179,5 +5152,3 @@ PTR_ICLRPrivBinder PEFile::GetBindingContext()
     
     return pBindingContext;
 }
-#endif // FEATURE_HOSTED_BINDER
-

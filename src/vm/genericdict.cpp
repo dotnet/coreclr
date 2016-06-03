@@ -682,6 +682,8 @@ Dictionary::PopulateEntry(
                 th = th.GetMethodTable()->GetMethodTableMatchingParentClass(declaringType.AsMethodTable());
             }
 
+            th.GetMethodTable()->EnsureInstanceActive();
+
             result = (CORINFO_GENERIC_HANDLE)th.AsPtr();
             break;
         }
@@ -880,6 +882,14 @@ Dictionary::PopulateEntry(
                 result = (CORINFO_GENERIC_HANDLE)pMethod->GetMultiCallableAddrOfCode();
             }
             else
+            if (kind == DispatchStubAddrSlot)
+            {
+                _ASSERTE((methodFlags & ENCODE_METHOD_SIG_SlotInsteadOfToken) == 0);
+                PCODE *ppCode = (PCODE*)(void*)pMethod->GetLoaderAllocator()->GetHighFrequencyHeap()->AllocMem(S_SIZE_T(sizeof(PCODE)));
+                *ppCode = pMethod->GetMultiCallableAddrOfCode();
+                result = (CORINFO_GENERIC_HANDLE)ppCode;
+            }
+            else
             {
                 _ASSERTE(kind == MethodDescSlot);
                 result = (CORINFO_GENERIC_HANDLE)pMethod;
@@ -906,6 +916,8 @@ Dictionary::PopulateEntry(
 
             DWORD fieldIndex;
             IfFailThrow(ptr.GetData(&fieldIndex));
+
+            th.AsMethodTable()->EnsureInstanceActive();
 
             result = (CORINFO_GENERIC_HANDLE)th.AsMethodTable()->GetFieldDescByIndex(fieldIndex);
             break;

@@ -20,7 +20,7 @@
 ;
 ;void JIT_MemSet(void *dst, int val, SIZE_T count)
 ;{
-;    uintptr_t valEx = (char)val;
+;    uintptr_t valEx = (unsigned char)val;
 ;    valEx = valEx | valEx << 8;
 ;    valEx = valEx | valEx << 16;
 ;    valEx = valEx | valEx << 32;
@@ -87,7 +87,7 @@
 ; as C++ method.
 
     LEAF_ENTRY JIT_MemSet
-    sxtb        w8,w1
+    uxtb        w8,w1
     sxtw        x8,w8
     orr         x8,x8,x8 lsl #8
     orr         x8,x8,x8 lsl #0x10
@@ -153,6 +153,7 @@ JIT_MemSet_0xd8
     LEAF_END
 
     LEAF_ENTRY JIT_MemSet_End
+    nop
     LEAF_END
 
 
@@ -292,6 +293,7 @@ JIT_MemCpy_0xe8
     LEAF_END
 
     LEAF_ENTRY JIT_MemCpy_End
+    nop
     LEAF_END
 
 ; Must be at very end of file

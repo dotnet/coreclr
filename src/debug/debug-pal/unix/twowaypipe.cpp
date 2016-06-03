@@ -3,31 +3,13 @@
 // See the LICENSE file in the project root for more information.
 
 #include <pal.h>
-
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <limits.h>
 #include <pal_assert.h>
-
 #include "twowaypipe.h"
-
-static const char* PipeNameFormat = "/tmp/clr-debug-pipe-%d-%llu-%s";
-
-void TwoWayPipe::GetPipeName(char *name, DWORD id, const char *suffix)
-{
-    UINT64 disambiguationKey;
-    BOOL ret = GetProcessIdDisambiguationKey(id, &disambiguationKey);
-
-    // If GetProcessIdDisambiguationKey failed for some reason, it should set the value 
-    // to 0. We expect that anyone else making the pipe name will also fail and thus will
-    // also try to use 0 as the value.
-    _ASSERTE(ret == TRUE || disambiguationKey == 0);
-
-    int chars = _snprintf(name, MaxPipeNameLength, PipeNameFormat, id, disambiguationKey, suffix);
-    _ASSERTE(chars > 0 && chars < MaxPipeNameLength);
-}
 
 // Creates a server side of the pipe. 
 // Id is used to create pipes names and uniquely identify the pipe on the machine. 
@@ -39,8 +21,8 @@ bool TwoWayPipe::CreateServer(DWORD id)
         return false;
 
     m_id = id;
-    GetPipeName(m_inPipeName, id, "in");
-    GetPipeName(m_outPipeName, id, "out");
+    PAL_GetTransportPipeName(m_inPipeName, id, "in");
+    PAL_GetTransportPipeName(m_outPipeName, id, "out");
 
     if (mkfifo(m_inPipeName, S_IRWXU) == -1)
     {
@@ -68,8 +50,8 @@ bool TwoWayPipe::Connect(DWORD id)
 
     m_id = id;
     //"in" and "out" are switched deliberately, because we're on the client
-    GetPipeName(m_inPipeName, id, "out");
-    GetPipeName(m_outPipeName, id, "in");
+    PAL_GetTransportPipeName(m_inPipeName, id, "out");
+    PAL_GetTransportPipeName(m_outPipeName, id, "in");
 
     // Pipe opening order is reversed compared to WaitForConnection()
     // in order to avaid deadlock.
@@ -200,4 +182,12 @@ bool TwoWayPipe::Disconnect()
 
     m_state = NotInitialized;
     return true;
+}
+
+// Used by debugger side (RS) to cleanup the target (LS) named pipes 
+// and semaphores when the debugger detects the debuggee process  exited.
+void TwoWayPipe::CleanupTargetProcess()
+{
+    unlink(m_inPipeName);
+    unlink(m_outPipeName);
 }

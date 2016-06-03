@@ -205,27 +205,6 @@ protected :
     static  const char *genInsName(instruction ins);
 #endif // DEBUG
 
-#ifdef LEGACY_BACKEND
-
-    //-------------------------------------------------------------------------
-    //
-    //  If we know that the flags register is set to a value that corresponds
-    //  to the current value of a register or variable, the following values
-    //  record that information.
-    //
-
-    emitLocation        genFlagsEqLoc;
-    regNumber           genFlagsEqReg;
-    unsigned            genFlagsEqVar;
-
-    void                genFlagsEqualToNone ();
-    void                genFlagsEqualToReg  (GenTreePtr tree, regNumber reg);
-    void                genFlagsEqualToVar  (GenTreePtr tree, unsigned  var);
-    bool                genFlagsAreReg      (regNumber reg);
-    bool                genFlagsAreVar      (unsigned  var);
-
-#endif // LEGACY_BACKEND
-
     //-------------------------------------------------------------------------
 
     // JIT-time constants for use in multi-dimensional array code generation.
@@ -302,6 +281,9 @@ protected:
                                                  RegState *regState);
     void                genEnregisterIncomingStackArgs();
     void                genCheckUseBlockInit();
+#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING) && defined(FEATURE_SIMD)
+    void                genClearStackVec3ArgUpperBits();
+#endif //FEATURE_UNIX_AMD64_STRUCT_PASSING && FEATURE_SIMD
 
 #if defined(_TARGET_ARM64_)
     bool                genInstrWithConstant(instruction ins,  
@@ -460,11 +442,6 @@ protected:
     void                genProfilingLeaveCallback(unsigned helper = CORINFO_HELP_PROF_FCN_LEAVE);
 #endif // PROFILING_SUPPORTED
 
-#if INLINE_NDIRECT
-    regMaskTP           genPInvokeMethodProlog(regMaskTP    initRegs);
-    void                genPInvokeMethodEpilog();    
-#endif // INLINE_NDIRECT
-
     void                genPrologPadForReJit();
 
     void                genEmitCall(int                                                 callType,
@@ -551,17 +528,6 @@ protected:
     // End prolog/epilog generation
     //
     //-------------------------------------------------------------------------
-
-#if INLINE_NDIRECT
-
-    regNumber           genPInvokeCallProlog(LclVarDsc *    varDsc,
-                                             int            argSize,
-                                      CORINFO_METHOD_HANDLE methodToken,
-                                             BasicBlock *   returnLabel);
-
-    void                genPInvokeCallEpilog(LclVarDsc *    varDsc,
-                                             regMaskTP      retVal);
-#endif
 
 /*****************************************************************************/
 #ifdef DEBUGGING_SUPPORT
@@ -857,11 +823,7 @@ public :
 
     void                instInit();
 
-#ifdef LEGACY_BACKEND
-    regNumber           genIsEnregisteredIntVariable(GenTreePtr tree);
-#endif // LEGACY_BACKEND
     regNumber           genGetZeroRegister();
-    
 
     void                instGen         (instruction    ins);
 #ifdef _TARGET_XARCH_
@@ -1053,17 +1015,7 @@ public :
                                          unsigned *     indScale,
                                          regNumber *    indReg,
                                          unsigned *     cns);
-#ifdef LEGACY_BACKEND
-    void                sched_AM        (instruction    ins,
-                                         emitAttr       size,
-                                         regNumber      ireg,
-                                         bool           rdst,
-                                         GenTreePtr     tree,
-                                         unsigned       offs,
-                                         bool           cons  = false,
-                                         int            cval  = 0,
-                                         insFlags       flags = INS_FLAGS_DONT_CARE);
-#endif // LEGACY_BACKEND
+
     void                inst_set_SV_var (GenTreePtr     tree);
 
 #ifdef _TARGET_ARM_
@@ -1142,6 +1094,10 @@ public :
 #ifdef  DEBUG
     void    __cdecl     instDisp(instruction ins, bool noNL, const char *fmt, ...);
 #endif
+
+#ifdef _TARGET_XARCH_
+    instruction         genMapShiftInsToShiftByConstantIns(instruction ins, int shiftByValue);
+#endif // _TARGET_XARCH_
 
 };
 

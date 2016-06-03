@@ -987,7 +987,7 @@ PTR_VOID GetUnwindDataBlob(TADDR moduleBase, PTR_RUNTIME_FUNCTION pRuntimeFuncti
     _ASSERTE((pRuntimeFunction->UnwindData & 0x3) == 0);
 
     // compute the size of the unwind info
-    PTR_TADDR xdata = dac_cast<PTR_TADDR>(pRuntimeFunction->UnwindData + moduleBase);
+    PTR_ULONG xdata = dac_cast<PTR_ULONG>(pRuntimeFunction->UnwindData + moduleBase);
 
     ULONG epilogScopes = 0;
     ULONG unwindWords = 0;
@@ -1016,6 +1016,46 @@ PTR_VOID GetUnwindDataBlob(TADDR moduleBase, PTR_RUNTIME_FUNCTION pRuntimeFuncti
 
     *pSize = size;
     return xdata;
+
+#elif defined(_TARGET_ARM64_)
+	// if this function uses packed unwind data then at least one of the two least significant bits
+	// will be non-zero.  if this is the case then there will be no xdata record to enumerate.
+	_ASSERTE((pRuntimeFunction->UnwindData & 0x3) == 0);
+
+    // compute the size of the unwind info
+    PTR_ULONG xdata    = dac_cast<PTR_ULONG>(pRuntimeFunction->UnwindData + moduleBase);
+    ULONG epilogScopes = 0;
+    ULONG unwindWords  = 0;
+    ULONG size = 0;
+
+    //If both Epilog Count and Code Word is not zero
+    //Info of Epilog and Unwind scopes are given by 1 word header
+    //Otherwise this info is given by a 2 word header
+    if ((xdata[0] >> 27) != 0) 
+    {
+        size = 4;
+        epilogScopes = (xdata[0] >> 22) & 0x1f;
+        unwindWords = (xdata[0] >> 27) & 0x0f;
+    }
+    else 
+    {
+        size = 8;
+        epilogScopes = xdata[1] & 0xffff;
+        unwindWords = (xdata[1] >> 16) & 0xff;
+    }
+
+    if (!(xdata[0] & (1 << 21))) 
+        size += 4 * epilogScopes;
+
+    size += 4 * unwindWords;
+
+    _ASSERTE(xdata[0] & (1 << 20)); // personality routine should be always present
+    size += 4;                      // exception handler RVA
+
+    *pSize = size;
+    return xdata;
+
+
 #else
     PORTABILITY_ASSERT("GetUnwindDataBlob");
     return NULL;
@@ -1354,6 +1394,14 @@ struct JIT_LOAD_DATA
 // Here's the global data for JIT load and initialization state.
 JIT_LOAD_DATA g_JitLoadData;
 
+#if defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+
+// Global that holds the path to custom JIT location
+extern "C" LPCWSTR g_CLRJITPath = nullptr;
+
+#endif // defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+
+
 // LoadAndInitializeJIT: load the JIT dll into the process, and initialize it (call the UtilCode initialization function,
 // check the JIT-EE interface GUID, etc.)
 //
@@ -1388,24 +1436,39 @@ static void LoadAndInitializeJIT(LPCWSTR pwzJitName, OUT HINSTANCE* phJit, OUT I
 
     HRESULT hr = E_FAIL;
 
-#ifdef FEATURE_MERGE_JIT_AND_ENGINE
+#ifdef FEATURE_CORECLR
     PathString CoreClrFolderHolder;
     extern HINSTANCE g_hThisInst;
+
+#if !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+    if (g_CLRJITPath != nullptr)
+    {
+        // If we have been asked to load a specific JIT binary, load it.
+        CoreClrFolderHolder.Set(g_CLRJITPath);
+    }
+    else 
+#endif // !defined(FEATURE_MERGE_JIT_AND_ENGINE)
     if (WszGetModuleFileName(g_hThisInst, CoreClrFolderHolder))
     {
+        // Load JIT from next to CoreCLR binary
         SString::Iterator iter = CoreClrFolderHolder.End();
         BOOL findSep = CoreClrFolderHolder.FindBack(iter, DIRECTORY_SEPARATOR_CHAR_W);
         if (findSep)
         {
             SString sJitName(pwzJitName);
             CoreClrFolderHolder.Replace(iter + 1, CoreClrFolderHolder.End() - (iter + 1), sJitName);
-            *phJit = CLRLoadLibrary(CoreClrFolderHolder.GetUnicode());
-            if (*phJit != NULL)
-            {
-                hr = S_OK;
-            }
         }
     }
+
+    if (!CoreClrFolderHolder.IsEmpty())
+    {
+        *phJit = CLRLoadLibrary(CoreClrFolderHolder.GetUnicode());
+        if (*phJit != NULL)
+        {
+            hr = S_OK;
+        }
+    }
+
 #else
     hr = g_pCLRRuntime->LoadLibrary(pwzJitName, phJit);
 #endif
@@ -1416,6 +1479,8 @@ static void LoadAndInitializeJIT(LPCWSTR pwzJitName, OUT HINSTANCE* phJit, OUT I
 
         EX_TRY
         {
+            bool fContinueToLoadJIT = false;
+#if !defined(FEATURE_CORECLR)
             typedef void (__stdcall* psxsJitStartup) (CoreClrCallbacks const &);
             psxsJitStartup sxsJitStartupFn = (psxsJitStartup) GetProcAddress(*phJit, "sxsJitStartup");
 
@@ -1427,7 +1492,16 @@ static void LoadAndInitializeJIT(LPCWSTR pwzJitName, OUT HINSTANCE* phJit, OUT I
                 (*sxsJitStartupFn) (cccallbacks);
 
                 pJitLoadData->jld_status = JIT_LOAD_STATUS_DONE_CALL_SXSJITSTARTUP;
+                fContinueToLoadJIT = true;
+            }
+#else // FEATURE_CORECLR
+            // For CoreCLR, we never use "sxsJitStartup" as that is Desktop utilcode initialization
+            // specific. Thus, assume we always got 
+            fContinueToLoadJIT = true;
+#endif // !defined(FEATURE_CORECLR)
 
+            if (fContinueToLoadJIT)
+            {
                 typedef void (__stdcall* pjitStartup)(ICorJitHost*);
                 pjitStartup jitStartupFn = (pjitStartup) GetProcAddress(*phJit, "jitStartup");
 
@@ -1557,7 +1631,7 @@ BOOL EEJitManager::LoadJIT()
     // Set as a courtesy to code:CorCompileGetRuntimeDll
     s_ngenCompilerDll = m_JITCompiler;
     
-#if defined(_TARGET_AMD64_) && !defined(CROSSGEN_COMPILE)
+#if defined(_TARGET_AMD64_) && !defined(CROSSGEN_COMPILE) && !defined(FEATURE_CORECLR)
     // If COMPlus_UseLegacyJit=1, then we fall back to compatjit.dll.
     //
     // This fallback mechanism was introduced for Visual Studio "14" Preview, when JIT64 (the legacy JIT) was replaced with
@@ -1638,7 +1712,7 @@ BOOL EEJitManager::LoadJIT()
             }
         }
     }
-#endif // defined(_TARGET_AMD64_) && !defined(CROSSGEN_COMPILE)
+#endif // defined(_TARGET_AMD64_) && !defined(CROSSGEN_COMPILE) && !defined(FEATURE_CORECLR)
 
 #endif // !FEATURE_MERGE_JIT_AND_ENGINE
 
@@ -2093,7 +2167,7 @@ HeapList* LoaderCodeHeap::CreateCodeHeap(CodeHeapRequestInfo *pInfo, LoaderHeap 
          ));
 
 #ifdef _WIN64
-    emitJump(pHp->CLRPersonalityRoutine, (void *)ProcessCLRException);
+    emitJump((LPBYTE)pHp->CLRPersonalityRoutine, (void *)ProcessCLRException);
 #endif
 
     pCodeHeap.SuppressRelease();
@@ -4285,15 +4359,17 @@ BOOL ExecutionManager::IsCacheCleanupRequired( void )
 /*********************************************************************/
 // This static method returns the name of the jit dll
 //
-LPWSTR ExecutionManager::GetJitName()
+LPCWSTR ExecutionManager::GetJitName()
 {
     STANDARD_VM_CONTRACT;
 
-    LPWSTR  pwzJitName;
+    LPCWSTR  pwzJitName = NULL;
 
+#if !defined(FEATURE_CORECLR)
     // Try to obtain a name for the jit library from the env. variable
-    IfFailThrow(CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_JitName, &pwzJitName));
-
+    IfFailThrow(CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_JitName, const_cast<LPWSTR *>(&pwzJitName)));
+#endif // !FEATURE_CORECLR
+    
     if (NULL == pwzJitName)
     {
         pwzJitName = MAKEDLLNAME_W(W("clrjit"));
@@ -4301,7 +4377,7 @@ LPWSTR ExecutionManager::GetJitName()
 
     return pwzJitName;
 }
-#endif // FEATURE_MERGE_JIT_AND_ENGINE
+#endif // !FEATURE_MERGE_JIT_AND_ENGINE
 
 #endif // #ifndef DACCESS_COMPILE
 

@@ -85,6 +85,33 @@ static void WinContextToUnwindContext(CONTEXT *winContext, unw_context_t *unwCon
 #undef ASSIGN_REG
 }
 #else
+static void WinContextToUnwindContext(CONTEXT *winContext, unw_context_t *unwContext)
+{
+#if defined(_ARM_)    
+    // Assuming that unw_set_reg() on cursor will point the cursor to the
+    // supposed stack frame is dangerous for libunwind-arm in Linux.
+    // It is because libunwind's unw_cursor_t has other data structure
+    // initialized by unw_init_local(), which are not updated by
+    // unw_set_reg().
+    unwContext->regs[0] = 0;
+    unwContext->regs[1] = 0;
+    unwContext->regs[2] = 0;
+    unwContext->regs[3] = 0;
+    unwContext->regs[4] = winContext->R4;
+    unwContext->regs[5] = winContext->R5;
+    unwContext->regs[6] = winContext->R6;
+    unwContext->regs[7] = winContext->R7;
+    unwContext->regs[8] = winContext->R8;
+    unwContext->regs[9] = winContext->R9;
+    unwContext->regs[10] = winContext->R10;
+    unwContext->regs[11] = winContext->R11;
+    unwContext->regs[12] = 0;
+    unwContext->regs[13] = winContext->Sp;
+    unwContext->regs[14] = winContext->Lr;
+    unwContext->regs[15] = winContext->Pc;
+#endif    
+} 
+
 static void WinContextToUnwindCursor(CONTEXT *winContext, unw_cursor_t *cursor)
 {
 #if defined(_AMD64_)
@@ -96,30 +123,6 @@ static void WinContextToUnwindCursor(CONTEXT *winContext, unw_cursor_t *cursor)
     unw_set_reg(cursor, UNW_X86_64_R13, winContext->R13);
     unw_set_reg(cursor, UNW_X86_64_R14, winContext->R14);
     unw_set_reg(cursor, UNW_X86_64_R15, winContext->R15);
-#elif defined(_ARM_)
-    // Assuming that unw_set_reg() on cursor will point the cursor to the
-    // supposed stack frame is dangerous for libunwind-arm in Linux.
-    // It is because libunwind's unw_cursor_t has other data structure
-    // initialized by unw_init_local(), which are not updated by
-    // unw_set_reg().
-    unw_context_t context;
-    context.regs[0] = 0;
-    context.regs[1] = 0;
-    context.regs[2] = 0;
-    context.regs[3] = 0;
-    context.regs[4] = winContext->R4;
-    context.regs[5] = winContext->R5;
-    context.regs[6] = winContext->R6;
-    context.regs[7] = winContext->R7;
-    context.regs[8] = winContext->R8;
-    context.regs[9] = winContext->R9;
-    context.regs[10] = winContext->R10;
-    context.regs[11] = winContext->R11;
-    context.regs[12] = 0;
-    context.regs[13] = winContext->Sp;
-    context.regs[14] = winContext->Lr;
-    context.regs[15] = winContext->Pc;
-    unw_init_local(cursor, &context);
 #endif
 }
 #endif
@@ -138,7 +141,6 @@ static void UnwindContextToWinContext(unw_cursor_t *cursor, CONTEXT *winContext)
 #elif defined(_ARM_)
     unw_get_reg(cursor, UNW_REG_SP, (unw_word_t *) &winContext->Sp);
     unw_get_reg(cursor, UNW_REG_IP, (unw_word_t *) &winContext->Pc);
-    winContext->Pc &= ~0x1;
     unw_get_reg(cursor, UNW_ARM_R14, (unw_word_t *) &winContext->Lr);
     unw_get_reg(cursor, UNW_ARM_R4, (unw_word_t *) &winContext->R4);
     unw_get_reg(cursor, UNW_ARM_R5, (unw_word_t *) &winContext->R5);
@@ -226,7 +228,7 @@ BOOL PAL_VirtualUnwind(CONTEXT *context, KNONVOLATILE_CONTEXT_POINTERS *contextP
     unw_context_t unwContext;
     unw_cursor_t cursor;
 
-#if defined(__APPLE__) || defined(__FreeBSD__) || defined(_ARM64_) || defined(_ARM_)
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(_ARM64_) || defined(_ARM_)
     DWORD64 curPc;
 #endif
 
@@ -242,15 +244,16 @@ BOOL PAL_VirtualUnwind(CONTEXT *context, KNONVOLATILE_CONTEXT_POINTERS *contextP
         CONTEXTSetPC(context, CONTEXTGetPC(context) + 1);
     }
 
-#if UNWIND_CONTEXT_IS_UCONTEXT_T
-    WinContextToUnwindContext(context, &unwContext);
-#else
+#if !UNWIND_CONTEXT_IS_UCONTEXT_T
     st = unw_getcontext(&unwContext);
     if (st < 0)
     {
         return FALSE;
     }
 #endif
+
+    WinContextToUnwindContext(context, &unwContext);
+
     st = unw_init_local(&cursor, &unwContext);
     if (st < 0)
     {
@@ -262,8 +265,8 @@ BOOL PAL_VirtualUnwind(CONTEXT *context, KNONVOLATILE_CONTEXT_POINTERS *contextP
     WinContextToUnwindCursor(context, &cursor);
 #endif
 
-#if defined(__APPLE__) || defined(__FreeBSD__) || defined(_ARM64_) || defined(_ARM_)
-    // OSX and FreeBSD appear to do two different things when unwinding
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__)  || defined(_ARM64_) || defined(_ARM_)
+    // FreeBSD, NetBSD and OSX appear to do two different things when unwinding
     // 1: If it reaches where it cannot unwind anymore, say a 
     // managed frame.  It wil return 0, but also update the $pc
     // 2: If it unwinds all the way to _start it will return
@@ -295,7 +298,7 @@ BOOL PAL_VirtualUnwind(CONTEXT *context, KNONVOLATILE_CONTEXT_POINTERS *contextP
     // Update the passed in windows context to reflect the unwind
     //
     UnwindContextToWinContext(&cursor, context);
-#if defined(__APPLE__) || defined(__FreeBSD__) || defined(_ARM64_) || defined(_ARM_)
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__)  || defined(_ARM64_) || defined(_ARM_)
     if (st == 0 && CONTEXTGetPC(context) == curPc)
     {
         CONTEXTSetPC(context, 0);

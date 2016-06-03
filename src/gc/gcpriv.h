@@ -2652,6 +2652,7 @@ protected:
     PER_HEAP_ISOLATED
     BOOL commit_mark_array_new_seg (gc_heap* hp, 
                                     heap_segment* seg,
+                                    uint32_t* new_card_table = 0,
                                     uint8_t* new_lowest_address = 0);
 
     PER_HEAP_ISOLATED
@@ -2956,9 +2957,6 @@ public:
 
     PER_HEAP_ISOLATED
     uint64_t entry_available_physical_mem;
-
-    PER_HEAP_ISOLATED
-    bool restricted_physical_memory_p;
 
     PER_HEAP_ISOLATED
     size_t last_gc_index;

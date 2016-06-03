@@ -231,11 +231,11 @@ TODO: Talk about initializing strutures before use
 #if COR_JIT_EE_VERSION > 460
 
 // Update this one
-SELECTANY const GUID JITEEVersionIdentifier = { /* 27626524-7315-4ed0-b74e-a0e4579883bb */
-    0x27626524, 
-    0x7315, 
-    0x4ed0, 
-    { 0xb7, 0x4e, 0xa0, 0xe4, 0x57, 0x98, 0x83, 0xbb }
+SELECTANY const GUID JITEEVersionIdentifier = { /* 718c4238-2a85-45de-88ad-9b1fed806547 */
+    0x718c4238,
+    0x2a85,
+    0x45de,
+    { 0x88, 0xad, 0x9b, 0x1f, 0xed, 0x80, 0x65, 0x47 }
 };
 
 #else
@@ -432,7 +432,10 @@ enum CorInfoHelpFunc
     CORINFO_HELP_NEWFAST,
     CORINFO_HELP_NEWSFAST,          // allocator for small, non-finalizer, non-array object
     CORINFO_HELP_NEWSFAST_ALIGN8,   // allocator for small, non-finalizer, non-array object, 8 byte aligned
-    CORINFO_HELP_NEW_MDARR,         // multi-dim array helper (with or without lower bounds)
+    CORINFO_HELP_NEW_MDARR,         // multi-dim array helper (with or without lower bounds - dimensions passed in as vararg)
+#if COR_JIT_EE_VERSION > 460
+    CORINFO_HELP_NEW_MDARR_NONVARARG,// multi-dim array helper (with or without lower bounds - dimensions passed in as unmanaged array)
+#endif
     CORINFO_HELP_NEWARR_1_DIRECT,   // helper for any one dimensional array creation
     CORINFO_HELP_NEWARR_1_OBJ,      // optimized 1-D object arrays
     CORINFO_HELP_NEWARR_1_VC,       // optimized 1-D value class arrays
@@ -636,8 +639,8 @@ enum CorInfoHelpFunc
     CORINFO_HELP_READYTORUN_CHKCAST,
     CORINFO_HELP_READYTORUN_STATIC_BASE,
     CORINFO_HELP_READYTORUN_VIRTUAL_FUNC_PTR,
-
 #if COR_JIT_EE_VERSION > 460
+    CORINFO_HELP_READYTORUN_GENERIC_HANDLE,
     CORINFO_HELP_READYTORUN_DELEGATE_CTOR,
 #else
     #define CORINFO_HELP_READYTORUN_DELEGATE_CTOR CORINFO_HELP_EE_PRESTUB
@@ -656,13 +659,11 @@ enum CorInfoHelpFunc
     CORINFO_HELP_EE_PERSONALITY_ROUTINE,// Not real JIT helper. Used in native images.
     CORINFO_HELP_EE_PERSONALITY_ROUTINE_FILTER_FUNCLET,// Not real JIT helper. Used in native images to detect filter funclets.
 
+    // ASSIGN_REF_EAX - CHECKED_ASSIGN_REF_EBP: NOGC_WRITE_BARRIERS JIT helper calls
     //
-    // Keep platform-specific helpers at the end so that the ids for the platform neutral helpers stay same accross platforms
+    // For unchecked versions EDX is required to point into GC heap.
     //
-
-#if defined(_TARGET_X86_) || defined(_HOST_X86_) // _HOST_X86_ is for altjit
-                                    // NOGC_WRITE_BARRIERS JIT helper calls
-                                    // Unchecked versions EDX is required to point into GC heap
+    // NOTE: these helpers are only used for x86.
     CORINFO_HELP_ASSIGN_REF_EAX,    // EAX holds GC ptr, do a 'mov [EDX], EAX' and inform GC
     CORINFO_HELP_ASSIGN_REF_EBX,    // EBX holds GC ptr, do a 'mov [EDX], EBX' and inform GC
     CORINFO_HELP_ASSIGN_REF_ECX,    // ECX holds GC ptr, do a 'mov [EDX], ECX' and inform GC
@@ -676,7 +677,6 @@ enum CorInfoHelpFunc
     CORINFO_HELP_CHECKED_ASSIGN_REF_ESI,
     CORINFO_HELP_CHECKED_ASSIGN_REF_EDI,
     CORINFO_HELP_CHECKED_ASSIGN_REF_EBP,
-#endif
 
     CORINFO_HELP_LOOP_CLONE_CHOICE_ADDR, // Return the reference to a counter to decide to take cloned path in debug stress.
     CORINFO_HELP_DEBUG_LOG_LOOP_CLONING, // Print a message that a loop cloning optimization has occurred in debug mode.
@@ -687,6 +687,9 @@ enum CorInfoHelpFunc
 
     CORINFO_HELP_JIT_PINVOKE_BEGIN, // Transition to preemptive mode before a P/Invoke, frame is the first argument
     CORINFO_HELP_JIT_PINVOKE_END,   // Transition to cooperative mode after a P/Invoke, frame is the first argument
+
+    CORINFO_HELP_JIT_REVERSE_PINVOKE_ENTER, // Transition to cooperative mode in reverse P/Invoke prolog, frame is the first argument
+    CORINFO_HELP_JIT_REVERSE_PINVOKE_EXIT,  // Transition to preemptive mode in reverse P/Invoke epilog, frame is the first argument
 #endif
 
     CORINFO_HELP_COUNT,
@@ -969,9 +972,7 @@ enum CorInfoIntrinsics
     CORINFO_INTRINSIC_TypeNEQ,
     CORINFO_INTRINSIC_Object_GetType,
     CORINFO_INTRINSIC_StubHelpers_GetStubContext,
-#ifdef _WIN64
     CORINFO_INTRINSIC_StubHelpers_GetStubContextAddr,
-#endif // _WIN64
     CORINFO_INTRINSIC_StubHelpers_GetNDirectTarget,
     CORINFO_INTRINSIC_InterlockedAdd32,
     CORINFO_INTRINSIC_InterlockedAdd64,
@@ -1303,11 +1304,28 @@ enum CORINFO_RUNTIME_LOOKUP_KIND
     CORINFO_LOOKUP_CLASSPARAM,
 };
 
+#if COR_JIT_EE_VERSION > 460
+
+struct CORINFO_LOOKUP_KIND
+{
+    bool                        needsRuntimeLookup;
+    CORINFO_RUNTIME_LOOKUP_KIND runtimeLookupKind;
+
+    // The 'runtimeLookupFlags' field is just for internal VM / ZAP communication, 
+    // not to be used by the JIT.
+    WORD                        runtimeLookupFlags;
+} ;
+
+#else
+
 struct CORINFO_LOOKUP_KIND
 {
     bool                        needsRuntimeLookup;
     CORINFO_RUNTIME_LOOKUP_KIND runtimeLookupKind;
 } ;
+
+#endif
+
 
 // CORINFO_RUNTIME_LOOKUP indicates the details of the runtime lookup
 // operation to be performed.
@@ -1753,6 +1771,13 @@ struct CORINFO_CPU
     DWORD           dwExtendedFeatures;
 };
 
+enum CORINFO_RUNTIME_ABI
+{
+    CORINFO_DESKTOP_ABI = 0x100,
+    CORINFO_CORECLR_ABI = 0x200,
+    CORINFO_CORERT_ABI = 0x300,
+};
+
 // For some highly optimized paths, the JIT must generate code that directly
 // manipulates internal EE data structures. The getEEInfo() helper returns
 // this structure containing the needed offsets and values.
@@ -1773,7 +1798,7 @@ struct CORINFO_EE_INFO
         unsigned    offsetOfReturnAddress;
     }
     inlinedCallFrameInfo;
-   
+
     // Offsets into the Thread structure
     unsigned    offsetOfThreadFrame;            // offset of the current Frame
     unsigned    offsetOfGCState;                // offset of the preemptive/cooperative state of the Thread
@@ -1789,6 +1814,21 @@ struct CORINFO_EE_INFO
     // Array offsets
     unsigned    offsetOfObjArrayData;
 
+#if COR_JIT_EE_VERSION > 460
+    // Reverse PInvoke offsets
+    unsigned    sizeOfReversePInvokeFrame;
+
+    // OS Page size
+    size_t      osPageSize;
+
+    // Null object offset
+    size_t      maxUncheckedOffsetForNullObject;
+
+    // Target ABI. Combined with target architecture and OS to determine
+    // GC, EH, and unwind styles.
+    CORINFO_RUNTIME_ABI targetAbi;
+#endif
+
     CORINFO_OS  osType;
     unsigned    osMajor;
     unsigned    osMinor;
@@ -1803,17 +1843,20 @@ enum { LCL_FINALLY_MARK = 0xFC }; // FC = "Finally Call"
  * The following is the internal structure of an object that the compiler knows about
  * when it generates code
  **********************************************************************************/
-#include <pshpack4.h>
+
+#if COR_JIT_EE_VERSION <= 460
 
 #define CORINFO_PAGE_SIZE   0x1000                           // the page size on the machine
-
-// <TODO>@TODO: put this in the CORINFO_EE_INFO data structure</TODO>
 
 #ifndef FEATURE_PAL
 #define MAX_UNCHECKED_OFFSET_FOR_NULL_OBJECT ((32*1024)-1)   // when generating JIT code
 #else // !FEATURE_PAL
 #define MAX_UNCHECKED_OFFSET_FOR_NULL_OBJECT ((OS_PAGE_SIZE / 2) - 1)
 #endif // !FEATURE_PAL
+
+#endif // COR_JIT_EE_VERISION <= 460
+
+#include <pshpack4.h>
 
 typedef void* CORINFO_MethodPtr;            // a generic method pointer
 
@@ -2153,8 +2196,18 @@ public:
     //
     /**********************************************************************************/
 
-    // Resolve metadata token into runtime method handles.
+    // Resolve metadata token into runtime method handles. This function may not
+    // return normally (e.g. it may throw) if it encounters invalid metadata or other
+    // failures during token resolution.
     virtual void resolveToken(/* IN, OUT */ CORINFO_RESOLVED_TOKEN * pResolvedToken) = 0;
+
+#if COR_JIT_EE_VERSION > 460
+    // Attempt to resolve a metadata token into a runtime method handle. Returns true
+    // if resolution succeeded and false otherwise (e.g. if it encounters invalid metadata
+    // during token reoslution). This method should be used instead of `resolveToken` in
+    // situations that need to be resilient to invalid metadata.
+    virtual bool tryResolveToken(/* IN, OUT */ CORINFO_RESOLVED_TOKEN * pResolvedToken) = 0;
+#endif
 
     // Signature information about the call sig
     virtual void findSig (
@@ -2384,19 +2437,27 @@ public:
             CORINFO_CLASS_HANDLE        cls
             ) = 0;
 
-    virtual void getReadyToRunHelper(
-            CORINFO_RESOLVED_TOKEN * pResolvedToken,
-            CorInfoHelpFunc          id,
-            CORINFO_CONST_LOOKUP *   pLookup
+#if COR_JIT_EE_VERSION > 460
+    virtual bool getReadyToRunHelper(
+            CORINFO_RESOLVED_TOKEN *        pResolvedToken,
+            CORINFO_LOOKUP_KIND *           pGenericLookupKind,
+            CorInfoHelpFunc                 id,
+            CORINFO_CONST_LOOKUP *          pLookup
             ) = 0;
 
-#if COR_JIT_EE_VERSION > 460
     virtual void getReadyToRunDelegateCtorHelper(
             CORINFO_RESOLVED_TOKEN * pTargetMethod,
             CORINFO_CLASS_HANDLE     delegateType,
             CORINFO_CONST_LOOKUP *   pLookup
             ) = 0;
+#else
+    virtual void getReadyToRunHelper(
+            CORINFO_RESOLVED_TOKEN * pResolvedToken,
+            CorInfoHelpFunc          id,
+            CORINFO_CONST_LOOKUP *   pLookup
+            ) = 0;
 #endif
+
 
     virtual const char* getHelperName(
             CorInfoHelpFunc
@@ -2712,6 +2773,17 @@ public:
     //Throws an exception defined by the given throw helper.
     virtual void ThrowExceptionForHelper(
             const CORINFO_HELPER_DESC * throwHelper) = 0;
+
+#if COR_JIT_EE_VERSION > 460
+    // Runs the given function under an error trap. This allows the JIT to make calls
+    // to interface functions that may throw exceptions without needing to be aware of
+    // the EH ABI, exception types, etc. Returns true if the given function completed
+    // successfully and false otherwise.
+    virtual bool runWithErrorTrap(
+        void (*function)(void*), // The function to run
+        void* parameter          // The context parameter that will be passed to the function and the handler
+        ) = 0;
+#endif
 
 /*****************************************************************************
  * ICorStaticInfo contains EE interface methods which return values that are
