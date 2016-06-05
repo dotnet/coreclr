@@ -664,11 +664,29 @@ void                Compiler::raSetupArgMasks(RegState *regState)
 // by linear scan. (It is not shared for System V AMD64 platform.)
 regNumber     Compiler::raUpdateRegStateForArg(RegState *regState, LclVarDsc *argDsc)
 {
-    regNumber inArgReg = argDsc->lvArgReg;
+    regNumber inArgReg  = argDsc->lvArgReg;
+    regMaskTP inArgMask = genRegMask(inArgReg);
 
-    noway_assert(genRegMask(inArgReg) & (regState->rsIsFloat ? RBM_FLTARG_REGS : RBM_ARG_REGS));
+    if (regState->rsIsFloat)
+    {
+        noway_assert(inArgMask & RBM_FLTARG_REGS);
+    }
+    else //  regState is for the integer registers
+    {
+        // This might be the fixed return buffer register argument (on ARM64)
+        // We check and allow inArgReg to be theFixedRetBuffReg
+        if (hasFixedRetBuffReg() && (inArgReg == theFixedRetBuffReg()))
+        {
+            // We should have a TYP_BYREF arg not a TYP_STRUCT arg
+            noway_assert(argDsc->lvType != TYP_STRUCT);
+        }
+        else
+        {
+            noway_assert(inArgMask & RBM_ARG_REGS);
+        }
+    }
 
-    regState->rsCalleeRegArgMaskLiveIn |= genRegMask(inArgReg);
+    regState->rsCalleeRegArgMaskLiveIn |= inArgMask;
 
 #ifdef _TARGET_ARM_
     if (argDsc->lvType == TYP_DOUBLE)

@@ -3261,7 +3261,13 @@ unsigned           genMapIntRegNumToRegArgNum(regNumber regNum)
 #endif
 #endif
 #endif
-    default: assert(!"invalid register arg register"); return (unsigned)-1;
+    default: 
+        if (hasFixedRetBuffReg() && (regNum == theFixedRetBuffReg()))
+        {
+            return (unsigned) regNum;
+        }
+        assert(!"invalid register arg register"); 
+        return (unsigned)-1;
     }
 }
 
