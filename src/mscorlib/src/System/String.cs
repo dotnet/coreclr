@@ -508,10 +508,15 @@ namespace System {
                 
                 goto FallbackLoop;
                 
+#if WIN64
+                DiffOffset8: diffOffset += 4;
+                DiffOffset4: diffOffset += 4;
+#else
                 DiffOffset8: diffOffset += 2;
                 DiffOffset6: diffOffset += 2;
                 DiffOffset4: diffOffset += 2;
                 DiffOffset2: diffOffset += 2;
+#endif
 
                 a += diffOffset;
                 b += diffOffset;
