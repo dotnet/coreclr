@@ -469,7 +469,7 @@ namespace System {
             Contract.Requires(strB != null);
 
             int length = Math.Min(strA.Length, strB.Length);
-            int diffOffset = -1;
+            int diffOffset = 0;
 
             fixed (char* ap = &strA.m_firstChar) fixed (char* bp = &strB.m_firstChar)
             {
@@ -479,52 +479,41 @@ namespace System {
                 // unroll the loop
                 while (length >= 10)
                 {
-                    if (*(int*)a != *(int*)b) { 
-                        diffOffset = 0; 
-                        break;
-                    }
-                    
-                    if (*(int*)(a+2) != *(int*)(b+2)) {
-                        diffOffset = 2;
-                        break;
-                    }
-                    
-                    if (*(int*)(a+4) != *(int*)(b+4)) {
-                        diffOffset = 4;
-                        break;
-                    }
-                    
-                    if (*(int*)(a+6) != *(int*)(b+6)) {
-                        diffOffset = 6;
-                        break;
-                    }
-                    
-                    if (*(int*)(a+8) != *(int*)(b+8)) {
-                        diffOffset = 8;
-                        break;
-                    }
+                    if (*(int*)a != *(int*)b) goto DiffOffset0;
+                    if (*(int*)(a+2) != *(int*)(b+2)) goto DiffOffset2;
+                    if (*(int*)(a+4) != *(int*)(b+4)) goto DiffOffset4;
+                    if (*(int*)(a+6) != *(int*)(b+6)) goto DiffOffset6;
+                    if (*(int*)(a+8) != *(int*)(b+8)) goto DiffOffset8;
                     length -= 10;
                     a += 10; 
                     b += 10; 
                 }
+                
+                goto FallbackLoop;
+                
+                DiffOffset8: diffOffset += 2;
+                DiffOffset6: diffOffset += 2;
+                DiffOffset4: diffOffset += 2;
+                DiffOffset2: diffOffset += 2;
 
-                if( diffOffset != -1) {
-                    // we already see a difference in the unrolled loop above
-                    a += diffOffset;
-                    b += diffOffset;
-                    int order;
-                    if ( (order = (int)*a - (int)*b) != 0) {
-                        return order;
-                    }
-                    Contract.Assert( *(a+1) != *(b+1), "This byte must be different if we reach here!");
-                    return ((int)*(a+1) - (int)*(b+1));                    
+                a += diffOffset;
+                b += diffOffset;
+                
+                DiffOffset0:
+                // If we reached here, we already see a difference in the unrolled loop above
+                int order;
+                if ( (order = (int)*a - (int)*b) != 0) {
+                    return order;
                 }
+                Contract.Assert( *(a+1) != *(b+1), "This byte must be different if we reach here!");
+                return ((int)*(a+1) - (int)*(b+1));                    
 
                 // now go back to slower code path and do comparison on 4 bytes at a time.
                 // This depends on the fact that the String objects are
                 // always zero terminated and that the terminating zero is not included
                 // in the length. For odd string sizes, the last compare will include
                 // the zero terminator.
+                FallbackLoop:
                 while (length > 0) {
                     if (*(int*)a != *(int*)b) {
                         break;
