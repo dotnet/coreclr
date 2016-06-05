@@ -465,8 +465,9 @@ namespace System {
         [System.Security.SecuritySafeCritical]  // auto-generated
         private unsafe static int CompareOrdinalHelper(String strA, String strB)
         {
-            Contract.Requires(strA != null);
-            Contract.Requires(strB != null);
+            Contract.Assert(strA != null);
+            Contract.Assert(strB != null);
+            Contract.Assert(strA.m_firstChar - strB.m_firstChar != 0);
 
             int length = Math.Min(strA.Length, strB.Length);
             int diffOffset = 0;
@@ -477,6 +478,21 @@ namespace System {
                 char* b = bp;
 
                 // unroll the loop
+#if WIN64
+                // First, align on a 8-byte boundary
+                if (*(int*)a != *(int*)b) return 0;
+                length -= 2; a += 2; b += 2;
+
+                while (length >= 12)
+                {
+                    if (*(long*)a != *(long*)b) goto DiffOffset0;
+                    if (*(long*)(a + 4) != *(long*)(b + 4)) goto DiffOffset4;
+                    if (*(long*)(a + 8) != *(long*)(b + 8)) goto DiffOffset8;
+                    length -= 12;
+                    a += 12;
+                    b += 12;
+                }
+#else
                 while (length >= 10)
                 {
                     if (*(int*)a != *(int*)b) goto DiffOffset0;
@@ -488,6 +504,7 @@ namespace System {
                     a += 10; 
                     b += 10; 
                 }
+#endif
                 
                 goto FallbackLoop;
                 
@@ -501,12 +518,24 @@ namespace System {
                 
                 DiffOffset0:
                 // If we reached here, we already see a difference in the unrolled loop above
+#if WIN64
+                int order;
+                if ((order = (int)*a - (int)*b) != 0) goto ReturnOrder;
+                if ((order = (int)*(a + 1) - (int)*(b + 1)) != 0) goto ReturnOrder;
+                if ((order = (int)*(a + 2) - (int)*(b + 2)) != 0) goto ReturnOrder;
+                Contract.Assert(*(a + 3) != *(b + 3), "This byte must be different if we reach here!");
+                order = (int)*(a + 3) - (int)*(b + 3);
+                
+                ReturnOrder:
+                return order;
+#else
                 int order;
                 if ( (order = (int)*a - (int)*b) != 0) {
                     return order;
                 }
                 Contract.Assert( *(a+1) != *(b+1), "This byte must be different if we reach here!");
                 return ((int)*(a+1) - (int)*(b+1));                    
+#endif
 
                 // now go back to slower code path and do comparison on 4 bytes at a time.
                 // This depends on the fact that the String objects are
@@ -2163,6 +2192,7 @@ namespace System {
             }
 
             // Most common case, first character is different.
+            // This will return false for empty strings.
             if ((strA.m_firstChar - strB.m_firstChar) != 0)
             {
                 return strA.m_firstChar - strB.m_firstChar;
