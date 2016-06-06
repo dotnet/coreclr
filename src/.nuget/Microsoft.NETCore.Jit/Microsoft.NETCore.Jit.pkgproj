@@ -9,6 +9,7 @@
     <PackagePlatforms>x64;x86;arm</PackagePlatforms>
     <OutputPath>$(PackagesOutputPath)</OutputPath>
     <IncludeRuntimeJson>true</IncludeRuntimeJson>
+    <Serviceable>true</Serviceable>
   </PropertyGroup>
 
   <ItemGroup>
