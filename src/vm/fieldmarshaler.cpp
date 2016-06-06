@@ -3573,7 +3573,7 @@ VOID FieldMarshaler_FixedArray::UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pN
     else
     {
         // Make sure the size of the array is the same as specified in the MarshalAs attribute (via the SizeConst field).
-        if ((*pCLRValue)->GetNumComponents() < m_numElems)
+        if ((*pCLRValue)->GetNumComponents() != m_numElems)
             COMPlusThrow(kArgumentException, IDS_WRONGSIZEARRAY_IN_NSTRUCT);
 
         // Marshal the contents from the managed array to the native array.
