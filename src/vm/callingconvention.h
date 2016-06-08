@@ -13,6 +13,8 @@
 #ifndef __CALLING_CONVENTION_INCLUDED
 #define __CALLING_CONVENTION_INCLUDED
 
+BOOL IsRetBuffPassedAsFirstArg();
+
 // Describes how a single argument is laid out in registers and/or stack locations when given as an input to a
 // managed method as part of a larger signature.
 //
