@@ -20,10 +20,10 @@
     <!-- ApiSets are only applicable for Windows. 
          Despite the unconditioned package dependency it is constrained by runtime IDs within it's own package -->
     <Dependency Include="Microsoft.NETCore.Windows.ApiSets">
-      <Version>1.0.1-rc3-23915</Version>
+      <Version>1.0.1</Version>
     </Dependency>
     <Dependency Include="Microsoft.NETCore.Jit">
-      <Version>1.0.2$(VersionSuffix)</Version>
+      <Version>1.0.2</Version>
     </Dependency>
     <ProjectReference Include="win\Microsoft.NETCore.Runtime.CoreCLR.pkgproj">
       <Platform>amd64</Platform>
