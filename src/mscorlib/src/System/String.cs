@@ -512,8 +512,23 @@ namespace System {
                     length -= 10; a += 10; b += 10; 
                 }
 #endif
-                
-                goto FallbackLoop;
+
+                // Fallback loop:
+                // go back to slower code path and do comparison on 4 bytes at a time.
+                // This depends on the fact that the String objects are
+                // always zero terminated and that the terminating zero is not included
+                // in the length. For odd string sizes, the last compare will include
+                // the zero terminator.
+                while (length > 0) {
+                    if (*(int*)a != *(int*)b) goto DiffNextInt;
+                    length -= 2;
+                    a += 2; 
+                    b += 2; 
+                }
+
+                // At this point, we have compared all the characters in at least one string.
+                // The longer string will be larger.
+                return strA.Length - strB.Length;
                 
 #if WIN64
                 DiffOffset8: diffOffset += 4;
@@ -544,23 +559,6 @@ namespace System {
                 }
                 Contract.Assert( *(a+1) != *(b+1), "This char must be different if we reach here!");
                 return ((int)*(a+1) - (int)*(b+1));
-
-                // now go back to slower code path and do comparison on 4 bytes at a time.
-                // This depends on the fact that the String objects are
-                // always zero terminated and that the terminating zero is not included
-                // in the length. For odd string sizes, the last compare will include
-                // the zero terminator.
-                FallbackLoop:
-                while (length > 0) {
-                    if (*(int*)a != *(int*)b) goto DiffNextInt;
-                    length -= 2;
-                    a += 2; 
-                    b += 2; 
-                }
-
-                // At this point, we have compared all the characters in at least one string.
-                // The longer string will be larger.
-                return strA.Length - strB.Length;
             }
         }
 
