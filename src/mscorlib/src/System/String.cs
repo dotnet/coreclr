@@ -572,6 +572,7 @@ namespace System {
         // Determines whether two strings match.
         [Pure]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(String value)
         {
 #if !FEATURE_CORECLR
@@ -649,6 +650,7 @@ namespace System {
 
         // Determines whether two Strings match.
         [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool Equals(String a, String b) {
             if ((Object)a==(Object)b) {
                 return true;
