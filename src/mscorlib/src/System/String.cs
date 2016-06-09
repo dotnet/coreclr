@@ -537,6 +537,7 @@ namespace System {
                 }
 #endif
                 
+                DiffNextInt:
                 int order;
                 if ( (order = (int)*a - (int)*b) != 0) {
                     return order;
@@ -551,22 +552,10 @@ namespace System {
                 // the zero terminator.
                 FallbackLoop:
                 while (length > 0) {
-                    if (*(int*)a != *(int*)b) {
-                        break;
-                    }
+                    if (*(int*)a != *(int*)b) goto DiffNextInt;
                     length -= 2;
                     a += 2; 
                     b += 2; 
-                }
-
-                if( length > 0) { 
-                    int c;
-                    // found a different int on above loop
-                    if ( (c = (int)*a - (int)*b) != 0) {
-                        return c;
-                    }
-                    Contract.Assert( *(a+1) != *(b+1), "This char must be different if we reach here!");
-                    return ((int)*(a+1) - (int)*(b+1));                                        
                 }
 
                 // At this point, we have compared all the characters in at least one string.
