@@ -561,10 +561,7 @@ namespace System {
                 return true;
 
             string str = obj as string;
-            if (str == null)
-                return false;
-
-            if (this.Length != str.Length)
+            if (str == null || this.Length != str.Length)
                 return false;
 
             return EqualsHelper(this, str);
@@ -585,10 +582,7 @@ namespace System {
             // If either side of an == comparison between strings
             // is null, Roslyn generates a simple ceq instruction
             // instead of calling string.op_Equality.
-            if (value == null)
-                return false;
-            
-            if (this.Length != value.Length)
+            if (value == null || this.Length != value.Length)
                 return false;
 
             return EqualsHelper(this, value);
