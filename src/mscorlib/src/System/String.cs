@@ -541,7 +541,7 @@ namespace System {
                 if ( (order = (int)*a - (int)*b) != 0) {
                     return order;
                 }
-                Contract.Assert( *(a+1) != *(b+1), "This byte must be different if we reach here!");
+                Contract.Assert( *(a+1) != *(b+1), "This char must be different if we reach here!");
                 return ((int)*(a+1) - (int)*(b+1));
 
                 // now go back to slower code path and do comparison on 4 bytes at a time.
@@ -565,7 +565,7 @@ namespace System {
                     if ( (c = (int)*a - (int)*b) != 0) {
                         return c;
                     }
-                    Contract.Assert( *(a+1) != *(b+1), "This byte must be different if we reach here!");
+                    Contract.Assert( *(a+1) != *(b+1), "This char must be different if we reach here!");
                     return ((int)*(a+1) - (int)*(b+1));                                        
                 }
 
