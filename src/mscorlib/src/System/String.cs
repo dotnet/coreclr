@@ -42,7 +42,7 @@ namespace System {
     // Console.WriteLine(s);
     //
     [ComVisible(true)]
-    [Serializable] 
+    [Serializable]
     public sealed class String : IComparable, ICloneable, IConvertible, IEnumerable
         , IComparable<String>, IEnumerable<char>, IEquatable<String>
     {
@@ -51,13 +51,22 @@ namespace System {
         //NOTE NOTE NOTE NOTE
         //These fields map directly onto the fields in an EE StringObject.  See object.h for the layout.
         //
-        [NonSerialized]private int  m_stringLength;
+        [NonSerialized] private int m_stringLength;
 
-        [NonSerialized]private char m_firstChar;
+        // For empty strings, this will be '\0' since
+        // strings are both null-terminated and length prefixed
+        [NonSerialized] private char m_firstChar;
+        
+        // For empty strings, this will be null due to padding.
+        // The null terminator of an empty string takes up 2
+        // bytes, and the rest of the string object takes up
+        // a multiple of 4 bytes, so there's some left over
+        // to make the size a multiple of 4/8 bytes for
+        // alignment purposes.
+        
+        // For one-char strings this will be the null terminator.
+        [NonSerialized] private char m_secondChar;
 
-        //private static readonly char FmtMsgMarkerChar='%';
-        //private static readonly char FmtMsgFmtCodeChar='!';
-        //These are defined in Com99/src/vm/COMStringCommon.h and must be kept in sync.
         private const int TrimHead = 0;
         private const int TrimTail = 1;
         private const int TrimBoth = 2;
@@ -467,7 +476,7 @@ namespace System {
         {
             Contract.Assert(strA != null);
             Contract.Assert(strB != null);
-            Contract.Assert(strA.m_firstChar - strB.m_firstChar != 0);
+            Contract.Assert(strA.m_firstChar == strB.m_firstChar && strA.m_secondChar == strB.m_secondChar);
 
             int length = Math.Min(strA.Length, strB.Length);
             int diffOffset = 0;
@@ -476,21 +485,21 @@ namespace System {
             {
                 char* a = ap;
                 char* b = bp;
+                
+                // Since we know that the first two chars are the same,
+                // we can increment by 2 here and skip 4 bytes.
+                // This leaves us 8-byte aligned, which results
+                // on better perf for 64-bit platforms.
+                length -= 2; a += 2; b += 2;
 
                 // unroll the loop
 #if WIN64
-                // First, align on a 8-byte boundary
-                if (*(int*)a != *(int*)b) return 0;
-                length -= 2; a += 2; b += 2;
-
                 while (length >= 12)
                 {
                     if (*(long*)a != *(long*)b) goto DiffOffset0;
                     if (*(long*)(a + 4) != *(long*)(b + 4)) goto DiffOffset4;
                     if (*(long*)(a + 8) != *(long*)(b + 8)) goto DiffOffset8;
-                    length -= 12;
-                    a += 12;
-                    b += 12;
+                    length -= 12; a += 12; b += 12;
                 }
 #else
                 while (length >= 10)
@@ -500,9 +509,7 @@ namespace System {
                     if (*(int*)(a+4) != *(int*)(b+4)) goto DiffOffset4;
                     if (*(int*)(a+6) != *(int*)(b+6)) goto DiffOffset6;
                     if (*(int*)(a+8) != *(int*)(b+8)) goto DiffOffset8;
-                    length -= 10;
-                    a += 10; 
-                    b += 10; 
+                    length -= 10; a += 10; b += 10; 
                 }
 #endif
                 
@@ -524,23 +531,18 @@ namespace System {
                 DiffOffset0:
                 // If we reached here, we already see a difference in the unrolled loop above
 #if WIN64
-                int order;
-                if ((order = (int)*a - (int)*b) != 0) goto ReturnOrder;
-                if ((order = (int)*(a + 1) - (int)*(b + 1)) != 0) goto ReturnOrder;
-                if ((order = (int)*(a + 2) - (int)*(b + 2)) != 0) goto ReturnOrder;
-                Contract.Assert(*(a + 3) != *(b + 3), "This byte must be different if we reach here!");
-                order = (int)*(a + 3) - (int)*(b + 3);
+                if (*(int*)a == *(int*)b)
+                {
+                    a += 2; b += 2;
+                }
+#endif
                 
-                ReturnOrder:
-                return order;
-#else
                 int order;
                 if ( (order = (int)*a - (int)*b) != 0) {
                     return order;
                 }
                 Contract.Assert( *(a+1) != *(b+1), "This byte must be different if we reach here!");
-                return ((int)*(a+1) - (int)*(b+1));                    
-#endif
+                return ((int)*(a+1) - (int)*(b+1));
 
                 // now go back to slower code path and do comparison on 4 bytes at a time.
                 // This depends on the fact that the String objects are
@@ -1885,9 +1887,27 @@ namespace System {
 
                 case StringComparison.Ordinal:
                     // Most common case: first character is different.
-                    if ((strA.m_firstChar - strB.m_firstChar) != 0)
+                    // Returns false for empty strings.
+                    if (strA.m_firstChar != strB.m_firstChar)
                     {
                         return strA.m_firstChar - strB.m_firstChar;
+                    }
+                    
+                    // Also check if the second character is different
+                    // This allows us to align the pointer better in
+                    // CompareOrdinalHelper on 64-bit platforms, since
+                    // if we know the first two chars are the same
+                    // we can increment the starting position by 4,
+                    // which leaves us 8-byte aligned.
+                    
+                    // The reason we don't do this in CompareOrdinalHelper
+                    // itself is because checking here allows us to avoid
+                    // a method call and prematurely pinning the string.
+                    
+                    // Returns false for empty/one-char strings.
+                    if (strA.m_secondChar != strB.m_secondChar)
+                    {
+                        return strA.m_secondChar - strB.m_secondChar;
                     }
 
                     return CompareOrdinalHelper(strA, strB);
@@ -2198,9 +2218,26 @@ namespace System {
 
             // Most common case, first character is different.
             // This will return false for empty strings.
-            if ((strA.m_firstChar - strB.m_firstChar) != 0)
+            if (strA.m_firstChar != strB.m_firstChar)
             {
                 return strA.m_firstChar - strB.m_firstChar;
+            }
+            
+            // Also check if the second character is different
+            // This allows us to align the pointer better in
+            // CompareOrdinalHelper on 64-bit platforms, since
+            // if we know the first two chars are the same
+            // we can increment the starting position by 4,
+            // which leaves us 8-byte aligned.
+            
+            // The reason we don't do this in CompareOrdinalHelper
+            // itself is because checking here allows us to avoid
+            // a method call and prematurely pinning the string.
+            
+            // Returns false for empty/one-char strings.
+            if (strA.m_secondChar != strB.m_secondChar)
+            {
+                return strA.m_secondChar - strB.m_secondChar;
             }
 
             return CompareOrdinalHelper(strA, strB);
