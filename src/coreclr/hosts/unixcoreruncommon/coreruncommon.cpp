@@ -340,7 +340,6 @@ int ExecuteManagedAssembly(
                 "APP_PATHS",
                 "APP_NI_PATHS",
                 "NATIVE_DLL_SEARCH_DIRECTORIES",
-                "AppDomainCompatSwitch",
                 "System.GC.Server",
             };
             const char *propertyValues[] = {
@@ -352,8 +351,6 @@ int ExecuteManagedAssembly(
                 appPath.c_str(),
                 // NATIVE_DLL_SEARCH_DIRECTORIES
                 nativeDllSearchDirs.c_str(),
-                // AppDomainCompatSwitch
-                "UseLatestBehaviorWhenTFMNotSpecified",
                 // System.GC.Server
                 useServerGc,
             };
