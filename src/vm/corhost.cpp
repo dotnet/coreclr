@@ -1324,7 +1324,7 @@ HRESULT CorHost2::ExecuteAssembly(DWORD dwAppDomainId,
 
     _ASSERTE (!pThread->PreemptiveGCDisabled());
 
-    Assembly *pAssembly = AssemblySpec::LoadAssembly(pwzAssemblyPath);
+    Assembly *pAssembly = AssemblySpec::LoadAssembly(pwzAssemblyPath, TRUE);
 
 #if defined(FEATURE_MULTICOREJIT)
     pCurDomain->GetMulticoreJitManager().AutoStartProfile(pCurDomain);

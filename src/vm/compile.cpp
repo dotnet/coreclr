@@ -7997,7 +7997,8 @@ PEAssembly *CompilationDomain::BindAssemblySpec(
     BOOL fRaisePrebindEvents,
     StackCrawlMark *pCallerStackMark,
     AssemblyLoadSecurity *pLoadSecurity,
-    BOOL fUseHostBinderIfAvailable)
+    BOOL fUseHostBinderIfAvailable,
+    BOOL fUseExplicitPath)
 {
     PEAssembly *pFile = NULL;
     //
