@@ -377,6 +377,7 @@ function create_core_overlay {
         # Test dependencies come from a Windows build, and mscorlib.ni.dll would be the one from Windows
         rm -f "$coreOverlayDir/mscorlib.ni.dll"
     fi
+    copy_test_native_bin_to_test_root
 }
 
 function precompile_overlay_assemblies {
@@ -933,7 +934,6 @@ fi
 xunit_output_begin
 create_core_overlay
 precompile_overlay_assemblies
-copy_test_native_bin_to_test_root
 
 if [ -n "$playlistFile" ]
 then
