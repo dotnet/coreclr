@@ -707,8 +707,8 @@ setup_dirs
 # Check prereqs.
 
 lldb=$(which lldb)
-lldb_36=$(which lldb3.6)
-lldb_38=$(which lldb3.8)
+lldb_36=$(which lldb-3.6)
+lldb_38=$(which lldb-3.8)
 gdb=$(which gdb)
 
 echo "lldb: $lldb"
