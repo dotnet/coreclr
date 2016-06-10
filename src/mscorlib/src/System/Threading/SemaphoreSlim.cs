@@ -81,20 +81,17 @@ namespace System.Threading
         private const int NO_MAXIMUM = Int32.MaxValue;
 
         // Task in a linked list of asynchronous waiters
-        private sealed class TaskNode : Task<bool>, IThreadPoolWorkItem
+        private sealed class TaskNode : Task<bool>
         {
             internal TaskNode Prev, Next;
             internal TaskNode() : base() {}
 
             [SecurityCritical]
-            void IThreadPoolWorkItem.ExecuteWorkItem()
+            internal override void ExecuteWorkItem()
             {
                 bool setSuccessfully = TrySetResult(true);
                 Contract.Assert(setSuccessfully, "Should have been able to complete task");
             }
-
-            [SecurityCritical]
-            void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae) { /* nop */ }
         }
         #endregion
 

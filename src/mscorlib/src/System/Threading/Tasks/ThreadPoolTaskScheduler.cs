@@ -108,9 +108,9 @@ namespace System.Threading.Tasks
             return FilterTasksFromWorkItems(ThreadPool.GetQueuedWorkItems());
         }
 
-        private IEnumerable<Task> FilterTasksFromWorkItems(IEnumerable<IThreadPoolWorkItem> tpwItems)
+        private IEnumerable<Task> FilterTasksFromWorkItems(IEnumerable<DeferrableWorkItem> tpwItems)
         {
-            foreach (IThreadPoolWorkItem tpwi in tpwItems)
+            foreach (DeferrableWorkItem tpwi in tpwItems)
             {
                 if (tpwi is Task)
                 {

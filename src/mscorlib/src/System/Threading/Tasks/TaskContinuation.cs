@@ -223,7 +223,7 @@ namespace System.Threading.Tasks
     //         - SynchronizationContextAwaitTaskContinuation: awaiting with a "current" sync ctx
 
     /// <summary>Represents a continuation.</summary>
-    internal abstract class TaskContinuation
+    internal abstract class TaskContinuation : DeferrableWorkItem
     {
         /// <summary>Inlines or schedules the continuation.</summary>
         /// <param name="completedTask">The antecedent task that has completed.</param>
@@ -280,7 +280,6 @@ namespace System.Threading.Tasks
         }
 
         internal abstract Delegate[] GetDelegateContinuationsForDebugger();
-
     }
 
     /// <summary>Provides the standard implementation of a task continuation.</summary>
@@ -378,8 +377,8 @@ namespace System.Threading.Tasks
         }
     }
 
-    /// <summary>Task continuation for awaiting with a current synchronization context.</summary>
-    internal sealed class SynchronizationContextAwaitTaskContinuation : AwaitTaskContinuation
+    /// <summary>Task continuation for awaiting with a current synchronization context with the default ExecutionContext.</summary>
+    internal class SynchronizationContextAwaitTaskContinuation : AwaitTaskContinuation
     {
         /// <summary>SendOrPostCallback delegate to invoke the action.</summary>
         private readonly static SendOrPostCallback s_postCallback = state => ((Action)state)(); // can't use InvokeAction as it's SecurityCritical
@@ -387,17 +386,14 @@ namespace System.Threading.Tasks
         [SecurityCritical]
         private static ContextCallback s_postActionCallback;
         /// <summary>The context with which to run the action.</summary>
-        private readonly SynchronizationContext m_syncContext;
+        protected readonly SynchronizationContext m_syncContext;
 
         /// <summary>Initializes the SynchronizationContextAwaitTaskContinuation.</summary>
         /// <param name="context">The synchronization context with which to invoke the action.  Must not be null.</param>
         /// <param name="action">The action to invoke. Must not be null.</param>
-        /// <param name="flowExecutionContext">Whether to capture and restore ExecutionContext.</param>
-        /// <param name="stackMark">The captured stack mark.</param>
         [SecurityCritical]
-        internal SynchronizationContextAwaitTaskContinuation(
-            SynchronizationContext context, Action action, bool flowExecutionContext, ref StackCrawlMark stackMark) :
-            base(action, flowExecutionContext, ref stackMark)
+        internal SynchronizationContextAwaitTaskContinuation(SynchronizationContext context, Action action) :
+            base(action)
         {
             Contract.Assert(context != null);
             m_syncContext = context;
@@ -474,8 +470,109 @@ namespace System.Threading.Tasks
         }
     }
 
-    /// <summary>Task continuation for awaiting with a task scheduler.</summary>
-    internal sealed class TaskSchedulerAwaitTaskContinuation : AwaitTaskContinuation
+
+    /// <summary>Task continuation for awaiting with a current synchronization context with a non-default ExecutionContext.</summary>
+    internal sealed class SynchronizationContextAwaitTaskContinuationWithContext : SynchronizationContextAwaitTaskContinuation
+    {
+        /// <summary>The ExecutionContext with which to run the continuation.</summary>
+        private readonly ExecutionContext m_capturedContext;
+
+        /// <summary>Initializes the SynchronizationContextAwaitTaskContinuation.</summary>
+        /// <param name="context">The synchronization context with which to invoke the action.  Must not be null.</param>
+        /// <param name="action">The action to invoke. Must not be null.</param>
+        /// <param name="executionContext">The ExecutionContext to use.</param>
+        [SecurityCritical]
+        internal SynchronizationContextAwaitTaskContinuationWithContext(
+            SynchronizationContext context, Action action, ExecutionContext executionContext) :
+            base(context, action)
+        {
+            Contract.Assert(executionContext != null);
+            m_capturedContext = executionContext;
+        }
+
+
+        /// <summary>Creates a task to run the action with the specified state on the specified scheduler.</summary>
+        /// <param name="action">The action to run. Must not be null.</param>
+        /// <param name="state">The state to pass to the action. Must not be null.</param>
+        /// <param name="scheduler">The scheduler to target.</param>
+        /// <returns>The created task.</returns>
+        protected override Task CreateTask(Action<object> action, object state, TaskScheduler scheduler)
+        {
+            Contract.Requires(action != null);
+            Contract.Requires(scheduler != null);
+
+            return new Task(
+                action, state, null, default(CancellationToken),
+                TaskCreationOptions.None, InternalTaskOptions.QueuedByRuntime, scheduler)
+            {
+                CapturedContext = m_capturedContext
+            };
+        }
+
+        /// <summary>DeferrableWorkItem override, which is the entry function for this when the ThreadPool scheduler decides to run it.</summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [SecurityCritical]
+        internal override void Execute()
+        {
+            // We're not inside of a task, so t_currentTask doesn't need to be specially maintained.
+            // We're on a thread pool thread with no higher-level callers, so exceptions can just propagate.
+
+            // Get the cached delegate and run the action under the context.
+            try
+            {
+                ExecutionContext.Run(m_capturedContext, GetInvokeActionCallback(), m_action, true);
+            }
+            finally
+            {
+                m_capturedContext.Dispose();
+            }
+        }
+
+        [SecurityCritical]
+        internal override void Callback(ContextCallback callback, object state)
+        {
+            try
+            {
+                ExecutionContext.Run(m_capturedContext, callback, state, true);
+            }
+            finally
+            {
+                // Clean up after the execution context, which is only usable once.
+                if (m_capturedContext != null) m_capturedContext.Dispose();
+            }
+        }
+    }
+
+    /// <summary>Task continuation for awaiting with a current synchronization context with ExecutionContext flow supressed.</summary>
+    internal sealed class SynchronizationContextAwaitTaskContinuationNoContext : SynchronizationContextAwaitTaskContinuation
+    {
+        /// <summary>Initializes the SynchronizationContextAwaitTaskContinuation.</summary>
+        /// <param name="context">The synchronization context with which to invoke the action.  Must not be null.</param>
+        /// <param name="action">The action to invoke. Must not be null.</param>
+        [SecurityCritical]
+        internal SynchronizationContextAwaitTaskContinuationNoContext(
+            SynchronizationContext context, Action action) :
+            base(context, action)
+        {
+        }
+
+        [SecurityCritical]
+        internal override void Execute()
+        {
+            // There's no execution context, just invoke the delegate.
+            m_action();
+        }
+
+        [SecurityCritical]
+        internal override void Callback(ContextCallback callback, object state)
+        {
+            // There's no captured context, just run the callback directly.
+            callback(state);
+        }
+    }
+
+    /// <summary>Task continuation for awaiting with a task scheduler with the default ExecutionContext.</summary>
+    internal class TaskSchedulerAwaitTaskContinuation : AwaitTaskContinuation
     {
         /// <summary>The scheduler on which to run the action.</summary>
         private readonly TaskScheduler m_scheduler;
@@ -483,12 +580,9 @@ namespace System.Threading.Tasks
         /// <summary>Initializes the TaskSchedulerAwaitTaskContinuation.</summary>
         /// <param name="scheduler">The task scheduler with which to invoke the action.  Must not be null.</param>
         /// <param name="action">The action to invoke. Must not be null.</param>
-        /// <param name="flowExecutionContext">Whether to capture and restore ExecutionContext.</param>
-        /// <param name="stackMark">The captured stack mark.</param>
         [SecurityCritical]
-        internal TaskSchedulerAwaitTaskContinuation(
-            TaskScheduler scheduler, Action action, bool flowExecutionContext, ref StackCrawlMark stackMark) :
-            base(action, flowExecutionContext, ref stackMark)
+        internal TaskSchedulerAwaitTaskContinuation(TaskScheduler scheduler, Action action)
+            : base(action)
         {
             Contract.Assert(scheduler != null);
             m_scheduler = scheduler;
@@ -499,48 +593,66 @@ namespace System.Threading.Tasks
         /// <param name="canInlineContinuationTask">true if inlining is permitted; otherwise, false.</param>
         internal sealed override void Run(Task ignored, bool canInlineContinuationTask)
         {
-            // If we're targeting the default scheduler, we can use the faster path provided by the base class.
-            if (m_scheduler == TaskScheduler.Default)
-            {
-                base.Run(ignored, canInlineContinuationTask);
-            }
-            else
-            {
-                // We permit inlining if the caller allows us to, and 
-                // either we're on a thread pool thread (in which case we're fine running arbitrary code)
-                // or we're already on the target scheduler (in which case we'll just ask the scheduler
-                // whether it's ok to run here).  We include the IsThreadPoolThread check here, whereas
-                // we don't in AwaitTaskContinuation.Run, since here it expands what's allowed as opposed
-                // to in AwaitTaskContinuation.Run where it restricts what's allowed.
-                bool inlineIfPossible = canInlineContinuationTask &&
-                    (TaskScheduler.InternalCurrent == m_scheduler || Thread.CurrentThread.IsThreadPoolThread);
+            RunWithScheduler(m_scheduler, canInlineContinuationTask);
+        }
+    }
 
-                // Create the continuation task task. If we're allowed to inline, try to do so.  
-                // The target scheduler may still deny us from executing on this thread, in which case this'll be queued.
-                var task = CreateTask(state => {
-                    try { ((Action)state)(); }
-                    catch (Exception exc) { ThrowAsyncIfNecessary(exc); }
-                }, m_action, m_scheduler);
+    /// <summary>Task continuation for awaiting with a task scheduler with a non-default ExecutionContext.</summary>
+    internal sealed class TaskSchedulerAwaitTaskContinuationWithContext : AwaitTaskContinuationWithContext
+    {
+        /// <summary>The scheduler on which to run the action.</summary>
+        private readonly TaskScheduler m_scheduler;
 
-                if (inlineIfPossible)
-                {
-                    InlineIfPossibleOrElseQueue(task, needsProtection: false);
-                }
-                else
-                {
-                    // We need to run asynchronously, so just schedule the task.
-                    try { task.ScheduleAndStart(needsProtection: false); }
-                    catch (TaskSchedulerException) { } // No further action is necessary, as ScheduleAndStart already transitioned task to faulted
-                }
-            }
+        /// <summary>Initializes the TaskSchedulerAwaitTaskContinuation.</summary>
+        /// <param name="scheduler">The task scheduler with which to invoke the action.  Must not be null.</param>
+        /// <param name="action">The action to invoke. Must not be null.</param>
+        /// <param name="executionContext">The ExecutionContext to use.</param>
+        [SecurityCritical]
+        internal TaskSchedulerAwaitTaskContinuationWithContext(TaskScheduler scheduler, Action action, ExecutionContext executionContext)
+            : base(action, executionContext)
+        {
+            Contract.Assert(scheduler != null);
+            m_scheduler = scheduler;
+        }
+
+        /// <summary>Inlines or schedules the continuation.</summary>
+        /// <param name="ignored">The antecedent task, which is ignored.</param>
+        /// <param name="canInlineContinuationTask">true if inlining is permitted; otherwise, false.</param>
+        internal sealed override void Run(Task ignored, bool canInlineContinuationTask)
+        {
+            RunWithScheduler(m_scheduler, canInlineContinuationTask);
+        }
+    }
+
+    /// <summary>Task continuation for awaiting with a task scheduler with ExecutionContext flow supressed.</summary>
+    internal sealed class TaskSchedulerAwaitTaskContinuationNoContext : AwaitTaskContinuationNoContext
+    {
+        /// <summary>The scheduler on which to run the action.</summary>
+        private readonly TaskScheduler m_scheduler;
+
+        /// <summary>Initializes the TaskSchedulerAwaitTaskContinuation.</summary>
+        /// <param name="scheduler">The task scheduler with which to invoke the action.  Must not be null.</param>
+        /// <param name="action">The action to invoke. Must not be null.</param>
+        [SecurityCritical]
+        internal TaskSchedulerAwaitTaskContinuationNoContext(TaskScheduler scheduler, Action action)
+            : base(action)
+        {
+            Contract.Assert(scheduler != null);
+            m_scheduler = scheduler;
+        }
+
+        /// <summary>Inlines or schedules the continuation.</summary>
+        /// <param name="ignored">The antecedent task, which is ignored.</param>
+        /// <param name="canInlineContinuationTask">true if inlining is permitted; otherwise, false.</param>
+        internal sealed override void Run(Task ignored, bool canInlineContinuationTask)
+        {
+            RunWithScheduler(m_scheduler, canInlineContinuationTask);
         }
     }
 
     /// <summary>Base task continuation class used for await continuations.</summary>
-    internal class AwaitTaskContinuation : TaskContinuation, IThreadPoolWorkItem
+    internal class AwaitTaskContinuation : TaskContinuation
     {
-        /// <summary>The ExecutionContext with which to run the continuation.</summary>
-        private readonly ExecutionContext m_capturedContext;
         /// <summary>The action to invoke.</summary>
         protected readonly Action m_action;
 
@@ -548,33 +660,11 @@ namespace System.Threading.Tasks
 
         /// <summary>Initializes the continuation.</summary>
         /// <param name="action">The action to invoke. Must not be null.</param>
-        /// <param name="flowExecutionContext">Whether to capture and restore ExecutionContext.</param>
-        /// <param name="stackMark">The captured stack mark with which to construct an ExecutionContext.</param>
         [SecurityCritical]
-        internal AwaitTaskContinuation(Action action, bool flowExecutionContext, ref StackCrawlMark stackMark)
+        internal AwaitTaskContinuation(Action action)
         {
             Contract.Requires(action != null);
             m_action = action;
-            if (flowExecutionContext)
-            {
-                m_capturedContext = ExecutionContext.Capture(
-                    ref stackMark, 
-                    ExecutionContext.CaptureOptions.IgnoreSyncCtx | ExecutionContext.CaptureOptions.OptimizeDefaultCase);
-            }
-        }
-
-        /// <summary>Initializes the continuation.</summary>
-        /// <param name="action">The action to invoke. Must not be null.</param>
-        /// <param name="flowExecutionContext">Whether to capture and restore ExecutionContext.</param>
-        [SecurityCritical]
-        internal AwaitTaskContinuation(Action action, bool flowExecutionContext)
-        {
-            Contract.Requires(action != null);
-            m_action = action;
-            if (flowExecutionContext)
-            {
-                m_capturedContext = ExecutionContext.FastCapture();
-            }
         }
 
         /// <summary>Creates a task to run the action with the specified state on the specified scheduler.</summary>
@@ -582,17 +672,14 @@ namespace System.Threading.Tasks
         /// <param name="state">The state to pass to the action. Must not be null.</param>
         /// <param name="scheduler">The scheduler to target.</param>
         /// <returns>The created task.</returns>
-        protected Task CreateTask(Action<object> action, object state, TaskScheduler scheduler)
+        protected virtual Task CreateTask(Action<object> action, object state, TaskScheduler scheduler)
         {
             Contract.Requires(action != null);
             Contract.Requires(scheduler != null);
 
             return new Task(
                 action, state, null, default(CancellationToken), 
-                TaskCreationOptions.None, InternalTaskOptions.QueuedByRuntime, scheduler)  
-            { 
-                CapturedContext = m_capturedContext 
-            };
+                TaskCreationOptions.None, InternalTaskOptions.QueuedByRuntime, scheduler);
         }
 
         /// <summary>Inlines or schedules the continuation onto the default scheduler.</summary>
@@ -622,6 +709,39 @@ namespace System.Threading.Tasks
                 // We couldn't inline, so now we need to schedule it
                 ThreadPool.UnsafeQueueCustomWorkItem(this, forceGlobal: false);
            }
+        }
+
+        /// <summary>Inlines or schedules the continuation.</summary>
+        /// <param name="scheduler">The TaskScheduler</param>
+        /// <param name="canInlineContinuationTask">true if inlining is permitted; otherwise, false.</param>
+        protected void RunWithScheduler(TaskScheduler scheduler, bool canInlineContinuationTask)
+        {
+            // We permit inlining if the caller allows us to, and 
+            // either we're on a thread pool thread (in which case we're fine running arbitrary code)
+            // or we're already on the target scheduler (in which case we'll just ask the scheduler
+            // whether it's ok to run here).  We include the IsThreadPoolThread check here, whereas
+            // we don't in AwaitTaskContinuation.Run, since here it expands what's allowed as opposed
+            // to in AwaitTaskContinuation.Run where it restricts what's allowed.
+            bool inlineIfPossible = canInlineContinuationTask &&
+                (TaskScheduler.InternalCurrent == scheduler || Thread.CurrentThread.IsThreadPoolThread);
+
+            // Create the continuation task task. If we're allowed to inline, try to do so.  
+            // The target scheduler may still deny us from executing on this thread, in which case this'll be queued.
+            var task = CreateTask(state => {
+                try { ((Action)state)(); }
+                catch (Exception exc) { ThrowAsyncIfNecessary(exc); }
+            }, m_action, scheduler);
+
+            if (inlineIfPossible)
+            {
+                InlineIfPossibleOrElseQueue(task, needsProtection: false);
+            }
+            else
+            {
+                // We need to run asynchronously, so just schedule the task.
+                try { task.ScheduleAndStart(needsProtection: false); }
+                catch (TaskSchedulerException) { } // No further action is necessary, as ScheduleAndStart already transitioned task to faulted
+            }
         }
 
         /// <summary>
@@ -656,9 +776,9 @@ namespace System.Threading.Tasks
             }
         }
 
-        /// <summary>IThreadPoolWorkItem override, which is the entry function for this when the ThreadPool scheduler decides to run it.</summary>
+        /// <summary>DeferrableWorkItem override, which is the entry function for this when the ThreadPool scheduler decides to run it.</summary>
         [SecurityCritical]
-        void ExecuteWorkItemHelper()
+        void ExecuteWorkItemWithTracing()
         {
             var etwLog = TplEtwProvider.Log;
             Guid savedActivityId = Guid.Empty;
@@ -672,20 +792,7 @@ namespace System.Threading.Tasks
                 // We're not inside of a task, so t_currentTask doesn't need to be specially maintained.
                 // We're on a thread pool thread with no higher-level callers, so exceptions can just propagate.
 
-                // If there's no execution context, just invoke the delegate.
-                if (m_capturedContext == null)
-                {
-                    m_action();
-                }
-                    // If there is an execution context, get the cached delegate and run the action under the context.
-                else
-                {
-                    try
-                    {
-                        ExecutionContext.Run(m_capturedContext, GetInvokeActionCallback(), m_action, true);
-                    }
-                    finally { m_capturedContext.Dispose(); }
-                }
+                Execute();
             }
             finally
             {
@@ -697,25 +804,26 @@ namespace System.Threading.Tasks
         }
 
         [SecurityCritical]
-        void IThreadPoolWorkItem.ExecuteWorkItem()
+        internal virtual void Execute()
+        {
+            // Run with default context
+            ExecutionContext.Run(ExecutionContext.PreAllocatedDefault, GetInvokeActionCallback(), m_action, true);
+        }
+
+
+        [SecurityCritical]
+        internal override void ExecuteWorkItem()
         {
             // inline the fast path
-            if (m_capturedContext == null && !TplEtwProvider.Log.IsEnabled()
-            )
+            if (!TplEtwProvider.Log.IsEnabled())
             {
-                m_action();
+                Execute();
             }
             else
             {
-                ExecuteWorkItemHelper();
+                ExecuteWorkItemWithTracing();
             }
         }
-
-        /// <summary>
-        /// The ThreadPool calls this if a ThreadAbortException is thrown while trying to execute this workitem.
-        /// </summary>
-        [SecurityCritical]
-        void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae) { /* nop */ }
 
         /// <summary>Cached delegate that invokes an Action passed as an object parameter.</summary>
         [SecurityCritical]
@@ -735,6 +843,13 @@ namespace System.Threading.Tasks
             return callback;
         }
 
+        [SecurityCritical]
+        internal virtual void Callback(ContextCallback callback, object state)
+        {
+            // Run with default context
+            ExecutionContext.Run(ExecutionContext.PreAllocatedDefault, callback, state, true);
+        }
+
         /// <summary>Runs the callback synchronously with the provided state.</summary>
         /// <param name="callback">The callback to run.</param>
         /// <param name="state">The state to pass to the callback.</param>
@@ -752,10 +867,7 @@ namespace System.Threading.Tasks
             {
                 if (prevCurrentTask != null) currentTask = null;
 
-                // If there's no captured context, just run the callback directly.
-                if (m_capturedContext == null) callback(state);
-                // Otherwise, use the captured context to do so.
-                else ExecutionContext.Run(m_capturedContext, callback, state, true);
+                Callback(callback, state);
             }
             catch (Exception exc) // we explicitly do not request handling of dangerous exceptions like AVs
             {
@@ -765,9 +877,6 @@ namespace System.Threading.Tasks
             {
                 // Restore the current task information
                 if (prevCurrentTask != null) currentTask = prevCurrentTask;
-
-                // Clean up after the execution context, which is only usable once.
-                if (m_capturedContext != null) m_capturedContext.Dispose();
             }
         }
 
@@ -821,7 +930,7 @@ namespace System.Threading.Tasks
         [SecurityCritical]
         internal static void UnsafeScheduleAction(Action action, Task task)
         {
-            AwaitTaskContinuation atc = new AwaitTaskContinuation(action, flowExecutionContext: false);
+            AwaitTaskContinuationNoContext atc = new AwaitTaskContinuationNoContext(action);
 
             var etwLog = TplEtwProvider.Log;
             if (etwLog.IsEnabled() && task != null)
@@ -864,4 +973,116 @@ namespace System.Threading.Tasks
         }
     }
 
+    /// <summary>Base task continuation class used for await continuations.</summary>
+    internal class AwaitTaskContinuationWithContext : AwaitTaskContinuation
+    {
+        /// <summary>The ExecutionContext with which to run the continuation.</summary>
+        private readonly ExecutionContext m_capturedContext;
+
+        /// <summary>Initializes the continuation.</summary>
+        /// <param name="action">The action to invoke. Must not be null.</param>
+        /// <param name="flowExecutionContext">Whether to capture and restore ExecutionContext.</param>
+        /// <param name="stackMark">The captured stack mark with which to construct an ExecutionContext.</param>
+        [SecurityCritical]
+        internal AwaitTaskContinuationWithContext(Action action, ExecutionContext context)
+            : base(action)
+        {
+            m_capturedContext = context;
+        }
+
+        /// <summary>Creates a task to run the action with the specified state on the specified scheduler.</summary>
+        /// <param name="action">The action to run. Must not be null.</param>
+        /// <param name="state">The state to pass to the action. Must not be null.</param>
+        /// <param name="scheduler">The scheduler to target.</param>
+        /// <returns>The created task.</returns>
+        protected override Task CreateTask(Action<object> action, object state, TaskScheduler scheduler)
+        {
+            Contract.Requires(action != null);
+            Contract.Requires(scheduler != null);
+
+            return new Task(
+                action, state, null, default(CancellationToken),
+                TaskCreationOptions.None, InternalTaskOptions.QueuedByRuntime, scheduler)
+            {
+                CapturedContext = m_capturedContext
+            };
+        }
+
+        /// <summary>DeferrableWorkItem override, which is the entry function for this when the ThreadPool scheduler decides to run it.</summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [SecurityCritical]
+        internal override void Execute()
+        {
+            // We're not inside of a task, so t_currentTask doesn't need to be specially maintained.
+            // We're on a thread pool thread with no higher-level callers, so exceptions can just propagate.
+
+            // Get the cached delegate and run the action under the context.
+            try
+            {
+                ExecutionContext.Run(m_capturedContext, GetInvokeActionCallback(), m_action, true);
+            }
+            finally
+            {
+                m_capturedContext.Dispose();
+            }
+        }
+
+        [SecurityCritical]
+        internal override void Callback(ContextCallback callback, object state)
+        {
+            try
+            {
+                ExecutionContext.Run(m_capturedContext, callback, state, true);
+            }
+            finally
+            {
+                // Clean up after the execution context, which is only usable once.
+                if (m_capturedContext != null) m_capturedContext.Dispose();
+            }
+        }
+    }
+
+    /// <summary>Base task continuation class used for await continuations.</summary>
+    internal class AwaitTaskContinuationNoContext : AwaitTaskContinuation
+    {
+        /// <summary>Initializes the continuation.</summary>
+        /// <param name="action">The action to invoke. Must not be null.</param>
+        [SecurityCritical]
+        internal AwaitTaskContinuationNoContext(Action action)
+            : base(action)
+        {
+        }
+
+        /// <summary>Creates a task to run the action with the specified state on the specified scheduler.</summary>
+        /// <param name="action">The action to run. Must not be null.</param>
+        /// <param name="state">The state to pass to the action. Must not be null.</param>
+        /// <param name="scheduler">The scheduler to target.</param>
+        /// <returns>The created task.</returns>
+        protected override Task CreateTask(Action<object> action, object state, TaskScheduler scheduler)
+        {
+            Contract.Requires(action != null);
+            Contract.Requires(scheduler != null);
+
+            return new Task(
+                action, state, null, default(CancellationToken),
+                TaskCreationOptions.None, InternalTaskOptions.QueuedByRuntime, scheduler)
+            {
+                CapturedContext = null
+            };
+        }
+
+        [SecurityCritical]
+        internal override void Execute()
+        {
+            // There's no execution context, just invoke the delegate.
+            m_action();
+        }
+
+        [SecurityCritical]
+        internal override void Callback(ContextCallback callback, object state)
+        {
+            // There's no captured context, just run the callback directly.
+            callback(state);
+        }
+    }
 }

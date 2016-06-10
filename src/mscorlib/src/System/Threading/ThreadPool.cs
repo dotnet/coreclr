@@ -132,7 +132,7 @@ namespace System.Threading
         internal class WorkStealingQueue
         {
             private const int INITIAL_SIZE = 32;
-            internal volatile IThreadPoolWorkItem[] m_array = new IThreadPoolWorkItem[INITIAL_SIZE];
+            internal volatile DeferrableWorkItem[] m_array = new DeferrableWorkItem[INITIAL_SIZE];
             private volatile int m_mask = INITIAL_SIZE - 1;
 
 #if DEBUG
@@ -147,7 +147,7 @@ namespace System.Threading
 
             private SpinLock m_foreignLock = new SpinLock(false);
 
-            public void LocalPush(IThreadPoolWorkItem obj)
+            public void LocalPush(DeferrableWorkItem obj)
             {
                 int tail = m_tailIndex;
 
@@ -204,7 +204,7 @@ namespace System.Threading
                         if (count >= m_mask)
                         {
                             // We're full; expand the queue by doubling its size.
-                            IThreadPoolWorkItem[] newArray = new IThreadPoolWorkItem[m_array.Length << 1];
+                            DeferrableWorkItem[] newArray = new DeferrableWorkItem[m_array.Length << 1];
                             for (int i = 0; i < m_array.Length; i++)
                                 newArray[i] = m_array[(i + head) & m_mask];
 
@@ -227,12 +227,12 @@ namespace System.Threading
             }
 
             [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "Reviewed for thread safety")]
-            public bool LocalFindAndPop(IThreadPoolWorkItem obj)
+            public bool LocalFindAndPop(DeferrableWorkItem obj)
             {
                 // Fast path: check the tail. If equal, we can skip the lock.
                 if (m_array[(m_tailIndex - 1) & m_mask] == obj)
                 {
-                    IThreadPoolWorkItem unused;
+                    DeferrableWorkItem unused;
                     if (LocalPop(out unused))
                     {
                         Contract.Assert(unused == obj);
@@ -288,7 +288,7 @@ namespace System.Threading
             }
 
             [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "Reviewed for thread safety")]
-            public bool LocalPop(out IThreadPoolWorkItem obj)
+            public bool LocalPop(out DeferrableWorkItem obj)
             {
                 while (true)
                 {
@@ -352,12 +352,12 @@ namespace System.Threading
                 }
             }
 
-            public bool TrySteal(out IThreadPoolWorkItem obj, ref bool missedSteal)
+            public bool TrySteal(out DeferrableWorkItem obj, ref bool missedSteal)
             {
                 return TrySteal(out obj, ref missedSteal, 0); // no blocking by default.
             }
 
-            private bool TrySteal(out IThreadPoolWorkItem obj, ref bool missedSteal, int millisecondsTimeout)
+            private bool TrySteal(out DeferrableWorkItem obj, ref bool missedSteal, int millisecondsTimeout)
             {
                 obj = null;
 
@@ -414,7 +414,7 @@ namespace System.Threading
         internal class QueueSegment
         {
             // Holds a segment of the queue.  Enqueues/Dequeues start at element 0, and work their way up.
-            internal readonly IThreadPoolWorkItem[] nodes;
+            internal readonly DeferrableWorkItem[] nodes;
             private const int QueueSegmentLength = 256;
 
             // Holds the indexes of the lowest and highest valid elements of the nodes array.
@@ -464,7 +464,7 @@ namespace System.Threading
             public QueueSegment()
             {
                 Contract.Assert(QueueSegmentLength <= SixteenBits);
-                nodes = new IThreadPoolWorkItem[QueueSegmentLength];
+                nodes = new DeferrableWorkItem[QueueSegmentLength];
             }
 
 
@@ -476,7 +476,7 @@ namespace System.Threading
                        (lower == nodes.Length);
             }
 
-            public bool TryEnqueue(IThreadPoolWorkItem node)
+            public bool TryEnqueue(DeferrableWorkItem node)
             {
                 //
                 // If there's room in this segment, atomically increment the upper count (to reserve
@@ -506,7 +506,7 @@ namespace System.Threading
             }
 
             [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "Reviewed for thread safety")]
-            public bool TryDequeue(out IThreadPoolWorkItem node)
+            public bool TryDequeue(out DeferrableWorkItem node)
             {
                 //
                 // If there are nodes in this segment, increment the lower count, then take the
@@ -607,7 +607,7 @@ namespace System.Threading
         }
 
         [SecurityCritical]
-        public void Enqueue(IThreadPoolWorkItem callback, bool forceGlobal)
+        public void Enqueue(DeferrableWorkItem callback, bool forceGlobal)
         {
             ThreadPoolWorkQueueThreadLocals tl = null;
             if (!forceGlobal)
@@ -640,7 +640,7 @@ namespace System.Threading
         }
 
         [SecurityCritical]
-        internal bool LocalFindAndPop(IThreadPoolWorkItem callback)
+        internal bool LocalFindAndPop(DeferrableWorkItem callback)
         {
             ThreadPoolWorkQueueThreadLocals tl = ThreadPoolWorkQueueThreadLocals.threadLocals;
             if (null == tl)
@@ -650,7 +650,7 @@ namespace System.Threading
         }
 
         [SecurityCritical]
-        public void Dequeue(ThreadPoolWorkQueueThreadLocals tl, out IThreadPoolWorkItem callback, out bool missedSteal)
+        public void Dequeue(ThreadPoolWorkQueueThreadLocals tl, out DeferrableWorkItem callback, out bool missedSteal)
         {
             callback = null;
             missedSteal = false;
@@ -731,7 +731,7 @@ namespace System.Threading
             // false later, but only if we're absolutely certain that the queue is empty.
             //
             bool needAnotherThread = true;
-            IThreadPoolWorkItem workItem = null;
+            DeferrableWorkItem workItem = null;
             try
             {
                 //
@@ -830,7 +830,7 @@ namespace System.Threading
             {
                 //
                 // This is here to catch the case where this thread is aborted between the time we exit the finally block in the dispatch
-                // loop, and the time we execute the work item.  QueueUserWorkItemCallback uses this to update its accounting of whether
+                // loop, and the time we execute the work item.  QueueUserWorkItemCallbackWithContext uses this to update its accounting of whether
                 // it was executed or not (in debug builds only).  Task uses this to communicate the ThreadAbortException to anyone
                 // who waits for the task to complete.
                 //
@@ -891,7 +891,7 @@ namespace System.Threading
                         try { }
                         finally
                         {
-                            IThreadPoolWorkItem cb = null;
+                            DeferrableWorkItem cb = null;
                             if (workStealingQueue.LocalPop(out cb))
                             {
                                 Contract.Assert(null != cb);
@@ -1149,43 +1149,79 @@ namespace System.Threading
         }
     }
 
-    //
-    // Interface to something that can be queued to the TP.  This is implemented by 
-    // QueueUserWorkItemCallback, Task, and potentially other internal types.
+    // Base class for something that can be queued to the TP.  This is implemented by 
+    // QueueUserWorkItemCallbackWithContext, Task, and potentially other internal types.
     // For example, SemaphoreSlim represents callbacks using its own type that
-    // implements IThreadPoolWorkItem.
+    // implements DeferrableWorkItem.
     //
     // If we decide to expose some of the workstealing
     // stuff, this is NOT the thing we want to expose to the public.
     //
-    internal interface IThreadPoolWorkItem
+    public abstract class DeferrableWorkItem
     {
         [SecurityCritical]
-        void ExecuteWorkItem();
+        internal virtual void ExecuteWorkItem() { /* nop */ }
         [SecurityCritical]
-        void MarkAborted(ThreadAbortException tae);
+        internal virtual void MarkAborted(ThreadAbortException tae) { /* nop */ }
     }
 
-    internal sealed class QueueUserWorkItemCallback : IThreadPoolWorkItem
+    internal sealed class QueueUserWorkItemCallbackWithContext : QueueUserWorkItemCallback
     {
-        [System.Security.SecuritySafeCritical]
-        static QueueUserWorkItemCallback() {}
-
-        private WaitCallback callback;
         private ExecutionContext context;
-        private Object state;
+
+        [SecurityCritical]
+        internal QueueUserWorkItemCallbackWithContext(WaitCallback waitCallback, Object stateObj, ExecutionContext ec)
+            : base(waitCallback, stateObj)
+        {
+            context = ec;
+        }
+
+        [SecurityCritical]
+        internal override void ExecuteWorkItem()
+        {
+#if DEBUG
+            MarkExecuted(false);
+#endif
+            ExecutionContext.Run(context, GetInvokeActionCallback(), this, true);
+        }
+    }
+
+
+    internal sealed class QueueUserWorkItemCallbackNoContext : QueueUserWorkItemCallback
+    {
+        [SecurityCritical]
+        internal QueueUserWorkItemCallbackNoContext(WaitCallback waitCallback, Object stateObj)
+            : base(waitCallback, stateObj)
+        {
+        }
+
+        [SecurityCritical]
+        internal override void ExecuteWorkItem()
+        {
+#if DEBUG
+            MarkExecuted(false);
+#endif
+            // call directly as unsafe call OR EC flow is suppressed
+            ((WaitCallback)callback)(state);
+        }
+    }
+
+    internal class QueueUserWorkItemCallback : DeferrableWorkItem
+    {
+        protected WaitCallback callback;
+        protected Object state;
 
 #if DEBUG
-        volatile int executed;
+        private volatile int executed;
 
         ~QueueUserWorkItemCallback()
         {
             Contract.Assert(
-                executed != 0 || Environment.HasShutdownStarted || AppDomain.CurrentDomain.IsFinalizingForUnload(), 
+                executed != 0 || Environment.HasShutdownStarted || AppDomain.CurrentDomain.IsFinalizingForUnload(),
                 "A QueueUserWorkItemCallback was never called!");
         }
 
-        void MarkExecuted(bool aborted)
+        protected void MarkExecuted(bool aborted)
         {
             GC.SuppressFinalize(this);
             Contract.Assert(
@@ -1195,34 +1231,23 @@ namespace System.Threading
 #endif
 
         [SecurityCritical]
-        internal QueueUserWorkItemCallback(WaitCallback waitCallback, Object stateObj, ExecutionContext ec)
+        internal QueueUserWorkItemCallback(WaitCallback waitCallback, Object stateObj)
         {
             callback = waitCallback;
             state = stateObj;
-            context = ec;
         }
 
         [SecurityCritical]
-        void IThreadPoolWorkItem.ExecuteWorkItem()
+        internal override void ExecuteWorkItem()
         {
 #if DEBUG
             MarkExecuted(false);
 #endif
-            // call directly if it is an unsafe call OR EC flow is suppressed
-            if (context == null)
-            {
-                WaitCallback cb = callback;
-                callback = null;
-                cb(state);
-            }
-            else
-            {
-                ExecutionContext.Run(context, ccb, this, true);
-            }
+            ExecutionContext.Run(ExecutionContext.PreAllocatedDefault, GetInvokeActionCallback(), this, true);
         }
 
         [SecurityCritical]
-        void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae)
+        internal override void MarkAborted(ThreadAbortException tae)
         {
 #if DEBUG
             // this workitem didn't execute because we got a ThreadAbortException prior to the call to ExecuteWorkItem.  
@@ -1231,83 +1256,23 @@ namespace System.Threading
 #endif
         }
 
-        [System.Security.SecurityCritical]
-        static internal ContextCallback ccb = new ContextCallback(WaitCallback_Context);
+        [SecurityCritical]
+        static internal ContextCallback s_invokeActionCallback;
 
-        [System.Security.SecurityCritical]
-        static private void WaitCallback_Context(Object state)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [SecurityCritical]
+        protected static ContextCallback GetInvokeActionCallback()
+        {
+            ContextCallback callback = s_invokeActionCallback;
+            if (callback == null) { s_invokeActionCallback = callback = InvokeAction; } // lazily initialize SecurityCritical delegate
+            return callback;
+        }
+
+        [SecurityCritical]
+        static private void InvokeAction(object state)
         {
             QueueUserWorkItemCallback obj = (QueueUserWorkItemCallback)state;
-            WaitCallback wc = obj.callback as WaitCallback;
-            Contract.Assert(null != wc);
-            wc(obj.state);
-        }
-    }
-
-    internal sealed class QueueUserWorkItemCallbackDefaultContext : IThreadPoolWorkItem
-    {
-        [System.Security.SecuritySafeCritical]
-        static QueueUserWorkItemCallbackDefaultContext() { }
-
-        private WaitCallback callback;
-        private Object state;
-
-#if DEBUG
-        private volatile int executed;
-
-        ~QueueUserWorkItemCallbackDefaultContext()
-        {
-            Contract.Assert(
-                executed != 0 || Environment.HasShutdownStarted || AppDomain.CurrentDomain.IsFinalizingForUnload(),
-                "A QueueUserWorkItemCallbackDefaultContext was never called!");
-        }
-
-        void MarkExecuted(bool aborted)
-        {
-            GC.SuppressFinalize(this);
-            Contract.Assert(
-                0 == Interlocked.Exchange(ref executed, 1) || aborted,
-                "A QueueUserWorkItemCallbackDefaultContext was called twice!");
-        }
-#endif
-
-        [SecurityCritical]
-        internal QueueUserWorkItemCallbackDefaultContext(WaitCallback waitCallback, Object stateObj)
-        {
-            callback = waitCallback;
-            state = stateObj;
-        }
-
-        [SecurityCritical]
-        void IThreadPoolWorkItem.ExecuteWorkItem()
-        {
-#if DEBUG
-            MarkExecuted(false);
-#endif
-            ExecutionContext.Run(ExecutionContext.PreAllocatedDefault, ccb, this, true);
-        }
-
-        [SecurityCritical]
-        void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae)
-        {
-#if DEBUG
-            // this workitem didn't execute because we got a ThreadAbortException prior to the call to ExecuteWorkItem.  
-            // This counts as being executed for our purposes.
-            MarkExecuted(true);
-#endif
-        }
-
-        [System.Security.SecurityCritical]
-        static internal ContextCallback ccb = new ContextCallback(WaitCallback_Context);
-
-        [System.Security.SecurityCritical]
-        static private void WaitCallback_Context(Object state)
-        {
-            QueueUserWorkItemCallbackDefaultContext obj = (QueueUserWorkItemCallbackDefaultContext)state;
-            WaitCallback wc = obj.callback as WaitCallback;
-            Contract.Assert(null != wc);
-            obj.callback = null;
-            wc(obj.state);
+            ((WaitCallback)obj.callback)(obj.state);
         }
     }
 
@@ -1661,7 +1626,7 @@ namespace System.Threading
 
             if (callBack != null)
             {
-                        //The thread pool maintains a per-appdomain managed work queue.
+                //The thread pool maintains a per-appdomain managed work queue.
                 //New thread pool entries are added in the managed queue.
                 //The VM is responsible for the actual growing/shrinking of 
                 //threads. 
@@ -1679,9 +1644,20 @@ namespace System.Threading
                         ExecutionContext.Capture(ref stackMark, ExecutionContext.CaptureOptions.IgnoreSyncCtx | ExecutionContext.CaptureOptions.OptimizeDefaultCase) :
                         null;
 
-                    IThreadPoolWorkItem tpcallBack = context == ExecutionContext.PreAllocatedDefault ?
-                                 new QueueUserWorkItemCallbackDefaultContext(callBack, state) :
-                                 (IThreadPoolWorkItem)new QueueUserWorkItemCallback(callBack, state, context);
+                    DeferrableWorkItem tpcallBack;
+
+                    if (context == ExecutionContext.PreAllocatedDefault)
+                    {
+                        tpcallBack = new QueueUserWorkItemCallback(callBack, state);
+                    }
+                    else if (context == null)
+                    {
+                        tpcallBack = new QueueUserWorkItemCallbackNoContext(callBack, state);
+                    }
+                    else
+                    {
+                        tpcallBack = new QueueUserWorkItemCallbackWithContext(callBack, state, context);
+                    }
 
                     ThreadPoolGlobals.workQueue.Enqueue(tpcallBack, true);
                     success = true;
@@ -1695,7 +1671,7 @@ namespace System.Threading
         }
 
         [SecurityCritical]
-        internal static void UnsafeQueueCustomWorkItem(IThreadPoolWorkItem workItem, bool forceGlobal)
+        internal static void UnsafeQueueCustomWorkItem(DeferrableWorkItem workItem, bool forceGlobal)
         {
             Contract.Assert(null != workItem);
             EnsureVMInitialized();
@@ -1712,7 +1688,7 @@ namespace System.Threading
 
         // This method tries to take the target callback out of the current thread's queue.
         [SecurityCritical]
-        internal static bool TryPopCustomWorkItem(IThreadPoolWorkItem workItem)
+        internal static bool TryPopCustomWorkItem(DeferrableWorkItem workItem)
         {
             Contract.Assert(null != workItem);
             if (!ThreadPoolGlobals.vmTpInitialized)
@@ -1722,12 +1698,12 @@ namespace System.Threading
 
         // Get all workitems.  Called by TaskScheduler in its debugger hooks.
         [SecurityCritical]
-        internal static IEnumerable<IThreadPoolWorkItem> GetQueuedWorkItems()
+        internal static IEnumerable<DeferrableWorkItem> GetQueuedWorkItems()
         {
             return EnumerateQueuedWorkItems(ThreadPoolWorkQueue.allThreadQueues.Current, ThreadPoolGlobals.workQueue.queueTail);
         }
 
-        internal static IEnumerable<IThreadPoolWorkItem> EnumerateQueuedWorkItems(ThreadPoolWorkQueue.WorkStealingQueue[] wsQueues, ThreadPoolWorkQueue.QueueSegment globalQueueTail)
+        internal static IEnumerable<DeferrableWorkItem> EnumerateQueuedWorkItems(ThreadPoolWorkQueue.WorkStealingQueue[] wsQueues, ThreadPoolWorkQueue.QueueSegment globalQueueTail)
         {
             if (wsQueues != null)
             {
@@ -1736,10 +1712,10 @@ namespace System.Threading
                 {
                     if (wsq != null && wsq.m_array != null)
                     {
-                        IThreadPoolWorkItem[] items = wsq.m_array;
+                        DeferrableWorkItem[] items = wsq.m_array;
                         for (int i = 0; i < items.Length; i++)
                         {
-                            IThreadPoolWorkItem item = items[i];
+                            DeferrableWorkItem item = items[i];
                             if (item != null)
                                 yield return item;
                         }
@@ -1754,10 +1730,10 @@ namespace System.Threading
                     segment != null;
                     segment = segment.Next)
                 {
-                    IThreadPoolWorkItem[] items = segment.nodes;
+                    DeferrableWorkItem[] items = segment.nodes;
                     for (int i = 0; i < items.Length; i++)
                     {
-                        IThreadPoolWorkItem item = items[i];
+                        DeferrableWorkItem item = items[i];
                         if (item != null)
                             yield return item;
                     }
@@ -1766,28 +1742,28 @@ namespace System.Threading
         }
 
         [SecurityCritical]
-        internal static IEnumerable<IThreadPoolWorkItem> GetLocallyQueuedWorkItems()
+        internal static IEnumerable<DeferrableWorkItem> GetLocallyQueuedWorkItems()
         {
             return EnumerateQueuedWorkItems(new ThreadPoolWorkQueue.WorkStealingQueue[] { ThreadPoolWorkQueueThreadLocals.threadLocals.workStealingQueue }, null);
         }
 
         [SecurityCritical]
-        internal static IEnumerable<IThreadPoolWorkItem> GetGloballyQueuedWorkItems()
+        internal static IEnumerable<DeferrableWorkItem> GetGloballyQueuedWorkItems()
         {
             return EnumerateQueuedWorkItems(null, ThreadPoolGlobals.workQueue.queueTail);
         }
 
-        private static object[] ToObjectArray(IEnumerable<IThreadPoolWorkItem> workitems)
+        private static object[] ToObjectArray(IEnumerable<DeferrableWorkItem> workitems)
         {
             int i = 0;
-            foreach (IThreadPoolWorkItem item in workitems)
+            foreach (DeferrableWorkItem item in workitems)
             {
                 i++;
             }
 
             object[] result = new object[i];
             i = 0;
-            foreach (IThreadPoolWorkItem item in workitems)
+            foreach (DeferrableWorkItem item in workitems)
             {
                 if (i < result.Length) //just in case someone calls us while the queues are in motion
                     result[i] = item;
