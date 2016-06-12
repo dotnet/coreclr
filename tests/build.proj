@@ -9,7 +9,9 @@
   <Import Project="dir.targets" />
   
   <Import Project="dir.traversal.targets" />
-  
+
+  <Import Project="$(ToolsDir)clean.targets" />
+
   <PropertyGroup>
     <TraversalBuildDependsOn>
       ValidateAllProjectDependencies;
@@ -18,7 +20,15 @@
     </TraversalBuildDependsOn>
   </PropertyGroup>
   
-  <Target Name="BatchRestorePackages">
+  <!-- by default in the release branch we will re-download packages every time -->
+  <PropertyGroup Condition="'$(SkipCleanPackages)' != 'true'">
+    <BatchRestorePackagesDepensOn>
+      CleanPackages;
+      CleanPackagesCache;
+      $(BatchRestorePackagesDepensOn);
+    </BatchRestorePackagesDepensOn>
+  </PropertyGroup>
+  <Target Name="BatchRestorePackages" DependsOnTargets="$(BatchRestorePackagesDepensOn)">
     <Message Importance="High" Text="[$([System.DateTime]::Now.ToString('HH:mm:ss.ff'))] Restoring all packages..." />
     
     <!-- restore all project.jsons in one pass for perf & to avoid concurrency problems -->
