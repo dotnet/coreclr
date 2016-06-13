@@ -249,6 +249,16 @@ void StompWriteBarrierResize(bool /* isRuntimeSuspended */, bool /*bReqUpperBoun
 {
 }
 
+bool IsSuspendEEThread()
+{
+    return false;
+}
+
+bool IsGCThread()
+{
+    return false;
+}
+
 void SwitchToWriteWatchBarrier()
 {
 }
