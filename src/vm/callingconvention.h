@@ -113,6 +113,7 @@ struct TransitionBlock
         };
     };
     ArgumentRegisters       m_argumentRegisters;
+    TADDR padding; // Keep size of TransitionBlock as multiple of 16-byte. Simplifies code in PROLOG_WITH_TRANSITION_BLOCK
 #else
     PORTABILITY_ASSERT("TransitionBlock");
 #endif
