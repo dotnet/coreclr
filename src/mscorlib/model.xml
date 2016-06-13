@@ -683,6 +683,9 @@
       <Member Name="#ctor(System.String)" />
       <Member Name="#ctor(System.String,System.Exception)" />
     </Type>
+    <Type Name="System.Collections.Generic.KeyValuePair">
+      <Member Name="Create&lt;TKey,TValue&gt;(TKey,TValue)" />
+    </Type>
     <Type Name="System.Collections.Generic.KeyValuePair&lt;TKey,TValue&gt;">
       <Member Name="#ctor(TKey,TValue)" />
       <Member Name="get_Key" />
