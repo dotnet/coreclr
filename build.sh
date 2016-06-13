@@ -726,4 +726,5 @@ fi
 
 echo "Repo successfully built."
 echo "Product binaries are available at $__BinDir"
+echo "Don't merge me"
 exit 0
