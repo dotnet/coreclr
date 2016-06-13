@@ -254,6 +254,11 @@ bool IsSuspendEEThread()
     return false;
 }
 
+bool IsGCThread()
+{
+    return false;
+}
+
 void SwitchToWriteWatchBarrier()
 {
 }

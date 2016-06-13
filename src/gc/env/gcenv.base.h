@@ -551,6 +551,7 @@ void LogSpewAlways(const char *fmt, ...);
 void StompWriteBarrierEphemeral(bool isRuntimeSuspended);
 void StompWriteBarrierResize(bool isRuntimeSuspended, bool bReqUpperBoundsCheck);
 bool IsSuspendEEThread();
+bool IsGCThread();
 
 class CLRConfig
 {
