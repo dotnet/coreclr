@@ -1748,17 +1748,17 @@ combinedScenarios.each { scenario ->
                                         // Setup variables to hold emulator folder path and the rootfs mount path
                                         buildCommands += "armemul_path=/opt/linux-arm-emulator ; armrootfs_mountpath=/opt/linux-arm-emulator-root"
                                         // Unmount previously mounted rootfs and mount the Linux ARM emulator rootfs at /opt/linux-arm-emulator-root/
-                                        buildCommands += "if grep -qs $armrootfs_mountpath /proc/mounts; then sudo umount $armrootfs_mountpath; fi ; sudo mount $armemul_path/platform/rootfs-t30.ext4 $armrootfs_mountpath"
+                                        buildCommands += "if grep -qs \$armrootfs_mountpath /proc/mounts; then sudo umount \$armrootfs_mountpath; fi ; sudo mount \$armemul_path/platform/rootfs-t30.ext4 \$armrootfs_mountpath"
 
                                         // Export LINUX_ARM_INCPATH to hold the include paths to be used by CPLUS_INCLUDE_PATH environment variable
                                         // Apply the changes needed to the library search paths to build for the emulator rootfs
                                         buildCommands += """echo \"Exporting LINUX_ARM_INCPATH environment variable\"
-                                                            source $armrootfs_mountpath/dotnet/setenv/setenv_incpath.sh $armrootfs_mountpath
+                                                            source \$armrootfs_mountpath/dotnet/setenv/setenv_incpath.sh \$armrootfs_mountpath
 
                                                             echo \"Applying cross build patch to suit Linux ARM emulator rootfs\"
-                                                            git am < $armrootfs_mountpath/dotnet/setenv/coreclr_cross.patch
+                                                            git am < \$armrootfs_mountpath/dotnet/setenv/coreclr_cross.patch
 
-                                                            ROOTFS_DIR=$armrootfs_mountpath CPLUS_INCLUDE_PATH=$LINUX_ARM_INCPATH CXXFLAGS=$LINUX_ARM_CXXFLAGS ./build.sh arm-softfp clean cross verbose skipmscorlib clang3.5 ${lowerConfiguration}
+                                                            ROOTFS_DIR=\$armrootfs_mountpath CPLUS_INCLUDE_PATH=\$LINUX_ARM_INCPATH CXXFLAGS=\$LINUX_ARM_CXXFLAGS ./build.sh arm-softfp clean cross verbose skipmscorlib clang3.5 ${lowerConfiguration}
 
                                                             echo \"Rewinding HEAD to master code\"
                                                             git reset --hard HEAD^"""
