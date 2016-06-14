@@ -2907,15 +2907,34 @@ public:
     DWORD Join(DWORD timeout, BOOL alertable);
     DWORD JoinEx(DWORD timeout, WaitMode mode);
 
+    struct EXTENDED_CONTEXT
+    {
+        CONTEXT context;
+#ifdef _TARGET_AMD64_
+        char contextExtension[0x1a0];
+#endif _TARGET_AMD64_
+    };
+
     BOOL GetThreadContext(
-        LPCONTEXT lpContext   // context structure
+        LPCONTEXT lpContext,   // context structure
+        DWORD contextLength = sizeof(CONTEXT)
     )
     {
         WRAPPER_NO_CONTRACT;
 #ifdef FEATURE_INCLUDE_ALL_INTERFACES
         _ASSERTE (m_pHostTask == NULL || GetThreadHandle() != SWITCHOUT_HANDLE_VALUE);
 #endif // FEATURE_INCLUDE_ALL_INTERFACES
-         return ::GetThreadContext (GetThreadHandle(), lpContext);
+#ifdef _TARGET_AMD64_
+        if ((lpContext->ContextFlags & CONTEXT_XSTATE) != 0)
+        {
+            DWORD contextLengthRequired;
+            LPCONTEXT lpContextStart;
+            ::InitializeContext(nullptr, lpContext->ContextFlags, &lpContextStart, &contextLengthRequired);
+            _ASSERTE(contextLength <= sizeof(CONTEXT));
+        }
+#endif // _TARGET_AMD64_
+
+        return ::GetThreadContext(GetThreadHandle(), lpContext);
     }
 
 #ifndef DACCESS_COMPILE
@@ -4031,7 +4050,7 @@ public:
 
     // Helper used by HandledJITCase and others who need an absolutely reliable
     // register context.
-    BOOL GetSafelyRedirectableThreadContext(DWORD dwOptions, T_CONTEXT * pCtx, REGDISPLAY * pRD);
+    BOOL GetSafelyRedirectableThreadContext(DWORD dwOptions, T_CONTEXT * pCtx, REGDISPLAY * pRD, DWORD contextLength = sizeof(CONTEXT));
 
 private:
 #ifdef FEATURE_HIJACK

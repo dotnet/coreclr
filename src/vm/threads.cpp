@@ -8204,6 +8204,8 @@ bool Thread::InitRegDisplay(const PREGDISPLAY pRD, PT_CONTEXT pctx, bool validCo
 #ifdef DACCESS_COMPILE
             DacNotImpl();
 #else
+            // This context is used for stack unwinding, and since the AVX registers
+            // are volatile, we do not require CONTEXT_XSTATE even on AMD64.
             pctx->ContextFlags = CONTEXT_FULL;
 
             _ASSERTE(this != GetThread());  // do not call GetThreadContext on the active thread
