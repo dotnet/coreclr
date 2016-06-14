@@ -2178,3 +2178,5 @@ build(params + [CORECLR_BUILD: coreclrBuildJob.build.number,
 } // scenario
 
 JobReport.Report.generateJobReport(out)
+
+//Don't merge me, bro
