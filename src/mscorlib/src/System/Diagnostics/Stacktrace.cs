@@ -64,9 +64,6 @@ namespace System.Diagnostics {
         private static Type s_symbolsType = null;
         private static MethodInfo s_symbolsMethodInfo = null;
 
-        [ThreadStatic]
-        private static int t_reentrancy = 0;
-        
         public StackFrameHelper(Thread target)
         {
             targetThread = target;
@@ -112,16 +109,14 @@ namespace System.Diagnostics {
             if (!fNeedFileInfo)
                 return;
 
-            // Check if this function is being reentered because of an exception in the code below
-            if (t_reentrancy > 0)
-                return;
-
-            t_reentrancy++;
             try
             {
                 if (s_symbolsMethodInfo == null)
                 {
-                    s_symbolsType = Type.GetType("System.Diagnostics.StackTraceSymbols, System.Diagnostics.StackTrace, Version=1.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a", throwOnError: false);
+                    s_symbolsType = Type.GetType(
+                        "System.Diagnostics.StackTraceSymbols, System.Diagnostics.StackTrace, Version=1.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+                        throwOnError: false);
+
                     if (s_symbolsType == null)
                         return;
 
@@ -145,15 +140,14 @@ namespace System.Diagnostics {
                     // ENC or the source/line info was already retrieved, the method token is 0.
                     if (rgiMethodToken[index] != 0)
                     {
-                        getSourceLineInfo(rgAssemblyPath[index], rgLoadedPeAddress[index], rgiLoadedPeSize[index], 
-                            rgInMemoryPdbAddress[index], rgiInMemoryPdbSize[index], rgiMethodToken[index], 
+                        getSourceLineInfo(rgAssemblyPath[index], rgLoadedPeAddress[index], rgiLoadedPeSize[index],
+                            rgInMemoryPdbAddress[index], rgiInMemoryPdbSize[index], rgiMethodToken[index],
                             rgiILOffset[index], out rgFilename[index], out rgiLineNumber[index], out rgiColumnNumber[index]);
                     }
                 }
             }
-            finally
+            catch
             {
-                t_reentrancy--;
             }
         }
 
