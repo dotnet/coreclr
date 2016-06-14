@@ -577,10 +577,10 @@ function inspect_and_delete_core_files {
         # We don't know what the PID of the process was, so let's look at all core
         # files whose name matches core.NUMBER
         for f in core.*; do
-            [[ $f =~ core.[0-9]+ ]] && print_info_from_core_file "$f" "corerun" && rm "$f"
+            [[ $f =~ core.[0-9]+ ]] && print_info_from_core_file "$f" $CORE_ROOT/"corerun" && rm "$f"
         done
     elif [ -f core ]; then
-        print_info_from_core_file "core" "corerun"
+        print_info_from_core_file "core" $CORE_ROOT/"corerun"
         rm "core"
     fi
 }
