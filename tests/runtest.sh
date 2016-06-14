@@ -583,7 +583,7 @@ function inspect_and_delete_core_files {
         done
     elif [ -f core ]; then
         echo "ZZZZZ found a file named core"
-        echo "stat of core shows: " "$(stat -c %y "$f")"
+        echo "stat of core shows: " "$(stat -c %y "core")"
         print_info_from_core_file "core" $CORE_ROOT/"corerun"
         rm "core"
     fi
