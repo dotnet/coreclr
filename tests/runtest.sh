@@ -525,6 +525,65 @@ function skip_non_playlist_test {
     return 2 # skip the test
 }
 
+function set_up_core_dump_generation {
+    if [ "$(uname -s)" == "Darwin" ]; then
+        # On OS X, we will enable core dump generation only if there are no core 
+        # files already in /cores/ at this point. This is being done to prevent
+        # inadvertently flooding the CI machines with dumps.
+        if [ ! "$(ls -A /cores)" ]; then 
+            ulimit -c unlimited
+        fi
+    elif [ "$(uname -s)" == "Linux" ]; then
+        # On Linux, we'll enable core file generation unconditionally, and if a dump
+        # is generated, we will print some useful information from it and delete the
+        # dump immediately.
+        ulimit -c unlimited
+    fi
+}
+
+function print_info_from_core_file {
+    local core_file_name=$1
+    local executable_name=$2
+
+    if ! [ -e $executable_name ]; then
+        echo "Unable to find executable $executable_name"
+        return
+    elif ! [ -e $core_file_name ]; then
+        echo "Unable to find core file $core_file_name"
+        return
+    fi
+
+    # Check for the existence of GDB on the path
+    hash gdb 2>/dev/null || { echo >&2 "GDB was not found. Unable to print core file."; return; }
+
+    echo "Printing info from core file $1"
+
+    # Open the dump in GDB and print the stack from each thread. We can add more
+    # commands here if desired.
+    gdb --batch -ex "thread apply all bt full" -ex "quit" $executable_name $core_file_name
+}
+
+function inspect_and_delete_core_files {
+    # Depending on distro/configuration, the core files may either be named "core"
+    # or "core.<PID>" by default. We read /proc/sys/kernel/core_uses_pid to 
+    # determine which it is.
+    core_name_uses_pid=0
+    if [ -e /proc/sys/kernel/core_uses_pid ] && [ "1" == $(cat /proc/sys/kernel/core_uses_pid) ]; then
+        core_name_uses_pid=1
+    fi
+
+    if [ $core_name_uses_pid == "1" ]; then
+        # We don't know what the PID of the process was, so let's look at all core
+        # files whose name matches core.NUMBER
+        for f in core.*; do
+            [[ $f =~ core.[0-9]+ ]] && print_info_from_core_file "$f" "corerun" && rm "$f"
+        done
+    elif [ -f core ]; then
+        print_info_from_core_file "core" "corerun"
+        rm "core"
+    fi
+}
+
 function run_test {
     # This function runs in a background process. It should not echo anything, and should not use global variables.
 
@@ -537,7 +596,16 @@ function run_test {
     local scriptFileName=$(basename "$scriptFilePath")
     local outputFileName=$(basename "$outputFilePath")
 
+    set_up_core_dump_generation
+
     "./$scriptFileName" >"$outputFileName" 2>&1
+
+    # On Linux, we will try to print some information from generated core dumps.
+    # On OS X, any dump that's generated will be handled manually.
+    if [ "$(uname -s)" == "Linux" ]; then
+        inspect_and_delete_core_files
+    fi
+
     return $?
 }
 
