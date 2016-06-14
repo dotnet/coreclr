@@ -131,7 +131,7 @@ namespace System.Collections.Generic
     // The methods in this class look identical to the inherited methods, but the calls
     // to Equal bind to IEquatable<T>.Equals(T) instead of Object.Equals(Object)
     [Serializable]
-    internal class GenericEqualityComparer<T>: EqualityComparer<T> where T: IEquatable<T>
+    internal sealed class GenericEqualityComparer<T>: EqualityComparer<T> where T: IEquatable<T>
     {
         [Pure]
         public override bool Equals(T x, T y) {
@@ -191,7 +191,7 @@ namespace System.Collections.Generic
     }
 
     [Serializable]
-    internal class NullableEqualityComparer<T> : EqualityComparer<Nullable<T>> where T : struct, IEquatable<T>
+    internal sealed class NullableEqualityComparer<T> : EqualityComparer<Nullable<T>> where T : struct, IEquatable<T>
     {
         [Pure]
         public override bool Equals(Nullable<T> x, Nullable<T> y) {
@@ -250,7 +250,7 @@ namespace System.Collections.Generic
     }
 
     [Serializable]
-    internal class ObjectEqualityComparer<T>: EqualityComparer<T>
+    internal sealed class ObjectEqualityComparer<T>: EqualityComparer<T>
     {
         [Pure]
         public override bool Equals(T x, T y) {
@@ -340,7 +340,7 @@ namespace System.Collections.Generic
     // Performance of IndexOf on byte array is very important for some scenarios.
     // We will call the C runtime function memchr, which is optimized.
     [Serializable]
-    internal class ByteEqualityComparer: EqualityComparer<byte>
+    internal sealed class ByteEqualityComparer: EqualityComparer<byte>
     {
         [Pure]
         public override bool Equals(byte x, byte y) {
