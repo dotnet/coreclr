@@ -186,7 +186,7 @@ namespace System.Collections.Generic
         }
 
         public override int GetHashCode() {
-            return this.GetType().Name.GetHashCode();
+            return this.GetType().GetHashCode();
         }
     }
 
@@ -245,7 +245,7 @@ namespace System.Collections.Generic
         }        
 
         public override int GetHashCode() {
-            return this.GetType().Name.GetHashCode();
+            return this.GetType().GetHashCode();
         }                                
     }
 
@@ -305,7 +305,7 @@ namespace System.Collections.Generic
         }        
 
         public override int GetHashCode() {
-            return this.GetType().Name.GetHashCode();
+            return this.GetType().GetHashCode();
         }                                
     }
 
@@ -384,7 +384,7 @@ namespace System.Collections.Generic
         }        
 
         public override int GetHashCode() {
-            return this.GetType().Name.GetHashCode();
+            return this.GetType().GetHashCode();
         }                                
     }
 
@@ -424,7 +424,7 @@ namespace System.Collections.Generic
         }
 
         public override int GetHashCode() {
-            return this.GetType().Name.GetHashCode();
+            return this.GetType().GetHashCode();
         }
     }
 
@@ -481,7 +481,7 @@ namespace System.Collections.Generic
         }
 
         public override int GetHashCode() {
-            return this.GetType().Name.GetHashCode();
+            return this.GetType().GetHashCode();
         }
 
         public LongEnumEqualityComparer() { }
@@ -552,7 +552,7 @@ namespace System.Collections.Generic
         }
 
         public override int GetHashCode() {
-            return (this.GetType().Name.GetHashCode() ^ ((int) (_entropy & 0x7FFFFFFF))); 
+            return (this.GetType().GetHashCode() ^ ((int) (_entropy & 0x7FFFFFFF))); 
         }
 
 
@@ -604,7 +604,7 @@ namespace System.Collections.Generic
         }
 
         public override int GetHashCode() {
-            return (this.GetType().Name.GetHashCode() ^ ((int) (_entropy & 0x7FFFFFFF))); 
+            return (this.GetType().GetHashCode() ^ ((int) (_entropy & 0x7FFFFFFF))); 
         }
 
         IEqualityComparer IWellKnownStringEqualityComparer.GetRandomizedEqualityComparer() {
