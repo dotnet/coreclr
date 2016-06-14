@@ -426,6 +426,30 @@ namespace System.Collections.Generic
         public override int GetHashCode() {
             return this.GetType().GetHashCode();
         }
+
+        internal override int IndexOf(T[] array, T value, int startIndex, int count)
+        {
+            int toFind = JitHelpers.UnsafeEnumCast(value);
+            int endIndex = startIndex + count;
+            for (int i = startIndex; i < endIndex; i++)
+            {
+                int current = JitHelpers.UnsafeEnumCast(array[i]);
+                if (toFind == current) return i;
+            }
+            return -1;
+        }
+
+        internal override int LastIndexOf(T[] array, T value, int startIndex, int count)
+        {
+            int toFind = JitHelpers.UnsafeEnumCast(value);
+            int endIndex = startIndex - count + 1;
+            for (int i = startIndex; i >= endIndex; i--)
+            {
+                int current = JitHelpers.UnsafeEnumCast(array[i]);
+                if (toFind == current) return i;
+            }
+            return -1;
+        }
     }
 
     [Serializable]
@@ -495,6 +519,30 @@ namespace System.Collections.Generic
             // The LongEnumEqualityComparer does not exist on 4.0 so we need to serialize this comparer as ObjectEqualityComparer
             // to allow for roundtrip between 4.0 and 4.5.
             info.SetType(typeof(ObjectEqualityComparer<T>));
+        }
+
+        internal override int IndexOf(T[] array, T value, int startIndex, int count)
+        {
+            long toFind = JitHelpers.UnsafeEnumCastLong(value);
+            int endIndex = startIndex + count;
+            for (int i = startIndex; i < endIndex; i++)
+            {
+                long current = JitHelpers.UnsafeEnumCastLong(array[i]);
+                if (toFind == current) return i;
+            }
+            return -1;
+        }
+
+        internal override int LastIndexOf(T[] array, T value, int startIndex, int count)
+        {
+            long toFind = JitHelpers.UnsafeEnumCastLong(value);
+            int endIndex = startIndex - count + 1;
+            for (int i = startIndex; i >= endIndex; i--)
+            {
+                long current = JitHelpers.UnsafeEnumCastLong(array[i]);
+                if (toFind == current) return i;
+            }
+            return -1;
         }
     }
 
