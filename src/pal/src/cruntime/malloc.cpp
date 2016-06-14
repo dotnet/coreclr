@@ -110,14 +110,17 @@ CorUnix::InternalMalloc(
     // Injecting random crashes during the test run. Chose
     // this function because of how frequently it gets called.
     //////////////////////////////////////////////////////////
-    if (rand() % 1000000 == 1000000 - 1)
+    if (::getenv("enablerandomcrashes") != nullptr)
     {
-        volatile int* asdf = nullptr;
-        int gonnaCrash = *asdf;
-
-        if (gonnaCrash > 123)
+        if (rand() % 10000 == 10000 - 1)
         {
-            printf("I'm just here so I don't get optimized.\n");
+            volatile int* asdf = nullptr;
+            int gonnaCrash = *asdf;
+
+            if (gonnaCrash > 123)
+            {
+                printf("I'm just here so I don't get optimized.\n");
+            }
         }
     }
 

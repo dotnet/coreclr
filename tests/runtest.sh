@@ -599,6 +599,9 @@ function run_test {
 
     set_up_core_dump_generation
 
+    ######## delete
+    export enablerandomcrashes=1
+
     "./$scriptFileName" >"$outputFileName" 2>&1
 
     # On Linux, we will try to print some information from generated core dumps.
