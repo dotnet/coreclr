@@ -131,7 +131,7 @@ namespace System.Collections.Generic
     // The methods in this class look identical to the inherited methods, but the calls
     // to Equal bind to IEquatable<T>.Equals(T) instead of Object.Equals(Object)
     [Serializable]
-    internal sealed class GenericEqualityComparer<T>: EqualityComparer<T> where T: IEquatable<T>
+    internal class GenericEqualityComparer<T>: EqualityComparer<T> where T: IEquatable<T>
     {
         [Pure]
         public override bool Equals(T x, T y) {
