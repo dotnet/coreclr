@@ -64,6 +64,9 @@ namespace System.Diagnostics {
         private static Type s_symbolsType = null;
         private static MethodInfo s_symbolsMethodInfo = null;
 
+        [ThreadStatic]
+        private static int t_reentrancy = 0;
+        
         public StackFrameHelper(Thread target)
         {
             targetThread = target;
@@ -109,6 +112,11 @@ namespace System.Diagnostics {
             if (!fNeedFileInfo)
                 return;
 
+            // Check if this function is being reentered because of an exception in the code below
+            if (t_reentrancy > 0)
+                return;
+
+            t_reentrancy++;
             try
             {
                 if (s_symbolsMethodInfo == null)
@@ -148,6 +156,10 @@ namespace System.Diagnostics {
             }
             catch
             {
+            }
+            finally
+            {
+                t_reentrancy--;
             }
         }
 
