@@ -1,22 +1,28 @@
 import lldb
 import re
-import os
-import testutils
+import testutils as test
 
 
-def runScenario(assemblyName, debugger, target):
+def runScenario(assembly, debugger, target):
     process = target.GetProcess()
     res = lldb.SBCommandReturnObject()
     ci = debugger.GetCommandInterpreter()
 
-    testutils.stop_in_main(ci, process, assemblyName)
-    ci.HandleCommand("pe", res)
+    # Run debugger, wait until libcoreclr is loaded,
+    # set breakpoint at Test.Main and stop there
+    test.stop_in_main(debugger, assembly)
 
-    result = res.Succeeded()
-    if not result:
-        print("command PrintException failed:")
-        print(res.GetOutput())
-        print(res.GetError())
+    ci.HandleCommand("dso", res)
+    print(res.GetOutput())
+    print(res.GetError())
+    # Interpreter must have this command and able to run it
+    test.assertTrue(res.Succeeded())
 
-    process.Continue()
-    return result
+    output = res.GetOutput()
+    # Output is not empty
+    test.assertTrue(len(output) > 0)
+
+    # TODO: test other use cases
+
+    # Continue current process and checks its exit code
+    test.exit_lldb(debugger, assembly)

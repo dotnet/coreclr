@@ -10,10 +10,14 @@ Compile test assembly file using any C# compiler you have, for example:
 **Running tests**  
 Make sure that python's lldb module is accessible. To run the tests, use the following command:  
 `python2 test_libsosplugin.py --corerun=corerun --sosplugin=sosplugin --assembly=assembly --timeout=timeout`  
-- `corerun` is a command that would normally be used to launch `corerun`  
-- `sosplugin` is a lldb libsos plugin (e.g. libsosplugin.so)  
-- `assembly` is a compiled test assembly (e.g. test.exe)  
-- `timeout` is a deadline for a single test (in seconds)
+- `lldb` is a path to `lldb` to run  
+- `clrdir` is a directory with `corerun` and sosplugin  
+- `assembly` is a compiled test assembly (e.g. Test.exe)  
+- `timeout` is a deadline for a single test (in seconds)  
+- `regex` is a regular expression matching tests to run  
+- `repeat` is a number of passes for each test
+
+
 
 Log files for both failed and passed tests are `*.log` and `*.log.2` for standard output and error correspondingly.
 

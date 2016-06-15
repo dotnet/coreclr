@@ -1,24 +1,31 @@
 import lldb
 import re
-import os
-import testutils
+import testutils as test
 
 
-def runScenario(assemblyName, debugger, target):
+def runScenario(assembly, debugger, target):
     process = target.GetProcess()
     res = lldb.SBCommandReturnObject()
     ci = debugger.GetCommandInterpreter()
 
-    testutils.stop_in_main(ci, process, assemblyName)
+    # Run debugger, wait until libcoreclr is loaded,
+    # set breakpoint at Test.Main and stop there
+    test.stop_in_main(debugger, assembly)
 
-    result = False
     ci.HandleCommand("histclear", res)
-    if res.Succeeded():
-        result = (res.GetOutput().find("Completed successfully.") != -1)
-    else:
-        print("HistClear command failed:")
-        print(res.GetOutput())
-        print(res.GetError())
+    print(res.GetOutput())
+    print(res.GetError())
+    # Interpreter must have this command and able to run it
+    test.assertTrue(res.Succeeded())
 
-    process.Continue()
-    return result
+    output = res.GetOutput()
+    # Output is not empty
+    test.assertTrue(len(output) > 0)
+
+    # Specific string must be in the output
+    test.assertNotEqual(output.find("Completed successfully."), -1)
+
+    # TODO: test other use cases
+
+    # Continue current process and checks its exit code
+    test.exit_lldb(debugger, assembly)
