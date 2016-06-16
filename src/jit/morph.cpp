@@ -4007,8 +4007,10 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* callNode)
     // If the register arguments have already been determined
     // or we have no register arguments then we don't need to 
     // call SortArgs() and EvalArgsToTemps()
+    // For UNIX_AMD64_ABI we also have to consider multireg struct
+    // args that we haven't yet put into registers
     //
-    if (!lateArgsComputed && call->fgArgInfo->HasRegArgs())
+    if (!lateArgsComputed && (call->fgArgInfo->HasRegArgs() || hasStructArgument))
     {
         // This is the first time that we morph this call AND it has register arguments.
         // Follow into the code below and do the 'defer or eval to temp' analysis.
