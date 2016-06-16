@@ -4038,10 +4038,12 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* callNode)
     // method instead of fgMorphSystemVStructArgs
 #ifndef LEGACY_BACKEND
     // We only build GT_LISTs for MultiReg structs for the RyuJIT backend
-    if (hasMultiregStructArgs)
+    (hasMultiregStructArgs);
+#ifdef _TARGET_ARM64_
     {
         fgMorphMultiregStructArgs(call);
     }
+#endif
 #endif // LEGACY_BACKEND
 
 #endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
@@ -4269,7 +4271,6 @@ void Compiler::fgMorphMultiregStructArgs(GenTreeCall* call)
 {
     GenTreePtr   args;
     GenTreePtr   argx;
-    bool         foundStructArg = false;
     unsigned     initialFlags = call->gtFlags;
     unsigned     flagsSummary = 0;
     fgArgInfoPtr allArgInfo = call->fgArgInfo;
@@ -4326,8 +4327,6 @@ void Compiler::fgMorphMultiregStructArgs(GenTreeCall* call)
 
         if (arg->TypeGet() == TYP_STRUCT)
         {
-            foundStructArg = true;
-
             arg = fgMorphMultiregStructArg(arg, fgEntryPtr);
 
             // Did we replace 'argx' with a new tree?
@@ -4349,7 +4348,6 @@ void Compiler::fgMorphMultiregStructArgs(GenTreeCall* call)
     }
 
     // We should only call this method when we actually have one or more multireg struct args
-    assert(foundStructArg);
 
     // Update the flags
     call->gtFlags |= (flagsSummary & GTF_ALL_EFFECT);
@@ -4441,9 +4439,13 @@ GenTreePtr    Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPt
         assert(structSize <= 2 * TARGET_POINTER_SIZE);
         BYTE gcPtrs[2] = { TYPE_GC_NONE, TYPE_GC_NONE };
         info.compCompHnd->getClassGClayout(objClass, &gcPtrs[0]);
-        elemCount = 2;
+        elemCount = 1;
+        if (structSize > TARGET_POINTER_SIZE)
+        {
+            elemCount = 2;
+            type[1] = getJitGCType(gcPtrs[1]);
+        }
         type[0] = getJitGCType(gcPtrs[0]);
-        type[1] = getJitGCType(gcPtrs[1]);
 
         if ((argValue->OperGet() == GT_LCL_FLD) ||
             (argValue->OperGet() == GT_LCL_VAR))
@@ -4453,7 +4455,7 @@ GenTreePtr    Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPt
             // lives in the stack frame or will be a promoted field.
             //
             elemSize = TARGET_POINTER_SIZE;
-            structSize = 2 * TARGET_POINTER_SIZE;
+            structSize = structSize > TARGET_POINTER_SIZE ? 2 * TARGET_POINTER_SIZE : TARGET_POINTER_SIZE;
         }
         else // we must have a GT_OBJ
         {
@@ -4463,17 +4465,32 @@ GenTreePtr    Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPt
             // and we can't read past the end of the structSize
             // We adjust the second load type here
             // 
-            if (structSize < 2 * TARGET_POINTER_SIZE)
+
+            unsigned int smallStructSize, idx;
+            if (structSize > TARGET_POINTER_SIZE)
             {
-                switch (structSize - TARGET_POINTER_SIZE) {
+                smallStructSize = structSize - TARGET_POINTER_SIZE;
+                idx = 1;
+            }
+            else
+            {
+                smallStructSize = structSize;
+                idx = 0;
+            }
+
+            {
+                switch(smallStructSize) {
                 case 1:
-                    type[1] = TYP_BYTE;
+                    type[idx] = TYP_BYTE;
                     break;
                 case 2:
-                    type[1] = TYP_SHORT;
+                    type[idx] = TYP_SHORT;
                     break;
                 case 4:
-                    type[1] = TYP_INT;
+                    type[idx] = TYP_INT;
+                    break;
+                case 8:
+                    type[idx] = TYP_LONG;
                     break;
                 default:
                     noway_assert(!"NYI: odd sized struct in fgMorphMultiregStructArg");
@@ -4485,7 +4502,7 @@ GenTreePtr    Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPt
     // We should still have a TYP_STRUCT
     assert(argValue->TypeGet() == TYP_STRUCT);
 
-    GenTreeArgList*  newArg = nullptr;
+    GenTreePtr newArg = nullptr;
 
     // Are we passing a struct LclVar?
     //
@@ -4499,9 +4516,10 @@ GenTreePtr    Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPt
         // At this point any TYP_STRUCT LclVar must be a 16-byte struct
         // or an HFA struct, both which are passed by value.
         //
-        assert((varDsc->lvSize() == 2*TARGET_POINTER_SIZE) || varDsc->lvIsHfa());
+        assert((varDsc->lvSize() % TARGET_POINTER_SIZE == 0) || varDsc->lvIsHfa());
 
-        varDsc->lvIsMultiRegArgOrRet = true;
+        if (varDsc->lvIsHfa() || varDsc->lvSize() > TARGET_POINTER_SIZE)
+            varDsc->lvIsMultiRegArgOrRet = true;
 
 #ifdef DEBUG
         if (verbose)
@@ -4528,7 +4546,6 @@ GenTreePtr    Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPt
         else
         {
             // We must have a 16-byte struct (non-HFA)
-            noway_assert(elemCount == 2);
 
             for (unsigned inx = 0; inx < elemCount; inx++)
             {
@@ -4599,6 +4616,7 @@ GenTreePtr    Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPt
             //
             lvaSetVarDoNotEnregister(varNum DEBUG_ARG(DNER_LocalField));
         }
+
     }
 
     // If we didn't set newarg to a new List Node tree
@@ -4658,23 +4676,31 @@ GenTreePtr    Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPt
             unsigned offset = lastOffset;
             unsigned inx = elemCount;
 
-            // Create a new tree for 'arg'
-            //    replace the existing LDOBJ(ADDR(LCLVAR)) 
-            //    with a LIST(LCLFLD-LO, LIST(LCLFLD-HI, nullptr) ...)
-            //
-            while (inx > 0)
+            if (elemCount >= 2)
             {
-                inx--;
-                offset -= elemSize;
-                GenTreePtr nextLclFld = gtNewLclFldNode(varNum, type[inx], offset);
-                if (newArg == nullptr)
+                // Create a new tree for 'arg'
+                //    replace the existing LDOBJ(ADDR(LCLVAR)) 
+                //    with a LIST(LCLFLD-LO, LIST(LCLFLD-HI, nullptr) ...)
+                //
+                while (inx > 0)
                 {
-                    newArg = gtNewArgList(nextLclFld);
+                    inx--;
+                    offset -= elemSize;
+                    GenTreePtr nextLclFld = gtNewLclFldNode(varNum, type[inx], offset);
+                    if (newArg == nullptr)
+                    {
+                        newArg = gtNewArgList(nextLclFld);
+                    }
+                    else
+                    {
+                        newArg = gtNewListNode(nextLclFld, (GenTreeArgList *)newArg);
+                    }
                 }
-                else
-                {
-                    newArg = gtNewListNode(nextLclFld, newArg);
-                }
+            }
+            else
+            {
+                assert(elemCount == 1);
+                newArg = gtNewLclFldNode(varNum, type[0], 0);
             }
         }
         // Are we passing a GT_OBJ struct?
@@ -4693,32 +4719,41 @@ GenTreePtr    Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPt
             // Start building our list from the last element
             unsigned offset = structSize;
             unsigned inx = elemCount;
-            while (inx > 0)
+            if (elemCount >= 2)
             {
-                inx--;
-                elemSize = genTypeSize(type[inx]);
-                offset -= elemSize;
-                GenTreePtr  curAddr = baseAddr;
-                if (offset != 0)
+                while (inx > 0)
                 {
-                    GenTreePtr  baseAddrDup = gtCloneExpr(baseAddr);
-                    noway_assert(baseAddrDup != nullptr);
-                    curAddr = gtNewOperNode(GT_ADD, addrType, baseAddrDup, gtNewIconNode(offset, TYP_I_IMPL));
-                }
-                else
-                {
-                    curAddr = baseAddr;
-                }
-                GenTreePtr curItem = gtNewOperNode(GT_IND, type[inx], curAddr);
-                if (newArg == nullptr)
-                {
-                    newArg = gtNewArgList(curItem);
-                }
-                else
-                {
-                    newArg = gtNewListNode(curItem, newArg);
+                    inx--;
+                    elemSize = genTypeSize(type[inx]);
+                    offset -= elemSize;
+                    GenTreePtr  curAddr = baseAddr;
+                    if (offset != 0)
+                    {
+                        GenTreePtr  baseAddrDup = gtCloneExpr(baseAddr);
+                        noway_assert(baseAddrDup != nullptr);
+                        curAddr = gtNewOperNode(GT_ADD, addrType, baseAddrDup, gtNewIconNode(offset, TYP_I_IMPL));
+                    }
+                    else
+                    {
+                        curAddr = baseAddr;
+                    }
+                    GenTreePtr curItem = gtNewOperNode(GT_IND, type[inx], curAddr);
+                    if (newArg == nullptr)
+                    {
+                        newArg = gtNewArgList(curItem);
+                    }
+                    else
+                    {
+                        newArg = gtNewListNode(curItem, (GenTreeArgList *)newArg);
+                    }
                 }
             }
+            else
+            {
+                assert(elemCount == 1);
+                newArg = gtNewOperNode(GT_IND, type[0], baseAddr);
+            }
+
         }
     }
 
