@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="..\..\packages\Microsoft.Net.Compilers\2.0.0-beta1\build\Microsoft.Net.Compilers.props" />
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   
   <!-- Include common build properties -->
@@ -36,6 +37,7 @@
     <WarningsNotAsErrors>$(WarningsNotAsErrors);618</WarningsNotAsErrors>
     <NoWarn>649,3019,414,169,3015</NoWarn>
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    <Features>refLocalsAndReturns</Features>
 
     <BclRewriterModelFile>$(MSBuildThisFileDirectory)model.xml</BclRewriterModelFile>
 

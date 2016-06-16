@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "Microsoft.Net.Compilers": "2.0.0-beta1"
+  },
+  "frameworks" : {
+    "netcoreapp1.0": { },
+    "net46": { }
+  }
+}
