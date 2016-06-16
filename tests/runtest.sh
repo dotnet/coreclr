@@ -621,6 +621,7 @@ function run_test {
 
     if [ $found_core_files == 1 ]; then
         echo "ZZZZZZZZ About to run top"
+        export TERM=xterm
         top -n 1 -o %MEM
     fi
 
