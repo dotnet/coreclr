@@ -3730,8 +3730,7 @@ void InitializeGarbageCollector()
     IfFailThrow(hr);
 
     // Thread for running finalizers...
-    if (FinalizerThread::FinalizerThreadCreate() != 1)
-        ThrowOutOfMemory();
+    FinalizerThread::FinalizerThreadCreate();
 
     // Now we really have fully initialized the garbage collector
     SetGarbageCollectorFullyInitialized();
