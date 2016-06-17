@@ -462,20 +462,25 @@ LNullThis
     GBLA ComCallPreStub_StackAlloc
     GBLA ComCallPreStub_FrameOffset
     GBLA ComCallPreStub_ErrorReturnOffset 
+    GBLA ComCallPreStub_FirstStackAdjust
 
 ComCallPreStub_FrameSize         SETA (SIZEOF__GSCookie + SIZEOF__ComMethodFrame)
-ComCallPreStub_StackAlloc        SETA ComCallPreStub_FrameSize - SIZEOF__ArgumentRegisters - 2 * 8 ; reg args , fp & lr already pushed
+ComCallPreStub_FirstStackAdjust  SETA (SIZEOF__ArgumentRegisters + 2 * 8) ; reg args , fp & lr already pushed
+ComCallPreStub_StackAlloc        SETA ComCallPreStub_FrameSize - ComCallPreStub_FirstStackAdjust 
 ComCallPreStub_StackAlloc        SETA ComCallPreStub_StackAlloc + SIZEOF__FloatArgumentRegisters + 8; 8 for ErrorReturn
-
     IF ComCallPreStub_StackAlloc:MOD:16 != 0
 ComCallPreStub_StackAlloc     SETA ComCallPreStub_StackAlloc + 8
     ENDIF
 
-ComCallPreStub_FrameOffset       SETA (ComCallPreStub_StackAlloc - (SIZEOF__ComMethodFrame - SIZEOF__ArgumentRegisters - 2 * 8))
+ComCallPreStub_FrameOffset       SETA (ComCallPreStub_StackAlloc - (SIZEOF__ComMethodFrame - ComCallPreStub_FirstStackAdjust))
 ComCallPreStub_ErrorReturnOffset SETA SIZEOF__FloatArgumentRegisters
 
+    IF (ComCallPreStub_FirstStackAdjust):MOD:16 != 0
+ComCallPreStub_FirstStackAdjust     SETA ComCallPreStub_FirstStackAdjust + 8
+    ENDIF
+
     ; Save arguments and return address
-    PROLOG_SAVE_REG_PAIR           fp, lr, #-88!
+    PROLOG_SAVE_REG_PAIR           fp, lr, #-ComCallPreStub_FirstStackAdjust!
     PROLOG_STACK_ALLOC  ComCallPreStub_StackAlloc 
 
     SAVE_ARGUMENT_REGISTERS        sp, (16+ComCallPreStub_StackAlloc)
@@ -496,7 +501,7 @@ ComCallPreStub_ErrorReturnOffset SETA SIZEOF__FloatArgumentRegisters
     RESTORE_ARGUMENT_REGISTERS        sp, (16+ComCallPreStub_StackAlloc)
 
     EPILOG_STACK_FREE ComCallPreStub_StackAlloc
-    EPILOG_RESTORE_REG_PAIR           fp, lr, #88!
+    EPILOG_RESTORE_REG_PAIR           fp, lr, #ComCallPreStub_FirstStackAdjust!
 
     ; and tailcall to the actual method
     EPILOG_BRANCH_REG x12
@@ -506,7 +511,7 @@ ComCallPreStub_ErrorExit
     
     ; pop the stack
     EPILOG_STACK_FREE ComCallPreStub_StackAlloc
-    EPILOG_RESTORE_REG_PAIR           fp, lr, #88!
+    EPILOG_RESTORE_REG_PAIR           fp, lr, #ComCallPreStub_FirstStackAdjust!
 
     EPILOG_RETURN
 
@@ -527,19 +532,26 @@ ComCallPreStub_ErrorExit
     GBLA GenericComCallStub_FrameSize
     GBLA GenericComCallStub_StackAlloc
     GBLA GenericComCallStub_FrameOffset
+    GBLA GenericComCallStub_FirstStackAdjust
 
 GenericComCallStub_FrameSize         SETA (SIZEOF__GSCookie + SIZEOF__ComMethodFrame)
-GenericComCallStub_StackAlloc        SETA GenericComCallStub_FrameSize - SIZEOF__ArgumentRegisters - 2 * 8
+GenericComCallStub_FirstStackAdjust  SETA (SIZEOF__ArgumentRegisters + 2 * 8)
+GenericComCallStub_StackAlloc        SETA GenericComCallStub_FrameSize - GenericComCallStub_FirstStackAdjust
 GenericComCallStub_StackAlloc        SETA GenericComCallStub_StackAlloc + SIZEOF__FloatArgumentRegisters
 
-    IF GenericComCallStub_StackAlloc:MOD:16 != 0
+    IF (GenericComCallStub_StackAlloc):MOD:16 != 0
 GenericComCallStub_StackAlloc     SETA GenericComCallStub_StackAlloc + 8
     ENDIF
 
-GenericComCallStub_FrameOffset       SETA (GenericComCallStub_StackAlloc - (SIZEOF__ComMethodFrame - SIZEOF__ArgumentRegisters - 2 * 8))
+GenericComCallStub_FrameOffset       SETA (GenericComCallStub_StackAlloc - (SIZEOF__ComMethodFrame - GenericComCallStub_FirstStackAdjust))
+
+    IF (GenericComCallStub_FirstStackAdjust):MOD:16 != 0
+GenericComCallStub_FirstStackAdjust     SETA GenericComCallStub_FirstStackAdjust + 8
+    ENDIF
+
 
     ; Save arguments and return address
-    PROLOG_SAVE_REG_PAIR           fp, lr, #-88!
+    PROLOG_SAVE_REG_PAIR           fp, lr, #-GenericComCallStub_FirstStackAdjust!
     PROLOG_STACK_ALLOC  GenericComCallStub_StackAlloc 
 
     SAVE_ARGUMENT_REGISTERS        sp, (16+GenericComCallStub_StackAlloc)
@@ -551,7 +563,7 @@ GenericComCallStub_FrameOffset       SETA (GenericComCallStub_StackAlloc - (SIZE
     
     ; pop the stack
     EPILOG_STACK_FREE GenericComCallStub_StackAlloc
-    EPILOG_RESTORE_REG_PAIR           fp, lr, #88!
+    EPILOG_RESTORE_REG_PAIR           fp, lr, #GenericComCallStub_FirstStackAdjust!
 
     EPILOG_RETURN
 
