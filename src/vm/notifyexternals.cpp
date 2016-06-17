@@ -94,7 +94,7 @@ public:
 
         if (iid == IID_ITeardownNotification || iid == IID_IUnknown)
         {
-            *ppv = (IClassFactory2 *)this;
+            *ppv = static_cast<ITeardownNotification*>(this);
             AddRef();
         }
         else if (iid == IID_IMarshal || iid == IID_IAgileObject)
