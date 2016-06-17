@@ -428,7 +428,7 @@ VirtualCallStubManager::StubKind VirtualCallStubManager::predictStubKind(PCODE s
 
         DWORD firstDword = *((DWORD*) pInstr);
 
-        if (firstDword == DISPATCH_STUB_FIRST_DWORD) // assembly of first instruction of DispatchStub : ldr x8, [x0]
+        if (firstDword == DISPATCH_STUB_FIRST_DWORD) // assembly of first instruction of DispatchStub : ldr x13, [x0]
         {
             stubKind = SK_DISPATCH;
         }
