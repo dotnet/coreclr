@@ -52,6 +52,7 @@ PIMAGEHLP_SYMBOL sym = (PIMAGEHLP_SYMBOL) symBuffer;
 void *SymbolReader::coreclrLib;
 ResolveSequencePointDelegate SymbolReader::resolveSequencePointDelegate;
 LoadSymbolsForModuleDelegate SymbolReader::loadSymbolsForModuleDelegate;
+GetLocalVariableName SymbolReader::getLocalVariableNameDelegate;
 #endif // !FEATURE_PAL
 
 const char * const CorElementTypeName[ELEMENT_TYPE_MAX]=
@@ -6284,6 +6285,11 @@ HRESULT SymbolReader::LoadCoreCLR() {
                         SymbolReaderClassName, "LoadSymbolsForModule",
                         (void **)&loadSymbolsForModuleDelegate);
     IfFailRet(Status);
+    Status = CreateDelegate(hostHandle, domainId, SymbolReaderDllName,
+                        SymbolReaderClassName, "GetLocalVariableName",
+                        (void **)&getLocalVariableNameDelegate);
+    IfFailRet(Status);
+
     return Status;
 }
 #endif //FEATURE_PAL
@@ -6363,20 +6369,43 @@ HRESULT SymbolReader::LoadSymbols(IMetaDataImport * pMD, ULONG64 baseAddress, __
     if (Status != S_OK)
         return Status;
 
-    char szName[mdNameLen];
     WideCharToMultiByte(CP_ACP, 0, pModuleName, (int) (_wcslen(pModuleName) + 1),
-            szName, mdNameLen, NULL, NULL);
-    return !loadSymbolsForModuleDelegate(szName);
+            m_szModuleName, mdNameLen, NULL, NULL);
+    return !loadSymbolsForModuleDelegate(m_szModuleName);
 #endif // FEATURE_PAL
 }
 
 HRESULT SymbolReader::GetNamedLocalVariable(ISymUnmanagedScope * pScope, ICorDebugILFrame * pILFrame, mdMethodDef methodToken, ULONG localIndex, __inout_ecount(paramNameLen) WCHAR* paramName, ULONG paramNameLen, ICorDebugValue** ppValue)
 {
     HRESULT Status = S_OK;
+#ifdef FEATURE_PAL
+    if (getLocalVariableNameDelegate == nullptr)
+        Status = LoadCoreCLR();
+    if (Status != S_OK)
+        return Status;
+    // FIXME: we need to find a way to release memory after getting string from managed code.
+    WCHAR *wszParamName = new (std::nothrow) WCHAR[mdNameLen];
+    if (wszParamName == NULL) {
+        return E_OUTOFMEMORY;
+    }
+    int ret = getLocalVariableNameDelegate(m_szModuleName, methodToken,
+                                       localIndex, &wszParamName);
+    if (ret) {
+        wcscpy_s(paramName, _wcslen(wszParamName) + 1, wszParamName);
+        paramNameLen = _wcslen(paramName);
 
+        if (SUCCEEDED(pILFrame->GetLocalVariable(localIndex, ppValue)) && (*ppValue != NULL)) {
+            return S_OK;
+        } else {
+            *ppValue = NULL;
+            return E_FAIL;
+        }
+    }
+    return E_FAIL;
+
+#else
     if(pScope == NULL)
     {
-#ifndef FEATURE_PAL
         ToRelease<ISymUnmanagedMethod> pSymMethod;
         IfFailRet(m_pSymReader->GetMethod(methodToken, &pSymMethod));
 
@@ -6384,9 +6413,6 @@ HRESULT SymbolReader::GetNamedLocalVariable(ISymUnmanagedScope * pScope, ICorDeb
         IfFailRet(pSymMethod->GetRootScope(&pScope));
 
         return GetNamedLocalVariable(pScope, pILFrame, methodToken, localIndex, paramName, paramNameLen, ppValue);
-#else
-        return E_FAIL;
-#endif // FEATURE_PAL
     }
     else
     {
@@ -6404,7 +6430,7 @@ HRESULT SymbolReader::GetNamedLocalVariable(ISymUnmanagedScope * pScope, ICorDeb
                 if(varIndexInMethod != localIndex)
                     continue;
 
-                ULONG32 nameLen = 0; 
+                ULONG32 nameLen = 0;
                 if(FAILED(pLocals[i]->GetName(paramNameLen, &nameLen, paramName)))
                         swprintf_s(paramName, paramNameLen, W("local_%d\0"), localIndex);
 
@@ -6440,7 +6466,9 @@ HRESULT SymbolReader::GetNamedLocalVariable(ISymUnmanagedScope * pScope, ICorDeb
         for(ULONG j = 0; j < numChildren; j++) pChildren[j]->Release();
 
     }
+
     return E_FAIL;
+#endif // FEATURE_PAL
 }
 
 HRESULT SymbolReader::GetNamedLocalVariable(ICorDebugFrame * pFrame, ULONG localIndex, __inout_ecount(paramNameLen) WCHAR* paramName, ULONG paramNameLen, ICorDebugValue** ppValue)

@@ -11562,12 +11562,10 @@ private:
         IfFailRet(pLocalsEnum->GetCount(&cLocals));
         if (cLocals > 0 && bLocals)
         {
-#ifndef FEATURE_PAL
             bool symbolsAvailable = false;
             SymbolReader symReader;
             if(SUCCEEDED(symReader.LoadSymbols(pMD, pModule)))
                 symbolsAvailable = true;
-#endif
             ExtOut("\nLOCALS:\n");
             for (ULONG i=0; i < cLocals; i++)
             {
@@ -11575,13 +11573,11 @@ private:
                 WCHAR paramName[mdNameLen] = W("\0");
 
                 ToRelease<ICorDebugValue> pValue;
-#ifndef FEATURE_PAL
                 if(symbolsAvailable)
                 {
                     Status = symReader.GetNamedLocalVariable(pILFrame, i, paramName, mdNameLen, &pValue);
                 }
                 else
-#endif
                 {
                     ULONG cArgsFetched;
                     Status = pLocalsEnum->Next(1, &pValue, &cArgsFetched);
