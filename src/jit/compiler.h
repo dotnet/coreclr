@@ -7992,7 +7992,9 @@ public :
         // Methods returning a struct in two registers is considered having a return value of TYP_STRUCT.
         // Such method's compRetNativeType is TYP_STRUCT without a hidden RetBufArg
         return varTypeIsStruct(info.compRetNativeType) && (info.compRetBuffArg == BAD_VAR_NUM);
-#else 
+#elif FEATURE_MULTIREG_RET && defined(_TARGET_X86_)
+        return varTypeIsLong(info.compRetNativeType);
+#else
         return false;
 #endif // FEATURE_MULTIREG_RET && (defined(FEATURE_UNIX_AMD64_STRUCT_PASSING) || defined(_TARGET_ARM_))
 

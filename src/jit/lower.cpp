@@ -265,7 +265,7 @@ void Lowering::DecomposeNode(GenTreePtr* pTree, Compiler::fgWalkData* data)
         {
             GenTree* nextTree = tree->gtNext;
             GenTree* rhs = tree->gtGetOp1();
-            if (rhs->OperGet() == GT_PHI)
+            if (rhs->OperGet() == GT_PHI || rhs->OperGet() == GT_CALL)
             {
                 break;
             }
@@ -372,17 +372,16 @@ void Lowering::DecomposeNode(GenTreePtr* pTree, Compiler::fgWalkData* data)
         }
         break;
     case GT_CALL:
-        NYI("Call with TYP_LONG return value");
         break;
     case GT_RETURN:
-        assert(tree->gtOp.gtOp1->OperGet() == GT_LONG);
+        assert(tree->gtOp.gtOp1->OperGet() == GT_LONG || tree->gtOp.gtOp1->OperGet() == GT_CALL);
         break;
     case GT_STOREIND:
-        assert(tree->gtOp.gtOp2->OperGet() == GT_LONG);
+        assert(tree->gtOp.gtOp2->OperGet() == GT_LONG || tree->gtOp.gtOp2->OperGet() == GT_CALL);
         NYI("StoreInd of of TYP_LONG");
         break;
     case GT_STORE_LCL_FLD:
-        assert(tree->gtOp.gtOp1->OperGet() == GT_LONG);
+        assert(tree->gtOp.gtOp1->OperGet() == GT_LONG || tree->gtOp.gtOp1->OperGet() == GT_CALL);
         NYI("st.lclFld of of TYP_LONG");
         break;
     case GT_IND:
@@ -1504,6 +1503,8 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
             GenTreePtr argLo = arg->gtGetOp1();
             GenTreePtr argHi = arg->gtGetOp2();
 
+            NYI_IF(argHi->OperGet() == GT_ADD_HI || argHi->OperGet() == GT_SUB_HI, "Hi and Lo cannot be reordered");
+            
             GenTreePtr putArgLo = NewPutArg(call, argLo, info, type);
             GenTreePtr putArgHi = NewPutArg(call, argHi, info, type);
 
