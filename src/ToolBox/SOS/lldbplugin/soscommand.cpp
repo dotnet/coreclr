@@ -148,5 +148,9 @@ sosCommandInitialize(lldb::SBDebugger debugger)
     interpreter.AddCommand("histobjfind", new sosCommand("HistObjFind"), "Displays all the log entries that reference an object at the specified address.");
     interpreter.AddCommand("histroot", new sosCommand("HistRoot"), "Displays information related to both promotions and relocations of the specified root.");
     interpreter.AddCommand("soshelp", new sosCommand("Help"), "Displays all available commands when no parameter is specified, or displays detailed help information about the specified command. soshelp <command>");
+#ifdef FEATURE_HISTDBG
+    interpreter.AddCommand("reverse-finish", new sosCommand("ReverseFinish"), "Restores the execution to a point just before the current function call.");
+    interpreter.AddCommand("reverse-continue", new sosCommand("ReverseContinue"), "Restores the execution to a previous checkpoint.");
+#endif
     return true;
 }

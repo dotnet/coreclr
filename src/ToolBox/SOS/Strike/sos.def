@@ -10,6 +10,12 @@ EXPORTS
     ClrStack
     clrstack=ClrStack
     CLRStack=ClrStack
+#ifdef FEATURE_HISTDBG
+    ReverseFinish
+    reversefinish=ReverseFinish
+    ReverseContinue
+    reversecontinue=ReverseContinue
+#endif
     DumpArray
     da=DumpArray
     dumparray=DumpArray

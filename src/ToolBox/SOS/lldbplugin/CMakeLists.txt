@@ -15,6 +15,10 @@ endif (CORECLR_SET_RPATH)
 
 add_definitions(-DPAL_STDCPP_COMPAT)
 
+if(FEATURE_HISTDBG)
+  add_definitions(-DFEATURE_HISTDBG)
+endif(FEATURE_HISTDBG)
+
 if(CLR_CMAKE_PLATFORM_ARCH_AMD64)
     add_definitions(-D_TARGET_AMD64_=1)
     add_definitions(-DDBG_TARGET_64BIT=1)

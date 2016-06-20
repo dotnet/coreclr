@@ -12623,11 +12623,399 @@ DECLARE_API(Watch)
 
 #endif // FEATURE_PAL
 
+#ifdef FEATURE_HISTDBG
+
+#define ThreadID ULONG
+#define FunctionID ULONG
+#include <historicaldebugging.inc>
+#include <sys/stat.h>
+#include <unistd.h>
+
+size_t ReadLastCheckpoint(ThreadID threadID, CheckpointData* data)
+{
+    char fileNameBuffer[MAX_PATH_FNAME+1];
+    sprintf(fileNameBuffer, FMT_LOG_FILE_PATH, threadID);
+
+    LONG fileSize = 0;
+#ifdef _TARGET_WIN64_
+    struct _stat buf;
+    int result = _stat(fileNameBuffer, &buf);
+#else // _TARGET_WIN64_
+    struct stat buf;
+    int result = stat(fileNameBuffer, &buf);
+#endif // _TARGET_WIN64_
+    fileSize = buf.st_size;
+
+    FILE* logFile = fopen(fileNameBuffer, "rb");
+    if (logFile == nullptr)
+    {
+        return 0;
+    }
+    fseek(logFile, fileSize-sizeof(FrameHeader), SEEK_SET);
+
+    FrameHeader header;
+    if (fread(&header, sizeof(FrameHeader), 1, logFile) != 1)
+    {
+        fclose(logFile);
+        return 0;
+    }
+
+    PBYTE stackBuffer = new NOTHROW BYTE[header.frameSize];
+    if (fseek(logFile, fileSize-sizeof(FrameHeader)-header.frameSize, SEEK_SET) == 0)
+    {
+        fclose(logFile);
+        return 0;
+    }
+
+    if (fread(stackBuffer, header.frameSize, 1, logFile) != 1)
+    {
+        fclose(logFile);    
+        return 0;
+    }
+
+    fclose(logFile);
+
+    data->registerContext = header.context;
+    data->stackBuffer = stackBuffer;
+    data->stackBufferSize = header.frameSize;
+    data->threadId = threadID;
+    return fileSize-sizeof(FrameHeader)-header.frameSize;
+}
+
+size_t ReadCheckpointBeforeBP(ThreadID threadID, CLRDATA_ADDRESS bp, CheckpointData* data)
+{
+    char fileNameBuffer[MAX_PATH_FNAME+1];
+    sprintf(fileNameBuffer, FMT_LOG_FILE_PATH, threadID);
+
+    LONG fileSize = 0;
+#ifdef _TARGET_WIN64_
+    struct _stat buf;
+    int result = _stat(fileNameBuffer, &buf);
+#else // _TARGET_WIN64_ 
+    struct stat buf;
+    int result = stat(fileNameBuffer, &buf);
+#endif // _TARGET_WIN64_
+    fileSize = buf.st_size;
+
+    FILE* logFile = fopen(fileNameBuffer, "rb");
+    if (logFile == nullptr)
+    {
+        return 0;
+    }
+    fseek(logFile, fileSize-sizeof(FrameHeader), SEEK_SET);
+
+    FrameHeader header;
+    BOOL found = false;
+    size_t fpos = fileSize - sizeof(FrameHeader);
+    while (fread(&header, sizeof(FrameHeader), 1, logFile))
+    {
+        if (header.context.R11 > bp)
+        {
+            fpos -= header.frameSize;
+            found = true;
+            break;
+        }
+
+        // skip over the frame while we're searching for the last checkpoint
+        if (fseek(logFile, fpos-(header.frameSize + sizeof(FrameHeader)), SEEK_SET) == 0)
+        {
+            fpos -= (header.frameSize + sizeof(FrameHeader));
+        }
+        else
+        {
+            fclose(logFile);
+            return 0;
+        }
+    }
+
+    if (!found)
+    {
+        fclose(logFile);
+        return 0;
+    }
+
+    // fpos should now point to a frame we need
+    PBYTE stackBuffer = new NOTHROW BYTE[header.frameSize];
+    if (stackBuffer == nullptr)
+    {
+        fclose(logFile);
+        return 0;
+    }
+    if (fseek(logFile, fpos, SEEK_SET) != 0)
+    {
+        fclose(logFile);
+        return false;
+    }
+
+    if (fread(stackBuffer, header.frameSize, 1, logFile) != 1)
+    {
+        fclose(logFile);    
+        return false;
+    }
+
+    fclose(logFile);
+
+    data->registerContext = header.context;
+    data->stackBuffer = stackBuffer;
+    data->stackBufferSize = header.frameSize;
+    data->threadId = threadID;
+    return fpos;
+}
+
+BOOL TruncateCheckpointData(ThreadID threadID, size_t logEnd)
+{
+    char fileNameBuffer[MAX_PATH_FNAME+1];
+    sprintf(fileNameBuffer, FMT_LOG_FILE_PATH, threadID);
+    truncate(fileNameBuffer, logEnd);
+    return true;
+}
+
+CLRDATA_ADDRESS GetCurrentBP(ThreadID threadID)
+{
+    HRESULT Status;
+    CLRDATA_ADDRESS bp = 0;
+    CROSS_PLATFORM_CONTEXT context;
+    ULONG32 cbContextActual;
+
+    // get the base pointer of the top managed frame
+    ToRelease<ICorDebugThread> pThread;
+    ToRelease<ICorDebugThread3> pThread3;
+    ToRelease<ICorDebugStackWalk> pStackWalk;
+
+    if (FAILED(InitCorDebugInterface()))
+        goto Exit;
+
+    if (FAILED(g_pCorDebugProcess->GetThread(threadID, &pThread)))
+        goto Exit;
+    if (FAILED(pThread->QueryInterface(IID_ICorDebugThread3, (LPVOID *) &pThread3)))
+        goto Exit;
+    if (FAILED(pThread3->CreateStackWalk(&pStackWalk)))
+        goto Exit;
+
+    for (Status = S_OK; ; Status = pStackWalk->Next())
+    {
+
+        if (Status == CORDBG_S_AT_END_OF_STACK)
+        {
+            goto Exit;
+        }
+        if (FAILED(Status))
+            goto Exit;
+
+        if (IsInterrupt())
+        {
+            goto Exit;
+        }
+
+        ToRelease<ICorDebugFrame> pFrame;
+        IfFailRet(pStackWalk->GetFrame(&pFrame));
+        if (Status == S_FALSE)
+        {
+            continue;
+        }
+
+        _ASSERTE(pFrame != NULL);
+
+        ToRelease<ICorDebugRuntimeUnwindableFrame> pRuntimeUnwindableFrame;
+        Status = pFrame->QueryInterface(IID_ICorDebugRuntimeUnwindableFrame, (LPVOID *) &pRuntimeUnwindableFrame);
+        if (SUCCEEDED(Status))
+        {
+            continue;
+        }
+
+        ToRelease<ICorDebugInternalFrame> pInternalFrame;
+        Status = pFrame->QueryInterface(IID_ICorDebugInternalFrame, (LPVOID *) &pInternalFrame);
+        if (SUCCEEDED(Status))
+        {
+            // This is a clr!Frame.
+            LPCWSTR pwszFrameName = W("TODO: Implement GetFrameName");
+            ExtOut("[%S: p] ", pwszFrameName);
+        }
+
+        // Print the frame's associated function info, if it has any.
+        ToRelease<ICorDebugILFrame> pILFrame;
+        HRESULT hrILFrame = pFrame->QueryInterface(IID_ICorDebugILFrame, (LPVOID*) &pILFrame);
+
+        if (SUCCEEDED(hrILFrame))
+        {
+            break;
+        }
+    }
+
+    if ((Status=pStackWalk->GetContext(
+        DT_CONTEXT_FULL, 
+        sizeof(context),
+        &cbContextActual,
+        (BYTE *)&context))!=S_OK)
+    {
+        ExtOut("GetFrameContext failed: %lx\n",Status);
+        goto Exit;
+    }
+
+    bp = GetBP(context);
+Exit:
+#ifdef FEATURE_PAL
+    // Temporary until we get a process exit notification plumbed from lldb
+    UninitCorDebugInterface();
+#endif
+    return bp;
+}
+
+#undef ThreadID
+#undef FunctionID
+
+#endif // FEATURE_HISTDBG
+
+DECLARE_API(ReverseContinue)
+{
+    INIT_API();
+#if !defined(FEATURE_HISTDBG)
+    ExtOut("FEATURE_HISTDBG is disabled\n");
+    return S_FALSE;
+#elif !defined(_TARGET_ARM_)
+    ExtOut("NYI: This platform doesn't support reverse execution yet\n");
+    return S_FALSE;
+#else
+
+    ULONG ulThreadID = 0;
+    g_ExtSystem->GetCurrentThreadSystemId(&ulThreadID);
+    
+    CheckpointData data;
+    CLRDATA_ADDRESS bp = GetCurrentBP(ulThreadID);
+    if (bp == 0)
+    {
+        return S_FALSE;
+    }
+
+    // calling this with bp-1 will ensure that we will find a previous checkpoint with our own BP
+    size_t logEnd = ReadCheckpointBeforeBP(ulThreadID, bp-1, &data);
+    if (logEnd == 0)
+    {
+        return S_FALSE;
+    }
+
+    ULONG values[] = {  data.registerContext.R0, 
+                        data.registerContext.R1, 
+                        data.registerContext.R2, 
+                        data.registerContext.R3, 
+                        data.registerContext.R4, 
+                        data.registerContext.R5, 
+                        data.registerContext.R6, 
+                        data.registerContext.R7, 
+                        data.registerContext.R8, 
+                        data.registerContext.R9, 
+                        data.registerContext.R10, 
+                        data.registerContext.R11, 
+                        data.registerContext.R12, 
+                        data.registerContext.Sp, 
+                        data.registerContext.Lr, 
+                        data.registerContext.Pc - ((data.registerContext.Pc & THUMB_CODE) ? 2 : 4) // we should restore to one instruction before
+                    };
+    g_ExtRegisters->SetValues(0x10, nullptr, 0, values);
+    ULONG bytesWritten = 0;
+    g_ExtData->WriteVirtual(data.registerContext.Sp, data.stackBuffer, data.stackBufferSize, &bytesWritten);
+    TruncateCheckpointData(ulThreadID, logEnd);
+    return S_OK;
+#endif // _TARGET_ARM_
+}
+
+DECLARE_API(ReverseFinish)
+{
+    INIT_API();
+
+#if !defined(FEATURE_HISTDBG)
+    ExtOut("FEATURE_HISTDBG is disabled\n");
+    return S_FALSE;
+#elif !defined(_TARGET_ARM_)
+    ExtOut("NYI: This platform doesn't support reverse execution yet\n");
+    return S_FALSE;
+#else // !_TARGET_ARM_
+
+    ULONG ulThreadID = 0;
+    g_ExtSystem->GetCurrentThreadSystemId(&ulThreadID);
+
+    CheckpointData data;
+    CLRDATA_ADDRESS bp = GetCurrentBP(ulThreadID);
+    if (bp == 0)
+    {
+        return S_FALSE;
+    }
+
+    size_t logEnd = ReadCheckpointBeforeBP(ulThreadID, bp, &data);
+    if (logEnd == 0)
+    {
+        return S_FALSE;
+    }
+
+    // we should restore to one instruction before
+    CLRDATA_ADDRESS newIP = data.registerContext.Pc - ((data.registerContext.Pc & THUMB_CODE) ? 2 : 4);
+
+    ULONG values[] = {  data.registerContext.R0,
+                        data.registerContext.R1,
+                        data.registerContext.R2,
+                        data.registerContext.R3,
+                        data.registerContext.R4,
+                        data.registerContext.R5,
+                        data.registerContext.R6,
+                        data.registerContext.R7,
+                        data.registerContext.R8,
+                        data.registerContext.R9,
+                        data.registerContext.R10,
+                        data.registerContext.R11,
+                        data.registerContext.R12,
+                        data.registerContext.Sp,
+                        data.registerContext.Lr,
+                        newIP
+                    };
+    g_ExtRegisters->SetValues(0x10, nullptr, 0, values);
+    ULONG bytesWritten = 0;
+    g_ExtData->WriteVirtual(data.registerContext.Sp, data.stackBuffer, data.stackBufferSize, &bytesWritten);
+    TruncateCheckpointData(ulThreadID, logEnd);
+
+    CLRDATA_ADDRESS pMD;
+
+    if ((Status = g_sos->GetMethodDescPtrFromIP(newIP, &pMD)) != S_OK)
+    {
+        ExtOut("Failed to request MethodData, not in JIT code range\n");
+        return Status;
+    }
+    WCHAR FunctionName[mdNameLen];
+    if ((Status = g_sos->GetMethodDescName(pMD, mdNameLen, FunctionName, NULL)) != S_OK)
+    {
+        ExtOut("Failed to request function name\n");
+        return Status;
+    }
+
+    WCHAR  filename[MAX_PATH_FNAME+1];
+    ULONG linenum;
+    // symlines will be non-zero only if SYMOPT_LOAD_LINES was set in the symbol options
+    ULONG symlines = 0;
+    if (SUCCEEDED(g_ExtSymbols->GetSymbolOptions(&symlines)))
+    {
+        symlines &= SYMOPT_LOAD_LINES;
+    }
+
+    if (symlines != 0
+        && SUCCEEDED(GetLineByOffset(TO_CDADDR(newIP), 
+                         &linenum,
+                         filename,
+                         MAX_PATH_FNAME+1)))
+    {
+        ExtOut("*stopped,reason=\"function-finished\","
+            "frame={func=\"%S\",file=\"%s\","
+            "fullname=\"%s\",line=\"%ul\"}", FunctionName, filename, filename, linenum);
+    }
+
+
+    return S_OK;
+#endif // !_TARGET_ARM_
+}
+
 DECLARE_API(ClrStack)
 {
     INIT_API();
 
-    BOOL bAll = FALSE;    
+    BOOL bAll = FALSE;
     BOOL bParams = FALSE;
     BOOL bLocals = FALSE;
     BOOL bSuppressLines = FALSE;
