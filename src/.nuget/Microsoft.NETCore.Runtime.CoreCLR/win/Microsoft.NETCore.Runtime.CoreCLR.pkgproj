@@ -48,8 +48,6 @@
     <ArchitectureSpecificNativeSymbol Include="@(ArchitectureSpecificNativeFileAndSymbol -> '%(RelativeDir)PDB\%(FileName).pdb')" />
     <ArchitectureSpecificNativeSymbol Include="@(ArchitectureSpecificLibFile -> '%(RelativeDir)PDB\%(FileName).pdb')" />
     <ArchitectureSpecificNativeSymbol Include="@(ArchitectureSpecificToolFile -> '%(RelativeDir)PDB\%(FileName).pdb')" />
-    <AdditionalSymbolPackageExcludes Include="%2A%2A\%2A.dll" />
-    <AdditionalSymbolPackageExcludes Include="%2A%2A\crossgen.exe" />
     <File Include="@(ArchitectureSpecificNativeSymbol)">
       <TargetPath>runtimes/$(PackageTargetRuntime)/native</TargetPath>
       <IsSymbolFile>true</IsSymbolFile>
