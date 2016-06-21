@@ -469,7 +469,7 @@ void                Compiler::optAddCopies()
 }
 
 //------------------------------------------------------------------------------
-// optVNConstantPropOnTree: Retrieve the assertions on this local variable
+// GetAssertionDep: Retrieve the assertions on this local variable
 //
 // Arguments:
 //    lclNum - The local var id.
@@ -2196,6 +2196,7 @@ GenTreePtr Compiler::optVNConstantPropOnTree(BasicBlock* block, GenTreePtr stmt,
     switch (vnStore->TypeOfVN(vnCns))
     {
     case TYP_FLOAT:
+        assert(tree->TypeGet() == TYP_FLOAT);
         newTree = optPrepareTreeForReplacement(tree, tree);
         tree->ChangeOperConst(GT_CNS_DBL);
         tree->gtDblCon.gtDconVal = vnStore->ConstantValue<float>(vnCns);
@@ -2203,6 +2204,7 @@ GenTreePtr Compiler::optVNConstantPropOnTree(BasicBlock* block, GenTreePtr stmt,
         break;
 
     case TYP_DOUBLE:
+        assert(tree->TypeGet() == TYP_DOUBLE);
         newTree = optPrepareTreeForReplacement(tree, tree);
         tree->ChangeOperConst(GT_CNS_DBL);
         tree->gtDblCon.gtDconVal = vnStore->ConstantValue<double>(vnCns);
@@ -2232,10 +2234,14 @@ GenTreePtr Compiler::optVNConstantPropOnTree(BasicBlock* block, GenTreePtr stmt,
                 switch (tree->TypeGet())
                 {
                 case TYP_INT:
+/* Can this really happen? */
+                    unreached();
+#if 0
                     newTree = optPrepareTreeForReplacement(tree, tree);
                     tree->ChangeOperConst(GT_CNS_INT);
                     tree->gtIntCon.gtIconVal = (int) value;
                     tree->gtVNPair = ValueNumPair(vnLib, vnCns);
+#endif
                     break;
                     
                 case TYP_LONG:
@@ -2246,16 +2252,19 @@ GenTreePtr Compiler::optVNConstantPropOnTree(BasicBlock* block, GenTreePtr stmt,
                     break;
                     
                 case TYP_FLOAT:
+                    unreached();
+#if 0
                     newTree = optPrepareTreeForReplacement(tree, tree);
                     tree->ChangeOperConst(GT_CNS_DBL);
-                    tree->gtDblCon.gtDconVal = (float) value;
+                    tree->gtDblCon.gtDconVal = (float) *(reinterpret_cast<float*>(&value));
                     tree->gtVNPair = ValueNumPair(vnLib, vnCns);
+#endif
                     break;
                     
                 case TYP_DOUBLE:
                     newTree = optPrepareTreeForReplacement(tree, tree);
                     tree->ChangeOperConst(GT_CNS_DBL);
-                    tree->gtDblCon.gtDconVal = (double) value;
+                    tree->gtDblCon.gtDconVal = (double) *(reinterpret_cast<double*>(&value));
                     tree->gtVNPair = ValueNumPair(vnLib, vnCns);
                     break;
                     
@@ -2310,26 +2319,33 @@ GenTreePtr Compiler::optVNConstantPropOnTree(BasicBlock* block, GenTreePtr stmt,
                     break;
                     
                 case TYP_LONG:
+/* Can this really happen? */
+                    unreached();
+#if 0
                     newTree = optPrepareTreeForReplacement(tree, tree);
                     tree->ChangeOperConst(GT_CNS_NATIVELONG);
                     tree->gtIntConCommon.SetLngValue((INT64) value);
                     tree->gtVNPair = ValueNumPair(vnLib, vnCns);
+#endif
                     break;
                     
                 case TYP_FLOAT:
                     newTree = optPrepareTreeForReplacement(tree, tree);
                     tree->ChangeOperConst(GT_CNS_DBL);
-                    tree->gtDblCon.gtDconVal = (float) value;
+                    tree->gtDblCon.gtDconVal = (float) *(reinterpret_cast<float*>(&value));
                     tree->gtVNPair = ValueNumPair(vnLib, vnCns);
                     break;
                     
                 case TYP_DOUBLE:
+                    unreached();
+#if 0
                     newTree = optPrepareTreeForReplacement(tree, tree);
                     tree->ChangeOperConst(GT_CNS_DBL);
-                    tree->gtDblCon.gtDconVal = (double) value;
+                    tree->gtDblCon.gtDconVal = (double) reinterpret_value<float*>(value);
                     tree->gtVNPair = ValueNumPair(vnLib, vnCns);
+#endif
                     break;
-                    
+
                 default:
                     return nullptr;
                 }
@@ -2381,9 +2397,12 @@ GenTreePtr Compiler::optConstantAssertionProp(AssertionDsc* curAssertion, GenTre
         }
         else
         {
+            unreached();
+#if 0
             newTree->ChangeOperConst(GT_CNS_INT);
             newTree->gtIntCon.gtIconVal = (int) curAssertion->op2.lconVal;                        
             newTree->gtType=TYP_INT;
+#endif
         }
         break;
 
