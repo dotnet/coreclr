@@ -6383,8 +6383,7 @@ HRESULT SymbolReader::GetNamedLocalVariable(ISymUnmanagedScope * pScope, ICorDeb
         Status = LoadCoreCLR();
     if (Status != S_OK)
         return Status;
-    // FIXME: we need to find a way to release memory after getting string from managed code.
-    WCHAR *wszParamName = new (std::nothrow) WCHAR[mdNameLen];
+    BSTR wszParamName = SysAllocStringLen(0, mdNameLen);
     if (wszParamName == NULL) {
         return E_OUTOFMEMORY;
     }
@@ -6393,6 +6392,7 @@ HRESULT SymbolReader::GetNamedLocalVariable(ISymUnmanagedScope * pScope, ICorDeb
     if (ret) {
         wcscpy_s(paramName, _wcslen(wszParamName) + 1, wszParamName);
         paramNameLen = _wcslen(paramName);
+        SysFreeString(wszParamName);
 
         if (SUCCEEDED(pILFrame->GetLocalVariable(localIndex, ppValue)) && (*ppValue != NULL)) {
             return S_OK;
@@ -6401,6 +6401,7 @@ HRESULT SymbolReader::GetNamedLocalVariable(ISymUnmanagedScope * pScope, ICorDeb
             return E_FAIL;
         }
     }
+    SysFreeString(wszParamName);
     return E_FAIL;
 
 #else
