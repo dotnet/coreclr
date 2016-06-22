@@ -173,6 +173,13 @@ def static genStressModeScriptStep(def os, def stressModeName, def stressModeVar
     if (os == 'Windows_NT') {
         stepScript += "echo Creating TestEnv Script for ${stressModeName}\r\n"
         stepScript += "del ${stepScriptLocation}\r\n"
+         
+        // Timeout in ms, default is 10 minutes. For stress
+        // modes up this to an hour
+        timeout = 1000 * 60*60
+
+        // Set the Timeout
+        stepScript += "set __TestTimeout=${timeout}\r\n"
         stressModeVars.each{ k, v -> 
             // Write out what we are writing to the script file
             stepScript += "echo Setting ${k}=${v}\r\n"
@@ -219,6 +226,19 @@ def static getStressModeEnvSetCmd(def os, def stressModeName) {
 // Calculates the name of the build job based on some typical parameters.
 //
 def static getJobName(def configuration, def architecture, def os, def scenario, def isBuildOnly) {
+    // If the OS is LinuxARMEmulator and arch is arm, set the isLinuxEmulatorBuild
+    // flag to true and reset the os to Ubuntu
+    // The isLinuxEmulatorBuild flag will be used at a later time to execute the right
+    // set of build commands
+    // The tuples (LinuxARMEmulator, other architectures) are not handled and control returns
+    def isLinuxEmulatorBuild = false
+    if (os == 'LinuxARMEmulator' && architecture == 'arm') {
+        isLinuxEmulatorBuild = true
+        os = 'Ubuntu'
+    } else if (os == 'LinuxARMEmulator') {
+        return
+    }
+
     // If the architecture is x64, do not add that info into the build name.
     // Need to change around some systems and other builds to pick up the right builds
     // to do that.
@@ -241,7 +261,12 @@ def static getJobName(def configuration, def architecture, def os, def scenario,
         case 'arm64':
         case 'arm':
             // These are cross builds
-            baseName = architecture.toLowerCase() + '_cross_' + configuration.toLowerCase() + '_' + os.toLowerCase()
+            if (isLinuxEmulatorBuild == false) {
+                baseName = architecture.toLowerCase() + '_cross_' + configuration.toLowerCase() + '_' + os.toLowerCase()
+            }
+            else {
+                baseName = architecture.toLowerCase() + '_emulator_cross_' + configuration.toLowerCase() + '_' + os.toLowerCase()
+            }
             break
         case 'x86ryujit':
             baseName = 'x86_ryujit_' + configuration.toLowerCase() + '_' + os.toLowerCase()
@@ -1025,7 +1050,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
             assert scenario == 'default'
             switch (os) {
                 case 'Ubuntu':
-                    if (!isLinuxEmulatorBuild) {
+                    if (isLinuxEmulatorBuild == false) {
                         // Removing the regex will cause this to run on each PR.
                         Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} Cross ${configuration} Build")
                     }
@@ -1731,7 +1756,7 @@ combinedScenarios.each { scenario ->
                                 case 'arm':
                                     // All builds for ARM architecture are run on Ubuntu currently
                                     assert os == 'Ubuntu'
-                                    if (!isLinuxEmulatorBuild) {
+                                    if (isLinuxEmulatorBuild == false) {
                                         buildCommands += """echo \"Using rootfs in /opt/arm-liux-genueabihf-root\"
                                             ROOTFS_DIR=/opt/arm-linux-genueabihf-root ./build.sh skipmscorlib arm cross verbose ${lowerConfiguration}"""
                                         
@@ -1748,24 +1773,8 @@ combinedScenarios.each { scenario ->
                                         // Setup variables to hold emulator folder path and the rootfs mount path
                                         def armemul_path = '/opt/linux-arm-emulator'
                                         def armrootfs_mountpath = '/opt/linux-arm-emulator-root'
-                                        // Create the mount path directory if not present already
-                                        buildCommands += "if [ ! -d ${armrootfs_mountpath} ]; then sudo mkdir ${armrootfs_mountpath}; fi;"
 
-                                        // Unmount previously mounted rootfs and mount the Linux ARM emulator rootfs at /opt/linux-arm-emulator-root/
-                                        buildCommands += "if grep -qs ${armrootfs_mountpath} /proc/mounts; then sudo umount ${armrootfs_mountpath}; fi ; sudo mount ${armemul_path}/platform/rootfs-t30.ext4 ${armrootfs_mountpath}"
-
-                                        // Export LINUX_ARM_INCPATH to hold the include paths to be used by CPLUS_INCLUDE_PATH environment variable
-                                        // Apply the changes needed to the library search paths to build for the emulator rootfs
-                                        buildCommands += """echo \"Exporting LINUX_ARM_INCPATH environment variable\"
-                                                            source ${armrootfs_mountpath}/dotnet/setenv/setenv_incpath.sh ${armrootfs_mountpath}
-
-                                                            echo \"Applying cross build patch to suit Linux ARM emulator rootfs\"
-                                                            git am < ${armrootfs_mountpath}/dotnet/setenv/coreclr_cross.patch
-
-                                                            ROOTFS_DIR=${armrootfs_mountpath} CPLUS_INCLUDE_PATH=\$LINUX_ARM_INCPATH CXXFLAGS=\$LINUX_ARM_CXXFLAGS ./build.sh arm-softfp clean cross verbose skipmscorlib clang3.5 ${lowerConfiguration}
-
-                                                            echo \"Rewinding HEAD to master code\"
-                                                            git reset --hard HEAD^"""
+                                        buildCommands += "python tests/scripts/arm32_ci_build.py ${configuration} ${armemul_path} ${armrootfs_mountpath}"
 
                                         // Basic archiving of the build, no pal tests
                                         Utilities.addArchival(newJob, "/opt/linux-arm-emulator-root/home/coreclr/bin/Product/**")
