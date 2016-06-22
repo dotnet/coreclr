@@ -2196,20 +2196,46 @@ GenTreePtr Compiler::optVNConstantPropOnTree(BasicBlock* block, GenTreePtr stmt,
     switch (vnStore->TypeOfVN(vnCns))
     {
     case TYP_FLOAT:
-        assert(tree->TypeGet() == TYP_FLOAT);
-        newTree = optPrepareTreeForReplacement(tree, tree);
-        tree->ChangeOperConst(GT_CNS_DBL);
-        tree->gtDblCon.gtDconVal = vnStore->ConstantValue<float>(vnCns);
-        tree->gtVNPair = ValueNumPair(vnLib, vnCns);
-        break;
+        {
+            float value = vnStore->ConstantValue<float>(vnCns);
+
+            if (tree->TypeGet() == TYP_INT)
+            {
+                newTree = optPrepareTreeForReplacement(tree, tree);
+                tree->ChangeOperConst(GT_CNS_INT);
+                tree->gtIntCon.gtIconVal = (int) *(reinterpret_cast<int*>(&value));
+                tree->gtVNPair = ValueNumPair(vnLib, vnCns);
+            }
+            else
+            {
+                newTree = optPrepareTreeForReplacement(tree, tree);
+                tree->ChangeOperConst(GT_CNS_DBL);
+                tree->gtDblCon.gtDconVal = value;
+                tree->gtVNPair = ValueNumPair(vnLib, vnCns);
+            }
+            break;
+        }
 
     case TYP_DOUBLE:
-        assert(tree->TypeGet() == TYP_DOUBLE);
-        newTree = optPrepareTreeForReplacement(tree, tree);
-        tree->ChangeOperConst(GT_CNS_DBL);
-        tree->gtDblCon.gtDconVal = vnStore->ConstantValue<double>(vnCns);
-        tree->gtVNPair = ValueNumPair(vnLib, vnCns);
-        break;
+        {
+            double value = vnStore->ConstantValue<double>(vnCns);
+
+            if (tree->TypeGet() == TYP_LONG)
+            {
+                newTree = optPrepareTreeForReplacement(tree, tree);
+                tree->ChangeOperConst(GT_CNS_NATIVELONG);
+                tree->gtIntConCommon.SetLngValue((INT64)*(reinterpret_cast<INT64*>(&value)));
+                tree->gtVNPair = ValueNumPair(vnLib, vnCns);
+            }
+            else
+            {
+                newTree = optPrepareTreeForReplacement(tree, tree);
+                tree->ChangeOperConst(GT_CNS_DBL);
+                tree->gtDblCon.gtDconVal = vnStore->ConstantValue<double>(vnCns);
+                tree->gtVNPair = ValueNumPair(vnLib, vnCns);
+            }
+            break;
+        }
 
     case TYP_LONG:
         {
@@ -2234,14 +2260,10 @@ GenTreePtr Compiler::optVNConstantPropOnTree(BasicBlock* block, GenTreePtr stmt,
                 switch (tree->TypeGet())
                 {
                 case TYP_INT:
-/* Can this really happen? */
-                    unreached();
-#if 0
                     newTree = optPrepareTreeForReplacement(tree, tree);
                     tree->ChangeOperConst(GT_CNS_INT);
                     tree->gtIntCon.gtIconVal = (int) value;
                     tree->gtVNPair = ValueNumPair(vnLib, vnCns);
-#endif
                     break;
                     
                 case TYP_LONG:
@@ -2252,13 +2274,9 @@ GenTreePtr Compiler::optVNConstantPropOnTree(BasicBlock* block, GenTreePtr stmt,
                     break;
                     
                 case TYP_FLOAT:
+                    // No implicit conversions from long to flaot and value numbering will
+                    // not propagate through memory reinterpretations of different size.
                     unreached();
-#if 0
-                    newTree = optPrepareTreeForReplacement(tree, tree);
-                    tree->ChangeOperConst(GT_CNS_DBL);
-                    tree->gtDblCon.gtDconVal = (float) *(reinterpret_cast<float*>(&value));
-                    tree->gtVNPair = ValueNumPair(vnLib, vnCns);
-#endif
                     break;
                     
                 case TYP_DOUBLE:
@@ -2319,14 +2337,10 @@ GenTreePtr Compiler::optVNConstantPropOnTree(BasicBlock* block, GenTreePtr stmt,
                     break;
                     
                 case TYP_LONG:
-/* Can this really happen? */
-                    unreached();
-#if 0
                     newTree = optPrepareTreeForReplacement(tree, tree);
                     tree->ChangeOperConst(GT_CNS_NATIVELONG);
                     tree->gtIntConCommon.SetLngValue((INT64) value);
                     tree->gtVNPair = ValueNumPair(vnLib, vnCns);
-#endif
                     break;
                     
                 case TYP_FLOAT:
@@ -2337,13 +2351,9 @@ GenTreePtr Compiler::optVNConstantPropOnTree(BasicBlock* block, GenTreePtr stmt,
                     break;
                     
                 case TYP_DOUBLE:
+                    // No implicit conversions from int to double and value numbering will
+                    // not propagate through memory reinterpretations of different size.
                     unreached();
-#if 0
-                    newTree = optPrepareTreeForReplacement(tree, tree);
-                    tree->ChangeOperConst(GT_CNS_DBL);
-                    tree->gtDblCon.gtDconVal = (double) reinterpret_value<float*>(value);
-                    tree->gtVNPair = ValueNumPair(vnLib, vnCns);
-#endif
                     break;
 
                 default:
