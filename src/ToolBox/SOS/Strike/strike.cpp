@@ -6412,7 +6412,7 @@ public:
             return S_FALSE;
         }
 #endif // FEATURE_PAL
-        return Status;
+        return S_OK;
     }
 
     HRESULT ResolvePendingNonModuleBoundBreakpoint(__in_z WCHAR* pFilename, DWORD lineNumber, TADDR mod, SymbolReader* pSymbolReader)
