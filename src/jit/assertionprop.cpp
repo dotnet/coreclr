@@ -2201,6 +2201,7 @@ GenTreePtr Compiler::optVNConstantPropOnTree(BasicBlock* block, GenTreePtr stmt,
 
             if (tree->TypeGet() == TYP_INT)
             {
+                // Same sized reinterpretation of bits to integer
                 newTree = optPrepareTreeForReplacement(tree, tree);
                 tree->ChangeOperConst(GT_CNS_INT);
                 tree->gtIntCon.gtIconVal = (int) *(reinterpret_cast<int*>(&value));
@@ -2208,6 +2209,7 @@ GenTreePtr Compiler::optVNConstantPropOnTree(BasicBlock* block, GenTreePtr stmt,
             }
             else
             {
+                // Implicit assignment conversion to float or double
                 newTree = optPrepareTreeForReplacement(tree, tree);
                 tree->ChangeOperConst(GT_CNS_DBL);
                 tree->gtDblCon.gtDconVal = value;
@@ -2222,6 +2224,7 @@ GenTreePtr Compiler::optVNConstantPropOnTree(BasicBlock* block, GenTreePtr stmt,
 
             if (tree->TypeGet() == TYP_LONG)
             {
+                // Same sized reinterpretation of bits to long
                 newTree = optPrepareTreeForReplacement(tree, tree);
                 tree->ChangeOperConst(GT_CNS_NATIVELONG);
                 tree->gtIntConCommon.SetLngValue((INT64)*(reinterpret_cast<INT64*>(&value)));
@@ -2229,6 +2232,7 @@ GenTreePtr Compiler::optVNConstantPropOnTree(BasicBlock* block, GenTreePtr stmt,
             }
             else
             {
+                // Implicit assignment conversion to float or double
                 newTree = optPrepareTreeForReplacement(tree, tree);
                 tree->ChangeOperConst(GT_CNS_DBL);
                 tree->gtDblCon.gtDconVal = vnStore->ConstantValue<double>(vnCns);
@@ -2260,6 +2264,7 @@ GenTreePtr Compiler::optVNConstantPropOnTree(BasicBlock* block, GenTreePtr stmt,
                 switch (tree->TypeGet())
                 {
                 case TYP_INT:
+                    // Implicit assignment conversion to smaller integer
                     newTree = optPrepareTreeForReplacement(tree, tree);
                     tree->ChangeOperConst(GT_CNS_INT);
                     tree->gtIntCon.gtIconVal = (int) value;
@@ -2267,6 +2272,7 @@ GenTreePtr Compiler::optVNConstantPropOnTree(BasicBlock* block, GenTreePtr stmt,
                     break;
                     
                 case TYP_LONG:
+                    // Same type no conversion required
                     newTree = optPrepareTreeForReplacement(tree, tree);
                     tree->ChangeOperConst(GT_CNS_NATIVELONG);
                     tree->gtIntConCommon.SetLngValue(value);
@@ -2274,12 +2280,13 @@ GenTreePtr Compiler::optVNConstantPropOnTree(BasicBlock* block, GenTreePtr stmt,
                     break;
                     
                 case TYP_FLOAT:
-                    // No implicit conversions from long to flaot and value numbering will
+                    // No implicit conversions from long to float and value numbering will
                     // not propagate through memory reinterpretations of different size.
                     unreached();
                     break;
                     
                 case TYP_DOUBLE:
+                    // Same sized reinterpretation of bits to double
                     newTree = optPrepareTreeForReplacement(tree, tree);
                     tree->ChangeOperConst(GT_CNS_DBL);
                     tree->gtDblCon.gtDconVal = (double) *(reinterpret_cast<double*>(&value));
@@ -2329,6 +2336,7 @@ GenTreePtr Compiler::optVNConstantPropOnTree(BasicBlock* block, GenTreePtr stmt,
                 {
                 case TYP_REF:
                 case TYP_INT:
+                    // Same type no conversion required
                     newTree = optPrepareTreeForReplacement(tree, tree);
                     tree->ChangeOperConst(GT_CNS_INT);
                     tree->gtIntCon.gtIconVal = value;
@@ -2337,6 +2345,7 @@ GenTreePtr Compiler::optVNConstantPropOnTree(BasicBlock* block, GenTreePtr stmt,
                     break;
                     
                 case TYP_LONG:
+                    // Implicit assignment conversion to larger integer
                     newTree = optPrepareTreeForReplacement(tree, tree);
                     tree->ChangeOperConst(GT_CNS_NATIVELONG);
                     tree->gtIntConCommon.SetLngValue((INT64) value);
@@ -2344,6 +2353,7 @@ GenTreePtr Compiler::optVNConstantPropOnTree(BasicBlock* block, GenTreePtr stmt,
                     break;
                     
                 case TYP_FLOAT:
+                    // Same sized reinterpretation of bits to float
                     newTree = optPrepareTreeForReplacement(tree, tree);
                     tree->ChangeOperConst(GT_CNS_DBL);
                     tree->gtDblCon.gtDconVal = (float) *(reinterpret_cast<float*>(&value));
@@ -2407,12 +2417,9 @@ GenTreePtr Compiler::optConstantAssertionProp(AssertionDsc* curAssertion, GenTre
         }
         else
         {
-            unreached();
-#if 0
             newTree->ChangeOperConst(GT_CNS_INT);
             newTree->gtIntCon.gtIconVal = (int) curAssertion->op2.lconVal;                        
             newTree->gtType=TYP_INT;
-#endif
         }
         break;
 
