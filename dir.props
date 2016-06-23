@@ -14,6 +14,9 @@
     <RoslynPackageName>Microsoft.Net.ToolsetCompilers</RoslynPackageName>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <XunitPerfAnalysisPackageVersion>1.0.0-alpha-build0037</XunitPerfAnalysisPackageVersion>
+  </PropertyGroup>
     <!--
      Switching to the .NET Core version of the BuildTools tasks seems to break numerous scenarios, such as VS intellisense and resource designer
      as well as runnning the build on mono. Until we can get these sorted out we will continue using the .NET 4.5 version of the tasks.
