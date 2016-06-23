@@ -177,7 +177,10 @@
   <Target Name="CDefineChecker" BeforeTargets="Build">
     <!-- Compiler Definition Verification -->
     <Message Importance="High" Text="============" />
-    <Exec Command='python $(MSBuildThisFileDirectory)../scripts/check-definitions.py $(MSBuildThisFileDirectory)../../cmake.definitions "$(DefineConstants)"' />
+    <PropertyGroup>
+      <IgnoreDefineConstants>FEATURE_IMPLICIT_TLS;FEATURE_HIJACK</IgnoreDefineConstants>
+    </PropertyGroup>
+    <Exec Command='python $(MSBuildThisFileDirectory)../scripts/check-definitions.py $(MSBuildThisFileDirectory)../../cmake.definitions "$(DefineConstants)" "$(IgnoreDefineConstants)" ' />
     <Message Importance="High" Text="============" />
   </Target>
 
