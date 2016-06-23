@@ -58,6 +58,7 @@ namespace System.Threading
     [HostProtection(Synchronization = true, ExternalThreading = true)]
     [DebuggerTypeProxy(typeof(SystemThreading_SpinLockDebugView))]
     [DebuggerDisplay("IsHeld = {IsHeld}")]
+    [StructLayout(LayoutKind.Explicit, Size = 128)] // Enusre no false sharing on cacheline
     public struct SpinLock
     {
         // The current ownership state is a single signed int. There are two modes:
@@ -69,7 +70,10 @@ namespace System.Threading
         //       When the low bit is 1 -- the lock is held; 0 -- the lock is available.
         //
         // There are several masks and constants below for convenience.
-
+        
+        // Offset into the center of the struct to avoid false sharing with adjacent data
+        // If two spinlocks are allocated together, this means they cannot share the same cache line
+        [FieldOffset(64)]
         private volatile int m_owner;
 
         // The multiplier factor for the each spinning iteration
