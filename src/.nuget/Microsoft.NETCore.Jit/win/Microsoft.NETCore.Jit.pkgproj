@@ -19,6 +19,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- prevent accidental inclusion in AOT projects. -->
+    <File Include="$(PlaceholderFile)">
+      <TargetPath>runtimes/$(PackageTargetRuntime)-aot/native</TargetPath>
+    </File>
+
     <ArchitectureSpecificNativeSymbol Include="@(ArchitectureSpecificNativeFile -> '%(RelativeDir)PDB\%(FileName).pdb')"/>
 
     <AdditionalSymbolPackageExcludes Include="%2A%2A\%2A.dll"/>
