@@ -743,6 +743,8 @@ private:
 
     void associateRefPosWithRegister(RefPosition *rp);
 
+    unsigned getWeight(RefPosition* refPos);
+
     /*****************************************************************************
      * Register management
      ****************************************************************************/
@@ -750,7 +752,7 @@ private:
     regNumber tryAllocateFreeReg(Interval *current, RefPosition *refPosition);
     RegRecord* findBestPhysicalReg(RegisterType regType, LsraLocation endLocation,
                                   regMaskTP candidates, regMaskTP preferences);
-    regNumber allocateBusyReg(Interval *current, RefPosition *refPosition);
+    regNumber allocateBusyReg(Interval* current, RefPosition* refPosition, bool allocationOptional);
     regNumber assignCopyReg(RefPosition * refPosition);
 
     void checkAndAssignInterval(RegRecord * regRec, Interval * interval);
@@ -1326,15 +1328,24 @@ public:
     LsraLocation    nodeLocation;
     regMaskTP       registerAssignment;
 
-    regNumber       assignedReg() { return genRegNumFromMask(registerAssignment); }
+    regNumber       assignedReg() { 
+        if (registerAssignment == RBM_NONE)
+        {
+            return REG_NA;
+        }
+
+        return genRegNumFromMask(registerAssignment); 
+    }
 
     RefType         refType;
 
     bool            RequiresRegister()
     {
-        return (refType == RefTypeDef || refType == RefTypeUse
+        return (refType == RefTypeDef || 
+                refType == RefTypeUse
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-               || refType == RefTypeUpperVectorSaveDef || refType == RefTypeUpperVectorSaveUse
+                || refType == RefTypeUpperVectorSaveDef 
+                || refType == RefTypeUpperVectorSaveUse
 #endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
                );
     }
@@ -1353,6 +1364,16 @@ public:
     }
 
     unsigned        getMultiRegIdx() { return multiRegIdx;  }
+
+    // Returns true if codegen has indicated that the tree node
+    // referred to by RefPosition can be treated as a contained
+    // memory operand if no register was allocated.
+    bool           RequiresRegOptionally()
+    {
+        return (refType == RefTypeUse) &&
+               (treeNode != nullptr) &&
+               treeNode->IsRegOptional();
+    }  
 
     // Last Use - this may be true for multiple RefPositions in the same Interval
     bool            lastUse      : 1;

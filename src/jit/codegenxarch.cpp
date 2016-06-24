@@ -1239,7 +1239,10 @@ void CodeGen::genCodeForDivMod(GenTreeOp* treeNode)
     if (varTypeIsFloating(targetType))
     {
         // divisor is not contained or if contained is a memory op
-        assert(!divisor->isContained() || divisor->isMemoryOp() || divisor->IsCnsFltOrDbl());
+        assert(!divisor->isContained() || 
+               divisor->isMemoryOp() || 
+               divisor->IsCnsFltOrDbl() ||
+               divisor->isContainedLclVar());
 
         // Floating point div/rem operation
         assert(oper == GT_DIV || oper == GT_MOD);
@@ -1357,7 +1360,10 @@ void CodeGen::genCodeForBinary(GenTree* treeNode)
     if (op1->isContained())
     {
         assert(treeNode->OperIsCommutative());
-        assert(op1->isMemoryOp() || op1->IsCnsNonZeroFltOrDbl() || op1->IsIntCnsFitsInI32());
+        assert(op1->isMemoryOp() || 
+               op1->IsCnsNonZeroFltOrDbl() || 
+               op1->IsIntCnsFitsInI32() ||
+               op1->IsRegOptional());
 
         op1 = treeNode->gtGetOp2();
         op2 = treeNode->gtGetOp1();
@@ -2203,8 +2209,8 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
             bool isUnsignedMultiply    = ((treeNode->gtFlags & GTF_UNSIGNED) != 0);
             bool requiresOverflowCheck = treeNode->gtOverflowEx();
     
-            GenTree *op1 = treeNode->gtOp.gtOp1;
-            GenTree *op2 = treeNode->gtOp.gtOp2;
+            GenTree* op1 = treeNode->gtGetOp1();
+            GenTree* op2 = treeNode->gtGetOp2();
 
             // there are 3 forms of x64 multiply:
             // 1-op form with 128 result:  RDX:RAX = RAX * rm
@@ -4958,6 +4964,14 @@ void CodeGen::genConsumeRegs(GenTree* tree)
             // Now we need to consume the operands of the GT_AND node.
             genConsumeOperands(tree->AsOp());
         }
+        else if (tree->OperGet() == GT_LCL_VAR)
+        {
+            // A contained lcl var could be living either in a reg or
+            // on stack.  Update its liveness.
+            unsigned varNum = tree->AsLclVarCommon()->GetLclNum();
+            LclVarDsc* varDsc = compiler->lvaTable + varNum;
+            genUpdateLife(tree);
+        }
         else
         {
             assert(tree->OperIsLeaf());
@@ -5491,6 +5505,7 @@ void CodeGen::genStoreInd(GenTreePtr node)
             }
             else
             {
+                // *(p) = oper *(p): Here addr = p, rmwsrc=rmwDst = *(p) i.e. GT_IND(p)
                 // For unary RMW ops, src and dst of RMW memory op is the same.
                 assert(storeInd->IsRMWDstOp1());
                 rmwSrc = data->gtGetOp1();
@@ -5500,7 +5515,7 @@ void CodeGen::genStoreInd(GenTreePtr node)
 
             assert(rmwSrc != nullptr);
             assert(rmwDst != nullptr);
-            assert(Lowering::IndirsAreEquivalent(rmwDst, storeInd));
+            assert(Lowering::IndirsAreEquivalent(rmwDst, storeInd)); 
 
             genConsumeRegs(rmwSrc);
         }
