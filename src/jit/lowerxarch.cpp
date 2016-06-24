@@ -1071,8 +1071,8 @@ Lowering::TreeNodeInfoInitCall(GenTreeCall* call)
 
     RegisterType registerType = call->TypeGet();
 
-    // Set destination candidates for return value of the call.
 #ifdef _TARGET_X86_
+    // Set destination candidates for return value of the call.
     if ((call->gtCallType == CT_HELPER) && (call->gtCallMethHnd == compiler->eeFindHelper(CORINFO_HELP_INIT_PINVOKE_FRAME)))
     {
         // The x86 CORINFO_HELP_INIT_PINVOKE_FRAME helper uses a custom calling convention that returns with
@@ -1126,11 +1126,11 @@ Lowering::TreeNodeInfoInitCall(GenTreeCall* call)
         }
     }
 
-    // First, count reg args
 #if FEATURE_VARARG
     bool callHasFloatRegArgs = false;
 #endif // !FEATURE_VARARG
     
+    // First, count reg args
     for (GenTreePtr list = call->gtCallLateArgs; list; list = list->MoveNext())
     {
         assert(list->IsList());
@@ -1277,12 +1277,13 @@ Lowering::TreeNodeInfoInitCall(GenTreeCall* call)
             short internalIntCount = 0;
             if (remainingSlots > 0)
             {
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
                 // This TYP_STRUCT argument is also passed in the outgoing argument area
                 // We need a register to address the TYP_STRUCT
-                // And we may need 2
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+
                 internalIntCount = 1;
 #else // FEATURE_UNIX_AMD64_STRUCT_PASSING
+                // And we may need 2
                 internalIntCount = 2;
 #endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
             }
@@ -2546,6 +2547,7 @@ void Lowering::SetIndirAddrOpCounts(GenTreePtr indirTree)
     bool rev;
     bool modifiedSources = false;    
 
+#ifdef FEATURE_SIMD
     // If indirTree is of TYP_SIMD12, don't mark addr as contained
     // so that it always get computed to a register.  This would
     // mean codegen side logic doesn't need to handle all possible
@@ -2553,7 +2555,6 @@ void Lowering::SetIndirAddrOpCounts(GenTreePtr indirTree)
     // 
     // TODO-XArch-CQ: handle other addr mode expressions that could be marked
     // as contained.
-#ifdef FEATURE_SIMD
     if (indirTree->TypeGet() == TYP_SIMD12)
     {
         // Vector3 is read/written as two reads/writes: 8 byte and 4 byte.
@@ -2932,9 +2933,9 @@ void Lowering::LowerCmp(GenTreePtr tree)
                             GenTreePtr andOp1 = op1->gtOp.gtOp1;
                             if (andOp1->isMemoryOp())
                             {
-                                // If the type of value memoryOp (andOp1) is not the same as the type of constant (andOp2)
-                                // check to see whether it is safe to mark AndOp1 as contained.  For e.g. in the following
-                                // case it is not safe to mark andOp1 as contained
+                                // If the type of value memoryOp (andOp1) is not the same as the type of constant
+                                // (andOp2) check to see whether it is safe to mark AndOp1 as contained.  For e.g. in
+                                // the following case it is not safe to mark andOp1 as contained
                                 //    AndOp1 = signed byte and andOp2 is an int constant of value 512.
                                 //
                                 // If it is safe, we update the type and value of andOp2 to match with andOp1.

@@ -356,9 +356,9 @@ void                CodeGen::genCodeForBBlist()
 
     regSet.rsSpillBeg();
 
+#ifdef DEBUGGING_SUPPORT
     /* Initialize the line# tracking logic */
 
-#ifdef DEBUGGING_SUPPORT
     if (compiler->opts.compScopeInfo)
     {
         siInit();
@@ -447,9 +447,9 @@ void                CodeGen::genCodeForBBlist()
         genUpdateLife(block->bbLiveIn);
 
         // Even if liveness didn't change, we need to update the registers containing GC references.
-        // genUpdateLife will update the registers live due to liveness changes. But what about registers that didn't change?
-        // We cleared them out above. Maybe we should just not clear them out, but update the ones that change here.
-        // That would require handling the changes in recordVarLocationsAtStartOfBB().
+        // genUpdateLife will update the registers live due to liveness changes. But what about registers that didn't
+        // change? We cleared them out above. Maybe we should just not clear them out, but update the ones that change
+        // here. That would require handling the changes in recordVarLocationsAtStartOfBB().
 
         regMaskTP newLiveRegSet = RBM_NONE;
         regMaskTP newRegGCrefSet = RBM_NONE;
@@ -604,18 +604,18 @@ void                CodeGen::genCodeForBBlist()
         bool    firstMapping = true;
 #endif // DEBUGGING_SUPPORT
 
-        /*---------------------------------------------------------------------
-         *
-         *  Generate code for each statement-tree in the block
-         *
-         */
-
 #if FEATURE_EH_FUNCLETS
         if (block->bbFlags & BBF_FUNCLET_BEG)
         {
             genReserveFuncletProlog(block);
         }
 #endif // FEATURE_EH_FUNCLETS
+
+        /*---------------------------------------------------------------------
+         *
+         *  Generate code for each statement-tree in the block
+         *
+         */
 
         for (GenTreePtr stmt = block->FirstNonPhiDef(); stmt; stmt = stmt->gtNext)
         {
@@ -3026,7 +3026,8 @@ CodeGen::genLclHeap(GenTreePtr tree)
     //      Nothing to pop off from the stack.
     if  (compiler->lvaOutgoingArgSpaceSize > 0)
     {
-        assert((compiler->lvaOutgoingArgSpaceSize % STACK_ALIGN) == 0); // This must be true for the stack to remain aligned
+        assert((compiler->lvaOutgoingArgSpaceSize % STACK_ALIGN) == 0); // This must be true for the stack to remain
+                                                                        // aligned
         inst_RV_IV(INS_add, REG_SPBASE, compiler->lvaOutgoingArgSpaceSize, EA_PTRSIZE);
         stackAdjustment += compiler->lvaOutgoingArgSpaceSize;
     }
@@ -5058,7 +5059,8 @@ void CodeGen::genConsumePutStructArgStk(GenTreePutArgStk* putArgNode, regNumber 
     // Otherwise load the op1 (GT_ADDR) into the dstReg to copy the struct on the stack by value.
     if (op1->gtRegNum != dstReg)
     {
-        // Generate LEA instruction to load the stack of the outgoing var + SlotNum offset (or the incoming arg area for tail calls) in RDI.
+        // Generate LEA instruction to load the stack of the outgoing var + SlotNum offset (or the incoming arg area
+        // for tail calls) in RDI.
         // Destination is always local (on the stack) - use EA_PTRSIZE.
         getEmitter()->emitIns_R_S(INS_lea, EA_PTRSIZE, dstReg, baseVarNum, putArgNode->getArgOffset());
     }
@@ -6771,8 +6773,8 @@ void        CodeGen::genCompareLong(GenTreePtr  treeNode)
 //
 //    Opcode          Amd64 equivalent         Comment
 //    ------          -----------------        --------
-//    BLT.UN(a,b)      ucomis[s|d] a, b        Jb branches if CF=1, which means either a<b or unordered from the above table.
-//                     jb
+//    BLT.UN(a,b)      ucomis[s|d] a, b        Jb branches if CF=1, which means either a<b or unordered from the above
+//                     jb                      table
 //
 //    BLT(a,b)         ucomis[s|d] b, a        Ja branches if CF=0 and ZF=0, which means b>a that in turn implies a<b
 //                     ja
@@ -7044,10 +7046,9 @@ void CodeGen::genSetRegToCond(regNumber dstReg, GenTreePtr tree)
     }
     else
     {       
+#ifdef DEBUG
         // jmpKind[1] != EJ_NONE implies BEQ and BEN.UN of floating point values.
         // These are represented by two conditions.
-
-#ifdef DEBUG
         if (tree->gtOper == GT_EQ)
         {
             // This must be an ordered comparison.
@@ -8818,6 +8819,8 @@ void                CodeGen::genAmd64EmitterUnitTests()
     // Mark the "fake" instructions in the output.
     printf("*************** In genAmd64EmitterUnitTests()\n");
 
+#ifdef ALL_XARCH_EMITTER_UNIT_TESTS
+#ifdef FEATURE_AVX_SUPPORT
     // We use this:
     //      genDefineTempLabel(genCreateTempLabel());
     // to create artificial labels to help separate groups of tests.
@@ -8825,9 +8828,6 @@ void                CodeGen::genAmd64EmitterUnitTests()
     //
     // Loads
     //
-
-#ifdef ALL_XARCH_EMITTER_UNIT_TESTS
-#ifdef FEATURE_AVX_SUPPORT
     genDefineTempLabel(genCreateTempLabel());
 
     // vhaddpd     ymm0,ymm1,ymm2

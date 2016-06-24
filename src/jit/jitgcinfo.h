@@ -390,7 +390,6 @@ public:
 #endif // !LEGACY_BACKEND
 };
 
-
 inline
 unsigned char encodeUnsigned(BYTE *dest, unsigned value)
 {

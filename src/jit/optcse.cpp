@@ -1503,7 +1503,8 @@ public:
 #endif
                     cse_def_cost = 2;
                     cse_use_cost = 2;
-                    extra_yes_cost = BB_UNITY_WEIGHT * 2;   // Extra cost in case we have to spill/restore a caller saved register  
+                    extra_yes_cost = BB_UNITY_WEIGHT * 2; // Extra cost in case we have to spill/restore a caller
+                                                          // saved register
                 }
             }
             else // Conservative CSE promotion
