@@ -59,6 +59,7 @@ GetStdHandle
 GetSystemInfo
 GetTempFileNameW
 GetTempPathW
+GetUserNameW
 LocalAlloc
 LocalReAlloc
 LocalFree
