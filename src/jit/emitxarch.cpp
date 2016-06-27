@@ -2847,15 +2847,34 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
     assert(!dst->isContained() ||
            dst->isContainedIndir() ||
            dst->isContainedLclField() ||
+           dst->isContainedLclVar() ||
            instrIs3opImul(ins)); // dst on these isn't really the dst
 
+#ifdef DEBUG
     // src can be anything but both src and dst cannot be addr modes
     // or at least cannot be contained addr modes
     if (dst->isContainedIndir())
+    {
         assert(!src->isContainedIndir());
+    }
+
+    if (dst->isContainedLclVar())
+    {
+        assert(!src->isContainedIndir());
+        assert(!src->isContainedLclField());
+        assert(!src->isContainedLclVar());
+    }
 
     if (src->isContainedLclField())
+    {
         assert(!dst->isContained());
+    }
+
+    if (src->isContainedLclVar())
+    {
+        assert(!dst->isContained());
+    }
+#endif
 
     // find which operand is a memory op (if any)
     // and what its base is
@@ -2890,7 +2909,7 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
     }
     
     // find local field if any
-    GenTreeLclFld* lclField = nullptr;
+    GenTreeLclFld* lclField = nullptr;    
     if (src->isContainedLclField())
     {
         lclField = src->AsLclFld();
@@ -2900,9 +2919,22 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
         lclField = dst->AsLclFld();
     }
 
+    // find contained lcl var if any
+    GenTreeLclVar* lclVar = nullptr;
+    if (src->isContainedLclVar())
+    {
+        assert(src->IsRegOptional());
+        lclVar = src->AsLclVar();
+    }
+    else if (dst->isContainedLclVar())
+    {
+        assert(dst->IsRegOptional());
+        lclVar = dst->AsLclVar();
+    }
+
     // First handle the simple non-memory cases
     //
-    if ((mem == nullptr) && (lclField == nullptr))
+    if ((mem == nullptr) && (lclField == nullptr) && (lclVar == nullptr))
     {
         if (intConst != nullptr)
         {
@@ -2938,15 +2970,27 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
         return dst->gtRegNum;
     }
 
-    // Next handle the cases where we have a stack based local memory operand
+    // Next handle the cases where we have a stack based local memory operand.
     //
-    if (lclField)
-    {
-        unsigned offset = lclField->gtLclFld.gtLclOffs;
-        unsigned varNum = lclField->gtLclVarCommon.gtLclNum;
+    unsigned varNum = BAD_VAR_NUM;
+    unsigned offset = (unsigned) -1;
 
+    if (lclField != nullptr)
+    {
+        varNum = lclField->AsLclVarCommon()->GetLclNum();
+        offset = lclField->gtLclFld.gtLclOffs;
+    }
+    else if (lclVar != nullptr)
+    {
+        varNum = lclVar->AsLclVarCommon()->GetLclNum();
+        offset = 0;
+    }
+
+    if (varNum != BAD_VAR_NUM)
+    {
         // Is the memory op in the source position?
-        if (src->isContainedLclField())
+        if (src->isContainedLclField() ||
+            src->isContainedLclVar())
         {
             if (instrHasImplicitRegPairDest(ins))
             {
@@ -2964,6 +3008,7 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
         else  // The memory op is in the dest position.
         {
             assert(dst->gtRegNum == REG_NA);
+
             // src could be int or reg
             if (src->isContainedIntOrIImmed())
             {

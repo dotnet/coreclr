@@ -154,8 +154,11 @@ private:
 #ifdef _TARGET_ARM64_
     void TreeNodeInfoInitPutArgStk(GenTree* argNode, fgArgTabEntryPtr info);
 #endif // _TARGET_ARM64_
+
 #if defined(_TARGET_XARCH_)
     void TreeNodeInfoInitSimple(GenTree* tree, TreeNodeInfo* info, unsigned kind);
+    void SetRegOptionalForBinOp(GenTree* tree);
+    void SetRegOptional(GenTree* operand);
 #endif // defined(_TARGET_XARCH_)
 
     void SpliceInUnary(GenTreePtr parent, GenTreePtr* ppChild, GenTreePtr newNode);
