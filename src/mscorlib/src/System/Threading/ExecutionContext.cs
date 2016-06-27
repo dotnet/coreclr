@@ -38,6 +38,8 @@ namespace System.Threading
     [System.Runtime.InteropServices.ComVisible(true)]
     public delegate void ContextCallback(Object state);
 
+    internal delegate void ContextCallback<T>(T state);
+
 #if FEATURE_CORECLR
 
     [SecurityCritical]
@@ -92,8 +94,7 @@ namespace System.Threading
         [HandleProcessCorruptedStateExceptions]
         public static void Run(ExecutionContext executionContext, ContextCallback callback, Object state)
         {
-            if (executionContext == null)
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_NullContext"));
+            if (executionContext == null) ThrowInvalidOperationNullContextException();
 
             Thread currentThread = Thread.CurrentThread;
             ExecutionContextSwitcher ecsw = default(ExecutionContextSwitcher);
@@ -113,6 +114,37 @@ namespace System.Threading
                 throw;
             }
             ecsw.Undo(currentThread);
+        }
+
+        [SecurityCritical]
+        [HandleProcessCorruptedStateExceptions]
+        internal static void Run<T>(ExecutionContext executionContext, ContextCallback<T> callback, T state)
+        {
+            if (executionContext == null) ThrowInvalidOperationNullContextException();
+
+            Thread currentThread = Thread.CurrentThread;
+            ExecutionContextSwitcher ecsw = default(ExecutionContextSwitcher);
+            try
+            {
+                EstablishCopyOnWriteScope(currentThread, ref ecsw);
+                ExecutionContext.Restore(currentThread, executionContext);
+                callback(state);
+            }
+            catch
+            {
+                // Note: we have a "catch" rather than a "finally" because we want
+                // to stop the first pass of EH here.  That way we can restore the previous
+                // context before any of our callers' EH filters run.  That means we need to 
+                // end the scope separately in the non-exceptional case below.
+                ecsw.Undo(currentThread);
+                throw;
+            }
+            ecsw.Undo(currentThread);
+        }
+
+        private static void ThrowInvalidOperationNullContextException()
+        {
+            throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_NullContext"));
         }
 
         [SecurityCritical]
