@@ -35,10 +35,14 @@ const unsigned MAX_EPILOG_SIZE_BYTES = 100;
 #define UW_MAX_EPILOG_START_INDEX           0x3FFU
 #endif // _TARGET_ARM64_
 
-#define UW_MAX_EPILOG_COUNT                 31      // Max number that can be encoded in the "Epilog count" field of the .pdata record
-#define UW_MAX_EXTENDED_CODE_WORDS_COUNT    0xFFU       // Max number that can be encoded in the "Extended Code Words" field of the .pdata record
-#define UW_MAX_EXTENDED_EPILOG_COUNT        0xFFFFU     // Max number that can be encoded in the "Extended Epilog Count" field of the .pdata record
-#define UW_MAX_EPILOG_START_OFFSET          0x3FFFFU    // Max number that can be encoded in the "Epilog Start Offset" field of the .pdata record
+#define UW_MAX_EPILOG_COUNT                 31          // Max number that can be encoded in the "Epilog count" field
+                                                        // of the .pdata record
+#define UW_MAX_EXTENDED_CODE_WORDS_COUNT    0xFFU       // Max number that can be encoded in the "Extended Code Words"
+                                                        // field of the .pdata record
+#define UW_MAX_EXTENDED_EPILOG_COUNT        0xFFFFU     // Max number that can be encoded in the "Extended Epilog Count"
+                                                        // field of the .pdata record
+#define UW_MAX_EPILOG_START_OFFSET          0x3FFFFU    // Max number that can be encoded in the "Epilog Start Offset"
+                                                        // field of the .pdata record
 
 //
 // Forward declaration of class defined in emit.h
@@ -691,7 +695,8 @@ private:
     // set of epilogs, for this function/funclet.
     bool                ufiInProlog;
 
-    static const unsigned UFI_INITIALIZED_PATTERN = 0x0FACADE0;     // Something unlikely to be the fill pattern for uninitialized memory
+    static const unsigned UFI_INITIALIZED_PATTERN = 0x0FACADE0;     // Something unlikely to be the fill pattern for
+                                                                    // uninitialized memory
     unsigned            ufiInitialized;
 
 #endif // DEBUG
@@ -815,7 +820,8 @@ private:
 
 #ifdef DEBUG
 
-    static const unsigned UWI_INITIALIZED_PATTERN = 0x0FACADE1;     // Something unlikely to be the fill pattern for uninitialized memory
+    static const unsigned UWI_INITIALIZED_PATTERN = 0x0FACADE1;     // Something unlikely to be the fill pattern for
+                                                                    // uninitialized memory
     unsigned            uwiInitialized;
 
 #endif // DEBUG

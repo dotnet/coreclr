@@ -22,6 +22,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 #define DECLARE_DATA
 
+// clang-format off
 extern
 const signed char       opcodeSizes[] =
 {
@@ -70,7 +71,7 @@ const signed char       opcodeSizes[] =
     #undef InlineSwitch_size
     #undef InlinePhi_size
 };
-
+// clang-format on
 
 const BYTE          varTypeClassification[] =
 {
@@ -318,8 +319,8 @@ void                dspRegMask(regMaskTP regMask, size_t minSiz)
                 // By default, we're not starting a potential register range.
                 sep = " ";
 
-                // What kind of separator should we use for this range (if it is indeed going to be a range)?
 #if defined(_TARGET_AMD64_)
+                // What kind of separator should we use for this range (if it is indeed going to be a range)?
                 // For AMD64, create ranges for int registers R8 through R15, but not the "old" registers.
                 if (regNum >= REG_R8)
                 {
@@ -349,8 +350,8 @@ void                dspRegMask(regMaskTP regMask, size_t minSiz)
 #error Unsupported or unset target architecture
 #endif // _TARGET_*
             }
-            // We've already printed a register. Is this the end of a range?
 #if defined(_TARGET_ARM64_)
+            // We've already printed a register. Is this the end of a range?
             else if ((regNum == REG_INT_LAST)
                      || (regNum == REG_R17) // last register before TEB
                      || (regNum == REG_R28)) // last register before FP
@@ -498,7 +499,8 @@ dumpSingleInstr(const BYTE* const codeAddr, IL_OFFSET offs, const char* prefix)
 {
     const BYTE  *        opcodePtr = codeAddr + offs;
     const BYTE  *   startOpcodePtr = opcodePtr;
-    const unsigned ALIGN_WIDTH = 3 * 6; // assume 3 characters * (1 byte opcode + 4 bytes data + 1 prefix byte) for most things
+    const unsigned ALIGN_WIDTH = 3 * 6; // assume 3 characters * (1 byte opcode + 4 bytes data + 1 prefix byte) for
+                                        // most things
 
     if (prefix != NULL)
         printf("%s", prefix);

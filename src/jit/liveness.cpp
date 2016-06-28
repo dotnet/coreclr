@@ -87,17 +87,17 @@ void                 Compiler::fgMarkUseDef(GenTreeLclVarCommon *tree, GenTree *
         if  ((tree->gtFlags & GTF_VAR_DEF) != 0 &&
              (tree->gtFlags & (GTF_VAR_USEASG | GTF_VAR_USEDEF)) == 0)
         {
-//          if  (!(fgCurUseSet & bitMask)) printf("V%02u,T%02u def at %08p\n", lclNum, varDsc->lvVarIndex, tree);
+            // if  (!(fgCurUseSet & bitMask)) printf("V%02u,T%02u def at %08p\n", lclNum, varDsc->lvVarIndex, tree);
             VarSetOps::AddElemD(this, fgCurDefSet, varDsc->lvVarIndex);
         }
         else
         {
-//          if  (!(fgCurDefSet & bitMask))
-//          {
-//               printf("V%02u,T%02u use at ", lclNum, varDsc->lvVarIndex);
-//               printTreeID(tree);
-//               printf("\n");
-//          }
+            // if  (!(fgCurDefSet & bitMask))
+            // {
+            //      printf("V%02u,T%02u use at ", lclNum, varDsc->lvVarIndex);
+            //      printTreeID(tree);
+            //      printf("\n");
+            // }
 
             /* We have the following scenarios:
              *   1. "x += something" - in this case x is flagged GTF_VAR_USEASG
@@ -1842,8 +1842,9 @@ SKIP_QMARK:
             }
         }
 
-        // Is this a use/def of a local variable?
 #ifdef LEGACY_BACKEND
+        // Is this a use/def of a local variable?
+
         // Generally, the last use information is associated with the lclVar node.
         // However, for LEGACY_BACKEND, the information must be associated
         // with the OBJ itself for promoted structs.
@@ -2246,6 +2247,13 @@ bool Compiler::fgRemoveDeadStore(GenTree** pTree, LclVarDsc* varDsc, VARSET_TP l
 
         if (asgNode->gtOper != GT_ASG && asgNode->gtOverflowEx())
         {
+#ifdef DEBUG
+            if  (verbose)
+            {
+                printf("\nChanging dead <asgop> ovf to <op> ovf...\n");
+            }
+#endif // DEBUG
+
             // asgNode may be <op_ovf>= (with GTF_OVERFLOW). In that case, we need to keep the <op_ovf>
 
             // Dead <OpOvf>= assignment. We change it to the right operation (taking out the assignment),
@@ -2253,13 +2261,6 @@ bool Compiler::fgRemoveDeadStore(GenTree** pTree, LclVarDsc* varDsc, VARSET_TP l
             // and we start computing life again from the op_ovf node (we go backwards). Note that we
             // don't need to update ref counts because we don't change them, we're only changing the
             // operation.
-
-#ifdef DEBUG
-            if  (verbose)
-            {
-                printf("\nChanging dead <asgop> ovf to <op> ovf...\n");
-            }
-#endif // DEBUG
 
             switch (asgNode->gtOper)
             {
@@ -2501,7 +2502,6 @@ bool Compiler::fgRemoveDeadStore(GenTree** pTree, LclVarDsc* varDsc, VARSET_TP l
             else
             {
             NO_SIDE_EFFECTS:
-                /* No side effects - Remove the interior statement */
 #ifdef DEBUG
                 if (verbose)
                 {
@@ -2512,6 +2512,7 @@ bool Compiler::fgRemoveDeadStore(GenTree** pTree, LclVarDsc* varDsc, VARSET_TP l
                     printf("\n");
                 }
 #endif // DEBUG
+                /* No side effects - Remove the interior statement */
                 fgUpdateRefCntForExtract(asgNode, NULL);
 
                 /* Change the assignment to a GT_NOP node */

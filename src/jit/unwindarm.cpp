@@ -590,9 +590,10 @@ void            UnwindPrologCodes::SetFinalSize(int headerBytes, int epilogBytes
         // The prolog codes that are already at the end of the array need to get moved to the middle,
         // with space for the non-matching epilog codes to follow.
 
+        // Note that the three UWC_END padding bytes still exist at the end of the array.
+
         memmove_s(&upcMem[upcUnwindBlockSlot + headerBytes], upcMemSize - (upcUnwindBlockSlot + headerBytes), &upcMem[upcCodeSlot], prologBytes);
 
-        // Note that the three UWC_END padding bytes still exist at the end of the array.
 
 #ifdef DEBUG
         // Zero out the epilog codes memory, to ensure we've copied the right bytes. Don't zero the padding bytes.
@@ -925,7 +926,8 @@ void            UnwindFragmentInfo::FinalizeOffset()
 {
     if (ufiEmitLoc == NULL)
     {
-        ufiStartOffset = 0;    // NULL emit location means the beginning of the code. This is to handle the first fragment prolog.
+        // NULL emit location means the beginning of the code. This is to handle the first fragment prolog.
+        ufiStartOffset = 0;
     }
     else
     {
@@ -1069,7 +1071,8 @@ void            UnwindFragmentInfo::MergeCodes()
     assert(ufiInitialized == UFI_INITIALIZED_PATTERN);
 
     unsigned epilogCount = 0;
-    unsigned epilogCodeBytes = 0;   // The total number of unwind code bytes used by epilogs that don't match the prolog codes
+    unsigned epilogCodeBytes = 0;   // The total number of unwind code bytes used by epilogs that don't match the
+                                    // prolog codes
     unsigned epilogIndex = ufiPrologCodes.Size();   // The "Epilog Start Index" for the next non-matching epilog codes
     UnwindEpilogInfo* pEpi;
 
@@ -1155,7 +1158,8 @@ void            UnwindFragmentInfo::MergeCodes()
 
     DWORD finalSize =
         headerBytes
-        + codeBytes;                                    // Size of actual unwind codes, aligned up to 4-byte words, including end padding if necessary
+        + codeBytes;                                    // Size of actual unwind codes, aligned up to 4-byte words,
+                                                        // including end padding if necessary
 
     // Construct the final unwind information.
 
@@ -1387,7 +1391,8 @@ void            UnwindFragmentInfo::Reserve(BOOL isFunclet, bool isHotCode)
 //      funKind:       funclet kind
 //      pHotCode:      hot section code buffer
 //      pColdCode:     cold section code buffer
-//      funcEndOffset: offset of the end of this function/funclet. Used if this fragment is the last one for a function/funclet.
+//      funcEndOffset: offset of the end of this function/funclet. Used if this fragment is the last one for a
+//                     function/funclet.
 //      isHotCode:     are we allocating the unwind info for the hot code section?
 
 void            UnwindFragmentInfo::Allocate(CorJitFuncKind funKind, void* pHotCode, void* pColdCode, UNATIVE_OFFSET funcEndOffset, bool isHotCode)
@@ -1616,7 +1621,8 @@ void            UnwindInfo::Split()
 
     if (uwiFragmentLast->ufiEmitLoc == NULL)
     {
-        startOffset = 0;    // NULL emit location means the beginning of the code. This is to handle the first fragment prolog.
+        // NULL emit location means the beginning of the code. This is to handle the first fragment prolog.
+        startOffset = 0;
     }
     else
     {
@@ -1654,13 +1660,6 @@ void            UnwindInfo::Split()
         return;
     }
 
-    // Now, we're going to commit to splitting the function into "numberOfFragments" fragments,
-    // for the purpose of unwind information. We need to do the actual splits so we can figure out
-    // the size of each piece of unwind data for the call to reserveUnwindInfo(). We won't know
-    // the actual offsets of the splits since we haven't issued the instructions yet, so store
-    // an emitter location instead of an offset, and "finalize" the offset in the unwindEmit() phase,
-    // like we do for the function length and epilog offsets.
-
 #ifdef DEBUG
     if (uwiComp->verbose)
     {
@@ -1670,6 +1669,13 @@ void            UnwindInfo::Split()
             maxFragmentSize);
     }
 #endif // DEBUG
+
+    // Now, we're going to commit to splitting the function into "numberOfFragments" fragments,
+    // for the purpose of unwind information. We need to do the actual splits so we can figure out
+    // the size of each piece of unwind data for the call to reserveUnwindInfo(). We won't know
+    // the actual offsets of the splits since we haven't issued the instructions yet, so store
+    // an emitter location instead of an offset, and "finalize" the offset in the unwindEmit() phase,
+    // like we do for the function length and epilog offsets.
 
     // Call the emitter to do the split, and call us back for every split point it chooses.
     uwiComp->genEmitter->emitSplit(uwiFragmentLast->ufiEmitLoc, uwiEndLoc, maxFragmentSize, (void*)this, EmitSplitCallback);

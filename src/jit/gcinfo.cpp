@@ -414,13 +414,14 @@ void                GCInfo::gcCountForHeader(UNALIGNED unsigned int * untrackedC
             }
             else
             {
+#ifndef LEGACY_BACKEND
                 /* Stack-passed arguments which are not enregistered
                  * are always reported in this "untracked stack
                  * pointers" section of the GC info even if lvTracked==true
                  */
 
                 /* Has this argument been fully enregistered? */
-#ifndef LEGACY_BACKEND
+
                 if (!varDsc->lvOnFrame)
 #else // LEGACY_BACKEND
                 if  (varDsc->lvRegister) 

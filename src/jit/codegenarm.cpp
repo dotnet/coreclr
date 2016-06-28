@@ -211,9 +211,9 @@ void                CodeGen::genCodeForBBlist()
 
     regSet.rsSpillBeg();
 
+#ifdef DEBUGGING_SUPPORT
     /* Initialize the line# tracking logic */
 
-#ifdef DEBUGGING_SUPPORT
     if (compiler->opts.compScopeInfo)
     {
         siInit();
@@ -362,10 +362,10 @@ void                CodeGen::genCodeForBBlist()
             }
         }
 
-        /* Start a new code output block */
-
 #if FEATURE_EH_FUNCLETS
 #if defined(_TARGET_ARM_)
+        /* Start a new code output block */
+
         // If this block is the target of a finally return, we need to add a preceding NOP, in the same EH region,
         // so the unwinder doesn't get confused by our "movw lr, xxx; movt lr, xxx; b Lyyy" calling convention that
         // calls the funclet during non-exceptional control flow.
@@ -373,18 +373,17 @@ void                CodeGen::genCodeForBBlist()
         {
             assert(block->bbFlags & BBF_JMP_TARGET);
 
-            // Create a label that we'll use for computing the start of an EH region, if this block is
-            // at the beginning of such a region. If we used the existing bbEmitCookie as is for
-            // determining the EH regions, then this NOP would end up outside of the region, if this
-            // block starts an EH region. If we pointed the existing bbEmitCookie here, then the NOP
-            // would be executed, which we would prefer not to do.
-
 #ifdef  DEBUG
             if (compiler->verbose)
             {
                 printf("\nEmitting finally target NOP predecessor for BB%02u\n", block->bbNum);
             }
 #endif
+            // Create a label that we'll use for computing the start of an EH region, if this block is
+            // at the beginning of such a region. If we used the existing bbEmitCookie as is for
+            // determining the EH regions, then this NOP would end up outside of the region, if this
+            // block starts an EH region. If we pointed the existing bbEmitCookie here, then the NOP
+            // would be executed, which we would prefer not to do.
 
             block->bbUnwindNopEmitCookie = getEmitter()->emitAddLabel(gcInfo.gcVarPtrSetCur,
                                                                       gcInfo.gcRegGCrefSetCur,
@@ -474,18 +473,18 @@ void                CodeGen::genCodeForBBlist()
         bool    firstMapping = true;
 #endif // DEBUGGING_SUPPORT
 
-        /*---------------------------------------------------------------------
-         *
-         *  Generate code for each statement-tree in the block
-         *
-         */
-
 #if FEATURE_EH_FUNCLETS
         if (block->bbFlags & BBF_FUNCLET_BEG)
         {
             genReserveFuncletProlog(block);
         }
 #endif // FEATURE_EH_FUNCLETS
+
+        /*---------------------------------------------------------------------
+         *
+         *  Generate code for each statement-tree in the block
+         *
+         */
 
         for (GenTreePtr stmt = block->FirstNonPhiDef(); stmt; stmt = stmt->gtNext)
         {

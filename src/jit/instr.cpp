@@ -32,6 +32,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 const   char *      CodeGen::genInsName(instruction ins)
 {
+// clang-format off
     static
     const char * const insNames[] =
     {
@@ -69,6 +70,8 @@ const   char *      CodeGen::genInsName(instruction ins)
 #error "Unknown _TARGET_"
 #endif
     };
+// clang-format on
+
     assert((unsigned)ins < sizeof(insNames)/sizeof(insNames[0]));
     assert(insNames[ins] != NULL);
 
@@ -122,6 +125,7 @@ void                CodeGen::instInit()
 
 const   char *      CodeGen::genSizeStr(emitAttr attr)
 {
+// clang-format off
     static
     const char * const sizes[] =
     {
@@ -148,6 +152,7 @@ const   char *      CodeGen::genSizeStr(emitAttr attr)
         0, 0, 0, 0, 0, 0, 0,
         "ymmword ptr"
     };
+// clang-format on
 
     unsigned size = EA_SIZE(attr);
 
@@ -1273,8 +1278,8 @@ void                CodeGen::instEmit_indCall(GenTreePtr                        
     }
     else
     {
-        // Force the address into a register
 #ifdef LEGACY_BACKEND
+        // Force the address into a register
         genCodeForTree(addr, RBM_NONE);
 #endif // LEGACY_BACKEND
         assert(addr->gtFlags & GTF_REG_VAL);
@@ -4075,8 +4080,8 @@ void                CodeGen::instGen_Store_Imm_Into_Lcl(var_types   dstType,
         getEmitter()->emitIns_S_I(ins_Store(dstType), sizeAttr, varNum, offs, (int)imm);
     }
 #elif defined(_TARGET_ARMARCH_)
-    // Load imm into a register
 #ifndef LEGACY_BACKEND
+    // Load imm into a register
     regNumber immReg = regToUse;
     assert(regToUse != REG_NA);
 #else // LEGACY_BACKEND
