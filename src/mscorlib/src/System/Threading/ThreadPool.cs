@@ -524,6 +524,7 @@ namespace System.Threading
 
             const int SixteenBits = 0xffff;
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             void GetIndexes(out int upper, out int lower)
             {
                 int i = indexes;
