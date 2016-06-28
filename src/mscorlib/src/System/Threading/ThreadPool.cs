@@ -538,6 +538,7 @@ namespace System.Threading
                 Contract.Assert(lower >= 0);
             }
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             bool CompareExchangeIndexes(ref int prevUpper, int newUpper, ref int prevLower, int newLower)
             {
                 Contract.Assert(newUpper >= newLower);
@@ -564,7 +565,7 @@ namespace System.Threading
                 nodes = new IThreadPoolWorkItem[QueueSegmentLength];
             }
 
-
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public bool IsUsedUp()
             {
                 int upper, lower;
