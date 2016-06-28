@@ -66,13 +66,25 @@ Function:
     Build the PAL exception and sent it to any handler registered.
 
 Parameters:
-    None
+    EXCEPTION_RECORD exceptionRecord
+    CONTEXT contextRecord
 
 Return value:
-    Does not return
+    Returns only if the exception is unhandled
 --*/
 VOID 
-SEHProcessException(PEXCEPTION_POINTERS pointers);
+SEHProcessException(EXCEPTION_RECORD* exceptionRecord, CONTEXT* contextRecord);
+
+/*++
+Function:
+    AllocateExceptionRecords
+
+Parameters:
+    exceptionRecord - output pointer to the allocated Windows exception record
+    contextRecord - output pointer to the allocated Windows context record
+--*/
+VOID
+AllocateExceptionRecords(EXCEPTION_RECORD** exceptionRecord, CONTEXT** contextRecord);
 
 #if !HAVE_MACH_EXCEPTIONS
 // TODO: Implement for Mach exceptions.  Not in CoreCLR surface area.

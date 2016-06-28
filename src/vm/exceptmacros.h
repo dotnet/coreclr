@@ -330,7 +330,7 @@ VOID DECLSPEC_NORETURN DispatchManagedException(PAL_SEHException& ex, bool isHar
         }                                           \
         catch (PAL_SEHException& ex)                \
         {                                           \
-            exCopy = ex;                            \
+            exCopy = std::move(ex);                 \
             hasCaughtException = true;              \
         }                                           \
         if (hasCaughtException)                     \

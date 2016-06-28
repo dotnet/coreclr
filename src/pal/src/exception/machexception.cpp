@@ -459,12 +459,15 @@ void PAL_DispatchException(DWORD64 dwRDI, DWORD64 dwRSI, DWORD64 dwRDX, DWORD64 
     }
 #endif // FEATURE_PAL_SXS
 
-    EXCEPTION_POINTERS pointers;
-    pointers.ExceptionRecord = pExRecord;
-    pointers.ContextRecord = pContext;
+    CONTEXT *contextRecord;
+    EXCEPTION_RECORD *exceptionRecord;
+    AllocateExceptionRecords(&exceptionRecord, &contextRecord);
+
+    *contextRecord = *pContext;
+    *exceptionRecord = *pExRecord;
 
     TRACE("PAL_DispatchException(EC %08x EA %p)\n", pExRecord->ExceptionCode, pExRecord->ExceptionAddress);
-    SEHProcessException(&pointers);
+    SEHProcessException(exceptionRecord, contextRecord);
 
     // Send the forward request to the exception thread to process
     MachMessage sSendMessage;

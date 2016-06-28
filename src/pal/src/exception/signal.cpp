@@ -571,39 +571,36 @@ Note:
 static void common_signal_handler(int code, siginfo_t *siginfo, void *sigcontext, int numParams, ...)
 {
     sigset_t signal_set;
-    CONTEXT context;
-    EXCEPTION_RECORD record;
-    EXCEPTION_POINTERS pointers;
+    CONTEXT *contextRecord;
+    EXCEPTION_RECORD *exceptionRecord;
     native_context_t *ucontext;
 
     ucontext = (native_context_t *)sigcontext;
 
-    record.ExceptionCode = CONTEXTGetExceptionCodeForSignal(siginfo, ucontext);
-    record.ExceptionFlags = EXCEPTION_IS_SIGNAL;
-    record.ExceptionRecord = NULL;
-    record.ExceptionAddress = GetNativeContextPC(ucontext);
-    record.NumberParameters = numParams;
+    AllocateExceptionRecords(&exceptionRecord, &contextRecord);
+
+    exceptionRecord->ExceptionCode = CONTEXTGetExceptionCodeForSignal(siginfo, ucontext);
+    exceptionRecord->ExceptionFlags = EXCEPTION_IS_SIGNAL;
+    exceptionRecord->ExceptionRecord = NULL;
+    exceptionRecord->ExceptionAddress = GetNativeContextPC(ucontext);
+    exceptionRecord->NumberParameters = numParams;
 
     va_list params;
     va_start(params, numParams);
 
     for (int i = 0; i < numParams; i++)
     {
-        record.ExceptionInformation[i] = va_arg(params, size_t);
+        exceptionRecord->ExceptionInformation[i] = va_arg(params, size_t);
     }
-
-    pointers.ExceptionRecord = &record;
 
     // Pre-populate context with data from current frame, because ucontext doesn't have some data (e.g. SS register)
     // which is required for restoring context
-    RtlCaptureContext(&context);
+    RtlCaptureContext(contextRecord);
 
     // Fill context record with required information. from pal.h:
     // On non-Win32 platforms, the CONTEXT pointer in the
     // PEXCEPTION_POINTERS will contain at least the CONTEXT_CONTROL registers.
-    CONTEXTFromNativeContext(ucontext, &context, CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_FLOATING_POINT);
-
-    pointers.ContextRecord = &context;
+    CONTEXTFromNativeContext(ucontext, contextRecord, CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_FLOATING_POINT);
 
     /* Unmask signal so we can receive it again */
     sigemptyset(&signal_set);
@@ -614,7 +611,7 @@ static void common_signal_handler(int code, siginfo_t *siginfo, void *sigcontext
         ASSERT("pthread_sigmask failed; error number is %d\n", sigmaskRet);
     }
 
-    SEHProcessException(&pointers);
+    SEHProcessException(exceptionRecord, contextRecord);
 }
 
 /*++
