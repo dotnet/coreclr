@@ -345,15 +345,16 @@ void Lowering::TreeNodeInfoInit(GenTree* stmt)
                 // overflow operations aren't supported on float/double types.
                 assert(!tree->gtOverflow());
 
+                op1 = tree->gtGetOp1();
+                op2 = tree->gtGetOp2();
+
                 // No implicit conversions at this stage as the expectation is that
                 // everything is made explicit by adding casts.
-                assert(tree->gtOp.gtOp1->TypeGet() == tree->gtOp.gtOp2->TypeGet());
+                assert(op1->TypeGet() == op2->TypeGet());
 
                 info->srcCount = 2;
                 info->dstCount = 1;              
-
-                op1 = tree->gtOp.gtOp1;
-                op2 = tree->gtOp.gtOp2; 
+ 
                 if (op2->isMemoryOp() || op2->IsCnsNonZeroFltOrDbl())
                 {
                     MakeSrcContained(tree, op2);
@@ -370,6 +371,10 @@ void Lowering::TreeNodeInfoInit(GenTree* stmt)
                     //      movss op1Reg, [memOp]; addss/sd targetReg, Op2Reg  (if op1Reg == targetReg) OR
                     //      movss op1Reg, [memOp]; movaps targetReg, op1Reg, addss/sd targetReg, Op2Reg  
                     MakeSrcContained(tree, op1);
+                }
+                else
+                {
+                    SetRegOptionalForBinOp(tree);
                 }
                 break;
             }
@@ -559,9 +564,16 @@ void Lowering::TreeNodeInfoInit(GenTree* stmt)
                     other = node->gtArrLen;
                 }
 
-                if (other->isMemoryOp() && node->gtIndex->TypeGet() == node->gtArrLen->TypeGet())
+                if (other->isMemoryOp())
                 {
-                    MakeSrcContained(tree, other);
+                    if (node->gtIndex->TypeGet() == node->gtArrLen->TypeGet())
+                    {
+                        MakeSrcContained(tree, other);
+                    }
+                }
+                else
+                {
+                    SetRegOptional(other);
                 }
             }
             break;
@@ -775,7 +787,10 @@ void Lowering::TreeNodeInfoInit(GenTree* stmt)
         // Though this looks conservative in theory, in practice we could not think of a case where
         // the below logic leads to conservative register specification.  In future when or if we find
         // one such case, this logic needs to be fine tuned for that case(s).
-        if (varTypeIsByte(tree) || ((tree->OperGet() == GT_CAST) && varTypeIsByte(tree->CastToType())))
+        if (varTypeIsByte(tree) || 
+            ((tree->OperGet() == GT_CAST) && varTypeIsByte(tree->CastToType())) ||
+            (tree->OperIsCompare() && varTypeIsByte(tree->gtGetOp1()) && varTypeIsByte(tree->gtGetOp2()))
+           )
         {
             regMaskTP regMask;
             if (info->dstCount > 0)
@@ -1950,14 +1965,16 @@ Lowering::TreeNodeInfoInitLogicalOp(GenTree* tree)
     // for GT_ADD(Constant, SomeTree)
     info->srcCount = 2;
     info->dstCount = 1;
-    GenTree* op1 = tree->gtOp.gtOp1;
-    GenTree* op2 = tree->gtOp.gtOp2;            
+
+    GenTree* op1 = tree->gtGetOp1();
+    GenTree* op2 = tree->gtGetOp2();            
 
     // We can directly encode the second operand if it is either a containable constant or a memory-op.
     // In case of memory-op, we can encode it directly provided its type matches with 'tree' type.
     // This is because during codegen, type of 'tree' is used to determine emit Type size. If the types
     // do not match, they get normalized (i.e. sign/zero extended) on load into a register.
     bool directlyEncodable = false;
+    bool binOpInRMW = false;
     GenTreePtr operand = nullptr;
 
     if (IsContainableImmed(tree, op2))
@@ -1965,21 +1982,25 @@ Lowering::TreeNodeInfoInitLogicalOp(GenTree* tree)
         directlyEncodable = true;
         operand = op2;
     }
-    else if (!IsBinOpInRMWStoreInd(tree))
+    else
     {
-        if (op2->isMemoryOp() && tree->TypeGet() == op2->TypeGet())
+        binOpInRMW = IsBinOpInRMWStoreInd(tree);
+        if (!binOpInRMW)
         {
-            directlyEncodable = true;
-            operand = op2;
-        }
-        else if (tree->OperIsCommutative())
-        {
-            if (IsContainableImmed(tree, op1) ||
-                (op1->isMemoryOp() && tree->TypeGet() == op1->TypeGet() && IsSafeToContainMem(tree, op1)))
+            if (op2->isMemoryOp() && tree->TypeGet() == op2->TypeGet())
             {
-                // If it is safe, we can reverse the order of operands of commutative operations for efficient codegen
                 directlyEncodable = true;
-                operand = op1;
+                operand = op2;
+            }
+            else if (tree->OperIsCommutative())
+            {
+                if (IsContainableImmed(tree, op1) ||
+                    (op1->isMemoryOp() && tree->TypeGet() == op1->TypeGet() && IsSafeToContainMem(tree, op1)))
+                {
+                    // If it is safe, we can reverse the order of operands of commutative operations for efficient codegen
+                    directlyEncodable = true;
+                    operand = op1;
+                }
             }
         }
     }
@@ -1988,6 +2009,14 @@ Lowering::TreeNodeInfoInitLogicalOp(GenTree* tree)
     {
         assert(operand != nullptr);
         MakeSrcContained(tree, operand);
+    }
+    else if (!binOpInRMW)
+    {
+        // If this binary op is neither have contained operands nor part of a
+        // Read-modify-write (RMW) operation, it is safe to mark its operands
+        // as reg optional.  This is to ensure that both the operands don't
+        // end up in memory.
+        SetRegOptionalForBinOp(tree);
     }
 }
 
@@ -2007,6 +2036,12 @@ Lowering::TreeNodeInfoInitModDiv(GenTree* tree)
     TreeNodeInfo* info = &(tree->gtLsraInfo);
     LinearScan* l = m_lsra;
 
+    GenTree* op1 = tree->gtGetOp1();
+    GenTree* op2 = tree->gtGetOp2();
+
+    info->srcCount = 2;
+    info->dstCount = 1;
+
     switch (tree->OperGet())
     {
     case GT_MOD:
@@ -2015,16 +2050,17 @@ Lowering::TreeNodeInfoInitModDiv(GenTree* tree)
         {   
             // No implicit conversions at this stage as the expectation is that
             // everything is made explicit by adding casts.
-            assert(tree->gtOp.gtOp1->TypeGet() == tree->gtOp.gtOp2->TypeGet());
+            assert(op1->TypeGet() == op2->TypeGet());
 
-            info->srcCount = 2;
-            info->dstCount = 1;
-
-            GenTree* op2 = tree->gtOp.gtOp2;
             if (op2->isMemoryOp() || op2->IsCnsNonZeroFltOrDbl())
             {
                 MakeSrcContained(tree, op2);
             }
+            else
+            {
+                SetRegOptionalForBinOp(tree);
+            }
+
             return;
         }
         break;
@@ -2032,12 +2068,6 @@ Lowering::TreeNodeInfoInitModDiv(GenTree* tree)
     default:
         break;
     }
-
-    info->srcCount = 2;
-    info->dstCount = 1;
-
-    GenTree* op1 = tree->gtOp.gtOp1;
-    GenTree* op2 = tree->gtOp.gtOp2;
 
     // Amd64 Div/Idiv instruction: 
     //    Dividend in RAX:RDX  and computes
@@ -2067,6 +2097,7 @@ Lowering::TreeNodeInfoInitModDiv(GenTree* tree)
     else
     {
         op2->gtLsraInfo.setSrcCandidates(l, l->allRegs(TYP_INT) & ~(RBM_RAX | RBM_RDX));
+        SetRegOptionalForBinOp(tree);
     }
 }
 
@@ -2087,7 +2118,7 @@ Lowering::TreeNodeInfoInitIntrinsic(GenTree* tree)
     LinearScan* l = m_lsra;
 
     // Both operand and its result must be of floating point type.
-    GenTree* op1 = tree->gtOp.gtOp1;
+    GenTree* op1 = tree->gtGetOp1();
     assert(varTypeIsFloating(op1));
     assert(op1->TypeGet() == tree->TypeGet());
 
@@ -2100,6 +2131,10 @@ Lowering::TreeNodeInfoInitIntrinsic(GenTree* tree)
         if (op1->isMemoryOp() || op1->IsCnsNonZeroFltOrDbl())
         {
             MakeSrcContained(tree, op1);
+        }
+        else
+        {
+            SetRegOptional(op1);
         }
         break;
 
@@ -2430,6 +2465,10 @@ Lowering::TreeNodeInfoInitCast(GenTree* tree)
             if (castOp->isMemoryOp() || castOp->IsCnsNonZeroFltOrDbl())
             {
                 MakeSrcContained(tree, castOp);
+            }
+            else
+            {
+                SetRegOptional(castOp);
             }
         }
     }
@@ -2794,6 +2833,10 @@ void Lowering::LowerCmp(GenTreePtr tree)
                 MakeSrcContained(tree, otherOp);
             }
         }
+        else
+        {
+            SetRegOptional(otherOp);
+        }
 
         return;
     }
@@ -3096,6 +3139,15 @@ void Lowering::LowerCmp(GenTreePtr tree)
 		{
 			MakeSrcContained(tree, op1);
 		}
+        else
+        {
+            SetRegOptional(op2);
+
+            if (!op2->IsRegOptional())
+            {
+                SetRegOptional(op1);
+            }
+        }
 
 		if (varTypeIsSmall(op1Type) && varTypeIsUnsigned(op1Type))
 		{
@@ -3613,6 +3665,10 @@ void Lowering::SetMulOpCounts(GenTreePtr tree)
             // generate more efficient code sequence for the case of GT_MUL(op1=memOp, op2=non-memOp)
             MakeSrcContained(tree, op1);
         }
+        else
+        {
+            SetRegOptionalForBinOp(tree);
+        }
         return;
     }
     
@@ -3691,12 +3747,20 @@ void Lowering::SetMulOpCounts(GenTreePtr tree)
     // To generate an LEA we need to force memOp into a register
     // so don't allow memOp to be 'contained'
     //
-    if ((memOp != nullptr)                    &&
-        !useLeaEncoding                       &&
-        (memOp->TypeGet() == tree->TypeGet()) &&
-        IsSafeToContainMem(tree, memOp))
+    if (!useLeaEncoding)
     {
-        MakeSrcContained(tree, memOp);
+        if (memOp != nullptr)
+        {
+            if ((memOp->TypeGet() == tree->TypeGet()) &&
+                IsSafeToContainMem(tree, memOp))
+            {
+                MakeSrcContained(tree, memOp);
+            }
+        }
+        else
+        {
+            SetRegOptionalForBinOp(tree);
+        }
     }
 }
 
@@ -3761,6 +3825,63 @@ bool Lowering:: IsContainableImmed(GenTree* parentNode, GenTree* childNode)
     }
 
     return true;
+}
+
+//----------------------------------------------------------------------
+// SetRegOptional - sets a bit to indicate to LSRA that register for
+// for a given tree node is optional for codegen purpose.
+//
+// Arguments:
+//    tree    -   GenTree node
+//
+// Returns
+//    None
+//
+// Note: Right now a tree node is marked as reg optional only
+// if is it a GT_LCL_VAR.  This routine needs to be modified if
+// in future if lower/codegen needs to support other tree node
+// types.
+void Lowering::SetRegOptional(GenTree* tree)
+{
+    if (tree->OperGet() == GT_LCL_VAR)
+    {
+        tree->gtLsraInfo.regOptional = true;
+    }
+}
+
+// ------------------------------------------------------------------
+// SetRegOptionalBinOp - Indicates which of the operands of a bin-op
+// register requirement is optional. Xarch instruction set allows
+// either of op1 or op2 of binary operation (e.g. add, mul etc) to be
+// a memory operand.  This routine provides info to register allocator
+// which of its operands optionally require a register.  Lsra might not
+// allocate a register to RefTypeUse positions of such operands if it
+// is beneficial. In such a case codegen will treat them as memory
+// operands.
+//
+// Arguments:
+//     tree  -  Gentree of a bininary operation.
+//
+// Returns 
+//     None.
+void Lowering::SetRegOptionalForBinOp(GenTree* tree)
+{
+    assert(GenTree::OperIsBinary(tree->OperGet()));
+
+    GenTree* op1 = tree->gtGetOp1();
+    GenTree* op2 = tree->gtGetOp2();
+
+    if (tree->TypeGet() == op2->TypeGet())
+    {
+        SetRegOptional(op2);
+    }
+
+    if (!op2->IsRegOptional() &&
+        tree->OperIsCommutative() &&
+        tree->TypeGet() == op1->TypeGet())
+    {
+        SetRegOptional(op1);
+    }
 }
 
 #endif // _TARGET_XARCH_
