@@ -577,7 +577,7 @@ function print_info_from_core_file {
 }
 
 function download_dumpling_script {
-    echo "ZZZZZZZZZ Downloading latest version of dumpling script."
+    echo "Downloading latest version of dumpling script."
     wget "https://raw.githubusercontent.com/Microsoft/dotnet-reliability/master/src/triage.python/dumpling.py"
 
     local dumpling_script="dumpling.py"
@@ -593,15 +593,14 @@ function upload_core_file_to_dumpling {
     fi
 
     if [ ! -x $dumpling_script ]; then
-        echo "ZZZZZZZZZ Download didn't work???"
-        echo $(ls -lt)
-        echo "ZZZZZZZZZ asdf"
+        echo "Failed to download dumpling script. Dump cannot be uploaded."
+        return
     fi
 
-    echo "ZZZZZZZZZ Uploading $core_file_name to dumpling service."
-    "./$dumpling_script" # just print the help text for now
+    echo "Uploading $core_file_name to dumpling service."
 
-    ###"./$dumpling_script --corefile $core_file_name upload"
+    # The output from this will include a unique ID for this dump.
+    "./$dumpling_script --corefile $core_file_name upload"
 }
 
 function copy_core_file_to_temp_location {
@@ -647,8 +646,6 @@ function inspect_and_delete_core_files {
         copy_core_file_to_temp_location "core"
         rm "core"
     fi
-
-
 }
 
 function run_test {
