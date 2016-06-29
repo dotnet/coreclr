@@ -1,0 +1,5 @@
+LIBRARY "ELT3Profiler.Dll"
+
+EXPORTS
+    DllCanUnloadNow PRIVATE
+    DllGetClassObject PRIVATE
