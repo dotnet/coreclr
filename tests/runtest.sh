@@ -600,7 +600,7 @@ function upload_core_file_to_dumpling {
     echo "Uploading $core_file_name to dumpling service."
 
     # The output from this will include a unique ID for this dump.
-    "./$dumpling_script --corefile $core_file_name upload"
+    ./$dumpling_script "--corefile" "$core_file_name" "upload"
 }
 
 function copy_core_file_to_temp_location {
