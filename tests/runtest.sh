@@ -576,6 +576,34 @@ function print_info_from_core_file {
     gdb --batch -ex "thread apply all bt full" -ex "quit" $executable_name $core_file_name
 }
 
+function download_dumpling_script {
+    echo "ZZZZZZZZZ Downloading latest version of dumpling script."
+    wget "https://raw.githubusercontent.com/Microsoft/dotnet-reliability/master/src/triage.python/dumpling.py"
+
+    local dumpling_script="dumpling.py"
+    chmod +x $dumpling_script
+}
+
+function upload_core_file_to_dumpling {
+    local core_file_name=$1
+    local dumpling_script="dumpling.py"
+
+    if [ ! -x $dumpling_script ]; then
+        download_dumpling_script
+    fi
+
+    if [ ! -x $dumpling_script ]; then
+        echo "ZZZZZZZZZ Download didn't work???"
+        echo $(ls -lt)
+        echo "ZZZZZZZZZ asdf"
+    fi
+
+    echo "ZZZZZZZZZ Uploading $core_file_name to dumpling service."
+    "./$dumpling_script" # just print the help text for now
+
+    ###"./$dumpling_script --corefile $core_file_name upload"
+}
+
 function copy_core_file_to_temp_location {
     local core_file_name=$1
     local storage_location="/tmp/coredumps_coreclr"
@@ -587,6 +615,9 @@ function copy_core_file_to_temp_location {
     if [ ! "$(ls -A $storage_location)" ]; then
         echo "Copying core file $core_file_name to $storage_location"
         cp $core_file_name $storage_location
+
+        # ZZZZZZZ putting this here for temporary/fake rate-limiting
+        upload_core_file_to_dumpling $core_file_name
     fi
 }
 
