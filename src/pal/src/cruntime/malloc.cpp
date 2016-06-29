@@ -104,6 +104,26 @@ CorUnix::InternalMalloc(
 {
     void *pvMem;
 
+    //////////////////////////////////////////////////////////
+    //                NOT CHECKING THIS IN
+    //
+    // Injecting random crashes during the test run. Chose
+    // this function because of how frequently it gets called.
+    //////////////////////////////////////////////////////////
+    if (::getenv("enablerandomcrashes") != nullptr)
+    {
+        if (rand() % 10000 == 10000 - 1)
+        {
+            volatile int* asdf = nullptr;
+            int gonnaCrash = *asdf;
+
+            if (gonnaCrash > 123)
+            {
+                printf("I'm just here so I don't get optimized.\n");
+            }
+        }
+    }
+
     if (szSize == 0)
     {
         // malloc may return null for a requested size of zero bytes. Force a nonzero size to get a valid pointer.
