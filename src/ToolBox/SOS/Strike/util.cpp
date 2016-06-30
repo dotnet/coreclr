@@ -5903,6 +5903,7 @@ GetLineByOffset(
 
         IlOffset = symInfo.Offset + MethodOffs;
 #else
+        // Source lines with 0xFEEFEE markers are filtered out on the managed side.
         const String &moduleName = ModuleNameFromIP(TO_CDADDR(Offset));
         return SymbolReader::GetLineByILOffset(moduleName.c_str(), MethodToken, MethodOffs, pLinenum, lpszFileName, cbFileName);
 #endif //!FEATURE_PAL
@@ -6316,6 +6317,10 @@ HRESULT SymbolReader::LoadCoreCLR()
         return Status;
     }
     BSTR wszFileName = SysAllocStringLen(0, cbFileName);
+    if (wszFileName == nullptr)
+    {
+        return E_OUTOFMEMORY;
+    }
     if (SUCCEEDED(getLineByILOffsetDelegate(szModuleName, MethodToken, IlOffset, pLinenum, &wszFileName)))
     {
         WideCharToMultiByte(CP_ACP, 0, wszFileName, (int) (_wcslen(wszFileName) + 1),
@@ -6718,13 +6723,13 @@ String ModuleNameFromIP(CLRDATA_ADDRESS ip)
     if (SUCCEEDED(g_sos->GetMethodDescPtrFromIP(ip, &mdesc)))
     {
         DacpMethodDescData mdescData;
-        DacpModuleData dmd;
+        DacpModuleData moduleData;
         if (SUCCEEDED(mdescData.Request(g_sos, mdesc)))
         {
-            if (SUCCEEDED(dmd.Request(g_sos, mdescData.ModulePtr)))
+            if (SUCCEEDED(moduleData.Request(g_sos, mdescData.ModulePtr)))
             {
                 ArrayHolder<WCHAR> wszModuleName = new WCHAR[MAX_LONGPATH+1];
-                if (SUCCEEDED(g_sos->GetPEFileName(dmd.File, MAX_LONGPATH, wszModuleName, NULL)))
+                if (SUCCEEDED(g_sos->GetPEFileName(moduleData.File, MAX_LONGPATH, wszModuleName, NULL)))
                 {
                     ArrayHolder<char> szModuleName = new char[MAX_LONGPATH+1];
                     WideCharToMultiByte(CP_ACP, 0, wszModuleName, (int) (_wcslen(wszModuleName) + 1), szModuleName, mdNameLen, NULL, NULL);
