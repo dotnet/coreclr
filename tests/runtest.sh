@@ -599,8 +599,14 @@ function upload_core_file_to_dumpling {
 
     echo "Uploading $core_file_name to dumpling service."
 
+    local paths_to_add=""
+    if [ -d "$coreClrBinDir" ]; then
+        echo "Uploading CoreCLR binaries with dump."
+        paths_to_add=$coreClrBinDir
+    fi
+
     # The output from this will include a unique ID for this dump.
-    ./$dumpling_script "--corefile" "$core_file_name" "upload"
+    ./$dumpling_script "--corefile" "$core_file_name" "upload" "--addpaths" $paths_to_add
 }
 
 function copy_core_file_to_temp_location {
