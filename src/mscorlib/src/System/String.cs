@@ -1695,9 +1695,6 @@ namespace System {
         private static unsafe int wcslen(char *ptr)
         {
             char *end = ptr;
-
-            // The following code is (somewhat surprisingly!) significantly faster than a naive loop,
-            // at least on x86 and the current jit.
             
             // x64 implementation is based on glibc's strlen
             // TODO: Test to see if switching to something like
@@ -1712,6 +1709,9 @@ namespace System {
 
             if (*end != 0) {
 #if !BIT64
+                // The following code is (somewhat surprisingly!) significantly faster than a naive loop,
+                // at least on x86 and the current jit.
+
                 // The loop condition below works because if "end[0] & end[1]" is non-zero, that means
                 // neither operand can have been zero. If is zero, we have to look at the operands individually,
                 // but we hope this going to fairly rare.
