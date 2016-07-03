@@ -1698,22 +1698,84 @@ namespace System {
 
             // The following code is (somewhat surprisingly!) significantly faster than a naive loop,
             // at least on x86 and the current jit.
+            
+            // x64 implementation is based on glibc's strlen
+            // TODO: Test to see if switching to something like
+            // the 64-bit version would be beneficial on x86 as well
 
-            // First make sure our pointer is aligned on a dword boundary
-            while (((uint)end & 3) != 0 && *end != 0)
+            // First make sure our pointer is aligned on a word boundary
+            int wordSize = IntPtr.Size;
+            int alignment = wordSize - 1;
+
+            // If ptr is at an odd address, this loop will simply iterate all the way
+            while (((uint)end & alignment) != 0 && *end != 0)
                 end++;
+
             if (*end != 0) {
+#if !BIT64
                 // The loop condition below works because if "end[0] & end[1]" is non-zero, that means
                 // neither operand can have been zero. If is zero, we have to look at the operands individually,
                 // but we hope this going to fairly rare.
 
                 // In general, it would be incorrect to access end[1] if we haven't made sure
                 // end[0] is non-zero. However, we know the ptr has been aligned by the loop above
-                // so end[0] and end[1] must be in the same page, so they're either both accessible, or both not.
+                // so end[0] and end[1] must be in the same word (and therefore page), so they're either both accessible, or both not.
 
                 while ((end[0] & end[1]) != 0 || (end[0] != 0 && end[1] != 0)) {
                     end += 2;
                 }
+#else // !BIT64
+                // 64-bit implementation: process 1 long at a time
+
+                // What we do here is subtract one from each of the
+                // 4 individual chars within the long. If one of the
+                // chars is zero, it will become 0xffff. We then check
+                // if the highest bit is set in any of the chars by ANDing
+                // with HighMask and comparing to 0. This way, we check
+                // for zero in multiple chars at a time, without going
+                // thru them one at a time.
+
+                // Note that for any char > 0x8000, this will be a false
+                // positive and we will fallback to the slow path and
+                // check each char individually. This is OK though, since
+                // we optimize for the common case (ASCII chars, which are < 0x80).
+
+                // NOTE: We can access a long a time since the ptr is aligned,
+                // and therefore we're only accessing the same word/page.
+                
+                const long HighMask = 0x8080808080808080;
+                const long LowMask = 0x0001000100010001;
+
+                while (true)
+                {
+                    long word = *(long*)end;
+                    word -= LowMask; // subtract ones from each char
+                    word &= HighMask; // zero out any chars that don't have their high bit set
+
+                    if (word == 0)
+                    {
+                        // none of the chars have their high bit set (and therefore none can be 0)
+                        end += 8;
+                        continue;
+                    }
+
+                    // at least one of them had their high bit set! However,
+                    // we have to account for false positives to catch things like
+                    // a char being 0x8001, because that - 1 == 0x8000 which
+                    // still has its high bit set.
+
+                    // So, check each char individually for 0
+
+                    if (end[0] == 0) break;
+                    if (end[1] == 0) break;
+                    if (end[2] == 0) break;
+                    if (end[3] == 0) break;
+                    if (end[4] == 0) break;
+                    if (end[5] == 0) break;
+                    if (end[6] == 0) break;
+                    if (end[7] == 0) break;
+                }
+#endif // !BIT64
             }
             // finish up with the naive loop
             for ( ; *end != 0; end++)
