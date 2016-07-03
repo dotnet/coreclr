@@ -1704,8 +1704,7 @@ namespace System {
             // the 64-bit version would be beneficial on x86 as well
 
             // First make sure our pointer is aligned on a word boundary
-            int wordSize = IntPtr.Size;
-            int alignment = wordSize - 1;
+            int alignment = IntPtr.Size - 1;
 
             // If ptr is at an odd address, this loop will simply iterate all the way
             while (((uint)end & alignment) != 0 && *end != 0)
@@ -1743,7 +1742,7 @@ namespace System {
                 // NOTE: We can access a long a time since the ptr is aligned,
                 // and therefore we're only accessing the same word/page.
                 
-                const long HighMask = 0x8080808080808080;
+                const long HighMask = 0x8000800080008000;
                 const long LowMask = 0x0001000100010001;
 
                 while (true)
@@ -1770,10 +1769,6 @@ namespace System {
                     if (end[1] == 0) break;
                     if (end[2] == 0) break;
                     if (end[3] == 0) break;
-                    if (end[4] == 0) break;
-                    if (end[5] == 0) break;
-                    if (end[6] == 0) break;
-                    if (end[7] == 0) break;
                 }
 #endif // !BIT64
             }
