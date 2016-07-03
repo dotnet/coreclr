@@ -642,6 +642,8 @@ namespace System.Threading
         internal volatile QueueSegment queueTail;
         internal bool loggingEnabled;
 
+        private static int NextSearchStart;
+
         internal static SparseArray<WorkStealingQueue> allThreadQueues = new SparseArray<WorkStealingQueue>(16);
 
         private volatile int numOutstandingThreadRequests = 0;
@@ -792,7 +794,11 @@ namespace System.Threading
             WorkStealingQueue wsq = tl.workStealingQueue;
             var otherQueues = allThreadQueues.Current;
             var remaining = otherQueues.ActiveLength;
-            var i = tl.random.Next(remaining);
+            // allThreadQueues.Data.Length is a power of 2, initally 16
+            // Move next steal start on by 9 = (8 + 1) rather than 1
+            // It means the search still progresses through all start points evenly in a deterministic manner
+            // However it also interleaves them to reduce collisions between threads  
+            var i = Interlocked.Add(ref NextSearchStart, 9);
             var data = otherQueues.Data;
             var mask = otherQueues.Mask;
             while (remaining > 0)
@@ -975,7 +981,6 @@ namespace System.Threading
 
         public readonly ThreadPoolWorkQueue workQueue;
         public readonly ThreadPoolWorkQueue.WorkStealingQueue workStealingQueue;
-        public readonly Random random = new Random(Thread.CurrentThread.ManagedThreadId);
 
         public ThreadPoolWorkQueueThreadLocals(ThreadPoolWorkQueue tpq)
         {
