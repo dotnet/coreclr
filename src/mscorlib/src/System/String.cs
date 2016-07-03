@@ -1723,11 +1723,14 @@ namespace System {
                 while ((end[0] & end[1]) != 0 || (end[0] != 0 && end[1] != 0)) {
                     end += 2;
                 }
+
+                Contract.Assert(end[0] == 0 || end[1] == 0);
+                if (end[0] != 0) end++;
 #else // !BIT64
-                // 64-bit implementation: process 1 long at a time
+                // 64-bit implementation: process 1 ulong (word) at a time
 
                 // What we do here is subtract one from each of the
-                // 4 individual chars within the long. If one of the
+                // 4 individual chars within the ulong, using LowMask. If one of the
                 // chars is zero, it will become 0xffff. We then check
                 // if the highest bit is set in any of the chars by ANDing
                 // with HighMask and comparing to 0. This way, we check
@@ -1739,22 +1742,23 @@ namespace System {
                 // check each char individually. This is OK though, since
                 // we optimize for the common case (ASCII chars, which are < 0x80).
 
-                // NOTE: We can access a long a time since the ptr is aligned,
-                // and therefore we're only accessing the same word/page.
+                // NOTE: We can access a ulong a time since the ptr is aligned,
+                // and therefore we're only accessing the same word/page. (See notes
+                // for the 32-bit version above.)
                 
-                const long HighMask = 0x8000800080008000;
-                const long LowMask = 0x0001000100010001;
+                const ulong HighMask = 0x8000800080008000;
+                const ulong LowMask = 0x0001000100010001;
 
                 while (true)
                 {
-                    long word = *(long*)end;
+                    ulong word = *(ulong*)end;
                     word -= LowMask; // subtract ones from each char
                     word &= HighMask; // zero out any chars that don't have their high bit set
 
                     if (word == 0)
                     {
                         // none of the chars have their high bit set (and therefore none can be 0)
-                        end += 8;
+                        end += 4;
                         continue;
                     }
 
@@ -1765,16 +1769,22 @@ namespace System {
 
                     // So, check each char individually for 0
 
-                    if (end[0] == 0) break;
-                    if (end[1] == 0) break;
-                    if (end[2] == 0) break;
-                    if (end[3] == 0) break;
+                    if (end[0] == 0) goto EndAt0;
+                    if (end[1] == 0) goto EndAt1;
+                    if (end[2] == 0) goto EndAt2;
+                    if (end[3] == 0) goto EndAt3;
+
+                    // if we reached here, it was a false positive-- just continue
                 }
+
+                EndAt3: end++;
+                EndAt2: end++;
+                EndAt1: end++;
+                EndAt0: ; // nop
 #endif // !BIT64
             }
-            // finish up with the naive loop
-            for ( ; *end != 0; end++)
-                ;
+
+            Contract.Assert(*end == 0);
 
             int count = (int)(end - ptr);
 
