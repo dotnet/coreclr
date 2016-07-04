@@ -696,34 +696,47 @@ namespace System.Threading
         }
 
         [SecurityCritical]
+        public void EnqueueGlobal(IThreadPoolWorkItem callback)
+        {
+            if (loggingEnabled)
+                System.Diagnostics.Tracing.FrameworkEventSource.Log.ThreadPoolEnqueueWorkObject(callback);
+
+            QueueSegment head = queueHead;
+            QueueSegment newSegment = null;
+
+            while (!head.TryEnqueue(callback))
+            {
+                if (newSegment == null) newSegment = new QueueSegment();
+
+                if (Interlocked.CompareExchange(ref head.Next, newSegment, null) == null)
+                {
+                    newSegment = null;
+                }
+
+                while (head.Next != null)
+                {
+                    Interlocked.CompareExchange(ref queueHead, head.Next, head);
+                    head = queueHead;
+                }
+            }
+
+            EnsureThreadRequested();
+        }
+
+        [SecurityCritical]
         public void Enqueue(IThreadPoolWorkItem callback, bool forceGlobal)
         {
             ThreadPoolWorkQueueThreadLocals tl = null;
-            if (!forceGlobal)
-                tl = EnsureCurrentThreadHasQueue();
+            if (forceGlobal || (tl = EnsureCurrentThreadHasQueue()) == null)
+            {
+                EnqueueGlobal(callback);
+                return;
+            }
 
             if (loggingEnabled)
                 System.Diagnostics.Tracing.FrameworkEventSource.Log.ThreadPoolEnqueueWorkObject(callback);
             
-            if (null != tl)
-            {
-                tl.workStealingQueue.LocalPush(callback);
-            }
-            else
-            {
-                QueueSegment head = queueHead;
-
-                while (!head.TryEnqueue(callback))
-                {
-                    Interlocked.CompareExchange(ref head.Next, new QueueSegment(), null);
-
-                    while (head.Next != null)
-                    {
-                        Interlocked.CompareExchange(ref queueHead, head.Next, head);
-                        head = queueHead;
-                    }
-                }
-            }
+            tl.workStealingQueue.LocalPush(callback);
 
             EnsureThreadRequested();
         }
@@ -1033,7 +1046,7 @@ namespace System.Threading
                             if (workStealingQueue.LocalPop(ref cb))
                             {
                                 Contract.Assert(null != cb);
-                                workQueue.Enqueue(cb, true);
+                                workQueue.EnqueueGlobal(cb);
                             }
                             else
                             {
@@ -1761,7 +1774,7 @@ namespace System.Threading
                 //ThreadPool has per-appdomain managed queue of work-items. The VM is
                 //responsible for just scheduling threads into appdomains. After that
                 //work-items are dispatched from the managed queue.
-                ThreadPoolGlobals.workQueue.Enqueue(tpcallBack, true);
+                ThreadPoolGlobals.workQueue.EnqueueGlobal(tpcallBack);
             }
             return true;
         }
@@ -1788,7 +1801,7 @@ namespace System.Threading
                 //ThreadPool has per-appdomain managed queue of work-items. The VM is
                 //responsible for just scheduling threads into appdomains. After that
                 //work-items are dispatched from the managed queue.
-                ThreadPoolGlobals.workQueue.Enqueue(tpcallBack, true);
+                ThreadPoolGlobals.workQueue.EnqueueGlobal(tpcallBack);
             }
             return true;
         }
@@ -1810,7 +1823,7 @@ namespace System.Threading
                 //ThreadPool has per-appdomain managed queue of work-items. The VM is
                 //responsible for just scheduling threads into appdomains. After that
                 //work-items are dispatched from the managed queue.
-                ThreadPoolGlobals.workQueue.Enqueue(new QueueUserWorkItemCallback(callBack, state, null), true);
+                ThreadPoolGlobals.workQueue.EnqueueGlobal(new QueueUserWorkItemCallback(callBack, state, null));
             }
             return true;
         }
