@@ -294,8 +294,8 @@ namespace System.Threading
                 // Fast path: check the tail. If equal, we can skip the lock.
                 if (m_array[(m_tailIndex - 1) & m_mask] == obj)
                 {
-                    IThreadPoolWorkItem unused;
-                    if (LocalPop(out unused))
+                    IThreadPoolWorkItem unused = null;
+                    if (LocalPop(ref unused))
                     {
                         Contract.Assert(unused == obj);
                         return true;
@@ -355,7 +355,7 @@ namespace System.Threading
             }
 
             [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "Reviewed for thread safety")]
-            public bool LocalPop(out IThreadPoolWorkItem obj)
+            public bool LocalPop(ref IThreadPoolWorkItem obj)
             {
                 while (true)
                 {
@@ -363,7 +363,6 @@ namespace System.Threading
                     int tail = m_tailIndex;
                     if (m_headIndex >= tail)
                     {
-                        obj = null;
                         return false;
                     }
 
@@ -384,7 +383,7 @@ namespace System.Threading
                     }
 
                     bool skip;
-                    bool result = LocalPopLocked(out obj, ref tail, out skip);
+                    bool result = LocalPopLocked(ref obj, ref tail, out skip);
                     // continue if null in array
                     if (skip) continue;
 
@@ -392,7 +391,7 @@ namespace System.Threading
                 }
             }
 
-            private bool LocalPopLocked(out IThreadPoolWorkItem obj, ref int tail, out bool skip)
+            private bool LocalPopLocked(ref IThreadPoolWorkItem obj, ref int tail, out bool skip)
             {
                 // Interaction with takes: 0 or 1 elements left.
                 bool lockTaken = false;
@@ -421,7 +420,6 @@ namespace System.Threading
                         // If we encountered a race condition and element was stolen, restore the tail.
                         m_tailIndex = tail + 1;
                         skip = false;
-                        obj = null;
                         return false;
                     }
                 }
@@ -433,19 +431,15 @@ namespace System.Threading
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public bool TrySteal(out IThreadPoolWorkItem obj, ref bool missedSteal)
+            public bool TrySteal(ref IThreadPoolWorkItem obj, ref bool missedSteal)
             {
-                return TrySteal(out obj, ref missedSteal, 0); // no blocking by default.
+                return TrySteal(ref obj, ref missedSteal, 0); // no blocking by default.
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            private bool TrySteal(out IThreadPoolWorkItem obj, ref bool missedSteal, int millisecondsTimeout)
+            private bool TrySteal(ref IThreadPoolWorkItem obj, ref bool missedSteal, int millisecondsTimeout)
             {
-                obj = null;
-                if (m_headIndex >= m_tailIndex)
-                    return false;
-
-                return TryStealWithItems(ref obj, ref missedSteal, millisecondsTimeout);
+                return (m_headIndex >= m_tailIndex) ? false : TryStealWithItems(ref obj, ref missedSteal, millisecondsTimeout);
             }
 
             private bool TryStealWithItems(ref IThreadPoolWorkItem obj, ref bool missedSteal, int millisecondsTimeout)
@@ -470,8 +464,7 @@ namespace System.Threading
                                 // Check for nulls in the array.
                                 if (obj == null)
                                 {
-                                    if (m_headIndex >= m_tailIndex)
-                                        return false;
+                                    if (m_headIndex >= m_tailIndex) return false;
                                     continue;
                                 };
 
@@ -482,7 +475,6 @@ namespace System.Threading
                             {
                                 // Failed, restore head.
                                 m_headIndex = head;
-                                obj = null;
                                 missedSteal = true;
                             }
                         }
@@ -604,7 +596,7 @@ namespace System.Threading
             }
 
             [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "Reviewed for thread safety")]
-            public bool TryDequeue(out IThreadPoolWorkItem node)
+            public bool TryDequeue(ref IThreadPoolWorkItem node)
             {
                 //
                 // If there are nodes in this segment, increment the lower count, then take the
@@ -617,7 +609,6 @@ namespace System.Threading
                 {
                     if (lower == upper)
                     {
-                        node = null;
                         return false;
                     }
 
@@ -751,13 +742,12 @@ namespace System.Threading
         }
 
         [SecurityCritical]
-        public void Dequeue(ThreadPoolWorkQueueThreadLocals tl, out IThreadPoolWorkItem callback, out bool missedSteal)
+        public void Dequeue(ThreadPoolWorkQueueThreadLocals tl, ref IThreadPoolWorkItem callback, out bool missedSteal)
         {
-            callback = null;
             missedSteal = false;
             WorkStealingQueue wsq = tl.workStealingQueue;
 
-            if (wsq.LocalPop(out callback))
+            if (wsq.LocalPop(ref callback))
             {
                 Contract.Assert(null != callback);
                 return;
@@ -771,7 +761,7 @@ namespace System.Threading
             QueueSegment tail = queueTail;
             while (true)
             {
-                if (tail.TryDequeue(out callback))
+                if (tail.TryDequeue(ref callback))
                 {
                     Contract.Assert(null != callback);
                     return;
@@ -808,7 +798,7 @@ namespace System.Threading
                 WorkStealingQueue otherQueue = Volatile.Read(ref data[i & mask]);
                 if (otherQueue != null &&
                     otherQueue != wsq &&
-                    otherQueue.TrySteal(out callback, ref missedSteal))
+                    otherQueue.TrySteal(ref callback, ref missedSteal))
                 {
                     Contract.Assert(null != callback);
                     break;
@@ -844,7 +834,7 @@ namespace System.Threading
             //
             // Assume that we're going to need another thread if this one returns to the VM.  We'll set this to 
             // false later, but only if we're absolutely certain that the queue is empty.
-            //
+
             bool needAnotherThread = true;
             IThreadPoolWorkItem workItem = null;
             try
@@ -867,7 +857,7 @@ namespace System.Threading
                     finally
                     {
                         bool missedSteal = false;
-                        workQueue.Dequeue(tl, out workItem, out missedSteal);
+                        workQueue.Dequeue(tl, ref workItem, out missedSteal);
 
                         if (workItem == null)
                         {
@@ -1006,7 +996,7 @@ namespace System.Threading
                         finally
                         {
                             IThreadPoolWorkItem cb = null;
-                            if (workStealingQueue.LocalPop(out cb))
+                            if (workStealingQueue.LocalPop(ref cb))
                             {
                                 Contract.Assert(null != cb);
                                 workQueue.Enqueue(cb, true);
