@@ -669,6 +669,9 @@ function run_test {
         set_up_core_dump_generation
     fi
 
+    ######## delete
+    export enablerandomcrashes=1
+
     "./$scriptFileName" >"$outputFileName" 2>&1
     local testScriptExitCode=$?
 
@@ -679,7 +682,7 @@ function run_test {
         inspect_and_delete_core_files
     fi
 
-    return $testScriptExitCode
+    return $testScriptExitCode 
 }
 
 # Variables for running tests in the background
