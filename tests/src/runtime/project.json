@@ -33,7 +33,7 @@
     "System.Xml.XDocument": "4.0.10"
   },
   "frameworks": {
-    "dnxcore50": {}
+    "netcoreapp1.0": { "imports": "dnxcore50" }
   },
   "runtimes": {
     "win7-x86": {},
