@@ -442,6 +442,7 @@ namespace System.Threading
                 return (m_headIndex >= m_tailIndex) ? false : TryStealWithItems(ref obj, ref missedSteal, millisecondsTimeout);
             }
 
+            [MethodImpl(MethodImplOptions.NoInlining)]
             private bool TryStealWithItems(ref IThreadPoolWorkItem obj, ref bool missedSteal, int millisecondsTimeout)
             {
                 while (true)
@@ -651,6 +652,9 @@ namespace System.Threading
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ThreadPoolWorkQueueThreadLocals EnsureCurrentThreadHasQueue()
         {
+            // Don't add thread work pool for non-threadpool threads
+            if (!Thread.CurrentThread.IsThreadPoolThread) return null;
+
             var queue = ThreadPoolWorkQueueThreadLocals.threadLocals;
             return null != queue ? queue : (ThreadPoolWorkQueueThreadLocals.threadLocals = new ThreadPoolWorkQueueThreadLocals(this));
         }
@@ -703,7 +707,7 @@ namespace System.Threading
         {
             ThreadPoolWorkQueueThreadLocals tl = null;
             if (!forceGlobal)
-                tl = ThreadPoolWorkQueueThreadLocals.threadLocals;
+                tl = EnsureCurrentThreadHasQueue();
 
             if (loggingEnabled)
                 System.Diagnostics.Tracing.FrameworkEventSource.Log.ThreadPoolEnqueueWorkObject(callback);
@@ -742,21 +746,19 @@ namespace System.Threading
         }
 
         [SecurityCritical]
-        public void Dequeue(ThreadPoolWorkQueueThreadLocals tl, ref IThreadPoolWorkItem callback, out bool missedSteal)
+        public void Dequeue(WorkStealingQueue wsq, ref IThreadPoolWorkItem callback, out bool missedSteal)
         {
             missedSteal = false;
-            WorkStealingQueue wsq = tl.workStealingQueue;
-
-            if (wsq.LocalPop(ref callback))
+            if (wsq?.LocalPop(ref callback) ?? false)
             {
                 Contract.Assert(null != callback);
                 return;
             }
 
-            DequeueSeek(tl, ref callback, ref missedSteal);
+            DequeueSeek(wsq, ref callback, ref missedSteal);
         }
 
-        private void DequeueSeek(ThreadPoolWorkQueueThreadLocals tl, ref IThreadPoolWorkItem callback, ref bool missedSteal)
+        private void DequeueSeek(WorkStealingQueue wsq, ref IThreadPoolWorkItem callback, ref bool missedSteal)
         {
             QueueSegment tail = queueTail;
             while (true)
@@ -778,24 +780,35 @@ namespace System.Threading
                 }
             }
 
-            DequeueSteal(tl, ref callback, ref missedSteal);
-        }
-
-        private static void DequeueSteal(ThreadPoolWorkQueueThreadLocals tl, ref IThreadPoolWorkItem callback, ref bool missedSteal)
-        {
-            WorkStealingQueue wsq = tl.workStealingQueue;
-            var otherQueues = allThreadQueues.Current;
-            var remaining = otherQueues.ActiveLength;
             // allThreadQueues.Data.Length is a power of 2, initally 16
             // Move next steal start on by 9 = (8 + 1) rather than 1
             // It means the search still progresses through all start points evenly in a deterministic manner
             // However it also interleaves them to reduce collisions between threads  
-            var i = Interlocked.Add(ref NextSearchStart, 9);
+            var startIndex = Interlocked.Add(ref NextSearchStart, 9);
+
+            if (wsq == null)
+            {
+                DequeueSteal(startIndex, ref callback, ref missedSteal);
+            }
+            else
+            {
+                DequeueStealWithQueue(wsq, startIndex, ref callback, ref missedSteal);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void DequeueStealWithQueue(WorkStealingQueue wsq, int index, ref IThreadPoolWorkItem callback, ref bool missedSteal)
+        {
+            var otherQueues = allThreadQueues.Current;
+            var remaining = otherQueues.ActiveLength;
             var data = otherQueues.Data;
             var mask = otherQueues.Mask;
+
             while (remaining > 0)
             {
-                WorkStealingQueue otherQueue = Volatile.Read(ref data[i & mask]);
+                remaining--;
+                WorkStealingQueue otherQueue = Volatile.Read(ref data[index & mask]);
+                index++;
                 if (otherQueue != null &&
                     otherQueue != wsq &&
                     otherQueue.TrySteal(ref callback, ref missedSteal))
@@ -803,8 +816,28 @@ namespace System.Threading
                     Contract.Assert(null != callback);
                     break;
                 }
-                i++;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void DequeueSteal(int index, ref IThreadPoolWorkItem callback, ref bool missedSteal)
+        {
+            var otherQueues = allThreadQueues.Current;
+            var remaining = otherQueues.ActiveLength;
+            var data = otherQueues.Data;
+            var mask = otherQueues.Mask;
+
+            while (remaining > 0)
+            {
                 remaining--;
+                WorkStealingQueue otherQueue = Volatile.Read(ref data[index & mask]);
+                index++;
+                if (otherQueue != null &&
+                    otherQueue.TrySteal(ref callback, ref missedSteal))
+                {
+                    Contract.Assert(null != callback);
+                    break;
+                }
             }
         }
 
@@ -840,9 +873,9 @@ namespace System.Threading
             try
             {
                 //
-                // Set up our thread-local data
+                // Get our thread-local queue
                 //
-                ThreadPoolWorkQueueThreadLocals tl = workQueue.EnsureCurrentThreadHasQueue();
+                WorkStealingQueue wsq = ThreadPoolWorkQueueThreadLocals.threadLocals?.workStealingQueue;
 
                 //
                 // Loop until our quantum expires.
@@ -857,7 +890,7 @@ namespace System.Threading
                     finally
                     {
                         bool missedSteal = false;
-                        workQueue.Dequeue(tl, ref workItem, out missedSteal);
+                        workQueue.Dequeue(wsq, ref workItem, out missedSteal);
 
                         if (workItem == null)
                         {
