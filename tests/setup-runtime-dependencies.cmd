@@ -80,7 +80,7 @@ echo { ^
     "dependencies": { ^
     "runtime.win7-%__Arch%.Microsoft.NETCore.CoreDisTools": "1.0.1-prerelease-*" ^
     }, ^
-    "frameworks": { "dnxcore50": { } } ^
+    "frameworks": { "netcoreapp1.0": { "imports": "dnxcore50" } } ^
     } > "%__JsonFilePath%"
 
 echo JSON file: %__JsonFilePath%
