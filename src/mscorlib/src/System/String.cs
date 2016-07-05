@@ -1704,105 +1704,100 @@ namespace System {
             int alignment = IntPtr.Size - 1;
 
             // If ptr is at an odd address, this loop will simply iterate all the way
-            // TODO: See if it would be beneficial for performance to have something like
-            //
-            // while (((uint)end & alignment) != 0)
-            // {
-            //     if (*end == 0) goto FoundZero; // FoundZero is just before we calculate the count
-            //     end++;
-            // }
-            //
-            // This way we avoid the if (*end != 0) check below.
-            while (((uint)end & alignment) != 0 && *end != 0)
+            while (((uint)end & (uint)alignment) != 0)
+            {
+                if (*end == 0) goto FoundZero;
                 end++;
-
-            if (*end != 0) {
-#if !BIT64
-                // TODO: The following code is typically fast (1 and operation),
-                // but it can generate many false positives which lead to falling
-                // back and checking each char individually. For example,
-                // "?@" causes a misfire, [space] + any control char, etc. since
-                // they share no bits.
-
-                // Investigate doing the same thing we do in the x64 version, namely
-                // subtracting 0x00010001 and seeing if any high bits are set. This
-                // should limit the misfires to chars > 0x8000.
-
-                // The following code is (somewhat surprisingly!) significantly faster than a naive loop,
-                // at least on x86 and the current jit.
-
-                // The loop condition below works because if "end[0] & end[1]" is non-zero, that means
-                // neither operand can have been zero. If is zero, we have to look at the operands individually,
-                // but we hope this going to fairly rare.
-
-                // In general, it would be incorrect to access end[1] if we haven't made sure
-                // end[0] is non-zero. However, we know the ptr has been aligned by the loop above
-                // so end[0] and end[1] must be in the same word (and therefore page), so they're either both accessible, or both not.
-
-                while ((end[0] & end[1]) != 0 || (end[0] != 0 && end[1] != 0)) {
-                    end += 2;
-                }
-
-                Contract.Assert(end[0] == 0 || end[1] == 0);
-                if (end[0] != 0) end++;
-#else // !BIT64
-                // 64-bit implementation: process 1 ulong (word) at a time
-
-                // What we do here is subtract one from each of the
-                // 4 individual chars within the ulong, using LowMask. If one of the
-                // chars is zero, it will become 0xffff. We then check
-                // if the highest bit is set in any of the chars by ANDing
-                // with HighMask and comparing to 0. This way, we check
-                // for zero in multiple chars at a time, without going
-                // thru them one at a time.
-
-                // Note that for any char > 0x8000, this will be a false
-                // positive and we will fallback to the slow path and
-                // check each char individually. This is OK though, since
-                // we optimize for the common case (ASCII chars, which are < 0x80).
-
-                // NOTE: We can access a ulong a time since the ptr is aligned,
-                // and therefore we're only accessing the same word/page. (See notes
-                // for the 32-bit version above.)
-                
-                const ulong HighMask = 0x8000800080008000;
-                const ulong LowMask = 0x0001000100010001;
-
-                while (true)
-                {
-                    ulong word = *(ulong*)end;
-                    word -= LowMask; // subtract ones from each char
-                    word &= HighMask; // zero out any chars that don't have their high bit set
-
-                    if (word == 0)
-                    {
-                        // none of the chars have their high bit set (and therefore none can be 0)
-                        end += 4;
-                        continue;
-                    }
-
-                    // at least one of them had their high bit set! However,
-                    // we have to account for false positives to catch things like
-                    // a char being 0x8001, because that - 1 == 0x8000 which
-                    // still has its high bit set.
-
-                    // So, check each char individually for 0
-
-                    if (end[0] == 0) goto EndAt0;
-                    if (end[1] == 0) goto EndAt1;
-                    if (end[2] == 0) goto EndAt2;
-                    if (end[3] == 0) goto EndAt3;
-
-                    // if we reached here, it was a false positive-- just continue
-                }
-
-                EndAt3: end++;
-                EndAt2: end++;
-                EndAt1: end++;
-                EndAt0: ; // nop
-#endif // !BIT64
             }
 
+#if !BIT64
+            // TODO: The following code is typically fast (1 and operation),
+            // but it can generate many false positives which lead to falling
+            // back and checking each char individually. For example,
+            // "?@" causes a misfire, [space] + any control char, etc. since
+            // they share no bits.
+
+            // Investigate doing the same thing we do in the x64 version, namely
+            // subtracting 0x00010001 and seeing if any high bits are set. This
+            // should limit the misfires to chars > 0x8000.
+
+            // Original comments:
+
+            // The following code is (somewhat surprisingly!) significantly faster than a naive loop,
+            // at least on x86 and the current jit.
+
+            // The loop condition below works because if "end[0] & end[1]" is non-zero, that means
+            // neither operand can have been zero. If is zero, we have to look at the operands individually,
+            // but we hope this going to fairly rare.
+
+            // In general, it would be incorrect to access end[1] if we haven't made sure
+            // end[0] is non-zero. However, we know the ptr has been aligned by the loop above
+            // so end[0] and end[1] must be in the same word (and therefore page), so they're either both accessible, or both not.
+
+            while ((end[0] & end[1]) != 0 || (end[0] != 0 && end[1] != 0)) {
+                end += 2;
+            }
+
+            Contract.Assert(end[0] == 0 || end[1] == 0);
+            if (end[0] != 0) end++;
+#else // !BIT64
+            // 64-bit implementation: process 1 ulong (word) at a time
+
+            // What we do here is subtract one from each of the
+            // 4 individual chars within the ulong, using LowMask. If one of the
+            // chars is zero, it will become 0xffff. We then check
+            // if the highest bit is set in any of the chars by ANDing
+            // with HighMask and comparing to 0. This way, we check
+            // for zero in multiple chars at a time, without going
+            // thru them one at a time.
+
+            // Note that for any char > 0x8000, this will be a false
+            // positive and we will fallback to the slow path and
+            // check each char individually. This is OK though, since
+            // we optimize for the common case (ASCII chars, which are < 0x80).
+
+            // NOTE: We can access a ulong a time since the ptr is aligned,
+            // and therefore we're only accessing the same word/page. (See notes
+            // for the 32-bit version above.)
+            
+            const ulong HighMask = 0x8000800080008000;
+            const ulong LowMask = 0x0001000100010001;
+
+            while (true)
+            {
+                ulong word = *(ulong*)end;
+                word -= LowMask; // subtract ones from each char
+                word &= HighMask; // zero out any chars that don't have their high bit set
+
+                if (word == 0)
+                {
+                    // none of the chars have their high bit set (and therefore none can be 0)
+                    end += 4;
+                    continue;
+                }
+
+                // at least one of them had their high bit set! However,
+                // we have to account for false positives to catch things like
+                // a char being 0x8001, because that - 1 == 0x8000 which
+                // still has its high bit set.
+
+                // So, check each char individually for 0
+
+                if (end[0] == 0) goto EndAt0;
+                if (end[1] == 0) goto EndAt1;
+                if (end[2] == 0) goto EndAt2;
+                if (end[3] == 0) goto EndAt3;
+
+                // if we reached here, it was a false positive-- just continue
+            }
+
+            EndAt3: end++;
+            EndAt2: end++;
+            EndAt1: end++;
+            EndAt0:
+#endif // !BIT64
+
+            FoundZero:
             Contract.Assert(*end == 0);
 
             int count = (int)(end - ptr);
