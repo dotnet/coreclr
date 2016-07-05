@@ -50,17 +50,6 @@ namespace System {
         // For empty strings, this will be '\0' since
         // strings are both null-terminated and length prefixed
         [NonSerialized] private char m_firstChar;
-        
-        // For empty strings, this will be null due to padding.
-        // The start of the string (not including sync block pointer)
-        // is the method table pointer + string length, which takes up
-        // 8 bytes on 32-bit, 12 on x64. For empty strings the null
-        // terminator immediately follows, leaving us with an object
-        // 10/14 bytes in size. Since everything needs to be a multiple
-        // of 4/8, this will get padded and zeroed out.
-        
-        // For one-char strings this will be the null terminator.
-        [NonSerialized] private char m_secondChar;
 
         private const int TrimHead = 0;
         private const int TrimTail = 1;
@@ -478,19 +467,6 @@ namespace System {
                 "For performance reasons, callers of this method should " +
                 "check/short-circuit beforehand if the first char is the same.");
 
-            // Check if the second chars are different here
-            // The reason we check if m_firstChar is different is because
-            // it's the most common cast and allows us to avoid a method call
-            // to here.
-            // The reason we check if m_secondChar is different is because
-            // if the first two chars the same we can increment by 4 bytes,
-            // leaving us word-aligned on both 32-bit (12 bytes into the string)
-            // and 64-bit (16 bytes) platforms.
-            if (strA.m_secondChar != strB.m_secondChar)
-            {
-                return strA.m_secondChar - strB.m_secondChar;
-            }
-
             int length = Math.Min(strA.Length, strB.Length);
             int diffOffset = 0;
 
@@ -498,6 +474,35 @@ namespace System {
             {
                 char* a = ap;
                 char* b = bp;
+
+                // Check if the second chars are different here
+                // The reason we check if m_firstChar is different is because
+                // it's the most common case and allows us to avoid a method call
+                // to here.
+                // The reason we check if the second char is different is because
+                // if the first two chars the same we can increment by 4 bytes,
+                // leaving us word-aligned on both 32-bit (12 bytes into the string)
+                // and 64-bit (16 bytes) platforms.
+
+                // NOTE: If in the future there is a way to read the second char
+                // without pinning the string (e.g. System.Runtime.CompilerServices.Unsafe
+                // is exposed to mscorlib, or a future version of C# allows inline IL),
+                // then do that and short-circuit before the fixed.
+        
+                // For empty strings, the second char will be null due to padding.
+                // The start of the string (not including sync block pointer)
+                // is the method table pointer + string length, which takes up
+                // 8 bytes on 32-bit, 12 on x64. For empty strings the null
+                // terminator immediately follows, leaving us with an object
+                // 10/14 bytes in size. Since everything needs to be a multiple
+                // of 4/8, this will get padded and zeroed out.
+                
+                // For one-char strings the second char will be the null terminator.
+
+                if (*(a + 1) != *(b + 1))
+                {
+                    return *(a + 1) - *(b + 1);
+                }
                 
                 // Since we know that the first two chars are the same,
                 // we can increment by 2 here and skip 4 bytes.
