@@ -52,11 +52,12 @@ namespace System {
         [NonSerialized] private char m_firstChar;
         
         // For empty strings, this will be null due to padding.
-        // The null terminator of an empty string takes up 2
-        // bytes, and the rest of the string object takes up
-        // a multiple of 4 bytes, so there's some left over
-        // to make the size a multiple of 4/8 bytes for
-        // alignment purposes.
+        // The start of the string (not including sync block pointer)
+        // is the method table pointer + string length, which takes up
+        // 8 bytes on 32-bit, 12 on x64. For empty strings the null
+        // terminator immediately follows, leaving us with an object
+        // 10/14 bytes in size. Since everything needs to be a multiple
+        // of 4/8, this will get padded and zeroed out.
         
         // For one-char strings this will be the null terminator.
         [NonSerialized] private char m_secondChar;
