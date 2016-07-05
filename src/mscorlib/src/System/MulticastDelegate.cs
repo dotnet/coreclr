@@ -108,10 +108,6 @@ namespace System
                 return false;
             if (object.ReferenceEquals(this, obj))
                 return true;
-            
-            // TODO: See if this can be changed to GetType() == obj.GetType()
-            // without negatively impacting performance. GetType is a JIT
-            // intrinsic so it should perform the same.
             if (!InternalEqualTypes(this, obj))
                 return false;
             
