@@ -493,7 +493,7 @@ namespace System {
                 length -= 2; a += 2; b += 2;
 
                 // unroll the loop
-#if WIN64
+#if BIT64
                 while (length >= 12)
                 {
                     if (*(long*)a != *(long*)b) goto DiffOffset0;
@@ -530,7 +530,7 @@ namespace System {
                 // The longer string will be larger.
                 return strA.Length - strB.Length;
                 
-#if WIN64
+#if BIT64
                 DiffOffset8: diffOffset += 4;
                 DiffOffset4: diffOffset += 4;
 #else
@@ -545,7 +545,7 @@ namespace System {
                 
                 DiffOffset0:
                 // If we reached here, we already see a difference in the unrolled loop above
-#if WIN64
+#if BIT64
                 if (*(int*)a == *(int*)b)
                 {
                     a += 2; b += 2;
