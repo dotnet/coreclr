@@ -131,39 +131,29 @@ void                Compiler::lvaInitTypeRef()
     //
     const bool hasRetBuffArg = impMethodInfo_hasRetBuffArg(info.compMethodInfo);
 
-    // Change the compRetNativeType if we are returning a struct by value in a register
+    // Possibly change the compRetNativeType if we are returning a struct by value in one register
     if (!hasRetBuffArg && varTypeIsStruct(info.compRetNativeType))
     {
-#if FEATURE_MULTIREG_RET && defined(FEATURE_HFA)
-        if (!info.compIsVarArgs && IsHfa(info.compMethodInfo->args.retTypeClass))
-        {
-            info.compRetNativeType = TYP_STRUCT;
-        }
-        else
-#endif // FEATURE_MULTIREG_RET && defined(FEATURE_HFA)
-        {
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING            
-            ReturnTypeDesc retTypeDesc;
-            retTypeDesc.InitializeReturnType(this, info.compMethodInfo->args.retTypeClass);
+        // Check for TYP_STRUCT argument that can fit into a single register
+        var_types retType = argOrReturnTypeForStruct(info.compMethodInfo->args.retTypeClass, true /* forReturn */);
 
-            if (retTypeDesc.GetReturnRegCount() > 1)
-            {
-                info.compRetNativeType = TYP_STRUCT;
-            }
-            else
-            {
-                info.compRetNativeType = retTypeDesc.GetReturnRegType(0);
-            }
-#else // !FEATURE_UNIX_AMD64_STRUCT_PASSING
-            // Check for TYP_STRUCT argument that can fit into a single register
-            var_types argRetType = argOrReturnTypeForStruct(info.compMethodInfo->args.retTypeClass, true /* forReturn */);
-            info.compRetNativeType = argRetType;
-            if (argRetType == TYP_UNKNOWN)
-            {
-                assert(!"Unexpected size when returning struct by value");
-            }
-#endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING
+#if FEATURE_MULTIREG_RET
+        ReturnTypeDesc retTypeDesc;
+        retTypeDesc.InitializeReturnType(this, info.compMethodInfo->args.retTypeClass);
+        // Only when IsMultiRegRetType is true then (retType == TYP_STRUCT) 
+        assert(retTypeDesc.IsMultiRegRetType() == (retType == TYP_STRUCT));
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING            
+        if (retTypeDesc.GetReturnRegCount() == 1)
+        {
+            retType = retTypeDesc.GetReturnRegType(0);
         }
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // FEATURE_MULTIREG_RET
+
+        info.compRetNativeType = retType;
+
+        // A retType of TYP_UNKNOWN means that hasRetBuffArg should have been true, and it is not true here.
+        assert((retType != TYP_UNKNOWN) && "Unexpected struct size and retType when returning struct by value");
     }
 
     // Do we have a RetBuffArg?

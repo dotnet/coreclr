@@ -5382,9 +5382,13 @@ void CodeGen::genJmpMethod(GenTreePtr jmp)
                 if (varDsc->lvIsHfa())
                 {
                     NYI_ARM64("CodeGen::genJmpMethod with multireg HFA arg");
+                    // use genRegArgNextFloat
                 }
-                // Restore the next register.
-                argRegNext = genMapRegArgNumToRegNum(genMapRegNumToRegArgNum(argReg, loadType) + 1, loadType);
+                else
+                {
+                    // Restore the second register.
+                    argRegNext = genRegArgNext(argReg);
+                }
                 loadType = compiler->getJitGCType(varDsc->lvGcLayout[1]);
                 loadSize = emitActualTypeSize(loadType);
                 getEmitter()->emitIns_R_S(ins_Load(loadType), loadSize, argRegNext, varNum, TARGET_POINTER_SIZE);

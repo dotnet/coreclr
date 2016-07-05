@@ -2818,13 +2818,14 @@ struct GenTreeCall final : public GenTree
     //     other multi-reg return target arch (arm64/arm32/x86).
     //
     // TODO-ARM: Implement this routine for Arm64 and Arm32
+    // ToDo-ARM64: Fix this method
     bool HasMultiRegRetVal() const 
     { 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
-        return varTypeIsStruct(gtType) && !HasRetBufArg(); 
-#elif defined(_TARGET_X86_) && !defined(LEGACY_BACKEND)
+#if defined(_TARGET_X86_) && !defined(LEGACY_BACKEND)
         // LEGACY_BACKEND does not use multi reg returns for calls with long return types
         return varTypeIsLong(gtType);
+#elif FEATURE_MULTIREG_RET
+        return varTypeIsStruct(gtType) && !HasRetBufArg(); 
 #else
         return false;
 #endif

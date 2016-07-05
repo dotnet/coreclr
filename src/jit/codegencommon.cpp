@@ -10441,19 +10441,28 @@ void                CodeGen::genRestoreCalleeSavedFltRegs(unsigned lclFrameSize)
 }
 #endif // defined(_TARGET_XARCH_) && !FEATURE_STACK_FP_X87
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+// Note this method really should be rename to IsRegisterReturned
 bool Compiler::IsRegisterPassable(CORINFO_CLASS_HANDLE hClass)
 {
     if (hClass == NO_CLASS_HANDLE)
     {
         return false;
     }
-
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
     SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
     eeGetSystemVAmd64PassStructInRegisterDescriptor(hClass, &structDesc);
     return structDesc.passedInRegisters;
+#elif defined(_TARGET_ARM_)
+    return IsHFa(hClass);
+#elif defined(_TARGET_ARM64_)
+    // returning TYP_UNKNOWN below means a struct that uses a return buffer
+    return (argOrReturnTypeForStruct(hClass, /*forReturn*/ true) != TYP_UNKNOWN);
+#else
+    return false;
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
 }
 
+// Note this method really should be rename to IsRegisterReturned
 bool Compiler::IsRegisterPassable(GenTreePtr tree)
 {
     return IsRegisterPassable(gtGetStructHandleIfPresent(tree));
@@ -10473,12 +10482,20 @@ bool Compiler::IsMultiRegReturnedType(CORINFO_CLASS_HANDLE hClass)
     {
         return false;
     }
-
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
     SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
     eeGetSystemVAmd64PassStructInRegisterDescriptor(hClass, &structDesc);
     return structDesc.passedInRegisters && (structDesc.eightByteCount > 1);
-}
+#elif defined(_TARGET_ARM_)
+    return IsHFa(hClass);
+#elif defined(_TARGET_ARM64_)
+    // returning TYP_STRUCT below means a struct that is return is multiple registers
+    return (argOrReturnTypeForStruct(hClass, /*forReturn*/ true) == TYP_STRUCT);
+#else
+    return false;
 #endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+}
+
 
 //----------------------------------------------
 // Methods that support HFA's for ARM32/ARM64

@@ -1183,18 +1183,56 @@ GenTreePtr Compiler::impAssignStructPtr(GenTreePtr      dest,
         }
         else
         {
+            // Case of returning a struct in one or more registers.
+
             var_types returnType = (var_types)call->gtCall.gtReturnType;
 
-            src->gtType  = genActualType(returnType);
+            // We don't need a return buffer, so just change this to "(returnType)*dest = call"
+            src->gtType = genActualType(returnType);
             call->gtType = src->gtType;
 
-            dest = gtNewOperNode(GT_IND, returnType, dest);
+            if ((dest->gtOper == GT_ADDR) && (dest->gtOp.gtOp1->gtOper == GT_LCL_VAR))
+            {
+                // If it is a multi-reg struct return, don't change the oper to GT_LCL_FLD.
+                // That is, IR will be of the form lclVar = call for multi-reg return
 
-            // !!! The destination could be on stack. !!!
-            // This flag will let us choose the correct write barrier.
-            dest->gtFlags |= GTF_IND_TGTANYWHERE;
+                GenTreePtr lcl = dest->gtOp.gtOp1;
+                if (!call->AsCall()->HasMultiRegRetVal())
+                {
+                    lcl->ChangeOper(GT_LCL_FLD);
+                    fgLclFldAssign(lcl->gtLclVarCommon.gtLclNum);
+                }
 
-            return gtNewAssignNode(dest, src);
+                lcl->gtType = src->gtType;
+                dest = lcl;
+
+                lvaTable[lcl->gtLclVarCommon.gtLclNum].lvIsMultiRegRet = true;
+
+                return gtNewAssignNode(dest, src);
+            }
+            else // dest is not an ADDR of a LclVar
+            {
+#if 0
+                if (returnType == TYP_STRUCT)
+                {
+                    CORINFO_CLASS_HANDLE clsHnd = call->gtCall.gtRetClsHnd;
+
+                    src = gtNewOperNode(GT_ADDR, TYP_BYREF, src);
+
+                    return gtNewCpObjNode(dest, src, clsHnd, false);
+                }
+                else
+#endif
+                {
+                    dest = gtNewOperNode(GT_IND, returnType, dest);
+
+                    // !!! The destination could be on stack. !!!
+                    // This flag will let us choose the correct write barrier.
+                    dest->gtFlags |= GTF_IND_TGTANYWHERE;
+
+                    return gtNewAssignNode(dest, src);
+                }
+            }
         }
     }
     else if (src->gtOper == GT_OBJ)
@@ -4798,7 +4836,7 @@ void           Compiler::impImportAndPushBox (CORINFO_RESOLVED_TOKEN * pResolved
         if (varTypeIsStruct(exprToBox))
         {
             assert(info.compCompHnd->getClassSize(pResolvedToken->hClass) == info.compCompHnd->getClassSize(operCls));
-            op1 = impAssignStructPtr(op1, exprToBox, operCls,(unsigned)CHECK_SPILL_ALL);
+            op1 = impAssignStructPtr(op1, exprToBox, operCls, (unsigned)CHECK_SPILL_ALL);
         }
         else
         {
@@ -5987,6 +6025,7 @@ var_types  Compiler::impImportCall(OPCODE                  opcode,
 
         // We don't know the target method, so we have to infer the flags, or
         // assume the worst-case.
+   
         mflags  = (calliSig.callConv & CORINFO_CALLCONV_HASTHIS) ? 0 : CORINFO_FLG_STATIC;
 
 #ifdef DEBUG
@@ -7266,7 +7305,7 @@ bool  Compiler::impMethodInfo_hasRetBuffArg(CORINFO_METHOD_INFO * methInfo)
     // The power of two size requirement only applies for Amd64 and x86.
     //
 
-     unsigned size = info.compCompHnd->getClassSize(methInfo->args.retTypeClass);
+    unsigned size = info.compCompHnd->getClassSize(methInfo->args.retTypeClass);
     if (size <= TARGET_POINTER_SIZE) 
     {
         return false;
@@ -7274,18 +7313,17 @@ bool  Compiler::impMethodInfo_hasRetBuffArg(CORINFO_METHOD_INFO * methInfo)
 #endif
 
 #if FEATURE_MULTIREG_RET
-
-    // Support for any additional cases that don't use a Return Buffer Argument
-    //  on targets that support multi-reg return valuetypes.
     //
-  #ifdef FEATURE_HFA
-    // On ARM HFAs are returned in registers.
-    if (!info.compIsVarArgs && IsHfa(methInfo->args.retTypeClass))
+    // Support for any additional cases that don't use a Return Buffer Argument
+    //  only for targets that support multireg return valuetypes.
+    //
+
+    // This method returns TYP_STRUCT if the return type is 
+    // a multireg struct returned by value in registers
+    if (argOrReturnTypeForStruct(methInfo->args.retTypeClass, true) == TYP_STRUCT)
     {
         return false;
     }
-  #endif // FEATURE_HFA
-
 #endif // FEATURE_MULTIREG_RET
 
     // Otherwise we require that a RetBuffArg be used
@@ -7384,36 +7422,7 @@ GenTreePtr                Compiler::impFixupCallStructReturn(GenTreePtr     call
     retTypeDesc->InitializeReturnType(this, retClsHnd);
 #endif // FEATURE_MULTIREG_RET
 
-#if FEATURE_MULTIREG_RET && defined(FEATURE_HFA)
-    // There is no fixup necessary if the return type is a HFA struct.
-    // HFA structs are returned in registers for ARM32 and ARM64
-    //
-    if (!call->gtCall.IsVarargs() && IsHfa(retClsHnd))
-    {
-        if (call->gtCall.CanTailCall())
-        {
-            if (info.compIsVarArgs)
-            {
-                // We cannot tail call because control needs to return to fixup the calling
-                // convention for result return.
-                call->gtCall.gtCallMoreFlags &= ~GTF_CALL_M_EXPLICIT_TAILCALL;
-            }
-            else
-            {
-                // If we can tail call returning HFA, then don't assign it to
-                // a variable back and forth.
-                return call;
-            }
-        }
-
-        if (call->gtFlags & GTF_CALL_INLINE_CANDIDATE)
-        {
-            return call;
-        }
-
-        return impAssignMultiRegTypeToVar(call, retClsHnd);
-    }
-#elif defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
 
     // Not allowed for FEATURE_CORCLR which is the only SKU available for System V OSs.
     assert(!callNode->IsVarargs() && "varargs not allowed for System V OSs.");
@@ -7454,21 +7463,80 @@ GenTreePtr                Compiler::impFixupCallStructReturn(GenTreePtr     call
     }
 
     return call;
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
 
-    // Check for TYP_STRUCT argument that can fit into a single register
-    // change the type on those trees.
-    var_types regType = argOrReturnTypeForStruct(retClsHnd, true);
-    if (regType != TYP_UNKNOWN)
+#else // not FEATURE_UNIX_AMD64_STRUCT_PASSING
+
+#ifdef _TARGET_ARM_
+    // There is no fixup necessary if the return type is a HFA struct.
+    // HFA structs are returned in registers for ARM32 and ARM64
+    //
+    if (!call->gtCall.IsVarargs() && IsHfa(retClsHnd))
     {
-        call->gtCall.gtReturnType = regType;
+        if (call->gtCall.CanTailCall())
+        {
+            if (info.compIsVarArgs)
+            {
+                // We cannot tail call because control needs to return to fixup the calling
+                // convention for result return.
+                call->gtCall.gtCallMoreFlags &= ~GTF_CALL_M_EXPLICIT_TAILCALL;
+            }
+            else
+            {
+                // If we can tail call returning HFA, then don't assign it to
+                // a variable back and forth.
+                return call;
+            }
+        }
+
+        if (call->gtFlags & GTF_CALL_INLINE_CANDIDATE)
+        {
+            return call;
+        }
+
+        return impAssignMultiRegTypeToVar(call, retClsHnd);
+    }
+#endif // _TARGET_ARM_
+
+    // Decide on the proper return type for this call
+    var_types retType = argOrReturnTypeForStruct(retClsHnd, true);
+    if (retType == TYP_UNKNOWN)
+    {
+        // The call uses a return buffer argument
+        call->gtCall.gtCallMoreFlags |= GTF_CALL_M_RETBUFFARG;
     }
     else
     {
-        call->gtCall.gtCallMoreFlags |= GTF_CALL_M_RETBUFFARG; 
+        // retType can be TYP_STRUCT and this means a struct returned by value in multiple registers
+
+        call->gtCall.gtReturnType = retType;
+
+#if FEATURE_MULTIREG_RET
+        unsigned retRegCount = retTypeDesc->GetReturnRegCount();
+        assert(retRegCount != 0);
+
+        if (retRegCount == 1)
+        {
+            // struct returned in a single register 
+            callNode->gtReturnType = retTypeDesc->GetReturnRegType(0);
+        }
+        else
+        {
+            if ((!callNode->CanTailCall()) && (!callNode->IsInlineCandidate()))
+            {
+                // Force a call returning multi-reg struct to be always of the IR form
+                //   tmp = call
+                //
+                // No need to assign a multi-reg struct to a local var if:
+                //  - It is a tail call or 
+                //  - The call is marked for in-lining later
+                return impAssignMultiRegTypeToVar(call, retClsHnd);
+            }
+        }
+#endif // FEATURE_MULTIREG_RET
     }
 
     return call;
+#endif // not FEATURE_UNIX_AMD64_STRUCT_PASSING
 }
 
 
@@ -7557,7 +7625,7 @@ GenTreePtr          Compiler::impFixupStructReturnType(GenTreePtr op, CORINFO_CL
     assert(info.compRetNativeType != TYP_STRUCT);
 #endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING
 
-#elif FEATURE_MULTIREG_RET && defined(FEATURE_HFA)
+#elif FEATURE_MULTIREG_RET && defined(_TARGET_ARM_)
     if (!info.compIsVarArgs && IsHfa(retClsHnd))
     {
         if (op->gtOper == GT_LCL_VAR)
@@ -7569,6 +7637,34 @@ GenTreePtr          Compiler::impFixupStructReturnType(GenTreePtr op, CORINFO_CL
             return op;
         }
          
+        if (op->gtOper == GT_CALL)
+        {
+            if (op->gtCall.IsVarargs())
+            {
+                // We cannot tail call because control needs to return to fixup the calling
+                // convention for result return.
+                op->gtCall.gtCallMoreFlags &= ~GTF_CALL_M_TAILCALL;
+                op->gtCall.gtCallMoreFlags &= ~GTF_CALL_M_EXPLICIT_TAILCALL;
+            }
+            else
+            {
+                return op;
+            }
+        }
+        return impAssignMultiRegTypeToVar(op, retClsHnd);
+    }
+#elif FEATURE_MULTIREG_RET && defined(_TARGET_ARM64_)
+    if (argOrReturnTypeForStruct(retClsHnd, /*forReturn*/ true) == TYP_STRUCT)
+    {
+        if (op->gtOper == GT_LCL_VAR)
+        {
+            // This LCL_VAR stays as a TYP_STRUCT
+            unsigned lclNum = op->gtLclVarCommon.gtLclNum;
+            // Make sure this struct type is not struct promoted
+            lvaTable[lclNum].lvIsMultiRegRet = true;
+            return op;
+        }
+
         if (op->gtOper == GT_CALL)
         {
             if (op->gtCall.IsVarargs())
@@ -13980,6 +14076,7 @@ void Compiler::impMarkLclDstNotPromotable(unsigned tmpNum, GenTreePtr src, CORIN
 #endif // _TARGET_ARM_
 
 #if FEATURE_MULTIREG_RET
+// ToDo ARM64
 GenTreePtr Compiler::impAssignMultiRegTypeToVar(GenTreePtr op, CORINFO_CLASS_HANDLE hClass)
 {
     unsigned tmpNum = lvaGrabTemp(true DEBUGARG("Return value temp for multireg return."));

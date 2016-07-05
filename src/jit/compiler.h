@@ -1459,11 +1459,9 @@ public:
     //-------------------------------------------------------------------------
     // The following is used for struct passing on System V system.
     //
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
     bool                            IsRegisterPassable(CORINFO_CLASS_HANDLE hClass);
     bool                            IsRegisterPassable(GenTreePtr tree);
     bool                            IsMultiRegReturnedType(CORINFO_CLASS_HANDLE hClass);
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
 
     //-------------------------------------------------------------------------
     // The following is used for validating format of EH table
@@ -8012,27 +8010,22 @@ public :
     }
 
     // Returns true if the method returns a value in more than one return register
-    // TODO-ARM-Bug: Deal with multi-register genReturnLocaled structs?
-    // TODO-ARM64: Does this apply for ARM64 too?
     bool                compMethodReturnsMultiRegRetType() 
     {       
-#if FEATURE_MULTIREG_RET 
-
-#if (defined(FEATURE_UNIX_AMD64_STRUCT_PASSING) || defined(_TARGET_ARM_))
-        // Methods returning a struct in two registers is considered having a return value of TYP_STRUCT.
+#if FEATURE_MULTIREG_RET
+#if   defined(_TARGET_X86_)
+        // On x86 only 64-bit longs are returned in multiple registers
+        return varTypeIsLong(info.compRetNativeType);
+#else // targets: X64-UNIX, ARM64 or ARM32
+        // On all the other targets that support multireg return values:
+        // Methods returning a struct in multiple registers have a return value of TYP_STRUCT.
         // Such method's compRetNativeType is TYP_STRUCT without a hidden RetBufArg
         return varTypeIsStruct(info.compRetNativeType) && (info.compRetBuffArg == BAD_VAR_NUM);
-#elif defined(_TARGET_X86_)
-        // Longs are returned in two registers on x86
-        return varTypeIsLong(info.compRetNativeType);
-#else
-        unreached();
-#endif
-
-#else
+#endif // TARGET_XXX
+#else // not FEATURE_MULTIREG_RET
+        // For this architecture there are no multireg returns
         return false;
-#endif // FEATURE_MULTIREG_RET
-
+#endif // FEATURE_MULTIREG_RET 
     }
 
 #if FEATURE_MULTIREG_ARGS
