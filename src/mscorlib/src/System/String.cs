@@ -34,13 +34,7 @@ namespace System {
     // instance and return the result as a new String. All comparison methods are
     // implemented as a part of String.  As with arrays, character positions
     // (indices) are zero-based.
-    //
-    // When passing a null string into a constructor in VJ and VC, the null should be
-    // explicitly type cast to a String.
-    // For Example:
-    // String s = new String((String)null);
-    // Console.WriteLine(s);
-    //
+    
     [ComVisible(true)]
     [Serializable]
     public sealed class String : IComparable, ICloneable, IConvertible, IEnumerable
