@@ -1718,6 +1718,16 @@ namespace System {
 
             if (*end != 0) {
 #if !BIT64
+                // TODO: The following code is typically fast (1 and operation),
+                // but it can generate many false positives which lead to falling
+                // back and checking each char individually. For example,
+                // "?@" causes a misfire, [space] + any control char, etc. since
+                // they share no bits.
+
+                // Investigate doing the same thing we do in the x64 version, namely
+                // subtracting 0x00010001 and seeing if any high bits are set. This
+                // should limit the misfires to chars > 0x8000.
+
                 // The following code is (somewhat surprisingly!) significantly faster than a naive loop,
                 // at least on x86 and the current jit.
 
