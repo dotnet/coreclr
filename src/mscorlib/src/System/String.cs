@@ -472,7 +472,7 @@ namespace System {
             Contract.Assert(strA != null);
             Contract.Assert(strB != null);
 
-            // TODO: This may be subject to change if eliminating the check
+            // NOTE: This may be subject to change if eliminating the check
             // in the callers makes them small enough to be inlined by the JIT
             Contract.Assert(strA.m_firstChar == strB.m_firstChar,
                 "For performance reasons, callers of this method should " +
