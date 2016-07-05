@@ -471,8 +471,21 @@ namespace System {
         {
             Contract.Assert(strA != null);
             Contract.Assert(strB != null);
-            Contract.Assert(strA.m_firstChar == strB.m_firstChar);
 
+            // TODO: This may be subject to change if eliminating the check
+            // in the callers makes them small enough to be inlined by the JIT
+            Contract.Assert(strA.m_firstChar == strB.m_firstChar,
+                "For performance reasons, callers of this method should " +
+                "check/short-circuit beforehand if the first char is the same.");
+
+            // Check if the second chars are different here
+            // The reason we check if m_firstChar is different is because
+            // it's the most common cast and allows us to avoid a method call
+            // to here.
+            // The reason we check if m_secondChar is different is because
+            // if the first two chars the same we can increment by 4 bytes,
+            // leaving us word-aligned on both 32-bit (12 bytes into the string)
+            // and 64-bit (16 bytes) platforms.
             if (strA.m_secondChar != strB.m_secondChar)
             {
                 return strA.m_secondChar - strB.m_secondChar;
