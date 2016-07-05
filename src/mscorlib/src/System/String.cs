@@ -471,7 +471,12 @@ namespace System {
         {
             Contract.Assert(strA != null);
             Contract.Assert(strB != null);
-            Contract.Assert(strA.m_firstChar == strB.m_firstChar && strA.m_secondChar == strB.m_secondChar);
+            Contract.Assert(strA.m_firstChar == strB.m_firstChar);
+
+            if (strA.m_secondChar != strB.m_secondChar)
+            {
+                return strA.m_secondChar - strB.m_secondChar;
+            }
 
             int length = Math.Min(strA.Length, strB.Length);
             int diffOffset = 0;
@@ -1874,23 +1879,6 @@ namespace System {
                     {
                         return strA.m_firstChar - strB.m_firstChar;
                     }
-                    
-                    // Also check if the second character is different
-                    // This allows us to align the pointer better in
-                    // CompareOrdinalHelper on 64-bit platforms, since
-                    // if we know the first two chars are the same
-                    // we can increment the starting position by 4,
-                    // which leaves us 8-byte aligned.
-                    
-                    // The reason we don't do this in CompareOrdinalHelper
-                    // itself is because checking here allows us to avoid
-                    // a method call and prematurely pinning the string.
-                    
-                    // Returns false for empty/one-char strings.
-                    if (strA.m_secondChar != strB.m_secondChar)
-                    {
-                        return strA.m_secondChar - strB.m_secondChar;
-                    }
 
                     return CompareOrdinalHelper(strA, strB);
 
@@ -2203,23 +2191,6 @@ namespace System {
             if (strA.m_firstChar != strB.m_firstChar)
             {
                 return strA.m_firstChar - strB.m_firstChar;
-            }
-            
-            // Also check if the second character is different
-            // This allows us to align the pointer better in
-            // CompareOrdinalHelper on 64-bit platforms, since
-            // if we know the first two chars are the same
-            // we can increment the starting position by 4,
-            // which leaves us 8-byte aligned.
-            
-            // The reason we don't do this in CompareOrdinalHelper
-            // itself is because checking here allows us to avoid
-            // a method call and prematurely pinning the string.
-            
-            // Returns false for empty/one-char strings.
-            if (strA.m_secondChar != strB.m_secondChar)
-            {
-                return strA.m_secondChar - strB.m_secondChar;
             }
 
             return CompareOrdinalHelper(strA, strB);
