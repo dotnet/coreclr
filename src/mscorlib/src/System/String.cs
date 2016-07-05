@@ -1696,7 +1696,6 @@ namespace System {
         {
             char *end = ptr;
             
-            // x64 implementation is based on glibc's strlen
             // TODO: Test to see if switching to something like
             // the 64-bit version would be beneficial on x86 as well
 
