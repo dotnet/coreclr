@@ -523,10 +523,10 @@ namespace System {
                 while (length >= 10)
                 {
                     if (*(int*)a != *(int*)b) goto DiffOffset0;
-                    if (*(int*)(a+2) != *(int*)(b+2)) goto DiffOffset2;
-                    if (*(int*)(a+4) != *(int*)(b+4)) goto DiffOffset4;
-                    if (*(int*)(a+6) != *(int*)(b+6)) goto DiffOffset6;
-                    if (*(int*)(a+8) != *(int*)(b+8)) goto DiffOffset8;
+                    if (*(int*)(a + 2) != *(int*)(b + 2)) goto DiffOffset2;
+                    if (*(int*)(a + 4) != *(int*)(b + 4)) goto DiffOffset4;
+                    if (*(int*)(a + 6) != *(int*)(b + 6)) goto DiffOffset6;
+                    if (*(int*)(a + 8) != *(int*)(b + 8)) goto DiffOffset8;
                     length -= 10; a += 10; b += 10; 
                 }
 #endif
