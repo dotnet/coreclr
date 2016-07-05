@@ -1704,6 +1704,15 @@ namespace System {
             int alignment = IntPtr.Size - 1;
 
             // If ptr is at an odd address, this loop will simply iterate all the way
+            // TODO: See if it would be beneficial for performance to have something like
+            //
+            // while (((uint)end & alignment) != 0)
+            // {
+            //     if (*end == 0) goto FoundZero; // FoundZero is just before we calculate the count
+            //     end++;
+            // }
+            //
+            // This way we avoid the if (*end != 0) check below.
             while (((uint)end & alignment) != 0 && *end != 0)
                 end++;
 
