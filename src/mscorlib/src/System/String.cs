@@ -1789,6 +1789,7 @@ namespace System {
                 if (end[3] == 0) goto EndAt3;
 
                 // if we reached here, it was a false positive-- just continue
+                end += 4;
             }
 
             EndAt3: end++;
