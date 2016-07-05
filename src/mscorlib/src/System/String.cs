@@ -468,7 +468,6 @@ namespace System {
                 "check/short-circuit beforehand if the first char is the same.");
 
             int length = Math.Min(strA.Length, strB.Length);
-            int diffOffset = 0;
 
             fixed (char* ap = &strA.m_firstChar) fixed (char* bp = &strB.m_firstChar)
             {
@@ -537,7 +536,8 @@ namespace System {
                 // always zero terminated and that the terminating zero is not included
                 // in the length. For odd string sizes, the last compare will include
                 // the zero terminator.
-                while (length > 0) {
+                while (length > 0)
+                {
                     if (*(int*)a != *(int*)b) goto DiffNextInt;
                     length -= 2;
                     a += 2; 
@@ -549,17 +549,14 @@ namespace System {
                 return strA.Length - strB.Length;
                 
 #if BIT64
-                DiffOffset8: diffOffset += 4;
-                DiffOffset4: diffOffset += 4;
+                DiffOffset8: a += 4; b += 4;
+                DiffOffset4: a += 4; b += 4;
 #else
-                DiffOffset8: diffOffset += 2;
-                DiffOffset6: diffOffset += 2;
-                DiffOffset4: diffOffset += 2;
-                DiffOffset2: diffOffset += 2;
+                DiffOffset8: a += 2; b += 2;
+                DiffOffset6: a += 2; b += 2;
+                DiffOffset4: a += 2; b += 2;
+                DiffOffset2: a += 2; b += 2;
 #endif
-
-                a += diffOffset;
-                b += diffOffset;
                 
                 DiffOffset0:
                 // If we reached here, we already see a difference in the unrolled loop above
