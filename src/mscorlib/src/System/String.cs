@@ -483,11 +483,6 @@ namespace System {
                 // if the first two chars the same we can increment by 4 bytes,
                 // leaving us word-aligned on both 32-bit (12 bytes into the string)
                 // and 64-bit (16 bytes) platforms.
-
-                // NOTE: If in the future there is a way to read the second char
-                // without pinning the string (e.g. System.Runtime.CompilerServices.Unsafe
-                // is exposed to mscorlib, or a future version of C# allows inline IL),
-                // then do that and short-circuit before the fixed.
         
                 // For empty strings, the second char will be null due to padding.
                 // The start of the string (not including sync block pointer)
@@ -498,6 +493,11 @@ namespace System {
                 // of 4/8, this will get padded and zeroed out.
                 
                 // For one-char strings the second char will be the null terminator.
+
+                // NOTE: If in the future there is a way to read the second char
+                // without pinning the string (e.g. System.Runtime.CompilerServices.Unsafe
+                // is exposed to mscorlib, or a future version of C# allows inline IL),
+                // then do that and short-circuit before the fixed.
 
                 if (*(a + 1) != *(b + 1))
                 {
