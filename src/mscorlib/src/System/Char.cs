@@ -932,10 +932,11 @@ namespace System {
             {
                 // This is a sumplementary character.  Convert it to a surrogate pair in UTF-16.
                 utf32 -= UNICODE_PLANE01_START;
-                char* surrogate = stackalloc char[2];
-                surrogate[0] = (char)((utf32 / 0x400) + (int)CharUnicodeInfo.HIGH_SURROGATE_START);
-                surrogate[1] = (char)((utf32 % 0x400) + (int)CharUnicodeInfo.LOW_SURROGATE_START);
-                return new string(surrogate, 0, 2);
+                uint surrogate = 0;
+                char* address = (char*)&surrogate;
+                address[0] = (char)((utf32 / 0x400) + (int)CharUnicodeInfo.HIGH_SURROGATE_START);
+                address[1] = (char)((utf32 % 0x400) + (int)CharUnicodeInfo.LOW_SURROGATE_START);
+                return new string(address, 0, 2);
             }
         }
 
