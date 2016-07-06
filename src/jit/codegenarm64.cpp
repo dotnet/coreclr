@@ -2992,8 +2992,6 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
 
     case GT_STORE_LCL_VAR:
         {
-            noway_assert(targetType != TYP_STRUCT);
-
             GenTreeLclVarCommon* varNode = treeNode->AsLclVarCommon();
 
             unsigned   varNum = varNode->gtLclNum;         assert(varNum < compiler->lvaCount);

@@ -10453,7 +10453,7 @@ bool Compiler::IsRegisterPassable(CORINFO_CLASS_HANDLE hClass)
     eeGetSystemVAmd64PassStructInRegisterDescriptor(hClass, &structDesc);
     return structDesc.passedInRegisters;
 #elif defined(_TARGET_ARM_)
-    return IsHFa(hClass);
+    return IsHfa(hClass);
 #elif defined(_TARGET_ARM64_)
     // returning TYP_UNKNOWN below means a struct that uses a return buffer
     return (argOrReturnTypeForStruct(hClass, /*forReturn*/ true) != TYP_UNKNOWN);
@@ -10487,7 +10487,7 @@ bool Compiler::IsMultiRegReturnedType(CORINFO_CLASS_HANDLE hClass)
     eeGetSystemVAmd64PassStructInRegisterDescriptor(hClass, &structDesc);
     return structDesc.passedInRegisters && (structDesc.eightByteCount > 1);
 #elif defined(_TARGET_ARM_)
-    return IsHFa(hClass);
+    return IsHfa(hClass);
 #elif defined(_TARGET_ARM64_)
     // returning TYP_STRUCT below means a struct that is return is multiple registers
     return (argOrReturnTypeForStruct(hClass, /*forReturn*/ true) == TYP_STRUCT);
