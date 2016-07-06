@@ -2721,8 +2721,6 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
             GenTreePtr divisorOp = treeNode->gtGetOp2();
             emitAttr   size      = EA_ATTR(genTypeSize(genActualType(treeNode->TypeGet())));
 
-            // TODO-ARM64-CQ: Optimize a divide by power of 2 as we do for AMD64
-
             if (divisorOp->IsIntegralConst(0))
             {
                 // We unconditionally throw a divide by zero exception
