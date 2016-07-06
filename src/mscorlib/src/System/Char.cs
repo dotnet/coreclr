@@ -932,8 +932,8 @@ namespace System {
             {
                 // This is a sumplementary character.  Convert it to a surrogate pair in UTF-16.
                 utf32 -= UNICODE_PLANE01_START;
-                uint surrogate = 0;
-                char* address = (char*)&surrogate;
+                uint surrogate = 0; // allocate 2 chars worth of stack space
+                char* address = (char*)&surrogate; // we forego using stackalloc here because it's slow; see dotnet/coreclr#5719
                 address[0] = (char)((utf32 / 0x400) + (int)CharUnicodeInfo.HIGH_SURROGATE_START);
                 address[1] = (char)((utf32 % 0x400) + (int)CharUnicodeInfo.LOW_SURROGATE_START);
                 return new string(address, 0, 2);
