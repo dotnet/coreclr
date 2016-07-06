@@ -199,6 +199,14 @@ namespace System.IO {
                     // introduced, we don't need to worry about the other overload
                     // performing nonexistent/different argument validation. We can
                     // simply call ValidateCopyToArguments again here, and return.
+
+                    // NOTE NOTE NOTE: If the other CopyTo overload is made virtual in
+                    // the future, do the same thing as what we do in CopyToAsync and
+                    // set bufferSize to 1 and just call the other overload. That will
+                    // ensure consistent behavior when a stream still has bytes left or
+                    // no bytes left, e.g. if a stream overrides the method and doesn't
+                    // do argument validation, fooStream.CopyTo(null) shouldn't throw
+                    // regardless of whether fooStream has used up all of its bytes or not.
                     ValidateCopyToArguments(destination, bufferSize: 1); // Validate the argument if we short-circuit, for compat
                     return; // No bytes to copy, so this is a noop
                 }
