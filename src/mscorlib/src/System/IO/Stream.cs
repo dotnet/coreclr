@@ -117,6 +117,8 @@ namespace System.IO {
         public Task CopyToAsync(Stream destination)
         {
             int bufferSize = _DefaultCopyBufferSize;
+
+#if FEATURE_CORECLR
             if (CanSeek)
             {
                 long length = Length;
@@ -145,6 +147,7 @@ namespace System.IO {
                         bufferSize = (int)Math.Min(bufferSize, remaining);
                 }
             }
+#endif // FEATURE_CORECLR
             
             return CopyToAsync(destination, bufferSize);
         }
@@ -186,6 +189,8 @@ namespace System.IO {
         public void CopyTo(Stream destination)
         {
             int bufferSize = _DefaultCopyBufferSize;
+
+#if FEATURE_CORECLR
             if (CanSeek)
             {
                 long length = Length;
@@ -193,27 +198,18 @@ namespace System.IO {
                 if (length <= position) // Handles negative overflows
                 {
                     // No bytes left in stream
-
-                    // Unlike CopyToAsync, since neither overloads of Stream.CopyTo
-                    // were virtual at the time this short-circuit optimization was
-                    // introduced, we don't need to worry about the other overload
-                    // performing nonexistent/different argument validation. We can
-                    // simply call ValidateCopyToArguments again here, and return.
-
-                    // NOTE NOTE NOTE: If the other CopyTo overload is made virtual in
-                    // the future, do the same thing as what we do in CopyToAsync and
-                    // set bufferSize to 1 and just call the other overload. That will
-                    // ensure consistent behavior when a stream still has bytes left or
-                    // no bytes left, e.g. if a stream overrides the method and doesn't
-                    // do argument validation, fooStream.CopyTo(null) shouldn't throw
-                    // regardless of whether fooStream has used up all of its bytes or not.
-                    ValidateCopyToArguments(destination, bufferSize: 1); // Validate the argument if we short-circuit, for compat
-                    return; // No bytes to copy, so this is a noop
+                    // Call the other overload with a bufferSize of 1,
+                    // in case it's made virtual in the future
+                    bufferSize = 1;
                 }
-                long remaining = length - position;
-                if (remaining <= length) // In the case of a positive overflow, stick to the default size
-                    bufferSize = (int)Math.Min(bufferSize, remaining);
+                else
+                {
+                    long remaining = length - position;
+                    if (remaining <= length) // In the case of a positive overflow, stick to the default size
+                        bufferSize = (int)Math.Min(bufferSize, remaining);
+                }
             }
+#endif // FEATURE_CORECLR
             
             CopyTo(destination, bufferSize);
         }
