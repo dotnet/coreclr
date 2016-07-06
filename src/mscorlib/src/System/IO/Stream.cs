@@ -123,12 +123,27 @@ namespace System.IO {
                 long position = Position;
                 if (length <= position) // Handles negative overflows
                 {
-                    ValidateCopyToArguments(destination, bufferSize: 1); // Validate the argument if we short-circuit, for compat
-                    return Task.CompletedTask; // No bytes to copy, so this is a noop
+                    // If we go down this branch, it means there are
+                    // no bytes left in this stream.
+
+                    // Ideally we would just return Task.CompletedTask here,
+                    // but CopyToAsync(Stream, int, CancellationToken) was already
+                    // virtual at the time this optimization was introduced. So
+                    // if it does things like argument validation (checking if destination
+                    // is null and throwing an exception), then await fooStream.CopyToAsync(null)
+                    // would no longer throw if there were no bytes left. On the other hand,
+                    // we also can't roll our own argument validation and return Task.CompletedTask,
+                    // because it would be a breaking change if the stream's override didn't throw before,
+                    // or in a different order. So for simplicity, we just set the bufferSize to 1
+                    // (not 0 since the default implementation throws for 0) and forward to the virtual method.
+                    bufferSize = 1; 
                 }
-                long remaining = length - position;
-                if (remaining <= length) // In the case of a positive overflow, stick to the default size
-                    bufferSize = (int)Math.Min(bufferSize, remaining);
+                else
+                {
+                    long remaining = length - position;
+                    if (remaining <= length) // In the case of a positive overflow, stick to the default size
+                        bufferSize = (int)Math.Min(bufferSize, remaining);
+                }
             }
             
             return CopyToAsync(destination, bufferSize);
@@ -177,6 +192,13 @@ namespace System.IO {
                 long position = Position;
                 if (length <= position) // Handles negative overflows
                 {
+                    // No bytes left in stream
+
+                    // Unlike CopyToAsync, since neither overloads of Stream.CopyTo
+                    // were virtual at the time this short-circuit optimization was
+                    // introduced, we don't need to worry about the other overload
+                    // performing nonexistent/different argument validation. We can
+                    // simply call ValidateCopyToArguments again here, and return.
                     ValidateCopyToArguments(destination, bufferSize: 1); // Validate the argument if we short-circuit, for compat
                     return; // No bytes to copy, so this is a noop
                 }
