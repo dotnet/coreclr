@@ -29,7 +29,7 @@ namespace System.Reflection.Emit
         }
 
         #region Static Members
-        internal static Type FormCompoundType(char[] bFormat, Type baseType, int curIndex)
+        internal static Type FormCompoundType(string bFormat, Type baseType, int curIndex)
         {
             // This function takes a string to describe the compound type, such as "[,][]", and a baseType.
             // 
@@ -262,11 +262,11 @@ namespace System.Reflection.Emit
             m_cRank++;
         }
 
-        internal void SetFormat(char[] bFormat, int curIndex, int length)
+        internal void SetFormat(string bFormat, int curIndex, int length)
         {
             // Cache the text display format for this SymbolType
 
-            m_bFormat = new string(bFormat, curIndex, length);
+            m_bFormat = bFormat.Substring(curIndex, length);
         }
         #endregion
         
@@ -284,17 +284,17 @@ namespace System.Reflection.Emit
 
         public override Type MakePointerType() 
         { 
-            return SymbolType.FormCompoundType((m_bFormat + "*").ToCharArray(), m_baseType, 0);
+            return SymbolType.FormCompoundType(m_bFormat + "*", m_baseType, 0);
         }
 
         public override Type MakeByRefType() 
         { 
-            return SymbolType.FormCompoundType((m_bFormat + "&").ToCharArray(), m_baseType, 0);
+            return SymbolType.FormCompoundType(m_bFormat + "&", m_baseType, 0);
         }
         
         public override Type MakeArrayType() 
         { 
-            return SymbolType.FormCompoundType((m_bFormat + "[]").ToCharArray(), m_baseType, 0);
+            return SymbolType.FormCompoundType(m_bFormat + "[]", m_baseType, 0);
         }
         
         public override Type MakeArrayType(int rank) 
@@ -315,7 +315,7 @@ namespace System.Reflection.Emit
             }
 
             string s = String.Format(CultureInfo.InvariantCulture, "[{0}]", szrank); // [,,]
-            SymbolType st = SymbolType.FormCompoundType((m_bFormat + s).ToCharArray(), m_baseType, 0) as SymbolType;
+            SymbolType st = SymbolType.FormCompoundType(m_bFormat + s, m_baseType, 0) as SymbolType;
             return st;
         }
 
