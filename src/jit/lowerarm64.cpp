@@ -1655,6 +1655,7 @@ void Lowering::LowerGCWriteBarrier(GenTree* tree)
 void Lowering::SetIndirAddrOpCounts(GenTreePtr indirTree)
 {
     assert(indirTree->OperIsIndir());
+    assert(indirTree->TypeGet() != TYP_STRUCT);
 
     GenTreePtr addr = indirTree->gtGetOp1();
     TreeNodeInfo* info = &(indirTree->gtLsraInfo);
