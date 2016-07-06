@@ -927,12 +927,16 @@ namespace System {
                 // This is a BMP character.
                 return (Char.ToString((char)utf32));
             }
-            // This is a sumplementary character.  Convert it to a surrogate pair in UTF-16.
-            utf32 -= UNICODE_PLANE01_START;
-            char[] surrogate = new char[2];
-            surrogate[0] = (char)((utf32 / 0x400) + (int)CharUnicodeInfo.HIGH_SURROGATE_START);
-            surrogate[1] = (char)((utf32 % 0x400) + (int)CharUnicodeInfo.LOW_SURROGATE_START);
-            return (new String(surrogate));
+
+            unsafe
+            {
+                // This is a sumplementary character.  Convert it to a surrogate pair in UTF-16.
+                utf32 -= UNICODE_PLANE01_START;
+                char* surrogate = stackalloc char[2];
+                surrogate[0] = (char)((utf32 / 0x400) + (int)CharUnicodeInfo.HIGH_SURROGATE_START);
+                surrogate[1] = (char)((utf32 % 0x400) + (int)CharUnicodeInfo.LOW_SURROGATE_START);
+                return new string(surrogate, 0, 2);
+            }
         }
 
 
