@@ -122,7 +122,10 @@ namespace System.IO {
                 long length = Length;
                 long position = Position;
                 if (length <= position) // Handles negative overflows
+                {
+                    ValidateCopyToArguments(destination, bufferSize: 1); // Validate the argument if we short-circuit, for compat
                     return Task.CompletedTask; // No bytes to copy, so this is a noop
+                }
                 long remaining = length - position;
                 if (remaining <= length) // In the case of a positive overflow, stick to the default size
                     bufferSize = (int)Math.Min(bufferSize, remaining);
@@ -173,7 +176,10 @@ namespace System.IO {
                 long length = Length;
                 long position = Position;
                 if (length <= position) // Handles negative overflows
+                {
+                    ValidateCopyToArguments(destination, bufferSize: 1); // Validate the argument if we short-circuit, for compat
                     return; // No bytes to copy, so this is a noop
+                }
                 long remaining = length - position;
                 if (remaining <= length) // In the case of a positive overflow, stick to the default size
                     bufferSize = (int)Math.Min(bufferSize, remaining);
