@@ -216,7 +216,7 @@ namespace System.Reflection.Emit
         // If UpperBound is less than LowerBound, then the size is not specified.
         internal int[]          m_iaLowerBound;
         internal int[]          m_iaUpperBound; // count of dimension
-        private char[]          m_bFormat;      // format string to form the full name.
+        private string          m_bFormat;      // format string to form the full name.
         private bool            m_isSzArray = true;
         #endregion
 
@@ -266,9 +266,7 @@ namespace System.Reflection.Emit
         {
             // Cache the text display format for this SymbolType
 
-            char[] bFormatTemp = new char[length];
-            Array.Copy(bFormat, curIndex, bFormatTemp, 0, length);
-            m_bFormat = bFormatTemp;
+            m_bFormat = new string(bFormat, curIndex, length);
         }
         #endregion
         
@@ -286,17 +284,17 @@ namespace System.Reflection.Emit
 
         public override Type MakePointerType() 
         { 
-            return SymbolType.FormCompoundType((new String(m_bFormat) + "*").ToCharArray(), m_baseType, 0);
+            return SymbolType.FormCompoundType((m_bFormat + "*").ToCharArray(), m_baseType, 0);
         }
 
         public override Type MakeByRefType() 
         { 
-            return SymbolType.FormCompoundType((new String(m_bFormat) + "&").ToCharArray(), m_baseType, 0);
+            return SymbolType.FormCompoundType((m_bFormat + "&").ToCharArray(), m_baseType, 0);
         }
         
         public override Type MakeArrayType() 
         { 
-            return SymbolType.FormCompoundType((new String(m_bFormat) + "[]").ToCharArray(), m_baseType, 0);
+            return SymbolType.FormCompoundType((m_bFormat + "[]").ToCharArray(), m_baseType, 0);
         }
         
         public override Type MakeArrayType(int rank) 
@@ -317,7 +315,7 @@ namespace System.Reflection.Emit
             }
 
             string s = String.Format(CultureInfo.InvariantCulture, "[{0}]", szrank); // [,,]
-            SymbolType st = SymbolType.FormCompoundType((new String(m_bFormat) + s).ToCharArray(), m_baseType, 0) as SymbolType;
+            SymbolType st = SymbolType.FormCompoundType((m_bFormat + s).ToCharArray(), m_baseType, 0) as SymbolType;
             return st;
         }
 
@@ -374,10 +372,10 @@ namespace System.Reflection.Emit
             get 
             { 
                 Type baseType;
-                String sFormat = new String(m_bFormat);
+                String sFormat = m_bFormat;
 
                 for (baseType = m_baseType; baseType is SymbolType; baseType = ((SymbolType)baseType).m_baseType)
-                    sFormat = new String(((SymbolType)baseType).m_bFormat) + sFormat;
+                    sFormat = ((SymbolType)baseType).m_bFormat + sFormat;
 
                 return baseType.Name + sFormat;
             }
