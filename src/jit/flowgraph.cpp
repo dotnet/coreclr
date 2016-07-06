@@ -21602,6 +21602,25 @@ Compiler::fgWalkResult      Compiler::fgUpdateInlineReturnExpressionPlaceHolder(
             }
 #endif // DEBUG
 
+#if 0
+            // If the inlineCandidate node is a leaf, we can just overwrite "tree" with it.
+            // But if it's not, we have to make a deep copy before overwriting it. [Why -- Test this thesis!]
+            if (!inlineCandidate->OperIsLeaf())
+            {
+                GenTreePtr clonedCopy = comp->gtCloneExpr(inlineCandidate);
+#ifdef DEBUG
+                comp->CopyTestDataToCloneTree(clonedCopy, tree);
+                if (comp->verbose)
+                {
+                    printf("\nMaking a deep copy of the inline return expression ");
+                    printTreeID(inlineCandidate);
+                    printf(" => ");
+                    printTreeID(clonedCopy);
+                }
+#endif // DEBUG 
+                inlineCandidate = clonedCopy;
+            }
+#endif
             tree->CopyFrom(inlineCandidate, comp);           
 
 #ifdef DEBUG

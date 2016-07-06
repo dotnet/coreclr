@@ -1132,8 +1132,14 @@ GenTreePtr Compiler::impAssignStructPtr(GenTreePtr      dest,
                 // That is, IR will be of the form lclVar = call for multi-reg return
 
                 GenTreePtr lcl = dest->gtOp.gtOp1;
-                if (!src->AsCall()->HasMultiRegRetVal())
+                if (src->AsCall()->HasMultiRegRetVal())
                 {
+                    // Mark the struct LclVar as used in a MultiReg return context, which currently makes it non promotable. 
+                    lvaTable[lcl->gtLclVarCommon.gtLclNum].lvIsMultiRegRet = true;
+                }
+                else  // The call result is not a multireg return 
+                {
+                    // We change this to a GT_LCL_FLD (from a GT_ADDR of a GT_LCL_VAR)
                     lcl->ChangeOper(GT_LCL_FLD);
                     fgLclFldAssign(lcl->gtLclVarCommon.gtLclNum);
                 }                
@@ -1146,9 +1152,6 @@ GenTreePtr Compiler::impAssignStructPtr(GenTreePtr      dest,
 #elif defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
                 // Not allowed for FEATURE_CORCLR which is the only SKU available for System V OSs.
                 assert(!src->gtCall.IsVarargs() && "varargs not allowed for System V OSs.");
-
-                // Make the struct non promotable. The eightbytes could contain multiple fields.
-                lvaTable[lcl->gtLclVarCommon.gtLclNum].lvIsMultiRegRet = true;
 #endif
             }
             else
@@ -14083,7 +14086,7 @@ GenTreePtr Compiler::impAssignMultiRegTypeToVar(GenTreePtr op, CORINFO_CLASS_HAN
     impAssignTempGen(tmpNum, op, hClass, (unsigned)CHECK_SPILL_NONE);
     GenTreePtr ret = gtNewLclvNode(tmpNum, op->gtType);
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING 
+#if  1 //def FEATURE_UNIX_AMD64_STRUCT_PASSING 
     // If single eightbyte, the return type would have been normalized and there won't be a temp var.
     // This code will be called only if the struct return has not been normalized (i.e. 2 eightbytes - max allowed.)
     assert(IsMultiRegReturnedType(hClass));
@@ -14365,13 +14368,20 @@ bool Compiler::impReturnInstruction(BasicBlock *block, int prefixFlags, OPCODE &
                 }
                 else
 #elif defined(_TARGET_ARM64_)
-                if (!iciCall->AsCall()->HasRetBufArg())
+                ReturnTypeDesc retTypeDesc;
+                retTypeDesc.InitializeReturnType(this, retClsHnd);
+                unsigned retRegCount = retTypeDesc.GetReturnRegCount();
+
+                if (retRegCount != 0)
                 {
+                    assert(!iciCall->AsCall()->HasRetBufArg());
+                    assert(retRegCount >= 2);
                     if (lvaInlineeReturnSpillTemp != BAD_VAR_NUM)
                     {
                         if (!impInlineInfo->retExpr)
                         {
-                            impInlineInfo->retExpr = gtNewLclvNode(lvaInlineeReturnSpillTemp, TYP_STRUCT);
+                            // The inlinee compiler has figured out the type of the temp already. Use it here.
+                            impInlineInfo->retExpr = gtNewLclvNode(lvaInlineeReturnSpillTemp, lvaTable[lvaInlineeReturnSpillTemp].lvType);
                         }
                     }
                     else
