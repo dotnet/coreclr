@@ -1125,18 +1125,20 @@ GenTreePtr Compiler::impAssignStructPtr(GenTreePtr      destAddr,
 
             var_types returnType = (var_types)src->gtCall.gtReturnType;
 
-            // We don't need a return buffer, so just change this to "(returnType)*dest = call"
+            // We won't need a return buffer
             src->gtType = genActualType(returnType);
 
+            // First we try to change this to "LclVar/LclFld = call"
             if ((destAddr->gtOper == GT_ADDR) && (destAddr->gtOp.gtOp1->gtOper == GT_LCL_VAR))
             {
                 // If it is a multi-reg struct return, don't change the oper to GT_LCL_FLD.
-                // That is, IR will be of the form lclVar = call for multi-reg return
+                // That is, the IR will be of the form lclVar = call for multi-reg return
 
-                GenTreePtr lcl = dest->gtOp.gtOp1;
+                GenTreePtr lcl = destAddr->gtOp.gtOp1;
                 if (src->AsCall()->HasMultiRegRetVal())
                 {
-                    // Mark the struct LclVar as used in a MultiReg return context, which currently makes it non promotable. 
+                    // Mark the struct LclVar as used in a MultiReg return context
+                    //  which currently makes it non promotable. 
                     lvaTable[lcl->gtLclVarCommon.gtLclNum].lvIsMultiRegRet = true;
                 }
                 else  // The call result is not a multireg return 
@@ -1156,8 +1158,9 @@ GenTreePtr Compiler::impAssignStructPtr(GenTreePtr      destAddr,
                 assert(!src->gtCall.IsVarargs() && "varargs not allowed for System V OSs.");
 #endif
             }
-            else
+            else  // we don't have a GT_ADDR of a GT_LCL_VAR
             {
+                // We change this to "(returnType)*destAddr = call"
                 dest = gtNewOperNode(GT_IND, returnType, destAddr);
 
                 // !!! The destination could be on stack. !!!
@@ -1188,22 +1191,30 @@ GenTreePtr Compiler::impAssignStructPtr(GenTreePtr      destAddr,
         }
         else
         {
-            // Case of returning a struct in one or more registers.
+            // Case of inline method returning a struct in one or more registers.
 
             var_types returnType = (var_types)call->gtCall.gtReturnType;
 
-            // We don't need a return buffer, so just change this to "(returnType)*dest = call"
+            // We won't need a return buffer
             src->gtType = genActualType(returnType);
             call->gtType = src->gtType;
 
-            if ((dest->gtOper == GT_ADDR) && (dest->gtOp.gtOp1->gtOper == GT_LCL_VAR))
+            // First we try to change this to "LclVar/LclFld = call"
+            if ((destAddr->gtOper == GT_ADDR) && (destAddr->gtOp.gtOp1->gtOper == GT_LCL_VAR))
             {
                 // If it is a multi-reg struct return, don't change the oper to GT_LCL_FLD.
-                // That is, IR will be of the form lclVar = call for multi-reg return
+                // That is, the IR will be of the form lclVar = call for multi-reg return
 
-                GenTreePtr lcl = dest->gtOp.gtOp1;
-                if (!call->AsCall()->HasMultiRegRetVal())
+                GenTreePtr lcl = destAddr->gtOp.gtOp1;
+                if (call->AsCall()->HasMultiRegRetVal())
                 {
+                    // Mark the struct LclVar as used in a MultiReg return context
+                    //  which currently makes it non promotable. 
+                    lvaTable[lcl->gtLclVarCommon.gtLclNum].lvIsMultiRegRet = true;
+                }
+                else
+                {
+                    // We change this to a GT_LCL_FLD (from a GT_ADDR of a GT_LCL_VAR)
                     lcl->ChangeOper(GT_LCL_FLD);
                     fgLclFldAssign(lcl->gtLclVarCommon.gtLclNum);
                 }
@@ -1211,11 +1222,9 @@ GenTreePtr Compiler::impAssignStructPtr(GenTreePtr      destAddr,
                 lcl->gtType = src->gtType;
                 dest = lcl;
 
-                lvaTable[lcl->gtLclVarCommon.gtLclNum].lvIsMultiRegRet = true;
-
                 return gtNewAssignNode(dest, src);
             }
-            else // dest is not an ADDR of a LclVar
+            else  // we don't have a GT_ADDR of a GT_LCL_VAR
             {
 #if 0
                 if (returnType == TYP_STRUCT)
@@ -1224,12 +1233,12 @@ GenTreePtr Compiler::impAssignStructPtr(GenTreePtr      destAddr,
 
                     src = gtNewOperNode(GT_ADDR, TYP_BYREF, src);
 
-                    return gtNewCpObjNode(dest, src, clsHnd, false);
+                    return gtNewCpObjNode(destAddr, src, clsHnd, false);
                 }
                 else
 #endif
                 {
-                    dest = gtNewOperNode(GT_IND, returnType, dest);
+                    dest = gtNewOperNode(GT_IND, returnType, destAddr);
 
                     // !!! The destination could be on stack. !!!
                     // This flag will let us choose the correct write barrier.
