@@ -1717,7 +1717,7 @@ namespace System {
             // they share no bits.
 
             // Investigate doing the same thing we do in the x64 version, namely
-            // subtracting 0x00010001 and seeing if any high bits are set. This
+            // adding 0x7fff7fff and seeing if any high bits aren't set. This
             // should limit the misfires to chars > 0x8000.
 
             // Original comments:
@@ -1742,13 +1742,12 @@ namespace System {
 #else // !BIT64
             // 64-bit implementation: process 1 ulong (word) at a time
 
-            // What we do here is subtract one from each of the
-            // 4 individual chars within the ulong, using LowMask. If one of the
-            // chars is zero, it will become 0xffff. We then check
-            // if the highest bit is set in any of the chars by ANDing
-            // with HighMask and comparing to 0. This way, we check
-            // for zero in multiple chars at a time, without going
-            // thru them one at a time.
+            // What we do here is add 0x7fff from each of the
+            // 4 individual chars within the ulong, using MagicMask.
+            // If the char > 0 and < 0x8001, it will have its high bit set.
+            // We then OR with MagicMask, to set all the other bits.
+            // This will result in all bits set (ulong.MaxValue) for any
+            // char that fits the above criteria, and something else otherwise.
 
             // Note that for any char > 0x8000, this will be a false
             // positive and we will fallback to the slow path and
@@ -1759,28 +1758,23 @@ namespace System {
             // and therefore we're only accessing the same word/page. (See notes
             // for the 32-bit version above.)
             
-            const ulong HighMask = 0x8000800080008000;
-            const ulong LowMask = 0x0001000100010001;
+            const ulong MagicMask = 0x7fff7fff7fff7fff;
 
             while (true)
             {
                 ulong word = *(ulong*)end;
-                word -= LowMask; // subtract ones from each char
-                word &= HighMask; // zero out any chars that don't have their high bit set
+                word += MagicMask; // cause high bit to be set if not zero, and <= 0x8000
+                word |= MagicMask; // set everything besides the high bits
 
-                if (word == 0)
+                if (word == ulong.MaxValue) // 0xffff...
                 {
-                    // none of the chars have their high bit set (and therefore none can be 0)
+                    // all of the chars have their bits set (and therefore none can be 0)
                     end += 4;
                     continue;
                 }
 
-                // at least one of them had their high bit set! However,
-                // we have to account for false positives to catch things like
-                // a char being 0x8001, because that - 1 == 0x8000 which
-                // still has its high bit set.
-
-                // So, check each char individually for 0
+                // at least one of them didn't have their high bit set!
+                // go through each char and check for 0.
 
                 if (end[0] == 0) goto EndAt0;
                 if (end[1] == 0) goto EndAt1;
