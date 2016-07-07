@@ -14,6 +14,8 @@
 
 #define CONTEXT_FULL (CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_FLOATING_POINT)
 
+#define CONTEXT_XSTATE_YMMH 128
+
 #define CONTEXT_ContextFlags 6*8
 #define CONTEXT_SegCs CONTEXT_ContextFlags+8
 #define CONTEXT_SegDs CONTEXT_SegCs+2
@@ -47,7 +49,7 @@
 #define CONTEXT_Rip CONTEXT_R15+8
 #define CONTEXT_FltSave CONTEXT_Rip+8
 #define FLOATING_SAVE_AREA_SIZE 4*8+24*16+96
-#define CONTEXT_Xmm0 CONTEXT_FltSave+FLOATING_SAVE_AREA_SIZE // was 10*16
+#define CONTEXT_Xmm0 CONTEXT_FltSave+10*16
 #define CONTEXT_Xmm1 CONTEXT_Xmm0+16
 #define CONTEXT_Xmm2 CONTEXT_Xmm1+16
 #define CONTEXT_Xmm3 CONTEXT_Xmm2+16
@@ -63,14 +65,13 @@
 #define CONTEXT_Xmm13 CONTEXT_Xmm12+16
 #define CONTEXT_Xmm14 CONTEXT_Xmm13+16
 #define CONTEXT_Xmm15 CONTEXT_Xmm14+16
-#define CONTEXT_VectorRegister CONTEXT_Xmm15+16
-#define CONTEXT_VectorControl CONTEXT_VectorRegister+16*26
-#define CONTEXT_DebugControl CONTEXT_VectorControl+8
+#define CONTEXT_Ymmh CONTEXT_FltSave+FLOATING_SAVE_AREA_SIZE
+#define CONTEXT_DebugControl CONTEXT_Ymmh+16*16
 #define CONTEXT_LastBranchToRip CONTEXT_DebugControl+8
 #define CONTEXT_LastBranchFromRip CONTEXT_LastBranchToRip+8
 #define CONTEXT_LastExceptionToRip CONTEXT_LastBranchFromRip+8
 #define CONTEXT_LastExceptionFromRip CONTEXT_LastExceptionToRip+8
-#define CONTEXT_Size CONTEXT_LastExceptionFromRip+8
+#define CONTEXT_Size CONTEXT_LastExceptionFromRip+8+8 // another +8 for 16-byte alignment
 
 #else // BIT64
 
