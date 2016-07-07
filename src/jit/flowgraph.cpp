@@ -21433,7 +21433,7 @@ void Compiler::fgNoteNonInlineCandidate(GenTreePtr   tree,
 
 #endif
 
-#if defined(FEATURE_HFA) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if FEATURE_MULTIREG_RET
 
 /*********************************************************************************
  *
@@ -21565,7 +21565,7 @@ void Compiler::fgAttachStructInlineeToAsg(GenTreePtr tree, GenTreePtr child, COR
     tree->CopyFrom(gtNewCpObjNode(dstAddr, srcAddr, retClsHnd, false), this);
 }
 
-#endif // defined(FEATURE_HFA) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // FEATURE_MULTIREG_RET
 
 /*****************************************************************************
  * Callback to replace the inline return expression place holder (GT_RET_EXPR)
@@ -21605,25 +21605,6 @@ Compiler::fgWalkResult      Compiler::fgUpdateInlineReturnExpressionPlaceHolder(
             }
 #endif // DEBUG
 
-#if 0
-            // If the inlineCandidate node is a leaf, we can just overwrite "tree" with it.
-            // But if it's not, we have to make a deep copy before overwriting it. [Why -- Test this thesis!]
-            if (!inlineCandidate->OperIsLeaf())
-            {
-                GenTreePtr clonedCopy = comp->gtCloneExpr(inlineCandidate);
-#ifdef DEBUG
-                comp->CopyTestDataToCloneTree(clonedCopy, tree);
-                if (comp->verbose)
-                {
-                    printf("\nMaking a deep copy of the inline return expression ");
-                    printTreeID(inlineCandidate);
-                    printf(" => ");
-                    printTreeID(clonedCopy);
-                }
-#endif // DEBUG 
-                inlineCandidate = clonedCopy;
-            }
-#endif
             tree->CopyFrom(inlineCandidate, comp);           
 
 #ifdef DEBUG
