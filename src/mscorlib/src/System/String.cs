@@ -1696,9 +1696,6 @@ namespace System {
         {
             char *end = ptr;
             
-            // TODO: Test to see if switching to something like
-            // the 64-bit version would be beneficial on x86 as well
-
             // First make sure our pointer is aligned on a word boundary
             int alignment = IntPtr.Size - 1;
 
@@ -1710,18 +1707,6 @@ namespace System {
             }
 
 #if !BIT64
-            // TODO: The following code is typically fast (1 and operation),
-            // but it can generate many false positives which lead to falling
-            // back and checking each char individually. For example,
-            // "?@" causes a misfire, [space] + any control char, etc. since
-            // they share no bits.
-
-            // Investigate doing the same thing we do in the x64 version, namely
-            // adding 0x7fff7fff and seeing if any high bits aren't set. This
-            // should limit the misfires to chars > 0x8000.
-
-            // Original comments:
-
             // The following code is (somewhat surprisingly!) significantly faster than a naive loop,
             // at least on x86 and the current jit.
 
