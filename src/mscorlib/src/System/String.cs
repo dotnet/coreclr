@@ -1699,7 +1699,7 @@ namespace System {
             // First make sure our pointer is aligned on a word boundary
             int alignment = IntPtr.Size - 1;
 
-            // If ptr is at an odd address, this loop will simply iterate all the way
+            // If ptr is at an odd address (e.g. 0x5), this loop will simply iterate all the way
             while (((uint)end & (uint)alignment) != 0)
             {
                 if (*end == 0) goto FoundZero;
