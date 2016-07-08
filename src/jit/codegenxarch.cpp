@@ -1332,7 +1332,7 @@ void CodeGen::genCodeForDivMod(GenTreeOp* treeNode)
         assert(!divisor->isContained() || 
                divisor->isMemoryOp() || 
                divisor->IsCnsFltOrDbl() ||
-               divisor->IsRegOptional());
+               divisor->IsRegOptionalUse());
 
         // Floating point div/rem operation
         assert(oper == GT_DIV || oper == GT_MOD);
@@ -1455,7 +1455,7 @@ void CodeGen::genCodeForBinary(GenTree* treeNode)
         assert(op1->isMemoryOp() || 
                op1->IsCnsNonZeroFltOrDbl() || 
                op1->IsIntCnsFitsInI32() ||
-               op1->IsRegOptional());
+               op1->IsRegOptionalUse());
 
         op1 = treeNode->gtGetOp2();
         op2 = treeNode->gtGetOp1();
@@ -5091,7 +5091,7 @@ void CodeGen::genConsumeRegs(GenTree* tree)
             LclVarDsc* varDsc = compiler->lvaTable + varNum;
 
             noway_assert(varDsc->lvRegNum == REG_STK);
-            noway_assert(tree->IsRegOptional());
+            noway_assert(tree->IsRegOptionalUse());
 
             // Update the life of reg optional lcl var.
             genUpdateLife(tree);

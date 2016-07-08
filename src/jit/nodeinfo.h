@@ -31,7 +31,7 @@ public:
         isDelayFree           = false;
         hasDelayFreeSrc       = false;
         isTgtPref             = false;
-        regOptional           = false;
+        isRegOptionalUse      = false;
     }
 
     // dst
@@ -121,7 +121,7 @@ public:
     // in the same register as op1.
     unsigned char isTgtPref:1;
     // Whether a spilled second src can be treated as a contained operand
-    unsigned char regOptional:1;
+    unsigned char isRegOptionalUse:1;
 
 public:
 

@@ -752,6 +752,7 @@ LinearScan::newRefPosition(regNumber reg,
     newRP->registerAssignment = mask;
 
     newRP->setMultiRegIdx(0);
+    newRP->setAllocateIfProfitable(0);
 
     associateRefPosWithInterval(newRP);
 
@@ -835,6 +836,7 @@ LinearScan::newRefPosition(Interval* theInterval,
     newRP->registerAssignment = mask;
 
     newRP->setMultiRegIdx(multiRegIdx);
+    newRP->setAllocateIfProfitable(0);
 
     associateRefPosWithInterval(newRP);
 
@@ -3216,6 +3218,8 @@ LinearScan::buildRefPositionsForNode(GenTree *tree,
             prefSrcInterval = i;
         }
 
+        bool useIsRegOptional = useNode->IsRegOptionalUse();
+
         bool isLastUse = true;
         if (isCandidateLocalRef(useNode))
         {
@@ -3260,7 +3264,15 @@ LinearScan::buildRefPositionsForNode(GenTree *tree,
             pos->delayRegFree = true;
         }
 
-        if (isLastUse) pos->lastUse = true;
+        if (isLastUse)
+        {
+            pos->lastUse = true;
+        }
+
+        if (useIsRegOptional)
+        {
+            pos->setAllocateIfProfitable(1);
+        }
     }
     JITDUMP("\n");
     

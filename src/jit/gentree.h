@@ -1625,9 +1625,9 @@ public:
     inline var_types&           CastToType();
 
     // Returns true if this gentree node is marked by lowering to indicate
-    // that codegen can still generate code even if it wasn't allocated a 
-    // register.
-    bool IsRegOptional() const;   
+    // that codegen can still generate code for parent of this node even if
+    // this operand wasn't allocated a register.
+    bool IsRegOptionalUse() const;   
 
     // Returns "true" iff "*this" is an assignment (GT_ASG) tree that defines an SSA name (lcl = phi(...));
     bool IsPhiDefn();
