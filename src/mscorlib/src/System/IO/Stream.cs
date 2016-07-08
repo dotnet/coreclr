@@ -143,7 +143,7 @@ namespace System.IO {
                 else
                 {
                     long remaining = length - position;
-                    if (remaining <= length) // In the case of a positive overflow, stick to the default size
+                    if (remaining > 0) // In the case of a positive overflow, stick to the default size
                         bufferSize = (int)Math.Min(bufferSize, remaining);
                 }
             }
@@ -205,7 +205,7 @@ namespace System.IO {
                 else
                 {
                     long remaining = length - position;
-                    if (remaining <= length) // In the case of a positive overflow, stick to the default size
+                    if (remaining > 0) // In the case of a positive overflow, stick to the default size
                         bufferSize = (int)Math.Min(bufferSize, remaining);
                 }
             }
