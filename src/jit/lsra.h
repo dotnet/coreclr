@@ -1321,10 +1321,10 @@ public:
 
     Referenceable * referent;
 
-    Interval *getInterval() { assert (!isPhysRegRef); return (Interval *) referent; }
+    Interval *getInterval() { assert(!isPhysRegRef); return (Interval *)referent; }
     void setInterval(Interval *i) { referent = i; isPhysRegRef = false; }
 
-    RegRecord *getReg() { assert (isPhysRegRef); return (RegRecord *) referent; }
+    RegRecord *getReg() { assert(isPhysRegRef); return (RegRecord *)referent; }
     void setReg(RegRecord *r) { referent = r; isPhysRegRef = true; registerAssignment = genRegMask(r->regNum); }
 
     // nextRefPosition is the next in code order.
@@ -1344,13 +1344,13 @@ public:
     LsraLocation    nodeLocation;
     regMaskTP       registerAssignment;
 
-    regNumber       assignedReg() { 
+    regNumber       assignedReg() {
         if (registerAssignment == RBM_NONE)
         {
             return REG_NA;
         }
 
-        return genRegNumFromMask(registerAssignment); 
+        return genRegNumFromMask(registerAssignment);
     }
 
     RefType         refType;
@@ -1358,36 +1358,43 @@ public:
     // Returns true if it is a reference on a gentree node.
     bool            IsActualRef()
     {
-        return (refType == RefTypeDef || 
-                refType == RefTypeUse);
+        return (refType == RefTypeDef ||
+            refType == RefTypeUse);
     }
 
     bool            RequiresRegister()
     {
         return (IsActualRef()
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-                || refType == RefTypeUpperVectorSaveDef
-                || refType == RefTypeUpperVectorSaveUse
+            || refType == RefTypeUpperVectorSaveDef
+            || refType == RefTypeUpperVectorSaveUse
 #endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-               ) && !AllocateIfProfitable();
+            ) && !AllocateIfProfitable();
     }
 
-    // Returns true whether this ref position is to be allocated
-    // a reg only if it is profitable.  Currently these are the
+    // Indicates whether this ref position is to be allocated
+    // a reg only if profitable. Currently these are the
     // ref positions that lower/codegen has indicated as reg
     // optional and is considered a contained memory operand if
     // no reg is allocated.
-    bool           AllocateIfProfitable()
+    unsigned        allocRegIfProfitable : 1;
+
+    void            setAllocateIfProfitable(unsigned val)
+    {
+        allocRegIfProfitable = val;
+    }
+
+    // Returns true whether this ref position is to be allocated
+    // a reg only if it is profitable. 
+    bool            AllocateIfProfitable()
     {
         // TODO-CQ: Right now if a ref position is marked as
         // copyreg or movereg, then it is not treated as
         // 'allocate if profitable'. This is an implementation
         // limitation that needs to be addressed.
-        return (refType == RefTypeUse) &&
+        return  allocRegIfProfitable &&
                 !copyReg &&
-                !moveReg &&
-                (treeNode != nullptr) &&
-                treeNode->IsRegOptional();
+                !moveReg;
     }
 
     // Used by RefTypeDef/Use positions of a multi-reg call node.

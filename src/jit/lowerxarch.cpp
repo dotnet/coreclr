@@ -3178,7 +3178,7 @@ void Lowering::LowerCmp(GenTreePtr tree)
             // if one of them is on stack.
             TryToSetRegOptional(op2);
 
-            if (!op2->IsRegOptional())
+            if (!op2->IsRegOptionalUse())
             {
                 TryToSetRegOptional(op1);
             }
@@ -3884,7 +3884,7 @@ void Lowering::TryToSetRegOptional(GenTree* tree)
 {
     if (tree->OperGet() == GT_LCL_VAR)
     {
-        tree->gtLsraInfo.regOptional = true;
+        tree->gtLsraInfo.isRegOptionalUse = true;
     }
 }
 
@@ -3919,7 +3919,7 @@ void Lowering::SetRegOptionalForBinOp(GenTree* tree)
         TryToSetRegOptional(op2);
     }
 
-    if (!op2->IsRegOptional() &&
+    if (!op2->IsRegOptionalUse() &&
         tree->OperIsCommutative() &&
         tree->TypeGet() == op1->TypeGet())
     {

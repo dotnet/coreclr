@@ -2909,12 +2909,12 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
     GenTreeLclVar* lclVar = nullptr;
     if (src->isContainedLclVar())
     {
-        assert(src->IsRegOptional());
+        assert(src->IsRegOptionalUse());
         lclVar = src->AsLclVar();
     }
     else if (dst->isContainedLclVar())
     {
-        assert(dst->IsRegOptional());
+        assert(dst->IsRegOptionalUse());
         lclVar = dst->AsLclVar();
     }
 

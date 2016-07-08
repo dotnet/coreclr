@@ -12952,16 +12952,16 @@ BasicBlock* BasicBlock::GetSucc(unsigned i, Compiler * comp)
     }
 }
 
-// -------------------------------------------------------------------------
-// IsRegOptional: Returns true if this gentree node is marked by lowering to
-// indicate that codegen can still generate code even if it wasn't allocated
-// a register.
-bool GenTree::IsRegOptional() const
+// -----------------------------------------------------------------------------
+// IsRegOptionalUse:  Returns true if this gentree node is marked by lowering to
+// indicate that codegen can still generate code for parent of this node even if
+// this operand wasn't allocated a register.
+bool GenTree::IsRegOptionalUse() const
 {
 #ifdef LEGACY_BACKEND
     return false;
 #else
-    return gtLsraInfo.regOptional;
+    return gtLsraInfo.isRegOptionalUse;
 #endif
 }
 
