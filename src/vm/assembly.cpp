@@ -2498,12 +2498,15 @@ HRESULT RunMain(MethodDesc *pFD ,
     //
     // When we're executing the default exe main in the default domain, set the latched exit code to 
     // zero as a default.  If it gets set to something else by user code then that value will be returned. 
-    //
+#ifndef FEATURE_CORECLR
     // StringArgs appears to be non-null only when the main method is explicitly invoked via the hosting api
     // or through creating a subsequent domain and running an exe within it.  In those cases we don't
     // want to reset the (global) latched exit code.
     if (stringArgs == NULL)
+#endif
+    {
         SetLatchedExitCode(0);
+    }
 
     if (!pFD) {
         _ASSERTE(!"Must have a function to call!");
@@ -2583,14 +2586,21 @@ HRESULT RunMain(MethodDesc *pFD ,
 
         if (pParam->pFD->IsVoid()) 
         {
-            // Set the return value to 0 instead of returning random junk
-            *pParam->piRetVal = 0;
             threadStart.Call(&stackVar);
+            *pParam->piRetVal =
+#ifndef FEATURE_CORECLR
+                // Set the return value to 0 instead of returning random junk
+                0;
+#else
+                GetLatchedExitCode();
+#endif
         }
         else 
         {
             *pParam->piRetVal = (INT32)threadStart.Call_RetArgSlot(&stackVar);
+#ifndef FEATURE_CORECLR
             if (pParam->stringArgs == NULL) 
+#endif
             {
                 SetLatchedExitCode(*pParam->piRetVal);
             }
