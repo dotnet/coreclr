@@ -8,7 +8,6 @@ function print_usage {
     echo ''
     echo 'coreclr/tests/runtest.sh'
     echo '    --testRootDir="temp/Windows_NT.x64.Debug"'
-    echo '    --testNativeBinDir="coreclr/bin/obj/Linux.x64.Debug/tests"'
     echo '    --coreClrBinDir="coreclr/bin/Product/Linux.x64.Debug"'
     echo '    --mscorlibDir="windows/coreclr/bin/Product/Linux.x64.Debug"'
     echo '    --coreFxBinDir="corefx/bin/Linux.AnyCPU.Debug"'
@@ -16,7 +15,6 @@ function print_usage {
     echo ''
     echo 'Required arguments:'
     echo '  --testRootDir=<path>             : Root directory of the test build (e.g. coreclr/bin/tests/Windows_NT.x64.Debug).'
-    echo '  --testNativeBinDir=<path>        : Directory of the native CoreCLR test build (e.g. coreclr/bin/obj/Linux.x64.Debug/tests).'
     echo '  (Also required: Either --coreOverlayDir, or all of the switches --coreOverlayDir overrides)'
     echo ''
     echo 'Optional arguments:'
@@ -45,7 +43,7 @@ function print_usage {
     echo '  -h|--help                        : Show usage information.'
     echo '  --useServerGC                    : Enable server GC for this test run'
     echo '  --test-env                       : Script to set environment variables for tests'
-    echo '  --runcrossgentests               : Runs the ready to run tests' 
+    echo '  --runcrossgentests               : Runs the ready to run tests'
     echo '  --jitstress=<n>                  : Runs the tests with COMPlus_JitStress=n'
     echo '  --jitstressregs=<n>              : Runs the tests with COMPlus_JitStressRegs=n'
     echo '  --jitminopts                     : Runs the tests with COMPlus_JITMinOpts=1'
@@ -414,29 +412,6 @@ function precompile_overlay_assemblies {
     fi
 }
 
-function copy_test_native_bin_to_test_root {
-    local errorSource='copy_test_native_bin_to_test_root'
-
-    if [ -z "$testNativeBinDir" ]; then
-        exit_with_error "$errorSource" "--testNativeBinDir is required."
-    fi
-    testNativeBinDir=$testNativeBinDir/src
-    if [ ! -d "$testNativeBinDir" ]; then
-        exit_with_error "$errorSource" "Directory specified by --testNativeBinDir does not exist: $testNativeBinDir"
-    fi
-
-    # Copy native test components from the native test build into the respective test directory in the test root directory
-    find "$testNativeBinDir" -type f -iname '*.$libExtension' |
-        while IFS='' read -r filePath || [ -n "$filePath" ]; do
-            local dirPath=$(dirname "$filePath")
-            local destinationDirPath=${testRootDir}${dirPath:${#testNativeBinDir}}
-            if [ ! -d "$destinationDirPath" ]; then
-                exit_with_error "$errorSource" "Cannot copy native test bin '$filePath' to '$destinationDirPath/', as the destination directory does not exist."
-            fi
-            cp -f "$filePath" "$destinationDirPath/"
-        done
-}
-
 # Variables for unsupported and failing tests
 declare -a unsupportedTests
 declare -a failingTests
@@ -532,10 +507,10 @@ function skip_non_playlist_test {
 
 function set_up_core_dump_generation {
     if [ "$(uname -s)" == "Darwin" ]; then
-        # On OS X, we will enable core dump generation only if there are no core 
+        # On OS X, we will enable core dump generation only if there are no core
         # files already in /cores/ at this point. This is being done to prevent
         # inadvertently flooding the CI machines with dumps.
-        if [ ! "$(ls -A /cores)" ]; then 
+        if [ ! "$(ls -A /cores)" ]; then
             ulimit -c unlimited
         fi
     elif [ "$(uname -s)" == "Linux" ]; then
@@ -631,9 +606,9 @@ function inspect_and_delete_core_files {
     # directory and deletes them immediately. Based on the state of the system, it may
     # also upload a core file to the dumpling service.
     # (see preserve_core_file).
-    
+
     # Depending on distro/configuration, the core files may either be named "core"
-    # or "core.<PID>" by default. We will read /proc/sys/kernel/core_uses_pid to 
+    # or "core.<PID>" by default. We will read /proc/sys/kernel/core_uses_pid to
     # determine which one it is.
     local core_name_uses_pid=0
     if [ -e /proc/sys/kernel/core_uses_pid ] && [ "1" == $(cat /proc/sys/kernel/core_uses_pid) ]; then
@@ -770,7 +745,7 @@ function prep_test {
         # Convert DOS line endings to Unix if needed
         perl -pi -e 's/\r\n|\n|\r/\n/g' "$scriptFilePath"
     fi
-        
+
     # Add executable file mode bit if needed
     chmod +x "$scriptFilePath"
 
@@ -889,7 +864,6 @@ readonly EXIT_CODE_TEST_FAILURE=2  # Script completed successfully, but one or m
 
 # Argument variables
 testRootDir=
-testNativeBinDir=
 coreOverlayDir=
 coreClrBinDir=
 mscorlibDir=
@@ -940,9 +914,6 @@ do
             ;;
         --testRootDir=*)
             testRootDir=${i#*=}
-            ;;
-        --testNativeBinDir=*)
-            testNativeBinDir=${i#*=}
             ;;
         --coreOverlayDir=*)
             coreOverlayDir=${i#*=}
@@ -1003,10 +974,10 @@ do
             ;;
         --test-env=*)
             testEnv=${i#*=}
-            ;;            
+            ;;
         --gcstresslevel=*)
             export COMPlus_GCStress=${i#*=}
-            ;;            
+            ;;
         --show-time)
             showTime=ON
             ;;
@@ -1095,7 +1066,6 @@ fi
 xunit_output_begin
 create_core_overlay
 precompile_overlay_assemblies
-copy_test_native_bin_to_test_root
 
 if [ -n "$playlistFile" ]
 then
