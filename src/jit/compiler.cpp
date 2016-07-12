@@ -720,9 +720,16 @@ var_types  Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
 
 #else // not UNIX_AMD64
 
-    // We set the "primitive" useType based upon the structSize
-    // and also examine the clsHnd to see if it is an HFA of count one
-    useType = getPrimitiveTypeForStruct(structSize, clsHnd);
+    // The largest primitive type is 8 bytes (TYP_DOUBLE)
+    // so we can skip calling getPrimitiveTypeForStruct when we 
+    // have a struct that is larger than that.
+    //
+    if (structSize <= sizeof(double))
+    {
+        // We set the "primitive" useType based upon the structSize
+        // and also examine the clsHnd to see if it is an HFA of count one
+        useType = getPrimitiveTypeForStruct(structSize, clsHnd);
+    }
 
 #endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
 
@@ -900,6 +907,8 @@ var_types  Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
     var_types          useType           = TYP_UNKNOWN;
     structPassingKind  howToReturnStruct = SPK_Unknown;   // We must change this before we return
 
+    assert(clsHnd != NO_CLASS_HANDLE);
+
     if (structSize == 0)
     {
         structSize = info.compCompHnd->getClassSize(clsHnd);
@@ -919,13 +928,21 @@ var_types  Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
     {
         // Set 'useType' to the type of the first eightbyte item
         useType = GetEightByteType(structDesc, 0);
+        assert(structDesc.passedInRegisters == true);
     }
 
 #else // not UNIX_AMD64
 
-    // We set the "primitive" useType based upon the structSize
-    // and also examine the clsHnd to see if it is an HFA of count one
-    useType = getPrimitiveTypeForStruct(structSize, clsHnd);
+    // The largest primitive type is 8 bytes (TYP_DOUBLE)
+    // so we can skip calling getPrimitiveTypeForStruct when we 
+    // have a struct that is larger than that.
+    //
+    if (structSize <= sizeof(double))
+    {
+        // We set the "primitive" useType based upon the structSize
+        // and also examine the clsHnd to see if it is an HFA of count one
+        useType = getPrimitiveTypeForStruct(structSize, clsHnd);
+    }
 
 #endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
     
@@ -938,8 +955,10 @@ var_types  Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
     // Since we what we have an 8-byte struct (float + float)  we change useType to TYP_I_IMPL 
     // so that the struct is returned instead using an 8-byte integer register.
     //
-    if ((MAX_RET_MULTIREG_BYTES == 0) && (useType == TYP_UNKNOWN) &&
-        (structSize == 8) && IsHfa(clsHnd))
+    if ((FEATURE_MULTIREG_RET == 0)         &&
+        (useType == TYP_UNKNOWN)            &&
+        (structSize == (2 * sizeof(float))) && 
+        IsHfa(clsHnd)                         )
     {
         useType = TYP_I_IMPL;
     }
@@ -956,7 +975,7 @@ var_types  Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
         // See if we can return this struct by value, possibly in multiple registers
         // or if we should return it using a return buffer register
         //
-        if (structSize <= MAX_RET_MULTIREG_BYTES)
+        if ((FEATURE_MULTIREG_RET == 1) && (structSize <= MAX_RET_MULTIREG_BYTES))
         {
             // Structs that are HFA's are returned in multiple registers
             if (IsHfa(clsHnd))
@@ -980,6 +999,7 @@ var_types  Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
                     // setup wbPassType and useType indicate that this is returned by value in multiple registers
                     howToReturnStruct = SPK_ByValue;
                     useType = TYP_STRUCT;
+                    assert(structDesc.passedInRegisters == true);
                 }
                 else
                 {
@@ -989,6 +1009,7 @@ var_types  Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
                     //  (reference to a return buffer)
                     howToReturnStruct = SPK_ByReference;
                     useType = TYP_UNKNOWN;
+                    assert(structDesc.passedInRegisters == false);
                 }
 
 #elif  defined(_TARGET_ARM64_)
@@ -1029,7 +1050,7 @@ var_types  Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
 
             }
         }
-        else  // (structSize > MAX_RET_MULTIREG_BYTES)
+        else  // (structSize > MAX_RET_MULTIREG_BYTES) || (FEATURE_MULTIREG_RET == 0)
         {
             // We have a (large) struct that can't be replaced with a "primitive" type
             // and can't be returned in multiple registers

@@ -186,7 +186,15 @@ void                CodeGen::genEmitGSCookieCheck(bool pushReg)
         if (compiler->compMethodReturnsMultiRegRetType())
         {
             ReturnTypeDesc retTypeDesc;
-            retTypeDesc.InitializeReturnType(compiler, compiler->info.compMethodInfo->args.retTypeClass);
+            if (varTypeIsLong(compiler->info.compRetNativeType))
+            {
+                retTypeDesc.InitializeLongReturnType(compiler);
+            }
+            else  // we must have a struct return type
+            {
+                retTypeDesc.InitializeStructReturnType(compiler, compiler->info.compMethodInfo->args.retTypeClass);
+            }
+            
             unsigned regCount = retTypeDesc.GetReturnRegCount();
 
             // Only x86 and x64 Unix ABI allows multi-reg return and
@@ -1614,7 +1622,7 @@ CodeGen::genStructReturn(GenTreePtr treeNode)
         assert(varDsc->lvIsMultiRegRet);
 
         ReturnTypeDesc retTypeDesc;
-        retTypeDesc.InitializeReturnType(compiler, varDsc->lvVerTypeInfo.GetClassHandle());
+        retTypeDesc.InitializeStructReturnType(compiler, varDsc->lvVerTypeInfo.GetClassHandle());
         unsigned regCount = retTypeDesc.GetReturnRegCount();
         assert(regCount == MAX_RET_REG_COUNT);
 
@@ -5545,17 +5553,17 @@ void CodeGen::genTransferRegGCState(regNumber dst, regNumber src)
 //     pass in 'addr' for a relative call or 'base' for a indirect register call
 //     methHnd - optional, only used for pretty printing 
 //     retSize - emitter type of return for GC purposes, should be EA_BYREF, EA_GCREF, or EA_PTRSIZE(not GC)
-void CodeGen::genEmitCall(int                                                   callType,
-                          CORINFO_METHOD_HANDLE                                 methHnd,
-                          INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO*               sigInfo)
-                          void*                                                 addr
-                          X86_ARG(ssize_t                                       argSize),
-                          emitAttr                                              retSize
-                          FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(emitAttr   secondRetSize),
-                          IL_OFFSETX                                            ilOffset,
-                          regNumber                                             base,
-                          bool                                                  isJump,
-                          bool                                                  isNoGC)
+void CodeGen::genEmitCall(int                                           callType,
+                          CORINFO_METHOD_HANDLE                         methHnd,
+                          INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO*       sigInfo)
+                          void*                                         addr
+                          X86_ARG(ssize_t                               argSize),
+                          emitAttr                                      retSize
+                          MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(emitAttr  secondRetSize),
+                          IL_OFFSETX                                    ilOffset,
+                          regNumber                                     base,
+                          bool                                          isJump,
+                          bool                                          isNoGC)
 {
 #if !defined(_TARGET_X86_)
     ssize_t               argSize = 0;
@@ -5566,7 +5574,7 @@ void CodeGen::genEmitCall(int                                                   
                                addr,
                                argSize,
                                retSize
-                               FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(secondRetSize),
+                               MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(secondRetSize),
                                gcInfo.gcVarPtrSetCur,
                                gcInfo.gcRegGCrefSetCur,
                                gcInfo.gcRegByrefSetCur,
@@ -5579,14 +5587,14 @@ void CodeGen::genEmitCall(int                                                   
 // generates an indirect call via addressing mode (call []) given an indir node
 //     methHnd - optional, only used for pretty printing
 //     retSize - emitter type of return for GC purposes, should be EA_BYREF, EA_GCREF, or EA_PTRSIZE(not GC)
-void CodeGen::genEmitCall(int                                                   callType,
-                          CORINFO_METHOD_HANDLE                                 methHnd,
-                          INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO*               sigInfo)
-                          GenTreeIndir*                                         indir
-                          X86_ARG(ssize_t                                       argSize),
-                          emitAttr                                              retSize
-                          FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(emitAttr   secondRetSize),
-                          IL_OFFSETX                                            ilOffset)
+void CodeGen::genEmitCall(int                                           callType,
+                          CORINFO_METHOD_HANDLE                         methHnd,
+                          INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO*       sigInfo)
+                          GenTreeIndir*                                 indir
+                          X86_ARG(ssize_t                               argSize),
+                          emitAttr                                      retSize
+                          MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(emitAttr  secondRetSize),
+                          IL_OFFSETX                                    ilOffset)
 {
 #if !defined(_TARGET_X86_)
     ssize_t               argSize = 0;
@@ -5599,7 +5607,7 @@ void CodeGen::genEmitCall(int                                                   
                                nullptr,
                                argSize,
                                retSize
-                               FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(secondRetSize),
+                               MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(secondRetSize),
                                gcInfo.gcVarPtrSetCur,
                                gcInfo.gcRegGCrefSetCur,
                                gcInfo.gcRegByrefSetCur,
@@ -6116,7 +6124,7 @@ void CodeGen::genCallInstruction(GenTreePtr node)
                             (void*) target->AsIndir()->Base()->AsIntConCommon()->IconValue()
                             X86_ARG(argSizeForEmitter),
                             retSize
-                            FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(secondRetSize),
+                            MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(secondRetSize),
                             ilOffset);
             }
             else
@@ -6127,7 +6135,7 @@ void CodeGen::genCallInstruction(GenTreePtr node)
                             target->AsIndir()
                             X86_ARG(argSizeForEmitter),
                             retSize
-                            FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(secondRetSize),
+                            MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(secondRetSize),
                             ilOffset);
             }
         }
@@ -6142,7 +6150,7 @@ void CodeGen::genCallInstruction(GenTreePtr node)
                         nullptr //addr
                         X86_ARG(argSizeForEmitter),
                         retSize
-                        FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(secondRetSize),
+                        MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(secondRetSize),
                         ilOffset,
                         genConsumeReg(target));
         }
@@ -6156,7 +6164,7 @@ void CodeGen::genCallInstruction(GenTreePtr node)
                     (void*) call->gtEntryPoint.addr
                     X86_ARG(argSizeForEmitter),
                     retSize
-                    FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(secondRetSize),
+                    MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(secondRetSize),
                     ilOffset);
     }
 #endif
@@ -6199,7 +6207,7 @@ void CodeGen::genCallInstruction(GenTreePtr node)
                     addr
                     X86_ARG(argSizeForEmitter),
                     retSize
-                    FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(secondRetSize),
+                    MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(secondRetSize),
                     ilOffset);
     }
 
