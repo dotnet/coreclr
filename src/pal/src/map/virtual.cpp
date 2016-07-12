@@ -998,11 +998,14 @@ VIRTUALCommitMemory(
         if (allocationType != MEM_COMMIT)
         {
             // Commit the pages
-            if (mprotect((void *) StartBoundary, MemSize, PROT_WRITE | PROT_READ) != 0)
+            void* mapping = mmap((void *) StartBoundary, MemSize, PROT_WRITE | PROT_READ, MAP_FIXED | MAP_ANON | MAP_PRIVATE, -1, 0);
+            if (mapping == MAP_FAILED)
             {
-                ERROR("mprotect() failed! Error(%d)=%s\n", errno, strerror(errno));
+                ERROR("mmap() failed! Error(%d)=%s\n", errno, strerror(errno));
                 goto error;
             }
+
+            _ASSERTE(mapping == (void *) StartBoundary);
 
             VIRTUALSetAllocState(MEM_COMMIT, runStart, runLength, pInformation);
 
