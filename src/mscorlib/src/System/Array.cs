@@ -615,8 +615,12 @@ namespace System {
         internal const int MaxByteArrayLength = 0x7FFFFFC7;
 
         [ComVisible(false)]
-        public long LongLength {
-            get { return Length; } // Length < int
+        public extern long LongLength {
+            [Pure]
+            [System.Security.SecuritySafeCritical]  // auto-generated
+            [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
+            [MethodImpl(MethodImplOptions.InternalCall)]
+            get;
         }
 
         [Pure]
