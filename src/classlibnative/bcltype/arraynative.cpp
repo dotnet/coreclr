@@ -118,20 +118,6 @@ FCIMPL1(INT32, ArrayNative::GetLengthNoRank, ArrayBase* array)
 FCIMPLEND
 
 
-FCIMPL1(INT64, ArrayNative::GetLongLengthNoRank, ArrayBase* array)
-{
-    FCALL_CONTRACT;
-
-    VALIDATEOBJECT(array);
-
-    if (array==NULL)
-        FCThrow(kNullReferenceException);
-
-    return array->GetNumComponents();
-}
-FCIMPLEND
-
-
 FCIMPL1(INT32, ArrayNative::GetDataPtrOffsetInternal, ArrayBase* array)
 {
     FCALL_CONTRACT;
