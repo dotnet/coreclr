@@ -21433,7 +21433,7 @@ void Compiler::fgNoteNonInlineCandidate(GenTreePtr   tree,
 
 #endif
 
-#if defined(FEATURE_HFA) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if FEATURE_MULTIREG_RET
 
 /*********************************************************************************
  *
@@ -21565,7 +21565,7 @@ void Compiler::fgAttachStructInlineeToAsg(GenTreePtr tree, GenTreePtr child, COR
     tree->CopyFrom(gtNewCpObjNode(dstAddr, srcAddr, retClsHnd, false), this);
 }
 
-#endif // defined(FEATURE_HFA) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // FEATURE_MULTIREG_RET
 
 /*****************************************************************************
  * Callback to replace the inline return expression place holder (GT_RET_EXPR)
@@ -21611,6 +21611,7 @@ Compiler::fgWalkResult      Compiler::fgUpdateInlineReturnExpressionPlaceHolder(
             if (comp->verbose)
             {
                 printf("\nInserting the inline return expression\n");
+
                 comp->gtDispTree(tree);
                 printf("\n");
             }
@@ -21618,14 +21619,8 @@ Compiler::fgWalkResult      Compiler::fgUpdateInlineReturnExpressionPlaceHolder(
         }
         while (tree->gtOper == GT_RET_EXPR);
 
-#if defined(FEATURE_HFA) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-#if defined(FEATURE_HFA)
-        if (retClsHnd != NO_CLASS_HANDLE && comp->IsHfa(retClsHnd))
-#elif defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-        if (retClsHnd != NO_CLASS_HANDLE && comp->IsRegisterPassable(retClsHnd))
-#else
-        assert(!"Unhandled target");
-#endif // FEATURE_HFA 
+#if FEATURE_MULTIREG_RET
+        if (comp->IsRegisterPassable(retClsHnd))
         {
             GenTreePtr parent = data->parent;
             // See assert below, we only look one level above for an asg parent.
@@ -21640,7 +21635,7 @@ Compiler::fgWalkResult      Compiler::fgUpdateInlineReturnExpressionPlaceHolder(
                 tree->CopyFrom(comp->fgAssignStructInlineeToVar(tree, retClsHnd), comp);
             }
         }
-#endif // defined(FEATURE_HFA) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // FEATURE_MULTIREG_RET
     }
 
 #if defined(DEBUG) && defined(FEATURE_HFA) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)

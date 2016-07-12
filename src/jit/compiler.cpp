@@ -457,8 +457,9 @@ void Compiler::getStructGcPtrsFromOp(GenTreePtr op, BYTE *gcPtrsOut)
 //                false if we are asking for this in a parameter passing context
 //
 // Return Value:
-//    The primitive type used to pass or return the struct, if applicable, or
-//    TYP_UNKNOWN otherwise.
+//    The primitive type used to pass or return the struct,
+//    or TYP_STRUCT when 'clsHnd' denotes a type that is passed/returned by value in registers
+//    or TYP_UNKNOWN otherwise, which  means the type will be passed/returned by reference.
 //
 // Assumptions:
 //    The given class handle must be for a value type (struct).
@@ -485,8 +486,9 @@ var_types    Compiler::argOrReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd, boo
 //                false if we are asking for this in a parameter passing context
 //
 // Return Value:
-//    The primitive type used to pass or return the struct, if applicable, or
-//    TYP_UNKNOWN otherwise.
+//    The primitive type used to pass or return the struct,
+//    or TYP_STRUCT when 'clsHnd' denotes a type that is passed/returned by value in registers
+//    or TYP_UNKNOWN otherwise, which means the type will be passed/returned by reference.
 //
 // Assumptions:
 //    The size must be the size of the given type.
@@ -546,9 +548,21 @@ var_types    Compiler::argOrReturnTypeForStruct(unsigned size, CORINFO_CLASS_HAN
             if (size <= MAX_RET_MULTIREG_BYTES)
             {
 #ifdef _TARGET_ARM64_
-                // TODO-ARM64-HFA - Implement x0,x1 returns   
-                // TODO-ARM64     - Implement HFA returns   
-#endif // _TARGET_XXX_
+                // On ARM64 structs that are 9-16 bytes are returned by value in registers x0 and x1
+                // or if the struct is an HFA it is returned by value in floating point registers
+                if ((size <= (TARGET_POINTER_SIZE * 2)) || IsHfa(clsHnd))
+                {
+                    // set useType to TYP_STRUCT to indicate that this is returned by value in registers
+                    useType = TYP_STRUCT;
+                }
+#elif defined(_TARGET_ARM_)
+                // On ARM32 if the struct is an HFA it is returned by value in floating point registers
+                if (IsHfa(clsHnd))
+                {
+                    // set useType to TYP_STRUCT to indicate that this is returned by value in registers
+                    useType = TYP_STRUCT;
+                }
+#endif // _TARGET_ARM64_
             }
         }
 #endif // FEATURE_MULTIREG_RET
@@ -559,13 +573,19 @@ var_types    Compiler::argOrReturnTypeForStruct(unsigned size, CORINFO_CLASS_HAN
             if (size <= MAX_PASS_MULTIREG_BYTES)
             {
 #ifdef _TARGET_ARM64_
-                assert(size > TARGET_POINTER_SIZE);
-
                 // On ARM64 structs that are 9-16 bytes are passed by value
                 // or if the struct is an HFA it is passed by value
                 if ((size <= (TARGET_POINTER_SIZE * 2)) || IsHfa(clsHnd))
                 {
                     // set useType to TYP_STRUCT to indicate that this is passed by value in registers
+                    useType = TYP_STRUCT;
+                }
+#elif defined(_TARGET_ARM_)
+                // On ARM32 if the struct is an HFA it is returned by value in floating point registers
+                // Except when we have a VarArgs method we don't pass HFA's in FP registers
+                if (!info.compIsVarArgs && IsHfa(clsHnd))
+                {
+                    // set useType to TYP_STRUCT to indicate that this is returned by value in registers
                     useType = TYP_STRUCT;
                 }
 #endif // _TARGET_ARM64_
@@ -2205,125 +2225,125 @@ void                Compiler::compInitOptions(CORJIT_FLAGS* jitFlags)
 
                 if (wcsncmp(p, W("types"), 5) == 0)
                 {
-                   dumpIRTypes = true;
+                    dumpIRTypes = true;
                 }
 
                 if (wcsncmp(p, W("locals"), 6) == 0)
                 {
-                   dumpIRLocals = true;
+                    dumpIRLocals = true;
                 }
 
                 if (wcsncmp(p, W("regs"), 4) == 0)
                 {
-                   dumpIRRegs = true;
+                    dumpIRRegs = true;
                 }
-    
+
                 if (wcsncmp(p, W("ssa"), 3) == 0)
                 {
-                   dumpIRSsa = true;
+                    dumpIRSsa = true;
                 }
 
                 if (wcsncmp(p, W("valnums"), 7) == 0)
                 {
-                   dumpIRValnums = true;
+                    dumpIRValnums = true;
                 }
 
                 if (wcsncmp(p, W("costs"), 5) == 0)
                 {
-                   dumpIRCosts = true;
+                    dumpIRCosts = true;
                 }
 
                 if (wcsncmp(p, W("flags"), 5) == 0)
                 {
-                   dumpIRFlags = true;
+                    dumpIRFlags = true;
                 }
 
                 if (wcsncmp(p, W("kinds"), 5) == 0)
                 {
-                   dumpIRKinds = true;
+                    dumpIRKinds = true;
                 }
 
                 if (wcsncmp(p, W("nodes"), 5) == 0)
                 {
-                   dumpIRNodes = true;
+                    dumpIRNodes = true;
                 }
 
                 if (wcsncmp(p, W("exit"), 4) == 0)
                 {
-                   dumpIRExit = true;
+                    dumpIRExit = true;
                 }
 
                 if (wcsncmp(p, W("nolists"), 7) == 0)
                 {
-                   dumpIRNoLists = true;
+                    dumpIRNoLists = true;
                 }
 
                 if (wcsncmp(p, W("noleafs"), 7) == 0)
                 {
-                   dumpIRNoLeafs = true;
+                    dumpIRNoLeafs = true;
                 }
 
                 if (wcsncmp(p, W("nostmts"), 7) == 0)
                 {
-                   dumpIRNoStmts = true;
+                    dumpIRNoStmts = true;
                 }
 
                 if (wcsncmp(p, W("trees"), 5) == 0)
                 {
-                   dumpIRTrees = true;
-                   dumpIRLinear = false;
+                    dumpIRTrees = true;
+                    dumpIRLinear = false;
                 }
 
                 if (wcsncmp(p, W("structural"), 10) == 0)
                 {
-                   dumpIRLinear = true;
-                   dumpIRNoStmts = false;
-                   dumpIRNoLeafs = false;
-                   dumpIRNoLists = false;
+                    dumpIRLinear = true;
+                    dumpIRNoStmts = false;
+                    dumpIRNoLeafs = false;
+                    dumpIRNoLists = false;
                 }
 
                 if (wcsncmp(p, W("all"), 3) == 0)
                 {
-                   dumpIRLinear = true;
-                   dumpIRKinds = true;
-                   dumpIRFlags = true;
-                   dumpIRTypes = true;
-                   dumpIRLocals = true;
-                   dumpIRRegs = true;
-                   dumpIRSsa = true;
-                   dumpIRValnums = true;
-                   dumpIRCosts = true;
-                   dumpIRNoStmts = false;
-                   dumpIRNoLeafs = false;
-                   dumpIRNoLists = false;
+                    dumpIRLinear = true;
+                    dumpIRKinds = true;
+                    dumpIRFlags = true;
+                    dumpIRTypes = true;
+                    dumpIRLocals = true;
+                    dumpIRRegs = true;
+                    dumpIRSsa = true;
+                    dumpIRValnums = true;
+                    dumpIRCosts = true;
+                    dumpIRNoStmts = false;
+                    dumpIRNoLeafs = false;
+                    dumpIRNoLists = false;
                 }
 
                 if (wcsncmp(p, W("linear"), 6) == 0)
                 {
-                   dumpIRTrees = false;
-                   dumpIRLinear = true;
+                    dumpIRTrees = false;
+                    dumpIRLinear = true;
                 }
 
                 if (wcsncmp(p, W("mixed"), 5) == 0)
                 {
-                   dumpIRTrees = true;
-                   dumpIRLinear = true;
+                    dumpIRTrees = true;
+                    dumpIRLinear = true;
                 }
 
                 if (wcsncmp(p, W("dataflow"), 8) == 0)
                 {
-                   dumpIRDataflow = true;
-                   dumpIRNoLeafs = true;
-                   dumpIRNoLists = true;
-                   dumpIRNoStmts = true;
+                    dumpIRDataflow = true;
+                    dumpIRNoLeafs = true;
+                    dumpIRNoLists = true;
+                    dumpIRNoStmts = true;
                 }
 
                 if (wcsncmp(p, W("blkhdrs"), 7) == 0)
                 {
-                   dumpIRBlockHeaders = true;
+                    dumpIRBlockHeaders = true;
                 }
-    
-    
+
+
                 for (; (*p != 0); p++)
                 {
                     if (*p == L',')

@@ -2778,7 +2778,10 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* callNode)
         call->fgArgInfo = new (this, CMK_Unknown) fgArgInfo(this, call, numArgs);
     }
 
-    fgFixupStructReturn(call);
+    if (varTypeIsStruct(call))
+    {
+        fgFixupStructReturn(call);
+    }
 
     /* First we morph the argument subtrees ('this' pointer, arguments, etc.).
      * During the first call to fgMorphArgs we also record the
@@ -4897,38 +4900,36 @@ void                Compiler::fgAddSkippedRegsInPromotedStructArg(LclVarDsc* var
 #endif // _TARGET_ARM_
 
 
-/*****************************************************************************
- *
- *  The companion to impFixupCallStructReturn.  Now that the importer is done
- *  and we no longer care as much about the declared return type, change to
- *  precomputed native return type (at least for architectures that don't
- *  always use return buffers for structs).
- *
- */
+//****************************************************************************
+//  fgFixupStructReturn:
+//    The companion to impFixupCallStructReturn.  Now that the importer is done
+//    change the gtType to the precomputed native return type 
+//    requires that callNode currently has a struct type
+//
 void                Compiler::fgFixupStructReturn(GenTreePtr     callNode)
 {
-    GenTreeCall* call = callNode->AsCall();
-    bool callHasRetBuffArg = call->HasRetBufArg();
+    assert(varTypeIsStruct(callNode));
 
-    if (!callHasRetBuffArg && varTypeIsStruct(call))
+    GenTreeCall* call = callNode->AsCall();
+
+    // Decide on the proper return type for this call that currently returns a struct
+    //
+    var_types retType = argOrReturnTypeForStruct(call->gtRetClsHnd, true);
+    if (retType != TYP_UNKNOWN)
     {
-#if FEATURE_MULTIREG_RET
-        if (call->gtCall.IsVarargs() || !IsHfa(call))
-#endif // FEATURE_MULTIREG_RET
+        // Now that we are past the importer, re-type this node 
+        //
+        if (retType != TYP_STRUCT)
         {
-            // Now that we are past the importer, re-type this node so the register predictor does
-            // the right thing
-            call->gtType = genActualType((var_types)call->gtCall.gtReturnType);
+            retType = genActualType((var_types)retType);
         }
+        call->gtType = retType;
     }
 
-#ifdef FEATURE_HFA
-    // Either we don't have a struct now or if struct, then it is HFA returned in regs.
-    assert(!varTypeIsStruct(call) || (IsHfa(call) && !callHasRetBuffArg));
-#elif defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if FEATURE_MULTIREG_RET
     // Either we don't have a struct now or if struct, then it is a struct returned in regs or in return buffer.
-    assert(!varTypeIsStruct(call) || call->HasMultiRegRetVal() || callHasRetBuffArg);
-#else 
+    assert(!varTypeIsStruct(call) || call->HasMultiRegRetVal() || call->HasRetBufArg());
+#else // !FEATURE_MULTIREG_RET
     // No more struct returns
     assert(call->TypeGet() != TYP_STRUCT);
 #endif
@@ -4937,7 +4938,7 @@ void                Compiler::fgFixupStructReturn(GenTreePtr     callNode)
     // If it was a struct return, it has been transformed into a call
     // with a return buffer (that returns TYP_VOID) or into a return
     // of a primitive/enregisterable type
-    assert(!callHasRetBuffArg || (call->TypeGet() == TYP_VOID));
+    assert(!call->HasRetBufArg() || (call->TypeGet() == TYP_VOID));
 #endif 
 }
 
@@ -7060,7 +7061,10 @@ GenTreePtr          Compiler::fgMorphCall(GenTreeCall* call)
         }
 #endif // FEATURE_TAILCALL_OPT
 
-        fgFixupStructReturn(call);
+        if (varTypeIsStruct(call))
+        {
+            fgFixupStructReturn(call);
+        }
 
         var_types   callType = call->TypeGet();
 
@@ -8401,6 +8405,22 @@ GenTreePtr          Compiler::fgMorphCopyBlock(GenTreePtr tree)
             destAddr  = copyObjOp->Dest();
             srcAddr   = copyObjOp->Source();
             blockSize = copyObjOp->ClsTok();
+        }
+
+        // For the srcAddr skip over the GT_ADDR/(GT_IND or GT_OBJ)) tree (if one exists)
+        //
+        if ((srcAddr->gtOper == GT_ADDR) &&
+            ((srcAddr->gtOp.gtOp1->gtOper == GT_IND) || (srcAddr->gtOp.gtOp1->gtOper == GT_OBJ)))
+        {
+            srcAddr = srcAddr->gtOp.gtOp1->gtOp.gtOp1;
+        }
+
+        // For the destAddr skip over the GT_ADDR/(GT_IND or GT_OBJ)) tree (if one exists)
+        //
+        if ((destAddr->gtOper == GT_ADDR) &&
+            ((destAddr->gtOp.gtOp1->gtOper == GT_IND) || (destAddr->gtOp.gtOp1->gtOper == GT_OBJ)))
+        {
+            destAddr = destAddr->gtOp.gtOp1->gtOp.gtOp1;
         }
 
         noway_assert(destAddr->TypeGet() == TYP_BYREF || destAddr->TypeGet() == TYP_I_IMPL);
@@ -16651,6 +16671,11 @@ bool Compiler::fgFitsInOrNotLoc(GenTreePtr tree, unsigned width)
     {
         CORINFO_CLASS_HANDLE fldClass = info.compCompHnd->getFieldClass (tree->gtField.gtFldHnd);
         return width <= info.compCompHnd->getClassSize(fldClass);
+    }
+    else if (tree->OperGet() == GT_CALL)
+    {
+        // GT_ADDR(GT_CALL), this should not occur,  but for now we do not want to go into AXC_IndWide state
+        return true;
     }
     else
     {

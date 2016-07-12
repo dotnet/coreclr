@@ -6006,17 +6006,7 @@ GenTreePtr          Compiler::gtNewAssignNode(GenTreePtr dst, GenTreePtr src DEB
 {
     var_types type = dst->TypeGet();
 
-    // ARM has HFA struct return values, HFA return values are received in registers from GT_CALL,
-    // using struct assignment.
-#ifdef FEATURE_HFA
-    assert(isPhiDefn || type != TYP_STRUCT || IsHfa(dst) || IsHfa(src));
-#elif defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-    // You need to use GT_COPYBLK for assigning structs
-    // See impAssignStruct()
     assert(isPhiDefn || type != TYP_STRUCT || IsRegisterPassable(dst) || IsRegisterPassable(src));
-#else // !FEATURE_UNIX_AMD64_STRUCT_PASSING
-    assert(isPhiDefn || type != TYP_STRUCT);
-#endif
 
     /* Mark the target as being assigned */
 
@@ -14370,7 +14360,54 @@ void ReturnTypeDesc::InitializeReturnType(Compiler* comp, CORINFO_CLASS_HANDLE r
     assert(MAX_RET_REG_COUNT == 2);
     m_regType[0] = TYP_INT;
     m_regType[1] = TYP_INT;
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
+    assert(retClsHnd != NO_CLASS_HANDLE);
+    unsigned  structSize = comp->info.compCompHnd->getClassSize(retClsHnd);
+    var_types hfaType    = comp->GetHfaType(retClsHnd);
+
+    // Do we have an hfa struct type?
+    if (varTypeIsFloating(hfaType))
+    {
+        // Note that the retail build issues a warning about a potential divsion by zero without this Max function 
+        unsigned elemSize = Max((unsigned)1, EA_SIZE_IN_BYTES(emitActualTypeSize(hfaType)));
+        // The size of this struct should be evenly divisible by elemSize
+        assert((structSize % elemSize) == 0);
+        unsigned hfaCount = (structSize / elemSize);
+        for (unsigned i = 0; i < hfaCount; ++i)
+        {
+            m_regType[i] = hfaType;
+        }
+    }
+#ifdef _TARGET_ARM64_
+    // Also check for 16-byte two register return on ARM64
+    else if (structSize <= 2 * TARGET_POINTER_SIZE)
+    {
+        // a non-HFA struct return using one or two registers
+        //
+        if (structSize <= TARGET_POINTER_SIZE)
+        {
+            m_regType[0] = comp->argOrReturnTypeForStruct(structSize, retClsHnd, true);
+        }
+        else
+        {
+            // a non-HFA struct return using two registers
+            //
+            BYTE gcPtrs[2] = { TYPE_GC_NONE, TYPE_GC_NONE };
+            comp->info.compCompHnd->getClassGClayout(retClsHnd, &gcPtrs[0]);
+            for (unsigned i = 0; i < 2; ++i)
+            {
+                m_regType[i] = comp->getJitGCType(gcPtrs[i]);
+            }
+        }
+    }
+#endif // _TARGET_ARM64_
+
+#else // defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
+
+    // This target doesn't support multireg returns
+    assert(MAX_RET_REG_COUNT == 0);
+
+#endif // _TARGET_XXX_
 
 #ifdef DEBUG
     m_inited = true;
@@ -14393,7 +14430,6 @@ void ReturnTypeDesc::InitializeReturnType(Compiler* comp, CORINFO_CLASS_HANDLE r
 //     targets (Arm64/Arm32/x86).
 //
 // TODO-ARM:   Implement this routine to support HFA returns.
-// TODO-ARM64: Implement this routine to support HFA returns.
 // TODO-X86:   Implement this routine to support long returns.
 regNumber ReturnTypeDesc::GetABIReturnReg(unsigned idx)
 {
@@ -14455,7 +14491,19 @@ regNumber ReturnTypeDesc::GetABIReturnReg(unsigned idx)
     {
         resultReg = REG_LNGRET_HI;
     }
-#endif //FEATURE_UNIX_AMD64_STRUCT_PASSING
+#elif defined(_TARGET_ARM64_)
+    var_types regType = GetReturnRegType(idx);
+    if (varTypeIsIntegralOrI(regType))
+    {
+        noway_assert(idx < 2);  // Up to 2 return registers for 16-byte structs
+        resultReg = (idx == 0) ? REG_INTRET : REG_INTRET_1;       // X0 or X1
+    }
+    else
+    {
+        noway_assert(idx < 4);  // Up to 4 return registers for HFA's
+        resultReg = (regNumber)((unsigned)(REG_FLOATRET) + idx);  // V0, V1, V2 or V3
+    }
+#endif // TARGET_XXX
 
     assert(resultReg != REG_NA);
     return resultReg;
