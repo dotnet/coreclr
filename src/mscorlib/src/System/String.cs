@@ -498,10 +498,7 @@ namespace System {
                 // is exposed to mscorlib, or a future version of C# allows inline IL),
                 // then do that and short-circuit before the fixed.
 
-                if (*(a + 1) != *(b + 1))
-                {
-                    return *(a + 1) - *(b + 1);
-                }
+                if (*(a + 1) != *(b + 1)) goto DiffOffset1;
                 
                 // Since we know that the first two chars are the same,
                 // we can increment by 2 here and skip 4 bytes.
@@ -571,12 +568,14 @@ namespace System {
 #endif
                 
                 DiffNextInt:
-                int order;
-                if ( (order = (int)*a - (int)*b) != 0) {
-                    return order;
-                }
-                Contract.Assert( *(a+1) != *(b+1), "This char must be different if we reach here!");
-                return ((int)*(a+1) - (int)*(b+1));
+                if (*a == *b) goto ReturnDifference;
+
+                DiffOffset1:
+                Contract.Assert(*(a + 1) != *(b + 1), "This char must be different if we reach here!");
+                a += 1; b += 1;
+                
+                ReturnDifference:
+                return *a - *b;
             }
         }
 
