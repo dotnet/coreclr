@@ -515,7 +515,7 @@ namespace System {
                     if (*(long*)(a + 8) != *(long*)(b + 8)) goto DiffOffset8;
                     length -= 12; a += 12; b += 12;
                 }
-#else
+#else // BIT64
                 while (length >= 10)
                 {
                     if (*(int*)a != *(int*)b) goto DiffOffset0;
@@ -525,7 +525,7 @@ namespace System {
                     if (*(int*)(a + 8) != *(int*)(b + 8)) goto DiffOffset8;
                     length -= 10; a += 10; b += 10; 
                 }
-#endif
+#endif // BIT64
 
                 // Fallback loop:
                 // go back to slower code path and do comparison on 4 bytes at a time.
@@ -548,7 +548,7 @@ namespace System {
 #if BIT64
                 DiffOffset8: a += 4; b += 4;
                 DiffOffset4: a += 4; b += 4;
-#else
+#else // BIT64
                 // Use jumps instead of falling through, since
                 // otherwise going to DiffOffset8 will involve
                 // 8 add instructions before getting to DiffNextInt
@@ -556,7 +556,7 @@ namespace System {
                 DiffOffset6: a += 6; b += 6; goto DiffOffset0;
                 DiffOffset4: a += 4; b += 4; goto DiffOffset0;
                 DiffOffset2: a += 2; b += 2;
-#endif
+#endif // BIT64
                 
                 DiffOffset0:
                 // If we reached here, we already see a difference in the unrolled loop above
@@ -565,8 +565,8 @@ namespace System {
                 {
                     a += 2; b += 2;
                 }
-#endif
-                
+#endif // BIT64
+
                 DiffNextInt:
                 if (*a != *b) return *a - *b;
 
