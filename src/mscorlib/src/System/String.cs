@@ -498,7 +498,8 @@ namespace System {
                 // is exposed to mscorlib, or a future version of C# allows inline IL),
                 // then do that and short-circuit before the fixed.
 
-                if (*(a + 1) != *(b + 1)) goto DiffOffset1;
+                if (*(a + 1) != *(b + 1))
+                    goto Return2ndDifference;
                 
                 // Since we know that the first two chars are the same,
                 // we can increment by 2 here and skip 4 bytes.
@@ -510,19 +511,19 @@ namespace System {
 #if BIT64
                 while (length >= 12)
                 {
-                    if (*(long*)a != *(long*)b) goto DiffOffset0;
-                    if (*(long*)(a + 4) != *(long*)(b + 4)) goto DiffOffset4;
-                    if (*(long*)(a + 8) != *(long*)(b + 8)) goto DiffOffset8;
+                    if (*(long*)a != *(long*)b) goto Check1stWord;
+                    if (*(long*)(a + 4) != *(long*)(b + 4)) goto Check2ndWord;
+                    if (*(long*)(a + 8) != *(long*)(b + 8)) goto Check3rdWord;
                     length -= 12; a += 12; b += 12;
                 }
 #else
                 while (length >= 10)
                 {
-                    if (*(int*)a != *(int*)b) goto DiffOffset0;
-                    if (*(int*)(a + 2) != *(int*)(b + 2)) goto DiffOffset2;
-                    if (*(int*)(a + 4) != *(int*)(b + 4)) goto DiffOffset4;
-                    if (*(int*)(a + 6) != *(int*)(b + 6)) goto DiffOffset6;
-                    if (*(int*)(a + 8) != *(int*)(b + 8)) goto DiffOffset8;
+                    if (*(int*)a != *(int*)b) goto Check1stWord;
+                    if (*(int*)(a + 2) != *(int*)(b + 2)) goto Check2ndWord;
+                    if (*(int*)(a + 4) != *(int*)(b + 4)) goto Check3rdWord;
+                    if (*(int*)(a + 6) != *(int*)(b + 6)) goto Check4thWord;
+                    if (*(int*)(a + 8) != *(int*)(b + 8)) goto Check5thWord;
                     length -= 10; a += 10; b += 10; 
                 }
 #endif
@@ -535,7 +536,7 @@ namespace System {
                 // the zero terminator.
                 while (length > 0)
                 {
-                    if (*(int*)a != *(int*)b) goto DiffNextInt;
+                    if (*(int*)a != *(int*)b) goto Check1stInt;
                     length -= 2;
                     a += 2; 
                     b += 2; 
@@ -546,19 +547,19 @@ namespace System {
                 return strA.Length - strB.Length;
                 
 #if BIT64
-                DiffOffset8: a += 4; b += 4;
-                DiffOffset4: a += 4; b += 4;
+                Check3rdWord: a += 4; b += 4;
+                Check2ndWord: a += 4; b += 4;
 #else
                 // Use jumps instead of falling through, since
-                // otherwise going to DiffOffset8 will involve
-                // 8 add instructions before getting to DiffNextInt
-                DiffOffset8: a += 8; b += 8; goto DiffOffset0;
-                DiffOffset6: a += 6; b += 6; goto DiffOffset0;
-                DiffOffset4: a += 4; b += 4; goto DiffOffset0;
-                DiffOffset2: a += 2; b += 2; goto DiffOffset0;
+                // otherwise going to Check5thWord will involve
+                // 8 add instructions before getting to Check1stWord
+                Check5thWord: a += 8; b += 8; goto Check1stWord;
+                Check4thWord: a += 6; b += 6; goto Check1stWord;
+                Check3rdWord: a += 4; b += 4; goto Check1stWord;
+                Check2ndWord: a += 2; b += 2; goto Check1stWord;
 #endif
                 
-                DiffOffset0:
+                Check1stWord:
                 // If we reached here, we already see a difference in the unrolled loop above
 #if BIT64
                 if (*(int*)a == *(int*)b)
@@ -567,14 +568,16 @@ namespace System {
                 }
 #endif
                 
-                DiffNextInt:
-                if (*a == *b) goto ReturnDifference;
+                Check1stInt:
+                if (*a == *b)
+                    goto Return1stDifference;
 
-                DiffOffset1:
-                Contract.Assert(*(a + 1) != *(b + 1), "This char must be different if we reach here!");
+                Return2ndDifference:
+                Contract.Assert(*(a + 1) != *(b + 1), "These chars must be different if we reach here!");
                 a += 1; b += 1;
                 
-                ReturnDifference:
+                Return1stDifference:
+                Contract.Assert(*a != *b, "These chars must be different if we reach here!");
                 return *a - *b;
             }
         }
