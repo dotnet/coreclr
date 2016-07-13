@@ -555,7 +555,7 @@ namespace System {
                 DiffOffset8: a += 8; b += 8; goto DiffOffset0;
                 DiffOffset6: a += 6; b += 6; goto DiffOffset0;
                 DiffOffset4: a += 4; b += 4; goto DiffOffset0;
-                DiffOffset2: a += 2; b += 2; goto DiffOffset0;
+                DiffOffset2: a += 2; b += 2;
 #endif
                 
                 DiffOffset0:
