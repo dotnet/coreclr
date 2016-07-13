@@ -39,6 +39,7 @@ Abstract:
 #include <unistd.h>
 #include <pthread.h>
 #include <stdlib.h>
+#include <utility>
 
 using namespace CorUnix;
 
@@ -177,7 +178,7 @@ PAL_ThrowExceptionFromContext(CONTEXT* context, PAL_SEHException* ex)
     // frames that will become obsolete by the ThrowExceptionFromContextInternal and the ThrowExceptionHelper
     // could overwrite the "ex" object by stack e.g. when allocating the low level exception object for "throw".
     static __thread BYTE threadLocalExceptionStorage[sizeof(PAL_SEHException)];
-    ThrowExceptionFromContextInternal(context, new (threadLocalExceptionStorage) PAL_SEHException(*ex));
+    ThrowExceptionFromContextInternal(context, new (threadLocalExceptionStorage) PAL_SEHException(std::move(*ex)));
 }
 
 /*++
@@ -193,7 +194,7 @@ Parameters:
 extern "C"
 void ThrowExceptionHelper(PAL_SEHException* ex)
 {
-    throw *ex;
+    throw std::move(*ex);
 }
 
 /*++
@@ -203,34 +204,35 @@ Function:
     Build the PAL exception and sent it to any handler registered.
 
 Parameters:
-    PEXCEPTION_POINTERS pointers
+    EXCEPTION_RECORD exceptionRecord
+    CONTEXT contextRecord
 
 Return value:
     Returns only if the exception is unhandled
 --*/
 VOID
-SEHProcessException(PEXCEPTION_POINTERS pointers)
+SEHProcessException(EXCEPTION_RECORD* exceptionRecord, CONTEXT* contextRecord)
 {
-    pointers->ContextRecord->ContextFlags |= CONTEXT_EXCEPTION_ACTIVE;
+    contextRecord->ContextFlags |= CONTEXT_EXCEPTION_ACTIVE;
+    // The exception object takes ownership of the exceptionRecord and contextRecord
+    PAL_SEHException exception(exceptionRecord, contextRecord);
 
-    if (!IsInDebugBreak(pointers->ExceptionRecord->ExceptionAddress))
+    if (!IsInDebugBreak(exceptionRecord->ExceptionAddress))
     {
-        PAL_SEHException exception(pointers->ExceptionRecord, pointers->ContextRecord);
-
         if (g_hardwareExceptionHandler != NULL)
         {
             _ASSERTE(g_safeExceptionCheckFunction != NULL);
             // Check if it is safe to handle the hardware exception (the exception happened in managed code
             // or in a jitter helper or it is a debugger breakpoint)
-            if (g_safeExceptionCheckFunction(pointers->ContextRecord, pointers->ExceptionRecord))
+            if (g_safeExceptionCheckFunction(contextRecord, exceptionRecord))
             {
-                if (pointers->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION)
+                if (exceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION)
                 {
                     // Check if the failed access has hit a stack guard page. In such case, it
                     // was a stack probe that detected that there is not enough stack left.
                     void* stackLimit = CPalThread::GetStackLimit();
                     void* stackGuard = (void*)((size_t)stackLimit - getpagesize());
-                    void* violationAddr = (void*)pointers->ExceptionRecord->ExceptionInformation[1];
+                    void* violationAddr = (void*)exceptionRecord->ExceptionInformation[1];
                     if ((violationAddr >= stackGuard) && (violationAddr < stackLimit))
                     {
                         // The exception happened in the page right below the stack limit,
@@ -248,7 +250,7 @@ SEHProcessException(PEXCEPTION_POINTERS pointers)
 
         if (CatchHardwareExceptionHolder::IsEnabled())
         {
-            PAL_ThrowExceptionFromContext(&exception.ContextRecord, &exception);
+            PAL_ThrowExceptionFromContext(exception.GetContextRecord(), &exception);
         }
     }
 
