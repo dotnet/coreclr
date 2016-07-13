@@ -552,10 +552,13 @@ namespace System {
                 DiffOffset8: a += 4; b += 4;
                 DiffOffset4: a += 4; b += 4;
 #else
-                DiffOffset8: a += 2; b += 2;
-                DiffOffset6: a += 2; b += 2;
-                DiffOffset4: a += 2; b += 2;
-                DiffOffset2: a += 2; b += 2;
+                // Use jumps instead of falling through, since
+                // otherwise going to DiffOffset8 will involve
+                // 8 add instructions before getting to DiffNextInt
+                DiffOffset8: a += 8; b += 8; goto DiffOffset0;
+                DiffOffset6: a += 6; b += 6; goto DiffOffset0;
+                DiffOffset4: a += 4; b += 4; goto DiffOffset0;
+                DiffOffset2: a += 2; b += 2; goto DiffOffset0;
 #endif
                 
                 DiffOffset0:
