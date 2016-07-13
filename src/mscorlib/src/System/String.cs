@@ -568,14 +568,11 @@ namespace System {
 #endif
                 
                 DiffNextInt:
-                if (*a == *b) goto ReturnDifference;
+                if (*a != *b) return *a - *b;
 
                 DiffOffset1:
                 Contract.Assert(*(a + 1) != *(b + 1), "This char must be different if we reach here!");
-                a += 1; b += 1;
-                
-                ReturnDifference:
-                return *a - *b;
+                return *(a + 1) - *(b + 1);
             }
         }
 
