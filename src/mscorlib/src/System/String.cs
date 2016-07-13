@@ -458,8 +458,8 @@ namespace System {
         [System.Security.SecuritySafeCritical]  // auto-generated
         private unsafe static int CompareOrdinalHelper(String strA, String strB)
         {
-            Contract.Assert(strA != null);
-            Contract.Assert(strB != null);
+            Contract.Requires(strA != null);
+            Contract.Requires(strB != null);
 
             // NOTE: This may be subject to change if eliminating the check
             // in the callers makes them small enough to be inlined by the JIT
