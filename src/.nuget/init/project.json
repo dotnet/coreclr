@@ -3,8 +3,11 @@
       "Microsoft.NETCore.Platforms": "1.0.2-beta-24224-02",
     },
     "frameworks": {
-      "dnxcore50": {
-        "imports": "portable-net45+win8"
+      "netcoreapp1.0": {
+        "imports": [
+          "dnxcore50",
+          "portable-net45+win8"
+        ]
       }
-    },
+    }
 }
