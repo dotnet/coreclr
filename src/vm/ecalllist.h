@@ -1548,8 +1548,8 @@ FCFuncStart(gBufferFuncs)
 FCFuncEnd()
 
 FCFuncStart(gGCInterfaceFuncs)
-#ifndef FEATURE_CORECLR
     FCFuncElement("GetGenerationWR", GCInterface::GetGenerationWR)
+#ifndef FEATURE_CORECLR
     FCFuncElement("_RegisterForFullGCNotification", GCInterface::RegisterForFullGCNotification)
     FCFuncElement("_CancelFullGCNotification", GCInterface::CancelFullGCNotification)
     FCFuncElement("_WaitForFullGCApproach", GCInterface::WaitForFullGCApproach)
