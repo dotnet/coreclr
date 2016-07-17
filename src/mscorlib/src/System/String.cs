@@ -554,7 +554,7 @@ namespace System {
                 // 8 add instructions before getting to DiffNextInt
                 DiffOffset8: a += 8; b += 8; goto DiffOffset0;
                 DiffOffset6: a += 6; b += 6; goto DiffOffset0;
-                DiffOffset4: a += 4; b += 4; goto DiffOffset0;
+                DiffOffset4: a += 2; b += 2;
                 DiffOffset2: a += 2; b += 2;
 #endif // BIT64
                 
