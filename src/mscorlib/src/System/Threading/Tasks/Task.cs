@@ -6666,7 +6666,7 @@ namespace System.Threading.Tasks
 
     }
 
-    internal sealed class CompletionActionInvoker : IThreadPoolWorkItem
+    internal sealed class CompletionActionInvoker : DeferrableWorkItem
     {
         private readonly ITaskCompletionAction m_action;
         private readonly Task m_completingTask;
@@ -6678,15 +6678,9 @@ namespace System.Threading.Tasks
         }
 
         [SecurityCritical]
-        void IThreadPoolWorkItem.ExecuteWorkItem()
+        public override void ExecuteWorkItem()
         {
             m_action.Invoke(m_completingTask);
-        }
-
-        [SecurityCritical]
-        void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae)
-        {
-            /* NOP */
         }
     }
 

@@ -1317,67 +1317,76 @@ namespace System.Threading
         void MarkAborted(ThreadAbortException tae);
     }
 
-    internal sealed class QueueUserWorkItemCallback : IThreadPoolWorkItem
+    internal abstract class DeferrableWorkItem : IThreadPoolWorkItem
     {
-        private WaitCallback callback;
-        private ExecutionContext context;
-        private Object state;
+        [SecurityCritical]
+        public virtual void ExecuteWorkItem() { /* noop */ }
 
+        [SecurityCritical]
+        void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae) => MarkAborted(tae);
+
+        [SecurityCritical]
+        internal virtual void MarkAborted(ThreadAbortException tae) { /* noop */ }
+    }
+
+    internal abstract class UserWorkItem : DeferrableWorkItem
+    {
+        protected WaitCallback callback;
+
+        protected UserWorkItem(WaitCallback waitCallback)
+        {
+            Contract.Assert(waitCallback != null, "Null callback passed to UserWorkItem!");
+            callback = waitCallback;
+        }
+        
 #if DEBUG
-        volatile int executed;
+        private volatile int executed;
 
-        ~QueueUserWorkItemCallback()
+        ~UserWorkItem()
         {
             Contract.Assert(
-                executed != 0 || Environment.HasShutdownStarted || AppDomain.CurrentDomain.IsFinalizingForUnload(), 
-                "A QueueUserWorkItemCallback was never called!");
+                executed != 0 || Environment.HasShutdownStarted || AppDomain.CurrentDomain.IsFinalizingForUnload(),
+                "A UserWorkItem was never called!");
         }
 
-        void MarkExecuted(bool aborted)
+        protected void MarkExecuted(bool aborted)
         {
             GC.SuppressFinalize(this);
             Contract.Assert(
                 0 == Interlocked.Exchange(ref executed, 1) || aborted,
-                "A QueueUserWorkItemCallback was called twice!");
+                "A UserWorkItem was called twice!");
+        }
+
+        [SecurityCritical]
+        internal override void MarkAborted(ThreadAbortException tae)
+        {
+            // this workitem didn't execute because we got a ThreadAbortException prior to the call to ExecuteWorkItem.  
+            // This counts as being executed for our purposes.
+            MarkExecuted(true);
         }
 #endif
+    }
+
+    internal sealed class QueueUserWorkItemCallback : UserWorkItem
+    {
+        private readonly ExecutionContext context;
+        private Object state;
 
         [SecurityCritical]
         internal QueueUserWorkItemCallback(WaitCallback waitCallback, Object stateObj, ExecutionContext ec)
+            : base(waitCallback)
         {
-            Contract.Assert(waitCallback != null, "Null callback passed to QueueUserWorkItemCallback!");
-            callback = waitCallback;
             state = stateObj;
             context = ec;
         }
 
         [SecurityCritical]
-        void IThreadPoolWorkItem.ExecuteWorkItem()
+        public override void ExecuteWorkItem()
         {
 #if DEBUG
             MarkExecuted(false);
 #endif
-            // call directly if it is an unsafe call OR EC flow is suppressed
-            if (context == null)
-            {
-                WaitCallback cb = callback;
-                callback = null;
-                cb(state);
-            }
-            else
-            {
-                ExecutionContext.Run(context, ccb, this);
-            }
-        }
-
-        [SecurityCritical]
-        void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae)
-        {
-#if DEBUG
-            // this workitem didn't execute because we got a ThreadAbortException prior to the call to ExecuteWorkItem.  
-            // This counts as being executed for our purposes.
-            MarkExecuted(true);
-#endif
+            ExecutionContext.Run(context, ccb, this);
         }
 
         [System.Security.SecurityCritical]
@@ -1386,59 +1395,117 @@ namespace System.Threading
         [System.Security.SecurityCritical]
         static internal void Initialize()
         {
-            ccb = (helper) => helper.callback(helper.state);
+            ccb = (helper) =>
+            {
+                var state = helper.state;
+                var callback = helper.callback;
+                // Detach state for early GC as it may be unreferenced early in the call chain 
+                helper.state = null;
+                helper.callback = null;
+                callback(state);
+            };
         }
     }
 
-    internal sealed class QueueUserWorkItemCallbackDefaultContext : IThreadPoolWorkItem
+    internal sealed class QueueUserWorkItemCallbackNoState : UserWorkItem
     {
-        private WaitCallback callback;
-        private Object state;
-
-#if DEBUG
-        private volatile int executed;
-
-        ~QueueUserWorkItemCallbackDefaultContext()
-        {
-            Contract.Assert(
-                executed != 0 || Environment.HasShutdownStarted || AppDomain.CurrentDomain.IsFinalizingForUnload(),
-                "A QueueUserWorkItemCallbackDefaultContext was never called!");
-        }
-
-        void MarkExecuted(bool aborted)
-        {
-            GC.SuppressFinalize(this);
-            Contract.Assert(
-                0 == Interlocked.Exchange(ref executed, 1) || aborted,
-                "A QueueUserWorkItemCallbackDefaultContext was called twice!");
-        }
-#endif
+        private ExecutionContext context;
 
         [SecurityCritical]
-        internal QueueUserWorkItemCallbackDefaultContext(WaitCallback waitCallback, Object stateObj)
+        internal QueueUserWorkItemCallbackNoState(WaitCallback waitCallback, ExecutionContext ec)
+            : base(waitCallback)
         {
-            Contract.Assert(waitCallback != null, "Null callback passed to QueueUserWorkItemCallbackDefaultContext!");
-            callback = waitCallback;
+            context = ec;
+        }
+
+        [SecurityCritical]
+        public override void ExecuteWorkItem()
+        {
+#if DEBUG
+            MarkExecuted(false);
+#endif
+            ExecutionContext.Run(context, ccb, this);
+        }
+
+        [System.Security.SecurityCritical]
+        static internal ContextCallback<QueueUserWorkItemCallbackNoState> ccb;
+
+        [System.Security.SecurityCritical]
+        static internal void Initialize()
+        {
+            ccb = (helper) =>
+            {
+                var callback = helper.callback;
+                helper.callback = null;
+                callback(null);
+            };
+        }
+    }
+
+    internal sealed class QueueUserWorkItemCallbackNoContext : UserWorkItem
+    {
+        private Object state;
+
+        [SecurityCritical]
+        internal QueueUserWorkItemCallbackNoContext(WaitCallback waitCallback, Object stateObj)
+            : base(waitCallback)
+        {
             state = stateObj;
         }
 
         [SecurityCritical]
-        void IThreadPoolWorkItem.ExecuteWorkItem()
+        public override void ExecuteWorkItem()
+        {
+#if DEBUG
+            MarkExecuted(false);
+#endif
+            var cb = callback;
+            var s = state;
+            // Detach state for early GC as it may be unreferenced early in the call chain 
+            state = null;
+            callback = null;
+            cb(s);
+        }
+    }
+
+    internal sealed class QueueUserWorkItemCallbackNoContextNoState : UserWorkItem
+    {
+        [SecurityCritical]
+        internal QueueUserWorkItemCallbackNoContextNoState(WaitCallback waitCallback)
+            : base(waitCallback)
+        {
+        }
+
+        [SecurityCritical]
+        public override void ExecuteWorkItem()
+        {
+#if DEBUG
+            MarkExecuted(false);
+#endif
+            var cb = callback;
+            callback = null;
+            cb(null);
+        }
+    }
+
+    internal sealed class QueueUserWorkItemCallbackDefaultContext : UserWorkItem
+    {
+        private Object state;
+
+        [SecurityCritical]
+        internal QueueUserWorkItemCallbackDefaultContext(WaitCallback waitCallback, Object stateObj)
+            : base(waitCallback)
+        {
+            state = stateObj;
+        }
+
+        [SecurityCritical]
+        public override void ExecuteWorkItem()
         {
 #if DEBUG
             MarkExecuted(false);
 #endif
             ExecutionContext.Run(ExecutionContext.PreAllocatedDefault, ccb, this);
-        }
-
-        [SecurityCritical]
-        void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae)
-        {
-#if DEBUG
-            // this workitem didn't execute because we got a ThreadAbortException prior to the call to ExecuteWorkItem.  
-            // This counts as being executed for our purposes.
-            MarkExecuted(true);
-#endif
         }
 
         [System.Security.SecurityCritical]
@@ -1447,7 +1514,47 @@ namespace System.Threading
         [System.Security.SecurityCritical]
         static internal void Initialize()
         {
-            ccb = (helper) => helper.callback(helper.state);
+            ccb = (helper) =>
+            {
+                var state = helper.state;
+                var callback = helper.callback;
+                // Detach state for early GC as it may be unreferenced early in the call chain 
+                helper.state = null;
+                helper.callback = null;
+                callback(state);
+            };
+        }
+    }
+
+    internal sealed class QueueUserWorkItemCallbackDefaultContextNoState : UserWorkItem
+    {
+        [SecurityCritical]
+        internal QueueUserWorkItemCallbackDefaultContextNoState(WaitCallback waitCallback)
+            : base(waitCallback)
+        {
+        }
+
+        [SecurityCritical]
+        public override void ExecuteWorkItem()
+        {
+#if DEBUG
+            MarkExecuted(false);
+#endif
+            ExecutionContext.Run(ExecutionContext.PreAllocatedDefault, ccb, this);
+        }
+
+        [System.Security.SecurityCritical]
+        static internal ContextCallback<QueueUserWorkItemCallbackDefaultContextNoState> ccb;
+
+        [System.Security.SecurityCritical]
+        static internal void Initialize()
+        {
+            ccb = (helper) =>
+            {
+                var callback = helper.callback;
+                helper.callback = null;
+                callback(null);
+            };
         }
     }
 
@@ -1757,6 +1864,7 @@ namespace System.Threading
              Object state)
         {
             if (callBack == null) return ThrowWaitCallbackNullException();
+            if (state == null) return QueueUserWorkItem(callBack);
 
             //The VM is responsible for the actual growing/shrinking of threads. 
             EnsureVMInitialized();
@@ -1768,8 +1876,10 @@ namespace System.Threading
                 ExecutionContext context = !ExecutionContext.IsFlowSuppressed() ? ExecutionContext.FastCapture() : null;
 
                 IThreadPoolWorkItem tpcallBack = context == ExecutionContext.PreAllocatedDefault ?
-                                new QueueUserWorkItemCallbackDefaultContext(callBack, state) :
-                                (IThreadPoolWorkItem)new QueueUserWorkItemCallback(callBack, state, context);
+                                        new QueueUserWorkItemCallbackDefaultContext(callBack, state) :
+                                    (context == null ? (IThreadPoolWorkItem)
+                                        new QueueUserWorkItemCallbackNoContext(callBack, state) :
+                                        new QueueUserWorkItemCallback(callBack, state, context));
 
                 //ThreadPool has per-appdomain managed queue of work-items. The VM is
                 //responsible for just scheduling threads into appdomains. After that
@@ -1795,8 +1905,10 @@ namespace System.Threading
                 ExecutionContext context = !ExecutionContext.IsFlowSuppressed() ? ExecutionContext.FastCapture() : null;
 
                 IThreadPoolWorkItem tpcallBack = context == ExecutionContext.PreAllocatedDefault ?
-                                new QueueUserWorkItemCallbackDefaultContext(callBack, null) :
-                                (IThreadPoolWorkItem)new QueueUserWorkItemCallback(callBack, null, context);
+                                        new QueueUserWorkItemCallbackDefaultContextNoState(callBack) :
+                                    (context == null ? (IThreadPoolWorkItem)
+                                        new QueueUserWorkItemCallbackNoContextNoState(callBack) :
+                                        new QueueUserWorkItemCallbackNoState(callBack, context));
 
                 //ThreadPool has per-appdomain managed queue of work-items. The VM is
                 //responsible for just scheduling threads into appdomains. After that
@@ -1823,7 +1935,7 @@ namespace System.Threading
                 //ThreadPool has per-appdomain managed queue of work-items. The VM is
                 //responsible for just scheduling threads into appdomains. After that
                 //work-items are dispatched from the managed queue.
-                ThreadPoolGlobals.workQueue.EnqueueGlobal(new QueueUserWorkItemCallback(callBack, state, null));
+                ThreadPoolGlobals.workQueue.EnqueueGlobal(new QueueUserWorkItemCallbackNoContext(callBack, state));
             }
             return true;
         }
@@ -1993,7 +2105,9 @@ namespace System.Threading
             ThreadPool.InitializeVMTp(ref ThreadPoolGlobals.enableWorkerTracking);
             ThreadPoolGlobals.Initialize();
             QueueUserWorkItemCallback.Initialize();
+            QueueUserWorkItemCallbackNoState.Initialize();
             QueueUserWorkItemCallbackDefaultContext.Initialize();
+            QueueUserWorkItemCallbackDefaultContextNoState.Initialize();
             _ThreadPoolWaitOrTimerCallback.Initialize();
             ThreadPoolGlobals.vmTpInitialized = true;
         }
