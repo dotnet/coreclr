@@ -1963,7 +1963,7 @@
       <Member Name="get_StackTrace" />
       <Member Name="get_Source" />
 <!--
-      <Member Name="xget_TargetSite" />
+      <Member Name="get_TargetSite" />
  -->
       <Member Name="GetBaseException" />
       <Member Name="set_HelpLink(System.String)" />
@@ -1978,7 +1978,7 @@
       <Member MemberType="Property" Name="Source" />
       <Member MemberType="Property" Name="StackTrace" />
 <!--
-      <Member MemberType="Property" Name="TxargetSite" />
+      <Member MemberType="Property" Name="TargetSite" />
 -->      
       <Member Status="ImplRoot" Name="InternalToString" />
       <Member Status="ImplRoot" Name="InternalPreserveStackTrace" />
@@ -6407,7 +6407,9 @@
       <Member Name="#ctor(System.Char[],System.Int32,System.Int32)" />
       <Member Name="#ctor(System.SByte*)" />
       <Member Name="#ctor(System.SByte*,System.Int32,System.Int32)" />
+<!--
       <Member Name="#ctor(System.SByte*,System.Int32,System.Int32,System.Text.Encoding)" />
+-->
       <Member Name="Clone" />
       <Member Name="Compare(System.String,System.Int32,System.String,System.Int32,System.Int32)" />
       <Member Name="Compare(System.String,System.Int32,System.String,System.Int32,System.Int32,System.Boolean)" />
