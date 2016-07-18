@@ -499,6 +499,7 @@ if errorlevel 1 (
     echo     %__BuildLog%
     echo     %__BuildWrn%
     echo     %__BuildErr%
+    type     %__BuildErr%
     exit /b 1
 )
 
@@ -517,6 +518,7 @@ set "__CrossgenExe=%__CrossComponentBinDir%\crossgen.exe"
 if NOT %errorlevel% == 0 (
     echo %__MsgPrefix%Error: CrossGen System.Private.CoreLib build failed. Refer to the build log file for details:
     echo     %__CrossGenCoreLibLog%
+    type     %__CrossGenCoreLibLog%
     exit /b 1
 )
 
@@ -528,6 +530,7 @@ set "__CrossgenExe=%__CrossComponentBinDir%\crossgen.exe"
 if NOT %errorlevel% == 0 (
     echo %__MsgPrefix%Error: CrossGen mscorlib facade build failed. Refer to the build log file for details:
     echo     %__CrossGenCoreLibLog%
+    type     %__CrossGenCoreLibLog%
     exit /b 1
 )
 

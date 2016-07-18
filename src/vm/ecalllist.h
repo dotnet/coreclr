@@ -338,8 +338,8 @@ FCFuncEnd()
 FCFuncStart(gExceptionFuncs)
     FCFuncElement("IsImmutableAgileException", ExceptionNative::IsImmutableAgileException)
     FCFuncElement("nIsTransient", ExceptionNative::IsTransient)
-#ifndef FEATURE_CORECLR
     FCFuncElement("GetMethodFromStackTrace", SystemNative::GetMethodFromStackTrace)
+#ifndef FEATURE_CORECLR
     FCFuncElement("StripFileInfo", ExceptionNative::StripFileInfo)
 #endif
     QCFuncElement("GetMessageFromNativeResources", ExceptionNative::GetMessageFromNativeResources)
