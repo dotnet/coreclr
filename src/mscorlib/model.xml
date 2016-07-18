@@ -526,8 +526,8 @@
       <Member Name="MoveNext" />
       <Member Name="Reset" />
       <Member MemberType="Property" Name="Current" />
-      <Member Status="ImplRoot" Name="System.Collections.IEnumerator.get_Current" />
-      <Member Status="ImplRoot" MemberType="Property" Name="System.Collections.IEnumerator.Current" />
+      <Member Name="System.Collections.IEnumerator.get_Current" />
+      <Member MemberType="Property" Name="System.Collections.IEnumerator.Current" />
     </Type>
     <Type Name="System.CLSCompliantAttribute">
       <Member Name="#ctor(System.Boolean)" />
@@ -1962,9 +1962,7 @@
       <Member Name="get_Message" />
       <Member Name="get_StackTrace" />
       <Member Name="get_Source" />
-<!--
       <Member Name="get_TargetSite" />
- -->
       <Member Name="GetBaseException" />
       <Member Name="set_HelpLink(System.String)" />
       <Member Name="set_HResult(System.Int32)" />
@@ -1977,9 +1975,7 @@
       <Member MemberType="Property" Name="Message" />
       <Member MemberType="Property" Name="Source" />
       <Member MemberType="Property" Name="StackTrace" />
-<!--
       <Member MemberType="Property" Name="TargetSite" />
--->      
       <Member Status="ImplRoot" Name="InternalToString" />
       <Member Status="ImplRoot" Name="InternalPreserveStackTrace" />
       <Member Status="ImplRoot" MemberType="Field" Name="_remoteStackIndex" /> <!-- EE -->
@@ -6407,9 +6403,7 @@
       <Member Name="#ctor(System.Char[],System.Int32,System.Int32)" />
       <Member Name="#ctor(System.SByte*)" />
       <Member Name="#ctor(System.SByte*,System.Int32,System.Int32)" />
-<!--
       <Member Name="#ctor(System.SByte*,System.Int32,System.Int32,System.Text.Encoding)" />
--->
       <Member Name="Clone" />
       <Member Name="Compare(System.String,System.Int32,System.String,System.Int32,System.Int32)" />
       <Member Name="Compare(System.String,System.Int32,System.String,System.Int32,System.Int32,System.Boolean)" />
