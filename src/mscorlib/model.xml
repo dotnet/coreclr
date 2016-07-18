@@ -725,6 +725,7 @@
       <Member Name="BinarySearch(T,System.Collections.Generic.IComparer&lt;T&gt;)" />
       <Member Name="Clear" />
       <Member Name="Contains(T)" />
+      <Member Name="ConvertAll&lt;TOutput&gt;(System.Converter&lt;T,TOutput&gt;)" />
       <Member Name="CopyTo(System.Int32,T[],System.Int32,System.Int32)" />
       <Member Name="CopyTo(T[])" />
       <Member Name="CopyTo(T[],System.Int32)" />
@@ -933,7 +934,6 @@
       <Member MemberType="Property" Name="Item(System.Int32)" />
       <Member MemberType="Property" Name="Items" />
     </Type>
-    
     <Type Name="System.Collections.ObjectModel.ReadOnlyDictionary&lt;TKey,TValue&gt;">
       <Member Name="#ctor(System.Collections.Generic.IDictionary&lt;TKey,TValue&gt;)" />
       <Member Name="ContainsKey(TKey)" />
@@ -947,13 +947,11 @@
       <Member MemberType="Property" Name="Dictionary" />
       <Member MemberType="Property" Name="Item(TKey)" />
     </Type>
-
     <Type Name="System.GCCollectionMode">
         <Member MemberType="Field" Name="Default" />
         <Member MemberType="Field" Name="Optimized" />
         <Member MemberType="Field" Name="Forced" />
     </Type>
-    
     <Type Name="System.Comparison&lt;T&gt;">
       <Member Name="#ctor(System.Object,System.IntPtr)" />
       <Member Name="BeginInvoke(T,T,System.AsyncCallback,System.Object)" />
