@@ -412,7 +412,7 @@ ASMCONSTANTS_C_ASSERT(OFFSETOF__MethodDesc__m_wFlags == offsetof(MethodDesc, m_w
 ASMCONSTANTS_C_ASSERT(OFFSETOF__VASigCookie__pNDirectILStub
                     == offsetof(VASigCookie, pNDirectILStub));
 
-#define               SIZEOF__CONTEXT                 (8*6 + 4*2 + 2*6 + 4 + 8*6 + 8*16 + 8 + /*XMM_SAVE_AREA32*/(2*2 + 1*2 + 2 + 4 + 2*2 + 4 + 2*2 + 4*2 + 16*8 + 16*16 + 1*96) + 26*16 + 8 + 8*5)
+#define               SIZEOF__CONTEXT                 (8*6 + 4*2 + 2*6 + 4 + 8*6 + 8*16 + 8 + /*XMM_SAVE_AREA32*/(2*2 + 1*2 + 2 + 4 + 2*2 + 4 + 2*2 + 4*2 + 16*8 + 16*16 + 1*96) + 16*16 /* Ymmh */ + 8*5 + 8 /* 16-byte alignment */)
 ASMCONSTANTS_C_ASSERT(SIZEOF__CONTEXT
                     == sizeof(CONTEXT));
 

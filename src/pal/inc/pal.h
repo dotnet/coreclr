@@ -2570,6 +2570,9 @@ typedef struct _CONTEXT {
 
 #define CONTEXT_ALL (CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_SEGMENTS | CONTEXT_FLOATING_POINT | CONTEXT_DEBUG_REGISTERS)
 
+#define CONTEXT_XSTATE (CONTEXT_AMD64 | 0x40L)
+#define CONTEXT_XSTATE_YMMH (CONTEXT_AMD64 | 0x80L)
+
 #define CONTEXT_EXCEPTION_ACTIVE 0x8000000
 #define CONTEXT_SERVICE_ACTIVE 0x10000000
 #define CONTEXT_EXCEPTION_REQUEST 0x40000000
@@ -2736,11 +2739,10 @@ typedef struct DECLSPEC_ALIGN(16) _CONTEXT {
     };
 
     //
-    // Vector registers.
+    // Upper half of YMM registers.
     //
 
-    M128A VectorRegister[26];
-    DWORD64 VectorControl;
+    M128A Ymmh[16];
 
     //
     // Special debug control registers.
