@@ -794,7 +794,6 @@ Compiler::AssertionIndex Compiler::optCreateAssertion(GenTreePtr op1, GenTreePtr
                                       optAssertionKind assertionKind, 
                                       AssertionDsc* assertion)
 {
-    memset(assertion, 0, sizeof(AssertionDsc));
     //
     // If we cannot create an assertion using op1 and op2 then the assertionKind
     // must be OAK_INVALID, so we initialize it to OAK_INVALID and only change it

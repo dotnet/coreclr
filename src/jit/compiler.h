@@ -5606,6 +5606,10 @@ public:
                             O2K_SUBRANGE };
     struct AssertionDsc
     {
+        AssertionDsc()
+        {
+          memset(this, 0, sizeof(AssertionDsc));
+        }
         optAssertionKind        assertionKind;
         struct SsaVar
         {
