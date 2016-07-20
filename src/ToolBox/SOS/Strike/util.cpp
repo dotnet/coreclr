@@ -6229,9 +6229,13 @@ HRESULT SymbolReader::LoadCoreCLR()
 {
     HRESULT Status = S_OK;
 
-    std::string absolutePath, coreClrPath;
-    absolutePath = g_ExtServices->GetCoreClrDirectory();
-    GetDirectory(absolutePath.c_str(), coreClrPath);
+    std::string absolutePath;
+    std::string coreClrPath = g_ExtServices->GetCoreClrDirectory();
+    if (!GetAbsolutePath(coreClrPath.c_str(), absolutePath))
+    {
+        fprintf(stderr, "Error: fail to convert CLR files path to absolute path \n");
+        return E_FAIL;
+    }
     coreClrPath.append("/");
     coreClrPath.append(coreClrDll);
 
