@@ -2224,11 +2224,14 @@ void fgArgInfo::EvalArgsToTemps()
                     if (setupArg->OperIsCopyBlkOp())
                     {
                         setupArg = compiler->fgMorphCopyBlock(setupArg);
-
+#ifdef _TARGET_ARM64_
+                        // This scalar LclVar widening step is only performed for ARM64 
+                        // 
                         CORINFO_CLASS_HANDLE clsHnd     = compiler->lvaGetStruct(tmpVarNum);
                         unsigned             structSize = varDsc->lvExactSize;
 
                         scalarType = compiler->getPrimitiveTypeForStruct(structSize, clsHnd);
+#endif // _TARGET_ARM64_
                     }
 
                     // scalarType can be set to a wider type for ARM64: (3 => 4)  or (5,6,7 => 8)
