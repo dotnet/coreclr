@@ -1508,11 +1508,11 @@ void fgArgInfo::ArgsComplete()
         // so we skip this for ARM32 until it is ported to use RyuJIT backend
         //
 #if FEATURE_MULTIREG_ARGS
-        if ((argx->TypeGet() == TYP_STRUCT) &&
-            (curArgTabEntry->numRegs > 1)   && 
-            (curArgTabEntry->needTmp == false))
+        bool isMultiRegArg = (curArgTabEntry->numRegs > 1);
+
+        if ((argx->TypeGet() == TYP_STRUCT) && (curArgTabEntry->needTmp == false))
         {           
-            if ((argx->gtFlags & GTF_PERSISTENT_SIDE_EFFECTS) != 0)
+            if (isMultiRegArg && ((argx->gtFlags & GTF_PERSISTENT_SIDE_EFFECTS) != 0))
             {
                 // Spill multireg struct arguments that have Assignments or Calls embedded in them
                 curArgTabEntry->needTmp = true;
@@ -1522,7 +1522,7 @@ void fgArgInfo::ArgsComplete()
                 // We call gtPrepareCost to measure the cost of evaluating this tree
                 compiler->gtPrepareCost(argx);
 
-                if (argx->gtCostEx > (6 * IND_COST_EX))
+                if (isMultiRegArg && (argx->gtCostEx > (6 * IND_COST_EX)))
                 {
                     // Spill multireg struct arguments that are expensive to evaluate twice
                     curArgTabEntry->needTmp = true;
@@ -1534,6 +1534,21 @@ void fgArgInfo::ArgsComplete()
                     unsigned              structSize = compiler->info.compCompHnd->getClassSize(objClass);
                     switch (structSize)
                     {
+                    case 3:
+                    case 5:
+                    case 6:
+                    case 7:
+                        // If we have a stack based LclVar we can perform a wider read of 4 or 8 bytes
+                        //
+                        if (argObj->gtObj.gtOp1->IsVarAddr() == false)    // Is the source not a LclVar?
+                        {
+                            // If we don't have a LclVar we need to read exactly 3,5,6 or 7 bytes
+                            // For now we use a a GT_CPBLK to copy the exact size into a GT_LCL_VAR temp.
+                            //
+                            curArgTabEntry->needTmp = true;
+                        }
+                        break;
+
                     case 11:
                     case 13:
                     case 14:
@@ -2191,22 +2206,42 @@ void fgArgInfo::EvalArgsToTemps()
                 {
                     setupArg = compiler->gtNewTempAssign(tmpVarNum, argx);
 
+                    LclVarDsc* varDsc = compiler->lvaTable + tmpVarNum;
+
 #ifndef LEGACY_BACKEND
                     if (compiler->fgOrder == Compiler::FGOrderLinear)
                     {
                         // We'll reference this temporary variable just once
                         // when we perform the function call after
                         // setting up this argument.
-                        LclVarDsc* varDsc = compiler->lvaTable + tmpVarNum;
                         varDsc->lvRefCnt = 1;
                     }
 #endif // !LEGACY_BACKEND
 
+                    var_types  lclVarType = argx->gtType;
+                    var_types  scalarType = TYP_UNKNOWN;
+
                     if (setupArg->OperIsCopyBlkOp())
+                    {
                         setupArg = compiler->fgMorphCopyBlock(setupArg);
 
-                    /* Create a copy of the temp to go to the late argument list */
-                    defArg = compiler->gtNewLclvNode(tmpVarNum, genActualType(argx->gtType));
+                        CORINFO_CLASS_HANDLE clsHnd     = compiler->lvaGetStruct(tmpVarNum);
+                        unsigned             structSize = varDsc->lvExactSize;
+
+                        scalarType = compiler->getPrimitiveTypeForStruct(structSize, clsHnd);
+                    }
+
+                    // scalarType can be set to a wider type for ARM64: (3 => 4)  or (5,6,7 => 8)
+                    if ((scalarType != TYP_UNKNOWN) && (scalarType != lclVarType))
+                    {
+                        // Create a GT_LCL_FLD using the wider type to go to the late argument list
+                        defArg = compiler->gtNewLclFldNode(tmpVarNum, scalarType, 0);
+                    }
+                    else
+                    {
+                        // Create a copy of the temp to go to the late argument list
+                        defArg = compiler->gtNewLclvNode(tmpVarNum, lclVarType);
+                    }
 
                     curArgTabEntry->isTmp   = true;
                     curArgTabEntry->tmpNum  = tmpVarNum;
@@ -2303,7 +2338,7 @@ void fgArgInfo::EvalArgsToTemps()
                 {
                     BADCODE("Unhandled struct argument tree in fgMorphArgs");
                 }
-        }
+            }
 
 #endif // !(defined(_TARGET_AMD64_) && !defined(FEATURE_UNIX_AMD64_STRUCT_PASSING))
 
