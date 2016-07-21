@@ -28,84 +28,21 @@ public:
         LIMITED_METHOD_CONTRACT;
     }
 
-private:
-    signed __int8    GetI1()
-    {
-        LIMITED_METHOD_CONTRACT;
-        signed __int8 tmp = *reinterpret_cast<const signed __int8*>(m_pbCur);
-        m_pbCur += sizeof(signed __int8);
-        return tmp;
-    }
-    unsigned __int8  GetU1()
-    {
-        LIMITED_METHOD_CONTRACT;
-        unsigned __int8 tmp = *reinterpret_cast<const unsigned __int8*>(m_pbCur);
-        m_pbCur += sizeof(unsigned __int8);
-        return tmp;
-    }
-
-    signed __int16   GetI2()
-    {
-        LIMITED_METHOD_CONTRACT;
-        signed __int16 tmp = GET_UNALIGNED_VAL16(m_pbCur);
-        m_pbCur += sizeof(signed __int16);
-        return tmp;
-    }
-    unsigned __int16 GetU2()
-    {
-        LIMITED_METHOD_CONTRACT;
-        unsigned __int16 tmp = GET_UNALIGNED_VAL16(m_pbCur);
-        m_pbCur += sizeof(unsigned __int16 );
-        return tmp;
-    }
-
-    signed __int32   GetI4()
-    {
-        LIMITED_METHOD_CONTRACT;
-        signed __int32 tmp = GET_UNALIGNED_VAL32(m_pbCur);
-        m_pbCur += sizeof(signed __int32 );
-        return tmp;
-    }
-    unsigned __int32 GetU4()
-    {
-        LIMITED_METHOD_CONTRACT;
-        unsigned __int32 tmp = GET_UNALIGNED_VAL32(m_pbCur);
-        m_pbCur += sizeof(unsigned __int32 );
-        return tmp;
-    }
-
-    signed __int64   GetI8()
-    {
-        LIMITED_METHOD_CONTRACT;
-        signed __int64 tmp = GET_UNALIGNED_VAL64(m_pbCur);
-        m_pbCur += sizeof(signed __int64 );
-        return tmp;
-    }
-    unsigned __int64 GetU8()
-    {
-        LIMITED_METHOD_CONTRACT;
-        unsigned __int64 tmp = GET_UNALIGNED_VAL64(m_pbCur);
-        m_pbCur += sizeof(unsigned __int64 );
-        return tmp;
-    }
-
 public:
     float            GetR4()
     {
         LIMITED_METHOD_CONTRACT;
-        __int32 tmp = GET_UNALIGNED_VAL32(m_pbCur);
-        _ASSERTE(sizeof(__int32) == sizeof(float));
-        m_pbCur += sizeof(float);
-        return (float &)tmp;
+        float tmp = 0.0;
+        _ASSERTE(GetR4(&tmp) == S_OK);
+        return (float) tmp;
     }
 
     double           GetR8()
     {
         LIMITED_METHOD_CONTRACT;
-        __int64 tmp = GET_UNALIGNED_VAL64(m_pbCur);
-        _ASSERTE(sizeof(__int64) == sizeof(double));
-        m_pbCur += sizeof(double);
-        return (double &)tmp;
+        double tmp = 0.0;
+        _ASSERTE(GetR8(&tmp) == S_OK);
+        return (double) tmp;
     }
 
 private:
@@ -128,11 +65,12 @@ private:
 public:
     HRESULT GetI1(signed __int8 *pVal)
     {
-        WRAPPER_NO_CONTRACT;
+        LIMITED_METHOD_CONTRACT;
 
         if (BytesLeft() < (int) sizeof(signed __int8))
             return META_E_CA_INVALID_BLOB;
-        *pVal = GetI1();
+        memcpy(pVal, m_pbCur, sizeof(signed __int8));
+        m_pbCur += sizeof(signed __int8);
         return S_OK;
     }
     
@@ -142,93 +80,103 @@ public:
         HRESULT hr;
         signed __int8 tmp;
         IfFailRet(GetI1(&tmp));
-        *pVal = (CorSerializationType)((unsigned __int8)tmp);
+        CorSerializationType casted = (CorSerializationType)((unsigned __int8)tmp);
+        memcpy(pVal, &casted, sizeof(CorSerializationType));
         return hr;
     }
 
     HRESULT GetU1(unsigned __int8 *pVal)
     {
-        WRAPPER_NO_CONTRACT;
+        LIMITED_METHOD_CONTRACT;
 
         if (BytesLeft() < (int) sizeof(unsigned __int8))
             return META_E_CA_INVALID_BLOB;
-        *pVal = GetU1();
+        memcpy(pVal, m_pbCur, sizeof(unsigned __int8));
+        m_pbCur += sizeof(unsigned __int8);
         return S_OK;
     }
 
     HRESULT GetI2(signed __int16 *pVal)
     {
-        WRAPPER_NO_CONTRACT;
+        LIMITED_METHOD_CONTRACT;
 
         if (BytesLeft() < (int) sizeof(signed __int16))
             return META_E_CA_INVALID_BLOB;
-        *pVal = GetI2();
+        memcpy(pVal, m_pbCur, sizeof(signed __int16));
+        m_pbCur += sizeof(signed __int16);
         return S_OK;
     }
     HRESULT GetU2(unsigned __int16 *pVal)
     {
-        WRAPPER_NO_CONTRACT;
+        LIMITED_METHOD_CONTRACT;
 
         if (BytesLeft() < (int) sizeof(unsigned __int16))
             return META_E_CA_INVALID_BLOB;
-        *pVal = GetU2();
+        memcpy(pVal, m_pbCur, sizeof(unsigned __int16));
+        m_pbCur += sizeof(unsigned __int16);
         return S_OK;
     }
 
     HRESULT GetI4(signed __int32 *pVal)
     {
-        WRAPPER_NO_CONTRACT;
+        LIMITED_METHOD_CONTRACT;
 
         if (BytesLeft() < (int) sizeof(signed __int32))
             return META_E_CA_INVALID_BLOB;
-        *pVal = GetI4();
+        memcpy(pVal, m_pbCur, sizeof(signed __int32));
+        m_pbCur += sizeof(signed __int32);
         return S_OK;
     }
     HRESULT GetU4(unsigned __int32 *pVal)
     {
-        WRAPPER_NO_CONTRACT;
+        LIMITED_METHOD_CONTRACT;
 
         if (BytesLeft() < (int) sizeof(unsigned __int32))
             return META_E_CA_INVALID_BLOB;
-        *pVal = GetU4();
+        memcpy(pVal, m_pbCur, sizeof(unsigned __int32));
+        m_pbCur += sizeof(unsigned __int32);
         return S_OK;
     }
 
     HRESULT GetI8(signed __int64 *pVal)
     {
-        WRAPPER_NO_CONTRACT;
+        LIMITED_METHOD_CONTRACT;
 
         if (BytesLeft() < (int) sizeof(signed __int64))
             return META_E_CA_INVALID_BLOB;
-        *pVal = GetI8();
+        memcpy(pVal, m_pbCur, sizeof(signed __int64));
+        m_pbCur += sizeof(signed __int64);
         return S_OK;
     }
     HRESULT GetU8(unsigned __int64 *pVal)
     {
-        WRAPPER_NO_CONTRACT;
+        LIMITED_METHOD_CONTRACT;
 
         if (BytesLeft() < (int) sizeof(unsigned __int64))
             return META_E_CA_INVALID_BLOB;
-        *pVal = GetU8();
+        memcpy(pVal, m_pbCur, sizeof(unsigned __int64));
+        m_pbCur += sizeof(unsigned __int64);
         return S_OK;
     }
 
     HRESULT GetR4(float *pVal)
     {
-        WRAPPER_NO_CONTRACT;
+        LIMITED_METHOD_CONTRACT;
 
         if (BytesLeft() < (int) sizeof(float))
             return META_E_CA_INVALID_BLOB;
-        *pVal = GetR4();
+        memcpy(pVal, m_pbCur, sizeof(float));
+        m_pbCur += sizeof(float);
         return S_OK;
     }
     HRESULT GetR8(double *pVal)
     {
-        WRAPPER_NO_CONTRACT;
+        LIMITED_METHOD_CONTRACT;
 
         if (BytesLeft() < (int) sizeof(double))
             return META_E_CA_INVALID_BLOB;
-        *pVal = GetR8();
+        memcpy(pVal, m_pbCur, sizeof(double));
+        m_pbCur += sizeof(double);
         return S_OK;
     }
 
