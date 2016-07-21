@@ -3272,15 +3272,8 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* callNode)
 
                     structSize = originalSize;
 
-#ifndef _TARGET_X86_
-                    // We don't call this on x86 because it currently doesn't perform
-                    // the optimization below for structs of size 1,2,4
-                    //  "turning them into a GT_IND of the correct type"
-                    // Thus changing the  structBaseKind to a primative type leads to problems.
-                    //
                     structPassingKind howToPassStruct;
                     structBaseType = getArgTypeForStruct(objClass, &howToPassStruct, originalSize);
-#endif // _TARGET_X86_
 
 #ifdef _TARGET_ARM64_
                     if ((howToPassStruct == SPK_PrimitiveType) &&     // Passed in a single register

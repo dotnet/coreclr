@@ -669,9 +669,9 @@ var_types    Compiler::getPrimitiveTypeForStruct( unsigned  structSize,
 //       is the primitive type used to pass the struct.
 //    When *wbPassStruct is SPK_ByReference this method's return value
 //       is always TYP_UNKNOWN and the struct type is passed by reference to a copy
-//    When *wbPassStruct is SPK_ByValue or SPK_ByValueAsHfa this method's return value 
-//       can be TYP_STRUCT and the struct type is passed using multiple registers.
-//       or can be TYP_UNKNOWN and the struct type is passed by value (for x86 and ARM32)
+//    When *wbPassStruct is SPK_ByValue or SPK_ByValueAsHfa this method's return value
+//       is always TYP_STRUCT and the struct type is passed by value either 
+//       using multiple registers or on the stack.
 //
 // Assumptions:
 //    The size must be the size of the given type.
@@ -683,12 +683,6 @@ var_types    Compiler::getPrimitiveTypeForStruct( unsigned  structSize,
 //         floating point primitive type and *wbPassStruct is SPK_PrimitiveType
 //        If there are two or more elements in the HFA type then the this method's 
 //         return value is TYP_STRUCT and *wbPassStruct is SPK_ByValueAsHfa
-//    About returning TYP_STRUCT:
-//        Whenever this method's return value is TYP_STRUCT it usually means that multiple 
-//        registers will be used to pass this struct.
-//        The only exception occurs if all of the parameters registers are used up 
-//        then we must use stack slots instead.  In such a case the amount of stack needed
-//        is always equal to the structSize (rounded up to the next pointer size)
 //
 var_types  Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
                                          structPassingKind*   wbPassStruct,
@@ -718,7 +712,12 @@ var_types  Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
         useType = GetEightByteType(structDesc, 0);
     }
 
-#else // not UNIX_AMD64
+#elif defined(_TARGET_X86_)
+
+    // On x86 we pass all structs by value 
+    useType = TYP_UNKNOWN;
+
+#else  // all other targets
 
     // The largest primitive type is 8 bytes (TYP_DOUBLE)
     // so we can skip calling getPrimitiveTypeForStruct when we 
@@ -731,7 +730,7 @@ var_types  Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
         useType = getPrimitiveTypeForStruct(structSize, clsHnd);
     }
 
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // all other targets
 
     // Did we change this struct type into a simple "primitive" type?
     //
@@ -807,10 +806,10 @@ var_types  Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
 
 #elif  defined(_TARGET_X86_) || defined(_TARGET_ARM_)
 
-                // Otherwise we pass this struct by value 
+                // Otherwise we pass this struct by value on the stack 
                 // setup wbPassType and useType indicate that this is passed by value according to the X86/ARM32 ABI
                 howToPassStruct = SPK_ByValue;
-                useType = TYP_UNKNOWN;
+                useType = TYP_STRUCT;
 
 #else  //  _TARGET_XXX_
 
@@ -830,7 +829,7 @@ var_types  Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
             // Otherwise we pass this struct by value on the stack 
             // setup wbPassType and useType indicate that this is passed by value according to the X86/ARM32 ABI
             howToPassStruct = SPK_ByValue;
-            useType = TYP_UNKNOWN;
+            useType = TYP_STRUCT;
 
 #elif defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
 
