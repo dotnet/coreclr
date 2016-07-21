@@ -1065,7 +1065,8 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                         Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} Cross ${configuration} Build", "(?i).*test\\W+Linux\\W+arm\\W+cross\\W+${configuration}.*")
                     }
                     else {
-                        Utilities.addGithubPRTriggerForBranch(job, branch, "Linux ARM Emulator Cross ${configuration} Build")
+                        Utilities.addGithubPRTriggerForBranch(job, branch, "Linux ARM Emulator Cross ${configuration} Build", "(?i).*test\\W+Linux\\W+arm\\W+emulator\\W+cross\\W+${configuration}.*")
+
                     }
                     break
                 default:
