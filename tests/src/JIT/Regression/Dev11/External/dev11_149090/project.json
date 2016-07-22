@@ -1,12 +1,12 @@
 {
   "dependencies": {
-    "Microsoft.NETCore.Platforms": "1.0.1-rc3-24117-00",
+    "Microsoft.NETCore.Platforms": "1.0.1-beta-24322-02",
     "System.Collections": "4.0.0",
-    "System.Console": "4.0.0-rc3-24117-00",
-    "System.Linq": "4.1.0-rc3-24117-00",
-    "System.Runtime": "4.1.0-rc3-24117-00",
+    "System.Console": "4.0.0-beta-24322-02",
+    "System.Linq": "4.1.0-beta-24322-02",
+    "System.Runtime": "4.1.0-beta-24322-02",
     "System.Runtime.Extensions": "4.0.10",
-    "System.Runtime.InteropServices": "4.1.0-rc3-24117-00"
+    "System.Runtime.InteropServices": "4.1.0-beta-24322-02"
   },
   "frameworks": {
     "dnxcore50": {}
