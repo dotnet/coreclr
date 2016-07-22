@@ -11,13 +11,13 @@
 //
 // LegalPolicy         - partial class providing common legality checks
 // LegacyPolicy        - policy that provides legacy inline behavior
+// DiscretionaryPolicy - legacy variant with uniform size policy
+// ModelPolicy         - policy based on statistical modelling
 //
 // These experimental policies are available only in
 // DEBUG or release+INLINE_DATA builds of the jit.
 //
 // RandomPolicy        - randomized inlining
-// DiscretionaryPolicy - legacy variant with uniform size policy
-// ModelPolicy         - policy based on statistical modelling
 // FullPolicy          - inlines everything up to size and depth limits
 // SizePolicy          - tries not to increase method sizes
 
@@ -82,23 +82,23 @@ public:
         : LegalPolicy(isPrejitRoot)
         , m_RootCompiler(compiler)
         , m_StateMachine(nullptr)
+        , m_Multiplier(0.0)
         , m_CodeSize(0)
         , m_CallsiteFrequency(InlineCallsiteFrequency::UNUSED)
         , m_InstructionCount(0)
         , m_LoadStoreCount(0)
+        , m_ArgFeedsConstantTest(0)
+        , m_ArgFeedsRangeCheck(0)
+        , m_ConstantArgFeedsConstantTest(0)
         , m_CalleeNativeSizeEstimate(0)
         , m_CallsiteNativeSizeEstimate(0)
-        , m_Multiplier(0.0)
         , m_IsForceInline(false)
         , m_IsForceInlineKnown(false)
         , m_IsInstanceCtor(false)
         , m_IsFromPromotableValueClass(false)
         , m_HasSimd(false)
         , m_LooksLikeWrapperMethod(false)
-        , m_ArgFeedsConstantTest(false)
         , m_MethodIsMostlyLoadStore(false)
-        , m_ArgFeedsRangeCheck(false)
-        , m_ConstantFeedsConstantTest(false)
     {
         // empty
     }
@@ -113,6 +113,7 @@ public:
 
     // Policy policies
     bool PropagateNeverToRuntime() const override { return true; }
+    bool IsLegacyPolicy() const override { return true; }
 
     // Policy estimates
     int CodeSizeEstimate() override;
@@ -136,23 +137,23 @@ protected:
     // Data members
     Compiler*               m_RootCompiler;                      // root compiler instance
     CodeSeqSM*              m_StateMachine;
+    double                  m_Multiplier;
     unsigned                m_CodeSize;
     InlineCallsiteFrequency m_CallsiteFrequency;
     unsigned                m_InstructionCount;
     unsigned                m_LoadStoreCount;
+    unsigned                m_ArgFeedsConstantTest;
+    unsigned                m_ArgFeedsRangeCheck;
+    unsigned                m_ConstantArgFeedsConstantTest;
     int                     m_CalleeNativeSizeEstimate;
     int                     m_CallsiteNativeSizeEstimate;
-    double                  m_Multiplier;
     bool                    m_IsForceInline :1;
     bool                    m_IsForceInlineKnown :1;
     bool                    m_IsInstanceCtor :1;
     bool                    m_IsFromPromotableValueClass :1;
     bool                    m_HasSimd :1;
     bool                    m_LooksLikeWrapperMethod :1;
-    bool                    m_ArgFeedsConstantTest :1;
     bool                    m_MethodIsMostlyLoadStore :1;
-    bool                    m_ArgFeedsRangeCheck :1;
-    bool                    m_ConstantFeedsConstantTest :1;
 };
 
 #ifdef DEBUG
@@ -177,6 +178,7 @@ public:
 
     // Policy policies
     bool PropagateNeverToRuntime() const override { return true; }
+    bool IsLegacyPolicy() const override { return false; }
 
     // Policy estimates
     int CodeSizeEstimate() override
@@ -198,12 +200,10 @@ private:
 
 #endif // DEBUG
 
-#if defined(DEBUG) || defined(INLINE_DATA)
-
 // DiscretionaryPolicy is a variant of the legacy policy.  It differs
 // in that there is no ALWAYS_INLINE class, there is no IL size limit,
-// and in prejit mode, discretionary failures do not set the "NEVER"
-// inline bit.
+// it does not try and maintain legacy compatabilty, and in prejit mode,
+// discretionary failures do not set the "NEVER" inline bit.
 //
 // It is useful for gathering data about inline costs.
 
@@ -220,6 +220,7 @@ public:
 
     // Policy policies
     bool PropagateNeverToRuntime() const override;
+    bool IsLegacyPolicy() const override { return false; }
 
     // Policy determinations
     void DetermineProfitability(CORINFO_METHOD_INFO* methodInfo) override;
@@ -227,12 +228,17 @@ public:
     // Policy estimates
     int CodeSizeEstimate() override;
 
+#if defined(DEBUG) || defined(INLINE_DATA)
+
     // Externalize data
     void DumpData(FILE* file) const override;
     void DumpSchema(FILE* file) const override;
 
     // Miscellaneous
     const char* GetName() const override { return "DiscretionaryPolicy"; }
+
+#endif // defined(DEBUG) || defined(INLINE_DATA)
+
 
 protected:
 
@@ -294,12 +300,25 @@ public:
     // Construct a ModelPolicy
     ModelPolicy(Compiler* compiler, bool isPrejitRoot);
 
+    // Policy observations
+    void NoteInt(InlineObservation obs, int value) override;
+
     // Policy determinations
     void DetermineProfitability(CORINFO_METHOD_INFO* methodInfo) override;
 
+    // Policy policies
+    bool PropagateNeverToRuntime() const override { return true; }
+
+#if defined(DEBUG) || defined(INLINE_DATA)
+
     // Miscellaneous
     const char* GetName() const override { return "ModelPolicy"; }
+
+#endif // defined(DEBUG) || defined(INLINE_DATA)
+
 };
+
+#if defined(DEBUG) || defined(INLINE_DATA)
 
 // FullPolicy is an experimental policy that will always inline if
 // possible, subject to externally settable depth and size limits.

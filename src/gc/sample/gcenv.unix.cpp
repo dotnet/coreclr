@@ -29,9 +29,9 @@ int32_t FastInterlockExchange(int32_t volatile *Target, int32_t Value)
     return __sync_swap(Target, Value);
 }
 
-int32_t FastInterlockCompareExchange(int32_t volatile *Destination, int32_t Exchange, int32_t Comperand)
+int32_t FastInterlockCompareExchange(int32_t volatile *Destination, int32_t Exchange, int32_t Comparand)
 {
-    return __sync_val_compare_and_swap(Destination, Comperand, Exchange);
+    return __sync_val_compare_and_swap(Destination, Comparand, Exchange);
 }
 
 int32_t FastInterlockExchangeAdd(int32_t volatile *Addend, int32_t Value)
@@ -44,9 +44,9 @@ void * _FastInterlockExchangePointer(void * volatile *Target, void * Value)
     return __sync_swap(Target, Value);
 }
 
-void * _FastInterlockCompareExchangePointer(void * volatile *Destination, void * Exchange, void * Comperand)
+void * _FastInterlockCompareExchangePointer(void * volatile *Destination, void * Exchange, void * Comparand)
 {
-    return __sync_val_compare_and_swap(Destination, Comperand, Exchange);
+    return __sync_val_compare_and_swap(Destination, Comparand, Exchange);
 }
 
 void FastInterlockOr(uint32_t volatile *p, uint32_t msk)
@@ -164,11 +164,6 @@ uint32_t CLREventStatic::Wait(uint32_t dwMilliseconds, bool bAlertable)
 }
 #endif // 0
 
-void DestroyThread(Thread * pThread)
-{
-    // TODO: implement
-}
-
 bool __SwitchToThread(uint32_t dwSleepMSec, uint32_t dwSwitchCount)
 {
     return sched_yield() == 0;
@@ -245,10 +240,6 @@ void ThreadStore::AttachCurrentThread(bool fAcquireThreadStoreLock)
     g_pThreadList = pThread;
 }
 #endif // 0
-void DestroyThread(Thread * pThread)
-{
-    // TODO: Implement
-}
 
 #if 0 
 void GCToEEInterface::SuspendEE(GCToEEInterface::SUSPEND_REASON reason)
@@ -290,12 +281,6 @@ void FinalizerThread::EnableFinalization()
 {
     // Signal to finalizer thread that there are objects to finalize
     // TODO: Implement for finalization
-}
-
-bool PalStartBackgroundGCThread(BackgroundCallback callback, void* pCallbackContext)
-{
-    // TODO: Implement for background GC
-    return false;
 }
 
 bool IsGCSpecialThread()

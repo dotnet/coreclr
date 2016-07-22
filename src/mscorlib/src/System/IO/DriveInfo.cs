@@ -40,9 +40,14 @@ namespace System.IO
 
     // Ideally we'll get a better security permission, but possibly
     // not for Whidbey.
+#if FEATURE_SERIALIZATION
     [Serializable]
+#endif
     [ComVisible(true)]
-    public sealed class DriveInfo : ISerializable
+    public sealed class DriveInfo
+#if FEATURE_SERIALIZATION
+        : ISerializable
+#endif
     {
         private String _name;
 

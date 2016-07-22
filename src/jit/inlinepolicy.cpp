@@ -67,14 +67,6 @@ InlinePolicy* InlinePolicy::GetPolicy(Compiler* compiler, bool isPrejitRoot)
         return new (compiler, CMK_Inlining) FullPolicy(compiler, isPrejitRoot);
     }
 
-    // Optionally install the ModelPolicy.
-    bool useModelPolicy = JitConfig.JitInlinePolicyModel() != 0;
-
-    if (useModelPolicy)
-    {
-        return new (compiler, CMK_Inlining) ModelPolicy(compiler, isPrejitRoot);
-    }
-
     // Optionally install the DiscretionaryPolicy.
     bool useDiscretionaryPolicy = JitConfig.JitInlinePolicyDiscretionary() != 0;
 
@@ -85,8 +77,19 @@ InlinePolicy* InlinePolicy::GetPolicy(Compiler* compiler, bool isPrejitRoot)
 
 #endif // defined(DEBUG) || defined(INLINE_DATA)
 
-    // Use the legacy policy
-    InlinePolicy* policy = new (compiler, CMK_Inlining) LegacyPolicy(compiler, isPrejitRoot);
+    InlinePolicy* policy = nullptr;
+    bool useModelPolicy = JitConfig.JitInlinePolicyModel() != 0;
+
+    if (useModelPolicy)
+    {
+        // Optionally install the ModelPolicy.
+        policy = new (compiler, CMK_Inlining) ModelPolicy(compiler, isPrejitRoot);
+    }
+    else
+    {
+        // Use the legacy policy
+        policy = new (compiler, CMK_Inlining) LegacyPolicy(compiler, isPrejitRoot);
+    }
 
     return policy;
 }
@@ -281,7 +284,7 @@ void LegacyPolicy::NoteBool(InlineObservation obs, bool value)
             // LegacyPolicy ignores this for prejit roots.
             if (!m_IsPrejitRoot)
             {
-                m_ArgFeedsConstantTest = value;
+                m_ArgFeedsConstantTest++;
             }
             break;
 
@@ -289,7 +292,7 @@ void LegacyPolicy::NoteBool(InlineObservation obs, bool value)
             // LegacyPolicy ignores this for prejit roots.
             if (!m_IsPrejitRoot)
             {
-                m_ArgFeedsRangeCheck = value;
+                m_ArgFeedsRangeCheck++;
             }
             break;
 
@@ -308,7 +311,7 @@ void LegacyPolicy::NoteBool(InlineObservation obs, bool value)
             // We shouldn't see this for a prejit root since
             // we don't know anything about callers.
             assert(!m_IsPrejitRoot);
-            m_ConstantFeedsConstantTest = value;
+            m_ConstantArgFeedsConstantTest++;
             break;
 
         case InlineObservation::CALLEE_BEGIN_OPCODE_SCAN:
@@ -572,7 +575,7 @@ double LegacyPolicy::DetermineMultiplier()
         JITDUMP("\nInline candidate looks like a wrapper method.  Multiplier increased to %g.", multiplier);
     }
 
-    if (m_ArgFeedsConstantTest)
+    if (m_ArgFeedsConstantTest > 0)
     {
         multiplier += 1.0;
         JITDUMP("\nInline candidate has an arg that feeds a constant test.  Multiplier increased to %g.", multiplier);
@@ -584,13 +587,13 @@ double LegacyPolicy::DetermineMultiplier()
         JITDUMP("\nInline candidate is mostly loads and stores.  Multiplier increased to %g.", multiplier);
     }
 
-    if (m_ArgFeedsRangeCheck)
+    if (m_ArgFeedsRangeCheck > 0)
     {
         multiplier += 0.5;
         JITDUMP("\nInline candidate has arg that feeds range check.  Multiplier increased to %g.", multiplier);
     }
 
-    if (m_ConstantFeedsConstantTest)
+    if (m_ConstantArgFeedsConstantTest > 0)
     {
         multiplier += 3.0;
         JITDUMP("\nInline candidate has const arg that feeds a conditional.  Multiplier increased to %g.", multiplier);
@@ -1087,8 +1090,6 @@ void RandomPolicy::DetermineProfitability(CORINFO_METHOD_INFO* methodInfo)
 
 #endif // DEBUG
 
-#if defined(DEBUG) || defined(INLINE_DATA)
-
 #ifdef _MSC_VER
 // Disable warning about new array member initialization behavior
 #pragma warning( disable : 4351 )
@@ -1163,11 +1164,18 @@ void DiscretionaryPolicy::NoteBool(InlineObservation obs, bool value)
         break;
 
     case InlineObservation::CALLEE_ARG_FEEDS_CONSTANT_TEST:
-        m_ArgFeedsConstantTest = value;
+        assert(value);
+        m_ArgFeedsConstantTest++;
         break;
 
     case InlineObservation::CALLEE_ARG_FEEDS_RANGE_CHECK:
-        m_ArgFeedsRangeCheck = value;
+        assert(value);
+        m_ArgFeedsRangeCheck++;
+        break;
+
+    case InlineObservation::CALLSITE_CONSTANT_ARG_FEEDS_TEST:
+        assert(value);
+        m_ConstantArgFeedsConstantTest++;
         break;
 
     default:
@@ -1521,6 +1529,9 @@ bool DiscretionaryPolicy::PropagateNeverToRuntime() const
 
 void DiscretionaryPolicy::DetermineProfitability(CORINFO_METHOD_INFO* methodInfo)
 {
+
+#if defined(DEBUG)
+
     // Punt if we're inlining and we've reached the acceptance limit.
     int limit = JitConfig.JitInlineLimit();
     unsigned current = m_RootCompiler->m_inlineStrategy->GetInlineCount();
@@ -1532,6 +1543,8 @@ void DiscretionaryPolicy::DetermineProfitability(CORINFO_METHOD_INFO* methodInfo
         SetFailure(InlineObservation::CALLSITE_OVER_INLINE_LIMIT);
         return;
     }
+
+#endif // defined(DEBUG)
 
     // Make additional observations based on the method info
     MethodInfoObservations(methodInfo);
@@ -1695,7 +1708,7 @@ void DiscretionaryPolicy::EstimateCodeSize()
           6.021 * m_CallCount +
          -0.238 * m_IsInstanceCtor +
          -5.357 * m_IsFromPromotableValueClass +
-         -7.901 * m_ConstantFeedsConstantTest +
+         -7.901 * (m_ConstantArgFeedsConstantTest > 0 ? 1 : 0)  +
           0.065 * m_CalleeNativeSizeEstimate;
 
     // Scaled up and reported as an integer value.
@@ -1739,6 +1752,8 @@ int DiscretionaryPolicy::CodeSizeEstimate()
 {
     return m_ModelCodeSizeEstimate;
 }
+
+#if defined(DEBUG) || defined(INLINE_DATA)
 
 //------------------------------------------------------------------------
 // DumpSchema: dump names for all the supporting data for the
@@ -1808,7 +1823,7 @@ void DiscretionaryPolicy::DumpSchema(FILE* file) const
     fprintf(file, ",ArgFeedsConstantTest");
     fprintf(file, ",IsMostlyLoadStore");
     fprintf(file, ",ArgFeedsRangeCheck");
-    fprintf(file, ",ConstantFeedsConstantTest");
+    fprintf(file, ",ConstantArgFeedsConstantTest");
     fprintf(file, ",CalleeNativeSizeEstimate");
     fprintf(file, ",CallsiteNativeSizeEstimate");
     fprintf(file, ",ModelCodeSizeEstimate");
@@ -1880,15 +1895,17 @@ void DiscretionaryPolicy::DumpData(FILE* file) const
     fprintf(file, ",%u", m_IsFromPromotableValueClass ? 1 : 0);
     fprintf(file, ",%u", m_HasSimd ? 1 : 0);
     fprintf(file, ",%u", m_LooksLikeWrapperMethod ? 1 : 0);
-    fprintf(file, ",%u", m_ArgFeedsConstantTest ? 1 : 0);
+    fprintf(file, ",%u", m_ArgFeedsConstantTest);
     fprintf(file, ",%u", m_MethodIsMostlyLoadStore ? 1 : 0);
-    fprintf(file, ",%u", m_ArgFeedsRangeCheck ? 1 : 0);
-    fprintf(file, ",%u", m_ConstantFeedsConstantTest ? 1 : 0);
+    fprintf(file, ",%u", m_ArgFeedsRangeCheck);
+    fprintf(file, ",%u", m_ConstantArgFeedsConstantTest);
     fprintf(file, ",%d", m_CalleeNativeSizeEstimate);
     fprintf(file, ",%d", m_CallsiteNativeSizeEstimate);
     fprintf(file, ",%d", m_ModelCodeSizeEstimate);
     fprintf(file, ",%d", m_PerCallInstructionEstimate);
 }
+
+#endif // defined(DEBUG) || defined(INLINE_DATA)
 
 //------------------------------------------------------------------------/
 // ModelPolicy: construct a new ModelPolicy
@@ -1901,6 +1918,73 @@ ModelPolicy::ModelPolicy(Compiler* compiler, bool isPrejitRoot)
     : DiscretionaryPolicy(compiler, isPrejitRoot)
 {
     // Empty
+}
+
+//------------------------------------------------------------------------
+// NoteInt: handle an observed integer value
+//
+// Arguments:
+//    obs      - the current obsevation
+//    value    - the value being observed
+//
+// Notes:
+//    The ILSize threshold used here should be large enough that
+//    it does not generally influence inlining decisions -- it only
+//    helps to make them faster.
+//
+//    The value is determined as follows. We figure out the maximum
+//    possible code size estimate that will lead to an inline. This is
+//    found by determining the maximum possible inline benefit and
+//    working backwards.
+//
+//    In the current ModelPolicy, the maximum benefit is -28.1, which
+//    comes from a CallSiteWeight of 3 and a per call benefit of
+//    -9.37.  This implies that any candidate with code size larger
+//    than (28.1/0.2) will not pass the threshold. So maximum code
+//    size estimate (in bytes) for any inlinee is 140.55, and hence
+//    maximum estimate is 1405.
+//
+//    Since we are trying to short circuit early in the evaluation
+//    process we don't have the code size estimate in hand. We need to
+//    estimate the possible code size estimate based on something we
+//    know cheaply and early -- the ILSize. So we use quantile
+//    regression to project how ILSize predicts the model code size
+//    estimate. Note that ILSize does not currently directly enter
+//    into the model.
+//
+//    The median value for the model code size estimate based on
+//    ILSize is given by -107 + 12.6 * ILSize for the V9 data.  This
+//    means an ILSize of 120 is likely to lead to a size estimate of
+//    at least 1405 at least 50% of the time. So we choose this as the
+//    early rejection threshold.
+
+void ModelPolicy::NoteInt(InlineObservation obs, int value)
+{
+    // Let underlying policy do its thing.
+    DiscretionaryPolicy::NoteInt(obs, value);
+
+    // Fail fast for inlinees that are too large to ever inline.
+    // The value of 120 is model-dependent; see notes above.
+    if (!m_IsForceInline &&
+        (obs == InlineObservation::CALLEE_IL_CODE_SIZE) &&
+        (value >= 120))
+    {
+        // Callee too big, not a candidate
+        SetNever(InlineObservation::CALLEE_TOO_MUCH_IL);
+        return;
+    }
+
+    // Safeguard against overly deep inlines
+    if (obs == InlineObservation::CALLSITE_DEPTH)
+    {
+        unsigned depthLimit = m_RootCompiler->m_inlineStrategy->GetMaxInlineDepth();
+
+        if (m_Depth > depthLimit)
+        {
+            SetFailure(InlineObservation::CALLSITE_IS_TOO_DEEP);
+            return;
+        }
+    }
 }
 
 //------------------------------------------------------------------------
@@ -1961,7 +2045,7 @@ void ModelPolicy::DetermineProfitability(CORINFO_METHOD_INFO* methodInfo)
         // positive be better and negative worse.
         double perCallBenefit = -((double) m_PerCallInstructionEstimate / (double) m_ModelCodeSizeEstimate);
 
-        // Now estimate the local call frequency.  
+        // Now estimate the local call frequency.
         //
         // Todo: use IBC data, or a better local profile estimate, or
         // try and incorporate this into the model. For instance if we
@@ -1970,10 +2054,24 @@ void ModelPolicy::DetermineProfitability(CORINFO_METHOD_INFO* methodInfo)
         // frequency, somehow.
         double callSiteWeight = 1.0;
 
-        if ((m_CallsiteFrequency == InlineCallsiteFrequency::LOOP) ||
-            (m_CallsiteFrequency == InlineCallsiteFrequency::HOT))
+        switch (m_CallsiteFrequency)
         {
-            callSiteWeight = 8.0;
+        case InlineCallsiteFrequency::RARE:
+            callSiteWeight = 0.1;
+            break;
+        case InlineCallsiteFrequency::BORING:
+            callSiteWeight = 1.0;
+            break;
+        case InlineCallsiteFrequency::WARM:
+            callSiteWeight = 1.5;
+            break;
+        case InlineCallsiteFrequency::LOOP:
+        case InlineCallsiteFrequency::HOT:
+            callSiteWeight = 3.0;
+            break;
+        default:
+            assert(false);
+            break;
         }
 
         // Determine the estimated number of instructions saved per
@@ -1981,8 +2079,8 @@ void ModelPolicy::DetermineProfitability(CORINFO_METHOD_INFO* methodInfo)
         // is our benefit figure of merit.
         double benefit = callSiteWeight * perCallBenefit;
 
-        // Compare this to the threshold, and inline if greater.  
-        // 
+        // Compare this to the threshold, and inline if greater.
+        //
         // The threshold is interpretable as a size/speed tradeoff:
         // the value of 0.2 below indicates we'll allow inlines that
         // grow code by as many as 5 bytes to save 1 instruction
@@ -2024,6 +2122,8 @@ void ModelPolicy::DetermineProfitability(CORINFO_METHOD_INFO* methodInfo)
         }
     }
 }
+
+#if defined(DEBUG) || defined(INLINE_DATA)
 
 //------------------------------------------------------------------------/
 // FullPolicy: construct a new FullPolicy
@@ -2490,6 +2590,22 @@ bool ReplayPolicy::FindInline(unsigned token, unsigned hash, unsigned offset)
 
         // We're good!
         foundInline = true;
+
+        // Check for a data collection marker. This does not affect
+        // matching...
+
+        // Get next line
+        if (fgets(buffer, sizeof(buffer), s_ReplayFile) != nullptr)
+        {
+            unsigned collectData = 0;
+            count = sscanf(buffer, " <CollectData>%u</CollectData> ", &collectData);
+
+            if (count == 1)
+            {
+                m_IsDataCollectionTarget = (collectData == 1);
+            }
+        }
+
         break;
     }
 
@@ -2576,12 +2692,13 @@ void ReplayPolicy::DetermineProfitability(CORINFO_METHOD_INFO* methodInfo)
     }
 
     // If we're also dumping inline data, make additional observations
-    // based on the method info, and estimate code size, so that the
-    // reports have the necessary data.
+    // based on the method info, and estimate code size and perf
+    // impact, so that the reports have the necessary data.
     if (JitConfig.JitInlineDumpData() != 0)
     {
         MethodInfoObservations(methodInfo);
         EstimateCodeSize();
+        EstimatePerformanceImpact();
         m_IsForceInline = m_WasForceInline;
     }
 

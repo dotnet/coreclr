@@ -13,9 +13,14 @@ namespace System.Reflection
     using System.Diagnostics.Contracts;
 
     // This is not serializable because it is a reflection command.
+#if FEATURE_SERIALIZATION
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
-    public sealed class Missing: ISerializable
+#endif
+    [System.Runtime.InteropServices.ComVisible(true)]
+    public sealed class Missing
+#if FEATURE_SERIALIZATION
+        : ISerializable
+#endif
     {
         public static readonly Missing Value = new Missing();
 

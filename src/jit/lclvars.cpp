@@ -156,12 +156,20 @@ void                Compiler::lvaInitTypeRef()
             }
 #else // !FEATURE_UNIX_AMD64_STRUCT_PASSING
             // Check for TYP_STRUCT argument that can fit into a single register
-            var_types argRetType = argOrReturnTypeForStruct(info.compMethodInfo->args.retTypeClass, true /* forReturn */);
-            info.compRetNativeType = argRetType;
-            if (argRetType == TYP_UNKNOWN)
+            structPassingKind howToReturnStruct;
+            var_types returnType = getReturnTypeForStruct(info.compMethodInfo->args.retTypeClass, &howToReturnStruct);
+            assert(howToReturnStruct != SPK_ByReference);  // hasRetBuffArg is false, so we can't have this answer here
+            info.compRetNativeType = returnType;
+            if (returnType == TYP_UNKNOWN)
             {
                 assert(!"Unexpected size when returning struct by value");
             }
+
+            // ToDo: Refactor this common code sequence into its own method as it is used 4+ times
+            if ((returnType == TYP_LONG) && (compLongUsed == false))
+                compLongUsed = true;
+            else if (((returnType == TYP_FLOAT) || (returnType == TYP_DOUBLE)) && (compFloatingPointUsed == false))
+                compFloatingPointUsed = true;
 #endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING
         }
     }
@@ -557,6 +565,10 @@ void                Compiler::lvaInitUserArgs(InitVarDscInfo *      varDscInfo)
         // For ARM, ARM64, and AMD64 varargs, all arguments go in integer registers
         var_types argType = mangleVarArgsType(varDsc->TypeGet());
         var_types origArgType = argType;
+        // ARM softfp calling convention should affect only the floating point arguments.
+        // Otherwise there appear too many surplus pre-spills and other memory operations
+        // with the associated locations .
+        bool isSoftFPPreSpill = opts.compUseSoftFP && varTypeIsFloating(varDsc->TypeGet());
         unsigned argSize = eeGetArgSize(argLst, &info.compMethodInfo->args);
         unsigned cSlots = argSize / TARGET_POINTER_SIZE;    // the total number of slots of this argument
         bool      isHfaArg = false;
@@ -574,7 +586,7 @@ void                Compiler::lvaInitUserArgs(InitVarDscInfo *      varDscInfo)
         }
         if (isHfaArg)
         {
-            // We have an HFA argument, so from here on our treat the type as a float or double.
+            // We have an HFA argument, so from here on out treat the type as a float or double.
             // The orginal struct type is available by using origArgType
             // We also update the cSlots to be the number of float/double fields in the HFA
             argType = hfaType;
@@ -591,7 +603,7 @@ void                Compiler::lvaInitUserArgs(InitVarDscInfo *      varDscInfo)
         // But we pre-spill user arguments in varargs methods and structs.
         //
         unsigned cAlign;
-        bool  preSpill = info.compIsVarArgs || opts.compUseSoftFP;
+        bool  preSpill = info.compIsVarArgs || isSoftFPPreSpill;
 
         switch (origArgType)
         {
@@ -708,7 +720,7 @@ void                Compiler::lvaInitUserArgs(InitVarDscInfo *      varDscInfo)
         }
 #endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
 
-        // The final home for this incoming register might be our local stack frame
+        // The final home for this incoming register might be our local stack frame.
         // For System V platforms the final home will always be on the local stack frame.
         varDsc->lvOnFrame = true;
 
@@ -921,7 +933,7 @@ void                Compiler::lvaInitUserArgs(InitVarDscInfo *      varDscInfo)
 #else // !FEATURE_UNIX_AMD64_STRUCT_PASSING
         compArgSize += argSize;
 #endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING
-        if (info.compIsVarArgs || isHfaArg || opts.compUseSoftFP)
+        if (info.compIsVarArgs || isHfaArg || isSoftFPPreSpill)
         {
 #if defined(_TARGET_X86_)
             varDsc->lvStkOffs       = compArgSize;
@@ -2848,8 +2860,10 @@ var_types           LclVarDsc::lvaArgType()
 
         }
     }
+#elif defined(_TARGET_X86_)
+    // Nothing to do; use the type as is.
 #else
-    NYI("unknown target");
+    NYI("lvaArgType");
 #endif //_TARGET_AMD64_
 
     return type;

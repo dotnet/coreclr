@@ -661,7 +661,16 @@ bool   Compiler::VarTypeIsMultiByteAndCanEnreg(var_types type,
         // Account for the classification of the struct.
         result = IsRegisterPassable(typeClass);
 #else // !FEATURE_UNIX_AMD64_STRUCT_PASSING
-        type = argOrReturnTypeForStruct(size, typeClass, forReturn);
+        if (forReturn)
+        {
+            structPassingKind howToReturnStruct;
+            type = getReturnTypeForStruct(typeClass, &howToReturnStruct, size);
+        }
+        else
+        {
+            structPassingKind howToPassStruct;
+            type = getArgTypeForStruct(typeClass, &howToPassStruct, size);
+        }
         if (type != TYP_UNKNOWN)
         {
             result = true;
@@ -1532,6 +1541,7 @@ bool                GenTree::gtOverflow() const
     assert(gtOper == GT_MUL      || gtOper == GT_CAST     ||
            gtOper == GT_ADD      || gtOper == GT_SUB      ||
            gtOper == GT_ASG_ADD  || gtOper == GT_ASG_SUB  ||
+           gtOper == GT_ADD_LO   || gtOper == GT_SUB_LO   ||
            gtOper == GT_ADD_HI   || gtOper == GT_SUB_HI);
 #else
     assert(gtOper == GT_MUL      || gtOper == GT_CAST     ||
@@ -4829,29 +4839,13 @@ inline GenTreePtr Compiler::fgGetLastTopLevelStmt(BasicBlock *block)
     return fgFindTopLevelStmtBackwards(block->bbTreeList->gtPrev->AsStmt());
 }
 
-// Creates an InitBlk or CpBlk node.
-// Parameters
-//     oper          - GT_COPYBLK, GT_INITBLK or GT_COPYOBJ
-//     dst           - Destination or target to copy to / initialize the buffer.
-//     srcOrFillVall - Either the source to copy from or the byte value to fill the buffer.
-//     sizeOrClsTok  - The size of the buffer or a class token (in the case of CpObj).
-//     volatil       - Whether this is a volatile memory operation or not.
-inline GenTreeBlkOp* Compiler::gtNewBlkOpNode(genTreeOps oper, GenTreePtr dst, 
-                                              GenTreePtr srcOrFillVal, GenTreePtr sizeOrClsTok,
-                                              bool volatil)
-{
-    GenTreeBlkOp* result = new (this, oper) GenTreeBlkOp(oper);
-    gtBlockOpInit(result, oper, dst, srcOrFillVal, sizeOrClsTok, volatil);
-    return result;
-}
-
 inline GenTreeBlkOp* Compiler::gtCloneCpObjNode(GenTreeCpObj* source)
 {
     GenTreeCpObj* result = new (this, GT_COPYOBJ) GenTreeCpObj(source->gtGcPtrCount,
                                                                source->gtSlots,
                                                                source->gtGcPtrs);
     gtBlockOpInit(result, GT_COPYOBJ, source->Dest(), source->Source(),
-                  source->ClsTok(), (source->gtFlags & GTF_BLK_VOLATILE) != 0);
+                  source->ClsTok(), source->IsVolatile());
     return result;
 }
 

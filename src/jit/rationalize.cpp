@@ -70,134 +70,6 @@ struct SplitData
     
     bool continueSubtrees; // whether to continue after splitting off a tree (in pre-order)
 };
-   
-//------------------------------------------------------------------------------
-// RewriteOneQuestion - split a question op into three parts: the test and branch, 
-//                      and true and false parts, with accompanying flow
-//------------------------------------------------------------------------------
-
-Location Rationalizer::RewriteOneQuestion(BasicBlock *block, GenTree *qmarkTree, GenTree *stmt, GenTree *dst)
-{
-    // First create all the blocks this is going to turn into.
-    // We end the current block here and insert a diamond
-    // consisting of the then/else blocks and the remainder, which is
-    // the point where flow merges back and the rest of the current block will end up
-
-    // TODO-Cleanup: avoid creating one of these blocks if that part of the qmark is a NOP
-    BasicBlock* remainderBlock = comp->fgSplitBlockAfterStatement(block, stmt);
-    BasicBlock*      elseBlock = comp->fgSplitBlockAfterStatement(block, stmt);
-    BasicBlock*      thenBlock = comp->fgSplitBlockAfterStatement(block, stmt);
-
-    // wire up the flow between the blocks and adjust their preds
-    block->bbJumpKind = BBJ_COND;
-    block->bbJumpDest = elseBlock;
-        
-    thenBlock->bbJumpKind = BBJ_ALWAYS;
-    thenBlock->bbJumpDest = remainderBlock;
-    thenBlock->bbFlags &= ~BBF_JMP_TARGET;
-
-    elseBlock->bbJumpKind = BBJ_NONE; // falls through to remainder
-    elseBlock->bbFlags |= (BBF_JMP_TARGET | BBF_HAS_LABEL);
-    comp->fgAddRefPred(elseBlock, block);
-
-    //JITDUMP("after splitting Q1");
-    //dumpMethod();
-
-    remainderBlock->bbFlags |= (BBF_JMP_TARGET | BBF_HAS_LABEL);
-    comp->fgAddRefPred(remainderBlock, thenBlock);
-    comp->fgRemoveRefPred(elseBlock, thenBlock);
-
-    //JITDUMP("after splitting Q2");
-    //dumpMethod();
-
-    // remove flag marking this as a question conditional
-    GenTree *conditionExpr = qmarkTree->gtGetOp1();
-    assert(conditionExpr->gtFlags & GTF_RELOP_QMARK);
-    conditionExpr->gtFlags &= ~GTF_RELOP_QMARK;
-    
-    comp->gtReverseCond(conditionExpr);
-    
-    // Wire up the jmp part.
-    // Note that, unlike later Rationalizer passes, the QMarks are done prior to the comma
-    // processing, and therefore prior to the creation of embedded statements.
-    // So we can safely re-sequence.
-    GenTree *jmpStmt = comp->fgNewStmtFromTree(comp->gtNewOperNode(GT_JTRUE, TYP_VOID, qmarkTree->gtGetOp1()), qmarkTree->gtStmt.gtStmtILoffsx);
-    comp->fgInsertStmtAtEnd(block, jmpStmt);
-
-    DBEXEC(TRUE, ValidateStatement(Location(jmpStmt, block)));
-
-    //JITDUMP("before splitting Q3");
-    //dumpMethod();
-    //DBEXEC(TRUE, comp->fgDebugCheckBBlist());
-
-    GenTree *trueExpr = qmarkTree->gtGetOp2()->gtGetOp2();
-    GenTree *falseExpr = qmarkTree->gtGetOp2()->gtGetOp1();
- 
-    IL_OFFSETX ilOffset = stmt->gtStmt.gtStmtILoffsx;
-    comp->fgRemoveStmt(block, stmt, false);
-
-    unsigned lclNum = 0;
-    bool resultUsed = false;
-
-    // if the dst of the qmark was a local then we can write directly to it
-    // otherwise make a temp and then do the indir/field/whatever writeback
-    if (dst && dst->IsLocal())
-    {
-        resultUsed = true;
-        lclNum = dst->gtLclVarCommon.gtLclNum;
-
-        // Increment its lvRefCnt and lvRefCntWtd
-        comp->lvaTable[lclNum].incRefCnts(block->getBBWeight(comp), comp);
-    }
-    else if (qmarkTree->TypeGet() != TYP_VOID)
-    {
-        resultUsed = true; // just guessing here
-        lclNum = comp->lvaGrabTemp(true DEBUGARG("lower question"));
-        comp->lvaTable[lclNum].lvType = qmarkTree->TypeGet();
-
-        // Increment its lvRefCnt and lvRefCntWtd twice, one for the def and one for the use
-        comp->lvaTable[lclNum].incRefCnts(block->getBBWeight(comp), comp);
-        comp->lvaTable[lclNum].incRefCnts(block->getBBWeight(comp), comp);
-    }
-
-    // assign the trueExpr into the dst or tmp, insert in thenBlock
-    if (trueExpr->OperGet() != GT_NOP)
-    {
-        if (trueExpr->TypeGet() != TYP_VOID)
-        {
-            assert(resultUsed);
-            trueExpr = CreateTempAssignment(comp, lclNum, trueExpr);
-        }
-        GenTree *trueStmt = comp->fgNewStmtFromTree(trueExpr, thenBlock, ilOffset);
-        comp->fgInsertStmtAtEnd(thenBlock, trueStmt);
-    }
-
-    // assign the falseExpr into the dst or tmp, insert in elseBlock
-    if (falseExpr->OperGet() != GT_NOP)
-    {
-        if (falseExpr->TypeGet() != TYP_VOID)
-        {
-            assert(resultUsed);
-            falseExpr = CreateTempAssignment(comp, lclNum, falseExpr);
-        }
-        GenTree *falseStmt = comp->fgNewStmtFromTree(falseExpr, elseBlock, ilOffset);
-        comp->fgInsertStmtAtEnd(elseBlock, falseStmt);
-    }
-
-    // if the dst is a local we have just written it out 
-    // but if not (like an indir or something) then we copy from the temp we allocated
-    if (dst && !dst->IsLocal())
-    {
-        GenTree *writeback = comp->gtNewAssignNode(dst, comp->gtNewLclvNode(lclNum, qmarkTree->TypeGet()));
-        GenTree *writeStmt = comp->fgNewStmtFromTree(writeback, remainderBlock, ilOffset);
-        comp->fgInsertStmtAtBeg(remainderBlock, writeStmt);
-    }
-
-    //JITDUMP("after splitting all");
-    //dumpMethod();
-
-    return Location(jmpStmt, block);
-}
 
 //------------------------------------------------------------------------------
 // isNodeCallArg - given a context (stack of parent nodes), determine if the TOS is an arg to a call
@@ -236,91 +108,6 @@ GenTree *isNodeCallArg(ArrayStack<GenTree *> *parentStack)
         }
     }
     return NULL;
-}
-
-//------------------------------------------------------------------------------
-// shouldSplitRationalPre - invoked in preorder in a tree walk to determine if 
-//                          we should split at this point in the tree, and at this 
-//                          point in the walk
-//------------------------------------------------------------------------------
-
-bool shouldSplitRationalPre(GenTree *tree, GenTree *parent, 
-                            Compiler::fgWalkData *data)
-{
-    if (!parent || parent->gtOper == GT_STMT)
-        return false;
-    
-    // the only thing we split in preorder are qmark ops
-    if ((tree->OperGet() == GT_QMARK)
-        && parent->gtOper != GT_ASG)
-        return true;
-
-    return false;
-}
-
-
-//------------------------------------------------------------------------------
-// shouldSplitRationalPost - invoked in postorder in a tree walk to determine if 
-//                           we should split at this point in the tree, and at this 
-//                           point in the walk
-//------------------------------------------------------------------------------
-
-bool shouldSplitRationalPost(GenTree *tree, GenTree *parent, 
-                             Compiler::fgWalkData *data)
-{
-    if (!parent || parent->gtOper == GT_STMT)
-        return false;
-    
-    SplitData *splitData = (SplitData *) data->pCallbackData;
-    auto phase = splitData->thisPhase;
-
-#ifndef _TARGET_AMD64_
-    if (tree->OperIsAssignment() 
-        // late args are not truly embedded assigns... or at least they are very limited ones
-        && !( isNodeCallArg(data->parentStack) && (tree->gtFlags & GTF_LATE_ARG)))
-    {
-        JITDUMP("splitting at assignment\n");
-        return true;
-    }
-
-    if (tree->IsCall() && !parent->OperIsAssignment())
-    {
-        JITDUMP("splitting a nested call\n");
-        return true;
-    }
-#endif
-
-    if ((tree->OperGet() == GT_QMARK)
-        && parent->gtOper != GT_ASG)
-    {
-        JITDUMP("splitting a question\n");
-        return true;
-    }
-
-    return false;
-}
-
-//------------------------------------------------------------------------------
-// fgSpliceTreeBefore - insert the given subtree 'tree' as a top level statement 
-//                      placed before top level statement 'insertionPoint'
-//------------------------------------------------------------------------------
-
-GenTreeStmt *
-Compiler::fgSpliceTreeBefore(BasicBlock* block, GenTreeStmt* insertionPoint, GenTree* tree, IL_OFFSETX ilOffset)
-{
-    assert(tree->gtOper != GT_STMT);
-    assert(fgBlockContainsStatementBounded(block, insertionPoint));
-
-    GenTreeStmt* newStmt = gtNewStmt(tree, ilOffset);
-    newStmt->CopyCosts(tree);
-    GenTreePtr newStmtFirstNode = Compiler::fgGetFirstNode(tree);
-    newStmt->gtStmt.gtStmtList = newStmtFirstNode;
-    newStmtFirstNode->gtPrev = nullptr;
-    tree->gtNext = nullptr;
-
-    fgInsertStmtBefore(block, insertionPoint, newStmt);
-
-    return newStmt;
 }
 
 //------------------------------------------------------------------------------
@@ -418,7 +205,7 @@ Compiler::fgMakeEmbeddedStmt(BasicBlock* block, GenTree* tree, GenTree* parentSt
         // For this case, we are actually going to insert it BEFORE parentStmt.
         // However if we have a new prevStmt (i.e. there are some embedded statements
         // to be included in newStmt) then those need to be moved as well.
-        // Note, however, that all the tree links have alraedy been fixed up.
+        // Note, however, that all the tree links have already been fixed up.
         fgInsertStmtBefore(block, parentStmt, newStmt);
         if (foundEmbeddedStmts)
         {
@@ -500,7 +287,7 @@ Compiler::fgInsertLinearNodeBefore(GenTreePtr newNode, GenTreePtr before)
 //    The new statement.
 //
 // Assumptions:
-//    The callee must ensure that '*ppTree' is part of compCurStmt, and that
+//    The caller must ensure that '*ppTree' is part of compCurStmt, and that
 //    compCurStmt is in compCurBB;
 
 GenTreeStmt*
@@ -539,138 +326,6 @@ Compiler::fgInsertEmbeddedFormTemp(GenTree** ppTree, unsigned lclNum)
 #endif // DEBUG
 
     return stmt;
-}
-
-//------------------------------------------------------------------------------
-// RenameUpdatedVars - detect trees that have internal assignments with preceding reads 
-//                     of the variables being written.
-//                     Replace the preceding reads with references to copies made in advance
-//                     in order to make breaking out the assignments legal
-//------------------------------------------------------------------------------
-
-void Rationalizer::RenameUpdatedVars(Location loc)
-{
-    // A variable which is assigned within the tree will have different 
-    // values at different points in the tree.  The rationalizer tries to
-    // break internal assignments out into their own tree and place those trees before
-    // the original tree.  This could result in changed meaning unless
-    // we have a way of differentiating between original and modified values
-
-    GenTree *statement = loc.tree;
-    assert(statement->IsStatement());
-
-    GenTree *tree = loc.tree->gtStmt.gtStmtExpr;
-
-    use->ZeroAll();
-    usedef->ZeroAll();
-    rename->ZeroAll();
-    unexp->ZeroAll();
-    
-    int *renameMap = (int *) alloca(sizeof(int) * comp->lvaCount);
-    var_types *renameTypeMap = (var_types *) alloca(sizeof(var_types) * comp->lvaCount);
-
-    // find locals that are redefined within the tree
-    foreach_treenode_execution_order(tree, statement)
-    {
-        if (tree->IsLocal())
-        {
-            int varIdx = tree->gtLclVarCommon.gtLclNum;
-            if (tree->gtFlags & GTF_VAR_DEF       // definition
-                || tree->gtFlags & GTF_VAR_USEDEF // this is a use/def as in x=x+y (only the lhs x is tagged)
-                || tree->gtFlags & GTF_VAR_USEASG)// this is a use/def for a x<op>=y
-            {
-                if (use->testBit(varIdx))
-                {
-                    usedef->setBit(varIdx);
-                }
-                else
-                {
-                    unexp->setBit(varIdx);
-                }
-            }
-            else
-            {
-                if (usedef->testBit(varIdx))
-                {
-                    rename->setBit(varIdx);
-                    renameTypeMap[varIdx] = tree->TypeGet();
-                }
-                else
-                {
-                    use->setBit(varIdx); // it's a plain use
-                }
-            }
-        }
-    }
-
-    if (!rename->anySet())
-        return;
-
-    indexType index;
-
-    // create the new variables and establish the mapping
-    // also insert copies before the statement
-    FOREACH_HBV_BIT_SET(index, rename)
-    {
-        JITDUMP("had to rename idx:%d in tree!\n", index);
-        DISPTREE(statement);
-
-        unsigned tmpIndex = 
-            renameMap[index] = 
-            comp->lvaGrabTemp(true DEBUGARG("rationalize renaming"));
-
-        LclVarDsc *newVar = &comp->lvaTable[tmpIndex];
-
-        newVar->lvType = renameTypeMap[index];
-
-        // Increment its lvRefCnt and lvRefCntWtd
-        comp->lvaTable[tmpIndex].incRefCnts(loc.block->getBBWeight(comp), comp);
-
-        // only need a copy for exposed uses, otherwise a def is the first occurence
-        if (!unexp->testBit(index))
-        {
-            GenTree *write = comp->gtNewAssignNode(comp->gtNewLclvNode(renameMap[index], newVar->TypeGet()), 
-                                                   comp->gtNewLclvNode((int)index, newVar->TypeGet()));
-
-            write = comp->fgNewStmtFromTree(write, statement->gtStmt.gtStmtILoffsx);
-            comp->fgInsertStmtBefore(loc.block, statement, write);
-
-            JITDUMP("New write tree:\n");
-            DISPTREE(write);
-        }
-    }
-    NEXT_HBV_BIT_SET;
-
-    hashBv *seenUse = hashBv::Create(this->comp);
-    hashBv *seenRedef = hashBv::Create(this->comp);
-
-    // we are looking for a def after use
-    // don't just start renaming if it kicks off with a def
-    foreach_treenode_execution_order(tree, statement)
-    {
-        if (tree->IsLocal())
-        {
-            int varIdx = tree->gtLclVarCommon.gtLclNum;
-            if (rename->testBit(varIdx))
-            {
-                if (tree->gtFlags & GTF_VAR_DEF
-                    //|| tree->gtFlags & GTF_VAR_USEDEF
-                    || tree->gtFlags & GTF_VAR_USEASG)
-                {
-                    if (seenUse->testBit(varIdx))
-                        seenRedef->setBit(varIdx);
-                }
-                else
-                {
-                    seenUse->setBit(varIdx);
-                }
-                if (!seenRedef->testBit(varIdx))
-                {
-                    tree->gtLclVarCommon.SetLclNum(renameMap[varIdx]);
-                }
-            }
-        }
-    }
 }
 
 // return op that is the store equivalent of the given load opcode
@@ -714,118 +369,60 @@ void copyFlags(GenTree *dst, GenTree *src, unsigned mask)
 }
 
 
-//------------------------------------------------------------------------------
-// RewriteQuestions - transform qmark ops, expanding them into multiple blocks
-//                    They should all be at the top level or immediately under an
-//                    assignment at this point
-//------------------------------------------------------------------------------
-
-Location Rationalizer::RewriteQuestions(Location loc)
-{
-    GenTree *topNode = loc.tree->gtStmt.gtStmtExpr;
-    // we should have things broken up so all questions are at top level
-    if (topNode->gtOper == GT_QMARK)
-    {
-        loc = RewriteOneQuestion(loc.block, topNode, loc.tree, NULL);
-        return loc;
-    }
-    else if (topNode->gtOper == GT_ASG)
-    {
-        // hope there's never a QMARK on the LHS
-        assert(topNode->gtGetOp1()->gtOper != GT_QMARK);
-
-        GenTree *questionOp = topNode->gtGetOp2();
-        if (questionOp->gtOper != GT_QMARK)
-            return loc;
-
-        loc = RewriteOneQuestion(loc.block, questionOp, loc.tree, topNode->gtGetOp1());
-        return loc;
-    }
-    else
-    {
-        return loc;
-    }
-}
-
-
 //--------------------------------------------------------------------------------------
-// RewriteTopLevelComma - split a top-level comma into two top level statements.
-//                                returns (as out params) the two new locations
+// RewriteTopLevelComma - remove a top-level comma by creating a new preceding statement
+//                        from its LHS and replacing the comma with its RHS (unless the
+//                        comma's RHS is a NOP, in which case the comma is replaced with
+//                        its LHS and no new statement is created)
+//
+// Returns the location of the statement that contains the LHS of the removed comma.
 //--------------------------------------------------------------------------------------
 
-void Rationalizer::RewriteTopLevelComma(Location loc, Location* out1, Location* out2)
+Location Rationalizer::RewriteTopLevelComma(Location loc)
 {
     GenTreeStmt* commaStmt = loc.tree->AsStmt();
+
     GenTree* commaOp = commaStmt->gtStmtExpr;
-
     assert(commaOp->OperGet() == GT_COMMA);
+
+    GenTree* commaOp1 = commaOp->gtGetOp1();
+    GenTree* commaOp2 = commaOp->gtGetOp2();
+
+    if (commaOp2->IsNothingNode())
+    {
+#ifdef DEBUG
+        if (comp->verbose)
+        {
+            printf("Replacing GT_COMMA(X, GT_NOP) by X\n");
+            comp->gtDispTree(commaOp);
+            printf("\n");
+        }
+#endif // DEBUG
+
+        comp->fgSnipNode(commaStmt, commaOp);
+        comp->fgDeleteTreeFromList(commaStmt, commaOp2);
+        commaStmt->gtStmtExpr = commaOp1;
+
+        return loc;
+    }
+
     JITDUMP("splitting top level comma!\n");
-    
-    GenTreeStmt* newStatement1 = comp->fgSpliceTreeBefore(loc.block, commaStmt, commaOp->gtGetOp1(), commaStmt->gtStmtILoffsx);
-    GenTreeStmt* newStatement2 = comp->fgSpliceTreeBefore(loc.block, commaStmt, commaOp->gtGetOp2(), commaStmt->gtStmtILoffsx);
-    
-    comp->fgRemoveStmt(loc.block, commaStmt, false);
-    
-    // these two subtrees still need to be processed
-    loc = Location(newStatement1, loc.block);
 
-    *out1 = Location(newStatement1, loc.block);
-    *out2 = Location(newStatement2, loc.block);
-}
+    // Replace the comma node in the original statement with the RHS of the comma node.
+    comp->fgDeleteTreeFromList(commaStmt, commaOp1);
+    comp->fgSnipNode(commaStmt, commaOp);
+    commaStmt->gtStmtExpr = commaOp2;
 
-//--------------------------------------------------------------------------------------
-// TreeTransformRationalization - Run the set of rationalizations on one statement that
-//                                transforms its underlying trees but doesn't perform 
-//                                tree walks to introduce new statements.
-//--------------------------------------------------------------------------------------
+    // Create and insert a new preceding statement from the LHS of the comma node.
+    GenTreeStmt* newStatement = comp->gtNewStmt(commaOp1, commaStmt->gtStmtILoffsx);
+    newStatement->CopyCosts(commaOp1);
+    newStatement->gtStmtList = Compiler::fgGetFirstNode(commaOp1);
+    newStatement->gtStmtList->gtPrev = nullptr;
+    commaOp1->gtNext = nullptr;
 
-Location Rationalizer::TreeTransformRationalization(Location loc)
-{
-top:
-    assert(loc.tree);
+    comp->fgInsertStmtBefore(loc.block, commaStmt, newStatement);
 
-    DBEXEC(TRUE, didSplit = false);
-
-    JITDUMP("Tree Transform Rationalization: BB%02u\n", loc.block->bbNum);
-    DISPTREE(loc.tree);
-    JITDUMP("\n");
-
-    comp->compCurStmt = loc.tree;
-    comp->compCurBB = loc.block;
-
-    // top level comma is a special case
-    if (loc.tree->gtStmt.gtStmtExpr->OperGet() == GT_COMMA)
-    {
-        Location loc1, loc2;
-        RewriteTopLevelComma(loc, &loc1, &loc2);
-        
-        loc = loc1;
-        goto top;
-    }
-
-    DBEXEC(TRUE, loc.Validate());
-
-#ifdef LEGACY_BACKEND
-    if (comp->compQmarkUsed)
-    {
-        loc = RewriteQuestions(loc);
-    }
-#endif // LEGACY_BACKEND
-
-    DBEXEC(TRUE, ValidateStatement(loc));
-
-    loc = RewriteSimpleTransforms(loc);
-    DBEXEC(TRUE, ValidateStatement(loc));
-
-    JITDUMP("comma processing top level statment:\n");
-    DISPTREE(loc.tree);
-    JITDUMP("\n");
-
-    DuplicateCommaProcessOneTree(comp, this, loc.block, loc.tree);
-    
-    DBEXEC(didSplit, comp->fgDebugCheckBBlist());
-            
-    return loc;
+    return Location(newStatement, loc.block);
 }
 
 
@@ -1083,26 +680,41 @@ Compiler::fgWalkResult Rationalizer::CommaHelper(GenTree **ppTree, Compiler::fgW
 
 // rewrite ASG nodes as either local store or indir store forms
 // also remove ADDR nodes
-Location Rationalizer::RewriteSimpleTransforms(Location loc)
+Location Rationalizer::TreeTransformRationalization(Location loc)
 {
-    GenTreeStmt * statement = (loc.tree)->AsStmt();
-    GenTree *     tree      = statement->gtStmt.gtStmtExpr;
+    GenTree*     savedCurStmt = comp->compCurStmt;
+    GenTreeStmt* statement    = (loc.tree)->AsStmt();
+    GenTree*     tree         = statement->gtStmt.gtStmtExpr;
 
-    JITDUMP("RewriteSimpleTransforms, with statement:\n");
+    JITDUMP("TreeTransformRationalization, with statement:\n");
     DISPTREE(statement);
     JITDUMP("\n");
 
+    DBEXEC(TRUE, loc.Validate());
+    DBEXEC(TRUE, ValidateStatement(loc));
+
     if (statement->gtStmtIsTopLevel())
     {
-        if (tree->OperGet() == GT_COMMA)
+        comp->compCurBB = loc.block;
+        comp->compCurStmt = statement;
+
+        while (tree->OperGet() == GT_COMMA)
         {
-            Location loc1, loc2;
-            RewriteTopLevelComma(loc, &loc1, &loc2);
-            RewriteSimpleTransforms(loc1);
-            RewriteSimpleTransforms(loc2);
-            return loc1;
+            // RewriteTopLevelComma may create a new preceding statement for the LHS of a
+            // top-level comma. If it does, we need to process that statement now.
+            Location newLoc = RewriteTopLevelComma(loc);
+            if (newLoc.tree != statement)
+            {
+                (void)TreeTransformRationalization(newLoc);
+            }
+
+            // RewriteTopLevelComma also replaces the tree for this statement with the RHS
+            // of the comma (or the LHS, if the RHS is a NOP), so we must reload it for
+            // correctness.
+            tree = statement->gtStmt.gtStmtExpr;
         }
-        else if (tree->OperKind() & GTK_CONST)
+
+        if (tree->OperKind() & GTK_CONST)
         {
             // Don't bother generating a top level statement that is just a constant.
             // We can get these if we decide to hoist a large constant value out of a loop.
@@ -1128,10 +740,15 @@ Location Rationalizer::RewriteSimpleTransforms(Location loc)
         tree->gtBashToNOP();
     }
 
+    DuplicateCommaProcessOneTree(comp, this, loc.block, loc.tree);
+
     JITDUMP("After simple transforms:\n");
     DISPTREE(statement);
     JITDUMP("\n");
 
+    DBEXEC(TRUE, ValidateStatement(loc));
+
+    comp->compCurStmt = savedCurStmt;
     return loc;
 }
 
@@ -1200,7 +817,7 @@ void Rationalizer::RecursiveRewriteComma(GenTree **ppTree, Compiler::fgWalkData 
     DISPTREE(stmt);
     JITDUMP("\n");
 
-    (void) ((Rationalizer *)tmpState->thisPhase)->RewriteSimpleTransforms(Location(newStmt, tmpState->block));
+    (void) ((Rationalizer *)tmpState->thisPhase)->TreeTransformRationalization(Location(newStmt, tmpState->block));
 
     // In a sense, assignment nodes have two destinations: 1) whatever they are writing to
     // and 2) they also produce the value that was written so their parent can consume it.
@@ -1233,12 +850,12 @@ void Rationalizer::RecursiveRewriteComma(GenTree **ppTree, Compiler::fgWalkData 
         DISPTREE(stmt);
         JITDUMP("\n");
 
-        (void) ((Rationalizer *)tmpState->thisPhase)->RewriteSimpleTransforms(Location(newStmt, tmpState->block));
+        (void) ((Rationalizer *)tmpState->thisPhase)->TreeTransformRationalization(Location(newStmt, tmpState->block));
 
         if (!nested)
             comp->fgFixupIfCallArg(data->parentStack, comma, newSrc);
 
-        (void) ((Rationalizer *)tmpState->thisPhase)->RewriteSimpleTransforms(Location(newStmt, tmpState->block));
+        (void) ((Rationalizer *)tmpState->thisPhase)->TreeTransformRationalization(Location(newStmt, tmpState->block));
 
         return;
     }
@@ -1903,31 +1520,6 @@ Compiler::fgWalkResult Rationalizer::SimpleTransformHelper(GenTree **ppTree, Com
         JITDUMP("\n");
         return SimpleTransformHelper(ppTree, data);
     }
-    else if (tree->gtOper == GT_QMARK)
-    {
-        // only certain forms of qmarks are allowed
-        // qmark(conditionExpr, 1, 0) is equivalent to conditionExpr
-        GenTree* colonNode = tree->gtOp.gtOp2;
-        GenTree* thenNode = colonNode->AsColon()->ThenNode();
-        GenTree* elseNode = colonNode->AsColon()->ElseNode();
-        assert(thenNode->IsCnsIntOrI());
-        assert(elseNode->IsCnsIntOrI());
-        assert(thenNode->gtIntConCommon.IconValue() == 1);
-        assert(elseNode->gtIntConCommon.IconValue() == 0);
-
-        Compiler::fgSnipNode(tmpState->root->AsStmt(), elseNode);
-        Compiler::fgSnipNode(tmpState->root->AsStmt(), thenNode);
-        Compiler::fgSnipNode(tmpState->root->AsStmt(), colonNode);
-        Compiler::fgSnipNode(tmpState->root->AsStmt(), tree);
-
-        *ppTree = tree->gtOp.gtOp1;
-        (*ppTree)->gtFlags &= ~GTF_RELOP_QMARK;
-        comp->fgFixupIfCallArg(data->parentStack, tree, *ppTree);
-
-        JITDUMP("Rewriting GT_QMARK(conditionExpr, 1, 0) to conditionExpr:\n");
-        DISPTREE(*ppTree);
-        JITDUMP("\n");
-    }
 #ifdef _TARGET_XARCH_
     else if (tree->gtOper == GT_CLS_VAR)
     {
@@ -2174,6 +1766,9 @@ void Rationalizer::SanityCheck()
                  tree; 
                  tree = tree->gtNext)
             {
+                // QMARK nodes should have been removed before this phase.
+                assert(tree->OperGet() != GT_QMARK);
+
                 if (tree->OperGet() == GT_ASG)
                 {
                     if (tree->gtGetOp1()->OperGet() == GT_LCL_VAR)
@@ -2206,72 +1801,8 @@ void Rationalizer::DoPhase()
     comp->compCurBB = NULL;
     comp->fgOrder = Compiler::FGOrderLinear;
 
-    // If the first block is BBF_INTERNAL, it is special.  Zero-inits must be placed in 
-    // this block, and it must fall through to the next block.  
-    // If there is a question op in the block (as can be the case with a just-my-code helper)
-    // then the rationalizer will expand that to flow and break the fallthrough invariant.  
-    // However, we need to still keep the zero-inits in the original block, so only split before
-    // the statement containing the qmark.
-
-    if (comp->fgFirstBB->bbFlags & BBF_INTERNAL)
-    {
-        BasicBlock* const block = comp->fgFirstBB;
-        for (GenTree* stmt = block->bbTreeList; stmt; stmt = stmt->gtNext)
-        {
-            GenTreePtr node;
-            foreach_treenode_execution_order(node, stmt)
-            {
-                if (node->gtOper == GT_QMARK)
-                {
-                    BasicBlock* newBlock;
-                    if (stmt == block->bbTreeList)
-                        newBlock = comp->fgSplitBlockAtBeginning(comp->fgFirstBB);
-                    else
-                        newBlock = comp->fgSplitBlockAfterStatement(block, stmt);
-                    newBlock->bbFlags &= ~BBF_INTERNAL;
-                }
-            }
-        }
-    }
-
-    use     = hashBv::Create(this->comp); // is used
-    usedef  = hashBv::Create(this->comp); // is used and then defined
-    rename  = hashBv::Create(this->comp); // is used, defined and used again
-    unexp   = hashBv::Create(this->comp); // is unexposed - there is a def in this tree before any uses
-
     // break up the trees at side effects, etc
     Location loc(comp->fgFirstBB);
-    while (loc.block)
-    {
-        RenameUpdatedVars(loc);
-
-        // If we have a top-level GT_COMMA(X, GT_NOP), replace it by X.
-        if (loc.tree->gtStmt.gtStmtExpr->OperGet() == GT_COMMA)
-        {
-            GenTree* commaStmt = loc.tree;
-            GenTree* commaOp = commaStmt->gtStmt.gtStmtExpr;
-            if (commaOp->gtGetOp2()->OperGet() == GT_NOP)
-            {
-#ifdef DEBUG
-                if (comp->verbose)
-                {
-                    printf("Replacing GT_COMMA(X, GT_NOP) by X\n");
-                    comp->gtDispTree(commaOp);
-                    printf("\n");
-                }
-#endif // DEBUG
-
-                comp->fgSnipNode(commaStmt->AsStmt(), commaOp);
-                comp->fgDeleteTreeFromList(commaStmt->AsStmt(), commaOp->gtGetOp2());
-                commaStmt->gtStmt.gtStmtExpr = commaOp->gtGetOp1();
-            }
-        }
-
-        loc = loc.Next();
-    }
-
-    loc.Reset(comp);
-
     while (loc.block)
     {
         loc = TreeTransformRationalization(loc);

@@ -702,7 +702,7 @@ GenTreeStmt*  Compiler::fgInsertStmtNearEnd(BasicBlock* block, GenTreePtr node)
  *
  *  Insert the given statement "stmt" after GT_STMT node "insertionPoint".
  *  Returns the newly inserted GT_STMT node.
- *  Note that the gtPrev list of statment nodes is circular, but the gtNext list is not.
+ *  Note that the gtPrev list of statement nodes is circular, but the gtNext list is not.
  */
 
 GenTreePtr          Compiler::fgInsertStmtAfter(BasicBlock* block,
@@ -4954,39 +4954,54 @@ void Compiler::fgAdjustForAddressExposedOrWrittenThis()
 //
 //    If we're inlining we also look at the argument values supplied by
 //    the caller at this call site.
+//
+//    The crude stack model may overestimate stack depth.
 
 void Compiler::fgObserveInlineConstants(OPCODE opcode, const FgStack& stack, bool isInlining)
 {
     // We should be able to record inline observations.
     assert(compInlineResult != nullptr);
 
-    if (!stack.IsStackTwoDeep())
-    {
-        // The stack only has to be 1 deep for BRTRUE/FALSE
-        if (stack.IsStackOneDeep())
-        {
-            if (opcode == CEE_BRFALSE || opcode == CEE_BRFALSE_S ||
-                opcode == CEE_BRTRUE || opcode == CEE_BRTRUE_S)
-            {
-                unsigned slot0 = stack.GetSlot0();
-                if (FgStack::IsArgument(slot0))
-                {
-                    compInlineResult->Note(InlineObservation::CALLEE_ARG_FEEDS_CONSTANT_TEST);
+    // The stack only has to be 1 deep for BRTRUE/FALSE
+    bool lookForBranchCases = stack.IsStackAtLeastOneDeep();
 
-                    if (isInlining)
+    if (compInlineResult->UsesLegacyPolicy())
+    {
+        // LegacyPolicy misses cases where the stack is really one
+        // deep but the model says it's two deep. We need to do
+        // likewise to preseve old behavior.
+        lookForBranchCases &= !stack.IsStackTwoDeep();
+    }
+
+    if (lookForBranchCases)
+    {
+        if (opcode == CEE_BRFALSE || opcode == CEE_BRFALSE_S ||
+            opcode == CEE_BRTRUE || opcode == CEE_BRTRUE_S)
+        {
+            unsigned slot0 = stack.GetSlot0();
+            if (FgStack::IsArgument(slot0))
+            {
+                compInlineResult->Note(InlineObservation::CALLEE_ARG_FEEDS_CONSTANT_TEST);
+
+                if (isInlining)
+                {
+                    // Check for the double whammy of an incoming constant argument
+                    // feeding a constant test.
+                    unsigned varNum = FgStack::SlotTypeToArgNum(slot0);
+                    if (impInlineInfo->inlArgInfo[varNum].argNode->OperIsConst())
                     {
-                        // Check for the double whammy of an incoming constant argument
-                        // feeding a constant test.
-                        unsigned varNum = FgStack::SlotTypeToArgNum(slot0);
-                        if (impInlineInfo->inlArgInfo[varNum].argNode->OperIsConst())
-                        {
-                            compInlineResult->Note(InlineObservation::CALLSITE_CONSTANT_ARG_FEEDS_TEST);
-                        }
+                        compInlineResult->Note(InlineObservation::CALLSITE_CONSTANT_ARG_FEEDS_TEST);
                     }
                 }
             }
-        }
 
+            return;
+        }
+    }
+
+    // Remaining cases require at least two things on the stack.
+    if (!stack.IsStackTwoDeep())
+    {
         return;
     }
 
@@ -6756,13 +6771,23 @@ bool                Compiler::fgIsCommaThrow(GenTreePtr tree,
     return false;
 }
 
-
+//------------------------------------------------------------------------
+// fgIsIndirOfAddrOfLocal: Determine whether "tree" is an indirection of a local.
+//
+// Arguments:
+//    tree - The tree node under consideration
+//
+// Return Value:
+//    If "tree" is a indirection (GT_IND, GT_BLK, or GT_OBJ) whose arg is an ADDR,
+//    whose arg in turn is a LCL_VAR, return that LCL_VAR node, else nullptr.
+//
+// static
 GenTreePtr          Compiler::fgIsIndirOfAddrOfLocal(GenTreePtr tree)
 {
     GenTreePtr res = nullptr;
-    if (tree->OperGet() == GT_OBJ || tree->OperIsIndir())
+    if (tree->OperIsIndir())
     {
-        GenTreePtr addr = tree->gtOp.gtOp1;
+        GenTreePtr addr = tree->AsIndir()->Addr();
 
         // Post rationalization, we can have Indir(Lea(..) trees. Therefore to recognize
         // Indir of addr of a local, skip over Lea in Indir(Lea(base, index, scale, offset))
@@ -8848,6 +8873,7 @@ void                Compiler::fgFindOperOrder()
         {
             /* Recursively process the statement */
 
+            compCurStmt = stmt;
             gtSetStmtInfo(stmt);
         }
     }
@@ -18155,6 +18181,7 @@ void                Compiler::fgSetBlockOrder(BasicBlock* block)
     }
 }
 
+#ifdef LEGACY_BACKEND
 /*****************************************************************************
  *
  * For GT_INITBLK and GT_COPYBLK, the tree looks like this :
@@ -18231,13 +18258,14 @@ void            Compiler::fgOrderBlockOps(GenTreePtr   tree,
     regsPtr[1]  = regs[ order[1] ];
     regsPtr[2]  = regs[ order[2] ];
 }
+#endif // LEGACY_BACKEND
 
 //------------------------------------------------------------------------
 // fgFindTopLevelStmtBackwards: Find the nearest top-level statement to 'stmt', walking the gtPrev links.
 //      The nearest one might be 'stmt' itself.
 //
 // Arguments:
-//    stmt - The statment to start the search with.
+//    stmt - The statement to start the search with.
 //
 // Return Value:
 //    The nearest top-level statement, walking backwards.
@@ -18423,7 +18451,7 @@ void Compiler::fgDeleteTreeFromList(GenTreeStmt* stmt, GenTreePtr tree)
 
 
 //------------------------------------------------------------------------
-// fgTreeIsInStmt: return 'true' if 'tree' is in the execution order list of statment 'stmt'.
+// fgTreeIsInStmt: return 'true' if 'tree' is in the execution order list of statement 'stmt'.
 // This works for a single node or an entire tree, assuming a well-formed tree, where the entire
 // tree's set of nodes are in the statement execution order list.
 //
@@ -18537,7 +18565,7 @@ GenTreeStmt* Compiler::fgInsertTreeBeforeAsEmbedded(GenTree* tree, GenTree* inse
     fgInsertTreeInListBefore(tree, insertionPoint, stmt);
 
     // While inserting a statement as embedded, the parent specified has to be a top-level statement
-    // since we could be inserting it ahead of an already existing embedded statment
+    // since we could be inserting it ahead of an already existing embedded statement
     // in execution order.
     GenTreeStmt* topStmt = fgFindTopLevelStmtBackwards(stmt);
     GenTreeStmt* result = fgMakeEmbeddedStmt(block, tree, topStmt);
@@ -21584,38 +21612,32 @@ Compiler::fgWalkResult      Compiler::fgUpdateInlineReturnExpressionPlaceHolder(
                                        : NO_CLASS_HANDLE;
 #endif // defined(FEATURE_HFA) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
 
-
         do
         {
             // Obtained the expanded inline candidate
-            GenTreePtr inlineCandidate;
-
-            inlineCandidate = tree->gtRetExpr.gtInlineCandidate;
-
-            // If the inlineCandidate node is a leaf, we can just overwrite "tree" with it.
-            // But if it's not, we have to make sure to do a deep copy before overwriting it.
-            if (inlineCandidate->OperIsLeaf())
-            {
-                tree->CopyFrom(inlineCandidate, comp);
-            }
-            else
-            {
-                tree->CopyFrom(comp->gtCloneExpr(inlineCandidate), comp);
-#ifdef DEBUG
-                comp->CopyTestDataToCloneTree(inlineCandidate, tree);
-#endif // DEBUG
-            }
+            GenTreePtr inlineCandidate = tree->gtRetExpr.gtInlineCandidate;
 
 #ifdef DEBUG
-            if (false && comp->verbose)
+            if (comp->verbose)
             {
-
-                printf("\nAfter updating the return expression place holder ");
+                printf("\nReplacing the return expression placeholder ");              
                 printTreeID(tree);
-                printf(" for call ");
+                printf(" with ");
                 printTreeID(inlineCandidate);
-                printf(":\n");
+                printf("\n");
+                // Dump out the old return expression placeholder it will be overwritten by the CopyFrom below
                 comp->gtDispTree(tree);
+            }
+#endif // DEBUG
+
+            tree->CopyFrom(inlineCandidate, comp);           
+
+#ifdef DEBUG
+            if (comp->verbose)
+            {
+                printf("\nInserting the inline return expression\n");
+                comp->gtDispTree(tree);
+                printf("\n");
             }
 #endif // DEBUG
         }
@@ -21927,9 +21949,9 @@ void       Compiler::fgInvokeInlineeCompiler(GenTreeCall*  call,
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 void Compiler::fgInsertInlineeBlocks(InlineInfo* pInlineInfo)
 {
-    GenTreePtr   iciCall  = pInlineInfo->iciCall;
-    GenTreePtr   iciStmt  = pInlineInfo->iciStmt;
-    BasicBlock*  iciBlock = pInlineInfo->iciBlock;
+    GenTreePtr   iciCall     = pInlineInfo->iciCall;
+    GenTreePtr   iciStmt     = pInlineInfo->iciStmt;
+    BasicBlock*  iciBlock    = pInlineInfo->iciBlock;
     BasicBlock*  block;
 
     // We can write better assert here. For example, we can check that
@@ -22000,6 +22022,12 @@ void Compiler::fgInsertInlineeBlocks(InlineInfo* pInlineInfo)
                 stmtAfter = fgInsertStmtListAfter(iciBlock,
                                                   stmtAfter,
                                                   InlineeCompiler->fgFirstBB->bbTreeList);
+
+                // Copy inlinee bbFlags to caller bbFlags.
+                const unsigned int inlineeBlockFlags = InlineeCompiler->fgFirstBB->bbFlags;
+                noway_assert((inlineeBlockFlags & BBF_HAS_JMP) == 0);
+                noway_assert((inlineeBlockFlags & BBF_KEEP_BBJ_ALWAYS) == 0);
+                iciBlock->bbFlags |= inlineeBlockFlags;
             }
 #ifdef DEBUG
             if (verbose)
@@ -22225,22 +22253,22 @@ _Done:
     if ((pInlineInfo->inlineCandidateInfo->fncRetType != TYP_VOID) || (iciCall->gtCall.gtReturnType == TYP_STRUCT))
     {
         noway_assert(pInlineInfo->retExpr);
-        iciCall->CopyFrom(pInlineInfo->retExpr, this);
-
 #ifdef DEBUG
         if (verbose)
         {
-            printf("\nReturn expression for inlinee ");
+            printf("\nReturn expression for call at ");
             printTreeID(iciCall);
-            printf(" :\n");
-            gtDispTree(iciCall);
+            printf(" is\n");
+            gtDispTree(pInlineInfo->retExpr);
         }
 #endif // DEBUG
+        // Replace the call with the return expression
+        iciCall->CopyFrom(pInlineInfo->retExpr, this);
     }
 
     //
     // Detach the GT_CALL node from the original statement by hanging a "nothing" node under it,
-    // so that fgMorphStmts can remove the statment once we return from here.
+    // so that fgMorphStmts can remove the statement once we return from here.
     //
     iciStmt->gtStmt.gtStmtExpr = gtNewNothingNode();
 }

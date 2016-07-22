@@ -218,9 +218,7 @@ FCFuncStart(gStringFuncs)
     FCDynamicSig(COR_CTOR_METHOD_NAME, &gsig_IM_Char_Int_RetVoid, CORINFO_INTRINSIC_Illegal, ECall::CtorCharCountManaged)
     FCFuncElementSig(COR_CTOR_METHOD_NAME, &gsig_IM_PtrSByt_RetVoid, COMString::StringInitCharPtr)
     FCFuncElementSig(COR_CTOR_METHOD_NAME, &gsig_IM_PtrSByt_Int_Int_RetVoid, COMString::StringInitCharPtrPartial)
-#ifndef FEATURE_CORECLR
     FCFuncElementSig(COR_CTOR_METHOD_NAME, &gsig_IM_PtrSByt_Int_Int_Encoding_RetVoid, COMString::StringInitSBytPtrPartialEx)
-#endif // FEATURE_CORECLR
     FCFuncElement("IsFastSort", COMString::IsFastSort)
     FCFuncElement("nativeCompareOrdinalIgnoreCaseWC", COMString::FCCompareOrdinalIgnoreCaseWC)
     FCIntrinsic("get_Length", COMString::Length, CORINFO_INTRINSIC_StringLength)
@@ -340,8 +338,8 @@ FCFuncEnd()
 FCFuncStart(gExceptionFuncs)
     FCFuncElement("IsImmutableAgileException", ExceptionNative::IsImmutableAgileException)
     FCFuncElement("nIsTransient", ExceptionNative::IsTransient)
-#ifndef FEATURE_CORECLR
     FCFuncElement("GetMethodFromStackTrace", SystemNative::GetMethodFromStackTrace)
+#ifndef FEATURE_CORECLR
     FCFuncElement("StripFileInfo", ExceptionNative::StripFileInfo)
 #endif
     QCFuncElement("GetMessageFromNativeResources", ExceptionNative::GetMessageFromNativeResources)
@@ -1519,9 +1517,7 @@ FCFuncStart(gArrayFuncs)
     FCFuncElement("GetUpperBound", ArrayNative::GetUpperBound)
     FCIntrinsicSig("GetLength", &gsig_IM_Int_RetInt, ArrayNative::GetLength, CORINFO_INTRINSIC_Array_GetDimLength)
     FCFuncElement("get_Length", ArrayNative::GetLengthNoRank)
-#ifndef FEATURE_CORECLR
     FCFuncElement("get_LongLength", ArrayNative::GetLongLengthNoRank)
-#endif
     FCFuncElement("GetDataPtrOffsetInternal", ArrayNative::GetDataPtrOffsetInternal)
     FCFuncElement("Initialize", ArrayNative::Initialize)
     FCFuncElement("Copy", ArrayNative::ArrayCopy)
@@ -1550,8 +1546,8 @@ FCFuncStart(gBufferFuncs)
 FCFuncEnd()
 
 FCFuncStart(gGCInterfaceFuncs)
-#ifndef FEATURE_CORECLR
     FCFuncElement("GetGenerationWR", GCInterface::GetGenerationWR)
+#ifndef FEATURE_CORECLR
     FCFuncElement("_RegisterForFullGCNotification", GCInterface::RegisterForFullGCNotification)
     FCFuncElement("_CancelFullGCNotification", GCInterface::CancelFullGCNotification)
     FCFuncElement("_WaitForFullGCApproach", GCInterface::WaitForFullGCApproach)

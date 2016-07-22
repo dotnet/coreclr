@@ -495,11 +495,18 @@ public:
 
     bool isContainedLclField() const        { return isContained() && isLclField(); }
 
+    bool isContainedLclVar() const          { return isContained() && (OperGet() == GT_LCL_VAR);  } 
+
+    bool isContainedSpillTemp() const;
+
     // Indicates whether it is a memory op.
     // Right now it includes Indir and LclField ops.
     bool isMemoryOp() const                 { return isIndir() || isLclField(); }
 
-    bool isContainedMemoryOp() const        { return isContained() && isMemoryOp(); }
+    bool isContainedMemoryOp() const        
+    { 
+        return (isContained() && isMemoryOp()) || isContainedLclVar() || isContainedSpillTemp(); 
+    }
 
     regNumber GetRegNum() const
     {
@@ -660,11 +667,13 @@ public:
     #define GTF_REVERSE_OPS     0x00000020  // operand op2 should be evaluated before op1 (normally, op1 is evaluated first and op2 is evaluated second)
     #define GTF_REG_VAL         0x00000040  // operand is sitting in a register (or part of a TYP_LONG operand is sitting in a register)
 
-    #define GTF_SPILLED         0x00000080  // the value   has been spilled
-    #define GTF_SPILLED_OPER    0x00000100  //   op1 has been spilled
+    #define GTF_SPILLED         0x00000080  // the value has been spilled
 
 #ifdef LEGACY_BACKEND
-    #define GTF_SPILLED_OP2     0x00000200  //   op2 has been spilled
+    #define GTF_SPILLED_OPER    0x00000100  // op1 has been spilled
+    #define GTF_SPILLED_OP2     0x00000200  // op2 has been spilled
+#else
+    #define GTF_NOREG_AT_USE    0x00000100  // tree node is in memory at the point of use
 #endif // LEGACY_BACKEND
 
     #define GTF_REDINDEX_CHECK  0x00000100  // Used for redundant range checks. Disjoint from GTF_SPILLED_OPER
@@ -982,15 +991,10 @@ public:
         return (gtOper == GT_LEA);
     }
 
-    bool            OperIsBlkOp() const
-    {
-        return OperIsBlkOp(OperGet());
-    }
-
-    bool            OperIsCopyBlkOp() const
-    {
-        return OperIsCopyBlkOp(OperGet());
-    }
+    bool            OperIsBlkOp() const;
+    bool            OperIsCopyBlkOp() const;
+    bool            OperIsInitBlkOp() const;
+    bool            OperIsDynBlkOp();
 
     bool            OperIsPutArgStk() const
     {
@@ -1200,7 +1204,7 @@ public:
     static
     bool            OperIsIndir(genTreeOps gtOper)
     {
-        return  gtOper == GT_IND || gtOper == GT_STOREIND || gtOper == GT_NULLCHECK;
+        return  gtOper == GT_IND || gtOper == GT_STOREIND || gtOper == GT_NULLCHECK || gtOper == GT_OBJ;
     }
 
     bool            OperIsIndir() const
@@ -1468,6 +1472,10 @@ public:
     // yields an address into a local
     GenTreeLclVarCommon* IsLocalAddrExpr();
 
+    // Determine if this is a LclVarCommon node and return some additional info about it in the
+    // two out parameters.
+    bool IsLocalExpr(Compiler* comp, GenTreeLclVarCommon** pLclVarTree, FieldSeqNode** pFldSeq);
+
     // Determine whether this is an assignment tree of the form X = X (op) Y,
     // where Y is an arbitrary tree, and X is a lclVar.
     unsigned             IsLclVarUpdateTree(GenTree** otherTree, genTreeOps *updateOper);
@@ -1619,6 +1627,11 @@ public:
     // cast operations 
     inline var_types            CastFromType();
     inline var_types&           CastToType();
+
+    // Returns true if this gentree node is marked by lowering to indicate
+    // that codegen can still generate code even if it wasn't allocated a 
+    // register.
+    bool IsRegOptional() const;   
 
     // Returns "true" iff "*this" is an assignment (GT_ASG) tree that defines an SSA name (lcl = phi(...));
     bool IsPhiDefn();
@@ -1950,6 +1963,8 @@ struct GenTreeIntCon: public GenTreeIntConCommon
         {
             assert(fields != NULL);
         }
+
+    void FixupInitBlkValue(var_types asgType);
 
 #ifdef _TARGET_64BIT_
     void TruncateOrSignExtend32()
@@ -3269,8 +3284,14 @@ public:
                                 return gtOp1->gtOp.gtOp1;
                               }
 
+    // Return true iff the object being copied contains one or more GC pointers.
+    bool        HasGCPtr();
+
     // True if this BlkOpNode is a volatile memory operation.
     bool IsVolatile() const { return (gtFlags & GTF_BLK_VOLATILE) != 0; }
+
+    // True if this BlkOpNode is a volatile memory operation.
+    bool IsUnaligned() const { return (gtFlags & GTF_BLK_UNALIGNED) != 0; }
 
     // Instruction selection: during codegen time, what code sequence we will be using
     // to encode this operation.
@@ -3297,27 +3318,6 @@ protected:
     friend GenTree;
     GenTreeBlkOp() : GenTreeOp(){}
 #endif // DEBUGGABLE_GENTREE
-};
-
-// gtObj  -- 'object' (GT_OBJ). */
-
-struct GenTreeObj: public GenTreeUnOp
-{
-    // The address of the block.
-    GenTreePtr&     Addr()          { return gtOp1; }
-
-    CORINFO_CLASS_HANDLE gtClass;   // the class of the object
-
-    GenTreeObj(var_types type, GenTreePtr addr, CORINFO_CLASS_HANDLE cls) : 
-        GenTreeUnOp(GT_OBJ, type, addr),
-        gtClass(cls)
-        {
-            gtFlags |= GTF_GLOB_REF; // An Obj is always a global reference.
-        }
-
-#if DEBUGGABLE_GENTREE
-    GenTreeObj() : GenTreeUnOp() {}
-#endif
 };
 
 // Represents a CpObj MSIL Node.
@@ -3525,6 +3525,25 @@ protected:
     friend GenTree;
     // Used only for GenTree::GetVtableForOper()
     GenTreeIndir() : GenTreeOp() {}
+#endif
+};
+
+// gtObj  -- 'object' (GT_OBJ). */
+
+struct GenTreeObj: public GenTreeIndir
+{
+    CORINFO_CLASS_HANDLE gtClass;   // the class of the object
+
+    GenTreeObj(var_types type, GenTreePtr addr, CORINFO_CLASS_HANDLE cls) : 
+        GenTreeIndir(GT_OBJ, type, addr, nullptr),
+        gtClass(cls)
+        {
+            // By default, an OBJ is assumed to be a global reference.
+            gtFlags |= GTF_GLOB_REF;
+        }
+
+#if DEBUGGABLE_GENTREE
+    GenTreeObj() : GenTreeIndir() {}
 #endif
 };
 
@@ -4100,6 +4119,28 @@ struct GenTreeCopyOrReload : public GenTreeUnOp
 // be defined already.
 //------------------------------------------------------------------------
 
+inline bool            GenTree::OperIsBlkOp() const
+{
+    return (gtOper == GT_INITBLK ||
+            gtOper == GT_COPYBLK ||
+            gtOper == GT_COPYOBJ);
+}
+
+inline bool            GenTree::OperIsDynBlkOp()
+{
+    return (OperIsBlkOp() && !gtGetOp2()->IsCnsIntOrI());
+}
+
+inline bool            GenTree::OperIsCopyBlkOp() const
+{
+    return (gtOper == GT_COPYOBJ || gtOper == GT_COPYBLK);
+}
+
+inline bool GenTree::OperIsInitBlkOp() const
+{
+    return (gtOper == GT_INITBLK);
+}
+
 //------------------------------------------------------------------------
 // IsFPZero: Checks whether this is a floating point constant with value 0.0
 //
@@ -4435,6 +4476,42 @@ inline bool GenTree::IsHelperCall() { return OperGet() == GT_CALL && gtCall.gtCa
 inline var_types GenTree::CastFromType() { return this->gtCast.CastOp()->TypeGet(); }
 inline var_types& GenTree::CastToType()  { return this->gtCast.gtCastType; }
 
+//-----------------------------------------------------------------------------------
+// HasGCPtr: determine whether this block op involves GC pointers
+//
+// Arguments:
+//     None
+//
+// Return Value:
+//    Returns true iff the object being copied contains one or more GC pointers.
+//
+// Notes:
+//    Of the block ops only GT_COPYOBJ is allowed to have GC pointers.
+// 
+inline bool
+GenTreeBlkOp::HasGCPtr()
+{
+    if (gtFlags & GTF_BLK_HASGCPTR)
+    {
+        assert((gtOper == GT_COPYOBJ) && (AsCpObj()->gtGcPtrCount != 0));
+        return true;
+    }
+    return false;
+}
+
+inline bool GenTree::isContainedSpillTemp() const
+{
+#if !defined(LEGACY_BACKEND)
+    // If spilled and no reg at use, then it is treated as contained.
+    if (((gtFlags & GTF_SPILLED) != 0) &&
+        ((gtFlags & GTF_NOREG_AT_USE) != 0))
+    {
+        return true;
+    }
+#endif //!LEGACY_BACKEND
+
+    return false;
+}
 
 /*****************************************************************************/
 

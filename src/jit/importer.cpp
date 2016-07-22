@@ -1074,7 +1074,7 @@ GenTreePtr Compiler::impAssignStruct(GenTreePtr     dest,
 
 /*****************************************************************************/
 
-GenTreePtr Compiler::impAssignStructPtr(GenTreePtr      dest,
+GenTreePtr Compiler::impAssignStructPtr(GenTreePtr      destAddr,
                                         GenTreePtr      src,
                                         CORINFO_CLASS_HANDLE    structHnd,
                                         unsigned        curLevel,
@@ -1082,6 +1082,8 @@ GenTreePtr Compiler::impAssignStructPtr(GenTreePtr      dest,
                                         BasicBlock    * block        /* = NULL */
                                        ) 
 {
+    GenTreePtr dest = nullptr;
+
 #if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
     assert(varTypeIsStruct(src) ||  (src->gtOper == GT_ADDR && src->TypeGet() == TYP_BYREF));
     // TODO-ARM-BUG: Does ARM need this?
@@ -1109,7 +1111,7 @@ GenTreePtr Compiler::impAssignStructPtr(GenTreePtr      dest,
             // Case of call returning a struct via hidden retbuf arg
 
             // insert the return value buffer into the argument list as first byref parameter
-            src->gtCall.gtCallArgs = gtNewListNode(dest, src->gtCall.gtCallArgs);
+            src->gtCall.gtCallArgs = gtNewListNode(destAddr, src->gtCall.gtCallArgs);
 
             // now returns void, not a struct
             src->gtType = TYP_VOID;
@@ -1126,12 +1128,12 @@ GenTreePtr Compiler::impAssignStructPtr(GenTreePtr      dest,
             // We don't need a return buffer, so just change this to "(returnType)*dest = call"
             src->gtType = genActualType(returnType);
 
-            if ((dest->gtOper == GT_ADDR) && (dest->gtOp.gtOp1->gtOper == GT_LCL_VAR))
+            if ((destAddr->gtOper == GT_ADDR) && (destAddr->gtOp.gtOp1->gtOper == GT_LCL_VAR))
             {
                 // If it is a multi-reg struct return, don't change the oper to GT_LCL_FLD.
                 // That is, IR will be of the form lclVar = call for multi-reg return
 
-                GenTreePtr lcl = dest->gtOp.gtOp1;
+                GenTreePtr lcl = destAddr->gtOp.gtOp1;
                 if (!src->AsCall()->HasMultiRegRetVal())
                 {
                     lcl->ChangeOper(GT_LCL_FLD);
@@ -1153,7 +1155,7 @@ GenTreePtr Compiler::impAssignStructPtr(GenTreePtr      dest,
             }
             else
             {
-                dest = gtNewOperNode(GT_IND, returnType, dest);
+                dest = gtNewOperNode(GT_IND, returnType, destAddr);
 
                 // !!! The destination could be on stack. !!!
                 // This flag will let us choose the correct write barrier.
@@ -1171,7 +1173,7 @@ GenTreePtr Compiler::impAssignStructPtr(GenTreePtr      dest,
         if (call->AsCall()->HasRetBufArg())
         {
             // insert the return value buffer into the argument list as first byref parameter
-            call->gtCall.gtCallArgs = gtNewListNode(dest, call->gtCall.gtCallArgs);
+            call->gtCall.gtCallArgs = gtNewListNode(destAddr, call->gtCall.gtCallArgs);
 
             // now returns void, not a struct
             src->gtType  = TYP_VOID;
@@ -1188,7 +1190,7 @@ GenTreePtr Compiler::impAssignStructPtr(GenTreePtr      dest,
             src->gtType  = genActualType(returnType);
             call->gtType = src->gtType;
 
-            dest = gtNewOperNode(GT_IND, returnType, dest);
+            dest = gtNewOperNode(GT_IND, returnType, destAddr);
 
             // !!! The destination could be on stack. !!!
             // This flag will let us choose the correct write barrier.
@@ -1205,19 +1207,19 @@ GenTreePtr Compiler::impAssignStructPtr(GenTreePtr      dest,
     else if (src->gtOper == GT_MKREFANY)
     {
         // Since we are assigning the result of a GT_MKREFANY, 
-        // "dest" must point to a refany.
+        // "destAddr" must point to a refany.
 
-        GenTreePtr destClone;
-        dest = impCloneExpr(dest, &destClone, structHnd, curLevel, pAfterStmt DEBUGARG("MKREFANY assignment") );
+        GenTreePtr destAddrClone;
+        destAddr = impCloneExpr(destAddr, &destAddrClone, structHnd, curLevel, pAfterStmt DEBUGARG("MKREFANY assignment") );
 
         assert(offsetof(CORINFO_RefAny, dataPtr) == 0);
-        assert(dest->gtType == TYP_I_IMPL || dest->gtType == TYP_BYREF);
-        GetZeroOffsetFieldMap()->Set(dest, GetFieldSeqStore()->CreateSingleton(GetRefanyDataField()));
-        GenTreePtr ptrSlot  = gtNewOperNode(GT_IND, TYP_I_IMPL, dest);
+        assert(destAddr->gtType == TYP_I_IMPL || destAddr->gtType == TYP_BYREF);
+        GetZeroOffsetFieldMap()->Set(destAddr, GetFieldSeqStore()->CreateSingleton(GetRefanyDataField()));
+        GenTreePtr ptrSlot  = gtNewOperNode(GT_IND, TYP_I_IMPL, destAddr);
         GenTreeIntCon* typeFieldOffset = gtNewIconNode(offsetof(CORINFO_RefAny, type), TYP_I_IMPL);
         typeFieldOffset->gtFieldSeq = GetFieldSeqStore()->CreateSingleton(GetRefanyTypeField());
         GenTreePtr typeSlot = gtNewOperNode(GT_IND, TYP_I_IMPL,
-                                  gtNewOperNode(GT_ADD, dest->gtType, destClone, typeFieldOffset));
+                                  gtNewOperNode(GT_ADD, destAddr->gtType, destAddrClone, typeFieldOffset));
 
         // append the assign of the pointer value
         GenTreePtr asg = gtNewAssignNode(ptrSlot, src->gtOp.gtOp1);
@@ -1235,7 +1237,7 @@ GenTreePtr Compiler::impAssignStructPtr(GenTreePtr      dest,
     }
     else if (src->gtOper == GT_COMMA)
     {
-        // Second thing is the struct or it's address.
+        // The second thing is the struct or its address.
         assert(varTypeIsStruct(src->gtOp.gtOp2) || src->gtOp.gtOp2->gtType == TYP_BYREF);
         if (pAfterStmt)
         {
@@ -1246,8 +1248,8 @@ GenTreePtr Compiler::impAssignStructPtr(GenTreePtr      dest,
             impAppendTree(src->gtOp.gtOp1, curLevel, impCurStmtOffs);  // do the side effect
         }
 
-        // evaluate the second thing using recursion
-        return impAssignStructPtr(dest, src->gtOp.gtOp2, structHnd, curLevel, pAfterStmt, block);
+        // Evaluate the second thing using recursion.
+        return impAssignStructPtr(destAddr, src->gtOp.gtOp2, structHnd, curLevel, pAfterStmt, block);
     }
     else if (src->gtOper == GT_ADDR)
     {
@@ -1259,7 +1261,7 @@ GenTreePtr Compiler::impAssignStructPtr(GenTreePtr      dest,
     }
 
     // return a CpObj node, to be appended
-    return gtNewCpObjNode(dest, src, structHnd, false);
+    return gtNewCpObjNode(destAddr, src, structHnd, false);
 }
 
 /*****************************************************************************
@@ -1283,7 +1285,7 @@ GenTreePtr Compiler::impGetStructAddr(GenTreePtr    structVal,
     if (oper == GT_OBJ && willDeref)
     {
         assert(structVal->gtObj.gtClass == structHnd);
-        return(structVal->gtObj.gtOp.gtOp1);
+        return(structVal->gtObj.Addr());
     }
     else if (oper == GT_CALL || oper == GT_RET_EXPR || oper == GT_OBJ || oper == GT_MKREFANY)
     {
@@ -3378,13 +3380,6 @@ InterlockedBinOpCommon:
         if (retNode == nullptr)
         {
             NO_WAY("JIT must expand the intrinsic!");
-        }
-        else if ((retNode->gtFlags & GTF_CALL) != 0)
-        {
-            // If we must expand the intrinsic,
-            // retNode (the tree that corresponds to the intrinsic expansion) must be non-null,
-            // and the returned tree must not contain a call.
-            NO_WAY("JIT must not implement the intrinsic by a user call!");
         }
     }
 
@@ -7456,16 +7451,28 @@ GenTreePtr                Compiler::impFixupCallStructReturn(GenTreePtr     call
     return call;
 #endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
 
-    // Check for TYP_STRUCT argument that can fit into a single register
-    // change the type on those trees.
-    var_types regType = argOrReturnTypeForStruct(retClsHnd, true);
-    if (regType != TYP_UNKNOWN)
+    // Check for TYP_STRUCT type that wraps a primitive type
+    // Such structs are returned using a single register 
+    // and we change the return type on those calls here.
+    //
+    structPassingKind howToReturnStruct;
+    var_types returnType = getReturnTypeForStruct(retClsHnd, &howToReturnStruct);
+
+    if (howToReturnStruct == SPK_ByReference)
     {
-        call->gtCall.gtReturnType = regType;
+        assert(returnType == TYP_UNKNOWN);
+        call->gtCall.gtCallMoreFlags |= GTF_CALL_M_RETBUFFARG;
     }
     else
     {
-        call->gtCall.gtCallMoreFlags |= GTF_CALL_M_RETBUFFARG; 
+        assert(returnType != TYP_UNKNOWN);
+        call->gtCall.gtReturnType = returnType;
+
+        // ToDo: Refactor this common code sequence into its own method as it is used 4+ times
+        if ((returnType == TYP_LONG) && (compLongUsed == false))
+            compLongUsed = true;
+        else if (((returnType == TYP_FLOAT) || (returnType == TYP_DOUBLE)) && (compFloatingPointUsed == false))
+            compFloatingPointUsed = true;
     }
 
     return call;
@@ -7741,6 +7748,14 @@ void                Compiler::impImportLeave(BasicBlock * block)
                                            endCatches, endCatch);
             else
                 endCatches = endCatch;
+
+#ifdef DEBUG
+            if (verbose)
+            {
+                printf("impImportLeave - BB%02u jumping out of catch handler EH#%u, adding call to CORINFO_HELP_ENDCATCH\n",
+                    block->bbNum, XTnum);
+            }
+#endif
         }
         else if (HBtab->HasFinallyHandler() &&
                   jitIsBetween(blkAddr, tryBeg, tryEnd)    &&

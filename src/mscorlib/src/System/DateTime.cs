@@ -52,8 +52,14 @@ namespace System {
     // 
     // 
     [StructLayout(LayoutKind.Auto)]
+#if FEATURE_SERIALIZATION
     [Serializable]
-    public struct DateTime : IComparable, IFormattable, IConvertible, ISerializable, IComparable<DateTime>,IEquatable<DateTime> {
+#endif
+    public struct DateTime : IComparable, IFormattable, IConvertible, IComparable<DateTime>, IEquatable<DateTime>
+#if FEATURE_SERIALIZATION
+        , ISerializable
+#endif
+    {
     
         // Number of 100ns ticks per time unit
         private const long TicksPerMillisecond = 10000;

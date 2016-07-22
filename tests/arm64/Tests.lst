@@ -2839,7 +2839,7 @@ RelativePath=baseservices\threading\mutex\openexisting\openmutexpos4\openmutexpo
 WorkingDir=baseservices\threading\mutex\openexisting\openmutexpos4
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=NEW;EXPECTED_PASS
+Categories=NEW;EXPECTED_PASS;GCSTRESS_FAIL;ISSUE_6060
 HostStyle=0
 [threadstartarray.cmd_406]
 RelativePath=baseservices\threading\paramthreadstart\threadstartarray\threadstartarray.cmd
@@ -3329,7 +3329,7 @@ RelativePath=baseservices\threading\regressions\269336\objmonhelper\objmonhelper
 WorkingDir=baseservices\threading\regressions\269336\objmonhelper
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=NEW;EXPECTED_PASS
+Categories=NEW;EXPECTED_PASS;GCSTRESS_FAIL;ISSUE_6065
 HostStyle=0
 [30032.cmd_476]
 RelativePath=baseservices\threading\regressions\30032\30032\30032.cmd
@@ -40198,7 +40198,7 @@ RelativePath=JIT\Methodical\Arrays\lcs\_dbglcsvalbox\_dbglcsvalbox.cmd
 WorkingDir=JIT\Methodical\Arrays\lcs\_dbglcsvalbox
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=Pri0;JIT;EXPECTED_PASS
+Categories=Pri0;JIT;EXPECTED_PASS;GCSTRESS_FAIL;ISSUE_6065
 HostStyle=0
 [_il_dbglcs_ldlen.cmd_5816]
 RelativePath=JIT\Methodical\Arrays\lcs\_il_dbglcs_ldlen\_il_dbglcs_ldlen.cmd
@@ -40268,7 +40268,7 @@ RelativePath=JIT\Methodical\Arrays\lcs\_rellcsvalbox\_rellcsvalbox.cmd
 WorkingDir=JIT\Methodical\Arrays\lcs\_rellcsvalbox
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=Pri0;JIT;EXPECTED_PASS
+Categories=Pri0;JIT;EXPECTED_PASS;GCSTRESS_FAIL;ISSUE_6065
 HostStyle=0
 [_speed_dbglcs.cmd_5826]
 RelativePath=JIT\Methodical\Arrays\lcs\_speed_dbglcs\_speed_dbglcs.cmd
@@ -40324,7 +40324,7 @@ RelativePath=JIT\Methodical\Arrays\lcs\_speed_dbglcsvalbox\_speed_dbglcsvalbox.c
 WorkingDir=JIT\Methodical\Arrays\lcs\_speed_dbglcsvalbox
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=Pri0;JIT;EXPECTED_PASS
+Categories=Pri0;JIT;EXPECTED_PASS;GCSTRESS_FAIL;ISSUE_6065
 HostStyle=0
 [_speed_rellcs.cmd_5834]
 RelativePath=JIT\Methodical\Arrays\lcs\_speed_rellcs\_speed_rellcs.cmd
@@ -40380,7 +40380,7 @@ RelativePath=JIT\Methodical\Arrays\lcs\_speed_rellcsvalbox\_speed_rellcsvalbox.c
 WorkingDir=JIT\Methodical\Arrays\lcs\_speed_rellcsvalbox
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=Pri0;JIT;EXPECTED_PASS
+Categories=Pri0;JIT;EXPECTED_PASS;GCSTRESS_FAIL;ISSUE_6065
 HostStyle=0
 [_dbgarrres.cmd_5842]
 RelativePath=JIT\Methodical\Arrays\misc\_dbgarrres\_dbgarrres.cmd
@@ -55451,7 +55451,7 @@ RelativePath=JIT\Performance\CodeQuality\BenchmarksGame\binarytrees\binarytrees\
 WorkingDir=JIT\Performance\CodeQuality\BenchmarksGame\binarytrees\binarytrees
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=Pri0;EXPECTED_PASS;LONG_RUNNING
+Categories=Pri0;EXPECTED_PASS;LONG_RUNNING;GCSTRESS_FAIL;ISSUE_6065
 HostStyle=0
 [fasta.cmd_8016]
 RelativePath=JIT\Performance\CodeQuality\BenchmarksGame\fasta\fasta\fasta.cmd
@@ -55577,7 +55577,7 @@ RelativePath=JIT\Performance\CodeQuality\V8\DeltaBlue\DeltaBlue\DeltaBlue.cmd
 WorkingDir=JIT\Performance\CodeQuality\V8\DeltaBlue\DeltaBlue
 Expected=0
 MaxAllowedDurationSeconds=1000
-Categories=Pri0;EXPECTED_PASS;LONG_RUNNING
+Categories=Pri0;EXPECTED_PASS;LONG_RUNNING;GCSTRESS_FAIL;ISSUE_6065
 HostStyle=0
 [Richards.cmd_8034]
 RelativePath=JIT\Performance\CodeQuality\V8\Richards\Richards\Richards.cmd
@@ -61107,7 +61107,7 @@ RelativePath=JIT\Regression\CLR-x86-JIT\V1.1-M1-Beta1\b143840\b143840\b143840.cm
 WorkingDir=JIT\Regression\CLR-x86-JIT\V1.1-M1-Beta1\b143840\b143840
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=Pri0;EXPECTED_PASS;GC_GEN0
+Categories=Pri0;EXPECTED_PASS
 HostStyle=0
 [b102879.cmd_8847]
 RelativePath=JIT\Regression\CLR-x86-JIT\V1.2-Beta1\b102879\b102879\b102879.cmd

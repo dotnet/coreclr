@@ -22,8 +22,13 @@ namespace System.Text
     ** to Everett compatibility as well.
     ==============================================================================*/
 
+#if FEATURE_SERIALIZATION
     [Serializable]
-    internal sealed class MLangCodePageEncoding : ISerializable, IObjectReference
+#endif
+    internal sealed class MLangCodePageEncoding : IObjectReference
+#if FEATURE_SERIALIZATION
+        , ISerializable
+#endif
     {
         // Temp stuff
         [NonSerialized]
@@ -105,9 +110,14 @@ namespace System.Text
         }
 #endif
 
-        // Same problem with the Encoder, this only happens with Everett Encoders
+// Same problem with the Encoder, this only happens with Everett Encoders
+#if FEATURE_SERIALIZATION
         [Serializable]
-        internal sealed class MLangEncoder : ISerializable, IObjectReference
+#endif
+        internal sealed class MLangEncoder : IObjectReference
+#if FEATURE_SERIALIZATION
+            , ISerializable
+#endif
         {
             // Might need this when GetRealObjecting
             [NonSerialized]
@@ -144,8 +154,13 @@ namespace System.Text
 
 
         // Same problem with the Decoder, this only happens with Everett Decoders
+#if FEATURE_SERIALIZATION
         [Serializable]
-        internal sealed class MLangDecoder : ISerializable, IObjectReference
+#endif
+        internal sealed class MLangDecoder : IObjectReference
+#if FEATURE_SERIALIZATION
+            , ISerializable
+#endif
         {
             // Might need this when GetRealObjecting
             [NonSerialized]

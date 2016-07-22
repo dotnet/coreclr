@@ -7,11 +7,14 @@ namespace System
     using System;
     using System.Reflection;
     using System.Runtime;
+    using System.Runtime.CompilerServices;
     using System.Runtime.Serialization;
     using System.Diagnostics.Contracts;
     using System.Reflection.Emit;
-    
+
+#if FEATURE_SERIALIZATION
     [Serializable]
+#endif
     [System.Runtime.InteropServices.ComVisible(true)]
     public abstract class MulticastDelegate : Delegate
     {
@@ -103,11 +106,18 @@ namespace System
         [System.Security.SecuritySafeCritical]  // auto-generated
         public override sealed bool Equals(Object obj)
         {
-            if (obj == null || !InternalEqualTypes(this, obj))
-                return false;      
-            MulticastDelegate d = obj as MulticastDelegate;
-            if (d == null)
+            if (obj == null)
                 return false;
+            if (object.ReferenceEquals(this, obj))
+                return true;
+            if (!InternalEqualTypes(this, obj))
+                return false;
+            
+            // Since this is a MulticastDelegate and we know
+            // the types are the same, obj should also be a
+            // MulticastDelegate
+            Contract.Assert(obj is MulticastDelegate, "Shouldn't have failed here since we already checked the types are the same!");
+            var d = JitHelpers.UnsafeCast<MulticastDelegate>(obj);
 
             if (_invocationCount != (IntPtr)0) 
             {

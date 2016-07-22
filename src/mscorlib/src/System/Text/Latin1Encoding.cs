@@ -19,8 +19,13 @@ namespace System.Text
     // Latin1Encoding is a simple override to optimize the GetString version of Latin1Encoding.
     // because of the best fit cases we can't do this when encoding the string, only when decoding
     //
+#if FEATURE_SERIALIZATION
     [Serializable]
-    internal class Latin1Encoding : EncodingNLS, ISerializable
+#endif
+    internal class Latin1Encoding : EncodingNLS
+#if FEATURE_SERIALIZATION
+        , ISerializable
+#endif
     {
         // We only use the best-fit table, of which ASCII is a superset for us.
         public Latin1Encoding() : base(Encoding.ISO_8859_1)
@@ -490,7 +495,7 @@ namespace System.Text
             }
         }
 
-#if !FEATURE_NORM_IDNA_ONLY        
+#if !FEATURE_NORM_IDNA_ONLY
         public override bool IsAlwaysNormalized(NormalizationForm form)
         {
             // Latin-1 contains precomposed characters, so normal for Form C.

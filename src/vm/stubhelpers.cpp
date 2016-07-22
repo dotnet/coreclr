@@ -143,7 +143,7 @@ void StubHelpers::ProcessByrefValidationList()
 {
     CONTRACTL
     {
-        THROWS;
+        NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;           
     }
@@ -168,8 +168,16 @@ void StubHelpers::ProcessByrefValidationList()
     }
     EX_CATCH
     {
-        FormatValidationMessage(entry.pMD, errorString);
-        EEPOLICY_HANDLE_FATAL_ERROR_WITH_MESSAGE(COR_E_EXECUTIONENGINE, errorString.GetUnicode());
+        EX_TRY
+        {
+            FormatValidationMessage(entry.pMD, errorString);
+            EEPOLICY_HANDLE_FATAL_ERROR_WITH_MESSAGE(COR_E_EXECUTIONENGINE, errorString.GetUnicode());
+        }
+        EX_CATCH
+        {
+            EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
+        }
+        EX_END_CATCH_UNREACHABLE;
     }
     EX_END_CATCH_UNREACHABLE;
 
@@ -1245,9 +1253,7 @@ FCIMPL2(void*, StubHelpers::GetDelegateTarget, DelegateObject *pThisUNSAFE, UINT
     UINT_PTR target = (UINT_PTR)orefThis->GetMethodPtrAux();
 
     // The lowest bit is used to distinguish between MD and target on 64-bit.
-#ifdef _TARGET_AMD64_
     target = (target << 1) | 1;
-#endif // _TARGET_AMD64_
 
     // On 64-bit we pass the real target to the stub-for-host through this out argument,
     // see IL code gen in NDirectStubLinker::DoNDirect for details.

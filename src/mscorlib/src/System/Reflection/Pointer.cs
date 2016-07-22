@@ -18,10 +18,16 @@ namespace System.Reflection {
     using System.Diagnostics.Contracts;
 
     [CLSCompliant(false)]
+#if FEATURE_SERIALIZATION
     [Serializable]
+#endif
     [System.Runtime.InteropServices.ComVisible(true)]
-    public sealed class Pointer: ISerializable {
-        [SecurityCritical]
+    public sealed class Pointer
+#if FEATURE_SERIALIZATION
+        : ISerializable
+#endif
+    {
+    [SecurityCritical]
         unsafe private void* _ptr;
         private RuntimeType _ptrType;
 

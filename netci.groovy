@@ -1,7 +1,6 @@
 // Import the utility functionality.
 
-import jobs.generation.Utilities;
-import jobs.generation.JobReport;
+import jobs.generation.*
 
 // The input project name (e.g. dotnet/coreclr)
 def project = GithubProject
@@ -493,7 +492,14 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
             case 'gcstress0x3':            
                 if (os != 'CentOS7.1' && !(os in bidailyCrossList)) {
                     assert (os == 'Windows_NT') || (os in Constants.crossList)
-                    Utilities.addPeriodicTrigger(job, '@weekly')
+                    if (architecture == 'arm64') {
+                        assert (os == 'Windows_NT')
+                        Utilities.addPeriodicTrigger(job, '@daily')
+                        addEmailPublisher(job, 'dotnetonarm64@microsoft.com')
+                    }
+                    else {
+                        Utilities.addPeriodicTrigger(job, '@weekly')
+                    }
                 }
                 break
             case 'gcstress0xc':
@@ -554,7 +560,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                 case 'Ubuntu16.04':
                     assert !isFlowJob
                     assert scenario == 'default'
-                    Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build", '(?i).*test\\W+${os}\\W+.*')
+                    Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build", "(?i).*test\\W+${os}\\W+.*")
                     break                
                 case 'Ubuntu':
                 case 'OSX':
@@ -1068,7 +1074,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
             }
             break
         case 'arm64':
-            assert (scenario == 'default') || (scenario == 'pri1r2r') || (scenario == 'gcstress0xc')
+            assert (scenario == 'default') || (scenario == 'pri1r2r') || (scenario == 'gcstress0x3') || (scenario == 'gcstress0xc')
 
             // Set up a private trigger
             def contextString = "${os} ${architecture} Cross ${configuration}"
@@ -1089,6 +1095,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                             "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}", null, arm64Users)
                             break
                         case 'pri1r2r':
+                        case 'gcstress0x3':
                         case 'gcstress0xc':
                             Utilities.addPrivateGithubPRTriggerForBranch(job, branch, contextString,
                             "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}\\W+${scenario}", null, arm64Users)
@@ -1325,7 +1332,7 @@ combinedScenarios.each { scenario ->
                         
                         switch (architecture) {
                             case 'arm64':
-                                if (scenario != 'gcstress0xc') {
+                                if ((scenario != 'gcstress0x3') && (scenario != 'gcstress0xc')) {
                                     return
                                 }
                                 break
@@ -1649,7 +1656,7 @@ combinedScenarios.each { scenario ->
                                     
                                     break
                                 case 'arm64':
-                                    assert (scenario == 'default') || (scenario == 'pri1r2r') || (scenario == 'gcstress0xc')
+                                    assert (scenario == 'default') || (scenario == 'pri1r2r') || (scenario == 'gcstress0x3') || (scenario == 'gcstress0xc')
                                     // Set time out
                                     setTestJobTimeOut(newJob, scenario)
 
@@ -1767,11 +1774,24 @@ combinedScenarios.each { scenario ->
                                         def armemul_path = '/opt/linux-arm-emulator'
                                         def armrootfs_mountpath = '/opt/linux-arm-emulator-root'
 
-                                        // Call the ARM emulator build script to cross build using the ARM emulator rootfs
-                                        buildCommands += "./tests/scripts/arm32_ci_script.sh --emulatorPath=${armemul_path} --mountPath=${armrootfs_mountpath} --buildConfig=${lowerConfiguration}"
+                                        // Unzip the Windows test binaries first. Exit with 0
+                                        buildCommands += "unzip -q -o ./bin/tests/tests.zip -d ./bin/tests/Windows_NT.x64.${configuration} || exit 0"
+
+                                        // Unpack the corefx binaries
+                                        buildCommands += "tar -xf ./bin/build.tar.gz"
+
+                                        // Call the ARM emulator build script to cross build and test using the ARM emulator rootfs
+                                        buildCommands += """./tests/scripts/arm32_ci_script.sh \\
+                                        --emulatorPath=${armemul_path} \\
+                                        --mountPath=${armrootfs_mountpath} \\
+                                        --buildConfig=${lowerConfiguration} \\
+                                        --testRootDir=./bin/tests/Windows_NT.x64.${configuration} \\
+                                        --coreFxNativeBinDir=./bin/Linux.arm-softfp.${configuration} \\
+                                        --coreFxBinDir=\"./bin/Linux.AnyCPU.${configuration};./bin/Unix.AnyCPU.${configuration};./bin/AnyOS.AnyCPU.${configuration}\" \\
+                                        --testDirFile=./tests/testsRunningInsideARM.txt"""
 
 
-                                        // Basic archiving of the build, no pal tests
+                                        // Basic archiving of the build
                                         Utilities.addArchival(newJob, "bin/Product/**")
                                         break
                                     }
@@ -1795,6 +1815,35 @@ combinedScenarios.each { scenario ->
                                 }
                             }
                             else {
+                                // Setup corefx and Windows test binaries for Linux ARM Emulator Build
+                                if (isLinuxEmulatorBuild) {
+                                    // Define the Windows Tests and Corefx build job names
+                                    def WindowTestsName = projectFolder + '/' +
+                                                          Utilities.getFullJobName(project,
+                                                                                   getJobName(lowerConfiguration,
+                                                                                              'x64' ,
+                                                                                              'windows_nt',
+                                                                                              'default',
+                                                                                              true),
+                                                                                   false)
+                                    def corefxFolder = Utilities.getFolderName('dotnet/corefx') + '/' +
+                                                       Utilities.getFolderName(branch)
+
+                                    // Copy the Windows test binaries and the Corefx build binaries
+                                    copyArtifacts(WindowTestsName) {
+                                        excludePatterns('**/testResults.xml', '**/*.ni.dll')
+                                        buildSelector {
+                                            latestSuccessful(true)
+                                        }
+                                    }
+                                    copyArtifacts("${corefxFolder}/linuxarmemulator_cross_${lowerConfiguration}") {
+                                        includePatterns('bin/build.tar.gz')
+                                        buildSelector {
+                                            latestSuccessful(true)
+                                        }
+                                    }
+                                }
+
                                 buildCommands.each { buildCommand ->
                                     shell(buildCommand)
                                 }
@@ -2066,38 +2115,42 @@ combinedScenarios.each { scenario ->
                             }
 
                             if (scenario == 'coverage') {
-                                shell("./build.sh coverage verbose ${lowerConfiguration} ${architecture}")
-
-                                // Remove folders from obj that we don't expect to be covered. May update this later.
-                                shell("rm -rf ./bin/obj/Linux.x64.Release/src/ToolBox")
-                                shell("rm -rf ./bin/obj/Linux.x64.Release/src/debug")
-                                shell("rm -rf ./bin/obj/Linux.x64.Release/src/ilasm")
-                                shell("rm -rf ./bin/obj/Linux.x64.Release/src/ildasm")
-                                shell("rm -rf ./bin/obj/Linux.x64.Release/src/dlls/dbgshim")
-                                shell("rm -rf ./bin/obj/Linux.x64.Release/src/dlls/mscordac")
-                                shell("rm -rf ./bin/obj/Linux.x64.Release/src/dlls/mscordbi")
-
-                                // Run PAL tests
-                                shell("src/pal/tests/palsuite/runpaltests.sh \${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration} \${WORKSPACE}/bin/paltestout")
-
-                                // Remove obj files for PAL tests so they're not included in coverage results
-                                shell("rm -rf ./bin/obj/Linux.x64.Release/src/pal/tests")
 
                                 // Move coreclr to clr directory
                                 shell("rm -rf .clr; mkdir .clr; mv * .clr; mv .git .clr; mv .clr clr")
+
+                                // Build coreclr
+                                shell("./clr/build.sh coverage verbose ${lowerConfiguration} ${architecture}")
+
+                                // Remove folders from obj that we don't expect to be covered. May update this later.
+                                shell("rm -rf ./clr/bin/obj/Linux.x64.Release/src/ToolBox")
+                                shell("rm -rf ./clr/bin/obj/Linux.x64.Release/src/debug")
+                                shell("rm -rf ./clr/bin/obj/Linux.x64.Release/src/ilasm")
+                                shell("rm -rf ./clr/bin/obj/Linux.x64.Release/src/ildasm")
+                                shell("rm -rf ./clr/bin/obj/Linux.x64.Release/src/dlls/dbgshim")
+                                shell("rm -rf ./clr/bin/obj/Linux.x64.Release/src/dlls/mscordac")
+                                shell("rm -rf ./clr/bin/obj/Linux.x64.Release/src/dlls/mscordbi")
+
+                                // Run PAL tests
+                                shell("./clr/src/pal/tests/palsuite/runpaltests.sh \$(pwd)/clr/bin/obj/${osGroup}.${architecture}.${configuration} \$(pwd)/clr/bin/paltestout")
+
+                                // Remove obj files for PAL tests so they're not included in coverage results
+                                shell("rm -rf ./clr/bin/obj/Linux.x64.Release/src/pal/tests")
                                 
                                 // Unzip the tests first.  Exit with 0
                                 shell("unzip -q -o ./clr/bin/tests/tests.zip -d ./clr/bin/tests/Windows_NT.${architecture}.${configuration} || exit 0")
 
-                                shell("ls clr/bin")
                                 // Get corefx
                                 shell("git clone https://github.com/dotnet/corefx fx")
-                                shell("ls")
-                                shell("pwd")
+
                                 // Build Linux corefx
                                 shell("./fx/build.sh x64 release Linux skiptests")
-                                // Check contents of bin directory - this can be removed after we confirm everything is as expected
-                                shell("ls ./fx/bin")
+
+                                def testEnvOpt = ""
+                                def scriptFileName = "\$WORKSPACE/set_stress_test_env.sh"
+                                def createScriptCmds = genStressModeScriptStep(os, scenario, Constants.jitStressModeScenarios['heapverify1'], scriptFileName)
+                                shell("${createScriptCmds}")
+                                testEnvOpt = "--test-env=" + scriptFileName
 
                                 // Run corefx tests
                                 shell("""./fx/run-test.sh \\
@@ -2118,12 +2171,19 @@ combinedScenarios.each { scenario ->
                 --coreFxNativeBinDir=\"\$(pwd)/fx/bin/${osGroup}.${architecture}.Release\" \\
                 --crossgen --runcrossgentests""")
 
-                                // Run coreclr tests w/ server GC enabled & produce coverage reports
+                                // Run coreclr tests w/ server GC & HeapVerify enabled
                                 shell("""./clr/tests/runtest.sh \\
                 --testRootDir=\"\$(pwd)/clr/bin/tests/Windows_NT.${architecture}.${configuration}\" \\
                 --testNativeBinDir=\"\$(pwd)/clr/bin/obj/${osGroup}.${architecture}.${configuration}/tests\" \\
                 --coreOverlayDir=\"\$(pwd)/clr/bin/tests/Windows_NT.${architecture}.${configuration}/Tests/coreoverlay\" \\
-                --useServerGC --coreclr-coverage \\
+                --useServerGC ${testEnvOpt}""")
+
+                                 // Run long-running coreclr GC tests & produce coverage reports
+                                shell("""./clr/tests/runtest.sh \\
+                --testRootDir=\"\$(pwd)/clr/bin/tests/Windows_NT.${architecture}.${configuration}\" \\
+                --testNativeBinDir=\"\$(pwd)/clr/bin/obj/${osGroup}.${architecture}.${configuration}/tests\" \\
+                --coreOverlayDir=\"\$(pwd)/clr/bin/tests/Windows_NT.${architecture}.${configuration}/Tests/coreoverlay\" \\
+                --long-gc --playlist=\"\$(pwd)/clr/tests/longRunningGcTests.txt\" --coreclr-coverage\\
                 --coreclr-objs=\"\$(pwd)/clr/bin/obj/${osGroup}.${architecture}.${configuration}\" \\
                 --coreclr-src=\"\$(pwd)/clr/src\" \\
                 --coverage-output-dir=\"\${WORKSPACE}/coverage\" """)
@@ -2190,6 +2250,13 @@ combinedScenarios.each { scenario ->
                         // Publish coverage reports
                         Utilities.addHtmlPublisher(newJob, '${WORKSPACE}/coverage/Coverage/reports', 'Code Coverage Report', 'coreclr.html')
                         addEmailPublisher(newJob, 'clrcoverage@microsoft.com')
+                    }
+
+                    // Experimental: If on Ubuntu 14.04, then attempt to pull in crash dump links
+                    if (os in ['Ubuntu']) {
+                        SummaryBuilder summaries = new SummaryBuilder()
+                        summaries.addLinksSummaryFromFile('Crash dumps from this run:', 'dumplings.txt')
+                        summaries.emit(newJob)
                     }
 
                     setMachineAffinity(newJob, os, architecture)

@@ -20,8 +20,13 @@ namespace System.Text
     ** to Everett compatibility as well.
     ==============================================================================*/
 
+#if FEATURE_SERIALIZATION
     [Serializable]
-    internal sealed class CodePageEncoding : ISerializable, IObjectReference
+#endif
+    internal sealed class CodePageEncoding : IObjectReference
+#if FEATURE_SERIALIZATION
+        , ISerializable
+#endif
     {
         // Temp stuff
         [NonSerialized]
@@ -104,8 +109,13 @@ namespace System.Text
 #endif
 
         // Same problem with the Decoder, this only happens with Everett Decoders
+#if FEATURE_SERIALIZATION
         [Serializable]
-        internal sealed class Decoder : ISerializable, IObjectReference
+#endif
+        internal sealed class Decoder : IObjectReference
+#if FEATURE_SERIALIZATION
+            , ISerializable
+#endif
         {
             // Might need this when GetRealObjecting
             [NonSerialized]

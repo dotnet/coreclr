@@ -82,8 +82,10 @@ namespace System.Text
     // generally executes faster.
     //
 
-[System.Runtime.InteropServices.ComVisible(true)]
+    [System.Runtime.InteropServices.ComVisible(true)]
+#if FEATURE_SERIALIZATION
     [Serializable]
+#endif
     public abstract class Encoding : ICloneable
     {
         private static volatile Encoding defaultEncoding;
@@ -722,7 +724,7 @@ namespace System.Text
         {
             get
             {
-                return (Environment.GetResourceString("Globalization.cp_" + m_codePage));
+                return Environment.GetResourceString("Globalization.cp_" + m_codePage.ToString());
             }
         }
 
@@ -1610,8 +1612,13 @@ namespace System.Text
             decoder.ClearMustFlush();
         }
 
+#if FEATURE_SERIALIZATION
         [Serializable]
-        internal class DefaultEncoder : Encoder, ISerializable, IObjectReference
+#endif
+        internal class DefaultEncoder : Encoder, IObjectReference
+#if FEATURE_SERIALIZATION
+            , ISerializable
+#endif
         {
             private Encoding m_encoding;
             [NonSerialized] private bool m_hasInitializedEncoding;
@@ -1738,8 +1745,13 @@ namespace System.Text
             }
         }
 
+#if FEATURE_SERIALIZATION
         [Serializable]
-        internal class DefaultDecoder : Decoder, ISerializable, IObjectReference
+#endif
+        internal class DefaultDecoder : Decoder, IObjectReference
+#if FEATURE_SERIALIZATION
+            , ISerializable
+#endif
         {
             private Encoding m_encoding;
             [NonSerialized]

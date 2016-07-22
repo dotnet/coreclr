@@ -19,8 +19,13 @@ namespace System.Text
     ** Appropriate Whidbey (V2.0) objects.
     ==============================================================================*/
 
+#if FEATURE_SERIALIZATION
     [Serializable]
-    internal sealed class SurrogateEncoder : ISerializable, IObjectReference
+#endif
+    internal sealed class SurrogateEncoder : IObjectReference
+#if FEATURE_SERIALIZATION
+        , ISerializable
+#endif
     {
         // Might need this when GetRealObjecting
         [NonSerialized]

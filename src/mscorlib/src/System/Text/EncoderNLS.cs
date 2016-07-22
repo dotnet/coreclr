@@ -21,8 +21,13 @@ namespace System.Text
     // of Encoding objects.
     //
 
+#if FEATURE_SERIALIZATION
     [Serializable]
-    internal class EncoderNLS : Encoder, ISerializable
+#endif
+    internal class EncoderNLS : Encoder
+#if FEATURE_SERIALIZATION
+        , ISerializable
+#endif
     {
         // Need a place for the last left over character, most of our encodings use this
         internal char   charLeftOver;
