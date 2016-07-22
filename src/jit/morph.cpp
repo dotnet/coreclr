@@ -3593,22 +3593,6 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* callNode)
                                 {
                                     copyBlkClass = NO_CLASS_HANDLE;
                                 }
-#if 0
-                                GenTreePtr  objAddr = argObj->gtObj.gtOp1;
-                                if (objAddr->gtOper == GT_ADDR)
-                                {
-                                    // exception : no need to use CopyBlk if the valuetype is on the stack
-                                    if (objAddr->gtFlags & GTF_ADDR_ONSTACK)
-                                    {
-                                        copyBlkClass = NO_CLASS_HANDLE;
-                                    }
-                                    // exception : no need to use CopyBlk if the valuetype is already a struct local
-                                    else if (objAddr->gtOp.gtOp1->gtOper == GT_LCL_VAR)
-                                    {
-                                        copyBlkClass = NO_CLASS_HANDLE;
-                                    }
-                                }
-#endif
                             }
 
                             size = roundupSize / TARGET_POINTER_SIZE;   // Normalize size to number of pointer sized items
@@ -3684,6 +3668,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* callNode)
 
                         // We also must update fltArgRegNum so that we no longer try to 
                         // allocate any new floating point registers for args
+                        // This prevents us from backfilling a subsequent arg into d7 
                         //
                         fltArgRegNum = MAX_FLOAT_REG_ARG;
                     }
@@ -3692,6 +3677,18 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* callNode)
                 {
                     // Check if the last register needed is still in the int argument register range.
                     isRegArg = (intArgRegNum + (size - 1)) < maxRegArgs;
+
+                    // Did we run out of registers when we had a 16-byte struct (size===2) ?
+                    // (i.e we only have one register remaining but we needed two registers to pass this arg)
+                    // This prevents us from backfilling a subsequent arg into x7
+                    //
+                    if (!isRegArg && (size > 1))
+                    {
+                        // We also must update intArgRegNum so that we no longer try to 
+                        // allocate any new general purpose registers for args
+                        //
+                        intArgRegNum = maxRegArgs;
+                    }
                 }
 #else // not _TARGET_ARM_ or _TARGET_ARM64_
 
