@@ -166,7 +166,7 @@ extern SuspendStatistics g_LastSuspendStatistics;
 
 #endif // TIME_SUSPEND
 
-BOOL EEGetThreadContext(Thread *pThread, CONTEXT *pContext);
+BOOL EEGetThreadContext(Thread *pThread, CONTEXT *pContext, DWORD contextLength = sizeof(CONTEXT));
 BOOL EnsureThreadIsSuspended(HANDLE hThread, Thread* pThread);
 
 class ThreadSuspend

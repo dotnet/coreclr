@@ -555,7 +555,7 @@ static inline BOOL CheckSuspended(Thread *pThread)
 }
 #endif //_DEBUG
 
-BOOL EEGetThreadContext(Thread *pThread, CONTEXT *pContext)
+BOOL EEGetThreadContext(Thread *pThread, CONTEXT *pContext, DWORD contextLength)
 {
     CONTRACTL {
         NOTHROW;
@@ -565,7 +565,7 @@ BOOL EEGetThreadContext(Thread *pThread, CONTEXT *pContext)
 
     _ASSERTE(CheckSuspended(pThread));
 
-    BOOL ret =  pThread->GetThreadContext(pContext);
+    BOOL ret = pThread->GetThreadContext(pContext, contextLength);
 
     STRESS_LOG6(LF_SYNC, LL_INFO1000, "Got thread context ret = %d EIP = %p ESP = %p EBP = %p, pThread = %p, ContextFlags = 0x%x\n",
         ret, GetIP(pContext), GetSP(pContext), GetFP(pContext), pThread, pContext->ContextFlags);
@@ -3177,7 +3177,7 @@ void ThreadStore::AllocateOSContext()
 #endif
        )
     {
-        s_pOSContext = new (nothrow) CONTEXT();
+        s_pOSContext = (CONTEXT*) new (nothrow) Thread::EXTENDED_CONTEXT();
     }
 #ifdef _DEBUG
     if (s_pOSContext == NULL)
@@ -4275,10 +4275,10 @@ void __stdcall Thread::RedirectedHandledJITCase(RedirectReason reason)
             // Free the context struct if we already have one cached
             if (pThread->GetSavedRedirectContext())
             {
-                CONTEXT* pCtxTemp = (CONTEXT*)_alloca(sizeof(CONTEXT));
-                memcpy(pCtxTemp, pCtx, sizeof(CONTEXT));
+                EXTENDED_CONTEXT* pCtxTemp = (EXTENDED_CONTEXT*)_alloca(sizeof(EXTENDED_CONTEXT));
+                memcpy(pCtxTemp, pCtx, sizeof(EXTENDED_CONTEXT));
                 delete pCtx;
-                pCtx = pCtxTemp;
+                pCtx = (CONTEXT*)pCtxTemp;
             }
             else
             {
@@ -4402,6 +4402,8 @@ void __stdcall Thread::RedirectedHandledJITCaseForGCStress()
 #ifdef _TARGET_X86_
 #define CONTEXT_COMPLETE (CONTEXT_FULL | CONTEXT_FLOATING_POINT |       \
                           CONTEXT_DEBUG_REGISTERS | CONTEXT_EXTENDED_REGISTERS | CONTEXT_EXCEPTION_REQUEST)
+#elif _TARGET_AMD64_
+#define CONTEXT_COMPLETE (CONTEXT_FULL | CONTEXT_EXCEPTION_REQUEST | CONTEXT_XSTATE)
 #else
 #define CONTEXT_COMPLETE (CONTEXT_FULL | CONTEXT_EXCEPTION_REQUEST)
 #endif
@@ -4466,7 +4468,7 @@ BOOL Thread::RedirectThreadAtHandledJITCase(PFN_REDIRECTTARGET pTgt)
 
     // Always get complete context
     pCtx->ContextFlags = CONTEXT_COMPLETE;
-    BOOL bRes = EEGetThreadContext(this, pCtx);
+    BOOL bRes = EEGetThreadContext(this, pCtx, sizeof(EXTENDED_CONTEXT));
     _ASSERTE(bRes && "Failed to GetThreadContext in RedirectThreadAtHandledJITCase - aborting redirect.");
 
     if (!bRes)
@@ -4566,7 +4568,7 @@ BOOL Thread::RedirectCurrentThreadAtHandledJITCase(PFN_REDIRECTTARGET pTgt, CONT
     // If we've never allocated a context for this thread, do so now
     if (!pCtx)
     {
-        pCtx = new (nothrow) CONTEXT();
+        pCtx = (CONTEXT *) new (nothrow) EXTENDED_CONTEXT();
 
         if (!pCtx)
             return (FALSE);
@@ -4579,11 +4581,11 @@ BOOL Thread::RedirectCurrentThreadAtHandledJITCase(PFN_REDIRECTTARGET pTgt, CONT
     //////////////////////////////////////
     // Get and save the thread's context
 
-    CopyMemory(pCtx, pCurrentThreadCtx, sizeof(CONTEXT));
+    CopyMemory(pCtx, pCurrentThreadCtx, sizeof(EXTENDED_CONTEXT));
 
     // Clear any new bits we don't understand (like XSAVE) in case we pass
     // this context to RtlRestoreContext (like for gcstress)
-    pCtx->ContextFlags &= CONTEXT_ALL;
+    //pCtx->ContextFlags &= CONTEXT_ALL;
 
     // Ensure that this flag is set for the next time through the normal path,
     // RedirectThreadAtHandledJITCase.
@@ -7683,7 +7685,7 @@ BOOL ThreadCaughtInKernelModeExceptionHandling(Thread *pThread, CONTEXT *ctx)
 //      Nonzero iff all requested checks have succeeded, which would imply that it is
 //      a reliable time to use this Thread's context.
 //      
-BOOL Thread::GetSafelyRedirectableThreadContext(DWORD dwOptions, CONTEXT * pCtx, REGDISPLAY * pRD)
+BOOL Thread::GetSafelyRedirectableThreadContext(DWORD dwOptions, CONTEXT * pCtx, REGDISPLAY * pRD, DWORD contextLength)
 {
     CONTRACTL {
         NOTHROW;
@@ -7711,9 +7713,13 @@ BOOL Thread::GetSafelyRedirectableThreadContext(DWORD dwOptions, CONTEXT * pCtx,
     // Make sure we specify CONTEXT_EXCEPTION_REQUEST to detect "trap frame reporting".
     _ASSERTE(GetFilterContext() == NULL);
 
-    ZeroMemory(pCtx, sizeof(*pCtx));
+    ZeroMemory(pCtx, contextLength);
     pCtx->ContextFlags = CONTEXT_FULL | CONTEXT_EXCEPTION_REQUEST;
-    if (!EEGetThreadContext(this, pCtx))
+#ifdef _TARGET_AMD64_
+    pCtx->ContextFlags |= CONTEXT_XSTATE;
+#endif // _TARGET_AMD64_
+
+    if (!EEGetThreadContext(this, pCtx, contextLength)) 
     {
         return FALSE;
     }
@@ -7790,18 +7796,18 @@ BOOL Thread::HandledJITCase(BOOL ForTaskSwitchIn)
 
     _ASSERTE(WorkingOnThreadContext());
 
-    CONTEXT ctx;
+    EXTENDED_CONTEXT ctx;
     REGDISPLAY rd;
     if (!GetSafelyRedirectableThreadContext(
         kPerfomLastRedirectIPCheck | kCheckDebuggerBreakpoints,
-        &ctx,
+        (CONTEXT*)&ctx,
         &rd))
     {
         STRESS_LOG0(LF_GC, LL_INFO10000, "HandledJITCase() - GetSafelyRedirectableThreadContext() returned FALSE\n");
         return FALSE;
     }
 
-    if (!ExecutionManager::IsManagedCode(GetIP(&ctx)))
+    if (!ExecutionManager::IsManagedCode(GetIP((CONTEXT*)&ctx)))
     {
         return FALSE;
     }
