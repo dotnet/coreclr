@@ -250,7 +250,6 @@ void ARMMachine::IsReturnAddress(TADDR retAddr, TADDR* whereCalled) const
     }
 }
 
-#ifndef FEATURE_PAL
 
 // Return 0 for non-managed call.  Otherwise return MD address.
 static TADDR MDForCall (TADDR callee)
@@ -336,8 +335,6 @@ static void HandleValue(TADDR value)
     }
 }
 
-#endif // !FEATURE_PAL
-
 /**********************************************************************\
 * Routine Description:                                                 *
 *                                                                      *
@@ -355,7 +352,6 @@ void ARMMachine::Unassembly (
     BOOL bSuppressLines,
     BOOL bDisplayOffsets) const
 {
-#ifndef FEATURE_PAL
     ULONG_PTR PC = PCBegin;
     char line[1024];
     char *ptr;
@@ -383,6 +379,7 @@ void ARMMachine::Unassembly (
             }
         }
 
+#ifndef FEATURE_PAL
         //
         // Print out any GC information corresponding to the current instruction offset.
         //
@@ -397,7 +394,7 @@ void ARMMachine::Unassembly (
                 SwitchToFiber(pGCEncodingInfo->pvGCTableFiber);
             }
         }
-
+#endif //!FEATURE_PAL
         //
         // Print out any EH info corresponding to the current offset
         //
@@ -529,7 +526,6 @@ void ARMMachine::Unassembly (
 
         ExtOut ("\n");
     }
-#endif // !FEATURE_PAL
 }
 
 #if 0 // @ARMTODO: Figure out how to extract this information under CoreARM
