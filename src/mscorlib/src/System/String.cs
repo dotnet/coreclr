@@ -2321,37 +2321,16 @@ namespace System {
                 char* pCh = pChars + startIndex;
 
 #if BIT64
-                // For 64-bit, we want to stick to the normal loop
-                // if the high bit is set on the char otherwise the
+                // We want to stick to the normal loop if
+                // the high bit is set on the char otherwise the
                 // 'optimized' version will cause massive performance
                 // degradations. (see notes below)
-                if (value >= '\u8000')
+                if (value <= '\u7fff')
                 {
-#endif // BIT64
-                    // On x86 wee use a (relatively) straightforward
-                    // implementation: Just loop unroll, and check each
-                    // char for value.
-
-                    while (count >= 4)
-                    {
-                        if (*pCh == value) goto ReturnIndex;
-                        if (*(pCh + 1) == value) goto ReturnIndex1;
-                        if (*(pCh + 2) == value) goto ReturnIndex2;
-                        if (*(pCh + 3) == value) goto ReturnIndex3;
-
-                        count -= 4;
-                        pCh += 4;
-                    }
-
-                    goto FallbackLoop;
-#if BIT64
-                }
-                else
-                {
-                    // On x64 we use a different implementation,
-                    // processing one word at a time. This enables
-                    // us to avoid 3 branches per iteration than had
-                    // we used the loop above, but also takes some
+                    // We use a different implementation on x64
+                    // than on x86, processing one word at a time. This
+                    // enables us to avoid 3 branches per iteration than
+                    // had we used the loop below, but also takes some
                     // more operations (xor, add, or). It may also
                     // report false positives if a character in the
                     // string has its high bit set.
@@ -2504,7 +2483,7 @@ namespace System {
                     // the high bit has to come from the char in the
                     // string, rather than value, since earlier we
                     // checked value < '\u8000'. (Otherwise, we would
-                    // be entering this loop quite frequently for
+                    // be entering this codepath quite frequently for
                     // values with the msb set.)
 
                     // Check each char individually to prevent
@@ -2537,9 +2516,32 @@ namespace System {
                     if (count >= Chunk)
                         goto Loop;
                 }
+                else
+                {
 #endif // BIT64
+                    // On x86 wee use a (relatively) straightforward
+                    // implementation: Just loop unroll, and check each
+                    // char for value.
+
+                    // We also go down this codepath on 64-bit
+                    // for chars >= '\u8000', see notes above.
+
+                    while (count >= 4)
+                    {
+                        if (*pCh == value) goto ReturnIndex;
+                        if (*(pCh + 1) == value) goto ReturnIndex1;
+                        if (*(pCh + 2) == value) goto ReturnIndex2;
+                        if (*(pCh + 3) == value) goto ReturnIndex3;
+
+                        count -= 4;
+                        pCh += 4;
+                    }
+#if BIT64
+                }
 
                 FallbackLoop:
+#endif // BIT64
+
                 while (count > 0)
                 {
                     if (*pCh == value)
