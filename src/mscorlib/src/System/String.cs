@@ -2361,7 +2361,7 @@ namespace System {
                     Contract.Assert(alignment % 2 == 0); // char* from strings should always have an even address
 
                     alignment /= 2; // we're counting in chars, not bytes, so divide by sizeof(char) which is 2
-                    Contract.Assert(((int)pCh + (int)alignment) % IntPtr.Size == 0);
+                    Contract.Assert(((int)pCh + (int)alignment) % 8 == 0);
 
                     if ((int)alignment + Chunk > count)
                     {
@@ -2371,16 +2371,17 @@ namespace System {
                     // We don't have to check if count > 0 in
                     // this loop, since we verified above that
                     // there's enough space for alignment
-                    while ((int)pCh % IntPtr.Size != 0)
+                    while (alignment > 0)
                     {
                         if (*pCh == value)
                             goto ReturnIndex;
                         
                         count--;
+                        alignment--;
                         pCh++;
                     }
 
-                    Contract.Assert(pChars + startIndex + (int)alignment == pCh);
+                    Contract.Assert((int)pCh % 8 == 0);
                     Contract.Assert(count >= Chunk);
 
                     // STEP 2: The main loop
