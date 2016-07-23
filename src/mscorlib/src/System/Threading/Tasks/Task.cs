@@ -1671,6 +1671,7 @@ namespace System.Threading.Tasks
         /// </summary>
         internal bool IsSelfReplicatingRoot
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 // Return true if self-replicating bit is set and child replica bit is not set
@@ -1732,6 +1733,7 @@ namespace System.Threading.Tasks
         /// </summary>
         internal ExecutionContext CapturedContext
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 if ((m_stateFlags & TASK_STATE_EXECUTIONCONTEXT_IS_NULL) == TASK_STATE_EXECUTIONCONTEXT_IS_NULL)
@@ -1743,6 +1745,7 @@ namespace System.Threading.Tasks
                     return m_contingentProperties?.m_capturedContext ?? ExecutionContext.PreAllocatedDefault;
                 }
             }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
                 // There is no need to atomically set this bit because this set() method is only called during construction, and therefore there should be no contending accesses to m_stateFlags
