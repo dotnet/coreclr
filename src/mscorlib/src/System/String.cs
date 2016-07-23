@@ -2344,7 +2344,7 @@ namespace System {
                     // Chunk: the number of chars we'll search
                     // per iteration of the loop
                     // Note: Not related to IntPtr.Size, the
-                    // fact that chunk == IntPtr.Size on x64
+                    // fact that Chunk == IntPtr.Size on x64
                     // is a coincidence
                     const int Chunk = 8;
 
