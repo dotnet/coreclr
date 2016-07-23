@@ -2319,6 +2319,7 @@ namespace System {
             fixed (char* pChars = &m_firstChar)
             {
                 char* pCh = pChars + startIndex;
+                char* pEnd = pCh + count;
 
 #if BIT64
                 // We want to stick to the normal loop if
@@ -2365,17 +2366,13 @@ namespace System {
                         goto FallbackLoop;
                     }
 
-                    // Since we know that there's enough space
-                    // for alignment, subtract it directly
-                    // from count outside the alignment loop
-                    count -= (int)alignment;
+                    char* pAlign = pCh + alignment;
 
-                    while (alignment > 0)
+                    while (pCh != pAlign)
                     {
                         if (*pCh == value)
                             goto ReturnIndex;
                         
-                        alignment--;
                         pCh++;
                     }
 
@@ -2451,11 +2448,13 @@ namespace System {
                     ulong valueMask = ((uint)value << 16) | value;
                     valueMask = (valueMask << 32) | valueMask;
 
+                    char* pStop = pEnd - Chunk; // we want to make sure there are at least Chunk chars left
+
                     Loop:
-                    do // we don't have to check the first time count >= Chunk, due to the earlier assert
+                    do // we know there's enough room the first time around, due to the earlier assert
                     {
                         // Code repetition is for the purposes of loop unrolling,
-                        // so we don't have to write to count/pCh and check the
+                        // so we don't have to write to pCh and check the
                         // loop condition as often
 
                         ulong zeroed = *(ulong*)pCh ^ valueMask;
@@ -2465,9 +2464,9 @@ namespace System {
                         zeroed = *(ulong*)(pCh + 8) ^ valueMask;
                         if (((zeroed + ZeroMask) | ZeroMask) != AllBitsSet) goto MaybeReturn8;
 
-                        count -= Chunk; pCh += Chunk;
+                        pCh += Chunk;
                     }
-                    while (count >= Chunk);
+                    while (pCh <= pStop);
 
                     // STEP 3.2: The fallback loop
                     
@@ -2513,15 +2512,15 @@ namespace System {
                         goto ReturnIndex3;
                     
                     // We misfired if we got here; so, continue searching at the next word.
-                    // Note that we're incrementing count/pCh by 4 rather than Chunk,
+                    // Note that we're incrementing pCh by 4 rather than Chunk,
                     // since we don't want to skip over the next word in the loop.
                     // (This will still leave pCh 8-byte aligned.)
-                    // Also note that we have to repeat the count >= Chunk check,
+                    // Also note that we have to repeat the loop condition check,
                     // since the main loop is a do... while loop and assumes there's
                     // at least Chunk chars left at the beginning.
 
-                    count -= 4; pCh += 4; // We just processed one word, which on 64-bit is 4 chars
-                    if (count >= Chunk)
+                    pCh += 4; // We just processed one word, which on 64-bit is 4 chars
+                    if (pCh <= pStop)
                         goto Loop;
                 }
                 else
@@ -2534,14 +2533,15 @@ namespace System {
                     // We also go down this codepath on 64-bit
                     // for chars >= '\u8000', see notes above.
 
-                    while (count >= 4)
+                    char* pStop = pEnd - 4; // we need at least 4 chars for 1 iteration of the loop
+
+                    while (pCh <= pStop)
                     {
                         if (*pCh == value) goto ReturnIndex;
                         if (*(pCh + 1) == value) goto ReturnIndex1;
                         if (*(pCh + 2) == value) goto ReturnIndex2;
                         if (*(pCh + 3) == value) goto ReturnIndex3;
 
-                        count -= 4;
                         pCh += 4;
                     }
 #if BIT64
@@ -2549,7 +2549,6 @@ namespace System {
 
                 FallbackLoop:
 #endif // BIT64
-                char* pEnd = pCh + count;
 
                 while (pCh != pEnd)
                 {
