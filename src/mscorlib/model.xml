@@ -3015,6 +3015,9 @@
       <Member MemberType="Property" Name="CompletedSynchronously" />
       <Member MemberType="Property" Name="IsCompleted" />
     </Type>
+    <Type Name="System.ICloneable">
+      <Member Name="Clone" />
+    </Type>
     <Type Name="System.IComparable">
       <Member Name="CompareTo(System.Object)" />
     </Type>
