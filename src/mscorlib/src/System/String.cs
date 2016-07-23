@@ -2528,6 +2528,7 @@ namespace System {
                     // We misfired if we got here; so, continue searching at the next word.
                     // Note that we're incrementing count/pCh by 4 rather than Chunk,
                     // since we don't want to skip over the next word in the loop.
+                    // (This will still leave pCh 8-byte aligned.)
                     // Also note that we have to repeat the count >= Chunk check,
                     // since the main loop is a do... while loop and assumes there's
                     // at least Chunk chars left at the beginning.
