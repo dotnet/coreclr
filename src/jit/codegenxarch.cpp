@@ -2056,12 +2056,17 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
 
     case GT_CAST:
 #if !defined(_TARGET_64BIT_)
-        // We will NYI in DecomposeNode() if we are cast TO a long type, but we do not
-        // yet support casting FROM a long type either, and that's simpler to catch
+        // We will NYI in DecomposeNode() if we are cast TO a long type. 
+        // Casts from long to int/short/byte without overflow check are handled 
+        // in DecomposeNode(). We do not yet support other casts from long. 
+        // floating point types and FROM a long type with overflow check either, and that's simpler to catch
         // here.
-        NYI_IF(varTypeIsLong(treeNode->gtOp.gtOp1), "Casts from TYP_LONG");
+        if (varTypeIsLong(treeNode->gtOp.gtOp1))
+        {
+            NYI("Unsupported casts from TYP_LONG");
+        }
+        else
 #endif // !defined(_TARGET_64BIT_)
-
         if (varTypeIsFloating(targetType) && varTypeIsFloating(treeNode->gtOp.gtOp1))
         {
             // Casts float/double <--> double/float
@@ -7801,7 +7806,11 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
     }
     else // non-overflow checking cast
     {
+#ifdef _TARGET_64BIT_
         noway_assert(size < EA_PTRSIZE || srcType == dstType);
+#else
+        noway_assert(size <= EA_PTRSIZE);
+#endif
 
         // We may have code transformations that result in casts where srcType is the same as dstType.
         // e.g. Bug 824281, in which a comma is split by the rationalizer, leaving an assignment of a
