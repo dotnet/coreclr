@@ -2343,10 +2343,7 @@ namespace System {
 
                     // Chunk: the number of chars we'll search
                     // per iteration of the loop
-                    // Note: Not related to IntPtr.Size, the
-                    // fact that Chunk == IntPtr.Size on x64
-                    // is a coincidence
-                    const int Chunk = 8;
+                    const int Chunk = 12;
 
                     // We want to calculate the number of chars
                     // until the next aligned address and combine
@@ -2460,6 +2457,8 @@ namespace System {
                         if (((zeroed + ZeroMask) | ZeroMask) != AllBitsSet) goto MaybeReturn;
                         zeroed = *(ulong*)(pCh + 4) ^ valueMask;
                         if (((zeroed + ZeroMask) | ZeroMask) != AllBitsSet) goto MaybeReturn4;
+                        zeroed = *(ulong*)(pCh + 8) ^ valueMask;
+                        if (((zeroed + ZeroMask) | ZeroMask) != AllBitsSet) goto MaybeReturn8;
 
                         count -= Chunk; pCh += Chunk;
                     }
@@ -2494,6 +2493,7 @@ namespace System {
                     // since we don't know which position in the
                     // word the value would be at.
 
+                    MaybeReturn8: pCh += 4;
                     MaybeReturn4: pCh += 4;
 
                     MaybeReturn:
