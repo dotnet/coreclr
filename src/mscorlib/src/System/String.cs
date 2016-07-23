@@ -2365,15 +2365,16 @@ namespace System {
                         goto FallbackLoop;
                     }
 
-                    // We don't have to check if count > 0 in
-                    // this loop, since we verified above that
-                    // there's enough space for alignment
+                    // Since we know that there's enough space
+                    // for alignment, subtract it directly
+                    // from count outside the alignment loop
+                    count -= alignment;
+
                     while (alignment > 0)
                     {
                         if (*pCh == value)
                             goto ReturnIndex;
                         
-                        count--;
                         alignment--;
                         pCh++;
                     }
