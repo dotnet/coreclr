@@ -2368,7 +2368,7 @@ namespace System {
                     // Since we know that there's enough space
                     // for alignment, subtract it directly
                     // from count outside the alignment loop
-                    count -= alignment;
+                    count -= (int)alignment;
 
                     while (alignment > 0)
                     {
