@@ -2790,8 +2790,8 @@ namespace System.Threading.Tasks
 
                     // Lazily initialize the callback delegate; benign race condition
                     var callback = s_ecCallback;
-                    if (callback == null) s_ecCallback = callback = new ContextCallback(ExecutionContextCallback);
-                    ExecutionContext.Run(ec, callback, this, true);
+                    if (callback == null) s_ecCallback = callback = new ContextCallback<Task>(ExecutionContextCallback);
+                    ExecutionContext.Run(ec, callback, this);
                 }
 
                 if (AsyncCausalityTracer.LoggingOn)
@@ -2820,13 +2820,11 @@ namespace System.Threading.Tasks
 
         // Cached callback delegate that's lazily initialized due to ContextCallback being SecurityCritical
         [SecurityCritical]
-        private static ContextCallback s_ecCallback;
+        private static ContextCallback<Task> s_ecCallback;
 
         [SecurityCritical]
-        private static void ExecutionContextCallback(object obj)
+        private static void ExecutionContextCallback(Task task)
         {
-            Task task = obj as Task;
-            Contract.Assert(task != null, "expected a task object");
             task.Execute();
         }
 
