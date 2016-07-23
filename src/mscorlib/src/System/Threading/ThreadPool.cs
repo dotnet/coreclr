@@ -76,18 +76,11 @@ namespace System.Threading
             internal sealed class Snapshot
             {
                 public readonly T[] Data;
-                public readonly int Mask;
                 private int m_length;
 
                 internal Snapshot(int initialSize, int initalLength = 0)
                 {
-                    if ((initialSize >> 1) << 1 != initialSize)
-                    {
-                        throw new ArgumentOutOfRangeException(nameof(initialSize), "initialSize must be a power of 2");
-                    }
-
                     Data = new T[initialSize];
-                    Mask = initialSize - 1;
                     m_length = initalLength;
                 }
 
@@ -800,45 +793,53 @@ namespace System.Threading
         private static void DequeueStealWithQueue(WorkStealingQueue wsq, int index, ref IThreadPoolWorkItem callback, ref bool missedSteal)
         {
             var otherQueues = allThreadQueues.Current;
-            var remaining = otherQueues.ActiveLength;
+            var total = otherQueues.ActiveLength;
             var data = otherQueues.Data;
-            var mask = otherQueues.Mask;
+            var remaining = total;
+            index = index % total;
 
             while (remaining > 0)
             {
                 remaining--;
-                WorkStealingQueue otherQueue = Volatile.Read(ref data[index & mask]);
-                index++;
+                WorkStealingQueue otherQueue = Volatile.Read(ref data[index]);
+                index = index + 1 == total ? 0 : index + 1;
                 if (otherQueue != null &&
                     otherQueue != wsq &&
                     otherQueue.TrySteal(ref callback, ref missedSteal))
                 {
                     Contract.Assert(null != callback);
-                    break;
+                    return;
                 }
             }
+
+            if (total != otherQueues.ActiveLength) missedSteal = true;
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static void DequeueSteal(int index, ref IThreadPoolWorkItem callback, ref bool missedSteal)
         {
             var otherQueues = allThreadQueues.Current;
-            var remaining = otherQueues.ActiveLength;
+            var total = otherQueues.ActiveLength;
+            // No local queue, may not be other queues
+            if (total == 0) return;
             var data = otherQueues.Data;
-            var mask = otherQueues.Mask;
+            var remaining = total;
+            index = index % total;
 
             while (remaining > 0)
             {
                 remaining--;
-                WorkStealingQueue otherQueue = Volatile.Read(ref data[index & mask]);
-                index++;
+                WorkStealingQueue otherQueue = Volatile.Read(ref data[index]);
+                index = index + 1 == total ? 0 : index + 1;
                 if (otherQueue != null &&
                     otherQueue.TrySteal(ref callback, ref missedSteal))
                 {
                     Contract.Assert(null != callback);
-                    break;
+                    return;
                 }
             }
+
+            if (total != otherQueues.ActiveLength) missedSteal = true;
         }
 
         [SecurityCritical]
