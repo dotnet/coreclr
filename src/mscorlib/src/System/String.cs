@@ -2355,13 +2355,15 @@ namespace System {
                     // not enough, jump straight to the fallback loop.
 
                     // This calculates the number of bytes until the next aligned address
-                    int alignment = -(int)pCh % 8; // 0 -> 0, 2 -> 6, 4 -> 4, 6 -> 2, 8 -> 0
+                    // We have to use uint and 0u - to stop the jit from generating
+                    // some redundant code
+                    uint alignment = (0u - (uint)pCh) % 8; // 0 -> 0, 2 -> 6, 4 -> 4, 6 -> 2, 8 -> 0
                     Contract.Assert(alignment % 2 == 0); // char* from strings should always have an even address
 
                     alignment /= 2; // we're counting in chars, not bytes, so divide by sizeof(char) which is 2
-                    Contract.Assert(((int)pCh + alignment) % IntPtr.Size == 0);
+                    Contract.Assert(((int)pCh + (int)alignment) % IntPtr.Size == 0);
 
-                    if (alignment + Chunk > count)
+                    if ((int)alignment + Chunk > count)
                     {
                         goto FallbackLoop;
                     }
@@ -2378,7 +2380,7 @@ namespace System {
                         pCh++;
                     }
 
-                    Contract.Assert(pChars + startIndex + alignment == pCh);
+                    Contract.Assert(pChars + startIndex + (int)alignment == pCh);
                     Contract.Assert(count >= Chunk);
 
                     // STEP 2: The main loop
