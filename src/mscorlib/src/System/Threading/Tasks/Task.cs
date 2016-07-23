@@ -3589,7 +3589,9 @@ namespace System.Threading.Tasks
                 if (singleAction != null)
                 {
                     AwaitTaskContinuation.RunOrScheduleAction(singleAction, bCanInlineContinuations, ref t_currentTask);
-                    LogFinishCompletionNotification();
+
+                    if (AsyncCausalityTracer.LoggingOn)
+                        AsyncCausalityTracer.TraceSynchronousWorkCompletion(CausalityTraceLevel.Required, CausalitySynchronousWork.CompletionNotification);
                     return;
                 }
 
@@ -3605,7 +3607,9 @@ namespace System.Threading.Tasks
                     {
                         ThreadPool.UnsafeQueueCustomWorkItem(new CompletionActionInvoker(singleTaskCompletionAction, this), forceGlobal: false);
                     }
-                    LogFinishCompletionNotification();
+
+                    if (AsyncCausalityTracer.LoggingOn)
+                        AsyncCausalityTracer.TraceSynchronousWorkCompletion(CausalityTraceLevel.Required, CausalitySynchronousWork.CompletionNotification);
                     return;
                 }
 
@@ -3614,7 +3618,9 @@ namespace System.Threading.Tasks
                 if (singleTaskContinuation != null)
                 {
                     singleTaskContinuation.Run(this, bCanInlineContinuations);
-                    LogFinishCompletionNotification();
+
+                    if (AsyncCausalityTracer.LoggingOn)
+                        AsyncCausalityTracer.TraceSynchronousWorkCompletion(CausalityTraceLevel.Required, CausalitySynchronousWork.CompletionNotification);
                     return;
                 }
 
@@ -3623,7 +3629,8 @@ namespace System.Threading.Tasks
 
                 if (continuations == null)
                 {
-                    LogFinishCompletionNotification();
+                    if (AsyncCausalityTracer.LoggingOn)
+                        AsyncCausalityTracer.TraceSynchronousWorkCompletion(CausalityTraceLevel.Required, CausalitySynchronousWork.CompletionNotification);
                     return;  // Not a single or a list; just return
                 }
 
@@ -3700,14 +3707,9 @@ namespace System.Threading.Tasks
                     }
                 }
 
-                LogFinishCompletionNotification();
+                if (AsyncCausalityTracer.LoggingOn)
+                    AsyncCausalityTracer.TraceSynchronousWorkCompletion(CausalityTraceLevel.Required, CausalitySynchronousWork.CompletionNotification);
             }
-        }
-
-        private void LogFinishCompletionNotification()
-        {
-            if (AsyncCausalityTracer.LoggingOn)
-                AsyncCausalityTracer.TraceSynchronousWorkCompletion(CausalityTraceLevel.Required, CausalitySynchronousWork.CompletionNotification);
         }
 
         #region Continuation methods
