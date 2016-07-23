@@ -1367,14 +1367,10 @@ namespace System.Threading.Tasks
         /// </summary>
         internal static StackGuard CurrentStackGuard
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                StackGuard sg = t_stackGuard;
-                if (sg == null)
-                {
-                    t_stackGuard = sg = new StackGuard();
-                }
-                return sg;
+                return t_stackGuard ?? (t_stackGuard = new StackGuard());
             }
         }
 
