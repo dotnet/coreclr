@@ -2439,7 +2439,11 @@ namespace System {
                     //   0x7fff 0xffff 0xffff 0xffff
                     //   ^
                     //   Bit unset here!
-                    
+
+                    // Note: This is based on the trick from
+                    // https://graphics.stanford.edu/~seander/bithacks.html#ZeroInWord,
+                    // using 0x7fff instead of 0x7f7f because chars are 2 in size.
+
                     const ulong ZeroMask = 0x7fff7fff7fff7fff;
                     const ulong AllBitsSet = ulong.MaxValue;
 
