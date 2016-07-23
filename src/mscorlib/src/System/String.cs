@@ -2549,13 +2549,13 @@ namespace System {
 
                 FallbackLoop:
 #endif // BIT64
+                char* pEnd = pCh + count;
 
-                while (count > 0)
+                while (pCh != pEnd)
                 {
                     if (*pCh == value)
                         goto ReturnIndex;
 
-                    count--;
                     pCh++;
                 }
 
