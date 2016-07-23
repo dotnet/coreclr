@@ -26,12 +26,6 @@ namespace System {
     using Microsoft.Win32;
     using System.Diagnostics.Contracts;
 
-#if BIT64
-    using nuint = System.UInt64;
-#else // BIT64
-    using nuint = System.UInt32;
-#endif // BIT64
-
     //
     // For Information on these methods, please see COMString.cpp
     //
@@ -2326,118 +2320,129 @@ namespace System {
             {
                 char* pCh = pChars + startIndex;
 
-                // Number of chars we'll search per iteration
-                // of the loop
-                // Note: Although it may be techincally equivalent,
-                // the IntPtr.Size check is just a shorthand way
-                // for checking if we're running on 32 or 64-bit,
-                // and is not directly related to the number of chars
-                // we'll write. So you should not change this to:
-                // int chunk = IntPtr.Size;
-                int chunk = IntPtr.Size == 4 ? 4 : 8;
-
-                // First we need to align on a word boundary
-                
-                // We want to calculate the number of chars
-                // until the next aligned address and combine
-                // that with the chars required for at least
-                // one iteration of the optimized loop. If it's
-                // not enough, jump straight to the fallback loop.
-
 #if BIT64
-                // number of bytes until next aligned address (take note: bytes, not chars)
-                int alignment = -(int)pCh % 8; // 0 -> 0, 2 -> 6, 4 -> 4, 6 -> 2, 8 -> 0
-#else // BIT64
-                // On x86 we can get away without inverting pCh,
-                // since [0, -0] and [2, -2] are the same % 4
-                // and pCh will always be at an even address
-                int alignment = (int)pCh % 4;
-#endif // BIT64
-                Contract.Assert(alignment % 2 == 0); // char* from strings should always have an even address
-
-                alignment /= 2; // we're counting in chars, not bytes
-                Contract.Assert(((int)pCh + alignment) % IntPtr.Size == 0);
-
-                if (alignment + chunk > count)
+                // For 64-bit, we want to stick to the normal loop
+                // if the high bit is set on the char otherwise the
+                // 'optimized' version will cause massive performance
+                // degradations. (see notes below)
+                if (value >= '\u8000')
                 {
+#endif // BIT64
+                    // On x86 wee use a (relatively) straightforward
+                    // implementation: Just loop unroll, and check each
+                    // char for value.
+
+                    while (count >= 4)
+                    {
+                        if (*pCh == value) goto ReturnIndex;
+                        if (*(pCh + 1) == value) goto ReturnIndex1;
+                        if (*(pCh + 2) == value) goto ReturnIndex2;
+                        if (*(pCh + 3) == value) goto ReturnIndex3;
+
+                        count -= 4;
+                        pCh += 4;
+                    }
+
                     goto FallbackLoop;
+#if BIT64
                 }
-
-                // We don't have to check if count > 0 in
-                // this loop, since we verified above that
-                // there's enough space for alignment
-                while ((int)pCh % IntPtr.Size != 0)
+                else
                 {
-                    if (*pCh == value)
-                        goto ReturnIndex;
+                    // On x64 we use a different implementation,
+                    // processing one word at a time. This enables
+                    // us to avoid 3 branches per iteration than had
+                    // we used the loop above, but also takes some
+                    // more operations (xor, add, or). It may also
+                    // report false positives if a character in the
+                    // string has its high bit set.
+
+                    // STEP 1: Aligning the pointer
+
+                    // We need to align the pointer on 8 bytes,
+                    // since we'll be casting it to ulong* and
+                    // reading from it.
+
+                    // Chunk: the number of chars we'll search
+                    // per iteration of the loop
+                    // Note: Not related to IntPtr.Size, the
+                    // fact that chunk == IntPtr.Size on x64
+                    // is a coincidence
+                    const int Chunk = 8;
+
+                    // We want to calculate the number of chars
+                    // until the next aligned address and combine
+                    // that with the chars required for at least
+                    // one iteration of the optimized loop. If it's
+                    // not enough, jump straight to the fallback loop.
+
+                    // This calculates the number of bytes until the next aligned address
+                    int alignment = -(int)pCh % 8; // 0 -> 0, 2 -> 6, 4 -> 4, 6 -> 2, 8 -> 0
+                    Contract.Assert(alignment % 2 == 0); // char* from strings should always have an even address
+
+                    alignment /= 2; // we're counting in chars, not bytes, so divide by sizeof(char) which is 2
+                    Contract.Assert(((int)pCh + alignment) % IntPtr.Size == 0);
+
+                    if (alignment + Chunk > count)
+                    {
+                        goto FallbackLoop;
+                    }
+
+                    // We don't have to check if count > 0 in
+                    // this loop, since we verified above that
+                    // there's enough space for alignment
+                    while ((int)pCh % IntPtr.Size != 0)
+                    {
+                        if (*pCh == value)
+                            goto ReturnIndex;
+                        
+                        count--;
+                        pCh++;
+                    }
+
+                    Contract.Assert(pChars + startIndex + alignment == pCh);
+                    Contract.Assert(count >= Chunk);
                     
-                    count--;
-                    pCh++;
+                    const ulong ZeroMask = 0x7fff7fff7fff7fff;
+                    const ulong AllBitsSet = ulong.MaxValue;
+
+                    ulong valueMask = ((uint)value << 16) | value;
+                    valueMask = (valueMask << 32) | valueMask;
+
+                    Loop:
+                    do // we don't have to check the first time count >= Chunk, due to the earlier assert
+                    {
+                        ulong zeroed = *(ulong*)pCh ^ valueMask;
+                        if (((zeroed + ZeroMask) | ZeroMask) != AllBitsSet) goto MaybeReturn;
+                        zeroed = *(ulong*)(pCh + 4) ^ valueMask;
+                        if (((zeroed + ZeroMask) | ZeroMask) != AllBitsSet) goto MaybeReturn4;
+
+                        count -= Chunk; pCh += Chunk;
+                    }
+                    while (count >= Chunk);
+
+                    // Didn't find it within the optimized loop, goto
+                    // the fallback one and check each char individually
+                    goto FallbackLoop;
+
+                    MaybeReturn4: pCh += 4;
+
+                    MaybeReturn:
+
+                    if (pCh[0] == value)
+                        goto ReturnIndex;
+                    if (pCh[1] == value)
+                        goto ReturnIndex1;
+                    if (pCh[2] == value)
+                        goto ReturnIndex2;
+                    if (pCh[3] == value)
+                        goto ReturnIndex3;
+
+                    // We misfired, so continue the search at the next word
+                    count -= 4; pCh += 4; // We just processed one word, which on 64-bit is 4 chars
+                    if (count >= Chunk)
+                        goto Loop;
                 }
-
-                Contract.Assert(pChars + startIndex + alignment == pCh);
-                Contract.Assert(count >= chunk);
-                
-                nuint zeroMask = 0x7fff7fff;
-                nuint valueMask = ((uint)value << 16) | value; // note: cast to uint instead of nuint is not a typo
-                const nuint AllBitsSet = nuint.MaxValue;
-
-#if BIT64
-                zeroMask = (zeroMask << 32) | zeroMask;
-                valueMask = (valueMask << 32) | valueMask;
 #endif // BIT64
-
-                nuint zeroed;
-
-                Loop:
-                do // we don't have to check the first time, due to the earlier assert
-                {
-#if BIT64
-                    zeroed = *(ulong*)pCh ^ valueMask;
-                    if (((zeroed + zeroMask) | zeroMask) != AllBitsSet) goto MaybeReturn;
-                    zeroed = *(ulong*)(pCh + 4) ^ valueMask;
-                    if (((zeroed + zeroMask) | zeroMask) != AllBitsSet) goto MaybeReturn4;
-#else // BIT64
-                    zeroed = *(uint*)pCh ^ valueMask;
-                    if (((zeroed + zeroMask) | zeroMask) != AllBitsSet) goto MaybeReturn;
-                    zeroed = *(uint*)(pCh + 2) ^ valueMask;
-                    if (((zeroed + zeroMask) | zeroMask) != AllBitsSet) goto MaybeReturn2;
-#endif // BIT64
-
-                    count -= chunk; pCh += chunk;
-                }
-                while (count >= chunk);
-
-                // Didn't find it within the optimized loop, goto
-                // the fallback one and check each char individually
-                goto FallbackLoop;
-
-#if BIT64
-                MaybeReturn4: pCh += 4;
-#else // BIT64
-                MaybeReturn2: pCh += 2;
-#endif // BIT64
-
-                MaybeReturn:
-
-                if (pCh[0] == value)
-                    goto ReturnIndex;
-                if (pCh[1] == value)
-                    goto ReturnIndex1;
-                
-#if BIT64
-                if (pCh[2] == value)
-                    goto ReturnIndex2;
-                if (pCh[3] == value)
-                    goto ReturnIndex3;
-#endif // BIT64
-
-                // We misfired, so continue the search at the next word
-                int processed = IntPtr.Size / 2; // we processed one word, divide by 2 to get number of chars
-                count -= processed;
-                pCh += processed;
-                if (count >= chunk)
-                    goto Loop;
 
                 FallbackLoop:
                 while (count > 0)
@@ -2451,10 +2456,8 @@ namespace System {
 
                 return -1;
 
-#if BIT64
                 ReturnIndex3: pCh++;
                 ReturnIndex2: pCh++;
-#endif // BIT64
                 ReturnIndex1: pCh++;
                 ReturnIndex:
                 return (int)(pCh - pChars);
