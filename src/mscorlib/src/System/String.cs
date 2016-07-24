@@ -2355,13 +2355,15 @@ namespace System {
                     // This calculates the number of bytes until the next aligned address
                     // We have to use uint and 0u - to stop the jit from generating
                     // some redundant code
-                    uint alignment = (0u - (uint)pCh) % 8; // 0 -> 0, 2 -> 6, 4 -> 4, 6 -> 2, 8 -> 0
+                    int alignment = (int)((0u - (uint)pCh) % 8); // 0 -> 0, 2 -> 6, 4 -> 4, 6 -> 2, 8 -> 0
                     Contract.Assert(alignment % 2 == 0); // char* from strings should always have an even address
 
-                    alignment /= 2; // we're counting in chars, not bytes, so divide by sizeof(char) which is 2
-                    Contract.Assert(((int)pCh + (int)alignment) % 8 == 0);
+                    // We also cast to uint here since otherwise the jit generates inefficient
+                    // code to treat the sign bit specially, when we know it'll never be set
+                    alignment =  (int)((uint)alignment / 2u); // we're counting in chars, not bytes, so divide by sizeof(char) which is 2
+                    Contract.Assert(((int)pCh + alignment) % 8 == 0);
 
-                    if ((int)alignment + Chunk > count)
+                    if (alignment + Chunk > count)
                     {
                         goto FallbackLoop;
                     }
