@@ -1320,7 +1320,7 @@ namespace System.Threading
     internal abstract class DeferrableWorkItem : IThreadPoolWorkItem
     {
         [SecurityCritical]
-        public virtual void ExecuteWorkItem() { /* noop */ }
+        public abstract void ExecuteWorkItem();
 
         [SecurityCritical]
         void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae) => MarkAborted(tae);
