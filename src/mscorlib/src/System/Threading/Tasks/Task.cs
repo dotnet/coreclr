@@ -2924,11 +2924,10 @@ namespace System.Threading.Tasks
         /// true to attempt to marshal the continuation back to the original context captured; otherwise, false.
         /// </param>
         /// <param name="flowExecutionContext">Whether to flow ExecutionContext across the await.</param>
-        /// <param name="stackMark">A stack crawl mark tied to execution context.</param>
         /// <exception cref="System.InvalidOperationException">The awaiter was not properly initialized.</exception>
         [SecurityCritical]
         internal void SetContinuationForAwait(
-            Action continuationAction, bool continueOnCapturedContext, bool flowExecutionContext, ref StackCrawlMark stackMark)
+            Action continuationAction, bool continueOnCapturedContext, bool flowExecutionContext)
         {
             Contract.Requires(continuationAction != null);
 
@@ -2936,6 +2935,9 @@ namespace System.Threading.Tasks
             // If this remains null by the end of the function, we can use the 
             // continuationAction directly without wrapping it.
             TaskContinuation tc = null;
+
+            // Capture Context
+            ExecutionContext context = flowExecutionContext ? ExecutionContext.FastCapture() : null;
 
             // If the user wants the continuation to run on the current "context" if there is one...
             if (continueOnCapturedContext)
@@ -2949,7 +2951,7 @@ namespace System.Threading.Tasks
                 var syncCtx = SynchronizationContext.CurrentNoFlow;
                 if (syncCtx != null && syncCtx.GetType() != typeof(SynchronizationContext))
                 {
-                    tc = new SynchronizationContextAwaitTaskContinuation(syncCtx, continuationAction, flowExecutionContext, ref stackMark);
+                    tc = GetSynchronizationContextAwaitTaskContinuation(syncCtx, continuationAction, context);
                 }
                 else
                 {
@@ -2958,7 +2960,7 @@ namespace System.Threading.Tasks
                     var scheduler = TaskScheduler.InternalCurrent;
                     if (scheduler != null && scheduler != TaskScheduler.Default)
                     {
-                        tc = new TaskSchedulerAwaitTaskContinuation(scheduler, continuationAction, flowExecutionContext, ref stackMark);
+                        tc = GetTaskSchedulerAwaitTaskContinuation(scheduler, continuationAction, context);
                     }
                 }
             }
@@ -2970,7 +2972,7 @@ namespace System.Threading.Tasks
                 // ExecutionContext, we need to capture it and wrap it in an AwaitTaskContinuation.
                 // Otherwise, we're targeting the default scheduler and we don't need to flow ExecutionContext, so
                 // we don't actually need a continuation object.  We can just store/queue the action itself.
-                tc = new AwaitTaskContinuation(continuationAction, flowExecutionContext: true, stackMark: ref stackMark);
+                tc = GetAwaitTaskContinuation(continuationAction, context);
             }
 
             // Now register the continuation, and if we couldn't register it because the task is already completing,
@@ -2987,6 +2989,48 @@ namespace System.Threading.Tasks
                 if (!AddTaskContinuation(continuationAction, addBeforeOthers: false))
                     AwaitTaskContinuation.UnsafeScheduleAction(continuationAction, this);
             }
+        }
+
+        private TaskContinuation GetSynchronizationContextAwaitTaskContinuation(SynchronizationContext syncCtx, Action continuationAction, ExecutionContext context)
+        {
+            if (context == ExecutionContext.PreAllocatedDefault)
+            {
+                return new SynchronizationContextAwaitTaskContinuation(syncCtx, continuationAction);
+            }
+            else if (context == null)
+            {
+                return new SynchronizationContextAwaitTaskContinuationNoContext(syncCtx, continuationAction);
+            }
+
+            return new SynchronizationContextAwaitTaskContinuationWithContext(syncCtx, continuationAction, context);
+        }
+
+        private TaskContinuation GetTaskSchedulerAwaitTaskContinuation(TaskScheduler scheduler, Action continuationAction, ExecutionContext context)
+        {
+            if (context == ExecutionContext.PreAllocatedDefault)
+            {
+                return new TaskSchedulerAwaitTaskContinuation(scheduler, continuationAction);
+            }
+            else if (context == null)
+            {
+                return new TaskSchedulerAwaitTaskContinuationNoContext(scheduler, continuationAction);
+            }
+
+            return new TaskSchedulerAwaitTaskContinuationWithContext(scheduler, continuationAction, context);
+        }
+
+        private TaskContinuation GetAwaitTaskContinuation(Action continuationAction, ExecutionContext context)
+        {
+            if (context == ExecutionContext.PreAllocatedDefault)
+            {
+                return new AwaitTaskContinuation(continuationAction);
+            }
+            else if (context == null)
+            {
+                return new AwaitTaskContinuationNoContext(continuationAction);
+            }
+
+            return new AwaitTaskContinuationWithContext(continuationAction, context);
         }
 
         /// <summary>Creates an awaitable that asynchronously yields back to the current context when awaited.</summary>
