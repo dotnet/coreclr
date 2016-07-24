@@ -357,7 +357,7 @@ namespace System.Threading {
 #if FEATURE_CORECLR
         internal ExecutionContext ExecutionContext
         {
-            get { return m_ExecutionContext; } 
+            get { return m_ExecutionContext ?? (m_ExecutionContext = ExecutionContext.PreAllocatedDefault); } 
             set { m_ExecutionContext = value; }
         }
 

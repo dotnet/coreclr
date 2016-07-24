@@ -73,12 +73,11 @@ namespace System.Runtime.CompilerServices
             // This allows us to undo any ExecutionContext changes made in MoveNext,
             // so that they won't "leak" out of the first await.
 
-            Thread currentThread = Thread.CurrentThread;
-            ExecutionContextSwitcher ecs = default(ExecutionContextSwitcher);
             RuntimeHelpers.PrepareConstrainedRegions();
+            Thread currentThread = Thread.CurrentThread;
+            ExecutionContextSwitcher ecs = new ExecutionContextSwitcher(currentThread);
             try
             {
-                ExecutionContext.EstablishCopyOnWriteScope(currentThread, ref ecs);
                 stateMachine.MoveNext();
             }
             finally
@@ -308,12 +307,11 @@ namespace System.Runtime.CompilerServices
             // This allows us to undo any ExecutionContext changes made in MoveNext,
             // so that they won't "leak" out of the first await.
 
-            Thread currentThread = Thread.CurrentThread;
-            ExecutionContextSwitcher ecs = default(ExecutionContextSwitcher);
             RuntimeHelpers.PrepareConstrainedRegions();
+            Thread currentThread = Thread.CurrentThread;
+            ExecutionContextSwitcher ecs = new ExecutionContextSwitcher(currentThread);
             try
             {
-                ExecutionContext.EstablishCopyOnWriteScope(currentThread, ref ecs);
                 stateMachine.MoveNext();
             }
             finally
@@ -464,12 +462,11 @@ namespace System.Runtime.CompilerServices
             // This allows us to undo any ExecutionContext changes made in MoveNext,
             // so that they won't "leak" out of the first await.
 
-            Thread currentThread = Thread.CurrentThread;
-            ExecutionContextSwitcher ecs = default(ExecutionContextSwitcher);
             RuntimeHelpers.PrepareConstrainedRegions();
+            Thread currentThread = Thread.CurrentThread;
+            ExecutionContextSwitcher ecs = new ExecutionContextSwitcher(currentThread);
             try
             {
-                ExecutionContext.EstablishCopyOnWriteScope(currentThread, ref ecs);
                 stateMachine.MoveNext();
             }
             finally
