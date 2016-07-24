@@ -1108,9 +1108,9 @@ namespace System.Runtime.CompilerServices
             /// <summary>Invokes the MoveNext method on the supplied IAsyncStateMachine.</summary>
             /// <param name="stateMachine">The IAsyncStateMachine machine instance.</param>
             [SecurityCritical] // necessary for ContextCallback in CoreCLR
-            private static void InvokeMoveNext(object stateMachine)
+            private static void InvokeMoveNext(IAsyncStateMachine stateMachine)
             {
-                ((IAsyncStateMachine)stateMachine).MoveNext();
+                stateMachine.MoveNext();
             }
         }
 

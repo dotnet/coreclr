@@ -91,6 +91,13 @@ namespace System.Threading
         }
 
         [SecurityCritical]
+        [FriendAccessAllowed]
+        internal static void Run(ExecutionContext executionContext, ContextCallback callback, Object state, bool preserveSyncCtx)
+        {
+            Run(executionContext, callback, state);
+        }
+
+        [SecurityCritical]
         [HandleProcessCorruptedStateExceptions]
         public static void Run(ExecutionContext executionContext, ContextCallback callback, Object state)
         {
@@ -302,13 +309,6 @@ namespace System.Threading
         internal static ExecutionContext FastCapture()
         {
             return Capture();
-        }
-
-        [SecurityCritical]
-        [FriendAccessAllowed]
-        internal static void Run(ExecutionContext executionContext, ContextCallback callback, Object state, bool preserveSyncCtx)
-        {
-            Run(executionContext, callback, state);
         }
 
         [SecurityCritical]

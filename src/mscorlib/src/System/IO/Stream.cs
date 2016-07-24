@@ -652,16 +652,15 @@ namespace System.IO {
             }
 
             [SecurityCritical] // necessary for CoreCLR
-            private static void InvokeAsyncCallback(object completedTask)
+            private static void InvokeAsyncCallback(ReadWriteTask completedTask)
             {
-                var rwc = (ReadWriteTask)completedTask;
-                var callback = rwc._callback;
-                rwc._callback = null;
-                callback(rwc);
+                var callback = completedTask._callback;
+                completedTask._callback = null;
+                callback(completedTask);
             }
 
             [SecurityCritical] // necessary for CoreCLR
-            private static ContextCallback s_invokeAsyncCallback;
+            private static ContextCallback<ReadWriteTask> s_invokeAsyncCallback;
             
             [SecuritySafeCritical] // necessary for ExecutionContext.Run
             void ITaskCompletionAction.Invoke(Task completingTask)
@@ -680,10 +679,9 @@ namespace System.IO {
                 {
                     _context = null;
         
-                    var invokeAsyncCallback = s_invokeAsyncCallback;
-                    if (invokeAsyncCallback == null) s_invokeAsyncCallback = invokeAsyncCallback = InvokeAsyncCallback; // benign race condition
+                    var invokeAsyncCallback = s_invokeAsyncCallback ?? (s_invokeAsyncCallback = InvokeAsyncCallback); // benign race condition
 
-                    using(context) ExecutionContext.Run(context, invokeAsyncCallback, this, true);
+                    using(context) ExecutionContext.Run(context, invokeAsyncCallback, this);
                 }
             }
 

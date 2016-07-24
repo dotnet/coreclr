@@ -54,19 +54,18 @@ namespace System.Threading {
         }
 
         [System.Security.SecurityCritical]
-        static internal ContextCallback _ccb = new ContextCallback(ThreadStart_Context);
+        static internal ContextCallback<ThreadHelper> _ccb = new ContextCallback<ThreadHelper>(ThreadStart_Context);
         
         [System.Security.SecurityCritical]
-        static private void ThreadStart_Context(Object state)
+        static private void ThreadStart_Context(ThreadHelper threadHelper)
         {
-            ThreadHelper t = (ThreadHelper)state;
-            if (t._start is ThreadStart)
+            if (threadHelper._start is ThreadStart)
             {
-                ((ThreadStart)t._start)();
+                ((ThreadStart)threadHelper._start)();
             }
             else
             {
-                ((ParameterizedThreadStart)t._start)(t._startArg);
+                ((ParameterizedThreadStart)threadHelper._start)(threadHelper._startArg);
             }
         }
 
@@ -81,7 +80,7 @@ namespace System.Threading {
             _startArg = obj;
             if (_executionContext != null) 
             {
-                ExecutionContext.Run(_executionContext, _ccb, (Object)this);
+                ExecutionContext.Run(_executionContext, _ccb, this);
             }
             else
             {
@@ -99,7 +98,7 @@ namespace System.Threading {
         {
             if (_executionContext != null) 
             {
-                ExecutionContext.Run(_executionContext, _ccb, (Object)this);
+                ExecutionContext.Run(_executionContext, _ccb, this);
             }
             else
             {
