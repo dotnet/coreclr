@@ -121,18 +121,25 @@ namespace System {
                 
                 // We called MoveNext once, so this will be the first item
                 T firstValue = en.Current;
+                
+                // Call ToString before calling MoveNext again, since
+                // we want to stay consistent with the below loop
+                // Everything should be called in the order
+                // MoveNext-Current-ToString, unless further optimizations
+                // can be made, to avoid breaking changes
+                string firstString = firstValue?.ToString();
 
                 // If there's only 1 item, simply call ToString on that
                 if (!en.MoveNext())
                 {
-                    return firstValue?.ToString() ?? string.Empty;
+                    return firstString ?? string.Empty;
                 }
 
                 StringBuilder result = StringBuilderCache.Acquire();
 
-                if (firstValue != null)
+                if (firstString != null)
                 {
-                    result.Append(firstValue.ToString());
+                    result.Append(firstString);
                 }
                 result.Append(separator);
 
