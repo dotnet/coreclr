@@ -121,7 +121,7 @@ namespace System {
                 
                 // We called MoveNext once, so this will be the first item
                 T firstValue = en.Current;
-                
+
                 // Call ToString before calling MoveNext again, since
                 // we want to stay consistent with the below loop
                 // Everything should be called in the order
@@ -141,23 +141,19 @@ namespace System {
                 {
                     result.Append(firstString);
                 }
-                result.Append(separator);
 
-                // Since we called MoveNext again, this will be the second item
-                T currentValue = en.Current;
-
-                if (currentValue != null) {
-                    result.Append(currentValue.ToString());
-                }
-
-                while (en.MoveNext()) {
-                    currentValue = en.Current;
+                do
+                {
+                    T currentValue = en.Current;
 
                     result.Append(separator);
-                    if (currentValue != null) {
+                    if (currentValue != null)
+                    {
                         result.Append(currentValue.ToString());
                     }
-                }            
+                }
+                while (en.MoveNext());
+
                 return StringBuilderCache.GetStringAndRelease(result);
             }
         }
