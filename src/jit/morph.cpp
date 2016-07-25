@@ -2218,7 +2218,7 @@ void fgArgInfo::EvalArgsToTemps()
                     }
 #endif // !LEGACY_BACKEND
 
-                    var_types  lclVarType = argx->gtType;
+                    var_types  lclVarType = genActualType(argx->gtType);
                     var_types  scalarType = TYP_UNKNOWN;
 
                     if (setupArg->OperIsCopyBlkOp())

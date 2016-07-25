@@ -2438,6 +2438,7 @@ CodeGen::genStructReturn(GenTreePtr treeNode)
 
         ReturnTypeDesc*  pRetTypeDesc;
         unsigned         regCount;
+        unsigned         matchingCount = 0;
 
         pRetTypeDesc = call->GetReturnTypeDesc();
         regCount     = pRetTypeDesc->GetReturnRegCount();
@@ -2471,21 +2472,27 @@ CodeGen::genStructReturn(GenTreePtr treeNode)
                 allocatedReg[i] = call->GetRegNumByIdx(i);
             }
 
-            // We want to move the value from allocatedReg[i] into returnReg[i]
-            // so record these two registers in the src and dst masks
-            //
-            srcRegsMask |= genRegMask(allocatedReg[i]);
-            dstRegsMask |= genRegMask(returnReg[i]);
-
-            if (returnReg[i] != allocatedReg[i])
+            if (returnReg[i] == allocatedReg[i])
             {
+                matchingCount++;
+            }
+            else // We need to move this value
+            {
+                // We want to move the value from allocatedReg[i] into returnReg[i]
+                // so record these two registers in the src and dst masks
+                //
+                srcRegsMask |= genRegMask(allocatedReg[i]);
+                dstRegsMask |= genRegMask(returnReg[i]);
+                
                 needToShuffleRegs = true;
             }
         }
 
         if (needToShuffleRegs)
         {
-            unsigned  remainingRegCount = regCount;
+            assert(matchingCount < regCount);
+
+            unsigned  remainingRegCount = regCount - matchingCount;
             regMaskTP extraRegMask = treeNode->gtRsvdRegs;
 
             while (remainingRegCount > 0)
