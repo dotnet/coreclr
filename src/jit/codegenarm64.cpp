@@ -2497,7 +2497,7 @@ CodeGen::genStructReturn(GenTreePtr treeNode)
                 regMaskTP dstMask;
                 regNumber srcReg;
                 regNumber dstReg;
-                var_types curType;
+                var_types curType = TYP_UNKNOWN;
                 regNumber freeUpReg = REG_NA;
 
                 if (availableMask == 0)
@@ -2553,6 +2553,7 @@ CodeGen::genStructReturn(GenTreePtr treeNode)
                     // After we perform this move we will have one less registers to setup
                     remainingRegCount--;
                 }
+                assert(curType != TYP_UNKNOWN);
 
                 inst_RV_RV(ins_Copy(curType), dstReg, srcReg, curType);
 
