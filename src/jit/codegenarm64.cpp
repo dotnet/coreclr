@@ -2361,7 +2361,7 @@ void CodeGen::genCodeForBinary(GenTree* treeNode)
 //    treeNode - The tree node to evaluate whether is a struct return.
 //
 // Return Value:
-//    Returns true if the 'treeNode" is a GT_RETURN node, of type struct.
+//    Returns true if the 'treeNode" is a GT_RETURN node of type struct.
 //    Otherwise returns false.
 //
 bool
@@ -2400,34 +2400,31 @@ CodeGen::genStructReturn(GenTreePtr treeNode)
     if (op1->OperGet() == GT_LCL_VAR)
     {
         GenTreeLclVarCommon* lclVar = op1->AsLclVarCommon();
-        LclVarDsc* varDsc = &(compiler->lvaTable[lclVar->gtLclNum]);
+        LclVarDsc* varDsc  = &(compiler->lvaTable[lclVar->gtLclNum]);
+        var_types  lclType = genActualType(varDsc->TypeGet());
+
+        // Currently only multireg TYP_STRUCT types such as HFA's and 16-byte structs are supported
+        // In the future we could have FEATURE_SIMD types like TYP_SIMD16
+        assert(lclType == TYP_STRUCT);  
         assert(varDsc->lvIsMultiRegRet);
 
-        ReturnTypeDesc retTypeDesc;
+        ReturnTypeDesc  retTypeDesc;
+        unsigned        regCount;
+
         retTypeDesc.InitializeStructReturnType(compiler, varDsc->lvVerTypeInfo.GetClassHandle());
-        unsigned regCount = retTypeDesc.GetReturnRegCount();
+        regCount = retTypeDesc.GetReturnRegCount();
+
         assert(regCount >= 2);
+        assert(op1->isContained());
 
-        if (varTypeIsEnregisterableStruct(op1))
+        // Copy var on stack into ABI return registers     
+        int offset = 0;
+        for (unsigned i = 0; i < regCount; ++i)
         {
-            // Right now the only enregisterable structs supported are SIMD vector types.
-            assert(varTypeIsSIMD(op1));
-            assert(!op1->isContained());
-            NYI("returning a SIMD enregisterable struct");
-        }
-        else
-        {
-            assert(op1->isContained());
-
-            // Copy var on stack into ABI return registers     
-            int offset = 0;
-            for (unsigned i = 0; i < regCount; ++i)
-            {
-                var_types type = retTypeDesc.GetReturnRegType(i);
-                regNumber reg = retTypeDesc.GetABIReturnReg(i);
-                getEmitter()->emitIns_R_S(ins_Load(type), emitTypeSize(type), reg, lclVar->gtLclNum, offset);
-                offset += genTypeSize(type);
-            }
+            var_types type = retTypeDesc.GetReturnRegType(i);
+            regNumber reg = retTypeDesc.GetABIReturnReg(i);
+            getEmitter()->emitIns_R_S(ins_Load(type), emitTypeSize(type), reg, lclVar->gtLclNum, offset);
+            offset += genTypeSize(type);
         }
     }
     else // op1 must be multi-reg GT_CALL
@@ -2438,94 +2435,137 @@ CodeGen::genStructReturn(GenTreePtr treeNode)
 
         GenTree* actualOp1 = op1->gtSkipReloadOrCopy();
         GenTreeCall* call = actualOp1->AsCall();
-        ReturnTypeDesc* retTypeDesc = call->GetReturnTypeDesc();
-        unsigned regCount = retTypeDesc->GetReturnRegCount();
 
-        if (regCount > 2)
+        ReturnTypeDesc*  pRetTypeDesc;
+        unsigned         regCount;
+
+        pRetTypeDesc = call->GetReturnTypeDesc();
+        regCount     = pRetTypeDesc->GetReturnRegCount();
+
+        var_types  regType     [MAX_RET_REG_COUNT];
+        regNumber  returnReg   [MAX_RET_REG_COUNT];
+        regNumber  allocatedReg[MAX_RET_REG_COUNT];
+        regMaskTP  srcRegsMask = 0;
+        regMaskTP  dstRegsMask = 0;
+        bool       needToShuffleRegs = false;   // Set to true if we have to move any registers
+
+        for (unsigned i = 0; i < regCount; ++i)
         {
-            NYI("MultiReg Call - returning more than 2 registers");
-        }
+            regType[i]      = pRetTypeDesc->GetReturnRegType(i);
+            returnReg[i]    = pRetTypeDesc->GetABIReturnReg(i);
 
-        // For now we are only handling 2 registers here
-        //
-        assert(regCount == 2);
-
-        // Handle circular dependency between call allocated regs and ABI return regs.
-        //
-        // It is possible under LSRA stress that originally allocated regs of call node,
-        // say x0 and x1, are spilled and reloaded to x1 and x0 respectively.  But
-        // GT_RETURN needs to move values as follows: x1->x0, x0->x1. Similar kind
-        // kind of circular dependency could arise between the d0-d3 return regs.
-        // Codegen is expected to handle such circular dependency.
-        //
-        var_types regType0 = retTypeDesc->GetReturnRegType(0);
-        regNumber returnReg0 = retTypeDesc->GetABIReturnReg(0);
-        regNumber allocatedReg0 = call->GetRegNumByIdx(0);
-
-        var_types regType1 = retTypeDesc->GetReturnRegType(1);
-        regNumber returnReg1 = retTypeDesc->GetABIReturnReg(1);
-        regNumber allocatedReg1 = call->GetRegNumByIdx(1);
-
-        if (op1->IsCopyOrReload())
-        {
-            // GT_COPY/GT_RELOAD will have valid reg for those positions
-            // that need to be copied or reloaded.
-            regNumber reloadReg = op1->AsCopyOrReload()->GetRegNumByIdx(0);
-            if (reloadReg != REG_NA)
+            regNumber reloadReg = REG_NA;
+            if (op1->IsCopyOrReload())
             {
-                allocatedReg0 = reloadReg;
+                // GT_COPY/GT_RELOAD will have valid reg for those positions
+                // that need to be copied or reloaded.
+                reloadReg = op1->AsCopyOrReload()->GetRegNumByIdx(i);
             }
 
-            reloadReg = op1->AsCopyOrReload()->GetRegNumByIdx(1);
             if (reloadReg != REG_NA)
             {
-                allocatedReg1 = reloadReg;
-            }
-        }
-
-        if (allocatedReg0 == returnReg1 &&
-            allocatedReg1 == returnReg0)
-        {
-            // Circular dependency - swap allocatedReg0 and allocatedReg1
-            if (varTypeIsFloating(regType0))
-            {
-                assert(varTypeIsFloating(regType1));
-                NYI("Circular dependency - floating point");
+                allocatedReg[i] = reloadReg;
             }
             else
             {
-                assert(varTypeIsIntegral(regType0));
-                assert(varTypeIsIntegral(regType1));
-                NYI("Circular dependency - integer");
-            }
-        }
-        else if (allocatedReg1 == returnReg0)
-        {
-            // Change the order of moves to correctly handle dependency.
-            if (allocatedReg1 != returnReg1)
-            {
-                inst_RV_RV(ins_Copy(regType1), returnReg1, allocatedReg1, regType1);
+                allocatedReg[i] = call->GetRegNumByIdx(i);
             }
 
-            if (allocatedReg0 != returnReg0)
-            {
-                inst_RV_RV(ins_Copy(regType0), returnReg0, allocatedReg0, regType0);
-            }
-        }
-        else
-        {
-            // No circular dependency case.
-            if (allocatedReg0 != returnReg0)
-            {
-                inst_RV_RV(ins_Copy(regType0), returnReg0, allocatedReg0, regType0);
-            }
+            // We want to move the value from allocatedReg[i] into returnReg[i]
+            // so record these two registers in the src and dst masks
+            //
+            srcRegsMask |= genRegMask(allocatedReg[i]);
+            dstRegsMask |= genRegMask(returnReg[i]);
 
-            if (allocatedReg1 != returnReg1)
+            if (returnReg[i] != allocatedReg[i])
             {
-                inst_RV_RV(ins_Copy(regType1), returnReg1, allocatedReg1, regType1);
+                needToShuffleRegs = true;
             }
         }
-    }
+
+        if (needToShuffleRegs)
+        {
+            unsigned  remainingRegCount = regCount;
+            regMaskTP extraRegMask = treeNode->gtRsvdRegs;
+
+            while (remainingRegCount > 0)
+            {
+                // set 'available' to the 'dst' registers that are not currently holding 'src' registers
+                //
+                regMaskTP availableMask = dstRegsMask & ~srcRegsMask;
+
+                regMaskTP dstMask;
+                regNumber srcReg;
+                regNumber dstReg;
+                var_types curType;
+                regNumber freeUpReg = REG_NA;
+
+                if (availableMask == 0)
+                {
+                    // Circular register dependencies
+                    // So just free up the lowest register in dstRegsMask by moving it to the 'extra' register
+
+                    assert(dstRegsMask == srcRegsMask);          // this has to be true for us to reach here 
+                    assert(extraRegMask != 0);                   // we require an 'extra' register
+                    assert((extraRegMask & ~dstRegsMask) != 0);  // it can't be part of dstRegsMask
+
+                    availableMask = extraRegMask & ~dstRegsMask;
+
+                    regMaskTP srcMask = genFindLowestBit(srcRegsMask);
+                    freeUpReg = genRegNumFromMask(srcMask);
+                }
+
+                dstMask = genFindLowestBit(availableMask);
+                dstReg  = genRegNumFromMask(dstMask);
+                srcReg  = REG_NA;
+
+                if (freeUpReg != REG_NA)
+                {
+                    // We will free up the srcReg by moving it to dstReg which is an extra register
+                    //
+                    srcReg = freeUpReg;
+
+                    // Find the 'srcReg' and set 'curType', change allocatedReg[] to dstReg
+                    // and add the new register mask bit to srcRegsMask 
+                    //
+                    for (unsigned i = 0; i < regCount; ++i)
+                    {
+                        if (allocatedReg[i] == srcReg)
+                        {
+                            curType = regType[i];
+                            allocatedReg[i] = dstReg;
+                            srcRegsMask |= genRegMask(dstReg);
+                        }
+                    }
+                }
+                else  // The normal case
+                {
+                    // Find the 'srcReg' and set 'curType'
+                    //
+                    for (unsigned i = 0; i < regCount; ++i)
+                    {
+                        if (returnReg[i] == dstReg)
+                        {
+                            srcReg  = allocatedReg[i];
+                            curType = regType[i];
+                        }        
+                    }
+                    // After we perform this move we will have one less registers to setup
+                    remainingRegCount--;
+                }
+
+                inst_RV_RV(ins_Copy(curType), dstReg, srcReg, curType);
+
+                // Clear the appropriate bits in srcRegsMask and dstRegsMask
+                srcRegsMask &= ~genRegMask(srcReg);
+                dstRegsMask &= ~genRegMask(dstReg);
+
+            }  // while (remainingRegCount > 0)
+
+        }  // (needToShuffleRegs)        
+
+    }  // op1 must be multi-reg GT_CALL
+
 }
 
 
@@ -3640,8 +3680,8 @@ CodeGen::genMultiRegCallStoreToLocal(GenTreePtr treeNode)
 
     genConsumeRegs(op1);
 
-    ReturnTypeDesc* retTypeDesc = call->GetReturnTypeDesc();
-    unsigned regCount = retTypeDesc->GetReturnRegCount();
+    ReturnTypeDesc* pRetTypeDesc = call->GetReturnTypeDesc();
+    unsigned regCount = pRetTypeDesc->GetReturnRegCount();
 
     if (treeNode->gtRegNum != REG_NA)
     {
@@ -3655,7 +3695,7 @@ CodeGen::genMultiRegCallStoreToLocal(GenTreePtr treeNode)
         int offset = 0;
         for (unsigned i = 0; i < regCount; ++i)
         {
-            var_types type = retTypeDesc->GetReturnRegType(i);
+            var_types type = pRetTypeDesc->GetReturnRegType(i);
             regNumber reg = call->GetRegNumByIdx(i);
             if (op1->IsCopyOrReload())
             {
@@ -4924,8 +4964,8 @@ void CodeGen::genUnspillRegIfNeeded(GenTree *tree)
         else if (unspillTree->IsMultiRegCall())
         {
             GenTreeCall* call = unspillTree->AsCall();
-            ReturnTypeDesc* retTypeDesc = call->GetReturnTypeDesc();
-            unsigned regCount = retTypeDesc->GetReturnRegCount();
+            ReturnTypeDesc* pRetTypeDesc = call->GetReturnTypeDesc();
+            unsigned regCount = pRetTypeDesc->GetReturnRegCount();
             GenTreeCopyOrReload* reloadTree = nullptr;
             if (tree->OperGet() == GT_RELOAD)
             {
@@ -4940,7 +4980,7 @@ void CodeGen::genUnspillRegIfNeeded(GenTree *tree)
                 unsigned flags = call->GetRegSpillFlagByIdx(i);
                 if ((flags & GTF_SPILLED) != 0)
                 {
-                    var_types dstType = retTypeDesc->GetReturnRegType(i);
+                    var_types dstType = pRetTypeDesc->GetReturnRegType(i);
                     regNumber unspillTreeReg = call->GetRegNumByIdx(i);
 
                     if (reloadTree != nullptr)
@@ -5470,14 +5510,14 @@ void CodeGen::genCallInstruction(GenTreePtr node)
     }
 
     // Determine return value size(s).
-    ReturnTypeDesc* retTypeDesc = call->GetReturnTypeDesc();
+    ReturnTypeDesc* pRetTypeDesc = call->GetReturnTypeDesc();
     emitAttr retSize = EA_PTRSIZE;
     emitAttr secondRetSize = EA_UNKNOWN;
 
     if (call->HasMultiRegRetVal())
     {
-        retSize = emitTypeSize(retTypeDesc->GetReturnRegType(0));
-        secondRetSize = emitTypeSize(retTypeDesc->GetReturnRegType(1));
+        retSize = emitTypeSize(pRetTypeDesc->GetReturnRegType(0));
+        secondRetSize = emitTypeSize(pRetTypeDesc->GetReturnRegType(1));
     }
     else
     {
@@ -5616,16 +5656,16 @@ void CodeGen::genCallInstruction(GenTreePtr node)
 
         if (call->HasMultiRegRetVal())
         {
-            assert(retTypeDesc != nullptr);
-            unsigned regCount = retTypeDesc->GetReturnRegCount();
+            assert(pRetTypeDesc != nullptr);
+            unsigned regCount = pRetTypeDesc->GetReturnRegCount();
 
             // If regs allocated to call node are different from ABI return
             // regs in which the call has returned its result, move the result
             // to regs allocated to call node.
             for (unsigned i = 0; i < regCount; ++i)
             {
-                var_types regType = retTypeDesc->GetReturnRegType(i);
-                returnReg = retTypeDesc->GetABIReturnReg(i);
+                var_types regType = pRetTypeDesc->GetReturnRegType(i);
+                returnReg = pRetTypeDesc->GetABIReturnReg(i);
                 regNumber allocatedReg = call->GetRegNumByIdx(i);
                 if (returnReg != allocatedReg)
                 {

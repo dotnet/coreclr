@@ -1947,10 +1947,21 @@ bool Compiler::lvaIsMultiregStruct(LclVarDsc*   varDsc)
         var_types type = getArgTypeForStruct(clsHnd, 
                                              &howToPassStruct, 
                                              varDsc->lvExactSize);
-        if (type == TYP_STRUCT)
+
+        if (howToPassStruct == SPK_ByValueAsHfa)
         {
+            assert(type = TYP_STRUCT);
             return true;
         }
+
+#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING) || defined(_TARGET_ARM64_)
+        if (howToPassStruct == SPK_ByValue)
+        {
+            assert(type = TYP_STRUCT);
+            return true;
+        }
+#endif
+
     }
     return false;
 }
@@ -5964,7 +5975,7 @@ void   Compiler::lvaDumpEntry(unsigned lclNum, FrameLayoutState curState, size_t
         }
         else if (varDsc->lvOnFrame == 0)
         {
-            printf("multi-reg  ");
+            printf("registers  ");
         }
         else
         {
