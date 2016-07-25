@@ -107,17 +107,36 @@ namespace System {
         }
 
         [ComVisible(false)]
-        public static String Join<T>(String separator, IEnumerable<T> values) {
+        public static String Join<T>(String separator, IEnumerable<T> values)
+        {
             if (values == null)
                 throw new ArgumentNullException("values");
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.EndContractBlock();
 
-            using(IEnumerator<T> en = values.GetEnumerator()) {
+            using (IEnumerator<T> en = values.GetEnumerator())
+            {
                 if (!en.MoveNext())
-                    return String.Empty;
+                    return string.Empty;
+                
+                // We called MoveNext once, so this will be the first item
+                T firstValue = en.Current;
+
+                // If there's only 1 item, simply call ToString on that
+                if (!en.MoveNext())
+                {
+                    return firstValue?.ToString() ?? string.Empty;
+                }
 
                 StringBuilder result = StringBuilderCache.Acquire();
+
+                if (firstValue != null)
+                {
+                    result.Append(firstValue.ToString());
+                }
+                result.Append(separator);
+
+                // Since we called MoveNext again, this will be the second item
                 T currentValue = en.Current;
 
                 if (currentValue != null) {
@@ -167,15 +186,6 @@ namespace System {
                 return StringBuilderCache.GetStringAndRelease(result);
             }
         }
-
-
-#if BIT64
-        private const int charPtrAlignConst = 3;
-        private const int alignConst        = 7;
-#else
-        private const int charPtrAlignConst = 1;
-        private const int alignConst        = 3;
-#endif
 
         internal char FirstChar { get { return m_firstChar; } }
 
