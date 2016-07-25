@@ -2359,7 +2359,7 @@ namespace System {
                     Contract.Assert(ualign % 2 == 0); // char* from strings should always have an even address
 
                     ualign /= 2; // we're counting in chars, not bytes, so divide by sizeof(char) which is 2
-                    Contract.Assert(((uint)pCh + ualign) % 8 == 0);
+                    Contract.Assert((uint)(pCh + ualign) % 8 == 0);
 
                     // Now we have to cast to int to prevent Roslyn
                     // from converting everything to long when mixing
