@@ -401,6 +401,16 @@ GenTree* DecomposeLongs::DecomposeStoreLclVar(LIR::Use& use)
 
     GenTree* loRhs   = rhs->gtGetOp1();
     GenTree* hiRhs   = rhs->gtGetOp2();
+
+    // Keep the original store's flags except side effects, the store
+    // itself should not have any. The lo and hi rhs parts could, at least
+    // in theory, have different side effects so we can't simply copy the
+    // original store's side effecs to both parts.
+    unsigned flags   = tree->gtFlags & ~GTF_ALL_EFFECT;
+    unsigned loFlags = flags | (loRhs->gtFlags & GTF_ALL_EFFECT);
+    unsigned hiFlags = flags | (hiRhs->gtFlags & GTF_ALL_EFFECT);
+
+    GenTree* loStore = tree;
     GenTree* hiStore = m_compiler->gtNewLclLNode(varNum, TYP_INT);
 
     if (varDsc->lvPromoted)
@@ -409,7 +419,7 @@ GenTree* DecomposeLongs::DecomposeStoreLclVar(LIR::Use& use)
 
         unsigned loVarNum = varDsc->lvFieldLclStart;
         unsigned hiVarNum = loVarNum + 1;
-        tree->AsLclVarCommon()->SetLclNum(loVarNum);
+        loStore->AsLclVarCommon()->SetLclNum(loVarNum);
         hiStore->SetOper(GT_STORE_LCL_VAR);
         hiStore->AsLclVarCommon()->SetLclNum(hiVarNum);
     }
@@ -417,30 +427,28 @@ GenTree* DecomposeLongs::DecomposeStoreLclVar(LIR::Use& use)
     {
         noway_assert(varDsc->lvLRACandidate == false);
 
-        tree->SetOper(GT_STORE_LCL_FLD);
-        tree->AsLclFld()->gtLclOffs  = 0;
-        tree->AsLclFld()->gtFieldSeq = FieldSeqStore::NotAField();
+        loStore->SetOper(GT_STORE_LCL_FLD);
+        loStore->AsLclFld()->gtLclOffs  = 0;
+        loStore->AsLclFld()->gtFieldSeq = FieldSeqStore::NotAField();
 
         hiStore->SetOper(GT_STORE_LCL_FLD);
         hiStore->AsLclFld()->gtLclOffs  = 4;
         hiStore->AsLclFld()->gtFieldSeq = FieldSeqStore::NotAField();
     }
 
-    // 'tree' is going to steal the loRhs node for itself, so we need to remove the
-    // GT_LONG node from the threading.
-    BlockRange().Remove(rhs);
+    loStore->gtType     = TYP_INT;
+    loStore->gtFlags    = loFlags;
+    loStore->gtOp.gtOp1 = loRhs;
 
-    tree->gtOp.gtOp1 = loRhs;
-    tree->gtType     = TYP_INT;
-
+    hiStore->gtFlags    = hiFlags;
     hiStore->gtOp.gtOp1 = hiRhs;
-    hiStore->gtFlags |= GTF_VAR_DEF;
+    hiStore->CopyCosts(loStore);
 
-    m_compiler->lvaIncRefCnts(tree);
+    m_compiler->lvaIncRefCnts(loStore);
     m_compiler->lvaIncRefCnts(hiStore);
 
-    hiStore->CopyCosts(tree);
-    BlockRange().InsertAfter(tree, hiStore);
+    BlockRange().InsertAfter(loStore, hiStore);
+    BlockRange().Remove(rhs);
 
     return hiStore->gtNext;
 }
