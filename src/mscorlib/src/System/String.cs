@@ -132,11 +132,15 @@ namespace System {
                 // If there's only 1 item, simply call ToString on that
                 if (!en.MoveNext())
                 {
+                    // We have to handle the case of either firstValue
+                    // or its ToString being null
                     return firstString ?? string.Empty;
                 }
 
                 StringBuilder result = StringBuilderCache.Acquire();
 
+                // Don't call Append if either firstValue
+                // or its ToString is null (it's a noop)
                 if (firstString != null)
                 {
                     result.Append(firstString);
