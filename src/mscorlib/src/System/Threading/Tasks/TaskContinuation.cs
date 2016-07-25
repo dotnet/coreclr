@@ -435,7 +435,12 @@ namespace System.Threading.Tasks
             // running arbitrary amounts of work in suspected "bad locations", like UI threads.
             if (canInlineContinuationTask && IsValidLocationForInlining)
             {
-                RunCallback(GetInvokeActionCallback(), m_action, ref Task.t_currentTask); // any exceptions from m_action will be handled by s_callbackRunAction
+                // any exceptions from m_action will be handled by s_callbackRunAction
+#if FEATURE_CORECLR
+                RunCallback(GetInvokeActionCallback(), m_action, ref Thread.CurrentThread.ThreadTaskLocals.CurrentTask);
+#else
+                RunCallback(GetInvokeActionCallback(), m_action, ref Task.t_currentTask);
+#endif
             }
             else
             {
@@ -557,7 +562,7 @@ namespace System.Threading.Tasks
         protected virtual void RunCallback(ContextCallback<Action> callback, Action state, ref Task currentTask)
         {
             Contract.Requires(callback != null);
-            Contract.Assert(currentTask == Task.t_currentTask);
+            Contract.Assert(currentTask == Task.InternalCurrent);
 
             // Pretend there's no current task, so that no task is seen as a parent
             // and TaskScheduler.Current does not reflect false information
@@ -598,7 +603,7 @@ namespace System.Threading.Tasks
         [SecurityCritical]
         internal static void RunOrScheduleAction(Action action, bool allowInlining, ref Task currentTask)
         {
-            Contract.Assert(currentTask == Task.t_currentTask);
+            Contract.Assert(currentTask == Task.InternalCurrent);
 
             // If we're not allowed to run here, schedule the action
             if (!allowInlining || !IsValidLocationForInlining)
@@ -753,7 +758,7 @@ namespace System.Threading.Tasks
         protected override void RunCallback(ContextCallback<Action> callback, Action state, ref Task currentTask)
         {
             Contract.Requires(callback != null);
-            Contract.Assert(currentTask == Task.t_currentTask);
+            Contract.Assert(currentTask == Task.InternalCurrent);
 
             // Pretend there's no current task, so that no task is seen as a parent
             // and TaskScheduler.Current does not reflect false information
@@ -873,7 +878,7 @@ namespace System.Threading.Tasks
         protected override void RunCallback(ContextCallback<Action> callback, Action state, ref Task currentTask)
         {
             Contract.Requires(callback != null);
-            Contract.Assert(currentTask == Task.t_currentTask);
+            Contract.Assert(currentTask == Task.InternalCurrent);
 
             // Pretend there's no current task, so that no task is seen as a parent
             // and TaskScheduler.Current does not reflect false information
@@ -929,7 +934,11 @@ namespace System.Threading.Tasks
             if (canInlineContinuationTask &&
                 m_syncContext == SynchronizationContext.CurrentNoFlow)
             {
+#if FEATURE_CORECLR
+                RunCallback(GetInvokeActionCallback(), m_action, ref Thread.CurrentThread.ThreadTaskLocals.CurrentTask);
+#else
                 RunCallback(GetInvokeActionCallback(), m_action, ref Task.t_currentTask);
+#endif
             }
             // Post the action back to the SynchronizationContext.
             else
@@ -941,7 +950,11 @@ namespace System.Threading.Tasks
                     m_continuationId = Task.NewId();
                     etwLog.AwaitTaskContinuationScheduled((task.ExecutingTaskScheduler ?? TaskScheduler.Default).Id, task.Id, m_continuationId);
                 }
+#if FEATURE_CORECLR
+                RunCallback(GetPostActionCallback(), this, ref Thread.CurrentThread.ThreadTaskLocals.CurrentTask);
+#else
                 RunCallback(GetPostActionCallback(), this, ref Task.t_currentTask);
+#endif
             }
             // Any exceptions will be handled by RunCallback.
         }
@@ -954,7 +967,7 @@ namespace System.Threading.Tasks
         private void RunCallback(ContextCallback<SynchronizationContextAwaitTaskContinuation> callback, SynchronizationContextAwaitTaskContinuation state, ref Task currentTask)
         {
             Contract.Requires(callback != null);
-            Contract.Assert(currentTask == Task.t_currentTask);
+            Contract.Assert(currentTask == Task.InternalCurrent);
 
             // Pretend there's no current task, so that no task is seen as a parent
             // and TaskScheduler.Current does not reflect false information
@@ -1048,7 +1061,11 @@ namespace System.Threading.Tasks
             if (canInlineContinuationTask &&
                 m_syncContext == SynchronizationContext.CurrentNoFlow)
             {
+#if FEATURE_CORECLR
+                RunCallback(GetInvokeActionCallback(), m_action, ref Thread.CurrentThread.ThreadTaskLocals.CurrentTask);
+#else
                 RunCallback(GetInvokeActionCallback(), m_action, ref Task.t_currentTask);
+#endif
             }
             // Post the action back to the SynchronizationContext.
             else
@@ -1059,7 +1076,11 @@ namespace System.Threading.Tasks
                     m_continuationId = Task.NewId();
                     etwLog.AwaitTaskContinuationScheduled((task.ExecutingTaskScheduler ?? TaskScheduler.Default).Id, task.Id, m_continuationId);
                 }
+#if FEATURE_CORECLR
+                RunCallback(GetPostActionCallback(), this, ref Thread.CurrentThread.ThreadTaskLocals.CurrentTask);
+#else
                 RunCallback(GetPostActionCallback(), this, ref Task.t_currentTask);
+#endif
             }
             // Any exceptions will be handled by RunCallback.
         }
@@ -1072,7 +1093,7 @@ namespace System.Threading.Tasks
         private void RunCallback(ContextCallback<SynchronizationContextAwaitTaskContinuationNoContext> callback, SynchronizationContextAwaitTaskContinuationNoContext state, ref Task currentTask)
         {
             Contract.Requires(callback != null);
-            Contract.Assert(currentTask == Task.t_currentTask);
+            Contract.Assert(currentTask == Task.InternalCurrent);
 
             // Pretend there's no current task, so that no task is seen as a parent
             // and TaskScheduler.Current does not reflect false information
@@ -1155,7 +1176,11 @@ namespace System.Threading.Tasks
             if (canInlineContinuationTask &&
                 m_syncContext == SynchronizationContext.CurrentNoFlow)
             {
+#if FEATURE_CORECLR
+                RunCallback(GetInvokeActionCallback(), m_action, ref Thread.CurrentThread.ThreadTaskLocals.CurrentTask);
+#else
                 RunCallback(GetInvokeActionCallback(), m_action, ref Task.t_currentTask);
+#endif
             }
             // Otherwise, Post the action back to the SynchronizationContext.
             else
@@ -1166,7 +1191,11 @@ namespace System.Threading.Tasks
                     m_continuationId = Task.NewId();
                     etwLog.AwaitTaskContinuationScheduled((task.ExecutingTaskScheduler ?? TaskScheduler.Default).Id, task.Id, m_continuationId);
                 }
+#if FEATURE_CORECLR
+                RunCallback(GetPostActionCallback(), this, ref Thread.CurrentThread.ThreadTaskLocals.CurrentTask);
+#else
                 RunCallback(GetPostActionCallback(), this, ref Task.t_currentTask);
+#endif
             }
             // Any exceptions will be handled by RunCallback.
         }
@@ -1195,7 +1224,7 @@ namespace System.Threading.Tasks
         private void RunCallback(ContextCallback<SynchronizationContextAwaitTaskContinuationWithContext> callback, SynchronizationContextAwaitTaskContinuationWithContext state, ref Task currentTask)
         {
             Contract.Requires(callback != null);
-            Contract.Assert(currentTask == Task.t_currentTask);
+            Contract.Assert(currentTask == Task.InternalCurrent);
 
             // Pretend there's no current task, so that no task is seen as a parent
             // and TaskScheduler.Current does not reflect false information

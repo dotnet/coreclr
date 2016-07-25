@@ -142,11 +142,13 @@ namespace System.Threading.Tasks
     [DebuggerDisplay("Id = {Id}, Status = {Status}, Method = {DebuggerDisplayMethodDescription}")]
     public class Task : IThreadPoolWorkItem, IAsyncResult, IDisposable
     {
+#if !FEATURE_CORECLR
         [ThreadStatic]
         internal static Task t_currentTask;  // The currently executing task.
         [ThreadStatic]
         private static StackGuard t_stackGuard;  // The stack guard object for this thread
 
+#endif
         internal static int s_taskIdCounter; //static counter used to generate unique task IDs
         private readonly static TaskFactory s_factory = new TaskFactory();
 
@@ -1348,7 +1350,11 @@ namespace System.Threading.Tasks
         /// </summary>
         internal static Task InternalCurrent
         {
+#if FEATURE_CORECLR
+            get { return Thread.CurrentThread.ThreadTaskLocals.CurrentTask; }
+#else
             get { return t_currentTask; }
+#endif
         }
 
         /// <summary>
@@ -1370,7 +1376,11 @@ namespace System.Threading.Tasks
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
+#if FEATURE_CORECLR
+                return Thread.CurrentThread.ThreadTaskLocals.StackGuard;
+#else
                 return t_stackGuard ?? (t_stackGuard = new StackGuard());
+#endif
             }
         }
 
@@ -2726,7 +2736,18 @@ namespace System.Threading.Tasks
 
             if (!IsCancellationRequested && !IsCanceled)
             {
-                ExecuteWithThreadLocal(ref t_currentTask);
+                var etwLog = TplEtwProvider.Log;
+#if FEATURE_CORECLR
+                if (!etwLog.IsEnabled())
+                    ExecuteWithThreadLocal(ref Thread.CurrentThread.ThreadTaskLocals.CurrentTask);
+                else
+                    ExecuteWithThreadLocalTraced(ref Thread.CurrentThread.ThreadTaskLocals.CurrentTask, etwLog);
+#else
+                if (!etwLog.IsEnabled())
+                    ExecuteWithThreadLocal(ref t_currentTask);
+                else
+                    ExecuteWithThreadLocalTraced(ref t_currentTask, etwLog);
+#endif
             }
             else if (!IsCanceled)
             {
@@ -2747,24 +2768,8 @@ namespace System.Threading.Tasks
             // Remember the current task so we can restore it after running, and then
             Task previousTask = currentTaskSlot;
 
-            // ETW event for Task Started
-            var etwLog = TplEtwProvider.Log;
-            Guid savedActivityID = new Guid();
-            bool etwIsEnabled = etwLog.IsEnabled();
-            if (etwIsEnabled)
-            {
-                if (etwLog.TasksSetActivityIds)
-                    EventSource.SetCurrentThreadActivityId(TplEtwProvider.CreateGuidForTaskID(this.Id), out savedActivityID);
-                // previousTask holds the actual "current task" we want to report in the event
-                if (previousTask != null)
-                    etwLog.TaskStarted(previousTask.m_taskScheduler.Id, previousTask.Id, this.Id);
-                else
-                    etwLog.TaskStarted(TaskScheduler.Current.Id, 0, this.Id);
-            }
-
             if (AsyncCausalityTracer.LoggingOn)
                 AsyncCausalityTracer.TraceSynchronousWorkStart(CausalityTraceLevel.Required, this.Id, CausalitySynchronousWork.Execution);
-
 
             try
             {
@@ -2801,19 +2806,41 @@ namespace System.Threading.Tasks
             finally
             {
                 currentTaskSlot = previousTask;
-                
-                // ETW event for Task Completed
-                if (etwIsEnabled)
-                {
-                    // previousTask holds the actual "current task" we want to report in the event
-                    if (previousTask != null)
-                        etwLog.TaskCompleted(previousTask.m_taskScheduler.Id, previousTask.Id, this.Id, IsFaulted);
-                    else
-                        etwLog.TaskCompleted(TaskScheduler.Current.Id, 0, this.Id, IsFaulted);
+            }
+        }
 
-                    if (etwLog.TasksSetActivityIds)
-                        EventSource.SetCurrentThreadActivityId(savedActivityID);
-                }
+        // A trick so we can refer to the TLS slot with a byref.
+        [SecurityCritical]
+        private void ExecuteWithThreadLocalTraced(ref Task currentTaskSlot, TplEtwProvider etwLog)
+        {
+            // ETW event for Task Started
+            Guid savedActivityID = new Guid();
+
+            if (etwLog.TasksSetActivityIds)
+                EventSource.SetCurrentThreadActivityId(TplEtwProvider.CreateGuidForTaskID(this.Id), out savedActivityID);
+            // previousTask holds the actual "current task" we want to report in the event
+            if (currentTaskSlot != null)
+                etwLog.TaskStarted(currentTaskSlot.m_taskScheduler.Id, currentTaskSlot.Id, this.Id);
+            else
+                etwLog.TaskStarted(TaskScheduler.Current.Id, 0, this.Id);
+
+
+            try
+            {
+                ExecuteWithThreadLocal(ref currentTaskSlot);
+            }
+            finally
+            {
+                // ETW event for Task Completed
+
+                // previousTask holds the actual "current task" we want to report in the event
+                if (currentTaskSlot != null)
+                    etwLog.TaskCompleted(currentTaskSlot.m_taskScheduler.Id, currentTaskSlot.Id, this.Id, IsFaulted);
+                else
+                    etwLog.TaskCompleted(TaskScheduler.Current.Id, 0, this.Id, IsFaulted);
+
+                if (etwLog.TasksSetActivityIds)
+                    EventSource.SetCurrentThreadActivityId(savedActivityID);
             }
         }
 
@@ -3628,7 +3655,11 @@ namespace System.Threading.Tasks
                 Action singleAction = continuationObject as Action;
                 if (singleAction != null)
                 {
+#if FEATURE_CORECLR
+                    AwaitTaskContinuation.RunOrScheduleAction(singleAction, bCanInlineContinuations, ref Thread.CurrentThread.ThreadTaskLocals.CurrentTask);
+#else
                     AwaitTaskContinuation.RunOrScheduleAction(singleAction, bCanInlineContinuations, ref t_currentTask);
+#endif
 
                     if (AsyncCausalityTracer.LoggingOn)
                         AsyncCausalityTracer.TraceSynchronousWorkCompletion(CausalityTraceLevel.Required, CausalitySynchronousWork.CompletionNotification);
@@ -3717,7 +3748,11 @@ namespace System.Threading.Tasks
                     Action ad = currentContinuation as Action;
                     if (ad != null)
                     {
+#if FEATURE_CORECLR
+                        AwaitTaskContinuation.RunOrScheduleAction(ad, bCanInlineContinuations, ref Thread.CurrentThread.ThreadTaskLocals.CurrentTask);
+#else
                         AwaitTaskContinuation.RunOrScheduleAction(ad, bCanInlineContinuations, ref t_currentTask);
+#endif
                     }
                     else
                     {

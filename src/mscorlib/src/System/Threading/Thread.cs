@@ -134,7 +134,7 @@ namespace System.Threading {
         private ExecutionContext m_ExecutionContext;    // this call context follows the logical thread
 #if FEATURE_CORECLR
         private SynchronizationContext m_SynchronizationContext;    // On CoreCLR, this is maintained separately from ExecutionContext
-        private ThreadPoolWorkQueueThreadLocals m_LocalQueues;
+        private ThreadTaskLocals m_ThreadTaskLocals;
 #endif
 
         private String          m_Name;
@@ -367,10 +367,9 @@ namespace System.Threading {
             get { return m_SynchronizationContext; }
             set { m_SynchronizationContext = value; }
         }	
-        internal ThreadPoolWorkQueueThreadLocals LocalQueues
+        internal ThreadTaskLocals ThreadTaskLocals
         {
-            get { return m_LocalQueues; }
-            set { m_LocalQueues = value; }
+            get { return m_ThreadTaskLocals ?? (m_ThreadTaskLocals = new ThreadTaskLocals()); }
         }
 #else // !FEATURE_CORECLR
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]

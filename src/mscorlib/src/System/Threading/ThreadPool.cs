@@ -39,6 +39,7 @@ namespace System.Threading
     using System.Diagnostics.Contracts;
     using System.Diagnostics.CodeAnalysis;
     using System.Diagnostics.Tracing;
+    using Tasks;
 
     internal static class ThreadPoolGlobals
     {
@@ -63,6 +64,25 @@ namespace System.Threading
             processorCount = Environment.ProcessorCount;
             tpHosted = ThreadPool.IsThreadPoolHosted();
             workQueue = new ThreadPoolWorkQueue();
+        }
+    }
+
+    internal sealed class ThreadTaskLocals
+    {
+        private readonly StackGuard m_stackGuard = new StackGuard();
+        private ThreadPoolWorkQueueThreadLocals m_localQueues;
+
+        internal Task CurrentTask;
+
+        public StackGuard StackGuard
+        {
+            get { return m_stackGuard; }
+        }
+
+        public ThreadPoolWorkQueueThreadLocals LocalQueues
+        {
+            get { return m_localQueues; }
+            set { m_localQueues = value; }
         }
     }
 
@@ -649,8 +669,8 @@ namespace System.Threading
             var currentThread = Thread.CurrentThread;
             if (!currentThread.IsThreadPoolThread) return null;
 
-            var queue = currentThread.LocalQueues;
-            return null != queue ? queue : (currentThread.LocalQueues = new ThreadPoolWorkQueueThreadLocals(this));
+            var queue = currentThread.ThreadTaskLocals.LocalQueues;
+            return null != queue ? queue : (currentThread.ThreadTaskLocals.LocalQueues = new ThreadPoolWorkQueueThreadLocals(this));
         }
 
         [SecurityCritical]
@@ -745,7 +765,7 @@ namespace System.Threading
         [SecurityCritical]
         internal bool LocalFindAndPop(IThreadPoolWorkItem callback)
         {
-            ThreadPoolWorkQueueThreadLocals tl = Thread.CurrentThread.LocalQueues;
+            ThreadPoolWorkQueueThreadLocals tl = Thread.CurrentThread.ThreadTaskLocals.LocalQueues;
             if (null == tl)
                 return false;
 
@@ -859,7 +879,7 @@ namespace System.Threading
         [SecurityCritical]
         static internal bool Dispatch()
         {
-            var currentThread = Thread.CurrentThread;
+            var threadLocals = Thread.CurrentThread.ThreadTaskLocals;
             var workQueue = ThreadPoolGlobals.workQueue;
             //
             // The clock is ticking!  We have ThreadPoolGlobals.tpQuantum milliseconds to get some work done, and then
@@ -897,7 +917,7 @@ namespace System.Threading
                     //
                     // Get our thread-local queue, may have been created by work item
                     //
-                    var wsq = currentThread.LocalQueues?.workStealingQueue;
+                    var wsq = threadLocals.LocalQueues?.workStealingQueue;
 
                     //
                     // Dequeue and EnsureThreadRequested must be protected from ThreadAbortException.  
@@ -2019,7 +2039,7 @@ namespace System.Threading
         [SecurityCritical]
         internal static IEnumerable<IThreadPoolWorkItem> GetLocallyQueuedWorkItems()
         {
-            return EnumerateQueuedWorkItems(new ThreadPoolWorkQueue.WorkStealingQueue[] { Thread.CurrentThread.LocalQueues.workStealingQueue }, null);
+            return EnumerateQueuedWorkItems(new ThreadPoolWorkQueue.WorkStealingQueue[] { Thread.CurrentThread.ThreadTaskLocals.LocalQueues?.workStealingQueue }, null);
         }
 
         [SecurityCritical]
