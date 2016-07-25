@@ -145,7 +145,7 @@ namespace System.Threading
         {
             Contract.Assert(currentThread == Thread.CurrentThread);
 
-            ecsw.m_ec = currentThread.ExecutionContext ?? Default;
+            ecsw.m_ec = currentThread.ExecutionContext ?? (currentThread.ExecutionContext = Default);
             ecsw.m_sc = currentThread.SynchronizationContext;
         }
 
