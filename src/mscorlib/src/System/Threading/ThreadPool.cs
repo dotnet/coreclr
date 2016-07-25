@@ -646,10 +646,11 @@ namespace System.Threading
         public ThreadPoolWorkQueueThreadLocals EnsureCurrentThreadHasQueue()
         {
             // Don't add thread work pool for non-threadpool threads
-            if (!Thread.CurrentThread.IsThreadPoolThread) return null;
+            var currentThread = Thread.CurrentThread;
+            if (!currentThread.IsThreadPoolThread) return null;
 
-            var queue = ThreadPoolWorkQueueThreadLocals.threadLocals;
-            return null != queue ? queue : (ThreadPoolWorkQueueThreadLocals.threadLocals = new ThreadPoolWorkQueueThreadLocals(this));
+            var queue = currentThread.LocalQueues;
+            return null != queue ? queue : (currentThread.LocalQueues = new ThreadPoolWorkQueueThreadLocals(this));
         }
 
         [SecurityCritical]
@@ -744,7 +745,7 @@ namespace System.Threading
         [SecurityCritical]
         internal bool LocalFindAndPop(IThreadPoolWorkItem callback)
         {
-            ThreadPoolWorkQueueThreadLocals tl = ThreadPoolWorkQueueThreadLocals.threadLocals;
+            ThreadPoolWorkQueueThreadLocals tl = Thread.CurrentThread.LocalQueues;
             if (null == tl)
                 return false;
 
@@ -858,6 +859,7 @@ namespace System.Threading
         [SecurityCritical]
         static internal bool Dispatch()
         {
+            var currentThread = Thread.CurrentThread;
             var workQueue = ThreadPoolGlobals.workQueue;
             //
             // The clock is ticking!  We have ThreadPoolGlobals.tpQuantum milliseconds to get some work done, and then
@@ -886,16 +888,17 @@ namespace System.Threading
             IThreadPoolWorkItem workItem = null;
             try
             {
-                //
-                // Get our thread-local queue
-                //
-                WorkStealingQueue wsq = ThreadPoolWorkQueueThreadLocals.threadLocals?.workStealingQueue;
 
                 //
                 // Loop until our quantum expires.
                 //
                 while ((Environment.TickCount - quantumStartTime) < ThreadPoolGlobals.tpQuantum)
                 {
+                    //
+                    // Get our thread-local queue, may have been created by work item
+                    //
+                    var wsq = currentThread.LocalQueues?.workStealingQueue;
+
                     //
                     // Dequeue and EnsureThreadRequested must be protected from ThreadAbortException.  
                     // These are fast, so this will not delay aborts/AD-unloads for very long.
@@ -1014,9 +1017,6 @@ namespace System.Threading
     // Holds a WorkStealingQueue, and remmoves it from the list when this object is no longer referened.
     internal sealed class ThreadPoolWorkQueueThreadLocals
     {
-        [ThreadStatic]
-        [SecurityCritical]
-        public static ThreadPoolWorkQueueThreadLocals threadLocals;
 
         public readonly ThreadPoolWorkQueue workQueue;
         public readonly ThreadPoolWorkQueue.WorkStealingQueue workStealingQueue;
@@ -2019,7 +2019,7 @@ namespace System.Threading
         [SecurityCritical]
         internal static IEnumerable<IThreadPoolWorkItem> GetLocallyQueuedWorkItems()
         {
-            return EnumerateQueuedWorkItems(new ThreadPoolWorkQueue.WorkStealingQueue[] { ThreadPoolWorkQueueThreadLocals.threadLocals.workStealingQueue }, null);
+            return EnumerateQueuedWorkItems(new ThreadPoolWorkQueue.WorkStealingQueue[] { Thread.CurrentThread.LocalQueues.workStealingQueue }, null);
         }
 
         [SecurityCritical]
