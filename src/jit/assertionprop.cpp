@@ -4135,6 +4135,7 @@ public:
         JITDUMP("AssertionPropCallback::StartMerge: BB%02d in -> %s\n",
             block->bbNum, BitVecOps::ToString(apTraits, block->bbAssertionIn));
         BitVecOps::Assign(apTraits, preMergeOut, block->bbAssertionOut);
+        BitVecOps::Assign(apTraits, mJumpDestOut[block->bbNum], m_pCompiler->apFull);
         BitVecOps::Assign(apTraits, preMergeJumpDestOut, mJumpDestOut[block->bbNum]);
     }
 
@@ -4294,7 +4295,6 @@ ASSERT_TP* Compiler::optInitAssertionDataflowFlags()
         block->bbAssertionGen = optNewEmptyAssertSet();
         block->bbAssertionOut = optNewFullAssertSet();
         jumpDestOut[block->bbNum] = optNewEmptyAssertSet();
-        BitVecOps::Assign(apTraits, jumpDestOut[block->bbNum], apFull);
     }
     // Compute the data flow values for all tracked expressions
     // IN and OUT never change for the initial basic block B1
