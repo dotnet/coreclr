@@ -271,8 +271,14 @@ static TADDR MDForCall (TADDR callee)
 // Determine if a value is MT/MD/Obj
 static void HandleValue(TADDR value)
 {
+#ifndef FEATURE_PAL
     // remove the thumb bit (if set)
     value = value & ~1;
+#else
+    // set the thumb bit (if not set)
+    value = value | 1;
+#endif //!FEATURE_PAL
+
     // A MethodTable?
     if (IsMethodTable(value))
     {
