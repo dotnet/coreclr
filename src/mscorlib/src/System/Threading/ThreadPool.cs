@@ -141,11 +141,11 @@ namespace System.Threading
                         {
                             if (array[i] == null)
                             {
+                                Volatile.Write(ref array[i], e);
                                 if (i + 1 > current.ActiveLength)
                                 {
                                     current.IncrementLength();
                                 }
-                                Volatile.Write(ref array[i], e);
                                 return i;
                             }
                             else if (i == array.Length - 1)
