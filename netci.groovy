@@ -2144,7 +2144,8 @@ combinedScenarios.each { scenario ->
                                 shell("git clone https://github.com/dotnet/corefx fx")
 
                                 // Build Linux corefx
-                                shell("./fx/build.sh -release -buildArch=x64 -os=Linux -skiptests")
+                                shell("./fx/build-native.sh -release -buildArch=x64 -os=Linux")
+                                shell("./fx/build-managed.sh -release -buildArch=x64 -osgroup=Linux -skiptests")
 
                                 def testEnvOpt = ""
                                 def scriptFileName = "\$WORKSPACE/set_stress_test_env.sh"
