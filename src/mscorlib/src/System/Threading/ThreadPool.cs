@@ -148,17 +148,16 @@ namespace System.Threading
                                 }
                                 return i;
                             }
-                            else if (i == array.Length - 1)
-                            {
-                                var newSnapshot = new Snapshot(array.Length * 2, array.Length + 1);
-                                T[] newArray = newSnapshot.Data;
-
-                                Array.Copy(array, newArray, i + 1);
-                                newArray[i + 1] = e;
-                                m_current = newSnapshot;
-                                return i + 1;
-                            }
                         }
+
+                        var oldLength = array.Length;
+                        var newSnapshot = new Snapshot(oldLength * 2, oldLength + 1);
+                        T[] newArray = newSnapshot.Data;
+
+                        Array.Copy(array, newArray, oldLength);
+                        newArray[oldLength + 1] = e;
+                        m_current = newSnapshot;
+                        return oldLength + 1;
                     }
                 }
             }
@@ -829,14 +828,17 @@ namespace System.Threading
             var otherQueues = allThreadQueues.Current;
             var total = otherQueues.ActiveLength;
             var data = otherQueues.Data;
+            Contract.Assert(data.Length >= total);
+
             var remaining = total;
-            index = index % total;
+            // Only positive indices
+            index = (index & 0x7fff) % total;
 
             while (remaining > 0)
             {
                 remaining--;
                 WorkStealingQueue otherQueue = Volatile.Read(ref data[index]);
-                index = index + 1 == total ? 0 : index + 1;
+                index = (index + 1 >= total) ? 0 : index + 1;
                 if (otherQueue != null &&
                     otherQueue != wsq &&
                     otherQueue.TrySteal(ref callback, ref missedSteal))
@@ -857,14 +859,17 @@ namespace System.Threading
             // No local queue, may not be other queues
             if (total == 0) return;
             var data = otherQueues.Data;
+            Contract.Assert(data.Length >= total);
+
             var remaining = total;
-            index = index % total;
+            // Only positive indices
+            index = (index & 0x7fff) % total;
 
             while (remaining > 0)
             {
                 remaining--;
                 WorkStealingQueue otherQueue = Volatile.Read(ref data[index]);
-                index = index + 1 == total ? 0 : index + 1;
+                index = (index + 1 == total) ? 0 : index + 1;
                 if (otherQueue != null &&
                     otherQueue.TrySteal(ref callback, ref missedSteal))
                 {
