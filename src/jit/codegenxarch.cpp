@@ -2064,12 +2064,19 @@ CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
 
     case GT_CAST:
 #if !defined(_TARGET_64BIT_)
-        // We will NYI in DecomposeNode() if we are cast TO a long type, but we do not
-        // yet support casting FROM a long type either, and that's simpler to catch
-        // here.
-        NYI_IF(varTypeIsLong(treeNode->gtOp.gtOp1), "Casts from TYP_LONG");
+        if (varTypeIsLong(treeNode->gtOp.gtOp1))
+        {
+            if (varTypeIsIntegral(targetType))
+            {
+                genLongToIntCast(treeNode);
+            }
+            else
+            {
+                NYI_IF(varTypeIsLong(treeNode->gtOp.gtOp1), "Casts from TYP_LONG");
+            }
+        }
+        else
 #endif // !defined(_TARGET_64BIT_)
-
         if (varTypeIsFloating(targetType) && varTypeIsFloating(treeNode->gtOp.gtOp1))
         {
             // Casts float/double <--> double/float
@@ -7549,6 +7556,221 @@ void CodeGen::genSetRegToCond(regNumber dstReg, GenTreePtr tree)
     }
 }
 
+
+void CodeGen::genOverflowCheck_I8toI4(regNumber hiReg, regNumber loReg)
+{
+
+    // conv.ovf.i8.i4
+    // Generate the following sequence
+    // test loDWord, loDWord   // set flags
+    // jl neg
+    // pos: test hiDWord, hiDWord   // set flags
+    // jne ovf
+    // jmp done
+    // neg: cmp hiDWord, 0xFFFFFFFF
+    // jne ovf
+    // done:
+
+    emitJumpKind jmpNotEqual = genJumpKindForOper(GT_NE, CK_SIGNED);
+    emitJumpKind jmpLTS = genJumpKindForOper(GT_LT, CK_SIGNED);
+
+    instGen_Compare_Reg_To_Zero(EA_4BYTE, loReg);
+
+    BasicBlock * neg;
+    BasicBlock * done;
+
+    neg = genCreateTempLabel();
+    done = genCreateTempLabel();
+
+    // Is the loDWord positive or negative
+    inst_JMP(jmpLTS, neg);
+
+    // If loDWord is positive, hiDWord should be 0 (sign extended loDWord)
+    instGen_Compare_Reg_To_Zero(EA_4BYTE, hiReg);
+
+    genJumpToThrowHlpBlk(jmpNotEqual, SCK_OVERFLOW);
+    inst_JMP(EJ_jmp, done);
+
+    // If loDWord is negative, hiDWord should be -1 (sign extended loDWord)
+
+    genDefineTempLabel(neg);
+
+    inst_RV_IV(INS_cmp, hiReg, 0xFFFFFFFFL, EA_4BYTE);
+
+    genJumpToThrowHlpBlk(jmpNotEqual, SCK_OVERFLOW);
+
+    // Done
+
+    genDefineTempLabel(done);
+}
+
+void CodeGen::genOverflowCheck_I8toU4(regNumber hiReg, regNumber loReg)
+{
+    // Just check that the upper DWord is 0
+
+    instGen_Compare_Reg_To_Zero(EA_4BYTE, hiReg); // set flags
+
+    emitJumpKind jmpNotEqual = genJumpKindForOper(GT_NE, CK_SIGNED);
+    genJumpToThrowHlpBlk(jmpNotEqual, SCK_OVERFLOW);
+}
+
+void CodeGen::genOverflowCheck_U8toI4(regNumber hiReg, regNumber loReg)
+{
+    // ; if low_word < 0 raise overflow
+    // 02D02DE3  mov         eax, dword ptr ds : [0169C8E8h]
+    // 02D02DE8  test        eax, eax
+    // 02D02DEA  jl          02D02DF9
+    // ; if high_word != 0 raise overflow
+    // 02D02DEC  cmp         dword ptr ds : [169C8ECh], 0
+    // 02D02DF3  jne         02D02DF9
+    // 02D02DF5  pop         ebp
+    // 02D02DF6  ret         8
+    // ; overflow exception
+    // 02D02DF9  call        73BECA1D 
+    emitJumpKind jmpNotEqual = genJumpKindForOper(GT_NE, CK_SIGNED);
+    emitJumpKind jmpLTS = genJumpKindForOper(GT_LT, CK_SIGNED);
+
+    instGen_Compare_Reg_To_Zero(EA_4BYTE, loReg);
+    genJumpToThrowHlpBlk(jmpLTS, SCK_OVERFLOW);
+
+    instGen_Compare_Reg_To_Zero(EA_4BYTE, hiReg);
+    genJumpToThrowHlpBlk(jmpNotEqual, SCK_OVERFLOW);
+}
+
+void CodeGen::genLongToIntCast(GenTreePtr treeNode)
+{
+    assert(treeNode->OperGet() == GT_CAST);
+    assert(treeNode->gtOverflow());
+
+    GenTreePtr  castOp = treeNode->gtCast.CastOp();
+    bool        checkOverflow = treeNode->gtOverflow();
+    var_types   dstType = treeNode->CastToType();
+    bool        isUnsignedDst = varTypeIsUnsigned(dstType);
+    var_types   srcType = genActualType(castOp->TypeGet());
+    bool        isUnsignedSrc = false; 
+
+    GenTreePtr lowOp = castOp->gtOp.gtOp1;
+    GenTreePtr highOp = castOp->gtOp.gtOp2;
+    regNumber  targetReg = treeNode->gtRegNum;
+    regNumber  sourceReg = lowOp->gtRegNum;
+
+    // Narrowing cast
+    noway_assert(genTypeSize(srcType) > genTypeSize(dstType));
+
+    assert(genIsValidIntReg(targetReg));
+    assert(genIsValidIntReg(sourceReg));
+
+    // if necessary, force the srcType to unsigned when the GT_UNSIGNED flag is set
+    if ((treeNode->gtFlags & GTF_UNSIGNED) != 0)
+    {
+        srcType = genUnsignedType(srcType);
+        isUnsignedSrc = true;
+    }
+  
+    emitAttr dstSize = EA_ATTR(genTypeSize(dstType));
+    noway_assert(dstSize <= EA_4BYTE);
+
+    genConsumeReg(lowOp);
+    genConsumeReg(highOp);
+
+    if (checkOverflow)
+    {
+        regNumber loReg = sourceReg;
+        regNumber hiReg = highOp->gtRegNum;
+
+        if (isUnsignedSrc)
+        {
+            switch (dstType)
+            {
+            case TYP_UINT:
+                // Same as I8 to U4
+                genOverflowCheck_I8toU4(hiReg, loReg);
+                break;
+            case TYP_INT:
+                genOverflowCheck_U8toI4(hiReg, loReg);
+                break;
+            default:
+                NYI("Cast from long with overflow check");
+            }
+        }
+        else
+        {
+            switch (dstType)
+            {
+            case TYP_INT:
+                genOverflowCheck_I8toI4(hiReg, loReg);
+                break;
+            case TYP_UINT:
+                genOverflowCheck_I8toU4(hiReg, loReg);
+                break;
+            default:
+                NYI("Cast from long with overflow check");
+            }
+        }
+    }
+
+    // Is the value sitting in a non-byte-addressable register? 
+    if (lowOp->InReg() && (dstSize == EA_1BYTE) && !isByteReg(sourceReg))
+    {
+        if (!isUnsignedDst)
+        {
+            // Move the value into a byte register
+            noway_assert(!"Signed byte convert from non-byte-addressable register");
+        }
+
+        // Generate "mov targetReg, lowOp->gtReg 
+        if (targetReg != sourceReg)
+        {
+            inst_RV_RV(INS_mov, targetReg, sourceReg, srcType);
+        }
+
+        // Generate "and reg, MASK 
+        unsigned fillPattern;
+        if (dstSize == EA_1BYTE)
+            fillPattern = 0xff;
+        else if (dstSize == EA_2BYTE)
+            fillPattern = 0xffff;
+        else
+            fillPattern = 0xffffffff;
+
+        inst_RV_IV(INS_AND, targetReg, fillPattern, EA_4BYTE);
+
+        return;
+    }
+
+
+    instruction ins = INS_invalid;
+    if (!varTypeIsSmall(dstType) || srcType == dstType)
+    {
+        ins = INS_mov;
+    }
+    else if (varTypeIsUnsigned(dstType))
+    {
+        ins = INS_movzx;
+    }
+    else
+    {
+        ins = INS_movsx;
+    }
+
+    if (ins == INS_mov)
+    {
+        if (targetReg != sourceReg)
+        {
+            inst_RV_RV(ins, targetReg, sourceReg, dstType, dstSize);
+        }
+    }
+    else
+    {
+        noway_assert(ins == INS_movsx || ins == INS_movzx);
+
+        // Generate "mov targetReg, lowOp->gtReg 
+        inst_RV_RV(ins, targetReg, sourceReg, dstType, dstSize);
+    }
+
+    genProduceReg(treeNode);
+}
+
 //------------------------------------------------------------------------
 // genIntToIntCast: Generate code for an integer cast
 //    This method handles integer overflow checking casts
@@ -7809,7 +8031,11 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
     }
     else // non-overflow checking cast
     {
+#ifdef _TARGET_64BIT_
         noway_assert(size < EA_PTRSIZE || srcType == dstType);
+#else
+        noway_assert(size <= EA_PTRSIZE);
+#endif
 
         // We may have code transformations that result in casts where srcType is the same as dstType.
         // e.g. Bug 824281, in which a comma is split by the rationalizer, leaving an assignment of a
