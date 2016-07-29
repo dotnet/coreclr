@@ -379,10 +379,10 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:SkipNativeBuild
-
 REM endlocal to rid us of environment changes from vcvarsall.bat
 endlocal
+
+:SkipNativeBuild
 
 REM =========================================================================================
 REM ===
