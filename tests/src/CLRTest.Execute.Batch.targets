@@ -250,10 +250,6 @@ set CLRTestExitCode=!ERRORLEVEL!
     <!-- Raise an error if any value in _RequiredProperties is missing  -->
     <Error Condition=" '%(_RequiredProperties.Value)'=='' "
       Text="Missing required test property [%(_RequiredProperties.Identity)]. Something isn't plumbed through correctly.  Contact $(_CLRTestBuildSystemOwner)." />
-      <!-- TODO: this is weird.  Consider eliminating it. -->
-    <GenerateParamList ArgumentItems="@(BatchCLRTestExecutionScriptArgument)">
-      <Output TaskParameter="ParamList" PropertyName="_CLRTestParamList"/>
-    </GenerateParamList>
     
     <PropertyGroup>
       <!--
@@ -290,7 +286,6 @@ goto ArgsDone
 
 :USAGE
 ECHO.Usage
-ECHO %0 $(_CLRTestParamList)
 ECHO.
 ECHO                         - OPTIONS -
 @(BatchCLRTestExecutionScriptArgument -> 'ECHO -%(Identity) %(ParamName)
