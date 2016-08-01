@@ -3398,6 +3398,9 @@ namespace System {
             string result = FastAllocateString(totalLength);
             int position = 0; // How many characters we've copied so far
 
+            // It's important that this is this is strings.Length
+            // and not args.Length, since RyuJIT is currently unable
+            // to eliminate range checks for the latter
             for (int i = 0; i < strings.Length; i++)
             {
                 string s = strings[i].Value;
