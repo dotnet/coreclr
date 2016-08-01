@@ -116,6 +116,12 @@ case $OSName in
         ;;
 esac
 
+# We store our list of dumplings in the current working directory.
+# for the sake of practice, we will start with a fresh dumplings list.
+dumplingsListPath="$(PWD)/dumplings.txt"
+if [ -f "$dumplingsListPath" ]; then
+    rm "$dumplingsListPath"
+fi 
 
 function xunit_output_begin {
     xunitOutputPath=$testRootDir/coreclrtests.xml
@@ -605,8 +611,7 @@ function upload_core_file_to_dumpling {
         paths_to_add=$coreClrBinDir
     fi
 
-    # The output from this will include a unique ID for this dump.
-    ./$dumpling_script "--corefile" "$core_file_name" "upload" "--addpaths" $paths_to_add
+    ./$dumpling_script "--corefile" "$core_file_name" "upload" "--addpaths" $paths_to_add "--squelch" "--logpath" $dumplingsListPath
 }
 
 function preserve_core_file {
