@@ -11,6 +11,9 @@
 **
 **
 ===========================================================*/
+
+using Internal;
+
 namespace System {
     using System.Text;
     using System;
@@ -3338,34 +3341,75 @@ namespace System {
         }
 
         [System.Security.SecuritySafeCritical]
-        public static String Concat(params Object[] args) {
-            if (args==null) {
+        public static string Concat(params object[] args)
+        {
+            if (args == null)
+            {
                 throw new ArgumentNullException("args");
             }
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.EndContractBlock();
-    
-            String[] sArgs = new String[args.Length];
-            int totalLength=0;
-            
-            for (int i=0; i<args.Length; i++) {
+
+            // We need to get an intermediary string array
+            // to fill with each of the args' ToString(),
+            // and then just concat that in one operation.
+
+            // This way we avoid any intermediary string representations,
+            // or buffer resizing if we use StringBuilder (although the
+            // latter case is partially alleviated due to StringBuilder's
+            // linked-list style implementation)
+
+            // We use RefAsValueType here, which is a struct wrapper
+            // over a simple ref type, to avoid covariant array type checks by
+            // the CLR. Even with all of the other stuff going on this
+            // method, JIT_Stelem_Ref seems to be taking up as much as 15%
+            // of this method's time in PerfView.
+
+            // If or when dotnet/coreclr#6537 is ever fixed, this can
+            // be removed since string is sealed.
+
+            var strings = new RefAsValueType<string>[args.Length];
+
+            long totalLengthLong = 0L;
+
+            for (int i = 0; i < args.Length; i++)
+            {
                 object value = args[i];
-                sArgs[i] = ((value==null)?(String.Empty):(value.ToString()));
-                if (sArgs[i] == null) sArgs[i] = String.Empty; // value.ToString() above could have returned null
-                totalLength += sArgs[i].Length;
-                // check for overflow
-                if (totalLength < 0) {
-                    throw new OutOfMemoryException();
-                }
+
+                string toString = value?.ToString() ?? string.Empty; // We need to handle both the cases when value or value.ToString() is null
+                strings[i].Value = toString;
+
+                totalLengthLong += toString.Length;
+            }
+
+            if (totalLengthLong > int.MaxValue)
+            {
+                throw new OutOfMemoryException();
+            }
+
+            int totalLength = (int)totalLengthLong;
+
+            // If all of the ToStrings are null/empty, just return string.Empty
+            if (totalLength == 0)
+            {
+                return string.Empty;
             }
 
             string result = FastAllocateString(totalLength);
-            int currPos = 0;
-            for (int i = 0; i < sArgs.Length; i++)
+            int position = 0; // How many characters we've copied so far
+
+            // Take note: this is args.Length, not strings.Length, since
+            // ArrayCache is not guaranteed to return an array of exactly
+            // the requested size.
+            for (int i = 0; i < args.Length; i++)
             {
-                Contract.Assert(currPos <= totalLength - sArgs[i].Length, "[String.Concat](currPos <= totalLength - sArgs[i].Length)");
-                FillStringChecked(result, currPos, sArgs[i]);
-                currPos += sArgs[i].Length;
+                string s = strings[i].Value;
+
+                Contract.Assert(s != null);
+                Contract.Assert(position <= totalLength - s.Length, "We didn't allocate enough space for the result string!");
+
+                FillStringChecked(result, position, s);
+                position += s.Length;
             }
 
             return result;
