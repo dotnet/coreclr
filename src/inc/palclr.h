@@ -484,8 +484,16 @@
 //  and it provides __declspec(selectany) to instruct the linker to merge
 //  duplicate external const static data copies into one.
 //  
+#if defined(__clang__)
+#define SELECTANY extern
+#else
 #define SELECTANY extern __declspec(selectany)
-        
+#endif
+
+#if defined(__clang__)
+#define __annotation(x)
+#endif
+
 
 #if defined(_DEBUG_IMPL) && !defined(JIT_BUILD) && !defined(JIT64_BUILD) && !defined(CROSS_COMPILE) && !defined(_TARGET_ARM_) // @ARMTODO: no contracts for speed
 #define PAL_TRY_HANDLER_DBG_BEGIN                                               \
