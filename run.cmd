@@ -6,7 +6,10 @@ if not defined VisualStudioVersion (
 	 if not exist "%VS140COMNTOOLS%\..\IDE\devenv.exe"      goto NoVS
 	 if not exist "%VS140COMNTOOLS%\..\..\VC\vcvarsall.bat" goto NoVS
 	 if not exist "%VS140COMNTOOLS%\VsDevCmd.bat" 			  goto NoVS
-    call "%VS140COMNTOOLS%\VsDevCmd.bat"
+    :: arm64 build already sets environment for either cross or native components respectively.
+    if /i not "%__BuildArch%"=="arm64" (
+        call "%VS140COMNTOOLS%\VsDevCmd.bat"
+    )
     goto :Run
   )
 
