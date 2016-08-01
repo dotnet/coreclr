@@ -3359,16 +3359,7 @@ namespace System {
             // latter case is partially alleviated due to StringBuilder's
             // linked-list style implementation)
 
-            // We use RefAsValueType here, which is a struct wrapper
-            // over a simple ref type, to avoid covariant array type checks by
-            // the CLR. Even with all of the other stuff going on this
-            // method, JIT_Stelem_Ref seems to be taking up as much as 15%
-            // of this method's time in PerfView.
-
-            // If or when dotnet/coreclr#6537 is ever fixed, this can
-            // be removed since string is sealed.
-
-            var strings = new RefAsValueType<string>[args.Length];
+            var strings = new string[args.Length];
 
             long totalLengthLong = 0L;
 
@@ -3377,7 +3368,7 @@ namespace System {
                 object value = args[i];
 
                 string toString = value?.ToString() ?? string.Empty; // We need to handle both the cases when value or value.ToString() is null
-                strings[i].Value = toString;
+                strings[i] = toString;
 
                 totalLengthLong += toString.Length;
             }
@@ -3403,7 +3394,7 @@ namespace System {
             // to eliminate range checks for the latter
             for (int i = 0; i < strings.Length; i++)
             {
-                string s = strings[i].Value;
+                string s = strings[i];
 
                 Contract.Assert(s != null);
                 Contract.Assert(position <= totalLength - s.Length, "We didn't allocate enough space for the result string!");
