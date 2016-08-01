@@ -3398,10 +3398,7 @@ namespace System {
             string result = FastAllocateString(totalLength);
             int position = 0; // How many characters we've copied so far
 
-            // Take note: this is args.Length, not strings.Length, since
-            // ArrayCache is not guaranteed to return an array of exactly
-            // the requested size.
-            for (int i = 0; i < args.Length; i++)
+            for (int i = 0; i < strings.Length; i++)
             {
                 string s = strings[i].Value;
 
