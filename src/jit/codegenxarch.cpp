@@ -7647,7 +7647,7 @@ void CodeGen::genLongToIntCast(GenTreePtr treeNode)
     var_types   dstType = treeNode->CastToType();
     bool        isUnsignedDst = varTypeIsUnsigned(dstType);
     var_types   srcType = genActualType(castOp->TypeGet());
-    bool        isUnsignedSrc = false; 
+    bool        isUnsignedSrc = varTypeIsUnsigned(srcType);
 
     GenTreePtr lowOp = castOp->gtOp.gtOp1;
     GenTreePtr highOp = castOp->gtOp.gtOp2;
@@ -7661,7 +7661,7 @@ void CodeGen::genLongToIntCast(GenTreePtr treeNode)
     assert(genIsValidIntReg(sourceReg));
 
     // if necessary, force the srcType to unsigned when the GT_UNSIGNED flag is set
-    if ((treeNode->gtFlags & GTF_UNSIGNED) != 0)
+    if (!isUnsignedSrc && (treeNode->gtFlags & GTF_UNSIGNED) != 0)
     {
         srcType = genUnsignedType(srcType);
         isUnsignedSrc = true;
@@ -8069,7 +8069,8 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
         {
             noway_assert((needAndAfter == false) && isUnsignedDst);
 
-            /* Generate "and reg, MASK */
+            // Generate "and reg, MASK 
+            /*
             unsigned fillPattern;
             if (size == EA_1BYTE)
                 fillPattern = 0xff;
@@ -8077,8 +8078,9 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
                 fillPattern = 0xffff;
             else
                 fillPattern = 0xffffffff;
+            */
 
-            inst_RV_IV(INS_AND, targetReg, fillPattern, EA_4BYTE);
+            inst_RV_IV(INS_AND, targetReg, 0xff, EA_4BYTE);
         }
 #ifdef _TARGET_AMD64_
         else if (ins == INS_movsxd)
