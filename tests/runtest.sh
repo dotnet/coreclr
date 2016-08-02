@@ -798,6 +798,7 @@ function start_test {
     scriptFilePaths[$nextProcessIndex]=$scriptFilePath
     local scriptFileName=$(basename "$scriptFilePath")
     local outputFilePath=$(dirname "$scriptFilePath")/${scriptFileName}.out
+    export COMPlus_LogFile=$(dirname "$scriptFilePath")/${scriptFileName}.jitdump
     outputFilePaths[$nextProcessIndex]=$outputFilePath
 
     if [ "$showTime" == "ON" ]; then
@@ -1029,6 +1030,12 @@ if ((disableEventLogging == 0)); then
 fi
 
 export COMPlus_JitDump=AppendFormatHelper
+export COMPlus_LogEnable=1
+export COMPlus_LogToFile=1
+export COMPlus_LogLevel=6
+export COMPlus_LogFacility=8
+export COMPlus_LogWithPid=1
+
 export CORECLR_SERVER_GC="$serverGC"
 
 if [ -z "$testRootDir" ]; then
