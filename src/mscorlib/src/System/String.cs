@@ -3357,8 +3357,8 @@ namespace System {
             // linked-list style implementation)
 
             var strings = new string[args.Length];
-
-            long totalLengthLong = 0L;
+            
+            int totalLength = 0;
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -3367,15 +3367,13 @@ namespace System {
                 string toString = value?.ToString() ?? string.Empty; // We need to handle both the cases when value or value.ToString() is null
                 strings[i] = toString;
 
-                totalLengthLong += toString.Length;
-            }
+                totalLength += toString.Length;
 
-            if (totalLengthLong > int.MaxValue)
-            {
-                throw new OutOfMemoryException();
+                if (totalLength < 0) // Check for a positive overflow
+                {
+                    throw new OutOfMemoryException();
+                }
             }
-
-            int totalLength = (int)totalLengthLong;
 
             // If all of the ToStrings are null/empty, just return string.Empty
             if (totalLength == 0)
@@ -3386,9 +3384,6 @@ namespace System {
             string result = FastAllocateString(totalLength);
             int position = 0; // How many characters we've copied so far
 
-            // It's important that this is this is strings.Length
-            // and not args.Length, since RyuJIT is currently unable
-            // to eliminate range checks for the latter
             for (int i = 0; i < strings.Length; i++)
             {
                 string s = strings[i];
