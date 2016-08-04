@@ -1310,8 +1310,8 @@ namespace System.Text {
         }
 
         // undocumented exclusive limits on the range for Argument Hole Index and Argument Hole Alignment.
-        private static const int Index_Limit = 1000000; // Note:            0 <= ArgIndex < Index_Limit
-        private static const int Width_Limit = 1000000; // Note: -Width_Limit <  ArgAlign < Width_Limit
+        private const int Index_Limit = 1000000; // Note:            0 <= ArgIndex < Index_Limit
+        private const int Width_Limit = 1000000; // Note: -Width_Limit <  ArgAlign < Width_Limit
 
         internal StringBuilder AppendFormatHelper(IFormatProvider provider, String format, ParamsArray args) {
             if (format == null) {
@@ -1360,14 +1360,17 @@ namespace System.Text {
                     // If it neither then treat the character as just text.
                     Append(ch);
                 }
+
                 //
                 // Start of parsing of Argument Hole.
                 // Argument Hole ::= { Index (, WS* Alignment WS*)? (: Formatting)? }
+                //
                 if (pos == len) break;
                 
                 //
                 //  Start of parsing required Index parameter.
                 //  Index ::= ('0'-'9')+ WS*
+                //
                 pos++;
                 // If reached end of text then error (Unexpected end of text)
                 // or character is not a digit then error (Unexpected Character)
