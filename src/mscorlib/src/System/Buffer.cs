@@ -15,6 +15,12 @@ namespace System {
     using System.Security;
     using System.Runtime;
 
+#if BIT64
+    using nuint = System.UInt64;
+#else // BIT64
+    using nuint = System.UInt32;
+#endif // BIT64
+
 [System.Runtime.InteropServices.ComVisible(true)]
     public static class Buffer
     {
@@ -264,25 +270,17 @@ namespace System {
         // This method has different signature for x64 and other platforms and is done for performance reasons.
         [System.Security.SecurityCritical]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-#if BIT64
-        internal unsafe static void Memmove(byte* dest, byte* src, ulong len)
-#else
-        internal unsafe static void Memmove(byte* dest, byte* src, uint len)
-#endif
+        internal unsafe static void Memmove(byte* dest, byte* src, nuint len)
         {
             // P/Invoke into the native version when the buffers are overlapping and the copy needs to be performed backwards
             // This check can produce false positives for lengths greater than Int32.MaxInt. It is fine because we want to use PInvoke path for the large lengths anyway.
-#if BIT64
-            if ((ulong)dest - (ulong)src < len) goto PInvoke;
-#else
-            if (((uint)dest - (uint)src) < len) goto PInvoke;
-#endif
-            //
+
+            if ((nuint)dest - (nuint)src < len) goto PInvoke;
+
             // This is portable version of memcpy. It mirrors what the hand optimized assembly versions of memcpy typically do.
             //
             // Ideally, we would just use the cpblk IL instruction here. Unfortunately, cpblk IL instruction is not as efficient as
             // possible yet and so we have this implementation here for now.
-            //
 
             switch (len)
             {
@@ -292,14 +290,14 @@ namespace System {
                 *dest = *src;
                 return;
             case 2:
-                *(short *)dest = *(short *)src;
+                *(short*)dest = *(short*)src;
                 return;
             case 3:
-                *(short *)dest = *(short *)src;
+                *(short*)dest = *(short*)src;
                 *(dest + 2) = *(src + 2);
                 return;
             case 4:
-                *(int *)dest = *(int *)src;
+                *(int*)dest = *(int*)src;
                 return;
             case 5:
                 *(int*)dest = *(int*)src;
@@ -401,8 +399,6 @@ namespace System {
                 *(int*)(dest + 12) = *(int*)(src + 12);
 #endif
                 return;
-            default:
-                break;
             }
 
             // P/Invoke into the native version for large lengths
@@ -417,14 +413,17 @@ namespace System {
                     dest++;
                     len--;
                     if (((int)dest & 2) == 0)
-                        goto Aligned;
+                    {
+                        goto Int32Aligned;
+                    }
                 }
                 *(short *)dest = *(short *)src;
                 src += 2;
                 dest += 2;
                 len -= 2;
-            Aligned: ;
             }
+
+            Int32Aligned:
 
 #if BIT64
             if (((int)dest & 4) != 0)
@@ -436,11 +435,8 @@ namespace System {
             }
 #endif
 
-#if BIT64
-            ulong count = len / 16;
-#else
-            uint count = len / 16;
-#endif
+            nuint count = len / 16;
+
             while (count > 0)
             {
 #if BIT64
