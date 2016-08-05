@@ -435,7 +435,9 @@ namespace System {
             }
 #endif
 
-            nuint count = len & ~15;
+            // Since we know due to the above switch that
+            // len is >= 16, this will never be 0
+            nuint count = len & ~15u;
             nuint i = 0;
 
             do
@@ -492,11 +494,7 @@ namespace System {
         [SecurityCritical]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [MethodImplAttribute(MethodImplOptions.NoInlining)]
-#if BIT64
-        private unsafe static void _Memmove(byte* dest, byte* src, ulong len)
-#else
-        private unsafe static void _Memmove(byte* dest, byte* src, uint len)
-#endif
+        private unsafe static void _Memmove(byte* dest, byte* src, nuint len)
         {
             __Memmove(dest, src, len);
         }
@@ -505,11 +503,7 @@ namespace System {
         [SuppressUnmanagedCodeSecurity]
         [SecurityCritical]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-#if BIT64
-        extern private unsafe static void __Memmove(byte* dest, byte* src, ulong len);
-#else
-        extern private unsafe static void __Memmove(byte* dest, byte* src, uint len);
-#endif
+        extern private unsafe static void __Memmove(byte* dest, byte* src, nuint len);
 
 
         // The attributes on this method are chosen for best JIT performance. 
@@ -523,11 +517,7 @@ namespace System {
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.sourceBytesToCopy);
             }
-#if BIT64
-            Memmove((byte*)destination, (byte*)source, checked((ulong) sourceBytesToCopy));
-#else
-            Memmove((byte*)destination, (byte*)source, checked((uint)sourceBytesToCopy));
-#endif // BIT64
+            Memmove((byte*)destination, (byte*)source, checked((nuint)sourceBytesToCopy));
         }
 
 
@@ -544,7 +534,7 @@ namespace System {
             }
 #if BIT64
             Memmove((byte*)destination, (byte*)source, sourceBytesToCopy);
-#else
+#else // BIT64
             Memmove((byte*)destination, (byte*)source, checked((uint)sourceBytesToCopy));
 #endif // BIT64
         }
