@@ -436,22 +436,23 @@ namespace System {
 #endif
 
             nuint count = len & ~15;
-            byte* end = (nuint)dest + count;
+            nuint i = 0;
 
-            while (dest != end)
+            do
             {
 #if BIT64
-                ((long*)dest)[0] = ((long*)src)[0];
-                ((long*)dest)[1] = ((long*)src)[1];
+                *(long*)(dest + i) = *(long*)(src + i);
+                *(long*)(dest + i + 8) = *(long*)(src + i + 8);
 #else
-                ((int*)dest)[0] = ((int*)src)[0];
-                ((int*)dest)[1] = ((int*)src)[1];
-                ((int*)dest)[2] = ((int*)src)[2];
-                ((int*)dest)[3] = ((int*)src)[3];
+                *(int*)(dest + i) = *(int*)(src + i);
+                *(int*)(dest + i + 4) = *(int*)(src + i + 4);
+                *(int*)(dest + i + 8) = *(int*)(src + i + 8);
+                *(int*)(dest + i + 12) = *(int*)(src + i + 12);
 #endif
-                dest += 16;
-                src += 16;
+
+                i += 16;
             }
+            while (i != count);
 
             if ((len & 8) != 0)
             {
