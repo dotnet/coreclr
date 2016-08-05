@@ -417,7 +417,7 @@ namespace System {
                         goto Int32Aligned;
                     }
                 }
-                *(short *)dest = *(short *)src;
+                *(short*)dest = *(short*)src;
                 src += 2;
                 dest += 2;
                 len -= 2;
@@ -428,7 +428,7 @@ namespace System {
 #if BIT64
             if (((int)dest & 4) != 0)
             {
-                *(int *)dest = *(int *)src;
+                *(int*)dest = *(int*)src;
                 src += 4;
                 dest += 4;
                 len -= 4;
