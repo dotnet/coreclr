@@ -546,7 +546,7 @@ namespace System {
             }
             if ((len & 2) != 0) 
             {
-                *(short*)(dest + i) = *(int*)(src + i);
+                *(short*)(dest + i) = *(short*)(src + i);
                 i += 2;
             }
             if ((len & 1) != 0)
@@ -559,7 +559,6 @@ namespace System {
             return;
 
             PInvoke:
-            Contract.Assert(i == 0, "This variable should only be used if we do a managed copy.");
             _Memmove(dest, src, len);
 
         }
