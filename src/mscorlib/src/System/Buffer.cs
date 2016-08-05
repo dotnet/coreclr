@@ -422,7 +422,7 @@ namespace System {
             IntAligned:
 
 #if BIT64
-            if ((((int)dest - 1) & 3) == 0)
+            if ((((int)dest - 1) & 4) == 0)
             {
                 *(int*)dest = *(int*)src;
                 i += 4;
