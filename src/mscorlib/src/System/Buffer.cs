@@ -399,6 +399,81 @@ namespace System {
                 *(int*)(dest + 12) = *(int*)(src + 12);
 #endif
                 return;
+            case 17:
+#if BIT64
+                *(long*)dest = *(long*)src;
+                *(long*)(dest + 8) = *(long*)(src + 8);
+#else
+                *(int*)dest = *(int*)src;
+                *(int*)(dest + 4) = *(int*)(src + 4);
+                *(int*)(dest + 8) = *(int*)(src + 8);
+                *(int*)(dest + 12) = *(int*)(src + 12);
+#endif
+                *(dest + 16) = *(src + 16);
+                return;
+            case 18:
+#if BIT64
+                *(long*)dest = *(long*)src;
+                *(long*)(dest + 8) = *(long*)(src + 8);
+#else
+                *(int*)dest = *(int*)src;
+                *(int*)(dest + 4) = *(int*)(src + 4);
+                *(int*)(dest + 8) = *(int*)(src + 8);
+                *(int*)(dest + 12) = *(int*)(src + 12);
+#endif
+                *(short*)(dest + 16) = *(short*)(src + 16);
+                return;
+            case 19:
+#if BIT64
+                *(long*)dest = *(long*)src;
+                *(long*)(dest + 8) = *(long*)(src + 8);
+#else
+                *(int*)dest = *(int*)src;
+                *(int*)(dest + 4) = *(int*)(src + 4);
+                *(int*)(dest + 8) = *(int*)(src + 8);
+                *(int*)(dest + 12) = *(int*)(src + 12);
+#endif
+                *(short*)(dest + 16) = *(short*)(src + 16);
+                *(dest + 18) = *(src + 18);
+                return;
+            case 20:
+#if BIT64
+                *(long*)dest = *(long*)src;
+                *(long*)(dest + 8) = *(long*)(src + 8);
+#else
+                *(int*)dest = *(int*)src;
+                *(int*)(dest + 4) = *(int*)(src + 4);
+                *(int*)(dest + 8) = *(int*)(src + 8);
+                *(int*)(dest + 12) = *(int*)(src + 12);
+#endif
+                *(int*)(dest + 16) = *(int*)(src + 16);
+                return;
+            case 21:
+#if BIT64
+                *(long*)dest = *(long*)src;
+                *(long*)(dest + 8) = *(long*)(src + 8);
+#else
+                *(int*)dest = *(int*)src;
+                *(int*)(dest + 4) = *(int*)(src + 4);
+                *(int*)(dest + 8) = *(int*)(src + 8);
+                *(int*)(dest + 12) = *(int*)(src + 12);
+#endif
+                *(int*)(dest + 16) = *(int*)(src + 16);
+                *(dest + 20) = *(src + 20);
+                return;
+            case 22:
+#if BIT64
+                *(long*)dest = *(long*)src;
+                *(long*)(dest + 8) = *(long*)(src + 8);
+#else
+                *(int*)dest = *(int*)src;
+                *(int*)(dest + 4) = *(int*)(src + 4);
+                *(int*)(dest + 8) = *(int*)(src + 8);
+                *(int*)(dest + 12) = *(int*)(src + 12);
+#endif
+                *(int*)(dest + 16) = *(int*)(src + 16);
+                *(short*)(dest + 20) = *(short*)(src + 20);
+                return;
             }
 
             // P/Invoke into the native version for large lengths
