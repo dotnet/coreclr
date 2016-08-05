@@ -435,9 +435,10 @@ namespace System {
             }
 #endif
 
-            nuint count = len / 16;
+            nuint count = len & ~15;
+            byte* end = (nuint)dest + count;
 
-            while (count > 0)
+            while (dest != end)
             {
 #if BIT64
                 ((long*)dest)[0] = ((long*)src)[0];
@@ -450,7 +451,6 @@ namespace System {
 #endif
                 dest += 16;
                 src += 16;
-                count--;
             }
 
             if ((len & 8) != 0)
