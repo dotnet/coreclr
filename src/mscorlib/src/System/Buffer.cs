@@ -544,7 +544,7 @@ namespace System {
             }
             while (i <= end);
 
-            len -= i;
+            len -= i; // len now represents how many bytes are left after the unrolled loop
 
             if ((len & 8) != 0)
             {
