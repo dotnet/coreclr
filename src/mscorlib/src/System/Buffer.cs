@@ -503,19 +503,25 @@ namespace System {
             IntAligned:
 
 #if BIT64
+            // On 64-bit IntPtr.Size == 8, so we want to advance to the next 8-aligned address. If
+            // (int)dest % 8 is 0, 5, 6, or 7, we will already have advanced by 0, 3, 2, or 1
+            // bytes to the next aligned address (respectively), so do nothing. On the other hand,
+            // if it is 1, 2, 3, or 4 we will want to copy-and-advance another 4 bytes until
+            // we're aligned.
+            // The thing 1, 2, 3, and 4 have in common that the others don't is that if you
+            // subtract one from them, their 3rd lsb will not be set. Hence, the below check.
+
             if ((((int)dest - 1) & 4) == 0)
             {
                 *(int*)(dest + i) = *(int*)(src + i);
                 i += 4;
             }
-#endif
+#endif // BIT64
 
             nuint end = len - 16;
 
-            // We know due to the above switch-case that
-            // this loop will always run 1 iteration; max
-            // bytes we copy before checking is 23 (7 to
-            // align the pointers, 16 for 1 iteration) so
+            // We know due to the above switch-case that this loop will always run 1 iteration; max
+            // bytes we copy before checking is 23 (7 to align the pointers, 16 for 1 iteration) so
             // the switch handles lengths 0-22.
             Contract.Assert(end >= 7 && i <= end);
 
@@ -524,7 +530,7 @@ namespace System {
                 // This loop looks very costly since there appear to be a bunch of temporary values
                 // being created with the adds, but the jit (for x86 anyways) will convert each of
                 // these to use memory addressing operands.
-                
+
                 // So the only cost is a bit of code size, which is made up for by the fact that
                 // we save on writes to dest/src.
 
