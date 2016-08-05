@@ -282,6 +282,9 @@ namespace System {
             // Ideally, we would just use the cpblk IL instruction here. Unfortunately, cpblk IL instruction is not as efficient as
             // possible yet and so we have this implementation here for now.
 
+            // Note: It's important that this switch handles lengths at least up to 22.
+            // See notes below near the main loop for why.
+
             switch (len)
             {
             case 0:
@@ -515,6 +518,15 @@ namespace System {
 
             do
             {
+                // This loop looks very costly since there
+                // appear to be a bunch of temporary values
+                // being created with the adds, but the jit
+                // (for x86 anyways) will convert each of
+                // these to use memory addressing operands.
+                // So the only cost is a bit of code size,
+                // which is made up for by the fact that
+                // we save on writes to dest/src.
+
 #if BIT64
                 *(long*)(dest + i) = *(long*)(src + i);
                 *(long*)(dest + i + 8) = *(long*)(src + i + 8);
