@@ -519,14 +519,22 @@ namespace System {
 #endif // BIT64
 
             nuint end = len - 16;
+            len -= i; // lower 4 bits of len represent how many bytes are left *after* the unrolled loop
 
             // We know due to the above switch-case that this loop will always run 1 iteration; max
             // bytes we copy before checking is 23 (7 to align the pointers, 16 for 1 iteration) so
             // the switch handles lengths 0-22.
             Contract.Assert(end >= 7 && i <= end);
 
+            // This is separated out into a different variable, so the i + 16 addition can be
+            // performed at the start of the pipeline and the loop condition does not have
+            // a dependency on the writes.
+            nuint counter; 
+
             do
             {
+                counter = i + 16;
+
                 // This loop looks very costly since there appear to be a bunch of temporary values
                 // being created with the adds, but the jit (for x86 anyways) will convert each of
                 // these to use memory addressing operands.
@@ -544,11 +552,12 @@ namespace System {
                 *(int*)(dest + i + 12) = *(int*)(src + i + 12);
 #endif
 
-                i += 16;
+                i = counter;
+                
+                // See notes above for why this wasn't used instead
+                // i += 16;
             }
-            while (i <= end);
-
-            len -= i; // len now represents how many bytes are left after the unrolled loop
+            while (counter <= end);
 
             if ((len & 8) != 0)
             {
