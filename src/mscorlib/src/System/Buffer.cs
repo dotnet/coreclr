@@ -504,10 +504,14 @@ namespace System {
             }
 #endif
 
-            // Since we know due to the above switch that
-            // len is >= 16, this will never be 0
-            nuint count = len & ~15u;
-            nuint i = 0;
+            nuint end = len - 16;
+
+            // We know due to the above switch-case that
+            // this loop will always run 1 iteration; max
+            // bytes we copy before checking is 23 (7 to
+            // align the pointers, 16 for 1 iteration) so
+            // the switch handles lengths 0-22.
+            Contract.Assert(end >= 7 && i <= end);
 
             do
             {
@@ -523,37 +527,39 @@ namespace System {
 
                 i += 16;
             }
-            while (i != count);
+            while (i <= end);
 
             if ((len & 8) != 0)
             {
 #if BIT64
-                ((long*)dest)[0] = ((long*)src)[0];
+                *(long*)(dest + i) = *(long*)(src + i);
 #else
-                ((int*)dest)[0] = ((int*)src)[0];
-                ((int*)dest)[1] = ((int*)src)[1];
+                *(int*)(dest + i) = *(int*)(src + i);
+                *(int*)(dest + i + 4) = *(int*)(src + i + 4);
 #endif
-                dest += 8;
-                src += 8;
-           }
-           if ((len & 4) != 0) 
-           {
-                ((int*)dest)[0] = ((int*)src)[0];
-                dest += 4;
-                src += 4;
-           }
-           if ((len & 2) != 0) 
-           {
-                ((short*)dest)[0] = ((short*)src)[0];
-                dest += 2;
-                src += 2;
-           }
-           if ((len & 1) != 0)
-                *dest = *src;
+                i += 8;
+            }
+            if ((len & 4) != 0) 
+            {
+                *(int*)(dest + i) = *(int*)(src + i);
+                i += 4;
+            }
+            if ((len & 2) != 0) 
+            {
+                *(short*)(dest + i) = *(int*)(src + i);
+                i += 2;
+            }
+            if ((len & 1) != 0)
+            {
+                *(dest + i) = *(src + i);
+                // We're not using i after this, so not needed
+                // i += 1;
+            }
 
             return;
 
             PInvoke:
+            Contract.Assert(i == 0, "This variable should only be used if we do a managed copy.");
             _Memmove(dest, src, len);
 
         }
