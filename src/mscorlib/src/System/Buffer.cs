@@ -404,34 +404,28 @@ namespace System {
             // P/Invoke into the native version for large lengths
             if (len >= 512) goto PInvoke;
 
+            nuint i = 0; // byte offset at which we're copying
+
             if (((int)dest & 3) != 0)
             {
                 if (((int)dest & 1) != 0)
                 {
                     *dest = *src;
-                    src++;
-                    dest++;
-                    len--;
-                    if (((int)dest & 2) == 0)
-                    {
-                        goto Int32Aligned;
-                    }
+                    i++;
+                    if (((int)dest & 2) != 0)
+                        goto IntAligned;
                 }
                 *(short*)dest = *(short*)src;
-                src += 2;
-                dest += 2;
-                len -= 2;
+                i += 2;
             }
 
-            Int32Aligned:
+            IntAligned:
 
 #if BIT64
-            if (((int)dest & 4) != 0)
+            if ((((int)dest - 1) & 3) == 0)
             {
                 *(int*)dest = *(int*)src;
-                src += 4;
-                dest += 4;
-                len -= 4;
+                i += 4;
             }
 #endif
 
@@ -504,7 +498,6 @@ namespace System {
         [SecurityCritical]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         extern private unsafe static void __Memmove(byte* dest, byte* src, nuint len);
-
 
         // The attributes on this method are chosen for best JIT performance. 
         // Please do not edit unless intentional.
