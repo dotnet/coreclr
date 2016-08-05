@@ -285,6 +285,9 @@ namespace System {
             // Note: It's important that this switch handles lengths at least up to 22.
             // See notes below near the main loop for why.
 
+            // The switch will be very fast since it can be implemented using a jump
+            // table in assembly. See http://stackoverflow.com/a/449297/4077294 for more info.
+
             switch (len)
             {
             case 0:
