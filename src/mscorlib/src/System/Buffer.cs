@@ -544,6 +544,8 @@ namespace System {
             }
             while (i <= end);
 
+            len -= i;
+
             if ((len & 8) != 0)
             {
 #if BIT64
