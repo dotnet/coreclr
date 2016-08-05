@@ -491,12 +491,12 @@ namespace System {
             {
                 if (((int)dest & 1) != 0)
                 {
-                    *dest = *src;
-                    i++;
+                    *(dest + i) = *(src + i);
+                    i += 1;
                     if (((int)dest & 2) != 0)
                         goto IntAligned;
                 }
-                *(short*)dest = *(short*)src;
+                *(short*)(dest + i) = *(short*)(src + i);
                 i += 2;
             }
 
@@ -505,7 +505,7 @@ namespace System {
 #if BIT64
             if ((((int)dest - 1) & 4) == 0)
             {
-                *(int*)dest = *(int*)src;
+                *(int*)(dest + i) = *(int*)(src + i);
                 i += 4;
             }
 #endif
