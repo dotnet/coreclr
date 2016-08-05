@@ -521,13 +521,11 @@ namespace System {
 
             do
             {
-                // This loop looks very costly since there
-                // appear to be a bunch of temporary values
-                // being created with the adds, but the jit
-                // (for x86 anyways) will convert each of
+                // This loop looks very costly since there appear to be a bunch of temporary values
+                // being created with the adds, but the jit (for x86 anyways) will convert each of
                 // these to use memory addressing operands.
-                // So the only cost is a bit of code size,
-                // which is made up for by the fact that
+                
+                // So the only cost is a bit of code size, which is made up for by the fact that
                 // we save on writes to dest/src.
 
 #if BIT64
