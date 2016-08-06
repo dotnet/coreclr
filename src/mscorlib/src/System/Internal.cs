@@ -47,6 +47,11 @@ namespace System
         // This can be removed after V2, when we implement other schemes
         // of keeping the JIT-compiler out for generic instantiations.
 
+        // Method marked as NoOptimization as we don't want the JIT to
+        // inline any methods or take any short-circuit paths since the 
+        // instantiation closure process is driven by "fixup" references 
+        // left in the final code stream.
+        [MethodImplAttribute(MethodImplOptions.NoOptimization)]
         static void CommonlyUsedGenericInstantiations()
         {
             // Make absolutely sure we include some of the most common 
@@ -54,9 +59,9 @@ namespace System
             // Note that reference type instantiations are already included
             // automatically for us.
 
-            System.Array.Sort<double>(null);
-            System.Array.Sort<int>(null);
-            System.Array.Sort<IntPtr>(null);
+            Array.Sort<double>(Array.Empty<double>());
+            Array.Sort<int>(Array.Empty<int>());
+            Array.Sort<IntPtr>(Array.Empty<IntPtr>());
 
             new ArraySegment<byte>(new byte[1], 0, 0);
 
