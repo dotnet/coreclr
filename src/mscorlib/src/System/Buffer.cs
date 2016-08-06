@@ -507,8 +507,9 @@ namespace System {
             *(nuint*)dest = *(nuint*)src;
 
             // byte offset at which we're copying
-            int offset = sizeof(nuint) - ((int)dest % sizeof(nuint)); // maps 0 => 8, 1 => 7, ... 8 => 8 for 64-bit
-                                                                      // lhs is offset of dest from an aligned address
+            // We use & (n - 1) instead of % n, since the two will have different results for negative numbers
+            int offset = sizeof(nuint) - ((int)dest & (sizeof(nuint) - 1)); // maps 0 => 8, 1 => 7, ... 8 => 8 for 64-bit
+                                                                            // lhs is offset of dest from an aligned address
             nuint i = (nuint)offset;
             nuint end = len - 16;
             nuint mask = len - i; // lower 4 bits of mask represent how many bytes are left *after* the unrolled loop
