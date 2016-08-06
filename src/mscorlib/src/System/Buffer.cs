@@ -396,8 +396,7 @@ namespace System {
                 return;
             case 16:
 #if BIT64
-                *(long*)dest = *(long*)src;
-                *(long*)(dest + 8) = *(long*)(src + 8);
+                *(Buffer16*)dest = *(Buffer16*)src;
 #else
                 *(int*)dest = *(int*)src;
                 *(int*)(dest + 4) = *(int*)(src + 4);
@@ -407,8 +406,7 @@ namespace System {
                 return;
             case 17:
 #if BIT64
-                *(long*)dest = *(long*)src;
-                *(long*)(dest + 8) = *(long*)(src + 8);
+                *(Buffer16*)dest = *(Buffer16*)src;
 #else
                 *(int*)dest = *(int*)src;
                 *(int*)(dest + 4) = *(int*)(src + 4);
@@ -419,8 +417,7 @@ namespace System {
                 return;
             case 18:
 #if BIT64
-                *(long*)dest = *(long*)src;
-                *(long*)(dest + 8) = *(long*)(src + 8);
+                *(Buffer16*)dest = *(Buffer16*)src;
 #else
                 *(int*)dest = *(int*)src;
                 *(int*)(dest + 4) = *(int*)(src + 4);
@@ -431,8 +428,7 @@ namespace System {
                 return;
             case 19:
 #if BIT64
-                *(long*)dest = *(long*)src;
-                *(long*)(dest + 8) = *(long*)(src + 8);
+                *(Buffer16*)dest = *(Buffer16*)src;
 #else
                 *(int*)dest = *(int*)src;
                 *(int*)(dest + 4) = *(int*)(src + 4);
@@ -444,8 +440,7 @@ namespace System {
                 return;
             case 20:
 #if BIT64
-                *(long*)dest = *(long*)src;
-                *(long*)(dest + 8) = *(long*)(src + 8);
+                *(Buffer16*)dest = *(Buffer16*)src;
 #else
                 *(int*)dest = *(int*)src;
                 *(int*)(dest + 4) = *(int*)(src + 4);
@@ -456,8 +451,7 @@ namespace System {
                 return;
             case 21:
 #if BIT64
-                *(long*)dest = *(long*)src;
-                *(long*)(dest + 8) = *(long*)(src + 8);
+                *(Buffer16*)dest = *(Buffer16*)src;
 #else
                 *(int*)dest = *(int*)src;
                 *(int*)(dest + 4) = *(int*)(src + 4);
@@ -469,8 +463,7 @@ namespace System {
                 return;
             case 22:
 #if BIT64
-                *(long*)dest = *(long*)src;
-                *(long*)(dest + 8) = *(long*)(src + 8);
+                *(Buffer16*)dest = *(Buffer16*)src;
 #else
                 *(int*)dest = *(int*)src;
                 *(int*)(dest + 4) = *(int*)(src + 4);
@@ -482,8 +475,7 @@ namespace System {
                 return;
             case 23:
 #if BIT64
-                *(long*)dest = *(long*)src;
-                *(long*)(dest + 8) = *(long*)(src + 8);
+                *(Buffer16*)dest = *(Buffer16*)src;
 #else
                 *(int*)dest = *(int*)src;
                 *(int*)(dest + 4) = *(int*)(src + 4);
@@ -519,15 +511,8 @@ namespace System {
             // the switch handles lengths 0-23.
             Contract.Assert(end >= (nuint)sizeof(nuint) && i <= end);
 
-            // This is separated out into a different variable, so the i + 16 addition can be
-            // performed at the start of the pipeline and the loop condition does not have
-            // a dependency on the writes.
-            nuint counter; 
-
             do
             {
-                counter = i + 16;
-
                 // This loop looks very costly since there appear to be a bunch of temporary values
                 // being created with the adds, but the jit (for x86 anyways) will convert each of
                 // these to use memory addressing operands.
@@ -536,8 +521,7 @@ namespace System {
                 // we save on writes to dest/src.
 
 #if BIT64
-                *(long*)(dest + i) = *(long*)(src + i);
-                *(long*)(dest + i + 8) = *(long*)(src + i + 8);
+                *(Buffer16*)(dest + i) = *(Buffer16*)(src + i);
 #else // BIT64
                 *(int*)(dest + i) = *(int*)(src + i);
                 *(int*)(dest + i + 4) = *(int*)(src + i + 4);
@@ -545,12 +529,9 @@ namespace System {
                 *(int*)(dest + i + 12) = *(int*)(src + i + 12);
 #endif // BIT64
 
-                i = counter;
-
-                // See notes above for why this wasn't used instead
-                // i += 16;
+                i += 16;
             }
-            while (counter <= end);
+            while (i <= end);
 
             // We have <= 15 bytes to copy at this point.
 
@@ -648,6 +629,12 @@ namespace System {
 #else // BIT64
             Memmove((byte*)destination, (byte*)source, checked((uint)sourceBytesToCopy));
 #endif // BIT64
+        }
+
+        // 16-byte struct. Used for copying.
+        [StructLayout(LayoutKind.Sequential, Size = 16)]
+        private struct Buffer16
+        {
         }
     }
 }
