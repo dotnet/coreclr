@@ -282,7 +282,7 @@ namespace System {
             // Ideally, we would just use the cpblk IL instruction here. Unfortunately, cpblk IL instruction is not as efficient as
             // possible yet and so we have this implementation here for now.
 
-            // Note: It's important that this switch handles lengths at least up to 22.
+            // Note: It's important that this switch handles lengths at least up to 23.
             // See notes below near the main loop for why.
 
             // The switch will be very fast since it can be implemented using a jump
@@ -480,51 +480,44 @@ namespace System {
                 *(int*)(dest + 16) = *(int*)(src + 16);
                 *(short*)(dest + 20) = *(short*)(src + 20);
                 return;
+            case 23:
+#if BIT64
+                *(long*)dest = *(long*)src;
+                *(long*)(dest + 8) = *(long*)(src + 8);
+#else
+                *(int*)dest = *(int*)src;
+                *(int*)(dest + 4) = *(int*)(src + 4);
+                *(int*)(dest + 8) = *(int*)(src + 8);
+                *(int*)(dest + 12) = *(int*)(src + 12);
+#endif
+                *(int*)(dest + 16) = *(int*)(src + 16);
+                *(short*)(dest + 20) = *(short*)(src + 20);
+                *(dest + 22) = *(src + 22);
+                return;
             }
 
             // P/Invoke into the native version for large lengths
             if (len >= 512) goto PInvoke;
+            
+            int alignment = IntPtr.Size - 1;
 
-            nuint i = 0; // byte offset at which we're copying
+            // First write: copy a single word from src to dest
+            // We don't care if this is aligned; if it isn't, we'll just start
+            // at the next aligned address and maybe re-copy a few bytes. The
+            // benefit of this is it allows us to avoid multiple branches and
+            // reduces code size.
+            *(nuint*)dest = *(nuint*)src;
 
-            if (((int)dest & 3) != 0)
-            {
-                if (((int)dest & 1) != 0)
-                {
-                    *(dest + i) = *(src + i);
-                    i += 1;
-                    if (((int)dest & 2) != 0)
-                        goto IntAligned;
-                }
-                *(short*)(dest + i) = *(short*)(src + i);
-                i += 2;
-            }
-
-            IntAligned:
-
-#if BIT64
-            // On 64-bit IntPtr.Size == 8, so we want to advance to the next 8-aligned address. If
-            // (int)dest % 8 is 0, 5, 6, or 7, we will already have advanced by 0, 3, 2, or 1
-            // bytes to the next aligned address (respectively), so do nothing. On the other hand,
-            // if it is 1, 2, 3, or 4 we will want to copy-and-advance another 4 bytes until
-            // we're aligned.
-            // The thing 1, 2, 3, and 4 have in common that the others don't is that if you
-            // subtract one from them, their 3rd lsb will not be set. Hence, the below check.
-
-            if ((((int)dest - 1) & 4) == 0)
-            {
-                *(int*)(dest + i) = *(int*)(src + i);
-                i += 4;
-            }
-#endif // BIT64
-
+            // byte offset at which we're copying
+            nuint i = 8u - ((nuint)dest & (nuint)alignment); // maps 0 => 8, 1 => 7, ... 8 => 8 for 64-bit
+                                                             // lhs is offset of dest from an aligned address
             nuint end = len - 16;
-            len -= i; // lower 4 bits of len represent how many bytes are left *after* the unrolled loop
+            nuint mask = len - i; // lower 4 bits of mask represent how many bytes are left *after* the unrolled loop
 
             // We know due to the above switch-case that this loop will always run 1 iteration; max
-            // bytes we copy before checking is 23 (7 to align the pointers, 16 for 1 iteration) so
-            // the switch handles lengths 0-22.
-            Contract.Assert(end >= 7 && i <= end);
+            // bytes we copy before checking is 24 (8 for first write, 16 for 1 iteration) so
+            // the switch handles lengths 0-23.
+            Contract.Assert(end >= (nuint)IntPtr.Size && i <= end);
 
             // This is separated out into a different variable, so the i + 16 addition can be
             // performed at the start of the pipeline and the loop condition does not have
@@ -545,46 +538,61 @@ namespace System {
 #if BIT64
                 *(long*)(dest + i) = *(long*)(src + i);
                 *(long*)(dest + i + 8) = *(long*)(src + i + 8);
-#else
+#else // BIT64
                 *(int*)(dest + i) = *(int*)(src + i);
                 *(int*)(dest + i + 4) = *(int*)(src + i + 4);
                 *(int*)(dest + i + 8) = *(int*)(src + i + 8);
                 *(int*)(dest + i + 12) = *(int*)(src + i + 12);
-#endif
+#endif // BIT64
 
                 i = counter;
-                
+
                 // See notes above for why this wasn't used instead
                 // i += 16;
             }
             while (counter <= end);
 
-            if ((len & 8) != 0)
+            // We have <= 15 bytes to copy at this point.
+
+            if ((mask & 8) != 0)
             {
 #if BIT64
                 *(long*)(dest + i) = *(long*)(src + i);
-#else
+
+                // We don't use the value of i anymore after this on 64-bit
+                // i += 8;
+#else // BIT64
                 *(int*)(dest + i) = *(int*)(src + i);
                 *(int*)(dest + i + 4) = *(int*)(src + i + 4);
-#endif
+
                 i += 8;
+#endif // BIT64
             }
-            if ((len & 4) != 0) 
+
+            // At this point, maximum number of bytes left to copy is 7.
+            // This can fit in a 64-bit word, so skip the next check
+            // if we're 64-bit.
+
+#if !BIT64
+            if ((mask & 4) != 0) 
             {
                 *(int*)(dest + i) = *(int*)(src + i);
-                i += 4;
+
+                // We don't use the value of i anymore after this on 32-bit
+                // i += 4;
             }
-            if ((len & 2) != 0) 
-            {
-                *(short*)(dest + i) = *(short*)(src + i);
-                i += 2;
-            }
-            if ((len & 1) != 0)
-            {
-                *(dest + i) = *(src + i);
-                // We're not using i after this, so not needed
-                // i += 1;
-            }
+
+            // At this point, maximum number of bytes left to copy is 3.
+            // This fits into a 32-bit word, so...
+
+#endif // !BIT64
+
+            // Now all we have to do is write the last word
+            // This may or may not be aligned, but it saves
+            // us a couple of branches
+
+            i = len - (nuint)IntPtr.Size;
+            *(nuint*)(dest + i) = *(nuint*)(src + i);
 
             return;
 
