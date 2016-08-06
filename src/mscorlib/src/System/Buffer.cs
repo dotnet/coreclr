@@ -499,8 +499,6 @@ namespace System {
             // P/Invoke into the native version for large lengths
             if (len >= 512) goto PInvoke;
             
-            int alignment = IntPtr.Size - 1;
-
             // First write: copy a single word from src to dest
             // We don't care if this is aligned; if it isn't, we'll just start
             // at the next aligned address and maybe re-copy a few bytes. The
@@ -509,15 +507,16 @@ namespace System {
             *(nuint*)dest = *(nuint*)src;
 
             // byte offset at which we're copying
-            nuint i = 8u - ((nuint)dest & (nuint)alignment); // maps 0 => 8, 1 => 7, ... 8 => 8 for 64-bit
-                                                             // lhs is offset of dest from an aligned address
+            int offset = sizeof(nuint) - ((int)dest % sizeof(nuint)); // maps 0 => 8, 1 => 7, ... 8 => 8 for 64-bit
+                                                                      // lhs is offset of dest from an aligned address
+            nuint i = (nuint)offset;
             nuint end = len - 16;
             nuint mask = len - i; // lower 4 bits of mask represent how many bytes are left *after* the unrolled loop
 
             // We know due to the above switch-case that this loop will always run 1 iteration; max
             // bytes we copy before checking is 24 (8 for first write, 16 for 1 iteration) so
             // the switch handles lengths 0-23.
-            Contract.Assert(end >= (nuint)IntPtr.Size && i <= end);
+            Contract.Assert(end >= (nuint)sizeof(nuint) && i <= end);
 
             // This is separated out into a different variable, so the i + 16 addition can be
             // performed at the start of the pipeline and the loop condition does not have
@@ -591,7 +590,7 @@ namespace System {
             // This may or may not be aligned, but it saves
             // us a couple of branches
 
-            i = len - (nuint)IntPtr.Size;
+            i = len - (nuint)sizeof(nuint);
             *(nuint*)(dest + i) = *(nuint*)(src + i);
 
             return;
