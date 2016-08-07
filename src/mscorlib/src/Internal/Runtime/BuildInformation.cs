@@ -14,18 +14,15 @@ namespace Internal.Runtime
     {
         public static bool Is(Architecture architecture)
         {
-            get
-            {
 #if ARM
-                return architecture == Arm;
+            return architecture == Arm;
 #elif ARM64
-                return architecture == Arm64;
+            return architecture == Arm64;
 #elif AMD64
-                return architecture == x64;
-#else
-                return architecture == x86;
-#endif
-            }
+            return architecture == x64;
+#else // ARM, ARM64. AMD64
+            return architecture == x86;
+#endif // ARM, ARM64, AMD64
         }
     }
 }
