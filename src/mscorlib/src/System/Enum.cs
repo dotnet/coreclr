@@ -137,7 +137,7 @@ namespace System
             if (!eT.IsDefined(typeof(System.FlagsAttribute), false)) // Not marked with Flags attribute
             {
                 // Try to see if its one of the enum values, then we return a String back else the value
-                String retval = GetName(eT, value);
+                String retval = eT.GetEnumName(value);
                 if (retval == null)
                     return value.ToString();
                 else
