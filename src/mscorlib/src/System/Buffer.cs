@@ -399,14 +399,15 @@ namespace System {
             }
 
             // P/Invoke into the native version for large lengths
-            if (len >= 512) goto PInvoke;
+            if (len >= 2048) goto PInvoke;
 
             // So far SIMD is only enabled for AMD64, so on that plaform we want
             // to 16-byte align while on others (including arm64) we'll want to word-align
             int alignment = BuildInformation.Is(Architecture.x64) ? 16 : sizeof(nuint);
-            alignment -= 1; // minus one to get an all-one mask
-            
-            nuint i = (nuint)((int)dest & ~alignment); // calculate the previous aligned address from dest
+            int alignmentMask = alignment - 1; // minus one to get an all-one mask
+            int offset = alignment - ((int)dest & alignmentMask);
+
+            nuint i = (nuint)offset; // calculate the previous aligned address from dest
             i += 16; // we'll be copying 16 bytes past that address initially
 
 #if AMD64
