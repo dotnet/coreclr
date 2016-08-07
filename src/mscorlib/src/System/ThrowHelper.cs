@@ -224,7 +224,8 @@ namespace System {
         creationOptions,
         observer,
         continuationFunction,
-        valueFactory
+        valueFactory,
+        handler
     }
 
     //
