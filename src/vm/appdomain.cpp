@@ -14322,6 +14322,10 @@ HRESULT RuntimeInvokeHostAssemblyResolver(INT_PTR pManagedAssemblyLoadContextToB
 
                 // Make the call
                 _gcRefs.oRefLoadedAssembly = (ASSEMBLYREF) methLoadAssembly.Call_RetOBJECTREF(args);
+                if (_gcRefs.oRefLoadedAssembly != NULL)
+                {
+                    fResolvedAssembly = true;
+                }
             }
             
             if (fResolvedAssembly && !fResolvedAssemblyViaTPALoadContext)
