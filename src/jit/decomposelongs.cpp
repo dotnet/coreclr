@@ -157,6 +157,51 @@ void DecomposeLongs::DecomposeNode(GenTree** ppTree, Compiler::fgWalkData* data)
 
     if (tree->TypeGet() != TYP_LONG)
     {
+        // For long -> int/short/byte conversions, if overflow checking is not needed,
+        // the upper 32 bits can be simply dropped. If it is not dropped here, codegen will 
+        // generate unnecessary instructions to compute the upper 32 bits.
+        // In many cases, morph optimizes this kind of casts but some cases slip to here.
+        // An example tree reaching here is:
+        // *  stmtExpr  void  (top level) (IL 0x000... ? ? ? )
+        // | / --*  lclVar    int    V00 arg0         u : 2 (last
+        // | | / --*  lclVar    int    V01 arg1         u : 2
+        // | | / --*  cast      int <-ubyte <-int $141
+        // | | / --*  cast      long <-ulong <-uint $180
+        // | +--*  cast      int <-uint <-long $142
+        // | / --* | int    $143
+        // \--*  st.lclVar int    V02 tmp0         d : 2
+        if (tree->OperGet() == GT_CAST && !tree->gtOverflow())
+        {
+            var_types srcType = tree->AsCast()->CastFromType();
+            var_types dstType = tree->AsCast()->CastToType();
+
+            if (varTypeIsLong(srcType) && varTypeIsIntegral(dstType))
+            {
+                JITDUMP("[Decompose Long to int]:");
+                JITDUMP("Before:\n");
+                DISPTREE(tree);
+
+                assert(genTypeSize(srcType) > genTypeSize(dstType));
+                assert(tree->gtOp.gtOp1->OperGet() == GT_LONG);
+
+                GenTree* gtLong = tree->gtOp.gtOp1;
+                GenTree* highOpd = gtLong->gtOp.gtOp2;
+                GenTree* lowOpd = gtLong->gtOp.gtOp1;
+
+                // If there is any side effect on highOpd tree, let codegen generate code for highOpd.
+                if (!(m_compiler->gtTreeHasSideEffects(highOpd, GTF_SIDE_EFFECT)))
+                { 
+                    GenTreeStmt* curStmt = m_compiler->compCurStmt->AsStmt();
+                    m_compiler->fgSnipNode(curStmt, gtLong);
+                    m_compiler->fgDeleteTreeFromList(curStmt, highOpd);
+
+                    tree->gtOp.gtOp1 = lowOpd;
+
+                    JITDUMP("After:\n");
+                    DISPTREE(*ppTree);
+                }
+           }
+        }
         return;
     }
 
