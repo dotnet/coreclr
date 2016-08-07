@@ -405,10 +405,9 @@ namespace System {
             // to 16-byte align while on others (including arm64) we'll want to word-align
             int alignment = BuildInformation.Is(Architecture.x64) ? 16 : sizeof(nuint);
             int alignmentMask = alignment - 1; // minus one to get an all-one mask
-            int offset = alignment - ((int)dest & alignmentMask);
+            int offset = 16 - ((int)dest & alignmentMask); // bytes until first address where we start using the unrolled loop
 
             nuint i = (nuint)offset; // calculate the previous aligned address from dest
-            i += 16; // we'll be copying 16 bytes past that address initially
 
 #if AMD64
             // SIMD is enabled for AMD64, so take advantage of that
