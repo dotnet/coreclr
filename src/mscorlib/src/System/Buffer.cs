@@ -284,8 +284,8 @@ namespace System {
             // Ideally, we would just use the cpblk IL instruction here. Unfortunately, cpblk IL instruction is not as efficient as
             // possible yet and so we have this implementation here for now.
 
-            // Note: It's important that this switch handles lengths at least up to 23.
-            // See notes below near the main loop for why.
+            // Note: It's important that this switch handles lengths at least up to 15 for AMD64.
+            // We assume below len is at least 16 and make one 128-bit write without checking.
 
             // The switch will be very fast since it can be implemented using a jump
             // table in assembly. See http://stackoverflow.com/a/449297/4077294 for more info.
@@ -323,75 +323,75 @@ namespace System {
             case 8:
 #if BIT64
                 *(long*)dest = *(long*)src;
-#else
+#else // BIT64
                 *(int*)dest = *(int*)src;
                 *(int*)(dest + 4) = *(int*)(src + 4);
-#endif
+#endif // BIT64
                 return;
             case 9:
 #if BIT64
                 *(long*)dest = *(long*)src;
-#else
+#else // BIT64
                 *(int*)dest = *(int*)src;
                 *(int*)(dest + 4) = *(int*)(src + 4);
-#endif
+#endif // BIT64
                 *(dest + 8) = *(src + 8);
                 return;
             case 10:
 #if BIT64
                 *(long*)dest = *(long*)src;
-#else
+#else // BIT64
                 *(int*)dest = *(int*)src;
                 *(int*)(dest + 4) = *(int*)(src + 4);
-#endif
+#endif // BIT64
                 *(short*)(dest + 8) = *(short*)(src + 8);
                 return;
             case 11:
 #if BIT64
                 *(long*)dest = *(long*)src;
-#else
+#else // BIT64
                 *(int*)dest = *(int*)src;
                 *(int*)(dest + 4) = *(int*)(src + 4);
-#endif
+#endif // BIT64
                 *(short*)(dest + 8) = *(short*)(src + 8);
                 *(dest + 10) = *(src + 10);
                 return;
             case 12:
 #if BIT64
                 *(long*)dest = *(long*)src;
-#else
+#else // BIT64
                 *(int*)dest = *(int*)src;
                 *(int*)(dest + 4) = *(int*)(src + 4);
-#endif
+#endif // BIT64
                 *(int*)(dest + 8) = *(int*)(src + 8);
                 return;
             case 13:
 #if BIT64
                 *(long*)dest = *(long*)src;
-#else
+#else // BIT64
                 *(int*)dest = *(int*)src;
                 *(int*)(dest + 4) = *(int*)(src + 4);
-#endif
+#endif // BIT64
                 *(int*)(dest + 8) = *(int*)(src + 8);
                 *(dest + 12) = *(src + 12);
                 return;
             case 14:
 #if BIT64
                 *(long*)dest = *(long*)src;
-#else
+#else // BIT64
                 *(int*)dest = *(int*)src;
                 *(int*)(dest + 4) = *(int*)(src + 4);
-#endif
+#endif // BIT64
                 *(int*)(dest + 8) = *(int*)(src + 8);
                 *(short*)(dest + 12) = *(short*)(src + 12);
                 return;
             case 15:
 #if BIT64
                 *(long*)dest = *(long*)src;
-#else
+#else // BIT64
                 *(int*)dest = *(int*)src;
                 *(int*)(dest + 4) = *(int*)(src + 4);
-#endif
+#endif // BIT64
                 *(int*)(dest + 8) = *(int*)(src + 8);
                 *(short*)(dest + 12) = *(short*)(src + 12);
                 *(dest + 14) = *(src + 14);
