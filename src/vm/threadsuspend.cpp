@@ -7318,7 +7318,7 @@ VOID * GetHijackAddr(Thread *pThread, EECodeInfo *codeInfo)
     }
 #endif // _TARGET_X86_
 
-    return OnHijackTripThread;
+    return (VOID *) OnHijackTripThread;
 }
 
 #ifndef PLATFORM_UNIX
