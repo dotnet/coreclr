@@ -399,7 +399,7 @@ namespace System {
             }
 
             // P/Invoke into the native version for large lengths
-            if (len >= 2048) goto PInvoke;
+            if (len >= 8192) goto PInvoke;
 
             // So far SIMD is only enabled for AMD64, so on that plaform we want
             // to 16-byte align while on others (including arm64) we'll want to word-align
