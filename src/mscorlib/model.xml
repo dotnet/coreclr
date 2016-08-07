@@ -11016,6 +11016,9 @@
       <Member Name="CreateArray" />
       <Member Name="Slice(System.Int32,System.Int32)" />
       <Member Name="Equals(System.Span&lt;T&gt;)" />
+      <Member Name="TryCopyTo(System.Span&lt;T&gt;)" />
+      <Member Name="TryCopyTo(T[])" />
+      <Member Name="TryCopyTo(System.Byte*,System.Int32)" />
     </Type>
     <Type Name="System.ReadOnlySpan&lt;T&gt;" Condition="FEATURE_SPAN_OF_T">
       <Member Name="#ctor(T[])" />

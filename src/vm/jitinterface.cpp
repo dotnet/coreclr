@@ -6993,6 +6993,51 @@ bool getILIntrinsicImplementation(MethodDesc * ftn,
         methInfo->options = (CorInfoOptions)0;
         return true;
     }
+    else if (tk == MscorlibBinder::GetMethod(METHOD__JIT_HELPERS__SIZEOF)->GetMemberDef())
+    {
+        _ASSERTE(ftn->HasMethodInstantiation());
+        Instantiation inst = ftn->GetMethodInstantiation();
+
+        _ASSERTE(ftn->GetNumGenericMethodArgs() == 1);
+        TypeHandle typeHandle = inst[0];
+        unsigned size = typeHandle.GetSize();
+
+        static const BYTE ilcode[] = { CEE_LDC_I4, (BYTE)(size), (BYTE)(size >> 8), (BYTE)(size >> 16), (BYTE)(size >> 24),
+                                       CEE_RET }; 
+        methInfo->ILCode = const_cast<BYTE*>(ilcode);
+        methInfo->ILCodeSize = sizeof(ilcode);
+        methInfo->maxStack = 1;
+        methInfo->EHcount = 0;
+        methInfo->options = (CorInfoOptions)0;
+        return true;
+    }
+    else if (tk == MscorlibBinder::GetMethod(METHOD__JIT_HELPERS__CONTAINSREFERENCES)->GetMemberDef())
+    {
+        _ASSERTE(ftn->HasMethodInstantiation());
+        Instantiation inst = ftn->GetMethodInstantiation();
+
+        _ASSERTE(ftn->GetNumGenericMethodArgs() == 1);
+        TypeHandle typeHandle = inst[0];
+        CorElementType elementType = typeHandle.GetSignatureCorElementType();
+
+        BYTE resultIlCode;
+        if (CorTypeInfo::IsObjRef(elementType) || (elementType == ELEMENT_TYPE_VALUETYPE && typeHandle.GetMethodTable()->ContainsPointers()))
+        {
+            resultIlCode = CEE_LDC_I4_1;
+        }
+        else
+        {
+            resultIlCode = CEE_LDC_I4_0;
+        }
+
+        static const BYTE ilcode[] = { resultIlCode, CEE_RET };
+        methInfo->ILCode = const_cast<BYTE*>(ilcode);
+        methInfo->ILCodeSize = sizeof(ilcode);
+        methInfo->maxStack = 1;
+        methInfo->EHcount = 0;
+        methInfo->options = (CorInfoOptions)0;
+        return true;
+    }
 #endif
 
     return false;

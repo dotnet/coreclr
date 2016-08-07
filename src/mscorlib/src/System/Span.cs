@@ -74,13 +74,18 @@ namespace System
 
         public int Length
         {
-            get
-            {
-                return _length;
-            }
+            get { return _length; }
         }
 
-        public static Span<T> Empty { get { return default(Span<T>); } }
+        internal long SizeInBytes
+        {
+            get { return Length * JitHelpers.SizeOf<T>(); }
+        }
+
+        public static Span<T> Empty
+        {
+            get { return default(Span<T>); }
+        }
 
         public bool IsEmpty
         {
@@ -116,12 +121,9 @@ namespace System
         /// </summary>
         public T[] CreateArray()
         {
-            var src = JitHelpers.GetByRef<T>(ref _rawPointer);
-            var dest = new T[_length];
-            // TODO: Specialize to use a fast memcpy
-            for (int i = 0; i < dest.Length; i++)
-                dest[i] = JitHelpers.AddByRef(ref src, i); 
-            return dest;
+            var destination = new T[_length];
+            TryCopyTo(destination);
+            return destination;
         }
 
         /// <summary>
@@ -151,6 +153,80 @@ namespace System
         {
             return (_length == other._length) &&
                 (_length == 0 || JitHelpers.ByRefEquals(ref JitHelpers.GetByRef<T>(ref _rawPointer), ref JitHelpers.GetByRef<T>(ref other._rawPointer)));
+        }
+
+        public bool TryCopyTo(Span<T> destination)
+        {
+            if (Length > destination.Length)
+                return false;
+
+            if (JitHelpers.ContainsReferences<T>())
+            {
+                var src = JitHelpers.GetByRef<T>(ref _rawPointer);
+                var dst = JitHelpers.GetByRef<T>(ref destination._rawPointer);
+
+                for (int i = 0; i < Length; i++)
+                    JitHelpers.AddByRef(ref dst, i) = JitHelpers.AddByRef(ref src, i);
+
+                return true;
+            }
+
+            unsafe
+            {
+#if WIN64
+                Buffer.Memmove((byte*)destination._rawPointer, (byte*)_rawPointer, (ulong)SizeInBytes);
+#else
+                Buffer.Memmove((byte*)destination._rawPointer, (byte*)_rawPointer, checked((uint)SizeInBytes));
+#endif
+                return true;
+            }
+        }
+
+        public bool TryCopyTo(T[] destination)
+        {
+            if (destination == null)
+                throw new ArgumentNullException("destination");
+
+            if (JitHelpers.ContainsReferences<T>())
+            {
+                var src = JitHelpers.GetByRef<T>(ref _rawPointer);
+                for (int i = 0; i < destination.Length; i++)
+                    destination[i] = JitHelpers.AddByRef(ref src, i);
+
+                return true;
+            }
+
+            unsafe
+            {
+                IntPtr destinationPointer;
+                JitHelpers.SetByRef(out destinationPointer, ref JitHelpers.GetArrayData(destination));
+#if WIN64
+                Buffer.Memmove((byte*)destinationPointer.ToPointer(), (byte*)_rawPointer, (ulong)SizeInBytes);
+#else
+                Buffer.Memmove((byte*)destinationPointer.ToPointer(), (byte*)_rawPointer, checked((uint)SizeInBytes));
+#endif
+                return true;
+            }
+        }
+
+        /// <param name="destination">An unmanaged pointer to memory.</param>
+        /// <param name="elementsCount">The number of T elements the memory contains.</param>
+        [System.Security.SecurityCritical]
+        [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
+        [CLSCompliant(false)]
+        public unsafe bool TryCopyTo(byte* destination, int elementsCount)
+        {
+            if (Length > (uint)elementsCount || JitHelpers.ContainsReferences<T>())
+            {
+                return false;
+            }   
+
+#if WIN64
+            Buffer.Memmove(destination, (byte*)_rawPointer, (ulong)SizeInBytes);
+#else
+            Buffer.Memmove(destination, (byte*)_rawPointer, checked((uint)SizeInBytes));
+#endif
+            return true;
         }
     }
 }
