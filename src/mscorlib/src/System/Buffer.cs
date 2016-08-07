@@ -439,10 +439,13 @@ namespace System {
 #endif // AMD64, ARM64
 
             // i now represents the number of bytes we've copied so far.
+            Contract.Assert(i <= len && i > 0 && i <= 16);
+            Contract.Assert((nuint)(dest + i) % alignment == 0);
 
             // chunk: bytes processed per iteration in unrolled loop
             // Note: Not directly related to sizeof(nuint), e.g. sizeof(nuint) * 8 is not a valid substitution.
             nuint chunk = sizeof(nuint) == 4 ? 32 : 64;
+
             // mask: represents how many bytes are left after alignment
             // Since we copy the bytes in chunks of 2, mask will also have the lower few
             // bits of mask (mask & (chunk - 1), but we don't explicitly calculate that)
