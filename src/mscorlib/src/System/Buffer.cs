@@ -435,10 +435,8 @@ namespace System {
             {
 #if AMD64
                 // Write 64 bytes at a time, taking advantage of xmm register on AMD64
-                *(Buffer16*)(dest + i) = *(Buffer16*)(src + i);
-                *(Buffer16*)(dest + i + 16) = *(Buffer16*)(src + i + 16);
-                *(Buffer16*)(dest + i + 32) = *(Buffer16*)(src + i + 32);
-                *(Buffer16*)(dest + i + 48) = *(Buffer16*)(src + i + 48);
+                // This will be translated to 4 movdqus (maybe movdqas in the future, dotnet/coreclr#2725)
+                *(Buffer64*)(dest + i) = *(Buffer64*)(src + i);
 #elif ARM64
                 // Also 64 bytes, using longwords this time.
                 *(long*)(dest + i) = *(long*)(src + i);
@@ -470,8 +468,7 @@ namespace System {
             if ((mask & 32) != 0)
             {
 #if AMD64
-                *(Buffer16*)(dest + i) = *(Buffer16*)(src + i);
-                *(Buffer16*)(dest + i + 16) = *(Buffer16*)(src + i + 16);
+                *(Buffer32*)(dest + i) = *(Buffer32*)(src + i);
 #else // AMD64
                 *(long*)(dest + i) = *(long*)(src + i);
                 *(long*)(dest + i + 8) = *(long*)(src + i + 8);
@@ -673,6 +670,16 @@ namespace System {
 #else // BIT64
             Memmove((byte*)destination, (byte*)source, checked((uint)sourceBytesToCopy));
 #endif // BIT64
+        }
+
+        [StructLayout(LayoutKind.Sequential, Size = 64)]
+        private struct Buffer64
+        {
+        }
+
+        [StructLayout(LayoutKind.Sequential, Size = 32)]
+        private struct Buffer32
+        {
         }
 
         // 16-byte struct. Used for copying.
