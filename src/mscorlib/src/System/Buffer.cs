@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using Internal.Runtime;
-
 namespace System {
     
     // Only contains static methods. Does not require serialization
@@ -405,7 +403,11 @@ namespace System {
 
             // So far SIMD is only enabled for AMD64, so on that plaform we want
             // to 16-byte align while on others (including arm64) we'll want to word-align
-            nuint alignment = BuildInformation.Is(Architecture.x64) ? 16u : (nuint)sizeof(nuint);
+#if AMD64
+            nuint alignment = 16u;
+#else // AMD64
+            nuint alignment = (nuint)sizeof(nuint);
+#endif // AMD64
 
             // (nuint)dest % alignment calculates how far we are from the previous aligned address
             // Note that it's *very* important alignment is unsigned.
