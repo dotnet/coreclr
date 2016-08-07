@@ -545,8 +545,8 @@ namespace System {
             }
 
             // Now there can be at most 15 bytes left
-            // For AMD64 we just want to make 1 unaligned xmm write and quit.
-            // For other platforms we have another switch-case for 0..15
+            // For AMD64 we just want to make 1 (potentially) unaligned xmm write and quit.
+            // For other platforms we have another switch-case for 0..15.
             // Again, this is implemented with a jump table so it's very fast.
 
 #if AMD64
@@ -672,7 +672,7 @@ namespace System {
 
         }
 
-        // Non-inlinable wrapper around the QCall that avoids poluting the fast path
+        // Non-inlinable wrapper around the QCall that avoids polluting the fast path
         // with P/Invoke prolog/epilog.
         [SecurityCritical]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
@@ -721,6 +721,13 @@ namespace System {
 #endif // BIT64
         }
 
+        // These structs are used for fast copying of large buffers in
+        // MemoryCopy. If you use these, you would do best not to make
+        // unnecessary copies of them. e.g. *dest = *src where both dest
+        // and src have type Buffer64* will generate 8 movdqu instructions
+        // on AMD64, and potentially even more code on platforms where
+        // RyuJIT does not take advantage of SIMD.
+
         [StructLayout(LayoutKind.Sequential, Size = 64)]
         private struct Buffer64
         {
@@ -731,7 +738,6 @@ namespace System {
         {
         }
 
-        // 16-byte struct. Used for copying.
         [StructLayout(LayoutKind.Sequential, Size = 16)]
         private struct Buffer16
         {
