@@ -557,7 +557,7 @@ namespace System {
             *(Buffer16*)(dest + i) = *(Buffer16*)(src + i);
 #else // AMD64
 
-            switch (len & 15)
+            switch (mask & 15)
             {
                 case 0:
                     // No-op: We already finished copying all the bytes.
