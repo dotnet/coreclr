@@ -275,7 +275,7 @@ namespace System {
         internal unsafe static void Memmove(byte* dest, byte* src, nuint len)
         {
             // P/Invoke into the native version when the buffers are overlapping and the copy needs to be performed backwards
-            // This check can produce false positives for lengths greater than Int32.MaxInt. It is fine because we want to use PInvoke path for the large lengths anyway.
+            // This check can produce false positives for lengths greater than int.MaxValue. It is fine because we want to use the P/Invoke path for the large lengths anyway.
 
             if ((nuint)dest - (nuint)src < len) goto PInvoke;
 
@@ -398,47 +398,86 @@ namespace System {
                 return;
             }
 
-            // P/Invoke into the native version for large lengths
+            // P/Invoke into the native version for large lengths.
+            // Currently the threshold at which the native version is faster seems to be around 8192
+            // on amd64 Windows, but this is subject to change if this implementation can be made faster.
             if (len >= 8192) goto PInvoke;
 
             // So far SIMD is only enabled for AMD64, so on that plaform we want
             // to 16-byte align while on others (including arm64) we'll want to word-align
-            int alignment = BuildInformation.Is(Architecture.x64) ? 16 : sizeof(nuint);
-            int alignmentMask = alignment - 1; // minus one to get an all-one mask
-            int offset = 16 - ((int)dest & alignmentMask); // bytes until first address where we start using the unrolled loop
+            nuint alignment = BuildInformation.Is(Architecture.x64) ? 16u : (nuint)sizeof(nuint);
 
-            nuint i = (nuint)offset; // calculate the previous aligned address from dest
+            // (nuint)dest % alignment calculates how far we are from the previous aligned address
+            // Note that it's *very* important alignment is unsigned.
+            // (int)dest % (int)alignment for example will give different results if the lhs is negative.
+            
+            // If dest is aligned this will be 0.
+            nuint i = (nuint)dest % alignment;
+
+            // We know from the above switch-case that len is at least 16, so here
+            // we subtract i from 16. This represents the furthest aligned address
+            // we know it's okay to write upto.
+            // To make it clearer, (dest + i) after this is equivalent to
+            // [previous aligned address] + 16.
+            i = 16u - i;
 
 #if AMD64
-            // SIMD is enabled for AMD64, so take advantage of that
+            // SIMD is enabled for AMD64, so take advantage of that and use movdqu
             *(Buffer16*)dest = *(Buffer16*)src;
 #elif ARM64
-            // ARM64 has 64-bit words but no SIMD yet, so make
-            // 2 word writes
-            // First one is unaligned, second one is
+            // ARM64 has 64-bit words but no SIMD yet, so make 2 word writes
+            // First one isn't aligned, second one is (remember from earlier notes dest + i is 8-aligned)
             *(long*)dest = *(long*)src;
             *(long*)(dest + i - 8) = *(long*)(src + i - 8);
 #else // AMD64, ARM64
-            // i386 and ARM: 32-bit words, no SIMD
-            // make 1 unaligned word write, then 3 aligned ones
+            // i386 and ARM: 32-bit words, no SIMD (yet)
+            // make 1 unaligned word write, then 3 4-byte aligned ones
             *(int*)dest = *(int*)src;
             *(int*)(dest + i - 12) = *(int*)(src + i - 12);
             *(int*)(dest + i - 8) = *(int*)(src + i - 8);
             *(int*)(dest + i - 4) = *(int*)(src + i - 4);
 #endif // AMD64, ARM64
 
-            nuint chunk = sizeof(nuint) == 4 ? 32 : 64; // bytes processed per iteration in unrolled loop
-            nuint end = len >= chunk ? len - chunk : 0; // point after which we stop the unrolled loop
-            nuint mask = len - i; // lower few bits of mask represent how many bytes are left *after* the unrolled loop
+            // i now represents the number of bytes we've copied so far.
 
+            // chunk: bytes processed per iteration in unrolled loop
+            // Note: Not directly related to sizeof(nuint), e.g. sizeof(nuint) * 8 is not a valid substitution.
+            nuint chunk = sizeof(nuint) == 4 ? 32 : 64;
+            // mask: represents how many bytes are left after alignment
+            // Since we copy the bytes in chunks of 2, mask will also have the lower few
+            // bits of mask (mask & (chunk - 1), but we don't explicitly calculate that)
+            // will represent how many bytes are left *after* the unrolled loop.
+            nuint mask = len - i;
+
+            // Protect ourselves from unsigned overflow
+            if (len < chunk)
+                goto LoopCleanup;
+
+            // end: point after which we stop the unrolled loop
+            // This is the end of the buffer, minus the space
+            // required for 1 iteration of the loop.
+            nuint end = len - chunk;
+
+            // This can return false in the first iteration if the process of
+            // aligning the pointer for writes has not left enough space
+            // for this loop to run, so unfortunately this can't be a do-while loop.
             while (i <= end)
             {
+                // Some versions of this loop looks very costly since there appear
+                // to be a bunch of temporary values being created with the adds,
+                // but the jit (for x86 anyways) will convert each of these to
+                // use memory addressing operands.
+
+                // So the only cost is a bit of code size, which is made up for by the fact that
+                // we save on writes to dest/src.
+
 #if AMD64
                 // Write 64 bytes at a time, taking advantage of xmm register on AMD64
                 // This will be translated to 4 movdqus (maybe movdqas in the future, dotnet/coreclr#2725)
                 *(Buffer64*)(dest + i) = *(Buffer64*)(src + i);
 #elif ARM64
-                // Also 64 bytes, using longwords this time.
+                // ARM64: Also unroll by 64 bytes, this time using longs since we don't
+                // take advantage of SIMD for that plaform yet.
                 *(long*)(dest + i) = *(long*)(src + i);
                 *(long*)(dest + i + 8) = *(long*)(src + i + 8);
                 *(long*)(dest + i + 16) = *(long*)(src + i + 16);
@@ -446,9 +485,10 @@ namespace System {
                 *(long*)(dest + i + 32) = *(long*)(src + i + 32);
                 *(long*)(dest + i + 40) = *(long*)(src + i + 40);
                 *(long*)(dest + i + 48) = *(long*)(src + i + 48);
-                *(long*)(dest + i + 58) = *(long*)(src + i + 56);
+                *(long*)(dest + i + 56) = *(long*)(src + i + 56);
 #else // AMD64, ARM64
-                // Write 32 bytes at a time, which is 8 32-bit words
+                // i386/ARM32:
+                // Write 32 bytes at a time, via 8 32-bit word writes
                 *(int*)(dest + i) = *(int*)(src + i);
                 *(int*)(dest + i + 4) = *(int*)(src + i + 4);
                 *(int*)(dest + i + 8) = *(int*)(src + i + 8);
@@ -462,9 +502,14 @@ namespace System {
                 i += chunk;
             }
 
+            LoopCleanup:
             // If we've reached this point, there are at most chunk - 1 bytes left
 
 #if BIT64
+            // mask & 63 represents how many bytes there are left.
+            // if the mask & 32 bit is set that means this number
+            // will be >= 32. (same principle applies for other
+            // powers of 2 below)
             if ((mask & 32) != 0)
             {
 #if AMD64
@@ -489,27 +534,30 @@ namespace System {
 #elif ARM64
                 *(long*)(dest + i) = *(long*)(src + i);
                 *(long*)(dest + i + 8) = *(long*)(src + i + 8);
-#else
+#else // AMD64, ARM64
                 *(int*)(dest + i) = *(int*)(src + i);
                 *(int*)(dest + i + 4) = *(int*)(src + i + 4);
                 *(int*)(dest + i + 8) = *(int*)(src + i + 8);
                 *(int*)(dest + i + 12) = *(int*)(src + i + 12);
-#endif
+#endif // AMD64, ARM64
 
                 i += 16;
             }
 
             // Now there can be at most 15 bytes left
-            // For AMD64 we just want to make 1 unaligned xmm write and quit
+            // For AMD64 we just want to make 1 unaligned xmm write and quit.
             // For other platforms we have another switch-case for 0..15
+            // Again, this is implemented with a jump table so it's very fast.
 
 #if AMD64
             i = len - 16;
             *(Buffer16*)(dest + i) = *(Buffer16*)(src + i);
 #else // AMD64
-            switch (len % 16u)
+
+            switch (len & 15)
             {
                 case 0:
+                    // No-op: We already finished copying all the bytes.
                     return;
                 case 1:
                     *(dest + i) = *(src + i);
@@ -614,6 +662,7 @@ namespace System {
                     *(dest + i + 14) = *(src + i + 14);
                     return;
             }
+
 #endif // AMD64
 
             return;
