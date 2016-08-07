@@ -217,7 +217,13 @@ namespace System {
         destinationArray,
         comparer,
         endIndex,
-        other
+        other,
+        function,
+        scheduler,
+        continuationAction,
+        creationOptions,
+        observer,
+        continuationFunction
     }
 
     //
@@ -291,7 +297,9 @@ namespace System {
         Arg_BogusIComparer,
 
         Arg_WrongType,
-        Argument_AddingDuplicateWithKey
+        Argument_AddingDuplicateWithKey,
+
+        TaskT_ctor_SelfReplicating
     }
 }
 
