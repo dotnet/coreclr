@@ -223,7 +223,8 @@ namespace System {
         continuationAction,
         creationOptions,
         observer,
-        continuationFunction
+        continuationFunction,
+        valueFactory
     }
 
     //
@@ -299,7 +300,10 @@ namespace System {
         Arg_WrongType,
         Argument_AddingDuplicateWithKey,
 
-        TaskT_ctor_SelfReplicating
+        TaskT_ctor_SelfReplicating,
+
+        Lazy_ctor_ModeInvalid,
+        Lazy_Value_RecursiveCallsToValue
     }
 }
 
