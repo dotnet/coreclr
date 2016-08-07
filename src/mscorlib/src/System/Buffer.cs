@@ -428,7 +428,7 @@ namespace System {
 #endif // AMD64, ARM64
 
             nuint chunk = sizeof(nuint) == 4 ? 32 : 64; // bytes processed per iteration in unrolled loop
-            nuint end = len - chunk; // point after which we stop the unrolled loop
+            nuint end = len >= chunk ? len - chunk : 0; // point after which we stop the unrolled loop
             nuint mask = len - i; // lower few bits of mask represent how many bytes are left *after* the unrolled loop
 
             while (i <= end)
