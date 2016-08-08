@@ -336,7 +336,10 @@ namespace System {
 
         ConcurrentStack_PushPopRange_InvalidCount,
         ConcurrentStack_PushPopRange_CountOutOfRange,
-        ConcurrentStack_PushPopRange_StartOutOfRange
+        ConcurrentStack_PushPopRange_StartOutOfRange,
+
+        Partitioner_DynamicPartitionsNotSupported,
+        OrderablePartitioner_GetPartitions_WrongNumberOfPartitions
     }
 }
 
