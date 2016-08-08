@@ -280,7 +280,17 @@ namespace System {
         toExclusive,
         rangeSize,
         partitionCount,
-        SymWriter
+        SymWriter,
+        path,
+        buffer,
+        asyncResult,
+        bufferSize,
+        access,
+        share,
+        endMethod,
+        beginMethod,
+        endFunction,
+        tasks
     }
 
     //
@@ -394,7 +404,16 @@ namespace System {
         Serialization_NoParameterInfo,
         Serialization_UnknownMember,
 
-        InvalidOperation_WithoutARM
+        InvalidOperation_WithoutARM,
+
+        ArgumentNull_Path,
+        Argument_EmptyPath,
+        ArgumentNull_Buffer,
+        ArgumentOutOfRange_Enum,
+        ArgumentOutOfRange_NeedPosNum,
+
+        Task_MultiTaskContinuation_EmptyTaskList,
+        InvalidOperation_WrongAsyncResultOrEndCalledMultiple
     }
 }
 
