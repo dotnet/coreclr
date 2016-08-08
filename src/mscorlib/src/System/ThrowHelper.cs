@@ -36,9 +36,10 @@ namespace System {
     // multiple times for different instantiation. 
     // 
 
-    using System.Runtime.CompilerServices;        
+    using System.Runtime.CompilerServices;
     using System.Runtime.Serialization;
     using System.Diagnostics.Contracts;
+    using Collections.Generic;
 
     [Pure]
     internal static class ThrowHelper {    
@@ -158,7 +159,7 @@ namespace System {
 
         internal static void ThrowObjectDisposedException(ExceptionResource resource)
         {
-            throw new ObjectDisposedException(Environment.GetResourceString(GetResourceName(resource)));
+            throw new ObjectDisposedException(null, Environment.GetResourceString(GetResourceName(resource)));
         }
 
         internal static void ThrowTypeLoadException(ExceptionResource resource, ExceptionArgument argument)
@@ -169,6 +170,11 @@ namespace System {
         internal static void ThrowNotImplementedException()
         {
             throw new NotImplementedException();
+        }
+
+        internal static void ThrowAggregateException(IEnumerable<Exception> innerExceptions)
+        {
+            throw new AggregateException(innerExceptions);
         }
 
 
@@ -290,7 +296,15 @@ namespace System {
         endMethod,
         beginMethod,
         endFunction,
-        tasks
+        tasks,
+        exception,
+        timeout,
+        millisecondsTimeout,
+        cancellationToken,
+        continuationOptions,
+        delay,
+        millisecondsDelay,
+
     }
 
     //
@@ -413,7 +427,26 @@ namespace System {
         ArgumentOutOfRange_NeedPosNum,
 
         Task_MultiTaskContinuation_EmptyTaskList,
-        InvalidOperation_WrongAsyncResultOrEndCalledMultiple
+        InvalidOperation_WrongAsyncResultOrEndCalledMultiple,
+        Task_MultiTaskContinuation_NullTask,
+        Task_Start_TaskCompleted,
+        Task_Start_Promise,
+        Task_Start_ContinuationTask,
+        Task_Start_AlreadyStarted,
+        Task_Dispose_NotCompleted,
+        Task_RunSynchronously_TaskCompleted,
+        Task_RunSynchronously_Continuation,
+        Task_RunSynchronously_Promise,
+        Task_RunSynchronously_AlreadyStarted,
+        Task_ctor_LRandSR,
+        Task_ThrowIfDisposed,
+        Task_WaitMulti_NullTask,
+        Task_ContinueWith_NotOnAnything,
+        Task_ContinueWith_ESandLR,
+        Task_Delay_InvalidDelay,
+        Task_Delay_InvalidMillisecondsDelay,
+
+
     }
 }
 
