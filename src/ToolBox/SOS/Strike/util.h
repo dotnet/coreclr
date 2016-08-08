@@ -2355,63 +2355,73 @@ private:
 
 #endif // !FEATURE_PAL
 
-#ifdef FEATURE_PAL
-typedef  BOOL (*ResolveSequencePointDelegate)(const char*, const char*, unsigned int, unsigned int*, unsigned int*);
-typedef  BOOL (*LoadSymbolsForModuleDelegate)(const char*);
-typedef  BOOL (*GetLocalVariableName)(const char*, int, int, BSTR*);
-typedef  BOOL (*GetLineByILOffsetDelegate)(const char*, mdMethodDef, ULONG64, ULONG *, BSTR*);
-static const char *SymbolReaderDllName = "System.Diagnostics.Debug.SymbolReader";
-static const char *SymbolReaderClassName = "System.Diagnostics.Debug.SymbolReader.SymbolReader";
-#endif //FEATURE_PAL
+static const char *SymbolReaderDllName = "System.Diagnostics.StackTrace";
+static const char *SymbolReaderClassName = "System.Diagnostics.SymbolReader";
+
+typedef  int (*ReadMemoryDelegate)(ULONG64, char *, int);
+typedef  ULONG64 (*LoadSymbolsForModuleDelegate)(const char*, ULONG64, int, ULONG64, int, ReadMemoryDelegate);
+typedef  void (*DisposeDelegate)(ULONG64);
+typedef  BOOL (*ResolveSequencePointDelegate)(ULONG64, const char*, unsigned int, unsigned int*, unsigned int*);
+typedef  BOOL (*GetLocalVariableName)(ULONG64, int, int, BSTR*);
+typedef  BOOL (*GetLineByILOffsetDelegate)(ULONG64, mdMethodDef, ULONG64, ULONG *, BSTR*);
 
 class SymbolReader
 {
 private:
+#ifndef FEATURE_PAL
     ISymUnmanagedReader* m_pSymReader;
-#ifdef FEATURE_PAL
-    static void *coreclrLib;
-    char m_szModuleName[mdNameLen];
-    static ResolveSequencePointDelegate resolveSequencePointDelegate;
+#endif
+    ULONG64 m_symbolReaderHandle;
+
     static LoadSymbolsForModuleDelegate loadSymbolsForModuleDelegate;
+    static DisposeDelegate disposeDelegate;
+    static ResolveSequencePointDelegate resolveSequencePointDelegate;
     static GetLocalVariableName getLocalVariableNameDelegate;
     static GetLineByILOffsetDelegate getLineByILOffsetDelegate;
+    static HRESULT PrepareSymbolReader();
 
-#endif
-
-private:
     HRESULT GetNamedLocalVariable(ISymUnmanagedScope * pScope, ICorDebugILFrame * pILFrame, mdMethodDef methodToken, ULONG localIndex, __inout_ecount(paramNameLen) WCHAR* paramName, ULONG paramNameLen, ICorDebugValue** ppValue);
+    HRESULT LoadSymbolsForWindows(IMetaDataImport* pMD, ULONG64 peAddress, __in_z WCHAR* pModuleName, BOOL isInMemory);
+    HRESULT LoadSymbolsForPortablePDB(BOOL isInMemory, __in_z WCHAR* pModuleName, ULONG64 peAddress, ULONG64 peSize, ULONG64 inMemoryPdbAddress, ULONG64 inMemoryPdbSize);
 
 public:
- SymbolReader() : m_pSymReader (NULL) {
+    SymbolReader()
+    {
+#ifndef FEATURE_PAL
+        m_pSymReader = NULL;
+#endif
+        m_symbolReaderHandle = 0;
     }
+
     ~SymbolReader()
     {
+#ifndef FEATURE_PAL
         if(m_pSymReader != NULL)
         {
             m_pSymReader->Release();
             m_pSymReader = NULL;
         }
+#endif
+        if (m_symbolReaderHandle != 0)
+        {
+            disposeDelegate(m_symbolReaderHandle);
+            m_symbolReaderHandle = 0;
+        }
     }
 
-#ifdef FEATURE_PAL
-    static HRESULT PrepareSymbolReader();
-    static bool SymbolReaderDllExists();
-    static HRESULT GetLineByILOffset(__in_z const char* szModuleName, mdMethodDef MethodToken, ULONG64 IlOffset, ___out ULONG *pLinenum,
-                                     __out_ecount(cbFileName) LPSTR lpszFileName, ___in ULONG cbFileName);
-#endif //FEATURE_PAL
-    HRESULT LoadSymbols(IMetaDataImport * pMD, ICorDebugModule * pModule);
-    HRESULT LoadSymbols(IMetaDataImport * pMD, ULONG64 baseAddress, __in_z WCHAR* pModuleName, BOOL isInMemory);
+    HRESULT LoadSymbols(IMetaDataImport* pMD, ICorDebugModule* pModule);
+    HRESULT LoadSymbols(IMetaDataImport* pMD, IXCLRDataModule* pModule);
+    HRESULT GetLineByILOffset(mdMethodDef MethodToken, ULONG64 IlOffset, ___out ULONG *pLinenum, __out_ecount(cchFileName) WCHAR* pwszFileName, ___in ULONG cchFileName);
     HRESULT GetNamedLocalVariable(ICorDebugFrame * pFrame, ULONG localIndex, __inout_ecount(paramNameLen) WCHAR* paramName, ULONG paramNameLen, ICorDebugValue** ppValue);
-    HRESULT SymbolReader::ResolveSequencePoint(__in_z WCHAR* pFilename, ULONG32 lineNumber, TADDR mod, mdMethodDef* pToken, ULONG32* pIlOffset);
+    HRESULT ResolveSequencePoint(__in_z WCHAR* pFilename, ULONG32 lineNumber, TADDR mod, mdMethodDef* pToken, ULONG32* pIlOffset);
 };
-
 
 HRESULT
 GetLineByOffset(
         ___in ULONG64 IP,
         ___out ULONG *pLinenum,
-        __out_ecount(cbFileName) LPSTR lpszFileName,
-        ___in ULONG cbFileName);
+        __out_ecount(cchFileName) WCHAR* pwszFileName,
+        ___in ULONG cchFileName);
 
 /// X86 Context
 #define X86_SIZE_OF_80387_REGISTERS      80
@@ -2709,7 +2719,6 @@ typedef struct _CROSS_PLATFORM_CONTEXT {
 
 WString BuildRegisterOutput(const SOSStackRefData &ref, bool printObj = true);
 WString MethodNameFromIP(CLRDATA_ADDRESS methodDesc, BOOL bSuppressLines = FALSE, BOOL bAssemblyName = FALSE, BOOL bDisplacement = FALSE);
-String ModuleNameFromIP(CLRDATA_ADDRESS ip);
 HRESULT GetGCRefs(ULONG osID, SOSStackRefData **ppRefs, unsigned int *pRefCnt, SOSStackRefError **ppErrors, unsigned int *pErrCount);
 WString GetFrameFromAddress(TADDR frameAddr, IXCLRDataStackWalk *pStackwalk = NULL, BOOL bAssemblyName = FALSE);
 
@@ -3254,12 +3263,6 @@ struct ImageInfo
 {
     ULONG64 modBase;
 };
-
-HRESULT
-GetClrModuleImages(
-    ___in IXCLRDataModule* Module,
-    ___in CLRDataModuleExtentType DesiredType,
-    ___out ImageInfo* FirstAdd);
 
 // Helper class used in ClrStackFromPublicInterface() to keep track of explicit EE Frames
 // (i.e., "internal frames") on the stack.  Call Init() with the appropriate
