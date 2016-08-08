@@ -304,7 +304,7 @@ namespace System {
         continuationOptions,
         delay,
         millisecondsDelay,
-
+        exceptions,
     }
 
     //
@@ -445,7 +445,9 @@ namespace System {
         Task_ContinueWith_ESandLR,
         Task_Delay_InvalidDelay,
         Task_Delay_InvalidMillisecondsDelay,
-
+        TaskT_TransitionToFinal_AlreadyCompleted,
+        TaskCompletionSourceT_TrySetException_NullException,
+        TaskCompletionSourceT_TrySetException_NoExceptions
 
     }
 }
