@@ -140,6 +140,11 @@ namespace System {
             throw new ObjectDisposedException(objectName, Environment.GetResourceString(GetResourceName(resource)));
         }
 
+        internal static void ThrowObjectDisposedException(ExceptionResource resource)
+        {
+            throw new ObjectDisposedException(Environment.GetResourceString(GetResourceName(resource)));
+        }
+
         // Allow nulls for reference types and Nullable<U>, but not for value types.
         internal static void IfNullAndNullsAreIllegalThenThrow<T>(object value, ExceptionArgument argName) {
             // Note that default(T) is not equal to null for value types except when T is Nullable<U>. 
@@ -241,7 +246,12 @@ namespace System {
         addValueFactory,
         updateValueFactory,
         concurrencyLevel,
-        items
+        items,
+        source,
+        partitionerOptions,
+        toExclusive,
+        rangeSize,
+        partitionCount
     }
 
     //
@@ -339,7 +349,9 @@ namespace System {
         ConcurrentStack_PushPopRange_StartOutOfRange,
 
         Partitioner_DynamicPartitionsNotSupported,
-        OrderablePartitioner_GetPartitions_WrongNumberOfPartitions
+        OrderablePartitioner_GetPartitions_WrongNumberOfPartitions,
+        PartitionerStatic_CanNotCallGetEnumeratorAfterSourceHasBeenDisposed,
+        PartitionerStatic_CurrentCalledBeforeMoveNext
     }
 }
 
