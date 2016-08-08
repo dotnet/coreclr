@@ -3203,8 +3203,8 @@ void GetTimeStampsForNativeImage(CORCOMPILE_VERSION_INFO * pNativeVersionInfo)
 #endif // FEATURE_CORECLR
 }
 
-static constexpr uint32_t CMOVFlags = 0x00008001;
-static constexpr uint32_t SSE2Flags = 0x04000000;
+static const uint32_t CMOVFlags = 0x00008001;
+static const uint32_t SSE2Flags = 0x04000000;
 
 //
 // Which processor should ngen target?
