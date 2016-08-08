@@ -1719,8 +1719,20 @@ namespace System
         ushort System.IConvertible.ToUInt16(System.IFormatProvider provider) { return default(ushort); }
         uint System.IConvertible.ToUInt32(System.IFormatProvider provider) { return default(uint); }
         ulong System.IConvertible.ToUInt64(System.IFormatProvider provider) { return default(ulong); }
+	public static object ToObject(Type enumType, byte value) { return default(object); }
+        public static object ToObject(Type enumType, short value) { return default(object); }
+        public static object ToObject(Type enumType, int value) { return default(object); }
+        public static object ToObject(Type enumType, long value) { return default(object); }
         [System.Runtime.InteropServices.ComVisibleAttribute(true)]
         public static object ToObject(System.Type enumType, object value) { return default(object); }
+        [System.CLSCompliantAttribute(false)]
+        public static object ToObject(Type enumType, sbyte value) { return default(object); }
+        [System.CLSCompliantAttribute(false)]
+        public static object ToObject(Type enumType, ushort value) { return default(object); }
+        [System.CLSCompliantAttribute(false)]
+        public static object ToObject(Type enumType, uint value) { return default(object); }
+        [System.CLSCompliantAttribute(false)]
+        public static object ToObject(Type enumType, ulong value) { return default(object); }
         public override string ToString() { return default(string); }
         [System.ObsoleteAttribute("The provider argument is not used. Please use ToString().")]
         public string ToString(System.IFormatProvider provider) { return default(string); }
