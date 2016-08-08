@@ -240,7 +240,8 @@ namespace System {
         culture,
         addValueFactory,
         updateValueFactory,
-        concurrencyLevel
+        concurrencyLevel,
+        items
     }
 
     //
@@ -331,7 +332,11 @@ namespace System {
         ConcurrentDictionary_ConcurrencyLevelMustBePositive,
         ConcurrentDictionary_CapacityMustNotBeNegative,
         ConcurrentDictionary_IndexIsNegative,
-        ConcurrentDictionary_ItemKeyIsNull
+        ConcurrentDictionary_ItemKeyIsNull,
+
+        ConcurrentStack_PushPopRange_InvalidCount,
+        ConcurrentStack_PushPopRange_CountOutOfRange,
+        ConcurrentStack_PushPopRange_StartOutOfRange
     }
 }
 

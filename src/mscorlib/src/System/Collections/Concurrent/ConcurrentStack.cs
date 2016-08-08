@@ -101,7 +101,7 @@ namespace System.Collections.Concurrent
         {
             if (collection == null)
             {
-                throw new ArgumentNullException("collection");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.collection);
             }
             InitializeFromCollection(collection);
         }
@@ -247,7 +247,8 @@ namespace System.Collections.Concurrent
         {
             get
             {
-                throw new NotSupportedException(Environment.GetResourceString("ConcurrentCollection_SyncRoot_NotSupported"));
+                ThrowHelper.ThrowNotSupportedException(ExceptionResource.ConcurrentCollection_SyncRoot_NotSupported);
+                return default(object);
             }
         }
 
@@ -293,7 +294,7 @@ namespace System.Collections.Concurrent
             // Validate arguments.
             if (array == null)
             {
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
 
             // We must be careful not to corrupt the array, so we will first accumulate an
@@ -327,7 +328,7 @@ namespace System.Collections.Concurrent
         {
             if (array == null)
             {
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
 
             // We must be careful not to corrupt the array, so we will first accumulate an
@@ -379,7 +380,7 @@ namespace System.Collections.Concurrent
         {
             if (items == null)
             {
-                throw new ArgumentNullException("items");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.items);
             }
             PushRange(items, 0, items.Length);
         }
@@ -471,20 +472,20 @@ namespace System.Collections.Concurrent
         {
             if (items == null)
             {
-                throw new ArgumentNullException("items");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.items);
             }
             if (count < 0)
             {
-                throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ConcurrentStack_PushPopRange_CountOutOfRange"));
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.count, ExceptionResource.ConcurrentStack_PushPopRange_CountOutOfRange);
             }
             int length = items.Length;
             if (startIndex >= length || startIndex < 0)
             {
-                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ConcurrentStack_PushPopRange_StartOutOfRange"));
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ConcurrentStack_PushPopRange_StartOutOfRange);
             }
             if (length - count < startIndex) //instead of (startIndex + count > items.Length) to prevent overflow
             {
-                throw new ArgumentException(Environment.GetResourceString("ConcurrentStack_PushPopRange_InvalidCount"));
+                ThrowHelper.ThrowArgumentException(ExceptionResource.ConcurrentStack_PushPopRange_InvalidCount);
             }
         }
 
@@ -584,7 +585,7 @@ namespace System.Collections.Concurrent
         {
             if (items == null)
             {
-                throw new ArgumentNullException("items");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.items);
             }
 
             return TryPopRange(items, 0, items.Length);
