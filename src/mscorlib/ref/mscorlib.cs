@@ -1795,7 +1795,9 @@ namespace System
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     public sealed partial class ExecutionEngineException : System.SystemException
     {
-        internal ExecutionEngineException() { }
+        public ExecutionEngineException() { }
+        public ExecutionEngineException(string message) { }
+        public ExecutionEngineException(string message, System.Exception innerException) { }
     }
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     public partial class FieldAccessException : System.MemberAccessException
@@ -2480,8 +2482,11 @@ namespace System
     public partial class NotFiniteNumberException : System.ArithmeticException
     {
         public NotFiniteNumberException() { }
+        public NotFiniteNumberException(double offendingNumber) { }
         public NotFiniteNumberException(string message) { }
+        public NotFiniteNumberException(string message, double offendingNumber) { }
         public NotFiniteNumberException(string message, System.Exception innerException) { }
+        public NotFiniteNumberException(string message, double offendingNumber, System.Exception innerException) { }
     }
     [AttributeUsage(AttributeTargets.Field, Inherited = false)]
     public sealed class NonSerializedAttribute : Attribute
