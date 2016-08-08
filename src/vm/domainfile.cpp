@@ -3203,8 +3203,8 @@ void GetTimeStampsForNativeImage(CORCOMPILE_VERSION_INFO * pNativeVersionInfo)
 #endif // FEATURE_CORECLR
 }
 
-static constexpr uint32_t CmovFlags = 0x00008001;
-static constexpr uint32_t Sse2Flags = 0x04000000;
+static constexpr uint32_t CMOVFlags = 0x00008001;
+static constexpr uint32_t SSE2Flags = 0x04000000;
 
 //
 // Which processor should ngen target?
@@ -3221,7 +3221,7 @@ void GetNGenCpuInfo(CORINFO_CPU * cpuInfo)
     static CORINFO_CPU ngenCpuInfo =
     {
         (CPU_X86_PENTIUM_4 << 8),   // dwCPUType
-        CmovFlags | Sse2Flags,      // dwFeatures
+        CMOVFlags | SSE2Flags,      // dwFeatures
         0                           // dwExtendedFeatures
     };
 
@@ -3239,7 +3239,7 @@ void GetNGenCpuInfo(CORINFO_CPU * cpuInfo)
 
 #else // _TARGET_X86_
     cpuInfo->dwCPUType = 0;
-    cpuInfo->dwFeatures = 0; // CMOV and SSE2 are enabled by default for x86_64
+    cpuInfo->dwFeatures = 0; // CMOV and SSE2 are enabled by default for AMD64
     cpuInfo->dwExtendedFeatures = 0;
 #endif // _TARGET_X86_
 }
