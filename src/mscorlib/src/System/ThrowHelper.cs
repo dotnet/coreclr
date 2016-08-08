@@ -76,6 +76,11 @@ namespace System {
             throw new ArgumentNullException(GetArgumentName(argument));
         }
 
+        internal static void ThrowArgumentNullException(ExceptionResource resource)
+        {
+            throw new ArgumentNullException(Environment.GetResourceString(GetResourceName(resource)));
+        }
+
         internal static void ThrowArgumentOutOfRangeException(ExceptionArgument argument) {
             throw new ArgumentOutOfRangeException(GetArgumentName(argument));
         }
@@ -89,6 +94,11 @@ namespace System {
         {
             throw new ArgumentOutOfRangeException(GetArgumentName(argument) + "[" + paramNumber.ToString()+ "]",
                                                     Environment.GetResourceString(GetResourceName(resource)));
+        }
+
+        internal static void ThrowInvalidOperationException()
+        {
+            throw new InvalidOperationException();
         }
 
         internal static void ThrowInvalidOperationException(ExceptionResource resource) {
@@ -225,7 +235,12 @@ namespace System {
         observer,
         continuationFunction,
         valueFactory,
-        handler
+        handler,
+        typeName,
+        culture,
+        addValueFactory,
+        updateValueFactory,
+        concurrencyLevel
     }
 
     //
@@ -304,7 +319,19 @@ namespace System {
         TaskT_ctor_SelfReplicating,
 
         Lazy_ctor_ModeInvalid,
-        Lazy_Value_RecursiveCallsToValue
+        Lazy_Value_RecursiveCallsToValue,
+
+        ConcurrentDictionary_SourceContainsDuplicateKeys,
+        ConcurrentDictionary_ArrayNotLargeEnough,
+        ConcurrentDictionary_KeyAlreadyExisted,
+        ConcurrentDictionary_TypeOfKeyIncorrect,
+        ConcurrentDictionary_TypeOfValueIncorrect,
+        ConcurrentDictionary_ArrayIncorrectType,
+        ConcurrentCollection_SyncRoot_NotSupported,
+        ConcurrentDictionary_ConcurrencyLevelMustBePositive,
+        ConcurrentDictionary_CapacityMustNotBeNegative,
+        ConcurrentDictionary_IndexIsNegative,
+        ConcurrentDictionary_ItemKeyIsNull
     }
 }
 
