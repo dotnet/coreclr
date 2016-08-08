@@ -3225,7 +3225,7 @@ void GetNGenCpuInfo(CORINFO_CPU * cpuInfo)
         0                           // dwExtendedFeatures
     };
 
-#if !defined(CROSSGEN_COMPILE)
+#ifndef CROSSGEN_COMPILE
     GetSpecificCpuInfo(cpuInfo);
     if (!IsCompatibleCpuInfo(cpuInfo, &ngenCpuInfo))
     {
@@ -3233,7 +3233,7 @@ void GetNGenCpuInfo(CORINFO_CPU * cpuInfo)
         // with the "recommended" processor. We expect most platforms to be compatible
         return;
     }
-#endif // !defined(CROSSGEN_COMPILE)
+#endif // !CROSSGEN_COMPILE
 
     *cpuInfo = ngenCpuInfo;
 
