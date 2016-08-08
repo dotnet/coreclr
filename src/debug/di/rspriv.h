@@ -2920,7 +2920,7 @@ class CordbProcess :
     public ICorDebugProcess4,
     public ICorDebugProcess5,
     public ICorDebugProcess7,
-	public ICorDebugProcess8,
+    public ICorDebugProcess8,
     public IDacDbiInterface::IAllocator,
     public IDacDbiInterface::IMetaDataLookup,
     public IProcessShimHooks
@@ -4683,7 +4683,7 @@ public:
 // See definition of ICorDebugType for further invariants on types.
 //
 
-class CordbType : public CordbBase, public ICorDebugType
+class CordbType : public CordbBase, public ICorDebugType, public ICorDebugType2
 {
 public:
     CordbType(CordbAppDomain *appdomain, CorElementType ty, unsigned int rank);
@@ -4722,6 +4722,11 @@ public:
                                    ICorDebugValue ** ppValue);
     COM_METHOD GetRank(ULONG32 *pnRank);
 
+    //-----------------------------------------------------------
+    // ICorDebugType2
+    //-----------------------------------------------------------
+    COM_METHOD GetTypeID(COR_TYPEID *pId);
+    
     //-----------------------------------------------------------
     // Non-COM members
     //-----------------------------------------------------------

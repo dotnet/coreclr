@@ -6918,6 +6918,28 @@ interface ICorDebugType : IUnknown
 };
 
 
+[
+    object,
+    local,
+    uuid(e6e91d79-693d-48bc-b417-8284b4f10fb5),
+    pointer_default(unique)
+]
+interface ICorDebugType2 : IUnknown
+{
+    /*
+     * GetTypeID - gives a COR_TYPEID for the ICorDebugType. This
+     * provides a mapping from the ICorDebugType, which represents a
+     * type that may or may not have been loaded into the runtime, to
+     * a COR_TYPEID, which serves as an opaque handle identifying a
+     * type loaded into the runtime. When the type that the
+     * ICorDebugType represents has not yet been loaded, this returns
+     * CORDBG_E_CLASS_NOT_LOADED. Returns CORDBG_E_UNSUPPORTED for
+     * unsupported types.
+     */
+    HRESULT GetTypeID([out] COR_TYPEID *id);
+};
+
+
 /* ------------------------------------------------------------------------- *
  * DEPRECATED
  *

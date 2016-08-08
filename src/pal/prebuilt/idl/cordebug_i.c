@@ -5,11 +5,11 @@
 /* link this file in with the server and any clients */
 
 
- /* File created by MIDL compiler version 8.00.0613 */
-/* at Mon Jan 18 19:14:07 2038
+ /* File created by MIDL compiler version 8.00.0603 */
+/* at Mon May 16 10:58:21 2016
  */
-/* Compiler settings for C:/ssd/coreclr/src/inc/cordebug.idl:
-    Oicf, W1, Zp8, env=Win32 (32b run), target_arch=X86 8.00.0613 
+/* Compiler settings for ..\..\..\inc\cordebug.idl:
+    Oicf, W1, Zp8, env=Win32 (32b run), target_arch=X86 8.00.0603 
     protocol : dce , ms_ext, c_ext, robust
     error checks: allocation ref bounds_check enum stub_data 
     VC __declspec() decoration level: 
@@ -404,6 +404,9 @@ MIDL_DEFINE_GUID(IID, IID_ICorDebugTypeEnum,0x10F27499,0x9DF2,0x43ce,0x83,0x33,0
 
 
 MIDL_DEFINE_GUID(IID, IID_ICorDebugType,0xD613F0BB,0xACE1,0x4c19,0xBD,0x72,0xE4,0xC0,0x8D,0x5D,0xA7,0xF5);
+
+
+MIDL_DEFINE_GUID(IID, IID_ICorDebugType2,0xe6e91d79,0x693d,0x48bc,0xb4,0x17,0x82,0x84,0xb4,0xf1,0x0f,0xb5);
 
 
 MIDL_DEFINE_GUID(IID, IID_ICorDebugErrorInfoEnum,0xF0E18809,0x72B5,0x11d2,0x97,0x6F,0x00,0xA0,0xC9,0xB4,0xD5,0x0C);
