@@ -545,10 +545,10 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
         }
 #else // DACCESS_COMPILE
         BOOL success = PAL_VirtualUnwind(&ctx, &nonVolRegPtrs);
-        if ( !success )
+        if (!success)
         {
-          _ASSERTE(!"unwindLazyState: Unwinding failed");
-          EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
+            _ASSERTE(!"unwindLazyState: Unwinding failed");
+            EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
         }
 #endif // DACCESS_COMPILE
         pvControlPc = GetIP(&ctx);
