@@ -50,35 +50,27 @@ namespace System
         {
             fixed (void* pValue = &JitHelpers.GetPinningHelper(this).m_data)
             {
-                unchecked
+                switch (InternalGetCorElementType())
                 {
-                    switch (InternalGetCorElementType())
-                    {
-                        case CorElementType.I1:
-                            return ((byte)*(sbyte*)pValue).ToString("X2", null);
-                        case CorElementType.U1:
-                            return (*(byte*)pValue).ToString("X2", null);
-                        case CorElementType.Boolean:
-                            // direct cast from bool to byte is not allowed
-                            return Convert.ToByte(*(bool*)pValue).ToString("X2", null);
-                        case CorElementType.I2:
-                            return ((ushort)*(short*)pValue).ToString("X4", null);
-                        case CorElementType.U2:
-                            return (*(ushort*)pValue).ToString("X4", null);
-                        case CorElementType.Char:
-                            return ((ushort)*(char*)pValue).ToString("X4", null);
-                        case CorElementType.I4:
-                            return ((uint)*(int*)pValue).ToString("X8", null);
-                        case CorElementType.U4:
-                            return (*(uint*)pValue).ToString("X8", null);
-                        case CorElementType.I8:
-                            return ((ulong)*(long*)pValue).ToString("X16", null);
-                        case CorElementType.U8:
-                            return (*(ulong*)pValue).ToString("X16", null);
-                        default:
-                            Contract.Assert(false, "Invalid Object type in Format");
-                            throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_UnknownEnumType"));
-                    }
+                    case CorElementType.I1:
+                    case CorElementType.U1:
+                        return (*(byte*)pValue).ToString("X2", null);
+                    case CorElementType.Boolean:
+                        // direct cast from bool to byte is not allowed
+                        return Convert.ToByte(*(bool*)pValue).ToString("X2", null);
+                    case CorElementType.I2:
+                    case CorElementType.U2:
+                    case CorElementType.Char:
+                        return (*(ushort*)pValue).ToString("X4", null);
+                    case CorElementType.I4:
+                    case CorElementType.U4:
+                        return (*(uint*)pValue).ToString("X8", null);
+                    case CorElementType.I8:
+                    case CorElementType.U8:
+                        return (*(ulong*)pValue).ToString("X16", null);
+                    default:
+                        Contract.Assert(false, "Invalid Object type in Format");
+                        throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_UnknownEnumType"));
                 }
             }
         }
@@ -668,42 +660,32 @@ namespace System
         {
             fixed (void* pValue = &JitHelpers.GetPinningHelper(this).m_data)
             {
-                unchecked
+                switch (InternalGetCorElementType())
                 {
-                    switch (InternalGetCorElementType())
-                    {
-                        case CorElementType.I1:
-                            return (ulong)*(sbyte*)pValue;
-                        case CorElementType.U1:
-                            return (ulong)*(byte*)pValue;
-                        case CorElementType.Boolean:
-                            return Convert.ToUInt64(*(bool*)pValue, CultureInfo.InvariantCulture);
-                        case CorElementType.I2:
-                            return (ulong)*(short*)pValue;
-                        case CorElementType.U2:
-                            return (ulong)*(ushort*)pValue;
-                        case CorElementType.Char:
-                            return (ulong)*(char*)pValue;
-                        case CorElementType.I4:
-                            return (ulong)*(int*)pValue;
-                        case CorElementType.U4:
-                            return (ulong)*(uint*)pValue;
-                        case CorElementType.R4:
-                            return (ulong)*(float*)pValue;
-                        case CorElementType.I8:
-                            return (ulong)*(long*)pValue;
-                        case CorElementType.U8:
-                            return (ulong)*(ulong*)pValue;
-                        case CorElementType.R8:
-                            return (ulong)*(double*)pValue;
-                        case CorElementType.I:
-                            return (ulong)*(IntPtr*)pValue;
-                        case CorElementType.U:
-                            return (ulong)*(UIntPtr*)pValue;
-                        default:
-                            Contract.Assert(false, "Invalid primitive type");
-                            return 0;
-                    }
+                    case CorElementType.I1:
+                    case CorElementType.U1:
+                        return (ulong)*(byte*)pValue;
+                    case CorElementType.Boolean:
+                        return Convert.ToUInt64(*(bool*)pValue, CultureInfo.InvariantCulture);
+                    case CorElementType.I2:
+                    case CorElementType.U2:
+                    case CorElementType.Char:
+                        return (ulong)*(ushort*)pValue;
+                    case CorElementType.I4:
+                    case CorElementType.U4:
+                    case CorElementType.R4:
+                        return (ulong)*(uint*)pValue;
+                    case CorElementType.I8:
+                    case CorElementType.U8:
+                    case CorElementType.R8:
+                        return (ulong)*(ulong*)pValue;
+                    case CorElementType.I:
+                        return (ulong)*(IntPtr*)pValue;
+                    case CorElementType.U:
+                        return (ulong)*(UIntPtr*)pValue;
+                    default:
+                        Contract.Assert(false, "Invalid primitive type");
+                        return 0;
                 }
             }
         }
