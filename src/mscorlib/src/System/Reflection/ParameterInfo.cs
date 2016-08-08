@@ -217,7 +217,7 @@ namespace System.Reflection
             // instance based on just two of them (MemberImpl and PositionImpl).
 
             if (MemberImpl == null)
-                throw new SerializationException(Environment.GetResourceString(ResId.Serialization_InsufficientState));
+                ThrowHelper.ThrowSerializationException(ExceptionResource.Serialization_InsufficientState);
 
             ParameterInfo[] args = null;
 
@@ -227,31 +227,29 @@ namespace System.Reflection
                 case MemberTypes.Method:
                     if (PositionImpl == -1)
                     {
-                        if (MemberImpl.MemberType == MemberTypes.Method)
-                            return ((MethodInfo)MemberImpl).ReturnParameter;
-                        else
-                            throw new SerializationException(Environment.GetResourceString(ResId.Serialization_BadParameterInfo));
+                        if (MemberImpl.MemberType != MemberTypes.Method)
+                            ThrowHelper.ThrowSerializationException(ExceptionResource.Serialization_BadParameterInfo);
+                        return ((MethodInfo)MemberImpl).ReturnParameter;
                     }
                     else
                     {
                         args = ((MethodBase)MemberImpl).GetParametersNoCopy();
 
-                        if (args != null && PositionImpl < args.Length)
-                            return args[PositionImpl];
-                        else
-                            throw new SerializationException(Environment.GetResourceString(ResId.Serialization_BadParameterInfo));
+                        if (args == null || PositionImpl >= args.Length)
+                            ThrowHelper.ThrowSerializationException(ExceptionResource.Serialization_BadParameterInfo);
+                        return args[PositionImpl];
                     }
 
                 case MemberTypes.Property:
                     args = ((RuntimePropertyInfo)MemberImpl).GetIndexParametersNoCopy();
 
-                    if (args != null && PositionImpl > -1 && PositionImpl < args.Length)
-                        return args[PositionImpl];
-                    else
-                        throw new SerializationException(Environment.GetResourceString(ResId.Serialization_BadParameterInfo));
+                    if (args == null || PositionImpl < 0 || PositionImpl >= args.Length)
+                        ThrowHelper.ThrowSerializationException(ExceptionResource.Serialization_BadParameterInfo);
+                    return args[PositionImpl];
 
                 default:
-                    throw new SerializationException(Environment.GetResourceString(ResId.Serialization_NoParameterInfo));
+                    ThrowHelper.ThrowSerializationException(ExceptionResource.Serialization_NoParameterInfo);
+                    return default(ParameterInfo);
             }
         }
         #endregion

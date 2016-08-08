@@ -701,7 +701,7 @@ namespace System.Reflection.Emit
                 if (symWriter == null)
                 {
                     // cannot find SymWriter - throw TypeLoadException since we couldnt find the type.
-                    throw new TypeLoadException(Environment.GetResourceString(ResId.MissingType, "SymWriter"));
+                    ThrowHelper.ThrowTypeLoadException(ExceptionResource.MissingType, ExceptionArgument.SymWriter);
                 }
 
                 new SecurityPermission(SecurityPermissionFlag.UnmanagedCode).Demand();
@@ -1749,8 +1749,8 @@ namespace System.Reflection.Emit
                 if (m_assemblyData.m_isSaved == true)
                 {
                     // assembly has been saved before!
-                    throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_AssemblyHasBeenSaved,
-                        InternalAssembly.GetSimpleName()));
+                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_AssemblyHasBeenSaved,
+                        InternalAssembly.GetSimpleName());
                 }
 
                 if ((m_assemblyData.m_access & AssemblyBuilderAccess.Save) != AssemblyBuilderAccess.Save)
@@ -2035,7 +2035,7 @@ namespace System.Reflection.Emit
             }
         }
 #endif // FEATURE_CORECLR
-    
+
 #if FEATURE_CAS_POLICY
         [System.Security.SecurityCritical]  // auto-generated
         private void AddDeclarativeSecurity(PermissionSet pset, SecurityAction action)
@@ -2045,7 +2045,7 @@ namespace System.Reflection.Emit
             AddDeclarativeSecurity(GetNativeHandle(), action, blob, blob.Length);
         }
 #endif // FEATURE_CAS_POLICY
-        
+
         internal bool IsPersistable()
         {
 #if !FEATURE_CORECLR // AssemblyBuilderAccess.Save is never set in CoreCLR

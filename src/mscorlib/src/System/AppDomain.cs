@@ -2834,7 +2834,7 @@ namespace System {
 #endif
 
         private AppDomain() {
-            throw new NotSupportedException(Environment.GetResourceString(ResId.NotSupported_Constructor));
+            ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_Constructor);
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -4559,7 +4559,7 @@ namespace System {
                 Int64 i64ProcessorTime = nGetTotalProcessorTime();
                 if (i64ProcessorTime == -1)
                 {
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_WithoutARM"));
+                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_WithoutARM);
                 }
                 return new TimeSpan(i64ProcessorTime);
             }
@@ -4575,7 +4575,7 @@ namespace System {
                 Int64 i64AllocatedMemory = nGetTotalAllocatedMemorySize();
                 if (i64AllocatedMemory == -1)
                 {
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_WithoutARM"));
+                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_WithoutARM);
                 }
                 return i64AllocatedMemory;
             }
@@ -4593,7 +4593,7 @@ namespace System {
                 Int64 i64LastSurvivedMemory = nGetLastSurvivedMemorySize();
                 if (i64LastSurvivedMemory == -1)
                 {
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_WithoutARM"));
+                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_WithoutARM);
                 }
                 return i64LastSurvivedMemory;
             }
@@ -4613,7 +4613,7 @@ namespace System {
                 Int64 i64LastSurvivedProcessMemory = nGetLastSurvivedProcessMemorySize();
                 if (i64LastSurvivedProcessMemory == -1)
                 {
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_WithoutARM"));
+                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_WithoutARM);
                 }
                 return i64LastSurvivedProcessMemory;
             }
@@ -4630,24 +4630,24 @@ namespace System {
 
         void _AppDomain.GetTypeInfoCount(out uint pcTInfo)
         {
-            throw new NotImplementedException();
+            ThrowHelper.ThrowNotImplementedException();
         }
 
         void _AppDomain.GetTypeInfo(uint iTInfo, uint lcid, IntPtr ppTInfo)
         {
-            throw new NotImplementedException();
+            ThrowHelper.ThrowNotImplementedException();
         }
 
         void _AppDomain.GetIDsOfNames([In] ref Guid riid, IntPtr rgszNames, uint cNames, uint lcid, IntPtr rgDispId)
         {
-            throw new NotImplementedException();
+            ThrowHelper.ThrowNotImplementedException();
         }
 
         // If you implement this method, make sure to include _AppDomain.Invoke in VM\DangerousAPIs.h and 
         // include _AppDomain in SystemDomain::IsReflectionInvocationMethod in AppDomain.cpp.
         void _AppDomain.Invoke(uint dispIdMember, [In] ref Guid riid, uint lcid, short wFlags, IntPtr pDispParams, IntPtr pVarResult, IntPtr pExcepInfo, IntPtr puArgErr)
         {
-            throw new NotImplementedException();
+            ThrowHelper.ThrowNotImplementedException();
         }
 #endif
     }

@@ -81,6 +81,11 @@ namespace System {
             throw new ArgumentNullException(Environment.GetResourceString(GetResourceName(resource)));
         }
 
+        internal static void ThrowFormatException(ExceptionResource resource)
+        {
+            throw new FormatException(Environment.GetResourceString(GetResourceName(resource)));
+        }
+
         internal static void ThrowArgumentOutOfRangeException(ExceptionArgument argument) {
             throw new ArgumentOutOfRangeException(GetArgumentName(argument));
         }
@@ -101,8 +106,14 @@ namespace System {
             throw new InvalidOperationException();
         }
 
-        internal static void ThrowInvalidOperationException(ExceptionResource resource) {
+        internal static void ThrowInvalidOperationException(ExceptionResource resource)
+        {
             throw new InvalidOperationException(Environment.GetResourceString(GetResourceName(resource)));
+        }
+
+        internal static void ThrowInvalidOperationException(ExceptionResource resource, string value)
+        {
+            throw new InvalidOperationException(Environment.GetResourceString(GetResourceName(resource), value));
         }
 
         internal static void ThrowInvalidOperationException(ExceptionResource resource, Exception e)
@@ -112,6 +123,11 @@ namespace System {
 
         internal static void ThrowSerializationException(ExceptionResource resource) {
             throw new SerializationException(Environment.GetResourceString(GetResourceName(resource)));
+        }
+
+        internal static void ThrowSerializationException(ExceptionResource resource, string memberName)
+        {
+            throw new SerializationException(Environment.GetResourceString(GetResourceName(resource), memberName));
         }
 
         internal static void ThrowRankException(ExceptionResource resource)
@@ -144,6 +160,18 @@ namespace System {
         {
             throw new ObjectDisposedException(Environment.GetResourceString(GetResourceName(resource)));
         }
+
+        internal static void ThrowTypeLoadException(ExceptionResource resource, ExceptionArgument argument)
+        {
+            throw new TypeLoadException(Environment.GetResourceString(GetResourceName(resource), GetArgumentName(argument)));
+        }
+
+        internal static void ThrowNotImplementedException()
+        {
+            throw new NotImplementedException();
+        }
+
+
 
         // Allow nulls for reference types and Nullable<U>, but not for value types.
         internal static void IfNullAndNullsAreIllegalThenThrow<T>(object value, ExceptionArgument argName) {
@@ -251,7 +279,8 @@ namespace System {
         partitionerOptions,
         toExclusive,
         rangeSize,
-        partitionCount
+        partitionCount,
+        SymWriter
     }
 
     //
@@ -351,7 +380,21 @@ namespace System {
         Partitioner_DynamicPartitionsNotSupported,
         OrderablePartitioner_GetPartitions_WrongNumberOfPartitions,
         PartitionerStatic_CanNotCallGetEnumeratorAfterSourceHasBeenDisposed,
-        PartitionerStatic_CurrentCalledBeforeMoveNext
+        PartitionerStatic_CurrentCalledBeforeMoveNext,
+
+        NotSupported_Constructor,
+        Format_NeedSingleChar,
+        NotSupported_Method,
+        Argument_UnclosedExceptionBlock,
+        InvalidOperation_AssemblyHasBeenSaved,
+        MissingType,
+        Serialization_InsufficientState,
+        Serialization_NullSignature,
+        Serialization_BadParameterInfo,
+        Serialization_NoParameterInfo,
+        Serialization_UnknownMember,
+
+        InvalidOperation_WithoutARM
     }
 }
 

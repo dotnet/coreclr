@@ -1188,9 +1188,9 @@ namespace System.Collections {
                 public Object Current {
                     get {
                         if (_firstCall)
-                            throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumNotStarted));
+                            ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumNotStarted);
                         if (_remaining < 0)
-                            throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumEnded));
+                            ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumEnded);
                         return _en.Current;
                     }
                 }
@@ -2122,7 +2122,7 @@ namespace System.Collections {
             }
     
             public bool MoveNext() {
-                if (version != list._version) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumFailedVersion));
+                if (version != list._version) ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumFailedVersion);
                 if (index < endIndex) {
                     currentElement = list[++index];
                     return true;
@@ -2137,16 +2137,16 @@ namespace System.Collections {
             public Object Current {
                 get {
                     if (index < startIndex) 
-                        throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumNotStarted));
+                        ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumNotStarted);
                     else if (index > endIndex) {
-                        throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumEnded));
+                        ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumEnded);
                     }
                     return currentElement;
                 }
             }
        
             public void Reset() {
-                if (version != list._version) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumFailedVersion));
+                if (version != list._version) ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumFailedVersion);
                 index = startIndex - 1;                
             }
         }
@@ -2561,7 +2561,7 @@ namespace System.Collections {
     
             public bool MoveNext() {
                 if (version != list._version) {
-                    throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumFailedVersion));
+                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumFailedVersion);
                 }
 
                 if( isArrayList) {  // avoid calling virtual methods if we are operating on ArrayList to improve performance
@@ -2593,10 +2593,10 @@ namespace System.Collections {
                     object temp = currentElement;
                     if(dummyObject == temp) { // check if enumeration has not started or has terminated
                         if (index == -1) {
-                            throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumNotStarted));
+                            ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumNotStarted);
                         }
                         else {                    
-                            throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumEnded));                        
+                            ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumEnded);                        
                         }
                     }
 
@@ -2606,7 +2606,7 @@ namespace System.Collections {
     
             public void Reset() {
                 if (version != list._version) {
-                    throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumFailedVersion));
+                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumFailedVersion);
                 }    
                 
                 currentElement = dummyObject;
