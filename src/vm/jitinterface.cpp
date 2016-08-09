@@ -7018,16 +7018,16 @@ bool getILIntrinsicImplementation(MethodDesc * ftn,
 
         _ASSERTE(ftn->GetNumGenericMethodArgs() == 1);
         TypeHandle typeHandle = inst[0];
-        CorElementType elementType = typeHandle.GetSignatureCorElementType();
+        MethodTable * methodTable = typeHandle.GetMethodTable();
 
         BYTE resultIlCode;
-        if (CorTypeInfo::IsObjRef(elementType) || (elementType == ELEMENT_TYPE_VALUETYPE && typeHandle.GetMethodTable()->ContainsPointers()))
+        if (!methodTable->IsValueType() || methodTable->ContainsPointers())
         {
-            resultIlCode = CEE_LDC_I4_1;
+            resultIlCode = CEE_LDC_I4_1; // true
         }
         else
         {
-            resultIlCode = CEE_LDC_I4_0;
+            resultIlCode = CEE_LDC_I4_0; // false
         }
 
         static const BYTE ilcode[] = { resultIlCode, CEE_RET };

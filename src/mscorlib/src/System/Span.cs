@@ -77,9 +77,9 @@ namespace System
             get { return _length; }
         }
 
-        internal long SizeInBytes
+        internal uint SizeInBytes
         {
-            get { return Length * JitHelpers.SizeOf<T>(); }
+            get { return (uint)Length * (uint)JitHelpers.SizeOf<T>(); }
         }
 
         public static Span<T> Empty
@@ -173,11 +173,7 @@ namespace System
 
             unsafe
             {
-#if WIN64
-                Buffer.Memmove((byte*)destination._rawPointer, (byte*)_rawPointer, (ulong)SizeInBytes);
-#else
-                Buffer.Memmove((byte*)destination._rawPointer, (byte*)_rawPointer, checked((uint)SizeInBytes));
-#endif
+                Memmove((byte*)destination._rawPointer, (byte*)_rawPointer);
                 return true;
             }
         }
@@ -200,11 +196,7 @@ namespace System
             {
                 IntPtr destinationPointer;
                 JitHelpers.SetByRef(out destinationPointer, ref JitHelpers.GetArrayData(destination));
-#if WIN64
-                Buffer.Memmove((byte*)destinationPointer.ToPointer(), (byte*)_rawPointer, (ulong)SizeInBytes);
-#else
-                Buffer.Memmove((byte*)destinationPointer.ToPointer(), (byte*)_rawPointer, checked((uint)SizeInBytes));
-#endif
+                Memmove((byte*)destinationPointer, (byte*)_rawPointer);
                 return true;
             }
         }
@@ -214,19 +206,28 @@ namespace System
         [System.Security.SecurityCritical]
         [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
         [CLSCompliant(false)]
-        public unsafe bool TryCopyTo(byte* destination, int elementsCount)
+        public unsafe bool TryCopyTo(void* destination, int elementsCount)
         {
             if (Length > (uint)elementsCount || JitHelpers.ContainsReferences<T>())
             {
                 return false;
-            }   
-
+            }
+            
 #if WIN64
-            Buffer.Memmove(destination, (byte*)_rawPointer, (ulong)SizeInBytes);
+            Buffer.Memmove((byte*)destination, (byte*)_rawPointer, (ulong)(elementsCount * (uint)JitHelpers.SizeOf<T>()));
 #else
-            Buffer.Memmove(destination, (byte*)_rawPointer, checked((uint)SizeInBytes));
+            Buffer.Memmove((byte*)destination, (byte*)_rawPointer, checked(elementsCount * (uint)JitHelpers.SizeOf<T>()));
 #endif
             return true;
+        }
+
+        private unsafe void Memmove(byte* destination, byte* source)
+        {
+#if WIN64
+            Buffer.Memmove(destination, source, (ulong)SizeInBytes);
+#else
+            Buffer.Memmove(destination, source, checked(SizeInBytes));
+#endif
         }
     }
 }
