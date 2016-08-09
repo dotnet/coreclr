@@ -197,31 +197,47 @@ namespace System
             // Helper function to silently convert the value to UInt64 from the other base types for enum without throwing an exception.
             // This is need since the Convert functions do overflow checks.
             TypeCode typeCode = Convert.GetTypeCode(value);
-            ulong result;
 
-            switch(typeCode)
+            ulong result;
+            switch (typeCode)
             {
                 case TypeCode.SByte:
-                case TypeCode.Int16:
-                case TypeCode.Int32:
-                case TypeCode.Int64:
-                    result = (UInt64)Convert.ToInt64(value, CultureInfo.InvariantCulture);
+                    result = (ulong)(sbyte)value;
                     break;
-
                 case TypeCode.Byte:
-                case TypeCode.UInt16:
-                case TypeCode.UInt32:
-                case TypeCode.UInt64:
-                case TypeCode.Boolean:
-                case TypeCode.Char:
-                    result = Convert.ToUInt64(value, CultureInfo.InvariantCulture);
+                    result = (byte)value;
                     break;
-
-                default:
+                case TypeCode.Boolean:
+                    // direct cast from bool to byte is not allowed
+                    result = Convert.ToByte((bool)value);
+                    break;
+                case TypeCode.Int16:
+                    result = (ulong)(Int16)value;
+                    break;
+                case TypeCode.UInt16:
+                    result = (UInt16)value;
+                    break;
+                case TypeCode.Char:
+                    result = (UInt16)(Char)value;
+                    break;
+                case TypeCode.UInt32:
+                    result = (UInt32)value;
+                    break;
+                case TypeCode.Int32:
+                    result = (ulong)(int)value;
+                    break;
+                case TypeCode.UInt64:
+                    result = (ulong)value;
+                    break;
+                case TypeCode.Int64:
+                    result = (ulong)(Int64)value;
+                    break;
                 // All unsigned types will be directly cast
+                default:
                     Contract.Assert(false, "Invalid Object type in ToUInt64");
                     throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_UnknownEnumType"));
             }
+
             return result;
         }
 
@@ -634,17 +650,19 @@ namespace System
                 // all acceptable format string are of length 1
                 throw new FormatException(Environment.GetResourceString("Format_InvalidEnumFormatSpecification"));
             }
-            if (String.Compare(format, "G", StringComparison.OrdinalIgnoreCase) == 0)
-                return GetEnumName(rtType, GetValueAsULong(value));
 
-            if (String.Compare(format, "D", StringComparison.OrdinalIgnoreCase) == 0)
+            char formatCh = format[0];
+            if (formatCh == 'G' || formatCh == 'g')
+                return GetEnumName(rtType, ToUInt64(value));
+
+            if (formatCh == 'D' || formatCh == 'd')
                 return value.ToString();
 
-            if (String.Compare(format, "X", StringComparison.OrdinalIgnoreCase) == 0)
+            if (formatCh == 'X' || formatCh == 'x')
                 return InternalFormattedHexString(value);
 
-            if (String.Compare(format, "F", StringComparison.OrdinalIgnoreCase) == 0)
-                return Enum.InternalFlagsFormat(rtType, GetValueAsULong(value)) ?? value.ToString();
+            if (formatCh == 'F' || formatCh == 'f')
+                return Enum.InternalFlagsFormat(rtType, ToUInt64(value)) ?? value.ToString();
 
             throw new FormatException(Environment.GetResourceString("Format_InvalidEnumFormatSpecification"));
         }
@@ -710,7 +728,7 @@ namespace System
         }
 
         [System.Security.SecuritySafeCritical]
-        private unsafe ulong GetValueAsULong()
+        private unsafe ulong ToUInt64()
         {
             fixed (void* pValue = &JitHelpers.GetPinningHelper(this).m_data)
             {
@@ -759,41 +777,6 @@ namespace System
                         Contract.Assert(false, "Invalid primitive type");
                         return 0;
                 }
-            }
-        }
-
-        [System.Security.SecuritySafeCritical]
-        private unsafe static ulong GetValueAsULong(object value)
-        {
-            TypeCode typeCode = Convert.GetTypeCode(value);
-
-            switch (typeCode)
-            {
-                case TypeCode.SByte:
-                    return (ulong)(sbyte)value;
-                case TypeCode.Byte:
-                    return (byte)value;
-                case TypeCode.Boolean:
-                    // direct cast from bool to byte is not allowed
-                    return Convert.ToByte((bool)value);
-                case TypeCode.Int16:
-                    return (ulong)(Int16)value;
-                case TypeCode.UInt16:
-                    return (UInt16)value;
-                case TypeCode.Char:
-                    return (UInt16)(Char)value;
-                case TypeCode.UInt32:
-                    return (UInt32)value;
-                case TypeCode.Int32:
-                    return (ulong)(int)value;
-                case TypeCode.UInt64:
-                    return (ulong)value;
-                case TypeCode.Int64:
-                    return (ulong)(Int64)value;
-                // All unsigned types will be directly cast
-                default:
-                    Contract.Assert(false, "Invalid Object type in Format");
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_UnknownEnumType"));
             }
         }
 
@@ -867,7 +850,7 @@ namespace System
 
 
             // Try to see if its one of the enum values, then we return a String back else the value
-            return Enum.InternalFormat((RuntimeType)GetType(), GetValueAsULong()) ?? GetValue().ToString();
+            return Enum.InternalFormat((RuntimeType)GetType(), ToUInt64()) ?? GetValue().ToString();
         }
         #endregion
 
@@ -917,20 +900,23 @@ namespace System
 
         #region Public Methods
         public String ToString(String format) {
+            char formatCh;
             if (format == null || format.Length == 0)
-                format = "G";
+                formatCh = 'G';
+            else
+                formatCh = format[0];
 
-            if (String.Compare(format, "G", StringComparison.OrdinalIgnoreCase) == 0)
+            if (formatCh == 'G' || formatCh == 'g')
                 return ToString();
 
-            if (String.Compare(format, "D", StringComparison.OrdinalIgnoreCase) == 0)
+            if (formatCh == 'D' || formatCh == 'd')
                 return GetValue().ToString();
 
-            if (String.Compare(format, "X", StringComparison.OrdinalIgnoreCase) == 0)
+            if (formatCh == 'X' || formatCh == 'x')
                 return InternalFormattedHexString();
 
-            if (String.Compare(format, "F", StringComparison.OrdinalIgnoreCase) == 0)
-                return InternalFlagsFormat((RuntimeType)GetType(), GetValueAsULong()) ?? GetValue().ToString();
+            if (formatCh == 'F' || formatCh == 'f')
+                return InternalFlagsFormat((RuntimeType)GetType(), ToUInt64()) ?? GetValue().ToString();
 
             throw new FormatException(Environment.GetResourceString("Format_InvalidEnumFormatSpecification"));
         }
