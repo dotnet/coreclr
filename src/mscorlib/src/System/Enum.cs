@@ -720,26 +720,44 @@ namespace System
                 switch (InternalGetCorElementType())
                 {
                     case CorElementType.I1:
+                        return (ulong)*(sbyte*)pValue;
                     case CorElementType.U1:
-                        return (ulong)*(byte*)pValue;
+                        return *(byte*)pValue;
                     case CorElementType.Boolean:
                         return Convert.ToUInt64(*(bool*)pValue, CultureInfo.InvariantCulture);
                     case CorElementType.I2:
+                        return (ulong)*(short*)pValue;
                     case CorElementType.U2:
                     case CorElementType.Char:
-                        return (ulong)*(ushort*)pValue;
+                        return *(ushort*)pValue;
                     case CorElementType.I4:
+                        return (ulong)*(int*)pValue;
                     case CorElementType.U4:
                     case CorElementType.R4:
-                        return (ulong)*(uint*)pValue;
+                        return *(uint*)pValue;
                     case CorElementType.I8:
+                        return (ulong)*(long*)pValue;
                     case CorElementType.U8:
                     case CorElementType.R8:
-                        return (ulong)*(ulong*)pValue;
+                        return *(ulong*)pValue;
                     case CorElementType.I:
-                        return (ulong)*(IntPtr*)pValue;
+                        if (IntPtr.Size == 8)
+                        {
+                            return *(ulong*)pValue;
+                        }
+                        else
+                        {
+                            return (ulong)*(int*)pValue;
+                        }
                     case CorElementType.U:
-                        return (ulong)*(UIntPtr*)pValue;
+                        if (IntPtr.Size == 8)
+                        {
+                            return *(ulong*)pValue;
+                        }
+                        else
+                        {
+                            return *(uint*)pValue;
+                        }
                     default:
                         Contract.Assert(false, "Invalid primitive type");
                         return 0;
@@ -755,14 +773,14 @@ namespace System
             switch (typeCode)
             {
                 case TypeCode.SByte:
-                    return (byte)(sbyte)value;
+                    return (ulong)(sbyte)value;
                 case TypeCode.Byte:
                     return (byte)value;
                 case TypeCode.Boolean:
                     // direct cast from bool to byte is not allowed
                     return Convert.ToByte((bool)value);
                 case TypeCode.Int16:
-                    return (UInt16)(Int16)value;
+                    return (ulong)(Int16)value;
                 case TypeCode.UInt16:
                     return (UInt16)value;
                 case TypeCode.Char:
@@ -770,11 +788,11 @@ namespace System
                 case TypeCode.UInt32:
                     return (UInt32)value;
                 case TypeCode.Int32:
-                    return (UInt32)(int)value;
+                    return (ulong)(int)value;
                 case TypeCode.UInt64:
-                    return (UInt64)value;
+                    return (ulong)value;
                 case TypeCode.Int64:
-                    return (UInt64)(Int64)value;
+                    return (ulong)(Int64)value;
                 // All unsigned types will be directly cast
                 default:
                     Contract.Assert(false, "Invalid Object type in Format");
