@@ -620,16 +620,23 @@ namespace System
                     throw new ArgumentException(Environment.GetResourceString("Arg_EnumAndObjectMustBeSameType", valueType.ToString(), enumType.ToString()));
 
                 valueType = valueUnderlyingType;
-                return ((Enum)value).ToString(format);
+                var result = ((Enum)value).ToString(format);
+                if (format.Length != 1)
+                {
+                    // all acceptable format string are of length 1
+                    throw new FormatException(Environment.GetResourceString("Format_InvalidEnumFormatSpecification"));
+                }
+                return result;
             }
             // The value must be of the same type as the Underlying type of the Enum
             else if (valueType != underlyingType) {
                 throw new ArgumentException(Environment.GetResourceString("Arg_EnumFormatUnderlyingTypeAndObjectMustBeSameType", valueType.ToString(), underlyingType.ToString()));
             }
-
-            if (format == null || format.Length == 0)
-                format = "G";
-
+            if (format.Length != 1)
+            {
+                // all acceptable format string are of length 1
+                throw new FormatException(Environment.GetResourceString("Format_InvalidEnumFormatSpecification"));
+            }
             if (String.Compare(format, "G", StringComparison.OrdinalIgnoreCase) == 0)
                 return GetEnumName(rtType, GetValueAsULong(value));
 
