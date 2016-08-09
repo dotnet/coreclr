@@ -614,19 +614,16 @@ namespace System
 
             // If the value is an Enum then we need to extract the underlying value from it
             if (valueType.IsEnum) {
-                Type valueUnderlyingType = GetUnderlyingType(valueType);
 
                 if (!valueType.IsEquivalentTo(enumType))
                     throw new ArgumentException(Environment.GetResourceString("Arg_EnumAndObjectMustBeSameType", valueType.ToString(), enumType.ToString()));
 
-                valueType = valueUnderlyingType;
-                var result = ((Enum)value).ToString(format);
                 if (format.Length != 1)
                 {
                     // all acceptable format string are of length 1
                     throw new FormatException(Environment.GetResourceString("Format_InvalidEnumFormatSpecification"));
                 }
-                return result;
+                return ((Enum)value).ToString(format);
             }
             // The value must be of the same type as the Underlying type of the Enum
             else if (valueType != underlyingType) {
