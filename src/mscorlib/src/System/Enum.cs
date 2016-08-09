@@ -903,6 +903,8 @@ namespace System
             char formatCh;
             if (format == null || format.Length == 0)
                 formatCh = 'G';
+            else if (format.Length != 1)
+                throw new FormatException(Environment.GetResourceString("Format_InvalidEnumFormatSpecification"));
             else
                 formatCh = format[0];
 
