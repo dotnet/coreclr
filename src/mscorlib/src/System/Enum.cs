@@ -75,6 +75,40 @@ namespace System
             }
         }
 
+        private static String InternalFormattedHexString(object value)
+        {
+            TypeCode typeCode = Convert.GetTypeCode(value);
+
+            switch (typeCode)
+            {
+                case TypeCode.SByte:
+                    return ((byte)(sbyte)value).ToString("X2", null);
+                case TypeCode.Byte:
+                    return ((byte)value).ToString("X2", null);
+                case TypeCode.Boolean:
+                    // direct cast from bool to byte is not allowed
+                    return Convert.ToByte((bool)value).ToString("X2", null);
+                case TypeCode.Int16:
+                    return ((UInt16)(Int16)value).ToString("X4", null);
+                case TypeCode.UInt16:
+                    return ((UInt16)value).ToString("X4", null);
+                case TypeCode.Char:
+                    return ((UInt16)(Char)value).ToString("X4", null);
+                case TypeCode.UInt32:
+                    return ((UInt32)value).ToString("X8", null); ;
+                case TypeCode.Int32:
+                    return ((UInt32)(Int32)value).ToString("X8", null); ;
+                case TypeCode.UInt64:
+                    return ((UInt64)value).ToString("X16", null);
+                case TypeCode.Int64:
+                    return ((UInt64)(Int64)value).ToString("X16", null);
+                // All unsigned types will be directly cast
+                default:
+                    Contract.Assert(false, "Invalid Object type in Format");
+                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_UnknownEnumType"));
+            }
+        }
+
         internal static String GetEnumName(RuntimeType eT, ulong ulValue)
         {
             Contract.Requires(eT != null);
@@ -586,13 +620,29 @@ namespace System
                     throw new ArgumentException(Environment.GetResourceString("Arg_EnumAndObjectMustBeSameType", valueType.ToString(), enumType.ToString()));
 
                 valueType = valueUnderlyingType;
+                return ((Enum)value).ToString(format);
             }
             // The value must be of the same type as the Underlying type of the Enum
             else if (valueType != underlyingType) {
                 throw new ArgumentException(Environment.GetResourceString("Arg_EnumFormatUnderlyingTypeAndObjectMustBeSameType", valueType.ToString(), underlyingType.ToString()));
             }
 
-            return ((Enum)value).ToString(format);
+            if (format == null || format.Length == 0)
+                format = "G";
+
+            if (String.Compare(format, "G", StringComparison.OrdinalIgnoreCase) == 0)
+                return GetEnumName(rtType, GetValueAsULong(value));
+
+            if (String.Compare(format, "D", StringComparison.OrdinalIgnoreCase) == 0)
+                return value.ToString();
+
+            if (String.Compare(format, "X", StringComparison.OrdinalIgnoreCase) == 0)
+                return InternalFormattedHexString(value);
+
+            if (String.Compare(format, "F", StringComparison.OrdinalIgnoreCase) == 0)
+                return Enum.InternalFlagsFormat(rtType, GetValueAsULong(value)) ?? value.ToString();
+
+            throw new FormatException(Environment.GetResourceString("Format_InvalidEnumFormatSpecification"));
         }
 
         #endregion
@@ -687,6 +737,41 @@ namespace System
                         Contract.Assert(false, "Invalid primitive type");
                         return 0;
                 }
+            }
+        }
+
+        [System.Security.SecuritySafeCritical]
+        private unsafe static ulong GetValueAsULong(object value)
+        {
+            TypeCode typeCode = Convert.GetTypeCode(value);
+
+            switch (typeCode)
+            {
+                case TypeCode.SByte:
+                    return (byte)(sbyte)value;
+                case TypeCode.Byte:
+                    return (byte)value;
+                case TypeCode.Boolean:
+                    // direct cast from bool to byte is not allowed
+                    return Convert.ToByte((bool)value);
+                case TypeCode.Int16:
+                    return (UInt16)(Int16)value;
+                case TypeCode.UInt16:
+                    return (UInt16)value;
+                case TypeCode.Char:
+                    return (UInt16)(Char)value;
+                case TypeCode.UInt32:
+                    return (UInt32)value;
+                case TypeCode.Int32:
+                    return (UInt32)(int)value;
+                case TypeCode.UInt64:
+                    return (UInt64)value;
+                case TypeCode.Int64:
+                    return (UInt64)(Int64)value;
+                // All unsigned types will be directly cast
+                default:
+                    Contract.Assert(false, "Invalid Object type in Format");
+                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_UnknownEnumType"));
             }
         }
 
