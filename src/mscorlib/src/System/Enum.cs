@@ -95,9 +95,9 @@ namespace System
                 case TypeCode.Char:
                     return ((UInt16)(Char)value).ToString("X4", null);
                 case TypeCode.UInt32:
-                    return ((UInt32)value).ToString("X8", null); ;
+                    return ((UInt32)value).ToString("X8", null);
                 case TypeCode.Int32:
-                    return ((UInt32)(Int32)value).ToString("X8", null); ;
+                    return ((UInt32)(Int32)value).ToString("X8", null);
                 case TypeCode.UInt64:
                     return ((UInt64)value).ToString("X16", null);
                 case TypeCode.Int64:
