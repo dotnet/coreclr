@@ -7042,6 +7042,8 @@ namespace System.Reflection
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     public abstract partial class ConstructorInfo : System.Reflection.MethodBase
     {
+        public static bool operator ==(System.Reflection.ConstructorInfo left, System.Reflection.ConstructorInfo right) { throw null; }
+        public static bool operator !=(System.Reflection.ConstructorInfo left, System.Reflection.ConstructorInfo right) { throw null; }
         [System.Runtime.InteropServices.ComVisibleAttribute(true)]
         public static readonly string ConstructorName;
         [System.Runtime.InteropServices.ComVisibleAttribute(true)]
@@ -7125,7 +7127,10 @@ namespace System.Reflection
     [System.Runtime.InteropServices.StructLayoutAttribute(System.Runtime.InteropServices.LayoutKind.Sequential)]
     public partial struct CustomAttributeNamedArgument
     {
+        public CustomAttributeNamedArgument(System.Reflection.MemberInfo memberInfo, object value) { }
+        public CustomAttributeNamedArgument(System.Reflection.MemberInfo memberInfo, System.Reflection.CustomAttributeTypedArgument typedArgument) { }
         public bool IsField { get { throw null; } }
+        public System.Reflection.MemberInfo MemberInfo { get { throw null; } }
         public string MemberName { get { throw null; } }
         public System.Reflection.CustomAttributeTypedArgument TypedValue { get { throw null; } }
         public override bool Equals(object obj) { throw null; }
@@ -7138,6 +7143,8 @@ namespace System.Reflection
     [System.Runtime.InteropServices.StructLayoutAttribute(System.Runtime.InteropServices.LayoutKind.Sequential)]
     public partial struct CustomAttributeTypedArgument
     {
+        public CustomAttributeTypedArgument(System.Type argumentType, object value) { }
+        public CustomAttributeTypedArgument(object value) { }
         public System.Type ArgumentType { get { throw null; } }
         public object Value { get { throw null; } }
         public override bool Equals(object obj) { throw null; }

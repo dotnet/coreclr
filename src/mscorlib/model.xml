@@ -3905,6 +3905,8 @@
     </Type>
     <Type Name="System.Reflection.ConstructorInfo">
       <Member Name="#ctor" />
+      <Member Name="op_Equality(System.Reflection.ConstructorInfo,System.Reflection.ConstructorInfo)" />
+      <Member Name="op_Inequality(System.Reflection.ConstructorInfo,System.Reflection.ConstructorInfo)" />
       <Member MemberType="Field" Name="ConstructorName" />
       <Member MemberType="Field" Name="TypeConstructorName" />
       <Member Name="get_MemberType" />
@@ -3915,18 +3917,22 @@
       <Member MemberType="Property" Name="MemberType" />
     </Type>
     <Type Name="System.Reflection.CustomAttributeData">
-        <Member Name="get_AttributeType" />
-        <Member Name="get_ConstructorArguments" />
-        <Member Name="get_NamedArguments" />
-        <Member Name="get_Constructor" />
-        <Member Name="GetCustomAttributes(System.Reflection.Assembly)" />
-        <Member Name="GetCustomAttributes(System.Reflection.MemberInfo)" />
-        <Member Name="GetCustomAttributes(System.Reflection.Module)" />
-        <Member Name="GetCustomAttributes(System.Reflection.ParameterInfo)" />
-        <Member MemberType="Property" Name="AttributeType" />
-		<Member MemberType="Property" Name="Constructor" />
-        <Member MemberType="Property" Name="ConstructorArguments" />
-        <Member MemberType="Property" Name="NamedArguments" />
+      <Member Name="#ctor" />
+      <Member Name="get_AttributeType" />
+      <Member Name="get_ConstructorArguments" />
+      <Member Name="get_NamedArguments" />
+      <Member Name="get_Constructor" />
+      <Member Name="Equals(System.Object)" />
+      <Member Name="GetCustomAttributes(System.Reflection.Assembly)" />
+      <Member Name="GetCustomAttributes(System.Reflection.MemberInfo)" />
+      <Member Name="GetCustomAttributes(System.Reflection.Module)" />
+      <Member Name="GetCustomAttributes(System.Reflection.ParameterInfo)" />
+      <Member Name="GetHashCode" />
+      <Member Name="ToString" />
+      <Member MemberType="Property" Name="AttributeType" />
+      <Member MemberType="Property" Name="Constructor" />
+      <Member MemberType="Property" Name="ConstructorArguments" />
+      <Member MemberType="Property" Name="NamedArguments" />
     </Type>
    <Type Name="System.Reflection.CustomAttributeExtensions">
       <Member Name="GetCustomAttribute(System.Reflection.Assembly,System.Type)" />
@@ -3980,22 +3986,27 @@
       <Member Name="GetRuntimeProperty(System.Type,System.String)" />
     </Type>
     <Type Name="System.Reflection.CustomAttributeNamedArgument">
-        <Member Name="get_IsField" />
-        <Member Name="get_MemberName" />
-        <Member Name="get_TypedValue" />
-        <Member Name="op_Equality(System.Reflection.CustomAttributeNamedArgument,System.Reflection.CustomAttributeNamedArgument)" />
-        <Member Name="op_Inequality(System.Reflection.CustomAttributeNamedArgument,System.Reflection.CustomAttributeNamedArgument)" />
-        <Member MemberType="Property" Name="IsField" />
-        <Member MemberType="Property" Name="MemberName" />
-        <Member MemberType="Property" Name="TypedValue" />
+      <Member Name="#ctor(System.Reflection.MemberInfo,System.Object)" />
+      <Member Name="#ctor(System.Reflection.MemberInfo,System.Reflection.CustomAttributeTypedArgument)" />
+      <Member Name="get_IsField" />
+      <Member Name="get_MemberInfo" />
+      <Member Name="get_MemberName" />
+      <Member Name="get_TypedValue" />
+      <Member Name="op_Equality(System.Reflection.CustomAttributeNamedArgument,System.Reflection.CustomAttributeNamedArgument)" />
+      <Member Name="op_Inequality(System.Reflection.CustomAttributeNamedArgument,System.Reflection.CustomAttributeNamedArgument)" />
+      <Member MemberType="Property" Name="IsField" />
+      <Member MemberType="Property" Name="MemberName" />
+      <Member MemberType="Property" Name="TypedValue" />
     </Type>
     <Type Name="System.Reflection.CustomAttributeTypedArgument">
-        <Member Name="get_ArgumentType" />
-        <Member Name="get_Value" />
-        <Member Name="op_Equality(System.Reflection.CustomAttributeTypedArgument,System.Reflection.CustomAttributeTypedArgument)" />
-        <Member Name="op_Inequality(System.Reflection.CustomAttributeTypedArgument,System.Reflection.CustomAttributeTypedArgument)" />
-        <Member MemberType="Property" Name="ArgumentType" />
-        <Member MemberType="Property" Name="Value" />
+      <Member Name="#ctor(System.Object)" />
+      <Member Name="#ctor(System.Type,System.Object)" />
+      <Member Name="get_ArgumentType" />
+      <Member Name="get_Value" />
+      <Member Name="op_Equality(System.Reflection.CustomAttributeTypedArgument,System.Reflection.CustomAttributeTypedArgument)" />
+      <Member Name="op_Inequality(System.Reflection.CustomAttributeTypedArgument,System.Reflection.CustomAttributeTypedArgument)" />
+      <Member MemberType="Property" Name="ArgumentType" />
+      <Member MemberType="Property" Name="Value" />
     </Type>
     <Type Name="System.Reflection.CustomAttributeFormatException">
       <Member Name="#ctor" />
