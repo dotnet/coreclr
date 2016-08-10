@@ -1410,7 +1410,7 @@ namespace System {
         
         [System.Security.SecuritySafeCritical]  // auto-generated
         public static string GetFolderPath(SpecialFolder folder) {
-            if (!Enum.IsDefined(typeof(SpecialFolder), folder))
+            if (!folder.IsDefined())
                 throw new ArgumentException(Environment.GetResourceString("Arg_EnumIllegalVal", (int)folder));
             Contract.EndContractBlock();
 
@@ -1419,9 +1419,9 @@ namespace System {
 
         [System.Security.SecuritySafeCritical]  // auto-generated
         public static string GetFolderPath(SpecialFolder folder, SpecialFolderOption option) {
-            if (!Enum.IsDefined(typeof(SpecialFolder),folder))
+            if (!folder.IsDefined())
                 throw new ArgumentException(Environment.GetResourceString("Arg_EnumIllegalVal", (int)folder));
-            if (!Enum.IsDefined(typeof(SpecialFolderOption),option))
+            if (!option.IsDefined())
                 throw new ArgumentException(Environment.GetResourceString("Arg_EnumIllegalVal", (int)option));
             Contract.EndContractBlock();
 

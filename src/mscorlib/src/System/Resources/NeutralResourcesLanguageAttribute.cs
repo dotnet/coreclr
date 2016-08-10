@@ -46,7 +46,7 @@ namespace System.Resources {
         {
             if (cultureName == null)
                 throw new ArgumentNullException("cultureName");
-            if (!Enum.IsDefined(typeof(UltimateResourceFallbackLocation), location))
+            if (!location.IsDefined())
                 throw new ArgumentException(Environment.GetResourceString("Arg_InvalidNeutralResourcesLanguage_FallbackLoc", location));
             Contract.EndContractBlock();
 
