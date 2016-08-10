@@ -24,14 +24,15 @@ namespace System
 
         #region Private Static Methods
         [System.Security.SecuritySafeCritical]  // auto-generated
-        private static ValuesAndNames GetCachedValuesAndNames(RuntimeType enumType, bool getNames)
+        private static TypeValuesAndNames GetCachedValuesAndNames(RuntimeType enumType, bool getNames)
         {
-            ValuesAndNames entry = enumType.GenericCache as ValuesAndNames;
+            TypeValuesAndNames entry = enumType.GenericCache as TypeValuesAndNames;
 
             if (entry == null || (getNames && entry.Names == null))
             {
                 ulong[] values = null;
                 String[] names = null;
+                bool isFlags = enumType.IsDefined(typeof(System.FlagsAttribute), false);
 
                 GetEnumValuesAndNames(
                     enumType.GetTypeHandleInternal(),
@@ -39,7 +40,7 @@ namespace System
                     JitHelpers.GetObjectHandleOnStack(ref names),
                     getNames);
 
-                entry = new ValuesAndNames(values, names);
+                entry = new TypeValuesAndNames(isFlags, values, names);
                 enumType.GenericCache = entry;
             }
 
@@ -127,22 +128,31 @@ namespace System
         private static String InternalFormat(RuntimeType eT, ulong value)
         {
             Contract.Requires(eT != null);
-            if (!eT.IsDefined(typeof(System.FlagsAttribute), false)) // Not marked with Flags attribute
+
+            // These values are sorted by value. Don't change this
+            TypeValuesAndNames entry = GetCachedValuesAndNames(eT, true);
+
+            if (!entry.IsFlag) // Not marked with Flags attribute
             {
                 return Enum.GetEnumName(eT, value);
             }
             else // These are flags OR'ed together (We treat everything as unsigned types)
             {
-                return InternalFlagsFormat(eT, value);
+                return InternalFlagsFormat(eT, entry, value);
             }
         }
 
-        private static String InternalFlagsFormat(RuntimeType eT, ulong result)
+        private static String InternalFlagsFormat(RuntimeType eT,ulong result)
+        {
+            // These values are sorted by value. Don't change this
+            TypeValuesAndNames entry = GetCachedValuesAndNames(eT, true);
+
+            return InternalFlagsFormat(eT, entry, result);
+        }
+
+        private static String InternalFlagsFormat(RuntimeType eT, TypeValuesAndNames entry, ulong result)
         {
             Contract.Requires(eT != null);
-
-            // These values are sorted by value. Don't change this
-            ValuesAndNames entry = GetCachedValuesAndNames(eT, true);
 
             String[] names = entry.Names;
             ulong[] values = entry.Values;
@@ -423,7 +433,7 @@ namespace System
 
             // Find the field. Let's assume that these are always static classes 
             // because the class is an enum.
-            ValuesAndNames entry = GetCachedValuesAndNames(rtType, true);
+            TypeValuesAndNames entry = GetCachedValuesAndNames(rtType, true);
             String[] enumNames = entry.Names;
             ulong[] enumValues = entry.Values;
 
@@ -670,15 +680,17 @@ namespace System
         #endregion
 
         #region Definitions
-        private class ValuesAndNames
+        private class TypeValuesAndNames
         {
             // Each entry contains a list of sorted pair of enum field names and values, sorted by values
-            public ValuesAndNames(ulong[] values, String[] names)
+            public TypeValuesAndNames(bool isFlag, ulong[] values, String[] names)
             {
+                this.IsFlag = isFlag;
                 this.Values = values;
                 this.Names = names;
             }
 
+            public bool IsFlag;
             public ulong[] Values;
             public String[] Names;
         }
