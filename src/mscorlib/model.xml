@@ -3765,8 +3765,11 @@
       <Member MemberType="Property" Name="Value" />
     </Type>
     <Type Name="System.Reflection.AssemblyFlagsAttribute">
+      <Member Name="#ctor(System.UInt32)" />
+      <Member Name="#ctor(System.Int32)" />
       <Member Name="#ctor(System.Reflection.AssemblyNameFlags)" />
       <Member Name="get_AssemblyFlags" />
+      <Member Name="get_Flags" />
       <Member MemberType="Property" Name="AssemblyFlags" />
     </Type>
     <Type Name="System.Reflection.AssemblyInformationalVersionAttribute">
@@ -3789,21 +3792,26 @@
       <Member Status="ImplRoot" Name="#ctor(System.Runtime.Serialization.SerializationInfo,System.Runtime.Serialization.StreamingContext)" />
       <Member Name="get_CultureInfo" />
       <Member Name="get_CultureName" />
+      <Member Name="get_CodeBase" />
       <Member Name="get_ContentType" />
       <Member Name="get_Flags" />
       <Member Name="get_FullName" />
       <Member Name="get_HashAlgorithm" />
+      <Member Name="get_VersionCompatibility" />
       <Member Name="get_Name" />
       <Member Name="get_ProcessorArchitecture" />
       <Member Name="get_Version" />
       <Member Name="GetPublicKey" />
       <Member Name="GetPublicKeyToken" />
       <Member Name="set_CultureInfo(System.Globalization.CultureInfo)" />
+      <Member Name="set_CodeBase(System.String)" />
       <Member Name="set_Flags(System.Reflection.AssemblyNameFlags)" />
       <Member Name="set_HashAlgorithm(System.Configuration.Assemblies.AssemblyHashAlgorithm)" />
+      <Member Name="set_VersionCompatibility(System.Configuration.Assemblies.AssemblyVersionCompatibility)" />
       <Member Name="set_Name(System.String)" />
       <Member Name="set_ProcessorArchitecture(System.Reflection.ProcessorArchitecture)" />
       <Member Name="set_Version(System.Version)" />
+      <Member Name="Clone" />
       <Member Name="SetPublicKey(System.Byte[])" />
       <Member Name="SetPublicKeyToken(System.Byte[])" />
       <Member Name="ToString" />
@@ -3819,6 +3827,8 @@
       <Member MemberType="Property" Name="Version" />
     </Type>
     <Type Name="System.Reflection.AssemblyNameFlags">
+      <Member MemberType="Field" Name="EnableJITcompileOptimizer" />
+      <Member MemberType="Field" Name="EnableJITcompileTracking" />
       <Member MemberType="Field" Name="None" />
       <Member MemberType="Field" Name="PublicKey" />
       <Member MemberType="Field" Name="Retargetable" />
