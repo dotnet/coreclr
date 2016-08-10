@@ -75,6 +75,8 @@ extern uint8_t* g_shadow_lowest_address;
 // For low memory notification from host
 extern int32_t g_bLowMemoryFromHost;
 
+extern VOLATILE(int32_t) m_GCLock;
+
 // !!!!!!!!!!!!!!!!!!!!!!!
 // make sure you change the def in bcl\system\gc.cs 
 // if you change this!

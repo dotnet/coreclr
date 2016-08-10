@@ -444,8 +444,6 @@ public:
 #endif //VERIFY_HEAP    
 };
 
-extern VOLATILE(int32_t) m_GCLock;
-
 // Go through and touch (read) each page straddled by a memory block.
 void TouchPages(void * pStart, size_t cb);
 
