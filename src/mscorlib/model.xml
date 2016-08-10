@@ -3600,6 +3600,7 @@
       <Member Name="#ctor" />
       <Member Name="CreateInstance(System.String)" />
       <Member Name="CreateInstance(System.String,System.Boolean)" />
+      <Member Name="CreateInstance(System.String,System.Boolean,System.Reflection.BindingFlags,System.Reflection.Binder,System.Object[],System.Globalization.CultureInfo,System.Object[])" />
       <Member Name="CreateQualifiedName(System.String,System.String)" />
       <Member Name="GetReferencedAssemblies" />
       <Member Name="get_EntryPoint" />
@@ -3611,20 +3612,31 @@
       <Member Name="get_ManifestModule" />
       <Member Name="get_CustomAttributes" />
       <Member Name="get_Modules" />
+      <Member Name="get_ReflectionOnly" />
+      <Member Name="GetAssembly(System.Type)" />
+      <Member Name="op_Equality(System.Reflection.Assembly,System.Reflection.Assembly)" />
+      <Member Name="op_Inequality(System.Reflection.Assembly,System.Reflection.Assembly)" />
       <Member Name="GetCallingAssembly" />
       <Member Name="GetCustomAttributes(System.Boolean)" />
       <Member Name="GetCustomAttributes(System.Type,System.Boolean)" />
+      <Member Name="GetCustomAttributesData" />
       <Member Name="GetExecutingAssembly" />
       <Member Name="GetEntryAssembly" />
       <Member Name="GetExportedTypes" />
+      <Member Name="GetLoadedModules" />
+      <Member Name="GetLoadedModules(System.Boolean)" />
       <Member Name="GetManifestResourceNames" />
       <Member Name="GetManifestResourceStream(System.String)" />
       <Member Name="GetManifestResourceInfo(System.String)" />
       <Member Name="GetManifestResourceStream(System.Type,System.String)" />
+      <Member Name="GetModule(System.String)" />
       <Member Name="GetModules" />
+      <Member Name="GetModules(System.Boolean)" />
       <Member Name="Equals(System.Object)" />
       <Member Name="GetHashCode" />
       <Member Name="GetName" />
+      <Member Name="GetSatelliteAssembly(System.Globalization.CultureInfo)" />
+      <Member Name="GetSatelliteAssembly(System.Globalization.CultureInfo,System.Version)" />
       <Member Name="GetType(System.String)" />
       <Member Name="GetType(System.String,System.Boolean)" />
       <Member Name="GetType(System.String,System.Boolean,System.Boolean)" />
@@ -3635,6 +3647,9 @@
       <Member Name="Load(System.String)" />
       <Member Name="Load(System.Byte[])" />
       <Member Name="Load(System.Byte[],System.Byte[])" />
+      <Member Name="ReflectionOnlyLoad(System.String)" />
+      <Member Name="ReflectionOnlyLoad(System.Byte[])" />
+      <Member Name="ReflectionOnlyLoadFrom(System.String)" />
       <Member Name="ToString" />
       <Member MemberType="Property" Name="DefinedTypes" />
       <Member MemberType="Property" Name="CustomAttributes" />

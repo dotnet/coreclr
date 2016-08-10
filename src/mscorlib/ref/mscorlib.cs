@@ -6735,30 +6735,45 @@ namespace System.Reflection
         public virtual System.Reflection.Module ManifestModule { get { throw null; } }
         public virtual event ModuleResolveEventHandler ModuleResolve { [System.Security.SecurityCriticalAttribute]add { } [System.Security.SecurityCriticalAttribute]remove { } }
         public virtual System.Collections.Generic.IEnumerable<System.Reflection.Module> Modules { get { throw null; } }
+        [System.Runtime.InteropServices.ComVisibleAttribute(false)]
+        public virtual bool ReflectionOnly { get { throw null; } }
         public object CreateInstance(string typeName) { throw null; }
         public object CreateInstance(string typeName, bool ignoreCase) { throw null; }
+        public virtual object CreateInstance(String typeName, bool ignoreCase, BindingFlags bindingAttr, Binder binder, Object[] args, System.Globalization.CultureInfo culture, Object[] activationAttributes) { throw null; }
         public static string CreateQualifiedName(string assemblyName, string typeName) { throw null; }
         public override bool Equals(object o) { throw null; }
+        public static Assembly GetAssembly(Type type) { throw null; }
+        public static bool operator ==(System.Reflection.Assembly left, System.Reflection.Assembly right) { throw null; }
+        public static bool operator !=(System.Reflection.Assembly left, System.Reflection.Assembly right) { throw null; }
         [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)][System.Security.SecuritySafeCriticalAttribute]
         public static System.Reflection.Assembly GetCallingAssembly() { throw null; }
         public virtual object[] GetCustomAttributes(bool inherit) { throw null; }
         public virtual object[] GetCustomAttributes(System.Type attributeType, bool inherit) { throw null; }
+        public virtual System.Collections.Generic.IList<CustomAttributeData> GetCustomAttributesData() { throw null; }
         [System.Security.SecuritySafeCriticalAttribute]
         public static System.Reflection.Assembly GetEntryAssembly() { throw null; }
         [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)][System.Security.SecuritySafeCriticalAttribute]
         public static System.Reflection.Assembly GetExecutingAssembly() { throw null; }
         public virtual System.Type[] GetExportedTypes() { throw null; }
         public override int GetHashCode() { throw null; }
+        public System.Reflection.Module[] GetLoadedModules() { throw null; }
+        public virtual System.Reflection.Module[] GetLoadedModules(bool getResourceModules) { throw null; }
         public virtual System.Reflection.ManifestResourceInfo GetManifestResourceInfo(string resourceName) { throw null; }
         public virtual string[] GetManifestResourceNames() { throw null; }
         public virtual System.IO.Stream GetManifestResourceStream(string name) { throw null; }
         public virtual System.IO.Stream GetManifestResourceStream(System.Type type, string name) { throw null; }
+        public virtual System.Reflection.Module GetModule(String name) { throw null; }
         public System.Reflection.Module[] GetModules() { throw null; }
+        public virtual System.Reflection.Module[] GetModules(bool getResourceModules) { throw null; }
         [System.Security.SecurityCriticalAttribute]
         public virtual System.Reflection.AssemblyName GetName() { throw null; }
         [System.Security.SecurityCriticalAttribute]
         public virtual void GetObjectData(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
         public virtual System.Reflection.AssemblyName[] GetReferencedAssemblies() { throw null; }
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        public virtual Assembly GetSatelliteAssembly(System.Globalization.CultureInfo culture) { throw null; }
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        public virtual Assembly GetSatelliteAssembly(System.Globalization.CultureInfo culture, System.Version version) { throw null; }
         public virtual System.Type GetType(string name) { throw null; }
         public virtual System.Type GetType(string name, bool throwOnError) { throw null; }
         public virtual System.Type GetType(string name, bool throwOnError, bool ignoreCase) { throw null; }
@@ -6772,6 +6787,12 @@ namespace System.Reflection
         public static System.Reflection.Assembly Load(System.Reflection.AssemblyName assemblyRef) { throw null; }
         [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)][System.Security.SecuritySafeCriticalAttribute]
         public static System.Reflection.Assembly Load(string assemblyString) { throw null; }
+        [System.Security.SecuritySafeCriticalAttribute][System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        public static Assembly ReflectionOnlyLoad(byte[] rawAssembly) { throw null; }
+        [System.Security.SecuritySafeCriticalAttribute][System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        public static Assembly ReflectionOnlyLoad(String assemblyString) { throw null; }
+        [System.Security.SecuritySafeCriticalAttribute][System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        public static Assembly ReflectionOnlyLoadFrom(string assemblyFile) { throw null; }
         public override string ToString() { throw null; }
     }
     [System.AttributeUsageAttribute((System.AttributeTargets)(1), Inherited=false)]
