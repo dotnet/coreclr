@@ -119,9 +119,9 @@ private:
 public:
 #endif // FEATURE_64BIT_ALIGNMENT
     Object*  AllocLHeap (size_t size, uint32_t flags);
-    Object* Alloc (alloc_context* acontext, size_t size, uint32_t flags);
+    Object* Alloc (gc_alloc_context* acontext, size_t size, uint32_t flags);
 
-    void FixAllocContext (alloc_context* acontext,
+    void FixAllocContext (gc_alloc_context* acontext,
                                             BOOL lockp, void* arg, void *heap);
 
     Object* GetContainingObject(void *pInteriorPtr);
@@ -132,7 +132,7 @@ public:
 #endif //MULTIPLE_HEAPS
 
     int GetHomeHeapNumber ();
-    bool IsThreadUsingAllocationContextHeap(alloc_context* acontext, int thread_number);
+    bool IsThreadUsingAllocationContextHeap(gc_alloc_context* acontext, int thread_number);
     int GetNumberOfHeaps ();
     void HideAllocContext(alloc_context*);
     void RevealAllocContext(alloc_context*);
@@ -200,7 +200,11 @@ public:
     int StartNoGCRegion(uint64_t totalSize, BOOL lohSizeKnown, uint64_t lohSize, BOOL disallowFullBlockingGC);
     int EndNoGCRegion();
 
-    PER_HEAP_ISOLATED     unsigned GetMaxGeneration();
+    unsigned GetMaxGeneration() 
+    {
+        LIMITED_METHOD_DAC_CONTRACT;  
+        return max_generation;
+    }
  
     unsigned GetGcCount();
 
@@ -285,7 +289,7 @@ private:
 #ifdef STRESS_HEAP 
 public:
     //return TRUE if GC actually happens, otherwise FALSE
-    BOOL    StressHeap(alloc_context * acontext = 0);
+    BOOL    StressHeap(gc_alloc_context * acontext = 0);
 protected:
 
     // only used in BACKGROUND_GC, but the symbol is not defined yet...

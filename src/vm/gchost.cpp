@@ -22,7 +22,7 @@
 #include "corhost.h"
 #include "excep.h"
 #include "field.h"
-#include "gc.h"
+#include "gcinterface.h"
 
 #if !defined(FEATURE_CORECLR)
 inline size_t SizeInKBytes(size_t cbSize)
@@ -48,7 +48,7 @@ HRESULT CorGCHost::_SetGCSegmentSize(SIZE_T SegmentSize)
     HRESULT hr = S_OK;
 
     // Sanity check the value, it must be a power of two and big enough.
-    if (!GCHeap::IsValidSegmentSize(SegmentSize))
+    if (!IGCHeap::IsValidSegmentSize(SegmentSize))
     {
         hr = E_INVALIDARG;
     }
@@ -74,7 +74,7 @@ HRESULT CorGCHost::_SetGCMaxGen0Size(SIZE_T MaxGen0Size)
     HRESULT hr = S_OK;
 
     // Sanity check the value is at least large enough.
-    if (!GCHeap::IsValidGen0MaxSize(MaxGen0Size))
+    if (!IGCHeap::IsValidGen0MaxSize(MaxGen0Size))
     {
         hr = E_INVALIDARG;
     }
@@ -151,7 +151,7 @@ HRESULT CorGCHost::Collect(
     
     HRESULT     hr = E_FAIL;
     
-    if (Generation > (int) GCHeap::GetGCHeap()->GetMaxGeneration())
+    if (Generation > (int) IGCHeap::GetGCHeap()->GetMaxGeneration())
         hr = E_INVALIDARG;
     else
     {
@@ -170,7 +170,7 @@ HRESULT CorGCHost::Collect(
 
             EX_TRY
             {			
-                hr = GCHeap::GetGCHeap()->GarbageCollect(Generation);
+                hr = IGCHeap::GetGCHeap()->GarbageCollect(Generation);
             }
             EX_CATCH
             {
@@ -268,7 +268,7 @@ HRESULT CorGCHost::SetVirtualMemLimit(
     }
     CONTRACTL_END;
 
-    GCHeap::GetGCHeap()->SetReservedVMLimit (sztMaxVirtualMemMB);
+    IGCHeap::GetGCHeap()->SetReservedVMLimit (sztMaxVirtualMemMB);
     return (S_OK);
 }
 #endif // !defined(FEATURE_CORECLR)

@@ -2982,10 +2982,10 @@ ClrDataAccess::GetGCHeapData(struct DacpGcHeapData *gcheapData)
     if (SUCCEEDED(hr))
     {
         // Now we can get other important information about the heap
-        gcheapData->g_max_generation = GCHeap::GetMaxGeneration();
-        gcheapData->bServerMode = GCHeap::IsServerHeap();
+        gcheapData->g_max_generation = IGCHeap::GetGCHeap()->GetMaxGeneration();
+        gcheapData->bServerMode = IGCHeap::IsServerHeap();
         gcheapData->bGcStructuresValid = GCScan::GetGcRuntimeStructuresValid();
-        if (GCHeap::IsServerHeap())
+        if (IGCHeap::IsServerHeap())
         {
 #if !defined (FEATURE_SVR_GC)
             _ASSERTE(0);
@@ -3856,7 +3856,7 @@ ClrDataAccess::EnumWksGlobalMemoryRegions(CLRDataEnumMemoryFlags flags)
             // enumerating the generations from max (which is normally gen2) to max+1 gives you
             // the segment list for all the normal segements plus the large heap segment (max+1)
             // this is the convention in the GC so it is repeated here
-            for (ULONG i = GCHeap::GetMaxGeneration(); i <= GCHeap::GetMaxGeneration()+1; i++)
+            for (ULONG i = IGCHeap::GetGCHeap()->GetMaxGeneration(); i <= IGCHeap::GetGCHeap()->GetMaxGeneration()+1; i++)
             {
                 __DPtr<WKS::heap_segment> seg = dac_cast<TADDR>(WKS::generation_table[i].start_segment);
                 while (seg)

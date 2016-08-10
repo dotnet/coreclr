@@ -184,7 +184,7 @@ void GCToEEInterface::DisablePreemptiveGC(Thread * pThread)
     pThread->DisablePreemptiveGC();
 }
 
-alloc_context * GCToEEInterface::GetAllocContext(Thread * pThread)
+gc_alloc_context * GCToEEInterface::GetAllocContext(Thread * pThread)
 {
     return pThread->GetAllocContext();
 }

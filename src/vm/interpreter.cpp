@@ -14,7 +14,7 @@
 #include "openum.h"
 #include "fcall.h"
 #include "frames.h"
-#include "gc.h"
+#include "gcinterface.h"
 #include <float.h>
 #include "jitinterface.h"
 #include "safemath.h"

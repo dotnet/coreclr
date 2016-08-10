@@ -14,9 +14,7 @@ Module Name:
 #ifndef __GC_H
 #define __GC_H
 
-#ifdef PROFILING_SUPPORTED
-#define GC_PROFILING       //Turn on profiling
-#endif // PROFILING_SUPPORTED
+#include "gcinterface.h"
 
 /*
  * Promotion Function Prototypes
@@ -100,24 +98,12 @@ class Object;
 class GCHeap;
 
 /* misc defines */
-#define LARGE_OBJECT_SIZE ((size_t)(85000))
-
-GPTR_DECL(GCHeap, g_pGCHeap);
 
 #ifdef GC_CONFIG_DRIVEN
 #define MAX_GLOBAL_GC_MECHANISMS_COUNT 6
 GARY_DECL(size_t, gc_global_mechanisms, MAX_GLOBAL_GC_MECHANISMS_COUNT);
 #endif //GC_CONFIG_DRIVEN
 
-#ifndef DACCESS_COMPILE
-extern "C" {
-#endif
-GPTR_DECL(uint8_t,g_lowest_address);
-GPTR_DECL(uint8_t,g_highest_address);
-GPTR_DECL(uint32_t,g_card_table);
-#ifndef DACCESS_COMPILE
-}
-#endif
 
 #ifdef DACCESS_COMPILE
 class DacHeapWalker;
@@ -127,18 +113,7 @@ class DacHeapWalker;
 #define  _LOGALLOC
 #endif
 
-#ifdef WRITE_BARRIER_CHECK
-//always defined, but should be 0 in Server GC
-extern uint8_t* g_GCShadow;
-extern uint8_t* g_GCShadowEnd;
-// saves the g_lowest_address in between GCs to verify the consistency of the shadow segment
-extern uint8_t* g_shadow_lowest_address;
-#endif
-
 #define MP_LOCKS
-
-extern "C" uint8_t* g_ephemeral_low;
-extern "C" uint8_t* g_ephemeral_high;
 
 namespace WKS {
     ::GCHeap* CreateGCHeap();
@@ -158,105 +133,21 @@ namespace SVR {
  * Ephemeral Garbage Collected Heap Interface
  */
 
-
-struct alloc_context 
+// This is the complete definition of alloc_context that is used
+// within the GC, making use of the two reserved fields.
+struct alloc_context : gc_alloc_context
 {
-    friend class WKS::gc_heap;
-#if defined(FEATURE_SVR_GC)
-    friend class SVR::gc_heap;
-    friend class SVR::GCHeap;
-#endif // defined(FEATURE_SVR_GC)
-    friend struct ClassDumpInfo;
-
-    uint8_t*       alloc_ptr;
-    uint8_t*       alloc_limit;
-    int64_t        alloc_bytes; //Number of bytes allocated on SOH by this context
-    int64_t        alloc_bytes_loh; //Number of bytes allocated on LOH by this context
-#if defined(FEATURE_SVR_GC)
-    SVR::GCHeap*   alloc_heap;
-    SVR::GCHeap*   home_heap;
-#endif // defined(FEATURE_SVR_GC)
-    int            alloc_count;
-public:
-
-    void init()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        alloc_ptr = 0;
-        alloc_limit = 0;
-        alloc_bytes = 0;
-        alloc_bytes_loh = 0;
-#if defined(FEATURE_SVR_GC)
-        alloc_heap = 0;
-        home_heap = 0;
-#endif // defined(FEATURE_SVR_GC)
-        alloc_count = 0;
-    }
-};
-
-struct ScanContext
-{
-    Thread* thread_under_crawl;
-    int thread_number;
-    uintptr_t stack_limit; // Lowest point on the thread stack that the scanning logic is permitted to read
-    BOOL promotion; //TRUE: Promotion, FALSE: Relocation.
-    BOOL concurrent; //TRUE: concurrent scanning 
-#if CHECK_APP_DOMAIN_LEAKS || defined (FEATURE_APPDOMAIN_RESOURCE_MONITORING) || defined (DACCESS_COMPILE)
-    AppDomain *pCurrentDomain;
-#endif //CHECK_APP_DOMAIN_LEAKS || FEATURE_APPDOMAIN_RESOURCE_MONITORING || DACCESS_COMPILE
-
-#ifndef FEATURE_REDHAWK
-#if defined(GC_PROFILING) || defined (DACCESS_COMPILE)
-    MethodDesc *pMD;
-#endif //GC_PROFILING || DACCESS_COMPILE
-#endif // FEATURE_REDHAWK
-#if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
-    EtwGCRootKind dwEtwRootKind;
-#endif // GC_PROFILING || FEATURE_EVENT_TRACE
-    
-    ScanContext()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        thread_under_crawl = 0;
-        thread_number = -1;
-        stack_limit = 0;
-        promotion = FALSE;
-        concurrent = FALSE;
-#ifdef GC_PROFILING
-        pMD = NULL;
-#endif //GC_PROFILING
-#if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
-        dwEtwRootKind = kEtwGCRootKindOther;
-#endif // GC_PROFILING || FEATURE_EVENT_TRACE
-    }
-};
-
-typedef BOOL (* walk_fn)(Object*, void*);
-typedef void (* gen_walk_fn)(void *context, int generation, uint8_t *range_start, uint8_t * range_end, uint8_t *range_reserved);
-
-#if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
-struct ProfilingScanContext : ScanContext
-{
-    BOOL fProfilerPinned;
-    void * pvEtwContext;
-    void *pHeapId;
-    
-    ProfilingScanContext(BOOL fProfilerPinnedParam) : ScanContext()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        pHeapId = NULL;
-        fProfilerPinned = fProfilerPinnedParam;
-        pvEtwContext = NULL;
-#ifdef FEATURE_CONSERVATIVE_GC
-        // To not confuse GCScan::GcScanRoots
-        promotion = g_pConfig->GetGCConservative();
+#ifdef FEATURE_SVR_GC
+    inline SVR::GCHeap*& alloc_heap() { return reinterpret_cast<SVR::GCHeap*&>(gc_reserved_1); }
+    inline SVR::GCHeap*& home_heap() { return reinterpret_cast<SVR::GCHeap*&>(gc_reserved_2); }
 #endif
-    }
 };
-#endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
+
+// The above structure *CAN NOT* differ in size than the interface alloc context
+// from which it derives, due to alloc_context being used by-value in the VM.
+#ifdef static_assert_no_msg // the Sample build does not define this macro
+static_assert_no_msg(sizeof(gc_alloc_context) == sizeof(alloc_context));
+#endif // static_assert_no_msg
 
 #ifdef STRESS_HEAP
 #define IN_STRESS_HEAP(x) x
@@ -266,58 +157,12 @@ struct ProfilingScanContext : ScanContext
 #define STRESS_HEAP_ARG(x)
 #endif // STRESS_HEAP
 
-
 //dynamic data interface
 struct gc_counters
 {
     size_t current_size;
     size_t promoted_size;
     size_t collection_count;
-};
-
-// !!!!!!!!!!!!!!!!!!!!!!!
-// make sure you change the def in bcl\system\gc.cs 
-// if you change this!
-enum collection_mode
-{
-    collection_non_blocking = 0x00000001,
-    collection_blocking = 0x00000002,
-    collection_optimized = 0x00000004,
-    collection_compacting = 0x00000008
-#ifdef STRESS_HEAP
-    , collection_gcstress = 0x80000000
-#endif // STRESS_HEAP
-};
-
-// !!!!!!!!!!!!!!!!!!!!!!!
-// make sure you change the def in bcl\system\gc.cs 
-// if you change this!
-enum wait_full_gc_status
-{
-    wait_full_gc_success = 0,
-    wait_full_gc_failed = 1,
-    wait_full_gc_cancelled = 2,
-    wait_full_gc_timeout = 3,
-    wait_full_gc_na = 4
-};
-
-// !!!!!!!!!!!!!!!!!!!!!!!
-// make sure you change the def in bcl\system\gc.cs 
-// if you change this!
-enum start_no_gc_region_status
-{
-    start_no_gc_success = 0,
-    start_no_gc_no_memory = 1,
-    start_no_gc_too_large = 2,
-    start_no_gc_in_progress = 3
-};
-
-enum end_no_gc_region_status
-{
-    end_no_gc_success = 0,
-    end_no_gc_not_in_progress = 1,
-    end_no_gc_induced = 2,
-    end_no_gc_alloc_exceeded = 3
 };
 
 enum bgc_state
@@ -352,19 +197,7 @@ void record_changed_seg (uint8_t* start, uint8_t* end,
 void record_global_mechanism (int mech_index);
 #endif //GC_CONFIG_DRIVEN
 
-//constants for the flags parameter to the gc call back
-
-#define GC_CALL_INTERIOR            0x1
-#define GC_CALL_PINNED              0x2
-#define GC_CALL_CHECK_APP_DOMAIN    0x4
-
-//flags for GCHeap::Alloc(...)
-#define GC_ALLOC_FINALIZE 0x1
-#define GC_ALLOC_CONTAINS_REF 0x2
-#define GC_ALLOC_ALIGN8_BIAS 0x4
-#define GC_ALLOC_ALIGN8 0x8
-
-class GCHeap {
+class GCHeap : public IGCHeap {
     friend struct ::_DacGlobals;
 #ifdef DACCESS_COMPILE
     friend class ClrDataAccess;
@@ -379,11 +212,12 @@ public:
         LIMITED_METHOD_CONTRACT;
 
         _ASSERTE(g_pGCHeap != NULL);
-        return g_pGCHeap;
+        IGCHeap* heap = g_pGCHeap;
+        return (GCHeap*)heap;
     }
 
 #ifndef DACCESS_COMPILE
-    static BOOL IsGCInProgress(BOOL bConsiderGCStart = FALSE)
+    static BOOL IsGCInProgress(BOOL bConsiderGCStart = FALSE) 
     {
         WRAPPER_NO_CONTRACT;
 
@@ -405,54 +239,16 @@ public:
         if (IsGCHeapInitialized())
             GetGCHeap()->WaitUntilGCComplete(bConsiderGCStart);
     }   
-
-    // The runtime needs to know whether we're using workstation or server GC 
-    // long before the GCHeap is created.  So IsServerHeap cannot be a virtual 
-    // method on GCHeap.  Instead we make it a static method and initialize 
-    // gcHeapType before any of the calls to IsServerHeap.  Note that this also 
-    // has the advantage of getting the answer without an indirection
-    // (virtual call), which is important for perf critical codepaths.
-
-    #ifndef DACCESS_COMPILE
-    static void InitializeHeapType(bool bServerHeap)
-    {
-        LIMITED_METHOD_CONTRACT;
-#ifdef FEATURE_SVR_GC
-        gcHeapType = bServerHeap ? GC_HEAP_SVR : GC_HEAP_WKS;
-#ifdef WRITE_BARRIER_CHECK
-        if (gcHeapType == GC_HEAP_SVR)
-        {
-            g_GCShadow = 0;
-            g_GCShadowEnd = 0;
-        }
-#endif
-#else // FEATURE_SVR_GC
-        UNREFERENCED_PARAMETER(bServerHeap);
-        CONSISTENCY_CHECK(bServerHeap == false);
-#endif // FEATURE_SVR_GC
-    }
-    #endif
     
-    static BOOL IsValidSegmentSize(size_t cbSize)
+    BOOL IsValidSegmentSize(size_t cbSize) 
     {
         //Must be aligned on a Mb and greater than 4Mb
         return (((cbSize & (1024*1024-1)) ==0) && (cbSize >> 22));
     }
 
-    static BOOL IsValidGen0MaxSize(size_t cbSize)
+    BOOL IsValidGen0MaxSize(size_t cbSize) 
     {
         return (cbSize >= 64*1024);
-    }
-
-    inline static bool IsServerHeap()
-    {
-        LIMITED_METHOD_CONTRACT;
-#ifdef FEATURE_SVR_GC
-        _ASSERTE(gcHeapType != GC_HEAP_INVALID);
-        return (gcHeapType == GC_HEAP_SVR);
-#else // FEATURE_SVR_GC
-        return false;
-#endif // FEATURE_SVR_GC
     }
 
     inline static bool UseAllocationContexts()
@@ -470,20 +266,12 @@ public:
 #endif 
     }
 
-   inline static bool MarkShouldCompeteForStatics()
-    {
-        WRAPPER_NO_CONTRACT;
-
-        return IsServerHeap() && g_SystemInfo.dwNumberOfProcessors >= 2;
-    }
-    
 #ifndef DACCESS_COMPILE
     static GCHeap * CreateGCHeap()
     {
         WRAPPER_NO_CONTRACT;
 
         GCHeap * pGCHeap;
-
 #if defined(FEATURE_SVR_GC)
         pGCHeap = (IsServerHeap() ? SVR::CreateGCHeap() : WKS::CreateGCHeap());
 #else
@@ -502,7 +290,7 @@ private:
         GC_HEAP_WKS     = 1,
         GC_HEAP_SVR     = 2
     } GC_HEAP_TYPE;
-    
+
 #ifdef FEATURE_SVR_GC
     SVAL_DECL(uint32_t,gcHeapType);
 #endif // FEATURE_SVR_GC
@@ -534,8 +322,8 @@ public:
     virtual void TemporaryDisableConcurrentGC() = 0;
     virtual BOOL IsConcurrentGCEnabled() = 0;
 
-    virtual void FixAllocContext (alloc_context* acontext, BOOL lockp, void* arg, void *heap) = 0;
-    virtual Object* Alloc (alloc_context* acontext, size_t size, uint32_t flags) = 0;
+    virtual void FixAllocContext (gc_alloc_context* acontext, BOOL lockp, void* arg, void *heap) = 0;
+    virtual Object* Alloc (gc_alloc_context* acontext, size_t size, uint32_t flags) = 0;
 
     // This is safe to call only when EE is suspended.
     virtual Object* GetContainingObject(void *pInteriorPtr) = 0;
@@ -547,9 +335,9 @@ public:
     virtual Object*  Alloc (size_t size, uint32_t flags) = 0;
 #ifdef FEATURE_64BIT_ALIGNMENT
     virtual Object*  AllocAlign8 (size_t size, uint32_t flags) = 0;
-    virtual Object*  AllocAlign8 (alloc_context* acontext, size_t size, uint32_t flags) = 0;
+    virtual Object*  AllocAlign8 (gc_alloc_context* acontext, size_t size, uint32_t flags) = 0;
 private:
-    virtual Object*  AllocAlign8Common (void* hp, alloc_context* acontext, size_t size, uint32_t flags) = 0;
+    virtual Object*  AllocAlign8Common (void* hp, gc_alloc_context* acontext, size_t size, uint32_t flags) = 0;
 public:
 #endif // FEATURE_64BIT_ALIGNMENT
     virtual Object*  AllocLHeap (size_t size, uint32_t flags) = 0;
@@ -559,7 +347,7 @@ public:
     virtual void WalkObject (Object* obj, walk_fn fn, void* context) = 0;
 #endif //defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
 
-    virtual bool IsThreadUsingAllocationContextHeap(alloc_context* acontext, int thread_number) = 0;
+    virtual bool IsThreadUsingAllocationContextHeap(gc_alloc_context* acontext, int thread_number) = 0;
     virtual int GetNumberOfHeaps () = 0; 
     virtual int GetHomeHeapNumber () = 0;
     
@@ -610,14 +398,11 @@ public:
         return mt->GetBaseSize() >= LARGE_OBJECT_SIZE;
     }
 
-    static unsigned GetMaxGeneration() {
-        LIMITED_METHOD_DAC_CONTRACT;  
-        return max_generation;
-    }
+    virtual unsigned GetMaxGeneration() = 0;
 
     virtual size_t GetPromotedBytes(int heap_index) = 0;
 
-private:
+protected:
     enum {
         max_generation  = 2,
     };
@@ -634,7 +419,7 @@ public:
 #ifndef FEATURE_REDHAWK // Redhawk forces relocation a different way
 #ifdef STRESS_HEAP
     //return TRUE if GC actually happens, otherwise FALSE
-    virtual BOOL    StressHeap(alloc_context * acontext = 0) = 0;
+    virtual BOOL    StressHeap(gc_alloc_context * acontext = 0) = 0;
 #endif
 #endif // FEATURE_REDHAWK
 #ifdef VERIFY_HEAP
@@ -663,9 +448,6 @@ extern VOLATILE(int32_t) m_GCLock;
 
 // Go through and touch (read) each page straddled by a memory block.
 void TouchPages(void * pStart, size_t cb);
-
-// For low memory notification from host
-extern int32_t g_bLowMemoryFromHost;
 
 #ifdef WRITE_BARRIER_CHECK
 void updateGCShadow(Object** ptr, Object* val);

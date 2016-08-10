@@ -2350,11 +2350,11 @@ Work:
         counts = oldCounts;
     }
 
-    if (GCHeap::IsGCInProgress(TRUE))
+    if (IGCHeap::IsGCInProgress(TRUE))
     {
         // GC is imminent, so wait until GC is complete before executing next request.
         // this reduces in-flight objects allocated right before GC, easing the GC's work
-        GCHeap::WaitForGCCompletion(TRUE);
+        IGCHeap::WaitForGCCompletion(TRUE);
     }
 
     {
@@ -3964,7 +3964,7 @@ Top:
 
             if (key != 0)
             {
-                if (GCHeap::IsGCInProgress(TRUE))
+                if (IGCHeap::IsGCInProgress(TRUE))
                 {
                     //Indicate that this thread is free, and waiting on GC, not doing any user work.
                     //This helps in threads not getting injected when some threads have woken up from the
@@ -3980,7 +3980,7 @@ Top:
 
                     // GC is imminent, so wait until GC is complete before executing next request.
                     // this reduces in-flight objects allocated right before GC, easing the GC's work
-                    GCHeap::WaitForGCCompletion(TRUE);
+                    IGCHeap::WaitForGCCompletion(TRUE);
 
                     while (true)
                     {
@@ -4193,7 +4193,7 @@ BOOL ThreadpoolMgr::ShouldGrowCompletionPortThreadpool(ThreadCounter::Counts cou
 
     if (counts.NumWorking >= counts.NumActive 
         && NumCPInfrastructureThreads == 0
-        && (counts.NumActive == 0 ||  !GCHeap::IsGCInProgress(TRUE))
+        && (counts.NumActive == 0 ||  !IGCHeap::IsGCInProgress(TRUE))
         )
     {
         // adjust limit if neeeded
@@ -4593,7 +4593,7 @@ DWORD __stdcall ThreadpoolMgr::GateThreadStart(LPVOID lpArgs)
             EX_END_CATCH(SwallowAllExceptions);
         }
 
-        if (!GCHeap::IsGCInProgress(FALSE) )
+        if (!IGCHeap::IsGCInProgress(FALSE) )
         {
             if (IgnoreNextSample)
             {
@@ -4635,7 +4635,7 @@ DWORD __stdcall ThreadpoolMgr::GateThreadStart(LPVOID lpArgs)
                 oldCounts.NumActive < MaxLimitTotalCPThreads &&
                 !g_fCompletionPortDrainNeeded &&
                 NumCPInfrastructureThreads == 0 &&       // infrastructure threads count as "to be free as needed"
-                !GCHeap::IsGCInProgress(TRUE))
+                !IGCHeap::IsGCInProgress(TRUE))
 
             {
                 BOOL status;

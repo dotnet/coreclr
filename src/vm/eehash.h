@@ -74,7 +74,7 @@ struct EEHashEntry
 // Struct to hold a client's iteration state
 struct EEHashTableIteration;
 
-class GCHeap;
+class IGCHeap;
 
 // Generic hash table.
 
