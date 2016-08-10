@@ -191,11 +191,8 @@ namespace System {
         //
         internal static string GetArgumentName(ExceptionArgument argument)
         {
-            if (!Enum.IsDefined(typeof(ExceptionArgument), argument))
-            {
-                Contract.Assert(false, "The enum value is not defined, please check the ExceptionArgument Enum.");
-                return string.Empty;
-            }
+            Contract.Assert(Enum.IsDefined(typeof(ExceptionArgument), argument),
+                "The enum value is not defined, please check the ExceptionArgument Enum.");
 
             return argument.ToString();
         }
@@ -205,11 +202,8 @@ namespace System {
         //
         internal static string GetResourceName(ExceptionResource resource)
         {
-            if (!Enum.IsDefined(typeof(ExceptionResource), resource))
-            {
-                Contract.Assert(false, "The enum value is not defined, please check the ExceptionResource Enum.");
-                return string.Empty;
-            }
+            Contract.Assert(Enum.IsDefined(typeof(ExceptionResource), resource),
+                "The enum value is not defined, please check the ExceptionResource Enum.");
 
             return resource.ToString();
         }
