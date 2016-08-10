@@ -3282,6 +3282,8 @@
       <Member Name="get_Value"/>
       <Member Status="ImplRoot" Name="OnSerializing(System.Runtime.Serialization.StreamingContext)" />
     </Type>
+    <Type Name="System.MarshalByRefObject">
+    </Type>
     <Type Status="ImplRoot" Name="System.System_LazyDebugView&lt;T&gt;">
       <Member Status="ImplRoot" Name="#ctor(System.Lazy&lt;T&gt;)"/>
       <Member Status="ImplRoot" MemberType="Property" Name="IsValueCreated"/>
@@ -3806,6 +3808,8 @@
       <Member MemberType="Field" Name="PublicKey" />
       <Member MemberType="Field" Name="Retargetable" />
       <Member MemberType="Field" Name="value__" />
+    </Type>
+    <Type Name="System.Reflection.AssemblyNameProxy">
     </Type>
     <Type Name="System.Reflection.AssemblyProductAttribute">
       <Member Name="#ctor(System.String)" />
@@ -5433,6 +5437,12 @@
       <Member Status="ImplRoot" MemberType="Field" Name="m_pGlobals" /> <!-- EE -->
       <Member Status="ImplRoot" MemberType="Field" Name="m_pRefClass" /> <!-- EE -->
       <Member Status="ImplRoot" MemberType="Field" Name="m_runtimeType" /> <!-- EE -->
+    </Type>
+    <Type Name="System.Reflection.ModuleResolveEventHandler">
+      <Member Name="#ctor(System.Object,System.IntPtr)" />
+      <Member Name="BeginInvoke(System.Object,System.ResolveEventArgs,System.AsyncCallback,System.Object)" />
+      <Member Name="EndInvoke(System.IAsyncResult)" />
+      <Member Name="Invoke(System.Object,System.ResolveEventArgs)" />
     </Type>
     <Type Name="System.Reflection.ParameterAttributes">
       <Member MemberType="Field" Name="HasDefault" />

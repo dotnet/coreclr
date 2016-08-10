@@ -2335,6 +2335,11 @@ namespace System
         public T Value { get { throw null; } }
         public override string ToString() { throw null; }
     }
+    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+    public abstract partial class MarshalByRefObject
+    {
+        internal MarshalByRefObject() { }
+    }
     public static partial class Math
     {
         public const double E = 2.7182818284590451;
@@ -6728,6 +6733,7 @@ namespace System.Reflection
         public virtual string Location { [System.Security.SecurityCriticalAttribute]get { throw null; } }
         [System.Runtime.InteropServices.ComVisibleAttribute(false)]
         public virtual System.Reflection.Module ManifestModule { get { throw null; } }
+        public virtual event ModuleResolveEventHandler ModuleResolve { [System.Security.SecurityCriticalAttribute]add { } [System.Security.SecurityCriticalAttribute]remove { } }
         public virtual System.Collections.Generic.IEnumerable<System.Reflection.Module> Modules { get { throw null; } }
         public object CreateInstance(string typeName) { throw null; }
         public object CreateInstance(string typeName, bool ignoreCase) { throw null; }
@@ -6909,6 +6915,11 @@ namespace System.Reflection
         None = 0,
         PublicKey = 1,
         Retargetable = 256,
+    }
+    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+    public class AssemblyNameProxy : System.MarshalByRefObject
+    {
+        internal AssemblyNameProxy() { }
     }
     [System.AttributeUsageAttribute((System.AttributeTargets)(1), Inherited=false)]
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
@@ -7484,6 +7495,8 @@ namespace System.Reflection
         public virtual System.Type ResolveType(int metadataToken, System.Type[] genericTypeArguments, System.Type[] genericMethodArguments) { throw null; }
         public override string ToString() { throw null; }
     }
+    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+    public delegate System.Reflection.Module ModuleResolveEventHandler(object sender, System.ResolveEventArgs e);
     [System.FlagsAttribute]
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     public enum ParameterAttributes
