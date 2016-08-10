@@ -38,8 +38,10 @@ namespace System {
             }
             Contract.Ensures(Contract.Result<ReadOnlyCollection<T>>() != null);
 
+            // If the array is empty, return the cached, empty ReadOnlyCollection<T>
+            // instance to avoid allocating an unnecessary object.
             // T[] implements IList<T>.
-            return new ReadOnlyCollection<T>(array);
+            return array.Length == 0 ? EmptyReadOnlyCollection<T>.Value : new ReadOnlyCollection<T>(array);
         }
 
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]

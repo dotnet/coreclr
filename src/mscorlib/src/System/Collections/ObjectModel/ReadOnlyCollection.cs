@@ -229,4 +229,11 @@ namespace System.Collections.ObjectModel
             ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_ReadOnlyCollection);
         }    
     }
+
+    // Useful in number of places that return an empty ReadOnlyCollection<T> to avoid unnecessary memory allocation.
+    internal static class EmptyReadOnlyCollection<T>
+    {
+        public static readonly ReadOnlyCollection<T> Value =
+            new ReadOnlyCollection<T>(Array.Empty<T>());
+    }
 }
