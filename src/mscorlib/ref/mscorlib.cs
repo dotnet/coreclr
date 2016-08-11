@@ -7201,6 +7201,28 @@ namespace System.Reflection
         [System.Diagnostics.DebuggerStepThroughAttribute]
         public virtual void RemoveEventHandler(object target, System.Delegate handler) { }
     }
+    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+    public class ExceptionHandlingClause
+    {
+        protected ExceptionHandlingClause() { }
+        public virtual System.Reflection.ExceptionHandlingClauseOptions Flags { get { throw null; } }
+        public virtual int TryOffset { get { throw null; } }
+        public virtual int TryLength { get { throw null; } }
+        public virtual int HandlerOffset { get { throw null; } }
+        public virtual int HandlerLength { get { throw null; } }
+        public virtual int FilterOffset { get { throw null; } }
+        public virtual System.Type CatchType { get { throw null; } }
+        public override string ToString() { throw null; }
+    }
+    [System.FlagsAttribute]
+    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+    public enum ExceptionHandlingClauseOptions: int
+    {
+        Clause = 0,
+        Filter = 1,
+        Finally = 2,
+        Fault = 4,
+    }
     [System.FlagsAttribute]
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     public enum FieldAttributes
@@ -7283,6 +7305,14 @@ namespace System.Reflection
         object[] GetCustomAttributes(bool inherit);
         object[] GetCustomAttributes(System.Type attributeType, bool inherit);
         bool IsDefined(System.Type attributeType, bool inherit);
+    }
+    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+    public enum ImageFileMachine
+    {
+        I386    = 332,
+        IA64    = 512,
+        AMD64   = 34404,
+        ARM     = 452,
     }
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     [System.Runtime.InteropServices.StructLayoutAttribute(System.Runtime.InteropServices.LayoutKind.Sequential)]

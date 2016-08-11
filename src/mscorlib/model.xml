@@ -5255,6 +5255,12 @@
       <Member Name="GetCustomAttributes(System.Type,System.Boolean)" />
       <Member Name="IsDefined(System.Type,System.Boolean)" />
     </Type>
+    <Type Name="System.Reflection.ImageFileMachine">
+      <Member MemberType="Field" Name="I386" />
+      <Member MemberType="Field" Name="IA64" />
+      <Member MemberType="Field" Name="AMD64" />
+      <Member MemberType="Field" Name="ARM" />
+    </Type>
 	<Type Name="System.Reflection.InvalidFilterCriteriaException">
       <Member Name="#ctor" />
       <Member Name="#ctor(System.String)" />
@@ -5267,7 +5273,20 @@
       <Member MemberType="Field" Name="TargetMethods" />
       <Member MemberType="Field" Name="TargetType" />
     </Type>
-    <Type Name="System.Reflection.IReflect" />
+    <Type Name="System.Reflection.IReflect" >
+      <Member Name="get_UnderlyingSystemType" />
+      <Member Name="GetField(System.String,System.Reflection.BindingFlags)" />
+      <Member Name="GetFields(System.Reflection.BindingFlags)" />
+      <Member Name="GetMember(System.String,System.Reflection.BindingFlags)" />
+      <Member Name="GetMembers(System.Reflection.BindingFlags)" />
+      <Member Name="GetMethod(System.String,System.Reflection.BindingFlags)" />
+      <Member Name="GetMethod(System.String,System.Reflection.BindingFlags,System.Reflection.Binder,System.Type[],System.Reflection.ParameterModifier[])" />
+      <Member Name="GetMethods(System.Reflection.BindingFlags)" />
+      <Member Name="GetProperty(System.String,System.Reflection.BindingFlags)" />
+      <Member Name="GetProperty(System.String,System.Reflection.BindingFlags,System.Reflection.Binder,System.Type,System.Type[],System.Reflection.ParameterModifier[])" />
+      <Member Name="GetProperties(System.Reflection.BindingFlags)" />
+      <Member Name="InvokeMember(System.String,System.Reflection.BindingFlags,System.Reflection.Binder,System.Object,System.Object[],System.Reflection.ParameterModifier[],System.Globalization.CultureInfo,System.String[])" />
+    </Type>
     <Type Status="ImplRoot" Name="System.Reflection.LoaderAllocator">
       <Member Status="ImplRoot" Name="#ctor" />
       <Member Status="ImplRoot" MemberType="Field" Name="m_slots" />
@@ -9218,8 +9237,24 @@
     <Type Status="ImplRoot" Name="System.Reflection.Emit.DynamicResolver" />
     <Type Status="ImplRoot" Name="System.Reflection.Emit.DynamicResolver+SecurityControlFlags" />
     <Type Status="ImplRoot" Name="System.Reflection.Emit.DynamicScope" />
-    <Type Status="ImplRoot" Name="System.Reflection.ExceptionHandlingClause" />
 
+    <Type Name="System.Reflection.ExceptionHandlingClause" >
+      <Member Name="#ctor" />
+      <Member Name="get_CatchType" />
+      <Member Name="get_FilterOffset" />
+      <Member Name="get_Flags" />
+      <Member Name="get_HandlerLength" />
+      <Member Name="get_HandlerOffset" />
+      <Member Name="get_TryLength" />
+      <Member Name="get_TryOffset" />
+      <Member Name="ToString" />
+    </Type>
+    <Type Name="System.Reflection.ExceptionHandlingClauseOptions" >
+      <Member MemberType="Field" Name="Clause" />
+      <Member MemberType="Field" Name="Fault" />
+      <Member MemberType="Field" Name="Filter" />
+      <Member MemberType="Field" Name="Finally" />
+    </Type>
     <Type Status="ApiRoot" Name="System.Reflection.LocalVariableInfo">
       <Member Name="#ctor" />
       <Member Name="get_IsPinned" />
