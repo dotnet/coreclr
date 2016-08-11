@@ -5147,6 +5147,8 @@
     </Type>
     <Type Name="System.Reflection.EventInfo">
       <Member Name="#ctor" />
+      <Member Name="op_Equality(System.Reflection.EventInfo,System.Reflection.EventInfo)" />
+      <Member Name="op_Inequality(System.Reflection.EventInfo,System.Reflection.EventInfo)" />
       <Member Name="AddEventHandler(System.Object,System.Delegate)" />
       <Member Name="get_Attributes" />
       <Member Name="get_AddMethod" />
@@ -5158,6 +5160,8 @@
       <Member Name="get_MemberType" />
       <Member Name="GetAddMethod" />
       <Member Name="GetAddMethod(System.Boolean)" />
+      <Member Name="GetOtherMethods" />
+      <Member Name="GetOtherMethods(System.Boolean)" />
       <Member Name="GetRaiseMethod" />
       <Member Name="GetRaiseMethod(System.Boolean)" />
       <Member Name="GetRemoveMethod" />
@@ -5198,6 +5202,8 @@
     </Type>
     <Type Name="System.Reflection.FieldInfo">
       <Member Name="#ctor" />
+      <Member Name="op_Equality(System.Reflection.FieldInfo,System.Reflection.FieldInfo)" />
+      <Member Name="op_Inequality(System.Reflection.FieldInfo,System.Reflection.FieldInfo)" />
       <Member Name="get_Attributes" />
       <Member Name="get_FieldHandle" />
       <Member Name="get_FieldType" />
@@ -5211,6 +5217,9 @@
       <Member Name="get_IsPinvokeImpl" />
       <Member Name="get_IsPrivate" />
       <Member Name="get_IsPublic" />
+      <Member Name="get_IsSecurityCritical" />
+      <Member Name="get_IsSecuritySafeCritical" />
+      <Member Name="get_IsSecurityTransparent" />
       <Member Name="get_IsSpecialName" />
       <Member Name="get_IsStatic" />
       <Member Name="get_MemberType" />
