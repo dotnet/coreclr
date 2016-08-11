@@ -24,6 +24,14 @@
 
     void                genSetRegToCond(regNumber dstReg, GenTreePtr tree);
 
+    void                genLongToIntCast(GenTreePtr treeNode);
+
+    void                genOverflowCheck_I8toI4(regNumber hiReg, regNumber loReg);
+
+    void                genOverflowCheck_U8toI4(regNumber hiReg, regNumber loReg);
+
+    void                genOverflowCheck_I8toU4(regNumber hiReg, regNumber loReg);
+
     void                genIntToIntCast(GenTreePtr treeNode);
 
     void                genFloatToFloatCast(GenTreePtr treeNode);
