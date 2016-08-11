@@ -190,6 +190,24 @@
         <ExcludeList Include="$(XunitTestBinBase)\GC\LargeMemory\API\gc\collect\*">
              <Issue>3392</Issue>
         </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\TypeGeneratorTests\TypeGeneratorTest612\*">
+             <Issue>6707</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\TypeGeneratorTests\TypeGeneratorTest613\*">
+             <Issue>6707</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\TypeGeneratorTests\TypeGeneratorTest614\*">
+             <Issue>6707</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\TypeGeneratorTests\TypeGeneratorTest681\*">
+             <Issue>6707</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\TypeGeneratorTests\TypeGeneratorTest682\*">
+             <Issue>6707</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\TypeGeneratorTests\TypeGeneratorTest683\*">
+             <Issue>6707</Issue>
+        </ExcludeList>
     </ItemGroup>
 
     <!-- The following are baseline x86 failures -->
