@@ -518,11 +518,11 @@ namespace System.Threading
             private volatile int indexes;
 
             // Holds a segment of the queue.  Enqueues/Dequeues start at element 0, and work their way up.
-            [FieldOffset(8)]
+            [FieldOffset(64)]
             internal readonly IThreadPoolWorkItem[] nodes;
             private const int QueueSegmentLength = 256;
 
-            [FieldOffset(64)]
+            [FieldOffset(128)]
             // The next segment in the queue.
             public volatile QueueSegment Next;
 
