@@ -31,7 +31,7 @@ int __cdecl main(int argc, char *argv[])
         return FAIL;
     }
 
-    wpBuffer = malloc(64 * sizeof(WCHAR));
+    wpBuffer = (WCHAR*)malloc(64 * sizeof(WCHAR));
     if(NULL == wpBuffer)
     {
         Fail("\nFail to allocate the buffer to save a converted "
@@ -53,7 +53,7 @@ int __cdecl main(int argc, char *argv[])
     free(pChar);
     free(wpBuffer);    
 
-    wpBuffer = malloc(64 * sizeof(WCHAR));
+    wpBuffer = (WCHAR*)malloc(64 * sizeof(WCHAR));
     if(NULL == wpBuffer)
     {
         Fail("\nFail to allocate the buffer to save a converted "
@@ -75,7 +75,7 @@ int __cdecl main(int argc, char *argv[])
     free(pChar);
     free(wpBuffer);    
 
-    wpBuffer = malloc(64 * sizeof(WCHAR));
+    wpBuffer = (WCHAR*)malloc(64 * sizeof(WCHAR));
     if(NULL == wpBuffer)
     {
         Fail("\nFail to allocate the buffer to save a converted "

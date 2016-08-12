@@ -178,7 +178,7 @@ int __cdecl main(int argc, char *argv[])
 
     /* Get the parent process to write to stuff on the heap */
     sizeTarget =  2 * sizeof(int) + 23 ;  /* 23 is just a random prime > 16 */
-    if (!(pTarget = malloc(sizeTarget))) 
+    if (!(pTarget = (char*)malloc(sizeTarget))) 
     {
         Trace("WriteProcessMemory helper: unable to allocate '%s'->%d bytes of memory"
               "(%u).\n",

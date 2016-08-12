@@ -20,7 +20,7 @@ int __cdecl main(int argc, char **argv)
     char testB[15] = "aabbccddeeffgg";
     char testC[15] = "aabbccddeeffgg";
     char testD[15] = "aabbccddeeffgg";
-    char insString[3] = "zzz";
+    char insString[4] = "zzz";
     char *retVal;
 
     if (PAL_Initialize(argc, argv))
@@ -68,7 +68,7 @@ int __cdecl main(int argc, char **argv)
 
 
     /* move a string to the middle of testC */
-    retVal = memmove(testC+5, insString, 3);
+    retVal = (char*)memmove(testC+5, insString, 3);
     if(retVal != testC+5)
     {
         Fail("memmove: The function did not return the correct "
@@ -83,7 +83,7 @@ int __cdecl main(int argc, char **argv)
 
 
     /* move a string to the end of testD */
-    retVal = memmove(testD+11, insString, 3);
+    retVal = (char*)memmove(testD+11, insString, 3);
     if(retVal != testD+11)
     {
         Fail("memmove: The function did not return the correct "

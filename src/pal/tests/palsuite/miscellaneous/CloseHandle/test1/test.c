@@ -30,7 +30,7 @@ int __cdecl main(int argc, char *argv[])
         return FAIL;
     }
 
-    WriteBuffer = malloc(sizeof(WORD));
+    WriteBuffer = (LPDWORD)malloc(sizeof(WORD));
     
     if ( WriteBuffer == NULL )
     {

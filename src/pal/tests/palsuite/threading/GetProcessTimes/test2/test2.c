@@ -77,7 +77,7 @@ int __cdecl main( int argc, char **argv )
         for( j=0; j<1000; j++ )
         {
             /* do kernel work to increase system usage counters */
-            total = malloc(1024 * 1024);
+            total = (int*)malloc(1024 * 1024);
 
             *total = j * i;
             for( k=0; k<1000; k++ )

@@ -23,7 +23,7 @@ int __cdecl main(int argc, char *argv[]) {
         ret = PASS;
         goto EXIT;
     }    
-
+    {
     FILETIME kernelTime1, userTime1, kernelTime2, userTime2;
     /* Delta = .01 sec */
     LONG64 Actual, Expected, Delta = 850000000;
@@ -96,7 +96,7 @@ int __cdecl main(int argc, char *argv[]) {
     //printf("%llu, %llu\n", Expected, Actual);
     PAL_Terminate();
     ret = PASS;
-
+    }
 EXIT:
     return ret;
 }

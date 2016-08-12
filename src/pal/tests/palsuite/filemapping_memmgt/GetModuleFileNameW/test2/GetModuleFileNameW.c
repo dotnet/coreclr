@@ -34,7 +34,7 @@ int __cdecl main(int argc, char *argv[])
         ExitProcess(FAIL);
     }
 
-    ModuleFileNameBuf = malloc(MODULENAMEBUFFERSIZE*sizeof(WCHAR));
+    ModuleFileNameBuf = (WCHAR*)malloc(MODULENAMEBUFFERSIZE*sizeof(WCHAR));
 
     //retrieve the current process full path and file name
     //by passing a NULL module handle

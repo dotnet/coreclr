@@ -72,7 +72,7 @@ BOOL  PALAPI StartThreadTest()
     /*Start the test thread*/
     hThread = CreateThread(NULL, 
                             (DWORD)0,
-                            lpParameter,
+                            lpStartAddress,
                             hLib,
                             (DWORD)NULL,
                             &dwThreadId);

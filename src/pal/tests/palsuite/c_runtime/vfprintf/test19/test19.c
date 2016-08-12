@@ -28,10 +28,10 @@ int __cdecl main(int argc, char *argv[])
         return FAIL;
     }
 
-    DoArgumentPrecTest("%.*s", 2, "bar", "bar", "ba", "ba");
-    DoArgumentPrecTest("%.*S", 2, convert("bar"), "bar", "ba", "ba");
+    DoArgumentPrecTest("%.*s", 2, (void*)"bar", "bar", "ba", "ba");
+    DoArgumentPrecTest("%.*S", 2, (void*)convert("bar"), "bar", "ba", "ba");
 
-    DoArgumentPrecTest("%.*n ", 3, &n, "pointer to int", " ", " ");
+    DoArgumentPrecTest("%.*n ", 3, (void*)&n, "pointer to int", " ", " ");
     if (n != 0)
     {
         Fail("ERROR: Expected count parameter to resolve to %d, got %X\n", 

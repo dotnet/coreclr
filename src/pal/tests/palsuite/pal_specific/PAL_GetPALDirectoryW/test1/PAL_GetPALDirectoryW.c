@@ -31,7 +31,7 @@ int __cdecl main(int argc, char *argv[])
     }
 
     /*allocate momory to store the directory name*/
-    wpDirectoryName = malloc(MAX_PATH*sizeof(WCHAR));
+    wpDirectoryName = (WCHAR*)malloc(MAX_PATH*sizeof(WCHAR));
     if(NULL == wpDirectoryName)
     {
         Fail("\nFailed to allocate memory for storing directory name!\n");

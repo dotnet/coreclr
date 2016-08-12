@@ -37,7 +37,7 @@ int __cdecl main(int argc, char *argv[])
     }
 
     /* Allocate 100 bytes on the heap */
-    if((TheMemory = HeapAlloc(TheHeap, 0, 100)) == NULL)
+    if((TheMemory = (char*)HeapAlloc(TheHeap, 0, 100)) == NULL)
     {
         Fail("ERROR: HeapAlloc returned NULL when it was called.  "
              "GetLastError() returned %d.",GetLastError());
@@ -47,7 +47,7 @@ int __cdecl main(int argc, char *argv[])
     memset(TheMemory, 'X', 100);
 
     /* Reallocate the memory into 0 bytes */
-    ReAllocMemory = HeapReAlloc(TheHeap, 0, TheMemory, 0);
+    ReAllocMemory = (char*)HeapReAlloc(TheHeap, 0, TheMemory, 0);
 
     if(ReAllocMemory == NULL)
     {
@@ -56,7 +56,7 @@ int __cdecl main(int argc, char *argv[])
     }
 
     /* Reallocate the memory we just put into 0 bytes, into 100 bytes. */
-    ReAllocMemory2 = HeapReAlloc(TheHeap, 0, ReAllocMemory, 100);
+    ReAllocMemory2 = (char*)HeapReAlloc(TheHeap, 0, ReAllocMemory, 100);
 
     if(ReAllocMemory2 == NULL)
     {

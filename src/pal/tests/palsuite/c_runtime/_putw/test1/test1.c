@@ -26,7 +26,7 @@ const char testFileName[] = "test.dat";
 
 static void Cleanup(HANDLE hFile)
 {
-    if (fclose(hFile))
+    if (fclose((PAL_FILE*)hFile))
     {
         Trace("_putw: ERROR -> Unable to close file \"%s\".\n", 
             testFileName);

@@ -23,7 +23,7 @@ static BOOL Cleanup(HANDLE hFile)
 {
     BOOL result= TRUE;
 
-    if (fclose(hFile))
+    if (fclose((PAL_FILE*)hFile))
     {
         Trace("fseek: ERROR -> Unable to close file \"%s\".\n", 
             filename);

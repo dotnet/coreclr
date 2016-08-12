@@ -31,7 +31,7 @@ int __cdecl main(int argc, char *argv[])
         return FAIL;
     }
 
-    CommandLine = malloc(1024);
+    CommandLine = (WCHAR*)malloc(1024);
     wcscpy(CommandLine,convert(argv[0]));
 
     for(i=1;i<argc;++i) 

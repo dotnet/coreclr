@@ -39,7 +39,7 @@ int __cdecl main(int argc, char *argv[])
                                pResultBuffer,  
                                0);
   
-    pResultBuffer = malloc(size*sizeof(WCHAR));
+    pResultBuffer = (WCHAR*)malloc(size*sizeof(WCHAR));
     if ( pResultBuffer == NULL )
     {
 	Fail("ERROR: Failed to allocate memory for pResultBuffer pointer. "

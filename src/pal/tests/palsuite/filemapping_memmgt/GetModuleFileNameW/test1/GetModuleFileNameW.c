@@ -45,7 +45,7 @@ int __cdecl main(int argc, char *argv[])
         ExitProcess(FAIL);
     }
 
-    ModuleFileNameBuf = malloc(MODULENAMEBUFFERSIZE*sizeof(WCHAR));
+    ModuleFileNameBuf = (WCHAR*)malloc(MODULENAMEBUFFERSIZE*sizeof(WCHAR));
 
     //convert a normal string to a wide one
     lpModuleName = convert(ModuleName);

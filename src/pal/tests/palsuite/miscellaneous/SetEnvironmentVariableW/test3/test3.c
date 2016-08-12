@@ -76,7 +76,7 @@ int __cdecl main(int argc, char *argv[])
     /* Increase size to account for the null char at the end */
     size = size + 1;
     
-    pResultBuffer = malloc(sizeof(WCHAR)*size);
+    pResultBuffer = (WCHAR*)malloc(sizeof(WCHAR)*size);
     if ( pResultBuffer == NULL )
     {
         Fail("ERROR: Failed to allocate memory for pResultBuffer pointer.\n");
@@ -106,7 +106,7 @@ int __cdecl main(int argc, char *argv[])
     free(pResultBuffer);
 
     /* Reallocate the memory for the string */
-    pResultBuffer = malloc(sizeof(WCHAR)*size);
+    pResultBuffer = (WCHAR*)malloc(sizeof(WCHAR)*size);
     if ( pResultBuffer == NULL )
     {
         Fail("ERROR: Failed to allocate memory for pResultBuffer pointer.\n");

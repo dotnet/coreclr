@@ -30,9 +30,9 @@ int __cdecl main(int argc, char *argv[])
         return(FAIL);
     }
 
-    DoArgumentPrecTest(convert("%.*s"), 2, convert("bar"), "bar", "ba", "ba");
-    DoArgumentPrecTest(convert("%.*S"), 2, "bar", "bar", "ba", "ba");
-    DoArgumentPrecTest(convert("foo %.*n"), 3, &n, "pointer to int", "foo ", 
+    DoArgumentPrecTest(convert("%.*s"), 2, (void*)convert("bar"), "bar", "ba", "ba");
+    DoArgumentPrecTest(convert("%.*S"), 2, (void*)"bar", "bar", "ba", "ba");
+    DoArgumentPrecTest(convert("foo %.*n"), 3, (void*)&n, "pointer to int", "foo ", 
         "foo ");
     if (n != 4)
     {

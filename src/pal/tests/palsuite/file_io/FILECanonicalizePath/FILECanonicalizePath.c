@@ -13,7 +13,7 @@
 
 #include <palsuite.h>
 
-extern void FILECanonicalizePath(LPSTR lpUnixPath);
+extern "C" void FILECanonicalizePath(LPSTR lpUnixPath);
 
 void TestCase(LPSTR input, LPSTR expectedOutput);
 

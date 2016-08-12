@@ -69,7 +69,7 @@ int __cdecl main(int argc, char *argv[])
         return(FAIL);
     }
 
-    DoArgumentPrecTest(convert("%.*s"), 2, convert("bar"), convert("bar"),
+    DoArgumentPrecTest(convert("%.*s"), 2, (void*)convert("bar"), convert("bar"),
         convert("ba"), convert("ba"));
     DoArgumentPrecTest(convert("%.*c"), 0, (void*)'a', convert("a"),
         convert("a"), convert("a"));

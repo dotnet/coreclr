@@ -37,7 +37,7 @@ int __cdecl main(int argc, char *argv[]) {
     size = ReturnValueForLargeBuffer = GetEnvironmentVariable("PATH",        
                                                               pResultBuffer,  
                                                               0);             
-    pResultBuffer = malloc(size);
+    pResultBuffer = (char*)malloc(size);
     if ( pResultBuffer == NULL )
      {
 	Fail("ERROR: Failed to allocate memory for pResultBuffer pointer. "

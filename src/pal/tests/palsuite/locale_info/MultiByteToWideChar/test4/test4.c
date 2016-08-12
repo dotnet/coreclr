@@ -208,7 +208,7 @@ int __cdecl main(int argc, char *argv[])
     for (int i = 0; i < (sizeof(utf8Strings) / sizeof(utf8Strings[0])); i++)
     {
         ret = MultiByteToWideChar(CP_UTF8, 0, utf8Strings[i], -1, NULL, 0);
-        WCHAR* wideBuffer = malloc(ret * sizeof(WCHAR));
+        WCHAR* wideBuffer = (WCHAR*)malloc(ret * sizeof(WCHAR));
         ret2 = MultiByteToWideChar(CP_UTF8, 0, utf8Strings[i], -1, wideBuffer, ret);
         if (ret != ret2)
         {

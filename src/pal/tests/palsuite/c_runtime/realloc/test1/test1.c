@@ -55,7 +55,7 @@ int __cdecl main(int argc, char **argv)
     }
 
     /* free the buffer */
-    testA = realloc(testA, 0);
+    testA = (char*)realloc(testA, 0);
     if (testA != NULL)
     {
         Fail("Realloc didn't return NULL when called with a length "

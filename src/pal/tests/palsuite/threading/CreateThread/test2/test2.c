@@ -34,14 +34,14 @@ struct testCase
     DWORD dwStackSize;
     LPTHREAD_START_ROUTINE lpStartAddress;
     DWORD dwCreationFlags;
-    LPVOID lpThreadId;
+    LPDWORD lpThreadId;
 };
 
 struct testCase testCases[]=
 {
     {NULL, 0, &Thread, 0, NULL},
     {NULL, 0, &Thread, CREATE_SUSPENDED, NULL},
-    {NULL, 0, &Thread, 0, (LPVOID) 1}
+    {NULL, 0, &Thread, 0, (LPDWORD) 1}
 };
 
 /*
@@ -94,7 +94,7 @@ int __cdecl main(int argc, char **argv)
         hThread[i] = CreateThread( testCases[i].lpThreadAttributes,   
                                    testCases[i].dwStackSize,          
                                    testCases[i].lpStartAddress,       
-                                   (LPVOID) i,
+                                   (LPVOID)i,
                                    testCases[i].dwCreationFlags,      
                                    testCases[i].lpThreadId);  
         if (hThread[i] == NULL)
@@ -102,7 +102,7 @@ int __cdecl main(int argc, char **argv)
             Trace("PALSUITE ERROR: CreateThread('%p' '%d' '%p' '%p' '%d' "
                   "'%p') call failed.\nGetLastError returned '%u'.\n", 
                   testCases[i].lpThreadAttributes, testCases[i].dwStackSize,
-                  testCases[i].lpStartAddress, (LPVOID) i, 
+                  testCases[i].lpStartAddress, (LPVOID)i, 
                   testCases[i].dwCreationFlags, 
                   testCases[i].lpThreadId, GetLastError());
             cleanup(i - 1);

@@ -110,7 +110,7 @@ int __cdecl main( int argc, char **argv )
     }
     
     /* set the string length for the open call */
-    szAbsPathNameA = malloc (dwSize +1);    
+    szAbsPathNameA = (char*)malloc(dwSize +1);    
 
     if (NULL == szAbsPathNameA)
     {

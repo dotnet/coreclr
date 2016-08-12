@@ -63,8 +63,8 @@ int __cdecl main(int argc, char *argv[])
     }
 
 
-    DoArgumentPrecTest("%.*s", 2, "bar", "bar", "ba", "ba");
-    DoArgumentPrecTest("%.*S", 2, convert("bar"), "bar", "ba", "ba");
+    DoArgumentPrecTest("%.*s", 2, (void*)"bar", "bar", "ba", "ba");
+    DoArgumentPrecTest("%.*S", 2, (void*)convert("bar"), "bar", "ba", "ba");
     DoArgumentPrecTest("%.*c", 0, (void*)'a', "a", "a", "a");
     DoArgumentPrecTest("%.*c", 4, (void*)'a', "a", "a", "a");
     DoArgumentPrecTest("%.*C", 0, (void*)'a', "a", "a", "a");

@@ -55,7 +55,7 @@ int __cdecl main(int argc, char *argv[])
         Fail("\nRetrieved an invalid buffer size\n");
     }
 
-    wpBuffer = malloc((DateSize + 1)*sizeof(WCHAR));
+    wpBuffer = (WCHAR*)malloc((DateSize + 1)*sizeof(WCHAR));
     if(NULL == wpBuffer)
     {
         free(wpFormat);

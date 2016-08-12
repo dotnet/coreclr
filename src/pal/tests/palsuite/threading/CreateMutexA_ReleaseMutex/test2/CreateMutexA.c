@@ -94,7 +94,7 @@ int __cdecl main (int argc, char **argv)
         bFailures = TRUE;
     }
 
-    free(szMaxPath);
+    free((void*)szMaxPath);
 
 
     /*
@@ -165,7 +165,7 @@ BOOL TestNamedMutex(const char *szMutexName)
     {
         Trace("ERROR: CreateMutex #2 failed. GetLastError returned %u\n",
               GetLastError());
-        free(szMutexName);
+        free((void*)szMutexName);
         return FALSE;
     }
 

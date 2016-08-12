@@ -137,7 +137,7 @@ int __cdecl main(int argc, char *argv[])
         }
 
         /* compose some data to write to the client process */
-        if (!(pSrcMemory = malloc(Count)))
+        if (!(pSrcMemory = (char*)malloc(Count)))
         {
             Trace("could not dynamically allocate memory to copy from "
                   "for reasons %u & %u\n",

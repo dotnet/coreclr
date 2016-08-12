@@ -59,7 +59,7 @@ int __cdecl main(int argc, char *argv[])
     /* To account for the null character at the end of the string */
     size = size + 1;
     
-    pResultBuffer = malloc(sizeof(char)*size);
+    pResultBuffer = (char*)malloc(sizeof(char)*size);
     if ( pResultBuffer == NULL )
     {
         Fail("ERROR: Failed to allocate memory for pResultBuffer pointer.\n");

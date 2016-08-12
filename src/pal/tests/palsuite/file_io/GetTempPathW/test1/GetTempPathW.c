@@ -13,7 +13,7 @@
 
 #include <palsuite.h>
 
-static void SetTmpDir(WCHAR path[])
+static void SetTmpDir(const WCHAR path[])
 {
     DWORD result = SetEnvironmentVariableW(W("TMPDIR"), path);
     if (!result)
@@ -23,7 +23,7 @@ static void SetTmpDir(WCHAR path[])
     }
 }
 
-static void SetAndCompare(WCHAR tmpDirPath[], WCHAR expected[])
+static void SetAndCompare(const WCHAR tmpDirPath[], const WCHAR expected[])
 {
     DWORD dwBufferLength = _MAX_DIR;
     WCHAR path[dwBufferLength];
@@ -49,7 +49,7 @@ static void SetAndCompare(WCHAR tmpDirPath[], WCHAR expected[])
     }
 }
 
-static void SetAndCheckLength(WCHAR tmpDirPath [], int bufferLength, int expectedResultLength)
+static void SetAndCheckLength(const WCHAR tmpDirPath [], int bufferLength, int expectedResultLength)
 {
     WCHAR path[bufferLength];
 

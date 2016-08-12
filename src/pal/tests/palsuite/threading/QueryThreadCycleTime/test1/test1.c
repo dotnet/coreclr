@@ -23,7 +23,7 @@ int __cdecl main(int argc, char *argv[]) {
         ret = PASS;
         goto EXIT;
     }   
-
+    {
     LONG64 Actual, Expected, Delta = 850000000;
     Actual = 0;
     Expected = 0;
@@ -92,7 +92,7 @@ int __cdecl main(int argc, char *argv[]) {
     //printf("%llu, %llu\n", Expected, Actual);
     PAL_Terminate();
     ret = PASS;
-
+    }
 EXIT:
     return ret;
 }

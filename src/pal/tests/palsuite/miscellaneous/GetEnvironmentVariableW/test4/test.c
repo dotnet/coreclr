@@ -43,7 +43,7 @@ int __cdecl main(int argc, char *argv[]) {
                                   pResultBuffer,        // Buffer for Value
                                   0);                   // Buffer size
   
-    pResultBuffer = malloc(size*sizeof(WCHAR));
+    pResultBuffer = (WCHAR*)malloc(size*sizeof(WCHAR));
   
     GetEnvironmentVariable(convert("PALTEST"),
                            pResultBuffer,

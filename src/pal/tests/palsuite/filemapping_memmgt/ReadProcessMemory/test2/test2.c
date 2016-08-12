@@ -146,7 +146,7 @@ int __cdecl main(int argc, char *argv[])
         }
      
         /* compose some data to write to the client process */
-        if (!(pSrcMemory = malloc(Count)))
+        if (!(pSrcMemory = (char*)malloc(Count)))
         {
             Trace("could not dynamically allocate memory to copy from "
                   "for reasons %u & %u\n",
@@ -166,7 +166,7 @@ int __cdecl main(int argc, char *argv[])
 
         if (!dwRet)
         {
-            Trace("%s: Problem: on a write to "LLFORMAT " bytes @ " LLFORMAT " ('%s')\n", 
+            Trace("%s: Problem: on a write to " LLFORMAT " bytes @ " LLFORMAT " ('%s')\n", 
                   argv[0], Count, pDestMemory, incomingCMDBuffer);
             Trace("test1 WriteProcessMemory returned a (!=0) (GLE=%u)\n", 
                   GetLastError());

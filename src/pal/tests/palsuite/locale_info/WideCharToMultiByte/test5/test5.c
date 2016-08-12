@@ -132,7 +132,7 @@ int __cdecl main(int argc, char *argv[])
     for (int i = 0; i < (sizeof(unicodeStrings) / sizeof(unicodeStrings[0])); i++)
     {
         ret = WideCharToMultiByte(CP_UTF8, 0, unicodeStrings[i], -1, NULL, 0, NULL, NULL);
-        CHAR* utf8Buffer = malloc(ret * sizeof(CHAR));
+        CHAR* utf8Buffer = (CHAR*)malloc(ret * sizeof(CHAR));
         ret2 = WideCharToMultiByte(CP_UTF8, 0, unicodeStrings[i], -1, utf8Buffer, ret, NULL, NULL);
         if (ret != ret2)
         {
