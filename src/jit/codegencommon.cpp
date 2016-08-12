@@ -1803,6 +1803,7 @@ bool CodeGen::genCreateAddrMode(GenTreePtr  addr,
 #ifndef LEGACY_BACKEND
     assert(nogen == true);
 #endif // !LEGACY_BACKEND
+
     /*
         The following indirections are valid address modes on x86/x64:
 
@@ -11769,7 +11770,9 @@ void CodeGen::genIPmappingGen()
 }
 
 /*****************************************************************************/
+
 #endif // DEBUGGING_SUPPORT
+
 /*****************************************************************************/
 
 /*============================================================================

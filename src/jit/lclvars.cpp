@@ -6709,6 +6709,7 @@ void Compiler::lvaStressLclFld()
 
 /*****************************************************************************/
 #endif // DEBUG
+
 /*****************************************************************************
  *
  *  A little routine that displays a local variable bitset.
