@@ -20,7 +20,7 @@
 #include "mbusafecrt_internal.h"
 
 typedef int (*INPUTFN)(miniFILE *, const unsigned char*, va_list);
-typedef int (*WINPUTFN)(miniFILE *, const unsigned short*, va_list);
+typedef int (*WINPUTFN)(miniFILE *, const wchar_t*, va_list);
 
 
 /***

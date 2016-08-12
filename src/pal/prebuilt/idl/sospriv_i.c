@@ -20,14 +20,12 @@
 
 #pragma warning( disable: 4049 )  /* more than 64k source lines */
 
+#include <rpc.h>
+#include <rpcndr.h>
 
 #ifdef __cplusplus
 extern "C"{
 #endif 
-
-
-#include <rpc.h>
-#include <rpcndr.h>
 
 #ifdef _MIDL_USE_GUIDDEF_
 

@@ -63,7 +63,6 @@ foreach(IDL_SOURCE IN LISTS CORGUIDS_IDL_SOURCES)
 endforeach(IDL_SOURCE)
 
 add_compile_options(-fPIC)
-
 endif(WIN32)
 
 # Compile *_i.c to lib
