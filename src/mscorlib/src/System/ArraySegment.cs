@@ -148,7 +148,7 @@ namespace System
                 if (_array == null)
                     ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
                 if (index < 0 || index >=  _count)
-                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index);
+                    ThrowHelper.ThrowIndexArgumentOutOfRange_IndexException();
                 Contract.EndContractBlock();
 
                 return _array[_offset + index];
@@ -159,7 +159,7 @@ namespace System
                 if (_array == null)
                     ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
                 if (index < 0 || index >= _count)
-                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index);
+                    ThrowHelper.ThrowIndexArgumentOutOfRange_IndexException();
                 Contract.EndContractBlock();
 
                 _array[_offset + index] = value;
@@ -199,7 +199,7 @@ namespace System
                 if (_array == null)
                     ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
                 if (index < 0 || index >= _count)
-                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index);
+                    ThrowHelper.ThrowIndexArgumentOutOfRange_IndexException();
                 Contract.EndContractBlock();
 
                 return _array[_offset + index];

@@ -902,7 +902,7 @@ namespace System {
             Contract.EndContractBlock();
             int lb = array.GetLowerBound(0);
             if (index < lb)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+                ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
             if (length < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
             if (array.Length - (index - lb) < length)
@@ -1000,7 +1000,7 @@ namespace System {
             if (array==null) 
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             if (index < 0)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+                ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
             if (length < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
 
@@ -1573,7 +1573,7 @@ namespace System {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             int lowerBound = array.GetLowerBound(0);
             if (index < lowerBound)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+                ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
             if (length < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
 
@@ -1721,7 +1721,7 @@ namespace System {
             if (items != null && keysLowerBound != items.GetLowerBound(0))
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_LowerBoundsMustMatch);
             if (index < keysLowerBound)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+                ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
             if (length < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
 
@@ -1805,7 +1805,7 @@ namespace System {
             if (array==null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             if (index < 0)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+                ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
             if (length < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
             if (array.Length - index < length)
@@ -1829,7 +1829,7 @@ namespace System {
             if (keys==null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.keys);
             if (index < 0)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+                ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
             if (length < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
             if (keys.Length - index < length || (items != null && index > items.Length - length))
@@ -2733,7 +2733,7 @@ namespace System {
             //! or you may introduce a security hole!
             T[] _this = JitHelpers.UnsafeCast<T[]>(this);
             if ((uint)index >= (uint)_this.Length) {
-                ThrowHelper.ThrowArgumentOutOfRangeException();
+                ThrowHelper.ThrowIndexArgumentOutOfRange_IndexException();
             }
 
             return _this[index];
@@ -2745,7 +2745,7 @@ namespace System {
             //! or you may introduce a security hole!
             T[] _this = JitHelpers.UnsafeCast<T[]>(this);
             if ((uint)index >= (uint)_this.Length) {
-                ThrowHelper.ThrowArgumentOutOfRangeException();
+                ThrowHelper.ThrowIndexArgumentOutOfRange_IndexException();
             }
 
             _this[index] = value;

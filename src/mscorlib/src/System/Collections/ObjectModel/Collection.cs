@@ -49,7 +49,7 @@ namespace System.Collections.ObjectModel
                 }
                 
                 if (index < 0 || index >= items.Count) {
-                    ThrowHelper.ThrowArgumentOutOfRangeException();
+                    ThrowHelper.ThrowIndexArgumentOutOfRange_IndexException();
                 }
 
                 SetItem(index, value);
@@ -118,7 +118,7 @@ namespace System.Collections.ObjectModel
             }
 
             if (index < 0 || index >= items.Count) {
-                ThrowHelper.ThrowArgumentOutOfRangeException();
+                ThrowHelper.ThrowIndexArgumentOutOfRange_IndexException();
             }
 
             RemoveItem(index);
@@ -183,7 +183,7 @@ namespace System.Collections.ObjectModel
             }
             
             if (index < 0 ) {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+                ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
             }
 
             if (array.Length - index < Count) {

@@ -42,9 +42,20 @@ namespace System {
     using Collections.Generic;
 
     [Pure]
-    internal static class ThrowHelper {    
-        internal static void ThrowArgumentOutOfRangeException() {        
-            ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_Index);            
+    internal static class ThrowHelper
+    {
+        internal static void ThrowIndexArgumentOutOfRange_IndexException()
+        {
+            throw new ArgumentOutOfRangeException(
+                        GetArgumentName(ExceptionArgument.index),
+                        Environment.GetResourceString(GetResourceName(ExceptionResource.ArgumentOutOfRange_Index)));
+        }
+
+        internal static void ThrowIndexArgumentOutOfRange_NeedNonNegNumException()
+        {
+            throw new ArgumentOutOfRangeException(
+                        GetArgumentName(ExceptionArgument.index),
+                        Environment.GetResourceString(GetResourceName(ExceptionResource.ArgumentOutOfRange_NeedNonNegNum)));
         }
 
         internal static void ThrowWrongKeyTypeArgumentException(object key, Type targetType) {
@@ -180,10 +191,10 @@ namespace System {
 
 
         // Allow nulls for reference types and Nullable<U>, but not for value types.
-        internal static void IfNullAndNullsAreIllegalThenThrow<T>(object value, ExceptionArgument argName) {
+        internal static void IfNullAndNullsAreIllegalThenThrow<T>(object value, ExceptionArgument argument) {
             // Note that default(T) is not equal to null for value types except when T is Nullable<U>. 
             if (value == null && !(default(T) == null))
-                ThrowHelper.ThrowArgumentNullException(argName);
+                throw new ArgumentNullException(GetArgumentName(argument));
         }
 
         //
