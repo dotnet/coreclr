@@ -191,10 +191,11 @@ namespace System {
 
 
         // Allow nulls for reference types and Nullable<U>, but not for value types.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static void IfNullAndNullsAreIllegalThenThrow<T>(object value, ExceptionArgument argument) {
             // Note that default(T) is not equal to null for value types except when T is Nullable<U>. 
-            if (value == null && !(default(T) == null))
-                throw new ArgumentNullException(GetArgumentName(argument));
+            if (!(default(T) == null) && value == null)
+                ThrowHelper.ThrowArgumentNullException(argument);
         }
 
         //
