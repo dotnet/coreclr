@@ -59,9 +59,10 @@ namespace System
             // Note that reference type instantiations are already included
             // automatically for us.
 
-            Array.Sort<double>(Array.Empty<double>());
-            Array.Sort<int>(Array.Empty<int>());
-            Array.Sort<IntPtr>(Array.Empty<IntPtr>());
+            // Need to sort non null, len > 1 array or paths will short-circuit
+            Array.Sort<double>(new double[1]);
+            Array.Sort<int>(new int[1]);
+            Array.Sort<IntPtr>(new IntPtr[1]);
 
             new ArraySegment<byte>(new byte[1], 0, 0);
 
