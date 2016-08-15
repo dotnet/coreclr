@@ -836,6 +836,9 @@ extern int jitNativeCode(CORINFO_METHOD_HANDLE methodHnd,
                          COMP_HANDLE           compHnd,
                          CORINFO_METHOD_INFO*  methodInfo,
                          void**                methodCodePtr,
+#if defined(FEATURE_JIT_DROPPING)
+                         ULONG*                totalNCSize,
+#endif
                          ULONG*                methodCodeSize,
                          CORJIT_FLAGS*         compileFlags,
                          void*                 inlineInfoPtr);

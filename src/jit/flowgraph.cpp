@@ -21540,6 +21540,9 @@ void       Compiler::fgInvokeInlineeCompiler(GenTreeCall*  call,
                           pParam->pThis->info.compCompHnd,
                           &pParam->inlineCandidateInfo->methInfo,
                           (void**)pParam->inlineInfo,
+#if defined(FEATURE_JIT_DROPPING)
+                          nullptr,
+#endif
                           nullptr,
                           &compileFlagsForInlinee,
                           pParam->inlineInfo);

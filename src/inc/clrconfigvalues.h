@@ -136,6 +136,9 @@ RETAIL_CONFIG_DWORD_INFO(EXTERNAL_FinalizeOnShutdown, W("FinalizeOnShutdown"), D
 // ARM
 //
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_ARMEnabled, W("ARMEnabled"), (DWORD)0, "Set it to 1 to enable ARM")
+RETAIL_CONFIG_DWORD_INFO(INTERNAL_JitDropEnabled, W("JitDropEnabled"), (DWORD)0, "Set it to 1 to enable Jit Dropping")
+RETAIL_CONFIG_DWORD_INFO(INTERNAL_JitDropMemThreshold, W("JitDropMemThreshold"), (DWORD)0, "Dropping jits when code heap usage is larger than this (in bytes)")
+RETAIL_CONFIG_DWORD_INFO(INTERNAL_JitDropMethodSizeThreshold, W("JitDropMethodSizeThreshold"), (DWORD)0, "Dropping jit for methods whose native code size larger than this (in bytes)")
 
 //
 // Assembly Loader

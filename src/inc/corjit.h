@@ -352,6 +352,9 @@ public:
             struct CORINFO_METHOD_INFO  *info,               /* IN */
             unsigned /* code:CorJitFlag */   flags,          /* IN */
             BYTE                        **nativeEntry,       /* OUT */
+#if defined(FEATURE_JIT_DROPPING)
+            ULONG                       *totalNCSize,        /* OUT */
+#endif
             ULONG                       *nativeSizeOfCode    /* OUT */
             ) = 0;
 

@@ -304,13 +304,16 @@ Histogram memUsedHist(HostAllocator::getHostAllocator(), memSizeHistBuckets);
 
 size_t grossVMsize; // Total IL code size
 size_t grossNCsize; // Native code + data size
-size_t totalNCsize; // Native code + data + GC info size (TODO-Cleanup: GC info size only accurate for JIT32_GCENCODER)
 size_t gcHeaderISize; // GC header      size: interruptible methods
 size_t gcPtrMapISize; // GC pointer map size: interruptible methods
 size_t gcHeaderNSize; // GC header      size: non-interruptible methods
 size_t gcPtrMapNSize; // GC pointer map size: non-interruptible methods
 
 #endif // DISPLAY_SIZES
+
+#if DISPLAY_SIZES || defined(FEATURE_JIT_DROPPING)
+size_t totalNCsize; // Native code + data + GC info size (TODO-Cleanup: GC info size only accurate for JIT32_GCENCODER)
+#endif
 
 /*****************************************************************************
  *
@@ -1189,8 +1192,13 @@ const bool Compiler::Options::compNoPInvokeInlineCB = false;
 void Compiler::compStartup()
 {
 #if DISPLAY_SIZES
-    grossVMsize = grossNCsize = totalNCsize = 0;
+    grossVMsize =
+    grossNCsize =
 #endif // DISPLAY_SIZES
+
+#if DISPLAY_SIZES || defined(FEATURE_JIT_DROPPING)
+    totalNCsize = 0;
+#endif
 
     // Initialize the JIT's allocator.
     ArenaAllocator::startup();
@@ -4111,7 +4119,11 @@ void Compiler::compFunctionTraceEnd(void* methodCodePtr, ULONG methodCodeSize, b
 // For an overview of the structure of the JIT, see:
 //   https://github.com/dotnet/coreclr/blob/master/Documentation/botr/ryujit-overview.md
 //
+#if defined(FEATURE_JIT_DROPPING)
+void Compiler::compCompile(void** methodCodePtr, ULONG* totalNCSize, ULONG* methodCodeSize, CORJIT_FLAGS* compileFlags)
+#else
 void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, CORJIT_FLAGS* compileFlags)
+#endif
 {
     if (compIsForInlining())
     {
@@ -4582,7 +4594,11 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, CORJIT_F
 
     /* Generate code */
 
+#if defined(FEATURE_JIT_DROPPING)
+    codeGen->genGenerateCode(methodCodePtr, totalNCSize, methodCodeSize);
+#else
     codeGen->genGenerateCode(methodCodePtr, methodCodeSize);
+#endif
 
 #ifdef FEATURE_JIT_METHOD_PERF
     if (pCompJitTimer)
@@ -4746,6 +4762,9 @@ int Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
                           COMP_HANDLE           compHnd,
                           CORINFO_METHOD_INFO*  methodInfo,
                           void**                methodCodePtr,
+#if defined(FEATURE_JIT_DROPPING)
+                          ULONG*                totalNCSize,
+#endif
                           ULONG*                methodCodeSize,
                           CORJIT_FLAGS*         compileFlags)
 {
@@ -4981,9 +5000,11 @@ int Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
         COMP_HANDLE           compHnd;
         CORINFO_METHOD_INFO*  methodInfo;
         void**                methodCodePtr;
+#if defined(FEATURE_JIT_DROPPING)
+        ULONG*                totalNCSize;
+#endif
         ULONG*                methodCodeSize;
         CORJIT_FLAGS*         compileFlags;
-
         CorInfoInstantiationVerification instVerInfo;
         int                              result;
     } param;
@@ -4992,6 +5013,9 @@ int Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
     param.compHnd        = compHnd;
     param.methodInfo     = methodInfo;
     param.methodCodePtr  = methodCodePtr;
+#if defined(FEATURE_JIT_DROPPING)
+    param.totalNCSize    = totalNCSize;
+#endif
     param.methodCodeSize = methodCodeSize;
     param.compileFlags   = compileFlags;
     param.instVerInfo    = instVerInfo;
@@ -4999,9 +5023,15 @@ int Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
 
     setErrorTrap(compHnd, Param*, pParam, &param) // ERROR TRAP: Start normal block
     {
+#if defined(FEATURE_JIT_DROPPING)
+        pParam->result = pParam->pThis->compCompileHelper(pParam->classPtr, pParam->compHnd, pParam->methodInfo,
+                                                          pParam->methodCodePtr, pParam->totalNCSize, pParam->methodCodeSize,
+                                                          pParam->compileFlags, pParam->instVerInfo);
+#else
         pParam->result = pParam->pThis->compCompileHelper(pParam->classPtr, pParam->compHnd, pParam->methodInfo,
                                                           pParam->methodCodePtr, pParam->methodCodeSize,
                                                           pParam->compileFlags, pParam->instVerInfo);
+#endif
     }
     finallyErrorTrap() // ERROR TRAP: The following block handles errors
     {
@@ -5346,6 +5376,9 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
                                 COMP_HANDLE                      compHnd,
                                 CORINFO_METHOD_INFO*             methodInfo,
                                 void**                           methodCodePtr,
+#if defined(FEATURE_JIT_DROPPING)
+                                ULONG*                           totalNCSize,
+#endif
                                 ULONG*                           methodCodeSize,
                                 CORJIT_FLAGS*                    compileFlags,
                                 CorInfoInstantiationVerification instVerInfo)
@@ -5652,7 +5685,11 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
     }
 #endif
 
+#if defined(FEATURE_JIT_DROPPING)
+    compCompile(methodCodePtr, totalNCSize, methodCodeSize, compileFlags);
+#else
     compCompile(methodCodePtr, methodCodeSize, compileFlags);
+#endif
 
 #ifdef DEBUG
     if (compIsForInlining())
@@ -6187,6 +6224,9 @@ int jitNativeCode(CORINFO_METHOD_HANDLE methodHnd,
                   COMP_HANDLE           compHnd,
                   CORINFO_METHOD_INFO*  methodInfo,
                   void**                methodCodePtr,
+#if defined(FEATURE_JIT_DROPPING)
+                  ULONG*                totalNCSize,
+#endif
                   ULONG*                methodCodeSize,
                   CORJIT_FLAGS*         compileFlags,
                   void*                 inlineInfoPtr)
@@ -6241,6 +6281,9 @@ START:
         COMP_HANDLE           compHnd;
         CORINFO_METHOD_INFO*  methodInfo;
         void**                methodCodePtr;
+#if defined(FEATURE_JIT_DROPPING)
+        ULONG*                totalNCSize;
+#endif
         ULONG*                methodCodeSize;
         CORJIT_FLAGS*         compileFlags;
         InlineInfo*           inlineInfo;
@@ -6259,6 +6302,9 @@ START:
     param.compHnd            = compHnd;
     param.methodInfo         = methodInfo;
     param.methodCodePtr      = methodCodePtr;
+#if defined(FEATURE_JIT_DROPPING)
+    param.totalNCSize        = totalNCSize;
+#endif
     param.methodCodeSize     = methodCodeSize;
     param.compileFlags       = compileFlags;
     param.inlineInfo         = inlineInfo;
@@ -6315,8 +6361,13 @@ START:
 
             // Now generate the code
             pParam->result =
+#if defined(FEATURE_JIT_DROPPING)
+                pParam->pComp->compCompile(pParam->methodHnd, pParam->classPtr, pParam->compHnd, pParam->methodInfo,
+                                           pParam->methodCodePtr, pParam->totalNCSize, pParam->methodCodeSize, pParam->compileFlags);
+#else
                 pParam->pComp->compCompile(pParam->methodHnd, pParam->classPtr, pParam->compHnd, pParam->methodInfo,
                                            pParam->methodCodePtr, pParam->methodCodeSize, pParam->compileFlags);
+#endif
         }
         finallyErrorTrap()
         {

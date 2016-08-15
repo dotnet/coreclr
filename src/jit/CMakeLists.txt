@@ -17,6 +17,10 @@ if(WIN32)
   set(JIT_RESOURCES Native.rc)
 endif(WIN32)
 
+if(FEATURE_JIT_DROPPING)
+   add_definitions(-DFEATURE_JIT_DROPPING)
+endif(FEATURE_JIT_DROPPING)
+
 set( JIT_SOURCES
   alloc.cpp
   assertionprop.cpp

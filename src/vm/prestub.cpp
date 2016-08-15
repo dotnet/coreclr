@@ -52,7 +52,166 @@
 #include "perfmap.h"
 #endif
 
-#ifndef DACCESS_COMPILE 
+#if defined(FEATURE_JIT_DROPPING)
+#include "threadsuspend.h"
+#endif
+
+#ifndef DACCESS_COMPILE
+
+#if defined(FEATURE_JIT_DROPPING)
+static PtrHashMap* s_pCalledMethods = NULL;
+static SimpleRWLock* s_pCalledMethodsLock = NULL;
+
+static PtrHashMap* s_pExecutedMethods = NULL;
+static SimpleRWLock* s_pExecutedMethodsLock = NULL;
+
+static ULONG jitDroppedBytes = 0;
+
+static BOOL IsOwnerOfRWLock(LPVOID lock)
+{
+  // @TODO - SimpleRWLock does not have knowledge of which thread gets the writer
+  // lock, so no way to verify
+  return TRUE;
+}
+
+static void LookupOrCreateInCalledMethods(MethodDesc* pMD)
+{
+    CONTRACTL
+    {
+        MODE_COOPERATIVE;
+        GC_TRIGGERS;
+        THROWS;
+    }
+    CONTRACTL_END;
+
+    if (pMD->IsLCGMethod() || pMD->IsFCall())
+        return;
+    PCODE pCode = pMD->GetPreImplementedCode();
+    if (pCode != NULL)
+        return;
+
+    // We lazily allocate the reader/writer lock we synchronize access to the hash with.
+    if (s_pCalledMethodsLock == NULL)
+    {
+        void *pLockSpace = SystemDomain::GetGlobalLoaderAllocator()->GetLowFrequencyHeap()->AllocMem(S_SIZE_T(sizeof(SimpleRWLock)));
+        SimpleRWLock *pLock = new (pLockSpace) SimpleRWLock(COOPERATIVE_OR_PREEMPTIVE, LOCK_TYPE_DEFAULT);
+
+        if (FastInterlockCompareExchangePointer(&s_pCalledMethodsLock, pLock, NULL) != NULL)
+           // We lost the race, give up our copy.
+           SystemDomain::GetGlobalLoaderAllocator()->GetLowFrequencyHeap()->BackoutMem(pLockSpace, sizeof(SimpleRWLock));
+    }
+
+    // Now we have a lock we can use to synchronize the remainder of the init.
+
+    UPTR key = pMD->GetStableHash();
+
+    if (s_pCalledMethods == NULL)
+    {
+        SimpleWriteLockHolder swlh(s_pCalledMethodsLock);
+        if (s_pCalledMethods == NULL)
+        {
+            PtrHashMap *pMap = new (SystemDomain::GetGlobalLoaderAllocator()->GetLowFrequencyHeap()) PtrHashMap();
+            LockOwner lock = {s_pCalledMethodsLock, IsOwnerOfRWLock};
+            pMap->Init(32, NULL, FALSE, &lock);
+            s_pCalledMethods = pMap;
+        }
+    }
+    else
+    {
+        // Try getting an existing value first.
+        SimpleReadLockHolder srlh(s_pCalledMethodsLock);
+        MethodDesc *pFound = (MethodDesc *)s_pCalledMethods->LookupValue(key, (LPVOID)pMD);
+        if (pFound != (MethodDesc *)INVALIDENTRY)
+            return;
+    }
+
+    SimpleWriteLockHolder swlh(s_pCalledMethodsLock);
+    s_pCalledMethods->InsertValue(key, (LPVOID)pMD);
+}
+
+static void DeleteFromCalledMethods(MethodDesc* pMD)
+{
+    CONTRACTL
+    {
+        MODE_COOPERATIVE;
+        GC_TRIGGERS;
+        THROWS;
+    }
+    CONTRACTL_END;
+
+    if (pMD->IsLCGMethod() || pMD->IsFCall())
+        return;
+    PCODE pCode = pMD->GetPreImplementedCode();
+    if (pCode != NULL)
+        return;
+
+    _ASSERTE((s_pCalledMethodsLock == NULL && s_pCalledMethods == NULL) ||
+             (s_pCalledMethodsLock != NULL && s_pCalledMethods != NULL));
+
+    if (s_pCalledMethodsLock == NULL || s_pCalledMethods == NULL)
+        return;
+
+    UPTR key = pMD->GetStableHash();
+
+    {
+        SimpleReadLockHolder srlh(s_pCalledMethodsLock);
+        MethodDesc *pFound = (MethodDesc *)s_pCalledMethods->LookupValue(key, (LPVOID)pMD);
+        if (pFound == (MethodDesc *)INVALIDENTRY)
+            return;
+    }
+
+    {
+        SimpleWriteLockHolder swlh(s_pCalledMethodsLock);
+        s_pCalledMethods->DeleteValue(key, (LPVOID)pMD);
+    }
+}
+
+StackWalkAction CrawlFrameVisitor(CrawlFrame* pCf, Thread* pMdThread)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_NOTRIGGER;
+        SO_TOLERANT;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    MethodDesc* pMD = pCf->GetFunction();
+
+    // Filter out methods we don't care about
+    if (pMD == nullptr || !pMD->IsIL() || pMD->IsUnboxingStub() || pMD->GetMethodTable()->Collectible())
+    {
+        return SWA_CONTINUE;
+    }
+
+    if (s_pExecutedMethods == NULL)
+    {
+        PtrHashMap *pMap = new (SystemDomain::GetGlobalLoaderAllocator()->GetLowFrequencyHeap()) PtrHashMap();
+        pMap->Init(TRUE, NULL);
+        s_pExecutedMethods = pMap;
+    }
+
+    UPTR key = pMD->GetStableHash();
+    MethodDesc *pFound = (MethodDesc *)s_pExecutedMethods->LookupValue(key, (LPVOID)pMD);
+    if (pFound == (MethodDesc *)INVALIDENTRY)
+    {
+        s_pExecutedMethods->InsertValue(key, (LPVOID)pMD);
+    }
+
+    return SWA_CONTINUE;
+}
+
+// Visitor for stack walk callback.
+StackWalkAction StackWalkCallback(CrawlFrame* pCf, VOID* data)
+{
+    WRAPPER_NO_CONTRACT;
+
+    // WalkInfo* info = (WalkInfo*) data;
+    return CrawlFrameVisitor(pCf, (Thread *)data);
+}
+
+#endif
 
 EXTERN_C void STDCALL ThePreStub();
 EXTERN_C void STDCALL ThePreStubPatch();
@@ -244,6 +403,53 @@ void DACNotifyCompilationFinished(MethodDesc *methodDesc)
 // </TODO>
 
 
+#if defined(FEATURE_JIT_DROPPING)
+void MethodDesc::DropNativeCode()
+{
+    WRAPPER_NO_CONTRACT;
+    SUPPORTS_DAC;
+
+    g_IBCLogger.LogMethodDescAccess(this);
+
+    if (IsLCGMethod() || IsFCall())
+        return;
+
+    PCODE pCode;
+    if (HasNativeCodeSlot())
+    {
+        pCode = PCODE(NativeCodeSlot::GetValueMaybeNullAtPtr(GetAddrOfNativeCodeSlot()) & ~FIXUP_LIST_MASK);
+    }
+    else
+    {
+        if (!HasStableEntryPoint() || HasPrecode())
+            return;
+        pCode = GetStableEntryPoint();
+    }
+
+    _ASSERTE(pCode != NULL);
+
+    CodeHeader* pCH = ((CodeHeader*)pCode) - 1;
+    _ASSERTE(pCH->GetMethodDesc() == this);
+
+    HeapList* pHp = pCH->GetHeapList();
+
+    _ASSERTE(pHp != NULL && pHp->cBlocks == 1 && pHp->bFull && pHp->bFullForJumpStubs);
+
+    jitDroppedBytes += ((BYTE*)pHp->endAddress - (BYTE*)pHp->startAddress);
+
+    pHp->endAddress = pHp->startAddress;
+    pHp->cBlocks = 0;
+    pHp->bFull = false;
+    pHp->bFullForJumpStubs = false;
+
+#ifdef FEATURE_INTERPRETER
+    SetNativeCodeInterlocked(NULL, NULL, FALSE);
+#else
+    SetNativeCodeInterlocked(NULL, NULL);
+#endif
+}
+#endif
+
 // ********************************************************************
 //                  README!!
 // ********************************************************************
@@ -256,7 +462,11 @@ void DACNotifyCompilationFinished(MethodDesc *methodDesc)
 // which prevents us from trying to JIT the same method more that once.
 
 
+#if defined(FEATURE_JIT_DROPPING)
+PCODE MethodDesc::MakeJitWorker(COR_ILMETHOD_DECODER* ILHeader, DWORD flags, DWORD flags2, BOOL fDoJitDropping)
+#else
 PCODE MethodDesc::MakeJitWorker(COR_ILMETHOD_DECODER* ILHeader, DWORD flags, DWORD flags2)
+#endif
 {
     STANDARD_VM_CONTRACT;
 
@@ -271,6 +481,9 @@ PCODE MethodDesc::MakeJitWorker(COR_ILMETHOD_DECODER* ILHeader, DWORD flags, DWO
 
     PCODE pCode = NULL;
     ULONG sizeOfCode = 0;
+#if defined(FEATURE_JIT_DROPPING)
+    ULONG totalNCSize = 0;
+#endif
 #ifdef FEATURE_INTERPRETER
     PCODE pPreviousInterpStub = NULL;
     BOOL fInterpreted = FALSE;
@@ -463,7 +676,11 @@ PCODE MethodDesc::MakeJitWorker(COR_ILMETHOD_DECODER* ILHeader, DWORD flags, DWO
 
             EX_TRY
             {
+#if defined(FEATURE_JIT_DROPPING)
+                pCode = UnsafeJitFunction(this, ILHeader, flags, flags2, &totalNCSize, &sizeOfCode);
+#else
                 pCode = UnsafeJitFunction(this, ILHeader, flags, flags2, &sizeOfCode);
+#endif
             }
             EX_CATCH
             {
@@ -642,6 +859,70 @@ Done:
 
     LOG((LF_CORDB, LL_EVERYTHING, "MethodDesc::MakeJitWorker finished. Stub is" FMT_ADDR "\n",
          DBG_ADDR(pCode)));
+
+#if defined(FEATURE_JIT_DROPPING)
+    CodeHeader* pCH = ((CodeHeader*)pCode) - 1;
+    _ASSERTE(pCH->GetMethodDesc() == this);
+
+    HeapList* pHL = pCH->GetHeapList();
+
+    if ((CLRConfig::GetConfigValue(CLRConfig::INTERNAL_JitDropEnabled) != 0) &&
+        (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_JitDropMemThreshold) != 0))
+    {
+        if (fDoJitDropping && (totalNCSize - jitDroppedBytes) > CLRConfig::GetConfigValue(CLRConfig::INTERNAL_JitDropMemThreshold) && s_pCalledMethods != NULL)
+        {
+            EX_TRY
+            {
+                // Suspend the runtime.
+                ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_OTHER);
+
+                // Walk all other threads.
+                Thread* pThread = nullptr;
+                while ((pThread = ThreadStore::GetThreadList(pThread)) != nullptr)
+                {
+                    pThread->StackWalkFrames(StackWalkCallback, (VOID *)pThread, FUNCTIONSONLY | ALLOW_ASYNC_STACK_WALK);
+                }
+
+                PtrHashMap::PtrIterator i = s_pCalledMethods->begin();
+                while (!i.end())
+                {
+                    MethodDesc *pMD = (MethodDesc *) i.GetValue();
+                    UPTR key = pMD->GetStableHash();
+                    MethodDesc *pFound = (MethodDesc *)s_pExecutedMethods->LookupValue(key, (LPVOID)pMD);
+                    ++i;
+                    if (pFound == (MethodDesc *)INVALIDENTRY)
+                    {
+                        pMD->DropNativeCode();
+                        SimpleWriteLockHolder swlh(s_pCalledMethodsLock);
+                        s_pCalledMethods->DeleteValue(key, (LPVOID)pMD);
+                    }
+                }
+                for (PtrHashMap::PtrIterator i = s_pExecutedMethods->begin(); !i.end();)
+                {
+                    MethodDesc *pMD = (MethodDesc *) i.GetValue();
+                    UPTR key = (UPTR)pMD->GetStableHash();
+                    ++i;
+                    s_pExecutedMethods->DeleteValue(key, (LPVOID)pMD);
+                }
+                delete s_pExecutedMethods;
+                s_pExecutedMethods = NULL;
+                ThreadSuspend::RestartEE(FALSE, TRUE);
+            }
+            EX_CATCH
+            {
+            }
+            EX_END_CATCH(SwallowAllExceptions);
+        }
+    }
+
+    if ((CLRConfig::GetConfigValue(CLRConfig::INTERNAL_JitDropEnabled) != 0) &&
+        (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_JitDropMemThreshold) != 0) &&
+        CLRConfig::GetConfigValue(CLRConfig::INTERNAL_JitDropMethodSizeThreshold) < sizeOfCode &&
+        !IsLCGMethod() && !IsFCall())
+    {
+        LookupOrCreateInCalledMethods(this);
+    }
+#endif
 
     return pCode;
 }
@@ -1042,7 +1323,11 @@ extern "C" PCODE STDCALL PreStubWorker(TransitionBlock * pTransitionBlock, Metho
     }
 
     GCX_PREEMP_THREAD_EXISTS(CURRENT_THREAD);
+#if defined(FEATURE_JIT_DROPPING)
+    pbRetVal = pMD->DoPrestub(pDispatchingMT, TRUE);
+#else
     pbRetVal = pMD->DoPrestub(pDispatchingMT);
+#endif
 
     UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
     UNINSTALL_MANAGED_EXCEPTION_DISPATCHER;
@@ -1109,7 +1394,11 @@ static void TestSEHGuardPageRestore()
 // the case of methods that require stubs to be executed first (e.g., remoted methods
 // that require remoting stubs to be executed first), this stable entrypoint would be a
 // pointer to the stub, and not a pointer directly to the JITted code.
+#if defined(FEATURE_JIT_DROPPING)
+PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT, BOOL fDoJitDropping)
+#else
 PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
+#endif
 {
     CONTRACT(PCODE)
     {
@@ -1258,6 +1547,14 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
         LOG((LF_CLASSLOADER, LL_INFO10000,
                 "    In PreStubWorker, method already jitted, backpatching call point\n"));
 
+#if defined(FEATURE_JIT_DROPPING)
+        if ((CLRConfig::GetConfigValue(CLRConfig::INTERNAL_JitDropEnabled) != 0) &&
+            (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_JitDropMemThreshold) != 0) &&
+            !IsLCGMethod() && !IsFCall())
+        {
+            DeleteFromCalledMethods(this);
+        }
+#endif
         RETURN DoBackpatch(pMT, pDispatchingMT, TRUE);
     }
 
@@ -1455,7 +1752,11 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
             // Mark the code as hot in case the method ends up in the native image
             g_IBCLogger.LogMethodCodeAccess(this);
 
+#if defined(FEATURE_JIT_DROPPING)
+            pCode = MakeJitWorker(pHeader, 0, 0, fDoJitDropping);
+#else
             pCode = MakeJitWorker(pHeader, 0, 0);
+#endif
 
 #ifdef FEATURE_INTERPRETER
             if ((pCode != NULL) && !HasStableEntryPoint())

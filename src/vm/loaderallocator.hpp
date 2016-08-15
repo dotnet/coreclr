@@ -114,6 +114,9 @@ public:
     // ExecutionManager caches
     void * m_pLastUsedCodeHeap;
     void * m_pLastUsedDynamicCodeHeap;
+#if defined(FEATURE_JIT_DROPPING)
+    void * m_pLastUsedJitDroppedCodeHeap;
+#endif
     void * m_pJumpStubCache;
 
     // LoaderAllocator GC Structures

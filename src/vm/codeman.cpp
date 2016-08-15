@@ -1972,6 +1972,7 @@ BYTE * EEJitManager::AllocateFromEmergencyJumpStubReserve(const BYTE * loAddr, c
     return NULL;
 }
 
+
 VOID EEJitManager::EnsureJumpStubReserve(BYTE * pImageBase, SIZE_T imageSize, SIZE_T reserveSize)
 {
     CONTRACTL {
@@ -2201,6 +2202,9 @@ void CodeHeapRequestInfo::Init()
         m_pAllocator = m_pMD->GetLoaderAllocatorForCode();
     m_isDynamicDomain = (m_pMD != NULL) ? m_pMD->IsLCGMethod() : false;
     m_isCollectible = m_pAllocator->IsCollectible() ? true : false;
+#if defined(FEATURE_JIT_DROPPING)
+    m_isJitDroppedDomain = false;
+#endif
 }
 
 #ifdef WIN64EXCEPTIONS
@@ -2266,19 +2270,31 @@ HeapList* EEJitManager::NewCodeHeap(CodeHeapRequestInfo *pInfo, DomainCodeHeapLi
     } CONTRACT_END;
 
     size_t initialRequestSize = pInfo->getRequestSize();
-    size_t minReserveSize = VIRTUAL_ALLOC_RESERVE_GRANULARITY; //     ( 64 KB)           
+#if defined(FEATURE_JIT_DROPPING)
+    size_t minReserveSize = pInfo->IsJitDroppedDomain() ?  OS_PAGE_SIZE : VIRTUAL_ALLOC_RESERVE_GRANULARITY; //     ( 4 KB : 64 KB )
+#else
+    size_t minReserveSize = VIRTUAL_ALLOC_RESERVE_GRANULARITY; //     ( 64 KB)
+#endif
 
 #ifdef _WIN64
     if (pInfo->m_hiAddr == 0)
     {
+#if defined(FEATURE_JIT_DROPPING)
+        if (!pInfo->IsJitDroppedDomain() && pADHeapList->m_CodeHeapList.Count() > CODE_HEAP_SIZE_INCREASE_THRESHOLD)
+#else
         if (pADHeapList->m_CodeHeapList.Count() > CODE_HEAP_SIZE_INCREASE_THRESHOLD)
+#endif
         {
             minReserveSize *= 4; // Increase the code heap size to 256 KB for workloads with a lot of code.
         }
 
         // For non-DynamicDomains that don't have a loAddr/hiAddr range
         // we bump up the reserve size for the 64-bit platforms
+#if defined(FEATURE_JIT_DROPPING)
+        if (!pInfo->IsDynamicDomain() && !pInfo->IsJitDroppedDomain())
+#else
         if (!pInfo->IsDynamicDomain())
+#endif
         {
             minReserveSize *= 4; // CodeHeaps are larger on AMD64 (256 KB to 1024 KB)
         }
@@ -2294,7 +2310,11 @@ HeapList* EEJitManager::NewCodeHeap(CodeHeapRequestInfo *pInfo, DomainCodeHeapLi
     size_t reserveSize = requestAndHeadersSize;
     if (reserveSize < minReserveSize)
         reserveSize = minReserveSize;
+#if defined(FEATURE_JIT_DROPPING)
+    reserveSize = pInfo->IsJitDroppedDomain() ? ALIGN_UP(reserveSize, OS_PAGE_SIZE) : ALIGN_UP(reserveSize, VIRTUAL_ALLOC_RESERVE_GRANULARITY);
+#else
     reserveSize = ALIGN_UP(reserveSize, VIRTUAL_ALLOC_RESERVE_GRANULARITY);
+#endif
 
     pInfo->setReserveSize(reserveSize);
 
@@ -2389,6 +2409,9 @@ void* EEJitManager::allocCodeRaw(CodeHeapRequestInfo *pInfo,
 
     bool bForJumpStubs = (pInfo->m_loAddr != 0) || (pInfo->m_hiAddr != 0);
     bool bUseCachedDynamicCodeHeap = pInfo->IsDynamicDomain();
+#if defined(FEATURE_JIT_DROPPING)
+    bool bUseCachedJitDroppedCodeHeap = !bForJumpStubs && pInfo->m_pMD && pInfo->IsJitDroppedDomain();
+#endif
 
     HeapList * pCodeHeap;
 
@@ -2400,6 +2423,13 @@ void* EEJitManager::allocCodeRaw(CodeHeapRequestInfo *pInfo,
             pCodeHeap = (HeapList *)pInfo->m_pAllocator->m_pLastUsedDynamicCodeHeap;
             pInfo->m_pAllocator->m_pLastUsedDynamicCodeHeap = NULL;
         }
+#if defined(FEATURE_JIT_DROPPING)
+        else if(bUseCachedJitDroppedCodeHeap)
+        {
+            pCodeHeap = (HeapList *)pInfo->m_pAllocator->m_pLastUsedJitDroppedCodeHeap;
+            pInfo->m_pAllocator->m_pLastUsedJitDroppedCodeHeap = NULL;
+        }
+#endif
         else
         {
             pCodeHeap = (HeapList *)pInfo->m_pAllocator->m_pLastUsedCodeHeap;
@@ -2413,8 +2443,12 @@ void* EEJitManager::allocCodeRaw(CodeHeapRequestInfo *pInfo,
             pCodeHeap = NULL;
         }
 
+#if defined(FEATURE_JIT_DROPPING)
+        if (bUseCachedJitDroppedCodeHeap || pCodeHeap == NULL)
+#else
         // If we don't have a cached code heap or can't use it, get a code heap
         if (pCodeHeap == NULL)
+#endif
         {
             pCodeHeap = GetCodeHeap(pInfo);
             if (pCodeHeap == NULL)
@@ -2422,7 +2456,11 @@ void* EEJitManager::allocCodeRaw(CodeHeapRequestInfo *pInfo,
         }
 
 #ifdef _WIN64
+#if defined(FEATURE_JIT_DROPPING)
+        if (!bForJumpStubs && !bUseCachedJitDroppedCodeHeap)
+#else
         if (!bForJumpStubs)
+#endif
         {
             //
             // Keep a small reserve at the end of the codeheap for jump stubs. It should reduce
@@ -2456,6 +2494,14 @@ void* EEJitManager::allocCodeRaw(CodeHeapRequestInfo *pInfo,
 #endif
 
         mem = (pCodeHeap->pHeap)->AllocMemForCode_NoThrow(header, blockSize, align);
+
+#if defined(FEATURE_JIT_DROPPING)
+        if (mem != NULL && bUseCachedJitDroppedCodeHeap) {
+            pCodeHeap->SetHeapFull();
+            pCodeHeap->SetHeapFullForJumpStubs();
+        }
+#endif
+
         if (mem != NULL)
             break;
 
@@ -2470,12 +2516,21 @@ void* EEJitManager::allocCodeRaw(CodeHeapRequestInfo *pInfo,
     {
         // Let us create a new heap.
 
+#if defined(FEATURE_JIT_DROPPING)
+        DomainCodeHeapList *pList = GetCodeHeapList(pInfo->m_pMD, pInfo->m_pAllocator, FALSE, (pInfo->IsJitDroppedDomain() ? TRUE : FALSE));
+#else
         DomainCodeHeapList *pList = GetCodeHeapList(pInfo->m_pMD, pInfo->m_pAllocator);
+#endif
+
         if (pList == NULL)
         {
             // not found so need to create the first one
             pList = CreateCodeHeapList(pInfo);
+#if defined(FEATURE_JIT_DROPPING)
+            _ASSERTE(pList == GetCodeHeapList(pInfo->m_pMD, pInfo->m_pAllocator, FALSE, (pInfo->IsJitDroppedDomain() ? TRUE : FALSE)));
+#else
             _ASSERTE(pList == GetCodeHeapList(pInfo->m_pMD, pInfo->m_pAllocator));
+#endif
         }
         _ASSERTE(pList);
 
@@ -2486,12 +2541,24 @@ void* EEJitManager::allocCodeRaw(CodeHeapRequestInfo *pInfo,
         if (mem == NULL)
             ThrowOutOfMemory();
         _ASSERTE(mem);
+#if defined(FEATURE_JIT_DROPPING)
+        if (bUseCachedJitDroppedCodeHeap) {
+            pCodeHeap->SetHeapFull();
+            pCodeHeap->SetHeapFullForJumpStubs();
+        }
+#endif
     }
     
     if (bUseCachedDynamicCodeHeap)
     {
         pInfo->m_pAllocator->m_pLastUsedDynamicCodeHeap = pCodeHeap;
     }
+#if defined(FEATURE_JIT_DROPPING)
+    else if (bUseCachedJitDroppedCodeHeap)
+    {
+        pInfo->m_pAllocator->m_pLastUsedJitDroppedCodeHeap = pCodeHeap;
+    }
+#endif
     else
     {
         pInfo->m_pAllocator->m_pLastUsedCodeHeap = pCodeHeap;
@@ -2574,6 +2641,15 @@ CodeHeader* EEJitManager::allocCode(MethodDesc* pMD, size_t blockSize, CorJitAll
     CodeHeader * pCodeHdr = NULL;
 
     CodeHeapRequestInfo requestInfo(pMD);
+#if defined(FEATURE_JIT_DROPPING)
+    if (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_JitDropEnabled) != 0 &&
+        CLRConfig::GetConfigValue(CLRConfig::INTERNAL_JitDropMemThreshold) != 0 &&
+        CLRConfig::GetConfigValue(CLRConfig::INTERNAL_JitDropMethodSizeThreshold) < blockSize &&
+        !pMD->IsLCGMethod() && !pMD->IsFCall())
+    {
+        requestInfo.SetJitDroppedDomain();
+    }
+#endif
 
     // Scope the lock
     {
@@ -2619,6 +2695,10 @@ CodeHeader* EEJitManager::allocCode(MethodDesc* pMD, size_t blockSize, CorJitAll
         pCodeHdr->SetEHInfo(NULL);
         pCodeHdr->SetGCInfo(NULL);
         pCodeHdr->SetMethodDesc(pMD);
+#if defined(FEATURE_JIT_DROPPING)
+        pCodeHdr->SetHeapList(pCodeHeap);
+#endif
+
 #ifdef WIN64EXCEPTIONS
         pCodeHdr->SetNumberOfUnwindInfos(nUnwindInfos);
         *pModuleBase = (TADDR)pCodeHeap;
@@ -2630,7 +2710,11 @@ CodeHeader* EEJitManager::allocCode(MethodDesc* pMD, size_t blockSize, CorJitAll
     RETURN(pCodeHdr);
 }
 
+#if defined(FEATURE_JIT_DROPPING)
+EEJitManager::DomainCodeHeapList *EEJitManager::GetCodeHeapList(MethodDesc *pMD, LoaderAllocator *pAllocator, BOOL fDynamicOnly, BOOL fJitDropped)
+#else
 EEJitManager::DomainCodeHeapList *EEJitManager::GetCodeHeapList(MethodDesc *pMD, LoaderAllocator *pAllocator, BOOL fDynamicOnly)
+#endif
 {
     CONTRACTL {
         NOTHROW;
@@ -2649,6 +2733,13 @@ EEJitManager::DomainCodeHeapList *EEJitManager::GetCodeHeapList(MethodDesc *pMD,
         ppList = m_DynamicDomainCodeHeaps.Table();
         count = m_DynamicDomainCodeHeaps.Count();
     }
+#if defined(FEATURE_JIT_DROPPING)
+    if (fJitDropped)
+    {
+        ppList = m_JitDroppedDomainCodeHeaps.Table();
+        count = m_JitDroppedDomainCodeHeaps.Count();
+    }
+#endif
     else
     {
         ppList = m_DomainCodeHeaps.Table();
@@ -2685,7 +2776,11 @@ HeapList* EEJitManager::GetCodeHeap(CodeHeapRequestInfo *pInfo)
 
     // loop through the m_DomainCodeHeaps to find the AppDomain
     // if not found, then create it
+#if defined(FEATURE_JIT_DROPPING)
+    DomainCodeHeapList *pList = GetCodeHeapList(pInfo->m_pMD, pInfo->m_pAllocator, FALSE, (pInfo->IsJitDroppedDomain() ? TRUE : FALSE));
+#else
     DomainCodeHeapList *pList = GetCodeHeapList(pInfo->m_pMD, pInfo->m_pAllocator);
+#endif
     if (pList)
     {
         // Set pResult to the largest non-full HeapList
@@ -2806,7 +2901,7 @@ bool EEJitManager::CanUseCodeHeap(CodeHeapRequestInfo *pInfo, HeapList *pCodeHea
        }
    }
 
-   return retVal; 
+   return retVal;
 }
 
 EEJitManager::DomainCodeHeapList * EEJitManager::CreateCodeHeapList(CodeHeapRequestInfo *pInfo)
@@ -2823,6 +2918,10 @@ EEJitManager::DomainCodeHeapList * EEJitManager::CreateCodeHeapList(CodeHeapRequ
     DomainCodeHeapList **ppList = NULL;
     if (pInfo->IsDynamicDomain())
         ppList = m_DynamicDomainCodeHeaps.AppendThrowing();
+#if defined(FEATURE_JIT_DROPPING)
+    else if (pInfo->IsJitDroppedDomain())
+        ppList = m_JitDroppedDomainCodeHeaps.AppendThrowing();
+#endif
     else
         ppList = m_DomainCodeHeaps.AppendThrowing();
     *ppList = pNewList;
@@ -3293,6 +3392,29 @@ void EEJitManager::Unload(LoaderAllocator *pAllocator)
             break;
         }
     }
+#if defined(FEATURE_JIT_DROPPING)
+    ppList = m_JitDroppedDomainCodeHeaps.Table();
+    count = m_JitDroppedDomainCodeHeaps.Count();
+
+    for (int i=0; i < count; i++) {
+        if (ppList[i]->m_pAllocator== pAllocator) {
+            DomainCodeHeapList *pList = ppList[i];
+            m_JitDroppedDomainCodeHeaps.DeleteByIndex(i);
+
+            // pHeapList is allocated in pHeap, so only need to delete the LoaderHeap itself
+            count = pList->m_CodeHeapList.Count();
+            for (i=0; i < count; i++) {
+                HeapList *pHeapList = pList->m_CodeHeapList[i];
+                DeleteCodeHeap(pHeapList);
+            }
+
+            // this is ok to do delete as anyone accessing the DomainCodeHeapList structure holds the critical section.
+            delete pList;
+
+            break;
+        }
+    }
+#endif
     ppList = m_DynamicDomainCodeHeaps.Table();
     count = m_DynamicDomainCodeHeaps.Count();
     for (int i=0; i < count; i++) {

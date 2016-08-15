@@ -10,6 +10,9 @@ class CILJit : public ICorJitCompiler
                                          CORINFO_METHOD_INFO* methodInfo,      /* IN */
                                          unsigned             flags,           /* IN */
                                          BYTE**               nativeEntry,     /* OUT */
+#if defined(FEATURE_JIT_DROPPING)
+                                         ULONG*               totalNCSize,     /* OUT */
+#endif
                                          ULONG*               nativeSizeOfCode /* OUT */
                                          );
 

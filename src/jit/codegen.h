@@ -32,7 +32,11 @@ public:
     // This could use further abstraction
     CodeGen(Compiler* theCompiler);
 
+#if defined(FEATURE_JIT_DROPPING)
+    virtual void genGenerateCode(void** codePtr, ULONG* totalNCSize, ULONG* nativeSizeOfCode);
+#else
     virtual void genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode);
+#endif
     // TODO-Cleanup: Abstract out the part of this that finds the addressing mode, and
     // move it to Lower
     virtual bool genCreateAddrMode(GenTreePtr  addr,

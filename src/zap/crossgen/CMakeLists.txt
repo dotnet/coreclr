@@ -24,5 +24,9 @@ if (FEATURE_READYTORUN)
     )
 endif (FEATURE_READYTORUN)
 
+if(FEATURE_JIT_DROPPING)
+  add_definitions(-DFEATURE_JIT_DROPPING)
+endif(FEATURE_JIT_DROPPING)
+
 add_precompiled_header(common.h ../common.cpp ZAP_SOURCES)
 add_library_clr(corzap_crossgen STATIC ${ZAP_SOURCES})
