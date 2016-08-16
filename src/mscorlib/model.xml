@@ -5385,7 +5385,10 @@
       <Member Name="GetMethodImplementationFlags" />
       <Member Name="GetParameters" />
       <Member Name="Equals(System.Object)" />
+      <Member Name="op_Equality(System.Reflection.MethodBase,System.Reflection.MethodBase)" />
+      <Member Name="op_Inequality(System.Reflection.MethodBase,System.Reflection.MethodBase)" />
       <Member Name="GetHashCode" />
+      <Member Name="GetMethodBody" />
       <Member Name="Invoke(System.Object,System.Object[])" />
       <Member Name="Invoke(System.Object,System.Reflection.BindingFlags,System.Reflection.Binder,System.Object[],System.Globalization.CultureInfo)" />
       <Member MemberType="Property" Name="Attributes" />
@@ -5430,6 +5433,8 @@
     </Type>
     <Type Name="System.Reflection.MethodInfo">
       <Member Name="#ctor" />
+      <Member Name="op_Equality(System.Reflection.MethodInfo,System.Reflection.MethodInfo)" />
+      <Member Name="op_Inequality(System.Reflection.MethodInfo,System.Reflection.MethodInfo)" />
       <Member Name="get_MemberType" />
       <Member Name="get_ReturnParameter" />
       <Member Name="get_ReturnType" />
@@ -9290,13 +9295,20 @@
     <Type Status="ImplRoot" Name="System.Reflection.MetadataImport">
       <Member Name="ThrowError(System.Int32)" /> <!-- EE -->
     </Type>
-    <Type Status="ImplRoot" Name="System.Reflection.MethodBody">
-      <Member MemberType="Field" Name="m_exceptionHandlingClauses" />
-      <Member MemberType="Field" Name="m_IL" />
-      <Member MemberType="Field" Name="m_initLocals" />
-      <Member MemberType="Field" Name="m_localSignatureMetadataToken" />
-      <Member MemberType="Field" Name="m_localVariables" />
-      <Member MemberType="Field" Name="m_maxStackSize" />
+    <Type Name="System.Reflection.MethodBody">
+      <Member Name="#ctor" />
+      <Member Name="get_ExceptionHandlingClauses" />
+      <Member Name="get_InitLocals" />
+      <Member Name="get_LocalSignatureMetadataToken" />
+      <Member Name="get_LocalVariables" />
+      <Member Name="get_MaxStackSize" />
+      <Member Name="GetILAsByteArray" />
+      <Member Status="ImplRoot" MemberType="Field" Name="m_exceptionHandlingClauses" />
+      <Member Status="ImplRoot" MemberType="Field" Name="m_IL" />
+      <Member Status="ImplRoot" MemberType="Field" Name="m_initLocals" />
+      <Member Status="ImplRoot" MemberType="Field" Name="m_localSignatureMetadataToken" />
+      <Member Status="ImplRoot" MemberType="Field" Name="m_localVariables" />
+      <Member Status="ImplRoot" MemberType="Field" Name="m_maxStackSize" />
     </Type>
     <Type Status="ImplRoot" Name="System.Reflection.Emit.ExceptionHandler">
       <Member Name="op_Equality(System.Reflection.Emit.ExceptionHandler,System.Reflection.Emit.ExceptionHandler)" />

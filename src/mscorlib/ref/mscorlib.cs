@@ -7467,10 +7467,15 @@ namespace System.Reflection
         public abstract System.RuntimeMethodHandle MethodHandle { get; }
         public virtual System.Reflection.MethodImplAttributes MethodImplementationFlags { get { throw null; } }
         public override bool Equals(object obj) { throw null; }
-        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]public static System.Reflection.MethodBase GetCurrentMethod() { throw null; }
+        public static bool operator ==(System.Reflection.MethodBase left, System.Reflection.MethodBase right) { throw null; }
+        public static bool operator !=(System.Reflection.MethodBase left, System.Reflection.MethodBase right) { throw null; }
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        public static System.Reflection.MethodBase GetCurrentMethod() { throw null; }
         [System.Runtime.InteropServices.ComVisibleAttribute(true)]
         public virtual System.Type[] GetGenericArguments() { throw null; }
         public override int GetHashCode() { throw null; }
+        [System.Security.SecuritySafeCriticalAttribute]
+        public virtual System.Reflection.MethodBody GetMethodBody() { throw null; }
         public static System.Reflection.MethodBase GetMethodFromHandle(System.RuntimeMethodHandle handle) { throw null; }
         [System.Runtime.InteropServices.ComVisibleAttribute(false)]
         public static System.Reflection.MethodBase GetMethodFromHandle(System.RuntimeMethodHandle handle, System.RuntimeTypeHandle declaringType) { throw null; }
@@ -7480,6 +7485,17 @@ namespace System.Reflection
         [System.Diagnostics.DebuggerStepThroughAttribute]
         public object Invoke(object obj, object[] parameters) { throw null; }
         public abstract object Invoke(object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, object[] parameters, System.Globalization.CultureInfo culture);
+    }
+    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+    public class MethodBody
+    {
+        protected MethodBody() { }
+        public virtual int LocalSignatureMetadataToken { get { throw null; } }
+        public virtual System.Collections.Generic.IList<LocalVariableInfo> LocalVariables { get { throw null; } }
+        public virtual int MaxStackSize { get { throw null; } }
+        public virtual bool InitLocals { get { throw null; } }
+        public virtual byte[] GetILAsByteArray() { throw null; }
+        public virtual System.Collections.Generic.IList<ExceptionHandlingClause> ExceptionHandlingClauses { get { throw null; } }
     }
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     public enum MethodImplAttributes
@@ -7507,6 +7523,8 @@ namespace System.Reflection
     public abstract partial class MethodInfo : System.Reflection.MethodBase
     {
         protected MethodInfo() { }
+        public static bool operator ==(System.Reflection.MethodInfo left, System.Reflection.MethodInfo right) { throw null; }
+        public static bool operator !=(System.Reflection.MethodInfo left, System.Reflection.MethodInfo right) { throw null; }
         public override System.Reflection.MemberTypes MemberType { get { throw null; } }
         public virtual System.Reflection.ParameterInfo ReturnParameter { get { throw null; } }
         public virtual System.Type ReturnType { get { throw null; } }
