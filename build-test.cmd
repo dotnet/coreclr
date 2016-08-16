@@ -107,7 +107,7 @@ REM ===
 REM === Deploy debugger tests
 REM ===
 REM =========================================================================================
-call %__TestDir%\setup-debuggertests.cmd /coreclrdir %__BinDir%  /outputdir %__TestBinDir%\debuggertests
+call %__TestDir%\setup-debuggertests.cmd /coreclrBinDir %__BinDir%  /outputDir %__TestBinDir%
 
 REM =========================================================================================
 REM ===

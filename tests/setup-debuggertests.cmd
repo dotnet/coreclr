@@ -91,6 +91,6 @@ echo.
 echo install debugger tests
 echo.
 echo Usage:
-echo     %__ThisScriptShort% /coreclrdir ^<coreclr bin path^> /outputdir ^<debuggertests install path^>
+echo     %__ThisScriptShort% /coreclrBinDir ^<coreclr bin path^> /outputDir ^<debuggertests install path^>
 echo.
 exit /b 1
