@@ -18,13 +18,16 @@
         cmp r2, #0
         
         beq LOCAL_LABEL(GC_POLL)
+
+        PROLOG_PUSH  "{r7, lr}"
+        PROLOG_STACK_SAVE r7
         
         ldr r3, [r0]
         ldr r3, [r1]
         
-        push {r7, lr} // r7 as a dummy to make SP aligned
         blx C_FUNC(memcpy)
-        pop {r7, lr}
+
+        EPILOG_POP   "{r7, pc}"
 
 LOCAL_LABEL(GC_POLL):
         ldr r0, =g_TrapReturningThreads
