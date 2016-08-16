@@ -6884,7 +6884,7 @@ namespace System.Reflection
         public AssemblyFlagsAttribute(System.Reflection.AssemblyNameFlags assemblyFlags) { }
         public int AssemblyFlags { get { throw null; } }
         [System.CLSCompliantAttribute(false)]
-        public int Flags { get { throw null; } }
+        public uint Flags { get { throw null; } }
     }
     [System.AttributeUsageAttribute((System.AttributeTargets)(1), Inherited=false)]
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
@@ -7061,7 +7061,7 @@ namespace System.Reflection
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     public partial class CustomAttributeData
     {
-        internal CustomAttributeData() { }
+        protected CustomAttributeData() { }
         public System.Type AttributeType { get { throw null; } }
         [System.Runtime.InteropServices.ComVisibleAttribute(true)]
         public virtual System.Reflection.ConstructorInfo Constructor { get { throw null; } }
@@ -7394,6 +7394,7 @@ namespace System.Reflection
         public override bool Equals(object obj) { throw null; }
         public abstract object[] GetCustomAttributes(bool inherit);
         public abstract object[] GetCustomAttributes(System.Type attributeType, bool inherit);
+        public virtual System.Collections.Generic.IList<System.Reflection.CustomAttributeData> GetCustomAttributesData() { throw null; }
         public override int GetHashCode() { throw null; }
         public abstract bool IsDefined(System.Type attributeType, bool inherit);
     }
@@ -7594,6 +7595,25 @@ namespace System.Reflection
         public virtual System.Type ResolveType(int metadataToken, System.Type[] genericTypeArguments, System.Type[] genericMethodArguments) { throw null; }
         public override string ToString() { throw null; }
     }
+    [System.AttributeUsageAttribute((System.AttributeTargets)(1), AllowMultiple=false, Inherited=false)]
+    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+    public sealed class ObfuscateAssemblyAttribute : System.Attribute
+    {
+        public ObfuscateAssemblyAttribute(bool assemblyIsPrivate) { throw null; }
+        public bool AssemblyIsPrivate { get { throw null; } }
+        public bool StripAfterObfuscation { get { throw null; } set { } }
+    }
+    [System.AttributeUsageAttribute((System.AttributeTargets)(1) | (System.AttributeTargets)(4) | (System.AttributeTargets)(8) | (System.AttributeTargets)(64) | (System.AttributeTargets)(2048) | (System.AttributeTargets)(256) | (System.AttributeTargets)(128) | (System.AttributeTargets)(512) | (System.AttributeTargets)(1024) | (System.AttributeTargets)(16) | (System.AttributeTargets)(4096),
+    AllowMultiple = true, Inherited = false)]
+    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+    public sealed class ObfuscationAttribute: System.Attribute
+    {
+        public ObfuscationAttribute() { }
+        public bool StripAfterObfuscation { get { throw null; } set { } }
+        public bool Exclude { get { throw null; } set { } }
+        public bool ApplyToMembers { get { throw null; } set { } }
+        public string Feature { get { throw null; } set { } }
+    }
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     public delegate System.Reflection.Module ModuleResolveEventHandler(object sender, System.ResolveEventArgs e);
     [System.FlagsAttribute]
@@ -7640,6 +7660,7 @@ namespace System.Reflection
         public virtual object RawDefaultValue { get { throw null; } }
         public virtual object[] GetCustomAttributes(bool inherit) { throw null; }
         public virtual object[] GetCustomAttributes(System.Type attributeType, bool inherit) { throw null; }
+        public virtual System.Collections.Generic.IList<System.Reflection.CustomAttributeData> GetCustomAttributesData() { throw null; }
         public virtual System.Type[] GetOptionalCustomModifiers() { throw null; }
         [System.Security.SecurityCriticalAttribute]
         public object GetRealObject(System.Runtime.Serialization.StreamingContext context) { throw null; }

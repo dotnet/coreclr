@@ -3838,6 +3838,7 @@
       <Member MemberType="Field" Name="value__" />
     </Type>
     <Type Name="System.Reflection.AssemblyNameProxy">
+      <Member Name="#ctor" />
     </Type>
     <Type Name="System.Reflection.AssemblyProductAttribute">
       <Member Name="#ctor(System.String)" />
@@ -5311,6 +5312,7 @@
       <Member Name="get_ReflectedType" />
       <Member Name="GetCustomAttributes(System.Boolean)" />
       <Member Name="GetCustomAttributes(System.Type,System.Boolean)" />
+      <Member Name="GetCustomAttributesData" />
       <Member Name="Equals(System.Object)" />
       <Member Name="GetHashCode" />
       <Member Name="IsDefined(System.Type,System.Boolean)" />
@@ -5516,6 +5518,23 @@
       <Member Name="EndInvoke(System.IAsyncResult)" />
       <Member Name="Invoke(System.Object,System.ResolveEventArgs)" />
     </Type>
+    <Type Name="System.Reflection.ObfuscateAssemblyAttribute">
+      <Member Name="#ctor(System.Boolean)" />
+      <Member Name="get_AssemblyIsPrivate" />
+      <Member Name="get_StripAfterObfuscation" />
+      <Member Name="set_StripAfterObfuscation(System.Boolean)" />
+    </Type>
+    <Type Name="System.Reflection.ObfuscationAttribute">
+      <Member Name="#ctor" />
+      <Member Name="get_ApplyToMembers" />
+      <Member Name="get_Exclude" />
+      <Member Name="get_Feature" />
+      <Member Name="get_StripAfterObfuscation" />
+      <Member Name="set_ApplyToMembers(System.Boolean)" />
+      <Member Name="set_Exclude(System.Boolean)" />
+      <Member Name="set_Feature(System.String)" />
+      <Member Name="set_StripAfterObfuscation(System.Boolean)" />
+    </Type>
     <Type Name="System.Reflection.ParameterAttributes">
       <Member MemberType="Field" Name="HasDefault" />
       <Member MemberType="Field" Name="HasFieldMarshal" />
@@ -5556,6 +5575,7 @@
       <Member Name="GetRequiredCustomModifiers" />
       <Member Name="GetCustomAttributes(System.Boolean)" />
       <Member Name="GetCustomAttributes(System.Type,System.Boolean)" />
+      <Member Name="GetCustomAttributesData" />
       <Member Name="IsDefined(System.Type,System.Boolean)" />
       <Member Name="ToString" />
       <Member MemberType="Property" Name="Attributes" />
@@ -5580,6 +5600,7 @@
       <Member MemberType="Property" Name="Item(System.Int32)" />
     </Type>
     <Type Name="System.Reflection.Pointer" >
+      <Member Name="#ctor" />
       <Member Name="Box(System.Void*,System.Type)" />
       <Member Name="Unbox(System.Object)" />
     </Type>
