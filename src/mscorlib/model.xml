@@ -5522,6 +5522,12 @@
       <Member MemberType="Field" Name="value__" />
     </Type>
     <Type Name="System.Reflection.ParameterInfo">
+      <Member MemberType="Field" Name="AttrsImpl" />
+      <Member MemberType="Field" Name="ClassImpl" />
+      <Member MemberType="Field" Name="DefaultValueImpl" />
+      <Member MemberType="Field" Name="MemberImpl" />
+      <Member MemberType="Field" Name="NameImpl" />
+      <Member MemberType="Field" Name="PositionImpl" />
       <Member Name="#ctor" />
       <Member Name="get_Attributes" />
       <Member Name="get_CustomAttributes" />
@@ -5530,6 +5536,7 @@
       <Member Name="get_IsOptional" />
       <Member Name="get_IsOut" />
       <Member Name="get_IsIn" />
+      <Member Name="get_IsLcid" />
       <Member Name="get_IsRetval" />
       <Member Name="get_Member" />
       <Member Name="get_MetadataToken" />
@@ -5542,6 +5549,7 @@
       <Member Name="GetCustomAttributes(System.Boolean)" />
       <Member Name="GetCustomAttributes(System.Type,System.Boolean)" />
       <Member Name="IsDefined(System.Type,System.Boolean)" />
+      <Member Name="ToString" />
       <Member MemberType="Property" Name="Attributes" />
       <Member MemberType="Property" Name="CustomAttributes" />
       <Member MemberType="Property" Name="DefaultValue" />
@@ -5563,6 +5571,19 @@
       <Member Name="set_Item(System.Int32,System.Boolean)" />
       <Member MemberType="Property" Name="Item(System.Int32)" />
     </Type>
+    <Type Name="System.Reflection.Pointer" >
+      <Member Name="Box(System.Void*,System.Type)" />
+      <Member Name="Unbox(System.Object)" />
+    </Type>
+    <Type Name="System.Reflection.PortableExecutableKinds">
+      <Member MemberType="Field" Name="NotAPortableExecutableImage" />
+      <Member MemberType="Field" Name="ILOnly" />
+      <Member MemberType="Field" Name="Required32Bit" />
+      <Member MemberType="Field" Name="PE32Plus" />
+      <Member MemberType="Field" Name="Unmanaged32Bit" />
+      <Member MemberType="Field" Name="Preferred32Bit" />
+      <Member MemberType="Field" Name="value__" />
+    </Type>
     <Type Name="System.Reflection.PropertyAttributes">
       <Member MemberType="Field" Name="HasDefault" />
       <Member MemberType="Field" Name="None" />
@@ -5576,6 +5597,8 @@
     </Type>
     <Type Name="System.Reflection.PropertyInfo">
       <Member Name="#ctor" />
+      <Member Name="op_Equality(System.Reflection.PropertyInfo,System.Reflection.PropertyInfo)" />
+      <Member Name="op_Inequality(System.Reflection.PropertyInfo,System.Reflection.PropertyInfo)" />
       <Member Name="get_Attributes" />
       <Member Name="get_CanRead" />
       <Member Name="get_CanWrite" />
@@ -9291,6 +9314,7 @@
     <Type Name="System.Reflection.ResourceAttributes">
       <Member MemberType="Field" Name="Private" />
       <Member MemberType="Field" Name="Public" />
+      <Member MemberType="Field" Name="value__" />
     </Type>
     <Type Status="ImplRoot" Name="System.Reflection.RtFieldInfo">
       <Member Status="ImplRoot" Name="GetFieldHandle" />

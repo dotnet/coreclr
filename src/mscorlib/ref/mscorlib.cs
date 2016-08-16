@@ -7598,12 +7598,19 @@ namespace System.Reflection
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     public partial class ParameterInfo : System.Reflection.ICustomAttributeProvider, System.Runtime.Serialization.IObjectReference
     {
+        protected String NameImpl;
+        protected Type ClassImpl;
+        protected int PositionImpl;
+        protected System.Reflection.ParameterAttributes AttrsImpl;
+        protected Object DefaultValueImpl;
+        protected MemberInfo MemberImpl;
         protected ParameterInfo() { }
         public virtual System.Reflection.ParameterAttributes Attributes { get { throw null; } }
         public virtual System.Collections.Generic.IEnumerable<System.Reflection.CustomAttributeData> CustomAttributes { get { throw null; } }
         public virtual object DefaultValue { get { throw null; } }
         public virtual bool HasDefaultValue { get { throw null; } }
         public bool IsIn { get { throw null; } }
+        public bool IsLcid { get { throw null; } }
         public bool IsOptional { get { throw null; } }
         public bool IsOut { get { throw null; } }
         public bool IsRetval { get { throw null; } }
@@ -7628,6 +7635,27 @@ namespace System.Reflection
     {
         public ParameterModifier(int parameterCount) { throw null;}
         public bool this[int index] { get { throw null; } set { } }
+    }
+    [System.CLSCompliantAttribute(false)]
+    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+    public sealed class Pointer
+    {
+        [System.Security.SecurityCriticalAttribute]
+        public static unsafe Object Box(void *ptr, System.Type type) { throw null; }
+        [System.Security.SecurityCriticalAttribute]
+        public static unsafe void* Unbox(object ptr) { throw null; }
+    }
+    [System.FlagsAttribute]
+    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+    public enum PortableExecutableKinds
+    {
+        NotAPortableExecutableImage = 0,
+        ILOnly                      = 1,
+        Required32Bit               = 2,
+        PE32Plus                    = 4,
+        Unmanaged32Bit              = 8,
+        [System.Runtime.InteropServices.ComVisible(false)]
+        Preferred32Bit              = 16,
     }
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     public enum ProcessorArchitecture
@@ -7657,6 +7685,8 @@ namespace System.Reflection
     public abstract partial class PropertyInfo : System.Reflection.MemberInfo
     {
         protected PropertyInfo() { }
+        public static bool operator ==(System.Reflection.PropertyInfo left, System.Reflection.PropertyInfo right) { throw null; }
+        public static bool operator !=(System.Reflection.PropertyInfo left, System.Reflection.PropertyInfo right) { throw null; }
         public abstract System.Reflection.PropertyAttributes Attributes { get; }
         public abstract bool CanRead { get; }
         public abstract bool CanWrite { get; }
