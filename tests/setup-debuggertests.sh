@@ -63,14 +63,12 @@ case $OSName in
             debuggerTestsURL=https://dotnetbuilddrops.blob.core.windows.net/debugger-container/Linux.DebuggerTests.tar
         else
             source /etc/os-release
-	    if [ "$ID.$VERSION_ID" == "ubuntu.14.04" ] 
-	    then
+            if [ "$ID.$VERSION_ID" == "ubuntu.14.04" ]; then
                 debuggerTestsURL=https://dotnetbuilddrops.blob.core.windows.net/debugger-container/Linux.DebuggerTests.tar
-	    fi
-	    	
+            fi
         fi
         ;;
-     *)
+    *)
         echo "Unsupported OS $OSName detected. Can't download debuggertests for this OS."
         exit 0
         ;;
