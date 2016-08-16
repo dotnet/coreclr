@@ -3634,6 +3634,7 @@
       <Member Name="GetModules(System.Boolean)" />
       <Member Name="Equals(System.Object)" />
       <Member Name="GetHashCode" />
+      <Member Name="GetName(System.Boolean)" />
       <Member Name="GetName" />
       <Member Name="GetSatelliteAssembly(System.Globalization.CultureInfo)" />
       <Member Name="GetSatelliteAssembly(System.Globalization.CultureInfo,System.Version)" />
@@ -3816,6 +3817,7 @@
       <Member Name="SetPublicKeyToken(System.Byte[])" />
       <Member Name="ToString" />
       <Member Name="#ctor(System.String)" />
+      <Member MemberType="Property" Name="CodeBase" />
       <Member MemberType="Property" Name="CultureInfo" />
       <Member MemberType="Property" Name="CultureName" />
       <Member MemberType="Property" Name="ContentType" />
@@ -3825,6 +3827,7 @@
       <Member MemberType="Property" Name="Name" />
       <Member MemberType="Property" Name="ProcessorArchitecture" />
       <Member MemberType="Property" Name="Version" />
+      <Member MemberType="Property" Name="VersionCompatibility" />
     </Type>
     <Type Name="System.Reflection.AssemblyNameFlags">
       <Member MemberType="Field" Name="EnableJITcompileOptimizer" />
@@ -5690,11 +5693,66 @@
       <Member MemberType="Field" Name="value__" />
       <Member MemberType="Field" Name="VisibilityMask" />
     </Type>
-    <Type Status="ImplRoot" Name="System.Reflection.TypeDelegator">
-        <Member Name="#ctor" />
-        <Member Name="#ctor(System.Type)" />
-        <Member Name="get_MetadataToken" />
-        <Member MemberType="Property" Name="MetadataToken" />
+    <Type Name="System.Reflection.TypeDelegator">
+      <Member Name="#ctor" />
+      <Member Name="#ctor(System.Type)" />
+      <Member Name="get_GUID" />
+      <Member Name="get_MetadataToken" />
+      <Member Name="InvokeMember(System.String,System.Reflection.BindingFlags,System.Reflection.Binder,System.Object,System.Object[],System.Reflection.ParameterModifier[],System.Globalization.CultureInfo,System.String[])" />
+      <Member Name="get_Module" />
+      <Member Name="get_Assembly" />
+      <Member Name="get_TypeHandle" />
+      <Member Name="get_Name" />
+      <Member Name="get_FullName" />
+      <Member Name="get_Namespace" />
+      <Member Name="get_AssemblyQualifiedName" />
+      <Member Name="get_BaseType" />
+      <Member Name="GetConstructorImpl(System.Reflection.BindingFlags,System.Reflection.Binder,System.Reflection.CallingConventions,System.Type[],System.Reflection.ParameterModifier[])" />
+      <Member Name="GetConstructors(System.Reflection.BindingFlags)" />
+      <Member Name="GetMethodImpl(System.String,System.Reflection.BindingFlags,System.Reflection.Binder,System.Reflection.CallingConventions,System.Type[],System.Reflection.ParameterModifier[])" />
+      <Member Name="GetMethods(System.Reflection.BindingFlags)" />
+      <Member Name="GetField(System.String,System.Reflection.BindingFlags)" />
+      <Member Name="GetFields(System.Reflection.BindingFlags)" />
+      <Member Name="GetInterface(System.String,System.Boolean)" />
+      <Member Name="GetInterfaces" />
+      <Member Name="GetEvent(System.String,System.Reflection.BindingFlags)" />
+      <Member Name="GetEvents" />
+      <Member Name="GetPropertyImpl(System.String,System.Reflection.BindingFlags,System.Reflection.Binder,System.Type,System.Type[],System.Reflection.ParameterModifier[])" />
+      <Member Name="GetProperties(System.Reflection.BindingFlags)" />
+      <Member Name="GetEvents(System.Reflection.BindingFlags)" />
+      <Member Name="GetNestedTypes(System.Reflection.BindingFlags)" />
+      <Member Name="GetNestedType(System.String,System.Reflection.BindingFlags)" />
+      <Member Name="GetMember(System.String,System.Reflection.MemberTypes,System.Reflection.BindingFlags)" />
+      <Member Name="GetMembers(System.Reflection.BindingFlags)" />
+      <Member Name="GetAttributeFlagsImpl" />
+      <Member Name="IsArrayImpl" />
+      <Member Name="IsPrimitiveImpl" />
+      <Member Name="IsByRefImpl" />
+      <Member Name="IsPointerImpl" />
+      <Member Name="IsValueTypeImpl" />
+      <Member Name="IsCOMObjectImpl" />
+      <Member Name="get_IsConstructedGenericType" />
+      <Member Name="GetElementType" />
+      <Member Name="HasElementTypeImpl" />
+      <Member Name="get_UnderlyingSystemType" />
+      <Member Name="GetCustomAttributes(System.Boolean)" />
+      <Member Name="GetCustomAttributes(System.Type,System.Boolean)" />
+      <Member Name="IsDefined(System.Type,System.Boolean)" />
+      <Member Name="IsAssignableFrom(System.Reflection.TypeInfo)" />
+      <Member Name="GetInterfaceMap(System.Type)" />
+      <Member MemberType="Field" Name="typeImpl" />
+      <Member MemberType="Property" Name="GUID" />
+      <Member MemberType="Property" Name="MetadataToken" />
+      <Member MemberType="Property" Name="Module" />
+      <Member MemberType="Property" Name="Assembly" />
+      <Member MemberType="Property" Name="TypeHandle" />
+      <Member MemberType="Property" Name="Name" />
+      <Member MemberType="Property" Name="FullName" />
+      <Member MemberType="Property" Name="Namespace" />
+      <Member MemberType="Property" Name="AssemblyQualifiedName" />
+      <Member MemberType="Property" Name="BaseType" />
+      <Member MemberType="Property" Name="IsConstructedGenericType" />
+      <Member MemberType="Property" Name="UnderlyingSystemType" />
     </Type>
     <Type Name="System.ResolveEventArgs">
       <Member Name="#ctor(System.String)" />

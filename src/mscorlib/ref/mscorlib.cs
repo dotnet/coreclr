@@ -6773,14 +6773,14 @@ namespace System.Reflection
         public System.Reflection.Module[] GetModules() { throw null; }
         public virtual System.Reflection.Module[] GetModules(bool getResourceModules) { throw null; }
         [System.Security.SecurityCriticalAttribute]
+        public virtual System.Reflection.AssemblyName GetName(bool copiedName) { throw null; }
+        [System.Security.SecurityCriticalAttribute]
         public virtual System.Reflection.AssemblyName GetName() { throw null; }
         [System.Security.SecurityCriticalAttribute]
         public virtual void GetObjectData(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
         public virtual System.Reflection.AssemblyName[] GetReferencedAssemblies() { throw null; }
-        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-        public virtual Assembly GetSatelliteAssembly(System.Globalization.CultureInfo culture) { throw null; }
-        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-        public virtual Assembly GetSatelliteAssembly(System.Globalization.CultureInfo culture, System.Version version) { throw null; }
+        public virtual System.Reflection.Assembly GetSatelliteAssembly(System.Globalization.CultureInfo culture) { throw null; }
+        public virtual System.Reflection.Assembly GetSatelliteAssembly(System.Globalization.CultureInfo culture, System.Version version) { throw null; }
         public virtual System.Type GetType(string name) { throw null; }
         public virtual System.Type GetType(string name, bool throwOnError) { throw null; }
         public virtual System.Type GetType(string name, bool throwOnError, bool ignoreCase) { throw null; }
@@ -7845,6 +7845,60 @@ namespace System.Reflection
         VisibilityMask = 7,
         [System.Runtime.InteropServices.ComVisibleAttribute(false)]
         WindowsRuntime = 16384,
+    }
+    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+    public class TypeDelegator : System.Reflection.TypeInfo
+    {
+        protected System.Type typeImpl;
+        public override bool IsAssignableFrom(System.Reflection.TypeInfo typeInfo) { throw null; }
+        [System.Security.SecuritySafeCriticalAttribute]
+        protected TypeDelegator() { }
+        public TypeDelegator(System.Type delegatingType) { }
+        public override System.Guid GUID { get { throw null; } }
+        public override int MetadataToken { get { throw null; } }
+        public override object InvokeMember(System.String name,System.Reflection.BindingFlags invokeAttr,System.Reflection.Binder binder,System.Object target, System.Object[] args,System.Reflection.ParameterModifier[] modifiers,System.Globalization.CultureInfo culture,System.String[] namedParameters) { throw null; }
+        public override System.Reflection.Module Module { get { throw null; } }
+        public override System.Reflection.Assembly Assembly { get { throw null; } }
+        public override System.RuntimeTypeHandle TypeHandle { get { throw null; } }
+        public override System.String Name { get { throw null; } }
+        public override System.String FullName { get { throw null; } }
+        public override System.String Namespace { get { throw null; } }
+        public override System.String AssemblyQualifiedName { get { throw null; } }
+        public override System.Type BaseType { get { throw null; } }
+        protected override System.Reflection.ConstructorInfo GetConstructorImpl(System.Reflection.BindingFlags bindingAttr,System.Reflection.Binder binder, System.Reflection.CallingConventions callConvention, System.Type[] types, System.Reflection.ParameterModifier[] modifiers) { throw null; }
+        [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+        public override System.Reflection.ConstructorInfo[] GetConstructors(System.Reflection.BindingFlags bindingAttr) { throw null; }
+        protected override System.Reflection.MethodInfo GetMethodImpl(System.String name,System.Reflection.BindingFlags bindingAttr,System.Reflection.Binder binder, System.Reflection.CallingConventions callConvention, System.Type[] types,System.Reflection.ParameterModifier[] modifiers) { throw null; }
+        public override System.Reflection.MethodInfo[] GetMethods(System.Reflection.BindingFlags bindingAttr) { throw null; }
+        public override System.Reflection.FieldInfo GetField(System.String name, System.Reflection.BindingFlags bindingAttr) { throw null; }
+        public override System.Reflection.FieldInfo[] GetFields(System.Reflection.BindingFlags bindingAttr) { throw null; }
+        public override System.Type GetInterface(System.String name, bool ignoreCase) { throw null; }
+        public override System.Type[] GetInterfaces() { throw null; }
+        public override System.Reflection.EventInfo GetEvent(System.String name,System.Reflection.BindingFlags bindingAttr) { throw null; }
+        public override System.Reflection.EventInfo[] GetEvents() { throw null; }
+        protected override System.Reflection.PropertyInfo GetPropertyImpl(System.String name,System.Reflection.BindingFlags bindingAttr,System.Reflection.Binder binder, System.Type returnType, System.Type[] types, System.Reflection.ParameterModifier[] modifiers) { throw null; }
+        public override System.Reflection.PropertyInfo[] GetProperties(System.Reflection.BindingFlags bindingAttr) { throw null; }
+        public override System.Reflection.EventInfo[] GetEvents(System.Reflection.BindingFlags bindingAttr) { throw null; }
+        public override System.Type[] GetNestedTypes(System.Reflection.BindingFlags bindingAttr) { throw null; }
+        public override System.Type GetNestedType(System.String name, System.Reflection.BindingFlags bindingAttr) { throw null; }
+        public override System.Reflection.MemberInfo[] GetMember(System.String name,  System.Reflection.MemberTypes type, System.Reflection.BindingFlags bindingAttr) { throw null; }
+        public override System.Reflection.MemberInfo[] GetMembers(System.Reflection.BindingFlags bindingAttr) { throw null; }
+        protected override TypeAttributes GetAttributeFlagsImpl() { throw null; }
+        protected override bool IsArrayImpl() { throw null; }
+        protected override bool IsPrimitiveImpl() { throw null; }
+        protected override bool IsByRefImpl() { throw null; }
+        protected override bool IsPointerImpl() { throw null; }
+        protected override bool IsValueTypeImpl() { throw null; }
+        protected override bool IsCOMObjectImpl() { throw null; }
+        public override bool IsConstructedGenericType { get { throw null; } }
+        public override System.Type GetElementType() { throw null; }
+        protected override bool HasElementTypeImpl() { throw null; }
+        public override System.Type UnderlyingSystemType { get { throw null; } }
+        public override System.Object[] GetCustomAttributes(bool inherit) { throw null; }
+        public override System.Object[] GetCustomAttributes(System.Type attributeType, bool inherit) { throw null; }
+        public override bool IsDefined(System.Type attributeType, bool inherit) { throw null; }
+        [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+        public override System.Reflection.InterfaceMapping GetInterfaceMap(System.Type interfaceType) { throw null; }
     }
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     public delegate bool TypeFilter(System.Type m, object filterCriteria);
