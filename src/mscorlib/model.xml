@@ -3875,6 +3875,7 @@
       <Member Name="ReorderArgumentArray(System.Object[]@,System.Object)" />
       <Member Name="SelectMethod(System.Reflection.BindingFlags,System.Reflection.MethodBase[],System.Type[],System.Reflection.ParameterModifier[])" />
       <Member Name="SelectProperty(System.Reflection.BindingFlags,System.Reflection.PropertyInfo[],System.Type,System.Type[],System.Reflection.ParameterModifier[])" />
+      <Member Name="CanChangeType(System.Object,System.Type,System.Globalization.CultureInfo)" />
     </Type>
     <Type Name="System.Reflection.BindingFlags">
       <Member MemberType="Field" Name="CreateInstance" />
@@ -5470,6 +5471,7 @@
       <Member Name="FindTypes(System.Reflection.TypeFilter,System.Object)" />
 	  <Member Name="GetCustomAttributes(System.Boolean)" />
       <Member Name="GetCustomAttributes(System.Type,System.Boolean)" />
+      <Member Name="GetCustomAttributesData" />
       <Member Name="GetField(System.String)" />
       <Member Name="GetField(System.String,System.Reflection.BindingFlags)" />
       <Member Name="GetFields" />
@@ -5487,10 +5489,14 @@
       <Member Name="Equals(System.Object)" />
       <Member Name="GetHashCode" />
       <Member Name="IsDefined(System.Type,System.Boolean)" />
+      <Member Name="IsResource" />
+      <Member Name="ResolveMember(System.Int32)" />
+      <Member Name="ResolveMember(System.Int32,System.Type[],System.Type[])" />
       <Member Name="ResolveMethod(System.Int32)" />
       <Member Name="ResolveMethod(System.Int32,System.Type[],System.Type[])" />
       <Member Name="ResolveField(System.Int32)" />
       <Member Name="ResolveField(System.Int32,System.Type[],System.Type[])" />
+      <Member Name="ResolveSignature(System.Int32)" />
       <Member Name="ResolveString(System.Int32)" />
       <Member Name="ResolveType(System.Int32)" />
       <Member Name="ResolveType(System.Int32,System.Type[],System.Type[])" />
