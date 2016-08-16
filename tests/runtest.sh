@@ -1122,6 +1122,8 @@ fi
 scriptPath=$(dirname $0)
 ${scriptPath}/setup-runtime-dependencies.sh --outputDir=$coreOverlayDir
 
+${scriptPath}/setup-debuggertests.sh --coreclrBinDir=$coreClrBinDir --mscorlibDir=$mscorlibDir --outputDir=$testRootDir
+
 export __TestEnv=$testEnv
 
 cd "$testRootDir"
