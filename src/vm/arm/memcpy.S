@@ -14,7 +14,7 @@
 // Copy a block of memory in a forward direction.
 //
 
-    LEAF_ENTRY FCallMemcpy, _TEXT
+    NESTED_ENTRY FCallMemcpy, _TEXT, NoHandler
         cmp r2, #0
         
         beq LOCAL_LABEL(GC_POLL)
@@ -36,4 +36,4 @@ LOCAL_LABEL(GC_POLL):
         it ne
         bne C_FUNC(FCallMemCpy_GCPoll)
         bx lr
-    LEAF_END_MARKED FCallMemcpy, _TEXT
+    NESTED_END_MARKED FCallMemcpy, _TEXT
