@@ -7495,8 +7495,7 @@
       <Member Name="get_DaylightTransitionEnd" />
       <!-- CreateAdjustmentRule doesn't have a public contract, but tests and other callers can use Reflection to invoke it, so ensure it is left in mscorlib. -->
       <Member Status="ApiRoot" Name="CreateAdjustmentRule(System.DateTime,System.DateTime,System.TimeSpan,System.TimeZoneInfo+TransitionTime,System.TimeZoneInfo+TransitionTime)" />
-      <Member Name="Equals(System.Object)" />
-      <Member Name="Equals(System.TimeZoneInfo.AdjustmentRule)" />
+      <Member Name="Equals(System.TimeZoneInfo+AdjustmentRule)" />
       <Member Name="GetHashCode" />
       <Member MemberType="Property" Name="DateEnd" />
       <Member MemberType="Property" Name="DateStart" />

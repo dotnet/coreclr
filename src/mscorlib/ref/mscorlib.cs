@@ -3204,6 +3204,20 @@ namespace System
         public static bool TryParseExact(string input, string[] formats, System.IFormatProvider formatProvider, System.Globalization.TimeSpanStyles styles, out System.TimeSpan result) { result = default(System.TimeSpan); throw null; }
         public static bool TryParseExact(string input, string[] formats, System.IFormatProvider formatProvider, out System.TimeSpan result) { result = default(System.TimeSpan); throw null; }
     }
+    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+    public abstract partial class TimeZone
+    {
+        protected TimeZone() { }
+        public static System.TimeZone CurrentTimeZone { get { return default(System.TimeZone); } }
+        public abstract string DaylightName { get; }
+        public abstract string StandardName { get; }
+        //public abstract System.Globalization.DaylightTime GetDaylightChanges(int year);
+        public abstract System.TimeSpan GetUtcOffset(System.DateTime time);
+        public virtual bool IsDaylightSavingTime(System.DateTime time) { return default(bool); }
+        //public static bool IsDaylightSavingTime(System.DateTime time, System.Globalization.DaylightTime daylightTimes) { return default(bool); }
+        public virtual System.DateTime ToLocalTime(System.DateTime time) { return default(System.DateTime); }
+        public virtual System.DateTime ToUniversalTime(System.DateTime time) { return default(System.DateTime); }
+    }
     [System.Runtime.CompilerServices.TypeForwardedFromAttribute("System.Core, Version=3.5.0.0, Culture=Neutral, PublicKeyToken=b77a5c561934e089")]
     public sealed partial class TimeZoneInfo : System.IEquatable<System.TimeZoneInfo>
     {

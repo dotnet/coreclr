@@ -336,6 +336,7 @@
     <SystemSources Include="$(BclSourcesRoot)\System\ContextStaticAttribute.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\StringFreezingAttribute.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\Currency.cs" />
+    <SystemSources Include="$(BclSourcesRoot)\System\CurrentSystemTimeZone.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\DayOfWeek.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\DBNull.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\Decimal.cs" />
@@ -421,6 +422,7 @@
     <SystemSources Include="$(BclSourcesRoot)\System\ThreadAttributes.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\TimeoutException.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\TimeSpan.cs" />
+    <SystemSources Include="$(BclSourcesRoot)\System\TimeZone.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\TimeZoneInfo.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\TimeZoneNotFoundException.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\Type.cs" />
