@@ -60,11 +60,6 @@ if errorlevel 1 (
     goto Fail
 )
 
-if not exist %__InstallDir%\Runtests.cmd (
-    echo debuggertests is not vailid
-    goto Fail
-)
-
 REM =========================================================================================
 REM ===
 REM === deploy coreclr binaries debuggertests
@@ -73,7 +68,6 @@ REM ============================================================================
 echo copy coreclr binaries to %TARGET_CORECLR_DIR%\
 xcopy /s /Y "%__CoreclrBinPath%" "%TARGET_CORECLR_DIR%"
 del %TARGET_CORECLR_DIR%\*.ni.dll
-ren %__InstallDir%\Runtests.cmd DebuggerTests.cmd
 
 exit /b 0
 
