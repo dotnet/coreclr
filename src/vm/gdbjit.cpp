@@ -99,18 +99,24 @@ GetDebugInfoFromPDB(MethodDesc* MethodDescPtr, SymbolsInfo** symInfo, unsigned i
 
     const Module* mod = MethodDescPtr->GetMethodTable()->GetModule();
     SString modName = mod->GetFile()->GetPath();
+
+    COUNT_T peSize;
+    PTR_CVOID peAddress = mod->GetFile()->GetLoadedImageContents(&peSize);
+
     StackScratchBuffer scratch;
     const char* szModName = modName.GetUTF8(scratch);
 
     MethodDebugInfo* methodDebugInfo = new (nothrow) MethodDebugInfo();
     if (methodDebugInfo == nullptr)
         return E_OUTOFMEMORY;
+
     methodDebugInfo->points = (SequencePointInfo*) CoTaskMemAlloc(sizeof(SequencePointInfo) * numMap);
     if (methodDebugInfo->points == nullptr)
         return E_OUTOFMEMORY;
+
     methodDebugInfo->size = numMap;
 
-    if (getInfoForMethodDelegate(szModName, MethodDescPtr->GetMemberDef(), *methodDebugInfo) == FALSE)
+    if (getInfoForMethodDelegate(szModName, PTR_TO_TADDR(peAddress), (int)peSize, MethodDescPtr->GetMemberDef(), *methodDebugInfo) == FALSE)
         return E_FAIL;
 
     symInfoLen = methodDebugInfo->size;
