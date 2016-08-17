@@ -103,15 +103,6 @@ echo ""
 echo "Deploy $debuggertestsZipFilePath to $installDir"
 tar -xvf $debuggertestsZipFilePath -C $installDir 
 
-if [ ! -e "$installDir/Runtests.sh" ]; then 
-    echo "The debuggertests package is invalid. Can't deploy it"
-    rm -rf $debuggertestsZipFilePath
-    exit 1
-fi
-tr -d '\015' < $installDir/Runtests.sh > $installDir/DebuggerTests.sh
-chmod u+x $installDir/DebuggerTests.sh
-rm $installDir/Runtests.sh
-
 echo ""
 targetRuntimePath=$installDir/Runtimes/Coreclr1
 echo "Copy runtime from $coreclrBinDir to $targetRuntimePath"
