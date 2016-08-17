@@ -316,7 +316,7 @@ HRESULT ClrDataAccess::EnumMemCLRStatic(IN CLRDataEnumMemoryFlags flags)
 #ifdef FEATURE_SVR_GC
     CATCH_ALL_EXCEPT_RETHROW_COR_E_OPERATIONCANCELLED
     (
-        GCHeap::gcHeapType.EnumMem();
+        IGCHeap::gcHeapType.EnumMem();
     );
 #endif // FEATURE_SVR_GC
 

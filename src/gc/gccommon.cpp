@@ -15,10 +15,11 @@
 #include "gc.h"
 
 #ifdef FEATURE_SVR_GC
-SVAL_IMPL_INIT(uint32_t,GCHeap,gcHeapType,GCHeap::GC_HEAP_INVALID);
+SVAL_IMPL_INIT(uint32_t, IGCHeap, gcHeapType, IGCHeap::GC_HEAP_INVALID);
 #endif // FEATURE_SVR_GC
 
-GPTR_IMPL(GCHeap,g_pGCHeap);
+
+GPTR_IMPL(IGCHeap, g_pGCHeap);
 
 /* global versions of the card table and brick table */ 
 GPTR_IMPL(uint32_t,g_card_table);
@@ -110,6 +111,24 @@ void record_changed_seg (uint8_t* start, uint8_t* end,
     {
         saved_changed_segs_count = 0;
     }
+}
+
+// Initializes the garbage collector by invoking the appropriate
+// CreateGCHeap function, depending on whether or not Server GC
+// is enabled.
+IGCHeap* InitializeGarbageCollector(ICLRToGC* clrToGC)
+{
+    WRAPPER_NO_CONTRACT;
+    UNREFERENCED_PARAMETER(clrToGC);
+
+    GCHeap* pGCHeap;
+#if defined(FEATURE_SVR_GC)
+    pGCHeap = (IGCHeap::IsServerHeap() ? SVR::CreateGCHeap() : WKS::CreateGCHeap());
+#else
+    pGCHeap = WKS::CreateGCHeap();
+#endif // defined(FEATURE_SVR_GC)
+
+    return pGCHeap;
 }
 
 #endif // !DACCESS_COMPILE

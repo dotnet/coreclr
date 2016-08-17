@@ -6517,7 +6517,7 @@ HRESULT DacHeapWalker::Init(CORDB_ADDRESS start, CORDB_ADDRESS end)
             if (thread == NULL)
                 continue;
 
-            alloc_context *ctx = thread->GetAllocContext();
+            gc_alloc_context *ctx = thread->GetAllocContext();
             if (ctx == NULL)
                 continue;
 
@@ -6533,7 +6533,7 @@ HRESULT DacHeapWalker::Init(CORDB_ADDRESS start, CORDB_ADDRESS end)
     }
 
 #ifdef FEATURE_SVR_GC
-    HRESULT hr = GCHeap::IsServerHeap() ? InitHeapDataSvr(mHeaps, mHeapCount) : InitHeapDataWks(mHeaps, mHeapCount);
+    HRESULT hr = IGCHeap::IsServerHeap() ? InitHeapDataSvr(mHeaps, mHeapCount) : InitHeapDataWks(mHeaps, mHeapCount);
 #else
     HRESULT hr = InitHeapDataWks(mHeaps, mHeapCount);
 #endif

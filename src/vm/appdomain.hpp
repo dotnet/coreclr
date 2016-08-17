@@ -1295,7 +1295,7 @@ public:
     {
         WRAPPER_NO_CONTRACT;
         OBJECTHANDLE h = ::CreateSizedRefHandle(
-            m_hHandleTableBucket->pTable[GCHeap::IsServerHeap() ? (m_dwSizedRefHandles % m_iNumberOfProcessors) : GetCurrentThreadHomeHeapNumber()], 
+            m_hHandleTableBucket->pTable[IGCHeap::GetGCHeap()->IsServerHeap() ? (m_dwSizedRefHandles % m_iNumberOfProcessors) : GetCurrentThreadHomeHeapNumber()], 
             object);
         InterlockedIncrement((LONG*)&m_dwSizedRefHandles);
         return h;
@@ -4533,8 +4533,8 @@ public:
         if (m_UnloadIsAsync)
         {
             pDomain->AddRef();
-            int iGCRefPoint=GCHeap::GetGCHeap()->CollectionCount(GCHeap::GetGCHeap()->GetMaxGeneration());
-            if (GCHeap::GetGCHeap()->IsGCInProgress())
+            int iGCRefPoint=IGCHeap::GetGCHeap()->CollectionCount(IGCHeap::GetGCHeap()->GetMaxGeneration());
+            if (IGCHeap::GetGCHeap()->IsGCInProgress())
                 iGCRefPoint++;
             pDomain->SetGCRefPoint(iGCRefPoint);
         }
@@ -4554,8 +4554,8 @@ public:
         pAllocator->m_pLoaderAllocatorDestroyNext=m_pDelayedUnloadListOfLoaderAllocators;
         m_pDelayedUnloadListOfLoaderAllocators=pAllocator;
 
-        int iGCRefPoint=GCHeap::GetGCHeap()->CollectionCount(GCHeap::GetGCHeap()->GetMaxGeneration());
-        if (GCHeap::GetGCHeap()->IsGCInProgress())
+        int iGCRefPoint=IGCHeap::GetGCHeap()->CollectionCount(IGCHeap::GetGCHeap()->GetMaxGeneration());
+        if (IGCHeap::GetGCHeap()->IsGCInProgress())
             iGCRefPoint++;
         pAllocator->SetGCRefPoint(iGCRefPoint);
     }

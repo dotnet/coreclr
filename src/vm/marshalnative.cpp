@@ -27,7 +27,7 @@
 #include "log.h"
 #include "fieldmarshaler.h"
 #include "cgensys.h"
-#include "gc.h"
+#include "gcinterface.h"
 #include "security.h"
 #include "dbginterface.h"
 #include "objecthandle.h"
@@ -38,7 +38,8 @@
 #include "remoting.h"
 #endif
 #include "comdelegate.h"
-#include "handletablepriv.h"
+// TODO(segilles) interface violation
+#include "../gc/handletablepriv.h"
 #include "mdaassistants.h"
 #include "typestring.h"
 #include "appdomain.inl"

@@ -12,7 +12,8 @@
 #include "common.h"
 
 #include "weakreferencenative.h"
-#include "handletablepriv.h"
+// TODO(segilles) GC interface violation
+#include "../gc/handletablepriv.h"
 
 //************************************************************************
 

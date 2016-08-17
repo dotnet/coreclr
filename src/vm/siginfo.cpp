@@ -14,7 +14,7 @@
 #include "clsload.hpp"
 #include "vars.hpp"
 #include "excep.h"
-#include "gc.h"
+#include "gcinterface.h"
 #include "field.h"
 #include "eeconfig.h"
 #include "runtimehandles.h" // for SignatureNative

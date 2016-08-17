@@ -1175,7 +1175,7 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
     if (g_pConfig->ShouldPrestubGC(this))
     {
         GCX_COOP();
-        GCHeap::GetGCHeap()->GarbageCollect(-1);
+        IGCHeap::GetGCHeap()->GarbageCollect(-1);
     }
 #endif // _DEBUG
 
