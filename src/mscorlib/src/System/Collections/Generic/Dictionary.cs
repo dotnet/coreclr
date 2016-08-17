@@ -49,6 +49,7 @@ namespace System.Collections.Generic {
     using System.Diagnostics.Contracts;
     using System.Runtime.Serialization;
     using System.Security.Permissions;
+    using System.Threading;
 
     [DebuggerTypeProxy(typeof(Mscorlib_DictionaryDebugView<,>))]
     [DebuggerDisplay("Count = {Count}")]
@@ -72,9 +73,7 @@ namespace System.Collections.Generic {
         private int freeList;
         private int freeCount;
         private IEqualityComparer<TKey> comparer;
-        private KeyCollection keys;
-        private ValueCollection values;
-        private Object _syncRoot;
+        private KeysAndValuesHolder keysAndValues;
         
         // constants for serialization
         private const String VersionName = "Version";
@@ -148,47 +147,29 @@ namespace System.Collections.Generic {
             get { return count - freeCount; }
         }
 
-        public KeyCollection Keys {
-            get {
-                Contract.Ensures(Contract.Result<KeyCollection>() != null);
-                if (keys == null) keys = new KeyCollection(this);
-                return keys;
-            }
-        }
+        public KeyCollection Keys => KeysAndValues.Keys;
 
-        ICollection<TKey> IDictionary<TKey, TValue>.Keys {
-            get {                
-                if (keys == null) keys = new KeyCollection(this);                
-                return keys;
-            }
-        }
+        ICollection<TKey> IDictionary<TKey, TValue>.Keys => Keys;
 
-        IEnumerable<TKey> IReadOnlyDictionary<TKey, TValue>.Keys {
-            get {                
-                if (keys == null) keys = new KeyCollection(this);                
-                return keys;
-            }
-        }
+        IEnumerable<TKey> IReadOnlyDictionary<TKey, TValue>.Keys => Keys;
 
-        public ValueCollection Values {
-            get {
-                Contract.Ensures(Contract.Result<ValueCollection>() != null);
-                if (values == null) values = new ValueCollection(this);
-                return values;
-            }
-        }
+        public ValueCollection Values => KeysAndValues.Values;
 
-        ICollection<TValue> IDictionary<TKey, TValue>.Values {
-            get {                
-                if (values == null) values = new ValueCollection(this);
-                return values;
-            }
-        }
+        ICollection<TValue> IDictionary<TKey, TValue>.Values => Values;
 
-        IEnumerable<TValue> IReadOnlyDictionary<TKey, TValue>.Values {
-            get {                
-                if (values == null) values = new ValueCollection(this);
-                return values;
+        IEnumerable<TValue> IReadOnlyDictionary<TKey, TValue>.Values => Values;
+
+        // This method must always return the same instance (even on different threads),
+        // as it is used for the SyncRoot.
+        private KeysAndValuesHolder KeysAndValues
+        {
+            get
+            {
+                if (keysAndValues == null)
+                {
+                    Interlocked.CompareExchange(ref keysAndValues, new KeysAndValuesHolder(this), null);
+                }
+                return keysAndValues;
             }
         }
 
@@ -608,14 +589,9 @@ namespace System.Collections.Generic {
             get { return false; }
         }
 
-        object ICollection.SyncRoot { 
-            get { 
-                if( _syncRoot == null) {
-                    System.Threading.Interlocked.CompareExchange<Object>(ref _syncRoot, new Object(), null);    
-                }
-                return _syncRoot; 
-            }
-        }
+        // Save an extra field by using a KeysAndValuesHolder as the
+        // SyncRoot, which should not be visible to the outside world
+        object ICollection.SyncRoot => KeysAndValues;
 
         bool IDictionary.IsFixedSize {
             get { return false; }
@@ -813,6 +789,32 @@ namespace System.Collections.Generic {
                     return current.Value; 
                 }
             }
+        }
+
+        // This is separated into a new class to save on memory by reducing
+        // fields if Keys/Values are never called.
+        // Since it shouldn't be visible to the outside world, it also serves
+        // as the SyncRoot (also rarely used) which saves an additional field.
+        // The downside of this is that Keys/Values are called, then there will
+        // be an additional object allocation the first time, plus this class
+        // needs to be initialized with Interlocked.CompareExchange.
+        private sealed class KeysAndValuesHolder
+        {
+            private readonly Dictionary<TKey, TValue> dictionary;
+            private KeyCollection keys;
+            private ValueCollection values;
+
+            public KeysAndValuesHolder(Dictionary<TKey, TValue> dictionary)
+            {
+                Contract.Assert(dictionary != null);
+                this.dictionary = dictionary;
+            }
+
+            public KeyCollection Keys =>
+                keys ?? (keys = new KeyCollection(dictionary));
+            
+            public ValueCollection Values =>
+                values ?? (values = new ValueCollection(dictionary));
         }
 
         [DebuggerTypeProxy(typeof(Mscorlib_DictionaryKeyCollectionDebugView<,>))]
