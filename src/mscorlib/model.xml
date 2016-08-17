@@ -3404,6 +3404,24 @@
       <Member Name="#ctor(System.String,System.Exception)" />
       <Member Name="#ctor(System.Runtime.Serialization.SerializationInfo,System.Runtime.Serialization.StreamingContext)" />
     </Type>
+    <Type Name="System.ModuleHandle">
+      <Member MemberType="Field" Name="EmptyHandle" />
+      <Member Name="get_MDStreamVersion" />
+      <Member Name="GetHashCode" />
+      <Member Name="Equals(System.Object)" />
+      <Member Name="Equals(System.ModuleHandle)" />
+      <Member Name="op_Equality(System.ModuleHandle,System.ModuleHandle)" />
+      <Member Name="op_Inequality(System.ModuleHandle,System.ModuleHandle)" />
+      <Member Name="GetRuntimeTypeHandleFromMetadataToken(System.Int32)" />
+      <Member Name="GetRuntimeMethodHandleFromMetadataToken(System.Int32)" />
+      <Member Name="GetRuntimeFieldHandleFromMetadataToken(System.Int32)" />
+      <Member Name="ResolveTypeHandle(System.Int32)" />
+      <Member Name="ResolveTypeHandle(System.Int32,System.RuntimeTypeHandle[],System.RuntimeTypeHandle[])" />
+      <Member Name="ResolveMethodHandle(System.Int32)" />
+      <Member Name="ResolveMethodHandle(System.Int32,System.RuntimeTypeHandle[],System.RuntimeTypeHandle[])" />
+      <Member Name="ResolveFieldHandle(System.Int32)" />
+      <Member Name="ResolveFieldHandle(System.Int32,System.RuntimeTypeHandle[],System.RuntimeTypeHandle[])" />
+    </Type>
     <Type Name="System.MTAThreadAttribute">
       <Member Name="#ctor" />
     </Type>
@@ -5467,7 +5485,9 @@
       <Member Name="get_Assembly" />
       <Member Name="get_CustomAttributes" />
       <Member Name="get_FullyQualifiedName" />
+      <Member Name="get_MDStreamVersion" />
       <Member Name="get_MetadataToken" />
+      <Member Name="get_ModuleHandle" />
       <Member Name="get_ModuleVersionId" />
       <Member Name="get_Name" />
       <Member Name="get_ScopeName" />
@@ -5485,6 +5505,7 @@
       <Member Name="GetMethodImpl(System.String,System.Reflection.BindingFlags,System.Reflection.Binder,System.Reflection.CallingConventions,System.Type[],System.Reflection.ParameterModifier[])" />
       <Member Name="GetMethods" />
       <Member Name="GetMethods(System.Reflection.BindingFlags)" />
+      <Member Name="GetPEKind(System.Reflection.PortableExecutableKinds@,System.Reflection.ImageFileMachine@)" />
       <Member Name="GetType(System.String)" />
       <Member Name="GetType(System.String,System.Boolean)" />
       <Member Name="GetType(System.String,System.Boolean,System.Boolean)" />
