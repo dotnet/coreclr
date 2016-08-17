@@ -3816,6 +3816,8 @@
       <Member Name="SetPublicKey(System.Byte[])" />
       <Member Name="SetPublicKeyToken(System.Byte[])" />
       <Member Name="ToString" />
+      <Member Name="GetObjectData(System.Runtime.Serialization.SerializationInfo,System.Runtime.Serialization.StreamingContext)" />
+      <Member Name="OnDeserialization(System.Object)" />
       <Member Name="#ctor(System.String)" />
       <Member MemberType="Property" Name="CodeBase" />
       <Member MemberType="Property" Name="CultureInfo" />
@@ -5458,6 +5460,7 @@
     </Type>
     <Type Name="System.Reflection.Missing">
       <Member MemberType="Field" Name="Value" />
+      <Member Name="System.Runtime.Serialization.ISerializable.GetObjectData(System.Runtime.Serialization.SerializationInfo,System.Runtime.Serialization.StreamingContext)" />
     </Type>
     <Type Name="System.Reflection.Module">
       <Member Name="#ctor" />
@@ -5609,6 +5612,7 @@
       <Member Name="#ctor" />
       <Member Name="Box(System.Void*,System.Type)" />
       <Member Name="Unbox(System.Object)" />
+      <Member Name="System.Runtime.Serialization.ISerializable.GetObjectData(System.Runtime.Serialization.SerializationInfo,System.Runtime.Serialization.StreamingContext)" />
     </Type>
     <Type Name="System.Reflection.PortableExecutableKinds">
       <Member MemberType="Field" Name="NotAPortableExecutableImage" />
