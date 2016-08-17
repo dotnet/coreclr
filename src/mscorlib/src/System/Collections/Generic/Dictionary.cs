@@ -47,6 +47,7 @@ namespace System.Collections.Generic {
     using System.Collections;
     using System.Diagnostics;
     using System.Diagnostics.Contracts;
+    using System.Runtime.CompilerServices;
     using System.Runtime.Serialization;
     using System.Security.Permissions;
     using System.Threading;
@@ -161,16 +162,17 @@ namespace System.Collections.Generic {
 
         // This method must always return the same instance (even on different threads),
         // as it is used for the SyncRoot.
-        private KeysAndValuesHolder KeysAndValues
+        private KeysAndValuesHolder KeysAndValues => keysAndValues ?? InitializeKeysAndValues();
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private KeysAndValuesHolder InitializeKeysAndValues()
         {
-            get
-            {
-                if (keysAndValues == null)
-                {
-                    Interlocked.CompareExchange(ref keysAndValues, new KeysAndValuesHolder(this), null);
-                }
-                return keysAndValues;
-            }
+            // We cannot assert keysAndValues == null since another
+            // thread may have initialized the field while we were
+            // making the call
+
+            Interlocked.CompareExchange(ref keysAndValues, new KeysAndValuesHolder(this), null);
+            return keysAndValues;
         }
 
         public TValue this[TKey key] {
