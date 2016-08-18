@@ -399,8 +399,8 @@ FCFuncStart(gSystem_RuntimeType)
     FCFuncElement("AllocateValueType", ReflectionInvocation::AllocateValueType)
 #if defined(FEATURE_COMINTEROP)
     FCFuncElement("GetTypeFromCLSIDImpl", ReflectionInvocation::GetClassFromCLSID)
-#if !defined(FEATURE_CORECLR)
     FCFuncElement("GetTypeFromProgIDImpl", ReflectionInvocation::GetClassFromProgID)
+#if !defined(FEATURE_CORECLR)
     FCFuncElement("InvokeDispMethod", ReflectionInvocation::InvokeDispMethod)
 #endif 
 #ifdef FEATURE_COMINTEROP_WINRT_MANAGED_ACTIVATION

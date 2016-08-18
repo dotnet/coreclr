@@ -8048,6 +8048,7 @@
       <Member Name="GetArrayRank" />
       <Member Name="GetAttributeFlagsImpl" />
       <Member Name="GetConstructor(System.Reflection.BindingFlags,System.Reflection.Binder,System.Type[],System.Reflection.ParameterModifier[])" />
+      <Member Name="GetConstructor(System.Reflection.BindingFlags,System.Reflection.Binder,System.Reflection.CallingConventions,System.Type[],System.Reflection.ParameterModifier[])" />
       <Member Name="GetConstructor(System.Type[])" />
       <Member Name="GetConstructorImpl(System.Reflection.BindingFlags,System.Reflection.Binder,System.Reflection.CallingConventions,System.Type[],System.Reflection.ParameterModifier[])" />
       <Member Name="GetConstructors" />
@@ -8106,6 +8107,10 @@
       <Member Name="GetTypeFromCLSID(System.Guid,System.String)" />
       <Member Name="GetTypeFromCLSID(System.Guid,System.String,System.Boolean)" />
       <Member Name="GetTypeFromHandle(System.RuntimeTypeHandle)" />
+      <Member Name="GetTypeFromProgID(System.String)" />
+      <Member Name="GetTypeFromProgID(System.String,System.Boolean)" />
+      <Member Name="GetTypeFromProgID(System.String,System.String)" />
+      <Member Name="GetTypeFromProgID(System.String,System.String,System.Boolean)" />
       <Member Name="GetTypeHandle(System.Object)" />
       <Member Name="HasElementTypeImpl" />
       <Member Name="InvokeMember(System.String,System.Reflection.BindingFlags,System.Reflection.Binder,System.Object,System.Object[])" />
