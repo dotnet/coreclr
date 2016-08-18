@@ -1442,6 +1442,9 @@ FCFuncStart(gCompareInfoFuncs)
     QCFuncElement("InternalGetGlobalizedHashCode", COMNlsInfo::InternalGetGlobalizedHashCode)
     QCFuncElement("InternalCompareString", COMNlsInfo::InternalCompareString)
     QCFuncElement("InternalFindNLSStringEx", COMNlsInfo::InternalFindNLSStringEx)
+#ifdef FEATURE_COREFX_GLOBALIZATION
+    QCFuncElement("InternalHashSortKey", CoreFxGlobalization::HashSortKey)
+#endif
     QCFuncElement("NativeInternalInitSortHandle", COMNlsInfo::InternalInitSortHandle)
     QCFuncElement("InternalIsSortable", COMNlsInfo::InternalIsSortable)
     QCFuncElement("InternalGetSortKey", COMNlsInfo::InternalGetSortKey)
@@ -1500,12 +1503,6 @@ FCFuncStart(gTextInfoFuncs)
     QCFuncElement("InternalCompareStringOrdinalIgnoreCase", COMNlsInfo::InternalCompareStringOrdinalIgnoreCase)
     QCFuncElement("InternalTryFindStringOrdinalIgnoreCase", COMNlsInfo::InternalTryFindStringOrdinalIgnoreCase)
 FCFuncEnd()
-
-#ifdef FEATURE_COREFX_GLOBALIZATION
-FCFuncStart(gCompareInfoFuncs)
-    QCFuncElement("InternalHashSortKey", CoreFxGlobalization::HashSortKey)
-FCFuncEnd()
-#endif
 
 FCFuncStart(gArrayFuncs)
     FCFuncElement("get_Rank", ArrayNative::GetRank)
