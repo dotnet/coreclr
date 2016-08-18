@@ -118,15 +118,6 @@ namespace System {
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.EndContractBlock();
 
-            // This can be called with T == string if someone
-            // has a GenericMethod<T> which calls here, and
-            // then someone calls that with string
-            if (typeof(T) == typeof(string))
-            {
-                var strings = values as IEnumerable<string>;
-                return Join(separator, strings); // call the IEnumerable<string> overload
-            }
-
             using (IEnumerator<T> en = values.GetEnumerator())
             {
                 if (!en.MoveNext())
@@ -3442,15 +3433,6 @@ namespace System {
                 throw new ArgumentNullException("values");
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.EndContractBlock();
-
-            // This can be called with T == string if someone
-            // has a GenericMethod<T> which calls here, and
-            // then someone calls that with string
-            if (typeof(T) == typeof(string))
-            {
-                var strings = values as IEnumerable<string>;
-                return Concat(strings); // call the IEnumerable<string> overload
-            }
 
             using (IEnumerator<T> en = values.GetEnumerator())
             {
