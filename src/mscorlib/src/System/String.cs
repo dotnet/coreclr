@@ -3469,14 +3469,14 @@ namespace System {
             int totalLength = str0.Length + str1.Length;
             string result = FastAllocateString(totalLength);
 
-            fixed (char* pResult = result)
+            fixed (char* pResult = &result.m_firstChar)
             {
-                fixed (char* pSource = str0)
+                fixed (char* pSource = &str0.m_firstChar)
                 {
                     wstrcpy(pResult, pSource, str0.Length);
                 }
 
-                fixed (char* pSource = str1)
+                fixed (char* pSource = &str1.m_firstChar)
                 {
                     wstrcpy(pResult + str0.Length, pSource, str1.Length);
                 }
@@ -3512,19 +3512,19 @@ namespace System {
             int totalLength = str0.Length + str1.Length + str2.Length;
             string result = FastAllocateString(totalLength);
 
-            fixed (char* pResult = result)
+            fixed (char* pResult = &result.m_firstChar)
             {
-                fixed (char* pSource = str0)
+                fixed (char* pSource = &str0.m_firstChar)
                 {
                     wstrcpy(pResult, pSource, str0.Length);
                 }
                 
-                fixed (char* pSource = str1)
+                fixed (char* pSource = &str1.m_firstChar)
                 {
                     wstrcpy(pResult + str0.Length, pSource, str1.Length);
                 }
 
-                fixed (char* pSource = str2)
+                fixed (char* pSource = &str2.m_firstChar)
                 {
                     wstrcpy(pResult + str0.Length + str1.Length, pSource, str2.Length);
                 }
@@ -3566,24 +3566,24 @@ namespace System {
             int totalLength = str0.Length + str1.Length + str2.Length + str3.Length;
             string result = FastAllocateString(totalLength);
 
-            fixed (char* pResult = result)
+            fixed (char* pResult = &result.m_firstChar)
             {
-                fixed (char* pSource = str0)
+                fixed (char* pSource = &str0.m_firstChar)
                 {
                     wstrcpy(pResult, pSource, str0.Length);
                 }
                 
-                fixed (char* pSource = str1)
+                fixed (char* pSource = &str1.m_firstChar)
                 {
                     wstrcpy(pResult + str0.Length, pSource, str1.Length);
                 }
 
-                fixed (char* pSource = str2)
+                fixed (char* pSource = &str2.m_firstChar)
                 {
                     wstrcpy(pResult + str0.Length + str1.Length, pSource, str2.Length);
                 }
 
-                fixed (char* pSource = str3)
+                fixed (char* pSource = &str3.m_firstChar)
                 {
                     wstrcpy(pResult + str0.Length + str1.Length + str2.Length, pSource, str3.Length);
                 }
