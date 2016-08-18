@@ -1555,22 +1555,6 @@ namespace System {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal extern static String FastAllocateString(int length);
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        unsafe private static void FillStringChecked(String dest, int destPos, String src)
-        {
-            Contract.Requires(dest != null);
-            Contract.Requires(src != null);
-            if (src.Length > dest.Length - destPos) {
-                throw new IndexOutOfRangeException();
-            }
-            Contract.EndContractBlock();
-
-            fixed(char *pDest = &dest.m_firstChar)
-                fixed (char *pSrc = &src.m_firstChar) {
-                    wstrcpy(pDest + destPos, pSrc, src.Length);
-                }
-        }
-
         // Creates a new string from the characters in a subarray.  The new string will
         // be created from the characters in value between startIndex and
         // startIndex + length - 1.
@@ -3350,7 +3334,7 @@ namespace System {
         }
 
         [System.Security.SecuritySafeCritical]
-        public static string Concat(params object[] args)
+        public unsafe static string Concat(params object[] args)
         {
             if (args == null)
             {
@@ -3396,15 +3380,18 @@ namespace System {
             string result = FastAllocateString(totalLength);
             int position = 0; // How many characters we've copied so far
 
-            for (int i = 0; i < strings.Length; i++)
+            fixed (char* pResult = &result.m_firstChar)
             {
-                string s = strings[i];
+                for (int i = 0; i < strings.Length; i++)
+                {
+                    string s = strings[i];
 
-                Contract.Assert(s != null);
-                Contract.Assert(position <= totalLength - s.Length, "We didn't allocate enough space for the result string!");
+                    Contract.Assert(s != null);
+                    Contract.Assert(position <= totalLength - s.Length, "We didn't allocate enough space for the result string!");
 
-                FillStringChecked(result, position, s);
-                position += s.Length;
+                    s.CopyToPointer(pResult + position);
+                    position += s.Length;
+                }
             }
 
             return result;
