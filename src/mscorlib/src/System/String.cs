@@ -3564,6 +3564,9 @@ namespace System {
         // Concat() overloads as opposed to when it is written inline.
         // Please do not use this method for other purposes unless
         // you can be sure that it is benefiting your use case.
+        // In Concat's use case, this was beneficial since the result
+        // of fixed on the destination could be cached, while there
+        // were multiple sources that had to be fixed on.
         // Please make thorough (repeated) microbenchmarks of how
         // this will affect the Concat() overloads before making changes.
         private unsafe void CopyToPointer(char* destination)
