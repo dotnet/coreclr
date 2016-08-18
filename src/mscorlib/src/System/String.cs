@@ -3471,15 +3471,8 @@ namespace System {
 
             fixed (char* pResult = &result.m_firstChar)
             {
-                fixed (char* pSource = &str0.m_firstChar)
-                {
-                    wstrcpy(pResult, pSource, str0.Length);
-                }
-
-                fixed (char* pSource = &str1.m_firstChar)
-                {
-                    wstrcpy(pResult + str0.Length, pSource, str1.Length);
-                }
+                str0.CopyToPointer(pResult);
+                str1.CopyToPointer(pResult + str0.Length);
             }
             
             return result;
@@ -3514,20 +3507,9 @@ namespace System {
 
             fixed (char* pResult = &result.m_firstChar)
             {
-                fixed (char* pSource = &str0.m_firstChar)
-                {
-                    wstrcpy(pResult, pSource, str0.Length);
-                }
-                
-                fixed (char* pSource = &str1.m_firstChar)
-                {
-                    wstrcpy(pResult + str0.Length, pSource, str1.Length);
-                }
-
-                fixed (char* pSource = &str2.m_firstChar)
-                {
-                    wstrcpy(pResult + str0.Length + str1.Length, pSource, str2.Length);
-                }
+                str0.CopyToPointer(pResult);
+                str1.CopyToPointer(pResult + str0.Length);
+                str2.CopyToPointer(pResult + str0.Length + str1.Length);
             }
 
             return result;
@@ -3568,28 +3550,30 @@ namespace System {
 
             fixed (char* pResult = &result.m_firstChar)
             {
-                fixed (char* pSource = &str0.m_firstChar)
-                {
-                    wstrcpy(pResult, pSource, str0.Length);
-                }
-                
-                fixed (char* pSource = &str1.m_firstChar)
-                {
-                    wstrcpy(pResult + str0.Length, pSource, str1.Length);
-                }
-
-                fixed (char* pSource = &str2.m_firstChar)
-                {
-                    wstrcpy(pResult + str0.Length + str1.Length, pSource, str2.Length);
-                }
-
-                fixed (char* pSource = &str3.m_firstChar)
-                {
-                    wstrcpy(pResult + str0.Length + str1.Length + str2.Length, pSource, str3.Length);
-                }
+                str0.CopyToPointer(pResult);
+                str1.CopyToPointer(pResult + str0.Length);
+                str2.CopyToPointer(pResult + str0.Length + str1.Length);
+                str3.CopyToPointer(pResult + str0.Length + str1.Length + str2.Length);
             }
 
             return result;
+        }
+
+        // This is separated out into a different method since
+        // it seems to improve performance/code size for certain
+        // Concat() overloads as opposed to when it is written inline.
+        // Please do not use this method for other purposes unless
+        // you can be sure that it is benefiting your use case.
+        // Please make thorough (repeated) microbenchmarks of how
+        // this will affect the Concat() overloads before making changes.
+        private unsafe void CopyToPointer(char* destination)
+        {
+            Contract.Assert(destination != null);
+
+            fixed (char* pThis = &m_firstChar)
+            {
+                wstrcpy(destination, pThis, Length);
+            }
         }
 
         [System.Security.SecuritySafeCritical]
