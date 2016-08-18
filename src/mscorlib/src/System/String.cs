@@ -3377,6 +3377,13 @@ namespace System {
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.EndContractBlock();
 
+            if (args.Length <= 1)
+            {
+                return args.Length == 0 ?
+                    string.Empty :
+                    args[0]?.ToString() ?? string.Empty;
+            }
+
             // We need to get an intermediary string array
             // to fill with each of the args' ToString(),
             // and then just concat that in one operation.
@@ -3632,6 +3639,13 @@ namespace System {
                 throw new ArgumentNullException("values");
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.EndContractBlock();
+
+            if (values.Length <= 1)
+            {
+                return values.Length == 0 ?
+                    string.Empty :
+                    values[0] ?? string.Empty;
+            }
 
             // It's possible that the input values array could be changed concurrently on another
             // thread, such that we can't trust that each read of values[i] will be equivalent.
