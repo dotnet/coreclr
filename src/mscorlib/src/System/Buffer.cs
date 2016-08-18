@@ -397,9 +397,15 @@ namespace System {
             }
 
             // P/Invoke into the native version for large lengths.
-            // Currently the threshold at which the native version is faster seems to be around 8192
-            // on amd64 Windows, but this is subject to change if this implementation can be made faster.
-            if (len >= 8192) goto PInvoke;
+            // Currently the threshold at which the native version is faster seems to be around 1024
+            // on amd64 Windows, but this is subject to change if this implementation can be made faster,
+            // or new benchmarks are posted, or the case is different for other platforms.
+#if AMD64
+            const nuint NativeThreshold = 1024;
+#else // AMD64
+            const nuint NativeThreshold = 512;
+#endif // AMD64
+            if (len > NativeThreshold) goto PInvoke;
 
             // So far SIMD is only enabled for AMD64, so on that plaform we want
             // to 16-byte align while on others (including arm64) we'll want to word-align
@@ -445,14 +451,13 @@ namespace System {
             Contract.Assert((nuint)(dest + i) % alignment == 0);
 
             // chunk: bytes processed per iteration in unrolled loop
-            // Note: Not directly related to sizeof(nuint), e.g. sizeof(nuint) * 8 is not a valid substitution.
-            nuint chunk = sizeof(nuint) == 4 ? 32 : 64;
-
-            // mask: represents how many bytes are left after alignment
-            // Since we copy the bytes in chunks of 2, mask will also have the lower few
-            // bits of mask (mask & (chunk - 1), but we don't explicitly calculate that)
-            // will represent how many bytes are left *after* the unrolled loop.
-            nuint mask = len - i;
+#if AMD64
+            nuint chunk = 64;
+#elif ARM64
+            nuint chunk = 32;
+#else // AMD64, ARM64
+            nuint chunk = 24; // 6 4-byte words per iteration
+#endif // AMD64, ARM64
 
             // Protect ourselves from unsigned overflow
             if (len < chunk)
@@ -481,27 +486,21 @@ namespace System {
                 // This will be translated to 4 movdqus (maybe movdqas in the future, dotnet/coreclr#2725)
                 *(Buffer64*)(dest + i) = *(Buffer64*)(src + i);
 #elif ARM64
-                // ARM64: Also unroll by 64 bytes, this time using longs since we don't
+                // ARM64: Unroll by 32 bytes, this time using longs since we don't
                 // take advantage of SIMD for that plaform yet.
                 *(long*)(dest + i) = *(long*)(src + i);
                 *(long*)(dest + i + 8) = *(long*)(src + i + 8);
                 *(long*)(dest + i + 16) = *(long*)(src + i + 16);
                 *(long*)(dest + i + 24) = *(long*)(src + i + 24);
-                *(long*)(dest + i + 32) = *(long*)(src + i + 32);
-                *(long*)(dest + i + 40) = *(long*)(src + i + 40);
-                *(long*)(dest + i + 48) = *(long*)(src + i + 48);
-                *(long*)(dest + i + 56) = *(long*)(src + i + 56);
 #else // AMD64, ARM64
                 // i386/ARM32:
-                // Write 32 bytes at a time, via 8 32-bit word writes
+                // Write 24 bytes at a time, via 6 32-bit word writes
                 *(int*)(dest + i) = *(int*)(src + i);
                 *(int*)(dest + i + 4) = *(int*)(src + i + 4);
                 *(int*)(dest + i + 8) = *(int*)(src + i + 8);
                 *(int*)(dest + i + 12) = *(int*)(src + i + 12);
                 *(int*)(dest + i + 16) = *(int*)(src + i + 16);
                 *(int*)(dest + i + 20) = *(int*)(src + i + 20);
-                *(int*)(dest + i + 24) = *(int*)(src + i + 24);
-                *(int*)(dest + i + 28) = *(int*)(src + i + 28);
 #endif // AMD64, ARM64
 
                 i += chunk;
@@ -510,29 +509,22 @@ namespace System {
             LoopCleanup:
             // If we've reached this point, there are at most chunk - 1 bytes left
 
-#if BIT64
-            // mask & 63 represents how many bytes there are left.
-            // if the mask & 32 bit is set that means this number
+            len -= i; // len now represents the number of bytes left
+
+#if AMD64
+            // if the len & 32 bit is set that means this number
             // will be >= 32. (same principle applies for other
             // powers of 2 below)
-            if ((mask & 32) != 0)
+            if ((len & 32) != 0)
             {
-#if AMD64
                 *(Buffer32*)(dest + i) = *(Buffer32*)(src + i);
-#else // AMD64
-                *(long*)(dest + i) = *(long*)(src + i);
-                *(long*)(dest + i + 8) = *(long*)(src + i + 8);
-                *(long*)(dest + i + 16) = *(long*)(src + i + 16);
-                *(long*)(dest + i + 24) = *(long*)(src + i + 24);
-#endif // AMD64
-
                 i += 32;
             }
-#endif // BIT64
+#endif // AMD64
 
-            // Now there can be at most 31 bytes left
+            // Now there can be at most 31 bytes left (23 for 32-bit)
 
-            if ((mask & 16) != 0)
+            if ((len & 16) != 0)
             {
 #if AMD64
                 *(Buffer16*)(dest + i) = *(Buffer16*)(src + i);
@@ -559,7 +551,7 @@ namespace System {
             *(Buffer16*)(dest + i) = *(Buffer16*)(src + i);
 #else // AMD64
 
-            switch (mask & 15)
+            switch (len & 15)
             {
                 case 0:
                     // No-op: We already finished copying all the bytes.
@@ -674,7 +666,6 @@ namespace System {
 
             PInvoke:
             _Memmove(dest, src, len);
-
         }
 
         // Non-inlinable wrapper around the QCall that avoids polluting the fast path
