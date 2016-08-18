@@ -3573,14 +3573,15 @@ namespace System {
         {
             Contract.Assert(destination != null);
 
-            fixed (char* pThis = &m_firstChar)
+            fixed (char* pThis = &m_firstChar) // &m_firstChar rather than this generates better code
             {
                 wstrcpy(destination, pThis, Length);
             }
         }
 
         [System.Security.SecuritySafeCritical]
-        public static String Concat(params String[] values) {
+        public unsafe static string Concat(params string[] values)
+        {
             if (values == null)
                 throw new ArgumentNullException("values");
             Contract.Ensures(Contract.Result<String>() != null);
@@ -3618,20 +3619,24 @@ namespace System {
             // Allocate a new string and copy each input string into it
             string result = FastAllocateString(totalLength);
             int copiedLength = 0;
-            for (int i = 0; i < values.Length; i++)
+            
+            fixed (char* pResult = &result.m_firstChar)
             {
-                string value = values[i];
-                if (!string.IsNullOrEmpty(value))
+                for (int i = 0; i < values.Length; i++)
                 {
-                    int valueLen = value.Length;
-                    if (valueLen > totalLength - copiedLength)
+                    string value = values[i];
+                    if (!string.IsNullOrEmpty(value))
                     {
-                        copiedLength = -1;
-                        break;
-                    }
+                        int valueLen = value.Length;
+                        if (valueLen > totalLength - copiedLength)
+                        {
+                            copiedLength = -1;
+                            break;
+                        }
 
-                    FillStringChecked(result, copiedLength, value);
-                    copiedLength += valueLen;
+                        value.CopyToPointer(pResult + copiedLength);
+                        copiedLength += valueLen;
+                    }
                 }
             }
 
