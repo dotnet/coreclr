@@ -5482,6 +5482,8 @@
     </Type>
     <Type Name="System.Reflection.Module">
       <Member Name="#ctor" />
+      <Member Name="op_Equality(System.Reflection.Module,System.Reflection.Module)" />
+      <Member Name="op_Inequality(System.Reflection.Module,System.Reflection.Module)" />
       <Member Name="get_Assembly" />
       <Member Name="get_CustomAttributes" />
       <Member Name="get_FullyQualifiedName" />
@@ -5553,6 +5555,8 @@
       <Member Name="get_AssemblyIsPrivate" />
       <Member Name="get_StripAfterObfuscation" />
       <Member Name="set_StripAfterObfuscation(System.Boolean)" />
+      <Member MemberType="Property" Name="AssemblyIsPrivate" />
+      <Member MemberType="Property" Name="StripAfterObfuscation" />
     </Type>
     <Type Name="System.Reflection.ObfuscationAttribute">
       <Member Name="#ctor" />
@@ -5564,6 +5568,10 @@
       <Member Name="set_Exclude(System.Boolean)" />
       <Member Name="set_Feature(System.String)" />
       <Member Name="set_StripAfterObfuscation(System.Boolean)" />
+      <Member MemberType="Property" Name="ApplyToMembers" />
+      <Member MemberType="Property" Name="Exclude" />
+      <Member MemberType="Property" Name="Feature" />
+      <Member MemberType="Property" Name="StripAfterObfuscation" />
     </Type>
     <Type Name="System.Reflection.ParameterAttributes">
       <Member MemberType="Field" Name="HasDefault" />

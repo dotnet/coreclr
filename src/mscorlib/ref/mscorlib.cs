@@ -7580,6 +7580,8 @@ namespace System.Reflection
         public static readonly System.Reflection.TypeFilter FilterTypeName;
         public static readonly System.Reflection.TypeFilter FilterTypeNameIgnoreCase;
         protected Module() { }
+        public static bool operator ==(System.Reflection.Module left, System.Reflection.Module right) { throw null; }
+        public static bool operator !=(System.Reflection.Module left, System.Reflection.Module right) { throw null; }
         public virtual System.Reflection.Assembly Assembly { get { throw null; } }
         public System.ModuleHandle ModuleHandle { get { throw null; } }
         public virtual System.Collections.Generic.IEnumerable<System.Reflection.CustomAttributeData> CustomAttributes { get { throw null; } }
