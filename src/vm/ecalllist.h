@@ -1438,18 +1438,15 @@ FCFuncStart(gCLRConfigFuncs)
 FCFuncEnd()
 #endif // ifndef FEATURE_CORECLR
 
-#if !defined(FEATURE_COREFX_GLOBALIZATION)
 FCFuncStart(gCompareInfoFuncs)
     QCFuncElement("InternalGetGlobalizedHashCode", COMNlsInfo::InternalGetGlobalizedHashCode)
     QCFuncElement("InternalCompareString", COMNlsInfo::InternalCompareString)
     QCFuncElement("InternalFindNLSStringEx", COMNlsInfo::InternalFindNLSStringEx)
     QCFuncElement("NativeInternalInitSortHandle", COMNlsInfo::InternalInitSortHandle)
-#ifndef FEATURE_CORECLR
     QCFuncElement("InternalIsSortable", COMNlsInfo::InternalIsSortable)
     QCFuncElement("InternalGetSortKey", COMNlsInfo::InternalGetSortKey)
     QCFuncElement("InternalGetSortVersion", COMNlsInfo::InternalGetSortVersion)
     QCFuncElement("InternalGetNlsVersionEx", COMNlsInfo::InternalGetNlsVersionEx)
-#endif
 FCFuncEnd()
 
 FCFuncStart(gEncodingTableFuncs)
@@ -1503,7 +1500,6 @@ FCFuncStart(gTextInfoFuncs)
     QCFuncElement("InternalCompareStringOrdinalIgnoreCase", COMNlsInfo::InternalCompareStringOrdinalIgnoreCase)
     QCFuncElement("InternalTryFindStringOrdinalIgnoreCase", COMNlsInfo::InternalTryFindStringOrdinalIgnoreCase)
 FCFuncEnd()
-#endif // !defined(FEATURE_COREFX_GLOBALIZATION)
 
 #ifdef FEATURE_COREFX_GLOBALIZATION
 FCFuncStart(gCompareInfoFuncs)

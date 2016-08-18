@@ -127,7 +127,6 @@ inline BOOL IsCustomCultureId(LCID lcid)
     return (lcid == LOCALE_CUSTOM_DEFAULT || lcid == LOCALE_CUSTOM_UNSPECIFIED);
 }
 
-#ifndef FEATURE_CORECLR
 //
 // Normalization Implementation
 //
@@ -136,7 +135,6 @@ HMODULE COMNlsInfo::m_hNormalization = NULL;
 PFN_NORMALIZATION_IS_NORMALIZED_STRING COMNlsInfo::m_pfnNormalizationIsNormalizedStringFunc = NULL;
 PFN_NORMALIZATION_NORMALIZE_STRING COMNlsInfo::m_pfnNormalizationNormalizeStringFunc = NULL;
 PFN_NORMALIZATION_INIT_NORMALIZATION COMNlsInfo::m_pfnNormalizationInitNormalizationFunc = NULL;
-#endif
 
 #if FEATURE_CODEPAGES_FILE
 /*============================nativeCreateOpenFileMapping============================
@@ -2627,7 +2625,6 @@ FCIMPL0(CodePageDataItem *, COMNlsInfo::nativeGetCodePageTableDataPointer)
 FCIMPLEND
 
 
-#ifndef FEATURE_CORECLR
 //
 // Normalization
 //
@@ -2711,6 +2708,7 @@ FCIMPLEND
 
 void QCALLTYPE COMNlsInfo::nativeNormalizationInitNormalization(int NormForm, BYTE* pTableData)
 {
+    #ifndef FEATURE_CORECLR
     QCALL_CONTRACT;
 
     BEGIN_QCALL;
@@ -2769,9 +2767,8 @@ void QCALLTYPE COMNlsInfo::nativeNormalizationInitNormalization(int NormForm, BY
     }
 
     END_QCALL;
+    #endif
 }
-
-#endif // FEATURE_CORECLR
 
 
 //
@@ -3414,7 +3411,6 @@ INT_PTR COMNlsInfo::InternalInitOsSortHandle(LPCWSTR localeName, __out INT_PTR* 
     return pSort;
 }
 
-#ifndef FEATURE_CORECLR
 BOOL QCALLTYPE COMNlsInfo::InternalGetNlsVersionEx(INT_PTR handle, INT_PTR handleOrigin, LPCWSTR lpLocaleName, NLSVERSIONINFOEX * lpVersionInformation)
 {
     CONTRACTL {
@@ -3424,7 +3420,7 @@ BOOL QCALLTYPE COMNlsInfo::InternalGetNlsVersionEx(INT_PTR handle, INT_PTR handl
     BOOL ret = FALSE;
 
     BEGIN_QCALL;
-    
+    #ifndef FEATURE_CORECLR
     AppDomain* curDomain = GetAppDomain();
 
     if(curDomain->m_bUseOsSorting)
@@ -3452,7 +3448,7 @@ BOOL QCALLTYPE COMNlsInfo::InternalGetNlsVersionEx(INT_PTR handle, INT_PTR handl
         lpVersionInformation->dwEffectiveId = 0;
         ZeroMemory(&(lpVersionInformation->guidCustomVersion), sizeof(GUID));                
     }
-    
+    #endif //FEATURE_CORECLR
     END_QCALL;
  
     return ret;
@@ -3467,13 +3463,12 @@ DWORD QCALLTYPE COMNlsInfo::InternalGetSortVersion()
     DWORD version = DEFAULT_SORT_VERSION;
 
     BEGIN_QCALL;
-
+#ifndef FEATURE_CORECLR
     AppDomain* curDomain = GetAppDomain();
     version = curDomain->m_sortVersion;
-
+#endif //FEATURE_CORECLR
     END_QCALL;
 
     return version;
 }
 
-#endif //FEATURE_CORECLR
