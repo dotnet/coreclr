@@ -3487,6 +3487,10 @@ namespace System
         public static readonly System.Reflection.MemberFilter FilterNameIgnoreCase;
         public static readonly object Missing;
         protected Type() { }
+        [System.Security.SecuritySafeCriticalAttribute][System.Diagnostics.Contracts.PureAttribute][System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.InternalCall)]
+        public static bool operator ==(System.Type left, System.Type right) { throw null; }
+        [System.Security.SecuritySafeCriticalAttribute][System.Diagnostics.Contracts.PureAttribute][System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.InternalCall)]
+        public static bool operator !=(System.Type left, System.Type right) { throw null; }
         public abstract System.Reflection.Assembly Assembly { get; }
         public abstract string AssemblyQualifiedName { get; }
         public System.Reflection.TypeAttributes Attributes { get { throw null; } }
@@ -7408,6 +7412,8 @@ namespace System.Reflection
     public abstract partial class MemberInfo : System.Reflection.ICustomAttributeProvider
     {
         protected MemberInfo() { }
+        public static bool operator ==(System.Reflection.MemberInfo left, System.Reflection.MemberInfo right) { throw null; }
+        public static bool operator !=(System.Reflection.MemberInfo left, System.Reflection.MemberInfo right) { throw null; }
         public virtual System.Collections.Generic.IEnumerable<System.Reflection.CustomAttributeData> CustomAttributes { get { throw null; } }
         public abstract System.Type DeclaringType { get; }
         public abstract System.Reflection.MemberTypes MemberType { get; }

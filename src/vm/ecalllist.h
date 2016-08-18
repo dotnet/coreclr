@@ -387,11 +387,9 @@ FCFuncEnd()
 
 FCFuncStart(gSystem_Type)
     FCIntrinsic("GetTypeFromHandle", RuntimeTypeHandle::GetTypeFromHandle, CORINFO_INTRINSIC_GetTypeFromHandle)
-#ifndef FEATURE_CORECLR
     FCFuncElement("GetTypeFromHandleUnsafe", RuntimeTypeHandle::GetRuntimeType)
     FCIntrinsic("op_Equality", RuntimeTypeHandle::TypeEQ, CORINFO_INTRINSIC_TypeEQ)
     FCIntrinsic("op_Inequality", RuntimeTypeHandle::TypeNEQ, CORINFO_INTRINSIC_TypeNEQ)
-#endif // !FEATURE_CORECLR
 FCFuncEnd()
 
 FCFuncStart(gSystem_RuntimeType)

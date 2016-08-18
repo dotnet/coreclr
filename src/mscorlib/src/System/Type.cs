@@ -1782,7 +1782,6 @@ namespace System {
             return (Object.ReferenceEquals(this.UnderlyingSystemType, o.UnderlyingSystemType));
         }
 
-#if !FEATURE_CORECLR
         [System.Security.SecuritySafeCritical]
         [Pure]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -1792,7 +1791,6 @@ namespace System {
         [Pure]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern bool operator !=(Type left, Type right);
-#endif // !FEATURE_CORECLR
 
         public override int GetHashCode()
         {

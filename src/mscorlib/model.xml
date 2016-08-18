@@ -5325,6 +5325,8 @@
     </Type>
     <Type Name="System.Reflection.MemberInfo">
       <Member Name="#ctor" />
+      <Member Name="op_Equality(System.Reflection.MemberInfo,System.Reflection.MemberInfo)" />
+      <Member Name="op_Inequality(System.Reflection.MemberInfo,System.Reflection.MemberInfo)" />
       <Member Name="get_CustomAttributes" />
       <Member Name="get_DeclaringType" />
       <Member Name="get_MemberType" />
@@ -7977,6 +7979,8 @@
     </Type>
     <Type Name="System.Type">
       <Member Name="#ctor" />
+      <Member Name="op_Equality(System.Type,System.Type)" />
+      <Member Name="op_Inequality(System.Type,System.Type)" />
       <Member MemberType="Field" Name="Delimiter" />
       <Member MemberType="Field" Name="EmptyTypes" />
       <Member MemberType="Field" Name="FilterNameIgnoreCase" />
