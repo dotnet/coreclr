@@ -3449,36 +3449,44 @@ namespace System {
 
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        public static String Concat(String str0, String str1) {
+        public unsafe static String Concat(String str0, String str1) {
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.Ensures(Contract.Result<String>().Length ==
                 (str0 == null ? 0 : str0.Length) +
                 (str1 == null ? 0 : str1.Length));
             Contract.EndContractBlock();
 
-            if (IsNullOrEmpty(str0)) {
-                if (IsNullOrEmpty(str1)) {
-                    return String.Empty;
-                }
-                return str1;
+            if (IsNullOrEmpty(str0))
+            {
+                return str1 ?? string.Empty;
             }
 
-            if (IsNullOrEmpty(str1)) {
+            if (IsNullOrEmpty(str1))
+            {
                 return str0;
             }
 
-            int str0Length = str0.Length;
-            
-            String result = FastAllocateString(str0Length + str1.Length);
-            
-            FillStringChecked(result, 0,        str0);
-            FillStringChecked(result, str0Length, str1);
+            int totalLength = str0.Length + str1.Length;
+            string result = FastAllocateString(totalLength);
+
+            fixed (char* pResult = result)
+            {
+                fixed (char* pSource = str0)
+                {
+                    wstrcpy(pResult, pSource, str0.Length);
+                }
+
+                fixed (char* pSource = str1)
+                {
+                    wstrcpy(pResult + str0.Length, pSource, str1.Length);
+                }
+            }
             
             return result;
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        public static String Concat(String str0, String str1, String str2) {
+        public unsafe static String Concat(String str0, String str1, String str2) {
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.Ensures(Contract.Result<String>().Length ==
                 (str0 == null ? 0 : str0.Length) +
@@ -3502,17 +3510,31 @@ namespace System {
             }
 
             int totalLength = str0.Length + str1.Length + str2.Length;
+            string result = FastAllocateString(totalLength);
 
-            String result = FastAllocateString(totalLength);
-            FillStringChecked(result, 0, str0);
-            FillStringChecked(result, str0.Length, str1);
-            FillStringChecked(result, str0.Length + str1.Length, str2);
+            fixed (char* pResult = result)
+            {
+                fixed (char* pSource = str0)
+                {
+                    wstrcpy(pResult, pSource, str0.Length);
+                }
+                
+                fixed (char* pSource = str1)
+                {
+                    wstrcpy(pResult + str0.Length, pSource, str1.Length);
+                }
+
+                fixed (char* pSource = str2)
+                {
+                    wstrcpy(pResult + str0.Length + str1.Length, pSource, str2.Length);
+                }
+            }
 
             return result;
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        public static String Concat(String str0, String str1, String str2, String str3) {
+        public unsafe static String Concat(String str0, String str1, String str2, String str3) {
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.Ensures(Contract.Result<String>().Length == 
                 (str0 == null ? 0 : str0.Length) +
@@ -3542,12 +3564,30 @@ namespace System {
             }
 
             int totalLength = str0.Length + str1.Length + str2.Length + str3.Length;
+            string result = FastAllocateString(totalLength);
 
-            String result = FastAllocateString(totalLength);
-            FillStringChecked(result, 0, str0);
-            FillStringChecked(result, str0.Length, str1);
-            FillStringChecked(result, str0.Length + str1.Length, str2);
-            FillStringChecked(result, str0.Length + str1.Length + str2.Length, str3);
+            fixed (char* pResult = result)
+            {
+                fixed (char* pSource = str0)
+                {
+                    wstrcpy(pResult, pSource, str0.Length);
+                }
+                
+                fixed (char* pSource = str1)
+                {
+                    wstrcpy(pResult + str0.Length, pSource, str1.Length);
+                }
+
+                fixed (char* pSource = str2)
+                {
+                    wstrcpy(pResult + str0.Length + str1.Length, pSource, str2.Length);
+                }
+
+                fixed (char* pSource = str3)
+                {
+                    wstrcpy(pResult + str0.Length + str1.Length + str2.Length, pSource, str3.Length);
+                }
+            }
 
             return result;
         }
