@@ -3429,7 +3429,8 @@ namespace System {
         }
 
         [ComVisible(false)]
-        public static String Concat<T>(IEnumerable<T> values) {
+        public static string Concat<T>(IEnumerable<T> values)
+        {
             if (values == null)
                 throw new ArgumentNullException("values");
             Contract.Ensures(Contract.Result<String>() != null);
@@ -3444,17 +3445,46 @@ namespace System {
                 return Concat(strings); // call the IEnumerable<string> overload
             }
 
-            StringBuilder result = StringBuilderCache.Acquire();
-            using(IEnumerator<T> en = values.GetEnumerator()) {
-                while (en.MoveNext()) {
-                    T currentValue = en.Current;
+            using (IEnumerator<T> en = values.GetEnumerator())
+            {
+                if (!en.MoveNext())
+                    return string.Empty;
+                
+                // We called MoveNext once, so this will be the first item
+                T currentValue = en.Current;
 
-                    if (currentValue != null) {
+                // Call ToString before calling MoveNext again, since
+                // we want to stay consistent with the below loop
+                // Everything should be called in the order
+                // MoveNext-Current-ToString, unless further optimizations
+                // can be made, to avoid breaking changes
+                string firstString = currentValue?.ToString();
+
+                // If there's only 1 item, simply call ToString on that
+                if (!en.MoveNext())
+                {
+                    // We have to handle the case of either currentValue
+                    // or its ToString being null
+                    return firstString ?? string.Empty;
+                }
+
+                StringBuilder result = StringBuilderCache.Acquire();
+                
+                result.Append(firstString);
+
+                do
+                {
+                    currentValue = en.Current;
+
+                    if (currentValue != null)
+                    {
                         result.Append(currentValue.ToString());
                     }
-                }            
+                }
+                while (en.MoveNext());
+
+                return StringBuilderCache.GetStringAndRelease(result);
             }
-            return StringBuilderCache.GetStringAndRelease(result);
         }
 
 
