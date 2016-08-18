@@ -106,7 +106,7 @@ namespace System {
                     result.Append(value.ToString());
                 }
             }
-            
+
             return StringBuilderCache.GetStringAndRelease(result);
         }
 
@@ -169,8 +169,6 @@ namespace System {
                 return StringBuilderCache.GetStringAndRelease(result);
             }
         }
-
-
 
         [ComVisible(false)]
         public static String Join(String separator, IEnumerable<String> values) {
@@ -3461,19 +3459,36 @@ namespace System {
 
 
         [ComVisible(false)]
-        public static String Concat(IEnumerable<String> values) {
+        public static string Concat(IEnumerable<string> values)
+        {
             if (values == null)
                 throw new ArgumentNullException("values");
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.EndContractBlock();
 
-            StringBuilder result = StringBuilderCache.Acquire();
-            using(IEnumerator<String> en = values.GetEnumerator()) {
-                while (en.MoveNext()) {
-                     result.Append(en.Current);
-                }            
+            using (IEnumerator<string> en = values.GetEnumerator())
+            {
+                if (!en.MoveNext())
+                    return string.Empty;
+                
+                string firstValue = en.Current;
+
+                if (!en.MoveNext())
+                {
+                    return firstValue ?? string.Empty;
+                }
+
+                StringBuilder result = StringBuilderCache.Acquire();
+                result.Append(firstValue);
+
+                do
+                {
+                    result.Append(en.Current);
+                }
+                while (en.MoveNext());
+
+                return StringBuilderCache.GetStringAndRelease(result);
             }
-            return StringBuilderCache.GetStringAndRelease(result);            
         }
 
 
