@@ -78,24 +78,35 @@ namespace System {
         }
 
         [ComVisible(false)]
-        public static String Join(String separator, params Object[] values) {
-            if (values==null)
+        public static string Join(string separator, params object[] values)
+        {
+            if (values == null)
                 throw new ArgumentNullException("values");
             Contract.EndContractBlock();
 
             if (values.Length == 0 || values[0] == null)
-                return String.Empty;
+                return string.Empty;
+
+            string firstString = values[0].ToString();
+
+            if (values.Length == 1)
+            {
+                return firstString ?? string.Empty;
+            }
 
             StringBuilder result = StringBuilderCache.Acquire();
+            result.Append(firstString);
 
-            result.Append(values[0].ToString());
-
-            for (int i = 1; i < values.Length; i++) {
+            for (int i = 1; i < values.Length; i++)
+            {
                 result.Append(separator);
-                if (values[i] != null) {
-                    result.Append(values[i].ToString());
+                object value = values[i];
+                if (value != null)
+                {
+                    result.Append(value.ToString());
                 }
             }
+            
             return StringBuilderCache.GetStringAndRelease(result);
         }
 
