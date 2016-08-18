@@ -224,6 +224,7 @@ namespace System.Collections.Generic {
 
         bool ICollection<KeyValuePair<TKey, TValue>>.Remove(KeyValuePair<TKey, TValue> keyValuePair)
         {
+            TValue value;
             if (TryGetValue(keyValuePair.Key, out value) && EqualityComparer<TValue>.Default.Equals(value, keyValuePair.Value))
             {
                 Remove(keyValuePair.Key);
