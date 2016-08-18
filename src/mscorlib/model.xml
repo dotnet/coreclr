@@ -2178,6 +2178,13 @@
       <Member Status="ImplRoot" MemberType="Field" Name="CAL_GREGORIAN_XLIT_ENGLISH" Condition="not FEATURE_COREFX_GLOBALIZATION" />
       <Member Status="ImplRoot" MemberType="Field" Name="CAL_GREGORIAN_XLIT_FRENCH" Condition="not FEATURE_COREFX_GLOBALIZATION" />
     </Type>
+    <Type Name="System.Globalization.CalendarAlgorithmType">
+      <Member MemberType="Field" Name="LunarCalendar" />
+      <Member MemberType="Field" Name="LunisolarCalendar" />
+      <Member MemberType="Field" Name="SolarCalendar" />
+      <Member MemberType="Field" Name="Unknown" />
+      <Member MemberType="Field" Name="value__" />
+    </Type>
     <Type Name="System.Globalization.CalendarWeekRule">
       <Member MemberType="Field" Name="FirstDay" />
       <Member MemberType="Field" Name="FirstFourDayWeek" />

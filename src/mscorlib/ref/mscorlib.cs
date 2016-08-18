@@ -5299,7 +5299,6 @@ namespace System.Globalization
         public abstract System.DateTime ToDateTime(int year, int month, int day, int hour, int minute, int second, int millisecond, int era);
         public virtual int ToFourDigitYear(int year) { throw null; }
     }
-#if FEATURE_COREFX_GLOBALIZATION
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     public enum CalendarAlgorithmType
     {
@@ -5308,7 +5307,6 @@ namespace System.Globalization
         SolarCalendar = 1,
         Unknown = 0,
     }
-#endif
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     public enum CalendarWeekRule
     {
