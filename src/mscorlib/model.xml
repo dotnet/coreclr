@@ -7983,6 +7983,8 @@
       <Member Name="op_Inequality(System.Type,System.Type)" />
       <Member MemberType="Field" Name="Delimiter" />
       <Member MemberType="Field" Name="EmptyTypes" />
+      <Member MemberType="Field" Name="FilterAttribute" />
+      <Member MemberType="Field" Name="FilterName" />
       <Member MemberType="Field" Name="FilterNameIgnoreCase" />
       <Member MemberType="Field" Name="Missing" />
       <Member Name="Equals(System.Object)" />
@@ -8092,20 +8094,29 @@
       <Member Name="GetProperty(System.String,System.Type,System.Type[])" />
       <Member Name="GetProperty(System.String,System.Type,System.Type[],System.Reflection.ParameterModifier[])" />
       <Member Name="GetPropertyImpl(System.String,System.Reflection.BindingFlags,System.Reflection.Binder,System.Type,System.Type[],System.Reflection.ParameterModifier[])" />
+      <Member Name="GetType" />
       <Member Name="GetType(System.String)" />
       <Member Name="GetType(System.String,System.Boolean)" />
       <Member Name="GetType(System.String,System.Boolean,System.Boolean)" />
+      <Member Name="GetTypeArray(System.Object[])" />
       <Member Name="GetTypeCode(System.Type)" />
+      <Member Name="GetTypeCodeImpl" />
+      <Member Name="GetTypeFromCLSID(System.Guid)" />
+      <Member Name="GetTypeFromCLSID(System.Guid,System.Boolean)" />
+      <Member Name="GetTypeFromCLSID(System.Guid,System.String)" />
+      <Member Name="GetTypeFromCLSID(System.Guid,System.String,System.Boolean)" />
       <Member Name="GetTypeFromHandle(System.RuntimeTypeHandle)" />
       <Member Name="GetTypeHandle(System.Object)" />
       <Member Name="HasElementTypeImpl" />
       <Member Name="InvokeMember(System.String,System.Reflection.BindingFlags,System.Reflection.Binder,System.Object,System.Object[])" />
+      <Member Name="InvokeMember(System.String,System.Reflection.BindingFlags,System.Reflection.Binder,System.Object,System.Object[],System.Globalization.CultureInfo)" />
       <Member Name="InvokeMember(System.String,System.Reflection.BindingFlags,System.Reflection.Binder,System.Object,System.Object[],System.Reflection.ParameterModifier[],System.Globalization.CultureInfo,System.String[])" />
       <Member Name="IsArrayImpl" />
       <Member Name="IsAssignableFrom(System.Type)" />
       <Member Name="IsByRefImpl" />
       <Member Name="IsCOMObjectImpl" />
       <Member Name="IsInstanceOfType(System.Object)" />
+      <Member Name="IsMarshalByRefImpl" />
       <Member Name="IsPointerImpl" />
       <Member Name="IsPrimitiveImpl" />
       <Member Name="IsSubclassOf(System.Type)" />
@@ -8116,6 +8127,7 @@
       <Member Name="MakeByRefType" />
       <Member Name="MakeGenericType(System.Type[])" />
       <Member Name="MakePointerType" />
+      <Member Name="ReflectionOnlyGetType(System.String,System.Boolean,System.Boolean)" />
       <Member Name="ToString" />
       <Member MemberType="Property" Name="Assembly" />
       <Member MemberType="Property" Name="AssemblyQualifiedName" />

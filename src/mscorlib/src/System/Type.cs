@@ -99,7 +99,6 @@ namespace System {
             return RuntimeType.GetType(typeName, false, false, false, ref stackMark);
         }
 
-#if !FEATURE_CORECLR
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static Type GetType(
             string typeName,
@@ -132,7 +131,6 @@ namespace System {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return TypeNameParser.GetType(typeName, assemblyResolver, typeResolver, throwOnError, ignoreCase, ref stackMark);
         }
-#endif //!FEATURE_CORECLR
 
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static Type ReflectionOnlyGetType(String typeName, bool throwIfNotFound, bool ignoreCase) 
@@ -147,7 +145,6 @@ namespace System {
         public virtual Type MakeArrayType() { throw new NotSupportedException(); }
         public virtual Type MakeArrayType(int rank) { throw new NotSupportedException(); }
 
-#if FEATURE_COMINTEROP
         ////////////////////////////////////////////////////////////////////////////////
         // This will return a class based upon the progID.  This is provided for 
         // COM classic support.  Program ID's are not used in COM+ because they 
@@ -220,7 +217,6 @@ namespace System {
         {
                 return RuntimeType.GetTypeFromCLSIDImpl(clsid, server, throwOnError);
         }
-#endif // FEATURE_COMINTEROP
 
         // GetTypeCode
         // This method will return a TypeCode for the passed
@@ -1811,7 +1807,6 @@ namespace System {
             throw new NotSupportedException(Environment.GetResourceString("NotSupported_SubclassOverride"));
         }
 
-#if !FEATURE_CORECLR
         // this method is required so Object.GetType is not made virtual by the compiler 
         // _Type.GetType()
         public new Type GetType()
@@ -1819,6 +1814,7 @@ namespace System {
             return base.GetType();
         }
 
+#if !FEATURE_CORECLR
         void _Type.GetTypeInfoCount(out uint pcTInfo)
         {
             throw new NotImplementedException();

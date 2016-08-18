@@ -3484,6 +3484,8 @@ namespace System
     {
         public static readonly char Delimiter;
         public static readonly System.Type[] EmptyTypes;
+        public static readonly System.Reflection.MemberFilter FilterAttribute;
+        public static readonly System.Reflection.MemberFilter FilterName;
         public static readonly System.Reflection.MemberFilter FilterNameIgnoreCase;
         public static readonly object Missing;
         protected Type() { }
@@ -3514,6 +3516,7 @@ namespace System
         public bool IsClass { get { throw null; } }
         public bool IsCOMObject { get { throw null; } }
         public virtual bool IsConstructedGenericType { get { throw null; } }
+        public bool IsContextful { [System.Diagnostics.Contracts.PureAttribute]get { throw null;} }
         public bool IsEnum { get { throw null; } }
         public bool IsExplicitLayout { get { throw null; } }
         public virtual bool IsGenericParameter { get { throw null; } }
@@ -3564,6 +3567,8 @@ namespace System
         public System.Reflection.ConstructorInfo[] GetConstructors() { throw null; }
         [System.Runtime.InteropServices.ComVisibleAttribute(true)]
         public abstract System.Reflection.ConstructorInfo[] GetConstructors(System.Reflection.BindingFlags bindingAttr);
+        [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+        public System.Reflection.ConstructorInfo GetConstructor(System.Reflection.BindingFlags bindingAttr, System.Reflection.Binder binder, System.Reflection.CallingConventions callConvention, System.Type[] types, System.Reflection.ParameterModifier[] modifiers) { throw null; }
         public virtual System.Reflection.MemberInfo[] GetDefaultMembers() { throw null; }
         public abstract System.Type GetElementType();
         public virtual string GetEnumName(object value) { throw null; }
@@ -3615,25 +3620,46 @@ namespace System
         public System.Reflection.PropertyInfo GetProperty(string name, System.Type returnType, System.Type[] types, System.Reflection.ParameterModifier[] modifiers) { throw null; }
         public System.Reflection.PropertyInfo GetProperty(string name, System.Type[] types) { throw null; }
         protected abstract System.Reflection.PropertyInfo GetPropertyImpl(string name, System.Reflection.BindingFlags bindingAttr, System.Reflection.Binder binder, System.Type returnType, System.Type[] types, System.Reflection.ParameterModifier[] modifiers);
+        public new System.Type GetType() { throw null; }
         [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]public static System.Type GetType(string typeName) { throw null; }
         [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]public static System.Type GetType(string typeName, bool throwOnError) { throw null; }
         [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]public static System.Type GetType(string typeName, bool throwOnError, bool ignoreCase) { throw null; }
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        public static System.Type GetType(string typeName, System.Func<System.Reflection.AssemblyName, System.Reflection.Assembly> assemblyResolver, System.Func<System.Reflection.Assembly, string, bool, System.Type> typeResolver) { throw null; }
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        public static System.Type GetType(string typeName, System.Func<System.Reflection.AssemblyName, System.Reflection.Assembly> assemblyResolver, System.Func<System.Reflection.Assembly, string, bool, System.Type> typeResolver, bool throwOnError) { throw null; }
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        public static System.Type GetType(string typeName, System.Func<System.Reflection.AssemblyName, System.Reflection.Assembly> assemblyResolver, System.Func<System.Reflection.Assembly, string, bool, System.Type> typeResolver, bool throwOnError, bool ignoreCase) { throw null; }
+        public static System.Type[] GetTypeArray(System.Object[] args) { throw null; }
         public static System.TypeCode GetTypeCode(System.Type type) { throw null; }
+        protected virtual System.TypeCode GetTypeCodeImpl() { throw null; }
+        [System.Security.SecuritySafeCriticalAttribute]public static System.Type GetTypeFromCLSID(System.Guid clsid) { throw null; }
+        [System.Security.SecuritySafeCriticalAttribute]public static System.Type GetTypeFromCLSID(System.Guid clsid, bool throwOnError) { throw null; }
+        [System.Security.SecuritySafeCriticalAttribute]public static System.Type GetTypeFromCLSID(System.Guid clsid, string server) { throw null; }
+        [System.Security.SecuritySafeCriticalAttribute]public static System.Type GetTypeFromCLSID(System.Guid clsid, string server, bool throwOnError) { throw null; }
         [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.InternalCall)][System.Security.SecuritySafeCriticalAttribute]
         public static System.Type GetTypeFromHandle(System.RuntimeTypeHandle handle) { throw null; }
+        [System.Security.SecurityCriticalAttribute]public static System.Type GetTypeFromProgID(string progID) { throw null; }
+        [System.Security.SecurityCriticalAttribute]public static System.Type GetTypeFromProgID(string progID, bool throwOnError) { throw null; }
+        [System.Security.SecurityCriticalAttribute]public static System.Type GetTypeFromProgID(string progID, string server) { throw null; }
+        [System.Security.SecurityCriticalAttribute]public static System.Type GetTypeFromProgID(string progID, string server, bool throwOnError) { throw null; }
         public static System.RuntimeTypeHandle GetTypeHandle(object o) { throw null; }
         protected abstract bool HasElementTypeImpl();
         [System.Diagnostics.DebuggerHiddenAttribute]
         [System.Diagnostics.DebuggerStepThroughAttribute]
         public object InvokeMember(string name, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, object target, object[] args) { throw null; }
+        [System.Diagnostics.DebuggerStepThroughAttribute][System.Diagnostics.DebuggerHiddenAttribute]
+        public System.Object InvokeMember(System.String name, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object target, System.Object[] args, System.Globalization.CultureInfo culture) { throw null; }
         public abstract object InvokeMember(string name, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, object target, object[] args, System.Reflection.ParameterModifier[] modifiers, System.Globalization.CultureInfo culture, string[] namedParameters);
         protected abstract bool IsArrayImpl();
         public virtual bool IsAssignableFrom(System.Type c) { throw null; }
         protected abstract bool IsByRefImpl();
         protected abstract bool IsCOMObjectImpl();
+        protected virtual bool IsContextfulImpl() { throw null; }
         public virtual bool IsEnumDefined(object value) { throw null; }
         public virtual bool IsEquivalentTo(System.Type other) { throw null; }
         public virtual bool IsInstanceOfType(object o) { throw null; }
+        protected virtual bool IsMarshalByRefImpl() { throw null; }
         protected abstract bool IsPointerImpl();
         protected abstract bool IsPrimitiveImpl();
         [System.Runtime.InteropServices.ComVisibleAttribute(true)]
@@ -3644,6 +3670,8 @@ namespace System
         public virtual System.Type MakeByRefType() { throw null; }
         public virtual System.Type MakeGenericType(params System.Type[] typeArguments) { throw null; }
         public virtual System.Type MakePointerType() { throw null; }
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        public static System.Type ReflectionOnlyGetType(System.String typeName, bool throwIfNotFound, bool ignoreCase) { throw null; }
         public override string ToString() { throw null; }
     }
     public partial class TypeAccessException : System.TypeLoadException
@@ -3702,6 +3730,17 @@ namespace System
         public string TypeName { get { throw null; } }
         [System.Security.SecurityCriticalAttribute]
         public override void GetObjectData(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
+    }
+    internal sealed class TypeNameParser : System.IDisposable
+    {
+        [System.Security.SecuritySafeCriticalAttribute]public void Dispose() { throw null; }
+    }
+    [System.Security.SecurityCriticalAttribute]
+    internal class SafeTypeNameParserHandle : Microsoft.Win32.SafeHandles.SafeHandleZeroOrMinusOneIsInvalid
+    {
+        public SafeTypeNameParserHandle(): base() { }
+        [System.Security.SecurityCriticalAttribute]
+        protected override bool ReleaseHandle() { throw null; }
     }
     [System.CLSCompliantAttribute(false)]
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
