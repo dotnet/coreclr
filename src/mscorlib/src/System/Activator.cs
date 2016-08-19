@@ -663,8 +663,7 @@ namespace System {
                 BCLDebug.Trace("REMOTE", "{0}{1}", title, failure);
 #endif            
         }
-
-#if !FEATURE_CORECLR
+        
         void _Activator.GetTypeInfoCount(out uint pcTInfo)
         {
             throw new NotImplementedException();
@@ -686,7 +685,6 @@ namespace System {
         {
             throw new NotImplementedException();
         }
-#endif
     }
 }
 

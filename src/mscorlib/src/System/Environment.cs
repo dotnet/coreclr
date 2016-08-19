@@ -1658,8 +1658,7 @@ namespace System {
             //  
             //     Represents the folder for components that are shared across applications. 
             //  
-            CommonProgramFiles =  Win32Native.CSIDL_PROGRAM_FILES_COMMON,            
-#if !FEATURE_CORECLR
+            CommonProgramFiles =  Win32Native.CSIDL_PROGRAM_FILES_COMMON,  
             //
             //      <user name>\Start Menu\Programs\Administrative Tools
             //
@@ -1752,7 +1751,6 @@ namespace System {
             //      GetWindowsDirectory()
             //
             Windows                = Win32Native.CSIDL_WINDOWS,
-#endif // !FEATURE_CORECLR
         }
 
         public static int CurrentManagedThreadId
