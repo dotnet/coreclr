@@ -11,6 +11,8 @@
 **
 **===================================================================*/
 
+// Don't merge this
+
 #include <palsuite.h>
 
 const char* szTextFile = "text.txt";
