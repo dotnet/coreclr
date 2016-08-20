@@ -86,16 +86,16 @@ namespace System.Text
     [Serializable]
     public abstract class Encoding : ICloneable
     {
-        private static volatile Encoding defaultEncoding;
-        private static volatile Encoding unicodeEncoding;
-        private static volatile Encoding bigEndianUnicode;
-        private static volatile Encoding utf7Encoding;
-        private static volatile Encoding utf8Encoding;
-        private static volatile Encoding utf32Encoding;
-        private static volatile Encoding asciiEncoding;
-        private static volatile Encoding latin1Encoding;
+        private static Encoding defaultEncoding;
+        private static UnicodeEncoding unicodeEncoding;
+        private static UnicodeEncoding bigEndianUnicode;
+        private static UTF7Encoding utf7Encoding;
+        private static UTF8Encoding utf8Encoding;
+        private static UTF32Encoding utf32Encoding;
+        private static ASCIIEncoding asciiEncoding;
+        private static Latin1Encoding latin1Encoding;
         
-        static volatile Hashtable encodings;
+        private static Hashtable encodings;
 
         //
         // The following values are from mlang.idl.  These values
