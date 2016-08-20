@@ -19,6 +19,8 @@
 **
 **===================================================================*/
                                                                          
+// Hey there pal, don't merge me
+
 #include <palsuite.h>
 
 int __cdecl main(int argc, char **argv)
