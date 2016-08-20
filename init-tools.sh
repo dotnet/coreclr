@@ -57,6 +57,11 @@ case $OSName in
         fi
         ;;
 
+    NetBSD)
+        OS=NetBSD
+        __DOTNET_PKG=dotnet-netbsd-x64
+        ;;
+
     *)
         echo "Unsupported OS $OSName detected. Downloading ubuntu-x64 tools"
         OS=Linux
