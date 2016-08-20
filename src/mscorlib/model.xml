@@ -6870,6 +6870,9 @@
       <Member Name="Trim(System.Char[])" />
       <Member Name="TrimEnd(System.Char[])" />
       <Member Name="TrimStart(System.Char[])" />
+      <Member Name="Trim(System.Char)" />
+      <Member Name="TrimEnd(System.Char)" />
+      <Member Name="TrimStart(System.Char)" />
       <Member MemberType="Property" Name="Chars(System.Int32)" />
       <Member MemberType="Property" Name="Length" />
       <Member Status="ImplRoot" Name="System.Collections.Generic.IEnumerable&lt;System.Char&gt;.GetEnumerator" />
