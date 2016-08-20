@@ -483,8 +483,8 @@ void DecShiftLeft(DECIMAL* value)
     LIMITED_METHOD_CONTRACT
     _ASSERTE(value != NULL);
 
-    unsigned int c0 = DECIMAL_LO32(*value) & 0x80000000? 1: 0;
-    unsigned int c1 = DECIMAL_MID32(*value) & 0x80000000? 1: 0;
+    unsigned int c0 = (DECIMAL_LO32(*value) & 0x80000000) ? 1 : 0;
+    unsigned int c1 = (DECIMAL_MID32(*value) & 0x80000000) ? 1 : 0;
     DECIMAL_LO32(*value) <<= 1;
     DECIMAL_MID32(*value) = DECIMAL_MID32(*value) << 1 | c0;
     DECIMAL_HI32(*value) = DECIMAL_HI32(*value) << 1 | c1;

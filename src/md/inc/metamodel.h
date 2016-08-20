@@ -261,7 +261,7 @@ public:
 
     unsigned __int64    m_sorted;               // Bit mask of sorted tables.
     FORCEINLINE bool IsSorted(ULONG ixTbl)
-        { return m_sorted & BIT(ixTbl) ? true : false; }
+        { return (m_sorted & BIT(ixTbl)) ? true : false; }
     void SetSorted(ULONG ixTbl, int bVal)
         { if (bVal) m_sorted |= BIT(ixTbl);
           else      m_sorted &= ~BIT(ixTbl); }

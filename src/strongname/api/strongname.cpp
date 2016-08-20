@@ -4163,7 +4163,7 @@ HRESULT VerifySignature(__in SN_LOAD_CTX *pLoadCtx, DWORD dwInFlags, PublicKeyBl
         ((dwInFlags & SN_INFLAG_ADMIN_ACCESS) || g_fCacheVerify))
     {
         SNLOG((W("Skipping verification due to cached result\n")));
-        DbgCount(dwInFlags & SN_INFLAG_RUNTIME ? W("RuntimeSkipCache") : W("FusionSkipCache"));
+        DbgCount((dwInFlags & SN_INFLAG_RUNTIME) ? W("RuntimeSkipCache") : W("FusionSkipCache"));
         return S_OK;
     }
 
@@ -4187,7 +4187,7 @@ HRESULT VerifySignature(__in SN_LOAD_CTX *pLoadCtx, DWORD dwInFlags, PublicKeyBl
                 {
 
                     SNLOG((W("Using test public key for verification due to registry entry\n")));
-                    DbgCount(dwInFlags & SN_INFLAG_RUNTIME ? W("RuntimeSkipDelay") : W("FusionSkipDelay"));
+                    DbgCount((dwInFlags & SN_INFLAG_RUNTIME) ? W("RuntimeSkipDelay") : W("FusionSkipDelay"));
 
                     // If the assembly was not ECMA signed, then we need to update the key that it will be
                     // verified with as well.
