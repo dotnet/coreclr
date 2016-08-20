@@ -1350,7 +1350,19 @@ namespace System {
             }
             return TrimHelper(trimChars,TrimBoth);
         }
-    
+
+
+        // Removes a given Trim character from the start and end of the given string.
+        //This is added as an overload to 'public String Trim(params char[] trimChars)' to avoid the overhead of array allocation when a single Trim char is passed instead of more than one Trim character.        
+        [Pure]
+        public String Trim(char trimChar)
+        {
+            Contract.Ensures(Contract.Result<String>() != null);
+            Contract.EndContractBlock();
+
+            return TrimHelper(trimChar, TrimBoth);
+        }
+
         // Removes a set of characters from the beginning of this string.
         public String TrimStart(params char[] trimChars) {
             if (null==trimChars || trimChars.Length == 0) {
@@ -1358,8 +1370,19 @@ namespace System {
             }
             return TrimHelper(trimChars,TrimHead);
         }
-    
-    
+
+        // Removes a given Trim character from the start of the given string.
+        //This is added as an overload to 'public String TrimStart(params char[] trimChars)' to avoid the overhead of array allocation when a single Trim char is passed instead of more than one Trim character.
+        [Pure]
+        public String TrimStart(char trimChar)
+        {
+            Contract.Ensures(Contract.Result<String>() != null);
+            Contract.EndContractBlock();
+            
+            return TrimHelper(trimChar, TrimHead);
+        }
+
+
         // Removes a set of characters from the end of this string.
         public String TrimEnd(params char[] trimChars) {
             if (null==trimChars || trimChars.Length == 0) {
@@ -1367,8 +1390,19 @@ namespace System {
             }
             return TrimHelper(trimChars,TrimTail);
         }
-    
-    
+
+        // Removes a given Trim character from the end of the given string.
+        //This is added as an overload to 'public String TrimEnd(params char[] trimChars)' to avoid the overhead of array allocation when a single Trim char is passed instead of more than one Trim character.
+        [Pure]
+        public String TrimEnd(char trimChar)
+        {
+            Contract.Ensures(Contract.Result<String>() != null);
+            Contract.EndContractBlock();
+
+            return TrimHelper(trimChar, TrimTail);
+        }
+
+
         // Creates a new string with the characters copied in from ptr. If
         // ptr is null, a 0-length string (like String.Empty) is returned.
         //
@@ -2928,7 +2962,6 @@ namespace System {
             return TrimHelper(TrimBoth);        
         }
 
-       
         [System.Security.SecuritySafeCritical]  // auto-generated
         private String TrimHelper(int trimType) {
             //end will point to the first non-trimmed character on the right
@@ -2951,8 +2984,25 @@ namespace System {
 
             return CreateTrimmedString(start, end);
         }
-    
-    
+
+        //This method is added as a overload to existing TrimHelper(char[] trimChars, int trimType) to accept a Char instead of CharArray
+        [System.Security.SecuritySafeCritical]  // auto-generated
+        private String TrimHelper(char trimChar, int trimType)
+        {
+            //end will point to the first non-trimmed character on the right
+            //start will point to the first non-trimmed character on the Left
+            int end = this.Length - 1;
+            int start = 0;
+
+            //Trim at the Head of the string 
+            while (trimType != TrimTail && this[start] == trimChar && start < this.Length) start++;            
+            
+            //Trim at the Tail of the string
+            while (trimType != TrimHead && this[end] == trimChar && end >=start) end--;
+            
+            return CreateTrimmedString(start, end);
+
+        }
         [System.Security.SecuritySafeCritical]  // auto-generated
         private String TrimHelper(char[] trimChars, int trimType) {
             //end will point to the first non-trimmed character on the right
