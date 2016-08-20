@@ -113,10 +113,12 @@ public:
     static INT_PTR QCALLTYPE InternalInitSortHandle(LPCWSTR localeName, INT_PTR* handleOrigin);
     static INT_PTR InitSortHandleHelper(LPCWSTR localeName, INT_PTR* handleOrigin);
     static INT_PTR InternalInitOsSortHandle(LPCWSTR localeName, INT_PTR* handleOrigin);
+#ifndef FEATURE_CORECLR
     static INT_PTR InternalInitVersionedSortHandle(LPCWSTR localeName, INT_PTR* handleOrigin);
     static INT_PTR InternalInitVersionedSortHandle(LPCWSTR localeName, INT_PTR* handleOrigin, DWORD sortVersion);
     static DWORD QCALLTYPE InternalGetSortVersion();
     static BOOL QCALLTYPE InternalGetNlsVersionEx(INT_PTR handle, INT_PTR handleOrigin, LPCWSTR lpLocaleName, NLSVERSIONINFOEX * lpVersionInformation);
+#endif
 
 
 #ifndef FEATURE_CORECLR
@@ -225,11 +227,13 @@ private:
     //  Definitions.
     //
 
+#ifndef FEATURE_CORECLR
     // Normalization
     static HMODULE m_hNormalization;
     static PFN_NORMALIZATION_IS_NORMALIZED_STRING m_pfnNormalizationIsNormalizedStringFunc;
     static PFN_NORMALIZATION_NORMALIZE_STRING m_pfnNormalizationNormalizeStringFunc;
     static PFN_NORMALIZATION_INIT_NORMALIZATION m_pfnNormalizationInitNormalizationFunc;
+#endif
 
 private:
     //

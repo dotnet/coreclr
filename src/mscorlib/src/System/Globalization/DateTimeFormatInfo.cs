@@ -861,7 +861,7 @@ namespace System.Globalization {
             }
 
 #if FEATURE_CORECLR
-            set { throw null; }
+            set { throw new NotImplementedException(); }
 #endif
 
 #if !FEATURE_CORECLR
@@ -1311,7 +1311,7 @@ namespace System.Globalization {
             }
 
 #if FEATURE_CORECLR
-            set { throw null; }
+            set { throw new NotImplementedException(); }
 #endif
 
 #if !FEATURE_CORECLR
