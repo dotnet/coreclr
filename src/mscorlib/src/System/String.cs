@@ -1199,11 +1199,10 @@ namespace System {
             }
 
             String[] stringArray = splitStrings;
-            if( arrIndex!= maxItems) { 
+            if( arrIndex!= maxItems)
+            {
                 stringArray = new String[arrIndex];
-                for( int j = 0; j < arrIndex; j++) {
-                    stringArray[j] = splitStrings[j];
-                }   
+                Array.Copy(splitStrings, stringArray, arrIndex);
             }
             return stringArray;
         }       
