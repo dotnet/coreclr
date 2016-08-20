@@ -1367,8 +1367,41 @@ namespace System {
             }
             return TrimHelper(trimChars,TrimTail);
         }
-    
-    
+
+
+        // Removes a single character from the ends of this string.
+        [Pure]
+        public String Trim(char trimChar)
+        {
+            if ('\0' == trimChar)
+            {
+                return TrimHelper(TrimBoth);
+            }
+            return TrimHelper(trimChar, TrimBoth);
+        }
+
+        // Removes a single character from the beginning of this string.
+        public String TrimStart(char trimChar)
+        {
+            if ('\0' == trimChar)
+            {
+                return TrimHelper(TrimHead);
+            }
+            return TrimHelper(trimChar, TrimHead);
+        }
+
+
+        // Removes a single character from the end of this string.
+        public String TrimEnd(char trimChar)
+        {
+            if ('\0' == trimChar)
+            {
+                return TrimHelper(TrimTail);
+            }
+            return TrimHelper(trimChar, TrimTail);
+        }
+
+
         // Creates a new string with the characters copied in from ptr. If
         // ptr is null, a 0-length string (like String.Empty) is returned.
         //
@@ -2984,6 +3017,52 @@ namespace System {
                     if( i == trimChars.Length) { // the character is not white space
                         break;  
                     }                    
+                }
+            }
+
+            return CreateTrimmedString(start, end);
+        }
+
+        [System.Security.SecuritySafeCritical]  // auto-generated
+        private String TrimHelper(char trimChar, int trimType)
+        {
+            //end will point to the first non-trimmed character on the right
+            //start will point to the first non-trimmed character on the Left
+            int end = this.Length - 1;
+            int start = 0;
+
+            //Trim specified characters.
+            if (trimType != TrimTail)
+            {
+                for (start = 0; start < this.Length; start++)
+                {
+                    int i = 0;
+                    char ch = this[start];
+                    for (i = 0; i < 1; i++)
+                    {
+                        if (trimChar == ch) break;
+                    }
+                    if (i == 1)
+                    { // the character is not white space
+                        break;
+                    }
+                }
+            }
+
+            if (trimType != TrimHead)
+            {
+                for (end = this.Length - 1; end >= start; end--)
+                {
+                    int i = 0;
+                    char ch = this[end];
+                    for (i = 0; i < 1; i++)
+                    {
+                        if (trimChar == ch) break;
+                    }
+                    if (i == 1)
+                    { // the character is not white space
+                        break;
+                    }
                 }
             }
 
