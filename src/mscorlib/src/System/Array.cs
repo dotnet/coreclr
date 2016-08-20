@@ -913,47 +913,62 @@ namespace System {
             }
 
             int lo = index;
-            int hi = index + length - 1;   
+            int hi = index + length;
+            int c;
             Object[] objArray = array as Object[];
             if(objArray != null) {
-                while (lo <= hi) {
+                while (lo < hi) {
                     // i might overflow if lo and hi are both large positive numbers. 
                     int i = GetMedian(lo, hi);
 
-                    int c;
                     try {
                         c = comparer.Compare(objArray[i], value);
                     }
                     catch (Exception e) {
                         throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_IComparerFailed"), e);
                     }
-                    if (c == 0) return i;
                     if (c < 0) {
                         lo = i + 1;
                     }
                     else {
-                        hi = i - 1;
+                        hi = i;
                     }
+                }
+                if ((hi == lo) && (length > 0)) {
+                    try {
+                        c = comparer.Compare(objArray[lo], value);
+                    }
+                    catch (Exception e) {
+                        throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_IComparerFailed"), e);
+                    }
+                    return c == 0 ? lo : ~lo;
                 }
             }
             else {
-                while (lo <= hi) {
+                while (lo < hi) {
                     int i = GetMedian(lo, hi);                    
 
-                    int c;
                     try {
                         c = comparer.Compare(array.GetValue(i), value);
                     }
                     catch (Exception e) {
                         throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_IComparerFailed"), e);
                     }
-                    if (c == 0) return i;
                     if (c < 0) {
                         lo = i + 1;
                     }
                     else {
-                        hi = i - 1;
+                        hi = i;
                     }
+                }
+                if ((hi == lo) && (length > 0)) {
+                    try {
+                        c = comparer.Compare(array.GetValue(lo), value);
+                    }
+                    catch (Exception e) {
+                        throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_IComparerFailed"), e);
+                    }
+                    return c == 0 ? lo : ~lo;
                 }
             }
             return ~lo;

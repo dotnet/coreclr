@@ -70,24 +70,27 @@ public:
 
         // Prefast: mscorlib.dll!System.Array.BinarySearch(Array,int,int,Object,IComparer) 
         // guarantees index and length are in the array bounds and do not overflow
-        PREFIX_ASSUME(index >= 0 && length >= 0 && INT32_MAX >= index + length - 1);
-        int hi = index + length - 1; 
- 
-        // Note: if length == 0, hi will be Int32.MinValue, and our comparison
-        // here between 0 & -1 will prevent us from breaking anything.
-        while (lo <= hi) {
+        PREFIX_ASSUME(index >= 0 && length >= 0 && INT32_MAX >= index + length);
+
+        // Deferred detection of equality: Each binary search will complete the entire search
+        // regardless of when the desired element is found. This preserves order of elements
+        // by returning the first instance of the desire value within the array.
+        int hi = index + length; 
+        while (lo < hi) 
+        {
             int i = lo + ((hi - lo) >> 1);
             if (array[i] < value) {
                 lo = i + 1;
             } 
-            else if (array[i] > value){
-                hi = i - 1;
-            }
             else {
-                return i;
+                hi = i;
             }
         }
-        return ~lo;
+        if ((hi == lo) && (length > 0) && (array[lo] == value))
+            return lo;
+        else
+            // not found
+            return ~lo;
     }
 
     inline static void SwapIfGreaterWithItems(KIND keys[], KIND items[], int a, int b) {
