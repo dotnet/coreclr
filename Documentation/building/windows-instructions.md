@@ -63,8 +63,8 @@ Demo directory
 In order to keep everything tidy, create a new directory for the files that you will build or acquire.
 
 ```bat
-c:\git>mkdir \coreclr-demo\runtime
-c:\git>mkdir \coreclr-demo\ref
+c:\git>mkdir coreclr-demo\runtime
+c:\git>mkdir coreclr-demo\ref
 ```
 
 Build the Runtime
@@ -100,11 +100,11 @@ You will see several files. The interesting ones are:
 Copy these files into the demo directory.
 
 ```bat
-C:\git\coreclr>copy bin\Product\Windows_NT.x64.debug\clrjit.dll \coreclr-demo\runtime
-C:\git\coreclr>copy bin\Product\Windows_NT.x64.debug\CoreRun.exe \coreclr-demo\runtime
-C:\git\coreclr>copy bin\Product\Windows_NT.x64.debug\coreclr.dll \coreclr-demo\runtime
-C:\git\coreclr>copy bin\Product\Windows_NT.x64.debug\mscorlib.dll \coreclr-demo\runtime
-C:\git\coreclr>copy bin\Product\Windows_NT.x64.debug\System.Private.CoreLib.dll \coreclr-demo\runtime
+C:\git\coreclr>copy bin\Product\Windows_NT.x64.debug\clrjit.dll ..\coreclr-demo\runtime
+C:\git\coreclr>copy bin\Product\Windows_NT.x64.debug\CoreRun.exe ..\coreclr-demo\runtime
+C:\git\coreclr>copy bin\Product\Windows_NT.x64.debug\coreclr.dll ..\coreclr-demo\runtime
+C:\git\coreclr>copy bin\Product\Windows_NT.x64.debug\mscorlib.dll ..\coreclr-demo\runtime
+C:\git\coreclr>copy bin\Product\Windows_NT.x64.debug\System.Private.CoreLib.dll ..\coreclr-demo\runtime
 ```
 
 Build the Framework
@@ -126,23 +126,23 @@ It's also possible to add -rebuild to build.cmd to force it to delete the previo
 For the purposes of this demo, you need to copy a few required assemblies to the demo folder.
 
 ```bat
-C:\git\corefx>copy bin\Windows_NT.AnyCPU.Debug\System.Console\System.Console.dll \coreclr-demo\runtime
-C:\git\corefx>copy bin\Windows_NT.AnyCPU.Debug\System.Diagnostics.Debug\System.Diagnostics.Debug.dll \coreclr-demo\runtime
-C:\git\corefx>copy bin\AnyOS.AnyCPU.Debug\System.IO\System.IO.dll \coreclr-demo\runtime
-C:\git\corefx>copy bin\AnyOS.AnyCPU.Debug\System.IO.FileSystem.Primitives\System.IO.FileSystem.Primitives.dll \coreclr-demo\runtime
-C:\git\corefx>copy bin\AnyOS.AnyCPU.Debug\System.Runtime\System.Runtime.dll \coreclr-demo\runtime
-C:\git\corefx>copy bin\AnyOS.AnyCPU.Debug\System.Runtime.InteropServices\System.Runtime.InteropServices.dll \coreclr-demo\runtime
-C:\git\corefx>copy bin\AnyOS.AnyCPU.Debug\System.Text.Encoding\System.Text.Encoding.dll \coreclr-demo\runtime
-C:\git\corefx>copy bin\AnyOS.AnyCPU.Debug\System.Text.Encoding.Extensions\System.Text.Encoding.Extensions.dll \coreclr-demo\runtime
-C:\git\corefx>copy bin\AnyOS.AnyCPU.Debug\System.Threading\System.Threading.dll \coreclr-demo\runtime
-C:\git\corefx>copy bin\AnyOS.AnyCPU.Debug\System.Threading.Tasks\System.Threading.Tasks.dll \coreclr-demo\runtime
+C:\git\corefx>copy bin\Windows_NT.AnyCPU.Debug\System.Console\System.Console.dll ..\coreclr-demo\runtime
+C:\git\corefx>copy bin\Windows_NT.AnyCPU.Debug\System.Diagnostics.Debug\System.Diagnostics.Debug.dll ..\coreclr-demo\runtime
+C:\git\corefx>copy bin\AnyOS.AnyCPU.Debug\System.IO\System.IO.dll ..\coreclr-demo\runtime
+C:\git\corefx>copy bin\AnyOS.AnyCPU.Debug\System.IO.FileSystem.Primitives\System.IO.FileSystem.Primitives.dll ..\coreclr-demo\runtime
+C:\git\corefx>copy bin\AnyOS.AnyCPU.Debug\System.Runtime\System.Runtime.dll ..\coreclr-demo\runtime
+C:\git\corefx>copy bin\AnyOS.AnyCPU.Debug\System.Runtime.InteropServices\System.Runtime.InteropServices.dll ..\coreclr-demo\runtime
+C:\git\corefx>copy bin\AnyOS.AnyCPU.Debug\System.Text.Encoding\System.Text.Encoding.dll ..\coreclr-demo\runtime
+C:\git\corefx>copy bin\AnyOS.AnyCPU.Debug\System.Text.Encoding.Extensions\System.Text.Encoding.Extensions.dll ..\coreclr-demo\runtime
+C:\git\corefx>copy bin\AnyOS.AnyCPU.Debug\System.Threading\System.Threading.dll ..\coreclr-demo\runtime
+C:\git\corefx>copy bin\AnyOS.AnyCPU.Debug\System.Threading.Tasks\System.Threading.Tasks.dll ..\coreclr-demo\runtime
 ```
 
 You also need to copy reference assemblies, which will be used during compilation.
 
 ```bat
-C:\git\corefx>copy bin\ref\System.Runtime\4.0.0.0\System.Runtime.dll \coreclr-demo\ref
-C:\git\corefx>copy bin\ref\System.Console\4.0.0.0\System.Console.dll \coreclr-demo\ref
+C:\git\corefx>copy bin\ref\System.Runtime\4.0.0.0\System.Runtime.dll ..\coreclr-demo\ref
+C:\git\corefx>copy bin\ref\System.Console\4.0.0.0\System.Console.dll ..\coreclr-demo\ref
 ```
 
 Compile the Demo
@@ -168,7 +168,7 @@ Personally, I'm partial to the one on corefxlab which will print a picture for y
 Then you just need to build it, with csc, the .NET Framework C# compiler. It may be easier to do this step within the "Developer Command Prompt for VS2015", if csc is not in your path. Because you need to compile the app against the .NET Core surface area, you need to pass references to the contract assemblies you restored using NuGet:
 
 ```bat
-csc /nostdlib /noconfig /r:ref\System.Runtime.dll /r:ref\System.Console.dll /out:runtime\hello.exe hello.cs
+C:\git\coreclr-demo>csc /nostdlib /noconfig /r:ref\System.Runtime.dll /r:ref\System.Console.dll /out:runtime\hello.exe hello.cs
 ```
 
 Run the demo
