@@ -79,10 +79,10 @@ namespace System {
 
         [System.Security.SecuritySafeCritical]  // auto-generated
         public unsafe override bool Equals(Object obj) {
-            if (obj is UIntPtr) {
-                return (m_value == ((UIntPtr)obj).m_value);
+            if (!(obj is UIntPtr)) {
+                return false;
             }
-            return false;
+            return (m_value == ((UIntPtr)obj).m_value);
         }
     
         [System.Security.SecuritySafeCritical]  // auto-generated

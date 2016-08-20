@@ -145,31 +145,7 @@ namespace System {
                 throw new ArgumentException(Environment.GetResourceString("Arg_MustBeVersion"));
             }
 
-            if (this._Major != v._Major)
-                if (this._Major > v._Major)
-                    return 1;
-                else
-                    return -1;
-
-            if (this._Minor != v._Minor)
-                if (this._Minor > v._Minor)
-                    return 1;
-                else
-                    return -1;
-
-            if (this._Build != v._Build)
-                if (this._Build > v._Build)
-                    return 1;
-                else
-                    return -1;
-
-            if (this._Revision != v._Revision)
-                if (this._Revision > v._Revision)
-                    return 1;
-                else
-                    return -1;
-
-            return 0;
+            return CompareTo(v);
         }
 
         public int CompareTo(Version value)
@@ -209,14 +185,7 @@ namespace System {
             if (v == null)
                 return false;
 
-            // check that major, minor, build & revision numbers match
-            if ((this._Major != v._Major) || 
-                (this._Minor != v._Minor) || 
-                (this._Build != v._Build) ||
-                (this._Revision != v._Revision))
-                return false;
-
-            return true;
+            return Equals(v);
         }
 
         public bool Equals(Version obj)

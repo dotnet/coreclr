@@ -933,42 +933,16 @@ namespace System {
         //  by o is the same as this instance.
         public override bool Equals(Object o)
         {
-            Guid g;
             // Check that o is a Guid first
-            if(o == null || !(o is Guid))
-                return false;
-            else g = (Guid) o;
-
-            // Now compare each of the elements
-            if(g._a != _a)
-                return false;
-            if(g._b != _b)
-                return false;
-            if(g._c != _c)
-                return false;
-            if (g._d != _d)
-                return false;
-            if (g._e != _e)
-                return false;
-            if (g._f != _f)
-                return false;
-            if (g._g != _g)
-                return false;
-            if (g._h != _h)
-                return false;
-            if (g._i != _i)
-                return false;
-            if (g._j != _j)
-                return false;
-            if (g._k != _k)
+            if(!(o is Guid))
                 return false;
 
-            return true;
+            return Equals((Guid)o);
         }
 
         public bool Equals(Guid g)
         {
-            // Now compare each of the elements
+            // Compare each of the elements
             if(g._a != _a)
                 return false;
             if(g._b != _b)
@@ -1006,56 +980,11 @@ namespace System {
             if (value == null) {
                 return 1;
             }
+            
             if (!(value is Guid)) {
                 throw new ArgumentException(Environment.GetResourceString("Arg_MustBeGuid"), "value");
             }
-            Guid g = (Guid)value;
-
-            if (g._a!=this._a) {
-                return GetResult((uint)this._a, (uint)g._a);
-            }
-
-            if (g._b!=this._b) {
-                return GetResult((uint)this._b, (uint)g._b);
-            }
-
-            if (g._c!=this._c) {
-                return GetResult((uint)this._c, (uint)g._c);
-            }
-
-            if (g._d!=this._d) {
-                return GetResult((uint)this._d, (uint)g._d);
-            }
-
-            if (g._e!=this._e) {
-                return GetResult((uint)this._e, (uint)g._e);
-            }
-
-            if (g._f!=this._f) {
-                return GetResult((uint)this._f, (uint)g._f);
-            }
-
-            if (g._g!=this._g) {
-                return GetResult((uint)this._g, (uint)g._g);
-            }
-
-            if (g._h!=this._h) {
-                return GetResult((uint)this._h, (uint)g._h);
-            }
-
-            if (g._i!=this._i) {
-                return GetResult((uint)this._i, (uint)g._i);
-            }
-
-            if (g._j!=this._j) {
-                return GetResult((uint)this._j, (uint)g._j);
-            }
-
-            if (g._k!=this._k) {
-                return GetResult((uint)this._k, (uint)g._k);
-            }
-
-            return 0;
+            return CompareTo((Guid)value);
         }
 
         public int CompareTo(Guid value)
@@ -1109,31 +1038,7 @@ namespace System {
 
         public static bool operator ==(Guid a, Guid b)
         {
-            // Now compare each of the elements
-            if(a._a != b._a)
-                return false;
-            if(a._b != b._b)
-                return false;
-            if(a._c != b._c)
-                return false;
-            if(a._d != b._d)
-                return false;
-            if(a._e != b._e)
-                return false;
-            if(a._f != b._f)
-                return false;
-            if(a._g != b._g)
-                return false;
-            if(a._h != b._h)
-                return false;
-            if(a._i != b._i)
-                return false;
-            if(a._j != b._j)
-                return false;
-            if(a._k != b._k)
-                return false;
-
-            return true;
+            return a.Equals(b);
         }
 
         public static bool operator !=(Guid a, Guid b)
@@ -1195,7 +1100,7 @@ namespace System {
         [System.Security.SecuritySafeCritical]
         public String ToString(String format, IFormatProvider provider)
         {
-            if (format == null || format.Length == 0)
+            if (string.IsNullOrEmpty(format))
                 format = "D";
 
             string guidString;

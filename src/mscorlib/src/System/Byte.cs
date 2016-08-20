@@ -51,7 +51,7 @@ namespace System {
                 throw new ArgumentException(Environment.GetResourceString("Arg_MustBeByte"));
             }
     
-            return m_value - (((Byte)value).m_value);
+            return CompareTo((Byte)value);
         }
 
         public int CompareTo(Byte value) {
@@ -63,7 +63,7 @@ namespace System {
             if (!(obj is Byte)) {
                 return false;
             }
-            return m_value == ((Byte)obj).m_value;
+            return Equals((Byte)obj);
         }
 
         [System.Runtime.Versioning.NonVersionable]
@@ -142,7 +142,14 @@ namespace System {
         [System.Security.SecuritySafeCritical]  // auto-generated
         public override String ToString() {
             Contract.Ensures(Contract.Result<String>() != null);
-            return Number.FormatInt32(m_value, null, NumberFormatInfo.CurrentInfo);
+            return ToString((String)null);
+        }
+
+        [Pure]
+        [System.Security.SecuritySafeCritical]  // auto-generated
+        public String ToString(IFormatProvider provider) {
+            Contract.Ensures(Contract.Result<String>() != null);
+            return ToString(null, provider);
         }
 
         [Pure]
@@ -150,13 +157,6 @@ namespace System {
         public String ToString(String format) {
             Contract.Ensures(Contract.Result<String>() != null);
             return Number.FormatInt32(m_value, format, NumberFormatInfo.CurrentInfo);
-        }
-
-        [Pure]
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        public String ToString(IFormatProvider provider) {
-            Contract.Ensures(Contract.Result<String>() != null);
-            return Number.FormatInt32(m_value, null, NumberFormatInfo.GetInstance(provider));
         }
 
         [Pure]

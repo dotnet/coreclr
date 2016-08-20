@@ -39,10 +39,10 @@ namespace System {
             if (value == null) {
                 return 1;
             }
-            if (value is UInt16) {
-                return ((int)m_value - (int)(((UInt16)value).m_value));
+            if (!(value is UInt16)) {
+                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeUInt16"));
             }
-            throw new ArgumentException(Environment.GetResourceString("Arg_MustBeUInt16"));
+            return CompareTo((UInt16)value);
         }
 
         public int CompareTo(UInt16 value) {
@@ -53,7 +53,7 @@ namespace System {
             if (!(obj is UInt16)) {
                 return false;
             }
-            return m_value == ((UInt16)obj).m_value;
+            return Equals((UInt16)obj);
         }
 
         [System.Runtime.Versioning.NonVersionable]
@@ -71,13 +71,13 @@ namespace System {
         [System.Security.SecuritySafeCritical]  // auto-generated
         public override String ToString() {
             Contract.Ensures(Contract.Result<String>() != null);
-            return Number.FormatUInt32(m_value, null, NumberFormatInfo.CurrentInfo);
+            return ToString((String)null);
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
         public String ToString(IFormatProvider provider) {
             Contract.Ensures(Contract.Result<String>() != null);
-            return Number.FormatUInt32(m_value, null, NumberFormatInfo.GetInstance(provider));
+            return ToString(null, provider);
         }
 
 
