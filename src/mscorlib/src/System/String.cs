@@ -3273,29 +3273,34 @@ namespace System {
              return result;
         }
 
-        public static String Concat(Object arg0) {
+        public static String Concat(Object arg0)
+        {
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.EndContractBlock();
 
             if (arg0 == null)
             {
-                return String.Empty;
+                return string.Empty;
             }
+            
             return arg0.ToString();
         }
     
-        public static String Concat(Object arg0, Object arg1) {
+        public static String Concat(Object arg0, Object arg1)
+        {
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.EndContractBlock();
 
             if (arg0 == null)
             {
-                arg0 = String.Empty;
+                return Concat(arg1);
             }
     
-            if (arg1==null) {
-                arg1 = String.Empty;
+            if (arg1 == null)
+            {
+                return Concat(arg0);
             }
+            
             return Concat(arg0.ToString(), arg1.ToString());
         }
     
@@ -3305,15 +3310,17 @@ namespace System {
 
             if (arg0 == null)
             {
-                arg0 = String.Empty;
+                return Concat(arg1, arg2);
             }
     
-            if (arg1==null) {
-                arg1 = String.Empty;
+            if (arg1 == null)
+            {
+                return Concat(arg0, arg2);
             }
     
-            if (arg2==null) {
-                arg2 = String.Empty;
+            if (arg2 == null)
+            {
+                return Concat(arg0, arg1);
             }
     
             return Concat(arg0.ToString(), arg1.ToString(), arg2.ToString());
