@@ -3279,9 +3279,18 @@ namespace System {
 
             if (arg0 == null)
             {
-                return String.Empty;
+                arg0 = string.Empty;
             }
+
+#if !FEATURE_CORECLR
+            // 'Bug' in the framework: we were inconsistent with other
+            // Concat() overloads, and returned null if ToString() was null.
+            // Other overloads would substitute string.Empty for null values.
             return arg0.ToString();
+#else // !FEATURE_CORECLR
+
+            return arg0.ToString() ?? string.Empty;
+#endif // !FEATURE_CORECLR
         }
     
         public static String Concat(Object arg0, Object arg1) {
