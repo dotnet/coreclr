@@ -316,7 +316,6 @@ GenTree* DecomposeLongs::DecomposeLclVar(LIR::Use& use)
     loResult->gtType  = TYP_INT;
 
     GenTree* hiResult = m_compiler->gtNewLclLNode(varNum, TYP_INT);
-    hiResult->CopyCosts(loResult);
     BlockRange().InsertAfter(loResult, hiResult);
 
     if (varDsc->lvPromoted)
@@ -365,7 +364,6 @@ GenTree* DecomposeLongs::DecomposeLclFld(LIR::Use& use)
     loResult->gtType        = TYP_INT;
 
     GenTree* hiResult = m_compiler->gtNewLclFldNode(loResult->gtLclNum, TYP_INT, loResult->gtLclOffs + 4);
-    hiResult->CopyCosts(loResult);
     BlockRange().InsertAfter(loResult, hiResult);
 
     return FinalizeDecomposition(use, loResult, hiResult);
@@ -439,7 +437,6 @@ GenTree* DecomposeLongs::DecomposeStoreLclVar(LIR::Use& use)
     m_compiler->lvaIncRefCnts(tree);
     m_compiler->lvaIncRefCnts(hiStore);
 
-    hiStore->CopyCosts(tree);
     BlockRange().InsertAfter(tree, hiStore);
 
     return hiStore->gtNext;
@@ -474,7 +471,6 @@ GenTree* DecomposeLongs::DecomposeCast(LIR::Use& use)
                 BlockRange().Remove(tree);
 
                 hiResult = new (m_compiler, GT_CNS_INT) GenTreeIntCon(TYP_INT, 0);
-                hiResult->CopyCosts(loResult);
                 BlockRange().InsertAfter(loResult, hiResult);
             }
             else
@@ -513,7 +509,6 @@ GenTree* DecomposeLongs::DecomposeCnsLng(LIR::Use& use)
     loResult->gtType = TYP_INT;
 
     GenTree* hiResult = new (m_compiler, GT_CNS_INT) GenTreeIntCon(TYP_INT, hiVal);
-    hiResult->CopyCosts(loResult);
     BlockRange().InsertAfter(loResult, hiResult);
 
     return FinalizeDecomposition(use, loResult, hiResult);
@@ -824,7 +819,6 @@ GenTree* DecomposeLongs::DecomposeNot(LIR::Use& use)
     loResult->gtOp.gtOp1 = loOp1;
 
     GenTree* hiResult = new (m_compiler, GT_NOT) GenTreeOp(GT_NOT, TYP_INT, hiOp1, nullptr);
-    hiResult->CopyCosts(loResult);
     BlockRange().InsertAfter(loResult, hiResult);
 
     return FinalizeDecomposition(use, loResult, hiResult);
@@ -940,7 +934,6 @@ GenTree* DecomposeLongs::DecomposeArith(LIR::Use& use)
     loResult->gtOp.gtOp2 = loOp2;
 
     GenTree* hiResult = new (m_compiler, oper) GenTreeOp(GetHiOper(oper), TYP_INT, hiOp1, hiOp2);
-    hiResult->CopyCosts(loResult);
     BlockRange().InsertAfter(loResult, hiResult);
 
     if ((oper == GT_ADD) || (oper == GT_SUB))
