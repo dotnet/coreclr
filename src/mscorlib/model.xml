@@ -6924,8 +6924,10 @@
       <Member Name="Insert(System.Int32,System.String)" />
       <Member Name="Intern(System.String)" />
       <Member Name="IsInterned(System.String)" />
+<!--
       <Member Name="IsNormalized" />
       <Member Name="IsNormalized(System.Text.NormalizationForm)" />
+-->
       <Member Name="IsNullOrEmpty(System.String)" />
       <Member Name="IsNullOrWhiteSpace(System.String)" />
       <Member Name="Join(System.String,System.Object[])" />
@@ -6945,8 +6947,10 @@
       <Member Name="LastIndexOfAny(System.Char[])" />
       <Member Name="LastIndexOfAny(System.Char[],System.Int32)" />
       <Member Name="LastIndexOfAny(System.Char[],System.Int32,System.Int32)" />
+<!--
       <Member Name="Normalize" />
       <Member Name="Normalize(System.Text.NormalizationForm)" />
+-->
       <Member Name="op_Equality(System.String,System.String)" />
       <Member Name="op_Inequality(System.String,System.String)" />
       <Member Name="PadLeft(System.Int32)" />
@@ -7903,9 +7907,11 @@
       <Member Name="ConvertTime(System.DateTime,System.TimeZoneInfo)" />
       <Member Name="ConvertTime(System.DateTime,System.TimeZoneInfo,System.TimeZoneInfo)" />
       <Member Name="ConvertTime(System.DateTimeOffset,System.TimeZoneInfo)" />
+<!--
       <Member Name="ConvertTimeBySystemTimeZoneId(System.DateTime,System.String)" />
       <Member Name="ConvertTimeBySystemTimeZoneId(System.DateTime,System.String,System.String)" />
       <Member Name="ConvertTimeBySystemTimeZoneId(System.DateTimeOffset,System.String)" />
+-->
       <Member Name="ConvertTimeFromUtc(System.DateTime,System.TimeZoneInfo)" />
       <Member Name="ConvertTimeToUtc(System.DateTime)" />
       <Member Name="ConvertTimeToUtc(System.DateTime,System.TimeZoneInfo)" />

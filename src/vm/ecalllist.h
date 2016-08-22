@@ -379,10 +379,8 @@ FCFuncEnd()
 
 FCFuncStart(gTypedReferenceFuncs)
     FCFuncElement("InternalToObject", ReflectionInvocation::TypedReferenceToObject)
-#ifndef FEATURE_CORECLR
     FCFuncElement("InternalSetTypedReference", ReflectionInvocation::SetTypedReference)
     FCFuncElement("InternalMakeTypedReference", ReflectionInvocation::MakeTypedReference)
-#endif
 FCFuncEnd()
 
 FCFuncStart(gSystem_Type)
@@ -1545,12 +1543,10 @@ FCFuncEnd()
 
 FCFuncStart(gGCInterfaceFuncs)
     FCFuncElement("GetGenerationWR", GCInterface::GetGenerationWR)
-#ifndef FEATURE_CORECLR
     FCFuncElement("_RegisterForFullGCNotification", GCInterface::RegisterForFullGCNotification)
     FCFuncElement("_CancelFullGCNotification", GCInterface::CancelFullGCNotification)
     FCFuncElement("_WaitForFullGCApproach", GCInterface::WaitForFullGCApproach)
     FCFuncElement("_WaitForFullGCComplete", GCInterface::WaitForFullGCComplete)
-#endif
     FCFuncElement("_CollectionCount", GCInterface::CollectionCount)
     FCFuncElement("GetGCLatencyMode", GCInterface::GetGcLatencyMode)
     FCFuncElement("SetGCLatencyMode", GCInterface::SetGcLatencyMode)
