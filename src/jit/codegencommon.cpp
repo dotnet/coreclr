@@ -462,6 +462,7 @@ void CodeGenInterface::genUpdateLife(VARSET_VALARG_TP newLife)
     compiler->compUpdateLife</*ForCodeGen*/ true>(newLife);
 }
 
+#ifdef LEGACY_BACKEND
 // Returns the liveSet after tree has executed.
 // "tree" MUST occur in the current statement, AFTER the most recent
 // update of compiler->compCurLifeTree and compiler->compCurLife.
@@ -498,6 +499,7 @@ regMaskTP CodeGen::genNewLiveRegMask(GenTreePtr first, GenTreePtr second)
     regMaskTP newLiveMask   = genLiveMask(VarSetOps::Diff(compiler, secondLiveSet, firstLiveSet));
     return newLiveMask;
 }
+#endif
 
 // Return the register mask for the given register variable
 // inline
@@ -724,17 +726,13 @@ void Compiler::compUpdateLifeVar(GenTreePtr tree, VARSET_TP* pLastUseVars)
     LclVarDsc*   varDsc = lvaTable + lclNum;
 
 #ifdef DEBUG
-#if !defined(_TARGET_AMD64_) // no addr nodes on AMD and experimenting with with encountering vars in 'random' order
+#if !defined(_TARGET_AMD64_)
+    // There are no addr nodes on ARM and we are experimenting with encountering vars in 'random' order.
     // Struct fields are not traversed in a consistent order, so ignore them when
     // verifying that we see the var nodes in execution order
     if (ForCodeGen)
     {
-        if (tree->gtOper == GT_OBJ)
-        {
-            // The tree must have the particular form OBJ(ADDR(LCL)); no need to do the check below.
-            assert(indirAddrLocal != NULL);
-        }
-        else if (tree->OperIsIndir())
+        if (tree->OperIsIndir())
         {
             assert(indirAddrLocal != NULL);
         }
@@ -1182,6 +1180,8 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife DEBUGARG(GenTreePtr tree)
 // Need an explicit instantiation.
 template void Compiler::compChangeLife<true>(VARSET_VALARG_TP newLife DEBUGARG(GenTreePtr tree));
 
+#ifdef LEGACY_BACKEND
+
 /*****************************************************************************
  *
  *  Get the mask of integer registers that contain 'live' enregistered
@@ -1359,6 +1359,8 @@ regMaskTP CodeGenInterface::genLiveMask(VARSET_VALARG_TP liveSet)
 
     return liveMask;
 }
+
+#endif
 
 /*****************************************************************************
  *
@@ -9078,12 +9080,7 @@ void CodeGen::genFnEpilog(BasicBlock* block)
 
         /* figure out what jump we have */
 
-        GenTreePtr jmpNode = block->lastTopLevelStmt();
-
-        noway_assert(jmpNode && (jmpNode->gtNext == 0));
-        noway_assert(jmpNode->gtOper == GT_STMT);
-
-        jmpNode = jmpNode->gtStmt.gtStmtExpr;
+        GenTree* jmpNode = block->lastNode();
         noway_assert(jmpNode->gtOper == GT_JMP);
 
         CORINFO_METHOD_HANDLE methHnd = (CORINFO_METHOD_HANDLE)jmpNode->gtVal.gtVal1;
@@ -9203,18 +9200,14 @@ void CodeGen::genFnEpilog(BasicBlock* block)
         noway_assert(block->bbTreeList != nullptr);
 
         // figure out what jump we have
-        GenTreePtr jmpStmt = block->lastTopLevelStmt();
-        noway_assert(jmpStmt && (jmpStmt->gtOper == GT_STMT));
+        GenTree* jmpNode = block->lastNode();
 #if !FEATURE_FASTTAILCALL
-        noway_assert(jmpStmt->gtNext == nullptr);
-        GenTreePtr jmpNode = jmpStmt->gtStmt.gtStmtExpr;
         noway_assert(jmpNode->gtOper == GT_JMP);
 #else
         // arm64
         // If jmpNode is GT_JMP then gtNext must be null.
         // If jmpNode is a fast tail call, gtNext need not be null since it could have embedded stmts.
-        GenTreePtr jmpNode = jmpStmt->gtStmt.gtStmtExpr;
-        noway_assert((jmpNode->gtOper != GT_JMP) || (jmpStmt->gtNext == nullptr));
+        noway_assert((jmpNode->gtOper != GT_JMP) || (jmpNode->gtNext == nullptr));
 
         // Could either be a "jmp method" or "fast tail call" implemented as epilog+jmp
         noway_assert((jmpNode->gtOper == GT_JMP) ||
@@ -9479,20 +9472,15 @@ void CodeGen::genFnEpilog(BasicBlock* block)
         noway_assert(block->bbTreeList);
 
         // figure out what jump we have
-        GenTreePtr jmpStmt = block->lastTopLevelStmt();
-        noway_assert(jmpStmt && (jmpStmt->gtOper == GT_STMT));
-
+        GenTree* jmpNode = block->lastNode();
 #if !FEATURE_FASTTAILCALL
         // x86
-        noway_assert(jmpStmt->gtNext == nullptr);
-        GenTreePtr jmpNode = jmpStmt->gtStmt.gtStmtExpr;
         noway_assert(jmpNode->gtOper == GT_JMP);
 #else
         // amd64
         // If jmpNode is GT_JMP then gtNext must be null.
         // If jmpNode is a fast tail call, gtNext need not be null since it could have embedded stmts.
-        GenTreePtr jmpNode = jmpStmt->gtStmt.gtStmtExpr;
-        noway_assert((jmpNode->gtOper != GT_JMP) || (jmpStmt->gtNext == nullptr));
+        noway_assert((jmpNode->gtOper != GT_JMP) || (jmpNode->gtNext == nullptr));
 
         // Could either be a "jmp method" or "fast tail call" implemented as epilog+jmp
         noway_assert((jmpNode->gtOper == GT_JMP) ||

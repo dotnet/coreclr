@@ -81,7 +81,7 @@ ValueNumStore::ValueNumStore(Compiler* comp, IAllocator* alloc)
     // We have no current allocation chunks.
     for (unsigned i = 0; i < TYP_COUNT; i++)
     {
-        for (unsigned j = CEA_None; j < CEA_Count; j++)
+        for (unsigned j = CEA_None; j <= CEA_Count + MAX_LOOP_NUM; j++)
         {
             m_curAllocChunk[i][j] = NoChunk;
         }
@@ -93,7 +93,7 @@ ValueNumStore::ValueNumStore(Compiler* comp, IAllocator* alloc)
     }
     // We will reserve chunk 0 to hold some special constants, like the constant NULL, the "exception" value, and the
     // "zero map."
-    Chunk* specialConstChunk = new (m_alloc) Chunk(m_alloc, &m_nextChunkBase, TYP_REF, CEA_Const);
+    Chunk* specialConstChunk = new (m_alloc) Chunk(m_alloc, &m_nextChunkBase, TYP_REF, CEA_Const, MAX_LOOP_NUM);
     specialConstChunk->m_numUsed +=
         SRC_NumSpecialRefConsts; // Implicitly allocate 0 ==> NULL, and 1 ==> Exception, 2 ==> ZeroMap.
     ChunkNum cn = m_chunks.Push(specialConstChunk);
@@ -596,8 +596,8 @@ bool ValueNumStore::IsSharedStatic(ValueNum vn)
     return GetVNFunc(vn, &funcAttr) && (s_vnfOpAttribs[funcAttr.m_func] & VNFOA_SharedStatic) != 0;
 }
 
-ValueNumStore::Chunk::Chunk(IAllocator* alloc, ValueNum* pNextBaseVN, var_types typ, ChunkExtraAttribs attribs)
-    : m_defs(nullptr), m_numUsed(0), m_baseVN(*pNextBaseVN), m_typ(typ), m_attribs(attribs)
+ValueNumStore::Chunk::Chunk(IAllocator* alloc, ValueNum* pNextBaseVN, var_types typ, ChunkExtraAttribs attribs, BasicBlock::loopNumber loopNum)
+    : m_defs(nullptr), m_numUsed(0), m_baseVN(*pNextBaseVN), m_typ(typ), m_attribs(attribs), m_loopNum(loopNum)
 {
     // Allocate "m_defs" here, according to the typ/attribs pair.
     switch (attribs)
@@ -658,10 +658,24 @@ ValueNumStore::Chunk::Chunk(IAllocator* alloc, ValueNum* pNextBaseVN, var_types 
     *pNextBaseVN += ChunkSize;
 }
 
-ValueNumStore::Chunk* ValueNumStore::GetAllocChunk(var_types typ, ValueNumStore::ChunkExtraAttribs attribs)
+ValueNumStore::Chunk* ValueNumStore::GetAllocChunk(var_types typ, ChunkExtraAttribs attribs, BasicBlock::loopNumber loopNum)
 {
     Chunk*   res;
-    ChunkNum cn = m_curAllocChunk[typ][attribs];
+    unsigned index;
+    if (loopNum == MAX_LOOP_NUM)
+    {
+        // Loop nest is unknown/irrelevant for this VN.
+        index = attribs;
+    }
+    else
+    {
+        // Loop nest is interesting.  Since we know this is only true for unique VNs, we know attribs will
+        // be CEA_None and can just index based on loop number.
+        noway_assert(attribs == CEA_None);
+        // Map NOT_IN_LOOP -> MAX_LOOP_NUM to make the index range contiguous [0..MAX_LOOP_NUM]
+        index = CEA_Count + (loopNum == BasicBlock::NOT_IN_LOOP ? MAX_LOOP_NUM : loopNum);
+    }
+    ChunkNum cn = m_curAllocChunk[typ][index];
     if (cn != NoChunk)
     {
         res = m_chunks.Get(cn);
@@ -671,9 +685,9 @@ ValueNumStore::Chunk* ValueNumStore::GetAllocChunk(var_types typ, ValueNumStore:
         }
     }
     // Otherwise, must allocate a new one.
-    res                           = new (m_alloc) Chunk(m_alloc, &m_nextChunkBase, typ, attribs);
+    res                           = new (m_alloc) Chunk(m_alloc, &m_nextChunkBase, typ, attribs, loopNum);
     cn                            = m_chunks.Push(res);
-    m_curAllocChunk[typ][attribs] = cn;
+    m_curAllocChunk[typ][index] = cn;
     return res;
 }
 
@@ -1296,7 +1310,11 @@ TailCall:
         // Give up if we've run out of budget.
         if (--(*pBudget) == 0)
         {
-            res = VNForExpr(typ);
+            // We have to use 'nullptr' for the basic block here, because subsequent expressions
+            // in different blocks may find this result in the VNFunc2Map -- other expressions in
+            // the IR may "evaluate" to this same VNForExpr, so it is not "unique" in the sense
+            // that permits the BasicBlock attribution.
+            res = VNForExpr(nullptr, typ);
             GetVNFunc2Map()->Set(fstruct, res);
             return res;
         }
@@ -2239,12 +2257,35 @@ ValueNum ValueNumStore::VNForFunc(
     }
 }
 
-ValueNum ValueNumStore::VNForExpr(var_types typ)
+//------------------------------------------------------------------------
+// VNForExpr: Opaque value number that is equivalent to itself but unique
+//    from all other value numbers.
+//
+// Arguments:
+//    block - BasicBlock where the expression that produces this value occurs.
+//            May be nullptr to force conservative "could be anywhere" interpretation.
+//     typ - Type of the expression in the IR
+//
+// Return Value:
+//    A new value number distinct from any previously generated, that compares as equal
+//    to itself, but not any other value number, and is annotated with the given
+//    type and block.
+
+ValueNum ValueNumStore::VNForExpr(BasicBlock *block, var_types typ)
 {
+    BasicBlock::loopNumber loopNum;
+    if (block == nullptr)
+    {
+        loopNum = MAX_LOOP_NUM;
+    }
+    else
+    {
+        loopNum = block->bbNatLoopNum;
+    }
+
     // We always allocate a new, unique VN in this call.
     // The 'typ' is used to partition the allocation of VNs into different chunks.
-    //
-    Chunk*   c                 = GetAllocChunk(typ, CEA_None);
+    Chunk*   c                 = GetAllocChunk(typ, CEA_None, loopNum);
     unsigned offsetWithinChunk = c->AllocVN();
     ValueNum result            = c->m_baseVN + offsetWithinChunk;
     return result;
@@ -2354,7 +2395,7 @@ ValueNum ValueNumStore::VNApplySelectorsTypeCheck(ValueNum elem, var_types indTy
                 // Reading beyong the end of 'elem'
 
                 // return a new unique value number
-                elem = VNForExpr(indType);
+                elem = VNForExpr(nullptr, indType);
                 JITDUMP("    *** Mismatched types in VNApplySelectorsTypeCheck (reading beyond the end)\n");
             }
             else if (varTypeIsStruct(indType))
@@ -2362,7 +2403,7 @@ ValueNum ValueNumStore::VNApplySelectorsTypeCheck(ValueNum elem, var_types indTy
                 // indType is TYP_STRUCT
 
                 // return a new unique value number
-                elem = VNForExpr(indType);
+                elem = VNForExpr(nullptr, indType);
                 JITDUMP("    *** Mismatched types in VNApplySelectorsTypeCheck (indType is TYP_STRUCT)\n");
             }
             else
@@ -2377,7 +2418,7 @@ ValueNum ValueNumStore::VNApplySelectorsTypeCheck(ValueNum elem, var_types indTy
     return elem;
 }
 
-ValueNum ValueNumStore::VNApplySelectorsAssignTypeCoerce(ValueNum elem, var_types indType)
+ValueNum ValueNumStore::VNApplySelectorsAssignTypeCoerce(ValueNum elem, var_types indType, BasicBlock* block)
 {
     var_types elemTyp = TypeOfVN(elem);
 
@@ -2397,7 +2438,7 @@ ValueNum ValueNumStore::VNApplySelectorsAssignTypeCoerce(ValueNum elem, var_type
             if (varTypeIsStruct(indType))
             {
                 // return a new unique value number
-                elem = VNForExpr(indType);
+                elem = VNForExpr(block, indType);
                 JITDUMP("    *** Mismatched types in VNApplySelectorsAssignTypeCoerce (indType is TYP_STRUCT)\n");
             }
             else
@@ -2412,12 +2453,29 @@ ValueNum ValueNumStore::VNApplySelectorsAssignTypeCoerce(ValueNum elem, var_type
     return elem;
 }
 
+//------------------------------------------------------------------------
+// VNApplySelectorsAssign: Compute the value number corresponding to "map" but with
+//    the element at "fieldSeq" updated to have type "elem"; this is the new heap
+//    value for an assignment of value "elem" into the heap at location "fieldSeq"
+//    that occurs in block "block" and has type "indType".
+//
+// Arguments:
+//    vnk - Identifies whether to recurse to Conservative or Liberal value numbers
+//          when recursing through phis
+//    map - Value number for the field map before the assignment
+//    elem - Value number for the value being stored (to the given field)
+//    indType - Type of the indirection storing the value to the field
+//    block - Block where the assignment occurs
+//
+// Return Value:
+//    The value number corresopnding to the heap after the assignment.
+
 ValueNum ValueNumStore::VNApplySelectorsAssign(
-    ValueNumKind vnk, ValueNum map, FieldSeqNode* fieldSeq, ValueNum elem, var_types indType)
+    ValueNumKind vnk, ValueNum map, FieldSeqNode* fieldSeq, ValueNum elem, var_types indType, BasicBlock* block)
 {
     if (fieldSeq == nullptr)
     {
-        return VNApplySelectorsAssignTypeCoerce(elem, indType);
+        return VNApplySelectorsAssignTypeCoerce(elem, indType, block);
     }
     else
     {
@@ -2427,7 +2485,7 @@ ValueNum ValueNumStore::VNApplySelectorsAssign(
         // These will occur, at least, in struct static expressions, for method table offsets.
         if (fieldSeq->IsPseudoField())
         {
-            return VNApplySelectorsAssign(vnk, map, fieldSeq->m_next, elem, indType);
+            return VNApplySelectorsAssign(vnk, map, fieldSeq->m_next, elem, indType, block);
         }
 
         // Otherwise, fldHnd is a real field handle.
@@ -2459,11 +2517,11 @@ ValueNum ValueNumStore::VNApplySelectorsAssign(
         if (fieldSeq->m_next)
         {
             ValueNum fseqMap = VNForMapSelect(vnk, fieldType, map, fieldHndVN);
-            elemAfter        = VNApplySelectorsAssign(vnk, fseqMap, fieldSeq->m_next, elem, indType);
+            elemAfter        = VNApplySelectorsAssign(vnk, fseqMap, fieldSeq->m_next, elem, indType, block);
         }
         else
         {
-            elemAfter = VNApplySelectorsAssignTypeCoerce(elem, indType);
+            elemAfter = VNApplySelectorsAssignTypeCoerce(elem, indType, block);
         }
 
         ValueNum newMap = VNForMapStore(fieldType, map, fieldHndVN, elemAfter);
@@ -2667,14 +2725,14 @@ void Compiler::fgValueNumberArrIndexAssign(CORINFO_CLASS_HANDLE elemTypeEq,
         JITDUMP("    *** NotAField sequence encountered in fgValueNumberArrIndexAssign\n");
 
         // Store a new unique value for newValAtArrType
-        newValAtArrType = vnStore->VNForExpr(TYP_REF);
+        newValAtArrType = vnStore->VNForExpr(compCurBB, TYP_REF);
         invalidateArray = true;
     }
     else
     {
         // Note that this does the right thing if "fldSeq" is null -- returns last "rhs" argument.
         // This is the value that should be stored at "arr[inx]".
-        newValAtInx = vnStore->VNApplySelectorsAssign(VNK_Liberal, hAtArrTypeAtArrAtInx, fldSeq, rhsVN, indType);
+        newValAtInx = vnStore->VNApplySelectorsAssign(VNK_Liberal, hAtArrTypeAtArrAtInx, fldSeq, rhsVN, indType, compCurBB);
 
         var_types arrElemFldType = arrElemType; // Uses arrElemType unless we has a non-null fldSeq
         if (vnStore->IsVNFunc(newValAtInx))
@@ -2695,7 +2753,7 @@ void Compiler::fgValueNumberArrIndexAssign(CORINFO_CLASS_HANDLE elemTypeEq,
             JITDUMP("    *** Mismatched types in fgValueNumberArrIndexAssign\n");
 
             // Store a new unique value for newValAtArrType
-            newValAtArrType = vnStore->VNForExpr(TYP_REF);
+            newValAtArrType = vnStore->VNForExpr(compCurBB, TYP_REF);
             invalidateArray = true;
         }
     }
@@ -2766,7 +2824,7 @@ ValueNum Compiler::fgValueNumberArrIndexVal(GenTreePtr           tree,
                                             ValueNum             excVN,
                                             FieldSeqNode*        fldSeq)
 {
-    assert(tree == nullptr || tree->OperGet() == GT_IND);
+    assert(tree == nullptr || tree->OperIsIndir());
 
     // The VN inputs are required to be non-exceptional values.
     assert(arrVN == vnStore->VNNormVal(arrVN));
@@ -2782,7 +2840,7 @@ ValueNum Compiler::fgValueNumberArrIndexVal(GenTreePtr           tree,
         JITDUMP("    *** NotAField sequence encountered in fgValueNumberArrIndexVal\n");
 
         // a new unique value number
-        selectedElem = vnStore->VNForExpr(elemTyp);
+        selectedElem = vnStore->VNForExpr(compCurBB, elemTyp);
 
 #ifdef DEBUG
         if (verbose)
@@ -2846,7 +2904,7 @@ ValueNum Compiler::fgValueNumberArrIndexVal(GenTreePtr           tree,
             tree->gtVNPair.SetLiberal(selectedElem);
             // TODO-CQ: what to do here about exceptions?  We don't have the array and ind conservative
             // values, so we don't have their exceptions.  Maybe we should.
-            tree->gtVNPair.SetConservative(vnStore->VNForExpr(tree->TypeGet()));
+            tree->gtVNPair.SetConservative(vnStore->VNForExpr(compCurBB, tree->TypeGet()));
         }
     }
 
@@ -2857,6 +2915,25 @@ var_types ValueNumStore::TypeOfVN(ValueNum vn)
 {
     Chunk* c = m_chunks.GetNoExpand(GetChunkNum(vn));
     return c->m_typ;
+}
+
+//------------------------------------------------------------------------
+// LoopOfVN: If the given value number is an opaque one associated with a particular
+//    expression in the IR, give the loop number where the expression occurs; otherwise,
+//    returns MAX_LOOP_NUM.
+//
+// Arguments:
+//    vn - Value number to query
+//
+// Return Value:
+//    The correspondingblock's bbNatLoopNum, which may be BasicBlock::NOT_IN_LOOP.
+//    Returns MAX_LOOP_NUM if this VN is not an opaque value number associated with
+//    a particular expression/location in the IR.
+
+BasicBlock::loopNumber ValueNumStore::LoopOfVN(ValueNum vn)
+{
+    Chunk* c = m_chunks.GetNoExpand(GetChunkNum(vn));
+    return c->m_loopNum;
 }
 
 bool ValueNumStore::IsVNConstant(ValueNum vn)
@@ -3836,7 +3913,7 @@ void ValueNumStore::RunTests(Compiler* comp)
     assert(vns->IsVNConstant(vnFor1D));
     assert(vns->ConstantValue<double>(vnFor1D) == 1.0);
 
-    ValueNum vnRandom1   = vns->VNForExpr(TYP_INT);
+    ValueNum vnRandom1   = vns->VNForExpr(nullptr, TYP_INT);
     ValueNum vnForFunc2a = vns->VNForFunc(TYP_INT, VNF_Add, vnFor1, vnRandom1);
     assert(vnForFunc2a == vns->VNForFunc(TYP_INT, VNF_Add, vnFor1, vnRandom1));
     assert(vnForFunc2a != vnFor1D && vnForFunc2a != vnFor1F && vnForFunc2a != vnFor1 && vnForFunc2a != vnRandom1);
@@ -4160,7 +4237,7 @@ void Compiler::fgValueNumber()
                     // The stack associated with these LclVars are not zero initialized
                     // thus we set 'initVN' to a new, unique VN.
                     //
-                    initVal = vnStore->VNForExpr();
+                    initVal = vnStore->VNForExpr(fgFirstBB);
                     break;
 
                 case TYP_BYREF:
@@ -4191,7 +4268,7 @@ void Compiler::fgValueNumber()
 #ifdef _TARGET_X86_
             bool isVarargParam = (i == lvaVarargsBaseOfStkArgs || i == lvaVarargsHandleArg);
             if (isVarargParam)
-                initVal = vnStore->VNForExpr(); // a new, unique VN.
+                initVal = vnStore->VNForExpr(fgFirstBB); // a new, unique VN.
 #endif
             assert(initVal != ValueNumStore::NoVN);
 
@@ -4518,7 +4595,7 @@ ValueNum Compiler::fgHeapVNForLoopSideEffects(BasicBlock* entryBlock, unsigned i
     // If this loop has heap havoc effects, just use a new, unique VN.
     if (optLoopTable[loopNum].lpLoopHasHeapHavoc)
     {
-        ValueNum res = vnStore->VNForExpr(TYP_REF);
+        ValueNum res = vnStore->VNForExpr(entryBlock, TYP_REF);
 #ifdef DEBUG
         if (verbose)
         {
@@ -4558,14 +4635,14 @@ ValueNum Compiler::fgHeapVNForLoopSideEffects(BasicBlock* entryBlock, unsigned i
     }
     if (multipleNonLoopPreds)
     {
-        ValueNum res = vnStore->VNForExpr(TYP_REF);
+        ValueNum res = vnStore->VNForExpr(entryBlock, TYP_REF);
 #ifdef DEBUG
         if (verbose)
         {
             printf("  Therefore, heap state is new, fresh $%x.\n", res);
         }
 #endif // DEBUG
-        return vnStore->VNForExpr(TYP_REF);
+        return res;
     }
     // Otherwise, there is a single non-loop pred.
     assert(nonLoopPred != nullptr);
@@ -4602,7 +4679,7 @@ ValueNum Compiler::fgHeapVNForLoopSideEffects(BasicBlock* entryBlock, unsigned i
             }
 #endif // DEBUG
 
-            newHeapVN = vnStore->VNForMapStore(TYP_REF, newHeapVN, fldHndVN, vnStore->VNForExpr(TYP_REF));
+            newHeapVN = vnStore->VNForMapStore(TYP_REF, newHeapVN, fldHndVN, vnStore->VNForExpr(entryBlock, TYP_REF));
         }
     }
     // Now do the array maps.
@@ -4631,7 +4708,7 @@ ValueNum Compiler::fgHeapVNForLoopSideEffects(BasicBlock* entryBlock, unsigned i
 #endif // DEBUG
 
             ValueNum elemTypeVN = vnStore->VNForHandle(ssize_t(elemClsHnd), GTF_ICON_CLASS_HDL);
-            ValueNum uniqueVN   = vnStore->VNForExpr(TYP_REF);
+            ValueNum uniqueVN   = vnStore->VNForExpr(entryBlock, TYP_REF);
             newHeapVN           = vnStore->VNForMapStore(TYP_REF, newHeapVN, elemTypeVN, uniqueVN);
         }
     }
@@ -4647,13 +4724,10 @@ ValueNum Compiler::fgHeapVNForLoopSideEffects(BasicBlock* entryBlock, unsigned i
 
 void Compiler::fgMutateHeap(GenTreePtr tree DEBUGARG(const char* msg))
 {
-    ValueNum newHeapVal = vnStore->VNForExpr(TYP_REF);
-
     // bbHeapDef must be set to true for any block that Mutates the global Heap
     assert(compCurBB->bbHeapDef);
 
-    // We make this a phi definition (of only one value), so we can tell what block the definition occurred in.
-    fgCurHeapVN = vnStore->VNForFunc(TYP_REF, VNF_PhiHeapDef, vnStore->VNForHandle(ssize_t(compCurBB), 0), newHeapVal);
+    fgCurHeapVN = vnStore->VNForExpr(compCurBB, TYP_REF);
 
     // If we're tracking the heap SSA # caused by this node, record it.
     fgValueNumberRecordHeapSsa(tree);
@@ -4773,12 +4847,15 @@ void Compiler::fgValueNumberTreeConst(GenTreePtr tree)
 
 void Compiler::fgValueNumberBlockAssignment(GenTreePtr tree, bool evalAsgLhsInd)
 {
+    GenTree* lhsAddr = tree->gtGetOp1()->gtGetOp1();
+    GenTree* rhsAddrOrVal = tree->gtGetOp1()->gtGetOp2();
+
 #ifdef DEBUG
     // Sometimes we query the heap ssa map, and need a dummy location for the ignored result.
     unsigned heapSsaNum;
 #endif
 
-    if (tree->OperGet() == GT_INITBLK)
+    if (tree->OperIsInitBlkOp())
     {
         GenTreeLclVarCommon* lclVarTree;
         bool                 isEntire;
@@ -4798,7 +4875,7 @@ void Compiler::fgValueNumberBlockAssignment(GenTreePtr tree, bool evalAsgLhsInd)
                 unsigned lclDefSsaNum = GetSsaNumForLocalVarDef(lclVarTree);
 
                 ValueNum   initBlkVN = ValueNumStore::NoVN;
-                GenTreePtr initConst = tree->gtGetOp1()->gtGetOp2();
+                GenTreePtr initConst = rhsAddrOrVal;
                 if (isEntire && initConst->OperGet() == GT_CNS_INT)
                 {
                     unsigned initVal = 0xFF & (unsigned)initConst->AsIntConCommon()->IconValue();
@@ -4809,7 +4886,7 @@ void Compiler::fgValueNumberBlockAssignment(GenTreePtr tree, bool evalAsgLhsInd)
                 }
                 ValueNum lclVarVN = (initBlkVN != ValueNumStore::NoVN)
                                         ? initBlkVN
-                                        : vnStore->VNForExpr(var_types(lvaTable[lclNum].lvType));
+                                        : vnStore->VNForExpr(compCurBB, var_types(lvaTable[lclNum].lvType));
 
                 lvaTable[lclNum].GetPerSsaData(lclDefSsaNum)->m_vnPair.SetBoth(lclVarVN);
 #ifdef DEBUG
@@ -4851,16 +4928,15 @@ void Compiler::fgValueNumberBlockAssignment(GenTreePtr tree, bool evalAsgLhsInd)
             // Should not have been recorded as updating the heap.
             assert(!GetHeapSsaMap()->Lookup(tree, &heapSsaNum));
 
-            unsigned   lhsLclNum = lclVarTree->GetLclNum();
-            LclVarDsc* rhsVarDsc = &lvaTable[lhsLclNum];
+            unsigned lhsLclNum = lclVarTree->GetLclNum();
             // If it's excluded from SSA, don't need to do anything.
             if (!fgExcludeFromSsa(lhsLclNum))
             {
                 unsigned lclDefSsaNum = GetSsaNumForLocalVarDef(lclVarTree);
 
                 // For addr-of-local expressions, lib/cons shouldn't matter.
-                assert(tree->gtOp.gtOp1->gtOp.gtOp1->gtVNPair.BothEqual());
-                ValueNum lhsAddrVN = tree->gtOp.gtOp1->gtOp.gtOp1->GetVN(VNK_Liberal);
+                assert(lhsAddr->gtVNPair.BothEqual());
+                ValueNum lhsAddrVN = lhsAddr->GetVN(VNK_Liberal);
 
                 // Unpack the PtrToLoc value number of the address.
                 assert(vnStore->IsVNFunc(lhsAddrVN));
@@ -4872,7 +4948,7 @@ void Compiler::fgValueNumberBlockAssignment(GenTreePtr tree, bool evalAsgLhsInd)
                 FieldSeqNode* lhsFldSeq = vnStore->FieldSeqVNToFieldSeq(lhsAddrFuncApp.m_args[1]);
 
                 // Now we need to get the proper RHS.
-                GenTreePtr           srcAddr = tree->gtOp.gtOp1->gtOp.gtOp2;
+                GenTreePtr           srcAddr = rhsAddrOrVal;
                 VNFuncApp            srcAddrFuncApp;
                 GenTreeLclVarCommon* rhsLclVarTree = nullptr;
                 FieldSeqNode*        rhsFldSeq     = nullptr;
@@ -4923,12 +4999,12 @@ void Compiler::fgValueNumberBlockAssignment(GenTreePtr tree, bool evalAsgLhsInd)
                                 vnStore->VNApplySelectorsTypeCheck(selectedStaticVar, indType, structSize);
 
                             rhsVNPair.SetLiberal(selectedStaticVar);
-                            rhsVNPair.SetConservative(vnStore->VNForExpr(indType));
+                            rhsVNPair.SetConservative(vnStore->VNForExpr(compCurBB, indType));
                         }
                         else
                         {
                             JITDUMP("    *** Missing field sequence info for Src/RHS of COPYBLK\n");
-                            rhsVNPair.SetBoth(vnStore->VNForExpr(indType)); //  a new unique value number
+                            rhsVNPair.SetBoth(vnStore->VNForExpr(compCurBB, indType)); //  a new unique value number
                         }
                     }
                     else if (srcAddrFuncApp.m_func == VNF_PtrToArrElem)
@@ -4936,7 +5012,7 @@ void Compiler::fgValueNumberBlockAssignment(GenTreePtr tree, bool evalAsgLhsInd)
                         ValueNum elemLib =
                             fgValueNumberArrIndexVal(nullptr, &srcAddrFuncApp, vnStore->VNForEmptyExcSet());
                         rhsVNPair.SetLiberal(elemLib);
-                        rhsVNPair.SetConservative(vnStore->VNForExpr(lclVarTree->TypeGet()));
+                        rhsVNPair.SetConservative(vnStore->VNForExpr(compCurBB, lclVarTree->TypeGet()));
                     }
                     else
                     {
@@ -4968,12 +5044,12 @@ void Compiler::fgValueNumberBlockAssignment(GenTreePtr tree, bool evalAsgLhsInd)
                 {
                     ValueNumPair oldLhsVNPair = lvaTable[lhsLclNum].GetPerSsaData(lclVarTree->GetSsaNum())->m_vnPair;
                     rhsVNPair =
-                        vnStore->VNPairApplySelectorsAssign(oldLhsVNPair, lhsFldSeq, rhsVNPair, lclVarTree->TypeGet());
+                        vnStore->VNPairApplySelectorsAssign(oldLhsVNPair, lhsFldSeq, rhsVNPair, lclVarTree->TypeGet(), compCurBB);
                 }
 
                 if (isNewUniq)
                 {
-                    rhsVNPair.SetBoth(vnStore->VNForExpr(lclVarTree->TypeGet()));
+                    rhsVNPair.SetBoth(vnStore->VNForExpr(compCurBB, lclVarTree->TypeGet()));
                 }
 
                 lvaTable[lhsLclNum].GetPerSsaData(lclDefSsaNum)->m_vnPair = vnStore->VNPNormVal(rhsVNPair);
@@ -5014,7 +5090,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
     // TODO-CQ: For now TYP_SIMD values are not handled by value numbering to be amenable for CSE'ing.
     if (oper == GT_SIMD)
     {
-        tree->gtVNPair.SetBoth(vnStore->VNForExpr(TYP_UNKNOWN));
+        tree->gtVNPair.SetBoth(vnStore->VNForExpr(compCurBB, TYP_UNKNOWN));
         return;
     }
 #endif
@@ -5022,7 +5098,12 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
     var_types typ = tree->TypeGet();
     if (GenTree::OperIsConst(oper))
     {
-        fgValueNumberTreeConst(tree);
+        // If this is a struct assignment, with a constant rhs, it is an initBlk, and it is not
+        // really useful to value number the constant.
+        if (!varTypeIsStruct(tree))
+        {
+            fgValueNumberTreeConst(tree);
+        }
     }
     else if (GenTree::OperIsLeaf(oper))
     {
@@ -5050,7 +5131,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                     if (lcl->gtSsaNum == SsaConfig::RESERVED_SSA_NUM)
                     {
                         // Not an SSA variable.  Assign each occurrence a new, unique, VN.
-                        lcl->gtVNPair.SetBoth(vnStore->VNForExpr(lcl->TypeGet()));
+                        lcl->gtVNPair.SetBoth(vnStore->VNForExpr(compCurBB, lcl->TypeGet()));
                     }
                     else
                     {
@@ -5081,7 +5162,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                                 assert(typSize > varSize);
                                 // the indirection is reading beyond the end of the field
                                 //
-                                lcl->gtVNPair.SetBoth(vnStore->VNForExpr(typ)); // return a new unique value number
+                                lcl->gtVNPair.SetBoth(vnStore->VNForExpr(compCurBB, typ)); // return a new unique value number
                             }
                         }
                     }
@@ -5101,7 +5182,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                         GenTree* nextNode = lcl->gtNext;
                         assert((nextNode->gtOper == GT_ADDR && nextNode->gtOp.gtOp1 == lcl) ||
                                varTypeIsStruct(lcl->TypeGet()));
-                        lcl->gtVNPair.SetBoth(vnStore->VNForExpr(lcl->TypeGet()));
+                        lcl->gtVNPair.SetBoth(vnStore->VNForExpr(compCurBB, lcl->TypeGet()));
                     }
                     assert(lcl->gtVNPair.BothDefined());
                 }
@@ -5118,7 +5199,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                     {
                         lvaTable[lclNum]
                             .GetPerSsaData(lcl->gtSsaNum)
-                            ->m_vnPair.SetBoth(vnStore->VNForExpr(lcl->TypeGet()));
+                            ->m_vnPair.SetBoth(vnStore->VNForExpr(compCurBB, lcl->TypeGet()));
                     }
                     lcl->gtVNPair = ValueNumPair(); // Avoid confusion -- we don't set the VN of a lcl being defined.
                 }
@@ -5153,7 +5234,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                     {
                         if (varDsc->GetPerSsaData(ssaNum)->m_vnPair.GetLiberal() == ValueNumStore::NoVN)
                         {
-                            ValueNum vnForLcl                       = vnStore->VNForExpr(lclFld->TypeGet());
+                            ValueNum vnForLcl                       = vnStore->VNForExpr(compCurBB, lclFld->TypeGet());
                             varDsc->GetPerSsaData(ssaNum)->m_vnPair = ValueNumPair(vnForLcl, vnForLcl);
                         }
                     }
@@ -5163,7 +5244,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                     {
                         // This doesn't represent a proper field access or it's a struct
                         // with overlapping fields that is hard to reason about; return a new unique VN.
-                        tree->gtVNPair.SetBoth(vnStore->VNForExpr(indType));
+                        tree->gtVNPair.SetBoth(vnStore->VNForExpr(compCurBB, indType));
                     }
                     else
                     {
@@ -5177,7 +5258,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
             // The ones below here all get a new unique VN -- but for various reasons, explained after each.
             case GT_CATCH_ARG:
                 // We know nothing about the value of a caught expression.
-                tree->gtVNPair.SetBoth(vnStore->VNForExpr(tree->TypeGet()));
+                tree->gtVNPair.SetBoth(vnStore->VNForExpr(compCurBB, tree->TypeGet()));
                 break;
 
             case GT_CLS_VAR:
@@ -5236,7 +5317,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
 
                         clsVarVNPair.SetLiberal(selectedStaticVar);
                         // The conservative interpretation always gets a new, unique VN.
-                        clsVarVNPair.SetConservative(vnStore->VNForExpr(tree->TypeGet()));
+                        clsVarVNPair.SetConservative(vnStore->VNForExpr(compCurBB, tree->TypeGet()));
                     }
 
                     // The ValueNum returned must represent the full-sized IL-Stack value
@@ -5271,7 +5352,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                 // We give this a "fake" value number now; if the call in which it occurs cares about the
                 // value (e.g., it's a helper call whose result is a function of argument values) we'll reset
                 // this later, when the later args have been assigned VNs.
-                tree->gtVNPair.SetBoth(vnStore->VNForExpr(tree->TypeGet()));
+                tree->gtVNPair.SetBoth(vnStore->VNForExpr(compCurBB, tree->TypeGet()));
                 break;
 
             case GT_PHI_ARG:
@@ -5308,8 +5389,8 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                 // But we didn't know that the parent was an op=.  We do now, so go back and evaluate it.
                 // (We actually check if the effective val is the IND.  We will have evaluated any non-last
                 // args of an LHS comma already -- including their heap effects.)
-                GenTreePtr lhsVal = lhs->gtEffectiveVal(/*commaOnly*/ true);
-                if ((lhsVal->OperGet() == GT_IND) || (lhsVal->OperGet() == GT_CLS_VAR))
+                GenTreePtr lhsVal = lhs->gtEffectiveVal(/*commaOnly*/true);
+                if (lhsVal->OperIsIndir() || (lhsVal->OperGet() == GT_CLS_VAR))
                 {
                     fgValueNumberTree(lhsVal, /*evalAsgLhsInd*/ true);
                 }
@@ -5367,7 +5448,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                     // If we have an unsafe IL assignment of a TYP_REF to a non-ref (typically a TYP_BYREF)
                     // then don't propagate this ValueNumber to the lhs, instead create a new unique VN
                     //
-                    rhsVNPair.SetBoth(vnStore->VNForExpr(lhs->TypeGet()));
+                    rhsVNPair.SetBoth(vnStore->VNForExpr(compCurBB, lhs->TypeGet()));
                 }
             }
 
@@ -5456,7 +5537,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                             {
                                 // We don't know what field this represents.  Assign a new VN to the whole variable
                                 // (since we may be writing to an unknown portion of it.)
-                                newLhsVNPair.SetBoth(vnStore->VNForExpr(lvaGetActualType(lclFld->gtLclNum)));
+                                newLhsVNPair.SetBoth(vnStore->VNForExpr(compCurBB, lvaGetActualType(lclFld->gtLclNum)));
                             }
                             else
                             {
@@ -5467,7 +5548,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                                     lvaTable[lclFld->GetLclNum()].GetPerSsaData(lclFld->GetSsaNum())->m_vnPair;
                                 newLhsVNPair = vnStore->VNPairApplySelectorsAssign(oldLhsVNPair, lclFld->gtFieldSeq,
                                                                                    rhsVNPair, // Pre-value.
-                                                                                   lvaGetActualType(lclFld->gtLclNum));
+                                                                                   lvaGetActualType(lclFld->gtLclNum), compCurBB);
                             }
                         }
                         lvaTable[lclFld->GetLclNum()].GetPerSsaData(lclDefSsaNum)->m_vnPair = newLhsVNPair;
@@ -5503,7 +5584,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                     {
                         // For Volatile store indirection, first mutate the global heap
                         fgMutateHeap(lhs DEBUGARG("GTF_IND_VOLATILE - store"));
-                        tree->gtVNPair.SetBoth(vnStore->VNForExpr(lhs->TypeGet()));
+                        tree->gtVNPair.SetBoth(vnStore->VNForExpr(compCurBB, lhs->TypeGet()));
                     }
 
                     GenTreePtr arg = lhs->gtOp.gtOp1;
@@ -5557,7 +5638,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                                         // We don't know where we're storing, so give the local a new, unique VN.
                                         // Do this by considering it an "entire" assignment, with an unknown RHS.
                                         isEntire = true;
-                                        rhsVNPair.SetBoth(vnStore->VNForExpr(lclVarTree->TypeGet()));
+                                        rhsVNPair.SetBoth(vnStore->VNForExpr(compCurBB, lclVarTree->TypeGet()));
                                     }
 
                                     if (isEntire)
@@ -5574,7 +5655,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                                                                         ->m_vnPair;
                                         lclDefSsaNum = GetSsaNumForLocalVarDef(lclVarTree);
                                         newLhsVNPair = vnStore->VNPairApplySelectorsAssign(oldLhsVNPair, fieldSeq,
-                                                                                           rhsVNPair, lhs->TypeGet());
+                                                                                           rhsVNPair, lhs->TypeGet(), compCurBB);
                                     }
                                     lvaTable[lclNum].GetPerSsaData(lclDefSsaNum)->m_vnPair = newLhsVNPair;
                                 }
@@ -5599,7 +5680,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                                         ValueNumPair oldLhsVNPair =
                                             lvaTable[lclNum].GetPerSsaData(pIndirAnnot->m_useSsaNum)->m_vnPair;
                                         newLhsVNPair = vnStore->VNPairApplySelectorsAssign(oldLhsVNPair, fieldSeq,
-                                                                                           rhsVNPair, lhs->TypeGet());
+                                                                                           rhsVNPair, lhs->TypeGet(), compCurBB);
                                     }
                                     lvaTable[lclNum].GetPerSsaData(lclDefSsaNum)->m_vnPair = newLhsVNPair;
                                 }
@@ -5763,7 +5844,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                                     if (fldSeq->m_next)
                                     {
                                         storeVal = vnStore->VNApplySelectorsAssign(VNK_Liberal, valAtAddr,
-                                                                                   fldSeq->m_next, storeVal, indType);
+                                                                                   fldSeq->m_next, storeVal, indType, compCurBB);
                                     }
 
                                     // From which we can construct the new ValueNumber for 'fldMap at normVal'
@@ -5778,11 +5859,11 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                                     if (fldSeq->m_next)
                                     {
                                         storeVal = vnStore->VNApplySelectorsAssign(VNK_Liberal, fldMapVN,
-                                                                                   fldSeq->m_next, storeVal, indType);
+                                                                                   fldSeq->m_next, storeVal, indType, compCurBB);
                                     }
 
                                     newFldMapVN = vnStore->VNApplySelectorsAssign(VNK_Liberal, fgCurHeapVN, fldSeq,
-                                                                                  storeVal, indType);
+                                                                                  storeVal, indType, compCurBB);
                                 }
 
                                 // It is not strictly necessary to set the lhs value number,
@@ -5800,7 +5881,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
 
                                 // Update the field map for firstField in Heap to this new value.
                                 fgCurHeapVN = vnStore->VNApplySelectorsAssign(VNK_Liberal, fgCurHeapVN, firstFieldOnly,
-                                                                              newFldMapVN, indType);
+                                                                              newFldMapVN, indType, compCurBB);
 
                                 fgValueNumberRecordHeapSsa(tree);
                             }
@@ -5837,7 +5918,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
 
                     ValueNum storeVal = rhsVNPair.GetLiberal(); // The value number from the rhs of the assignment
                     storeVal = vnStore->VNApplySelectorsAssign(VNK_Liberal, fgCurHeapVN, fldSeqForStaticVar, storeVal,
-                                                               lhs->TypeGet());
+                                                               lhs->TypeGet(), compCurBB);
 
                     // It is not strictly necessary to set the lhs value number,
                     // but the dumps read better with it set to the 'storeVal' that we just computed
@@ -5880,7 +5961,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                 ValueNum      newVN    = ValueNumStore::NoVN;
                 if (fgExcludeFromSsa(arg->gtLclVarCommon.GetLclNum()))
                 {
-                    newVN = vnStore->VNForExpr(TYP_BYREF);
+                    newVN = vnStore->VNForExpr(compCurBB, TYP_BYREF);
                 }
                 else if (arg->OperGet() == GT_LCL_FLD)
                 {
@@ -5888,7 +5969,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                     if (fieldSeq == nullptr)
                     {
                         // Local field with unknown field seq -- not a precise pointer.
-                        newVN = vnStore->VNForExpr(TYP_BYREF);
+                        newVN = vnStore->VNForExpr(compCurBB, TYP_BYREF);
                     }
                 }
                 if (newVN == ValueNumStore::NoVN)
@@ -5917,31 +5998,32 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                     {
                         // ExtendPtrVN returned a failure result
                         // So give this address a new unique value
-                        tree->gtVNPair.SetBoth(vnStore->VNForExpr(TYP_BYREF));
+                        tree->gtVNPair.SetBoth(vnStore->VNForExpr(compCurBB, TYP_BYREF));
                     }
                 }
                 else
                 {
                     // They just cancel, so fetch the ValueNumber from the op1 of the GT_IND node.
                     //
-                    tree->gtVNPair = arg->gtOp.gtOp1->gtVNPair;
+                    GenTree* addr = arg->AsIndir()->Addr();
+                    tree->gtVNPair = addr->gtVNPair;
 
-                    // For the CSE phase mark the GT_IND child as GTF_DONT_CSE
+                    // For the CSE phase mark the address as GTF_DONT_CSE
                     // because it will end up with the same value number as tree (the GT_ADDR).
-                    arg->gtOp.gtOp1->gtFlags |= GTF_DONT_CSE;
+                    addr->gtFlags |= GTF_DONT_CSE;
                 }
             }
             else
             {
                 // May be more cases to do here!  But we'll punt for now.
-                tree->gtVNPair.SetBoth(vnStore->VNForExpr(TYP_BYREF));
+                tree->gtVNPair.SetBoth(vnStore->VNForExpr(compCurBB, TYP_BYREF));
             }
         }
         else if (oper == GT_IND)
         {
             // So far, we handle cases in which the address is a ptr-to-local, or if it's
             // a pointer to an object field.
-            GenTreePtr           addr         = tree->gtOp.gtOp1;
+            GenTreePtr           addr         = tree->AsIndir()->Addr();
             GenTreeLclVarCommon* lclVarTree   = nullptr;
             FieldSeqNode*        fldSeq1      = nullptr;
             FieldSeqNode*        fldSeq2      = nullptr;
@@ -5971,7 +6053,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                 fgMutateHeap(tree DEBUGARG("GTF_IND_VOLATILE - read"));
 
                 // The value read by the GT_IND can immediately change
-                ValueNum newUniq = vnStore->VNForExpr(tree->TypeGet());
+                ValueNum newUniq = vnStore->VNForExpr(compCurBB, tree->TypeGet());
                 tree->gtVNPair   = vnStore->VNPWithExc(ValueNumPair(newUniq, newUniq), addrXvnp);
             }
             // We always want to evaluate the LHS when the GT_IND node is marked with GTF_IND_ARR_INDEX
@@ -5993,7 +6075,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                 addr->ParseArrayAddress(this, &arrInfo, &arr, &inxVN, &fldSeq);
                 if (arr == nullptr)
                 {
-                    tree->gtVNPair.SetBoth(vnStore->VNForExpr(tree->TypeGet()));
+                    tree->gtVNPair.SetBoth(vnStore->VNForExpr(compCurBB, tree->TypeGet()));
                     return;
                 }
                 assert(fldSeq != FieldSeqStore::NotAField());
@@ -6062,7 +6144,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
 
                     if ((localFldSeq == FieldSeqStore::NotAField()) || (localFldSeq == nullptr))
                     {
-                        tree->gtVNPair.SetBoth(vnStore->VNForExpr(tree->TypeGet()));
+                        tree->gtVNPair.SetBoth(vnStore->VNForExpr(compCurBB, tree->TypeGet()));
                     }
                     else
                     {
@@ -6090,12 +6172,12 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                         selectedStaticVar = vnStore->VNApplySelectorsTypeCheck(selectedStaticVar, indType, structSize);
 
                         tree->gtVNPair.SetLiberal(selectedStaticVar);
-                        tree->gtVNPair.SetConservative(vnStore->VNForExpr(indType));
+                        tree->gtVNPair.SetConservative(vnStore->VNForExpr(compCurBB, indType));
                     }
                     else
                     {
                         JITDUMP("    *** Missing field sequence info for VNF_PtrToStatic value GT_IND\n");
-                        tree->gtVNPair.SetBoth(vnStore->VNForExpr(indType)); //  a new unique value number
+                        tree->gtVNPair.SetBoth(vnStore->VNForExpr(compCurBB, indType)); //  a new unique value number
                     }
                     tree->gtVNPair = vnStore->VNPWithExc(tree->gtVNPair, addrXvnp);
                 }
@@ -6107,7 +6189,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                 {
                     if (fldSeq2 == FieldSeqStore::NotAField())
                     {
-                        tree->gtVNPair.SetBoth(vnStore->VNForExpr(tree->TypeGet()));
+                        tree->gtVNPair.SetBoth(vnStore->VNForExpr(compCurBB, tree->TypeGet()));
                     }
                     else if (fldSeq2 != nullptr)
                     {
@@ -6163,20 +6245,20 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                         tree->gtVNPair.SetLiberal(valAtAddr);
 
                         // The conservative value is a new, unique VN.
-                        tree->gtVNPair.SetConservative(vnStore->VNForExpr(tree->TypeGet()));
+                        tree->gtVNPair.SetConservative(vnStore->VNForExpr(compCurBB, tree->TypeGet()));
                         tree->gtVNPair = vnStore->VNPWithExc(tree->gtVNPair, addrXvnp);
                     }
                     else
                     {
                         // Occasionally we do an explicit null test on a REF, so we just dereference it with no
                         // field sequence.  The result is probably unused.
-                        tree->gtVNPair.SetBoth(vnStore->VNForExpr(tree->TypeGet()));
+                        tree->gtVNPair.SetBoth(vnStore->VNForExpr(compCurBB, tree->TypeGet()));
                         tree->gtVNPair = vnStore->VNPWithExc(tree->gtVNPair, addrXvnp);
                     }
                 }
                 else // We don't know where the address points.
                 {
-                    tree->gtVNPair.SetBoth(vnStore->VNForExpr(tree->TypeGet()));
+                    tree->gtVNPair.SetBoth(vnStore->VNForExpr(compCurBB, tree->TypeGet()));
                     tree->gtVNPair = vnStore->VNPWithExc(tree->gtVNPair, addrXvnp);
                 }
             }
@@ -6220,7 +6302,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                     // meaning.
                     if (tree->OperGet() == GT_NOP)
                     {
-                        tree->gtVNPair.SetBoth(vnStore->VNForExpr(tree->TypeGet()));
+                        tree->gtVNPair.SetBoth(vnStore->VNForExpr(compCurBB, tree->TypeGet()));
                     }
                 }
             }
@@ -6294,20 +6376,20 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                     ValueNumPair op2vnp;
                     ValueNumPair op2Xvnp = ValueNumStore::VNPForEmptyExcSet();
 
-                    if ((tree->gtOp.gtOp2->OperGet() == GT_IND) && (tree->gtOp.gtOp2->gtFlags & GTF_IND_ASG_LHS))
+                    GenTree* op2 = tree->gtGetOp2();
+                    if (op2->OperIsIndir() && ((op2->gtFlags & GTF_IND_ASG_LHS) != 0))
                     {
                         // If op2 represents the lhs of an assignment then we give a VNForVoid for the lhs
                         op2vnp = ValueNumPair(ValueNumStore::VNForVoid(), ValueNumStore::VNForVoid());
                     }
-                    else if ((tree->gtOp.gtOp2->OperGet() == GT_CLS_VAR) &&
-                             (tree->gtOp.gtOp2->gtFlags & GTF_CLS_VAR_ASG_LHS))
+                    else if ((op2->OperGet() == GT_CLS_VAR) && (op2->gtFlags & GTF_CLS_VAR_ASG_LHS))
                     {
                         // If op2 represents the lhs of an assignment then we give a VNForVoid for the lhs
                         op2vnp = ValueNumPair(ValueNumStore::VNForVoid(), ValueNumStore::VNForVoid());
                     }
                     else
                     {
-                        vnStore->VNPUnpackExc(tree->gtOp.gtOp2->gtVNPair, &op2vnp, &op2Xvnp);
+                        vnStore->VNPUnpackExc(op2->gtVNPair, &op2vnp, &op2Xvnp);
                     }
 
                     tree->gtVNPair = vnStore->VNPWithExc(op2vnp, vnStore->VNPExcSetUnion(op1Xvnp, op2Xvnp));
@@ -6360,7 +6442,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                     }
                     else
                     {
-                        tree->gtVNPair.SetBoth(vnStore->VNForExpr(tree->TypeGet()));
+                        tree->gtVNPair.SetBoth(vnStore->VNForExpr(compCurBB, tree->TypeGet()));
                     }
                     break;
 
@@ -6369,7 +6451,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                 case GT_XCHG:    // Binop
                     // For CMPXCHG and other intrinsics add an arbitrary side effect on Heap.
                     fgMutateHeap(tree DEBUGARG("Interlocked intrinsic"));
-                    tree->gtVNPair.SetBoth(vnStore->VNForExpr(tree->TypeGet()));
+                    tree->gtVNPair.SetBoth(vnStore->VNForExpr(compCurBB, tree->TypeGet()));
                     break;
 
                 case GT_JTRUE:
@@ -6380,7 +6462,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
 
                 default:
                     // The default action is to give the node a new, unique VN.
-                    tree->gtVNPair.SetBoth(vnStore->VNForExpr(tree->TypeGet()));
+                    tree->gtVNPair.SetBoth(vnStore->VNForExpr(compCurBB, tree->TypeGet()));
                     break;
             }
         }
@@ -6416,11 +6498,11 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
             case GT_CMPXCHG: // Specialop
                 // For CMPXCHG and other intrinsics add an arbitrary side effect on Heap.
                 fgMutateHeap(tree DEBUGARG("Interlocked intrinsic"));
-                tree->gtVNPair.SetBoth(vnStore->VNForExpr(tree->TypeGet()));
+                tree->gtVNPair.SetBoth(vnStore->VNForExpr(compCurBB, tree->TypeGet()));
                 break;
 
             default:
-                tree->gtVNPair.SetBoth(vnStore->VNForExpr(tree->TypeGet()));
+                tree->gtVNPair.SetBoth(vnStore->VNForExpr(compCurBB, tree->TypeGet()));
         }
     }
 #ifdef DEBUG
@@ -6691,7 +6773,7 @@ void Compiler::fgValueNumberHelperCallFunc(GenTreeCall* call, VNFunc vnf, ValueN
     if (generateUniqueVN)
     {
         // Generate unique VN so, VNForFunc generates a unique value number.
-        vnpUniq.SetBoth(vnStore->VNForExpr(call->TypeGet()));
+        vnpUniq.SetBoth(vnStore->VNForExpr(compCurBB, call->TypeGet()));
     }
 
     if (nArgs == 0)
@@ -6851,7 +6933,7 @@ void Compiler::fgValueNumberCall(GenTreeCall* call)
         }
         else
         {
-            call->gtVNPair.SetBoth(vnStore->VNForExpr(call->TypeGet()));
+            call->gtVNPair.SetBoth(vnStore->VNForExpr(compCurBB, call->TypeGet()));
         }
 
         // For now, arbitrary side effect on Heap.
@@ -7197,7 +7279,7 @@ bool Compiler::fgValueNumberHelperCall(GenTreeCall* call)
         }
         else
         {
-            vnpNorm.SetBoth(vnStore->VNForExpr(call->TypeGet()));
+            vnpNorm.SetBoth(vnStore->VNForExpr(compCurBB, call->TypeGet()));
         }
     }
 

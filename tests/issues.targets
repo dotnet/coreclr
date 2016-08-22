@@ -190,6 +190,24 @@
         <ExcludeList Include="$(XunitTestBinBase)\GC\LargeMemory\API\gc\collect\*">
              <Issue>3392</Issue>
         </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\TypeGeneratorTests\TypeGeneratorTest612\Generated612\*">
+             <Issue>6707</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\TypeGeneratorTests\TypeGeneratorTest613\Generated613\*">
+             <Issue>6707</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\TypeGeneratorTests\TypeGeneratorTest614\Generated614\*">
+             <Issue>6707</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\TypeGeneratorTests\TypeGeneratorTest681\Generated681\*">
+             <Issue>6707</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\TypeGeneratorTests\TypeGeneratorTest682\Generated682\*">
+             <Issue>6707</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\TypeGeneratorTests\TypeGeneratorTest683\Generated683\*">
+             <Issue>6707</Issue>
+        </ExcludeList>
     </ItemGroup>
 
     <!-- The following are baseline x86 failures -->
@@ -239,6 +257,9 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)\managed\Compilation\Compilation\Compilation.cmd">
              <Issue>needs triage</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\JIT\Methodical\tailcall_v4\smallFrame\smallFrame.cmd">
+             <Issue>tail. call pop ret is only supported on amd64</Issue>
         </ExcludeList>
     </ItemGroup>
 
@@ -370,6 +391,15 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)\JIT\Regression\CLR-x86-JIT\V1-M11-Beta1\b44410\b44410\b44410.cmd">
              <Issue>6588</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\JIT\jit64\eh\basics\loopEH\loopEH.cmd">
+             <Issue>6778</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\JIT\Methodical\int64\superlong\_il_relsuperlong\_il_relsuperlong.cmd">
+             <Issue>6778</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\JIT\superpmi\superpmicollect\superpmicollect.cmd">
+             <Issue>6830</Issue>
         </ExcludeList>
     </ItemGroup>
     
@@ -541,9 +571,6 @@
              <Issue>needs triage</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)\JIT\Regression\CLR-x86-JIT\V2.0-Beta2\b409748\b409748\b409748.cmd">
-             <Issue>needs triage</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)\JIT\opt\Tailcall\TailcallVerifyWithPrefix\TailcallVerifyWithPrefix.cmd">
              <Issue>needs triage</Issue>
         </ExcludeList>
     </ItemGroup>
