@@ -379,8 +379,10 @@ FCFuncEnd()
 
 FCFuncStart(gTypedReferenceFuncs)
     FCFuncElement("InternalToObject", ReflectionInvocation::TypedReferenceToObject)
+#ifndef FEATURE_CORECLR
     FCFuncElement("InternalSetTypedReference", ReflectionInvocation::SetTypedReference)
     FCFuncElement("InternalMakeTypedReference", ReflectionInvocation::MakeTypedReference)
+#endif
 FCFuncEnd()
 
 FCFuncStart(gSystem_Type)
