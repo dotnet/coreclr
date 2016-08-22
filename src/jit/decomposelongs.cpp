@@ -707,8 +707,6 @@ GenTree* DecomposeLongs::DecomposeStoreInd(LIR::Use& use)
     storeIndHigh->gtFlags = (storeIndLow->gtFlags & (GTF_ALL_EFFECT | GTF_LIVENESS_MASK));
     storeIndHigh->gtFlags |= GTF_REVERSE_OPS;
 
-    m_compiler->gtPrepareCost(storeIndHigh);
-
     BlockRange().InsertAfter(storeIndLow, dataHigh, addrBaseHigh, addrHigh, storeIndHigh);
 
     return storeIndHigh;
@@ -784,8 +782,6 @@ GenTree* DecomposeLongs::DecomposeInd(LIR::Use& use)
     GenTreePtr addrHigh =
         new (m_compiler, GT_LEA) GenTreeAddrMode(TYP_REF, addrBaseHigh, nullptr, 0, genTypeSize(TYP_INT));
     GenTreePtr indHigh = new (m_compiler, GT_IND) GenTreeIndir(GT_IND, TYP_INT, addrHigh, nullptr);
-
-    m_compiler->gtPrepareCost(indHigh);
 
     BlockRange().InsertAfter(indLow, addrBaseHigh, addrHigh, indHigh);
 
@@ -865,9 +861,6 @@ GenTree* DecomposeLongs::DecomposeNeg(LIR::Use& use)
     GenTree* hiAdjust = m_compiler->gtNewOperNode(GT_ADD_HI, TYP_INT, hiOp1, zero);
     GenTree* hiResult = m_compiler->gtNewOperNode(GT_NEG, TYP_INT, hiAdjust);
     hiResult->gtFlags = tree->gtFlags;
-
-    // Annotate new nodes with costs. This will re-cost the hiOp1 tree as well.
-    m_compiler->gtPrepareCost(hiResult);
 
     BlockRange().InsertAfter(loResult, zero, hiAdjust, hiResult);
 
