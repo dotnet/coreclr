@@ -138,7 +138,7 @@ namespace System {
 #if BIT64
                 return (long)m_value;
 #else // !BIT64 (32)
-                return (long)(int)m_value;
+                return (long)(uint)m_value;
 #endif
         }
 
