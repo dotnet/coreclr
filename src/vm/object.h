@@ -2074,6 +2074,7 @@ private:
 #ifdef FEATURE_CORECLR
     OBJECTREF     m_ExecutionContext;
     OBJECTREF     m_SynchronizationContext;
+    OBJECTREF     m_ThreadTaskLocals;
 #else
     EXECUTIONCONTEXTREF     m_ExecutionContext;
 #endif

@@ -206,7 +206,6 @@ namespace System.Runtime.CompilerServices
         internal static void OnCompletedInternal(Task task, Action continuation, bool continueOnCapturedContext, bool flowExecutionContext)
         {
             if (continuation == null) throw new ArgumentNullException("continuation");
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
 
             // If TaskWait* ETW events are enabled, trace a beginning event for this await
             // and set up an ending event to be traced when the asynchronous await completes.
@@ -216,7 +215,7 @@ namespace System.Runtime.CompilerServices
             }
 
             // Set the continuation onto the awaited task.
-            task.SetContinuationForAwait(continuation, continueOnCapturedContext, flowExecutionContext, ref stackMark);
+            task.SetContinuationForAwait(continuation, continueOnCapturedContext, flowExecutionContext);
         }
 
         /// <summary>

@@ -54,19 +54,18 @@ namespace System.Threading {
         }
 
         [System.Security.SecurityCritical]
-        static internal ContextCallback _ccb = new ContextCallback(ThreadStart_Context);
+        static internal ContextCallback<ThreadHelper> _ccb = new ContextCallback<ThreadHelper>(ThreadStart_Context);
         
         [System.Security.SecurityCritical]
-        static private void ThreadStart_Context(Object state)
+        static private void ThreadStart_Context(ThreadHelper threadHelper)
         {
-            ThreadHelper t = (ThreadHelper)state;
-            if (t._start is ThreadStart)
+            if (threadHelper._start is ThreadStart)
             {
-                ((ThreadStart)t._start)();
+                ((ThreadStart)threadHelper._start)();
             }
             else
             {
-                ((ParameterizedThreadStart)t._start)(t._startArg);
+                ((ParameterizedThreadStart)threadHelper._start)(threadHelper._startArg);
             }
         }
 
@@ -81,7 +80,7 @@ namespace System.Threading {
             _startArg = obj;
             if (_executionContext != null) 
             {
-                ExecutionContext.Run(_executionContext, _ccb, (Object)this);
+                ExecutionContext.Run(_executionContext, _ccb, this);
             }
             else
             {
@@ -99,7 +98,7 @@ namespace System.Threading {
         {
             if (_executionContext != null) 
             {
-                ExecutionContext.Run(_executionContext, _ccb, (Object)this);
+                ExecutionContext.Run(_executionContext, _ccb, this);
             }
             else
             {
@@ -135,6 +134,7 @@ namespace System.Threading {
         private ExecutionContext m_ExecutionContext;    // this call context follows the logical thread
 #if FEATURE_CORECLR
         private SynchronizationContext m_SynchronizationContext;    // On CoreCLR, this is maintained separately from ExecutionContext
+        private ThreadTaskLocals m_ThreadTaskLocals;
 #endif
 
         private String          m_Name;
@@ -358,7 +358,7 @@ namespace System.Threading {
 #if FEATURE_CORECLR
         internal ExecutionContext ExecutionContext
         {
-            get { return m_ExecutionContext; } 
+            get { return m_ExecutionContext ?? (m_ExecutionContext = ExecutionContext.PreAllocatedDefault); } 
             set { m_ExecutionContext = value; }
         }
 
@@ -367,6 +367,10 @@ namespace System.Threading {
             get { return m_SynchronizationContext; }
             set { m_SynchronizationContext = value; }
         }	
+        internal ThreadTaskLocals ThreadTaskLocals
+        {
+            get { return m_ThreadTaskLocals ?? (m_ThreadTaskLocals = new ThreadTaskLocals()); }
+        }
 #else // !FEATURE_CORECLR
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         internal ExecutionContext.Reader GetExecutionContextReader()

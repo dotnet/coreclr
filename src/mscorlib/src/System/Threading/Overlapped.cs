@@ -86,11 +86,10 @@ namespace System.Threading
         #if FEATURE_CORECLR
         [System.Security.SecurityCritical] // auto-generated
         #endif
-        static internal ContextCallback _ccb = new ContextCallback(IOCompletionCallback_Context);
+        static internal ContextCallback<_IOCompletionCallback> _ccb = new ContextCallback<_IOCompletionCallback>(IOCompletionCallback_Context);
         [System.Security.SecurityCritical]
-        static internal void IOCompletionCallback_Context(Object state)
+        static internal void IOCompletionCallback_Context(_IOCompletionCallback helper)
         {
-            _IOCompletionCallback helper  = (_IOCompletionCallback)state;
             Contract.Assert(helper != null,"_IOCompletionCallback cannot be null");
             helper._ioCompletionCallback(helper._errorCode, helper._numBytes, helper._pOVERLAP);
         }
@@ -124,7 +123,7 @@ namespace System.Threading
                 helper._numBytes = numBytes;
                 helper._pOVERLAP = pOVERLAP;
                     using (ExecutionContext executionContext = helper._executionContext.CreateCopy())
-                    ExecutionContext.Run(executionContext, _ccb, helper, true);
+                    ExecutionContext.Run(executionContext, _ccb, helper);
             }                    
 
                     //Quickly check the VM again, to see if a packet has arrived.

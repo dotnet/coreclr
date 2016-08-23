@@ -695,26 +695,23 @@ namespace System.Threading
                 using (ExecutionContext executionContext = 
                     m_executionContext.IsPreAllocatedDefault ? m_executionContext : m_executionContext.CreateCopy())
                 {
-                    ContextCallback callback = s_callCallbackInContext;
-                    if (callback == null)
-                        s_callCallbackInContext = callback = new ContextCallback(CallCallbackInContext);
+                    var callback = s_callCallbackInContext ?? 
+                        (s_callCallbackInContext = new ContextCallback<TimerQueueTimer>(CallCallbackInContext));
                     
                     ExecutionContext.Run(
                         executionContext,
                         callback,
-                        this,  // state
-                        true); // ignoreSyncCtx
+                        this);
                 }
             }
         }
 
         [SecurityCritical]
-        private static ContextCallback s_callCallbackInContext;
+        private static ContextCallback<TimerQueueTimer> s_callCallbackInContext;
 
         [SecurityCritical]
-        private static void CallCallbackInContext(object state)
+        private static void CallCallbackInContext(TimerQueueTimer t)
         {
-            TimerQueueTimer t = (TimerQueueTimer)state;
             t.m_timerCallback(t.m_state);
         }
     }

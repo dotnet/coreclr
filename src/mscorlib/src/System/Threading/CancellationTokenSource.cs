@@ -1030,7 +1030,7 @@ namespace System.Threading
 
         // Cached callback delegate that's lazily initialized due to ContextCallback being SecurityCritical
         [SecurityCritical]
-        private static ContextCallback s_executionContextCallback;
+        private static ContextCallback<CancellationCallbackInfo> s_executionContextCallback;
 
         /// <summary>
         /// InternalExecuteCallbackSynchronously_GeneralPath
@@ -1042,8 +1042,8 @@ namespace System.Threading
             if (TargetExecutionContext != null)
             {
                 // Lazily initialize the callback delegate; benign race condition
-                var callback = s_executionContextCallback;
-                if (callback == null) s_executionContextCallback = callback = new ContextCallback(ExecutionContextCallback);
+                var callback = s_executionContextCallback ?? 
+                                (s_executionContextCallback = new ContextCallback<CancellationCallbackInfo>(ExecutionContextCallback));
                 
                 ExecutionContext.Run(
                     TargetExecutionContext,
@@ -1060,10 +1060,8 @@ namespace System.Threading
         // the worker method to actually run the callback
         // The signature is such that it can be used as a 'ContextCallback'
         [SecurityCritical]
-        private static void ExecutionContextCallback(object obj)
+        private static void ExecutionContextCallback(CancellationCallbackInfo callbackInfo)
         {
-            CancellationCallbackInfo callbackInfo = obj as CancellationCallbackInfo;
-            Contract.Assert(callbackInfo != null);
             callbackInfo.Callback(callbackInfo.StateForCallback);
         }
     }

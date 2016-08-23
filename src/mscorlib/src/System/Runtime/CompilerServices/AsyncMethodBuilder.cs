@@ -73,12 +73,11 @@ namespace System.Runtime.CompilerServices
             // This allows us to undo any ExecutionContext changes made in MoveNext,
             // so that they won't "leak" out of the first await.
 
-            Thread currentThread = Thread.CurrentThread;
-            ExecutionContextSwitcher ecs = default(ExecutionContextSwitcher);
             RuntimeHelpers.PrepareConstrainedRegions();
+            Thread currentThread = Thread.CurrentThread;
+            ExecutionContextSwitcher ecs = new ExecutionContextSwitcher(currentThread);
             try
             {
-                ExecutionContext.EstablishCopyOnWriteScope(currentThread, ref ecs);
                 stateMachine.MoveNext();
             }
             finally
@@ -308,12 +307,11 @@ namespace System.Runtime.CompilerServices
             // This allows us to undo any ExecutionContext changes made in MoveNext,
             // so that they won't "leak" out of the first await.
 
-            Thread currentThread = Thread.CurrentThread;
-            ExecutionContextSwitcher ecs = default(ExecutionContextSwitcher);
             RuntimeHelpers.PrepareConstrainedRegions();
+            Thread currentThread = Thread.CurrentThread;
+            ExecutionContextSwitcher ecs = new ExecutionContextSwitcher(currentThread);
             try
             {
-                ExecutionContext.EstablishCopyOnWriteScope(currentThread, ref ecs);
                 stateMachine.MoveNext();
             }
             finally
@@ -464,12 +462,11 @@ namespace System.Runtime.CompilerServices
             // This allows us to undo any ExecutionContext changes made in MoveNext,
             // so that they won't "leak" out of the first await.
 
-            Thread currentThread = Thread.CurrentThread;
-            ExecutionContextSwitcher ecs = default(ExecutionContextSwitcher);
             RuntimeHelpers.PrepareConstrainedRegions();
+            Thread currentThread = Thread.CurrentThread;
+            ExecutionContextSwitcher ecs = new ExecutionContextSwitcher(currentThread);
             try
             {
-                ExecutionContext.EstablishCopyOnWriteScope(currentThread, ref ecs);
                 stateMachine.MoveNext();
             }
             finally
@@ -1062,7 +1059,7 @@ namespace System.Runtime.CompilerServices
                     try
                     {
                         // Use the context and callback to invoke m_stateMachine.MoveNext.
-                        ExecutionContext.Run(m_context, InvokeMoveNextCallback, m_stateMachine, preserveSyncCtx: true);
+                        ExecutionContext.Run(m_context, InvokeMoveNextCallback, m_stateMachine);
                     }
                     finally { m_context.Dispose(); }
                 }
@@ -1091,11 +1088,11 @@ namespace System.Runtime.CompilerServices
             internal void RunWithDefaultContext()
             {
                 Contract.Assert(m_stateMachine != null, "The state machine must have been set before calling Run.");
-                ExecutionContext.Run(ExecutionContext.PreAllocatedDefault, InvokeMoveNextCallback, m_stateMachine, preserveSyncCtx: true);
+                ExecutionContext.Run(ExecutionContext.PreAllocatedDefault, InvokeMoveNextCallback, m_stateMachine);
             }
 
             /// <summary>Gets a delegate to the InvokeMoveNext method.</summary>
-            protected static ContextCallback InvokeMoveNextCallback
+            protected static ContextCallback<IAsyncStateMachine> InvokeMoveNextCallback
             {
                 [SecuritySafeCritical]
                 get { return s_invokeMoveNext ?? (s_invokeMoveNext = InvokeMoveNext); }
@@ -1103,14 +1100,14 @@ namespace System.Runtime.CompilerServices
 
             /// <summary>Cached delegate used with ExecutionContext.Run.</summary>
             [SecurityCritical]
-            private static ContextCallback s_invokeMoveNext; // lazily-initialized due to SecurityCritical attribution
+            private static ContextCallback<IAsyncStateMachine> s_invokeMoveNext; // lazily-initialized due to SecurityCritical attribution
 
             /// <summary>Invokes the MoveNext method on the supplied IAsyncStateMachine.</summary>
             /// <param name="stateMachine">The IAsyncStateMachine machine instance.</param>
             [SecurityCritical] // necessary for ContextCallback in CoreCLR
-            private static void InvokeMoveNext(object stateMachine)
+            private static void InvokeMoveNext(IAsyncStateMachine stateMachine)
             {
-                ((IAsyncStateMachine)stateMachine).MoveNext();
+                stateMachine.MoveNext();
             }
         }
 

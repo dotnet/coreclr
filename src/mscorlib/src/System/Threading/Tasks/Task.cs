@@ -142,11 +142,13 @@ namespace System.Threading.Tasks
     [DebuggerDisplay("Id = {Id}, Status = {Status}, Method = {DebuggerDisplayMethodDescription}")]
     public class Task : IThreadPoolWorkItem, IAsyncResult, IDisposable
     {
+#if !FEATURE_CORECLR
         [ThreadStatic]
         internal static Task t_currentTask;  // The currently executing task.
         [ThreadStatic]
         private static StackGuard t_stackGuard;  // The stack guard object for this thread
 
+#endif
         internal static int s_taskIdCounter; //static counter used to generate unique task IDs
         private readonly static TaskFactory s_factory = new TaskFactory();
 
@@ -1348,7 +1350,11 @@ namespace System.Threading.Tasks
         /// </summary>
         internal static Task InternalCurrent
         {
+#if FEATURE_CORECLR
+            get { return Thread.CurrentThread.ThreadTaskLocals.CurrentTask; }
+#else
             get { return t_currentTask; }
+#endif
         }
 
         /// <summary>
@@ -1367,14 +1373,14 @@ namespace System.Threading.Tasks
         /// </summary>
         internal static StackGuard CurrentStackGuard
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                StackGuard sg = t_stackGuard;
-                if (sg == null)
-                {
-                    t_stackGuard = sg = new StackGuard();
-                }
-                return sg;
+#if FEATURE_CORECLR
+                return Thread.CurrentThread.ThreadTaskLocals.StackGuard;
+#else
+                return t_stackGuard ?? (t_stackGuard = new StackGuard());
+#endif
             }
         }
 
@@ -1671,6 +1677,7 @@ namespace System.Threading.Tasks
         /// </summary>
         internal bool IsSelfReplicatingRoot
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 // Return true if self-replicating bit is set and child replica bit is not set
@@ -1732,6 +1739,7 @@ namespace System.Threading.Tasks
         /// </summary>
         internal ExecutionContext CapturedContext
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 if ((m_stateFlags & TASK_STATE_EXECUTIONCONTEXT_IS_NULL) == TASK_STATE_EXECUTIONCONTEXT_IS_NULL)
@@ -1743,6 +1751,7 @@ namespace System.Threading.Tasks
                     return m_contingentProperties?.m_capturedContext ?? ExecutionContext.PreAllocatedDefault;
                 }
             }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
                 // There is no need to atomically set this bit because this set() method is only called during construction, and therefore there should be no contending accesses to m_stateFlags
@@ -2727,7 +2736,18 @@ namespace System.Threading.Tasks
 
             if (!IsCancellationRequested && !IsCanceled)
             {
-                ExecuteWithThreadLocal(ref t_currentTask);
+                var etwLog = TplEtwProvider.Log;
+#if FEATURE_CORECLR
+                if (!etwLog.IsEnabled())
+                    ExecuteWithThreadLocal(ref Thread.CurrentThread.ThreadTaskLocals.CurrentTask);
+                else
+                    ExecuteWithThreadLocalTraced(ref Thread.CurrentThread.ThreadTaskLocals.CurrentTask, etwLog);
+#else
+                if (!etwLog.IsEnabled())
+                    ExecuteWithThreadLocal(ref t_currentTask);
+                else
+                    ExecuteWithThreadLocalTraced(ref t_currentTask, etwLog);
+#endif
             }
             else if (!IsCanceled)
             {
@@ -2748,24 +2768,8 @@ namespace System.Threading.Tasks
             // Remember the current task so we can restore it after running, and then
             Task previousTask = currentTaskSlot;
 
-            // ETW event for Task Started
-            var etwLog = TplEtwProvider.Log;
-            Guid savedActivityID = new Guid();
-            bool etwIsEnabled = etwLog.IsEnabled();
-            if (etwIsEnabled)
-            {
-                if (etwLog.TasksSetActivityIds)
-                    EventSource.SetCurrentThreadActivityId(TplEtwProvider.CreateGuidForTaskID(this.Id), out savedActivityID);
-                // previousTask holds the actual "current task" we want to report in the event
-                if (previousTask != null)
-                    etwLog.TaskStarted(previousTask.m_taskScheduler.Id, previousTask.Id, this.Id);
-                else
-                    etwLog.TaskStarted(TaskScheduler.Current.Id, 0, this.Id);
-            }
-
             if (AsyncCausalityTracer.LoggingOn)
                 AsyncCausalityTracer.TraceSynchronousWorkStart(CausalityTraceLevel.Required, this.Id, CausalitySynchronousWork.Execution);
-
 
             try
             {
@@ -2790,8 +2794,8 @@ namespace System.Threading.Tasks
 
                     // Lazily initialize the callback delegate; benign race condition
                     var callback = s_ecCallback;
-                    if (callback == null) s_ecCallback = callback = new ContextCallback(ExecutionContextCallback);
-                    ExecutionContext.Run(ec, callback, this, true);
+                    if (callback == null) s_ecCallback = callback = new ContextCallback<Task>(ExecutionContextCallback);
+                    ExecutionContext.Run(ec, callback, this);
                 }
 
                 if (AsyncCausalityTracer.LoggingOn)
@@ -2802,31 +2806,51 @@ namespace System.Threading.Tasks
             finally
             {
                 currentTaskSlot = previousTask;
-                
-                // ETW event for Task Completed
-                if (etwIsEnabled)
-                {
-                    // previousTask holds the actual "current task" we want to report in the event
-                    if (previousTask != null)
-                        etwLog.TaskCompleted(previousTask.m_taskScheduler.Id, previousTask.Id, this.Id, IsFaulted);
-                    else
-                        etwLog.TaskCompleted(TaskScheduler.Current.Id, 0, this.Id, IsFaulted);
+            }
+        }
 
-                    if (etwLog.TasksSetActivityIds)
-                        EventSource.SetCurrentThreadActivityId(savedActivityID);
-                }
+        // A trick so we can refer to the TLS slot with a byref.
+        [SecurityCritical]
+        private void ExecuteWithThreadLocalTraced(ref Task currentTaskSlot, TplEtwProvider etwLog)
+        {
+            // ETW event for Task Started
+            Guid savedActivityID = new Guid();
+
+            if (etwLog.TasksSetActivityIds)
+                EventSource.SetCurrentThreadActivityId(TplEtwProvider.CreateGuidForTaskID(this.Id), out savedActivityID);
+            // previousTask holds the actual "current task" we want to report in the event
+            if (currentTaskSlot != null)
+                etwLog.TaskStarted(currentTaskSlot.m_taskScheduler.Id, currentTaskSlot.Id, this.Id);
+            else
+                etwLog.TaskStarted(TaskScheduler.Current.Id, 0, this.Id);
+
+
+            try
+            {
+                ExecuteWithThreadLocal(ref currentTaskSlot);
+            }
+            finally
+            {
+                // ETW event for Task Completed
+
+                // previousTask holds the actual "current task" we want to report in the event
+                if (currentTaskSlot != null)
+                    etwLog.TaskCompleted(currentTaskSlot.m_taskScheduler.Id, currentTaskSlot.Id, this.Id, IsFaulted);
+                else
+                    etwLog.TaskCompleted(TaskScheduler.Current.Id, 0, this.Id, IsFaulted);
+
+                if (etwLog.TasksSetActivityIds)
+                    EventSource.SetCurrentThreadActivityId(savedActivityID);
             }
         }
 
         // Cached callback delegate that's lazily initialized due to ContextCallback being SecurityCritical
         [SecurityCritical]
-        private static ContextCallback s_ecCallback;
+        private static ContextCallback<Task> s_ecCallback;
 
         [SecurityCritical]
-        private static void ExecutionContextCallback(object obj)
+        private static void ExecutionContextCallback(Task task)
         {
-            Task task = obj as Task;
-            Contract.Assert(task != null, "expected a task object");
             task.Execute();
         }
 
@@ -2927,11 +2951,10 @@ namespace System.Threading.Tasks
         /// true to attempt to marshal the continuation back to the original context captured; otherwise, false.
         /// </param>
         /// <param name="flowExecutionContext">Whether to flow ExecutionContext across the await.</param>
-        /// <param name="stackMark">A stack crawl mark tied to execution context.</param>
         /// <exception cref="System.InvalidOperationException">The awaiter was not properly initialized.</exception>
         [SecurityCritical]
         internal void SetContinuationForAwait(
-            Action continuationAction, bool continueOnCapturedContext, bool flowExecutionContext, ref StackCrawlMark stackMark)
+            Action continuationAction, bool continueOnCapturedContext, bool flowExecutionContext)
         {
             Contract.Requires(continuationAction != null);
 
@@ -2939,6 +2962,9 @@ namespace System.Threading.Tasks
             // If this remains null by the end of the function, we can use the 
             // continuationAction directly without wrapping it.
             TaskContinuation tc = null;
+
+            // Capture Context
+            ExecutionContext context = flowExecutionContext ? ExecutionContext.FastCapture() : null;
 
             // If the user wants the continuation to run on the current "context" if there is one...
             if (continueOnCapturedContext)
@@ -2952,7 +2978,7 @@ namespace System.Threading.Tasks
                 var syncCtx = SynchronizationContext.CurrentNoFlow;
                 if (syncCtx != null && syncCtx.GetType() != typeof(SynchronizationContext))
                 {
-                    tc = new SynchronizationContextAwaitTaskContinuation(syncCtx, continuationAction, flowExecutionContext, ref stackMark);
+                    tc = GetSynchronizationContextAwaitTaskContinuation(syncCtx, continuationAction, context);
                 }
                 else
                 {
@@ -2961,7 +2987,7 @@ namespace System.Threading.Tasks
                     var scheduler = TaskScheduler.InternalCurrent;
                     if (scheduler != null && scheduler != TaskScheduler.Default)
                     {
-                        tc = new TaskSchedulerAwaitTaskContinuation(scheduler, continuationAction, flowExecutionContext, ref stackMark);
+                        tc = GetTaskSchedulerAwaitTaskContinuation(scheduler, continuationAction, context);
                     }
                 }
             }
@@ -2973,7 +2999,7 @@ namespace System.Threading.Tasks
                 // ExecutionContext, we need to capture it and wrap it in an AwaitTaskContinuation.
                 // Otherwise, we're targeting the default scheduler and we don't need to flow ExecutionContext, so
                 // we don't actually need a continuation object.  We can just store/queue the action itself.
-                tc = new AwaitTaskContinuation(continuationAction, flowExecutionContext: true, stackMark: ref stackMark);
+                tc = GetAwaitTaskContinuation(continuationAction, context);
             }
 
             // Now register the continuation, and if we couldn't register it because the task is already completing,
@@ -2990,6 +3016,48 @@ namespace System.Threading.Tasks
                 if (!AddTaskContinuation(continuationAction, addBeforeOthers: false))
                     AwaitTaskContinuation.UnsafeScheduleAction(continuationAction, this);
             }
+        }
+
+        private TaskContinuation GetSynchronizationContextAwaitTaskContinuation(SynchronizationContext syncCtx, Action continuationAction, ExecutionContext context)
+        {
+            if (context == ExecutionContext.PreAllocatedDefault)
+            {
+                return new SynchronizationContextAwaitTaskContinuation(syncCtx, continuationAction);
+            }
+            else if (context == null)
+            {
+                return new SynchronizationContextAwaitTaskContinuationNoContext(syncCtx, continuationAction);
+            }
+
+            return new SynchronizationContextAwaitTaskContinuationWithContext(syncCtx, continuationAction, context);
+        }
+
+        private TaskContinuation GetTaskSchedulerAwaitTaskContinuation(TaskScheduler scheduler, Action continuationAction, ExecutionContext context)
+        {
+            if (context == ExecutionContext.PreAllocatedDefault)
+            {
+                return new TaskSchedulerAwaitTaskContinuation(scheduler, continuationAction);
+            }
+            else if (context == null)
+            {
+                return new TaskSchedulerAwaitTaskContinuationNoContext(scheduler, continuationAction);
+            }
+
+            return new TaskSchedulerAwaitTaskContinuationWithContext(scheduler, continuationAction, context);
+        }
+
+        private TaskContinuation GetAwaitTaskContinuation(Action continuationAction, ExecutionContext context)
+        {
+            if (context == ExecutionContext.PreAllocatedDefault)
+            {
+                return new AwaitTaskContinuation(continuationAction);
+            }
+            else if (context == null)
+            {
+                return new AwaitTaskContinuationNoContext(continuationAction);
+            }
+
+            return new AwaitTaskContinuationWithContext(continuationAction, context);
         }
 
         /// <summary>Creates an awaitable that asynchronously yields back to the current context when awaited.</summary>
@@ -3587,8 +3655,14 @@ namespace System.Threading.Tasks
                 Action singleAction = continuationObject as Action;
                 if (singleAction != null)
                 {
+#if FEATURE_CORECLR
+                    AwaitTaskContinuation.RunOrScheduleAction(singleAction, bCanInlineContinuations, ref Thread.CurrentThread.ThreadTaskLocals.CurrentTask);
+#else
                     AwaitTaskContinuation.RunOrScheduleAction(singleAction, bCanInlineContinuations, ref t_currentTask);
-                    LogFinishCompletionNotification();
+#endif
+
+                    if (AsyncCausalityTracer.LoggingOn)
+                        AsyncCausalityTracer.TraceSynchronousWorkCompletion(CausalityTraceLevel.Required, CausalitySynchronousWork.CompletionNotification);
                     return;
                 }
 
@@ -3604,7 +3678,9 @@ namespace System.Threading.Tasks
                     {
                         ThreadPool.UnsafeQueueCustomWorkItem(new CompletionActionInvoker(singleTaskCompletionAction, this), forceGlobal: false);
                     }
-                    LogFinishCompletionNotification();
+
+                    if (AsyncCausalityTracer.LoggingOn)
+                        AsyncCausalityTracer.TraceSynchronousWorkCompletion(CausalityTraceLevel.Required, CausalitySynchronousWork.CompletionNotification);
                     return;
                 }
 
@@ -3613,7 +3689,9 @@ namespace System.Threading.Tasks
                 if (singleTaskContinuation != null)
                 {
                     singleTaskContinuation.Run(this, bCanInlineContinuations);
-                    LogFinishCompletionNotification();
+
+                    if (AsyncCausalityTracer.LoggingOn)
+                        AsyncCausalityTracer.TraceSynchronousWorkCompletion(CausalityTraceLevel.Required, CausalitySynchronousWork.CompletionNotification);
                     return;
                 }
 
@@ -3622,7 +3700,8 @@ namespace System.Threading.Tasks
 
                 if (continuations == null)
                 {
-                    LogFinishCompletionNotification();
+                    if (AsyncCausalityTracer.LoggingOn)
+                        AsyncCausalityTracer.TraceSynchronousWorkCompletion(CausalityTraceLevel.Required, CausalitySynchronousWork.CompletionNotification);
                     return;  // Not a single or a list; just return
                 }
 
@@ -3669,7 +3748,11 @@ namespace System.Threading.Tasks
                     Action ad = currentContinuation as Action;
                     if (ad != null)
                     {
+#if FEATURE_CORECLR
+                        AwaitTaskContinuation.RunOrScheduleAction(ad, bCanInlineContinuations, ref Thread.CurrentThread.ThreadTaskLocals.CurrentTask);
+#else
                         AwaitTaskContinuation.RunOrScheduleAction(ad, bCanInlineContinuations, ref t_currentTask);
+#endif
                     }
                     else
                     {
@@ -3699,14 +3782,9 @@ namespace System.Threading.Tasks
                     }
                 }
 
-                LogFinishCompletionNotification();
+                if (AsyncCausalityTracer.LoggingOn)
+                    AsyncCausalityTracer.TraceSynchronousWorkCompletion(CausalityTraceLevel.Required, CausalitySynchronousWork.CompletionNotification);
             }
-        }
-
-        private void LogFinishCompletionNotification()
-        {
-            if (AsyncCausalityTracer.LoggingOn)
-                AsyncCausalityTracer.TraceSynchronousWorkCompletion(CausalityTraceLevel.Required, CausalitySynchronousWork.CompletionNotification);
         }
 
         #region Continuation methods
@@ -6666,7 +6744,7 @@ namespace System.Threading.Tasks
 
     }
 
-    internal sealed class CompletionActionInvoker : IThreadPoolWorkItem
+    internal sealed class CompletionActionInvoker : DeferrableWorkItem
     {
         private readonly ITaskCompletionAction m_action;
         private readonly Task m_completingTask;
@@ -6678,15 +6756,9 @@ namespace System.Threading.Tasks
         }
 
         [SecurityCritical]
-        void IThreadPoolWorkItem.ExecuteWorkItem()
+        public override void ExecuteWorkItem()
         {
             m_action.Invoke(m_completingTask);
-        }
-
-        [SecurityCritical]
-        void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae)
-        {
-            /* NOP */
         }
     }
 
