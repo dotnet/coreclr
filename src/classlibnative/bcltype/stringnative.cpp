@@ -296,8 +296,8 @@ FCIMPL6(INT32, COMString::CompareOrdinalEx, StringObject* strA, INT32 indexA, IN
 
     // These runtime tests are handled in the managed wrapper.
     _ASSERTE(strA != NULL && strB != NULL);
-    _ASSERTE(indexA < 0 && indexB < 0);
-    _ASSERTE(countA < 0 && countB < 0);
+    _ASSERTE(indexA >= 0 && indexB >= 0);
+    _ASSERTE(countA >= 0 && countB >= 0);
 
     strA->RefInterpretGetStringValuesDangerousForGC((WCHAR **) &strAChars, &strALength);
     strB->RefInterpretGetStringValuesDangerousForGC((WCHAR **) &strBChars, &strBLength);

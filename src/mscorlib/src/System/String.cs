@@ -2359,7 +2359,7 @@ namespace System {
                 return 0;
             }
 
-            return nativeCompareOrdinalEx(strA, indexA, strB, indexB, length);
+            return nativeCompareOrdinalEx(strA, indexA, lengthA, strB, indexB, lengthB);
         }
 
 

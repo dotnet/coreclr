@@ -540,8 +540,11 @@ namespace System.Globalization {
         [System.Security.SecurityCritical]
         private static int CompareOrdinal(string string1, int offset1, int length1, string string2, int offset2, int length2)
         {
-            int result = String.nativeCompareOrdinalEx(string1, offset1, string2, offset2,
-                                                       (length1 < length2 ? length1 : length2));
+            Contract.Assert(string1 != null && string2 != null);
+            Contract.Assert(offset1 >= 0 && offset2 >= 0);
+            Contract.Assert(length1 >= 0 && length2 >= 0);
+
+            int result = String.nativeCompareOrdinalEx(string1, offset1, length1, string2, offset2, length2);
             if ((length1 != length2) && result == 0)
             {
                 return (length1 > length2 ? 1 : -1);
