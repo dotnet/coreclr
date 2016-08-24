@@ -2087,7 +2087,7 @@ namespace System {
 
                 return strA == null ? -1 : 1;
             }
-            
+
             if (length < 0)
             {
                 throw new ArgumentOutOfRangeException("length", Environment.GetResourceString("ArgumentOutOfRange_NegativeLength"));
@@ -2160,7 +2160,7 @@ namespace System {
             {
                 throw new ArgumentException(Environment.GetResourceString("Arg_MustBeString"));
             }
-            
+
             return CompareTo(other); // will call the string-based overload
         }
     
