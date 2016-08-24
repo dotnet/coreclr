@@ -2141,24 +2141,20 @@ namespace System {
                                                       Environment.GetResourceString("ArgumentOutOfRange_Index"));
             }
             
-            if( ( length == 0 )  ||
-                ((strA == strB) && (indexA == indexB)) ){
+            if (length == 0 ||
+                (indexA == indexB && strA.Length == strB.Length && EqualsHelper(strA, strB))) {
                 return 0;
             }
 
             int lengthA = length;
             int lengthB = length;
 
-            if (strA!=null) {
-                if (strA.Length - indexA < lengthA) {
-                  lengthA = (strA.Length - indexA);
-                }
+            if (strA.Length - indexA < lengthA) {
+                lengthA = (strA.Length - indexA);
             }
 
-            if (strB!=null) {
-                if (strB.Length - indexB < lengthB) {
-                    lengthB = (strB.Length - indexB);
-                }
+            if (strB.Length - indexB < lengthB) {
+                lengthB = (strB.Length - indexB);
             }
     
             switch (comparisonType) {
