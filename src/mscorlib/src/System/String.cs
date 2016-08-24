@@ -2093,6 +2093,8 @@ namespace System {
         [Pure]
         public static int Compare(String strA, int indexA, String strB, int indexB, int length)
         {
+            // NOTE: It's important we call the boolean overload, and not the StringComparison
+            // one. The two have some subtly different behavior (see notes in the former).
             return Compare(strA, indexA, strB, indexB, length, ignoreCase: false);
         }
 
@@ -2115,76 +2117,23 @@ namespace System {
             // - Since we originally forwarded to CompareInfo.Compare for all of the argument
             //   validation logic, the ArgumentOutOfRangeExceptions thrown will contain different
             //   parameter names.
-            // Therefore, we have to duplicate some of the logic for short-circuiting.
-            // We also have to calculate whether an exception will be thrown by CompareInfo.Compare
-            // before we're allowed to apply such an optimization, since this method originally
-            // contained no short-circuiting logic.
+            // Therefore, we have to duplicate some of the logic here.
+
+            int lengthA = length;
+            int lengthB = length;
             
-            // If any of these conditions are true we can potentially return early
-            // Since typically these will be false, avoid a couple of branches by using bitwise OR
-            bool canShortCircuit = (strA == null) | (strB == null) | (length == 0) | ((object)strA == strB && indexA == indexB);
-
-            if (!canShortCircuit)
+            if (strA != null)
             {
-                // Due to the check above we know neither strA or strB are null here.
-                int lengthA = Math.Min(length, strA.Length - indexA);
-                int lengthB = Math.Min(length, strB.Length - indexB);
-
-                var options = ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None;
-                return CultureInfo.CurrentCulture.CompareInfo.Compare(strA, indexA, lengthA, strB, indexB, lengthB, options);
-            }
-            
-            // This was separated out into a different function, since the logic that calculates
-            // whether an exception was going to be thrown was large enough that it seemed to
-            // significantly degrade performance for the main codepath, even though it wasn't
-            // actually being executed.
-            return CompareShortCircuitHelper(strA, indexA, strB, indexB, length, ignoreCase);
-        }
-
-        private static int CompareShortCircuitHelper(string strA, int indexA, string strB, int indexB, int length, bool ignoreCase)
-        {
-            // It's possible to short-circuit! We'll want to check first that an exception
-            // won't be thrown when CompareInfo.Compare validates its arguments however,
-            // or that would be a breaking change.
-
-            int lengthA = strA != null ? Math.Min(length, strA.Length - indexA) : length;
-            int lengthB = strB != null ? Math.Min(length, strB.Length - indexB) : length;
-
-            // How we calculate if something will get thrown:
-            // - For any input, indexA/indexB/lengthA/lengthB must all be nonnegative.
-            // - In addition, if strA is null indexA and length must be *exactly* 0.
-            // - In addition, if strB is null indexB and length must be *exactly* 0.
-
-            // If any of the numbers are negative the resulting OR'd number will also be negative
-            bool exceptionImminent = (indexA | indexB | lengthA | lengthB) < 0;
-            bool hasNulls = strA == null || strB == null;
-
-            if (hasNulls)
-            {
-                exceptionImminent |= length != 0;
-                exceptionImminent |= (strA == null && indexA != 0);
-                exceptionImminent |= (strB == null && indexB != 0);
+                lengthA = Math.Min(lengthA, strA.Length - indexA);
             }
 
-            if (!exceptionImminent)
+            if (strB != null)
             {
-                // If no exception is going to be thrown, we can safely return early.
-                if (hasNulls)
-                {
-                    return
-                        (object)strA == strB ? 0 : // Both are null
-                        (object)strA == null ? -1 : 1; // One is null
-                }
-                
-                Contract.Assert(length == 0 || ((object)strA == strB && indexA == indexB), "We checked that we could return early before we got here!");
-                return 0;
+                lengthB = Math.Min(lengthB, strB.Length - indexB);
             }
 
-            // An exception is going to be thrown, so call the real Compare function to throw it.
             var options = ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None;
-            int shouldNotHappen = CultureInfo.CurrentCulture.CompareInfo.Compare(strA, indexA, lengthA, strB, indexB, lengthB, options);
-            Contract.Assert(false, $"CompareInfo.Compare returned {shouldNotHappen} when it was supposed to throw!");
-            return shouldNotHappen;
+            return CultureInfo.CurrentCulture.CompareInfo.Compare(strA, indexA, lengthA, strB, indexB, lengthB, options);
         }
 
         // Determines whether two string regions match.  The substring of strA beginning
