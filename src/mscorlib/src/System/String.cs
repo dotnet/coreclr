@@ -306,7 +306,7 @@ namespace System {
         // native call to COMString::CompareOrdinalEx
         [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern int nativeCompareOrdinalEx(String strA, int indexA, String strB, int indexB, int count);
+        internal static extern int nativeCompareOrdinalEx(String strA, int indexA, int countA, String strB, int indexB, int countB);
 
         //This will not work in case-insensitive mode for any character greater than 0x80.  
         //We'll throw an ArgumentException.
@@ -2236,7 +2236,7 @@ namespace System {
                     return CultureInfo.InvariantCulture.CompareInfo.Compare(strA, indexA, lengthA, strB, indexB, lengthB, CompareOptions.IgnoreCase);
 
                 case StringComparison.Ordinal:
-                    return nativeCompareOrdinalEx(strA, indexA, strB, indexB, length);
+                    return nativeCompareOrdinalEx(strA, indexA, lengthA, strB, indexB, lengthB);
 
                 case StringComparison.OrdinalIgnoreCase:
 #if FEATURE_COREFX_GLOBALIZATION
@@ -2329,28 +2329,35 @@ namespace System {
                 return strA == null ? -1 : 1;
             }
 
-            // We can return early if length == 0 or (object)strA == strB && indexA == indexB.
-            // However, since we didn't previously apply this optimization, we have to make sure
-            // first that an exception wouldn't have been thrown had we continued. Otherwise,
-            // this would be a breaking change.
+            // COMPAT: Checking for nulls should become before the arguments are validated,
+            // but other optimizations which allow us to return early should come after.
 
-            // We're allowed to return early for nulls above, e.g. CompareOrdinal(null, -1, null, -1, -1)
-            // will not throw despite the invalid parameters, since this was the original behavior of the method.
-
-            bool exceptionImminent = length < 0 || (uint)indexA > (uint)strA.Length || (uint)indexB > (uint)strB.Length;
-
-            if (!exceptionImminent)
+            if (length < 0)
             {
-                // No exception is going to be thrown; it's safe to short-circuit.
-
-                if (length == 0 || (object.ReferenceEquals(strA, strB) && indexA == indexB))
-                {
-                    return 0;
-                }
+                // COMPAT: This was originally done in a call to CompareOrdinalEx which had the
+                // parameter "count" instead of length. Throw an exception for the original name.
+                throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_NegativeCount"));
             }
 
-            // In the case an exception will be thrown or we can't short-circuit,
-            // just defer to the function that does the actual work.
+            if (indexA < 0 || indexB < 0)
+            {
+                string paramName = indexA < 0 ? "indexA" : "indexB";
+                throw new ArgumentOutOfRangeException(paramName, Environment.GetResourceString("ArgumentOutOfRange_Index"));
+            }
+            
+            int lengthA = Math.Min(length, strA.Length - indexA);
+            int lengthB = Math.Min(length, strB.Length - indexB);
+
+            if (lengthA < 0 || lengthB < 0)
+            {
+                string paramName = lengthA < 0 ? "indexA" : "indexB";
+                throw new ArgumentOutOfRangeException(paramName, Environment.GetResourceString("ArgumentOutOfRange_Index"));
+            }
+
+            if (length == 0 || (object.ReferenceEquals(strA, strB) && indexA == indexB))
+            {
+                return 0;
+            }
 
             return nativeCompareOrdinalEx(strA, indexA, strB, indexB, length);
         }
@@ -2406,7 +2413,7 @@ namespace System {
                     return CultureInfo.InvariantCulture.CompareInfo.IsSuffix(this, value, CompareOptions.IgnoreCase);                    
 
                 case StringComparison.Ordinal:
-                    return this.Length < value.Length ? false : (nativeCompareOrdinalEx(this, this.Length -value.Length, value, 0, value.Length) == 0);
+                    return this.Length < value.Length ? false : (nativeCompareOrdinalEx(this, this.Length - value.Length, value.Length, value, 0, value.Length) == 0);
 
                 case StringComparison.OrdinalIgnoreCase:
 #if FEATURE_COREFX_GLOBALIZATION
