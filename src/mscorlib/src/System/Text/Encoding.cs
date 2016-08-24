@@ -1478,7 +1478,7 @@ namespace System.Text
         // Returns an encoding for the UTF-32 format. The returned encoding will be
         // an instance of the UTF32Encoding class.
 
-        public static Encoding UTF32 => UTF32Encoding.Default;
+        public static Encoding UTF32 => UTF32Encoding.s_default;
 
         public override bool Equals(Object value) {
             Encoding that = value as Encoding;
