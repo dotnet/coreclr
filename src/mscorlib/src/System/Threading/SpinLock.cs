@@ -346,6 +346,12 @@ namespace System.Threading
                     return;
                 }
 
+                // Failed to acquire lock
+                if (millisecondsTimeout == 0)
+                {
+                    // If timeout is zero, fail fast, don't spin to attempt acquire, exit
+                    return;
+                }
 #if !FEATURE_CORECLR
                 Thread.EndCriticalRegion();
 #endif
@@ -355,7 +361,7 @@ namespace System.Threading
                 // Lock owned, haven't acquired the lock
                 if (millisecondsTimeout == 0)
                 {
-                    // If timeout is zero fail fast, don't update waiters, don't spin to attempt acquire, exit
+                    // If timeout is zero, fail fast, don't update waiters, don't spin to attempt acquire, exit
                     return;
                 }
 
@@ -363,13 +369,6 @@ namespace System.Threading
                 if ((observedOwner & WAITERS_MASK) != MAXIMUM_WAITERS)
                     turn = (Interlocked.Add(ref m_owner, 2) & WAITERS_MASK) >> 1 ;
             }
-
-            if (millisecondsTimeout == 0)
-            {
-                // If timeout is zero here, attempted aquire but failed. Fail fast, don't spin to attempt acquire, exit
-                return;
-            }
-
 
             // Check the timeout.
             if ((millisecondsTimeout != Timeout.Infinite &&
