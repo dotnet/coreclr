@@ -180,6 +180,10 @@ function mount_emulator {
     mount_with_checking "-o bind" "/dev/pts" "$__ARMRootfsMountPath/dev/pts"
     mount_with_checking "-t tmpfs" "shm"     "$__ARMRootfsMountPath/run/shm"
     mount_with_checking "-o bind" "/sys"     "$__ARMRootfsMountPath/sys"
+        if [ ! -d "$__ARMRootfsMountPath/bindings/tmp" ]; then
+        sudo mkdir -p "$__ARMRootfsMountPath/bindings/tmp"
+    fi
+    mount_with_checking "-o bind" "/tmp"     "$__ARMRootfsMountPath/bindings/tmp"
 }
 
 #Cross builds coreclr
@@ -392,10 +396,11 @@ fi
 __buildDirName="$__buildOS.$__buildArch.$__buildConfig"
 
 #Define emulator paths
-__ARMRootfsCoreclrPath="$__ARMRootfsMountPath/home/coreclr"
-__ARMRootfsCorefxPath="$__ARMRootfsMountPath/home/corefx"
-__ARMEmulCoreclr="/home/coreclr"
-__ARMEmulCorefx="/home/corefx"
+__TempFolder="bindings/tmp"
+__ARMRootfsCoreclrPath="$__ARMRootfsMountPath/$_TempFolder/coreclr"
+__ARMRootfsCorefxPath="$__ARMRootfsMountPath/$_TempFolder/corefx"
+__ARMEmulCoreclr="/$TempFolder/coreclr"
+__ARMEmulCorefx="/$TempFolder/corefx"
 __testRootDirBase=
 __mscorlibDirBase=
 __coreFxNativeBinDirBase=
