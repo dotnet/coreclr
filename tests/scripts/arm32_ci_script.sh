@@ -269,7 +269,7 @@ function copy_to_emulator {
 #Runs tests in an emulated mode
 function run_tests {
     sudo chroot $__ARMRootfsMountPath /bin/bash -x <<EOF
-        cd /home/coreclr
+        cd "$__ARMEmulCoreclr"
         ./tests/runtest.sh --testRootDir=$__testRootDirBase \
                            --mscorlibDir=$__mscorlibDirBase \
                            --coreFxNativeBinDir=$__coreFxNativeBinDirBase \
