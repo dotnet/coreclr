@@ -77,13 +77,13 @@ namespace System.Threading
         private const int SPINNING_FACTOR = 100;
 
         // After how many yields, call Sleep(1)
-        private const int SLEEP_ONE_FREQUENCY = 40;
+        private const int SLEEP_ONE_FREQUENCY_MASK = 64;
 
         // After how many yields, call Sleep(0)
-        private const int SLEEP_ZERO_FREQUENCY = 10;
+        private const int SLEEP_ZERO_FREQUENCY_MASK = 16;
 
         // After how many yields, check the timeout
-        private const int TIMEOUT_CHECK_FREQUENCY = 10;
+        private const int TIMEOUT_CHECK_FREQUENCY_MASK = 16;
 
         // Thr thread tracking disabled mask
         private const int LOCK_ID_DISABLE_MASK = unchecked((int)0x80000000);        //1000 0000 0000 0000 0000 0000 0000 0000
@@ -105,7 +105,7 @@ namespace System.Threading
         // The maximum number of waiters (only used if the thread tracking is disabled)
         // The actual maximum waiters count is this number divided by two because each waiter increments the waiters count by 2
         // The waiters count is calculated by m_owner & WAITERS_MASK 01111....110
-        private static int MAXIMUM_WAITERS = WAITERS_MASK;
+        private static int MAXIMUM_WAITERS_LOW_WATERMARK = 0x40000000;              //0100 0000 0000 0000 0000 0000 0000 0000
 
 
         /// <summary>
@@ -265,13 +265,16 @@ namespace System.Threading
                 lockTaken || //invalid parameter
                 (observedOwner & ID_DISABLED_AND_ANONYMOUS_OWNED) != LOCK_ID_DISABLE_MASK ||  //thread tracking is enabled or the lock is already acquired
                 Interlocked.CompareExchange(ref m_owner, observedOwner | LOCK_ANONYMOUS_OWNED, observedOwner, ref lockTaken) != observedOwner) // acquiring the lock failed
-                ContinueTryEnter(millisecondsTimeout, ref lockTaken); // The call the slow pth
+            {
+                // Multiple possibilities, call the slow path
+                ContinueTryEnter(millisecondsTimeout, ref lockTaken);
+            }
         }
 
         /// <summary>
         /// Try acquire the lock with long path, this is usually called after the first path in Enter and
-        /// TryEnter failed The reason for short path is to make it inline in the run time which improves the
-        /// performance. This method assumed that the parameter are validated in Enter ir TryENter method
+        /// TryEnter failed. The reason for short path is to make it inline in the run time which improves the
+        /// performance. This method assumed that the parameter are validated in Enter or TryEnter method
         /// </summary>
         /// <param name="millisecondsTimeout">The timeout milliseconds</param>
         /// <param name="lockTaken">The lockTaken param</param>
@@ -285,15 +288,13 @@ namespace System.Threading
             if (lockTaken)
             {
                 lockTaken = false;
-                throw new System.ArgumentException(Environment.GetResourceString("SpinLock_TryReliableEnter_ArgumentException"));
+                ThrowHelper.ThrowArgumentException(ExceptionResource.SpinLock_TryReliableEnter_ArgumentException);
             }
 
             if (millisecondsTimeout < -1)
             {
-                throw new ArgumentOutOfRangeException(
-                    "millisecondsTimeout", millisecondsTimeout, Environment.GetResourceString("SpinLock_TryEnter_ArgumentOutOfRange"));
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.millisecondsTimeout, ExceptionResource.SpinLock_TryEnter_ArgumentOutOfRange);
             }
-
 
             uint startTime = 0;
             if (millisecondsTimeout != Timeout.Infinite && millisecondsTimeout != 0)
@@ -307,155 +308,213 @@ namespace System.Threading
                 CdsSyncEtwBCLProvider.Log.SpinLock_FastPathFailed(m_owner);
             }
 #endif
-
-            if (IsThreadOwnerTrackingEnabled)
+            do // Loop breaks are more efficient than inline returns
             {
-                // Slow path for enabled thread tracking mode
-                ContinueTryEnterWithThreadTracking(millisecondsTimeout, startTime, ref lockTaken);
-                return;
-            }
-
-            // then thread tracking is disabled
-            // In this case there are three ways to acquire the lock
-            // 1- the first way the thread either tries to get the lock if it's free or updates the waiters, if the turn >= the processors count then go to 3 else go to 2
-            // 2- In this step the waiter threads spins and tries to acquire the lock, the number of spin iterations and spin count is dependent on the thread turn
-            // the late the thread arrives the more it spins and less frequent it check the lock avilability
-            // Also the spins count is increases each iteration
-            // If the spins iterations finished and failed to acquire the lock, go to step 3
-            // 3- This is the yielding step, there are two ways of yielding Thread.Yield and Sleep(1)
-            // If the timeout is expired in after step 1, we need to decrement the waiters count before returning
-
-            int observedOwner;
-            int turn = int.MaxValue;
-            //***Step 1, take the lock or update the waiters
-
-            // try to acquire the lock directly if possible or update the waiters count
-            observedOwner = m_owner;
-            if ((observedOwner & LOCK_ANONYMOUS_OWNED) == LOCK_UNOWNED)
-            {
-#if !FEATURE_CORECLR
-                Thread.BeginCriticalRegion();
-#endif
-
-                if (Interlocked.CompareExchange(ref m_owner, observedOwner | 1, observedOwner, ref lockTaken) == observedOwner)
+                if (!IsThreadOwnerTrackingEnabled)
                 {
-                    return;
-                }
+                    // Fast path for no thread tracking
 
-#if !FEATURE_CORECLR
-                Thread.EndCriticalRegion();
-#endif
-            }
-            else //failed to acquire the lock,then try to update the waiters. If the waiters count reached the maximum, jsut break the loop to avoid overflow
-            {
-                if ((observedOwner & WAITERS_MASK) != MAXIMUM_WAITERS)
-                    turn = (Interlocked.Add(ref m_owner, 2) & WAITERS_MASK) >> 1 ;
-            }
+                    // In this case there are three ways to acquire the lock
+                    // 1- the first way the thread either tries to get the lock if it's free or updates the waiters, if the turn >= the processors count then go to 3 else go to 2
+                    // 2- In this step the waiter threads spins and tries to acquire the lock, the number of spin iterations and spin count is dependent on the thread turn
+                    // the late the thread arrives the more it spins and less frequent it check the lock avilability
+                    // Also the spins count is increases each iteration
+                    // If the spins iterations finished and failed to acquire the lock, go to step 3
+                    // 3- This is the yielding step, there are two ways of yielding Thread.Yield and Sleep(1)
+                    // If the timeout is expired in after step 1, we need to decrement the waiters count before returning
 
+                    //*** Step 1: Take the lock or update the waiters
 
+                    int turn = int.MaxValue;
+                    int observedOwner = m_owner;
 
-            // Check the timeout.
-            if (millisecondsTimeout == 0 ||
-                (millisecondsTimeout != Timeout.Infinite &&
-                TimeoutHelper.UpdateTimeOut(startTime, millisecondsTimeout) <= 0))
-            {
-                DecrementWaiters();
-                return;
-            }
+                    //**  1.1 Try to acquire the lock directly if possible
 
-            //***Step 2. Spinning
-            //lock acquired failed and waiters updated
-            int processorCount = PlatformHelper.ProcessorCount;
-            if (turn < processorCount)
-            {
-                int processFactor = 1;
-                for (int i = 1; i <= turn * SPINNING_FACTOR; i++)
-                {
-                    Thread.SpinWait((turn + i) * SPINNING_FACTOR * processFactor);
-                    if (processFactor < processorCount)
-                        processFactor++;
-                    observedOwner = m_owner;
                     if ((observedOwner & LOCK_ANONYMOUS_OWNED) == LOCK_UNOWNED)
                     {
 #if !FEATURE_CORECLR
                         Thread.BeginCriticalRegion();
 #endif
-
-                        int newOwner = (observedOwner & WAITERS_MASK) == 0 ? // Gets the number of waiters, if zero
-                            observedOwner | 1 // don't decrement it. just set the lock bit, it is zzero because a previous call of Exit(false) ehich corrupted the waiters
-                            : (observedOwner - 2) | 1; // otherwise decrement the waiters and set the lock bit
-                        Contract.Assert((newOwner & WAITERS_MASK) >= 0);
-
-                        if (Interlocked.CompareExchange(ref m_owner, newOwner, observedOwner, ref lockTaken) == observedOwner)
+                        // Lock is not owned, attempt to acquire lock
+                        if (Interlocked.CompareExchange(ref m_owner, observedOwner | 1, observedOwner, ref lockTaken) ==
+                            observedOwner)
                         {
-                            return;
+                            // Acquired the lock
+                            break; // Exit function
                         }
-
 #if !FEATURE_CORECLR
                         Thread.EndCriticalRegion();
 #endif
                     }
-                }
-            }
 
-            // Check the timeout.
-            if (millisecondsTimeout != Timeout.Infinite && TimeoutHelper.UpdateTimeOut(startTime, millisecondsTimeout) <= 0)
-            {
-                DecrementWaiters();
-                return;
-            }
+                    //**  1.2 Lock owned, haven't acquired the lock
 
-            //*** Step 3, Yielding
-            //Sleep(1) every 50 yields
-            int yieldsoFar = 0;
-            while (true)
-            {
-                observedOwner = m_owner;
-                if ((observedOwner & LOCK_ANONYMOUS_OWNED) == LOCK_UNOWNED)
-                {
-#if !FEATURE_CORECLR
-                    Thread.BeginCriticalRegion();
-#endif
-                    int newOwner = (observedOwner & WAITERS_MASK) == 0 ? // Gets the number of waiters, if zero
-                           observedOwner | 1 // don't decrement it. just set the lock bit, it is zzero because a previous call of Exit(false) ehich corrupted the waiters
-                           : (observedOwner - 2) | 1; // otherwise decrement the waiters and set the lock bit
-                    Contract.Assert((newOwner & WAITERS_MASK) >= 0);
-
-                    if (Interlocked.CompareExchange(ref m_owner, newOwner, observedOwner, ref lockTaken) == observedOwner)
+                    if (millisecondsTimeout == 0)
                     {
-                        return;
+                        // If timeout is zero, fail fast, don't spin to attempt acquire
+                        break; // Exit function
                     }
 
-#if !FEATURE_CORECLR
-                    Thread.EndCriticalRegion();
-#endif
-                }
+                    // Try to update the waiters. If the waiters count reached watermark don't increment to avoid overflow
+                    if ((observedOwner & WAITERS_MASK) < MAXIMUM_WAITERS_LOW_WATERMARK)
+                    {
+                        // Owner count updates in 2s as first bit is whether lock is owned
+                        turn = (Interlocked.Add(ref m_owner, 2) & WAITERS_MASK) >> 1;
+                    }
+                    else
+                    {
+                        // Logic stub: Watermark for waiters reached so turn == int.MaxValue 
+                        // which means step 2 (spinning) is skipped as lock heavily contended. 
+                    }
 
-                if (yieldsoFar % SLEEP_ONE_FREQUENCY == 0)
-                {
-                    Thread.Sleep(1);
-                }
-                else if (yieldsoFar % SLEEP_ZERO_FREQUENCY == 0)
-                {
-                    Thread.Sleep(0);
+                    //*** Step 2: Spinning
+                    int processorCount = PlatformHelper.ProcessorCount;
+                    // If turn is less than processorCount, we will try spinning to acquire the lock.
+                    if (turn < processorCount)
+                    {
+                        //**  2.1 Spin to acquire
+                        int maxSpinLoops = turn * SPINNING_FACTOR;
+                        int spinIncrement = SPINNING_FACTOR;
+                        int spinAmount = maxSpinLoops + spinIncrement;
+                        for (int i = 1; i <= maxSpinLoops; i++)
+                        {
+                            // Spin, yeilding processor on HT
+                            Thread.SpinWait(spinAmount);
+                            if (i < processorCount)
+                            {
+                                // If loop iteration less that processor count
+                                // increase the spin increment
+                                spinIncrement += SPINNING_FACTOR * i;
+                            }
+                            // Increment the spin time
+                            spinAmount += spinIncrement;
+
+                            observedOwner = m_owner;
+                            if ((observedOwner & LOCK_ANONYMOUS_OWNED) == LOCK_UNOWNED)
+                            {
+                                // Lock is not owned, attempt to acquire lock
+#if !FEATURE_CORECLR
+                                Thread.BeginCriticalRegion();
+#endif
+                                // Check if the number of waiters in owner is zero. 
+                                // If zero don't decrement it, just set the lock bit.
+                                // - It can be zero because a previous call of Exit(false) corrupted the waiters in a fast exit.
+                                // Otherwise decrement the waiters and set the lock bit.
+                                int newOwner = (observedOwner & WAITERS_MASK) == 0 ? 
+                                                observedOwner | 1 : (observedOwner - 2) | 1;
+
+                                Contract.Assert((newOwner & WAITERS_MASK) >= 0);
+
+                                if (Interlocked.CompareExchange(ref m_owner, newOwner, observedOwner, ref lockTaken) ==
+                                    observedOwner)
+                                {
+                                    // Acquired the lock
+                                    break; // Exit loop
+                                }
+#if !FEATURE_CORECLR
+                                Thread.EndCriticalRegion();
+#endif
+                            }
+                        }
+
+                        if (lockTaken)
+                        {
+                            // We exited loop early as lock was taken so break again
+                            break; // Exit function
+                        }
+
+                        //**  2.2 Time was spent spinning, check the timeout.
+                        if (millisecondsTimeout != Timeout.Infinite &&
+                            TimeoutHelper.UpdateTimeOut(startTime, millisecondsTimeout) <= 0)
+                        {
+                            // Timed out
+                            if (turn != int.MaxValue)
+                            {
+                                // We incremented the waiters so decrement it
+                                DecrementWaiters();
+                            }
+
+                            break; // Exit function
+                        }
+                    }
+
+                    //*** Step 3: Yielding
+                    // If we didn't set the waiters as were too many, skip straight to Sleep(1) due to heavy contention
+                    int yieldsoFar = (turn == int.MaxValue) ? SLEEP_ONE_FREQUENCY_MASK : 0;
+                    while (true)
+                    {
+                        //**  3.1 Yield first, as we have alreay checked faster routes to acquire the lock 
+                        if ((yieldsoFar & SLEEP_ONE_FREQUENCY_MASK) == SLEEP_ONE_FREQUENCY_MASK)
+                        {
+                            Thread.Sleep(1);
+                        }
+                        else if ((yieldsoFar & SLEEP_ZERO_FREQUENCY_MASK) == SLEEP_ZERO_FREQUENCY_MASK)
+                        {
+                            Thread.Sleep(0);
+                        }
+                        else
+                        {
+                            if (!Thread.Yield())
+                            {
+                                // The Thread didn't yield, so yield the processor in case it is HT
+                                Thread.SpinWait(1);
+                            }
+                        }
+
+                        //**  3.2 Attempt lock
+                        observedOwner = m_owner;
+                        if ((observedOwner & LOCK_ANONYMOUS_OWNED) == LOCK_UNOWNED)
+                        {
+                            // Lock is not owned, attempt to acquire lock
+#if !FEATURE_CORECLR
+                            Thread.BeginCriticalRegion();
+#endif
+                            // Check if the number of waiters in owner is zero, or if we didn't add ourselves to the list 
+                            // If zero or not added, don't decrement it, just set the lock bit.
+                            // - It can be zero because a previous call of Exit(false) corrupted the waiters in a fast exit.
+                            // Otherwise decrement the waiters and set the lock bit.
+                            int newOwner = (observedOwner & WAITERS_MASK) == 0 || (turn == int.MaxValue) ? 
+                                            observedOwner | 1 : (observedOwner - 2) | 1;
+
+                            Contract.Assert((newOwner & WAITERS_MASK) >= 0);
+
+                            if (Interlocked.CompareExchange(ref m_owner, newOwner, observedOwner, ref lockTaken) ==
+                                observedOwner)
+                            {
+                                // Acquired the lock
+                                break; // Exit loop and function
+                            }
+#if !FEATURE_CORECLR
+                            Thread.EndCriticalRegion();
+#endif
+                        }
+
+                        //**  3.3 Should we check timeout?
+                        if ((yieldsoFar & TIMEOUT_CHECK_FREQUENCY_MASK) == TIMEOUT_CHECK_FREQUENCY_MASK &&
+                            millisecondsTimeout != Timeout.Infinite)
+                        {
+                            // Yes, check if timed out
+                            if (TimeoutHelper.UpdateTimeOut(startTime, millisecondsTimeout) <= 0)
+                            {
+                                // Timed out
+                                if (turn != int.MaxValue)
+                                {
+                                    // We incremented the waiters so decrement them
+                                    DecrementWaiters();
+                                }
+                                break; // Exit loop and function
+                            }
+                        }
+
+                        yieldsoFar++;
+                    }
                 }
                 else
                 {
-                    Thread.Yield();
+                    // Slow path for enabled thread tracking mode
+                    ContinueTryEnterWithThreadTracking(millisecondsTimeout, startTime, ref lockTaken);
                 }
-
-                if (yieldsoFar % TIMEOUT_CHECK_FREQUENCY == 0)
-                {
-                    //Check the timeout.
-                    if (millisecondsTimeout != Timeout.Infinite && TimeoutHelper.UpdateTimeOut(startTime, millisecondsTimeout) <= 0)
-                    {
-                        DecrementWaiters();
-                        return;
-                    }
-                }
-
-                yieldsoFar++;
-            }
+            } while (false); // Loop breaks used rather than inline returns
         }
 
         /// <summary>

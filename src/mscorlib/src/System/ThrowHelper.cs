@@ -428,6 +428,14 @@ namespace System {
                     resourceName = "Argument_InvalidRegistryViewCheck";
                     break;
 
+                case ExceptionResource.SpinLock_TryReliableEnter_ArgumentException:
+                    resourceName = "SpinLock_TryReliableEnter_ArgumentException";
+                    break;
+
+                case ExceptionResource.SpinLock_TryEnter_ArgumentOutOfRange:
+                    resourceName = "SpinLock_TryEnter_ArgumentOutOfRange";
+                    break;
+
                 default:
                     Contract.Assert( false, "The enum value is not defined, please checked ExceptionArgumentName Enum.");
                     return string.Empty;
@@ -467,7 +475,8 @@ namespace System {
         view,
         sourceBytesToCopy,
         action,
-        comparison
+        comparison,
+        millisecondsTimeout
     }
 
     //
@@ -521,7 +530,9 @@ namespace System {
         ObjectDisposed_RegKeyClosed,
         NotSupported_InComparableType,
         Argument_InvalidRegistryOptionsCheck,
-        Argument_InvalidRegistryViewCheck
+        Argument_InvalidRegistryViewCheck,
+        SpinLock_TryReliableEnter_ArgumentException,
+        SpinLock_TryEnter_ArgumentOutOfRange
     }
 }
 
