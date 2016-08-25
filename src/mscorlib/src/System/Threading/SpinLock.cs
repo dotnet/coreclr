@@ -265,13 +265,16 @@ namespace System.Threading
                 lockTaken || //invalid parameter
                 (observedOwner & ID_DISABLED_AND_ANONYMOUS_OWNED) != LOCK_ID_DISABLE_MASK ||  //thread tracking is enabled or the lock is already acquired
                 Interlocked.CompareExchange(ref m_owner, observedOwner | LOCK_ANONYMOUS_OWNED, observedOwner, ref lockTaken) != observedOwner) // acquiring the lock failed
-                ContinueTryEnter(millisecondsTimeout, ref lockTaken); // The call the slow pth
+            {
+                // Multiple possibilities, call the slow path
+                ContinueTryEnter(millisecondsTimeout, ref lockTaken);
+            }
         }
 
         /// <summary>
         /// Try acquire the lock with long path, this is usually called after the first path in Enter and
-        /// TryEnter failed The reason for short path is to make it inline in the run time which improves the
-        /// performance. This method assumed that the parameter are validated in Enter ir TryENter method
+        /// TryEnter failed. The reason for short path is to make it inline in the run time which improves the
+        /// performance. This method assumed that the parameter are validated in Enter or TryEnter method
         /// </summary>
         /// <param name="millisecondsTimeout">The timeout milliseconds</param>
         /// <param name="lockTaken">The lockTaken param</param>
@@ -336,9 +339,10 @@ namespace System.Threading
 #if !FEATURE_CORECLR
                 Thread.BeginCriticalRegion();
 #endif
-
+                // Lock is not owned, attempt to acquire lock
                 if (Interlocked.CompareExchange(ref m_owner, observedOwner | 1, observedOwner, ref lockTaken) == observedOwner)
                 {
+                    // Acquired the lock, exit
                     return;
                 }
 
@@ -346,17 +350,29 @@ namespace System.Threading
                 Thread.EndCriticalRegion();
 #endif
             }
-            else //failed to acquire the lock,then try to update the waiters. If the waiters count reached the maximum, jsut break the loop to avoid overflow
+            else
             {
+                // Lock owned, haven't acquired the lock
+                if (millisecondsTimeout == 0)
+                {
+                    // If timeout is zero fail fast, don't update waiters, don't spin to attempt acquire, exit
+                    return;
+                }
+
+                // Try to update the waiters. If the waiters count reached the maximum, just break the loop to avoid overflow
                 if ((observedOwner & WAITERS_MASK) != MAXIMUM_WAITERS)
                     turn = (Interlocked.Add(ref m_owner, 2) & WAITERS_MASK) >> 1 ;
             }
 
+            if (millisecondsTimeout == 0)
+            {
+                // If timeout is zero here, attempted aquire but failed. Fail fast, don't spin to attempt acquire, exit
+                return;
+            }
 
 
             // Check the timeout.
-            if (millisecondsTimeout == 0 ||
-                (millisecondsTimeout != Timeout.Infinite &&
+            if ((millisecondsTimeout != Timeout.Infinite &&
                 TimeoutHelper.UpdateTimeOut(startTime, millisecondsTimeout) <= 0))
             {
                 DecrementWaiters();
@@ -382,7 +398,7 @@ namespace System.Threading
 #endif
 
                         int newOwner = (observedOwner & WAITERS_MASK) == 0 ? // Gets the number of waiters, if zero
-                            observedOwner | 1 // don't decrement it. just set the lock bit, it is zzero because a previous call of Exit(false) ehich corrupted the waiters
+                            observedOwner | 1 // don't decrement it. just set the lock bit, it is zero because a previous call of Exit(false) which corrupted the waiters
                             : (observedOwner - 2) | 1; // otherwise decrement the waiters and set the lock bit
                         Contract.Assert((newOwner & WAITERS_MASK) >= 0);
 
@@ -417,7 +433,7 @@ namespace System.Threading
                     Thread.BeginCriticalRegion();
 #endif
                     int newOwner = (observedOwner & WAITERS_MASK) == 0 ? // Gets the number of waiters, if zero
-                           observedOwner | 1 // don't decrement it. just set the lock bit, it is zzero because a previous call of Exit(false) ehich corrupted the waiters
+                           observedOwner | 1 // don't decrement it. just set the lock bit, it is zero because a previous call of Exit(false) which corrupted the waiters
                            : (observedOwner - 2) | 1; // otherwise decrement the waiters and set the lock bit
                     Contract.Assert((newOwner & WAITERS_MASK) >= 0);
 
