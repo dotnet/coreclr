@@ -1116,12 +1116,6 @@ namespace System {
         }
 
         [ComVisible(false)]
-        public String[] Split(String separator) {
-            Contract.Ensures(Contract.Result<String[]>() != null);
-            return SplitInternal(separator ?? String.Empty, null, Int32.MaxValue, StringSplitOptions.None);
-        }
-
-        [ComVisible(false)]
         public String[] Split(String separator, StringSplitOptions options) {
             Contract.Ensures(Contract.Result<String[]>() != null);
             return SplitInternal(separator ?? String.Empty, null, Int32.MaxValue, options);
