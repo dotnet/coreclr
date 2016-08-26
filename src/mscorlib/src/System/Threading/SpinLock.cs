@@ -394,7 +394,9 @@ namespace System.Threading
 #if !FEATURE_CORECLR
                         Thread.BeginCriticalRegion();
 #endif
-                        int newOwner = (observedOwner - 2) | 1; // decrement the waiters and set the lock bit
+                        int newOwner = (observedOwner & WAITERS_MASK) == 0 ? // Gets the number of waiters, if zero
+                            observedOwner | 1 // don't decrement it. just set the lock bit, it is zero because a previous call of Exit(false) which corrupted the waiters
+                            : (observedOwner - 2) | 1; // otherwise decrement the waiters and set the lock bit
                         Contract.Assert((newOwner & WAITERS_MASK) >= 0);
 
                         if (Interlocked.CompareExchange(ref m_owner, newOwner, observedOwner, ref lockTaken) == observedOwner)
@@ -452,9 +454,9 @@ namespace System.Threading
 #if !FEATURE_CORECLR
                     Thread.BeginCriticalRegion();
 #endif
-                    int newOwner = (turn == int.MaxValue) ? // Check if we set the waiters
-                           observedOwner | 1 // We didn't, just set the lock bit
-                           : (observedOwner - 2) | 1; // We did, decrement waiters and set the lock bit
+                    int newOwner = (observedOwner & WAITERS_MASK) == 0 || (turn == int.MaxValue) ? // Checks if waiters is zero, or if we didn't add ourselves to them
+                       observedOwner | 1 //  if zero don't decrement it. Just set the lock bit, it is zero because a previous call of Exit(false) which corrupted the waiters
+                       : (observedOwner - 2) | 1; // otherwise decrement the waiters and set the lock bit
                     Contract.Assert((newOwner & WAITERS_MASK) >= 0);
 
                     if (Interlocked.CompareExchange(ref m_owner, newOwner, observedOwner, ref lockTaken) == observedOwner)
@@ -492,7 +494,18 @@ namespace System.Threading
         /// </summary>
         private void DecrementWaiters()
         {
-            Interlocked.Add(ref m_owner, -2);
+            SpinWait spinner = new SpinWait();
+            while (true)
+            {
+                int observedOwner = m_owner;
+                if ((observedOwner & WAITERS_MASK) == 0) return; // don't decrement the waiters if it's corrupted by previous call of Exit(false)
+                if (Interlocked.CompareExchange(ref m_owner, observedOwner - 2, observedOwner) == observedOwner)
+                {
+                    Contract.Assert(!IsThreadOwnerTrackingEnabled); // Make sure the waiters never be negative which will cause the thread tracking bit to be flipped
+                    break;
+                }
+                spinner.SpinOnce();
+            }
         }
 
         /// <summary>
