@@ -3434,7 +3434,7 @@
       <Member Status="ImplRoot" Name="#ctor(System.Runtime.Serialization.SerializationInfo,System.Runtime.Serialization.StreamingContext)" />
       <Member Name="Add(System.IntPtr,System.Int32)" />
       <Member Name="Equals(System.Object)" />
-      <Member Status="ImplRoot" Name="System.IEquatable&lt;System.IntPtr&gt;.Equals(System.IntPtr)" />
+      <Member Name="System.IEquatable&lt;System.IntPtr&gt;.Equals(System.IntPtr)" />
       <Member Name="get_Size" />
       <Member Name="GetHashCode" />
       <Member Name="op_Addition(System.IntPtr,System.Int32)" />
@@ -8655,7 +8655,7 @@
       <Member Status="ImplRoot" Name="#ctor(System.Runtime.Serialization.SerializationInfo,System.Runtime.Serialization.StreamingContext)" />
       <Member Name="Add(System.UIntPtr,System.Int32)" />
       <Member Name="Equals(System.Object)" />
-      <Member Status="ImplRoot" Name="System.IEquatable&lt;System.UIntPtr&gt;.Equals(System.UIntPtr)" />
+      <Member Name="System.IEquatable&lt;System.UIntPtr&gt;.Equals(System.UIntPtr)" />
       <Member Name="get_Size" />
       <Member Name="GetHashCode" />
       <Member Name="op_Addition(System.UIntPtr,System.Int32)" />
