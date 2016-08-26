@@ -4373,9 +4373,9 @@ void Compiler::fgMorphSystemVStructArgs(GenTreeCall* call, bool hasStructArgumen
                                                                                 .eightByteClassifications[1],
                                                                             fgEntryPtr->structDesc.eightByteSizes[1]),
                                           lclCommon->gtLclNum, fgEntryPtr->structDesc.eightByteOffsets[1]);
-                        // Note this should actually be: secondNode = gtNewArgList(newLclField)
-                        GenTreeArgList* secondNode = gtNewListNode(newLclField, nullptr);
-                        secondNode->gtType         = originalType; // Preserve the type. It is a special case.
+
+                        GenTreeArgList* aggregate  = gtNewAggregate(newLclField);
+                        aggregate->gtType          = originalType; // Preserve the type. It is a special case.
                         newLclField->gtFieldSeq    = FieldSeqStore::NotAField();
 
                         // First field
@@ -4383,7 +4383,7 @@ void Compiler::fgMorphSystemVStructArgs(GenTreeCall* call, bool hasStructArgumen
                         arg->gtType =
                             GetTypeFromClassificationAndSizes(fgEntryPtr->structDesc.eightByteClassifications[0],
                                                               fgEntryPtr->structDesc.eightByteSizes[0]);
-                        arg         = gtNewListNode(arg, secondNode);
+                        arg         = aggregate->Prepend(this, arg);
                         arg->gtType = type; // Preserve the type. It is a special case.
                     }
                     else
@@ -4696,6 +4696,8 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
     // We should still have a TYP_STRUCT
     assert(argValue->TypeGet() == TYP_STRUCT);
 
+    // TODO(pdg): below is where we'll need to create aggregate nodes.
+
     GenTreeArgList* newArg = nullptr;
 
     // Are we passing a struct LclVar?
@@ -4800,7 +4802,7 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
                     //    replace the existing LDOBJ(ADDR(LCLVAR))
                     //    with a LIST(LCLVAR-LO, LIST(LCLVAR-HI, nullptr))
                     //
-                    newArg = gtNewListNode(loLclVar, gtNewArgList(hiLclVar));
+                    newArg = gtNewAggregate(hiLclVar)->Prepend(this, loLclVar);
                 }
             }
         }
@@ -4881,11 +4883,11 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
                 GenTreePtr nextLclFld = gtNewLclFldNode(varNum, type[inx], offset);
                 if (newArg == nullptr)
                 {
-                    newArg = gtNewArgList(nextLclFld);
+                    newArg = gtNewAggregate(nextLclFld);
                 }
                 else
                 {
-                    newArg = gtNewListNode(nextLclFld, newArg);
+                    newArg = newArg->Prepend(this, nextLclFld);
                 }
             }
         }
@@ -4924,26 +4926,24 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
                 GenTreePtr curItem = gtNewOperNode(GT_IND, type[inx], curAddr);
                 if (newArg == nullptr)
                 {
-                    newArg = gtNewArgList(curItem);
+                    newArg = gtNewAggregate(curItem);
                 }
                 else
                 {
-                    newArg = gtNewListNode(curItem, newArg);
+                    newArg = newArg->Prepend(this, curItem);
                 }
             }
         }
     }
 
+#ifdef DEBUG
     // If we reach here we should have set newArg to something
     if (newArg == nullptr)
     {
-#ifdef DEBUG
         gtDispTree(argValue);
-#endif
         assert(!"Missing case in fgMorphMultiregStructArg");
     }
 
-#ifdef DEBUG
     if (verbose)
     {
         printf("fgMorphMultiregStructArg created tree:\n");
