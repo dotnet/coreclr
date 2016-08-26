@@ -180,7 +180,7 @@ namespace System {
                 
                 var valuesArray = new string[count];
                 collection.CopyTo(valuesArray, 0);
-                return Join(separator, valuesArray); // This calls the overload accepting a string[]
+                return Join(separator, valuesArray); // This calls the overload accepting a string[], which handles Length == 1
             }
 
 #endif // FEATURE_CORECLR
@@ -3609,7 +3609,7 @@ namespace System {
                 
                 var valuesArray = new string[count];
                 collection.CopyTo(valuesArray, 0);
-                return Concat(valuesArray); // This calls the overload accepting a string[]
+                return Concat(valuesArray); // This calls the overload accepting a string[], which handles Length == 1
             }
 
 #endif // FEATURE_CORECLR
