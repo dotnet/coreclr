@@ -169,6 +169,22 @@ namespace System {
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.EndContractBlock();
 
+#if FEATURE_CORECLR
+            var collection = values as ICollection<string>;
+
+            if (collection != null)
+            {
+                int count = collection.Count; // cache the result of the interface method
+                if (count == 0)
+                    return string.Empty;
+                
+                var valuesArray = new string[count];
+                collection.CopyTo(valuesArray, 0);
+                return Join(separator, valuesArray); // This calls the overload accepting a string[]
+            }
+
+#endif // FEATURE_CORECLR
+
             using (IEnumerator<string> en = values.GetEnumerator())
             {
                 if (!en.MoveNext())
@@ -192,7 +208,7 @@ namespace System {
                     result.Append(en.Current);
                 }
                 while (en.MoveNext());
-                
+
                 return StringBuilderCache.GetStringAndRelease(result);
             }
         }
@@ -3581,6 +3597,22 @@ namespace System {
                 throw new ArgumentNullException("values");
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.EndContractBlock();
+
+#if FEATURE_CORECLR
+            var collection = values as ICollection<string>;
+
+            if (collection != null)
+            {
+                int count = collection.Count; // cache the result of the interface method
+                if (count == 0)
+                    return string.Empty;
+                
+                var valuesArray = new string[count];
+                collection.CopyTo(valuesArray, 0);
+                return Concat(valuesArray); // This calls the overload accepting a string[]
+            }
+
+#endif // FEATURE_CORECLR
 
             using (IEnumerator<string> en = values.GetEnumerator())
             {
