@@ -163,31 +163,53 @@ namespace System {
         }
 
         [ComVisible(false)]
-        public static String Join(String separator, IEnumerable<String> values) {
+        public static string Join(string separator, IEnumerable<string> values)
+        {
             if (values == null)
                 throw new ArgumentNullException("values");
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.EndContractBlock();
 
-            using(IEnumerator<String> en = values.GetEnumerator()) {
+#if FEATURE_CORECLR
+            var collection = values as ICollection<string>;
+
+            if (collection != null)
+            {
+                int count = collection.Count; // cache the result of the interface method
+                if (count == 0)
+                    return string.Empty;
+                
+                var valuesArray = new string[count];
+                collection.CopyTo(valuesArray, 0);
+                return Join(separator, valuesArray); // This calls the overload accepting a string[], which handles Length == 1
+            }
+
+#endif // FEATURE_CORECLR
+
+            using (IEnumerator<string> en = values.GetEnumerator())
+            {
                 if (!en.MoveNext())
-                    return String.Empty;
+                    return string.Empty;
 
-                String firstValue = en.Current;
+                string firstValue = en.Current;
 
-                if (!en.MoveNext()) {
+                if (!en.MoveNext())
+                {
                     // Only one value available
-                    return firstValue ?? String.Empty;
+                    return firstValue ?? string.Empty;
                 }
 
                 // Null separator and values are handled by the StringBuilder
                 StringBuilder result = StringBuilderCache.Acquire();
                 result.Append(firstValue);
 
-                do {
+                do
+                {
                     result.Append(separator);
                     result.Append(en.Current);
-                } while (en.MoveNext());
+                }
+                while (en.MoveNext());
+
                 return StringBuilderCache.GetStringAndRelease(result);
             }
         }
@@ -3586,6 +3608,22 @@ namespace System {
                 throw new ArgumentNullException("values");
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.EndContractBlock();
+
+#if FEATURE_CORECLR
+            var collection = values as ICollection<string>;
+
+            if (collection != null)
+            {
+                int count = collection.Count; // cache the result of the interface method
+                if (count == 0)
+                    return string.Empty;
+                
+                var valuesArray = new string[count];
+                collection.CopyTo(valuesArray, 0);
+                return Concat(valuesArray); // This calls the overload accepting a string[], which handles Length == 1
+            }
+
+#endif // FEATURE_CORECLR
 
             using (IEnumerator<string> en = values.GetEnumerator())
             {
