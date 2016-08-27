@@ -7021,7 +7021,7 @@ bool getILIntrinsicImplementation(MethodDesc * ftn,
         MethodTable * methodTable = typeHandle.GetMethodTable();
 
         BYTE resultIlCode;
-        if (!methodTable->IsValueType() || methodTable->ContainsPointers())
+        if (methodTable->ContainsPointers())
         {
             resultIlCode = CEE_LDC_I4_1; // true
         }
