@@ -337,8 +337,10 @@ namespace System.Threading
                 Thread.BeginCriticalRegion();
 #endif
 
-                if (Interlocked.CompareExchange(ref m_owner, observedOwner | 1, observedOwner, ref lockTaken) == observedOwner)
+                if (Interlocked.CompareExchange(ref m_owner, observedOwner | 1, observedOwner, ref lockTaken) == observedOwner ||
+                    millisecondsTimeout == 0)
                 {
+                    // Aquired lock, or did not but timeout is 0 so fail fast
                     return;
                 }
 
@@ -346,17 +348,19 @@ namespace System.Threading
                 Thread.EndCriticalRegion();
 #endif
             }
+            else if (millisecondsTimeout == 0)
+            {
+                // Did not aquire lock and timeout is 0 so fail fast
+                return;
+            }
             else //failed to acquire the lock,then try to update the waiters. If the waiters count reached the maximum, jsut break the loop to avoid overflow
             {
                 if ((observedOwner & WAITERS_MASK) != MAXIMUM_WAITERS)
                     turn = (Interlocked.Add(ref m_owner, 2) & WAITERS_MASK) >> 1 ;
             }
 
-
-
             // Check the timeout.
-            if (millisecondsTimeout == 0 ||
-                (millisecondsTimeout != Timeout.Infinite &&
+            if ((millisecondsTimeout != Timeout.Infinite &&
                 TimeoutHelper.UpdateTimeOut(startTime, millisecondsTimeout) <= 0))
             {
                 DecrementWaiters();
