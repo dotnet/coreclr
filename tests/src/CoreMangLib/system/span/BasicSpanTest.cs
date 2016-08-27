@@ -19,13 +19,18 @@ class My
     {
         Test(() => CanAccessItemsViaIndexer(), "CanAccessItemsViaIndexer");
 
-        Test(() => CanCopyValueTypesWithoutPointersToSlice(), "CanCopyValueTypesWithoutPointersToSlice");
-        Test(() => CanCopyValueTypesWithPointersToSlice(), "CanCopyValueTypesWithPointersToSlice");
-        Test(() => CanCopyReferenceTypesToSlice(), "CanCopyReferenceTypesToSlice");
+        Test(() => ReferenceTypesAreSupported(), "ReferenceTypesAreSupported");
 
+        Test(() => CanUpdateUnderlyingArray(), "CanUpdateUnderlyingArray");
+
+        Test(() => CanCopyValueTypesWithoutPointersToSlice(), "CanCopyValueTypesWithoutPointersToSlice");
         Test(() => CanCopyValueTypesWithoutPointersToArray(), "CanCopyValueTypesWithoutPointersToArray");
-        Test(() => CanCopyValueTypesWithPointersToArray(), "CanCopyValueTypesWithPointersToArray");
+
+        Test(() => CanCopyReferenceTypesToSlice(), "CanCopyReferenceTypesToSlice");
         Test(() => CanCopyReferenceTypesToArray(), "CanCopyReferenceTypesToArray");
+
+        Test(() => CanCopyValueTypesWithPointersToSlice(), "CanCopyValueTypesWithPointersToSlice");
+        Test(() => CanCopyValueTypesWithPointersToArray(), "CanCopyValueTypesWithPointersToArray");
 
         Test(() => CanCopyValueTypesWithoutPointersToUnmanagedMemory(), "CanCopyValueTypesWithoutPointersToUnmanagedMemory");
         Test(() => MustNotCopyValueTypesWithPointersToUnmanagedMemory(), "MustNotCopyValueTypesWithPointersToUnmanagedMemory");
@@ -39,6 +44,32 @@ class My
         
         Span<int> subslice = slice.Slice(1, 2);
         AssertTrue(Sum(subslice) == 5, "Failed to sum subslice");
+    }
+
+    private static void ReferenceTypesAreSupported()
+    {
+        var underlyingArray = new ReferenceType[] { new ReferenceType(0), new ReferenceType(1), new ReferenceType(2) };
+        var slice = new Span<ReferenceType>(underlyingArray);
+
+        for (int i = 0; i < underlyingArray.Length; i++)
+        {
+            AssertTrue(underlyingArray[i].Value == slice[i].Value, "Values are different");
+            AssertTrue(object.ReferenceEquals(underlyingArray[i], slice[i]), "References are broken");
+        }
+    }
+
+    private static void CanUpdateUnderlyingArray()
+    {
+        var underlyingArray = new int[] { 1, 2, 3 };
+        var slice = new Span<int>(underlyingArray);
+
+        slice[0] = 0;
+        slice[1] = 1;
+        slice[2] = 2;
+
+        AssertTrue(underlyingArray[0] == 0, "Failed to update underlying array");
+        AssertTrue(underlyingArray[1] == 1, "Failed to update underlying array");
+        AssertTrue(underlyingArray[2] == 2, "Failed to update underlying array");
     }
 
     struct ValueTypeWithoutPointers
