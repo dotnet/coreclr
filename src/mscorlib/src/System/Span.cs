@@ -186,7 +186,7 @@ namespace System
             if (JitHelpers.ContainsReferences<T>())
             {
                 var src = JitHelpers.GetByRef<T>(ref _rawPointer);
-                for (int i = 0; i < destination.Length; i++)
+                for (int i = 0; i < Length; i++)
                     destination[i] = JitHelpers.AddByRef(ref src, i);
 
                 return true;
