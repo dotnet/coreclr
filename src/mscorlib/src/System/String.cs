@@ -2482,24 +2482,247 @@ namespace System {
             fixed (char* pChars = &m_firstChar)
             {
                 char* pCh = pChars + startIndex;
+                char* pEnd = pCh + count;
 
-                while (count >= 4)
+#if BIT64
+                // We want to stick to the normal loop if
+                // the high bit is set on the char otherwise the
+                // 'optimized' version will cause massive performance
+                // degradations. (see notes below)
+                if (value <= '\u7fff')
                 {
-                    if (*pCh == value) goto ReturnIndex;
-                    if (*(pCh + 1) == value) goto ReturnIndex1;
-                    if (*(pCh + 2) == value) goto ReturnIndex2;
-                    if (*(pCh + 3) == value) goto ReturnIndex3;
+                    // We use a different implementation on x64
+                    // than on x86, processing one word at a time. This
+                    // enables us to avoid 3 branches per iteration than
+                    // had we used the loop below, but also takes some
+                    // more operations (xor, add, or). It may also
+                    // report false positives if a character in the
+                    // string has its high bit set.
 
-                    count -= 4;
-                    pCh += 4;
+                    // STEP 1: Aligning the pointer
+
+                    // We need to align the pointer on 8 bytes,
+                    // since we'll be casting it to ulong* and
+                    // reading from it.
+
+                    // Chunk: the number of chars we'll search
+                    // per iteration of the loop
+                    const int Chunk = 12;
+
+                    // We want to calculate the number of chars
+                    // until the next aligned address and combine
+                    // that with the chars required for at least
+                    // one iteration of the optimized loop. If it's
+                    // not enough, jump straight to the fallback loop.
+
+                    // This calculates the number of bytes until the next aligned address
+                    // We have to use uint and 0u - to stop the jit from generating
+                    // some redundant code while doing math
+                    uint ualign = (0u - (uint)pCh) % 8; // 0 -> 0, 2 -> 6, 4 -> 4, 6 -> 2, 8 -> 0
+                    Contract.Assert(ualign % 2 == 0); // char* from strings should always have an even address
+
+                    ualign /= 2; // we're counting in chars, not bytes, so divide by sizeof(char) which is 2
+                    Contract.Assert((uint)(pCh + ualign) % 8 == 0);
+
+                    // Now we have to cast to int to prevent Roslyn
+                    // from converting everything to long when mixing
+                    // ints and uints
+                    int alignment = (int)ualign;
+
+                    if (alignment + Chunk > count)
+                    {
+                        goto FallbackLoop;
+                    }
+
+                    char* pAlign = pCh + alignment;
+
+                    while (pCh != pAlign)
+                    {
+                        if (*pCh == value)
+                            goto ReturnIndex;
+                        
+                        pCh++;
+                    }
+
+                    Contract.Assert((int)pCh % 8 == 0);
+                    Contract.Assert(count >= Chunk);
+
+                    // STEP 2: The main loop
+
+                    // Here, we're going to take value and repeat it
+                    // 4 times into a word; e.g. if someone gave us
+                    // the char 0x1234, we want to create the word
+                    // 0x1234123412341234.
+
+                    // Then, we're going to read a word at a time
+                    // from pCh and xor it with this mask. If value
+                    // is present in the word, this is going to
+                    // create a zero in its place.
+
+                    // As an example, say we're reading the substring
+                    // "abcd" and we're looking for 'a'. When we xor
+                    // it, this will happen:
+
+                    //   0x0061 0x0062 0x0063 0x0064
+                    // ^ 0x0061 0x0061 0x0061 0x0061
+                    // =============================
+                    //   0x0000 0x0003 0x0002 0x0005
+
+                    // As you can see, the position that contains 'a'
+                    // has been zeroed out.
+
+                    // STEP 2.1: Detecting 0
+
+                    // We then add ZeroMask to the word, which
+                    // has the same effect as adding 0x7fff to
+                    // each of the individual chars. This will
+                    // set the high bit of the char only if the
+                    // char is 0 or > 0x8000. Finally, we OR
+                    // each of the chars with 0x7fff, causing
+                    // all of the high bits to be set except the msb.
+                    // This has the effect that if all of the
+                    // chars > 0 and <= 0x8000
+                    // (which should be the common case if the char isn't present),
+                    // then all the bits in the word will be set
+                    // and we know that 0 isn't in the word.
+
+                    // As noted, it's possible for this to misfire
+                    // if the word contains something > 0x8000,
+                    // since adding 0x7fff to that will cause it
+                    // to overflow and the high bit to not be set.
+                    // No worries, however, since we check for
+                    // misfires (see below) before returning.
+
+                    // Continuing on our previous example, here
+                    // is what this step will do to the string:
+
+                    //   0x0000 0x0003 0x0002 0x0005
+                    // + 0x7fff 0x7fff 0x7fff 0x7fff
+                    // =============================
+                    //   0x7fff 0x8002 0x8001 0x8004
+                    // | 0x7fff 0x7fff 0x7fff 0x7fff
+                    // =============================
+                    //   0x7fff 0xffff 0xffff 0xffff
+                    //   ^
+                    //   Bit unset here!
+
+                    // Note: This is based on the trick from
+                    // https://graphics.stanford.edu/~seander/bithacks.html#ZeroInWord,
+                    // using 0x7fff instead of 0x7f7f because chars are 2 in size.
+
+                    const ulong ZeroMask = 0x7fff7fff7fff7fff;
+                    const ulong AllBitsSet = ulong.MaxValue;
+
+                    ulong valueMask = ((uint)value << 16) | value;
+                    valueMask = (valueMask << 32) | valueMask;
+
+                    char* pStop = pEnd - Chunk; // we want to make sure there are at least Chunk chars left
+
+                    Loop:
+                    do // we know there's enough room the first time around, due to the earlier assert
+                    {
+                        // Code repetition is for the purposes of loop unrolling,
+                        // so we don't have to write to pCh and check the
+                        // loop condition as often
+
+                        ulong zeroed = *(ulong*)pCh ^ valueMask;
+                        if (((zeroed + ZeroMask) | ZeroMask) != AllBitsSet) goto MaybeReturn;
+                        zeroed = *(ulong*)(pCh + 4) ^ valueMask;
+                        if (((zeroed + ZeroMask) | ZeroMask) != AllBitsSet) goto MaybeReturn4;
+                        zeroed = *(ulong*)(pCh + 8) ^ valueMask;
+                        if (((zeroed + ZeroMask) | ZeroMask) != AllBitsSet) goto MaybeReturn8;
+
+                        pCh += Chunk;
+                    }
+                    while (pCh <= pStop);
+
+                    // STEP 3.2: The fallback loop
+                    
+                    // If we weren't able to find it within the optimized
+                    // loop, go to the fallback loop and process each character
+                    // individually.
+
+                    goto FallbackLoop;
+
+                    // STEP 3.1: Detection and misfires
+
+                    // If we reached here, we either
+                    // 1) saw 0 in the xored string, or
+                    // 2) saw something > 0x8000 in the xored string.
+
+                    // The latter case can happen when a char with
+                    // its high bit set (excluding value | 0x8000,
+                    // which will produce 0x8000 when xored) is
+                    // present in the original string. We know that
+                    // the high bit has to come from the char in the
+                    // string, rather than value, since earlier we
+                    // checked value < '\u8000'. (Otherwise, we would
+                    // be entering this codepath quite frequently for
+                    // values with the msb set.)
+
+                    // Check each char individually to prevent
+                    // false positives. We have to do this anyways,
+                    // since we don't know which position in the
+                    // word the value would be at.
+
+                    MaybeReturn8: pCh += 4;
+                    MaybeReturn4: pCh += 4;
+
+                    MaybeReturn:
+
+                    if (pCh[0] == value)
+                        goto ReturnIndex;
+                    if (pCh[1] == value)
+                        goto ReturnIndex1;
+                    if (pCh[2] == value)
+                        goto ReturnIndex2;
+                    if (pCh[3] == value)
+                        goto ReturnIndex3;
+                    
+                    // We misfired if we got here; so, continue searching at the next word.
+                    // Note that we're incrementing pCh by 4 rather than Chunk,
+                    // since we don't want to skip over the next word in the loop.
+                    // (This will still leave pCh 8-byte aligned.)
+                    // Also note that we have to repeat the loop condition check,
+                    // since the main loop is a do... while loop and assumes there's
+                    // at least Chunk chars left at the beginning.
+
+                    pCh += 4; // We just processed one word, which on 64-bit is 4 chars
+                    if (pCh <= pStop)
+                        goto Loop;
+                }
+                else
+                {
+#endif // BIT64
+                    // On x86 wee use a (relatively) straightforward
+                    // implementation: Just loop unroll, and check each
+                    // char for value.
+
+                    // We also go down this codepath on 64-bit
+                    // for chars >= '\u8000', see notes above.
+
+                    char* pStop = pEnd - 4; // we need at least 4 chars for 1 iteration of the loop
+
+                    while (pCh <= pStop)
+                    {
+                        if (*pCh == value) goto ReturnIndex;
+                        if (*(pCh + 1) == value) goto ReturnIndex1;
+                        if (*(pCh + 2) == value) goto ReturnIndex2;
+                        if (*(pCh + 3) == value) goto ReturnIndex3;
+
+                        pCh += 4;
+                    }
+#if BIT64
                 }
 
-                while (count > 0)
+                FallbackLoop:
+#endif // BIT64
+
+                while (pCh != pEnd)
                 {
                     if (*pCh == value)
                         goto ReturnIndex;
 
-                    count--;
                     pCh++;
                 }
 
