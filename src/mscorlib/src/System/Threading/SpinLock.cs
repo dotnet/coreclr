@@ -359,14 +359,6 @@ namespace System.Threading
                     turn = (Interlocked.Add(ref m_owner, 2) & WAITERS_MASK) >> 1 ;
             }
 
-            // Check the timeout.
-            if ((millisecondsTimeout != Timeout.Infinite &&
-                TimeoutHelper.UpdateTimeOut(startTime, millisecondsTimeout) <= 0))
-            {
-                DecrementWaiters();
-                return;
-            }
-
             //***Step 2. Spinning
             //lock acquired failed and waiters updated
             int processorCount = PlatformHelper.ProcessorCount;
@@ -400,14 +392,15 @@ namespace System.Threading
 #endif
                     }
                 }
+
+                // Check the timeout.
+                if (millisecondsTimeout != Timeout.Infinite && TimeoutHelper.UpdateTimeOut(startTime, millisecondsTimeout) <= 0)
+                {
+                    DecrementWaiters();
+                    return;
+                }
             }
 
-            // Check the timeout.
-            if (millisecondsTimeout != Timeout.Infinite && TimeoutHelper.UpdateTimeOut(startTime, millisecondsTimeout) <= 0)
-            {
-                DecrementWaiters();
-                return;
-            }
 
             //*** Step 3, Yielding
             //Sleep(1) every 50 yields
