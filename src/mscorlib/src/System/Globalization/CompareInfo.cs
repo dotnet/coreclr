@@ -528,23 +528,12 @@ namespace System.Globalization {
 
             if (options == CompareOptions.Ordinal)
             {
-                return CompareOrdinal(string1, offset1, length1,
-                                      string2, offset2, length2);
+                return string.nativeCompareOrdinalEx(string1, offset1, length1, string2, offset2, length2);
             }
             return InternalCompareString(this.m_dataHandle, this.m_handleOrigin, this.m_sortName, 
                                          string1, offset1, length1, 
                                          string2, offset2, length2, 
                                          GetNativeCompareFlags(options));
-        }
-
-        [System.Security.SecurityCritical]
-        private static int CompareOrdinal(string string1, int offset1, int length1, string string2, int offset2, int length2)
-        {
-            Contract.Assert(string1 != null && string2 != null);
-            Contract.Assert(offset1 >= 0 && offset2 >= 0);
-            Contract.Assert(length1 >= 0 && length2 >= 0);
-
-            return string.nativeCompareOrdinalEx(string1, offset1, length1, string2, offset2, length2);
         }
 
         ////////////////////////////////////////////////////////////////////////
