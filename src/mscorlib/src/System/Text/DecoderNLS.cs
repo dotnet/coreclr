@@ -41,7 +41,6 @@ namespace System.Text
                             Environment.GetResourceString("NotSupported_TypeCannotDeserialized"), this.GetType()));
         }
 
-#if FEATURE_SERIALIZATION
         // ISerializable implementation. called during serialization.
         [System.Security.SecurityCritical]  // auto-generated_required
         void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
@@ -50,7 +49,6 @@ namespace System.Text
             info.AddValue("encoding", this.m_encoding);
             info.SetType(typeof(Encoding.DefaultDecoder));
         }
-#endif
 
 #endregion Serialization 
 

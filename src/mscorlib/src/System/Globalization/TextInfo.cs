@@ -29,7 +29,7 @@ namespace System.Globalization {
 
     [Serializable]
     [System.Runtime.InteropServices.ComVisible(true)]
-    public class TextInfo : ICloneable, IDeserializationCallback
+    public partial class TextInfo : ICloneable, IDeserializationCallback
     {
         //--------------------------------------------------------------------//
         //                        Internal Information                        //
@@ -121,7 +121,6 @@ namespace System.Globalization {
         [OptionalField(VersionAdded = 2)]
         private string customCultureName;
 
-#if !FEATURE_CORECLR
         // the following fields are defined to keep compatibility with Everett.
         // don't change/remove the names/types of these fields.
         [OptionalField(VersionAdded = 1)]
@@ -130,7 +129,6 @@ namespace System.Globalization {
         internal bool   m_useUserOverride;
         [OptionalField(VersionAdded = 1)]
         internal int    m_win32LangID;
-#endif // !FEATURE_CORECLR
 
 
         [OnDeserializing] 
@@ -169,7 +167,7 @@ namespace System.Globalization {
                             m_cultureName = CultureInfo.GetCultureInfo(m_win32LangID).m_cultureData.CultureName;
                         }
                     }
-#endif                
+#endif
                 }
                 
                 // Get the text info name belonging to that culture
@@ -375,7 +373,7 @@ namespace System.Globalization {
                 return (this.m_cultureData.IDEFAULTEBCDICCODEPAGE);
             }
         }
-#endif 
+#endif
 
 
         ////////////////////////////////////////////////////////////////////////
@@ -387,7 +385,7 @@ namespace System.Globalization {
         //
         ////////////////////////////////////////////////////////////////////////
 
-#if FEATURE_USE_LCID 
+#if FEATURE_USE_LCID
         [System.Runtime.InteropServices.ComVisible(false)]
         public int LCID 
         {
@@ -431,7 +429,7 @@ namespace System.Globalization {
         //
         //  Clone
         //
-        //  Is the implementation of IColnable.
+        //  Is the implementation of ICloneable.
         //
         ////////////////////////////////////////////////////////////////////////
         [System.Runtime.InteropServices.ComVisible(false)]
@@ -894,13 +892,11 @@ namespace System.Globalization {
             }
         }
 
-#if FEATURE_SERIALIZATION
         /// <internalonly/>
         void IDeserializationCallback.OnDeserialization(Object sender)
         {
             OnDeserialized();
         }
-#endif
 
         //
         // Get case-insensitive hash code for the specified string.

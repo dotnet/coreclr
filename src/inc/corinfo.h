@@ -231,11 +231,11 @@ TODO: Talk about initializing strutures before use
 #if COR_JIT_EE_VERSION > 460
 
 // Update this one
-SELECTANY const GUID JITEEVersionIdentifier = { /* 718c4238-2a85-45de-88ad-9b1fed806547 */
-    0x718c4238,
-    0x2a85,
-    0x45de,
-    { 0x88, 0xad, 0x9b, 0x1f, 0xed, 0x80, 0x65, 0x47 }
+SELECTANY const GUID JITEEVersionIdentifier = { /* 0b17dfeb-1ead-4e06-b025-d60d3a493b53 */
+    0x0b17dfeb,
+    0x1ead,
+    0x4e06,
+    { 0xb0, 0x25, 0xd6, 0x0d, 0x3a, 0x49, 0x3b, 0x53 }
 };
 
 #else
@@ -614,10 +614,10 @@ enum CorInfoHelpFunc
     CORINFO_HELP_MEMSET,                // Init block of memory
     CORINFO_HELP_MEMCPY,                // Copy block of memory
 
-    CORINFO_HELP_RUNTIMEHANDLE_METHOD,  // determine a type/field/method handle at run-time
-    CORINFO_HELP_RUNTIMEHANDLE_METHOD_LOG,// determine a type/field/method handle at run-time, with IBC logging
-    CORINFO_HELP_RUNTIMEHANDLE_CLASS,    // determine a type/field/method handle at run-time
-    CORINFO_HELP_RUNTIMEHANDLE_CLASS_LOG,// determine a type/field/method handle at run-time, with IBC logging
+    CORINFO_HELP_RUNTIMEHANDLE_METHOD,          // determine a type/field/method handle at run-time
+    CORINFO_HELP_RUNTIMEHANDLE_METHOD_LOG,      // determine a type/field/method handle at run-time, with IBC logging
+    CORINFO_HELP_RUNTIMEHANDLE_CLASS,           // determine a type/field/method handle at run-time
+    CORINFO_HELP_RUNTIMEHANDLE_CLASS_LOG,       // determine a type/field/method handle at run-time, with IBC logging
 
     // These helpers are required for MDIL backward compatibility only. They are not used by current JITed code.
     CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE_OBSOLETE, // Convert from a TypeHandle (native structure pointer) to RuntimeTypeHandle at run-time
@@ -1311,9 +1311,10 @@ struct CORINFO_LOOKUP_KIND
     bool                        needsRuntimeLookup;
     CORINFO_RUNTIME_LOOKUP_KIND runtimeLookupKind;
 
-    // The 'runtimeLookupFlags' field is just for internal VM / ZAP communication, 
-    // not to be used by the JIT.
+    // The 'runtimeLookupFlags' and 'runtimeLookupArgs' fields
+    // are just for internal VM / ZAP communication, not to be used by the JIT.
     WORD                        runtimeLookupFlags;
+    void *                      runtimeLookupArgs;
 } ;
 
 #else
@@ -1685,6 +1686,8 @@ struct CORINFO_CALL_INFO
     };
 
     CORINFO_CONST_LOOKUP    instParamLookup;    // Used by Ready-to-Run
+
+    BOOL                    secureDelegateInvoke;
 };
 
 //----------------------------------------------------------------------------
@@ -1806,6 +1809,9 @@ struct CORINFO_EE_INFO
     // Delegate offsets
     unsigned    offsetOfDelegateInstance;
     unsigned    offsetOfDelegateFirstTarget;
+
+    // Secure delegate offsets
+    unsigned    offsetOfSecureDelegateIndirectCell;
 
     // Remoting offsets
     unsigned    offsetOfTransparentProxyRP;

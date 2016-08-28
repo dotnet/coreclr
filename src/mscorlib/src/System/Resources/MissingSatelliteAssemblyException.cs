@@ -20,7 +20,7 @@ using System.Runtime.Serialization;
 
 namespace System.Resources {
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
+    [System.Runtime.InteropServices.ComVisible(true)]
     public class MissingSatelliteAssemblyException : SystemException
     {
         private String _cultureName;
@@ -46,10 +46,8 @@ namespace System.Resources {
             SetErrorCode(System.__HResults.COR_E_MISSINGSATELLITEASSEMBLY);
         }
 
-#if FEATURE_SERIALIZATION
         protected MissingSatelliteAssemblyException(SerializationInfo info, StreamingContext context) : base (info, context) {
         }
-#endif // FEATURE_SERIALIZATION
 
         public String CultureName {
             get { return _cultureName; }

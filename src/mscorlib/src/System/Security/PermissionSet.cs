@@ -33,17 +33,22 @@ namespace System.Security {
         SkipVerification = 3
     }
 
-    [Serializable] 
+#if FEATURE_SERIALIZATION
+    [Serializable]
+#endif
 #if !FEATURE_CORECLR
     [StrongNameIdentityPermissionAttribute(SecurityAction.InheritanceDemand, Name = "mscorlib", PublicKey = "0x" + AssemblyRef.EcmaPublicKeyFull)]
 #endif
     [System.Runtime.InteropServices.ComVisible(true)]
-    public class PermissionSet : ISecurityEncodable, ICollection, IStackWalk, IDeserializationCallback
+    public class PermissionSet : ISecurityEncodable, ICollection, IStackWalk
+#if FEATURE_SERIALIZATION
+        , IDeserializationCallback
+#endif
     {
-    #if _DEBUG
+#if _DEBUG
         internal static readonly bool debug;
-    #endif
-    
+#endif
+
         [System.Diagnostics.Conditional( "_DEBUG" )]
         private static void DEBUG_WRITE(String str) {
         #if _DEBUG

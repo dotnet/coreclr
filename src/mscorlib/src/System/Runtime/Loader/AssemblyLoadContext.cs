@@ -31,6 +31,10 @@ namespace System.Runtime.Loader
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private static extern IntPtr InitializeAssemblyLoadContext(IntPtr ptrAssemblyLoadContext, bool fRepresentsTPALoadContext);
+
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [SuppressUnmanagedCodeSecurity]
+        private static extern IntPtr LoadFromAssemblyName(IntPtr ptrNativeAssemblyLoadContext, bool fRepresentsTPALoadContext);
         
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
@@ -271,17 +275,10 @@ namespace System.Runtime.Loader
         
         public Assembly LoadFromAssemblyName(AssemblyName assemblyName)
         {
-            // AssemblyName is mutable. Cache the expected name before anybody gets a chance to modify it.
-            string requestedSimpleName = assemblyName.Name;
-            
-            Assembly assembly = ResolveUsingLoad(assemblyName);
-            if (assembly == null)
-            {
-                // Invoke the AssemblyResolve event callbacks if wired up
-                assembly = ResolveUsingEvent(assemblyName);
-            }
+            // Attempt to load the assembly, using the same ordering as static load, in the current load context.
+            Assembly loadedAssembly = Assembly.Load(assemblyName, m_pNativeAssemblyLoadContext);
 
-            return assembly;
+            return loadedAssembly;
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
@@ -401,19 +398,26 @@ namespace System.Runtime.Loader
             }
             
             AssemblyLoadContext loadContextForAssembly = null;
-            IntPtr ptrAssemblyLoadContext = GetLoadContextForAssembly((RuntimeAssembly)assembly);
-            if (ptrAssemblyLoadContext == IntPtr.Zero)
-            {
-                // If the load context is returned null, then the assembly was bound using the TPA binder
-                // and we shall return reference to the active "Default" binder - which could be the TPA binder
-                // or an overridden CLRPrivBinderAssemblyLoadContext instance.
-                loadContextForAssembly = AssemblyLoadContext.Default;
-            }
-            else
-            {
-                loadContextForAssembly = (AssemblyLoadContext)(GCHandle.FromIntPtr(ptrAssemblyLoadContext).Target);
-            }
+
+            RuntimeAssembly rtAsm = assembly as RuntimeAssembly;
             
+            // We only support looking up load context for runtime assemblies.
+            if (rtAsm != null)
+            {
+                IntPtr ptrAssemblyLoadContext = GetLoadContextForAssembly(rtAsm);
+                if (ptrAssemblyLoadContext == IntPtr.Zero)
+                {
+                    // If the load context is returned null, then the assembly was bound using the TPA binder
+                    // and we shall return reference to the active "Default" binder - which could be the TPA binder
+                    // or an overridden CLRPrivBinderAssemblyLoadContext instance.
+                    loadContextForAssembly = AssemblyLoadContext.Default;
+                }
+                else
+                {
+                    loadContextForAssembly = (AssemblyLoadContext)(GCHandle.FromIntPtr(ptrAssemblyLoadContext).Target);
+                }
+            }
+
             return loadContextForAssembly;
         }
         

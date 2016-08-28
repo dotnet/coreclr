@@ -568,10 +568,10 @@ namespace System.Runtime.InteropServices
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         public static IntPtr ReadIntPtr([MarshalAs(UnmanagedType.AsAny),In] Object ptr, int ofs)
         {
-            #if WIN32
-                return (IntPtr) ReadInt32(ptr, ofs);
-            #else
+            #if BIT64
                 return (IntPtr) ReadInt64(ptr, ofs);
+            #else // 32
+                return (IntPtr) ReadInt32(ptr, ofs);
             #endif
         }
 
@@ -579,10 +579,10 @@ namespace System.Runtime.InteropServices
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         public static IntPtr ReadIntPtr(IntPtr ptr, int ofs)
         {
-            #if WIN32
-                return (IntPtr) ReadInt32(ptr, ofs);
-            #else
+            #if BIT64
                 return (IntPtr) ReadInt64(ptr, ofs);
+            #else // 32
+                return (IntPtr) ReadInt32(ptr, ofs);
             #endif
         }
     
@@ -590,10 +590,10 @@ namespace System.Runtime.InteropServices
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         public static IntPtr ReadIntPtr(IntPtr ptr)
         {
-            #if WIN32
-                return (IntPtr) ReadInt32(ptr, 0);
-            #else
+            #if BIT64
                 return (IntPtr) ReadInt64(ptr, 0);
+            #else // 32
+                return (IntPtr) ReadInt32(ptr, 0);
             #endif
         }
 
@@ -798,30 +798,30 @@ namespace System.Runtime.InteropServices
         [System.Security.SecurityCritical]  // auto-generated_required
         public static void WriteIntPtr(IntPtr ptr, int ofs, IntPtr val)
         {
-            #if WIN32
-                WriteInt32(ptr, ofs, (int)val);
-            #else
+            #if BIT64
                 WriteInt64(ptr, ofs, (long)val);
+            #else // 32
+                WriteInt32(ptr, ofs, (int)val);
             #endif
         }
         
         [System.Security.SecurityCritical]  // auto-generated_required
         public static void WriteIntPtr([MarshalAs(UnmanagedType.AsAny),In,Out] Object ptr, int ofs, IntPtr val)
         {
-            #if WIN32
-                WriteInt32(ptr, ofs, (int)val);
-            #else
+            #if BIT64
                 WriteInt64(ptr, ofs, (long)val);
+            #else // 32
+                WriteInt32(ptr, ofs, (int)val);
             #endif
         }
         
         [System.Security.SecurityCritical]  // auto-generated_required
         public static void WriteIntPtr(IntPtr ptr, IntPtr val)
         {
-            #if WIN32
-                WriteInt32(ptr, 0, (int)val);
-            #else
+            #if BIT64
                 WriteInt64(ptr, 0, (long)val);
+            #else // 32
+                WriteInt32(ptr, 0, (int)val);
             #endif
         }
 
@@ -1148,24 +1148,6 @@ namespace System.Runtime.InteropServices
 
 
         //====================================================================
-        // Converts the CLR exception to an HRESULT. This function also sets
-        // up an IErrorInfo for the exception.
-        //====================================================================
-        [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern int GetHRForException(Exception e);
-
-        //====================================================================
-        // Converts the CLR exception to an HRESULT. This function also sets
-        // up an IErrorInfo for the exception.
-        // This function is only used in WinRT and converts ObjectDisposedException
-        // to RO_E_CLOSED
-        //====================================================================
-        [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern int GetHRForException_WinRT(Exception e);
-
-        //====================================================================
         // This method is intended for compiler code generators rather
         // than applications. 
         //====================================================================
@@ -1218,10 +1200,10 @@ namespace System.Runtime.InteropServices
             // though I couldn't reproduce that.  In either case, that means we should continue
             // throwing an OOM instead of an ArgumentOutOfRangeException for "negative" amounts of memory.
             UIntPtr numBytes;
-#if WIN32
-            numBytes = new UIntPtr(unchecked((uint)cb.ToInt32()));
-#else
+#if BIT64
             numBytes = new UIntPtr(unchecked((ulong)cb.ToInt64()));
+#else // 32
+            numBytes = new UIntPtr(unchecked((uint)cb.ToInt32()));
 #endif
 
             IntPtr pNewMem = Win32Native.LocalAlloc_NoSafeHandle(LMEM_FIXED, unchecked(numBytes));
@@ -1335,6 +1317,24 @@ namespace System.Runtime.InteropServices
         }
 
 #if FEATURE_COMINTEROP
+
+        //====================================================================
+        // Converts the CLR exception to an HRESULT. This function also sets
+        // up an IErrorInfo for the exception.
+        //====================================================================
+        [System.Security.SecurityCritical]  // auto-generated_required
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern int GetHRForException(Exception e);
+
+        //====================================================================
+        // Converts the CLR exception to an HRESULT. This function also sets
+        // up an IErrorInfo for the exception.
+        // This function is only used in WinRT and converts ObjectDisposedException
+        // to RO_E_CLOSED
+        //====================================================================
+        [System.Security.SecurityCritical]  // auto-generated_required
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        internal static extern int GetHRForException_WinRT(Exception e);
 
 		internal static readonly Guid ManagedNameGuid = new Guid("{0F21F359-AB84-41E8-9A78-36D110E6D2F9}"); 
        

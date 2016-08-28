@@ -16,7 +16,11 @@
 #include <string>
 #include <string.h>
 #include <sys/stat.h>
-#ifdef HAVE_SYS_SYSCTL_H
+#if defined(__FreeBSD__)
+#include <sys/types.h>
+#include <sys/param.h>
+#endif
+#if defined(HAVE_SYS_SYSCTL_H) || defined(__FreeBSD__)
 #include <sys/sysctl.h>
 #endif
 #include "coreruncommon.h"
@@ -74,6 +78,24 @@ bool GetEntrypointExecutableAbsolutePath(std::string& entrypointExecutable)
             entrypointExecutable.assign(pResizedPath);
             result = true;
         }
+    }
+#elif defined (__FreeBSD__)
+    static const int name[] = {
+        CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1
+    };
+    char path[PATH_MAX];
+    size_t len;
+
+    len = sizeof(path);
+    if (sysctl(name, 4, path, &len, nullptr, 0) == 0)
+    {
+        entrypointExecutable.assign(path);
+        result = true;
+    }
+    else
+    {
+        // ENOMEM
+        result = false;
     }
 #elif defined(__NetBSD__) && defined(KERN_PROC_PATHNAME)
     static const int name[] = {
@@ -262,6 +284,20 @@ int ExecuteManagedAssembly(
 {
     // Indicates failure
     int exitCode = -1;
+
+#ifdef _ARM_
+    // libunwind library is used to unwind stack frame, but libunwind for ARM
+    // does not support ARM vfpv3/NEON registers in DWARF format correctly.
+    // Therefore let's disable stack unwinding using DWARF information
+    // See https://github.com/dotnet/coreclr/issues/6698
+    //
+    // libunwind use following methods to unwind stack frame.
+    // UNW_ARM_METHOD_ALL          0xFF
+    // UNW_ARM_METHOD_DWARF        0x01
+    // UNW_ARM_METHOD_FRAME        0x02
+    // UNW_ARM_METHOD_EXIDX        0x04
+    putenv(const_cast<char *>("UNW_ARM_UNWIND_METHOD=6"));
+#endif // _ARM_
 
     std::string coreClrDllPath(clrFilesAbsolutePath);
     coreClrDllPath.append("/");

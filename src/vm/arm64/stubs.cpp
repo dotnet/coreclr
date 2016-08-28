@@ -13,6 +13,7 @@
 #include "tls.h"
 #include "asmconstants.h"
 #include "virtualcallstub.h"
+#include "jitinterface.h"
 
 #ifndef DACCESS_COMPILE
 //-----------------------------------------------------------------------
@@ -321,10 +322,23 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
 
 #ifndef FEATURE_PAL
         pvControlPc = Thread::VirtualUnwindCallFrame(&context, &nonVolContextPtrs);
-#else
-        PAL_VirtualUnwind(&context, &nonVolContextPtrs);
+#else // !FEATURE_PAL
+#ifdef DACCESS_COMPILE
+        HRESULT hr = DacVirtualUnwind(threadId, &context, &nonVolContextPtrs);
+        if (FAILED(hr))
+        {
+            DacError(hr);
+        }
+#else // DACCESS_COMPILE
+        BOOL success = PAL_VirtualUnwind(&context, &nonVolContextPtrs);
+        if (!success)
+        {
+            _ASSERTE(!"unwindLazyState: Unwinding failed");
+            EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
+        }
+#endif // DACCESS_COMPILE
         pvControlPc = GetIP(&context);
-#endif
+#endif // !FEATURE_PAL
 
         if (funCallDepth > 0)
         {
@@ -531,8 +545,8 @@ void NDirectImportPrecode::Init(MethodDesc* pMD, LoaderAllocator *pLoaderAllocat
 
     int n = 0;
 
-    m_rgCode[n++] = 0x10000088; // adr x8, #16
-    m_rgCode[n++] = 0xA940310A; // ldp x10,x12,[x8] 
+    m_rgCode[n++] = 0x1000008B; // adr x11, #16
+    m_rgCode[n++] = 0xA940316A; // ldp x10,x12,[x11] 
     m_rgCode[n++] = 0xD61F0140; // br x10
 
     _ASSERTE(n+1 == _countof(m_rgCode));
@@ -598,29 +612,6 @@ void ThisPtrRetBufPrecode::Init(MethodDesc* pMD, LoaderAllocator *pLoaderAllocat
     m_pTarget = GetPreStubEntryPoint();
     m_pMethodDesc = (TADDR)pMD;
 }
-
-
-#ifdef HAS_REMOTING_PRECODE
-
-void RemotingPrecode::Init(MethodDesc* pMD, LoaderAllocator *pLoaderAllocator)
-{
-    _ASSERTE(!"ARM64:NYI");
-}
-
-#ifdef FEATURE_NATIVE_IMAGE_GENERATION
-void RemotingPrecode::Fixup(DataImage *image, ZapNode *pCodeNode)
-{
-    _ASSERTE(!"ARM64:NYI");
-}
-#endif // FEATURE_NATIVE_IMAGE_GENERATION
-
-void CTPMethodTable::ActivatePrecodeRemotingThunk()
-{
-    _ASSERTE(!"ARM64:NYI");
-}
-
-#endif // HAS_REMOTING_PRECODE
-
 
 #ifndef CROSSGEN_COMPILE
 BOOL DoesSlotCallPrestub(PCODE pCode)
@@ -852,42 +843,47 @@ void HijackFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 {
     LIMITED_METHOD_CONTRACT;
 
-    _ASSERTE(!"ARM64:NYI");
+     pRD->IsCallerContextValid = FALSE;
+     pRD->IsCallerSPValid      = FALSE;
+ 
+     pRD->pCurrentContext->Pc = m_ReturnAddress;
+     size_t s = sizeof(struct HijackArgs);
+     _ASSERTE(s%8 == 0); // HijackArgs contains register values and hence will be a multiple of 8
+     // stack must be multiple of 16. So if s is not multiple of 16 then there must be padding of 8 bytes 
+     s = s + s%16; 
+     pRD->pCurrentContext->Sp = PTR_TO_TADDR(m_Args) + s ;
+ 
+     pRD->pCurrentContext->X0 = m_Args->X0;
+
+     pRD->pCurrentContext->X19 = m_Args->X19;
+     pRD->pCurrentContext->X20 = m_Args->X20;
+     pRD->pCurrentContext->X21 = m_Args->X21;
+     pRD->pCurrentContext->X22 = m_Args->X22;
+     pRD->pCurrentContext->X23 = m_Args->X23;
+     pRD->pCurrentContext->X24 = m_Args->X24;
+     pRD->pCurrentContext->X25 = m_Args->X25;
+     pRD->pCurrentContext->X26 = m_Args->X26;
+     pRD->pCurrentContext->X27 = m_Args->X27;
+     pRD->pCurrentContext->X28 = m_Args->X28;
+     pRD->pCurrentContext->Fp = m_Args->X29;
+     pRD->pCurrentContext->Lr = m_Args->Lr;
+
+     pRD->pCurrentContextPointers->X19 = &m_Args->X19;
+     pRD->pCurrentContextPointers->X20 = &m_Args->X20;
+     pRD->pCurrentContextPointers->X21 = &m_Args->X21;
+     pRD->pCurrentContextPointers->X22 = &m_Args->X22;
+     pRD->pCurrentContextPointers->X23 = &m_Args->X23;
+     pRD->pCurrentContextPointers->X24 = &m_Args->X24;
+     pRD->pCurrentContextPointers->X25 = &m_Args->X25;
+     pRD->pCurrentContextPointers->X26 = &m_Args->X26;
+     pRD->pCurrentContextPointers->X27 = &m_Args->X27;
+     pRD->pCurrentContextPointers->X28 = &m_Args->X28;
+     pRD->pCurrentContextPointers->Fp = &m_Args->X29;
+     pRD->pCurrentContextPointers->Lr = NULL;
+
+     SyncRegDisplayToCurrentContext(pRD);
 }
 #endif // FEATURE_HIJACK
-
-#if defined(FEATURE_REMOTING) && !defined(CROSSGEN_COMPILE)
-
-#ifndef DACCESS_COMPILE
-PCODE CTPMethodTable::CreateThunkForVirtualMethod(DWORD dwSlot, BYTE *startaddr)
-{
-    _ASSERTE(!"ARM64:NYI");
-    return NULL;
-}
-#endif // DACCESS_COMPILE
-
-BOOL CVirtualThunkMgr::IsThunkByASM(PCODE startaddr)
-{
-    _ASSERTE(!"ARM64:NYI");
-    return FALSE;
-}
-
-MethodDesc *CVirtualThunkMgr::GetMethodDescByASM(PCODE startaddr, MethodTable *pMT)
-{
-    _ASSERTE(!"ARM64:NYI");
-    return NULL;
-}
-
-#ifndef DACCESS_COMPILE
-
-BOOL CVirtualThunkMgr::DoTraceStub(PCODE stubStartAddress, TraceDestination *trace)
-{
-    _ASSERTE(!"ARM64:NYI");
-    return FALSE;
-}
-#endif // !DACCESS_COMPILE
-
-#endif // FEATURE_REMOTING && !CROSSGEN_COMPILE
 
 #ifdef FEATURE_COMINTEROP
 
@@ -932,12 +928,6 @@ void JIT_TailCall()
     _ASSERTE(!"ARM64:NYI");
 }
 
-extern "C" void * ClrFlsGetBlock()
-{
-    _ASSERTE(!"ARM64:NYI");
-    return NULL;
-}
-
 void InitJITHelpers1()
 {
     return;
@@ -976,7 +966,8 @@ PTR_CONTEXT GetCONTEXTFromRedirectedStubStackFrame(T_CONTEXT * pContext)
 
 void RedirectForThreadAbort()
 {
-    _ASSERTE(!"ARM64:NYI");
+    // ThreadAbort is not supported in .net core
+    throw "NYI";
 }
 
 #if !defined(DACCESS_COMPILE) && !defined (CROSSGEN_COMPILE)
@@ -1042,43 +1033,13 @@ AdjustContextForVirtualStub(
 }
 #endif // !(DACCESS_COMPILE && CROSSGEN_COMPILE)
 
-extern "C" {
-
-void FuncEvalHijack(void)
-{
-    _ASSERTE(!"ARM64:NYI");
-}
-
-void ExceptionHijack(void)
-{
-    _ASSERTE(!"ARM64:NYI");
-}
-void ExceptionHijackEnd(void)
-{
-    _ASSERTE(!"ARM64:NYI");
-}
-};
-
 #ifdef FEATURE_COMINTEROP
 extern "C" void GenericComPlusCallStub(void)
 {
-    _ASSERTE(!"ARM64:NYI");
+    // This is not required for coreclr scenarios
+    throw "GenericComPlusCallStub is not implemented yet.";    
 }
 #endif // FEATURE_COMINTEROP
-
-//ARM64TODO: check if this should be amd64 and win64
-#ifdef _WIN64
-extern "C" void PInvokeStubForHostInner(DWORD dwStackSize, LPVOID pStackFrame, LPVOID pTarget)
-{
-    _ASSERTE(!"ARM64:NYI");
-}
-#endif
-
-void PInvokeStubForHost(void)
-{ 
-    // Hosted P/Invoke is not implemented on ARM64
-    UNREACHABLE();
-}
 
 UMEntryThunk * UMEntryThunk::Decode(void *pCallback)
 {
@@ -1178,34 +1139,18 @@ VOID ResetCurrentContext()
 }
 #endif
 
-extern "C" void StubDispatchFixupPatchLabel()
-{
-    _ASSERTE(!"ARM64:NYI");
-}
-
 LONG CLRNoCatchHandler(EXCEPTION_POINTERS* pExceptionInfo, PVOID pv)
 {
     return EXCEPTION_CONTINUE_SEARCH;
 }
 
-extern "C" void setFPReturn(int fpSize, INT64 retVal)
-{
-    _ASSERTE(!"ARM64:NYI");
-}
-extern "C" void getFPReturn(int fpSize, INT64 *retval)
-{
-    _ASSERTE(!"ARM64:NYI");
-}
-
 void StompWriteBarrierEphemeral(bool isRuntimeSuspended)
 {
-    //ARM64TODO: implement this
     return;
 }
 
 void StompWriteBarrierResize(bool isRuntimeSuspended, bool bReqUpperBoundsCheck)
 {
-    //ARM64TODO: implement this
     return;
 }
 
@@ -2004,9 +1949,18 @@ PCODE DynamicHelpers::CreateHelperWithTwoArgs(LoaderAllocator * pAllocator, TADD
     END_DYNAMIC_HELPER_EMIT();              
 }
 
-PCODE DynamicHelpers::CreateDictionaryLookupHelper(LoaderAllocator * pAllocator, CORINFO_RUNTIME_LOOKUP * pLookup)
+PCODE DynamicHelpers::CreateDictionaryLookupHelper(LoaderAllocator * pAllocator, CORINFO_RUNTIME_LOOKUP * pLookup, DWORD dictionaryIndexAndSlot, Module * pModule)
 {
     STANDARD_VM_CONTRACT;
+
+    PCODE helperAddress = (pLookup->helper == CORINFO_HELP_RUNTIMEHANDLE_METHOD ?
+        GetEEFuncEntryPoint(JIT_GenericHandleMethodWithSlotAndModule) :
+        GetEEFuncEntryPoint(JIT_GenericHandleClassWithSlotAndModule));
+
+    GenericHandleArgs * pArgs = (GenericHandleArgs *)(void *)pAllocator->GetDynamicHelpersHeap()->AllocAlignedMem(sizeof(GenericHandleArgs), DYNAMIC_HELPER_ALIGNMENT);
+    pArgs->dictionaryIndexAndSlot = dictionaryIndexAndSlot;
+    pArgs->signature = pLookup->signature;
+    pArgs->module = (CORINFO_MODULE_HANDLE)pModule;
 
     // It's available only via the run-time helper function
     if (pLookup->indirections == CORINFO_USEHELPER)
@@ -2015,9 +1969,9 @@ PCODE DynamicHelpers::CreateDictionaryLookupHelper(LoaderAllocator * pAllocator,
 
         // X0 already contains generic context parameter
         // reuse EmitHelperWithArg for below two operations
-        // X1 <- pLookup->signature
-        // branch to pLookup->helper
-        EmitHelperWithArg(p, pAllocator, (TADDR)pLookup->signature, CEEJitInfo::getHelperFtnStatic(pLookup->helper));
+        // X1 <- pArgs
+        // branch to helperAddress
+        EmitHelperWithArg(p, pAllocator, (TADDR)pArgs, helperAddress);
 
         END_DYNAMIC_HELPER_EMIT();
     }
@@ -2104,9 +2058,9 @@ PCODE DynamicHelpers::CreateDictionaryLookupHelper(LoaderAllocator * pAllocator,
             *(DWORD*)p = 0x91000120;
             p += 4;
             // reuse EmitHelperWithArg for below two operations
-            // X1 <- pLookup->signature
-            // branch to pLookup->helper
-            EmitHelperWithArg(p, pAllocator, (TADDR)pLookup->signature, CEEJitInfo::getHelperFtnStatic(pLookup->helper));
+            // X1 <- pArgs
+            // branch to helperAddress
+            EmitHelperWithArg(p, pAllocator, (TADDR)pArgs, helperAddress);
         }     
         
         // datalabel:

@@ -9,7 +9,7 @@ namespace System {
     using System.Security.Permissions;
     using System.Diagnostics.Contracts;
 
-[System.Runtime.InteropServices.ComVisible(true)]
+    [System.Runtime.InteropServices.ComVisible(true)]
     [Serializable]
     public class NotFiniteNumberException : ArithmeticException {
         private double _offendingNumber;    

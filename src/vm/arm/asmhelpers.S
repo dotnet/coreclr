@@ -1159,7 +1159,7 @@ LOCAL_LABEL(DoWrite):
         UPDATE_GC_SHADOW \name, r0, r1
         UPDATE_CARD_TABLE \name, r0, r1, \mp, \post, r0
         bx lr
-    LEAF_END \name, _TEXT
+    LEAF_END_MARKED \name, _TEXT
     .endm
     
     .macro JIT_CHECKEDWRITEBARRIER_SP name, post
@@ -1171,7 +1171,7 @@ LOCAL_LABEL(DoWrite):
         UPDATE_CARD_TABLE \name, r0, r1, 0, \post, r0
 1:
         bx lr
-    LEAF_END \name, _TEXT
+    LEAF_END_MARKED \name, _TEXT
     .endm
     
     .macro JIT_CHECKEDWRITEBARRIER_MP name, post
@@ -1186,7 +1186,7 @@ LOCAL_LABEL(DoWrite):
 1:
         str r1, [r0]
         bx lr
-    LEAF_END \name, _TEXT
+    LEAF_END_MARKED \name, _TEXT
     .endm
     
     .macro JIT_BYREFWRITEBARRIER name, mp, post
@@ -1205,7 +1205,7 @@ LOCAL_LABEL(DoWrite):
         add r0, #4
         add r1, #4
         bx lr
-    LEAF_END \name, _TEXT
+    LEAF_END_MARKED \name, _TEXT
     .endm
     
     .macro JIT_WRITEBARRIER_DESCRIPTOR name
@@ -1364,34 +1364,8 @@ DelayLoad_Helper\suffix:
 #ifdef FEATURE_HIJACK
 
 // ------------------------------------------------------------------
-// Hijack function for functions which return a reference type
-        NESTED_ENTRY OnHijackObjectTripThread, _TEXT, NoHandler
-        PROLOG_PUSH "{r0,r4-r11,lr}"
-
-        CHECK_STACK_ALIGNMENT
-
-        mov r0, sp
-        bl OnHijackObjectWorker
-
-        EPILOG_POP "{r0,r4-r11,pc}"
-        NESTED_END OnHijackObjectTripThread, _TEXT
-
-// ------------------------------------------------------------------
-// Hijack function for functions which return an interior pointer within an object allocated in managed heap
-        NESTED_ENTRY OnHijackInteriorPointerTripThread, _TEXT, NoHandler
-        PROLOG_PUSH "{r0,r4-r11,lr}"
-
-        CHECK_STACK_ALIGNMENT
-
-        mov r0, sp
-        bl C_FUNC(OnHijackInteriorPointerWorker)
-
-        EPILOG_POP "{r0,r4-r11,pc}"
-        NESTED_END OnHijackInteriorPointerTripThread, _TEXT
-
-// ------------------------------------------------------------------
 // Hijack function for functions which return a value type
-        NESTED_ENTRY OnHijackScalarTripThread, _TEXT, NoHandler
+        NESTED_ENTRY OnHijackTripThread, _TEXT, NoHandler
         PROLOG_PUSH "{r0,r4-r11,lr}"
 
         PROLOG_VPUSH "{d0-d3}"    // saving as d0-d3 can have the floating point return value
@@ -1401,13 +1375,13 @@ DelayLoad_Helper\suffix:
         CHECK_STACK_ALIGNMENT
 
         add r0, sp, #40
-        bl C_FUNC(OnHijackScalarWorker)
+        bl C_FUNC(OnHijackWorker)
 
         free_stack 4
         EPILOG_POP "{r1}"
         EPILOG_VPOP "{d0-d3}"
 
         EPILOG_POP "{r0,r4-r11,pc}"
-        NESTED_END OnHijackScalarTripThread, _TEXT
+        NESTED_END OnHijackTripThread, _TEXT
 #endif
 

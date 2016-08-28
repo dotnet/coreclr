@@ -55,7 +55,7 @@ namespace System.Globalization {
 
 
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
+    [System.Runtime.InteropServices.ComVisible(true)]
     public sealed class DateTimeFormatInfo : ICloneable, IFormatProvider
     {
         //
@@ -384,7 +384,7 @@ namespace System.Globalization {
 #endif
         }
 
-        #region Serialization
+#region Serialization
         // The following fields are defined to keep the serialization compatibility with .NET V1.0/V1.1.
         [OptionalField(VersionAdded = 1)]
         private int    CultureID;
@@ -860,6 +860,10 @@ namespace System.Globalization {
                 return (this.dateSeparator);
             }
 
+#if FEATURE_CORECLR
+            set { throw new NotImplementedException(); }
+#endif
+
 #if !FEATURE_CORECLR
             set {
                 if (IsReadOnly)
@@ -1305,6 +1309,10 @@ namespace System.Globalization {
                 Contract.Assert(this.timeSeparator != null, "DateTimeFormatInfo.TimeSeparator, timeSeparator != null");
                 return (timeSeparator);
             }
+
+#if FEATURE_CORECLR
+            set { throw new NotImplementedException(); }
+#endif
 
 #if !FEATURE_CORECLR
             set {

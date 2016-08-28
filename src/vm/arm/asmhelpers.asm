@@ -59,9 +59,7 @@
 #endif
 
 #ifdef FEATURE_HIJACK
-    IMPORT OnHijackObjectWorker
-    IMPORT OnHijackInteriorPointerWorker
-    IMPORT OnHijackScalarWorker
+    IMPORT OnHijackWorker
 #endif ;FEATURE_HIJACK
 
     IMPORT GetCurrentSavedRedirectContext
@@ -1693,34 +1691,8 @@ Done
 #ifdef FEATURE_HIJACK
 
 ; ------------------------------------------------------------------
-; Hijack function for functions which return a reference type
-        NESTED_ENTRY OnHijackObjectTripThread
-        PROLOG_PUSH {r0,r4-r11,lr}
-
-        CHECK_STACK_ALIGNMENT
-
-        mov r0, sp
-        bl OnHijackObjectWorker
-
-        EPILOG_POP {r0,r4-r11,pc}
-        NESTED_END
-
-; ------------------------------------------------------------------
-; Hijack function for functions which return an interior pointer within an object allocated in managed heap
-        NESTED_ENTRY OnHijackInteriorPointerTripThread
-        PROLOG_PUSH {r0,r4-r11,lr}
-
-        CHECK_STACK_ALIGNMENT
-
-        mov r0, sp
-        bl OnHijackInteriorPointerWorker
-
-        EPILOG_POP {r0,r4-r11,pc}
-        NESTED_END
-
-; ------------------------------------------------------------------
 ; Hijack function for functions which return a value type
-        NESTED_ENTRY OnHijackScalarTripThread
+        NESTED_ENTRY OnHijackTripThread
         PROLOG_PUSH {r0,r4-r11,lr}
 
         PROLOG_VPUSH {d0-d3}    ; saving as d0-d3 can have the floating point return value
@@ -1730,7 +1702,7 @@ Done
         CHECK_STACK_ALIGNMENT
 
         add r0, sp, #40
-        bl OnHijackScalarWorker
+        bl OnHijackWorker
 
         EPILOG_STACK_FREE 4
         EPILOG_POP {r1}

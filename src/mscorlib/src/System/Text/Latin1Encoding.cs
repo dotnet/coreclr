@@ -22,6 +22,10 @@ namespace System.Text
     [Serializable]
     internal class Latin1Encoding : EncodingNLS, ISerializable
     {
+        // Used by Encoding.Latin1 for lazy initialization
+        // The initialization code will not be run until a static member of the class is referenced
+        internal static readonly Latin1Encoding s_default = new Latin1Encoding();
+
         // We only use the best-fit table, of which ASCII is a superset for us.
         public Latin1Encoding() : base(Encoding.ISO_8859_1)
         {
@@ -38,7 +42,6 @@ namespace System.Text
             // Nothing unique to Whidbey for Latin1
         }
 
-#if FEATURE_SERIALIZATION
         // ISerializable implementation, serialize it as a CodePageEncoding
         [System.Security.SecurityCritical]  // auto-generated_required
         void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
@@ -54,7 +57,6 @@ namespace System.Text
             info.AddValue("CodePageEncoding+m_codePage", this.CodePage);
             info.AddValue("CodePageEncoding+dataItem", null);
         }
-#endif
 
         // GetByteCount
         // Note: We start by assuming that the output will be the same as count.  Having
@@ -490,7 +492,7 @@ namespace System.Text
             }
         }
 
-#if !FEATURE_NORM_IDNA_ONLY        
+#if !FEATURE_NORM_IDNA_ONLY
         public override bool IsAlwaysNormalized(NormalizationForm form)
         {
             // Latin-1 contains precomposed characters, so normal for Form C.

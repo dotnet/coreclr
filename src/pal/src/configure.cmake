@@ -483,34 +483,6 @@ int main(void) {
   exit(0);
 }" MMAP_ANON_IGNORES_PROTECTION)
 check_cxx_source_runs("
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/mman.h>
-
-#ifndef MAP_ANON
-#define MAP_ANON MAP_ANONYMOUS
-#endif
-
-int main()
-{
-  int iRet = 1;
-  void * pAddr = MAP_FAILED;
-  int MemSize = 1024;
-
-  MemSize = getpagesize();
-  pAddr = mmap(0x0, MemSize, PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0);
-  if (pAddr == MAP_FAILED)
-    exit(0);
-
-  pAddr = mmap(pAddr, MemSize, PROT_WRITE | PROT_READ, MAP_FIXED | MAP_PRIVATE | MAP_ANON, -1, 0);
-  if (pAddr == MAP_FAILED)
-    iRet = 0;
-
-  munmap(pAddr, MemSize); // don't care of this
-  exit (iRet);
-}" MMAP_DOESNOT_ALLOW_REMAP)
-check_cxx_source_runs("
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -1025,6 +997,195 @@ int main()
 }" HAVE_FULLY_FEATURED_PTHREAD_MUTEXES)
 set(CMAKE_REQUIRED_LIBRARIES)
 
+if(NOT CLR_CMAKE_PLATFORM_ARCH_ARM AND NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)
+  set(CMAKE_REQUIRED_LIBRARIES pthread)
+  check_cxx_source_runs("
+  // This test case verifies the pthread process-shared robust mutex's cross-process abandon detection. The parent process starts
+  // a child process that locks the mutex, the process process then waits to acquire the lock, and the child process abandons the
+  // mutex by exiting the process while holding the lock. The parent process should then be released from its wait, be assigned
+  // ownership of the lock, and be notified that the mutex was abandoned.
+  
+  #include <sys/mman.h>
+  #include <sys/time.h>
+  
+  #include <errno.h>
+  #include <pthread.h>
+  #include <stdio.h>
+  #include <unistd.h>
+  
+  #include <new>
+  using namespace std;
+  
+  struct Shm
+  {
+      pthread_mutex_t syncMutex;
+      pthread_cond_t syncCondition;
+      pthread_mutex_t robustMutex;
+      int conditionValue;
+  
+      Shm() : conditionValue(0)
+      {
+      }
+  } *shm;
+  
+  int GetFailTimeoutTime(struct timespec *timeoutTimeRef)
+  {
+      int getTimeResult = clock_gettime(CLOCK_REALTIME, timeoutTimeRef);
+      if (getTimeResult != 0)
+      {
+          struct timeval tv;
+          getTimeResult = gettimeofday(&tv, NULL);
+          if (getTimeResult != 0)
+              return 1;
+          timeoutTimeRef->tv_sec = tv.tv_sec;
+          timeoutTimeRef->tv_nsec = tv.tv_usec * 1000;
+      }
+      timeoutTimeRef->tv_sec += 30;
+      return 0;
+  }
+  
+  int WaitForConditionValue(int desiredConditionValue)
+  {
+      struct timespec timeoutTime;
+      if (GetFailTimeoutTime(&timeoutTime) != 0)
+          return 1;
+      if (pthread_mutex_timedlock(&shm->syncMutex, &timeoutTime) != 0)
+          return 1;
+  
+      if (shm->conditionValue != desiredConditionValue)
+      {
+          if (GetFailTimeoutTime(&timeoutTime) != 0)
+              return 1;
+          if (pthread_cond_timedwait(&shm->syncCondition, &shm->syncMutex, &timeoutTime) != 0)
+              return 1;
+          if (shm->conditionValue != desiredConditionValue)
+              return 1;
+      }
+  
+      if (pthread_mutex_unlock(&shm->syncMutex) != 0)
+          return 1;
+      return 0;
+  }
+  
+  int SetConditionValue(int newConditionValue)
+  {
+      struct timespec timeoutTime;
+      if (GetFailTimeoutTime(&timeoutTime) != 0)
+          return 1;
+      if (pthread_mutex_timedlock(&shm->syncMutex, &timeoutTime) != 0)
+          return 1;
+  
+      shm->conditionValue = newConditionValue;
+      if (pthread_cond_signal(&shm->syncCondition) != 0)
+          return 1;
+  
+      if (pthread_mutex_unlock(&shm->syncMutex) != 0)
+          return 1;
+      return 0;
+  }
+  
+  void DoTest_Child();
+  
+  int DoTest()
+  {
+      // Map some shared memory
+      void *shmBuffer = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
+      if (shmBuffer == MAP_FAILED)
+          return 1;
+      shm = new(shmBuffer) Shm;
+  
+      // Create sync mutex
+      pthread_mutexattr_t syncMutexAttributes;
+      if (pthread_mutexattr_init(&syncMutexAttributes) != 0)
+          return 1;
+      if (pthread_mutexattr_setpshared(&syncMutexAttributes, PTHREAD_PROCESS_SHARED) != 0)
+          return 1;
+      if (pthread_mutex_init(&shm->syncMutex, &syncMutexAttributes) != 0)
+          return 1;
+      if (pthread_mutexattr_destroy(&syncMutexAttributes) != 0)
+          return 1;
+  
+      // Create sync condition
+      pthread_condattr_t syncConditionAttributes;
+      if (pthread_condattr_init(&syncConditionAttributes) != 0)
+          return 1;
+      if (pthread_condattr_setpshared(&syncConditionAttributes, PTHREAD_PROCESS_SHARED) != 0)
+          return 1;
+      if (pthread_cond_init(&shm->syncCondition, &syncConditionAttributes) != 0)
+          return 1;
+      if (pthread_condattr_destroy(&syncConditionAttributes) != 0)
+          return 1;
+  
+      // Create the robust mutex that will be tested
+      pthread_mutexattr_t robustMutexAttributes;
+      if (pthread_mutexattr_init(&robustMutexAttributes) != 0)
+          return 1;
+      if (pthread_mutexattr_setpshared(&robustMutexAttributes, PTHREAD_PROCESS_SHARED) != 0)
+          return 1;
+      if (pthread_mutexattr_setrobust(&robustMutexAttributes, PTHREAD_MUTEX_ROBUST) != 0)
+          return 1;
+      if (pthread_mutex_init(&shm->robustMutex, &robustMutexAttributes) != 0)
+          return 1;
+      if (pthread_mutexattr_destroy(&robustMutexAttributes) != 0)
+          return 1;
+  
+      // Start child test process
+      int error = fork();
+      if (error == -1)
+          return 1;
+      if (error == 0)
+      {
+          DoTest_Child();
+          return -1;
+      }
+  
+      // Wait for child to take a lock
+      WaitForConditionValue(1);
+  
+      // Wait to try to take a lock. Meanwhile, child abandons the robust mutex.
+      struct timespec timeoutTime;
+      if (GetFailTimeoutTime(&timeoutTime) != 0)
+          return 1;
+      error = pthread_mutex_timedlock(&shm->robustMutex, &timeoutTime);
+      if (error != EOWNERDEAD) // expect to be notified that the robust mutex was abandoned
+          return 1;
+      if (pthread_mutex_consistent(&shm->robustMutex) != 0)
+          return 1;
+  
+      if (pthread_mutex_unlock(&shm->robustMutex) != 0)
+          return 1;
+      if (pthread_mutex_destroy(&shm->robustMutex) != 0)
+          return 1;
+      return 0;
+  }
+  
+  void DoTest_Child()
+  {
+      // Lock the robust mutex
+      struct timespec timeoutTime;
+      if (GetFailTimeoutTime(&timeoutTime) != 0)
+          return;
+      if (pthread_mutex_timedlock(&shm->robustMutex, &timeoutTime) != 0)
+          return;
+  
+      // Notify parent that robust mutex is locked
+      if (SetConditionValue(1) != 0)
+          return;
+  
+      // Wait a short period to let the parent block on waiting for a lock
+      sleep(1);
+  
+      // Abandon the mutex by exiting the process while holding the lock. Parent's wait should be released by EOWNERDEAD.
+  }
+  
+  int main()
+  {
+      int result = DoTest();
+      return result >= 0 ? result : 0;
+  }" HAVE_FUNCTIONAL_PTHREAD_ROBUST_MUTEXES)
+  set(CMAKE_REQUIRED_LIBRARIES)
+endif()
+
 if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
   if(NOT HAVE_LIBUUID_H)
     unset(HAVE_LIBUUID_H CACHE)
@@ -1059,13 +1220,6 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
   set(HAS_FTRUNCATE_LENGTH_ISSUE 0)
   set(BSD_REGS_STYLE "((reg).r_##rr)")
   set(HAVE_SCHED_OTHER_ASSIGNABLE 1)
-
-  if(EXISTS "/lib/libc.so.7")
-    set(FREEBSD_LIBC "/lib/libc.so.7")
-  else()
-    message(FATAL_ERROR "Cannot find libc on this system.")
-  endif()
-
 elseif(CMAKE_SYSTEM_NAME STREQUAL NetBSD)
   if(NOT HAVE_LIBUNWIND_H)
     unset(HAVE_LIBUNWIND_H CACHE)
@@ -1113,11 +1267,6 @@ else() # Anything else is Linux
   if(NOT HAVE_LIBUUID_H)
     unset(HAVE_LIBUUID_H CACHE)
     message(FATAL_ERROR "Cannot find libuuid. Try installing uuid-dev or the appropriate packages for your platform")
-  endif()
-  if(NOT HAVE_GNU_LIBNAMES_H)
-    if(EXISTS /lib/libc.musl-x86_64.so.1)
-      set(MUSL_LIBC_SO "/lib/libc.musl-x86_64.so.1")
-    endif()
   endif()
   set(DEADLOCK_WHEN_THREAD_IS_SUSPENDED_WHILE_BLOCKED_ON_MUTEX 0)
   set(PAL_PTRACE "ptrace((cmd), (pid), (void*)(addr), (data))")

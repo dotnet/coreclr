@@ -16,7 +16,7 @@ namespace System
     using System.Runtime.Serialization;
 
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
+    [System.Runtime.InteropServices.ComVisible(true)]
     public class TimeoutException : SystemException {
         
         public TimeoutException() 

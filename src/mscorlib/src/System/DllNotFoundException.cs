@@ -16,8 +16,9 @@ namespace System {
     using System;
     using System.Runtime.Serialization;
 
-[System.Runtime.InteropServices.ComVisible(true)]
-    [Serializable] public class DllNotFoundException : TypeLoadException {
+    [System.Runtime.InteropServices.ComVisible(true)]
+    [Serializable]
+    public class DllNotFoundException : TypeLoadException {
         public DllNotFoundException() 
             : base(Environment.GetResourceString("Arg_DllNotFoundException")) {
             SetErrorCode(__HResults.COR_E_DLLNOTFOUND);

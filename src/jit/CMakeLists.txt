@@ -1,4 +1,5 @@
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include_directories("./jitstd")
 include_directories("../inc")
@@ -46,11 +47,13 @@ set( JIT_SOURCES
   jiteh.cpp
   jittelemetry.cpp
   lclvars.cpp
+  lir.cpp
   liveness.cpp
   loopcloning.cpp
   lower.cpp
   lsra.cpp
   morph.cpp
+  objectalloc.cpp
   optcse.cpp
   optimizer.cpp
   rangecheck.cpp
@@ -84,6 +87,7 @@ if(CLR_CMAKE_TARGET_ARCH_AMD64)
 elseif(CLR_CMAKE_TARGET_ARCH_ARM)
   set( ARCH_SOURCES
     codegenarm.cpp
+    decomposelongs.cpp
     emitarm.cpp
     lowerarm.cpp
     targetarm.cpp
@@ -92,6 +96,7 @@ elseif(CLR_CMAKE_TARGET_ARCH_ARM)
 elseif(CLR_CMAKE_TARGET_ARCH_I386)
   set( ARCH_SOURCES
     codegenxarch.cpp
+    decomposelongs.cpp
     emitxarch.cpp
     lowerxarch.cpp
     simd.cpp

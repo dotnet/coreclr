@@ -22,7 +22,8 @@ namespace System {
     [SecurityPermissionAttribute(SecurityAction.InheritanceDemand, Flags=SecurityPermissionFlag.UnmanagedCode)] // Don't call Object::MemberwiseClone.
 #endif
     [Serializable]
-    public class WeakReference : ISerializable {
+    public class WeakReference : ISerializable 
+    {
         // If you fix bugs here, please fix them in WeakReference<T> at the same time.
 
         // This field is not a regular GC handle. It can have a special values that are used to prevent a race condition between setting the target and finalization.

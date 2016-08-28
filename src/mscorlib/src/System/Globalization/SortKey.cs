@@ -18,8 +18,9 @@ namespace System.Globalization {
     using System.Runtime.Serialization;
     using System.Diagnostics.Contracts;
 
-[System.Runtime.InteropServices.ComVisible(true)]
-    [Serializable] public class SortKey
+    [System.Runtime.InteropServices.ComVisible(true)]
+    [Serializable]
+    public partial class SortKey
     {
         //--------------------------------------------------------------------//
         //                        Internal Information                        //

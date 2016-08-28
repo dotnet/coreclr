@@ -55,6 +55,7 @@
         <CppCompile Include="..\Instr.cpp" />
         <CppCompile Include="..\JitTelemetry.cpp" />
         <CppCompile Include="..\LclVars.cpp" />
+        <CppCompile Include="..\LIR.cpp" />
         <CppCompile Include="..\Liveness.cpp" />
         <CppCompile Include="..\Morph.cpp" />
         <CppCompile Include="..\Optimizer.cpp" />
@@ -84,6 +85,7 @@
         <CppCompile Include="..\inlinepolicy.cpp" />
         <CppCompile Include="..\jitconfig.cpp" />
         <CppCompile Include="..\hostallocator.cpp" />
+        <CppCompile Include="..\objectalloc.cpp" />
         <CppCompile Condition="'$(ClDefines.Contains(`LEGACY_BACKEND`))'=='True'" Include="..\CodeGenLegacy.cpp" />
         <CppCompile Condition="'$(ClDefines.Contains(`LEGACY_BACKEND`))'=='False'"  Include="..\Lower.cpp" />
         <CppCompile Condition="'$(ClDefines.Contains(`LEGACY_BACKEND`))'=='False'"  Include="..\LSRA.cpp" />
@@ -92,6 +94,7 @@
         <CppCompile Include="..\emitXArch.cpp" />
         <CppCompile Include="..\TargetX86.cpp" />
         <CppCompile Condition="'$(ClDefines.Contains(`LEGACY_BACKEND`))'=='True'" Include="..\stackfp.cpp" />
+        <CppCompile Condition="'$(ClDefines.Contains(`LEGACY_BACKEND`))'=='False'"  Include="..\DecomposeLongs.cpp" />
         <CppCompile Condition="'$(ClDefines.Contains(`LEGACY_BACKEND`))'=='False'"  Include="..\LowerXArch.cpp" />
         <CppCompile Condition="'$(ClDefines.Contains(`LEGACY_BACKEND`))'=='False'"  Include="..\CodeGenXArch.cpp" />
         <CppCompile Condition="'$(ClDefines.Contains(`LEGACY_BACKEND`))'=='False'"  Include="..\SIMD.cpp" />
@@ -111,6 +114,7 @@
         <CppCompile Include="..\emitarm.cpp" />
         <CppCompile Include="..\TargetArm.cpp" />
         <CppCompile Condition="'$(ClDefines.Contains(`LEGACY_BACKEND`))'=='True'" Include="..\registerfp.cpp" />
+        <CppCompile Condition="'$(ClDefines.Contains(`LEGACY_BACKEND`))'=='False'"  Include="..\DecomposeLongs.cpp" />
         <CppCompile Condition="'$(ClDefines.Contains(`LEGACY_BACKEND`))'=='False'"  Include="..\LowerArm.cpp" />
         <CppCompile Condition="'$(ClDefines.Contains(`LEGACY_BACKEND`))'=='False'"  Include="..\CodeGenArm.cpp" />
         <CppCompile Include="..\unwindArm.cpp" />

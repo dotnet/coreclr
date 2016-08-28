@@ -14,12 +14,14 @@ Abstract:
 
 --*/
 
+#include "pal/dbgmsg.h"
+SET_DEFAULT_DEBUG_CHANNEL(EXCEPT); // some headers have code with asserts, so do this first
+
 #include "pal/thread.hpp"
 #include "pal/seh.hpp"
 #include "pal/palinternal.h"
 #if HAVE_MACH_EXCEPTIONS
 #include "machexception.h"
-#include "pal/dbgmsg.h"
 #include "pal/critsect.h"
 #include "pal/debug.h"
 #include "pal/init.h"
@@ -41,8 +43,6 @@ Abstract:
 #include <mach-o/loader.h>
 
 using namespace CorUnix;
-
-SET_DEFAULT_DEBUG_CHANNEL(EXCEPT);
 
 // The port we use to handle exceptions and to set the thread context
 mach_port_t s_ExceptionPort;
@@ -177,7 +177,7 @@ GetExceptionMask()
         if (exceptionSettings)
         {
             exMode = (MachExceptionMode)atoi(exceptionSettings);
-            InternalFree(exceptionSettings);
+            free(exceptionSettings);
         }
         else
         {
@@ -459,12 +459,37 @@ void PAL_DispatchException(DWORD64 dwRDI, DWORD64 dwRSI, DWORD64 dwRDX, DWORD64 
     }
 #endif // FEATURE_PAL_SXS
 
-    EXCEPTION_POINTERS pointers;
-    pointers.ExceptionRecord = pExRecord;
-    pointers.ContextRecord = pContext;
+    CONTEXT *contextRecord;
+    EXCEPTION_RECORD *exceptionRecord;
+    AllocateExceptionRecords(&exceptionRecord, &contextRecord);
 
-    TRACE("PAL_DispatchException(EC %08x EA %p)\n", pExRecord->ExceptionCode, pExRecord->ExceptionAddress);
-    SEHProcessException(&pointers);
+    *contextRecord = *pContext;
+    *exceptionRecord = *pExRecord;
+
+    contextRecord->ContextFlags |= CONTEXT_EXCEPTION_ACTIVE;
+    bool continueExecution;
+
+    {
+        // The exception object takes ownership of the exceptionRecord and contextRecord
+        PAL_SEHException exception(exceptionRecord, contextRecord);
+
+        TRACE("PAL_DispatchException(EC %08x EA %p)\n", pExRecord->ExceptionCode, pExRecord->ExceptionAddress);
+
+        continueExecution = SEHProcessException(&exception);
+        if (continueExecution)
+        {
+            // Make a copy of the exception records so that we can free them before restoring the context
+            *pContext = *contextRecord;
+            *pExRecord = *exceptionRecord;
+        }
+
+        // The exception records are destroyed by the PAL_SEHException destructor now.
+    }
+
+    if (continueExecution)
+    {
+        RtlRestoreContext(pContext, pExRecord);
+    }
 
     // Send the forward request to the exception thread to process
     MachMessage sSendMessage;

@@ -52,9 +52,11 @@ namespace System {
 
     [Serializable]
     [System.Security.Permissions.HostProtection(MayLeakOnAbort = true)]
+#if !FEATURE_CORECLR
     [TypeForwardedFrom("System.Core, Version=3.5.0.0, Culture=Neutral, PublicKeyToken=b77a5c561934e089")]
-    sealed public class TimeZoneInfo : IEquatable<TimeZoneInfo>, ISerializable, IDeserializationCallback {
-
+#endif
+    sealed public class TimeZoneInfo : IEquatable<TimeZoneInfo>, ISerializable, IDeserializationCallback
+    {
         // ---- SECTION:  members supporting exposed properties -------------*
         private String m_id;
         private String m_displayName;
@@ -1127,7 +1129,7 @@ namespace System {
         //
         // private ctor
         //
-#if FEATURE_WIN32_REGISTRY 
+#if FEATURE_WIN32_REGISTRY
         [System.Security.SecurityCritical]  // auto-generated
         private TimeZoneInfo(Win32Native.TimeZoneInformation zone, Boolean dstDisabled) {
             
@@ -1353,7 +1355,6 @@ namespace System {
 
         // ----- SECTION: private serialization instance methods  ----------------*
 
-#if FEATURE_SERIALIZATION
         void IDeserializationCallback.OnDeserialization(Object sender) {
             try {
                 Boolean adjustmentRulesSupportDst;
@@ -1402,7 +1403,6 @@ namespace System {
             m_adjustmentRules     = (AdjustmentRule[])info.GetValue("AdjustmentRules", typeof(AdjustmentRule[]));
             m_supportsDaylightSavingTime = (Boolean)info.GetValue("SupportsDaylightSavingTime", typeof(Boolean));
         }
-#endif
 
 
 
@@ -4454,8 +4454,11 @@ namespace System {
 ============================================================*/
         [Serializable]
         [System.Security.Permissions.HostProtection(MayLeakOnAbort = true)]
+#if !FEATURE_CORECLR
         [TypeForwardedFrom("System.Core, Version=3.5.0.0, Culture=Neutral, PublicKeyToken=b77a5c561934e089")]
-        sealed public class AdjustmentRule : IEquatable<AdjustmentRule>, ISerializable, IDeserializationCallback {
+#endif
+        sealed public class AdjustmentRule : IEquatable<AdjustmentRule>, ISerializable, IDeserializationCallback
+            {
 
             // ---- SECTION:  members supporting exposed properties -------------*
             private DateTime m_dateStart;
@@ -4693,7 +4696,6 @@ namespace System {
 
             // ----- SECTION: private serialization instance methods  ----------------*
 
-#if FEATURE_SERIALIZATION
             void IDeserializationCallback.OnDeserialization(Object sender) {
                 // OnDeserialization is called after each instance of this class is deserialized.
                 // This callback method performs AdjustmentRule validation after being deserialized.
@@ -4744,7 +4746,6 @@ namespace System {
                     m_noDaylightTransitions = (bool)o;
                 }
             }
-#endif
         }
 
 
@@ -4763,9 +4764,11 @@ namespace System {
 ============================================================*/
         [Serializable]
         [System.Security.Permissions.HostProtection(MayLeakOnAbort = true)]
+#if !FEATURE_CORECLR
         [TypeForwardedFrom("System.Core, Version=3.5.0.0, Culture=Neutral, PublicKeyToken=b77a5c561934e089")]
-        public struct TransitionTime : IEquatable<TransitionTime>, ISerializable, IDeserializationCallback {
-
+#endif
+        public struct TransitionTime : IEquatable<TransitionTime>, ISerializable, IDeserializationCallback
+        {
             // ---- SECTION:  members supporting exposed properties -------------*
             private DateTime m_timeOfDay;
             private byte m_month;
@@ -4957,7 +4960,6 @@ namespace System {
                 }
             }
 
-#if FEATURE_SERIALIZATION
             void IDeserializationCallback.OnDeserialization(Object sender) {
                 // OnDeserialization is called after each instance of this class is deserialized.
                 // This callback method performs TransitionTime validation after being deserialized.
@@ -4998,7 +5000,6 @@ namespace System {
                 m_dayOfWeek       = (DayOfWeek)info.GetValue("DayOfWeek", typeof(DayOfWeek));
                 m_isFixedDateRule = (Boolean)info.GetValue("IsFixedDateRule", typeof(Boolean));
             }
-#endif
         }
 
 

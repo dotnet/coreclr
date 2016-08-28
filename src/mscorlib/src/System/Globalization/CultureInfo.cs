@@ -44,7 +44,7 @@ namespace System.Globalization {
 
     [Serializable]
     [System.Runtime.InteropServices.ComVisible(true)]
-    public class CultureInfo : ICloneable, IFormatProvider {
+    public partial class CultureInfo : ICloneable, IFormatProvider {
         //--------------------------------------------------------------------//
         //                        Internal Information                        //
         //--------------------------------------------------------------------//
@@ -73,12 +73,10 @@ namespace System.Globalization {
         internal NumberFormatInfo numInfo;
         internal DateTimeFormatInfo dateTimeInfo;
         internal Calendar calendar;
-#if !FEATURE_CORECLR
         [OptionalField(VersionAdded = 1)]
         internal int m_dataItem;       // NEVER USED, DO NOT USE THIS! (Serialized in Whidbey/Everett)
         [OptionalField(VersionAdded = 1)]
         internal int cultureID  = 0x007f;  // NEVER USED, DO NOT USE THIS! (Serialized in Whidbey/Everett)
-#endif // !FEATURE_CORECLR
         //
         // The CultureData instance that we are going to read data from.
         // For supported culture, this will be the CultureData instance that read data from mscorlib assembly.
@@ -342,7 +340,7 @@ namespace System.Globalization {
         }
 
 
-#if  FEATURE_USE_LCID         
+#if FEATURE_USE_LCID
         public CultureInfo(int culture) : this(culture, true) {
         }
 
@@ -407,7 +405,7 @@ namespace System.Globalization {
         [OnDeserialized]
         private void OnDeserialized(StreamingContext ctx)
         {
-#if  FEATURE_USE_LCID         
+#if FEATURE_USE_LCID
             // Whidbey+ should remember our name
             // but v1 and v1.1 did not store name -- only lcid
             // Whidbey did not store actual alternate sort name in m_name
@@ -428,7 +426,7 @@ namespace System.Globalization {
                     throw new CultureNotFoundException(
                         "m_name", m_name, Environment.GetResourceString("Argument_CultureNotSupported"));
                     
-#if  FEATURE_USE_LCID         
+#if FEATURE_USE_LCID
             }
 #endif
             m_isInherited = (this.GetType() != typeof(System.Globalization.CultureInfo));
@@ -449,7 +447,7 @@ namespace System.Globalization {
             }
         }
 
-#if  FEATURE_USE_LCID         
+#if FEATURE_USE_LCID
         //  A locale ID is a 32 bit value which is the combination of a
         //  language ID, a sort ID, and a reserved area.  The bits are
         //  allocated as follows:
@@ -976,7 +974,7 @@ namespace System.Globalization {
         //  of a customized culture (LCID == LOCALE_CUSTOM_UNSPECIFIED).
         //
         ////////////////////////////////////////////////////////////////////////
-#if FEATURE_USE_LCID    
+#if FEATURE_USE_LCID
         [System.Runtime.InteropServices.ComVisible(false)]
         public virtual int KeyboardLayoutId
         {
