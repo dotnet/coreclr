@@ -306,7 +306,7 @@ namespace System {
         // native call to COMString::CompareOrdinalEx
         [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern int nativeCompareOrdinalEx(String strA, int indexA, int countA, String strB, int indexB, int countB);
+        internal static extern int CompareOrdinalHelper(String strA, int indexA, int countA, String strB, int indexB, int countB);
 
         //This will not work in case-insensitive mode for any character greater than 0x80.  
         //We'll throw an ArgumentException.
@@ -2236,7 +2236,7 @@ namespace System {
                     return CultureInfo.InvariantCulture.CompareInfo.Compare(strA, indexA, lengthA, strB, indexB, lengthB, CompareOptions.IgnoreCase);
 
                 case StringComparison.Ordinal:
-                    return nativeCompareOrdinalEx(strA, indexA, lengthA, strB, indexB, lengthB);
+                    return CompareOrdinalHelper(strA, indexA, lengthA, strB, indexB, lengthB);
 
                 case StringComparison.OrdinalIgnoreCase:
 #if FEATURE_COREFX_GLOBALIZATION
@@ -2357,7 +2357,7 @@ namespace System {
                 return 0;
             }
 
-            return nativeCompareOrdinalEx(strA, indexA, lengthA, strB, indexB, lengthB);
+            return CompareOrdinalHelper(strA, indexA, lengthA, strB, indexB, lengthB);
         }
 
 
@@ -2411,7 +2411,7 @@ namespace System {
                     return CultureInfo.InvariantCulture.CompareInfo.IsSuffix(this, value, CompareOptions.IgnoreCase);                    
 
                 case StringComparison.Ordinal:
-                    return this.Length < value.Length ? false : (nativeCompareOrdinalEx(this, this.Length - value.Length, value.Length, value, 0, value.Length) == 0);
+                    return this.Length < value.Length ? false : (CompareOrdinalHelper(this, this.Length - value.Length, value.Length, value, 0, value.Length) == 0);
 
                 case StringComparison.OrdinalIgnoreCase:
 #if FEATURE_COREFX_GLOBALIZATION

@@ -528,7 +528,7 @@ namespace System.Globalization {
 
             if (options == CompareOptions.Ordinal)
             {
-                return string.nativeCompareOrdinalEx(string1, offset1, length1, string2, offset2, length2);
+                return string.CompareOrdinalHelper(string1, offset1, length1, string2, offset2, length2);
             }
             return InternalCompareString(this.m_dataHandle, this.m_handleOrigin, this.m_sortName, 
                                          string1, offset1, length1, 
