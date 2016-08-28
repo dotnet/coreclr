@@ -544,12 +544,7 @@ namespace System.Globalization {
             Contract.Assert(offset1 >= 0 && offset2 >= 0);
             Contract.Assert(length1 >= 0 && length2 >= 0);
 
-            int result = String.nativeCompareOrdinalEx(string1, offset1, length1, string2, offset2, length2);
-            if ((length1 != length2) && result == 0)
-            {
-                return (length1 > length2 ? 1 : -1);
-            }
-            return (result);
+            return string.nativeCompareOrdinalEx(string1, offset1, length1, string2, offset2, length2);
         }
 
         ////////////////////////////////////////////////////////////////////////

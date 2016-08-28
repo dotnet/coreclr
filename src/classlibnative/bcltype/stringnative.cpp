@@ -302,6 +302,9 @@ FCIMPL6(INT32, COMString::CompareOrdinalEx, StringObject* strA, INT32 indexA, IN
     strA->RefInterpretGetStringValuesDangerousForGC((WCHAR **) &strAChars, &strALength);
     strB->RefInterpretGetStringValuesDangerousForGC((WCHAR **) &strBChars, &strBLength);
 
+    _ASSERTE(countA <= strALength - indexA);
+    _ASSERTE(countB <= strBLength - indexB);
+
     // Set up the loop variables.
     strAChars = (DWORD *) ((WCHAR *) strAChars + indexA);
     strBChars = (DWORD *) ((WCHAR *) strBChars + indexB);
