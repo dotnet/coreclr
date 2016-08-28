@@ -2334,9 +2334,7 @@ namespace System {
 
             if (length < 0)
             {
-                // COMPAT: This was originally done in a call to CompareOrdinalEx which had the
-                // parameter "count" instead of length. Throw an exception for the original name.
-                throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_NegativeCount"));
+                throw new ArgumentOutOfRangeException("length", Environment.GetResourceString("ArgumentOutOfRange_NegativeCount"));
             }
 
             if (indexA < 0 || indexB < 0)
