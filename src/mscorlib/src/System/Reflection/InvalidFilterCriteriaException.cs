@@ -18,7 +18,7 @@ namespace System.Reflection {
     using System.Runtime.Serialization;
     using ApplicationException = System.ApplicationException;
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
+    [System.Runtime.InteropServices.ComVisible(true)]
 #if FEATURE_CORECLR
     public class InvalidFilterCriteriaException : Exception {
 #else

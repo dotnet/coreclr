@@ -27,6 +27,12 @@ namespace System
         /// <param name="array">The target array.</param>
         public Span(T[] array)
         {
+            if (default(T) == null) // Arrays of valuetypes are never covariant
+            {
+                if (array.GetType() != typeof(T[]))
+                    ThrowHelper.ThrowArrayTypeMismatchException();
+            }
+
             JitHelpers.SetByRef(out _rawPointer, ref JitHelpers.GetArrayData(array));
             _length = array.Length;
         }
@@ -42,6 +48,12 @@ namespace System
         {
             if ((uint)start >= (uint)array.Length || (uint)length > (uint)(array.Length - start))
                 ThrowHelper.ThrowArgumentOutOfRangeException();
+
+            if (default(T) == null) // Arrays of valuetypes are nnever covariant
+            {
+                if (array.GetType() != typeof(T[]))
+                    ThrowHelper.ThrowArrayTypeMismatchException();
+            }
 
             JitHelpers.SetByRef(out _rawPointer, ref JitHelpers.AddByRef(ref JitHelpers.GetArrayData(array), start));
             _length = length;
@@ -212,8 +224,8 @@ namespace System
             {
                 return false;
             }
-            
-#if WIN64
+
+#if BIT64
             Buffer.Memmove((byte*)destination, (byte*)_rawPointer, (ulong)(elementsCount * (uint)JitHelpers.SizeOf<T>()));
 #else
             Buffer.Memmove((byte*)destination, (byte*)_rawPointer, checked(elementsCount * (uint)JitHelpers.SizeOf<T>()));
@@ -223,7 +235,7 @@ namespace System
 
         private unsafe void Memmove(byte* destination, byte* source)
         {
-#if WIN64
+#if BIT64
             Buffer.Memmove(destination, source, (ulong)SizeInBytes);
 #else
             Buffer.Memmove(destination, source, checked(SizeInBytes));

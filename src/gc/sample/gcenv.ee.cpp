@@ -11,28 +11,36 @@
 
 EEConfig * g_pConfig;
 
-void CLREventStatic::CreateManualEvent(bool bInitialState)
+bool CLREventStatic::CreateManualEventNoThrow(bool bInitialState)
 {
     m_hEvent = CreateEventW(NULL, TRUE, bInitialState, NULL);
     m_fInitialized = true;
+
+    return IsValid();
 }
 
-void CLREventStatic::CreateAutoEvent(bool bInitialState)
+bool CLREventStatic::CreateAutoEventNoThrow(bool bInitialState)
 {
     m_hEvent = CreateEventW(NULL, FALSE, bInitialState, NULL);
     m_fInitialized = true;
+
+    return IsValid();
 }
 
-void CLREventStatic::CreateOSManualEvent(bool bInitialState)
+bool CLREventStatic::CreateOSManualEventNoThrow(bool bInitialState)
 {
     m_hEvent = CreateEventW(NULL, TRUE, bInitialState, NULL);
     m_fInitialized = true;
+
+    return IsValid();
 }
 
-void CLREventStatic::CreateOSAutoEvent(bool bInitialState)
+bool CLREventStatic::CreateOSAutoEventNoThrow(bool bInitialState)
 {
     m_hEvent = CreateEventW(NULL, FALSE, bInitialState, NULL);
     m_fInitialized = true;
+
+    return IsValid();
 }
 
 void CLREventStatic::CloseEvent()
@@ -176,11 +184,6 @@ void GCToEEInterface::DisablePreemptiveGC(Thread * pThread)
     pThread->DisablePreemptiveGC();
 }
 
-void GCToEEInterface::SetGCSpecial(Thread * pThread)
-{
-    pThread->SetGCSpecial(true);
-}
-
 alloc_context * GCToEEInterface::GetAllocContext(Thread * pThread)
 {
     return pThread->GetAllocContext();
@@ -189,12 +192,6 @@ alloc_context * GCToEEInterface::GetAllocContext(Thread * pThread)
 bool GCToEEInterface::CatchAtSafePoint(Thread * pThread)
 {
     return pThread->CatchAtSafePoint();
-}
-
-// does not acquire thread store lock
-void GCToEEInterface::AttachCurrentThread()
-{
-    ThreadStore::AttachCurrentThread();
 }
 
 void GCToEEInterface::GcEnumAllocContexts (enum_alloc_context_func* fn, void* param)
@@ -218,6 +215,12 @@ void GCToEEInterface::SyncBlockCachePromotionsGranted(int /*max_gen*/)
 {
 }
 
+Thread* GCToEEInterface::CreateBackgroundThread(GCBackgroundThreadFunction threadStart, void* arg)
+{
+    // TODO: Implement for background GC
+    return NULL;
+}
+
 void FinalizerThread::EnableFinalization()
 {
     // Signal to finalizer thread that there are objects to finalize
@@ -226,12 +229,6 @@ void FinalizerThread::EnableFinalization()
 
 bool FinalizerThread::HaveExtraWorkForFinalizer()
 {
-    return false;
-}
-
-bool REDHAWK_PALAPI PalStartBackgroundGCThread(BackgroundCallback callback, void* pCallbackContext)
-{
-    // TODO: Implement for background GC
     return false;
 }
 

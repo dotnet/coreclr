@@ -59,8 +59,8 @@ namespace System {
     [Serializable]
     [System.Runtime.InteropServices.ComVisible(true)]
     [System.Runtime.Versioning.NonVersionable] // This only applies to field layout
-    public struct Decimal : IFormattable, IComparable, IConvertible, IDeserializationCallback
-            , IComparable<Decimal>, IEquatable<Decimal> {
+    public struct Decimal : IFormattable, IComparable, IConvertible, IComparable<Decimal>, IEquatable<Decimal>, IDeserializationCallback
+    {
 
         // Sign mask for the flags field. A value of zero in this bit indicates a
         // positive Decimal value, and a value of one in this bit indicates a
@@ -293,7 +293,6 @@ namespace System {
                 this.flags |= SignMask;
         }
 
-#if FEATURE_SERIALIZATION
         [OnSerializing]
         void OnSerializing(StreamingContext ctx) {
             // OnSerializing is called before serialization of an object
@@ -313,7 +312,6 @@ namespace System {
                 throw new SerializationException(Environment.GetResourceString("Overflow_Decimal"), e); 
             } 
         }
-#endif
           
         // Constructs a Decimal from its constituent parts.
         private Decimal(int lo, int mid, int hi, int flags) {

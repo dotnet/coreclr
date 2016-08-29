@@ -15,7 +15,7 @@ namespace System {
     
     using System.Runtime.Serialization;
 
-[System.Runtime.InteropServices.ComVisible(true)]
+    [System.Runtime.InteropServices.ComVisible(true)]
     [Serializable]
     public class TypeUnloadedException : SystemException {
         public TypeUnloadedException() 

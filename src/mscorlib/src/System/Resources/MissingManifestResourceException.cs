@@ -18,7 +18,7 @@ using System.Runtime.Serialization;
 
 namespace System.Resources {
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
+    [System.Runtime.InteropServices.ComVisible(true)]
     public class MissingManifestResourceException : SystemException
     {
         public MissingManifestResourceException() 
@@ -36,9 +36,7 @@ namespace System.Resources {
             SetErrorCode(System.__HResults.COR_E_MISSINGMANIFESTRESOURCE);
         }
 
-#if FEATURE_SERIALIZATION
         protected MissingManifestResourceException(SerializationInfo info, StreamingContext context) : base (info, context) {
         }
-#endif // FEATURE_SERIALIZATION
     }
 }

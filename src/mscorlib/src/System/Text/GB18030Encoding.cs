@@ -137,7 +137,6 @@ namespace System.Text
             // Already build our code page, fallbacks & read only, so we're good to go!
         }
 
-#if FEATURE_SERIALIZATION
         // ISerializable implementation
         [System.Security.SecurityCritical]  // auto-generated_required
         void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
@@ -148,7 +147,6 @@ namespace System.Text
 
             // Everett doesn't need more than the basics
         }
-#endif
 
         // This loads our base 936 code page and then applys the changes from the tableUnicodeToGBDiffs table.
         // See table comments for table format.
@@ -880,7 +878,6 @@ namespace System.Text
                 }
             }
 
-#if FEATURE_SERIALIZATION
             // ISerializable implementation, get data for this object
             [System.Security.SecurityCritical]  // auto-generated_required
             void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
@@ -902,7 +899,6 @@ namespace System.Text
                 info.AddValue("m_leftOverBytes", (int)0);
                 info.AddValue("leftOver", new byte[8]);
             }
-#endif
 
             public override void Reset()
             {

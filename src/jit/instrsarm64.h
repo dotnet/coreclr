@@ -19,29 +19,29 @@
 ******************************************************************************/
 
 #if !defined(_TARGET_ARM64_)
-  #error Unexpected target type
+#error Unexpected target type
 #endif
 
 #ifndef INST1
-#error  INST1 must be defined before including this file.
+#error INST1 must be defined before including this file.
 #endif
 #ifndef INST2
-#error  INST2 must be defined before including this file.
+#error INST2 must be defined before including this file.
 #endif
 #ifndef INST3
-#error  INST3 must be defined before including this file.
+#error INST3 must be defined before including this file.
 #endif
 #ifndef INST4
-#error  INST4 must be defined before including this file.
+#error INST4 must be defined before including this file.
 #endif
 #ifndef INST5
-#error  INST5 must be defined before including this file.
+#error INST5 must be defined before including this file.
 #endif
 #ifndef INST6
-#error  INST6 must be defined before including this file.
+#error INST6 must be defined before including this file.
 #endif
 #ifndef INST9
-#error  INST9 must be defined before including this file.
+#error INST9 must be defined before including this file.
 #endif
 
 /*****************************************************************************/
@@ -53,7 +53,7 @@
 //   * If the instruction writes to more than one destination register, update the function
 //     emitInsMayWriteMultipleRegs in emitArm64.cpp.
 
-
+// clang-format off
 INST9(invalid, "INVALID", 0, 0, IF_NONE,  BAD_CODE,    BAD_CODE,    BAD_CODE,    BAD_CODE,   BAD_CODE,     BAD_CODE,    BAD_CODE,    BAD_CODE,    BAD_CODE)
 
 //    enum     name     FP LD/ST            DR_2E        DR_2G        DI_1B        DI_1D        DV_3C        DV_2B        DV_2C        DV_2E        DV_2F
@@ -941,14 +941,14 @@ INST1(uxtl,    "uxtl",   0, 0, IF_DV_2O,  0x2F00A400)
 
 INST1(uxtl2,   "uxtl2",  0, 0, IF_DV_2O,  0x6F00A400)
                                    //  uxtl2   Vd,Vn                DV_2O  011011110iiiiiii 101001nnnnnddddd   6F00 A400   Vd,Vn      (shift - vector)
-
+// clang-format on
 
 /*****************************************************************************/
-#undef  INST1
-#undef  INST2
-#undef  INST3
-#undef  INST4
-#undef  INST5
-#undef  INST6
-#undef  INST9
+#undef INST1
+#undef INST2
+#undef INST3
+#undef INST4
+#undef INST5
+#undef INST6
+#undef INST9
 /*****************************************************************************/

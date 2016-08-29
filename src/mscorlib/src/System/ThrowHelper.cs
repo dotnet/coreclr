@@ -41,7 +41,13 @@ namespace System {
     using System.Diagnostics.Contracts;
 
     [Pure]
-    internal static class ThrowHelper {    
+    internal static class ThrowHelper {
+#if FEATURE_SPAN_OF_T
+        internal static void ThrowArrayTypeMismatchException() {
+            throw new ArrayTypeMismatchException();
+        }
+#endif
+
         internal static void ThrowArgumentOutOfRangeException() {        
             ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_Index);            
         }

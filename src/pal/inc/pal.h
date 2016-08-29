@@ -186,7 +186,7 @@ extern "C" {
 
 #define DECLSPEC_NORETURN   PAL_NORETURN
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || defined(SOURCE_FORMATTING)
 #define __assume(x) (void)0
 #define __annotation(x)
 #endif //!MSC_VER
@@ -2569,6 +2569,8 @@ typedef struct _CONTEXT {
 #define CONTEXT_FULL (CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_FLOATING_POINT)
 
 #define CONTEXT_ALL (CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_SEGMENTS | CONTEXT_FLOATING_POINT | CONTEXT_DEBUG_REGISTERS)
+
+#define CONTEXT_XSTATE (CONTEXT_AMD64 | 0x40L)
 
 #define CONTEXT_EXCEPTION_ACTIVE 0x8000000
 #define CONTEXT_SERVICE_ACTIVE 0x10000000
@@ -6442,6 +6444,13 @@ public:
 
 #include "pal_unwind.h"
 
+PALIMPORT
+VOID
+PALAPI
+PAL_FreeExceptionRecords(
+  IN EXCEPTION_RECORD *exceptionRecord, 
+  IN CONTEXT *contextRecord);
+
 #define EXCEPTION_CONTINUE_SEARCH   0
 #define EXCEPTION_EXECUTE_HANDLER   1
 #define EXCEPTION_CONTINUE_EXECUTION -1
@@ -6450,34 +6459,82 @@ struct PAL_SEHException
 {
 private:
     static const SIZE_T NoTargetFrameSp = SIZE_MAX;
+
+    void Move(PAL_SEHException& ex)
+    {
+        ExceptionPointers.ExceptionRecord = ex.ExceptionPointers.ExceptionRecord;
+        ExceptionPointers.ContextRecord = ex.ExceptionPointers.ContextRecord;
+        TargetFrameSp = ex.TargetFrameSp;
+
+        ex.Clear();
+    }
+
+    void FreeRecords()
+    {
+        if (ExceptionPointers.ExceptionRecord != NULL)
+        {
+            PAL_FreeExceptionRecords(ExceptionPointers.ExceptionRecord, ExceptionPointers.ContextRecord);
+            ExceptionPointers.ExceptionRecord = NULL;
+            ExceptionPointers.ContextRecord = NULL;
+        }
+    }
+
 public:
-    // Note that the following two are actually embedded in this heap-allocated
-    // instance - in contrast to Win32, where the exception record would usually
-    // be allocated on the stack.  This is needed because foreign cleanup handlers
-    // partially unwind the stack on the second pass.
     EXCEPTION_POINTERS ExceptionPointers;
-    EXCEPTION_RECORD ExceptionRecord;
-    CONTEXT ContextRecord;
     // Target frame stack pointer set before the 2nd pass.
     SIZE_T TargetFrameSp;
 
     PAL_SEHException(EXCEPTION_RECORD *pExceptionRecord, CONTEXT *pContextRecord)
     {
-        ExceptionPointers.ExceptionRecord = &ExceptionRecord;
-        ExceptionPointers.ContextRecord = &ContextRecord;
-        ExceptionRecord = *pExceptionRecord;
-        ContextRecord = *pContextRecord;
+        ExceptionPointers.ExceptionRecord = pExceptionRecord;
+        ExceptionPointers.ContextRecord = pContextRecord;
         TargetFrameSp = NoTargetFrameSp;
     }
 
     PAL_SEHException()
     {
+        Clear();
     }    
 
-    PAL_SEHException(const PAL_SEHException& ex)
+    // The copy constructor and copy assignment operators are deleted so that the PAL_SEHException
+    // can never be copied, only moved. This enables simple lifetime management of the exception and
+    // context records, since there is always just one PAL_SEHException instance referring to the same records.
+    PAL_SEHException(const PAL_SEHException& ex) = delete;
+    PAL_SEHException& operator=(const PAL_SEHException& ex) = delete;
+
+    PAL_SEHException(PAL_SEHException&& ex)
     {
-        *this = ex;
+        Move(ex);
     }    
+
+    PAL_SEHException& operator=(PAL_SEHException&& ex)
+    {
+        FreeRecords();
+        Move(ex);
+        return *this;
+    }
+
+    ~PAL_SEHException()
+    {
+        FreeRecords();
+    }
+
+    void Clear()
+    {
+        ExceptionPointers.ExceptionRecord = NULL;
+        ExceptionPointers.ContextRecord = NULL;
+        TargetFrameSp = NoTargetFrameSp;
+    }
+
+    CONTEXT* GetContextRecord()
+    {
+        return ExceptionPointers.ContextRecord;
+    }
+
+    EXCEPTION_RECORD* GetExceptionRecord()
+    {
+        return ExceptionPointers.ExceptionRecord;
+    }
 
     bool IsFirstPass()
     {
@@ -6488,20 +6545,9 @@ public:
     {
         TargetFrameSp = NoTargetFrameSp;
     }
-
-    PAL_SEHException& operator=(const PAL_SEHException& ex)
-    {
-        ExceptionPointers.ExceptionRecord = &ExceptionRecord;
-        ExceptionPointers.ContextRecord = &ContextRecord;
-        ExceptionRecord = ex.ExceptionRecord;
-        ContextRecord = ex.ContextRecord;
-        TargetFrameSp = ex.TargetFrameSp;
-
-        return *this;
-    }
 };
 
-typedef VOID (PALAPI *PHARDWARE_EXCEPTION_HANDLER)(PAL_SEHException* ex);
+typedef BOOL (PALAPI *PHARDWARE_EXCEPTION_HANDLER)(PAL_SEHException* ex);
 typedef BOOL (PALAPI *PHARDWARE_EXCEPTION_SAFETY_CHECK_FUNCTION)(PCONTEXT contextRecord, PEXCEPTION_RECORD exceptionRecord);
 typedef VOID (PALAPI *PTERMINATION_REQUEST_HANDLER)();
 typedef DWORD (PALAPI *PGET_GCMARKER_EXCEPTION_CODE)(LPVOID ip);

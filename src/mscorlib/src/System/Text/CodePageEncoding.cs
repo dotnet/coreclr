@@ -21,7 +21,7 @@ namespace System.Text
     ==============================================================================*/
 
     [Serializable]
-    internal sealed class CodePageEncoding : ISerializable, IObjectReference
+    internal sealed class CodePageEncoding : IObjectReference, ISerializable
     {
         // Temp stuff
         [NonSerialized]
@@ -92,7 +92,6 @@ namespace System.Text
             return this.realEncoding;
         }
 
-#if FEATURE_SERIALIZATION
         // ISerializable implementation
         [System.Security.SecurityCritical]  // auto-generated_required
         void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
@@ -101,11 +100,10 @@ namespace System.Text
             Contract.Assert(false, "Didn't expect to make it to CodePageEncoding ISerializable.GetObjectData");
             throw new ArgumentException(Environment.GetResourceString("Arg_ExecutionEngineException"));
         }
-#endif
 
         // Same problem with the Decoder, this only happens with Everett Decoders
         [Serializable]
-        internal sealed class Decoder : ISerializable, IObjectReference
+        internal sealed class Decoder : IObjectReference, ISerializable
         {
             // Might need this when GetRealObjecting
             [NonSerialized]
@@ -128,7 +126,6 @@ namespace System.Text
                 return this.realEncoding.GetDecoder();
             }
 
-#if FEATURE_SERIALIZATION
             // ISerializable implementation, get data for this object
             [System.Security.SecurityCritical]  // auto-generated_required
             void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
@@ -137,7 +134,6 @@ namespace System.Text
                 Contract.Assert(false, "Didn't expect to make it to CodePageEncoding.Decoder.GetObjectData");
                 throw new ArgumentException(Environment.GetResourceString("Arg_ExecutionEngineException"));
             }
-#endif
         }
     }
 }

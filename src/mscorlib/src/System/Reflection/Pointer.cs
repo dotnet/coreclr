@@ -20,8 +20,9 @@ namespace System.Reflection {
     [CLSCompliant(false)]
     [Serializable]
     [System.Runtime.InteropServices.ComVisible(true)]
-    public sealed class Pointer: ISerializable {
-        [SecurityCritical]
+    public sealed class Pointer : ISerializable
+    {
+    [SecurityCritical]
         unsafe private void* _ptr;
         private RuntimeType _ptrType;
 
@@ -72,12 +73,10 @@ namespace System.Reflection {
             return (IntPtr)_ptr;
         }
 
-#if FEATURE_SERIALIZATION
         [System.Security.SecurityCritical]
         unsafe void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context) {
             info.AddValue("_ptr", new IntPtr(_ptr));
             info.AddValue("_ptrType", _ptrType);
         }
-#endif
     }
 }

@@ -113,7 +113,7 @@ namespace System.Threading
             return value;
         }
 
-#if WIN64
+#if BIT64
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [System.Runtime.Versioning.NonVersionable]
         public static long Read(ref long location)
@@ -129,6 +129,7 @@ namespace System.Threading
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [CLSCompliant(false)]
         [System.Runtime.Versioning.NonVersionable]
+        [SecuritySafeCritical] // to match 32-bit version
         public static ulong Read(ref ulong location)
         {
             // 
@@ -316,7 +317,7 @@ namespace System.Threading
             location = value;
         }
 
-#if WIN64
+#if BIT64
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [System.Runtime.Versioning.NonVersionable]
         public static void Write(ref long location, long value)
@@ -331,6 +332,7 @@ namespace System.Threading
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [CLSCompliant(false)]
         [System.Runtime.Versioning.NonVersionable]
+        [SecuritySafeCritical] // to match 32-bit version
         public static void Write(ref ulong location, ulong value)
         {
             // 

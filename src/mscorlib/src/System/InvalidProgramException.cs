@@ -16,7 +16,7 @@ namespace System {
     using System;
     using System.Runtime.Serialization;
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
+    [System.Runtime.InteropServices.ComVisible(true)]
     public sealed class InvalidProgramException : SystemException {
         public InvalidProgramException() 
             : base(Environment.GetResourceString("InvalidProgram_Default")) {

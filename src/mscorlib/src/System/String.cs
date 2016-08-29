@@ -25,6 +25,7 @@ namespace System {
     using System.Runtime.Versioning;
     using Microsoft.Win32;
     using System.Diagnostics.Contracts;
+    using System.Security;
 
     //
     // For Information on these methods, please see COMString.cpp
@@ -34,15 +35,9 @@ namespace System {
     // instance and return the result as a new String. All comparison methods are
     // implemented as a part of String.  As with arrays, character positions
     // (indices) are zero-based.
-    //
-    // When passing a null string into a constructor in VJ and VC, the null should be
-    // explicitly type cast to a String.
-    // For Example:
-    // String s = new String((String)null);
-    // Console.WriteLine(s);
-    //
+    
     [ComVisible(true)]
-    [Serializable] 
+    [Serializable]
     public sealed class String : IComparable, ICloneable, IConvertible, IEnumerable
         , IComparable<String>, IEnumerable<char>, IEquatable<String>
     {
@@ -51,13 +46,12 @@ namespace System {
         //NOTE NOTE NOTE NOTE
         //These fields map directly onto the fields in an EE StringObject.  See object.h for the layout.
         //
-        [NonSerialized]private int  m_stringLength;
+        [NonSerialized] private int m_stringLength;
 
-        [NonSerialized]private char m_firstChar;
+        // For empty strings, this will be '\0' since
+        // strings are both null-terminated and length prefixed
+        [NonSerialized] private char m_firstChar;
 
-        //private static readonly char FmtMsgMarkerChar='%';
-        //private static readonly char FmtMsgFmtCodeChar='!';
-        //These are defined in Com99/src/vm/COMStringCommon.h and must be kept in sync.
         private const int TrimHead = 0;
         private const int TrimTail = 1;
         private const int TrimBoth = 2;
@@ -85,58 +79,88 @@ namespace System {
         }
 
         [ComVisible(false)]
-        public static String Join(String separator, params Object[] values) {
-            if (values==null)
+        public static string Join(string separator, params object[] values)
+        {
+            if (values == null)
                 throw new ArgumentNullException("values");
             Contract.EndContractBlock();
 
             if (values.Length == 0 || values[0] == null)
-                return String.Empty;
+                return string.Empty;
+
+            string firstString = values[0].ToString();
+
+            if (values.Length == 1)
+            {
+                return firstString ?? string.Empty;
+            }
 
             StringBuilder result = StringBuilderCache.Acquire();
+            result.Append(firstString);
 
-            result.Append(values[0].ToString());
-
-            for (int i = 1; i < values.Length; i++) {
+            for (int i = 1; i < values.Length; i++)
+            {
                 result.Append(separator);
-                if (values[i] != null) {
-                    result.Append(values[i].ToString());
+                object value = values[i];
+                if (value != null)
+                {
+                    result.Append(value.ToString());
                 }
             }
+
             return StringBuilderCache.GetStringAndRelease(result);
         }
 
         [ComVisible(false)]
-        public static String Join<T>(String separator, IEnumerable<T> values) {
+        public static String Join<T>(String separator, IEnumerable<T> values)
+        {
             if (values == null)
                 throw new ArgumentNullException("values");
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.EndContractBlock();
 
-            using(IEnumerator<T> en = values.GetEnumerator()) {
+            using (IEnumerator<T> en = values.GetEnumerator())
+            {
                 if (!en.MoveNext())
-                    return String.Empty;
-
-                StringBuilder result = StringBuilderCache.Acquire();
+                    return string.Empty;
+                
+                // We called MoveNext once, so this will be the first item
                 T currentValue = en.Current;
 
-                if (currentValue != null) {
-                    result.Append(currentValue.ToString());
+                // Call ToString before calling MoveNext again, since
+                // we want to stay consistent with the below loop
+                // Everything should be called in the order
+                // MoveNext-Current-ToString, unless further optimizations
+                // can be made, to avoid breaking changes
+                string firstString = currentValue?.ToString();
+
+                // If there's only 1 item, simply call ToString on that
+                if (!en.MoveNext())
+                {
+                    // We have to handle the case of either currentValue
+                    // or its ToString being null
+                    return firstString ?? string.Empty;
                 }
 
-                while (en.MoveNext()) {
+                StringBuilder result = StringBuilderCache.Acquire();
+                
+                result.Append(firstString);
+
+                do
+                {
                     currentValue = en.Current;
 
                     result.Append(separator);
-                    if (currentValue != null) {
+                    if (currentValue != null)
+                    {
                         result.Append(currentValue.ToString());
                     }
-                }            
+                }
+                while (en.MoveNext());
+
                 return StringBuilderCache.GetStringAndRelease(result);
             }
         }
-
-
 
         [ComVisible(false)]
         public static String Join(String separator, IEnumerable<String> values) {
@@ -167,15 +191,6 @@ namespace System {
                 return StringBuilderCache.GetStringAndRelease(result);
             }
         }
-
-
-#if WIN64
-        private const int charPtrAlignConst = 3;
-        private const int alignConst        = 7;
-#else
-        private const int charPtrAlignConst = 1;
-        private const int alignConst        = 3;
-#endif
 
         internal char FirstChar { get { return m_firstChar; } }
 
@@ -358,7 +373,7 @@ namespace System {
                 char* a = ap;
                 char* b = bp;
 
-#if WIN64
+#if BIT64
                 // Single int read aligns pointers for the following long reads
                 // PERF: No length check needed as there is always an int32 worth of string allocated
                 //       This read can also include the null terminator which both strings will have
@@ -420,7 +435,7 @@ namespace System {
                 char* a = ap;
                 char* b = bp;
 
-#if WIN64
+#if BIT64
                 // Single int read aligns pointers for the following long reads
                 // No length check needed as this method is called when length >= 2
                 Contract.Assert(length >= 2);
@@ -468,85 +483,118 @@ namespace System {
             Contract.Requires(strA != null);
             Contract.Requires(strB != null);
 
+            // NOTE: This may be subject to change if eliminating the check
+            // in the callers makes them small enough to be inlined by the JIT
+            Contract.Assert(strA.m_firstChar == strB.m_firstChar,
+                "For performance reasons, callers of this method should " +
+                "check/short-circuit beforehand if the first char is the same.");
+
             int length = Math.Min(strA.Length, strB.Length);
-            int diffOffset = -1;
 
             fixed (char* ap = &strA.m_firstChar) fixed (char* bp = &strB.m_firstChar)
             {
                 char* a = ap;
                 char* b = bp;
 
+                // Check if the second chars are different here
+                // The reason we check if m_firstChar is different is because
+                // it's the most common case and allows us to avoid a method call
+                // to here.
+                // The reason we check if the second char is different is because
+                // if the first two chars the same we can increment by 4 bytes,
+                // leaving us word-aligned on both 32-bit (12 bytes into the string)
+                // and 64-bit (16 bytes) platforms.
+        
+                // For empty strings, the second char will be null due to padding.
+                // The start of the string (not including sync block pointer)
+                // is the method table pointer + string length, which takes up
+                // 8 bytes on 32-bit, 12 on x64. For empty strings the null
+                // terminator immediately follows, leaving us with an object
+                // 10/14 bytes in size. Since everything needs to be a multiple
+                // of 4/8, this will get padded and zeroed out.
+                
+                // For one-char strings the second char will be the null terminator.
+
+                // NOTE: If in the future there is a way to read the second char
+                // without pinning the string (e.g. System.Runtime.CompilerServices.Unsafe
+                // is exposed to mscorlib, or a future version of C# allows inline IL),
+                // then do that and short-circuit before the fixed.
+
+                if (*(a + 1) != *(b + 1)) goto DiffOffset1;
+                
+                // Since we know that the first two chars are the same,
+                // we can increment by 2 here and skip 4 bytes.
+                // This leaves us 8-byte aligned, which results
+                // on better perf for 64-bit platforms.
+                length -= 2; a += 2; b += 2;
+
                 // unroll the loop
+#if BIT64
+                while (length >= 12)
+                {
+                    if (*(long*)a != *(long*)b) goto DiffOffset0;
+                    if (*(long*)(a + 4) != *(long*)(b + 4)) goto DiffOffset4;
+                    if (*(long*)(a + 8) != *(long*)(b + 8)) goto DiffOffset8;
+                    length -= 12; a += 12; b += 12;
+                }
+#else // BIT64
                 while (length >= 10)
                 {
-                    if (*(int*)a != *(int*)b) { 
-                        diffOffset = 0; 
-                        break;
-                    }
-                    
-                    if (*(int*)(a+2) != *(int*)(b+2)) {
-                        diffOffset = 2;
-                        break;
-                    }
-                    
-                    if (*(int*)(a+4) != *(int*)(b+4)) {
-                        diffOffset = 4;
-                        break;
-                    }
-                    
-                    if (*(int*)(a+6) != *(int*)(b+6)) {
-                        diffOffset = 6;
-                        break;
-                    }
-                    
-                    if (*(int*)(a+8) != *(int*)(b+8)) {
-                        diffOffset = 8;
-                        break;
-                    }
-                    length -= 10;
-                    a += 10; 
-                    b += 10; 
+                    if (*(int*)a != *(int*)b) goto DiffOffset0;
+                    if (*(int*)(a + 2) != *(int*)(b + 2)) goto DiffOffset2;
+                    if (*(int*)(a + 4) != *(int*)(b + 4)) goto DiffOffset4;
+                    if (*(int*)(a + 6) != *(int*)(b + 6)) goto DiffOffset6;
+                    if (*(int*)(a + 8) != *(int*)(b + 8)) goto DiffOffset8;
+                    length -= 10; a += 10; b += 10; 
                 }
+#endif // BIT64
 
-                if( diffOffset != -1) {
-                    // we already see a difference in the unrolled loop above
-                    a += diffOffset;
-                    b += diffOffset;
-                    int order;
-                    if ( (order = (int)*a - (int)*b) != 0) {
-                        return order;
-                    }
-                    Contract.Assert( *(a+1) != *(b+1), "This byte must be different if we reach here!");
-                    return ((int)*(a+1) - (int)*(b+1));                    
-                }
-
-                // now go back to slower code path and do comparison on 4 bytes at a time.
+                // Fallback loop:
+                // go back to slower code path and do comparison on 4 bytes at a time.
                 // This depends on the fact that the String objects are
                 // always zero terminated and that the terminating zero is not included
                 // in the length. For odd string sizes, the last compare will include
                 // the zero terminator.
-                while (length > 0) {
-                    if (*(int*)a != *(int*)b) {
-                        break;
-                    }
+                while (length > 0)
+                {
+                    if (*(int*)a != *(int*)b) goto DiffNextInt;
                     length -= 2;
                     a += 2; 
                     b += 2; 
                 }
 
-                if( length > 0) { 
-                    int c;
-                    // found a different int on above loop
-                    if ( (c = (int)*a - (int)*b) != 0) {
-                        return c;
-                    }
-                    Contract.Assert( *(a+1) != *(b+1), "This byte must be different if we reach here!");
-                    return ((int)*(a+1) - (int)*(b+1));                                        
-                }
-
                 // At this point, we have compared all the characters in at least one string.
                 // The longer string will be larger.
                 return strA.Length - strB.Length;
+                
+#if BIT64
+                DiffOffset8: a += 4; b += 4;
+                DiffOffset4: a += 4; b += 4;
+#else // BIT64
+                // Use jumps instead of falling through, since
+                // otherwise going to DiffOffset8 will involve
+                // 8 add instructions before getting to DiffNextInt
+                DiffOffset8: a += 8; b += 8; goto DiffOffset0;
+                DiffOffset6: a += 6; b += 6; goto DiffOffset0;
+                DiffOffset4: a += 2; b += 2;
+                DiffOffset2: a += 2; b += 2;
+#endif // BIT64
+                
+                DiffOffset0:
+                // If we reached here, we already see a difference in the unrolled loop above
+#if BIT64
+                if (*(int*)a == *(int*)b)
+                {
+                    a += 2; b += 2;
+                }
+#endif // BIT64
+
+                DiffNextInt:
+                if (*a != *b) return *a - *b;
+
+                DiffOffset1:
+                Contract.Assert(*(a + 1) != *(b + 1), "This char must be different if we reach here!");
+                return *(a + 1) - *(b + 1);
             }
         }
 
@@ -854,65 +902,16 @@ namespace System {
         // they will return the same hash code.
         [System.Security.SecuritySafeCritical]  // auto-generated
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-        public override int GetHashCode() {
-
+        public override int GetHashCode()
+        {
 #if FEATURE_RANDOMIZED_STRING_HASHING
-            if(HashHelpers.s_UseRandomizedStringHashing)
+            if (HashHelpers.s_UseRandomizedStringHashing)
             {
                 return InternalMarvin32HashString(this, this.Length, 0);
             }
 #endif // FEATURE_RANDOMIZED_STRING_HASHING
 
-            unsafe {
-                fixed (char* src = &m_firstChar) {
-                    Contract.Assert(src[this.Length] == '\0', "src[this.Length] == '\\0'");
-                    Contract.Assert( ((int)src)%4 == 0, "Managed string should start at 4 bytes boundary");
-
-#if WIN32
-                    int hash1 = (5381<<16) + 5381;
-#else
-                    int hash1 = 5381;
-#endif
-                    int hash2 = hash1;
-
-#if WIN32
-                    // 32 bit machines.
-                    int* pint = (int *)src;
-                    int len = this.Length;
-                    while (len > 2)
-                    {
-                        hash1 = ((hash1 << 5) + hash1 + (hash1 >> 27)) ^ pint[0];
-                        hash2 = ((hash2 << 5) + hash2 + (hash2 >> 27)) ^ pint[1];
-                        pint += 2;
-                        len  -= 4;
-                    }
-
-                    if (len > 0)
-                    {
-                        hash1 = ((hash1 << 5) + hash1 + (hash1 >> 27)) ^ pint[0];
-                    }
-#else
-                    int     c;
-                    char *s = src;
-                    while ((c = s[0]) != 0) {
-                        hash1 = ((hash1 << 5) + hash1) ^ c;
-                        c = s[1];
-                        if (c == 0)
-                            break;
-                        hash2 = ((hash2 << 5) + hash2) ^ c;
-                        s += 2;
-                    }
-#endif
-#if DEBUG
-                    // We want to ensure we can change our hash function daily.
-                    // This is perfectly fine as long as you don't persist the
-                    // value from GetHashCode to disk or count on String A 
-                    // hashing before string B.  Those are bugs in your code.
-                    hash1 ^= ThisAssembly.DailyBuildNumber;
-#endif
-                    return hash1 + (hash2 * 1566083941);
-                }
-            }
+            return GetLegacyNonRandomizedHashCode();
         }
 
         // Use this if and only if you need the hashcode to not change across app domains (e.g. you have an app domain agile
@@ -924,15 +923,25 @@ namespace System {
                 fixed (char* src = &m_firstChar) {
                     Contract.Assert(src[this.Length] == '\0', "src[this.Length] == '\\0'");
                     Contract.Assert( ((int)src)%4 == 0, "Managed string should start at 4 bytes boundary");
-
-#if WIN32
-                    int hash1 = (5381<<16) + 5381;
-#else
+#if BIT64
                     int hash1 = 5381;
+#else // !BIT64 (32)
+                    int hash1 = (5381<<16) + 5381;
 #endif
                     int hash2 = hash1;
 
-#if WIN32
+#if BIT64
+                    int     c;
+                    char *s = src;
+                    while ((c = s[0]) != 0) {
+                        hash1 = ((hash1 << 5) + hash1) ^ c;
+                        c = s[1];
+                        if (c == 0)
+                            break;
+                        hash2 = ((hash2 << 5) + hash2) ^ c;
+                        s += 2;
+                    }
+#else // !BIT64 (32)
                     // 32 bit machines.
                     int* pint = (int *)src;
                     int len = this.Length;
@@ -947,17 +956,6 @@ namespace System {
                     if (len > 0)
                     {
                         hash1 = ((hash1 << 5) + hash1 + (hash1 >> 27)) ^ pint[0];
-                    }
-#else
-                    int     c;
-                    char *s = src;
-                    while ((c = s[0]) != 0) {
-                        hash1 = ((hash1 << 5) + hash1) ^ c;
-                        c = s[1];
-                        if (c == 0)
-                            break;
-                        hash2 = ((hash2 << 5) + hash2) ^ c;
-                        s += 2;
                     }
 #endif
 #if DEBUG
@@ -984,6 +982,24 @@ namespace System {
             [System.Security.SecuritySafeCritical]  // auto-generated
             [MethodImplAttribute(MethodImplOptions.InternalCall)]
             get;
+        }
+
+        [ComVisible(false)]
+        public String[] Split(char separator) {
+            Contract.Ensures(Contract.Result<String[]>() != null);
+            return SplitInternal(separator, Int32.MaxValue, StringSplitOptions.None);
+        }
+
+        [ComVisible(false)]
+        public String[] Split(char separator, StringSplitOptions options) {
+            Contract.Ensures(Contract.Result<String[]>() != null);
+            return SplitInternal(separator, Int32.MaxValue, options);
+        }
+
+        [ComVisible(false)]
+        public String[] Split(char separator, int count, StringSplitOptions options) {
+            Contract.Ensures(Contract.Result<String[]>() != null);
+            return SplitInternal(separator, count, options);
         }
 
         // Creates an array of strings by splitting this string at each
@@ -1029,8 +1045,30 @@ namespace System {
             return SplitInternal(separator, count, options);
         }
 
+        [System.Security.SecuritySafeCritical]
+        private unsafe String[] SplitInternal(char separator, int count, StringSplitOptions options)
+        {
+            char* pSeparators = stackalloc char[1];
+            pSeparators[0] = separator;
+            return SplitInternal(pSeparators, /*separatorsLength*/ 1, count, options);
+        }
+
         [ComVisible(false)]
+        [System.Security.SecuritySafeCritical]
         internal String[] SplitInternal(char[] separator, int count, StringSplitOptions options)
+        {
+            unsafe
+            {
+                fixed (char* pSeparators = separator)
+                {
+                    int separatorsLength = separator == null ? 0 : separator.Length;
+                    return SplitInternal(pSeparators, separatorsLength, count, options);
+                }
+            }
+        }
+
+        [System.Security.SecurityCritical]
+        private unsafe String[] SplitInternal(char* separators, int separatorsLength, int count, StringSplitOptions options)
         {
             if (count < 0)
                 throw new ArgumentOutOfRangeException("count",
@@ -1060,7 +1098,7 @@ namespace System {
             }
             
             int[] sepList = new int[Length];            
-            int numReplaces = MakeSeparatorList(separator, sepList);            
+            int numReplaces = MakeSeparatorList(separators, separatorsLength, sepList);
             
             // Handle the special case of no replaces.
             if (0 == numReplaces) {
@@ -1069,22 +1107,46 @@ namespace System {
 
             if(omitEmptyEntries) 
             {
-                return InternalSplitOmitEmptyEntries(sepList, null, numReplaces, count);
+                return InternalSplitOmitEmptyEntries(sepList, null, 1, numReplaces, count);
             }
             else 
             {
-                return InternalSplitKeepEmptyEntries(sepList, null, numReplaces, count);
+                return InternalSplitKeepEmptyEntries(sepList, null, 1, numReplaces, count);
             }            
+        }
+
+        [ComVisible(false)]
+        public String[] Split(String separator) {
+            Contract.Ensures(Contract.Result<String[]>() != null);
+            return SplitInternal(separator ?? String.Empty, null, Int32.MaxValue, StringSplitOptions.None);
+        }
+
+        [ComVisible(false)]
+        public String[] Split(String separator, StringSplitOptions options) {
+            Contract.Ensures(Contract.Result<String[]>() != null);
+            return SplitInternal(separator ?? String.Empty, null, Int32.MaxValue, options);
+        }
+
+        [ComVisible(false)]
+        public String[] Split(String separator, Int32 count, StringSplitOptions options) {
+            Contract.Ensures(Contract.Result<String[]>() != null);
+            return SplitInternal(separator ?? String.Empty, null, count, options);
         }
 
         [ComVisible(false)]
         public String [] Split(String[] separator, StringSplitOptions options) {
             Contract.Ensures(Contract.Result<String[]>() != null);
-            return Split(separator, Int32.MaxValue, options);
+            return SplitInternal(null, separator, Int32.MaxValue, options);
         }
 
         [ComVisible(false)]
         public String[] Split(String[] separator, Int32 count, StringSplitOptions options) {
+            Contract.Ensures(Contract.Result<String[]>() != null);
+            return SplitInternal(null, separator, count, options);
+        }
+
+        private String[] SplitInternal(String separator, String[] separators, Int32 count, StringSplitOptions options)
+        {
             if (count < 0) {
                 throw new ArgumentOutOfRangeException("count",
                     Environment.GetResourceString("ArgumentOutOfRange_NegativeCount"));
@@ -1097,7 +1159,9 @@ namespace System {
 
             bool omitEmptyEntries = (options == StringSplitOptions.RemoveEmptyEntries);
 
-            if (separator == null || separator.Length ==0) {
+            bool singleSeparator = separator != null;
+
+            if (!singleSeparator && (separators == null || separators.Length == 0)) {
                 return SplitInternal((char[]) null, count, options);
             }
             
@@ -1115,9 +1179,25 @@ namespace System {
                 return new String[] { this };
             }
 
+            if (singleSeparator && separator.Length == 0) {
+                return new[] { this };
+            }
+
             int[] sepList = new int[Length];
-            int[] lengthList = new int[Length];                        
-            int numReplaces = MakeSeparatorList(separator, sepList, lengthList);
+            int[] lengthList;
+            int defaultLength;
+            int numReplaces;
+
+            if (singleSeparator) {
+                lengthList = null;
+                defaultLength = separator.Length;
+                numReplaces = MakeSeparatorList(separator, sepList);
+            }
+            else {
+                lengthList = new int[Length];
+                defaultLength = 0;
+                numReplaces = MakeSeparatorList(separators, sepList, lengthList);
+            }
 
             // Handle the special case of no replaces.
             if (0 == numReplaces) {
@@ -1125,10 +1205,10 @@ namespace System {
             }
             
             if (omitEmptyEntries) {
-                return InternalSplitOmitEmptyEntries(sepList, lengthList, numReplaces, count);
+                return InternalSplitOmitEmptyEntries(sepList, lengthList, defaultLength, numReplaces, count);
             }
             else {
-                return InternalSplitKeepEmptyEntries(sepList, lengthList, numReplaces, count);
+                return InternalSplitKeepEmptyEntries(sepList, lengthList, defaultLength, numReplaces, count);
             }
         }                        
         
@@ -1137,7 +1217,7 @@ namespace System {
         //     the original string will be returned regardless of the count. 
         //
 
-        private String[] InternalSplitKeepEmptyEntries(Int32 [] sepList, Int32 [] lengthList, Int32 numReplaces, int count) {
+        private String[] InternalSplitKeepEmptyEntries(Int32[] sepList, Int32[] lengthList, Int32 defaultLength, Int32 numReplaces, int count) {
             Contract.Requires(numReplaces >= 0);
             Contract.Requires(count >= 2);
             Contract.Ensures(Contract.Result<String[]>() != null);
@@ -1154,7 +1234,7 @@ namespace System {
 
             for (int i = 0; i < numActualReplaces && currIndex < Length; i++) {
                 splitStrings[arrIndex++] = Substring(currIndex, sepList[i]-currIndex );                            
-                currIndex=sepList[i] + ((lengthList == null) ? 1 : lengthList[i]);
+                currIndex=sepList[i] + ((lengthList == null) ? defaultLength : lengthList[i]);
             }
 
             //Handle the last string at the end of the array if there is one.
@@ -1173,7 +1253,7 @@ namespace System {
 
         
         // This function will not keep the Empty String 
-        private String[] InternalSplitOmitEmptyEntries(Int32[] sepList, Int32[] lengthList, Int32 numReplaces, int count) {
+        private String[] InternalSplitOmitEmptyEntries(Int32[] sepList, Int32[] lengthList, Int32 defaultLength, Int32 numReplaces, int count) {
             Contract.Requires(numReplaces >= 0);
             Contract.Requires(count >= 2);
             Contract.Ensures(Contract.Result<String[]>() != null);
@@ -1192,11 +1272,11 @@ namespace System {
                 if( sepList[i]-currIndex > 0) { 
                     splitStrings[arrIndex++] = Substring(currIndex, sepList[i]-currIndex );                            
                 }
-                currIndex=sepList[i] + ((lengthList == null) ? 1 : lengthList[i]);
+                currIndex=sepList[i] + ((lengthList == null) ? defaultLength : lengthList[i]);
                 if( arrIndex == count -1 )  {
                     // If all the remaining entries at the end are empty, skip them
                     while( i < numReplaces - 1 && currIndex == sepList[++i]) { 
-                        currIndex += ((lengthList == null) ? 1 : lengthList[i]);
+                        currIndex += ((lengthList == null) ? defaultLength : lengthList[i]);
                     }
                     break;
                 }
@@ -1226,11 +1306,12 @@ namespace System {
         // Args: separator  -- A string containing all of the split characters.
         //       sepList    -- an array of ints for split char indicies.
         //--------------------------------------------------------------------    
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        private unsafe int MakeSeparatorList(char[] separator, int[] sepList) {
+        [System.Security.SecurityCritical]
+        private unsafe int MakeSeparatorList(char* separators, int separatorsLength, int[] sepList) {
+            Contract.Assert(separatorsLength >= 0, "separatorsLength >= 0");
             int foundCount=0;
 
-            if (separator == null || separator.Length ==0) {
+            if (separators == null || separatorsLength == 0) {
                 fixed (char* pwzChars = &this.m_firstChar) {
                     //If they passed null or an empty string, look for whitespace.
                     for (int i=0; i < Length && foundCount < sepList.Length; i++) {
@@ -1242,12 +1323,11 @@ namespace System {
             } 
             else {
                 int sepListCount = sepList.Length;
-                int sepCount = separator.Length;
                 //If they passed in a string of chars, actually look for those chars.
-                fixed (char* pwzChars = &this.m_firstChar, pSepChars = separator) {
+                fixed (char* pwzChars = &this.m_firstChar) {
                     for (int i=0; i< Length && foundCount < sepListCount; i++) {                        
-                        char * pSep = pSepChars;
-                        for( int j =0; j < sepCount; j++, pSep++) {
+                        char* pSep = separators;
+                        for (int j = 0; j < separatorsLength; j++, pSep++) {
                            if ( pwzChars[i] == *pSep) {
                                sepList[foundCount++]=i;
                                break;
@@ -1259,6 +1339,35 @@ namespace System {
             return foundCount;
         }        
         
+        //--------------------------------------------------------------------
+        // This function returns number of the places within baseString where
+        // instances of the separator string occurs.
+        // Args: separator  -- the separator
+        //       sepList    -- an array of ints for split string indicies.
+        //--------------------------------------------------------------------
+        [System.Security.SecuritySafeCritical]  // auto-generated
+        private unsafe int MakeSeparatorList(string separator, int[] sepList) {
+            Contract.Assert(!string.IsNullOrEmpty(separator), "!string.IsNullOrEmpty(separator)");
+
+            int foundCount = 0;
+            int sepListCount = sepList.Length;
+            int currentSepLength = separator.Length;
+
+            fixed (char* pwzChars = &this.m_firstChar) {
+                for (int i = 0; i < Length && foundCount < sepListCount; i++) {
+                    if (pwzChars[i] == separator[0] && currentSepLength <= Length - i) {
+                        if (currentSepLength == 1
+                            || String.CompareOrdinal(this, i, separator, 0, currentSepLength) == 0) {
+                            sepList[foundCount] = i;
+                            foundCount++;
+                            i += currentSepLength - 1;
+                        }
+                    }
+                }
+            }
+            return foundCount;
+        }
+
         //--------------------------------------------------------------------    
         // This function returns the number of the places within this instance where 
         // instances of separator strings occur.
@@ -1380,7 +1489,6 @@ namespace System {
             return TrimHelper(trimChars,TrimTail);
         }
     
-    
         // Creates a new string with the characters copied in from ptr. If
         // ptr is null, a 0-length string (like String.Empty) is returned.
         //
@@ -1458,6 +1566,17 @@ namespace System {
             }
 
             return s;
+        }
+
+        // This is only intended to be used by char.ToString.
+        // It is necessary to put the code in this class instead of Char, since m_firstChar is a private member.
+        // Making m_firstChar internal would be dangerous since it would make it much easier to break String's immutability.
+        [SecuritySafeCritical]
+        internal static string CreateFromChar(char c)
+        {
+            string result = FastAllocateString(1);
+            result.m_firstChar = c;
+            return result;
         }
                 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -1697,29 +1816,91 @@ namespace System {
         private static unsafe int wcslen(char *ptr)
         {
             char *end = ptr;
+            
+            // First make sure our pointer is aligned on a word boundary
+            int alignment = IntPtr.Size - 1;
 
+            // If ptr is at an odd address (e.g. 0x5), this loop will simply iterate all the way
+            while (((uint)end & (uint)alignment) != 0)
+            {
+                if (*end == 0) goto FoundZero;
+                end++;
+            }
+
+#if !BIT64
             // The following code is (somewhat surprisingly!) significantly faster than a naive loop,
             // at least on x86 and the current jit.
 
-            // First make sure our pointer is aligned on a dword boundary
-            while (((uint)end & 3) != 0 && *end != 0)
-                end++;
-            if (*end != 0) {
-                // The loop condition below works because if "end[0] & end[1]" is non-zero, that means
-                // neither operand can have been zero. If is zero, we have to look at the operands individually,
-                // but we hope this going to fairly rare.
+            // The loop condition below works because if "end[0] & end[1]" is non-zero, that means
+            // neither operand can have been zero. If is zero, we have to look at the operands individually,
+            // but we hope this going to fairly rare.
 
-                // In general, it would be incorrect to access end[1] if we haven't made sure
-                // end[0] is non-zero. However, we know the ptr has been aligned by the loop above
-                // so end[0] and end[1] must be in the same page, so they're either both accessible, or both not.
+            // In general, it would be incorrect to access end[1] if we haven't made sure
+            // end[0] is non-zero. However, we know the ptr has been aligned by the loop above
+            // so end[0] and end[1] must be in the same word (and therefore page), so they're either both accessible, or both not.
 
-                while ((end[0] & end[1]) != 0 || (end[0] != 0 && end[1] != 0)) {
-                    end += 2;
-                }
+            while ((end[0] & end[1]) != 0 || (end[0] != 0 && end[1] != 0)) {
+                end += 2;
             }
-            // finish up with the naive loop
-            for ( ; *end != 0; end++)
-                ;
+
+            Contract.Assert(end[0] == 0 || end[1] == 0);
+            if (end[0] != 0) end++;
+#else // !BIT64
+            // Based on https://graphics.stanford.edu/~seander/bithacks.html#ZeroInWord
+
+            // 64-bit implementation: process 1 ulong (word) at a time
+
+            // What we do here is add 0x7fff from each of the
+            // 4 individual chars within the ulong, using MagicMask.
+            // If the char > 0 and < 0x8001, it will have its high bit set.
+            // We then OR with MagicMask, to set all the other bits.
+            // This will result in all bits set (ulong.MaxValue) for any
+            // char that fits the above criteria, and something else otherwise.
+
+            // Note that for any char > 0x8000, this will be a false
+            // positive and we will fallback to the slow path and
+            // check each char individually. This is OK though, since
+            // we optimize for the common case (ASCII chars, which are < 0x80).
+
+            // NOTE: We can access a ulong a time since the ptr is aligned,
+            // and therefore we're only accessing the same word/page. (See notes
+            // for the 32-bit version above.)
+            
+            const ulong MagicMask = 0x7fff7fff7fff7fff;
+
+            while (true)
+            {
+                ulong word = *(ulong*)end;
+                word += MagicMask; // cause high bit to be set if not zero, and <= 0x8000
+                word |= MagicMask; // set everything besides the high bits
+
+                if (word == ulong.MaxValue) // 0xffff...
+                {
+                    // all of the chars have their bits set (and therefore none can be 0)
+                    end += 4;
+                    continue;
+                }
+
+                // at least one of them didn't have their high bit set!
+                // go through each char and check for 0.
+
+                if (end[0] == 0) goto EndAt0;
+                if (end[1] == 0) goto EndAt1;
+                if (end[2] == 0) goto EndAt2;
+                if (end[3] == 0) goto EndAt3;
+
+                // if we reached here, it was a false positive-- just continue
+                end += 4;
+            }
+
+            EndAt3: end++;
+            EndAt2: end++;
+            EndAt1: end++;
+            EndAt0:
+#endif // !BIT64
+
+            FoundZero:
+            Contract.Assert(*end == 0);
 
             int count = (int)(end - ptr);
 
@@ -1792,19 +1973,14 @@ namespace System {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public extern String(char c, int count);
     
-        //
-        //
-        // INSTANCE METHODS
-        //
-        //
-    
         // Provides a culture-correct string comparison. StrA is compared to StrB
         // to determine whether it is lexicographically less, equal, or greater, and then returns
         // either a negative integer, 0, or a positive integer; respectively.
         //
         [Pure]
-        public static int Compare(String strA, String strB) {
-            return CultureInfo.CurrentCulture.CompareInfo.Compare(strA, strB, CompareOptions.None);
+        public static int Compare(String strA, String strB)
+        {
+            return Compare(strA, strB, StringComparison.CurrentCulture);
         }
     
 
@@ -1816,10 +1992,8 @@ namespace System {
         [Pure]
         public static int Compare(String strA, String strB, bool ignoreCase)
         {
-            if (ignoreCase) {
-                return CultureInfo.CurrentCulture.CompareInfo.Compare(strA, strB, CompareOptions.IgnoreCase);
-            }
-            return CultureInfo.CurrentCulture.CompareInfo.Compare(strA, strB, CompareOptions.None);
+            var comparisonType = ignoreCase ? StringComparison.CurrentCultureIgnoreCase : StringComparison.CurrentCulture;
+            return Compare(strA, strB, comparisonType);
         }
 
   
@@ -1830,22 +2004,24 @@ namespace System {
         public static int Compare(String strA, String strB, StringComparison comparisonType) 
         {
             // Single comparison to check if comparisonType is within [CurrentCulture .. OrdinalIgnoreCase]
-            if ((uint) (comparisonType                     - StringComparison.CurrentCulture) > 
-                (uint) (StringComparison.OrdinalIgnoreCase - StringComparison.CurrentCulture)) {
+            if ((uint)(comparisonType - StringComparison.CurrentCulture) > (uint)(StringComparison.OrdinalIgnoreCase - StringComparison.CurrentCulture))
+            {
                 throw new ArgumentException(Environment.GetResourceString("NotSupported_StringComparison"), "comparisonType");
             }
             Contract.EndContractBlock();
 
-            if ((Object)strA == (Object)strB) {
+            if (object.ReferenceEquals(strA, strB))
+            {
                 return 0;
             }
 
-            //they can't both be null;
-            if (strA == null) {
+            // They can't both be null at this point.
+            if (strA == null)
+            {
                 return -1;
             }
-            
-            if (strB == null) {
+            if (strB == null)
+            {
                 return 1;
             }
 
@@ -1864,7 +2040,8 @@ namespace System {
 
                 case StringComparison.Ordinal:
                     // Most common case: first character is different.
-                    if ((strA.m_firstChar - strB.m_firstChar) != 0)
+                    // Returns false for empty strings.
+                    if (strA.m_firstChar != strB.m_firstChar)
                     {
                         return strA.m_firstChar - strB.m_firstChar;
                     }
@@ -1896,7 +2073,8 @@ namespace System {
         //
         [Pure]
         public static int Compare(String strA, String strB, CultureInfo culture, CompareOptions options) {
-            if (culture==null) {
+            if (culture == null)
+            {
                 throw new ArgumentNullException("culture");
             }
             Contract.EndContractBlock();
@@ -1913,16 +2091,10 @@ namespace System {
         // by culture
         //
         [Pure]
-        public static int Compare(String strA, String strB, bool ignoreCase, CultureInfo culture) {
-            if (culture == null) {
-                throw new ArgumentNullException("culture");
-            }
-            Contract.EndContractBlock();
-    
-            if (ignoreCase) {
-                return culture.CompareInfo.Compare(strA, strB, CompareOptions.IgnoreCase);
-            }
-            return culture.CompareInfo.Compare(strA, strB, CompareOptions.None);
+        public static int Compare(String strA, String strB, bool ignoreCase, CultureInfo culture)
+        {
+            var options = ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None;
+            return Compare(strA, strB, culture, options);
         }
 
         // Determines whether two string regions match.  The substring of strA beginning
@@ -2016,8 +2188,10 @@ namespace System {
         // beginning at indexB of the same length.
         //
         [Pure]
-        public static int Compare(String strA, int indexA, String strB, int indexB, int length, CultureInfo culture, CompareOptions options) {
-            if (culture==null) {
+        public static int Compare(String strA, int indexA, String strB, int indexB, int length, CultureInfo culture, CompareOptions options)
+        {
+            if (culture == null)
+            {
                 throw new ArgumentNullException("culture");
             }
             Contract.EndContractBlock();
@@ -2025,19 +2199,17 @@ namespace System {
             int lengthA = length;
             int lengthB = length;
 
-            if (strA!=null) {
-                if (strA.Length - indexA < lengthA) {
-                  lengthA = (strA.Length - indexA);
-                }
+            if (strA != null)
+            {
+                lengthA = Math.Min(lengthA, strA.Length - indexA);
             }
 
-            if (strB!=null) {
-                if (strB.Length - indexB < lengthB) {
-                    lengthB = (strB.Length - indexB);
-                }
+            if (strB != null)
+            {
+                lengthB = Math.Min(lengthB, strB.Length - indexB);
             }
     
-            return culture.CompareInfo.Compare(strA,indexA,lengthA, strB, indexB, lengthB, options);
+            return culture.CompareInfo.Compare(strA, indexA, lengthA, strB, indexB, lengthB, options);
         }
 
         [Pure]
@@ -2048,59 +2220,42 @@ namespace System {
             }
             Contract.EndContractBlock();
             
-            if (strA == null || strB == null) {
-                 if ((Object)strA==(Object)strB) { //they're both null;
-                     return 0;
-                 }
+            if (strA == null || strB == null)
+            {
+                if (object.ReferenceEquals(strA, strB))
+                {
+                    // They're both null
+                    return 0;
+                }
 
-                 return (strA==null)? -1 : 1; //-1 if A is null, 1 if B is null.
-            }    
-            
-            if (length < 0) {
-                throw new ArgumentOutOfRangeException("length",
-                                                      Environment.GetResourceString("ArgumentOutOfRange_NegativeLength"));
+                return strA == null ? -1 : 1;
             }
 
-            if (indexA < 0) {
-                throw new ArgumentOutOfRangeException("indexA",
-                                                     Environment.GetResourceString("ArgumentOutOfRange_Index"));
+            if (length < 0)
+            {
+                throw new ArgumentOutOfRangeException("length", Environment.GetResourceString("ArgumentOutOfRange_NegativeLength"));
             }
 
-            if (indexB < 0) {
-                throw new ArgumentOutOfRangeException("indexB",
-                                                     Environment.GetResourceString("ArgumentOutOfRange_Index"));
+            if (indexA < 0 || indexB < 0)
+            {
+                string paramName = indexA < 0 ? "indexA" : "indexB";
+                throw new ArgumentOutOfRangeException(paramName, Environment.GetResourceString("ArgumentOutOfRange_Index"));
             }
 
-            if (strA.Length - indexA < 0) {
-                throw new ArgumentOutOfRangeException("indexA",
-                                                      Environment.GetResourceString("ArgumentOutOfRange_Index"));
+            if (strA.Length - indexA < 0 || strB.Length - indexB < 0)
+            {
+                string paramName = strA.Length - indexA < 0 ? "indexA" : "indexB";
+                throw new ArgumentOutOfRangeException(paramName, Environment.GetResourceString("ArgumentOutOfRange_Index"));
             }
 
-            if (strB.Length - indexB < 0) {
-                throw new ArgumentOutOfRangeException("indexB",
-                                                      Environment.GetResourceString("ArgumentOutOfRange_Index"));
-            }
-            
-            if( ( length == 0 )  ||
-                ((strA == strB) && (indexA == indexB)) ){
+            if (length == 0 || (object.ReferenceEquals(strA, strB) && indexA == indexB))
+            {
                 return 0;
             }
 
-            int lengthA = length;
-            int lengthB = length;
+            int lengthA = Math.Min(length, strA.Length - indexA);
+            int lengthB = Math.Min(length, strB.Length - indexB);
 
-            if (strA!=null) {
-                if (strA.Length - indexA < lengthA) {
-                  lengthA = (strA.Length - indexA);
-                }
-            }
-
-            if (strB!=null) {
-                if (strB.Length - indexB < lengthB) {
-                    lengthB = (strB.Length - indexB);
-                }
-            }
-    
             switch (comparisonType) {
                 case StringComparison.CurrentCulture:
                     return CultureInfo.CurrentCulture.CompareInfo.Compare(strA, indexA, lengthA, strB, indexB, lengthB, CompareOptions.None);
@@ -2135,48 +2290,54 @@ namespace System {
         // if this is equal to value, or a value greater than 0 if this is greater than value.
         //
         [Pure]
-        public int CompareTo(Object value) {
-            if (value == null) {
+        public int CompareTo(Object value)
+        {
+            if (value == null)
+            {
                 return 1;
             }
 
-            if (!(value is String)) {
+            string other = value as string;
+
+            if (other == null)
+            {
                 throw new ArgumentException(Environment.GetResourceString("Arg_MustBeString"));
             }
 
-            return String.Compare(this,(String)value, StringComparison.CurrentCulture);
+            return CompareTo(other); // will call the string-based overload
         }
     
         // Determines the sorting relation of StrB to the current instance.
         //
         [Pure]
-        public int CompareTo(String strB) {
-            if (strB==null) {
-                return 1;
-            }
-
-            return CultureInfo.CurrentCulture.CompareInfo.Compare(this, strB, 0);
+        public int CompareTo(String strB)
+        {
+            return string.Compare(this, strB, StringComparison.CurrentCulture);
         }
 
         // Compares strA and strB using an ordinal (code-point) comparison.
         //
         [Pure]
-        public static int CompareOrdinal(String strA, String strB) {
-            if ((Object)strA == (Object)strB) {
+        public static int CompareOrdinal(String strA, String strB)
+        {
+            if (object.ReferenceEquals(strA, strB))
+            {
                 return 0;
             }
 
-            //they can't both be null;
-            if( strA == null) {
+            // They can't both be null at this point.
+            if (strA == null)
+            {
                 return -1;
             }
-            
-            if( strB == null) {
+            if (strB == null)
+            {
                 return 1;
             }
 
             // Most common case, first character is different.
-            if ((strA.m_firstChar - strB.m_firstChar) != 0)
+            // This will return false for empty strings.
+            if (strA.m_firstChar != strB.m_firstChar)
             {
                 return strA.m_firstChar - strB.m_firstChar;
             }
@@ -2798,7 +2959,8 @@ namespace System {
         // Creates a copy of this string in lower case.  The culture is set by culture.
         [Pure]
         public String ToLower(CultureInfo culture) {
-            if (culture==null) {
+            if (culture == null)
+            {
                 throw new ArgumentNullException("culture");
             }
             Contract.Ensures(Contract.Result<String>() != null);
@@ -2826,7 +2988,8 @@ namespace System {
         // Creates a copy of this string in upper case.  The culture is set by culture.
         [Pure]
         public String ToUpper(CultureInfo culture) {
-            if (culture==null) {
+            if (culture == null)
+            {
                 throw new ArgumentNullException("culture");
             }
             Contract.Ensures(Contract.Result<String>() != null);
@@ -3298,74 +3461,155 @@ namespace System {
         }
 
         [System.Security.SecuritySafeCritical]
-        public static String Concat(params Object[] args) {
-            if (args==null) {
+        public static string Concat(params object[] args)
+        {
+            if (args == null)
+            {
                 throw new ArgumentNullException("args");
             }
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.EndContractBlock();
-    
-            String[] sArgs = new String[args.Length];
-            int totalLength=0;
+
+            if (args.Length <= 1)
+            {
+                return args.Length == 0 ?
+                    string.Empty :
+                    args[0]?.ToString() ?? string.Empty;
+            }
+
+            // We need to get an intermediary string array
+            // to fill with each of the args' ToString(),
+            // and then just concat that in one operation.
+
+            // This way we avoid any intermediary string representations,
+            // or buffer resizing if we use StringBuilder (although the
+            // latter case is partially alleviated due to StringBuilder's
+            // linked-list style implementation)
+
+            var strings = new string[args.Length];
             
-            for (int i=0; i<args.Length; i++) {
+            int totalLength = 0;
+
+            for (int i = 0; i < args.Length; i++)
+            {
                 object value = args[i];
-                sArgs[i] = ((value==null)?(String.Empty):(value.ToString()));
-                if (sArgs[i] == null) sArgs[i] = String.Empty; // value.ToString() above could have returned null
-                totalLength += sArgs[i].Length;
-                // check for overflow
-                if (totalLength < 0) {
+
+                string toString = value?.ToString() ?? string.Empty; // We need to handle both the cases when value or value.ToString() is null
+                strings[i] = toString;
+
+                totalLength += toString.Length;
+
+                if (totalLength < 0) // Check for a positive overflow
+                {
                     throw new OutOfMemoryException();
                 }
             }
 
-            string result = FastAllocateString(totalLength);
-            int currPos = 0;
-            for (int i = 0; i < sArgs.Length; i++)
+            // If all of the ToStrings are null/empty, just return string.Empty
+            if (totalLength == 0)
             {
-                Contract.Assert(currPos <= totalLength - sArgs[i].Length, "[String.Concat](currPos <= totalLength - sArgs[i].Length)");
-                FillStringChecked(result, currPos, sArgs[i]);
-                currPos += sArgs[i].Length;
+                return string.Empty;
+            }
+
+            string result = FastAllocateString(totalLength);
+            int position = 0; // How many characters we've copied so far
+
+            for (int i = 0; i < strings.Length; i++)
+            {
+                string s = strings[i];
+
+                Contract.Assert(s != null);
+                Contract.Assert(position <= totalLength - s.Length, "We didn't allocate enough space for the result string!");
+
+                FillStringChecked(result, position, s);
+                position += s.Length;
             }
 
             return result;
         }
 
         [ComVisible(false)]
-        public static String Concat<T>(IEnumerable<T> values) {
+        public static string Concat<T>(IEnumerable<T> values)
+        {
             if (values == null)
                 throw new ArgumentNullException("values");
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.EndContractBlock();
 
-            StringBuilder result = StringBuilderCache.Acquire();
-            using(IEnumerator<T> en = values.GetEnumerator()) {
-                while (en.MoveNext()) {
-                    T currentValue = en.Current;
+            using (IEnumerator<T> en = values.GetEnumerator())
+            {
+                if (!en.MoveNext())
+                    return string.Empty;
+                
+                // We called MoveNext once, so this will be the first item
+                T currentValue = en.Current;
 
-                    if (currentValue != null) {
+                // Call ToString before calling MoveNext again, since
+                // we want to stay consistent with the below loop
+                // Everything should be called in the order
+                // MoveNext-Current-ToString, unless further optimizations
+                // can be made, to avoid breaking changes
+                string firstString = currentValue?.ToString();
+
+                // If there's only 1 item, simply call ToString on that
+                if (!en.MoveNext())
+                {
+                    // We have to handle the case of either currentValue
+                    // or its ToString being null
+                    return firstString ?? string.Empty;
+                }
+
+                StringBuilder result = StringBuilderCache.Acquire();
+                
+                result.Append(firstString);
+
+                do
+                {
+                    currentValue = en.Current;
+
+                    if (currentValue != null)
+                    {
                         result.Append(currentValue.ToString());
                     }
-                }            
+                }
+                while (en.MoveNext());
+
+                return StringBuilderCache.GetStringAndRelease(result);
             }
-            return StringBuilderCache.GetStringAndRelease(result);
         }
 
 
         [ComVisible(false)]
-        public static String Concat(IEnumerable<String> values) {
+        public static string Concat(IEnumerable<string> values)
+        {
             if (values == null)
                 throw new ArgumentNullException("values");
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.EndContractBlock();
 
-            StringBuilder result = StringBuilderCache.Acquire();
-            using(IEnumerator<String> en = values.GetEnumerator()) {
-                while (en.MoveNext()) {
-                     result.Append(en.Current);
-                }            
+            using (IEnumerator<string> en = values.GetEnumerator())
+            {
+                if (!en.MoveNext())
+                    return string.Empty;
+                
+                string firstValue = en.Current;
+
+                if (!en.MoveNext())
+                {
+                    return firstValue ?? string.Empty;
+                }
+
+                StringBuilder result = StringBuilderCache.Acquire();
+                result.Append(firstValue);
+
+                do
+                {
+                    result.Append(en.Current);
+                }
+                while (en.MoveNext());
+
+                return StringBuilderCache.GetStringAndRelease(result);
             }
-            return StringBuilderCache.GetStringAndRelease(result);            
         }
 
 
@@ -3479,6 +3723,13 @@ namespace System {
                 throw new ArgumentNullException("values");
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.EndContractBlock();
+
+            if (values.Length <= 1)
+            {
+                return values.Length == 0 ?
+                    string.Empty :
+                    values[0] ?? string.Empty;
+            }
 
             // It's possible that the input values array could be changed concurrently on another
             // thread, such that we can't trust that each read of values[i] will be equivalent.

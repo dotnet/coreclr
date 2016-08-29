@@ -250,7 +250,6 @@ void ARMMachine::IsReturnAddress(TADDR retAddr, TADDR* whereCalled) const
     }
 }
 
-#ifndef FEATURE_PAL
 
 // Return 0 for non-managed call.  Otherwise return MD address.
 static TADDR MDForCall (TADDR callee)
@@ -272,8 +271,14 @@ static TADDR MDForCall (TADDR callee)
 // Determine if a value is MT/MD/Obj
 static void HandleValue(TADDR value)
 {
+#ifndef FEATURE_PAL
     // remove the thumb bit (if set)
     value = value & ~1;
+#else
+    // set the thumb bit (if not set)
+    value = value | 1;
+#endif //!FEATURE_PAL
+
     // A MethodTable?
     if (IsMethodTable(value))
     {
@@ -336,8 +341,6 @@ static void HandleValue(TADDR value)
     }
 }
 
-#endif // !FEATURE_PAL
-
 /**********************************************************************\
 * Routine Description:                                                 *
 *                                                                      *
@@ -355,7 +358,6 @@ void ARMMachine::Unassembly (
     BOOL bSuppressLines,
     BOOL bDisplayOffsets) const
 {
-#ifndef FEATURE_PAL
     ULONG_PTR PC = PCBegin;
     char line[1024];
     char *ptr;
@@ -363,7 +365,7 @@ void ARMMachine::Unassembly (
     bool fLastWasMovW = false;
     INT_PTR lowbits = 0;
     ULONG curLine = -1;
-    char  filename[MAX_PATH_FNAME+1];
+    WCHAR filename[MAX_LONGPATH];
     ULONG linenum;
 
     while (PC < PCEnd)
@@ -373,16 +375,16 @@ void ARMMachine::Unassembly (
 
         // Print out line numbers if needed
         if (!bSuppressLines
-            && SUCCEEDED(GetLineByOffset(TO_CDADDR(PC), 
-                           &linenum, filename, MAX_PATH_FNAME+1)))
+            && SUCCEEDED(GetLineByOffset(TO_CDADDR(PC), &linenum, filename, MAX_LONGPATH)))
         {
             if (linenum != curLine)
             {
                 curLine = linenum;
-                ExtOut("\n%s @ %d:\n", filename, linenum);
+                ExtOut("\n%S @ %d:\n", filename, linenum);
             }
         }
 
+#ifndef FEATURE_PAL
         //
         // Print out any GC information corresponding to the current instruction offset.
         //
@@ -397,7 +399,7 @@ void ARMMachine::Unassembly (
                 SwitchToFiber(pGCEncodingInfo->pvGCTableFiber);
             }
         }
-
+#endif //!FEATURE_PAL
         //
         // Print out any EH info corresponding to the current offset
         //
@@ -529,7 +531,6 @@ void ARMMachine::Unassembly (
 
         ExtOut ("\n");
     }
-#endif // !FEATURE_PAL
 }
 
 #if 0 // @ARMTODO: Figure out how to extract this information under CoreARM
@@ -607,7 +608,7 @@ BOOL ARMMachine::GetExceptionContext (TADDR stack, TADDR PC, TADDR *cxrAddr, CRO
 ///
 /// Dump ARM GCInfo table
 ///
-void ARMMachine::DumpGCInfo(BYTE* pTable, unsigned methodSize, printfFtn gcPrintf, bool encBytes, bool bPrintHeader) const
+void ARMMachine::DumpGCInfo(GCInfoToken gcInfoToken, unsigned methodSize, printfFtn gcPrintf, bool encBytes, bool bPrintHeader) const
 {
 #ifndef FEATURE_PAL
     if (bPrintHeader)
@@ -615,10 +616,10 @@ void ARMMachine::DumpGCInfo(BYTE* pTable, unsigned methodSize, printfFtn gcPrint
         ExtOut("Pointer table:\n");
     }
 
-    ARMGCDump::GCDump gcDump(encBytes, 5, true);
+    ARMGCDump::GCDump gcDump(gcInfoToken.Version, encBytes, 5, true);
     gcDump.gcPrintf = gcPrintf;
 
-    gcDump.DumpGCTable(pTable, methodSize, 0);
+    gcDump.DumpGCTable(dac_cast<PTR_BYTE>(gcInfoToken.Info), methodSize, 0);
 #endif // !FEATURE_PAL
 }
 

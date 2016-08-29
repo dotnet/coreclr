@@ -17,7 +17,7 @@ namespace System.IO {
 
     //Thrown when trying to access a drive that is not availabe.
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
+    [System.Runtime.InteropServices.ComVisible(true)]
     public class DriveNotFoundException : IOException {
         public DriveNotFoundException() 
             : base(Environment.GetResourceString("Arg_DriveNotFoundException")) {

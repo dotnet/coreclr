@@ -30,7 +30,6 @@
     <UTF8OutPut>true</UTF8OutPut>
     <HighEntropyVA>true</HighEntropyVA>
     <ErrorReport>prompt</ErrorReport>
-    <Optimize Condition="'$(Optimize)' == ''">true</Optimize>
     <CLSCompliant>true</CLSCompliant>
     <WarningLevel>4</WarningLevel>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
@@ -59,31 +58,34 @@
     <PlatformTarget>x64</PlatformTarget>
     <Prefer32Bit>false</Prefer32Bit>
     <BaseAddress>0x180000000</BaseAddress>
-    <DefineConstants>WIN64;AMD64;$(DefineConstants)</DefineConstants>
+    <DefineConstants>BIT64;AMD64;$(DefineConstants)</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Platform)' == 'x86'">
     <PlatformTarget>x86</PlatformTarget>
     <BaseAddress>0x10000000</BaseAddress>
-    <DefineConstants>WIN32;$(DefineConstants)</DefineConstants>
+    <DefineConstants>BIT32;$(DefineConstants)</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Platform)' == 'arm'">
     <PlatformTarget>arm</PlatformTarget>
-    <DefineConstants>WIN32;ARM;$(DefineConstants)</DefineConstants>
+    <DefineConstants>BIT32;ARM;$(DefineConstants)</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Platform)' == 'arm64'">
     <PlatformTarget>AnyCPU</PlatformTarget>
-    <DefineConstants>WIN64;ARM64;$(DefineConstants)</DefineConstants>
+    <DefineConstants>BIT64;ARM64;$(DefineConstants)</DefineConstants>
   </PropertyGroup>
   
   <!-- Configuration specific properties -->
   <PropertyGroup Condition="'$(Configuration)' == 'Debug' or '$(Configuration)' == 'Checked'">
     <DebugSymbols>true</DebugSymbols>
+    <Optimize Condition="'$(Optimize)' == '' and '$(Configuration)' == 'Debug'">false</Optimize>
+    <Optimize Condition="'$(Optimize)' == '' and '$(Configuration)' == 'Checked'">true</Optimize>
     <DebugType>full</DebugType>
     <DefineConstants>DBG;_DEBUG;_LOGGING;DEBUG;TRACE;$(DefineConstants)</DefineConstants>
     <DefineConstants Condition="'$(Platform)' == 'x86' or '$(Platform)' == 'amd64'">CODE_ANALYSIS;$(DefineConstants)</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <DebugSymbols>true</DebugSymbols>
+    <Optimize Condition="'$(Optimize)' == ''">true</Optimize>
     <DebugType>pdbOnly</DebugType>
     <DefineConstants>TRACE;$(DefineConstants)</DefineConstants>
   </PropertyGroup>
@@ -175,6 +177,22 @@
       <ResGenDefines>$(DefineConstants)</ResGenDefines>
     </SplitTextStringResource>
   </ItemGroup>
+
+  <PropertyGroup>
+    <CheckCDefines Condition="'$(CheckCDefines)'==''">true</CheckCDefines>
+  </PropertyGroup>
+
+  <Target Name="CDefineChecker" BeforeTargets="Build" Condition="'$(CheckCDefines)'=='true'">
+    <!-- Compiler Definition Verification -->
+    <Message Importance="High" Text="============" />
+    <PropertyGroup>
+      <IgnoreDefineConstants>FEATURE_IMPLICIT_TLS;FEATURE_HIJACK</IgnoreDefineConstants>
+      <CMakeDefinitionSaveFile>$(IntermediateOutputPath)\cmake.definitions</CMakeDefinitionSaveFile>
+    </PropertyGroup>
+    <Exec Command='python $(MSBuildThisFileDirectory)..\scripts\check-definitions.py "$(CMakeDefinitionSaveFile)" "$(DefineConstants)" "$(IgnoreDefineConstants)" ' />
+    <Message Importance="High" Text="============" />
+  </Target>
+
   <ItemGroup>
     <EmbeddedResource Include="$(NlpObjDir)\charinfo.nlp">
       <LogicalName>charinfo.nlp</LogicalName>

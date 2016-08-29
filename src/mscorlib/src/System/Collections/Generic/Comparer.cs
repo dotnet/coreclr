@@ -184,13 +184,13 @@ namespace System.Collections.Generic
             return _comparison(x, y);
         }
     }
-    
+
     // Enum comparers (specialized to avoid boxing)
     // NOTE: Each of these needs to implement ISerializable
     // and have a SerializationInfo/StreamingContext ctor,
     // since we want to serialize as ObjectComparer for
     // back-compat reasons (see below).
-    
+
     [Serializable]
     internal sealed class Int32EnumComparer<T> : Comparer<T>, ISerializable where T : struct
     {
@@ -226,7 +226,7 @@ namespace System.Collections.Generic
             info.SetType(typeof(ObjectComparer<T>));
         }
     }
-    
+
     [Serializable]
     internal sealed class UInt32EnumComparer<T> : Comparer<T>, ISerializable where T : struct
     {
@@ -258,7 +258,7 @@ namespace System.Collections.Generic
             info.SetType(typeof(ObjectComparer<T>));
         }
     }
-    
+
     [Serializable]
     internal sealed class Int64EnumComparer<T> : Comparer<T>, ISerializable where T : struct
     {
@@ -290,7 +290,7 @@ namespace System.Collections.Generic
             info.SetType(typeof(ObjectComparer<T>));
         }
     }
-    
+
     [Serializable]
     internal sealed class UInt64EnumComparer<T> : Comparer<T>, ISerializable where T : struct
     {

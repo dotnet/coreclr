@@ -17,7 +17,7 @@ namespace System.Diagnostics {
     using System.Runtime.Serialization;
     using System.Runtime.Versioning;
     using System.Diagnostics.Contracts;
-    
+
     // READ ME:
     // Modifying the order or fields of this object may require other changes 
     // to the unmanaged definition of the StackFrameHelper class, in 
@@ -32,11 +32,10 @@ namespace System.Diagnostics {
         // this field is here only for backwards compatibility of serialization format
         private MethodBase[] rgMethodBase;
 
-#pragma warning disable 414  // Field is not used from managed.        
+#pragma warning disable 414
         // dynamicMethods is an array of System.Resolver objects, used to keep
         // DynamicMethodDescs alive for the lifetime of StackFrameHelper.
-        private Object dynamicMethods; 
-#pragma warning restore 414
+        private Object dynamicMethods; // Field is not used from managed.        
 
         [NonSerialized]
         private IntPtr[] rgMethodHandle;
@@ -56,16 +55,19 @@ namespace System.Diagnostics {
 #endif // FEATURE_EXCEPTIONDISPATCHINFO
         private GetSourceLineInfoDelegate getSourceLineInfo;
         private int iFrameCount;
+#pragma warning restore 414
 
         private delegate void GetSourceLineInfoDelegate(string assemblyPath, IntPtr loadedPeAddress, int loadedPeSize,
             IntPtr inMemoryPdbAddress, int inMemoryPdbSize, int methodToken, int ilOffset, 
             out string sourceFile, out int sourceLine, out int sourceColumn);
 
+#if FEATURE_CORECLR
         private static Type s_symbolsType = null;
         private static MethodInfo s_symbolsMethodInfo = null;
 
         [ThreadStatic]
         private static int t_reentrancy = 0;
+#endif
         
         public StackFrameHelper(Thread target)
         {
@@ -109,6 +111,7 @@ namespace System.Diagnostics {
         {
             StackTrace.GetStackFramesInternal(this, iSkip, fNeedFileInfo, exception);
 
+#if FEATURE_CORECLR
             if (!fNeedFileInfo)
                 return;
 
@@ -122,13 +125,13 @@ namespace System.Diagnostics {
                 if (s_symbolsMethodInfo == null)
                 {
                     s_symbolsType = Type.GetType(
-                        "System.Diagnostics.StackTraceSymbols, System.Diagnostics.StackTrace, Version=1.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+                        "System.Diagnostics.StackTraceSymbols, System.Diagnostics.StackTrace, Version=4.0.3.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
                         throwOnError: false);
 
                     if (s_symbolsType == null)
                         return;
 
-                    s_symbolsMethodInfo = s_symbolsType.GetMethod("GetSourceLineInfo");
+                    s_symbolsMethodInfo = s_symbolsType.GetMethod("GetSourceLineInfo", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
                     if (s_symbolsMethodInfo == null)
                         return;
                 }
@@ -144,7 +147,7 @@ namespace System.Diagnostics {
 
                 for (int index = 0; index < iFrameCount; index++)
                 {
-                    // If there was some reason not to try get get the symbols from the portable PDB reader like the module was
+                    // If there was some reason not to try get the symbols from the portable PDB reader like the module was
                     // ENC or the source/line info was already retrieved, the method token is 0.
                     if (rgiMethodToken[index] != 0)
                     {
@@ -161,10 +164,12 @@ namespace System.Diagnostics {
             {
                 t_reentrancy--;
             }
+#endif
         }
 
         void IDisposable.Dispose()
         {
+#if FEATURE_CORECLR
             if (getSourceLineInfo != null)
             {
                 IDisposable disposable = getSourceLineInfo.Target as IDisposable;
@@ -173,6 +178,7 @@ namespace System.Diagnostics {
                     disposable.Dispose();
                 }
             }
+#endif
         }
 
         [System.Security.SecuritySafeCritical]
@@ -286,9 +292,9 @@ namespace System.Diagnostics {
 
         // Constructs a stack trace from the current location.
         //
-        #if FEATURE_CORECLR
+#if FEATURE_CORECLR
         [System.Security.SecurityCritical] // auto-generated
-        #endif
+#endif
         public StackTrace(bool fNeedFileInfo)
         {
             m_iNumOfFrames = 0;
@@ -299,9 +305,9 @@ namespace System.Diagnostics {
         // Constructs a stack trace from the current location, in a caller's
         // frame
         //
-        #if FEATURE_CORECLR
+#if FEATURE_CORECLR
         [System.Security.SecurityCritical] // auto-generated
-        #endif
+#endif
         public StackTrace(int skipFrames)
         {
     
@@ -319,9 +325,9 @@ namespace System.Diagnostics {
         // Constructs a stack trace from the current location, in a caller's
         // frame
         //
-        #if FEATURE_CORECLR
+#if FEATURE_CORECLR
         [System.Security.SecurityCritical] // auto-generated
-        #endif
+#endif
         public StackTrace(int skipFrames, bool fNeedFileInfo)
         {
     
@@ -351,9 +357,9 @@ namespace System.Diagnostics {
 
         // Constructs a stack trace from the current location.
         //
-        #if FEATURE_CORECLR
+#if FEATURE_CORECLR
         [System.Security.SecurityCritical] // auto-generated
-        #endif
+#endif
         public StackTrace(Exception e, bool fNeedFileInfo)
         {
             if (e == null)
@@ -368,9 +374,9 @@ namespace System.Diagnostics {
         // Constructs a stack trace from the current location, in a caller's
         // frame
         //
-        #if FEATURE_CORECLR
+#if FEATURE_CORECLR
         [System.Security.SecurityCritical] // auto-generated
-        #endif
+#endif
         public StackTrace(Exception e, int skipFrames)
         {
             if (e == null)
@@ -390,9 +396,9 @@ namespace System.Diagnostics {
         // Constructs a stack trace from the current location, in a caller's
         // frame
         //
-        #if FEATURE_CORECLR
+#if FEATURE_CORECLR
         [System.Security.SecurityCritical] // auto-generated
-        #endif
+#endif
         public StackTrace(Exception e, int skipFrames, bool fNeedFileInfo)
         {
             if (e == null)
@@ -424,9 +430,9 @@ namespace System.Diagnostics {
 
         // Constructs a stack trace for the given thread
         //
-        #if FEATURE_CORECLR
+#if FEATURE_CORECLR
         [System.Security.SecurityCritical] // auto-generated
-        #endif
+#endif
         [Obsolete("This constructor has been deprecated.  Please use a constructor that does not require a Thread parameter.  http://go.microsoft.com/fwlink/?linkid=14202")]
         public StackTrace(Thread targetThread, bool needFileInfo)
         {    
@@ -590,9 +596,9 @@ namespace System.Diagnostics {
             
         // Builds a readable representation of the stack trace, specifying 
         // the format for backwards compatibility.
-        #if FEATURE_CORECLR
+#if FEATURE_CORECLR
         [System.Security.SecurityCritical] // auto-generated
-        #endif
+#endif
         internal String ToString(TraceFormat traceFormat)
         {
             bool displayFilenames = true;   // we'll try, but demand may fail
@@ -748,9 +754,9 @@ namespace System.Diagnostics {
 
         // This helper is called from within the EE to construct a string representation
         // of the current stack trace.
-        #if FEATURE_CORECLR
+#if FEATURE_CORECLR
         [System.Security.SecurityCritical] // auto-generated
-        #endif
+#endif
         private static String GetManagedStackTraceStringHelper(bool fNeedFileInfo)
         {
             // Note all the frames in System.Diagnostics will be skipped when capturing 

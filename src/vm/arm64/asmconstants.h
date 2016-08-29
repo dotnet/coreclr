@@ -48,7 +48,7 @@ ASMCONSTANTS_C_ASSERT(AppDomain__m_dwId == offsetof(AppDomain, m_dwId));
 
 #define METHODDESC_REGISTER            x12
 
-#define SIZEOF__ArgumentRegisters 0x40
+#define SIZEOF__ArgumentRegisters 0x48
 ASMCONSTANTS_C_ASSERT(SIZEOF__ArgumentRegisters == sizeof(ArgumentRegisters))
 
 #define SIZEOF__FloatArgumentRegisters 0x40
@@ -116,7 +116,7 @@ ASMCONSTANTS_C_ASSERT(SIZEOF__CONTEXT == sizeof(T_CONTEXT));
 
 #ifdef FEATURE_COMINTEROP
 
-#define SIZEOF__ComMethodFrame 0x68
+#define SIZEOF__ComMethodFrame 0x70
 ASMCONSTANTS_C_ASSERT(SIZEOF__ComMethodFrame == sizeof(ComMethodFrame));
 
 #define UnmanagedToManagedFrame__m_pvDatum 0x10
@@ -146,6 +146,13 @@ ASMCONSTANTS_C_ASSERT(CONTEXT_Pc == offsetof(T_CONTEXT,Pc))
 #define FaultingExceptionFrame__m_fFilterExecuted       SIZEOF__Frame
 ASMCONSTANTS_C_ASSERT(SIZEOF__FaultingExceptionFrame        == sizeof(FaultingExceptionFrame));
 ASMCONSTANTS_C_ASSERT(FaultingExceptionFrame__m_fFilterExecuted == offsetof(FaultingExceptionFrame, m_fFilterExecuted));
+
+#ifndef CROSSGEN_COMPILE
+#define ResolveCacheElem__target      0x10
+#define ResolveCacheElem__pNext       0x18
+ASMCONSTANTS_C_ASSERT(ResolveCacheElem__target == offsetof(ResolveCacheElem, target));
+ASMCONSTANTS_C_ASSERT(ResolveCacheElem__pNext == offsetof(ResolveCacheElem, pNext));
+#endif // CROSSGEN_COMPILE
 
 #undef ASMCONSTANTS_RUNTIME_ASSERT
 #undef ASMCONSTANTS_C_ASSERT

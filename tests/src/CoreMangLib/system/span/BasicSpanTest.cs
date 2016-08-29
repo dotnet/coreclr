@@ -5,6 +5,12 @@
 using System;
 using System.Collections.Generic;
 
+class ReferenceType
+{
+    internal byte Value;
+    public ReferenceType(byte value) { Value = value; }
+}
+
 class My
 {
     static int Sum(Span<int> span)
@@ -23,6 +29,9 @@ class My
 
         Test(() => CanUpdateUnderlyingArray(), "CanUpdateUnderlyingArray");
 
+        Test(() =>  TestArrayCoVariance(), "TestArrayCoVariance");
+        Test(() =>  TestArrayCoVarianceReadOnly(), "TestArrayCoVarianceReadOnly");
+
         Test(() => CanCopyValueTypesWithoutPointersToSlice(), "CanCopyValueTypesWithoutPointersToSlice");
         Test(() => CanCopyValueTypesWithoutPointersToArray(), "CanCopyValueTypesWithoutPointersToArray");
 
@@ -34,6 +43,8 @@ class My
 
         Test(() => CanCopyValueTypesWithoutPointersToUnmanagedMemory(), "CanCopyValueTypesWithoutPointersToUnmanagedMemory");
         Test(() => MustNotCopyValueTypesWithPointersToUnmanagedMemory(), "MustNotCopyValueTypesWithPointersToUnmanagedMemory");
+
+        Console.WriteLine("All tests passed");
     }
 
     private static void CanAccessItemsViaIndexer()
@@ -57,6 +68,40 @@ class My
             AssertTrue(object.ReferenceEquals(underlyingArray[i], slice[i]), "References are broken");
         }
     }
+
+    static void TestArrayCoVariance()
+    {
+        var array = new ReferenceType[1];
+        var objArray = (object[])array;
+        try
+        {
+            new Span<object>(objArray);
+            AssertTrue(false, "Expected exception not thrown");
+        }
+        catch (ArrayTypeMismatchException)
+        {
+        }
+
+        var objEmptyArray = Array.Empty<ReferenceType>();
+        try
+        {
+            new Span<object>(objEmptyArray);
+            AssertTrue(false, "Expected exception not thrown");
+        }
+        catch (ArrayTypeMismatchException)
+        {
+        }
+    }
+
+    static void TestArrayCoVarianceReadOnly()
+    {
+        var array = new ReferenceType[1];
+        var objArray = (object[])array;
+        AssertTrue(new ReadOnlySpan<object>(objArray).Length == 1, "Unexpected length");
+
+        var objEmptyArray = Array.Empty<ReferenceType>();
+        AssertTrue(new ReadOnlySpan<object>(objEmptyArray).Length == 0, "Unexpected length");
+   }
 
     private static void CanUpdateUnderlyingArray()
     {
@@ -126,15 +171,6 @@ class My
         }
     }
 
-    class ReferenceType
-    {
-        internal byte Value;
-
-        public ReferenceType(byte value)
-        {
-            Value = value;
-        }
-    }
 
     private static void CanCopyReferenceTypesToSlice()
     {
