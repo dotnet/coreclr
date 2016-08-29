@@ -72,6 +72,11 @@ namespace System
             _length = length;
         }
 
+        public static implicit operator ReadOnlySpan<T>(Span<T> slice)
+        {
+            return new ReadOnlySpan<T>(ref JitHelpers.GetByRef<T>(ref slice._rawPointer), slice.Length);
+        }
+
         public int Length
         {
             get { return _length; }
