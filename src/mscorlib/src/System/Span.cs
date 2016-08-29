@@ -49,7 +49,7 @@ namespace System
             if ((uint)start >= (uint)array.Length || (uint)length > (uint)(array.Length - start))
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 
-            if (default(T) == null) // Arrays of valuetypes are nnever covariant
+            if (default(T) == null) // Arrays of valuetypes are never covariant
             {
                 if (array.GetType() != typeof(T[]))
                     ThrowHelper.ThrowArrayTypeMismatchException();
