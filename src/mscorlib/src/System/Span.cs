@@ -27,6 +27,10 @@ namespace System
         /// <param name="array">The target array.</param>
         public Span(T[] array)
         {
+            if (array == null)
+            {
+                throw new ArgumentNullException("array");
+            }
             if (default(T) == null) // Arrays of valuetypes are never covariant
             {
                 if (array.GetType() != typeof(T[]))
@@ -87,11 +91,6 @@ namespace System
         public int Length
         {
             get { return _length; }
-        }
-
-        internal uint SizeInBytes
-        {
-            get { return (uint)Length * (uint)JitHelpers.SizeOf<T>(); }
         }
 
         public static Span<T> Empty
@@ -167,54 +166,36 @@ namespace System
                 (_length == 0 || JitHelpers.ByRefEquals(ref JitHelpers.GetByRef<T>(ref _rawPointer), ref JitHelpers.GetByRef<T>(ref other._rawPointer)));
         }
 
+        /// <summary>
+        /// Copies the contents of this span into destination span. The destination
+        /// must be at least as big as the source, and may be bigger.
+        /// </summary>
+        /// <param name="destination">The span to copy items into.</param>
         public bool TryCopyTo(Span<T> destination)
         {
             if (Length > destination.Length)
                 return false;
 
-            if (JitHelpers.ContainsReferences<T>())
-            {
-                for (int i = 0; i < Length; i++)
-                    JitHelpers.AddByRef(ref JitHelpers.GetByRef<T>(ref destination._rawPointer), i) = JitHelpers.AddByRef(ref JitHelpers.GetByRef<T>(ref _rawPointer), i);
-
-                return true;
-            }
-
-            unsafe
-            {
-                Memmove((byte*)destination._rawPointer, (byte*)_rawPointer);
-                return true;
-            }
+            SpanHelper.CopyTo<T>(ref destination._rawPointer, ref _rawPointer, Length);
+            return true;
         }
 
+        /// <summary>
+        /// Copies the contents of this span into destination array. The destination
+        /// must be at least as big as the source, and may be bigger.
+        /// </summary>
+        /// <param name="destination">The array to copy items into.</param>
         public bool TryCopyTo(T[] destination)
         {
-            if (destination == null)
-                throw new ArgumentNullException("destination");
-            if (Length > destination.Length)
-                return false;
-
-            if (JitHelpers.ContainsReferences<T>())
-            {
-                for (int i = 0; i < Length; i++)
-                    destination[i] = JitHelpers.AddByRef(ref JitHelpers.GetByRef<T>(ref _rawPointer), i);
-
-                return true;
-            }
-
-            unsafe
-            {
-                IntPtr destinationPointer;
-                JitHelpers.SetByRef(out destinationPointer, ref JitHelpers.GetArrayData(destination));
-                Memmove((byte*)destinationPointer, (byte*)_rawPointer);
-                return true;
-            }
+            return TryCopyTo(new Span<T>(destination));
         }
 
+        /// <summary>
+        /// Copies the contents of this span into destination memory. 
+        /// Only Value Types that contain no pointers are supported.
+        /// </summary>
         /// <param name="destination">An unmanaged pointer to memory.</param>
         /// <param name="elementsCount">The number of T elements the memory contains.</param>
-        [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
         [CLSCompliant(false)]
         public unsafe bool TryCopyTo(void* destination, int elementsCount)
         {
@@ -223,20 +204,67 @@ namespace System
                 return false;
             }
 
-#if BIT64
-            Buffer.Memmove((byte*)destination, (byte*)_rawPointer, (ulong)(elementsCount * (uint)JitHelpers.SizeOf<T>()));
-#else
-            Buffer.Memmove((byte*)destination, (byte*)_rawPointer, checked(elementsCount * (uint)JitHelpers.SizeOf<T>()));
-#endif
+            SpanHelper.Memmove<T>((byte*)destination, (byte*)_rawPointer, elementsCount);
             return true;
         }
 
-        private unsafe void Memmove(byte* destination, byte* source)
+        public void Set(ReadOnlySpan<T> values)
+        {
+            if (values.Length > Length)
+                throw new ArgumentOutOfRangeException("values");
+
+            SpanHelper.CopyTo<T>(ref _rawPointer, ref values._rawPointer, values.Length);
+        }
+
+        public void Set(T[] values)
+        {
+            Set(new ReadOnlySpan<T>(values));
+        }
+
+        [CLSCompliant(false)]
+        public unsafe bool Set(void* source, int elementsCount)
+        {
+            if (Length > (uint)elementsCount)
+            {
+                throw new ArgumentOutOfRangeException("values");
+            }
+            if (JitHelpers.ContainsReferences<T>())
+            {
+                throw new InvalidOperationException("must not copy types with references to unmanaged heap"); // todo: think of better ex.Message
+            }
+
+            SpanHelper.Memmove<T>((byte*)_rawPointer, (byte*)source, elementsCount);
+            return true;
+        }
+    }
+
+    internal static class SpanHelper
+    {
+        internal static void CopyTo<T>(ref IntPtr destination, ref IntPtr source, int elementsCount)
+        {
+            if (!JitHelpers.ContainsReferences<T>())
+            {
+                unsafe
+                {
+                    Memmove<T>((byte*)destination, (byte*)source, elementsCount);
+                }
+            }
+            else
+            {
+                for (int i = 0; i < elementsCount; i++)
+                {
+                    JitHelpers.AddByRef(ref JitHelpers.GetByRef<T>(ref destination), i)
+                        = JitHelpers.AddByRef(ref JitHelpers.GetByRef<T>(ref source), i);
+                }
+            }
+        }
+
+        internal static unsafe void Memmove<T>(byte* destination, byte* source, int elementsCount)
         {
 #if BIT64
-            Buffer.Memmove(destination, source, (ulong)SizeInBytes);
+            Buffer.Memmove(destination, source, (ulong)(elementsCount * (uint)JitHelpers.SizeOf<T>()));
 #else
-            Buffer.Memmove(destination, source, checked(SizeInBytes));
+            Buffer.Memmove(destination, source, checked(elementsCount * (uint)JitHelpers.SizeOf<T>()));
 #endif
         }
     }

@@ -74,13 +74,13 @@ namespace System
 
         public int Length
         {
-            get
-            {
-                return _length;
-            }
+            get { return _length; }
         }
 
-        public static ReadOnlySpan<T> Empty { get { return default(ReadOnlySpan<T>); } }
+        public static ReadOnlySpan<T> Empty
+        {
+            get { return default(ReadOnlySpan<T>); }
+        }
 
         public bool IsEmpty
         {
@@ -110,12 +110,9 @@ namespace System
         /// </summary>
         public T[] CreateArray()
         {
-            var src = JitHelpers.GetByRef<T>(ref _rawPointer);
-            var dest = new T[_length];
-            // TODO: Specialize to use a fast memcpy
-            for (int i = 0; i < dest.Length; i++)
-                dest[i] = JitHelpers.AddByRef(ref src, i); 
-            return dest;
+            var destination = new T[_length];
+            TryCopyTo(destination);
+            return destination;
         }
 
         /// <summary>
@@ -143,6 +140,48 @@ namespace System
         {
             return (_length == other._length) &&
                 (_length == 0 || JitHelpers.ByRefEquals(ref JitHelpers.GetByRef<T>(ref _rawPointer), ref JitHelpers.GetByRef<T>(ref other._rawPointer)));
+        }
+
+        /// <summary>
+        /// Copies the contents of this span into destination span. The destination
+        /// must be at least as big as the source, and may be bigger.
+        /// </summary>
+        /// <param name="destination">The span to copy items into.</param>
+        public bool TryCopyTo(Span<T> destination)
+        {
+            if (Length > destination.Length)
+                return false;
+
+            SpanHelper.CopyTo<T>(ref destination._rawPointer, ref _rawPointer, Length);
+            return true;
+        }
+
+        /// <summary>
+        /// Copies the contents of this span into destination array. The destination
+        /// must be at least as big as the source, and may be bigger.
+        /// </summary>
+        /// <param name="destination">The array to copy items into.</param>
+        public bool TryCopyTo(T[] destination)
+        {
+            return TryCopyTo(new Span<T>(destination));
+        }
+
+        /// <summary>
+        /// Copies the contents of this span into destination memory. 
+        /// Only Value Types that contain no pointers are supported.
+        /// </summary>
+        /// <param name="destination">An unmanaged pointer to memory.</param>
+        /// <param name="elementsCount">The number of T elements the memory contains.</param>
+        [CLSCompliant(false)]
+        public unsafe bool TryCopyTo(void* destination, int elementsCount)
+        {
+            if (Length > (uint)elementsCount || JitHelpers.ContainsReferences<T>())
+            {
+                return false;
+            }
+
+            SpanHelper.Memmove<T>((byte*)destination, (byte*)_rawPointer, elementsCount);
+            return true;
         }
     }
 }
