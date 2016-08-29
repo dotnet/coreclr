@@ -4,7 +4,7 @@
 
 #include <cstdarg>
 
-class LLDBServices : public ILLDBServices
+class LLDBServices : public ILLDBServices, public ILLDBServices2
 {
 private:
     LONG m_ref;
@@ -19,6 +19,7 @@ private:
     DWORD_PTR GetExpression(lldb::SBFrame& frame, lldb::SBError& error, PCSTR exp);
     void GetContextFromFrame(lldb::SBFrame& frame, DT_CONTEXT *dtcontext);
     DWORD_PTR GetRegister(lldb::SBFrame& frame, const char *name);
+    HRESULT GetNameByIndex(ULONG index, char *name, size_t namelen);
 
     lldb::SBProcess GetCurrentProcess();
     lldb::SBThread GetCurrentThread();
@@ -264,6 +265,28 @@ public:
 
     HRESULT GetFrameOffset(
         PULONG64 offset);
+
+    //----------------------------------------------------------------------------
+    // ILLDBServices2
+    //----------------------------------------------------------------------------
+
+    //----------------------------------------------------------------------------
+    // IDebugRegisters
+    //----------------------------------------------------------------------------
+
+    HRESULT GetIndexByName(
+        PCSTR name,
+        PULONG index);
+
+    HRESULT SetValue(
+        ULONG Register,
+        PULONG Value);
+
+    HRESULT SetValues(
+        ULONG Count,
+        PULONG Indices,
+        ULONG Start,
+        PULONG Values);
 
     //----------------------------------------------------------------------------
     // LLDBServices (internal)

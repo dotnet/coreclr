@@ -24,13 +24,16 @@ class DebugClient
 private:
     LONG m_ref;
     ILLDBServices *m_lldbservices;
+    ILLDBServices2 *m_lldbservices2;
 
 public:
     DebugClient(ILLDBServices *lldbservices) : 
         m_ref(1),
-        m_lldbservices(lldbservices)
+        m_lldbservices(lldbservices),
+        m_lldbservices2(nullptr)
     {
         m_lldbservices->AddRef();
+        lldbservices->QueryInterface(__uuidof(ILLDBServices2), (void**)&m_lldbservices2);
     }
 
     //----------------------------------------------------------------------------
@@ -437,6 +440,36 @@ public:
         PULONG64 offset)
     {
         return m_lldbservices->GetFrameOffset(offset);
+    }
+
+    HRESULT
+    GetIndexByName(
+        PCSTR name,
+        PULONG debugValue)
+    {
+        if (m_lldbservices2)
+            return m_lldbservices2->GetIndexByName(name, debugValue);
+        return E_FAIL;
+    }
+
+    HRESULT SetValue(
+        ULONG Register,
+        PULONG Value)
+    {
+        if (m_lldbservices2)
+            return m_lldbservices2->SetValue(Register, Value);
+        return E_FAIL;
+    }
+
+    HRESULT SetValues(
+        ULONG Count,
+        PULONG Indices,
+        ULONG Start,
+        PULONG Values)
+    {
+        if (m_lldbservices2)
+            return m_lldbservices2->SetValues(Count, Indices, Start, Values);
+        return E_FAIL;
     }
 };
  
