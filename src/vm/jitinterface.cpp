@@ -6995,11 +6995,11 @@ bool getILIntrinsicImplementation(MethodDesc * ftn,
         Instantiation inst = ftn->GetMethodInstantiation();
 
         _ASSERTE(ftn->GetNumGenericMethodArgs() == 1);
-        TypeHandle typeHandle = inst[0];
-        unsigned size = typeHandle.GetSize();
+        mdToken tokGenericArg = FindGenericMethodArgTypeSpec(MscorlibBinder::GetModule()->GetMDImport());
 
-        static const BYTE ilcode[] = { CEE_LDC_I4, (BYTE)(size), (BYTE)(size >> 8), (BYTE)(size >> 16), (BYTE)(size >> 24),
+        static const BYTE ilcode[] = { CEE_PREFIX1, (BYTE)CEE_SIZEOF, (BYTE)(tokGenericArg), (BYTE)(tokGenericArg >> 8), (BYTE)(tokGenericArg >> 16), (BYTE)(tokGenericArg >> 24),
                                        CEE_RET }; 
+
         methInfo->ILCode = const_cast<BYTE*>(ilcode);
         methInfo->ILCodeSize = sizeof(ilcode);
         methInfo->maxStack = 1;
@@ -7016,19 +7016,19 @@ bool getILIntrinsicImplementation(MethodDesc * ftn,
         TypeHandle typeHandle = inst[0];
         MethodTable * methodTable = typeHandle.GetMethodTable();
 
-        BYTE resultIlCode;
+        static const BYTE returnTrue[] = { CEE_LDC_I4_1, CEE_RET };
+        static const BYTE returnFalse[] = { CEE_LDC_I4_0, CEE_RET };
+
         if (methodTable->ContainsPointers())
         {
-            resultIlCode = CEE_LDC_I4_1; // true
+            methInfo->ILCode = const_cast<BYTE*>(returnTrue);
         }
         else
         {
-            resultIlCode = CEE_LDC_I4_0; // false
+            methInfo->ILCode = const_cast<BYTE*>(returnFalse);
         }
 
-        static const BYTE ilcode[] = { resultIlCode, CEE_RET };
-        methInfo->ILCode = const_cast<BYTE*>(ilcode);
-        methInfo->ILCodeSize = sizeof(ilcode);
+        methInfo->ILCodeSize = sizeof(returnTrue);
         methInfo->maxStack = 1;
         methInfo->EHcount = 0;
         methInfo->options = (CorInfoOptions)0;

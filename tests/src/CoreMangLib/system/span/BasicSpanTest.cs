@@ -11,6 +11,18 @@ class ReferenceType
     public ReferenceType(byte value) { Value = value; }
 }
 
+struct ValueTypeWithoutPointers
+{
+    internal byte Value;
+    public ValueTypeWithoutPointers(byte value) { Value = value; }
+}
+
+struct ValueTypeWithPointers
+{
+    internal object Reference;
+    public ValueTypeWithPointers(object reference) { Reference = reference; }
+}
+
 class My
 {
     static int Sum(Span<int> span)
@@ -23,28 +35,30 @@ class My
 
     static void Main()
     {
-        Test(() => CanAccessItemsViaIndexer(), "CanAccessItemsViaIndexer");
+        int failedTestsCount = 0;
+        Test(CanAccessItemsViaIndexer, "CanAccessItemsViaIndexer", ref failedTestsCount);
 
-        Test(() => ReferenceTypesAreSupported(), "ReferenceTypesAreSupported");
+        Test(ReferenceTypesAreSupported, "ReferenceTypesAreSupported", ref failedTestsCount);
 
-        Test(() => CanUpdateUnderlyingArray(), "CanUpdateUnderlyingArray");
+        Test(CanUpdateUnderlyingArray, "CanUpdateUnderlyingArray", ref failedTestsCount);
 
-        Test(() =>  TestArrayCoVariance(), "TestArrayCoVariance");
-        Test(() =>  TestArrayCoVarianceReadOnly(), "TestArrayCoVarianceReadOnly");
+        Test(TestArrayCoVariance, "TestArrayCoVariance", ref failedTestsCount);
+        Test(TestArrayCoVarianceReadOnly, "TestArrayCoVarianceReadOnly", ref failedTestsCount);
 
-        Test(() => CanCopyValueTypesWithoutPointersToSlice(), "CanCopyValueTypesWithoutPointersToSlice");
-        Test(() => CanCopyValueTypesWithoutPointersToArray(), "CanCopyValueTypesWithoutPointersToArray");
+        Test(CanCopyValueTypesWithoutPointersToSlice, "CanCopyValueTypesWithoutPointersToSlice", ref failedTestsCount);
+        Test(CanCopyValueTypesWithoutPointersToArray, "CanCopyValueTypesWithoutPointersToArray", ref failedTestsCount);
 
-        Test(() => CanCopyReferenceTypesToSlice(), "CanCopyReferenceTypesToSlice");
-        Test(() => CanCopyReferenceTypesToArray(), "CanCopyReferenceTypesToArray");
+        Test(CanCopyReferenceTypesToSlice, "CanCopyReferenceTypesToSlice", ref failedTestsCount);
+        Test(CanCopyReferenceTypesToArray, "CanCopyReferenceTypesToArray", ref failedTestsCount);
 
-        Test(() => CanCopyValueTypesWithPointersToSlice(), "CanCopyValueTypesWithPointersToSlice");
-        Test(() => CanCopyValueTypesWithPointersToArray(), "CanCopyValueTypesWithPointersToArray");
+        Test(CanCopyValueTypesWithPointersToSlice, "CanCopyValueTypesWithPointersToSlice", ref failedTestsCount);
+        Test(CanCopyValueTypesWithPointersToArray, "CanCopyValueTypesWithPointersToArray", ref failedTestsCount);
 
-        Test(() => CanCopyValueTypesWithoutPointersToUnmanagedMemory(), "CanCopyValueTypesWithoutPointersToUnmanagedMemory");
-        Test(() => MustNotCopyValueTypesWithPointersToUnmanagedMemory(), "MustNotCopyValueTypesWithPointersToUnmanagedMemory");
+        Test(CanCopyValueTypesWithoutPointersToUnmanagedMemory, "CanCopyValueTypesWithoutPointersToUnmanagedMemory", ref failedTestsCount);
+        Test(MustNotCopyValueTypesWithPointersToUnmanagedMemory, "MustNotCopyValueTypesWithPointersToUnmanagedMemory", ref failedTestsCount);
 
-        Console.WriteLine("All tests passed");
+        Console.WriteLine(string.Format("{0} tests has failed", failedTestsCount));
+        Environment.Exit(failedTestsCount);
     }
 
     private static void CanAccessItemsViaIndexer()
@@ -115,16 +129,6 @@ class My
         AssertTrue(underlyingArray[0] == 0, "Failed to update underlying array");
         AssertTrue(underlyingArray[1] == 1, "Failed to update underlying array");
         AssertTrue(underlyingArray[2] == 2, "Failed to update underlying array");
-    }
-
-    struct ValueTypeWithoutPointers
-    {
-        internal byte Value;
-
-        public ValueTypeWithoutPointers(byte value)
-        {
-            Value = value;
-        }
     }
 
     private static void CanCopyValueTypesWithoutPointersToSlice()
@@ -223,16 +227,6 @@ class My
         }
     }
 
-    struct ValueTypeWithPointers
-    {
-        internal object Reference;
-
-        public ValueTypeWithPointers(object reference)
-        {
-            Reference = reference;
-        }
-    }
-
     private static void CanCopyValueTypesWithPointersToSlice()
     {
         var source = new Span<ValueTypeWithPointers>(
@@ -312,7 +306,7 @@ class My
         AssertTrue(result == false, "Failed to prevent from copying value types with pointers to unamanaged memory");
     }
 
-    private static void Test(Action test, string testName)
+    private static void Test(Action test, string testName, ref int failedTestsCount)
     {
         try
         {
@@ -323,6 +317,8 @@ class My
         catch (System.Exception ex)
         {
             Console.WriteLine(testName + " test has failed with exception: " + ex.Message);
+
+            ++failedTestsCount;
         }
         finally
         {
