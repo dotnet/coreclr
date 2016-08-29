@@ -91,7 +91,7 @@ namespace System {
       protected virtual double Sample() {
           //Including this division at the end gives us significantly improved
           //random number distribution.
-          return (InternalSample()*(1.0/MBIG));
+          return (Next()*(1.0/MBIG));
       }
     
       private int InternalSample() {
