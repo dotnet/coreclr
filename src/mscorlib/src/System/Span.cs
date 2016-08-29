@@ -174,11 +174,8 @@ namespace System
 
             if (JitHelpers.ContainsReferences<T>())
             {
-                var src = JitHelpers.GetByRef<T>(ref _rawPointer);
-                var dst = JitHelpers.GetByRef<T>(ref destination._rawPointer);
-
                 for (int i = 0; i < Length; i++)
-                    JitHelpers.AddByRef(ref dst, i) = JitHelpers.AddByRef(ref src, i);
+                    JitHelpers.AddByRef(ref JitHelpers.GetByRef<T>(ref destination._rawPointer), i) = JitHelpers.AddByRef(ref JitHelpers.GetByRef<T>(ref _rawPointer), i);
 
                 return true;
             }
@@ -194,12 +191,13 @@ namespace System
         {
             if (destination == null)
                 throw new ArgumentNullException("destination");
+            if (Length > destination.Length)
+                return false;
 
             if (JitHelpers.ContainsReferences<T>())
             {
-                var src = JitHelpers.GetByRef<T>(ref _rawPointer);
                 for (int i = 0; i < Length; i++)
-                    destination[i] = JitHelpers.AddByRef(ref src, i);
+                    destination[i] = JitHelpers.AddByRef(ref JitHelpers.GetByRef<T>(ref _rawPointer), i);
 
                 return true;
             }
