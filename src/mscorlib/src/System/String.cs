@@ -38,7 +38,7 @@ namespace System {
     
     [ComVisible(true)]
     [Serializable]
-    public sealed class String : IComparable, ICloneable, IConvertible, IEnumerable
+    public sealed partial class String : IComparable, ICloneable, IConvertible, IEnumerable
         , IComparable<String>, IEnumerable<char>, IEquatable<String>
     {
         
