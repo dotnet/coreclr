@@ -4696,8 +4696,6 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
     // We should still have a TYP_STRUCT
     assert(argValue->TypeGet() == TYP_STRUCT);
 
-    // TODO(pdg): below is where we'll need to create aggregate nodes.
-
     GenTreeArgList* newArg = nullptr;
 
     // Are we passing a struct LclVar?

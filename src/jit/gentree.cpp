@@ -968,10 +968,10 @@ Compiler::fgWalkResult Compiler::fgWalkTreePostRec(GenTreePtr* pTree, fgWalkData
                 }
                 break;
             }
-            else
-            {
-                __fallthrough;
-            }
+
+            // GT_LIST nodes that do not represent aggregate arguments intentionally fall through to the
+            // default node processing below.
+            __fallthrough;
         }
 
         default:
@@ -6407,6 +6407,22 @@ GenTreeArgList* Compiler::gtNewArgList(GenTreePtr arg1, GenTreePtr arg2)
     return new (this, GT_LIST) GenTreeArgList(arg1, gtNewArgList(arg2));
 }
 
+//------------------------------------------------------------------------
+// Compiler::gtNewAggregate:
+//    Creates a new aggregate argument node. These nodes are used to
+//    represent arguments that are composed of multiple values (e.g.
+//    the lclVars that represent the fields of a promoted struct).
+//
+//    Note that aggregate arguments are currently represented by GT_LIST
+//    nodes that are marked with the GTF_LIST_AGGREGATE flag. This
+//    representation may be changed in the future to instead use its own
+//    node type (e.g. GT_AGGREGATE).
+//
+// Arguments:
+//    firstElement - The first element in the aggregate's list of values.
+//
+// Returns:
+//    The newly-created aggregate node.
 GenTreeArgList* Compiler::gtNewAggregate(GenTree* firstElement)
 {
     GenTreeArgList* agg = gtNewArgList(firstElement);
@@ -8584,14 +8600,25 @@ GenTree** GenTreeUseEdgeIterator::GetNextUseEdge() const
 //
 void GenTreeUseEdgeIterator::MoveToNextCallUseEdge()
 {
+    enum
+    {
+        CALL_INSTANCE = 0,
+        CALL_ARGS = 1,
+        CALL_LATE_ARGS = 2,
+        CALL_CONTROL_EXPR = 3,
+        CALL_COOKIE = 4,
+        CALL_ADDRESS = 5,
+        CALL_TERMINAL = 6,
+    };
+
     GenTreeCall* call = m_node->AsCall();
 
     for (;;)
     {
         switch (m_state)
         {
-            case 0:
-                m_state   = 1;
+            case CALL_INSTANCE:
+                m_state   = CALL_ARGS;
                 m_argList = call->gtCallArgs;
 
                 if (call->gtCallObjp != nullptr)
@@ -8601,13 +8628,13 @@ void GenTreeUseEdgeIterator::MoveToNextCallUseEdge()
                 }
                 break;
 
-            case 1:
-            case 2:
+            case CALL_ARGS:
+            case CALL_LATE_ARGS:
                 if (m_argList == nullptr)
                 {
                     m_state++;
 
-                    if (m_state == 2)
+                    if (m_state == CALL_LATE_ARGS)
                     {
                         m_argList = call->gtCallLateArgs;
                     }
@@ -8621,8 +8648,8 @@ void GenTreeUseEdgeIterator::MoveToNextCallUseEdge()
                 }
                 break;
 
-            case 3:
-                m_state = call->gtCallType == CT_INDIRECT ? 4 : 6;
+            case CALL_CONTROL_EXPR:
+                m_state = call->gtCallType == CT_INDIRECT ? CALL_COOKIE : CALL_TERMINAL;
 
                 if (call->gtControlExpr != nullptr)
                 {
@@ -8634,7 +8661,7 @@ void GenTreeUseEdgeIterator::MoveToNextCallUseEdge()
             case 4:
                 assert(call->gtCallType == CT_INDIRECT);
 
-                m_state = 5;
+                m_state = CALL_ADDRESS;
 
                 if (call->gtCallCookie != nullptr)
                 {
@@ -8646,7 +8673,7 @@ void GenTreeUseEdgeIterator::MoveToNextCallUseEdge()
             case 5:
                 assert(call->gtCallType == CT_INDIRECT);
 
-                m_state = 6;
+                m_state = CALL_TERMINAL;
                 if (call->gtCallAddr != nullptr)
                 {
                     m_edge = &call->gtCallAddr;

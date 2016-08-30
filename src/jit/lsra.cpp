@@ -3206,7 +3206,7 @@ static int ComputeOperandDstCount(GenTree* operand)
     }
     else
     {
-        // If an aggregate or non-void-types operand is not an unsued value and does not have source registers,
+        // If an aggregate or non-void-typed operand is not an unsued value and does not have source registers,
         // that argument is contained within its parent and produces `sum(operand_dst_count)` registers.
         int dstCount = 0;
         for (GenTree* op : operand->Operands())
