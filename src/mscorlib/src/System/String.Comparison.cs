@@ -798,5 +798,182 @@ namespace System
             }
             return false;
         }
+
+        // Determines whether two strings match.
+        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
+        public override bool Equals(Object obj)
+        {
+            if (this == null)                        // this is necessary to guard against reverse-pinvokes and
+                throw new NullReferenceException();  // other callers who do not use the callvirt instruction
+
+            if (object.ReferenceEquals(this, obj))
+                return true;
+
+            string str = obj as string;
+            if (str == null)
+                return false;
+
+            if (this.Length != str.Length)
+                return false;
+
+            return EqualsHelper(this, str);
+        }
+
+        // Determines whether two strings match.
+        [Pure]
+        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
+        public bool Equals(String value)
+        {
+            if (this == null)                        // this is necessary to guard against reverse-pinvokes and
+                throw new NullReferenceException();  // other callers who do not use the callvirt instruction
+
+            if (object.ReferenceEquals(this, value))
+                return true;
+
+            // NOTE: No need to worry about casting to object here.
+            // If either side of an == comparison between strings
+            // is null, Roslyn generates a simple ceq instruction
+            // instead of calling string.op_Equality.
+            if (value == null)
+                return false;
+            
+            if (this.Length != value.Length)
+                return false;
+
+            return EqualsHelper(this, value);
+        }
+
+        [Pure]
+        [System.Security.SecuritySafeCritical]  // auto-generated
+        public bool Equals(String value, StringComparison comparisonType) {
+            if (comparisonType < StringComparison.CurrentCulture || comparisonType > StringComparison.OrdinalIgnoreCase)
+                throw new ArgumentException(Environment.GetResourceString("NotSupported_StringComparison"), "comparisonType");
+            Contract.EndContractBlock();
+
+            if ((Object)this == (Object)value) {
+                return true;
+            }
+
+            if ((Object)value == null) {
+                return false;
+            }
+
+            switch (comparisonType) {
+                case StringComparison.CurrentCulture:
+                    return (CultureInfo.CurrentCulture.CompareInfo.Compare(this, value, CompareOptions.None) == 0);
+
+                case StringComparison.CurrentCultureIgnoreCase:
+                    return (CultureInfo.CurrentCulture.CompareInfo.Compare(this, value, CompareOptions.IgnoreCase) == 0);
+
+                case StringComparison.InvariantCulture:
+                    return (CultureInfo.InvariantCulture.CompareInfo.Compare(this, value, CompareOptions.None) == 0);
+
+                case StringComparison.InvariantCultureIgnoreCase:
+                    return (CultureInfo.InvariantCulture.CompareInfo.Compare(this, value, CompareOptions.IgnoreCase) == 0);
+
+                case StringComparison.Ordinal:
+                    if (this.Length != value.Length)
+                        return false;
+                    return EqualsHelper(this, value);
+
+                case StringComparison.OrdinalIgnoreCase:
+                    if (this.Length != value.Length)
+                        return false;
+
+                    // If both strings are ASCII strings, we can take the fast path.
+                    if (this.IsAscii() && value.IsAscii()) {
+                        return (CompareOrdinalIgnoreCaseHelper(this, value) == 0);
+                    }
+
+#if FEATURE_COREFX_GLOBALIZATION
+                    return (CompareInfo.CompareOrdinalIgnoreCase(this, 0, this.Length, value, 0, value.Length) == 0);
+#else
+                    // Take the slow path.
+                    return (TextInfo.CompareOrdinalIgnoreCase(this, value) == 0);
+#endif
+
+                default:
+                    throw new ArgumentException(Environment.GetResourceString("NotSupported_StringComparison"), "comparisonType");
+            }
+        }
+
+
+        // Determines whether two Strings match.
+        [Pure]
+        public static bool Equals(String a, String b) {
+            if ((Object)a==(Object)b) {
+                return true;
+            }
+
+            if ((Object)a == null || (Object)b == null || a.Length != b.Length) {
+                return false;
+            }
+
+            return EqualsHelper(a, b);
+        }
+
+        [Pure]
+        [System.Security.SecuritySafeCritical]  // auto-generated
+        public static bool Equals(String a, String b, StringComparison comparisonType) {
+            if (comparisonType < StringComparison.CurrentCulture || comparisonType > StringComparison.OrdinalIgnoreCase)
+                throw new ArgumentException(Environment.GetResourceString("NotSupported_StringComparison"), "comparisonType");
+            Contract.EndContractBlock();
+
+            if ((Object)a==(Object)b) {
+                return true;
+            }
+    
+            if ((Object)a==null || (Object)b==null) {
+                return false;
+            }
+
+            switch (comparisonType) {
+                case StringComparison.CurrentCulture:
+                    return (CultureInfo.CurrentCulture.CompareInfo.Compare(a, b, CompareOptions.None) == 0);
+
+                case StringComparison.CurrentCultureIgnoreCase:
+                    return (CultureInfo.CurrentCulture.CompareInfo.Compare(a, b, CompareOptions.IgnoreCase) == 0);
+
+                case StringComparison.InvariantCulture:
+                    return (CultureInfo.InvariantCulture.CompareInfo.Compare(a, b, CompareOptions.None) == 0);
+
+                case StringComparison.InvariantCultureIgnoreCase:
+                    return (CultureInfo.InvariantCulture.CompareInfo.Compare(a, b, CompareOptions.IgnoreCase) == 0);
+
+                case StringComparison.Ordinal:
+                    if (a.Length != b.Length)
+                        return false;
+
+                    return EqualsHelper(a, b);
+
+                case StringComparison.OrdinalIgnoreCase:
+                    if (a.Length != b.Length)
+                        return false;
+                    else {
+                        // If both strings are ASCII strings, we can take the fast path.
+                        if (a.IsAscii() && b.IsAscii()) {
+                            return (CompareOrdinalIgnoreCaseHelper(a, b) == 0);
+                        }
+                        // Take the slow path.
+
+#if FEATURE_COREFX_GLOBALIZATION
+                        return (CompareInfo.CompareOrdinalIgnoreCase(a, 0, a.Length, b, 0, b.Length) == 0);
+#else
+                        return (TextInfo.CompareOrdinalIgnoreCase(a, b) == 0);
+#endif
+                    }
+
+                default:
+                    throw new ArgumentException(Environment.GetResourceString("NotSupported_StringComparison"), "comparisonType");
+            }
+        }
+
+        public static bool operator == (String a, String b) {
+           return String.Equals(a, b);
+        }
+
+        public static bool operator != (String a, String b) {
+           return !String.Equals(a, b);
+        }
     }
 }
