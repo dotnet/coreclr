@@ -51,10 +51,6 @@ namespace System {
         // For empty strings, this will be '\0' since
         // strings are both null-terminated and length prefixed
         [NonSerialized] private char m_firstChar;
-
-        private const int TrimHead = 0;
-        private const int TrimTail = 1;
-        private const int TrimBoth = 2;
     
         // The Empty constant holds the empty string value. It is initialized by the EE during startup.
         // It is treated as intrinsic by the JIT as so the static constructor would never run.
@@ -786,33 +782,6 @@ namespace System {
             [System.Security.SecuritySafeCritical]  // auto-generated
             [MethodImplAttribute(MethodImplOptions.InternalCall)]
             get;
-        }
-    
-    
-        // Removes a set of characters from the end of this string.
-        [Pure]
-        public String Trim(params char[] trimChars) {
-            if (null==trimChars || trimChars.Length == 0) {
-                return TrimHelper(TrimBoth);
-            }
-            return TrimHelper(trimChars,TrimBoth);
-        }
-    
-        // Removes a set of characters from the beginning of this string.
-        public String TrimStart(params char[] trimChars) {
-            if (null==trimChars || trimChars.Length == 0) {
-                return TrimHelper(TrimHead);
-            }
-            return TrimHelper(trimChars,TrimHead);
-        }
-    
-    
-        // Removes a set of characters from the end of this string.
-        public String TrimEnd(params char[] trimChars) {
-            if (null==trimChars || trimChars.Length == 0) {
-                return TrimHelper(TrimTail);
-            }
-            return TrimHelper(trimChars,TrimTail);
         }
     
         // Creates a new string with the characters copied in from ptr. If
@@ -2225,94 +2194,6 @@ namespace System {
             Contract.Ensures(Contract.Result<Object>() != null);
             Contract.EndContractBlock();
             return this;
-        }
-
-        // Trims the whitespace from both ends of the string.  Whitespace is defined by
-        // Char.IsWhiteSpace.
-        //
-        [Pure]
-        public String Trim() {
-            Contract.Ensures(Contract.Result<String>() != null);
-            Contract.EndContractBlock();
-
-            return TrimHelper(TrimBoth);        
-        }
-
-       
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        private String TrimHelper(int trimType) {
-            //end will point to the first non-trimmed character on the right
-            //start will point to the first non-trimmed character on the Left
-            int end = this.Length-1;
-            int start=0;
-
-            //Trim specified characters.
-            if (trimType !=TrimTail)  {
-                for (start=0; start < this.Length; start++) {
-                    if (!Char.IsWhiteSpace(this[start])) break;
-                }
-            }
-            
-            if (trimType !=TrimHead) {
-                for (end= Length -1; end >= start;  end--) {
-                    if (!Char.IsWhiteSpace(this[end])) break;
-                }
-            }
-
-            return CreateTrimmedString(start, end);
-        }
-    
-    
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        private String TrimHelper(char[] trimChars, int trimType) {
-            //end will point to the first non-trimmed character on the right
-            //start will point to the first non-trimmed character on the Left
-            int end = this.Length-1;
-            int start=0;
-
-            //Trim specified characters.
-            if (trimType !=TrimTail)  {
-                for (start=0; start < this.Length; start++) {
-                    int i = 0;
-                    char ch = this[start];
-                    for( i = 0; i < trimChars.Length; i++) {
-                        if( trimChars[i] == ch) break;
-                    }
-                    if( i == trimChars.Length) { // the character is not white space
-                        break;  
-                    }
-                }
-            }
-            
-            if (trimType !=TrimHead) {
-                for (end= Length -1; end >= start;  end--) {
-                    int i = 0;    
-                    char ch = this[end];                    
-                    for(i = 0; i < trimChars.Length; i++) {
-                        if( trimChars[i] == ch) break;
-                    }
-                    if( i == trimChars.Length) { // the character is not white space
-                        break;  
-                    }                    
-                }
-            }
-
-            return CreateTrimmedString(start, end);
-        }
-
-
-        [System.Security.SecurityCritical]  // auto-generated
-        private String CreateTrimmedString(int start, int end) {
-            int len = end -start + 1;
-            if (len == this.Length) {
-                // Don't allocate a new string as the trimmed string has not changed.
-                return this;
-            }
-
-            if( len == 0) {
-                return String.Empty;
-            }
-            return InternalSubString(start, len);
         }
     
         [System.Security.SecuritySafeCritical]  // auto-generated
