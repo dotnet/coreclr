@@ -27,6 +27,8 @@ namespace System
         /// <param name="array">The target array.</param>
         public ReadOnlySpan(T[] array)
         {
+            SpanContracts.RequiresNonNullArray(array);
+
             JitHelpers.SetByRef(out _rawPointer, ref JitHelpers.GetArrayData(array));
             _length = array.Length;
         }
@@ -40,8 +42,9 @@ namespace System
         /// <param name="length">The number of items in the span.</param>
         public ReadOnlySpan(T[] array, int start, int length)
         {
-            if ((uint)start >= (uint)array.Length || (uint)length > (uint)(array.Length - start))
-                ThrowHelper.ThrowArgumentOutOfRangeException();
+            SpanContracts.RequiresNonNullArray(array);
+            SpanContracts.RequiresInRange(start, array.Length);
+            SpanContracts.RequiresInInclusiveRange(length, array.Length - start);
 
             JitHelpers.SetByRef(out _rawPointer, ref JitHelpers.AddByRef(ref JitHelpers.GetArrayData(array), start));
             _length = length;
@@ -58,7 +61,9 @@ namespace System
         [CLSCompliant(false)]
         public unsafe ReadOnlySpan(void* ptr, int length)
         {
-            System.Diagnostics.Contracts.Contract.Requires(length >= 0);
+            SpanContracts.RequresNoReferences<T>();
+            SpanContracts.RequiresNonNegative(length);
+
             _rawPointer = (IntPtr)ptr;
             _length = length;
         }
@@ -95,15 +100,15 @@ namespace System
         /// <summary>
         /// Fetches the element at the specified index.
         /// </summary>
-        /// <exception cref="System.ArgumentOutOfRangeException">
+        /// <exception cref="System.IndexOutOfRangeException">
         /// Thrown when the specified index is not in range (&lt;0 or &gt;&eq;_length).
         /// </exception>
         public T this[int index]
         {
             get
             {
-                if ((uint)index >= (uint)_length)
-                    throw new IndexOutOfRangeException();
+                SpanContracts.RequiresIndexInRange(index, _length);
+
                 return JitHelpers.AddByRef(ref JitHelpers.GetByRef<T>(ref _rawPointer), index);
             }
         }
@@ -131,8 +136,8 @@ namespace System
         /// </exception>
         public ReadOnlySpan<T> Slice(int start, int length)
         {
-            if ((uint)start >= (uint)_length || (uint)length > (uint)(_length - start))
-                ThrowHelper.ThrowArgumentOutOfRangeException();
+            SpanContracts.RequiresInRange(start, length);
+            SpanContracts.RequiresInInclusiveRange(length, _length - start);
 
             return new ReadOnlySpan<T>(ref JitHelpers.AddByRef(ref JitHelpers.GetByRef<T>(ref _rawPointer), start), length);
         }

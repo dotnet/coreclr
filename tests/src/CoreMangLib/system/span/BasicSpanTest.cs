@@ -36,11 +36,14 @@ class My
     static void Main()
     {
         int failedTestsCount = 0;
+
         Test(CanAccessItemsViaIndexer, "CanAccessItemsViaIndexer", ref failedTestsCount);
 
         Test(ReferenceTypesAreSupported, "ReferenceTypesAreSupported", ref failedTestsCount);
 
         Test(CanUpdateUnderlyingArray, "CanUpdateUnderlyingArray", ref failedTestsCount);
+
+        Test(MustNotMoveGcTypesToUnmanagedMemory, "MustNotMoveGcTypesToUnmanagedMemory", ref failedTestsCount);
 
         Test(TestArrayCoVariance, "TestArrayCoVariance", ref failedTestsCount);
         Test(TestArrayCoVarianceReadOnly, "TestArrayCoVarianceReadOnly", ref failedTestsCount);
@@ -61,7 +64,7 @@ class My
         Environment.Exit(failedTestsCount);
     }
 
-    private static void CanAccessItemsViaIndexer()
+    static void CanAccessItemsViaIndexer()
     {
         int[] a = new int[] { 1, 2, 3 };
         Span<int> slice = new Span<int>(a);
@@ -71,7 +74,7 @@ class My
         AssertTrue(Sum(subslice) == 5, "Failed to sum subslice");
     }
 
-    private static void ReferenceTypesAreSupported()
+    static void ReferenceTypesAreSupported()
     {
         var underlyingArray = new ReferenceType[] { new ReferenceType(0), new ReferenceType(1), new ReferenceType(2) };
         var slice = new Span<ReferenceType>(underlyingArray);
@@ -80,6 +83,33 @@ class My
         {
             AssertTrue(underlyingArray[i].Value == slice[i].Value, "Values are different");
             AssertTrue(object.ReferenceEquals(underlyingArray[i], slice[i]), "References are broken");
+        }
+    }
+
+    static unsafe void MustNotMoveGcTypesToUnmanagedMemory()
+    {
+        byte* pointerToStack = stackalloc byte[256];
+
+        try
+        {
+            new Span<ValueTypeWithPointers>(pointerToStack, 1);
+            AssertTrue(false, "Expected exception for value types with references not thrown");
+        }
+        catch (System.ArgumentException ex)
+        {
+            AssertTrue(ex.Message == "'ValueTypeWithPointers' is reference type or contains pointers and hence can not be stored in unmanaged memory.",
+                "Exception message is incorrect");
+        }
+
+        try
+        {
+            new Span<ReferenceType>(pointerToStack, 1);
+            AssertTrue(false, "Expected exception for reference types not thrown");
+        }
+        catch (System.ArgumentException ex)
+        {
+            AssertTrue(ex.Message == "'ReferenceType' is reference type or contains pointers and hence can not be stored in unmanaged memory.",
+                "Exception message is incorrect");
         }
     }
 
@@ -117,7 +147,7 @@ class My
         AssertTrue(new ReadOnlySpan<object>(objEmptyArray).Length == 0, "Unexpected length");
    }
 
-    private static void CanUpdateUnderlyingArray()
+    static void CanUpdateUnderlyingArray()
     {
         var underlyingArray = new int[] { 1, 2, 3 };
         var slice = new Span<int>(underlyingArray);
@@ -131,7 +161,7 @@ class My
         AssertTrue(underlyingArray[2] == 2, "Failed to update underlying array");
     }
 
-    private static void CanCopyValueTypesWithoutPointersToSlice()
+    static void CanCopyValueTypesWithoutPointersToSlice()
     {
         var source = new Span<ValueTypeWithoutPointers>(
             new[]
@@ -154,7 +184,7 @@ class My
         }
     }
 
-    private static void CanCopyValueTypesWithoutPointersToArray()
+    static void CanCopyValueTypesWithoutPointersToArray()
     {
         var source = new Span<ValueTypeWithoutPointers>(
             new[]
@@ -176,7 +206,7 @@ class My
     }
 
 
-    private static void CanCopyReferenceTypesToSlice()
+    static void CanCopyReferenceTypesToSlice()
     {
         var source = new Span<ReferenceType>(
             new[]
@@ -204,7 +234,7 @@ class My
         }
     }
 
-    private static void CanCopyReferenceTypesToArray()
+    static void CanCopyReferenceTypesToArray()
     {
         var source = new Span<ReferenceType>(
             new[]
@@ -227,7 +257,7 @@ class My
         }
     }
 
-    private static void CanCopyValueTypesWithPointersToSlice()
+    static void CanCopyValueTypesWithPointersToSlice()
     {
         var source = new Span<ValueTypeWithPointers>(
             new[]
@@ -250,7 +280,7 @@ class My
         }
     }
 
-    private static void CanCopyValueTypesWithPointersToArray()
+    static void CanCopyValueTypesWithPointersToArray()
     {
         var source = new Span<ValueTypeWithPointers>(
             new[]
@@ -271,7 +301,7 @@ class My
         }
     }
 
-    private static unsafe void CanCopyValueTypesWithoutPointersToUnmanagedMemory()
+    static unsafe void CanCopyValueTypesWithoutPointersToUnmanagedMemory()
     {
         var source = new Span<byte>(
             new byte[]
@@ -292,7 +322,7 @@ class My
         }
     }
 
-    private static unsafe void MustNotCopyValueTypesWithPointersToUnmanagedMemory()
+    static unsafe void MustNotCopyValueTypesWithPointersToUnmanagedMemory()
     {
         var source = new Span<ValueTypeWithPointers>(
             new[]
@@ -306,7 +336,7 @@ class My
         AssertTrue(result == false, "Failed to prevent from copying value types with pointers to unamanaged memory");
     }
 
-    private static void Test(Action test, string testName, ref int failedTestsCount)
+    static void Test(Action test, string testName, ref int failedTestsCount)
     {
         try
         {
@@ -326,7 +356,7 @@ class My
         }
     }
 
-    private static void AssertTrue(bool condition, string errorMessage)
+    static void AssertTrue(bool condition, string errorMessage)
     {
         if (condition == false)
         {

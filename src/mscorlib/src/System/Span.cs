@@ -27,15 +27,8 @@ namespace System
         /// <param name="array">The target array.</param>
         public Span(T[] array)
         {
-            if (array == null)
-            {
-                throw new ArgumentNullException("array");
-            }
-            if (default(T) == null) // Arrays of valuetypes are never covariant
-            {
-                if (array.GetType() != typeof(T[]))
-                    ThrowHelper.ThrowArrayTypeMismatchException();
-            }
+            SpanContracts.RequiresNonNullArray(array);
+            SpanContracts.RequiresNoCovariance(array);
 
             JitHelpers.SetByRef(out _rawPointer, ref JitHelpers.GetArrayData(array));
             _length = array.Length;
@@ -50,14 +43,10 @@ namespace System
         /// <param name="length">The number of items in the span.</param>
         public Span(T[] array, int start, int length)
         {
-            if ((uint)start >= (uint)array.Length || (uint)length > (uint)(array.Length - start))
-                ThrowHelper.ThrowArgumentOutOfRangeException();
-
-            if (default(T) == null) // Arrays of valuetypes are nnever covariant
-            {
-                if (array.GetType() != typeof(T[]))
-                    ThrowHelper.ThrowArrayTypeMismatchException();
-            }
+            SpanContracts.RequiresNonNullArray(array);
+            SpanContracts.RequiresNoCovariance(array);
+            SpanContracts.RequiresInRange(start, array.Length);
+            SpanContracts.RequiresInInclusiveRange(length, array.Length - start);
 
             JitHelpers.SetByRef(out _rawPointer, ref JitHelpers.AddByRef(ref JitHelpers.GetArrayData(array), start));
             _length = length;
@@ -74,7 +63,9 @@ namespace System
         [CLSCompliant(false)]
         public unsafe Span(void* ptr, int length)
         {
-            System.Diagnostics.Contracts.Contract.Requires(length >= 0);
+            SpanContracts.RequresNoReferences<T>();
+            SpanContracts.RequiresNonNegative(length);
+
             _rawPointer = (IntPtr)ptr;
             _length = length;
         }
@@ -106,21 +97,21 @@ namespace System
         /// <summary>
         /// Fetches the element at the specified index.
         /// </summary>
-        /// <exception cref="System.ArgumentOutOfRangeException">
+        /// <exception cref="System.IndexOutOfRangeException">
         /// Thrown when the specified index is not in range (&lt;0 or &gt;&eq;_length).
         /// </exception>
         public T this[int index]
         {
             get
             {
-                if ((uint)index >= (uint)_length)
-                    throw new IndexOutOfRangeException();
+                SpanContracts.RequiresIndexInRange(index, _length);
+
                 return JitHelpers.AddByRef(ref JitHelpers.GetByRef<T>(ref _rawPointer), index);
             }
             set
             {
-                if ((uint)index >= (uint)_length)
-                    throw new IndexOutOfRangeException();
+                SpanContracts.RequiresIndexInRange(index, _length);
+
                 JitHelpers.AddByRef(ref JitHelpers.GetByRef<T>(ref _rawPointer), index) = value;
             }
         }
@@ -150,8 +141,8 @@ namespace System
         /// </exception>
         public Span<T> Slice(int start, int length)
         {
-            if ((uint)start >= (uint)_length || (uint)length > (uint)(_length - start))
-                ThrowHelper.ThrowArgumentOutOfRangeException();
+            SpanContracts.RequiresInRange(start, length);
+            SpanContracts.RequiresInInclusiveRange(length, _length - start);
 
             return new Span<T>(ref JitHelpers.AddByRef(ref JitHelpers.GetByRef<T>(ref _rawPointer), start), length);
         }
@@ -210,8 +201,7 @@ namespace System
 
         public void Set(ReadOnlySpan<T> values)
         {
-            if (values.Length > Length)
-                throw new ArgumentOutOfRangeException("values");
+            SpanContracts.RequiresInInclusiveRange(values._length, _length);
 
             SpanHelper.CopyTo<T>(ref _rawPointer, ref values._rawPointer, values.Length);
         }
@@ -222,19 +212,56 @@ namespace System
         }
 
         [CLSCompliant(false)]
-        public unsafe bool Set(void* source, int elementsCount)
+        public unsafe void Set(void* source, int elementsCount)
         {
-            if (Length > (uint)elementsCount)
-            {
-                throw new ArgumentOutOfRangeException("values");
-            }
-            if (JitHelpers.ContainsReferences<T>())
-            {
-                throw new InvalidOperationException("must not copy types with references to unmanaged heap"); // todo: think of better ex.Message
-            }
+            SpanContracts.RequresNoReferences<T>();
+            SpanContracts.RequiresNonNegative(elementsCount);
+            SpanContracts.RequiresInInclusiveRange(_length, elementsCount);
 
             SpanHelper.Memmove<T>((byte*)_rawPointer, (byte*)source, elementsCount);
-            return true;
+        }
+    }
+
+    internal static class SpanContracts
+    {
+        internal static void RequiresIndexInRange(int index, int length) {
+            if ((uint)index >= (uint)length)
+                ThrowHelper.ThrowIndexOutOfRangeException();
+        }
+
+        internal static void RequiresInRange(int start, int length) {
+            if ((uint)start >= (uint)length)
+                ThrowHelper.ThrowArgumentOutOfRangeException();
+        }
+
+        public static void RequiresInInclusiveRange(int start, int length) {
+            if ((uint)start > (uint)length)
+                ThrowHelper.ThrowArgumentOutOfRangeException();
+        }
+
+        public static void RequiresNonNegative(int number) {
+            if (number < 0)
+                ThrowHelper.ThrowArgumentOutOfRangeException();
+        }
+
+        internal static void RequiresNonNullArray<T>(T[] array) {
+            if (array == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
+        }
+
+        internal static void RequiresNoCovariance<T>(T[] array) {
+            if (default(T) == null) { // Arrays of valuetypes are never covariant
+                if (array.GetType() != typeof(T[]))
+                    ThrowHelper.ThrowArrayTypeMismatchException();
+            }
+        }
+
+        /// <summary>
+        /// throws for reference types and value types with references, they must not be put to unmanaged memory
+        /// </summary>
+        internal static void RequresNoReferences<T>() {
+            if (JitHelpers.ContainsReferences<T>())
+                ThrowHelper.ThrowInvalidTypeForUnmanagedMemory(typeof(T));
         }
     }
 
@@ -251,10 +278,12 @@ namespace System
             }
             else
             {
+                ref T dest = ref JitHelpers.GetByRef<T>(ref destination);
+                ref T src = ref JitHelpers.GetByRef<T>(ref source);
+
                 for (int i = 0; i < elementsCount; i++)
                 {
-                    JitHelpers.AddByRef(ref JitHelpers.GetByRef<T>(ref destination), i)
-                        = JitHelpers.AddByRef(ref JitHelpers.GetByRef<T>(ref source), i);
+                    JitHelpers.AddByRef(ref dest, i) = JitHelpers.AddByRef(ref src, i);
                 }
             }
         }

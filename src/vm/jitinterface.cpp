@@ -7019,7 +7019,7 @@ bool getILIntrinsicImplementation(MethodDesc * ftn,
         static const BYTE returnTrue[] = { CEE_LDC_I4_1, CEE_RET };
         static const BYTE returnFalse[] = { CEE_LDC_I4_0, CEE_RET };
 
-        if (methodTable->ContainsPointers())
+        if (!methodTable->IsValueType() || methodTable->ContainsPointers())
         {
             methInfo->ILCode = const_cast<BYTE*>(returnTrue);
         }
