@@ -126,8 +126,21 @@ namespace System
         }
 
         /// <summary>
-        /// Forms a slice out of the given span, beginning at 'start', and
-        /// ending at 'end' (exclusive).
+        /// Forms a slice out of the given span, beginning at 'start'.
+        /// </summary>
+        /// <param name="start">The index at which to begin this slice.</param>
+        /// <exception cref="System.ArgumentOutOfRangeException">
+        /// Thrown when the specified start index is not in range (&lt;0 or &gt;length).
+        /// </exception>
+        public ReadOnlySpan<T> Slice(int start)
+        {
+            SpanContracts.RequiresInInclusiveRange(start, _length);
+
+            return new Span<T>(ref JitHelpers.AddByRef(ref JitHelpers.GetByRef<T>(ref _rawPointer), start), Length - start);
+        }
+
+        /// <summary>
+        /// Forms a slice out of the given span, beginning at 'start', of given length
         /// </summary>
         /// <param name="start">The index at which to begin this slice.</param>
         /// <param name="end">The index at which to end this slice (exclusive).</param>
