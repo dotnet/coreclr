@@ -424,5 +424,71 @@ namespace System
             // fall back should be extremely rare.
             return copiedLength == totalLength ? result : Concat((string[])values.Clone());
         }
+    
+        public static String Format(String format, Object arg0) {
+            Contract.Ensures(Contract.Result<String>() != null);
+            return FormatHelper(null, format, new ParamsArray(arg0));
+        }
+    
+        public static String Format(String format, Object arg0, Object arg1) {
+            Contract.Ensures(Contract.Result<String>() != null);
+            return FormatHelper(null, format, new ParamsArray(arg0, arg1));
+        }
+    
+        public static String Format(String format, Object arg0, Object arg1, Object arg2) {
+            Contract.Ensures(Contract.Result<String>() != null);
+            return FormatHelper(null, format, new ParamsArray(arg0, arg1, arg2));
+        }
+
+        public static String Format(String format, params Object[] args) {
+            if (args == null)
+            {
+                // To preserve the original exception behavior, throw an exception about format if both
+                // args and format are null. The actual null check for format is in FormatHelper.
+                throw new ArgumentNullException((format == null) ? "format" : "args");
+            }
+            Contract.Ensures(Contract.Result<String>() != null);
+            Contract.EndContractBlock();
+            
+            return FormatHelper(null, format, new ParamsArray(args));
+        }
+        
+        public static String Format(IFormatProvider provider, String format, Object arg0) {
+            Contract.Ensures(Contract.Result<String>() != null);
+            return FormatHelper(provider, format, new ParamsArray(arg0));
+        }
+    
+        public static String Format(IFormatProvider provider, String format, Object arg0, Object arg1) {
+            Contract.Ensures(Contract.Result<String>() != null);
+            return FormatHelper(provider, format, new ParamsArray(arg0, arg1));
+        }
+    
+        public static String Format(IFormatProvider provider, String format, Object arg0, Object arg1, Object arg2) {
+            Contract.Ensures(Contract.Result<String>() != null);
+            return FormatHelper(provider, format, new ParamsArray(arg0, arg1, arg2));
+        }
+
+        public static String Format(IFormatProvider provider, String format, params Object[] args) {
+            if (args == null)
+            {
+                // To preserve the original exception behavior, throw an exception about format if both
+                // args and format are null. The actual null check for format is in FormatHelper.
+                throw new ArgumentNullException((format == null) ? "format" : "args");
+            }
+            Contract.Ensures(Contract.Result<String>() != null);
+            Contract.EndContractBlock();
+            
+            return FormatHelper(provider, format, new ParamsArray(args));
+        }
+        
+        private static String FormatHelper(IFormatProvider provider, String format, ParamsArray args) {
+            if (format == null)
+                throw new ArgumentNullException("format");
+            
+            return StringBuilderCache.GetStringAndRelease(
+                StringBuilderCache
+                    .Acquire(format.Length + args.Length * 8)
+                    .AppendFormatHelper(provider, format, args));
+        }
     }
 }
