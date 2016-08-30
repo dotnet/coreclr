@@ -1415,5 +1415,63 @@ namespace System
 
             return result;
         }
+  
+        // Creates a copy of this string in lower case.
+        [Pure]
+        public String ToLower() {
+            Contract.Ensures(Contract.Result<String>() != null);
+            Contract.EndContractBlock();
+            return this.ToLower(CultureInfo.CurrentCulture);
+        }
+    
+        // Creates a copy of this string in lower case.  The culture is set by culture.
+        [Pure]
+        public String ToLower(CultureInfo culture) {
+            if (culture == null)
+            {
+                throw new ArgumentNullException("culture");
+            }
+            Contract.Ensures(Contract.Result<String>() != null);
+            Contract.EndContractBlock();
+            return culture.TextInfo.ToLower(this);
+        }
+
+        // Creates a copy of this string in lower case based on invariant culture.
+        [Pure]
+        public String ToLowerInvariant() {
+            Contract.Ensures(Contract.Result<String>() != null);
+            Contract.EndContractBlock();
+            return this.ToLower(CultureInfo.InvariantCulture);
+        }
+    
+        // Creates a copy of this string in upper case.
+        [Pure]
+        public String ToUpper() {
+            Contract.Ensures(Contract.Result<String>() != null);
+            Contract.EndContractBlock();
+            return this.ToUpper(CultureInfo.CurrentCulture);
+        }
+   
+
+        // Creates a copy of this string in upper case.  The culture is set by culture.
+        [Pure]
+        public String ToUpper(CultureInfo culture) {
+            if (culture == null)
+            {
+                throw new ArgumentNullException("culture");
+            }
+            Contract.Ensures(Contract.Result<String>() != null);
+            Contract.EndContractBlock();
+            return culture.TextInfo.ToUpper(this);
+        }
+
+
+        //Creates a copy of this string in upper case based on invariant culture.
+        [Pure]
+        public String ToUpperInvariant() {
+            Contract.Ensures(Contract.Result<String>() != null);
+            Contract.EndContractBlock();
+            return this.ToUpper(CultureInfo.InvariantCulture);
+        }
     }
 }
