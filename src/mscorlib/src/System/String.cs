@@ -1686,22 +1686,6 @@ namespace System {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal extern static String FastAllocateString(int length);
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        unsafe private static void FillStringChecked(String dest, int destPos, String src)
-        {
-            Contract.Requires(dest != null);
-            Contract.Requires(src != null);
-            if (src.Length > dest.Length - destPos) {
-                throw new IndexOutOfRangeException();
-            }
-            Contract.EndContractBlock();
-
-            fixed(char *pDest = &dest.m_firstChar)
-                fixed (char *pSrc = &src.m_firstChar) {
-                    wstrcpy(pDest + destPos, pSrc, src.Length);
-                }
-        }
-
         // Creates a new string from the characters in a subarray.  The new string will
         // be created from the characters in value between startIndex and
         // startIndex + length - 1.
