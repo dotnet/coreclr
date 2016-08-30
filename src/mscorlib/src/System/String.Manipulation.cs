@@ -726,5 +726,67 @@ namespace System
 
             return jointString;
         }
+        
+        //
+        //
+        [Pure]
+        public String PadLeft(int totalWidth) {
+            return PadLeft(totalWidth, ' ');
+        }
+
+        [Pure]
+        [System.Security.SecuritySafeCritical]  // auto-generated
+        public String PadLeft(int totalWidth, char paddingChar) {
+            if (totalWidth < 0)
+                throw new ArgumentOutOfRangeException("totalWidth", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+            int oldLength = Length;
+            int count = totalWidth - oldLength;
+            if (count <= 0)
+                return this;
+            String result = FastAllocateString(totalWidth);
+            unsafe
+            {
+                fixed (char* dst = &result.m_firstChar)
+                {
+                    for (int i = 0; i < count; i++)
+                        dst[i] = paddingChar;
+                    fixed (char* src = &m_firstChar)
+                    {
+                        wstrcpy(dst + count, src, oldLength);
+                    }
+                }
+            }
+            return result;
+        }
+
+        [Pure]
+        public String PadRight(int totalWidth) {
+            return PadRight(totalWidth, ' ');
+        }
+
+        [Pure]
+        [System.Security.SecuritySafeCritical]  // auto-generated
+        public String PadRight(int totalWidth, char paddingChar) {
+            if (totalWidth < 0)
+                throw new ArgumentOutOfRangeException("totalWidth", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+            int oldLength = Length;
+            int count = totalWidth - oldLength;
+            if (count <= 0)
+                return this;
+            String result = FastAllocateString(totalWidth);
+            unsafe
+            {
+                fixed (char* dst = &result.m_firstChar)
+                {
+                    fixed (char* src = &m_firstChar)
+                    {
+                        wstrcpy(dst, src, oldLength);
+                    }
+                    for (int i = 0; i < count; i++)
+                        dst[oldLength + i] = paddingChar;
+                }
+            }
+            return result;
+        }
     }
 }
