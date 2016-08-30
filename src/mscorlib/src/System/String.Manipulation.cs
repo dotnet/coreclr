@@ -931,5 +931,428 @@ namespace System
 
             return ReplaceInternal(oldValue, newValue);
         }
+
+        [ComVisible(false)]
+        public String[] Split(char separator) {
+            Contract.Ensures(Contract.Result<String[]>() != null);
+            return SplitInternal(separator, Int32.MaxValue, StringSplitOptions.None);
+        }
+
+        [ComVisible(false)]
+        public String[] Split(char separator, StringSplitOptions options) {
+            Contract.Ensures(Contract.Result<String[]>() != null);
+            return SplitInternal(separator, Int32.MaxValue, options);
+        }
+
+        [ComVisible(false)]
+        public String[] Split(char separator, int count, StringSplitOptions options) {
+            Contract.Ensures(Contract.Result<String[]>() != null);
+            return SplitInternal(separator, count, options);
+        }
+
+        // Creates an array of strings by splitting this string at each
+        // occurrence of a separator.  The separator is searched for, and if found,
+        // the substring preceding the occurrence is stored as the first element in
+        // the array of strings.  We then continue in this manner by searching
+        // the substring that follows the occurrence.  On the other hand, if the separator
+        // is not found, the array of strings will contain this instance as its only element.
+        // If the separator is null
+        // whitespace (i.e., Character.IsWhitespace) is used as the separator.
+        //
+        public String [] Split(params char [] separator) {
+            Contract.Ensures(Contract.Result<String[]>() != null);
+            return SplitInternal(separator, Int32.MaxValue, StringSplitOptions.None);
+        }
+
+        // Creates an array of strings by splitting this string at each
+        // occurrence of a separator.  The separator is searched for, and if found,
+        // the substring preceding the occurrence is stored as the first element in
+        // the array of strings.  We then continue in this manner by searching
+        // the substring that follows the occurrence.  On the other hand, if the separator
+        // is not found, the array of strings will contain this instance as its only element.
+        // If the separator is the empty string (i.e., String.Empty), then
+        // whitespace (i.e., Character.IsWhitespace) is used as the separator.
+        // If there are more than count different strings, the last n-(count-1)
+        // elements are concatenated and added as the last String.
+        //
+        public string[] Split(char[] separator, int count) {
+            Contract.Ensures(Contract.Result<String[]>() != null);
+            return SplitInternal(separator, count, StringSplitOptions.None);
+        }
+
+        [ComVisible(false)]
+        public String[] Split(char[] separator, StringSplitOptions options) {
+            Contract.Ensures(Contract.Result<String[]>() != null);
+            return SplitInternal(separator, Int32.MaxValue, options);
+        }
+
+        [ComVisible(false)]
+        public String[] Split(char[] separator, int count, StringSplitOptions options)
+        {
+            Contract.Ensures(Contract.Result<String[]>() != null);
+            return SplitInternal(separator, count, options);
+        }
+
+        [System.Security.SecuritySafeCritical]
+        private unsafe String[] SplitInternal(char separator, int count, StringSplitOptions options)
+        {
+            char* pSeparators = stackalloc char[1];
+            pSeparators[0] = separator;
+            return SplitInternal(pSeparators, /*separatorsLength*/ 1, count, options);
+        }
+
+        [ComVisible(false)]
+        [System.Security.SecuritySafeCritical]
+        internal String[] SplitInternal(char[] separator, int count, StringSplitOptions options)
+        {
+            unsafe
+            {
+                fixed (char* pSeparators = separator)
+                {
+                    int separatorsLength = separator == null ? 0 : separator.Length;
+                    return SplitInternal(pSeparators, separatorsLength, count, options);
+                }
+            }
+        }
+
+        [System.Security.SecurityCritical]
+        private unsafe String[] SplitInternal(char* separators, int separatorsLength, int count, StringSplitOptions options)
+        {
+            if (count < 0)
+                throw new ArgumentOutOfRangeException("count",
+                    Environment.GetResourceString("ArgumentOutOfRange_NegativeCount"));
+
+            if (options < StringSplitOptions.None || options > StringSplitOptions.RemoveEmptyEntries)
+                throw new ArgumentException(Environment.GetResourceString("Arg_EnumIllegalVal", options));
+            Contract.Ensures(Contract.Result<String[]>() != null);
+            Contract.EndContractBlock();
+
+            bool omitEmptyEntries = (options == StringSplitOptions.RemoveEmptyEntries);
+
+            if ((count == 0) || (omitEmptyEntries && this.Length == 0)) 
+            {           
+#if FEATURE_CORECLR
+                return EmptyArray<String>.Value;
+#else
+                // Keep the old behavior of returning a new empty array
+                // to mitigate any potential compat risk.
+                return new String[0];
+#endif
+            }
+
+            if (count == 1)
+            {
+                return new String[] { this };
+            }
+            
+            int[] sepList = new int[Length];            
+            int numReplaces = MakeSeparatorList(separators, separatorsLength, sepList);
+            
+            // Handle the special case of no replaces.
+            if (0 == numReplaces) {
+                return new String[] { this };
+            }            
+
+            if(omitEmptyEntries) 
+            {
+                return InternalSplitOmitEmptyEntries(sepList, null, 1, numReplaces, count);
+            }
+            else 
+            {
+                return InternalSplitKeepEmptyEntries(sepList, null, 1, numReplaces, count);
+            }            
+        }
+
+        [ComVisible(false)]
+        public String[] Split(String separator) {
+            Contract.Ensures(Contract.Result<String[]>() != null);
+            return SplitInternal(separator ?? String.Empty, null, Int32.MaxValue, StringSplitOptions.None);
+        }
+
+        [ComVisible(false)]
+        public String[] Split(String separator, StringSplitOptions options) {
+            Contract.Ensures(Contract.Result<String[]>() != null);
+            return SplitInternal(separator ?? String.Empty, null, Int32.MaxValue, options);
+        }
+
+        [ComVisible(false)]
+        public String[] Split(String separator, Int32 count, StringSplitOptions options) {
+            Contract.Ensures(Contract.Result<String[]>() != null);
+            return SplitInternal(separator ?? String.Empty, null, count, options);
+        }
+
+        [ComVisible(false)]
+        public String [] Split(String[] separator, StringSplitOptions options) {
+            Contract.Ensures(Contract.Result<String[]>() != null);
+            return SplitInternal(null, separator, Int32.MaxValue, options);
+        }
+
+        [ComVisible(false)]
+        public String[] Split(String[] separator, Int32 count, StringSplitOptions options) {
+            Contract.Ensures(Contract.Result<String[]>() != null);
+            return SplitInternal(null, separator, count, options);
+        }
+
+        private String[] SplitInternal(String separator, String[] separators, Int32 count, StringSplitOptions options)
+        {
+            if (count < 0) {
+                throw new ArgumentOutOfRangeException("count",
+                    Environment.GetResourceString("ArgumentOutOfRange_NegativeCount"));
+            }
+
+            if (options < StringSplitOptions.None || options > StringSplitOptions.RemoveEmptyEntries) {
+                throw new ArgumentException(Environment.GetResourceString("Arg_EnumIllegalVal", (int)options));
+            }
+            Contract.EndContractBlock();
+
+            bool omitEmptyEntries = (options == StringSplitOptions.RemoveEmptyEntries);
+
+            bool singleSeparator = separator != null;
+
+            if (!singleSeparator && (separators == null || separators.Length == 0)) {
+                return SplitInternal((char[]) null, count, options);
+            }
+            
+            if ((count == 0) || (omitEmptyEntries && this.Length ==0)) {
+#if FEATURE_CORECLR
+                return EmptyArray<String>.Value;
+#else
+                // Keep the old behavior of returning a new empty array
+                // to mitigate any potential compat risk.
+                return new String[0];
+#endif
+            }
+
+            if (count == 1) {
+                return new String[] { this };
+            }
+
+            if (singleSeparator && separator.Length == 0) {
+                return new[] { this };
+            }
+
+            int[] sepList = new int[Length];
+            int[] lengthList;
+            int defaultLength;
+            int numReplaces;
+
+            if (singleSeparator) {
+                lengthList = null;
+                defaultLength = separator.Length;
+                numReplaces = MakeSeparatorList(separator, sepList);
+            }
+            else {
+                lengthList = new int[Length];
+                defaultLength = 0;
+                numReplaces = MakeSeparatorList(separators, sepList, lengthList);
+            }
+
+            // Handle the special case of no replaces.
+            if (0 == numReplaces) {
+                return new String[] { this };
+            }
+            
+            if (omitEmptyEntries) {
+                return InternalSplitOmitEmptyEntries(sepList, lengthList, defaultLength, numReplaces, count);
+            }
+            else {
+                return InternalSplitKeepEmptyEntries(sepList, lengthList, defaultLength, numReplaces, count);
+            }
+        }                        
+        
+        // Note a special case in this function:
+        //     If there is no separator in the string, a string array which only contains 
+        //     the original string will be returned regardless of the count. 
+        //
+
+        private String[] InternalSplitKeepEmptyEntries(Int32[] sepList, Int32[] lengthList, Int32 defaultLength, Int32 numReplaces, int count) {
+            Contract.Requires(numReplaces >= 0);
+            Contract.Requires(count >= 2);
+            Contract.Ensures(Contract.Result<String[]>() != null);
+        
+            int currIndex = 0;
+            int arrIndex = 0;
+
+            count--;
+            int numActualReplaces = (numReplaces < count) ? numReplaces : count;
+
+            //Allocate space for the new array.
+            //+1 for the string from the end of the last replace to the end of the String.
+            String[] splitStrings = new String[numActualReplaces+1];
+
+            for (int i = 0; i < numActualReplaces && currIndex < Length; i++) {
+                splitStrings[arrIndex++] = Substring(currIndex, sepList[i]-currIndex );                            
+                currIndex=sepList[i] + ((lengthList == null) ? defaultLength : lengthList[i]);
+            }
+
+            //Handle the last string at the end of the array if there is one.
+            if (currIndex < Length && numActualReplaces >= 0) {
+                splitStrings[arrIndex] = Substring(currIndex);
+            } 
+            else if (arrIndex==numActualReplaces) {
+                //We had a separator character at the end of a string.  Rather than just allowing
+                //a null character, we'll replace the last element in the array with an empty string.
+                splitStrings[arrIndex] = String.Empty;
+
+            }
+
+            return splitStrings;
+        }
+
+        
+        // This function will not keep the Empty String 
+        private String[] InternalSplitOmitEmptyEntries(Int32[] sepList, Int32[] lengthList, Int32 defaultLength, Int32 numReplaces, int count) {
+            Contract.Requires(numReplaces >= 0);
+            Contract.Requires(count >= 2);
+            Contract.Ensures(Contract.Result<String[]>() != null);
+
+            // Allocate array to hold items. This array may not be 
+            // filled completely in this function, we will create a 
+            // new array and copy string references to that new array.
+
+            int maxItems = (numReplaces < count) ? (numReplaces+1): count ;
+            String[] splitStrings = new String[maxItems];
+
+            int currIndex = 0;
+            int arrIndex = 0;
+
+            for(int i=0; i< numReplaces && currIndex < Length; i++) {
+                if( sepList[i]-currIndex > 0) { 
+                    splitStrings[arrIndex++] = Substring(currIndex, sepList[i]-currIndex );                            
+                }
+                currIndex=sepList[i] + ((lengthList == null) ? defaultLength : lengthList[i]);
+                if( arrIndex == count -1 )  {
+                    // If all the remaining entries at the end are empty, skip them
+                    while( i < numReplaces - 1 && currIndex == sepList[++i]) { 
+                        currIndex += ((lengthList == null) ? defaultLength : lengthList[i]);
+                    }
+                    break;
+                }
+            }
+
+            // we must have at least one slot left to fill in the last string.
+            Contract.Assert(arrIndex < maxItems);
+
+            //Handle the last string at the end of the array if there is one.
+            if (currIndex< Length) {                
+                splitStrings[arrIndex++] = Substring(currIndex);
+            }
+
+            String[] stringArray = splitStrings;
+            if( arrIndex!= maxItems) { 
+                stringArray = new String[arrIndex];
+                for( int j = 0; j < arrIndex; j++) {
+                    stringArray[j] = splitStrings[j];
+                }   
+            }
+            return stringArray;
+        }       
+
+        //--------------------------------------------------------------------    
+        // This function returns the number of the places within this instance where 
+        // characters in Separator occur.
+        // Args: separator  -- A string containing all of the split characters.
+        //       sepList    -- an array of ints for split char indicies.
+        //--------------------------------------------------------------------    
+        [System.Security.SecurityCritical]
+        private unsafe int MakeSeparatorList(char* separators, int separatorsLength, int[] sepList) {
+            Contract.Assert(separatorsLength >= 0, "separatorsLength >= 0");
+            int foundCount=0;
+
+            if (separators == null || separatorsLength == 0) {
+                fixed (char* pwzChars = &this.m_firstChar) {
+                    //If they passed null or an empty string, look for whitespace.
+                    for (int i=0; i < Length && foundCount < sepList.Length; i++) {
+                        if (Char.IsWhiteSpace(pwzChars[i])) {
+                            sepList[foundCount++]=i;
+                        }
+                    }
+                }
+            } 
+            else {
+                int sepListCount = sepList.Length;
+                //If they passed in a string of chars, actually look for those chars.
+                fixed (char* pwzChars = &this.m_firstChar) {
+                    for (int i=0; i< Length && foundCount < sepListCount; i++) {                        
+                        char* pSep = separators;
+                        for (int j = 0; j < separatorsLength; j++, pSep++) {
+                           if ( pwzChars[i] == *pSep) {
+                               sepList[foundCount++]=i;
+                               break;
+                           }
+                        }
+                    }
+                }
+            }
+            return foundCount;
+        }        
+        
+        //--------------------------------------------------------------------
+        // This function returns number of the places within baseString where
+        // instances of the separator string occurs.
+        // Args: separator  -- the separator
+        //       sepList    -- an array of ints for split string indicies.
+        //--------------------------------------------------------------------
+        [System.Security.SecuritySafeCritical]  // auto-generated
+        private unsafe int MakeSeparatorList(string separator, int[] sepList) {
+            Contract.Assert(!string.IsNullOrEmpty(separator), "!string.IsNullOrEmpty(separator)");
+
+            int foundCount = 0;
+            int sepListCount = sepList.Length;
+            int currentSepLength = separator.Length;
+
+            fixed (char* pwzChars = &this.m_firstChar) {
+                for (int i = 0; i < Length && foundCount < sepListCount; i++) {
+                    if (pwzChars[i] == separator[0] && currentSepLength <= Length - i) {
+                        if (currentSepLength == 1
+                            || String.CompareOrdinal(this, i, separator, 0, currentSepLength) == 0) {
+                            sepList[foundCount] = i;
+                            foundCount++;
+                            i += currentSepLength - 1;
+                        }
+                    }
+                }
+            }
+            return foundCount;
+        }
+
+        //--------------------------------------------------------------------    
+        // This function returns the number of the places within this instance where 
+        // instances of separator strings occur.
+        // Args: separators -- An array containing all of the split strings.
+        //       sepList    -- an array of ints for split string indicies.
+        //       lengthList -- an array of ints for split string lengths.
+        //--------------------------------------------------------------------    
+        [System.Security.SecuritySafeCritical]  // auto-generated
+        private unsafe int MakeSeparatorList(String[] separators, int[] sepList, int[] lengthList) {
+            Contract.Assert(separators != null && separators.Length > 0, "separators != null && separators.Length > 0");
+            
+            int foundCount = 0;
+            int sepListCount = sepList.Length;
+            int sepCount = separators.Length;
+
+            fixed (char* pwzChars = &this.m_firstChar) {
+                for (int i=0; i< Length && foundCount < sepListCount; i++) {                        
+                    for( int j =0; j < separators.Length; j++) {
+                        String separator = separators[j];
+                        if (String.IsNullOrEmpty(separator)) {
+                            continue;
+                        }
+                        Int32 currentSepLength = separator.Length;
+                        if ( pwzChars[i] == separator[0] && currentSepLength <= Length - i) {
+                            if (currentSepLength == 1 
+                                || String.CompareOrdinal(this, i, separator, 0, currentSepLength) == 0) {
+                                sepList[foundCount] = i;
+                                lengthList[foundCount] = currentSepLength;
+                                foundCount++;
+                                i += currentSepLength - 1;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            return foundCount;
+        }
     }
 }
