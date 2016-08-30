@@ -3108,46 +3108,6 @@ namespace System {
             }
             return InternalSubString(start, len);
         }
-    
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        public String Insert(int startIndex, String value)
-        {
-            if (value == null)
-                throw new ArgumentNullException("value");
-            if (startIndex < 0 || startIndex > this.Length)
-                throw new ArgumentOutOfRangeException("startIndex");
-            Contract.Ensures(Contract.Result<String>() != null);
-            Contract.Ensures(Contract.Result<String>().Length == this.Length + value.Length);
-            Contract.EndContractBlock();
-            
-            int oldLength = Length;
-            int insertLength = value.Length;
-            
-            if (oldLength == 0)
-                return value;
-            if (insertLength == 0)
-                return this;
-            
-            // In case this computation overflows, newLength will be negative and FastAllocateString throws OutOfMemoryException
-            int newLength = oldLength + insertLength;
-            String result = FastAllocateString(newLength);
-            unsafe
-            {
-                fixed (char* srcThis = &m_firstChar)
-                {
-                    fixed (char* srcInsert = &value.m_firstChar)
-                    {
-                        fixed (char* dst = &result.m_firstChar)
-                        {
-                            wstrcpy(dst, srcThis, startIndex);
-                            wstrcpy(dst + startIndex, srcInsert, insertLength);
-                            wstrcpy(dst + startIndex + insertLength, srcThis + startIndex, oldLength - startIndex);
-                        }
-                    }
-                }
-            }
-            return result;
-        }
 
         // Replaces all instances of oldChar with newChar.
         //
