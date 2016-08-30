@@ -787,61 +787,6 @@ namespace System {
             [MethodImplAttribute(MethodImplOptions.InternalCall)]
             get;
         }
-       
-        // Returns a substring of this string.
-        //
-        public String Substring (int startIndex) {
-            return this.Substring (startIndex, Length-startIndex);
-        }
-    
-        // Returns a substring of this string.
-        //
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        public String Substring(int startIndex, int length) {
-                    
-            //Bounds Checking.
-            if (startIndex < 0) {
-                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_StartIndex"));
-            }
-
-            if (startIndex > Length) {
-                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_StartIndexLargerThanLength"));
-            }
-
-            if (length < 0) {
-                throw new ArgumentOutOfRangeException("length", Environment.GetResourceString("ArgumentOutOfRange_NegativeLength"));
-            }
-
-            if (startIndex > Length - length) {
-                throw new ArgumentOutOfRangeException("length", Environment.GetResourceString("ArgumentOutOfRange_IndexLength"));
-            }
-            Contract.EndContractBlock();
-
-            if( length == 0) {
-                return String.Empty;
-            }
-
-            if( startIndex == 0 && length == this.Length) {
-                return this;
-            }
-
-            return InternalSubString(startIndex, length);
-        }
-
-        [System.Security.SecurityCritical]  // auto-generated
-        unsafe string InternalSubString(int startIndex, int length) {
-            Contract.Assert( startIndex >= 0 && startIndex <= this.Length, "StartIndex is out of range!");
-            Contract.Assert( length >= 0 && startIndex <= this.Length - length, "length is out of range!");            
-            
-            String result = FastAllocateString(length);
-
-            fixed(char* dest = &result.m_firstChar)
-                fixed(char* src = &this.m_firstChar) {
-                    wstrcpy(dest, src + startIndex, length);
-                }
-
-            return result;
-        }
     
     
         // Removes a set of characters from the end of this string.
