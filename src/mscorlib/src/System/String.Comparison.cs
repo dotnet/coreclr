@@ -307,5 +307,294 @@ namespace System
                 return *(a + 1) - *(b + 1);
             }
         }
+    
+        // Provides a culture-correct string comparison. StrA is compared to StrB
+        // to determine whether it is lexicographically less, equal, or greater, and then returns
+        // either a negative integer, 0, or a positive integer; respectively.
+        //
+        [Pure]
+        public static int Compare(String strA, String strB)
+        {
+            return Compare(strA, strB, StringComparison.CurrentCulture);
+        }
+    
+
+        // Provides a culture-correct string comparison. strA is compared to strB
+        // to determine whether it is lexicographically less, equal, or greater, and then a
+        // negative integer, 0, or a positive integer is returned; respectively.
+        // The case-sensitive option is set by ignoreCase
+        //
+        [Pure]
+        public static int Compare(String strA, String strB, bool ignoreCase)
+        {
+            var comparisonType = ignoreCase ? StringComparison.CurrentCultureIgnoreCase : StringComparison.CurrentCulture;
+            return Compare(strA, strB, comparisonType);
+        }
+
+  
+        // Provides a more flexible function for string comparision. See StringComparison 
+        // for meaning of different comparisonType.
+        [Pure]
+        [System.Security.SecuritySafeCritical]  // auto-generated
+        public static int Compare(String strA, String strB, StringComparison comparisonType) 
+        {
+            // Single comparison to check if comparisonType is within [CurrentCulture .. OrdinalIgnoreCase]
+            if ((uint)(comparisonType - StringComparison.CurrentCulture) > (uint)(StringComparison.OrdinalIgnoreCase - StringComparison.CurrentCulture))
+            {
+                throw new ArgumentException(Environment.GetResourceString("NotSupported_StringComparison"), "comparisonType");
+            }
+            Contract.EndContractBlock();
+
+            if (object.ReferenceEquals(strA, strB))
+            {
+                return 0;
+            }
+
+            // They can't both be null at this point.
+            if (strA == null)
+            {
+                return -1;
+            }
+            if (strB == null)
+            {
+                return 1;
+            }
+
+            switch (comparisonType) {
+                case StringComparison.CurrentCulture:
+                    return CultureInfo.CurrentCulture.CompareInfo.Compare(strA, strB, CompareOptions.None);
+
+                case StringComparison.CurrentCultureIgnoreCase:
+                    return CultureInfo.CurrentCulture.CompareInfo.Compare(strA, strB, CompareOptions.IgnoreCase);
+
+                case StringComparison.InvariantCulture:
+                    return CultureInfo.InvariantCulture.CompareInfo.Compare(strA, strB, CompareOptions.None);
+
+                case StringComparison.InvariantCultureIgnoreCase:
+                    return CultureInfo.InvariantCulture.CompareInfo.Compare(strA, strB, CompareOptions.IgnoreCase);
+
+                case StringComparison.Ordinal:
+                    // Most common case: first character is different.
+                    // Returns false for empty strings.
+                    if (strA.m_firstChar != strB.m_firstChar)
+                    {
+                        return strA.m_firstChar - strB.m_firstChar;
+                    }
+
+                    return CompareOrdinalHelper(strA, strB);
+
+                case StringComparison.OrdinalIgnoreCase:
+                    // If both strings are ASCII strings, we can take the fast path.
+                    if (strA.IsAscii() && strB.IsAscii()) {
+                        return (CompareOrdinalIgnoreCaseHelper(strA, strB));
+                    }
+
+#if FEATURE_COREFX_GLOBALIZATION
+                    return CompareInfo.CompareOrdinalIgnoreCase(strA, 0, strA.Length, strB, 0, strB.Length);
+#else
+                    // Take the slow path.
+                    return TextInfo.CompareOrdinalIgnoreCase(strA, strB);
+#endif
+
+                default:
+                    throw new NotSupportedException(Environment.GetResourceString("NotSupported_StringComparison"));
+            }
+        }
+
+
+        // Provides a culture-correct string comparison. strA is compared to strB
+        // to determine whether it is lexicographically less, equal, or greater, and then a
+        // negative integer, 0, or a positive integer is returned; respectively.
+        //
+        [Pure]
+        public static int Compare(String strA, String strB, CultureInfo culture, CompareOptions options) {
+            if (culture == null)
+            {
+                throw new ArgumentNullException("culture");
+            }
+            Contract.EndContractBlock();
+
+            return culture.CompareInfo.Compare(strA, strB, options);
+        }
+
+
+
+        // Provides a culture-correct string comparison. strA is compared to strB
+        // to determine whether it is lexicographically less, equal, or greater, and then a
+        // negative integer, 0, or a positive integer is returned; respectively.
+        // The case-sensitive option is set by ignoreCase, and the culture is set
+        // by culture
+        //
+        [Pure]
+        public static int Compare(String strA, String strB, bool ignoreCase, CultureInfo culture)
+        {
+            var options = ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None;
+            return Compare(strA, strB, culture, options);
+        }
+
+        // Determines whether two string regions match.  The substring of strA beginning
+        // at indexA of length count is compared with the substring of strB
+        // beginning at indexB of the same length.
+        //
+        [Pure]
+        public static int Compare(String strA, int indexA, String strB, int indexB, int length)
+        {
+            // NOTE: It's important we call the boolean overload, and not the StringComparison
+            // one. The two have some subtly different behavior (see notes in the former).
+            return Compare(strA, indexA, strB, indexB, length, ignoreCase: false);
+        }
+
+        // Determines whether two string regions match.  The substring of strA beginning
+        // at indexA of length count is compared with the substring of strB
+        // beginning at indexB of the same length.  Case sensitivity is determined by the ignoreCase boolean.
+        //
+        [Pure]
+        public static int Compare(String strA, int indexA, String strB, int indexB, int length, bool ignoreCase)
+        {
+            // Ideally we would just forward to the string.Compare overload that takes
+            // a StringComparison parameter, and just pass in CurrentCulture/CurrentCultureIgnoreCase.
+            // That function will return early if an optimization can be applied, e.g. if
+            // (object)strA == strB && indexA == indexB then it will return 0 straightaway.
+            // There are a couple of subtle behavior differences that prevent us from doing so
+            // however:
+            // - string.Compare(null, -1, null, -1, -1, StringComparison.CurrentCulture) works
+            //   since that method also returns early for nulls before validation. It shouldn't
+            //   for this overload.
+            // - Since we originally forwarded to CompareInfo.Compare for all of the argument
+            //   validation logic, the ArgumentOutOfRangeExceptions thrown will contain different
+            //   parameter names.
+            // Therefore, we have to duplicate some of the logic here.
+
+            int lengthA = length;
+            int lengthB = length;
+            
+            if (strA != null)
+            {
+                lengthA = Math.Min(lengthA, strA.Length - indexA);
+            }
+
+            if (strB != null)
+            {
+                lengthB = Math.Min(lengthB, strB.Length - indexB);
+            }
+
+            var options = ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None;
+            return CultureInfo.CurrentCulture.CompareInfo.Compare(strA, indexA, lengthA, strB, indexB, lengthB, options);
+        }
+
+        // Determines whether two string regions match.  The substring of strA beginning
+        // at indexA of length length is compared with the substring of strB
+        // beginning at indexB of the same length.  Case sensitivity is determined by the ignoreCase boolean,
+        // and the culture is set by culture.
+        //
+        [Pure]
+        public static int Compare(String strA, int indexA, String strB, int indexB, int length, bool ignoreCase, CultureInfo culture)
+        {
+            var options = ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None;
+            return Compare(strA, indexA, strB, indexB, length, culture, options);
+        }
+
+
+        // Determines whether two string regions match.  The substring of strA beginning
+        // at indexA of length length is compared with the substring of strB
+        // beginning at indexB of the same length.
+        //
+        [Pure]
+        public static int Compare(String strA, int indexA, String strB, int indexB, int length, CultureInfo culture, CompareOptions options)
+        {
+            if (culture == null)
+            {
+                throw new ArgumentNullException("culture");
+            }
+            Contract.EndContractBlock();
+
+            int lengthA = length;
+            int lengthB = length;
+
+            if (strA != null)
+            {
+                lengthA = Math.Min(lengthA, strA.Length - indexA);
+            }
+
+            if (strB != null)
+            {
+                lengthB = Math.Min(lengthB, strB.Length - indexB);
+            }
+    
+            return culture.CompareInfo.Compare(strA, indexA, lengthA, strB, indexB, lengthB, options);
+        }
+
+        [Pure]
+        [System.Security.SecuritySafeCritical]  // auto-generated
+        public static int Compare(String strA, int indexA, String strB, int indexB, int length, StringComparison comparisonType) {
+            if (comparisonType < StringComparison.CurrentCulture || comparisonType > StringComparison.OrdinalIgnoreCase) {
+                throw new ArgumentException(Environment.GetResourceString("NotSupported_StringComparison"), "comparisonType");
+            }
+            Contract.EndContractBlock();
+            
+            if (strA == null || strB == null)
+            {
+                if (object.ReferenceEquals(strA, strB))
+                {
+                    // They're both null
+                    return 0;
+                }
+
+                return strA == null ? -1 : 1;
+            }
+
+            if (length < 0)
+            {
+                throw new ArgumentOutOfRangeException("length", Environment.GetResourceString("ArgumentOutOfRange_NegativeLength"));
+            }
+
+            if (indexA < 0 || indexB < 0)
+            {
+                string paramName = indexA < 0 ? "indexA" : "indexB";
+                throw new ArgumentOutOfRangeException(paramName, Environment.GetResourceString("ArgumentOutOfRange_Index"));
+            }
+
+            if (strA.Length - indexA < 0 || strB.Length - indexB < 0)
+            {
+                string paramName = strA.Length - indexA < 0 ? "indexA" : "indexB";
+                throw new ArgumentOutOfRangeException(paramName, Environment.GetResourceString("ArgumentOutOfRange_Index"));
+            }
+
+            if (length == 0 || (object.ReferenceEquals(strA, strB) && indexA == indexB))
+            {
+                return 0;
+            }
+
+            int lengthA = Math.Min(length, strA.Length - indexA);
+            int lengthB = Math.Min(length, strB.Length - indexB);
+
+            switch (comparisonType) {
+                case StringComparison.CurrentCulture:
+                    return CultureInfo.CurrentCulture.CompareInfo.Compare(strA, indexA, lengthA, strB, indexB, lengthB, CompareOptions.None);
+
+                case StringComparison.CurrentCultureIgnoreCase:
+                    return CultureInfo.CurrentCulture.CompareInfo.Compare(strA, indexA, lengthA, strB, indexB, lengthB, CompareOptions.IgnoreCase);
+
+                case StringComparison.InvariantCulture:
+                    return CultureInfo.InvariantCulture.CompareInfo.Compare(strA, indexA, lengthA, strB, indexB, lengthB, CompareOptions.None);
+
+                case StringComparison.InvariantCultureIgnoreCase:
+                    return CultureInfo.InvariantCulture.CompareInfo.Compare(strA, indexA, lengthA, strB, indexB, lengthB, CompareOptions.IgnoreCase);
+
+                case StringComparison.Ordinal:
+                    return CompareOrdinalHelper(strA, indexA, lengthA, strB, indexB, lengthB);
+
+                case StringComparison.OrdinalIgnoreCase:
+#if FEATURE_COREFX_GLOBALIZATION
+                    return (CompareInfo.CompareOrdinalIgnoreCase(strA, indexA, lengthA, strB, indexB, lengthB));
+#else
+                    return (TextInfo.CompareOrdinalIgnoreCaseEx(strA, indexA, strB, indexB, lengthA, lengthB));
+#endif
+
+                default:
+                    throw new ArgumentException(Environment.GetResourceString("NotSupported_StringComparison"));
+            }
+
+        }
     }
 }
