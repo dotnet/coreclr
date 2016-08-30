@@ -788,5 +788,60 @@ namespace System
             }
             return result;
         }
+
+        [System.Security.SecuritySafeCritical]  // auto-generated
+        public String Remove(int startIndex, int count)
+        {
+            if (startIndex < 0)
+                throw new ArgumentOutOfRangeException("startIndex", 
+                    Environment.GetResourceString("ArgumentOutOfRange_StartIndex"));
+            if (count < 0)
+                throw new ArgumentOutOfRangeException("count", 
+                    Environment.GetResourceString("ArgumentOutOfRange_NegativeCount"));
+            if (count > Length - startIndex)
+                throw new ArgumentOutOfRangeException("count", 
+                    Environment.GetResourceString("ArgumentOutOfRange_IndexCount"));
+            Contract.Ensures(Contract.Result<String>() != null);
+            Contract.Ensures(Contract.Result<String>().Length == this.Length - count);
+            Contract.EndContractBlock();
+            
+            if (count == 0)
+                return this;
+            int newLength = Length - count;
+            if (newLength == 0)
+                return String.Empty;
+            
+            String result = FastAllocateString(newLength);
+            unsafe
+            {
+                fixed (char* src = &m_firstChar)
+                {
+                    fixed (char* dst = &result.m_firstChar)
+                    {
+                        wstrcpy(dst, src, startIndex);
+                        wstrcpy(dst + startIndex, src + startIndex + count, newLength - startIndex);
+                    }
+                }
+            }
+            return result;
+        }
+
+        // a remove that just takes a startindex. 
+        public string Remove( int startIndex ) {
+            if (startIndex < 0) {
+                throw new ArgumentOutOfRangeException("startIndex", 
+                        Environment.GetResourceString("ArgumentOutOfRange_StartIndex"));
+            }
+            
+            if (startIndex >= Length) {
+                throw new ArgumentOutOfRangeException("startIndex", 
+                        Environment.GetResourceString("ArgumentOutOfRange_StartIndexLessThanLength"));                
+            }
+            
+            Contract.Ensures(Contract.Result<String>() != null);
+            Contract.EndContractBlock();
+
+            return Substring(0, startIndex);
+        }   
     }
 }
