@@ -1686,22 +1686,6 @@ namespace System {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal extern static String FastAllocateString(int length);
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        unsafe private static void FillStringChecked(String dest, int destPos, String src)
-        {
-            Contract.Requires(dest != null);
-            Contract.Requires(src != null);
-            if (src.Length > dest.Length - destPos) {
-                throw new IndexOutOfRangeException();
-            }
-            Contract.EndContractBlock();
-
-            fixed(char *pDest = &dest.m_firstChar)
-                fixed (char *pSrc = &src.m_firstChar) {
-                    wstrcpy(pDest + destPos, pSrc, src.Length);
-                }
-        }
-
         // Creates a new string from the characters in a subarray.  The new string will
         // be created from the characters in value between startIndex and
         // startIndex + length - 1.
@@ -3470,7 +3454,7 @@ namespace System {
         }
 
         [System.Security.SecuritySafeCritical]
-        public static string Concat(params object[] args)
+        public unsafe static string Concat(params object[] args)
         {
             if (args == null)
             {
@@ -3523,15 +3507,18 @@ namespace System {
             string result = FastAllocateString(totalLength);
             int position = 0; // How many characters we've copied so far
 
-            for (int i = 0; i < strings.Length; i++)
+            fixed (char* pResult = &result.m_firstChar)
             {
-                string s = strings[i];
+                for (int i = 0; i < strings.Length; i++)
+                {
+                    string s = strings[i];
 
-                Contract.Assert(s != null);
-                Contract.Assert(position <= totalLength - s.Length, "We didn't allocate enough space for the result string!");
+                    Contract.Assert(s != null);
+                    Contract.Assert(position <= totalLength - s.Length, "We didn't allocate enough space for the result string!");
 
-                FillStringChecked(result, position, s);
-                position += s.Length;
+                    s.CopyToPointer(pResult + position);
+                    position += s.Length;
+                }
             }
 
             return result;
@@ -3623,36 +3610,37 @@ namespace System {
 
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        public static String Concat(String str0, String str1) {
+        public unsafe static String Concat(String str0, String str1) {
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.Ensures(Contract.Result<String>().Length ==
                 (str0 == null ? 0 : str0.Length) +
                 (str1 == null ? 0 : str1.Length));
             Contract.EndContractBlock();
 
-            if (IsNullOrEmpty(str0)) {
-                if (IsNullOrEmpty(str1)) {
-                    return String.Empty;
-                }
-                return str1;
+            if (IsNullOrEmpty(str0))
+            {
+                return str1 ?? string.Empty;
             }
 
-            if (IsNullOrEmpty(str1)) {
+            if (IsNullOrEmpty(str1))
+            {
                 return str0;
             }
 
-            int str0Length = str0.Length;
-            
-            String result = FastAllocateString(str0Length + str1.Length);
-            
-            FillStringChecked(result, 0,        str0);
-            FillStringChecked(result, str0Length, str1);
+            int totalLength = str0.Length + str1.Length;
+            string result = FastAllocateString(totalLength);
+
+            fixed (char* pResult = &result.m_firstChar)
+            {
+                str0.CopyToPointer(pResult);
+                str1.CopyToPointer(pResult + str0.Length);
+            }
             
             return result;
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        public static String Concat(String str0, String str1, String str2) {
+        public unsafe static String Concat(String str0, String str1, String str2) {
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.Ensures(Contract.Result<String>().Length ==
                 (str0 == null ? 0 : str0.Length) +
@@ -3676,17 +3664,20 @@ namespace System {
             }
 
             int totalLength = str0.Length + str1.Length + str2.Length;
+            string result = FastAllocateString(totalLength);
 
-            String result = FastAllocateString(totalLength);
-            FillStringChecked(result, 0, str0);
-            FillStringChecked(result, str0.Length, str1);
-            FillStringChecked(result, str0.Length + str1.Length, str2);
+            fixed (char* pResult = &result.m_firstChar)
+            {
+                str0.CopyToPointer(pResult);
+                str1.CopyToPointer(pResult + str0.Length);
+                str2.CopyToPointer(pResult + str0.Length + str1.Length);
+            }
 
             return result;
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        public static String Concat(String str0, String str1, String str2, String str3) {
+        public unsafe static String Concat(String str0, String str1, String str2, String str3) {
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.Ensures(Contract.Result<String>().Length == 
                 (str0 == null ? 0 : str0.Length) +
@@ -3716,18 +3707,42 @@ namespace System {
             }
 
             int totalLength = str0.Length + str1.Length + str2.Length + str3.Length;
+            string result = FastAllocateString(totalLength);
 
-            String result = FastAllocateString(totalLength);
-            FillStringChecked(result, 0, str0);
-            FillStringChecked(result, str0.Length, str1);
-            FillStringChecked(result, str0.Length + str1.Length, str2);
-            FillStringChecked(result, str0.Length + str1.Length + str2.Length, str3);
+            fixed (char* pResult = &result.m_firstChar)
+            {
+                str0.CopyToPointer(pResult);
+                str1.CopyToPointer(pResult + str0.Length);
+                str2.CopyToPointer(pResult + str0.Length + str1.Length);
+                str3.CopyToPointer(pResult + str0.Length + str1.Length + str2.Length);
+            }
 
             return result;
         }
 
+        // This is separated out into a different method since
+        // it seems to improve performance/code size for certain
+        // Concat() overloads as opposed to when it is written inline.
+        // Please do not use this method for other purposes unless
+        // you can be sure that it is benefiting your use case.
+        // In Concat's use case, this was beneficial since the result
+        // of fixed on the destination could be cached, while there
+        // were multiple sources that had to be fixed on.
+        // Please make thorough (repeated) microbenchmarks of how
+        // this will affect the Concat() overloads before making changes.
+        private unsafe void CopyToPointer(char* destination)
+        {
+            Contract.Assert(destination != null);
+
+            fixed (char* pThis = &m_firstChar) // &m_firstChar rather than this generates better code
+            {
+                wstrcpy(destination, pThis, Length);
+            }
+        }
+
         [System.Security.SecuritySafeCritical]
-        public static String Concat(params String[] values) {
+        public unsafe static string Concat(params string[] values)
+        {
             if (values == null)
                 throw new ArgumentNullException("values");
             Contract.Ensures(Contract.Result<String>() != null);
@@ -3772,20 +3787,24 @@ namespace System {
             // Allocate a new string and copy each input string into it
             string result = FastAllocateString(totalLength);
             int copiedLength = 0;
-            for (int i = 0; i < values.Length; i++)
+            
+            fixed (char* pResult = &result.m_firstChar)
             {
-                string value = values[i];
-                if (!string.IsNullOrEmpty(value))
+                for (int i = 0; i < values.Length; i++)
                 {
-                    int valueLen = value.Length;
-                    if (valueLen > totalLength - copiedLength)
+                    string value = values[i];
+                    if (!string.IsNullOrEmpty(value))
                     {
-                        copiedLength = -1;
-                        break;
-                    }
+                        int valueLen = value.Length;
+                        if (valueLen > totalLength - copiedLength)
+                        {
+                            copiedLength = -1;
+                            break;
+                        }
 
-                    FillStringChecked(result, copiedLength, value);
-                    copiedLength += valueLen;
+                        value.CopyToPointer(pResult + copiedLength);
+                        copiedLength += valueLen;
+                    }
                 }
             }
 
