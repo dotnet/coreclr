@@ -301,49 +301,61 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
     int length = MultiByteToWideChar(CP_UTF8, 0, szModuleFile, -1, NULL, 0);
     if (length == 0)
         return;
-    LPWSTR wszModuleFile = new (nothrow) WCHAR[length+1];
+    NewArrayHolder<WCHAR> wszModuleFile = new (nothrow) WCHAR[length+1];
     length = MultiByteToWideChar(CP_UTF8, 0, szModuleFile, -1, wszModuleFile, length);
 
     if (length == 0)
         return;
 
-    DWORD cCharsNeeded;
-    cCharsNeeded = GetEnvironmentVariableW(W("CORECLR_GDBJIT"), NULL, 0);
+    static NewArrayHolder<WCHAR> wszModuleNames = nullptr;
+    DWORD cCharsNeeded = 0;
+
+    // Get names of interesting modules from environment
+    if (wszModuleNames == nullptr)
+    {
+        cCharsNeeded = GetEnvironmentVariableW(W("CORECLR_GDBJIT"), NULL, 0);
+
+        if((cCharsNeeded == 0) || (cCharsNeeded >= MAX_LONGPATH))
+            return;
+        wszModuleNames = new WCHAR[cCharsNeeded+1];
+        cCharsNeeded = GetEnvironmentVariableW(W("CORECLR_GDBJIT"), wszModuleNames, cCharsNeeded);
+        if(cCharsNeeded == 0)
+            return;
+    }
+    else
+    {
+        cCharsNeeded = wcslen(wszModuleNames);
+    }
+
     BOOL isUserDebug = FALSE;
 
-    if ((cCharsNeeded != 0) && (cCharsNeeded < MAX_LONGPATH))
+    NewArrayHolder<WCHAR> wszModuleName = new WCHAR[cCharsNeeded+1];
+    LPWSTR pComma = wcsstr(wszModuleNames, W(","));
+    LPWSTR tmp = wszModuleNames;
+
+    while (pComma != NULL)
     {
-        LPWSTR wszModuleNames = new WCHAR[cCharsNeeded+1];
-        cCharsNeeded = GetEnvironmentVariableW(W("CORECLR_GDBJIT"), wszModuleNames, cCharsNeeded);
-        if (cCharsNeeded != 0)
+        wcsncpy(wszModuleName, tmp, pComma - tmp);
+        wszModuleName[pComma - tmp] = W('\0');
+
+        if (wcscmp(wszModuleName, wszModuleFile) == 0)
         {
-            LPWSTR wszModuleName = new WCHAR[cCharsNeeded+1];
-            LPWSTR pComma = wcsstr(wszModuleNames, W(","));
-            LPWSTR tmp = wszModuleNames;
-
-            while (pComma != NULL)
-            {
-                wcsncpy(wszModuleName, tmp, pComma - tmp);
-                wszModuleName[pComma - tmp] = W('\0');
-
-                if (wcscmp(wszModuleName, wszModuleFile) == 0)
-                {
-                    isUserDebug = TRUE;
-                }
-                tmp = pComma + 1;
-                pComma = wcsstr(tmp, W(","));
-            }
-            wcsncpy(wszModuleName, tmp, wcslen(tmp));
-            wszModuleName[wcslen(tmp)] = W('\0');
-            if (wcscmp(wszModuleName, wszModuleFile) == 0)
-            {
-                isUserDebug = TRUE;
-            }
-            delete [] wszModuleName;
+            isUserDebug = TRUE;
+            break;
         }
-        delete[] wszModuleNames;
+        tmp = pComma + 1;
+        pComma = wcsstr(tmp, W(","));
     }
-    delete []wszModuleFile;
+    if (isUserDebug == FALSE)
+    {
+        wcsncpy(wszModuleName, tmp, wcslen(tmp));
+        wszModuleName[wcslen(tmp)] = W('\0');
+        if (wcscmp(wszModuleName, wszModuleFile) == 0)
+        {
+            isUserDebug = TRUE;
+        }
+    }
+
     if (isUserDebug == FALSE)
         return;
 
@@ -519,7 +531,7 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
 
     memcpy(elfFile.MemPtr + offset, sectHeaders.MemPtr, sectHeaders.MemSize);
 
-#ifdef _DEBUG
+#ifdef GDBJIT_DUMPELF
     DumpElf(methodName, elfFile);
 #endif    
     
