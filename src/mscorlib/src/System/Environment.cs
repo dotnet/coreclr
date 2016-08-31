@@ -1352,7 +1352,7 @@ namespace System {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        private static String GetResourceString(String key, params Object[] values) {
+        internal static String GetResourceString(String key, params Object[] values) {
             String s = GetResourceString(key);
             return String.Format(CultureInfo.CurrentCulture, s, values);
         }
