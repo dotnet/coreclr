@@ -1775,6 +1775,12 @@ void Compiler::lvaPromoteLongVars()
             continue;
         }
 
+        if (varDsc->lvDoNotEnregister)
+        {
+            JITDUMP("Not promoting long local V%02u: marked lvDoNotEnregister\n", lclNum);
+            continue;
+        }
+
         if (varDsc->lvIsMultiRegArgOrRet())
         {
             JITDUMP("Not promoting long local V%02u: marked lvIsMultiRegArgOrRet()\n", lclNum);
