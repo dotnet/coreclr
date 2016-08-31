@@ -136,7 +136,7 @@ namespace System
         {
             SpanContracts.RequiresInInclusiveRange(start, _length);
 
-            return new Span<T>(ref JitHelpers.AddByRef(ref JitHelpers.GetByRef<T>(ref _rawPointer), start), Length - start);
+            return new ReadOnlySpan<T>(ref JitHelpers.AddByRef(ref JitHelpers.GetByRef<T>(ref _rawPointer), start), Length - start);
         }
 
         /// <summary>
@@ -149,7 +149,7 @@ namespace System
         /// </exception>
         public ReadOnlySpan<T> Slice(int start, int length)
         {
-            SpanContracts.RequiresInRange(start, length);
+            SpanContracts.RequiresInRange(start, _length);
             SpanContracts.RequiresInInclusiveRange(length, _length - start);
 
             return new ReadOnlySpan<T>(ref JitHelpers.AddByRef(ref JitHelpers.GetByRef<T>(ref _rawPointer), start), length);

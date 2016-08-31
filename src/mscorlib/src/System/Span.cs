@@ -152,7 +152,7 @@ namespace System
         /// </exception>
         public Span<T> Slice(int start, int length)
         {
-            SpanContracts.RequiresInRange(start, length);
+            SpanContracts.RequiresInRange(start, _length);
             SpanContracts.RequiresInInclusiveRange(length, _length - start);
 
             return new Span<T>(ref JitHelpers.AddByRef(ref JitHelpers.GetByRef<T>(ref _rawPointer), start), length);
@@ -245,12 +245,12 @@ namespace System
                 ThrowHelper.ThrowArgumentOutOfRangeException();
         }
 
-        public static void RequiresInInclusiveRange(int start, int length) {
+        internal static void RequiresInInclusiveRange(int start, int length) {
             if ((uint)start > (uint)length)
                 ThrowHelper.ThrowArgumentOutOfRangeException();
         }
 
-        public static void RequiresNonNegative(int number) {
+        internal static void RequiresNonNegative(int number) {
             if (number < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException();
         }
@@ -280,6 +280,14 @@ namespace System
     {
         internal static void CopyTo<T>(ref IntPtr destination, ref IntPtr source, int elementsCount)
         {
+            if (elementsCount == 0)
+                return;
+
+            ref T dest = ref JitHelpers.GetByRef<T>(ref destination);
+            ref T src = ref JitHelpers.GetByRef<T>(ref source);
+            if (JitHelpers.ByRefEquals(ref dest, ref src))
+                return;
+
             if (!JitHelpers.ContainsReferences<T>())
             {
                 unsafe
@@ -289,12 +297,15 @@ namespace System
             }
             else
             {
-                ref T dest = ref JitHelpers.GetByRef<T>(ref destination);
-                ref T src = ref JitHelpers.GetByRef<T>(ref source);
-
-                for (int i = 0; i < elementsCount; i++)
+                if (JitHelpers.ByRefLessThan(ref dest, ref src)) // copy forward
                 {
-                    JitHelpers.AddByRef(ref dest, i) = JitHelpers.AddByRef(ref src, i);
+                    for (int i = 0; i < elementsCount; i++)
+                        JitHelpers.AddByRef(ref dest, i) = JitHelpers.AddByRef(ref src, i);
+                }
+                else // copy backward to avoid overlapping issues
+                {
+                    for (int i = elementsCount - 1; i >= 0; i--)
+                        JitHelpers.AddByRef(ref dest, i) = JitHelpers.AddByRef(ref src, i);
                 }
             }
         }
@@ -302,9 +313,9 @@ namespace System
         internal static unsafe void Memmove<T>(byte* destination, byte* source, int elementsCount)
         {
 #if BIT64
-            Buffer.Memmove(destination, source, (ulong)(elementsCount * (uint)JitHelpers.SizeOf<T>()));
+            Buffer.Memmove(destination, source, (ulong)elementsCount * (ulong)JitHelpers.SizeOf<T>());
 #else
-            Buffer.Memmove(destination, source, checked(elementsCount * (uint)JitHelpers.SizeOf<T>()));
+            Buffer.Memmove(destination, source, elementsCount * (uint)JitHelpers.SizeOf<T>());
 #endif
         }
     }

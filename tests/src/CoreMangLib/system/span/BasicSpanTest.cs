@@ -60,6 +60,10 @@ class My
         Test(CanCopyValueTypesWithoutPointersToUnmanagedMemory, "CanCopyValueTypesWithoutPointersToUnmanagedMemory", ref failedTestsCount);
         Test(MustNotCopyValueTypesWithPointersToUnmanagedMemory, "MustNotCopyValueTypesWithPointersToUnmanagedMemory", ref failedTestsCount);
 
+        Test(CanCopyOverlappingSlicesOfValueTypeWithoutPointers, "CanCopyOverlappingSlicesOfValueTypeWithoutPointers", ref failedTestsCount);
+        Test(CanCopyOverlappingSlicesOfValueTypeWithPointers, "CanCopyOverlappingSlicesOfValueTypeWithPointers", ref failedTestsCount);
+        Test(CanCopyOverlappingSlicesOfReferenceTypes, "CanCopyOverlappingSlicesOfReferenceTypes", ref failedTestsCount);
+
         Console.WriteLine(string.Format("{0} tests has failed", failedTestsCount));
         Environment.Exit(failedTestsCount);
     }
@@ -334,6 +338,156 @@ class My
         var result = source.TryCopyTo(pointerToStack, 1);
 
         AssertTrue(result == false, "Failed to prevent from copying value types with pointers to unamanaged memory");
+    }
+
+    static void CanCopyOverlappingSlicesOfValueTypeWithoutPointers()
+    {
+        var sourceArray = new[]
+            {
+                new ValueTypeWithoutPointers(0),
+                new ValueTypeWithoutPointers(1),
+                new ValueTypeWithoutPointers(2)
+            };
+        var firstAndSecondElements = new Span<ValueTypeWithoutPointers>(sourceArray, 0, 2); // 0, 1
+        var secondAndThirdElements = new Span<ValueTypeWithoutPointers>(sourceArray, 1, 2); // 1, 2
+
+        // 0 1 2 sourceArray
+        // 0 1 - firstAndSecondElements
+        // - 1 2 secondAndThirdElements
+        var result = firstAndSecondElements.TryCopyTo(secondAndThirdElements); // to avoid overlap we should copy backward now
+        // - 0 1 secondAndThirdElements
+        // 0 0 - firstAndSecondElements     
+        // 0 0 1 sourceArray
+
+        AssertTrue(result, "Failed to copy overlapping value types without pointers");
+
+        AssertTrue(secondAndThirdElements[1].Value == 1, "secondAndThirdElements[1] should get replaced by 1");
+        AssertTrue(secondAndThirdElements[0].Value == 0 && firstAndSecondElements[1].Value == 0, "secondAndThirdElements[0] and firstAndSecondElements[1] point to the same element, should get replaced by 0");
+        AssertTrue(firstAndSecondElements[0].Value == 0, "firstAndSecondElements[0] should remain the same");
+
+        // let's try the other direction to make sure it works as well!
+
+        sourceArray = new[]
+            {
+                new ValueTypeWithoutPointers(0),
+                new ValueTypeWithoutPointers(1),
+                new ValueTypeWithoutPointers(2)
+            };
+        firstAndSecondElements = new Span<ValueTypeWithoutPointers>(sourceArray, 0, 2); // 0, 1
+        secondAndThirdElements = new Span<ValueTypeWithoutPointers>(sourceArray, 1, 2); // 1, 2
+
+        // 0 1 2 sourceArray
+        // 0 1 - firstAndSecondElements
+        // - 1 2 secondAndThirdElements
+        result = secondAndThirdElements.TryCopyTo(firstAndSecondElements); // to avoid overlap we should copy forward now
+        // 1 2 - firstAndSecondElements
+        // - 2 2 secondAndThirdElements
+        // 1 2 2 sourceArray
+
+        AssertTrue(result, "Failed to copy overlapping value types without pointers");
+
+        AssertTrue(secondAndThirdElements[1].Value == 2, "secondAndThirdElements[1] should remain the same");
+        AssertTrue(firstAndSecondElements[1].Value == 2 && secondAndThirdElements[0].Value == 2, "secondAndThirdElements[0] && firstAndSecondElements[1] point to the same element, should get replaced by 2");
+        AssertTrue(firstAndSecondElements[0].Value == 1, "firstAndSecondElements[0] should get replaced by 1");
+    }
+
+    static void CanCopyOverlappingSlicesOfValueTypeWithPointers()
+    {
+        string zero = "0", one = "1", two = "2";
+        var sourceArray = new[]
+            {
+                new ValueTypeWithPointers(zero),
+                new ValueTypeWithPointers(one),
+                new ValueTypeWithPointers(two)
+            };
+        var firstAndSecondElements = new Span<ValueTypeWithPointers>(sourceArray, 0, 2); // 0, 1
+        var secondAndThirdElements = new Span<ValueTypeWithPointers>(sourceArray, 1, 2); // 1, 2
+
+        // 0 1 2 sourceArray
+        // 0 1 - firstAndSecondElements
+        // - 1 2 secondAndThirdElements
+        var result = firstAndSecondElements.TryCopyTo(secondAndThirdElements); // to avoid overlap we should copy backward now
+        // - 0 1 secondAndThirdElements
+        // 0 0 - firstAndSecondElements
+        // 0 0 1 sourceArray
+
+        AssertTrue(result, "Failed to copy overlapping value types with pointers");
+
+        AssertTrue(object.ReferenceEquals(secondAndThirdElements[1].Reference, one), "secondAndThirdElements[1] should get replaced by 1");
+        AssertTrue(object.ReferenceEquals(secondAndThirdElements[0].Reference, zero) && object.ReferenceEquals(firstAndSecondElements[1].Reference, zero), "secondAndThirdElements[0] and firstAndSecondElements[1] point to the same element, should get replaced by 0");
+        AssertTrue(object.ReferenceEquals(firstAndSecondElements[0].Reference, zero), "firstAndSecondElements[0] should remain the same");
+
+        // let's try the other direction to make sure it works as well!
+
+        sourceArray = new[]
+            {
+                new ValueTypeWithPointers(zero),
+                new ValueTypeWithPointers(one),
+                new ValueTypeWithPointers(two)
+            };
+        firstAndSecondElements = new Span<ValueTypeWithPointers>(sourceArray, 0, 2); // 0, 1
+        secondAndThirdElements = new Span<ValueTypeWithPointers>(sourceArray, 1, 2); // 1, 2
+
+        // 0 1 2 sourceArray
+        // 0 1 - firstAndSecondElements
+        // - 1 2 secondAndThirdElements
+        result = secondAndThirdElements.TryCopyTo(firstAndSecondElements); // to avoid overlap we should copy forward now
+        // 1 2 - firstAndSecondElements
+        // - 2 2 secondAndThirdElements
+        // 1 2 2 sourceArray
+
+        AssertTrue(result, "Failed to copy overlapping value types with pointers");
+
+        AssertTrue(object.ReferenceEquals(secondAndThirdElements[1].Reference, two), "secondAndThirdElements[1] should remain the same");
+        AssertTrue(object.ReferenceEquals(firstAndSecondElements[1].Reference, two) && object.ReferenceEquals(secondAndThirdElements[0].Reference, two), "secondAndThirdElements[0] && firstAndSecondElements[1] point to the same element, should get replaced by 2");
+        AssertTrue(object.ReferenceEquals(firstAndSecondElements[0].Reference, one), "firstAndSecondElements[0] should get replaced by 1");
+    }
+
+    static void CanCopyOverlappingSlicesOfReferenceTypes()
+    {
+        var sourceArray = new ReferenceType[] { new ReferenceType(0), new ReferenceType(1), new ReferenceType(2) };
+
+        var firstAndSecondElements = new Span<ReferenceType>(sourceArray, 0, 2); // 0, 1
+        var secondAndThirdElements = new Span<ReferenceType>(sourceArray, 1, 2); // 1, 2
+
+        // 0 1 2 sourceArray
+        // 0 1 - firstAndSecondElements
+        // - 1 2 secondAndThirdElements
+        var result = firstAndSecondElements.TryCopyTo(secondAndThirdElements); // to avoid overlap we should copy backward now
+        // - 0 1 secondAndThirdElements
+        // 0 0 - firstAndSecondElements
+        // 0 0 1 sourceArray
+
+        AssertTrue(result, "Failed to copy overlapping reference types");
+
+        AssertTrue(secondAndThirdElements[1].Value == 1, "secondAndThirdElements[1] should get replaced by 1");
+        AssertTrue(secondAndThirdElements[0].Value == 0 && firstAndSecondElements[1].Value == 0, "secondAndThirdElements[0] and firstAndSecondElements[1] point to the same element, should get replaced by 0");
+        AssertTrue(firstAndSecondElements[0].Value == 0, "firstAndSecondElements[0] should remain the same");
+
+        // let's try the other direction to make sure it works as well!
+
+        sourceArray = new[]
+            {
+                new ReferenceType(0),
+                new ReferenceType(1),
+                new ReferenceType(2)
+            };
+        firstAndSecondElements = new Span<ReferenceType>(sourceArray, 0, 2); // 0, 1
+        secondAndThirdElements = new Span<ReferenceType>(sourceArray, 1, 2); // 1, 2
+
+        // 0 1 2 sourceArray
+        // 0 1 - firstAndSecondElements
+        // - 1 2 secondAndThirdElements
+        result = secondAndThirdElements.TryCopyTo(firstAndSecondElements); // to avoid overlap we should copy forward now
+        // 1 2 - firstAndSecondElements
+        // - 2 2 secondAndThirdElements
+        // 1 2 2 sourceArray
+
+        AssertTrue(result, "Failed to copy overlapping reference types");
+
+        AssertTrue(secondAndThirdElements[1].Value == 2, "secondAndThirdElements[1] should remain the same");
+        AssertTrue(firstAndSecondElements[1].Value == 2 && secondAndThirdElements[0].Value == 2, "secondAndThirdElements[0] && firstAndSecondElements[1] point to the same element, should get replaced by 2");
+        AssertTrue(firstAndSecondElements[0].Value == 1, "firstAndSecondElements[0] should get replaced by 1");
     }
 
     static void Test(Action test, string testName, ref int failedTestsCount)
