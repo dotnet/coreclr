@@ -1752,18 +1752,38 @@ void Compiler::lvaPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* Stru
 //
 void Compiler::lvaPromoteLongVars()
 {
-    if ((opts.compFlags & CLFLG_REGVAR) == 0)
+#ifdef DEBUG
+    if (verbose)
     {
+        printf("*************** In lvaPromoteLongVars()\n");
+    }
+#endif
+
+    if (!opts.OptEnabled(CLFLG_REGVAR))
+    {
+        JITDUMP("CLFLG_REGVAR not set; not promoting long vars\n");
         return;
     }
+
     // The lvaTable might grow as we grab temps. Make a local copy here.
     unsigned startLvaCount = lvaCount;
     for (unsigned lclNum = 0; lclNum < startLvaCount; lclNum++)
     {
         LclVarDsc* varDsc = &lvaTable[lclNum];
-        if (!varTypeIsLong(varDsc) || varDsc->lvDoNotEnregister || varDsc->lvIsMultiRegArgOrRet() ||
-            (varDsc->lvRefCnt == 0))
+        if (!varTypeIsLong(varDsc))
         {
+            continue;
+        }
+
+        if (varDsc->lvIsMultiRegArgOrRet())
+        {
+            JITDUMP("Not promoting long local V%02u: marked lvIsMultiRegArgOrRet()\n", lclNum);
+            continue;
+        }
+
+        if (varDsc->lvRefCnt == 0)
+        {
+            JITDUMP("Not promoting long local V%02u: lvRefCnt == 0\n", lclNum);
             continue;
         }
 
@@ -1773,6 +1793,7 @@ void Compiler::lvaPromoteLongVars()
         {
             if (lvaGetPromotionType(varDsc->lvParentLcl) != PROMOTION_TYPE_INDEPENDENT)
             {
+                JITDUMP("Not promoting long local V%02u: field of dependently-promoted struct\n", lclNum);
                 continue;
             }
             varDsc->lvIsStructField = false;
@@ -1787,7 +1808,7 @@ void Compiler::lvaPromoteLongVars()
 #ifdef DEBUG
         if (verbose)
         {
-            printf("\nPromoting long local V%02u:", lclNum);
+            printf("Promoting long local V%02u:", lclNum);
         }
 #endif
 
@@ -1822,7 +1843,7 @@ void Compiler::lvaPromoteLongVars()
 #ifdef DEBUG
     if (verbose)
     {
-        printf("\nlvaTable after lvaPromoteLongVars\n");
+        printf("lvaTable after lvaPromoteLongVars\n");
         lvaTableDump();
     }
 #endif // DEBUG

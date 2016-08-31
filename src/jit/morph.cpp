@@ -16861,11 +16861,13 @@ void Compiler::fgPromoteStructs()
 
     if (!opts.OptEnabled(CLFLG_STRUCTPROMOTE))
     {
+        JITDUMP("CLFLG_STRUCTPROMOTE not set; not doing struct promotion\n");
         return;
     }
 
     if (fgNoStructPromotion)
     {
+        JITDUMP("fgNoStructPromotion set; not doing struct promotion\n");
         return;
     }
 
@@ -16902,11 +16904,13 @@ void Compiler::fgPromoteStructs()
 
     if (info.compIsVarArgs)
     {
+        JITDUMP("Function has varargs parameters; not doing struct promotion\n");
         return;
     }
 
     if (getNeedsGSSecurityCookie())
     {
+        JITDUMP("Function needs a GS security cookie; not doing struct promotion\n");
         return;
     }
 
@@ -16920,6 +16924,7 @@ void Compiler::fgPromoteStructs()
 
     lvaStructPromotionInfo structPromotionInfo;
     bool                   tooManyLocals = false;
+    bool                   anyPromotedStructs = false;
 
     for (unsigned lclNum = 0; lclNum < startLvaCount; lclNum++)
     {
@@ -16968,7 +16973,6 @@ void Compiler::fgPromoteStructs()
 
             if (canPromote)
             {
-
                 // We *can* promote; *should* we promote?
                 // We should only do so if promotion has potential savings.  One source of savings
                 // is if a field of the struct is accessed, since this access will be turned into
@@ -17066,6 +17070,7 @@ void Compiler::fgPromoteStructs()
                     // Promote the this struct local var.
                     lvaPromoteStructVar(lclNum, &structPromotionInfo);
                     promotedVar = true;
+                    anyPromotedStructs = true;
 
 #ifdef _TARGET_ARM_
                     if (structPromotionInfo.requiresScratchVar)
@@ -17093,6 +17098,14 @@ void Compiler::fgPromoteStructs()
         }
 #endif // FEATURE_SIMD
     }
+
+#ifdef DEBUG
+    if (verbose && anyPromotedStructs)
+    {
+        printf("lvaTable after fgPromoteStructs\n");
+        lvaTableDump();
+    }
+#endif // DEBUG
 }
 
 Compiler::fgWalkResult Compiler::fgMorphStructField(GenTreePtr tree, fgWalkData* fgWalkPre)
