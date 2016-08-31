@@ -1297,6 +1297,7 @@ namespace System {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
+        [MethodImpl(MethodImplOptions.NoInlining)]
         internal static String GetResourceString(String key) {
 #if FEATURE_CORECLR
             return GetResourceStringLocal(key);
@@ -1305,8 +1306,53 @@ namespace System {
 #endif //FEATURE_CORECLR
         }
 
+        // The reason the following overloads exist are to reduce code bloat.
+        // Since GetResourceString is basically only called when exceptions are
+        // thrown, we want the code size to be as small as possible.
+        // Using the params object[] overload works against this since the
+        // initialization of the array is done inline in the caller at the IL
+        // level. So we have overloads that simply wrap the params one, and
+        // are tagged as NoInlining. That way they do not bloat either the
+        // IL or the generated asm.
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        internal static string GetResourceString(string key, object val0)
+        {
+            return GetResourceString(key, new object[] { val0 });
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        internal static string GetResourceString(string key, object val0, object val1)
+        {
+            return GetResourceString(key, new object[] { val0, val1 });
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        internal static string GetResourceString(string key, object val0, object val1, object val2)
+        {
+            return GetResourceString(key, new object[] { val0, val1, val2 });
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        internal static string GetResourceString(string key, object val0, object val1, object val2, object val3)
+        {
+            return GetResourceString(key, new object[] { val0, val1, val2, val3 });
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        internal static string GetResourceString(string key, object val0, object val1, object val2, object val3, object val4)
+        {
+            return GetResourceString(key, new object[] { val0, val1, val2, val3, val4 });
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        internal static string GetResourceString(string key, object val0, object val1, object val2, object val3, object val4, object val5)
+        {
+            return GetResourceString(key, new object[] { val0, val1, val2, val3, val4, val5 });
+        }
+
         [System.Security.SecuritySafeCritical]  // auto-generated
-        internal static String GetResourceString(String key, params Object[] values) {
+        private static String GetResourceString(String key, params Object[] values) {
             String s = GetResourceString(key);
             return String.Format(CultureInfo.CurrentCulture, s, values);
         }
@@ -1314,11 +1360,11 @@ namespace System {
         //The following two internal methods are not used anywhere within the framework,
         // but are being kept around as external platforms built on top of us have taken 
         // dependency by using private reflection on them for getting system resource strings 
-        internal static String GetRuntimeResourceString(String key) {
+        private static String GetRuntimeResourceString(String key) {
             return GetResourceString(key);
         }
 
-        internal static String GetRuntimeResourceString(String key, params Object[] values) {
+        private static String GetRuntimeResourceString(String key, params Object[] values) {
             return GetResourceString(key,values);
         }
 
