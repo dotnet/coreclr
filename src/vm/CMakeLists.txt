@@ -276,7 +276,7 @@ list(APPEND VM_SOURCES_WKS
     dwreport.cpp
     eventreporter.cpp
     extensibleclassfactory.cpp
-    microsoft.comservices_i.cpp
+    microsoft.comservices_i.c
     mngstdinterfaces.cpp
     notifyexternals.cpp
     olecontexthelpers.cpp    
