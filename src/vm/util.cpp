@@ -2089,10 +2089,11 @@ size_t GetIntelDeterministicCacheEnum()
     LIMITED_METHOD_CONTRACT;
     size_t retVal = 0;
     unsigned char buffer[16];
+    size_t buflen = ARRAYSIZE(buffer);
 
     DWORD maxCpuid = getextcpuid(0,0,buffer);
     DWORD dwBuffer[4];
-    memcpy(dwBuffer, buffer, 16);
+    memcpy(dwBuffer, buffer, buflen);
 
     if( (maxCpuid > 3) && (maxCpuid < 0x80000000) ) // Deterministic Cache Enum is Supported
     {
@@ -2108,7 +2109,7 @@ size_t GetIntelDeterministicCacheEnum()
         // cache levels are supported.
 
         getextcpuid(loopECX, 4, buffer);       
-        memcpy(dwBuffer, buffer, 16);
+        memcpy(dwBuffer, buffer, buflen);
         retEAX = dwBuffer[0];       // get EAX
 
         int i = 0;
@@ -2127,7 +2128,7 @@ size_t GetIntelDeterministicCacheEnum()
 
             loopECX++;
             getextcpuid(loopECX, 4, buffer);  
-            memcpy(dwBuffer, buffer, 16);
+            memcpy(dwBuffer, buffer, buflen);
             retEAX = dwBuffer[0] ;      // get EAX[4:0];        
             i++;
             if (i > 16) {               // prevent infinite looping
