@@ -368,7 +368,7 @@ namespace System.Globalization
                                                                              "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
                                                                              CompareOptions.IgnoreCase) == 0 ? Tristate.True : Tristate.False;
                 }
-                return _isAsciiCasingSameAsInvariant == Tristate.True ? true : false;
+                return _isAsciiCasingSameAsInvariant == Tristate.True;
             }
         }
 

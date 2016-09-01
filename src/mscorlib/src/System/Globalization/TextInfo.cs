@@ -611,7 +611,7 @@ namespace System.Globalization {
                                                                              "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
                                                                              CompareOptions.IgnoreCase) == 0 ? Tristate.True : Tristate.False;
                 }
-                return m_IsAsciiCasingSameAsInvariant == Tristate.True ? true : false;
+                return m_IsAsciiCasingSameAsInvariant == Tristate.True;
             }
         }
 
