@@ -55,7 +55,7 @@ else()
 # The prebuilt files contain extra '!_MIDL_USE_GUIDDEF_' after the #endif, but not in the comment.
 # In order to not to have to modify these prebuilt files, we disable the extra tokens warning.
 add_compile_options(-Wno-extra-tokens)
-
+add_compile_options(-D_MIDL_USE_GUIDDEF_)
 foreach(IDL_SOURCE IN LISTS CORGUIDS_IDL_SOURCES)
    get_filename_component(IDLNAME ${IDL_SOURCE} NAME_WE)
    set(C_SOURCE ../pal/prebuilt/idl/${IDLNAME}_i.cpp)
