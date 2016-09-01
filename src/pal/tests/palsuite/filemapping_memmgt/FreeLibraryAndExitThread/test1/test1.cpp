@@ -58,7 +58,7 @@ BOOL  PALAPI StartThreadTest()
     HANDLE  hThread;  
     DWORD   dwThreadId;
     LPTHREAD_START_ROUTINE lpStartAddress =  &CreateTestThread;
-    LPVOID lpParameter = lpStartAddress;
+    LPVOID lpParameter = (LPVOID)lpStartAddress;
     DWORD rc = -1;
     /*Load library (DLL).*/
     hLib = LoadLibrary(LibraryName);
