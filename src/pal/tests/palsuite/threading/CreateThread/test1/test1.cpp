@@ -41,7 +41,7 @@ BOOL CreateThreadTest()
     LPSECURITY_ATTRIBUTES lpThreadAttributes = NULL;
     DWORD dwStackSize = 0; 
     LPTHREAD_START_ROUTINE lpStartAddress =  &CreateThreadTestThread;
-    LPVOID lpParameter = lpStartAddress;
+    LPVOID lpParameter = (LPVOID)lpStartAddress;
     DWORD dwCreationFlags = 0;  /* run immediately */
     DWORD dwThreadId = 0;
 
