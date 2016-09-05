@@ -415,7 +415,6 @@
     <SystemSources Include="$(BclSourcesRoot)\System\Progress.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\Random.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\RankException.cs" />
-    <SystemSources Include="$(BclSourcesRoot)\System\ResId.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\RtType.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\RuntimeArgumentHandle.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\RuntimeHandles.cs" />

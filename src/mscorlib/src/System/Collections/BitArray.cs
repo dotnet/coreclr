@@ -484,7 +484,7 @@ namespace System.Collections {
             }
                 
             public virtual bool MoveNext() {
-                if (version != bitarray._version) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumFailedVersion));
+                if (version != bitarray._version) ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumFailedVersion);
                 if (index < (bitarray.Count-1)) {
                     index++;
                     currentElement = bitarray.Get(index);
@@ -499,15 +499,15 @@ namespace System.Collections {
             public virtual Object Current {
                 get {
                     if (index == -1)
-                        throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumNotStarted));
+                        ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumNotStarted);
                     if (index >= bitarray.Count)
-                        throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumEnded)); 
+                        ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumEnded); 
                     return currentElement;
                 }
             }
     
             public void Reset() {
-                if (version != bitarray._version) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumFailedVersion));
+                if (version != bitarray._version) ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumFailedVersion);
                 index = -1;
             }
         }

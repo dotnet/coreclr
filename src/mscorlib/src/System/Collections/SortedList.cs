@@ -803,14 +803,14 @@ namespace System.Collections {
     
             public virtual Object Value {
                 get {
-                    if (version != sortedList.version) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumFailedVersion));
+                    if (version != sortedList.version) ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumFailedVersion);
                     if (current == false) throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_EnumOpCantHappen"));
                     return value;
                 }
             }
             
             public virtual void Reset() {
-                if (version != sortedList.version) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumFailedVersion));
+                if (version != sortedList.version) ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumFailedVersion);
                 index = startIndex;
                 current = false;
                 key = null;
@@ -848,12 +848,12 @@ namespace System.Collections {
             }
     
             public virtual int Add(Object key) {
-                throw new NotSupportedException(Environment.GetResourceString(ResId.NotSupported_SortedListNestedWrite));
-                //            return 0; // suppress compiler warning
+                ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_SortedListNestedWrite);
+                return default(int);
             }
     
             public virtual void Clear() {
-                throw new NotSupportedException(Environment.GetResourceString(ResId.NotSupported_SortedListNestedWrite));
+                ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_SortedListNestedWrite);
             }
     
             public virtual bool Contains(Object key) {
@@ -870,7 +870,7 @@ namespace System.Collections {
             }
     
             public virtual void Insert(int index, Object value) {
-                throw new NotSupportedException(Environment.GetResourceString(ResId.NotSupported_SortedListNestedWrite));
+                ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_SortedListNestedWrite);
             }
     
             public virtual Object this[int index] {
@@ -898,11 +898,11 @@ namespace System.Collections {
             }
     
             public virtual void Remove(Object key) {
-                throw new NotSupportedException(Environment.GetResourceString(ResId.NotSupported_SortedListNestedWrite));
+                ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_SortedListNestedWrite);
             }
     
             public virtual void RemoveAt(int index) {
-                throw new NotSupportedException(Environment.GetResourceString(ResId.NotSupported_SortedListNestedWrite));
+                ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_SortedListNestedWrite);
             }
         }
     
@@ -936,11 +936,12 @@ namespace System.Collections {
             }
     
             public virtual int Add(Object key) {
-                throw new NotSupportedException(Environment.GetResourceString(ResId.NotSupported_SortedListNestedWrite));
+                ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_SortedListNestedWrite);
+                return default(int);
             }
     
             public virtual void Clear() {
-                throw new NotSupportedException(Environment.GetResourceString(ResId.NotSupported_SortedListNestedWrite));
+                ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_SortedListNestedWrite);
             }
     
             public virtual bool Contains(Object value) {
@@ -957,7 +958,7 @@ namespace System.Collections {
             }
     
             public virtual void Insert(int index, Object value) {
-                throw new NotSupportedException(Environment.GetResourceString(ResId.NotSupported_SortedListNestedWrite));
+                ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_SortedListNestedWrite);
             }
     
             public virtual Object this[int index] {
@@ -965,7 +966,7 @@ namespace System.Collections {
                     return sortedList.GetByIndex(index);
                 }
                 set {
-                    throw new NotSupportedException(Environment.GetResourceString(ResId.NotSupported_SortedListNestedWrite));
+                    ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_SortedListNestedWrite);
                 }
             }
 
@@ -978,11 +979,11 @@ namespace System.Collections {
             }
     
             public virtual void Remove(Object value) {
-                throw new NotSupportedException(Environment.GetResourceString(ResId.NotSupported_SortedListNestedWrite));
+                ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_SortedListNestedWrite);
             }
     
             public virtual void RemoveAt(int index) {
-                throw new NotSupportedException(Environment.GetResourceString(ResId.NotSupported_SortedListNestedWrite));
+                ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_SortedListNestedWrite);
             }
             
         }

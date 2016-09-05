@@ -297,7 +297,7 @@ namespace System.Reflection.Emit
             __ExceptionInfo []temp;
             if (m_currExcStackCount != 0)
             {
-                throw new NotSupportedException(Environment.GetResourceString(ResId.Argument_UnclosedExceptionBlock));
+                ThrowHelper.ThrowNotSupportedException(ExceptionResource.Argument_UnclosedExceptionBlock);
             }
             
             if (m_exceptionCount == 0)

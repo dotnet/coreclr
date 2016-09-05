@@ -9838,7 +9838,6 @@
       <Member Status="ApiRoot" Name="Invoke(System.Type,System.Object)" />
     </Type>
     <Type Status="ImplRoot" Name="System.ReflectionOnlyType" />
-    <Type Status="ImplRoot" Name="System.ResId" />
     <Type Status="ImplRoot" Name="System.Resolver">
       <Member Name="GetJitContext(System.Int32@)" /> <!-- EE -->
       <Member Name="GetCodeInfo(System.Int32@,System.Int32@,System.Int32@)" /> <!-- EE -->

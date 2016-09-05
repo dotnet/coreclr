@@ -34,7 +34,7 @@ namespace System.Collections.ObjectModel
 
         public ReadOnlyDictionary(IDictionary<TKey, TValue> dictionary) {
             if (dictionary == null) {
-                throw new ArgumentNullException("dictionary");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.dictionary);
             }
             Contract.EndContractBlock();
             m_dictionary = dictionary;
@@ -240,7 +240,7 @@ namespace System.Collections.ObjectModel
             }
 
             if (index < 0 || index > array.Length) {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+                ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
             }
 
             if (array.Length - index < Count) {

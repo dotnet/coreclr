@@ -323,7 +323,7 @@ namespace System.Collections {
 
             public virtual bool MoveNext() {
                 bool retval;
-                if (_version != _stack._version) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumFailedVersion));
+                if (_version != _stack._version) ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumFailedVersion);
                 if (_index == -2) {  // First call to enumerator.
                     _index = _stack._size-1;
                     retval = ( _index >= 0);
@@ -345,14 +345,14 @@ namespace System.Collections {
     
             public virtual Object Current {
                 get {
-                    if (_index == -2) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumNotStarted));
-                    if (_index == -1) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumEnded));
+                    if (_index == -2) ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumNotStarted);
+                    if (_index == -1) ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumEnded);
                     return currentElement;
                 }
             }
     
             public virtual void Reset() {
-                if (_version != _stack._version) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumFailedVersion));
+                if (_version != _stack._version) ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumFailedVersion);
                 _index = -2;
                 currentElement = null;
             }

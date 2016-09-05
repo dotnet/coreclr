@@ -91,7 +91,7 @@ namespace System.Collections.Concurrent
         {
             if (list == null)
             {
-                throw new ArgumentNullException("list");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.list);
             }
             if (loadBalance)
             {
@@ -122,7 +122,7 @@ namespace System.Collections.Concurrent
 
             if (array == null)
             {
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
             if (loadBalance)
             {
@@ -172,11 +172,11 @@ namespace System.Collections.Concurrent
         {
             if (source == null)
             {
-                throw new ArgumentNullException("source");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.source);
             }
 
             if ((partitionerOptions & (~EnumerablePartitionerOptions.NoBuffering)) != 0)
-                throw new ArgumentOutOfRangeException("partitionerOptions");
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.partitionerOptions);
 
             return (new DynamicPartitionerForIEnumerable<TSource>(source, partitionerOptions));
         }
@@ -194,7 +194,7 @@ namespace System.Collections.Concurrent
             // load balancing on a busy system if you make it higher than 1.
             int coreOversubscriptionRate = 3;
 
-            if (toExclusive <= fromInclusive) throw new ArgumentOutOfRangeException("toExclusive");
+            if (toExclusive <= fromInclusive) ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.toExclusive);
             long rangeSize = (toExclusive - fromInclusive) /
                 (PlatformHelper.ProcessorCount * coreOversubscriptionRate);
             if (rangeSize == 0) rangeSize = 1;
@@ -212,8 +212,8 @@ namespace System.Collections.Concurrent
         /// less than or equal to 0.</exception>
         public static OrderablePartitioner<Tuple<long, long>> Create(long fromInclusive, long toExclusive, long rangeSize)
         {
-            if (toExclusive <= fromInclusive) throw new ArgumentOutOfRangeException("toExclusive");
-            if (rangeSize <= 0) throw new ArgumentOutOfRangeException("rangeSize");
+            if (toExclusive <= fromInclusive) ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.toExclusive);
+            if (rangeSize <= 0) ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.rangeSize);
             return Partitioner.Create(CreateRanges(fromInclusive, toExclusive, rangeSize), EnumerablePartitionerOptions.NoBuffering); // chunk one range at a time
         }
 
@@ -251,7 +251,7 @@ namespace System.Collections.Concurrent
             // load balancing on a busy system if you make it higher than 1.
             int coreOversubscriptionRate = 3;
 
-            if (toExclusive <= fromInclusive) throw new ArgumentOutOfRangeException("toExclusive");
+            if (toExclusive <= fromInclusive) ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.toExclusive);
             int rangeSize = (toExclusive - fromInclusive) /
                 (PlatformHelper.ProcessorCount * coreOversubscriptionRate);
             if (rangeSize == 0) rangeSize = 1;
@@ -269,8 +269,8 @@ namespace System.Collections.Concurrent
         /// less than or equal to 0.</exception>
         public static OrderablePartitioner<Tuple<int, int>> Create(int fromInclusive, int toExclusive, int rangeSize)
         {
-            if (toExclusive <= fromInclusive) throw new ArgumentOutOfRangeException("toExclusive");
-            if (rangeSize <= 0) throw new ArgumentOutOfRangeException("rangeSize");
+            if (toExclusive <= fromInclusive) ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.toExclusive);
+            if (rangeSize <= 0) ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.rangeSize);
             return Partitioner.Create(CreateRanges(fromInclusive, toExclusive, rangeSize), EnumerablePartitionerOptions.NoBuffering); // chunk one range at a time
         }
 
@@ -401,7 +401,7 @@ namespace System.Collections.Concurrent
             /// </summary>
             public void Reset()
             {
-                throw new NotSupportedException();
+                ThrowHelper.ThrowNotSupportedException();
             }
 
 
@@ -517,7 +517,7 @@ namespace System.Collections.Concurrent
             {
                 if (partitionCount <= 0)
                 {
-                    throw new ArgumentOutOfRangeException("partitionCount");
+                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.partitionCount);
                 }
                 IEnumerator<KeyValuePair<long, TSource>>[] partitions
                     = new IEnumerator<KeyValuePair<long, TSource>>[partitionCount];
@@ -622,13 +622,10 @@ namespace System.Collections.Concurrent
                 {
                     if (m_disposed)
                     {
-                        throw new ObjectDisposedException(Environment.GetResourceString("PartitionerStatic_CanNotCallGetEnumeratorAfterSourceHasBeenDisposed"));
+                        ThrowHelper.ThrowObjectDisposedException(ExceptionResource.PartitionerStatic_CanNotCallGetEnumeratorAfterSourceHasBeenDisposed);
                     }
-                    else
-                    {
-                        return new InternalPartitionEnumerator(m_sharedReader, m_sharedIndex,
-                            m_hasNoElementsLeft, m_sharedLock, m_activePartitionCount, this, m_useSingleChunking);
-                    }
+                    return new InternalPartitionEnumerator(m_sharedReader, m_sharedIndex,
+                        m_hasNoElementsLeft, m_sharedLock, m_activePartitionCount, this, m_useSingleChunking);
                 }
 
 
@@ -986,7 +983,7 @@ namespace System.Collections.Concurrent
                         //verify that MoveNext is at least called once before Current is called 
                         if (m_currentChunkSize == null)
                         {
-                            throw new InvalidOperationException(Environment.GetResourceString("PartitionerStatic_CurrentCalledBeforeMoveNext"));
+                            ThrowHelper.ThrowInvalidOperationException(ExceptionResource.PartitionerStatic_CurrentCalledBeforeMoveNext);
                         }
                         Contract.Assert(m_localList != null);
                         Contract.Assert(m_localOffset.Value >= 0 && m_localOffset.Value < m_currentChunkSize.Value);
@@ -1053,7 +1050,7 @@ namespace System.Collections.Concurrent
             {
                 if (partitionCount <= 0)
                 {
-                    throw new ArgumentOutOfRangeException("partitionCount");
+                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.partitionCount);
                 }
                 IEnumerator<KeyValuePair<long, TSource>>[] partitions
                     = new IEnumerator<KeyValuePair<long, TSource>>[partitionCount];
@@ -1265,7 +1262,7 @@ namespace System.Collections.Concurrent
                         //verify that MoveNext is at least called once before Current is called 
                         if (m_currentChunkSize == null)
                         {
-                            throw new InvalidOperationException(Environment.GetResourceString("PartitionerStatic_CurrentCalledBeforeMoveNext"));
+                            ThrowHelper.ThrowInvalidOperationException(ExceptionResource.PartitionerStatic_CurrentCalledBeforeMoveNext);
                         }
 
                         Contract.Assert(m_localOffset.Value >= 0 && m_localOffset.Value < m_currentChunkSize.Value);
@@ -1349,7 +1346,7 @@ namespace System.Collections.Concurrent
                         //verify that MoveNext is at least called once before Current is called 
                         if (m_currentChunkSize == null)
                         {
-                            throw new InvalidOperationException(Environment.GetResourceString("PartitionerStatic_CurrentCalledBeforeMoveNext"));
+                            ThrowHelper.ThrowInvalidOperationException(ExceptionResource.PartitionerStatic_CurrentCalledBeforeMoveNext);
                         }
 
                         Contract.Assert(m_localOffset.Value >= 0 && m_localOffset.Value < m_currentChunkSize.Value);
@@ -1417,7 +1414,7 @@ namespace System.Collections.Concurrent
             {
                 if (partitionCount <= 0)
                 {
-                    throw new ArgumentOutOfRangeException("partitionCount");
+                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.partitionCount);
                 }
 
                 int quotient, remainder;
@@ -1489,7 +1486,7 @@ namespace System.Collections.Concurrent
 
             public void Reset()
             {
-                throw new NotSupportedException();
+                ThrowHelper.ThrowNotSupportedException();
             }
 
             /// <summary>
@@ -1576,7 +1573,7 @@ namespace System.Collections.Concurrent
                     //verify that MoveNext is at least called once before Current is called 
                     if (m_offset < m_startIndex)
                     {
-                        throw new InvalidOperationException(Environment.GetResourceString("PartitionerStatic_CurrentCalledBeforeMoveNext"));
+                        ThrowHelper.ThrowInvalidOperationException(ExceptionResource.PartitionerStatic_CurrentCalledBeforeMoveNext);
                     }
 
                     Contract.Assert(m_offset >= m_startIndex && m_offset <= m_endIndex);
@@ -1633,7 +1630,7 @@ namespace System.Collections.Concurrent
                     //verify that MoveNext is at least called once before Current is called 
                     if (m_offset < m_startIndex)
                     {
-                        throw new InvalidOperationException(Environment.GetResourceString("PartitionerStatic_CurrentCalledBeforeMoveNext"));
+                        ThrowHelper.ThrowInvalidOperationException(ExceptionResource.PartitionerStatic_CurrentCalledBeforeMoveNext);
                     }
 
                     Contract.Assert(m_offset >= m_startIndex && m_offset <= m_endIndex);

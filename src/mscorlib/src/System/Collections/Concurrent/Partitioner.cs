@@ -96,7 +96,8 @@ namespace System.Collections.Concurrent
         /// partitioner.</exception>
         public virtual IEnumerable<TSource> GetDynamicPartitions()
         {
-            throw new NotSupportedException(Environment.GetResourceString("Partitioner_DynamicPartitionsNotSupported"));
+            ThrowHelper.ThrowNotSupportedException(ExceptionResource.Partitioner_DynamicPartitionsNotSupported);
+            return default(IEnumerable<TSource>);
         }
     }
 }

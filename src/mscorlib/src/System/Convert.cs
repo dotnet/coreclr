@@ -579,7 +579,7 @@ namespace System {
             Contract.EndContractBlock();
          
             if (value.Length != 1) 
-                throw new FormatException(Environment.GetResourceString(ResId.Format_NeedSingleChar));
+                ThrowHelper.ThrowFormatException(ExceptionResource.Format_NeedSingleChar);
 
             return value[0];
         }

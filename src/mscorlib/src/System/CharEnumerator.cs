@@ -59,10 +59,8 @@ namespace System {
     
         public char Current {
             get {
-                if (index == -1)
-                    throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumNotStarted));
-                if (index >= str.Length)
-                    throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumEnded));                                            
+                if (index == -1) ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumNotStarted);
+                if (index >= str.Length) ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumEnded);
                 return currentElement;
             }
         }

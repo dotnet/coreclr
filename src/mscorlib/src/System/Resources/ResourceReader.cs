@@ -1345,8 +1345,8 @@ namespace System.Resources {
             public Object Key {
                 [System.Security.SecuritySafeCritical]  // auto-generated
                 get {
-                    if (_currentName == ENUM_DONE) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumEnded));
-                    if (!_currentIsValid) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumNotStarted));
+                    if (_currentName == ENUM_DONE) ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumEnded);
+                    if (!_currentIsValid) ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumNotStarted);
                     if (_reader._resCache == null) throw new InvalidOperationException(Environment.GetResourceString("ResourceReaderIsClosed"));
 
                     return _reader.AllocateStringForNameIndex(_currentName, out _dataPosition);
@@ -1369,8 +1369,8 @@ namespace System.Resources {
             public DictionaryEntry Entry {
                 [System.Security.SecuritySafeCritical]  // auto-generated
                 get {
-                    if (_currentName == ENUM_DONE) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumEnded));
-                    if (!_currentIsValid) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumNotStarted));
+                    if (_currentName == ENUM_DONE) ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumEnded);
+                    if (!_currentIsValid) ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumNotStarted);
                     if (_reader._resCache == null) throw new InvalidOperationException(Environment.GetResourceString("ResourceReaderIsClosed"));
 
                     String key;
@@ -1401,8 +1401,8 @@ namespace System.Resources {
     
             public Object Value {
                 get {
-                    if (_currentName == ENUM_DONE) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumEnded));
-                    if (!_currentIsValid) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumNotStarted));
+                    if (_currentName == ENUM_DONE) ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumEnded);
+                    if (!_currentIsValid) ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumNotStarted);
                     if (_reader._resCache == null) throw new InvalidOperationException(Environment.GetResourceString("ResourceReaderIsClosed"));
 
                     // Consider using _resCache here, eventually, if

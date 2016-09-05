@@ -207,7 +207,7 @@ namespace System
         public Lazy(Func<T> valueFactory, LazyThreadSafetyMode mode)
         {
             if (valueFactory == null)
-                throw new ArgumentNullException("valueFactory");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.valueFactory);
 
             m_threadSafeObj = GetObjectFromMode(mode);
             m_valueFactory = valueFactory;
@@ -223,7 +223,7 @@ namespace System
             else if (mode == LazyThreadSafetyMode.PublicationOnly)
                 return LazyHelpers.PUBLICATION_ONLY_SENTINEL;
             else if (mode != LazyThreadSafetyMode.None)
-                throw new ArgumentOutOfRangeException("mode", Environment.GetResourceString("Lazy_ctor_ModeInvalid"));
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.mode, ExceptionResource.Lazy_ctor_ModeInvalid);
             
             return null; // None mode
         }
@@ -432,7 +432,7 @@ namespace System
                 {
                     // check for recursion
                     if (mode != LazyThreadSafetyMode.PublicationOnly && m_valueFactory == ALREADY_INVOKED_SENTINEL)
-                        throw new InvalidOperationException(Environment.GetResourceString("Lazy_Value_RecursiveCallsToValue"));
+                        ThrowHelper.ThrowInvalidOperationException(ExceptionResource.Lazy_Value_RecursiveCallsToValue);
 
                     Func<T> factory = m_valueFactory;
                     if (mode != LazyThreadSafetyMode.PublicationOnly) // only detect recursion on None and ExecutionAndPublication modes

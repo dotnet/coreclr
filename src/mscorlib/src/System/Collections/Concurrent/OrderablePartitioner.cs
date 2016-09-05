@@ -129,7 +129,8 @@ namespace System.Collections.Concurrent
         /// partitioner.</exception>
         public virtual IEnumerable<KeyValuePair<long, TSource>> GetOrderableDynamicPartitions()
         {
-            throw new NotSupportedException(Environment.GetResourceString("Partitioner_DynamicPartitionsNotSupported"));
+            ThrowHelper.ThrowNotSupportedException(ExceptionResource.Partitioner_DynamicPartitionsNotSupported);
+            return default(IEnumerable<KeyValuePair<long, TSource>>);
         }
 
         /// <summary>
@@ -172,7 +173,7 @@ namespace System.Collections.Concurrent
 
             if (orderablePartitions.Count != partitionCount)
             {
-                throw new InvalidOperationException("OrderablePartitioner_GetPartitions_WrongNumberOfPartitions");
+                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.OrderablePartitioner_GetPartitions_WrongNumberOfPartitions);
             }
 
             IEnumerator<TSource>[] partitions = new IEnumerator<TSource>[partitionCount];
