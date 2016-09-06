@@ -582,13 +582,16 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
             info->dstCount = 0;
 
             GenTreePtr other;
+            bool hasContainedImmed = false;
             if (CheckImmedAndMakeContained(tree, node->gtIndex))
             {
                 other = node->gtArrLen;
+                hasContainedImmed = true;
             }
             else if (CheckImmedAndMakeContained(tree, node->gtArrLen))
             {
                 other = node->gtIndex;
+                hasContainedImmed = true;
             }
             else if (node->gtIndex->isMemoryOp())
             {
@@ -605,10 +608,17 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
                 {
                     MakeSrcContained(tree, other);
                 }
-                else
+                else if (hasContainedImmed)
                 {
                     // We can mark 'other' as reg optional, since it is not contained.
-                    SetRegOptional(other);
+                    SetRegOptional(other DEBUG_ARG(tree));
+                }
+                else
+                {
+                    // We can mark both the operands as reg optional since
+                    // both the operands are contained.
+                    SetRegOptional(node->gtIndex DEBUG_ARG(tree));
+                    SetRegOptional(node->gtArrLen DEBUG_ARG(tree));
                 }
             }
         }
@@ -2160,7 +2170,7 @@ void Lowering::TreeNodeInfoInitModDiv(GenTree* tree)
                 {
                     // If there are no containable operands, we can make an operand reg optional.
                     // SSE2 allows only op2 to be a memory-op.
-                    SetRegOptional(op2);
+                    SetRegOptional(op2 DEBUG_ARG(tree));
                 }
 
                 return;
@@ -2202,7 +2212,7 @@ void Lowering::TreeNodeInfoInitModDiv(GenTree* tree)
 
         // If there are no containable operands, we can make an operand reg optional.
         // Div instruction allows only op2 to be a memory op.
-        SetRegOptional(op2);
+        SetRegOptional(op2 DEBUG_ARG(tree));
     }
 }
 
@@ -2239,7 +2249,7 @@ void Lowering::TreeNodeInfoInitIntrinsic(GenTree* tree)
             {
                 // Mark the operand as reg optional since codegen can still
                 // generate code if op1 is on stack.
-                SetRegOptional(op1);
+                SetRegOptional(op1 DEBUG_ARG(tree));
             }
             break;
 
@@ -2572,7 +2582,7 @@ void Lowering::TreeNodeInfoInitCast(GenTree* tree)
             {
                 // Mark castOp as reg optional to indicate codegen
                 // can still generate code if it is on stack.
-                SetRegOptional(castOp);
+                SetRegOptional(castOp DEBUG_ARG(tree));
             }
         }
     }
@@ -2939,7 +2949,7 @@ void Lowering::LowerCmp(GenTreePtr tree)
         {
             // SSE2 allows only otherOp to be a memory-op. Since otherOp is not
             // contained, we can mark it reg-optional.
-            SetRegOptional(otherOp);
+            SetRegOptional(otherOp DEBUG_ARG(tree));
         }
 
         return;
@@ -3239,7 +3249,7 @@ void Lowering::LowerCmp(GenTreePtr tree)
                 // If not made contained, op1 can be marked as reg-optional.
                 if (!op1IsMadeContained)
                 {
-                    SetRegOptional(op1);
+                    SetRegOptional(op1 DEBUG_ARG(tree));
                 }
             }
         }
@@ -3256,10 +3266,10 @@ void Lowering::LowerCmp(GenTreePtr tree)
         }
         else
         {
-            // One of op1 or op2 could be marked as reg optional
-            // to indicate that codgen can still generate code
-            // if one of them is on stack.
-            SetRegOptional(PreferredRegOptionalOperand(tree));
+            // op1 and op2 could be marked as reg optional since
+            // neither of them are contained.
+            SetRegOptional(op1 DEBUG_ARG(tree));
+            SetRegOptional(op2 DEBUG_ARG(tree));
         }
 
         if (varTypeIsSmall(op1Type) && varTypeIsUnsigned(op1Type))
@@ -3862,16 +3872,16 @@ void Lowering::SetMulOpCounts(GenTreePtr tree)
             // Has a contained immediate operand.
             // Only 'other' operand can be marked as reg optional.
             assert(other != nullptr);
-            SetRegOptional(other);
+            SetRegOptional(other DEBUG_ARG(tree));
         }
         else if (hasImpliedFirstOperand)
         {
             // Only op2 can be marke as reg optional.
-            SetRegOptional(op2);
+            SetRegOptional(op2 DEBUG_ARG(tree));
         }
         else
         {
-            // If there are no containable operands, we can make either of op1 or op2
+            // Since there are no containable operands, we can mark op1 and op2
             // as reg optional.
             SetRegOptionalForBinOp(tree);
         }
@@ -3943,131 +3953,6 @@ bool Lowering::IsContainableImmed(GenTree* parentNode, GenTree* childNode)
 
     return true;
 }
-
-//-----------------------------------------------------------------------
-// PreferredRegOptionalOperand: returns one of the operands of given
-// binary oper that is to be preferred for marking as reg optional.
-//
-// Since only one of op1 or op2 can be a memory operand on xarch, only
-// one of  them have to be marked as reg optional.  Since Lower doesn't
-// know apriori which of op1 or op2 is not likely to get a register, it
-// has to make a guess. This routine encapsulates heuristics that
-// guess whether it is likely to be beneficial to mark op1 or op2 as
-// reg optional.
-//
-//
-// Arguments:
-//     tree  -  a binary-op tree node that is either commutative
-//              or a compare oper.
-//
-// Returns:
-//     Returns op1 or op2 of tree node that is preferred for
-//     marking as reg optional.
-//
-// Note: if the tree oper is neither commutative nor a compare oper
-// then only op2 can be reg optional on xarch and hence no need to
-// call this routine.
-GenTree* Lowering::PreferredRegOptionalOperand(GenTree* tree)
-{
-    assert(GenTree::OperIsBinary(tree->OperGet()));
-    assert(tree->OperIsCommutative() || tree->OperIsCompare());
-
-    GenTree* op1         = tree->gtGetOp1();
-    GenTree* op2         = tree->gtGetOp2();
-    GenTree* preferredOp = nullptr;
-
-    // This routine uses the following heuristics:
-    //
-    // a) If both are tracked locals, marking the one with lower weighted
-    // ref count as reg-optional would likely be beneficial as it has
-    // higher probability of not getting a register.
-    //
-    // b) op1 = tracked local and op2 = untracked local: LSRA creates two
-    // ref positions for op2: a def and use position. op2's def position
-    // requires a reg and it is allocated a reg by spilling another
-    // interval (if required) and that could be even op1.  For this reason
-    // it is beneficial to mark op1 as reg optional.
-    //
-    // TODO: It is not always mandatory for a def position of an untracked
-    // local to be allocated a register if it is on rhs of an assignment
-    // and its use position is reg-optional and has not been assigned a
-    // register.  Reg optional def positions is currently not yet supported.
-    //
-    // c) op1 = untracked local and op2 = tracked local: marking op1 as
-    // reg optional is beneficial, since its use position is less likely
-    // to get a register.
-    //
-    // d) If both are untracked locals (i.e. treated like tree temps by
-    // LSRA): though either of them could be marked as reg optional,
-    // marking op1 as reg optional is likely to be beneficial because
-    // while allocating op2's def position, there is a possibility of
-    // spilling op1's def and in which case op1 is treated as contained
-    // memory operand rather than requiring to reload.
-    //
-    // e) If only one of them is a local var, prefer to mark it as
-    // reg-optional.  This is heuristic is based on the results
-    // obtained against CQ perf benchmarks.
-    //
-    // f) If neither of them are local vars (i.e. tree temps), prefer to
-    // mark op1 as reg optional for the same reason as mentioned in (d) above.
-    if (op1->OperGet() == GT_LCL_VAR && op2->OperGet() == GT_LCL_VAR)
-    {
-        LclVarDsc* v1 = comp->lvaTable + op1->AsLclVarCommon()->GetLclNum();
-        LclVarDsc* v2 = comp->lvaTable + op2->AsLclVarCommon()->GetLclNum();
-
-        if (v1->lvTracked && v2->lvTracked)
-        {
-            // Both are tracked locals.  The one with lower weight is less likely
-            // to get a register and hence beneficial to mark the one with lower
-            // weight as reg optional.
-            if (v1->lvRefCntWtd < v2->lvRefCntWtd)
-            {
-                preferredOp = op1;
-            }
-            else
-            {
-                preferredOp = op2;
-            }
-        }
-        else if (v2->lvTracked)
-        {
-            // v1 is an untracked lcl and it is use position is less likely to
-            // get a register.
-            preferredOp = op1;
-        }
-        else if (v1->lvTracked)
-        {
-            // v2 is an untracked lcl and its def position always
-            // needs a reg.  Hence it is better to mark v1 as
-            // reg optional.
-            preferredOp = op1;
-        }
-        else
-        {
-            preferredOp = op1;
-            ;
-        }
-    }
-    else if (op1->OperGet() == GT_LCL_VAR)
-    {
-        preferredOp = op1;
-    }
-    else if (op2->OperGet() == GT_LCL_VAR)
-    {
-        preferredOp = op2;
-    }
-    else
-    {
-        // Neither of the operands is a local, prefer marking
-        // operand that is evaluated first as reg optional
-        // since its use position is less likely to get a register.
-        bool reverseOps = ((tree->gtFlags & GTF_REVERSE_OPS) != 0);
-        preferredOp     = reverseOps ? op2 : op1;
-    }
-
-    return preferredOp;
-}
-
 #endif // _TARGET_XARCH_
 
 #endif // !LEGACY_BACKEND
