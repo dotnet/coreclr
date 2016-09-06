@@ -761,8 +761,13 @@ bool NotifyGdb::BuildLineProg(MemBuf& buf, PCODE startAddr, SymbolsInfo* lines, 
 {
     static char cnv_buf[16];
     
-    /* reserve memory assuming worst case: one extended and one special command for each line */
-    buf.MemSize = nlines * ( 4 + ADDRESS_SIZE) + 4;
+    /* reserve memory assuming worst case: one extended and one special plus advance line command for each line*/
+    buf.MemSize = 3 + ADDRESS_SIZE               /* initial set address command */
+                + 1                              /* set prolog end command */
+                + 6                              /* set file command */
+                + nlines * 6                     /* advance line commands */
+                + nlines * (4 + ADDRESS_SIZE)    /* 1 extended + 1 special command */
+                + 3;                             /* end of sequence command */
     buf.MemPtr = new (nothrow) char[buf.MemSize];
     char* ptr = buf.MemPtr;
   
