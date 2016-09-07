@@ -7224,7 +7224,8 @@ void JitTimer::PrintCsvHeader()
 
     CritSecHolder csvLock(s_csvLock);
 
-    if (FILE* fp = _wfopen(jitTimeLogCsv, W("a")))
+    FILE* fp = _wfopen(jitTimeLogCsv, W("a"));
+    if (fp != nullptr)
     {
         // Write the header if the file is empty
         if (ftell(fp) == 0)
