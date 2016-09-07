@@ -32,9 +32,10 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #include "lsra.h"
 
 /* Lowering of GT_CAST nodes */
-void Lowering::LowerCast(GenTree* tree)
+GenTree* Lowering::LowerCast(GenTree* tree)
 {
     NYI_ARM("ARM Lowering for cast");
+    return tree->gtNext;
 }
 
 void Lowering::LowerRotate(GenTreePtr tree)

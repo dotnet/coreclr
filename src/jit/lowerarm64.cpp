@@ -1896,7 +1896,7 @@ void Lowering::LowerCmp(GenTreePtr tree)
  * i) GT_CAST(float/double, int type with overflow detection)
  *
  */
-void Lowering::LowerCast(GenTree* tree)
+GenTree* Lowering::LowerCast(GenTree* tree)
 {
     assert(tree->OperGet() == GT_CAST);
 
@@ -1937,6 +1937,8 @@ void Lowering::LowerCast(GenTree* tree)
         tree->gtOp.gtOp1 = tmp;
         BlockRange().InsertAfter(op1, tmp);
     }
+
+    return tree->gtNext;
 }
 
 void Lowering::LowerRotate(GenTreePtr tree)

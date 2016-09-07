@@ -158,8 +158,7 @@ GenTree* Lowering::LowerNode(GenTree* node)
             break;
 
         case GT_CAST:
-            LowerCast(node);
-            break;
+            return LowerCast(node);
 
         case GT_ARR_ELEM:
             return LowerArrElem(node);

@@ -3312,7 +3312,7 @@ void Lowering::LowerCmp(GenTreePtr tree)
  * system.windows.forms, scimark, fractals, bio mums). If we ever find evidence that
  * doing this optimization is a win, should consider generating in-lined code.
  */
-void Lowering::LowerCast(GenTree* tree)
+GenTree* Lowering::LowerCast(GenTree* tree)
 {
     assert(tree->OperGet() == GT_CAST);
 
@@ -3327,6 +3327,55 @@ void Lowering::LowerCast(GenTree* tree)
     {
         srcType = genUnsignedType(srcType);
     }
+
+#ifndef _TARGET_64BIT_
+    if (varTypeIsLong(srcType))
+    {
+        noway_assert(op1->OperGet() == GT_LONG);
+
+        if (varTypeIsFloating(dstType))
+        {
+            // [u]long to float/double casts don't have overflow checks
+            noway_assert(!tree->gtOverflow());
+            // Morph should have transformed casts from ulong to float/double into helper calls
+            noway_assert(srcType != TYP_ULONG);
+
+            // Casts from long to float/double will have to be converted to helper calls
+            // or passed to codegen to generate an x87 FILD instruction
+            NYI("Cast from TYP_LONG to TYP_FLOAT/TYP_DOUBLE");
+        }
+        else if (varTypeIsIntegral(dstType))
+        {
+            // Morph should have inserted an intermediary cast from [u]long to [u]int
+            noway_assert(!varTypeIsSmall(dstType));
+            // Decomposition should have handled casts from [u]long to [u]long
+            noway_assert(!varTypeIsLong(dstType));
+
+            if (!tree->gtOverflow())
+            {
+                LIR::Use use;
+
+                if (BlockRange().TryGetUse(tree, &use))
+                {
+                    use.ReplaceWith(comp, op1->gtGetOp1());
+                }
+
+                GenTree* next = tree->gtNext;
+                BlockRange().Remove(op1);
+                BlockRange().Remove(tree);
+                return next;
+            }
+
+            // Casts with overflow check from [u]long to [u]int will have to be passed
+            // to codegen.
+            NYI("Cast from TYP_[U]LONG to TYP_[U]INT with overflow");
+        }
+        else
+        {
+            noway_assert(!"Cast from TYP_[U]LONG to unexpected type");
+        }
+    }
+#endif
 
     // We should never see the following casts as they are expected to be lowered
     // apropriately or converted into helper calls by front-end.
@@ -3374,6 +3423,8 @@ void Lowering::LowerCast(GenTree* tree)
         tree->gtOp.gtOp1 = tmp;
         BlockRange().InsertAfter(op1, tmp);
     }
+
+    return tree->gtNext;
 }
 
 //----------------------------------------------------------------------------------------------
