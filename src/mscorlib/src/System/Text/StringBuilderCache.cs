@@ -45,7 +45,7 @@ namespace System.Text
         [ThreadStatic]
         private static StringBuilder CachedInstance;
 
-        public static StringBuilder Acquire(int capacity = StringBuilder.DefaultCapacity)
+        public static StringBuilder Acquire(int capacity = 100 )
         {
             if(capacity <= MAX_BUILDER_SIZE)
             {

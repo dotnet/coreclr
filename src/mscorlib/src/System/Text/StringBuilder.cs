@@ -43,49 +43,10 @@ namespace System.Text {
     [Serializable]
     public sealed class StringBuilder : ISerializable
     {
-        // A StringBuilder is internally represented as a linked list of blocks each of which holds
-        // a chunk of the string.  It turns out string as a whole can also be represented as just a chunk, 
-        // so that is what we do.  
+        private string _string = string.Empty;
 
-        //
-        //
-        //  CLASS VARIABLES
-        //
-        //
-        internal char[] m_ChunkChars;                // The characters in this block
-        internal StringBuilder m_ChunkPrevious;      // Link to the block logically before this block
-        internal int m_ChunkLength;                  // The index in m_ChunkChars that represent the end of the block
-        internal int m_ChunkOffset;                  // The logial offset (sum of all characters in previous blocks)
-        internal int m_MaxCapacity = 0;
-
-        //
-        //
-        // STATIC CONSTANTS
-        //
-        //
-        internal const int DefaultCapacity = 16;
-        private const String CapacityField = "Capacity";
-        private const String MaxCapacityField = "m_MaxCapacity";
-        private const String StringValueField = "m_StringValue";
-        private const String ThreadIDField = "m_currentThread";
-        // We want to keep chunk arrays out of large object heap (< 85K bytes ~ 40K chars) to be sure.
-        // Making the maximum chunk size big means less allocation code called, but also more waste
-        // in unused characters and slower inserts / replaces (since you do need to slide characters over
-        // within a buffer).  
-        internal const int MaxChunkSize = 8000;
-
-        //
-        //
-        //CONSTRUCTORS
-        //
-        //
-
-        // Creates a new empty string builder (i.e., it represents String.Empty)
-        // with the default capacity (16 characters).
         public StringBuilder()
         {
-            m_MaxCapacity = int.MaxValue;
-            m_ChunkChars = new char[DefaultCapacity];
         }
 
         // Create a new empty string builder (i.e., it represents String.Empty)
@@ -101,7 +62,8 @@ namespace System.Text {
         //  String.NullString).
         // 
         public StringBuilder(String value)
-            : this(value, DefaultCapacity) {
+        {
+            _string = value;
         }
 
         // Creates a new string builder from the specified string with the specified 
@@ -117,64 +79,15 @@ namespace System.Text {
         // Creates a new string builder from the specifed substring with the specified
         // capacity.  The maximum number of characters is set by capacity.
         // 
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        public StringBuilder(String value, int startIndex, int length, int capacity) {
-            if (capacity<0) {
-                throw new ArgumentOutOfRangeException("capacity",
-                                                      Environment.GetResourceString("ArgumentOutOfRange_MustBePositive", "capacity"));
-            }
-            if (length<0) {
-                throw new ArgumentOutOfRangeException("length",
-                                                      Environment.GetResourceString("ArgumentOutOfRange_MustBeNonNegNum", "length"));
-            }
-            if (startIndex<0) {
-                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_StartIndex"));
-            }
-            Contract.EndContractBlock();
-
-            if (value == null) {
-                value = String.Empty;
-            }
-            if (startIndex > value.Length - length) {
-                throw new ArgumentOutOfRangeException("length", Environment.GetResourceString("ArgumentOutOfRange_IndexLength"));
-            }
-            m_MaxCapacity = Int32.MaxValue;
-            if (capacity == 0) {
-                capacity = DefaultCapacity;
-            }
-            if (capacity < length)
-                capacity = length;
-
-            m_ChunkChars = new char[capacity];
-            m_ChunkLength = length;
-
-            unsafe {
-                fixed (char* sourcePtr = value)
-                    ThreadSafeCopy(sourcePtr + startIndex, m_ChunkChars, 0, length);
-            }
+        [System.Security.SecuritySafeCritical] // auto-generated
+        public StringBuilder(String value, int startIndex, int length, int capacity)
+        {
+            _string = value.Substring(startIndex, length);
         }
 
         // Creates an empty StringBuilder with a minimum capacity of capacity
         // and a maximum capacity of maxCapacity.
         public StringBuilder(int capacity, int maxCapacity) {
-            if (capacity>maxCapacity) {
-                throw new ArgumentOutOfRangeException("capacity", Environment.GetResourceString("ArgumentOutOfRange_Capacity"));
-            }
-            if (maxCapacity<1) {
-                throw new ArgumentOutOfRangeException("maxCapacity", Environment.GetResourceString("ArgumentOutOfRange_SmallMaxCapacity"));
-            }
-            if (capacity<0) {
-                throw new ArgumentOutOfRangeException("capacity",
-                                                      Environment.GetResourceString("ArgumentOutOfRange_MustBePositive", "capacity"));
-            }
-            Contract.EndContractBlock();
-
-            if (capacity == 0) {
-                capacity = Math.Min(DefaultCapacity, maxCapacity);
-            }
-
-            m_MaxCapacity = maxCapacity;
-            m_ChunkChars = new char[capacity];
         }
 
         [System.Security.SecurityCritical]  // auto-generated
@@ -191,123 +104,33 @@ namespace System.Text {
             // Get the data
             SerializationInfoEnumerator enumerator = info.GetEnumerator();
             while (enumerator.MoveNext()) {
-                switch (enumerator.Name) {
-                    case MaxCapacityField:
-                        persistedMaxCapacity = info.GetInt32(MaxCapacityField);
-                        break;
-                    case StringValueField:
-                        persistedString = info.GetString(StringValueField);
-                        break;
-                    case CapacityField:
-                        persistedCapacity = info.GetInt32(CapacityField);
-                        capacityPresent = true;
-                        break;
-                    default:
-                        // Ignore other fields for forward compatibility.
-                        break;
+                switch (enumerator.Name)
+                {
                 }
 
             }
-
-            // Check values and set defaults
-            if (persistedString == null) {
-                persistedString = String.Empty;
-            }
-            if (persistedMaxCapacity < 1 || persistedString.Length > persistedMaxCapacity) {
-                throw new SerializationException(Environment.GetResourceString("Serialization_StringBuilderMaxCapacity"));
-            }
-
-            if (!capacityPresent) {
-                // StringBuilder in V1.X did not persist the Capacity, so this is a valid legacy code path.
-                persistedCapacity = DefaultCapacity;
-                if (persistedCapacity < persistedString.Length) {
-                    persistedCapacity = persistedString.Length;
-                }
-                if (persistedCapacity > persistedMaxCapacity) {
-                    persistedCapacity = persistedMaxCapacity;
-                }
-            }
-            if (persistedCapacity < 0 || persistedCapacity < persistedString.Length || persistedCapacity > persistedMaxCapacity) {
-                throw new SerializationException(Environment.GetResourceString("Serialization_StringBuilderCapacity"));
-            }
-
-            // Assign
-            m_MaxCapacity = persistedMaxCapacity;
-            m_ChunkChars = new char[persistedCapacity];
-            persistedString.CopyTo(0, m_ChunkChars, 0, persistedString.Length);
-            m_ChunkLength = persistedString.Length;
-            m_ChunkPrevious = null;
-            VerifyClassInvariant();
         }
 
         [System.Security.SecurityCritical]  // auto-generated
         void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            if (info==null) {
-                throw new ArgumentNullException("info");
-            }
-            Contract.EndContractBlock();
-
-            VerifyClassInvariant();
-            info.AddValue(MaxCapacityField, m_MaxCapacity);
-            info.AddValue(CapacityField, Capacity);
-            info.AddValue(StringValueField, ToString());
-            // Note: persist "m_currentThread" to be compatible with old versions
-            info.AddValue(ThreadIDField, 0);
+ 
         }
 
         [System.Diagnostics.Conditional("_DEBUG")]
         private void VerifyClassInvariant() {
-            BCLDebug.Correctness((uint)(m_ChunkOffset + m_ChunkChars.Length) >= m_ChunkOffset, "Integer Overflow");
-            StringBuilder currentBlock = this;
-            int maxCapacity = this.m_MaxCapacity;
-            for (; ; )
-            {
-                // All blocks have copy of the maxCapacity.
-                Contract.Assert(currentBlock.m_MaxCapacity == maxCapacity, "Bad maxCapacity");
-                Contract.Assert(currentBlock.m_ChunkChars != null, "Empty Buffer");
-
-                Contract.Assert(currentBlock.m_ChunkLength <= currentBlock.m_ChunkChars.Length, "Out of range length");
-                Contract.Assert(currentBlock.m_ChunkLength >= 0, "Negative length");
-                Contract.Assert(currentBlock.m_ChunkOffset >= 0, "Negative offset");
-
-                StringBuilder prevBlock = currentBlock.m_ChunkPrevious;
-                if (prevBlock == null)
-                {
-                    Contract.Assert(currentBlock.m_ChunkOffset == 0, "First chunk's offset is not 0");
-                    break;
-                }
-                // There are no gaps in the blocks. 
-                Contract.Assert(currentBlock.m_ChunkOffset == prevBlock.m_ChunkOffset + prevBlock.m_ChunkLength, "There is a gap between chunks!");
-                currentBlock = prevBlock;
-            }
+    
         }
 
         public int Capacity {
-            get { return m_ChunkChars.Length + m_ChunkOffset; }
+            get { return _string.Length; }
             set {
-                if (value < 0) {
-                    throw new ArgumentOutOfRangeException("value", Environment.GetResourceString("ArgumentOutOfRange_NegativeCapacity"));
-                }
-                if (value > MaxCapacity) {
-                    throw new ArgumentOutOfRangeException("value", Environment.GetResourceString("ArgumentOutOfRange_Capacity"));
-                }
-                if (value < Length) {
-                    throw new ArgumentOutOfRangeException("value", Environment.GetResourceString("ArgumentOutOfRange_SmallCapacity"));
-                }
-                Contract.EndContractBlock();
-
-                if (Capacity != value) {
-                    int newLen = value - m_ChunkOffset;
-                    char[] newArray = new char[newLen];
-                    Array.Copy(m_ChunkChars, newArray, m_ChunkLength);
-                    m_ChunkChars = newArray;
-                }
+                
             }
         }
 
         public int MaxCapacity {
-            get { return m_MaxCapacity; }
+            get { return int.MaxValue; }
         }
 
         // Read-Only Property 
@@ -319,130 +142,24 @@ namespace System.Text {
             if (capacity < 0) {
                 throw new ArgumentOutOfRangeException("capacity", Environment.GetResourceString("ArgumentOutOfRange_NegativeCapacity"));
             }
-            Contract.EndContractBlock();
 
-            if (Capacity < capacity)
-                Capacity = capacity;
             return Capacity;
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
         public override String ToString() {
-            Contract.Ensures(Contract.Result<String>() != null);
-
-            VerifyClassInvariant();
-            
             if (Length == 0)
                 return String.Empty;
 
-            string ret = string.FastAllocateString(Length);
-            StringBuilder chunk = this;
-            unsafe {
-                fixed (char* destinationPtr = ret)
-                {
-                    do
-                    {
-                        if (chunk.m_ChunkLength > 0)
-                        {
-                            // Copy these into local variables so that they are stable even in the presence of race conditions
-                            char[] sourceArray = chunk.m_ChunkChars;
-                            int chunkOffset = chunk.m_ChunkOffset;
-                            int chunkLength = chunk.m_ChunkLength;
-    
-                            // Check that we will not overrun our boundaries. 
-                            if ((uint)(chunkLength + chunkOffset) <= (uint)ret.Length && (uint)chunkLength <= (uint)sourceArray.Length)
-                            {
-                                fixed (char* sourcePtr = &sourceArray[0])
-                                    string.wstrcpy(destinationPtr + chunkOffset, sourcePtr, chunkLength);
-                            }
-                            else
-                            {
-                                throw new ArgumentOutOfRangeException("chunkLength", Environment.GetResourceString("ArgumentOutOfRange_Index"));
-                            }
-                        }
-                        chunk = chunk.m_ChunkPrevious;
-                    } while (chunk != null);
-
-                    return ret;
-                }
-            }
+            return _string;
         }
 
 
         // Converts a substring of this string builder to a String.
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        public String ToString(int startIndex, int length) {
-            Contract.Ensures(Contract.Result<String>() != null);
-
-            int currentLength = this.Length;
-            if (startIndex < 0)
-            {
-                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_StartIndex"));
-            }
-            if (startIndex > currentLength)
-            {
-                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_StartIndexLargerThanLength"));
-            }
-            if (length < 0)
-            {
-                throw new ArgumentOutOfRangeException("length", Environment.GetResourceString("ArgumentOutOfRange_NegativeLength"));
-            }
-            if (startIndex > (currentLength - length))
-            {
-                throw new ArgumentOutOfRangeException("length", Environment.GetResourceString("ArgumentOutOfRange_IndexLength"));
-            }
-
-            VerifyClassInvariant();
-
-            StringBuilder chunk = this;
-            int sourceEndIndex = startIndex + length;
-
-            string ret = string.FastAllocateString(length);
-            int curDestIndex = length;
-            unsafe {
-                fixed (char* destinationPtr = ret)
-                {
-                    while (curDestIndex > 0)
-                    {
-                        int chunkEndIndex = sourceEndIndex - chunk.m_ChunkOffset;
-                        if (chunkEndIndex >= 0)
-                        {
-                            if (chunkEndIndex > chunk.m_ChunkLength)
-                                chunkEndIndex = chunk.m_ChunkLength;
-    
-                            int countLeft = curDestIndex;
-                            int chunkCount = countLeft;
-                            int chunkStartIndex = chunkEndIndex - countLeft;
-                            if (chunkStartIndex < 0)
-                            {
-                                chunkCount += chunkStartIndex;
-                                chunkStartIndex = 0;
-                            }
-                            curDestIndex -= chunkCount;
-    
-                            if (chunkCount > 0)
-                            {
-                                // work off of local variables so that they are stable even in the presence of race conditions
-                                char[] sourceArray = chunk.m_ChunkChars;
-    
-                                // Check that we will not overrun our boundaries. 
-                                if ((uint)(chunkCount + curDestIndex) <= (uint)length && (uint)(chunkCount + chunkStartIndex) <= (uint)sourceArray.Length)
-                                {
-                                    fixed (char* sourcePtr = &sourceArray[chunkStartIndex])
-                                        string.wstrcpy(destinationPtr + curDestIndex, sourcePtr, chunkCount);
-                                }
-                                else
-                                {
-                                    throw new ArgumentOutOfRangeException("chunkCount", Environment.GetResourceString("ArgumentOutOfRange_Index"));
-                                }
-                            }
-                        }
-                        chunk = chunk.m_ChunkPrevious;
-                    }
-
-                    return ret;
-                }
-            }
+        [System.Security.SecuritySafeCritical] // auto-generated
+        public String ToString(int startIndex, int length)
+        {
+            return _string.Substring(startIndex, length);
         }
 
         // Convenience method for sb.Length=0;
@@ -456,130 +173,60 @@ namespace System.Text {
         // instance, nulls are appended.  The capacity is adjusted to be the same as the length.
 
         public int Length {
-            get {
-                Contract.Ensures(Contract.Result<int>() >= 0);
-                return m_ChunkOffset + m_ChunkLength;
+            get
+            {
+                return _string.Length;
             }
             set {
-                //If the new length is less than 0 or greater than our Maximum capacity, bail.
-                if (value<0) {
-                    throw new ArgumentOutOfRangeException("value", Environment.GetResourceString("ArgumentOutOfRange_NegativeLength"));
-                }
-
-                if (value>MaxCapacity) {
-                    throw new ArgumentOutOfRangeException("value", Environment.GetResourceString("ArgumentOutOfRange_SmallCapacity"));
-                }
-                Contract.EndContractBlock();
-
-                int originalCapacity = Capacity;
-
-                if (value == 0 && m_ChunkPrevious == null)
-                {
-                    m_ChunkLength = 0;
-                    m_ChunkOffset = 0;
-                    Contract.Assert(Capacity >= originalCapacity, "setting the Length should never decrease the Capacity");
-                    return;
-                }
-
-                int delta = value - Length;
-                // if the specified length is greater than the current length
-                if (delta > 0)
-                {
-                    // the end of the string value of the current StringBuilder object is padded with the Unicode NULL character
-                    Append('\0', delta);        // We could improve on this, but who does this anyway?
-                }
-                // if the specified length is less than or equal to the current length
-                else
-                {
-                    StringBuilder chunk = FindChunkForIndex(value);
-                    if (chunk != this)
-                    {
-                        // we crossed a chunk boundary when reducing the Length, we must replace this middle-chunk with a new
-                        // larger chunk to ensure the original capacity is preserved
-                        int newLen = originalCapacity - chunk.m_ChunkOffset;
-                        char[] newArray = new char[newLen];
-
-                        Contract.Assert(newLen > chunk.m_ChunkChars.Length, "the new chunk should be larger than the one it is replacing");
-                        Array.Copy(chunk.m_ChunkChars, newArray, chunk.m_ChunkLength);
-                        
-                        m_ChunkChars = newArray;
-                        m_ChunkPrevious = chunk.m_ChunkPrevious;                        
-                        m_ChunkOffset = chunk.m_ChunkOffset;
-                    }
-                    m_ChunkLength = value - chunk.m_ChunkOffset;
-                    VerifyClassInvariant();
-                }
-                Contract.Assert(Capacity >= originalCapacity, "setting the Length should never decrease the Capacity");
+                // TODO: Do nothing ok?
             }
         }
 
         [System.Runtime.CompilerServices.IndexerName("Chars")]
         public char this[int index] {
-            get {
-                StringBuilder chunk = this;
-                for (; ; )
-                {
-                    int indexInBlock = index - chunk.m_ChunkOffset;
-                    if (indexInBlock >= 0)
-                    {
-                        if (indexInBlock >= chunk.m_ChunkLength)
-                            throw new IndexOutOfRangeException();
-                        return chunk.m_ChunkChars[indexInBlock];
-                    }
-                    chunk = chunk.m_ChunkPrevious;
-                    if (chunk == null)
-                        throw new IndexOutOfRangeException();
-                }
-            }
-            set {
-                StringBuilder chunk = this;
-                for (; ; )
-                {
-                    int indexInBlock = index - chunk.m_ChunkOffset;
-                    if (indexInBlock >= 0)
-                    {
-                        if (indexInBlock >= chunk.m_ChunkLength)
-                            throw new ArgumentOutOfRangeException("index", Environment.GetResourceString("ArgumentOutOfRange_Index"));
-                        chunk.m_ChunkChars[indexInBlock] = value;
-                        return;
-                    }
-                    chunk = chunk.m_ChunkPrevious;
-                    if (chunk == null)
-                        throw new ArgumentOutOfRangeException("index", Environment.GetResourceString("ArgumentOutOfRange_Index"));
-                }
+            get { return _string[index]; }
+            set
+            {
+                _string = _string.Insert(index, "" + value); // TODO: This would be expensive in JS as well?
             }
         }
 
-        // Appends a character at the end of this string builder. The capacity is adjusted as needed.
-        public StringBuilder Append(char value, int repeatCount) {
-            if (repeatCount<0) {
-                throw new ArgumentOutOfRangeException("repeatCount", Environment.GetResourceString("ArgumentOutOfRange_NegativeCount"));
-            }
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
-            Contract.EndContractBlock();
+        public unsafe StringBuilder Append(char* p, int count)
+        {
+            return Append(new String(p), count);
+        }
 
-            if (repeatCount==0) {
-                return this;
-            }
-            int idx = m_ChunkLength;
-            while (repeatCount > 0)
+
+        // Appends a character at the end of this string builder. The capacity is adjusted as needed.
+        public StringBuilder Append(char value, int repeatCount)
+        {
+            for (int i = 0; i < repeatCount; i++)
             {
-                if (idx < m_ChunkChars.Length)
-                {
-                    m_ChunkChars[idx++] = value;
-                    --repeatCount;
-                }
-                else
-                {
-                    m_ChunkLength = idx;
-                    ExpandByABlock(repeatCount);
-                    Contract.Assert(m_ChunkLength == 0, "Expand should create a new block");
-                    idx = 0;
-                }
+                _string += value;
             }
-            m_ChunkLength = idx;
-            VerifyClassInvariant();
             return this;
+        }
+
+        public StringBuilder Append( string value, int repeatCount ) {
+            for ( int i = 0; i < repeatCount; i++ ) {
+                _string += value;
+            }
+            return this;
+        }
+
+
+        [MethodImplAttribute( MethodImplOptions.InternalCall )] 
+         [SecurityCritical] 
+         internal unsafe extern void ReplaceBufferInternal( char* newBuffer, int newLength ); 
+ 
+ 
+         [MethodImplAttribute( MethodImplOptions.InternalCall )] 
+         [SecurityCritical] 
+         internal unsafe extern void ReplaceBufferAnsiInternal( sbyte* newBuffer, int newLength );
+
+        internal unsafe void InternalCopy(IntPtr dest, int len)
+        {
+            throw new NotImplementedException();
         }
 
         // Appends an array of characters at the end of this string builder. The capacity is adjusted as needed. 
@@ -591,147 +238,43 @@ namespace System.Text {
             if (charCount<0) {
                 throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_GenericPositive"));
             }
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
-            Contract.EndContractBlock();
 
-            if (value == null) {
-                if (startIndex == 0 && charCount == 0) {
-                    return this;
-                }
-                throw new ArgumentNullException("value");
-            }
-            if (charCount > value.Length - startIndex) {
-                throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_Index"));
-            }
-
-            if (charCount==0) {
-                return this;
-            }
-            unsafe
-            {
-                fixed (char* valueChars = &value[startIndex])
-                {
-                    Append(valueChars, charCount);
-
-                    return this;
-                }
-            }
+            return this;
         }
 
 
         // Appends a copy of this string at the end of this string builder.
         [System.Security.SecuritySafeCritical]  // auto-generated
-        public StringBuilder Append(String value) {
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
-
-            if (value != null) {
-                // This is a hand specialization of the 'AppendHelper' code below. 
-                // We could have just called AppendHelper.  
-                char[] chunkChars = m_ChunkChars;
-                int chunkLength = m_ChunkLength;
-                int valueLen = value.Length;
-                int newCurrentIndex = chunkLength + valueLen;
-                if (newCurrentIndex < chunkChars.Length)    // Use strictly < to avoid issue if count == 0, newIndex == length
-                {
-                    if (valueLen <= 2)
-                    {
-                        if (valueLen > 0)
-                            chunkChars[chunkLength] = value[0];
-                        if (valueLen > 1)
-                            chunkChars[chunkLength + 1] = value[1];
-                    }
-                    else
-                    {
-                        unsafe {
-                            fixed (char* valuePtr = value)
-                            fixed (char* destPtr = &chunkChars[chunkLength])
-                                string.wstrcpy(destPtr, valuePtr, valueLen);
-                        }
-                    }
-                    m_ChunkLength = newCurrentIndex;
-                }
-                else
-                    AppendHelper(value);
-            }
+        public StringBuilder Append(String value)
+        {
+            _string += value;
             return this;
         }
 
-
-        // We put this fixed in its own helper to avoid the cost zero initing valueChars in the
-        // case we don't actually use it.  
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        private void AppendHelper(string value) {
-            unsafe {
-                fixed (char* valueChars = value)
-                    Append(valueChars, value.Length);
-            }
-        }
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        [SecurityCritical]
-        internal unsafe extern void ReplaceBufferInternal(char* newBuffer, int newLength);
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        [SecurityCritical]
-        internal unsafe extern void ReplaceBufferAnsiInternal(sbyte* newBuffer, int newLength);
-
         // Appends a copy of the characters in value from startIndex to startIndex +
         // count at the end of this string builder.
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        public StringBuilder Append(String value, int startIndex, int count) {
-            if (startIndex < 0) {
-                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_Index"));
-            }
-
-            if (count < 0) {
-                throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_GenericPositive"));
-            }
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
-
-            //If the value being added is null, eat the null
-            //and return.
-            if (value == null) {
-                if (startIndex == 0 && count == 0) {
-                    return this;
-                }
-                throw new ArgumentNullException("value");
-            }
-
-            if (count == 0) {
-                return this;
-            }
-
-            if (startIndex > value.Length - count) {
-                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_Index"));
-            }
-
-            unsafe
-            {
-                fixed (char* valueChars = value)
-                {
-                    Append(valueChars + startIndex, count);
-
-                    return this;
-                }
-            }
+        [System.Security.SecuritySafeCritical] // auto-generated
+        public StringBuilder Append(String value, int startIndex, int count)
+        {
+            _string += value.Substring(startIndex, count);
+            return this;
         }
 
         [System.Runtime.InteropServices.ComVisible(false)]
         public StringBuilder AppendLine() {
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
             return Append(Environment.NewLine);
         }
 
         [System.Runtime.InteropServices.ComVisible(false)]
         public StringBuilder AppendLine(string value) {
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
             Append(value);
             return Append(Environment.NewLine);
         }
 
         [System.Runtime.InteropServices.ComVisible(false)]
         [SecuritySafeCritical]
-        public void CopyTo(int sourceIndex, char[] destination, int destinationIndex, int count) {
+        public void CopyTo(int sourceIndex, char[] destination, int destinationIndex, int count)
+        {
             if (destination == null) {
                 throw new ArgumentNullException("destination");
             }
@@ -756,36 +299,10 @@ namespace System.Text {
             if (sourceIndex > Length - count) {
                 throw new ArgumentException(Environment.GetResourceString("Arg_LongerThanSrcString"));
             }
-            Contract.EndContractBlock();
 
-            VerifyClassInvariant();
-
-            StringBuilder chunk = this;
-            int sourceEndIndex = sourceIndex + count;
-            int curDestIndex = destinationIndex + count;
-            while (count > 0)
+            for (int i = 0; i < count; i++)
             {
-                int chunkEndIndex = sourceEndIndex - chunk.m_ChunkOffset;
-                if (chunkEndIndex >= 0)
-                {
-                    if (chunkEndIndex > chunk.m_ChunkLength)
-                        chunkEndIndex = chunk.m_ChunkLength;
-
-                    int chunkCount = count;
-                    int chunkStartIndex = chunkEndIndex - count;
-                    if (chunkStartIndex < 0)
-                    {
-                        chunkCount += chunkStartIndex;
-                        chunkStartIndex = 0;
-                    }
-                    curDestIndex -= chunkCount;
-                    count -= chunkCount;
-
-                    // SafeCritical: we ensure that chunkStartIndex + chunkCount are within range of m_chunkChars
-                    // as well as ensuring that curDestIndex + chunkCount are within range of destination
-                    ThreadSafeCopy(chunk.m_ChunkChars, chunkStartIndex, destination, curDestIndex, chunkCount);
-                }
-                chunk = chunk.m_ChunkPrevious;
+                destination[destinationIndex + i] = _string[sourceIndex + i];
             }
         }
 
@@ -795,79 +312,29 @@ namespace System.Text {
         // string builder is not changed. 
         // 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        public StringBuilder Insert(int index, String value, int count) {
+        public StringBuilder Insert(int index, String value, int count)
+        {
+            string tmp = string.Empty;
+            for (int i = 0; i < count; i++)
+            {
+                tmp += value;
+            }
+            
             if (count < 0) {
                 throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
             }
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
-            Contract.EndContractBlock();
-
-            //Range check the index.
-            int currentLength = Length;
-            if ((uint)index > (uint)currentLength) {
-                throw new ArgumentOutOfRangeException("index", Environment.GetResourceString("ArgumentOutOfRange_Index"));
-            }
-
-            //If value is null, empty or count is 0, do nothing. This is ECMA standard.
-            if (value == null || value.Length == 0 || count == 0) {
-                return this;
-            }
-
-            //Ensure we don't insert more chars than we can hold, and we don't 
-            //have any integer overflow in our inserted characters.
-            long insertingChars = (long) value.Length * count;
-            if (insertingChars > MaxCapacity - this.Length) {
-                throw new OutOfMemoryException();
-            }
-            Contract.Assert(insertingChars + this.Length < Int32.MaxValue);
-
-            StringBuilder chunk;
-            int indexInChunk;
-            MakeRoom(index, (int) insertingChars, out chunk, out indexInChunk, false);
-            unsafe {
-                fixed (char* valuePtr = value) {
-                    while (count > 0)
-                    {
-                        ReplaceInPlaceAtChunk(ref chunk, ref indexInChunk, valuePtr, value.Length);
-                        --count;
-                    }
-
-                    return this;
-                }
-            }
+            _string = _string.Insert( index, tmp );
+            return this;
         }
 
         // Removes the specified characters from this string builder.
         // The length of this string builder is reduced by 
         // length, but the capacity is unaffected.
         // 
-        public StringBuilder Remove(int startIndex, int length) {
-            if (length<0) {
-                throw new ArgumentOutOfRangeException("length", Environment.GetResourceString("ArgumentOutOfRange_NegativeLength"));
-            }
+        public StringBuilder Remove(int startIndex, int length)
+        {
 
-            if (startIndex<0) {
-                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_StartIndex"));
-            }
-
-            if (length > Length - startIndex) {
-                throw new ArgumentOutOfRangeException("index", Environment.GetResourceString("ArgumentOutOfRange_Index"));
-            }
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
-            Contract.EndContractBlock();
-
-            if (Length == length && startIndex == 0) {
-                // Optimization.  If we are deleting everything  
-                Length = 0;
-                return this;
-            }
-
-            if (length > 0)
-            {
-                StringBuilder chunk;
-                int indexInChunk;
-                Remove(startIndex, length, out chunk, out indexInChunk);
-            }
+            _string = _string.Remove( startIndex, length );
             return this;
         }
 
@@ -902,13 +369,9 @@ namespace System.Text {
         }
 
         // Appends a character at the end of this string builder. The capacity is adjusted as needed.
-        public StringBuilder Append(char value) {
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
-
-            if (m_ChunkLength < m_ChunkChars.Length)
-                m_ChunkChars[m_ChunkLength++] = value;
-            else
-                Append(value, 1);
+        public StringBuilder Append(char value)
+        {
+            _string += value;
             return this;
         }
 
@@ -989,17 +452,10 @@ namespace System.Text {
         }
 
         // Appends all of the characters in value to the current instance.
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        public StringBuilder Append(char[] value) {
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
-
-            if (null != value && value.Length > 0)
-            {
-                unsafe {
-                    fixed (char* valueChars = &value[0])
-                        Append(valueChars, value.Length);
-                }
-            }
+        [System.Security.SecuritySafeCritical] // auto-generated
+        public StringBuilder Append(char[] value)
+        {
+            _string += new string(value);
             return this;
         }
 
@@ -1017,16 +473,9 @@ namespace System.Text {
             if ((uint)index > (uint)Length) {
                 throw new ArgumentOutOfRangeException("index", Environment.GetResourceString("ArgumentOutOfRange_Index"));
             }
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
-            Contract.EndContractBlock();
 
-            if (value != null)
-            {
-                unsafe {
-                    fixed (char* sourcePtr = value)
-                        Insert(index, sourcePtr, value.Length);
-                }
-            }
+            _string = _string.Insert(index, value);
+
             return this;
         }
 
@@ -1076,13 +525,9 @@ namespace System.Text {
         // The capacity is adjusted as needed. If value equals String.Empty, the
         // StringBuilder is not changed.
         [SecuritySafeCritical]
-        public StringBuilder Insert(int index, char value) {
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
-
-            unsafe {
-                Insert(index, &value, 1);
-            }
-            return this;
+        public StringBuilder Insert(int index, char value)
+        {
+            return Insert(index, "" + value);
         }
 
         // Returns a reference to the StringBuilder with ; value inserted into 
@@ -1107,43 +552,9 @@ namespace System.Text {
         // to make room for the new text and capacity is adjusted as required.  If value is null, the StringBuilder
         // is unchanged.  Characters are taken from value starting at position startIndex.
         [System.Security.SecuritySafeCritical]  // auto-generated
-        public StringBuilder Insert(int index, char[] value, int startIndex, int charCount) {
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
-
-            int currentLength = Length;
-            if ((uint)index > (uint)currentLength) {
-                throw new ArgumentOutOfRangeException("index", Environment.GetResourceString("ArgumentOutOfRange_Index"));
-            }
-
-            //If they passed in a null char array, just jump out quickly.
-            if (value == null) {
-                if (startIndex == 0 && charCount == 0)
-                {
-                    return this;
-                }
-                throw new ArgumentNullException("value", Environment.GetResourceString("ArgumentNull_String"));
-            }
-
-            //Range check the array.
-            if (startIndex < 0) {
-                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_StartIndex"));
-            }
-
-            if (charCount < 0) {
-                throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_GenericPositive"));
-            }
-
-            if (startIndex > value.Length - charCount) {
-                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_Index"));
-            }
-
-            if (charCount > 0)
-            {
-                unsafe {
-                    fixed (char* sourcePtr = &value[startIndex])
-                        Insert(index, sourcePtr, charCount);
-                }
-            }
+        public StringBuilder Insert(int index, char[] value, int startIndex, int charCount)
+        {
+            _string = _string.Insert(index, new String(value, startIndex, charCount));
             return this;
         }
 
@@ -1526,7 +937,6 @@ namespace System.Text {
         // newValue is null, instances of oldValue are removed (e.g. replaced with nothing.).
         //
         public StringBuilder Replace(String oldValue, String newValue) {
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
             return Replace(oldValue, newValue, 0, Length);
         }
 
@@ -1534,124 +944,14 @@ namespace System.Text {
         {
             if (sb == null)
                 return false;
-            if (Capacity != sb.Capacity || MaxCapacity != sb.MaxCapacity || Length != sb.Length)
-                return false;
-            if (sb == this)
-                return true;
-
-            StringBuilder thisChunk = this;
-            int thisChunkIndex = thisChunk.m_ChunkLength;
-            StringBuilder sbChunk = sb;
-            int sbChunkIndex = sbChunk.m_ChunkLength;
-            for (; ; )
-            {
-                // Decrement the pointer to the 'this' StringBuilder
-                --thisChunkIndex;
-                --sbChunkIndex;
-
-                while (thisChunkIndex < 0)
-                {
-                    thisChunk = thisChunk.m_ChunkPrevious;
-                    if (thisChunk == null)
-                        break;
-                    thisChunkIndex = thisChunk.m_ChunkLength + thisChunkIndex;
-                }
-
-                // Decrement the pointer to the 'this' StringBuilder
-                while (sbChunkIndex < 0)
-                {
-                    sbChunk = sbChunk.m_ChunkPrevious;
-                    if (sbChunk == null)
-                        break;
-                    sbChunkIndex = sbChunk.m_ChunkLength + sbChunkIndex;
-                }
-
-                if (thisChunkIndex < 0)
-                    return sbChunkIndex < 0;
-                if (sbChunkIndex < 0)
-                    return false;
-                if (thisChunk.m_ChunkChars[thisChunkIndex] != sbChunk.m_ChunkChars[sbChunkIndex])
-                    return false;
-            }
+            return sb._string == _string;
         }
 
         public StringBuilder Replace(String oldValue, String newValue, int startIndex, int count)
         {
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
-
-            int currentLength = Length;
-            if ((uint)startIndex > (uint)currentLength)
-            {
-                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_Index"));
-            }
-            if (count < 0 || startIndex > currentLength - count)
-            {
-                throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_Index"));
-            }
-            if (oldValue == null)
-            {
-                throw new ArgumentNullException("oldValue");
-            }
-            if (oldValue.Length == 0)
-            {
-                throw new ArgumentException(Environment.GetResourceString("Argument_EmptyName"), "oldValue");
-            }
-
-            if (newValue == null)
-                newValue = "";
-
-            int deltaLength = newValue.Length - oldValue.Length;
-
-            int[] replacements = null;          // A list of replacement positions in a chunk to apply
-            int replacementsCount = 0;
-
-            // Find the chunk, indexInChunk for the starting point
-            StringBuilder chunk = FindChunkForIndex(startIndex);
-            int indexInChunk = startIndex - chunk.m_ChunkOffset;
-            while (count > 0)
-            {
-                // Look for a match in the chunk,indexInChunk pointer 
-                if (StartsWith(chunk, indexInChunk, count, oldValue))
-                {
-                    // Push it on my replacements array (with growth), we will do all replacements in a
-                    // given chunk in one operation below (see ReplaceAllInChunk) so we don't have to slide
-                    // many times.  
-                    if (replacements == null)
-                        replacements = new int[5];
-                    else if (replacementsCount >= replacements.Length)
-                    {
-                        int[] newArray = new int[replacements.Length * 3 / 2 + 4];     // grow by 1.5X but more in the begining
-                        Array.Copy(replacements, newArray, replacements.Length);
-                        replacements = newArray;
-                    }
-                    replacements[replacementsCount++] = indexInChunk;
-                    indexInChunk += oldValue.Length;
-                    count -= oldValue.Length;
-                }
-                else
-                {
-                    indexInChunk++;
-                    --count;
-                }
-
-                if (indexInChunk >= chunk.m_ChunkLength || count == 0)       // Have we moved out of the current chunk
-                {
-                    // Replacing mutates the blocks, so we need to convert to logical index and back afterward. 
-                    int index = indexInChunk + chunk.m_ChunkOffset;
-                    int indexBeforeAdjustment = index;
-
-                    // See if we accumulated any replacements, if so apply them 
-                    ReplaceAllInChunk(replacements, replacementsCount, chunk, oldValue.Length, newValue);
-                    // The replacement has affected the logical index.  Adjust it.  
-                    index += ((newValue.Length - oldValue.Length) * replacementsCount);
-                    replacementsCount = 0;
-
-                    chunk = FindChunkForIndex(index);
-                    indexInChunk = index - chunk.m_ChunkOffset;
-                    Contract.Assert(chunk != null || count == 0, "Chunks ended prematurely");
-                }
-            }
-            VerifyClassInvariant();
+            _string = _string.Substring(0, startIndex) +
+                      _string.Substring(startIndex, count).Replace(oldValue, newValue) +
+                      _string.Substring(startIndex + count);
             return this;
         }
 
@@ -1663,555 +963,10 @@ namespace System.Text {
         public StringBuilder Replace(char oldChar, char newChar) {
             return Replace(oldChar, newChar, 0, Length);
         }
-        public StringBuilder Replace(char oldChar, char newChar, int startIndex, int count) {
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
 
-            int currentLength = Length;
-            if ((uint)startIndex > (uint)currentLength) {
-                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_Index"));
-            }
-
-            if (count < 0 || startIndex > currentLength - count) {
-                throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_Index"));
-            }
-
-            int endIndex = startIndex + count;
-            StringBuilder chunk = this;
-            for (; ; )
-            {
-                int endIndexInChunk = endIndex - chunk.m_ChunkOffset;
-                int startIndexInChunk = startIndex - chunk.m_ChunkOffset;
-                if (endIndexInChunk >= 0)
-                {
-                    int curInChunk = Math.Max(startIndexInChunk, 0);
-                    int endInChunk = Math.Min(chunk.m_ChunkLength, endIndexInChunk);
-                    while (curInChunk < endInChunk)
-                    {
-                        if (chunk.m_ChunkChars[curInChunk] == oldChar)
-                            chunk.m_ChunkChars[curInChunk] = newChar;
-                        curInChunk++;
-                    }
-                }
-                if (startIndexInChunk >= 0)
-                    break;
-                chunk = chunk.m_ChunkPrevious;
-            }
-            return this;
-        }
-
-        /// <summary>
-        /// Appends 'value' of length 'count' to the stringBuilder. 
-        /// </summary>
-        [SecurityCritical]
-        [System.CLSCompliantAttribute(false)]
-        public unsafe StringBuilder Append(char* value, int valueCount)
+        public StringBuilder Replace(char oldChar, char newChar, int startIndex, int count)
         {
-            // We don't check null value as this case will throw null reference exception anyway
-            if (valueCount < 0)
-            {
-                throw new ArgumentOutOfRangeException("valueCount", Environment.GetResourceString("ArgumentOutOfRange_NegativeCount"));
-            }
-
-            // This case is so common we want to optimize for it heavily. 
-            int newIndex = valueCount + m_ChunkLength;
-            if (newIndex <= m_ChunkChars.Length)
-            {
-                ThreadSafeCopy(value, m_ChunkChars, m_ChunkLength, valueCount);
-                m_ChunkLength = newIndex;
-            }
-            else
-            {
-                // Copy the first chunk
-                int firstLength = m_ChunkChars.Length - m_ChunkLength;
-                if (firstLength > 0)
-                {
-                    ThreadSafeCopy(value, m_ChunkChars, m_ChunkLength, firstLength);
-                    m_ChunkLength = m_ChunkChars.Length;
-                }
-
-                // Expand the builder to add another chunk. 
-                int restLength = valueCount - firstLength;
-                ExpandByABlock(restLength);
-                Contract.Assert(m_ChunkLength == 0, "Expand did not make a new block");
-
-                // Copy the second chunk
-                ThreadSafeCopy(value + firstLength, m_ChunkChars, 0, restLength);
-                m_ChunkLength = restLength;
-            }
-            VerifyClassInvariant();
-            return this;
-        }
-
-        /// <summary>
-        /// Inserts 'value' of length 'cou
-        /// </summary>
-        [SecurityCritical]
-        unsafe private void Insert(int index, char* value, int valueCount)
-        {
-            if ((uint)index > (uint)Length)
-            {
-                throw new ArgumentOutOfRangeException("index", Environment.GetResourceString("ArgumentOutOfRange_Index"));
-            }
-
-            if (valueCount > 0)
-            {
-                StringBuilder chunk;
-                int indexInChunk;
-                MakeRoom(index, valueCount, out chunk, out indexInChunk, false);
-                ReplaceInPlaceAtChunk(ref chunk, ref indexInChunk, value, valueCount);
-            }
-        }
-
-        /// <summary>
-        /// 'replacements' is a list of index (relative to the begining of the 'chunk' to remove
-        /// 'removeCount' characters and replace them with 'value'.   This routine does all those 
-        /// replacements in bulk (and therefore very efficiently. 
-        /// with the string 'value'.  
-        /// </summary>
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        private void ReplaceAllInChunk(int[] replacements, int replacementsCount, StringBuilder sourceChunk, int removeCount, string value)
-        {
-            if (replacementsCount <= 0)
-                return;
-
-            unsafe {
-                fixed (char* valuePtr = value)
-                {
-                    // calculate the total amount of extra space or space needed for all the replacements.  
-                    int delta = (value.Length - removeCount) * replacementsCount;
-    
-                    StringBuilder targetChunk = sourceChunk;        // the target as we copy chars down
-                    int targetIndexInChunk = replacements[0];
-    
-                    // Make the room needed for all the new characters if needed. 
-                    if (delta > 0)
-                        MakeRoom(targetChunk.m_ChunkOffset + targetIndexInChunk, delta, out targetChunk, out targetIndexInChunk, true);
-                    // We made certain that characters after the insertion point are not moved, 
-                    int i = 0;
-                    for (; ; )
-                    {
-                        // Copy in the new string for the ith replacement
-                        ReplaceInPlaceAtChunk(ref targetChunk, ref targetIndexInChunk, valuePtr, value.Length);
-                        int gapStart = replacements[i] + removeCount;
-                        i++;
-                        if (i >= replacementsCount)
-                            break;
-    
-                        int gapEnd = replacements[i];
-                        Contract.Assert(gapStart < sourceChunk.m_ChunkChars.Length, "gap starts at end of buffer.  Should not happen");
-                        Contract.Assert(gapStart <= gapEnd, "negative gap size");
-                        Contract.Assert(gapEnd <= sourceChunk.m_ChunkLength, "gap too big");
-                        if (delta != 0)     // can skip the sliding of gaps if source an target string are the same size.  
-                        {
-                            // Copy the gap data between the current replacement and the the next replacement
-                            fixed (char* sourcePtr = &sourceChunk.m_ChunkChars[gapStart])
-                                ReplaceInPlaceAtChunk(ref targetChunk, ref targetIndexInChunk, sourcePtr, gapEnd - gapStart);
-                        }
-                        else
-                        {
-                            targetIndexInChunk += gapEnd - gapStart;
-                            Contract.Assert(targetIndexInChunk <= targetChunk.m_ChunkLength, "gap not in chunk");
-                        }
-                    }
-    
-                    // Remove extra space if necessary. 
-                    if (delta < 0)
-                        Remove(targetChunk.m_ChunkOffset + targetIndexInChunk, -delta, out targetChunk, out targetIndexInChunk);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Returns true if the string that is starts at 'chunk' and 'indexInChunk, and has a logical
-        /// length of 'count' starts with the string 'value'. 
-        /// </summary>
-        private bool StartsWith(StringBuilder chunk, int indexInChunk, int count, string value)
-        {
-            for (int i = 0; i < value.Length; i++)
-            {
-                if (count == 0)
-                    return false;
-                if (indexInChunk >= chunk.m_ChunkLength)
-                {
-                    chunk = Next(chunk);
-                    if (chunk == null)
-                        return false;
-                    indexInChunk = 0;
-                }
-
-                // See if there no match, break out of the inner for loop
-                if (value[i] != chunk.m_ChunkChars[indexInChunk])
-                    return false;
-
-                indexInChunk++;
-                --count;
-            }
-            return true;
-        }
-
-        /// <summary>
-        /// ReplaceInPlaceAtChunk is the logical equivalent of 'memcpy'.  Given a chunk and ann index in
-        /// that chunk, it copies in 'count' characters from 'value' and updates 'chunk, and indexInChunk to 
-        /// point at the end of the characters just copyied (thus you can splice in strings from multiple 
-        /// places by calling this mulitple times.  
-        /// </summary>
-        [SecurityCritical]
-        unsafe private void ReplaceInPlaceAtChunk(ref StringBuilder chunk, ref int indexInChunk, char* value, int count)
-        {
-            if (count != 0)
-            {
-                for (; ; )
-                {
-                    int lengthInChunk = chunk.m_ChunkLength - indexInChunk;
-                    Contract.Assert(lengthInChunk >= 0, "index not in chunk");
-
-                    int lengthToCopy = Math.Min(lengthInChunk, count);
-                    ThreadSafeCopy(value, chunk.m_ChunkChars, indexInChunk, lengthToCopy);
-
-                    // Advance the index. 
-                    indexInChunk += lengthToCopy;
-                    if (indexInChunk >= chunk.m_ChunkLength)
-                    {
-                        chunk = Next(chunk);
-                        indexInChunk = 0;
-                    }
-                    count -= lengthToCopy;
-                    if (count == 0)
-                        break;
-                    value += lengthToCopy;
-                }
-            }
-        }
-
-        /// <summary>
-        /// We have to prevent modification off the end of an array.
-        /// The only way to do this is to copy all interesting variables out of the heap and then do the
-        /// bounds check.  This is what we do here.   
-        /// </summary>
-        [SecurityCritical]
-        unsafe private static void ThreadSafeCopy(char* sourcePtr, char[] destination, int destinationIndex, int count)
-        {
-            if (count > 0)
-            {
-                if ((uint)destinationIndex <= (uint)destination.Length && (destinationIndex + count) <= destination.Length)
-                {
-                    fixed (char* destinationPtr = &destination[destinationIndex])
-                        string.wstrcpy(destinationPtr, sourcePtr, count);
-                }
-                else
-                {
-                    throw new ArgumentOutOfRangeException("destinationIndex", Environment.GetResourceString("ArgumentOutOfRange_Index"));
-                }
-            }
-        }
-        [SecurityCritical]
-        private static void ThreadSafeCopy(char[] source, int sourceIndex, char[] destination, int destinationIndex, int count)
-        {
-            if (count > 0)
-            {
-                if ((uint)sourceIndex <= (uint)source.Length && (sourceIndex + count) <= source.Length)
-                {
-                    unsafe {
-                        fixed (char* sourcePtr = &source[sourceIndex])
-                            ThreadSafeCopy(sourcePtr, destination, destinationIndex, count);
-                    }
-                }
-                else
-                {
-                    throw new ArgumentOutOfRangeException("sourceIndex", Environment.GetResourceString("ArgumentOutOfRange_Index"));
-                }
-            }
-        }
-
-         // Copies the source StringBuilder to the destination IntPtr memory allocated with len bytes.
-        [System.Security.SecurityCritical]  // auto-generated
-        internal unsafe void InternalCopy(IntPtr dest, int len) {
-            if(len ==0)
-                return;
-
-            bool isLastChunk = true;
-            byte* dstPtr = (byte*) dest.ToPointer();
-            StringBuilder currentSrc = FindChunkForByte(len);
-
-            do {
-                int chunkOffsetInBytes = currentSrc.m_ChunkOffset*sizeof(char);
-                int chunkLengthInBytes = currentSrc.m_ChunkLength*sizeof(char);
-                fixed(char* charPtr = &currentSrc.m_ChunkChars[0]) {
-                    byte* srcPtr = (byte*) charPtr;
-                    if(isLastChunk) {
-                        isLastChunk= false;
-                        Buffer.Memcpy(dstPtr + chunkOffsetInBytes, srcPtr, len - chunkOffsetInBytes);
-                    } else {
-                        Buffer.Memcpy(dstPtr + chunkOffsetInBytes, srcPtr, chunkLengthInBytes);
-                    }
-                }
-                currentSrc = currentSrc.m_ChunkPrevious;
-            } while(currentSrc != null);
-        }
-
-        /// <summary>
-        /// Finds the chunk for the logical index (number of characters in the whole stringbuilder) 'index'
-        /// YOu can then get the offset in this chunk by subtracting the m_BlockOffset field from 'index' 
-        /// </summary>
-        /// <param name="index"></param>
-        /// <returns></returns>
-        private StringBuilder FindChunkForIndex(int index)
-        {
-            Contract.Assert(0 <= index && index <= Length, "index not in string");
-
-            StringBuilder ret = this;
-            while (ret.m_ChunkOffset > index)
-                ret = ret.m_ChunkPrevious;
-
-            Contract.Assert(ret != null, "index not in string");
-            return ret;
-        }
-
-        /// <summary>
-        /// Finds the chunk for the logical byte index 'byteIndex'
-        /// </summary>
-        /// <param name="index"></param>
-        /// <returns></returns>
-        private StringBuilder FindChunkForByte(int byteIndex)
-        {
-            Contract.Assert(0 <= byteIndex && byteIndex <= Length*sizeof(char), "Byte Index not in string");
-
-            StringBuilder ret = this;
-            while (ret.m_ChunkOffset*sizeof(char) > byteIndex)
-                ret = ret.m_ChunkPrevious;
-
-            Contract.Assert(ret != null, "Byte Index not in string");
-            return ret;
-        }
-
-        /// <summary>
-        /// Finds the chunk that logically follows the 'chunk' chunk.  Chunks only persist the pointer to 
-        /// the chunk that is logically before it, so this routine has to start at the this pointer (which 
-        /// is a assumed to point at the chunk representing the whole stringbuilder) and search
-        /// until it finds the current chunk (thus is O(n)).  So it is more expensive than a field fetch!
-        /// </summary>
-        private StringBuilder Next(StringBuilder chunk)
-        {
-            if (chunk == this)
-                return null;
-            return FindChunkForIndex(chunk.m_ChunkOffset + chunk.m_ChunkLength);
-        }
-
-        /// <summary>
-        /// Assumes that 'this' is the last chunk in the list and that it is full.  Upon return the 'this'
-        /// block is updated so that it is a new block that has at least 'minBlockCharCount' characters.
-        /// that can be used to copy characters into it.   
-        /// </summary>
-        private void ExpandByABlock(int minBlockCharCount)
-        {
-            Contract.Requires(Capacity == Length, "Expand expect to be called only when there is no space left");        // We are currently full
-            Contract.Requires(minBlockCharCount > 0, "Expansion request must be positive");
-
-            VerifyClassInvariant();
-
-            if ((minBlockCharCount + Length) > m_MaxCapacity || minBlockCharCount + Length < minBlockCharCount)
-                throw new ArgumentOutOfRangeException("requiredLength", Environment.GetResourceString("ArgumentOutOfRange_SmallCapacity"));
-
-            // Compute the length of the new block we need 
-            // We make the new chunk at least big enough for the current need (minBlockCharCount)
-            // But also as big as the current length (thus doubling capacity), up to a maximum
-            // (so we stay in the small object heap, and never allocate really big chunks even if
-            // the string gets really big. 
-            int newBlockLength = Math.Max(minBlockCharCount, Math.Min(Length, MaxChunkSize));
-
-            // Copy the current block to the new block, and initialize this to point at the new buffer. 
-            m_ChunkPrevious = new StringBuilder(this);
-            m_ChunkOffset += m_ChunkLength;
-            m_ChunkLength = 0;
-
-            // Check for integer overflow (logical buffer size > int.MaxInt)
-            if (m_ChunkOffset + newBlockLength < newBlockLength)
-            {
-                m_ChunkChars = null;
-                throw new OutOfMemoryException();
-            }
-            m_ChunkChars = new char[newBlockLength];
-
-            VerifyClassInvariant();
-        }
-
-        /// <summary>
-        /// Used by ExpandByABlock to create a new chunk.  The new chunk is a copied from 'from'
-        /// In particular the buffer is shared.  It is expected that 'from' chunk (which represents
-        /// the whole list, is then updated to point to point to this new chunk. 
-        /// </summary>
-        private StringBuilder(StringBuilder from)
-        {
-            m_ChunkLength = from.m_ChunkLength;
-            m_ChunkOffset = from.m_ChunkOffset;
-            m_ChunkChars = from.m_ChunkChars;
-            m_ChunkPrevious = from.m_ChunkPrevious;
-            m_MaxCapacity = from.m_MaxCapacity;
-            VerifyClassInvariant();
-        }
-
-        /// <summary>
-        /// Creates a gap of size 'count' at the logical offset (count of characters in the whole string
-        /// builder) 'index'.  It returns the 'chunk' and 'indexInChunk' which represents a pointer to
-        /// this gap that was just created.  You can then use 'ReplaceInPlaceAtChunk' to fill in the
-        /// chunk
-        ///
-        /// ReplaceAllChunks relies on the fact that indexes above 'index' are NOT moved outside 'chunk'
-        /// by this process (because we make the space by creating the cap BEFORE the chunk).  If we
-        /// change this ReplaceAllChunks needs to be updated. 
-        ///
-        /// If dontMoveFollowingChars is true, then the room must be made by inserting a chunk BEFORE the
-        /// current chunk (this is what it does most of the time anyway)
-        /// </summary>
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        private void MakeRoom(int index, int count, out StringBuilder chunk, out int indexInChunk, bool doneMoveFollowingChars)
-        {
-            VerifyClassInvariant();
-            Contract.Assert(count > 0, "Count must be strictly positive");
-            Contract.Assert(index >= 0, "Index can't be negative");
-            if (count + Length > m_MaxCapacity || count + Length < count)
-                throw new ArgumentOutOfRangeException("requiredLength", Environment.GetResourceString("ArgumentOutOfRange_SmallCapacity"));
-
-            chunk = this;
-            while (chunk.m_ChunkOffset > index)
-            {
-                chunk.m_ChunkOffset += count;
-                chunk = chunk.m_ChunkPrevious;
-            }
-            indexInChunk = index - chunk.m_ChunkOffset;
-
-            // Cool, we have some space in this block, and you don't have to copy much to get it, go ahead
-            // and use it.  This happens typically  when you repeatedly insert small strings at a spot
-            // (typically the absolute front) of the buffer.    
-            if (!doneMoveFollowingChars && chunk.m_ChunkLength <= DefaultCapacity * 2 && chunk.m_ChunkChars.Length - chunk.m_ChunkLength >= count)
-            {
-                for (int i = chunk.m_ChunkLength; i > indexInChunk; )
-                {
-                    --i;
-                    chunk.m_ChunkChars[i + count] = chunk.m_ChunkChars[i];
-                }
-                chunk.m_ChunkLength += count;
-                return;
-            }
-
-            // Allocate space for the new chunk (will go before this one)
-            StringBuilder newChunk = new StringBuilder(Math.Max(count, DefaultCapacity), chunk.m_MaxCapacity, chunk.m_ChunkPrevious);
-            newChunk.m_ChunkLength = count;
-
-            // Copy the head of the buffer to the  new buffer. 
-            int copyCount1 = Math.Min(count, indexInChunk);
-            if (copyCount1 > 0)
-            {
-                unsafe {
-                    fixed (char* chunkCharsPtr = &chunk.m_ChunkChars[0]) {
-                        ThreadSafeCopy(chunkCharsPtr, newChunk.m_ChunkChars, 0, copyCount1);
-    
-                        // Slide characters in the current buffer over to make room. 
-                        int copyCount2 = indexInChunk - copyCount1;
-                        if (copyCount2 >= 0)
-                        {
-                            ThreadSafeCopy(chunkCharsPtr + copyCount1, chunk.m_ChunkChars, 0, copyCount2);
-                            indexInChunk = copyCount2;
-                        }
-                    }
-                }
-            }
-
-            chunk.m_ChunkPrevious = newChunk;           // Wire in the new chunk
-            chunk.m_ChunkOffset += count;
-            if (copyCount1 < count)
-            {
-                chunk = newChunk;
-                indexInChunk = copyCount1;
-            }
-
-            VerifyClassInvariant();
-        }
-
-        /// <summary>
-        ///  Used by MakeRoom to allocate another chunk.  
-        /// </summary>
-        private StringBuilder(int size, int maxCapacity, StringBuilder previousBlock)
-        {
-            Contract.Assert(size > 0, "size not positive");
-            Contract.Assert(maxCapacity > 0, "maxCapacity not positive");
-            m_ChunkChars = new char[size];
-            m_MaxCapacity = maxCapacity;
-            m_ChunkPrevious = previousBlock;
-            if (previousBlock != null)
-                m_ChunkOffset = previousBlock.m_ChunkOffset + previousBlock.m_ChunkLength;
-            VerifyClassInvariant();
-        }
-
-        /// <summary>
-        /// Removes 'count' characters from the logical index 'startIndex' and returns the chunk and 
-        /// index in the chunk of that logical index in the out parameters.  
-        /// </summary>
-        [SecuritySafeCritical]
-        private void Remove(int startIndex, int count, out StringBuilder chunk, out int indexInChunk)
-        {
-            VerifyClassInvariant();
-            Contract.Assert(startIndex >= 0 && startIndex < Length, "startIndex not in string");
-
-            int endIndex = startIndex + count;
-
-            // Find the chunks for the start and end of the block to delete. 
-            chunk = this;
-            StringBuilder endChunk = null;
-            int endIndexInChunk = 0;
-            for (; ; )
-            {
-                if (endIndex - chunk.m_ChunkOffset >= 0)
-                {
-                    if (endChunk == null)
-                    {
-                        endChunk = chunk;
-                        endIndexInChunk = endIndex - endChunk.m_ChunkOffset;
-                    }
-                    if (startIndex - chunk.m_ChunkOffset >= 0)
-                    {
-                        indexInChunk = startIndex - chunk.m_ChunkOffset;
-                        break;
-                    }
-                }
-                else
-                {
-                    chunk.m_ChunkOffset -= count;
-                }
-                chunk = chunk.m_ChunkPrevious;
-            }
-            Contract.Assert(chunk != null, "fell off beginning of string!");
-
-            int copyTargetIndexInChunk = indexInChunk;
-            int copyCount = endChunk.m_ChunkLength - endIndexInChunk;
-            if (endChunk != chunk)
-            {
-                copyTargetIndexInChunk = 0;
-                // Remove the characters after startIndex to end of the chunk
-                chunk.m_ChunkLength = indexInChunk;
-
-                // Remove the characters in chunks between start and end chunk
-                endChunk.m_ChunkPrevious = chunk;
-                endChunk.m_ChunkOffset = chunk.m_ChunkOffset + chunk.m_ChunkLength;
-
-                // If the start is 0 then we can throw away the whole start chunk
-                if (indexInChunk == 0)
-                {
-                    endChunk.m_ChunkPrevious = chunk.m_ChunkPrevious;
-                    chunk = endChunk;
-                }
-            }
-            endChunk.m_ChunkLength -= (endIndexInChunk - copyTargetIndexInChunk);
-
-            // SafeCritical: We ensure that endIndexInChunk + copyCount is within range of m_ChunkChars and
-            // also ensure that copyTargetIndexInChunk + copyCount is within the chunk
-            //
-            // Remove any characters in the end chunk, by sliding the characters down. 
-            if (copyTargetIndexInChunk != endIndexInChunk)  // Sometimes no move is necessary
-                ThreadSafeCopy(endChunk.m_ChunkChars, endIndexInChunk, endChunk.m_ChunkChars, copyTargetIndexInChunk, copyCount);
-
-            Contract.Assert(chunk != null, "fell off beginning of string!");
-            VerifyClassInvariant();
+            return Replace(oldChar + "", newChar + "", startIndex, count);
         }
     }
 }
