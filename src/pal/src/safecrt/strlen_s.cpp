@@ -42,7 +42,7 @@
 *
 *******************************************************************************/
 
-size_t __cdecl strnlen(const char *str, size_t maxsize) throw()
+size_t __cdecl PAL_strnlen(const char *str, size_t maxsize)
 {
     size_t n;
 

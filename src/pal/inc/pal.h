@@ -6953,4 +6953,5 @@ public:
 }
 #endif
 
+#define strnlen PAL_strnlen
 #endif // __PAL_H__
