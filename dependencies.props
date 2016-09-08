@@ -8,13 +8,13 @@
 
   <!-- Auto-upgraded properties for each build info dependency. -->
   <PropertyGroup>
-    <CoreFxExpectedPrerelease>beta-24431-01</CoreFxExpectedPrerelease>
+    <CoreFxExpectedPrerelease>preview1-24508-03</CoreFxExpectedPrerelease>
     <ExternalExpectedPrerelease>beta-24430-00</ExternalExpectedPrerelease>
   </PropertyGroup>
 
   <!-- Full package version strings that are used in other parts of the build. -->
   <PropertyGroup>
-    <CoreClrPackageVersion>1.1.0-beta-24431-01</CoreClrPackageVersion>
+    <CoreClrPackageVersion>1.1.0-beta-24506-03</CoreClrPackageVersion>
     <XunitPackageVersion>2.1.0</XunitPackageVersion>
   </PropertyGroup>
 
