@@ -24,21 +24,73 @@ def static getOSGroup(def os) {
     assert osGroup != null : "Could not find os group for ${os}"
     return osGroupMap[os]
 }
+// Setup perflab tests runs
+[true, false].each { isPR ->
+    ['Windows_NT'].each { os ->
+		['x64', 'x86'].each { architecture ->
+			def configuration = 'Release'
+			def runType = isPR ? 'private' : 'rolling'
+			def benchViewName = isPR ? 'coreclr private %ghprbPullTitle%' : 'coreclr rolling %GIT_BRANCH% %GIT_COMMIT%'
+			def newJob = job(Utilities.getFullJobName(project, "perf_perflab_${os}", isPR)) {
+				// Set the label.
+				label('windows_clr_perf')
+				wrappers {
+					credentialsBinding {
+						string('BV_UPLOAD_SAS_TOKEN', 'CoreCLR Perf BenchView Sas')
+					}
+				}
+
+				steps {
+						// Batch
+						batchFile("C:\\Tools\\nuget.exe install Microsoft.BenchView.JSONFormat -Source http://benchviewtestfeed.azurewebsites.net/nuget -OutputDirectory C:\\tools -Prerelease -ExcludeVersion")
+						batchFile("python C:\\tools\\Microsoft.BenchView.JSONFormat\\tools\\submission-metadata.py --name " + "\"" + benchViewName + "\"" + " --user " + "\"dotnet-bot@microsoft.com\"")
+						batchFile("python C:\\tools\\Microsoft.BenchView.JSONFormat\\tools\\build.py git --type " + runType)
+						batchFile("python C:\\tools\\Microsoft.BenchView.JSONFormat\\tools\\machinedata.py")
+						batchFile("set __TestIntermediateDir=int&&build.cmd release ${architecture}")
+						batchFile("tests\\runtest.cmd release ${architecture} GenerateLayoutOnly")
+						batchFile("tests\\scripts\\run-xunit-perf.cmd -arch ${architecture} -configuration ${configuration} -testBinLoc bin\tests\Windows_NT.x64.Release\performance\perflab\Perflab -library -uploadToBenchview C:\\Tools\\Microsoft.Benchview.JSONFormat\\tools -runtype " + runType
+				}
+			}
+
+			// Save machinedata.json to /artifact/bin/ Jenkins dir
+			def archiveSettings = new ArchivalSettings()
+			archiveSettings.addFiles('sandbox\\perf-*.xml')
+			Utilities.addArchival(newJob, archiveSettings)
+
+			Utilities.standardJobSetup(newJob, project, isPR, "*/${branch}")
+			
+			if (isPR) {
+				TriggerBuilder builder = TriggerBuilder.triggerOnPullRequest()
+				builder.setGithubContext("${os} CoreCLR Perf Tests")
+				builder.triggerOnlyOnComment()
+				builder.setCustomTriggerPhrase("(?i).*test\\W+${os}\\W+perf.*")
+				builder.triggerForBranch(branch)
+				builder.emitTrigger(newJob)
+			}
+			else {
+				// Set a push trigger
+				TriggerBuilder builder = TriggerBuilder.triggerOnCommit()
+				builder.emitTrigger(newJob)
+			}
+		}
+    }
+}
 
 [true, false].each { isPR ->
     ['Windows_NT'].each { os ->
         def architecture = 'x64'
         def configuration = 'Release'
         def newJob = job(Utilities.getFullJobName(project, "perf_${os}", isPR)) {
+
             // Set the label.
             label('performance')
             steps {
                     // Batch
-                    batchFile("C:\\tools\\nuget install Microsoft.BenchView.JSONFormat -Source http://benchviewtestfeed.azurewebsites.net/nuget -OutputDirectory C:\\tools -Prerelease")
-                    batchFile("python C:\\tools\\Microsoft.BenchView.JSONFormat.0.1.0-pre010\\tools\\machinedata.py")
+                    batchFile("C:\\Tools\\nuget.exe install Microsoft.BenchView.JSONFormat -Source http://benchviewtestfeed.azurewebsites.net/nuget -OutputDirectory C:\\tools -Prerelease -ExcludeVersion")
+                    batchFile("python C:\\tools\\Microsoft.BenchView.JSONFormat\\tools\\machinedata.py")
                     batchFile("set __TestIntermediateDir=int&&build.cmd release ${architecture}")
                     batchFile("tests\\runtest.cmd release ${architecture}")
-                    batchFile("tests\\scripts\\run-xunit-perf.cmd")
+                    batchFile("tests\\scripts\\run-xunit-perf.cmd -arch ${architecture} -configuration ${configuration} -testBinLoc bin\tests\Windows_NT.x64.Release\Jit\Performance\CodeQuality")
             }
         }
 
@@ -131,3 +183,29 @@ def static getOSGroup(def os) {
         }
     } // os
 } // isPR
+
+[true, false].each { isPR ->
+    ['Windows_NT'].each { os ->
+        def newJob = job(Utilities.getFullJobName(project, "perf_coreclr_microbenchmarks_${os}", isPR)) {
+            // Set the label.
+            steps {
+                    // Batch
+					batchFile("C:\\Tools\\nuget.exe install Microsoft.BenchView.JSONFormat -Source http://benchviewtestfeed.azurewebsites.net/nuget -OutputDirectory C:\\tools -Prerelease -version 0.1.0-pre015")
+                    batchFile("python C:\\tools\\Microsoft.BenchView.JSONFormat.0.1.0-pre015\\tools\\machinedata.py")
+                    batchFile("set __TestIntermediateDir=int&&build.cmd release x64")
+                    batchFile("tests\\runtest.cmd release x64")
+                    batchFile("tests\\scripts\\run-xunit-perf.cmd -arch x64 -configuration Release -testBinLoc bin\tests\Windows_NT.x64.Release\Jit\Performance\CodeQuality")
+            }
+        }
+
+        Utilities.setMachineAffinity(newJob, os, 'latest-or-auto-elevated') // Just run against Windows_NT VM’s for now.
+        Utilities.standardJobSetup(newJob, project, isPR, "*/${branch}")
+        if (isPR) {
+            Utilities.addGithubPRTriggerForBranch(newJob, branch, "${os} JIT Code Quality Perf Tests") // Add a PR trigger.
+        }
+        else {
+            // Set a push trigger
+            Utilities.addGithubPushTrigger(newJob)
+        }
+    }
+}
