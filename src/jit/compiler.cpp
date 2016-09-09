@@ -1101,10 +1101,10 @@ size_t genFlowNodeCnt;
 #ifdef DEBUG
 /* static */
 unsigned Compiler::s_compMethodsCount = 0; // to produce unique label names
+#endif
 
 /* static */
 bool Compiler::s_dspMemStats = false;
-#endif
 
 #ifndef DEBUGGING_SUPPORT
 /* static */
@@ -1367,11 +1367,7 @@ void Compiler::compShutdown()
 
 #if MEASURE_MEM_ALLOC
 
-#ifdef DEBUG
-    // Under debug, we only dump memory stats when the COMPlus_* variable is defined.
-    // Under non-debug, we don't have the COMPlus_* variable, and we always dump it.
     if (s_dspMemStats)
-#endif
     {
         fprintf(fout, "\nAll allocations:\n");
         s_aggMemStats.Print(jitstdout);
@@ -2992,7 +2988,6 @@ void Compiler::compInitOptions(CORJIT_FLAGS* jitFlags)
     opts.dspGCtbls             = false;
     opts.disAsm2               = false;
     opts.dspUnwind             = false;
-    s_dspMemStats              = false;
     opts.compLongAddress       = false;
     opts.compJitELTHookEnabled = false;
 
@@ -3084,11 +3079,6 @@ void Compiler::compInitOptions(CORJIT_FLAGS* jitFlags)
             opts.dspDiffable = true;
         }
 
-        if (JitConfig.DisplayMemStats() != 0)
-        {
-            s_dspMemStats = true;
-        }
-
         if (JitConfig.JitLongAddress() != 0)
         {
             opts.compLongAddress = true;
@@ -3171,6 +3161,10 @@ void Compiler::compInitOptions(CORJIT_FLAGS* jitFlags)
     }
     opts.compStackCheckOnRet  = (dwJitStackChecks & DWORD(STACK_CHECK_ON_RETURN)) != 0;
     opts.compStackCheckOnCall = (dwJitStackChecks & DWORD(STACK_CHECK_ON_CALL)) != 0;
+#endif
+
+#if MEASURE_MEM_ALLOC
+    s_dspMemStats = (JitConfig.DisplayMemStats() != 0);
 #endif
 
 #ifdef PROFILING_SUPPORTED
@@ -3828,14 +3822,14 @@ void Compiler::compSetOptimizationLevel()
     unsigned methHash = info.compMethodHash();
     char* lostr = getenv("opthashlo");
     unsigned methHashLo = 0;
-    if (lostr != NULL) 
+    if (lostr != NULL)
     {
         sscanf_s(lostr, "%x", &methHashLo);
         // methHashLo = (unsigned(atoi(lostr)) << 2);  // So we don't have to use negative numbers.
     }
     char* histr = getenv("opthashhi");
     unsigned methHashHi = UINT32_MAX;
-    if (histr != NULL) 
+    if (histr != NULL)
     {
         sscanf_s(histr, "%x", &methHashHi);
         // methHashHi = (unsigned(atoi(histr)) << 2);  // So we don't have to use negative numbers.

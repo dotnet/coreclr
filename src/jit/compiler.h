@@ -7649,9 +7649,9 @@ public:
     static AssemblyNamesList2* s_pAltJitExcludeAssembliesList;
 #endif // ALT_JIT
 
-#ifdef DEBUG
-
     static bool s_dspMemStats; // Display per-phase memory statistics for every function
+
+#ifdef DEBUG
 
     template <typename T>
     T dspPtr(T p)
@@ -7760,8 +7760,8 @@ public:
     codeOptimize compCodeOpt()
     {
 #if 0
-        // Switching between size & speed has measurable throughput impact 
-        // (3.5% on NGen mscorlib when measured). It used to be enabled for 
+        // Switching between size & speed has measurable throughput impact
+        // (3.5% on NGen mscorlib when measured). It used to be enabled for
         // DEBUG, but should generate identical code between CHK & RET builds,
         // so that's not acceptable.
         // TODO-Throughput: Figure out what to do about size vs. speed & throughput.
