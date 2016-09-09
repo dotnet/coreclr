@@ -67,14 +67,18 @@ static SimpleRWLock* s_pExecutedMethodsLock = NULL;
 
 static ULONG jitDroppedBytes = 0;
 
-static BOOL IsOwnerOfRWLock(LPVOID lock)
-{
-  // @TODO - SimpleRWLock does not have knowledge of which thread gets the writer
-  // lock, so no way to verify
-  return TRUE;
+bool MethodDesc::IsNotForDropping() {
+    return (IsLCGMethod() || IsFCall() || IsVtableMethod() || IsInterface());
 }
 
-static void LookupOrCreateInCalledMethods(MethodDesc* pMD)
+static BOOL IsOwnerOfRWLock(LPVOID lock)
+{
+    // @TODO - SimpleRWLock does not have knowledge of which thread gets the writer
+    // lock, so no way to verify
+    return TRUE;
+}
+
+static void LookupOrCreateInCalledMethods(MethodDesc* pMD, PCODE pCode)
 {
     CONTRACTL
     {
@@ -84,10 +88,11 @@ static void LookupOrCreateInCalledMethods(MethodDesc* pMD)
     }
     CONTRACTL_END;
 
-    if (pMD->IsLCGMethod() || pMD->IsFCall())
+    if (pMD->IsNotForDropping())
         return;
-    PCODE pCode = pMD->GetPreImplementedCode();
-    if (pCode != NULL)
+
+    PCODE prCode = pMD->GetPreImplementedCode();
+    if (prCode != NULL)
         return;
 
     // We lazily allocate the reader/writer lock we synchronize access to the hash with.
@@ -125,8 +130,10 @@ static void LookupOrCreateInCalledMethods(MethodDesc* pMD)
             return;
     }
 
-    SimpleWriteLockHolder swlh(s_pCalledMethodsLock);
-    s_pCalledMethods->InsertValue(key, (LPVOID)pMD);
+    {
+        SimpleWriteLockHolder swlh(s_pCalledMethodsLock);
+        s_pCalledMethods->InsertValue(key, (LPVOID)pMD);
+    }
 }
 
 static void DeleteFromCalledMethods(MethodDesc* pMD)
@@ -139,7 +146,7 @@ static void DeleteFromCalledMethods(MethodDesc* pMD)
     }
     CONTRACTL_END;
 
-    if (pMD->IsLCGMethod() || pMD->IsFCall())
+    if (pMD->IsNotForDropping())
         return;
     PCODE pCode = pMD->GetPreImplementedCode();
     if (pCode != NULL)
@@ -411,7 +418,7 @@ void MethodDesc::DropNativeCode()
 
     g_IBCLogger.LogMethodDescAccess(this);
 
-    if (IsLCGMethod() || IsFCall())
+    if (IsNotForDropping() || IsInstantiatingStub() || IsUnboxingStub())
         return;
 
     PCODE pCode;
@@ -427,8 +434,12 @@ void MethodDesc::DropNativeCode()
     }
 
     _ASSERTE(pCode != NULL);
+    _ASSERTE(HasNativeCode());
 
-    CodeHeader* pCH = ((CodeHeader*)pCode) - 1;
+    MethodTable * pMT = GetMethodTable();
+    _ASSERTE(pMT != NULL);
+
+    CodeHeader* pCH = ((CodeHeader*)(pCode & ~1)) - 1;
     _ASSERTE(pCH->GetMethodDesc() == this);
 
     HeapList* pHp = pCH->GetHeapList();
@@ -478,6 +489,12 @@ PCODE MethodDesc::MakeJitWorker(COR_ILMETHOD_DECODER* ILHeader, DWORD flags, DWO
          fIsILStub               ? " TRUE" : "FALSE",
          GetMethodTable()->GetDebugClassName(),
          m_pszDebugMethodName));
+
+    // printf("MakeJitWorker(" FMT_ADDR ", %s) for %s:%s\n",
+    //        DBG_ADDR(this),
+    //        fIsILStub               ? " TRUE" : "FALSE",
+    //        GetMethodTable()->GetDebugClassName(),
+    //        m_pszDebugMethodName);
 
     PCODE pCode = NULL;
     ULONG sizeOfCode = 0;
@@ -676,11 +693,20 @@ PCODE MethodDesc::MakeJitWorker(COR_ILMETHOD_DECODER* ILHeader, DWORD flags, DWO
 
             EX_TRY
             {
+              PTR_PCODE addrOfSlot = GetAddrOfSlot();
 #if defined(FEATURE_JIT_DROPPING)
                 pCode = UnsafeJitFunction(this, ILHeader, flags, flags2, &totalNCSize, &sizeOfCode);
 #else
                 pCode = UnsafeJitFunction(this, ILHeader, flags, flags2, &sizeOfCode);
 #endif
+                // printf(
+                //        ">>>>>  After UnsafeJitFunction   %s.%s sig=\"%s\" pCode %p sizeOfCode %ld %totalNCSize %ld\n",
+                //        m_pszDebugClassName,
+                //        m_pszDebugMethodName,
+                //        m_pszDebugMethodSignature,
+                //        pCode,
+                //        sizeOfCode,
+                //        totalNCSize);
             }
             EX_CATCH
             {
@@ -860,23 +886,28 @@ Done:
     LOG((LF_CORDB, LL_EVERYTHING, "MethodDesc::MakeJitWorker finished. Stub is" FMT_ADDR "\n",
          DBG_ADDR(pCode)));
 
+
 #if defined(FEATURE_JIT_DROPPING)
-    CodeHeader* pCH = ((CodeHeader*)pCode) - 1;
+    CodeHeader* pCH = ((CodeHeader*)(pCode & ~1)) - 1;
     _ASSERTE(pCH->GetMethodDesc() == this);
 
     HeapList* pHL = pCH->GetHeapList();
 
     if ((CLRConfig::GetConfigValue(CLRConfig::INTERNAL_JitDropEnabled) != 0) &&
-        (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_JitDropMemThreshold) != 0))
+        (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_JitDropMemThreshold) != 0) &&
+        fDoJitDropping)
     {
-        if (fDoJitDropping && (totalNCSize - jitDroppedBytes) > CLRConfig::GetConfigValue(CLRConfig::INTERNAL_JitDropMemThreshold) && s_pCalledMethods != NULL)
+        if ((totalNCSize - jitDroppedBytes) > CLRConfig::GetConfigValue(CLRConfig::INTERNAL_JitDropMemThreshold) && s_pCalledMethods != NULL)
         {
             EX_TRY
             {
                 // Suspend the runtime.
                 ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_OTHER);
 
+                // printf("------------------------------------------- JIT CLEANING\n");
+
                 // Walk all other threads.
+                // printf("s_pExecutedMethods: \n");
                 Thread* pThread = nullptr;
                 while ((pThread = ThreadStore::GetThreadList(pThread)) != nullptr)
                 {
@@ -906,6 +937,7 @@ Done:
                 }
                 delete s_pExecutedMethods;
                 s_pExecutedMethods = NULL;
+
                 ThreadSuspend::RestartEE(FALSE, TRUE);
             }
             EX_CATCH
@@ -913,15 +945,14 @@ Done:
             }
             EX_END_CATCH(SwallowAllExceptions);
         }
+
+        if (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_JitDropMethodSizeThreshold) < sizeOfCode &&
+            !IsNotForDropping())
+        {
+            LookupOrCreateInCalledMethods(this, pCode);
+        }
     }
 
-    if ((CLRConfig::GetConfigValue(CLRConfig::INTERNAL_JitDropEnabled) != 0) &&
-        (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_JitDropMemThreshold) != 0) &&
-        CLRConfig::GetConfigValue(CLRConfig::INTERNAL_JitDropMethodSizeThreshold) < sizeOfCode &&
-        !IsLCGMethod() && !IsFCall())
-    {
-        LookupOrCreateInCalledMethods(this);
-    }
 #endif
 
     return pCode;
@@ -1237,6 +1268,7 @@ Stub * MakeInstantiatingStubWorker(MethodDesc *pMD)
 //=============================================================================
 extern "C" PCODE STDCALL PreStubWorker(TransitionBlock * pTransitionBlock, MethodDesc * pMD)
 {
+  // printf("In PreStubWorker pMD %p\n", pMD);
     PCODE pbRetVal = NULL;
 
     BEGIN_PRESERVE_LAST_ERROR;
@@ -1345,6 +1377,8 @@ extern "C" PCODE STDCALL PreStubWorker(TransitionBlock * pTransitionBlock, Metho
 
     END_PRESERVE_LAST_ERROR;
 
+    // printf("Out PreStubWorker pMD %p\n", pMD);
+
     return pbRetVal;
 }
 
@@ -1406,6 +1440,8 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
         POSTCONDITION(RETVAL != NULL);
     }
     CONTRACT_END;
+
+    // printf("In DoPrestub\n");
 
     Stub *pStub = NULL;
     PCODE pCode = NULL;
@@ -1546,11 +1582,16 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
     {
         LOG((LF_CLASSLOADER, LL_INFO10000,
                 "    In PreStubWorker, method already jitted, backpatching call point\n"));
+        // printf(
+        //        "In PreStubWorker, method already jitted, backpatching call point for %s.%s sig=\"%s\"\n",
+        //        m_pszDebugClassName,
+        //        m_pszDebugMethodName,
+        //        m_pszDebugMethodSignature);
 
 #if defined(FEATURE_JIT_DROPPING)
         if ((CLRConfig::GetConfigValue(CLRConfig::INTERNAL_JitDropEnabled) != 0) &&
             (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_JitDropMemThreshold) != 0) &&
-            !IsLCGMethod() && !IsFCall())
+            !IsNotForDropping())
         {
             DeleteFromCalledMethods(this);
         }
@@ -1757,6 +1798,13 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
 #else
             pCode = MakeJitWorker(pHeader, 0, 0);
 #endif
+            // printf(
+            //        "After MakeJitWorker: Using code" FMT_ADDR "for %s.%s sig=\"%s\" (token %x).\n",
+            //        DBG_ADDR(pCode),
+            //        m_pszDebugClassName,
+            //        m_pszDebugMethodName,
+            //        m_pszDebugMethodSignature,
+            //        GetMemberDef());
 
 #ifdef FEATURE_INTERPRETER
             if ((pCode != NULL) && !HasStableEntryPoint())
@@ -1925,6 +1973,8 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
 
     if (fReportCompilationFinished)
         DACNotifyCompilationFinished(this);
+
+    // printf("Out DoPrestub\n");
 
     RETURN DoBackpatch(pMT, pDispatchingMT, FALSE);
 }

@@ -1407,6 +1407,7 @@ public:
     PCODE GetNativeCode();
 
 #if defined(FEATURE_JIT_DROPPING)
+    bool IsNotForDropping();
     void DropNativeCode();
 #endif
 

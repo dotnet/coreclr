@@ -2645,7 +2645,7 @@ CodeHeader* EEJitManager::allocCode(MethodDesc* pMD, size_t blockSize, CorJitAll
     if (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_JitDropEnabled) != 0 &&
         CLRConfig::GetConfigValue(CLRConfig::INTERNAL_JitDropMemThreshold) != 0 &&
         CLRConfig::GetConfigValue(CLRConfig::INTERNAL_JitDropMethodSizeThreshold) < blockSize &&
-        !pMD->IsLCGMethod() && !pMD->IsFCall())
+        !pMD->IsNotForDropping())
     {
         requestInfo.SetJitDroppedDomain();
     }
