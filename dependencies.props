@@ -3,19 +3,22 @@
   <PropertyGroup>
     <CoreFxCurrentRef>8e49da409205246338c363c790de9692a9ddd636</CoreFxCurrentRef>
     <CoreClrCurrentRef>8e49da409205246338c363c790de9692a9ddd636</CoreClrCurrentRef>
-    <ExternalCurrentRef>2e3cca76502a1514e9cdc566df216a1afbf07872</ExternalCurrentRef>
   </PropertyGroup>
 
   <!-- Auto-upgraded properties for each build info dependency. -->
   <PropertyGroup>
     <CoreFxExpectedPrerelease>preview1-24508-03</CoreFxExpectedPrerelease>
-    <ExternalExpectedPrerelease>beta-24430-00</ExternalExpectedPrerelease>
   </PropertyGroup>
 
   <!-- Full package version strings that are used in other parts of the build. -->
   <PropertyGroup>
     <CoreClrPackageVersion>1.1.0-beta-24506-03</CoreClrPackageVersion>
     <XunitPackageVersion>2.1.0</XunitPackageVersion>
+
+    <!-- Runtime package versions from projectk-tfs/release/1.0.0 -->
+    <RuntimeWin7ArmMicrosoftNETCoreTestHostPackageVersion>1.0.0</RuntimeWin7ArmMicrosoftNETCoreTestHostPackageVersion>
+    <RuntimeWin8ArmMicrosoftNETCoreRuntimeCoreCLRPackageVersion>1.0.4</RuntimeWin8ArmMicrosoftNETCoreRuntimeCoreCLRPackageVersion>
+    <MicrosoftNETCoreWindowsApiSetsPackageVersion>1.0.1</MicrosoftNETCoreWindowsApiSetsPackageVersion>
   </PropertyGroup>
 
   <!-- Package dependency verification/auto-upgrade configuration. -->
@@ -34,11 +37,6 @@
       <BuildInfoPath>$(BaseDotNetBuildInfo)coreclr/$(DependencyBranch)</BuildInfoPath>
       <CurrentRef>$(CoreClrCurrentRef)</CurrentRef>
     </RemoteDependencyBuildInfo>
-    <RemoteDependencyBuildInfo Include="External">
-      <!-- ProjectK-TFS dependency remains on master: there aren't release/1.1.0 builds from TFS. -->
-      <BuildInfoPath>$(BaseDotNetBuildInfo)projectk-tfs/master</BuildInfoPath>
-      <CurrentRef>$(ExternalCurrentRef)</CurrentRef>
-    </RemoteDependencyBuildInfo>
 
     <DependencyBuildInfo Include="@(RemoteDependencyBuildInfo)">
       <RawVersionsBaseUrl>https://raw.githubusercontent.com/dotnet/versions</RawVersionsBaseUrl>
@@ -53,11 +51,6 @@
       <Path>$(MSBuildThisFileFullPath)</Path>
       <ElementName>CoreClrPackageVersion</ElementName>
       <PackageId>Microsoft.NETCore.Runtime.CoreCLR</PackageId>
-    </XmlUpdateStep>
-    <XmlUpdateStep Include="External">
-      <Path>$(MSBuildThisFileFullPath)</Path>
-      <ElementName>ExternalExpectedPrerelease</ElementName>
-      <BuildInfoName>External</BuildInfoName>
     </XmlUpdateStep>
   </ItemGroup>
 
