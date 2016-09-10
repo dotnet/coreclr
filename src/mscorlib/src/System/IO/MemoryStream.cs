@@ -409,9 +409,9 @@ namespace System.IO {
             ValidateCopyToArguments(destination, bufferSize);
 
             // If we have been inherited into a subclass, the following implementation could be incorrect
-            // since it does not call through to Read() or Write() which a subclass might have overriden.  
+            // since it does not call through to Read() which a subclass might have overridden.  
             // To be safe we will only use this implementation in cases where we know it is safe to do so,
-            // and delegate to our base class (which will call into Read/Write) when we are not sure.
+            // and delegate to our base class (which will call into Read) when we are not sure.
             if (GetType() != typeof(MemoryStream))
             {
                 base.CopyTo(destination, bufferSize);
@@ -440,9 +440,9 @@ namespace System.IO {
             ValidateCopyToArguments(destination, bufferSize);
 
             // If we have been inherited into a subclass, the following implementation could be incorrect
-            // since it does not call through to Read() or Write() which a subclass might have overriden.  
+            // since it does not call through to ReadAsync() which a subclass might have overridden.  
             // To be safe we will only use this implementation in cases where we know it is safe to do so,
-            // and delegate to our base class (which will call into Read/Write) when we are not sure.
+            // and delegate to our base class (which will call into ReadAsync) when we are not sure.
             if (this.GetType() != typeof(MemoryStream))
                 return base.CopyToAsync(destination, bufferSize, cancellationToken);
 
