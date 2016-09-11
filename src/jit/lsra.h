@@ -837,6 +837,26 @@ private:
 
     unsigned getWeight(RefPosition* refPos);
 
+    // Map from a reg optional marked RefTypeUse position to RefTypeUse
+    // position of its reg-optional sibling if any. This info is set up
+    // while creating ref positions and used while allocating registers
+    // to ensure that at most one RefTypeUse position ends up in memory.
+    typedef SimplerHashTable<RefPosition*, PtrKeyFuncs<RefPosition>, RefPosition*, JitSimplerHashBehavior>
+        RefPositionToSiblingRefPositionMap;
+    RefPositionToSiblingRefPositionMap* refPosToSiblingRefPosMap;
+
+    RefPositionToSiblingRefPositionMap* getRefPositonToSiblingRefPosMap()
+    {
+        if (refPosToSiblingRefPosMap == nullptr)
+        {
+            refPosToSiblingRefPosMap =
+                new (getAllocator(compiler)) RefPositionToSiblingRefPositionMap(getAllocator(compiler));
+        }
+        return refPosToSiblingRefPosMap;
+    }
+
+    void MarkSiblingRefPosIfAny(RefPosition* refPos);
+
     /*****************************************************************************
      * Register management
      ****************************************************************************/
@@ -1457,10 +1477,10 @@ public:
     {
         return (IsActualRef()
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-                || refType == RefTypeUpperVectorSaveDef || refType == RefTypeUpperVectorSaveUse
+            || refType == RefTypeUpperVectorSaveDef || refType == RefTypeUpperVectorSaveUse
 #endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-                ) &&
-               !AllocateIfProfitable();
+            ) &&
+            !AllocateIfProfitable();
     }
 
     // Indicates whether this ref position is to be allocated

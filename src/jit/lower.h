@@ -133,31 +133,39 @@ private:
 
     //----------------------------------------------------------------------
     // SetRegOptional - sets a bit to indicate to LSRA that register
-    // for a given tree node is optional for codegen purpose.  If no
+    // for a given child node is optional for codegen purpose.  If no
     // register is allocated to such a tree node, its parent node treats
-    // it as a contained memory operand during codegen.
+    // it as a contained memory operand during codegen.  This routine
+    // also updates srcRegOptionalCount of parent node.
     //
     // Arguments:
-    //    tree    -   GenTree node
+    //    child    -  Child GenTree node that is to marked as reg optional.
+    //    parent  -   Parent GenTree node with 'child' as one of its operands.
+    //                This is a debug only arg.
     //
     // Returns
     //    None
-    void SetRegOptional(GenTree* tree)
-    {
-        tree->gtLsraInfo.regOptional = true;
-    }
+    void SetRegOptional(GenTree* child DEBUGARG(GenTree* parent))
+    {        
+        child->gtLsraInfo.regOptional = true;
 
-    GenTree* PreferredRegOptionalOperand(GenTree* tree);
+#ifdef DEBUG
+        // increment reg-optional operand count of parent node.
+        ++(parent->gtLsraInfo.srcRegOptionalCount);
+
+        // On Xarch at most two operands of a node can be marked as
+        // reg optional.  Currently, LSRA uses this assumption to
+        // simplify implementation of reg-optional support.
+        assert(parent->gtLsraInfo.srcRegOptionalCount <= 2);
+#endif
+    }   
 
     // ------------------------------------------------------------------
-    // SetRegOptionalBinOp - Indicates which of the operands of a bin-op
-    // register requirement is optional. Xarch instruction set allows
-    // either of op1 or op2 of binary operation (e.g. add, mul etc) to be
-    // a memory operand.  This routine provides info to register allocator
-    // which of its operands optionally require a register.  Lsra might not
-    // allocate a register to RefTypeUse positions of such operands if it
-    // is beneficial. In such a case codegen will treat them as memory
-    // operands.
+    // SetRegOptionalBinOp - Marks all the operands of a bin-op that are
+    // permitted to be memory-op as reg optional. Lsra might not allocate
+    // a register to RefTypeUse positions of such operands if it is
+    // beneficial to leave it in memory. In such a case codegen will treat
+    // them as memory operands.
     //
     // Arguments:
     //     tree  -  Gentree of a bininary operation.
@@ -165,9 +173,6 @@ private:
     // Returns
     //     None.
     //
-    // Note: On xarch at most only one of the operands will be marked as
-    // reg optional, even when both operands could be considered register
-    // optional.
     void SetRegOptionalForBinOp(GenTree* tree)
     {
         assert(GenTree::OperIsBinary(tree->OperGet()));
@@ -177,15 +182,16 @@ private:
 
         if (tree->OperIsCommutative() && tree->TypeGet() == op1->TypeGet())
         {
-            GenTree* preferredOp = PreferredRegOptionalOperand(tree);
-            SetRegOptional(preferredOp);
+            SetRegOptional(op1 DEBUG_ARG(tree));
         }
-        else if (tree->TypeGet() == op2->TypeGet())
+        
+        if (tree->TypeGet() == op2->TypeGet())
         {
-            SetRegOptional(op2);
+            SetRegOptional(op2 DEBUG_ARG(tree));
         }
     }
 #endif // defined(_TARGET_XARCH_)
+
     void TreeNodeInfoInitReturn(GenTree* tree);
     void TreeNodeInfoInitShiftRotate(GenTree* tree);
     void TreeNodeInfoInitCall(GenTreeCall* call);

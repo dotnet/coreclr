@@ -34,7 +34,11 @@ public:
         definesAnyRegisters   = false;
 #ifdef DEBUG
         isInitialized = false;
-#endif
+
+#ifdef _TARGET_XARCH_
+        srcRegOptionalCount = 0;
+#endif // _TARGET_XARCH_
+#endif // DEBUG
     }
 
     // dst
@@ -102,14 +106,21 @@ public:
 private:
     unsigned char _dstCount;
     unsigned char _srcCount;
-    unsigned char _internalIntCount;
-    unsigned char _internalFloatCount;
 
 public:
     unsigned char srcCandsIndex;
     unsigned char dstCandsIndex;
     unsigned char internalCandsIndex;
 
+private: 
+    // So far there has not been a need to specificy an internal count
+    // of more than 3 or 4 across all arch.  Therefore to save space
+    // max internal count is capped at 7.  Based on the need this could
+    // be adjusted in future.
+    unsigned char _internalIntCount : 3;
+    unsigned char _internalFloatCount : 3;
+
+public:
     // isLocalDefUse identifies trees that produce a value that is not consumed elsewhere.
     // Examples include stack arguments to a call (they are immediately stored), lhs of comma
     // nodes, or top-level nodes that are non-void.
@@ -138,6 +149,14 @@ public:
 #ifdef DEBUG
     // isInitialized is set when the tree node is handled.
     unsigned char isInitialized : 1;
+
+#ifdef _TARGET_XARCH_
+    // Number of operands that are marked as reg-optional.
+    // On Xarch, right now there is no need to mark more than two
+    // operands of a node as reg-optional.  Further of the two operands
+    // that are marked, at the most only one can end up in memory.
+    unsigned char srcRegOptionalCount : 2;
+#endif 
 #endif
 
 public:

@@ -188,6 +188,38 @@ unsigned LinearScan::getWeight(RefPosition* refPos)
     return weight;
 }
 
+//-------------------------------------------------------------------------
+// MarkSiblingRefPosIfAny: Marks the sibling ref pos associated with the
+// given ref pos as non-RegOptional and also removes the mapping between
+// the two ref positions.
+//
+// Arguments:
+//    refPos   -   ref position that is marked as 'Alloc if profitable'
+//
+// Returns:
+//    Nothing.
+void LinearScan::MarkSiblingRefPosIfAny(RefPosition* refPos)
+{
+    assert(refPos->AllocateIfProfitable());
+
+    // It is possible that refPos mapping table was not created
+    // if there were no mappings added (e.g. nodes have max
+    // one reg optional operand).
+    if (refPosToSiblingRefPosMap != nullptr)
+    {
+        RefPosition* siblingRefPos = nullptr;
+        bool found = refPosToSiblingRefPosMap->Lookup(refPos, &siblingRefPos);
+        if (found)
+        {
+            assert(siblingRefPos != nullptr);
+            assert(siblingRefPos->AllocateIfProfitable());
+            siblingRefPos->setAllocateIfProfitable(0);
+            refPosToSiblingRefPosMap->Remove(refPos);
+            refPosToSiblingRefPosMap->Remove(siblingRefPos);
+        }
+    }
+}
+
 // allRegs represents a set of registers that can
 // be used to allocate the specified type in any point
 // in time (more of a 'bank' of registers).
@@ -1688,6 +1720,7 @@ void LinearScan::doLinearScan()
 #endif // DEBUG
 
     splitBBNumToTargetBBNumMap = nullptr;
+    refPosToSiblingRefPosMap = nullptr;
 
     // This is complicated by the fact that physical registers have refs associated
     // with locations where they are killed (e.g. calls), but we don't want to
@@ -3391,7 +3424,11 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
             pos->isLocalDefUse = true;
             bool isLastUse     = ((tree->gtFlags & GTF_VAR_DEATH) != 0);
             pos->lastUse       = isLastUse;
-            pos->setAllocateIfProfitable(tree->IsRegOptional());
+
+            // Ref positions marked as isLocalDefUse should never
+            // be marked as reg optional.
+            assert(!tree->IsRegOptional());
+            pos->setAllocateIfProfitable(0);
             DBEXEC(VERBOSE, pos->dump());
             return;
         }
@@ -3564,6 +3601,10 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
     // pop all ref'd tree temps
     GenTreeOperandIterator iterator = tree->OperandsBegin();
 
+    // Reg-optional RefTypeUse positions of operands that are consumed.
+    RefPosition* firstRefPos = nullptr;
+    RefPosition* secondRefPos = nullptr;
+
     // `operandDefs` holds the list of `LocationInfo` values for the registers defined by the current
     // operand. `operandDefsIterator` points to the current `LocationInfo` value in `operandDefs`.
     LocationInfoList      operandDefs;
@@ -3698,6 +3739,37 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
         if (regOptionalAtUse)
         {
             pos->setAllocateIfProfitable(1);
+
+            if (firstRefPos == nullptr)
+            {
+                firstRefPos = pos;
+            }
+            else
+            {
+                // Assumption 1: A node can have max two of its operands
+                // marked as reg-optional.  On Xarch where reg-optional
+                // operands are used, there is no need to allow more
+                // than two of its operands to be marked as reg-optional.
+                assert(secondRefPos == nullptr);
+                secondRefPos = pos;
+
+                // Assumption 2: Even if both the operands of a node are
+                // marked as reg-optional, at the most one can end up
+                // in memory.  This assumption holds on Xarch currently.
+                // 
+                // We take advantage of assumption 1 and 2 to simplify
+                // the implementation by maintaining the mapping
+                // between sibling ref positions.  If one of the ref
+                // position ends up in memory, then the other sibling is
+                // marked as non-regOptional and the mapping is removed.
+                //
+                // In future when either of assumption 1 or 2 changes,
+                // we need to revisit how ref positions are maintained
+                // as reg-optional.
+                RefPositionToSiblingRefPositionMap* refPosMap = getRefPositonToSiblingRefPosMap();
+                refPosMap->Set(firstRefPos, secondRefPos);
+                refPosMap->Set(secondRefPos, firstRefPos);
+            }
         }
     }
     JITDUMP("\n");
@@ -5569,8 +5641,6 @@ regNumber LinearScan::allocateBusyReg(Interval* current, RefPosition* refPositio
             }
             else
             {
-                isBetterLocation = (nextLocation > farthestLocation);
-
                 if (nextLocation > farthestLocation)
                 {
                     isBetterLocation = true;
@@ -5582,7 +5652,8 @@ regNumber LinearScan::allocateBusyReg(Interval* current, RefPosition* refPositio
                     // allocate if profitable.  These ref positions don't need
                     // need to be spilled as they are already in memory and
                     // codegen considers them as contained memory operands.
-                    isBetterLocation = (recentAssignedRef != nullptr) && recentAssignedRef->reload &&
+                    isBetterLocation = (recentAssignedRef != nullptr) && 
+                                       recentAssignedRef->reload &&
                                        recentAssignedRef->AllocateIfProfitable();
                 }
                 else
@@ -7080,11 +7151,12 @@ void LinearScan::allocateRegisters()
                 }
                 else
 #endif // FEATURE_SIMD
-                    if (currentRefPosition->RequiresRegister() || currentRefPosition->AllocateIfProfitable())
+                if (currentRefPosition->RequiresRegister() || currentRefPosition->AllocateIfProfitable())
                 {
                     if (allocateReg)
                     {
-                        assignedRegister = allocateBusyReg(currentInterval, currentRefPosition,
+                        assignedRegister = allocateBusyReg(currentInterval, 
+                                                           currentRefPosition,
                                                            currentRefPosition->AllocateIfProfitable());
                     }
 
@@ -7101,6 +7173,14 @@ void LinearScan::allocateRegisters()
 
                         currentRefPosition->registerAssignment = RBM_NONE;
                         currentRefPosition->reload             = false;
+
+                        // Assumption: Even if more than one operand of a node is
+                        // marked as reg-optional, at the most only one operand
+                        // can end up in memory.
+                        // 
+                        // Mark the sibling ref pos as non-RegOptional and remove
+                        // the mapping.
+                        MarkSiblingRefPosIfAny(currentRefPosition);
 
                         INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_NO_REG_ALLOCATED, currentInterval));
                     }
@@ -7374,6 +7454,8 @@ void LinearScan::resolveLocalRef(BasicBlock* block, GenTreePtr treeNode, RefPosi
                     interval->physReg  = REG_NA;
                     treeNode->gtRegNum = REG_NA;
                     treeNode->gtFlags &= ~GTF_SPILLED;
+
+                    MarkSiblingRefPosIfAny(currentRefPosition);
                 }
                 else
                 {
@@ -8224,7 +8306,8 @@ void LinearScan::resolveRegisters()
                                 // In case of tree temps, if def is spilled and use didn't
                                 // get a register, set a flag on tree node to be treated as
                                 // contained at the point of its use.
-                                if (currentRefPosition->spillAfter && currentRefPosition->refType == RefTypeDef &&
+                                if (currentRefPosition->spillAfter && 
+                                    currentRefPosition->refType == RefTypeDef &&
                                     nextRefPosition->refType == RefTypeUse)
                                 {
                                     assert(nextRefPosition->treeNode == nullptr);
