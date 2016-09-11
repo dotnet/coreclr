@@ -188,6 +188,71 @@ unsigned LinearScan::getWeight(RefPosition* refPos)
     return weight;
 }
 
+//-------------------------------------------------------------------
+// IsAllocateIfProfitable - Returns true whether this ref position is
+// to be allocated a reg only if it is profitable.
+//
+// Arguments:
+//   refPos  -  Ref position
+//
+// Returns:
+//   true if the ref position is marked as 'AllocateIfProfitable'
+//   and srcRegOptional count of consuming node isn't exceeded.
+//   False otherwise.
+//
+bool LinearScan::IsAllocateIfProfitable(RefPosition* refPos)
+{
+    // TODO-CQ: Right now if a ref position is marked as
+    // copyreg or movereg, then it is not treated as
+    // 'allocate if profitable'. This is an implementation
+    // limitation that needs to be addressed.
+    if (refPos->allocRegIfProfitable &&
+        !refPos->copyReg &&
+        !refPos->moveReg)
+    {
+        assert(refPositionToGenTreeMap != nullptr);
+
+        GenTree* consumingTreeNode;
+        bool found = refPositionToGenTreeMap->Lookup(refPos, &consumingTreeNode);
+
+        if (!found)
+        {
+            // If there is no mapping from refPos to its consuming node,
+            // it implies that refPos wasn't allocated a reg by treating
+            // it as reg optional operand.
+            return true;
+        }
+
+        // If there exists a mapping, refPos can be treated as 'Allocate if
+        // profitable' if srcMemOpCount of its consuming tree node is
+        // non-zero.
+        assert(consumingTreeNode != nullptr);
+        return consumingTreeNode->gtLsraInfo.srcMemOpCount > 0;
+    }
+
+    return false;
+}
+
+//--------------------------------------------------------------
+// RequiresRegister: Returns true if the given refPos requires
+// a register to be allocated.
+//
+// Arguments:
+//    refPos  -  Ref position
+//
+// Returns:
+//    True if the ref position requires a register to be
+//    allocated. False otherwise.
+bool LinearScan::RequiresRegister(RefPosition* refPos)
+{
+    return (refPos->IsActualRef()
+#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
+            || refPos->refType == RefTypeUpperVectorSaveDef || refPos->refType == RefTypeUpperVectorSaveUse
+#endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
+           ) &&
+           !IsAllocateIfProfitable(refPos);
+}
+
 // allRegs represents a set of registers that can
 // be used to allocate the specified type in any point
 // in time (more of a 'bank' of registers).
@@ -1688,6 +1753,7 @@ void LinearScan::doLinearScan()
 #endif // DEBUG
 
     splitBBNumToTargetBBNumMap = nullptr;
+    refPositionToGenTreeMap = nullptr;
 
     // This is complicated by the fact that physical registers have refs associated
     // with locations where they are killed (e.g. calls), but we don't want to
@@ -3391,6 +3457,7 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
             pos->isLocalDefUse = true;
             bool isLastUse     = ((tree->gtFlags & GTF_VAR_DEATH) != 0);
             pos->lastUse       = isLastUse;
+
             pos->setAllocateIfProfitable(tree->IsRegOptional());
             DBEXEC(VERBOSE, pos->dump());
             return;
@@ -3698,6 +3765,7 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
         if (regOptionalAtUse)
         {
             pos->setAllocateIfProfitable(1);
+            getRefPositonToGenTreeMap()->Set(pos, tree);
         }
     }
     JITDUMP("\n");
@@ -5569,8 +5637,6 @@ regNumber LinearScan::allocateBusyReg(Interval* current, RefPosition* refPositio
             }
             else
             {
-                isBetterLocation = (nextLocation > farthestLocation);
-
                 if (nextLocation > farthestLocation)
                 {
                     isBetterLocation = true;
@@ -5582,8 +5648,9 @@ regNumber LinearScan::allocateBusyReg(Interval* current, RefPosition* refPositio
                     // allocate if profitable.  These ref positions don't need
                     // need to be spilled as they are already in memory and
                     // codegen considers them as contained memory operands.
-                    isBetterLocation = (recentAssignedRef != nullptr) && recentAssignedRef->reload &&
-                                       recentAssignedRef->AllocateIfProfitable();
+                    isBetterLocation = (recentAssignedRef != nullptr) && 
+                                       recentAssignedRef->reload &&
+                                       IsAllocateIfProfitable(recentAssignedRef);
                 }
                 else
                 {
@@ -5753,7 +5820,7 @@ void LinearScan::spillInterval(Interval* interval, RefPosition* fromRefPosition,
     {
         // If not allocated a register, Lcl var def/use ref positions even if reg optional
         // should be marked as spillAfter.
-        if (!fromRefPosition->RequiresRegister() && !(interval->isLocalVar && fromRefPosition->IsActualRef()))
+        if (!RequiresRegister(fromRefPosition) && !(interval->isLocalVar && fromRefPosition->IsActualRef()))
         {
             fromRefPosition->registerAssignment = RBM_NONE;
         }
@@ -7034,8 +7101,9 @@ void LinearScan::allocateRegisters()
         if (assignedRegister == REG_NA)
         {
             bool allocateReg = true;
+            bool allocIfProfitable = IsAllocateIfProfitable(currentRefPosition);
 
-            if (currentRefPosition->AllocateIfProfitable())
+            if (allocIfProfitable)
             {
                 // We can avoid allocating a register if it is a the last use requiring a reload.
                 if (currentRefPosition->lastUse && currentRefPosition->reload)
@@ -7080,12 +7148,13 @@ void LinearScan::allocateRegisters()
                 }
                 else
 #endif // FEATURE_SIMD
-                    if (currentRefPosition->RequiresRegister() || currentRefPosition->AllocateIfProfitable())
+                if (RequiresRegister(currentRefPosition) || allocIfProfitable)
                 {
                     if (allocateReg)
                     {
-                        assignedRegister = allocateBusyReg(currentInterval, currentRefPosition,
-                                                           currentRefPosition->AllocateIfProfitable());
+                        assignedRegister = allocateBusyReg(currentInterval, 
+                                                           currentRefPosition,
+                                                           allocIfProfitable);
                     }
 
                     if (assignedRegister != REG_NA)
@@ -7097,10 +7166,15 @@ void LinearScan::allocateRegisters()
                     {
                         // This can happen only for those ref positions that are to be allocated
                         // only if profitable.
-                        noway_assert(currentRefPosition->AllocateIfProfitable());
+                        noway_assert(allocIfProfitable);
 
                         currentRefPosition->registerAssignment = RBM_NONE;
                         currentRefPosition->reload             = false;
+
+                        // Decrement srcMemOpCount of consuming node since one of
+                        // its operand's use position is not allocated a reg and
+                        // will be a memory-op.
+                        DecrsrcMemOpCount(currentRefPosition);
 
                         INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_NO_REG_ALLOCATED, currentInterval));
                     }
@@ -7295,7 +7369,7 @@ void LinearScan::resolveLocalRef(BasicBlock* block, GenTreePtr treeNode, RefPosi
 
     if (currentRefPosition->registerAssignment == RBM_NONE)
     {
-        assert(!currentRefPosition->RequiresRegister());
+        assert(!RequiresRegister(currentRefPosition));
 
         interval->isSpilled = true;
         varDsc->lvRegNum    = REG_STK;
@@ -7361,7 +7435,7 @@ void LinearScan::resolveLocalRef(BasicBlock* block, GenTreePtr treeNode, RefPosi
             treeNode->gtFlags |= GTF_SPILLED;
             if (spillAfter)
             {
-                if (currentRefPosition->AllocateIfProfitable())
+                if (IsAllocateIfProfitable(currentRefPosition))
                 {
                     // This is a use of lclVar that is flagged as reg-optional
                     // by lower/codegen and marked for both reload and spillAfter.
@@ -7374,6 +7448,8 @@ void LinearScan::resolveLocalRef(BasicBlock* block, GenTreePtr treeNode, RefPosi
                     interval->physReg  = REG_NA;
                     treeNode->gtRegNum = REG_NA;
                     treeNode->gtFlags &= ~GTF_SPILLED;
+
+                    DecrsrcMemOpCount(currentRefPosition);
                 }
                 else
                 {
@@ -7818,7 +7894,7 @@ void LinearScan::updateMaxSpill(RefPosition* refPosition)
     RefType refType = refPosition->refType;
 
     if (refPosition->spillAfter || refPosition->reload ||
-        (refPosition->AllocateIfProfitable() && refPosition->assignedReg() == REG_NA))
+        (IsAllocateIfProfitable(refPosition) && refPosition->assignedReg() == REG_NA))
     {
         Interval* interval = refPosition->getInterval();
         if (!interval->isLocalVar)
@@ -7874,7 +7950,7 @@ void LinearScan::updateMaxSpill(RefPosition* refPosition)
                 assert(currentSpill[typ] > 0);
                 currentSpill[typ]--;
             }
-            else if (refPosition->AllocateIfProfitable() && refPosition->assignedReg() == REG_NA)
+            else if (IsAllocateIfProfitable(refPosition) && refPosition->assignedReg() == REG_NA)
             {
                 // A spill temp not getting reloaded into a reg because it is
                 // marked as allocate if profitable and getting used from its
@@ -8219,12 +8295,13 @@ void LinearScan::resolveRegisters()
                             }
                             else
                             {
-                                assert(nextRefPosition->AllocateIfProfitable());
+                                assert(IsAllocateIfProfitable(nextRefPosition));
 
                                 // In case of tree temps, if def is spilled and use didn't
                                 // get a register, set a flag on tree node to be treated as
                                 // contained at the point of its use.
-                                if (currentRefPosition->spillAfter && currentRefPosition->refType == RefTypeDef &&
+                                if (currentRefPosition->spillAfter && 
+                                    currentRefPosition->refType == RefTypeDef &&
                                     nextRefPosition->refType == RefTypeUse)
                                 {
                                     assert(nextRefPosition->treeNode == nullptr);
@@ -11432,7 +11509,7 @@ void LinearScan::verifyFinalAllocation()
                     }
                     else
                     {
-                        assert(currentRefPosition->AllocateIfProfitable());
+                        assert(IsAllocateIfProfitable(currentRefPosition));
                     }
                 }
             }

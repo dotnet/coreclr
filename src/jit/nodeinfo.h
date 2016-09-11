@@ -20,6 +20,7 @@ public:
         _srcCount           = 0;
         _internalIntCount   = 0;
         _internalFloatCount = 0;
+        _srcMemOpCount      = 0;
 
         srcCandsIndex         = 0;
         dstCandsIndex         = 0;
@@ -59,6 +60,18 @@ public:
     int getSrcCount()
     {
         return _srcCount;
+    }
+
+    // srcMemOpCount
+    __declspec(property(put = setSrcMemOpCount, get = getSrcMemOpCount)) int srcMemOpCount;
+    void setSrcMemOpCount(int count)
+    {
+        _srcMemOpCount = (char)count;
+        assert(_srcMemOpCount == count);
+    }
+    int getSrcMemOpCount()
+    {
+        return _srcMemOpCount;
     }
 
     // internalInt
@@ -110,6 +123,15 @@ public:
     unsigned char dstCandsIndex;
     unsigned char internalCandsIndex;
 
+private:
+    // Maximum number of source operands that could be in memory.
+    // On xarch at the most one operand could be a memory-op.
+    // That is _srcMemOpCount doesn't exceed 1. In future when
+    // there is a need to exceed this limit, the bit size
+    // width of this member needs to be adjusted accordingly.
+    unsigned char _srcMemOpCount : 1;
+
+public:
     // isLocalDefUse identifies trees that produce a value that is not consumed elsewhere.
     // Examples include stack arguments to a call (they are immediately stored), lhs of comma
     // nodes, or top-level nodes that are non-void.

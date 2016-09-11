@@ -837,6 +837,51 @@ private:
 
     unsigned getWeight(RefPosition* refPos);
 
+    // Map from a reg optional marked ref position to its consuming tree node.
+    // This info is set up while creating reg optional ref positions and used
+    // to determine that srcMemOpCount of consuming tree node is not
+    // exceeded while allocating reg optional use positions of its operands.
+    typedef SimplerHashTable<RefPosition*, PtrKeyFuncs<RefPosition>, GenTree*, JitSimplerHashBehavior>
+        RefPositionToGenTreeMap;
+    RefPositionToGenTreeMap* refPositionToGenTreeMap;
+
+    RefPositionToGenTreeMap* getRefPositonToGenTreeMap()
+    {
+        if (refPositionToGenTreeMap == nullptr)
+        {
+            refPositionToGenTreeMap =
+                new (getAllocator(compiler)) RefPositionToGenTreeMap(getAllocator(compiler));
+        }
+        return refPositionToGenTreeMap;
+    }
+
+    bool IsAllocateIfProfitable(RefPosition* refPos);
+
+    //-------------------------------------------------------------------------
+    // DecrsrcMemOpCount: Decrements srcMemOpCount of GenTree node associated
+    // with the given ref position and removes the mapping from ref position
+    // to GenTree node.
+    //
+    // Arguments:
+    //    refPos   -   ref position that is marked as 'Alloc if profitable'
+    //
+    // Returns:
+    //    Nothing.
+    void DecrsrcMemOpCount(RefPosition* refPos)
+    {
+        assert(IsAllocateIfProfitable(refPos));
+
+        GenTree* consumingTreeNode;
+        bool found = refPositionToGenTreeMap->Lookup(refPos, &consumingTreeNode);
+        assert(found);
+        assert(consumingTreeNode != nullptr);
+        assert(consumingTreeNode->gtLsraInfo.srcMemOpCount > 0);
+        consumingTreeNode->gtLsraInfo.srcMemOpCount -= 1;
+        refPositionToGenTreeMap->Remove(refPos);
+    }
+
+    bool RequiresRegister(RefPosition* refPos);
+
     /*****************************************************************************
      * Register management
      ****************************************************************************/
@@ -1453,16 +1498,6 @@ public:
         return (refType == RefTypeDef || refType == RefTypeUse);
     }
 
-    bool RequiresRegister()
-    {
-        return (IsActualRef()
-#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-                || refType == RefTypeUpperVectorSaveDef || refType == RefTypeUpperVectorSaveUse
-#endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-                ) &&
-               !AllocateIfProfitable();
-    }
-
     // Indicates whether this ref position is to be allocated
     // a reg only if profitable. Currently these are the
     // ref positions that lower/codegen has indicated as reg
@@ -1473,17 +1508,6 @@ public:
     void setAllocateIfProfitable(unsigned val)
     {
         allocRegIfProfitable = val;
-    }
-
-    // Returns true whether this ref position is to be allocated
-    // a reg only if it is profitable.
-    bool AllocateIfProfitable()
-    {
-        // TODO-CQ: Right now if a ref position is marked as
-        // copyreg or movereg, then it is not treated as
-        // 'allocate if profitable'. This is an implementation
-        // limitation that needs to be addressed.
-        return allocRegIfProfitable && !copyReg && !moveReg;
     }
 
     // Used by RefTypeDef/Use positions of a multi-reg call node.
