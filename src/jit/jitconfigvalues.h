@@ -205,9 +205,14 @@ CONFIG_INTEGER(JitEnableNoWayAssert, W("JitEnableNoWayAssert"), 0)
 CONFIG_INTEGER(JitEnableNoWayAssert, W("JitEnableNoWayAssert"), 1)
 #endif // !defined(DEBUG) && !defined(_DEBUG)
 
-//#if MEASURE_MEM_ALLOC -- macro not always available here due to #include ordering
+// The following should be wrapped inside "#if MEASURE_MEM_ALLOC / #endif", but
+// some files include this one without bringing in the definitions from "jit.h"
+// so we don't always know what the "true" value of that flag should be. For now
+// we take the easy way out and always include the flag, even in release builds
+// (normally MEASURE_MEM_ALLOC is off for release builds but if it's toggled on
+// for release in "jit.h" the flag would be missing for some includers).
+// TODO-Cleanup: need to make 'MEASURE_MEM_ALLOC' well-defined here at all times.
 CONFIG_INTEGER(DisplayMemStats, W("JitMemStats"), 0)             // Display JIT memory usage statistics
-//#endif
 
 CONFIG_INTEGER(JitAggressiveInlining, W("JitAggressiveInlining"), 0) // Aggressive inlining of all methods
 CONFIG_INTEGER(JitELTHookEnabled, W("JitELTHookEnabled"), 0) // On ARM, setting this will emit Enter/Leave/TailCall
