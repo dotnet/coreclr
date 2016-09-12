@@ -58,7 +58,6 @@ class My
         Test(CanCopyValueTypesWithPointersToArray, "CanCopyValueTypesWithPointersToArray", ref failedTestsCount);
 
         Test(CanCopyValueTypesWithoutPointersToUnmanagedMemory, "CanCopyValueTypesWithoutPointersToUnmanagedMemory", ref failedTestsCount);
-        Test(MustNotCopyValueTypesWithPointersToUnmanagedMemory, "MustNotCopyValueTypesWithPointersToUnmanagedMemory", ref failedTestsCount);
 
         Test(CanCopyOverlappingSlicesOfValueTypeWithoutPointers, "CanCopyOverlappingSlicesOfValueTypeWithoutPointers", ref failedTestsCount);
         Test(CanCopyOverlappingSlicesOfValueTypeWithPointers, "CanCopyOverlappingSlicesOfValueTypeWithPointers", ref failedTestsCount);
@@ -209,7 +208,6 @@ class My
         }
     }
 
-
     static void CanCopyReferenceTypesToSlice()
     {
         var source = new Span<ReferenceType>(
@@ -317,27 +315,13 @@ class My
             });
         byte* pointerToStack = stackalloc byte[256];
 
-        var result = source.TryCopyTo(pointerToStack, 4);
+        var result = source.TryCopyTo(new Span<byte>(pointerToStack, 4));
 
         AssertTrue(result, "Failed to copy value types without pointers to unamanaged memory");
         for (int i = 0; i < 4; i++)
         {
             AssertTrue(source[i] == pointerToStack[i], "Failed to copy value types without pointers to unamanaged memory, values were not equal");
         }
-    }
-
-    static unsafe void MustNotCopyValueTypesWithPointersToUnmanagedMemory()
-    {
-        var source = new Span<ValueTypeWithPointers>(
-            new[]
-            {
-                    new ValueTypeWithPointers(new object())
-            });
-        byte* pointerToStack = stackalloc byte[256];
-
-        var result = source.TryCopyTo(pointerToStack, 1);
-
-        AssertTrue(result == false, "Failed to prevent from copying value types with pointers to unamanaged memory");
     }
 
     static void CanCopyOverlappingSlicesOfValueTypeWithoutPointers()

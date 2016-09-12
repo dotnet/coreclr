@@ -104,6 +104,11 @@ namespace System
             _length = length;
         }
 
+        public static implicit operator Span<T>(T[] array)
+        {
+            return new Span<T>(array);
+        }
+
         public int Length
         {
             get { return _length; }
@@ -148,7 +153,7 @@ namespace System
         /// allocates, so should generally be avoided, however is sometimes
         /// necessary to bridge the gap with APIs written in terms of arrays.
         /// </summary>
-        public T[] CreateArray()
+        public T[] ToArray()
         {
             var destination = new T[_length];
             TryCopyTo(destination);
@@ -210,34 +215,6 @@ namespace System
             return true;
         }
 
-        /// <summary>
-        /// Copies the contents of this span into destination array. The destination
-        /// must be at least as big as the source, and may be bigger.
-        /// </summary>
-        /// <param name="destination">The array to copy items into.</param>
-        public bool TryCopyTo(T[] destination)
-        {
-            return TryCopyTo(new Span<T>(destination));
-        }
-
-        /// <summary>
-        /// Copies the contents of this span into destination memory. 
-        /// Only Value Types that contain no pointers are supported.
-        /// </summary>
-        /// <param name="destination">An unmanaged pointer to memory.</param>
-        /// <param name="elementsCount">The number of <typeparamref name="T"/> elements the memory contains.</param>
-        [CLSCompliant(false)]
-        public unsafe bool TryCopyTo(void* destination, int elementsCount)
-        {
-            if (Length > (uint)elementsCount || JitHelpers.ContainsReferences<T>())
-            {
-                return false;
-            }
-
-            SpanHelper.Memmove<T>((byte*)destination, (byte*)_rawPointer, elementsCount);
-            return true;
-        }
-
         /// <exception cref="System.ArgumentOutOfRangeException">
         /// Thrown when the specified <paramref name="values"/>'s Length is longer than source span's Length.
         /// </exception>
@@ -247,28 +224,6 @@ namespace System
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 
             SpanHelper.CopyTo<T>(ref _rawPointer, ref values._rawPointer, values.Length);
-        }
-
-        public void Set(T[] values)
-        {
-            Set(new ReadOnlySpan<T>(values));
-        }
-
-        [CLSCompliant(false)]
-        /// <exception cref="System.ArgumentException">
-        /// Thrown when <typeparamref name="T"/> is reference type or contains pointers and hence can not be stored in unmanaged memory.
-        /// </exception>
-        /// <exception cref="System.ArgumentOutOfRangeException">
-        /// Thrown when the specified <paramref name="elementsCount"/> is less than Length.
-        /// </exception>
-        public unsafe void Set(void* source, int elementsCount)
-        {
-            if (JitHelpers.ContainsReferences<T>())
-                ThrowHelper.ThrowInvalidTypeForUnmanagedMemory(typeof(T));
-            if ((uint)_length > (uint)elementsCount)
-                ThrowHelper.ThrowArgumentOutOfRangeException();
-
-            SpanHelper.Memmove<T>((byte*)_rawPointer, (byte*)source, elementsCount);
         }
     }
 
@@ -306,7 +261,7 @@ namespace System
             }
         }
 
-        internal static unsafe void Memmove<T>(byte* destination, byte* source, int elementsCount)
+        private static unsafe void Memmove<T>(byte* destination, byte* source, int elementsCount)
         {
 #if BIT64
             Buffer.Memmove(destination, source, (ulong)elementsCount * (ulong)JitHelpers.SizeOf<T>());

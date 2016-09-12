@@ -99,6 +99,11 @@ namespace System
             return new ReadOnlySpan<T>(ref JitHelpers.GetByRef<T>(ref slice._rawPointer), slice.Length);
         }
 
+        public static implicit operator ReadOnlySpan<T>(T[] array)
+        {
+            return new ReadOnlySpan<T>(array);
+        }
+
         public int Length
         {
             get { return _length; }
@@ -136,7 +141,7 @@ namespace System
         /// allocates, so should generally be avoided, however is sometimes
         /// necessary to bridge the gap with APIs written in terms of arrays.
         /// </summary>
-        public T[] CreateArray()
+        public T[] ToArray()
         {
             var destination = new T[_length];
             TryCopyTo(destination);
@@ -195,34 +200,6 @@ namespace System
                 return false;
 
             SpanHelper.CopyTo<T>(ref destination._rawPointer, ref _rawPointer, Length);
-            return true;
-        }
-
-        /// <summary>
-        /// Copies the contents of this span into destination array. The destination
-        /// must be at least as big as the source, and may be bigger.
-        /// </summary>
-        /// <param name="destination">The array to copy items into.</param>
-        public bool TryCopyTo(T[] destination)
-        {
-            return TryCopyTo(new Span<T>(destination));
-        }
-
-        /// <summary>
-        /// Copies the contents of this span into destination memory. 
-        /// Only Value Types that contain no pointers are supported.
-        /// </summary>
-        /// <param name="destination">An unmanaged pointer to memory.</param>
-        /// <param name="elementsCount">The number of T elements the memory contains.</param>
-        [CLSCompliant(false)]
-        public unsafe bool TryCopyTo(void* destination, int elementsCount)
-        {
-            if (Length > (uint)elementsCount || JitHelpers.ContainsReferences<T>())
-            {
-                return false;
-            }
-
-            SpanHelper.Memmove<T>((byte*)destination, (byte*)_rawPointer, elementsCount);
             return true;
         }
     }
