@@ -7649,8 +7649,6 @@ public:
     static AssemblyNamesList2* s_pAltJitExcludeAssembliesList;
 #endif // ALT_JIT
 
-    static bool s_dspMemStats; // Display per-phase memory statistics for every function
-
 #ifdef DEBUG
 
     template <typename T>
@@ -8073,6 +8071,9 @@ public:
     ArenaAllocator* compGetAllocator();
 
 #if MEASURE_MEM_ALLOC
+
+    static bool s_dspMemStats; // Display per-phase memory statistics for every function
+
     struct MemStats
     {
         unsigned allocCnt;                 // # of allocs

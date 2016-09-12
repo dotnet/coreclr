@@ -1103,8 +1103,10 @@ size_t genFlowNodeCnt;
 unsigned Compiler::s_compMethodsCount = 0; // to produce unique label names
 #endif
 
+#if MEASURE_MEM_ALLOC
 /* static */
 bool Compiler::s_dspMemStats = false;
+#endif
 
 #ifndef DEBUGGING_SUPPORT
 /* static */
