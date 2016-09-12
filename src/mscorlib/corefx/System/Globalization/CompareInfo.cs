@@ -4,27 +4,27 @@
 
 ////////////////////////////////////////////////////////////////////////////
 //
-//  Class:    CompareInfo
 //
 //
 //  Purpose:  This class implements a set of methods for comparing
 //            strings.
 //
-//  Date:     August 12, 1998
 //
 ////////////////////////////////////////////////////////////////////////////
 
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Serialization;
 using System.Threading;
-using System.Diagnostics.Contracts;
 
 namespace System.Globalization
 {
     [Flags]
+    [Serializable]
     [System.Runtime.InteropServices.ComVisible(true)]
     public enum CompareOptions
     {
@@ -39,8 +39,9 @@ namespace System.Globalization
         Ordinal = 0x40000000,   // This flag can not be used with other flags.
     }
 
+    [Serializable]
     [System.Runtime.InteropServices.ComVisible(true)]
-    public partial class CompareInfo
+    public partial class CompareInfo : IDeserializationCallback
     {
         // Mask used to check if IndexOf()/LastIndexOf()/IsPrefix()/IsPostfix() has the right flags.
         private const CompareOptions ValidIndexMaskOffFlags =
@@ -63,8 +64,10 @@ namespace System.Globalization
         // The interesting part is that since haw-US doesn't have its own sort, it has to point at another
         // locale, which is what SCOMPAREINFO does.
 
-        private readonly String m_name;  // The name used to construct this CompareInfo
-        private readonly String m_sortName; // The name that defines our behavior
+        [OptionalField(VersionAdded = 2)]
+        private String _name;  // The name used to construct this CompareInfo
+        [NonSerialized] 
+        private String _sortName; // The name that defines our behavior
 
         /*=================================GetCompareInfo==========================
         **Action: Get the CompareInfo for the specified culture.
@@ -86,6 +89,33 @@ namespace System.Globalization
             return CultureInfo.GetCultureInfo(name).CompareInfo;
         }
 
+        [OnDeserializing]
+        private void OnDeserializing(StreamingContext ctx)
+        {
+            _name = null;
+        }
+
+        void IDeserializationCallback.OnDeserialization(Object sender)
+        {
+            OnDeserialized();
+        }
+
+        [OnDeserialized]
+        private void OnDeserialized(StreamingContext ctx)
+        {
+            OnDeserialized();
+        }
+
+        private void OnDeserialized()
+        {
+            if (_name != null)
+            {
+                InitSort(CultureInfo.GetCultureInfo(_name));
+            }
+        }
+
+        [OnSerializing]
+        private void OnSerializing(StreamingContext ctx) { }
 
         ///////////////////////////----- Name -----/////////////////////////////////
         //
@@ -105,13 +135,13 @@ namespace System.Globalization
         {
             get
             {
-                Contract.Assert(m_name != null, "CompareInfo.Name Expected m_name to be set");
-                if (m_name == "zh-CHT" || m_name == "zh-CHS")
+                Contract.Assert(_name != null, "CompareInfo.Name Expected _name to be set");
+                if (_name == "zh-CHT" || _name == "zh-CHS")
                 {
-                    return m_name;
+                    return _name;
                 }
 
-                return m_sortName;
+                return _sortName;
             }
         }
 
@@ -131,7 +161,6 @@ namespace System.Globalization
             return (Compare(string1, string2, CompareOptions.None));
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public unsafe virtual int Compare(String string1, String string2, CompareOptions options)
         {
             if (options == CompareOptions.OrdinalIgnoreCase)
@@ -205,7 +234,6 @@ namespace System.Globalization
         }
 
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public unsafe virtual int Compare(String string1, int offset1, int length1, String string2, int offset2, int length2, CompareOptions options)
         {
             if (options == CompareOptions.OrdinalIgnoreCase)
@@ -272,7 +300,6 @@ namespace System.Globalization
                                  options);
         }
 
-        [System.Security.SecurityCritical]
         private static int CompareOrdinal(string string1, int offset1, int length1, string string2, int offset2, int length2)
         {
             int result = String.CompareOrdinal(string1, offset1, string2, offset2,
@@ -289,7 +316,6 @@ namespace System.Globalization
         // it assumes the strings are Ascii string till we hit non Ascii character in strA or strB and then we continue the comparison by
         // calling the OS.
         //
-        [System.Security.SecuritySafeCritical]
         internal static unsafe int CompareOrdinalIgnoreCase(string strA, int indexA, int lengthA, string strB, int indexB, int lengthB)
         {
             Contract.Assert(indexA + lengthA <= strA.Length);
@@ -345,7 +371,6 @@ namespace System.Globalization
         //  String.Empty, true is returned.
         //
         ////////////////////////////////////////////////////////////////////////
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public unsafe virtual bool IsPrefix(String source, String prefix, CompareOptions options)
         {
             if (source == null || prefix == null)
@@ -354,11 +379,15 @@ namespace System.Globalization
                     SR.ArgumentNull_String);
             }
             Contract.EndContractBlock();
-            int prefixLen = prefix.Length;
 
-            if (prefixLen == 0)
+            if (prefix.Length == 0)
             {
                 return (true);
+            }
+
+            if (source.Length == 0)
+            {
+                return false;
             }
 
             if (options == CompareOptions.OrdinalIgnoreCase)
@@ -392,7 +421,6 @@ namespace System.Globalization
         //  String.Empty, true is returned.
         //
         ////////////////////////////////////////////////////////////////////////
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public unsafe virtual bool IsSuffix(String source, String suffix, CompareOptions options)
         {
             if (source == null || suffix == null)
@@ -401,15 +429,13 @@ namespace System.Globalization
                     SR.ArgumentNull_String);
             }
             Contract.EndContractBlock();
-            int suffixLen = suffix.Length;
-            int sourceLength = source.Length;
 
-            if (suffixLen == 0)
+            if (suffix.Length == 0)
             {
                 return (true);
             }
 
-            if (sourceLength == 0)
+            if (source.Length == 0)
             {
                 return false;
             }
@@ -523,7 +549,6 @@ namespace System.Globalization
             return IndexOf(source, value, startIndex, count, CompareOptions.None);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public unsafe virtual int IndexOf(String source, char value, int startIndex, int count, CompareOptions options)
         {
             // Validate inputs
@@ -539,7 +564,6 @@ namespace System.Globalization
 
             if (options == CompareOptions.OrdinalIgnoreCase)
             {
-                // TODO: NLS Arrowhead: Make this not need a new String()
                 return source.IndexOf(value.ToString(), startIndex, count, StringComparison.OrdinalIgnoreCase);
             }
 
@@ -552,7 +576,6 @@ namespace System.Globalization
         }
 
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public unsafe virtual int IndexOf(String source, String value, int startIndex, int count, CompareOptions options)
         {
             // Validate inputs
@@ -684,7 +707,6 @@ namespace System.Globalization
         }
 
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public unsafe virtual int LastIndexOf(String source, char value, int startIndex, int count, CompareOptions options)
         {
             // Verify Arguments
@@ -721,15 +743,13 @@ namespace System.Globalization
 
             if (options == CompareOptions.OrdinalIgnoreCase)
             {
-                // TODO: NLS Arrowhead - Make this not need a new String()
                 return source.LastIndexOf(value.ToString(), startIndex, count, StringComparison.OrdinalIgnoreCase);
             }
 
-            return LastIndexOfCore(source, new string(value, 1), startIndex, count, options);
+            return LastIndexOfCore(source, value.ToString(), startIndex, count, options);
         }
 
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public unsafe virtual int LastIndexOf(String source, String value, int startIndex, int count, CompareOptions options)
         {
             // Verify Arguments

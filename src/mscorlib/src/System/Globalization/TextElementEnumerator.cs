@@ -22,7 +22,7 @@ namespace System.Globalization {
     //
 
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
+    [System.Runtime.InteropServices.ComVisible(true)]
     public class TextElementEnumerator: IEnumerator
     {
         private String str;

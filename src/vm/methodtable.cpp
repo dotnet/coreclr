@@ -805,11 +805,10 @@ PTR_MethodTable InterfaceInfo_t::GetApproxMethodTable(Module * pContainingModule
     {
         GCStress<cfg_any>::MaybeTrigger();
 
-        // Make call to obj.GetImplType(interfaceTypeObj)
-        MethodDesc *pGetImplTypeMD = pServerMT->GetMethodDescForInterfaceMethod(MscorlibBinder::GetMethod(METHOD__ICASTABLE__GETIMPLTYPE));
-        OBJECTREF ownerManagedType = ownerType.GetManagedClassObject(); //GC triggers
+        // Make call to ICastableHelpers.GetImplType(obj, interfaceTypeObj)
+        PREPARE_NONVIRTUAL_CALLSITE(METHOD__ICASTABLEHELPERS__GETIMPLTYPE);
 
-        PREPARE_NONVIRTUAL_CALLSITE_USING_METHODDESC(pGetImplTypeMD);
+        OBJECTREF ownerManagedType = ownerType.GetManagedClassObject(); //GC triggers
         
         DECLARE_ARGHOLDER_ARRAY(args, 2);
         args[ARGNUM_0] = OBJECTREF_TO_ARGHOLDER(*pServer);
@@ -2918,6 +2917,7 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
             case NFT_STRINGUNI:
             case NFT_STRINGANSI:
             case NFT_ANSICHAR:
+            case NFT_STRINGUTF8:
             case NFT_WINBOOL:
             case NFT_CBOOL:
             case NFT_DELEGATE:
@@ -3793,7 +3793,7 @@ OBJECTREF MethodTable::Box(void* data)
 
     GCPROTECT_BEGININTERIOR (data);
 
-    if (ContainsStackPtr())
+    if (IsByRefLike())
     {
         // We should never box a type that contains stack pointers.
         COMPlusThrow(kInvalidOperationException, W("InvalidOperation_TypeCannotBeBoxed"));

@@ -12,6 +12,7 @@ add_definitions(-DFEATURE_LEAVE_RUNTIME_HOLDER=1)
 add_definitions(-DUNICODE)
 add_definitions(-D_UNICODE)
 
+
 if(CMAKE_CONFIGURATION_TYPES) # multi-configuration generator?
   foreach (Config DEBUG CHECKED)  
      set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS $<$<CONFIG:${Config}>:WRITE_BARRIER_CHECK=1>)
@@ -25,6 +26,13 @@ endif(CMAKE_CONFIGURATION_TYPES)
 if(CLR_CMAKE_PLATFORM_UNIX)
     add_compile_options(-fPIC)
 endif(CLR_CMAKE_PLATFORM_UNIX)
+
+if(FEATURE_GDBJIT)
+    set(VM_SOURCES_GDBJIT
+        gdbjit.cpp
+    )
+    add_definitions(-DFEATURE_GDBJIT)
+endif(FEATURE_GDBJIT)
 
 set(VM_SOURCES_DAC_AND_WKS_COMMON
     appdomain.cpp
@@ -62,15 +70,8 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     formattype.cpp
     fptrstubs.cpp
     frames.cpp
-    ../gc/gccommon.cpp
-    ../gc/gcscan.cpp
-    ../gc/gcsvr.cpp
-    ../gc/gcwks.cpp
     genericdict.cpp
     generics.cpp
-    ../gc/handletable.cpp
-    ../gc/handletablecore.cpp
-    ../gc/handletablescan.cpp
     hash.cpp
     hillclimbing.cpp
     ilstubcache.cpp
@@ -85,7 +86,6 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     methoditer.cpp
     methodtable.cpp
     object.cpp
-    ../gc/objecthandle.cpp
     pefile.cpp
     peimage.cpp
     peimagelayout.cpp
@@ -98,7 +98,6 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     securitydescriptorassembly.cpp
     sigformat.cpp
     siginfo.cpp
-    ../gc/softwarewritewatch.cpp
     stackwalk.cpp
     stublink.cpp
     stubmgr.cpp
@@ -117,6 +116,7 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     virtualcallstub.cpp
     win32threadpool.cpp
     zapsig.cpp
+    ${VM_SOURCES_GDBJIT}
 )
 
 if(FEATURE_READYTORUN)
@@ -159,7 +159,6 @@ set(VM_SOURCES_WKS
     coverage.cpp
     customattribute.cpp
     custommarshalerinfo.cpp
-    dbggcinfodecoder.cpp
     dllimportcallback.cpp
     eeconfig.cpp
     eecontract.cpp
@@ -176,9 +175,6 @@ set(VM_SOURCES_WKS
     gcenv.os.cpp
     gchelpers.cpp
     genmeth.cpp
-    ../gc/gceesvr.cpp
-    ../gc/gceewks.cpp
-    ../gc/handletablecache.cpp
     hosting.cpp
     ibclogger.cpp
     ilmarshalers.cpp
@@ -332,6 +328,15 @@ elseif(CLR_CMAKE_TARGET_ARCH_I386)
         ${ARCH_SOURCES_DIR}/gmsasm.asm
         ${ARCH_SOURCES_DIR}/jithelp.asm
     )
+elseif(CLR_CMAKE_TARGET_ARCH_ARM)
+    set(VM_SOURCES_WKS_ARCH_ASM
+        ${ARCH_SOURCES_DIR}/asmhelpers.asm
+        ${ARCH_SOURCES_DIR}/CrtHelpers.asm
+        ${ARCH_SOURCES_DIR}/ehhelpers.asm
+        ${ARCH_SOURCES_DIR}/memcpy.asm
+        ${ARCH_SOURCES_DIR}/patchedcode.asm
+        ${ARCH_SOURCES_DIR}/PInvokeStubs.asm
+    )
 elseif(CLR_CMAKE_TARGET_ARCH_ARM64)
     set(VM_SOURCES_WKS_ARCH_ASM
         ${ARCH_SOURCES_DIR}/AsmHelpers.asm
@@ -441,7 +446,6 @@ endif(CLR_CMAKE_PLATFORM_UNIX)
 
 set(VM_SOURCES_DAC_ARCH
     gcinfodecoder.cpp
-    dbggcinfodecoder.cpp
     exceptionhandling.cpp
 )
 

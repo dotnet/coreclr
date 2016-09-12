@@ -102,24 +102,24 @@ BOOL DacValidateEEClass(EEClass *pEEClass)
     // The EEClass method table pointer should match the method table.
     // TODO: Microsoft, need another test for validity, this one isn't always true anymore.
     BOOL retval = TRUE;
-    PAL_CPP_TRY
+    EX_TRY
     {
         MethodTable *pMethodTable = pEEClass->GetMethodTable();
         if (!pMethodTable)
         {
             // PREfix.
-            return FALSE;
+            retval = FALSE;
         }
-        if (pEEClass != pMethodTable->GetClass())
+        else if (pEEClass != pMethodTable->GetClass())
         {
             retval = FALSE;
         }
     }
-    PAL_CPP_CATCH_ALL
+    EX_CATCH
     {
         retval = FALSE; // Something is wrong
     }
-    PAL_CPP_ENDTRY
+    EX_END_CATCH(SwallowAllExceptions)
     return retval;
 
 }
@@ -128,7 +128,7 @@ BOOL DacValidateMethodTable(MethodTable *pMT, BOOL &bIsFree)
 {
     // Verify things are right.
     BOOL retval = FALSE;
-    PAL_CPP_TRY
+    EX_TRY
     {
         bIsFree = FALSE;
         EEClass *pEEClass = pMT->GetClass();
@@ -169,11 +169,11 @@ BOOL DacValidateMethodTable(MethodTable *pMT, BOOL &bIsFree)
 
 BadMethodTable: ;
     }
-    PAL_CPP_CATCH_ALL
+    EX_CATCH
     {
         retval = FALSE; // Something is wrong
     }
-    PAL_CPP_ENDTRY
+    EX_END_CATCH(SwallowAllExceptions)
     return retval;
 
 }
@@ -187,7 +187,7 @@ BOOL DacValidateMD(MethodDesc * pMD)
 
     // Verify things are right.
     BOOL retval = TRUE;
-    PAL_CPP_TRY
+    EX_TRY
     {
         MethodTable *pMethodTable = pMD->GetMethodTable();
 
@@ -232,11 +232,11 @@ BOOL DacValidateMD(MethodDesc * pMD)
             }
         }
     }
-    PAL_CPP_CATCH_ALL
+    EX_CATCH
     {
         retval = FALSE; // Something is wrong
     }
-    PAL_CPP_ENDTRY
+    EX_END_CATCH(SwallowAllExceptions)
     return retval;
 }
 
@@ -1148,7 +1148,7 @@ ClrDataAccess::GetCodeHeaderData(CLRDATA_ADDRESS ip, struct DacpCodeHeaderData *
 
         codeHeaderData->MethodStart = 
             (CLRDATA_ADDRESS) codeInfo.GetStartAddress();
-        size_t methodSize = codeInfo.GetCodeManager()->GetFunctionSize(codeInfo.GetGCInfo());
+        size_t methodSize = codeInfo.GetCodeManager()->GetFunctionSize(codeInfo.GetGCInfoToken());
         _ASSERTE(FitsIn<DWORD>(methodSize));
         codeHeaderData->MethodSize = static_cast<DWORD>(methodSize);
 
@@ -1231,11 +1231,11 @@ ClrDataAccess::GetMethodDescName(CLRDATA_ADDRESS methodDesc, unsigned int count,
     MethodDesc* pMD = PTR_MethodDesc(TO_TADDR(methodDesc));
     StackSString str;
 
-    PAL_CPP_TRY
+    EX_TRY
     {
         TypeString::AppendMethodInternal(str, pMD, TypeString::FormatSignature|TypeString::FormatNamespace|TypeString::FormatFullInst);
     }
-    PAL_CPP_CATCH_ALL
+    EX_CATCH
     {
         hr = E_FAIL;
         if (pMD->IsDynamicMethod())
@@ -1292,7 +1292,7 @@ ClrDataAccess::GetMethodDescName(CLRDATA_ADDRESS methodDesc, unsigned int count,
 #endif
         }
     }
-    PAL_CPP_ENDTRY
+    EX_END_CATCH(SwallowAllExceptions)
 
     if (SUCCEEDED(hr))
     {
@@ -1691,7 +1691,7 @@ ClrDataAccess::GetMethodTableName(CLRDATA_ADDRESS mt, unsigned int count, __out_
         {
             StackSString s;
 #ifdef FEATURE_MINIMETADATA_IN_TRIAGEDUMPS
-            PAL_CPP_TRY
+            EX_TRY
             {
 #endif // FEATURE_MINIMETADATA_IN_TRIAGEDUMPS
 
@@ -1699,14 +1699,14 @@ ClrDataAccess::GetMethodTableName(CLRDATA_ADDRESS mt, unsigned int count, __out_
 
 #ifdef FEATURE_MINIMETADATA_IN_TRIAGEDUMPS
             }
-            PAL_CPP_CATCH_ALL
+            EX_CATCH
             {
                 if (!MdCacheGetEEName(dac_cast<TADDR>(pMT), s))
                 {
-                    PAL_CPP_RETHROW;
+                    EX_RETHROW;
                 }
             }
-            PAL_CPP_ENDTRY
+            EX_END_CATCH(SwallowAllExceptions)
 #endif // FEATURE_MINIMETADATA_IN_TRIAGEDUMPS
 
             if (s.IsEmpty())
@@ -3773,7 +3773,7 @@ ClrDataAccess::GetJumpThunkTarget(T_CONTEXT *ctx, CLRDATA_ADDRESS *targetIP, CLR
     if (ctx == NULL || targetIP == NULL || targetMD == NULL)
         return E_INVALIDARG;
     
-#ifdef _WIN64
+#ifdef _TARGET_AMD64_
     SOSDacEnter();
     
     if (!GetAnyThunkTarget(ctx, targetIP, targetMD))

@@ -17,6 +17,7 @@ namespace System {
     using System.Resources;
     using System.Globalization;
     using System.Collections;
+    using System.Collections.Generic;
     using System.Security.Permissions;
     using System.Text;
     using System.Configuration.Assemblies;
@@ -63,7 +64,7 @@ namespace System {
 
             // To avoid infinite loops when calling GetResourceString.  See comments
             // in GetResourceString for this field.
-            private Stack currentlyLoading;
+            private List<string> currentlyLoading;
         
             // process-wide state (since this is only used in one domain), 
             // used to avoid the TypeInitialization infinite recusion
@@ -139,7 +140,7 @@ namespace System {
 
                 // Are we recursively looking up the same resource?  Note - our backout code will set
                 // the ResourceHelper's currentlyLoading stack to null if an exception occurs.
-                if (rh.currentlyLoading != null && rh.currentlyLoading.Count > 0 && rh.currentlyLoading.Contains(key)) {
+                if (rh.currentlyLoading != null && rh.currentlyLoading.Count > 0 && rh.currentlyLoading.LastIndexOf(key) != -1) {
                     // We can start infinitely recursing for one resource lookup,
                     // then during our failure reporting, start infinitely recursing again.
                     // avoid that.
@@ -151,12 +152,12 @@ namespace System {
 
                     // Note: our infrastructure for reporting this exception will again cause resource lookup.
                     // This is the most direct way of dealing with that problem.
-                    String message = "Infinite recursion during resource lookup within mscorlib.  This may be a bug in mscorlib, or potentially in certain extensibility points such as assembly resolve events or CultureInfo names.  Resource name: " + key;
-                    Assert.Fail("[mscorlib recursive resource lookup bug]", message, Assert.COR_E_FAILFAST, System.Diagnostics.StackTrace.TraceFormat.NoResourceLookup);
+                    String message = "Infinite recursion during resource lookup within "+System.CoreLib.Name+".  This may be a bug in "+System.CoreLib.Name+", or potentially in certain extensibility points such as assembly resolve events or CultureInfo names.  Resource name: " + key;
+                    Assert.Fail("[Recursive resource lookup bug]", message, Assert.COR_E_FAILFAST, System.Diagnostics.StackTrace.TraceFormat.NoResourceLookup);
                     Environment.FailFast(message);
                 }
                 if (rh.currentlyLoading == null)
-                    rh.currentlyLoading = new Stack(4);
+                    rh.currentlyLoading = new List<string>();
 
                 // Call class constructors preemptively, so that we cannot get into an infinite
                 // loop constructing a TypeInitializationException.  If this were omitted,
@@ -180,13 +181,13 @@ namespace System {
             
                 } 
         
-                rh.currentlyLoading.Push(key);
+                rh.currentlyLoading.Add(key); // Push
 
                 if (rh.SystemResMgr == null) {
                     rh.SystemResMgr = new ResourceManager(m_name, typeof(Object).Assembly);
                 }
                 String s = rh.SystemResMgr.GetString(key, null);
-                rh.currentlyLoading.Pop();
+                rh.currentlyLoading.RemoveAt(rh.currentlyLoading.Count - 1); // Pop
 
                 Contract.Assert(s!=null, "Managed resource string lookup failed.  Was your resource name misspelled?  Did you rebuild mscorlib after adding a resource to resources.txt?  Debug this w/ cordbg and bug whoever owns the code that called Environment.GetResourceString.  Resource name was: \""+key+"\"");
 
@@ -1262,7 +1263,7 @@ namespace System {
                 Monitor.Enter(Environment.InternalSyncObject, ref tookLock);
 
                 if (m_resHelper == null) {
-                    ResourceHelper rh = new ResourceHelper("mscorlib");
+                    ResourceHelper rh = new ResourceHelper(System.CoreLib.Name);
 
                     System.Threading.Thread.MemoryBarrier();
                     m_resHelper =rh;
@@ -1323,10 +1324,10 @@ namespace System {
 
         public static bool Is64BitProcess {
             get {
-#if WIN32
-                    return false;
-#else
+#if BIT64
                     return true;
+#else // 32
+                    return false;
 #endif
             }
         }
@@ -1334,14 +1335,14 @@ namespace System {
         public static bool Is64BitOperatingSystem {
             [System.Security.SecuritySafeCritical]
             get {
-#if WIN32
+#if BIT64
+                    // 64-bit programs run only on 64-bit
+                    return true;
+#else // 32
                     bool isWow64; // WinXP SP2+ and Win2k3 SP1+
                     return Win32Native.DoesWin32MethodExist(Win32Native.KERNEL32, "IsWow64Process")
                         && Win32Native.IsWow64Process(Win32Native.GetCurrentProcess(), out isWow64)
                         && isWow64;
-#else
-                    // 64-bit programs run only on 64-bit
-                    return true;
 #endif
             }
         }

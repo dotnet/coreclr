@@ -2,39 +2,37 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-
 #ifndef __register_arg_convention__
 #define __register_arg_convention__
 
 class LclVarDsc;
 
-struct InitVarDscInfo 
+struct InitVarDscInfo
 {
-    LclVarDsc * varDsc;
-    unsigned varNum;
+    LclVarDsc* varDsc;
+    unsigned   varNum;
 
     unsigned intRegArgNum;
     unsigned floatRegArgNum;
     unsigned maxIntRegArgNum;
     unsigned maxFloatRegArgNum;
 
-    bool hasRetBuf;
+    bool hasRetBufArg;
 
 #ifdef _TARGET_ARM_
     // Support back-filling of FP parameters. This is similar to code in gtMorphArgs() that
     // handles arguments.
     regMaskTP fltArgSkippedRegMask;
-    bool anyFloatStackArgs;
+    bool      anyFloatStackArgs;
 #endif // _TARGET_ARM_
 
 public:
-
     // set to initial values
-    void Init(LclVarDsc *lvaTable, bool _hasRetBuf)
+    void Init(LclVarDsc* lvaTable, bool _hasRetBufArg)
     {
-        hasRetBuf         = _hasRetBuf;
-        varDsc            = lvaTable;
-        varNum            = 0;
+        hasRetBufArg      = _hasRetBufArg;
+        varDsc            = &lvaTable[0]; // the first argument LclVar 0
+        varNum            = 0;            // the first argument varNum 0
         intRegArgNum      = 0;
         floatRegArgNum    = 0;
         maxIntRegArgNum   = MAX_REG_ARG;
@@ -42,14 +40,14 @@ public:
 
 #ifdef _TARGET_ARM_
         fltArgSkippedRegMask = RBM_NONE;
-        anyFloatStackArgs = false;
+        anyFloatStackArgs    = false;
 #endif // _TARGET_ARM_
     }
 
     // return ref to current register arg for this type
-    unsigned& regArgNum(var_types type) 
-    { 
-        return varTypeIsFloating(type) ? floatRegArgNum : intRegArgNum; 
+    unsigned& regArgNum(var_types type)
+    {
+        return varTypeIsFloating(type) ? floatRegArgNum : intRegArgNum;
     }
 
     // Allocate a set of contiguous argument registers. "type" is either an integer
@@ -74,12 +72,14 @@ public:
     // "numRegs" must be "2" to allocate an ARM double-precision floating-point register.
     bool canEnreg(var_types type, unsigned numRegs = 1);
 
-#ifdef _TARGET_ARM_
-
+    // Set the fact that we have used up all remaining registers of 'type'
+    //
     void setAllRegArgUsed(var_types type)
     {
         regArgNum(type) = maxRegArgNum(type);
     }
+
+#ifdef _TARGET_ARM_
 
     void setAnyFloatStackArgs()
     {
@@ -94,11 +94,10 @@ public:
 #endif // _TARGET_ARM_
 
 private:
-
     // return max register arg for this type
-    unsigned maxRegArgNum(var_types type) 
-    { 
-        return varTypeIsFloating(type) ? maxFloatRegArgNum : maxIntRegArgNum; 
+    unsigned maxRegArgNum(var_types type)
+    {
+        return varTypeIsFloating(type) ? maxFloatRegArgNum : maxIntRegArgNum;
     }
 
     bool enoughAvailRegs(var_types type, unsigned numRegs = 1);

@@ -4487,9 +4487,9 @@ HRESULT CordbNativeCode::EnumerateVariableHomes(ICorDebugVariableHomeEnum **ppEn
 int CordbNativeCode::GetCallInstructionLength(BYTE *ip, ULONG32 count)
 {
 #if defined(DBG_TARGET_ARM)
-    return E_NOTIMPL;
+    return MAX_INSTRUCTION_LENGTH;
 #elif defined(DBG_TARGET_ARM64)
-    return E_NOTIMPL;
+    return MAX_INSTRUCTION_LENGTH;
 #elif defined(DBG_TARGET_X86)
     if (count < 2)
         return -1;

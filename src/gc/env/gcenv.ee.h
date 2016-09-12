@@ -21,6 +21,8 @@ typedef struct
     CrawlFrame *   cf;
 } GCCONTEXT;
 
+// GC background thread function prototype
+typedef uint32_t (__stdcall *GCBackgroundThreadFunction)(void* param);
 
 class GCToEEInterface
 {
@@ -72,13 +74,12 @@ public:
     static void EnablePreemptiveGC(Thread * pThread);
     static void DisablePreemptiveGC(Thread * pThread);
 
-    static void SetGCSpecial(Thread * pThread);
     static alloc_context * GetAllocContext(Thread * pThread);
     static bool CatchAtSafePoint(Thread * pThread);
 
     static void GcEnumAllocContexts(enum_alloc_context_func* fn, void* param);
 
-    static void AttachCurrentThread(); // does not acquire thread store lock
+    static Thread* CreateBackgroundThread(GCBackgroundThreadFunction threadStart, void* arg);
 };
 
 #endif // __GCENV_EE_H__

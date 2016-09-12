@@ -17,6 +17,7 @@
     <ReferenceLocalMscorlib>false</ReferenceLocalMscorlib>
     <CLRTestKind>BuildAndRun</CLRTestKind>
     <CLRTestPriority>1</CLRTestPriority>
+    <GCStressIncompatible>true</GCStressIncompatible>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -31,10 +32,6 @@
   <ItemGroup>
     <!-- Add Compile Object Here -->
     <Compile Include="weakreferencetargetb.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="app.config" />
-    <None Include="project.json" />
   </ItemGroup>
   <ItemGroup>
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />

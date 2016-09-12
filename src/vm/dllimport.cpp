@@ -2559,12 +2559,14 @@ void NDirectStubLinker::DoNDirect(ILCodeStream *pcsEmit, DWORD dwStubFlags, Meth
 
 #else // _TARGET_X86_
 
+#ifdef FEATURE_INCLUDE_ALL_INTERFACES 
                 if (NDirect::IsHostHookEnabled())
                 {
                     // the stub for host will get the original target from the secret arg
                     pcsEmit->EmitLDC((DWORD_PTR)GetEEFuncEntryPoint(PInvokeStubForHost));
                 }
                 else
+#endif // FEATURE_INCLUDE_ALL_INTERFACES 
                 {
                     // the secret arg has been shifted to left and ORed with 1 (see code:GenericPInvokeCalliHelper)
                     EmitLoadStubContext(pcsEmit, dwStubFlags);
@@ -4193,11 +4195,40 @@ static void CreateNDirectStubWorker(StubState*         pss,
     UINT nativeStackSize = (SF_IsCOMStub(dwStubFlags) ? sizeof(SLOT) : 0);
     bool fHasCopyCtorArgs = false;
     bool fStubNeedsCOM = SF_IsCOMStub(dwStubFlags);
+    
+    // Normally we would like this to be false so that we use the correct signature 
+    // in the IL_STUB, (i.e if it returns a value class then the signature will use that)
+    // When this bool is true we change the return type to void and explicitly add a
+    // return buffer argument as the first argument.
+    BOOL fMarshalReturnValueFirst = false;
+    
+    // We can only change fMarshalReturnValueFirst to true when we are NOT doing HRESULT-swapping!
+    //
+    if (!SF_IsHRESULTSwapping(dwStubFlags))
+    {
 
-    // The return structure secret arg comes first, however byvalue return is processed at
-    // the end because it could be the HRESULT-swapped argument which always comes last.
-    bool fMarshalReturnValueFirst = !SF_IsHRESULTSwapping(dwStubFlags) && HasRetBuffArg(&msig);
+#if defined(_TARGET_X86_) || defined(_TARGET_ARM_)
+        // JIT32 has problems in generating code for pinvoke ILStubs which do a return in return buffer.
+        // Therefore instead we change the signature of calli to return void and make the return buffer as first
+        // argument. This matches the ABI i.e. return buffer is passed as first arg. So native target will get the
+        // return buffer in correct register.
+        // The return structure secret arg comes first, however byvalue return is processed at
+        // the end because it could be the HRESULT-swapped argument which always comes last.
+        fMarshalReturnValueFirst = HasRetBuffArg(&msig);
+#endif
 
+#if defined(_TARGET_AMD64_) && defined(_WIN64) && !defined(FEATURE_CORECLR)
+        // JIT64 (which is only used on the Windows Desktop CLR) has a problem generating code
+        // for the pinvoke ILStubs which do a return using a struct type.  Therefore, we
+        // change the signature of calli to return void and make the return buffer as first argument. 
+        // This matches the ABI i.e. return buffer is passed as first arg. So native target will get
+        // the return buffer in correct register.
+        // Ideally we only want to set it for JIT64 and not ryujit but currently there isn't a fast way 
+        // to determine that at runtime.
+        fMarshalReturnValueFirst = HasRetBuffArg(&msig);
+#endif
+    }
+    
     if (fMarshalReturnValueFirst)
     {
         marshalType = DoMarshalReturnValue(msig,
@@ -6221,7 +6252,9 @@ VOID NDirectMethodDesc::SetNDirectTarget(LPVOID pTarget)
         }
 #else
         _ASSERTE(pInterceptStub == NULL); // we don't intercept for anything else than host on !_TARGET_X86_
+#ifdef FEATURE_INCLUDE_ALL_INTERFACES 
         pWriteableData->m_pNDirectTarget = (LPVOID)GetEEFuncEntryPoint(PInvokeStubForHost);
+#endif // FEATURE_INCLUDE_ALL_INTERFACES 
 #endif
     }
     else
@@ -6563,7 +6596,6 @@ private:
     DWORD   m_priorityOfLastError;
 };  // class LoadLibErrorTracker
 
-
 //  Local helper function for the LoadLibraryModule function below
 static HMODULE LocalLoadLibraryHelper( LPCWSTR name, DWORD flags, LoadLibErrorTracker *pErrorTracker )
 {
@@ -6572,14 +6604,14 @@ static HMODULE LocalLoadLibraryHelper( LPCWSTR name, DWORD flags, LoadLibErrorTr
     HMODULE hmod = NULL;
 
 #ifndef FEATURE_PAL
-    
+
     if ((flags & 0xFFFFFF00) != 0
 #ifndef FEATURE_CORESYSTEM
         && NDirect::SecureLoadLibrarySupported()
 #endif // !FEATURE_CORESYSTEM
         )
     {
-        hmod = CLRLoadLibraryEx( name, NULL, flags & 0xFFFFFF00);
+        hmod = CLRLoadLibraryEx(name, NULL, flags & 0xFFFFFF00);
         if(hmod != NULL)
         {
             return hmod;
@@ -6594,11 +6626,11 @@ static HMODULE LocalLoadLibraryHelper( LPCWSTR name, DWORD flags, LoadLibErrorTr
     }
 
     hmod = CLRLoadLibraryEx(name, NULL, flags & 0xFF);
-
+    
 #else // !FEATURE_PAL
     hmod = CLRLoadLibrary(name);
 #endif // !FEATURE_PAL
-
+        
     if (hmod == NULL)
     {
         pErrorTracker->TrackErrorCode(GetLastError());
@@ -7042,12 +7074,19 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
     }
 #endif // FEATURE_CORESYSTEM && !FEATURE_PAL
 
+#ifdef FEATURE_CORECLR
+    if (hmod == NULL)
+    {
+        // NATIVE_DLL_SEARCH_DIRECTORIES set by host is considered well known path 
+        hmod = LoadFromNativeDllSearchDirectories(pDomain, wszLibName, loadWithAlteredPathFlags, pErrorTracker);
+    }
+#endif // FEATURE_CORECLR   
+
     DWORD dllImportSearchPathFlag = 0;
     BOOL searchAssemblyDirectory = TRUE;
     bool libNameIsRelativePath = Path::IsRelative(wszLibName);
     if (hmod == NULL)
     {
-#ifndef FEATURE_CORECLR
         // First checks if the method has DefaultDllImportSearchPathsAttribute. If method has the attribute
         // then dllImportSearchPathFlag is set to its value.
         // Otherwise checks if the assembly has the attribute. 
@@ -7072,11 +7111,12 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
             }
         }
 
+#ifndef FEATURE_CORECLR
         if (!attributeIsFound)
         {
             CheckUnificationList(pMD, &dllImportSearchPathFlag, &searchAssemblyDirectory);
         }
-#endif // !FEATURE_CORECLR
+#endif
 
         if (!libNameIsRelativePath)
         {
@@ -7159,14 +7199,6 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
 #endif // !FEATURE_CORECLR
         }
     }
-
-#ifdef FEATURE_CORECLR
-    if (hmod == NULL)
-    {
-        LoadFromNativeDllSearchDirectories(pDomain, wszLibName, loadWithAlteredPathFlags, pErrorTracker);
-    }
-
-#endif // FEATURE_CORECLR
 
     // This call searches the application directory instead of the location for the library.
     if (hmod == NULL)

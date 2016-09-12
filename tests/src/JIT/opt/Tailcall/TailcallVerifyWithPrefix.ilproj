@@ -28,20 +28,13 @@
     </CodeAnalysisDependentAssemblyPaths>
   </ItemGroup>
   <PropertyGroup>
-    
-    
+     <DebugType>None</DebugType>
+     <Optimize>True</Optimize>
+     <JitOptimizationSensitive>true</JitOptimizationSensitive>    
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="TailcallVerifyWithPrefix.il TailcallVerifyTransparentLibraryWithPrefix.il TailcallVerifyVerifiableLibraryWithPrefix.il" />
   </ItemGroup>
-  <ItemGroup>
-    <None Include="project.json" />
-    <None Include="app.config" />
-  </ItemGroup>
-  <PropertyGroup>
-    <ProjectJson>$(JitPackagesConfigFileDirectory)empty\project.json</ProjectJson>
-    <ProjectLockJson>$(JitPackagesConfigFileDirectory)empty\project.lock.json</ProjectLockJson>
-  </PropertyGroup>
   <ItemGroup>
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
   </ItemGroup>

@@ -683,11 +683,15 @@ enum CORCOMPILE_GCREFMAP_TOKENS
 // Tags for fixup blobs
 enum CORCOMPILE_FIXUP_BLOB_KIND
 {
-    ENCODE_NONE                 = 0,
+    ENCODE_NONE                         = 0,
     
-    ENCODE_MODULE_OVERRIDE      = 0x80,             /* When the high bit is set, override of the module immediately follows */
+    ENCODE_MODULE_OVERRIDE              = 0x80,     /* When the high bit is set, override of the module immediately follows */
 
-    ENCODE_TYPE_HANDLE          = 0x10,             /* Type handle */
+    ENCODE_DICTIONARY_LOOKUP_THISOBJ    = 0x07,
+    ENCODE_DICTIONARY_LOOKUP_TYPE       = 0x08,
+    ENCODE_DICTIONARY_LOOKUP_METHOD     = 0x09,
+
+    ENCODE_TYPE_HANDLE                  = 0x10,     /* Type handle */
     ENCODE_METHOD_HANDLE,                           /* Method handle */
     ENCODE_FIELD_HANDLE,                            /* Field handle */
 
@@ -728,7 +732,9 @@ enum CORCOMPILE_FIXUP_BLOB_KIND
 
     ENCODE_DELEGATE_CTOR,
 
-    ENCODE_MODULE_HANDLE      = 0x50,               /* Module token */
+    ENCODE_DECLARINGTYPE_HANDLE,
+
+    ENCODE_MODULE_HANDLE                = 0x50,     /* Module token */
     ENCODE_STATIC_FIELD_ADDRESS,                    /* For accessing a static field */
     ENCODE_MODULE_ID_FOR_STATICS,                   /* For accessing static fields */
     ENCODE_MODULE_ID_FOR_GENERIC_STATICS,           /* For accessing static fields */
@@ -1759,7 +1765,8 @@ class ICorCompileInfo
             LPVOID encodeContext,
             ENCODEMODULE_CALLBACK pfnEncodeModule,
             CORINFO_RESOLVED_TOKEN * pResolvedToken = NULL,
-            CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken = NULL) = 0;
+            CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken = NULL,
+            BOOL fEncodeUsingResolvedTokenSpecStreams = FALSE) = 0;
 
     // Returns non-null methoddef or memberref token if it is sufficient to encode the method (no generic instantiations, etc.)
     virtual mdToken TryEncodeMethodAsToken(
@@ -1778,7 +1785,8 @@ class ICorCompileInfo
             SigBuilder * pSigBuilder,
             LPVOID encodeContext,
             ENCODEMODULE_CALLBACK pfnEncodeModule,
-            CORINFO_RESOLVED_TOKEN * pResolvedToken = NULL) = 0;
+            CORINFO_RESOLVED_TOKEN * pResolvedToken = NULL,
+            BOOL fEncodeUsingResolvedTokenSpecStreams = FALSE) = 0;
 
 
     // Encode generic dictionary signature
@@ -1907,7 +1915,7 @@ extern "C" ICorCompileInfo * __stdcall GetCompileInfo();
 extern "C" unsigned __stdcall PartialNGenStressPercentage();
 
 // create a PDB dumping all functions in hAssembly into pdbPath
-extern "C" HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath);
+extern "C" HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath, LPCWSTR pDiasymreaderPath);
 
 #if defined(FEATURE_CORECLR) || defined(CROSSGEN_COMPILE)
 extern bool g_fNGenMissingDependenciesOk;

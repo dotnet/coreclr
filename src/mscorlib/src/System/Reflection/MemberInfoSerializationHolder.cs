@@ -11,7 +11,7 @@ using System.Globalization;
 using System.Diagnostics.Contracts;
 
 namespace System.Reflection 
-{   
+{
     [Serializable]
     internal class MemberInfoSerializationHolder : ISerializable, IObjectReference 
     {

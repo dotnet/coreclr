@@ -305,7 +305,7 @@ void CRemotingServices::DestroyThunk(MethodDesc* pMD)
 }
 #endif
 
-CORINFO_GENERIC_HANDLE JIT_GenericHandleWorker(MethodDesc *  pMD, MethodTable * pMT, LPVOID signature)
+CORINFO_GENERIC_HANDLE JIT_GenericHandleWorker(MethodDesc *  pMD, MethodTable * pMT, LPVOID signature, DWORD dictionaryIndexAndSlot, Module* pModule)
 {
     UNREACHABLE();
 }
@@ -330,6 +330,11 @@ GCFrame::GCFrame(OBJECTREF *pObjRefs, UINT numObjRefs, BOOL maybeInterior)
 }
 
 void GCFrame::GcScanRoots(promote_func *fn, ScanContext* sc)
+{
+    UNREACHABLE();
+}
+
+void HijackFrame::GcScanRoots(promote_func *fn, ScanContext* sc)
 {
     UNREACHABLE();
 }

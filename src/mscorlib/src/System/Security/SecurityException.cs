@@ -31,7 +31,8 @@ namespace System.Security
     using System.Diagnostics.Contracts;
 
     [System.Runtime.InteropServices.ComVisible(true)]
-    [Serializable] public class SecurityException : SystemException
+    [Serializable]
+    public class SecurityException : SystemException
     {
 #if FEATURE_CAS_POLICY        
         private String m_debugString; // NOTE: If you change the name of this field, you'll have to update SOS as well!
@@ -599,7 +600,15 @@ namespace System.Security
         
         internal SecurityException(string message, Object deny, Object permitOnly, MethodInfo method, Object demanded, IPermission permThatFailed)
                     : this(){}
-                    
+
+        [System.Security.SecuritySafeCritical]  // auto-generated
+        protected SecurityException(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+            if (info == null)
+                throw new ArgumentNullException("info");
+            Contract.EndContractBlock();
+        }
+
         public override String ToString() 
                 {
                     return base.ToString();

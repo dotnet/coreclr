@@ -11,7 +11,7 @@
 #ifndef _GC_INFO_DECODER_
 #define _GC_INFO_DECODER_
 
-#include "daccess.h"
+#include "gcinfotypes.h"
 
 #define _max(a, b) (((a) > (b)) ? (a) : (b)) 
 #define _min(a, b) (((a) < (b)) ? (a) : (b))
@@ -161,6 +161,7 @@ enum ICodeManagerFlags
 
 enum GcInfoDecoderFlags
 {
+    DECODE_EVERYTHING            = 0x0,
     DECODE_SECURITY_OBJECT       = 0x01,    // stack location of security object
     DECODE_CODE_LENGTH           = 0x02,
     DECODE_VARARG                = 0x04,
@@ -174,11 +175,9 @@ enum GcInfoDecoderFlags
     DECODE_FOR_RANGES_CALLBACK   = 0x200,
     DECODE_PROLOG_LENGTH         = 0x400,   // length of the prolog (used to avoid reporting generics context)
     DECODE_EDIT_AND_CONTINUE     = 0x800,
+    DECODE_REVERSE_PINVOKE_VAR   = 0x1000,
+    DECODE_RETURN_KIND           = 0x2000
 };
-
-#ifdef VERIFY_GCINFO
-#include "dbggcinfodecoder.h"
-#endif
 
 enum GcInfoHeaderFlags
 {
@@ -194,10 +193,11 @@ enum GcInfoHeaderFlags
     GC_INFO_HAS_STACK_BASE_REGISTER     = 0x40,
     GC_INFO_WANTS_REPORT_ONLY_LEAF      = 0x80,
     GC_INFO_HAS_EDIT_AND_CONTINUE_PRESERVED_SLOTS = 0x100,
+    GC_INFO_REVERSE_PINVOKE_FRAME = 0x200,
 
-    GC_INFO_FLAGS_BIT_SIZE              = 9,
+    GC_INFO_FLAGS_BIT_SIZE_VERSION_1    = 9,
+    GC_INFO_FLAGS_BIT_SIZE              = 10,
 };
-
 
 class BitStreamReader
 {
@@ -433,11 +433,10 @@ public:
 
     // If you are not insterested in interruptibility or gc lifetime information, pass 0 as instructionOffset
     GcInfoDecoder(
-            PTR_CBYTE gcInfoAddr,
-            GcInfoDecoderFlags flags,
+            GCInfoToken gcInfoToken,
+            GcInfoDecoderFlags flags = DECODE_EVERYTHING,
             UINT32 instructionOffset = 0
             );
-
 
     //------------------------------------------------------------------------
     // Interruptibility
@@ -491,10 +490,12 @@ public:
     UINT32  GetPrologSize();
     INT32   GetPSPSymStackSlot();
     INT32   GetGenericsInstContextStackSlot();
+    INT32   GetReversePInvokeStackSlot();
     bool    HasMethodDescGenericsInstContext();
     bool    HasMethodTableGenericsInstContext();
     bool    GetIsVarArg();
     bool    WantsReportOnlyLeaf();
+    ReturnKind GetReturnKind();
     UINT32  GetCodeLength();
     UINT32  GetStackBaseRegister();
     UINT32  GetSizeOfEditAndContinuePreservedArea();
@@ -517,6 +518,7 @@ private:
     bool    m_WantsReportOnlyLeaf;
     INT32   m_SecurityObjectStackSlot;
     INT32   m_GSCookieStackSlot;
+    INT32   m_ReversePInvokeStackSlot;
     UINT32  m_ValidRangeStart;
     UINT32  m_ValidRangeEnd;
     INT32   m_PSPSymStackSlot;
@@ -524,6 +526,8 @@ private:
     UINT32  m_CodeLength;
     UINT32  m_StackBaseRegister;
     UINT32  m_SizeOfEditAndContinuePreservedArea;
+    INT32  m_ReversePInvokeFrameSlot;
+    ReturnKind m_ReturnKind;
 #ifdef PARTIALLY_INTERRUPTIBLE_GC_SUPPORTED
     UINT32  m_NumSafePoints;
     UINT32  m_SafePointIndex;
@@ -539,10 +543,7 @@ private:
     GcInfoDecoderFlags m_Flags;
     PTR_CBYTE m_GcInfoAddress;
 #endif
-
-#ifdef VERIFY_GCINFO
-    DbgGcInfo::GcInfoDecoder m_DbgDecoder;
-#endif    
+    UINT32 m_Version;
 
     static bool SetIsInterruptibleCB (UINT32 startOffset, UINT32 stopOffset, LPVOID hCallback);
 
@@ -617,13 +618,6 @@ private:
             UINT32 regNum = pSlot->Slot.RegisterNumber;
             if( reportScratchSlots || !IsScratchRegister( regNum, pRD ) )
             {
-#ifdef VERIFY_GCINFO
-                m_DbgDecoder.VerifyLiveRegister(
-                            regNum,
-                            pSlot->Flags
-                            );
-#endif
-
                 ReportRegisterToGC(
                             regNum,
                             pSlot->Flags,
@@ -644,14 +638,6 @@ private:
             GcStackSlotBase spBase = pSlot->Slot.Stack.Base;
             if( reportScratchSlots || !IsScratchStackSlot(spOffset, spBase, pRD) )
             {
-#ifdef VERIFY_GCINFO
-                m_DbgDecoder.VerifyLiveStackSlot(
-                            spOffset,
-                            spBase,
-                            pSlot->Flags
-                            );
-#endif
-
                 ReportStackSlotToGC(
                             spOffset,
                             spBase,

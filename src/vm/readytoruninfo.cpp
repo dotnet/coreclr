@@ -147,15 +147,19 @@ BOOL ReadyToRunInfo::TryLookupTypeTokenFromName(NameHandle *pName, mdToken * pFo
             // Token must be a typedef token that we previously resolved (we shouldn't get here with an exported type token)
             _ASSERT(TypeFromToken(tokenBasedEncloser.m_TypeToken) == mdtTypeDef);
 
+            int dwCurrentHashCode;
             mdToken mdCurrentTypeToken = tokenBasedEncloser.m_TypeToken;
-            dwHashCode ^= GetVersionResilientTypeHashCode(tokenBasedEncloser.m_pModule->GetMDImport(), mdCurrentTypeToken);
+            if (!GetVersionResilientTypeHashCode(tokenBasedEncloser.m_pModule->GetMDImport(), mdCurrentTypeToken, &dwCurrentHashCode))
+                return FALSE;
+            dwHashCode ^= dwCurrentHashCode;
         }
     }
     else
     {
         // Token based lookups (ex: tokens from IL code)
 
-        dwHashCode = GetVersionResilientTypeHashCode(pName->GetTypeModule()->GetMDImport(), pName->GetTypeToken());
+        if (!GetVersionResilientTypeHashCode(pName->GetTypeModule()->GetMDImport(), pName->GetTypeToken(), &dwHashCode))
+            return FALSE;
     }
 
 
@@ -341,11 +345,61 @@ PTR_BYTE ReadyToRunInfo::GetDebugInfo(PTR_RUNTIME_FUNCTION pRuntimeFunction)
 
 BOOL ReadyToRunInfo::IsReadyToRunEnabled()
 {
-    STANDARD_VM_CONTRACT;
+    WRAPPER_NO_CONTRACT;
 
     static ConfigDWORD configReadyToRun;
     return configReadyToRun.val(CLRConfig::EXTERNAL_ReadyToRun);
 }
+
+// A log file to record success/failure of R2R loads. s_r2rLogFile can have the following values:
+// -1: Logging not yet initialized.
+// NULL: Logging disabled.
+// Any other value: Handle of the log file.
+static  FILE * volatile s_r2rLogFile = (FILE *)(-1);
+
+static void LogR2r(const char *msg, PEFile *pFile)
+{
+    STANDARD_VM_CONTRACT;
+
+    // Make a local copy of s_r2rLogFile, so we're not affected by other threads.
+    FILE *r2rLogFile = s_r2rLogFile;
+    if (r2rLogFile == (FILE *)(-1))
+    {
+        // Initialize Ready to Run logging. Any errors cause logging to be disabled.
+        NewArrayHolder<WCHAR> wszReadyToRunLogFile;
+        if (SUCCEEDED(CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_ReadyToRunLogFile, &wszReadyToRunLogFile)) && wszReadyToRunLogFile)
+        {
+            // Append process ID to the log file name, so multiple processes can log at the same time.
+            StackSString fullname;
+            fullname.Printf(W("%s.%u"), wszReadyToRunLogFile.GetValue(), GetCurrentProcessId());
+            r2rLogFile = _wfopen(fullname.GetUnicode(), W("w"));
+        }
+        else
+            r2rLogFile = NULL;
+
+        if (r2rLogFile != NULL && !ReadyToRunInfo::IsReadyToRunEnabled())
+        {
+            fputs("Ready to Run not enabled.\n", r2rLogFile);
+            fclose(r2rLogFile);
+            r2rLogFile = NULL;
+        }
+
+        if (InterlockedCompareExchangeT(&s_r2rLogFile, r2rLogFile, (FILE *)(-1)) != (FILE *)(-1))
+        {
+            if (r2rLogFile != NULL)
+                fclose(r2rLogFile);
+            r2rLogFile = s_r2rLogFile;
+        }
+    }
+
+    if (r2rLogFile == NULL)
+        return;
+
+    fprintf(r2rLogFile, "%s: \"%S\".\n", msg, pFile->GetPath().GetUnicode());
+    fflush(r2rLogFile);
+}
+
+#define DoLog(msg) if (s_r2rLogFile != NULL) LogR2r(msg, pFile)
 
 PTR_ReadyToRunInfo ReadyToRunInfo::Initialize(Module * pModule, AllocMemTracker *pamTracker)
 {
@@ -355,17 +409,36 @@ PTR_ReadyToRunInfo ReadyToRunInfo::Initialize(Module * pModule, AllocMemTracker 
 
     // Ignore ReadyToRun for introspection-only loads
     if (pFile->IsIntrospectionOnly())
+    {
+        DoLog("Ready to Run disabled - module loaded for reflection");
         return NULL;
+    }
 
     if (!pFile->HasLoadedIL())
+    {
+        DoLog("Ready to Run disabled - no loaded IL image");
         return NULL;
+    }
 
     PEImageLayout * pLayout = pFile->GetLoadedIL();
     if (!pLayout->HasReadyToRunHeader())
+    {
+        DoLog("Ready to Run header not found");
         return NULL;
+    }
 
     if (!IsReadyToRunEnabled())
+    {
+        // Log message is ignored in this case.
+        DoLog(NULL);
         return NULL;
+    }
+
+    if (g_pConfig->ExcludeReadyToRun(pModule->GetSimpleName()))
+    {
+        DoLog("Ready to Run disabled - module on exclusion list");
+        return NULL;
+    }
 
     if (!pLayout->IsNativeMachineFormat())
     {
@@ -373,6 +446,7 @@ PTR_ReadyToRunInfo ReadyToRunInfo::Initialize(Module * pModule, AllocMemTracker 
         // For CoreCLR, be strict about disallowing machine mismatches.
         COMPlusThrowHR(COR_E_BADIMAGEFORMAT);
 #else
+        DoLog("Ready to Run disabled - mismatched architecture");
         return NULL;
 #endif
     }
@@ -380,23 +454,34 @@ PTR_ReadyToRunInfo ReadyToRunInfo::Initialize(Module * pModule, AllocMemTracker 
 #ifdef FEATURE_NATIVE_IMAGE_GENERATION
     // Ignore ReadyToRun during NGen
     if (IsCompilationProcess() && !IsNgenPDBCompilationProcess())
+    {
+        DoLog("Ready to Run disabled - compilation process");
         return NULL;
+    }
 #endif
 
 #ifndef CROSSGEN_COMPILE
     // The file must have been loaded using LoadLibrary
     if (!pLayout->IsRelocated())
+    {
+        DoLog("Ready to Run disabled - module not loaded for execution");
         return NULL;
+    }
 #endif
 
     READYTORUN_HEADER * pHeader = pLayout->GetReadyToRunHeader();
 
     // Ignore the content if the image major version is higher than the major version currently supported by the runtime
     if (pHeader->MajorVersion > READYTORUN_MAJOR_VERSION)
+    {
+        DoLog("Ready to Run disabled - unsupported header version");
         return NULL;
+    }
 
     LoaderHeap *pHeap = pModule->GetLoaderAllocator()->GetHighFrequencyHeap();
     void * pMemory = pamTracker->Track(pHeap->AllocMem((S_SIZE_T)sizeof(ReadyToRunInfo)));
+
+    DoLog("Ready to Run initialized successfully");
 
     return new (pMemory) ReadyToRunInfo(pModule, pLayout, pHeader);
 }

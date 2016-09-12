@@ -13,6 +13,7 @@
 #include "tls.h"
 #include "asmconstants.h"
 #include "virtualcallstub.h"
+#include "jitinterface.h"
 
 #ifndef DACCESS_COMPILE
 //-----------------------------------------------------------------------
@@ -288,6 +289,7 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
     context.X27 = unwoundstate->captureX19_X29[8] = baseState->captureX19_X29[8];
     context.X28 = unwoundstate->captureX19_X29[9] = baseState->captureX19_X29[9];
     context.Fp  = unwoundstate->captureX19_X29[10] = baseState->captureX19_X29[10];	
+    context.Lr = NULL; // Filled by the unwinder 
 
     context.Sp = baseState->captureSp;
     context.Pc = baseState->captureIp;
@@ -308,6 +310,8 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
     nonVolContextPtrs.X27 = &unwoundstate->captureX19_X29[8];
     nonVolContextPtrs.X28 = &unwoundstate->captureX19_X29[9];
     nonVolContextPtrs.Fp  = &unwoundstate->captureX19_X29[10];	
+    nonVolContextPtrs.Lr = NULL; // Filled by the unwinder 
+
 #endif // DACCESS_COMPILE
 
     LOG((LF_GCROOTS, LL_INFO100000, "STACKWALK    LazyMachState::unwindLazyState(ip:%p,sp:%p)\n", baseState->captureIp, baseState->captureSp));
@@ -318,10 +322,23 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
 
 #ifndef FEATURE_PAL
         pvControlPc = Thread::VirtualUnwindCallFrame(&context, &nonVolContextPtrs);
-#else
-        PAL_VirtualUnwind(&context, &nonVolContextPtrs);
+#else // !FEATURE_PAL
+#ifdef DACCESS_COMPILE
+        HRESULT hr = DacVirtualUnwind(threadId, &context, &nonVolContextPtrs);
+        if (FAILED(hr))
+        {
+            DacError(hr);
+        }
+#else // DACCESS_COMPILE
+        BOOL success = PAL_VirtualUnwind(&context, &nonVolContextPtrs);
+        if (!success)
+        {
+            _ASSERTE(!"unwindLazyState: Unwinding failed");
+            EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
+        }
+#endif // DACCESS_COMPILE
         pvControlPc = GetIP(&context);
-#endif
+#endif // !FEATURE_PAL
 
         if (funCallDepth > 0)
         {
@@ -366,7 +383,7 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
     unwoundstate->captureX19_X29[7] = context.X26;
     unwoundstate->captureX19_X29[8] = context.X27;
     unwoundstate->captureX19_X29[9] = context.X28;
-    unwoundstate->captureX19_X29[10] = context.Fp;	
+    unwoundstate->captureX19_X29[10] = context.Fp;
 #else // !DACCESS_COMPILE
     // For non-DAC builds, update the register state from context pointers
     unwoundstate->ptrX19_X29[0] = nonVolContextPtrs.X19;
@@ -432,14 +449,14 @@ void HelperMethodFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
         pRD->pCurrentContext->X27 = (DWORD64)(pUnwoundState->captureX19_X29[8]);
         pRD->pCurrentContext->X28 = (DWORD64)(pUnwoundState->captureX19_X29[9]);
         pRD->pCurrentContext->Fp = (DWORD64)(pUnwoundState->captureX19_X29[10]);
-
+        pRD->pCurrentContext->Lr = NULL; // Unwind again to get Caller's PC
         return;
     }
 #endif // DACCESS_COMPILE
 
     // reset pContext; it's only valid for active (top-most) frame
     pRD->pContext = NULL;
-    pRD->ControlPC = GetReturnAddress();
+    pRD->ControlPC = GetReturnAddress(); // m_MachState._pc;
     pRD->SP = (DWORD64)(size_t)m_MachState._sp;
     
     pRD->pCurrentContext->Pc = pRD->ControlPC;
@@ -456,6 +473,7 @@ void HelperMethodFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     pRD->pCurrentContext->X27 = *m_MachState.ptrX19_X29[8];
     pRD->pCurrentContext->X28 = *m_MachState.ptrX19_X29[9];
     pRD->pCurrentContext->Fp  = *m_MachState.ptrX19_X29[10];
+    pRD->pCurrentContext->Lr = NULL; // Unwind again to get Caller's PC
 
 #if !defined(DACCESS_COMPILE)    
     pRD->pCurrentContextPointers->X19 = m_MachState.ptrX19_X29[0];
@@ -469,21 +487,29 @@ void HelperMethodFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     pRD->pCurrentContextPointers->X27 = m_MachState.ptrX19_X29[8];
     pRD->pCurrentContextPointers->X28 = m_MachState.ptrX19_X29[9];
     pRD->pCurrentContextPointers->Fp = m_MachState.ptrX19_X29[10];
-    pRD->pCurrentContextPointers->Lr = NULL;
+    pRD->pCurrentContextPointers->Lr = NULL; // Unwind again to get Caller's PC
 #endif
 }
 #endif // CROSSGEN_COMPILE
 
 TADDR FixupPrecode::GetMethodDesc()
 {
-    _ASSERTE(!"ARM64:NYI");
-    return NULL;
+    LIMITED_METHOD_DAC_CONTRACT;
+
+    // This lookup is also manually inlined in PrecodeFixupThunk assembly code
+    TADDR base = *PTR_TADDR(GetBase());
+    if (base == NULL)
+        return NULL;
+    return base + (m_MethodDescChunkIndex * MethodDesc::ALIGNMENT);
 }
 
 #ifdef DACCESS_COMPILE
 void FixupPrecode::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 {
-    _ASSERTE(!"ARM64:NYI");
+	SUPPORTS_DAC;
+	DacEnumMemoryRegion(dac_cast<TADDR>(this), sizeof(FixupPrecode));
+
+	DacEnumMemoryRegion(GetBase(), sizeof(TADDR));
 }
 #endif // DACCESS_COMPILE
 
@@ -527,8 +553,8 @@ void NDirectImportPrecode::Init(MethodDesc* pMD, LoaderAllocator *pLoaderAllocat
 
     int n = 0;
 
-    m_rgCode[n++] = 0x10000088; // adr x8, #16
-    m_rgCode[n++] = 0xA940310A; // ldp x10,x12,[x8] 
+    m_rgCode[n++] = 0x1000008B; // adr x11, #16
+    m_rgCode[n++] = 0xA940316A; // ldp x10,x12,[x11] 
     m_rgCode[n++] = 0xD61F0140; // br x10
 
     _ASSERTE(n+1 == _countof(m_rgCode));
@@ -556,19 +582,78 @@ void NDirectImportPrecode::Fixup(DataImage *image)
 
 void FixupPrecode::Init(MethodDesc* pMD, LoaderAllocator *pLoaderAllocator, int iMethodDescChunkIndex /*=0*/, int iPrecodeChunkIndex /*=0*/)
 {
-    _ASSERTE(!"ARM64:NYI");
+    WRAPPER_NO_CONTRACT;
+    
+    InitCommon();
+
+    // Initialize chunk indices only if they are not initialized yet. This is necessary to make MethodDesc::Reset work.
+    if (m_PrecodeChunkIndex == 0)
+    {
+        _ASSERTE(FitsInU1(iPrecodeChunkIndex));
+        m_PrecodeChunkIndex = static_cast<BYTE>(iPrecodeChunkIndex);
+    }
+
+    if (iMethodDescChunkIndex != -1)
+    {
+        if (m_MethodDescChunkIndex == 0)
+        {
+            _ASSERTE(FitsInU1(iMethodDescChunkIndex));
+            m_MethodDescChunkIndex = static_cast<BYTE>(iMethodDescChunkIndex);
+        }
+
+        if (*(void**)GetBase() == NULL)
+            *(void**)GetBase() = (BYTE*)pMD - (iMethodDescChunkIndex * MethodDesc::ALIGNMENT);
+    }
+
+    _ASSERTE(GetMethodDesc() == (TADDR)pMD);
+
+    if (pLoaderAllocator != NULL)
+    {
+        m_pTarget = GetEEFuncEntryPoint(PrecodeFixupThunk);
+    }
 }
 
 #ifdef FEATURE_NATIVE_IMAGE_GENERATION
 // Partial initialization. Used to save regrouped chunks.
 void FixupPrecode::InitForSave(int iPrecodeChunkIndex)
 {
-    _ASSERTE(!"ARM64:NYI");
+    STANDARD_VM_CONTRACT;
+
+    InitCommon();
+
+    _ASSERTE(FitsInU1(iPrecodeChunkIndex));
+    m_PrecodeChunkIndex = static_cast<BYTE>(iPrecodeChunkIndex);
+    // The rest is initialized in code:FixupPrecode::Fixup
 }
 
 void FixupPrecode::Fixup(DataImage *image, MethodDesc * pMD)
 {
-    _ASSERTE(!"ARM64:NYI");
+    STANDARD_VM_CONTRACT;
+
+    // Note that GetMethodDesc() does not return the correct value because of 
+    // regrouping of MethodDescs into hot and cold blocks. That's why the caller
+    // has to supply the actual MethodDesc
+
+    SSIZE_T mdChunkOffset;
+    ZapNode * pMDChunkNode = image->GetNodeForStructure(pMD, &mdChunkOffset);
+    ZapNode * pHelperThunk = image->GetHelperThunk(CORINFO_HELP_EE_PRECODE_FIXUP);
+
+    image->FixupFieldToNode(this, offsetof(FixupPrecode, m_pTarget), pHelperThunk);
+
+    // Set the actual chunk index
+    FixupPrecode * pNewPrecode = (FixupPrecode *)image->GetImagePointer(this);
+
+    size_t mdOffset = mdChunkOffset - sizeof(MethodDescChunk);
+    size_t chunkIndex = mdOffset / MethodDesc::ALIGNMENT;
+    _ASSERTE(FitsInU1(chunkIndex));
+    pNewPrecode->m_MethodDescChunkIndex = (BYTE)chunkIndex;
+
+    // Fixup the base of MethodDescChunk
+    if (m_PrecodeChunkIndex == 0)
+    {
+        image->FixupFieldToNode(this, (BYTE *)GetBase() - (BYTE *)this,
+            pMDChunkNode, sizeof(MethodDescChunk));
+    }
 }
 #endif // FEATURE_NATIVE_IMAGE_GENERATION
 
@@ -595,35 +680,25 @@ void ThisPtrRetBufPrecode::Init(MethodDesc* pMD, LoaderAllocator *pLoaderAllocat
     m_pMethodDesc = (TADDR)pMD;
 }
 
-
-#ifdef HAS_REMOTING_PRECODE
-
-void RemotingPrecode::Init(MethodDesc* pMD, LoaderAllocator *pLoaderAllocator)
-{
-    _ASSERTE(!"ARM64:NYI");
-}
-
-#ifdef FEATURE_NATIVE_IMAGE_GENERATION
-void RemotingPrecode::Fixup(DataImage *image, ZapNode *pCodeNode)
-{
-    _ASSERTE(!"ARM64:NYI");
-}
-#endif // FEATURE_NATIVE_IMAGE_GENERATION
-
-void CTPMethodTable::ActivatePrecodeRemotingThunk()
-{
-    _ASSERTE(!"ARM64:NYI");
-}
-
-#endif // HAS_REMOTING_PRECODE
-
-
 #ifndef CROSSGEN_COMPILE
 BOOL DoesSlotCallPrestub(PCODE pCode)
 {
     PTR_DWORD pInstr = dac_cast<PTR_DWORD>(PCODEToPINSTR(pCode));
 
-    // ARM64TODO: Check for FixupPrecode
+    //FixupPrecode
+#if defined(HAS_FIXUP_PRECODE)
+    if (FixupPrecode::IsFixupPrecodeByASM(pCode))
+    {
+        PCODE pTarget = dac_cast<PTR_FixupPrecode>(pInstr)->m_pTarget;
+        
+        if (isJump(pTarget))
+        {
+            pTarget = decodeJump(pTarget);
+        }
+
+        return pTarget == (TADDR)PrecodeFixupThunk;
+    }
+#endif
 
     // StubPrecode
     if (pInstr[0] == 0x10000089 && // adr x9, #16
@@ -632,7 +707,10 @@ BOOL DoesSlotCallPrestub(PCODE pCode)
     {
         PCODE pTarget = dac_cast<PTR_StubPrecode>(pInstr)->m_pTarget;
 
-        // ARM64TODO: implement for NGen case
+        if (isJump(pTarget))
+        {
+            pTarget = decodeJump(pTarget);
+        }
 
         return pTarget == GetPreStubEntryPoint();
     }
@@ -848,42 +926,47 @@ void HijackFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 {
     LIMITED_METHOD_CONTRACT;
 
-    _ASSERTE(!"ARM64:NYI");
+     pRD->IsCallerContextValid = FALSE;
+     pRD->IsCallerSPValid      = FALSE;
+ 
+     pRD->pCurrentContext->Pc = m_ReturnAddress;
+     size_t s = sizeof(struct HijackArgs);
+     _ASSERTE(s%8 == 0); // HijackArgs contains register values and hence will be a multiple of 8
+     // stack must be multiple of 16. So if s is not multiple of 16 then there must be padding of 8 bytes 
+     s = s + s%16; 
+     pRD->pCurrentContext->Sp = PTR_TO_TADDR(m_Args) + s ;
+ 
+     pRD->pCurrentContext->X0 = m_Args->X0;
+
+     pRD->pCurrentContext->X19 = m_Args->X19;
+     pRD->pCurrentContext->X20 = m_Args->X20;
+     pRD->pCurrentContext->X21 = m_Args->X21;
+     pRD->pCurrentContext->X22 = m_Args->X22;
+     pRD->pCurrentContext->X23 = m_Args->X23;
+     pRD->pCurrentContext->X24 = m_Args->X24;
+     pRD->pCurrentContext->X25 = m_Args->X25;
+     pRD->pCurrentContext->X26 = m_Args->X26;
+     pRD->pCurrentContext->X27 = m_Args->X27;
+     pRD->pCurrentContext->X28 = m_Args->X28;
+     pRD->pCurrentContext->Fp = m_Args->X29;
+     pRD->pCurrentContext->Lr = m_Args->Lr;
+
+     pRD->pCurrentContextPointers->X19 = &m_Args->X19;
+     pRD->pCurrentContextPointers->X20 = &m_Args->X20;
+     pRD->pCurrentContextPointers->X21 = &m_Args->X21;
+     pRD->pCurrentContextPointers->X22 = &m_Args->X22;
+     pRD->pCurrentContextPointers->X23 = &m_Args->X23;
+     pRD->pCurrentContextPointers->X24 = &m_Args->X24;
+     pRD->pCurrentContextPointers->X25 = &m_Args->X25;
+     pRD->pCurrentContextPointers->X26 = &m_Args->X26;
+     pRD->pCurrentContextPointers->X27 = &m_Args->X27;
+     pRD->pCurrentContextPointers->X28 = &m_Args->X28;
+     pRD->pCurrentContextPointers->Fp = &m_Args->X29;
+     pRD->pCurrentContextPointers->Lr = NULL;
+
+     SyncRegDisplayToCurrentContext(pRD);
 }
 #endif // FEATURE_HIJACK
-
-#if defined(FEATURE_REMOTING) && !defined(CROSSGEN_COMPILE)
-
-#ifndef DACCESS_COMPILE
-PCODE CTPMethodTable::CreateThunkForVirtualMethod(DWORD dwSlot, BYTE *startaddr)
-{
-    _ASSERTE(!"ARM64:NYI");
-    return NULL;
-}
-#endif // DACCESS_COMPILE
-
-BOOL CVirtualThunkMgr::IsThunkByASM(PCODE startaddr)
-{
-    _ASSERTE(!"ARM64:NYI");
-    return FALSE;
-}
-
-MethodDesc *CVirtualThunkMgr::GetMethodDescByASM(PCODE startaddr, MethodTable *pMT)
-{
-    _ASSERTE(!"ARM64:NYI");
-    return NULL;
-}
-
-#ifndef DACCESS_COMPILE
-
-BOOL CVirtualThunkMgr::DoTraceStub(PCODE stubStartAddress, TraceDestination *trace)
-{
-    _ASSERTE(!"ARM64:NYI");
-    return FALSE;
-}
-#endif // !DACCESS_COMPILE
-
-#endif // FEATURE_REMOTING && !CROSSGEN_COMPILE
 
 #ifdef FEATURE_COMINTEROP
 
@@ -928,12 +1011,6 @@ void JIT_TailCall()
     _ASSERTE(!"ARM64:NYI");
 }
 
-extern "C" void * ClrFlsGetBlock()
-{
-    _ASSERTE(!"ARM64:NYI");
-    return NULL;
-}
-
 void InitJITHelpers1()
 {
     return;
@@ -972,7 +1049,8 @@ PTR_CONTEXT GetCONTEXTFromRedirectedStubStackFrame(T_CONTEXT * pContext)
 
 void RedirectForThreadAbort()
 {
-    _ASSERTE(!"ARM64:NYI");
+    // ThreadAbort is not supported in .net core
+    throw "NYI";
 }
 
 #if !defined(DACCESS_COMPILE) && !defined (CROSSGEN_COMPILE)
@@ -1038,43 +1116,13 @@ AdjustContextForVirtualStub(
 }
 #endif // !(DACCESS_COMPILE && CROSSGEN_COMPILE)
 
-extern "C" {
-
-void FuncEvalHijack(void)
-{
-    _ASSERTE(!"ARM64:NYI");
-}
-
-void ExceptionHijack(void)
-{
-    _ASSERTE(!"ARM64:NYI");
-}
-void ExceptionHijackEnd(void)
-{
-    _ASSERTE(!"ARM64:NYI");
-}
-};
-
 #ifdef FEATURE_COMINTEROP
 extern "C" void GenericComPlusCallStub(void)
 {
-    _ASSERTE(!"ARM64:NYI");
+    // This is not required for coreclr scenarios
+    throw "GenericComPlusCallStub is not implemented yet.";    
 }
 #endif // FEATURE_COMINTEROP
-
-//ARM64TODO: check if this should be amd64 and win64
-#ifdef _WIN64
-extern "C" void PInvokeStubForHostInner(DWORD dwStackSize, LPVOID pStackFrame, LPVOID pTarget)
-{
-    _ASSERTE(!"ARM64:NYI");
-}
-#endif
-
-void PInvokeStubForHost(void)
-{ 
-    // Hosted P/Invoke is not implemented on ARM64
-    UNREACHABLE();
-}
 
 UMEntryThunk * UMEntryThunk::Decode(void *pCallback)
 {
@@ -1174,34 +1222,18 @@ VOID ResetCurrentContext()
 }
 #endif
 
-extern "C" void StubDispatchFixupPatchLabel()
-{
-    _ASSERTE(!"ARM64:NYI");
-}
-
 LONG CLRNoCatchHandler(EXCEPTION_POINTERS* pExceptionInfo, PVOID pv)
 {
     return EXCEPTION_CONTINUE_SEARCH;
 }
 
-extern "C" void setFPReturn(int fpSize, INT64 retVal)
-{
-    _ASSERTE(!"ARM64:NYI");
-}
-extern "C" void getFPReturn(int fpSize, INT64 *retval)
-{
-    _ASSERTE(!"ARM64:NYI");
-}
-
 void StompWriteBarrierEphemeral(bool isRuntimeSuspended)
 {
-    //ARM64TODO: implement this
     return;
 }
 
 void StompWriteBarrierResize(bool isRuntimeSuspended, bool bReqUpperBoundsCheck)
 {
-    //ARM64TODO: implement this
     return;
 }
 
@@ -1770,23 +1802,29 @@ PCODE DynamicHelpers::CreateHelper(LoaderAllocator * pAllocator, TADDR arg, PCOD
     END_DYNAMIC_HELPER_EMIT();
 }
 
-PCODE DynamicHelpers::CreateHelperWithArg(LoaderAllocator * pAllocator, TADDR arg, PCODE target)
+// Caller must ensure sufficient byte are allocated including padding (if applicable)
+void DynamicHelpers::EmitHelperWithArg(BYTE*& p, LoaderAllocator * pAllocator, TADDR arg, PCODE target)
 {
     STANDARD_VM_CONTRACT;
-
-    BEGIN_DYNAMIC_HELPER_EMIT(32);
+    
+    // if p is already aligned at 8-byte then padding is required for data alignment  
+    bool padding = (((uintptr_t)p & 0x7) == 0);
     
     // adr x8, <label>
     // ldp x1, x12, [x8]
-    LoadRegPair(p, 1, 12, 16);
+    LoadRegPair(p, 1, 12, padding?16:12);
     p += 8;
 
     // br x12
     *(DWORD*)p = 0xd61f0180;
     p += 4; 
 
-    // padding to make 8 byte aligned
-    *(DWORD*)p = 0xBADC0DF0; p += 4;
+    if(padding)
+    {
+        // padding to make 8 byte aligned
+        *(DWORD*)p = 0xBADC0DF0; 
+        p += 4;
+    }
     
     // label:
     // arg
@@ -1794,9 +1832,18 @@ PCODE DynamicHelpers::CreateHelperWithArg(LoaderAllocator * pAllocator, TADDR ar
     p += 8;
     // target
     *(PCODE*)p = target;
-    p += 8;
+    p += 8; 
+}
+
+PCODE DynamicHelpers::CreateHelperWithArg(LoaderAllocator * pAllocator, TADDR arg, PCODE target)
+{
+    STANDARD_VM_CONTRACT;
+
+    BEGIN_DYNAMIC_HELPER_EMIT(32);
     
-    END_DYNAMIC_HELPER_EMIT();  
+    EmitHelperWithArg(p, pAllocator, arg, target);
+    
+    END_DYNAMIC_HELPER_EMIT();    
 }
 
 PCODE DynamicHelpers::CreateHelper(LoaderAllocator * pAllocator, TADDR arg, TADDR arg2, PCODE target)
@@ -1983,6 +2030,135 @@ PCODE DynamicHelpers::CreateHelperWithTwoArgs(LoaderAllocator * pAllocator, TADD
     *(TADDR*)p = target;
     p += 8;
     END_DYNAMIC_HELPER_EMIT();              
+}
+
+PCODE DynamicHelpers::CreateDictionaryLookupHelper(LoaderAllocator * pAllocator, CORINFO_RUNTIME_LOOKUP * pLookup, DWORD dictionaryIndexAndSlot, Module * pModule)
+{
+    STANDARD_VM_CONTRACT;
+
+    PCODE helperAddress = (pLookup->helper == CORINFO_HELP_RUNTIMEHANDLE_METHOD ?
+        GetEEFuncEntryPoint(JIT_GenericHandleMethodWithSlotAndModule) :
+        GetEEFuncEntryPoint(JIT_GenericHandleClassWithSlotAndModule));
+
+    GenericHandleArgs * pArgs = (GenericHandleArgs *)(void *)pAllocator->GetDynamicHelpersHeap()->AllocAlignedMem(sizeof(GenericHandleArgs), DYNAMIC_HELPER_ALIGNMENT);
+    pArgs->dictionaryIndexAndSlot = dictionaryIndexAndSlot;
+    pArgs->signature = pLookup->signature;
+    pArgs->module = (CORINFO_MODULE_HANDLE)pModule;
+
+    // It's available only via the run-time helper function
+    if (pLookup->indirections == CORINFO_USEHELPER)
+    {
+        BEGIN_DYNAMIC_HELPER_EMIT(32);
+
+        // X0 already contains generic context parameter
+        // reuse EmitHelperWithArg for below two operations
+        // X1 <- pArgs
+        // branch to helperAddress
+        EmitHelperWithArg(p, pAllocator, (TADDR)pArgs, helperAddress);
+
+        END_DYNAMIC_HELPER_EMIT();
+    }
+    else
+    {
+        int indirectionsCodeSize = 0;
+        int indirectionsDataSize = 0;
+        for (WORD i = 0; i < pLookup->indirections; i++) {
+            indirectionsCodeSize += (pLookup->offsets[i] > 32760 ? 8 : 4); // if( > 32760) (8 code bytes) else 4 bytes for instruction with offset encoded in instruction
+            indirectionsDataSize += (pLookup->offsets[i] > 32760 ? 4 : 0); // 4 bytes for storing indirection offset values
+        }
+
+        int codeSize = indirectionsCodeSize;
+        if(pLookup->testForNull)
+        {
+            codeSize += 4; // mov
+            codeSize += 12; // cbz-ret-mov
+            //padding for 8-byte align (required by EmitHelperWithArg)
+            if((codeSize & 0x7) == 0)
+                codeSize += 4;
+            codeSize += 28; // size of EmitHelperWithArg
+        }
+        else
+        {
+            codeSize += 4 ; /* ret */
+        }
+        
+        codeSize += indirectionsDataSize;
+
+        BEGIN_DYNAMIC_HELPER_EMIT(codeSize);
+
+        if (pLookup->testForNull)
+        {
+            // mov x9, x0
+            *(DWORD*)p = 0x91000009; 
+            p += 4;
+        }
+        
+        // moving offset value wrt PC. Currently points to first indirection offset data. 
+        uint dataOffset = codeSize - indirectionsDataSize - (pLookup->testForNull ? 4 : 0);
+        for (WORD i = 0; i < pLookup->indirections; i++)
+        {
+            if(pLookup->offsets[i] > 32760)
+            {
+                // ldr w10, [PC, #dataOffset]
+                *(DWORD*)p = 0x1800000a | ((dataOffset>>2)<<5);
+                p += 4;
+                // ldr x0, [x0, x10]
+                *(DWORD*)p = 0xf86a6800;
+                p += 4;
+                
+                // move to next indirection offset data
+                dataOffset = dataOffset - 8 + 4; // subtract 8 as we have moved PC by 8 and add 4 as next data is at 4 bytes from previous data
+            }
+            else
+            {
+                // offset must be 8 byte aligned
+                _ASSERTE((pLookup->offsets[i] & 0x7) == 0);
+ 
+                // ldr x0, [x0, #(pLookup->offsets[i])]
+                *(DWORD*)p = 0xf9400000 | ( ((UINT32)pLookup->offsets[i]>>3) <<10 );
+                p += 4;
+                dataOffset -= 4; // subtract 4 as we have moved PC by 4
+            }
+        }
+        
+        // No null test required
+        if (!pLookup->testForNull)
+        {
+            // ret lr
+            *(DWORD*)p = 0xd65f03c0;
+            p += 4;
+        }
+        else
+        {
+            // cbz x0, nullvaluelabel
+            *(DWORD*)p = 0xb4000040;
+            p += 4;
+            // ret lr
+            *(DWORD*)p = 0xd65f03c0;
+            p += 4;
+            // nullvaluelabel:
+            // mov x0, x9
+            *(DWORD*)p = 0x91000120;
+            p += 4;
+            // reuse EmitHelperWithArg for below two operations
+            // X1 <- pArgs
+            // branch to helperAddress
+            EmitHelperWithArg(p, pAllocator, (TADDR)pArgs, helperAddress);
+        }     
+        
+        // datalabel:
+        for (WORD i = 0; i < pLookup->indirections; i++)
+        {
+            if(pLookup->offsets[i] > 32760)
+            {
+                _ASSERTE((pLookup->offsets[i] & 0xffffffff00000000) == 0);
+                *(UINT32*)p = (UINT32)pLookup->offsets[i];
+                p += 4;
+            }
+        }
+        
+        END_DYNAMIC_HELPER_EMIT();        
+    }
 }
 #endif // FEATURE_READYTORUN
 

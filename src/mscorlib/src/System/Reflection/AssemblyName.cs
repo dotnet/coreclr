@@ -28,7 +28,7 @@ namespace System.Reflection {
     [Serializable]
     [ClassInterface(ClassInterfaceType.None)]
     [ComDefaultInterface(typeof(_AssemblyName))]
-[System.Runtime.InteropServices.ComVisible(true)]
+    [System.Runtime.InteropServices.ComVisible(true)]
     public sealed class AssemblyName : _AssemblyName, ICloneable, ISerializable, IDeserializationCallback
     {
         //
@@ -45,9 +45,7 @@ namespace System.Reflection {
         
         private StrongNameKeyPair            _StrongNameKeyPair;
 
-#if FEATURE_SERIALIZATION
         private SerializationInfo m_siInfo; //A temporary variable which we need during deserialization.
-#endif
 
         private byte[]                _HashForControl;
         private AssemblyHashAlgorithm _HashAlgorithm;
@@ -105,13 +103,13 @@ namespace System.Reflection {
     
         public String CodeBase
         {
-            #if FEATURE_CORECLR
+#if FEATURE_CORECLR
             [System.Security.SecurityCritical] // auto-generated
-            #endif
+#endif
             get { return _CodeBase; }
-            #if FEATURE_CORECLR
+#if FEATURE_CORECLR
             [System.Security.SecurityCritical] // auto-generated
-            #endif
+#endif
             set { _CodeBase = value; }
         }
     
@@ -297,7 +295,6 @@ namespace System.Reflection {
                 return s;
         }
 
-#if FEATURE_SERIALIZATION
         [System.Security.SecurityCritical]  // auto-generated_required
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
@@ -309,7 +306,7 @@ namespace System.Reflection {
             info.AddValue("_Name", _Name);
             info.AddValue("_PublicKey", _PublicKey, typeof(byte[]));
             info.AddValue("_PublicKeyToken", _PublicKeyToken, typeof(byte[]));
-#if FEATURE_USE_LCID            
+#if FEATURE_USE_LCID
             info.AddValue("_CultureInfo", (_CultureInfo == null) ? -1 :_CultureInfo.LCID);
 #endif
             info.AddValue("_CodeBase", _CodeBase);
@@ -335,7 +332,7 @@ namespace System.Reflection {
             int lcid = (int)m_siInfo.GetInt32("_CultureInfo");
             if (lcid != -1)
                 _CultureInfo = new CultureInfo(lcid);
-#endif            
+#endif
 
             _CodeBase = m_siInfo.GetString("_CodeBase");
             _Version = (Version) m_siInfo.GetValue("_Version", typeof(Version));
@@ -362,7 +359,6 @@ namespace System.Reflection {
             //The graph is not valid until OnDeserialization() has been called.
             m_siInfo = info; 
         }
-#endif // FEATURE_SERIALIZATION
 
         [System.Security.SecuritySafeCritical]  // auto-generated
         public AssemblyName(String assemblyName)

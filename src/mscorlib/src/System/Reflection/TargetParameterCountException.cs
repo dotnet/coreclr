@@ -18,7 +18,7 @@ namespace System.Reflection {
     using SystemException = System.SystemException;
     using System.Runtime.Serialization;
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
+    [System.Runtime.InteropServices.ComVisible(true)]
 #if FEATURE_CORECLR
     public sealed class TargetParameterCountException : Exception {
 #else

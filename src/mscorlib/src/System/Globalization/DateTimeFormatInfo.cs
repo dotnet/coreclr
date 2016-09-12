@@ -55,7 +55,7 @@ namespace System.Globalization {
 
 
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
+    [System.Runtime.InteropServices.ComVisible(true)]
     public sealed class DateTimeFormatInfo : ICloneable, IFormatProvider
     {
         //
@@ -353,7 +353,6 @@ namespace System.Globalization {
 #endif
         private void InitializeOverridableProperties(CultureData cultureData, int calendarID)
         {
-#if !FEATURE_CORECLR
             // Silverlight 2.0 never took a snapshot of the user's overridable properties
             // This has a substantial performance impact so skip when CoreCLR
             Contract.Requires(cultureData != null);
@@ -381,16 +380,14 @@ namespace System.Globalization {
 
             this.allYearMonthPatterns = cultureData.YearMonths(calendarID);
             Contract.Assert(this.allYearMonthPatterns.Length > 0, "[DateTimeFormatInfo.Populate] Expected some year month patterns");
-#endif
         }
 
-        #region Serialization
+#region Serialization
         // The following fields are defined to keep the serialization compatibility with .NET V1.0/V1.1.
         [OptionalField(VersionAdded = 1)]
         private int    CultureID;
         [OptionalField(VersionAdded = 1)]
         private bool   m_useUserOverride;
-#if !FEATURE_CORECLR
         [OptionalField(VersionAdded = 1)]
         private bool bUseCalendarInfo;
         [OptionalField(VersionAdded = 1)]
@@ -399,7 +396,6 @@ namespace System.Globalization {
         internal bool m_isDefaultCalendar;                // NEVER USED, DO NOT USE THIS! (Serialized in Whidbey)
         [OptionalField(VersionAdded = 2)]
         private static volatile Hashtable s_calendarNativeNames;   // NEVER USED, DO NOT USE THIS! (Serialized in Whidbey)
-#endif // !FEATURE_CORECLR
 
         // This was synthesized by Whidbey so we knew what words might appear in the middle of a date string
         // Now we always synthesize so its not helpful
@@ -860,11 +856,12 @@ namespace System.Globalization {
                 return (this.dateSeparator);
             }
 
-#if !FEATURE_CORECLR
-            set {
+            set 
+            {
                 if (IsReadOnly)
                     throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ReadOnly"));
-                if (value == null) {
+                if (value == null) 
+                {
                     throw new ArgumentNullException("value",
                         Environment.GetResourceString("ArgumentNull_String"));
                 }
@@ -872,7 +869,6 @@ namespace System.Globalization {
                 ClearTokenHashTable();
                 this.dateSeparator = value;
             }
-#endif
         }
 
 
@@ -1306,11 +1302,12 @@ namespace System.Globalization {
                 return (timeSeparator);
             }
 
-#if !FEATURE_CORECLR
-            set {
+            set 
+            {
                 if (IsReadOnly)
                     throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ReadOnly"));
-                if (value == null) {
+                if (value == null) 
+                {
                     throw new ArgumentNullException("value",
                         Environment.GetResourceString("ArgumentNull_String"));
                 }
@@ -1319,7 +1316,6 @@ namespace System.Globalization {
 
                 timeSeparator = value;
             }
-#endif
         }
 
 
@@ -2056,7 +2052,7 @@ namespace System.Globalization {
             {
                 if (patterns[i] == null)
                 {
-                    throw new ArgumentNullException(Environment.GetResourceString("ArgumentNull_ArrayValue"));
+                    throw new ArgumentNullException("patterns[" + i + "]", Environment.GetResourceString("ArgumentNull_ArrayValue"));
                 }
             }
 

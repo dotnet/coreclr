@@ -30,9 +30,6 @@ using System.Reflection;
 namespace System.IO {
     [Serializable]
     [ComVisible(true)]
-#if CONTRACTS_FULL
-    [ContractClass(typeof(StreamContract))]
-#endif
 #if FEATURE_REMOTING
     public abstract class Stream : MarshalByRefObject, IDisposable {
 #else // FEATURE_REMOTING
@@ -119,7 +116,40 @@ namespace System.IO {
         [ComVisible(false)]
         public Task CopyToAsync(Stream destination)
         {
-            return CopyToAsync(destination, _DefaultCopyBufferSize);
+            int bufferSize = _DefaultCopyBufferSize;
+
+#if FEATURE_CORECLR
+            if (CanSeek)
+            {
+                long length = Length;
+                long position = Position;
+                if (length <= position) // Handles negative overflows
+                {
+                    // If we go down this branch, it means there are
+                    // no bytes left in this stream.
+
+                    // Ideally we would just return Task.CompletedTask here,
+                    // but CopyToAsync(Stream, int, CancellationToken) was already
+                    // virtual at the time this optimization was introduced. So
+                    // if it does things like argument validation (checking if destination
+                    // is null and throwing an exception), then await fooStream.CopyToAsync(null)
+                    // would no longer throw if there were no bytes left. On the other hand,
+                    // we also can't roll our own argument validation and return Task.CompletedTask,
+                    // because it would be a breaking change if the stream's override didn't throw before,
+                    // or in a different order. So for simplicity, we just set the bufferSize to 1
+                    // (not 0 since the default implementation throws for 0) and forward to the virtual method.
+                    bufferSize = 1; 
+                }
+                else
+                {
+                    long remaining = length - position;
+                    if (remaining > 0) // In the case of a positive overflow, stick to the default size
+                        bufferSize = (int)Math.Min(bufferSize, remaining);
+                }
+            }
+#endif // FEATURE_CORECLR
+            
+            return CopyToAsync(destination, bufferSize);
         }
 
         [HostProtection(ExternalThreading = true)]
@@ -158,10 +188,33 @@ namespace System.IO {
         // the current position.
         public void CopyTo(Stream destination)
         {
-            CopyTo(destination, _DefaultCopyBufferSize);
+            int bufferSize = _DefaultCopyBufferSize;
+
+#if FEATURE_CORECLR
+            if (CanSeek)
+            {
+                long length = Length;
+                long position = Position;
+                if (length <= position) // Handles negative overflows
+                {
+                    // No bytes left in stream
+                    // Call the other overload with a bufferSize of 1,
+                    // in case it's made virtual in the future
+                    bufferSize = 1;
+                }
+                else
+                {
+                    long remaining = length - position;
+                    if (remaining > 0) // In the case of a positive overflow, stick to the default size
+                        bufferSize = (int)Math.Min(bufferSize, remaining);
+                }
+            }
+#endif // FEATURE_CORECLR
+            
+            CopyTo(destination, bufferSize);
         }
 
-        public void CopyTo(Stream destination, int bufferSize)
+        public virtual void CopyTo(Stream destination, int bufferSize)
         {
             ValidateCopyToArguments(destination, bufferSize);
             
@@ -1248,68 +1301,4 @@ namespace System.IO {
             }
         }
     }
-
-#if CONTRACTS_FULL
-    [ContractClassFor(typeof(Stream))]
-    internal abstract class StreamContract : Stream
-    {
-        public override long Seek(long offset, SeekOrigin origin)
-        {
-            Contract.Ensures(Contract.Result<long>() >= 0);
-            throw new NotImplementedException();
-        }
-
-        public override void SetLength(long value)
-        {
-            throw new NotImplementedException();
-        }
-
-        public override int Read(byte[] buffer, int offset, int count)
-        {
-            Contract.Ensures(Contract.Result<int>() >= 0);
-            Contract.Ensures(Contract.Result<int>() <= count);
-            throw new NotImplementedException();
-        }
-
-        public override void Write(byte[] buffer, int offset, int count)
-        {
-            throw new NotImplementedException();
-        }
-
-        public override long Position {
-            get {
-                Contract.Ensures(Contract.Result<long>() >= 0);
-                throw new NotImplementedException();
-            }
-            set {
-                throw new NotImplementedException();
-            }
-        }
-
-        public override void Flush()
-        {
-            throw new NotImplementedException();
-        }
-
-        public override bool CanRead {
-            get { throw new NotImplementedException(); }
-        }
-
-        public override bool CanWrite {
-            get { throw new NotImplementedException(); }
-        }
-
-        public override bool CanSeek {
-            get { throw new NotImplementedException(); }
-        }
-
-        public override long Length
-        {
-            get {
-                Contract.Ensures(Contract.Result<long>() >= 0);
-                throw new NotImplementedException();
-            }
-        }
-    }
-#endif  // CONTRACTS_FULL
 }

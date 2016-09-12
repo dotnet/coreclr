@@ -479,13 +479,13 @@ struct DECLSPEC_ALIGN(8) UMEntryThunkCode
 
 struct HijackArgs
 {
-#ifndef PLATFORM_UNIX
+#ifndef FEATURE_MULTIREG_RETURN
     union
     {
         ULONG64 Rax;
-        ULONG64 ReturnValue;
+        ULONG64 ReturnValue[1];
     };
-#else // PLATFORM_UNIX
+#else // FEATURE_MULTIREG_RETURN
     union
     {
         struct
@@ -554,8 +554,9 @@ inline BOOL ClrFlushInstructionCache(LPCVOID pCodeAddr, size_t sizeOfCode)
 #define JIT_IsInstanceOfClass       JIT_IsInstanceOfClass
 #define JIT_ChkCastInterface        JIT_ChkCastInterface
 #define JIT_IsInstanceOfInterface   JIT_IsInstanceOfInterface
-#define JIT_Stelem_Ref              JIT_Stelem_Ref
 
 #endif // FEATURE_PAL
+
+#define JIT_Stelem_Ref              JIT_Stelem_Ref
 
 #endif // __cgencpu_h__

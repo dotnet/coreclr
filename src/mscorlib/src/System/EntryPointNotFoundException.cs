@@ -15,8 +15,9 @@ namespace System {
     
     using System;
     using System.Runtime.Serialization;
-[System.Runtime.InteropServices.ComVisible(true)]
-    [Serializable] public class EntryPointNotFoundException : TypeLoadException {
+    [System.Runtime.InteropServices.ComVisible(true)]
+    [Serializable]
+    public class EntryPointNotFoundException : TypeLoadException {
         public EntryPointNotFoundException() 
             : base(Environment.GetResourceString("Arg_EntryPointNotFoundException")) {
             SetErrorCode(__HResults.COR_E_ENTRYPOINTNOTFOUND);

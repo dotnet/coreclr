@@ -99,6 +99,9 @@ PEFile::PEFile(PEImage *identity, BOOL fCheckAuthenticodeSignature/*=TRUE*/) :
     ,m_securityManagerLock(CrstPEFileSecurityManager)
 #endif // FEATURE_CAS_POLICY
     ,m_pHostAssembly(nullptr)
+#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
+    ,m_pFallbackLoadContextBinder(nullptr)
+#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
 {
     CONTRACTL
     {
@@ -499,7 +502,7 @@ static void ValidatePEFileMachineType(PEFile *peFile)
     if (actualMachineType == IMAGE_FILE_MACHINE_I386 && ((peKind & (peILonly | pe32BitRequired)) == peILonly))
         return;    // Image is marked CPU-agnostic.
 
-    if (actualMachineType != IMAGE_FILE_MACHINE_NATIVE)
+    if (actualMachineType != IMAGE_FILE_MACHINE_NATIVE && actualMachineType != IMAGE_FILE_MACHINE_NATIVE_NI)
     {
 #ifdef _TARGET_AMD64_
         // v4.0 64-bit compatibility workaround. The 64-bit v4.0 CLR's Reflection.Load(byte[]) api does not detect cpu-matches. We should consider fixing that in
@@ -1984,7 +1987,7 @@ BOOL PEAssembly::CheckNativeImageVersion(PEImage *peimage)
         CorCompileConfigFlags instrumentationConfigFlags = (CorCompileConfigFlags) (configFlags & CORCOMPILE_CONFIG_INSTRUMENTATION);
         if ((info->wConfigFlags & instrumentationConfigFlags) != instrumentationConfigFlags)
         {
-            ExternalLog(LL_ERROR, "Instrumented native image for Mscorlib.dll expected.");
+            ExternalLog(LL_ERROR, "Instrumented native image for System.Private.CoreLib.dll expected.");
             ThrowHR(COR_E_NI_AND_RUNTIME_VERSION_MISMATCH);
         }
     }
@@ -2333,6 +2336,12 @@ void PEFile::GetNGENDebugFlags(BOOL *fAllowOpt)
 BOOL PEFile::ShouldTreatNIAsMSIL()
 {
     LIMITED_METHOD_CONTRACT;
+
+    // Never use fragile native image content during ReadyToRun compilation. It would
+    // produces non-version resilient images because of wrong cached values for 
+    // MethodTable::IsLayoutFixedInCurrentVersionBubble, etc.
+    if (IsReadyToRunCompilation())
+        return TRUE;
 
     // Ask profiling API & config vars whether NGENd images should be avoided
     // completely.

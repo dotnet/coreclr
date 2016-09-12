@@ -3,17 +3,12 @@
 initDistroName()
 {
     if [ "$1" == "Linux" ]; then
-        # Detect Distro
-        if [ "$(cat /etc/*-release | grep -cim1 ubuntu)" -eq 1 ]; then
-            export __DistroName=ubuntu
-        elif [ "$(cat /etc/*-release | grep -cim1 centos)" -eq 1 ]; then
-            export __DistroName=centos
-        elif [ "$(cat /etc/*-release | grep -cim1 rhel)" -eq 1 ]; then
-            export __DistroName=rhel
-        elif [ "$(cat /etc/*-release | grep -cim1 debian)" -eq 1 ]; then
-            export __DistroName=debian
+        if [ ! -e /etc/os-release ]; then
+            echo "WARNING: Can not determine runtime id for current distro."
+            export __DistroRid=""
         else
-            export __DistroName=""
+            source /etc/os-release
+            export __DistroRid="$ID.$VERSION_ID-x64"
         fi
     fi
 }
@@ -41,7 +36,7 @@ __BUILD_TOOLS_PATH=$__PACKAGES_DIR/Microsoft.DotNet.BuildTools/$__BUILD_TOOLS_PA
 __PROJECT_JSON_PATH=$__TOOLRUNTIME_DIR/$__BUILD_TOOLS_PACKAGE_VERSION
 __PROJECT_JSON_FILE=$__PROJECT_JSON_PATH/project.json
 __PROJECT_JSON_CONTENTS="{ \"dependencies\": { \"Microsoft.DotNet.BuildTools\": \"$__BUILD_TOOLS_PACKAGE_VERSION\" }, \"frameworks\": { \"dnxcore50\": { } } }"
-__DistroName=""
+__DistroRid=""
 
 OSName=$(uname -s)
 case $OSName in
@@ -52,35 +47,35 @@ case $OSName in
 
     Linux)
         OS=Linux
-        __DOTNET_PKG=dotnet-dev-ubuntu-x64
+
+        if [ ! -e /etc/os-release ]; then
+            echo "Cannot determine Linux distribution, asuming Ubuntu 14.04."
+            __DOTNET_PKG=dotnet-dev-ubuntu.14.04-x64
+        else
+            source /etc/os-release
+            __DOTNET_PKG="dotnet-dev-$ID.$VERSION_ID-x64"
+        fi
         ;;
 
     *)
         echo "Unsupported OS $OSName detected. Downloading ubuntu-x64 tools"
         OS=Linux
-        __DOTNET_PKG=dotnet-dev-ubuntu-x64
+        __DOTNET_PKG=dotnet-dev-ubuntu.14.04-x64
         ;;
 esac
 
 # Initialize Linux Distribution name and .NET CLI package name.
 
 initDistroName $OS
-if [ "$__DistroName" == "centos" ]; then
-    __DOTNET_PKG=dotnet-dev-centos-x64
-fi
-
-if [ "$__DistroName" == "rhel" ]; then
-    __DOTNET_PKG=dotnet-dev-centos-x64
-fi
 
 # Work around mac build issue 
-if [ "$OS"=="OSX" ]; then
+if [ "$OS" == "OSX" ]; then
   echo Raising file open limit - otherwise Mac build may fail
   echo ulimit -n 2048
   ulimit -n 2048
 fi
 
-__CLIDownloadURL=https://dotnetcli.blob.core.windows.net/dotnet/beta/Binaries/${__DOTNET_TOOLS_VERSION}/${__DOTNET_PKG}.${__DOTNET_TOOLS_VERSION}.tar.gz
+__CLIDownloadURL=https://dotnetcli.blob.core.windows.net/dotnet/preview/Binaries/${__DOTNET_TOOLS_VERSION}/${__DOTNET_PKG}.${__DOTNET_TOOLS_VERSION}.tar.gz
 echo ".NET CLI will be downloaded from $__CLIDownloadURL"
 echo "Locating $__PROJECT_JSON_FILE to see if we already downloaded .NET CLI tools..." 
 
@@ -96,8 +91,8 @@ if [ ! -e $__PROJECT_JSON_FILE ]; then
           wget -q -O $__DOTNET_PATH/dotnet.tar $__CLIDownloadURL
           echo "wget -q -O $__DOTNET_PATH/dotnet.tar $__CLIDownloadURL"
         else
-          curl -sSL --create-dirs -o $__DOTNET_PATH/dotnet.tar $__CLIDownloadURL
-          echo "curl -sSL --create-dirs -o $__DOTNET_PATH/dotnet.tar $__CLIDownloadURL"
+          curl --retry 10 -sSL --create-dirs -o $__DOTNET_PATH/dotnet.tar $__CLIDownloadURL
+          echo "curl --retry 10 -sSL --create-dirs -o $__DOTNET_PATH/dotnet.tar $__CLIDownloadURL"
         fi
         cd $__DOTNET_PATH
         tar -xf $__DOTNET_PATH/dotnet.tar
@@ -121,7 +116,6 @@ if [ ! -e $__PROJECT_JSON_FILE ]; then
     # On ubuntu 14.04, /bin/sh (symbolic link) calls /bin/dash by default.
     $__BUILD_TOOLS_PATH/init-tools.sh $__scriptpath $__DOTNET_CMD $__TOOLRUNTIME_DIR
 
-    chmod a+x $__TOOLRUNTIME_DIR/corerun
 else
     echo "$__PROJECT_JSON_FILE found. Skipping .NET CLI installation."   
 fi

@@ -15,6 +15,9 @@
 #include <utilcode.h>
 #include <corhost.h>
 #include <configuration.h>
+#ifdef FEATURE_GDBJIT
+#include "../../vm/gdbjithelpers.h"
+#endif // FEATURE_GDBJIT
 
 typedef int (STDMETHODCALLTYPE *HostMain)(
     const int argc,
@@ -56,13 +59,13 @@ public:
 // Convert 8 bit string to unicode
 static LPCWSTR StringToUnicode(LPCSTR str)
 {
-    int length = MultiByteToWideChar(CP_ACP, 0, str, -1, NULL, 0);
+    int length = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0);
     ASSERTE_ALL_BUILDS(length != 0);
 
     LPWSTR result = new (nothrow) WCHAR[length];
     ASSERTE_ALL_BUILDS(result != NULL);
     
-    length = MultiByteToWideChar(CP_ACP, 0, str, -1, result, length);
+    length = MultiByteToWideChar(CP_UTF8, 0, str, -1, result, length);
     ASSERTE_ALL_BUILDS(length != 0);
 
     return result;
@@ -136,6 +139,11 @@ static void ConvertConfigPropertiesToUnicode(
 // Reference to the global holding the path to the JIT
 extern "C" LPCWSTR g_CLRJITPath;
 #endif // !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+
+#ifdef FEATURE_GDBJIT
+GetInfoForMethodDelegate getInfoForMethodDelegate = NULL;
+extern "C" int coreclr_create_delegate(void*, unsigned int, const char*, const char*, const char*, void**);
+#endif //FEATURE_GDBJIT
 
 //
 // Initialize the CoreCLR. Creates and starts CoreCLR host and creates an app domain
@@ -238,8 +246,24 @@ int coreclr_initialize(
     {
         host.SuppressRelease();
         *hostHandle = host;
-    }
+#ifdef FEATURE_GDBJIT
 
+        hr = coreclr_create_delegate(*hostHandle,
+                                     *domainId,
+                                     "SOS.NETCore",
+                                     "SOS.SymbolReader",
+                                     "GetInfoForMethod",
+                                     (void**)&getInfoForMethodDelegate);
+
+        if (!SUCCEEDED(hr))
+        {
+            fprintf(stderr,
+                    "Can't create delegate for 'System.Diagnostics.Debug.SymbolReader.SymbolReader.GetInfoForMethod' "
+                    "method - status: 0x%08x\n", hr);
+        }
+        hr = S_OK; // We don't need to fail if we can't create delegate
+#endif
+    }
     return hr;
 }
 
@@ -352,89 +376,3 @@ int coreclr_execute_assembly(
 
     return hr;
 }
-
-#ifdef PLATFORM_UNIX
-//
-// Execute a managed assembly with given arguments
-//
-// Parameters:
-//  exePath                 - Absolute path of the executable that invoked the ExecuteAssembly
-//  coreClrPath             - Absolute path of the libcoreclr.so
-//  appDomainFriendlyName   - Friendly name of the app domain that will be created to execute the assembly
-//  propertyCount           - Number of properties (elements of the following two arguments)
-//  propertyKeys            - Keys of properties of the app domain
-//  propertyValues          - Values of properties of the app domain
-//  argc                    - Number of arguments passed to the executed assembly
-//  argv                    - Array of arguments passed to the executed assembly
-//  managedAssemblyPath     - Path of the managed assembly to execute (or NULL if using a custom entrypoint).
-//  enntyPointAssemblyName  - Name of the assembly which holds the custom entry point (or NULL to use managedAssemblyPath).
-//  entryPointTypeName      - Name of the type which holds the custom entry point (or NULL to use managedAssemblyPath).
-//  entryPointMethodName    - Name of the method which is the custom entry point (or NULL to use managedAssemblyPath).
-//  exitCode                - Exit code returned by the executed assembly
-//
-// Returns:
-//  HRESULT indicating status of the operation. S_OK if the assembly was successfully executed
-//
-extern "C"
-HRESULT ExecuteAssembly(
-            LPCSTR exePath,
-            LPCSTR coreClrPath,
-            LPCSTR appDomainFriendlyName,
-            int propertyCount,
-            LPCSTR* propertyKeys,
-            LPCSTR* propertyValues,
-            int argc,
-            LPCSTR* argv,
-            LPCSTR managedAssemblyPath,
-            LPCSTR entryPointAssemblyName,
-            LPCSTR entryPointTypeName,
-            LPCSTR entryPointMethodName,
-            DWORD* exitCode)
-{
-    if (exitCode == NULL)
-    {
-        return HRESULT_FROM_WIN32(ERROR_INVALID_PARAMETER);
-    }
-    *exitCode = -1;
-
-    ReleaseHolder<ICLRRuntimeHost2> host; //(reinterpret_cast<ICLRRuntimeHost2*>(hostHandle));
-    DWORD domainId;
-
-    HRESULT hr = coreclr_initialize(exePath, appDomainFriendlyName, propertyCount, propertyKeys, propertyValues, &host, &domainId);
-    IfFailRet(hr);
-
-    ConstWStringArrayHolder argvW;
-    argvW.Set(StringArrayToUnicode(argc, argv), argc);
-    
-    if (entryPointAssemblyName == NULL || entryPointTypeName == NULL || entryPointMethodName == NULL)
-    {
-        ConstWStringHolder managedAssemblyPathW = StringToUnicode(managedAssemblyPath);
-
-        hr = host->ExecuteAssembly(domainId, managedAssemblyPathW, argc, argvW, exitCode);
-        IfFailRet(hr);
-    }
-    else
-    {
-        ConstWStringHolder entryPointAssemblyNameW = StringToUnicode(entryPointAssemblyName);
-        ConstWStringHolder entryPointTypeNameW = StringToUnicode(entryPointTypeName);
-        ConstWStringHolder entryPointMethodNameW = StringToUnicode(entryPointMethodName);
-
-        HostMain pHostMain;
-
-        hr = host->CreateDelegate(
-            domainId,
-            entryPointAssemblyNameW,
-            entryPointTypeNameW,
-            entryPointMethodNameW,
-            (INT_PTR*)&pHostMain);
-        
-        IfFailRet(hr);
-
-        *exitCode = pHostMain(argc, argvW);
-    }
-
-    hr = coreclr_shutdown(host, domainId);
-
-    return hr;
-}
-#endif

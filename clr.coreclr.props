@@ -32,7 +32,6 @@
     <FeatureMergeCultureSupportAndEngine>true</FeatureMergeCultureSupportAndEngine>
     <FeatureMergeJitAndEngine>true</FeatureMergeJitAndEngine>
     <FeatureMulticoreJIT>true</FeatureMulticoreJIT>
-    <FeatureNormIdnaOnly>true</FeatureNormIdnaOnly>
     <FeaturePrejit>true</FeaturePrejit>
     <FeatureStandaloneSn>true</FeatureStandaloneSn>
     <FeatureStrongnameDelaySigningAllowed>true</FeatureStrongnameDelaySigningAllowed>
@@ -60,11 +59,6 @@
     <FeatureCominteropWinRTManagedActivation>true</FeatureCominteropWinRTManagedActivation>
     <FeatureHostAssemblyResolver>true</FeatureHostAssemblyResolver>
     <FeatureLazyCOWPages Condition="('$(TargetArch)' == 'i386') or ('$(TargetArch)' == 'arm')">true</FeatureLazyCOWPages>
-    <FeatureLatin1>true</FeatureLatin1>
-    <FeatureEncodingNls>true</FeatureEncodingNls>
-    <FeatureAscii>true</FeatureAscii>
-    <FeatureUtf7>true</FeatureUtf7>
-    <FeatureUtf32>true</FeatureUtf32>
     <FeatureRandomizedStringHashing>true</FeatureRandomizedStringHashing>
     <!-- The rejit feature is available only on supported architectures (x86 & x64) -->
     <FeatureReJIT Condition="('$(TargetArch)' == 'i386') or ('$(TargetArch)' == 'amd64')">true</FeatureReJIT>
@@ -87,7 +81,7 @@
     <FeaturePal>true</FeaturePal>
     <FeatureXplatEventSource>true</FeatureXplatEventSource>
 
-    <FeatureStubsAsIL Condition="'$(TargetArch)' != 'arm'">true</FeatureStubsAsIL>
+    <FeatureStubsAsIL>true</FeatureStubsAsIL>
 
     <!-- Windows specific features -->
     <FeatureWin32Registry>false</FeatureWin32Registry>
@@ -100,5 +94,10 @@
     <FeatureManagedEtw>false</FeatureManagedEtw>
 
     <FeatureCoreFxGlobalization>true</FeatureCoreFxGlobalization>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetsUnix)' != 'true'">
+    <FeatureUseLcid>true</FeatureUseLcid>
+    <FeatureImplicitLongPath>true</FeatureImplicitLongPath>
   </PropertyGroup>
 </Project>

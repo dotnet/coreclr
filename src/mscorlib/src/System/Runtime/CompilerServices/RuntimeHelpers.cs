@@ -17,6 +17,7 @@ namespace System.Runtime.CompilerServices {
     using System.Runtime.CompilerServices;
     using System.Runtime.InteropServices;
     using System.Runtime.ConstrainedExecution;
+    using System.Runtime.Serialization;
     using System.Security.Permissions;
     using System.Threading;
     using System.Runtime.Versioning;
@@ -24,6 +25,15 @@ namespace System.Runtime.CompilerServices {
 
     public static class RuntimeHelpers
     {
+#if FEATURE_CORECLR
+        // Exposed here as a more appropriate place than on FormatterServices itself,
+        // which is a high level reflection heavy type.
+        public static Object GetUninitializedObject(Type type)
+        {
+            return FormatterServices.GetUninitializedObject(type);
+        }
+#endif // FEATURE_CORECLR
+
         [System.Security.SecuritySafeCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void InitializeArray(Array array,RuntimeFieldHandle fldHandle);
@@ -161,11 +171,11 @@ namespace System.Runtime.CompilerServices {
                 // after the sync block, so don't count that.  
                 // This property allows C#'s fixed statement to work on Strings.
                 // On 64 bit platforms, this should be 12 (8+4) and on 32 bit 8 (4+4).
-#if WIN32
-                return 8;
-#else
+#if BIT64
                 return 12;
-#endif // WIN32
+#else // 32
+                return 8;
+#endif // BIT64
             }
         }
 
@@ -178,7 +188,6 @@ namespace System.Runtime.CompilerServices {
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         public static extern void EnsureSufficientExecutionStack();
 
-#if FEATURE_CORECLR
         // This method ensures that there is sufficient stack to execute the average Framework function.
         // If there is not enough stack, then it return false.
         // Note: this method is not part of the CER support, and is not to be confused with ProbeForSufficientStack
@@ -186,8 +195,7 @@ namespace System.Runtime.CompilerServices {
         [System.Security.SecuritySafeCritical]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-        internal static extern bool TryEnsureSufficientExecutionStack();
-#endif
+        public static extern bool TryEnsureSufficientExecutionStack();
 
         [System.Security.SecurityCritical]  // auto-generated_required
         [MethodImplAttribute(MethodImplOptions.InternalCall)]

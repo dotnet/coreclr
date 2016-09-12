@@ -31,15 +31,13 @@
     <NoLogo>True</NoLogo>
     <NoStandardLib>True</NoStandardLib>
     <Noconfig>True</Noconfig>
+    <Optimize>True</Optimize>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <JitOptimizationSensitive>True</JitOptimizationSensitive>
     <DefineConstants>$(DefineConstants);CORECLR</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="b103058.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="$(JitPackagesConfigFileDirectory)minimal\project.json" />
-    <None Include="app.config" />
   </ItemGroup>
   <ItemGroup>
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />

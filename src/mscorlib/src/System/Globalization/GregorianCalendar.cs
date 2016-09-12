@@ -22,7 +22,7 @@ namespace System.Globalization {
     // 0 CurrentEra (AD)
     // 1 BeforeCurrentEra (BC)
 
-[System.Runtime.InteropServices.ComVisible(true)]
+    [System.Runtime.InteropServices.ComVisible(true)]
     [Serializable]
     public class GregorianCalendar : Calendar
     {

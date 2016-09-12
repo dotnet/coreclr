@@ -18,7 +18,7 @@ namespace System.Reflection {
     using System;
     using System.Runtime.Serialization;
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
+    [System.Runtime.InteropServices.ComVisible(true)]
 #if FEATURE_CORECLR
     public sealed class TargetInvocationException : Exception {
 #else

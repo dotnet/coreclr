@@ -100,8 +100,14 @@ PTR_Module ClassLoader::ComputeLoaderModuleWorker(
 
 #ifndef DACCESS_COMPILE
 #ifdef FEATURE_NATIVE_IMAGE_GENERATION
-    // Check we're NGEN'ing
-    if (IsCompilationProcess())
+    //
+    // Use special loader module placement during compilation of fragile native images.
+    //
+    // ComputeLoaderModuleForCompilation algorithm assumes that we are using fragile native image
+    // for CoreLib (or compiling CoreLib itself). It is not the case for ReadyToRun compilation because
+    // CoreLib as always treated as IL there (see code:PEFile::ShouldTreatNIAsMSIL for details).
+    //
+    if (IsCompilationProcess() && !IsReadyToRunCompilation())
     {
         RETURN(ComputeLoaderModuleForCompilation(pDefinitionModule, token, classInst, methodInst));
     }
@@ -3656,29 +3662,38 @@ TypeHandle ClassLoader::CreateTypeHandleForTypeKey(TypeKey* pKey, AllocMemTracke
             
         typeHnd = TypeHandle(new(mem)  FnPtrTypeDesc(pKey->GetCallConv(), numArgs, pKey->GetRetAndArgTypes()));
     }
-    else 
-    {            
+    else
+    {
         Module *pLoaderModule = ComputeLoaderModule(pKey);
         PREFIX_ASSUME(pLoaderModule!=NULL);
 
         CorElementType kind = pKey->GetKind();
         TypeHandle paramType = pKey->GetElementType();
         MethodTable *templateMT;
-        
+
         // Create a new type descriptor and insert into constructed type table
         if (CorTypeInfo::IsArray(kind)) 
-        {                
-            DWORD rank = pKey->GetRank();                
+        {
+            DWORD rank = pKey->GetRank();
             THROW_BAD_FORMAT_MAYBE((kind != ELEMENT_TYPE_ARRAY) || rank > 0, BFA_MDARRAY_BADRANK, pLoaderModule);
             THROW_BAD_FORMAT_MAYBE((kind != ELEMENT_TYPE_SZARRAY) || rank == 1, BFA_SDARRAY_BADRANK, pLoaderModule);
-            
+
             // Arrays of BYREFS not allowed
-            if (paramType.GetInternalCorElementType() == ELEMENT_TYPE_BYREF || 
-                paramType.GetInternalCorElementType() == ELEMENT_TYPE_TYPEDBYREF)
+            if (paramType.GetInternalCorElementType() == ELEMENT_TYPE_BYREF)
             {
                 ThrowTypeLoadException(pKey, IDS_CLASSLOAD_CANTCREATEARRAYCLASS);
             }
-                
+
+            // Arrays of ByRefLike types not allowed
+            MethodTable* pMT = paramType.GetMethodTable();
+            if (pMT != NULL)
+            {
+                if (pMT->IsByRefLike())
+                {
+                    ThrowTypeLoadException(pKey, IDS_CLASSLOAD_CANTCREATEARRAYCLASS);
+                }
+            }
+
             // We really don't need this check anymore.
             if (rank > MAX_RANK)
             {
@@ -3691,14 +3706,17 @@ TypeHandle ClassLoader::CreateTypeHandleForTypeKey(TypeKey* pKey, AllocMemTracke
             typeHnd = TypeHandle(new(mem)  ArrayTypeDesc(templateMT, paramType));
         }
         else 
-        {            
+        {
             // no parameterized type allowed on a reference
-            if (paramType.GetInternalCorElementType() == ELEMENT_TYPE_BYREF || 
+            if (paramType.GetInternalCorElementType() == ELEMENT_TYPE_BYREF ||
                 paramType.GetInternalCorElementType() == ELEMENT_TYPE_TYPEDBYREF)
             {
                 ThrowTypeLoadException(pKey, IDS_CLASSLOAD_GENERAL);
             }
-                
+
+            // We do allow parametrized types of ByRefLike types. Languages may restrict them to produce safe or verifiable code, 
+            // but there is not a good reason for restricting them in the runtime.
+
             // let <Type>* type have a method table
             // System.UIntPtr's method table is used for types like int*, void *, string * etc.
             if (kind == ELEMENT_TYPE_PTR)
@@ -3751,44 +3769,44 @@ TypeHandle ClassLoader::PublishType(TypeKey *pTypeKey, TypeHandle typeHnd)
         pTable->InsertValue(typeHnd);
 
 #ifdef _DEBUG
-        // Checks to help ensure that the mscorlib in the ngen process does not get contaminated with pointers to the compilation domains.
+        // Checks to help ensure that the CoreLib in the ngen process does not get contaminated with pointers to the compilation domains.
         if (pLoaderModule->IsSystem() && IsCompilationProcess() && pLoaderModule->HasNativeImage())
         {
             CorElementType kind = pTypeKey->GetKind();
             MethodTable *typeHandleMethodTable = typeHnd.GetMethodTable();
             if ((typeHandleMethodTable != NULL) && (typeHandleMethodTable->GetLoaderAllocator() != pLoaderModule->GetLoaderAllocator()))
             {
-                _ASSERTE(!"MethodTable of type loaded into mscorlib during NGen is not from mscorlib!");
+                _ASSERTE(!"MethodTable of type loaded into CoreLib during NGen is not from CoreLib!");
             }
             if ((kind != ELEMENT_TYPE_FNPTR) && (kind != ELEMENT_TYPE_VAR) && (kind != ELEMENT_TYPE_MVAR))
             {
                 if ((kind == ELEMENT_TYPE_SZARRAY) || (kind == ELEMENT_TYPE_ARRAY) || (kind == ELEMENT_TYPE_BYREF) || (kind == ELEMENT_TYPE_PTR) || (kind == ELEMENT_TYPE_VALUETYPE))
                 {
-                    // Check to ensure param value is also part of mscorlib.
+                    // Check to ensure param value is also part of CoreLib.
                     if (pTypeKey->GetElementType().GetLoaderAllocator() != pLoaderModule->GetLoaderAllocator())
                     {
-                        _ASSERTE(!"Param value of type key used to load type during NGEN not located within mscorlib yet type is placed into mscorlib");
+                        _ASSERTE(!"Param value of type key used to load type during NGEN not located within CoreLib yet type is placed into CoreLib");
                     }
                 }
                 else if (kind == ELEMENT_TYPE_FNPTR)
                 {
-                    // Check to ensure the parameter types of fnptr are in mscorlib
+                    // Check to ensure the parameter types of fnptr are in CoreLib
                     for (DWORD i = 0; i <= pTypeKey->GetNumArgs(); i++)
                     {
                         if (pTypeKey->GetRetAndArgTypes()[i].GetLoaderAllocator() != pLoaderModule->GetLoaderAllocator())
                         {
-                            _ASSERTE(!"Ret or Arg type of function pointer type key used to load type during NGEN not located within mscorlib yet type is placed into mscorlib");
+                            _ASSERTE(!"Ret or Arg type of function pointer type key used to load type during NGEN not located within CoreLib yet type is placed into CoreLib");
                         }
                     }
                 }
                 else if (kind == ELEMENT_TYPE_CLASS)
                 {
-                    // Check to ensure that the generic parameters are all within mscorlib
+                    // Check to ensure that the generic parameters are all within CoreLib
                     for (DWORD i = 0; i < pTypeKey->GetNumGenericArgs(); i++)
                     {
                         if (pTypeKey->GetInstantiation()[i].GetLoaderAllocator() != pLoaderModule->GetLoaderAllocator())
                         {
-                            _ASSERTE(!"Instantiation parameter of generic class type key used to load type during NGEN not located within mscorlib yet type is placed into mscorlib");
+                            _ASSERTE(!"Instantiation parameter of generic class type key used to load type during NGEN not located within CoreLib yet type is placed into CoreLib");
                         }
                     }
                 }
@@ -4168,10 +4186,11 @@ ClassLoader::LoadTypeHandleForTypeKey_Body(
 #endif
     }
 
-retry:
     ReleaseHolder<PendingTypeLoadEntry> pLoadingEntry;
+    CrstHolderWithState unresolvedClassLockHolder(&m_UnresolvedClassLock, false);
 
-    CrstHolderWithState unresolvedClassLockHolder(&m_UnresolvedClassLock);
+retry:
+    unresolvedClassLockHolder.Acquire();    
 
     // Is it in the hash of classes currently being loaded?
     pLoadingEntry = m_pUnresolvedClassHash->GetValue(pTypeKey);
@@ -4342,12 +4361,24 @@ retry:
         // Release the lock before proceeding. The unhandled exception filters take number of locks that
         // have ordering violations with this lock.
         unresolvedClassLockHolder.Release();
+        
+        // Unblock any thread waiting to load same type as in TypeLoadEntry
+        pLoadingEntry->UnblockWaiters();
     }
     EX_END_HOOK;
 
     // Unlink this class from the unresolved class list.
     unresolvedClassLockHolder.Acquire();
     m_pUnresolvedClassHash->DeleteValue(pTypeKey);
+    unresolvedClassLockHolder.Release();
+
+    // Unblock any thread waiting to load same type as in TypeLoadEntry. This should be done
+    // after pLoadingEntry is removed from m_pUnresolvedClassHash. Otherwise the other thread
+    // (which was waiting) will keep spinning for a while after waking up, till the current thread removes 
+    //  pLoadingEntry from m_pUnresolvedClassHash. This can cause hang in situation when the current 
+    // thread is a background thread and so will get very less processor cycle to perform subsequent
+    // operations to remove the entry from hash later. 
+    pLoadingEntry->UnblockWaiters();
 
     if (currentLevel < targetLevel)
         goto retry;

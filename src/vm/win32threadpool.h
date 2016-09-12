@@ -146,7 +146,8 @@ class ThreadpoolMgr
         } m_counts;
 
     private:
-        CLRSemaphore m_sem;  //waiters wait on this
+        const int m_spinLimitPerProcessor; //used when calculating max spin duration
+        CLRSemaphore m_sem;                //waiters wait on this
 
         // padding to ensure we get our own cache line
         BYTE padding2[64];
@@ -183,7 +184,8 @@ class ThreadpoolMgr
 
     public:
 
-        UnfairSemaphore(int maxCount)
+        UnfairSemaphore(int maxCount, int spinLimitPerProcessor)
+            : m_spinLimitPerProcessor(spinLimitPerProcessor)
         {
             CONTRACTL
             {
@@ -277,7 +279,6 @@ class ThreadpoolMgr
             // Now we're a spinner.  
             //
             int numSpins = 0;
-            const int spinLimitPerProcessor = 50;
             while (true)
             {
                 Counts currentCounts, newCounts;
@@ -295,7 +296,7 @@ class ThreadpoolMgr
                 else
                 {
                     double spinnersPerProcessor = (double)currentCounts.spinners / ThreadpoolMgr::NumberOfProcessors;
-                    int spinLimit = (int)((spinLimitPerProcessor / spinnersPerProcessor) + 0.5);
+                    int spinLimit = (int)((m_spinLimitPerProcessor / spinnersPerProcessor) + 0.5);
                     if (numSpins >= spinLimit)
                     {
                         newCounts.spinners--;
@@ -372,9 +373,17 @@ public:
 
         } counts;
 
+        // padding to ensure we get our own cache line
+        BYTE padding[64];
+
         Counts GetCleanCounts()
         {
             LIMITED_METHOD_CONTRACT;
+#ifdef _WIN64
+            // VolatileLoad x64 bit read is atomic
+            return DangerousGetDirtyCounts();
+#else // !_WIN64
+            // VolatileLoad may result in torn read
             Counts result;
 #ifndef DACCESS_COMPILE
             result.AsLongLong = FastInterlockCompareExchangeLong(&counts.AsLongLong, 0, 0);
@@ -383,6 +392,7 @@ public:
             result.AsLongLong = 0; //prevents prefast warning for DAC builds
 #endif
             return result;
+#endif // !_WIN64
         }
 
         //
@@ -522,7 +532,7 @@ public:
     static inline void UpdateLastDequeueTime()
     {
         LIMITED_METHOD_CONTRACT;
-        LastDequeueTime = GetTickCount();
+        VolatileStore(&LastDequeueTime, (unsigned int)GetTickCount());
     }
 
     static BOOL CreateTimerQueueTimer(PHANDLE phNewTimer,
@@ -1132,8 +1142,10 @@ public:
         if (CLRThreadpoolHosted())
             return false;
 
-        DWORD requiredInterval = NextCompletedWorkRequestsTime - PriorCompletedWorkRequestsTime;
-        DWORD elapsedInterval = GetTickCount() - PriorCompletedWorkRequestsTime;
+        DWORD priorTime = PriorCompletedWorkRequestsTime;
+        MemoryBarrier(); // read fresh value for NextCompletedWorkRequestsTime below
+        DWORD requiredInterval = NextCompletedWorkRequestsTime - priorTime;
+        DWORD elapsedInterval = GetTickCount() - priorTime;
         if (elapsedInterval >= requiredInterval)
         {
             ThreadCounter::Counts counts = WorkerCounter.GetCleanCounts();
@@ -1293,13 +1305,13 @@ private:
     SVAL_DECL(LONG,MinLimitTotalWorkerThreads);         // same as MinLimitTotalCPThreads
     SVAL_DECL(LONG,MaxLimitTotalWorkerThreads);         // same as MaxLimitTotalCPThreads
         
-    static Volatile<unsigned int> LastDequeueTime;      // used to determine if work items are getting thread starved 
+    DECLSPEC_ALIGN(64) static unsigned int LastDequeueTime;      // used to determine if work items are getting thread starved 
     
     static HillClimbing HillClimbingInstance;
 
-    static Volatile<LONG> PriorCompletedWorkRequests;
-    static Volatile<DWORD> PriorCompletedWorkRequestsTime;
-    static Volatile<DWORD> NextCompletedWorkRequestsTime;
+    DECLSPEC_ALIGN(64) static LONG PriorCompletedWorkRequests;
+    static DWORD PriorCompletedWorkRequestsTime;
+    static DWORD NextCompletedWorkRequestsTime;
 
     static LARGE_INTEGER CurrentSampleStartTime;
 
@@ -1323,7 +1335,7 @@ private:
     static const DWORD WorkerTimeout = 20 * 1000;
     static const DWORD WorkerTimeoutAppX = 5 * 1000;    // shorter timeout to allow threads to exit prior to app suspension
 
-    SVAL_DECL(ThreadCounter,WorkerCounter);
+    DECLSPEC_ALIGN(64) SVAL_DECL(ThreadCounter,WorkerCounter);
 
     // 
     // WorkerSemaphore is an UnfairSemaphore because:
@@ -1352,7 +1364,7 @@ private:
     SVAL_DECL(LIST_ENTRY,TimerQueue);                   // queue of timers
     static HANDLE TimerThread;                          // Currently we only have one timer thread
     static Thread*  pTimerThread;
-    static DWORD LastTickCount;                         // the count just before timer thread goes to sleep
+    DECLSPEC_ALIGN(64) static DWORD LastTickCount;      // the count just before timer thread goes to sleep
 
     static BOOL InitCompletionPortThreadpool;           // flag indicating whether completion port threadpool has been initialized
     static HANDLE GlobalCompletionPort;                 // used for binding io completions on file handles
@@ -1365,20 +1377,20 @@ private:
     SVAL_DECL(LONG,MinLimitTotalCPThreads);             
     SVAL_DECL(LONG,MaxFreeCPThreads);                   // = MaxFreeCPThreadsPerCPU * Number of CPUS
 
-    static LONG   GateThreadStatus;                    // See GateThreadStatus enumeration
+    DECLSPEC_ALIGN(64) static LONG GateThreadStatus;    // See GateThreadStatus enumeration
 
     static Volatile<LONG> NumCPInfrastructureThreads;   // number of threads currently busy handling draining cycle
 
     SVAL_DECL(LONG,cpuUtilization);
     static LONG cpuUtilizationAverage;
 
-    static RecycledListsWrapper RecycledLists;
+    DECLSPEC_ALIGN(64) static RecycledListsWrapper RecycledLists;
 
 #ifdef _DEBUG
     static DWORD   TickCountAdjustment;                 // add this value to value returned by GetTickCount
 #endif
 
-    static int offset_counter;
+    DECLSPEC_ALIGN(64) static int offset_counter;
     static const int offset_multiplier = 128;
 };
 

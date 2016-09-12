@@ -13,6 +13,7 @@
     <ReferencePath>$(ProgramFiles)\Common Files\microsoft shared\VSTT\11.0\UITestExtensionPackages</ReferencePath>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
     <NuGetPackageImportStamp>7a9bfb7d</NuGetPackageImportStamp>
+    <GCStressIncompatible>true</GCStressIncompatible>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -26,16 +27,8 @@
   </ItemGroup>
   <ItemGroup>
     <!-- Add Compile Object Here -->
-    <Compile Include="GC.cs" />
+    <Compile Include="gc.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <None Include="app.config" />
-    <None Include="$(GCPackagesConfigFileDirectory)extra\project.json" />
-  </ItemGroup>
-  <PropertyGroup>
-    <ProjectJson>$(GCPackagesConfigFileDirectory)extra\project.json</ProjectJson>
-    <ProjectLockJson>$(GCPackagesConfigFileDirectory)extra\project.lock.json</ProjectLockJson>
-  </PropertyGroup>
   <ItemGroup>
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
   </ItemGroup>

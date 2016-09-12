@@ -4,7 +4,6 @@
 
 namespace System {
     
-    using System;
     [Serializable]
     [System.Runtime.InteropServices.ComVisible(true)]
     public delegate void EventHandler(Object sender, EventArgs e);

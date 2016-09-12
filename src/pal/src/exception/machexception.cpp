@@ -14,12 +14,14 @@ Abstract:
 
 --*/
 
+#include "pal/dbgmsg.h"
+SET_DEFAULT_DEBUG_CHANNEL(EXCEPT); // some headers have code with asserts, so do this first
+
 #include "pal/thread.hpp"
 #include "pal/seh.hpp"
 #include "pal/palinternal.h"
 #if HAVE_MACH_EXCEPTIONS
 #include "machexception.h"
-#include "pal/dbgmsg.h"
 #include "pal/critsect.h"
 #include "pal/debug.h"
 #include "pal/init.h"
@@ -42,12 +44,12 @@ Abstract:
 
 using namespace CorUnix;
 
-SET_DEFAULT_DEBUG_CHANNEL(EXCEPT);
-
 // The port we use to handle exceptions and to set the thread context
 mach_port_t s_ExceptionPort;
 
 static BOOL s_DebugInitialized = FALSE;
+
+static DWORD s_PalInitializeFlags = 0;
 
 static const char * PAL_MACH_EXCEPTION_MODE = "PAL_MachExceptionMode";
 
@@ -175,7 +177,7 @@ GetExceptionMask()
         if (exceptionSettings)
         {
             exMode = (MachExceptionMode)atoi(exceptionSettings);
-            InternalFree(exceptionSettings);
+            free(exceptionSettings);
         }
         else
         {
@@ -191,7 +193,7 @@ GetExceptionMask()
     {
         machExceptionMask |= PAL_EXC_ILLEGAL_MASK;
     }
-    if (!(exMode & MachException_SuppressDebugging))
+    if (!(exMode & MachException_SuppressDebugging) && (s_PalInitializeFlags & PAL_INITIALIZE_DEBUGGER_EXCEPTIONS))
     {
 #ifdef FEATURE_PAL_SXS
         // Always hook exception ports for breakpoint exceptions.
@@ -457,12 +459,37 @@ void PAL_DispatchException(DWORD64 dwRDI, DWORD64 dwRSI, DWORD64 dwRDX, DWORD64 
     }
 #endif // FEATURE_PAL_SXS
 
-    EXCEPTION_POINTERS pointers;
-    pointers.ExceptionRecord = pExRecord;
-    pointers.ContextRecord = pContext;
+    CONTEXT *contextRecord;
+    EXCEPTION_RECORD *exceptionRecord;
+    AllocateExceptionRecords(&exceptionRecord, &contextRecord);
 
-    TRACE("PAL_DispatchException(EC %08x EA %p)\n", pExRecord->ExceptionCode, pExRecord->ExceptionAddress);
-    SEHProcessException(&pointers);
+    *contextRecord = *pContext;
+    *exceptionRecord = *pExRecord;
+
+    contextRecord->ContextFlags |= CONTEXT_EXCEPTION_ACTIVE;
+    bool continueExecution;
+
+    {
+        // The exception object takes ownership of the exceptionRecord and contextRecord
+        PAL_SEHException exception(exceptionRecord, contextRecord);
+
+        TRACE("PAL_DispatchException(EC %08x EA %p)\n", pExRecord->ExceptionCode, pExRecord->ExceptionAddress);
+
+        continueExecution = SEHProcessException(&exception);
+        if (continueExecution)
+        {
+            // Make a copy of the exception records so that we can free them before restoring the context
+            *pContext = *contextRecord;
+            *pExRecord = *exceptionRecord;
+        }
+
+        // The exception records are destroyed by the PAL_SEHException destructor now.
+    }
+
+    if (continueExecution)
+    {
+        RtlRestoreContext(pContext, pExRecord);
+    }
 
     // Send the forward request to the exception thread to process
     MachMessage sSendMessage;
@@ -1325,23 +1352,26 @@ MachSetThreadContext(CONTEXT *lpContext)
     }
 }
 
+
 /*++
 Function :
     SEHInitializeMachExceptions 
 
     Initialize all SEH-related stuff related to mach exceptions
 
-    (no parameters)
+    flags - PAL_INITIALIZE flags
 
 Return value :
     TRUE  if SEH support initialization succeeded
     FALSE otherwise
 --*/
 BOOL 
-SEHInitializeMachExceptions(void)
+SEHInitializeMachExceptions(DWORD flags)
 {
     pthread_t exception_thread;
     kern_return_t machret;
+
+    s_PalInitializeFlags = flags;
 
     // Allocate a mach port that will listen in on exceptions
     machret = mach_port_allocate(mach_task_self(), MACH_PORT_RIGHT_RECEIVE, &s_ExceptionPort);

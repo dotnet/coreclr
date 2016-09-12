@@ -17,7 +17,7 @@ namespace System {
     using System;
     using System.Runtime.Serialization;
 
-[System.Runtime.InteropServices.ComVisible(true)]
+    [System.Runtime.InteropServices.ComVisible(true)]
     [Serializable]
     public class NotImplementedException : SystemException
     {

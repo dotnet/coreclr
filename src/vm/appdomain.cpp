@@ -2879,10 +2879,7 @@ void SystemDomain::LoadBaseSystemClasses()
     // We have delayed allocation of mscorlib's static handles until we load the object class
     MscorlibBinder::GetModule()->AllocateRegularStaticHandles(DefaultDomain());
 
-    // used by MethodTable::ContainsStackPtr
     g_TypedReferenceMT = MscorlibBinder::GetClass(CLASS__TYPED_REFERENCE);
-    g_ArgumentHandleMT = MscorlibBinder::GetClass(CLASS__ARGUMENT_HANDLE);
-    g_ArgIteratorMT    = MscorlibBinder::GetClass(CLASS__ARG_ITERATOR);
 
     // Make sure all primitive types are loaded
     for (int et = ELEMENT_TYPE_VOID; et <= ELEMENT_TYPE_R8; et++)
@@ -14214,7 +14211,7 @@ BOOL RuntimeCanUseAppPathAssemblyResolver(DWORD adid)
 }
 
 // Returns S_OK if the assembly was successfully loaded
-HRESULT RuntimeInvokeHostAssemblyResolver(INT_PTR pManagedAssemblyLoadContextToBindWithin, IAssemblyName *pIAssemblyName, ICLRPrivAssembly **ppLoadedAssembly)
+HRESULT RuntimeInvokeHostAssemblyResolver(INT_PTR pManagedAssemblyLoadContextToBindWithin, IAssemblyName *pIAssemblyName, CLRPrivBinderCoreCLR *pTPABinder, BINDER_SPACE::AssemblyName *pAssemblyName, ICLRPrivAssembly **ppLoadedAssembly)
 {
     CONTRACTL
     {
@@ -14243,6 +14240,10 @@ HRESULT RuntimeInvokeHostAssemblyResolver(INT_PTR pManagedAssemblyLoadContextToB
         
         GCPROTECT_BEGIN(_gcRefs);
         
+        ICLRPrivAssembly *pAssemblyBindingContext = NULL;
+
+        bool fInvokedForTPABinder = (pTPABinder == NULL)?true:false;
+        
         // Prepare to invoke System.Runtime.Loader.AssemblyLoadContext.Resolve method.
         //
         // First, initialize an assembly spec for the requested assembly
@@ -14251,27 +14252,88 @@ HRESULT RuntimeInvokeHostAssemblyResolver(INT_PTR pManagedAssemblyLoadContextToB
         hr = spec.Init(pIAssemblyName);
         if (SUCCEEDED(hr))
         {
-            // Next, allocate an AssemblyName managed object
+            bool fResolvedAssembly = false;
+            bool fResolvedAssemblyViaTPALoadContext = false;
+
+            // Allocate an AssemblyName managed object
             _gcRefs.oRefAssemblyName = (ASSEMBLYNAMEREF) AllocateObject(MscorlibBinder::GetClass(CLASS__ASSEMBLY_NAME));
             
             // Initialize the AssemblyName object from the AssemblySpec
             spec.AssemblyNameInit(&_gcRefs.oRefAssemblyName, NULL);
-            
-            // Finally, setup arguments for invocation
-            BinderMethodID idHAR_Resolve = METHOD__ASSEMBLYLOADCONTEXT__RESOLVE;
-            MethodDescCallSite methLoadAssembly(idHAR_Resolve);
-            
-            // Setup the arguments for the call
-            ARG_SLOT args[2] =
+                
+            if (!fInvokedForTPABinder)
             {
-                PtrToArgSlot(pManagedAssemblyLoadContextToBindWithin), // IntPtr for managed assembly load context instance
-                ObjToArgSlot(_gcRefs.oRefAssemblyName), // AssemblyName instance
-            };
+                // Step 2 (of CLRPrivBinderAssemblyLoadContext::BindUsingAssemblyName) - Invoke Load method
+                // This is not invoked for TPA Binder since it always returns NULL.
 
-            // Make the call
-            _gcRefs.oRefLoadedAssembly = (ASSEMBLYREF) methLoadAssembly.Call_RetOBJECTREF(args);
-            if (_gcRefs.oRefLoadedAssembly != NULL)
+                // Finally, setup arguments for invocation
+                BinderMethodID idHAR_Resolve = METHOD__ASSEMBLYLOADCONTEXT__RESOLVE;
+                MethodDescCallSite methLoadAssembly(idHAR_Resolve);
+                
+                // Setup the arguments for the call
+                ARG_SLOT args[2] =
+                {
+                    PtrToArgSlot(pManagedAssemblyLoadContextToBindWithin), // IntPtr for managed assembly load context instance
+                    ObjToArgSlot(_gcRefs.oRefAssemblyName), // AssemblyName instance
+                };
+
+                // Make the call
+                _gcRefs.oRefLoadedAssembly = (ASSEMBLYREF) methLoadAssembly.Call_RetOBJECTREF(args);
+                if (_gcRefs.oRefLoadedAssembly != NULL)
+                {
+                    fResolvedAssembly = true;
+                }
+            
+                // Step 3 (of CLRPrivBinderAssemblyLoadContext::BindUsingAssemblyName)
+                if (!fResolvedAssembly)
+                {
+                    // If we could not resolve the assembly using Load method, then attempt fallback with TPA Binder.
+                    // Since TPA binder cannot fallback to itself, this fallback does not happen for binds within TPA binder.
+                    //
+                    // Switch to pre-emp mode before calling into the binder
+                    GCX_PREEMP();
+                    ICLRPrivAssembly *pCoreCLRFoundAssembly = NULL;
+                    hr = pTPABinder->BindAssemblyByName(pIAssemblyName, &pCoreCLRFoundAssembly);
+                    if (SUCCEEDED(hr))
+                    {
+                        pAssemblyBindingContext = pCoreCLRFoundAssembly;
+                        fResolvedAssembly = true;
+                        fResolvedAssemblyViaTPALoadContext = true;
+                    }
+                }
+            }
+            
+            if (!fResolvedAssembly)
             {
+                // Step 4 (of CLRPrivBinderAssemblyLoadContext::BindUsingAssemblyName)
+                //
+                // If we couldnt resolve the assembly using TPA LoadContext as well, then
+                // attempt to resolve it using the Resolving event.
+                // Finally, setup arguments for invocation
+                BinderMethodID idHAR_ResolveUsingEvent = METHOD__ASSEMBLYLOADCONTEXT__RESOLVEUSINGEVENT;
+                MethodDescCallSite methLoadAssembly(idHAR_ResolveUsingEvent);
+                
+                // Setup the arguments for the call
+                ARG_SLOT args[2] =
+                {
+                    PtrToArgSlot(pManagedAssemblyLoadContextToBindWithin), // IntPtr for managed assembly load context instance
+                    ObjToArgSlot(_gcRefs.oRefAssemblyName), // AssemblyName instance
+                };
+
+                // Make the call
+                _gcRefs.oRefLoadedAssembly = (ASSEMBLYREF) methLoadAssembly.Call_RetOBJECTREF(args);
+                if (_gcRefs.oRefLoadedAssembly != NULL)
+                {
+                    // Set the flag indicating we found the assembly
+                    fResolvedAssembly = true;
+                }
+            }
+            
+            if (fResolvedAssembly && !fResolvedAssemblyViaTPALoadContext)
+            {
+                // If we are here, assembly was successfully resolved via Load or Resolving events.
+                _ASSERTE(_gcRefs.oRefLoadedAssembly != NULL);
+                    
                 // We were able to get the assembly loaded. Now, get its name since the host could have
                 // performed the resolution using an assembly with different name.
                 DomainAssembly *pDomainAssembly = _gcRefs.oRefLoadedAssembly->GetDomainAssembly();
@@ -14302,23 +14364,23 @@ HRESULT RuntimeInvokeHostAssemblyResolver(INT_PTR pManagedAssemblyLoadContextToB
                 
                 // Is the assembly already bound using a binding context that will be incompatible?
                 // An example is attempting to consume an assembly bound to WinRT binder.
-                ICLRPrivAssembly *pAssemblyBindingContext = pLoadedPEAssembly->GetHostAssembly();
-
+                pAssemblyBindingContext = pLoadedPEAssembly->GetHostAssembly();
+            }
+            
 #ifdef FEATURE_COMINTEROP
-                if (AreSameBinderInstance(pAssemblyBindingContext, GetAppDomain()->GetWinRtBinder()))
-                {
-                    // It is invalid to return an assembly bound to an incompatible binder
-                    *ppLoadedAssembly = NULL;
-                    SString name;
-                    spec.GetFileOrDisplayName(0, name);
-                    COMPlusThrowHR(COR_E_INVALIDOPERATION, IDS_HOST_ASSEMBLY_RESOLVER_INCOMPATIBLE_BINDING_CONTEXT, name);
-                }
+            if (AreSameBinderInstance(pAssemblyBindingContext, GetAppDomain()->GetWinRtBinder()))
+            {
+                // It is invalid to return an assembly bound to an incompatible binder
+                *ppLoadedAssembly = NULL;
+                SString name;
+                spec.GetFileOrDisplayName(0, name);
+                COMPlusThrowHR(COR_E_INVALIDOPERATION, IDS_HOST_ASSEMBLY_RESOLVER_INCOMPATIBLE_BINDING_CONTEXT, name);
+            }
 #endif // FEATURE_COMINTEROP
 
-                // Get the ICLRPrivAssembly reference to return back to.
-                *ppLoadedAssembly = clr::SafeAddRef(pLoadedPEAssembly->GetHostAssembly());
-                hr = S_OK;
-            }
+            // Get the ICLRPrivAssembly reference to return back to.
+            *ppLoadedAssembly = clr::SafeAddRef(pAssemblyBindingContext);
+            hr = S_OK;
         }
         
         GCPROTECT_END();

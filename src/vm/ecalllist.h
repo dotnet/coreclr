@@ -218,21 +218,16 @@ FCFuncStart(gStringFuncs)
     FCDynamicSig(COR_CTOR_METHOD_NAME, &gsig_IM_Char_Int_RetVoid, CORINFO_INTRINSIC_Illegal, ECall::CtorCharCountManaged)
     FCFuncElementSig(COR_CTOR_METHOD_NAME, &gsig_IM_PtrSByt_RetVoid, COMString::StringInitCharPtr)
     FCFuncElementSig(COR_CTOR_METHOD_NAME, &gsig_IM_PtrSByt_Int_Int_RetVoid, COMString::StringInitCharPtrPartial)
-#ifndef FEATURE_CORECLR
     FCFuncElementSig(COR_CTOR_METHOD_NAME, &gsig_IM_PtrSByt_Int_Int_Encoding_RetVoid, COMString::StringInitSBytPtrPartialEx)
     FCFuncElement("IsFastSort", COMString::IsFastSort)
-#endif // FEATURE_CORECLR
     FCFuncElement("nativeCompareOrdinalIgnoreCaseWC", COMString::FCCompareOrdinalIgnoreCaseWC)
     FCIntrinsic("get_Length", COMString::Length, CORINFO_INTRINSIC_StringLength)
     FCIntrinsic("get_Chars", COMString::GetCharAt, CORINFO_INTRINSIC_StringGetChar)
     FCFuncElement("IsAscii", COMString::IsAscii)
-    FCFuncElement("nativeCompareOrdinalEx", COMString::CompareOrdinalEx)
-    FCFuncElement("IndexOf", COMString::IndexOfChar)
+    FCFuncElement("CompareOrdinalHelper", COMString::CompareOrdinalEx)
     FCFuncElement("IndexOfAny", COMString::IndexOfCharArray)
-    FCFuncElement("LastIndexOf", COMString::LastIndexOfChar)
     FCFuncElement("LastIndexOfAny", COMString::LastIndexOfCharArray)
     FCFuncElementSig("ReplaceInternal", &gsig_IM_Str_Str_RetStr, COMString::ReplaceString)
-    FCFuncElement("PadHelper", COMString::PadHelper)
 #ifdef FEATURE_COMINTEROP
     FCFuncElement("SetTrailByte", COMString::FCSetTrailByte)
     FCFuncElement("TryGetTrailByte", COMString::FCTryGetTrailByte)
@@ -343,8 +338,8 @@ FCFuncEnd()
 FCFuncStart(gExceptionFuncs)
     FCFuncElement("IsImmutableAgileException", ExceptionNative::IsImmutableAgileException)
     FCFuncElement("nIsTransient", ExceptionNative::IsTransient)
-#ifndef FEATURE_CORECLR
     FCFuncElement("GetMethodFromStackTrace", SystemNative::GetMethodFromStackTrace)
+#ifndef FEATURE_CORECLR
     FCFuncElement("StripFileInfo", ExceptionNative::StripFileInfo)
 #endif
     QCFuncElement("GetMessageFromNativeResources", ExceptionNative::GetMessageFromNativeResources)
@@ -374,13 +369,13 @@ FCFuncStart(gSafeBufferFuncs)
     FCFuncElement("StructureToPtrNative", SafeBuffer::StructureToPtr)
 FCFuncEnd()
 
-#ifndef FEATURE_CORECLR
+#ifndef FEATURE_COREFX_GLOBALIZATION
 FCFuncStart(gNormalizationFuncs)
     FCFuncElement("nativeNormalizationIsNormalizedString", COMNlsInfo::nativeNormalizationIsNormalizedString)
     FCFuncElement("nativeNormalizationNormalizeString", COMNlsInfo::nativeNormalizationNormalizeString)
     QCFuncElement("nativeNormalizationInitNormalization", COMNlsInfo::nativeNormalizationInitNormalization)
 FCFuncEnd()
-#endif // FEATURE_CORECLR
+#endif // FEATURE_COREFX_GLOBALIZATION
 
 FCFuncStart(gTypedReferenceFuncs)
     FCFuncElement("InternalToObject", ReflectionInvocation::TypedReferenceToObject)
@@ -392,11 +387,9 @@ FCFuncEnd()
 
 FCFuncStart(gSystem_Type)
     FCIntrinsic("GetTypeFromHandle", RuntimeTypeHandle::GetTypeFromHandle, CORINFO_INTRINSIC_GetTypeFromHandle)
-#ifndef FEATURE_CORECLR
     FCFuncElement("GetTypeFromHandleUnsafe", RuntimeTypeHandle::GetRuntimeType)
     FCIntrinsic("op_Equality", RuntimeTypeHandle::TypeEQ, CORINFO_INTRINSIC_TypeEQ)
     FCIntrinsic("op_Inequality", RuntimeTypeHandle::TypeNEQ, CORINFO_INTRINSIC_TypeNEQ)
-#endif // !FEATURE_CORECLR
 FCFuncEnd()
 
 FCFuncStart(gSystem_RuntimeType)
@@ -406,10 +399,8 @@ FCFuncStart(gSystem_RuntimeType)
     FCFuncElement("AllocateValueType", ReflectionInvocation::AllocateValueType)
 #if defined(FEATURE_COMINTEROP)
     FCFuncElement("GetTypeFromCLSIDImpl", ReflectionInvocation::GetClassFromCLSID)
-#if !defined(FEATURE_CORECLR)
     FCFuncElement("GetTypeFromProgIDImpl", ReflectionInvocation::GetClassFromProgID)
     FCFuncElement("InvokeDispMethod", ReflectionInvocation::InvokeDispMethod)
-#endif 
 #ifdef FEATURE_COMINTEROP_WINRT_MANAGED_ACTIVATION
     FCFuncElement("IsTypeExportedToWindowsRuntime", RuntimeTypeHandle::IsTypeExportedToWindowsRuntime)
 #endif
@@ -1237,31 +1228,27 @@ FCFuncStart(gDelegateFuncs)
 FCFuncEnd()
 
 FCFuncStart(gMathFuncs)
-    FCIntrinsic("Sin", COMDouble::Sin, CORINFO_INTRINSIC_Sin)
-    FCIntrinsic("Cos", COMDouble::Cos, CORINFO_INTRINSIC_Cos)
-    FCIntrinsic("Sqrt", COMDouble::Sqrt, CORINFO_INTRINSIC_Sqrt)
-    FCIntrinsic("Round", COMDouble::Round, CORINFO_INTRINSIC_Round)
-    FCIntrinsicSig("Abs", &gsig_SM_Flt_RetFlt, COMDouble::AbsFlt, CORINFO_INTRINSIC_Abs)
-    FCIntrinsicSig("Abs", &gsig_SM_Dbl_RetDbl, COMDouble::AbsDbl, CORINFO_INTRINSIC_Abs)
-    FCIntrinsic("Exp", COMDouble::Exp, CORINFO_INTRINSIC_Exp)
-    FCIntrinsic("Pow", COMDouble::Pow, CORINFO_INTRINSIC_Pow)
-#if defined(_TARGET_X86_)
-    FCUnreferenced FCFuncElement("PowHelperSimple", COMDouble::PowHelperSimple)
-    FCUnreferenced FCFuncElement("PowHelper", COMDouble::PowHelper)
-#endif
-    FCIntrinsic("Tan", COMDouble::Tan, CORINFO_INTRINSIC_Tan)
-    FCIntrinsic("Floor", COMDouble::Floor, CORINFO_INTRINSIC_Floor)
-    FCFuncElement("Log", COMDouble::Log)
-    FCIntrinsic("Sinh", COMDouble::Sinh, CORINFO_INTRINSIC_Sinh)
-    FCIntrinsic("Cosh", COMDouble::Cosh, CORINFO_INTRINSIC_Cosh)
-    FCIntrinsic("Tanh", COMDouble::Tanh, CORINFO_INTRINSIC_Tanh)
+    FCIntrinsicSig("Abs", &gsig_SM_Dbl_RetDbl, COMDouble::Abs, CORINFO_INTRINSIC_Abs)
+    FCIntrinsicSig("Abs", &gsig_SM_Flt_RetFlt, COMSingle::Abs, CORINFO_INTRINSIC_Abs)
     FCIntrinsic("Acos", COMDouble::Acos, CORINFO_INTRINSIC_Acos)
     FCIntrinsic("Asin", COMDouble::Asin, CORINFO_INTRINSIC_Asin)
     FCIntrinsic("Atan", COMDouble::Atan, CORINFO_INTRINSIC_Atan)
     FCIntrinsic("Atan2", COMDouble::Atan2, CORINFO_INTRINSIC_Atan2)
-    FCIntrinsic("Log10", COMDouble::Log10, CORINFO_INTRINSIC_Log10)
     FCIntrinsic("Ceiling", COMDouble::Ceil, CORINFO_INTRINSIC_Ceiling)
-    FCFuncElement("SplitFractionDouble", COMDouble::ModFDouble)
+    FCIntrinsic("Cos", COMDouble::Cos, CORINFO_INTRINSIC_Cos)
+    FCIntrinsic("Cosh", COMDouble::Cosh, CORINFO_INTRINSIC_Cosh)
+    FCIntrinsic("Exp", COMDouble::Exp, CORINFO_INTRINSIC_Exp)
+    FCIntrinsic("Floor", COMDouble::Floor, CORINFO_INTRINSIC_Floor)
+    FCFuncElement("Log", COMDouble::Log)
+    FCIntrinsic("Log10", COMDouble::Log10, CORINFO_INTRINSIC_Log10)
+    FCIntrinsic("Pow", COMDouble::Pow, CORINFO_INTRINSIC_Pow)
+    FCIntrinsic("Round", COMDouble::Round, CORINFO_INTRINSIC_Round)
+    FCIntrinsic("Sin", COMDouble::Sin, CORINFO_INTRINSIC_Sin)
+    FCIntrinsic("Sinh", COMDouble::Sinh, CORINFO_INTRINSIC_Sinh)
+    FCFuncElement("SplitFractionDouble", COMDouble::ModF)
+    FCIntrinsic("Sqrt", COMDouble::Sqrt, CORINFO_INTRINSIC_Sqrt)
+    FCIntrinsic("Tan", COMDouble::Tan, CORINFO_INTRINSIC_Tan)
+    FCIntrinsic("Tanh", COMDouble::Tanh, CORINFO_INTRINSIC_Tanh)
 FCFuncEnd()
 
 FCFuncStart(gThreadFuncs)
@@ -1377,9 +1364,9 @@ FCFuncEnd()
 FCFuncStart(gWaitHandleFuncs)
     FCFuncElement("WaitOneNative", WaitHandleNative::CorWaitOneNative)
     FCFuncElement("WaitMultiple", WaitHandleNative::CorWaitMultipleNative)
-#ifndef FEATURE_CORECLR
+#ifndef FEATURE_PAL
     FCFuncElement("SignalAndWaitOne", WaitHandleNative::CorSignalAndWaitOneNative)
-#endif // !FEATURE_CORECLR
+#endif // !FEATURE_PAL
 FCFuncEnd()
 
 FCFuncStart(gNumberFuncs)
@@ -1453,9 +1440,9 @@ FCFuncStart(gCompareInfoFuncs)
     QCFuncElement("InternalCompareString", COMNlsInfo::InternalCompareString)
     QCFuncElement("InternalFindNLSStringEx", COMNlsInfo::InternalFindNLSStringEx)
     QCFuncElement("NativeInternalInitSortHandle", COMNlsInfo::InternalInitSortHandle)
-#ifndef FEATURE_CORECLR
     QCFuncElement("InternalIsSortable", COMNlsInfo::InternalIsSortable)
     QCFuncElement("InternalGetSortKey", COMNlsInfo::InternalGetSortKey)
+#ifndef FEATURE_CORECLR
     QCFuncElement("InternalGetSortVersion", COMNlsInfo::InternalGetSortVersion)
     QCFuncElement("InternalGetNlsVersionEx", COMNlsInfo::InternalGetNlsVersionEx)
 #endif
@@ -1480,10 +1467,8 @@ FCFuncStart(gCultureDataFuncs)
     FCFuncElement("nativeInitCultureData", COMNlsInfo::nativeInitCultureData)
     FCFuncElement("nativeGetNumberFormatInfoValues", COMNlsInfo::nativeGetNumberFormatInfoValues)
     FCFuncElement("nativeEnumTimeFormats", CalendarData::nativeEnumTimeFormats)
-#ifdef FEATURE_USE_LCID
     FCFuncElement("LCIDToLocaleName", COMNlsInfo::LCIDToLocaleName)
     FCFuncElement("LocaleNameToLCID", COMNlsInfo::LocaleNameToLCID)    
-#endif // FEATURE_USE_LCID
 
     QCFuncElement("nativeEnumCultureNames", COMNlsInfo::nativeEnumCultureNames)
 
@@ -1526,9 +1511,7 @@ FCFuncStart(gArrayFuncs)
     FCFuncElement("GetUpperBound", ArrayNative::GetUpperBound)
     FCIntrinsicSig("GetLength", &gsig_IM_Int_RetInt, ArrayNative::GetLength, CORINFO_INTRINSIC_Array_GetDimLength)
     FCFuncElement("get_Length", ArrayNative::GetLengthNoRank)
-#ifndef FEATURE_CORECLR
     FCFuncElement("get_LongLength", ArrayNative::GetLongLengthNoRank)
-#endif
     FCFuncElement("GetDataPtrOffsetInternal", ArrayNative::GetDataPtrOffsetInternal)
     FCFuncElement("Initialize", ArrayNative::Initialize)
     FCFuncElement("Copy", ArrayNative::ArrayCopy)
@@ -1557,13 +1540,11 @@ FCFuncStart(gBufferFuncs)
 FCFuncEnd()
 
 FCFuncStart(gGCInterfaceFuncs)
-#ifndef FEATURE_CORECLR
     FCFuncElement("GetGenerationWR", GCInterface::GetGenerationWR)
     FCFuncElement("_RegisterForFullGCNotification", GCInterface::RegisterForFullGCNotification)
     FCFuncElement("_CancelFullGCNotification", GCInterface::CancelFullGCNotification)
     FCFuncElement("_WaitForFullGCApproach", GCInterface::WaitForFullGCApproach)
     FCFuncElement("_WaitForFullGCComplete", GCInterface::WaitForFullGCComplete)
-#endif
     FCFuncElement("_CollectionCount", GCInterface::CollectionCount)
     FCFuncElement("GetGCLatencyMode", GCInterface::GetGcLatencyMode)
     FCFuncElement("SetGCLatencyMode", GCInterface::SetGcLatencyMode)
@@ -1583,6 +1564,7 @@ FCFuncStart(gGCInterfaceFuncs)
     FCFuncElement("_SuppressFinalize", GCInterface::SuppressFinalize)
     FCFuncElement("_ReRegisterForFinalize", GCInterface::ReRegisterForFinalize)
     
+    FCFuncElement("_GetAllocatedBytesForCurrentThread", GCInterface::GetAllocatedBytesForCurrentThread)
 FCFuncEnd()
 
 #ifndef FEATURE_CORECLR
@@ -1619,11 +1601,11 @@ FCFuncStart(gInteropMarshalFuncs)
     FCFuncElement("StructureToPtr", MarshalNative::StructureToPtr)
     FCFuncElement("ThrowExceptionForHRInternal", MarshalNative::ThrowExceptionForHR)
     FCFuncElement("GetExceptionForHRInternal", MarshalNative::GetExceptionForHR)
-    FCFuncElement("GetHRForException", MarshalNative::GetHRForException)
-    FCFuncElement("GetHRForException_WinRT", MarshalNative::GetHRForException_WinRT)
     FCFuncElement("GetDelegateForFunctionPointerInternal", MarshalNative::GetDelegateForFunctionPointerInternal)
     FCFuncElement("GetFunctionPointerForDelegateInternal", MarshalNative::GetFunctionPointerForDelegateInternal)
 #ifdef FEATURE_COMINTEROP
+    FCFuncElement("GetHRForException", MarshalNative::GetHRForException)
+    FCFuncElement("GetHRForException_WinRT", MarshalNative::GetHRForException_WinRT)
     FCFuncElement("GetRawIUnknownForComObjectNoAddRef", MarshalNative::GetRawIUnknownForComObjectNoAddRef)
     FCFuncElement("IsComObject", MarshalNative::IsComObject)
     FCFuncElement("GetObjectForIUnknown", MarshalNative::GetObjectForIUnknown)
@@ -1861,9 +1843,7 @@ FCFuncStart(gCompilerFuncs)
     FCFuncElement("GetHashCode", ObjectNative::GetHashCode)
     FCFuncElement("Equals", ObjectNative::Equals)
     FCFuncElement("EnsureSufficientExecutionStack", ReflectionInvocation::EnsureSufficientExecutionStack)
-#ifdef FEATURE_CORECLR
     FCFuncElement("TryEnsureSufficientExecutionStack", ReflectionInvocation::TryEnsureSufficientExecutionStack)
-#endif // FEATURE_CORECLR
 FCFuncEnd()
 
 FCFuncStart(gContextSynchronizationFuncs)
@@ -2111,9 +2091,7 @@ FCFuncStart(gWeakReferenceOfTFuncs)
     FCFuncElement("Finalize", WeakReferenceOfTNative::Finalize)
     FCFuncElement("get_Target", WeakReferenceOfTNative::GetTarget)
     FCFuncElement("set_Target", WeakReferenceOfTNative::SetTarget)
-#ifndef FEATURE_CORECLR
     FCFuncElement("IsTrackResurrection", WeakReferenceOfTNative::IsTrackResurrection)
-#endif
 FCFuncEnd()
 
 #ifdef FEATURE_COMINTEROP
@@ -2300,9 +2278,9 @@ FCClassElement("MngdSafeArrayMarshaler", "System.StubHelpers", gMngdSafeArrayMar
 FCClassElement("ModuleBuilder", "System.Reflection.Emit", gCOMModuleBuilderFuncs)
 FCClassElement("ModuleHandle", "System", gCOMModuleHandleFuncs)
 FCClassElement("Monitor", "System.Threading", gMonitorFuncs)
-#ifndef FEATURE_CORECLR
+#ifndef FEATURE_COREFX_GLOBALIZATION
 FCClassElement("Normalization", "System.Text", gNormalizationFuncs)
-#endif // FEATURE_CORECLR
+#endif // FEATURE_COREFX_GLOBALIZATION
 FCClassElement("Number", "System", gNumberFuncs)
 #ifdef FEATURE_COMINTEROP
 FCClassElement("OAVariantLib", "Microsoft.Win32", gOAVariantFuncs)

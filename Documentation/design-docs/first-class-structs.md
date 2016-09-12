@@ -31,7 +31,7 @@ struct foo { public byte b1, b2, b3, b4; }
 static foo getfoo() { return new foo(); }
 ```
 
-* \#1133 JIT: Excessive copies when inlining
+* [\#1133 JIT: Excessive copies when inlining](https://github.com/dotnet/coreclr/issues/1133)
  * The scenario given in this issue involves a struct that is larger than 8 bytes, so
    it is not impacted by the fixed-size types. However, by enabling assertion propagation
    for struct types (which, in turn is made easier by using normal assignments), the
@@ -40,29 +40,33 @@ static foo getfoo() { return new foo(); }
      and it may be worth considering (in future) whether we can avoiding adding them
      in the first place.
  
-* \#1161  RyuJIT properly optimizes structs with a single field if the field type is int but not if it is double
+* [\#1161  RyuJIT properly optimizes structs with a single field if the field type is int but not if it is double](https://github.com/dotnet/coreclr/issues/1161)
   * This issue arises because we never promote a struct with a single double field, due to
     the fact that such a struct may be passed or returned in a general purpose register.
     This issue could be addressed independently, but should "fall out" of improved heuristics
     for when to promote and enregister structs.
   
-* \#1636 Add optimization to avoid copying a struct if passed by reference and there are no
-  writes to and no reads after passed to a callee.
+* [\#1636 Add optimization to avoid copying a struct if passed by reference and there are no
+  writes to and no reads after passed to a callee](https://github.com/dotnet/coreclr/issues/1636).
   * This issue is nearly the same as the above, except that in this case the desire is to
     eliminate unneeded copies locally (i.e. not just due to inlining), in the case where
     the struct may or may not be passed or returned directly.
   * Unfortunately, there is not currently a scenario or test case for this issue.
   
-* \#3144 Avoid marking tmp as DoNotEnregister in tmp=GT_CALL() where call returns a
-  enregisterable struct in two return registers
+* [\#3144 Avoid marking tmp as DoNotEnregister in tmp=GT_CALL() where call returns a
+  enregisterable struct in two return registers](https://github.com/dotnet/coreclr/issues/3144)
   * This issue could be addressed without First Class Structs. However,
     it will be easier with struct assignments that are normalized as regular assignments, and
     should be done along with the streamlining of the handling of ABI-specific struct passing
     and return values.
     
-* \#3539 RyuJIT: Poor code quality for tight generic loop with many inlineable calls
+* [\#3539 RyuJIT: Poor code quality for tight generic loop with many inlineable calls](https://github.com/dotnet/coreclr/issues/3539)
 (factor x8 slower than non-generic few calls loop).
   * I am still investigating this issue.
+
+* [\#5556 RuyJIT: structs in parameters and enregistering](https://github.com/dotnet/coreclr/issues/5556)
+  * This also requires further investigation, but requires us to "Add support in prolog to extract fields, and
+    remove the restriction of not promoting incoming reg structs that have more than one field" - see [Dependent Work Items](https://github.com/dotnet/coreclr/blob/master/Documentation/design-docs/first-class-structs.md#dependent-work-items)
 
 Normalizing Struct Types
 ------------------------
@@ -199,14 +203,14 @@ All struct args imported as GT_OBJ, transformed as follows during morph:
 * P_FULL promoted locals:
   * Remain as a GT_LCL_VAR nodes, with the appropriate fixed-size struct type.
   * Note that these may or may not be passed in registers.
-P_INDEP promoted locals:
-These are the ones where the fields don’t match the reg types
-GT_STRUCT (or something) for aggregating multiple fields into a single register
-Op1 is a lclVar for the first promoted field
-Op2 is the lclVar for the next field, OR another GT_STRUCT
-Bit offset for the second child
-All other cases (non-locals, OR P_DEP or non-promoted locals):
-GT_LIST of GT_IND for each half
+* P_INDEP promoted locals:
+  * These are the ones where the fields don’t match the reg types
+    GT_STRUCT (or something) for aggregating multiple fields into a single register
+  * Op1 is a lclVar for the first promoted field
+  * Op2 is the lclVar for the next field, OR another GT_STRUCT
+  * Bit offset for the second child
+* All other cases (non-locals, OR P_DEP or non-promoted locals):
+  * GT_LIST of GT_IND for each half
 
 ### Struct Return
 
@@ -548,7 +552,7 @@ are prefaced by '*' have been prototyped in an earlier version of the JIT, and t
 being re-integrated and tested, but may require some cleanup and/or phasing with other work items
 before a PR is submitted.
 
-  ### Mostly-Independent work items
+### Mostly-Independent work items
 1.	*Replace block ops with assignments & new nodes.
 
 2.	*Add new fixed-size types, and normalize them in the importer (might be best to do this with or after #1, but not really dependent)
@@ -560,7 +564,7 @@ before a PR is submitted.
       Note that this work item is specifically intended for call arguments. It is likely the case that
       utilizing ldp for general-purpose code sequences would be handled separately.
 
-4.	Arm64 & x64/ux: aggressively promote lclVar struct incoming or outgoing args with two 8-byte fields
+4.	X64/ux: aggressively promote lclVar struct incoming or outgoing args with two 8-byte fields
 
 5.	X64/ux:
     * modify the handling of multireg struct args to use GT_LIST of GT_IND
@@ -569,13 +573,14 @@ before a PR is submitted.
     * stop adding extra lclVar copies
 
 6.	Arm64:
-    * Promote 16-byte struct lclVars that are incoming or outgoing register arguments only if they have 2 8-byte fields.
+    * Promote 16-byte struct lclVars that are incoming or outgoing register arguments only if they have 2 8-byte fields (DONE).
       Pass those using GT_LIST of GT_LCL_VAR (as above for x64/ux).
       Note that, if the types do not match, e.g. a TYP_DOUBLE field that will be passed in an integer register,
       it will require special handling in Lowering and LSRA, as is currently done in the TYP_SIMD8 case.
-    * For other cases, pass as GT_LIST of GT_IND
+    * For other cases, pass as GT_LIST of GT_IND (DONE)
     * The GT_LIST would be created in fgMorphArgs(). Then in Lower, putarg_reg nodes will be inserted between
-      the GT_LIST and the list item (GT_LCL_VAR or GT_IND).
+      the GT_LIST and the list item (GT_LCL_VAR or GT_IND). (DONE)
+    * Add support for HFAs.
     
     ### Dependent work items:
     
@@ -636,6 +641,7 @@ be handled in a more general fashion in `fgMorphCopyBlock()`?
 The latter seems desirable for its general applicability.
 
 One way to handle this might be:
+
 1. Whenever you have a case of mismatched structs (call args, call node, or return node),
    create a promoted temp of the "fake struct type", e.g. for arm you would introduce three
    new temps for the struct, and for each of its TYP_LONG promoted fields.

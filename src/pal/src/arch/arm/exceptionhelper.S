@@ -22,12 +22,7 @@ LEAF_ENTRY ThrowExceptionFromContextInternal, _TEXT
     ldr	r10,	[r0, #(CONTEXT_R10)]
     ldr	r11,	[r0, #(CONTEXT_R11)]
     ldr	sp,	[r0, #(CONTEXT_Sp)]
-    ldr	lr,	[r0, #(CONTEXT_Lr)]
-
-    ldr	r2,	[r0, #(CONTEXT_Pc)]
-
-    // Store return address to the stack
-    push    {r2}
+    ldr	lr,	[r0, #(CONTEXT_Pc)]
 
     // The PAL_SEHException pointer
     mov	r0,	r1

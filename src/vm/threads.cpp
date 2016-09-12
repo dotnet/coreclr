@@ -1118,13 +1118,10 @@ Thread* SetupUnstartedThread(BOOL bRequiresTSL)
     _ASSERTE(ThreadInited());
     Thread* pThread = new Thread();
 
-    if (pThread)
-    {
-        FastInterlockOr((ULONG *) &pThread->m_State,
-                        (Thread::TS_Unstarted | Thread::TS_WeOwn));
+    FastInterlockOr((ULONG *) &pThread->m_State,
+                    (Thread::TS_Unstarted | Thread::TS_WeOwn));
 
-        ThreadStore::AddThread(pThread, bRequiresTSL);
-    }
+    ThreadStore::AddThread(pThread, bRequiresTSL);
 
     return pThread;
 }
@@ -2241,11 +2238,8 @@ Thread::Thread()
 #endif
 
     m_pAllLoggedTypes = NULL;
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
-    m_pHijackReturnTypeClass = NULL;
-#endif
+    m_HijackReturnKind = RT_Illegal;
 }
-
 
 //--------------------------------------------------------------------
 // Failable initialization occurs here.
@@ -2381,10 +2375,7 @@ BOOL Thread::InitThread(BOOL fInternal)
 
     // Set floating point mode to round to nearest
 #ifndef FEATURE_PAL
-#ifndef _TARGET_ARM64_
-    //ARM64TODO: remove the ifdef
     (void) _controlfp_s( NULL, _RC_NEAR, _RC_CHOP|_RC_UP|_RC_DOWN|_RC_NEAR );
-#endif
 
     m_pTEB = (struct _NT_TIB*)NtCurrentTeb();
 
@@ -4521,6 +4512,14 @@ retry:
         {
             ThrowOutOfMemory();
         }
+#ifdef FEATURE_PAL
+        else if (errorCode == ERROR_NOT_SUPPORTED)
+        {
+            // "Wait for any" and "wait for all" operations on multiple wait handles are not supported when a cross-process sync
+            // object is included in the array
+            COMPlusThrow(kPlatformNotSupportedException, W("PlatformNotSupported_NamedSyncObjectWaitAnyWaitAll"));
+        }
+#endif
         else if (errorCode != ERROR_INVALID_HANDLE)
         {
             ThrowWin32(errorCode);
@@ -4705,7 +4704,7 @@ WaitCompleted:
     return ret;
 }
 
-#ifndef FEATURE_CORECLR
+#ifndef FEATURE_PAL
 //--------------------------------------------------------------------
 // Only one style of wait for DoSignalAndWait since we don't support this on STA Threads
 //--------------------------------------------------------------------
@@ -4852,7 +4851,7 @@ WaitCompleted:
 
     return ret;
 }
-#endif // FEATURE_CORECLR
+#endif // !FEATURE_PAL
 
 #ifdef FEATURE_SYNCHRONIZATIONCONTEXT_WAIT
 DWORD Thread::DoSyncContextWait(OBJECTREF *pSyncCtxObj, int countHandles, HANDLE *handles, BOOL waitAll, DWORD millis)
@@ -7382,8 +7381,7 @@ HRESULT Thread::CLRSetThreadStackGuarantee(SetThreadStackGuaranteeScope fScope)
         ULONG uGuardSize = SIZEOF_DEFAULT_STACK_GUARANTEE;
         int   EXTRA_PAGES = 0;
 #if defined(_WIN64)
-#if defined(_TARGET_AMD64_)
-        // AMD64 Free Build EH Stack Stats:
+        // Free Build EH Stack Stats:
         // --------------------------------
         // currently the maximum stack usage we'll face while handling a SO includes:
         //      4.3k for the OS (kernel32!RaiseException, Rtl EH dispatch code, RtlUnwindEx [second pass])
@@ -7399,8 +7397,6 @@ HRESULT Thread::CLRSetThreadStackGuarantee(SetThreadStackGuaranteeScope fScope)
         //
         EXTRA_PAGES = 3;
         INDEBUG(EXTRA_PAGES += 1);
-
-#endif // _TARGET_AMD64_
 
         int ThreadGuardPages = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_ThreadGuardPages);
         if (ThreadGuardPages == 0)

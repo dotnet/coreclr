@@ -19,6 +19,7 @@
 #include "eedbginterfaceimpl.inl"
 #include "perfcounters.h"
 #include "eventtrace.h"
+#include "virtualcallstub.h"
 
 #ifndef DACCESS_COMPILE
 
@@ -93,7 +94,7 @@ bool FixNonvolatileRegisters(UINT_PTR  uOriginalSP,
 MethodDesc * GetUserMethodForILStub(Thread * pThread, UINT_PTR uStubSP, MethodDesc * pILStubMD, Frame ** ppFrameOut);
 
 #ifdef FEATURE_PAL
-VOID PALAPI HandleHardwareException(PAL_SEHException* ex);
+BOOL PALAPI HandleHardwareException(PAL_SEHException* ex);
 BOOL PALAPI IsSafeToHandleHardwareException(PCONTEXT contextRecord, PEXCEPTION_RECORD exceptionRecord);
 #endif // FEATURE_PAL
 
@@ -2456,7 +2457,7 @@ CLRUnwindStatus ExceptionTracker::ProcessManagedCallFrame(
     PTR_EXCEPTION_CLAUSE_TOKEN pLimitClauseToken     = NULL;
     if (!fIgnoreThisFrame && !fIsFirstPass && !m_sfResumeStackFrame.IsNull() && (sf >= m_sfResumeStackFrame))
     {
-        CONSISTENCY_CHECK_MSG(sf == m_sfResumeStackFrame, "Passed initial resume frame and fIgnoreThisFrame wasn't set!");
+        EH_LOG((LL_INFO100, "  RESUMEFRAME:  sf is  %p and  m_sfResumeStackFrame: %p\n", sf.SP, m_sfResumeStackFrame.SP));
         EH_LOG((LL_INFO100, "  RESUMEFRAME:  %s initial resume frame: %p\n", (sf == m_sfResumeStackFrame) ? "REACHED" : "PASSED" , m_sfResumeStackFrame.SP));
 
         // process this frame to call handlers
@@ -2468,6 +2469,7 @@ CLRUnwindStatus ExceptionTracker::ProcessManagedCallFrame(
         // as the last clause we process in the "inital resume frame".  Anything further
         // down the list of clauses is skipped along with all call frames up to the actual
         // resume frame.
+        CONSISTENCY_CHECK_MSG(sf == m_sfResumeStackFrame, "Passed initial resume frame and fIgnoreThisFrame wasn't set!");
     }
     //
     // END resume frame code
@@ -4355,6 +4357,7 @@ static void DoEHLog(
 VOID UnwindManagedExceptionPass2(PAL_SEHException& ex, CONTEXT* unwindStartContext)
 {
     UINT_PTR controlPc;
+    PVOID sp;
     EXCEPTION_DISPOSITION disposition;
     CONTEXT* currentFrameContext;
     CONTEXT* callerFrameContext;
@@ -4365,7 +4368,7 @@ VOID UnwindManagedExceptionPass2(PAL_SEHException& ex, CONTEXT* unwindStartConte
     PVOID handlerData;
 
     // Indicate that we are performing second pass.
-    ex.ExceptionRecord.ExceptionFlags = EXCEPTION_UNWINDING;
+    ex.GetExceptionRecord()->ExceptionFlags = EXCEPTION_UNWINDING;
 
     currentFrameContext = unwindStartContext;
     callerFrameContext = &contextStorage;
@@ -4383,7 +4386,7 @@ VOID UnwindManagedExceptionPass2(PAL_SEHException& ex, CONTEXT* unwindStartConte
         dispatcherContext.ControlPc = controlPc;
         dispatcherContext.ImageBase = codeInfo.GetModuleBase();
 #if defined(_TARGET_ARM_)
-        dispatcherContext.ControlPcIsUnwound = !(currentFrameContext->ContextFlags & CONTEXT_EXCEPTION_ACTIVE);
+        dispatcherContext.ControlPcIsUnwound = !!(currentFrameContext->ContextFlags & CONTEXT_UNWOUND_TO_CALL);
 #endif
         // Check whether we have a function table entry for the current controlPC.
         // If yes, then call RtlVirtualUnwind to get the establisher frame pointer.
@@ -4413,14 +4416,18 @@ VOID UnwindManagedExceptionPass2(PAL_SEHException& ex, CONTEXT* unwindStartConte
             dispatcherContext.EstablisherFrame = establisherFrame;
             dispatcherContext.ContextRecord = currentFrameContext;
 
+            EXCEPTION_RECORD* exceptionRecord = ex.GetExceptionRecord();
+
             if (establisherFrame == ex.TargetFrameSp)
             {
                 // We have reached the frame that will handle the exception.
-                ex.ExceptionRecord.ExceptionFlags |= EXCEPTION_TARGET_UNWIND;
+                ex.GetExceptionRecord()->ExceptionFlags |= EXCEPTION_TARGET_UNWIND;
+                ExceptionTracker* pTracker = GetThread()->GetExceptionState()->GetCurrentExceptionTracker();
+                pTracker->TakeExceptionPointersOwnership(&ex);
             }
 
             // Perform unwinding of the current frame
-            disposition = ProcessCLRException(&ex.ExceptionRecord,
+            disposition = ProcessCLRException(exceptionRecord,
                 establisherFrame,
                 currentFrameContext,
                 &dispatcherContext);
@@ -4434,7 +4441,6 @@ VOID UnwindManagedExceptionPass2(PAL_SEHException& ex, CONTEXT* unwindStartConte
             }
             else
             {
-                // TODO: This needs to implemented. Make it fail for now.
                 UNREACHABLE();
             }
         }
@@ -4443,8 +4449,11 @@ VOID UnwindManagedExceptionPass2(PAL_SEHException& ex, CONTEXT* unwindStartConte
             Thread::VirtualUnwindLeafCallFrame(currentFrameContext);
         }
 
+        controlPc = GetIP(currentFrameContext);
+        sp = (PVOID)GetSP(currentFrameContext);
+
         // Check whether we are crossing managed-to-native boundary
-        if (!ExecutionManager::IsManagedCode(GetIP(currentFrameContext)))
+        if (!ExecutionManager::IsManagedCode(controlPc))
         {
             // Return back to the UnwindManagedExceptionPass1 and let it unwind the native frames
             {
@@ -4453,7 +4462,7 @@ VOID UnwindManagedExceptionPass2(PAL_SEHException& ex, CONTEXT* unwindStartConte
                 // in the unwound part of the stack when UnwindManagedExceptionPass2 is resumed 
                 // at the next managed frame.
 
-                UnwindFrameChain(GetThread(), (VOID*)GetSP(currentFrameContext));
+                UnwindFrameChain(GetThread(), sp);
                 // We are going to reclaim the stack range that was scanned by the exception tracker
                 // until now. We need to reset the explicit frames range so that if GC fires before
                 // we recreate the tracker at the first managed frame after unwinding the native 
@@ -4466,11 +4475,12 @@ VOID UnwindManagedExceptionPass2(PAL_SEHException& ex, CONTEXT* unwindStartConte
 
             // Now we need to unwind the native frames until we reach managed frames again or the exception is
             // handled in the native code.
+            STRESS_LOG2(LF_EH, LL_INFO100, "Unwinding native frames starting at IP = %p, SP = %p \n", controlPc, sp);
             PAL_ThrowExceptionFromContext(currentFrameContext, &ex);
             UNREACHABLE();
         }
 
-    } while (Thread::IsAddressInCurrentStack((void*)GetSP(currentFrameContext)) && (establisherFrame != ex.TargetFrameSp));
+    } while (Thread::IsAddressInCurrentStack(sp) && (establisherFrame != ex.TargetFrameSp));
 
     _ASSERTE(!"UnwindManagedExceptionPass2: Unwinding failed. Reached the end of the stack");
     EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
@@ -4507,15 +4517,15 @@ VOID DECLSPEC_NORETURN UnwindManagedExceptionPass1(PAL_SEHException& ex, CONTEXT
     controlPc = GetIP(frameContext);
     unwindStartContext = *frameContext;
 
-    if (!ExecutionManager::IsManagedCode(GetIP(&ex.ContextRecord)))
+    if (!ExecutionManager::IsManagedCode(GetIP(ex.GetContextRecord())))
     {
         // This is the first time we see the managed exception, set its context to the managed frame that has caused
         // the exception to be thrown
-        ex.ContextRecord = *frameContext;
-        ex.ExceptionRecord.ExceptionAddress = (VOID*)controlPc;
+        *ex.GetContextRecord() = *frameContext;
+        ex.GetExceptionRecord()->ExceptionAddress = (VOID*)controlPc;
     }
 
-    ex.ExceptionRecord.ExceptionFlags = 0;
+    ex.GetExceptionRecord()->ExceptionFlags = 0;
 
     memset(&dispatcherContext, 0, sizeof(DISPATCHER_CONTEXT));
     disposition = ExceptionContinueSearch;
@@ -4527,7 +4537,7 @@ VOID DECLSPEC_NORETURN UnwindManagedExceptionPass1(PAL_SEHException& ex, CONTEXT
         dispatcherContext.ControlPc = controlPc;
         dispatcherContext.ImageBase = codeInfo.GetModuleBase();
 #if defined(_TARGET_ARM_) 
-        dispatcherContext.ControlPcIsUnwound = !(frameContext->ContextFlags & CONTEXT_EXCEPTION_ACTIVE);
+        dispatcherContext.ControlPcIsUnwound = !!(frameContext->ContextFlags & CONTEXT_UNWOUND_TO_CALL);
 #endif
 
         // Check whether we have a function table entry for the current controlPC.
@@ -4556,9 +4566,9 @@ VOID DECLSPEC_NORETURN UnwindManagedExceptionPass1(PAL_SEHException& ex, CONTEXT
             dispatcherContext.ContextRecord = frameContext;
 
             // Find exception handler in the current frame
-            disposition = ProcessCLRException(&ex.ExceptionRecord,
+            disposition = ProcessCLRException(ex.GetExceptionRecord(),
                 establisherFrame,
-                &ex.ContextRecord,
+                ex.GetContextRecord(),
                 &dispatcherContext);
 
             if (disposition == ExceptionContinueSearch)
@@ -4598,6 +4608,8 @@ VOID DECLSPEC_NORETURN UnwindManagedExceptionPass1(PAL_SEHException& ex, CONTEXT
 
             controlPc = GetIP(frameContext);
 
+            STRESS_LOG2(LF_EH, LL_INFO100, "Processing exception at native frame: IP = %p, SP = %p \n", controlPc, sp);
+
             if (controlPc == 0)
             {
                 if (!GetThread()->HasThreadStateNC(Thread::TSNC_ProcessedUnhandledException))
@@ -4619,6 +4631,8 @@ VOID DECLSPEC_NORETURN UnwindManagedExceptionPass1(PAL_SEHException& ex, CONTEXT
                 if (disposition == EXCEPTION_EXECUTE_HANDLER)
                 {
                     // Switch to pass 2
+                    STRESS_LOG1(LF_EH, LL_INFO100, "First pass finished, found native handler, TargetFrameSp = %p\n", sp);
+
                     ex.TargetFrameSp = sp;
                     UnwindManagedExceptionPass2(ex, &unwindStartContext);
                     UNREACHABLE();
@@ -4635,7 +4649,7 @@ VOID DECLSPEC_NORETURN UnwindManagedExceptionPass1(PAL_SEHException& ex, CONTEXT
     EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
 }
 
-VOID DECLSPEC_NORETURN DispatchManagedException(PAL_SEHException& ex)
+VOID DECLSPEC_NORETURN DispatchManagedException(PAL_SEHException& ex, bool isHardwareException)
 {
     do
     {
@@ -4643,24 +4657,33 @@ VOID DECLSPEC_NORETURN DispatchManagedException(PAL_SEHException& ex)
         {
             // Unwind the context to the first managed frame
             CONTEXT frameContext;
-            RtlCaptureContext(&frameContext);
-            UINT_PTR currentSP = GetSP(&frameContext);
 
-            if (Thread::VirtualUnwindToFirstManagedCallFrame(&frameContext) == 0)
+            // If the exception is hardware exceptions, we use the exception's context record directly
+            if (isHardwareException)
             {
-                // There are no managed frames on the stack, so we need to continue unwinding using C++ exception
-                // handling
-                break;
+                frameContext = *ex.GetContextRecord();
             }
-
-            UINT_PTR firstManagedFrameSP = GetSP(&frameContext);
-
-            // Check if there is any exception holder in the skipped frames. If there is one, we need to unwind them
-            // using the C++ handling. This is a special case when the UNINSTALL_MANAGED_EXCEPTION_DISPATCHER was
-            // not at the managed to native boundary.
-            if (NativeExceptionHolderBase::FindNextHolder(nullptr, (void*)currentSP, (void*)firstManagedFrameSP) != nullptr)
+            else
             {
-                break;
+                RtlCaptureContext(&frameContext);
+                UINT_PTR currentSP = GetSP(&frameContext);
+
+                if (Thread::VirtualUnwindToFirstManagedCallFrame(&frameContext) == 0)
+                {
+                    // There are no managed frames on the stack, so we need to continue unwinding using C++ exception
+                    // handling
+                    break;
+                }
+
+                UINT_PTR firstManagedFrameSP = GetSP(&frameContext);
+
+                // Check if there is any exception holder in the skipped frames. If there is one, we need to unwind them
+                // using the C++ handling. This is a special case when the UNINSTALL_MANAGED_EXCEPTION_DISPATCHER was
+                // not at the managed to native boundary.
+                if (NativeExceptionHolderBase::FindNextHolder(nullptr, (void*)currentSP, (void*)firstManagedFrameSP) != nullptr)
+                {
+                    break;
+                }
             }
 
             if (ex.IsFirstPass())
@@ -4676,7 +4699,8 @@ VOID DECLSPEC_NORETURN DispatchManagedException(PAL_SEHException& ex)
         }
         catch (PAL_SEHException& ex2)
         {
-            ex = ex2;
+            isHardwareException = false;
+            ex = std::move(ex2);
         }
 
     }
@@ -4697,7 +4721,7 @@ VOID DECLSPEC_NORETURN DispatchManagedException(PAL_SEHException& ex)
         if (pEHTracker == NULL)
         {
             CorruptionSeverity severity = NotCorrupting;
-            if (CEHelper::IsProcessCorruptedStateException(ex.ExceptionRecord.ExceptionCode))
+            if (CEHelper::IsProcessCorruptedStateException(ex.GetExceptionRecord()->ExceptionCode))
             {
                 severity = ProcessCorrupting;
             }
@@ -5033,56 +5057,49 @@ bool IsDivByZeroAnIntegerOverflow(PCONTEXT pContext)
 }
 #endif //_AMD64_
 
-BOOL PALAPI IsSafeToHandleHardwareException(PCONTEXT contextRecord, PEXCEPTION_RECORD exceptionRecord)
+BOOL IsSafeToCallExecutionManager()
 {
     Thread *pThread = GetThread();
-    PCODE controlPc = GetIP(contextRecord);
+
     // It is safe to call the ExecutionManager::IsManagedCode only if the current thread is in
     // the cooperative mode. Otherwise ExecutionManager::IsManagedCode could deadlock if 
     // the exception happened when the thread was holding the ExecutionManager's writer lock.
     // When the thread is in preemptive mode, we know for sure that it is not executing managed code.
-    BOOL isManagedCode = (pThread != NULL && pThread->PreemptiveGCDisabled() && ExecutionManager::IsManagedCode(controlPc));
+    // Unfortunately, when running GC stress mode that invokes GC after every jitted or NGENed
+    // instruction, we need to relax that to enable instrumentation of PInvoke stubs that switch to
+    // preemptive GC mode at some point.
+    return ((pThread != NULL) && pThread->PreemptiveGCDisabled()) || 
+           GCStress<cfg_instr_jit>::IsEnabled() || 
+           GCStress<cfg_instr_ngen>::IsEnabled();
+}
+
+BOOL PALAPI IsSafeToHandleHardwareException(PCONTEXT contextRecord, PEXCEPTION_RECORD exceptionRecord)
+{
+    PCODE controlPc = GetIP(contextRecord);
     return g_fEEStarted && (
         exceptionRecord->ExceptionCode == STATUS_BREAKPOINT || 
         exceptionRecord->ExceptionCode == STATUS_SINGLE_STEP ||
-        isManagedCode ||
+        (IsSafeToCallExecutionManager() && ExecutionManager::IsManagedCode(controlPc)) ||
+#ifdef _TARGET_ARM_
+        IsIPinVirtualStub(controlPc) ||  // access violation comes from DispatchStub of Interface call
+#endif
         IsIPInMarkedJitHelper(controlPc));
 }
 
-VOID PALAPI HandleHardwareException(PAL_SEHException* ex)
+BOOL PALAPI HandleHardwareException(PAL_SEHException* ex)
 {
-    _ASSERTE(IsSafeToHandleHardwareException(&ex->ContextRecord, &ex->ExceptionRecord));
+    _ASSERTE(IsSafeToHandleHardwareException(ex->GetContextRecord(), ex->GetExceptionRecord()));
 
-    if (ex->ExceptionRecord.ExceptionCode != STATUS_BREAKPOINT && ex->ExceptionRecord.ExceptionCode != STATUS_SINGLE_STEP)
+    if (ex->GetExceptionRecord()->ExceptionCode != STATUS_BREAKPOINT && ex->GetExceptionRecord()->ExceptionCode != STATUS_SINGLE_STEP)
     {
         // A hardware exception is handled only if it happened in a jitted code or 
         // in one of the JIT helper functions (JIT_MemSet, ...)
-        Thread *pThread = GetThread();
-        PCODE controlPc = GetIP(&ex->ContextRecord);
-        BOOL isManagedCode = (pThread != NULL && pThread->PreemptiveGCDisabled() && ExecutionManager::IsManagedCode(controlPc));
-        if (isManagedCode && IsGcMarker(ex->ExceptionRecord.ExceptionCode, &ex->ContextRecord))
+        PCODE controlPc = GetIP(ex->GetContextRecord());
+        if (ExecutionManager::IsManagedCode(controlPc) && IsGcMarker(ex->GetExceptionRecord()->ExceptionCode, ex->GetContextRecord()))
         {
-            RtlRestoreContext(&ex->ContextRecord, &ex->ExceptionRecord);
-            UNREACHABLE();
-        }
-
-        // Create frame necessary for the exception handling
-        FrameWithCookie<FaultingExceptionFrame> fef;
-#if defined(WIN64EXCEPTIONS)
-        *((&fef)->GetGSCookiePtr()) = GetProcessGSCookie();
-#endif // WIN64EXCEPTIONS
-        {
-            GCX_COOP();     // Must be cooperative to modify frame chain.
-            CONTEXT context = ex->ContextRecord;
-            if (IsIPInMarkedJitHelper(controlPc))
-            {
-                // For JIT helpers, we need to set the frame to point to the
-                // managed code that called the helper, otherwise the stack
-                // walker would skip all the managed frames upto the next
-                // explicit frame.
-                Thread::VirtualUnwindLeafCallFrame(&context);
-            }
-            fef.InitAndLink(&context);
+            // Exception was handled, let the signal handler return to the exception context. Some registers in the context can
+            // have been modified by the GC.
+            return TRUE;
         }
 
 #ifdef _AMD64_
@@ -5092,15 +5109,40 @@ VOID PALAPI HandleHardwareException(PAL_SEHException* ex)
         //
         // Thus, we will attempt to decode the instruction @ RIP to determine if that
         // is the case using the faulting context.
-        if ((ex->ExceptionRecord.ExceptionCode == EXCEPTION_INT_DIVIDE_BY_ZERO) &&
-            IsDivByZeroAnIntegerOverflow(&ex->ContextRecord))
+        if ((ex->GetExceptionRecord()->ExceptionCode == EXCEPTION_INT_DIVIDE_BY_ZERO) &&
+            IsDivByZeroAnIntegerOverflow(ex->GetContextRecord()))
         {
             // The exception was an integer overflow, so augment the exception code.
-            ex->ExceptionRecord.ExceptionCode = EXCEPTION_INT_OVERFLOW;
+            ex->GetExceptionRecord()->ExceptionCode = EXCEPTION_INT_OVERFLOW;
         }
 #endif //_AMD64_
 
-        DispatchManagedException(*ex);
+        // Create frame necessary for the exception handling
+        FrameWithCookie<FaultingExceptionFrame> fef;
+#if defined(WIN64EXCEPTIONS)
+        *((&fef)->GetGSCookiePtr()) = GetProcessGSCookie();
+#endif // WIN64EXCEPTIONS
+        {
+            GCX_COOP();     // Must be cooperative to modify frame chain.
+            if (IsIPInMarkedJitHelper(controlPc))
+            {
+                // For JIT helpers, we need to set the frame to point to the
+                // managed code that called the helper, otherwise the stack
+                // walker would skip all the managed frames upto the next
+                // explicit frame.
+                PAL_VirtualUnwind(ex->GetContextRecord(), NULL);
+                ex->GetExceptionRecord()->ExceptionAddress = (PVOID)GetIP(ex->GetContextRecord());
+            }
+#ifdef _TARGET_ARM_
+            else if (IsIPinVirtualStub(controlPc)) 
+            {
+                AdjustContextForVirtualStub(ex->GetExceptionRecord(), ex->GetContextRecord());
+            }
+#endif
+            fef.InitAndLink(ex->GetContextRecord());
+        }
+
+        DispatchManagedException(*ex, true /* isHardwareException */);
         UNREACHABLE();
     }
     else
@@ -5109,24 +5151,27 @@ VOID PALAPI HandleHardwareException(PAL_SEHException* ex)
         Thread *pThread = GetThread();
         if (pThread != NULL && g_pDebugInterface != NULL)
         {
-            if (ex->ExceptionRecord.ExceptionCode == STATUS_BREAKPOINT)
+            if (ex->GetExceptionRecord()->ExceptionCode == STATUS_BREAKPOINT)
             {
                 // If this is breakpoint context, it is set up to point to an instruction after the break instruction.
                 // But debugger expects to see context that points to the break instruction, that's why we correct it.
-                SetIP(&ex->ContextRecord, GetIP(&ex->ContextRecord) - CORDbg_BREAK_INSTRUCTION_SIZE);
-                ex->ExceptionRecord.ExceptionAddress = (void *)GetIP(&ex->ContextRecord);
+                SetIP(ex->GetContextRecord(), GetIP(ex->GetContextRecord()) - CORDbg_BREAK_INSTRUCTION_SIZE);
+                ex->GetExceptionRecord()->ExceptionAddress = (void *)GetIP(ex->GetContextRecord());
             }
 
-            if (g_pDebugInterface->FirstChanceNativeException(&ex->ExceptionRecord,
-                &ex->ContextRecord,
-                ex->ExceptionRecord.ExceptionCode,
+            if (g_pDebugInterface->FirstChanceNativeException(ex->GetExceptionRecord(),
+                ex->GetContextRecord(),
+                ex->GetExceptionRecord()->ExceptionCode,
                 pThread))
             {
-                RtlRestoreContext(&ex->ContextRecord, &ex->ExceptionRecord);
-                UNREACHABLE();
+                // Exception was handled, let the signal handler return to the exception context. Some registers in the context can
+                // have been modified by the debugger.
+                return TRUE;
             }
         }
     }
+
+    return FALSE;
 }
 
 #endif // FEATURE_PAL
@@ -6960,8 +7005,14 @@ void ExceptionTracker::ReleaseResources()
 
 #ifndef FEATURE_PAL 
     // Clear any held Watson Bucketing details
-    GetWatsonBucketTracker()->ClearWatsonBucketDetails();   
-#endif // !FEATURE_PAL 
+    GetWatsonBucketTracker()->ClearWatsonBucketDetails();
+#else // !FEATURE_PAL
+    if (m_fOwnsExceptionPointers)
+    {
+        PAL_FreeExceptionRecords(m_ptrs.ExceptionRecord, m_ptrs.ContextRecord);
+        m_fOwnsExceptionPointers = FALSE;
+    }
+#endif // !FEATURE_PAL
 #endif // DACCESS_COMPILE
 }
 

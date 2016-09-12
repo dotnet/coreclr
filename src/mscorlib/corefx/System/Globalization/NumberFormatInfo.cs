@@ -2,9 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Text;
 using System;
 using System.Diagnostics.Contracts;
+using System.Runtime.Serialization;
+using System.Text;
 
 namespace System.Globalization
 {
@@ -40,11 +41,12 @@ namespace System.Globalization
     // CurrencySymbol            "$"      String used as local monetary symbol.
     //
 
+    [Serializable]
     [System.Runtime.InteropServices.ComVisible(true)]
-    sealed public class NumberFormatInfo : IFormatProvider
+    sealed public partial class NumberFormatInfo : IFormatProvider, ICloneable
     {
         // invariantInfo is constant irrespective of your current culture.
-        private static volatile NumberFormatInfo invariantInfo;
+        private static volatile NumberFormatInfo s_invariantInfo;
 
         // READTHIS READTHIS READTHIS
         // This class has an exact mapping onto a native structure defined in COMNumber.cpp
@@ -70,6 +72,7 @@ namespace System.Globalization
         internal String perMilleSymbol = "\u2030";
 
 
+        [OptionalField(VersionAdded = 2)]
         internal String[] nativeDigits = { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" };
 
         internal int numberDecimalDigits = 2;
@@ -86,14 +89,23 @@ namespace System.Globalization
 
         // Is this NumberFormatInfo for invariant culture?
 
+        [OptionalField(VersionAdded = 2)]
         internal bool m_isInvariant = false;
 
         public NumberFormatInfo() : this(null)
         {
         }
 
+        [OnSerializing]
+        private void OnSerializing(StreamingContext ctx) { }
 
-        static private void VerifyDecimalSeparator(String decSep, String propertyName)
+        [OnDeserializing]
+        private void OnDeserializing(StreamingContext ctx) { }
+
+        [OnDeserialized]
+        private void OnDeserialized(StreamingContext ctx) { }
+
+        private static void VerifyDecimalSeparator(String decSep, String propertyName)
         {
             if (decSep == null)
             {
@@ -108,7 +120,7 @@ namespace System.Globalization
             Contract.EndContractBlock();
         }
 
-        static private void VerifyGroupSeparator(String groupSep, String propertyName)
+        private static void VerifyGroupSeparator(String groupSep, String propertyName)
         {
             if (groupSep == null)
             {
@@ -119,7 +131,6 @@ namespace System.Globalization
         }
 
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal NumberFormatInfo(CultureData cultureData)
         {
             if (cultureData != null)
@@ -155,18 +166,17 @@ namespace System.Globalization
         {
             get
             {
-                if (invariantInfo == null)
+                if (s_invariantInfo == null)
                 {
                     // Lazy create the invariant info. This cannot be done in a .cctor because exceptions can
                     // be thrown out of a .cctor stack that will need this.
                     NumberFormatInfo nfi = new NumberFormatInfo();
                     nfi.m_isInvariant = true;
-                    invariantInfo = ReadOnly(nfi);
+                    s_invariantInfo = ReadOnly(nfi);
                 }
-                return invariantInfo;
+                return s_invariantInfo;
             }
         }
-
 
         public static NumberFormatInfo GetInstance(IFormatProvider formatProvider)
         {
@@ -260,7 +270,7 @@ namespace System.Globalization
         // Every element in the groupSize array should be between 1 and 9
         // excpet the last element could be zero.
         //
-        static internal void CheckGroupSize(String propName, int[] groupSize)
+        internal static void CheckGroupSize(String propName, int[] groupSize)
         {
             for (int i = 0; i < groupSize.Length; i++)
             {

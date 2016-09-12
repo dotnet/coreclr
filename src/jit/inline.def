@@ -49,18 +49,19 @@ INLINE_OBSERVATION(IS_SYNCHRONIZED,           bool,   "is synchronized",        
 INLINE_OBSERVATION(IS_VM_NOINLINE,            bool,   "noinline per VM",               FATAL,       CALLEE)
 INLINE_OBSERVATION(LACKS_RETURN,              bool,   "no return opcode",              FATAL,       CALLEE)
 INLINE_OBSERVATION(LDFLD_NEEDS_HELPER,        bool,   "ldfld needs helper",            FATAL,       CALLEE)
+INLINE_OBSERVATION(LOG_REPLAY_REJECT,         bool,   "rejected by log replay",        FATAL,       CALLEE)
 INLINE_OBSERVATION(MARKED_AS_SKIPPED,         bool,   "skipped by complus request",    FATAL,       CALLEE)
 INLINE_OBSERVATION(MAXSTACK_TOO_BIG,          bool,   "maxstack too big"  ,            FATAL,       CALLEE)
 INLINE_OBSERVATION(NEEDS_SECURITY_CHECK,      bool,   "needs security check",          FATAL,       CALLEE)
 INLINE_OBSERVATION(NO_METHOD_INFO,            bool,   "cannot get method info",        FATAL,       CALLEE)
 INLINE_OBSERVATION(NOT_PROFITABLE_INLINE,     bool,   "unprofitable inline",           FATAL,       CALLEE)
 INLINE_OBSERVATION(RANDOM_REJECT,             bool,   "random reject",                 FATAL,       CALLEE)
-INLINE_OBSERVATION(RETURN_TYPE_IS_COMPOSITE,  bool,   "has composite return type",     FATAL,       CALLEE)
 INLINE_OBSERVATION(STACK_CRAWL_MARK,          bool,   "uses stack crawl mark",         FATAL,       CALLEE)
 INLINE_OBSERVATION(STFLD_NEEDS_HELPER,        bool,   "stfld needs helper",            FATAL,       CALLEE)
 INLINE_OBSERVATION(THROW_WITH_INVALID_STACK,  bool,   "throw with invalid stack",      FATAL,       CALLEE)
 INLINE_OBSERVATION(TOO_MANY_ARGUMENTS,        bool,   "too many arguments",            FATAL,       CALLEE)
 INLINE_OBSERVATION(TOO_MANY_LOCALS,           bool,   "too many locals",               FATAL,       CALLEE)
+INLINE_OBSERVATION(EXPLICIT_TAIL_PREFIX,      bool,   "explicit tail prefix in callee",FATAL,       CALLEE)
 
 // ------ Callee Performance ------- 
 
@@ -75,15 +76,18 @@ INLINE_OBSERVATION(ARG_FEEDS_RANGE_CHECK,     bool,   "argument feeds range chec
 INLINE_OBSERVATION(BEGIN_OPCODE_SCAN,         bool,   "prepare to look at opcodes",    INFORMATION, CALLEE)
 INLINE_OBSERVATION(BELOW_ALWAYS_INLINE_SIZE,  bool,   "below ALWAYS_INLINE size",      INFORMATION, CALLEE)
 INLINE_OBSERVATION(CLASS_PROMOTABLE,          bool,   "promotable value class",        INFORMATION, CALLEE)
+INLINE_OBSERVATION(DOES_NOT_RETURN,           bool,   "does not return",               INFORMATION, CALLEE)
 INLINE_OBSERVATION(END_OPCODE_SCAN,           bool,   "done looking at opcodes",       INFORMATION, CALLEE)
 INLINE_OBSERVATION(HAS_SIMD,                  bool,   "has SIMD arg, local, or ret",   INFORMATION, CALLEE)
 INLINE_OBSERVATION(HAS_SWITCH,                bool,   "has switch",                    INFORMATION, CALLEE)
 INLINE_OBSERVATION(IL_CODE_SIZE,              int,    "number of bytes of IL",         INFORMATION, CALLEE)
+INLINE_OBSERVATION(IS_CLASS_CTOR,             bool,   "class constructor",             INFORMATION, CALLEE)
 INLINE_OBSERVATION(IS_DISCRETIONARY_INLINE,   bool,   "can inline, check heuristics",  INFORMATION, CALLEE)
 INLINE_OBSERVATION(IS_FORCE_INLINE,           bool,   "aggressive inline attribute",   INFORMATION, CALLEE)
 INLINE_OBSERVATION(IS_INSTANCE_CTOR,          bool,   "instance constructor",          INFORMATION, CALLEE)
 INLINE_OBSERVATION(IS_PROFITABLE_INLINE,      bool,   "profitable inline",             INFORMATION, CALLEE)
 INLINE_OBSERVATION(IS_SIZE_DECREASING_INLINE, bool,   "size decreasing inline",        INFORMATION, CALLEE)
+INLINE_OBSERVATION(LOG_REPLAY_ACCEPT,         bool,   "accepted by log replay",        INFORMATION, CALLEE)
 INLINE_OBSERVATION(LOOKS_LIKE_WRAPPER,        bool,   "thin wrapper around a call",    INFORMATION, CALLEE)
 INLINE_OBSERVATION(MAXSTACK,                  int,    "maxstack",                      INFORMATION, CALLEE)
 INLINE_OBSERVATION(OPCODE,                    int,    "next opcode in IL stream",      INFORMATION, CALLEE)
@@ -92,14 +96,18 @@ INLINE_OBSERVATION(NUMBER_OF_ARGUMENTS,       int,    "number of arguments",    
 INLINE_OBSERVATION(NUMBER_OF_BASIC_BLOCKS,    int,    "number of basic blocks",        INFORMATION, CALLEE)
 INLINE_OBSERVATION(NUMBER_OF_LOCALS,          int,    "number of locals",              INFORMATION, CALLEE)
 INLINE_OBSERVATION(RANDOM_ACCEPT,             bool,   "random accept",                 INFORMATION, CALLEE)
-INLINE_OBSERVATION(STORES_TO_ARGUMENT,        bool,   "stores to argument",            INFORMATION, CALLEE)
 INLINE_OBSERVATION(UNSUPPORTED_OPCODE,        bool,   "unsupported opcode",            INFORMATION, CALLEE)
 
-// ------ Caller Corectness ------- 
+// ------ Caller Correctness -------
 
 INLINE_OBSERVATION(DEBUG_CODEGEN,             bool,   "debug codegen",                 FATAL,       CALLER)
 INLINE_OBSERVATION(IS_JIT_NOINLINE,           bool,   "noinline per JitNoInlineRange", FATAL,       CALLER)
 INLINE_OBSERVATION(NEEDS_SECURITY_CHECK,      bool,   "needs security check",          FATAL,       CALLER)
+
+// ------ Caller Information -------
+
+INLINE_OBSERVATION(HAS_NEWARRAY,              bool,   "has newarray",                  INFORMATION, CALLER)
+INLINE_OBSERVATION(HAS_NEWOBJ,                bool,   "has newobj",                    INFORMATION, CALLER)
 
 // ------ Call Site Correctness ------- 
 
@@ -136,6 +144,7 @@ INLINE_OBSERVATION(IS_WITHIN_FILTER,          bool,   "within filterregion",    
 INLINE_OBSERVATION(LDARGA_NOT_LOCAL_VAR,      bool,   "ldarga not on local var",       FATAL,       CALLSITE)
 INLINE_OBSERVATION(LDFLD_NEEDS_HELPER,        bool,   "ldfld needs helper",            FATAL,       CALLSITE)
 INLINE_OBSERVATION(LDVIRTFN_ON_NON_VIRTUAL,   bool,   "ldvirtfn on non-virtual",       FATAL,       CALLSITE)
+INLINE_OBSERVATION(LOG_REPLAY_REJECT,         bool,   "rejected by log replay",        FATAL,       CALLSITE)
 INLINE_OBSERVATION(NOT_CANDIDATE,             bool,   "not inline candidate",          FATAL,       CALLSITE)
 INLINE_OBSERVATION(NOT_PROFITABLE_INLINE,     bool,   "unprofitable inline",           FATAL,       CALLSITE)
 INLINE_OBSERVATION(OVER_BUDGET,               bool,   "inline exceeds budget",         FATAL,       CALLSITE)
@@ -153,10 +162,13 @@ INLINE_OBSERVATION(TOO_MANY_LOCALS,           bool,   "too many locals",        
 
 INLINE_OBSERVATION(CONSTANT_ARG_FEEDS_TEST,   bool,   "constant argument feeds test",  INFORMATION, CALLSITE)
 INLINE_OBSERVATION(DEPTH,                     int,    "depth",                         INFORMATION, CALLSITE)
-INLINE_OBSERVATION(FREQUENCY,                 int,    "execution frequency",           INFORMATION, CALLSITE)
+INLINE_OBSERVATION(FREQUENCY,                 int,    "rough call site frequency",     INFORMATION, CALLSITE)
 INLINE_OBSERVATION(IS_PROFITABLE_INLINE,      bool,   "profitable inline",             INFORMATION, CALLSITE)
+INLINE_OBSERVATION(IS_SAME_THIS,              bool,   "same this as root caller",      INFORMATION, CALLSITE)
 INLINE_OBSERVATION(IS_SIZE_DECREASING_INLINE, bool,   "size decreasing inline",        INFORMATION, CALLSITE)
+INLINE_OBSERVATION(LOG_REPLAY_ACCEPT,         bool,   "accepted by log replay",        INFORMATION, CALLSITE)
 INLINE_OBSERVATION(RANDOM_ACCEPT,             bool,   "random accept",                 INFORMATION, CALLSITE)
+INLINE_OBSERVATION(WEIGHT,                    int,    "call site frequency",           INFORMATION, CALLSITE)
 
 // ------ Final Sentinel ------- 
 

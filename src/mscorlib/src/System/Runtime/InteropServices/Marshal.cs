@@ -116,7 +116,7 @@ namespace System.Runtime.InteropServices
         //====================================================================
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern int GetSystemMaxDBCSCharSize();
-
+        
         [System.Security.SecurityCritical]  // auto-generated_required
         unsafe public static String PtrToStringAnsi(IntPtr ptr)
         {
@@ -185,7 +185,40 @@ namespace System.Runtime.InteropServices
         {
             // Ansi platforms are no longer supported
             return PtrToStringUni(ptr);
-        }            
+        }
+
+        [System.Security.SecurityCritical]  // auto-generated_required
+        unsafe public static String PtrToStringUTF8(IntPtr ptr)
+        {
+            int nbBytes = System.StubHelpers.StubHelpers.strlen((sbyte*)ptr.ToPointer());
+            return PtrToStringUTF8(ptr, nbBytes);
+        }
+
+        [System.Security.SecurityCritical]  // auto-generated_required
+        unsafe public static String PtrToStringUTF8(IntPtr ptr,int byteLen)
+        {
+            if (byteLen < 0)
+            {
+                throw new ArgumentException("byteLen");
+            }
+            else if (IntPtr.Zero == ptr)
+            {
+                return null;
+            }
+            else if (IsWin32Atom(ptr))
+            {
+                return null;
+            }
+            else if (byteLen == 0)
+            {
+                return string.Empty;
+            }
+            else
+            {
+                byte* pByte = (byte*)ptr.ToPointer();
+                return Encoding.UTF8.GetString(pByte, byteLen);
+            }
+        }
 
         //====================================================================
         // SizeOf()
@@ -535,10 +568,10 @@ namespace System.Runtime.InteropServices
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         public static IntPtr ReadIntPtr([MarshalAs(UnmanagedType.AsAny),In] Object ptr, int ofs)
         {
-            #if WIN32
-                return (IntPtr) ReadInt32(ptr, ofs);
-            #else
+            #if BIT64
                 return (IntPtr) ReadInt64(ptr, ofs);
+            #else // 32
+                return (IntPtr) ReadInt32(ptr, ofs);
             #endif
         }
 
@@ -546,10 +579,10 @@ namespace System.Runtime.InteropServices
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         public static IntPtr ReadIntPtr(IntPtr ptr, int ofs)
         {
-            #if WIN32
-                return (IntPtr) ReadInt32(ptr, ofs);
-            #else
+            #if BIT64
                 return (IntPtr) ReadInt64(ptr, ofs);
+            #else // 32
+                return (IntPtr) ReadInt32(ptr, ofs);
             #endif
         }
     
@@ -557,10 +590,10 @@ namespace System.Runtime.InteropServices
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         public static IntPtr ReadIntPtr(IntPtr ptr)
         {
-            #if WIN32
-                return (IntPtr) ReadInt32(ptr, 0);
-            #else
+            #if BIT64
                 return (IntPtr) ReadInt64(ptr, 0);
+            #else // 32
+                return (IntPtr) ReadInt32(ptr, 0);
             #endif
         }
 
@@ -765,30 +798,30 @@ namespace System.Runtime.InteropServices
         [System.Security.SecurityCritical]  // auto-generated_required
         public static void WriteIntPtr(IntPtr ptr, int ofs, IntPtr val)
         {
-            #if WIN32
-                WriteInt32(ptr, ofs, (int)val);
-            #else
+            #if BIT64
                 WriteInt64(ptr, ofs, (long)val);
+            #else // 32
+                WriteInt32(ptr, ofs, (int)val);
             #endif
         }
         
         [System.Security.SecurityCritical]  // auto-generated_required
         public static void WriteIntPtr([MarshalAs(UnmanagedType.AsAny),In,Out] Object ptr, int ofs, IntPtr val)
         {
-            #if WIN32
-                WriteInt32(ptr, ofs, (int)val);
-            #else
+            #if BIT64
                 WriteInt64(ptr, ofs, (long)val);
+            #else // 32
+                WriteInt32(ptr, ofs, (int)val);
             #endif
         }
         
         [System.Security.SecurityCritical]  // auto-generated_required
         public static void WriteIntPtr(IntPtr ptr, IntPtr val)
         {
-            #if WIN32
-                WriteInt32(ptr, 0, (int)val);
-            #else
+            #if BIT64
                 WriteInt64(ptr, 0, (long)val);
+            #else // 32
+                WriteInt32(ptr, 0, (int)val);
             #endif
         }
 
@@ -1060,7 +1093,7 @@ namespace System.Runtime.InteropServices
             }
 
             if (rtModule == null)
-                throw new ArgumentNullException(Environment.GetResourceString("Argument_MustBeRuntimeModule"));
+                throw new ArgumentNullException("m",Environment.GetResourceString("Argument_MustBeRuntimeModule"));
 
             return GetHINSTANCE(rtModule.GetNativeHandle());
         }    
@@ -1115,24 +1148,6 @@ namespace System.Runtime.InteropServices
 
 
         //====================================================================
-        // Converts the CLR exception to an HRESULT. This function also sets
-        // up an IErrorInfo for the exception.
-        //====================================================================
-        [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern int GetHRForException(Exception e);
-
-        //====================================================================
-        // Converts the CLR exception to an HRESULT. This function also sets
-        // up an IErrorInfo for the exception.
-        // This function is only used in WinRT and converts ObjectDisposedException
-        // to RO_E_CLOSED
-        //====================================================================
-        [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern int GetHRForException_WinRT(Exception e);
-
-        //====================================================================
         // This method is intended for compiler code generators rather
         // than applications. 
         //====================================================================
@@ -1185,10 +1200,10 @@ namespace System.Runtime.InteropServices
             // though I couldn't reproduce that.  In either case, that means we should continue
             // throwing an OOM instead of an ArgumentOutOfRangeException for "negative" amounts of memory.
             UIntPtr numBytes;
-#if WIN32
-            numBytes = new UIntPtr(unchecked((uint)cb.ToInt32()));
-#else
+#if BIT64
             numBytes = new UIntPtr(unchecked((ulong)cb.ToInt64()));
+#else // 32
+            numBytes = new UIntPtr(unchecked((uint)cb.ToInt32()));
 #endif
 
             IntPtr pNewMem = Win32Native.LocalAlloc_NoSafeHandle(LMEM_FIXED, unchecked(numBytes));
@@ -1302,6 +1317,24 @@ namespace System.Runtime.InteropServices
         }
 
 #if FEATURE_COMINTEROP
+
+        //====================================================================
+        // Converts the CLR exception to an HRESULT. This function also sets
+        // up an IErrorInfo for the exception.
+        //====================================================================
+        [System.Security.SecurityCritical]  // auto-generated_required
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern int GetHRForException(Exception e);
+
+        //====================================================================
+        // Converts the CLR exception to an HRESULT. This function also sets
+        // up an IErrorInfo for the exception.
+        // This function is only used in WinRT and converts ObjectDisposedException
+        // to RO_E_CLOSED
+        //====================================================================
+        [System.Security.SecurityCritical]  // auto-generated_required
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        internal static extern int GetHRForException_WinRT(Exception e);
 
 		internal static readonly Guid ManagedNameGuid = new Guid("{0F21F359-AB84-41E8-9A78-36D110E6D2F9}"); 
        
@@ -1867,6 +1900,38 @@ namespace System.Runtime.InteropServices
                         String.wstrcpy((char *)hglobal, firstChar, s.Length + 1);
                     }
                     return hglobal;
+                }
+            }
+        }
+
+        [System.Security.SecurityCritical]  // auto-generated_required
+        unsafe public static IntPtr StringToCoTaskMemUTF8(String s)
+        {
+            const int MAX_UTF8_CHAR_SIZE = 3;
+            if (s == null)
+            {
+                return IntPtr.Zero;
+            }
+            else
+            {
+                int nb = (s.Length + 1) * MAX_UTF8_CHAR_SIZE;
+
+                // Overflow checking
+                if (nb < s.Length)
+                    throw new ArgumentOutOfRangeException("s");
+
+                IntPtr pMem = Win32Native.CoTaskMemAlloc(new UIntPtr((uint)nb +1));
+
+                if (pMem == IntPtr.Zero)
+                {
+                    throw new OutOfMemoryException();
+                }
+                else
+                {
+                    byte* pbMem = (byte*)pMem;
+                    int nbWritten = s.GetBytesFromEncoding(pbMem, nb, Encoding.UTF8);
+                    pbMem[nbWritten] = 0;
+                    return pMem;
                 }
             }
         }
@@ -2656,6 +2721,13 @@ namespace System.Runtime.InteropServices
         public static void ZeroFreeCoTaskMemUnicode(IntPtr s)
         {
             Win32Native.ZeroMemory(s, (UIntPtr)(Win32Native.lstrlenW(s) * 2));
+            FreeCoTaskMem(s);
+        }
+
+        [System.Security.SecurityCritical]  // auto-generated_required
+        unsafe public static void ZeroFreeCoTaskMemUTF8(IntPtr s)
+        {
+            Win32Native.ZeroMemory(s, (UIntPtr)System.StubHelpers.StubHelpers.strlen((sbyte*)s));
             FreeCoTaskMem(s);
         }
 

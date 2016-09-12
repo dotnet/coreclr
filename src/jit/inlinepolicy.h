@@ -9,17 +9,20 @@
 //
 // -- CLASSES --
 //
-// LegalPolicy         - partial class providing common legality checks
-// LegacyPolicy        - policy that provides legacy inline behavior
+// LegalPolicy          - partial class providing common legality checks
+// LegacyPolicy         - policy that provides legacy inline behavior
+// EnhancedLegacyPolicy - legacy variant with some enhancements
+// DiscretionaryPolicy  - legacy variant with uniform size policy
+// ModelPolicy          - policy based on statistical modelling
 //
 // These experimental policies are available only in
 // DEBUG or release+INLINE_DATA builds of the jit.
 //
-// RandomPolicy        - randomized inlining
-// DiscretionaryPolicy - legacy variant with uniform size policy
-// ModelPolicy         - policy based on statistical modelling
-// FullPolicy          - inlines everything up to size and depth limits
-// SizePolicy          - tries not to increase method sizes
+// RandomPolicy         - randomized inlining
+// FullPolicy           - inlines everything up to size and depth limits
+// SizePolicy           - tries not to increase method sizes
+//
+// The default policy in use is the EnhancedLegacyPolicy.
 
 #ifndef _INLINE_POLICY_H_
 #define _INLINE_POLICY_H_
@@ -45,10 +48,8 @@ class LegalPolicy : public InlinePolicy
 {
 
 public:
-
     // Constructor
-    LegalPolicy(bool isPrejitRoot)
-        : InlinePolicy(isPrejitRoot)
+    LegalPolicy(bool isPrejitRoot) : InlinePolicy(isPrejitRoot)
     {
         // empty
     }
@@ -57,7 +58,6 @@ public:
     void NoteFatal(InlineObservation obs) override;
 
 protected:
-
     // Helper methods
     void NoteInternal(InlineObservation obs);
     void SetCandidate(InlineObservation obs);
@@ -76,29 +76,28 @@ class CodeSeqSM;
 class LegacyPolicy : public LegalPolicy
 {
 public:
-
     // Construct a LegacyPolicy
     LegacyPolicy(Compiler* compiler, bool isPrejitRoot)
         : LegalPolicy(isPrejitRoot)
         , m_RootCompiler(compiler)
         , m_StateMachine(nullptr)
+        , m_Multiplier(0.0)
         , m_CodeSize(0)
         , m_CallsiteFrequency(InlineCallsiteFrequency::UNUSED)
         , m_InstructionCount(0)
         , m_LoadStoreCount(0)
+        , m_ArgFeedsConstantTest(0)
+        , m_ArgFeedsRangeCheck(0)
+        , m_ConstantArgFeedsConstantTest(0)
         , m_CalleeNativeSizeEstimate(0)
         , m_CallsiteNativeSizeEstimate(0)
-        , m_Multiplier(0.0)
         , m_IsForceInline(false)
         , m_IsForceInlineKnown(false)
         , m_IsInstanceCtor(false)
         , m_IsFromPromotableValueClass(false)
         , m_HasSimd(false)
         , m_LooksLikeWrapperMethod(false)
-        , m_ArgFeedsConstantTest(false)
         , m_MethodIsMostlyLoadStore(false)
-        , m_ArgFeedsRangeCheck(false)
-        , m_ConstantFeedsConstantTest(false)
     {
         // empty
     }
@@ -112,47 +111,89 @@ public:
     void DetermineProfitability(CORINFO_METHOD_INFO* methodInfo) override;
 
     // Policy policies
-    bool PropagateNeverToRuntime() const override { return true; }
+    bool PropagateNeverToRuntime() const override
+    {
+        return true;
+    }
+    bool IsLegacyPolicy() const override
+    {
+        return true;
+    }
 
     // Policy estimates
     int CodeSizeEstimate() override;
 
 #if defined(DEBUG) || defined(INLINE_DATA)
 
-    const char* GetName() const override { return "LegacyPolicy"; }
+    const char* GetName() const override
+    {
+        return "LegacyPolicy";
+    }
 
 #endif // (DEBUG) || defined(INLINE_DATA)
 
 protected:
-
     // Constants
-    enum { MAX_BASIC_BLOCKS = 5, SIZE_SCALE = 10 };
+    enum
+    {
+        MAX_BASIC_BLOCKS = 5,
+        SIZE_SCALE       = 10
+    };
 
     // Helper methods
     double DetermineMultiplier();
-    int DetermineNativeSizeEstimate();
+    int    DetermineNativeSizeEstimate();
     int DetermineCallsiteNativeSizeEstimate(CORINFO_METHOD_INFO* methodInfo);
 
     // Data members
-    Compiler*               m_RootCompiler;                      // root compiler instance
+    Compiler*               m_RootCompiler; // root compiler instance
     CodeSeqSM*              m_StateMachine;
+    double                  m_Multiplier;
     unsigned                m_CodeSize;
     InlineCallsiteFrequency m_CallsiteFrequency;
     unsigned                m_InstructionCount;
     unsigned                m_LoadStoreCount;
+    unsigned                m_ArgFeedsConstantTest;
+    unsigned                m_ArgFeedsRangeCheck;
+    unsigned                m_ConstantArgFeedsConstantTest;
     int                     m_CalleeNativeSizeEstimate;
     int                     m_CallsiteNativeSizeEstimate;
-    double                  m_Multiplier;
-    bool                    m_IsForceInline :1;
-    bool                    m_IsForceInlineKnown :1;
-    bool                    m_IsInstanceCtor :1;
-    bool                    m_IsFromPromotableValueClass :1;
-    bool                    m_HasSimd :1;
-    bool                    m_LooksLikeWrapperMethod :1;
-    bool                    m_ArgFeedsConstantTest :1;
-    bool                    m_MethodIsMostlyLoadStore :1;
-    bool                    m_ArgFeedsRangeCheck :1;
-    bool                    m_ConstantFeedsConstantTest :1;
+    bool                    m_IsForceInline : 1;
+    bool                    m_IsForceInlineKnown : 1;
+    bool                    m_IsInstanceCtor : 1;
+    bool                    m_IsFromPromotableValueClass : 1;
+    bool                    m_HasSimd : 1;
+    bool                    m_LooksLikeWrapperMethod : 1;
+    bool                    m_MethodIsMostlyLoadStore : 1;
+};
+
+// EnhancedLegacyPolicy extends the legacy policy by rejecting
+// inlining of methods that never return because they throw.
+
+class EnhancedLegacyPolicy : public LegacyPolicy
+{
+public:
+    EnhancedLegacyPolicy(Compiler* compiler, bool isPrejitRoot)
+        : LegacyPolicy(compiler, isPrejitRoot), m_IsNoReturn(false), m_IsNoReturnKnown(false)
+    {
+        // empty
+    }
+
+    // Policy observations
+    void NoteBool(InlineObservation obs, bool value) override;
+    void NoteInt(InlineObservation obs, int value) override;
+
+    // Policy policies
+    bool PropagateNeverToRuntime() const override;
+    bool IsLegacyPolicy() const override
+    {
+        return false;
+    }
+
+protected:
+    // Data members
+    bool m_IsNoReturn : 1;
+    bool m_IsNoReturnKnown : 1;
 };
 
 #ifdef DEBUG
@@ -163,7 +204,6 @@ protected:
 class RandomPolicy : public LegalPolicy
 {
 public:
-
     // Construct a RandomPolicy
     RandomPolicy(Compiler* compiler, bool isPrejitRoot, unsigned seed);
 
@@ -176,7 +216,14 @@ public:
     void DetermineProfitability(CORINFO_METHOD_INFO* methodInfo) override;
 
     // Policy policies
-    bool PropagateNeverToRuntime() const override { return true; }
+    bool PropagateNeverToRuntime() const override
+    {
+        return true;
+    }
+    bool IsLegacyPolicy() const override
+    {
+        return false;
+    }
 
     // Policy estimates
     int CodeSizeEstimate() override
@@ -184,33 +231,32 @@ public:
         return 0;
     }
 
-    const char* GetName() const override { return "RandomPolicy"; }
+    const char* GetName() const override
+    {
+        return "RandomPolicy";
+    }
 
 private:
-
     // Data members
-    Compiler*               m_RootCompiler;
-    CLRRandom*              m_Random;
-    unsigned                m_CodeSize;
-    bool                    m_IsForceInline :1;
-    bool                    m_IsForceInlineKnown :1;
+    Compiler*  m_RootCompiler;
+    CLRRandom* m_Random;
+    unsigned   m_CodeSize;
+    bool       m_IsForceInline : 1;
+    bool       m_IsForceInlineKnown : 1;
 };
 
 #endif // DEBUG
 
-#if defined(DEBUG) || defined(INLINE_DATA)
-
 // DiscretionaryPolicy is a variant of the legacy policy.  It differs
 // in that there is no ALWAYS_INLINE class, there is no IL size limit,
-// and in prejit mode, discretionary failures do not set the "NEVER"
-// inline bit.
+// it does not try and maintain legacy compatabilty, and in prejit mode,
+// discretionary failures do not set the "NEVER" inline bit.
 //
 // It is useful for gathering data about inline costs.
 
 class DiscretionaryPolicy : public LegacyPolicy
 {
 public:
-
     // Construct a DiscretionaryPolicy
     DiscretionaryPolicy(Compiler* compiler, bool isPrejitRoot);
 
@@ -220,6 +266,10 @@ public:
 
     // Policy policies
     bool PropagateNeverToRuntime() const override;
+    bool IsLegacyPolicy() const override
+    {
+        return false;
+    }
 
     // Policy determinations
     void DetermineProfitability(CORINFO_METHOD_INFO* methodInfo) override;
@@ -227,19 +277,29 @@ public:
     // Policy estimates
     int CodeSizeEstimate() override;
 
+#if defined(DEBUG) || defined(INLINE_DATA)
+
     // Externalize data
     void DumpData(FILE* file) const override;
     void DumpSchema(FILE* file) const override;
 
     // Miscellaneous
-    const char* GetName() const override { return "DiscretionaryPolicy"; }
+    const char* GetName() const override
+    {
+        return "DiscretionaryPolicy";
+    }
+
+#endif // defined(DEBUG) || defined(INLINE_DATA)
 
 protected:
-
     void ComputeOpcodeBin(OPCODE opcode);
     void EstimateCodeSize();
+    void EstimatePerformanceImpact();
     void MethodInfoObservations(CORINFO_METHOD_INFO* methodInfo);
-    enum { MAX_ARGS = 6 };
+    enum
+    {
+        MAX_ARGS = 6
+    };
 
     unsigned    m_Depth;
     unsigned    m_BlockCount;
@@ -277,8 +337,15 @@ protected:
     unsigned    m_StaticFieldStoreCount;
     unsigned    m_LoadAddressCount;
     unsigned    m_ThrowCount;
+    unsigned    m_ReturnCount;
     unsigned    m_CallCount;
+    unsigned    m_CallSiteWeight;
     int         m_ModelCodeSizeEstimate;
+    int         m_PerCallInstructionEstimate;
+    bool        m_IsClassCtor;
+    bool        m_IsSameThis;
+    bool        m_CallerHasNewArray;
+    bool        m_CallerHasNewObj;
 };
 
 // ModelPolicy is an experimental policy that uses the results
@@ -287,16 +354,33 @@ protected:
 class ModelPolicy : public DiscretionaryPolicy
 {
 public:
-
     // Construct a ModelPolicy
     ModelPolicy(Compiler* compiler, bool isPrejitRoot);
+
+    // Policy observations
+    void NoteInt(InlineObservation obs, int value) override;
 
     // Policy determinations
     void DetermineProfitability(CORINFO_METHOD_INFO* methodInfo) override;
 
+    // Policy policies
+    bool PropagateNeverToRuntime() const override
+    {
+        return true;
+    }
+
+#if defined(DEBUG) || defined(INLINE_DATA)
+
     // Miscellaneous
-    const char* GetName() const override { return "ModelPolicy"; }
+    const char* GetName() const override
+    {
+        return "ModelPolicy";
+    }
+
+#endif // defined(DEBUG) || defined(INLINE_DATA)
 };
+
+#if defined(DEBUG) || defined(INLINE_DATA)
 
 // FullPolicy is an experimental policy that will always inline if
 // possible, subject to externally settable depth and size limits.
@@ -307,7 +391,6 @@ public:
 class FullPolicy : public DiscretionaryPolicy
 {
 public:
-
     // Construct a FullPolicy
     FullPolicy(Compiler* compiler, bool isPrejitRoot);
 
@@ -315,7 +398,10 @@ public:
     void DetermineProfitability(CORINFO_METHOD_INFO* methodInfo) override;
 
     // Miscellaneous
-    const char* GetName() const override { return "FullPolicy"; }
+    const char* GetName() const override
+    {
+        return "FullPolicy";
+    }
 };
 
 // SizePolicy is an experimental policy that will inline as much
@@ -327,7 +413,6 @@ public:
 class SizePolicy : public DiscretionaryPolicy
 {
 public:
-
     // Construct a SizePolicy
     SizePolicy(Compiler* compiler, bool isPrejitRoot);
 
@@ -335,9 +420,59 @@ public:
     void DetermineProfitability(CORINFO_METHOD_INFO* methodInfo) override;
 
     // Miscellaneous
-    const char* GetName() const override { return "SizePolicy"; }
+    const char* GetName() const override
+    {
+        return "SizePolicy";
+    }
 };
 
+// The ReplayPolicy performs only inlines specified by an external
+// inline replay log.
+
+class ReplayPolicy : public DiscretionaryPolicy
+{
+public:
+    // Construct a ReplayPolicy
+    ReplayPolicy(Compiler* compiler, bool isPrejitRoot);
+
+    // Policy observations
+    void NoteBool(InlineObservation obs, bool value) override;
+
+    // Optional observations
+    void NoteContext(InlineContext* context) override
+    {
+        m_InlineContext = context;
+    }
+
+    void NoteOffset(IL_OFFSETX offset) override
+    {
+        m_Offset = offset;
+    }
+
+    // Policy determinations
+    void DetermineProfitability(CORINFO_METHOD_INFO* methodInfo) override;
+
+    // Miscellaneous
+    const char* GetName() const override
+    {
+        return "ReplayPolicy";
+    }
+
+    static void FinalizeXml();
+
+private:
+    bool FindMethod();
+    bool FindContext(InlineContext* context);
+    bool FindInline(CORINFO_METHOD_HANDLE callee);
+    bool FindInline(unsigned token, unsigned hash, unsigned offset);
+
+    static bool          s_WroteReplayBanner;
+    static FILE*         s_ReplayFile;
+    static CritSecObject s_XmlReaderLock;
+    InlineContext*       m_InlineContext;
+    IL_OFFSETX           m_Offset;
+    bool                 m_WasForceInline;
+};
 
 #endif // defined(DEBUG) || defined(INLINE_DATA)
 

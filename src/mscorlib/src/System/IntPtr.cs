@@ -21,10 +21,10 @@ namespace System {
     using System.Runtime.ConstrainedExecution;
     using System.Security;
     using System.Diagnostics.Contracts;
-    
+
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
-    public struct IntPtr : ISerializable
+    [System.Runtime.InteropServices.ComVisible(true)]
+    public struct IntPtr : IEquatable<IntPtr>, ISerializable
     {
         [SecurityCritical]
         unsafe private void* m_value; // The compiler treats void* closest to uint hence explicit casts are required to preserve int behavior
@@ -45,11 +45,11 @@ namespace System {
         [System.Runtime.Versioning.NonVersionable]
         public unsafe IntPtr(int value)
         {
-            #if WIN32
-                m_value = (void *)value;
-            #else
+#if BIT64
                 m_value = (void *)(long)value;
-            #endif
+#else // !BIT64 (32)
+                m_value = (void *)value;
+#endif
         }
     
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -57,11 +57,11 @@ namespace System {
         [System.Runtime.Versioning.NonVersionable]
         public unsafe IntPtr(long value)
         {
-            #if WIN32
-                m_value = (void *)checked((int)value);
-            #else
+#if BIT64
                 m_value = (void *)value;
-            #endif
+#else // !BIT64 (32)
+                m_value = (void *)checked((int)value);
+#endif
         }
 
         [System.Security.SecurityCritical]
@@ -84,20 +84,18 @@ namespace System {
             m_value = (void *)l;
         }
 
-#if FEATURE_SERIALIZATION
         [System.Security.SecurityCritical]
         unsafe void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context) {
             if (info==null) {
                 throw new ArgumentNullException("info");
             }
             Contract.EndContractBlock();
-            #if WIN32
-                info.AddValue("value", (long)((int)m_value));
-            #else
+#if BIT64
                 info.AddValue("value", (long)(m_value));
-            #endif
-        }
+#else // !BIT64 (32)
+                info.AddValue("value", (long)((int)m_value));
 #endif
+        }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
         public unsafe override bool Equals(Object obj) {
@@ -106,16 +104,22 @@ namespace System {
             }
             return false;
         }
+
+        [SecuritySafeCritical]
+        unsafe bool IEquatable<IntPtr>.Equals(IntPtr other)
+        {
+            return m_value == other.m_value;
+        }
     
         [System.Security.SecuritySafeCritical]  // auto-generated
         public unsafe override int GetHashCode() {
 #if FEATURE_CORECLR
-    #if WIN32
-            return unchecked((int)m_value);
-    #else
+#if BIT64
             long l = (long)m_value;
             return (unchecked((int)l) ^ (int)(l >> 32));
-    #endif
+#else // !BIT64 (32)
+            return unchecked((int)m_value);
+#endif
 #else
             return unchecked((int)((long)m_value));
 #endif
@@ -125,32 +129,32 @@ namespace System {
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [System.Runtime.Versioning.NonVersionable]
         public unsafe int ToInt32() {
-            #if WIN32
-                return (int)m_value;
-            #else
+#if BIT64
                 long l = (long)m_value;
                 return checked((int)l);
-            #endif
+#else // !BIT64 (32)
+                return (int)m_value;
+#endif
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [System.Runtime.Versioning.NonVersionable]
         public unsafe long ToInt64() {
-            #if WIN32
-                return (long)(int)m_value;
-            #else
+#if BIT64
                 return (long)m_value;
-            #endif
+#else // !BIT64 (32)
+                return (long)(int)m_value;
+#endif
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
         public unsafe override String ToString() {
-            #if WIN32
-                return ((int)m_value).ToString(CultureInfo.InvariantCulture);
-            #else
+#if BIT64
                 return ((long)m_value).ToString(CultureInfo.InvariantCulture);
-            #endif
+#else // !BIT64 (32)
+                return ((int)m_value).ToString(CultureInfo.InvariantCulture);
+#endif
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -158,11 +162,11 @@ namespace System {
         {
             Contract.Ensures(Contract.Result<String>() != null);
 
-            #if WIN32
-                return ((int)m_value).ToString(format, CultureInfo.InvariantCulture);
-            #else
+#if BIT64
                 return ((long)m_value).ToString(format, CultureInfo.InvariantCulture);
-            #endif
+#else // !BIT64 (32)
+                return ((int)m_value).ToString(format, CultureInfo.InvariantCulture);
+#endif
         }
 
 
@@ -200,23 +204,23 @@ namespace System {
         [System.Runtime.Versioning.NonVersionable]
         public unsafe static explicit operator int (IntPtr  value) 
         {
-            #if WIN32
-                return (int)value.m_value;
-            #else
+#if BIT64
                 long l = (long)value.m_value;
                 return checked((int)l);
-            #endif
+#else // !BIT64 (32)
+                return (int)value.m_value;
+#endif
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
         [System.Runtime.Versioning.NonVersionable]
         public unsafe static explicit operator long (IntPtr  value) 
         {
-            #if WIN32
-                return (long)(int)value.m_value;
-            #else
+#if BIT64
                 return (long)value.m_value;
-            #endif
+#else // !BIT64 (32)
+                return (long)(int)value.m_value;
+#endif
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -246,11 +250,11 @@ namespace System {
         [System.Runtime.Versioning.NonVersionable]
         public static IntPtr operator +(IntPtr pointer, int offset) 
         {
-            #if WIN32
-                return new IntPtr(pointer.ToInt32() + offset);
-            #else
+#if BIT64
                 return new IntPtr(pointer.ToInt64() + offset);
-            #endif
+#else // !BIT64 (32)
+                return new IntPtr(pointer.ToInt32() + offset);
+#endif
         }
 
         [ReliabilityContract(Consistency.MayCorruptInstance, Cer.MayFail)]
@@ -262,11 +266,11 @@ namespace System {
         [ReliabilityContract(Consistency.MayCorruptInstance, Cer.MayFail)]
         [System.Runtime.Versioning.NonVersionable]
         public static IntPtr operator -(IntPtr pointer, int offset) {
-            #if WIN32
-                return new IntPtr(pointer.ToInt32() - offset);
-            #else
+#if BIT64
                 return new IntPtr(pointer.ToInt64() - offset);
-            #endif
+#else // !BIT64 (32)
+                return new IntPtr(pointer.ToInt32() - offset);
+#endif
         }
 
         public static int Size
@@ -276,11 +280,11 @@ namespace System {
             [System.Runtime.Versioning.NonVersionable]
             get
             {
-                #if WIN32
-                    return 4;
-                #else
+#if BIT64
                     return 8;
-                #endif
+#else // !BIT64 (32)
+                    return 4;
+#endif
             }
         }
     

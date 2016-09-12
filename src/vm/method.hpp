@@ -2304,6 +2304,7 @@ protected:
         nomdStubNeedsCOMStarted   = 0x0800,  // EnsureComStarted must be called before executing the method
         nomdMulticastStub         = 0x1000,
         nomdUnboxingILStub        = 0x2000,
+        nomdSecureDelegateStub    = 0x4000,
 
         nomdILStub          = 0x00010000,
         nomdLCGMethod       = 0x00020000,
@@ -2412,6 +2413,11 @@ public:
     bool IsSignatureNeedsRestore() { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdSignatureNeedsRestore)); }
     bool IsStubNeedsCOMStarted()   { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdStubNeedsCOMStarted)); }
 #ifdef FEATURE_STUBS_AS_IL
+    bool IsSecureDelegateStub() {
+        LIMITED_METHOD_DAC_CONTRACT;
+        _ASSERTE(IsILStub());
+        return !!(m_dwExtendedFlags & nomdSecureDelegateStub);
+    }
     bool IsMulticastStub() { 
         LIMITED_METHOD_DAC_CONTRACT; 
         _ASSERTE(IsILStub());
@@ -2553,9 +2559,7 @@ public:
         NDirectImportThunkGlue      m_ImportThunkGlue;
 #endif // HAS_NDIRECT_IMPORT_PRECODE
 
-#ifndef FEATURE_CORECLR
         ULONG       m_DefaultDllImportSearchPathsAttributeValue; // DefaultDllImportSearchPathsAttribute is saved.
-#endif
 
         // Various attributes needed at runtime.
         WORD        m_wFlags;
@@ -2588,9 +2592,7 @@ public:
 
         kHasSuppressUnmanagedCodeAccess = 0x0002,
 
-#ifndef FEATURE_CORECLR
         kDefaultDllImportSearchPathsIsCached = 0x0004, // set if we cache attribute value.
-#endif
 
         // kUnusedMask                  = 0x0008
 
@@ -2614,9 +2616,7 @@ public:
 
         kIsQCall                        = 0x1000,
 
-#if !defined(FEATURE_CORECLR)
         kDefaultDllImportSearchPathsStatus = 0x2000, // either method has custom attribute or not.
-#endif
 
         kHasCopyCtorArgs                = 0x4000,
 
@@ -2749,7 +2749,6 @@ public:
         return (ndirect.m_wFlags & kIsQCall) != 0;
     }
 
-#ifndef FEATURE_CORECLR
     BOOL HasDefaultDllImportSearchPathsAttribute();
 
     BOOL IsDefaultDllImportSearchPathsAttributeCached()
@@ -2769,7 +2768,6 @@ public:
         LIMITED_METHOD_CONTRACT;
         return (ndirect.m_DefaultDllImportSearchPathsAttributeValue & 0x2) != 0;
     }
-#endif // !FEATURE_CORECLR
 
     BOOL HasCopyCtorArgs() const
     {

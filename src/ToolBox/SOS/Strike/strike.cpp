@@ -164,14 +164,16 @@ HMODULE g_hInstance = NULL;
 #pragma warning(disable:4189)   // local variable is initialized but not referenced
 #endif
 
-
+#ifdef FEATURE_PAL
+#define SOSPrefix ""
+#else
+#define SOSPrefix "!"
+#endif
 
 #if defined _X86_ && !defined FEATURE_PAL
 // disable FPO for X86 builds
 #pragma optimize("y", off)
 #endif
-
-
 
 #undef assert
 
@@ -297,7 +299,7 @@ DECLARE_API(IP2MD)
     DMLOut("MethodDesc:   %s\n", DMLMethodDesc(pMD));
     DumpMDInfo(TO_TADDR(pMD), cdaStart, FALSE /* fStackTraceFormat */);
 
-    char  filename[MAX_PATH_FNAME+1];
+    WCHAR filename[MAX_LONGPATH];
     ULONG linenum;
     // symlines will be non-zero only if SYMOPT_LOAD_LINES was set in the symbol options
     ULONG symlines = 0;
@@ -306,13 +308,10 @@ DECLARE_API(IP2MD)
         symlines &= SYMOPT_LOAD_LINES;
     }
 
-    if (symlines != 0
-        && SUCCEEDED(GetLineByOffset(TO_CDADDR(IP), 
-                         &linenum,
-                         filename,
-                         MAX_PATH_FNAME+1)))
+    if (symlines != 0 && 
+        SUCCEEDED(GetLineByOffset(TO_CDADDR(IP), &linenum, filename, _countof(filename))))
     {
-        ExtOut("Source file:  %s @ %d\n", filename, linenum);
+        ExtOut("Source file:  %S @ %d\n", filename, linenum);
     }
 
     return Status;
@@ -2229,13 +2228,13 @@ size_t FormatGeneratedException (DWORD_PTR dataPtr,
     __out_ecount_opt(bufferLength) WCHAR *wszBuffer, 
     size_t bufferLength, 
     BOOL bAsync,
-    BOOL bNestedCase=FALSE,
-    BOOL bLineNumbers=FALSE)
+    BOOL bNestedCase = FALSE,
+    BOOL bLineNumbers = FALSE)
 {
     UINT count = bytes / sizeof(StackTraceElement);
     size_t Length = 0;
 
-    if (wszBuffer && bufferLength>0)
+    if (wszBuffer && bufferLength > 0)
     {
         wszBuffer[0] = L'\0';
     }
@@ -2243,7 +2242,7 @@ size_t FormatGeneratedException (DWORD_PTR dataPtr,
     // Buffer is calculated for sprintf below ("   %p %p %S\n");
     WCHAR wszLineBuffer[mdNameLen + 8 + sizeof(size_t)*2 + MAX_LONGPATH + 8];
 
-    if (count==0)
+    if (count == 0)
     {
         return 0;
     }
@@ -2305,24 +2304,16 @@ size_t FormatGeneratedException (DWORD_PTR dataPtr,
         // or did not update so (when ste is an explicit frames), do not update wszBuffer
         if (Status == S_OK)
         {
-            char filename[MAX_LONGPATH+1] = "";
+            WCHAR filename[MAX_LONGPATH] = W("");
             ULONG linenum = 0;
-            if (bLineNumbers
-                    && FAILED(GetLineByOffset(TO_CDADDR(ste.ip), 
-                                     &linenum,
-                                     filename,
-                                     _countof(filename))))
+            if (bLineNumbers && 
+                SUCCEEDED(GetLineByOffset(TO_CDADDR(ste.ip), &linenum, filename, _countof(filename))))
             {
-                bLineNumbers = FALSE;
-            }
-
-            if (!bLineNumbers)
-            {
-                swprintf_s(wszLineBuffer, _countof(wszLineBuffer), W("    %s\n"), so.String());
+                swprintf_s(wszLineBuffer, _countof(wszLineBuffer), W("    %s [%s @ %d]\n"), so.String(), filename, linenum);
             }
             else
             {
-                swprintf_s(wszLineBuffer, _countof(wszLineBuffer), W("    %s [%S @ %d]\n"), so.String(), filename, linenum);
+                swprintf_s(wszLineBuffer, _countof(wszLineBuffer), W("    %s\n"), so.String());
             }
 
             Length += _wcslen(wszLineBuffer);
@@ -6105,8 +6096,11 @@ void IssueDebuggerBPCommand ( CLRDATA_ADDRESS addr )
 
     // on ARM the debugger requires breakpoint addresses to be sanitized
     if (IsDbgTargetArm())
-        addr &= ~THUMB_CODE;
-    
+#ifndef FEATURE_PAL
+      addr &= ~THUMB_CODE;
+#else
+      addr |= THUMB_CODE; // lldb expects thumb code bit set
+#endif      
 
     // if we overflowed our cache consider all new BPs unique...
     BOOL bUnique = curLimit >= MaxBPsCached;
@@ -6284,7 +6278,7 @@ public:
     {
         PendingBreakpoint *pCur = m_breakpoints;
         size_t iBreakpointIndex = 1;
-        ExtOut("!bpmd pending breakpoint list\n Breakpoint index - Location, ModuleID, Method Token\n");
+        ExtOut(SOSPrefix "bpmd pending breakpoint list\n Breakpoint index - Location, ModuleID, Method Token\n");
         while(pCur)
         {
             //windbg likes to format %p as always being 64 bits
@@ -6365,45 +6359,15 @@ public:
 
     HRESULT LoadSymbolsForModule(TADDR mod, SymbolReader* pSymbolReader)
     {
-#ifndef FEATURE_PAL
         HRESULT Status = S_OK;
-        ToRelease<IXCLRDataModule> module;
-        IfFailRet(g_sos->GetModule(mod, &module));
+        ToRelease<IXCLRDataModule> pModule;
+        IfFailRet(g_sos->GetModule(mod, &pModule));
 
         ToRelease<IMetaDataImport> pMDImport = NULL;
-        IfFailRet(module->QueryInterface(IID_IMetaDataImport, (LPVOID *) &pMDImport));
+        IfFailRet(pModule->QueryInterface(IID_IMetaDataImport, (LPVOID *) &pMDImport));
 
-        WCHAR wszNameBuffer[MAX_LONGPATH];
-        ULONG32 nameLen = 0;
-        if(FAILED(Status = module->GetFileName(MAX_LONGPATH, &nameLen, wszNameBuffer)))
-        {
-            ExtOut("SOS error: IXCLRDataModule->GetFileName failed hr=0x%x\n", wszNameBuffer);
-            return Status;
-        }
+        IfFailRet(pSymbolReader->LoadSymbols(pMDImport, pModule));
 
-        //get a pointer to just the filename (the portion after the last backslash)
-        WCHAR* pModuleFilename = wszNameBuffer;
-        WCHAR* pSlash = _wcschr(pModuleFilename, DIRECTORY_SEPARATOR_CHAR_W);
-        while(pSlash != NULL)
-        {
-            pModuleFilename = pSlash+1;
-            pSlash = _wcschr(pModuleFilename, DIRECTORY_SEPARATOR_CHAR_W);
-        }
-
-        ImageInfo ii;
-        if(FAILED(Status = GetClrModuleImages(module, CLRDATA_MODULE_PE_FILE, &ii)))
-        {
-            ExtOut("SOS error: GetClrModuleImages failed hr=0x%x\n", Status);
-            return Status;
-        }
-
-        if(FAILED(Status = pSymbolReader->LoadSymbols(pMDImport, ii.modBase, pModuleFilename, FALSE)) &&
-           FAILED(pSymbolReader->LoadSymbols(pMDImport, ii.modBase, pModuleFilename, TRUE)))
-        {
-            ExtOut("SOS warning: No symbols for module %S, source line breakpoints in this module will not bind hr=0x%x\n", wszNameBuffer, Status);
-            return S_FALSE; // not finding symbols is a typical case
-        }
-#endif // FEATURE_PAL
         return S_OK;
     }
 
@@ -6415,7 +6379,7 @@ public:
 
         mdMethodDef methodDef;
         ULONG32 ilOffset;
-        if(FAILED(Status = pSymbolReader->ResolveSequencePoint(pFilename, lineNumber, &methodDef, &ilOffset)))
+        if(FAILED(Status = pSymbolReader->ResolveSequencePoint(pFilename, lineNumber, mod, &methodDef, &ilOffset)))
         {
             return S_FALSE; // not binding in a module is typical
         }
@@ -6426,15 +6390,14 @@ public:
 
     HRESULT ResolvePendingNonModuleBoundBreakpoint(__in_z WCHAR* pModuleName, __in_z WCHAR* pMethodName, TADDR mod, DWORD ilOffset)
     {
-        int numModule;
+        HRESULT Status = S_OK;
         char szName[mdNameLen];
+        int numModule;
         
         ToRelease<IXCLRDataModule> module;
-        HRESULT Status = S_OK;
         IfFailRet(g_sos->GetModule(mod, &module));
 
-        WideCharToMultiByte(CP_ACP, 0, pModuleName, (int) (_wcslen(pModuleName) + 1),
-            szName, mdNameLen, NULL, NULL);            
+        WideCharToMultiByte(CP_ACP, 0, pModuleName, (int)(_wcslen(pModuleName) + 1), szName, mdNameLen, NULL, NULL);
 
         ArrayHolder<DWORD_PTR> moduleList = ModuleFromName(szName, &numModule);
         if (moduleList == NULL)
@@ -6443,7 +6406,7 @@ public:
             return E_FAIL;
         }
 
-        for(int i=0;i<numModule;i++)
+        for (int i = 0; i < numModule; i++)
         {
             // If any one entry in moduleList matches, then the current PendingBreakpoint
             // is the right one.
@@ -7027,10 +6990,11 @@ DECLARE_API(bpmd)
     
     if (IsDumpFile())
     {
-        ExtOut("!bpmd is not supported on a dump file.\n");
+        ExtOut(SOSPrefix "bpmd is not supported on a dump file.\n");
         return Status;
     }
-    
+
+
     // We keep a list of managed breakpoints the user wants to set, and display pending bps
     // bpmd. If you call bpmd <module name> <method> we will set or update an existing bp.
     // bpmd acts as a feeder of breakpoints to bp when the time is right.
@@ -7107,9 +7071,17 @@ DECLARE_API(bpmd)
         // did we get dll and type name or file:line#? Search for a colon in the first arg
         // to see if it is in fact a file:line#
         CHAR* pColon = strchr(DllName.data, ':');
+#ifndef FEATURE_PAL 
+        if (FAILED(g_ExtSymbols->GetModuleByModuleName(MAIN_CLR_MODULE_NAME_A, 0, NULL, NULL))) {
+#else
+        if (FAILED(g_ExtSymbols->GetModuleByModuleName(MAIN_CLR_DLL_NAME_A, 0, NULL, NULL))) {
+#endif
+           ExtOut("%s not loaded yet\n", MAIN_CLR_DLL_NAME_A);
+           return Status;
+        }
+
         if(NULL != pColon)
         {
-#ifndef FEATURE_PAL
             fIsFilename = true;
             *pColon = '\0';
             pColon++;
@@ -7124,22 +7096,22 @@ DECLARE_API(bpmd)
                 fBadParam = true;
             }
             if(nArg != 1) fBadParam = 1;
-#else
-        ExtOut("File name:Line number not supported\n");
-        fBadParam = true;
-#endif // FEATURE_PAL
         }
     }
 
     if (fBadParam || (commandsParsed != 1))
     {
-        ExtOut("Usage: !bpmd -md <MethodDesc pointer>\n");
-        ExtOut("Usage: !bpmd [-nofuturemodule] <module name> <managed function name> [<il offset>]\n");
-        ExtOut("Usage: !bpmd <filename>:<line number>\n");
-        ExtOut("Usage: !bpmd -list\n");
-        ExtOut("Usage: !bpmd -clear <pending breakpoint number>\n");
-        ExtOut("Usage: !bpmd -clearall\n");
+        ExtOut("Usage: " SOSPrefix "bpmd -md <MethodDesc pointer>\n");
+        ExtOut("Usage: " SOSPrefix "bpmd [-nofuturemodule] <module name> <managed function name> [<il offset>]\n");
+        ExtOut("Usage: " SOSPrefix "bpmd <filename>:<line number>\n");
+        ExtOut("Usage: " SOSPrefix "bpmd -list\n");
+        ExtOut("Usage: " SOSPrefix "bpmd -clear <pending breakpoint number>\n");
+        ExtOut("Usage: " SOSPrefix "bpmd -clearall\n");
+#ifdef FEATURE_PAL
+        ExtOut("See \"soshelp bpmd\" for more details.\n");
+#else
         ExtOut("See \"!help bpmd\" for more details.\n");
+#endif
         return Status;
     }
 
@@ -7242,7 +7214,7 @@ DECLARE_API(bpmd)
                     // if we have symbols then get the function name so we can lookup the MethodDescs
                     mdMethodDef methodDefToken;
                     ULONG32 ilOffset;
-                    if(SUCCEEDED(symbolReader.ResolveSequencePoint(Filename, lineNumber, &methodDefToken, &ilOffset)))
+                    if(SUCCEEDED(symbolReader.ResolveSequencePoint(Filename, lineNumber, moduleList[iModule], &methodDefToken, &ilOffset)))
                     {
                         ToRelease<IXCLRDataMethodDefinition> pMethodDef = NULL;
                         if (SUCCEEDED(ModDef->GetMethodDefinitionByToken(methodDefToken, &pMethodDef)))
@@ -7276,8 +7248,6 @@ DECLARE_API(bpmd)
             // for filename+line number only print extra info if symbols for this module are loaded (it can get quite noisy otherwise).
             if ((!fIsFilename) || (fIsFilename && symbolsLoaded == S_OK))
             {
-                ExtOut("Found %d methods in module %p...\n", numMethods, moduleList[iModule]);
-
                 for (int i = 0; i < numMethods; i++)
                 {
                     if (pMDs[i] == MD_NOT_YET_LOADED)
@@ -7307,6 +7277,11 @@ DECLARE_API(bpmd)
                 g_bpoints.Add(Filename, lineNumber, NULL);
             }
             bNeedNotificationExceptions = TRUE;
+
+            ULONG32 flags = 0;
+            g_clrData->GetOtherNotificationFlags(&flags);
+            flags |= (CLRDATA_NOTIFY_ON_MODULE_LOAD | CLRDATA_NOTIFY_ON_MODULE_UNLOAD);
+            g_clrData->SetOtherNotificationFlags(flags);
         }
     }
     else /* We were given a MethodDesc already */
@@ -8005,10 +7980,10 @@ DECLARE_API(GCInfo)
 
     // Mutable table pointer since we need to pass the appropriate
     // offset into the table to DumpGCTable.
-    BYTE *pTable = table;
+    GCInfoToken gcInfoToken = { table, GCINFO_VERSION };
     unsigned int methodSize = (unsigned int)codeHeaderData.MethodSize;
 
-    g_targetMachine->DumpGCInfo(pTable, methodSize, ExtOut, true /*encBytes*/, true /*bPrintHeader*/);
+    g_targetMachine->DumpGCInfo(gcInfoToken, methodSize, ExtOut, true /*encBytes*/, true /*bPrintHeader*/);
 
     return Status;
 }
@@ -8089,8 +8064,8 @@ void DecodeGCTableEntry (const char *fmt, ...)
 VOID CALLBACK DumpGCTableFiberEntry (LPVOID pvGCEncodingInfo)
 {
     GCEncodingInfo *pInfo = (GCEncodingInfo*)pvGCEncodingInfo;
-
-    g_targetMachine->DumpGCInfo(pInfo->table, pInfo->methodSize, DecodeGCTableEntry, false /*encBytes*/, false /*bPrintHeader*/);
+    GCInfoToken gcInfoToken = { pInfo->table, GCINFO_VERSION };
+    g_targetMachine->DumpGCInfo(gcInfoToken, pInfo->methodSize, DecodeGCTableEntry, false /*encBytes*/, false /*bPrintHeader*/);
 
     pInfo->fDoneDecoding = true;
     SwitchToFiber(pInfo->pvMainFiber);
@@ -9432,11 +9407,11 @@ DECLARE_API(Name2EE)
     
     if (nArg != 2)
     {
-        ExtOut("Usage: !Name2EE module_name item_name\n");
-        ExtOut("  or    !Name2EE module_name!item_name\n");        
+        ExtOut("Usage: " SOSPrefix "name2ee module_name item_name\n");
+        ExtOut("  or   " SOSPrefix "name2ee module_name!item_name\n");        
         ExtOut("       use * for module_name to search all loaded modules\n");
-        ExtOut("Examples: !Name2EE  mscorlib.dll System.String.ToString\n");
-        ExtOut("          !Name2EE *!System.String\n");
+        ExtOut("Examples: " SOSPrefix "name2ee  mscorlib.dll System.String.ToString\n");
+        ExtOut("          " SOSPrefix "name2ee *!System.String\n");
         return Status;
     }
     
@@ -9592,8 +9567,6 @@ DECLARE_API(GCRoot)
     return Status;
 }
 
-#ifndef FEATURE_PAL
-
 DECLARE_API(GCWhere)
 {
     INIT_API();
@@ -9712,6 +9685,8 @@ DECLARE_API(GCWhere)
 
     return Status;
 }
+
+#ifndef FEATURE_PAL
 
 DECLARE_API(FindRoots)
 {
@@ -10834,7 +10809,6 @@ DECLARE_API(GCHandleLeaks)
 class ClrStackImplWithICorDebug
 {
 private:
-
     static HRESULT DereferenceAndUnboxValue(ICorDebugValue * pValue, ICorDebugValue** ppOutputValue, BOOL * pIsNull = NULL)
     {
         HRESULT Status = S_OK;
@@ -10874,6 +10848,7 @@ private:
         (*ppOutputValue)->AddRef();
         return S_OK;
     }
+
     static BOOL ShouldExpandVariable(__in_z WCHAR* varToExpand, __in_z WCHAR* currentExpansion)
     {
         if(currentExpansion == NULL || varToExpand == NULL) return FALSE;
@@ -10886,6 +10861,7 @@ private:
 
         return TRUE;
     }
+
     static BOOL IsEnum(ICorDebugValue * pInputValue)
     {
         ToRelease<ICorDebugValue> pValue;
@@ -10903,6 +10879,7 @@ private:
 
         return (_wcsncmp(baseTypeName, W("System.Enum"), 11) == 0);
     }
+
     static HRESULT AddGenericArgs(ICorDebugType * pType, __inout_ecount(typeNameLen) WCHAR* typeName, ULONG typeNameLen)
     {
         bool isFirst = true;
@@ -10934,6 +10911,7 @@ private:
 
         return S_OK;
     }
+
     static HRESULT GetTypeOfValue(ICorDebugType * pType, __inout_ecount(typeNameLen) WCHAR* typeName, ULONG typeNameLen)
     {
         HRESULT Status = S_OK;
@@ -11089,6 +11067,7 @@ private:
         }
         return S_OK;
     }
+
     static HRESULT GetTypeOfValue(ICorDebugValue * pValue, __inout_ecount(typeNameLen) WCHAR* typeName, ULONG typeNameLen)
     {
         HRESULT Status = S_OK;
@@ -11105,6 +11084,7 @@ private:
 
         return S_OK;
     }
+
     static HRESULT PrintEnumValue(ICorDebugValue* pInputValue, BYTE* enumValue)
     {
         HRESULT Status = S_OK;
@@ -11226,6 +11206,7 @@ private:
 
         return S_OK;
     }
+
     static HRESULT PrintStringValue(ICorDebugValue * pValue)
     {
         HRESULT Status;
@@ -11250,6 +11231,7 @@ private:
         
         return S_OK;
     }
+
     static HRESULT PrintSzArrayValue(ICorDebugValue * pValue, ICorDebugILFrame * pILFrame, IMetaDataImport * pMD, int indent, __in_z WCHAR* varToExpand, __inout_ecount(currentExpansionSize) WCHAR* currentExpansion, DWORD currentExpansionSize, int currentFrame)
     {
         HRESULT Status = S_OK;
@@ -11316,6 +11298,7 @@ private:
 
         return S_OK;
     }
+
     static HRESULT PrintValue(ICorDebugValue * pInputValue, ICorDebugILFrame * pILFrame, IMetaDataImport * pMD, int indent, __in_z WCHAR* varToExpand, __inout_ecount(currentExpansionSize) WCHAR* currentExpansion, DWORD currentExpansionSize, int currentFrame)
     {
         HRESULT Status = S_OK;
@@ -11467,6 +11450,7 @@ private:
 
         return S_OK;
     }
+
     static HRESULT PrintParameters(BOOL bParams, BOOL bLocals, IMetaDataImport * pMD, mdTypeDef typeDef, mdMethodDef methodDef, ICorDebugILFrame * pILFrame, ICorDebugModule * pModule, __in_z WCHAR* varToExpand, int currentFrame)
     {
         HRESULT Status = S_OK;
@@ -11544,12 +11528,10 @@ private:
         IfFailRet(pLocalsEnum->GetCount(&cLocals));
         if (cLocals > 0 && bLocals)
         {
-#ifndef FEATURE_PAL
             bool symbolsAvailable = false;
             SymbolReader symReader;
             if(SUCCEEDED(symReader.LoadSymbols(pMD, pModule)))
                 symbolsAvailable = true;
-#endif
             ExtOut("\nLOCALS:\n");
             for (ULONG i=0; i < cLocals; i++)
             {
@@ -11557,13 +11539,11 @@ private:
                 WCHAR paramName[mdNameLen] = W("\0");
 
                 ToRelease<ICorDebugValue> pValue;
-#ifndef FEATURE_PAL
                 if(symbolsAvailable)
                 {
                     Status = symReader.GetNamedLocalVariable(pILFrame, i, paramName, mdNameLen, &pValue);
                 }
                 else
-#endif
                 {
                     ULONG cArgsFetched;
                     Status = pLocalsEnum->Next(1, &pValue, &cArgsFetched);
@@ -11717,11 +11697,6 @@ private:
         pMD->CloseEnum(fEnum);
         return S_OK;
     }
-
-    
-
-   
-
 
 public:
 
@@ -12196,7 +12171,7 @@ public:
     
     static void PrintNativeStackFrame(TableOutput out, PDEBUG_STACK_FRAME frame, BOOL bSuppressLines)
     {
-        char filename[MAX_PATH_FNAME + 1];
+        char filename[MAX_LONGPATH + 1];
         char symbol[1024];
         ULONG64 displacement;
 
@@ -13405,7 +13380,7 @@ Exit:
             {
                 DWORD_PTR vtAddr;
                 MOVE(vtAddr, TO_TADDR(FrameData.frameAddr));
-                if (g_sos->GetFrameName(vtAddr, 1024, wszNameBuffer, NULL) == S_OK)
+                if (g_sos->GetFrameName(TO_CDADDR(vtAddr), 1024, wszNameBuffer, NULL) == S_OK)
                     ExtDbgOut("[%ls: %08x] ", wszNameBuffer, FrameData.frameAddr);  
                 else
                     ExtDbgOut("[Frame: %08x] ", FrameData.frameAddr);
@@ -14386,7 +14361,7 @@ void PrintHelp (__in_z LPCSTR pszCmdName)
     }
 
     // Find our line in the text file
-    char searchString[MAX_PATH_FNAME];
+    char searchString[MAX_LONGPATH];
     sprintf_s(searchString, _countof(searchString), "COMMAND: %s.", pszCmdName);
     
     LPSTR pStart = strstr(pText, searchString);

@@ -125,6 +125,116 @@ namespace  System.StubHelpers {
         }
     }  // class CSTRMarshaler
 
+    [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
+    internal static class UTF8Marshaler
+    {
+        const int MAX_UTF8_CHAR_SIZE = 3;
+        [System.Security.SecurityCritical]
+        static internal unsafe IntPtr ConvertToNative(int flags, string strManaged, IntPtr pNativeBuffer)
+        {
+            if (null == strManaged)
+            {
+                return IntPtr.Zero;
+            }
+            StubHelpers.CheckStringLength(strManaged.Length);
+
+            int nb;
+            byte* pbNativeBuffer = (byte*)pNativeBuffer;
+
+            // If we are marshaling into a stack buffer allocated by the ILStub
+            // we will use a "1-pass" mode where we convert the string directly into the unmanaged buffer.   
+            // else we will allocate the precise native heap memory.
+            if (pbNativeBuffer != null)
+            {
+                // this is the number of bytes allocated by the ILStub.
+                nb = (strManaged.Length + 1) * MAX_UTF8_CHAR_SIZE;
+
+                // nb is the actual number of bytes written by Encoding.GetBytes.
+                // use nb to de-limit the string since we are allocating more than 
+                // required on stack
+                nb = strManaged.GetBytesFromEncoding(pbNativeBuffer, nb, Encoding.UTF8);
+            }
+            // required bytes > 260 , allocate required bytes on heap
+            else
+            {
+                nb = Encoding.UTF8.GetByteCount(strManaged);
+                // + 1 for the null character.
+                pbNativeBuffer = (byte*)Marshal.AllocCoTaskMem(nb + 1);
+                strManaged.GetBytesFromEncoding(pbNativeBuffer, nb, Encoding.UTF8);
+            }
+            pbNativeBuffer[nb] = 0x0;
+            return (IntPtr)pbNativeBuffer;
+        }
+
+        [System.Security.SecurityCritical]
+        static internal unsafe string ConvertToManaged(IntPtr cstr)
+        {
+            if (IntPtr.Zero == cstr)
+                return null;
+            int nbBytes = StubHelpers.strlen((sbyte*)cstr);
+            return String.CreateStringFromEncoding((byte*)cstr, nbBytes, Encoding.UTF8);
+        }
+
+        [System.Security.SecurityCritical]
+        static internal void ClearNative(IntPtr pNative)
+        {
+            if (pNative != IntPtr.Zero)
+            {
+                Win32Native.CoTaskMemFree(pNative);
+            }
+        }
+    }
+
+    [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
+    internal static class UTF8BufferMarshaler
+    {
+        [System.Security.SecurityCritical]
+        static internal unsafe IntPtr ConvertToNative(StringBuilder sb, IntPtr pNativeBuffer, int flags)
+        {
+            if (null == sb)
+            {
+                return IntPtr.Zero;
+            }
+
+            // Convert to string first  
+            string strManaged = sb.ToString();
+
+            // Get byte count 
+            int nb = Encoding.UTF8.GetByteCount(strManaged);
+
+            // EmitConvertSpaceCLRToNative allocates memory
+            byte* pbNativeBuffer = (byte*)pNativeBuffer;
+            nb = strManaged.GetBytesFromEncoding(pbNativeBuffer, nb, Encoding.UTF8);
+
+            pbNativeBuffer[nb] = 0x0;
+            return (IntPtr)pbNativeBuffer;
+        }
+
+        [System.Security.SecurityCritical]
+        static internal unsafe void ConvertToManaged(StringBuilder sb, IntPtr pNative)
+        {
+            if (pNative == null)
+                return;
+
+            int nbBytes = StubHelpers.strlen((sbyte*)pNative);
+            int numChar = Encoding.UTF8.GetCharCount((byte*)pNative, nbBytes);
+
+            // +1 GetCharCount return 0 if the pNative points to a 
+            // an empty buffer.We still need to allocate an empty 
+            // buffer with a '\0' to distingiush it from null.
+            // Note that pinning on (char *pinned = new char[0])
+            // return null and  Encoding.UTF8.GetChars do not like 
+            // null argument.
+            char[] cCharBuffer = new char[numChar + 1];
+            cCharBuffer[numChar] = '\0';
+            fixed (char* pBuffer = cCharBuffer)
+            {
+                numChar = Encoding.UTF8.GetChars((byte*)pNative, nbBytes, pBuffer, numChar);
+                // replace string builder internal buffer
+                sb.ReplaceBufferInternal(pBuffer, numChar);
+            }
+        }
+    }
 
 #if FEATURE_COMINTEROP
 
@@ -1465,7 +1575,7 @@ namespace  System.StubHelpers {
         // but on ARM it will allow us to correctly determine the layout of native argument lists containing
         // VARIANTs). Note that the field names here don't matter: none of the code refers to these fields,
         // the structure just exists to provide size information to the IL marshaler.
-#if WIN64
+#if BIT64
         IntPtr data1;
         IntPtr data2;
 #else
@@ -1473,7 +1583,7 @@ namespace  System.StubHelpers {
 #endif
     }  // struct NativeVariant
 
-#if !WIN64 && !FEATURE_CORECLR
+#if !BIT64 && !FEATURE_CORECLR
     // Structure filled by IL stubs if copy constructor(s) and destructor(s) need to be called
     // on value types pushed on the stack. The structure is stored in s_copyCtorStubDesc by
     // SetCopyCtorCookieChain and fetched by CopyCtorCallStubWorker. Must be stack-allocated.
@@ -1509,7 +1619,7 @@ namespace  System.StubHelpers {
         public IntPtr m_pCookie;
         public IntPtr m_pTarget;
     }  // struct CopyCtorStubDes
-#endif // !WIN64 && !FEATURE_CORECLR
+#endif // !BIT64 && !FEATURE_CORECLR
 
     // Aggregates SafeHandle and the "owned" bit which indicates whether the SafeHandle
     // has been successfully AddRef'ed. This allows us to do realiable cleanup (Release)
@@ -1569,7 +1679,7 @@ namespace  System.StubHelpers {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         static internal extern IntPtr GetDelegateTarget(Delegate pThis, ref IntPtr pStubArg);
 
-#if !WIN64 && !FEATURE_CORECLR
+#if !BIT64 && !FEATURE_CORECLR
         // Written to by a managed stub helper, read by CopyCtorCallStubWorker in VM.
         [ThreadStatic]
         static CopyCtorStubDesc s_copyCtorStubDesc;
@@ -1585,7 +1695,7 @@ namespace  System.StubHelpers {
         // Returns the final unmanaged stub target, ignores interceptors.
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         static internal extern IntPtr GetFinalStubTarget(IntPtr pStubArg, IntPtr pUnmngThis, int dwStubFlags);
-#endif // !FEATURE_CORECLR && !WIN64
+#endif // !FEATURE_CORECLR && !BIT64
 
 #if !FEATURE_CORECLR
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -1670,7 +1780,7 @@ namespace  System.StubHelpers {
         {
             if (pHandle == null)
             {
-                throw new ArgumentNullException(Environment.GetResourceString("ArgumentNull_SafeHandle"));
+                throw new ArgumentNullException("pHandle", Environment.GetResourceString("ArgumentNull_SafeHandle"));
             }
             Contract.EndContractBlock();
 
@@ -1686,7 +1796,7 @@ namespace  System.StubHelpers {
         {
             if (pHandle == null)
             {
-                throw new ArgumentNullException(Environment.GetResourceString("ArgumentNull_SafeHandle"));
+                throw new ArgumentNullException("pHandle", Environment.GetResourceString("ArgumentNull_SafeHandle"));
             }
             Contract.EndContractBlock();
 
@@ -1824,10 +1934,10 @@ namespace  System.StubHelpers {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         static internal extern IntPtr GetStubContext();
 
-#if WIN64
+#if BIT64
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         static internal extern IntPtr GetStubContextAddr();
-#endif // WIN64
+#endif // BIT64
 
 #if MDA_SUPPORTED
         [MethodImplAttribute(MethodImplOptions.InternalCall)]

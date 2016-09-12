@@ -16,6 +16,7 @@
 
     <NuGetPackageImportStamp>7a9bfb7d</NuGetPackageImportStamp>
     <DefineConstants>$(DefineConstants);STATIC</DefineConstants>
+    <NoWarn>0618;0649</NoWarn>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
@@ -29,10 +30,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="MarshalClassTests.cs" />
-    <Compile Include="..\..\Common\Assertion.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="project.json" />
+    <Compile Include="..\..\common\Assertion.cs" />
   </ItemGroup>
   <ItemGroup>
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />

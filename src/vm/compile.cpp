@@ -2009,7 +2009,8 @@ void CEECompileInfo::EncodeMethod(
                           LPVOID                pEncodeModuleContext,
                           ENCODEMODULE_CALLBACK pfnEncodeModule,
                           CORINFO_RESOLVED_TOKEN * pResolvedToken,
-                          CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken)
+                          CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken,
+                          BOOL                  fEncodeUsingResolvedTokenSpecStreams)
 {
     STANDARD_VM_CONTRACT;
 
@@ -2022,7 +2023,8 @@ void CEECompileInfo::EncodeMethod(
                               pSigBuilder,
                               pEncodeModuleContext, 
                               pfnEncodeModule, NULL,
-                              pResolvedToken, pConstrainedResolvedToken);
+                              pResolvedToken, pConstrainedResolvedToken,
+                              fEncodeUsingResolvedTokenSpecStreams);
     _ASSERTE(fSuccess);
 
     COOPERATIVE_TRANSITION_END();
@@ -2366,7 +2368,8 @@ void CEECompileInfo::EncodeField(
                          SigBuilder *          pSigBuilder,
                          LPVOID                encodeContext,
                          ENCODEMODULE_CALLBACK pfnEncodeModule,
-                         CORINFO_RESOLVED_TOKEN * pResolvedToken)
+                         CORINFO_RESOLVED_TOKEN * pResolvedToken, 
+                         BOOL fEncodeUsingResolvedTokenSpecStreams)
 {
     STANDARD_VM_CONTRACT;
 
@@ -2377,7 +2380,8 @@ void CEECompileInfo::EncodeField(
                         pSigBuilder,
                         encodeContext, 
                         pfnEncodeModule,
-                        pResolvedToken);
+                        pResolvedToken,
+                        fEncodeUsingResolvedTokenSpecStreams);
 
     COOPERATIVE_TRANSITION_END();
 }
@@ -2528,7 +2532,11 @@ int CEECompileInfo::GetVersionResilientTypeHashCode(CORINFO_MODULE_HANDLE module
 {
     STANDARD_VM_CONTRACT;
 
-    return ::GetVersionResilientTypeHashCode(((Module *)moduleHandle)->GetMDImport(), token);
+    int dwHashCode;
+    if (!::GetVersionResilientTypeHashCode(((Module *)moduleHandle)->GetMDImport(), token, &dwHashCode))
+        ThrowHR(COR_E_BADIMAGEFORMAT);
+
+    return dwHashCode;
 }
 
 int CEECompileInfo::GetVersionResilientMethodHashCode(CORINFO_METHOD_HANDLE methodHandle)
@@ -2912,13 +2920,13 @@ public:
         LIMITED_METHOD_CONTRACT;
     }
             
-    HRESULT Load()
+    HRESULT Load(LPCWSTR wszDiasymreaderPath = nullptr)
     {
         STANDARD_VM_CONTRACT;
 
         HRESULT hr = S_OK;
 
-        m_hModule = WszLoadLibrary(W("diasymreader.dll"));
+        m_hModule = WszLoadLibrary(wszDiasymreaderPath != nullptr ? wszDiasymreaderPath : W("diasymreader.dll"));
         if (m_hModule == NULL)
         {
             GetSvcLogger()->Printf(
@@ -4786,7 +4794,7 @@ BOOL NGenMethodLinesPdbWriter::FinalizeLinesFileBlock(
 }
 #endif // NO_NGENPDB
 #if defined(FEATURE_PERFMAP) || !defined(NO_NGENPDB)
-HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath)
+HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath, LPCWSTR pDiasymreaderPath)
 {
     STANDARD_VM_CONTRACT;
 
@@ -4801,7 +4809,7 @@ HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImage
         pPdbPath, 
         pdbLines ? kPDBLines : 0,
         pManagedPdbSearchPath);
-    IfFailThrow(pdbWriter.Load());
+    IfFailThrow(pdbWriter.Load(pDiasymreaderPath));
 #elif defined(FEATURE_PERFMAP)
     NativeImagePerfMap perfMap(pAssembly, pPdbPath);
 #endif
@@ -4845,7 +4853,7 @@ HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImage
     return S_OK;
 }
 #else
-HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath)
+HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath, LPCWSTR pDiasymreaderPath)
 {
     return E_NOTIMPL;
 }
@@ -4932,6 +4940,8 @@ CEEPreloader::CEEPreloader(Module *pModule,
     CONSISTENCY_CHECK(pModule == GetAppDomain()->ToCompilationDomain()->GetTargetModule());
 
     GetAppDomain()->ToCompilationDomain()->SetTargetImage(m_image, this);
+
+    m_methodCompileLimit = pModule->GetMDImport()->GetCountWithTokenKind(mdtMethodDef) * 10;
 
 #ifdef FEATURE_FULL_NGEN
     m_fSpeculativeTriage = FALSE;
@@ -5142,7 +5152,7 @@ void CEEPreloader::MethodReferencedByCompiledCode(CORINFO_METHOD_HANDLE handle)
 
         if (pEntry->fScheduled)
             return;        
-        m_uncompiledMethods.Append(pMD);
+        AppendUncompiledMethod(pMD);
     }
     else
     {
@@ -5352,7 +5362,7 @@ void CEEPreloader::AddToUncompiledMethods(MethodDesc *pMD, BOOL fForStubs)
     }
 
     // Add it to the set of uncompiled methods
-    m_uncompiledMethods.Append(pMD);
+    AppendUncompiledMethod(pMD);
 }
 
 //
@@ -5449,6 +5459,35 @@ static void SpecializeComparer(SString& ss, Instantiation& inst)
         {
             ss.Set(W("System.Collections.Generic.NullableComparer`1"));
             inst = nullableInst;
+            return;
+        }
+    }
+
+    if (elemTypeHnd.IsEnum())
+    {
+        CorElementType et = elemTypeHnd.GetVerifierCorElementType();
+        if (et == ELEMENT_TYPE_I1 ||
+            et == ELEMENT_TYPE_I2 ||
+            et == ELEMENT_TYPE_I4)
+        {
+            ss.Set(W("System.Collections.Generic.Int32EnumComparer`1"));
+            return;
+        }
+        if (et == ELEMENT_TYPE_U1 ||
+            et == ELEMENT_TYPE_U2 ||
+            et == ELEMENT_TYPE_U4)
+        {
+            ss.Set(W("System.Collections.Generic.UInt32EnumComparer`1"));
+            return;
+        }
+        if (et == ELEMENT_TYPE_I8)
+        {
+            ss.Set(W("System.Collections.Generic.Int64EnumComparer`1"));
+            return;
+        }
+        if (et == ELEMENT_TYPE_U8)
+        {
+            ss.Set(W("System.Collections.Generic.UInt64EnumComparer`1"));
             return;
         }
     }

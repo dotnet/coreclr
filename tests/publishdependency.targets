@@ -3,29 +3,23 @@
 
   <UsingTask TaskName="PrereleaseResolveNuGetPackageAssets" AssemblyFile="$(BuildToolsTaskDir)Microsoft.DotNet.Build.Tasks.dll"/>
   <ItemGroup>
-    <TestTargetFramework Include="DNXCore,Version=v5.0">
-      <Folder>dnxcore50</Folder>
+    <TestTargetFramework Include=".NETCoreApp,Version=v1.0">
+      <Folder>netcoreapp1.0</Folder>
     </TestTargetFramework>
   </ItemGroup>
 
   <ItemGroup>
-    <AllProjectJsonLockFiles Include="$(SourceDir)**\*\project.lock.json"/>
+    <ProjectLockJsonFiles Include="$(SourceDir)Common\test_runtime\project.lock.json"/>
+    <ProjectLockJsonFiles Include="$(SourceDir)Common\test_dependencies\project.lock.json"/>
   </ItemGroup>
 
   <Target Name="CopyDependecyToCoreRoot"
-    Inputs="@(AllProjectJsonLockFiles)"
+    Inputs="@(ProjectLockJsonFiles)"
     Outputs="$(CORE_ROOT)\*.*">
-    
-    <ItemGroup>
-      <ProjectJsonLockFileExclude Include="$(SourceDir).nuget\project.lock.json" />
-      <ProjectJsonLockFileExclude Include="$(SourceDir)Test*\**\project.lock.json" />
-      <ProjectJsonLockFileExclude Include="$(SourceDir)Common\Coreclr.TestWrapper\**\project.lock.json" />
-      <ProjectJsonLockFileExclude Include="$(SourceDir)packages\**\*\project.lock.json" />
-    </ItemGroup>
 
-    <ItemGroup>
-      <ProjectLockJsonFiles Include="@(AllProjectJsonLockFiles)"  Exclude="@(ProjectJsonLockFileExclude)"/>
-    </ItemGroup>
+    <MSBuild Projects="$(SourceDir)Common\test_runtime\test_runtime.csproj"/>
+
+    <MSBuild Projects="$(SourceDir)Common\test_dependencies\test_dependencies.csproj"/>
 
     <!-- This will use the overridden PrereleaseResolveNuGetPackageAssets, which outputs copy local items
          for the xunit wrapper projects -->
