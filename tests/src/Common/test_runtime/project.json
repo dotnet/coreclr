@@ -1,6 +1,8 @@
 {
   "dependencies": {
     "Microsoft.DotNet.CoreCLR.TestDependencies": "1.0.0-prerelease",
+    "Microsoft.NETCore.ILAsm": "1.0.4",
+    "Microsoft.NETCore.ILDAsm": "1.0.4"
   },
   "frameworks": {
     "netcoreapp1.0": {
