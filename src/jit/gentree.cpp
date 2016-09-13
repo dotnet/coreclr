@@ -412,11 +412,11 @@ bool GenTree::IsNodeProperlySized() const
  *  When 'NODEBASH_STATS' is enabled in "jit.h" we record all instances of
  *  an existing GenTree node having its operator changed. This can be useful
  *  for two (related) things - to see what is being bashed (and what isn't),
- *  and to verify that the existing choices for what node is marked as 'large'
+ *  and to verify that the existing choices for what nodes are marked 'large'
  *  are reasonable (to minimize "wasted" space).
  *
  *  And yes, the hash function / logic is simplistic, but it is conflict-free
- *  and transparent for what we need it for.
+ *  and transparent for what we need.
  */
 
 #if NODEBASH_STATS
@@ -442,11 +442,10 @@ void                GenTree::RecordOperBashing(genTreeOps operOld, genTreeOps op
 
     if (desc->bhFullHash != hash)
     {
-        noway_assert(desc->bhCount == 0);   // if this ever fires, just fix the hash fn
+        noway_assert(desc->bhCount == 0);   // if this ever fires, need fix the hash fn
         desc->bhFullHash = hash;
     }
 
-    desc->bhFullHash = hash;
     desc->bhCount   += 1;
     desc->bhOperOld  = operOld;
     desc->bhOperNew  = operNew;
