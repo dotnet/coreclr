@@ -21,7 +21,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 /*****************************************************************************/
 
 const unsigned short GenTree::gtOperKindTable[] = {
-#define GTNODE(en, sn, cm, ok) ok + GTK_COMMUTE *cm,
+#define GTNODE(en, sn, st, cm, ok) ok + GTK_COMMUTE *cm,
 #include "gtlist.h"
 };
 
@@ -209,7 +209,7 @@ static void printIndent(IndentStack* indentStack)
 }
 
 static const char* nodeNames[] = {
-#define GTNODE(en, sn, cm, ok) sn,
+#define GTNODE(en, sn, st, cm, ok) sn,
 #include "gtlist.h"
 };
 
@@ -220,8 +220,12 @@ const char* GenTree::NodeName(genTreeOps op)
     return nodeNames[op];
 }
 
+#endif
+
+#if defined(DEBUG) || NODEBASH_STATS
+
 static const char* opNames[] = {
-#define GTNODE(en, sn, cm, ok) #en,
+#define GTNODE(en, sn, st, cm, ok) #en,
 #include "gtlist.h"
 };
 
@@ -246,6 +250,16 @@ const char* GenTree::OpName(genTreeOps op)
 /* GT_COUNT'th oper is overloaded as 'undefined oper', so allocate storage for GT_COUNT'th oper also */
 /* static */
 unsigned char GenTree::s_gtNodeSizes[GT_COUNT + 1];
+
+#if NODEBASH_STATS
+
+unsigned char GenTree::s_gtTrueSizes[GT_COUNT+1]
+{
+    #define GTNODE(en, sn, st, cm, ok) sizeof(st),
+    #include "gtlist.h"
+};
+
+#endif//NODEBASH_STATS
 
 /* static */
 void GenTree::InitNodeSize()
@@ -392,6 +406,89 @@ bool GenTree::IsNodeProperlySized() const
     return GenTree::s_gtNodeSizes[gtOper] <= size;
 }
 #endif
+
+/*****************************************************************************
+ *
+ *  When 'NODEBASH_STATS' is enabled in "jit.h" we record all instances of
+ *  an existing GenTree node having its operator changed. This can be useful
+ *  for two (related) things - to see what is being bashed (and what isn't),
+ *  and to verify that the existing choices for what node is marked as 'large'
+ *  are reasonable (to minimize "wasted" space).
+ *
+ *  And yes, the hash function / logic is simplistic, but it is conflict-free
+ *  and transparent for what we need it for.
+ */
+
+#if NODEBASH_STATS
+
+#define BASH_HASH_SIZE 211
+
+inline hashme(genTreeOps op1, genTreeOps op2) { return ((op1 * 104729) ^ (op2 * 56569)) % BASH_HASH_SIZE; }
+
+struct BashHashDsc
+{
+    unsigned __int32    bhFullHash; // the hash value (unique for all old->new pairs)
+    unsigned __int32    bhCount;    // the same old->new bashings seen so far
+    unsigned __int8     bhOperOld;  // original gtOper
+    unsigned __int8     bhOperNew;  // new      gtOper
+};
+
+static  BashHashDsc BashHash[BASH_HASH_SIZE];
+
+void                GenTree::RecordOperBashing(genTreeOps operOld, genTreeOps operNew)
+{
+    unsigned        hash = hashme(operOld, operNew);
+    BashHashDsc    *desc = BashHash + hash;
+
+    if (desc->bhFullHash != hash)
+    {
+        noway_assert(desc->bhCount == 0);   // if this ever fires, just fix the hash fn
+        desc->bhFullHash = hash;
+    }
+
+    desc->bhFullHash = hash;
+    desc->bhCount   += 1;
+    desc->bhOperOld  = operOld;
+    desc->bhOperNew  = operNew;
+}
+
+void                GenTree::ReportOperBashing(FILE *f)
+{
+    unsigned        total = 0;
+
+    fflush(f);
+
+    fprintf(f, "\n");
+    fprintf(f, "Bashed gtOper stats:\n");
+    fprintf(f, "\n");
+    fprintf(f, "    Old operator        New operator     #bytes old->new      Count\n");
+    fprintf(f, "    ---------------------------------------------------------------\n");
+
+    for (unsigned h = 0; h < BASH_HASH_SIZE; h++)
+    {
+        unsigned        count = BashHash[h].bhCount;
+        if (count == 0)
+            continue;
+
+        unsigned        opOld = BashHash[h].bhOperOld;
+        unsigned        opNew = BashHash[h].bhOperNew;
+
+        fprintf(f, "    GT_%-13s -> GT_%-13s [size: %3u->%3u] %c %7u\n", OpName((genTreeOps)opOld),
+                                                                         OpName((genTreeOps)opNew),
+                                                                         s_gtTrueSizes[opOld],
+                                                                         s_gtTrueSizes[opNew],
+                                                                         (s_gtTrueSizes[opOld] < s_gtTrueSizes[opNew]) ? 'X' : ' ',
+                                                                         count);
+        total += count;
+    }
+    fprintf(f, "\n");
+    fprintf(f, "Total bashings: %u\n", total);
+    fprintf(f, "\n");
+
+    fflush(f);
+}
+
+#endif// NODEBASH_STATS
 
 #else // SMALL_TREE_NODES
 
@@ -7108,7 +7205,7 @@ void GenTreeIntCon::FixupInitBlkValue(var_types asgType)
     }
 }
 
-// 
+//
 //------------------------------------------------------------------------
 // gtBlockOpInit: Initializes a BlkOp GenTree
 //
@@ -7117,7 +7214,7 @@ void GenTreeIntCon::FixupInitBlkValue(var_types asgType)
 //    dst        - the target (destination) we want to either initialize or copy to.
 //    src        - the init value for InitBlk or the source struct for CpBlk/CpObj.
 //    isVolatile - specifies whether this node is a volatile memory operation.
-// 
+//
 // Assumptions:
 //    'result' is an assignment that is newly constructed.
 //    If 'dst' is TYP_STRUCT, then it must be a block node or lclVar.
@@ -12576,18 +12673,18 @@ GenTreePtr Compiler::gtFoldExprConst(GenTreePtr tree)
 
                             // Don't fold conversions of +inf/-inf to integral value on all platforms
                             // as the value returned by JIT helper doesn't match with the C compiler's cast result.
-                            // We want the behavior to be same with or without folding.  
+                            // We want the behavior to be same with or without folding.
                             return tree;
                         }
 
-                        if (d1 <= -1.0 && varTypeIsUnsigned(tree->CastToType())) 
+                        if (d1 <= -1.0 && varTypeIsUnsigned(tree->CastToType()))
                         {
                             // Don't fold conversions of these cases becasue the result is unspecified per ECMA spec
                             // and the native math doing the fold doesn't match the run-time computation on all platforms.
                             // We want the behavior to be same with or without folding.
                             return tree;
                         }
-               
+
                         switch (tree->CastToType())
                         {
                             case TYP_BYTE:

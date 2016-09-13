@@ -1186,6 +1186,10 @@ void Compiler::compShutdown()
     }
 #endif
 
+#if NODEBASH_STATS
+    GenTree::ReportOperBashing(jitstdout);
+#endif
+
     // Where should we write our statistics output?
     FILE* fout = jitstdout;
 

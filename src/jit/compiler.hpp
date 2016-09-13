@@ -804,7 +804,7 @@ void* GenTree::operator new(size_t sz, Compiler* comp, genTreeOps oper)
 #if SMALL_TREE_NODES
     size_t size = GenTree::s_gtNodeSizes[oper];
 #else
-    size_t     size  = TREE_NODE_SZ_LARGE;
+    size_t size  = TREE_NODE_SZ_LARGE;
 #endif
 
 #if MEASURE_NODE_SIZE
@@ -1289,6 +1289,10 @@ inline void GenTree::SetOper(genTreeOps oper, ValueNumberUpdate vnUpdate)
 
     assert(GenTree::s_gtNodeSizes[oper] == TREE_NODE_SZ_SMALL || (gtDebugFlags & GTF_DEBUG_NODE_LARGE));
 
+#if NODEBASH_STATS
+    RecordOperBashing(OperGet(), oper);
+#endif
+
     gtOper = oper;
 
 #ifdef DEBUG
@@ -1327,6 +1331,9 @@ inline void GenTree::CopyFrom(const GenTree* src, Compiler* comp)
     assert((gtDebugFlags & GTF_DEBUG_NODE_LARGE) || GenTree::s_gtNodeSizes[src->gtOper] == TREE_NODE_SZ_SMALL);
     GenTreePtr prev = gtPrev;
     GenTreePtr next = gtNext;
+
+    RecordOperBashing(OperGet(), src->OperGet());
+
     // The VTable pointer is copied intentionally here
     memcpy((void*)this, (void*)src, src->GetNodeSize());
     this->gtPrev = prev;
@@ -1579,7 +1586,7 @@ inline unsigned Compiler::lvaGrabTemp(bool shortLifetime DEBUGARG(const char* re
 
 #if 0
         // TODO-Cleanup: Enable this and test.
-#ifdef DEBUG   
+#ifdef DEBUG
         // Fill the old table with junks. So to detect the un-intended use.
         memset(lvaTable, fDefaultFill2.val_DontUse_(CLRConfig::INTERNAL_JitDefaultFill, 0xFF), lvaCount * sizeof(*lvaTable));
 #endif
@@ -1655,7 +1662,7 @@ inline unsigned Compiler::lvaGrabTemps(unsigned cnt DEBUGARG(const char* reason)
         }
 
 #if 0
-#ifdef DEBUG   
+#ifdef DEBUG
         // TODO-Cleanup: Enable this and test.
         // Fill the old table with junks. So to detect the un-intended use.
         memset(lvaTable, fDefaultFill2.val_DontUse_(CLRConfig::INTERNAL_JitDefaultFill, 0xFF), lvaCount * sizeof(*lvaTable));

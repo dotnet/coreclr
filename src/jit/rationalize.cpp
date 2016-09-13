@@ -605,6 +605,9 @@ void Rationalizer::RewriteAssignment(LIR::Use& use)
             }
             JITDUMP("Rewriting GT_ASG(%s(X), Y) to %s(X,Y):\n", GenTree::NodeName(location->gtOper),
                     GenTree::NodeName(storeOper));
+#if NODEBASH_STATS
+            GenTree::RecordOperBashing(storeBlk->OperGet(), storeOper);
+#endif
             storeBlk->gtOper = storeOper;
             storeBlk->gtFlags &= ~GTF_DONT_CSE;
             storeBlk->gtFlags |= (assignment->gtFlags & (GTF_ALL_EFFECT | GTF_REVERSE_OPS | GTF_BLK_VOLATILE |

@@ -68,7 +68,7 @@ enum SpecialCodeKind
 
 DECLARE_TYPED_ENUM(genTreeOps, BYTE)
 {
-#define GTNODE(en, sn, cm, ok) GT_##en,
+#define GTNODE(en, sn, st, cm, ok) GT_##en,
 #include "gtlist.h"
 
     GT_COUNT,
@@ -1539,6 +1539,10 @@ public:
 public:
 #if SMALL_TREE_NODES
     static unsigned char s_gtNodeSizes[];
+#if NODEBASH_STATS
+    static unsigned char s_gtTrueSizes[];
+    static const char*   s_gtNodeRawNames[];
+#endif
 #endif
 
     static void InitNodeSize();
@@ -1557,16 +1561,16 @@ public:
 
     static bool Compare(GenTreePtr op1, GenTreePtr op2, bool swapOK = false);
 
-//---------------------------------------------------------------------
-#ifdef DEBUG
     //---------------------------------------------------------------------
 
+#if defined(DEBUG)
     static const char* NodeName(genTreeOps op);
-
-    static const char* OpName(genTreeOps op);
-
-//---------------------------------------------------------------------
 #endif
+
+#if defined(DEBUG) || NODEBASH_STATS
+    static const char* OpName(genTreeOps op);
+#endif
+
     //---------------------------------------------------------------------
 
     bool IsNothingNode() const;
@@ -1599,6 +1603,16 @@ public:
             node->gtType = newType;
         }
     }
+
+#if SMALL_TREE_NODES
+#if NODEBASH_STATS
+    static void RecordOperBashing(genTreeOps operOld, genTreeOps operNew);
+    static void ReportOperBashing(FILE *fp);
+#else
+    static void RecordOperBashing(genTreeOps operOld, genTreeOps operNew) { /* do nothing */ }
+    static void ReportOperBashing(FILE *fp)                               { /* do nothing */ }
+#endif
+#endif
 
     bool IsLocal() const
     {
