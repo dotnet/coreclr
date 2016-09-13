@@ -1,27 +1,30 @@
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <!-- Source of truth for dependency tooling: the commit hash of the dotnet/versions master branch as of the last auto-upgrade. -->
   <PropertyGroup>
-    <CoreFxCurrentRef>2e3cca76502a1514e9cdc566df216a1afbf07872</CoreFxCurrentRef>
-    <CoreClrCurrentRef>2e3cca76502a1514e9cdc566df216a1afbf07872</CoreClrCurrentRef>
-    <ExternalCurrentRef>2e3cca76502a1514e9cdc566df216a1afbf07872</ExternalCurrentRef>
+    <CoreFxCurrentRef>8e49da409205246338c363c790de9692a9ddd636</CoreFxCurrentRef>
+    <CoreClrCurrentRef>8e49da409205246338c363c790de9692a9ddd636</CoreClrCurrentRef>
   </PropertyGroup>
 
   <!-- Auto-upgraded properties for each build info dependency. -->
   <PropertyGroup>
-    <CoreFxExpectedPrerelease>beta-24431-01</CoreFxExpectedPrerelease>
-    <ExternalExpectedPrerelease>beta-24430-00</ExternalExpectedPrerelease>
+    <CoreFxExpectedPrerelease>preview1-24508-03</CoreFxExpectedPrerelease>
   </PropertyGroup>
 
   <!-- Full package version strings that are used in other parts of the build. -->
   <PropertyGroup>
-    <CoreClrPackageVersion>1.1.0-beta-24431-01</CoreClrPackageVersion>
+    <CoreClrPackageVersion>1.1.0-beta-24506-03</CoreClrPackageVersion>
     <XunitPackageVersion>2.1.0</XunitPackageVersion>
+
+    <!-- Runtime package versions from projectk-tfs/release/1.0.0 -->
+    <RuntimeWin7ArmMicrosoftNETCoreTestHostPackageVersion>1.0.0</RuntimeWin7ArmMicrosoftNETCoreTestHostPackageVersion>
+    <RuntimeWin8ArmMicrosoftNETCoreRuntimeCoreCLRPackageVersion>1.0.4</RuntimeWin8ArmMicrosoftNETCoreRuntimeCoreCLRPackageVersion>
+    <MicrosoftNETCoreWindowsApiSetsPackageVersion>1.0.1</MicrosoftNETCoreWindowsApiSetsPackageVersion>
   </PropertyGroup>
 
   <!-- Package dependency verification/auto-upgrade configuration. -->
   <PropertyGroup>
     <BaseDotNetBuildInfo>build-info/dotnet/</BaseDotNetBuildInfo>
-    <DependencyBranch>master</DependencyBranch>
+    <DependencyBranch>release/1.1.0</DependencyBranch>
     <CurrentRefXmlPath>$(MSBuildThisFileFullPath)</CurrentRefXmlPath>
   </PropertyGroup>
 
@@ -33,10 +36,6 @@
     <RemoteDependencyBuildInfo Include="CoreClr">
       <BuildInfoPath>$(BaseDotNetBuildInfo)coreclr/$(DependencyBranch)</BuildInfoPath>
       <CurrentRef>$(CoreClrCurrentRef)</CurrentRef>
-    </RemoteDependencyBuildInfo>
-    <RemoteDependencyBuildInfo Include="External">
-      <BuildInfoPath>$(BaseDotNetBuildInfo)projectk-tfs/$(DependencyBranch)</BuildInfoPath>
-      <CurrentRef>$(ExternalCurrentRef)</CurrentRef>
     </RemoteDependencyBuildInfo>
 
     <DependencyBuildInfo Include="@(RemoteDependencyBuildInfo)">
@@ -52,11 +51,6 @@
       <Path>$(MSBuildThisFileFullPath)</Path>
       <ElementName>CoreClrPackageVersion</ElementName>
       <PackageId>Microsoft.NETCore.Runtime.CoreCLR</PackageId>
-    </XmlUpdateStep>
-    <XmlUpdateStep Include="External">
-      <Path>$(MSBuildThisFileFullPath)</Path>
-      <ElementName>ExternalExpectedPrerelease</ElementName>
-      <BuildInfoName>External</BuildInfoName>
     </XmlUpdateStep>
   </ItemGroup>
 
