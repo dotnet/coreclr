@@ -8546,7 +8546,8 @@ bool GenTree::gtRequestSetFlags()
 /*****************************************************************************/
 void GenTree::CopyTo(class Compiler* comp, const GenTree& gt)
 {
-    gtOper         = gt.gtOper;
+    SetOperRaw(gt.OperGet());
+
     gtType         = gt.gtType;
     gtAssertionNum = gt.gtAssertionNum;
 
@@ -14233,7 +14234,7 @@ void Compiler::gtExtractSideEffList(GenTreePtr  expr,
         // effect of this instruction, change it into a GT_LOCKADD node (the add only)
         if (oper == GT_XADD)
         {
-            expr->gtOper = GT_LOCKADD;
+            expr->SetOperRaw(GT_LOCKADD);
             expr->gtType = TYP_VOID;
         }
 

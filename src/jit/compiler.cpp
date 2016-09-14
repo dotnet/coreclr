@@ -10155,11 +10155,6 @@ void cNodeIR(Compiler* comp, GenTree* tree)
             }
             break;
 
-        case GT_STORE_CLS_VAR:
-
-            chars += printf(" ???");
-            break;
-
         case GT_LEA:
 
             GenTreeAddrMode* lea    = tree->AsAddrMode();

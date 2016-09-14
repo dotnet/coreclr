@@ -245,7 +245,6 @@ GTNODE(SWITCH_TABLE     , "tableSwitch"  ,GenTreeOp          ,0, GTK_BINOP|GTK_N
 GTNODE(REG_VAR          , "regVar"       ,GenTreeLclVar      ,0,GTK_LEAF|GTK_LOCAL)     // register variable
 GTNODE(CLS_VAR          , "clsVar"       ,GenTreeClsVar      ,0,GTK_LEAF)               // static data member
 GTNODE(CLS_VAR_ADDR     , "&clsVar"      ,GenTreeClsVar      ,0,GTK_LEAF)               // static data member address
-GTNODE(STORE_CLS_VAR    , "st.clsVar"    ,char               ,0,GTK_LEAF|GTK_NOVALUE)   // store to static data member
 GTNODE(ARGPLACE         , "argPlace"     ,GenTreeArgPlace    ,0,GTK_LEAF)               // placeholder for a register arg
 GTNODE(NULLCHECK        , "nullcheck"    ,GenTreeOp          ,0,GTK_UNOP|GTK_NOVALUE)   // null checks the source
 GTNODE(PHYSREG          , "physregSrc"   ,GenTreePhysReg     ,0,GTK_LEAF)               // read from a physical register

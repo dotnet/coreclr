@@ -1394,8 +1394,7 @@ public:
     static bool OperIsStore(genTreeOps gtOper)
     {
         return (gtOper == GT_STOREIND || gtOper == GT_STORE_LCL_VAR || gtOper == GT_STORE_LCL_FLD ||
-                gtOper == GT_STORE_CLS_VAR || gtOper == GT_STORE_BLK || gtOper == GT_STORE_OBJ ||
-                gtOper == GT_STORE_DYN_BLK);
+                gtOper == GT_STORE_BLK || gtOper == GT_STORE_OBJ || gtOper == GT_STORE_DYN_BLK);
     }
 
     static bool OperIsAtomicOp(genTreeOps gtOper)
@@ -1590,6 +1589,7 @@ public:
     // set gtOper and only keep GTF_COMMON_MASK flags
     void ChangeOper(genTreeOps oper, ValueNumberUpdate vnUpdate = CLEAR_VN);
     void ChangeOperUnchecked(genTreeOps oper);
+    void SetOperRaw(genTreeOps oper);
 
     void ChangeType(var_types newType)
     {
