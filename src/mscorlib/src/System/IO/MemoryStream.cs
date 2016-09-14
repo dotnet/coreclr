@@ -419,14 +419,13 @@ namespace System.IO {
             }
             
             int originalPosition = _position;
-            int remaining = _length - originalPosition;
 
             // Seek to the end of the MemoryStream.
-            // If we've already arrived at or passed the end, there's no copying to do so just quit.
+            int remaining = InternalEmulateRead(_length - originalPosition);
+
+            // If we were already at or past the end, there's no copying to do so just quit.
             if (remaining > 0)
             {
-                _position += remaining;
-
                 // Call Write() on the other Stream, using our internal buffer and avoiding any
                 // intermediary allocations.
                 destination.Write(_buffer, originalPosition, remaining);
