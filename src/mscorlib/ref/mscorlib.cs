@@ -3145,6 +3145,7 @@ namespace System
         public static System.String Concat(object arg0) { throw null; }
         public static System.String Concat(object arg0, object arg1) { throw null; }
         public static System.String Concat(object arg0, object arg1, object arg2) { throw null; }
+        public static System.String Concat(object arg0, object arg1, object arg2, object arg3, __arglist) { throw null; }
         [System.Security.SecuritySafeCriticalAttribute]
         public static System.String Concat(params object[] args) { throw null; }
         [System.Security.SecuritySafeCriticalAttribute]
