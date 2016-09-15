@@ -70,8 +70,14 @@ namespace System.Reflection.Emit {
         // Check that a type is suitable for use in a custom attribute.
         private bool ValidateType(Type t)
         {
-            if (t.IsPrimitive || t == typeof(String) || t == typeof(Type))
+            if (t.IsPrimitive)
+            {
+                return t != typeof(IntPtr) && t != typeof(UIntPtr);
+            }
+            if (t == typeof(String) || t == typeof(Type))
+            {
                 return true;
+            }
             if (t.IsEnum)
             {
                 switch (Type.GetTypeCode(Enum.GetUnderlyingType(t)))
@@ -123,7 +129,7 @@ namespace System.Reflection.Emit {
             if ((con.Attributes & MethodAttributes.Static) == MethodAttributes.Static ||
                 (con.Attributes & MethodAttributes.MemberAccessMask) == MethodAttributes.Private)
                 throw new ArgumentException(Environment.GetResourceString("Argument_BadConstructor"));
-                                               
+
             if ((con.CallingConvention & CallingConventions.Standard) != CallingConventions.Standard)
                 throw new ArgumentException(Environment.GetResourceString("Argument_BadConstructorCallConv"));
 
@@ -150,7 +156,8 @@ namespace System.Reflection.Emit {
             // Now verify that the types of the actual parameters are compatible with the types of the formal parameters.
             for (i = 0; i < paramTypes.Length; i++)
             {
-                if (constructorArgs[i] == null)
+                object constructorArg = constructorArgs[i];
+                if (constructorArg == null)
                 {
                     if (paramTypes[i].IsPrimitive)
                     {
@@ -158,10 +165,17 @@ namespace System.Reflection.Emit {
                     }
                     continue;
                 }
+                Type constructorArgType = constructorArg.GetType();
                 TypeCode paramTC = Type.GetTypeCode(paramTypes[i]);
-                if (paramTC != Type.GetTypeCode(constructorArgs[i].GetType()))
-                    if (paramTC != TypeCode.Object || !ValidateType(constructorArgs[i].GetType())) 
+                if (paramTC != Type.GetTypeCode(constructorArgType))
+                {
+                    if (paramTC != TypeCode.Object || !ValidateType(constructorArgType))
                         throw new ArgumentException(Environment.GetResourceString("Argument_BadParameterTypeForConstructor", i));
+                }
+                if (constructorArgType == typeof(IntPtr) || constructorArgType == typeof(UIntPtr))
+                {
+                    throw new ArgumentException(Environment.GetResourceString("Argument_BadParameterTypeForConstructor", i), "constructorArgs[" + i + "]");
+                }
             }
 
             // Allocate a memory stream to represent the CA blob in the metadata and a binary writer to help format it.
@@ -187,7 +201,8 @@ namespace System.Reflection.Emit {
 
                 // Allow null for non-primitive types only.
                 Type propType = namedProperties[i].PropertyType;
-                if (propertyValues[i] == null && propType.IsPrimitive)
+                object propertyValue = propertyValues[i];
+                if (propertyValue == null && propType.IsPrimitive)
                     throw new ArgumentNullException("propertyValues[" + i + "]");
 
                 // Validate property type.
@@ -195,9 +210,9 @@ namespace System.Reflection.Emit {
                     throw new ArgumentException(Environment.GetResourceString("Argument_BadTypeInCustomAttribute"));
 
                 // Property has to be writable.
-                if (!namedProperties[i].CanWrite)                
+                if (!namedProperties[i].CanWrite)
                     throw new ArgumentException(Environment.GetResourceString("Argument_NotAWritableProperty"));
-                    
+
                 // Property has to be from the same class or base class as ConstructorInfo.
                 if (namedProperties[i].DeclaringType != con.DeclaringType
                     && (!(con.DeclaringType is TypeBuilderInstantiation))
@@ -220,18 +235,26 @@ namespace System.Reflection.Emit {
 
                 // Make sure the property's type can take the given value.
                 // Note that there will be no coersion.
-                if (propertyValues[i] != null &&
-                    propType != typeof(Object) &&
-                    Type.GetTypeCode(propertyValues[i].GetType()) != Type.GetTypeCode(propType))
-                    throw new ArgumentException(Environment.GetResourceString("Argument_ConstantDoesntMatch"));
-                
+                if (propertyValue != null)
+                {
+                    Type propertyValueType = propertyValue.GetType();
+                    if (propType != typeof(Object) && Type.GetTypeCode(propertyValueType) != Type.GetTypeCode(propType))
+                    {
+                        throw new ArgumentException(Environment.GetResourceString("Argument_ConstantDoesntMatch"));
+                    }
+                    else if (propertyValueType == typeof(IntPtr) || propertyValueType == typeof(UIntPtr))
+                    {
+                        throw new ArgumentException(Environment.GetResourceString("Argument_BadParameterTypeForCAB"), "propertyValues[" + i + "]");
+                    }
+                }
+
                 // First a byte indicating that this is a property.
                 writer.Write((byte)CustomAttributeEncoding.Property);
 
                 // Emit the property type, name and value.
                 EmitType(writer, propType);
                 EmitString(writer, namedProperties[i].Name);
-                EmitValue(writer, propType, propertyValues[i]);
+                EmitValue(writer, propType, propertyValue);
             }
 
             // Emit all the field sets.
@@ -243,7 +266,8 @@ namespace System.Reflection.Emit {
 
                 // Allow null for non-primitive types only.
                 Type fldType = namedFields[i].FieldType;
-                if (fieldValues[i] == null && fldType.IsPrimitive)
+                object fieldValue = fieldValues[i];
+                if (fieldValue == null && fldType.IsPrimitive)
                     throw new ArgumentNullException("fieldValues[" + i + "]");
 
                 // Validate field type.
@@ -272,10 +296,18 @@ namespace System.Reflection.Emit {
 
                 // Make sure the field's type can take the given value.
                 // Note that there will be no coersion.
-                if (fieldValues[i] != null &&
-                    fldType != typeof(Object) &&
-                    Type.GetTypeCode(fieldValues[i].GetType()) != Type.GetTypeCode(fldType))
-                    throw new ArgumentException(Environment.GetResourceString("Argument_ConstantDoesntMatch"));
+                if (fieldValue != null)
+                {
+                    Type fieldValueType = fieldValue.GetType();
+                    if (fldType != typeof(Object) && Type.GetTypeCode(fieldValueType) != Type.GetTypeCode(fldType))
+                    {
+                        throw new ArgumentException(Environment.GetResourceString("Argument_ConstantDoesntMatch"));
+                    }
+                    else if (fieldValueType == typeof(IntPtr) || fieldValueType == typeof(UIntPtr))
+                    {
+                        throw new ArgumentException(Environment.GetResourceString("Argument_BadParameterTypeForCAB"), "fieldValues[" + i + "]");
+                    }
+                }
                 
                 // First a byte indicating that this is a field.
                 writer.Write((byte)CustomAttributeEncoding.Field);
@@ -283,7 +315,7 @@ namespace System.Reflection.Emit {
                 // Emit the field type, name and value.
                 EmitType(writer, fldType);
                 EmitString(writer, namedFields[i].Name);
-                EmitValue(writer, fldType, fieldValues[i]);
+                EmitValue(writer, fldType, fieldValue);
             }
 
             // Create the blob array.
