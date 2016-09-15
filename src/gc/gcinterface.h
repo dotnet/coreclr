@@ -5,6 +5,8 @@
 #ifndef _GC_INTERFACE_H_
 #define _GC_INTERFACE_H_
 
+#include "gcinterface.ee.h"
+
 // The allocation context must be known to the VM for use in the allocation
 // fast path and known to the GC for performing the allocation. Every Thread
 // has its own allocation context that it hands to the GC when allocating.
@@ -55,7 +57,6 @@ struct segment_info
 
 class Object;
 class IGCHeap;
-class IGCToCLR;
 
 // Initializes the garbage collector. Should only be called
 // once, during EE startup.

@@ -38,7 +38,7 @@ public:
     }
 
     // Returns true if we should be competing marking for statics. This
-    // influences the behavior of `GCToEEInterface::GcScanRoots`.
+    // influences the behavior of IGCToCLR::GcScanRoots
     inline static BOOL MarkShouldCompeteForStatics()
     {
         WRAPPER_NO_CONTRACT;

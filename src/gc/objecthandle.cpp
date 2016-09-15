@@ -97,7 +97,7 @@ void CALLBACK PromoteRefCounted(_UNCHECKED_OBJECTREF *pObjRef, uintptr_t *pExtra
 
     if (!HndIsNullOrDestroyedHandle(pObj) && !g_theGCHeap->IsPromoted(pObj))
     {
-        if (GCToEEInterface::RefCountedHandleCallbacks(pObj))
+        if (g_theGCHeap->gcToClr->RefCountedHandleCallbacks(pObj))
         {
             _ASSERTE(lp2);
             promote_func* callback = (promote_func*) lp2;
@@ -1582,7 +1582,7 @@ void Ref_UpdatePointers(uint32_t condemned, uint32_t maxgen, ScanContext* sc, Re
     }
 
     if (bDo)   
-        GCToEEInterface::SyncBlockCacheWeakPtrScan(&UpdatePointer, uintptr_t(sc), uintptr_t(fn));
+        g_theGCHeap->gcToClr->SyncBlockCacheWeakPtrScan(&UpdatePointer, uintptr_t(sc), uintptr_t(fn));
 
     LOG((LF_GC, LL_INFO10000, "Updating pointers to referents of non-pinning handles in generation %u\n", condemned));
 

@@ -736,10 +736,10 @@ uint32_t gc_heap::user_thread_wait (CLREvent *event, BOOL no_mode_change, int ti
     if (!no_mode_change)
     {
         pCurThread = GetThread();
-        mode = pCurThread ? GCToEEInterface::IsPreemptiveGCDisabled(pCurThread) : false;
+        mode = pCurThread ? g_theGCHeap->gcToClr->IsPreemptiveGCDisabled(pCurThread) : false;
         if (mode)
         {
-            GCToEEInterface::EnablePreemptiveGC(pCurThread);
+            g_theGCHeap->gcToClr->EnablePreemptiveGC(pCurThread);
         }
     }
 
@@ -747,7 +747,7 @@ uint32_t gc_heap::user_thread_wait (CLREvent *event, BOOL no_mode_change, int ti
 
     if (!no_mode_change && mode)
     {
-        GCToEEInterface::DisablePreemptiveGC(pCurThread);
+        g_theGCHeap->gcToClr->DisablePreemptiveGC(pCurThread);
     }
 
     return dwWaitResult;
@@ -782,8 +782,8 @@ void gc_heap::background_gc_wait_lh (alloc_wait_reason awr)
 
 
 /******************************************************************************/
-IGCHeapInternal* CreateGCHeap() {
-    return new(nothrow) GCHeap();   // we return wks or svr 
+IGCHeapInternal* CreateGCHeap(IGCToCLR* gcToClr) {
+    return new(nothrow) GCHeap(gcToClr);   // we return wks or svr 
 }
 
 void GCHeap::TraceGCSegments()

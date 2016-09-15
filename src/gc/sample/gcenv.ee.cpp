@@ -82,9 +82,9 @@ uint32_t CLREventStatic::Wait(uint32_t dwMilliseconds, bool bAlertable)
 
         if (NULL != pCurThread)
         {
-            if (GCToEEInterface::IsPreemptiveGCDisabled(pCurThread))
+            if (g_theGCHeap->gcToClr->IsPreemptiveGCDisabled(pCurThread))
             {
-                GCToEEInterface::EnablePreemptiveGC(pCurThread);
+                g_theGCHeap->gcToClr->EnablePreemptiveGC(pCurThread);
                 disablePreemptive = true;
             }
         }
@@ -93,7 +93,7 @@ uint32_t CLREventStatic::Wait(uint32_t dwMilliseconds, bool bAlertable)
 
         if (disablePreemptive)
         {
-            GCToEEInterface::DisablePreemptiveGC(pCurThread);
+            g_theGCHeap->gcToClr->DisablePreemptiveGC(pCurThread);
         }
     }
 

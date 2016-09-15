@@ -134,17 +134,16 @@ void InitializeHeapType(bool bServerHeap)
 #endif // FEATURE_SVR_GC
 }
 
-IGCHeap* InitializeGarbageCollector(IGCToCLR* clrToGC)
+IGCHeap* InitializeGarbageCollector(IGCToCLR* gcToClr)
 {
     LIMITED_METHOD_CONTRACT;
-    UNREFERENCED_PARAMETER(clrToGC);
 
     IGCHeapInternal* heap;
 #ifdef FEATURE_SVR_GC
     assert(IGCHeap::gcHeapType != IGCHeap::GC_HEAP_INVALID);
-    heap = IGCHeap::gcHeapType == IGCHeap::GC_HEAP_SVR ? SVR::CreateGCHeap() : WKS::CreateGCHeap();
+    heap = IGCHeap::gcHeapType == IGCHeap::GC_HEAP_SVR ? SVR::CreateGCHeap(gcToClr) : WKS::CreateGCHeap(gcToClr);
 #else
-    heap = WKS::CreateGCHeap();
+    heap = WKS::CreateGCHeap(gcToClr);
 #endif
 
     g_theGCHeap = heap;
