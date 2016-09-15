@@ -151,7 +151,13 @@ namespace System.Reflection.Emit {
             for (i = 0; i < paramTypes.Length; i++)
             {
                 if (constructorArgs[i] == null)
+                {
+                    if (paramTypes[i].IsPrimitive)
+                    {
+                        throw new ArgumentNullException("constructorArgs[" + i + "]");
+                    }
                     continue;
+                }
                 TypeCode paramTC = Type.GetTypeCode(paramTypes[i]);
                 if (paramTC != Type.GetTypeCode(constructorArgs[i].GetType()))
                     if (paramTC != TypeCode.Object || !ValidateType(constructorArgs[i].GetType())) 
