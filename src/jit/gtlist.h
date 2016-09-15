@@ -190,6 +190,7 @@ GTNODE(SIMD             , "simd"         ,GenTreeSIMD        ,0,GTK_BINOP|GTK_EX
 //-----------------------------------------------------------------------------
 
 GTNODE(JTRUE            , "jmpTrue"      ,GenTreeOp          ,0,GTK_UNOP|GTK_NOVALUE)
+GTNODE(JCC              , "jcc"          ,GenTreeJumpCC      ,0,GTK_LEAF|GTK_NOVALUE)
 
 GTNODE(LIST             , "<list>"       ,GenTreeOp          ,0,GTK_BINOP)
 
