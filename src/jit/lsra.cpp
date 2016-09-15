@@ -355,6 +355,35 @@ RegRecord* LinearScan::getRegisterRecord(regNumber regNum)
 }
 
 #ifdef DEBUG
+
+//----------------------------------------------------------------------------
+// getConstrainedRegMask: Returns new regMask which is the intersection of
+// regMaskActual and regMaskConstraint if the new regMask has at least 
+// minRegCount registers, otherwise returns regMaskActual.
+//
+// Arguments:
+//     regMaskActual      -  regMask that needs to be constrained
+//     regMaskConstraint  -  regMask constraint that needs to be 
+//                           applied to regMaskActual
+//     minRegCount        -  Minimum number of regs that should be
+//                           be present in new regMask.
+//
+// Return Value:
+//     New regMask that has minRegCount registers after instersection.
+//     Otherwise returns regMaskActual.
+regMaskTP LinearScan::getConstrainedRegMask(regMaskTP regMaskActual, 
+                                            regMaskTP regMaskConstraint, 
+                                            unsigned minRegCount)
+{
+    regMaskTP newMask = regMaskActual & regMaskConstraint;
+    if (genCountBits(newMask) >= minRegCount)
+    {
+        return newMask;
+    }
+
+    return regMaskActual;
+}
+
 //------------------------------------------------------------------------
 // stressLimitRegs: Given a set of registers, expressed as a register mask, reduce
 //            them based on the current stress options.
@@ -376,18 +405,29 @@ regMaskTP LinearScan::stressLimitRegs(RefPosition* refPosition, regMaskTP mask)
         switch (getStressLimitRegs())
         {
             case LSRA_LIMIT_CALLEE:
-                if (!compiler->opts.compDbgEnC && (mask & RBM_CALLEE_SAVED) != RBM_NONE)
+                if (!compiler->opts.compDbgEnC)
                 {
-                    mask &= RBM_CALLEE_SAVED;
+                    unsigned minRegCount = 1;
+#ifdef _TARGET_X86_
+                    // On x86, the source operands of byte operation could be 
+                    // constrained to be bytable registers { eax, ebx, ecx, edx }.
+                    // Intersecting with callee saved regs would reduce it
+                    // to a single reg {ebx}, which won't be sufficient to
+                    // reg allocate a bye type binary oper.  Therefore, we need
+                    // to ensure there are minimum 2 regs in constrained set.
+                    minRegCount = 2;
+#endif // _TARGET_X86_
+
+                    mask = getConstrainedRegMask(mask, RBM_CALLEE_SAVED, minRegCount);
                 }
                 break;
+
             case LSRA_LIMIT_CALLER:
-                if ((mask & RBM_CALLEE_TRASH) != RBM_NONE)
                 {
-                    regMaskTP newMask = mask & RBM_CALLEE_TRASH;
+                    unsigned minRegCount = 1;
 #ifdef _TARGET_X86_
-                    // On x86 we need to ensure that there are minimum
-                    // 2 registers in the mask because we could have the
+                    // On x86 we need to ensure that there are minimum 2 regs
+                    // in the constrained mask because we could have the
                     // following case:
                     //
                     // t0 = GT_SUB(v02, v01)
@@ -407,15 +447,13 @@ regMaskTP LinearScan::stressLimitRegs(RefPosition* refPosition, regMaskTP mask)
                     // allocation.  On targets like amd64 this is not an issue
                     // because there are more callee trash registers leaving
                     // aside { eax, edx, ecx }
-                    if (genCountBits(newMask) >= 2)
-                    {
-                        mask = newMask;
-                    }
-#else // !_TARGET_X86_
-                    mask = newMask;
-#endif // !_TARGET_X86_
+                    minRegCount = 2;
+#endif // _TARGET_X86_
+
+                    mask = getConstrainedRegMask(mask, RBM_CALLEE_TRASH, minRegCount);
                 }
                 break;
+
             case LSRA_LIMIT_SMALL_SET:
                 if ((mask & LsraLimitSmallIntSet) != RBM_NONE)
                 {
@@ -426,6 +464,7 @@ regMaskTP LinearScan::stressLimitRegs(RefPosition* refPosition, regMaskTP mask)
                     mask &= LsraLimitSmallFPSet;
                 }
                 break;
+
             default:
                 unreached();
         }
@@ -691,12 +730,19 @@ void LinearScan::applyCalleeSaveHeuristics(RefPosition* rp)
     regMaskTP calleeSaveMask = calleeSaveRegs(getRegisterType(theInterval, rp));
     if (doReverseCallerCallee())
     {
-        regMaskTP newAssignment = rp->registerAssignment;
-        newAssignment &= calleeSaveMask;
-        if (newAssignment != RBM_NONE)
-        {
-            rp->registerAssignment = newAssignment;
-        }
+        unsigned minRegCount = 1;
+
+#ifdef _TARGET_X86_
+        // On x86, the source operands of byte operation could be 
+        // constrained to be bytable registers { eax, ebx, ecx, edx }.
+        // Intersecting with callee saved regs would reduce it
+        // to a single reg {ebx}, which won't be sufficient to
+        // reg allocate a bye type binary oper.  Therefore, we need
+        // to ensure there are minimum 2 regs in constrained set.
+        minRegCount = 2;
+#endif // _TARGET_X86_
+
+        rp->registerAssignment = getConstrainedRegMask(rp->registerAssignment, calleeSaveMask, minRegCount);
     }
     else
 #endif // DEBUG
