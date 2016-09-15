@@ -15,6 +15,31 @@
 include AsmMacros.inc
 
 ;char *memset(dst, value, count) - sets "count" bytes at "dst" to "value"
+;
+;Purpose:
+;   Sets the first "count" bytes of the memory starting
+;   at "dst" to the character value "value".
+;
+;Algorithm:
+;Set dst based on count as follow
+;   count [0, 16]: use 1/2/4/8 bytes width registers
+;   count [16, 128]: use 16 bytes width registers (XMM) without loop
+;   count [128, 512]: use 16 bytes width registers (XMM) with loops, unrolled 8 times
+;   count [512, upper]: use rep stosb
+;Entry:
+;   char *dst - pointer to memory to fill with value
+;   char value - value to put in dst bytes
+;   int count - number of bytes of dst to fill
+;
+;Exit:
+;   returns dst, with filled bytes
+;
+;Uses:
+;
+;Exceptions:
+;
+;*******************************************************************************
+
 LEAF_ENTRY JIT_MemSet, _TEXT
 
         movzx   edx, dl                 ; set fill pattern
@@ -123,9 +148,38 @@ mset08: ret
 
 LEAF_END_MARKED JIT_MemSet, _TEXT
 
+;JIT_MemCpy - Copy source buffer to destination buffer
+;
+;Purpose:
+;   JIT_MemCpy() copies a source memory buffer to a destination memory
+;   buffer. This routine recognize overlapping buffers to avoid propogation.
+;   For cases where propogation is not a problem, memcpy() can be used.
+;
+;Algorithm:
+;Copy to destination based on count as follow
+;   count [0, 64]: overlap check not needed
+;       count [0, 16]: use 1/2/4/8 bytes width registers  
+;       count [16, 64]: use 16 bytes width registers (XMM) without loop
+;   count [64, upper]: check overlap
+;       non-overlap:
+;           count [64, 512]: use 16 bytes width registers (XMM) with loops, unrolled 4 times
+;           count [512, upper]: use rep movsb
+;       overlap::
+;           use 16 bytes width registers (XMM) with loops to copy from end to beginnig
+;
+;Entry:
+;   void *dst = pointer to destination buffer
+;   const void *src = pointer to source buffer
+;   size_t count = number of bytes to copy
+;
+;Exit:
+;   Returns a pointer to the destination buffer
+;
+;Uses:
+;
+;Exceptions:
+;*******************************************************************************
 
-; from 0 to 64 bytes, no need to check overlap 
-; because we use xmm0 to xmm3 to store the src buffer
 LEAF_ENTRY JIT_MemCpy, _TEXT
 
         mov     rax, rcx                ; save dst address
