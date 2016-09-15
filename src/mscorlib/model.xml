@@ -6878,6 +6878,14 @@
       <Member MemberType="Property" Name="IsClosed" />
       <Member MemberType="Property" Name="IsInvalid" />
     </Type>
+    <Type Name="Microsoft.Win32.SafeHandles.CriticalHandleMinusOneIsInvalid">
+      <Member Name="#ctor" />
+      <Member Name="get_IsInvalid" />
+    </Type>
+    <Type Name="Microsoft.Win32.SafeHandles.CriticalHandleZeroOrMinusOneIsInvalid">
+      <Member Name="#ctor" />
+      <Member Name="get_IsInvalid" />
+    </Type>
     <Type Name="Microsoft.Win32.SafeHandles.SafeHandleMinusOneIsInvalid">
       <Member Name="#ctor(System.Boolean)" />
       <Member Name="get_IsInvalid" />
@@ -7875,7 +7883,9 @@
       <Member Name="TryEnter(System.Object,System.TimeSpan,System.Boolean@)" />
       <Member Name="Wait(System.Object)" />
       <Member Name="Wait(System.Object,System.Int32)" />
+      <Member Name="Wait(System.Object,System.Int32,System.Boolean)" />
       <Member Name="Wait(System.Object,System.TimeSpan)" />
+      <Member Name="Wait(System.Object,System.TimeSpan,System.Boolean)" />
     </Type>
     <Type Name="System.Threading.ManualResetEvent">
       <Member Name="#ctor(System.Boolean)" />
@@ -7941,6 +7951,12 @@
     </Type>
     <Type Name="System.Threading.ThreadAbortException">
       <Member Status="ImplRoot" Name="#ctor(System.Runtime.Serialization.SerializationInfo,System.Runtime.Serialization.StreamingContext)" />
+    </Type>
+    <Type Name="System.Threading.ThreadInterruptedException">
+      <Member Name="#ctor" />
+      <Member Name="#ctor(System.String)" />
+      <Member Name="#ctor(System.String,System.Exception)" />
+      <Member Name="#ctor(System.Runtime.Serialization.SerializationInfo,System.Runtime.Serialization.StreamingContext)" />
     </Type>
     <Type Name="System.Threading.ThreadPool">
       <Member Name="GetMaxThreads(System.Int32@,System.Int32@)" />
