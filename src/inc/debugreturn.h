@@ -29,7 +29,7 @@
 
 // This is disabled in VS2015 Update 3 and earlier because only C++11 constexpr is supported,
 // which doesn't allow the use of 'if' statements within the body of a constexpr function.
-#if defined(_DEBUG) && (!defined(_MSC_FULL_VER) || _MSC_FULL_VER > 190024210)
+#if defined(_DEBUG) && (!defined(_MSC_FULL_VER) || _MSC_FULL_VER > 190024315)
 
 // Code to generate a compile-time error if return statements appear where they
 // shouldn't.
@@ -110,7 +110,7 @@ typedef __SafeToReturn __ReturnOK;
 #define DEBUG_OK_TO_RETURN_BEGIN(arg) { typedef __SafeToReturn __ReturnOK; if (0 && __ReturnOK::used()) { } else {
 #define DEBUG_OK_TO_RETURN_END(arg) } }
 
-#else // defined(_DEBUG) && (!defined(_MSC_FULL_VER) || _MSC_FULL_VER > 190024210)
+#else // defined(_DEBUG) && (!defined(_MSC_FULL_VER) || _MSC_FULL_VER > 190024315)
 
 #define DEBUG_ASSURE_SAFE_TO_RETURN TRUE
 
@@ -120,7 +120,7 @@ typedef __SafeToReturn __ReturnOK;
 #define DEBUG_OK_TO_RETURN_BEGIN(arg) {
 #define DEBUG_OK_TO_RETURN_END(arg) }
 
-#endif // defined(_DEBUG) && (!defined(_MSC_FULL_VER) || _MSC_FULL_VER > 190024210)
+#endif // defined(_DEBUG) && (!defined(_MSC_FULL_VER) || _MSC_FULL_VER > 190024315)
 
 #endif // !_PREFAST_
 
