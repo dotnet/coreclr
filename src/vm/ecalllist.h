@@ -548,9 +548,9 @@ FCFuncStart(gRuntimeMethodHandle)
     FCFuncElement("GetMethodBody", RuntimeMethodHandle::GetMethodBody)    
 #ifndef FEATURE_CORECLR
     FCFuncElement("_IsTokenSecurityTransparent", RuntimeMethodHandle::IsTokenSecurityTransparent)
+#endif // FEATURE_CORECLR
     QCFuncElement("_IsSecurityCritical", RuntimeMethodHandle::IsSecurityCritical)
     QCFuncElement("_IsSecuritySafeCritical", RuntimeMethodHandle::IsSecuritySafeCritical)
-#endif // FEATURE_CORECLR
     QCFuncElement("_IsSecurityTransparent", RuntimeMethodHandle::IsSecurityTransparent)
     FCFuncElement("CheckLinktimeDemands", RuntimeMethodHandle::CheckLinktimeDemands)    
     QCFuncElement("IsCAVisibleFromDecoratedType", RuntimeMethodHandle::IsCAVisibleFromDecoratedType)
@@ -1165,9 +1165,9 @@ FCFuncStart(gAssemblyNameFuncs)
     FCFuncElement("nGetPublicKeyToken", AssemblyNameNative::GetPublicKeyToken)
 #ifndef FEATURE_CORECLR
     FCFuncElement("EscapeCodeBase", AssemblyNameNative::EscapeCodeBase)
+#endif // !FEATURE_CORECLR
     FCFuncElement("ReferenceMatchesDefinitionInternal", AssemblyNameNative::ReferenceMatchesDefinition)
     FCFuncElement("nGetFileInformation", AssemblyNameNative::GetFileInformation)
-#endif // !FEATURE_CORECLR 
 FCFuncEnd()
 
 FCFuncStart(gLoaderAllocatorFuncs)
