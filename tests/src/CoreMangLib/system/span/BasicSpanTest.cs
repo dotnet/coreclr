@@ -115,7 +115,7 @@ class My
         }
         catch (System.ArgumentException ex)
         {
-            AssertTrue(ex.Message == "'ValueTypeWithPointers' is reference type or contains pointers and hence can not be stored in unmanaged memory.",
+            AssertTrue(ex.Message == "Cannot use type 'ValueTypeWithPointers'. Only value types without pointers are supported.",
                 "Exception message is incorrect");
         }
 
@@ -126,7 +126,7 @@ class My
         }
         catch (System.ArgumentException ex)
         {
-            AssertTrue(ex.Message == "'ReferenceType' is reference type or contains pointers and hence can not be stored in unmanaged memory.",
+            AssertTrue(ex.Message == "Cannot use type 'ReferenceType'. Only value types without pointers are supported.",
                 "Exception message is incorrect");
         }
     }
@@ -491,10 +491,41 @@ class My
 
     static void MustNotCastSpanOfValueTypesWithPointers()
     {
-        var source = new Span<ValueTypeWithPointers>(new[] { new ValueTypeWithPointers(new object()) });
+        var spanOfValueTypeWithPointers = new Span<ValueTypeWithPointers>(new[] { new ValueTypeWithPointers(new object()) });
 
-        AssertTrue(source.AsBytes().IsEmpty, "Invalid operation should return empty span");
-        AssertTrue(source.NonPortableCast<ValueTypeWithPointers, byte>().IsEmpty, "Invalid operation should return empty span");
+        try
+        {
+            var impossible = spanOfValueTypeWithPointers.AsBytes();
+            AssertTrue(false, "Expected exception for wrong type not thrown");
+        }
+        catch (System.ArgumentException ex)
+        {
+            AssertTrue(ex.Message == "Cannot use type 'ValueTypeWithPointers'. Only value types without pointers are supported.",
+                "Exception message is incorrect");
+        }
+
+        try
+        {
+            var impossible = spanOfValueTypeWithPointers.NonPortableCast<ValueTypeWithPointers, byte>();
+            AssertTrue(false, "Expected exception for wrong type not thrown");
+        }
+        catch (System.ArgumentException ex)
+        {
+            AssertTrue(ex.Message == "Cannot use type 'ValueTypeWithPointers'. Only value types without pointers are supported.",
+                "Exception message is incorrect");
+        }
+
+        var spanOfBytes = new Span<byte>(new byte[10]);
+        try
+        {
+            var impossible = spanOfBytes.NonPortableCast<byte, ValueTypeWithPointers>();
+            AssertTrue(false, "Expected exception for wrong type not thrown");
+        }
+        catch (System.ArgumentException ex)
+        {
+            AssertTrue(ex.Message == "Cannot use type 'ValueTypeWithPointers'. Only value types without pointers are supported.",
+                "Exception message is incorrect");
+        }
     }
 
     static void IntArraySpanCastedToByteArraySpanHasSameBytesAsOriginalArray()
