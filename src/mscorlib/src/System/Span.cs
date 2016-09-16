@@ -98,7 +98,7 @@ namespace System
         /// <summary>
         /// An internal helper for creating spans. Not for public use.
         /// </summary>
-        private Span(ref T ptr, int length)
+        internal Span(ref T ptr, int length)
         {
             JitHelpers.SetByRef(out _rawPointer, ref ptr);
             _length = length;
@@ -224,6 +224,81 @@ namespace System
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 
             SpanHelper.CopyTo<T>(ref _rawPointer, ref values._rawPointer, values.Length);
+        }
+    }
+
+    public static class SpanExtensions
+    {
+        /// <summary>
+        /// Casts a Span of one primitive type <typeparamref name="T"/> to Span of bytes.
+        /// That type may not contain pointers. This is checked at runtime in order to preserve type safety.
+        /// </summary>
+        /// <param name="source">The source slice, of type <typeparamref name="T"/>.</param>
+        public static Span<byte> AsBytes<T>(this Span<T> source)
+            where T : struct
+        {
+            if (JitHelpers.ContainsReferences<T>())
+                return Span<byte>.Empty;
+
+            return new Span<byte>(
+                ref JitHelpers.GetByRef<byte>(ref source._rawPointer),
+                checked((int)(source._length * JitHelpers.SizeOf<T>())));
+        }
+
+        /// <summary>
+        /// Casts a ReadOnlySpan of one primitive type <typeparamref name="T"/> to ReadOnlySpan of bytes.
+        /// That type may not contain pointers. This is checked at runtime in order to preserve type safety.
+        /// </summary>
+        /// <param name="source">The source slice, of type <typeparamref name="T"/>.</param>
+        public static ReadOnlySpan<byte> AsBytes<T>(this ReadOnlySpan<T> source)
+            where T : struct
+        {
+            if (JitHelpers.ContainsReferences<T>())
+                return ReadOnlySpan<byte>.Empty;
+
+            return new ReadOnlySpan<byte>(
+                ref JitHelpers.GetByRef<byte>(ref source._rawPointer),
+                checked((int)(source._length * JitHelpers.SizeOf<T>())));
+        }
+
+        /// <summary>
+        /// Casts a Span of one primitive type <typeparamref name="TFrom"/> to another primitive type <typeparamref name="TTo"/>.
+        /// These types may not contain pointers. This is checked at runtime in order to preserve type safety.
+        /// </summary>
+        /// <remarks>
+        /// Supported only for platforms that support misaligned memory access.
+        /// </remarks>
+        /// <param name="source">The source slice, of type <typeparamref name="TFrom"/>.</param>
+        public static unsafe Span<TTo> NonPortableCast<TFrom, TTo>(this Span<TFrom> source)
+            where TFrom : struct
+            where TTo : struct
+        {
+            if (JitHelpers.ContainsReferences<TFrom>() || JitHelpers.ContainsReferences<TTo>())
+                return Span<TTo>.Empty;
+
+            return new Span<TTo>(
+                ref JitHelpers.GetByRef<TTo>(ref source._rawPointer),
+                checked((int)(source._length * JitHelpers.SizeOf<TFrom>() / JitHelpers.SizeOf<TTo>())));
+        }
+
+        /// <summary>
+        /// Casts a ReadOnlySpan of one primitive type <typeparamref name="TFrom"/> to another primitive type <typeparamref name="TTo"/>.
+        /// These types may not contain pointers. This is checked at runtime in order to preserve type safety.
+        /// </summary>
+        /// <remarks>
+        /// Supported only for platforms that support misaligned memory access.
+        /// </remarks>
+        /// <param name="source">The source slice, of type <typeparamref name="TFrom"/>.</param>
+        public static unsafe ReadOnlySpan<TTo> NonPortableCast<TFrom, TTo>(this ReadOnlySpan<TFrom> source)
+            where TFrom : struct
+            where TTo : struct
+        {
+            if (JitHelpers.ContainsReferences<TFrom>() || JitHelpers.ContainsReferences<TTo>())
+                return ReadOnlySpan<TTo>.Empty;
+
+            return new ReadOnlySpan<TTo>(
+                ref JitHelpers.GetByRef<TTo>(ref source._rawPointer),
+                checked((int)(source._length * JitHelpers.SizeOf<TFrom>() / JitHelpers.SizeOf<TTo>())));
         }
     }
 

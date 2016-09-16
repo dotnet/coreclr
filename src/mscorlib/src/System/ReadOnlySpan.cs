@@ -88,7 +88,7 @@ namespace System
         /// <summary>
         /// An internal helper for creating spans. Not for public use.
         /// </summary>
-        private ReadOnlySpan(ref T ptr, int length)
+        internal ReadOnlySpan(ref T ptr, int length)
         {
             JitHelpers.SetByRef(out _rawPointer, ref ptr);
             _length = length;
