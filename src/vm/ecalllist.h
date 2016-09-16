@@ -548,9 +548,9 @@ FCFuncStart(gRuntimeMethodHandle)
     FCFuncElement("GetMethodBody", RuntimeMethodHandle::GetMethodBody)    
 #ifndef FEATURE_CORECLR
     FCFuncElement("_IsTokenSecurityTransparent", RuntimeMethodHandle::IsTokenSecurityTransparent)
-#endif // FEATURE_CORECLR
     QCFuncElement("_IsSecurityCritical", RuntimeMethodHandle::IsSecurityCritical)
     QCFuncElement("_IsSecuritySafeCritical", RuntimeMethodHandle::IsSecuritySafeCritical)
+#endif // FEATURE_CORECLR
     QCFuncElement("_IsSecurityTransparent", RuntimeMethodHandle::IsSecurityTransparent)
     FCFuncElement("CheckLinktimeDemands", RuntimeMethodHandle::CheckLinktimeDemands)    
     QCFuncElement("IsCAVisibleFromDecoratedType", RuntimeMethodHandle::IsCAVisibleFromDecoratedType)
