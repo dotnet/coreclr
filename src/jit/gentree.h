@@ -1544,7 +1544,7 @@ public:
 public:
 #if SMALL_TREE_NODES
     static unsigned char s_gtNodeSizes[];
-#if NODEBASH_STATS || COUNT_AST_OPERS
+#if NODEBASH_STATS || MEASURE_NODE_SIZE || COUNT_AST_OPERS
     static unsigned char s_gtTrueSizes[];
 #endif
 #if COUNT_AST_OPERS
@@ -1574,8 +1574,12 @@ public:
     static const char* NodeName(genTreeOps op);
 #endif
 
-#if defined(DEBUG) || NODEBASH_STATS || COUNT_AST_OPERS
+#if defined(DEBUG) || NODEBASH_STATS || MEASURE_NODE_SIZE || COUNT_AST_OPERS
     static const char* OpName(genTreeOps op);
+#endif
+
+#if MEASURE_NODE_SIZE && SMALL_TREE_NODES
+    static const char* OpStructName(genTreeOps op);
 #endif
 
     //---------------------------------------------------------------------
@@ -1890,6 +1894,10 @@ public:
         assert(OperIsConst());
         gtFlags &= ~GTF_REUSE_REG_VAL;
     }
+
+#if MEASURE_NODE_SIZE
+    static void DumpFieldLayout(FILE* fp);
+#endif
 
 #ifdef DEBUG
 
@@ -2415,6 +2423,8 @@ struct GenTreeStrCon : public GenTree
 // This inherits from UnOp because lclvar stores are Unops
 struct GenTreeLclVarCommon : public GenTreeUnOp
 {
+    friend struct GenTree;
+
 private:
     unsigned _gtLclNum; // The local number. An index into the Compiler::lvaTable array.
     unsigned _gtSsaNum; // The SSA number.
@@ -2514,6 +2524,8 @@ struct GenTreeLclFld : public GenTreeLclVarCommon
 
 struct GenTreeRegVar : public GenTreeLclVarCommon
 {
+    friend struct GenTree;
+
     // TODO-Cleanup: Note that the base class GenTree already has a gtRegNum field.
     // It's not clear exactly why a GT_REG_VAR has a separate field. When
     // GT_REG_VAR is created, the two are identical. It appears that they may
@@ -4005,6 +4017,8 @@ protected:
 
 struct GenTreeObj : public GenTreeBlk
 {
+    friend struct GenTree;
+
     CORINFO_CLASS_HANDLE gtClass; // the class of the object
 
     // If non-null, this array represents the gc-layout of the class.
