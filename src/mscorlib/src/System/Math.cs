@@ -616,7 +616,7 @@ namespace System {
             return value;
         }
 
-        private static void ThrowMinMaxException(object min, object max)
+        private static void ThrowMinMaxException<T>(T min, T max)
         {
             throw new ArgumentException(Environment.GetResourceString("Argument_MinMaxValue", min, max));
         }
