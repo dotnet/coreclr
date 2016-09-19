@@ -663,5 +663,21 @@ namespace System.Security
             info.AddValue(UrlName, m_url, typeof(String));
 #endif // FEATURE_CAS_POLICY            
         }
+
+#if !FEATURE_CAS_POLICY
+            // Stubs for surface area compatibility only
+            public SecurityException(string message, System.Type type) { }
+            public SecurityException(string message, System.Type type, string state) { }
+            public object Demanded { get { throw null; } set { } }
+            public object DenySetInstance { get { throw null; } set { } }
+            public System.Reflection.AssemblyName FailedAssemblyInfo { get { throw null; } set { } }
+            public string GrantedSet { get { throw null; } set { } }
+            public System.Reflection.MethodInfo Method { get { throw null; } set { } }
+            public string PermissionState { get { throw null; } set { } }
+            public System.Type PermissionType { get { throw null; } set { } }
+            public object PermitOnlySetInstance { get { throw null; } set { } }
+            public string RefusedSet { get { throw null; } set { } }
+            public string Url { get { throw null; } set { } }
+#endif // !FEATURE_CAS_POLICY
     }
 }
