@@ -1453,7 +1453,7 @@ void Compiler::compShutdown()
 void Compiler::compDisplayStaticSizes(FILE* fout)
 {
 #if MEASURE_NODE_SIZE
-    GenTree::DumpFieldLayout(fout);
+    GenTree::DumpNodeSizes(fout);
 #endif
 
 #if MEASURE_BLOCK_SIZE

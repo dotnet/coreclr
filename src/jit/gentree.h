@@ -1887,7 +1887,7 @@ public:
     }
 
 #if MEASURE_NODE_SIZE
-    static void DumpFieldLayout(FILE* fp);
+    static void DumpNodeSizes(FILE* fp);
 #endif
 
 #ifdef DEBUG
