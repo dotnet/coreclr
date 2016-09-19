@@ -145,7 +145,7 @@ void GCScan::GcWeakPtrScanBySingleThread( int condemned, int max_gen, ScanContex
 {
     UNREFERENCED_PARAMETER(condemned);
     UNREFERENCED_PARAMETER(max_gen);
-    GCToEEInterface::SyncBlockCacheWeakPtrScan(&CheckPromoted, (uintptr_t)sc, 0);
+    g_theGCHeap->gcToClr->SyncBlockCacheWeakPtrScan(&CheckPromoted, (uintptr_t)sc, 0);
 }
 
 void GCScan::GcScanSizedRefs(promote_func* fn, int condemned, int max_gen, ScanContext* sc)
@@ -167,7 +167,7 @@ void GCScan::GcShortWeakPtrScan(promote_func* fn,  int condemned, int max_gen,
 void GCScan::GcScanRoots(promote_func* fn,  int condemned, int max_gen, 
                              ScanContext* sc)
 {
-    GCToEEInterface::GcScanRoots(fn, condemned, max_gen, sc);
+    g_theGCHeap->gcToClr->GcScanRoots(fn, condemned, max_gen, sc);
 }
 
 /*
@@ -241,14 +241,14 @@ void GCScan::GcDemote (int condemned, int max_gen, ScanContext* sc)
 {
     Ref_RejuvenateHandles (condemned, max_gen, (uintptr_t)sc);
     if (!IsServerHeap() || sc->thread_number == 0)
-        GCToEEInterface::SyncBlockCacheDemote(max_gen);
+        g_theGCHeap->gcToClr->SyncBlockCacheDemote(max_gen);
 }
 
 void GCScan::GcPromotionsGranted (int condemned, int max_gen, ScanContext* sc)
 {
     Ref_AgeHandles(condemned, max_gen, (uintptr_t)sc);
     if (!IsServerHeap() || sc->thread_number == 0)
-        GCToEEInterface::SyncBlockCachePromotionsGranted(max_gen);
+        g_theGCHeap->gcToClr->SyncBlockCachePromotionsGranted(max_gen);
 }
 
 

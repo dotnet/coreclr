@@ -122,14 +122,14 @@ class DacHeapWalker;
 #define MP_LOCKS
 
 namespace WKS {
-    ::IGCHeapInternal* CreateGCHeap();
+    ::IGCHeapInternal* CreateGCHeap(IGCToCLR *gcToClr);
     class GCHeap;
     class gc_heap;
     }
 
 #if defined(FEATURE_SVR_GC)
 namespace SVR {
-    ::IGCHeapInternal* CreateGCHeap();
+    ::IGCHeapInternal* CreateGCHeap(IGCToCLR *gcToClr);
     class GCHeap;
     class gc_heap;
 }
@@ -215,9 +215,11 @@ class IGCHeapInternal : public IGCHeap {
 #endif
     
 public:
+    IGCToCLR* gcToClr;
+
+    IGCHeapInternal(IGCToCLR* gcToClr) : gcToClr(gcToClr) {}
 
     virtual ~IGCHeapInternal() {}
-
 private:
     virtual Object* AllocAlign8Common (void* hp, alloc_context* acontext, size_t size, uint32_t flags) = 0;
 public:
@@ -248,8 +250,6 @@ public:
         return mt->GetBaseSize() >= LARGE_OBJECT_SIZE;
     }
 
-protected: 
-public:
 #if defined(FEATURE_BASICFREEZE) && defined(VERIFY_HEAP)
     // Return TRUE if object lives in frozen segment
     virtual BOOL IsInFrozenSegment (Object * object) = 0;

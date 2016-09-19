@@ -63,7 +63,8 @@ public:
     static void UpdatePostGCCounters();
 
 public:
-    GCHeap(){};
+    GCHeap(IGCToCLR *gcToClr) : IGCHeapInternal(gcToClr) {}
+
     ~GCHeap(){};
 
     /* BaseGCHeap Methods*/
