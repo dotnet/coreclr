@@ -240,6 +240,10 @@ namespace System {
                     argumentName = "sourceBytesToCopy";
                     break;
 
+                case ExceptionArgument.text:
+                    argumentName = "text";
+                    break;
+
                 default:
                     Contract.Assert(false, "The enum value is not defined, please checked ExceptionArgumentName Enum.");
                     return string.Empty;
@@ -480,7 +484,8 @@ namespace System {
         view,
         sourceBytesToCopy,
         action,
-        comparison
+        comparison,
+        text
     }
 
     //

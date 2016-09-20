@@ -1350,6 +1350,7 @@ DEFINE_METHOD(JIT_HELPERS,          ADD_BYREF,              AddByRef, NoSig)
 DEFINE_METHOD(JIT_HELPERS,          BYREF_EQUALS,           ByRefEquals, NoSig)
 DEFINE_METHOD(JIT_HELPERS,          BYREF_LESSTHAN,         ByRefLessThan, NoSig)
 DEFINE_METHOD(JIT_HELPERS,          GET_ARRAY_DATA,         GetArrayData, NoSig)
+DEFINE_METHOD(JIT_HELPERS,          GET_STRING_DATA,        GetStringData, NoSig)
 DEFINE_METHOD(JIT_HELPERS,          SIZEOF,                 SizeOf, NoSig)
 DEFINE_METHOD(JIT_HELPERS,          CONTAINSREFERENCES,     ContainsReferences, NoSig)
 #endif
@@ -1363,6 +1364,9 @@ DEFINE_FIELD(PINNING_HELPER,        M_DATA,                 m_data)
 
 DEFINE_CLASS(ARRAY_PINNING_HELPER,  CompilerServices,       ArrayPinningHelper)
 DEFINE_FIELD(ARRAY_PINNING_HELPER,  M_ARRAY_DATA,           m_arrayData)
+
+DEFINE_CLASS(STRING_PINNING_HELPER, CompilerServices,       StringPinningHelper)
+DEFINE_FIELD(STRING_PINNING_HELPER, M_FIRST_CHAR,           m_firstChar)
 
 DEFINE_CLASS(RUNTIME_WRAPPED_EXCEPTION, CompilerServices,   RuntimeWrappedException)
 DEFINE_METHOD(RUNTIME_WRAPPED_EXCEPTION, OBJ_CTOR,          .ctor,                      IM_Obj_RetVoid)
