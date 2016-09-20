@@ -533,7 +533,7 @@ void GenTree::DumpNodeSizes(FILE* fp)
 
 #if SMALL_TREE_NODES
     fprintf(fp, "Small tree node size = %3u bytes\n", TREE_NODE_SZ_SMALL);
-#endif // SMALL_TREE_NODES
+#endif
     fprintf(fp, "Large tree node size = %3u bytes\n", TREE_NODE_SZ_LARGE);
     fprintf(fp, "\n");
 

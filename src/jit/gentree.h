@@ -1578,8 +1578,8 @@ public:
     static const char* OpName(genTreeOps op);
 #endif
 
-#if defined(DEBUG) || NODEBASH_STATS
-    static const char* OpName(genTreeOps op);
+#if MEASURE_NODE_SIZE && SMALL_TREE_NODES
+    static const char* OpStructName(genTreeOps op);
 #endif
 
     //---------------------------------------------------------------------
@@ -1894,6 +1894,10 @@ public:
         assert(OperIsConst());
         gtFlags &= ~GTF_REUSE_REG_VAL;
     }
+
+#if MEASURE_NODE_SIZE
+    static void DumpNodeSizes(FILE* fp);
+#endif
 
 #ifdef DEBUG
 
