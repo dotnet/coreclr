@@ -66,12 +66,6 @@ namespace System.Runtime.CompilerServices {
         public byte m_arrayData;
     }
 
-    internal class StringPinningHelper
-    {
-        public int m_stringLength;
-        public char m_firstChar;
-    }
-
     [FriendAccessAllowed]
     internal static class JitHelpers
     {
@@ -289,14 +283,6 @@ namespace System.Runtime.CompilerServices {
             // The body of this function will be replaced by the EE with unsafe code!!!
             // See getILIntrinsicImplementation for how this happens.
             typeof(ArrayPinningHelper).ToString(); // Type used by the actual method body
-            throw new InvalidOperationException();
-        }
-
-        static internal ref char GetStringData(string text)
-        {
-            // The body of this function will be replaced by the EE with unsafe code!!!
-            // See getILIntrinsicImplementation for how this happens.
-            typeof(StringPinningHelper).ToString(); // Type used by the actual method body
             throw new InvalidOperationException();
         }
 #endif // FEATURE_SPAN_OF_T

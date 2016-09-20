@@ -217,7 +217,7 @@ namespace System
             if (text == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.text);
 
-            return new ReadOnlySpan<char>(ref JitHelpers.GetStringData(text), text.Length);
+            return new ReadOnlySpan<char>(ref text.GetFirstCharRef(), text.Length);
         }
 
         /// <summary>
@@ -237,7 +237,7 @@ namespace System
             if ((uint)start > (uint)text.Length)
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 
-            return new ReadOnlySpan<char>(ref JitHelpers.AddByRef(ref JitHelpers.GetStringData(text), start), text.Length - start);
+            return new ReadOnlySpan<char>(ref JitHelpers.AddByRef(ref text.GetFirstCharRef(), start), text.Length - start);
         }
 
         /// <summary>
@@ -258,7 +258,7 @@ namespace System
             if ((uint)start >= (uint)text.Length || (uint)length > (uint)(text.Length - start))
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 
-            return new ReadOnlySpan<char>(ref JitHelpers.AddByRef(ref JitHelpers.GetStringData(text), start), length);
+            return new ReadOnlySpan<char>(ref JitHelpers.AddByRef(ref text.GetFirstCharRef(), start), length);
         }
     }
 }

@@ -7000,26 +7000,6 @@ bool getILIntrinsicImplementation(MethodDesc * ftn,
         methInfo->options = (CorInfoOptions)0;
         return true;
     }
-    else if (tk == MscorlibBinder::GetMethod(METHOD__JIT_HELPERS__GET_STRING_DATA)->GetMemberDef())
-    {
-        mdToken tokStringPinningHelper = MscorlibBinder::GetField(FIELD__STRING_PINNING_HELPER__M_FIRST_CHAR)->GetMemberDef();
-
-        static BYTE ilcode[] = { CEE_LDARG_0,
-            CEE_LDFLDA,0,0,0,0,
-            CEE_RET };
-
-        ilcode[2] = (BYTE)(tokStringPinningHelper);
-        ilcode[3] = (BYTE)(tokStringPinningHelper >> 8);
-        ilcode[4] = (BYTE)(tokStringPinningHelper >> 16);
-        ilcode[5] = (BYTE)(tokStringPinningHelper >> 24);
-
-        methInfo->ILCode = const_cast<BYTE*>(ilcode);
-        methInfo->ILCodeSize = sizeof(ilcode);
-        methInfo->maxStack = 1;
-        methInfo->EHcount = 0;
-        methInfo->options = (CorInfoOptions)0;
-        return true;
-    }
     else if (tk == MscorlibBinder::GetMethod(METHOD__JIT_HELPERS__SIZEOF)->GetMemberDef())
     {
         _ASSERTE(ftn->HasMethodInstantiation());
