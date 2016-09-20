@@ -15643,7 +15643,9 @@ bool GenTree::isContained() const
         case GT_STORE_OBJ:
         case GT_STORE_DYN_BLK:
         case GT_SWITCH:
+#ifndef LEGACY_BACKEND
         case GT_JMPTABLE:
+#endif
         case GT_SWITCH_TABLE:
         case GT_SWAP:
         case GT_LCLHEAP:
