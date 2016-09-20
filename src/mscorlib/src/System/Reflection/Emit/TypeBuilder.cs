@@ -471,28 +471,12 @@ namespace System.Reflection.Emit {
                             SetConstantValue(module.GetNativeHandle(), tk, (int)corType, pData);
                         break;
                     case CorElementType.I:
-                        if (IntPtr.Size == 8)
-                        {
-                            long longRepresentation = ((IntPtr)value).ToInt64();
-                            SetConstantValue(module.GetNativeHandle(), tk, (int)CorElementType.I8, &longRepresentation);
-                        }
-                        else
-                        {
-                            int intRepresentation = ((IntPtr)value).ToInt32();
-                            SetConstantValue(module.GetNativeHandle(), tk, (int)CorElementType.I4, &intRepresentation);
-                        }
+                        long longRepresentation = ((IntPtr)value).ToInt64();
+                        SetConstantValue(module.GetNativeHandle(), tk, (int)CorElementType.I8, &longRepresentation);
                         break;
                     case CorElementType.U:
-                        if (UIntPtr.Size == 8)
-                        {
-                            ulong ulongRepresentation = ((UIntPtr)value).ToUInt64();
-                            SetConstantValue(module.GetNativeHandle(), tk, (int)CorElementType.U8, &ulongRepresentation);
-                        }
-                        else
-                        {
-                            uint uintRepresentation = ((UIntPtr)value).ToUInt32();
-                            SetConstantValue(module.GetNativeHandle(), tk, (int)CorElementType.U8, &uintRepresentation);
-                        }
+                        ulong ulongRepresentation = ((UIntPtr)value).ToUInt64();
+                        SetConstantValue(module.GetNativeHandle(), tk, (int)CorElementType.U8, &ulongRepresentation);
                         break;
                     default:
                         if (type == typeof(String))
