@@ -548,17 +548,20 @@ void GenTree::DumpNodeSizes(FILE* fp)
         const char* structNm = OpStructName((genTreeOps)op);
         const char* operName =       OpName((genTreeOps)op);
 
+        bool        repeated = false;
+
         // Have we seen this struct flavor before?
         for (unsigned mop = GT_NONE+1; mop < op; mop++)
         {
             if (strcmp(structNm, OpStructName((genTreeOps)mop)) == 0)
             {
-                structNm = nullptr;
+                repeated = true;
                 break;
             }
         }
 
-        if (structNm != nullptr)
+        // Don't repeat the same GenTree flavor unless we have an error
+        if (!repeated || needSize > nodeSize)
         {
             unsigned    sizeChar = '?';
 
@@ -571,16 +574,14 @@ void GenTree::DumpNodeSizes(FILE* fp)
                                                                structNm,
                                                                needSize,
                                                                sizeChar);
-        }
-
-        if (needSize > nodeSize)
-        {
-            fprintf(fp, " -- ERROR -- allocation is only %u bytes!\n", nodeSize);
-        }
-        else if (structNm != nullptr)
-        {
-            if (needSize <= TREE_NODE_SZ_SMALL && nodeSize == TREE_NODE_SZ_LARGE)
+            if (needSize > nodeSize)
+            {
+                fprintf(fp, " -- ERROR -- allocation is only %u bytes!", nodeSize);
+            }
+            else if (needSize <= TREE_NODE_SZ_SMALL && nodeSize == TREE_NODE_SZ_LARGE)
+            {
                 fprintf(fp, " ... could be small");
+            }
 
             fprintf(fp, "\n");
         }
