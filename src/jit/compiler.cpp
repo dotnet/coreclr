@@ -4984,10 +4984,8 @@ void Compiler::compCompileFinish()
         // Make the updates.
         genMemStats.nraTotalSizeAlloc = compGetAllocator()->getTotalBytesAllocated();
         genMemStats.nraTotalSizeUsed  = compGetAllocator()->getTotalBytesUsed();
-#if MEASURE_MEM_ALLOC
         memAllocHist.record((unsigned)((genMemStats.nraTotalSizeAlloc + 1023) / 1024));
-        memUsedHist .record((unsigned)((genMemStats.nraTotalSizeUsed  + 1023) / 1024));
-#endif
+        memUsedHist.record((unsigned)((genMemStats.nraTotalSizeUsed  + 1023) / 1024));
         s_aggMemStats.Add(genMemStats);
         if (genMemStats.allocSz > s_maxCompMemStats.allocSz)
         {
