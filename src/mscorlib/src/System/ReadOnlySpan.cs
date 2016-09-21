@@ -104,6 +104,11 @@ namespace System
             return new ReadOnlySpan<T>(array);
         }
 
+        public static implicit operator ReadOnlySpan<T>(ArraySegment<T> arraySegment)
+        {
+            return new ReadOnlySpan<T>(arraySegment._array, arraySegment._offset, arraySegment._count);
+        }
+
         public int Length
         {
             get { return _length; }

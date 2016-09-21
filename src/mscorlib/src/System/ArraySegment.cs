@@ -28,9 +28,9 @@ namespace System
     [Serializable]
     public struct ArraySegment<T> : IList<T>, IReadOnlyList<T>
     {
-        private T[] _array;
-        private int _offset;
-        private int _count;
+        internal T[] _array;
+        internal int _offset;
+        internal int _count;
         
         public ArraySegment(T[] array)
         {
