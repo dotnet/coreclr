@@ -298,7 +298,7 @@ void ZapDebugDirectory::Save(ZapWriter * pZapWriter)
 
 ZapPEExports::ZapPEExports(LPCWSTR dllPath) 
 {
-	m_dllFileName = wcsrchr(dllPath, '\\');
+	m_dllFileName = wcsrchr(dllPath, DIRECTORY_SEPARATOR_CHAR_W);
 	if (m_dllFileName != NULL)
 		m_dllFileName++;
 	else 
