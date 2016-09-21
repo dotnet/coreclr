@@ -3949,7 +3949,11 @@ namespace System {
                 byte* dstPtr = (byte*) dest;
                 Buffer.Memcpy(dstPtr, srcPtr, len);
             }
-        }      
+        }
+
+        internal ref char GetFirstCharRef() {
+            return ref m_firstChar;
+        }
     }
 
     [ComVisible(false)]
