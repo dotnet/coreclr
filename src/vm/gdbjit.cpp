@@ -966,7 +966,7 @@ bool NotifyGdb::CollectCalledMethods(CalledMethod* pCalledMethods)
     {
         char buf[256];
         MethodDesc* pMD = pList->GetMethodDesc();
-        sprintf(buf, "__thunk_%s", pMD->m_pszDebugMethodName);
+        sprintf(buf, "__thunk_%s", pMD->GetName());
         SymbolNames[i].m_name = new char[strlen(buf)];
         strcpy((char*)SymbolNames[i].m_name, buf);
         TADDR callAddr = (TADDR)pList->GetCallAddr();
