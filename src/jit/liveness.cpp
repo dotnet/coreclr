@@ -1982,6 +1982,14 @@ VARSET_VALRET_TP Compiler::fgComputeLifeLIR(VARSET_VALARG_TP lifeArg, BasicBlock
             bool isDeadStore = fgComputeLifeLocal(life, keepAliveVars, node, node);
             if (isDeadStore)
             {
+#ifdef DEBUG
+                if (verbose)
+                {
+                    printf("Node is a dead store:\n");
+                    DISPNODE(node);
+                    printf("\n");
+                }
+#endif // DEBUG
                 fgTryRemoveDeadLIRStore(blockRange, node, &next);
             }
         }
