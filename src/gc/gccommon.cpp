@@ -21,6 +21,7 @@ SVAL_IMPL_INIT(uint32_t,IGCHeap,gcHeapType,IGCHeap::GC_HEAP_INVALID);
 SVAL_IMPL_INIT(uint32_t,IGCHeap,maxGeneration,2);
 
 IGCHeapInternal* g_theGCHeap;
+IGCToCLR* g_theGCToCLR;
 
 /* global versions of the card table and brick table */ 
 GPTR_IMPL(uint32_t,g_card_table);
@@ -137,7 +138,6 @@ void InitializeHeapType(bool bServerHeap)
 IGCHeap* InitializeGarbageCollector(IGCToCLR* clrToGC)
 {
     LIMITED_METHOD_CONTRACT;
-    UNREFERENCED_PARAMETER(clrToGC);
 
     IGCHeapInternal* heap;
 #ifdef FEATURE_SVR_GC
@@ -147,7 +147,17 @@ IGCHeap* InitializeGarbageCollector(IGCToCLR* clrToGC)
     heap = WKS::CreateGCHeap();
 #endif
 
+#ifndef FEATURE_STANDALONE_GC
+    // If FEATURE_STANDALONE_GC isn't defined, we should be
+    // receiving a null pointer from ceemain.
+    assert(clrToGC == nullptr);
+#else
+    // if it is defined, we should be receiving a non-null pointer.
+    assert(clrToGC != nullptr);
+#endif
+
     g_theGCHeap = heap;
+    g_theGCToCLR = clrToGC;
     return heap;
 }
 

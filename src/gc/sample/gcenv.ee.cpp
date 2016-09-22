@@ -129,7 +129,8 @@ void ThreadStore::AttachCurrentThread()
     g_pThreadList = pThread;
 }
 
-void GCToEEInterface::SuspendEE(GCToEEInterface::SUSPEND_REASON reason)
+#ifndef FEATURE_STANDALONE_GC
+void GCToEEInterface::SuspendEE(SUSPEND_REASON reason)
 {
     g_theGCHeap->SetGCInProgress(TRUE);
 
@@ -220,6 +221,7 @@ Thread* GCToEEInterface::CreateBackgroundThread(GCBackgroundThreadFunction threa
     // TODO: Implement for background GC
     return NULL;
 }
+#endif // FEATURE_STANDALONE_GC
 
 void FinalizerThread::EnableFinalization()
 {
