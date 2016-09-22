@@ -4162,7 +4162,7 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, CORJIT_F
     /* Massage the trees so that we can generate code out of them */
 
     fgMorph();
-    EndPhase(PHASE_MORPH);
+    EndPhase(PHASE_MORPH_END);
 
     /* GS security checks for unsafe buffers */
     if (getNeedsGSSecurityCookie())
