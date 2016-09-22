@@ -4094,6 +4094,8 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, CORJIT_F
         fgRemovePreds();
     }
 
+    EndPhase(PHASE_IMPORTATION);
+
     if (compIsForInlining())
     {
         /* Quit inlining if fgImport() failed for any reason. */
@@ -4111,8 +4113,6 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, CORJIT_F
     }
 
     assert(!compDonotInline());
-
-    EndPhase(PHASE_IMPORTATION);
 
     // Maybe the caller was not interested in generating code
     if (compIsForImportOnly())

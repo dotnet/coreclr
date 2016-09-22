@@ -22,6 +22,12 @@
 CompPhaseNameMacro(PHASE_PRE_IMPORT,             "Pre-import",                     "PRE-IMP",  false, -1)
 CompPhaseNameMacro(PHASE_IMPORTATION,            "Importation",                    "IMPORT",   false, -1)
 CompPhaseNameMacro(PHASE_POST_IMPORT,            "Post-import",                    "POST-IMP", false, -1)
+CompPhaseNameMacro(PHASE_MORPH1,                 "Morph - Starting",               "MORPH1",   false, -1)
+CompPhaseNameMacro(PHASE_MORPH2,                 "Morph - Inlining",               "MORPH2",   false, -1)
+CompPhaseNameMacro(PHASE_MORPH3,                 "Morph - InlineEnd",              "MORPH3",   false, -1)
+CompPhaseNameMacro(PHASE_MORPH4,                 "Morph - ByRefs",                 "MORPH4",   false, -1)
+CompPhaseNameMacro(PHASE_MORPH5,                 "Morph - Structs/AddrExp",        "MORPH5",   false, -1)
+CompPhaseNameMacro(PHASE_MORPH6,                 "Morph Blocks",                   "MORPH6",   false, -1)
 CompPhaseNameMacro(PHASE_MORPH,                  "Morph",                          "MORPH",    false, -1)
 CompPhaseNameMacro(PHASE_GS_COOKIE,              "GS Cookie",                      "GS-COOK",  false, -1)
 CompPhaseNameMacro(PHASE_COMPUTE_PREDS,          "Compute preds",                  "PREDS",    false, -1)
@@ -55,7 +61,7 @@ CompPhaseNameMacro(PHASE_OPTIMIZE_INDEX_CHECKS,  "Optimize index checks",       
 
 #if FEATURE_VALNUM_CSE
 CompPhaseNameMacro(PHASE_OPTIMIZE_VALNUM_CSES,   "Optimize Valnum CSEs",           "OPT-CSE",  false, -1)
-#endif  
+#endif
 
 CompPhaseNameMacro(PHASE_VN_COPY_PROP,           "VN based copy prop",             "CP-PROP",  false, -1)
 #if ASSERTION_PROP

@@ -16846,6 +16846,8 @@ void Compiler::fgMorph()
     fgDebugCheckBBlist(false, false);
 #endif // DEBUG
 
+    EndPhase(PHASE_MORPH1);
+
     /* Inline */
     fgInline();
 #if 0
@@ -16853,7 +16855,11 @@ void Compiler::fgMorph()
     DBEXEC(VERBOSE, fgDispBasicBlocks(true));
 #endif
 
+    EndPhase(PHASE_MORPH2);
+
     RecordStateAtEndOfInlining(); // Record "start" values for post-inlining cycles and elapsed time.
+
+    EndPhase(PHASE_MORPH3);
 
 #ifdef DEBUG
     /* Inliner could add basic blocks. Check that the flowgraph data is up-to-date */
@@ -16862,6 +16868,8 @@ void Compiler::fgMorph()
 
     /* For x64 and ARM64 we need to mark irregular parameters early so that they don't get promoted */
     fgMarkImplicitByRefArgs();
+
+    EndPhase(PHASE_MORPH4);
 
     /* Promote struct locals if necessary */
     fgPromoteStructs();
@@ -16875,9 +16883,13 @@ void Compiler::fgMorph()
     fgStress64RsltMul();
 #endif // DEBUG
 
+    EndPhase(PHASE_MORPH5);
+
     /* Morph the trees in all the blocks of the method */
 
     fgMorphBlocks();
+
+    EndPhase(PHASE_MORPH6);
 
 #if 0
     JITDUMP("trees after fgMorphBlocks\n");
