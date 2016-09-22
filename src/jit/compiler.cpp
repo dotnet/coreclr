@@ -1455,7 +1455,7 @@ void Compiler::compShutdown()
         fprintf(fout, "\n");
         fprintf(fout, "---------------------------------------------------\n");
         fprintf(fout, "Distribution of total memory used      per method (in KB):\n");
-        memUsedHist .dump(fout);
+        memUsedHist.dump(fout);
     }
 
 #endif // MEASURE_MEM_ALLOC
@@ -4985,7 +4985,7 @@ void Compiler::compCompileFinish()
         genMemStats.nraTotalSizeAlloc = compGetAllocator()->getTotalBytesAllocated();
         genMemStats.nraTotalSizeUsed  = compGetAllocator()->getTotalBytesUsed();
         memAllocHist.record((unsigned)((genMemStats.nraTotalSizeAlloc + 1023) / 1024));
-        memUsedHist.record((unsigned)((genMemStats.nraTotalSizeUsed  + 1023) / 1024));
+        memUsedHist.record((unsigned)((genMemStats.nraTotalSizeUsed + 1023) / 1024));
         s_aggMemStats.Add(genMemStats);
         if (genMemStats.allocSz > s_maxCompMemStats.allocSz)
         {
