@@ -7952,12 +7952,6 @@
     <Type Name="System.Threading.ThreadAbortException">
       <Member Status="ImplRoot" Name="#ctor(System.Runtime.Serialization.SerializationInfo,System.Runtime.Serialization.StreamingContext)" />
     </Type>
-    <Type Name="System.Threading.ThreadInterruptedException">
-      <Member Name="#ctor" />
-      <Member Name="#ctor(System.String)" />
-      <Member Name="#ctor(System.String,System.Exception)" />
-      <Member Name="#ctor(System.Runtime.Serialization.SerializationInfo,System.Runtime.Serialization.StreamingContext)" />
-    </Type>
     <Type Name="System.Threading.ThreadPool">
       <Member Name="GetMaxThreads(System.Int32@,System.Int32@)" />
       <Member Name="QueueUserWorkItem(System.Threading.WaitCallback)" />
@@ -10678,7 +10672,10 @@
     </Type>
     <Type Status="ImplRoot" Name="System.Threading.InternalCrossContextDelegate" />
     <Type Status="ImplRoot" Name="System.Threading.OverlappedData" />
-    <Type Status="ImplRoot" Name="System.Threading.ThreadInterruptedException">
+    <Type Name="System.Threading.ThreadInterruptedException">
+      <Member Name="#ctor" />
+      <Member Name="#ctor(System.String)" />
+      <Member Name="#ctor(System.String,System.Exception)" />
       <Member Name="#ctor(System.Runtime.Serialization.SerializationInfo,System.Runtime.Serialization.StreamingContext)" />
     </Type>
     <Type Name="System.ThreadStaticAttribute">
