@@ -235,12 +235,12 @@ Histogram genTreeNsizHist(HostAllocator::getHostAllocator(), genTreeNsizHistBuck
 /*****************************************************************************/
 #if MEASURE_MEM_ALLOC
 
-unsigned  memSizeHistBuckets[] = { 20, 50, 75, 100, 150, 250, 500, 1000, 5000, 0 };
-
+unsigned  memSizeHistBuckets[] = {20, 50, 75, 100, 150, 250, 500, 1000, 5000, 0};
 Histogram memAllocHist(HostAllocator::getHostAllocator(), memSizeHistBuckets);
-Histogram memUsedHist (HostAllocator::getHostAllocator(), memSizeHistBuckets);
+Histogram memUsedHist(HostAllocator::getHostAllocator(), memSizeHistBuckets);
 
 #endif // MEASURE_MEM_ALLOC
+
 /*****************************************************************************
  *
  *  Variables to keep track of total code amounts.
