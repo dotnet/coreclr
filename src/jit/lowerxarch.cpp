@@ -2558,6 +2558,7 @@ void Lowering::TreeNodeInfoInitSIMD(GenTree* tree)
             break;
 
         case SIMDIntrinsicGetItem:
+        {
             // This implements get_Item method. The sources are:
             //  - the source SIMD struct
             //  - index (which element to get)
@@ -2571,39 +2572,57 @@ void Lowering::TreeNodeInfoInitSIMD(GenTree* tree)
                 info->srcCount = 1;
             }
 
-            // If the index is not a constant, we will use the SIMD temp location to store the vector.
-            // Otherwise, if the baseType is floating point, the targetReg will be a xmm reg and we
-            // can use that in the process of extracting the element.
-            //
-            // If the index is a constant and base type is a small int we can use pextrw, but on AVX
-            // we will need a temp if are indexing into the upper half of the AVX register.
-            // In all other cases with constant index, we need a temp xmm register to extract the
-            // element if index is other than zero.
+            GenTree* op1 = tree->gtOp.gtOp1;
+            if (op1->isMemoryOp())
+            {
+                MakeSrcContained(tree, op1);
 
-            if (!op2->IsCnsIntOrI())
-            {
-                (void)comp->getSIMDInitTempVarNum();
+                // GT_IND of TYP_SIMD12 also reserves an internal float
+                // register for reading 4 and 8 bytes from memory and
+                // assembling them into a target XMM reg.  In this case
+                // we don't need internal registers.  Clears them as
+                // well.
+                op1->gtLsraInfo.internalIntCount   = 0;
+                op1->gtLsraInfo.internalFloatCount = 0;
             }
-            else if (!varTypeIsFloating(simdTree->gtSIMDBaseType))
+            else
             {
-                bool needFloatTemp;
-                if (varTypeIsSmallInt(simdTree->gtSIMDBaseType) &&
-                    (comp->getSIMDInstructionSet() == InstructionSet_AVX))
+                // If the index is not a constant, we will use the SIMD temp location to store the vector.
+                // Otherwise, if the baseType is floating point, the targetReg will be a xmm reg and we
+                // can use that in the process of extracting the element.
+                //
+                // If the index is a constant and base type is a small int we can use pextrw, but on AVX
+                // we will need a temp if are indexing into the upper half of the AVX register.
+                // In all other cases with constant index, we need a temp xmm register to extract the
+                // element if index is other than zero.
+
+                if (!op2->IsCnsIntOrI())
                 {
-                    int byteShiftCnt = (int)op2->AsIntCon()->gtIconVal * genTypeSize(simdTree->gtSIMDBaseType);
-                    needFloatTemp    = (byteShiftCnt >= 16);
+                    (void)comp->getSIMDInitTempVarNum();
                 }
-                else
+                else if (!varTypeIsFloating(simdTree->gtSIMDBaseType))
                 {
-                    needFloatTemp = !op2->IsIntegralConst(0);
-                }
-                if (needFloatTemp)
-                {
-                    info->internalFloatCount = 1;
-                    info->setInternalCandidates(lsra, lsra->allSIMDRegs());
+                    bool needFloatTemp;
+                    if (varTypeIsSmallInt(simdTree->gtSIMDBaseType) &&
+                        (comp->getSIMDInstructionSet() == InstructionSet_AVX))
+                    {
+                        int byteShiftCnt = (int)op2->AsIntCon()->gtIconVal * genTypeSize(simdTree->gtSIMDBaseType);
+                        needFloatTemp    = (byteShiftCnt >= 16);
+                    }
+                    else
+                    {
+                        needFloatTemp = !op2->IsIntegralConst(0);
+                    }
+
+                    if (needFloatTemp)
+                    {
+                        info->internalFloatCount = 1;
+                        info->setInternalCandidates(lsra, lsra->allSIMDRegs());
+                    }
                 }
             }
-            break;
+        }
+        break;
 
         case SIMDIntrinsicSetX:
         case SIMDIntrinsicSetY:
@@ -2854,11 +2873,10 @@ void Lowering::SetIndirAddrOpCounts(GenTreePtr indirTree)
     }
 #endif // FEATURE_SIMD
 
-    if ((indirTree->gtFlags & GTF_IND_VSD_TGT) != 0)
+    if ((indirTree->gtFlags & GTF_IND_REQ_ADDR_IN_REG) != 0)
     {
-        // The address of an indirection that is marked as the target of a VSD call must
-        // be computed into a register. Skip any further processing that might otherwise
-        // make it contained.
+        // The address of an indirection that requires its address in a reg.
+        // Skip any further processing that might otherwise make it contained.
     }
     else if ((addr->OperGet() == GT_CLS_VAR_ADDR) || (addr->OperGet() == GT_LCL_VAR_ADDR))
     {
