@@ -1167,7 +1167,7 @@ HANDLE ZapImage::SaveImage(LPCWSTR wszOutputFileName, CORCOMPILE_NGEN_SIGNATURE 
 	// that native images are resoure-only DLLs.  It is important to NOT
 	// be a resource-only DLL because those DLL's PDBS are not put up on the
 	// symbol server and we want NEN PDBS to be placed there.  
-	ZapPEExports* exports = new ZapPEExports(wszOutputFileName);
+	ZapPEExports* exports = new(GetHeap()) ZapPEExports(wszOutputFileName);
 	m_pDebugSection->Place(exports);
 	SetDirectoryEntry(IMAGE_DIRECTORY_ENTRY_EXPORT, exports);
 
