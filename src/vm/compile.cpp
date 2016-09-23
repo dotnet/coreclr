@@ -2925,15 +2925,17 @@ public:
         m_hModule = WszLoadLibrary(wszDiasymreaderPath != nullptr ? wszDiasymreaderPath : (LPCWSTR)NATIVE_SYMBOL_READER_DLL);
         if (m_hModule == NULL)
         {
+            hr = HRESULT_FROM_WIN32(GetLastError());
             GetSvcLogger()->Printf(WRITER_LOAD_ERROR_MESSAGE, GetLastError());
-            return HRESULT_FROM_WIN32(GetLastError());
+            return hr;
         }
 
         m_Create = reinterpret_cast<CreateNGenPdbWriter_t>(GetProcAddress(m_hModule, "CreateNGenPdbWriter"));
         if (m_Create == NULL)
         {
+            hr = HRESULT_FROM_WIN32(GetLastError());
             GetSvcLogger()->Printf(WRITER_LOAD_ERROR_MESSAGE, GetLastError());
-            return HRESULT_FROM_WIN32(GetLastError());
+            return hr;
         }
 
         if ((m_dwExtraData & kPDBLines) != 0)
