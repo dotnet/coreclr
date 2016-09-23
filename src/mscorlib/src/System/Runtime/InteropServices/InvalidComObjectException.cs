@@ -16,7 +16,7 @@ namespace System.Runtime.InteropServices {
     using System;
     using System.Runtime.Serialization;
 
-[System.Runtime.InteropServices.ComVisible(true)]
+    [System.Runtime.InteropServices.ComVisible(true)]
     [Serializable]
     public class InvalidComObjectException : SystemException {
         public InvalidComObjectException() 

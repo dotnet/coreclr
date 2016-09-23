@@ -15,34 +15,33 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #define _LOWER_H_
 
 #include "compiler.h"
-#include "phase.h" 
+#include "phase.h"
 #include "lsra.h"
 
 class Lowering : public Phase
 {
 public:
     inline Lowering(Compiler* compiler, LinearScanInterface* lsra)
-        : Phase(compiler, "Lowering", PHASE_LOWERING),
-        vtableCallTemp(BAD_VAR_NUM)
+        : Phase(compiler, "Lowering", PHASE_LOWERING), vtableCallTemp(BAD_VAR_NUM)
     {
-        m_lsra = (LinearScan *)lsra;
+        m_lsra = (LinearScan*)lsra;
         assert(m_lsra);
     }
     virtual void DoPhase();
-    
+
     // If requiresOverflowCheck is false, all other values will be unset
     struct CastInfo
     {
-        bool    requiresOverflowCheck;      // Will the cast require an overflow check
-        bool    unsignedSource;             // Is the source unsigned
-        bool    unsignedDest;               // is the dest unsigned
+        bool requiresOverflowCheck; // Will the cast require an overflow check
+        bool unsignedSource;        // Is the source unsigned
+        bool unsignedDest;          // is the dest unsigned
 
         // All other fields are only meaningful if requiresOverflowCheck is set.
 
-        ssize_t typeMin;                    // Lowest storable value of the dest type
-        ssize_t typeMax;                    // Highest storable value of the dest type
-        ssize_t typeMask;                   // For converting from/to unsigned
-        bool    signCheckOnly;              // For converting between unsigned/signed int
+        ssize_t typeMin;       // Lowest storable value of the dest type
+        ssize_t typeMax;       // Highest storable value of the dest type
+        ssize_t typeMask;      // For converting from/to unsigned
+        bool    signCheckOnly; // For converting between unsigned/signed int
     };
 
 #ifdef _TARGET_64BIT_
@@ -50,64 +49,51 @@ public:
 #endif // _TARGET_64BIT_
 
 private:
-    // Friends
-    static Compiler::fgWalkResult LowerNodeHelper   (GenTreePtr* ppTree, Compiler::fgWalkData* data);
-    static Compiler::fgWalkResult DecompNodeHelper  (GenTreePtr* ppTree, Compiler::fgWalkData* data);
-    static Compiler::fgWalkResult TreeInfoInitHelper(GenTreePtr* ppTree, Compiler::fgWalkData* data);
-    
-    // Member Functions
-    void DecomposeNode(GenTreePtr* tree, Compiler::fgWalkData* data);
-    void LowerNode(GenTreePtr* tree, Compiler::fgWalkData* data);
-    GenTreeStmt* LowerMorphAndSeqTree(GenTree *tree);
+#ifdef DEBUG
+    static void CheckCallArg(GenTree* arg);
+    static void CheckCall(GenTreeCall* call);
+    static void CheckNode(GenTree* node);
+    static bool CheckBlock(Compiler* compiler, BasicBlock* block);
+#endif // DEBUG
+
+    void LowerBlock(BasicBlock* block);
+    GenTree* LowerNode(GenTree* node);
     void CheckVSQuirkStackPaddingNeeded(GenTreeCall* call);
 
     // ------------------------------
     // Call Lowering
     // ------------------------------
-    void LowerCall                    (GenTree*     call);
-    void LowerJmpMethod               (GenTree*     jmp);
-    void LowerRet                     (GenTree*     ret);
-    GenTree* LowerDelegateInvoke      (GenTreeCall* call);
-    GenTree* LowerIndirectNonvirtCall (GenTreeCall* call);
-    GenTree* LowerDirectCall          (GenTreeCall* call);
-    GenTree* LowerNonvirtPinvokeCall  (GenTreeCall* call);
-    GenTree* LowerTailCallViaHelper   (GenTreeCall* callNode, GenTree *callTarget);
-    void     LowerFastTailCall        (GenTreeCall* callNode);
-    void     InsertProfTailCallHook   (GenTreeCall* callNode, GenTree *insertionPoint);
-    GenTree* LowerVirtualVtableCall   (GenTreeCall* call);
-    GenTree* LowerVirtualStubCall     (GenTreeCall* call);
-    void     LowerArgsForCall         (GenTreeCall* call);
-    GenTree* NewPutArg                (GenTreeCall* call, GenTreePtr arg, fgArgTabEntryPtr info, var_types type);
-    void     LowerArg                 (GenTreeCall* call, GenTreePtr *ppTree);
-    void     InsertPInvokeCallProlog  (GenTreeCall* call);
-    void     InsertPInvokeCallEpilog  (GenTreeCall* call);
-    void     InsertPInvokeMethodProlog();
-    void     InsertPInvokeMethodEpilog(BasicBlock *returnBB DEBUGARG(GenTreePtr lastExpr));
-    GenTree *SetGCState(int cns);
-    GenTree *CreateReturnTrapSeq();
-    enum FrameLinkAction { PushFrame, PopFrame };
-    GenTree *CreateFrameLinkUpdate(FrameLinkAction);
-    GenTree *AddrGen(ssize_t addr, regNumber reg = REG_NA);
-    GenTree *AddrGen(void *addr, regNumber reg = REG_NA);
-
-    // return concatenation of two trees, which currently uses a comma and really should not
-    // because we're not supposed to have commas in codegen
-    GenTree *Concat(GenTree *first, GenTree *second) 
-    { 
-        // if any is null, it must be the first
-        if (first == nullptr)
-        {
-            return second;
-        }
-        else if (second == nullptr)
-        {
-            return first;
-        }
-        else
-        {
-            return comp->gtNewOperNode(GT_COMMA, TYP_I_IMPL, first, second); 
-        }
-    }
+    void LowerCall(GenTree* call);
+    void LowerCompare(GenTree* tree);
+    void LowerJmpMethod(GenTree* jmp);
+    void LowerRet(GenTree* ret);
+    GenTree* LowerDelegateInvoke(GenTreeCall* call);
+    GenTree* LowerIndirectNonvirtCall(GenTreeCall* call);
+    GenTree* LowerDirectCall(GenTreeCall* call);
+    GenTree* LowerNonvirtPinvokeCall(GenTreeCall* call);
+    GenTree* LowerTailCallViaHelper(GenTreeCall* callNode, GenTree* callTarget);
+    void LowerFastTailCall(GenTreeCall* callNode);
+    void InsertProfTailCallHook(GenTreeCall* callNode, GenTree* insertionPoint);
+    GenTree* LowerVirtualVtableCall(GenTreeCall* call);
+    GenTree* LowerVirtualStubCall(GenTreeCall* call);
+    void LowerArgsForCall(GenTreeCall* call);
+    void ReplaceArgWithPutArgOrCopy(GenTreePtr* ppChild, GenTreePtr newNode);
+    GenTree* NewPutArg(GenTreeCall* call, GenTreePtr arg, fgArgTabEntryPtr info, var_types type);
+    void LowerArg(GenTreeCall* call, GenTreePtr* ppTree);
+    void InsertPInvokeCallProlog(GenTreeCall* call);
+    void InsertPInvokeCallEpilog(GenTreeCall* call);
+    void InsertPInvokeMethodProlog();
+    void InsertPInvokeMethodEpilog(BasicBlock* returnBB DEBUGARG(GenTreePtr lastExpr));
+    GenTree* SetGCState(int cns);
+    GenTree* CreateReturnTrapSeq();
+    enum FrameLinkAction
+    {
+        PushFrame,
+        PopFrame
+    };
+    GenTree* CreateFrameLinkUpdate(FrameLinkAction);
+    GenTree* AddrGen(ssize_t addr, regNumber reg = REG_NA);
+    GenTree* AddrGen(void* addr, regNumber reg = REG_NA);
 
     GenTree* Ind(GenTree* tree)
     {
@@ -132,79 +118,138 @@ private:
     GenTree* Offset(GenTree* base, unsigned offset)
     {
         var_types resultType = (base->TypeGet() == TYP_REF) ? TYP_BYREF : base->TypeGet();
-        return new(comp, GT_LEA) GenTreeAddrMode(resultType, base, nullptr, 0, offset);
+        return new (comp, GT_LEA) GenTreeAddrMode(resultType, base, nullptr, 0, offset);
     }
 
     // returns true if the tree can use the read-modify-write memory instruction form
     bool isRMWRegOper(GenTreePtr tree);
-    
+
     // return true if this call target is within range of a pc-rel call on the machine
-    bool IsCallTargetInRange(void *addr);
+    bool IsCallTargetInRange(void* addr);
 
     void TreeNodeInfoInit(GenTree* stmt);
-    void TreeNodeInfoInit(GenTreePtr* tree, GenTree* parent);
-#ifdef _TARGET_ARM_
-    void TreeNodeInfoInitCall(GenTreePtr tree, TreeNodeInfo &info, int &srcCount, int &dstCount);
-#endif // _TARGET_ARM_
+
+#if defined(_TARGET_XARCH_)
+    void TreeNodeInfoInitSimple(GenTree* tree);
+
+    //----------------------------------------------------------------------
+    // SetRegOptional - sets a bit to indicate to LSRA that register
+    // for a given tree node is optional for codegen purpose.  If no
+    // register is allocated to such a tree node, its parent node treats
+    // it as a contained memory operand during codegen.
+    //
+    // Arguments:
+    //    tree    -   GenTree node
+    //
+    // Returns
+    //    None
+    void SetRegOptional(GenTree* tree)
+    {
+        tree->gtLsraInfo.regOptional = true;
+    }
+
+    GenTree* PreferredRegOptionalOperand(GenTree* tree);
+
+    // ------------------------------------------------------------------
+    // SetRegOptionalBinOp - Indicates which of the operands of a bin-op
+    // register requirement is optional. Xarch instruction set allows
+    // either of op1 or op2 of binary operation (e.g. add, mul etc) to be
+    // a memory operand.  This routine provides info to register allocator
+    // which of its operands optionally require a register.  Lsra might not
+    // allocate a register to RefTypeUse positions of such operands if it
+    // is beneficial. In such a case codegen will treat them as memory
+    // operands.
+    //
+    // Arguments:
+    //     tree  -  Gentree of a bininary operation.
+    //
+    // Returns
+    //     None.
+    //
+    // Note: On xarch at most only one of the operands will be marked as
+    // reg optional, even when both operands could be considered register
+    // optional.
+    void SetRegOptionalForBinOp(GenTree* tree)
+    {
+        assert(GenTree::OperIsBinary(tree->OperGet()));
+
+        GenTree* op1 = tree->gtGetOp1();
+        GenTree* op2 = tree->gtGetOp2();
+
+        if (tree->OperIsCommutative() && tree->TypeGet() == op1->TypeGet())
+        {
+            GenTree* preferredOp = PreferredRegOptionalOperand(tree);
+            SetRegOptional(preferredOp);
+        }
+        else if (tree->TypeGet() == op2->TypeGet())
+        {
+            SetRegOptional(op2);
+        }
+    }
+#endif // defined(_TARGET_XARCH_)
+    void TreeNodeInfoInitReturn(GenTree* tree);
+    void TreeNodeInfoInitShiftRotate(GenTree* tree);
+    void TreeNodeInfoInitCall(GenTreeCall* call);
+    void TreeNodeInfoInitCmp(GenTreePtr tree);
     void TreeNodeInfoInitStructArg(GenTreePtr structArg);
-    void TreeNodeInfoInitBlockStore(GenTreeBlkOp* blkNode);
+    void TreeNodeInfoInitBlockStore(GenTreeBlk* blkNode);
+    void TreeNodeInfoInitLogicalOp(GenTree* tree);
+    void TreeNodeInfoInitModDiv(GenTree* tree);
+    void TreeNodeInfoInitIntrinsic(GenTree* tree);
 #ifdef FEATURE_SIMD
-    void TreeNodeInfoInitSIMD(GenTree* tree, LinearScan* lsra);
+    void TreeNodeInfoInitSIMD(GenTree* tree);
 #endif // FEATURE_SIMD
+    void TreeNodeInfoInitCast(GenTree* tree);
 #ifdef _TARGET_ARM64_
     void TreeNodeInfoInitPutArgStk(GenTree* argNode, fgArgTabEntryPtr info);
 #endif // _TARGET_ARM64_
-#if defined(_TARGET_XARCH_)
-    void TreeNodeInfoInitSimple(GenTree* tree, TreeNodeInfo* info, unsigned kind);
-#endif // defined(_TARGET_XARCH_)
+#ifdef FEATURE_PUT_STRUCT_ARG_STK
+    void TreeNodeInfoInitPutArgStk(GenTree* tree);
+#endif // FEATURE_PUT_STRUCT_ARG_STK
+    void TreeNodeInfoInitLclHeap(GenTree* tree);
 
-    void SpliceInUnary(GenTreePtr parent, GenTreePtr* ppChild, GenTreePtr newNode);
     void DumpNodeInfoMap();
 
     // Per tree node member functions
-    void LowerInd(GenTreePtr* ppTree);
-    void LowerAddrMode(GenTreePtr* ppTree, GenTree* before, Compiler::fgWalkData* data, bool isIndir);
-    void LowerAdd(GenTreePtr* ppTree, Compiler::fgWalkData* data);
+    void LowerStoreInd(GenTree* node);
+    GenTree* LowerAdd(GenTree* node);
+    void LowerUnsignedDivOrMod(GenTree* node);
+    GenTree* LowerSignedDivOrMod(GenTree* node);
+    void LowerBlockStore(GenTreeBlk* blkNode);
 
-    // Remove the nodes that are no longer used after an addressing mode is constructed under a GT_IND
-    void LowerIndCleanupHelper(GenTreeAddrMode* addrMode, GenTreePtr tree);
-    void LowerSwitch(GenTreePtr* ppTree);
-    void LowerCast(GenTreePtr* ppTree);
-    void LowerCntBlockOp(GenTreePtr* ppTree);
+    GenTree* TryCreateAddrMode(LIR::Use&& use, bool isIndir);
+    void AddrModeCleanupHelper(GenTreeAddrMode* addrMode, GenTree* node);
 
+    GenTree* LowerSwitch(GenTree* node);
+    void LowerCast(GenTree* node);
+
+#if defined(_TARGET_XARCH_)
     void SetMulOpCounts(GenTreePtr tree);
-    void LowerCmp(GenTreePtr tree);
+#endif // defined(_TARGET_XARCH_)
 
 #if !CPU_LOAD_STORE_ARCH
     bool IsBinOpInRMWStoreInd(GenTreePtr tree);
-    bool IsRMWMemOpRootedAtStoreInd(GenTreePtr storeIndTree, GenTreePtr *indirCandidate, GenTreePtr *indirOpSource);
+    bool IsRMWMemOpRootedAtStoreInd(GenTreePtr storeIndTree, GenTreePtr* indirCandidate, GenTreePtr* indirOpSource);
     bool SetStoreIndOpCountsIfRMWMemOp(GenTreePtr storeInd);
 #endif
     void LowerStoreLoc(GenTreeLclVarCommon* tree);
-    void SetIndirAddrOpCounts(GenTree *indirTree);
-    void LowerGCWriteBarrier(GenTree *tree);
-    void LowerArrElem(GenTree **ppTree, Compiler::fgWalkData* data);
-    void LowerRotate(GenTree *tree);
+    void SetIndirAddrOpCounts(GenTree* indirTree);
+    void LowerGCWriteBarrier(GenTree* tree);
+    GenTree* LowerArrElem(GenTree* node);
+    void LowerRotate(GenTree* tree);
 
     // Utility functions
-    void MorphBlkIntoHelperCall         (GenTreePtr pTree, GenTreePtr treeStmt);
+    void MorphBlkIntoHelperCall(GenTreePtr pTree, GenTreePtr treeStmt);
+
 public:
-    static bool IndirsAreEquivalent            (GenTreePtr pTreeA, GenTreePtr pTreeB);
+    static bool IndirsAreEquivalent(GenTreePtr pTreeA, GenTreePtr pTreeB);
+
 private:
-    static bool NodesAreEquivalentLeaves       (GenTreePtr candidate, GenTreePtr storeInd);
+    static bool NodesAreEquivalentLeaves(GenTreePtr candidate, GenTreePtr storeInd);
 
-    GenTreePtr  CreateLocalTempAsg      (GenTreePtr rhs, unsigned refCount, GenTreePtr *ppLclVar = nullptr);
+    bool AreSourcesPossiblyModified(GenTree* addr, GenTree* base, GenTree* index);
 
-    bool AreSourcesPossiblyModified     (GenTree* use, GenTree* src1, GenTree *src2);
-    void ReplaceNode                    (GenTree** ppTreeLocation,
-                                         GenTree* replacementNode,
-                                         GenTree* stmt,
-                                         BasicBlock* block);
-
-    void UnlinkNode                     (GenTree** ppParentLink, GenTree* stmt, BasicBlock* block);
-    void SimpleLinkNodeAfter            (GenTree* prevTree, GenTree* newTree);
-
-    // return true if 'childNode' is an immediate that can be contained 
+    // return true if 'childNode' is an immediate that can be contained
     //  by the 'parentNode' (i.e. folded into an instruction)
     //  for example small enough and non-relocatable
     bool IsContainableImmed(GenTree* parentNode, GenTree* childNode);
@@ -214,13 +259,19 @@ private:
 
     // Checks and makes 'childNode' contained in the 'parentNode'
     bool CheckImmedAndMakeContained(GenTree* parentNode, GenTree* childNode);
-    
-    // Checks for memory conflicts in the instructions between childNode and parentNode, and returns true if childNode can be contained.
+
+    // Checks for memory conflicts in the instructions between childNode and parentNode, and returns true if childNode
+    // can be contained.
     bool IsSafeToContainMem(GenTree* parentNode, GenTree* childNode);
 
-    LinearScan *m_lsra;
-    BasicBlock *currBlock;
-    unsigned vtableCallTemp; // local variable we use as a temp for vtable calls
+    inline LIR::Range& BlockRange() const
+    {
+        return LIR::AsRange(m_block);
+    }
+
+    LinearScan* m_lsra;
+    unsigned    vtableCallTemp; // local variable we use as a temp for vtable calls
+    BasicBlock* m_block;
 };
 
 #endif // _LOWER_H_

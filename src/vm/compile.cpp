@@ -382,7 +382,6 @@ HRESULT CEECompileInfo::LoadAssemblyByPath(
 
     Assembly * pAssembly;
     HRESULT    hrProcessLibraryBitnessMismatch = S_OK;
-    bool       verifyingImageIsAssembly = false;
 
     // We don't want to do a LoadFrom, since they do not work with ngen. Instead,
     // read the metadata from the file and do a bind based on that.
@@ -416,9 +415,6 @@ HRESULT CEECompileInfo::LoadAssemblyByPath(
                 fExplicitBindToNativeImage ? MDInternalImport_NoCache : MDInternalImport_Default);
         }
 
-#if defined(FEATURE_WINDOWSPHONE)
-        verifyingImageIsAssembly = true;
-#endif // FEATURE_WINDOWSPHONE
         if (fExplicitBindToNativeImage && !pImage->HasReadyToRunHeader())
         {
             pImage->VerifyIsNIAssembly();
@@ -427,8 +423,6 @@ HRESULT CEECompileInfo::LoadAssemblyByPath(
         {
             pImage->VerifyIsAssembly();
         }
-        
-        verifyingImageIsAssembly = false;
 
         // Check to make sure the bitness of the assembly matches the bitness of the process
         // we will be loading it into and store the result.  If a COR_IMAGE_ERROR gets thrown
@@ -552,11 +546,7 @@ HRESULT CEECompileInfo::LoadAssemblyByPath(
     }
     EX_CATCH_HRESULT(hr);
     
-    if (verifyingImageIsAssembly && hr != S_OK)
-    {
-        hr = NGEN_E_FILE_NOT_ASSEMBLY;
-    }
-    else if ( hrProcessLibraryBitnessMismatch != S_OK && ( hr == COR_E_BADIMAGEFORMAT || hr == HRESULT_FROM_WIN32(ERROR_BAD_EXE_FORMAT) ) )
+    if ( hrProcessLibraryBitnessMismatch != S_OK && ( hr == COR_E_BADIMAGEFORMAT || hr == HRESULT_FROM_WIN32(ERROR_BAD_EXE_FORMAT) ) )
     {
         hr = hrProcessLibraryBitnessMismatch;
     }
@@ -2009,7 +1999,8 @@ void CEECompileInfo::EncodeMethod(
                           LPVOID                pEncodeModuleContext,
                           ENCODEMODULE_CALLBACK pfnEncodeModule,
                           CORINFO_RESOLVED_TOKEN * pResolvedToken,
-                          CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken)
+                          CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken,
+                          BOOL                  fEncodeUsingResolvedTokenSpecStreams)
 {
     STANDARD_VM_CONTRACT;
 
@@ -2022,7 +2013,8 @@ void CEECompileInfo::EncodeMethod(
                               pSigBuilder,
                               pEncodeModuleContext, 
                               pfnEncodeModule, NULL,
-                              pResolvedToken, pConstrainedResolvedToken);
+                              pResolvedToken, pConstrainedResolvedToken,
+                              fEncodeUsingResolvedTokenSpecStreams);
     _ASSERTE(fSuccess);
 
     COOPERATIVE_TRANSITION_END();
@@ -2366,7 +2358,8 @@ void CEECompileInfo::EncodeField(
                          SigBuilder *          pSigBuilder,
                          LPVOID                encodeContext,
                          ENCODEMODULE_CALLBACK pfnEncodeModule,
-                         CORINFO_RESOLVED_TOKEN * pResolvedToken)
+                         CORINFO_RESOLVED_TOKEN * pResolvedToken, 
+                         BOOL fEncodeUsingResolvedTokenSpecStreams)
 {
     STANDARD_VM_CONTRACT;
 
@@ -2377,7 +2370,8 @@ void CEECompileInfo::EncodeField(
                         pSigBuilder,
                         encodeContext, 
                         pfnEncodeModule,
-                        pResolvedToken);
+                        pResolvedToken,
+                        fEncodeUsingResolvedTokenSpecStreams);
 
     COOPERATIVE_TRANSITION_END();
 }
@@ -2528,7 +2522,11 @@ int CEECompileInfo::GetVersionResilientTypeHashCode(CORINFO_MODULE_HANDLE module
 {
     STANDARD_VM_CONTRACT;
 
-    return ::GetVersionResilientTypeHashCode(((Module *)moduleHandle)->GetMDImport(), token);
+    int dwHashCode;
+    if (!::GetVersionResilientTypeHashCode(((Module *)moduleHandle)->GetMDImport(), token, &dwHashCode))
+        ThrowHR(COR_E_BADIMAGEFORMAT);
+
+    return dwHashCode;
 }
 
 int CEECompileInfo::GetVersionResilientMethodHashCode(CORINFO_METHOD_HANDLE methodHandle)
@@ -2912,13 +2910,13 @@ public:
         LIMITED_METHOD_CONTRACT;
     }
             
-    HRESULT Load()
+    HRESULT Load(LPCWSTR wszDiasymreaderPath = nullptr)
     {
         STANDARD_VM_CONTRACT;
 
         HRESULT hr = S_OK;
 
-        m_hModule = WszLoadLibrary(W("diasymreader.dll"));
+        m_hModule = WszLoadLibrary(wszDiasymreaderPath != nullptr ? wszDiasymreaderPath : W("diasymreader.dll"));
         if (m_hModule == NULL)
         {
             GetSvcLogger()->Printf(
@@ -3052,6 +3050,13 @@ private:
     DWORD m_dwExtraData;
     LPCWSTR m_wszManagedPDBSearchPath;
 
+	// Currently The DiasymWriter does not use the correct PDB signature for NGEN PDBS unless 
+	// the NGEN DLL whose symbols are being generated end in .ni.dll.   Thus we copy
+	// to this name if it does not follow this covention (as is true with readyToRun
+	// dlls).   This variable remembers this temp file path so we can delete it after
+	// Pdb generation.   If DiaSymWriter is fixed, we can remove this.  
+	SString m_tempSourceDllName;
+
     // Interfaces for reading IL PDB info
     ReleaseHolder<ISymUnmanagedBinder> m_pBinder;
     ReleaseHolder<ISymUnmanagedReader> m_pReader;
@@ -3099,6 +3104,8 @@ public:
 
         ZeroMemory(m_wszPDBFilePath, sizeof(m_wszPDBFilePath));
     }
+
+	~NGenModulePdbWriter();
     
     HRESULT WritePDBData();
 
@@ -3399,6 +3406,13 @@ HRESULT NGenModulePdbWriter::InitILPdbData()
     return S_OK;
 }
 
+NGenModulePdbWriter::~NGenModulePdbWriter()
+{
+	// Delete any temporary files we created. 
+	if (m_tempSourceDllName.GetCount() != 0)
+		DeleteFileW(m_tempSourceDllName);
+	m_tempSourceDllName.Clear();
+}
 
 //---------------------------------------------------------------------------------------
 //
@@ -3433,8 +3447,32 @@ HRESULT NGenModulePdbWriter::WritePDBData()
 
     PEImageLayout * pLoadedLayout = m_pModule->GetFile()->GetLoaded();
 
+	// Currently DiaSymReader does not work properly generating NGEN PDBS unless 
+	// the DLL whose PDB is being generated ends in .ni.*.   Unfortunately, readyToRun
+	// images do not follow this convention and end up producing bad PDBS.  To fix
+	// this (without changing diasymreader.dll which ships indepdendently of .Net Core)
+	// we copy the file to somethign with this convention before generating the PDB
+	// and delete it when we are done.  
+	SString dllPath = pLoadedLayout->GetPath();
+	if (!dllPath.EndsWithCaseInsensitive(L".ni.dll") && !dllPath.EndsWithCaseInsensitive(L".ni.exe"))
+	{
+		SString::Iterator fileNameStart = dllPath.Begin();
+		dllPath.FindBack(fileNameStart, '\\');
+
+		SString::Iterator ext = dllPath.End();
+		dllPath.FindBack(ext, '.');
+
+		// m_tempSourceDllName = Convertion of  INPUT.dll  to INPUT.ni.dll where the PDB lives.  
+		m_tempSourceDllName = m_wszPdbPath;
+		m_tempSourceDllName += SString(dllPath, fileNameStart, ext - fileNameStart);
+		m_tempSourceDllName += L".ni";
+		m_tempSourceDllName += SString(dllPath, ext, dllPath.End() - ext);
+		CopyFileW(dllPath, m_tempSourceDllName, false);
+		dllPath = m_tempSourceDllName;
+	}
+
     ReleaseHolder<ISymNGenWriter> pWriter1;
-    hr = m_Create(pLoadedLayout->GetPath(), m_wszPdbPath, &pWriter1);
+    hr = m_Create(dllPath, m_wszPdbPath, &pWriter1);
     if (FAILED(hr))
         return hr;
     
@@ -4786,7 +4824,7 @@ BOOL NGenMethodLinesPdbWriter::FinalizeLinesFileBlock(
 }
 #endif // NO_NGENPDB
 #if defined(FEATURE_PERFMAP) || !defined(NO_NGENPDB)
-HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath)
+HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath, LPCWSTR pDiasymreaderPath)
 {
     STANDARD_VM_CONTRACT;
 
@@ -4801,7 +4839,7 @@ HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImage
         pPdbPath, 
         pdbLines ? kPDBLines : 0,
         pManagedPdbSearchPath);
-    IfFailThrow(pdbWriter.Load());
+    IfFailThrow(pdbWriter.Load(pDiasymreaderPath));
 #elif defined(FEATURE_PERFMAP)
     NativeImagePerfMap perfMap(pAssembly, pPdbPath);
 #endif
@@ -4845,7 +4883,7 @@ HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImage
     return S_OK;
 }
 #else
-HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath)
+HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath, LPCWSTR pDiasymreaderPath)
 {
     return E_NOTIMPL;
 }
@@ -4932,6 +4970,8 @@ CEEPreloader::CEEPreloader(Module *pModule,
     CONSISTENCY_CHECK(pModule == GetAppDomain()->ToCompilationDomain()->GetTargetModule());
 
     GetAppDomain()->ToCompilationDomain()->SetTargetImage(m_image, this);
+
+    m_methodCompileLimit = pModule->GetMDImport()->GetCountWithTokenKind(mdtMethodDef) * 10;
 
 #ifdef FEATURE_FULL_NGEN
     m_fSpeculativeTriage = FALSE;
@@ -5142,7 +5182,7 @@ void CEEPreloader::MethodReferencedByCompiledCode(CORINFO_METHOD_HANDLE handle)
 
         if (pEntry->fScheduled)
             return;        
-        m_uncompiledMethods.Append(pMD);
+        AppendUncompiledMethod(pMD);
     }
     else
     {
@@ -5352,7 +5392,7 @@ void CEEPreloader::AddToUncompiledMethods(MethodDesc *pMD, BOOL fForStubs)
     }
 
     // Add it to the set of uncompiled methods
-    m_uncompiledMethods.Append(pMD);
+    AppendUncompiledMethod(pMD);
 }
 
 //
@@ -5449,6 +5489,35 @@ static void SpecializeComparer(SString& ss, Instantiation& inst)
         {
             ss.Set(W("System.Collections.Generic.NullableComparer`1"));
             inst = nullableInst;
+            return;
+        }
+    }
+
+    if (elemTypeHnd.IsEnum())
+    {
+        CorElementType et = elemTypeHnd.GetVerifierCorElementType();
+        if (et == ELEMENT_TYPE_I1 ||
+            et == ELEMENT_TYPE_I2 ||
+            et == ELEMENT_TYPE_I4)
+        {
+            ss.Set(W("System.Collections.Generic.Int32EnumComparer`1"));
+            return;
+        }
+        if (et == ELEMENT_TYPE_U1 ||
+            et == ELEMENT_TYPE_U2 ||
+            et == ELEMENT_TYPE_U4)
+        {
+            ss.Set(W("System.Collections.Generic.UInt32EnumComparer`1"));
+            return;
+        }
+        if (et == ELEMENT_TYPE_I8)
+        {
+            ss.Set(W("System.Collections.Generic.Int64EnumComparer`1"));
+            return;
+        }
+        if (et == ELEMENT_TYPE_U8)
+        {
+            ss.Set(W("System.Collections.Generic.UInt64EnumComparer`1"));
             return;
         }
     }

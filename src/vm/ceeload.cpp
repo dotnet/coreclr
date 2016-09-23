@@ -3022,7 +3022,6 @@ BOOL Module::GetNeutralResourcesLanguage(LPCUTF8 * cultureName, ULONG * cultureN
 }
 
 
-#ifndef FEATURE_CORECLR
 BOOL Module::HasDefaultDllImportSearchPathsAttribute()
 {
     CONTRACTL
@@ -3052,7 +3051,6 @@ BOOL Module::HasDefaultDllImportSearchPathsAttribute()
 
     return (m_dwPersistedFlags & DEFAULT_DLL_IMPORT_SEARCH_PATHS_STATUS) != 0 ;
 }
-#endif // !FEATURE_CORECLR
 
 // Returns a BOOL to indicate if we have computed whether compiler has instructed us to
 // wrap the non-CLS compliant exceptions or not.
@@ -3429,8 +3427,8 @@ void Module::EnumRegularStaticGCRefs(AppDomain* pAppDomain, promote_func* fn, Sc
     }
     CONTRACT_END;
 
-    _ASSERTE(GCHeap::IsGCInProgress() && 
-         GCHeap::IsServerHeap() && 
+    _ASSERTE(GCHeapUtilities::IsGCInProgress() && 
+         GCHeapUtilities::IsServerHeap() && 
          IsGCSpecialThread());
 
 
@@ -6266,7 +6264,7 @@ Module *Module::GetModuleIfLoaded(mdFile kFile, BOOL onlyLoadedInAppDomain, BOOL
 #ifndef DACCESS_COMPILE
 #if defined(FEATURE_MULTIMODULE_ASSEMBLIES)
     // check if actually loaded, unless happens during GC (GC works only with loaded assemblies)
-    if (!GCHeap::IsGCInProgress() && onlyLoadedInAppDomain && pModule && !pModule->IsManifest())
+    if (!GCHeapUtilities::IsGCInProgress() && onlyLoadedInAppDomain && pModule && !pModule->IsManifest())
     {
         DomainModule *pDomainModule = pModule->FindDomainModule(GetAppDomain());
         if (pDomainModule == NULL || !pDomainModule->IsLoaded())
@@ -9948,9 +9946,7 @@ void Module::Save(DataImage *image)
     GetReliabilityContract();
     IsPreV4Assembly();
 
-#ifndef FEATURE_CORECLR
     HasDefaultDllImportSearchPathsAttribute();
-#endif
 
     // Precompute property information to avoid runtime metadata lookup
     PopulatePropertyInfoMap();

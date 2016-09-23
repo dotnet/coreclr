@@ -537,10 +537,22 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
 #ifndef FEATURE_PAL
         pvControlPc = Thread::VirtualUnwindCallFrame(&ctx, &nonVolRegPtrs);
 #else // !FEATURE_PAL
-        PAL_VirtualUnwind(&ctx, &nonVolRegPtrs);
+#ifdef DACCESS_COMPILE
+        HRESULT hr = DacVirtualUnwind(threadId, &ctx, &nonVolRegPtrs);
+        if (FAILED(hr))
+        {
+            DacError(hr);
+        }
+#else // DACCESS_COMPILE
+        BOOL success = PAL_VirtualUnwind(&ctx, &nonVolRegPtrs);
+        if (!success)
+        {
+            _ASSERTE(!"unwindLazyState: Unwinding failed");
+            EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
+        }
+#endif // DACCESS_COMPILE
         pvControlPc = GetIP(&ctx);
 #endif // !FEATURE_PAL
-
         if (funCallDepth > 0)
         {
             --funCallDepth;
@@ -2638,7 +2650,7 @@ void InitJITHelpers1()
         ))
     {
 
-        _ASSERTE(GCHeap::UseAllocationContexts());
+        _ASSERTE(GCHeapUtilities::UseAllocationContexts());
         // If the TLS for Thread is low enough use the super-fast helpers
         if (gThreadTLSIndex < TLS_MINIMUM_AVAILABLE)
         {
@@ -3922,6 +3934,13 @@ PCODE DynamicHelpers::CreateHelperWithTwoArgs(LoaderAllocator * pAllocator, TADD
     END_DYNAMIC_HELPER_EMIT();
 }
 
+PCODE DynamicHelpers::CreateDictionaryLookupHelper(LoaderAllocator * pAllocator, CORINFO_RUNTIME_LOOKUP * pLookup, DWORD dictionaryIndexAndSlot, Module * pModule)
+{
+    STANDARD_VM_CONTRACT;
+
+    // TODO (NYI)
+    ThrowHR(E_NOTIMPL);
+}
 #endif // FEATURE_READYTORUN
 
 #endif // CROSSGEN_COMPILE

@@ -81,7 +81,7 @@ typedef unsigned short wchar_t;
 
 class ClassLoader;
 class LoaderHeap;
-class GCHeap;
+class IGCHeap;
 class Object;
 class StringObject;
 class TransparentProxyObject;
@@ -418,8 +418,6 @@ GPTR_DECL(MethodTable,      g_pCriticalFinalizerObjectClass);
 GPTR_DECL(MethodTable,      g_pAsyncFileStream_AsyncResultClass);
 GPTR_DECL(MethodTable,      g_pOverlappedDataClass);
 
-GPTR_DECL(MethodTable,      g_ArgumentHandleMT);
-GPTR_DECL(MethodTable,      g_ArgIteratorMT);
 GPTR_DECL(MethodTable,      g_TypedReferenceMT);
 
 GPTR_DECL(MethodTable,      g_pByteArrayMT);
@@ -473,6 +471,12 @@ GPTR_DECL(Thread,g_pSuspensionThread);
 // Global SyncBlock cache
 typedef DPTR(SyncTableEntry) PTR_SyncTableEntry;
 GPTR_DECL(SyncTableEntry, g_pSyncTable);
+
+#if defined(ENABLE_PERF_COUNTERS) || defined(FEATURE_EVENT_TRACE)
+// Note this is not updated in a thread safe way so the value may not be accurate. We get
+// it accurately in full GCs if the handle count is requested.
+extern DWORD g_dwHandles;
+#endif // ENABLE_PERF_COUNTERS || FEATURE_EVENT_TRACE
 
 #ifdef FEATURE_COMINTEROP
 // Global RCW cleanup list
@@ -604,6 +608,10 @@ EXTERN DWORD g_FinalizerWaiterStatus;
 extern ULONGLONG g_ObjFinalizeStartTime;
 extern Volatile<BOOL> g_FinalizerIsRunning;
 extern Volatile<ULONG> g_FinalizerLoopCount;
+
+#if defined(FEATURE_PAL) && defined(FEATURE_EVENT_TRACE)
+extern Volatile<BOOL> g_TriggerHeapDump;
+#endif // FEATURE_PAL
 
 extern LONG GetProcessedExitProcessEventCount();
 

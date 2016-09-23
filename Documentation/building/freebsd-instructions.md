@@ -67,6 +67,14 @@ janhenke@freebsd-frankfurt:~/git/coreclr % ./build.sh
 
 Note: FreeBSD 10.1-RELEASE system's Clang/LLVM is 3.4, the minimum version to compile CoreCLR runtime is 3.5. See [Note on Clang/LLVM versions](#note-on-clangllvm-versions).
 
+If the build fails with errors about resolving LLVM-components, the default Clang-version assumed (3.5) may not be appropriate for your system.
+Override it using the following syntax. In this example LLVM 3.6 is used:
+
+```sh
+janhenke@freebsd-frankfurt:~/git/coreclr % ./build.sh clang3.6
+```
+
+
 After the build is completed, there should some files placed in `bin/Product/FreeBSD.x64.Debug`.  The ones we are interested in are:
 
 * `corerun`: The command line host.  This program loads and starts the CoreCLR runtime and passes the managed program you want to run to it.
@@ -85,7 +93,7 @@ Build the Framework Native Components
 ======================================
 
 ```sh
-janhenke@freebsd-frankfurt:~/git/corefx$ ./build.sh native
+janhenke@freebsd-frankfurt:~/git/corefx$ ./build-native.sh
 janhenke@freebsd-frankfurt:~/git/corefx$ cp bin/FreeBSD.x64.Debug/Native/*.so ~/coreclr-demo/runtime
 ```
 
@@ -105,7 +113,7 @@ The output is placed in `bin\Product\FreeBSD.x64.Debug\mscorlib.dll`.  You'll wa
 For the rest of the framework, you need to pass some special parameters to build.cmd when building out of the CoreFX repository.
 
 ```
-D:\git\corefx> build.cmd /p:OSGroup=Linux /p:SkipTests=true
+D:\git\corefx> build-managed.cmd -os=Linux -target-os=Linux -SkipTests
 ```
 
 Note: We are using the Linux build currently, as CoreFX does not yet know about FreeBSD.

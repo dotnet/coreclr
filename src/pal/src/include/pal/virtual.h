@@ -26,12 +26,12 @@ extern "C"
 #endif // __cplusplus
 
 typedef struct _CMI {
-    
-    struct _CMI * pNext;        /* Link to the next entry. */
-    struct _CMI * pLast;        /* Link to the previous entry. */
 
-    UINT_PTR   startBoundary;   /* Starting location of the region. */
-    SIZE_T   memSize;         /* Size of the entire region.. */
+    struct _CMI * pNext;        /* Link to the next entry. */
+    struct _CMI * pPrevious;    /* Link to the previous entry. */
+
+    UINT_PTR startBoundary;     /* Starting location of the region. */
+    SIZE_T   memSize;           /* Size of the entire region.. */
 
     DWORD  accessProtection;    /* Initial allocation access protection. */
     DWORD  allocationType;      /* Initial allocation type. */
@@ -41,11 +41,8 @@ typedef struct _CMI {
 
     BYTE * pProtectionState;    /* Individual allocation type tracking for each */
                                 /* page in the region. */
-#if MMAP_DOESNOT_ALLOW_REMAP
-    BYTE * pDirtyPages;         /* Pages that need to be cleared if re-committed */
-#endif // MMAP_DOESNOT_ALLOW_REMAP
 
-}CMI, * PCMI;
+} CMI, * PCMI;
 
 enum VIRTUAL_CONSTANTS
 {
@@ -91,16 +88,6 @@ Function :
 
 --*/
 void VIRTUALCleanup( void );
-
-/*++
-Function :
-    VIRTUALOwnedRegion
-
-    Returns whether the space in question is owned the VIRTUAL system.
-
---*/
-BOOL VIRTUALOwnedRegion( IN UINT_PTR address );
-
 
 #ifdef __cplusplus
 }
@@ -209,7 +196,7 @@ Function :
     that is located close to the coreclr library. The memory comes from the virtual
     address range that is managed by ExecutableMemoryAllocator.
 --*/
-void* ReserveMemoryFromExecutableAllocator(SIZE_T allocationSize);
+void* ReserveMemoryFromExecutableAllocator(CorUnix::CPalThread* pthrCurrent, SIZE_T allocationSize);
 
 #endif /* _PAL_VIRTUAL_H_ */
 

@@ -125,16 +125,15 @@ inline bool SafeToReportGenericParamContext(CrawlFrame* pCF)
 #ifndef USE_GC_INFO_DECODER
 
     ICodeManager * pEECM = pCF->GetCodeManager();
-    if (pEECM != NULL && pEECM->IsInPrologOrEpilog(pCF->GetRelOffset(), pCF->GetGCInfo(), NULL))
+    if (pEECM != NULL && pEECM->IsInPrologOrEpilog(pCF->GetRelOffset(), pCF->GetGCInfoToken(), NULL))
     {
         return false;
     }
 
 #else  // USE_GC_INFO_DECODER
 
-    GcInfoDecoder gcInfoDecoder((PTR_CBYTE)pCF->GetGCInfo(), 
-            DECODE_PROLOG_LENGTH, 
-            0);
+    GcInfoDecoder gcInfoDecoder(pCF->GetGCInfoToken(),
+            DECODE_PROLOG_LENGTH);
     UINT32 prologLength = gcInfoDecoder.GetPrologSize();
     if (pCF->GetRelOffset() < prologLength)
     {
@@ -199,8 +198,8 @@ bool FindFirstInterruptiblePointStateCB(
 // the end is exclusive). Return -1 if no such point exists.
 unsigned FindFirstInterruptiblePoint(CrawlFrame* pCF, unsigned offs, unsigned endOffs)
 {
-    PTR_BYTE gcInfoAddr = dac_cast<PTR_BYTE>(pCF->GetCodeInfo()->GetGCInfo());
-    GcInfoDecoder gcInfoDecoder(gcInfoAddr, DECODE_FOR_RANGES_CALLBACK, 0);
+    GCInfoToken gcInfoToken = pCF->GetGCInfoToken();
+    GcInfoDecoder gcInfoDecoder(gcInfoToken, DECODE_FOR_RANGES_CALLBACK);
 
     FindFirstInterruptiblePointState state;
     state.offs = offs;
@@ -281,11 +280,10 @@ StackWalkAction GcStackCrawlCallBack(CrawlFrame* pCF, VOID* pData)
 #if defined(WIN64EXCEPTIONS)
             if (pCF->ShouldParentToFuncletUseUnwindTargetLocationForGCReporting())
             {
-                PTR_BYTE gcInfoAddr = dac_cast<PTR_BYTE>(pCF->GetCodeInfo()->GetGCInfo());
+                GCInfoToken gcInfoToken = pCF->GetGCInfoToken();
                 GcInfoDecoder _gcInfoDecoder(
-                                    gcInfoAddr,
-                                    DECODE_CODE_LENGTH,
-                                    0
+                                    gcInfoToken,
+                                    DECODE_CODE_LENGTH
                                     );
                 
                 if(_gcInfoDecoder.WantsReportOnlyLeaf())
@@ -552,7 +550,7 @@ void GCToEEInterface::GcScanRoots(promote_func* fn, int condemned, int max_gen, 
     STRESS_LOG1(LF_GCROOTS, LL_INFO10, "GCScan: Promotion Phase = %d\n", sc->promotion);
 
     // In server GC, we should be competing for marking the statics
-    if (GCHeap::MarkShouldCompeteForStatics())
+    if (GCHeapUtilities::MarkShouldCompeteForStatics())
     {
         if (condemned == max_gen && sc->promotion)
         {
@@ -565,7 +563,7 @@ void GCToEEInterface::GcScanRoots(promote_func* fn, int condemned, int max_gen, 
     {
         STRESS_LOG2(LF_GC | LF_GCROOTS, LL_INFO100, "{ Starting scan of Thread %p ID = %x\n", pThread, pThread->GetThreadId());
 
-        if (GCHeap::GetGCHeap()->IsThreadUsingAllocationContextHeap(
+        if (GCHeapUtilities::GetGCHeap()->IsThreadUsingAllocationContextHeap(
             GCToEEInterface::GetAllocContext(pThread), sc->thread_number))
         {
             sc->thread_under_crawl = pThread;
@@ -585,7 +583,7 @@ void GCToEEInterface::GcStartWork (int condemned, int max_gen)
 {
     CONTRACTL
     {
-        THROWS; // StubHelpers::ProcessByrefValidationList throws
+        NOTHROW;
         GC_NOTRIGGER;
     }
     CONTRACTL_END;
@@ -660,7 +658,7 @@ void GCToEEInterface::GcBeforeBGCSweepWork()
 {
     CONTRACTL
     {
-        THROWS; // StubHelpers::ProcessByrefValidationList throws
+        NOTHROW;
         GC_NOTRIGGER;
     }
     CONTRACTL_END;
@@ -695,13 +693,7 @@ void GCToEEInterface::SyncBlockCachePromotionsGranted(int max_gen)
     SyncBlockCache::GetSyncBlockCache()->GCDone(FALSE, max_gen);
 }
 
-void GCToEEInterface::SetGCSpecial(Thread * pThread)
-{
-    WRAPPER_NO_CONTRACT;
-    pThread->SetGCSpecial(true);
-}
-
-alloc_context * GCToEEInterface::GetAllocContext(Thread * pThread)
+gc_alloc_context * GCToEEInterface::GetAllocContext(Thread * pThread)
 {
     WRAPPER_NO_CONTRACT;
     return pThread->GetAllocContext();
@@ -745,4 +737,105 @@ void GCToEEInterface::DisablePreemptiveGC(Thread * pThread)
 {
     WRAPPER_NO_CONTRACT;
     pThread->DisablePreemptiveGC();
+}
+
+struct BackgroundThreadStubArgs
+{
+    Thread* thread;
+    GCBackgroundThreadFunction threadStart;
+    void* arg;
+    CLREvent threadStartedEvent;
+    bool hasStarted;
+};
+
+DWORD BackgroundThreadStub(void* arg)
+{
+    BackgroundThreadStubArgs* stubArgs = (BackgroundThreadStubArgs*)arg;
+    assert (stubArgs->thread != NULL);
+
+    ClrFlsSetThreadType (ThreadType_GC);
+    stubArgs->thread->SetGCSpecial(true);
+    STRESS_LOG_RESERVE_MEM (GC_STRESSLOG_MULTIPLY);
+
+    stubArgs->hasStarted = !!stubArgs->thread->HasStarted(FALSE);
+
+    Thread* thread = stubArgs->thread;
+    GCBackgroundThreadFunction realThreadStart = stubArgs->threadStart;
+    void* realThreadArg = stubArgs->arg;
+    bool hasStarted = stubArgs->hasStarted;
+
+    stubArgs->threadStartedEvent.Set();
+    // The stubArgs cannot be used once the event is set, since that releases wait on the
+    // event in the function that created this thread and the stubArgs go out of scope.
+
+    DWORD result = 0;
+
+    if (hasStarted)
+    {
+        result = realThreadStart(realThreadArg);
+        DestroyThread(thread);
+    }
+
+    return result;
+}
+
+Thread* GCToEEInterface::CreateBackgroundThread(GCBackgroundThreadFunction threadStart, void* arg)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+    }
+    CONTRACTL_END;
+
+    BackgroundThreadStubArgs threadStubArgs;
+
+    threadStubArgs.arg = arg;
+    threadStubArgs.thread = NULL;
+    threadStubArgs.threadStart = threadStart;
+    threadStubArgs.hasStarted = false;
+
+    if (!threadStubArgs.threadStartedEvent.CreateAutoEventNoThrow(FALSE))
+    {
+        return NULL;
+    }
+
+    EX_TRY
+    {
+        threadStubArgs.thread = SetupUnstartedThread(FALSE);
+    }
+    EX_CATCH
+    {
+    }
+    EX_END_CATCH(SwallowAllExceptions);
+
+    if (threadStubArgs.thread == NULL)
+    {
+        threadStubArgs.threadStartedEvent.CloseEvent();
+        return NULL;
+    }
+
+    if (threadStubArgs.thread->CreateNewThread(0, (LPTHREAD_START_ROUTINE)BackgroundThreadStub, &threadStubArgs))
+    {
+        threadStubArgs.thread->SetBackground (TRUE, FALSE);
+        threadStubArgs.thread->StartThread();
+
+        // Wait for the thread to be in its main loop
+        uint32_t res = threadStubArgs.threadStartedEvent.Wait(INFINITE, FALSE);
+        threadStubArgs.threadStartedEvent.CloseEvent();
+        _ASSERTE(res == WAIT_OBJECT_0);
+
+        if (!threadStubArgs.hasStarted)
+        {
+            // The thread has failed to start and the Thread object was destroyed in the Thread::HasStarted
+            // failure code path.
+            return NULL;
+        }
+
+        return threadStubArgs.thread;
+    }
+
+    // Destroy the Thread object
+    threadStubArgs.thread->DecExternalCount(FALSE);
+    return NULL;
 }

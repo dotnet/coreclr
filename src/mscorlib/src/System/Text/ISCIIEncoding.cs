@@ -6,7 +6,6 @@
 //
 //  Ported from windows c_iscii.  If you find bugs here, there're likely similar
 //  bugs in the windows version
-#if FEATURE_ENCODINGNLS
 namespace System.Text
 {
     using System;
@@ -91,7 +90,6 @@ namespace System.Text
             throw new ArgumentException(Environment.GetResourceString("Arg_ExecutionEngineException"));
         }
 
-#if FEATURE_SERIALIZATION
         // ISerializable implementation
         [System.Security.SecurityCritical]  // auto-generated_required
         void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
@@ -106,7 +104,6 @@ namespace System.Text
             // Always have this as our helper
             info.SetType(typeof(MLangCodePageEncoding));
         }
-#endif
 
         // Our MaxByteCount is 4 times the input size.  That could be because
         // the first input character could be in the wrong code page ("font") and
@@ -2626,4 +2623,3 @@ namespace System.Text
     }
 
 }
-#endif // FEATURE_ENCODINGNLS

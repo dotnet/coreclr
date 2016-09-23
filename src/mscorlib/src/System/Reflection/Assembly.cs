@@ -28,9 +28,6 @@ namespace System.Reflection
     using System.Configuration.Assemblies;
     using StackCrawlMark = System.Threading.StackCrawlMark;
     using System.Runtime.InteropServices;
-#if FEATURE_SERIALIZATION
-    using BinaryFormatter = System.Runtime.Serialization.Formatters.Binary.BinaryFormatter;
-#endif // FEATURE_SERIALIZATION
     using System.Runtime.CompilerServices;
     using SecurityZone = System.Security.SecurityZone;
     using IEvidenceFactory = System.Security.IEvidenceFactory;
@@ -56,11 +53,11 @@ namespace System.Reflection
 #pragma warning restore 618
     public abstract class Assembly : _Assembly, IEvidenceFactory, ICustomAttributeProvider, ISerializable
     {
-        #region constructors
+#region constructors
         protected Assembly() {}
-        #endregion
+#endregion
 
-        #region public static methods
+#region public static methods
 
         public static String CreateQualifiedName(String assemblyName, String typeName)
         {
@@ -80,7 +77,6 @@ namespace System.Reflection
                 return m.Assembly;
         }
 
-#if !FEATURE_CORECLR
         public static bool operator ==(Assembly left, Assembly right)
         {
             if (ReferenceEquals(left, right))
@@ -98,7 +94,6 @@ namespace System.Reflection
         {
             return !(left == right);
         }
-#endif // !FEATURE_CORECLR
 
         public override bool Equals(object o)
         {
@@ -332,6 +327,30 @@ namespace System.Reflection
 
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return RuntimeAssembly.InternalLoadAssemblyName(assemblyRef, null, null, ref stackMark, true /*thrownOnFileNotFound*/, false /*forIntrospection*/, false /*suppressSecurityChecks*/);
+        }
+
+        // Locate an assembly by its name. The name can be strong or
+        // weak. The assembly is loaded into the domain of the caller.
+#if FEATURE_CORECLR
+        [System.Security.SecurityCritical] // auto-generated
+#else
+        [System.Security.SecuritySafeCritical]
+#endif
+        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        internal static Assembly Load(AssemblyName assemblyRef, IntPtr ptrLoadContextBinder)
+        {
+            Contract.Ensures(Contract.Result<Assembly>() != null);
+            Contract.Ensures(!Contract.Result<Assembly>().ReflectionOnly);
+
+#if FEATURE_WINDOWSPHONE
+            if (assemblyRef != null && assemblyRef.CodeBase != null)
+            {
+                throw new NotSupportedException(Environment.GetResourceString("NotSupported_AssemblyLoadCodeBase"));
+            }
+#endif
+
+            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
+            return RuntimeAssembly.InternalLoadAssemblyName(assemblyRef, null, null, ref stackMark, true /*thrownOnFileNotFound*/, false /*forIntrospection*/, false /*suppressSecurityChecks*/, ptrLoadContextBinder);
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -596,9 +615,9 @@ namespace System.Reflection
             return domainManager.EntryAssembly;
         }
     
-        #endregion // public static methods
+#endregion // public static methods
 
-        #region public methods
+#region public methods
         public virtual event ModuleResolveEventHandler ModuleResolve
         {
             [System.Security.SecurityCritical]  // auto-generated_required
@@ -1069,7 +1088,7 @@ namespace System.Reflection
                 return false;
             }
         }
-        #endregion // public methods
+#endregion // public methods
 
     }
 
@@ -1089,7 +1108,7 @@ namespace System.Reflection
 #endif
     {
 #if !FEATURE_CORECLR
-        #region ICustomQueryInterface
+#region ICustomQueryInterface
         [System.Security.SecurityCritical]
         CustomQueryInterfaceResult ICustomQueryInterface.GetInterface([In]ref Guid iid, out IntPtr ppv)
         {
@@ -1102,7 +1121,7 @@ namespace System.Reflection
             ppv = IntPtr.Zero;
             return CustomQueryInterfaceResult.NotHandled;
         }
-        #endregion
+#endregion
 #endif // !FEATURE_CORECLR
 
 #if FEATURE_APPX
@@ -1122,7 +1141,7 @@ namespace System.Reflection
 
         internal RuntimeAssembly() { throw new NotSupportedException(); }
 
-        #region private data members
+#region private data members
         [method: System.Security.SecurityCritical]
         private event ModuleResolveEventHandler _ModuleResolve;
         private string m_fullname;
@@ -1132,7 +1151,7 @@ namespace System.Reflection
 #if FEATURE_APPX
         private ASSEMBLY_FLAGS m_flags;
 #endif
-        #endregion
+#endregion
 
 #if FEATURE_APPX
         internal int InvocableAttributeCtorToken
@@ -1659,9 +1678,10 @@ namespace System.Reflection
             ref StackCrawlMark stackMark,
             bool throwOnFileNotFound,
             bool forIntrospection,
-            bool suppressSecurityChecks)
+            bool suppressSecurityChecks,
+            IntPtr ptrLoadContextBinder = default(IntPtr))
         {
-            return InternalLoadAssemblyName(assemblyRef, assemblySecurity, reqAssembly, ref stackMark, IntPtr.Zero, true /*throwOnError*/, forIntrospection, suppressSecurityChecks);
+            return InternalLoadAssemblyName(assemblyRef, assemblySecurity, reqAssembly, ref stackMark, IntPtr.Zero, true /*throwOnError*/, forIntrospection, suppressSecurityChecks, ptrLoadContextBinder);
         }
 
         [System.Security.SecurityCritical]  // auto-generated
@@ -1673,7 +1693,8 @@ namespace System.Reflection
             IntPtr pPrivHostBinder,
             bool throwOnFileNotFound, 
             bool forIntrospection,
-            bool suppressSecurityChecks)
+            bool suppressSecurityChecks,
+            IntPtr ptrLoadContextBinder = default(IntPtr))
         {
        
             if (assemblyRef == null)
@@ -1731,7 +1752,7 @@ namespace System.Reflection
 
             return nLoad(assemblyRef, codeBase, assemblySecurity, reqAssembly, ref stackMark,
                 pPrivHostBinder,
-                throwOnFileNotFound, forIntrospection, suppressSecurityChecks);
+                throwOnFileNotFound, forIntrospection, suppressSecurityChecks, ptrLoadContextBinder);
         }
 
         // These are the framework assemblies that does reflection invocation
@@ -1781,7 +1802,8 @@ namespace System.Reflection
                                                      IntPtr pPrivHostBinder,
                                                      bool throwOnFileNotFound,        
                                                      bool forIntrospection,
-                                                     bool suppressSecurityChecks);
+                                                     bool suppressSecurityChecks,
+                                                     IntPtr ptrLoadContextBinder);
 
 #if !FEATURE_CORECLR
         // The NGEN task uses this method, so please do not modify its signature
@@ -1803,11 +1825,11 @@ namespace System.Reflection
                                              IntPtr pPrivHostBinder,
                                              bool throwOnFileNotFound,
                                              bool forIntrospection,
-                                             bool suppressSecurityChecks)
+                                             bool suppressSecurityChecks, IntPtr ptrLoadContextBinder = default(IntPtr))
         {
             return _nLoad(fileName, codeBase, assemblySecurity, locationHint, ref stackMark,
                 pPrivHostBinder,
-                throwOnFileNotFound, forIntrospection, suppressSecurityChecks);
+                throwOnFileNotFound, forIntrospection, suppressSecurityChecks, ptrLoadContextBinder);
         }
 
 #if FEATURE_FUSION

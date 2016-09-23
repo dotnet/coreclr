@@ -35,6 +35,12 @@ goto Usage
 if not defined __OutputDir goto Usage
 if not defined __Arch goto Usage 
 
+REM Check if the platform is supported
+if /i %__Arch% == "arm" (
+    echo No runtime dependencies for Arm32.
+    exit /b 0
+    )
+
 REM =========================================================================================
 REM ===
 REM === Check if dotnet CLI and necessary directories exist
@@ -46,7 +52,7 @@ set __DotNetCmd=%__DotNetToolDir%\dotnetcli\dotnet.exe
 set __PackageDir=%__ThisScriptPath%..\Packages
 set __TmpDir=%Temp%\coreclr_gcstress_%RANDOM%
 
-REM Check if donet cli exists
+REM Check if dotnet cli exists
 if not exist "%__DotNetToolDir%" (
     echo Directory containing dotnet CLI does not exist: %__DotNetToolDir%
     goto Fail
@@ -67,7 +73,7 @@ if exist "%__TmpDir%" (
 mkdir %__TmpDir%
 
 REM Project.json path
-set __JasonFilePath=%__TmpDir%\project.json
+set __JsonFilePath=%__TmpDir%\project.json
 
 REM =========================================================================================
 REM ===
@@ -78,17 +84,17 @@ REM ============================================================================
 REM Write dependency information to project.json
 echo { ^
     "dependencies": { ^
-    "runtime.win7-%__Arch%.Microsoft.NETCore.CoreDisTools": "1.0.1-prerelease-00001" ^
+    "runtime.win7-%__Arch%.Microsoft.NETCore.CoreDisTools": "1.0.1-prerelease-*" ^
     }, ^
     "frameworks": { "dnxcore50": { } } ^
-    } > "%__JasonFilePath%"
+    } > "%__JsonFilePath%"
 
-echo Jason file: %__JasonFilePath%
-type "%__JasonFilePath%"
+echo JSON file: %__JsonFilePath%
+type "%__JsonFilePath%"
 
 REM Download the package
 echo Downloading CoreDisTools package
-set DOTNETCMD="%__DotNetCmd%" restore "%__JasonFilePath%" --source https://dotnet.myget.org/F/dotnet-core/ --packages "%__PackageDir%"
+set DOTNETCMD="%__DotNetCmd%" restore "%__JsonFilePath%" --source https://dotnet.myget.org/F/dotnet-core/ --packages "%__PackageDir%"
 echo %DOTNETCMD%
 call %DOTNETCMD%
 if errorlevel 1 goto Fail
@@ -105,6 +111,10 @@ if not exist "%__LibPath%" (
 REM Copy library to output directory
 echo Copy library: %__LibPath% to %__OutputDir%
 copy /y "%__LibPath%" "%__OutputDir%"
+if errorlevel 1 (
+    echo Failed to copy %__LibPath% to %__OutputDir%
+    goto Fail
+)
 
 REM Delete temporary files
 if exist "%__TmpDir%" (
@@ -127,7 +137,7 @@ REM ============================================================================
 
 :Usage
 echo.
-echo Download coredistool for GC stress testing
+echo Download coredistools for GC stress testing
 echo.
 echo Usage:
 echo     %__ThisScriptShort% /arch ^<TargetArch^> /outputdir ^<coredistools_lib_install_path^>

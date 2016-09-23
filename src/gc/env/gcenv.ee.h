@@ -9,10 +9,11 @@
 
 struct ScanContext;
 class CrawlFrame;
+struct gc_alloc_context;
 
 typedef void promote_func(PTR_PTR_Object, ScanContext*, uint32_t);
 
-typedef void enum_alloc_context_func(alloc_context*, void*);
+typedef void enum_alloc_context_func(gc_alloc_context*, void*);
 
 typedef struct
 {
@@ -21,6 +22,8 @@ typedef struct
     CrawlFrame *   cf;
 } GCCONTEXT;
 
+// GC background thread function prototype
+typedef uint32_t (__stdcall *GCBackgroundThreadFunction)(void* param);
 
 class GCToEEInterface
 {
@@ -72,13 +75,12 @@ public:
     static void EnablePreemptiveGC(Thread * pThread);
     static void DisablePreemptiveGC(Thread * pThread);
 
-    static void SetGCSpecial(Thread * pThread);
-    static alloc_context * GetAllocContext(Thread * pThread);
+    static gc_alloc_context * GetAllocContext(Thread * pThread);
     static bool CatchAtSafePoint(Thread * pThread);
 
     static void GcEnumAllocContexts(enum_alloc_context_func* fn, void* param);
 
-    static void AttachCurrentThread(); // does not acquire thread store lock
+    static Thread* CreateBackgroundThread(GCBackgroundThreadFunction threadStart, void* arg);
 };
 
 #endif // __GCENV_EE_H__

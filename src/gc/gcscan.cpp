@@ -19,7 +19,6 @@
 #include "gc.h"
 #include "objecthandle.h"
 
-//#define CATCH_GC  //catches exception during GC
 #ifdef DACCESS_COMPILE
 SVAL_IMPL_INIT(int32_t, GCScan, m_GcStructuresInvalidCnt, 1);
 #else //DACCESS_COMPILE
@@ -130,7 +129,7 @@ static void CALLBACK CheckPromoted(_UNCHECKED_OBJECTREF *pObjRef, uintptr_t * /*
     LOG((LF_GC, LL_INFO100000, LOG_HANDLE_OBJECT_CLASS("Checking referent of Weak-", pObjRef, "to ", *pObjRef)));
 
     Object **pRef = (Object **)pObjRef;
-    if (!GCHeap::GetGCHeap()->IsPromoted(*pRef))
+    if (!g_theGCHeap->IsPromoted(*pRef))
     {
         LOG((LF_GC, LL_INFO100, LOG_HANDLE_OBJECT_CLASS("Severing Weak-", pObjRef, "to unreachable ", *pObjRef)));
 
@@ -168,20 +167,7 @@ void GCScan::GcShortWeakPtrScan(promote_func* fn,  int condemned, int max_gen,
 void GCScan::GcScanRoots(promote_func* fn,  int condemned, int max_gen, 
                              ScanContext* sc)
 {
-#if defined ( _DEBUG) && defined (CATCH_GC)
-    //note that we can't use EX_TRY because the gc_thread isn't known
-    PAL_TRY
-#endif // _DEBUG && CATCH_GC
-    {
-        GCToEEInterface::GcScanRoots(fn, condemned, max_gen, sc);
-    }
-#if defined ( _DEBUG) && defined (CATCH_GC)
-    PAL_EXCEPT(EXCEPTION_EXECUTE_HANDLER)
-    {
-        _ASSERTE (!"We got an exception during scan roots");
-    }
-    PAL_ENDTRY
-#endif //_DEBUG
+    GCToEEInterface::GcScanRoots(fn, condemned, max_gen, sc);
 }
 
 /*
@@ -192,33 +178,18 @@ void GCScan::GcScanRoots(promote_func* fn,  int condemned, int max_gen,
 void GCScan::GcScanHandles (promote_func* fn,  int condemned, int max_gen, 
                                 ScanContext* sc)
 {
-
-#if defined ( _DEBUG) && defined (CATCH_GC)
-    //note that we can't use EX_TRY because the gc_thread isn't known
-    PAL_TRY
-#endif // _DEBUG && CATCH_GC
+    STRESS_LOG1(LF_GC|LF_GCROOTS, LL_INFO10, "GcScanHandles (Promotion Phase = %d)\n", sc->promotion);
+    if (sc->promotion)
     {
-        STRESS_LOG1(LF_GC|LF_GCROOTS, LL_INFO10, "GcScanHandles (Promotion Phase = %d)\n", sc->promotion);
-        if (sc->promotion)
-        {
-            Ref_TracePinningRoots(condemned, max_gen, sc, fn);
-            Ref_TraceNormalRoots(condemned, max_gen, sc, fn);
-        }
-        else
-        {
-            Ref_UpdatePointers(condemned, max_gen, sc, fn);
-            Ref_UpdatePinnedPointers(condemned, max_gen, sc, fn);
-            Ref_ScanDependentHandlesForRelocation(condemned, max_gen, sc, fn);
-        }
+        Ref_TracePinningRoots(condemned, max_gen, sc, fn);
+        Ref_TraceNormalRoots(condemned, max_gen, sc, fn);
     }
-    
-#if defined ( _DEBUG) && defined (CATCH_GC)
-    PAL_EXCEPT(EXCEPTION_EXECUTE_HANDLER)
+    else
     {
-        _ASSERTE (!"We got an exception during scan roots");
+        Ref_UpdatePointers(condemned, max_gen, sc, fn);
+        Ref_UpdatePinnedPointers(condemned, max_gen, sc, fn);
+        Ref_ScanDependentHandlesForRelocation(condemned, max_gen, sc, fn);
     }
-    PAL_ENDTRY
-#endif //_DEBUG
 }
 
 
@@ -232,22 +203,8 @@ void GCScan::GcScanHandlesForProfilerAndETW (int max_gen, ScanContext* sc)
 {
     LIMITED_METHOD_CONTRACT;
 
-#if defined ( _DEBUG) && defined (CATCH_GC)
-    //note that we can't use EX_TRY because the gc_thread isn't known
-    PAL_TRY
-#endif // _DEBUG && CATCH_GC
-    {
-        LOG((LF_GC|LF_GCROOTS, LL_INFO10, "Profiler Root Scan Phase, Handles\n"));
-        Ref_ScanPointersForProfilerAndETW(max_gen, (uintptr_t)sc);
-    }
-    
-#if defined ( _DEBUG) && defined (CATCH_GC)
-    PAL_EXCEPT(EXCEPTION_EXECUTE_HANDLER)
-    {
-        _ASSERTE (!"We got an exception during scan roots for the profiler");
-    }
-    PAL_ENDTRY
-#endif //_DEBUG
+    LOG((LF_GC|LF_GCROOTS, LL_INFO10, "Profiler Root Scan Phase, Handles\n"));
+    Ref_ScanPointersForProfilerAndETW(max_gen, (uintptr_t)sc);
 }
 
 /*
@@ -283,14 +240,14 @@ void GCScan::GcRuntimeStructuresValid (BOOL bValid)
 void GCScan::GcDemote (int condemned, int max_gen, ScanContext* sc)
 {
     Ref_RejuvenateHandles (condemned, max_gen, (uintptr_t)sc);
-    if (!GCHeap::IsServerHeap() || sc->thread_number == 0)
+    if (!IsServerHeap() || sc->thread_number == 0)
         GCToEEInterface::SyncBlockCacheDemote(max_gen);
 }
 
 void GCScan::GcPromotionsGranted (int condemned, int max_gen, ScanContext* sc)
 {
     Ref_AgeHandles(condemned, max_gen, (uintptr_t)sc);
-    if (!GCHeap::IsServerHeap() || sc->thread_number == 0)
+    if (!IsServerHeap() || sc->thread_number == 0)
         GCToEEInterface::SyncBlockCachePromotionsGranted(max_gen);
 }
 

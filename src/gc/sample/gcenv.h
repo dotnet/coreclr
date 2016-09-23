@@ -26,6 +26,47 @@
 
 #define MAX_LONGPATH 1024
 
+#ifdef _MSC_VER
+#define SUPPRESS_WARNING_4127   \
+    __pragma(warning(push))     \
+    __pragma(warning(disable:4127)) /* conditional expression is constant*/
+#define POP_WARNING_STATE       \
+    __pragma(warning(pop))
+#else // _MSC_VER
+#define SUPPRESS_WARNING_4127
+#define POP_WARNING_STATE
+#endif // _MSC_VER
+
+#define WHILE_0             \
+    SUPPRESS_WARNING_4127   \
+    while(0)                \
+    POP_WARNING_STATE       \
+
+#define LL_INFO10 4
+
+#define STRESS_LOG_VA(msg)                                              do { } WHILE_0
+#define STRESS_LOG0(facility, level, msg)                               do { } WHILE_0
+#define STRESS_LOG1(facility, level, msg, data1)                        do { } WHILE_0
+#define STRESS_LOG2(facility, level, msg, data1, data2)                 do { } WHILE_0
+#define STRESS_LOG3(facility, level, msg, data1, data2, data3)          do { } WHILE_0
+#define STRESS_LOG4(facility, level, msg, data1, data2, data3, data4)   do { } WHILE_0
+#define STRESS_LOG5(facility, level, msg, data1, data2, data3, data4, data5)   do { } WHILE_0
+#define STRESS_LOG6(facility, level, msg, data1, data2, data3, data4, data5, data6)   do { } WHILE_0
+#define STRESS_LOG7(facility, level, msg, data1, data2, data3, data4, data5, data6, data7)   do { } WHILE_0
+#define STRESS_LOG_PLUG_MOVE(plug_start, plug_end, plug_delta)          do { } WHILE_0
+#define STRESS_LOG_ROOT_PROMOTE(root_addr, objPtr, methodTable)         do { } WHILE_0
+#define STRESS_LOG_ROOT_RELOCATE(root_addr, old_value, new_value, methodTable) do { } WHILE_0
+#define STRESS_LOG_GC_START(gcCount, Gen, collectClasses)               do { } WHILE_0
+#define STRESS_LOG_GC_END(gcCount, Gen, collectClasses)                 do { } WHILE_0
+#define STRESS_LOG_OOM_STACK(size)   do { } while(0)
+#define STRESS_LOG_RESERVE_MEM(numChunks) do {} while (0)
+#define STRESS_LOG_GC_STACK
+
+#define LOG(x)
+
+#define SVAL_IMPL_INIT(type, cls, var, init) \
+    type cls::var = init
+
 //
 // Thread
 //
@@ -79,12 +120,6 @@ public:
 
 Thread * GetThread();
 
-inline BOOL IsSuspendEEThread()
-{
-    // TODO: Implement
-    return false;
-}
-
 class ThreadStore
 {
 public:
@@ -119,7 +154,7 @@ public:
     enum  GCStressFlags {
         GCSTRESS_NONE = 0,
         GCSTRESS_ALLOC = 1,    // GC on all allocs and 'easy' places
-        GCSTRESS_TRANSITION = 2,    // GC on transitions to preemtive GC
+        GCSTRESS_TRANSITION = 2,    // GC on transitions to preemptive GC
         GCSTRESS_INSTR_JIT = 4,    // GC on every allowable JITed instr
         GCSTRESS_INSTR_NGEN = 8,    // GC on every allowable NGEN instr
         GCSTRESS_UNIQUE = 16,   // GC only on a unique stack trace

@@ -600,7 +600,13 @@ public:
                 nativeSize = wNativeSize;
             }
 
-#if !defined(_TARGET_ARM) && !(defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING))
+#if defined(_TARGET_X86_) || (defined(_TARGET_AMD64_) && defined(_WIN64) && !defined(FEATURE_CORECLR))
+            // JIT32 and JIT64 (which is only used on the Windows Desktop CLR) has a problem generating
+            // code for the pinvoke ILStubs which do a return using a struct type.  Therefore, we
+            // change the signature of calli to return void and make the return buffer as first argument. 
+
+            // for X86 and AMD64-Windows we bash the return type from struct to U1, U2, U4 or U8
+            // and use byrefNativeReturn for all other structs.
             switch (nativeSize)
             {
                 case 1: typ = ELEMENT_TYPE_U1; break;
@@ -1996,6 +2002,35 @@ protected:
     DWORD m_dwLocalBuffer;      // localloc'ed temp buffer variable or -1 if not used
 };
 
+class ILUTF8BufferMarshaler : public ILOptimizedAllocMarshaler
+{
+public:
+	enum
+	{
+		c_fInOnly = FALSE,
+		c_nativeSize = sizeof(void *),
+		c_CLRSize = sizeof(OBJECTREF),
+	};
+
+	enum
+	{
+		// If required buffer length > MAX_LOCAL_BUFFER_LENGTH, don't optimize by allocating memory on stack
+		MAX_LOCAL_BUFFER_LENGTH = MAX_PATH_FNAME + 1
+	};
+
+	ILUTF8BufferMarshaler() :
+		ILOptimizedAllocMarshaler(METHOD__WIN32NATIVE__COTASKMEMFREE)
+	{
+		LIMITED_METHOD_CONTRACT;
+	}
+
+	virtual LocalDesc GetManagedType();
+	virtual void EmitConvertSpaceCLRToNative(ILCodeStream* pslILEmit);
+	virtual void EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit);
+	virtual void EmitConvertSpaceNativeToCLR(ILCodeStream* pslILEmit);
+	virtual void EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit);
+};
+
 class ILWSTRBufferMarshaler : public ILOptimizedAllocMarshaler
 {
 public:
@@ -2521,6 +2556,37 @@ protected:
     virtual void EmitClearNative(ILCodeStream* pslILEmit);
 };
 #endif // FEATURE_COMINTEROP
+
+
+class ILCUTF8Marshaler : public ILOptimizedAllocMarshaler
+{
+public:
+	enum
+	{
+		c_fInOnly = TRUE,
+		c_nativeSize = sizeof(void *),
+		c_CLRSize = sizeof(OBJECTREF),
+	};
+
+	enum
+	{
+		// If required buffer length > MAX_LOCAL_BUFFER_LENGTH, don't optimize by allocating memory on stack
+		MAX_LOCAL_BUFFER_LENGTH = MAX_PATH_FNAME + 1
+	};
+
+	ILCUTF8Marshaler() :
+		ILOptimizedAllocMarshaler(METHOD__CSTRMARSHALER__CLEAR_NATIVE)
+	{
+		LIMITED_METHOD_CONTRACT;
+	}
+
+protected:
+	virtual LocalDesc GetManagedType();
+	virtual void EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit);
+	virtual void EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit);
+};
+
+
 
 class ILCSTRMarshaler : public ILOptimizedAllocMarshaler
 {

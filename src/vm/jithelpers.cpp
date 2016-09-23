@@ -23,7 +23,7 @@
 #include "security.h"
 #include "securitymeta.h"
 #include "dllimport.h"
-#include "gc.h"
+#include "gcheaputilities.h"
 #include "comdelegate.h"
 #include "jitperf.h" // to track jit perf
 #include "corprof.h"
@@ -513,7 +513,7 @@ HCIMPL1_V(double, JIT_ULng2Dbl, UINT64 val)
 HCIMPLEND
 
 /*********************************************************************/
-// needed for ARM
+// needed for ARM and RyuJIT-x86
 HCIMPL1_V(double, JIT_Lng2Dbl, INT64 val)
 {
     FCALL_CONTRACT;
@@ -619,7 +619,7 @@ HCIMPL1_V(UINT64, JIT_Dbl2ULng, double val)
     else {        
         // subtract 0x8000000000000000, do the convert then add it back again
         ret = FastDbl2Lng(val - two63) + I64(0x8000000000000000);
-}
+    }
     return ret;
 }
 HCIMPLEND
@@ -2446,14 +2446,13 @@ BOOL ObjIsInstanceOf(Object *pObject, TypeHandle toTypeHnd, BOOL throwCastExcept
     // to a given type.
     else if (toTypeHnd.IsInterface() && fromTypeHnd.GetMethodTable()->IsICastable())
     {
-        // Make actuall call to obj.IsInstanceOfInterface(interfaceTypeObj, out exception)
+        // Make actuall call to ICastableHelpers.IsInstanceOfInterface(obj, interfaceTypeObj, out exception)
         OBJECTREF exception = NULL;
         GCPROTECT_BEGIN(exception);
-        MethodTable *pFromTypeMT = fromTypeHnd.GetMethodTable();
-        MethodDesc *pIsInstanceOfMD = pFromTypeMT->GetMethodDescForInterfaceMethod(MscorlibBinder::GetMethod(METHOD__ICASTABLE__ISINSTANCEOF)); //GC triggers
-        OBJECTREF managedType = toTypeHnd.GetManagedClassObject(); //GC triggers
+        
+        PREPARE_NONVIRTUAL_CALLSITE(METHOD__ICASTABLEHELPERS__ISINSTANCEOF);
 
-        PREPARE_NONVIRTUAL_CALLSITE_USING_METHODDESC(pIsInstanceOfMD);
+        OBJECTREF managedType = toTypeHnd.GetManagedClassObject(); //GC triggers
 
         DECLARE_ARGHOLDER_ARRAY(args, 3);
         args[ARGNUM_0] = OBJECTREF_TO_ARGHOLDER(obj);
@@ -2859,7 +2858,7 @@ HCIMPL1(Object*, JIT_NewS_MP_FastPortable, CORINFO_CLASS_HANDLE typeHnd_)
 
     do
     {
-        _ASSERTE(GCHeap::UseAllocationContexts());
+        _ASSERTE(GCHeapUtilities::UseAllocationContexts());
 
         // This is typically the only call in the fast path. Making the call early seems to be better, as it allows the compiler
         // to use volatile registers for intermediate values. This reduces the number of push/pop instructions and eliminates
@@ -2873,7 +2872,7 @@ HCIMPL1(Object*, JIT_NewS_MP_FastPortable, CORINFO_CLASS_HANDLE typeHnd_)
         SIZE_T size = methodTable->GetBaseSize();
         _ASSERTE(size % DATA_ALIGNMENT == 0);
 
-        alloc_context *allocContext = thread->GetAllocContext();
+        gc_alloc_context *allocContext = thread->GetAllocContext();
         BYTE *allocPtr = allocContext->alloc_ptr;
         _ASSERTE(allocPtr <= allocContext->alloc_limit);
         if (size > static_cast<SIZE_T>(allocContext->alloc_limit - allocPtr))
@@ -2998,7 +2997,7 @@ HCIMPL1(StringObject*, AllocateString_MP_FastPortable, DWORD stringLength)
 
     do
     {
-        _ASSERTE(GCHeap::UseAllocationContexts());
+        _ASSERTE(GCHeapUtilities::UseAllocationContexts());
 
         // Instead of doing elaborate overflow checks, we just limit the number of elements. This will avoid all overflow
         // problems, as well as making sure big string objects are correctly allocated in the big object heap.
@@ -3022,7 +3021,7 @@ HCIMPL1(StringObject*, AllocateString_MP_FastPortable, DWORD stringLength)
         _ASSERTE(alignedTotalSize >= totalSize);
         totalSize = alignedTotalSize;
 
-        alloc_context *allocContext = thread->GetAllocContext();
+        gc_alloc_context *allocContext = thread->GetAllocContext();
         BYTE *allocPtr = allocContext->alloc_ptr;
         _ASSERTE(allocPtr <= allocContext->alloc_limit);
         if (totalSize > static_cast<SIZE_T>(allocContext->alloc_limit - allocPtr))
@@ -3162,7 +3161,7 @@ HCIMPL2(Object*, JIT_NewArr1VC_MP_FastPortable, CORINFO_CLASS_HANDLE arrayTypeHn
 
     do
     {
-        _ASSERTE(GCHeap::UseAllocationContexts());
+        _ASSERTE(GCHeapUtilities::UseAllocationContexts());
 
         // Do a conservative check here.  This is to avoid overflow while doing the calculations.  We don't
         // have to worry about "large" objects, since the allocation quantum is never big enough for
@@ -3199,7 +3198,7 @@ HCIMPL2(Object*, JIT_NewArr1VC_MP_FastPortable, CORINFO_CLASS_HANDLE arrayTypeHn
         _ASSERTE(alignedTotalSize >= totalSize);
         totalSize = alignedTotalSize;
 
-        alloc_context *allocContext = thread->GetAllocContext();
+        gc_alloc_context *allocContext = thread->GetAllocContext();
         BYTE *allocPtr = allocContext->alloc_ptr;
         _ASSERTE(allocPtr <= allocContext->alloc_limit);
         if (totalSize > static_cast<SIZE_T>(allocContext->alloc_limit - allocPtr))
@@ -3239,7 +3238,7 @@ HCIMPL2(Object*, JIT_NewArr1OBJ_MP_FastPortable, CORINFO_CLASS_HANDLE arrayTypeH
 
     do
     {
-        _ASSERTE(GCHeap::UseAllocationContexts());
+        _ASSERTE(GCHeapUtilities::UseAllocationContexts());
 
         // Make sure that the total size cannot reach LARGE_OBJECT_SIZE, which also allows us to avoid overflow checks. The
         // "256" slack is to cover the array header size and round-up, using a constant value here out of laziness.
@@ -3267,7 +3266,7 @@ HCIMPL2(Object*, JIT_NewArr1OBJ_MP_FastPortable, CORINFO_CLASS_HANDLE arrayTypeH
 
         _ASSERTE(ALIGN_UP(totalSize, DATA_ALIGNMENT) == totalSize);
 
-        alloc_context *allocContext = thread->GetAllocContext();
+        gc_alloc_context *allocContext = thread->GetAllocContext();
         BYTE *allocPtr = allocContext->alloc_ptr;
         _ASSERTE(allocPtr <= allocContext->alloc_limit);
         if (totalSize > static_cast<SIZE_T>(allocContext->alloc_limit - allocPtr))
@@ -3444,6 +3443,25 @@ HCIMPL2VA(Object*, JIT_NewMDArr, CORINFO_CLASS_HANDLE classHnd, unsigned dwNumAr
 
     ret = allocNewMDArr(typeHnd, dwNumArgs, dimsAndBounds);
     va_end(dimsAndBounds);
+
+    HELPER_METHOD_FRAME_END();
+    return OBJECTREFToObject(ret);
+}
+HCIMPLEND
+
+/*************************************************************/
+HCIMPL3(Object*, JIT_NewMDArrNonVarArg, CORINFO_CLASS_HANDLE classHnd, unsigned dwNumArgs, INT32 * pArgList)
+{
+    FCALL_CONTRACT;
+
+    OBJECTREF    ret = 0;
+    HELPER_METHOD_FRAME_BEGIN_RET_1(ret);    // Set up a frame
+
+    TypeHandle typeHnd(classHnd);
+    typeHnd.CheckRestore();
+    _ASSERTE(typeHnd.GetMethodTable()->IsArray());
+
+    ret = AllocateArrayEx(typeHnd, pArgList, dwNumArgs);
 
     HELPER_METHOD_FRAME_END();
     return OBJECTREFToObject(ret);
@@ -3976,11 +3994,7 @@ void ClearJitGenericHandleCache(AppDomain *pDomain)
 
 // Factored out most of the body of JIT_GenericHandle so it could be called easily from the CER reliability code to pre-populate the
 // cache.
-CORINFO_GENERIC_HANDLE 
-JIT_GenericHandleWorker(
-    MethodDesc *  pMD, 
-    MethodTable * pMT, 
-    LPVOID        signature)
+CORINFO_GENERIC_HANDLE JIT_GenericHandleWorker(MethodDesc * pMD, MethodTable * pMT, LPVOID signature, DWORD dictionaryIndexAndSlot, Module* pModule)
 {
      CONTRACTL {
         THROWS;
@@ -3991,20 +4005,34 @@ JIT_GenericHandleWorker(
 
     if (pMT != NULL)
     {
-        SigPointer ptr((PCCOR_SIGNATURE)signature);
-
-        ULONG kind; // DictionaryEntryKind
-        IfFailThrow(ptr.GetData(&kind));
-
-        // We need to normalize the class passed in (if any) for reliability purposes. That's because preparation of a code region that
-        // contains these handle lookups depends on being able to predict exactly which lookups are required (so we can pre-cache the
-        // answers and remove any possibility of failure at runtime). This is hard to do if the lookup (in this case the lookup of the
-        // dictionary overflow cache) is keyed off the somewhat arbitrary type of the instance on which the call is made (we'd need to
-        // prepare for every possible derived type of the type containing the method). So instead we have to locate the exactly
-        // instantiated (non-shared) super-type of the class passed in.
-
         ULONG dictionaryIndex = 0;
-        IfFailThrow(ptr.GetData(&dictionaryIndex));
+
+        if (pModule != NULL)
+        {
+#ifdef _DEBUG
+            // Only in R2R mode are the module, dictionary index and dictionary slot provided as an input
+            _ASSERTE(dictionaryIndexAndSlot != -1);
+            _ASSERT(ExecutionManager::FindReadyToRunModule(dac_cast<TADDR>(signature)) == pModule);
+#endif
+            dictionaryIndex = (dictionaryIndexAndSlot >> 16);
+        }
+        else
+        {
+            SigPointer ptr((PCCOR_SIGNATURE)signature);
+
+            ULONG kind; // DictionaryEntryKind
+            IfFailThrow(ptr.GetData(&kind));
+
+            // We need to normalize the class passed in (if any) for reliability purposes. That's because preparation of a code region that
+            // contains these handle lookups depends on being able to predict exactly which lookups are required (so we can pre-cache the
+            // answers and remove any possibility of failure at runtime). This is hard to do if the lookup (in this case the lookup of the
+            // dictionary overflow cache) is keyed off the somewhat arbitrary type of the instance on which the call is made (we'd need to
+            // prepare for every possible derived type of the type containing the method). So instead we have to locate the exactly
+            // instantiated (non-shared) super-type of the class passed in.
+
+            _ASSERTE(dictionaryIndexAndSlot == -1);
+            IfFailThrow(ptr.GetData(&dictionaryIndex));
+        }
 
         pDeclaringMT = pMT;
         for (;;)
@@ -4031,7 +4059,7 @@ JIT_GenericHandleWorker(
     }
 
     DictionaryEntry * pSlot;
-    CORINFO_GENERIC_HANDLE result = (CORINFO_GENERIC_HANDLE)Dictionary::PopulateEntry(pMD, pDeclaringMT, signature, FALSE, &pSlot);
+    CORINFO_GENERIC_HANDLE result = (CORINFO_GENERIC_HANDLE)Dictionary::PopulateEntry(pMD, pDeclaringMT, signature, FALSE, &pSlot, dictionaryIndexAndSlot, pModule);
 
     if (pSlot == NULL)
     {
@@ -4058,10 +4086,12 @@ JIT_GenericHandleWorker(
 
 /*********************************************************************/
 // slow helper to tail call from the fast one
-NOINLINE HCIMPL3(CORINFO_GENERIC_HANDLE, JIT_GenericHandle_Framed,
-         CORINFO_CLASS_HANDLE classHnd,
-         CORINFO_METHOD_HANDLE methodHnd,
-         LPVOID signature)
+NOINLINE HCIMPL5(CORINFO_GENERIC_HANDLE, JIT_GenericHandle_Framed, 
+        CORINFO_CLASS_HANDLE classHnd, 
+        CORINFO_METHOD_HANDLE methodHnd, 
+        LPVOID signature, 
+        DWORD dictionaryIndexAndSlot, 
+        CORINFO_MODULE_HANDLE moduleHnd)
 {
     CONTRACTL {
         FCALL_CHECK;
@@ -4074,11 +4104,12 @@ NOINLINE HCIMPL3(CORINFO_GENERIC_HANDLE, JIT_GenericHandle_Framed,
 
     MethodDesc * pMD = GetMethod(methodHnd);
     MethodTable * pMT = TypeHandle(classHnd).AsMethodTable();
+    Module * pModule = GetModule(moduleHnd);
 
     // Set up a frame
     HELPER_METHOD_FRAME_BEGIN_RET_0();
 
-    result = JIT_GenericHandleWorker(pMD, pMT, signature);
+    result = JIT_GenericHandleWorker(pMD, pMT, signature, dictionaryIndexAndSlot, pModule);
 
     HELPER_METHOD_FRAME_END();
 
@@ -4107,7 +4138,27 @@ HCIMPL2(CORINFO_GENERIC_HANDLE, JIT_GenericHandleMethod, CORINFO_METHOD_HANDLE  
 
     // Tailcall to the slow helper
     ENDFORBIDGC();
-    return HCCALL3(JIT_GenericHandle_Framed, NULL, methodHnd, signature);
+    return HCCALL5(JIT_GenericHandle_Framed, NULL, methodHnd, signature, -1, NULL);
+}
+HCIMPLEND
+
+HCIMPL2(CORINFO_GENERIC_HANDLE, JIT_GenericHandleMethodWithSlotAndModule, CORINFO_METHOD_HANDLE  methodHnd, GenericHandleArgs * pArgs)
+{
+    CONTRACTL{
+        FCALL_CHECK;
+        PRECONDITION(CheckPointer(methodHnd));
+        PRECONDITION(GetMethod(methodHnd)->IsRestored());
+        PRECONDITION(CheckPointer(pArgs));
+    } CONTRACTL_END;
+
+    JitGenericHandleCacheKey key(NULL, methodHnd, pArgs->signature);
+    HashDatum res;
+    if (g_pJitGenericHandleCache->GetValueSpeculative(&key, &res))
+        return (CORINFO_GENERIC_HANDLE)(DictionaryEntry)res;
+
+    // Tailcall to the slow helper
+    ENDFORBIDGC();
+    return HCCALL5(JIT_GenericHandle_Framed, NULL, methodHnd, pArgs->signature, pArgs->dictionaryIndexAndSlot, pArgs->module);
 }
 HCIMPLEND
 #include <optdefault.h>
@@ -4131,7 +4182,7 @@ HCIMPL2(CORINFO_GENERIC_HANDLE, JIT_GenericHandleMethodLogging, CORINFO_METHOD_H
 
     // Tailcall to the slow helper
     ENDFORBIDGC();
-    return HCCALL3(JIT_GenericHandle_Framed, NULL, methodHnd, signature);
+    return HCCALL5(JIT_GenericHandle_Framed, NULL, methodHnd, signature, -1, NULL);
 }
 HCIMPLEND
 
@@ -4153,7 +4204,27 @@ HCIMPL2(CORINFO_GENERIC_HANDLE, JIT_GenericHandleClass, CORINFO_CLASS_HANDLE cla
 
     // Tailcall to the slow helper
     ENDFORBIDGC();
-    return HCCALL3(JIT_GenericHandle_Framed, classHnd, NULL, signature);
+    return HCCALL5(JIT_GenericHandle_Framed, classHnd, NULL, signature, -1, NULL);
+}
+HCIMPLEND
+
+HCIMPL2(CORINFO_GENERIC_HANDLE, JIT_GenericHandleClassWithSlotAndModule, CORINFO_CLASS_HANDLE classHnd, GenericHandleArgs * pArgs)
+{
+    CONTRACTL{
+        FCALL_CHECK;
+        PRECONDITION(CheckPointer(classHnd));
+        PRECONDITION(TypeHandle(classHnd).IsRestored());
+        PRECONDITION(CheckPointer(pArgs));
+    } CONTRACTL_END;
+
+    JitGenericHandleCacheKey key(classHnd, NULL, pArgs->signature);
+    HashDatum res;
+    if (g_pJitGenericHandleCache->GetValueSpeculative(&key, &res))
+        return (CORINFO_GENERIC_HANDLE)(DictionaryEntry)res;
+
+    // Tailcall to the slow helper
+    ENDFORBIDGC();
+    return HCCALL5(JIT_GenericHandle_Framed, classHnd, NULL, pArgs->signature, pArgs->dictionaryIndexAndSlot, pArgs->module);
 }
 HCIMPLEND
 #include <optdefault.h>
@@ -4177,7 +4248,7 @@ HCIMPL2(CORINFO_GENERIC_HANDLE, JIT_GenericHandleClassLogging, CORINFO_CLASS_HAN
 
     // Tailcall to the slow helper
     ENDFORBIDGC();
-    return HCCALL3(JIT_GenericHandle_Framed, classHnd, NULL, signature);
+    return HCCALL5(JIT_GenericHandle_Framed, classHnd, NULL, signature, -1, NULL);
 }
 HCIMPLEND
 
@@ -6360,7 +6431,7 @@ HCIMPL0(VOID, JIT_StressGC)
     bool fSkipGC = false;
 
     if (!fSkipGC)
-        GCHeap::GetGCHeap()->GarbageCollect();
+        GCHeapUtilities::GetGCHeap()->GarbageCollect();
 
 // <TODO>@TODO: the following ifdef is in error, but if corrected the
 // compiler complains about the *__ms->pRetAddr() saying machine state

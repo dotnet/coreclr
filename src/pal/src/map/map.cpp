@@ -134,7 +134,7 @@ CObjectType CorUnix::otFileMapping(
                 PAGE_READWRITE | PAGE_READONLY | PAGE_WRITECOPY,
                 CObjectType::SecuritySupported,
                 CObjectType::SecurityInfoNotPersisted,
-                CObjectType::ObjectCanHaveName,
+                CObjectType::UnnamedObject,
                 CObjectType::LocalDuplicationOnly,
                 CObjectType::UnwaitableObject,
                 CObjectType::SignalingNotApplicable,
@@ -1345,7 +1345,7 @@ CorUnix::InternalMapViewOfFile(
                         ERROR( "Failed setting protections on reused mapping\n");
 
                         NativeMapHolderRelease(pThread, pReusedMapping->pNMHolder);
-                        InternalFree(pReusedMapping);
+                        free(pReusedMapping);
                         pReusedMapping = NULL;
                     }
                 }
@@ -1422,7 +1422,7 @@ CorUnix::InternalMapViewOfFile(
             {
                 pNewView->pFileMapping->ReleaseReference(pThread);
                 RemoveEntryList(&pNewView->Link);
-                InternalFree(pNewView);
+                free(pNewView);
                 palError = ERROR_INTERNAL_ERROR;
             }
 #endif // ONE_SHARED_MAPPING_PER_FILEREGION_PER_PROCESS
@@ -1442,8 +1442,11 @@ CorUnix::InternalMapViewOfFile(
         }
     }
     
-    TRACE( "Added %p to the list.\n", pvBaseAddress );
-    *ppvBaseAddress = pvBaseAddress;
+    if (NO_ERROR == palError)
+    {
+        TRACE( "Added %p to the list.\n", pvBaseAddress );
+        *ppvBaseAddress = pvBaseAddress;
+    }
 
 InternalMapViewOfFileLeaveCriticalSection:
 
@@ -1504,7 +1507,7 @@ CorUnix::InternalUnmapViewOfFile(
 
     RemoveEntryList(&pView->Link);
     pMappingObject = pView->pFileMapping;
-    InternalFree(pView);
+    free(pView);
     
 InternalUnmapViewOfFileExit:
 
@@ -2165,7 +2168,7 @@ static LONG NativeMapHolderRelease(CPalThread *pThread, NativeMapHolder * thisNM
             TRACE( "Successfully unmapped %p (size=%lu)\n", 
                    thisNMH->address, (unsigned long)thisNMH->size);
         }
-        InternalFree (thisNMH);
+        free (thisNMH);
     }
     else if (ret < 0)
     {
@@ -2404,7 +2407,7 @@ void * MAPMapPEFile(HANDLE hFile)
             TRACE_(LOADER)("Forcing rebase of image\n");
         }
 
-        InternalFree(envVar);
+        free(envVar);
     }
 
     void * pForceRelocBase;
@@ -2413,7 +2416,7 @@ void * MAPMapPEFile(HANDLE hFile)
     {
         //if we're forcing relocs, create an anonymous mapping at the preferred base.  Only create the
         //mapping if we can create it at the specified address.
-        pForceRelocBase = mmap( (void*)preferredBase, VIRTUAL_PAGE_SIZE, PROT_NONE, MAP_ANON|MAP_FIXED, -1, 0 );
+        pForceRelocBase = mmap( (void*)preferredBase, VIRTUAL_PAGE_SIZE, PROT_NONE, MAP_ANON|MAP_FIXED|MAP_PRIVATE, -1, 0 );
         if (pForceRelocBase == MAP_FAILED)
         {
             TRACE_(LOADER)("Attempt to take preferred base of %p to force relocation failed\n", (void*)preferredBase);
@@ -2437,12 +2440,12 @@ void * MAPMapPEFile(HANDLE hFile)
     InternalEnterCriticalSection(pThread, &mapping_critsec);
 
 #if !defined(_AMD64_)
-    loadedBase = mmap((void*)preferredBase, virtualSize, PROT_NONE, MAP_ANON, -1, 0);
+    loadedBase = mmap((void*)preferredBase, virtualSize, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
 #else // defined(_AMD64_)    
     // First try to reserve virtual memory using ExecutableAllcator. This allows all PE images to be
     // near each other and close to the coreclr library which also allows the runtime to generate
     // more efficient code (by avoiding usage of jump stubs).
-    loadedBase = ReserveMemoryFromExecutableAllocator(virtualSize);
+    loadedBase = ReserveMemoryFromExecutableAllocator(pThread, virtualSize);
     if (loadedBase == NULL)
     {
         // MAC64 requires we pass MAP_SHARED (or MAP_PRIVATE) flags - otherwise, the call is failed.
@@ -2738,7 +2741,7 @@ BOOL MAPUnmapPEFile(LPCVOID lpAddress)
         {
             pFileObject->ReleaseReference(pThread);
         }
-        InternalFree(pView); // this leaves pLink dangling
+        free(pView); // this leaves pLink dangling
     }
 
     TRACE_(LOADER)("MAPUnmapPEFile returning %d\n", retval);

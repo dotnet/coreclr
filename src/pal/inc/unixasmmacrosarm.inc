@@ -21,18 +21,26 @@ C_FUNC(\Name):
         LEAF_END \Name, \Section
 .endm
 
+.macro NESTED_END_MARKED Name, Section
+        LEAF_END_MARKED \Name, \Section
+.endm
+
 .macro PATCH_LABEL Name
         .thumb_func
         .global C_FUNC(\Name)
 C_FUNC(\Name):
 .endm
 
+.macro LEAF_END Name, Section
+        .size \Name, .-\Name
+        .fnend
+.endm
+
 .macro LEAF_END_MARKED Name, Section
         .thumb_func
         .global C_FUNC(\Name\()_End)
 C_FUNC(\Name\()_End):
-        .size \Name, .-\Name
-        .fnend
+        LEAF_END \Name, \Section
 .endm
 
 .macro PREPARE_EXTERNAL_VAR Name, HelperReg
@@ -58,13 +66,13 @@ C_FUNC(\Name\()_End):
 .endm
 
 .macro alloc_stack Size
-        sub sp, sp, \Size
-        .pad #\Size
+        sub sp, sp, (\Size)
+        .pad #(\Size)
 .endm
 
 .macro free_stack Size
-        add sp, sp, \Size
-        .pad #-\Size
+        add sp, sp, (\Size)
+        .pad #-(\Size)
 .endm
 
 .macro POP_CALLEE_SAVED_REGISTERS

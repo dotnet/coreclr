@@ -14,7 +14,7 @@
 #include "openum.h"
 #include "fcall.h"
 #include "frames.h"
-#include "gc.h"
+#include "gcheaputilities.h"
 #include <float.h>
 #include "jitinterface.h"
 #include "safemath.h"
@@ -8566,10 +8566,6 @@ void Interpreter::Box()
         }
 
         MethodTable* pMT = th.AsMethodTable();
-        if (pMT->ContainsStackPtr()) // TODO: the call to MethodTable::Box() below also calls ContainsStackPtr(), and throws kInvalidOperationException if it returns true. Should we not call it here?
-        {
-            COMPlusThrow(kInvalidProgramException);
-        }
 
         {
             Object* res = OBJECTREFToObject(pMT->Box(valPtr));
@@ -8610,10 +8606,6 @@ void Interpreter::BoxStructRefAt(unsigned ind, CORINFO_CLASS_HANDLE valCls)
     TypeHandle th(valCls);
     if (th.IsTypeDesc())
         COMPlusThrow(kInvalidOperationException,W("InvalidOperation_TypeCannotBeBoxed"));
-
-    MethodTable * pMT = th.AsMethodTable();
-    if (pMT->ContainsStackPtr())
-        COMPlusThrow(kInvalidProgramException);
 
     {
         Object* res = OBJECTREFToObject(pMT->Box(valPtr));
@@ -9586,6 +9578,7 @@ void Interpreter::DoCallWork(bool virtualCall, void* thisArg, CORINFO_RESOLVED_T
 
     // This is the argument slot that will be used to hold the return value.
     ARG_SLOT retVal = 0;
+    _ASSERTE (NUMBER_RETURNVALUE_SLOTS == 1);
 
     // If the return type is a structure, then these will be initialized.
     CORINFO_CLASS_HANDLE retTypeClsHnd = NULL;
@@ -9861,7 +9854,7 @@ void Interpreter::DoCallWork(bool virtualCall, void* thisArg, CORINFO_RESOLVED_T
 #if INTERP_ILCYCLE_PROFILE
             bool b = CycleTimer::GetThreadCyclesS(&startCycles); assert(b);
 #endif // INTERP_ILCYCLE_PROFILE
-            retVal = mdcs.CallTargetWorker(args);
+            mdcs.CallTargetWorker(args, &retVal, sizeof(retVal));
 
             if (pCscd != NULL)
             {
@@ -10331,7 +10324,7 @@ void Interpreter::CallI()
             // to be a managed calling convention.)
             MethodDesc* pStubContextMD = reinterpret_cast<MethodDesc*>(m_stubContext);
             bool transitionToPreemptive = (pStubContextMD != NULL && !pStubContextMD->IsIL());
-            retVal = mdcs.CallTargetWorker(args, transitionToPreemptive);
+            mdcs.CallTargetWorker(args, &retVal, sizeof(retVal), transitionToPreemptive);
         }
         // retVal is now vulnerable.
         GCX_FORBID();

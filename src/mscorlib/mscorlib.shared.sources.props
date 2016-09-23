@@ -25,7 +25,7 @@
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\AssemblySettingAttributes.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\TypeDependencyAttribute.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\CompilerMarshalOverride.cs" />
-    <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\HasCopySemanticsAttribute.cs" />
+    <CompilerServicesSources Condition="'$(FeatureCoreClr)'!='true'"  Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\HasCopySemanticsAttribute.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\IsBoxed.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\IsByValue.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\IsConst.cs" />
@@ -33,11 +33,11 @@
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\IsImplicitlyDereferenced.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\IsJitIntrinsic.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\IsLong.cs" />
-    <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\IsPinned.cs" />
+    <CompilerServicesSources Condition="'$(FeatureCoreClr)'!='true'"  Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\IsPinned.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\IsSignUnspecifiedByte.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\IsUdtReturn.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\jithelpers.cs" />
-    <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\ScopelessEnumAttribute.cs" />
+    <CompilerServicesSources Condition="'$(FeatureCoreClr)'!='true'"  Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\ScopelessEnumAttribute.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\SpecialNameAttribute.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\SuppressMergeCheckAttribute.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\IsCopyConstructed.cs" />
@@ -63,7 +63,7 @@
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\TaskAwaiter.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\YieldAwaitable.cs" />
     <CompilerServicesSources Condition="'$(FeatureCominterop)' == 'true'" Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\IDispatchConstantAttribute.cs" />
-    <CompilerServicesSources Condition="'$(FeatureCominterop)' == 'true'" Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\IUnknownConstantAttribute.cs" />
+    <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\IUnknownConstantAttribute.cs" />
   </ItemGroup>
   <ItemGroup>
     <ReliabilitySources Include="$(BclSourcesRoot)\System\Runtime\Reliability\CriticalFinalizerObject.cs" />
@@ -261,8 +261,11 @@
     <SystemSources Include="$(BclSourcesRoot)\System\AppContext\AppContext.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\AppContext\AppContextSwitches.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\AppContext\AppContextDefaultValues.cs" />
+    <SystemSources Condition="'$(FeatureCoreClr)'=='true'" Include="$(BclSourcesRoot)\System\AppContext\AppContextDefaultValues.CoreClrOverrides.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\AppContext\AppContextDefaultValues.Defaults.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\AppContext\AppContextDefaultValues.Defaults.Central.cs" />
+    <SystemSources Include="$(BclSourcesRoot)\System\CurrentTimeZone.cs" />
+    <SystemSources Include="$(BclSourcesRoot)\System\TimeZone.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\Object.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\ICloneable.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\Action.cs" />
@@ -273,8 +276,12 @@
     <SystemSources Include="$(BclSourcesRoot)\System\ThrowHelper.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\Tuple.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\String.cs" />
+    <SystemSources Include="$(BclSourcesRoot)\System\String.Comparison.cs" />
+    <SystemSources Include="$(BclSourcesRoot)\System\String.Manipulation.cs" />
+    <SystemSources Include="$(BclSourcesRoot)\System\String.Searching.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\StringComparer.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\StringComparison.cs" />
+    <SystemSources Include="$(BclSourcesRoot)\System\StringSplitOptions.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\Text\StringBuilder.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\Text\StringBuilderCache.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\Exception.cs" />
@@ -450,6 +457,9 @@
     <SystemSources Condition="'$(FeatureClassicCominterop)' == 'true'" Include="$(BclSourcesRoot)\System\OleAutBinder.cs" />
   </ItemGroup>
   <ItemGroup>
+    <InternalSources Condition="'$(FeatureCoreclr)' == 'true'" Include="$(BclSourcesRoot)\Internal\Runtime\Augments\EnvironmentAugments.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <ReflectionSources Include="$(BclSourcesRoot)\System\Reflection\__Filters.cs" />
     <ReflectionSources Include="$(BclSourcesRoot)\System\Reflection\AmbiguousMatchException.cs" />
     <ReflectionSources Include="$(BclSourcesRoot)\System\Reflection\Assembly.cs" />
@@ -571,6 +581,7 @@
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\NumberStyles.cs" />
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\TimeSpanFormat.cs" />
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\TimeSpanParse.cs" />
+    <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\DaylightTime.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(FeatureCoreFxGlobalization)' != 'true'">
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\BidiCategory.cs" />
@@ -586,7 +597,6 @@
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\CultureTypes.cs" />
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\DateTimeFormatInfo.cs" />
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\DateTimeFormatInfoScanner.cs" />
-    <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\DaylightTime.cs" />
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\DigitShapes.cs" />
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\EncodingDataItem.cs" />
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\EncodingTable.cs" />
@@ -603,6 +613,7 @@
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\KoreanCalendar.cs" />
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\RegionInfo.cs" />
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\SortKey.cs" />
+    <GlobalizationSources Condition="'$(FeatureCoreclr)' == 'true'" Include="$(BclSourcesRoot)\System\Globalization\SortVersion.cs" />
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\StringInfo.cs" />
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\TaiwanCalendar.cs" />
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\TextElementEnumerator.cs" />
@@ -622,7 +633,7 @@
   </ItemGroup>
   <ItemGroup Condition="'$(FeatureCoreFxGlobalization)' == 'true'">
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\SR.cs" />
-  
+    <GlobalizationSources Condition="'$(FeatureCoreClr)'=='true'" Include="$(CoreFxSourcesRoot)\System\Globalization\STUBS.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\Calendar.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\CalendarData.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\CalendarWeekRule.cs" />
@@ -636,7 +647,6 @@
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\CultureNotFoundException.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\DateTimeFormatInfo.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\DateTimeFormatInfoScanner.cs" />
-    <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\DayLightTime.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\EastAsianLunisolarCalendar.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\GregorianCalendar.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\GregorianCalendarHelper.cs" />
@@ -784,7 +794,7 @@
     <IoSources Include="$(BclSourcesRoot)\System\IO\MemoryStream.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\Path.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\PathHelper.cs" />
-    <IoSources Include="$(BclSourcesRoot)\System\IO\LongPathHelper.cs" />
+    <IoSources Condition="'$(TargetsUnix)' != 'true'" Include="$(BclSourcesRoot)\System\IO\LongPathHelper.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\PathInternal.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\PathTooLongException.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\PinnedBufferMemoryStream.cs" />
@@ -981,6 +991,7 @@
     <TextSources Include="$(BclSourcesRoot)\System\Text\EncoderFallback.cs" />
     <TextSources Include="$(BclSourcesRoot)\System\Text\EncoderReplacementFallback.cs" />
     <TextSources Include="$(BclSourcesRoot)\System\Text\Encoding.cs" />
+    <TextSources Include="$(BclSourcesRoot)\System\Text\EncodingForwarder.cs" />
     <TextSources Include="$(BclSourcesRoot)\System\Text\EncodingInfo.cs" />
     <TextSources Include="$(BclSourcesRoot)\System\Text\EncodingNLS.cs" />
     <TextSources Include="$(BclSourcesRoot)\System\Text\EncodingProvider.cs" />
@@ -1178,6 +1189,7 @@
     <MscorlibSources Include="@(IdentitySources)"/>
     <MscorlibSources Include="@(VersioningSources)"/>
     <MscorlibSources Include="@(DesignerServicesSources)"/>
+    <MscorlibSources Include="@(InternalSources)"/>
     <MscorlibSources Include="$(BclSourcesRoot)\GlobalSuppressions.cs"/>
   </ItemGroup>
 </Project>

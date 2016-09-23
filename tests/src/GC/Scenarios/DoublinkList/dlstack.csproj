@@ -27,16 +27,8 @@
   </ItemGroup>
   <ItemGroup>
     <!-- Add Compile Object Here -->
-    <Compile Include="DLStack.cs" />
+    <Compile Include="dlstack.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <None Include="app.config" />
-    <None Include="$(GCPackagesConfigFileDirectory)extra\project.json" />
-  </ItemGroup>
-  <PropertyGroup>
-    <ProjectJson>$(GCPackagesConfigFileDirectory)extra\project.json</ProjectJson>
-    <ProjectLockJson>$(GCPackagesConfigFileDirectory)extra\project.lock.json</ProjectLockJson>
-  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="DoubLink.csproj" />
   </ItemGroup>

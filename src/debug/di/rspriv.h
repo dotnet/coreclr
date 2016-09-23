@@ -2924,6 +2924,9 @@ class CordbProcess :
     public IDacDbiInterface::IAllocator,
     public IDacDbiInterface::IMetaDataLookup,
     public IProcessShimHooks
+#ifdef FEATURE_LEGACYNETCF_DBG_HOST_CONTROL
+    , public ICorDebugLegacyNetCFHostCallbackInvoker_PrivateWindowsPhoneOnly
+#endif
 {
     // Ctor is private. Use OpenVirtualProcess instead. 
     CordbProcess(ULONG64 clrInstanceId, IUnknown * pDataTarget, HMODULE hDacModule,  Cordb * pCordb, DWORD dwProcessID, ShimProcess * pShim);
@@ -3128,6 +3131,16 @@ public:
     // ICorDebugProcess8
     //-----------------------------------------------------------
     COM_METHOD EnableExceptionCallbacksOutsideOfMyCode(BOOL enableExceptionsOutsideOfJMC);
+
+#ifdef FEATURE_LEGACYNETCF_DBG_HOST_CONTROL
+    // ---------------------------------------------------------------
+    // ICorDebugLegacyNetCFHostCallbackInvoker_PrivateWindowsPhoneOnly
+    // ---------------------------------------------------------------
+
+    COM_METHOD InvokePauseCallback();
+    COM_METHOD InvokeResumeCallback();
+
+#endif
 
     //-----------------------------------------------------------
     // Methods not exposed via a COM interface.
@@ -6102,7 +6115,7 @@ public:
     // Converts the values in the floating point register area of the context to real number values.
     void Get32bitFPRegisters(CONTEXT * pContext);
 
-#elif defined(DBG_TARGET_AMD64)
+#elif defined(DBG_TARGET_AMD64) ||  defined(DBG_TARGET_ARM64)
     // Converts the values in the floating point register area of the context to real number values.
     void Get64bitFPRegisters(FPRegister64 * rgContextFPRegisters, int start, int nRegisters);
 #endif // DBG_TARGET_X86

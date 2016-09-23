@@ -250,9 +250,9 @@ HRESULT ClrDataAccess::EnumMemCLRStatic(IN CLRDataEnumMemoryFlags flags)
         ReportMem(m_globalBase + g_dacGlobals.SharedDomain__m_pSharedDomain,
                   sizeof(SharedDomain));
 
-        // We need GCHeap pointer to make EEVersion work
+        // We need IGCHeap pointer to make EEVersion work
         ReportMem(m_globalBase + g_dacGlobals.dac__g_pGCHeap,
-              sizeof(GCHeap *));
+              sizeof(IGCHeap *));
 
         // see synblk.cpp, the pointer is pointed to a static byte[]
         SyncBlockCache::s_pSyncBlockCache.EnumMem();
@@ -316,7 +316,7 @@ HRESULT ClrDataAccess::EnumMemCLRStatic(IN CLRDataEnumMemoryFlags flags)
 #ifdef FEATURE_SVR_GC
     CATCH_ALL_EXCEPT_RETHROW_COR_E_OPERATIONCANCELLED
     (
-        GCHeap::gcHeapType.EnumMem();
+        IGCHeap::gcHeapType.EnumMem();
     );
 #endif // FEATURE_SVR_GC
 
@@ -979,10 +979,11 @@ HRESULT ClrDataAccess::EnumMemWalkStackHelper(CLRDataEnumMemoryFlags flags,
                                 codeInfo.GetJitManager()->IsFilterFunclet(&codeInfo);
 
                                 // The stackwalker needs GC info to find the parent 'stack pointer' or PSP
-                                PTR_BYTE pGCInfo = dac_cast<PTR_BYTE>(codeInfo.GetGCInfo());
+                                GCInfoToken gcInfoToken = codeInfo.GetGCInfoToken();
+                                PTR_BYTE pGCInfo = dac_cast<PTR_BYTE>(gcInfoToken.Info);
                                 if (pGCInfo != NULL)
                                 {
-                                    GcInfoDecoder gcDecoder(pGCInfo, DECODE_PSP_SYM, 0);
+                                    GcInfoDecoder gcDecoder(gcInfoToken, DECODE_PSP_SYM, 0);
                                     DacEnumMemoryRegion(dac_cast<TADDR>(pGCInfo), gcDecoder.GetNumBytesRead(), true);
                                 }
                             }

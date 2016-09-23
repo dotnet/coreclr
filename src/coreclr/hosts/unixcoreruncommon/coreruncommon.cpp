@@ -16,21 +16,24 @@
 #include <string>
 #include <string.h>
 #include <sys/stat.h>
+#if defined(__FreeBSD__)
+#include <sys/types.h>
+#include <sys/param.h>
+#endif
+#if defined(HAVE_SYS_SYSCTL_H) || defined(__FreeBSD__)
 #include <sys/sysctl.h>
+#endif
 #include "coreruncommon.h"
 #include "coreclrhost.h"
 #include <unistd.h>
-
+#ifndef SUCCEEDED
 #define SUCCEEDED(Status) ((Status) >= 0)
+#endif // !SUCCEEDED
 
 // Name of the environment variable controlling server GC.
 // If set to 1, server GC is enabled on startup. If 0, server GC is
 // disabled. Server GC is off by default.
 static const char* serverGcVar = "CORECLR_SERVER_GC";
-
-// Name of the environment variable controlling concurrent GC,
-// used in the same way as serverGcVar. Concurrent GC is on by default.
-static const char* concurrentGcVar = "CORECLR_CONCURRENT_GC";
 
 #if defined(__linux__)
 #define symlinkEntrypointExecutable "/proc/self/exe"
@@ -75,6 +78,24 @@ bool GetEntrypointExecutableAbsolutePath(std::string& entrypointExecutable)
             entrypointExecutable.assign(pResizedPath);
             result = true;
         }
+    }
+#elif defined (__FreeBSD__)
+    static const int name[] = {
+        CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1
+    };
+    char path[PATH_MAX];
+    size_t len;
+
+    len = sizeof(path);
+    if (sysctl(name, 4, path, &len, nullptr, 0) == 0)
+    {
+        entrypointExecutable.assign(path);
+        result = true;
+    }
+    else
+    {
+        // ENOMEM
+        result = false;
     }
 #elif defined(__NetBSD__) && defined(KERN_PROC_PATHNAME)
     static const int name[] = {
@@ -265,16 +286,16 @@ int ExecuteManagedAssembly(
     int exitCode = -1;
 
 #ifdef _ARM_
-    // LIBUNWIND-ARM has a bug of side effect with DWARF mode
-    // Ref: https://github.com/dotnet/coreclr/issues/3462
-    // This is why Fedora is disabling it by default as well.
-    // Assuming that we cannot enforce the user to set
-    // environmental variables for third party packages,
-    // we set the environmental variable of libunwind locally here.
-
-    // Without this, any exception handling will fail, so let's do this
-    // as early as possible.
-    // 0x1: DWARF / 0x2: FRAME / 0x4: EXIDX
+    // libunwind library is used to unwind stack frame, but libunwind for ARM
+    // does not support ARM vfpv3/NEON registers in DWARF format correctly.
+    // Therefore let's disable stack unwinding using DWARF information
+    // See https://github.com/dotnet/coreclr/issues/6698
+    //
+    // libunwind use following methods to unwind stack frame.
+    // UNW_ARM_METHOD_ALL          0xFF
+    // UNW_ARM_METHOD_DWARF        0x01
+    // UNW_ARM_METHOD_FRAME        0x02
+    // UNW_ARM_METHOD_EXIDX        0x04
     putenv(const_cast<char *>("UNW_ARM_UNWIND_METHOD=6"));
 #endif // _ARM_
 
@@ -292,7 +313,14 @@ int ExecuteManagedAssembly(
     std::string appPath;
     GetDirectory(managedAssemblyAbsolutePath, appPath);
 
+    // Construct native search directory paths
     std::string nativeDllSearchDirs(appPath);
+    char *coreLibraries = getenv("CORE_LIBRARIES");
+    if (coreLibraries)
+    {
+        nativeDllSearchDirs.append(":");
+        nativeDllSearchDirs.append(coreLibraries);
+    }
     nativeDllSearchDirs.append(":");
     nativeDllSearchDirs.append(clrFilesAbsolutePath);
 
@@ -320,25 +348,16 @@ int ExecuteManagedAssembly(
         }
         else
         {
-            // check if we are enabling server GC or concurrent GC.
-            // Server GC is off by default, while concurrent GC is on by default.
-            // Actual checking of these string values is done in coreclr_initialize.
+            // Check whether we are enabling server GC (off by default)
             const char* useServerGc = std::getenv(serverGcVar);
             if (useServerGc == nullptr)
             {
                 useServerGc = "0";
             }
-            
-            const char* useConcurrentGc = std::getenv(concurrentGcVar);
-            if (useConcurrentGc == nullptr)
-            {
-                useConcurrentGc = "1";
-            }
 
             // CoreCLR expects strings "true" and "false" instead of "1" and "0".
             useServerGc = std::strcmp(useServerGc, "1") == 0 ? "true" : "false";
-            useConcurrentGc = std::strcmp(useConcurrentGc, "1") == 0 ? "true" : "false";
-            
+
             // Allowed property names:
             // APPBASE
             // - The base path of the application from which the exe and other assemblies will be loaded
@@ -362,7 +381,6 @@ int ExecuteManagedAssembly(
                 "NATIVE_DLL_SEARCH_DIRECTORIES",
                 "AppDomainCompatSwitch",
                 "System.GC.Server",
-                "System.GC.Concurrent"
             };
             const char *propertyValues[] = {
                 // TRUSTED_PLATFORM_ASSEMBLIES
@@ -377,8 +395,6 @@ int ExecuteManagedAssembly(
                 "UseLatestBehaviorWhenTFMNotSpecified",
                 // System.GC.Server
                 useServerGc,
-                // System.GC.Concurrent
-                useConcurrentGc
             };
 
             void* hostHandle;

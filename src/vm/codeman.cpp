@@ -448,8 +448,6 @@ extern CrstStatic g_StubUnwindInfoHeapSegmentsCrst;
             MethodDesc *pMD = heapIterator.GetMethod();
             if(pMD)
             { 
-                _ASSERTE(!pMD->IsZapped());
-
                 PCODE methodEntry =(PCODE) heapIterator.GetMethodCode();
                 RangeSection * pRS = ExecutionManager::FindCodeRange(methodEntry, ExecutionManager::GetScanFlags());
                 _ASSERTE(pRS != NULL);
@@ -860,39 +858,34 @@ BOOL IsFunctionFragment(TADDR baseAddress, PTR_RUNTIME_FUNCTION pFunctionEntry)
     // 1. Prolog only: The host record. Epilog Count and E bit are all 0.
     // 2. Prolog and some epilogs: The host record with acompannying epilog-only records
     // 3. Epilogs only: First unwind code is Phantom prolog (Starting with an end_c, indicating an empty prolog)
-    // 4. No prologs or epilogs: Epilog Count = 1 and Epilog Start Index points end_c. (as if it's case #2 with empty epilog codes) 
+    // 4. No prologs or epilogs: First unwind code is Phantom prolog  (Starting with an end_c, indicating an empty prolog)
     //
 
     int EpilogCount = (int)(unwindHeader >> 22) & 0x1F;
     int CodeWords = unwindHeader >> 27;
     PTR_DWORD pUnwindCodes = (PTR_DWORD)(baseAddress + pFunctionEntry->UnwindData);
+    // Skip header.
+    pUnwindCodes++;
+
+    // Skip extended header.
     if ((CodeWords == 0) && (EpilogCount == 0))
-        pUnwindCodes++;
-    BOOL Ebit = (unwindHeader >> 21) & 0x1;
-    if (Ebit)
     {
-        // EpilogCount is the index of the first unwind code that describes the one and only epilog
-        // The unwind codes immediatelly follow the unwindHeader
+        EpilogCount = (*pUnwindCodes) & 0xFFFF;
         pUnwindCodes++;
     }
-    else if (EpilogCount != 0)
+
+    // Skip epilog scopes.
+    BOOL Ebit = (unwindHeader >> 21) & 0x1;
+    if (!Ebit && (EpilogCount != 0))
     {
         // EpilogCount is the number of exception scopes defined right after the unwindHeader
-        pUnwindCodes += EpilogCount+1;
-    }
-    else
-    {
-        return FALSE;
+        pUnwindCodes += EpilogCount;
     }
 
-    if ((*pUnwindCodes & 0xFF) == 0xE5) // Phantom prolog
-        return TRUE;
-        
-
+    return ((*pUnwindCodes & 0xFF) == 0xE5);
 #else
     PORTABILITY_ASSERT("IsFunctionFragnent - NYI on this platform");
 #endif
-    return FALSE;
 }
 
 #endif // EXCEPTION_DATA_SUPPORTS_FUNCTION_FRAGMENTS
@@ -987,7 +980,7 @@ PTR_VOID GetUnwindDataBlob(TADDR moduleBase, PTR_RUNTIME_FUNCTION pRuntimeFuncti
     _ASSERTE((pRuntimeFunction->UnwindData & 0x3) == 0);
 
     // compute the size of the unwind info
-    PTR_TADDR xdata = dac_cast<PTR_TADDR>(pRuntimeFunction->UnwindData + moduleBase);
+    PTR_ULONG xdata = dac_cast<PTR_ULONG>(pRuntimeFunction->UnwindData + moduleBase);
 
     ULONG epilogScopes = 0;
     ULONG unwindWords = 0;
@@ -1016,6 +1009,46 @@ PTR_VOID GetUnwindDataBlob(TADDR moduleBase, PTR_RUNTIME_FUNCTION pRuntimeFuncti
 
     *pSize = size;
     return xdata;
+
+#elif defined(_TARGET_ARM64_)
+	// if this function uses packed unwind data then at least one of the two least significant bits
+	// will be non-zero.  if this is the case then there will be no xdata record to enumerate.
+	_ASSERTE((pRuntimeFunction->UnwindData & 0x3) == 0);
+
+    // compute the size of the unwind info
+    PTR_ULONG xdata    = dac_cast<PTR_ULONG>(pRuntimeFunction->UnwindData + moduleBase);
+    ULONG epilogScopes = 0;
+    ULONG unwindWords  = 0;
+    ULONG size = 0;
+
+    //If both Epilog Count and Code Word is not zero
+    //Info of Epilog and Unwind scopes are given by 1 word header
+    //Otherwise this info is given by a 2 word header
+    if ((xdata[0] >> 27) != 0) 
+    {
+        size = 4;
+        epilogScopes = (xdata[0] >> 22) & 0x1f;
+        unwindWords = (xdata[0] >> 27) & 0x0f;
+    }
+    else 
+    {
+        size = 8;
+        epilogScopes = xdata[1] & 0xffff;
+        unwindWords = (xdata[1] >> 16) & 0xff;
+    }
+
+    if (!(xdata[0] & (1 << 21))) 
+        size += 4 * epilogScopes;
+
+    size += 4 * unwindWords;
+
+    _ASSERTE(xdata[0] & (1 << 20)); // personality routine should be always present
+    size += 4;                      // exception handler RVA
+
+    *pSize = size;
+    return xdata;
+
+
 #else
     PORTABILITY_ASSERT("GetUnwindDataBlob");
     return NULL;
@@ -2977,7 +3010,7 @@ void * EEJitManager::allocCodeFragmentBlock(size_t blockSize, unsigned alignment
 #endif // !DACCESS_COMPILE
 
 
-PTR_VOID EEJitManager::GetGCInfo(const METHODTOKEN& MethodToken)
+GCInfoToken EEJitManager::GetGCInfoToken(const METHODTOKEN& MethodToken)
 {
     CONTRACTL {
         NOTHROW;
@@ -2986,7 +3019,8 @@ PTR_VOID EEJitManager::GetGCInfo(const METHODTOKEN& MethodToken)
         SUPPORTS_DAC;
     } CONTRACTL_END;
 
-    return GetCodeHeader(MethodToken)->GetGCInfo();
+    // The JIT-ed code always has the current version of GCInfo 
+    return{ GetCodeHeader(MethodToken)->GetGCInfo(), GCINFO_VERSION };
 }
 
 // creates an enumeration and returns the number of EH clauses
@@ -3363,7 +3397,7 @@ void ExecutionManager::CleanupCodeHeaps()
     }
     CONTRACTL_END;
 
-    _ASSERTE (g_fProcessDetach || (GCHeap::IsGCInProgress()  && ::IsGCThread()));
+    _ASSERTE (g_fProcessDetach || (GCHeapUtilities::IsGCInProgress()  && ::IsGCThread()));
 
     GetEEJitManager()->CleanupCodeHeaps();
 }
@@ -3377,7 +3411,7 @@ void EEJitManager::CleanupCodeHeaps()
     }
     CONTRACTL_END;
 
-    _ASSERTE (g_fProcessDetach || (GCHeap::IsGCInProgress() && ::IsGCThread()));
+    _ASSERTE (g_fProcessDetach || (GCHeapUtilities::IsGCInProgress() && ::IsGCThread()));
 
     CrstHolder ch(&m_CodeHeapCritSec);
 
@@ -4417,7 +4451,7 @@ RangeSection* ExecutionManager::GetRangeSection(TADDR addr)
     // Unless we are on an MP system with many cpus
     // where this sort of caching actually diminishes scaling during server GC
     // due to many processors writing to a common location
-    if (g_SystemInfo.dwNumberOfProcessors < 4 || !GCHeap::IsServerHeap() || !GCHeap::IsGCInProgress())
+    if (g_SystemInfo.dwNumberOfProcessors < 4 || !GCHeapUtilities::IsServerHeap() || !GCHeapUtilities::IsGCInProgress())
         pHead->pLastUsed = pLast;
 #endif
 
@@ -4495,6 +4529,40 @@ PTR_Module ExecutionManager::FindZapModule(TADDR currentData)
 
     return dac_cast<PTR_Module>(pRS->pHeapListOrZapModule);
 }
+
+/* static */
+PTR_Module ExecutionManager::FindReadyToRunModule(TADDR currentData)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        SO_TOLERANT;
+        MODE_ANY;
+        STATIC_CONTRACT_HOST_CALLS;
+        SUPPORTS_DAC;
+    }
+    CONTRACTL_END;
+
+#ifdef FEATURE_READYTORUN
+    ReaderLockHolder rlh;
+
+    RangeSection * pRS = GetRangeSection(currentData);
+    if (pRS == NULL)
+        return NULL;
+
+    if (pRS->flags & RangeSection::RANGE_SECTION_CODEHEAP)
+        return NULL;
+
+    if (pRS->flags & RangeSection::RANGE_SECTION_READYTORUN)
+        return dac_cast<PTR_Module>(pRS->pHeapListOrZapModule);;
+
+    return NULL;
+#else
+    return NULL;
+#endif
+}
+
 
 /* static */
 PTR_Module ExecutionManager::FindModuleForGCRefMap(TADDR currentData)
@@ -4963,7 +5031,7 @@ NativeImageJitManager::NativeImageJitManager()
 
 #endif // #ifndef DACCESS_COMPILE
 
-PTR_VOID NativeImageJitManager::GetGCInfo(const METHODTOKEN& MethodToken)
+GCInfoToken NativeImageJitManager::GetGCInfoToken(const METHODTOKEN& MethodToken)
 {
     CONTRACTL {
         NOTHROW;
@@ -4988,7 +5056,8 @@ PTR_VOID NativeImageJitManager::GetGCInfo(const METHODTOKEN& MethodToken)
     PTR_VOID pUnwindData = GetUnwindDataBlob(baseAddress, pRuntimeFunction, &nUnwindDataSize);
 
     // GCInfo immediatelly follows unwind data
-    return dac_cast<PTR_BYTE>(pUnwindData) + nUnwindDataSize;
+    // GCInfo from an NGEN-ed image is always the current version
+    return{ dac_cast<PTR_BYTE>(pUnwindData) + nUnwindDataSize, GCINFO_VERSION };
 }
 
 unsigned NativeImageJitManager::InitializeEHEnumeration(const METHODTOKEN& MethodToken, EH_CLAUSE_ENUMERATOR* pEnumState)
@@ -5609,7 +5678,7 @@ void NativeImageJitManager::JitTokenToMethodRegionInfo(const METHODTOKEN& Method
     //
 
     methodRegionInfo->hotStartAddress  = JitTokenToStartAddress(MethodToken);
-    methodRegionInfo->hotSize          = GetCodeManager()->GetFunctionSize(GetGCInfo(MethodToken));
+    methodRegionInfo->hotSize          = GetCodeManager()->GetFunctionSize(GetGCInfoToken(MethodToken));
     methodRegionInfo->coldStartAddress = 0;
     methodRegionInfo->coldSize         = 0;
 
@@ -6202,14 +6271,17 @@ PTR_MethodDesc MethodIterator::GetMethodDesc()
     return NativeUnwindInfoLookupTable::GetMethodDesc(m_pNgenLayout, GetRuntimeFunction(), m_ModuleBase);
 }
 
-PTR_VOID MethodIterator::GetGCInfo()
+GCInfoToken MethodIterator::GetGCInfoToken()
 {
     LIMITED_METHOD_CONTRACT;
 
     // get the gc info from the RT function
     SIZE_T size;
     PTR_VOID pUnwindData = GetUnwindDataBlob(m_ModuleBase, GetRuntimeFunction(), &size);
-    return (PTR_VOID)((PTR_BYTE)pUnwindData + size);
+    PTR_VOID gcInfo = (PTR_VOID)((PTR_BYTE)pUnwindData + size);
+    // MethodIterator is used to iterate over methods of an NgenImage.
+    // So, GcInfo version is always current
+    return{ gcInfo, GCINFO_VERSION };
 }
 
 TADDR MethodIterator::GetMethodStartAddress()
@@ -6287,8 +6359,8 @@ void MethodIterator::GetMethodRegionInfo(IJitManager::MethodRegionInfo *methodRe
 
     methodRegionInfo->hotStartAddress  = GetMethodStartAddress();
     methodRegionInfo->coldStartAddress = GetMethodColdStartAddress();
-
-    methodRegionInfo->hotSize          = ExecutionManager::GetNativeImageJitManager()->GetCodeManager()->GetFunctionSize(GetGCInfo());
+    GCInfoToken gcInfoToken = GetGCInfoToken();
+    methodRegionInfo->hotSize          = ExecutionManager::GetNativeImageJitManager()->GetCodeManager()->GetFunctionSize(gcInfoToken);
     methodRegionInfo->coldSize         = 0;
 
     if (methodRegionInfo->coldStartAddress != NULL)
@@ -6336,6 +6408,20 @@ ReadyToRunInfo * ReadyToRunJitManager::JitTokenToReadyToRunInfo(const METHODTOKE
     return dac_cast<PTR_Module>(MethodToken.m_pRangeSection->pHeapListOrZapModule)->GetReadyToRunInfo();
 }
 
+UINT32 ReadyToRunJitManager::JitTokenToGCInfoVersion(const METHODTOKEN& MethodToken)
+{
+    CONTRACTL{
+        NOTHROW;
+        GC_NOTRIGGER;
+        HOST_NOCALLS;
+        SUPPORTS_DAC;
+    } CONTRACTL_END;
+
+    READYTORUN_HEADER * header = JitTokenToReadyToRunInfo(MethodToken)->GetImage()->GetReadyToRunHeader();
+
+    return GCInfoToken::ReadyToRunVersionToGcInfoVersion(header->MajorVersion);
+}
+
 PTR_RUNTIME_FUNCTION ReadyToRunJitManager::JitTokenToRuntimeFunction(const METHODTOKEN& MethodToken)
 {
     CONTRACTL {
@@ -6361,7 +6447,7 @@ TADDR ReadyToRunJitManager::JitTokenToStartAddress(const METHODTOKEN& MethodToke
         RUNTIME_FUNCTION__BeginAddress(dac_cast<PTR_RUNTIME_FUNCTION>(MethodToken.m_pCodeHeader));
 }
 
-PTR_VOID ReadyToRunJitManager::GetGCInfo(const METHODTOKEN& MethodToken)
+GCInfoToken ReadyToRunJitManager::GetGCInfoToken(const METHODTOKEN& MethodToken)
 {
     CONTRACTL {
         NOTHROW;
@@ -6386,7 +6472,10 @@ PTR_VOID ReadyToRunJitManager::GetGCInfo(const METHODTOKEN& MethodToken)
     PTR_VOID pUnwindData = GetUnwindDataBlob(baseAddress, pRuntimeFunction, &nUnwindDataSize);
 
     // GCInfo immediatelly follows unwind data
-    return dac_cast<PTR_BYTE>(pUnwindData) + nUnwindDataSize;
+    PTR_BYTE gcInfo = dac_cast<PTR_BYTE>(pUnwindData) + nUnwindDataSize;
+    UINT32 gcInfoVersion = JitTokenToGCInfoVersion(MethodToken);
+
+    return{ gcInfo, gcInfoVersion };
 }
 
 unsigned ReadyToRunJitManager::InitializeEHEnumeration(const METHODTOKEN& MethodToken, EH_CLAUSE_ENUMERATOR* pEnumState)
@@ -6791,7 +6880,7 @@ void ReadyToRunJitManager::JitTokenToMethodRegionInfo(const METHODTOKEN& MethodT
     // READYTORUN: FUTURE: Hot-cold spliting
 
     methodRegionInfo->hotStartAddress  = JitTokenToStartAddress(MethodToken);
-    methodRegionInfo->hotSize          = GetCodeManager()->GetFunctionSize(GetGCInfo(MethodToken));
+    methodRegionInfo->hotSize          = GetCodeManager()->GetFunctionSize(GetGCInfoToken(MethodToken));
     methodRegionInfo->coldStartAddress = 0;
     methodRegionInfo->coldSize         = 0;
 }

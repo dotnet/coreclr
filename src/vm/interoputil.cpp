@@ -908,7 +908,6 @@ void FillExceptionData(ExceptionData* pedata, IErrorInfo* pErrInfo, IRestrictedE
 }
 #endif // CROSSGEN_COMPILE
 
-#ifndef FEATURE_CORECLR
 //---------------------------------------------------------------------------
 //returns true if pImport has DefaultDllImportSearchPathsAttribute
 //if true, also returns dllImportSearchPathFlag and searchAssemblyDirectory values.
@@ -945,7 +944,6 @@ BOOL GetDefaultDllImportSearchPathsAttributeValue(IMDInternalImport *pImport, md
     *pDllImportSearchPathFlag = args[0].val.u4;
     return TRUE;
 }
-#endif // !FEATURE_CORECLR
 
 
 //---------------------------------------------------------------------------
@@ -2132,7 +2130,7 @@ void MinorCleanupSyncBlockComData(InteropSyncBlockInfo* pInteropInfo)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION( GCHeap::IsGCInProgress() || ( (g_fEEShutDown & ShutDown_SyncBlock) && g_fProcessDetach ) );
+        PRECONDITION( GCHeapUtilities::IsGCInProgress() || ( (g_fEEShutDown & ShutDown_SyncBlock) && g_fProcessDetach ) );
     }
     CONTRACTL_END;
 

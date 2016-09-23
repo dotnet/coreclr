@@ -33,7 +33,7 @@
 #include "log.h"
 #include "fieldmarshaler.h"
 #include "cgensys.h"
-#include "gc.h"
+#include "gcheaputilities.h"
 #include "security.h"
 #include "dbginterface.h"
 #include "comdelegate.h"
@@ -805,11 +805,10 @@ PTR_MethodTable InterfaceInfo_t::GetApproxMethodTable(Module * pContainingModule
     {
         GCStress<cfg_any>::MaybeTrigger();
 
-        // Make call to obj.GetImplType(interfaceTypeObj)
-        MethodDesc *pGetImplTypeMD = pServerMT->GetMethodDescForInterfaceMethod(MscorlibBinder::GetMethod(METHOD__ICASTABLE__GETIMPLTYPE));
-        OBJECTREF ownerManagedType = ownerType.GetManagedClassObject(); //GC triggers
+        // Make call to ICastableHelpers.GetImplType(obj, interfaceTypeObj)
+        PREPARE_NONVIRTUAL_CALLSITE(METHOD__ICASTABLEHELPERS__GETIMPLTYPE);
 
-        PREPARE_NONVIRTUAL_CALLSITE_USING_METHODDESC(pGetImplTypeMD);
+        OBJECTREF ownerManagedType = ownerType.GetManagedClassObject(); //GC triggers
         
         DECLARE_ARGHOLDER_ARRAY(args, 2);
         args[ARGNUM_0] = OBJECTREF_TO_ARGHOLDER(*pServer);
@@ -2918,6 +2917,7 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
             case NFT_STRINGUNI:
             case NFT_STRINGANSI:
             case NFT_ANSICHAR:
+            case NFT_STRINGUTF8:
             case NFT_WINBOOL:
             case NFT_CBOOL:
             case NFT_DELEGATE:
@@ -3793,7 +3793,7 @@ OBJECTREF MethodTable::Box(void* data)
 
     GCPROTECT_BEGININTERIOR (data);
 
-    if (ContainsStackPtr())
+    if (IsByRefLike())
     {
         // We should never box a type that contains stack pointers.
         COMPlusThrow(kInvalidOperationException, W("InvalidOperation_TypeCannotBeBoxed"));
@@ -9804,11 +9804,11 @@ BOOL MethodTable::Validate()
     }
 
     DWORD dwLastVerifiedGCCnt = m_pWriteableData->m_dwLastVerifedGCCnt;
-    // Here we used to assert that (dwLastVerifiedGCCnt <= GCHeap::GetGCHeap()->GetGcCount()) but 
+    // Here we used to assert that (dwLastVerifiedGCCnt <= GCHeapUtilities::GetGCHeap()->GetGcCount()) but 
     // this is no longer true because with background gc. Since the purpose of having 
     // m_dwLastVerifedGCCnt is just to only verify the same method table once for each GC
     // I am getting rid of the assert.
-    if (g_pConfig->FastGCStressLevel () > 1 && dwLastVerifiedGCCnt == GCHeap::GetGCHeap()->GetGcCount())
+    if (g_pConfig->FastGCStressLevel () > 1 && dwLastVerifiedGCCnt == GCHeapUtilities::GetGCHeap()->GetGcCount())
         return TRUE;
 #endif //_DEBUG
 
@@ -9835,7 +9835,7 @@ BOOL MethodTable::Validate()
     // It is not a fatal error to fail the update the counter. We will run slower and retry next time, 
     // but the system will function properly.
     if (EnsureWritablePagesNoThrow(m_pWriteableData, sizeof(MethodTableWriteableData)))
-        m_pWriteableData->m_dwLastVerifedGCCnt = GCHeap::GetGCHeap()->GetGcCount();
+        m_pWriteableData->m_dwLastVerifedGCCnt = GCHeapUtilities::GetGCHeap()->GetGcCount();
 #endif //_DEBUG
 
     return TRUE;

@@ -22,7 +22,7 @@ namespace System {
     // ApplicationException extends but adds no new functionality to 
     // RecoverableException.
     // 
-[System.Runtime.InteropServices.ComVisible(true)]
+    [System.Runtime.InteropServices.ComVisible(true)]
     [Serializable]
     public class ApplicationException : Exception {
         

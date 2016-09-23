@@ -53,7 +53,8 @@ namespace System {
     // 
     [StructLayout(LayoutKind.Auto)]
     [Serializable]
-    public struct DateTime : IComparable, IFormattable, IConvertible, ISerializable, IComparable<DateTime>,IEquatable<DateTime> {
+    public struct DateTime : IComparable, IFormattable, IConvertible, IComparable<DateTime>, IEquatable<DateTime>, ISerializable
+    {
     
         // Number of 100ns ticks per time unit
         private const long TicksPerMillisecond = 10000;
@@ -670,8 +671,7 @@ namespace System {
         public static DateTime FromOADate(double d) {
             return new DateTime(DoubleDateToTicks(d), DateTimeKind.Unspecified);
         }        
-        
-#if FEATURE_SERIALIZATION
+
         [System.Security.SecurityCritical /*auto-generated_required*/]
         void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context) {
             if (info==null) {
@@ -682,8 +682,7 @@ namespace System {
             // Serialize both the old and the new format
             info.AddValue(TicksField, InternalTicks);
             info.AddValue(DateDataField, dateData);
-        }        
-#endif
+        }
 
         public Boolean IsDaylightSavingTime() {
             if (Kind == DateTimeKind.Utc) {

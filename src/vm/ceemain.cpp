@@ -150,7 +150,7 @@
 #include "frames.h"
 #include "threads.h"
 #include "stackwalk.h"
-#include "gc.h"
+#include "gcheaputilities.h"
 #include "interoputil.h"
 #include "security.h"
 #include "fieldmarshaler.h"
@@ -177,7 +177,7 @@
 #include "ipcfunccall.h"
 #include "perflog.h"
 #include "../dlls/mscorrc/resource.h"
-#ifdef FEATURE_LEGACYSURFACE
+#if defined(FEATURE_LEGACYSURFACE) || defined(FEATURE_USE_LCID)
 #include "nlsinfo.h"
 #endif 
 #include "util.hpp"
@@ -640,7 +640,7 @@ void InitializeStartupFlags()
         g_fEnableARM = TRUE;
 #endif // !FEATURE_CORECLR
 
-    GCHeap::InitializeHeapType((flags & STARTUP_SERVER_GC) != 0);
+    InitializeHeapType((flags & STARTUP_SERVER_GC) != 0);
 
 #ifdef FEATURE_LOADER_OPTIMIZATION            
     g_dwGlobalSharePolicy = (flags&STARTUP_LOADER_OPTIMIZATION_MASK)>>1;
@@ -803,10 +803,6 @@ do { \
 #define IfFailGoLog(EXPR) IfFailGotoLog(EXPR, ErrExit)
 #endif
 
-#if defined(FEATURE_MERGE_JIT_AND_ENGINE)
-void            jitOnDllProcessAttach();
-#endif // defined(FEATURE_MERGE_JIT_AND_ENGINE)
-
 void EEStartupHelper(COINITIEE fFlags)
 {
     CONTRACTL
@@ -854,10 +850,6 @@ void EEStartupHelper(COINITIEE fFlags)
             IfFailGo(g_pConfig->SetupConfiguration());
 #endif // !FEATURE_CORECLR && !CROSSGEN_COMPILE
         }
-
-#if defined(CROSSGEN_COMPILE) && defined(FEATURE_MERGE_JIT_AND_ENGINE)
-        jitOnDllProcessAttach();
-#endif // defined(CROSSGEN_COMPILE) && defined(FEATURE_MERGE_JIT_AND_ENGINE)
 
 #ifndef CROSSGEN_COMPILE
         // Initialize Numa and CPU group information
@@ -1500,9 +1492,6 @@ void InnerCoEEShutDownCOM()
     // Cleanup cached factory pointer in SynchronizationContextNative
     SynchronizationContextNative::Cleanup();
 #endif    
-
-    // remove any tear-down notification we have setup
-    RemoveTearDownNotifications();
 }
 
 // ---------------------------------------------------------------------------
@@ -3730,7 +3719,8 @@ void InitializeGarbageCollector()
     g_pFreeObjectMethodTable->SetBaseSize(ObjSizeOf (ArrayBase));
     g_pFreeObjectMethodTable->SetComponentSize(1);
 
-    GCHeap *pGCHeap = GCHeap::CreateGCHeap();
+    IGCHeap *pGCHeap = InitializeGarbageCollector(nullptr);
+    g_pGCHeap = pGCHeap;
     if (!pGCHeap)
         ThrowOutOfMemory();
 
@@ -3738,8 +3728,7 @@ void InitializeGarbageCollector()
     IfFailThrow(hr);
 
     // Thread for running finalizers...
-    if (FinalizerThread::FinalizerThreadCreate() != 1)
-        ThrowOutOfMemory();
+    FinalizerThread::FinalizerThreadCreate();
 
     // Now we really have fully initialized the garbage collector
     SetGarbageCollectorFullyInitialized();
@@ -3845,7 +3834,7 @@ BOOL STDMETHODCALLTYPE EEDllMain( // TRUE on success, FALSE on error.
                 {
                     // GetThread() may be set to NULL for Win9x during shutdown.
                     Thread *pThread = GetThread();
-                    if (GCHeap::IsGCInProgress() &&
+                    if (GCHeapUtilities::IsGCInProgress() &&
                         ( (pThread && (pThread != ThreadSuspend::GetSuspensionThread() ))
                             || !g_fSuspendOnShutdown))
                     {
@@ -4196,12 +4185,7 @@ static void TerminateDebugger(void)
 
         // This will kill the helper thread, delete the Debugger object, and free all resources.
         g_pDebugInterface->StopDebugger();
-        g_pDebugInterface = NULL;
     }
-
-    // Delete this after Debugger, since Debugger may use this.
-    EEDbgInterfaceImpl::Terminate();
-    _ASSERTE(g_pEEDbgInterfaceImpl == NULL); // Terminate nulls this out for us.
 
     g_CORDebuggerControlFlags = DBCF_NORMAL_OPERATION;
 

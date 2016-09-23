@@ -1,6 +1,6 @@
 function(clr_unknown_arch)
     if (WIN32)
-        message(FATAL_ERROR "Only AMD64, ARM64 and I386 are supported")
+        message(FATAL_ERROR "Only AMD64, ARM64, ARM and I386 are supported")
     else()
         message(FATAL_ERROR "Only AMD64, ARM64 and ARM are supported")
     endif()
@@ -24,14 +24,39 @@ function(get_compile_definitions DefinitionName)
     set(${DefinitionName} ${DEFINITIONS} PARENT_SCOPE)
 endfunction(get_compile_definitions)
 
-# Build a list of include directories by putting -I in front of each include dir.
+# Build a list of include directories
 function(get_include_directories IncludeDirectories)
     get_directory_property(dirs INCLUDE_DIRECTORIES)
     foreach(dir IN LISTS dirs)
+
+      if (CLR_CMAKE_PLATFORM_ARCH_ARM AND WIN32)
+        list(APPEND INC_DIRECTORIES /I${dir})
+      else()
         list(APPEND INC_DIRECTORIES -I${dir})
+      endif(CLR_CMAKE_PLATFORM_ARCH_ARM AND WIN32)
+
     endforeach()
     set(${IncludeDirectories} ${INC_DIRECTORIES} PARENT_SCOPE)
 endfunction(get_include_directories)
+
+# Build a list of include directories for consumption by the assembler
+function(get_include_directories_asm IncludeDirectories)
+    get_directory_property(dirs INCLUDE_DIRECTORIES)
+    
+    if (CLR_CMAKE_PLATFORM_ARCH_ARM AND WIN32)
+        list(APPEND INC_DIRECTORIES "-I ")
+    endif()
+    
+    foreach(dir IN LISTS dirs)
+      if (CLR_CMAKE_PLATFORM_ARCH_ARM AND WIN32)
+        list(APPEND INC_DIRECTORIES ${dir};)
+      else()
+        list(APPEND INC_DIRECTORIES -I${dir})
+      endif()
+    endforeach()
+
+    set(${IncludeDirectories} ${INC_DIRECTORIES} PARENT_SCOPE)
+endfunction(get_include_directories_asm)
 
 # Set the passed in RetSources variable to the list of sources with added current source directory
 # to form absolute paths.
@@ -47,12 +72,12 @@ endfunction(convert_to_absolute_path)
 #Preprocess exports definition file
 function(preprocess_def_file inputFilename outputFilename)
   get_compile_definitions(PREPROCESS_DEFINITIONS)
-
+  get_include_directories(ASM_INCLUDE_DIRECTORIES)
   add_custom_command(
     OUTPUT ${outputFilename}
-    COMMAND ${CMAKE_CXX_COMPILER} /P /EP /TC ${PREPROCESS_DEFINITIONS}  /Fi${outputFilename}  ${inputFilename}
+    COMMAND ${CMAKE_CXX_COMPILER} ${ASM_INCLUDE_DIRECTORIES} /P /EP /TC ${PREPROCESS_DEFINITIONS}  /Fi${outputFilename}  ${inputFilename}
     DEPENDS ${inputFilename}
-    COMMENT "Preprocessing ${inputFilename}"
+    COMMENT "Preprocessing ${inputFilename} - ${CMAKE_CXX_COMPILER} ${ASM_INCLUDE_DIRECTORIES} /P /EP /TC ${PREPROCESS_DEFINITIONS}  /Fi${outputFilename}  ${inputFilename}"
   )
 
   set_source_files_properties(${outputFilename}
@@ -93,19 +118,19 @@ function(add_precompiled_header header cppFile targetSources)
 endfunction()
 
 function(strip_symbols targetName outputFilename)
-  if(CLR_CMAKE_PLATFORM_UNIX)
-    if(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL RELEASE)
+  if (CLR_CMAKE_PLATFORM_UNIX)
+    if (UPPERCASE_CMAKE_BUILD_TYPE STREQUAL RELEASE)
 
       # On the older version of cmake (2.8.12) used on Ubuntu 14.04 the TARGET_FILE
       # generator expression doesn't work correctly returning the wrong path and on
       # the newer cmake versions the LOCATION property isn't supported anymore.
-      if(CMAKE_VERSION VERSION_EQUAL 3.0 OR CMAKE_VERSION VERSION_GREATER 3.0)
+      if (CMAKE_VERSION VERSION_EQUAL 3.0 OR CMAKE_VERSION VERSION_GREATER 3.0)
           set(strip_source_file $<TARGET_FILE:${targetName}>)
       else()
           get_property(strip_source_file TARGET ${targetName} PROPERTY LOCATION)
       endif()
 
-      if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
+      if (CMAKE_SYSTEM_NAME STREQUAL Darwin)
         set(strip_destination_file ${strip_source_file}.dwarf)
 
         add_custom_command(
@@ -113,10 +138,10 @@ function(strip_symbols targetName outputFilename)
           POST_BUILD
           VERBATIM 
           COMMAND ${DSYMUTIL} --flat --minimize ${strip_source_file}
-          COMMAND ${STRIP} -u -r ${strip_source_file}
+          COMMAND ${STRIP} -S ${strip_source_file}
           COMMENT Stripping symbols from ${strip_source_file} into file ${strip_destination_file}
         )
-      elseif(CMAKE_SYSTEM_NAME STREQUAL Linux)
+      else (CMAKE_SYSTEM_NAME STREQUAL Darwin)
         set(strip_destination_file ${strip_source_file}.dbg)
 
         add_custom_command(
@@ -128,7 +153,7 @@ function(strip_symbols targetName outputFilename)
           COMMAND ${OBJCOPY} --add-gnu-debuglink=${strip_destination_file} ${strip_source_file}
           COMMENT Stripping symbols from ${strip_source_file} into file ${strip_destination_file}
         )
-      endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
+      endif (CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
       set(${outputFilename} ${strip_destination_file} PARENT_SCOPE)
     endif(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL RELEASE)

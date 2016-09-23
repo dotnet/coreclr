@@ -11,9 +11,9 @@
 //
 //
 namespace System.Reflection {
-    
+
     // Define the delegate
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
+    [System.Runtime.InteropServices.ComVisible(true)]
     public delegate bool MemberFilter(MemberInfo m, Object filterCriteria);
 }

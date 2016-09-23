@@ -404,7 +404,7 @@ namespace System.Diagnostics.Tracing
         public static Guid GetGuid(Type eventSourceType)
         {
             if (eventSourceType == null)
-                throw new ArgumentNullException("eventSourceType");
+                throw new ArgumentNullException(nameof(eventSourceType));
             Contract.EndContractBlock();
 
             EventSourceAttribute attrib = (EventSourceAttribute)GetCustomAttributeHelper(eventSourceType, typeof(EventSourceAttribute));
@@ -429,7 +429,7 @@ namespace System.Diagnostics.Tracing
 
             if (name == null)
             {
-                throw new ArgumentException(Resources.GetResourceString("Argument_InvalidTypeName"), "eventSourceType");
+                throw new ArgumentException(Resources.GetResourceString("Argument_InvalidTypeName"), nameof(eventSourceType));
             }
             return GenerateGuidFromName(name.ToUpperInvariant());       // Make it case insensitive.  
         }
@@ -472,7 +472,7 @@ namespace System.Diagnostics.Tracing
         public static string GenerateManifest(Type eventSourceType, string assemblyPathToIncludeInManifest, EventManifestOptions flags)
         {
             if (eventSourceType == null)
-                throw new ArgumentNullException("eventSourceType");
+                throw new ArgumentNullException(nameof(eventSourceType));
             Contract.EndContractBlock();
 
             byte[] manifestBytes = EventSource.CreateManifestAndDescriptors(eventSourceType, assemblyPathToIncludeInManifest, null, flags);
@@ -511,12 +511,12 @@ namespace System.Diagnostics.Tracing
         public static void SendCommand(EventSource eventSource, EventCommand command, IDictionary<string, string> commandArguments)
         {
             if (eventSource == null)
-                throw new ArgumentNullException("eventSource");
+                throw new ArgumentNullException(nameof(eventSource));
 
             // User-defined EventCommands should not conflict with the reserved commands.
             if ((int)command <= (int)EventCommand.Update && (int)command != (int)EventCommand.SendManifest)
             {
-                throw new ArgumentException(Resources.GetResourceString("EventSource_InvalidCommand"), "command");
+                throw new ArgumentException(Resources.GetResourceString("EventSource_InvalidCommand"), nameof(command));
             }
 
             eventSource.SendCommand(null, 0, 0, command, true, EventLevel.LogAlways, EventKeywords.None, commandArguments);
@@ -1451,7 +1451,7 @@ namespace System.Diagnostics.Tracing
                 m_traits = traits;
                 if (m_traits != null && m_traits.Length % 2 != 0)
                 {
-                    throw new ArgumentException(Resources.GetResourceString("TraitEven"), "traits");
+                    throw new ArgumentException(Resources.GetResourceString("TraitEven"), nameof(traits));
                 }
 
                 if (eventSourceGuid == Guid.Empty)
@@ -1543,7 +1543,7 @@ namespace System.Diagnostics.Tracing
         private static string GetName(Type eventSourceType, EventManifestOptions flags)
         {
             if (eventSourceType == null)
-                throw new ArgumentNullException("eventSourceType");
+                throw new ArgumentNullException(nameof(eventSourceType));
             Contract.EndContractBlock();
 
             EventSourceAttribute attrib = (EventSourceAttribute)GetCustomAttributeHelper(eventSourceType, typeof(EventSourceAttribute), flags);
@@ -1836,7 +1836,7 @@ namespace System.Diagnostics.Tracing
                 dataPointer = data->DataPointer;
                 data++;
                 for (int i = 0; i < cbSize; ++i)
-                    blob[i] = *((byte*)dataPointer);
+                    blob[i] = *((byte*)(dataPointer + i));
                 return blob;
             }
             else if (dataType == typeof(byte*))
@@ -1974,7 +1974,7 @@ namespace System.Diagnostics.Tracing
                                         m_eventData[eventId].Descriptor.Level,
                                         m_eventData[eventId].Descriptor.Opcode,
                                         m_eventData[eventId].Descriptor.Task,
-                                        unchecked((long)(ulong)etwSessions | origKwd));
+                                        unchecked((long)etwSessions.ToEventKeywords() | origKwd));
 
                                     if (!m_provider.WriteEvent(ref desc, pActivityId, childActivityID, args))
                                         ThrowEventSourceException(m_eventData[eventId].Name);
@@ -1995,7 +1995,7 @@ namespace System.Diagnostics.Tracing
                                 // TODO: activity ID support
                                 EventSourceOptions opt = new EventSourceOptions
                                 {
-                                    Keywords = (EventKeywords)unchecked((long)(ulong)etwSessions | origKwd),
+                                    Keywords = (EventKeywords)unchecked((long)etwSessions.ToEventKeywords() | origKwd),
                                     Level = (EventLevel)m_eventData[eventId].Descriptor.Level,
                                     Opcode = (EventOpcode)m_eventData[eventId].Descriptor.Opcode
                                 };
@@ -3259,10 +3259,10 @@ namespace System.Diagnostics.Tracing
                 // are the typenames equal and the namespaces under "Diagnostics.Tracing" (typically
                 // either Microsoft.Diagnostics.Tracing or System.Diagnostics.Tracing)?
                     string.Equals(attributeType.Name, reflectedAttributeType.Name, StringComparison.Ordinal) &&
-                    attributeType.Namespace.EndsWith("Diagnostics.Tracing") &&
-                    (reflectedAttributeType.Namespace.EndsWith("Diagnostics.Tracing")
+                    attributeType.Namespace.EndsWith("Diagnostics.Tracing", StringComparison.Ordinal) &&
+                    (reflectedAttributeType.Namespace.EndsWith("Diagnostics.Tracing", StringComparison.Ordinal)
 #if EVENT_SOURCE_LEGACY_NAMESPACE_SUPPORT
-                     || reflectedAttributeType.Namespace.EndsWith("Diagnostics.Eventing")
+                     || reflectedAttributeType.Namespace.EndsWith("Diagnostics.Eventing", StringComparison.Ordinal)
 #endif
 );
         }
@@ -3535,7 +3535,7 @@ namespace System.Diagnostics.Tracing
                             {
                                 unchecked
                                 {
-                                    eventAttribute.Keywords |= (EventKeywords)manifest.GetChannelKeyword(eventAttribute.Channel);
+                                    eventAttribute.Keywords |= (EventKeywords)manifest.GetChannelKeyword(eventAttribute.Channel, (ulong) eventAttribute.Keywords);
                                 }
                             }
 #endif
@@ -3672,7 +3672,7 @@ namespace System.Diagnostics.Tracing
             if (eventData == null || eventData.Length <= eventAttribute.EventId)
             {
                 EventMetadata[] newValues = new EventMetadata[Math.Max(eventData.Length + 16, eventAttribute.EventId + 1)];
-                Array.Copy(eventData, newValues, eventData.Length);
+                Array.Copy(eventData, 0, newValues, 0, eventData.Length);
                 eventData = newValues;
             }
 
@@ -3711,7 +3711,7 @@ namespace System.Diagnostics.Tracing
             if (eventData.Length - idx > 2)      // allow one wasted slot. 
             {
                 EventMetadata[] newValues = new EventMetadata[idx + 1];
-                Array.Copy(eventData, newValues, newValues.Length);
+                Array.Copy(eventData, 0, newValues, 0, newValues.Length);
                 eventData = newValues;
             }
         }
@@ -3994,7 +3994,7 @@ namespace System.Diagnostics.Tracing
                                 EventSourceSettings.EtwSelfDescribingEventFormat;
             if ((settings & evtFormatMask) == evtFormatMask)
             {
-                throw new ArgumentException(Resources.GetResourceString("EventSource_InvalidEventFormat"), "settings");
+                throw new ArgumentException(Resources.GetResourceString("EventSource_InvalidEventFormat"), nameof(settings));
             }
 
             // If you did not explicitly ask for manifest, you get self-describing.  
@@ -4271,7 +4271,6 @@ namespace System.Diagnostics.Tracing
         {
             lock (EventListenersLock)
             {
-                Contract.Assert(s_Listeners != null);
                 if (s_Listeners != null)
                 {
                     if (this == s_Listeners)
@@ -4351,7 +4350,7 @@ namespace System.Diagnostics.Tracing
         {
             if (eventSource == null)
             {
-                throw new ArgumentNullException("eventSource");
+                throw new ArgumentNullException(nameof(eventSource));
             }
             Contract.EndContractBlock();
 
@@ -4366,7 +4365,7 @@ namespace System.Diagnostics.Tracing
         {
             if (eventSource == null)
             {
-                throw new ArgumentNullException("eventSource");
+                throw new ArgumentNullException(nameof(eventSource));
             }
             Contract.EndContractBlock();
 
@@ -6000,7 +5999,7 @@ namespace System.Diagnostics.Tracing
         internal bool m_activityFilteringEnabled;     // does THIS EventSource have activity filtering turned on for this listener?
 #endif // FEATURE_ACTIVITYSAMPLING
 
-        // Only guarenteed to exist after a InsureInit()
+        // Only guaranteed to exist after a InsureInit()
         internal EventDispatcher m_Next;              // These form a linked list in code:EventSource.m_Dispatchers
         // Of all listeners for that eventSource.  
     }
@@ -6307,8 +6306,15 @@ namespace System.Diagnostics.Tracing
         // channel support is enabled), or based on the order the predefined channels appear in the EventAttribute properties (for simple 
         // support). The manifest generated *MUST* have the channels specified in the same order (that's how our computed keywords are mapped
         // to channels by the OS infrastructure).
-        public ulong GetChannelKeyword(EventChannel channel)
+        // If channelKeyworkds is present, and has keywords bits in the ValidPredefinedChannelKeywords then it is 
+        // assumed that that the keyword for that channel should be that bit.   
+        // otherwise we allocate a channel bit for the channel.  
+        // explicit channel bits are only used by WCF to mimic an existing manifest, 
+        // so we don't dont do error checking.  
+        public ulong GetChannelKeyword(EventChannel channel, ulong channelKeyword=0)
         {
+            // strip off any non-channel keywords, since we are only interested in channels here.  
+            channelKeyword &= ValidPredefinedChannelKeywords;
             if (channelTab == null)
             {
                 channelTab = new Dictionary<int, ChannelInfo>(4);
@@ -6317,12 +6323,15 @@ namespace System.Diagnostics.Tracing
             if (channelTab.Count == MaxCountChannels)
                 ManifestError(Resources.GetResourceString("EventSource_MaxChannelExceeded"));
 
-            ulong channelKeyword;
             ChannelInfo info;
             if (!channelTab.TryGetValue((int)channel, out info))
             {
-                channelKeyword = nextChannelKeywordBit;
-                nextChannelKeywordBit >>= 1;
+                // If we were not given an explicit channel, allocate one.  
+                if (channelKeyword != 0)
+                {
+                    channelKeyword = nextChannelKeywordBit;
+                    nextChannelKeywordBit >>= 1;
+                }
             }
             else
             {
@@ -6610,7 +6619,7 @@ namespace System.Diagnostics.Tracing
                 if (localizedString != null)
                 {
                     value = localizedString;
-                    if (etwFormat && key.StartsWith("event_"))
+                    if (etwFormat && key.StartsWith("event_", StringComparison.Ordinal))
                     {
                         var evtName = key.Substring("event_".Length);
                         value = TranslateToManifestConvention(value, evtName);
@@ -6732,6 +6741,10 @@ namespace System.Diagnostics.Tracing
         
         private string GetKeywords(ulong keywords, string eventName)
         {
+            // ignore keywords associate with channels
+            // See ValidPredefinedChannelKeywords def for more. 
+            keywords &= ~ValidPredefinedChannelKeywords;  
+
             string ret = "";
             for (ulong bit = 1; bit != 0; bit <<= 1)
             {
@@ -6896,7 +6909,13 @@ namespace System.Diagnostics.Tracing
         Dictionary<string, string> stringTab;       // Maps unlocalized strings to localized ones  
 
 #if FEATURE_MANAGED_ETW_CHANNELS
-        ulong nextChannelKeywordBit = 0x8000000000000000;   // available Keyword bit to be used for next channel definition
+        // WCF used EventSource to mimic a existing ETW manifest.   To support this
+        // in just their case, we allowed them to specify the keywords associated 
+        // with their channels explicitly.   ValidPredefinedChannelKeywords is 
+        // this set of channel keywords that we allow to be explicitly set.  You
+        // can ignore these bits otherwise.  
+        internal const ulong ValidPredefinedChannelKeywords = 0xF000000000000000;
+        ulong nextChannelKeywordBit = 0x8000000000000000;   // available Keyword bit to be used for next channel definition, grows down
         const int MaxCountChannels = 8; // a manifest can defined at most 8 ETW channels
 #endif
 

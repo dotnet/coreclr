@@ -29,6 +29,7 @@ set __Exclude0=%~dp0\issues.targets
 set __Sequential=
 set __msbuildExtraArgs=
 set __LongGCTests=
+set __GCSimulatorTests=
 
 :Arg_Loop
 if "%1" == "" goto ArgsDone
@@ -40,25 +41,33 @@ if /i "%1" == "-h"    goto Usage
 if /i "%1" == "/help" goto Usage
 if /i "%1" == "-help" goto Usage
 
-if /i "%1" == "x64"                 (set __BuildArch=x64&set __MSBuildBuildArch=x64&shift&goto Arg_Loop)
-if /i "%1" == "x86"                 (set __BuildArch=x86&set __MSBuildBuildArch=x86&shift&goto Arg_Loop)
+if /i "%1" == "x64"                   (set __BuildArch=x64&set __MSBuildBuildArch=x64&shift&goto Arg_Loop)
+if /i "%1" == "x86"                   (set __BuildArch=x86&set __MSBuildBuildArch=x86&shift&goto Arg_Loop)
 
-if /i "%1" == "debug"               (set __BuildType=Debug&shift&goto Arg_Loop)
-if /i "%1" == "release"             (set __BuildType=Release&shift&goto Arg_Loop)
-if /i "%1" == "checked"             (set __BuildType=Checked&shift&goto Arg_Loop)
+if /i "%1" == "debug"                 (set __BuildType=Debug&shift&goto Arg_Loop)
+if /i "%1" == "release"               (set __BuildType=Release&shift&goto Arg_Loop)
+if /i "%1" == "checked"               (set __BuildType=Checked&shift&goto Arg_Loop)
 
-if /i "%1" == "vs2013"              (set __VSVersion=%1&shift&goto Arg_Loop)
-if /i "%1" == "vs2015"              (set __VSVersion=%1&shift&goto Arg_Loop)
+if /i "%1" == "vs2013"                (set __VSVersion=%1&shift&goto Arg_Loop)
+if /i "%1" == "vs2015"                (set __VSVersion=%1&shift&goto Arg_Loop)
 
 if /i "%1" == "SkipWrapperGeneration" (set __SkipWrapperGeneration=true&shift&goto Arg_Loop)
-if /i "%1" == "Exclude"             (set __Exclude=%2&shift&shift&goto Arg_Loop)
-if /i "%1" == "Exclude0"            (set __Exclude0=%2&shift&shift&goto Arg_Loop)
-if /i "%1" == "TestEnv"             (set __TestEnv=%2&shift&shift&goto Arg_Loop)
-if /i "%1" == "sequential"          (set __Sequential=1&shift&goto Arg_Loop)
-if /i "%1" == "crossgen"            (set __DoCrossgen=1&shift&goto Arg_Loop)
-if /i "%1" == "longgctests"         (set __LongGCTests=1&shift&goto Arg_Loop)
-if /i "%1" == "GenerateLayoutOnly"  (set __GenerateLayoutOnly=1&set __SkipWrapperGeneration=true&shift&goto Arg_Loop)
-if /i "%1" == "PerfTests"           (set __PerfTests=true&set __SkipWrapperGeneration=true&shift&goto Arg_Loop)
+if /i "%1" == "Exclude"               (set __Exclude=%2&shift&shift&goto Arg_Loop)
+if /i "%1" == "Exclude0"              (set __Exclude0=%2&shift&shift&goto Arg_Loop)
+if /i "%1" == "TestEnv"               (set __TestEnv=%2&shift&shift&goto Arg_Loop)
+if /i "%1" == "sequential"            (set __Sequential=1&shift&goto Arg_Loop)
+if /i "%1" == "crossgen"              (set __DoCrossgen=1&shift&goto Arg_Loop)
+if /i "%1" == "longgc"                (set __LongGCTests=1&shift&goto Arg_Loop)
+if /i "%1" == "gcsimulator"           (set __GCSimulatorTests=1&shift&goto Arg_Loop)
+if /i "%1" == "jitstress"             (set COMPlus_JitStress=%2&shift&shift&goto Arg_Loop)
+if /i "%1" == "jitstressregs"         (set COMPlus_JitStressRegs=%2&shift&shift&goto Arg_Loop)
+if /i "%1" == "jitminopts"            (set COMPlus_JITMinOpts=1&shift&shift&goto Arg_Loop)
+if /i "%1" == "jitforcerelocs"        (set COMPlus_ForceRelocs=1&shift&shift&goto Arg_Loop)
+if /i "%1" == "GenerateLayoutOnly"    (set __GenerateLayoutOnly=1&set __SkipWrapperGeneration=true&shift&goto Arg_Loop)
+if /i "%1" == "PerfTests"             (set __PerfTests=true&set __SkipWrapperGeneration=true&shift&goto Arg_Loop)
+if /i "%1" == "runcrossgentests"      (set RunCrossGen=true&shift&goto Arg_Loop)
+REM change it to COMPlus_GCStress when we stop using xunit harness
+if /i "%1" == "gcstresslevel"         (set __GCSTRESSLEVEL=%2&set __TestTimeout=1800000&shift&shift&goto Arg_Loop) 
 
 if /i not "%1" == "msbuildargs" goto SkipMsbuildArgs
 :: All the rest of the args will be collected and passed directly to msbuild.
@@ -125,13 +134,19 @@ if not defined VSINSTALLDIR (
 ::       The issue is that we extend the build with our own targets which
 ::       means that that rebuilding cannot successfully delete the task
 ::       assembly. 
-set __msbuildCommonArgs=/nologo /nodeReuse:false %__msbuildExtraArgs%
+set __msbuildCommonArgs=/nologo /nodeReuse:false %__msbuildExtraArgs% /p:Platform=%__MSBuildBuildArch%
 
 if not defined __Sequential (
     set __msbuildCommonArgs=%__msbuildCommonArgs% /maxcpucount
 ) else (
     set __msbuildCommonArgs=%__msbuildCommonArgs% /p:ParallelRun=false
 )
+
+REM Prepare the Test Drop
+REM Cleans any NI from the last run
+powershell "Get-ChildItem -path %__TestWorkingDir% -Include '*.ni.*' -Recurse -Force | Remove-Item -force"
+REM Cleans up any lock folder used for synchronization from last run
+powershell "Get-ChildItem -path %__TestWorkingDir% -Include 'lock' -Recurse -Force |  where {$_.Attributes -eq 'Directory'}| Remove-Item -force -Recurse"
 
 if defined CORE_ROOT goto SkipCoreRootSetup
 
@@ -151,6 +166,7 @@ if defined __TestEnv (if not exist %__TestEnv% echo %__MsgPrefix%Error: Test Env
 REM These log files are created automatically by the test run process. Q: what do they depend on being set?
 set __TestRunHtmlLog=%__LogsDir%\TestRun_%__BuildOS%__%__BuildArch%__%__BuildType%.html
 set __TestRunXmlLog=%__LogsDir%\TestRun_%__BuildOS%__%__BuildArch%__%__BuildType%.xml
+
 
 if "%__PerfTests%"=="true" goto RunPerfTests
 if "%__SkipWrapperGeneration%"=="true" goto SkipWrapperGeneration
@@ -300,18 +316,6 @@ if "%CORE_ROOT%" == "" (
     echo %__MsgPrefix%Error: Ensure you have done a successful build of the Product and Run - runtest BuildArch BuildType {path to product binaries}.
     exit /b 1
 )
-:: Pull down dependent packages needed for testing
-setlocal
-if defined __TestEnv call %__TestEnv%
-if defined COMPlus_GCStress set __Result=true
-endlocal & set __IsGCTest=%__Result%
-if "%__IsGCTest%"=="true" (
-    call tests\setup-runtime-dependencies.cmd /arch %__BuildArch% /outputdir %CORE_ROOT%
-    if errorlevel 1 (
-        echo Failed to donwload runtime packages
-        exit /b 1
-    )
-)
 
 :: Long GC tests take about 10 minutes per test on average, so
 :: they often bump up against the default 10 minute timeout.
@@ -319,6 +323,15 @@ if "%__IsGCTest%"=="true" (
 if defined __LongGCTests (
     echo Running Long GC tests, extending timeout to 20 minutes
     set __TestTimeout=1200000
+    set RunningLongGCTests=1
+)
+
+:: GCSimulator tests can take up to an hour to complete. They are run twice a week in the
+:: CI, so it's fine if they take a long time.
+if defined __GCSimulatorTests (
+    echo Running GCSimulator tests, extending timeout to one hour
+    set __TestTimeout=3600000
+    set RunningGCSimulatorTests=1
 )
 
 set __BuildLogRootName=Tests_GenerateRuntimeLayout
@@ -348,6 +361,15 @@ echo Exclude-  Optional parameter - this will exclude individual tests from runn
 echo TestEnv- Optional parameter - this will run a custom script to set custom test environment settings.
 echo VSVersion- Optional parameter - VS2013 or VS2015 ^(default: VS2015^)
 echo GenerateLayoutOnly - If specified will not run the tests and will only create the Runtime Dependency Layout
+echo RunCrossgenTests   - Runs ReadytoRun tests
+echo jitstress n        - Runs the tests with COMPlus_JitStress=n
+echo jitstressregs n    - Runs the tests with COMPlus_JitStressRegs=n
+echo jitminopts         - Runs the tests with COMPlus_JITMinOpts=1
+echo jitforcerelocs     - Runs the tests with COMPlus_ForceRelocs=1
+echo gcstresslevel n    - Runs the tests with COMPlus_GCStress=n
+echo     0: None                                1: GC on all allocs and 'easy' places
+echo     2: GC on transitions to preemptive GC  4: GC on every allowable JITed instr
+echo     8: GC on every allowable NGEN instr   16: GC only on a unique stack trace
 echo CORE_ROOT The path to the runtime  
 exit /b 1
 

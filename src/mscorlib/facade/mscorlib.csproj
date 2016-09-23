@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
+
+  <PropertyGroup>
+    <AssemblyName>mscorlib</AssemblyName>
+    <ProjectGuid>{263342A6-FC48-4CFC-B16A-2AF964D3536C}</ProjectGuid>
+    <ClsCompliant>true</ClsCompliant>
+    <AssemblyVersion>4.0.0.0</AssemblyVersion>
+    <IsPartialFacadeAssembly>true</IsPartialFacadeAssembly>
+    <OutputType>Library</OutputType>
+    <ExcludeMscorlibFacade>true</ExcludeMscorlibFacade>
+
+    <!-- This prevents the default MsBuild targets from referencing System.Core.dll -->
+    <AddAdditionalExplicitAssemblyReferences>false</AddAdditionalExplicitAssemblyReferences>
+    <!-- These prevent the default MsBuild targets from referencing System.dll and mscorlib.dll -->
+    <NoStdLib>true</NoStdLib>
+    <NoCompilerStandardLib>true</NoCompilerStandardLib>
+
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <AvailablePlatforms>amd64,x86,arm,arm-softfp,arm64</AvailablePlatforms>
+    <Configuration Condition=" '$(Configuration)' == '' ">$(BuildType)</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">$(BuildArch)</Platform>
+    <!-- The CLR properties use amd64 as their platform string, we want to keep in sync with those, so set Platform appropriately,
+         though still use the 'x64' output path (see use of BuildArch below) -->
+    <Platform Condition=" '$(Platform)' == 'x64' ">amd64</Platform>
+    <Platform Condition=" '$(Platform)' == 'arm-softfp' ">arm</Platform>
+
+    <!-- We want to exclude the transitive closure of the packages pulled in via project.json as that introduces ambiguity -->
+    <OmitTransitiveCompileReferences>true</OmitTransitiveCompileReferences>
+    <NuGetTargetMoniker>.NETStandard,Version=v1.3</NuGetTargetMoniker>
+  </PropertyGroup>
+
+  <!-- Default configurations to help VS understand the options -->
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'netcore50_Debug|AnyCPU'" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'netcore50_Release|AnyCPU'" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'netcore50aot_Debug|AnyCPU'" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'netcore50aot_Release|AnyCPU'" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'net462_Debug|AnyCPU'" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'net462_Release|AnyCPU'" />
+
+  <!-- Roslyn does not support writing PDBs on Unix -->
+  <PropertyGroup Condition="'$(OsEnvironment)' == 'Unix'">
+    <DebugSymbols>false</DebugSymbols>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+  <!-- Some of the type forwards should only be build when targeting Windows. -->
+  <PropertyGroup>
+    <DefineConstants Condition="'$(TargetsWindows)'=='true'">$(DefineConstants);WINDOWS_TYPEFORWARDS</DefineConstants>
+  </PropertyGroup>
+
+  <!-- Output paths -->
+  <PropertyGroup>
+    <BaseIntermediateOutputPath>$(RootBinDir)\obj</BaseIntermediateOutputPath>
+    <!-- Note the trailing '\\' - they are needed so that genfacade does not fail due to an invalid path
+         In particular, the facadepath is sent in quotes.
+         And the IntermediateOutputPath is required to end in a '\' in the coreclr repo. This means that the
+         facadepath ends up being sent as 'mypath\"' and that trips the Path normalization.
+         Introducing a second '\' tricks the normalization logic to treat this '\\"' as '\"' and not complain.    -->
+    <IntermediateOutputPath>$(BaseIntermediateOutputPath)\$(BuildOS).$(BuildArch).$(Configuration)\facade\\</IntermediateOutputPath>
+    <OutputPath>$(BinDir)\facade</OutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\System.Private.CoreLib.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="TypeForwards.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="project.json" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <StrongNameSig>Silverlight</StrongNameSig>
+  </PropertyGroup>
+
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
+
+  <PropertyGroup>
+    <!-- Overwrite the key that we are going to use for signing -->
+    <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)..\Tools\Signing\mscorlib.snk</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
+
+  <!-- the signing marker file is incorrectly named mscorlib.dll.requires_signing -->
+  <Target Name="RenameSigningMarker" AfterTargets="WriteSigningRequired" Condition="Exists('$(TargetPath).requires_signing')">
+    <Move SourceFiles="$(TargetPath).requires_signing" DestinationFiles="$(OutputPath)\System.Private.CoreLib.dll.requires_signing" />
+  </Target>
+
+  <ItemGroup>
+    <SeedTypePreference Include="System.Console">
+      <Assembly>System.Console</Assembly>
+    </SeedTypePreference>
+  </ItemGroup>
+
+</Project>

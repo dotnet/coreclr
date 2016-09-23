@@ -281,8 +281,9 @@ class CEECompileInfo : public ICorCompileInfo
                        SigBuilder              *pSigBuilder,
                        LPVOID                  encodeContext,
                        ENCODEMODULE_CALLBACK   pfnEncodeModule,
-                       CORINFO_RESOLVED_TOKEN * pResolvedToken,
-                       CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken);
+                       CORINFO_RESOLVED_TOKEN  *pResolvedToken,
+                       CORINFO_RESOLVED_TOKEN  *pConstrainedResolvedToken,
+                       BOOL                    fEncodeUsingResolvedTokenSpecStreams);
 
     virtual mdToken TryEncodeMethodAsToken(CORINFO_METHOD_HANDLE handle, 
                                            CORINFO_RESOLVED_TOKEN * pResolvedToken,
@@ -295,7 +296,8 @@ class CEECompileInfo : public ICorCompileInfo
                        SigBuilder              *pSigBuilder,
                        LPVOID                  encodeContext,
                        ENCODEMODULE_CALLBACK   pfnEncodeModule,
-                       CORINFO_RESOLVED_TOKEN * pResolvedToken);
+                       CORINFO_RESOLVED_TOKEN  *pResolvedToken,
+                       BOOL                    fEncodeUsingResolvedTokenSpecStreams);
 
     // Encode generic dictionary signature
     virtual void EncodeGenericSignature(
@@ -525,6 +527,18 @@ class CEEPreloader : public ICorCompilePreloader
 
     // Array of methods that we need to compile.
     SArray<MethodDesc*> m_uncompiledMethods;
+
+    int m_methodCompileLimit;
+
+    void AppendUncompiledMethod(MethodDesc *pMD)
+    {
+        STANDARD_VM_CONTRACT;
+        if (m_methodCompileLimit > 0)
+        {
+            m_uncompiledMethods.Append(pMD);
+            m_methodCompileLimit--;
+        }
+    }
 
     struct DuplicateMethodEntry
     {

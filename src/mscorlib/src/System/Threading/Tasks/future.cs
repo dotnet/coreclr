@@ -350,7 +350,7 @@ namespace System.Threading.Tasks
         {
             if ((internalOptions & InternalTaskOptions.SelfReplicating) != 0)
             {
-                throw new ArgumentOutOfRangeException("creationOptions", Environment.GetResourceString("TaskT_ctor_SelfReplicating"));
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.creationOptions, ExceptionResource.TaskT_ctor_SelfReplicating);
             }
         }
 
@@ -380,7 +380,7 @@ namespace System.Threading.Tasks
         {
             if ((internalOptions & InternalTaskOptions.SelfReplicating) != 0)
             {
-                throw new ArgumentOutOfRangeException("creationOptions", Environment.GetResourceString("TaskT_ctor_SelfReplicating"));
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.creationOptions, ExceptionResource.TaskT_ctor_SelfReplicating);
             }
         }
 
@@ -391,15 +391,15 @@ namespace System.Threading.Tasks
         {
             if (function == null)
             {
-                throw new ArgumentNullException("function");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.function);
             }
             if (scheduler == null)
             {
-                throw new ArgumentNullException("scheduler");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.scheduler);
             }
             if ((internalOptions & InternalTaskOptions.SelfReplicating) != 0)
             {
-                throw new ArgumentOutOfRangeException("creationOptions", Environment.GetResourceString("TaskT_ctor_SelfReplicating"));
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.creationOptions, ExceptionResource.TaskT_ctor_SelfReplicating);
             }
 
             // Create and schedule the future.
@@ -415,15 +415,15 @@ namespace System.Threading.Tasks
         {
             if (function == null)
             {
-                throw new ArgumentNullException("function");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.function);
             }
             if (scheduler == null)
             {
-                throw new ArgumentNullException("scheduler");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.scheduler);
             }
             if ((internalOptions & InternalTaskOptions.SelfReplicating) != 0)
             {
-                throw new ArgumentOutOfRangeException("creationOptions", Environment.GetResourceString("TaskT_ctor_SelfReplicating"));
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.creationOptions, ExceptionResource.TaskT_ctor_SelfReplicating);
             }
 
             // Create and schedule the future.
@@ -500,7 +500,7 @@ namespace System.Threading.Tasks
             Contract.Assert(!IsCompleted, "The promise must not yet be completed.");
 
             // If we have a parent, we need to notify it of the completion.  Take the slow path to handle that.
-            if (m_parent != null)
+            if (m_contingentProperties?.m_parent != null)
             {
                 bool success = TrySetResult(result);
 
@@ -593,7 +593,7 @@ namespace System.Threading.Tasks
             //
             // The lazy initialization may not be strictly necessary, but I'd like to keep it here
             // anyway.  Some downstream logic may depend upon an inflated m_contingentProperties.
-            EnsureContingentPropertiesInitialized(needsProtection: true);
+            EnsureContingentPropertiesInitialized();
             if (AtomicStateUpdate(TASK_STATE_COMPLETION_RESERVED,
                 TASK_STATE_COMPLETION_RESERVED | TASK_STATE_RAN_TO_COMPLETION | TASK_STATE_FAULTED | TASK_STATE_CANCELED))
             {
@@ -879,12 +879,12 @@ namespace System.Threading.Tasks
         {
             if (continuationAction == null)
             {
-                throw new ArgumentNullException("continuationAction");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationAction);
             }
 
             if (scheduler == null)
             {
-                throw new ArgumentNullException("scheduler");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.scheduler);
             }
 
             TaskCreationOptions creationOptions;
@@ -1083,12 +1083,12 @@ namespace System.Threading.Tasks
         {
             if (continuationAction == null)
             {
-                throw new ArgumentNullException("continuationAction");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationAction);
             }
 
             if (scheduler == null)
             {
-                throw new ArgumentNullException("scheduler");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.scheduler);
             }
 
             TaskCreationOptions creationOptions;
@@ -1310,12 +1310,12 @@ namespace System.Threading.Tasks
         {
             if (continuationFunction == null)
             {
-                throw new ArgumentNullException("continuationFunction");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
             }
 
             if (scheduler == null)
             {
-                throw new ArgumentNullException("scheduler");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.scheduler);
             }
 
             TaskCreationOptions creationOptions;
@@ -1544,12 +1544,12 @@ namespace System.Threading.Tasks
         {
             if (continuationFunction == null)
             {
-                throw new ArgumentNullException("continuationFunction");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
             }
 
             if (scheduler == null)
             {
-                throw new ArgumentNullException("scheduler");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.scheduler);
             }
 
             TaskCreationOptions creationOptions;
@@ -1594,7 +1594,7 @@ namespace System.Threading.Tasks
         IDisposable IObservable<TResult>.Subscribe(IObserver<TResult> observer)
         {
             if (observer == null)
-                throw new System.ArgumentNullException("observer");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.observer);
 
             
             var continuationTask = 

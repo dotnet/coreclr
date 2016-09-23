@@ -44,7 +44,23 @@ function print_usage {
     echo '  -v, --verbose                    : Show output from each test.'
     echo '  -h|--help                        : Show usage information.'
     echo '  --useServerGC                    : Enable server GC for this test run'
-    echo '  --test-en                        : Script to set environment variables for tests'
+    echo '  --test-env                       : Script to set environment variables for tests'
+    echo '  --runcrossgentests               : Runs the ready to run tests' 
+    echo '  --jitstress=<n>                  : Runs the tests with COMPlus_JitStress=n'
+    echo '  --jitstressregs=<n>              : Runs the tests with COMPlus_JitStressRegs=n'
+    echo '  --jitminopts                     : Runs the tests with COMPlus_JITMinOpts=1'
+    echo '  --jitforcerelocs                 : Runs the tests with COMPlus_ForceRelocs=1'
+    echo '  --gcstresslevel n                : Runs the tests with COMPlus_GCStress=n'
+    echo '    0: None                                1: GC on all allocs and '"'easy'"' places'
+    echo '    2: GC on transitions to preemptive GC  4: GC on every allowable JITed instr'
+    echo '    8: GC on every allowable NGEN instr   16: GC only on a unique stack trace'
+    echo '  --long-gc                        : Runs the long GC tests'
+    echo '  --gcsimulator                    : Runs the GCSimulator tests'
+    echo '  --show-time                      : Print execution sequence and running time for each test'
+    echo '  --no-lf-conversion               : Do not execute LF conversion before running test script'
+    echo '  --build-overlay-only             : Exit after overlay directory is populated'
+    echo '  --limitedDumpGeneration          : Enables the generation of a limited number of core dumps if test(s) crash, even if ulimit'
+    echo '                                     is zero when launching this script. This option is intended for use in CI.'
     echo ''
     echo 'Runtime Code Coverage options:'
     echo '  --coreclr-coverage               : Optional argument to get coreclr code coverage reports'
@@ -61,6 +77,7 @@ function print_results {
     echo "======================="
     echo "     Test Results"
     echo "======================="
+    echo "# CoreCLR Bin Dir  : $coreClrBinDir"
     echo "# Tests Discovered : $countTotalTests"
     echo "# Passed           : $countPassedTests"
     echo "# Failed           : $countFailedTests"
@@ -100,6 +117,13 @@ case $OSName in
         ;;
 esac
 
+# clean up any existing dumpling remnants from previous runs.
+dumplingsListPath="$PWD/dumplings.txt"
+if [ -f "$dumplingsListPath" ]; then
+    rm "$dumplingsListPath"
+fi
+
+find . -type f -name "local_dumplings.txt" -exec rm {} \;
 
 function xunit_output_begin {
     xunitOutputPath=$testRootDir/coreclrtests.xml
@@ -332,7 +356,7 @@ function create_core_overlay {
         exit_with_error "$errorSource" "One of --coreOverlayDir or --coreFxBinDir must be specified." "$printUsage"
     fi
     if [ ! -d "$coreFxNativeBinDir/Native" ]; then
-        exit_with_error "$errorSource" "Directory specified by --coreFxBinDir does not exist: $coreFxNativeBinDir/Native"
+        exit_with_error "$errorSource" "Directory specified by --coreNativeFxBinDir does not exist: $coreFxNativeBinDir/Native"
     fi
 
     # Create the overlay
@@ -348,16 +372,22 @@ function create_core_overlay {
             if [ ! -d "$currDir" ]; then
                 exit_with_error "$errorSource" "Directory specified in --coreFxBinDir does not exist: $currDir"
             fi
-
-            (cd $currDir && find . -iname '*.dll' \! -iwholename '*test*' \! -iwholename '*/ToolRuntime/*' \! -iwholename '*/RemoteExecutorConsoleApp/*' \! -iwholename '*/net*' \! -iwholename '*aot*' -exec cp -n '{}' "$coreOverlayDir/" \;)
+            pushd $currDir > /dev/null
+            for dirName in $(find . -iname '*.dll' \! -iwholename '*test*' \! -iwholename '*/ToolRuntime/*' \! -iwholename '*/RemoteExecutorConsoleApp/*' \! -iwholename '*/net*' \! -iwholename '*aot*' -exec dirname {} \; | uniq | sed 's/\.\/\(.*\)/\1/g'); do
+                cp -n -v "$currDir/$dirName/$dirName.dll" "$coreOverlayDir/"
+            done
+            popd $currDur > /dev/null
         done
     done <<< $coreFxBinDir
 
-    cp -f "$coreFxNativeBinDir/Native/"*."$libExtension" "$coreOverlayDir/" 2>/dev/null
+    cp -f -v "$coreFxNativeBinDir/Native/"*."$libExtension" "$coreOverlayDir/" 2>/dev/null
 
-    cp -f "$coreClrBinDir/"* "$coreOverlayDir/" 2>/dev/null
-    cp -f "$mscorlibDir/mscorlib.dll" "$coreOverlayDir/"
-    cp -n "$testDependenciesDir"/* "$coreOverlayDir/" 2>/dev/null
+    cp -f -v "$coreClrBinDir/"* "$coreOverlayDir/" 2>/dev/null
+    cp -f -v "$mscorlibDir/mscorlib.dll" "$coreOverlayDir/" 2>/dev/null
+    if [ -d "$mscorlibDir/bin" ]; then
+        cp -f -v "$mscorlibDir/bin/"* "$coreOverlayDir/" 2>/dev/null
+    fi
+    cp -n -v "$testDependenciesDir"/* "$coreOverlayDir/" 2>/dev/null
     if [ -f "$coreOverlayDir/mscorlib.ni.dll" ]; then
         # Test dependencies come from a Windows build, and mscorlib.ni.dll would be the one from Windows
         rm -f "$coreOverlayDir/mscorlib.ni.dll"
@@ -367,9 +397,9 @@ function create_core_overlay {
 function precompile_overlay_assemblies {
 
     if [ $doCrossgen == 1 ]; then
-    
+
         local overlayDir=$CORE_ROOT
-        
+
         filesToPrecompile=$(ls -trh $overlayDir/*.dll)
         for fileToPrecompile in ${filesToPrecompile}
         do
@@ -381,7 +411,7 @@ function precompile_overlay_assemblies {
                     $overlayDir/crossgen /Platform_Assemblies_Paths $overlayDir $filename 2>/dev/null
                     local exitCode=$?
                     if [ $exitCode == -2146230517 ]; then
-                        echo $filename is not a managed assembly.    
+                        echo $filename is not a managed assembly.
                     elif [ $exitCode != 0 ]; then
                         echo Unable to precompile $filename.
                     else
@@ -392,7 +422,7 @@ function precompile_overlay_assemblies {
         done
     else
         echo Skipping crossgen of FX assemblies.
-    fi    
+    fi
 }
 
 function copy_test_native_bin_to_test_root {
@@ -439,6 +469,9 @@ function read_array {
 function load_unsupported_tests {
     # Load the list of tests that are not supported on this platform. These tests are disabled (skipped) permanently.
     unsupportedTests=($(read_array "$(dirname "$0")/testsUnsupportedOutsideWindows.txt"))
+    if [ "$ARCH" == "arm" ]; then
+        unsupportedTests+=($(read_array "$(dirname "$0")/testsUnsupportedOnARM32.txt"))
+    fi
 }
 
 function load_failing_tests {
@@ -511,6 +544,143 @@ function skip_non_playlist_test {
     return 2 # skip the test
 }
 
+function set_up_core_dump_generation {
+    # We will only enable dump generation here if we're on Mac or Linux
+    if [[ ! ( "$(uname -s)" == "Darwin" || "$(uname -s)" == "Linux" ) ]]; then
+        return
+    fi
+
+    # We won't enable dump generation on OS X/macOS if the machine hasn't been
+    # configured with the kern.corefile pattern we expect.
+    if [[ ( "$(uname -s)" == "Darwin" && "$(sysctl -n kern.corefile)" != "core.%P" ) ]]; then
+        echo "WARNING: Core dump generation not being enabled due to unexpected kern.corefile value."
+        return
+    fi
+
+    # Allow dump generation
+    ulimit -c unlimited
+
+    if [ "$(uname -s)" == "Linux" ]; then
+        if [ -e /proc/self/coredump_filter ]; then
+            # Include memory in private and shared file-backed mappings in the dump.
+            # This ensures that we can see disassembly from our shared libraries when
+            # inspecting the contents of the dump. See 'man core' for details.
+            echo 0x3F > /proc/self/coredump_filter
+        fi
+    fi
+}
+
+function print_info_from_core_file {
+    local core_file_name=$1
+    local executable_name=$2
+
+    if ! [ -e $executable_name ]; then
+        echo "Unable to find executable $executable_name"
+        return
+    elif ! [ -e $core_file_name ]; then
+        echo "Unable to find core file $core_file_name"
+        return
+    fi
+
+    # Use LLDB to inspect the core dump on Mac, and GDB everywhere else.
+    if [[ "$OSName" == "Darwin" ]]; then
+        hash lldb 2>/dev/null || { echo >&2 "LLDB was not found. Unable to print core file."; return; }
+
+        echo "Printing info from core file $core_file_name"
+        lldb -c $core_file_name -b -o 'bt'
+    else
+        # Use GDB to print the backtrace from the core file.
+        hash gdb 2>/dev/null || { echo >&2 "GDB was not found. Unable to print core file."; return; }
+
+        echo "Printing info from core file $core_file_name"
+        gdb --batch -ex "thread apply all bt full" -ex "quit" $executable_name $core_file_name
+    fi
+}
+
+function download_dumpling_script {
+    echo "Downloading latest version of dumpling script."
+    wget "https://raw.githubusercontent.com/Microsoft/dotnet-reliability/master/src/triage.python/dumpling.py"
+
+    local dumpling_script="dumpling.py"
+    chmod +x $dumpling_script
+}
+
+function upload_core_file_to_dumpling {
+    local core_file_name=$1
+    local dumpling_script="dumpling.py"
+    local dumpling_file="local_dumplings.txt"
+
+    # dumpling requires that the file exist before appending.
+    touch ./$dumpling_file
+
+    if [ ! -x $dumpling_script ]; then
+        download_dumpling_script
+    fi
+
+    if [ ! -x $dumpling_script ]; then
+        echo "Failed to download dumpling script. Dump cannot be uploaded."
+        return
+    fi
+
+    echo "Uploading $core_file_name to dumpling service."
+
+    local paths_to_add=""
+    if [ -d "$coreClrBinDir" ]; then
+        echo "Uploading CoreCLR binaries with dump."
+        paths_to_add=$coreClrBinDir
+    fi
+
+    # The output from this will include a unique ID for this dump.
+    ./$dumpling_script "--corefile" "$core_file_name" "upload" "--addpaths" $paths_to_add "--squelch" | tee -a $dumpling_file
+}
+
+function preserve_core_file {
+    local core_file_name=$1
+    local storage_location="/tmp/coredumps_coreclr"
+
+    # Create the directory (this shouldn't fail even if it already exists).
+    mkdir -p $storage_location
+
+    # Only preserve the dump if the directory is empty. Otherwise, do nothing.
+    # This is a way to prevent us from storing/uploading too many dumps.
+    if [ ! "$(ls -A $storage_location)" ]; then
+        echo "Copying core file $core_file_name to $storage_location"
+        cp $core_file_name $storage_location
+
+        upload_core_file_to_dumpling $core_file_name
+    fi
+}
+
+function inspect_and_delete_core_files {
+    # This function prints some basic information from core files in the current
+    # directory and deletes them immediately. Based on the state of the system, it may
+    # also upload a core file to the dumpling service.
+    # (see preserve_core_file).
+    
+    # Depending on distro/configuration, the core files may either be named "core"
+    # or "core.<PID>" by default. We will read /proc/sys/kernel/core_uses_pid to 
+    # determine which one it is.
+    # On OS X/macOS, we checked the kern.corefile value before enabling core dump
+    # generation, so we know it always includes the PID.
+    local core_name_uses_pid=0
+    if [[ (( -e /proc/sys/kernel/core_uses_pid ) && ( "1" == $(cat /proc/sys/kernel/core_uses_pid) )) 
+          || ( "$(uname -s)" == "Darwin" ) ]]; then
+        core_name_uses_pid=1
+    fi
+
+    if [ $core_name_uses_pid == "1" ]; then
+        # We don't know what the PID of the process was, so let's look at all core
+        # files whose name matches core.NUMBER
+        for f in core.*; do
+            [[ $f =~ core.[0-9]+ ]] && print_info_from_core_file "$f" $CORE_ROOT/"corerun" && preserve_core_file "$f" && rm "$f"
+        done
+    elif [ -f core ]; then
+        print_info_from_core_file "core" $CORE_ROOT/"corerun"
+        preserve_core_file "core"
+        rm "core"
+    fi
+}
+
 function run_test {
     # This function runs in a background process. It should not echo anything, and should not use global variables.
 
@@ -523,14 +693,20 @@ function run_test {
     local scriptFileName=$(basename "$scriptFilePath")
     local outputFileName=$(basename "$outputFilePath")
 
-    # Convert DOS line endings to Unix if needed
-    perl -pi -e 's/\r\n|\n|\r/\n/g' "$scriptFileName"
-    
-    # Add executable file mode bit if needed
-    chmod +x "$scriptFileName"
+    if [ "$limitedCoreDumps" == "ON" ]; then
+        set_up_core_dump_generation
+    fi
 
     "./$scriptFileName" >"$outputFileName" 2>&1
-    return $?
+    local testScriptExitCode=$?
+
+    # We will try to print some information from generated core dumps if a debugger
+    # is available, and possibly store a dump in a non-transient location.
+    if [ "$limitedCoreDumps" == "ON" ]; then
+        inspect_and_delete_core_files
+    fi
+
+    return $testScriptExitCode
 }
 
 # Variables for running tests in the background
@@ -546,6 +722,7 @@ fi
 declare -a scriptFilePaths
 declare -a outputFilePaths
 declare -a processIds
+declare -a testStartTimes
 
 function finish_test {
     wait ${processIds[$nextProcessIndex]}
@@ -556,26 +733,36 @@ function finish_test {
     local outputFilePath=${outputFilePaths[$nextProcessIndex]}
     local scriptFileName=$(basename "$scriptFilePath")
 
+    local testEndTime=
+    local testRunningTime=
+    local header=
+
+    if [ "$showTime" == "ON" ]; then
+        testEndTime=$(date +%s)
+        testRunningTime=$(echo "$testEndTime - ${testStartTimes[$nextProcessIndex]}" | bc)
+        header=$(printf "[%03d:%4.0fs] " "$countTotalTests" "$testRunningTime")
+    fi
+
     local xunitTestResult
     case $testScriptExitCode in
         0)
             let countPassedTests++
             xunitTestResult='Pass'
             if ((verbose == 1 || runFailingTestsOnly == 1)); then
-                echo "PASSED   - $scriptFilePath"
+                echo "PASSED   - ${header}${scriptFilePath}"
             else
-                echo "         - $scriptFilePath"
+                echo "         - ${header}${scriptFilePath}"
             fi
             ;;
         2)
             let countSkippedTests++
             xunitTestResult='Skip'
-            echo "SKIPPED  - $scriptFilePath"
+            echo "SKIPPED  - ${header}${scriptFilePath}"
             ;;
         *)
             let countFailedTests++
             xunitTestResult='Fail'
-            echo "FAILED   - $scriptFilePath"
+            echo "FAILED   - ${header}${scriptFilePath}"
             ;;
     esac
     let countTotalTests++
@@ -601,12 +788,30 @@ function finish_remaining_tests {
     ((nextProcessIndex = 0))
 }
 
+function prep_test {
+    local scriptFilePath=$1
+
+    test "$verbose" == 1 && echo "Preparing $scriptFilePath"
+
+    if [ ! "$noLFConversion" == "ON" ]; then
+        # Convert DOS line endings to Unix if needed
+        perl -pi -e 's/\r\n|\n|\r/\n/g' "$scriptFilePath"
+    fi
+        
+    # Add executable file mode bit if needed
+    chmod +x "$scriptFilePath"
+
+    #remove any NI and Locks
+    rm -f *.ni.*
+    rm -rf lock
+}
+
 function start_test {
     local scriptFilePath=$1
     if ((runFailingTestsOnly == 1)) && ! is_failing_test "$scriptFilePath"; then
         return
     fi
-    
+
     # Skip any test that's not in the current playlist, if a playlist was
     # given to us.
     if [ -n "$playlistFile" ] && ! is_playlist_test "$scriptFilePath"; then
@@ -621,6 +826,10 @@ function start_test {
     local scriptFileName=$(basename "$scriptFilePath")
     local outputFilePath=$(dirname "$scriptFilePath")/${scriptFileName}.out
     outputFilePaths[$nextProcessIndex]=$outputFilePath
+
+    if [ "$showTime" == "ON" ]; then
+        testStartTimes[$nextProcessIndex]=$(date +%s)
+    fi
 
     test "$verbose" == 1 && echo "Starting $scriptFilePath"
     if is_unsupported_test "$scriptFilePath"; then
@@ -653,6 +862,14 @@ function set_test_directories {
 function run_tests_in_directory {
     local testDir=$1
 
+    # Recursively search through directories for .sh files to prepare them.
+    # Note: This needs to occur before any test runs as some of the .sh files
+    # depend on other .sh files
+    for scriptFilePath in $(find "$testDir" -type f -iname '*.sh' | sort)
+    do
+        prep_test "${scriptFilePath:2}"
+    done
+    echo "The tests have been prepared"
     # Recursively search through directories for .sh files to run.
     for scriptFilePath in $(find "$testDir" -type f -iname '*.sh' | sort)
     do
@@ -660,37 +877,65 @@ function run_tests_in_directory {
     done
 }
 
-function coreclr_code_coverage()
-{
+function coreclr_code_coverage {
+    local coverageDir="$coverageOutputDir/Coverage"
+    local toolsDir="$coverageOutputDir/Coverage/tools"
+    local reportsDir="$coverageOutputDir/Coverage/reports"
+    local packageName="unix-code-coverage-tools.1.0.0.nupkg"
 
-  local coverageDir="$coverageOutputDir/Coverage"
-  local toolsDir="$coverageOutputDir/Coverage/tools"
-  local reportsDir="$coverageOutputDir/Coverage/reports"
-  local packageName="unix-code-coverage-tools.1.0.0.nupkg"
-  rm -rf $coverageDir
-  mkdir -p $coverageDir
-  mkdir -p $toolsDir
-  mkdir -p $reportsDir
-  pushd $toolsDir > /dev/null
+    rm -rf $coverageDir
+    mkdir -p $coverageDir
+    mkdir -p $toolsDir
+    mkdir -p $reportsDir
+    pushd $toolsDir > /dev/null
 
-  echo "Pulling down code coverage tools"
-  wget -q https://www.myget.org/F/dotnet-buildtools/api/v2/package/unix-code-coverage-tools/1.0.0 -O $packageName
-  echo "Unzipping to $toolsDir"
-  unzip -q -o $packageName
+    echo "Pulling down code coverage tools"
+    wget -q https://www.myget.org/F/dotnet-buildtools/api/v2/package/unix-code-coverage-tools/1.0.0 -O $packageName
+    echo "Unzipping to $toolsDir"
+    unzip -q -o $packageName
 
-  # Invoke gcovr
-  chmod a+rwx ./gcovr
-  chmod a+rwx ./$OSName/llvm-cov
+    # Invoke gcovr
+    chmod a+rwx ./gcovr
+    chmod a+rwx ./$OSName/llvm-cov
 
-  echo
-  echo "Generating coreclr code coverage reports at $reportsDir/coreclr.html"
-  echo "./gcovr $coreClrObjs --gcov-executable=$toolsDir/$OS/llvm-cov -r $coreClrSrc --html --html-details -o $reportsDir/coreclr.html"
-  echo
-  ./gcovr $coreClrObjs --gcov-executable=$toolsDir/$OSName/llvm-cov -r $coreClrSrc --html --html-details -o $reportsDir/coreclr.html
-  exitCode=$?
-  popd > /dev/null
-  exit $exitCode
+    echo
+    echo "Generating coreclr code coverage reports at $reportsDir/coreclr.html"
+    echo "./gcovr $coreClrObjs --gcov-executable=$toolsDir/$OS/llvm-cov -r $coreClrSrc --html --html-details -o $reportsDir/coreclr.html"
+    echo
+    ./gcovr $coreClrObjs --gcov-executable=$toolsDir/$OSName/llvm-cov -r $coreClrSrc --html --html-details -o $reportsDir/coreclr.html
+    exitCode=$?
+    popd > /dev/null
+    exit $exitCode
 }
+
+function check_cpu_architecture {
+    local CPUName=$(uname -m)
+    local __arch=
+
+    case $CPUName in
+        i686)
+            __arch=x86
+            ;;
+        x86_64)
+            __arch=x64
+            ;;
+        armv7l)
+            __arch=arm
+            ;;
+        aarch64)
+            __arch=arm64
+            ;;
+        *)
+            echo "Unknown CPU $CPUName detected, configuring as if for x64"
+            __arch=x64
+            ;;
+    esac
+
+    echo "$__arch"
+}
+
+ARCH=$(check_cpu_architecture)
+echo "Running on  CPU- $ARCH"
 
 # Exit code constants
 readonly EXIT_CODE_SUCCESS=0       # Script ran normally.
@@ -710,6 +955,12 @@ coreClrSrc=
 coverageOutputDir=
 testEnv=
 playlistFile=
+showTime=
+noLFConversion=
+buildOverlayOnly=
+gcsimulator=
+longgc=
+limitedCoreDumps=
 
 ((disableEventLogging = 0))
 ((serverGC = 0))
@@ -730,6 +981,18 @@ do
             ;;
         --crossgen)
             doCrossgen=1
+            ;;
+        --jitstress=*)
+            export COMPlus_JitStress=${i#*=}
+            ;;
+        --jitstressregs=*)
+            export COMPlus_JitStressRegs=${i#*=}
+            ;;
+        --jitminopts)
+            export COMPlus_JITMinOpts=1
+            ;;
+        --jitforcerelocs)
+            export COMPlus_ForceRelocs=1
             ;;
         --testRootDir=*)
             testRootDir=${i#*=}
@@ -764,11 +1027,20 @@ do
         --disableEventLogging)
             ((disableEventLogging = 1))
             ;;
+        --runcrossgentests)
+            export RunCrossGen=1
+            ;;
         --sequential)
             ((maxProcesses = 1))
             ;;
         --useServerGC)
             ((serverGC = 1))
+            ;;
+        --long-gc)
+            ((longgc = 1))
+            ;;
+        --gcsimulator)
+            ((gcsimulator = 1))
             ;;
         --playlist=*)
             playlistFile=${i#*=}
@@ -788,6 +1060,21 @@ do
         --test-env=*)
             testEnv=${i#*=}
             ;;            
+        --gcstresslevel=*)
+            export COMPlus_GCStress=${i#*=}
+            ;;            
+        --show-time)
+            showTime=ON
+            ;;
+        --no-lf-conversion)
+            noLFConversion=ON
+            ;;
+        --build-overlay-only)
+            buildOverlayOnly=ON
+            ;;
+        --limitedDumpGeneration)
+            limitedCoreDumps=ON
+            ;;
         *)
             echo "Unknown switch: $i"
             print_usage
@@ -795,6 +1082,11 @@ do
             ;;
     esac
 done
+
+if [ -n "$coreOverlayDir" ] && [ "$buildOverlayOnly" == "ON" ]; then
+    echo "Can not use \'--coreOverlayDir=<path>\' and \'--build-overlay-only\' at the same time."
+    exit $EXIT_CODE_EXCEPTION
+fi
 
 if ((disableEventLogging == 0)); then
     export COMPlus_EnableEventLog=1
@@ -815,10 +1107,17 @@ fi
 # Copy native interop test libraries over to the mscorlib path in
 # order for interop tests to run on linux.
 if [ -z "$mscorlibDir" ]; then
-	mscorlibDir=$coreClrBinDir
+    mscorlibDir=$coreClrBinDir
 fi
-if [ -d $mscorlibDir/bin ]; then
-    cp $mscorlibDir/bin/* $mscorlibDir   
+
+if [ ! -z "$longgc" ]; then
+    echo "Running Long GC tests"
+    export RunningLongGCTests=1
+fi
+
+if [ ! -z "$gcsimulator" ]; then
+    echo "Running GC simulator tests"
+    export RunningGCSimulatorTests=1
 fi
 
 # If this is a coverage run, make sure the appropriate args have been passed
@@ -859,6 +1158,12 @@ create_core_overlay
 precompile_overlay_assemblies
 copy_test_native_bin_to_test_root
 
+if [ "$buildOverlayOnly" == "ON" ];
+then
+    echo "Build overlay directory \'$coreOverlayDir\' complete."
+    exit 0
+fi
+
 if [ -n "$playlistFile" ]
 then
     # Use a playlist file exclusively, if it was provided
@@ -869,41 +1174,22 @@ else
     load_failing_tests
 fi
 
-
-
-scriptPath=$(dirname $0)
-
-# Check if environment variables are provided
-if [ ! -z "$testEnv" ]; then
-    # Check if this is GC stress testing
-    GCStressLevel=`(source $testEnv; echo $COMPlus_GCStress)`
-    # Set __TestEnv that will be executed just before running tests
-    absTestEnvPath=`readlink -f ${testEnv}`
-    export __TestEnv='source '${absTestEnvPath}
-fi
-
-# Still support setting COMPlus_GCStress before runtest.sh but recommend
-# using --test-env option. 
-if [ -z "$GCStressLevel" ]; then
-    if [ -n "$COMPlus_GCStress" ]; then
-        GCStressLevel=`echo $COMPlus_GCStress`
-    fi
-fi
-
-# Download runtime dependent libraries
-if [ ! -z "$GCStressLevel" ]; then
+# Other architectures are not supported yet.
+if [ "$ARCH" == "x64" ]
+then
+    scriptPath=$(dirname $0)
     ${scriptPath}/setup-runtime-dependencies.sh --outputDir=$coreOverlayDir
-    if [ $? -ne 0 ] 
-    then
-        echo 'Failed to download coredistools library'
-        exit $EXIT_CODE_EXCEPTION
-    fi
+else
+    echo "Skip preparing for GC stress test. Dependent package is not supported on this architecture."
 fi
+
+export __TestEnv=$testEnv
 
 cd "$testRootDir"
+time_start=$(date +"%s")
 if [ -z "$testDirectories" ]
 then
-    # No test directories were specified, so run everything in the current 
+    # No test directories were specified, so run everything in the current
     # directory and its subdirectories.
     run_tests_in_directory "."
 else
@@ -920,6 +1206,20 @@ fi
 finish_remaining_tests
 
 print_results
+
+echo "constructing $dumplingsListPath"
+find . -type f -name "local_dumplings.txt" -exec cat {} \; > $dumplingsListPath
+
+if [ -s $dumplingsListPath ]; then
+    cat $dumplingsListPath
+else
+    rm $dumplingsListPath
+fi
+
+time_end=$(date +"%s")
+time_diff=$(($time_end-$time_start))
+echo "$(($time_diff / 60)) minutes and $(($time_diff % 60)) seconds taken to run CoreCLR tests."
+
 xunit_output_end
 
 if [ "$CoreClrCoverage" == "ON" ]

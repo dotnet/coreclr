@@ -20,12 +20,12 @@ namespace System.Globalization
     **      Thai        0544/01/01  10542/12/31
     ============================================================================*/
 
-
+    [Serializable]
     [System.Runtime.InteropServices.ComVisible(true)]
     public class ThaiBuddhistCalendar : Calendar
     {
         // Initialize our era info.
-        static internal EraInfo[] thaiBuddhistEraInfo = new EraInfo[] {
+        internal static EraInfo[] thaiBuddhistEraInfo = new EraInfo[] {
             new EraInfo( 1, 1, 1, 1, -543, 544, GregorianCalendar.MaxYear + 543)     // era #, start year/month/day, yearOffset, minEraYear 
         };
 
@@ -34,8 +34,6 @@ namespace System.Globalization
         //
 
         public const int ThaiBuddhistEra = 1;
-
-        //internal static Calendar m_defaultInstance;
 
         internal GregorianCalendarHelper helper;
 

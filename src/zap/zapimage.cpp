@@ -1163,6 +1163,14 @@ HANDLE ZapImage::SaveImage(LPCWSTR wszOutputFileName, CORCOMPILE_NGEN_SIGNATURE 
 
     OutputTables();
 
+	// Create a empty export table.  This makes tools like symchk not think
+	// that native images are resoure-only DLLs.  It is important to NOT
+	// be a resource-only DLL because those DLL's PDBS are not put up on the
+	// symbol server and we want NEN PDBS to be placed there.  
+	ZapPEExports* exports = new(GetHeap()) ZapPEExports(wszOutputFileName);
+	m_pDebugSection->Place(exports);
+	SetDirectoryEntry(IMAGE_DIRECTORY_ENTRY_EXPORT, exports);
+
     ComputeRVAs();
 
     if (!IsReadyToRunCompilation())
@@ -2226,38 +2234,48 @@ ZapImage::CompileStatus ZapImage::TryCompileMethodWorker(CORINFO_METHOD_HANDLE h
         Exception *ex = GET_EXCEPTION();
         HRESULT hrException = ex->GetHR();
 
-        StackSString message;
-        ex->GetMessage(message);
-
-        CorZapLogLevel level;
-
-#ifdef CROSSGEN_COMPILE
-        // Warnings should not go to stderr during crossgen
-        level = CORZAP_LOGLEVEL_WARNING;
-#else
-        level = CORZAP_LOGLEVEL_ERROR;
-#endif
-
-        // FileNotFound errors here can be converted into a single error string per ngen compile, and the detailed error is available with verbose logging
-        if (hrException == COR_E_FILENOTFOUND)
+#ifdef FEATURE_READYTORUN_COMPILER
+        // NYI features in R2R - Stop crossgen from spitting unnecessary messages to the console
+        if (IsReadyToRunCompilation() && hrException == E_NOTIMPL)
         {
-            StackSString logMessage(W("System.IO.FileNotFoundException: "));
-            logMessage.Append(message);
-            FileNotFoundError(logMessage.GetUnicode());
-            level = CORZAP_LOGLEVEL_INFO;
+            result = NOT_COMPILED;
         }
-
-        m_zapper->Print(level, W("%s while compiling method %s\n"), message.GetUnicode(), zapInfo.m_currentMethodName.GetUnicode());
-
-        result = COMPILE_FAILED;
-        m_zapper->m_failed = TRUE;
-
-        if (m_stats != NULL)
+        else
+#endif
         {
-            if ((m_zapper->m_pOpt->m_compilerFlags & CORJIT_FLG_IL_STUB) == 0)
-                m_stats->m_failedMethods++;
-            else
-                m_stats->m_failedILStubs++;
+            StackSString message;
+            ex->GetMessage(message);
+
+            CorZapLogLevel level;
+
+    #ifdef CROSSGEN_COMPILE
+            // Warnings should not go to stderr during crossgen
+            level = CORZAP_LOGLEVEL_WARNING;
+    #else
+            level = CORZAP_LOGLEVEL_ERROR;
+    #endif
+
+            // FileNotFound errors here can be converted into a single error string per ngen compile, and the detailed error is available with verbose logging
+            if (hrException == COR_E_FILENOTFOUND)
+            {
+                StackSString logMessage(W("System.IO.FileNotFoundException: "));
+                logMessage.Append(message);
+                FileNotFoundError(logMessage.GetUnicode());
+                level = CORZAP_LOGLEVEL_INFO;
+            }
+
+            m_zapper->Print(level, W("%s while compiling method %s\n"), message.GetUnicode(), zapInfo.m_currentMethodName.GetUnicode());
+
+            result = COMPILE_FAILED;
+            m_zapper->m_failed = TRUE;
+
+            if (m_stats != NULL)
+            {
+                if ((m_zapper->m_pOpt->m_compilerFlags & CORJIT_FLG_IL_STUB) == 0)
+                    m_stats->m_failedMethods++;
+                else
+                    m_stats->m_failedILStubs++;
+            }
         }
     }
     EX_END_CATCH(SwallowAllExceptions);

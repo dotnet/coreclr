@@ -692,6 +692,8 @@ public:
     int     GetGCForceCompact()             const {LIMITED_METHOD_CONTRACT; return iGCForceCompact; }
     int     GetGCRetainVM ()                const {LIMITED_METHOD_CONTRACT; return iGCHoardVM;}
     int     GetGCLOHCompactionMode()        const {LIMITED_METHOD_CONTRACT; return iGCLOHCompactionMode;}
+    int     GetGCHeapCount()                const {LIMITED_METHOD_CONTRACT; return iGCHeapCount;}
+    int     GetGCNoAffinitize ()            const {LIMITED_METHOD_CONTRACT; return iGCNoAffinitize;}
 
 #ifdef GCTRIMCOMMIT
 
@@ -760,6 +762,7 @@ public:
 #ifdef _DEBUG
     bool    ForbidZap(LPCUTF8 assemblyName) const;
 #endif
+    bool    ExcludeReadyToRun(LPCUTF8 assemblyName) const;
 
 #ifdef _TARGET_AMD64_
     bool    DisableNativeImageLoad(LPCUTF8 assemblyName) const;
@@ -1076,6 +1079,8 @@ private: //----------------------------------------------------------------
     int  iGCForceCompact;
     int  iGCHoardVM;
     int  iGCLOHCompactionMode;
+    int  iGCHeapCount;
+    int  iGCNoAffinitize;
 
 #ifdef GCTRIMCOMMIT
 
@@ -1117,6 +1122,9 @@ private: //----------------------------------------------------------------
     // This is only used if iRequireZaps!=REQUIRE_ZAPS_NONE
     // This overrides pRequireZapsList.
     AssemblyNamesList * pRequireZapsExcludeList;
+
+    // Assemblies which cannot use Ready to Run images.
+    AssemblyNamesList * pReadyToRunExcludeList;
 
 #ifdef _DEBUG
     // Exact opposite of require zaps

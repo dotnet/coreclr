@@ -46,7 +46,6 @@ namespace System.Reflection
         protected ConstructorInfo() { }
         #endregion
 
-#if !FEATURE_CORECLR
         public static bool operator ==(ConstructorInfo left, ConstructorInfo right)
         {
             if (ReferenceEquals(left, right))
@@ -64,7 +63,6 @@ namespace System.Reflection
         {
             return !(left == right);
         }
-#endif // !FEATURE_CORECLR
 
         public override bool Equals(object obj)
         {
@@ -666,17 +664,29 @@ namespace System.Reflection
 
         public override bool IsSecurityCritical
         {
+#if FEATURE_CORECLR
+            get { return true; }
+#else
             get { return RuntimeMethodHandle.IsSecurityCritical(this); }
+#endif
         }
 
         public override bool IsSecuritySafeCritical
         {
+#if FEATURE_CORECLR
+            get { return false; }
+#else
             get { return RuntimeMethodHandle.IsSecuritySafeCritical(this); }
+#endif
         }
 
         public override bool IsSecurityTransparent
         {
+#if FEATURE_CORECLR
+            get { return false; }
+#else
             get { return RuntimeMethodHandle.IsSecurityTransparent(this); }
+#endif
         }
 
         public override bool ContainsGenericParameters

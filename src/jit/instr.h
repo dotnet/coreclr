@@ -7,10 +7,11 @@
 #define _INSTR_H_
 /*****************************************************************************/
 
-#define BAD_CODE    0x0BADC0DE        // better not match a real encoding!
+#define BAD_CODE 0x0BADC0DE // better not match a real encoding!
 
 /*****************************************************************************/
 
+// clang-format off
 DECLARE_TYPED_ENUM(instruction,unsigned)
 {
 #if defined(_TARGET_XARCH_)
@@ -293,7 +294,8 @@ enum InstructionSet
 #endif
     InstructionSet_NONE
 };
+// clang-format on
 
 /*****************************************************************************/
-#endif//_INSTR_H_
+#endif //_INSTR_H_
 /*****************************************************************************/

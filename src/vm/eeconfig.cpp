@@ -240,6 +240,8 @@ HRESULT EEConfig::Init()
     iGCForceCompact = 0;
     iGCHoardVM = 0;
     iGCLOHCompactionMode = 0;
+    iGCHeapCount = 0;
+    iGCNoAffinitize = 0;
 
 #ifdef GCTRIMCOMMIT
     iGCTrimCommit = 0;
@@ -511,6 +513,9 @@ HRESULT EEConfig::Cleanup()
     
     if (pRequireZapsExcludeList)
         delete pRequireZapsExcludeList;
+
+    if (pReadyToRunExcludeList)
+        delete pReadyToRunExcludeList;
 
 #ifdef _DEBUG
     if (pForbidZapsList)
@@ -794,15 +799,23 @@ HRESULT EEConfig::sync()
 
     bool gcConcurrentWasForced = false;
 #ifdef FEATURE_CORECLR
-    gcConcurrentWasForced = Configuration::GetKnobBooleanValue(W("System.GC.Concurrent"), CLRConfig::UNSUPPORTED_gcConcurrent);
-    if (gcConcurrentWasForced)
-        iGCconcurrent = TRUE;
-#else
-    int gcConcurrentConfigVal = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_gcConcurrent);
-    gcConcurrentWasForced = (gcConcurrentConfigVal > 0);
+    // The CLRConfig value for UNSUPPORTED_gcConcurrent defaults to -1, and treats any
+    // positive value as 'forcing' concurrent GC to be on. Because the standard logic
+    // for mapping a DWORD CLRConfig to a boolean configuration treats -1 as true (just
+    // like any other nonzero value), we will explicitly check the DWORD later if this
+    // check returns false.
+    gcConcurrentWasForced = Configuration::GetKnobBooleanValue(W("System.GC.Concurrent"), false);
+#endif
+
+    int gcConcurrentConfigVal = 0;
+    if (!gcConcurrentWasForced)
+    {
+        gcConcurrentConfigVal = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_gcConcurrent);
+        gcConcurrentWasForced = (gcConcurrentConfigVal > 0);
+    }
+
     if (gcConcurrentWasForced || (gcConcurrentConfigVal == -1 && g_IGCconcurrent))
         iGCconcurrent = TRUE;
-#endif
 
     // Disable concurrent GC during ngen for the rare case a GC gets triggered, causing problems
     if (IsCompilationProcess())
@@ -962,6 +975,14 @@ HRESULT EEConfig::sync()
 #endif
 
     iGCForceCompact     =  GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_gcForceCompact, iGCForceCompact);
+#ifdef FEATURE_CORECLR
+    iGCNoAffinitize = Configuration::GetKnobBooleanValue(W("System.GC.NoAffinitize"), 
+                                                         CLRConfig::UNSUPPORTED_GCNoAffinitize);
+    iGCHeapCount = Configuration::GetKnobDWORDValue(W("System.GC.HeapCount"), CLRConfig::UNSUPPORTED_GCHeapCount);
+#else
+    iGCNoAffinitize = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_GCNoAffinitize);
+    iGCHeapCount = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_GCHeapCount);
+#endif
 
     fStressLog        =  GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_StressLog, fStressLog) != 0;
     fForceEnc         =  GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_ForceEnc, fForceEnc) != 0;
@@ -990,6 +1011,17 @@ HRESULT EEConfig::sync()
                 pRequireZapsExcludeList = new AssemblyNamesList(wszZapRequireExcludeList);
         }
     }
+
+    pReadyToRunExcludeList = NULL;
+#if defined(FEATURE_READYTORUN)
+    if (ReadyToRunInfo::IsReadyToRunEnabled())
+    {
+        NewArrayHolder<WCHAR> wszReadyToRunExcludeList;
+        IfFailRet(CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_ReadyToRunExcludeList, &wszReadyToRunExcludeList));
+        if (wszReadyToRunExcludeList)
+            pReadyToRunExcludeList = new AssemblyNamesList(wszReadyToRunExcludeList);
+    }
+#endif // defined(FEATURE_READYTORUN)
 
 #ifdef _DEBUG
     iForbidZaps     = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_NgenBind_ZapForbid) != 0;
@@ -1864,6 +1896,16 @@ bool EEConfig::ForbidZap(LPCUTF8 assemblyName) const
     return false;
 }
 #endif
+
+bool EEConfig::ExcludeReadyToRun(LPCUTF8 assemblyName) const
+{
+    LIMITED_METHOD_CONTRACT;
+
+    if (pReadyToRunExcludeList != NULL && pReadyToRunExcludeList->IsInList(assemblyName))
+        return true;
+
+    return false;
+}
 
 #ifdef _TARGET_AMD64_
 bool EEConfig::DisableNativeImageLoad(LPCUTF8 assemblyName) const

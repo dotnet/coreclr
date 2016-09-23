@@ -29,6 +29,7 @@
 #include "winnls.h"
 #include "check.h"
 #include "safemath.h"
+#include "new.hpp"
 
 #ifdef PAL_STDCPP_COMPAT
 #include <type_traits>
@@ -49,6 +50,34 @@ const WCHAR kWatsonName2[] = W("drwtsn32");
 
 #define WINDOWS_KERNEL32_DLLNAME_A "kernel32"
 #define WINDOWS_KERNEL32_DLLNAME_W W("kernel32")
+
+#if defined(FEATURE_CORECLR)
+#define CoreLibName_W W("System.Private.CoreLib")
+#define CoreLibName_IL_W W("System.Private.CoreLib.dll")
+#define CoreLibName_NI_W W("System.Private.CoreLib.ni.dll")
+#define CoreLibName_TLB_W W("System.Private.CoreLib.tlb")
+#define CoreLibName_A "System.Private.CoreLib"
+#define CoreLibName_IL_A "System.Private.CoreLib.dll"
+#define CoreLibName_NI_A "System.Private.CoreLib.ni.dll"
+#define CoreLibName_TLB_A "System.Private.CoreLib.tlb"
+#define CoreLibNameLen 22
+#define CoreLibSatelliteName_A "System.Private.CoreLib.resources"
+#define CoreLibSatelliteNameLen 32
+#define LegacyCoreLibName_A "mscorlib"
+#else // !defined(FEATURE_CORECLR)
+#define CoreLibName_W W("mscorlib")
+#define CoreLibName_IL_W W("mscorlib.dll")
+#define CoreLibName_NI_W W("mscorlib.ni.dll")
+#define CoreLibName_TLB_W W("mscorlib.tlb")
+#define CoreLibName_A "mscorlib"
+#define CoreLibName_IL_A "mscorlib.dll"
+#define CoreLibName_NI_A "mscorlib.ni.dll"
+#define CoreLibName_TLB_A "mscorlib.tlb"
+#define CoreLibNameLen 8
+#define CoreLibSatelliteName_A "mscorlib.resources"
+#define CoreLibSatelliteNameLen 18
+#define LegacyCoreLibName_A "mscorlib"
+#endif // defined(FEATURE_CORECLR)
 
 class StringArrayList;
 
@@ -184,12 +213,6 @@ typedef LPSTR   LPUTF8;
 #ifndef sizeofmember
 // Returns the size of a class or struct member.
 #define sizeofmember(c,m) (sizeof(((c*)0)->m))
-#endif
-
-#if defined(_MSC_VER) && _MSC_VER < 1900
-#define NOEXCEPT
-#else
-#define NOEXCEPT noexcept
 #endif
 
 //=--------------------------------------------------------------------------=
@@ -576,7 +599,7 @@ BOOL CLRFreeLibrary(HMODULE hModule);
 // Load a string using the resources for the current module.
 STDAPI UtilLoadStringRC(UINT iResouceID, __out_ecount (iMax) LPWSTR szBuffer, int iMax, int bQuiet=FALSE);
 
-#if ENABLE_DOWNLEVEL_FOR_NLS
+#if defined(ENABLE_DOWNLEVEL_FOR_NLS) || defined(FEATURE_USE_LCID)
 STDAPI UtilLoadStringRCEx(LCID lcid, UINT iResourceID, __out_ecount (iMax) LPWSTR szBuffer, int iMax, int bQuiet, int *pcwchUsed);
 #endif
 

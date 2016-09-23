@@ -739,6 +739,46 @@ SIZE_T GetRegOffsInCONTEXT(ICorDebugInfo::RegNum regNum)
     case ICorDebugInfo::REGNUM_AMBIENT_SP: return offsetof(T_CONTEXT, Sp);
     default: _ASSERTE(!"Bad regNum"); return (SIZE_T)(-1);
     }
+#elif defined(_TARGET_ARM64_)
+
+    switch(regNum)
+    {
+    case ICorDebugInfo::REGNUM_X0: return offsetof(T_CONTEXT, X0);
+    case ICorDebugInfo::REGNUM_X1: return offsetof(T_CONTEXT, X1);
+    case ICorDebugInfo::REGNUM_X2: return offsetof(T_CONTEXT, X2);
+    case ICorDebugInfo::REGNUM_X3: return offsetof(T_CONTEXT, X3);
+    case ICorDebugInfo::REGNUM_X4: return offsetof(T_CONTEXT, X4);
+    case ICorDebugInfo::REGNUM_X5: return offsetof(T_CONTEXT, X5);
+    case ICorDebugInfo::REGNUM_X6: return offsetof(T_CONTEXT, X6);
+    case ICorDebugInfo::REGNUM_X7: return offsetof(T_CONTEXT, X7);
+    case ICorDebugInfo::REGNUM_X8: return offsetof(T_CONTEXT, X8);
+    case ICorDebugInfo::REGNUM_X9: return offsetof(T_CONTEXT, X9);
+    case ICorDebugInfo::REGNUM_X10: return offsetof(T_CONTEXT, X10);
+    case ICorDebugInfo::REGNUM_X11: return offsetof(T_CONTEXT, X11);
+    case ICorDebugInfo::REGNUM_X12: return offsetof(T_CONTEXT, X12);
+    case ICorDebugInfo::REGNUM_X13: return offsetof(T_CONTEXT, X13);
+    case ICorDebugInfo::REGNUM_X14: return offsetof(T_CONTEXT, X14);
+    case ICorDebugInfo::REGNUM_X15: return offsetof(T_CONTEXT, X15);
+    case ICorDebugInfo::REGNUM_X16: return offsetof(T_CONTEXT, X16);
+    case ICorDebugInfo::REGNUM_X17: return offsetof(T_CONTEXT, X17);
+    case ICorDebugInfo::REGNUM_X18: return offsetof(T_CONTEXT, X18);
+    case ICorDebugInfo::REGNUM_X19: return offsetof(T_CONTEXT, X19);
+    case ICorDebugInfo::REGNUM_X20: return offsetof(T_CONTEXT, X20);
+    case ICorDebugInfo::REGNUM_X21: return offsetof(T_CONTEXT, X21);
+    case ICorDebugInfo::REGNUM_X22: return offsetof(T_CONTEXT, X22);
+    case ICorDebugInfo::REGNUM_X23: return offsetof(T_CONTEXT, X23);
+    case ICorDebugInfo::REGNUM_X24: return offsetof(T_CONTEXT, X24);
+    case ICorDebugInfo::REGNUM_X25: return offsetof(T_CONTEXT, X25);
+    case ICorDebugInfo::REGNUM_X26: return offsetof(T_CONTEXT, X26);
+    case ICorDebugInfo::REGNUM_X27: return offsetof(T_CONTEXT, X27);
+    case ICorDebugInfo::REGNUM_X28: return offsetof(T_CONTEXT, X28);
+    case ICorDebugInfo::REGNUM_FP: return offsetof(T_CONTEXT, Fp);
+    case ICorDebugInfo::REGNUM_LR: return offsetof(T_CONTEXT, Lr);
+    case ICorDebugInfo::REGNUM_SP: return offsetof(T_CONTEXT, Sp);
+    case ICorDebugInfo::REGNUM_PC: return offsetof(T_CONTEXT, Pc);
+    case ICorDebugInfo::REGNUM_AMBIENT_SP: return offsetof(T_CONTEXT, Sp);
+    default: _ASSERTE(!"Bad regNum"); return (SIZE_T)(-1);
+    }
 #else
     PORTABILITY_ASSERT("GetRegOffsInCONTEXT is not implemented on this platform.");
     return (SIZE_T) -1;
@@ -2049,10 +2089,11 @@ size_t GetIntelDeterministicCacheEnum()
     LIMITED_METHOD_CONTRACT;
     size_t retVal = 0;
     unsigned char buffer[16];
+    size_t buflen = ARRAYSIZE(buffer);
 
     DWORD maxCpuid = getextcpuid(0,0,buffer);
-
-    DWORD* dwBuffer = (DWORD*)buffer;
+    DWORD dwBuffer[4];
+    memcpy(dwBuffer, buffer, buflen);
 
     if( (maxCpuid > 3) && (maxCpuid < 0x80000000) ) // Deterministic Cache Enum is Supported
     {
@@ -2068,10 +2109,11 @@ size_t GetIntelDeterministicCacheEnum()
         // cache levels are supported.
 
         getextcpuid(loopECX, 4, buffer);       
+        memcpy(dwBuffer, buffer, buflen);
         retEAX = dwBuffer[0];       // get EAX
 
         int i = 0;
-        while(retEAX  & 0x1f)       // Crack cache enums and loop while EAX > 0
+        while(retEAX & 0x1f)       // Crack cache enums and loop while EAX > 0
         {
 
             dwCacheWays = (dwBuffer[1] & CACHE_WAY_BITS) >> 22;
@@ -2086,14 +2128,15 @@ size_t GetIntelDeterministicCacheEnum()
 
             loopECX++;
             getextcpuid(loopECX, 4, buffer);  
+            memcpy(dwBuffer, buffer, buflen);
             retEAX = dwBuffer[0] ;      // get EAX[4:0];        
             i++;
-            if (i > 16)                // prevent infinite looping
-                return 0;
+            if (i > 16) {               // prevent infinite looping
+              return 0;
+            }
         }
         retVal = maxSize;
     }
-
     return retVal ;
 }
 
@@ -3359,6 +3402,11 @@ void InitializeClrNotifications()
 #pragma optimize("", off)
 #endif  // _MSC_VER
 
+#if defined(FEATURE_GDBJIT)
+#include "gdbjit.h"
+__declspec(thread) bool tls_isSymReaderInProgress = false;
+#endif // FEATURE_GDBJIT
+
 // called from the runtime
 void DACNotify::DoJITNotification(MethodDesc *MethodDescPtr)
 {
@@ -3370,7 +3418,14 @@ void DACNotify::DoJITNotification(MethodDesc *MethodDescPtr)
         MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
-
+#if defined(FEATURE_GDBJIT) && defined(FEATURE_PAL) && !defined(CROSSGEN_COMPILE)
+    if(!tls_isSymReaderInProgress)
+    {
+        tls_isSymReaderInProgress = true;
+        NotifyGdb::MethodCompiled(MethodDescPtr);
+        tls_isSymReaderInProgress = false;
+    }
+#endif    
     TADDR Args[2] = { JIT_NOTIFICATION, (TADDR) MethodDescPtr };
     DACNotifyExceptionHelper(Args, 2);
 }
@@ -3386,6 +3441,9 @@ void DACNotify::DoJITDiscardNotification(MethodDesc *MethodDescPtr)
     }
     CONTRACTL_END;
 
+#if defined(FEATURE_GDBJIT) && defined(FEATURE_PAL) && !defined(CROSSGEN_COMPILE)
+    NotifyGdb::MethodDropped(MethodDescPtr);
+#endif    
     TADDR Args[2] = { JIT_DISCARD_NOTIFICATION, (TADDR) MethodDescPtr };
     DACNotifyExceptionHelper(Args, 2);
 }    

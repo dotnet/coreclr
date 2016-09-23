@@ -1179,8 +1179,9 @@ NativeImageDumper::DumpNativeImage()
                 break;
             }
         }
+        
         //If we're actually dumping mscorlib, remap the mscorlib dependency to our own native image.
-        if( mscorlib == NULL || !wcscmp(m_name, W("mscorlib")) )
+        if( (mscorlib == NULL) || !wcscmp(m_name, CoreLibName_W))
         {
             mscorlib = GetDependency(0);
             mscorlib->fIsMscorlib = TRUE;
@@ -2445,7 +2446,7 @@ mdAssemblyRef NativeImageDumper::MapAssemblyRefToManifest(mdAssemblyRef token, I
                 ret = currentRef;
                 break;
             }
-            else if (wcscmp(szAssemblyName, W("mscorlib")) == 0)
+            else if (wcscmp(szAssemblyName, CoreLibName_W) == 0)
             {
                 // Mscorlib is special - version number and public key token are ignored.
                 ret = currentRef;
@@ -2658,7 +2659,7 @@ NativeImageDumper::Dependency *NativeImageDumper::OpenDependency(int index)
             Dependency& dependency = m_dependencies[index];
             AppendTokenName(entry->dwAssemblyRef, buf, m_manifestImport, true);
             bool isHardBound = !!(entry->signNativeImage != INVALID_NGEN_SIGNATURE);
-            SString mscorlibStr(SString::Literal, W("mscorlib"));
+            SString mscorlibStr(SString::Literal, CoreLibName_W);
             bool isMscorlib = (0 == buf.Compare( mscorlibStr ));
             dependency.fIsHardbound = isHardBound;
             wcscpy_s(dependency.name, _countof(dependency.name),
@@ -3092,7 +3093,8 @@ void NativeImageDumper::DumpCompleteMethod(PTR_Module module, MethodIterator& mi
     unsigned gcInfoSize = UINT_MAX;
 
     //parse GCInfo for size information.
-    PTR_CBYTE gcInfo = dac_cast<PTR_CBYTE>(mi.GetGCInfo());
+    GCInfoToken gcInfoToken = mi.GetGCInfoToken();
+    PTR_CBYTE gcInfo = dac_cast<PTR_CBYTE>(gcInfoToken.Info);
 
     void (* stringOutFn)(const char *, ...);
     IF_OPT(GC_INFO)
@@ -3107,10 +3109,10 @@ void NativeImageDumper::DumpCompleteMethod(PTR_Module module, MethodIterator& mi
     {
         PTR_CBYTE curGCInfoPtr = gcInfo;
         g_holdStringOutData.Clear();
-        GCDump gcDump;
+        GCDump gcDump(gcInfoToken.Version);
         gcDump.gcPrintf = stringOutFn;
 #if !defined(_TARGET_X86_) && defined(USE_GC_INFO_DECODER)
-        GcInfoDecoder gcInfoDecoder(curGCInfoPtr, DECODE_CODE_LENGTH, 0);
+        GcInfoDecoder gcInfoDecoder(gcInfoToken, DECODE_CODE_LENGTH);
         methodSize = gcInfoDecoder.GetCodeLength();
 #endif
 
@@ -4133,10 +4135,8 @@ void NativeImageDumper::DumpModule( PTR_Module module )
     //file
     //assembly
 
-#if !defined(FEATURE_CORECLR)
     DisplayWriteFieldInt( m_DefaultDllImportSearchPathsAttributeValue,
                           module->m_DefaultDllImportSearchPathsAttributeValue, Module, MODULE );
-#endif // !FEATURE_CORECLR
 
 
     DisplayEndStructure(MODULE); //Module
@@ -5683,7 +5683,7 @@ NativeImageDumper::EnumMnemonics s_MTFlagsLow[] =
 #if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF)
     MTFLAG_ENTRY(IsRegStructPassed),
 #endif // FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
-    MTFLAG_ENTRY(UNUSED_ComponentSize_4),
+    MTFLAG_ENTRY(IsByRefLike),
     MTFLAG_ENTRY(UNUSED_ComponentSize_5),
     MTFLAG_ENTRY(UNUSED_ComponentSize_6),
     MTFLAG_ENTRY(UNUSED_ComponentSize_7),
@@ -5930,7 +5930,6 @@ static NativeImageDumper::EnumMnemonics s_VMFlags[] =
         VMF_ENTRY(NO_GUID),
         VMF_ENTRY(HASNONPUBLICFIELDS),
         VMF_ENTRY(REMOTING_PROXY_ATTRIBUTE),
-        VMF_ENTRY(CONTAINS_STACK_PTR),        
         VMF_ENTRY(PREFER_ALIGN8),
         VMF_ENTRY(METHODS_REQUIRE_INHERITANCE_CHECKS),
 
@@ -9438,10 +9437,14 @@ void NativeImageDumper::DumpReadyToRunMethod(PCODE pEntryPoint, PTR_RUNTIME_FUNC
     {
         PTR_CBYTE curGCInfoPtr = gcInfo;
         g_holdStringOutData.Clear();
-        GCDump gcDump;
+        GCDump gcDump(GCINFO_VERSION);
         gcDump.gcPrintf = stringOutFn;
+        UINT32 r2rversion = m_pReadyToRunHeader->MajorVersion;
+        UINT32 gcInfoVersion = GCInfoToken::ReadyToRunVersionToGcInfoVersion(r2rversion);
+        GCInfoToken gcInfoToken = { curGCInfoPtr, gcInfoVersion };
+
 #if !defined(_TARGET_X86_) && defined(USE_GC_INFO_DECODER)
-        GcInfoDecoder gcInfoDecoder(curGCInfoPtr, DECODE_CODE_LENGTH, 0);
+        GcInfoDecoder gcInfoDecoder(gcInfoToken, DECODE_CODE_LENGTH);
         methodSize = gcInfoDecoder.GetCodeLength();
 #endif
 

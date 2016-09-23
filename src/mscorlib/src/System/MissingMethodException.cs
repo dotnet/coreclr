@@ -18,7 +18,7 @@ namespace System {
     using System.Runtime.Serialization;
     using System.Runtime.CompilerServices;
     using System.Globalization;
-[System.Runtime.InteropServices.ComVisible(true)]
+    [System.Runtime.InteropServices.ComVisible(true)]
     [Serializable]
     public class MissingMethodException : MissingMemberException, ISerializable {
         public MissingMethodException() 

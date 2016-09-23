@@ -35,11 +35,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="callconv2.cs" />
-    <ProjectReference Include="..\..\PREFIX\primitivevt\helper.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="$(JitPackagesConfigFileDirectory)minimal\project.json" />
-    <None Include="app.config" />
+    <ProjectReference Include="..\..\PREFIX\PrimitiveVT\helper.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />

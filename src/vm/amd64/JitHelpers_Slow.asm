@@ -277,7 +277,7 @@ NESTED_ENTRY AllocateStringFastMP, _TEXT
 
         ; Instead of doing elaborate overflow checks, we just limit the number of elements
         ; to (LARGE_OBJECT_SIZE - 256)/sizeof(WCHAR) or less.
-        ; This will avoid avoid all overflow problems, as well as making sure
+        ; This will avoid all overflow problems, as well as making sure
         ; big string objects are correctly allocated in the big object heap.
 
         cmp     ecx, (ASM_LARGE_OBJECT_SIZE - 256)/2
@@ -588,7 +588,7 @@ LEAF_ENTRY AllocateStringFastUP, _TEXT
 
         ; Instead of doing elaborate overflow checks, we just limit the number of elements
         ; to (LARGE_OBJECT_SIZE - 256)/sizeof(WCHAR) or less.
-        ; This will avoid avoid all overflow problems, as well as making sure
+        ; This will avoid all overflow problems, as well as making sure
         ; big string objects are correctly allocated in the big object heap.
 
         cmp     ecx, (ASM_LARGE_OBJECT_SIZE - 256)/2
@@ -1452,6 +1452,10 @@ NESTED_ENTRY JIT_MonTryEnter_Slow, _TEXT
         ret
 
     PrepareToWaitThinLock:
+        ; Return failure if timeout is zero
+        test    rsi, rsi
+        jz     TimeoutZero
+
         ; If we are on an MP system, we try spinning for a certain number of iterations
         cmp     dword ptr [g_SystemInfo + OFFSETOF__g_SystemInfo__dwNumberOfProcessors], 1
         jle     FramedLockHelper
@@ -1553,9 +1557,13 @@ endif
         ret
 
     PrepareToWait:
+        ; Return failure if timeout is zero
+        test    rsi, rsi
+        jz      TimeoutZero
+
         ; If we are on an MP system, we try spinning for a certain number of iterations
         cmp     dword ptr [g_SystemInfo + OFFSETOF__g_SystemInfo__dwNumberOfProcessors], 1
-        jle     WouldBlock
+        jle     Block
     
         ; Exponential backoff; delay by approximately 2*r10d clock cycles
         mov     eax, r10d
@@ -1570,15 +1578,11 @@ endif
         cmp     r10d, dword ptr [g_SpinConstants + OFFSETOF__g_SpinConstants__dwMaximumDuration]
         jle     RetrySyncBlock
 
-        ; We would need to block to enter the section. Return failure if
-        ; timeout is zero, else call the farmed helper to do the blocking
-        ; form of TryEnter.
-    WouldBlock:
-        test    rsi, rsi
-        jnz     Block
+        jmp     Block
 
+    TimeoutZero:
         ; Return FALSE
-        mov		byte ptr [r8], 0
+        mov     byte ptr [r8], 0
         add     rsp, MON_ENTER_STACK_SIZE
         pop     rsi
         ret

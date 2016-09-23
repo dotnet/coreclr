@@ -15,7 +15,7 @@ namespace System
     using System.Runtime.Serialization;
 
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
+    [System.Runtime.InteropServices.ComVisible(true)]
     public sealed class DataMisalignedException : SystemException 
     {
         public DataMisalignedException() 

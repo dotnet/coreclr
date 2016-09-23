@@ -163,10 +163,7 @@ namespace System {
       ==============================================================================*/
       // Provides a string representation of a character.
       [Pure]
-      public static String ToString(char c) {
-          Contract.Ensures(Contract.Result<String>() != null);
-          return new String(c, 1);
-      }
+      public static string ToString(char c) => string.CreateFromChar(c);
 
       public static char Parse(String s) {
           if (s==null) {
@@ -914,6 +911,7 @@ namespace System {
         ** Convert an UTF32 value into a surrogate pair.
         ==============================================================================*/
         
+        [System.Security.SecuritySafeCritical]
         public static String ConvertFromUtf32(int utf32)
         {
             // For UTF32 values from U+00D800 ~ U+00DFFF, we should throw.  They
@@ -927,12 +925,17 @@ namespace System {
                 // This is a BMP character.
                 return (Char.ToString((char)utf32));
             }
-            // This is a sumplementary character.  Convert it to a surrogate pair in UTF-16.
-            utf32 -= UNICODE_PLANE01_START;
-            char[] surrogate = new char[2];
-            surrogate[0] = (char)((utf32 / 0x400) + (int)CharUnicodeInfo.HIGH_SURROGATE_START);
-            surrogate[1] = (char)((utf32 % 0x400) + (int)CharUnicodeInfo.LOW_SURROGATE_START);
-            return (new String(surrogate));
+
+            unsafe
+            {
+                // This is a supplementary character.  Convert it to a surrogate pair in UTF-16.
+                utf32 -= UNICODE_PLANE01_START;
+                uint surrogate = 0; // allocate 2 chars worth of stack space
+                char* address = (char*)&surrogate;
+                address[0] = (char)((utf32 / 0x400) + (int)CharUnicodeInfo.HIGH_SURROGATE_START);
+                address[1] = (char)((utf32 % 0x400) + (int)CharUnicodeInfo.LOW_SURROGATE_START);
+                return new string(address, 0, 2);
+            }
         }
 
 

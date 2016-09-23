@@ -33,7 +33,7 @@ enum ReturnValues
 
 #define NumItems(s) (sizeof(s) / sizeof(s[0]))
 
-STDAPI CreatePDBWorker(LPCWSTR pwzAssemblyPath, LPCWSTR pwzPlatformAssembliesPaths, LPCWSTR pwzTrustedPlatformAssemblies, LPCWSTR pwzPlatformResourceRoots, LPCWSTR pwzAppPaths, LPCWSTR pwzAppNiPaths, LPCWSTR pwzPdbPath, BOOL fGeneratePDBLinesInfo, LPCWSTR pwzManagedPdbSearchPath, LPCWSTR pwzPlatformWinmdPaths);
+STDAPI CreatePDBWorker(LPCWSTR pwzAssemblyPath, LPCWSTR pwzPlatformAssembliesPaths, LPCWSTR pwzTrustedPlatformAssemblies, LPCWSTR pwzPlatformResourceRoots, LPCWSTR pwzAppPaths, LPCWSTR pwzAppNiPaths, LPCWSTR pwzPdbPath, BOOL fGeneratePDBLinesInfo, LPCWSTR pwzManagedPdbSearchPath, LPCWSTR pwzPlatformWinmdPaths, LPCWSTR pwzDiasymreaderPath);
 STDAPI NGenWorker(LPCWSTR pwzFilename, DWORD dwFlags, LPCWSTR pwzPlatformAssembliesPaths, LPCWSTR pwzTrustedPlatformAssemblies, LPCWSTR pwzPlatformResourceRoots, LPCWSTR pwzAppPaths, LPCWSTR pwzOutputFilename=NULL, LPCWSTR pwzPlatformWinmdPaths=NULL, ICorSvcLogger *pLogger = NULL, LPCWSTR pwszCLRJITPath = nullptr);
 void SetSvcLogger(ICorSvcLogger *pCorSvcLogger);
 #ifdef FEATURE_CORECLR
@@ -175,7 +175,11 @@ void PrintUsageHelper()
        W(" Debugging Parameters\n")
        W("    /CreatePDB <Dir to store PDB> [/lines [<search path for managed PDB>] ]\n")
        W("        When specifying /CreatePDB, the native image should be created\n")
-       W("        first, and <assembly name> should be the path to the NI.")
+       W("        first, and <assembly name> should be the path to the NI.\n")
+#ifdef FEATURE_CORECLR
+       W("    /DiasymreaderPath <Path to diasymreader.dll>\n")
+       W("        - Specifies the absolute file path to diasymreader.dll to be used.\n")
+#endif // FEATURE_CORECLR
 #elif defined(FEATURE_PERFMAP)
        W(" Debugging Parameters\n")
        W("    /CreatePerfMap <Dir to store perf map>\n")
@@ -263,7 +267,7 @@ bool StringEndsWith(LPCWSTR pwzString, LPCWSTR pwzCandidate)
 #ifdef FEATURE_CORECLR
 //
 // When using the Phone binding model (TrustedPlatformAssemblies), automatically
-// detect which path mscorlib.[ni.]dll lies in.
+// detect which path CoreLib.[ni.]dll lies in.
 //
 bool ComputeMscorlibPathFromTrustedPlatformAssemblies(SString& pwzMscorlibPath, LPCWSTR pwzTrustedPlatformAssemblies)
 {
@@ -282,8 +286,8 @@ bool ComputeMscorlibPathFromTrustedPlatformAssemblies(SString& pwzMscorlibPath, 
             wszSingleTrustedPath++;
         }
 
-        if (StringEndsWith(wszSingleTrustedPath, DIRECTORY_SEPARATOR_STR_W W("mscorlib.dll")) ||
-            StringEndsWith(wszSingleTrustedPath, DIRECTORY_SEPARATOR_STR_W W("mscorlib.ni.dll")))
+        if (StringEndsWith(wszSingleTrustedPath, DIRECTORY_SEPARATOR_STR_W CoreLibName_IL_W) ||
+            StringEndsWith(wszSingleTrustedPath, DIRECTORY_SEPARATOR_STR_W CoreLibName_NI_W))
         {
             pwzMscorlibPath.Set(wszSingleTrustedPath);
             SString::Iterator pwzSeparator = pwzMscorlibPath.End();
@@ -324,7 +328,7 @@ void PopulateTPAList(SString path, LPCWSTR pwszMask, SString &refTPAList, bool f
             LPCWSTR pwszFilename = folderEnumerator.GetFileName();
             if (fCompilingMscorlib)
             {
-                // When compiling mscorlib.dll, no ".ni.dll" should be on the TPAList.
+                // When compiling CoreLib, no ".ni.dll" should be on the TPAList.
                 if (StringEndsWith((LPWSTR)pwszFilename, W(".ni.dll")))
                 {
                     fAddFileToTPAList = false;
@@ -335,18 +339,18 @@ void PopulateTPAList(SString path, LPCWSTR pwszMask, SString &refTPAList, bool f
                 // When creating PDBs, we must ensure that .ni.dlls are in the TPAList
                 if (!fCreatePDB)
                 {
-                    // Only mscorlib.ni.dll should be in the TPAList for the compilation of non-mscorlib assemblies.
+                    // Only CoreLib's ni.dll should be in the TPAList for the compilation of non-mscorlib assemblies.
                     if (StringEndsWith((LPWSTR)pwszFilename, W(".ni.dll")))
                     {
-                        if (!StringEndsWith((LPWSTR)pwszFilename, W("mscorlib.ni.dll")))
+                        if (!StringEndsWith((LPWSTR)pwszFilename, CoreLibName_NI_W))
                         {
                             fAddFileToTPAList = false;
                         }
                     }
                 }
                 
-                // Ensure that mscorlib.dll is also not on the TPAlist for this case.                
-                if (StringEndsWith((LPWSTR)pwszFilename, W("mscorlib.dll")))
+                // Ensure that CoreLib's IL version is also not on the TPAlist for this case.                
+                if (StringEndsWith((LPWSTR)pwszFilename, CoreLibName_IL_W))
                 {
                     fAddFileToTPAList = false;
                 }
@@ -457,6 +461,8 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
 #if defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
     LPCWSTR pwszCLRJITPath = nullptr;
 #endif // defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+
+    LPCWSTR pwzDiasymreaderPath = nullptr;
 
     HRESULT hr;
 
@@ -701,6 +707,16 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
             argv--;
             argc++;
         }
+#ifdef FEATURE_CORECLR
+        else if (MatchParameter(*argv, W("DiasymreaderPath")) && (argc > 1))
+        {
+            pwzDiasymreaderPath = argv[1];
+
+            // skip diasymreader Path
+            argv++;
+            argc--;
+        }
+#endif // FEATURE_CORECLR
 #endif // NO_NGENPDB
 #ifdef FEATURE_PERFMAP
         else if (MatchParameter(*argv, W("CreatePerfMap")) && (argc > 1))
@@ -799,6 +815,22 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
         exit(FAILURE_RESULT);
     }
 
+#if defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+    if (pwszCLRJITPath != nullptr && fCreatePDB)
+    {
+        Output(W("The /JITPath switch can not be used with the /CreatePDB switch.\n"));
+        exit(FAILURE_RESULT);
+    }
+#endif // defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+
+#if defined(FEATURE_CORECLR) && !defined(NO_NGENPDB)
+    if (pwzDiasymreaderPath != nullptr && !fCreatePDB)
+    {
+        Output(W("The /DiasymreaderPath switch can only be used with the /CreatePDB switch.\n"));
+        exit(FAILURE_RESULT);
+    }
+#endif // defined(FEATURE_CORECLR) && !defined(NO_NGENPDB)
+
 #if defined(FEATURE_CORECLR)
     if ((pwzTrustedPlatformAssemblies != nullptr) && (pwzPlatformAssembliesPaths != nullptr))
     {
@@ -867,7 +899,7 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
     }
     
     // Are we compiling mscorlib.dll? 
-    bool fCompilingMscorlib = StringEndsWith((LPWSTR)pwzFilename, W("mscorlib.dll"));
+    bool fCompilingMscorlib = StringEndsWith((LPWSTR)pwzFilename, CoreLibName_IL_W);
 
     if (fCompilingMscorlib)
         dwFlags &= ~NGENWORKER_FLAGS_READYTORUN;
@@ -931,7 +963,8 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
             wzDirectoryToStorePDB, 
             fGeneratePDBLinesInfo, 
             pwzSearchPathForManagedPDB,
-            pwzPlatformWinmdPaths);
+            pwzPlatformWinmdPaths,
+            pwzDiasymreaderPath);
         
     }
     else

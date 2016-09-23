@@ -224,13 +224,17 @@ void DACNotifyCompilationFinished(MethodDesc *methodDesc)
 
         _ASSERTE(modulePtr);
 
+#ifndef FEATURE_GDBJIT
         // Are we listed?
         USHORT jnt = jn.Requested((TADDR) modulePtr, t);
         if (jnt & CLRDATA_METHNOTIFY_GENERATED)
-        {
+        {            
             // If so, throw an exception!
+#endif
             DACNotify::DoJITNotification(methodDesc);
+#ifndef FEATURE_GDBJIT
         }
+#endif
     }
 }
 
@@ -1175,7 +1179,7 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
     if (g_pConfig->ShouldPrestubGC(this))
     {
         GCX_COOP();
-        GCHeap::GetGCHeap()->GarbageCollect(-1);
+        GCHeapUtilities::GetGCHeap()->GarbageCollect(-1);
     }
 #endif // _DEBUG
 
@@ -2043,13 +2047,10 @@ EXTERN_C PCODE STDCALL ExternalMethodFixupWorker(TransitionBlock * pTransitionBl
             // Note that we do not want to call code:MethodDesc::IsPointingToPrestub() here. It does not take remoting interception 
             // into account and so it would cause otherwise intercepted methods to be JITed. It is a compat issue if the JITing fails.
             //
-            if (DoesSlotCallPrestub(pCode))
+            if (!DoesSlotCallPrestub(pCode))
             {
-                ETWOnStartup(PrestubWorker_V1, PrestubWorkerEnd_V1);
-                pCode = pMD->DoPrestub(NULL);
+                pCode = PatchNonVirtualExternalMethod(pMD, pCode, pImportSection, pIndirection);
             }
-
-            pCode = PatchNonVirtualExternalMethod(pMD, pCode, pImportSection, pIndirection);
         }
     }
 
@@ -2281,6 +2282,143 @@ static PCODE getHelperForStaticBase(Module * pModule, CORCOMPILE_FIXUP_BLOB_KIND
     return pHelper;
 }
 
+TADDR GetFirstArgumentRegisterValuePtr(TransitionBlock * pTransitionBlock)
+{
+    TADDR pArgument = (TADDR)pTransitionBlock + TransitionBlock::GetOffsetOfArgumentRegisters();
+#ifdef _TARGET_X86_
+    // x86 is special as always
+    pArgument += offsetof(ArgumentRegisters, ECX);
+#endif
+
+    return pArgument;
+}
+
+void ProcessDynamicDictionaryLookup(TransitionBlock *           pTransitionBlock, 
+                                    Module *                    pModule, 
+                                    Module *                    pInfoModule,                                     
+                                    BYTE                        kind, 
+                                    PCCOR_SIGNATURE             pBlob, 
+                                    PCCOR_SIGNATURE             pBlobStart,                                     
+                                    CORINFO_RUNTIME_LOOKUP *    pResult, 
+                                    DWORD *                     pDictionaryIndexAndSlot)
+{
+    STANDARD_VM_CONTRACT;
+
+    TADDR genericContextPtr = *(TADDR*)GetFirstArgumentRegisterValuePtr(pTransitionBlock);
+
+    pResult->testForFixup = pResult->testForNull = false;
+    pResult->signature = NULL;
+    pResult->indirections = CORINFO_USEHELPER;
+
+    DWORD numGenericArgs = 0;
+    MethodTable* pContextMT = NULL;
+    MethodDesc* pContextMD = NULL;
+
+    if (kind == ENCODE_DICTIONARY_LOOKUP_METHOD)
+    {
+        pContextMD = (MethodDesc*)genericContextPtr;
+        numGenericArgs = pContextMD->GetNumGenericMethodArgs();
+        pResult->helper = CORINFO_HELP_RUNTIMEHANDLE_METHOD;
+    }
+    else
+    {
+        pContextMT = (MethodTable*)genericContextPtr;
+
+        if (kind == ENCODE_DICTIONARY_LOOKUP_THISOBJ)
+        {
+            TypeHandle contextTypeHandle = ZapSig::DecodeType(pModule, pInfoModule, pBlob);
+
+            SigPointer p(pBlob);
+            p.SkipExactlyOne();
+            pBlob = p.GetPtr();
+
+            pContextMT = pContextMT->GetMethodTableMatchingParentClass(contextTypeHandle.AsMethodTable());
+        }
+
+        numGenericArgs = pContextMT->GetNumGenericArgs();
+        pResult->helper = CORINFO_HELP_RUNTIMEHANDLE_CLASS;
+    }
+
+    _ASSERTE(numGenericArgs > 0);
+
+    CORCOMPILE_FIXUP_BLOB_KIND signatureKind = (CORCOMPILE_FIXUP_BLOB_KIND)CorSigUncompressData(pBlob);
+
+    //
+    // Optimization cases
+    //
+    if (signatureKind == ENCODE_TYPE_HANDLE)
+    {
+        SigPointer sigptr(pBlob, -1);
+
+        CorElementType type;
+        IfFailThrow(sigptr.GetElemType(&type));
+
+        if ((type == ELEMENT_TYPE_MVAR) && (kind == ENCODE_DICTIONARY_LOOKUP_METHOD))
+        {
+            pResult->indirections = 2;
+            pResult->offsets[0] = offsetof(InstantiatedMethodDesc, m_pPerInstInfo);
+
+            ULONG data;
+            IfFailThrow(sigptr.GetData(&data));
+            pResult->offsets[1] = sizeof(TypeHandle) * data;
+
+            return;
+        }
+        else if ((type == ELEMENT_TYPE_VAR) && (kind != ENCODE_DICTIONARY_LOOKUP_METHOD))
+        {
+            pResult->indirections = 3;
+            pResult->offsets[0] = MethodTable::GetOffsetOfPerInstInfo();
+            pResult->offsets[1] = sizeof(TypeHandle*) * (pContextMT->GetNumDicts() - 1);
+
+            ULONG data;
+            IfFailThrow(sigptr.GetData(&data));
+            pResult->offsets[2] = sizeof(TypeHandle) * data;
+
+            return;
+        }
+    }
+
+    if (pContextMT != NULL && pContextMT->GetNumDicts() > 0xFFFF)
+        ThrowHR(COR_E_BADIMAGEFORMAT);
+
+    // Dictionary index and slot number are encoded in a 32-bit DWORD. The higher 16 bits
+    // are used for the dictionary index, and the lower 16 bits for the slot number.
+    *pDictionaryIndexAndSlot = (pContextMT == NULL ? 0 : pContextMT->GetNumDicts() - 1);
+    *pDictionaryIndexAndSlot <<= 16;
+    
+    WORD dictionarySlot;
+
+    if (kind == ENCODE_DICTIONARY_LOOKUP_METHOD)
+    {
+        if (DictionaryLayout::FindToken(pModule->GetLoaderAllocator(), numGenericArgs, pContextMD->GetDictionaryLayout(), pResult, (BYTE*)pBlobStart, 1, FromReadyToRunImage, &dictionarySlot))
+        {
+            pResult->testForNull = 1;
+
+            // Indirect through dictionary table pointer in InstantiatedMethodDesc
+            pResult->offsets[0] = offsetof(InstantiatedMethodDesc, m_pPerInstInfo);
+
+            *pDictionaryIndexAndSlot |= dictionarySlot;
+        }
+    }
+
+    // It's a class dictionary lookup (CORINFO_LOOKUP_CLASSPARAM or CORINFO_LOOKUP_THISOBJ)
+    else
+    {
+        if (DictionaryLayout::FindToken(pModule->GetLoaderAllocator(), numGenericArgs, pContextMT->GetClass()->GetDictionaryLayout(), pResult, (BYTE*)pBlobStart, 2, FromReadyToRunImage, &dictionarySlot))
+        {
+            pResult->testForNull = 1;
+
+            // Indirect through dictionary table pointer in vtable
+            pResult->offsets[0] = MethodTable::GetOffsetOfPerInstInfo();
+
+            // Next indirect through the dictionary appropriate to this instantiated type
+            pResult->offsets[1] = sizeof(TypeHandle*) * (pContextMT->GetNumDicts() - 1);
+
+            *pDictionaryIndexAndSlot |= dictionarySlot;
+        }
+    }
+}
+
 PCODE DynamicHelperFixup(TransitionBlock * pTransitionBlock, TADDR * pCell, DWORD sectionIndex, Module * pModule, CORCOMPILE_FIXUP_BLOB_KIND * pKind, TypeHandle * pTH, MethodDesc ** ppMD, FieldDesc ** ppFD)
 {
     STANDARD_VM_CONTRACT;
@@ -2299,6 +2437,7 @@ PCODE DynamicHelperFixup(TransitionBlock * pTransitionBlock, TADDR * pCell, DWOR
     PTR_DWORD pSignatures = dac_cast<PTR_DWORD>(pNativeImage->GetRvaData(pImportSection->Signatures));
 
     PCCOR_SIGNATURE pBlob = (BYTE *)pNativeImage->GetRvaData(pSignatures[index]);
+    PCCOR_SIGNATURE pBlobStart = pBlob;
 
     BYTE kind = *pBlob++;
 
@@ -2314,6 +2453,8 @@ PCODE DynamicHelperFixup(TransitionBlock * pTransitionBlock, TADDR * pCell, DWOR
     TypeHandle th;
     MethodDesc * pMD = NULL;
     FieldDesc * pFD = NULL;
+    CORINFO_RUNTIME_LOOKUP genericLookup;
+    DWORD dictionaryIndexAndSlot = -1;
 
     switch (kind)
     {
@@ -2327,6 +2468,7 @@ PCODE DynamicHelperFixup(TransitionBlock * pTransitionBlock, TADDR * pCell, DWOR
     case ENCODE_NEW_ARRAY_HELPER:
         th = ZapSig::DecodeType(pModule, pInfoModule, pBlob);
         break;
+
     case ENCODE_THREAD_STATIC_BASE_NONGC_HELPER:
     case ENCODE_THREAD_STATIC_BASE_GC_HELPER:
     case ENCODE_STATIC_BASE_NONGC_HELPER:
@@ -2338,27 +2480,38 @@ PCODE DynamicHelperFixup(TransitionBlock * pTransitionBlock, TADDR * pCell, DWOR
         th.AsMethodTable()->CheckRunClassInitThrowing();
         fReliable = true;
         break;
+
     case ENCODE_FIELD_ADDRESS:
         pFD = ZapSig::DecodeField(pModule, pInfoModule, pBlob, &th);
         _ASSERTE(pFD->IsStatic());
         goto Statics;
+
     case ENCODE_VIRTUAL_ENTRY:
     // case ENCODE_VIRTUAL_ENTRY_DEF_TOKEN:
     // case ENCODE_VIRTUAL_ENTRY_REF_TOKEN:
     // case ENCODE_VIRTUAL_ENTRY_SLOT:
         fReliable = true;
     case ENCODE_DELEGATE_CTOR:
-        pMD = ZapSig::DecodeMethod(pModule, pInfoModule, pBlob, &th);
-        if (pMD->RequiresInstArg())
         {
-            pMD = MethodDesc::FindOrCreateAssociatedMethodDesc(pMD,
-                th.AsMethodTable(),
-                FALSE /* forceBoxedEntryPoint */,
-                pMD->GetMethodInstantiation(),
-                FALSE /* allowInstParam */);
+            pMD = ZapSig::DecodeMethod(pModule, pInfoModule, pBlob, &th);
+            if (pMD->RequiresInstArg())
+            {
+                pMD = MethodDesc::FindOrCreateAssociatedMethodDesc(pMD,
+                    th.AsMethodTable(),
+                    FALSE /* forceBoxedEntryPoint */,
+                    pMD->GetMethodInstantiation(),
+                    FALSE /* allowInstParam */);
+            }
+            pMD->EnsureActive();
         }
-        pMD->EnsureActive();
         break;
+
+    case ENCODE_DICTIONARY_LOOKUP_THISOBJ:
+    case ENCODE_DICTIONARY_LOOKUP_TYPE:
+    case ENCODE_DICTIONARY_LOOKUP_METHOD:
+        ProcessDynamicDictionaryLookup(pTransitionBlock, pModule, pInfoModule, kind, pBlob, pBlobStart, &genericLookup, &dictionaryIndexAndSlot);
+        break;
+
     default:
         _ASSERTE(!"Unexpected CORCOMPILE_FIXUP_BLOB_KIND");
         ThrowHR(COR_E_BADIMAGEFORMAT);
@@ -2512,11 +2665,7 @@ PCODE DynamicHelperFixup(TransitionBlock * pTransitionBlock, TADDR * pCell, DWOR
                 {
                     GCX_COOP();
 
-                    TADDR pArgument = (TADDR)pTransitionBlock + TransitionBlock::GetOffsetOfArgumentRegisters();
-#ifdef _TARGET_X86_
-                    // x86 is special as always
-                    pArgument += offsetof(ArgumentRegisters, ECX);
-#endif
+                    TADDR pArgument = GetFirstArgumentRegisterValuePtr(pTransitionBlock);
 
                     if (pArgument != NULL)
                     {
@@ -2565,6 +2714,14 @@ PCODE DynamicHelperFixup(TransitionBlock * pTransitionBlock, TADDR * pCell, DWOR
                 {
                     pHelper = DynamicHelpers::CreateHelperWithTwoArgs(pModule->GetLoaderAllocator(), pMD->GetMultiCallableAddrOfCode(), target);
                 }
+            }
+            break;
+
+        case ENCODE_DICTIONARY_LOOKUP_THISOBJ:
+        case ENCODE_DICTIONARY_LOOKUP_TYPE:
+        case ENCODE_DICTIONARY_LOOKUP_METHOD:
+            {
+                pHelper = DynamicHelpers::CreateDictionaryLookupHelper(pModule->GetLoaderAllocator(), &genericLookup, dictionaryIndexAndSlot, pModule);
             }
             break;
 
@@ -2637,11 +2794,7 @@ extern "C" SIZE_T STDCALL DynamicHelperWorker(TransitionBlock * pTransitionBlock
 
     if (pHelper == NULL)
     {
-        TADDR pArgument = (TADDR)pTransitionBlock + TransitionBlock::GetOffsetOfArgumentRegisters();
-#ifdef _TARGET_X86_
-        // x86 is special as always
-        pArgument += offsetof(ArgumentRegisters, ECX);
-#endif
+        TADDR pArgument = GetFirstArgumentRegisterValuePtr(pTransitionBlock);
 
         switch (kind)
         {

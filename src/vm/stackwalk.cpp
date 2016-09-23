@@ -1741,9 +1741,12 @@ ProcessFuncletsForGCReporting:
                         // was a caller of an already executed exception handler based on the previous exception trackers.
                         // The handler funclet frames are already gone from the stack, so the exception trackers are the
                         // only source of evidence about it.
+                        // The filter funclet is different though, its frame is always present on the stack when its parent
+                        // frame is reached by the stack walker, because no exception can escape a filter funclet.
                         // This is different from Windows where the full stack is preserved until an exception is fully handled
                         // and so we can detect it just from walking the stack.
-                        if (!fRecheckCurrentFrame && !fSkippingFunclet && (pTracker != NULL))
+                        bool fProcessingFilterFunclet = !m_sfFuncletParent.IsNull() && !(m_fProcessNonFilterFunclet || m_fProcessIntermediaryNonFilterFunclet);
+                        if (!fRecheckCurrentFrame && !fSkippingFunclet && (pTracker != NULL) && !fProcessingFilterFunclet)
                         {
                             // The stack walker is not skipping frames now, which means it didn't find a funclet frame that
                             // would require skipping the current frame. If we find a tracker with caller of actual handling
@@ -2413,7 +2416,7 @@ StackWalkAction StackFrameIterator::NextRaw(void)
                 OBJECTREF      orUnwind = NULL;
 
                 if (m_crawl.GetCodeManager()->IsInSynchronizedRegion(m_crawl.GetRelOffset(),
-                                                                    m_crawl.GetGCInfo(), 
+                                                                    m_crawl.GetGCInfoToken(), 
                                                                     m_crawl.GetCodeManagerFlags()))
                 {
                     if (pMD->IsStatic())
@@ -2485,6 +2488,12 @@ StackWalkAction StackFrameIterator::NextRaw(void)
             bool fInsertCacheEntry = m_crawl.stackWalkCache.Enabled() && 
                                      (m_flags & LIGHTUNWIND) &&
                                      (m_pCachedGSCookie == NULL);
+ 
+            // Is this a dynamic method. Dynamic methods can be GC collected and so IP to method mapping
+            // is not persistent. Therefore do not cache information for this frame.
+            BOOL isCollectableMethod = ExecutionManager::IsCollectibleMethod(m_crawl.GetMethodToken());
+            if(isCollectableMethod)
+                fInsertCacheEntry = FALSE;
 
             StackwalkCacheUnwindInfo unwindInfo;
 
@@ -3149,7 +3158,7 @@ void StackFrameIterator::PreProcessingForManagedFrames(void)
          m_crawl.pFunc->IsSynchronized() && 
          !m_crawl.pFunc->IsStatic()      &&
          m_crawl.GetCodeManager()->IsInSynchronizedRegion(m_crawl.GetRelOffset(), 
-                                                         m_crawl.GetGCInfo(), 
+                                                         m_crawl.GetGCInfoToken(), 
                                                          m_crawl.GetCodeManagerFlags()))
     {
         BEGIN_GCX_ASSERT_COOP;

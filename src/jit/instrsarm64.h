@@ -19,29 +19,29 @@
 ******************************************************************************/
 
 #if !defined(_TARGET_ARM64_)
-  #error Unexpected target type
+#error Unexpected target type
 #endif
 
 #ifndef INST1
-#error  INST1 must be defined before including this file.
+#error INST1 must be defined before including this file.
 #endif
 #ifndef INST2
-#error  INST2 must be defined before including this file.
+#error INST2 must be defined before including this file.
 #endif
 #ifndef INST3
-#error  INST3 must be defined before including this file.
+#error INST3 must be defined before including this file.
 #endif
 #ifndef INST4
-#error  INST4 must be defined before including this file.
+#error INST4 must be defined before including this file.
 #endif
 #ifndef INST5
-#error  INST5 must be defined before including this file.
+#error INST5 must be defined before including this file.
 #endif
 #ifndef INST6
-#error  INST6 must be defined before including this file.
+#error INST6 must be defined before including this file.
 #endif
 #ifndef INST9
-#error  INST9 must be defined before including this file.
+#error INST9 must be defined before including this file.
 #endif
 
 /*****************************************************************************/
@@ -53,7 +53,7 @@
 //   * If the instruction writes to more than one destination register, update the function
 //     emitInsMayWriteMultipleRegs in emitArm64.cpp.
 
-
+// clang-format off
 INST9(invalid, "INVALID", 0, 0, IF_NONE,  BAD_CODE,    BAD_CODE,    BAD_CODE,    BAD_CODE,   BAD_CODE,     BAD_CODE,    BAD_CODE,    BAD_CODE,    BAD_CODE)
 
 //    enum     name     FP LD/ST            DR_2E        DR_2G        DI_1B        DI_1D        DV_3C        DV_2B        DV_2C        DV_2E        DV_2F
@@ -600,14 +600,14 @@ INST1(bl_local,"bl",     0, 0, IF_BI_0A,  0x94000000)
 INST1(bl,      "bl",     0, 0, IF_BI_0C,  0x94000000)
                                    //  bl      simm26               BI_0C  100101iiiiiiiiii iiiiiiiiiiiiiiii   9400 0000   simm26:00
 
-INST1(br,      "br",     0, 0, IF_BR_1B,  0xD61F0000)
-                                   //  br      Rn                   BR_1B  1101011000011111 000000nnnnn00000   D61F 0000
+INST1(br,      "br",     0, 0, IF_BR_1A,  0xD61F0000)
+                                   //  br      Rn                   BR_1A  1101011000011111 000000nnnnn00000   D61F 0000, an indirect branch like switch expansion
 
 INST1(br_tail, "br",     0, 0, IF_BR_1B,  0xD61F0000)
-                                   //  br      Rn                   BR_1B  1101011000011111 000000nnnnn00000   D61F 0000, same as br representing a tail call of blr.
+                                   //  br      Rn                   BR_1B  1101011000011111 000000nnnnn00000   D61F 0000, same as br representing a tail call of blr. Encode target with Reg3.
 
 INST1(blr,     "blr",    0, 0, IF_BR_1B,  0xD63F0000)
-                                   //  blr     Rn                   BR_1B  1101011000111111 000000nnnnn00000   D63F 0000
+                                   //  blr     Rn                   BR_1B  1101011000111111 000000nnnnn00000   D63F 0000, Encode target with Reg3.
 
 INST1(ret,     "ret",    0, 0, IF_BR_1A,  0xD65F0000)
                                    //  ret     Rn                   BR_1A  1101011001011111 000000nnnnn00000   D65F 0000
@@ -941,14 +941,14 @@ INST1(uxtl,    "uxtl",   0, 0, IF_DV_2O,  0x2F00A400)
 
 INST1(uxtl2,   "uxtl2",  0, 0, IF_DV_2O,  0x6F00A400)
                                    //  uxtl2   Vd,Vn                DV_2O  011011110iiiiiii 101001nnnnnddddd   6F00 A400   Vd,Vn      (shift - vector)
-
+// clang-format on
 
 /*****************************************************************************/
-#undef  INST1
-#undef  INST2
-#undef  INST3
-#undef  INST4
-#undef  INST5
-#undef  INST6
-#undef  INST9
+#undef INST1
+#undef INST2
+#undef INST3
+#undef INST4
+#undef INST5
+#undef INST6
+#undef INST9
 /*****************************************************************************/

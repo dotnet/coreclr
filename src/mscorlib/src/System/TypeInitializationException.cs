@@ -20,7 +20,7 @@ using System.Security.Permissions;
 
 namespace System {
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
+    [System.Runtime.InteropServices.ComVisible(true)]
     public sealed class TypeInitializationException : SystemException {
         private String _typeName;
 

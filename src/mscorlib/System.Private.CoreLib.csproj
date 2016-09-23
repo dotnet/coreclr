@@ -7,12 +7,13 @@
  
   <!-- Compilation options -->
   <PropertyGroup>
-    <AvailablePlatforms>amd64,x86,arm,arm64</AvailablePlatforms>
+    <AvailablePlatforms>amd64,x86,arm,arm-softfp,arm64</AvailablePlatforms>
     <Configuration Condition=" '$(Configuration)' == '' ">$(BuildType)</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">$(BuildArch)</Platform>
     <!-- The CLR properties use amd64 as their platform string, we want to keep in sync with those, so set Platform appropriately,
          though still use the 'x64' output path (see use of BuildArch below) -->
     <Platform Condition=" '$(Platform)' == 'x64' ">amd64</Platform>
+    <Platform Condition=" '$(Platform)' == 'arm-softfp' ">arm</Platform>
     <ProjectGuid>{3DA06C3A-2E7B-4CB7-80ED-9B12916013F9}</ProjectGuid>
 
     <OutputType>Library</OutputType>
@@ -28,8 +29,6 @@
     <UTF8OutPut>true</UTF8OutPut>
     <HighEntropyVA>true</HighEntropyVA>
     <ErrorReport>prompt</ErrorReport>
-    <Optimize Condition="'$(Optimize)' == ''">true</Optimize>
-    <GenerateNativeVersionInfo Condition="'$(OsEnvironment)'=='Windows_NT'">true</GenerateNativeVersionInfo>
     <CLSCompliant>true</CLSCompliant>
     <WarningLevel>4</WarningLevel>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
@@ -37,7 +36,7 @@
     <NoWarn>649,3019,414,169,3015</NoWarn>
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
 
-    <BclRewriterModelFile>model.CoreLib.xml</BclRewriterModelFile>
+    <BclRewriterModelFile>$(MSBuildThisFileDirectory)model.xml</BclRewriterModelFile>
 
     <SignAssembly>true</SignAssembly>
     <DelaySign>true</DelaySign>
@@ -57,31 +56,34 @@
     <PlatformTarget>x64</PlatformTarget>
     <Prefer32Bit>false</Prefer32Bit>
     <BaseAddress>0x180000000</BaseAddress>
-    <DefineConstants>WIN64;AMD64;$(DefineConstants)</DefineConstants>
+    <DefineConstants>BIT64;AMD64;$(DefineConstants)</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Platform)' == 'x86'">
     <PlatformTarget>x86</PlatformTarget>
     <BaseAddress>0x10000000</BaseAddress>
-    <DefineConstants>WIN32;$(DefineConstants)</DefineConstants>
+    <DefineConstants>BIT32;$(DefineConstants)</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Platform)' == 'arm'">
     <PlatformTarget>arm</PlatformTarget>
-    <DefineConstants>WIN32;ARM;$(DefineConstants)</DefineConstants>
+    <DefineConstants>BIT32;ARM;$(DefineConstants)</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Platform)' == 'arm64'">
     <PlatformTarget>AnyCPU</PlatformTarget>
-    <DefineConstants>WIN64;ARM64;$(DefineConstants)</DefineConstants>
+    <DefineConstants>BIT64;ARM64;$(DefineConstants)</DefineConstants>
   </PropertyGroup>
   
   <!-- Configuration specific properties -->
   <PropertyGroup Condition="'$(Configuration)' == 'Debug' or '$(Configuration)' == 'Checked'">
     <DebugSymbols>true</DebugSymbols>
+    <Optimize Condition="'$(Optimize)' == '' and '$(Configuration)' == 'Debug'">false</Optimize>
+    <Optimize Condition="'$(Optimize)' == '' and '$(Configuration)' == 'Checked'">true</Optimize>
     <DebugType>full</DebugType>
     <DefineConstants>DBG;_DEBUG;_LOGGING;DEBUG;TRACE;$(DefineConstants)</DefineConstants>
     <DefineConstants Condition="'$(Platform)' == 'x86' or '$(Platform)' == 'amd64'">CODE_ANALYSIS;$(DefineConstants)</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <DebugSymbols>true</DebugSymbols>
+    <Optimize Condition="'$(Optimize)' == ''">true</Optimize>
     <DebugType>pdbOnly</DebugType>
     <DefineConstants>TRACE;$(DefineConstants)</DefineConstants>
   </PropertyGroup>
@@ -151,7 +153,7 @@
   <!-- Include additional sources shared files in the compilation -->
   <ItemGroup>
     <!-- These are files are preprocessed  -->
-    <MscorlibSources Include="$(CommonPath)\Preprocessed\AssemblyRefs.CoreLib.g.cs" />
+    <MscorlibSources Include="$(CommonPath)\Preprocessed\AssemblyRefs.g.cs" />
 
     <!-- These files are shared with other framework components and don't live the same folder as the rest of them-->
     <MscorlibSources Include="$(CommonPath)\PinnableBufferCache.cs" />
@@ -168,11 +170,27 @@
   
   <!-- Resources -->
   <ItemGroup>
-    <SplitTextStringResource Include="$(BclSourcesRoot)\mscorlib.txt">
+    <SplitTextStringResource Include="$(BclSourcesRoot)\System.Private.CoreLib.txt">
       <ResFile>System.Private.CoreLib</ResFile>
       <ResGenDefines>$(DefineConstants)</ResGenDefines>
     </SplitTextStringResource>
   </ItemGroup>
+
+  <PropertyGroup>
+    <CheckCDefines Condition="'$(CheckCDefines)'==''">true</CheckCDefines>
+  </PropertyGroup>
+
+  <Target Name="CDefineChecker" BeforeTargets="Build" Condition="'$(CheckCDefines)'=='true'">
+    <!-- Compiler Definition Verification -->
+    <Message Importance="High" Text="============" />
+    <PropertyGroup>
+      <IgnoreDefineConstants>FEATURE_IMPLICIT_TLS;FEATURE_HIJACK</IgnoreDefineConstants>
+      <CMakeDefinitionSaveFile>$(IntermediateOutputPath)\cmake.definitions</CMakeDefinitionSaveFile>
+    </PropertyGroup>
+    <Exec Command='python $(MSBuildThisFileDirectory)..\scripts\check-definitions.py "$(CMakeDefinitionSaveFile)" "$(DefineConstants)" "$(IgnoreDefineConstants)" ' />
+    <Message Importance="High" Text="============" />
+  </Target>
+
   <ItemGroup>
     <EmbeddedResource Include="$(NlpObjDir)\charinfo.nlp">
       <LogicalName>charinfo.nlp</LogicalName>
@@ -180,6 +198,10 @@
   </ItemGroup>
 
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.Targets" />
+
+  <PropertyGroup>
+    <StrongNameSig>Silverlight</StrongNameSig>
+  </PropertyGroup>
 
   <!-- Import signing tools -->
   <Import Condition="Exists('$(ToolsDir)\sign.targets')" Project="$(ToolsDir)\sign.targets" />
@@ -192,6 +214,12 @@
   <Import Project="$(MSBuildThisFileDirectory)Tools\Versioning\GenerateVersionInfo.targets"/>
   <!-- Override versioning targets -->
   <Import Condition="Exists('$(ToolsDir)versioning.targets')" Project="$(ToolsDir)versioning.targets" />
+
+  <PropertyGroup>
+    <!-- Use a different nativeresource file to avoid conflicts with mscorlib-->
+    <Win32Resource Condition="'$(GenerateNativeVersionInfo)'=='true'">$(IntermediateOutputPath)\System.Private.CoreLib.res</Win32Resource>
+  </PropertyGroup>
+
   <Import Project="GenerateSplitStringResources.targets"/>
   <Import Project="GenerateCompilerResponseFile.targets"/>
   <Import Project="$(PostProcessingToolsPath)" />

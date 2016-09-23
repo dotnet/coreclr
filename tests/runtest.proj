@@ -15,6 +15,8 @@
     <_SkipTestDir Include="@(DisabledTestDir)" />
   </ItemGroup>
 
+  <Target Name="Rebuild" />
+
   <Target Name="FindCmdDirectories" DependsOnTargets="GetListOfTestCmds">
 
     <Error Condition="!Exists('$(XunitTestBinBase)')" 
@@ -62,7 +64,6 @@ $(_XunitEpilog)
 
 ]]>
       </_XunitWrapperGen>
-      <XunitVersionCompiled>2.1.0</XunitVersionCompiled>
       <XunitWrapperGenCsProj>
         <![CDATA[
 <?xml version="1.0" encoding="utf-8"?>
@@ -87,6 +88,8 @@ $(_XunitEpilog)
     <NuGetPackageImportStamp>7a9bfb7d</NuGetPackageImportStamp>
     <CLRTestKind>BuildOnly</CLRTestKind>
     <IsTestProject>true</IsTestProject>
+    <ProjectJson>%24(TestWrappersPackagesConfigFileDirectory)project.json</ProjectJson>
+    <ProjectLockJson>%24(TestWrappersPackagesConfigFileDirectory)project.lock.json</ProjectLockJson>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition=" '%24(Configuration)|%24(Platform)' == 'Debug|AnyCPU' ">
@@ -95,9 +98,6 @@ $(_XunitEpilog)
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(XunitWrapper).cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="%24(TestWrappersPackagesConfigFileDirectory)project.json" />
   </ItemGroup>
   <ItemGroup>
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
@@ -119,7 +119,6 @@ $(_XunitEpilog)
     <ProjectLockJson>%24(TestWrappersPackagesConfigFileDirectory)project.lock.json</ProjectLockJson>
   </PropertyGroup>
   <Import Project="$(SourceDir)dir.targets" />
-  <Import Project="$(ProjectDir)helix.targets" />
   <PropertyGroup>
      <OutDir>$(XunitTestBinBase)\$(Category)\</OutDir>
   </PropertyGroup>
@@ -146,8 +145,7 @@ $(_XunitEpilog)
   </Target>
   
   <Target Name="BuildXunitWrapper">
-    <MSBuild Projects="$(XunitWrapperSrcDir)\$(XunitWrapper).csproj"
-             Properties="RestorePackages=false"/>
+    <MSBuild Projects="$(XunitWrapperSrcDir)\$(XunitWrapper).csproj"/>
   </Target>
 
   <Target Name="CreateXunitFacts">
@@ -307,31 +305,7 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
   </Target>
 
   <Target Name="CreateAllWrappers" DependsOnTargets="GetListOfTestCmds;FindCmdDirectories">
-    <MSBuild Projects="$(MSBuildProjectFile)" Targets="CreateXunitWrapper" Properties="_CMDDIR=%(TestDirectories.Identity)" />
-
-    <!--
-      Contents of a project.json that will be restored once with errors turned off. This works
-      around the package being incompatible with dotnet restore. Only the package contents are
-      required so the compatibility errors can be ignored.
-    -->
-    <PropertyGroup>
-      <XunitRunnerRestoreGenConfig>{ "dependencies": { "xunit.runner.msbuild": "$(XunitPackageVersion)" }, "frameworks": { "net45": {} } }</XunitRunnerRestoreGenConfig>
-      <XunitRunnerRestoreProjectDir>$(BaseOutputPath)\tempRestoreProject</XunitRunnerRestoreProjectDir>
-      <XunitRunnerRestoreProjectJsonPath>$(XunitRunnerRestoreProjectDir)\project.json</XunitRunnerRestoreProjectJsonPath>
-    </PropertyGroup>
-    
-    <MakeDir Directories="$(XunitRunnerRestoreProjectDir)" />
-    <WriteLinesToFile File="$(XunitRunnerRestoreProjectJsonPath)"
-                      Lines="$(XunitRunnerRestoreGenConfig)"
-                      Overwrite="true" />
-    
-    <Exec Command="$(DnuRestoreCommand) &quot;$(XunitRunnerRestoreProjectJsonPath)&quot;"
-          StandardOutputImportance="Low"
-          CustomErrorRegularExpression="^Unable to resolve .*"
-          IgnoreExitCode="true" 
-          IgnoreStandardErrorWarningFormat="true" />
-
-    <MSBuild Projects="$(MSBuildProjectFile)" Targets="BuildXunitWrapper" Properties="_CMDDIR=%(TestDirectories.Identity)" />
+    <MSBuild Projects="$(MSBuildProjectFile)" Targets="CreateXunitWrapper;BuildXunitWrapper" Properties="_CMDDIR=%(TestDirectories.Identity)" />
   </Target>
 
   <Target Name="GetListOfTestCmds">
@@ -350,11 +324,9 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
   </Target>
 
   <!-- All the test projects need to add dependency to currently built runtime as they require that to run. 
-       In addition the version number of built runtime can change so all project.json needs to be dynamically generated. 
-       In order to avoid regenerating project.json for all the tests projects...I added a common project for all the tests.
-       This project is at tests\src\common\test_runtime\test_runtime.csproj. This project is adding common dependencies to
-       all the tests like dependency on Microsoft.netcore.runtime.coreclr ..etc. Project.json for this project is dynamically 
-       generated via task CreateTestRuntimeJsonFile. -->
+       In addition the version number of built runtime can change so all project.json needs to be dynamically generated.
+       Instead the following task creates a project.json with dependencies like  Microsoft.netcore.runtime.coreclr ..etc.
+        -->
   <Target Name="CreateTestRuntimeJsonFile">
     <ItemGroup>
       <CoreclrPackage Include="$(CORE_ROOT)\.nuget\**\Microsoft.NETCore.Runtime.CoreCLR.*.nupkg"/>
@@ -362,13 +334,13 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
     <PropertyGroup>
       <CoreclrPackageFileName>%(CoreclrPackage.Filename)</CoreclrPackageFileName>
       <!-- Get package version number from nuget package filename at core_root -->
-      <CoreclrPackageVersion>$([System.String]::Copy('$(CoreclrPackageFileName)').Replace('Microsoft.NETCore.Runtime.CoreCLR.',''))</CoreclrPackageVersion>
+      <CoreClrPackageVersion Condition="'$(BuildTestsAgainstPackages)'!='true'">$([System.String]::Copy('$(CoreclrPackageFileName)').Replace('Microsoft.NETCore.Runtime.CoreCLR.',''))</CoreClrPackageVersion>
       <TestRuntimeJsonContents>
         <![CDATA[
 {
   "dependencies": {
-    "Microsoft.NETCore.Runtime.CoreCLR": "$(CoreclrPackageVersion)",
-    "Microsoft.NETCore.TestHost": "1.0.0-rc2-23816"
+    "Microsoft.NETCore.Runtime.CoreCLR": "$(CoreClrPackageVersion)",
+    "Microsoft.NETCore.TestHost": "1.0.0-rc3-24117-00"
   },
   "frameworks": {
     "dnxcore50": {}
@@ -400,7 +372,7 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
              Targets="CreateTestRuntimeJsonFile"/>  
      
     <!-- generate project.lock.json file corresponding to above json file -->
-    <MSBuild Projects="src\Common\test_runtime\test_runtime.csproj"/>
+    <MSBuild Projects="src\Common\test_dependencies\test_dependencies.csproj"/>
     
     <!-- Package each perf test, upload it and trigger event to execute the tests -->  
     <MSBuild Projects="$(MSBuildProjectFile)" Targets="UploadPerfAssemblies" />  
@@ -415,7 +387,7 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
              Condition=" '$(BuildWrappers)'=='true' " />
 
     <!-- generate project.lock.json file corresponding to above json file -->
-    <MSBuild Projects="src\Common\test_runtime\test_runtime.csproj"
+    <MSBuild Projects="src\Common\test_dependencies\test_dependencies.csproj"
              Condition=" '$(BuildWrappers)'=='true' " />
 
     <!-- Default for building -->

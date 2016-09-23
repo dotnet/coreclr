@@ -2339,7 +2339,7 @@ namespace serialization { namespace bin {
     };
 
     template <typename _Ty>
-    class is_blittable<_Ty, typename std::enable_if<std::is_arithmetic<_Ty>::value>::type>
+    struct is_blittable<_Ty, typename std::enable_if<std::is_arithmetic<_Ty>::value>::type>
         : std::true_type
     { // determines whether _Ty is blittable
     };
@@ -2347,7 +2347,7 @@ namespace serialization { namespace bin {
     // allow types to declare themselves blittable by including a static bool 
     // member "is_blittable".
     template <typename _Ty>
-    class is_blittable<_Ty, typename std::enable_if<_Ty::is_blittable>::type>
+    struct is_blittable<_Ty, typename std::enable_if<_Ty::is_blittable>::type>
         : std::true_type
     { // determines whether _Ty is blittable
     };
@@ -6012,7 +6012,7 @@ ClrDataAccess::GetMethodExtents(MethodDesc* methodDesc,
         EECodeInfo codeInfo(methodStart);
         _ASSERTE(codeInfo.IsValid());
 
-        TADDR codeSize = codeInfo.GetCodeManager()->GetFunctionSize(codeInfo.GetGCInfo());
+        TADDR codeSize = codeInfo.GetCodeManager()->GetFunctionSize(codeInfo.GetGCInfoToken());
 
         *extents = new (nothrow) METH_EXTENTS;
         if (!*extents)
@@ -7974,7 +7974,7 @@ HRESULT DacHandleWalker::Init(ClrDataAccess *dac, UINT types[], UINT typeCount, 
 {
     SUPPORTS_DAC;
     
-    if (gen < 0 || gen > (int)GCHeap::GetMaxGeneration())
+    if (gen < 0 || gen > (int)GCHeapUtilities::GetMaxGeneration())
         return E_INVALIDARG;
         
     mGenerationFilter = gen;
@@ -8033,7 +8033,7 @@ bool DacHandleWalker::FetchMoreHandles(HANDLESCANPROC callback)
     int max_slots = 1;
     
 #ifdef FEATURE_SVR_GC
-    if (GCHeap::IsServerHeap())
+    if (GCHeapUtilities::IsServerHeap())
         max_slots = GCHeapCount();
 #endif // FEATURE_SVR_GC
 
@@ -8089,7 +8089,7 @@ bool DacHandleWalker::FetchMoreHandles(HANDLESCANPROC callback)
                                 HndScanHandlesForGC(hTable, callback, 
                                                     (LPARAM)&param, 0, 
                                                      &handleType, 1, 
-                                                     mGenerationFilter, GCHeap::GetMaxGeneration(), 0);
+                                                     mGenerationFilter, GCHeapUtilities::GetMaxGeneration(), 0);
                             else
                                 HndEnumHandles(hTable, &handleType, 1, callback, (LPARAM)&param, 0, FALSE);
                         }

@@ -14,9 +14,12 @@
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <NuGetPackageImportStamp>7a9bfb7d</NuGetPackageImportStamp>
+    <GCStressIncompatible>true</GCStressIncompatible>
     <DefineConstants>$(DefineConstants);STATIC;PROJECTK_BUILD</DefineConstants>
     <CLRTestExecutionArguments>-t 1 -tp 0 -dz 17 -sdz 8500 -dc 10000 -sdc 5000 -lt 3 -dp 0.8 -dw 0.0</CLRTestExecutionArguments>
     <IsGCSimulatorTest>true</IsGCSimulatorTest>
+    <CLRTestKind>RunOnly</CLRTestKind>
+    <CLRTestProjectToRun>GCSimulator.csproj</CLRTestProjectToRun>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -32,14 +35,6 @@
     <Compile Include="GCSimulator.cs" />
     <Compile Include="lifetimefx.cs" />
   </ItemGroup>
-    <ItemGroup>
-    <None Include="app.config" />
-    <None Include="$(GCPackagesConfigFileDirectory)extra\project.json" />
-  </ItemGroup>
-  <PropertyGroup>
-    <ProjectJson>$(GCPackagesConfigFileDirectory)extra\project.json</ProjectJson>
-    <ProjectLockJson>$(GCPackagesConfigFileDirectory)extra\project.lock.json</ProjectLockJson>
-  </PropertyGroup>
   <ItemGroup>
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
   </ItemGroup>

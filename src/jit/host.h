@@ -9,49 +9,42 @@
 #define printf logf
 #endif
 
+#ifndef fprintf
+#define fprintf flogf
+#endif
+
 class Compiler;
 class LogEnv
 {
 public:
     LogEnv(ICorJitInfo* aCompHnd);
-    void setCompiler(Compiler* val) { const_cast<Compiler*&>(compiler) = val; }
+    void setCompiler(Compiler* val)
+    {
+        const_cast<Compiler*&>(compiler) = val;
+    }
 
     ICorJitInfo* const compHnd;
-    Compiler* const compiler;
+    Compiler* const    compiler;
 };
 
 BOOL vlogf(unsigned level, const char* fmt, va_list args);
+int vflogf(FILE* file, const char* fmt, va_list args);
 
-int logf_stdout(const char* fmt, va_list args);
-int logf(const char*, ...);
+int logf(const char* fmt, ...);
+int flogf(FILE* file, const char* fmt, ...);
 void gcDump_logf(const char* fmt, ...);
 
 void logf(unsigned level, const char* fmt, ...);
 
-#if defined(CROSSGEN_COMPILE) && !defined(PLATFORM_UNIX) && !defined(fprintf)
-// On Windows, CrossGen configures its stdout to allow Unicode output only.
-// The following wrapper allows fprintf to work with stdout.
-inline int fprintfCrossgen(FILE *stream, const char *fmt, ...)
-{
-    va_list args;
-    va_start(args, fmt);
-    int ret = stream == stdout ? logf_stdout(fmt, args) : vfprintf(stream, fmt, args);
-    va_end(args);
-    return ret;
-}
-#define fprintf fprintfCrossgen
-#endif
+extern "C" void __cdecl assertAbort(const char* why, const char* file, unsigned line);
 
-extern  "C" 
-void    __cdecl     assertAbort(const char *why, const char *file, unsigned line);
-
-#undef  assert
-#define assert(p)   (void)((p) || (assertAbort(#p, __FILE__, __LINE__),0))
+#undef assert
+#define assert(p) (void)((p) || (assertAbort(#p, __FILE__, __LINE__), 0))
 
 #else // DEBUG
 
-#undef  assert
-#define assert(p)       (void) 0
+#undef assert
+#define assert(p) (void)0
 #endif // DEBUG
 
 /*****************************************************************************/
@@ -59,7 +52,16 @@ void    __cdecl     assertAbort(const char *why, const char *file, unsigned line
 #define _HOST_H_
 /*****************************************************************************/
 
-const   size_t      OS_page_size = (4*1024);
+const size_t OS_page_size = (4 * 1024);
+
+extern FILE* jitstdout;
+
+inline FILE* procstdout()
+{
+    return stdout;
+}
+#undef stdout
+#define stdout use_jitstdout
 
 /*****************************************************************************/
 #endif

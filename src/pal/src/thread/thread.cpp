@@ -18,6 +18,9 @@ Abstract:
 
 --*/
 
+#include "pal/dbgmsg.h"
+SET_DEFAULT_DEBUG_CHANNEL(THREAD); // some headers have code with asserts, so do this first
+
 #include "pal/corunix.hpp"
 #include "pal/context.h"
 #include "pal/thread.hpp"
@@ -29,7 +32,6 @@ Abstract:
 #include "procprivate.hpp"
 #include "pal/process.h"
 #include "pal/module.h"
-#include "pal/dbgmsg.h"
 #include "pal/environ.h"
 #include "pal/init.h"
 
@@ -74,7 +76,6 @@ using namespace CorUnix;
 
 
 /* ------------------- Definitions ------------------------------*/
-SET_DEFAULT_DEBUG_CHANNEL(THREAD);
 
 // The default stack size of a newly created thread (currently 256KB)
 // when the dwStackSize parameter of PAL_CreateThread()
@@ -1780,7 +1781,7 @@ CorUnix::InitializeGlobalThreadData(
             CPalThread::s_dwDefaultThreadStackSize = dw;
         }
 
-        InternalFree(pszStackSize);
+        free(pszStackSize);
     }
 
     return palError;

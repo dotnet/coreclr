@@ -2,6 +2,17 @@ project(sosplugin)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
+# Set the RPATH of sos so that it can find dependencies without needing to set LD_LIBRARY_PATH
+# For more information: http://www.cmake.org/Wiki/CMake_RPATH_handling.
+if (CORECLR_SET_RPATH)
+  set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+  if(CLR_CMAKE_PLATFORM_DARWIN)
+    set(CMAKE_INSTALL_RPATH "@loader_path")
+  else()
+    set(CMAKE_INSTALL_RPATH "\$ORIGIN")
+  endif(CLR_CMAKE_PLATFORM_DARWIN)
+endif (CORECLR_SET_RPATH)
+
 add_definitions(-DPAL_STDCPP_COMPAT)
 
 if(CLR_CMAKE_PLATFORM_ARCH_AMD64)
@@ -22,15 +33,17 @@ endif()
 set(ENABLE_LLDBPLUGIN ${CLR_CMAKE_PLATFORM_UNIX} CACHE BOOL "Enable building the SOS plugin for LLDB.")
 set(REQUIRE_LLDBPLUGIN ${CLR_CMAKE_PLATFORM_LINUX} CACHE BOOL "Require building the SOS plugin for LLDB.")
 
-set(WITH_LLDB_LIBS "" CACHE PATH "Path to LLDB libraries")
-set(WITH_LLDB_INCLUDES "" CACHE PATH "Path to LLDB headers")
+set(LLVM_HOST_DIR "$ENV{LLVM_HOME}")
+set(WITH_LLDB_LIBS "${LLVM_HOST_DIR}/lib" CACHE PATH "Path to LLDB libraries")
+set(WITH_LLDB_INCLUDES "${LLVM_HOST_DIR}/include" CACHE PATH "Path to LLDB headers")
 
 if(NOT ENABLE_LLDBPLUGIN)
     return()
 endif()
 
 # Check for LLDB library
-find_library(LLDB NAMES LLDB lldb lldb-3.8 lldb-3.6 lldb-3.5 PATHS "${WITH_LLDB_LIBS}" PATH_SUFFIXES llvm)
+find_library(LLDB NAMES LLDB lldb lldb-3.8 lldb-3.6 lldb-3.5 PATHS "${WITH_LLDB_LIBS}" PATH_SUFFIXES llvm NO_DEFAULT_PATH)
+find_library(LLDB NAMES LLDB lldb lldb-3.8 lldb-3.6 lldb-3.5 PATH_SUFFIXES llvm)
 if(LLDB STREQUAL LLDB-NOTFOUND)
     if(REQUIRE_LLDBPLUGIN)
         message(FATAL_ERROR "Cannot find lldb-3.5, lldb-3.6 or lldb-3.8. Try installing lldb-3.6-dev (or the appropriate package for your platform)")
@@ -44,7 +57,8 @@ message(STATUS "LLDB: ${LLDB}")
 
 # Check for LLDB headers
 
-find_path(LLDB_H "lldb/API/LLDB.h" PATHS "${WITH_LLDB_INCLUDES}")
+find_path(LLDB_H "lldb/API/LLDB.h" PATHS "${WITH_LLDB_INCLUDES}" NO_DEFAULT_PATH)
+find_path(LLDB_H "lldb/API/LLDB.h")
 if(LLDB_H STREQUAL LLDB_H-NOTFOUND)
     find_path(LLDB_H "lldb/API/LLDB.h" PATHS "/usr/lib/llvm-3.8/include")
     if(LLDB_H STREQUAL LLDB_H-NOTFOUND)

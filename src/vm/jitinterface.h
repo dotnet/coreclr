@@ -16,12 +16,21 @@
 #include "corcompile.h"
 #endif // FEATURE_PREJIT
 
+#ifndef FEATURE_PAL
+#define MAX_UNCHECKED_OFFSET_FOR_NULL_OBJECT ((32*1024)-1)   // when generating JIT code
+#else // !FEATURE_PAL
+#define MAX_UNCHECKED_OFFSET_FOR_NULL_OBJECT ((OS_PAGE_SIZE / 2) - 1)
+#endif // !FEATURE_PAL
+
 class Stub;
 class MethodDesc;
 class FieldDesc;
 enum RuntimeExceptionKind;
 class AwareLock;
 class PtrArray;
+#if defined(FEATURE_GDBJIT)
+class CalledMethod;
+#endif
 
 #include "genericdict.h"
 
@@ -543,8 +552,9 @@ public:
     CorInfoHelpFunc getBoxHelper(CORINFO_CLASS_HANDLE cls);
     CorInfoHelpFunc getUnBoxHelper(CORINFO_CLASS_HANDLE cls);
 
-    void getReadyToRunHelper(
+    bool getReadyToRunHelper(
             CORINFO_RESOLVED_TOKEN * pResolvedToken,
+            CORINFO_LOOKUP_KIND *    pGenericLookupKind,
             CorInfoHelpFunc          id,
             CORINFO_CONST_LOOKUP *   pLookup
             );
@@ -948,10 +958,10 @@ public:
                                           void **ppIndirection);
     CORINFO_METHOD_HANDLE embedMethodHandle(CORINFO_METHOD_HANDLE handle,
                                             void **ppIndirection);
-    void embedGenericHandle(
-                        CORINFO_RESOLVED_TOKEN * pResolvedToken,
-                        BOOL                     fEmbedParent,
-                        CORINFO_GENERICHANDLE_RESULT *pResult);
+
+	void embedGenericHandle(CORINFO_RESOLVED_TOKEN * pResolvedToken,
+		BOOL                     fEmbedParent,
+		CORINFO_GENERICHANDLE_RESULT *pResult);
 
     CORINFO_LOOKUP_KIND getLocationOfThisType(CORINFO_METHOD_HANDLE context);
 
@@ -1083,6 +1093,9 @@ public:
         m_pThread(GetThread()),
         m_hMethodForSecurity_Key(NULL),
         m_pMethodForSecurity_Value(NULL)
+#if defined(FEATURE_GDBJIT)
+        , m_pCalledMethods(NULL)
+#endif
     {
         LIMITED_METHOD_CONTRACT;
     }
@@ -1094,6 +1107,8 @@ public:
 
     // Performs any work JIT-related work that should be performed at process shutdown.
     void JitProcessShutdownWork();
+
+    void setJitFlags(const CORJIT_FLAGS& jitFlags);
 
     DWORD getJitFlags(CORJIT_FLAGS* jitFlags, DWORD sizeInBytes);
 
@@ -1134,6 +1149,18 @@ public:
 
     MethodDesc * GetMethodForSecurity(CORINFO_METHOD_HANDLE callerHandle);
 
+    // Prepare the information about how to do a runtime lookup of the handle with shared
+    // generic variables.
+    void ComputeRuntimeLookupForSharedGenericToken(DictionaryEntryKind entryKind,
+                                                   CORINFO_RESOLVED_TOKEN * pResolvedToken,
+                                                   CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken /* for ConstrainedMethodEntrySlot */,
+                                                   MethodDesc * pTemplateMD /* for method-based slots */,
+                                                   CORINFO_LOOKUP *pResultLookup);
+
+#if defined(FEATURE_GDBJIT)
+    CalledMethod * GetCalledMethods() { return m_pCalledMethods; }
+#endif
+
 protected:
     // NGen provides its own modifications to EE-JIT interface. From technical reason it cannot simply inherit 
     // from code:CEEInfo class (because it has dependencies on VM that NGen does not want).
@@ -1145,6 +1172,7 @@ protected:
     MethodDesc*             m_pMethodBeingCompiled;             // Top-level method being compiled
     bool                    m_fVerifyOnly;
     Thread *                m_pThread;                          // Cached current thread for faster JIT-EE transitions
+    CORJIT_FLAGS            m_jitFlags;
 
     CORINFO_METHOD_HANDLE getMethodBeingCompiled()
     {
@@ -1155,6 +1183,10 @@ protected:
     // Cache of last GetMethodForSecurity() lookup
     CORINFO_METHOD_HANDLE   m_hMethodForSecurity_Key;
     MethodDesc *            m_pMethodForSecurity_Value;
+
+#if defined(FEATURE_GDBJIT)
+    CalledMethod *          m_pCalledMethods;
+#endif
 
     // Tracking of module activation dependencies. We have two flavors: 
     // - Fast one that gathers generic arguments from EE handles, but does not work inside generic context.
@@ -1168,14 +1200,6 @@ protected:
     // The main entrypoints for module activation tracking
     void ScanToken(Module * pModule, CORINFO_RESOLVED_TOKEN * pResolvedToken, TypeHandle th, MethodDesc * pMD = NULL);
     void ScanTokenForDynamicScope(CORINFO_RESOLVED_TOKEN * pResolvedToken, TypeHandle th, MethodDesc * pMD = NULL);
-
-    // Prepare the information about how to do a runtime lookup of the handle with shared
-    // generic variables.
-    void ComputeRuntimeLookupForSharedGenericToken(DictionaryEntryKind entryKind,
-                                                   CORINFO_RESOLVED_TOKEN * pResolvedToken,
-                                                   CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken /* for ConstrainedMethodEntrySlot */,
-                                                   MethodDesc * pTemplateMD /* for method-based slots */,
-                                                   CORINFO_LOOKUP *pResultLookup);
 };
 
 
@@ -1644,9 +1668,21 @@ struct StaticFieldAddressArgs
 FCDECL1(TADDR, JIT_StaticFieldAddress_Dynamic, StaticFieldAddressArgs * pArgs);
 FCDECL1(TADDR, JIT_StaticFieldAddressUnbox_Dynamic, StaticFieldAddressArgs * pArgs);
 
+struct GenericHandleArgs
+{
+    LPVOID signature;
+    CORINFO_MODULE_HANDLE module;
+    DWORD dictionaryIndexAndSlot;
+};
+
+FCDECL2(CORINFO_GENERIC_HANDLE, JIT_GenericHandleMethodWithSlotAndModule, CORINFO_METHOD_HANDLE  methodHnd, GenericHandleArgs * pArgs);
+FCDECL2(CORINFO_GENERIC_HANDLE, JIT_GenericHandleClassWithSlotAndModule, CORINFO_CLASS_HANDLE classHnd, GenericHandleArgs * pArgs);
+
 CORINFO_GENERIC_HANDLE JIT_GenericHandleWorker(MethodDesc   *pMD,
                                                MethodTable  *pMT,
-                                               LPVOID signature);
+                                               LPVOID        signature,
+                                               DWORD         dictionaryIndexAndSlot = -1,
+                                               Module *      pModule = NULL);
 
 void ClearJitGenericHandleCache(AppDomain *pDomain);
 

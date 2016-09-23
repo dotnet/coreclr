@@ -164,10 +164,10 @@ ASMCONSTANTS_C_ASSERT(OFFSETOF__Thread__m_ThreadId
                     == offsetof(Thread, m_ThreadId));
 
 #define               OFFSET__Thread__m_alloc_context__alloc_ptr 0x60
-ASMCONSTANTS_C_ASSERT(OFFSET__Thread__m_alloc_context__alloc_ptr == offsetof(Thread, m_alloc_context) + offsetof(alloc_context, alloc_ptr));
+ASMCONSTANTS_C_ASSERT(OFFSET__Thread__m_alloc_context__alloc_ptr == offsetof(Thread, m_alloc_context) + offsetof(gc_alloc_context, alloc_ptr));
 
 #define               OFFSET__Thread__m_alloc_context__alloc_limit 0x68
-ASMCONSTANTS_C_ASSERT(OFFSET__Thread__m_alloc_context__alloc_limit == offsetof(Thread, m_alloc_context) + offsetof(alloc_context, alloc_limit));
+ASMCONSTANTS_C_ASSERT(OFFSET__Thread__m_alloc_context__alloc_limit == offsetof(Thread, m_alloc_context) + offsetof(gc_alloc_context, alloc_limit));
 
 #define               OFFSETOF__ThreadExceptionState__m_pCurrentTracker 0x000
 ASMCONSTANTS_C_ASSERT(OFFSETOF__ThreadExceptionState__m_pCurrentTracker
@@ -663,7 +663,9 @@ ASMCONSTANTS_C_ASSERT(OFFSETOF__TransitionBlock__m_argumentRegisters == offsetof
 
 #undef ASMCONSTANTS_RUNTIME_ASSERT
 #undef ASMCONSTANTS_C_ASSERT
+#ifndef UNIX_AMD64_ABI
 #undef DBG_FRE
+#endif // UNIX_AMD64_ABI
 
 
 //#define USE_COMPILE_TIME_CONSTANT_FINDER // Uncomment this line to use the constant finder

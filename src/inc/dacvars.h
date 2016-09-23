@@ -125,9 +125,10 @@ DEFINE_DACVAR(ULONG, PTR_Thread, dac__g_pFinalizerThread, ::g_pFinalizerThread)
 DEFINE_DACVAR(ULONG, PTR_Thread, dac__g_pSuspensionThread, ::g_pSuspensionThread)
 
 #ifdef FEATURE_SVR_GC
-DEFINE_DACVAR(ULONG, DWORD, GCHeap__gcHeapType, GCHeap::gcHeapType)
+DEFINE_DACVAR(ULONG, DWORD, IGCHeap__gcHeapType, IGCHeap::gcHeapType)
 #endif // FEATURE_SVR_GC
 
+DEFINE_DACVAR(ULONG, DWORD, IGCHeap__maxGeneration, IGCHeap::maxGeneration)
 DEFINE_DACVAR(ULONG, PTR_BYTE, WKS__gc_heap__alloc_allocated, WKS::gc_heap::alloc_allocated)
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE /*PTR_heap_segment*/, WKS__gc_heap__ephemeral_heap_segment, WKS::gc_heap::ephemeral_heap_segment)
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE /*PTR_CFinalize*/, WKS__gc_heap__finalize_queue, WKS::gc_heap::finalize_queue)
@@ -198,7 +199,7 @@ DEFINE_DACVAR(ULONG, PTR_DWORD, dac__g_card_table, ::g_card_table)
 DEFINE_DACVAR(ULONG, PTR_BYTE, dac__g_lowest_address, ::g_lowest_address)
 DEFINE_DACVAR(ULONG, PTR_BYTE, dac__g_highest_address, ::g_highest_address)
 
-DEFINE_DACVAR(ULONG, GCHeap, dac__g_pGCHeap, ::g_pGCHeap)
+DEFINE_DACVAR(ULONG, IGCHeap, dac__g_pGCHeap, ::g_pGCHeap)
 
 #ifdef GC_CONFIG_DRIVEN
 DEFINE_DACVAR_NO_DUMP(ULONG, SIZE_T, dac__interesting_data_per_heap, WKS::interesting_data_per_heap)
@@ -232,8 +233,6 @@ DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pThreadClass, ::g_pThreadClass
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pCriticalFinalizerObjectClass, ::g_pCriticalFinalizerObjectClass)
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pAsyncFileStream_AsyncResultClass, ::g_pAsyncFileStream_AsyncResultClass)
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pPredefinedArrayTypes, ::g_pPredefinedArrayTypes)
-DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_ArgumentHandleMT, ::g_ArgumentHandleMT)
-DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_ArgIteratorMT, ::g_ArgIteratorMT)
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_TypedReferenceMT, ::g_TypedReferenceMT)
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pByteArrayMT, ::g_pByteArrayMT)
 

@@ -78,8 +78,9 @@ PCSTR GetRegName (UINT32 regnum)
 /*****************************************************************************/
 
 
-GCDump::GCDump(bool encBytes, unsigned maxEncBytes, bool dumpCodeOffs)
-  : fDumpEncBytes   (encBytes    ), 
+GCDump::GCDump(UINT32 gcInfoVer, bool encBytes, unsigned maxEncBytes, bool dumpCodeOffs)
+  : gcInfoVersion(gcInfoVer), 
+    fDumpEncBytes   (encBytes    ),
     cMaxEncBytes    (maxEncBytes ), 
     fDumpCodeOffsets(dumpCodeOffs)
 {
@@ -270,11 +271,12 @@ BOOL StackSlotStateChangeCallback (
 }
 
     
-size_t      GCDump::DumpGCTable(PTR_CBYTE      table,
+size_t      GCDump::DumpGCTable(PTR_CBYTE      gcInfoBlock,
                                 unsigned       methodSize,
                                 bool           verifyGCTables)
 {
-    GcInfoDecoder hdrdecoder(table,
+    GCInfoToken gcInfoToken = { dac_cast<PTR_VOID>(gcInfoBlock), gcInfoVersion };
+    GcInfoDecoder hdrdecoder(gcInfoToken,
                              (GcInfoDecoderFlags)(  DECODE_SECURITY_OBJECT
                                                   | DECODE_GS_COOKIE
                                                   | DECODE_CODE_LENGTH
@@ -282,7 +284,8 @@ size_t      GCDump::DumpGCTable(PTR_CBYTE      table,
                                                   | DECODE_VARARG
                                                   | DECODE_GENERICS_INST_CONTEXT
                                                   | DECODE_GC_LIFETIMES
-                                                  | DECODE_PROLOG_LENGTH),
+                                                  | DECODE_PROLOG_LENGTH
+                                                  | DECODE_RETURN_KIND),
                              0);
 
     if (NO_SECURITY_OBJECT != hdrdecoder.GetSecurityObjectStackSlot() ||
@@ -436,10 +439,13 @@ size_t      GCDump::DumpGCTable(PTR_CBYTE      table,
     gcPrintf("Size of parameter area: %x\n", hdrdecoder.GetSizeOfStackParameterArea());
 #endif
 
+    ReturnKind returnKind = hdrdecoder.GetReturnKind();
+    gcPrintf("Return Kind: %s\n", ReturnKindToString(returnKind));
+
     UINT32 cbEncodedMethodSize = hdrdecoder.GetCodeLength();
     gcPrintf("Code size: %x\n", cbEncodedMethodSize);
 
-    GcInfoDumper dumper(table);
+    GcInfoDumper dumper(gcInfoToken);
 
     GcInfoDumpState state;
     state.LastCodeOffset = -1;
@@ -499,7 +505,7 @@ size_t      GCDump::DumpGCTable(PTR_CBYTE      table,
 
 /*****************************************************************************/
 
-void    GCDump::DumpPtrsInFrame(PTR_CBYTE   infoBlock,
+void    GCDump::DumpPtrsInFrame(PTR_CBYTE   gcInfoBlock,
                                 PTR_CBYTE   codeBlock,
                                 unsigned    offs,
                                 bool        verifyGCTables)
@@ -520,6 +526,3 @@ void    GCDump::DumpPtrsInFrame(PTR_CBYTE   infoBlock,
 #define VALIDATE_ROOT(isInterior, hCallBack, pObjRef) ((void)0)
 #include "../vm/gcinfodecoder.cpp"
 #include "../gcinfo/gcinfodumper.cpp"
-#ifdef VERIFY_GCINFO
-#include "../vm/dbggcinfodecoder.cpp"
-#endif

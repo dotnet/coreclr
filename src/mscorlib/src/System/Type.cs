@@ -32,9 +32,6 @@ namespace System {
     [ClassInterface(ClassInterfaceType.None)]
     [ComDefaultInterface(typeof(_Type))]
     [System.Runtime.InteropServices.ComVisible(true)]
-#if CONTRACTS_FULL
-    [ContractClass(typeof(TypeContracts))]
-#endif
     public abstract class Type : MemberInfo, _Type, IReflect
     {
         //
@@ -102,7 +99,6 @@ namespace System {
             return RuntimeType.GetType(typeName, false, false, false, ref stackMark);
         }
 
-#if !FEATURE_CORECLR
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static Type GetType(
             string typeName,
@@ -135,7 +131,6 @@ namespace System {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return TypeNameParser.GetType(typeName, assemblyResolver, typeResolver, throwOnError, ignoreCase, ref stackMark);
         }
-#endif //!FEATURE_CORECLR
 
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static Type ReflectionOnlyGetType(String typeName, bool throwIfNotFound, bool ignoreCase) 
@@ -150,7 +145,6 @@ namespace System {
         public virtual Type MakeArrayType() { throw new NotSupportedException(); }
         public virtual Type MakeArrayType(int rank) { throw new NotSupportedException(); }
 
-#if FEATURE_COMINTEROP
         ////////////////////////////////////////////////////////////////////////////////
         // This will return a class based upon the progID.  This is provided for 
         // COM classic support.  Program ID's are not used in COM+ because they 
@@ -223,7 +217,6 @@ namespace System {
         {
                 return RuntimeType.GetTypeFromCLSIDImpl(clsid, server, throwOnError);
         }
-#endif // FEATURE_COMINTEROP
 
         // GetTypeCode
         // This method will return a TypeCode for the passed
@@ -1785,7 +1778,6 @@ namespace System {
             return (Object.ReferenceEquals(this.UnderlyingSystemType, o.UnderlyingSystemType));
         }
 
-#if !FEATURE_CORECLR
         [System.Security.SecuritySafeCritical]
         [Pure]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -1795,7 +1787,6 @@ namespace System {
         [Pure]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern bool operator !=(Type left, Type right);
-#endif // !FEATURE_CORECLR
 
         public override int GetHashCode()
         {
@@ -1816,7 +1807,6 @@ namespace System {
             throw new NotSupportedException(Environment.GetResourceString("NotSupported_SubclassOverride"));
         }
 
-#if !FEATURE_CORECLR
         // this method is required so Object.GetType is not made virtual by the compiler 
         // _Type.GetType()
         public new Type GetType()
@@ -1824,6 +1814,7 @@ namespace System {
             return base.GetType();
         }
 
+#if !FEATURE_CORECLR
         void _Type.GetTypeInfoCount(out uint pcTInfo)
         {
             throw new NotImplementedException();
@@ -1851,28 +1842,4 @@ namespace System {
         private const BindingFlags DefaultLookup = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
         internal const BindingFlags DeclaredOnlyLookup = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
 }
-
-#if CONTRACTS_FULL
-    [ContractClassFor(typeof(Type))]
-    internal abstract class TypeContracts : Type
-    {
-        public override FieldInfo[] GetFields(BindingFlags bindingAttr)
-        {
-            Contract.Ensures(Contract.Result<FieldInfo[]>() != null);
-            return default(FieldInfo[]);
-        }
-
-        public new static Type GetTypeFromHandle(RuntimeTypeHandle handle)
-        {
-            Contract.Ensures(Contract.Result<Type>() != null);
-            return default(Type);
-        }
-
-        public override Type[] GetInterfaces()
-        {
-            Contract.Ensures(Contract.Result<Type[]>() != null);
-            return default(Type[]);
-        }
-    }
-#endif 
 }
