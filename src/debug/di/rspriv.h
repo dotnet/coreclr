@@ -85,6 +85,7 @@ class CordbJITILFrame;
 class CordbInternalFrame;
 class CordbContext;
 class CordbThread;
+class CordbVariableHome;
 
 #ifdef FEATURE_INTEROP_DEBUGGING
 class CordbUnmanagedThread;
@@ -1679,6 +1680,11 @@ typedef CordbEnumerator<RsGuidToTypeMapping,
                         CorDebugGuidToTypeMapping,
                         ICorDebugGuidToTypeEnum,
                         GuidToTypeMappingConvert > CordbGuidToTypeEnumerator;
+
+typedef CordbEnumerator<RSSmartPtr<CordbVariableHome>,
+                        ICorDebugVariableHome*,
+                        ICorDebugVariableHomeEnum,
+                        QueryInterfaceConvert<RSSmartPtr<CordbVariableHome>, ICorDebugVariableHome> > CordbVariableHomeEnumerator;
 
 // ----------------------------------------------------------------------------
 // Hash table for CordbBase objects.
@@ -5817,7 +5823,10 @@ private:
  * code, including an optional set of mappings from IL to offsets in the native Code.
  * ------------------------------------------------------------------------- */
 
-class CordbNativeCode : public CordbCode, public ICorDebugCode2, public ICorDebugCode3
+class CordbNativeCode : public CordbCode,
+                        public ICorDebugCode2,
+                        public ICorDebugCode3,
+                        public ICorDebugCode4
 {
 public:
     CordbNativeCode(CordbFunction * pFunction, 
@@ -5857,6 +5866,11 @@ public:
     COM_METHOD GetReturnValueLiveOffset(ULONG32 ILoffset, ULONG32 bufferSize, ULONG32 *pFetched, ULONG32 *pOffsets);
     
 
+    //-----------------------------------------------------------
+    // ICorDebugCode4
+    //-----------------------------------------------------------
+    COM_METHOD EnumerateVariableHomes(ICorDebugVariableHomeEnum **ppEnum);
+    
     //-----------------------------------------------------------
     // Internal members
     //-----------------------------------------------------------
@@ -8543,6 +8557,63 @@ private:
 
 typedef enum {kUnboxed, kBoxed} BoxedValue;
 #define EMPTY_BUFFER TargetBuffer(PTR_TO_CORDB_ADDRESS((void *)NULL), 0)
+
+/* ------------------------------------------------------------------------- *
+ * Variable Home class
+ * ------------------------------------------------------------------------- */
+class CordbVariableHome : public CordbBase, public ICorDebugVariableHome
+{
+public:
+    CordbVariableHome(CordbNativeCode *pCode,
+                      const ICorDebugInfo::NativeVarInfo nativeVarInfo,
+                      BOOL isLoc,
+                      ULONG index);
+    ~CordbVariableHome();
+    virtual void Neuter();
+
+#ifdef _DEBUG
+    virtual const char * DbgGetName() { return "CordbVariableHome"; }
+#endif
+    
+    //-----------------------------------------------------------
+    // IUnknown
+    //-----------------------------------------------------------
+    ULONG STDMETHODCALLTYPE AddRef()
+    {
+        return (BaseAddRef());
+    }
+    ULONG STDMETHODCALLTYPE Release()
+    {
+        return (BaseRelease());
+    }
+
+    COM_METHOD QueryInterface(REFIID riid, void **ppInterface);
+    
+    //-----------------------------------------------------------
+    // ICorDebugVariableHome
+    //-----------------------------------------------------------
+    
+    COM_METHOD GetCode(ICorDebugCode **ppCode);
+    
+    COM_METHOD GetSlotIndex(ULONG32 *pSlotIndex);
+
+    COM_METHOD GetArgumentIndex(ULONG32* pArgumentIndex);
+
+    COM_METHOD GetLiveRange(ULONG32* pStartOffset,
+                            ULONG32 *pEndOffset);
+    
+    COM_METHOD GetLocationType(VariableLocationType *pLocationType);
+
+    COM_METHOD GetRegister(CorDebugRegister *pRegister);
+    
+    COM_METHOD GetOffset(LONG *pOffset);
+private:
+    RSSmartPtr<CordbNativeCode> m_pCode;
+    ICorDebugInfo::NativeVarInfo m_nativeVarInfo;
+    BOOL m_isLocal;
+    ULONG m_index;
+};
+
 
 // for an inheritance graph of the ICDValue types, // See file:./ICorDebugValueTypes.vsd for a diagram of the types.  
 /* ------------------------------------------------------------------------- *
