@@ -22,6 +22,7 @@
 #include "gcenv.interlocked.inl"
 #include "gcenv.object.h"
 #include "gcenv.sync.h"
+#include "gcenv.ee.h"
 
 #define MAX_LONGPATH 1024
 
@@ -185,36 +186,6 @@ public:
 };
 
 extern EEConfig * g_pConfig;
-
-#ifdef FEATURE_STANDALONE_GC
-
-class GCToEEInterface : public IGCToCLR {
-public:
-    GCToEEInterface() = default;
-    ~GCToEEInterface() = default;
-
-    void SuspendEE(SUSPEND_REASON reason);
-    void RestartEE(bool bFinishedGC);
-    void GcScanRoots(promote_func* fn, int condemned, int max_gen, ScanContext* sc);
-    void GcStartWork(int condemned, int max_gen);
-    void AfterGcScanRoots(int condemned, int max_gen, ScanContext* sc);
-    void GcBeforeBGCSweepWork();
-    void GcDone(int condemned);
-    bool RefCountedHandleCallbacks(Object * pObject);
-    void SyncBlockCacheWeakPtrScan(HANDLESCANPROC scanProc, uintptr_t lp1, uintptr_t lp2);
-    void SyncBlockCacheDemote(int max_gen);
-    void SyncBlockCachePromotionsGranted(int max_gen);
-    bool IsPreemptiveGCDisabled(Thread * pThread);
-    void EnablePreemptiveGC(Thread * pThread);
-    void DisablePreemptiveGC(Thread * pThread);
-    gc_alloc_context * GetAllocContext(Thread * pThread);
-    bool CatchAtSafePoint(Thread * pThread);
-    void GcEnumAllocContexts(enum_alloc_context_func* fn, void* param);
-    Thread* CreateBackgroundThread(GCBackgroundThreadFunction threadStart, void* arg);
-};
-
-#endif // FEATURE_STANDALONE_GC
-
 
 #include "etmdummy.h"
 #define ETW_EVENT_ENABLED(e,f) false

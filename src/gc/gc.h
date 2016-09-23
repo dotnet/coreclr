@@ -15,8 +15,11 @@ Module Name:
 #define __GC_H
 
 #include "gcinterface.h"
-#include "gctoeeinterface.h"
+#include "env/gcenv.ee.h"
 
+#ifdef FEATURE_STANDALONE_GC
+#include "gctoenv.ee.standalone.inl"
+#endif // FEATURE_STANDALONE_GC
 
 /*
  * Promotion Function Prototypes
@@ -273,9 +276,10 @@ extern void FinalizeWeakReference(Object * obj);
 // The single GC heap instance, shared with the VM.
 extern IGCHeapInternal* g_theGCHeap;
 
-// The single IGCToCLR instance. If FEATURE_STANDALONE_GC is defined,
-// this pointer will always be null.
+#ifdef FEATURE_STANDALONE_GC
+// The single IGCToCLR instance.
 extern IGCToCLR* g_theGCToCLR;
+#endif // FEATURE_STANDALONE_GC
 
 #ifndef DACCESS_COMPILE
 inline BOOL IsGCInProgress(bool bConsiderGCStart = FALSE)
