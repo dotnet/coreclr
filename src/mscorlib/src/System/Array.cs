@@ -334,6 +334,15 @@ namespace System {
             Array.Copy(sourceArray, (int) sourceIndex, destinationArray, (int) destinationIndex, (int) length);
         }
 
+        public static void Copy<T>(T[] sourceArray, T[] destinationArray, int length)
+        {
+            Copy(sourceArray, 0, destinationArray, 0, length);
+        }
+
+        public static void Copy<T>(T[] sourceArray, int sourceIndex, T[] destinationArray, int destinationIndex, int length)
+        {
+            Copy(sourceArray, sourceIndex, destinationArray, destinationIndex, length, reliable: false);
+        }
     
         // Sets length elements in array to 0 (or null for Object arrays), starting
         // at index.
