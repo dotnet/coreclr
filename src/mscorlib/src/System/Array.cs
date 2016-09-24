@@ -334,13 +334,17 @@ namespace System {
             Array.Copy(sourceArray, (int) sourceIndex, destinationArray, (int) destinationIndex, (int) length);
         }
 
+        [ReliabilityContract(Consistency.MayCorruptInstance, Cer.MayFail)]
         public static void Copy<T>(T[] sourceArray, T[] destinationArray, int length)
         {
-            Copy(sourceArray, 0, destinationArray, 0, length);
+            // TODO: Investigate perf benefits of using a for-loop for small lengths.
+            Copy(sourceArray, 0, destinationArray, 0, length, reliable: false);
         }
 
+        [ReliabilityContract(Consistency.MayCorruptInstance, Cer.MayFail)]
         public static void Copy<T>(T[] sourceArray, int sourceIndex, T[] destinationArray, int destinationIndex, int length)
         {
+            // TODO: Investigate perf benefits of using a for-loop for small lengths.
             Copy(sourceArray, sourceIndex, destinationArray, destinationIndex, length, reliable: false);
         }
     
