@@ -13,17 +13,14 @@
 
 #include "common.h"
 
+#include "gcenv.h"
+
 #ifdef FEATURE_STANDALONE_GC
 #include "gcenv.ee.h"
 #else
 #include "../gc/env/gcenv.ee.h"
 #endif // FEATURE_STANDALONE_GC
 
-#ifdef FEATURE_COMINTEROP
-#include <windows.ui.xaml.h>
-#endif
-
-#include "stubhelpers.h"
 #include "threadsuspend.h"
 
 #ifdef FEATURE_COMINTEROP

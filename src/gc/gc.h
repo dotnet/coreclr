@@ -18,7 +18,7 @@ Module Name:
 #include "env/gcenv.ee.h"
 
 #ifdef FEATURE_STANDALONE_GC
-#include "gctoenv.ee.standalone.inl"
+#include "gcenv.ee.standalone.inl"
 #endif // FEATURE_STANDALONE_GC
 
 /*
@@ -275,11 +275,6 @@ extern void FinalizeWeakReference(Object * obj);
 
 // The single GC heap instance, shared with the VM.
 extern IGCHeapInternal* g_theGCHeap;
-
-#ifdef FEATURE_STANDALONE_GC
-// The single IGCToCLR instance.
-extern IGCToCLR* g_theGCToCLR;
-#endif // FEATURE_STANDALONE_GC
 
 #ifndef DACCESS_COMPILE
 inline BOOL IsGCInProgress(bool bConsiderGCStart = FALSE)
