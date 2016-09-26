@@ -926,6 +926,14 @@ extern const char*   PhaseNames[];
 extern const char*   PhaseEnums[];
 extern const LPCWSTR PhaseShortNames[];
 
+// The following enum provides a simple 1:1 mapping to CLR API's
+enum API_ICorJitInfo_Names
+{
+    #define DEF_CLR_API(name) API_##name,   // add prefix to make names more unique?????
+    #include "ICorJitInfo_API_names.h"
+    API_COUNT
+};
+
 //---------------------------------------------------------------
 // Compilation time.
 //
@@ -949,6 +957,10 @@ struct CompTimeInfo
     unsigned __int64 m_totalCycles;
     unsigned __int64 m_invokesByPhase[PHASE_NUMBER_OF];
     unsigned __int64 m_cyclesByPhase[PHASE_NUMBER_OF];
+#if MEASURE_CLRAPI_CALLS
+    unsigned __int64 m_CLRinvokesByPhase[PHASE_NUMBER_OF];
+    unsigned __int64 m_CLRcyclesByPhase[PHASE_NUMBER_OF];
+#endif
     // For better documentation, we call EndPhase on
     // non-leaf phases.  We should also call EndPhase on the
     // last leaf subphase; obviously, the elapsed cycles between the EndPhase
@@ -960,11 +972,65 @@ struct CompTimeInfo
     unsigned __int64 m_parentPhaseEndSlop;
     bool             m_timerFailure;
 
+#if MEASURE_CLRAPI_CALLS
+    // The following measures the time spent inside each individual CLR API call.
+    unsigned         m_allClrAPIcalls;
+    unsigned         m_perClrAPIcalls [API_ICorJitInfo_Names::API_COUNT];
+
+    unsigned __int64 m_allClrAPIcycles;
+    unsigned __int64 m_perClrAPIcycles[API_ICorJitInfo_Names::API_COUNT];
+
+    unsigned __int32 m_maxClrAPIcycles[API_ICorJitInfo_Names::API_COUNT];
+#endif // MEASURE_CLRAPI_CALLS
+
     CompTimeInfo(unsigned byteCodeBytes);
 #endif
 };
 
 #ifdef FEATURE_JIT_METHOD_PERF
+
+#if MEASURE_CLRAPI_CALLS
+
+struct WrapICorJitInfo : public ICorJitInfo
+{
+    static WrapICorJitInfo *makeOne(ArenaAllocator* alloc, Compiler* compiler, COMP_HANDLE &compHndRef /* INOUT */)
+    {
+        WrapICorJitInfo* wrap = nullptr;
+
+        if (JitConfig.JitCLRcallTimingInfo() != 0)
+        {
+            void* inst = alloc->allocateMemory(roundUp(sizeof(WrapICorJitInfo)));
+            if (inst != nullptr)
+            {
+                wrap = new(inst, jitstd::placement_t()) WrapICorJitInfo();
+
+                wrap->wrapComp = compiler;
+
+                // Save the real handle and replace it with our wrapped version.
+                wrap->wrapHnd  = compHndRef;
+                                 compHndRef = wrap;
+            }
+        }
+
+        return wrap;
+    }
+
+private:
+
+    Compiler *  wrapComp;
+    COMP_HANDLE wrapHnd;      // the "real thing"
+
+    void initialize(Compiler *compiler, COMP_HANDLE      &compHndRef /* INOUT */,
+                                        WrapICorJitInfo* &timeHndRef /*   OUT */)
+    {
+    }
+
+public:
+
+    #include "ICorJitInfo_API_wrapper.h"
+};
+
+#endif // MEASURE_CLRAPI_CALLS
 
 // This class summarizes the JIT time information over the course of a run: the number of methods compiled,
 // and the total and maximum timings.  (These are instances of the "CompTimeInfo" type described above).
@@ -977,6 +1043,7 @@ class CompTimeSummaryInfo
     static CritSecObject s_compTimeSummaryLock;
 
     int          m_numMethods;
+    int          m_totMethods;
     CompTimeInfo m_total;
     CompTimeInfo m_maximum;
 
@@ -996,13 +1063,13 @@ public:
     // This is the unique CompTimeSummaryInfo object for this instance of the runtime.
     static CompTimeSummaryInfo s_compTimeSummary;
 
-    CompTimeSummaryInfo() : m_numMethods(0), m_total(0), m_maximum(0), m_numFilteredMethods(0), m_filtered(0)
+    CompTimeSummaryInfo() : m_numMethods(0), m_totMethods(0), m_total(0), m_maximum(0), m_numFilteredMethods(0), m_filtered(0)
     {
     }
 
     // Assumes that "info" is a completed CompTimeInfo for a compilation; adds it to the summary.
     // This is thread safe.
-    void AddInfo(CompTimeInfo& info);
+    void AddInfo(CompTimeInfo& info, bool includePhases);
 
     // Print the summary information to "f".
     // This is not thread-safe; assumed to be called by only one thread.
@@ -1015,10 +1082,19 @@ public:
 //
 class JitTimer
 {
-    unsigned __int64 m_start;         // Start of the compilation.
-    unsigned __int64 m_curPhaseStart; // Start of the current phase.
+    unsigned __int64 m_start;           // Start of the compilation.
+    unsigned __int64 m_curPhaseStart;   // Start of the current phase.
+#if MEASURE_CLRAPI_CALLS
+    unsigned __int64 m_CLRcallStart;    // Start of the current CLR API call (if any).
+    unsigned __int64 m_CLRcallInvokes;  // CLR API invokes under current outer so far
+    unsigned __int64 m_CLRcallCycles;   // CLR API  cycles under current outer so far.
+    int              m_CLRcallAPInum;   // The enum/index of the current CLR API call (or -1).
+#endif
 #ifdef DEBUG
     Phases m_lastPhase; // The last phase that was completed (or (Phases)-1 to start).
+#endif
+#if MEASURE_CLRAPI_CALLS
+    static double    s_cyclesPerSec;    // Cached for speedier measurements
 #endif
     CompTimeInfo m_info; // The CompTimeInfo for this compilation.
 
@@ -1045,9 +1121,15 @@ public:
     // Ends the current phase (argument is for a redundant check).
     void EndPhase(Phases phase);
 
+#if MEASURE_CLRAPI_CALLS
+    // Start and end a timed CLR API call.
+    void CLRapiCallEnter(unsigned apix);
+    void CLRapiCallLeave(unsigned apix);
+#endif // MEASURE_CLRAPI_CALLS
+
     // Completes the timing of the current method, which is assumed to have "byteCodeBytes" bytes of bytecode,
     // and adds it to "sum".
-    void Terminate(Compiler* comp, CompTimeSummaryInfo& sum);
+    void Terminate(Compiler* comp, CompTimeSummaryInfo& sum, bool includePhases);
 
     // Attempts to query the cycle counter of the current thread.  If successful, returns "true" and sets
     // *cycles to the cycle counter value.  Otherwise, returns false and sets the "m_timerFailure" flag of
@@ -8692,6 +8774,16 @@ private:
     static LPCWSTR compJitTimeLogFilename; // If a log file for JIT time is desired, filename to write it to.
 #endif
     inline void EndPhase(Phases phase); // Indicate the end of the given phase.
+
+#if MEASURE_CLRAPI_CALLS
+    inline void CLRapiCallEnter(unsigned apix);
+    inline void CLRapiCallLeave(unsigned apix);
+
+public:
+    inline void CLR_API_Enter(API_ICorJitInfo_Names ename);
+    inline void CLR_API_Leave(API_ICorJitInfo_Names ename);
+private:
+#endif
 
 #if defined(DEBUG) || defined(INLINE_DATA) || defined(FEATURE_CLRSQM)
     // These variables are associated with maintaining SQM data about compile time.

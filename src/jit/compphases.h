@@ -91,6 +91,10 @@ CompPhaseNameMacro(PHASE_LINEAR_SCAN_RESOLVE,    "LSRA resolve",                
 CompPhaseNameMacro(PHASE_GENERATE_CODE,          "Generate code",                  "CODEGEN",  false, -1)
 CompPhaseNameMacro(PHASE_EMIT_CODE,              "Emit code",                      "EMIT",     false, -1)
 CompPhaseNameMacro(PHASE_EMIT_GCEH,              "Emit GC+EH tables",              "EMT-GCEH", false, -1)
+
+#if MEASURE_CLRAPI_CALLS
+CompPhaseNameMacro(PHASE_CLR_API,                "CLR API calls",                  "CLR-API",  false, -1)
+#endif
 // clang-format on
 
 #undef CompPhaseNameMacro

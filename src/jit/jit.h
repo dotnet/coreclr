@@ -480,6 +480,12 @@ typedef ptrdiff_t ssize_t;
 #define VERBOSE_SIZES 0  // Always display GC info sizes. If set, DISPLAY_SIZES must also be set.
 #define VERBOSE_VERIFY 0 // Dump additional information when verifying code. Useful to debug verification bugs.
 
+#ifdef FEATURE_JIT_METHOD_PERF
+#define MEASURE_CLRAPI_CALLS 0 // Enable to time JIT calls to the CLR.
+#else
+#define MEASURE_CLRAPI_CALLS 0 // Can't have CLR API without METHOD_PERF.
+#endif
+
 #ifdef DEBUG
 #define MEASURE_MEM_ALLOC 1 // Collect memory allocation stats.
 #define LOOP_HOIST_STATS 1  // Collect loop hoisting stats.
