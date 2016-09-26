@@ -49,7 +49,7 @@ AssemblyNamesList2* Compiler::s_pAltJitExcludeAssembliesList            = nullpt
 #endif // ALT_JIT
 
 /*****************************************************************************/
-#ifdef _TARGET_AMD64_
+#if defined(_TARGET_AMD64_) && defined(_MSC_VER)
 #include <intrin.h>
 inline bool _our_GetThreadCycles(unsigned __int64 *cycleOut){ *cycleOut = __rdtsc(); return true; }
 #else
