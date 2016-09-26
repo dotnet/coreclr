@@ -2,6 +2,8 @@
 #define API_LEAVE(name) wrapComp->CLR_API_Leave(API_##name);
 
 /**********************************************************************************/
+// clang-format off
+/**********************************************************************************/
 //
 // ICorMethodInfo
 //
@@ -1654,3 +1656,7 @@ DWORD WrapICorJitInfo::getExpectedTargetArchitecture()
     API_LEAVE(getExpectedTargetArchitecture);
     return result;
 }
+
+/**********************************************************************************/
+// clang-format on
+/**********************************************************************************/
