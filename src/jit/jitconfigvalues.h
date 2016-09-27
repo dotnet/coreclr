@@ -261,7 +261,7 @@ CONFIG_STRING(JitInlineReplayFile, W("JitInlineReplayFile"))
 CONFIG_INTEGER(JitInlinePolicyLegacy, W("JitInlinePolicyLegacy"), 0)
 CONFIG_INTEGER(JitInlinePolicyModel, W("JitInlinePolicyModel"), 0)
 
-CONFIG_INTEGER(JitCLRcallTimingInfo, W("JitCLRcallTimingInfo"), 0)
+CONFIG_INTEGER(JitEECallTimingInfo, W("JitEECallTimingInfo"), 0)
 
 #undef CONFIG_INTEGER
 #undef CONFIG_STRING

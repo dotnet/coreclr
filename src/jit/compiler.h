@@ -929,8 +929,8 @@ extern const LPCWSTR PhaseShortNames[];
 // The following enum provides a simple 1:1 mapping to CLR API's
 enum API_ICorJitInfo_Names
 {
-    #define DEF_CLR_API(name) API_##name,   // add prefix to make names more unique?????
-    #include "ICorJitInfo_API_names.h"
+#define DEF_CLR_API(name) API_##name,
+#include "ICorJitInfo_API_names.h"
     API_COUNT
 };
 
@@ -975,11 +975,9 @@ struct CompTimeInfo
 #if MEASURE_CLRAPI_CALLS
     // The following measures the time spent inside each individual CLR API call.
     unsigned         m_allClrAPIcalls;
-    unsigned         m_perClrAPIcalls [API_ICorJitInfo_Names::API_COUNT];
-
+    unsigned         m_perClrAPIcalls[API_ICorJitInfo_Names::API_COUNT];
     unsigned __int64 m_allClrAPIcycles;
     unsigned __int64 m_perClrAPIcycles[API_ICorJitInfo_Names::API_COUNT];
-
     unsigned __int32 m_maxClrAPIcycles[API_ICorJitInfo_Names::API_COUNT];
 #endif // MEASURE_CLRAPI_CALLS
 
@@ -1043,19 +1041,17 @@ public:
 //
 class JitTimer
 {
-    unsigned __int64 m_start;           // Start of the compilation.
-    unsigned __int64 m_curPhaseStart;   // Start of the current phase.
+    unsigned __int64 m_start;          // Start of the compilation.
+    unsigned __int64 m_curPhaseStart;  // Start of the current phase.
 #if MEASURE_CLRAPI_CALLS
-    unsigned __int64 m_CLRcallStart;    // Start of the current CLR API call (if any).
-    unsigned __int64 m_CLRcallInvokes;  // CLR API invokes under current outer so far
-    unsigned __int64 m_CLRcallCycles;   // CLR API  cycles under current outer so far.
-    int              m_CLRcallAPInum;   // The enum/index of the current CLR API call (or -1).
+    unsigned __int64 m_CLRcallStart;   // Start of the current CLR API call (if any).
+    unsigned __int64 m_CLRcallInvokes; // CLR API invokes under current outer so far
+    unsigned __int64 m_CLRcallCycles;  // CLR API  cycles under current outer so far.
+    int              m_CLRcallAPInum;  // The enum/index of the current CLR API call (or -1).
+    static double    s_cyclesPerSec;   // Cached for speedier measurements
 #endif
 #ifdef DEBUG
     Phases m_lastPhase; // The last phase that was completed (or (Phases)-1 to start).
-#endif
-#if MEASURE_CLRAPI_CALLS
-    static double    s_cyclesPerSec;    // Cached for speedier measurements
 #endif
     CompTimeInfo m_info; // The CompTimeInfo for this compilation.
 
@@ -1084,8 +1080,8 @@ public:
 
 #if MEASURE_CLRAPI_CALLS
     // Start and end a timed CLR API call.
-    void CLRapiCallEnter(unsigned apix);
-    void CLRapiCallLeave(unsigned apix);
+    void CLRApiCallEnter(unsigned apix);
+    void CLRApiCallLeave(unsigned apix);
 #endif // MEASURE_CLRAPI_CALLS
 
     // Completes the timing of the current method, which is assumed to have "byteCodeBytes" bytes of bytecode,
@@ -8737,12 +8733,13 @@ private:
     inline void EndPhase(Phases phase); // Indicate the end of the given phase.
 
 #if MEASURE_CLRAPI_CALLS
-    inline void CLRapiCallEnter(unsigned apix);
-    inline void CLRapiCallLeave(unsigned apix);
+    inline void CLRApiCallEnter(unsigned apix);
+    inline void CLRApiCallLeave(unsigned apix);
 
 public:
     inline void CLR_API_Enter(API_ICorJitInfo_Names ename);
     inline void CLR_API_Leave(API_ICorJitInfo_Names ename);
+
 private:
 #endif
 

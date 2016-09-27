@@ -4427,23 +4427,25 @@ inline void Compiler::EndPhase(Phases phase)
 /*****************************************************************************/
 #if MEASURE_CLRAPI_CALLS
 
-inline void Compiler::CLRapiCallEnter(unsigned apix)
+inline void Compiler::CLRApiCallEnter(unsigned apix)
 {
-    if (pCompJitTimer != NULL) pCompJitTimer->CLRapiCallEnter(apix);
+    if (pCompJitTimer != nullptr)
+        pCompJitTimer->CLRApiCallEnter(apix);
 }
-inline void Compiler::CLRapiCallLeave(unsigned apix)
+inline void Compiler::CLRApiCallLeave(unsigned apix)
 {
-    if (pCompJitTimer != NULL) pCompJitTimer->CLRapiCallLeave(apix);
+    if (pCompJitTimer != nullptr)
+        pCompJitTimer->CLRApiCallLeave(apix);
 }
 
 inline void Compiler::CLR_API_Enter(API_ICorJitInfo_Names ename)
 {
-    CLRapiCallEnter(ename);
+    CLRApiCallEnter(ename);
 }
 
 inline void Compiler::CLR_API_Leave(API_ICorJitInfo_Names ename)
 {
-    CLRapiCallLeave(ename);
+    CLRApiCallLeave(ename);
 }
 
 #endif // MEASURE_CLRAPI_CALLS

@@ -56,12 +56,12 @@ AssemblyNamesList2* Compiler::s_pAltJitExcludeAssembliesList            = nullpt
  *  x86/x64 we use RDTSC even though it's not thread-safe; GetThreadCycles
  *  (which is monotonous) is just too expensive.
  */
-#if defined(_X86_) || defined(_TARGET_AMD64_)
+#if defined(_HOST_X86_) || defined(_HOST_AMD64_)
 
 #if defined(_MSC_VER)
 
 #include <intrin.h>
-inline bool _our_GetThreadCycles(unsigned __int64 *cycleOut)
+inline bool _our_GetThreadCycles(unsigned __int64* cycleOut)
 {
     *cycleOut = __rdtsc();
     return true;
@@ -69,10 +69,10 @@ inline bool _our_GetThreadCycles(unsigned __int64 *cycleOut)
 
 #elif defined(__clang__)
 
-inline bool _our_GetThreadCycles(unsigned __int64 *cycleOut)
+inline bool _our_GetThreadCycles(unsigned __int64* cycleOut)
 {
     uint64_t cycles;
-    asm volatile ( "rdtsc" : "=A"(cycles) );
+    asm volatile ("rdtsc" : "=A"(cycles));
     *cycleOut = cycles;
     return true;
 }
@@ -6120,22 +6120,22 @@ void Compiler::compDispLocalVars()
 
 struct WrapICorJitInfo : public ICorJitInfo
 {
-    static WrapICorJitInfo *makeOne(ArenaAllocator* alloc, Compiler* compiler, COMP_HANDLE &compHndRef /* INOUT */)
+    static WrapICorJitInfo* makeOne(ArenaAllocator* alloc, Compiler* compiler, COMP_HANDLE& compHndRef /* INOUT */)
     {
         WrapICorJitInfo* wrap = nullptr;
 
-        if (JitConfig.JitCLRcallTimingInfo() != 0)
+        if (JitConfig.JitEECallTimingInfo() != 0)
         {
             void* inst = alloc->allocateMemory(roundUp(sizeof(WrapICorJitInfo)));
             if (inst != nullptr)
             {
-                wrap = new(inst, jitstd::placement_t()) WrapICorJitInfo();
+                wrap = new (inst, jitstd::placement_t()) WrapICorJitInfo();
 
                 wrap->wrapComp = compiler;
 
                 // Save the real handle and replace it with our wrapped version.
-                wrap->wrapHnd  = compHndRef;
-                                 compHndRef = wrap;
+                wrap->wrapHnd = compHndRef;
+                                compHndRef = wrap;
             }
         }
 
@@ -6144,17 +6144,11 @@ struct WrapICorJitInfo : public ICorJitInfo
 
 private:
 
-    Compiler *  wrapComp;
-    COMP_HANDLE wrapHnd;      // the "real thing"
-
-    void initialize(Compiler *compiler, COMP_HANDLE      &compHndRef /* INOUT */,
-                                        WrapICorJitInfo* &timeHndRef /*   OUT */)
-    {
-    }
+    Compiler*   wrapComp;
+    COMP_HANDLE wrapHnd; // the "real thing"
 
 public:
-
-    #include "ICorJitInfo_API_wrapper.hpp"
+#include "ICorJitInfo_API_wrapper.hpp"
 };
 
 #endif // MEASURE_CLRAPI_CALLS
@@ -7098,29 +7092,32 @@ int PhaseParent[] = {
 };
 
 CompTimeInfo::CompTimeInfo(unsigned byteCodeBytes)
-    : m_byteCodeBytes(byteCodeBytes), m_totalCycles(0),
+    : m_byteCodeBytes(byteCodeBytes)
+    , m_totalCycles(0)
 #if MEASURE_CLRAPI_CALLS
-      m_allClrAPIcalls(0), m_allClrAPIcycles(0),
+    , m_allClrAPIcalls(0)
+    , m_allClrAPIcycles(0)
 #endif
-      m_parentPhaseEndSlop(0), m_timerFailure(false)
+    , m_parentPhaseEndSlop(0)
+    , m_timerFailure(false)
 {
     for (int i = 0; i < PHASE_NUMBER_OF; i++)
     {
-        m_invokesByPhase[i]    = 0;
-        m_cyclesByPhase[i]     = 0;
+        m_invokesByPhase[i] = 0;
+        m_cyclesByPhase[i] = 0;
 #if MEASURE_CLRAPI_CALLS
         m_CLRinvokesByPhase[i] = 0;
-        m_CLRcyclesByPhase[i]  = 0;
+        m_CLRcyclesByPhase[i] = 0;
 #endif
     }
 
 #if MEASURE_CLRAPI_CALLS
-    assert(ARRAYSIZE(m_perClrAPIcalls ) == API_ICorJitInfo_Names::API_COUNT);
+    assert(ARRAYSIZE(m_perClrAPIcalls) == API_ICorJitInfo_Names::API_COUNT);
     assert(ARRAYSIZE(m_perClrAPIcycles) == API_ICorJitInfo_Names::API_COUNT);
     assert(ARRAYSIZE(m_maxClrAPIcycles) == API_ICorJitInfo_Names::API_COUNT);
     for (int i = 0; i < API_ICorJitInfo_Names::API_COUNT; i++)
     {
-        m_perClrAPIcalls [i] = 0;
+        m_perClrAPIcalls[i] = 0;
         m_perClrAPIcycles[i] = 0;
         m_maxClrAPIcycles[i] = 0;
     }
@@ -7153,8 +7150,8 @@ void CompTimeSummaryInfo::AddInfo(CompTimeInfo& info, bool includePhases)
         m_total.m_totalCycles += info.m_totalCycles;
         m_maximum.m_totalCycles = max(m_maximum.m_totalCycles, info.m_totalCycles);
 
-        // Update the CLR-API values.
 #if MEASURE_CLRAPI_CALLS
+        // Update the CLR-API values.
         m_total.m_allClrAPIcalls += info.m_allClrAPIcalls;
         m_maximum.m_allClrAPIcalls = max(m_maximum.m_allClrAPIcalls, info.m_allClrAPIcalls);
         m_total.m_allClrAPIcycles += info.m_allClrAPIcycles;
@@ -7203,7 +7200,7 @@ void CompTimeSummaryInfo::AddInfo(CompTimeInfo& info, bool includePhases)
         m_totMethods++;
 
         // Update the "global" CLR-API values.
-        m_total.m_allClrAPIcalls  += info.m_allClrAPIcalls;
+        m_total.m_allClrAPIcalls += info.m_allClrAPIcalls;
         m_maximum.m_allClrAPIcalls = max(m_maximum.m_allClrAPIcalls, info.m_allClrAPIcalls);
         m_total.m_allClrAPIcycles += info.m_allClrAPIcycles;
         m_maximum.m_allClrAPIcycles = max(m_maximum.m_allClrAPIcycles, info.m_allClrAPIcycles);
@@ -7212,7 +7209,8 @@ void CompTimeSummaryInfo::AddInfo(CompTimeInfo& info, bool includePhases)
         m_total.m_invokesByPhase[PHASE_CLR_API] += info.m_allClrAPIcalls;
         m_maximum.m_invokesByPhase[PHASE_CLR_API] = max(m_maximum.m_perClrAPIcalls[PHASE_CLR_API], info.m_allClrAPIcalls);
         m_total.m_cyclesByPhase[PHASE_CLR_API] += info.m_allClrAPIcycles;
-        m_maximum.m_cyclesByPhase[PHASE_CLR_API] = max(m_maximum.m_cyclesByPhase[PHASE_CLR_API], info.m_allClrAPIcycles);
+        m_maximum.m_cyclesByPhase[PHASE_CLR_API] =
+            max(m_maximum.m_cyclesByPhase[PHASE_CLR_API], info.m_allClrAPIcycles);
     }
 
     for (int i = 0; i < API_ICorJitInfo_Names::API_COUNT; i++)
@@ -7245,7 +7243,7 @@ void CompTimeSummaryInfo::Print(FILE* f)
         return;
     }
 
-    bool extraInfo = (JitConfig.JitCLRcallTimingInfo() != 0);
+    bool   extraInfo  = (JitConfig.JitEECallTimingInfo() != 0);
     double totTime_ms = 0.0;
 
     fprintf(f, "JIT Compilation time report:\n");
@@ -7273,15 +7271,17 @@ void CompTimeSummaryInfo::Print(FILE* f)
 #endif
 
         fprintf(f, "\n  Total time by phases:\n");
-        fprintf(f, "     PHASE                          inv/meth   Mcycles    time (ms)  %% of total    max (ms)%s\n", extraHdr1);
-        fprintf(f, "     ---------------------------------------------------------------------------------------%s\n", extraHdr2);
+        fprintf(f, "     PHASE                          inv/meth   Mcycles    time (ms)  %% of total    max (ms)%s\n",
+            extraHdr1);
+        fprintf(f, "     ---------------------------------------------------------------------------------------%s\n",
+            extraHdr2);
 
         // Ensure that at least the names array and the Phases enum have the same number of entries:
         assert(sizeof(PhaseNames) / sizeof(const char*) == PHASE_NUMBER_OF);
         for (int i = 0; i < PHASE_NUMBER_OF; i++)
         {
-            double phase_tot_ms = (((double)m_total.m_cyclesByPhase[i]) / countsPerSec) * 1000.0;
-            double phase_max_ms = (((double)m_maximum.m_cyclesByPhase[i]) / countsPerSec) * 1000.0;
+            double phase_tot_ms  = (((double)m_total.m_cyclesByPhase[i]) / countsPerSec) * 1000.0;
+            double phase_max_ms  = (((double)m_maximum.m_cyclesByPhase[i]) / countsPerSec) * 1000.0;
             double phase_tot_pct = 100.0 * phase_tot_ms / totTime_ms;
 
 #if MEASURE_CLRAPI_CALLS
@@ -7374,13 +7374,13 @@ void CompTimeSummaryInfo::Print(FILE* f)
         if (m_totMethods > 0)
             fprintf(f, "  Imported %u methods.\n\n", m_numMethods + m_totMethods);
 
-        fprintf(f, "     CLR API                                   # calls   total time    max time     avg time   %% of total\n");
+        fprintf(f, "     CLR API                                   # calls   total time    max time     avg time   %% "
+                   "of total\n");
         fprintf(f, "     ----------------------------------------------------------------------------------------------------\n");
 
-        static const char *APInames[] =
-        {
-            #define DEF_CLR_API(name) #name,
-            #include "ICorJitInfo_API_names.h"
+        static const char* APInames[] = {
+#define DEF_CLR_API(name) #name,
+#include "ICorJitInfo_API_names.h"
         };
 
         unsigned shownCalls    = 0;
@@ -7394,12 +7394,12 @@ void CompTimeSummaryInfo::Print(FILE* f)
         {
             for (unsigned i = 0; i < API_ICorJitInfo_Names::API_COUNT; i++)
             {
-                unsigned         calls  = m_total.m_perClrAPIcalls [i];
+                unsigned calls = m_total.m_perClrAPIcalls[i];
                 if (calls == 0)
                     continue;
 
                 unsigned __int64 cycles = m_total.m_perClrAPIcycles[i];
-                double           millis = 1000.0 * cycles/countsPerSec;
+                double           millis = 1000.0 * cycles / countsPerSec;
 
                 // Don't show the small fry to keep the results manageable
                 if (millis < 0.5)
@@ -7416,30 +7416,30 @@ void CompTimeSummaryInfo::Print(FILE* f)
                 }
 
                 // In the first pass we just compute the totals.
-                if (pass  == 0)
+                if (pass == 0)
                 {
-                    shownCalls  += m_total.m_perClrAPIcalls[i];
+                    shownCalls += m_total.m_perClrAPIcalls[i];
                     shownMillis += millis;
                     continue;
                 }
 
                 unsigned __int32 maxcyc = m_maximum.m_maxClrAPIcycles[i];
-                double           max_ms = 1000.0*maxcyc/countsPerSec;
+                double           max_ms = 1000.0 * maxcyc / countsPerSec;
 
-                fprintf(f, "     %-40s", APInames[i]);                                  // API name
-                fprintf(f, " %8u %9.1f ms", calls, millis);                             // #calls, total time
-                fprintf(f, " %8.1f ms  %8.1f ns", max_ms, 1000000.0 * millis / calls);  // max, avg time
-                fprintf(f, "     %5.1f%%\n", 100.0*millis/shownMillis);                 // % of total
+                fprintf(f, "     %-40s", APInames[i]);                                 // API name
+                fprintf(f, " %8u %9.1f ms", calls, millis);                            // #calls, total time
+                fprintf(f, " %8.1f ms  %8.1f ns", max_ms, 1000000.0 * millis / calls); // max, avg time
+                fprintf(f, "     %5.1f%%\n", 100.0 * millis / shownMillis);            // % of total
 
 #ifdef DEBUG
-                checkedCalls  += m_total.m_perClrAPIcalls[i];
+                checkedCalls += m_total.m_perClrAPIcalls[i];
                 checkedMillis += millis;
 #endif
             }
         }
 
 #ifdef DEBUG
-        assert(checkedCalls  == shownCalls);
+        assert(checkedCalls == shownCalls);
         assert(checkedMillis == shownMillis);
 #endif
 
@@ -7448,7 +7448,7 @@ void CompTimeSummaryInfo::Print(FILE* f)
             fprintf(f, "     ----------------------------------------------------------------------------------------------------\n");
             fprintf(f, "     Total for calls shown above              %8u %10.1f ms", shownCalls, shownMillis);
             if (totTime_ms > 0.0)
-                fprintf(f, " (%4.1lf%% of overall JIT time)", shownMillis*100.0/totTime_ms);
+                fprintf(f, " (%4.1lf%% of overall JIT time)", shownMillis * 100.0 / totTime_ms);
             fprintf(f, "\n");
         }
         fprintf(f, "\n");
@@ -7466,7 +7466,7 @@ JitTimer::JitTimer(unsigned byteCodeSize) : m_info(byteCodeSize)
 #endif
 
 #ifdef DEBUG
-    m_lastPhase    = (Phases)-1;
+    m_lastPhase = (Phases)-1;
 #if MEASURE_CLRAPI_CALLS
     m_CLRcallAPInum = -1;
 #endif
@@ -7516,7 +7516,7 @@ void JitTimer::EndPhase(Phases phase)
                 m_info.m_cyclesByPhase[ancPhase] += phaseCycles;
                 ancPhase = PhaseParent[ancPhase];
             }
-            // Did we just end the last phase?
+
 #if MEASURE_CLRAPI_CALLS
             const Phases lastPhase = PHASE_CLR_API;
 #else
@@ -7545,59 +7545,59 @@ void JitTimer::EndPhase(Phases phase)
 #if MEASURE_CLRAPI_CALLS
 
 // Measue time spent inside calls to the CLR.
-void JitTimer::CLRapiCallEnter(unsigned apix)
+void JitTimer::CLRApiCallEnter(unsigned apix)
 {
-    assert(m_CLRcallAPInum == -1);           // Nested calls not allowed
-           m_CLRcallAPInum = apix;
+    assert(m_CLRcallAPInum == -1); // Nested calls not allowed
+    m_CLRcallAPInum = apix;
 
     // If we can't get the cycles, we'll just ignore this call
     if (!_our_GetThreadCycles(&m_CLRcallStart))
         m_CLRcallStart = 0;
 }
 
-void JitTimer::CLRapiCallLeave(unsigned apix)
+void JitTimer::CLRApiCallLeave(unsigned apix)
 {
     // Make sure we're actually inside a measured CLR call.
     assert(m_CLRcallAPInum != -1);
-           m_CLRcallAPInum  = -1;
+    m_CLRcallAPInum = -1;
 
     // Ignore this one if we don't have a valid starting counter.
     if (m_CLRcallStart != 0)
     {
-        if (JitConfig.JitCLRcallTimingInfo() != 0)
+        if (JitConfig.JitEECallTimingInfo() != 0)
         {
-            unsigned __int64  threadCurCycles;
+            unsigned __int64 threadCurCycles;
             if (_our_GetThreadCycles(&threadCurCycles))
             {
                 // Compute the cycles spent in the call.
                 threadCurCycles -= m_CLRcallStart;
 
                 // Add the cycles to the 'phase' and bump its use count.
-                m_info. m_cyclesByPhase[PHASE_CLR_API] += threadCurCycles;
+                m_info.m_cyclesByPhase[PHASE_CLR_API] += threadCurCycles;
                 m_info.m_invokesByPhase[PHASE_CLR_API] += 1;
 
                 // Add the values to the "per API" info.
                 m_info.m_allClrAPIcycles += threadCurCycles;
-                m_info.m_allClrAPIcalls  += 1;
+                m_info.m_allClrAPIcalls += 1;
 
                 m_info.m_perClrAPIcalls [apix] += 1;
                 m_info.m_perClrAPIcycles[apix] += threadCurCycles;
-                m_info.m_maxClrAPIcycles[apix]  = max(m_info.m_maxClrAPIcycles[apix], (unsigned __int32)threadCurCycles);
+                m_info.m_maxClrAPIcycles[apix] = max(m_info.m_maxClrAPIcycles[apix], (unsigned __int32)threadCurCycles);
 
                 // Subtract the cycles from the enclosing phase by bumping its start time
                 m_curPhaseStart += threadCurCycles;
 
                 // Update the running totals.
                 m_CLRcallInvokes += 1;
-                m_CLRcallCycles  += threadCurCycles;
+                m_CLRcallCycles += threadCurCycles;
             }
         }
 
         m_CLRcallStart = 0;
     }
 
-    assert(m_CLRcallAPInum != -1);           // No longer in this API call.
-           m_CLRcallAPInum  = -1;
+    assert(m_CLRcallAPInum != -1);  // No longer in this API call.
+    m_CLRcallAPInum = -1;
 }
 
 #endif // MEASURE_CLRAPI_CALLS
