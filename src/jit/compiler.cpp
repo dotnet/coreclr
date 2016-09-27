@@ -6125,12 +6125,18 @@ void Compiler::compDispLocalVars()
 
 struct WrapICorJitInfo : public ICorJitInfo
 {
+    // This is effectively the "class factory" - we only ever need one
+    // instance, and this method allocates and initializes it.
     static WrapICorJitInfo* makeOne(ArenaAllocator* alloc, Compiler* compiler, COMP_HANDLE& compHndRef /* INOUT */)
     {
         WrapICorJitInfo* wrap = nullptr;
 
         if (JitConfig.JitEECallTimingInfo() != 0)
         {
+            // It's too early to use the default allocator, so we do this
+            // in two steps to be safe (the constructor doesn't need to do
+            // anything except fill in the vtable pointer, so we let the
+            // compiler do it).
             void* inst = alloc->allocateMemory(roundUp(sizeof(WrapICorJitInfo)));
             if (inst != nullptr)
             {
@@ -6346,13 +6352,6 @@ START:
 
         goto START;
     }
-
-#if MEASURE_CLRAPI_CALLS
-    if (param.wrapCLR != nullptr)
-    {
-        // TODO: we need to free the CLR API wrapper instance, right?
-    }
-#endif
 
     return result;
 }
