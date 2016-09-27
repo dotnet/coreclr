@@ -88,8 +88,9 @@ inline bool _our_GetThreadCycles(unsigned __int64* cycleOut)
 
 #elif defined(_HOST_ARM_) || defined(_HOST_ARM64_)
 
-// Please see ../gc/gc.cpp for ARM info (and possible solution).
-#define _our_GetThreadCycles(cp) no_cycle_counter_access_on_ARM()
+// If this doesn't work please see ../gc/gc.cpp for additional ARM
+// info (and possible solutions).
+#define _our_GetThreadCycles(cp) GetThreadCycles(cp)
 
 #else // not x86/x64 and not ARM
 
@@ -7120,7 +7121,7 @@ CompTimeInfo::CompTimeInfo(unsigned byteCodeBytes)
     assert(ARRAYSIZE(m_maxClrAPIcycles) == API_ICorJitInfo_Names::API_COUNT);
     for (int i = 0; i < API_ICorJitInfo_Names::API_COUNT; i++)
     {
-        m_perClrAPIcalls[i] = 0;
+        m_perClrAPIcalls[i]  = 0;
         m_perClrAPIcycles[i] = 0;
         m_maxClrAPIcycles[i] = 0;
     }
