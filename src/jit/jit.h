@@ -492,10 +492,10 @@ typedef ptrdiff_t ssize_t;
 #ifndef FEATURE_JIT_METHOD_PERF
 #define MEASURE_CLRAPI_CALLS 0 // Can't time these calls without METHOD_PERF.
 #endif
-#ifdef  DEBUG
+#ifdef DEBUG
 #define MEASURE_CLRAPI_CALLS 0 // No point in measuring DEBUG code.
 #endif
-#if !defined(_X86_) && !defined(_TARGET_AMD64_)
+#if !defined(_HOST_X86_) && !defined(_HOST_AMD64_)
 #define MEASURE_CLRAPI_CALLS 0 // Cycle counters only hooked up on x86/x64.
 #endif
 #if !defined(_MSC_VER) && !defined(__clang__)
@@ -504,7 +504,7 @@ typedef ptrdiff_t ssize_t;
 
 // If none of the above set the flag to 0, it's available.
 #ifndef MEASURE_CLRAPI_CALLS
-#define MEASURE_CLRAPI_CALLS 1 // Set to 1 to enable timing of JIT calls to the CLR.
+#define MEASURE_CLRAPI_CALLS 1 // Set to 1 to measure time in ICorJitInfo calls.
 #endif
 
 /*****************************************************************************/
