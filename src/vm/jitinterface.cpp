@@ -13410,6 +13410,9 @@ BOOL LoadDynamicInfoEntry(Module *currentModule,
                     return FALSE;
                 }
             }
+#ifdef _TARGET_ARM_
+            result |= THUMB_CODE;
+#endif
         }
         break;
 
