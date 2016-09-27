@@ -480,18 +480,31 @@ typedef ptrdiff_t ssize_t;
 #define VERBOSE_SIZES 0  // Always display GC info sizes. If set, DISPLAY_SIZES must also be set.
 #define VERBOSE_VERIFY 0 // Dump additional information when verifying code. Useful to debug verification bugs.
 
-#ifdef FEATURE_JIT_METHOD_PERF
-#define MEASURE_CLRAPI_CALLS 0 // Enable to time JIT calls to the CLR.
-#else
-#define MEASURE_CLRAPI_CALLS 0 // Can't have CLR API without METHOD_PERF.
-#endif
-
 #ifdef DEBUG
 #define MEASURE_MEM_ALLOC 1 // Collect memory allocation stats.
 #define LOOP_HOIST_STATS 1  // Collect loop hoisting stats.
 #else
 #define MEASURE_MEM_ALLOC 0 // You can set this to 1 to get memory stats in retail, as well
 #define LOOP_HOIST_STATS 0  // You can set this to 1 to get loop hoist stats in retail, as well
+#endif
+
+// Timing calls to clr.dll is only available under certain conditions.
+#ifndef FEATURE_JIT_METHOD_PERF
+#define MEASURE_CLRAPI_CALLS 0 // Can't time these calls without METHOD_PERF.
+#endif
+#ifdef  DEBUG
+#define MEASURE_CLRAPI_CALLS 0 // No point in measuring DEBUG code.
+#endif
+#if !defined(_X86_) && !defined(_TARGET_AMD64_)
+#define MEASURE_CLRAPI_CALLS 0 // Cycle counters only hooked up on x86/x64.
+#endif
+#if !defined(_MSC_VER) && !defined(__clang__)
+#define MEASURE_CLRAPI_CALLS 0 // Only know how to do this with VC and Clang.
+#endif
+
+// If none of the above set the flag to 0, it's available.
+#ifndef MEASURE_CLRAPI_CALLS
+#define MEASURE_CLRAPI_CALLS 1 // Set to 1 to enable timing of JIT calls to the CLR.
 #endif
 
 /*****************************************************************************/
