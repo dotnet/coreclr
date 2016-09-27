@@ -191,10 +191,10 @@ namespace System.Collections.Generic
     }
 
     [Serializable]
-    internal sealed class NullableEqualityComparer<T> : EqualityComparer<Nullable<T>> where T : struct, IEquatable<T>
+    internal sealed class NullableEqualityComparer<T> : EqualityComparer<T?> where T : struct, IEquatable<T>
     {
         [Pure]
-        public override bool Equals(Nullable<T> x, Nullable<T> y) {
+        public override bool Equals(T? x, T? y) {
             if (x.HasValue) {
                 if (y.HasValue) return x.value.Equals(y.value);
                 return false;
@@ -204,11 +204,9 @@ namespace System.Collections.Generic
         }
 
         [Pure]
-        public override int GetHashCode(Nullable<T> obj) {
-            return obj.GetHashCode();
-        }
+        public override int GetHashCode(T? obj) => obj.GetHashCode();
 
-        internal override int IndexOf(Nullable<T>[] array, Nullable<T> value, int startIndex, int count) {
+        internal override int IndexOf(T?[] array, T? value, int startIndex, int count) {
             int endIndex = startIndex + count;
             if (!value.HasValue) {
                 for (int i = startIndex; i < endIndex; i++) {
@@ -223,7 +221,7 @@ namespace System.Collections.Generic
             return -1;
         }
 
-        internal override int LastIndexOf(Nullable<T>[] array, Nullable<T> value, int startIndex, int count) {
+        internal override int LastIndexOf(T?[] array, T? value, int startIndex, int count) {
             int endIndex = startIndex - count + 1;
             if (!value.HasValue) {
                 for (int i = startIndex; i >= endIndex; i--) {
