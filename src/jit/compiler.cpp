@@ -14,6 +14,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #ifdef _MSC_VER
 #pragma hdrstop
 #endif // _MSC_VER
+#define __HORRID_HACK__
 #include "hostallocator.h"
 #include "emit.h"
 #include "ssabuilder.h"
@@ -6140,6 +6141,10 @@ struct WrapICorJitInfo : public ICorJitInfo
             void* inst = alloc->allocateMemory(roundUp(sizeof(WrapICorJitInfo)));
             if (inst != nullptr)
             {
+                // If you get a build error here due to 'WrapICorJitInfo' being
+                // an abstract class, it's very likely that the wrapper bodies
+                // in ICorJitInfo_API_wrapper.hpp are no longer in sync with
+                // the EE interface; please be kind and update the header file.
                 wrap = new (inst, jitstd::placement_t()) WrapICorJitInfo();
 
                 wrap->wrapComp = compiler;
