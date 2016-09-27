@@ -990,47 +990,8 @@ struct CompTimeInfo
 #ifdef FEATURE_JIT_METHOD_PERF
 
 #if MEASURE_CLRAPI_CALLS
-
-struct WrapICorJitInfo : public ICorJitInfo
-{
-    static WrapICorJitInfo *makeOne(ArenaAllocator* alloc, Compiler* compiler, COMP_HANDLE &compHndRef /* INOUT */)
-    {
-        WrapICorJitInfo* wrap = nullptr;
-
-        if (JitConfig.JitCLRcallTimingInfo() != 0)
-        {
-            void* inst = alloc->allocateMemory(roundUp(sizeof(WrapICorJitInfo)));
-            if (inst != nullptr)
-            {
-                wrap = new(inst, jitstd::placement_t()) WrapICorJitInfo();
-
-                wrap->wrapComp = compiler;
-
-                // Save the real handle and replace it with our wrapped version.
-                wrap->wrapHnd  = compHndRef;
-                                 compHndRef = wrap;
-            }
-        }
-
-        return wrap;
-    }
-
-private:
-
-    Compiler *  wrapComp;
-    COMP_HANDLE wrapHnd;      // the "real thing"
-
-    void initialize(Compiler *compiler, COMP_HANDLE      &compHndRef /* INOUT */,
-                                        WrapICorJitInfo* &timeHndRef /*   OUT */)
-    {
-    }
-
-public:
-
-    #include "ICorJitInfo_API_wrapper.h"
-};
-
-#endif // MEASURE_CLRAPI_CALLS
+struct WrapICorJitInfo;
+#endif
 
 // This class summarizes the JIT time information over the course of a run: the number of methods compiled,
 // and the total and maximum timings.  (These are instances of the "CompTimeInfo" type described above).
