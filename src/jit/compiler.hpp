@@ -4430,12 +4430,16 @@ inline void Compiler::EndPhase(Phases phase)
 inline void Compiler::CLRApiCallEnter(unsigned apix)
 {
     if (pCompJitTimer != nullptr)
+    {
         pCompJitTimer->CLRApiCallEnter(apix);
+    }
 }
 inline void Compiler::CLRApiCallLeave(unsigned apix)
 {
     if (pCompJitTimer != nullptr)
+    {
         pCompJitTimer->CLRApiCallLeave(apix);
+    }
 }
 
 inline void Compiler::CLR_API_Enter(API_ICorJitInfo_Names ename)
