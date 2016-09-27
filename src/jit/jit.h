@@ -504,7 +504,7 @@ typedef ptrdiff_t ssize_t;
 
 // If none of the above set the flag to 0, it's available.
 #ifndef MEASURE_CLRAPI_CALLS
-#define MEASURE_CLRAPI_CALLS 1 // Set to 1 to measure time in ICorJitInfo calls.
+#define MEASURE_CLRAPI_CALLS 0 // Set to 1 to measure time in ICorJitInfo calls.
 #endif
 
 /*****************************************************************************/
