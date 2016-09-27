@@ -48,12 +48,54 @@ bool                Compiler::s_pAltJitExcludeAssembliesListInitialized = false;
 AssemblyNamesList2* Compiler::s_pAltJitExcludeAssembliesList            = nullptr;
 #endif // ALT_JIT
 
-/*****************************************************************************/
-#if defined(_TARGET_AMD64_) && defined(_MSC_VER)
+/*****************************************************************************
+ *
+ *  Little helpers to grab the current cycle counter value; this is done
+ *  differently based on target architecture, host toolchain, etc. The
+ *  main thing is to keep the overhead absolutely minimal; in fact, on
+ *  x86/x64 we use RDTSC even though it's not thread-safe; GetThreadCycles
+ *  (which is monotonous) is just too expensive.
+ */
+#if defined(_X86_) || defined(_TARGET_AMD64_)
+
+#if defined(_MSC_VER)
+
 #include <intrin.h>
-inline bool _our_GetThreadCycles(unsigned __int64 *cycleOut){ *cycleOut = __rdtsc(); return true; }
-#else
+inline bool _our_GetThreadCycles(unsigned __int64 *cycleOut)
+{
+    *cycleOut = __rdtsc();
+    return true;
+}
+
+#elif defined(__clang__)
+
+inline bool _our_GetThreadCycles(unsigned __int64 *cycleOut)
+{
+    uint64_t cycles;
+    asm volatile ( "rdtsc" : "=A"(cycles) );
+    *cycleOut = cycles;
+    return true;
+}
+
+#else // neither _MSC_VER nor __clang__
+
+// The following *might* work - might as well try.
 #define _our_GetThreadCycles(cp) GetThreadCycles(cp)
+
+#endif
+
+#elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
+
+// Please see ../gc/gc.cpp for ARM info (and possible solution).
+#define _our_GetThreadCycles(cp) no_cycle_counter_access_on_ARM()
+
+#else
+
+// Don't know what this target is, but let's give it a try; if
+// someone really wants to make this work, please add the right
+// code here.
+#define _our_GetThreadCycles(cp) GetThreadCycles(cp)
+
 #endif
 /*****************************************************************************/
 inline unsigned getCurTime()
@@ -6075,8 +6117,47 @@ void Compiler::compDispLocalVars()
 /*****************************************************************************/
 
 #if MEASURE_CLRAPI_CALLS
-#include "ICorJitInfo_API_wrapper.hpp"
-#endif
+
+struct WrapICorJitInfo : public ICorJitInfo
+{
+    static WrapICorJitInfo *makeOne(ArenaAllocator* alloc, Compiler* compiler, COMP_HANDLE &compHndRef /* INOUT */)
+    {
+        WrapICorJitInfo* wrap = nullptr;
+
+        if (JitConfig.JitCLRcallTimingInfo() != 0)
+        {
+            void* inst = alloc->allocateMemory(roundUp(sizeof(WrapICorJitInfo)));
+            if (inst != nullptr)
+            {
+                wrap = new(inst, jitstd::placement_t()) WrapICorJitInfo();
+
+                wrap->wrapComp = compiler;
+
+                // Save the real handle and replace it with our wrapped version.
+                wrap->wrapHnd  = compHndRef;
+                                 compHndRef = wrap;
+            }
+        }
+
+        return wrap;
+    }
+
+private:
+
+    Compiler *  wrapComp;
+    COMP_HANDLE wrapHnd;      // the "real thing"
+
+    void initialize(Compiler *compiler, COMP_HANDLE      &compHndRef /* INOUT */,
+                                        WrapICorJitInfo* &timeHndRef /*   OUT */)
+    {
+    }
+
+public:
+
+    #include "ICorJitInfo_API_wrapper.hpp"
+};
+
+#endif // MEASURE_CLRAPI_CALLS
 
 /*****************************************************************************/
 
