@@ -1022,7 +1022,8 @@ public:
     // This is the unique CompTimeSummaryInfo object for this instance of the runtime.
     static CompTimeSummaryInfo s_compTimeSummary;
 
-    CompTimeSummaryInfo() : m_numMethods(0), m_totMethods(0), m_total(0), m_maximum(0), m_numFilteredMethods(0), m_filtered(0)
+    CompTimeSummaryInfo()
+        : m_numMethods(0), m_totMethods(0), m_total(0), m_maximum(0), m_numFilteredMethods(0), m_filtered(0)
     {
     }
 
@@ -1041,8 +1042,8 @@ public:
 //
 class JitTimer
 {
-    unsigned __int64 m_start;          // Start of the compilation.
-    unsigned __int64 m_curPhaseStart;  // Start of the current phase.
+    unsigned __int64 m_start;         // Start of the compilation.
+    unsigned __int64 m_curPhaseStart; // Start of the current phase.
 #if MEASURE_CLRAPI_CALLS
     unsigned __int64 m_CLRcallStart;   // Start of the current CLR API call (if any).
     unsigned __int64 m_CLRcallInvokes; // CLR API invokes under current outer so far
