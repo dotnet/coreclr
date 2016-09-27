@@ -144,10 +144,7 @@ namespace System.Collections.Generic
         }
 
         [Pure]
-        public override int GetHashCode(T obj) {
-            if (obj == null) return 0;
-            return obj.GetHashCode();
-        }
+        public override int GetHashCode(T obj) => obj?.GetHashCode() ?? 0;
 
         internal override int IndexOf(T[] array, T value, int startIndex, int count) {
             int endIndex = startIndex + count;
@@ -179,15 +176,12 @@ namespace System.Collections.Generic
             return -1;
         }
 
-        // Equals method for the comparer itself. 
-        public override bool Equals(Object obj){
-            GenericEqualityComparer<T> comparer = obj as GenericEqualityComparer<T>;
-            return comparer != null;
-        }
+        // Equals method for the comparer itself.
+        public override bool Equals(Object obj) =>
+            obj != null && GetType() == obj.GetType();
 
-        public override int GetHashCode() {
-            return this.GetType().GetHashCode();
-        }
+        public override int GetHashCode() =>
+            GetType().GetHashCode();
     }
 
     [Serializable]
@@ -236,15 +230,12 @@ namespace System.Collections.Generic
             return -1;
         }
 
-        // Equals method for the comparer itself. 
-        public override bool Equals(Object obj){
-            NullableEqualityComparer<T> comparer = obj as NullableEqualityComparer<T>;
-            return comparer != null;
-        }        
+        // Equals method for the comparer itself.
+        public override bool Equals(Object obj) =>
+            obj != null && GetType() == obj.GetType();
 
-        public override int GetHashCode() {
-            return this.GetType().GetHashCode();
-        }                                
+        public override int GetHashCode() =>
+            GetType().GetHashCode();
     }
 
     [Serializable]
@@ -261,10 +252,7 @@ namespace System.Collections.Generic
         }
 
         [Pure]
-        public override int GetHashCode(T obj) {
-            if (obj == null) return 0;
-            return obj.GetHashCode();
-        }
+        public override int GetHashCode(T obj) => obj?.GetHashCode() ?? 0;
 
         internal override int IndexOf(T[] array, T value, int startIndex, int count) {
             int endIndex = startIndex + count;
@@ -296,15 +284,12 @@ namespace System.Collections.Generic
             return -1;
         }
 
-        // Equals method for the comparer itself. 
-        public override bool Equals(Object obj){
-            ObjectEqualityComparer<T> comparer = obj as ObjectEqualityComparer<T>;
-            return comparer != null;
-        }        
+        // Equals method for the comparer itself.
+        public override bool Equals(Object obj) =>
+            obj != null && GetType() == obj.GetType();
 
-        public override int GetHashCode() {
-            return this.GetType().GetHashCode();
-        }                                
+        public override int GetHashCode() =>
+            GetType().GetHashCode();
     }
 
 #if FEATURE_CORECLR
@@ -375,15 +360,12 @@ namespace System.Collections.Generic
             return -1;
         }
 
-        // Equals method for the comparer itself. 
-        public override bool Equals(Object obj){
-            ByteEqualityComparer comparer = obj as ByteEqualityComparer;
-            return comparer != null;
-        }        
+        // Equals method for the comparer itself.
+        public override bool Equals(Object obj) =>
+            obj != null && GetType() == obj.GetType();
 
-        public override int GetHashCode() {
-            return this.GetType().GetHashCode();
-        }                                
+        public override int GetHashCode() =>
+            GetType().GetHashCode();      
     }
 
     [Serializable]
@@ -415,15 +397,12 @@ namespace System.Collections.Generic
             }
         }
 
-        // Equals method for the comparer itself. 
-        public override bool Equals(Object obj){
-            EnumEqualityComparer<T> comparer = obj as EnumEqualityComparer<T>;
-            return comparer != null;
-        }
+        // Equals method for the comparer itself.
+        public override bool Equals(Object obj) =>
+            obj != null && GetType() == obj.GetType();
 
-        public override int GetHashCode() {
-            return this.GetType().GetHashCode();
-        }
+        public override int GetHashCode() =>
+            GetType().GetHashCode();
 
         internal override int IndexOf(T[] array, T value, int startIndex, int count)
         {
@@ -496,15 +475,12 @@ namespace System.Collections.Generic
             return x_final.GetHashCode();
         }
 
-        // Equals method for the comparer itself. 
-        public override bool Equals(Object obj){
-            LongEnumEqualityComparer<T> comparer = obj as LongEnumEqualityComparer<T>;
-            return comparer != null;
-        }
+        // Equals method for the comparer itself.
+        public override bool Equals(Object obj) =>
+            obj != null && GetType() == obj.GetType();
 
-        public override int GetHashCode() {
-            return this.GetType().GetHashCode();
-        }
+        public override int GetHashCode() =>
+            GetType().GetHashCode();
 
         public LongEnumEqualityComparer() { }
 
