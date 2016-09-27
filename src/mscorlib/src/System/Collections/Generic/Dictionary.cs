@@ -229,7 +229,6 @@ namespace System.Collections.Generic {
 
         public void Clear() {
             if (count > 0) {
-                for (int i = 0; i < buckets.Length; i++) buckets[i] = -1;
                 Array.Clear(entries, 0, count);
                 freeList = -1;
                 count = 0;
@@ -315,7 +314,7 @@ namespace System.Collections.Generic {
 
             if (buckets != null) {
                 int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
-                for (int i = buckets[hashCode % buckets.Length]; i >= 0; i = entries[i].next) {
+                for (int i = buckets[hashCode % buckets.Length] - 1; i >= 0; i = entries[i].next) {
                     if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key)) return i;
                 }
             }
@@ -325,7 +324,6 @@ namespace System.Collections.Generic {
         private void Initialize(int capacity) {
             int size = HashHelpers.GetPrime(capacity);
             buckets = new int[size];
-            for (int i = 0; i < buckets.Length; i++) buckets[i] = -1;
             entries = new Entry[size];
             freeList = -1;
         }
@@ -344,7 +342,7 @@ namespace System.Collections.Generic {
             int collisionCount = 0;
 #endif
 
-            for (int i = buckets[targetBucket]; i >= 0; i = entries[i].next) {
+            for (int i = buckets[targetBucket] - 1; i >= 0; i = entries[i].next) {
                 if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key)) {
                     if (add) { 
 #if FEATURE_CORECLR
@@ -379,10 +377,10 @@ namespace System.Collections.Generic {
             }
 
             entries[index].hashCode = hashCode;
-            entries[index].next = buckets[targetBucket];
+            entries[index].next = buckets[targetBucket] - 1;
             entries[index].key = key;
             entries[index].value = value;
-            buckets[targetBucket] = index;
+            buckets[targetBucket] = index + 1;
             version++;
 
 #if FEATURE_RANDOMIZED_STRING_HASHING
@@ -428,7 +426,6 @@ namespace System.Collections.Generic {
             
             if( hashsize != 0) {
                 buckets = new int[hashsize];
-                for (int i = 0; i < buckets.Length; i++) buckets[i] = -1;
                 entries = new Entry[hashsize];
                 freeList = -1;
 
@@ -461,7 +458,6 @@ namespace System.Collections.Generic {
         private void Resize(int newSize, bool forceNewHashCodes) {
             Contract.Assert(newSize >= entries.Length);
             int[] newBuckets = new int[newSize];
-            for (int i = 0; i < newBuckets.Length; i++) newBuckets[i] = -1;
             Entry[] newEntries = new Entry[newSize];
             Array.Copy(entries, 0, newEntries, 0, count);
             if(forceNewHashCodes) {
@@ -474,8 +470,8 @@ namespace System.Collections.Generic {
             for (int i = 0; i < count; i++) {
                 if (newEntries[i].hashCode >= 0) {
                     int bucket = newEntries[i].hashCode % newSize;
-                    newEntries[i].next = newBuckets[bucket];
-                    newBuckets[bucket] = i;
+                    newEntries[i].next = -1;
+                    newBuckets[bucket] = i + 1;
                 }
             }
             buckets = newBuckets;
@@ -491,10 +487,10 @@ namespace System.Collections.Generic {
                 int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
                 int bucket = hashCode % buckets.Length;
                 int last = -1;
-                for (int i = buckets[bucket]; i >= 0; last = i, i = entries[i].next) {
+                for (int i = buckets[bucket] - 1; i >= 0; last = i, i = entries[i].next) {
                     if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key)) {
                         if (last < 0) {
-                            buckets[bucket] = entries[i].next;
+                            buckets[bucket] = entries[i].next + 1;
                         }
                         else {
                             entries[last].next = entries[i].next;
