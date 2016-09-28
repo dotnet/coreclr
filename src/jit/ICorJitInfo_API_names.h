@@ -169,4 +169,3 @@ DEF_CLR_API(getModuleNativeEntryPointRange)
 DEF_CLR_API(getExpectedTargetArchitecture)
 
 #undef DEF_CLR_API
-#undef DEF_CLR_API

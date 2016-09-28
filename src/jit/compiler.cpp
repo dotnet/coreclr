@@ -14,7 +14,6 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #ifdef _MSC_VER
 #pragma hdrstop
 #endif // _MSC_VER
-#define __HORRID_HACK__
 #include "hostallocator.h"
 #include "emit.h"
 #include "ssabuilder.h"
