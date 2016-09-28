@@ -93,6 +93,8 @@ CompPhaseNameMacro(PHASE_EMIT_CODE,              "Emit code",                   
 CompPhaseNameMacro(PHASE_EMIT_GCEH,              "Emit GC+EH tables",              "EMT-GCEH", false, -1)
 
 #if MEASURE_CLRAPI_CALLS
+// The following is a "pseudo-phase" - it aggregates timing info
+// for calls through ICorJitInfo across all "real" phases.
 CompPhaseNameMacro(PHASE_CLR_API,                "CLR API calls",                  "CLR-API",  false, -1)
 #endif
 // clang-format on
