@@ -6126,8 +6126,19 @@ void Compiler::compDispLocalVars()
 
 struct WrapICorJitInfo : public ICorJitInfo
 {
-    // This is effectively the "class factory" - we only ever need one
-    // instance, and this method allocates and initializes it.
+    //------------------------------------------------------------------------
+    // WrapICorJitInfo::makeOne: allocate an instance of WrapICorJitInfo
+    //
+    // Arguments:
+    //    alloc      - the allocator to get memory from for the instance
+    //    compile    - the compiler instance
+    //    compHndRef - the ICorJitInfo handle from the EE; the caller's
+    //                 copy may be replaced with a "wrapper" instance
+    //
+    // Return Value:
+    //    If the config flags indicate that ICorJitInfo should be wrapped,
+    //    we return the "wrapper" instance; otherwise we return "nullptr".
+
     static WrapICorJitInfo* makeOne(ArenaAllocator* alloc, Compiler* compiler, COMP_HANDLE& compHndRef /* INOUT */)
     {
         WrapICorJitInfo* wrap = nullptr;
@@ -7137,6 +7148,18 @@ bool CompTimeSummaryInfo::IncludedInFilteredData(CompTimeInfo& info)
     return false; // info.m_byteCodeBytes < 10;
 }
 
+//------------------------------------------------------------------------
+// CompTimeSummaryInfo::AddInfo: Record timing info from one compile.
+//
+// Arguments:
+//    info          - The timing information to record.
+//    includePhases - If "true", the per-phase info in "info" is valid,
+//                    which means that a "normal" compile has ended; if
+//                    the value is "false" we are recording the results
+//                    of a partial compile (typically an import-only run
+//                    on behalf of the inliner) in which case the phase
+//                    info is not valid and so we only record EE call
+//                    overhead.
 void CompTimeSummaryInfo::AddInfo(CompTimeInfo& info, bool includePhases)
 {
     if (info.m_timerFailure)
@@ -7555,10 +7578,12 @@ void JitTimer::EndPhase(Phases phase)
 
 #if MEASURE_CLRAPI_CALLS
 
-/*****************************************************************************
- *
- *  CLRApiCallEnter/Leave - start measuring time spent in a ICorJitInfo call.
- */
+//------------------------------------------------------------------------
+// JitTimer::CLRApiCallEnter: Start the stopwatch for an EE call.
+//
+// Arguments:
+//    apix - The API index - an "enum API_ICorJitInfo_Names" value.
+//
 
 void JitTimer::CLRApiCallEnter(unsigned apix)
 {
@@ -7570,10 +7595,15 @@ void JitTimer::CLRApiCallEnter(unsigned apix)
         m_CLRcallStart = 0;
 }
 
-/*****************************************************************************
- *
- *  CLRApiCallLeave - compute and record time spent in a ICorJitInfo call.
- */
+//------------------------------------------------------------------------
+// JitTimer::CLRApiCallLeave: compute / record time spent in an EE call.
+//
+// Arguments:
+//    apix - The API's "enum API_ICorJitInfo_Names" value; this value
+//           should match the value passed to the most recent call to
+//           "CLRApiCallEnter" (i.e. these must come as matched pairs),
+//           and they also may not nest.
+//
 
 void JitTimer::CLRApiCallLeave(unsigned apix)
 {
