@@ -8734,6 +8734,7 @@ private:
     inline void EndPhase(Phases phase); // Indicate the end of the given phase.
 
 #if MEASURE_CLRAPI_CALLS
+    // Thin wrappers that call into JitTimer (if present).
     inline void CLRApiCallEnter(unsigned apix);
     inline void CLRApiCallLeave(unsigned apix);
 

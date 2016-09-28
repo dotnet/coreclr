@@ -7555,7 +7555,11 @@ void JitTimer::EndPhase(Phases phase)
 
 #if MEASURE_CLRAPI_CALLS
 
-// Measue time spent inside calls to the CLR.
+/*****************************************************************************
+ *
+ *  CLRApiCallEnter/Leave - start measuring time spent in a ICorJitInfo call.
+ */
+
 void JitTimer::CLRApiCallEnter(unsigned apix)
 {
     assert(m_CLRcallAPInum == -1); // Nested calls not allowed
@@ -7565,6 +7569,11 @@ void JitTimer::CLRApiCallEnter(unsigned apix)
     if (!_our_GetThreadCycles(&m_CLRcallStart))
         m_CLRcallStart = 0;
 }
+
+/*****************************************************************************
+ *
+ *  CLRApiCallLeave - compute and record time spent in a ICorJitInfo call.
+ */
 
 void JitTimer::CLRApiCallLeave(unsigned apix)
 {
