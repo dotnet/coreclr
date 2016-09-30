@@ -416,6 +416,7 @@ namespace System.IO {
                     {
                         byte* pointer = null;
 
+                        RuntimeHelpers.PrepareConstrainedRegions();
                         try
                         {
                             _buffer.AcquirePointer(ref pointer);
@@ -616,6 +617,7 @@ namespace System.IO {
                         }
 
                         byte* pointer = null;
+                        RuntimeHelpers.PrepareConstrainedRegions();
                         try
                         {
                             _buffer.AcquirePointer(ref pointer);
