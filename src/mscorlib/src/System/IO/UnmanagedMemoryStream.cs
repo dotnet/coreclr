@@ -420,7 +420,7 @@ namespace System.IO {
                         try
                         {
                             _buffer.AcquirePointer(ref pointer);
-                            Buffer.MemoryCopy(source: pointer + pos + _offset, destination: pBuffer + offset, destinationSizeInBytes: nInt, sourceBytesToCopy: nInt);
+                            Buffer.Memcpy(pBuffer + offset, pointer + pos + _offset, nInt);
                         }
                         finally
                         {
@@ -432,7 +432,7 @@ namespace System.IO {
                     }
                     else
                     {
-                        Buffer.MemoryCopy(source: _mem + pos, destination: pBuffer + offset, destinationSizeInBytes: nInt, sourceBytesToCopy: nInt);
+                        Buffer.Memcpy(pBuffer + offset, _mem + pos, nInt);
                     }
                 }
             }
@@ -621,7 +621,7 @@ namespace System.IO {
                         try
                         {
                             _buffer.AcquirePointer(ref pointer);
-                            Buffer.MemoryCopy(source: pBuffer + offset, destination: pointer + pos + _offset, destinationSizeInBytes: count, sourceBytesToCopy: count);
+                            Buffer.Memcpy(pointer + pos + _offset, pBuffer + offset, count);
                         }
                         finally
                         {
@@ -633,7 +633,7 @@ namespace System.IO {
                     }
                     else
                     {
-                        Buffer.MemoryCopy(source: pBuffer + offset, destination: _mem + pos, destinationSizeInBytes: count, sourceBytesToCopy: count);
+                        Buffer.Memcpy(_mem + pos, pBuffer + offset, count);
                     }
                 }
             }
