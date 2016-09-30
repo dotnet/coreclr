@@ -9435,6 +9435,10 @@
       <Member Name="Write(System.Int64,System.UInt16)" />
       <Member Name="Write(System.Int64,System.UInt32)" />
       <Member Name="Write(System.Int64,System.UInt64)" />
+      <Member Name="Read&lt;T&gt;(System.Int64,T@)"/>
+      <Member Name="ReadArray&lt;T&gt;(System.Int64,T[],System.Int32,System.Int32)"/>
+      <Member Name="Write&lt;T&gt;(System.Int64,T@)"/>
+      <Member Name="WriteArray&lt;T&gt;(System.Int64,T[],System.Int32,System.Int32)"/>
       <Member MemberType="Property" Name="CanRead" />
       <Member MemberType="Property" Name="CanWrite" />
       <Member MemberType="Property" Name="Capacity" />

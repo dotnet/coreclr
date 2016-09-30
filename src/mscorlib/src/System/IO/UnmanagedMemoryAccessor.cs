@@ -573,6 +573,104 @@ namespace System.IO {
             return result;
         }
 
+        // Reads a struct of type T from unmanaged memory, into the reference pointed to by ref value.  
+        // Note: this method is not safe, since it overwrites the contents of a structure, it can be 
+        // used to modify the private members of a struct.  Furthermore, using this with a struct that
+        // contains reference members will most likely cause the runtime to AV.  Note, that despite 
+        // various checks made by the C++ code used by Marshal.PtrToStructure, Marshal.PtrToStructure
+        // will still overwrite privates and will also crash the runtime when used with structs 
+        // containing reference members.  For this reason, I am sticking an UnmanagedCode requirement
+        // on this method to match Marshal.PtrToStructure.
+
+        // Alos note that this method is most performant when used with medium to large sized structs
+        // (larger than 8 bytes -- though this is number is JIT and architecture dependent).   As 
+        // such, it is best to use the ReadXXX methods for small standard types such as ints, longs, 
+        // bools, etc.
+
+        [System.Security.SecurityCritical]  // auto-generated_required
+        public void Read<T>(Int64 position, out T structure) where T : struct {
+            if (position < 0) {
+                throw new ArgumentOutOfRangeException("position", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+            }
+            Contract.EndContractBlock();
+
+            if (!_isOpen) {
+                throw new ObjectDisposedException("UnmanagedMemoryAccessor", Environment.GetResourceString("ObjectDisposed_ViewAccessorClosed"));
+            }
+            if (!CanRead) {
+                throw new NotSupportedException(Environment.GetResourceString("NotSupported_Reading"));
+            }
+
+            UInt32 sizeOfT = Marshal.SizeOfType(typeof(T));
+            if (position > _capacity - sizeOfT) { 
+                if (position >= _capacity) {
+                    throw new ArgumentOutOfRangeException("position", Environment.GetResourceString("ArgumentOutOfRange_PositionLessThanCapacityRequired"));
+                }
+                else {
+                    throw new ArgumentException(Environment.GetResourceString("Argument_NotEnoughBytesToRead", typeof(T).FullName), "position");
+                }
+            }
+
+            structure = _buffer.Read<T>((UInt64)(_offset + position));
+        }
+
+        // Reads 'count' structs of type T from unmanaged memory, into 'array' starting at 'offset'.  
+        // Note: this method is not safe, since it overwrites the contents of structures, it can 
+        // be used to modify the private members of a struct.  Furthermore, using this with a 
+        // struct that contains reference members will most likely cause the runtime to AV. This
+        // is consistent with Marshal.PtrToStructure.
+
+        [System.Security.SecurityCritical]  // auto-generated_required
+        public int ReadArray<T>(Int64 position, T[] array, Int32 offset, Int32 count) where T : struct {
+            if (array == null) {
+                throw new ArgumentNullException("array", "Buffer cannot be null.");
+            }
+            if (offset < 0) {
+                throw new ArgumentOutOfRangeException("offset", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+            }
+            if (count < 0) {
+                throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+            }
+            if (array.Length - offset < count) {
+                throw new ArgumentException(Environment.GetResourceString("Argument_OffsetAndLengthOutOfBounds"));
+            }
+            Contract.EndContractBlock();
+            if (!CanRead) {
+                if (!_isOpen) {
+                    throw new ObjectDisposedException("UnmanagedMemoryAccessor", Environment.GetResourceString("ObjectDisposed_ViewAccessorClosed"));
+                }
+                else {
+                    throw new NotSupportedException(Environment.GetResourceString("NotSupported_Reading"));
+                }
+            }
+            if (position < 0) {
+                throw new ArgumentOutOfRangeException("position", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+            }
+
+            UInt32 sizeOfT = Marshal.AlignedSizeOf<T>();
+
+            // only check position and ask for fewer Ts if count is too big
+            if (position >= _capacity) {
+                throw new ArgumentOutOfRangeException("position", Environment.GetResourceString("ArgumentOutOfRange_PositionLessThanCapacityRequired"));
+            }
+
+            int n = count;
+            long spaceLeft = _capacity - position;
+            if (spaceLeft < 0) {
+                n = 0;
+            }
+            else {
+                ulong spaceNeeded = (ulong)(sizeOfT * count);
+                if ((ulong)spaceLeft < spaceNeeded) {
+                    n = (int)(spaceLeft / sizeOfT);
+                }
+            }
+
+            _buffer.ReadArray<T>((UInt64)(_offset + position), array, offset, n);
+
+            return n;
+        }
+
         // ************** Write Methods ****************/
 
         // The following 13 WriteXXX methods write a value of type XXX into unmanaged memory at 'positon'. 
@@ -996,6 +1094,73 @@ namespace System.IO {
                     }
                 }
             }
+        }
+
+        // Writes the struct pointed to by ref value into unmanaged memory.  Note that this method
+        // is most performant when used with medium to large sized structs (larger than 8 bytes 
+        // though this is number is JIT and architecture dependent).   As such, it is best to use 
+        // the WriteX methods for small standard types such as ints, longs, bools, etc.
+
+        [System.Security.SecurityCritical]  // auto-generated_required
+        public void Write<T>(Int64 position, ref T structure) where T : struct {
+            if (position < 0) {
+                throw new ArgumentOutOfRangeException("position", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+            }
+            Contract.EndContractBlock();
+
+            if (!_isOpen) {
+                throw new ObjectDisposedException("UnmanagedMemoryAccessor", Environment.GetResourceString("ObjectDisposed_ViewAccessorClosed"));
+            }
+            if (!CanWrite) {
+                throw new NotSupportedException(Environment.GetResourceString("NotSupported_Writing"));
+            }
+
+            UInt32 sizeOfT = Marshal.SizeOfType(typeof(T));
+            if (position > _capacity - sizeOfT) {
+                if (position >= _capacity) {
+                    throw new ArgumentOutOfRangeException("position", Environment.GetResourceString("ArgumentOutOfRange_PositionLessThanCapacityRequired"));
+                }
+                else {
+                    throw new ArgumentException(Environment.GetResourceString("Argument_NotEnoughBytesToWrite", typeof(T).FullName), "position");
+                }
+            }
+
+            _buffer.Write<T>((UInt64)(_offset + position), structure);
+        }
+
+        // Writes 'count' structs of type T from 'array' (starting at 'offset') into unmanaged memory. 
+
+
+        [System.Security.SecurityCritical]  // auto-generated_required
+        public void WriteArray<T>(Int64 position, T[] array, Int32 offset, Int32 count) where T : struct {
+            if (array == null) {
+                throw new ArgumentNullException("array", "Buffer cannot be null.");
+            }
+            if (offset < 0) {
+                throw new ArgumentOutOfRangeException("offset", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+            }
+            if (count < 0) {
+                throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+            }
+            if (array.Length - offset < count) {
+                throw new ArgumentException(Environment.GetResourceString("Argument_OffsetAndLengthOutOfBounds"));
+            }
+            if (position < 0) {
+                throw new ArgumentOutOfRangeException("position", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+            }
+            if (position >= Capacity) {
+                throw new ArgumentOutOfRangeException("position", Environment.GetResourceString("ArgumentOutOfRange_PositionLessThanCapacityRequired"));
+            }
+            Contract.EndContractBlock();
+
+            if (!_isOpen) {
+                throw new ObjectDisposedException("UnmanagedMemoryAccessor", Environment.GetResourceString("ObjectDisposed_ViewAccessorClosed"));
+            }
+            if (!CanWrite) {
+                throw new NotSupportedException(Environment.GetResourceString("NotSupported_Writing"));
+            }
+
+            _buffer.WriteArray<T>((UInt64)(_offset + position), array, offset, count);
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
