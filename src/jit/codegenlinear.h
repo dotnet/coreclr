@@ -51,9 +51,7 @@ void genCompareFloat(GenTreePtr treeNode);
 
 void genCompareInt(GenTreePtr treeNode);
 
-#if !defined(_TARGET_64BIT_)
-void genCompareLong(GenTreePtr treeNode);
-#endif
+void genSelect(GenTreeSelectCC* select);
 
 #ifdef FEATURE_SIMD
 enum SIMDScalarMoveType

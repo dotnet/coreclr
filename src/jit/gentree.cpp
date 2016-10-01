@@ -10995,6 +10995,10 @@ void Compiler::gtDispLeaf(GenTree* tree, IndentStack* indentStack)
             printf(" cond=%s", GenTree::NodeName(tree->AsJumpCC()->gtCondition));
             break;
 
+        case GT_SELCC:
+            printf(" cond=%s", GenTree::NodeName(tree->AsSelectCC()->gtCondition));
+            break;
+
         default:
             assert(!"don't know how to display tree leaf node");
     }
@@ -15626,6 +15630,7 @@ bool GenTree::isContained() const
         case GT_STOREIND:
         case GT_JTRUE:
         case GT_JCC:
+        case GT_SELCC:
         case GT_RETURN:
         case GT_RETFILT:
         case GT_STORE_LCL_FLD:

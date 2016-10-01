@@ -65,7 +65,7 @@ private:
     // Call Lowering
     // ------------------------------
     void LowerCall(GenTree* call);
-    void LowerCompare(GenTree* tree);
+    GenTree* LowerCompare(GenTree* tree);
     void LowerJmpMethod(GenTree* jmp);
     void LowerRet(GenTree* ret);
     GenTree* LowerDelegateInvoke(GenTreeCall* call);
@@ -187,6 +187,8 @@ private:
             SetRegOptional(op2);
         }
     }
+
+    void TreeNodeInfoInitSelect(GenTreeSelectCC* select);
 #endif // defined(_TARGET_XARCH_)
     void TreeNodeInfoInitReturn(GenTree* tree);
     void TreeNodeInfoInitShiftRotate(GenTree* tree);
