@@ -51,15 +51,24 @@ namespace System {
             Contract.EndContractBlock();
 
             T[] larray = array;                
-            if (larray == null) {
-                array = new T[newSize];
+            if (larray == null)
+            {
+                array = newSize == 0 ? Array.Empty<T>() : new T[newSize];
                 return;
             }
         
-            if (larray.Length != newSize) {
-                T[] newArray = new T[newSize];
-                Array.Copy(larray, 0, newArray, 0,  larray.Length > newSize? newSize : larray.Length);
-                array = newArray;
+            if (larray.Length != newSize)
+            {
+                if (newSize == 0)
+                {
+                    array = Array.Empty<T>();
+                }
+                else
+                {
+                    T[] newArray = new T[newSize];
+                    Array.Copy(larray, 0, newArray, 0, Math.Min(larray.Length, newSize));
+                    array = newArray;
+                }
             }
         }
 
