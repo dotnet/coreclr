@@ -56,7 +56,7 @@ namespace System.Resources {
         }
 
         [System.Security.SecuritySafeCritical]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var have to be marked non-inlineable
+        [UsesStackCrawlMark]
         public ResourceSet GrovelForResourceSet(CultureInfo culture, Dictionary<String, ResourceSet> localResourceSets, bool tryParents, bool createIfNotExists, ref StackCrawlMark stackMark)
         {
             Contract.Assert(culture != null, "culture shouldn't be null; check caller");
@@ -438,7 +438,7 @@ namespace System.Resources {
         // dev lead refuses to make all assembly manifest resource lookups case-insensitive,
         // even optionally case-insensitive.        
         [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var have to be marked non-inlineable
+        [UsesStackCrawlMark]
         private Stream CaseInsensitiveManifestResourceStreamLookup(RuntimeAssembly satellite, String name)
         {
             Contract.Requires(satellite != null, "satellite shouldn't be null; check caller");
@@ -517,7 +517,7 @@ namespace System.Resources {
         }
 
         [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var have to be marked non-inlineable
+        [UsesStackCrawlMark]
         private RuntimeAssembly GetSatelliteAssembly(CultureInfo lookForCulture, ref StackCrawlMark stackMark)
         {
             if (!_mediator.LookedForSatelliteContractVersion)

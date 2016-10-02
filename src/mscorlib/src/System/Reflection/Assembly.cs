@@ -111,7 +111,7 @@ namespace System.Reflection
 #else
         [System.Security.SecuritySafeCritical]
 #endif
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static Assembly LoadFrom(String assemblyFile)
         {
             Contract.Ensures(Contract.Result<Assembly>() != null);
@@ -135,7 +135,7 @@ namespace System.Reflection
 
         // Locate an assembly for reflection by the name of the file containing the manifest.
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static Assembly ReflectionOnlyLoadFrom(String assemblyFile)
         {
             Contract.Ensures(Contract.Result<Assembly>() != null);
@@ -155,7 +155,7 @@ namespace System.Reflection
         // Evidence is protected in Assembly.Load()
         [System.Security.SecuritySafeCritical]  // auto-generated
         [Obsolete("This method is obsolete and will be removed in a future release of the .NET Framework. Please use an overload of LoadFrom which does not take an Evidence parameter. See http://go.microsoft.com/fwlink/?LinkID=155570 for more information.")]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static Assembly LoadFrom(String assemblyFile,
                                         Evidence securityEvidence)
         {
@@ -176,7 +176,7 @@ namespace System.Reflection
         // Evidence is protected in Assembly.Load()
         [System.Security.SecuritySafeCritical]  // auto-generated
         [Obsolete("This method is obsolete and will be removed in a future release of the .NET Framework. Please use an overload of LoadFrom which does not take an Evidence parameter. See http://go.microsoft.com/fwlink/?LinkID=155570 for more information.")]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static Assembly LoadFrom(String assemblyFile,
                                         Evidence securityEvidence,
                                         byte[] hashValue,
@@ -197,7 +197,7 @@ namespace System.Reflection
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static Assembly LoadFrom(String assemblyFile,
                                         byte[] hashValue,
                                         AssemblyHashAlgorithm hashAlgorithm)
@@ -217,7 +217,7 @@ namespace System.Reflection
 #if FEATURE_CAS_POLICY
         // Load an assembly into the LoadFrom context bypassing some security checks
         [SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static Assembly UnsafeLoadFrom(string assemblyFile)
         {
 
@@ -239,7 +239,7 @@ namespace System.Reflection
         // Locate an assembly by the long form of the assembly name. 
         // eg. "Toolbox.dll, version=1.1.10.1220, locale=en, publickey=1234567890123456789012345678901234567890"
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static Assembly Load(String assemblyString)
         {
             Contract.Ensures(Contract.Result<Assembly>() != null);
@@ -254,7 +254,7 @@ namespace System.Reflection
         // Note: Type.GetType fails for assembly names that start with weird characters like '['. By calling it for managed types we would 
         // break AppCompat.
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         internal static Type GetType_Compat(String assemblyString, String typeName)
         {
             // Normally we would get the stackMark only in public APIs. This is internal API, but it is AppCompat replacement of public API 
@@ -284,7 +284,7 @@ namespace System.Reflection
         // eg. "Toolbox.dll, version=1.1.10.1220, locale=en, publickey=1234567890123456789012345678901234567890"
         //
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static Assembly ReflectionOnlyLoad(String assemblyString)
         {
             Contract.Ensures(Contract.Result<Assembly>() != null);
@@ -294,7 +294,7 @@ namespace System.Reflection
         }
     
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         [Obsolete("This method is obsolete and will be removed in a future release of the .NET Framework. Please use an overload of Load which does not take an Evidence parameter. See http://go.microsoft.com/fwlink/?LinkID=155570 for more information.")]
         public static Assembly Load(String assemblyString, Evidence assemblySecurity)
         {
@@ -312,7 +312,7 @@ namespace System.Reflection
 #else
         [System.Security.SecuritySafeCritical]
 #endif
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static Assembly Load(AssemblyName assemblyRef)
         {
             Contract.Ensures(Contract.Result<Assembly>() != null);
@@ -336,7 +336,7 @@ namespace System.Reflection
 #else
         [System.Security.SecuritySafeCritical]
 #endif
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         internal static Assembly Load(AssemblyName assemblyRef, IntPtr ptrLoadContextBinder)
         {
             Contract.Ensures(Contract.Result<Assembly>() != null);
@@ -354,7 +354,7 @@ namespace System.Reflection
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         [Obsolete("This method is obsolete and will be removed in a future release of the .NET Framework. Please use an overload of Load which does not take an Evidence parameter. See http://go.microsoft.com/fwlink/?LinkID=155570 for more information.")]
         public static Assembly Load(AssemblyName assemblyRef, Evidence assemblySecurity)
         {
@@ -368,7 +368,7 @@ namespace System.Reflection
 #if FEATURE_FUSION
         [System.Security.SecuritySafeCritical]  // auto-generated
         [Obsolete("This method has been deprecated. Please use Assembly.Load() instead. http://go.microsoft.com/fwlink/?linkid=14202")]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static Assembly LoadWithPartialName(String partialName)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -377,7 +377,7 @@ namespace System.Reflection
 
         [System.Security.SecuritySafeCritical]  // auto-generated
         [Obsolete("This method has been deprecated. Please use Assembly.Load() instead. http://go.microsoft.com/fwlink/?linkid=14202")]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static Assembly LoadWithPartialName(String partialName, Evidence securityEvidence)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -393,7 +393,7 @@ namespace System.Reflection
 #else
         [System.Security.SecuritySafeCritical]
 #endif
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static Assembly Load(byte[] rawAssembly)
         {
             Contract.Ensures(Contract.Result<Assembly>() != null);
@@ -415,7 +415,7 @@ namespace System.Reflection
         // an emitted assembly. The assembly is loaded into the domain
         // of the caller.
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static Assembly ReflectionOnlyLoad(byte[] rawAssembly)
         {
             Contract.Ensures(Contract.Result<Assembly>() != null);
@@ -441,7 +441,7 @@ namespace System.Reflection
 #else
         [System.Security.SecuritySafeCritical]
 #endif
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static Assembly Load(byte[] rawAssembly,
                                     byte[] rawSymbolStore)
         {
@@ -493,7 +493,7 @@ namespace System.Reflection
 #if FEATURE_CAS_POLICY
         [System.Security.SecuritySafeCritical]  // auto-generated
         [SecurityPermissionAttribute(SecurityAction.Demand, Flags=SecurityPermissionFlag.ControlEvidence)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         [Obsolete("This method is obsolete and will be removed in a future release of the .NET Framework. Please use an overload of Load which does not take an Evidence parameter. See http://go.microsoft.com/fwlink/?LinkID=155570 for more information.")]
         public static Assembly Load(byte[] rawAssembly,
                                     byte[] rawSymbolStore,
@@ -563,7 +563,7 @@ namespace System.Reflection
 
 #if FEATURE_CORECLR
         [System.Security.SecurityCritical] // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static Assembly Load(Stream assemblyStream, Stream pdbStream)
         {
             Contract.Ensures(Contract.Result<Assembly>() != null);
@@ -574,7 +574,7 @@ namespace System.Reflection
         }
         
         [System.Security.SecurityCritical] // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static Assembly Load(Stream assemblyStream)
         {
             Contract.Ensures(Contract.Result<Assembly>() != null);
@@ -589,7 +589,7 @@ namespace System.Reflection
          * Get the assembly that the current code is running from.
          */
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable 
+        [UsesStackCrawlMark]
         public static Assembly GetExecutingAssembly()
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -597,7 +597,7 @@ namespace System.Reflection
         }
        
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static Assembly GetCallingAssembly()
         {
             // LookForMyCallersCaller is not guarantee to return the correct stack frame
@@ -1442,7 +1442,7 @@ namespace System.Reflection
 
         // Load a resource based on the NameSpace of the type.
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public override Stream GetManifestResourceStream(Type type, String name)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -1450,7 +1450,7 @@ namespace System.Reflection
         }
     
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public override Stream GetManifestResourceStream(String name)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -1585,7 +1585,7 @@ namespace System.Reflection
         }
         
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         internal static RuntimeAssembly InternalLoadFrom(String assemblyFile, 
                                                          Evidence securityEvidence,
                                                          byte[] hashValue, 
@@ -1623,7 +1623,7 @@ namespace System.Reflection
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         internal static RuntimeAssembly InternalLoad(String assemblyString,
                                                      Evidence assemblySecurity,
                                                      ref StackCrawlMark stackMark,
@@ -1835,7 +1835,7 @@ namespace System.Reflection
 #if FEATURE_FUSION
         // used by vm
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         private static unsafe RuntimeAssembly LoadWithPartialNameHack(String partialName, bool cropPublicKey)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -2200,7 +2200,7 @@ namespace System.Reflection
                                                           StackCrawlMarkHandle stackMark);
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public override ManifestResourceInfo GetManifestResourceInfo(String resourceName)
         {
             RuntimeAssembly retAssembly = null;
@@ -2668,7 +2668,7 @@ namespace System.Reflection
             return null;
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable  
+        [UsesStackCrawlMark]
         public override Assembly GetSatelliteAssembly(CultureInfo culture)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -2676,7 +2676,7 @@ namespace System.Reflection
         }
 
         // Useful for binding to a very specific version of a satellite assembly
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable  
+        [UsesStackCrawlMark]
         public override Assembly GetSatelliteAssembly(CultureInfo culture, Version version)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -2684,7 +2684,7 @@ namespace System.Reflection
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable  
+        [UsesStackCrawlMark]
         internal Assembly InternalGetSatelliteAssembly(CultureInfo culture,
                                                        Version version,
                                                        ref StackCrawlMark stackMark)
@@ -2707,7 +2707,7 @@ namespace System.Reflection
 #endif
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable  
+        [UsesStackCrawlMark]
         internal RuntimeAssembly InternalGetSatelliteAssembly(String name,
                                                               CultureInfo culture,
                                                               Version version,
@@ -2837,7 +2837,7 @@ namespace System.Reflection
 
         // Helper method used by InternalGetSatelliteAssembly only. Not abstracted for use elsewhere.
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable  
+        [UsesStackCrawlMark]
         private RuntimeAssembly InternalProbeForSatelliteAssemblyNextToParentAssembly(AssemblyName an,
                                                                                       String name,
                                                                                       String codeBase,

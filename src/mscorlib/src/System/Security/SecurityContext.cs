@@ -325,7 +325,7 @@ namespace System.Security
         // SecurityStackWalk::IsSpecialRunFrame in the VM to search for the new method.
         [System.Security.SecurityCritical]  // auto-generated_required
         [DynamicSecurityMethodAttribute()]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static void Run(SecurityContext securityContext, ContextCallback callback, Object state)
         {
             if (securityContext == null )
@@ -423,7 +423,7 @@ namespace System.Security
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         [System.Security.SecurityCritical]  // auto-generated
         [DynamicSecurityMethodAttribute()]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         internal static SecurityContextSwitcher SetSecurityContext(SecurityContext sc, SecurityContext.Reader prevSecurityContext, bool modifyCurrentExecutionContext)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -530,7 +530,7 @@ namespace System.Security
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static SecurityContext Capture( )
         {
             // check to see if Flow is suppressed

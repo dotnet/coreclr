@@ -55,7 +55,7 @@ namespace System.Security {
         // Public APIs
         //
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         [Obsolete("IsGranted is obsolete and will be removed in a future release of the .NET Framework.  Please use the PermissionSet property of either AppDomain or Assembly instead.")]
         public static bool IsGranted( IPermission perm )
         {
@@ -148,7 +148,7 @@ namespace System.Security {
 
         /// <internalonly/>
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         static public void GetZoneAndOrigin( out ArrayList zone, out ArrayList origin )
         {
             StackCrawlMark mark = StackCrawlMark.LookForMyCaller;

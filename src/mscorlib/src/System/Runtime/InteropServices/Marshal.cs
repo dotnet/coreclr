@@ -1021,7 +1021,7 @@ namespace System.Runtime.InteropServices
         //====================================================================
         [System.Security.SecurityCritical]  // auto-generated_required
         [System.Runtime.InteropServices.ComVisible(true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static Object PtrToStructure(IntPtr ptr, Type structureType)
         {
             if (ptr == IntPtr.Zero) return null;

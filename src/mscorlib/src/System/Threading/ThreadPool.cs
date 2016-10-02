@@ -1442,7 +1442,7 @@ namespace System.Threading
 
         [System.Security.SecuritySafeCritical]  // auto-generated
         [CLSCompliant(false)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable            
+        [UsesStackCrawlMark]
         public static RegisteredWaitHandle RegisterWaitForSingleObject(  // throws RegisterWaitException
              WaitHandle             waitObject,
              WaitOrTimerCallback    callBack,
@@ -1457,7 +1457,7 @@ namespace System.Threading
 
         [System.Security.SecurityCritical]  // auto-generated_required
         [CLSCompliant(false)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static RegisteredWaitHandle UnsafeRegisterWaitForSingleObject(  // throws RegisterWaitException
              WaitHandle             waitObject,
              WaitOrTimerCallback    callBack,
@@ -1515,7 +1515,7 @@ namespace System.Threading
 
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static RegisteredWaitHandle RegisterWaitForSingleObject(  // throws RegisterWaitException
              WaitHandle             waitObject,
              WaitOrTimerCallback    callBack,
@@ -1532,7 +1532,7 @@ namespace System.Threading
         }
 
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable            
+        [UsesStackCrawlMark]
         public static RegisteredWaitHandle UnsafeRegisterWaitForSingleObject(  // throws RegisterWaitException
              WaitHandle             waitObject,
              WaitOrTimerCallback    callBack,
@@ -1549,7 +1549,7 @@ namespace System.Threading
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static RegisteredWaitHandle RegisterWaitForSingleObject(  // throws RegisterWaitException
             WaitHandle          waitObject,
             WaitOrTimerCallback callBack,
@@ -1566,7 +1566,7 @@ namespace System.Threading
         }
 
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static RegisteredWaitHandle UnsafeRegisterWaitForSingleObject(  // throws RegisterWaitException
             WaitHandle          waitObject,
             WaitOrTimerCallback callBack,
@@ -1583,7 +1583,7 @@ namespace System.Threading
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static RegisteredWaitHandle RegisterWaitForSingleObject(
                           WaitHandle            waitObject,
                           WaitOrTimerCallback   callBack,
@@ -1602,7 +1602,7 @@ namespace System.Threading
         }
 
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static RegisteredWaitHandle UnsafeRegisterWaitForSingleObject(
                           WaitHandle            waitObject,
                           WaitOrTimerCallback   callBack,
@@ -1621,7 +1621,7 @@ namespace System.Threading
         }
             
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable    
+        [UsesStackCrawlMark]
         public static bool QueueUserWorkItem(           
              WaitCallback           callBack,     // NOTE: we do not expose options that allow the callback to be queued as an APC
              Object                 state
@@ -1632,7 +1632,7 @@ namespace System.Threading
         }
         
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static bool QueueUserWorkItem(           
              WaitCallback           callBack     // NOTE: we do not expose options that allow the callback to be queued as an APC
              )
@@ -1642,7 +1642,7 @@ namespace System.Threading
         }
     
         [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static bool UnsafeQueueUserWorkItem(
              WaitCallback           callBack,     // NOTE: we do not expose options that allow the callback to be queued as an APC
              Object                 state

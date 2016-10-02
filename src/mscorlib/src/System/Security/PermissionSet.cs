@@ -1494,7 +1494,7 @@ namespace System.Security {
         // so the caller won't be inlined (which would mess up stack crawling).
         [System.Security.SecuritySafeCritical]  // auto-generated
         [DynamicSecurityMethodAttribute()]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public void Demand()
         {
             if (this.FastIsEmpty())
@@ -1538,7 +1538,7 @@ namespace System.Security {
 
         [System.Security.SecuritySafeCritical]  // auto-generated
         [DynamicSecurityMethodAttribute()]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public void Assert() 
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -1550,7 +1550,7 @@ namespace System.Security {
     
         [System.Security.SecuritySafeCritical]  // auto-generated
         [DynamicSecurityMethodAttribute()]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         [Obsolete("Deny is obsolete and will be removed in a future release of the .NET Framework. See http://go.microsoft.com/fwlink/?LinkID=155570 for more information.")]
         public void Deny()
         {
@@ -1563,7 +1563,7 @@ namespace System.Security {
     
         [System.Security.SecuritySafeCritical]  // auto-generated
         [DynamicSecurityMethodAttribute()]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public void PermitOnly()
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -2503,7 +2503,7 @@ namespace System.Security {
 #endif
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static void RevertAssert()
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
