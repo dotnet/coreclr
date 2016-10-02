@@ -671,6 +671,7 @@ public:
     void ComputeSuppressUnmanagedCodeAccessAttr(IMDInternalImport *pImport);
     BOOL HasSuppressUnmanagedCodeAccessAttr();
     BOOL HasNativeCallableAttribute();
+    BOOL HasUsesStackCrawlMarkAttribute();
 
 #ifdef FEATURE_COMINTEROP 
     inline DWORD IsComPlusCall()
