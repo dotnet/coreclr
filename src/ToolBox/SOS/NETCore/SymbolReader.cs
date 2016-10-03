@@ -132,15 +132,7 @@ namespace SOS
         /// <returns>Last component of path</returns>
         private static string GetFileName(string pathName)
         {
-            int pos = -1;
-            for (int i = pathName.Length - 1; i >= 0; --i)
-            {
-                if (pathName[i] == '/' || pathName[i] == '\\')
-                {
-                    pos = i;
-                    break;
-                }
-            }
+            int pos = pathName.LastIndexOfAny(new char[] { '/', '\\'});
             if (pos < 0)
                 return pathName;
             return pathName.Substring(pos + 1);
