@@ -13,7 +13,7 @@ function(add_pgo TargetName)
     endif(WIN32)
 
     file(TO_NATIVE_PATH
-        "$ENV{__PackagesDir}/Microsoft.DotNet.OptimizationData.Coreclr/$ENV{__BuildOS}.$ENV{__BuildArch}/${ProfileFileName}"
+        "${CLR_CMAKE_PACKAGES_DIR}/Microsoft.DotNet.OptimizationData.Coreclr/${CLR_CMAKE_TARGET_OS}.${CLR_CMAKE_TARGET_ARCH}/${ProfileFileName}"
         ProfilePath
     )
 
@@ -22,23 +22,23 @@ function(add_pgo TargetName)
 
     foreach(ConfigType IN LISTS ConfigTypeList)
         set(LinkFlagsProperty "LINK_FLAGS_${ConfigType}")
-        if($ENV{PGO_GENERATE})
+        if(CLR_CMAKE_PGO_INSTRUMENT)
             if(WIN32)
                 set_property(TARGET ${TargetName} APPEND_STRING PROPERTY ${LinkFlagsProperty} "/LTCG /GENPROFILE")
             endif(WIN32)
-        else($ENV{PGO_GENERATE})
+        else(CLR_CMAKE_PGO_INSTRUMENT)
             # If we don't have profile data availble, gracefully fall back to a non-PGO opt build
             if(EXISTS ${ProfilePath})
                 if(WIN32)
                     set_property(TARGET ${TargetName} APPEND_STRING PROPERTY ${LinkFlagsProperty} "/LTCG /USEPROFILE:PGD=${ProfilePath}")
                 endif(WIN32)
             endif(EXISTS ${ProfilePath})
-        endif($ENV{PGO_GENERATE})
+        endif(CLR_CMAKE_PGO_INSTRUMENT)
     endforeach(ConfigType)
 endfunction(add_pgo)
 
 if(WIN32)
-  if($ENV{PGO_GENERATE})
+  if(CLR_CMAKE_PGO_INSTRUMENT)
     # Instrumented PGO binaries on Windows introduce an additional runtime dependency, pgort<ver>.dll.
     # Make sure we copy it next to the installed product to make it easier to redistribute the package.
 
@@ -64,5 +64,5 @@ if(WIN32)
       message(FATAL_ERROR "file not found: ${PATH_VS_PGORT_DLL}")
     endif()
 
-  endif($ENV{PGO_GENERATE})
+  endif(CLR_CMAKE_PGO_INSTRUMENT)
 endif(WIN32)
