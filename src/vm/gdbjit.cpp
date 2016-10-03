@@ -598,7 +598,6 @@ struct __attribute__((packed)) DebugInfoVar
     uint32_t m_var_name;
     uint8_t m_var_file, m_var_line;
     uint32_t m_var_type;
-    uint8_t m_var_loc[3];
 };
 
 /* static data for symbol strings */
@@ -1291,13 +1290,46 @@ bool NotifyGdb::BuildDebugAbbrev(MemBuf& buf)
     return true;
 }
 
+int NotifyGdb::GetArgsAndLocalsLen(NewArrayHolder<ArgsDebugInfo>& argsDebug,
+                                   unsigned int argsDebugSize,
+                                   NewArrayHolder<LocalsDebugInfo>& localsDebug,
+                                   unsigned int localsDebugSize)
+{
+    int loc_size = 0;
+    char tmp_buf[16];
+    for (int i = 0; i < argsDebugSize; i++)
+    {
+        loc_size += Leb128Encode(static_cast<int32_t>(argsDebug[i].m_native_offset), tmp_buf, sizeof(tmp_buf));
+        loc_size += 2;
+    }
+    for (int i = 0; i < localsDebugSize; i++)
+    {
+        loc_size += Leb128Encode(static_cast<int32_t>(localsDebug[i].m_native_offset), tmp_buf, sizeof(tmp_buf));
+        loc_size += 2;
+    }
+    return loc_size;
+}
+
+int NotifyGdb::GetFrameLocation(int native_offset, char*& bufVarLoc)
+{
+    char cnv_buf[16] = {0};
+    int len = Leb128Encode(static_cast<int32_t>(native_offset), cnv_buf, sizeof(cnv_buf));
+    bufVarLoc[0] = len + 1;
+    bufVarLoc[1] = DW_OP_fbreg;
+    for (int j = 0; j < len; j++)
+    {
+        bufVarLoc[j + 2] = cnv_buf[j];
+    }
+    return len + 2;
+}
 /* Build tge DWARF .debug_info section */
 bool NotifyGdb::BuildDebugInfo(MemBuf& buf, NewArrayHolder<ArgsDebugInfo> &argsDebug, unsigned int argsDebugSize,
                                NewArrayHolder<LocalsDebugInfo> &localsDebug, unsigned int localsDebugSize)
 {
 
+    int loc_size = GetArgsAndLocalsLen(argsDebug, argsDebugSize, localsDebug, localsDebugSize);
     buf.MemSize = sizeof(DwarfCompUnit) + sizeof(DebugInfoCU) + sizeof(DebugInfoSub) + sizeof(DebugInfoType) +
-      (sizeof(DebugInfoVar) + sizeof(DebugInfoType)) * (localsDebugSize + argsDebugSize) + 2;
+      (sizeof(DebugInfoVar) + sizeof(DebugInfoType)) * (localsDebugSize + argsDebugSize) + loc_size + 2;
     buf.MemPtr = new (nothrow) char[buf.MemSize];
 
     if (buf.MemPtr == nullptr)
@@ -1354,6 +1386,9 @@ bool NotifyGdb::BuildDebugInfo(MemBuf& buf, NewArrayHolder<ArgsDebugInfo> &argsD
     DebugInfoVar* bufVar = new (nothrow) DebugInfoVar[localsDebugSize + argsDebugSize];
     if (bufVar == nullptr)
         return false;
+    char *bufVarLoc = new(nothrow)char[16];
+    if (bufVarLoc == nullptr)
+        return false;
 
     for (int i = 0; i < argsDebugSize; i++)
     {
@@ -1362,11 +1397,11 @@ bool NotifyGdb::BuildDebugInfo(MemBuf& buf, NewArrayHolder<ArgsDebugInfo> &argsD
         bufVar[i].m_var_file = 1;
         bufVar[i].m_var_line = 1;
         bufVar[i].m_var_type = argsDebug[i].m_type_offset;
-        char cnv_buf[2];
-        int len = Leb128Encode(static_cast<uint32_t>(argsDebug[i].m_native_offset), cnv_buf, sizeof(cnv_buf));
-        bufVar[i].m_var_loc[0] = 2;
-        bufVar[i].m_var_loc[1] = DW_OP_fbreg;
-        bufVar[i].m_var_loc[2] = cnv_buf[0];
+        memcpy(buf.MemPtr + offset, &bufVar[i], sizeof(DebugInfoVar));
+        offset += sizeof(DebugInfoVar);
+        int len = GetFrameLocation(argsDebug[i].m_native_offset, bufVarLoc);
+        memcpy(buf.MemPtr + offset, bufVarLoc, len);
+        offset += len;
     }
 
     for (int i = argsDebugSize; i < (localsDebugSize + argsDebugSize); i++)
@@ -1376,14 +1411,14 @@ bool NotifyGdb::BuildDebugInfo(MemBuf& buf, NewArrayHolder<ArgsDebugInfo> &argsD
         bufVar[i].m_var_file = 1;
         bufVar[i].m_var_line = 1;
         bufVar[i].m_var_type = localsDebug[i-argsDebugSize].m_type_offset;
-        char cnv_buf[2];
-        int len = Leb128Encode(
-            static_cast<uint32_t>(localsDebug[i - argsDebugSize].m_native_offset), cnv_buf, sizeof(cnv_buf));
-        bufVar[i].m_var_loc[0] = 2;
-        bufVar[i].m_var_loc[1] = DW_OP_fbreg;
-        bufVar[i].m_var_loc[2] = cnv_buf[0];
+        memcpy(buf.MemPtr + offset, &bufVar[i], sizeof(DebugInfoVar));
+        offset += sizeof(DebugInfoVar);
+        int len = GetFrameLocation(localsDebug[i].m_native_offset, bufVarLoc);
+        memcpy(buf.MemPtr + offset, bufVarLoc, len);
+        offset += len;
     }
-    memcpy(buf.MemPtr + offset, bufVar, sizeof(DebugInfoVar) * (localsDebugSize + argsDebugSize));
+    delete []bufVarLoc;
+    delete []bufVar;
 
     /* zero end marker */
     buf.MemPtr[buf.MemSize-2] = 0;
