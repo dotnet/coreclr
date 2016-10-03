@@ -1587,7 +1587,7 @@ template< typename ElemType,
           typename ElemPublicType,
           typename EnumInterfaceType,
           ElemPublicType (*GetPublicType)(ElemType)>
-class CordbEnumerator : public CordbBase, EnumInterfaceType
+class CordbEnumerator : public CordbBase, public EnumInterfaceType
 {
 private:
     // the list of items being enumerated over
