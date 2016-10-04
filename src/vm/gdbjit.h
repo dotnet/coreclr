@@ -154,7 +154,7 @@ private:
     static bool CollectCalledMethods(CalledMethod* pCM);
     static int Leb128Encode(uint32_t num, char* buf, int size);
     static int Leb128Encode(int32_t num, char* buf, int size);
-    static int GetFrameLocation(int native_offset, char*& var_loc);
+    static int GetFrameLocation(int nativeOffset, char* varLoc);
     static int GetArgsAndLocalsLen(NewArrayHolder<ArgsDebugInfo>& argsDebug,
                                    unsigned int argsDebugSize,
                                    NewArrayHolder<LocalsDebugInfo>& localsDebug,
