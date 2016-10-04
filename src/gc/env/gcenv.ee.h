@@ -25,7 +25,7 @@ public:
     //
 
     // start of GC call back - single threaded
-    static void GcStartWork(int condemned, int max_gen); 
+    static void GcStartWork(int condemned, int min_finalizing_gen, int max_gen);
 
     //EE can perform post stack scanning action, while the 
     // user threads are still suspended 

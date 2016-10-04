@@ -163,6 +163,7 @@ struct segment_info
 // one for the object header, and one for the first field in the object.
 #define min_obj_size ((sizeof(uint8_t*) + sizeof(uintptr_t) + sizeof(size_t)))
 
+#define min_finalizing_generation 1
 #define max_generation 2
 
 // The bit shift used to convert a memory address into an index into the
@@ -526,6 +527,9 @@ public:
     // throughout the VM.
     virtual HRESULT GarbageCollect(int generation = -1, BOOL low_memory_p = FALSE, int mode = collection_blocking) = 0;
 
+    // Gets the smallest GC generation that runs finalizers.
+    virtual unsigned GetMinFinalizingGeneration() = 0;
+
     // Gets the largest GC generation. Also used extensively throughout the VM.
     virtual unsigned GetMaxGeneration() = 0;
 
@@ -727,6 +731,7 @@ public:
     SVAL_DECL(uint32_t, gcHeapType);
 #endif
 
+    static const uint32_t minFinalizingGeneration;
     SVAL_DECL(uint32_t, maxGeneration);
 };
 

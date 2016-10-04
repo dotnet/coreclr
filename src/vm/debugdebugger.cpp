@@ -937,6 +937,10 @@ void DebugStackTrace::GetStackFramesHelper(Frame *pStartFrame,
             goto LSafeToTrace;
         }
 
+#ifdef FEATURE_CORECLR
+        // CoreCLR does not support user-requested thread suspension
+        _ASSERTE(!(state & Thread::TS_UserSuspendPending));
+#else // !FEATURE_CORECLR
         if (state & Thread::TS_UserSuspendPending)
         {
             if (state & Thread::TS_SyncSuspended)
@@ -993,6 +997,7 @@ void DebugStackTrace::GetStackFramesHelper(Frame *pStartFrame,
             }
 #endif  // DISABLE_THREADSUSPEND
         }
+#endif // FEATURE_CORECLR
 
         COMPlusThrow(kThreadStateException, IDS_EE_THREAD_BAD_STATE);
 

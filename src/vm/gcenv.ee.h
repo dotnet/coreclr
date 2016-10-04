@@ -17,7 +17,7 @@ public:
     void SuspendEE(SUSPEND_REASON reason);
     void RestartEE(bool bFinishedGC);
     void GcScanRoots(promote_func* fn, int condemned, int max_gen, ScanContext* sc);
-    void GcStartWork(int condemned, int max_gen);
+    void GcStartWork(int condemned, int min_finalizing_gen, int max_gen);
     void AfterGcScanRoots(int condemned, int max_gen, ScanContext* sc);
     void GcBeforeBGCSweepWork();
     void GcDone(int condemned);

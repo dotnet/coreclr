@@ -154,7 +154,7 @@ void GCToEEInterface::GcScanRoots(promote_func* fn,  int condemned, int max_gen,
     // TODO: Implement - Scan stack roots on given thread
 }
 
-void GCToEEInterface::GcStartWork(int condemned, int max_gen)
+void GCToEEInterface::GcStartWork(int condemned, int min_finalizing_gen, int max_gen)
 {
 }
 

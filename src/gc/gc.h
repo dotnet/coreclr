@@ -215,6 +215,11 @@ public:
     virtual int GetHomeHeapNumber () = 0;
     virtual size_t GetPromotedBytes(int heap_index) = 0;
 
+    unsigned GetMinFinalizingGeneration()
+    {
+        return IGCHeap::minFinalizingGeneration;
+    }
+
     unsigned GetMaxGeneration()
     {
         return IGCHeap::maxGeneration;

@@ -1588,6 +1588,10 @@ CorDebugUserState EEDbgInterfaceImpl::GetPartialUserState(Thread *pThread)
         ret |= (unsigned)USER_WAIT_SLEEP_JOIN;          
     }
 
+#ifdef FEATURE_CORECLR
+    // CoreCLR does not support user-requested thread suspension
+    _ASSERTE(!(ts & Thread::TS_UserSuspendPending));
+#else // !FEATURE_CORECLR
     // Don't report a SuspendRequested if the thread has actually Suspended.
     if ( ((ts & Thread::TS_UserSuspendPending) && (ts & Thread::TS_SyncSuspended)))
     {
@@ -1597,6 +1601,7 @@ CorDebugUserState EEDbgInterfaceImpl::GetPartialUserState(Thread *pThread)
     {
         ret |= (unsigned)USER_SUSPEND_REQUESTED;
     }
+#endif // FEATURE_CORECLR
 
     LOG((LF_CORDB,LL_INFO1000, "EEDbgII::GUS: thread 0x%x (id:0x%x)"
         " userThreadState is 0x%x\n", pThread, pThread->GetThreadId(), ret));

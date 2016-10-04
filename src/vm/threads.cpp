@@ -2170,21 +2170,26 @@ BOOL Thread::AllocHandles()
 {
     WRAPPER_NO_CONTRACT;
 
+#ifndef FEATURE_CORECLR // CoreCLR does not support user-requested thread suspension
     _ASSERTE(!m_SafeEvent.IsValid());
     _ASSERTE(!m_UserSuspendEvent.IsValid());
+#endif // !FEATURE_CORECLR
     _ASSERTE(!m_DebugSuspendEvent.IsValid());
     _ASSERTE(!m_EventWait.IsValid());
 
     BOOL fOK = TRUE;
     EX_TRY {
+#ifndef FEATURE_CORECLR // CoreCLR does not support user-requested thread suspension
         // create a manual reset event for getting the thread to a safe point
         m_SafeEvent.CreateManualEvent(FALSE);
         m_UserSuspendEvent.CreateManualEvent(FALSE);
+#endif // !FEATURE_CORECLR
         m_DebugSuspendEvent.CreateManualEvent(FALSE);
         m_EventWait.CreateManualEvent(TRUE);
     }
     EX_CATCH {
         fOK = FALSE;
+#ifndef FEATURE_CORECLR // CoreCLR does not support user-requested thread suspension
         if (!m_SafeEvent.IsValid()) {
             m_SafeEvent.CloseEvent();
         }
@@ -2192,6 +2197,7 @@ BOOL Thread::AllocHandles()
         if (!m_UserSuspendEvent.IsValid()) {
             m_UserSuspendEvent.CloseEvent();
         }
+#endif // !FEATURE_CORECLR
 
         if (!m_DebugSuspendEvent.IsValid()) {
             m_DebugSuspendEvent.CloseEvent();
@@ -2404,6 +2410,10 @@ FAILURE:
         }
 #endif // PROFILING_SUPPORTED
 
+#ifdef FEATURE_CORECLR
+        // CoreCLR does not support user-requested thread suspension
+        _ASSERTE(!(m_State & TS_SuspendUnstarted));
+#else // !FEATURE_CORECLR
         // Is there a pending user suspension?
         if (m_State & TS_SuspendUnstarted)
         {
@@ -2428,6 +2438,7 @@ FAILURE:
                 WaitSuspendEvents();
             }
         }
+#endif // FEATURE_CORECLR
     }
 
     return res;
@@ -3064,6 +3075,7 @@ Thread::~Thread()
         CloseHandle(GetThreadHandle());
     }
 
+#ifndef FEATURE_CORECLR // CoreCLR does not support user-requested thread suspension
     if (m_SafeEvent.IsValid())
     {
         m_SafeEvent.CloseEvent();
@@ -3072,6 +3084,7 @@ Thread::~Thread()
     {
         m_UserSuspendEvent.CloseEvent();
     }
+#endif // !FEATURE_CORECLR
     if (m_DebugSuspendEvent.IsValid())
     {
         m_DebugSuspendEvent.CloseEvent();
@@ -3503,6 +3516,7 @@ void Thread::OnThreadTerminate(BOOL holdingLock)
 
         FastInterlockOr((ULONG *) &m_State, TS_Dead);
         ThreadStore::s_pThreadStore->m_DeadThreadCount++;
+        ThreadStore::s_pThreadStore->IncrementDeadThreadCountForGCTrigger();
 
         if (IsUnstarted())
             ThreadStore::s_pThreadStore->m_UnstartedThreadCount--;
@@ -3527,8 +3541,13 @@ void Thread::OnThreadTerminate(BOOL holdingLock)
             if (m_State & TS_DebugSuspendPending)
                 UnmarkForSuspension(~TS_DebugSuspendPending);
 
+#ifdef FEATURE_CORECLR
+            // CoreCLR does not support user-requested thread suspension
+            _ASSERTE(!(m_State & TS_UserSuspendPending));
+#else // !FEATURE_CORECLR
             if (m_State & TS_UserSuspendPending)
                 UnmarkForSuspension(~TS_UserSuspendPending);
+#endif // FEATURE_CORECLR
 
             if (CurrentThreadID == ThisThreadID && IsAbortRequested())
             {
@@ -5739,6 +5758,8 @@ ThreadStore::ThreadStore()
              m_BackgroundThreadCount(0),
              m_PendingThreadCount(0),
              m_DeadThreadCount(0),
+             m_DeadThreadCountForGCTrigger(0),
+             m_TriggerFinalizingGC(false),
              m_GuidCreated(FALSE),
              m_HoldingThread(0)
 {
@@ -5778,6 +5799,15 @@ void ThreadStore::InitThreadStore()
 
     s_pWaitForStackCrawlEvent = new CLREvent();
     s_pWaitForStackCrawlEvent->CreateManualEvent(FALSE);
+
+    s_DeadThreadCountThresholdForGCTrigger =
+        static_cast<LONG>(CLRConfig::GetConfigValue(CLRConfig::INTERNAL_Thread_DeadThreadCountThresholdForGCTrigger));
+    if (s_DeadThreadCountThresholdForGCTrigger < 0)
+    {
+        s_DeadThreadCountThresholdForGCTrigger = 0;
+    }
+    s_DeadThreadGCTriggerPeriodMilliseconds =
+        CLRConfig::GetConfigValue(CLRConfig::INTERNAL_Thread_DeadThreadGCTriggerPeriodMilliseconds);
 }
 
 // Enter and leave the critical section around the thread store.  Clients should
@@ -5920,7 +5950,10 @@ BOOL ThreadStore::RemoveThread(Thread *target)
         s_pThreadStore->m_ThreadCount--;
 
         if (target->IsDead())
+        {
             s_pThreadStore->m_DeadThreadCount--;
+            s_pThreadStore->DecrementDeadThreadCountForGCTrigger();
+        }
 
         // Unstarted threads are not in the Background count:
         if (target->IsUnstarted())
@@ -6007,6 +6040,80 @@ void ThreadStore::TransferStartedThread(Thread *thread, BOOL bRequiresTSL)
     // One of the components of OtherThreadsComplete() has changed, so check whether
     // we should now exit the EE.
     CheckForEEShutdown();
+}
+
+LONG ThreadStore::s_DeadThreadCountThresholdForGCTrigger = 0;
+DWORD ThreadStore::s_DeadThreadGCTriggerPeriodMilliseconds = 0;
+
+void ThreadStore::IncrementDeadThreadCountForGCTrigger()
+{
+    // Although all increments and decrements are usually done inside a lock, that is not sufficient to synchronize with a
+    // background GC thread resetting this value, hence the interlocked operation. Ignore overflow; overflow would likely never
+    // happen, the count is treated as unsigned, and nothing bad would happen if it were to overflow.
+    SIZE_T count = static_cast<SIZE_T>(FastInterlockIncrement(&m_DeadThreadCountForGCTrigger));
+
+    SIZE_T countThreshold = static_cast<SIZE_T>(s_DeadThreadCountThresholdForGCTrigger);
+    if (count < countThreshold || countThreshold == 0)
+    {
+        return;
+    }
+
+    IGCHeap *gcHeap = GCHeapUtilities::GetGCHeap();
+    SIZE_T millisecondsSinceLastFinalizingGC =
+        gcHeap->GetNow() - gcHeap->GetLastGCStartTime(gcHeap->GetMinFinalizingGeneration());
+    if (millisecondsSinceLastFinalizingGC < s_DeadThreadGCTriggerPeriodMilliseconds)
+    {
+        return;
+    }
+
+    if (!g_fEEStarted)
+    {
+        return;
+    }
+
+    // The dead thread count used for triggering a GC is tracked separately from the actual dead thread count so that a dead
+    // thread does not contribute to triggering a GC more than once. The count exceeds a certain threshold and a finalizing GC
+    // has not occurred in a certain duration, so reset the count and trigger a GC now to finalize unreachable dead threads.
+    // The GC is triggered on the finalizer thread since it's not safe to trigger it on DLL_THREAD_DETACH.
+    m_DeadThreadCountForGCTrigger = 0;
+    m_TriggerFinalizingGC = true;
+    FinalizerThread::EnableFinalization();
+}
+
+void ThreadStore::DecrementDeadThreadCountForGCTrigger()
+{
+    // Although all increments and decrements are usually done inside a lock, that is not sufficient to synchronize with a
+    // background GC thread resetting this value, hence the interlocked operation.
+    if (FastInterlockDecrement(&m_DeadThreadCountForGCTrigger) < 0)
+    {
+        FastInterlockExchange(&m_DeadThreadCountForGCTrigger, 0);
+    }
+}
+
+void ThreadStore::OnFinalizingGCStarted()
+{
+    // A dead thread may contribute to triggering at most once. After a finalizing GC occurs, if some dead thread objects are
+    // still reachable due to references to the thread objects, they will not contribute to triggering a GC again. Synchronize
+    // the store with increment/decrement operations occurring on different threads, and make the change visible to other
+    // threads in order to prevent unnecessary GC triggers.
+    FastInterlockExchange(&m_DeadThreadCountForGCTrigger, 0);
+}
+
+bool ThreadStore::ShouldTriggerFinalizingGC()
+{
+    return m_TriggerFinalizingGC;
+}
+
+void ThreadStore::TriggerFinalizingGCIfNecessary()
+{
+    if (!m_TriggerFinalizingGC)
+    {
+        return;
+    }
+    m_TriggerFinalizingGC = false;
+
+    IGCHeap *gcHeap = GCHeapUtilities::GetGCHeap();
+    gcHeap->GarbageCollect(gcHeap->GetMinFinalizingGeneration(), FALSE, collection_non_blocking);
 }
 
 #endif // #ifndef DACCESS_COMPILE
@@ -6226,8 +6333,13 @@ Retry:
         if (cur->m_State & Thread::TS_DebugSuspendPending)
             cntReturn++;
 
+#ifdef FEATURE_CORECLR
+        // CoreCLR does not support user-requested thread suspension
+        _ASSERTE(!(cur->m_State & Thread::TS_UserSuspendPending));
+#else // !FEATURE_CORECLR
         if (cur->m_State & Thread::TS_UserSuspendPending)
             cntReturn++;
+#endif // FEATURE_CORECLR
 
         if (cur->m_TraceCallCount > 0)
             cntReturn++;
@@ -8697,7 +8809,8 @@ BOOL Thread::HaveExtraWorkForFinalizer()
         || Thread::CleanupNeededForFinalizedThread()
         || (m_DetachCount > 0)
         || AppDomain::HasWorkForFinalizerThread()
-        || SystemDomain::System()->RequireAppDomainCleanup();
+        || SystemDomain::System()->RequireAppDomainCleanup()
+        || ThreadStore::s_pThreadStore->ShouldTriggerFinalizingGC();
 }
 
 void Thread::DoExtraWorkForFinalizer()
@@ -8754,7 +8867,8 @@ void Thread::DoExtraWorkForFinalizer()
 
     // If there were any TimerInfos waiting to be released, they'll get flushed now
     ThreadpoolMgr::FlushQueueOfTimerInfos();
-    
+
+    ThreadStore::s_pThreadStore->TriggerFinalizingGCIfNecessary();
 }
 
 

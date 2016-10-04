@@ -18,6 +18,7 @@
 SVAL_IMPL_INIT(uint32_t,IGCHeap,gcHeapType,IGCHeap::GC_HEAP_INVALID);
 #endif // FEATURE_SVR_GC
 
+const uint32_t IGCHeap::minFinalizingGeneration = 1;
 SVAL_IMPL_INIT(uint32_t,IGCHeap,maxGeneration,2);
 
 IGCHeapInternal* g_theGCHeap;
