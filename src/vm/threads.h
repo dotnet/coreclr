@@ -5870,6 +5870,9 @@ private:
 
     LONG        m_DeadThreadCount;
 
+    LONG        m_DeadThreadCountForGCTrigger;
+    DWORD       m_PreviousMaxGenerationGCTimeMilliseconds;
+
 private:
     // Space for the lazily-created GUID.
     GUID        m_EEGuid;
@@ -5880,6 +5883,10 @@ private:
     // thread that holds this lock.
     Thread     *m_HoldingThread;
     EEThreadId  m_holderthreadid;   // current holder (or NULL)
+
+private:
+    static const LONG s_DeadThreadCountThresholdForGCTrigger;
+    static const DWORD s_DeadThreadGCTriggerPeriodMilliseconds;
 
 public:
 
@@ -5954,6 +5961,17 @@ public:
         LIMITED_METHOD_CONTRACT;
         s_pWaitForStackCrawlEvent->Reset();
     }
+
+private:
+    LONG GetDeadThreadCountForGCTrigger();
+    void IncrementDeadThreadCountForGCTrigger();
+    void DecrementDeadThreadCountForGCTrigger();
+    void ResetDeadThreadCountForGCTrigger();
+    DWORD GetPreviousMaxGenerationGCTimeMilliseconds();
+    void SetPreviousMaxGenerationGCTimeMilliseconds();
+    void TriggerGCIfNecessary();
+public:
+    void OnMaxGenerationGCStarted();
 };
 
 struct TSSuspendHelper {
