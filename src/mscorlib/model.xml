@@ -10448,7 +10448,7 @@
       <Member Name="RemoveEventHandler&lt;T&gt;(System.Action&lt;System.Runtime.InteropServices.WindowsRuntime.EventRegistrationToken&gt;,T)" />
       <Member Name="StringToHString(System.String)" />
     </Type>
-    <Type Status="ImplRoot" Name="System.Runtime.Versioning.ResourceConsumptionAttribute">
+    <Type Status="ApiRoot" Name="System.Runtime.Versioning.ResourceConsumptionAttribute">
       <Member Name="#ctor(System.Runtime.Versioning.ResourceScope)" />
       <Member Name="#ctor(System.Runtime.Versioning.ResourceScope,System.Runtime.Versioning.ResourceScope)" />
       <Member MemberType="Property" Name="ConsumptionScope" />
