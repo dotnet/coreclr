@@ -6610,16 +6610,22 @@ void ThreadStore::ResetDeadThreadCountForGCTrigger()
 
 DWORD ThreadStore::GetPreviousMaxGenerationGCTimeMilliseconds()
 {
-    return FastInterlockCompareExchange(&m_PreviousMaxGenerationGCTimeMilliseconds, 0, 0);
+    static_assert_no_msg(sizeof(LONG) == sizeof(DWORD));
+    return static_cast<DWORD>(FastInterlockCompareExchange(&m_PreviousMaxGenerationGCTimeMilliseconds, 0, 0));
 }
 
 void ThreadStore::SetPreviousMaxGenerationGCTimeMilliseconds()
 {
-    DWORD previousTime = m_PreviousMaxGenerationGCTimeMilliseconds;
+    static_assert_no_msg(sizeof(LONG) == sizeof(DWORD));
+
+    LONG previousTime = m_PreviousMaxGenerationGCTimeMilliseconds;
     while (true)
     {
-        DWORD previousTimeBeforeUpdate =
-            FastInterlockCompareExchange(&m_PreviousMaxGenerationGCTimeMilliseconds, GetTickCount(), previousTime);
+        LONG previousTimeBeforeUpdate =
+            FastInterlockCompareExchange(
+                &m_PreviousMaxGenerationGCTimeMilliseconds,
+                static_cast<LONG>(GetTickCount()),
+                previousTime);
         if (previousTimeBeforeUpdate == previousTime)
         {
             break;

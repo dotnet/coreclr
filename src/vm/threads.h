@@ -5871,7 +5871,7 @@ private:
     LONG        m_DeadThreadCount;
 
     LONG        m_DeadThreadCountForGCTrigger;
-    DWORD       m_PreviousMaxGenerationGCTimeMilliseconds;
+    LONG        m_PreviousMaxGenerationGCTimeMilliseconds;
 
 private:
     // Space for the lazily-created GUID.
