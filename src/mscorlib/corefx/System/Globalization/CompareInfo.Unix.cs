@@ -241,6 +241,73 @@ namespace System.Globalization
 
             return Interop.GlobalizationInterop.EndsWith(_sortHandle, suffix, suffix.Length, source, source.Length, options);
         }
+        
+        [System.Security.SecuritySafeCritical]
+        private unsafe SortKey CreateSortKey(String source, CompareOptions options)
+        {
+            if (source==null) { throw new ArgumentNullException("source"); }
+            Contract.EndContractBlock();
+
+            if ((options & ValidSortkeyCtorMaskOffFlags) != 0)
+            {
+                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidFlag"), "options");
+            }
+            
+            byte [] keyData;
+            if (source.Length == 0)
+            { 
+                keyData = EmptyArray<Byte>.Value;
+            }
+            else
+            {
+                int sortKeyLength = Interop.GlobalizationInterop.GetSortKey(_sortHandle, source, source.Length, null, 0, options);
+                keyData = new byte[sortKeyLength];
+
+                fixed (byte* pSortKey = keyData)
+                {
+                    Interop.GlobalizationInterop.GetSortKey(_sortHandle, source, source.Length, pSortKey, sortKeyLength, options);
+                }
+            }
+
+            return new SortKey(Name, source, options, keyData);
+        }       
+
+        private unsafe static bool IsSortable(char *text, int length)
+        {
+            int index = 0;
+            UnicodeCategory uc;
+
+            while (index < length)
+            {
+                if (Char.IsHighSurrogate(text[index]))
+                {
+                    if (index == length - 1 || !Char.IsLowSurrogate(text[index+1]))
+                        return false; // unpaired surrogate
+
+                    uc = CharUnicodeInfo.InternalGetUnicodeCategory(Char.ConvertToUtf32(text[index], text[index+1]));
+                    if (uc == UnicodeCategory.PrivateUse || uc == UnicodeCategory.OtherNotAssigned)
+                        return false;
+
+                    index += 2;
+                    continue;
+                }
+
+                if (Char.IsLowSurrogate(text[index]))
+                {
+                    return false; // unpaired surrogate
+                }
+
+                uc = CharUnicodeInfo.GetUnicodeCategory(text[index]);
+                if (uc == UnicodeCategory.PrivateUse || uc == UnicodeCategory.OtherNotAssigned)
+                {
+                    return false;
+                }
+
+                index++;
+            }
+
+            return true;
+        }
 
         // -----------------------------
         // ---- PAL layer ends here ----
