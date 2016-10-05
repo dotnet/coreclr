@@ -357,7 +357,8 @@ public:
     /*
     ===========================================================================
     Allocation routines. These all call into the GC's allocator and may trigger a garbage
-    collection.
+    collection. All allocation routines return NULL when the allocation request
+    couldn't be serviced due to being out of memory.
     ===========================================================================
     */
 

@@ -106,6 +106,12 @@ inline Object* Alloc(size_t size, BOOL bFinalize, BOOL bContainsPointers )
         retVal = GCHeapUtilities::GetGCHeap()->Alloc(GetThreadAllocContext(), size, flags);
     else
         retVal = GCHeapUtilities::GetGCHeap()->Alloc(size, flags);
+
+    if (!retVal)
+    {
+        ThrowOutOfMemory();
+    }
+
     END_INTERIOR_STACK_PROBE;
     return retVal;
 }
@@ -134,6 +140,11 @@ inline Object* AllocAlign8(size_t size, BOOL bFinalize, BOOL bContainsPointers, 
         retVal = GCHeapUtilities::GetGCHeap()->AllocAlign8(GetThreadAllocContext(), size, flags);
     else
         retVal = GCHeapUtilities::GetGCHeap()->AllocAlign8(size, flags);
+
+    if (!retVal)
+    {
+        ThrowOutOfMemory();
+    }
 
     END_INTERIOR_STACK_PROBE;
     return retVal;
@@ -174,6 +185,12 @@ inline Object* AllocLHeap(size_t size, BOOL bFinalize, BOOL bContainsPointers )
     // of stack before calling in.
     INTERIOR_STACK_PROBE_FOR(GetThread(), static_cast<unsigned>(DEFAULT_ENTRY_PROBE_AMOUNT * 1.5));
     retVal = GCHeapUtilities::GetGCHeap()->AllocLHeap(size, flags);
+
+    if (!retVal)
+    {
+        ThrowOutOfMemory();
+    }
+
     END_INTERIOR_STACK_PROBE;
     return retVal;
 }
