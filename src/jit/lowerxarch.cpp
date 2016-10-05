@@ -334,9 +334,9 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
             info->dstCount = 0;
 
             GenTree* cmp = tree->gtGetOp1();
-            l->clearDstCount(cmp);
+            l->clearDstCount(cmp);            
 
-#ifdef FEATURE_SIMD
+#ifdef FEATURE_SIMD            
             // Say we have the following IR
             //   simdCompareResult = GT_SIMD((In)Equality, v1, v2)
             //   integerCompareResult = GT_EQ/NE(simdCompareResult, true/false)
@@ -3472,6 +3472,14 @@ void Lowering::TreeNodeInfoInitCmp(GenTreePtr tree)
                 if (!op1IsMadeContained)
                 {
                     SetRegOptional(op1);
+
+                    // If op1 codegen sets flags and comparing it against zero,
+                    // we don't need to generate cmp/test instruction.
+                    if (op1->gtSetFlags() && op2->IsIntegralConst(0))
+                    {
+                        assert((op1->gtFlags & GTF_SET_FLAGS) == 0);
+                        op1->gtFlags |= GTF_SET_FLAGS;
+                    }
                 }
             }
         }

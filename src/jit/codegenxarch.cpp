@@ -757,7 +757,8 @@ void CodeGen::genCodeForBinary(GenTree* treeNode)
     }
     // now we know there are 3 different operands so attempt to use LEA
     else if (oper == GT_ADD && !varTypeIsFloating(treeNode) && !treeNode->gtOverflowEx() // LEA does not set flags
-             && (op2->isContainedIntOrIImmed() || !op2->isContained()))
+             && (op2->isContainedIntOrIImmed() || !op2->isContained()) &&
+             ((treeNode->gtFlags & GTF_SET_FLAGS) == 0))
     {
         if (op2->isContainedIntOrIImmed())
         {
@@ -5941,18 +5942,44 @@ void CodeGen::genCompareInt(GenTreePtr treeNode)
     var_types  op1Type   = op1->TypeGet();
     var_types  op2Type   = op2->TypeGet();
     regNumber  targetReg = treeNode->gtRegNum;
+    
+    if ((op1->gtFlags & GTF_SET_FLAGS) != 0)
+    {
+        // op1 must have produced a value to set flags
+        assert(!op1->isContained());
+
+        // Must be comparing against zero
+        assert(op2->IsIntegralConst(0));
+        assert(op2->isContainedIntOrIImmed());
+
+        // Just consume the operands
+        genConsumeOperands(tree);
+        
+        // No need to generate cmp/test instruction since
+        // op1 sets flags
+
+        // Are we evaluating this into a register?
+        if (targetReg != REG_NA)
+        {
+            genSetRegToCond(targetReg, tree);
+            genProduceReg(tree);
+        }
+
+        return;
+    }
 
 #ifdef FEATURE_SIMD
-    // If we have GT_JTRUE(GT_EQ/NE(GT_SIMD((in)Equality, v1, v2), true/false)),
-    // then we don't need to generate code for GT_EQ/GT_NE, since SIMD (in)Equality intrinsic
-    // would set or clear Zero flag.
-    //
-    // Is treeNode == or != that doesn't need to materialize result into a register?
-    if ((tree->OperGet() == GT_EQ || tree->OperGet() == GT_NE) && (targetReg == REG_NA))
+    // Is treeNode == or != that doesn't need to materialize result into a register?)
+    if ((targetReg == REG_NA) && (tree->OperGet() == GT_EQ || tree->OperGet() == GT_NE))
     {
+
+        // If we have GT_JTRUE(GT_EQ/NE(GT_SIMD((in)Equality, v1, v2), true/false)),
+        // then we don't need to generate code for GT_EQ/GT_NE, since SIMD (in)Equality intrinsic
+        // would set or clear Zero flag.
+        //
         // Is it a SIMD (in)Equality that doesn't need to
         // materialize result into a register?
-        if (op1->gtRegNum == REG_NA && op1->IsSIMDEqualityOrInequality())
+        if ((op1->gtRegNum == REG_NA) && op1->IsSIMDEqualityOrInequality())
         {
             // Must be comparing against true or false.
             assert(op2->IsIntegralConst(0) || op2->IsIntegralConst(1));

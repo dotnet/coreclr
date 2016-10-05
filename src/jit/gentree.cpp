@@ -8589,14 +8589,13 @@ bool GenTree::gtSetFlags() const
     //
     // Precondition we have a GTK_SMPOP
     //
-    assert(OperIsSimple());
-
     if (!varTypeIsIntegralOrI(TypeGet()))
     {
         return false;
     }
 
 #if FEATURE_SET_FLAGS
+    assert(OperIsSimple());
 
     if ((gtFlags & GTF_SET_FLAGS) && gtOper != GT_IND)
     {
@@ -8610,6 +8609,7 @@ bool GenTree::gtSetFlags() const
 
 #else // !FEATURE_SET_FLAGS
 
+#ifdef LEGACY_BACKEND
 #ifdef _TARGET_XARCH_
     // Return true if/when the codegen for this node will set the flags
     //
@@ -8630,6 +8630,17 @@ bool GenTree::gtSetFlags() const
     // Otherwise for other architectures we should return false
     return false;
 #endif
+
+#else // !LEGACY_BACKEND
+#ifdef _TARGET_XARCH_
+    return (gtOper == GT_ADD ||
+            gtOper == GT_SUB ||
+            OperIsLogical() ||
+            OperIsShiftOrRotate());
+#else
+    unreached();
+#endif
+#endif // !LEGACY_BACKEND
 
 #endif // !FEATURE_SET_FLAGS
 }
