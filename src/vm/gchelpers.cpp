@@ -72,10 +72,6 @@ inline void CheckObjectSize(size_t alloc_size)
         GC_TRIGGERS;
     } CONTRACTL_END;
 
-    size_t min_obj_size = sizeof(uint8_t*)   // sync block
-                        + sizeof(uintptr_t)  // objheader
-                        + sizeof(size_t)     // first field
-                        + sizeof(uintptr_t); // alignment
     size_t max_object_size;
 #ifdef BIT64
     if (g_pConfig->GetGCAllowVeryLargeObjects())
