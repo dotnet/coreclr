@@ -10896,8 +10896,18 @@ namespace System.Runtime.InteropServices
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     public static partial class RuntimeEnvironment
     {
+        public static string SystemConfigurationFile { [System.Security.SecuritySafeCriticalAttribute]get { return default(string); } }
+        public static bool FromGlobalAccessCache(System.Reflection.Assembly a) { return default(bool); }
         [System.Security.SecuritySafeCriticalAttribute]
-        public static string GetRuntimeDirectory() { throw null; }
+        public static string GetRuntimeDirectory() { return default(string); }
+        [System.Runtime.InteropServices.ComVisibleAttribute(false)]
+        [System.Security.SecurityCriticalAttribute]
+        public static System.IntPtr GetRuntimeInterfaceAsIntPtr(System.Guid clsid, System.Guid riid) { return default(System.IntPtr); }
+        [System.Runtime.InteropServices.ComVisibleAttribute(false)]
+        [System.Security.SecurityCriticalAttribute]
+        public static object GetRuntimeInterfaceAsObject(System.Guid clsid, System.Guid riid) { return default(object); }
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        public static string GetSystemVersion() { return default(string); }
     }
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     public partial class SafeArrayRankMismatchException : System.SystemException

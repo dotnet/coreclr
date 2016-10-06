@@ -63,7 +63,11 @@ namespace System.Runtime.InteropServices {
 
         public static bool FromGlobalAccessCache(Assembly a)
         {
+#if FEATURE_CORECLR
+            return false;
+#else
             return a.GlobalAssemblyCache;
+#endif //!FEATURE_CORECLR
         }
         
 #if !FEATURE_CORECLR
@@ -114,7 +118,6 @@ namespace System.Runtime.InteropServices {
             }
         }
 
-#if FEATURE_COMINTEROP
         [System.Security.SecurityCritical]
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
@@ -160,6 +163,5 @@ namespace System.Runtime.InteropServices {
             }
         }
 
-#endif // FEATURE_COMINTEROP
     }
 }
