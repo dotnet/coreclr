@@ -18,6 +18,7 @@
 TypeInfoBase* GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PMT_TypeInfoMap pTypeMap)
 {
     TypeInfoBase *typeInfo = nullptr;
+
     PTR_MethodTable pMT = typeHandle.GetMethodTable();
     if (pTypeMap->Lookup(pMT, &typeInfo))
     {
@@ -42,12 +43,12 @@ TypeInfoBase* GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PMT_Ty
         case ELEMENT_TYPE_R8:
         case ELEMENT_TYPE_U:
         case ELEMENT_TYPE_I:
-            typeInfo = new (nothrow) BaseTypeInfo(CorElementTypeToDWEncoding[corType]);
+            typeInfo = new (nothrow) PrimitiveTypeInfo(CorElementTypeToDWEncoding[corType]);
             if (typeInfo == nullptr)
                 return nullptr;
 
             typeInfo->typeHandle = typeHandle;
-            typeInfo->m_type_size = typeHandle.GetSize();
+            typeInfo->m_type_size = CorTypeInfo::Size(corType);
             break;
         case ELEMENT_TYPE_CLASS:
         {
@@ -60,7 +61,7 @@ TypeInfoBase* GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PMT_Ty
                 return nullptr;
 
             typeInfo->typeHandle = typeHandle;
-            typeInfo->m_type_size = typeHandle.GetSize();
+            typeInfo->m_type_size = typeHandle.AsMethodTable()->GetClass()->GetSize();
 
             //
             // Now fill in the array
@@ -71,12 +72,11 @@ TypeInfoBase* GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PMT_Ty
             for (ULONG i = 0; i < cFields; i++)
             {
                 pField = fieldDescIterator.Next();
-                LPCUTF8 szName = pField->GetName();
-                char* cName = new char[strlen(szName) + 1];
-                strcpy(cName, szName);
-
                 ClassTypeInfo *info = static_cast<ClassTypeInfo*>(typeInfo);
-                info->members[i].m_member_name = cName;
+
+                LPCUTF8 szName = pField->GetName();
+                info->members[i].m_member_name = new char[strlen(szName) + 1];
+                strcpy(info->members[i].m_member_name, szName);
                 info->members[i].m_member_offset = (ULONG)pField->GetOffset() + (fReferenceType ? Object::GetOffsetOfFirstField() : 0);
                 info->members[i].m_member_type = GetTypeInfoFromTypeHandle(pField->GetExactFieldType(typeHandle), pTypeMap);
             }
@@ -84,19 +84,19 @@ TypeInfoBase* GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PMT_Ty
         }
         case ELEMENT_TYPE_ARRAY:
         case ELEMENT_TYPE_SZARRAY:
-            typeInfo->m_type_name = "array";
+            //typeInfo->m_type_name = "array";
             break;
         default:
-            typeInfo->m_type_name = "unknown";
+            break;
+            //typeInfo->m_type_name = "unknown";
     }
     // name the type
     SString sName;
     typeInfo->typeHandle.GetName(sName);
     StackScratchBuffer buffer;
     const UTF8 *utf8 = sName.GetUTF8(buffer);
-    char *cName = new char[strlen(utf8) + 1];
-    strcpy(cName, utf8);
-    typeInfo->m_type_name = cName;
+    typeInfo->m_type_name = new char[strlen(utf8) + 1];
+    strcpy(typeInfo->m_type_name, utf8);
 
     pTypeMap->Add(pMT, typeInfo);
     return typeInfo;
@@ -122,8 +122,6 @@ TypeInfoBase* GetTypeInfoFromSignature(MethodDesc *MethodDescPtr,
     {
         if (i > ilIndex)
             break;
-
-        SigParser sigTemp(typePtr);
 
         Module * module = MethodDescPtr->GetMethodTable()->GetModule();
 
@@ -246,12 +244,11 @@ HRESULT GetArgNameByILIndex(MethodDesc* MethodDescPtr, unsigned index, LPCSTR &p
     // Param indexing is 1-based.
     ULONG32 mdIndex = index + 1;
 
-    MetaSig* sig = new MetaSig(MethodDescPtr);
+    NewHolder<MetaSig> sig = new MetaSig(MethodDescPtr);
     if (sig->HasThis())
     {
         mdIndex--;
     }
-    delete sig;
     status = mdImport->FindParamOfMethod(MethodDescPtr->GetMemberDef(), mdIndex, &paramToken);
     if (status == S_OK)
     {
@@ -373,16 +370,15 @@ HRESULT GetLocalsDebugInfo(MethodDesc* MethodDescPtr,
 {
 
     ICorDebugInfo::NativeVarInfo* nativeVar = NULL;
-    
     int thisOffs = 0;
-
     if (!MethodDescPtr->IsStatic())
+    {
         thisOffs = 1;
+    }
 
     for (int i = 0; i < nArgsCount - thisOffs; i++)
     {
-        if (FindNativeInfoInILVariable(i + thisOffs, startNativeOffset, &locals.pVars, locals.countVars, &nativeVar) ==
-             S_OK)
+        if (FindNativeInfoInILVariable(i + thisOffs, startNativeOffset, &locals.pVars, locals.countVars, &nativeVar) == S_OK)
         {
             argsDebug[i + thisOffs].m_arg_type = GetArgTypeInfo(MethodDescPtr, pTypeMap, i + 1);
             GetArgNameByILIndex(MethodDescPtr, i + thisOffs, argsDebug[i + thisOffs].m_arg_name);
@@ -395,12 +391,12 @@ HRESULT GetLocalsDebugInfo(MethodDesc* MethodDescPtr,
     {
         if (FindNativeInfoInILVariable(0, startNativeOffset, &locals.pVars, locals.countVars, &nativeVar) == S_OK)
         {
-            argsDebug[0].m_arg_type = GetArgTypeInfo(MethodDescPtr, pTypeMap, 0);
+            argsDebug[0].m_arg_type = GetTypeInfoFromTypeHandle(TypeHandle(MethodDescPtr->GetMethodTable()), pTypeMap);
             argsDebug[0].m_arg_name = "this";
             argsDebug[0].m_il_index = 0;
             argsDebug[0].m_native_offset = nativeVar->loc.vlStk.vlsOffset;
          }
-     }
+    }
     for (int i = 0; i < localsDebugSize; i++)
     {
         if (FindNativeInfoInILVariable(
@@ -436,7 +432,7 @@ GetDebugInfoFromPDB(MethodDesc* MethodDescPtr, SymbolsInfo** symInfo, unsigned i
     StackScratchBuffer scratch;
     const char* szModName = modName.GetUTF8(scratch);
 
-    MethodDebugInfo* methodDebugInfo = new (nothrow) MethodDebugInfo();
+    NewHolder<MethodDebugInfo> methodDebugInfo = new (nothrow) MethodDebugInfo();
     if (methodDebugInfo == nullptr)
         return E_OUTOFMEMORY;
 
@@ -704,7 +700,7 @@ void TypeInfoBase::DumpStrings(char* ptr, int& offset)
     offset += strlen(m_type_name) + 1;
 }
 
-void BaseTypeInfo::DumpDebugInfo(char* ptr, int& offset)
+void PrimitiveTypeInfo::DumpDebugInfo(char* ptr, int& offset)
 {
     if (m_type_offset != 0)
     {
@@ -746,18 +742,45 @@ ClassTypeInfo::~ClassTypeInfo()
     }
 }
 
+void TypeMember::DumpStrings(char* ptr, int& offset)
+{
+    if (ptr != nullptr)
+    {
+        strcpy(ptr + offset, m_member_name);
+        m_member_name_offset = offset;
+    }
+    offset += strlen(m_member_name) + 1;
+}
+
+void TypeMember::DumpDebugInfo(char* ptr, int& offset)
+{
+    if (ptr != nullptr)
+    {
+        NewHolder<DebugInfoClassMember> memberEntry = new (nothrow) DebugInfoClassMember;
+        if (memberEntry == nullptr)
+            return;
+
+        memberEntry->m_member_abbrev = 8;
+        memberEntry->m_member_name = m_member_name_offset;
+        memberEntry->m_member_loc = m_member_offset;
+        memberEntry->m_member_type = m_member_type->m_type_offset;
+
+        memcpy(ptr + offset, memberEntry, sizeof(DebugInfoClassMember));
+    }
+    offset += sizeof(DebugInfoClassMember);
+}
+
+void FunctionMember::DumpDebugInfo(char* ptr, int& offset)
+{
+}
+
 void ClassTypeInfo::DumpStrings(char* ptr, int& offset)
 {
     TypeInfoBase::DumpStrings(ptr, offset);
 
     for (int i = 0; i < m_num_members; ++i)
     {
-        if (ptr != nullptr)
-        {
-            strcpy(ptr + offset, members[i].m_member_name);
-            members[i].m_member_name_offset = offset;
-        }
-        offset += strlen(members[i].m_member_name) + 1;
+        members[i].DumpStrings(ptr, offset);
     }
 }
 
@@ -793,20 +816,17 @@ void ClassTypeInfo::DumpDebugInfo(char* ptr, int& offset)
 
     for (int i = 0; i < m_num_members; ++i)
     {
+        members[i].DumpDebugInfo(ptr, offset);
+    }
+
+    // members terminator
+    if (m_num_members > 0)
+    {
         if (ptr != nullptr)
         {
-            NewHolder<DebugInfoClassMember> memberEntry = new (nothrow) DebugInfoClassMember;
-            if (memberEntry == nullptr)
-                return;
-
-            memberEntry->m_member_abbrev = 8;
-            memberEntry->m_member_name = members[i].m_member_name_offset;
-            memberEntry->m_member_loc = members[i].m_member_offset;
-            memberEntry->m_member_type = members[i].m_member_type->m_type_offset;
-
-            memcpy(ptr + offset, memberEntry, sizeof(DebugInfoClassMember));
+            ptr[offset] = 0;
         }
-        offset += sizeof(DebugInfoClassMember);
+        offset++;
     }
 
     if (!typeHandle.IsValueType())
@@ -955,11 +975,10 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
 
     NewArrayHolder<LocalsDebugInfo> localsDebug = new(nothrow) LocalsDebugInfo[locals.size];
 
-    MetaSig* sig = new MetaSig(MethodDescPtr);
+    NewHolder<MetaSig> sig = new MetaSig(MethodDescPtr);
     int nArgsCount = sig->NumFixedArgs();
     if (sig->HasThis())
         nArgsCount++;
-    delete sig;
 
     GetArgTypeInfo(MethodDescPtr, pTypeMap, 0);
 
@@ -1152,7 +1171,7 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
 #endif
 
     /* Create GDB JIT structures */
-    jit_code_entry* jit_symbols = new (nothrow) jit_code_entry;
+    NewHolder<jit_code_entry> jit_symbols = new (nothrow) jit_code_entry;
     
     if (jit_symbols == nullptr)
     {
@@ -1173,6 +1192,8 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
         head->prev_entry = jit_symbols;
     }
     
+    jit_symbols.SuppressRelease();
+
     /* Notify the debugger */
     __jit_debug_descriptor.relevant_entry = jit_symbols;
     __jit_debug_descriptor.action_flag = JIT_REGISTER_FN;
@@ -1255,7 +1276,7 @@ bool NotifyGdb::BuildLineTable(MemBuf& buf, PCODE startAddr, TADDR codeSize, Sym
 /* Buid the source files table for DWARF source line info */
 bool NotifyGdb::BuildFileTable(MemBuf& buf, SymbolsInfo* lines, unsigned nlines)
 {
-    const char** files = nullptr;
+    NewArrayHolder<const char*> files = nullptr;
     unsigned nfiles = 0;
     
     /* GetValue file names and replace them with indices in file table */
@@ -1301,7 +1322,6 @@ bool NotifyGdb::BuildFileTable(MemBuf& buf, SymbolsInfo* lines, unsigned nlines)
     
     if (buf.MemPtr == nullptr)
     {
-        delete[] files;
         return false;
     }
     
@@ -1319,7 +1339,6 @@ bool NotifyGdb::BuildFileTable(MemBuf& buf, SymbolsInfo* lines, unsigned nlines)
     // final zero byte
     *ptr = 0;
 
-    delete[] files;
     return true;
 }
 
@@ -1616,7 +1635,7 @@ bool NotifyGdb::BuildDebugInfo(MemBuf& buf, PMT_TypeInfoMap pTypeMap, NewArrayHo
     memcpy(buf.MemPtr + offset, &debugInfoSub, sizeof(DebugInfoSub));
     diSub->m_sub_name = strlen(DebugStrings[0]) + 1 + strlen(DebugStrings[1]) + 1 + strlen(DebugStrings[2]) + 1;
     offset += sizeof(DebugInfoSub);
-    DebugInfoVar* bufVar = new (nothrow) DebugInfoVar[localsDebugSize + argsDebugSize];
+    NewArrayHolder<DebugInfoVar> bufVar = new (nothrow) DebugInfoVar[localsDebugSize + argsDebugSize];
     if (bufVar == nullptr)
         return false;
     char bufVarLoc[16];
@@ -1648,7 +1667,6 @@ bool NotifyGdb::BuildDebugInfo(MemBuf& buf, PMT_TypeInfoMap pTypeMap, NewArrayHo
         memcpy(buf.MemPtr + offset, bufVarLoc, len);
         offset += len;
     }
-    delete []bufVar;
 
     memset(buf.MemPtr + offset, 0, buf.MemSize - offset);
     return true;
@@ -1815,7 +1833,7 @@ bool NotifyGdb::BuildSectionNameTable(MemBuf& buf)
 /* Build the ELF section headers table */
 bool NotifyGdb::BuildSectionTable(MemBuf& buf)
 {
-    Elf_Shdr* sectionHeaders = new (nothrow) Elf_Shdr[SectionNamesCount - 1];    
+    NewArrayHolder<Elf_Shdr> sectionHeaders = new (nothrow) Elf_Shdr[SectionNamesCount - 1];    
     Elf_Shdr* pSh = sectionHeaders;
 
     if (sectionHeaders == nullptr)
@@ -1856,7 +1874,8 @@ bool NotifyGdb::BuildSectionTable(MemBuf& buf)
             pSh->sh_entsize = 0;
     }
 
-    buf.MemPtr = reinterpret_cast<char*>(sectionHeaders);
+    sectionHeaders.SuppressRelease();
+    buf.MemPtr = reinterpret_cast<char*>(sectionHeaders.GetValue());
     buf.MemSize = sizeof(Elf_Shdr) * (SectionNamesCount - 1);
     return true;
 }
@@ -1864,13 +1883,14 @@ bool NotifyGdb::BuildSectionTable(MemBuf& buf)
 /* Build the ELF header */
 bool NotifyGdb::BuildELFHeader(MemBuf& buf)
 {
-    Elf_Ehdr* header = new (nothrow) Elf_Ehdr;
-    buf.MemPtr = reinterpret_cast<char*>(header);
+    NewHolder<Elf_Ehdr> header = new (nothrow) Elf_Ehdr;
+    buf.MemPtr = reinterpret_cast<char*>(header.GetValue());
     buf.MemSize = sizeof(Elf_Ehdr);
     
     if (header == nullptr)
         return false;
     
+    header.SuppressRelease();
     return true;
         
 }

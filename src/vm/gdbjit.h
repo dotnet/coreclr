@@ -154,16 +154,16 @@ public:
     virtual void DumpStrings(char* ptr, int& offset) override;
 
     TypeHandle typeHandle;
-    const char* m_type_name;
+    char* m_type_name;
     int m_type_name_offset;
     ULONG m_type_size;
     int m_type_offset;
 };
 
-class BaseTypeInfo: public TypeInfoBase
+class PrimitiveTypeInfo: public TypeInfoBase
 {
 public:
-    BaseTypeInfo(int encoding)
+    PrimitiveTypeInfo(int encoding)
         : TypeInfoBase(),
           m_type_encoding(encoding)
     {
@@ -184,10 +184,10 @@ public:
     void DumpDebugInfo(char* ptr, int& offset) override;
 
     int m_num_members;
-    TypeMember *members;
+    TypeMember* members;
 };
 
-class TypeMember
+class TypeMember: public DwarfDumpable
 {
 public:
     TypeMember()
@@ -202,13 +202,28 @@ public:
     {
         if (m_member_name != nullptr)
         {
-            delete m_member_name;
+            delete[] m_member_name;
         }
     }
+
+    void DumpStrings(char* ptr, int& offset) override;
+    void DumpDebugInfo(char* ptr, int& offset) override;
+
     char* m_member_name;
     int m_member_name_offset;
     int m_member_offset;
     TypeInfoBase *m_member_type;
+};
+
+class FunctionMember: public TypeMember
+{
+public:
+    FunctionMember()
+        : TypeMember()
+    {
+    }
+
+    void DumpDebugInfo(char* ptr, int& offset) override;
 };
 
 struct ArgsDebugInfo
