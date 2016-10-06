@@ -30487,14 +30487,11 @@ CObjectHeader* gc_heap::allocate_large_object (size_t jsize, int64_t& alloc_byte
     // these next few lines are not strictly necessary anymore - they are here
     // to sanity check that we didn't get asked to create an object
     // that's too large.
-    size_t maxObjectSize = (INT32_MAX - 7 - Align(min_obj_size));
-
-#ifdef BIT64
-    if (g_pConfig->GetGCAllowVeryLargeObjects())
-    {
-        maxObjectSize = (INT64_MAX - 7 - Align(min_obj_size));
-    }
-#endif
+    #if BIT64
+    size_t maxObjectSize = (INT64_MAX - 7 - Align(min_obj_size)); 
+    #else
+    size_t maxObjectSize = (INT32_MAX - 7 - Align(min_obj_size)); 
+    #endif
 
     // The VM should have thrown instead of passing us an allocation
     // request that's too large.

@@ -65,11 +65,16 @@ inline gc_alloc_context* GetThreadAllocContext()
 // an OutOfMemoryException with a message indicating that
 // the OOM was not from memory pressure but from an object
 // being too large.
-inline void CheckObjectSizeOrThrow(size_t alloc_size)
+inline void CheckObjectSize(size_t alloc_size)
 {
+    CONTRACTL {
+        THROWS;
+        GC_TRIGGERS;
+    } CONTRACTL_END;
+
     size_t min_obj_size = sizeof(uint8_t*)   // sync block
                         + sizeof(uintptr_t)  // objheader
-                        + sizeof(size_t);    // first field
+                        + sizeof(size_t)     // first field
                         + sizeof(uintptr_t); // alignment
     size_t max_object_size;
 #ifdef BIT64
@@ -132,7 +137,7 @@ inline Object* Alloc(size_t size, BOOL bFinalize, BOOL bContainsPointers )
                    (bFinalize ? GC_ALLOC_FINALIZE : 0));
 
     Object *retVal = NULL;
-    CheckObjectSizeOrThrow(size);
+    CheckObjectSize(size);
 
     // We don't want to throw an SO during the GC, so make sure we have plenty
     // of stack before calling in.
@@ -167,7 +172,7 @@ inline Object* AllocAlign8(size_t size, BOOL bFinalize, BOOL bContainsPointers, 
                    (bAlignBias ? GC_ALLOC_ALIGN8_BIAS : 0));
 
     Object *retVal = NULL;
-    CheckObjectSizeOrThrow(size);
+    CheckObjectSize(size);
 
     // We don't want to throw an SO during the GC, so make sure we have plenty
     // of stack before calling in.
@@ -216,7 +221,7 @@ inline Object* AllocLHeap(size_t size, BOOL bFinalize, BOOL bContainsPointers )
                    (bFinalize ? GC_ALLOC_FINALIZE : 0));
 
     Object *retVal = NULL;
-    CheckObjectSizeOrThrow(size);
+    CheckObjectSize(size);
 
     // We don't want to throw an SO during the GC, so make sure we have plenty
     // of stack before calling in.
