@@ -359,6 +359,15 @@ public:
     Allocation routines. These all call into the GC's allocator and may trigger a garbage
     collection. All allocation routines return NULL when the allocation request
     couldn't be serviced due to being out of memory.
+
+    These allocation routines should not be called with allocation requests
+    larger than:
+       32-bit                                 -> 0x7FFFFFE0
+       64-bit, GCAllowVeryLargeObjects: false -> 0x000000007FFFFFE0
+       64-bit, GCAllocVeryLargeObjects: true  -> 0x7FFFFFFFFFFFFFE0
+
+    It is up to the caller of the API to raise appropriate errors if the amount
+    of requested memory is too large.
     ===========================================================================
     */
 

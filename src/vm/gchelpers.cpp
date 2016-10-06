@@ -60,6 +60,40 @@ inline gc_alloc_context* GetThreadAllocContext()
     return & GetThread()->m_alloc_context;
 }
 
+// Checks to see if the given allocation size exceeds the
+// largest object size allowed - if it does, it throws
+// an OutOfMemoryException with a message indicating that
+// the OOM was not from memory pressure but from an object
+// being too large.
+inline void CheckObjectSizeOrThrow(size_t alloc_size)
+{
+    size_t min_obj_size = sizeof(uint8_t*)   // sync block
+                        + sizeof(uintptr_t)  // objheader
+                        + sizeof(size_t);    // first field
+                        + sizeof(uintptr_t); // alignment
+    size_t max_object_size;
+#ifdef BIT64
+    if (g_pConfig->GetGCAllowVeryLargeObjects())
+    {
+        max_object_size = (INT64_MAX - 7 - min_obj_size);
+    }
+    else
+#endif // BIT64
+    {
+        max_object_size = (INT32_MAX - 7 - min_obj_size);
+    }
+
+    if (alloc_size >= max_object_size)
+    {
+        if (g_pConfig->IsGCBreakOnOOMEnabled())
+        {
+            DebugBreak();
+        }
+
+        ThrowOutOfMemoryDimensionsExceeded();
+    }
+}
+
 
 // There are only three ways to get into allocate an object.
 //     * Call optimized helpers that were generated on the fly. This is how JIT compiled code does most
@@ -98,6 +132,7 @@ inline Object* Alloc(size_t size, BOOL bFinalize, BOOL bContainsPointers )
                    (bFinalize ? GC_ALLOC_FINALIZE : 0));
 
     Object *retVal = NULL;
+    CheckObjectSizeOrThrow(size);
 
     // We don't want to throw an SO during the GC, so make sure we have plenty
     // of stack before calling in.
@@ -132,6 +167,7 @@ inline Object* AllocAlign8(size_t size, BOOL bFinalize, BOOL bContainsPointers, 
                    (bAlignBias ? GC_ALLOC_ALIGN8_BIAS : 0));
 
     Object *retVal = NULL;
+    CheckObjectSizeOrThrow(size);
 
     // We don't want to throw an SO during the GC, so make sure we have plenty
     // of stack before calling in.
@@ -180,6 +216,7 @@ inline Object* AllocLHeap(size_t size, BOOL bFinalize, BOOL bContainsPointers )
                    (bFinalize ? GC_ALLOC_FINALIZE : 0));
 
     Object *retVal = NULL;
+    CheckObjectSizeOrThrow(size);
 
     // We don't want to throw an SO during the GC, so make sure we have plenty
     // of stack before calling in.
