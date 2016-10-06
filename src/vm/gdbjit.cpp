@@ -79,6 +79,18 @@ TypeInfoBase* GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PMT_Ty
                 strcpy(info->members[i].m_member_name, szName);
                 info->members[i].m_member_offset = (ULONG)pField->GetOffset() + (fReferenceType ? Object::GetOffsetOfFirstField() : 0);
                 info->members[i].m_member_type = GetTypeInfoFromTypeHandle(pField->GetExactFieldType(typeHandle), pTypeMap);
+
+                // handle the System.String case:
+                // coerce type of the second field into array type
+                if (pMT->IsString() && i == 1)
+                {
+                    int countOffset = info->members[0].m_member_offset;
+                    TypeInfoBase* elemTypeInfo = info->members[1].m_member_type;
+                    TypeInfoBase* arrayTypeInfo = new (nothrow) ArrayTypeInfo(countOffset, elemTypeInfo);
+                    if (arrayTypeInfo == nullptr)
+                        return nullptr;
+                    info->members[1].m_member_type = arrayTypeInfo;
+                }
             }
             break;
         }
@@ -142,6 +154,7 @@ TypeInfoBase* GetTypeInfoFromSignature(MethodDesc *MethodDescPtr,
             case ELEMENT_TYPE_R8:
             case ELEMENT_TYPE_U:
             case ELEMENT_TYPE_I:
+            case ELEMENT_TYPE_STRING:
                 if (i < ilIndex)
                 {
                     break;
@@ -597,7 +610,13 @@ const unsigned char AbbrevTable[] = {
         DW_AT_name, DW_FORM_strp, DW_AT_type, DW_FORM_ref4, DW_AT_data_member_location, DW_FORM_data1, 0, 0,
 
     9, DW_TAG_reference_type, DW_CHILDREN_no,
+        DW_AT_type, DW_FORM_ref4, DW_AT_byte_size, DW_FORM_data1, 0, 0,
+
+    10, DW_TAG_array_type, DW_CHILDREN_yes,
         DW_AT_type, DW_FORM_ref4, 0, 0,
+
+    11, DW_TAG_subrange_type, DW_CHILDREN_no,
+        DW_AT_upper_bound, DW_FORM_exprloc, 0, 0,
 
     0
 };
@@ -688,6 +707,13 @@ struct __attribute__((packed)) DebugInfoRefType
 {
     uint8_t m_type_abbrev;
     uint32_t m_ref_type;
+    uint8_t m_byte_size;
+};
+
+struct __attribute__((packed)) DebugInfoArrayType
+{
+    uint8_t m_abbrev;
+    uint32_t m_type;
 };
 
 void TypeInfoBase::DumpStrings(char* ptr, int& offset)
@@ -836,12 +862,65 @@ void ClassTypeInfo::DumpDebugInfo(char* ptr, int& offset)
             NewHolder<DebugInfoRefType> refType = new (nothrow) DebugInfoRefType;
             refType->m_type_abbrev = 9;
             refType->m_ref_type = m_type_offset;
+            refType->m_byte_size = typeHandle.GetSize();
 
             memcpy(ptr + offset, refType, sizeof(DebugInfoRefType));
             m_type_offset = offset;
         }
         offset += sizeof(DebugInfoRefType);
     }
+}
+
+int Leb128Encode(uint32_t num, char* buf, int size);
+int Leb128Encode(int32_t num, char* buf, int size);
+
+void ArrayTypeInfo::DumpDebugInfo(char* ptr, int& offset)
+{
+    if (m_type_offset != 0)
+    {
+        return;
+    }
+    if (m_elem_type->m_type_offset == 0)
+    {
+        m_elem_type->DumpDebugInfo(ptr, offset);
+    }
+    if (ptr != nullptr)
+    {
+        NewHolder<DebugInfoArrayType> arrType = new (nothrow) DebugInfoArrayType;
+        if (arrType == nullptr)
+            return;
+
+        arrType->m_abbrev = 10; // DW_TAG_array_type abbrev
+        arrType->m_type = m_elem_type->m_type_offset;
+
+        memcpy(ptr + offset, arrType, sizeof(DebugInfoArrayType));
+        m_type_offset = offset;
+    }
+    offset += sizeof(DebugInfoArrayType);
+
+    char tmp[16] = { 0 };
+    int len = Leb128Encode(static_cast<int32_t>(m_count_offset), tmp, sizeof(tmp));
+    if (ptr != nullptr)
+    {
+        char buf[64];
+        buf[0] = 11; // DW_TAG_subrange_type abbrev
+        buf[1] = len + 2;
+        buf[2] = DW_OP_fbreg;
+        for (int j = 0; j < len; j++)
+        {
+            buf[j + 3] = tmp[j];
+        }
+        buf[len + 3] = DW_OP_deref;
+
+        memcpy(ptr + offset, buf, len + 4);
+    }
+    offset += (len + 4);
+
+    if (ptr != nullptr)
+    {
+        memset(ptr + offset, 0, 1);
+    }
+    offset += 1;
 }
 
 /* static data for symbol strings */
@@ -1914,7 +1993,7 @@ void NotifyGdb::SplitPathname(const char* path, const char*& pathName, const cha
 }
 
 /* LEB128 for 32-bit unsigned integer */
-int NotifyGdb::Leb128Encode(uint32_t num, char* buf, int size)
+int Leb128Encode(uint32_t num, char* buf, int size)
 {
     int i = 0;
     
@@ -1934,7 +2013,7 @@ int NotifyGdb::Leb128Encode(uint32_t num, char* buf, int size)
 }
 
 /* LEB128 for 32-bit signed integer */
-int NotifyGdb::Leb128Encode(int32_t num, char* buf, int size)
+int Leb128Encode(int32_t num, char* buf, int size)
 {
     int i = 0;
     bool hasMore = true, isNegative = num < 0;

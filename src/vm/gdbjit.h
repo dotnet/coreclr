@@ -226,6 +226,30 @@ public:
     void DumpDebugInfo(char* ptr, int& offset) override;
 };
 
+class ArrayTypeInfo: public TypeInfoBase
+{
+public:
+    ArrayTypeInfo(int countOffset, TypeInfoBase* elemType)
+        : TypeInfoBase(),
+          m_count_offset(countOffset),
+          m_elem_type(elemType)
+    {
+    }
+
+    ~ArrayTypeInfo()
+    {
+        if (m_elem_type != nullptr)
+        {
+            delete m_elem_type;
+        }
+    }
+
+    void DumpDebugInfo(char* ptr, int& offset) override;
+
+    int m_count_offset;
+    TypeInfoBase *m_elem_type;
+};
+
 struct ArgsDebugInfo
 {
     const char* m_arg_name;
@@ -304,8 +328,6 @@ private:
     static void IssueSpecialCommand(char*& ptr, int8_t line_shift, uint8_t addr_shift);
     static void SplitPathname(const char* path, const char*& pathName, const char*& fileName);
     static bool CollectCalledMethods(CalledMethod* pCM);
-    static int Leb128Encode(uint32_t num, char* buf, int size);
-    static int Leb128Encode(int32_t num, char* buf, int size);
     static int GetFrameLocation(int nativeOffset, char* varLoc);
     static int GetArgsAndLocalsLen(NewArrayHolder<ArgsDebugInfo>& argsDebug,
                                    unsigned int argsDebugSize,
