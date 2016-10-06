@@ -6227,7 +6227,6 @@ ThreadStore::ThreadStore()
              m_PendingThreadCount(0),
              m_DeadThreadCount(0),
              m_DeadThreadCountForGCTrigger(0),
-             m_PreviousMaxGenerationGCTimeMilliseconds(GetTickCount()),
              m_GuidCreated(FALSE),
              m_HoldingThread(0)
 {
@@ -6267,6 +6266,15 @@ void ThreadStore::InitThreadStore()
 
     s_pWaitForStackCrawlEvent = new CLREvent();
     s_pWaitForStackCrawlEvent->CreateManualEvent(FALSE);
+
+    s_DeadThreadCountThresholdForGCTrigger =
+        static_cast<LONG>(CLRConfig::GetConfigValue(CLRConfig::INTERNAL_Thread_DeadThreadCountThresholdForGCTrigger));
+    if (s_DeadThreadCountThresholdForGCTrigger < 0)
+    {
+        s_DeadThreadCountThresholdForGCTrigger = 0;
+    }
+    s_DeadThreadGCTriggerPeriodMilliseconds =
+        CLRConfig::GetConfigValue(CLRConfig::INTERNAL_Thread_DeadThreadGCTriggerPeriodMilliseconds);
 }
 
 // Enter and leave the critical section around the thread store.  Clients should
@@ -6497,13 +6505,22 @@ void ThreadStore::TransferStartedThread(Thread *thread, BOOL bRequiresTSL)
     FastInterlockAnd((ULONG *) &thread->m_State, ~Thread::TS_Unstarted);
     FastInterlockOr((ULONG *) &thread->m_State, Thread::TS_LegalToJoin);
 
+    // Determine if a GC should be triggered to clean up dead threads. This is done inside the lock so that if it is determined
+    // that a GC should be triggered, state will be reset such that only one thread will trigger a GC. The GC is actually
+    // triggered outside the lock below.
+    bool shouldTriggerMaxGenerationGC = s_pThreadStore->ShouldTriggerMaxGenerationGC();
+
     // release ThreadStore Crst to avoid Crst Violation when calling HandleThreadAbort later
     if (bRequiresTSL)
     {
         TSLockHolder.Release();
     }
 
-    s_pThreadStore->TriggerGCIfNecessary();
+    // Trigger the GC if necessary outside the lock
+    if (shouldTriggerMaxGenerationGC)
+    {
+        GCHeapUtilities::GetGCHeap()->GarbageCollect(-1, FALSE, collection_non_blocking);
+    }
 
     // One of the components of OtherThreadsComplete() has changed, so check whether
     // we should now exit the EE.
@@ -6559,32 +6576,43 @@ Thread *ThreadStore::GetThreadList(Thread *cursor)
     return GetAllThreadList(cursor, (Thread::TS_Unstarted | Thread::TS_Dead), 0);
 }
 
-const LONG ThreadStore::s_DeadThreadCountThresholdForGCTrigger = 25;
-const DWORD ThreadStore::s_DeadThreadGCTriggerPeriodMilliseconds = 1000 * 60 * 10;
-
-//
-// Dead thread count for GC trigger
-// - Interlocked operations are used, as a background GC thread may also be involved in reading/writing the value
-// - The thread store lock could theoreticaly be used, but it would add new GC suspension points and it is unclear that this is
-//   ok at these points
-//
+LONG ThreadStore::s_DeadThreadCountThresholdForGCTrigger = 0;
+DWORD ThreadStore::s_DeadThreadGCTriggerPeriodMilliseconds = 0;
 
 LONG ThreadStore::GetDeadThreadCountForGCTrigger()
 {
-    // Usage of this value should not assume a nonnegative value, see Increment and Decrement
-    return FastInterlockCompareExchange(&m_DeadThreadCountForGCTrigger, -1, -1);
+    // Usage of this value should not assume a nonnegative value, see Increment and Decrement. Normally, there would be a memory
+    // barrier before the read read in order to prevent unnecessary GCs from being triggered. A background GC thread may have
+    // started (and perhaps finished) a short time ago, but the current thread may not see that this value was reset to zero,
+    // and may unnecessarily trigger a GC again. The memory barrier reduces that possibility by reading a recent value.
+    // Practically however, this value is only read from inside the thread store lock, so the current thread would already have
+    // recently issued a memory barrier. Hence, the memory barrier is omitted here.
+    return m_DeadThreadCountForGCTrigger;
 }
 
 void ThreadStore::IncrementDeadThreadCountForGCTrigger()
 {
-    // Overflow can be ignored, as the Decrement function below will take care of it
+    // Overflow can be ignored, as the Decrement function below will take care of it. Although all increments and decrements are
+    // usually done inside a lock, that is not sufficient to synchronize with a background GC thread resetting this value, hence
+    // the interlocked operation.
     FastInterlockIncrement(&m_DeadThreadCountForGCTrigger);
 }
 
 void ThreadStore::DecrementDeadThreadCountForGCTrigger()
 {
-    // Decrement to a minimum of zero, or reset the count to zero if it happened to overflow in an Increment operation
+    // Decrement to a minimum of zero, or reset the count to zero if it happened to overflow in an Increment operation. Although
+    // all increments and decrements are usually done inside a lock, that is not sufficient to synchronize with a background GC
+    // thread resetting this value, hence the interlocked operation.
+
     LONG currentCount = m_DeadThreadCountForGCTrigger;
+    if (currentCount == 0)
+    {
+        // Increment and decrement operations occur inside a lock, so although the read of the member variable above could have
+        // read an old value, it would not have missed a prior increment or decrement. The read could miss changes by background
+        // GC threads, but they only write zero.
+        return;
+    }
+
     while (true)
     {
         LONG nextCount = currentCount > 0 ? currentCount - 1 : 0;
@@ -6600,46 +6628,24 @@ void ThreadStore::DecrementDeadThreadCountForGCTrigger()
 
 void ThreadStore::ResetDeadThreadCountForGCTrigger()
 {
+    // Synchronize the store with increment/decrement operations occurring on different threads, and make the change visible to
+    // other threads (memory barrier) in order to prevent unnecessary GC triggers
     FastInterlockExchange(&m_DeadThreadCountForGCTrigger, 0);
 }
 
-//
-// Previous max-generation GC time in milliseconds
-// - For the same reasons as for the dead thread count for GC trigger, interlocked operations are used. See above for more info.
-//
-
-DWORD ThreadStore::GetPreviousMaxGenerationGCTimeMilliseconds()
+bool ThreadStore::ShouldTriggerMaxGenerationGC()
 {
-    static_assert_no_msg(sizeof(LONG) == sizeof(DWORD));
-    return static_cast<DWORD>(FastInterlockCompareExchange(&m_PreviousMaxGenerationGCTimeMilliseconds, 0, 0));
-}
-
-void ThreadStore::SetPreviousMaxGenerationGCTimeMilliseconds()
-{
-    static_assert_no_msg(sizeof(LONG) == sizeof(DWORD));
-
-    LONG previousTime = m_PreviousMaxGenerationGCTimeMilliseconds;
-    while (true)
+    if (s_DeadThreadCountThresholdForGCTrigger == 0 ||
+        GetDeadThreadCountForGCTrigger() < s_DeadThreadCountThresholdForGCTrigger)
     {
-        LONG previousTimeBeforeUpdate =
-            FastInterlockCompareExchange(
-                &m_PreviousMaxGenerationGCTimeMilliseconds,
-                static_cast<LONG>(GetTickCount()),
-                previousTime);
-        if (previousTimeBeforeUpdate == previousTime)
-        {
-            break;
-        }
-        previousTime = previousTimeBeforeUpdate;
+        return false;
     }
-}
 
-void ThreadStore::TriggerGCIfNecessary()
-{
-    if (GetDeadThreadCountForGCTrigger() < s_DeadThreadCountThresholdForGCTrigger ||
-        GetTickCount() - GetPreviousMaxGenerationGCTimeMilliseconds() < s_DeadThreadGCTriggerPeriodMilliseconds)
+    IGCHeap *gcHeap = GCHeapUtilities::GetGCHeap();
+    if (gcHeap->GetNow() - gcHeap->GetLastGCStartTime(GCHeapUtilities::GetMaxGeneration()) <
+            s_DeadThreadGCTriggerPeriodMilliseconds)
     {
-        return;
+        return false;
     }
 
     // The dead thread count used for triggering a GC is tracked separately from the actual dead thread count so that a dead
@@ -6647,8 +6653,8 @@ void ThreadStore::TriggerGCIfNecessary()
     // GC has not occurred in a certain duration, so reset the count and trigger a GC now to finalize unreachable dead threads.
     // When the GC is started, it would anyway result in a call to OnMaxGenerationGCStarted(), but since there may be a delay
     // for that to happen if the GC chooses to do a background GC, reset the count and last GC time immediately as well.
-    OnMaxGenerationGCStarted();
-    GCHeapUtilities::GetGCHeap()->GarbageCollect(-1, FALSE, collection_non_blocking);
+    ResetDeadThreadCountForGCTrigger();
+    return true; // caller will actually trigger the GC
 }
 
 void ThreadStore::OnMaxGenerationGCStarted()
@@ -6656,7 +6662,6 @@ void ThreadStore::OnMaxGenerationGCStarted()
     // A dead thread may contribute to triggering at most once. After a max-generation GC occurs, if some dead thread objects
     // are still reachable due to references to the thread objects, they will not contribute to triggering a GC again.
     ResetDeadThreadCountForGCTrigger();
-    SetPreviousMaxGenerationGCTimeMilliseconds();
 }
 
 //---------------------------------------------------------------------------------------

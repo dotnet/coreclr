@@ -5869,9 +5869,7 @@ private:
     LONG        m_PendingThreadCount;
 
     LONG        m_DeadThreadCount;
-
     LONG        m_DeadThreadCountForGCTrigger;
-    LONG        m_PreviousMaxGenerationGCTimeMilliseconds;
 
 private:
     // Space for the lazily-created GUID.
@@ -5885,8 +5883,8 @@ private:
     EEThreadId  m_holderthreadid;   // current holder (or NULL)
 
 private:
-    static const LONG s_DeadThreadCountThresholdForGCTrigger;
-    static const DWORD s_DeadThreadGCTriggerPeriodMilliseconds;
+    static LONG s_DeadThreadCountThresholdForGCTrigger;
+    static DWORD s_DeadThreadGCTriggerPeriodMilliseconds;
 
 public:
 
@@ -5967,9 +5965,7 @@ private:
     void IncrementDeadThreadCountForGCTrigger();
     void DecrementDeadThreadCountForGCTrigger();
     void ResetDeadThreadCountForGCTrigger();
-    DWORD GetPreviousMaxGenerationGCTimeMilliseconds();
-    void SetPreviousMaxGenerationGCTimeMilliseconds();
-    void TriggerGCIfNecessary();
+    bool ShouldTriggerMaxGenerationGC();
 public:
     void OnMaxGenerationGCStarted();
 };
