@@ -41,8 +41,7 @@ namespace System.Globalization
 
             if (customVersion == Guid.Empty) 
             {
-                byte[] b = BitConverter.GetBytes(effectiveId);
-                byte b1 = (byte) ((uint) effectiveId >> 24);
+                byte b1 = (byte) (effectiveId >> 24);
                 byte b2 = (byte) ((effectiveId  & 0x00FF0000) >> 16);
                 byte b3 = (byte) ((effectiveId  & 0x0000FF00) >> 8);
                 byte b4 = (byte) (effectiveId  & 0xFF);
