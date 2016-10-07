@@ -215,17 +215,6 @@ public:
     TypeInfoBase *m_member_type;
 };
 
-class FunctionMember: public TypeMember
-{
-public:
-    FunctionMember()
-        : TypeMember()
-    {
-    }
-
-    void DumpDebugInfo(char* ptr, int& offset) override;
-};
-
 class ArrayTypeInfo: public TypeInfoBase
 {
 public:
@@ -250,21 +239,40 @@ public:
     TypeInfoBase *m_elem_type;
 };
 
-struct ArgsDebugInfo
+class VarDebugInfo: public DwarfDumpable
 {
-    const char* m_arg_name;
-    int m_arg_name_offset;
-    int m_arg_abbrev;
-    int m_il_index;
-    int m_native_offset;
-    TypeInfoBase *m_arg_type;
-};
+public:
+    VarDebugInfo(int abbrev)
+        : m_var_name(nullptr),
+          m_var_abbrev(abbrev),
+          m_var_name_offset(0),
+          m_il_index(0),
+          m_native_offset(0),
+          m_var_type(nullptr)
+    {
+    }
 
-struct LocalsDebugInfo
-{
+    VarDebugInfo()
+        : m_var_name(nullptr),
+          m_var_abbrev(6),
+          m_var_name_offset(0),
+          m_il_index(0),
+          m_native_offset(0),
+          m_var_type(nullptr)
+    {
+    }
+
+    virtual ~VarDebugInfo()
+    {
+        delete[] m_var_name;
+    }
+
+    void DumpStrings(char* ptr, int& offset) override;
+    void DumpDebugInfo(char* ptr, int& offset) override;
+
     char* m_var_name;
-    int m_var_name_offset;
     int m_var_abbrev;
+    int m_var_name_offset;
     int m_il_index;
     int m_native_offset;
     TypeInfoBase *m_var_type;
@@ -276,18 +284,51 @@ public:
     static void MethodCompiled(MethodDesc* MethodDescPtr);
     static void MethodDropped(MethodDesc* MethodDescPtr);
     template <typename PARENT_TRAITS>
-    class DeleteValuesOnDestructSHashTraits : public PARENT_TRAITS
+    class DeleteKeysValuesOnDestructSHashTraits : public PARENT_TRAITS
     {
     public:
         static inline void OnDestructPerEntryCleanupAction(typename PARENT_TRAITS::element_t e)
         {
+            delete e.Key();
             delete e.Value();
         }
         static const bool s_DestructPerEntryCleanupAction = true;
     };
 
-    typedef MapSHash<MethodTable*, TypeInfoBase*, DeleteValuesOnDestructSHashTraits<MapSHashTraits<MethodTable*,TypeInfoBase*>>> MT_TypeInfoMap;
-    typedef MT_TypeInfoMap* PMT_TypeInfoMap;
+    template <typename VALUE>
+    class TypeKeyHashTraits : public DefaultSHashTraits< KeyValuePair<TypeKey*,VALUE> >
+    {
+    public:
+        // explicitly declare local typedefs for these traits types, otherwise 
+        // the compiler may get confused
+        typedef typename DefaultSHashTraits< KeyValuePair<TypeKey*,VALUE> >::element_t element_t;
+        typedef typename DefaultSHashTraits< KeyValuePair<TypeKey*,VALUE> >::count_t count_t;
+        typedef TypeKey* key_t;
+
+        static key_t GetKey(element_t e)
+        {
+            LIMITED_METHOD_CONTRACT;
+            return e.Key();
+        }
+        static BOOL Equals(key_t k1, key_t k2)
+        {
+            LIMITED_METHOD_CONTRACT;
+            return k1->Equals(k2);
+        }
+        static count_t Hash(key_t k)
+        {
+            LIMITED_METHOD_CONTRACT;
+            return k->ComputeHash();
+        }
+
+        static const element_t Null() { LIMITED_METHOD_CONTRACT; return element_t(key_t(),VALUE()); }
+        static const element_t Deleted() { LIMITED_METHOD_CONTRACT; return element_t(key_t(-1), VALUE()); }
+        static bool IsNull(const element_t &e) { LIMITED_METHOD_CONTRACT; return e.Key() == key_t(); }
+        static bool IsDeleted(const element_t &e) { return e.Key() == key_t(-1); }
+    };
+
+    typedef MapSHash<TypeKey*, TypeInfoBase*, DeleteKeysValuesOnDestructSHashTraits<TypeKeyHashTraits<TypeInfoBase*>>> TK_TypeInfoMap;
+    typedef TK_TypeInfoMap* PTK_TypeInfoMap;
 private:
 
     struct MemBuf
@@ -303,19 +344,9 @@ private:
     static bool BuildSectionTable(MemBuf& buf);
     static bool BuildSymbolTableSection(MemBuf& buf, PCODE addr, TADDR codeSize);
     static bool BuildStringTableSection(MemBuf& strTab);
-    static bool BuildDebugStrings(MemBuf& buf,
-                                  PMT_TypeInfoMap pTypeMap,
-                                  NewArrayHolder<ArgsDebugInfo>& argsDebug,
-                                  unsigned int argsDebugSize,
-                                  NewArrayHolder<LocalsDebugInfo>& localsDebug,
-                                  unsigned int localsDebugSize);
+    static bool BuildDebugStrings(MemBuf& buf, PTK_TypeInfoMap pTypeMap);
     static bool BuildDebugAbbrev(MemBuf& buf);
-    static bool BuildDebugInfo(MemBuf& buf,
-                               PMT_TypeInfoMap pTypeMap,
-                               NewArrayHolder<ArgsDebugInfo>& argsDebug,
-                               unsigned int argsDebugSize,
-                               NewArrayHolder<LocalsDebugInfo>& localsDebug,
-                               unsigned int localsDebugSize);
+    static bool BuildDebugInfo(MemBuf& buf, PTK_TypeInfoMap pTypeMap);
     static bool BuildDebugPub(MemBuf& buf, const char* name, uint32_t size, uint32_t dieOffset);
     static bool BuildLineTable(MemBuf& buf, PCODE startAddr, TADDR codeSize, SymbolsInfo* lines, unsigned nlines);
     static bool BuildFileTable(MemBuf& buf, SymbolsInfo* lines, unsigned nlines);
@@ -328,14 +359,65 @@ private:
     static void IssueSpecialCommand(char*& ptr, int8_t line_shift, uint8_t addr_shift);
     static void SplitPathname(const char* path, const char*& pathName, const char*& fileName);
     static bool CollectCalledMethods(CalledMethod* pCM);
-    static int GetFrameLocation(int nativeOffset, char* varLoc);
-    static int GetArgsAndLocalsLen(NewArrayHolder<ArgsDebugInfo>& argsDebug,
-                                   unsigned int argsDebugSize,
-                                   NewArrayHolder<LocalsDebugInfo>& localsDebug,
-                                   unsigned int localsDebugSize);
+    static int GetArgsAndLocalsLen(NewArrayHolder<VarDebugInfo>& varsDebug,
+                                   unsigned int varsDebugSize);
 #ifdef _DEBUG
     static void DumpElf(const char* methodName, const MemBuf& buf);
 #endif
 };
 
+class FunctionMember: public TypeMember
+{
+public:
+    FunctionMember(MethodDesc *md, int num_locals, int num_args)
+        : TypeMember(),
+          md(md),
+          m_file(1),
+          m_line(1),
+          m_sub_low_pc(0),
+          m_sub_high_pc(0),
+          m_sub_loc(),
+          m_num_args(num_args),
+          m_num_locals(num_locals),
+          m_num_vars(num_args + num_locals),
+          vars(new VarDebugInfo[m_num_vars]),
+          dumped(false)
+    {
+        m_sub_loc[0] = 1;
+#if defined(_TARGET_AMD64_)
+        m_sub_loc[1] = DW_OP_reg6;
+#elif defined(_TARGET_ARM_)
+        m_sub_loc[1] = DW_OP_reg11;
+#else
+#error Unsupported platform!
+#endif
+    }
+
+    virtual ~FunctionMember()
+    {
+        delete[] vars;
+    }
+
+    void DumpStrings(char* ptr, int& offset) override;
+    void DumpDebugInfo(char* ptr, int& offset) override;
+    HRESULT GetLocalsDebugInfo(NotifyGdb::PTK_TypeInfoMap pTypeMap,
+                           LocalsInfo& locals,
+                           int startNativeOffset);
+    BOOL IsDumped()
+    {
+        return dumped;
+    }
+
+    MethodDesc *md;
+    uint8_t m_file, m_line;
+    uintptr_t m_sub_low_pc, m_sub_high_pc;
+    uint8_t m_sub_loc[2];
+    uint8_t m_num_args;
+    uint8_t m_num_locals;
+    uint16_t m_num_vars;
+    VarDebugInfo* vars;
+private:
+    int GetArgsAndLocalsLen();
+    BOOL dumped;
+};
 #endif // #ifndef __GDBJIT_H__
