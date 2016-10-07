@@ -1,4 +1,4 @@
-@if "%_echo%" neq "on" echo off
+@if not defined __echo @echo off
 setlocal
 
 if not defined VisualStudioVersion (
