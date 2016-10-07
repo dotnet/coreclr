@@ -15,7 +15,8 @@
 #include "gdbjit.h"
 #include "gdbjithelpers.h"
 
-TypeInfoBase* GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTypeMap)
+TypeInfoBase*
+GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTypeMap, TypeInfoBase* valInfo = nullptr)
 {
     TypeInfoBase *typeInfo = nullptr;
     TypeKey key = typeHandle.GetTypeKey();
@@ -96,6 +97,16 @@ TypeInfoBase* GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_Ty
             }
             break;
         }
+        case ELEMENT_TYPE_BYREF:
+        {
+            typeInfo = new (nothrow) RefTypeInfo(valInfo);
+            if (typeInfo == nullptr)
+                return nullptr;
+            typeInfo->typeHandle = typeHandle;
+            typeInfo->m_type_size = sizeof(TADDR);
+            typeInfo->m_type_offset = valInfo->m_type_offset;
+        }
+        break;
         case ELEMENT_TYPE_ARRAY:
         case ELEMENT_TYPE_SZARRAY:
             //typeInfo->m_type_name = "array";
@@ -112,7 +123,7 @@ TypeInfoBase* GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_Ty
     typeInfo->m_type_name = new char[strlen(utf8) + 1];
     strcpy(typeInfo->m_type_name, utf8);
 
-    
+
     TypeKey* pTK = static_cast<TypeKey*>(operator new(sizeof(TypeKey)));
     if (pTK == nullptr)
         return nullptr;
@@ -207,6 +218,21 @@ TypeInfoBase* GetTypeInfoFromSignature(MethodDesc *MethodDescPtr,
                 }
                 break;
             }
+            case ELEMENT_TYPE_BYREF:
+            {
+                typePtr++;
+                if (i < ilIndex)
+                {
+                    break;
+                }
+                PTR_MethodTable m = MscorlibBinder::GetElementType(static_cast<CorElementType>(*typePtr));
+                if (m == nullptr)
+                {
+                    return nullptr;
+                }
+                TypeInfoBase* valType = GetTypeInfoFromTypeHandle(TypeHandle(m), pTypeMap);
+                return GetTypeInfoFromTypeHandle(valType->typeHandle.MakeByRef(), pTypeMap, valType);
+            } break;
             case ELEMENT_TYPE_ARRAY:
             case ELEMENT_TYPE_SZARRAY:
                 typePtr++;
@@ -924,6 +950,20 @@ void ClassTypeInfo::DumpStrings(char* ptr, int& offset)
     }
 }
 
+void RefTypeInfo::DumpDebugInfo(char* ptr, int& offset)
+{
+    m_value_type->DumpDebugInfo(ptr, offset);
+    if (ptr != nullptr)
+    {
+        NewHolder<DebugInfoRefType> refType = new (nothrow) DebugInfoRefType;
+        refType->m_type_abbrev = 9;
+        refType->m_ref_type = m_value_type->m_type_offset;
+        refType->m_byte_size = m_type_size;
+        m_type_offset = offset;
+        memcpy(ptr + offset, refType, sizeof(DebugInfoRefType));
+    }
+    offset += sizeof(DebugInfoRefType);
+}
 void ClassTypeInfo::DumpDebugInfo(char* ptr, int& offset)
 {
     if (m_type_offset != 0)
@@ -990,9 +1030,6 @@ void ClassTypeInfo::DumpDebugInfo(char* ptr, int& offset)
         offset += sizeof(DebugInfoRefType);
     }
 }
-
-int Leb128Encode(uint32_t num, char* buf, int size);
-int Leb128Encode(int32_t num, char* buf, int size);
 
 void ArrayTypeInfo::DumpDebugInfo(char* ptr, int& offset)
 {
@@ -2049,47 +2086,6 @@ void NotifyGdb::SplitPathname(const char* path, const char*& pathName, const cha
         fileName = path;
         pathName = nullptr;
     }
-}
-
-/* LEB128 for 32-bit unsigned integer */
-int Leb128Encode(uint32_t num, char* buf, int size)
-{
-    int i = 0;
-    
-    do
-    {
-        uint8_t byte = num & 0x7F;
-        if (i >= size)
-            break;
-        num >>= 7;
-        if (num != 0)
-            byte |= 0x80;
-        buf[i++] = byte;
-    }
-    while (num != 0);
-    
-    return i;
-}
-
-/* LEB128 for 32-bit signed integer */
-int Leb128Encode(int32_t num, char* buf, int size)
-{
-    int i = 0;
-    bool hasMore = true, isNegative = num < 0;
-    
-    while (hasMore && i < size)
-    {
-        uint8_t byte = num & 0x7F;
-        num >>= 7;
-        
-        if ((num == 0 && (byte & 0x40) == 0) || (num  == -1 && (byte & 0x40) == 0x40))
-            hasMore = false;
-        else
-            byte |= 0x80;
-        buf[i++] = byte;
-    }
-    
-    return i;
 }
 
 #ifdef _DEBUG

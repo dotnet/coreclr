@@ -174,6 +174,19 @@ public:
     int m_type_encoding;
 };
 
+class RefTypeInfo: public TypeInfoBase
+{
+public:
+    RefTypeInfo(TypeInfoBase *value_type)
+        : TypeInfoBase(),
+          m_value_type(value_type)
+    {
+    }
+
+    void DumpDebugInfo(char* ptr, int& offset) override;
+    TypeInfoBase *m_value_type;
+};
+
 class ClassTypeInfo: public TypeInfoBase
 {
 public:
@@ -329,6 +342,7 @@ public:
 
     typedef MapSHash<TypeKey*, TypeInfoBase*, DeleteKeysValuesOnDestructSHashTraits<TypeKeyHashTraits<TypeInfoBase*>>> TK_TypeInfoMap;
     typedef TK_TypeInfoMap* PTK_TypeInfoMap;
+
 private:
 
     struct MemBuf
