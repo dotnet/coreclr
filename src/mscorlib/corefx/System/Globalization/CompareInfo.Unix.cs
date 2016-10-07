@@ -17,7 +17,6 @@ namespace System.Globalization
         [NonSerialized]
         private bool _isAsciiEqualityOrdinal;
 
-        [SecuritySafeCritical]
         internal CompareInfo(CultureInfo culture)
         {
             _name = culture.m_name;
@@ -212,7 +211,6 @@ namespace System.Globalization
             }
         }
 
-        [SecuritySafeCritical]
         private bool StartsWith(string source, string prefix, CompareOptions options)
         {
             Contract.Assert(!string.IsNullOrEmpty(source));
@@ -227,7 +225,6 @@ namespace System.Globalization
             return Interop.GlobalizationInterop.StartsWith(_sortHandle, prefix, prefix.Length, source, source.Length, options);
         }
 
-        [SecuritySafeCritical]
         private bool EndsWith(string source, string suffix, CompareOptions options)
         {
             Contract.Assert(!string.IsNullOrEmpty(source));
@@ -242,7 +239,6 @@ namespace System.Globalization
             return Interop.GlobalizationInterop.EndsWith(_sortHandle, suffix, suffix.Length, source, source.Length, options);
         }
         
-        [System.Security.SecuritySafeCritical]
         private unsafe SortKey CreateSortKey(String source, CompareOptions options)
         {
             if (source==null) { throw new ArgumentNullException("source"); }
@@ -313,7 +309,6 @@ namespace System.Globalization
         // ---- PAL layer ends here ----
         // -----------------------------
 
-        [SecuritySafeCritical]
         internal unsafe int GetHashCodeOfStringCore(string source, CompareOptions options, bool forceRandomizedHashing, long additionalEntropy)
         {
             Contract.Assert(source != null);

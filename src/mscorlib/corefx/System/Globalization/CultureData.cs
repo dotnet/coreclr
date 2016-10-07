@@ -59,8 +59,6 @@ namespace System.Globalization
     internal partial class CultureData
     {
         private const int undef = -1;
-        internal const int LOCALE_CUSTOM_UNSPECIFIED = 0x1000;
-        internal const int LOCALE_CUSTOM_DEFAULT = 0x0c00;
 
         // Override flag
         private String _sRealName; // Name you passed in (ie: en-US, en, or de-DE_phoneb)
@@ -1980,7 +1978,7 @@ namespace System.Globalization
 
         internal static bool IsCustomCultureId(int cultureId)
         {
-            return (cultureId == LOCALE_CUSTOM_DEFAULT || cultureId == LOCALE_CUSTOM_UNSPECIFIED);
+            return (cultureId == CultureInfo.LOCALE_CUSTOM_DEFAULT || cultureId == CultureInfo.LOCALE_CUSTOM_UNSPECIFIED);
         }
 
         internal void GetNFIValues(NumberFormatInfo nfi)

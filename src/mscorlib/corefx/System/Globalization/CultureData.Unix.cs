@@ -3577,7 +3577,7 @@ namespace System.Globalization
             _iLanguage = this.ILANGUAGE;
             if (_iLanguage == 0)
             {
-                _iLanguage = LOCALE_CUSTOM_UNSPECIFIED;
+                _iLanguage = CultureInfo.LOCALE_CUSTOM_UNSPECIFIED;
             }
 
             _bNeutral = (this.SISO3166CTRYNAME.Length == 0);
@@ -3843,7 +3843,7 @@ namespace System.Globalization
             int index = SearchCultureName(cultureName);
             if (index < 0)
             {
-                return LOCALE_CUSTOM_UNSPECIFIED; 
+                return CultureInfo.LOCALE_CUSTOM_UNSPECIFIED; 
             }
             
             Contract.Assert(s_localeNamesIndices.Length == s_nameIndexTolcids.Length && index < s_localeNamesIndices.Length);

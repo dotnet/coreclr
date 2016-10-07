@@ -150,9 +150,11 @@ namespace System.Globalization
 
         // LOCALE constants of interest to us internally and privately for LCID functions
         // (ie: avoid using these and use names if possible)
-        private const int LOCALE_NEUTRAL        = 0x0000;
-        private const int LOCALE_USER_DEFAULT   = 0x0400;
-        private const int LOCALE_SYSTEM_DEFAULT = 0x0800;
+        private  const int LOCALE_NEUTRAL        = 0x0000;
+        private  const int LOCALE_USER_DEFAULT   = 0x0400;
+        private  const int LOCALE_SYSTEM_DEFAULT = 0x0800;
+        internal const int LOCALE_CUSTOM_UNSPECIFIED = 0x1000;
+        internal const int LOCALE_CUSTOM_DEFAULT = 0x0c00;
 
         static AsyncLocal<CultureInfo> s_asyncLocalCurrentCulture; 
         static AsyncLocal<CultureInfo> s_asyncLocalCurrentUICulture;
@@ -230,11 +232,11 @@ namespace System.Globalization
         {
             switch (culture)
             {
-                case CultureData.LOCALE_CUSTOM_DEFAULT:
+                case LOCALE_CUSTOM_DEFAULT:
                 case LOCALE_SYSTEM_DEFAULT:
                 case LOCALE_NEUTRAL:
                 case LOCALE_USER_DEFAULT:
-                case CultureData.LOCALE_CUSTOM_UNSPECIFIED:
+                case LOCALE_CUSTOM_UNSPECIFIED:
                     // Can't support unknown custom cultures and we do not support neutral or
                     // non-custom user locales.
                     throw new CultureNotFoundException("culture", culture, SR.Argument_CultureNotSupported);
