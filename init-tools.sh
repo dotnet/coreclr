@@ -76,7 +76,6 @@ if [ "$OS" == "OSX" ]; then
 fi
 
 __CLIDownloadURL=https://dotnetcli.blob.core.windows.net/dotnet/preview/Binaries/${__DOTNET_TOOLS_VERSION}/${__DOTNET_PKG}.${__DOTNET_TOOLS_VERSION}.tar.gz
-echo ".NET CLI will be downloaded from $__CLIDownloadURL"
 echo "Locating $__PROJECT_JSON_FILE to see if we already downloaded .NET CLI tools..." 
 
 if [ ! -e $__PROJECT_JSON_FILE ]; then
@@ -84,37 +83,48 @@ if [ ! -e $__PROJECT_JSON_FILE ]; then
     if [ -e $__TOOLRUNTIME_DIR ]; then rm -rf -- $__TOOLRUNTIME_DIR; fi
 
     if [ ! -e $__DOTNET_PATH ]; then
-        # curl has HTTPS CA trust-issues less often than wget, so lets try that first.
-        which curl > /dev/null 2> /dev/null
-        if [ $? -ne 0 ]; then
-          mkdir -p "$__DOTNET_PATH"
-          wget -q -O $__DOTNET_PATH/dotnet.tar $__CLIDownloadURL
-          echo "wget -q -O $__DOTNET_PATH/dotnet.tar $__CLIDownloadURL"
+        mkdir -p "$__DOTNET_PATH"
+
+        if [ -d "$DOTNET_TOOLSET_DIR/$__DOTNET_TOOLS_VERSION" ]; then
+            cp -r $DOTNET_TOOLSET_DIR/$__DOTNET_TOOLS_VERSION/* $__DOTNET_PATH
         else
-          curl --retry 10 -sSL --create-dirs -o $__DOTNET_PATH/dotnet.tar $__CLIDownloadURL
-          echo "curl --retry 10 -sSL --create-dirs -o $__DOTNET_PATH/dotnet.tar $__CLIDownloadURL"
-        fi
-        cd $__DOTNET_PATH
-        tar -xf $__DOTNET_PATH/dotnet.tar
-        if [ -n "$BUILDTOOLS_OVERRIDE_RUNTIME" ]; then
-            find $__DOTNET_PATH -name *.ni.* | xargs rm 2>/dev/null
-            cp -R $BUILDTOOLS_OVERRIDE_RUNTIME/* $__DOTNET_PATH/bin
-            cp -R $BUILDTOOLS_OVERRIDE_RUNTIME/* $__DOTNET_PATH/bin/dnx
-            cp -R $BUILDTOOLS_OVERRIDE_RUNTIME/* $__DOTNET_PATH/runtime/coreclr
-        fi
+            echo ".NET CLI will be downloaded from $__CLIDownloadURL"
 
-        cd $__scriptpath
+            # curl has HTTPS CA trust-issues less often than wget, so lets try that first.
+            which curl > /dev/null 2> /dev/null
+            if [ $? -ne 0 ]; then
+              wget -q -O $__DOTNET_PATH/dotnet.tar $__CLIDownloadURL
+              echo "wget -q -O $__DOTNET_PATH/dotnet.tar $__CLIDownloadURL"
+            else
+              curl --retry 10 -sSL --create-dirs -o $__DOTNET_PATH/dotnet.tar $__CLIDownloadURL
+              echo "curl --retry 10 -sSL --create-dirs -o $__DOTNET_PATH/dotnet.tar $__CLIDownloadURL"
+            fi
+            cd $__DOTNET_PATH
+            tar -xf $__DOTNET_PATH/dotnet.tar
+            if [ -n "$BUILDTOOLS_OVERRIDE_RUNTIME" ]; then
+                find $__DOTNET_PATH -name *.ni.* | xargs rm 2>/dev/null
+                cp -R $BUILDTOOLS_OVERRIDE_RUNTIME/* $__DOTNET_PATH/bin
+                cp -R $BUILDTOOLS_OVERRIDE_RUNTIME/* $__DOTNET_PATH/bin/dnx
+                cp -R $BUILDTOOLS_OVERRIDE_RUNTIME/* $__DOTNET_PATH/runtime/coreclr
+            fi
+
+            cd $__scriptpath
+        fi
     fi
 
-    mkdir "$__PROJECT_JSON_PATH"
-    echo $__PROJECT_JSON_CONTENTS > "$__PROJECT_JSON_FILE"
+    if [ -d "$BUILD_TOOLS_TOOLSET_DIR/$__BUILD_TOOLS_PACKAGE_VERSION" ]; then
+        cp -r $BUILD_TOOLS_TOOLSET_DIR/$__BUILD_TOOLS_PACKAGE_VERSION/* $__TOOLRUNTIME_DIR
+    else
+        mkdir "$__PROJECT_JSON_PATH"
+        echo $__PROJECT_JSON_CONTENTS > "$__PROJECT_JSON_FILE"
 
-    if [ ! -e $__BUILD_TOOLS_PATH ]; then
-        $__DOTNET_CMD restore "$__PROJECT_JSON_FILE" --packages $__PACKAGES_DIR --source $__BUILDTOOLS_SOURCE
+        if [ ! -e $__BUILD_TOOLS_PATH ]; then
+            $__DOTNET_CMD restore "$__PROJECT_JSON_FILE" --packages $__PACKAGES_DIR --source $__BUILDTOOLS_SOURCE
+        fi
+
+        # On ubuntu 14.04, /bin/sh (symbolic link) calls /bin/dash by default.
+        $__BUILD_TOOLS_PATH/init-tools.sh $__scriptpath $__DOTNET_CMD $__TOOLRUNTIME_DIR
     fi
-
-    # On ubuntu 14.04, /bin/sh (symbolic link) calls /bin/dash by default.
-    $__BUILD_TOOLS_PATH/init-tools.sh $__scriptpath $__DOTNET_CMD $__TOOLRUNTIME_DIR
 
 else
     echo "$__PROJECT_JSON_FILE found. Skipping .NET CLI installation."   
