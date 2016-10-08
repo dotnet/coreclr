@@ -88,10 +88,10 @@ sort of 'host' executable that loads the CoreCLR package as well as the CoreFX p
 you use dotnet.exe for this).   
 
 These extra pieces are not defined here, however you don't need to build them in order to use the CoreCLR 
-Nuget package you create here.   There are already versions of the CoreFX packages published on https://www.nuget.org/ so you 
-can just have your test application's project.json specify the CoreCLR you built it will naturally pull
-anything else it needs from the official location https://www.nuget.org/ to make a complete application.
-More on this in the [Using Your Build](Documentation/UsingYourBuild.md) page.
+Nuget package you create here.   There are already versions of the CoreFX packages published on 
+https://www.nuget.org/ so you  can just have your test application's project.json specify the CoreCLR you 
+built it will naturally pull anything else it needs from the official location https://www.nuget.org/ to 
+make a complete application.  More on this in the [Using Your Build](Documentation/UsingYourBuild.md) page.
 
 --------------------------
 ## Building the Repository
@@ -112,19 +112,47 @@ build that platform.
 
 The build has two main 'buildTypes'
 
- * Checked (default)- This compiles the runtime with additional runtime checks.  These checks slow runtime execution 
-   but provide really valuable run time checks, and is recommended for normal development and testing.  
+ * Debug (default)- This compiles the runtime with additional runtime checks (asserts).  These checks slow 
+   runtime execution but are really valuable for debugging, and is recommended for normal development and testing.  
  * Release - This compiles without any development time runtime checks.  This is what end users will use but 
    can be difficult to debug.   Passing 'release' to the build script select this.  
 
 In addition, by default the build will not only create the runtime executables, but it will also 
 build all the tests and run them.   This is more thorough, since the test are run, but also slows
 down the build substantially and does not provide a lot of value unless you are about to submit a 
-pull request.  
+pull request.  You can suppress the building and running of the tests by passing 'skiptests' argument 
+to the build script.
 
-You can suppress the building and running of the tests by passing 'skiptests' to the build script.
+Thus in the base of the repo, typing the following (using \ as the directory separator, use / on Unix machines)
 
-You can find more build options with the -? or -help option.    
+*    .\build skiptests 
+
+to build a version with development time checks (asserts), without running tests or 
+
+*    .\build release skiptests
+
+to build the release (full speed) version.  You can find more build options with build by using the -? or -help qualifier.   
+
+## Using Your Build
+
+The build places all of its generated files under the 'bin' directory at the base of the repository.   There 
+is a 'bin\Log' directory that contains log files generated during the build (Most useful when the build fails).
+The the actual output is placed in a directory like this 
+
+* bin\Product\Windows_NT.x64.Release
+
+Where you can see the operating system and CPU architecture, and the build type are part of the name.   While
+the 'raw' output of the build is sometimes useful, normally you are only interested in the Nuget packages 
+that were built, which are placed in the direoctyr 
+
+* bin\Product\Windows_NT.x64.Release\.nuget\pkg
+
+directory.   These packages are the 'output' of your build.   
+
+See [Using Your Build](Documentation/UsingYourBuild.md) for instructions on creating a program that uses your new runtime. 
+
+-------------------
+## Contributing to Repository 
 
 -------------------
 ## Related Projects

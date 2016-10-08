@@ -13,7 +13,7 @@ Visual Studio
 
 Visual Studio must be installed. Supported versions:
 
-- [Visual Studio 2015](https://www.visualstudio.com/downloads/visual-studio-2015-downloads-vs) (Community, Professional, Enterprise)
+- [Visual Studio 2015](https://www.visualstudio.com/downloads/visual-studio-2015-downloads-vs) (Community, Professional, Enterprise).  The community version is completely free.  
 
 To debug managed code, ensure you have installed atleast [Visual Studio 2015 Update 3](https://www.visualstudio.com/en-us/news/releasenotes/vs2015-update3-vs).
 
@@ -29,14 +29,17 @@ CMake
 The CoreCLR repo build has been validated using CMake 3.5.2. 
 
 - Install [CMake](http://www.cmake.org/download) for Windows.
-- Add it to the PATH environment variable.
+- Add it location (e.g. C:\Program Files (x86)\CMake\bin) to the PATH environment variable.  You probably want to make this 
+path variable update 'permanent' by going to  Control Panel -> System And Security -> System -> Advanced system settings -> Environment Variables, 
+and select the 'Path' variable in the 'System variables' and add CMAKE's location to that variable.  This will cause any new command prompt 
+to have the new path going forward.  
 
 Python
 ---------
 Python is used in the build system. We are currently using python 2.7.9, although
 any recent (2.4+) version of Python should work, including Python 3.
 - Install [Python](https://www.python.org/downloads/) for Windows.
-- Add it to the PATH environment variable.
+- Add it to the PATH environment variable (same recommendation as for CMAKE to add it to the system variables)
 
 PowerShell
 ----------
@@ -97,7 +100,7 @@ You will see several files. The interesting ones are:
 
 - `corerun`: The command line host. This program loads and starts the CoreCLR runtime and passes the managed program you want to run to it.
 - `coreclr.dll`:  The CoreCLR runtime itself.
-- `mscorlib.dll`: The core managed library for CoreCLR, which contains all of the fundamental data types and functionality.
+- `System.Private.CoreLib.dll`: The core managed library for CoreCLR, which contains all of the fundamental data types and functionality.
 
 Copy these files into the demo directory.
 
