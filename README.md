@@ -91,12 +91,21 @@ These extra pieces are not defined here, however you don't need to build them in
 Nuget package you create here.   There are already versions of the CoreFX packages published on 
 https://www.nuget.org/ so you  can just have your test application's project.json specify the CoreCLR you 
 built it will naturally pull anything else it needs from the official location https://www.nuget.org/ to 
-make a complete application.  More on this in the [Using Your Build](Documentation/UsingYourBuild.md) page.
+make a complete application.  More on this in the [Using Your Build](Documentation/workflow/UsingYourBuild.md) page.
+
+--------------------------
+## Setting up your GIT Clone of the CoreCLR Repository
+
+The first step in making a build of the CoreCLR Repository is to clone it locally.   If you already know
+how to do this, just skip this section.  Otherwise if you are developing on windows you can see     
+[Setting Up A Git Repository In Visual Studio 2015](https://github.com/Microsoft/perfview/blob/master/documentation/SettingUpRepoInVS2015.md)
+for for instructions on setting up.  This link uses a different repository as an example, but the issues (do you fork or not) and
+the procedure are equally applicable to this repository.  
 
 --------------------------
 ## Building the Repository
 
-The build depends on CMAKE, Python and of course a C++ compiler.  Once these prerequisites are installed
+The build depends on GIT, CMAKE, Python and of course a C++ compiler.  Once these prerequisites are installed
 the build is simply a matter of invoking the 'Build' script (Build.cmd or build.sh) at the base of the 
 repository.  
 
@@ -143,13 +152,13 @@ The the actual output is placed in a directory like this
 
 Where you can see the operating system and CPU architecture, and the build type are part of the name.   While
 the 'raw' output of the build is sometimes useful, normally you are only interested in the Nuget packages 
-that were built, which are placed in the direoctyr 
+that were built, which are placed in the directory 
 
 * bin\Product\Windows_NT.x64.Release\.nuget\pkg
 
 directory.   These packages are the 'output' of your build.   
 
-See [Using Your Build](Documentation/UsingYourBuild.md) for instructions on creating a program that uses your new runtime. 
+See [Using Your Build](Documentation/workflowUsingYourBuild.md) for instructions on creating a program that uses your new runtime. 
 
 -------------------
 ## Contributing to Repository 

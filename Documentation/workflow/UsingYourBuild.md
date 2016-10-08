@@ -1,5 +1,5 @@
 
-# Using your .NET Core Build\
+# Using your .NET Core Build
 
 We assume that you have successfully built .NET Core Repository and thus have file of the form  
 
