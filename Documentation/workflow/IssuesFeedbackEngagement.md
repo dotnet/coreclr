@@ -1,5 +1,5 @@
 
-# Engage, Contribute and Provide Feedback
+# Engage, Log Issues and Provide Feedback
 
 ## Reporting Problems (Bugs)
 
@@ -36,15 +36,3 @@ operating system.  If you are having issues with the Full .NET Framework or .NET
 are at [Connect](http://connect.microsoft.com/VisualStudio) or through
 [Product Support](https://support.microsoft.com/en-us/contactus?ws=support) if you have a contract.
 
-# Want To Contribute?
-
-Looking for something to work on? The list 
-of [up-for-grabs issues](https://github.com/dotnet/coreclr/issues?q=is%3Aopen+is%3Aissue+label%3Aup-for-grabs) is a great place to start.
-
-Please read the following documents to get started.
-
-* [Contributing Guide](../project-docs/contributing.md)
-* [Developer Guide](../project-docs/developer-guide.md)
-
-This project has adopted the code of conduct defined by the [Contributor Covenant](http://contributor-covenant.org/) 
-to clarify expected behavior in our community. For more information, see the [.NET Foundation Code of Conduct](http://www.dotnetfoundation.org/code-of-conduct).

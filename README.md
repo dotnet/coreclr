@@ -180,6 +180,17 @@ time to runt tests.  See [Running .NET Core Tests](Documentation/workflow/Runnin
 
 ## Contributing to Repository 
 
+Looking for something to work on? The list 
+of [up-for-grabs issues](https://github.com/dotnet/coreclr/issues?q=is%3Aopen+is%3Aissue+label%3Aup-for-grabs) is a great place to start.
+
+Please read the following documents to get started.
+
+* [Contributing Guide](Documentation/project-docs/contributing.md)
+* [Developer Guide](Documentation/project-docs/developer-guide.md)
+
+This project has adopted the code of conduct defined by the [Contributor Covenant](http://contributor-covenant.org/) 
+to clarify expected behavior in our community. For more information, see the [.NET Foundation Code of Conduct](http://www.dotnetfoundation.org/code-of-conduct).
+
 -------------------
 ## Related Projects
 
