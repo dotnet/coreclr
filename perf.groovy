@@ -183,29 +183,3 @@ def static getOSGroup(def os) {
         }
     } // os
 } // isPR
-
-[true, false].each { isPR ->
-    ['Windows_NT'].each { os ->
-        def newJob = job(Utilities.getFullJobName(project, "perf_coreclr_microbenchmarks_${os}", isPR)) {
-            // Set the label.
-            steps {
-                    // Batch
-					batchFile("C:\\Tools\\nuget.exe install Microsoft.BenchView.JSONFormat -Source http://benchviewtestfeed.azurewebsites.net/nuget -OutputDirectory C:\\tools -Prerelease -version 0.1.0-pre015")
-                    batchFile("python C:\\tools\\Microsoft.BenchView.JSONFormat.0.1.0-pre015\\tools\\machinedata.py")
-                    batchFile("set __TestIntermediateDir=int&&build.cmd release x64")
-                    batchFile("tests\\runtest.cmd release x64")
-                    batchFile("tests\\scripts\\run-xunit-perf.cmd -arch x64 -configuration Release -testBinLoc bin\tests\Windows_NT.x64.Release\Jit\Performance\CodeQuality")
-            }
-        }
-
-        Utilities.setMachineAffinity(newJob, os, 'latest-or-auto-elevated') // Just run against Windows_NT VM’s for now.
-        Utilities.standardJobSetup(newJob, project, isPR, "*/${branch}")
-        if (isPR) {
-            Utilities.addGithubPRTriggerForBranch(newJob, branch, "${os} JIT Code Quality Perf Tests") // Add a PR trigger.
-        }
-        else {
-            // Set a push trigger
-            Utilities.addGithubPushTrigger(newJob)
-        }
-    }
-}
