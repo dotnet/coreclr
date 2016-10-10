@@ -1,4 +1,4 @@
-@if not defined __echo @echo off
+@if not defined _echo @echo off
 setlocal
 
 set INIT_TOOLS_LOG=%~dp0init-tools.log
