@@ -173,14 +173,10 @@ There are two basic techniques for using your new runtime.
  all the tests in the repo use, and is useful for quick local 'edit-compile-debug' loop (e.g. preliminary unit testsing).
  See [Executing .NET Core Apps with CoreRun.exe](Documentation/workflow/UsingCoreRun.md) for details on using things
 
-## Editing and Debugging in Visual Studio 
-
-TODO 
-
 ## Running Tests 
 
 After you have your modification basically working, and want to determine if you have broken anything it is 
-time to runt tests.  See [Running .NET Core Tests]()
+time to runt tests.  See [Running .NET Core Tests](Documentation/workflow/RunningTests.md)
 
 ## Contributing to Repository 
 

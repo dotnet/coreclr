@@ -3,7 +3,7 @@
 
 TODO - Incomplete. 
 
-See [Windows Instructions](../building/windows-test-instrutions.md)
+See [Windows Instructions](../building/windows-test-instructions.md)
 See [Unix Instructions](../building/unix-test-instructions.md)
 
 
