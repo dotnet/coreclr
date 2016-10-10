@@ -4,22 +4,26 @@
 
 ## Reporting Problems (Bugs)
 
+CoreCLR GitHub Issues 
+https://github.com/dotnet/coreclr/issues
 
 
 #### Security issues
 
-To avoid tiping off malicious users wishing to exploit a vulnerability, 
+To avoid tipping off malicious users wishing to exploit a vulnerability, 
 security issues and bugs should be reported privately, via email, to the
 Microsoft Security Response Center (MSRC) <secure@microsoft.com>. You should
 receive a response within 24 hours. If for some reason you do not, please follow
 up via email to ensure we received your original message. Further information,
 including the MSRC PGP key, can be found in the
-[Security TechCenter](https://technet.microsoft.com/en-us/security/ff852094.aspx)
+[Security TechCenter](https://technet.microsoft.com/en-us/security/ff852094.aspx) 
 
 
 
 Some of the best ways to contribute are to try things out, file bugs, and join in design conversations.
 You are encouraged to start a discussion by filing an issue, or starting a thread in the [.NET Foundation forums](http://forums.dotnetfoundation.org/). 
+
+
 If you are having issues with the Full .NET Framework or .NET Runtime the best ways to file a bug 
 are at [Connect](http://connect.microsoft.com/VisualStudio) or through [Product Support](https://support.microsoft.com/en-us/contactus?ws=support) if you have a contract.
 

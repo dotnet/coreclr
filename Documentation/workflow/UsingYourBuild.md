@@ -5,7 +5,7 @@ We assume that you have successfully built .NET Core Repository and thus have fi
 
     bin\Product\<OS>.<arch>.<flavor>\.nuget\pkg\Microsoft.NETCore.Runtime.CoreCLR.<version>.nupkg
 
-And now you wish to try it out.  We will be using Windows as an example and thus will use \ rather
+And now you wish to try it out.  We will be using Windows OS as an example and thus will use \ rather
 than / for directory separators and things like Windows_NT instead of Linux but it should be
 pretty obvious how to adapt these instructions for other operating systems.  
 
@@ -166,7 +166,12 @@ After running this in the 'HelloWorld' directory you will see that the following
 
 * helloWorld\bin\Debug\netcoreapp1.0\win7-x64\publish
 
-Has all the binaries needed, including the CoreCLR.dll and System.Private.CoreLib.dll that you build locally
+Has all the binaries needed, including the CoreCLR.dll and System.Private.CoreLib.dll that you build locally.  To
+run the application simple run the EXE that is in this publish directory (it is the name of the app, or specified
+in the project.json file).   Thus at this point this directory has NO dependency outside this publication directory
+(including dotnet.exe).   You can copy this publication directory to another machine and run( the exe in it and
+will 'just work'.   Note that your managed app's code is still in the 'app'.dll file, the 'app'.exe file is 
+actually simply a rename of dotnet.exe.   
 
 ### Step 7: (Optional) Confirm that the app used your new runtime
 
@@ -175,7 +180,51 @@ should compare the file creation timestamps for the CoreCLR.dll and System.Priva
 directory and the build output directory.  They should be identical.   If not, something went wrong and the
 dotnet tool picked up a different version of your runtime.  
 
+### Step 8: Update BuildNumberMinor Environment Variable!
+
+One possible problem with the technique above is that Nuget assumes that distinct builds have distinct version numbers.
+Thus if you modify the source and create a new NuGet package you must it a new version number and use that in your 
+application's project.json.   Otherwise the dotnet.exe tool will assume that the existing version is fine and you 
+won't get the updated bits.   This is what the Minor Build number is all about.  By default it is 0, but you can
+give it a value by setting the BuildNumberMinor environment variable. 
+```bat
+    set BuildNumberMinor=3
+```
+before packaging.   You should see this number show up in the version number (e.g. 1.2.0-beta-24521-03).
+
+As an alternative you can delete the existing copy of the package from the Nuget cache.   For example on 
+windows you could delete 
+```bat
+     %HOMEPATH%\.nuget\packages\Microsoft.NETCore.Runtime.CoreCLR\1.2.0-beta-24521-02
+```
+which should mke things work (but is fragile, confirm wile file timestamps that you are getting the version you expect)
+
+
+## Step 8.1 Quick updates in place.  
+
+The 'dotnet publish' step in step 6 above creates a directory that has all the files necessary to run your app
+including the CoreCLR and the parts of CoreFX that were needed.    You can use this fact to skip some steps if
+you wish to update the DLLs.   For example typically when you update CoreCLR you end up updating one of two DLLs
+
+* Coreclr.dll - Most modifications (with the exception of the JIT compiler and tools) that are C++ code update
+  this DLL. 
+* System.Private.CoreLib.dll - If you modified C# it will end up here.  
+
+Thus after making a change and building, you can simply copy the updated binary from the `bin\Product\<OS>.<arch>.<flavor>`
+directory to your publication directory (e.g. `helloWorld\bin\Debug\netcoreapp1.0\win7-x64\publish`) to quickly
+deploy your new bits.   
+
+
 ### Using your Runtime For Real.  
 
 You can see that it is straightforward for anyone to use your runtime.  They just need to modify their project.json 
-and modifiy their Nuget search path.   This is the expected way of distributing your modified runtime.  
+and modify their NuGet search path.   This is the expected way of distributing your modified runtime.  
+
+--------------------------
+## Using CoreRun to run your .NET Core Application
+
+Generally using dotnet.exe tool to run your .NET Core application is the preferred mechanism to run .NET Core Apps.
+However there is a simpler 'host' for .NET Core applications called 'CoreRun' that can also be used.   The value
+of this host is that it is simpler (in particular it knows nothing about NuGet), but precisely because of this
+it can be harder to use (since you are responsible for insuring all the dependencies you need are gather together)
+See [Using CoreRun To Run .NET Core Application](UsingCoreRun.md) for more.  

@@ -28,7 +28,7 @@ related to .NET Core including:
  * Want to **learn more** about .NET Runtime Internals?  See the [Documentation on the .NET Core Runtime](Documentation/README.md) page.
  * Need to **log a issue** or Provide Feedback?   See then [Issues and Feedback Page](Documentation/workflow/IssuesFeedbackEngagement.md) page.
  * Want to **chat** with other members of the CoreCLR community?  See the [Chat Section](Documentation/workflow/IssuesFeedbackEngagement.md#Chat-with-the-CoreCLR-community) page.
- * Need a **current build** of the CoreCLR repository?   See the [Official and Daily Builds](Documentation/workflow/OfficalAndDailyBuilds.md) page.
+ * Need a **current build** or **test results** of the CoreCLR repository?   See the [Official and Daily Builds](Documentation/workflow/OfficalAndDailyBuilds.md) page.
 
 ## What Can you Make from this Repository?
 
@@ -97,7 +97,7 @@ make a complete application.  More on this in the [Using Your Build](Documentati
 ## Setting up your GIT Clone of the CoreCLR Repository
 
 The first step in making a build of the CoreCLR Repository is to clone it locally.   If you already know
-how to do this, just skip this section.  Otherwise if you are developing on windows you can see     
+how to do this, just skip this section.  Otherwise if you are developing on windows you can see
 [Setting Up A Git Repository In Visual Studio 2015](https://github.com/Microsoft/perfview/blob/master/documentation/SettingUpRepoInVS2015.md)
 for for instructions on setting up.  This link uses a different repository as an example, but the issues (do you fork or not) and
 the procedure are equally applicable to this repository.  
@@ -110,8 +110,8 @@ the build is simply a matter of invoking the 'Build' script (Build.cmd or build.
 repository.  
 
 The details of installing the components differ depending on the operating system.  See the following
-pages based on your OS.  There is no cross-building.  You have to be on the particular platform to 
-build that platform.  
+pages based on your OS.  There is no cross-building across OS (only for ARM, which is built on X64).  
+You have to be on the particular platform to build that platform.  
 
  * [Windows Build Instructions](Documentation/building/windows-instructions.md)
  * [Linux Build Instructions](Documentation/building/linux-instructions.md)
@@ -121,26 +121,28 @@ build that platform.
 
 The build has two main 'buildTypes'
 
+As mentioned in the instructions above, once the necessary tools have installed if you want to
+build the default flavor 
+
  * Debug (default)- This compiles the runtime with additional runtime checks (asserts).  These checks slow 
    runtime execution but are really valuable for debugging, and is recommended for normal development and testing.  
  * Release - This compiles without any development time runtime checks.  This is what end users will use but 
    can be difficult to debug.   Passing 'release' to the build script select this.  
 
 In addition, by default the build will not only create the runtime executables, but it will also 
-build all the tests and run them.   This is more thorough, since the test are run, but also slows
-down the build substantially and does not provide a lot of value unless you are about to submit a 
-pull request.  You can suppress the building and running of the tests by passing 'skiptests' argument 
-to the build script.
+build all the tests.   There are quit a few tests so this does take a significant amount of time
+that is not necessary if you are just want to experiement with changes.   You can submit the building
+of the tests with the 'skiptests' argument to the build script.
 
-Thus in the base of the repo, typing the following (using \ as the directory separator, use / on Unix machines)
-
-*    .\build skiptests 
-
-to build a version with development time checks (asserts), without running tests or 
-
-*    .\build release skiptests
-
-to build the release (full speed) version.  You can find more build options with build by using the -? or -help qualifier.   
+Thus to get a build as quickly as possible type the following (using \ as the directory separator, use / on Unix machines)
+```bat
+    .\build skiptests 
+```
+which will build the Debug flavor which has development time checks (asserts), or 
+```bat 
+    .\build release skiptests
+```
+to build the release (full speed) flavor.  You can find more build options with build by using the -? or -help qualifier.   
 
 ## Using Your Build
 
@@ -158,9 +160,28 @@ that were built, which are placed in the directory
 
 directory.   These packages are the 'output' of your build.   
 
-See [Using Your Build](Documentation/workflowUsingYourBuild.md) for instructions on creating a program that uses your new runtime. 
+There are two basic techniques for using your new runtime.
 
--------------------
+ 1. **Use dotnet.exe and Nuget to compose an application**
+ See [Using Your Build](Documentation/workflow/UsingYourBuild.md) for instructions on creating a program that uses 
+ your new runtime by using the Nuget packages you just created and the'dotnet' command line interface.  This
+ is the expected way non-runtime developers are likely to consume your new runtime.    
+
+ 2. **Use corerun.exe to run an application using unpackaged Dlls** This repo also defined a simple host called
+ corerun.exe that does NOT take any dependency on NuGet.   Basically it has to be told where to get all the
+ necessary DLLs you actually use, and you have to gather them together 'by hand'.   This is the technique that
+ all the tests in the repo use, and is useful for quick local 'edit-compile-debug' loop (e.g. preliminary unit testsing).
+ See [Executing .NET Core Apps with CoreRun.exe](Documentation/workflow/UsingCoreRun.md) for details on using things
+
+## Editing and Debugging in Visual Studio 
+
+TODO 
+
+## Running Tests 
+
+After you have your modification basically working, and want to determine if you have broken anything it is 
+time to runt tests.  See [Running .NET Core Tests]()
+
 ## Contributing to Repository 
 
 -------------------
