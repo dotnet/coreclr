@@ -44,7 +44,7 @@ def static getOSGroup(def os) {
 					// Batch
 					batchFile("C:\\Tools\\nuget.exe install Microsoft.BenchView.JSONFormat -Source http://benchviewtestfeed.azurewebsites.net/nuget -OutputDirectory C:\\tools -Prerelease -ExcludeVersion")
 					batchFile("python C:\\tools\\Microsoft.BenchView.JSONFormat\\tools\\submission-metadata.py --name " + "\"" + benchViewName + "\"" + " --user " + "\"dotnet-bot@microsoft.com\"")
-					batchFile("python C:\\tools\\Microsoft.BenchView.JSONFormat\\tools\\build.py git --type " + runType)
+					batchFile("python C:\\tools\\Microsoft.BenchView.JSONFormat\\tools\\build.py git --branch %GIT_BRANCH% --type " + runType)
 					batchFile("python C:\\tools\\Microsoft.BenchView.JSONFormat\\tools\\machinedata.py")
 					batchFile("set __TestIntermediateDir=int&&build.cmd release ${architecture}")
 					batchFile("tests\\runtest.cmd release ${architecture} GenerateLayoutOnly")
