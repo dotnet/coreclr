@@ -43,8 +43,8 @@ of [up-for-grabs issues](https://github.com/dotnet/coreclr/issues?q=is%3Aopen+is
 
 Please read the following documents to get started.
 
-* [Contributing Guide](Documentation/project-docs/contributing.md)
-* [Developer Guide](Documentation/project-docs/developer-guide.md)
+* [Contributing Guide](../project-docs/contributing.md)
+* [Developer Guide](../project-docs/developer-guide.md)
 
 This project has adopted the code of conduct defined by the [Contributor Covenant](http://contributor-covenant.org/) 
 to clarify expected behavior in our community. For more information, see the [.NET Foundation Code of Conduct](http://www.dotnetfoundation.org/code-of-conduct).
