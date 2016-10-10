@@ -48,7 +48,7 @@ def static getOSGroup(def os) {
 					batchFile("python C:\\tools\\Microsoft.BenchView.JSONFormat\\tools\\machinedata.py")
 					batchFile("set __TestIntermediateDir=int&&build.cmd release ${architecture}")
 					batchFile("tests\\runtest.cmd release ${architecture} GenerateLayoutOnly")
-					batchFile("tests\\scripts\\run-xunit-perf.cmd -arch ${architecture} -configuration ${configuration} -testBinLoc bin\\tests\\Windows_NT.x64.Release\\performance\\perflab\\Perflab -library -uploadToBenchview C:\\Tools\\Microsoft.Benchview.JSONFormat\\tools -runtype " + runType
+					batchFile("tests\\scripts\\run-xunit-perf.cmd -arch ${architecture} -configuration ${configuration} -testBinLoc bin\\tests\\Windows_NT.x64.Release\\performance\\perflab\\Perflab -library -uploadToBenchview C:\\Tools\\Microsoft.Benchview.JSONFormat\\tools -runtype " + runType)
 				}
 			}
 
