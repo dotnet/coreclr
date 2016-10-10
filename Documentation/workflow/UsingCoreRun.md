@@ -1,5 +1,5 @@
 
-#Using CoreRun To Run .NET Core Application
+# Using CoreRun To Run .NET Core Application
 
 In page [Using Your Build](UsingYourBuild.md) gives detailed instructions on using the standard
 command line host and SDK, dotnet.exe to run a .NET application with the modified build of the

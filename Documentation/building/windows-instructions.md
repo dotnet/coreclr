@@ -4,7 +4,7 @@ Build CoreCLR on Windows
 These instructions will lead you through building CoreCLR.
 
 ----------------
-Environment
+#Environment
 
 You must install several components to build the CoreCLR and CoreFX repos. These instructions were tested on Windows 7+.
 
