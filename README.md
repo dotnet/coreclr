@@ -8,7 +8,7 @@ that quickly points you to [.NET Core Tutorials](https://docs.microsoft.com/en-u
 
 .NET Core is best thought of as 'agile .NET'.   Generally speaking it is the same as 
 the [Desktop .NET Framework](https://en.wikipedia.org/wiki/.NET_Framework)
-that is distributed as part of the Windows operating system, but it is a cross platform 
+distributed as part of the Windows operating system, but it is a cross platform 
 (Windows, Linux, OSX) and cross architecture (x86, x64, arm) subset that can be deployed
 as part of the application (if desired), and thus can be updated quickly to fix bugs or add features.  
 
@@ -121,9 +121,6 @@ You have to be on the particular platform to build that platform.
 
 The build has two main 'buildTypes'
 
-As mentioned in the instructions above, once the necessary tools have installed if you want to
-build the default flavor 
-
  * Debug (default)- This compiles the runtime with additional runtime checks (asserts).  These checks slow 
    runtime execution but are really valuable for debugging, and is recommended for normal development and testing.  
  * Release - This compiles without any development time runtime checks.  This is what end users will use but 
@@ -131,7 +128,7 @@ build the default flavor
 
 In addition, by default the build will not only create the runtime executables, but it will also 
 build all the tests.   There are quit a few tests so this does take a significant amount of time
-that is not necessary if you are just want to experiement with changes.   You can submit the building
+that is not necessary if you are just want to experiment with changes.   You can submit the building
 of the tests with the 'skiptests' argument to the build script.
 
 Thus to get a build as quickly as possible type the following (using \ as the directory separator, use / on Unix machines)
@@ -162,21 +159,22 @@ directory.   These packages are the 'output' of your build.
 
 There are two basic techniques for using your new runtime.
 
- 1. **Use dotnet.exe and Nuget to compose an application**
- See [Using Your Build](Documentation/workflow/UsingYourBuild.md) for instructions on creating a program that uses 
- your new runtime by using the Nuget packages you just created and the'dotnet' command line interface.  This
+ 1. **Use dotnet.exe and Nuget to compose an application**.   See [Using Your Build](Documentation/workflow/UsingYourBuild.md) for 
+ instructions on creating a program that uses 
+ your new runtime by using the NuGet packages you just created and the'dotnet' command line interface.  This
  is the expected way non-runtime developers are likely to consume your new runtime.    
 
- 2. **Use corerun.exe to run an application using unpackaged Dlls** This repo also defined a simple host called
+ 2. **Use corerun.exe to run an application using unpackaged Dlls**. This repository also defines a simple host called
  corerun.exe that does NOT take any dependency on NuGet.   Basically it has to be told where to get all the
  necessary DLLs you actually use, and you have to gather them together 'by hand'.   This is the technique that
  all the tests in the repo use, and is useful for quick local 'edit-compile-debug' loop (e.g. preliminary unit testsing).
- See [Executing .NET Core Apps with CoreRun.exe](Documentation/workflow/UsingCoreRun.md) for details on using things
+ See [Executing .NET Core Apps with CoreRun.exe](Documentation/workflow/UsingCoreRun.md) for details on using 
+ this technique.  
 
 ## Running Tests 
 
 After you have your modification basically working, and want to determine if you have broken anything it is 
-time to runt tests.  See [Running .NET Core Tests](Documentation/workflow/RunningTests.md)
+time to runt tests.  See [Running .NET Core Tests](Documentation/workflow/RunningTests.md) for more. 
 
 ## Contributing to Repository 
 

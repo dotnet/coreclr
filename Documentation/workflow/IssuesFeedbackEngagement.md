@@ -3,8 +3,8 @@
 
 ## Reporting Problems (Bugs)
 
-We track bugs, feature requests and other issues on the .NET Core's [Issues Page](https://github.com/dotnet/coreclr/issues).   
-If you have a problem and believe that the issue is in .NET Core itself (native runtime or base level class library) 
+We track bugs, feature requests and other issues on the .NET Core's [Issues Page](https://github.com/dotnet/coreclr/issues). 
+If you have a problem and believe that the issue is in .NET Core itself (native runtime or base level class library)
 you should log it there.   If in the upper levels of the class library the [CoreFX Issues Page](https://github.com/dotnet/corefx/issues).
 
 Before you log a new issue, you should try using the search tool on the issue page on a few keywords to see if the issue was already logged.  
@@ -13,9 +13,9 @@ Before you log a new issue, you should try using the search tool on the issue pa
 If you want to ask a question, or want wider discussion (to see if others share you issue), we encourage you to start a thread 
 in the [.NET Foundation forums](http://forums.dotnetfoundation.org/). 
 
-### Chat with the CoreCLR Community
+###Chat with the CoreCLR Community
 
-For more real-time feedback you can also start a chat session. 
+For more real-time feedback you can also start a chat session by clicking on the icons below.  
 
 [![.NET Slack Status](https://aspnetcoreslack.herokuapp.com/badge.svg?2)](http://tattoocoder.com/aspnet-slack-sign-up/) [![Join the chat at https://gitter.im/dotnet/coreclr](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/dotnet/coreclr?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
  
