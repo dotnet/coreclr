@@ -19,8 +19,8 @@ you can type
 
 * dotnet -?
 
-and it prints some help text, you are ready.  
-Otherwise see [Intalling the .Net Core SDK](https://www.microsoft.com/net/core) to install it.
+and it prints some help text, you are ready.  Otherwise 
+see [Intalling the .Net Core SDK](https://www.microsoft.com/net/core) to install it.
 
 ### Step 1: Create a App using the Default Runtime
 At this point you can create a new 'Hello World' program in the standard way. 
