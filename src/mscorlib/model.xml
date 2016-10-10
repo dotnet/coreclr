@@ -6864,7 +6864,13 @@
       <Member Name="#ctor" />
     </Type>
     <Type Name="System.Runtime.InteropServices.RuntimeEnvironment">
-       <Member Name="GetRuntimeDirectory" /> <!-- For use in the Framework, but not public in Win8P reference assemblies. -->
+      <Member Name="FromGlobalAccessCache(System.Reflection.Assembly)" />
+      <Member Name="get_SystemConfigurationFile" />
+      <Member Name="GetRuntimeDirectory" />
+      <Member Name="GetRuntimeInterfaceAsIntPtr(System.Guid,System.Guid)" />
+      <Member Name="GetRuntimeInterfaceAsObject(System.Guid,System.Guid)" />
+      <Member Name="GetSystemVersion" />
+      <Member MemberType="Property" Name="SystemConfigurationFile" /> 
     </Type>
     <Type Name="System.Runtime.InteropServices.SafeHandle">
       <Member MemberType="Field" Name="handle" />

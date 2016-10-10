@@ -322,7 +322,7 @@ FCFuncStart(gRuntimeEnvironmentFuncs)
 #ifndef FEATURE_CORECLR
     QCFuncElement("_GetSystemVersion", SystemNative::_GetSystemVersion)
 #endif
-#if defined(FEATURE_CLASSIC_COMINTEROP) && !defined(FEATURE_CORECLR)
+#if defined(FEATURE_CLASSIC_COMINTEROP)
     QCFuncElement("GetRuntimeInterfaceImpl", SystemNative::GetRuntimeInterfaceImpl)
 #endif
 FCFuncEnd()
