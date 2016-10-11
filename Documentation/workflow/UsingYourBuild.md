@@ -2,9 +2,9 @@
 # Using your .NET Core Build
 
 We assume that you have successfully built .NET Core Repository and thus have file of the form  
-
+```
     bin\Product\<OS>.<arch>.<flavor>\.nuget\pkg\Microsoft.NETCore.Runtime.CoreCLR.<version>.nupkg
-
+```
 And now you wish to try it out.  We will be using Windows OS as an example and thus will use \ rather
 than / for directory separators and things like Windows_NT instead of Linux but it should be
 pretty obvious how to adapt these instructions for other operating systems.  
@@ -20,7 +20,7 @@ you can type
 * dotnet -?
 
 and it prints some help text, you are ready.  Otherwise 
-see [Intalling the .Net Core SDK](https://www.microsoft.com/net/core) to install it.
+see [Installing the .Net Core SDK](https://www.microsoft.com/net/core) to install it.
 
 ### Step 1: Create a App using the Default Runtime
 At this point you can create a new 'Hello World' program in the standard way. 
@@ -28,7 +28,7 @@ At this point you can create a new 'Hello World' program in the standard way.
 ```bat
 mkdir HelloWorld
 cd HelloWorld
-dotenet new 
+dotnet new 
 ```
 
 ### Step 2: Get the Version number of the CoreCLR package you built.   
@@ -55,7 +55,7 @@ use this in the next step.
 
 Now Modify the HelloWorld\project.json with the following modifications
 
-1. **Remove** (or comment out) the following line fomr the Microsoft.NETCore.App dependency 
+1. **Remove** (or comment out) the following line from the Microsoft.NETCore.App dependency 
 This tells the build system that you don't want to use runtime and libraries that came with
 the dotnet.exe tool but to fetch the dependencies from the Nuget cache.  If you don't do this
 the tools will ignore your request to make the app use an explicitly specified runtime.   
@@ -64,7 +64,7 @@ the tools will ignore your request to make the app use an explicitly specified r
 ``` 
 2. Add the following 'runtimes' line at the top level.  The runtime name includes the OS name and the architecture name
 you can find the appropriate name for your OS [here](https://github.com/dotnet/core-docs/blob/master/docs/core/rid-catalog.md).
-This tells the tools exactly which favor of OS and processor architecture you are running on, so it can find the right
+This tells the tools exactly which flavor of OS and processor architecture you are running on, so it can find the right
 Nuget package for the runtime.    
 ```
         "runtimes": { "win7-x64": {} }
@@ -111,7 +111,8 @@ You should end up with something that looks something like this.
 You can do this by creating a file named Nuget.Config in the 'HelloWorld' directory with the following XML 
 Obviously **you need to update path in the XML to be the path to output directory for your build**.   
 On Windows you also have the alternative of modifying the Nuget.Config 
-at %HOMEPATH%\AppData\Roaming\Nuget\Nuget.Config with the new location.   This will allow your new 
+at %HOMEPATH%\AppData\Roaming\Nuget\Nuget.Config (~/.nuget/NuGet/NuGet.Config on Linux) with the new location.   
+This will allow your new 
 runtime to be used on any 'dotnet restore' run by the current user. 
 Alternatively you can skip creating this file and pass the path to your package directory using 
 the -s SOURCE qualifer on the dotnet restore command below.   The important part is that somehow 
@@ -193,7 +194,7 @@ give it a value by setting the BuildNumberMinor environment variable.
 before packaging.   You should see this number show up in the version number (e.g. 1.2.0-beta-24521-03).
 
 As an alternative you can delete the existing copy of the package from the Nuget cache.   For example on 
-windows you could delete 
+windows (on Linux substitute ~/ for %HOMEPATH%) you could delete 
 ```bat
      %HOMEPATH%\.nuget\packages\Microsoft.NETCore.Runtime.CoreCLR\1.2.0-beta-24521-02
 ```
@@ -209,6 +210,8 @@ you wish to update the DLLs.   For example typically when you update CoreCLR you
 * Coreclr.dll - Most modifications (with the exception of the JIT compiler and tools) that are C++ code update
   this DLL. 
 * System.Private.CoreLib.dll - If you modified C# it will end up here.  
+* System.Private.CoreLib.ni.dll - the native image (code) for System.Private.Corelib.   If you modify C# code
+you will want to update both of these together in the target installation.  
 
 Thus after making a change and building, you can simply copy the updated binary from the `bin\Product\<OS>.<arch>.<flavor>`
 directory to your publication directory (e.g. `helloWorld\bin\Debug\netcoreapp1.0\win7-x64\publish`) to quickly

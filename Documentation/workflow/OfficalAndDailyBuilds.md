@@ -4,7 +4,7 @@ If you are not planning on actually making bug fixes or experimenting with new f
 don't need to don't need build CoreCLR yourself, as the .NET Runtime team routinely does this for you.   
 
 Roughly every three months, the .NET Runtime team publishes a new version of .NET Core to Nuget.   .NET Core's
-official home is on NuGet is 
+official home on NuGet is 
  
  * <https://www.nuget.org/packages/Microsoft.NETCore.Runtime.CoreCLR/> 
  
@@ -30,7 +30,7 @@ Which have the form
 ```
 
 * The major version number represents a compatibility band.   If the next release of the package is not
-  backwardly compatible (most apps that run on version N-1 will run on version N) then this number is increased.
+  backward compatible (most apps that run on version N-1 will run on version N) then this number is increased.
   This number is not likely to change (we care about compatibility alot)  
 
 * The minor number is increased every time interesting new features are added (not just minor bug fixes).
@@ -41,7 +41,7 @@ Which have the form
   build's last commit to GIT happened on the 14th day of the month.   The most significant digits represents
   the month count since April 1996.   In the example above 242 represents Jun 2016.   
 
-* The Minor Build number is something that disambiguates builds different builds that share the same 
+* The Minor Build number is something that disambiguates different builds that share the same 
   commit (or the different commits on the same day).   It is a sequential number and is typically 1 for
   official builds, and 0 for developer builds.   (You can set the environment variable BuildNumberMinor if
   you wish to set it for your own builds).  

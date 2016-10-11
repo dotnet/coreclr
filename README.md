@@ -35,7 +35,7 @@ related to .NET Core including:
 .NET Core relies heavily on the [Nuget](https://en.wikipedia.org/wiki/NuGet) package manager
 which is system to package, distribute and version software components.  See [https://www.nuget.org/](https://www.nuget.org/) 
 for more information on Nuget.   For now it is enough to know Nuget is a system that
-bundles components into *.nupkg files (which are ZIP archives) and these packages can be 'published' 
+bundles components into `*.nupkg` files (which are ZIP archives) and these packages can be 'published' 
 either through a local file system path or by a URL (e.g. https://www.nuget.org/).   There are then tools 
 (e.g. Nuget.exe, Visual Studio, dotnet.exe) that based on a configuration file (project.json) know 
 how to search these publishing locations and pull down consistent set of packages for the 
@@ -58,7 +58,7 @@ It also contains the source code for the following closely related support packa
  * **Microsoft.NETCore.TestHost** - This contains the corehost.exe program, which is a small wrapper 
    that uses the .NET Runtime to run IL DLLs passed to it on the command line.
  * **Microsoft.TargetingPack.Private.CoreCLR** - A set of assemblies that represent the compile time surface 
-   area of class library is implemented by the runtime itself.
+   area of class library implemented by the runtime itself.
 
 ## Relationship with the [CoreFX](https://github.com/dotnet/corefx) Repository 
 
