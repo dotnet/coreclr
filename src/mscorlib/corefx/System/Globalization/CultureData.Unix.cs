@@ -316,7 +316,7 @@ namespace System.Globalization
             return ansiCodePage == -1 ? CultureData.Invariant.IDEFAULTANSICODEPAGE : ansiCodePage; 
         }
 
-        private static int GetOemCodepPage(string cultureName)
+        private static int GetOemCodePage(string cultureName)
         {
             int oemCodePage = LocaleData.GetLocaleDataNumericPart(cultureName, LocaleDataParts.OemCodePage);
             return oemCodePage == -1 ? CultureData.Invariant.IDEFAULTOEMCODEPAGE : oemCodePage; 

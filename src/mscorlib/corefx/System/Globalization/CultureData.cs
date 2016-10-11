@@ -1744,7 +1744,7 @@ namespace System.Globalization
             {
                 if (_iDefaultOemCodePage == undef)
                 {
-                    _iDefaultOemCodePage = GetOemCodepPage(_sRealName);
+                    _iDefaultOemCodePage = GetOemCodePage(_sRealName);
                 }
                 return _iDefaultOemCodePage;
             }

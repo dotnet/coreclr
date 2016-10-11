@@ -643,7 +643,7 @@ namespace System.Globalization
 
         //
         // Used in ToTitleCase():
-        // When we find a starting letter, the focd..llowing array decides if a category should be
+        // When we find a starting letter, the following array decides if a category should be
         // considered as word seprator or not.
         //
         private const int c_wordSeparatorMask = 

@@ -573,7 +573,7 @@ namespace System.Globalization
             throw new NotImplementedException();
         }
 
-        private static int GetOemCodepPage(string cultureName)
+        private static int GetOemCodePage(string cultureName)
         {
             throw new NotImplementedException();
         }
