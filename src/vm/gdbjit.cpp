@@ -124,7 +124,15 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
             //typeInfo->m_type_name = "unknown";
     }
     // name the type
-    typeInfo->CalculateName();
+    if (corType == ELEMENT_TYPE_CHAR)
+    {
+        typeInfo->m_type_name = new char[9];
+        strcpy(typeInfo->m_type_name, "char16_t");
+    }
+    else
+    {
+        typeInfo->CalculateName();
+    }
     pTypeMap->Add(typeInfo->GetTypeKey(), typeInfo);
     return typeInfo;
 }

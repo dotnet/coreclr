@@ -40,7 +40,7 @@ static constexpr const int CorElementTypeToDWEncoding[] =
 /* ELEMENT_TYPE_END */          0,
 /* ELEMENT_TYPE_VOID */         DW_ATE_address,
 /* ELEMENT_TYPE_BOOLEAN */      DW_ATE_boolean,
-/* ELEMENT_TYPE_CHAR */         DW_ATE_signed,
+/* ELEMENT_TYPE_CHAR */         DW_ATE_UTF,
 /* ELEMENT_TYPE_I1 */           DW_ATE_signed,
 /* ELEMENT_TYPE_U1 */           DW_ATE_unsigned,
 /* ELEMENT_TYPE_I2 */           DW_ATE_signed,
