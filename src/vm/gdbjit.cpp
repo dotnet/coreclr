@@ -1086,14 +1086,11 @@ void ClassTypeInfo::DumpDebugInfo(char* ptr, int& offset)
     }
 
     // members terminator
-    if (m_num_members > 0)
+    if (ptr != nullptr)
     {
-        if (ptr != nullptr)
-        {
-            ptr[offset] = 0;
-        }
-        offset++;
+        ptr[offset] = 0;
     }
+    offset++;
 }
 
 void ArrayTypeInfo::DumpDebugInfo(char* ptr, int& offset)
