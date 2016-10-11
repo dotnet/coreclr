@@ -45,11 +45,10 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
         case ELEMENT_TYPE_R8:
         case ELEMENT_TYPE_U:
         case ELEMENT_TYPE_I:
-            typeInfo = new (nothrow) PrimitiveTypeInfo(CorElementTypeToDWEncoding[corType]);
+            typeInfo = new (nothrow) PrimitiveTypeInfo(typeHandle, CorElementTypeToDWEncoding[corType]);
             if (typeInfo == nullptr)
                 return nullptr;
 
-            typeInfo->typeHandle = typeHandle;
             typeInfo->m_type_size = CorTypeInfo::Size(corType);
 
             break;
@@ -58,19 +57,21 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
             ApproxFieldDescIterator fieldDescIterator(pMT, ApproxFieldDescIterator::INSTANCE_FIELDS);
             ULONG cFields = fieldDescIterator.Count();
 
-            typeInfo = new (nothrow) ClassTypeInfo(cFields);
+            typeInfo = new (nothrow) ClassTypeInfo(typeHandle, cFields);
 
             if (typeInfo == nullptr)
                 return nullptr;
 
-            typeInfo->typeHandle = typeHandle;
             typeInfo->m_type_size = typeHandle.AsMethodTable()->GetClass()->GetSize();
+
+            // name the type
+            typeInfo->CalculateName();
+            pTypeMap->Add(typeInfo->GetTypeKey(), typeInfo);
 
             //
             // Now fill in the array
             //
             FieldDesc *pField;
-            BOOL fReferenceType = !typeHandle.IsValueType();
 
             for (ULONG i = 0; i < cFields; i++)
             {
@@ -80,7 +81,7 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
                 LPCUTF8 szName = pField->GetName();
                 info->members[i].m_member_name = new char[strlen(szName) + 1];
                 strcpy(info->members[i].m_member_name, szName);
-                info->members[i].m_member_offset = (ULONG)pField->GetOffset() + (fReferenceType ? Object::GetOffsetOfFirstField() : 0);
+                info->members[i].m_member_offset = (ULONG)pField->GetOffset() + Object::GetOffsetOfFirstField();
                 info->members[i].m_member_type = GetTypeInfoFromTypeHandle(pField->GetExactFieldType(typeHandle), pTypeMap);
 
                 // handle the System.String case:
@@ -89,20 +90,28 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
                 {
                     int countOffset = info->members[0].m_member_offset;
                     TypeInfoBase* elemTypeInfo = info->members[1].m_member_type;
-                    TypeInfoBase* arrayTypeInfo = new (nothrow) ArrayTypeInfo(countOffset, elemTypeInfo);
+                    TypeInfoBase* arrayTypeInfo = new (nothrow) ArrayTypeInfo(typeHandle.MakeSZArray(), countOffset, elemTypeInfo);
                     if (arrayTypeInfo == nullptr)
                         return nullptr;
                     info->members[1].m_member_type = arrayTypeInfo;
                 }
             }
+
+            RefTypeInfo *refTypeInfo = new (nothrow) RefTypeInfo(typeHandle.MakeByRef(), valInfo);
+            if (refTypeInfo == nullptr)
+            {
+                return nullptr;
+            }
+            refTypeInfo->m_type_size = sizeof(TADDR);
+            refTypeInfo->m_value_type = typeInfo;
+            typeInfo = refTypeInfo;
             break;
         }
         case ELEMENT_TYPE_BYREF:
         {
-            typeInfo = new (nothrow) RefTypeInfo(valInfo);
+            typeInfo = new (nothrow) RefTypeInfo(typeHandle, valInfo);
             if (typeInfo == nullptr)
                 return nullptr;
-            typeInfo->typeHandle = typeHandle;
             typeInfo->m_type_size = sizeof(TADDR);
             typeInfo->m_type_offset = valInfo->m_type_offset;
         }
@@ -116,21 +125,8 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
             //typeInfo->m_type_name = "unknown";
     }
     // name the type
-    SString sName;
-    typeInfo->typeHandle.GetName(sName);
-    StackScratchBuffer buffer;
-    const UTF8 *utf8 = sName.GetUTF8(buffer);
-    typeInfo->m_type_name = new char[strlen(utf8) + 1];
-    strcpy(typeInfo->m_type_name, utf8);
-
-
-    TypeKey* pTK = static_cast<TypeKey*>(operator new(sizeof(TypeKey)));
-    if (pTK == nullptr)
-        return nullptr;
-
-    *pTK = typeHandle.GetTypeKey();
-
-    pTypeMap->Add(pTK, typeInfo);
+    typeInfo->CalculateName();
+    pTypeMap->Add(typeInfo->GetTypeKey(), typeInfo);
     return typeInfo;
 }
 
@@ -231,7 +227,7 @@ TypeInfoBase* GetTypeInfoFromSignature(MethodDesc *MethodDescPtr,
                     return nullptr;
                 }
                 TypeInfoBase* valType = GetTypeInfoFromTypeHandle(TypeHandle(m), pTypeMap);
-                return GetTypeInfoFromTypeHandle(valType->typeHandle.MakeByRef(), pTypeMap, valType);
+                return GetTypeInfoFromTypeHandle(valType->GetTypeHandle().MakeByRef(), pTypeMap, valType);
             } break;
             case ELEMENT_TYPE_ARRAY:
             case ELEMENT_TYPE_SZARRAY:
@@ -444,6 +440,7 @@ HRESULT FunctionMember::GetLocalsDebugInfo(NotifyGdb::PTK_TypeInfoMap pTypeMap,
             strcpy(vars[0].m_var_name, "this");
             vars[0].m_il_index = 0;
             vars[0].m_native_offset = nativeVar->loc.vlStk.vlsOffset;
+            vars[0].m_var_abbrev = 13;
          }
          i++;
     }
@@ -712,6 +709,22 @@ const unsigned char AbbrevTable[] = {
     11, DW_TAG_subrange_type, DW_CHILDREN_no,
         DW_AT_upper_bound, DW_FORM_exprloc, 0, 0,
 
+    12, DW_TAG_subprogram, DW_CHILDREN_yes,
+        DW_AT_name, DW_FORM_strp, DW_AT_decl_file, DW_FORM_data1, DW_AT_decl_line, DW_FORM_data1,
+        DW_AT_type, DW_FORM_ref4, DW_AT_external, DW_FORM_flag_present,
+        DW_AT_low_pc, DW_FORM_addr, DW_AT_high_pc, 
+#if defined(_TARGET_AMD64_)
+        DW_FORM_data8,
+#elif defined(_TARGET_ARM_)
+        DW_FORM_data4,
+#else
+#error Unsupported platform!
+#endif
+        DW_AT_frame_base, DW_FORM_exprloc, DW_AT_object_pointer, DW_FORM_ref4, 0, 0,
+
+    13, DW_TAG_formal_parameter, DW_CHILDREN_no,
+        DW_AT_name, DW_FORM_strp, DW_AT_decl_file, DW_FORM_data1, DW_AT_decl_line, DW_FORM_data1, DW_AT_type,
+        DW_FORM_ref4, DW_AT_location, DW_FORM_exprloc, DW_AT_artificial, DW_FORM_flag_present, 0, 0,
     0
 };
 
@@ -752,6 +765,12 @@ struct __attribute__((packed)) DebugInfoSub
 #error Unsupported platform!
 #endif
     uint8_t m_sub_loc[2];
+};
+
+struct __attribute__((packed)) DebugInfoSubMember
+{
+    DebugInfoSub sub;
+    uint32_t m_obj_ptr;
 };
 
 static FunctionMember* method = nullptr;
@@ -810,6 +829,33 @@ void TypeInfoBase::DumpStrings(char* ptr, int& offset)
     offset += strlen(m_type_name) + 1;
 }
 
+void TypeInfoBase::CalculateName() 
+{
+    // name the type
+    SString sName;
+    typeHandle.GetName(sName);
+    StackScratchBuffer buffer;
+    const UTF8 *utf8 = sName.GetUTF8(buffer);
+    m_type_name = new char[strlen(utf8) + 1];
+    strcpy(m_type_name, utf8);
+}
+
+void TypeInfoBase::SetTypeHandle(TypeHandle handle)
+{
+    typeHandle = handle;
+    typeKey = handle.GetTypeKey();
+}
+
+TypeHandle TypeInfoBase::GetTypeHandle()
+{
+    return typeHandle;
+}
+
+TypeKey* TypeInfoBase::GetTypeKey()
+{
+    return &typeKey;
+}
+
 void PrimitiveTypeInfo::DumpDebugInfo(char* ptr, int& offset)
 {
     if (m_type_offset != 0)
@@ -837,8 +883,8 @@ void PrimitiveTypeInfo::DumpDebugInfo(char* ptr, int& offset)
     offset += sizeof(DebugInfoType);
 }
 
-ClassTypeInfo::ClassTypeInfo(int num_members)
-        : TypeInfoBase(),
+ClassTypeInfo::ClassTypeInfo(TypeHandle typeHandle, int num_members)
+        : TypeInfoBase(typeHandle),
           m_num_members(num_members),
           members(new TypeMember[num_members])
 {
@@ -908,11 +954,32 @@ void FunctionMember::DumpDebugInfo(char* ptr, int& offset)
         subEntry->m_sub_loc[0] = m_sub_loc[0];
         subEntry->m_sub_loc[1] = m_sub_loc[1];
 
-        memcpy(ptr + offset, subEntry, sizeof(DebugInfoSub));
+        if (!md->IsStatic())
+        {
+            NewHolder<DebugInfoSubMember> subMemberEntry = new (nothrow) DebugInfoSubMember;
+            if (subMemberEntry == nullptr)
+                return;
+            subEntry->m_sub_abbrev = 12;
+            subMemberEntry->sub = *subEntry;
+            subMemberEntry->m_obj_ptr = offset+sizeof(DebugInfoSubMember);
+            memcpy(ptr + offset, subMemberEntry, sizeof(DebugInfoSubMember));
+        }
+        else
+        {
+            memcpy(ptr + offset, subEntry, sizeof(DebugInfoSub));
+        }
+        m_entry_offset = offset;
         dumped = true;
     }
-    offset += sizeof(DebugInfoSub);
 
+    if (!md->IsStatic())
+    {
+        offset += sizeof(DebugInfoSubMember);
+    }
+    else
+    {
+        offset += sizeof(DebugInfoSub);
+    }
     for (int i = 0; i < m_num_vars; ++i)
     {
         vars[i].DumpDebugInfo(ptr, offset);
@@ -948,6 +1015,12 @@ void ClassTypeInfo::DumpStrings(char* ptr, int& offset)
     {
         members[i].DumpStrings(ptr, offset);
     }
+}
+
+void RefTypeInfo::DumpStrings(char* ptr, int& offset)
+{
+    TypeInfoBase::DumpStrings(ptr, offset);
+    m_value_type->DumpStrings(ptr, offset);
 }
 
 void RefTypeInfo::DumpDebugInfo(char* ptr, int& offset)
@@ -999,7 +1072,7 @@ void ClassTypeInfo::DumpDebugInfo(char* ptr, int& offset)
         members[i].DumpDebugInfo(ptr, offset);
     }
 
-    if (method->md->GetMethodTable() == typeHandle.GetMethodTable())
+    if (method->md->GetMethodTable() == GetTypeHandle().GetMethodTable())
     {
         // our method is part of this class, we should dump it now before terminating members
         method->DumpDebugInfo(ptr, offset);
@@ -1013,21 +1086,6 @@ void ClassTypeInfo::DumpDebugInfo(char* ptr, int& offset)
             ptr[offset] = 0;
         }
         offset++;
-    }
-
-    if (!typeHandle.IsValueType())
-    {
-        if (ptr != nullptr)
-        {
-            NewHolder<DebugInfoRefType> refType = new (nothrow) DebugInfoRefType;
-            refType->m_type_abbrev = 9;
-            refType->m_ref_type = m_type_offset;
-            refType->m_byte_size = typeHandle.GetSize();
-
-            memcpy(ptr + offset, refType, sizeof(DebugInfoRefType));
-            m_type_offset = offset;
-        }
-        offset += sizeof(DebugInfoRefType);
     }
 }
 
@@ -1827,7 +1885,6 @@ bool NotifyGdb::BuildDebugInfo(MemBuf& buf, PTK_TypeInfoMap pTypeMap)
     offset += sizeof(DebugInfoCU);
     diCU->m_prod_off = 0;
     diCU->m_cu_name = strlen(DebugStrings[0]) + 1;
-
     {
         auto iter = pTypeMap->Begin();
         while (iter != pTypeMap->End())
@@ -1837,10 +1894,13 @@ bool NotifyGdb::BuildDebugInfo(MemBuf& buf, PTK_TypeInfoMap pTypeMap)
             iter++;
         }
     }
-
     if (!method->IsDumped())
     {
         method->DumpDebugInfo(buf.MemPtr, offset);
+    }
+    else
+    {
+        method->DumpDebugInfo(buf.MemPtr, method->m_entry_offset);
     }
 
     memset(buf.MemPtr + offset, 0, buf.MemSize - offset);

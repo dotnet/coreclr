@@ -134,12 +134,13 @@ class TypeMember;
 class TypeInfoBase : public DwarfDumpable
 {
 public:
-    TypeInfoBase() 
-        : typeHandle(),
-          m_type_name(nullptr),
+    TypeInfoBase(TypeHandle typeHandle) 
+        : m_type_name(nullptr),
           m_type_name_offset(0),
           m_type_size(0),
-          m_type_offset(0)
+          m_type_offset(0),
+          typeHandle(typeHandle),
+          typeKey(typeHandle.GetTypeKey())
     {
     }
 
@@ -152,19 +153,25 @@ public:
     }
 
     virtual void DumpStrings(char* ptr, int& offset) override;
+    void CalculateName();
+    void SetTypeHandle(TypeHandle handle);
+    TypeHandle GetTypeHandle();
+    TypeKey* GetTypeKey();
 
-    TypeHandle typeHandle;
     char* m_type_name;
     int m_type_name_offset;
     ULONG m_type_size;
     int m_type_offset;
+private:
+    TypeHandle typeHandle;
+    TypeKey typeKey;
 };
 
 class PrimitiveTypeInfo: public TypeInfoBase
 {
 public:
-    PrimitiveTypeInfo(int encoding)
-        : TypeInfoBase(),
+    PrimitiveTypeInfo(TypeHandle typeHandle, int encoding)
+        : TypeInfoBase(typeHandle),
           m_type_encoding(encoding)
     {
     }
@@ -177,12 +184,12 @@ public:
 class RefTypeInfo: public TypeInfoBase
 {
 public:
-    RefTypeInfo(TypeInfoBase *value_type)
-        : TypeInfoBase(),
+    RefTypeInfo(TypeHandle typeHandle, TypeInfoBase *value_type)
+        : TypeInfoBase(typeHandle),
           m_value_type(value_type)
     {
     }
-
+    void DumpStrings(char* ptr, int& offset) override;
     void DumpDebugInfo(char* ptr, int& offset) override;
     TypeInfoBase *m_value_type;
 };
@@ -190,7 +197,7 @@ public:
 class ClassTypeInfo: public TypeInfoBase
 {
 public:
-    ClassTypeInfo(int num_members);
+    ClassTypeInfo(TypeHandle typeHandle, int num_members);
     ~ClassTypeInfo();
 
     void DumpStrings(char* ptr, int& offset) override;
@@ -231,8 +238,8 @@ public:
 class ArrayTypeInfo: public TypeInfoBase
 {
 public:
-    ArrayTypeInfo(int countOffset, TypeInfoBase* elemType)
-        : TypeInfoBase(),
+    ArrayTypeInfo(TypeHandle typeHandle, int countOffset, TypeInfoBase* elemType)
+        : TypeInfoBase(typeHandle),
           m_count_offset(countOffset),
           m_elem_type(elemType)
     {
@@ -297,12 +304,11 @@ public:
     static void MethodCompiled(MethodDesc* MethodDescPtr);
     static void MethodDropped(MethodDesc* MethodDescPtr);
     template <typename PARENT_TRAITS>
-    class DeleteKeysValuesOnDestructSHashTraits : public PARENT_TRAITS
+    class DeleteValuesOnDestructSHashTraits : public PARENT_TRAITS
     {
     public:
         static inline void OnDestructPerEntryCleanupAction(typename PARENT_TRAITS::element_t e)
         {
-            delete e.Key();
             delete e.Value();
         }
         static const bool s_DestructPerEntryCleanupAction = true;
@@ -340,7 +346,7 @@ public:
         static bool IsDeleted(const element_t &e) { return e.Key() == key_t(-1); }
     };
 
-    typedef MapSHash<TypeKey*, TypeInfoBase*, DeleteKeysValuesOnDestructSHashTraits<TypeKeyHashTraits<TypeInfoBase*>>> TK_TypeInfoMap;
+    typedef MapSHash<TypeKey*, TypeInfoBase*, DeleteValuesOnDestructSHashTraits<TypeKeyHashTraits<TypeInfoBase*>>> TK_TypeInfoMap;
     typedef TK_TypeInfoMap* PTK_TypeInfoMap;
 
 private:
@@ -394,6 +400,7 @@ public:
           m_num_args(num_args),
           m_num_locals(num_locals),
           m_num_vars(num_args + num_locals),
+          m_entry_offset(0),
           vars(new VarDebugInfo[m_num_vars]),
           dumped(false)
     {
@@ -429,6 +436,7 @@ public:
     uint8_t m_num_args;
     uint8_t m_num_locals;
     uint16_t m_num_vars;
+    int m_entry_offset;
     VarDebugInfo* vars;
 private:
     int GetArgsAndLocalsLen();
