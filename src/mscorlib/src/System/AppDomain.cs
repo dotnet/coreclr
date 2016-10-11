@@ -1184,7 +1184,7 @@ namespace System {
         * is saved.
         **********************************************/
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public AssemblyBuilder DefineDynamicAssembly(
             AssemblyName            name,
             AssemblyBuilderAccess   access)
@@ -1197,7 +1197,7 @@ namespace System {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public AssemblyBuilder DefineDynamicAssembly(
             AssemblyName            name,
             AssemblyBuilderAccess   access,
@@ -1232,7 +1232,7 @@ namespace System {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public AssemblyBuilder DefineDynamicAssembly(
             AssemblyName            name,
             AssemblyBuilderAccess   access,
@@ -1249,7 +1249,7 @@ namespace System {
         }
     
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         [Obsolete("Assembly level declarative security is obsolete and is no longer enforced by the CLR by default.  See http://go.microsoft.com/fwlink/?LinkID=155570 for more information.")]
         public AssemblyBuilder DefineDynamicAssembly(
             AssemblyName            name,
@@ -1267,7 +1267,7 @@ namespace System {
         }
     
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         [Obsolete("Assembly level declarative security is obsolete and is no longer enforced by the CLR by default.  See http://go.microsoft.com/fwlink/?LinkID=155570 for more information.")]
         public AssemblyBuilder DefineDynamicAssembly(
             AssemblyName            name,
@@ -1289,7 +1289,7 @@ namespace System {
         }
     
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         [Obsolete("Methods which use evidence to sandbox are obsolete and will be removed in a future release of the .NET Framework. Please use an overload of DefineDynamicAssembly which does not take an Evidence parameter. See http://go.microsoft.com/fwlink/?LinkId=155570 for more information.")]
         public AssemblyBuilder DefineDynamicAssembly(
             AssemblyName            name,
@@ -1305,7 +1305,7 @@ namespace System {
         }
     
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         [Obsolete("Assembly level declarative security is obsolete and is no longer enforced by the CLR by default. See http://go.microsoft.com/fwlink/?LinkID=155570 for more information.")]
         public AssemblyBuilder DefineDynamicAssembly(
             AssemblyName            name,
@@ -1328,7 +1328,7 @@ namespace System {
         }
     
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         [Obsolete("Assembly level declarative security is obsolete and is no longer enforced by the CLR by default. See http://go.microsoft.com/fwlink/?LinkID=155570 for more information.")]
         public AssemblyBuilder DefineDynamicAssembly(
             AssemblyName            name,
@@ -1352,7 +1352,7 @@ namespace System {
         }
     
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         [Obsolete("Assembly level declarative security is obsolete and is no longer enforced by the CLR by default.  Please see http://go.microsoft.com/fwlink/?LinkId=155570 for more information.")]
         public AssemblyBuilder DefineDynamicAssembly(
             AssemblyName            name,
@@ -1378,7 +1378,7 @@ namespace System {
 
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         [Obsolete("Assembly level declarative security is obsolete and is no longer enforced by the CLR by default. See http://go.microsoft.com/fwlink/?LinkID=155570 for more information.")]
         public AssemblyBuilder DefineDynamicAssembly(
             AssemblyName            name,
@@ -1406,7 +1406,7 @@ namespace System {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         [Obsolete("Assembly level declarative security is obsolete and is no longer enforced by the CLR by default. See http://go.microsoft.com/fwlink/?LinkID=155570 for more information.")]
         public AssemblyBuilder DefineDynamicAssembly(
                     AssemblyName name,
@@ -1435,7 +1435,7 @@ namespace System {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public AssemblyBuilder DefineDynamicAssembly(
                     AssemblyName name,
                     AssemblyBuilderAccess access,
@@ -1459,7 +1459,7 @@ namespace System {
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         private AssemblyBuilder InternalDefineDynamicAssembly(
             AssemblyName name,
             AssemblyBuilderAccess access,
@@ -1782,7 +1782,7 @@ namespace System {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public Assembly Load(AssemblyName assemblyRef)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -1790,7 +1790,7 @@ namespace System {
         }
         
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public Assembly Load(String assemblyString)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -1798,7 +1798,7 @@ namespace System {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public Assembly Load(byte[] rawAssembly)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -1812,7 +1812,7 @@ namespace System {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public Assembly Load(byte[] rawAssembly,
                              byte[] rawSymbolStore)
         {
@@ -1829,7 +1829,7 @@ namespace System {
 #pragma warning disable 618
         [SecurityPermissionAttribute(SecurityAction.Demand, ControlEvidence = true)]
 #pragma warning restore 618
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         [Obsolete("Methods which use evidence to sandbox are obsolete and will be removed in a future release of the .NET Framework. Please use an overload of Load which does not take an Evidence parameter. See http://go.microsoft.com/fwlink/?LinkId=155570 for more information.")]
         public Assembly Load(byte[] rawAssembly,
                              byte[] rawSymbolStore,
@@ -1852,7 +1852,7 @@ namespace System {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         [Obsolete("Methods which use evidence to sandbox are obsolete and will be removed in a future release of the .NET Framework. Please use an overload of Load which does not take an Evidence parameter. See http://go.microsoft.com/fwlink/?LinkID=155570 for more information.")]
         public Assembly Load(AssemblyName assemblyRef,
                              Evidence assemblySecurity)
@@ -1862,7 +1862,7 @@ namespace System {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         [Obsolete("Methods which use evidence to sandbox are obsolete and will be removed in a future release of the .NET Framework. Please use an overload of Load which does not take an Evidence parameter. See http://go.microsoft.com/fwlink/?LinkID=155570 for more information.")]
         public Assembly Load(String assemblyString,
                              Evidence assemblySecurity)

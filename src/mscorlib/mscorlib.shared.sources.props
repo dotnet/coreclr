@@ -64,6 +64,7 @@
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\YieldAwaitable.cs" />
     <CompilerServicesSources Condition="'$(FeatureCominterop)' == 'true'" Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\IDispatchConstantAttribute.cs" />
     <CompilerServicesSources Condition="'$(FeatureCoreClr)'!='true'" Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\IUnknownConstantAttribute.cs" />
+    <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\UsesStackCrawlMarkAttribute.cs" />
   </ItemGroup>
   <ItemGroup>
     <ReliabilitySources Include="$(BclSourcesRoot)\System\Runtime\Reliability\CriticalFinalizerObject.cs" />

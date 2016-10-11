@@ -449,7 +449,7 @@ namespace System.Security {
         /// <param name="permission">compatibility permission to check (See PermissionType)</param>
         /// <param name="targetGrant">grant set of the reflection target</param>
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         private static void ReflectionTargetDemandHelper(int permission, PermissionSet targetGrant)
         {
             // Capture a compressed stack so that we can make both permission checks without walking the stack

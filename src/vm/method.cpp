@@ -5403,6 +5403,24 @@ BOOL MethodDesc::HasNativeCallableAttribute()
     return FALSE;
 }
 
+BOOL MethodDesc::HasUsesStackCrawlMarkAttribute()
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_NOTRIGGER;
+        FORBID_FAULT;
+    }
+    CONTRACTL_END;
+
+    HRESULT hr = GetMDImport()->GetCustomAttributeByName(GetMemberDef(),
+        g_UsesStackCrawlMarkAttribute,
+        nullptr,
+        nullptr);
+
+    return hr == S_OK;
+}
+
 //*******************************************************************************
 BOOL MethodDesc::HasSuppressUnmanagedCodeAccessAttr()
 {

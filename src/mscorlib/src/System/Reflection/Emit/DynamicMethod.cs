@@ -73,7 +73,7 @@ namespace System.Reflection.Emit
         private DynamicMethod() { }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public DynamicMethod(string name,
                              Type returnType,
                              Type[] parameterTypes)
@@ -93,7 +93,7 @@ namespace System.Reflection.Emit
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public DynamicMethod(string name,
                              Type returnType,
                              Type[] parameterTypes,
@@ -118,7 +118,7 @@ namespace System.Reflection.Emit
         #else
         [System.Security.SecuritySafeCritical]
         #endif
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public DynamicMethod(string name, 
                              Type returnType, 
                              Type[] parameterTypes, 
@@ -142,7 +142,7 @@ namespace System.Reflection.Emit
         #else
         [System.Security.SecuritySafeCritical]
         #endif
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public DynamicMethod(string name, 
                              Type returnType, 
                              Type[] parameterTypes, 
@@ -167,7 +167,7 @@ namespace System.Reflection.Emit
         #else
         [System.Security.SecuritySafeCritical]
         #endif
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public DynamicMethod(string name, 
                              MethodAttributes attributes, 
                              CallingConventions callingConvention, 
@@ -194,7 +194,7 @@ namespace System.Reflection.Emit
         #else
         [System.Security.SecuritySafeCritical]
         #endif
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public DynamicMethod(string name, 
                              Type returnType, 
                              Type[] parameterTypes, 
@@ -218,7 +218,7 @@ namespace System.Reflection.Emit
         #else
         [System.Security.SecuritySafeCritical]
         #endif
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public DynamicMethod(string name, 
                              Type returnType, 
                              Type[] parameterTypes, 
@@ -243,7 +243,7 @@ namespace System.Reflection.Emit
         #else
         [System.Security.SecuritySafeCritical]
         #endif
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public DynamicMethod(string name, 
                              MethodAttributes attributes, 
                              CallingConventions callingConvention, 
@@ -287,7 +287,7 @@ namespace System.Reflection.Emit
         // We create a transparent assembly to host DynamicMethods. Since the assembly does not have any
         // non-public fields (or any fields at all), it is a safe anonymous assembly to host DynamicMethods
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         private static RuntimeModule GetDynamicMethodsModule()
         {
             if (s_anonymouslyHostedDynamicMethodsModule != null)

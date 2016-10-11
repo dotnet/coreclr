@@ -201,7 +201,7 @@ namespace System.Security {
 
 #if _DEBUG
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         private static void GetTokenHelper(String typeStr)
         {
             new PermissionSet(PermissionState.Unrestricted).Assert();

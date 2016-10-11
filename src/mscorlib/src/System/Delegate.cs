@@ -444,7 +444,7 @@ namespace System {
             
         // V1 API.
         [System.Security.SecuritySafeCritical]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static Delegate CreateDelegate(Type type, MethodInfo method, bool throwOnBindFailure)
         {
             // Validate the parameters.
@@ -495,7 +495,7 @@ namespace System {
 
         // V2 API.
         [System.Security.SecuritySafeCritical]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static Delegate CreateDelegate(Type type, Object firstArgument, MethodInfo method, bool throwOnBindFailure)
         {
             // Validate the parameters.

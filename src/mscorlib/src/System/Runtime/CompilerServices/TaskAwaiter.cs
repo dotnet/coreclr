@@ -201,7 +201,7 @@ namespace System.Runtime.CompilerServices
         /// <exception cref="System.ArgumentNullException">The <paramref name="continuation"/> argument is null (Nothing in Visual Basic).</exception>
         /// <exception cref="System.NullReferenceException">The awaiter was not properly initialized.</exception>
         /// <remarks>This method is intended for compiler user rather than use directly in code.</remarks>
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var have to be marked non-inlineable         
+        [UsesStackCrawlMark]
         [SecurityCritical]
         internal static void OnCompletedInternal(Task task, Action continuation, bool continueOnCapturedContext, bool flowExecutionContext)
         {

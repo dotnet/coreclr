@@ -300,7 +300,7 @@ namespace System.Threading {
         ** Exceptions: ThreadStateException if the thread has already been started.
         =========================================================================*/
         [HostProtection(Synchronization=true,ExternalThreading=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public void Start()
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -308,7 +308,7 @@ namespace System.Threading {
         }
 
         [HostProtection(Synchronization=true,ExternalThreading=true)]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public void Start(object parameter)
         {
             //In the case of a null delegate (second call to start on same thread)

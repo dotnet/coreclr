@@ -189,7 +189,7 @@ namespace System.Threading
         }
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         unsafe internal NativeOverlapped* Pack(IOCompletionCallback iocb, Object userData)
         {
             if (!m_pinSelf.IsNull()) {

@@ -61,7 +61,7 @@ namespace System {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         static public Object CreateInstance(Type type,
                                             BindingFlags bindingAttr,
                                             Binder binder,
@@ -139,7 +139,7 @@ namespace System {
          */
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         static public ObjectHandle CreateInstance(String assemblyName,
                                                   String typeName)
         {
@@ -157,7 +157,7 @@ namespace System {
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable                                                  
+        [UsesStackCrawlMark]
         static public ObjectHandle CreateInstance(String assemblyName,
                                                   String typeName,
                                                   Object[] activationAttributes)
@@ -176,7 +176,7 @@ namespace System {
                                   ref stackMark);
         }
             
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         static public Object CreateInstance(Type type, bool nonPublic)
         {
             if ((object)type == null)
@@ -192,7 +192,7 @@ namespace System {
             return rt.CreateInstanceDefaultCtor(!nonPublic, false, true, ref stackMark);
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         static public T CreateInstance<T>()
         {
             RuntimeType rt = typeof(T) as RuntimeType;
@@ -231,7 +231,7 @@ namespace System {
         }
                                   
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         [Obsolete("Methods which use evidence to sandbox are obsolete and will be removed in a future release of the .NET Framework. Please use an overload of CreateInstance which does not take an Evidence parameter. See http://go.microsoft.com/fwlink/?LinkID=155570 for more information.")]
         static public ObjectHandle CreateInstance(String assemblyName, 
                                                   String typeName, 
@@ -257,7 +257,7 @@ namespace System {
         }
 
         [SecuritySafeCritical]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static ObjectHandle CreateInstance(string assemblyName,
                                                   string typeName,
                                                   bool ignoreCase,

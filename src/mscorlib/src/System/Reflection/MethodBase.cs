@@ -83,7 +83,7 @@ namespace System.Reflection
         }
 
         [System.Security.DynamicSecurityMethod] // Specify DynamicSecurityMethod attribute to prevent inlining of the caller.
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static MethodBase GetCurrentMethod()
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;

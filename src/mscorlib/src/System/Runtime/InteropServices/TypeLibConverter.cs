@@ -214,7 +214,7 @@ namespace System.Runtime.InteropServices {
         //
 
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         private static AssemblyBuilder CreateAssemblyForTypeLib(Object typeLib, String asmFileName, AssemblyName asmName, bool bPrimaryInteropAssembly, bool bReflectionOnly, bool bNoDefineVersionResource)
         {
             // Retrieve the current app domain.

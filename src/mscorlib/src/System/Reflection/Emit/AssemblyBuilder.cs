@@ -488,7 +488,7 @@ namespace System.Reflection.Emit
         * is saved.
         **********************************************/
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static AssemblyBuilder DefineDynamicAssembly(
             AssemblyName name,
             AssemblyBuilderAccess access)
@@ -501,7 +501,7 @@ namespace System.Reflection.Emit
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public static AssemblyBuilder DefineDynamicAssembly(
             AssemblyName name,
             AssemblyBuilderAccess access,
@@ -582,7 +582,7 @@ namespace System.Reflection.Emit
         * 
         **********************************************/
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public ModuleBuilder DefineDynamicModule(
             String      name)
         {
@@ -593,7 +593,7 @@ namespace System.Reflection.Emit
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public ModuleBuilder DefineDynamicModule(
             String      name,
             bool        emitSymbolInfo)         // specify if emit symbol info or not
@@ -769,7 +769,7 @@ namespace System.Reflection.Emit
         * 
         **********************************************/
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public ModuleBuilder DefineDynamicModule(
             String name,
             String fileName)
@@ -790,7 +790,7 @@ namespace System.Reflection.Emit
         *
         **********************************************/
         [System.Security.SecuritySafeCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public ModuleBuilder DefineDynamicModule(
             String name,                   // module name
             String fileName,               // module file name
@@ -1349,7 +1349,7 @@ namespace System.Reflection.Emit
             return InternalAssembly.GetLoadedModules(getResourceModules);
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public override Assembly GetSatelliteAssembly(CultureInfo culture)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -1357,7 +1357,7 @@ namespace System.Reflection.Emit
         }
 
         // Useful for binding to a very specific version of a satellite assembly
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public override Assembly GetSatelliteAssembly(CultureInfo culture, Version version)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;

@@ -153,6 +153,8 @@
 
 #define g_CompilerServicesTypeDependencyAttribute "System.Runtime.CompilerServices.TypeDependencyAttribute"
 
+#define g_UsesStackCrawlMarkAttribute "System.Runtime.CompilerServices.UsesStackCrawlMarkAttribute"
+
 #define g_SecurityCriticalAttribute "System.Security.SecurityCriticalAttribute"
 #define g_SecurityTransparentAttribute "System.Security.SecurityTransparentAttribute"
 #ifndef FEATURE_CORECLR

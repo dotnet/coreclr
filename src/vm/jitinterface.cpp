@@ -6652,12 +6652,8 @@ DWORD CEEInfo::getMethodAttribsInternal (CORINFO_METHOD_HANDLE ftn)
         result |= CORINFO_FLG_DONT_INLINE;
 
         if (pMD->IsIL() && (IsMdRequireSecObject(attribs) ||
-            (pMD->GetModule()->IsSystem() && IsMiNoInlining(pMD->GetImplAttrs()))))
+            (pMD->GetModule()->IsSystem() && pMD->HasUsesStackCrawlMarkAttribute())))
         {
-            // Assume all methods marked as NoInline inside mscorlib are
-            // marked that way because they use StackCrawlMark to identify
-            // the caller (not just the security info).
-            // See comments in canInline or canTailCall
             result |= CORINFO_FLG_DONT_INLINE_CALLER;
         }
     }
@@ -7373,7 +7369,7 @@ CorInfoInline CEEInfo::canInline (CORINFO_METHOD_HANDLE hCaller,
     // caller.  Boundary methods are:
     //
     //  1) A method that calls anything that creates a StackCrawlMark to look for its caller.  In this code
-    //      this is approximated as "in mscorlib and is marked as NoInlining".
+    //      this is determined by "in mscorlib and is marked as [UsesStackCrawlMark]".
     //  2) A method that calls a method which calls Demand.  These methods must be marked as
     //      IsMdRequireSecObject.
     //  3) Calls anything that is virtual.  This is because the virtual method could be #1 or #2.
@@ -8145,11 +8141,10 @@ bool CEEInfo::canTailCall (CORINFO_METHOD_HANDLE hCaller,
         }
 
         // Methods with StackCrawlMark depend on finding their caller on the stack.
-        // If we tail call one of these guys, they get confused.  For lack of
-        // a better way of identifying them, we look for methods marked as NoInlining
-        // inside mscorlib (StackCrawlMark is private), and assume it is one of these
-        // methods.  We have an assert in canInline that ensures all StackCrawlMark
-        // methods are appropriately marked.
+        // If we tail call one of these guys, they get confused.  To identify them,
+        // we look for methods marked as [UsesStackCrawlMark] inside mscorlib.
+        // We have an assert in canInline that ensures all StackCrawlMark methods
+        // are appropriately marked.
         //
         // NOTE that this is *NOT* a security issue because we check to ensure that
         // the callee has the *SAME* security properties as the caller, it just might
@@ -8158,7 +8153,7 @@ bool CEEInfo::canTailCall (CORINFO_METHOD_HANDLE hCaller,
         // typenames.
         if ((pExactCallee != NULL) && pExactCallee->GetModule()->IsSystem() && pExactCallee->IsIL())
         {
-            if (IsMiNoInlining(pExactCallee->GetImplAttrs()))
+            if (pExactCallee->HasUsesStackCrawlMarkAttribute())
             {
                 result = false;
                 szFailReason = "Callee might have a StackCrawlMark.LookForMyCaller";

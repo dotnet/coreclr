@@ -785,7 +785,7 @@ namespace System.Threading
         private TimerHolder m_timer;
 
         [SecuritySafeCritical]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public Timer(TimerCallback callback, 
                      Object        state,  
                      int           dueTime,
@@ -802,7 +802,7 @@ namespace System.Threading
         }
 
         [SecuritySafeCritical]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public Timer(TimerCallback callback, 
                      Object        state,  
                      TimeSpan      dueTime,
@@ -826,7 +826,7 @@ namespace System.Threading
 
         [CLSCompliant(false)]
         [SecuritySafeCritical]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public Timer(TimerCallback callback, 
                      Object        state,  
                      UInt32        dueTime,
@@ -837,7 +837,7 @@ namespace System.Threading
         }
 
         [SecuritySafeCritical]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable                                        
+        [UsesStackCrawlMark]
         public Timer(TimerCallback callback, 
                      Object        state,  
                      long          dueTime,
@@ -857,7 +857,7 @@ namespace System.Threading
         }
 
         [SecuritySafeCritical]
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [UsesStackCrawlMark]
         public Timer(TimerCallback callback)
         {
             int dueTime = -1;    // we want timer to be registered, but not activated.  Requires caller to call
