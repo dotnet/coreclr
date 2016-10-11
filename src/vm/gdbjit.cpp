@@ -66,8 +66,16 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
 
             // name the type
             typeInfo->CalculateName();
-            pTypeMap->Add(typeInfo->GetTypeKey(), typeInfo);
+            RefTypeInfo *refTypeInfo = new (nothrow) RefTypeInfo(typeHandle, typeInfo);
+            if (refTypeInfo == nullptr)
+            {
+                return nullptr;
+            }
+            refTypeInfo->m_type_size = sizeof(TADDR);
+            refTypeInfo->m_value_type = typeInfo;
+            refTypeInfo->CalculateName();
 
+            pTypeMap->Add(refTypeInfo->GetTypeKey(), refTypeInfo);
             //
             // Now fill in the array
             //
@@ -96,16 +104,7 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
                     info->members[1].m_member_type = arrayTypeInfo;
                 }
             }
-
-            RefTypeInfo *refTypeInfo = new (nothrow) RefTypeInfo(typeHandle.MakeByRef(), valInfo);
-            if (refTypeInfo == nullptr)
-            {
-                return nullptr;
-            }
-            refTypeInfo->m_type_size = sizeof(TADDR);
-            refTypeInfo->m_value_type = typeInfo;
-            typeInfo = refTypeInfo;
-            break;
+            return refTypeInfo;
         }
         case ELEMENT_TYPE_BYREF:
         {
@@ -1025,6 +1024,12 @@ void RefTypeInfo::DumpStrings(char* ptr, int& offset)
 
 void RefTypeInfo::DumpDebugInfo(char* ptr, int& offset)
 {
+    if (m_type_offset != 0)
+    {
+        return;
+    }
+    m_type_offset = offset;
+    offset += sizeof(DebugInfoRefType);
     m_value_type->DumpDebugInfo(ptr, offset);
     if (ptr != nullptr)
     {
@@ -1032,10 +1037,12 @@ void RefTypeInfo::DumpDebugInfo(char* ptr, int& offset)
         refType->m_type_abbrev = 9;
         refType->m_ref_type = m_value_type->m_type_offset;
         refType->m_byte_size = m_type_size;
-        m_type_offset = offset;
-        memcpy(ptr + offset, refType, sizeof(DebugInfoRefType));
+        memcpy(ptr + m_type_offset, refType, sizeof(DebugInfoRefType));
     }
-    offset += sizeof(DebugInfoRefType);
+    else
+    {
+        m_type_offset = 0;
+    }
 }
 void ClassTypeInfo::DumpDebugInfo(char* ptr, int& offset)
 {
@@ -1046,7 +1053,7 @@ void ClassTypeInfo::DumpDebugInfo(char* ptr, int& offset)
     // make sure that types of all members are dumped
     for (int i = 0; i < m_num_members; ++i)
     {
-        if (members[i].m_member_type->m_type_offset == 0)
+        if (members[i].m_member_type->m_type_offset == 0 && members[i].m_member_type != this)
         {
             members[i].m_member_type->DumpDebugInfo(ptr, offset);
         }
