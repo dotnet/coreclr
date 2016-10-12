@@ -172,7 +172,7 @@ There are two basic techniques for using your new runtime.
  See [Executing .NET Core Apps with CoreRun.exe](Documentation/workflow/UsingCoreRun.md) for details on using 
  this technique.  
 
-## Editing and debugging
+## Editing and Debugging
 
 Typically users run through the build and use instructions first with an unmodified build, just to familiarize
 themselves with the procedures and to confirm that the instructions work.   After that you will want to actually
