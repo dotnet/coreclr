@@ -54,7 +54,8 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
             break;
         case ELEMENT_TYPE_CLASS:
         {
-            ApproxFieldDescIterator fieldDescIterator(pMT, ApproxFieldDescIterator::ALL_FIELDS);
+            ApproxFieldDescIterator fieldDescIterator(pMT,
+                pMT->IsString() ? ApproxFieldDescIterator::INSTANCE_FIELDS : ApproxFieldDescIterator::ALL_FIELDS);
             ULONG cFields = fieldDescIterator.Count();
 
             typeInfo = new (nothrow) ClassTypeInfo(typeHandle, cFields);
@@ -129,9 +130,52 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
         }
         break;
         case ELEMENT_TYPE_ARRAY:
-        case ELEMENT_TYPE_SZARRAY:
-            //typeInfo->m_type_name = "array";
+            ASSERT(0 && "not implemented");
             break;
+
+        case ELEMENT_TYPE_SZARRAY:
+        {
+            typeInfo = new (nothrow) ClassTypeInfo(typeHandle, 2);
+            if (typeInfo == nullptr)
+                return nullptr;
+            typeInfo->m_type_size = pMT->GetClass()->GetSize();
+
+            typeInfo->CalculateName();
+            RefTypeInfo *refTypeInfo = new (nothrow) RefTypeInfo(typeHandle, typeInfo);
+            if (refTypeInfo == nullptr)
+            {
+                return nullptr;
+            }
+            refTypeInfo->m_type_size = sizeof(TADDR);
+            refTypeInfo->m_value_type = typeInfo;
+            refTypeInfo->CalculateName();
+
+            pTypeMap->Add(refTypeInfo->GetTypeKey(), refTypeInfo);
+
+            TypeInfoBase* lengthTypeInfo = GetTypeInfoFromTypeHandle(
+                TypeHandle(MscorlibBinder::GetElementType(ELEMENT_TYPE_I4)), pTypeMap);
+
+            TypeInfoBase* arrayTypeInfo = new (nothrow) ArrayTypeInfo(typeHandle, 0, valInfo);
+            if (arrayTypeInfo == nullptr)
+                return nullptr;
+
+            ClassTypeInfo *info = static_cast<ClassTypeInfo*>(typeInfo);
+
+            info->members[0].m_member_name = new (nothrow) char[16];
+            strcpy(info->members[0].m_member_name, "m_NumComponents");
+            info->members[0].m_member_offset = Object::GetOffsetOfFirstField();
+            info->members[0].m_member_type = lengthTypeInfo;
+            info->members[0].m_member_type->m_type_size = sizeof(DWORD);
+
+            info->members[1].m_member_name = new (nothrow) char[7];
+            strcpy(info->members[1].m_member_name, "m_Data");
+            info->members[1].m_member_offset = ArrayBase::GetDataPtrOffset(pMT);
+            info->members[1].m_member_type = arrayTypeInfo;
+            info->members[1].m_member_type->m_type_size = sizeof(TADDR);
+
+            return refTypeInfo;
+        }
+
         default:
             break;
             //typeInfo->m_type_name = "unknown";
@@ -250,9 +294,24 @@ TypeInfoBase* GetTypeInfoFromSignature(MethodDesc *MethodDescPtr,
                 return GetTypeInfoFromTypeHandle(valType->GetTypeHandle().MakeByRef(), pTypeMap, valType);
             } break;
             case ELEMENT_TYPE_ARRAY:
-            case ELEMENT_TYPE_SZARRAY:
-                typePtr++;
+                ASSERT(0 && "not implemented");
                 break;
+            case ELEMENT_TYPE_SZARRAY:
+            {
+                typePtr++;
+                if (i < ilIndex)
+                {
+                    break;
+                }
+                PTR_MethodTable m = MscorlibBinder::GetElementType(static_cast<CorElementType>(*typePtr));
+                if (m == nullptr)
+                {
+                    return nullptr;
+                }
+                TypeInfoBase* valType = GetTypeInfoFromTypeHandle(TypeHandle(m), pTypeMap);
+                return GetTypeInfoFromTypeHandle(valType->GetTypeHandle().MakeSZArray(), pTypeMap, valType);
+                break;
+            }
             default:
                 break;
         }
@@ -720,7 +779,7 @@ const unsigned char AbbrevTable[] = {
     8, DW_TAG_member, DW_CHILDREN_no,
         DW_AT_name, DW_FORM_strp, DW_AT_type, DW_FORM_ref4, DW_AT_data_member_location, DW_FORM_data4, 0, 0,
 
-    9, DW_TAG_reference_type, DW_CHILDREN_no,
+    9, DW_TAG_pointer_type, DW_CHILDREN_no,
         DW_AT_type, DW_FORM_ref4, DW_AT_byte_size, DW_FORM_data1, 0, 0,
 
     10, DW_TAG_array_type, DW_CHILDREN_yes,
