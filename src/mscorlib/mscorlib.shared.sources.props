@@ -804,6 +804,7 @@
     <IoSources Include="$(BclSourcesRoot)\System\IO\ReadLinesIterator.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\SeekOrigin.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\Stream.cs" />
+    <IoSources Include="$(BclSourcesRoot)\System\IO\StreamHelpers.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\StreamReader.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\StreamWriter.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\StringReader.cs" />
