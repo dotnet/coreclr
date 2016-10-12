@@ -27,7 +27,7 @@ def static getOSGroup(def os) {
 // Setup perflab tests runs
 [true, false].each { isPR ->
     ['Windows_NT'].each { os ->
-		['x64', 'x86'].each { architecture ->
+		['x64'].each { architecture ->
 			def configuration = 'Release'
 			def runType = isPR ? 'private' : 'rolling'
 			def benchViewName = isPR ? 'coreclr private %ghprbPullTitle%' : 'coreclr rolling %GIT_BRANCH% %GIT_COMMIT%'
