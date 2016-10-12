@@ -3,7 +3,7 @@
 @rem See the LICENSE file in the project root for more information.
 
 @setlocal
-@echo off
+rem @echo off
 
 rem Set defaults for the file extension, architecture and configuration
 set CORECLR_REPO=%CD%
