@@ -198,7 +198,7 @@ windows (on Linux substitute ~/ for %HOMEPATH%) you could delete
 ```bat
      %HOMEPATH%\.nuget\packages\Microsoft.NETCore.Runtime.CoreCLR\1.2.0-beta-24521-02
 ```
-which should mke things work (but is fragile, confirm wile file timestamps that you are getting the version you expect)
+which should make things work (but is fragile, confirm wile file timestamps that you are getting the version you expect)
 
 
 ## Step 8.1 (Optional) Quick updates in place.  
@@ -216,6 +216,7 @@ you will want to update both of these together in the target installation.
 Thus after making a change and building, you can simply copy the updated binary from the `bin\Product\<OS>.<arch>.<flavor>`
 directory to your publication directory (e.g. `helloWorld\bin\Debug\netcoreapp1.0\win7-x64\publish`) to quickly
 deploy your new bits.   You can build just the .NET Library part of the build by doing (debug, for release add 'release qualifier)
+(on Linux / OSX us ./build.sh)
 ```bat
     .\build skiptests skipnative 
 ```

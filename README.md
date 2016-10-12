@@ -176,7 +176,7 @@ There are two basic techniques for using your new runtime.
 
 Typically users run through the build and use instructions first with an unmodified build, just to familiarize
 themselves with the procedures and to confirm that the instructions work.   After that you will want to actually
-make modifications and debug any issues those modifications might cause.   See the following link for more.   
+make modifications and debug any issues those modifications might cause.   See the following links for more.   
 
  * [Editing and Debugging](Documentation/workflow/EditingAndDebugging.md) and
  * [Documentation on the .NET Core Runtime](Documentation/README.md)
