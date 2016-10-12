@@ -1830,7 +1830,7 @@ void memclr ( uint8_t* mem, size_t size)
 {
     dprintf (3, ("MEMCLR: %Ix, %d", mem, size));
     assert ((size & (sizeof(PTR_PTR)-1)) == 0);
-    assert (sizeof(PTR_PTR) == DATA_ALIGNMENT);
+    assert (sizeof(PTR_PTR) == GC_DATA_ALIGNMENT);
 
 #if 0
     // The compiler will recognize this pattern and replace it with memset call. We can as well just call 
@@ -1851,7 +1851,7 @@ void memcopy (uint8_t* dmem, uint8_t* smem, size_t size)
 
     // size must be a multiple of the pointer size
     assert ((size & (sizeof (PTR_PTR)-1)) == 0);
-    assert (sizeof(PTR_PTR) == DATA_ALIGNMENT);
+    assert (sizeof(PTR_PTR) == GC_DATA_ALIGNMENT);
 
     // copy in groups of four pointer sized things at a time
     if (size >= sz4ptr)
@@ -1925,9 +1925,9 @@ inline
 size_t switch_alignment_size (BOOL already_padded_p)
 {
     if (already_padded_p)
-        return DATA_ALIGNMENT;
+        return GC_DATA_ALIGNMENT;
     else
-        return (Align (min_obj_size) +((Align (min_obj_size)&DATA_ALIGNMENT)^DATA_ALIGNMENT));
+        return (Align (min_obj_size) +((Align (min_obj_size)&GC_DATA_ALIGNMENT)^GC_DATA_ALIGNMENT));
 }
 
 
@@ -1958,7 +1958,7 @@ size_t AlignQword (size_t nbytes)
 inline
 BOOL Aligned (size_t n)
 {
-    return (n & ALIGNCONST) == 0;
+    return (n & GC_ALIGNCONST) == 0;
 }
 
 #define OBJECT_ALIGNMENT_OFFSET (sizeof(MethodTable *))
@@ -1977,7 +1977,7 @@ ptrdiff_t AdjustmentForMinPadSize(ptrdiff_t pad, int requiredAlignment)
     // Note that by computing the following difference on unsigned types,
     // we can do the range check 0 < alignpad < min_obj_size with a
     // single conditional branch.
-    if ((size_t)(pad - DATA_ALIGNMENT) < Align (min_obj_size) - DATA_ALIGNMENT)
+    if ((size_t)(pad - GC_DATA_ALIGNMENT) < Align (min_obj_size) - GC_DATA_ALIGNMENT)
     {
         return requiredAlignment;
     }
@@ -1988,7 +1988,7 @@ inline
 uint8_t* StructAlign (uint8_t* origPtr, int requiredAlignment, ptrdiff_t alignmentOffset=OBJECT_ALIGNMENT_OFFSET)
 {
     // required alignment must be a power of two
-    _ASSERTE(((size_t)origPtr & ALIGNCONST) == 0);
+    _ASSERTE(((size_t)origPtr & GC_ALIGNCONST) == 0);
     _ASSERTE(((requiredAlignment - 1) & requiredAlignment) == 0);
     _ASSERTE(requiredAlignment >= sizeof(void *));
     _ASSERTE(requiredAlignment <= MAX_STRUCTALIGN);
@@ -2018,12 +2018,12 @@ BOOL IsStructAligned (uint8_t *ptr, int requiredAlignment)
 inline
 ptrdiff_t ComputeMaxStructAlignPad (int requiredAlignment)
 {
-    if (requiredAlignment == DATA_ALIGNMENT)
+    if (requiredAlignment == GC_DATA_ALIGNMENT)
         return 0;
     // Since a non-zero alignment padding cannot be less than min_obj_size (so we can fit the
     // alignment padding object), the worst-case alignment padding is correspondingly larger
     // than the required alignment.
-    return requiredAlignment + Align (min_obj_size) - DATA_ALIGNMENT;
+    return requiredAlignment + Align (min_obj_size) - GC_DATA_ALIGNMENT;
 }
 
 inline
@@ -2035,7 +2035,7 @@ ptrdiff_t ComputeMaxStructAlignPadLarge (int requiredAlignment)
     // for padding before the actual object, it also leaves space for filling a gap after the
     // actual object.  This is needed on the large object heap, as the outer allocation functions
     // don't operate on an allocation context (which would have left space for the final gap).
-    return requiredAlignment + Align (min_obj_size) * 2 - DATA_ALIGNMENT;
+    return requiredAlignment + Align (min_obj_size) * 2 - GC_DATA_ALIGNMENT;
 }
 
 uint8_t* gc_heap::pad_for_alignment (uint8_t* newAlloc, int requiredAlignment, size_t size, alloc_context* acontext)
@@ -8649,7 +8649,7 @@ public:
 
 #ifdef FEATURE_STRUCTALIGN
         // BARTOKTODO (4841): this code path is disabled (see can_fit_all_blocks_p) until we take alignment requirements into account
-        _ASSERTE(requiredAlignment == DATA_ALIGNMENT && false);
+        _ASSERTE(requiredAlignment == GC_DATA_ALIGNMENT && false);
 #endif // FEATURE_STRUCTALIGN
         // TODO: this is also not large alignment ready. We would need to consider alignment when chosing the 
         // the bucket.
@@ -13690,7 +13690,7 @@ uint8_t* gc_heap::allocate_in_older_generation (generation* gen, size_t size,
 
 #ifdef FEATURE_STRUCTALIGN
         _ASSERTE(!old_loc || alignmentOffset != 0);
-        _ASSERTE(old_loc || requiredAlignment == DATA_ALIGNMENT);
+        _ASSERTE(old_loc || requiredAlignment == GC_DATA_ALIGNMENT);
         if (old_loc != 0)
         {
             size_t pad1 = ComputeStructAlignPad(result+pad, requiredAlignment, alignmentOffset);
@@ -13948,7 +13948,7 @@ allocate_in_free:
 
 #ifdef FEATURE_STRUCTALIGN
         _ASSERTE(!old_loc || alignmentOffset != 0);
-        _ASSERTE(old_loc || requiredAlignment == DATA_ALIGNMENT);
+        _ASSERTE(old_loc || requiredAlignment == GC_DATA_ALIGNMENT);
         if (old_loc != 0)
         {
             size_t pad1 = ComputeStructAlignPad(result+pad, requiredAlignment, alignmentOffset);
@@ -14201,7 +14201,7 @@ retry:
 #endif //SHORT_PLUGS
 #ifdef FEATURE_STRUCTALIGN
         _ASSERTE(!old_loc || alignmentOffset != 0);
-        _ASSERTE(old_loc || requiredAlignment == DATA_ALIGNMENT);
+        _ASSERTE(old_loc || requiredAlignment == GC_DATA_ALIGNMENT);
         if ((old_loc != 0))
         {
             size_t pad1 = ComputeStructAlignPad(result+pad, requiredAlignment, alignmentOffset);
@@ -19966,7 +19966,7 @@ void node_aligninfo (uint8_t* node, int& requiredAlignment, ptrdiff_t& pad)
     short left = ((plug_and_pair*)node)[-1].m_pair.left;
     short right = ((plug_and_pair*)node)[-1].m_pair.right;
     ptrdiff_t pad_shifted = (pad_from_short(left) << pad_bits) | pad_from_short(right);
-    ptrdiff_t aligninfo = pad_shifted * DATA_ALIGNMENT;
+    ptrdiff_t aligninfo = pad_shifted * GC_DATA_ALIGNMENT;
 
     // Replicate the topmost bit into all lower bits.
     ptrdiff_t x = aligninfo;
@@ -20002,7 +20002,7 @@ void set_node_aligninfo (uint8_t* node, int requiredAlignment, ptrdiff_t pad)
     // as described above.
     ptrdiff_t aligninfo = (size_t)requiredAlignment + (pad & (requiredAlignment-1));
     assert (Aligned (aligninfo));
-    ptrdiff_t aligninfo_shifted = aligninfo / DATA_ALIGNMENT;
+    ptrdiff_t aligninfo_shifted = aligninfo / GC_DATA_ALIGNMENT;
     assert (aligninfo_shifted < (1 << (pad_bits + pad_bits)));
 
     ptrdiff_t hi = aligninfo_shifted >> pad_bits;

@@ -208,7 +208,7 @@ void GCLogConfig (const char *fmt, ... );
 #define REQD_ALIGN_DCL ,int requiredAlignment
 #define REQD_ALIGN_ARG ,requiredAlignment
 #define REQD_ALIGN_AND_OFFSET_DCL ,int requiredAlignment,size_t alignmentOffset
-#define REQD_ALIGN_AND_OFFSET_DEFAULT_DCL ,int requiredAlignment=DATA_ALIGNMENT,size_t alignmentOffset=0
+#define REQD_ALIGN_AND_OFFSET_DEFAULT_DCL ,int requiredAlignment=GC_DATA_ALIGNMENT,size_t alignmentOffset=0
 #define REQD_ALIGN_AND_OFFSET_ARG ,requiredAlignment,alignmentOffset
 #else // FEATURE_STRUCTALIGN
 #define REQD_ALIGN_DCL
@@ -870,11 +870,8 @@ struct seg_mapping
 };
 #endif //SEG_MAPPING_TABLE
 
-// alignment helpers
-#define ALIGNCONST GC_ALIGNCONST
-
 inline
-size_t Align (size_t nbytes, int alignment=ALIGNCONST)
+size_t Align (size_t nbytes, int alignment=GC_ALIGNCONST)
 {
     return (nbytes + alignment) & ~alignment;
 }
@@ -886,9 +883,9 @@ int get_alignment_constant (BOOL small_object_p)
 #ifdef FEATURE_STRUCTALIGN
     // If any objects on the large object heap require 8-byte alignment,
     // the compiler will tell us so.  Let's not guess an alignment here.
-    return ALIGNCONST;
+    return GC_ALIGNCONST;
 #else // FEATURE_STRUCTALIGN
-    return small_object_p ? ALIGNCONST : 7;
+    return small_object_p ? GC_ALIGNCONST : 7;
 #endif // FEATURE_STRUCTALIGN
 }
 

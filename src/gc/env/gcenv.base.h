@@ -293,8 +293,6 @@ typedef DPTR(uint8_t)   PTR_uint8_t;
 
 // -----------------------------------------------------------------------------------------------------------
 
-#define DATA_ALIGNMENT GC_DATA_ALIGNMENT
-
 #define RAW_KEYWORD(x) x
 
 #define DECLSPEC_ALIGN(x)   __declspec(align(x))
