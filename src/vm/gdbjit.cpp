@@ -54,7 +54,7 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
             break;
         case ELEMENT_TYPE_CLASS:
         {
-            ApproxFieldDescIterator fieldDescIterator(pMT, ApproxFieldDescIterator::INSTANCE_FIELDS);
+            ApproxFieldDescIterator fieldDescIterator(pMT, ApproxFieldDescIterator::ALL_FIELDS);
             ULONG cFields = fieldDescIterator.Count();
 
             typeInfo = new (nothrow) ClassTypeInfo(typeHandle, cFields);
@@ -89,8 +89,21 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
                 LPCUTF8 szName = pField->GetName();
                 info->members[i].m_member_name = new char[strlen(szName) + 1];
                 strcpy(info->members[i].m_member_name, szName);
-                info->members[i].m_member_offset = (ULONG)pField->GetOffset() + Object::GetOffsetOfFirstField();
-                info->members[i].m_member_type = GetTypeInfoFromTypeHandle(pField->GetExactFieldType(typeHandle), pTypeMap);
+                if (!pField->IsStatic())
+                {
+                    info->members[i].m_member_offset = (ULONG)pField->GetOffset() + Object::GetOffsetOfFirstField();
+                }
+                else
+                {
+                    PTR_BYTE base = 0;
+                    if (!pField->IsRVA()) // for RVA the base is ignored
+                        base = pField->GetBaseInDomain(pField->GetModule()->GetDomain()->AsAppDomain());
+                    PTR_VOID pAddress = pField->GetStaticAddressHandle((PTR_VOID)dac_cast<TADDR>(base));
+                    info->members[i].m_static_member_address = dac_cast<TADDR>(pAddress);
+                }
+
+                info->members[i].m_member_type =
+                    GetTypeInfoFromTypeHandle(pField->GetExactFieldType(typeHandle), pTypeMap);
 
                 // handle the System.String case:
                 // coerce type of the second field into array type
@@ -705,7 +718,7 @@ const unsigned char AbbrevTable[] = {
         DW_AT_name, DW_FORM_strp, DW_AT_byte_size, DW_FORM_data1, 0, 0,
 
     8, DW_TAG_member, DW_CHILDREN_no,
-        DW_AT_name, DW_FORM_strp, DW_AT_type, DW_FORM_ref4, DW_AT_data_member_location, DW_FORM_data1, 0, 0,
+        DW_AT_name, DW_FORM_strp, DW_AT_type, DW_FORM_ref4, DW_AT_data_member_location, DW_FORM_data4, 0, 0,
 
     9, DW_TAG_reference_type, DW_CHILDREN_no,
         DW_AT_type, DW_FORM_ref4, DW_AT_byte_size, DW_FORM_data1, 0, 0,
@@ -732,6 +745,13 @@ const unsigned char AbbrevTable[] = {
     13, DW_TAG_formal_parameter, DW_CHILDREN_no,
         DW_AT_name, DW_FORM_strp, DW_AT_decl_file, DW_FORM_data1, DW_AT_decl_line, DW_FORM_data1, DW_AT_type,
         DW_FORM_ref4, DW_AT_location, DW_FORM_exprloc, DW_AT_artificial, DW_FORM_flag_present, 0, 0,
+
+    14, DW_TAG_member, DW_CHILDREN_no,
+        DW_AT_name, DW_FORM_strp, DW_AT_type, DW_FORM_ref4, DW_AT_external, DW_FORM_flag_present, 0, 0,
+
+    15, DW_TAG_variable, DW_CHILDREN_no, DW_AT_specification, DW_FORM_ref4, DW_AT_location, DW_FORM_exprloc,
+        0, 0,
+
     0
 };
 
@@ -810,8 +830,14 @@ struct __attribute__((packed)) DebugInfoClassMember
     uint8_t m_member_abbrev;
     uint32_t m_member_name;
     uint32_t m_member_type;
-    uint8_t m_member_loc;
 };
+
+struct __attribute__((packed)) DebugInfoStaticMember
+{
+    uint8_t m_member_abbrev;
+    uint32_t m_member_specification;
+};
+
 
 struct __attribute__((packed)) DebugInfoRefType
 {
@@ -923,15 +949,53 @@ void TypeMember::DumpDebugInfo(char* ptr, int& offset)
         if (memberEntry == nullptr)
             return;
 
-        memberEntry->m_member_abbrev = 8;
+        if (m_static_member_address == 0)
+            memberEntry->m_member_abbrev = 8;
+        else
+        {
+            memberEntry->m_member_abbrev = 14;
+            m_member_offset = offset;
+        }
         memberEntry->m_member_name = m_member_name_offset;
-        memberEntry->m_member_loc = m_member_offset;
         memberEntry->m_member_type = m_member_type->m_type_offset;
 
         memcpy(ptr + offset, memberEntry, sizeof(DebugInfoClassMember));
+        if (m_static_member_address == 0)
+            memcpy(ptr + offset + sizeof(DebugInfoClassMember), &m_member_offset, sizeof(m_member_offset));
     }
     offset += sizeof(DebugInfoClassMember);
+    if (m_static_member_address == 0)
+        offset += sizeof(m_member_offset);
 }
+
+void TypeMember::DumpStaticDebugInfo(char* ptr, int& offset)
+{
+    const int ptrSize = sizeof(TADDR);
+    if (ptr != nullptr)
+    {
+        NewHolder<DebugInfoStaticMember> memberEntry = new (nothrow) DebugInfoStaticMember;
+        if (memberEntry == nullptr)
+            return;
+
+        memberEntry->m_member_abbrev = 15;
+        memberEntry->m_member_specification = m_member_offset;
+        memcpy(ptr + offset, memberEntry, sizeof(DebugInfoStaticMember));
+
+        char buf[ptrSize + 2] = {0};
+        buf[0] = ptrSize + 1;
+        buf[1] = DW_OP_addr;
+
+        for (int i = 0; i < ptrSize; i++)
+        {
+            buf[i + 2] = m_static_member_address >> (i * 8);
+        }
+
+        memcpy(ptr + offset + sizeof(DebugInfoStaticMember), buf, ptrSize + 2);
+    }
+    offset += sizeof(DebugInfoStaticMember);
+    offset += ptrSize + 2;
+}
+
 
 void FunctionMember::DumpStrings(char* ptr, int& offset)
 {
@@ -1099,6 +1163,13 @@ void ClassTypeInfo::DumpDebugInfo(char* ptr, int& offset)
         ptr[offset] = 0;
     }
     offset++;
+
+    for (int i = 0; i < m_num_members; ++i)
+    {
+        if (members[i].m_static_member_address != 0)
+            members[i].DumpStaticDebugInfo(ptr, offset);
+    }
+
 }
 
 void ArrayTypeInfo::DumpDebugInfo(char* ptr, int& offset)
