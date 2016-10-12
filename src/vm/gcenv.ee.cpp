@@ -16,12 +16,21 @@
 #include "gcenv.h"
 
 #include "threadsuspend.h"
+#include "asmconstants.h"
 
 #ifdef FEATURE_COMINTEROP
 #include "runtimecallablewrapper.h"
 #include "rcwwalker.h"
 #include "comcallablewrapper.h"
 #endif // FEATURE_COMINTEROP
+
+static_assert_no_msg(DATA_ALIGNMENT == GC_DATA_ALIGNMENT);
+
+#ifdef DATA_ALIGNMENT_CONSTANT
+// not every platform defines this constant, since not every platform
+// needs to align sizes from JIT helpers.
+static_assert_no_msg(DATA_ALIGNMENT_CONSTANT == GC_ALIGNCONST);
+#endif
 
 void GCToEEInterface::SuspendEE(SUSPEND_REASON reason)
 {

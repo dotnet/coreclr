@@ -84,6 +84,14 @@ struct segment_info
 
 #define LARGE_OBJECT_SIZE ((size_t)(85000))
 
+// Alignment constants for allocation. The allocator APIs will automatically
+// align any allocation requests, but any allocations that are done directly
+// by the VM (i.e. in assembly helpers) will need to be aligned manually
+// using these constants.
+#define GC_DATA_ALIGNMENT sizeof(uintptr_t)
+#define GC_ALIGNCONST (GC_DATA_ALIGNMENT-1)
+
+
 // The minimum size of an object is three pointers wide: one for the syncblock,
 // one for the object header, and one for the first field in the object.
 #define min_obj_size ((sizeof(uint8_t*) + sizeof(uintptr_t) + sizeof(size_t)))

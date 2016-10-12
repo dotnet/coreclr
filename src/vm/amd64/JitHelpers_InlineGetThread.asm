@@ -175,8 +175,8 @@ LEAF_ENTRY AllocateStringFastMP_InlineGetThread, _TEXT
         ; Calculate the final size to allocate.
         ; We need to calculate baseSize + cnt*2, then round that up by adding 7 and anding ~7.
 
-        lea     edx, [edx + ecx*2 + 7]
-        and     edx, -8
+        lea     edx, [edx + ecx*2 + DATA_ALIGNMENT_CONSTANT]
+        and     edx, NOT_DATA_ALIGNMENT_CONSTANT
 
         PATCHABLE_INLINE_GETTHREAD r11, AllocateStringFastMP_InlineGetThread__PatchTLSOffset
         mov     r10, [r11 + OFFSET__Thread__m_alloc_context__alloc_limit]
@@ -237,8 +237,8 @@ LEAF_ENTRY JIT_NewArr1VC_MP_InlineGetThread, _TEXT
 
         ; round the size to a multiple of 8
 
-        add     r8d, 7
-        and     r8d, -8
+        add     r8d, DATA_ALIGNMENT_CONSTANT
+        and     r8d, NOT_DATA_ALIGNMENT_CONSTANT
 
 
         PATCHABLE_INLINE_GETTHREAD r11, JIT_NewArr1VC_MP_InlineGetThread__PatchTLSOffset

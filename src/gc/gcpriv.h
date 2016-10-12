@@ -871,8 +871,7 @@ struct seg_mapping
 #endif //SEG_MAPPING_TABLE
 
 // alignment helpers
-//Alignment constant for allocation
-#define ALIGNCONST (DATA_ALIGNMENT-1)
+#define ALIGNCONST GC_ALIGNCONST
 
 inline
 size_t Align (size_t nbytes, int alignment=ALIGNCONST)

@@ -73,7 +73,9 @@ ASMCONSTANTS_C_ASSERT(ASM_CLRTASKHOSTED   == CLRTASKHOSTED);
 #define SIZEOF_MAX_FP_ARG_SPILL             0x40
 #endif
 
-
+// Constants use for data alignment on this platform.
+#define DATA_ALIGNMENT_CONSTANT 7
+#define NOT_DATA_ALIGNMENT_CONSTANT -8
 
 #ifndef UNIX_AMD64_ABI
 #define SIZEOF_CalleeSavedRegisters         0x40
