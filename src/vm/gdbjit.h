@@ -105,10 +105,13 @@ struct __attribute__((packed)) DwarfLineNumHeader
     uint8_t m_std_num_arg[DW_LNS_MAX];
 };
 
+const ULONG32 HiddenLine = 0x00feefee;
+
 struct SymbolsInfo
 {
     int lineNumber, ilOffset, nativeOffset, fileIndex;
     char fileName[2*MAX_PATH_FNAME];
+    ICorDebugInfo::SourceTypes source;
 };
 
 class DwarfDumpable

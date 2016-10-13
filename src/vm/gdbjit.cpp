@@ -474,8 +474,8 @@ GetDebugInfoFromPDB(MethodDesc* MethodDescPtr, SymbolsInfo** symInfo, unsigned i
     if (getInfoForMethodDelegate(szModName, MethodDescPtr->GetMemberDef(), methodDebugInfo) == FALSE)
         return E_FAIL;
 
-    symInfoLen = methodDebugInfo.size;
-    *symInfo = new (nothrow) SymbolsInfo[symInfoLen];
+    symInfoLen = numMap;
+    *symInfo = new (nothrow) SymbolsInfo[numMap];
     if (*symInfo == nullptr)
         return E_FAIL;
     locals.size = methodDebugInfo.localsSize;
@@ -492,21 +492,33 @@ GetDebugInfoFromPDB(MethodDesc* MethodDescPtr, SymbolsInfo** symInfo, unsigned i
             CP_UTF8, 0, methodDebugInfo.locals[i], -1, locals.localsName[i], sizeRequired, NULL, NULL);
     }
 
-    for (ULONG32 i = 0; i < symInfoLen; i++)
+    for (ULONG32 j = 0; j < numMap; j++)
     {
-        for (ULONG32 j = 0; j < numMap; j++)
+        SymbolsInfo& s = (*symInfo)[j];
+
+        if (j == 0) {
+            s.fileName[0] = 0;
+            s.lineNumber = 0;
+            s.fileIndex = 0;
+        } else {
+            s = (*symInfo)[j - 1];
+        }
+        s.nativeOffset = map[j].nativeStartOffset;
+        s.ilOffset = map[j].ilOffset;
+        s.source = map[j].source;
+        s.lineNumber = 0;
+
+        for (ULONG32 i = 0; i < methodDebugInfo.size; i++)
         {
+            const SequencePointInfo& sp = methodDebugInfo.points[i];
+
             if (methodDebugInfo.points[i].ilOffset == map[j].ilOffset)
             {
-                SymbolsInfo& s = (*symInfo)[i];
-                const SequencePointInfo& sp = methodDebugInfo.points[i];
-
-                s.nativeOffset = map[j].nativeStartOffset;
-                s.ilOffset = map[j].ilOffset;
                 s.fileIndex = 0;
                 int len = WideCharToMultiByte(CP_UTF8, 0, sp.fileName, -1, s.fileName, sizeof(s.fileName), NULL, NULL);
                 s.fileName[len] = 0;
                 s.lineNumber = sp.lineNumber;
+                break;
             }
         }
     }
@@ -1333,7 +1345,12 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
     method = new FunctionMember(MethodDescPtr, locals.size, nArgsCount);
     // method return type
     method->m_member_type = GetArgTypeInfo(MethodDescPtr, pTypeMap, 0);
-    method->GetLocalsDebugInfo(pTypeMap, locals, symInfo[0].nativeOffset);
+
+    unsigned int firstLineIndex = 0;
+    for (;firstLineIndex < symInfoLen; firstLineIndex++) {
+        if (symInfo[firstLineIndex].lineNumber != 0 && symInfo[firstLineIndex].lineNumber != HiddenLine && symInfo[firstLineIndex].fileName[0] != 0) break;
+    }
+    method->GetLocalsDebugInfo(pTypeMap, locals, symInfo[firstLineIndex].nativeOffset);
 
     // method's class
     GetTypeInfoFromTypeHandle(TypeHandle(method->md->GetMethodTable()), pTypeMap);
@@ -1641,6 +1658,8 @@ bool NotifyGdb::BuildFileTable(MemBuf& buf, SymbolsInfo* lines, unsigned nlines)
         return false;
     for (unsigned i = 0; i < nlines; ++i)
     {
+        if (lines[i].fileName[0] == 0)
+            continue;
         const char *filePath, *fileName;
         SplitPathname(lines[i].fileName, filePath, fileName);
 
@@ -1746,6 +1765,42 @@ bool NotifyGdb::FitIntoSpecialOpcode(int8_t line_shift, uint8_t addr_shift)
     return opcode < 255;
 }
 
+static void fixLineMapping(SymbolsInfo* lines, unsigned nlines)
+{
+    // Fix EPILOGUE line mapping
+    int prevLine = 0;
+    for (int i = 0; i < nlines; ++i)
+    {
+        if (lines[i].ilOffset == ICorDebugInfo::PROLOG) // will be fixed in next step
+        {
+            prevLine = 0;
+        }
+        else
+        {
+            if (lines[i].lineNumber == 0 || lines[i].lineNumber == HiddenLine)
+            {
+                if (prevLine != 0)
+                {
+                    lines[i].lineNumber = prevLine;
+                }
+            }
+            else
+            {
+                prevLine = lines[i].lineNumber;
+            }
+        }
+    }
+    // Fix PROLOGUE line mapping
+    prevLine = lines[nlines - 1].lineNumber;
+    for (int i = nlines - 1; i >= 0; --i)
+    {
+        if (lines[i].lineNumber == 0 || lines[i].lineNumber == HiddenLine)
+            lines[i].lineNumber = prevLine;
+        else
+            prevLine = lines[i].lineNumber;
+    }
+}
+
 /* Build program for DWARF source line section */
 bool NotifyGdb::BuildLineProg(MemBuf& buf, PCODE startAddr, TADDR codeSize, SymbolsInfo* lines, unsigned nlines)
 {
@@ -1771,6 +1826,8 @@ bool NotifyGdb::BuildLineProg(MemBuf& buf, PCODE startAddr, TADDR codeSize, Symb
     
     int prevLine = 1, prevAddr = 0, prevFile = 0;
     
+    fixLineMapping(lines, nlines);
+
     for (int i = 0; i < nlines; ++i)
     {
         /* different source file */
