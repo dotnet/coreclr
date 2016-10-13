@@ -3,7 +3,6 @@
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
 
   <PropertyGroup>
-    <Version>1.0.5</Version>
     <SkipPackageFileCheck>true</SkipPackageFileCheck>
     <SkipValidatePackage>true</SkipValidatePackage>
     <PackagePlatforms>x64;x86;arm</PackagePlatforms>
@@ -15,12 +14,12 @@
     <!-- Declare a runtime dependency on the win8-arm CoreCLR built using the TFS builds -->
     <RuntimeDependency Include="runtime.win8-arm.Microsoft.NETCore.Runtime.CoreCLR">
       <TargetRuntime>win8-arm</TargetRuntime>
-      <Version>1.0.5-$(ExternalExpectedPrerelease)</Version>
+      <Version>$(Win8ArmPackageVersion)</Version>
     </RuntimeDependency>
     <!-- ApiSets are only applicable for Windows. 
          Despite the unconditioned package dependency it is constrained by runtime IDs within it's own package -->
     <Dependency Include="Microsoft.NETCore.Windows.ApiSets">
-      <Version>1.0.1</Version>
+      <Version>$(WindowsAPISetPackageVersion)</Version>
     </Dependency>
     <ProjectReference Include="..\Microsoft.NETCore.Jit\Microsoft.NETCore.Jit.pkgproj" />
     <ProjectReference Include="win\Microsoft.NETCore.Runtime.CoreCLR.pkgproj">

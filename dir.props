@@ -153,7 +153,17 @@
 
     <!-- PreReleaseSuffix for TFS win8-arm CoreCLR package -->
     <ExternalExpectedPrerelease>servicing-24618-00</ExternalExpectedPrerelease>
- 
+
+    <!-- Central place to set the versions of all nuget packages produced in the repo -->
+    <Version Condition="'$(MSBuildProjectExtension)' == '.pkgproj' and '$(Version)' == ''">1.0.5</Version>
+    <WindowsAPISetPackageVersion>1.0.1</WindowsAPISetPackageVersion>
+    <Win8ArmPackageVersion>$(Version)-$(ExternalExpectedPrerelease)</Win8ArmPackageVersion>
+
+    <!-- Set the boolean below to true to generate packages with stabilized versions -->
+    <StabilizePackageVersion Condition="'$(StabilizePackageVersion)' == ''">false</StabilizePackageVersion>
+    <StableVersion Condition="'$(MSBuildProjectExtension)' == '.pkgproj' and '$(StabilizePackageVersion)' == 'true' and '$(StableVersion)' == ''">$(Version)</StableVersion>
+    <Win8ArmPackageVersion Condition="'$(StabilizePackageVersion)' == 'true'">$(StableVersion)</Win8ArmPackageVersion>
+
     <!-- On Windows, MSbuild still runs against Desktop FX while it runs on .NET Core on non-Windows. this requires
          pulling in different packaging dependencies.
      -->
