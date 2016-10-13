@@ -102,7 +102,7 @@ xcopy /s %1 . >> %RUNLOG%
 
 set CORE_ROOT=%CORECLR_REPO%\sandbox
 
-xunit.performance.run.exe %BENCHNAME%.%TEST_FILE_EXT% -runner xunit.console.netcore.exe -runnerhost corerun.exe -verbose -runid %PERFOUT% > %BENCHNAME%.out
+xunit.performance.run.exe System.Runtime.Extensions.dll -runner xunit.console.netcore.exe -runnerhost corerun.exe -verbose -runid %PERFOUT% > %BENCHNAME%.out
 
 xunit.performance.analysis.exe %PERFOUT%.xml -xml %XMLOUT% > %BENCHNAME%-analysis.out
 if not [%BENCHVIEW_PATH%] == [] (
