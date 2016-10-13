@@ -110,9 +110,8 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
                 // coerce type of the second field into array type
                 if (pMT->IsString() && i == 1)
                 {
-                    int countOffset = info->members[0].m_member_offset;
                     TypeInfoBase* elemTypeInfo = info->members[1].m_member_type;
-                    TypeInfoBase* arrayTypeInfo = new (nothrow) ArrayTypeInfo(typeHandle.MakeSZArray(), countOffset, elemTypeInfo);
+                    TypeInfoBase* arrayTypeInfo = new (nothrow) ArrayTypeInfo(typeHandle.MakeSZArray(), 0, elemTypeInfo);
                     if (arrayTypeInfo == nullptr)
                         return nullptr;
                     info->members[1].m_member_type = arrayTypeInfo;
@@ -128,12 +127,9 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
                 return nullptr;
             typeInfo->m_type_size = sizeof(TADDR);
             typeInfo->m_type_offset = valTypeInfo->m_type_offset;
-        }
-        break;
-        case ELEMENT_TYPE_ARRAY:
-            ASSERT(0 && "not implemented");
             break;
-
+        }
+        case ELEMENT_TYPE_ARRAY:
         case ELEMENT_TYPE_SZARRAY:
         {
             typeInfo = new (nothrow) ClassTypeInfo(typeHandle, 2);
@@ -165,7 +161,7 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
 
             info->members[0].m_member_name = new (nothrow) char[16];
             strcpy(info->members[0].m_member_name, "m_NumComponents");
-            info->members[0].m_member_offset = Object::GetOffsetOfFirstField();
+            info->members[0].m_member_offset = ArrayBase::GetOffsetOfNumComponents();
             info->members[0].m_member_type = lengthTypeInfo;
             info->members[0].m_member_type->m_type_size = sizeof(DWORD);
 
@@ -177,10 +173,9 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
 
             return refTypeInfo;
         }
-
         default:
+            ASSERT(0 && "not implemented");
             break;
-            //typeInfo->m_type_name = "unknown";
     }
     // name the type
     if (corType == ELEMENT_TYPE_CHAR)
@@ -1157,17 +1152,18 @@ void ArrayTypeInfo::DumpDebugInfo(char* ptr, int& offset)
     {
         char buf[64];
         buf[0] = 11; // DW_TAG_subrange_type abbrev
-        buf[1] = len + 2;
-        buf[2] = DW_OP_fbreg;
+        buf[1] = len + 3;
+        buf[2] = DW_OP_push_object_address;
+        buf[3] = DW_OP_plus_uconst;
         for (int j = 0; j < len; j++)
         {
-            buf[j + 3] = tmp[j];
+            buf[j + 4] = tmp[j];
         }
-        buf[len + 3] = DW_OP_deref;
+        buf[len + 4] = DW_OP_deref;
 
-        memcpy(ptr + offset, buf, len + 4);
+        memcpy(ptr + offset, buf, len + 5);
     }
-    offset += (len + 4);
+    offset += (len + 5);
 
     if (ptr != nullptr)
     {
