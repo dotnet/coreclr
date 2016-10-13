@@ -16,7 +16,7 @@
 #include "gdbjithelpers.h"
 
 TypeInfoBase*
-GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTypeMap, TypeInfoBase* valInfo = nullptr)
+GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTypeMap)
 {
     TypeInfoBase *typeInfo = nullptr;
     TypeKey key = typeHandle.GetTypeKey();
@@ -122,11 +122,12 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
         }
         case ELEMENT_TYPE_BYREF:
         {
-            typeInfo = new (nothrow) RefTypeInfo(typeHandle, valInfo);
+            TypeInfoBase* valTypeInfo = GetTypeInfoFromTypeHandle(typeHandle.GetTypeParam(), pTypeMap);
+            typeInfo = new (nothrow) RefTypeInfo(typeHandle, valTypeInfo);
             if (typeInfo == nullptr)
                 return nullptr;
             typeInfo->m_type_size = sizeof(TADDR);
-            typeInfo->m_type_offset = valInfo->m_type_offset;
+            typeInfo->m_type_offset = valTypeInfo->m_type_offset;
         }
         break;
         case ELEMENT_TYPE_ARRAY:
@@ -155,7 +156,8 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
             TypeInfoBase* lengthTypeInfo = GetTypeInfoFromTypeHandle(
                 TypeHandle(MscorlibBinder::GetElementType(ELEMENT_TYPE_I4)), pTypeMap);
 
-            TypeInfoBase* arrayTypeInfo = new (nothrow) ArrayTypeInfo(typeHandle, 0, valInfo);
+            TypeInfoBase* valTypeInfo = GetTypeInfoFromTypeHandle(typeHandle.GetTypeParam(), pTypeMap);
+            TypeInfoBase* arrayTypeInfo = new (nothrow) ArrayTypeInfo(typeHandle, 0, valTypeInfo);
             if (arrayTypeInfo == nullptr)
                 return nullptr;
 
@@ -194,142 +196,28 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
     return typeInfo;
 }
 
-TypeInfoBase* GetTypeInfoFromSignature(MethodDesc *MethodDescPtr,
-                              NotifyGdb::PTK_TypeInfoMap pTypeMap,
-                              PCCOR_SIGNATURE typePtr,
-                              unsigned typeLen,
-                              unsigned ilIndex)
-{
-    unsigned numArgs;
-    PCCOR_SIGNATURE typeEnd = typePtr + typeLen;
-
-     // get the calling convention out
-    CorSigUncompressData(typePtr);
-
-    numArgs = CorSigUncompressData(typePtr);
-    mdToken tk;
-    int i = 0;
-
-    while (typePtr < typeEnd)
-    {
-        if (i > ilIndex)
-            break;
-
-        Module * module = MethodDescPtr->GetMethodTable()->GetModule();
-
-        switch (*typePtr)
-        {
-            case ELEMENT_TYPE_VOID:
-            case ELEMENT_TYPE_BOOLEAN:
-            case ELEMENT_TYPE_CHAR:
-            case ELEMENT_TYPE_I1:
-            case ELEMENT_TYPE_U1:
-            case ELEMENT_TYPE_I2:
-            case ELEMENT_TYPE_U2:
-            case ELEMENT_TYPE_I4:
-            case ELEMENT_TYPE_U4:
-            case ELEMENT_TYPE_I8:
-            case ELEMENT_TYPE_U8:
-            case ELEMENT_TYPE_R4:
-            case ELEMENT_TYPE_R8:
-            case ELEMENT_TYPE_U:
-            case ELEMENT_TYPE_I:
-            case ELEMENT_TYPE_STRING:
-                if (i < ilIndex)
-                {
-                    break;
-                }
-                {
-                    PTR_MethodTable m = MscorlibBinder::GetElementType(static_cast<CorElementType>(*typePtr));
-                    if (m != nullptr)
-                    {                    
-                        return GetTypeInfoFromTypeHandle(TypeHandle(m), pTypeMap);
-                    }
-                    else
-                    {
-                        return nullptr;
-                    }
-                }
-                break;
-            case ELEMENT_TYPE_CLASS:
-            {
-                typePtr += CorSigUncompressToken(typePtr+1, &tk);
-                if (i < ilIndex)
-                {
-                    break;
-                }
-                {
-                    TypeHandle typeHandle;
-
-                    if (TypeFromToken(tk) == mdtTypeRef)
-                    {
-                        typeHandle = module->LookupTypeRef(tk);
-                    }
-                    else if (TypeFromToken(tk) == mdtTypeDef)
-                    {
-                        typeHandle = module->LookupTypeDef(tk);
-                    }
-                    else
-                    {
-                        printf("TypeFromToken(tk) = 0x%x", TypeFromToken(tk));
-                        break;
-                    }
-                    return GetTypeInfoFromTypeHandle(typeHandle, pTypeMap);
-                }
-                break;
-            }
-            case ELEMENT_TYPE_BYREF:
-            {
-                typePtr++;
-                if (i < ilIndex)
-                {
-                    break;
-                }
-                PTR_MethodTable m = MscorlibBinder::GetElementType(static_cast<CorElementType>(*typePtr));
-                if (m == nullptr)
-                {
-                    return nullptr;
-                }
-                TypeInfoBase* valType = GetTypeInfoFromTypeHandle(TypeHandle(m), pTypeMap);
-                return GetTypeInfoFromTypeHandle(valType->GetTypeHandle().MakeByRef(), pTypeMap, valType);
-            } break;
-            case ELEMENT_TYPE_ARRAY:
-                ASSERT(0 && "not implemented");
-                break;
-            case ELEMENT_TYPE_SZARRAY:
-            {
-                typePtr++;
-                if (i < ilIndex)
-                {
-                    break;
-                }
-                PTR_MethodTable m = MscorlibBinder::GetElementType(static_cast<CorElementType>(*typePtr));
-                if (m == nullptr)
-                {
-                    return nullptr;
-                }
-                TypeInfoBase* valType = GetTypeInfoFromTypeHandle(TypeHandle(m), pTypeMap);
-                return GetTypeInfoFromTypeHandle(valType->GetTypeHandle().MakeSZArray(), pTypeMap, valType);
-                break;
-            }
-            default:
-                break;
-        }
-
-        i++;
-        typePtr++;
-    }
-    return nullptr;
-}
-
 TypeInfoBase* GetArgTypeInfo(MethodDesc* MethodDescPtr,
                     NotifyGdb::PTK_TypeInfoMap pTypeMap,
                     unsigned ilIndex)
 {
-    DWORD cbSigLen;
-    PCCOR_SIGNATURE pComSig;
-    MethodDescPtr->GetSig(&pComSig, &cbSigLen);
-    return GetTypeInfoFromSignature(MethodDescPtr, pTypeMap, pComSig, cbSigLen, ilIndex);
+    MetaSig sig(MethodDescPtr);
+    TypeHandle th;
+    if (ilIndex == 0)
+    {
+        CorElementType ty = sig.GetReturnType();
+        th = (ty == ELEMENT_TYPE_VALUETYPE)
+            ? sig.GetLastTypeHandleNT()
+            : TypeHandle(MscorlibBinder::GetElementType(ty));
+    }
+    else
+    {
+        while (--ilIndex)
+            sig.SkipArg();
+
+        CorElementType ty = sig.NextArg();
+        th = sig.GetLastTypeHandleNT();
+    }
+    return GetTypeInfoFromTypeHandle(th, pTypeMap);
 }
 
 TypeInfoBase* GetLocalTypeInfo(MethodDesc *MethodDescPtr,
@@ -341,8 +229,6 @@ TypeInfoBase* GetLocalTypeInfo(MethodDesc *MethodDescPtr,
     {
         DWORD cbSigLen;
         PCCOR_SIGNATURE pComSig;
-        CQuickBytes qbMemberSig;
-        size_t dwL;
 
         if (FAILED(MethodDescPtr->GetMDImport()->GetSigFromToken(method.GetLocalVarSigTok(), &cbSigLen, &pComSig)))
         {
@@ -351,7 +237,17 @@ TypeInfoBase* GetLocalTypeInfo(MethodDesc *MethodDescPtr,
         }
 
         _ASSERTE(*pComSig == IMAGE_CEE_CS_CALLCONV_LOCAL_SIG);
-        return GetTypeInfoFromSignature(MethodDescPtr, pTypeMap, pComSig, cbSigLen, ilIndex);
+
+        SigTypeContext typeContext(MethodDescPtr, TypeHandle());
+        MetaSig sig(pComSig, cbSigLen, MethodDescPtr->GetModule(), &typeContext, MetaSig::sigLocalVars);
+        if (ilIndex > 0)
+        {
+            while (ilIndex--)
+                sig.SkipArg();
+        }
+        sig.NextArg();
+        TypeHandle th = sig.GetLastTypeHandleNT();
+        return GetTypeInfoFromTypeHandle(th, pTypeMap);
     }
     return nullptr;
 }
