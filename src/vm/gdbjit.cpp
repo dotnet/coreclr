@@ -90,7 +90,7 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
                 LPCUTF8 szName = pField->GetName();
                 info->members[i].m_member_name = new char[strlen(szName) + 1];
                 strcpy(info->members[i].m_member_name, szName);
-                if (!pField->IsStatic())
+                if (!pField->IsStatic() || pField->GetModule()->GetDomain()->IsSharedDomain())
                 {
                     info->members[i].m_member_offset = (ULONG)pField->GetOffset() + Object::GetOffsetOfFirstField();
                 }
