@@ -772,7 +772,8 @@ struct __attribute__((packed)) DebugInfoSubMember
     uint32_t m_obj_ptr;
 };
 
-static FunctionMember* method = nullptr;
+static FunctionMember** method = nullptr;
+int method_count = 0;
 
 struct __attribute__((packed)) DebugInfoType
 {
@@ -1109,10 +1110,12 @@ void ClassTypeInfo::DumpDebugInfo(char* ptr, int& offset)
         members[i].DumpDebugInfo(ptr, offset);
     }
 
-    if (method->md->GetMethodTable() == GetTypeHandle().GetMethodTable())
-    {
-        // our method is part of this class, we should dump it now before terminating members
-        method->DumpDebugInfo(ptr, offset);
+    for (int i = 0; i < method_count; ++i) {
+        if (method[i]->md->GetMethodTable() == GetTypeHandle().GetMethodTable())
+        {
+            // our method is part of this class, we should dump it now before terminating members
+            method[i]->DumpDebugInfo(ptr, offset);
+        }
     }
 
     // members terminator
@@ -1216,6 +1219,29 @@ struct Elf_Symbol {
     int m_section, m_size;
     Elf_Symbol() : m_name(nullptr), m_off(0), m_value(0), m_section(0), m_size(0) {}
 };
+
+static int countFuncs(const SymbolsInfo *lines, int nlines)
+{
+    int count = 0;
+    for (int i = 0; i < nlines; i++) {
+        if (lines[i].ilOffset == ICorDebugInfo::PROLOG)
+        {
+            count++;
+        }
+    }
+    return count;
+}
+
+static int getNextPrologueIndex(int from, const SymbolsInfo *lines, int nlines)
+{
+    for (int i = from; i < nlines; ++i) {
+        if (lines[i].ilOffset == ICorDebugInfo::PROLOG)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
 
 int SymbolCount = 0;
 NewArrayHolder<Elf_Symbol> SymbolNames;
@@ -1321,6 +1347,15 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
         return;
     }
 
+    /* Get debug info for method from portable PDB */
+    HRESULT hr = GetDebugInfoFromPDB(MethodDescPtr, &symInfo, symInfoLen, locals);
+    if (FAILED(hr) || symInfoLen == 0)
+    {
+        return;
+    }
+
+    method_count = countFuncs(symInfo, symInfoLen);
+
     CodeHeader* pCH = ((CodeHeader*)(pCode & ~1)) - 1;
     CalledMethod* pCalledMethods = reinterpret_cast<CalledMethod*>(pCH->GetCalledMethods());
     /* Collect addresses of thunks called by method */
@@ -1330,30 +1365,47 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
     }
     pCH->SetCalledMethods(NULL);
 
-    /* Get debug info for method from portable PDB */
-    HRESULT hr = GetDebugInfoFromPDB(MethodDescPtr, &symInfo, symInfoLen, locals);
-    if (FAILED(hr) || symInfoLen == 0)
-    {
-        return;
-    }
-
     MetaSig sig(MethodDescPtr);
     int nArgsCount = sig.NumFixedArgs();
     if (sig.HasThis())
         nArgsCount++;
 
-    method = new FunctionMember(MethodDescPtr, locals.size, nArgsCount);
-    // method return type
-    method->m_member_type = GetArgTypeInfo(MethodDescPtr, pTypeMap, 0);
-
     unsigned int firstLineIndex = 0;
     for (;firstLineIndex < symInfoLen; firstLineIndex++) {
         if (symInfo[firstLineIndex].lineNumber != 0 && symInfo[firstLineIndex].lineNumber != HiddenLine && symInfo[firstLineIndex].fileName[0] != 0) break;
     }
-    method->GetLocalsDebugInfo(pTypeMap, locals, symInfo[firstLineIndex].nativeOffset);
 
-    // method's class
-    GetTypeInfoFromTypeHandle(TypeHandle(method->md->GetMethodTable()), pTypeMap);
+    method = new (nothrow) FunctionMember*[method_count];
+    if (method == nullptr) {
+        return;
+    }
+
+    int start_index = getNextPrologueIndex(0, symInfo, symInfoLen);
+
+    for (int method_index = 0; method_index < method_count; ++method_index) {
+        method[method_index] = new FunctionMember(MethodDescPtr, locals.size, nArgsCount);
+
+        int end_index = getNextPrologueIndex(start_index + 1, symInfo, symInfoLen);
+
+        PCODE method_start = symInfo[start_index].nativeOffset;
+        TADDR method_size = end_index == -1 ? codeSize - method_start : symInfo[end_index].nativeOffset - method_start;
+
+        // method return type
+        method[method_index]->m_member_type = GetArgTypeInfo(MethodDescPtr, pTypeMap, 0);
+        method[method_index]->GetLocalsDebugInfo(pTypeMap, locals, symInfo[firstLineIndex].nativeOffset);
+        method[method_index]->m_sub_low_pc = pCode + method_start;
+        method[method_index]->m_sub_high_pc = method_size;
+        method[method_index]->m_member_name = new char[strlen(methodName) + 10];
+        if (method_index == 0)
+            sprintf(method[method_index]->m_member_name, "%s", methodName);
+        else
+            sprintf(method[method_index]->m_member_name, "%s_%i", methodName, method_index);
+
+        // method's class
+        GetTypeInfoFromTypeHandle(TypeHandle(method[method_index]->md->GetMethodTable()), pTypeMap);
+
+        start_index = end_index;
+    }
 
     MemBuf elfHeader, sectHeaders, sectStr, sectSymTab, sectStrTab, dbgInfo, dbgAbbrev, dbgPubname, dbgPubType, dbgLine,
         dbgStr, elfFile;
@@ -1363,10 +1415,6 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
     {
         return;
     }
-    method->m_sub_low_pc = pCode;
-    method->m_sub_high_pc = codeSize;
-    method->m_member_name = new char[strlen(methodName) + 1];
-    strcpy(method->m_member_name, methodName);
 
     /* Build .debug_line section */
     if (!BuildLineTable(dbgLine, pCode, codeSize, symInfo, symInfoLen))
@@ -1403,16 +1451,15 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
     {
         return;
     }
-
-    delete method;
-
+    
     /* Build .strtab section */
-     SymbolNames[0].m_name = "";
-     SymbolNames[1].m_name = methodName;
-     SymbolNames[1].m_value = pCode;
-     SymbolNames[1].m_section = 1;
-     SymbolNames[1].m_size = codeSize;
-        
+    SymbolNames[0].m_name = "";
+    for (int i = 0; i < method_count; ++i) {
+        SymbolNames[1 + i].m_name = methodName;
+        SymbolNames[1 + i].m_value = method[i]->m_sub_low_pc;
+        SymbolNames[1 + i].m_section = 1;
+        SymbolNames[1 + i].m_size = method[i]->m_sub_high_pc;
+    }
     if (!BuildStringTableSection(sectStrTab))
     {
         return;
@@ -1435,6 +1482,13 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
     {
         return;
     }
+
+    for (int i = 0; i < method_count; ++i) {
+        delete method[i];
+    }
+    delete [] method;
+    method = nullptr;
+    method_count = 0;
 
     /* Patch section offsets & sizes */
     long offset = sizeof(Elf_Ehdr);
@@ -1862,7 +1916,10 @@ bool NotifyGdb::BuildDebugStrings(MemBuf& buf, PTK_TypeInfoMap pTypeMap)
         totalLength += strlen(DebugStrings[i]) + 1;
     }
 
-    method->DumpStrings(nullptr, totalLength);
+    for (int i = 0; i < method_count; ++i)
+    {
+        method[i]->DumpStrings(nullptr, totalLength);
+    }
 
     {
         auto iter = pTypeMap->Begin();
@@ -1889,7 +1946,10 @@ bool NotifyGdb::BuildDebugStrings(MemBuf& buf, PTK_TypeInfoMap pTypeMap)
         offset += strlen(DebugStrings[i]) + 1;
     }
 
-    method->DumpStrings(bufPtr, offset);
+    for (int i = 0; i < method_count; ++i)
+    {
+        method[i]->DumpStrings(bufPtr, offset);
+    }
 
     {
         auto iter = pTypeMap->Begin();
@@ -1931,7 +1991,10 @@ bool NotifyGdb::BuildDebugInfo(MemBuf& buf, PTK_TypeInfoMap pTypeMap)
         }
     }
 
-    method->DumpDebugInfo(nullptr, totalTypeVarSubSize);
+    for (int i = 0; i < method_count; ++i)
+    {
+        method[i]->DumpDebugInfo(nullptr, totalTypeVarSubSize);
+    }
 
     //int locSize = GetArgsAndLocalsLen(argsDebug, argsDebugSize, localsDebug, localsDebugSize);
     buf.MemSize = sizeof(DwarfCompUnit) + sizeof(DebugInfoCU) + totalTypeVarSubSize + 2;
@@ -1962,15 +2025,17 @@ bool NotifyGdb::BuildDebugInfo(MemBuf& buf, PTK_TypeInfoMap pTypeMap)
             iter++;
         }
     }
-    if (!method->IsDumped())
+    for (int i = 0; i < method_count; ++i)
     {
-        method->DumpDebugInfo(buf.MemPtr, offset);
+        if (!method[i]->IsDumped())
+        {
+            method[i]->DumpDebugInfo(buf.MemPtr, offset);
+        }
+        else
+        {
+            method[i]->DumpDebugInfo(buf.MemPtr, method[i]->m_entry_offset);
+        }
     }
-    else
-    {
-        method->DumpDebugInfo(buf.MemPtr, method->m_entry_offset);
-    }
-
     memset(buf.MemPtr + offset, 0, buf.MemSize - offset);
     return true;
 }
@@ -2021,11 +2086,11 @@ bool NotifyGdb::CollectCalledMethods(CalledMethod* pCalledMethods)
         pList = pList->GetNext();
     }
 
-    SymbolCount = 2 + calledCount;
+    SymbolCount = 1 + method_count + calledCount;
     SymbolNames = new (nothrow) Elf_Symbol[SymbolCount];
 
     pList = pCalledMethods;
-    for (int i = 2; i < SymbolCount; ++i)
+    for (int i = 1 + method_count; i < SymbolCount; ++i)
     {
         char buf[256];
         MethodDesc* pMD = pList->GetMethodDesc();
@@ -2083,18 +2148,20 @@ bool NotifyGdb::BuildSymbolTableSection(MemBuf& buf, PCODE addr, TADDR codeSize)
     sym[0].st_size = 0;
     sym[0].st_shndx = SHN_UNDEF;
     
-    sym[1].st_name = SymbolNames[1].m_off;
-    sym[1].setBindingAndType(STB_GLOBAL, STT_FUNC);
-    sym[1].st_other = 0;
+    for (int i = 1; i < 1 + method_count; ++i) {
+        sym[i].st_name = SymbolNames[i].m_off;
+        sym[i].setBindingAndType(STB_GLOBAL, STT_FUNC);
+        sym[i].st_other = 0;
 #ifdef _TARGET_ARM_
-    sym[1].st_value = 1; // for THUMB code
+        sym[i].st_value = 1; // for THUMB code
 #else    
-    sym[1].st_value = 0;
+        sym[i].st_value = 0;
 #endif    
-    sym[1].st_shndx = 1; // .text section index
-    sym[1].st_size = codeSize;
+        sym[i].st_shndx = 1; // .text section index
+        sym[i].st_size = SymbolNames[i].m_size;
+    }
 
-    for (int i = 2; i < SymbolCount; ++i)
+    for (int i = 1 + method_count; i < SymbolCount; ++i)
     {
         sym[i].st_name = SymbolNames[i].m_off;
         sym[i].setBindingAndType(STB_GLOBAL, STT_FUNC);
