@@ -740,7 +740,7 @@ function finish_test {
 
     if [ "$showTime" == "ON" ]; then
         testEndTime=$(date +%s)
-        testRunningTime=$(echo "$testEndTime - ${testStartTimes[$nextProcessIndex]}" | bc)
+        let "testRunningTime = ${testEndTime} - ${testStartTimes[$nextProcessIndex]}"
         header=$(printf "[%03d:%4.0fs] " "$countTotalTests" "$testRunningTime")
     fi
 
