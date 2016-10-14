@@ -6882,15 +6882,6 @@
     <Type Name="System.Runtime.InteropServices.PreserveSigAttribute">
       <Member Name="#ctor" />
     </Type>
-    <Type Name="System.Runtime.InteropServices.RuntimeEnvironment">
-      <Member Name="FromGlobalAccessCache(System.Reflection.Assembly)" />
-      <Member Name="GetRuntimeInterfaceAsIntPtr(System.Guid,System.Guid)" />
-      <Member Name="GetRuntimeInterfaceAsObject(System.Guid,System.Guid)" />
-      <Member Name="SystemConfigurationFile" MemberType="Property"/>
-      <Member Name="get_SystemConfigurationFile"/>
-      <Member Name="GetRuntimeDirectory"/>
-      <Member Name="GetSystemVersion"/>
-    </Type>
     <Type Name="System.Runtime.InteropServices.SafeHandle">
       <Member MemberType="Field" Name="handle" />
       <Member Name="#ctor(System.IntPtr,System.Boolean)" />
