@@ -6712,8 +6712,6 @@
       <Member Name="AddRef(System.IntPtr)" />
       <Member Name="AllocHGlobal(System.Int32)" />
       <Member Name="AllocCoTaskMem(System.Int32)" />
-      <Member Name="BindToMoniker(System.String)" />
-      <Member Name="ChangeWrapperHandleStrength(System.Object,System.Boolean)" />
       <Member Name="Copy(System.Byte[],System.Int32,System.IntPtr,System.Int32)" />
       <Member Name="Copy(System.Char[],System.Int32,System.IntPtr,System.Int32)" />
       <Member Name="Copy(System.Double[],System.Int32,System.IntPtr,System.Int32)" />
