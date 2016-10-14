@@ -1232,7 +1232,7 @@ namespace System.Globalization
             {
                 if (_sNativeCurrency == null)
                 {
-                    _sNativeCurrency = GetLocaleInfo(LocaleStringData.CurrencyNativehName);
+                    _sNativeCurrency = GetLocaleInfo(LocaleStringData.CurrencyNativeName);
                 }
                 return _sNativeCurrency;
             }
@@ -2253,7 +2253,7 @@ namespace System.Globalization
             /// <summary>English currency name (coresponds to LOCALE_SENGCURRNAME)</summary>
             CurrencyEnglishName = 0x00001007,
             /// <summary>Native currency name (coresponds to LOCALE_SNATIVECURRNAME)</summary>
-            CurrencyNativehName = 0x00001008,
+            CurrencyNativeName = 0x00001008,
             /// <summary>uintl monetary symbol (coresponds to LOCALE_SINTLSYMBOL)</summary>
             Iso4217MonetarySymbol = 0x00000015,
             /// <summary>monetary decimal separator (coresponds to LOCALE_SMONDECIMALSEP)</summary>

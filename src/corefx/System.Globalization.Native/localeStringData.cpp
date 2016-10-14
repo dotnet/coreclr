@@ -28,7 +28,7 @@ enum LocaleStringData : int32_t
     Digits = 0x00000013,
     MonetarySymbol = 0x00000014,
     CurrencyEnglishName = 0x00001007,
-    CurrencyNativehName = 0x00001008,
+    CurrencyNativeName = 0x00001008,
     Iso4217MonetarySymbol = 0x00000015,
     MonetaryDecimalSeparator = 0x00000016,
     MonetaryThousandSeparator = 0x00000017,
@@ -292,7 +292,7 @@ extern "C" int32_t GlobalizationNative_GetLocaleInfoString(
         case CurrencyEnglishName:
             status = GetLocaleCurrencyName(locale, FALSE, value, valueLength);
             break;
-        case CurrencyNativehName:
+        case CurrencyNativeName:
             status = GetLocaleCurrencyName(locale, TRUE, value, valueLength);
             break;
         case MonetaryDecimalSeparator:
