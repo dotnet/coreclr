@@ -52,6 +52,7 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
             typeInfo->m_type_size = CorTypeInfo::Size(corType);
 
             break;
+        case ELEMENT_TYPE_VALUETYPE:
         case ELEMENT_TYPE_CLASS:
         {
             ApproxFieldDescIterator fieldDescIterator(pMT,
@@ -65,18 +66,22 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
 
             typeInfo->m_type_size = typeHandle.AsMethodTable()->GetClass()->GetSize();
 
-            // name the type
-            typeInfo->CalculateName();
-            RefTypeInfo *refTypeInfo = new (nothrow) RefTypeInfo(typeHandle, typeInfo);
-            if (refTypeInfo == nullptr)
+            RefTypeInfo* refTypeInfo = nullptr;
+            if (!typeHandle.IsValueType())
             {
-                return nullptr;
-            }
-            refTypeInfo->m_type_size = sizeof(TADDR);
-            refTypeInfo->m_value_type = typeInfo;
-            refTypeInfo->CalculateName();
+                // name the type
+                typeInfo->CalculateName();
+                refTypeInfo = new (nothrow) RefTypeInfo(typeHandle, typeInfo);
+                if (refTypeInfo == nullptr)
+                {
+                    return nullptr;
+                }
+                refTypeInfo->m_type_size = sizeof(TADDR);
+                refTypeInfo->m_value_type = typeInfo;
+                refTypeInfo->CalculateName();
 
-            pTypeMap->Add(refTypeInfo->GetTypeKey(), refTypeInfo);
+                pTypeMap->Add(refTypeInfo->GetTypeKey(), refTypeInfo);
+            }
             //
             // Now fill in the array
             //
@@ -92,7 +97,9 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
                 strcpy(info->members[i].m_member_name, szName);
                 if (!pField->IsStatic() || pField->GetModule()->GetDomain()->IsSharedDomain())
                 {
-                    info->members[i].m_member_offset = (ULONG)pField->GetOffset() + Object::GetOffsetOfFirstField();
+                    info->members[i].m_member_offset = (ULONG)pField->GetOffset();
+                    if (!typeHandle.IsValueType())
+                        info->members[i].m_member_offset += Object::GetOffsetOfFirstField();
                 }
                 else
                 {
@@ -117,7 +124,10 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
                     info->members[1].m_member_type = arrayTypeInfo;
                 }
             }
-            return refTypeInfo;
+            if (refTypeInfo)
+                return refTypeInfo;
+            else
+                break;
         }
         case ELEMENT_TYPE_BYREF:
         {
