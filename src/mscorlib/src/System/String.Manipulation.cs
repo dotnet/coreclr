@@ -595,7 +595,7 @@ namespace System
             return StringBuilderCache.GetStringAndRelease(result);
         }
 
-        // Joins an object array of strings together as one string with a char separator between each original string.
+        // Joins an array of objects together as one string with a char separator between each original string.
         //
         [ComVisible(false)]
         public static String Join(Char separator, params Object[] values) {
@@ -604,6 +604,7 @@ namespace System
 
             if (values.Length == 0 || values[0] == null)
                 return String.Empty;
+            Contract.EndContractBlock();
 
             string firstString = values[0].ToString();
 
@@ -884,8 +885,8 @@ namespace System
 
             int jointLength = 0;
             //Figure out the total length of the strings in value
-            int endIndex = startIndex + count - 1;
-            for (int stringToJoinIndex = startIndex; stringToJoinIndex <= endIndex; stringToJoinIndex++) {
+            int endIndex = startIndex + count;
+            for (int stringToJoinIndex = startIndex; stringToJoinIndex < endIndex; stringToJoinIndex++) {
                 string currentValue = value[stringToJoinIndex];
 
                 if (currentValue != null) {
@@ -914,7 +915,7 @@ namespace System
                 
                 // Append the first string first and then append each following string prefixed by the separator.
                 charBuffer.AppendString( value[startIndex] );
-                for (int stringToJoinIndex = startIndex + 1; stringToJoinIndex <= endIndex; stringToJoinIndex++) {
+                for (int stringToJoinIndex = startIndex + 1; stringToJoinIndex < endIndex; stringToJoinIndex++) {
                     charBuffer.AppendChar( separator );
                     charBuffer.AppendString( value[stringToJoinIndex] );
                 }
