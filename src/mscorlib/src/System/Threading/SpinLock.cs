@@ -337,20 +337,24 @@ namespace System.Threading
                 Thread.BeginCriticalRegion();
 #endif
 
-                if (Interlocked.CompareExchange(ref m_owner, observedOwner | 1, observedOwner, ref lockTaken) == observedOwner ||
-                    millisecondsTimeout == 0)
+                if (Interlocked.CompareExchange(ref m_owner, observedOwner | 1, observedOwner, ref lockTaken) == observedOwner)
                 {
-                    // Aquired lock, or did not but timeout is 0 so fail fast
+                    // Aquired lock
                     return;
                 }
 
 #if !FEATURE_CORECLR
                 Thread.EndCriticalRegion();
 #endif
+                if (millisecondsTimeout == 0)
+                {
+                    // Did not aquire lock in CompareExchange and timeout is 0 so fail fast
+                    return;
+                }
             }
             else if (millisecondsTimeout == 0)
             {
-                // Did not aquire lock and timeout is 0 so fail fast
+                // Did not aquire lock as owned and timeout is 0 so fail fast
                 return;
             }
             else //failed to acquire the lock,then try to update the waiters. If the waiters count reached the maximum, jsut break the loop to avoid overflow
