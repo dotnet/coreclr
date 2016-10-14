@@ -290,10 +290,10 @@ extern "C" int32_t GlobalizationNative_GetLocaleInfoString(
             status = GetLocaleInfoDecimalFormatSymbol(locale, UNUM_INTL_CURRENCY_SYMBOL, value, valueLength);
             break;
         case CurrencyEnglishName:
-            status = GetLocaleCurrencyName(locale, FALSE, value, valueLength);
+            status = GetLocaleCurrencyName(locale, false, value, valueLength);
             break;
         case CurrencyNativeName:
-            status = GetLocaleCurrencyName(locale, TRUE, value, valueLength);
+            status = GetLocaleCurrencyName(locale, true, value, valueLength);
             break;
         case MonetaryDecimalSeparator:
             status = GetLocaleInfoDecimalFormatSymbol(locale, UNUM_MONETARY_SEPARATOR_SYMBOL, value, valueLength);
