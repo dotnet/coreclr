@@ -406,7 +406,7 @@ namespace System.Collections {
                 {
                     // mask the final byte
                     int i = arrayLength;
-                    b[index + i] = (byte)((m_array[i/4] >> ((i%4)*8)) & 0x000000FF & ((1 << bits) - 1));
+                    b[index + i] = (byte)((m_array[i/4] >> ((i%4)*8)) & ((1 << bits) - 1));
                 }
             }
             else if (array is bool[])
