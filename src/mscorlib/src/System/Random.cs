@@ -82,7 +82,8 @@ namespace System
             //random number distribution.
             return (InternalSample() * (1.0 / MBIG));
         }
-
+        
+        [MethodImplOptions.AggressiveInlining]
         private int InternalSample()
         {
             var oldstate = state;
