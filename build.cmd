@@ -17,7 +17,7 @@ set __VSToolsRoot=%VS140COMNTOOLS%
 ::      __PackagesBinDir    -- default: %__BinDir%\.nuget
 ::      __TestWorkingDir    -- default: %__RootBinDir%\tests\%__BuildOS%.%__BuildArch.%__BuildType%\
 ::
-:: Thus, these variables are not simply internal to this script!
+:: These variables are not simply internal to this script!
 
 :: Set the default arguments for build
 set __BuildArch=x64
