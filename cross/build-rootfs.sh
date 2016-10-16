@@ -17,10 +17,10 @@ __BuildArch=arm
 __UbuntuArch=armhf
 __UbuntuRepo="http://ports.ubuntu.com/"
 __UbuntuPackagesBase="build-essential libunwind8-dev gettext symlinks liblttng-ust-dev libicu-dev"
-__UbuntuPackages="$__UbuntuPackagesBase"
 if [ -z "$LLVM_ARM_HOME" ]; then
     __LLDB_Package="lldb-3.6-dev"
 fi
+__UbuntuPackages="$__UbuntuPackagesBase $__LLDB_Package"
 __MachineTriple=arm-linux-gnueabihf
 __UnprocessedBuildArgs=
 for i in "$@"
