@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 // A simple CoreCLR host that runs a managed binary with the same name as this executable but with *.dll extension
@@ -61,10 +60,10 @@ public:
 class HostEnvironment 
 {
     // The path to this module
-    wchar_t m_hostPath[MAX_PATH];
+    wchar_t m_hostPath[MAX_LONGPATH];
 
     // The path to the directory containing this module
-    wchar_t m_hostDirectoryPath[MAX_PATH];
+    wchar_t m_hostDirectoryPath[MAX_LONGPATH];
 
     // The name of this module, without the path
     wchar_t *m_hostExeName;
@@ -84,7 +83,7 @@ class HostEnvironment
     // On failure returns nullptr.
     HMODULE TryLoadCoreCLR(const wchar_t* directoryPath) {
 
-        wchar_t coreCLRPath[MAX_PATH];
+        wchar_t coreCLRPath[MAX_LONGPATH];
         wcscpy_s(coreCLRPath, directoryPath);
         wcscat_s(coreCLRPath, coreCLRDll);
 
@@ -104,8 +103,8 @@ class HostEnvironment
             return nullptr;
         }
 
-        wchar_t coreCLRLoadedPath[MAX_PATH];
-        ::GetModuleFileNameW(result, coreCLRLoadedPath, MAX_PATH);
+        wchar_t coreCLRLoadedPath[MAX_LONGPATH];
+        ::GetModuleFileNameW(result, coreCLRLoadedPath, MAX_LONGPATH);
 
         *m_log << W("Loaded: ") << coreCLRLoadedPath << Logger::endl;
 
@@ -114,13 +113,13 @@ class HostEnvironment
 
 public:
     // The path to the directory that CoreCLR is in
-    wchar_t m_coreCLRDirectoryPath[MAX_PATH];
+    wchar_t m_coreCLRDirectoryPath[MAX_LONGPATH];
 
     HostEnvironment(Logger *logger) 
         : m_log(logger), m_CLRRuntimeHost(nullptr) {
 
             // Discover the path to this exe's module. All other files are expected to be in the same directory.
-            DWORD thisModuleLength = ::GetModuleFileNameW(::GetModuleHandleW(nullptr), m_hostPath, MAX_PATH);
+            DWORD thisModuleLength = ::GetModuleFileNameW(::GetModuleHandleW(nullptr), m_hostPath, MAX_LONGPATH);
 
             // Search for the last backslash in the host path.
             int lastBackslashIndex;
@@ -139,12 +138,12 @@ public:
             *m_log << W("Host directory: ")  << m_hostDirectoryPath << Logger::endl;
 
             // Check for %CORE_ROOT% and try to load CoreCLR.dll from it if it is set
-            wchar_t coreRoot[MAX_PATH];
+            wchar_t coreRoot[MAX_LONGPATH];
             size_t outSize;
 			m_coreCLRModule = NULL; // Initialize this here since we don't call TryLoadCoreCLR if CORE_ROOT is unset.
-            if (_wgetenv_s(&outSize, coreRoot, MAX_PATH, W("CORE_ROOT")) == 0 && outSize > 0)
+            if (_wgetenv_s(&outSize, coreRoot, MAX_LONGPATH, W("CORE_ROOT")) == 0 && outSize > 0)
             {
-                wcscat_s(coreRoot, MAX_PATH, W("\\"));
+                wcscat_s(coreRoot, MAX_LONGPATH, W("\\"));
                 m_coreCLRModule = TryLoadCoreCLR(coreRoot);
             }
             else
@@ -162,7 +161,7 @@ public:
             if (m_coreCLRModule) {
 
                 // Save the directory that CoreCLR was found in
-                DWORD modulePathLength = ::GetModuleFileNameW(m_coreCLRModule, m_coreCLRDirectoryPath, MAX_PATH);
+                DWORD modulePathLength = ::GetModuleFileNameW(m_coreCLRModule, m_coreCLRDirectoryPath, MAX_LONGPATH);
 
                 // Search for the last backslash and terminate it there to keep just the directory path with trailing slash
                 for (lastBackslashIndex = modulePathLength-1; lastBackslashIndex >= 0; lastBackslashIndex--) {
@@ -186,17 +185,17 @@ public:
         }
     }
 
-    bool TPAListContainsFile(wchar_t* fileNameWithoutExtension, wchar_t** rgTPAExtensions, int countExtensions)
+    bool TPAListContainsFile(_In_z_ wchar_t* fileNameWithoutExtension, _In_reads_(countExtensions) wchar_t** rgTPAExtensions, int countExtensions)
     {
         if (!m_tpaList.CStr()) return false;
 
         for (int iExtension = 0; iExtension < countExtensions; iExtension++)
         {
-            wchar_t fileName[MAX_PATH];
-            wcscpy_s(fileName, MAX_PATH, W("\\")); // So that we don't match other files that end with the current file name
-            wcscat_s(fileName, MAX_PATH, fileNameWithoutExtension);
-            wcscat_s(fileName, MAX_PATH, rgTPAExtensions[iExtension] + 1);
-            wcscat_s(fileName, MAX_PATH, W(";")); // So that we don't match other files that begin with the current file name
+            wchar_t fileName[MAX_LONGPATH];
+            wcscpy_s(fileName, MAX_LONGPATH, W("\\")); // So that we don't match other files that end with the current file name
+            wcscat_s(fileName, MAX_LONGPATH, fileNameWithoutExtension);
+            wcscat_s(fileName, MAX_LONGPATH, rgTPAExtensions[iExtension] + 1);
+            wcscat_s(fileName, MAX_LONGPATH, W(";")); // So that we don't match other files that begin with the current file name
 
             if (wcsstr(m_tpaList.CStr(), fileName))
             {
@@ -206,7 +205,7 @@ public:
         return false;
     }
 
-    void RemoveExtensionAndNi(wchar_t* fileName)
+    void RemoveExtensionAndNi(_In_z_ wchar_t* fileName)
     {
         // Remove extension, if it exists
         wchar_t* extension = wcsrchr(fileName, W('.')); 
@@ -226,18 +225,18 @@ public:
         }
     }
 
-    void AddFilesFromDirectoryToTPAList(wchar_t* targetPath, wchar_t** rgTPAExtensions, int countExtensions)
+    void AddFilesFromDirectoryToTPAList(_In_z_ wchar_t* targetPath, _In_reads_(countExtensions) wchar_t** rgTPAExtensions, int countExtensions)
     {
         *m_log << W("Adding assemblies from ") << targetPath << W(" to the TPA list") << Logger::endl;
-        wchar_t assemblyPath[MAX_PATH];
+        wchar_t assemblyPath[MAX_LONGPATH];
 
         for (int iExtension = 0; iExtension < countExtensions; iExtension++)
         {
-            wcscpy_s(assemblyPath, MAX_PATH, targetPath);
+            wcscpy_s(assemblyPath, MAX_LONGPATH, targetPath);
 
             const size_t dirLength = wcslen(targetPath);
             wchar_t* const fileNameBuffer = assemblyPath + dirLength;
-            const size_t fileNameBufferSize = MAX_PATH - dirLength;
+            const size_t fileNameBufferSize = MAX_LONGPATH - dirLength;
 
             wcscat_s(assemblyPath, rgTPAExtensions[iExtension]);
             WIN32_FIND_DATA data;
@@ -259,8 +258,8 @@ public:
                         }
 
                         // Remove extension
-                        wchar_t fileNameWithoutExtension[MAX_PATH];
-                        wcscpy_s(fileNameWithoutExtension, MAX_PATH, data.cFileName);
+                        wchar_t fileNameWithoutExtension[MAX_LONGPATH];
+                        wcscpy_s(fileNameWithoutExtension, MAX_LONGPATH, data.cFileName);
 
                         RemoveExtensionAndNi(fileNameWithoutExtension);
 
@@ -297,11 +296,11 @@ public:
                         };
 
             // Add files from %CORE_LIBRARIES% if specified
-            wchar_t coreLibraries[MAX_PATH];
+            wchar_t coreLibraries[MAX_LONGPATH];
             size_t outSize;
-            if (_wgetenv_s(&outSize, coreLibraries, MAX_PATH, W("CORE_LIBRARIES")) == 0 && outSize > 0)
+            if (_wgetenv_s(&outSize, coreLibraries, MAX_LONGPATH, W("CORE_LIBRARIES")) == 0 && outSize > 0)
             {
-                wcscat_s(coreLibraries, MAX_PATH, W("\\"));
+                wcscat_s(coreLibraries, MAX_LONGPATH, W("\\"));
                 AddFilesFromDirectoryToTPAList(coreLibraries, rgTPAExtensions, _countof(rgTPAExtensions));
             }
             else
@@ -361,20 +360,20 @@ public:
 
 };
 
-bool TryRun(const int argc, const wchar_t* argv[], Logger &log, const bool verbose, const bool waitForDebugger, DWORD &exitCode, wchar_t* programPath)
+bool TryRun(const int argc, const wchar_t* argv[], Logger &log, const bool verbose, const bool waitForDebugger, DWORD &exitCode, _In_z_ wchar_t* programPath)
 {
     // Assume failure
     exitCode = -1;
 
     HostEnvironment hostEnvironment(&log);
 
-    wchar_t appPath[MAX_PATH] = W("");
-    wchar_t appNiPath[MAX_PATH * 2] = W("");
-    wchar_t managedAssemblyFullName[MAX_PATH] = W("");
+    wchar_t appPath[MAX_LONGPATH] = W("");
+    wchar_t appNiPath[MAX_LONGPATH * 2] = W("");
+    wchar_t managedAssemblyFullName[MAX_LONGPATH] = W("");
 
     wchar_t* filePart = NULL;
     
-    if (!::GetFullPathName(programPath, MAX_PATH, appPath, &filePart)) {
+    if (!::GetFullPathName(programPath, MAX_LONGPATH, appPath, &filePart)) {
         log << W("Failed to get full path: ") << programPath << Logger::endl;
         log << W("Error code: ") << GetLastError() << Logger::endl;
         return false;
@@ -387,22 +386,22 @@ bool TryRun(const int argc, const wchar_t* argv[], Logger &log, const bool verbo
     log << W("Loading: ") << managedAssemblyFullName << Logger::endl;
 
     wcscpy_s(appNiPath, appPath);
-    wcscat_s(appNiPath, MAX_PATH * 2, W(";"));
-    wcscat_s(appNiPath, MAX_PATH * 2, appPath);
+    wcscat_s(appNiPath, MAX_LONGPATH * 2, W(";"));
+    wcscat_s(appNiPath, MAX_LONGPATH * 2, appPath);
 
     // Construct native search directory paths
-    wchar_t nativeDllSearchDirs[MAX_PATH * 3];
+    wchar_t nativeDllSearchDirs[MAX_LONGPATH * 3];
 
     wcscpy_s(nativeDllSearchDirs, appPath);
-    wchar_t coreLibraries[MAX_PATH];
+    wchar_t coreLibraries[MAX_LONGPATH];
     size_t outSize;
-    if (_wgetenv_s(&outSize, coreLibraries, MAX_PATH, W("CORE_LIBRARIES")) == 0 && outSize > 0)
+    if (_wgetenv_s(&outSize, coreLibraries, MAX_LONGPATH, W("CORE_LIBRARIES")) == 0 && outSize > 0)
     {
-        wcscat_s(nativeDllSearchDirs, MAX_PATH * 3, W(";"));
-        wcscat_s(nativeDllSearchDirs, MAX_PATH * 3, coreLibraries);
+        wcscat_s(nativeDllSearchDirs, MAX_LONGPATH * 3, W(";"));
+        wcscat_s(nativeDllSearchDirs, MAX_LONGPATH * 3, coreLibraries);
     }
-    wcscat_s(nativeDllSearchDirs, MAX_PATH * 3, W(";"));
-    wcscat_s(nativeDllSearchDirs, MAX_PATH * 3, hostEnvironment.m_coreCLRDirectoryPath);
+    wcscat_s(nativeDllSearchDirs, MAX_LONGPATH * 3, W(";"));
+    wcscat_s(nativeDllSearchDirs, MAX_LONGPATH * 3, hostEnvironment.m_coreCLRDirectoryPath);
 
     // Start the CoreCLR
 
@@ -418,7 +417,8 @@ bool TryRun(const int argc, const wchar_t* argv[], Logger &log, const bool verbo
     // Default startup flags
     hr = host->SetStartupFlags((STARTUP_FLAGS)
         (STARTUP_FLAGS::STARTUP_LOADER_OPTIMIZATION_SINGLE_DOMAIN | 
-        STARTUP_FLAGS::STARTUP_SINGLE_APPDOMAIN)); 
+        STARTUP_FLAGS::STARTUP_SINGLE_APPDOMAIN |
+        STARTUP_FLAGS::STARTUP_CONCURRENT_GC));
     if (FAILED(hr)) {
         log << W("Failed to set startup flags. ERRORCODE: ") << hr << Logger::endl;
         return false;
@@ -456,8 +456,8 @@ bool TryRun(const int argc, const wchar_t* argv[], Logger &log, const bool verbo
         W("TRUSTED_PLATFORM_ASSEMBLIES"),
         W("APP_PATHS"),
         W("APP_NI_PATHS"),
-        W("NATIVE_DLL_SEARCH_DIRECTORIES")
-		W("AppDomainCompatSwitch"),
+        W("NATIVE_DLL_SEARCH_DIRECTORIES"),
+        W("AppDomainCompatSwitch")
     };
     const wchar_t *property_values[] = { 
         // TRUSTED_PLATFORM_ASSEMBLIES
@@ -468,6 +468,8 @@ bool TryRun(const int argc, const wchar_t* argv[], Logger &log, const bool verbo
         appNiPath,
         // NATIVE_DLL_SEARCH_DIRECTORIES
         nativeDllSearchDirs,
+        // AppDomainCompatSwitch
+        W("UseLatestBehaviorWhenTFMNotSpecified")
     };
 
 
@@ -593,17 +595,25 @@ void showHelp() {
 		);
 }
 
+static wchar_t programPath[MAX_LONGPATH];
+
 int __cdecl wmain(const int argc, const wchar_t* argv[])
 {
-	auto programPath = _wcsdup(argv[0]);
-	auto extension = wcsrchr(programPath, '.') + 1;
-	if (wcscmp(extension, L"exe") != 0) {
-		::wprintf(W("This executable needs to have 'exe' extension"));
-		return -1;
-	}
-	extension[0] = 'd';
-	extension[1] = 'l';
-	extension[2] = 'l';
+    DWORD dwModuleFileName = GetModuleFileName(NULL, programPath, MAX_LONGPATH);
+    if (dwModuleFileName == 0 || dwModuleFileName >= MAX_LONGPATH) {
+        ::wprintf(W("Failed to get the path to the current executable"));
+        return -1;
+    }
+    auto extension = wcsrchr(programPath, '.');
+    if (extension == NULL || (wcscmp(extension, L".exe") != 0)) {
+        ::wprintf(W("This executable needs to have 'exe' extension"));
+        return -1;
+    }
+
+    // Change the extension from ".exe" to ".dll"
+    extension[1] = 'd';
+    extension[2] = 'l';
+    extension[3] = 'l';
 
     // Parse the options from the command line
     bool verbose = false;

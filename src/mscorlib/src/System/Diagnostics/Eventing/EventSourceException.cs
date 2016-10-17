@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Runtime.Serialization;
@@ -17,7 +18,7 @@ namespace System.Diagnostics.Tracing
     /// <summary>
     /// Exception that is thrown when an error occurs during EventSource operation.
     /// </summary>
-#if !ES_BUILD_PCL
+#if (!ES_BUILD_PCL && !PROJECTN)
     [Serializable]
 #endif
     public class EventSourceException : Exception
@@ -25,7 +26,8 @@ namespace System.Diagnostics.Tracing
         /// <summary>
         /// Initializes a new instance of the EventSourceException class.
         /// </summary>
-        public EventSourceException() : base(Environment.GetResourceString("EventSource_ListenerWriteFailure")) { }
+        public EventSourceException() :
+            base(Resources.GetResourceString("EventSource_ListenerWriteFailure")) { }
 
         /// <summary>
         /// Initializes a new instance of the EventSourceException class with a specified error message.
@@ -38,13 +40,14 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         public EventSourceException(string message, Exception innerException) : base(message, innerException) { }
 
-#if !ES_BUILD_PCL
+#if (!ES_BUILD_PCL && !PROJECTN)
         /// <summary>
         /// Initializes a new instance of the EventSourceException class with serialized data.
         /// </summary>
         protected EventSourceException(SerializationInfo info, StreamingContext context) : base(info, context) { }
 #endif
 
-        internal EventSourceException(Exception innerException) : base(Environment.GetResourceString("EventSource_ListenerWriteFailure"), innerException) { }
+        internal EventSourceException(Exception innerException) :
+            base(Resources.GetResourceString("EventSource_ListenerWriteFailure"), innerException) { }
     }
 }

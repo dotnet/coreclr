@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 namespace System {
 
@@ -48,7 +49,7 @@ namespace System {
             if (b==null)
                 throw new ArgumentNullException("b");
             if (b.Length != 16)
-                throw new ArgumentException(Environment.GetResourceString("Arg_GuidArrayCtor", "16"));
+                throw new ArgumentException(Environment.GetResourceString("Arg_GuidArrayCtor", "16"), "b");
             Contract.EndContractBlock();
 
             _a = ((int)b[3] << 24) | ((int)b[2] << 16) | ((int)b[1] << 8) | b[0];
@@ -89,7 +90,7 @@ namespace System {
                 throw new ArgumentNullException("d");
             // Check that array is not too big
             if(d.Length != 8)
-                throw new ArgumentException(Environment.GetResourceString("Arg_GuidArrayCtor", "8"));
+                throw new ArgumentException(Environment.GetResourceString("Arg_GuidArrayCtor", "8"), "d");
             Contract.EndContractBlock();
 
             _a  = a;
@@ -563,7 +564,12 @@ namespace System {
                 }
 
                 // Read in the number
-                uint number = (uint)Convert.ToInt32(guidString.Substring(numStart, numLen),16);
+                int signedNumber;
+                if (!StringToInt(guidString.Substring(numStart, numLen), -1, ParseNumbers.IsTight, out signedNumber, ref result)) {
+                    return false;
+                }
+                uint number = (uint)signedNumber;
+
                 // check for overflow
                 if(number > 255) {
                     result.SetFailure(ParseFailureKind.Format, "Overflow_Byte");            
@@ -915,9 +921,12 @@ namespace System {
             return ToString("D",null);
         }
 
-        public override int GetHashCode()
+        [System.Security.SecuritySafeCritical]
+        public unsafe override int GetHashCode()
         {
-            return _a ^ (((int)_b << 16) | (int)(ushort)_c) ^ (((int)_f << 24) | _k);
+            // Simply XOR all the bits of the GUID 32 bits at a time.
+            fixed (int* ptr = &this._a)
+                 return ptr[0] ^ ptr[1] ^ ptr[2] ^ ptr[3];
         }
 
         // Returns true if and only if the guid represented
@@ -998,7 +1007,7 @@ namespace System {
                 return 1;
             }
             if (!(value is Guid)) {
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeGuid"));
+                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeGuid"), "value");
             }
             Guid g = (Guid)value;
 

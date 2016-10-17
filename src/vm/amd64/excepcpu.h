@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -66,7 +65,7 @@ RtlVirtualUnwind (
           IN ULONG HandlerType,
           IN ULONG64 ImageBase,
           IN ULONG64 ControlPc,
-          IN PRUNTIME_FUNCTION FunctionEntry,
+          IN PT_RUNTIME_FUNCTION FunctionEntry,
           IN OUT PCONTEXT ContextRecord,
           OUT PVOID *HandlerData,
           OUT PULONG64 EstablisherFrame,
@@ -78,7 +77,7 @@ RtlVirtualUnwind_Worker (
           IN ULONG HandlerType,
           IN ULONG64 ImageBase,
           IN ULONG64 ControlPc,
-          IN PRUNTIME_FUNCTION FunctionEntry,
+          IN PT_RUNTIME_FUNCTION FunctionEntry,
           IN OUT PCONTEXT ContextRecord,
           OUT PVOID *HandlerData,
           OUT PULONG64 EstablisherFrame,

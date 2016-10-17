@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // 
 
@@ -45,7 +46,6 @@ namespace System.Reflection
         protected ConstructorInfo() { }
         #endregion
 
-#if !FEATURE_CORECLR
         public static bool operator ==(ConstructorInfo left, ConstructorInfo right)
         {
             if (ReferenceEquals(left, right))
@@ -63,7 +63,6 @@ namespace System.Reflection
         {
             return !(left == right);
         }
-#endif // !FEATURE_CORECLR
 
         public override bool Equals(object obj)
         {
@@ -561,12 +560,6 @@ namespace System.Reflection
             // ctor is generic or on a generic class
             else if (declaringType.ContainsGenericParameters)
             {
-#if FEATURE_LEGACYNETCF
-                if (CompatibilitySwitches.IsAppEarlierThanWindowsPhone8)
-                    throw new ArgumentException(
-                        String.Format(CultureInfo.CurrentUICulture, Environment.GetResourceString("Acc_CreateGenericEx"), declaringType));
-                else
-#endif
                 throw new MemberAccessException(
                     String.Format(CultureInfo.CurrentUICulture, Environment.GetResourceString("Acc_CreateGenericEx"), declaringType));
             }
@@ -625,15 +618,15 @@ namespace System.Reflection
 
             }
 
+#if !FEATURE_CORECLR
             if ((invocationFlags &(INVOCATION_FLAGS.INVOCATION_FLAGS_RISKY_METHOD | INVOCATION_FLAGS.INVOCATION_FLAGS_NEED_SECURITY)) != 0) 
             {
-#if !FEATURE_CORECLR
                 if ((invocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_RISKY_METHOD) != 0)
                     CodeAccessPermission.Demand(PermissionType.ReflectionMemberAccess);
                 if ((invocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_NEED_SECURITY) != 0)
-#endif // !FEATURE_CORECLR
                     RuntimeMethodHandle.PerformSecurityCheck(obj, this, m_declaringType, (uint)m_invocationFlags);
             }
+#endif // !FEATURE_CORECLR
 
             Signature sig = Signature;
 
@@ -671,17 +664,29 @@ namespace System.Reflection
 
         public override bool IsSecurityCritical
         {
+#if FEATURE_CORECLR
+            get { return true; }
+#else
             get { return RuntimeMethodHandle.IsSecurityCritical(this); }
+#endif
         }
 
         public override bool IsSecuritySafeCritical
         {
+#if FEATURE_CORECLR
+            get { return false; }
+#else
             get { return RuntimeMethodHandle.IsSecuritySafeCritical(this); }
+#endif
         }
 
         public override bool IsSecurityTransparent
         {
+#if FEATURE_CORECLR
+            get { return false; }
+#else
             get { return RuntimeMethodHandle.IsSecurityTransparent(this); }
+#endif
         }
 
         public override bool ContainsGenericParameters
@@ -718,19 +723,17 @@ namespace System.Reflection
             }
 #endif
 
+#if !FEATURE_CORECLR
             if ((invocationFlags & (INVOCATION_FLAGS.INVOCATION_FLAGS_RISKY_METHOD | INVOCATION_FLAGS.INVOCATION_FLAGS_NEED_SECURITY | INVOCATION_FLAGS.INVOCATION_FLAGS_IS_DELEGATE_CTOR)) != 0) 
             {
-#if !FEATURE_CORECLR
                 if ((invocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_RISKY_METHOD) != 0) 
                     CodeAccessPermission.Demand(PermissionType.ReflectionMemberAccess);
                 if ((invocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_NEED_SECURITY)  != 0) 
-#endif // !FEATURE_CORECLR
                     RuntimeMethodHandle.PerformSecurityCheck(null, this, m_declaringType, (uint)(m_invocationFlags | INVOCATION_FLAGS.INVOCATION_FLAGS_CONSTRUCTOR_INVOKE));
-#if !FEATURE_CORECLR
                 if ((invocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_IS_DELEGATE_CTOR) != 0)
                     new SecurityPermission(SecurityPermissionFlag.UnmanagedCode).Demand();
-#endif // !FEATURE_CORECLR
             }
+#endif // !FEATURE_CORECLR
 
             // get the signature
             Signature sig = Signature;

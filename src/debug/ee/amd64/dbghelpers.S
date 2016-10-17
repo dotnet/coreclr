@@ -1,19 +1,17 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 .intel_syntax noprefix
 #include "unixasmmacros.inc"
 
 //extern FuncEvalHijackWorker:proc
-//extern FuncEvalHijackPersonalityRoutine:proc
 
 // @dbgtodo- once we port Funceval, use the ExceptionHijack stub instead of this func-eval stub.
-NESTED_ENTRY FuncEvalHijack, _TEXT, FuncEvalHijackPersonalityRoutine
+NESTED_ENTRY FuncEvalHijack, _TEXT, UnhandledExceptionHandlerUnix
         // the stack should be aligned at this point, since we do not call this
         // function explicitly
-        alloc_stack 20h
+        alloc_stack 0x20
         END_PROLOGUE
 
         mov     [rsp], rdi
@@ -36,11 +34,10 @@ NESTED_ENTRY FuncEvalHijack, _TEXT, FuncEvalHijackPersonalityRoutine
 NESTED_END FuncEvalHijack, _TEXT
 
 //extern ExceptionHijackWorker:proc
-//extern ExceptionHijackPersonalityRoutine:proc
 
 // This is the general purpose hijacking stub. The DacDbi Hijack primitive will 
 // set up the stack and then set the IP here, and so this just makes the call.
-NESTED_ENTRY ExceptionHijack, _TEXT, NoHandler
+NESTED_ENTRY ExceptionHijack, _TEXT, UnhandledExceptionHandlerUnix
         // the stack should be aligned at this point, since we do not call this
         // function explicitly
         // 
@@ -48,7 +45,14 @@ NESTED_ENTRY ExceptionHijack, _TEXT, NoHandler
         // So we allocate 4 stack slots as the outgoing argument home and just copy the 
         // arguments set up by DacDbi into these stack slots.  We will take a perf hit,
         // but this is not a perf critical code path anyway.
-        alloc_stack 20h
+
+        // There is an additional dependency on this alloc_stack: the
+        // ExceptionHijackPersonalityRoutine assumes that it can find
+        // the first argument to HijackWorker in the stack frame of
+        // ExceptionHijack, at an offset of exactly 0x20 bytes from
+        // ExceptionHijackWorker's stack frame. Therefore it is
+        // important that we move the stack pointer by the same amount.
+        alloc_stack 0x20
         END_PROLOGUE
 
         // We used to do an "alloc_stack 0h" because the stack has been allocated for us
@@ -56,6 +60,11 @@ NESTED_ENTRY ExceptionHijack, _TEXT, NoHandler
         // stack for us.  However, the Orcas compilers don't like a 0-sized frame, so 
         // we need to allocate something here and then just copy the stack arguments to 
         // their new argument homes.
+
+        // In x86, ExceptionHijackWorker is marked STDCALL, so it finds
+        // its arguments on the stack. In x64, it gets its arguments in
+        // registers (set up for us by DacDbiInterfaceImpl::Hijack),
+        // and this stack space may be reused.
         mov     rax, [rsp + 20h]
         mov     [rsp], rax
         mov     rax, [rsp + 28h]

@@ -1,8 +1,7 @@
-; ==++==
-; 
-;   Copyright (c) Microsoft Corporation.  All rights reserved.
-; 
-; ==--==
+; Licensed to the .NET Foundation under one or more agreements.
+; The .NET Foundation licenses this file to you under the MIT license.
+; See the LICENSE file in the project root for more information.
+
 EXPORTS
 ;
 ;   Common exports
@@ -17,13 +16,18 @@ EXPORTS
         ; This cannot change, or else CoreCLR debugging will not work.
         ; See clr\src\DLLS\dbgshim\dbgshim.cpp.
         g_CLREngineMetrics                                  @2 data
+        
+        ; Unix hosting API
+        coreclr_create_delegate
+        coreclr_execute_assembly
+        coreclr_initialize
+        coreclr_shutdown
 
-#ifdef FEATURE_PREJIT
-        ; MetaDataGetDispenser is needed for nidump. We want nidump to work on non-debug
-        ; builds, but we don't want the API to be public, so export it by ordinal.
-        ; This ordinal is hard-coded in tools\nidump\nidump.cpp.
-        MetaDataGetDispenser                                @3 noname private
-#endif // FEATURE_PREJIT
+        ; il{d}asm
+        MetaDataGetDispenser
+        GetMetaDataInternalInterface
+        GetMetaDataInternalInterfaceFromPublic
+        GetMetaDataPublicInterfaceFromInternal
 
 #else //FEATURE_CORECLR 
 

@@ -1,9 +1,15 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // Test Invalid program (evaluation stack is not empty before localloc call
 
 .assembly extern legacy library mscorlib {}
+.assembly extern System.Console
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
 .assembly eh01{}
 
 .class private auto ansi beforefieldinit LocallocTest
@@ -25,7 +31,7 @@
     {
       IL_0007:  pop
       IL_0008:  ldstr      "Passed"
-      IL_000d:  call       void [mscorlib]System.Console::WriteLine(string)
+      IL_000d:  call       void [System.Console]System.Console::WriteLine(string)
       IL_0012:  ldc.i4.s   100
       IL_0014:  stloc.0
       IL_0015:  leave.s    IL_0035
@@ -35,14 +41,14 @@
     {
       IL_0017:  pop
       IL_0018:  ldstr      "Passed"
-      IL_009d:  call       void [mscorlib]System.Console::WriteLine(string)
+      IL_009d:  call       void [System.Console]System.Console::WriteLine(string)
       IL_0022:  ldc.i4.s   100
       IL_0024:  stloc.0
       IL_0025:  leave.s    IL_0035
 
     }  // end handler
     IL_0027:  ldstr      "Failed"
-    IL_002c:  call       void [mscorlib]System.Console::WriteLine(string)
+    IL_002c:  call       void [System.Console]System.Console::WriteLine(string)
     IL_0031:  ldc.i4.1
     IL_0032:  stloc.0
     IL_0033:  br.s       IL_0035

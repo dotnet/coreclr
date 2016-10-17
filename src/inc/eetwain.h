@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 //
 // EETwain.h
@@ -31,6 +30,7 @@
 #include "corjit.h"     // For NativeVarInfo
 #include "stackwalktypes.h"
 #include "bitvector.h"
+#include "gcinfotypes.h"
 
 #if !defined(_TARGET_X86_)
 #define USE_GC_INFO_DECODER
@@ -64,7 +64,7 @@ typedef struct _DAC_SLOT_LOCATION
 typedef void (*GCEnumCallback)(
     LPVOID          hCallback,      // callback data
     OBJECTREF*      pObject,        // address of obect-reference we are reporting
-    DWORD           flags           // is this a pinned and/or interior pointer
+    uint32_t        flags           // is this a pinned and/or interior pointer
     DAC_ARG(DacSlotLocation loc)    // where the reference came from
 );
 
@@ -219,7 +219,7 @@ virtual bool IsGcSafe(EECodeInfo     *pCodeInfo,
 */
 virtual unsigned FindEndOfLastInterruptibleRegion(unsigned curOffset,
                                                   unsigned endOffset,
-                                                  PTR_VOID methodInfoPtr) = 0;
+                                                  GCInfoToken gcInfoToken) = 0;
 #endif // _TARGET_AMD64_ && _DEBUG
 
 /*
@@ -278,28 +278,34 @@ virtual void * GetGSCookieAddr(PREGDISPLAY     pContext,
   Returns true if the given IP is in the given method's prolog or an epilog.
 */
 virtual bool IsInPrologOrEpilog(DWORD  relPCOffset,
-                                PTR_VOID methodInfoPtr,
+                                GCInfoToken gcInfoToken,
                                 size_t* prologSize) = 0;
 
 /*
   Returns true if the given IP is in the synchronized region of the method (valid for synchronized methods only)
 */
 virtual bool IsInSynchronizedRegion(
-                DWORD           relOffset,
-                PTR_VOID        methodInfoPtr,
-                unsigned        flags) = 0;
+                DWORD       relOffset,
+                GCInfoToken gcInfoToken,
+                unsigned    flags) = 0;
 
 /*
   Returns the size of a given function as reported in the GC info (does
   not take procedure splitting into account).  For the actual size of
   the hot region call IJitManager::JitTokenToMethodHotSize.
 */
-virtual size_t GetFunctionSize(PTR_VOID methodInfoPtr) = 0;
+virtual size_t GetFunctionSize(GCInfoToken gcInfoToken) = 0;
+
+/*
+Returns the ReturnKind of a given function as reported in the GC info.
+*/
+
+virtual ReturnKind GetReturnKind(GCInfoToken gcInfotoken) = 0;
 
 /*
   Returns the size of the frame (barring localloc)
 */
-virtual unsigned int GetFrameSize(PTR_VOID methodInfoPtr) = 0;
+virtual unsigned int GetFrameSize(GCInfoToken gcInfoToken) = 0;
 
 #ifndef DACCESS_COMPILE
 
@@ -307,16 +313,16 @@ virtual unsigned int GetFrameSize(PTR_VOID methodInfoPtr) = 0;
 
 virtual const BYTE*     GetFinallyReturnAddr(PREGDISPLAY pReg)=0;
 
-virtual BOOL            IsInFilter(void *methodInfoPtr,
+virtual BOOL            IsInFilter(GCInfoToken gcInfoToken,
                                    unsigned offset,
                                    PCONTEXT pCtx,
                                    DWORD curNestLevel) = 0;
 
-virtual BOOL            LeaveFinally(void *methodInfoPtr,
+virtual BOOL            LeaveFinally(GCInfoToken gcInfoToken,
                                      unsigned offset,
                                      PCONTEXT pCtx) = 0;
 
-virtual void            LeaveCatch(void *methodInfoPtr,
+virtual void            LeaveCatch(GCInfoToken gcInfoToken,
                                    unsigned offset,
                                    PCONTEXT pCtx)=0;
 
@@ -448,7 +454,7 @@ bool IsGcSafe(  EECodeInfo     *pCodeInfo,
 virtual
 unsigned FindEndOfLastInterruptibleRegion(unsigned curOffset,
                                           unsigned endOffset,
-                                          PTR_VOID methodInfoPtr);
+                                          GCInfoToken gcInfoToken);
 #endif // _TARGET_AMD64_ && _DEBUG
 
 /*
@@ -535,44 +541,47 @@ void * GetGSCookieAddr(PREGDISPLAY     pContext,
 */
 virtual
 bool IsInPrologOrEpilog(
-                DWORD           relOffset,
-                PTR_VOID        methodInfoPtr,
-                size_t*         prologSize);
+                DWORD       relOffset,
+                GCInfoToken gcInfoToken,
+                size_t*     prologSize);
 
 /*
   Returns true if the given IP is in the synchronized region of the method (valid for synchronized functions only)
 */
 virtual
 bool IsInSynchronizedRegion(
-                DWORD           relOffset,
-                PTR_VOID        methodInfoPtr,
-                unsigned        flags);
+                DWORD       relOffset,
+                GCInfoToken gcInfoToken,
+                unsigned    flags);
 
 /*
   Returns the size of a given function.
 */
 virtual
-size_t GetFunctionSize(
-                PTR_VOID        methodInfoPtr);
+size_t GetFunctionSize(GCInfoToken gcInfoToken);
+
+/*
+Returns the ReturnKind of a given function.
+*/
+virtual ReturnKind GetReturnKind(GCInfoToken gcInfotoken);
 
 /*
   Returns the size of the frame (barring localloc)
 */
 virtual
-unsigned int GetFrameSize(
-                PTR_VOID        methodInfoPtr);
+unsigned int GetFrameSize(GCInfoToken gcInfoToken);
 
 #ifndef DACCESS_COMPILE
 
 virtual const BYTE* GetFinallyReturnAddr(PREGDISPLAY pReg);
-virtual BOOL LeaveFinally(void *methodInfoPtr,
+virtual BOOL LeaveFinally(GCInfoToken gcInfoToken,
                           unsigned offset,
                           PCONTEXT pCtx);
-virtual BOOL IsInFilter(void *methodInfoPtr,
+virtual BOOL IsInFilter(GCInfoToken gcInfoToken,
                         unsigned offset,
                         PCONTEXT pCtx,
                           DWORD curNestLevel);
-virtual void LeaveCatch(void *methodInfoPtr,
+virtual void LeaveCatch(GCInfoToken gcInfoToken,
                          unsigned offset,
                          PCONTEXT pCtx);
 
@@ -647,8 +656,9 @@ struct hdrInfo
 {
     unsigned int        methodSize;     // native code bytes
     unsigned int        argSize;        // in bytes
-    unsigned int        stackSize;      /* including callee saved registers */
-    unsigned int        rawStkSize;     /* excluding callee saved registers */
+    unsigned int        stackSize;      // including callee saved registers
+    unsigned int        rawStkSize;     // excluding callee saved registers
+    ReturnKind          returnKind;     // The ReturnKind for this method.
 
     unsigned int        prologSize;
 
@@ -690,6 +700,7 @@ struct hdrInfo
     unsigned int        syncStartOffset; // start/end code offset of the protected region in synchronized methods.
     unsigned int        syncEndOffset;   // INVALID_SYNC_OFFSET if there not synchronized method
     unsigned int        syncEpilogStart; // The start of the epilog. Synchronized methods are guaranteed to have no more than one epilog.
+    unsigned int        revPInvokeOffset; // INVALID_REV_PINVOKE_OFFSET if there is no Reverse PInvoke frame
 
     enum { NOT_IN_PROLOG = -1, NOT_IN_EPILOG = -1 };
     

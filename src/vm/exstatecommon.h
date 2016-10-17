@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -337,14 +336,6 @@ public:
     void SetIsRethrown()   { LIMITED_METHOD_CONTRACT; AssertIfReadOnly(); m_flags |= Ex_IsRethrown; }
     void ResetIsRethrown() { LIMITED_METHOD_CONTRACT; AssertIfReadOnly(); m_flags &= ~Ex_IsRethrown; }
 
-#ifdef FEATURE_PAL
-    BOOL IsInterleavedHandling()      { LIMITED_METHOD_CONTRACT; return m_flags & Ex_IsInterleavedHandling; }
-    void SetIsInterleavedHandling()   { LIMITED_METHOD_CONTRACT; AssertIfReadOnly(); m_flags |= Ex_IsInterleavedHandling; }
-    void ResetIsInterleavedHandling() { LIMITED_METHOD_CONTRACT; AssertIfReadOnly(); m_flags &= ~Ex_IsInterleavedHandling; }
-#else // FEATURE_PAL
-    BOOL IsInterleavedHandling() { return FALSE; }
-#endif //  FEATURE_PAL
-
     BOOL UnwindHasStarted()      { LIMITED_METHOD_CONTRACT; return m_flags & Ex_UnwindHasStarted; }
     void SetUnwindHasStarted()   { LIMITED_METHOD_CONTRACT; AssertIfReadOnly(); m_flags |= Ex_UnwindHasStarted; }
     void ResetUnwindHasStarted() { LIMITED_METHOD_CONTRACT; AssertIfReadOnly(); m_flags &= ~Ex_UnwindHasStarted; }
@@ -425,10 +416,7 @@ private:
 
         Ex_GotWatsonBucketInfo          = 0x00004000,
 
-        Ex_IsInterleavedHandling        = 0x00008000
-
 #if defined(WIN64EXCEPTIONS) && defined(_DEBUG)
-    ,
         Ex_FlagsAreReadOnly             = 0x80000000
 #endif // defined(WIN64EXCEPTIONS) && defined(_DEBUG) 
 

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // FRAMES.CPP
 
 
@@ -19,7 +18,7 @@
 #include "fieldmarshaler.h"
 #include "objecthandle.h"
 #include "siginfo.hpp"
-#include "gc.h"
+#include "gcheaputilities.h"
 #include "dllimportcallback.h"
 #include "stackwalk.h"
 #include "dbginterface.h"
@@ -44,6 +43,8 @@
 #ifdef FEATURE_INTERPRETER
 #include "interpreter.h"
 #endif // FEATURE_INTERPRETER
+
+#include "argdestination.h"
 
 #if CHECK_APP_DOMAIN_LEAKS
 #define CHECK_APP_DOMAIN    GC_CALL_CHECK_APP_DOMAIN
@@ -477,20 +478,30 @@ VOID Frame::Pop(Thread *pThread)
              (*m_Next->GetGSCookiePtr() == GetProcessGSCookie()));
 
     pThread->SetFrame(m_Next);
+    m_Next = NULL;
 }
 
-#ifdef FEATURE_PAL
-Frame::~Frame()
-{
-    // When the frame is destroyed, make sure it is no longer in the
-    // frame chain managed by the Thread.
-    Thread* pThread = GetThread();
-    if (pThread != NULL && pThread->GetFrame() == this)
+#if defined(FEATURE_PAL) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+void Frame::PopIfChained()
+{      
+    CONTRACTL
     {
-        Pop(pThread);
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_COOPERATIVE;
+        SO_TOLERANT;
     }
-}
-#endif // FEATURE_PAL
+    CONTRACTL_END;
+
+    if (m_Next != NULL)
+    {
+        GCX_COOP();
+        // When the frame is destroyed, make sure it is no longer in the
+        // frame chain managed by the Thread.
+        Pop();
+    }
+}      
+#endif // FEATURE_PAL && !DACCESS_COMPILE && !CROSSGEN_COMPILE
 
 //-----------------------------------------------------------------------
 #endif // #ifndef DACCESS_COMPILE
@@ -1068,7 +1079,7 @@ void InterpreterFrame::GcScanRoots(promote_func *fn, ScanContext* sc)
 
 #endif // FEATURE_INTERPRETER
 
-#ifdef _DEBUG
+#if defined(_DEBUG) && !defined (DACCESS_COMPILE)
 
 struct IsProtectedByGCFrameStruct
 {
@@ -1120,6 +1131,56 @@ BOOL IsProtectedByGCFrame(OBJECTREF *ppObjectRef)
 #endif // _DEBUG
 
 #endif //!DACCESS_COMPILE
+
+#ifdef FEATURE_HIJACK
+
+void HijackFrame::GcScanRoots(promote_func *fn, ScanContext* sc)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    ReturnKind returnKind = m_Thread->GetHijackReturnKind();
+    _ASSERTE(IsValidReturnKind(returnKind));
+
+    int regNo = 0;
+    bool moreRegisters = false;
+
+    do 
+    {
+        ReturnKind r = ExtractRegReturnKind(returnKind, regNo, moreRegisters);
+        PTR_PTR_Object objPtr = dac_cast<PTR_PTR_Object>(&m_Args->ReturnValue[regNo]);
+
+        switch (r)
+        {
+#ifdef _TARGET_X86_
+        case RT_Float: // Fall through
+#endif
+        case RT_Scalar:
+            // nothing to report
+            break;
+
+        case RT_Object:
+            LOG((LF_GC, INFO3, "Hijack Frame Promoting Object" FMT_ADDR "to",
+                DBG_ADDR(OBJECTREF_TO_UNCHECKED_OBJECTREF(*objPtr))));
+            (*fn)(objPtr, sc, CHECK_APP_DOMAIN);
+            LOG((LF_GC, INFO3, FMT_ADDR "\n", DBG_ADDR(OBJECTREF_TO_UNCHECKED_OBJECTREF(*objPtr))));
+            break;
+
+        case RT_ByRef:
+            LOG((LF_GC, INFO3, "Hijack Frame Carefully Promoting pointer" FMT_ADDR "to",
+                DBG_ADDR(OBJECTREF_TO_UNCHECKED_OBJECTREF(*objPtr))));
+            PromoteCarefully(fn, objPtr, sc, GC_CALL_INTERIOR | GC_CALL_CHECK_APP_DOMAIN);
+            LOG((LF_GC, INFO3, FMT_ADDR "\n", DBG_ADDR(OBJECTREF_TO_UNCHECKED_OBJECTREF(*objPtr))));
+            break;
+
+        default:
+            _ASSERTE(!"Impossible two bit encoding"); 
+        }
+        
+        regNo++;
+    } while (moreRegisters);
+}
+
+#endif // FEATURE_HIJACK
 
 void ProtectByRefsFrame::GcScanRoots(promote_func *fn, ScanContext *sc)
 {
@@ -1274,7 +1335,8 @@ void TransitionFrame::PromoteCallerStackHelper(promote_func* fn, ScanContext* sc
     int argOffset;
     while ((argOffset = argit.GetNextOffset()) != TransitionBlock::InvalidOffset)
     {
-        pmsig->GcScanRoots(dac_cast<PTR_VOID>(pTransitionBlock + argOffset), fn, sc);
+        ArgDestination argDest(dac_cast<PTR_VOID>(pTransitionBlock), argOffset, argit.GetArgLocDescForStructInRegs());
+        pmsig->GcScanRoots(&argDest, fn, sc);
     }
 }
 
@@ -1447,7 +1509,7 @@ struct IsObjRefProtectedScanContext : public ScanContext
     }
 };
 
-void IsObjRefProtected (Object** ppObj, ScanContext* sc, DWORD)
+void IsObjRefProtected (Object** ppObj, ScanContext* sc, uint32_t)
 {
     LIMITED_METHOD_CONTRACT;
     IsObjRefProtectedScanContext * orefProtectedSc = (IsObjRefProtectedScanContext *)sc;
@@ -1459,6 +1521,8 @@ BOOL TransitionFrame::Protects(OBJECTREF * ppORef)
 {
     WRAPPER_NO_CONTRACT;
     IsObjRefProtectedScanContext sc (ppORef);
+    // Set the stack limit for the scan to the SP of the managed frame above the transition frame
+    sc.stack_limit = GetSP();
     GcScanRoots (IsObjRefProtected, &sc);
     return sc.oref_protected;
 }
@@ -1816,6 +1880,7 @@ BOOL HelperMethodFrame::InsureInit(bool initialInit,
     // Work with a copy so that we only write the values once.
     // this avoids race conditions.
     LazyMachState* lazy = &m_MachState;
+    DWORD threadId = m_pThread->GetOSThreadId();
     MachState unwound;
     
     if (!initialInit &&
@@ -1825,6 +1890,7 @@ BOOL HelperMethodFrame::InsureInit(bool initialInit,
         LazyMachState::unwindLazyState(
             lazy, 
             &unwound, 
+            threadId,
             0,
             hostCallPreference);
 
@@ -1852,12 +1918,12 @@ BOOL HelperMethodFrame::InsureInit(bool initialInit,
              (m_Attribs & Frame::FRAME_ATTR_CAPTURE_DEPTH_2) != 0)
     {
         // explictly told depth
-        LazyMachState::unwindLazyState(lazy, &unwound, 2);
+        LazyMachState::unwindLazyState(lazy, &unwound, threadId, 2);
     }
     else
     {
         // True FCall 
-        LazyMachState::unwindLazyState(lazy, &unwound, 1);
+        LazyMachState::unwindLazyState(lazy, &unwound, threadId, 1);
     }
 
     _ASSERTE(unwound.isValid());
@@ -1998,7 +2064,8 @@ VOID InlinedCallFrame::Init()
     m_pCallerReturnAddress = NULL;
 }
 
-#ifdef _WIN64
+#ifdef FEATURE_INCLUDE_ALL_INTERFACES 
+#if defined(_WIN64) && !defined(FEATURE_PAL)
 
 EXTERN_C void PInvokeStubForHostInner(DWORD dwStackSize, LPVOID pStackFrame, LPVOID pTarget);
 
@@ -2077,9 +2144,8 @@ void __stdcall PInvokeStubForHostWorker(DWORD dwStackSize, LPVOID pStackFrame, L
         PInvokeStubForHostInner(dwStackSize, pStackFrame, pTarget);
     }
 }
-
-#endif // _WIN64
-
+#endif // _WIN64 && !FEATURE_PAL
+#endif // FEATURE_INCLUDE_ALL_INTERFACES 
 
 
 void UnmanagedToManagedFrame::ExceptionUnwind()

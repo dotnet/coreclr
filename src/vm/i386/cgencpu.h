@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // CGENX86.H -
 //
 // Various helper routines for generating x86 assembly code.
@@ -227,6 +226,7 @@ struct EHContext {
 
     inline void Init()
     {
+        LIMITED_METHOD_CONTRACT;
         Eax = 0;
         Ebx = 0;
         Ecx = 0;
@@ -293,8 +293,6 @@ inline INT32 rel32UsingJumpStub(INT32 UNALIGNED * pRel32, PCODE target, MethodDe
     TADDR baseAddr = (TADDR)pRel32 + 4;
     return (INT32)(target - baseAddr);
 }
-
-#ifndef CLR_STANDALONE_BINDER
 
 #ifdef FEATURE_COMINTEROP
 inline void emitCOMStubCall (ComCallMethodDesc *pCOMMethod, PCODE target)
@@ -515,7 +513,7 @@ struct HijackArgs
     union
     {
         DWORD Eax;
-        size_t ReturnValue;
+        size_t ReturnValue[1];
     };
     DWORD Ebp;
     union
@@ -524,8 +522,6 @@ struct HijackArgs
         size_t ReturnAddress;
     };
 };
-
-#endif //!CLR_STANDALONE_BINDER
 
 // ClrFlushInstructionCache is used when we want to call FlushInstructionCache
 // for a specific architecture in the common code, but not for other architectures.

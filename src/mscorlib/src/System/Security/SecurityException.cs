@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*=============================================================================
 **
@@ -30,7 +31,8 @@ namespace System.Security
     using System.Diagnostics.Contracts;
 
     [System.Runtime.InteropServices.ComVisible(true)]
-    [Serializable] public class SecurityException : SystemException
+    [Serializable]
+    public class SecurityException : SystemException
     {
 #if FEATURE_CAS_POLICY        
         private String m_debugString; // NOTE: If you change the name of this field, you'll have to update SOS as well!
@@ -155,13 +157,13 @@ namespace System.Security
         }
 #endif // FEATURE_CAS_POLICY
 
-        public SecurityException() 
+        public SecurityException()
             : base(GetResString("Arg_SecurityException"))
         {
             SetErrorCode(System.__HResults.COR_E_SECURITY);
         }
-    
-        public SecurityException(String message) 
+
+        public SecurityException(String message)
             : base(message)
         {
             // This is the constructor that gets called if you Assert but don't have permission to Assert.  (So don't assert in here.)
@@ -190,7 +192,7 @@ namespace System.Security
         }
 #endif //FEATURE_CAS_POLICY            
 
-        public SecurityException(String message, Exception inner) 
+        public SecurityException(String message, Exception inner)
             : base(message, inner)
         {
             SetErrorCode(System.__HResults.COR_E_SECURITY);
@@ -589,21 +591,29 @@ namespace System.Security
             return sb.ToString();
         }
 #else // FEATURE_CAS_POLICY
-        internal SecurityException( PermissionSet grantedSetObj, PermissionSet refusedSetObj )
+        internal SecurityException(PermissionSet grantedSetObj, PermissionSet refusedSetObj)
             : this(){}
 #pragma warning disable 618
         internal SecurityException(string message, AssemblyName assemblyName, PermissionSet grant, PermissionSet refused, MethodInfo method, SecurityAction action, Object demanded, IPermission permThatFailed, Evidence evidence)
 #pragma warning restore 618
                     : this(){}
-        
+
         internal SecurityException(string message, Object deny, Object permitOnly, MethodInfo method, Object demanded, IPermission permThatFailed)
                     : this(){}
-                    
-        public override String ToString() 
-                {
-                    return base.ToString();
-                }
-        
+
+        [System.Security.SecuritySafeCritical]  // auto-generated
+        protected SecurityException(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+            if (info == null)
+                throw new ArgumentNullException("info");
+            Contract.EndContractBlock();
+        }
+
+        public override String ToString()
+        {
+            return base.ToString();
+        }
+
 #endif // FEATURE_CAS_POLICY
 
         [System.Security.SecurityCritical]  // auto-generated
@@ -617,11 +627,11 @@ namespace System.Security
 #pragma warning restore 618
                 retVal = true;
             }
-            catch(SecurityException)
+            catch (SecurityException)
             {
             }
             return retVal;
-            }
+        }
 #if FEATURE_CAS_POLICY            
         [System.Security.SecuritySafeCritical]  // auto-generated
         public override String ToString() 
@@ -632,11 +642,11 @@ namespace System.Security
         [System.Security.SecurityCritical]  // auto-generated_required
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            if (info==null)
+            if (info == null)
                 throw new ArgumentNullException("info");
             Contract.EndContractBlock();
 
-            base.GetObjectData( info, context );
+            base.GetObjectData(info, context);
 #if FEATURE_CAS_POLICY            
 
             info.AddValue(ActionName, m_action, typeof(SecurityAction));
@@ -653,5 +663,34 @@ namespace System.Security
             info.AddValue(UrlName, m_url, typeof(String));
 #endif // FEATURE_CAS_POLICY            
         }
+
+#if !FEATURE_CAS_POLICY
+        // Stubs for surface area compatibility only
+        public SecurityException(String message, Type type)
+            : base(message)
+        {
+            SetErrorCode(System.__HResults.COR_E_SECURITY);
+            PermissionType = type;
+        }
+
+        public SecurityException(string message, System.Type type, string state)
+            : base(message)
+        {
+            SetErrorCode(System.__HResults.COR_E_SECURITY);
+            PermissionType = type;
+            PermissionState = state;
+        }
+
+        public object Demanded { get; set; }
+        public object DenySetInstance { get; set; }
+        public System.Reflection.AssemblyName FailedAssemblyInfo { get; set; }
+        public string GrantedSet { get; set; }
+        public System.Reflection.MethodInfo Method { get; set; }
+        public string PermissionState { get; set; }
+        public System.Type PermissionType { get; set; }
+        public object PermitOnlySetInstance { get; set; }
+        public string RefusedSet { get; set; }
+        public string Url { get; set; }
+#endif // !FEATURE_CAS_POLICY
     }
 }

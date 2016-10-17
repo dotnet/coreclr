@@ -1,14 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 /*=============================================================================
 **
 **
 ** Purpose: Interface meant for CLR to participate in framework rundown.
 ** AppDomainPauseManager is the class that encapsulates all Fx rundown work.
 **
-** Copyright (c) Microsoft
 **
 =============================================================================*/
 
@@ -21,23 +20,8 @@ namespace System
     using System.Runtime.Versioning;
     using System.Runtime.CompilerServices;
 
-#if FEATURE_LEGACYNETCFFAS
     [System.Security.SecurityCritical]
-    public interface IAppDomainPauseManager
-    {
-        void Pausing();
-        void Paused();
-        void Resuming();
-        void Resumed();
-    }
-#endif
-
-    [System.Security.SecurityCritical]
-#if FEATURE_LEGACYNETCFFAS
-    public class AppDomainPauseManager : IAppDomainPauseManager
-#else
     internal class AppDomainPauseManager
-#endif
     {
         [System.Security.SecurityCritical]
         public AppDomainPauseManager()

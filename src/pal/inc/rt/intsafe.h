@@ -1,17 +1,12 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /******************************************************************
 *                                                                 *
 *  intsafe.h -- This module defines helper functions to prevent   *
 *               integer overflow issues.                          *
 *                                                                 *
-*  Copyright (c) Microsoft Corp.  All rights reserved.            *
-*                                                                 *
-*                                                                 *
-
 *                                                                 *
 ******************************************************************/
 #ifndef _INTSAFE_H_INCLUDED_
@@ -99,7 +94,7 @@ typedef LONG HRESULT;
 
 #if defined(MIDL_PASS) || defined(RC_INVOKED) || defined(_M_CEE_PURE) \
     || defined(_68K_) || defined(_MPPC_) || defined(_PPC_)            \
-    || defined(_M_IA64) || defined(_M_AMD64)
+    || defined(_M_IA64) || defined(_M_AMD64) || defined(__ARM_ARCH)
 
 #ifndef UInt32x32To64
 #define UInt32x32To64(a, b) ((unsigned __int64)((ULONG)(a)) * (unsigned __int64)((ULONG)(b)))

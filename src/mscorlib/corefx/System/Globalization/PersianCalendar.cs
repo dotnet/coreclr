@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Diagnostics.Contracts;
@@ -23,12 +24,13 @@ namespace System.Globalization
      **      Persian     0001/01/01   9378/10/13
      */
 
+    [Serializable]
     public class PersianCalendar : Calendar
     {
         public static readonly int PersianEra = 1;
 
         internal static long PersianEpoch = new DateTime(622, 3, 22).Ticks / GregorianCalendar.TicksPerDay;
-        const int ApproximateHalfYear = 180;
+        private const int ApproximateHalfYear = 180;
 
         internal const int DatePartYear = 0;
         internal const int DatePartDayOfYear = 1;
@@ -47,24 +49,6 @@ namespace System.Globalization
         internal static DateTime minDate = new DateTime(622, 3, 22);
         internal static DateTime maxDate = DateTime.MaxValue;
 
-        /*=================================GetDefaultInstance==========================
-        **Action: Internal method to provide a default intance of PersianCalendar.  Used by NLS+ implementation
-        **       and other calendars.
-        **Returns:
-        **Arguments:
-        **Exceptions:
-        ============================================================================*/
-        /*
-        internal static Calendar GetDefaultInstance() {
-            if (m_defaultInstance == null) {
-                m_defaultInstance = new PersianCalendar();
-            }
-            return (m_defaultInstance);
-        }
-        */
-
-
-
         public override DateTime MinSupportedDateTime
         {
             get
@@ -72,7 +56,6 @@ namespace System.Globalization
                 return (minDate);
             }
         }
-
 
         public override DateTime MaxSupportedDateTime
         {
@@ -82,15 +65,13 @@ namespace System.Globalization
             }
         }
 
-        // Return the type of the Persian calendar.
-        //
-
-
-        //public override CalendarAlgorithmType AlgorithmType {
-        //    get {
-        //        return CalendarAlgorithmType.SolarCalendar;
-        //    }
-        //}
+        public override CalendarAlgorithmType AlgorithmType
+        {
+            get
+            {
+                return CalendarAlgorithmType.SolarCalendar;
+            }
+        }
 
         // Construct an instance of Persian calendar.
 
@@ -124,7 +105,7 @@ namespace System.Globalization
         **Exceptions:
         ============================================================================*/
 
-        long GetAbsoluteDatePersian(int year, int month, int day)
+        private long GetAbsoluteDatePersian(int year, int month, int day)
         {
             if (year >= 1 && year <= MaxCalendarYear && month >= 1 && month <= 12)
             {
@@ -137,8 +118,10 @@ namespace System.Globalization
             throw new ArgumentOutOfRangeException(null, SR.ArgumentOutOfRange_BadYearMonthDay);
         }
 
-        static internal void CheckTicksRange(long ticks) {
-            if (ticks < minDate.Ticks || ticks > maxDate.Ticks) {
+        internal static void CheckTicksRange(long ticks)
+        {
+            if (ticks < minDate.Ticks || ticks > maxDate.Ticks)
+            {
                 throw new ArgumentOutOfRangeException(
                             "time",
                             String.Format(
@@ -149,7 +132,7 @@ namespace System.Globalization
             }
         }
 
-        static internal void CheckEraRange(int era)
+        internal static void CheckEraRange(int era)
         {
             if (era != CurrentEra && era != PersianEra)
             {
@@ -157,7 +140,7 @@ namespace System.Globalization
             }
         }
 
-        static internal void CheckYearRange(int year, int era)
+        internal static void CheckYearRange(int year, int era)
         {
             CheckEraRange(era);
             if (year < 1 || year > MaxCalendarYear)
@@ -172,7 +155,7 @@ namespace System.Globalization
             }
         }
 
-        static internal void CheckYearMonthRange(int year, int month, int era)
+        internal static void CheckYearMonthRange(int year, int month, int era)
         {
             CheckYearRange(year, era);
             if (year == MaxCalendarYear)
@@ -195,7 +178,7 @@ namespace System.Globalization
             }
         }
 
-        static int MonthFromOrdinalDay(int ordinalDay)
+        private static int MonthFromOrdinalDay(int ordinalDay)
         {
             Contract.Assert(ordinalDay <= 366);
             int index = 0;
@@ -205,7 +188,7 @@ namespace System.Globalization
             return index;
         }
 
-        static int DaysInPreviousMonths(int month)
+        private static int DaysInPreviousMonths(int month)
         {
             Contract.Assert(1 <= month && month <= 12);
             --month; // months are one based but for calculations use 0 based
@@ -220,7 +203,7 @@ namespace System.Globalization
         **Exceptions:  ArgumentException if part is incorrect.
         ============================================================================*/
 
-        internal int GetDatePart(long ticks, int part) 
+        internal int GetDatePart(long ticks, int part)
         {
             long NumDays;                 // The calculation buffer in number of days.
 
@@ -411,7 +394,7 @@ namespace System.Globalization
         // Returns the number of days in the year given by the year argument for the current era.
         //
 
-        public override int GetDaysInYear(int year, int era) 
+        public override int GetDaysInYear(int year, int era)
         {
             CheckYearRange(year, era);
             if (year == MaxCalendarYear)
@@ -522,7 +505,7 @@ namespace System.Globalization
         // year is a leap year, or false if not.
         //
 
-        public override bool IsLeapYear(int year, int era) 
+        public override bool IsLeapYear(int year, int era)
         {
             CheckYearRange(year, era);
 
@@ -542,7 +525,7 @@ namespace System.Globalization
         {
             // The year/month/era checking is done in GetDaysInMonth().
             int daysInMonth = GetDaysInMonth(year, month, era);
-            if (day < 1 || day > daysInMonth) 
+            if (day < 1 || day > daysInMonth)
             {
                 // BCLDebug.Log("year = " + year + ", month = " + month + ", day = " + day);
                 throw new ArgumentOutOfRangeException(
@@ -568,11 +551,11 @@ namespace System.Globalization
 
         private const int DEFAULT_TWO_DIGIT_YEAR_MAX = 1410;
 
-        public override int TwoDigitYearMax 
+        public override int TwoDigitYearMax
         {
-            get 
+            get
             {
-                if (twoDigitYearMax == -1) 
+                if (twoDigitYearMax == -1)
                 {
                     twoDigitYearMax = GetSystemTwoDigitYearSetting(ID, DEFAULT_TWO_DIGIT_YEAR_MAX);
                 }

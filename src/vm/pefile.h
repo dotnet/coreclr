@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // --------------------------------------------------------------------------------
 // PEFile.h
 // 
@@ -41,9 +40,7 @@
 #include "corperm.h"
 #include "eventtrace.h"
 
-#ifdef FEATURE_HOSTED_BINDER
 #include "clrprivbinderutil.h"
-#endif
 
 // --------------------------------------------------------------------------------
 // Forward declared classes
@@ -644,7 +641,6 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
 
-#ifdef FEATURE_HOSTED_BINDER
         DWORD binderFlags = BINDER_NONE;
 
         HRESULT hr = E_FAIL;
@@ -652,9 +648,6 @@ public:
             hr = GetHostAssembly()->GetBinderFlags(&binderFlags);
 
         return hr == S_OK ? binderFlags & BINDER_DESIGNER_BINDING_CONTEXT : FALSE;
-#else
-        return FALSE;
-#endif
     }
 
     LPCWSTR GetPathForErrorMessages();
@@ -663,12 +656,20 @@ public:
     void MarkNativeImageInvalidIfOwned();
     void ConvertMetadataToRWForEnC();
 
-#if defined(FEATURE_VERSIONING) || defined(FEATURE_HOSTED_BINDER)
 protected:
     PTR_ICLRPrivAssembly m_pHostAssembly;
-#endif
 
-#ifdef FEATURE_HOSTED_BINDER
+#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
+    // For certain assemblies, we do not have m_pHostAssembly since they are not bound using an actual binder.
+    // An example is Ref-Emitted assemblies. Thus, when such assemblies trigger load of their dependencies, 
+    // we need to ensure they are loaded in appropriate load context.
+    //
+    // To enable this, we maintain a concept of "Fallback LoadContext", which will be set to the Binder of the
+    // assembly that created the dynamic assembly. If the creator assembly is dynamic itself, then its fallback
+    // load context would be propagated to the assembly being dynamically generated.
+    ICLRPrivBinder *m_pFallbackLoadContextBinder;
+#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
+
 protected:
 
     friend class CLRPrivBinderFusion;
@@ -694,7 +695,21 @@ public:
 
     bool CanUseWithBindingCache()
     { LIMITED_METHOD_CONTRACT; return !HasHostAssembly(); }
-#endif // FEATURE_HOSTED_BINDER
+
+#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
+    void SetFallbackLoadContextBinder(ICLRPrivBinder *pFallbackLoadContextBinder)
+    { 
+        LIMITED_METHOD_CONTRACT; 
+        m_pFallbackLoadContextBinder = pFallbackLoadContextBinder; 
+    }
+
+    ICLRPrivBinder *GetFallbackLoadContextBinder()
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        return m_pFallbackLoadContextBinder;
+    }
+#endif //defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
 };  // class PEFile
 
 
@@ -713,7 +728,6 @@ class PEAssembly : public PEFile
     // Public API
     // ------------------------------------------------------------
 
-#if defined(FEATURE_HOSTED_BINDER)
 #if !defined(FEATURE_CORECLR)
     static PEAssembly * Open(
         PEAssembly *       pParentAssembly,
@@ -735,7 +749,6 @@ class PEAssembly : public PEFile
         ICLRPrivAssembly * pHostAssembly, 
         BOOL               fIsIntrospectionOnly = FALSE);
 #endif //!FEATURE_CORECLR
-#endif //FEATURE_HOSTED_BINDER
 
     // This opens the canonical mscorlib.dll
 #ifdef FEATURE_FUSION
@@ -835,9 +848,6 @@ class PEAssembly : public PEFile
     BOOL IsSourceGAC();
 #ifdef FEATURE_CORECLR
     BOOL IsProfileAssembly();
-    BOOL IsSilverlightPlatformStrongNameSignature();
-    BOOL IsProfileTestAssembly();
-    BOOL IsTestKeySignature();
 #endif // FEATURE_CORECLR
 
     ULONG HashIdentity();
@@ -985,13 +995,10 @@ class PEAssembly : public PEFile
         IMetaDataEmit *pEmit,
         PEFile *creator, 
         BOOL system, 
-        BOOL introspectionOnly = FALSE
-#ifdef FEATURE_HOSTED_BINDER
-        ,
+        BOOL introspectionOnly = FALSE,
         PEImage * pPEImageIL = NULL,
         PEImage * pPEImageNI = NULL,
         ICLRPrivAssembly * pHostAssembly = NULL
-#endif
         );
 #endif
     virtual ~PEAssembly();
@@ -1082,17 +1089,12 @@ class PEAssembly : public PEFile
     // Indicates if the assembly can be cached in a binding cache such as AssemblySpecBindingCache.
     inline bool CanUseWithBindingCache()
     {
-#if defined(FEATURE_HOSTED_BINDER)
             STATIC_CONTRACT_WRAPPER;
 #if !defined(FEATURE_APPX_BINDER)
             return (HasBindableIdentity());
 #else
             return (PEFile::CanUseWithBindingCache() && HasBindableIdentity());
 #endif // FEATURE_CORECLR
-#else
-            STATIC_CONTRACT_LIMITED_METHOD;
-            return true;
-#endif // FEATURE_HOSTED_BINDER
     }
 };
 

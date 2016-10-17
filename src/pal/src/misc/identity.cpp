@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -167,7 +166,7 @@ GetUserNameW(
 
     while (NULL == pPasswd)
     {
-        pchBuffer = (char*) InternalMalloc(pPalThread, sizeof(pchBuffer[0]) * dwBufLen);
+        pchBuffer = (char*) PAL_malloc(sizeof(pchBuffer[0]) * dwBufLen);
         if (NULL == pchBuffer)
         {
             pPalThread->SetLastError(ERROR_OUTOFMEMORY);
@@ -182,7 +181,7 @@ GetUserNameW(
 
             if (ERANGE == iRet) // need a bigger buffer
             {
-                InternalFree(pPalThread, pchBuffer);
+                PAL_free(pchBuffer);
                 pchBuffer = NULL;
                 pPasswd = NULL;
                 dwBufLen *= 2; // double the buffer
@@ -224,7 +223,7 @@ GetUserNameW(
     }
 
     // make a copy so that we can modify it
-    szUserName = InternalStrdup(pPalThread, pPasswd->pw_name);
+    szUserName = strdup(pPasswd->pw_name);
     if (NULL == szUserName)
     {
         InternalLeaveCriticalSection(pPalThread, &identity_critsec);
@@ -274,12 +273,12 @@ done:
 #if HAVE_GETPWUID_R
     if (NULL != pchBuffer)
     {
-        InternalFree(pPalThread, pchBuffer);
+        PAL_free(pchBuffer);
     }
 #else // HAVE_GETPWUID_R
     if (NULL != szUserName)
     {
-        InternalFree(pPalThread, szUserName);
+        PAL_free(szUserName);
     }
 #endif // HAVE_GETPWUID_R
 
@@ -343,12 +342,6 @@ GetComputerNameW(
         *pchDot = '\0'; // remove the domain name info
     }
 
-    // clip the hostname to MAX_COMPUTERNAME_LENGTH
-    if (sizeof(szHostName) > MAX_COMPUTERNAME_LENGTH)
-    {
-        szHostName[MAX_COMPUTERNAME_LENGTH] = '\0';
-    }
-
     // copy the hostname (including NULL character)
     cwchLen = MultiByteToWideChar(CP_ACP, 0, szHostName, -1, lpBuffer, *nSize);
     if (0 == cwchLen) 
@@ -403,7 +396,6 @@ CorUnix::InternalGetpwuid_r(
 {
     int iError = 0;
 
-    pPalThread->suspensionInfo.EnterUnsafeRegion();
     iError = getpwuid_r(uid, pPasswd, pchBuffer, nBufSize, ppResult);
 
 #if GETPWUID_R_SETS_ERRNO
@@ -413,8 +405,6 @@ CorUnix::InternalGetpwuid_r(
     }
 #endif // GETPWUID_R_SETS_ERRNO
 
-    pPalThread->suspensionInfo.LeaveUnsafeRegion();
     return iError;
 }
 #endif // HAVE_GETPWUID_R
-

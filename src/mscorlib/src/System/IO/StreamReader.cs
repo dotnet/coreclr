@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -35,6 +36,13 @@ namespace System.IO
         // StreamReader.Null is threadsafe.
         public new static readonly StreamReader Null = new NullStreamReader();
 
+        // Encoding.GetPreamble() always allocates and returns a new byte[] array for
+        // encodings that have a preamble.
+        // We can avoid repeated allocations for the default and commonly used Encoding.UTF8
+        // encoding by using our own private cached instance of the UTF8 preamble.
+        // This is lazily allocated the first time it is used.
+        private static byte[] s_utf8Preamble;
+
         // Using a 1K byte buffer and a 4K FileStream buffer works out pretty well
         // perf-wise.  On even a 40 MB text file, any perf loss by using a 4K
         // buffer is negated by the win of allocating a smaller byte[], which 
@@ -44,13 +52,6 @@ namespace System.IO
         {
             get
             {
-#if FEATURE_LEGACYNETCF
-                // Quirk for Mango app compatibility
-                if (CompatibilitySwitches.IsAppEarlierThanWindowsPhone8)
-                {
-                    return 4096;
-                }
-#endif // FEATURE_LEGACYNETCF
                 return 1024;
             }
         }
@@ -170,26 +171,9 @@ namespace System.IO
             Init(stream, encoding, detectEncodingFromByteOrderMarks, bufferSize, leaveOpen);
         }
 
-#if FEATURE_LEGACYNETCF
-        [System.Security.SecuritySafeCritical]
-#endif // FEATURE_LEGACYNETCF
         public StreamReader(String path) 
             : this(path, true) {
-#if FEATURE_LEGACYNETCF
-            if(CompatibilitySwitches.IsAppEarlierThanWindowsPhone8) {
-                System.Reflection.Assembly callingAssembly = System.Reflection.Assembly.GetCallingAssembly();
-                if(callingAssembly != null && !callingAssembly.IsProfileAssembly) {
-                    string caller = new System.Diagnostics.StackFrame(1).GetMethod().FullName;
-                    string callee = System.Reflection.MethodBase.GetCurrentMethod().FullName;
-                    throw new MethodAccessException(String.Format(
-                        System.Globalization.CultureInfo.CurrentCulture,
-                        Environment.GetResourceString("Arg_MethodAccessException_WithCaller"),
-                        caller,
-                        callee));
-                }
-            }
-#endif // FEATURE_LEGACYNETCF
-                               }
+        }
 
         public StreamReader(String path, bool detectEncodingFromByteOrderMarks) 
             : this(path, Encoding.UTF8, detectEncodingFromByteOrderMarks, DefaultBufferSize) {
@@ -237,7 +221,20 @@ namespace System.IO
             byteLen = 0;
             bytePos = 0;
             _detectEncoding = detectEncodingFromByteOrderMarks;
-            _preamble = encoding.GetPreamble();
+
+            // Encoding.GetPreamble() always allocates and returns a new byte[] array for
+            // encodings that have a preamble.
+            // We can avoid repeated allocations for the default and commonly used Encoding.UTF8
+            // encoding by using our own private cached instance of the UTF8 preamble.
+            // We specifically look for Encoding.UTF8 because we know it has a preamble,
+            // whereas other instances of UTF8Encoding may not have a preamble enabled, and
+            // there's no public way to tell if the preamble is enabled for an instance other
+            // than calling GetPreamble(), which we're trying to avoid.
+            // This means that other instances of UTF8Encoding are excluded from this optimization.
+            _preamble = object.ReferenceEquals(encoding, Encoding.UTF8) ?
+                (s_utf8Preamble ?? (s_utf8Preamble = encoding.GetPreamble())) :
+                encoding.GetPreamble();
+
             _checkPreamble = (_preamble.Length > 0);
             _isBlocked = false;
             _closable = !leaveOpen;
@@ -451,7 +448,7 @@ namespace System.IO
             if (byteBuffer[0]==0xFE && byteBuffer[1]==0xFF) {
                 // Big Endian Unicode
 
-                encoding = new UnicodeEncoding(true, true);
+                encoding = Encoding.BigEndianUnicode;
                 CompressBuffer(2);
                 changedEncoding = true;
             }
@@ -459,17 +456,15 @@ namespace System.IO
             else if (byteBuffer[0]==0xFF && byteBuffer[1]==0xFE) {
                 // Little Endian Unicode, or possibly little endian UTF32
                 if (byteLen < 4 || byteBuffer[2] != 0 || byteBuffer[3] != 0) {
-                    encoding = new UnicodeEncoding(false, true);
+                    encoding = Encoding.Unicode;
                     CompressBuffer(2);
                     changedEncoding = true;
                 }
-#if FEATURE_UTF32   
                 else {
-                    encoding = new UTF32Encoding(false, true);
+                    encoding = Encoding.UTF32;
                     CompressBuffer(4);
                 changedEncoding = true;
-            }
-#endif            
+                }
             }
          
             else if (byteLen >= 3 && byteBuffer[0]==0xEF && byteBuffer[1]==0xBB && byteBuffer[2]==0xBF) {
@@ -478,7 +473,6 @@ namespace System.IO
                 CompressBuffer(3);
                 changedEncoding = true;
             }
-#if FEATURE_UTF32            
             else if (byteLen >= 4 && byteBuffer[0] == 0 && byteBuffer[1] == 0 &&
                      byteBuffer[2] == 0xFE && byteBuffer[3] == 0xFF) {
                 // Big Endian UTF32
@@ -486,7 +480,6 @@ namespace System.IO
                 CompressBuffer(4);
                 changedEncoding = true;
             }
-#endif            
             else if (byteLen == 2)
                 _detectEncoding = true;
             // Note: in the future, if we change this algorithm significantly,
@@ -1120,7 +1113,7 @@ namespace System.IO
 
         #region Private properties for async method performance
         // Access to instance fields of MarshalByRefObject-derived types requires special JIT helpers that check
-        // if the instance operated on is remote. This is optimised for fields on “this” but if a method is Async
+        // if the instance operated on is remote. This is optimised for fields on this but if a method is Async
         // and is thus lifted to a state machine type, access will be slow.
         // As a workaround, we either cache instance fields in locals or use properties to access such fields.
         

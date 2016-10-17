@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -19,12 +20,12 @@ namespace System.Globalization
     **      Thai        0544/01/01  10542/12/31
     ============================================================================*/
 
-
+    [Serializable]
     [System.Runtime.InteropServices.ComVisible(true)]
     public class ThaiBuddhistCalendar : Calendar
     {
         // Initialize our era info.
-        static internal EraInfo[] thaiBuddhistEraInfo = new EraInfo[] {
+        internal static EraInfo[] thaiBuddhistEraInfo = new EraInfo[] {
             new EraInfo( 1, 1, 1, 1, -543, 544, GregorianCalendar.MaxYear + 543)     // era #, start year/month/day, yearOffset, minEraYear 
         };
 
@@ -33,8 +34,6 @@ namespace System.Globalization
         //
 
         public const int ThaiBuddhistEra = 1;
-
-        //internal static Calendar m_defaultInstance;
 
         internal GregorianCalendarHelper helper;
 
@@ -54,6 +53,15 @@ namespace System.Globalization
             get
             {
                 return (DateTime.MaxValue);
+            }
+        }
+
+        [System.Runtime.InteropServices.ComVisible(false)]
+        public override CalendarAlgorithmType AlgorithmType
+        {
+            get
+            {
+                return CalendarAlgorithmType.SolarCalendar;
             }
         }
 

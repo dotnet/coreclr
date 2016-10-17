@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ===========================================================================
 // File: UTIL.CPP
 //
@@ -31,7 +30,7 @@
 // Called again with a nonnull *pdstout to fill in the actual buffer.
 //
 // Returns the # of arguments.
-static UINT ParseCommandLine(LPCWSTR psrc, __out LPWSTR *pdstout)
+static UINT ParseCommandLine(LPCWSTR psrc, __inout LPWSTR *pdstout)
 {
     CONTRACTL
     {
@@ -740,6 +739,46 @@ SIZE_T GetRegOffsInCONTEXT(ICorDebugInfo::RegNum regNum)
     case ICorDebugInfo::REGNUM_AMBIENT_SP: return offsetof(T_CONTEXT, Sp);
     default: _ASSERTE(!"Bad regNum"); return (SIZE_T)(-1);
     }
+#elif defined(_TARGET_ARM64_)
+
+    switch(regNum)
+    {
+    case ICorDebugInfo::REGNUM_X0: return offsetof(T_CONTEXT, X0);
+    case ICorDebugInfo::REGNUM_X1: return offsetof(T_CONTEXT, X1);
+    case ICorDebugInfo::REGNUM_X2: return offsetof(T_CONTEXT, X2);
+    case ICorDebugInfo::REGNUM_X3: return offsetof(T_CONTEXT, X3);
+    case ICorDebugInfo::REGNUM_X4: return offsetof(T_CONTEXT, X4);
+    case ICorDebugInfo::REGNUM_X5: return offsetof(T_CONTEXT, X5);
+    case ICorDebugInfo::REGNUM_X6: return offsetof(T_CONTEXT, X6);
+    case ICorDebugInfo::REGNUM_X7: return offsetof(T_CONTEXT, X7);
+    case ICorDebugInfo::REGNUM_X8: return offsetof(T_CONTEXT, X8);
+    case ICorDebugInfo::REGNUM_X9: return offsetof(T_CONTEXT, X9);
+    case ICorDebugInfo::REGNUM_X10: return offsetof(T_CONTEXT, X10);
+    case ICorDebugInfo::REGNUM_X11: return offsetof(T_CONTEXT, X11);
+    case ICorDebugInfo::REGNUM_X12: return offsetof(T_CONTEXT, X12);
+    case ICorDebugInfo::REGNUM_X13: return offsetof(T_CONTEXT, X13);
+    case ICorDebugInfo::REGNUM_X14: return offsetof(T_CONTEXT, X14);
+    case ICorDebugInfo::REGNUM_X15: return offsetof(T_CONTEXT, X15);
+    case ICorDebugInfo::REGNUM_X16: return offsetof(T_CONTEXT, X16);
+    case ICorDebugInfo::REGNUM_X17: return offsetof(T_CONTEXT, X17);
+    case ICorDebugInfo::REGNUM_X18: return offsetof(T_CONTEXT, X18);
+    case ICorDebugInfo::REGNUM_X19: return offsetof(T_CONTEXT, X19);
+    case ICorDebugInfo::REGNUM_X20: return offsetof(T_CONTEXT, X20);
+    case ICorDebugInfo::REGNUM_X21: return offsetof(T_CONTEXT, X21);
+    case ICorDebugInfo::REGNUM_X22: return offsetof(T_CONTEXT, X22);
+    case ICorDebugInfo::REGNUM_X23: return offsetof(T_CONTEXT, X23);
+    case ICorDebugInfo::REGNUM_X24: return offsetof(T_CONTEXT, X24);
+    case ICorDebugInfo::REGNUM_X25: return offsetof(T_CONTEXT, X25);
+    case ICorDebugInfo::REGNUM_X26: return offsetof(T_CONTEXT, X26);
+    case ICorDebugInfo::REGNUM_X27: return offsetof(T_CONTEXT, X27);
+    case ICorDebugInfo::REGNUM_X28: return offsetof(T_CONTEXT, X28);
+    case ICorDebugInfo::REGNUM_FP: return offsetof(T_CONTEXT, Fp);
+    case ICorDebugInfo::REGNUM_LR: return offsetof(T_CONTEXT, Lr);
+    case ICorDebugInfo::REGNUM_SP: return offsetof(T_CONTEXT, Sp);
+    case ICorDebugInfo::REGNUM_PC: return offsetof(T_CONTEXT, Pc);
+    case ICorDebugInfo::REGNUM_AMBIENT_SP: return offsetof(T_CONTEXT, Sp);
+    default: _ASSERTE(!"Bad regNum"); return (SIZE_T)(-1);
+    }
 #else
     PORTABILITY_ASSERT("GetRegOffsInCONTEXT is not implemented on this platform.");
     return (SIZE_T) -1;
@@ -1297,7 +1336,7 @@ HRESULT WszSHGetFolderPath(
     HANDLE hToken,
     DWORD dwFlags,
     size_t cchPathMax,
-    __out_ecount(MAX_PATH) LPWSTR pwszPath)
+    __out_ecount(MAX_LONGPATH) LPWSTR pwszPath)
 {
     CONTRACTL
     {
@@ -1307,11 +1346,11 @@ HRESULT WszSHGetFolderPath(
     }
     CONTRACTL_END;
 
-    // SHGetFolderPath requirement: path buffer >= MAX_PATH chars
-    _ASSERTE(cchPathMax >= MAX_PATH);
+    // SHGetFolderPath requirement: path buffer >= MAX_LONGPATH chars
+    _ASSERTE(cchPathMax >= MAX_LONGPATH);
 
     HRESULT hr;
-    ULONG maxLength = MAX_PATH;
+    ULONG maxLength = MAX_LONGPATH;
     HMODULE _hmodShell32 = 0;
     HMODULE _hmodSHFolder = 0;
 
@@ -1465,16 +1504,16 @@ BOOL IsUsingValidAppDataPath(__in_z WCHAR *userPath)
     }
     CONTRACTL_END;
 
-    WCHAR defaultPath[MAX_PATH];
+    WCHAR defaultPath[MAX_LONGPATH];
     HRESULT hr;
     HANDLE hToken;
 
     hToken = (HANDLE)(-1);
 
-    hr = WszSHGetFolderPath(NULL, CSIDL_APPDATA, hToken, SHGFP_TYPE_CURRENT, MAX_PATH, defaultPath);
+    hr = WszSHGetFolderPath(NULL, CSIDL_APPDATA, hToken, SHGFP_TYPE_CURRENT, MAX_LONGPATH, defaultPath);
     if (FAILED(hr))
     {
-        hr = WszSHGetFolderPath(NULL, CSIDL_APPDATA, hToken, SHGFP_TYPE_DEFAULT, MAX_PATH, defaultPath);
+        hr = WszSHGetFolderPath(NULL, CSIDL_APPDATA, hToken, SHGFP_TYPE_DEFAULT, MAX_LONGPATH, defaultPath);
     }
     if (FAILED(hr))
         return FALSE;
@@ -1512,11 +1551,11 @@ BOOL GetUserDir(__out_ecount(bufferCount) WCHAR * buffer, size_t bufferCount, BO
     // In Windows ME, there is currently a bug that makes local appdata and roaming appdata 
     // point to the same location, so we've decided to "do our own thing" and add \Local Settings before \Application Data 
     if (!fRoaming) {
-        WCHAR appdatafolder[MAX_PATH];
-        hr = WszSHGetFolderPath(NULL, CSIDL_APPDATA|CSIDL_FLAG_CREATE, NULL, SHGFP_TYPE_CURRENT, MAX_PATH, appdatafolder);
+        WCHAR appdatafolder[MAX_LONGPATH];
+        hr = WszSHGetFolderPath(NULL, CSIDL_APPDATA|CSIDL_FLAG_CREATE, NULL, SHGFP_TYPE_CURRENT, MAX_LONGPATH, appdatafolder);
         if (FAILED(hr))
         {
-            hr = WszSHGetFolderPath(NULL, CSIDL_APPDATA|CSIDL_FLAG_CREATE, NULL, SHGFP_TYPE_DEFAULT, MAX_PATH, appdatafolder);
+            hr = WszSHGetFolderPath(NULL, CSIDL_APPDATA|CSIDL_FLAG_CREATE, NULL, SHGFP_TYPE_DEFAULT, MAX_LONGPATH, appdatafolder);
         }
         if (FAILED(hr))
             return FALSE;
@@ -1532,7 +1571,7 @@ BOOL GetUserDir(__out_ecount(bufferCount) WCHAR * buffer, size_t bufferCount, BO
 
         if (!wcscmp(appdatafolder, buffer)) 
         {
-            WCHAR tempPartialPath[MAX_PATH];
+            WCHAR tempPartialPath[MAX_LONGPATH];
             ULONG slen = (ULONG)wcslen(buffer);
 
             if (buffer[slen - 1] == W('\\'))
@@ -1706,7 +1745,7 @@ BOOL GetInternetCacheDir(__out_ecount(bufferCount) WCHAR * buffer, size_t buffer
     }
     CONTRACTL_END;
 
-    _ASSERTE( bufferCount == MAX_PATH && "You should pass in a buffer of size MAX_PATH" );
+    _ASSERTE( bufferCount == MAX_LONGPATH && "You should pass in a buffer of size MAX_LONGPATH" );
 
     HRESULT hr = WszSHGetFolderPath( NULL, CSIDL_INTERNET_CACHE, NULL, SHGFP_TYPE_CURRENT, bufferCount, buffer );
     if (FAILED(hr))
@@ -2050,10 +2089,11 @@ size_t GetIntelDeterministicCacheEnum()
     LIMITED_METHOD_CONTRACT;
     size_t retVal = 0;
     unsigned char buffer[16];
+    size_t buflen = ARRAYSIZE(buffer);
 
     DWORD maxCpuid = getextcpuid(0,0,buffer);
-
-    DWORD* dwBuffer = (DWORD*)buffer;
+    DWORD dwBuffer[4];
+    memcpy(dwBuffer, buffer, buflen);
 
     if( (maxCpuid > 3) && (maxCpuid < 0x80000000) ) // Deterministic Cache Enum is Supported
     {
@@ -2069,10 +2109,11 @@ size_t GetIntelDeterministicCacheEnum()
         // cache levels are supported.
 
         getextcpuid(loopECX, 4, buffer);       
+        memcpy(dwBuffer, buffer, buflen);
         retEAX = dwBuffer[0];       // get EAX
 
         int i = 0;
-        while(retEAX  & 0x1f)       // Crack cache enums and loop while EAX > 0
+        while(retEAX & 0x1f)       // Crack cache enums and loop while EAX > 0
         {
 
             dwCacheWays = (dwBuffer[1] & CACHE_WAY_BITS) >> 22;
@@ -2087,14 +2128,15 @@ size_t GetIntelDeterministicCacheEnum()
 
             loopECX++;
             getextcpuid(loopECX, 4, buffer);  
+            memcpy(dwBuffer, buffer, buflen);
             retEAX = dwBuffer[0] ;      // get EAX[4:0];        
             i++;
-            if (i > 16)                // prevent infinite looping
-                return 0;
+            if (i > 16) {               // prevent infinite looping
+              return 0;
+            }
         }
         retVal = maxSize;
     }
-
     return retVal ;
 }
 
@@ -2443,7 +2485,6 @@ size_t GetLargestOnDieCacheSize(BOOL bTrueSize)
         return maxSize;
 
 #else
-
     size_t cache_size = GetLogicalProcessorCacheSizeFromOS() ; // Returns the size of the highest level processor cache
     return cache_size;
 
@@ -3252,6 +3293,8 @@ BOOL GcNotifications::SetNotification(GcEvtArgs ev)
     return TRUE;
 }
 
+GARY_IMPL(size_t, g_clrNotificationArguments, MAX_CLR_NOTIFICATION_ARGS);
+
 #ifdef DACCESS_COMPILE
 
 GcNotification *GcNotifications::InitializeNotificationTable(UINT TableSize)
@@ -3275,11 +3318,18 @@ BOOL GcNotifications::UpdateOutOfProcTable()
 {
     return ::UpdateOutOfProcTable<GcNotification>(g_pGcNotificationTable, m_gcTable - 1, GetTableSize() + 1);
 }
-#endif // DACCESS_COMPILE
 
+#else // DACCESS_COMPILE
 
-void DACNotifyExceptionHelper(TADDR *args,UINT argCount)
+static CrstStatic g_clrNotificationCrst;
+
+void DACRaiseException(TADDR *args, UINT argCount)
 {
+    STATIC_CONTRACT_NOTHROW;
+    STATIC_CONTRACT_GC_NOTRIGGER;
+    STATIC_CONTRACT_MODE_ANY;
+    STATIC_CONTRACT_SO_TOLERANT;
+
     struct Param
     {
         TADDR *args;
@@ -3289,16 +3339,47 @@ void DACNotifyExceptionHelper(TADDR *args,UINT argCount)
     param.argCount = argCount;
 
     PAL_TRY(Param *, pParam, &param)
-    {  
-        if (IsDebuggerPresent() && !CORDebuggerAttached()) 
-        {
-            RaiseException(CLRDATA_NOTIFY_EXCEPTION, 0, pParam->argCount, (ULONG_PTR *) pParam->args);
-        }
+    {
+        RaiseException(CLRDATA_NOTIFY_EXCEPTION, 0, pParam->argCount, (ULONG_PTR *)pParam->args);
     }
     PAL_EXCEPT(EXCEPTION_EXECUTE_HANDLER)
-    {        
+    {
     }
     PAL_ENDTRY
+}
+
+void DACNotifyExceptionHelper(TADDR *args, UINT argCount)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        SO_INTOLERANT;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    _ASSERTE(argCount <= MAX_CLR_NOTIFICATION_ARGS);
+
+    if (IsDebuggerPresent() && !CORDebuggerAttached())
+    {
+        CrstHolder lh(&g_clrNotificationCrst);
+
+        for (UINT i = 0; i < argCount; i++)
+        {
+            g_clrNotificationArguments[i] = args[i];
+        }
+
+        DACRaiseException(args, argCount);
+
+        g_clrNotificationArguments[0] = NULL;
+    }
+}
+
+void InitializeClrNotifications()
+{
+    g_clrNotificationCrst.Init(CrstClrNotification, CRST_UNSAFE_ANYMODE);
+    g_clrNotificationArguments[0] = NULL;
 }
 
 // <TODO> FIX IN BETA 2
@@ -3320,23 +3401,64 @@ void DACNotifyExceptionHelper(TADDR *args,UINT argCount)
 #pragma warning(disable: 4748)
 #pragma optimize("", off)
 #endif  // _MSC_VER
-    // called from the runtime
+
+#if defined(FEATURE_GDBJIT)
+#include "gdbjit.h"
+__declspec(thread) bool tls_isSymReaderInProgress = false;
+#endif // FEATURE_GDBJIT
+
+// called from the runtime
 void DACNotify::DoJITNotification(MethodDesc *MethodDescPtr)
 {
-    WRAPPER_NO_CONTRACT;
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        SO_INTOLERANT;
+        MODE_PREEMPTIVE;
+    }
+    CONTRACTL_END;
+#if defined(FEATURE_GDBJIT) && defined(FEATURE_PAL) && !defined(CROSSGEN_COMPILE)
+    if(!tls_isSymReaderInProgress)
+    {
+        tls_isSymReaderInProgress = true;
+        NotifyGdb::MethodCompiled(MethodDescPtr);
+        tls_isSymReaderInProgress = false;
+    }
+#endif    
     TADDR Args[2] = { JIT_NOTIFICATION, (TADDR) MethodDescPtr };
-    DACNotifyExceptionHelper(Args,2);
+    DACNotifyExceptionHelper(Args, 2);
 }
 
 void DACNotify::DoJITDiscardNotification(MethodDesc *MethodDescPtr)
 {
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        SO_INTOLERANT;
+        MODE_PREEMPTIVE;
+    }
+    CONTRACTL_END;
+
+#if defined(FEATURE_GDBJIT) && defined(FEATURE_PAL) && !defined(CROSSGEN_COMPILE)
+    NotifyGdb::MethodDropped(MethodDescPtr);
+#endif    
     TADDR Args[2] = { JIT_DISCARD_NOTIFICATION, (TADDR) MethodDescPtr };
-    DACNotifyExceptionHelper(Args,2);
+    DACNotifyExceptionHelper(Args, 2);
 }    
    
 void DACNotify::DoModuleLoadNotification(Module *ModulePtr)
 {
-    WRAPPER_NO_CONTRACT;
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        SO_INTOLERANT;
+        MODE_PREEMPTIVE;
+    }
+    CONTRACTL_END;
+
     if ((g_dacNotificationFlags & CLRDATA_NOTIFY_ON_MODULE_LOAD) != 0)
     {
         TADDR Args[2] = { MODULE_LOAD_NOTIFICATION, (TADDR) ModulePtr};
@@ -3346,7 +3468,15 @@ void DACNotify::DoModuleLoadNotification(Module *ModulePtr)
 
 void DACNotify::DoModuleUnloadNotification(Module *ModulePtr)
 {
-    WRAPPER_NO_CONTRACT;
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        SO_INTOLERANT;
+        MODE_PREEMPTIVE;
+    }
+    CONTRACTL_END;
+
     if ((g_dacNotificationFlags & CLRDATA_NOTIFY_ON_MODULE_UNLOAD) != 0)
     {
         TADDR Args[2] = { MODULE_UNLOAD_NOTIFICATION, (TADDR) ModulePtr};
@@ -3356,6 +3486,15 @@ void DACNotify::DoModuleUnloadNotification(Module *ModulePtr)
 
 void DACNotify::DoExceptionNotification(Thread* ThreadPtr)
 {
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        SO_INTOLERANT;
+        MODE_PREEMPTIVE;
+    }
+    CONTRACTL_END;
+
     if ((g_dacNotificationFlags & CLRDATA_NOTIFY_ON_EXCEPTION) != 0)
     {
         TADDR Args[2] = { EXCEPTION_NOTIFICATION, (TADDR) ThreadPtr};
@@ -3365,7 +3504,15 @@ void DACNotify::DoExceptionNotification(Thread* ThreadPtr)
 
 void DACNotify::DoGCNotification(const GcEvtArgs& args)
 {
-    WRAPPER_NO_CONTRACT;
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        SO_INTOLERANT;
+        MODE_PREEMPTIVE;
+    }
+    CONTRACTL_END;
+
     if (args.typ == GC_MARK_END)
     {
         TADDR Args[3] = { GC_NOTIFICATION, (TADDR) args.typ, args.condemnedGeneration };
@@ -3375,7 +3522,15 @@ void DACNotify::DoGCNotification(const GcEvtArgs& args)
 
 void DACNotify::DoExceptionCatcherEnterNotification(MethodDesc *MethodDescPtr, DWORD nativeOffset)
 {
-    WRAPPER_NO_CONTRACT;
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        SO_INTOLERANT;
+        MODE_COOPERATIVE;
+    }
+    CONTRACTL_END;
+
     if ((g_dacNotificationFlags & CLRDATA_NOTIFY_ON_EXCEPTION_CATCH_ENTER) != 0)
     {
         TADDR Args[3] = { CATCH_ENTER_NOTIFICATION, (TADDR) MethodDescPtr, (TADDR)nativeOffset };
@@ -3389,7 +3544,9 @@ void DACNotify::DoExceptionCatcherEnterNotification(MethodDesc *MethodDescPtr, D
 #endif  // _MSC_VER
 // </TODO>
 
-    // called from the DAC
+#endif // DACCESS_COMPILE
+
+// called from the DAC
 int DACNotify::GetType(TADDR Args[])
 {
     // Type is an enum, and will thus fit into an int.

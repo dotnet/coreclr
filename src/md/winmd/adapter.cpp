@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 #include "stdafx.h"
 #include "sigparser.h"
 #include "sigbuilder.h"
@@ -158,7 +157,9 @@ HRESULT CheckIfWinMDAdapterNeeded(IMDCommon *pRawMDCommon)
         LPCSTR arefName;
         USHORT usMajorVersion;
         IfFailGo(pNewAdapter->m_pRawMetaModelCommonRO->CommonGetAssemblyRefProps(mdar, &usMajorVersion, NULL, NULL, NULL, NULL, NULL, NULL, &arefName, NULL, NULL, NULL));
-        if (0 == strcmp(arefName, "mscorlib"))
+        
+        // We check for legacy Core library name since Windows.winmd references mscorlib and not System.Private.CoreLib
+        if (0 == strcmp(arefName, LegacyCoreLibName_A))
         {
             pNewAdapter->m_assemblyRefMscorlib = mdar;
 

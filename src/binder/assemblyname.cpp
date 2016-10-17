@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ============================================================
 //
 // AssemblyName.cpp
@@ -117,7 +116,7 @@ namespace BINDER_SPACE
             assemblyName.Normalize();
 
             COUNT_T assemblyNameLength = assemblyName.GetCount();
-            if (assemblyNameLength == 0 || assemblyNameLength >= MAX_PATH)
+            if (assemblyNameLength == 0 || assemblyNameLength >= MAX_PATH_FNAME)
             {
                 IF_FAIL_GO(FUSION_E_INVALID_NAME);
             }
@@ -568,10 +567,10 @@ Exit:
             {
                 fEquals = EqualsCaseInsensitive(GetNormalizedCulture(), pAssemblyName->GetNormalizedCulture());
             }
-            if (fEquals && ((dwIncludeFlags & EXCLUDE_PUBLIC_KEY_TOKEN_IF_MISSING) == 0 ||
-                (pAssemblyName->Have(AssemblyIdentity::IDENTITY_FLAG_PUBLIC_KEY_TOKEN))))
+
+            if (fEquals && (dwIncludeFlags & INCLUDE_PUBLIC_KEY_TOKEN) != 0)
             {
-                    fEquals = (GetPublicKeyTokenBLOB().Equals(pAssemblyName->GetPublicKeyTokenBLOB()));
+                fEquals = (GetPublicKeyTokenBLOB().Equals(pAssemblyName->GetPublicKeyTokenBLOB()));
             }
             
             if (fEquals && ((dwIncludeFlags & INCLUDE_ARCHITECTURE) != 0))

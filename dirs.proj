@@ -4,7 +4,7 @@
 
   <ItemDefinitionGroup>
     <ProjectFile>
-      <ProductGroups>VS;FX</ProductGroups>
+      <ProductGroups>FX;PK</ProductGroups>
     </ProjectFile>
   </ItemDefinitionGroup>
 

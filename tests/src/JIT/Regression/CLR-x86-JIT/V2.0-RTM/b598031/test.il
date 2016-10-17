@@ -1,8 +1,14 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
-.assembly extern mscorlib {}
+.assembly extern mscorlib { }
+.assembly extern System.Console
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
 .assembly test {}
 .module test.exe
 
@@ -62,7 +68,7 @@
       IL_0004:  call       void Program::ThrowException(int32)
       IL_0009:  nop
       IL_000a:  ldstr      "Unexcepted result."
-      IL_000f:  call       void [mscorlib]System.Console::WriteLine(string)
+      IL_000f:  call       void [System.Console]System.Console::WriteLine(string)
       IL_0014:  nop
       IL_0015:  ldc.i4.1
       IL_0016:  stloc.0
@@ -74,7 +80,7 @@
       IL_0019:  pop
       IL_001a:  nop
       IL_001b:  ldstr      "Excepted result."
-      IL_0020:  call       void [mscorlib]System.Console::WriteLine(string)
+      IL_0020:  call       void [System.Console]System.Console::WriteLine(string)
       IL_0025:  nop
       IL_0026:  ldc.i4.s   100
       IL_0028:  stloc.0

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ===========================================================================
 // File: REJIT.INL
 //
@@ -40,25 +39,25 @@ inline ReJitInfo::ReJitInfo(PTR_Module pModule, mdMethodDef methodDef, SharedReJ
 }
 
 inline ReJitInfo::Key::Key() :
-    m_keyType(kUninitialized), 
     m_pMD(NULL),
-    m_methodDef(mdTokenNil)
+    m_methodDef(mdTokenNil),
+    m_keyType(kUninitialized)
 {
     LIMITED_METHOD_CONTRACT;
 }
 
 inline ReJitInfo::Key::Key(PTR_MethodDesc pMD) :
-    m_keyType(kMethodDesc), 
     m_pMD(dac_cast<TADDR>(pMD)),
-    m_methodDef(mdTokenNil)
+    m_methodDef(mdTokenNil),
+    m_keyType(kMethodDesc)
 {
     LIMITED_METHOD_CONTRACT;
 }
 
 inline ReJitInfo::Key::Key(PTR_Module pModule, mdMethodDef methodDef) :
-    m_keyType(kMetadataToken), 
     m_pModule(dac_cast<TADDR>(pModule)),
-    m_methodDef(methodDef)
+    m_methodDef(methodDef),
+    m_keyType(kMetadataToken)
 {
     LIMITED_METHOD_CONTRACT;
 }

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ****************************************************************************
 // File: funceval.cpp
 // 
@@ -2776,7 +2775,7 @@ void UnpackFuncEvalResult(DebuggerEval *pDE,
     {
         // We purposely do not morph nullables to be boxed Ts here because debugger EE's otherwise
         // have no way of creating true nullables that they need for their own purposes. 
-        pDE->m_result = ObjToArgSlot(newObj);
+        pDE->m_result[0] = ObjToArgSlot(newObj);
         pDE->m_retValueBoxing = Debugger::AllBoxed;
     }
     else if (!RetValueType.IsNull())
@@ -2804,12 +2803,12 @@ void UnpackFuncEvalResult(DebuggerEval *pDE,
         {
             // box the primitive returned, retObject is a true nullable for nullabes, It will be Normalized later
             CopyValueClass(retObject->GetData(),
-                           &(pDE->m_result),
+                           pDE->m_result,
                            RetValueType.GetMethodTable(),
                            retObject->GetAppDomain());
         }
 
-        pDE->m_result = ObjToArgSlot(retObject);
+        pDE->m_result[0] = ObjToArgSlot(retObject);
         pDE->m_retValueBoxing = Debugger::AllBoxed;
     }
     else
@@ -2834,8 +2833,8 @@ void UnpackFuncEvalResult(DebuggerEval *pDE,
         IsElementTypeSpecial(retClassET))
     {
         LOG((LF_CORDB, LL_EVERYTHING, "Creating strong handle for boxed DoNormalFuncEval result.\n"));
-        OBJECTHANDLE oh = pDE->m_thread->GetDomain()->CreateStrongHandle(ArgSlotToObj(pDE->m_result));
-        pDE->m_result = (INT64)(LONG_PTR)oh;
+        OBJECTHANDLE oh = pDE->m_thread->GetDomain()->CreateStrongHandle(ArgSlotToObj(pDE->m_result[0]));
+        pDE->m_result[0] = (INT64)(LONG_PTR)oh;
         pDE->m_vmObjectHandle = VMPTR_OBJECTHANDLE::MakePtr(oh);
     }
 }
@@ -2931,13 +2930,13 @@ void UnpackFuncEvalArguments(DebuggerEval *pDE,
  *    None.
  *
  */
-void FuncEvalWrapper(MethodDescCallSite* pMDCS, DebuggerEval *pDE, ARG_SLOT *pArguments, BYTE *pCatcherStackAddr)
+void FuncEvalWrapper(MethodDescCallSite* pMDCS, DebuggerEval *pDE, const ARG_SLOT *pArguments, BYTE *pCatcherStackAddr)
 {
     struct Param : NotifyOfCHFFilterWrapperParam
     {
         MethodDescCallSite* pMDCS;
         DebuggerEval *pDE;
-        ARG_SLOT *pArguments;
+        const ARG_SLOT *pArguments;
     }; 
     
     Param param;
@@ -2948,7 +2947,7 @@ void FuncEvalWrapper(MethodDescCallSite* pMDCS, DebuggerEval *pDE, ARG_SLOT *pAr
 
     PAL_TRY(Param *, pParam, &param)
     {
-        pParam->pDE->m_result = pParam->pMDCS->CallWithValueTypes_RetArgSlot(pParam->pArguments);
+        pParam->pMDCS->CallWithValueTypes_RetArgSlot(pParam->pArguments, pParam->pDE->m_result, sizeof(pParam->pDE->m_result));
     }
     PAL_EXCEPT_FILTER(NotifyOfCHFFilterWrapper)
     {
@@ -2961,7 +2960,7 @@ void FuncEvalWrapper(MethodDescCallSite* pMDCS, DebuggerEval *pDE, ARG_SLOT *pAr
 /*
  * RecordFuncEvalException
  *
- * Helper function records the details of an exception that occured during a FuncEval
+ * Helper function records the details of an exception that occurred during a FuncEval
  * Note that this should be called from within the target domain of the FuncEval.
  *
  * Parameters:
@@ -3004,13 +3003,12 @@ static void RecordFuncEvalException(DebuggerEval *pDE,
             //
             // This is the abort we sent down.
             //
-            pDE->m_result = NULL;
+            memset(pDE->m_result, 0, sizeof(pDE->m_result));
             pDE->m_resultType = TypeHandle();
             pDE->m_aborted = true;
             pDE->m_retValueBoxing = Debugger::NoValueTypeBoxing;
 
             LOG((LF_CORDB, LL_EVERYTHING, "D::FEHW - funceval abort exception.\n"));
-
         }
         else
         {
@@ -3023,11 +3021,11 @@ static void RecordFuncEvalException(DebuggerEval *pDE,
             //
             // The result is the exception object.
             //
-            pDE->m_result = ObjToArgSlot(ppException);
+            pDE->m_result[0] = ObjToArgSlot(ppException);
 
             pDE->m_resultType = ppException->GetTypeHandle();
-            OBJECTHANDLE oh = pDE->m_thread->GetDomain()->CreateStrongHandle(ArgSlotToObj(pDE->m_result));
-            pDE->m_result = (INT64)PTR_TO_CORDB_ADDRESS(oh);
+            OBJECTHANDLE oh = pDE->m_thread->GetDomain()->CreateStrongHandle(ArgSlotToObj(pDE->m_result[0]));
+            pDE->m_result[0] = (ARG_SLOT)PTR_TO_CORDB_ADDRESS(oh);
             pDE->m_vmObjectHandle = VMPTR_OBJECTHANDLE::MakePtr(oh);
             pDE->m_retValueBoxing = Debugger::NoValueTypeBoxing;
 
@@ -3036,15 +3034,14 @@ static void RecordFuncEvalException(DebuggerEval *pDE,
     }
     else
     {
-
         //
         // The result is the exception object.
         //
-        pDE->m_result = ObjToArgSlot(ppException);
+        pDE->m_result[0] = ObjToArgSlot(ppException);
 
         pDE->m_resultType = ppException->GetTypeHandle();
-        OBJECTHANDLE oh = pDE->m_thread->GetDomain()->CreateStrongHandle(ArgSlotToObj(pDE->m_result));
-        pDE->m_result = (INT64)(LONG_PTR)oh;
+        OBJECTHANDLE oh = pDE->m_thread->GetDomain()->CreateStrongHandle(ArgSlotToObj(pDE->m_result[0]));
+        pDE->m_result[0] = (ARG_SLOT)(LONG_PTR)oh;
         pDE->m_vmObjectHandle = VMPTR_OBJECTHANDLE::MakePtr(oh);
 
         pDE->m_retValueBoxing = Debugger::NoValueTypeBoxing;
@@ -3486,7 +3483,7 @@ static void GCProtectArgsAndDoNormalFuncEval(DebuggerEval *pDE,
         RecordFuncEvalException( pDE, ppException);
     }
     // Note: we need to catch all exceptioins here because they all get reported as the result of
-    // the funceval.  If a ThreadAbort occured other than for a funcEval abort, we'll re-throw it manually.
+    // the funceval.  If a ThreadAbort occurred other than for a funcEval abort, we'll re-throw it manually.
     EX_END_CATCH(SwallowAllExceptions);
 
     // Restore context
@@ -3598,7 +3595,7 @@ void FuncEvalHijackRealWorker(DebuggerEval *pDE, Thread* pThread, FuncEvalFrame*
 
                 // Make a strong handle for the result.
                 OBJECTHANDLE oh = pDE->m_thread->GetDomain()->CreateStrongHandle(newObj);
-                pDE->m_result = (INT64)(LONG_PTR)oh;
+                pDE->m_result[0] = (ARG_SLOT)(LONG_PTR)oh;
                 pDE->m_vmObjectHandle = VMPTR_OBJECTHANDLE::MakePtr(oh);
 
                 break;
@@ -3628,7 +3625,7 @@ void FuncEvalHijackRealWorker(DebuggerEval *pDE, Thread* pThread, FuncEvalFrame*
 
                 // Place the result in a strong handle to protect it from a collection.
                 OBJECTHANDLE oh = pDE->m_thread->GetDomain()->CreateStrongHandle(newObj);
-                pDE->m_result = (INT64)(LONG_PTR)oh;
+                pDE->m_result[0] = (ARG_SLOT)(LONG_PTR)oh;
                 pDE->m_vmObjectHandle = VMPTR_OBJECTHANDLE::MakePtr(oh);
 
                 break;
@@ -3674,7 +3671,7 @@ void FuncEvalHijackRealWorker(DebuggerEval *pDE, Thread* pThread, FuncEvalFrame*
 
                 // Place the result in a strong handle to protect it from a collection.
                 OBJECTHANDLE oh = pDE->m_thread->GetDomain()->CreateStrongHandle(newObj);
-                pDE->m_result = (INT64)(LONG_PTR)oh;
+                pDE->m_result[0] = (ARG_SLOT)(LONG_PTR)oh;
                 pDE->m_vmObjectHandle = VMPTR_OBJECTHANDLE::MakePtr(oh);
 
                 break;
@@ -3692,7 +3689,7 @@ void FuncEvalHijackRealWorker(DebuggerEval *pDE, Thread* pThread, FuncEvalFrame*
         RecordFuncEvalException( pDE, ppException);
     }
     // Note: we need to catch all exceptioins here because they all get reported as the result of
-    // the funceval.  If a ThreadAbort occured other than for a funcEval abort, we'll re-throw it manually.
+    // the funceval.  If a ThreadAbort occurred other than for a funcEval abort, we'll re-throw it manually.
     EX_END_CATCH(SwallowAllExceptions);
 
     GCPROTECT_END();
@@ -3872,21 +3869,12 @@ void * STDCALL FuncEvalHijackWorker(DebuggerEval *pDE)
     if (!pDE->m_evalDuringException)
     {
         // Signal to the helper thread that we're done with our func eval.  Start by creating a DebuggerFuncEvalComplete
-        // object. Give it an address at which to create the patch, which is a chunk of memory inside of our
+        // object. Give it an address at which to create the patch, which is a chunk of memory specified by our
         // DebuggerEval big enough to hold a breakpoint instruction.
 #ifdef _TARGET_ARM_
-        dest = (BYTE*)((DWORD)&(pDE->m_breakpointInstruction) | THUMB_CODE);
+        dest = (BYTE*)((DWORD)&(pDE->m_bpInfoSegment->m_breakpointInstruction) | THUMB_CODE);
 #else
-        dest = &(pDE->m_breakpointInstruction);
-#endif
-
-        // Here is kind of a cheat... we make sure that the address that we patch and jump to is actually also the ptr
-        // to our DebuggerEval. This works because m_breakpointInstruction is the first field of the DebuggerEval
-        // struct.
-#ifdef _TARGET_ARM_
-        _ASSERTE((((DWORD)dest) & ~THUMB_CODE) == (DWORD)pDE);
-#else
-        _ASSERTE(dest == pDE);
+        dest = &(pDE->m_bpInfoSegment->m_breakpointInstruction);
 #endif
 
         //
@@ -3954,7 +3942,7 @@ void * STDCALL FuncEvalHijackWorker(DebuggerEval *pDE)
 }
 
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(FEATURE_PAL)
 
 EXTERN_C EXCEPTION_DISPOSITION
 FuncEvalHijackPersonalityRoutine(IN     PEXCEPTION_RECORD   pExceptionRecord
@@ -3972,6 +3960,12 @@ FuncEvalHijackPersonalityRoutine(IN     PEXCEPTION_RECORD   pExceptionRecord
     // in FuncEvalHijack we allocate 8 bytes of stack space and then store R0 at the current SP, so if we subtract 8 from
     // the establisher frame we can get the stack location where R0 was stored.
     pDE = *(DebuggerEval**)(pDispatcherContext->EstablisherFrame - 8);
+
+#elif defined(_TARGET_ARM64_)
+    // on ARM64 the establisher frame is the SP of the caller of FuncEvalHijack.
+    // in FuncEvalHijack we allocate 32 bytes of stack space and then store R0 at the current SP + 16, so if we subtract 16 from
+    // the establisher frame we can get the stack location where R0 was stored.
+    pDE = *(DebuggerEval**)(pDispatcherContext->EstablisherFrame - 16);
 #else
     _ASSERTE(!"NYI - FuncEvalHijackPersonalityRoutine()");
 #endif
@@ -3985,6 +3979,6 @@ FuncEvalHijackPersonalityRoutine(IN     PEXCEPTION_RECORD   pExceptionRecord
 }
 
 
-#endif // WIN64EXCEPTIONS
+#endif // WIN64EXCEPTIONS && !FEATURE_PAL
 
 #endif // ifndef DACCESS_COMPILE

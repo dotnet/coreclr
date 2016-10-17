@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // EEConfig.CPP
 //
 
@@ -33,6 +32,9 @@
 #include "clr/fs/path.h"
 #ifdef FEATURE_WIN_DB_APPCOMPAT
 #include "QuirksApi.h"
+#endif
+#ifdef FEATURE_CORECLR
+#include "configuration.h"
 #endif
 
 using namespace clr;
@@ -238,6 +240,8 @@ HRESULT EEConfig::Init()
     iGCForceCompact = 0;
     iGCHoardVM = 0;
     iGCLOHCompactionMode = 0;
+    iGCHeapCount = 0;
+    iGCNoAffinitize = 0;
 
 #ifdef GCTRIMCOMMIT
     iGCTrimCommit = 0;
@@ -509,6 +513,9 @@ HRESULT EEConfig::Cleanup()
     
     if (pRequireZapsExcludeList)
         delete pRequireZapsExcludeList;
+
+    if (pReadyToRunExcludeList)
+        delete pReadyToRunExcludeList;
 
 #ifdef _DEBUG
     if (pForbidZapsList)
@@ -790,10 +797,26 @@ HRESULT EEConfig::sync()
         g_fEnableARM = TRUE;
     }
 
-    int forceGCconcurrent = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_gcConcurrent);
-    if ((forceGCconcurrent > 0) || (forceGCconcurrent == -1 && g_IGCconcurrent))
+    bool gcConcurrentWasForced = false;
+#ifdef FEATURE_CORECLR
+    // The CLRConfig value for UNSUPPORTED_gcConcurrent defaults to -1, and treats any
+    // positive value as 'forcing' concurrent GC to be on. Because the standard logic
+    // for mapping a DWORD CLRConfig to a boolean configuration treats -1 as true (just
+    // like any other nonzero value), we will explicitly check the DWORD later if this
+    // check returns false.
+    gcConcurrentWasForced = Configuration::GetKnobBooleanValue(W("System.GC.Concurrent"), false);
+#endif
+
+    int gcConcurrentConfigVal = 0;
+    if (!gcConcurrentWasForced)
+    {
+        gcConcurrentConfigVal = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_gcConcurrent);
+        gcConcurrentWasForced = (gcConcurrentConfigVal > 0);
+    }
+
+    if (gcConcurrentWasForced || (gcConcurrentConfigVal == -1 && g_IGCconcurrent))
         iGCconcurrent = TRUE;
-    
+
     // Disable concurrent GC during ngen for the rare case a GC gets triggered, causing problems
     if (IsCompilationProcess())
         iGCconcurrent = FALSE;
@@ -836,12 +859,12 @@ HRESULT EEConfig::sync()
             {
                 bGCStressAndHeapVerifyAllowed = false;
                 
-                WCHAR wszFileName[_MAX_PATH];
-                if (WszGetModuleFileName(NULL, wszFileName, _MAX_PATH) != 0)
+                PathString wszFileName;
+                if (WszGetModuleFileName(NULL, wszFileName) != 0)
                 {
                     // just keep the name
-                    LPWSTR pwszName = wcsrchr(wszFileName, W('\\'));
-                    pwszName = (pwszName == NULL) ? wszFileName : (pwszName + 1);
+                    LPCWSTR pwszName = wcsrchr(wszFileName, W('\\'));
+                    pwszName = (pwszName == NULL) ? wszFileName.GetUnicode() : (pwszName + 1);
                     
                     if (SString::_wcsicmp(pwszName,pszGCStressExe) == 0)
                     {
@@ -854,7 +877,7 @@ HRESULT EEConfig::sync()
 
         if (bGCStressAndHeapVerifyAllowed)
         {
-            if (forceGCconcurrent > 0)
+            if (gcConcurrentWasForced)
             {
 #ifdef _DEBUG
                 iFastGCStress = 0;
@@ -902,7 +925,7 @@ HRESULT EEConfig::sync()
     if (g_IGCHoardVM)
         iGCHoardVM = g_IGCHoardVM;
     else
-        iGCHoardVM = GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_GCRetainVM, iGCHoardVM);
+        iGCHoardVM = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_GCRetainVM);
 
     if (!iGCLOHCompactionMode) iGCLOHCompactionMode = GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_GCLOHCompact, iGCLOHCompactionMode);
 
@@ -952,6 +975,14 @@ HRESULT EEConfig::sync()
 #endif
 
     iGCForceCompact     =  GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_gcForceCompact, iGCForceCompact);
+#ifdef FEATURE_CORECLR
+    iGCNoAffinitize = Configuration::GetKnobBooleanValue(W("System.GC.NoAffinitize"), 
+                                                         CLRConfig::UNSUPPORTED_GCNoAffinitize);
+    iGCHeapCount = Configuration::GetKnobDWORDValue(W("System.GC.HeapCount"), CLRConfig::UNSUPPORTED_GCHeapCount);
+#else
+    iGCNoAffinitize = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_GCNoAffinitize);
+    iGCHeapCount = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_GCHeapCount);
+#endif
 
     fStressLog        =  GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_StressLog, fStressLog) != 0;
     fForceEnc         =  GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_ForceEnc, fForceEnc) != 0;
@@ -980,6 +1011,17 @@ HRESULT EEConfig::sync()
                 pRequireZapsExcludeList = new AssemblyNamesList(wszZapRequireExcludeList);
         }
     }
+
+    pReadyToRunExcludeList = NULL;
+#if defined(FEATURE_READYTORUN)
+    if (ReadyToRunInfo::IsReadyToRunEnabled())
+    {
+        NewArrayHolder<WCHAR> wszReadyToRunExcludeList;
+        IfFailRet(CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_ReadyToRunExcludeList, &wszReadyToRunExcludeList));
+        if (wszReadyToRunExcludeList)
+            pReadyToRunExcludeList = new AssemblyNamesList(wszReadyToRunExcludeList);
+    }
+#endif // defined(FEATURE_READYTORUN)
 
 #ifdef _DEBUG
     iForbidZaps     = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_NgenBind_ZapForbid) != 0;
@@ -1620,46 +1662,62 @@ HRESULT EEConfig::SetupConfiguration()
     // AppX process check to make sure no app.config file
     // exists unless launched with AO_DESIGNMODE.
     // ----------------------------------------------------
+    
+    do
     {
-        WCHAR wzProcExe[_MAX_PATH];
-        size_t cchProcExe = COUNTOF(wzProcExe);
-
-        // Get name of file used to create process
-        if (g_pCachedModuleFileName)
+        size_t cchProcExe=0;
+        PathString wzProcExe;
+        EX_TRY
         {
-            IfFailRet(StringCchCopy(wzProcExe, COUNTOF(wzProcExe), g_pCachedModuleFileName));
-            IfFailRet(StringCchLength(wzProcExe, COUNTOF(wzProcExe), &cchProcExe));
-        }
-        else
-        {
-            cchProcExe = WszGetModuleFileName(NULL, wzProcExe, COUNTOF(wzProcExe));
 
-            if (cchProcExe == 0)
+
+
+            // Get name of file used to create process
+            if (g_pCachedModuleFileName)
             {
-                return HRESULT_FROM_GetLastError();
+                wzProcExe.Set(g_pCachedModuleFileName);
+                cchProcExe = wzProcExe.GetCount();
             }
-        }
-
-        if (cchProcExe != 0)
-        {
-            IfFailRet(StringCchCat(wzProcExe, COUNTOF(wzProcExe), CONFIGURATION_EXTENSION));
-
-            if (AppX::IsAppXProcess() && !AppX::IsAppXDesignMode())
+            else
             {
-                if (clr::fs::Path::Exists(wzProcExe))
+                cchProcExe = WszGetModuleFileName(NULL, wzProcExe);
+
+                if (cchProcExe == 0)
                 {
-                    return CLR_E_APP_CONFIG_NOT_ALLOWED_IN_APPX_PROCESS;
+                    hr = HRESULT_FROM_GetLastError();
+                    break;
                 }
             }
 
+            if (cchProcExe != 0)
+            {
+                wzProcExe.Append(CONFIGURATION_EXTENSION);
+
+                if (AppX::IsAppXProcess() && !AppX::IsAppXDesignMode())
+                {
+                    if (clr::fs::Path::Exists(wzProcExe))
+                    {
+                        hr = CLR_E_APP_CONFIG_NOT_ALLOWED_IN_APPX_PROCESS;
+                        break;
+                    }
+                }
+            }
+        }
+        EX_CATCH_HRESULT(hr);
+        if (cchProcExe != 0)
+        {
             IfFailParseError(wzProcExe, true, AppendConfigurationFile(wzProcExe, version));
 
             // We really should return a failure hresult if the app config file is bad, but that
             // would be a breaking change. Not sure if it's worth it yet.
             hr = S_OK;
+            break;
         }
-    }
+    } while (false);
+    
 
+    if (hr != S_OK)
+        return hr;
     // ----------------------------------------------------
     // Import machine.config, if needed.
     // ----------------------------------------------------
@@ -1838,6 +1896,16 @@ bool EEConfig::ForbidZap(LPCUTF8 assemblyName) const
     return false;
 }
 #endif
+
+bool EEConfig::ExcludeReadyToRun(LPCUTF8 assemblyName) const
+{
+    LIMITED_METHOD_CONTRACT;
+
+    if (pReadyToRunExcludeList != NULL && pReadyToRunExcludeList->IsInList(assemblyName))
+        return true;
+
+    return false;
+}
 
 #ifdef _TARGET_AMD64_
 bool EEConfig::DisableNativeImageLoad(LPCUTF8 assemblyName) const

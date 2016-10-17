@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 #include "common.h"
@@ -909,7 +908,6 @@ void FillExceptionData(ExceptionData* pedata, IErrorInfo* pErrInfo, IRestrictedE
 }
 #endif // CROSSGEN_COMPILE
 
-#ifndef FEATURE_CORECLR
 //---------------------------------------------------------------------------
 //returns true if pImport has DefaultDllImportSearchPathsAttribute
 //if true, also returns dllImportSearchPathFlag and searchAssemblyDirectory values.
@@ -946,7 +944,6 @@ BOOL GetDefaultDllImportSearchPathsAttributeValue(IMDInternalImport *pImport, md
     *pDllImportSearchPathFlag = args[0].val.u4;
     return TRUE;
 }
-#endif // !FEATURE_CORECLR
 
 
 //---------------------------------------------------------------------------
@@ -1446,7 +1443,7 @@ void SafeRelease_OnException(IUnknown* pUnk, RCW* pRCW
 #endif  // MDA_SUPPORTED
 
 #ifdef FEATURE_COMINTEROP
-    LogInterop(W("An exception occured during release"));
+    LogInterop(W("An exception occurred during release"));
     LogInteropLeak(pUnk);
 #endif // FEATURE_COMINTEROP
 
@@ -2133,7 +2130,7 @@ void MinorCleanupSyncBlockComData(InteropSyncBlockInfo* pInteropInfo)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION( GCHeap::IsGCInProgress() || ( (g_fEEShutDown & ShutDown_SyncBlock) && g_fProcessDetach ) );
+        PRECONDITION( GCHeapUtilities::IsGCInProgress() || ( (g_fEEShutDown & ShutDown_SyncBlock) && g_fProcessDetach ) );
     }
     CONTRACTL_END;
 
@@ -2709,7 +2706,7 @@ HRESULT ClrSafeArrayGetVartype(SAFEARRAY *psa, VARTYPE *pvt)
 //--------------------------------------------------------------------------------
 // // safe VariantChangeType
 // Release helper, enables and disables GC during call-outs
-HRESULT SafeVariantChangeType(VARIANT* pVarRes, VARIANT* pVarSrc,
+HRESULT SafeVariantChangeType(_Inout_ VARIANT* pVarRes, _In_ VARIANT* pVarSrc,
                               unsigned short wFlags, VARTYPE vt)
 {
     CONTRACTL
@@ -2745,7 +2742,7 @@ HRESULT SafeVariantChangeType(VARIANT* pVarRes, VARIANT* pVarSrc,
 }
 
 //--------------------------------------------------------------------------------
-HRESULT SafeVariantChangeTypeEx(VARIANT* pVarRes, VARIANT* pVarSrc,
+HRESULT SafeVariantChangeTypeEx(_Inout_ VARIANT* pVarRes, _In_ VARIANT* pVarSrc,
                           LCID lcid, unsigned short wFlags, VARTYPE vt)
 {
     CONTRACTL
@@ -2815,7 +2812,7 @@ void SafeReleaseStream(IStream *pStream)
     
 #ifdef _DEBUG          
         wchar_t      logStr[200];
-        swprintf_s(logStr, NumItems(logStr), W("Object gone: CoReleaseMarshalData returned %x, file %s, line %d\n"), hr, __FILE__, __LINE__);
+        swprintf_s(logStr, NumItems(logStr), W("Object gone: CoReleaseMarshalData returned %x, file %S, line %d\n"), hr, __FILE__, __LINE__);
         LogInterop(logStr);
         if (hr != S_OK)
         {
@@ -2825,7 +2822,7 @@ void SafeReleaseStream(IStream *pStream)
             ULARGE_INTEGER li2;
             pStream->Seek(li, STREAM_SEEK_SET, &li2);
             hr = CoReleaseMarshalData(pStream);
-            swprintf_s(logStr, NumItems(logStr), W("Object gone: CoReleaseMarshalData returned %x, file %s, line %d\n"), hr, __FILE__, __LINE__);
+            swprintf_s(logStr, NumItems(logStr), W("Object gone: CoReleaseMarshalData returned %x, file %S, line %d\n"), hr, __FILE__, __LINE__);
             LogInterop(logStr);
         }
 #endif
@@ -5183,7 +5180,7 @@ void GetComClassFromCLSID(REFCLSID clsid, STRINGREF srefServer, OBJECTREF *pRef)
     _ASSERTE(*pRef != NULL);
 }
 
-void GetComClassHelper(OBJECTREF *pRef, EEClassFactoryInfoHashTable *pClassFactHash, ClassFactoryInfo *pClassFactInfo, __in_opt __in_z WCHAR *wszProgID)
+void GetComClassHelper(OBJECTREF *pRef, EEClassFactoryInfoHashTable *pClassFactHash, ClassFactoryInfo *pClassFactInfo, __in_opt WCHAR *wszProgID)
 {
     CONTRACTL
     {
@@ -5316,18 +5313,6 @@ ClassFactoryBase *GetComClassFactory(MethodTable* pClassMT)
         }
         else
         {
-#ifdef FEATURE_WINDOWSPHONE
-            //
-            // On the phone, anyone can activate WinRT objects, but only platform code can do legacy COM interop.  
-            // (Hosts can override this.)
-            //
-            if (!pClassMT->GetModule()->GetFile()->GetAssembly()->IsProfileAssembly() &&
-                !GetAppDomain()->EnablePInvokeAndClassicComInterop())
-            {
-                COMPlusThrow(kNotSupportedException, W("NotSupported_UserCOM"));
-            }
-#endif //FEATURE_WINDOWSPHONE
-
             GUID guid;
             pClassMT->GetGuid(&guid, TRUE);
 
@@ -5397,9 +5382,7 @@ TypeHandle GetWinRTType(SString* ssTypeName, BOOL bThrowIfNotFound)
 
     SString ssAssemblyName(SString::Utf8Literal, "WindowsRuntimeAssemblyName, ContentType=WindowsRuntime");
     DomainAssembly *pAssembly = LoadDomainAssembly(&ssAssemblyName, NULL, 
-#ifdef FEATURE_HOSTED_BINDER
                                                    NULL, 
-#endif
                                                    bThrowIfNotFound, FALSE, ssTypeName);
     if (pAssembly != NULL)
     {

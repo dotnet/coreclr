@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // --------------------------------------------------------------------------------
 // PEFile.cpp
 // 
@@ -56,7 +55,7 @@ SVAL_IMPL_INIT(DWORD, PEFile, s_NGENDebugFlags, 0);
 
 #include "sha1.h"
 
-#if defined(FEATURE_HOSTED_BINDER) && defined(FEATURE_FUSION)
+#if defined(FEATURE_FUSION)
 #include "clrprivbinderfusion.h"
 #include "clrprivbinderappx.h"
 #include "clrprivbinderloadfile.h" 
@@ -99,9 +98,10 @@ PEFile::PEFile(PEImage *identity, BOOL fCheckAuthenticodeSignature/*=TRUE*/) :
     ,m_pSecurityManager(NULL)
     ,m_securityManagerLock(CrstPEFileSecurityManager)
 #endif // FEATURE_CAS_POLICY
-#ifdef FEATURE_HOSTED_BINDER
     ,m_pHostAssembly(nullptr)
-#endif // FEATURE_HOSTED_BINDER
+#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
+    ,m_pFallbackLoadContextBinder(nullptr)
+#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
 {
     CONTRACTL
     {
@@ -177,12 +177,10 @@ PEFile::~PEFile()
         CoTaskMemFree(m_certificate);
 #endif // FEATURE_CAS_POLICY
 
-#ifdef FEATURE_HOSTED_BINDER
     if (m_pHostAssembly != NULL)
     {
         m_pHostAssembly->Release();
     }
-#endif
 }
 
 #ifndef  DACCESS_COMPILE
@@ -266,62 +264,6 @@ BOOL PEFile::CanLoadLibrary()
     // Otherwise, we can only load if IL only.
     return IsILOnly();
 }
-
-
-#ifdef FEATURE_CORECLR
-void PEFile::ValidateImagePlatformNeutrality()
-{
-    STANDARD_VM_CONTRACT;
-
-    //--------------------------------------------------------------------------------
-    // There are no useful applications of the "/platform" switch for CoreCLR.
-    // CoreCLR will do the conservative thing and by default only accept appbase assemblies
-    // compiled with "/platform:anycpu" (or no "/platform" switch at all.)
-    // However, with hosting flags it is possible to suppress this check and allow
-    // platform specific assemblies. This was primarily added to support C++/CLI
-    // generated assemblies build with /CLR:PURE flags. This was a need for the CoreSystem
-    // server work.
-    //
-    // We do allow Platform assemblies to have platform specific code (because they
-    // in fact do have such code.   
-    //--------------------------------------------------------------------------------
-    if (!(GetAssembly()->IsProfileAssembly()) && !GetAppDomain()->AllowPlatformSpecificAppAssemblies())
-    {
-        
-        DWORD machine, kind;
-        BOOL fMachineOk,fPlatformFlagsOk;
-
-#ifdef FEATURE_TREAT_NI_AS_MSIL_DURING_DIAGNOSTICS
-        if (ShouldTreatNIAsMSIL() && GetILimage()->HasNativeHeader())
-        {
-            GetILimage()->GetNativeILPEKindAndMachine(&kind, &machine);                 
-        }
-        else       
-#endif // FEATURE_TREAT_NI_AS_MSIL_DURING_DIAGNOSTICS
-        {
-            //The following function gets the kind and machine given by the IL image. 
-            //In the case of NGened images- It gets the original kind and machine of the IL image
-            //from the copy maintained by  NI
-            GetPEKindAndMachine(&kind, &machine);       
-        } 
-        
-        fMachineOk = (machine == IMAGE_FILE_MACHINE_I386);
-        fPlatformFlagsOk = ((kind & (peILonly | pe32Plus | pe32BitRequired)) == peILonly);
-        
-#ifdef FEATURE_LEGACYNETCF
-        if (GetAppDomain()->GetAppDomainCompatMode() == BaseDomain::APPDOMAINCOMPAT_APP_EARLIER_THAN_WP8)
-            fPlatformFlagsOk = ((kind & (peILonly | pe32Plus)) == peILonly);
-#endif
-
-        if (!(fMachineOk &&
-              fPlatformFlagsOk))
-        {
-            // This exception matches what the desktop OS hook throws - unfortunate that this is so undescriptive.
-            COMPlusThrowHR(COR_E_BADIMAGEFORMAT);
-        }
-    }
-}
-#endif
 
 #ifdef FEATURE_MIXEDMODE
 
@@ -560,16 +502,8 @@ static void ValidatePEFileMachineType(PEFile *peFile)
     if (actualMachineType == IMAGE_FILE_MACHINE_I386 && ((peKind & (peILonly | pe32BitRequired)) == peILonly))
         return;    // Image is marked CPU-agnostic.
 
-    if (actualMachineType != IMAGE_FILE_MACHINE_NATIVE)
+    if (actualMachineType != IMAGE_FILE_MACHINE_NATIVE && actualMachineType != IMAGE_FILE_MACHINE_NATIVE_NI)
     {
-#ifdef FEATURE_LEGACYNETCF
-        if (GetAppDomain()->GetAppDomainCompatMode() == BaseDomain::APPDOMAINCOMPAT_APP_EARLIER_THAN_WP8)
-        {
-            if (actualMachineType == IMAGE_FILE_MACHINE_I386 && ((peKind & peILonly)) == peILonly)
-                return;
-        }
-#endif
-
 #ifdef _TARGET_AMD64_
         // v4.0 64-bit compatibility workaround. The 64-bit v4.0 CLR's Reflection.Load(byte[]) api does not detect cpu-matches. We should consider fixing that in
         // the next SxS release. In the meantime, this bypass will retain compat for 64-bit v4.0 CLR for target platforms that existed at the time.
@@ -609,11 +543,6 @@ void PEFile::LoadLibrary(BOOL allowNativeSkip/*=TRUE*/) // if allowNativeSkip==F
     // See if we've already loaded it.
     if (CheckLoaded(allowNativeSkip))
     {
-#ifdef FEATURE_CORECLR
-        if (!IsResource() && !IsDynamic())
-            ValidateImagePlatformNeutrality();
-#endif //FEATURE_CORECLR
-
 #ifdef FEATURE_MIXEDMODE
         // Prevent loading C++/CLI images into multiple runtimes in the same process. Note that if ILOnly images
         // stop being LoadLibrary'ed, the check for pure 2.0 C++/CLI images will need to be done somewhere else.
@@ -631,10 +560,6 @@ void PEFile::LoadLibrary(BOOL allowNativeSkip/*=TRUE*/) // if allowNativeSkip==F
         GetILimage()->LoadNoMetaData(IsIntrospectionOnly());
         RETURN;
     }
-
-#ifdef FEATURE_CORECLR
-    ValidateImagePlatformNeutrality();
-#endif //FEATURE_CORECLR
 
 #if !defined(_WIN64)
     if (!HasNativeImage() && (!GetILimage()->Has32BitNTHeaders()) && !IsIntrospectionOnly())
@@ -820,7 +745,6 @@ BOOL PEFile::Equals(PEFile *pFile)
         return FALSE;
     }
 
-#ifdef FEATURE_HOSTED_BINDER
     // Different host assemblies cannot be equal unless they are associated with the same host binder
     // It's ok if only one has a host binder because multiple threads can race to load the same assembly
     // and that may cause temporary candidate PEAssembly objects that never get bound to a host assembly
@@ -839,8 +763,6 @@ BOOL PEFile::Equals(PEFile *pFile)
             return FALSE;
 
     }
-#endif // FEATURE_HOSTED_BINDER
-
 
     // Same identity is equal
     if (m_identity != NULL && pFile->m_identity != NULL
@@ -1291,8 +1213,8 @@ void PEFile::ConvertMetadataToRWForEnC()
     CONTRACTL_END;
 
     // This should only ever be called on EnC capable files.
-    _ASSERTE(Module::IsEditAndContinueCapable(this));
-
+    // One can check this using Module::IsEditAndContinueCapable().
+    
     // This should only be called if we're debugging, stopped, and on the helper thread.
     _ASSERTE(CORDebuggerAttached());
     _ASSERTE((g_pDebugInterface != NULL) && g_pDebugInterface->ThisIsHelperThread());
@@ -1681,6 +1603,17 @@ void PEFile::SetNativeImage(PEImage *image)
     m_nativeImage->Load();
     m_nativeImage->AllocateLazyCOWPages();
 
+#if defined(_TARGET_AMD64_) && !defined(CROSSGEN_COMPILE)
+    static ConfigDWORD configNGenReserveForJumpStubs;
+    int percentReserveForJumpStubs = configNGenReserveForJumpStubs.val(CLRConfig::INTERNAL_NGenReserveForJumpStubs);
+    if (percentReserveForJumpStubs != 0)
+    {
+        PEImageLayout * pLayout = image->GetLoadedLayout();
+        ExecutionManager::GetEEJitManager()->EnsureJumpStubReserve((BYTE *)pLayout->GetBase(), pLayout->GetVirtualSize(),
+            percentReserveForJumpStubs * (pLayout->GetVirtualSize() / 100));
+    }
+#endif
+
     ExternalLog(LL_INFO100, W("Attempting to use native image %s."), image->GetPath().GetUnicode());
     RETURN;
 }
@@ -1811,11 +1744,11 @@ static void RuntimeVerifyLog(DWORD level, LoggableAssembly *pLogAsm, const WCHAR
 static const LPCWSTR CorCompileRuntimeDllNames[NUM_RUNTIME_DLLS] =
 {
 #ifdef FEATURE_CORECLR
-    MAKEDLLNAME_W(W("CORECLR"))
+    MAKEDLLNAME_W(W("coreclr")),
 #else
     MAKEDLLNAME_W(W("CLR")),
-    MAKEDLLNAME_W(W("CLRJIT"))
 #endif
+    MAKEDLLNAME_W(W("clrjit"))
 };
 
 #if !defined(FEATURE_CORECLR) && !defined(CROSSGEN_COMPILE)
@@ -1891,7 +1824,7 @@ extern HMODULE CorCompileGetRuntimeDll(CorCompileRuntimeDlls id)
 
     // Currently special cased for every entry.
 #ifdef FEATURE_CORECLR
-    static_assert_no_msg(NUM_RUNTIME_DLLS == 1);
+    static_assert_no_msg(NUM_RUNTIME_DLLS == 2);
     static_assert_no_msg(CORECLR_INFO == 0);
 #else // !FEATURE_CORECLR
     static_assert_no_msg(NUM_RUNTIME_DLLS == 2);
@@ -2054,7 +1987,7 @@ BOOL PEAssembly::CheckNativeImageVersion(PEImage *peimage)
         CorCompileConfigFlags instrumentationConfigFlags = (CorCompileConfigFlags) (configFlags & CORCOMPILE_CONFIG_INSTRUMENTATION);
         if ((info->wConfigFlags & instrumentationConfigFlags) != instrumentationConfigFlags)
         {
-            ExternalLog(LL_ERROR, "Instrumented native image for Mscorlib.dll expected.");
+            ExternalLog(LL_ERROR, "Instrumented native image for System.Private.CoreLib.dll expected.");
             ThrowHR(COR_E_NI_AND_RUNTIME_VERSION_MISMATCH);
         }
     }
@@ -2146,7 +2079,7 @@ BOOL RuntimeVerifyNativeImageVersion(const CORCOMPILE_VERSION_INFO *info, Loggab
     // Check processor
     //
 
-    if (info->wMachine != IMAGE_FILE_MACHINE_NATIVE)
+    if (info->wMachine != IMAGE_FILE_MACHINE_NATIVE_NI)
     {
         RuntimeVerifyLog(LL_ERROR, pLogAsm, W("Processor type recorded in native image doesn't match this machine's processor."));
         return FALSE;
@@ -2403,6 +2336,12 @@ void PEFile::GetNGENDebugFlags(BOOL *fAllowOpt)
 BOOL PEFile::ShouldTreatNIAsMSIL()
 {
     LIMITED_METHOD_CONTRACT;
+
+    // Never use fragile native image content during ReadyToRun compilation. It would
+    // produces non-version resilient images because of wrong cached values for 
+    // MethodTable::IsLayoutFixedInCurrentVersionBubble, etc.
+    if (IsReadyToRunCompilation())
+        return TRUE;
 
     // Ask profiling API & config vars whether NGENd images should be avoided
     // completely.
@@ -3040,22 +2979,14 @@ PEAssembly::PEAssembly(
                 IMetaDataEmit* pEmit, 
                 PEFile *creator, 
                 BOOL system,
-                BOOL introspectionOnly/*=FALSE*/
-#ifdef FEATURE_HOSTED_BINDER
-                ,
+                BOOL introspectionOnly/*=FALSE*/,
                 PEImage * pPEImageIL /*= NULL*/,
                 PEImage * pPEImageNI /*= NULL*/,
-                ICLRPrivAssembly * pHostAssembly /*= NULL*/
-#endif
-                )
+                ICLRPrivAssembly * pHostAssembly /*= NULL*/)
 
   : PEFile(pBindResultInfo ? (pBindResultInfo->GetPEImage() ? pBindResultInfo->GetPEImage() : 
                                                               (pBindResultInfo->HasNativeImage() ? pBindResultInfo->GetNativeImage() : NULL)
-#ifdef FEATURE_HOSTED_BINDER
                               ): pPEImageIL? pPEImageIL:(pPEImageNI? pPEImageNI:NULL), FALSE),
-#else
-                              ): NULL, FALSE),
-#endif
     m_creator(clr::SafeAddRef(creator)),
     m_bIsFromGAC(FALSE),
     m_bIsOnTpaList(FALSE)
@@ -3070,9 +3001,7 @@ PEAssembly::PEAssembly(
         CONSTRUCTOR_CHECK;
         PRECONDITION(CheckPointer(pEmit, NULL_OK));
         PRECONDITION(CheckPointer(creator, NULL_OK));
-#ifdef FEATURE_HOSTED_BINDER
         PRECONDITION(pBindResultInfo == NULL || (pPEImageIL == NULL && pPEImageNI == NULL));
-#endif
         STANDARD_VM_CHECK;
     }
     CONTRACTL_END;
@@ -3091,12 +3020,10 @@ PEAssembly::PEAssembly(
 
     // We check the precondition above that either pBindResultInfo is null or both pPEImageIL and pPEImageNI are,
     // so we'll only get a max of one native image passed in.
-#ifdef FEATURE_HOSTED_BINDER
     if (pPEImageNI != NULL)
     {
         SetNativeImage(pPEImageNI);
     }
-#endif
 
 #ifdef FEATURE_PREJIT
     if (pBindResultInfo && pBindResultInfo->HasNativeImage())
@@ -3144,7 +3071,6 @@ PEAssembly::PEAssembly(
         ThrowHR(COR_E_BADIMAGEFORMAT, BFA_EMPTY_ASSEMDEF_NAME);
     }
 
-#ifdef FEATURE_HOSTED_BINDER
     // Set the host assembly and binding context as the AssemblySpec initialization
     // for CoreCLR will expect to have it set.
     if (pHostAssembly != nullptr)
@@ -3158,7 +3084,6 @@ PEAssembly::PEAssembly(
         _ASSERTE(pHostAssembly == nullptr);
         pBindResultInfo->GetBindAssembly(&m_pHostAssembly);
     }
-#endif // FEATURE_HOSTED_BINDER        
     
 #if _DEBUG
     GetCodeBaseOrName(m_debugName);
@@ -3176,8 +3101,6 @@ PEAssembly::PEAssembly(
 }
 #endif // FEATURE_FUSION
 
-
-#if defined(FEATURE_HOSTED_BINDER)
 
 #ifdef FEATURE_FUSION
 
@@ -3252,9 +3175,6 @@ PEAssembly *PEAssembly::Open(
 }
 
 #endif // FEATURE_FUSION
-
-#endif // FEATURE_HOSTED_BINDER 
-
 
 PEAssembly::~PEAssembly()
 {
@@ -3701,7 +3621,7 @@ PEAssembly *PEAssembly::DoOpenMemory(
     if (!image->CheckILFormat())
         ThrowHR(COR_E_BADIMAGEFORMAT, BFA_BAD_IL);
 
-#if defined(FEATURE_HOSTED_BINDER) && !defined(FEATURE_CORECLR)
+#if !defined(FEATURE_CORECLR)
     if(pBinderToUse != NULL && !isIntrospectionOnly)
     {
         ReleaseHolder<ICLRPrivAssembly> pAsm;
@@ -3712,7 +3632,7 @@ PEAssembly *PEAssembly::DoOpenMemory(
         _ASSERTE(pFile);
         RETURN pFile;
     }
-#endif //  FEATURE_HOSTED_BINDER && !FEATURE_CORECLR
+#endif // !FEATURE_CORECLR
 
 #ifdef FEATURE_FUSION    
     RETURN new PEAssembly(image, NULL, NULL, NULL, NULL, NULL, NULL, pParentAssembly, FALSE, isIntrospectionOnly);
@@ -3911,8 +3831,8 @@ void PEAssembly::SetNativeImage(IBindResult *pNativeFusionAssembly)
     CONTRACTL_END;
 
     StackSString path;
-    WCHAR pwzPath[MAX_PATH];
-    DWORD dwCCPath = MAX_PATH;
+    WCHAR pwzPath[MAX_LONGPATH];
+    DWORD dwCCPath = MAX_LONGPATH;
     ReleaseHolder<IAssemblyLocation> pIAssemblyLocation;
 
     IfFailThrow(pNativeFusionAssembly->GetAssemblyLocation(&pIAssemblyLocation));
@@ -4334,33 +4254,11 @@ void PEAssembly::VerifyStrongName()
 #endif // !defined(FEATURE_CORECLR)    
     else
     {
-#if defined(FEATURE_CORECLR) && (!defined(CROSSGEN_COMPILE) || defined(PLATFORM_UNIX))
+#ifdef FEATURE_CORECLR
         // Runtime policy on CoreCLR is to skip verification of ALL assemblies
         m_flags |= PEFILE_SKIP_MODULE_HASH_CHECKS;
         m_fStrongNameVerified = TRUE;
 #else
-
-#ifdef FEATURE_CORECLR
-        BOOL skip = FALSE;
-
-        // Skip verification for assemblies from the trusted path
-        if (IsSystem() || m_bIsOnTpaList)
-            skip = TRUE;
-
-#ifdef FEATURE_LEGACYNETCF
-        // crossgen should skip verification for Mango
-        if (RuntimeIsLegacyNetCF(0))
-            skip = TRUE;
-#endif
-
-        if (skip)
-        {
-            m_flags |= PEFILE_SKIP_MODULE_HASH_CHECKS;
-            m_fStrongNameVerified = TRUE;
-            return;
-        }
-#endif // FEATURE_CORECLR
-
         DWORD verifyOutputFlags = 0;
         HRESULT hr = GetILimage()->VerifyStrongName(&verifyOutputFlags);
 
@@ -4387,7 +4285,7 @@ void PEAssembly::VerifyStrongName()
 #endif
         }
 
-#endif // FEATURE_CORECLR && (!CROSSGEN_COMPILE || PLATFORM_UNIX)
+#endif // FEATURE_CORECLR
     }
 
     m_fStrongNameVerified = TRUE;
@@ -4422,72 +4320,10 @@ BOOL PEAssembly::IsProfileAssembly()
     // from the old Silverlight binder, people took advantage of it and we cannot easily get rid of it now. See DevDiv #710462.
     //
     BOOL bProfileAssembly = IsSourceGAC() && (IsSystem() || m_bIsOnTpaList);
-    if(!AppX::IsAppXProcess())
-    {
-        bProfileAssembly |= IsSourceGAC() && IsSilverlightPlatformStrongNameSignature();
-    }
 
     m_fProfileAssembly = bProfileAssembly ? 1 : -1;
     return bProfileAssembly;
 }
-
-BOOL PEAssembly::IsSilverlightPlatformStrongNameSignature()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    if (IsDynamic())
-        return FALSE;
-
-    DWORD cbPublicKey;
-    const BYTE *pbPublicKey = static_cast<const BYTE *>(GetPublicKey(&cbPublicKey));
-    if (pbPublicKey == nullptr)
-    {
-        return false;
-    }
-
-    if (StrongNameIsSilverlightPlatformKey(pbPublicKey, cbPublicKey))
-        return true;
-
-#ifdef FEATURE_STRONGNAME_TESTKEY_ALLOWED
-    if (StrongNameIsTestKey(pbPublicKey, cbPublicKey))
-        return true;
-#endif
-
-    return false;
-}
-
-#ifdef FEATURE_STRONGNAME_TESTKEY_ALLOWED
-BOOL PEAssembly::IsProfileTestAssembly()
-{
-    WRAPPER_NO_CONTRACT;
-
-    return IsSourceGAC() && IsTestKeySignature();
-}
-
-BOOL PEAssembly::IsTestKeySignature()
-{
-    WRAPPER_NO_CONTRACT;
-
-    if (IsDynamic())
-        return FALSE;
-
-    DWORD cbPublicKey;
-    const BYTE *pbPublicKey = static_cast<const BYTE *>(GetPublicKey(&cbPublicKey));
-    if (pbPublicKey == nullptr)
-    {
-        return false;
-    }
-
-    return StrongNameIsTestKey(pbPublicKey, cbPublicKey);
-}
-#endif // FEATURE_STRONGNAME_TESTKEY_ALLOWED
-
 #endif // FEATURE_CORECLR
 
 // ------------------------------------------------------------
@@ -4846,9 +4682,9 @@ PEModule::PEModule(PEImage *image, PEAssembly *assembly, mdFile token, IMetaData
     {
         IAssemblyLocation *pIAssemblyLocation = assembly->GetNativeAssemblyLocation();
 
-        WCHAR wzPath[MAX_PATH];
+        WCHAR wzPath[MAX_LONGPATH];
         WCHAR *pwzTemp = NULL;
-        DWORD dwCCPath = MAX_PATH;
+        DWORD dwCCPath = MAX_LONGPATH;
         SString path;
         SString moduleName(SString::Utf8, GetSimpleName());
 
@@ -5306,7 +5142,6 @@ TADDR PEFile::GetMDInternalRWAddress()
 }
 #endif
 
-#if defined(FEATURE_HOSTED_BINDER)
 // Returns the ICLRPrivBinder* instance associated with the PEFile
 PTR_ICLRPrivBinder PEFile::GetBindingContext()
 {
@@ -5326,5 +5161,3 @@ PTR_ICLRPrivBinder PEFile::GetBindingContext()
     
     return pBindingContext;
 }
-#endif // FEATURE_HOSTED_BINDER
-

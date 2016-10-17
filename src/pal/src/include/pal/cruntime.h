@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -114,6 +113,24 @@ Parameters:
     - padding style flags (PRINTF_FORMAT_FLAGS)
 *******************************************************************************/
 BOOL Internal_AddPaddingA(LPSTR *Out, INT Count, LPSTR In, INT Padding, INT Flags);
+
+/*******************************************************************************
+Function:
+  PAL_printf_arg_remover
+
+Parameters:
+  ap
+    - pointer to the va_list from which to remove arguments
+  Width
+    - the width of the current format option
+  Precision
+    - the precision of the current format option
+  Type
+    - the type of the argument for the current format option
+  Prefix
+    - the prefix for the current format option
+*******************************************************************************/
+void PAL_printf_arg_remover(va_list *ap, INT Width, INT Precision, INT Type, INT Prefix);
 
 /*++
 Function:

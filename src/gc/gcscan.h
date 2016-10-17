@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*
  * GCSCAN.H
@@ -32,23 +31,11 @@ struct DhContext
     ScanContext    *m_pScanContext;             // The GC's scan context for this phase
 };
 
-
-// <TODO>
-// @TODO (JSW): For compatibility with the existing GC code we use CNamespace
-// as the name of this class.   I'm planning on changing it to
-// something like GCDomain....
-// </TODO>
-
-typedef void enum_alloc_context_func(alloc_context*);
-
-class CNameSpace
+class GCScan
 {
     friend struct ::_DacGlobals;
 
   public:
-
-    // Called on gc start
-    static void GcStartDoWork();
 
     static void GcScanSizedRefs(promote_func* fn, int condemned, int max_gen, ScanContext* sc);
 
@@ -60,7 +47,7 @@ class CNameSpace
 
     static void GcRuntimeStructuresValid (BOOL bValid);
 
-    static BOOL GetGcRuntimeStructuresValid ();
+    static bool GetGcRuntimeStructuresValid ();
 #ifdef DACCESS_COMPILE    
     static void EnumMemoryRegions(CLRDataEnumMemoryFlags flags);
 #endif // DACCESS_COMPILE
@@ -99,10 +86,6 @@ class CNameSpace
 
     // post-promotions callback some roots were demoted
     static void GcDemote (int condemned, int max_gen, ScanContext* sc);
-
-    static void GcEnumAllocContexts (enum_alloc_context_func* fn);
-
-    static void GcFixAllocContexts (void* arg, void *heap);
     
     static size_t AskForMoreReservedMemory (size_t old_size, size_t need_size);
 
@@ -110,10 +93,17 @@ class CNameSpace
     
 private:
 #ifdef DACCESS_COMPILE    
-    SVAL_DECL(LONG, m_GcStructuresInvalidCnt);
+    SVAL_DECL(int32_t, m_GcStructuresInvalidCnt);
 #else
-    static VOLATILE(LONG) m_GcStructuresInvalidCnt;
+    static VOLATILE(int32_t) m_GcStructuresInvalidCnt;
 #endif //DACCESS_COMPILE
 };
+
+// These two functions are utilized to scan the heap if requested by ETW
+// or a profiler. The implementations of these two functions are in profheapwalkhelper.cpp.
+#if defined(FEATURE_EVENT_TRACE) | defined(GC_PROFILING)
+void ScanRootsHelper(Object* pObj, Object** ppRoot, ScanContext * pSC, DWORD dwFlags);
+BOOL HeapWalkHelper(Object * pBO, void * pvContext);
+#endif
 
 #endif // _GCSCAN_H_

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -70,26 +69,35 @@ protected:
 
 
 
-class StackFrameHelper:public Object
+class StackFrameHelper : public Object
 {
     // READ ME:
     // Modifying the order or fields of this object may require other changes to the
     // classlib defintion of the StackFrameHelper class.
 public:
-    THREADBASEREF TargetThread;
+    THREADBASEREF targetThread;
     I4ARRAYREF rgiOffset;
     I4ARRAYREF rgiILOffset;
     BASEARRAYREF rgMethodBase; 
     PTRARRAYREF dynamicMethods;    
     BASEARRAYREF rgMethodHandle; 
+    PTRARRAYREF rgAssemblyPath;
+    BASEARRAYREF rgLoadedPeAddress;
+    I4ARRAYREF rgiLoadedPeSize;
+    BASEARRAYREF rgInMemoryPdbAddress;
+    I4ARRAYREF rgiInMemoryPdbSize;
+    // if rgiMethodToken[i] == 0, then don't attempt to get the portable PDB source/info
+    I4ARRAYREF rgiMethodToken;
     PTRARRAYREF rgFilename;
     I4ARRAYREF rgiLineNumber;
     I4ARRAYREF rgiColumnNumber;
+
 #if defined(FEATURE_EXCEPTIONDISPATCHINFO)
     BOOLARRAYREF rgiLastFrameFromForeignExceptionStackTrace;
 #endif // defined(FEATURE_EXCEPTIONDISPATCHINFO)
+
+    OBJECTREF getSourceLineInfo;
     int iFrameCount;
-    CLR_BOOL fNeedFileInfo;
 
 protected:
     StackFrameHelper() {}
@@ -151,6 +159,8 @@ private:
         void InitPass2();
     };
 
+public:
+
     struct GetStackFramesData {
 
         // Used for the integer-skip version
@@ -186,15 +196,15 @@ private:
         }
     };
 
-
-public:
-
-    static FCDECL3(void, 
+    static FCDECL4(void, 
                    GetStackFramesInternal, 
                    StackFrameHelper* pStackFrameHelper, 
                    INT32 iSkip, 
+                   CLR_BOOL fNeedFileInfo,
                    Object* pException
                   );
+
+    static void GetStackFramesFromException(OBJECTREF * e, GetStackFramesData *pData, PTRARRAYREF * pDynamicMethodArray = NULL);
 
 #ifndef DACCESS_COMPILE
 // the DAC directly calls GetStackFramesFromException
@@ -204,8 +214,6 @@ private:
     static void GetStackFramesHelper(Frame *pStartFrame, void* pStopStack, GetStackFramesData *pData);
 
     static void GetStackFrames(Frame *pStartFrame, void* pStopStack, GetStackFramesData *pData);    
-
-    static void GetStackFramesFromException(OBJECTREF * e, GetStackFramesData *pData, PTRARRAYREF * pDynamicMethodArray = NULL);
 
     static StackWalkAction GetStackFramesCallback(CrawlFrame* pCf, VOID* data);
 

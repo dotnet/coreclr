@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 ////////////////////////////////////////////////////////////////////////////
 //
 //  File:    newapis.h
@@ -326,7 +325,9 @@ namespace NewApis
     // Enumeration functions
     __success(return != 0) BOOL
     EnumDateFormatsExEx (DATEFMT_ENUMPROCEXEX lpDateFmtEnumProcExEx, LPCWSTR lpLocaleName, DWORD dwFlags, LPARAM lParam);
+    __success(return != 0)
     BOOL EnumTimeFormatsEx(TIMEFMT_ENUMPROCEX lpTimeFmtEnumProcEx, LPCWSTR lpLocaleName,  DWORD dwFlags, LPARAM lParam);
+    __success(return != 0)
     BOOL EnumCalendarInfoExEx(CALINFO_ENUMPROCEXEX pCalInfoEnumProcExEx, LPCWSTR lpLocaleName, CALID Calendar, CALTYPE CalType, LPARAM lParam);
 
     int LCIDToLocaleName(__in LCID Locale, __out_ecount_opt(cchName) LPWSTR lpName, __in int cchName, __in DWORD dwFlags);

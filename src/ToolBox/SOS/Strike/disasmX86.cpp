@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // ==++==
 // 
@@ -50,7 +49,7 @@ struct Register
 };
 
 // Find the index for a register name
-inline RegIndex FindReg (__in __in_z char *ptr, __out_opt int *plen = NULL, __out_opt int *psize = NULL)
+inline RegIndex FindReg (___in __in_z char *ptr, __out_opt int *plen = NULL, __out_opt int *psize = NULL)
 {
     struct RegName
     {
@@ -169,7 +168,7 @@ inline RegIndex FindReg (__in __in_z char *ptr, __out_opt int *plen = NULL, __ou
 }
 
 // Find the value of an expression.
-inline BOOL FindSrc (__in_z char *ptr, __in Register *reg, INT_PTR &value, BOOL &bDigit)
+inline BOOL FindSrc (__in_z char *ptr, ___in Register *reg, INT_PTR &value, BOOL &bDigit)
 {
     if (GetValueFromExpr (ptr, value))
     {
@@ -202,7 +201,6 @@ inline BOOL FindSrc (__in_z char *ptr, __in Register *reg, INT_PTR &value, BOOL 
     return bValid;
 }
 
-
 enum ADDRESSMODE {REG, DATA, INDIRECT, NODATA, BAD};
 
 struct RegState
@@ -220,7 +218,7 @@ struct InstData
     INT_PTR value;
 };
 
-void FindMainReg (__in __in_z char *ptr, RegState &reg)
+void FindMainReg (___in __in_z char *ptr, RegState &reg)
 {
     int size = 0;
 
@@ -229,7 +227,7 @@ void FindMainReg (__in __in_z char *ptr, RegState &reg)
     reg.bFullReg = (reg.reg!=NONE && sizeof(void*)==size) ? TRUE : FALSE;
 }
 
-static void DecodeAddressIndirect (__in __in_z char *term, InstData& arg)
+static void DecodeAddressIndirect (___in __in_z char *term, InstData& arg)
 {
     arg.mode = BAD;
     arg.value = 0;
@@ -308,7 +306,7 @@ static void DecodeAddressIndirect (__in __in_z char *term, InstData& arg)
     }
 }
 
-void DecodeAddressTerm (__in __in_z char *term, InstData& arg)
+void DecodeAddressTerm (___in __in_z char *term, InstData& arg)
 {
     arg.mode = BAD;
     arg.reg[0].scale = 0;
@@ -334,7 +332,6 @@ void DecodeAddressTerm (__in __in_z char *term, InstData& arg)
         }
     }
 }
-
 
 // Return 0 for non-managed call.  Otherwise return MD address.
 TADDR MDForCall (TADDR callee)
@@ -386,7 +383,7 @@ void HandleCall(TADDR callee, Register *reg)
         if (MethodDescData.Request(g_sos, TO_CDADDR(methodDesc)) == S_OK)
         {
             NameForMD_s(methodDesc, g_mdName,mdNameLen);                    
-            ExtOut(" (%S, mdToken: %p)", g_mdName, (UINT64)MethodDescData.MDToken);
+            ExtOut(" (%S, mdToken: %p)", g_mdName, SOS_PTR(MethodDescData.MDToken));
             return;
         }
     }
@@ -417,7 +414,7 @@ void HandleCall(TADDR callee, Register *reg)
             if (MethodDescData.Request(g_sos, md) == S_OK)
             {
                 NameForMD_s(md, g_mdName,mdNameLen);
-                ExtOut(" (%S, mdToken: %p)", g_mdName, (UINT64)MethodDescData.MDToken);
+                ExtOut(" (%S, mdToken: %p)", g_mdName, SOS_PTR(MethodDescData.MDToken));
                 return;
             }
         }
@@ -525,7 +522,7 @@ void
     char *ptr;
 
     ULONG curLine = -1;
-    char  filename[MAX_PATH+1];
+    WCHAR filename[MAX_LONGPATH];
     ULONG linenum;
 
     while (IP < IPEnd)
@@ -535,13 +532,12 @@ void
 
         // Print out line numbers if needed
         if (!bSuppressLines
-            && SUCCEEDED(GetLineByOffset(TO_CDADDR(IP), 
-                           &linenum, filename, MAX_PATH+1)))
+            && SUCCEEDED(GetLineByOffset(TO_CDADDR(IP), &linenum, filename, MAX_LONGPATH)))
         {
             if (linenum != curLine)
             {
                 curLine = linenum;
-                ExtOut("\n%s @ %d:\n", filename, linenum);
+                ExtOut("\n%S @ %d:\n", filename, linenum);
             }
         }
 
@@ -754,7 +750,6 @@ void
     }
 }
 
-
 // Find the real callee site.  Handle JMP instruction.
 // Return TRUE if we get the address, FALSE if not.
 BOOL GetCalleeSite (TADDR IP, TADDR &IPCallee)
@@ -806,8 +801,6 @@ BOOL GetCalleeSite (TADDR IP, TADDR &IPCallee)
         }
     }
 }
-
-
 
 // GetFinalTarget is based on HandleCall, but avoids printing anything to the output.
 // This is currently only called on x64
@@ -864,6 +857,8 @@ eTargetType GetFinalTarget(TADDR callee, TADDR* finalMDorIP)
     return ettNative;
 }
 
+#ifndef FEATURE_PAL
+
 void ExpFuncStateInit (TADDR *IPRetAddr)
 {
     ULONG64 offset;
@@ -904,10 +899,13 @@ void ExpFuncStateInit (TADDR *IPRetAddr)
     }
 }
 
+#endif // FEATURE_PAL
+
+
 /**********************************************************************\
 * Routine Description:                                                 *
 *                                                                      *
-*    This function is called to fill in a crsoo platform context       *
+*    This function is called to fill in a cross platform context       *
 *    struct by looking on the stack for return addresses into          *
 *    KiUserExceptionDispatcher                                         *
 *                                                                      *
@@ -925,6 +923,7 @@ BOOL
      TADDR     * exrAddr, 
      PEXCEPTION_RECORD exr) const
 {
+#ifndef FEATURE_PAL
 #ifdef SOS_TARGET_X86
     X86_CONTEXT * cxr = &pcxr->X86Context;
     size_t contextSize = offsetof(CONTEXT, ExtendedRegisters);
@@ -1006,8 +1005,10 @@ BOOL
     }
 
 #endif
-
     return TRUE;
+#else
+    return FALSE;
+#endif // FEATURE_PAL
 }
 
 
@@ -1133,7 +1134,7 @@ void
 ///
 /// This is dead code, not called from anywhere, not linked in the final product.
 ///
-static BOOL DecodeLine (__in __in_z char *line, __in __in_z const char *const inst, InstData& arg1, InstData& arg2)
+static BOOL DecodeLine (___in __in_z char *line, ___in __in_z const char *const inst, InstData& arg1, InstData& arg2)
 {
     char *ptr = line;
     if (inst[0] == '*' || !strncmp (ptr, inst, strlen (inst)))

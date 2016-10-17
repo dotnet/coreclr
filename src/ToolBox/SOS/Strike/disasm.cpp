@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // ==++==
 // 
@@ -10,6 +9,7 @@
 // ==--==
 
 #include "strike.h"
+#include "gcinfo.h"
 #include "util.h"
 #include <dbghelp.h>
 #include <limits.h>
@@ -45,7 +45,6 @@ namespace X86GCDump
 #endif // SOS_TARGET_X86
 
 #ifdef SOS_TARGET_AMD64 
-#ifndef FEATURE_PAL
 #include "gcdump.h"
 #define DAC_ARG(x)
 #define SUPPORTS_DAC
@@ -61,7 +60,6 @@ namespace X86GCDump
     #endif
     #define LOG_PIPTR(pObjRef, gcFlags, hCallBack) ((void)0)
 #include "gcdumpnonx86.cpp"
-#endif // FEATURE_PAL
 #endif // SOS_TARGET_AMD64
 
 #include "disasm.h"
@@ -70,18 +68,16 @@ namespace X86GCDump
 #define ERANGE 34
 #endif
 
-#ifndef FEATURE_PAL
-
 PVOID
 GenOpenMapping(
     PCSTR FilePath,
     PULONG Size
     )
 {
+#ifndef FEATURE_PAL
     HANDLE hFile;
     HANDLE hMappedFile;
     PVOID MappedFile;
-
 
     hFile = CreateFileA(
                 FilePath,
@@ -101,7 +97,7 @@ GenOpenMapping(
             // file operations.  Convert to ANSI and see if
             // that helps.
             
-            CHAR FilePathA [ MAX_PATH + 10 ];
+            CHAR FilePathA [ MAX_LONGPATH + 10 ];
 
             if (WideCharToMultiByte (CP_ACP,
                                      0,
@@ -133,7 +129,7 @@ GenOpenMapping(
     *Size = GetFileSize(hFile, NULL);
     if (*Size == ULONG_MAX) {
         CloseHandle( hFile );
-        return FALSE;
+        return NULL;
     }
     
     hMappedFile = CreateFileMapping (
@@ -147,7 +143,7 @@ GenOpenMapping(
 
     if ( !hMappedFile ) {
         CloseHandle ( hFile );
-        return FALSE;
+        return NULL;
     }
 
     MappedFile = MapViewOfFile (
@@ -162,6 +158,9 @@ GenOpenMapping(
     CloseHandle (hFile);
 
     return MappedFile;
+#else // FEATURE_PAL
+    return NULL;
+#endif // FEATURE_PAL
 }
 
 char* PrintOneLine (__in_z char *begin, __in_z char *limit)
@@ -207,9 +206,9 @@ char* PrintOneLine (__in_z char *begin, __in_z char *limit)
 
 void UnassemblyUnmanaged(DWORD_PTR IP, BOOL bSuppressLines)
 {
-    char            filename[MAX_PATH+1];
+    char            filename[MAX_PATH_FNAME+1];
     char            line[256];
-    int             lcount          = 10;
+    int             lcount = 10;
 
     ULONG linenum = 0;
     ULONG64 Displacement = 0;
@@ -219,18 +218,19 @@ void UnassemblyUnmanaged(DWORD_PTR IP, BOOL bSuppressLines)
     if (!bSuppressLines)
     {
         ReloadSymbolWithLineInfo();
-        fLineAvailable = SUCCEEDED (g_ExtSymbols->GetLineByOffset (TO_CDADDR(IP), &linenum,
-                                                                    filename,
-                                                                    MAX_PATH+1,
-                                                                    NULL,
-                                                                    &Displacement));
+        fLineAvailable = SUCCEEDED (g_ExtSymbols->GetLineByOffset(TO_CDADDR(IP), 
+                                                                  &linenum,
+                                                                  filename,
+                                                                  MAX_PATH_FNAME+1,
+                                                                  NULL,
+                                                                  &Displacement));
     }
     ULONG FileLines = 0;
     ArrayHolder<ULONG64> Buffer = NULL;
 
     if (fLineAvailable)
     {
-        g_ExtSymbols->GetSourceFileLineOffsets (filename, NULL, 0, &FileLines);
+        g_ExtSymbols->GetSourceFileLineOffsets(filename, NULL, 0, &FileLines);
         if (FileLines == 0xFFFFFFFF || FileLines == 0)
             fLineAvailable = FALSE;
     }
@@ -256,7 +256,7 @@ void UnassemblyUnmanaged(DWORD_PTR IP, BOOL bSuppressLines)
         return;
     }
 
-    g_ExtSymbols->GetSourceFileLineOffsets (filename, Buffer, FileLines, NULL);
+    g_ExtSymbols->GetSourceFileLineOffsets(filename, Buffer, FileLines, NULL);
     
     int beginLine = 0;
     int endLine = 0;
@@ -266,7 +266,7 @@ void UnassemblyUnmanaged(DWORD_PTR IP, BOOL bSuppressLines)
         if (IsInterrupt())
             return;
         if (Buffer[lastLine] != DEBUG_INVALID_OFFSET) {
-            g_ExtSymbols->GetNameByOffset(Buffer[lastLine],NULL,0,NULL,&Displacement);
+            g_ExtSymbols->GetNameByOffset(Buffer[lastLine], NULL, 0, NULL, &Displacement);
             if (Displacement == 0) {
                 beginLine = lastLine;
                 break;
@@ -300,7 +300,7 @@ void UnassemblyUnmanaged(DWORD_PTR IP, BOOL bSuppressLines)
         if (IsInterrupt())
             return;
         if (Buffer[lastLine] != DEBUG_INVALID_OFFSET) {
-            g_ExtSymbols->GetNameByOffset(Buffer[lastLine],NULL,0,NULL,&Displacement);
+            g_ExtSymbols->GetNameByOffset(Buffer[lastLine], NULL, 0, NULL, &Displacement);
             if (Displacement == 0) {
                 endLine = lastLine;
                 break;
@@ -349,16 +349,19 @@ void UnassemblyUnmanaged(DWORD_PTR IP, BOOL bSuppressLines)
 #define MAX_SOURCE_PATH 1024
     char Found[MAX_SOURCE_PATH];
     char *pFile;
-    if (g_ExtSymbols->FindSourceFile(0, filename,
-                       DEBUG_FIND_SOURCE_BEST_MATCH |
-                       DEBUG_FIND_SOURCE_FULL_PATH,
-                       NULL, Found, sizeof(Found), NULL) != S_OK)
+    if (g_ExtSymbols->FindSourceFile(0,
+                                     filename, 
+                                     DEBUG_FIND_SOURCE_BEST_MATCH | DEBUG_FIND_SOURCE_FULL_PATH, 
+                                     NULL,
+                                     Found, 
+                                     sizeof(Found), 
+                                     NULL) != S_OK)
     {
         pFile = filename;
     }
     else
     {
-        MappedBase = GenOpenMapping ( Found, &MappedSize );
+        MappedBase = GenOpenMapping(Found, &MappedSize);
         pFile = Found;
     }
     
@@ -378,13 +381,13 @@ void UnassemblyUnmanaged(DWORD_PTR IP, BOOL bSuppressLines)
         }
     }
     
-    char filename1[MAX_PATH+1];
+    char filename1[MAX_PATH_FNAME+1];
     for (lastLine = beginLine; lastLine < endLine; lastLine ++) {
         if (IsInterrupt())
             return;
         if (MappedBase) {
-            ExtOut ("%4d ", lastLine+1);
-            pFileCh = PrintOneLine (pFileCh, (char*)MappedBase+MappedSize);
+            ExtOut("%4d ", lastLine+1);
+            pFileCh = PrintOneLine(pFileCh, (char*)MappedBase+MappedSize);
         }
         if (Buffer[lastLine] != DEBUG_INVALID_OFFSET) {
             if (MappedBase == 0) {
@@ -405,14 +408,14 @@ void UnassemblyUnmanaged(DWORD_PTR IP, BOOL bSuppressLines)
             while (1) {
                 if (IsInterrupt())
                     return;
-                g_ExtControl->Disassemble (vIP, 0, line, 256, NULL, &vIP);
+                g_ExtControl->Disassemble(vIP, 0, line, 256, NULL, &vIP);
                 ExtOut (line);
                 if (vIP > vNextLineIP || vNextLineIP - vIP > 40) {
-                    if (FAILED (g_ExtSymbols->GetLineByOffset (vIP, &linenum,
-                                                               filename1,
-                                                               MAX_PATH+1,
-                                                               NULL,
-                                                               &Displacement))) {
+                    if (FAILED (g_ExtSymbols->GetLineByOffset(vIP, &linenum,
+                                                              filename1,
+                                                              MAX_PATH_FNAME+1,
+                                                              NULL,
+                                                              &Displacement))) {
                         if (lastLine != endOfFunc) {
                             break;
                         }
@@ -431,11 +434,9 @@ void UnassemblyUnmanaged(DWORD_PTR IP, BOOL bSuppressLines)
             }
         }
     }
-        
 }
 
-
-void DisasmAndClean (DWORD_PTR &IP, __out_ecount (length) __out_opt char *line, ULONG length)
+void DisasmAndClean (DWORD_PTR &IP, __out_ecount_opt(length) char *line, ULONG length)
 {
     ULONG64 vIP = TO_CDADDR(IP);
     g_ExtControl->Disassemble (vIP, 0, line, length, NULL, &vIP);
@@ -444,7 +445,6 @@ void DisasmAndClean (DWORD_PTR &IP, __out_ecount (length) __out_opt char *line, 
     char *ptr = strrchr (line, '\n');
     if (ptr != NULL)
         ptr[0] = '\0';
-
 }
 
 // If byref, move to pass the byref prefix
@@ -515,7 +515,7 @@ void NextTerm (__deref_inout_z char *& ptr)
 // Parses something like 6e24d310, 0x6e24d310, or 6e24d310h.  
 // On 64-bit, also parses things like 000006fb`f9b70f50 and 
 // 000006fbf9b70f50 (as well as their 0x-prefix, -h suffix variations).
-INT_PTR ParseHexNumber (__in_z char *ptr, __out char **endptr)
+INT_PTR ParseHexNumber (__in_z char *ptr, ___out char **endptr)
 {
     char *endptr1;
     INT_PTR value1 = strtoul(ptr, &endptr1, 16);
@@ -529,7 +529,7 @@ INT_PTR ParseHexNumber (__in_z char *ptr, __out char **endptr)
         value1 = (value1 << 32) | value2;
         endptr1 = endptr2;
     }
-    // if the hex number was specified as 000006fbf9b70f50, an overflow occured
+    // if the hex number was specified as 000006fbf9b70f50, an overflow occurred
     else if (ULONG_MAX == value1 && errno == ERANGE)
     {
         if (!strncmp(ptr, "0x", 2))
@@ -584,8 +584,7 @@ INT_PTR GetValueFromExpr(__in_z char *ptr, INT_PTR &value)
     {
         char *endptr;
         value = ParseHexNumber(myPtr, &endptr);
-        if (!bByRef && IsTermSep (endptr[0])
-            || bByRef && endptr[0] == ']')
+        if ((!bByRef && IsTermSep(endptr[0])) || (bByRef && endptr[0] == ']'))
         {
             if (bNegative)
                 value = -value;
@@ -705,12 +704,12 @@ const char * HelperFuncName (size_t IP)
 // Note:
 //   The return is a pointer to a global buffer, therefore this value must
 //   be consumed as soon as possible after a call to this function.
-LPCWSTR EHTypedClauseTypeName(__in const DACEHInfo* pEHInfo)
+LPCWSTR EHTypedClauseTypeName(___in const DACEHInfo* pEHInfo)
 {
     _ASSERTE(pEHInfo != NULL);
     if ((pEHInfo->clauseType == EHTyped) && pEHInfo->isCatchAllHandler)
     {
-        return L"...";
+        return W("...");
     }
 
     // is there a method table or a token to look at?
@@ -839,14 +838,43 @@ void SOSEHInfo::FormatForDisassembly(CLRDATA_ADDRESS offSet)
 // use the IS_DBG_TARGET_XYZ macro.
 //
 
+void PrintNativeStack(DWORD_PTR ip, BOOL bSuppressLines)
+{
+    char filename[MAX_PATH_FNAME + 1];
+    char symbol[1024];
+    ULONG64 displacement;
+
+    HRESULT hr = g_ExtSymbols->GetNameByOffset(TO_CDADDR(ip), symbol, _countof(symbol), NULL, &displacement);
+    if (SUCCEEDED(hr) && symbol[0] != '\0')
+    {
+        ExtOut("%s", symbol);
+
+        if (displacement)
+        {
+            ExtOut(" + %#x", displacement);
+        }
+
+        if (!bSuppressLines)
+        {
+            ULONG line;
+            hr = g_ExtSymbols->GetLineByOffset(TO_CDADDR(ip), &line, filename, _countof(filename), NULL, NULL);
+            if (SUCCEEDED(hr))
+            {
+                ExtOut(" [%s:%d]", filename, line);
+            }
+        }
+    }
+    else
+    {
+        DMLOut(DMLIP(ip));
+    }
+}
 
 // Return TRUE if we have printed something.
-BOOL PrintCallInfo (DWORD_PTR vEBP, DWORD_PTR IP,
-                    DumpStackFlag& DSFlag,
-                    BOOL bSymbolOnly)
+BOOL PrintCallInfo(DWORD_PTR vEBP, DWORD_PTR IP, DumpStackFlag& DSFlag, BOOL bSymbolOnly)
 {
     char Symbol[1024];
-    char filename[MAX_PATH+1];
+    char filename[MAX_PATH_FNAME+1];
     ULONG64 Displacement;
     BOOL bOutput = FALSE;
 
@@ -861,7 +889,7 @@ BOOL PrintCallInfo (DWORD_PTR vEBP, DWORD_PTR IP,
     {
         bOutput = TRUE;
         if (!bSymbolOnly)
-            DMLOut("%p %s ", (ULONG64)vEBP, DMLIP(IP));
+            DMLOut("%p %s ", SOS_PTR(vEBP), DMLIP(IP));
         DMLOut("(MethodDesc %s ", DMLMethodDesc(methodDesc));    
         
         // TODO: Microsoft, more checks to make sure method is not eeimpl, etc. Add this field to MethodDesc
@@ -873,7 +901,7 @@ BOOL PrintCallInfo (DWORD_PTR vEBP, DWORD_PTR IP,
             methodDesc = (DWORD_PTR) codeHeaderData.MethodDescPtr;
             Displacement = IP - IPBegin;        
             if (IP >= IPBegin && Displacement <= codeHeaderData.MethodSize)
-                ExtOut ("+%#x ", Displacement);    
+                ExtOut ("+ %#x ", Displacement);    
         }            
         if (NameForMD_s(methodDesc, g_mdName, mdNameLen))
         {
@@ -891,7 +919,7 @@ BOOL PrintCallInfo (DWORD_PTR vEBP, DWORD_PTR IP,
             bOutput = TRUE;
             const char *name;
             if (!bSymbolOnly)
-                DMLOut("%p %s ", (ULONG64)vEBP, DMLIP(IP));
+                DMLOut("%p %s ", SOS_PTR(vEBP), DMLIP(IP));
 
             // if AMD64 ever becomes a cross platform target this must be resolved through
             // virtual dispatch rather than conditional compilation
@@ -913,27 +941,9 @@ BOOL PrintCallInfo (DWORD_PTR vEBP, DWORD_PTR IP,
                 }
             }
 #endif // _TARGET_AMD64_
-            if (methodDesc == 0) {
-                HRESULT hr;
-                hr = g_ExtSymbols->GetNameByOffset(TO_CDADDR(IP), Symbol, 1024, NULL, &Displacement);
-                if (SUCCEEDED(hr) && Symbol[0] != '\0')
-                {
-                    ExtOut ("%s", Symbol);
-                    if (Displacement)
-                        ExtOut ("+%#x", Displacement);
-                    if (!DSFlag.fSuppressSrcInfo)
-                    {
-                        ULONG line;
-                        hr = g_ExtSymbols->GetLineByOffset (TO_CDADDR(IP), &line, filename,
-                            MAX_PATH+1, NULL, NULL);
-                        if (SUCCEEDED (hr))
-                            ExtOut (" [%s:%d]", filename, line);
-                    }
-                }
-                else
-                {
-                    DMLOut(DMLIP(IP));
-                }
+            if (methodDesc == 0) 
+            {
+                PrintNativeStack(IP, DSFlag.fSuppressSrcInfo);
             }
             else if (g_bDacBroken)
             {
@@ -1021,9 +1031,9 @@ void DumpStackWorker (DumpStackFlag &DSFlag)
                     ExtOut(" ====> Exception ");
                     if (exrAddr)
                         ExtOut("Code %x ", exr.ExceptionCode);
-                    ExtOut ("cxr@%p", (ULONG64)cxrAddr);
+                    ExtOut ("cxr@%p", SOS_PTR(cxrAddr));
                     if (exrAddr)
-                        ExtOut(" exr@%p", (ULONG64)exrAddr);
+                        ExtOut(" exr@%p", SOS_PTR(exrAddr));
                     ExtOut("\n");
                 }
             }
@@ -1031,9 +1041,6 @@ void DumpStackWorker (DumpStackFlag &DSFlag)
         ptr += sizeof (DWORD_PTR);
     }
 }
-
-#endif // !FEATURE_PAL
-
 
 #ifdef SOS_TARGET_X86
 ///
@@ -1052,10 +1059,11 @@ void PrintNothing (const char *fmt, ...)
 ///
 /// Dump X86 GCInfo header and table
 ///
-void X86Machine::DumpGCInfo(BYTE* pTable, unsigned methodSize, printfFtn gcPrintf, bool encBytes, bool bPrintHeader) const
+void X86Machine::DumpGCInfo(GCInfoToken gcInfoToken, unsigned methodSize, printfFtn gcPrintf, bool encBytes, bool bPrintHeader) const
 {
     X86GCDump::InfoHdr header;
-    X86GCDump::GCDump gcDump(encBytes, 5, true);
+    X86GCDump::GCDump gcDump(gcInfoToken.Version, encBytes, 5, true);
+    BYTE* pTable = dac_cast<PTR_BYTE>(gcInfoToken.Info);
     if (bPrintHeader)
     {
         gcDump.gcPrintf = gcPrintf;
@@ -1101,56 +1109,18 @@ LPCSTR AMD64Machine::s_SPName           = "RSP";
 ///
 /// Dump AMD64 GCInfo table
 ///
-void AMD64Machine::DumpGCInfo(BYTE* pTable, unsigned methodSize, printfFtn gcPrintf, bool encBytes, bool bPrintHeader) const
+void AMD64Machine::DumpGCInfo(GCInfoToken gcInfoToken, unsigned methodSize, printfFtn gcPrintf, bool encBytes, bool bPrintHeader) const
 {
-#ifdef FEATURE_PAL
-    ExtErr("AMD64Machine::DumpGCInfo not implemented\n");
-#else
     if (bPrintHeader)
     {
         ExtOut("Pointer table:\n");
     }
 
-    GCDump gcDump(encBytes, 5, true);
+    GCDump gcDump(gcInfoToken.Version, encBytes, 5, true);
     gcDump.gcPrintf = gcPrintf;
 
-    gcDump.DumpGCTable(pTable, methodSize, 0);
-#endif // FEATURE_PAL
+    gcDump.DumpGCTable(dac_cast<PTR_BYTE>(gcInfoToken.Info), methodSize, 0);
 }
-
-#ifdef FEATURE_PAL
-void AMD64Machine::Unassembly(
-    TADDR IPBegin, 
-    TADDR IPEnd, 
-    TADDR IPAskedFor, 
-    TADDR GCStressCodeCopy, 
-    GCEncodingInfo *pGCEncodingInfo, 
-    SOSEHInfo *pEHInfo,
-    BOOL bSuppressLines,
-    BOOL bDisplayOffsets) const
-{
-    ExtErr("AMD64Machine::Unassembly not implemented\n");
-}
-
-void AMD64Machine::IsReturnAddress(
-    TADDR retAddr, 
-    TADDR* whereCalled) const
-{
-    ExtErr("AMD64Machine::IsReturnAddress not implemented\n");
-}
-
-BOOL AMD64Machine::GetExceptionContext(
-    TADDR stack,
-    TADDR PC,
-    TADDR *cxrAddr,
-    CROSS_PLATFORM_CONTEXT * cxr,
-    TADDR *exrAddr,
-    PEXCEPTION_RECORD exr) const
-{ 
-    ExtErr("AMD64Machine::GetExceptionContext not implemented\n");
-    return FALSE;
-}
-#endif // FEATURE_PAL
 
 #endif // SOS_TARGET_AMD64
 

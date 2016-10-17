@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //============================================================
 //
@@ -312,7 +311,7 @@ void QCALLTYPE COMIsolatedStorageFile::GetRootDir(DWORD                      dwF
     QCALL_CONTRACT;
     BEGIN_QCALL;
 
-    WCHAR wszPath[MAX_PATH + 1];
+    WCHAR wszPath[MAX_LONGPATH + 1] = {0};
     GetRootDirInternal(dwFlags, wszPath, COUNTOF(wszPath));
     retRootDir.Set(wszPath);
 
@@ -550,7 +549,7 @@ void COMIsolatedStorageFile::GetRootDirInternal(
     CONTRACTL {
         STANDARD_VM_CHECK;
         PRECONDITION(cPath > 1);
-        PRECONDITION(cPath <= MAX_PATH + 1);
+        PRECONDITION(cPath <= MAX_LONGPATH + 1);
     } CONTRACTL_END;
 
     ULONG len;
@@ -993,7 +992,9 @@ HRESULT AccountingInfo::Lock()
     DWORD dwRet;
     {
         // m_hLock is a mutex
+#ifndef FEATURE_CORECLR        
         Thread::BeginThreadAffinityAndCriticalRegion();
+#endif
         dwRet = WaitForSingleObject(m_hLock, INFINITE);
     }
 
@@ -1064,7 +1065,9 @@ void AccountingInfo::Unlock()
     InterlockedDecrement((LPLONG)&m_dwNumLocks);
 #endif
 
+#ifndef FEATURE_CORECLR        
     Thread::EndThreadAffinityAndCriticalRegion();
+#endif
 }
 
 #endif

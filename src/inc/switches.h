@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // switches.h switch configuration of common runtime features
 //
@@ -15,10 +14,9 @@
 #define STRESS_THREAD
 #endif
 
-// On CoreCLR, define VERIFY_HEAP only in debug builds
-#if defined(_DEBUG) || !defined(FEATURE_CORECLR)
 #define VERIFY_HEAP
-#endif
+
+#define GC_CONFIG_DRIVEN
 
 // define this to test data safety for the DAC. See code:DataTest::TestDataSafety. 
 #define TEST_DATA_CONSISTENCY
@@ -74,7 +72,7 @@
 #endif
 
 #if defined(_DEBUG) && !defined(DACCESS_COMPILE) && (defined(_TARGET_X86_) || defined(_TARGET_AMD64_))
-// On x86/x64 Windows debug builds, respect the COMPLUS_EnforceEEThreadNotRequiredContracts
+// On x86/x64 Windows debug builds, respect the COMPlus_EnforceEEThreadNotRequiredContracts
 // runtime switch. See code:InitThreadManager and code:GetThreadGenericFullCheck
 #define ENABLE_GET_THREAD_GENERIC_FULL_CHECK
 #endif
@@ -85,11 +83,16 @@
 
 #elif defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
     #define PAGE_SIZE               0x1000
-    #define USE_UPPER_ADDRESS       1
     #define UPPER_ADDRESS_MAPPING_FACTOR 2
     #define CLR_UPPER_ADDRESS_MIN   0x64400000000
     #define CODEHEAP_START_ADDRESS  0x64480000000
     #define CLR_UPPER_ADDRESS_MAX   0x644FC000000
+
+#if !defined(FEATURE_PAL)
+    #define USE_UPPER_ADDRESS       1
+#else
+    #define USE_UPPER_ADDRESS       0
+#endif // !FEATURE_PAL
 
 #else
     #error Please add a new #elif clause and define all portability macros for the new platform
@@ -103,8 +106,8 @@
 #define JIT_IS_ALIGNED
 #endif
 
-// ALLOW_SXS_JIT enables AltJit support for JIT-ing, via COMPLUS_AltJit / COMPLUS_AltJitName.
-// ALLOW_SXS_JIT_NGEN enables AltJit support for NGEN, via COMPLUS_AltJitNgen / COMPLUS_AltJitName.
+// ALLOW_SXS_JIT enables AltJit support for JIT-ing, via COMPlus_AltJit / COMPlus_AltJitName.
+// ALLOW_SXS_JIT_NGEN enables AltJit support for NGEN, via COMPlus_AltJitNgen / COMPlus_AltJitName.
 // Note that if ALLOW_SXS_JIT_NGEN is defined, then ALLOW_SXS_JIT must be defined.
 #define ALLOW_SXS_JIT
 #if defined(ALLOW_SXS_JIT)
@@ -133,8 +136,7 @@
 #error "Platform must support either safe thread suspension or GC polling"
 #endif
 
-// GCCoverage has a dependency on msvcdisXXX.dll, which is not available for CoreSystem. Hence, it is disabled for CoreSystem builds.
-#if defined(STRESS_HEAP) && defined(_DEBUG) && defined(FEATURE_HIJACK) && !(defined(FEATURE_CORESYSTEM) && (defined(_TARGET_X86_) || defined(_TARGET_AMD64_)))
+#if defined(STRESS_HEAP) && defined(_DEBUG) && defined(FEATURE_HIJACK)
 #define HAVE_GCCOVER
 #endif
 
@@ -201,12 +203,12 @@
 // hardware instructions (rdtsc), for accessing high-resolution hardware timers is enabled. This is disabled
 // in Silverlight (just to avoid thinking about whether the extra code space is worthwhile).
 #define FEATURE_JIT_TIMER
+#endif // FEATURE_CORECLR
 
 // This feature in RyuJIT supersedes the FEATURE_JIT_TIMER. In addition to supporting the time log file, this
-// feature also supports using COMPLUS_JitTimeLogCsv=a.csv, which will dump method-level and phase-level timing
+// feature also supports using COMPlus_JitTimeLogCsv=a.csv, which will dump method-level and phase-level timing
 // statistics. Also see comments on FEATURE_JIT_TIMER.
 #define FEATURE_JIT_METHOD_PERF
-#endif // FEATURE_CORECLR
 
 
 #ifndef FEATURE_USE_ASM_GC_WRITE_BARRIERS
@@ -219,11 +221,11 @@
 // are treated as potential pinned interior pointers. When enabled, the runtime flag COMPLUS_GCCONSERVATIVE 
 // determines dynamically whether GC is conservative. Note that appdomain unload, LCG and unloadable assemblies
 // do not work reliably with conservative GC.
-#if defined(FEATURE_CORECLR) && !defined(BINDER)
+#ifdef FEATURE_CORECLR
 #define FEATURE_CONSERVATIVE_GC 1
 #endif
 
-#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
+#if (defined(_TARGET_ARM_) && !defined(ARM_SOFTFP)) || defined(_TARGET_ARM64_)
 #define FEATURE_HFA
 #endif
 
@@ -261,10 +263,6 @@
 #if defined(ALLOW_SXS_JIT) && !defined(FEATURE_PAL)
 #define FEATURE_STACK_SAMPLING
 #endif // defined (ALLOW_SXS_JIT)
-
-#if defined(_TARGET_ARM64_)
-#define FEATURE_INTERPRETER
-#endif // defined(_TARGET_ARM64_)
 
 #endif // !defined(CROSSGEN_COMPILE)
 

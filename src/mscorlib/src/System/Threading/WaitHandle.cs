@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 /*=============================================================================
@@ -27,11 +28,7 @@ namespace System.Threading
     using Win32Native = Microsoft.Win32.Win32Native;
 
 [System.Runtime.InteropServices.ComVisible(true)]
-#if FEATURE_REMOTING
     public abstract class WaitHandle : MarshalByRefObject, IDisposable {
-#else // FEATURE_REMOTING
-    public abstract class WaitHandle : IDisposable {
-#endif // FEATURE_REMOTING
         public const int WaitTimeout = 0x102;                    
 
         private const int MAX_WAITHANDLES = 64;
@@ -280,7 +277,7 @@ namespace System.Threading
         {
             if (waitHandles == null)
             {
-                throw new ArgumentNullException(Environment.GetResourceString("ArgumentNull_Waithandles"));
+                throw new ArgumentNullException("waitHandles", Environment.GetResourceString("ArgumentNull_Waithandles"));
             }
             if(waitHandles.Length == 0)
             {
@@ -296,7 +293,7 @@ namespace System.Threading
 #if FEATURE_CORECLR
                 throw new ArgumentException(Environment.GetResourceString("Argument_EmptyWaithandleArray"));
 #else
-                throw new ArgumentNullException(Environment.GetResourceString("Argument_EmptyWaithandleArray"));
+                throw new ArgumentNullException("waitHandles", Environment.GetResourceString("Argument_EmptyWaithandleArray"));
 #endif
             }
             if (waitHandles.Length > MAX_WAITHANDLES)
@@ -314,7 +311,7 @@ namespace System.Threading
                 WaitHandle waitHandle = waitHandles[i];
 
                 if (waitHandle == null)
-                    throw new ArgumentNullException(Environment.GetResourceString("ArgumentNull_ArrayElement"));
+                    throw new ArgumentNullException("waitHandles[" + i + "]", Environment.GetResourceString("ArgumentNull_ArrayElement"));
 
 #if FEATURE_REMOTING        
                 if (RemotingServices.IsTransparentProxy(waitHandle))
@@ -326,13 +323,6 @@ namespace System.Threading
 #if _DEBUG
             // make sure we do not use waitHandles any more.
             waitHandles = null;
-#endif
-
-#if FEATURE_LEGACYNETCF
-            // WinCE did not support "wait all."  It turns out that this resulted in NetCF's WaitAll implementation always returning true.
-            // Unfortunately, some apps took a dependency on that, so we have to replicate the behavior here.
-            if (CompatibilitySwitches.IsAppEarlierThanWindowsPhone8)
-                return true;
 #endif
 
             int ret = WaitMultiple(internalWaitHandles, millisecondsTimeout, exitContext, true /* waitall*/ );
@@ -400,7 +390,7 @@ namespace System.Threading
         {
             if (waitHandles==null)
             {
-                throw new ArgumentNullException(Environment.GetResourceString("ArgumentNull_Waithandles"));
+                throw new ArgumentNullException("waitHandles", Environment.GetResourceString("ArgumentNull_Waithandles"));
             }
             if(waitHandles.Length == 0)
             {
@@ -421,7 +411,7 @@ namespace System.Threading
                 WaitHandle waitHandle = waitHandles[i];
 
                 if (waitHandle == null)
-                    throw new ArgumentNullException(Environment.GetResourceString("ArgumentNull_ArrayElement"));
+                    throw new ArgumentNullException("waitHandles[" + i + "]", Environment.GetResourceString("ArgumentNull_ArrayElement"));
 
 #if FEATURE_REMOTING        
                 if (RemotingServices.IsTransparentProxy(waitHandle))
@@ -506,7 +496,11 @@ namespace System.Threading
                                         WaitHandle toSignal,
                                         WaitHandle toWaitOn)
         {
+#if PLATFORM_UNIX
+            throw new PlatformNotSupportedException();
+#else
             return SignalAndWait(toSignal,toWaitOn,-1,false);
+#endif
         }
 
         public static bool SignalAndWait(
@@ -515,12 +509,16 @@ namespace System.Threading
                                         TimeSpan timeout,
                                         bool exitContext)
         {
+#if PLATFORM_UNIX
+            throw new PlatformNotSupportedException();
+#else
             long tm = (long)timeout.TotalMilliseconds;
             if (-1 > tm || (long) Int32.MaxValue < tm)
             {
                 throw new ArgumentOutOfRangeException("timeout", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegOrNegative1"));
             }
             return SignalAndWait(toSignal,toWaitOn,(int)tm,exitContext);
+#endif
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -531,6 +529,9 @@ namespace System.Threading
                                         int millisecondsTimeout,
                                         bool exitContext)
         {
+#if PLATFORM_UNIX
+            throw new PlatformNotSupportedException();
+#else
             if(null == toSignal)
             {
                 throw new ArgumentNullException("toSignal");
@@ -549,11 +550,13 @@ namespace System.Threading
             int ret = SignalAndWaitOne(toSignal.safeWaitHandle,toWaitOn.safeWaitHandle,millisecondsTimeout,
                                 toWaitOn.hasThreadAffinity,exitContext);
 
+#if !FEATURE_CORECLR
             if(WAIT_FAILED != ret  && toSignal.hasThreadAffinity)
             {
                 Thread.EndCriticalRegion();
                 Thread.EndThreadAffinity();
             }
+#endif
 
             if(WAIT_ABANDONED == ret)
             {
@@ -573,6 +576,7 @@ namespace System.Threading
 
             //Timeout
             return false;
+#endif
         }
 
         private static void ThrowAbandonedMutexException()

@@ -1,7 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 .assembly extern legacy library mscorlib {}
+.assembly extern System.Console
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
 .assembly 'fault'
 {
 }
@@ -27,7 +33,7 @@
 
 	  fault_begin:
 				ldstr      "in fault block."
-				call       void [mscorlib]System.Console::WriteLine(class [mscorlib]System.String)
+				call       void [System.Console]System.Console::WriteLine(class [mscorlib]System.String)
 	   			ldloc.0
 				ldc.i4    1
 				sub
@@ -37,7 +43,7 @@
       filter_begin:
       			pop
 				ldstr      "in filter."
-				call       void [mscorlib]System.Console::WriteLine(class [mscorlib]System.String)
+				call       void [System.Console]System.Console::WriteLine(class [mscorlib]System.String)
 	   			ldloc.0
 				ldc.i4    1
 				sub
@@ -48,10 +54,10 @@
       except_begin:
                 call       void [mscorlib]System.GC::Collect()
 				callvirt   instance class [mscorlib]System.String [mscorlib]System.Exception::get_Message()
-				call       void [mscorlib]System.Console::WriteLine(class [mscorlib]System.String)
+				call       void [System.Console]System.Console::WriteLine(class [mscorlib]System.String)
 				
 				ldstr      "in except block."
-				call       void [mscorlib]System.Console::WriteLine(class [mscorlib]System.String)
+				call       void [System.Console]System.Console::WriteLine(class [mscorlib]System.String)
 	   			ldloc.0
 				ldc.i4    1
 				sub
@@ -64,13 +70,13 @@
 				bne.un.s   IL_0033
 				
 				ldstr      "test passed."
-				call       void [mscorlib]System.Console::WriteLine(class [mscorlib]System.String)
+				call       void [System.Console]System.Console::WriteLine(class [mscorlib]System.String)
 				ldc.i4     0x64
 				ret
 
       IL_0033:
 	  			ldstr      "test failed."
-	  			call       void [mscorlib]System.Console::WriteLine(class [mscorlib]System.String)
+	  			call       void [System.Console]System.Console::WriteLine(class [mscorlib]System.String)
       IL_003d:
       			ldloc.0
       			ret

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -26,17 +25,21 @@ Revision History:
 #undef _FILE_OFFSET_BITS
 #endif
 
+#include "pal/dbgmsg.h"
+SET_DEFAULT_DEBUG_CHANNEL(DEBUG); // some headers have code with asserts, so do this first
+
 #include "pal/thread.hpp"
 #include "pal/procobj.hpp"
 #include "pal/file.hpp"
 
 #include "pal/palinternal.h"
-#include "pal/dbgmsg.h"
 #include "pal/process.h"
 #include "pal/context.h"
 #include "pal/debug.h"
-#include "pal/misc.h"
+#include "pal/environ.h"
 #include "pal/malloc.hpp"
+#include "pal/module.h"
+#include "pal/stackstring.hpp"
 #include "pal/virtual.h"
 
 #include <signal.h>
@@ -65,7 +68,7 @@ Revision History:
 
 using namespace CorUnix;
 
-SET_DEFAULT_DEBUG_CHANNEL(DEBUG);
+extern "C" void DBG_DebugBreak_End();
 
 #if HAVE_PROCFS_CTL
 #define CTL_ATTACH      "attach"
@@ -169,17 +172,19 @@ OutputDebugStringA(
 {
     PERF_ENTRY(OutputDebugStringA);
     ENTRY("OutputDebugStringA (lpOutputString=%p (%s))\n",
-          lpOutputString?lpOutputString:"NULL",
-          lpOutputString?lpOutputString:"NULL");
-    
-    /* as we don't support debug events, we are going to output the debug string
-      to stderr instead of generating OUT_DEBUG_STRING_EVENT */
-    if ( (lpOutputString != NULL) && 
-         (NULL != MiscGetenv(PAL_OUTPUTDEBUGSTRING)))
+          lpOutputString ? lpOutputString : "NULL",
+          lpOutputString ? lpOutputString : "NULL");
+
+    // As we don't support debug events, we are going to output the debug string
+    // to stderr instead of generating OUT_DEBUG_STRING_EVENT. It's safe to tell
+    // EnvironGetenv not to make a copy of the value here since we only want to
+    // check whether it exists, not actually use it.
+    if ((lpOutputString != NULL) &&
+        (NULL != EnvironGetenv(PAL_OUTPUTDEBUGSTRING, /* copyValue */ FALSE)))
     {
         fprintf(stderr, "%s", lpOutputString);
     }
-        
+
     LOGEXIT("OutputDebugStringA returns\n");
     PERF_EXIT(OutputDebugStringA);
 }
@@ -197,7 +202,6 @@ OutputDebugStringW(
 {
     CHAR *lpOutputStringA;
     int strLen;
-    CPalThread *pThread = NULL;
 
     PERF_ENTRY(OutputDebugStringW);
     ENTRY("OutputDebugStringW (lpOutputString=%p (%S))\n",
@@ -219,28 +223,27 @@ OutputDebugStringW(
         goto EXIT;
     }
 
-    pThread = InternalGetCurrentThread();
     /* strLen includes the null terminator */
-    if ((lpOutputStringA = (LPSTR) InternalMalloc(pThread, (strLen * sizeof(CHAR)))) == NULL)
+    if ((lpOutputStringA = (LPSTR) InternalMalloc((strLen * sizeof(CHAR)))) == NULL)
     {
         ERROR("Insufficient memory available !\n");
         SetLastError(ERROR_NOT_ENOUGH_MEMORY);
         goto EXIT;
     }
-    
+
     if(! WideCharToMultiByte(CP_ACP, 0, lpOutputString, -1, 
                              lpOutputStringA, strLen, NULL, NULL)) 
     {
         ASSERT("failed to convert wide chars to multibytes\n");
         SetLastError(ERROR_INTERNAL_ERROR);
-        InternalFree(pThread, lpOutputStringA);
+        free(lpOutputStringA);
         goto EXIT;
     }
     
     OutputDebugStringA(lpOutputStringA);
-    InternalFree(pThread, lpOutputStringA);
+    free(lpOutputStringA);
 
-EXIT:    
+EXIT:
     LOGEXIT("OutputDebugStringW returns\n");
     PERF_EXIT(OutputDebugStringW);
 }
@@ -330,39 +333,73 @@ run_debug_command (const char *command)
 }
 #endif // ENABLE_RUN_ON_DEBUG_BREAK
 
+#define PID_TEXT "PAL_EXE_PID="
+#define EXE_TEXT "PAL_EXE_NAME="
+
 static
 int
 DebugBreakCommand()
 {
 #ifdef ENABLE_RUN_ON_DEBUG_BREAK
-    const char *command_string = getenv (PAL_RUN_ON_DEBUG_BREAK);
-    if (command_string) {
-        char pid_buf[sizeof ("PAL_EXE_PID=") + 32];
-        char exe_buf[sizeof ("PAL_EXE_NAME=") + MAX_PATH + 1];
-        extern char g_ExePath[MAX_PATH];
-        if (snprintf (pid_buf, sizeof (pid_buf),
-                      "PAL_EXE_PID=%d", getpid()) <= 0) {
-            goto FAILED;
+    extern MODSTRUCT exe_module;
+
+    char *command_string = EnvironGetenv(PAL_RUN_ON_DEBUG_BREAK);
+    if (command_string)
+    {
+        char pid_buf[sizeof (PID_TEXT) + 32];
+        PathCharString exe_bufString;
+        int libNameLength = 10;
+
+        if (exe_module.lib_name != NULL)
+        {
+            libNameLength = PAL_wcslen(exe_module.lib_name);
         }
-        if (snprintf (exe_buf, sizeof (exe_buf),
-                      "PAL_EXE_NAME=%s", g_ExePath) <= 0) {
+        
+        SIZE_T dwexe_buf = strlen(EXE_TEXT) + libNameLength + 1;
+        CHAR * exe_buf = exe_bufString.OpenStringBuffer(dwexe_buf);
+        
+        if (NULL == exe_buf)
+        {
             goto FAILED;
         }
 
+        if (snprintf (pid_buf, sizeof (pid_buf), PID_TEXT "%d", getpid()) <= 0)
+        {
+            goto FAILED;
+        }
+
+        if (snprintf (exe_buf, sizeof (CHAR) * (dwexe_buf + 1), EXE_TEXT "%ls", (wchar_t *)exe_module.lib_name) <= 0)
+        {
+            goto FAILED;
+        }
+
+        exe_bufString.CloseBuffer(dwexe_buf);
         /* strictly speaking, we might want to only set these environment
            variables in the child process, but if we do that we can't check
            for errors. putenv/setenv can fail when out of memory */
 
-        if (!MiscPutenv (pid_buf, FALSE) || !MiscPutenv (exe_buf, FALSE)) {
+        if (!EnvironPutenv (pid_buf, FALSE) || !EnvironPutenv (exe_buf, FALSE))
+        {
             goto FAILED;
         }
-        if (run_debug_command (command_string)) {
+
+        if (run_debug_command (command_string))
+        {
             goto FAILED;
         }
+
+        free(command_string);
         return 1;
     }
+
     return 0;
+
 FAILED:
+    if (command_string)
+    {
+        free(command_string);
+    }
+
     fprintf (stderr, "Failed to execute command: '%s'\n", command_string);
     return -1;
 #else // ENABLE_RUN_ON_DEBUG_BREAK
@@ -392,6 +429,19 @@ DebugBreak(
     
     LOGEXIT("DebugBreak returns\n");
     PERF_EXIT(DebugBreak);
+}
+
+/*++
+Function:
+  IsInDebugBreak(addr)
+
+  Returns true if the address is in DBG_DebugBreak.
+
+--*/
+BOOL
+IsInDebugBreak(void *addr)
+{
+    return (addr >= (void *)DBG_DebugBreak) && (addr <= (void *)DBG_DebugBreak_End);
 }
 
 /*++
@@ -432,7 +482,6 @@ GetThreadContext(
             ret = CONTEXT_GetThreadContext(
                 GetCurrentProcessId(),
                 pTargetThread->GetPThreadSelf(),
-                pTargetThread->GetLwpId(),
                 lpContext
                 );
         }
@@ -495,7 +544,6 @@ SetThreadContext(
             ret = CONTEXT_SetThreadContext(
                 GetCurrentProcessId(),
                 pTargetThread->GetPThreadSelf(),
-                pTargetThread->GetLwpId(),
                 lpContext
                 );
         }
@@ -515,600 +563,6 @@ SetThreadContext(
         pobjThread->ReleaseReference(pThread);
     }
         
-    return ret;
-}
-
-/*++
-Function:
-  ReadProcessMemory
-
-See MSDN doc.
---*/
-BOOL
-PALAPI
-ReadProcessMemory(
-           IN HANDLE hProcess,
-           IN LPCVOID lpBaseAddress,
-           IN LPVOID lpBuffer,
-           IN SIZE_T nSize,
-           OUT SIZE_T * lpNumberOfBytesRead
-           )
-{
-    CPalThread *pThread;
-    DWORD processId;
-    Volatile<BOOL> ret = FALSE;
-    Volatile<SIZE_T> numberOfBytesRead = 0;
-#if HAVE_VM_READ
-    kern_return_t result;
-    vm_map_t task;
-    LONG_PTR bytesToRead;
-#elif HAVE_PROCFS_CTL
-    int fd;
-    char memPath[64];
-    off_t offset;
-#elif !HAVE_TTRACE
-    SIZE_T nbInts;
-    int* ptrInt;
-    int* lpTmpBuffer;
-#endif
-#if !HAVE_PROCFS_CTL && !HAVE_TTRACE
-    int* lpBaseAddressAligned;
-    SIZE_T offset;
-#endif  // !HAVE_PROCFS_CTL && !HAVE_TTRACE
-
-    PERF_ENTRY(ReadProcessMemory);
-    ENTRY("ReadProcessMemory (hProcess=%p,lpBaseAddress=%p, lpBuffer=%p, "
-          "nSize=%u, lpNumberOfBytesRead=%p)\n",hProcess,lpBaseAddress,
-          lpBuffer, (unsigned int)nSize, lpNumberOfBytesRead);
-
-    pThread = InternalGetCurrentThread();
-    
-    if (!(processId = PROCGetProcessIDFromHandle(hProcess)))
-    {
-        ERROR("Invalid process handler hProcess:%p.",hProcess);
-        SetLastError(ERROR_INVALID_HANDLE);        
-        goto EXIT;
-    }
-    
-    // Check if the read request is for the current process. 
-    // We don't need ptrace in that case.
-    if (GetCurrentProcessId() == processId) 
-    {
-        TRACE("We are in the same process, so ptrace is not needed\n");
-        
-        struct Param
-        {
-            LPCVOID lpBaseAddress;
-            LPVOID lpBuffer;
-            SIZE_T nSize;
-            SIZE_T numberOfBytesRead;
-            BOOL ret;
-        } param;
-        param.lpBaseAddress = lpBaseAddress;
-        param.lpBuffer = lpBuffer;
-        param.nSize = nSize;
-        param.numberOfBytesRead = numberOfBytesRead;
-        param.ret = ret;
-
-        PAL_TRY(Param *, pParam, &param)
-        {
-            SIZE_T i;
-            
-            // Seg fault in memcpy can't be caught
-            // so we simulate the memcpy here
-
-            for (i = 0; i<pParam->nSize; i++)
-            {
-                *((char*)(pParam->lpBuffer)+i) = *((char*)(pParam->lpBaseAddress)+i);
-            }
-
-            pParam->numberOfBytesRead = pParam->nSize;
-            pParam->ret = TRUE;
-        }
-        PAL_EXCEPT(EXCEPTION_EXECUTE_HANDLER)
-        {
-            SetLastError(ERROR_ACCESS_DENIED);
-        }
-        PAL_ENDTRY
-
-        numberOfBytesRead = param.numberOfBytesRead;
-        ret = param.ret;
-        goto EXIT;        
-    }
-
-#if HAVE_VM_READ
-    result = task_for_pid(mach_task_self(), processId, &task);
-    if (result != KERN_SUCCESS)
-    {
-        ERROR("No Mach task for pid %d: %d\n", processId, ret.Load());
-        SetLastError(ERROR_INVALID_HANDLE);
-        goto EXIT;
-    }
-    // vm_read_overwrite usually requires that the address be page-aligned
-    // and the size be a multiple of the page size.  We can't differentiate
-    // between the cases in which that's required and those in which it
-    // isn't, so we do it all the time.
-    lpBaseAddressAligned = (int*)((SIZE_T) lpBaseAddress & ~VIRTUAL_PAGE_MASK);
-    offset = ((SIZE_T) lpBaseAddress & VIRTUAL_PAGE_MASK);
-    char *data;
-    data = (char*)alloca(VIRTUAL_PAGE_SIZE);
-    while (nSize > 0)
-    {
-        vm_size_t bytesRead;
-        
-        bytesToRead = VIRTUAL_PAGE_SIZE - offset;
-        if (bytesToRead > (LONG_PTR)nSize)
-        {
-            bytesToRead = nSize;
-        }
-        bytesRead = VIRTUAL_PAGE_SIZE;
-        result = vm_read_overwrite(task, (vm_address_t) lpBaseAddressAligned,
-                                   VIRTUAL_PAGE_SIZE, (vm_address_t) data, &bytesRead);
-        if (result != KERN_SUCCESS || bytesRead != VIRTUAL_PAGE_SIZE)
-        {
-            ERROR("vm_read_overwrite failed for %d bytes from %p in %d: %d\n",
-                  VIRTUAL_PAGE_SIZE, (char *) lpBaseAddressAligned, task, result);
-            if (result <= KERN_RETURN_MAX)
-            {
-                SetLastError(ERROR_INVALID_ACCESS);
-            }
-            else
-            {
-                SetLastError(ERROR_INTERNAL_ERROR);
-            }
-            goto EXIT;
-        }
-        memcpy((LPSTR)lpBuffer + numberOfBytesRead, data + offset, bytesToRead);
-        numberOfBytesRead.Store(numberOfBytesRead.Load() + bytesToRead);
-        lpBaseAddressAligned = (int*)((char*)lpBaseAddressAligned + VIRTUAL_PAGE_SIZE);
-        nSize -= bytesToRead;
-        offset = 0;
-    }
-    ret = TRUE;
-#else   // HAVE_VM_READ
-#if HAVE_PROCFS_CTL
-    snprintf(memPath, sizeof(memPath), "/proc/%u/%s", processId, PROCFS_MEM_NAME);
-    fd = InternalOpen(pThread, memPath, O_RDONLY);
-    if (fd == -1)
-    {
-        ERROR("Failed to open %s\n", memPath);
-        SetLastError(ERROR_INVALID_ACCESS);
-        goto PROCFSCLEANUP;
-    }
-
-    //
-    // off_t may be greater in size than void*, so first cast to
-    // an unsigned type to ensure that no sign extension takes place
-    //
-
-    offset = (off_t) (UINT_PTR) lpBaseAddress;
-
-    if (lseek(fd, offset, SEEK_SET) == -1)
-    {
-        ERROR("Failed to seek to base address\n");
-        SetLastError(ERROR_INVALID_ACCESS);
-        goto PROCFSCLEANUP;
-    }
-    
-    numberOfBytesRead = read(fd, lpBuffer, nSize);
-    ret = TRUE;
-
-#else   // HAVE_PROCFS_CTL
-    // Attach the process before calling ttrace/ptrace otherwise it fails.
-    if (DBGAttachProcess(pThread, hProcess, processId))
-    {
-#if HAVE_TTRACE
-        if (ttrace(TT_PROC_RDDATA, processId, 0, (__uint64_t)lpBaseAddress, (__uint64_t)nSize, (__uint64_t)lpBuffer) == -1)
-        {
-            if (errno == EFAULT) 
-            {
-                ERROR("ttrace(TT_PROC_RDDATA, pid:%d, 0, addr:%p, data:%d, addr2:%d) failed"
-                      " errno=%d (%s)\n", processId, lpBaseAddress, (int)nSize, lpBuffer,
-                      errno, strerror(errno));
-                
-                SetLastError(ERROR_ACCESS_DENIED);
-            }
-            else
-            {
-                ASSERT("ttrace(TT_PROC_RDDATA, pid:%d, 0, addr:%p, data:%d, addr2:%d) failed"
-                      " errno=%d (%s)\n", processId, lpBaseAddress, (int)nSize, lpBuffer,
-                      errno, strerror(errno));
-                SetLastError(ERROR_INTERNAL_ERROR);
-            }
-
-            goto CLEANUP1;
-        }
-
-        numberOfBytesRead = nSize;
-        ret = TRUE;
-        
-#else   // HAVE_TTRACE
-
-        offset = (SIZE_T)lpBaseAddress % sizeof(int);
-        lpBaseAddressAligned =  (int*)((char*)lpBaseAddress - offset);
-        nbInts = (nSize + offset)/sizeof(int) + 
-                 ((nSize + offset)%sizeof(int) ? 1:0);
-        
-        /* before transferring any data to lpBuffer we should make sure that all 
-           data is accessible for read. so we need to use a temp buffer for that.*/
-        if (!(lpTmpBuffer = (int*)InternalMalloc(pThread, (nbInts * sizeof(int)))))
-        {
-            ERROR("Insufficient memory available !\n");
-            SetLastError(ERROR_NOT_ENOUGH_MEMORY);
-            goto CLEANUP1;
-        }
-        
-        for (ptrInt = lpTmpBuffer; nbInts; ptrInt++,
-            lpBaseAddressAligned++, nbInts--)
-        {
-            errno = 0;
-            *ptrInt =
-                PAL_PTRACE(PAL_PT_READ_D, processId, lpBaseAddressAligned, 0);
-            if (*ptrInt == -1 && errno) 
-            {
-                if (errno == EFAULT) 
-                {
-                    ERROR("ptrace(PT_READ_D, pid:%d, addr:%p, data:0) failed"
-                          " errno=%d (%s)\n", processId, lpBaseAddressAligned,
-                          errno, strerror(errno));
-                    
-                    SetLastError(ptrInt == lpTmpBuffer ? ERROR_ACCESS_DENIED : 
-                                                         ERROR_PARTIAL_COPY);
-                }
-                else
-                {
-                    ASSERT("ptrace(PT_READ_D, pid:%d, addr:%p, data:0) failed"
-                          " errno=%d (%s)\n", processId, lpBaseAddressAligned,
-                          errno, strerror(errno));
-                    SetLastError(ERROR_INTERNAL_ERROR);
-                }
-                
-                goto CLEANUP2;
-            }
-        }
-        
-        /* transfer data from temp buffer to lpBuffer */
-        memcpy( (char *)lpBuffer, ((char*)lpTmpBuffer) + offset, nSize);
-        numberOfBytesRead = nSize;
-        ret = TRUE;
-#endif // HAVE_TTRACE        
-    }
-    else
-    {
-        /* Failed to attach processId */
-        goto EXIT;    
-    }
-#endif  // HAVE_PROCFS_CTL
-
-#if HAVE_PROCFS_CTL
-PROCFSCLEANUP:
-    if (fd != -1)
-    {
-        close(fd);
-    }    
-#elif !HAVE_TTRACE
-CLEANUP2:
-    if (lpTmpBuffer) 
-    {
-        InternalFree(pThread, lpTmpBuffer);
-    }
-#endif  // !HAVE_TTRACE
-
-#if !HAVE_PROCFS_CTL
-CLEANUP1:
-    if (!DBGDetachProcess(pThread, hProcess, processId))
-    {
-        /* Failed to detach processId */
-        ret = FALSE;
-    }
-#endif  // HAVE_PROCFS_CTL
-#endif  // HAVE_VM_READ
-
-EXIT:
-    if (lpNumberOfBytesRead)
-    {
-        *lpNumberOfBytesRead = numberOfBytesRead;
-    }
-    LOGEXIT("ReadProcessMemory returns BOOL %d\n", ret.Load());
-    PERF_EXIT(ReadProcessMemory);
-    return ret;
-}
-
-/*++
-Function:
-  WriteProcessMemory
-
-See MSDN doc.
---*/
-BOOL
-PALAPI
-WriteProcessMemory(
-           IN HANDLE hProcess,
-           IN LPVOID lpBaseAddress,
-           IN LPCVOID lpBuffer,
-           IN SIZE_T nSize,
-           OUT SIZE_T * lpNumberOfBytesWritten
-           )
-
-{
-    CPalThread *pThread;
-    DWORD processId;
-    Volatile<BOOL> ret = FALSE;
-    Volatile<SIZE_T> numberOfBytesWritten = 0;
-#if HAVE_VM_READ
-    kern_return_t result;
-    vm_map_t task;
-#elif HAVE_PROCFS_CTL
-    int fd;
-    char memPath[64];
-    LONG_PTR bytesWritten;
-    off_t offset;
-#elif !HAVE_TTRACE
-    SIZE_T FirstIntOffset;
-    SIZE_T LastIntOffset;
-    unsigned int FirstIntMask;
-    unsigned int LastIntMask;
-    SIZE_T nbInts;
-    int *lpTmpBuffer = 0, *lpInt;
-    int* lpBaseAddressAligned;
-#endif
-
-    PERF_ENTRY(WriteProcessMemory);
-    ENTRY("WriteProcessMemory (hProcess=%p,lpBaseAddress=%p, lpBuffer=%p, "
-           "nSize=%u, lpNumberOfBytesWritten=%p)\n",
-           hProcess,lpBaseAddress, lpBuffer, (unsigned int)nSize, lpNumberOfBytesWritten); 
-
-    pThread = InternalGetCurrentThread();
-    
-    if (!(nSize && (processId = PROCGetProcessIDFromHandle(hProcess))))
-    {
-        ERROR("Invalid nSize:%u number or invalid process handler "
-              "hProcess:%p\n", (unsigned int)nSize, hProcess);
-        SetLastError(ERROR_INVALID_PARAMETER);
-        goto EXIT;
-    }
-    
-    // Check if the write request is for the current process.
-    // In that case we don't need ptrace.
-    if (GetCurrentProcessId() == processId) 
-    {
-        TRACE("We are in the same process so we don't need ptrace\n");
-        
-        struct Param
-        {
-            LPVOID lpBaseAddress;
-            LPCVOID lpBuffer;
-            SIZE_T nSize;
-            SIZE_T numberOfBytesWritten;
-            BOOL ret;
-        } param;
-        param.lpBaseAddress = lpBaseAddress;
-        param.lpBuffer = lpBuffer;
-        param.nSize = nSize;
-        param.numberOfBytesWritten = numberOfBytesWritten;
-        param.ret = ret;
-
-        PAL_TRY(Param *, pParam, &param)
-        {
-            SIZE_T i;
-            
-            // Seg fault in memcpy can't be caught
-            // so we simulate the memcpy here
-
-            for (i = 0; i<pParam->nSize; i++)
-            {
-                *((char*)(pParam->lpBaseAddress)+i) = *((char*)(pParam->lpBuffer)+i);
-            }
-
-            pParam->numberOfBytesWritten = pParam->nSize;
-            pParam->ret = TRUE;
-        } 
-        PAL_EXCEPT(EXCEPTION_EXECUTE_HANDLER)
-        {
-            SetLastError(ERROR_ACCESS_DENIED);
-        }
-        PAL_ENDTRY
-
-        numberOfBytesWritten = param.numberOfBytesWritten;
-        ret = param.ret;
-        goto EXIT;        
-    }
-
-#if HAVE_VM_READ
-    result = task_for_pid(mach_task_self(), processId, &task);
-    if (result != KERN_SUCCESS)
-    {
-        ERROR("No Mach task for pid %d: %d\n", processId, ret.Load());
-        SetLastError(ERROR_INVALID_HANDLE);
-        goto EXIT;
-    }
-    result = vm_write(task, (vm_address_t) lpBaseAddress, 
-                      (vm_address_t) lpBuffer, nSize);
-    if (result != KERN_SUCCESS)
-    {
-        ERROR("vm_write failed for %d bytes from %p in %d: %d\n",
-              (int)nSize, lpBaseAddress, task, result);
-        if (result <= KERN_RETURN_MAX)
-        {
-            SetLastError(ERROR_ACCESS_DENIED);
-        }
-        else
-        {
-            SetLastError(ERROR_INTERNAL_ERROR);
-        }
-        goto EXIT;
-    }
-    numberOfBytesWritten = nSize;
-    ret = TRUE;
-#else   // HAVE_VM_READ
-#if HAVE_PROCFS_CTL
-    snprintf(memPath, sizeof(memPath), "/proc/%u/%s", processId, PROCFS_MEM_NAME);
-    fd = InternalOpen(pThread, memPath, O_WRONLY);
-    if (fd == -1)
-    {
-        ERROR("Failed to open %s\n", memPath);
-        SetLastError(ERROR_INVALID_ACCESS);
-        goto PROCFSCLEANUP;
-    }
-
-    //
-    // off_t may be greater in size than void*, so first cast to
-    // an unsigned type to ensure that no sign extension takes place
-    //
-
-    offset = (off_t) (UINT_PTR) lpBaseAddress;
-
-    if (lseek(fd, offset, SEEK_SET) == -1)
-    {
-        ERROR("Failed to seek to base address\n");
-        SetLastError(ERROR_INVALID_ACCESS);
-        goto PROCFSCLEANUP;
-    }
-    
-    bytesWritten = write(fd, lpBuffer, nSize);
-    if (bytesWritten < 0)
-    {
-        ERROR("Failed to write to %s\n", memPath);
-        SetLastError(ERROR_INVALID_ACCESS);
-        goto PROCFSCLEANUP;
-    }
-
-    numberOfBytesWritten = bytesWritten;
-    ret = TRUE;
-
-#else   // HAVE_PROCFS_CTL
-    /* Attach the process before calling ptrace otherwise it fails */
-    if (DBGAttachProcess(pThread, hProcess, processId))
-    {
-#if HAVE_TTRACE
-        if (ttrace(TT_PROC_WRDATA, processId, 0, (__uint64_t)lpBaseAddress, (__uint64_t)nSize, (__uint64_t)lpBuffer) == -1)
-        {
-            if (errno == EFAULT) 
-            {
-                ERROR("ttrace(TT_PROC_WRDATA, pid:%d, addr:%p, data:%d, addr2:%d) failed"
-                      " errno=%d (%s)\n", processId, lpBaseAddress, nSize, lpBuffer,
-                      errno, strerror(errno));
-                
-                SetLastError(ERROR_ACCESS_DENIED);
-            }
-            else
-            {
-                ASSERT("ttrace(TT_PROC_WRDATA, pid:%d, addr:%p, data:%d, addr2:%d) failed"
-                      " errno=%d (%s)\n", processId, lpBaseAddress, nSize, lpBuffer,
-                      errno, strerror(errno));
-                SetLastError(ERROR_INTERNAL_ERROR);
-            }
-
-            goto CLEANUP1;
-        }
-
-        numberOfBytesWritten = nSize;
-        ret = TRUE;
-        
-#else   // HAVE_TTRACE
-
-        FirstIntOffset = (SIZE_T)lpBaseAddress % sizeof(int);    
-        FirstIntMask = -1;
-        FirstIntMask <<= (FirstIntOffset * 8);
-        
-        nbInts = (nSize + FirstIntOffset) / sizeof(int) + 
-                 (((nSize + FirstIntOffset)%sizeof(int)) ? 1:0);
-        lpBaseAddressAligned = (int*)((char*)lpBaseAddress - FirstIntOffset);
-        
-        if ((lpTmpBuffer = (int*)InternalMalloc(pThread, (nbInts * sizeof(int)))) == NULL)
-        {
-            ERROR("Insufficient memory available !\n");
-            SetLastError(ERROR_NOT_ENOUGH_MEMORY);
-            goto CLEANUP1;
-        }
-        
-        memcpy( (char *)lpTmpBuffer + FirstIntOffset, (char *)lpBuffer, nSize);    
-        lpInt = lpTmpBuffer;
-
-        LastIntOffset = (nSize + FirstIntOffset) % sizeof(int);
-        LastIntMask = -1;
-        LastIntMask >>= ((sizeof(int) - LastIntOffset) * 8);
-        
-        if (nbInts == 1)
-        {
-            if (DBGWriteProcMem_IntWithMask(processId, lpBaseAddressAligned, 
-                                            *lpInt,
-                                            LastIntMask & FirstIntMask)
-                  == 0)
-            {
-                goto CLEANUP2;
-            }
-            numberOfBytesWritten = nSize;
-            ret = TRUE;
-            goto CLEANUP2;
-        }
-        
-        if (DBGWriteProcMem_IntWithMask(processId,
-                                        lpBaseAddressAligned++,
-                                        *lpInt++, FirstIntMask) 
-            == 0)
-        {
-            goto CLEANUP2;
-        }
-
-        while (--nbInts > 1)
-        {      
-          if (DBGWriteProcMem_Int(processId, lpBaseAddressAligned++,
-                                  *lpInt++) == 0)
-          {
-              goto CLEANUP2;
-          }
-        }
-        
-        if (DBGWriteProcMem_IntWithMask(processId, lpBaseAddressAligned,
-                                        *lpInt, LastIntMask ) == 0)
-        {
-            goto CLEANUP2;
-        }
-
-        numberOfBytesWritten = nSize;
-        ret = TRUE;
-#endif  // HAVE_TTRACE         
-    }     
-    else
-    {
-        /* Failed to attach processId */
-        goto EXIT;    
-    }  
-#endif  // HAVE_PROCFS_CTL
-
-#if HAVE_PROCFS_CTL
-PROCFSCLEANUP:
-    if (fd != -1)
-    {
-        close(fd);
-    }
-#elif !HAVE_TTRACE
-CLEANUP2:
-    if (lpTmpBuffer) 
-    {
-        InternalFree(pThread, lpTmpBuffer);
-    }
-#endif  // !HAVE_TTRACE
-
-#if !HAVE_PROCFS_CTL
-CLEANUP1:
-    if (!DBGDetachProcess(pThread, hProcess, processId))
-    {
-        /* Failed to detach processId */
-        ret = FALSE;
-    }
-#endif  // !HAVE_PROCFS_CTL
-#endif  // HAVE_VM_READ
-
-EXIT:
-    if (lpNumberOfBytesWritten)
-    {
-        *lpNumberOfBytesWritten = numberOfBytesWritten;
-    }
-
-    LOGEXIT("WriteProcessMemory returns BOOL %d\n", ret.Load());
-    PERF_EXIT(WriteProcessMemory);
     return ret;
 }
 
@@ -1237,7 +691,7 @@ DBGAttachProcess(
     int attchmentCount;
     int savedErrno;
 #if HAVE_PROCFS_CTL
-    int fd;
+    int fd = -1;
     char ctlPath[1024];
 #endif  // HAVE_PROCFS_CTL
 
@@ -1266,7 +720,7 @@ DBGAttachProcess(
         nanosleep(&waitTime, NULL);
         
         sprintf_s(ctlPath, sizeof(ctlPath), "/proc/%d/ctl", processId);
-        fd = InternalOpen(pThread, ctlPath, O_WRONLY);
+        fd = InternalOpen(ctlPath, O_WRONLY);
         if (fd == -1)
         {
             ERROR("Failed to open %s: errno is %d (%s)\n", ctlPath,
@@ -1387,7 +841,7 @@ DBGDetachProcess(
 {     
     int nbAttachLeft;
 #if HAVE_PROCFS_CTL
-    int fd;
+    int fd = -1;
     char ctlPath[1024];
 #endif  // HAVE_PROCFS_CTL
 
@@ -1597,7 +1051,7 @@ PAL_CreateExecWatchpoint(
     CPalThread *pTargetThread = NULL;
     IPalObject *pobjThread = NULL;
     int fd = -1;
-    char ctlPath[MAX_PATH];
+    char ctlPath[50];
 
     struct
     {
@@ -1641,6 +1095,7 @@ PAL_CreateExecWatchpoint(
     }
 
     snprintf(ctlPath, sizeof(ctlPath), "/proc/%u/lwp/%u/lwpctl", getpid(), pTargetThread->GetLwpId());
+
     fd = InternalOpen(pThread, ctlPath, O_WRONLY);
     if (-1 == fd)
     {
@@ -1718,7 +1173,7 @@ PAL_DeleteExecWatchpoint(
     CPalThread *pTargetThread = NULL;
     IPalObject *pobjThread = NULL;
     int fd = -1;
-    char ctlPath[MAX_PATH];
+    char ctlPath[50];
 
     struct
     {
@@ -1743,6 +1198,7 @@ PAL_DeleteExecWatchpoint(
     }
 
     snprintf(ctlPath, sizeof(ctlPath), "/proc/%u/lwp/%u/lwpctl", getpid(), pTargetThread->GetLwpId());
+
     fd = InternalOpen(pThread, ctlPath, O_WRONLY);
     if (-1 == fd)
     {
@@ -1782,6 +1238,607 @@ PAL_DeleteExecWatchpointExit:
     LOGEXIT("PAL_DeleteExecWatchpoint returns ret:%d\n", dwError);
     PERF_EXIT(PAL_DeleteExecWatchpoint);
     return dwError;
+}
+
+// We want to enable hardware exception handling for ReadProcessMemory
+// and WriteProcessMemory in all cases since it is acceptable if they
+// hit AVs, so redefine HardwareExceptionHolder for these two functions
+// (here to the end of the file).
+#undef HardwareExceptionHolder
+#define HardwareExceptionHolder CatchHardwareExceptionHolder __catchHardwareException;
+
+/*++
+Function:
+  ReadProcessMemory
+
+See MSDN doc.
+--*/
+BOOL
+PALAPI
+ReadProcessMemory(
+           IN HANDLE hProcess,
+           IN LPCVOID lpBaseAddress,
+           IN LPVOID lpBuffer,
+           IN SIZE_T nSize,
+           OUT SIZE_T * lpNumberOfBytesRead
+           )
+{
+    CPalThread *pThread;
+    DWORD processId;
+    Volatile<BOOL> ret = FALSE;
+    Volatile<SIZE_T> numberOfBytesRead = 0;
+#if HAVE_VM_READ
+    kern_return_t result;
+    vm_map_t task;
+    LONG_PTR bytesToRead;
+#elif HAVE_PROCFS_CTL
+    int fd = -1;
+    char memPath[64];
+    off_t offset;
+#elif !HAVE_TTRACE
+    SIZE_T nbInts;
+    int* ptrInt;
+    int* lpTmpBuffer;
+#endif
+#if !HAVE_PROCFS_CTL && !HAVE_TTRACE
+    int* lpBaseAddressAligned;
+    SIZE_T offset;
+#endif  // !HAVE_PROCFS_CTL && !HAVE_TTRACE
+
+    PERF_ENTRY(ReadProcessMemory);
+    ENTRY("ReadProcessMemory (hProcess=%p,lpBaseAddress=%p, lpBuffer=%p, "
+          "nSize=%u, lpNumberOfBytesRead=%p)\n",hProcess,lpBaseAddress,
+          lpBuffer, (unsigned int)nSize, lpNumberOfBytesRead);
+
+    pThread = InternalGetCurrentThread();
+    
+    if (!(processId = PROCGetProcessIDFromHandle(hProcess)))
+    {
+        ERROR("Invalid process handler hProcess:%p.",hProcess);
+        SetLastError(ERROR_INVALID_HANDLE);
+        goto EXIT;
+    }
+    
+    // Check if the read request is for the current process. 
+    // We don't need ptrace in that case.
+    if (GetCurrentProcessId() == processId) 
+    {
+        TRACE("We are in the same process, so ptrace is not needed\n");
+        
+        struct Param
+        {
+            LPCVOID lpBaseAddress;
+            LPVOID lpBuffer;
+            SIZE_T nSize;
+            SIZE_T numberOfBytesRead;
+            BOOL ret;
+        } param;
+        param.lpBaseAddress = lpBaseAddress;
+        param.lpBuffer = lpBuffer;
+        param.nSize = nSize;
+        param.numberOfBytesRead = numberOfBytesRead;
+        param.ret = ret;
+
+        PAL_TRY(Param *, pParam, &param)
+        {
+            SIZE_T i;
+            
+            // Seg fault in memcpy can't be caught
+            // so we simulate the memcpy here
+
+            for (i = 0; i<pParam->nSize; i++)
+            {
+                *((char*)(pParam->lpBuffer)+i) = *((char*)(pParam->lpBaseAddress)+i);
+            }
+
+            pParam->numberOfBytesRead = pParam->nSize;
+            pParam->ret = TRUE;
+        }
+        PAL_EXCEPT(EXCEPTION_EXECUTE_HANDLER)
+        {
+            SetLastError(ERROR_ACCESS_DENIED);
+        }
+        PAL_ENDTRY
+
+        numberOfBytesRead = param.numberOfBytesRead;
+        ret = param.ret;
+        goto EXIT;
+    }
+
+#if HAVE_VM_READ
+    result = task_for_pid(mach_task_self(), processId, &task);
+    if (result != KERN_SUCCESS)
+    {
+        ERROR("No Mach task for pid %d: %d\n", processId, ret.Load());
+        SetLastError(ERROR_INVALID_HANDLE);
+        goto EXIT;
+    }
+    // vm_read_overwrite usually requires that the address be page-aligned
+    // and the size be a multiple of the page size.  We can't differentiate
+    // between the cases in which that's required and those in which it
+    // isn't, so we do it all the time.
+    lpBaseAddressAligned = (int*)((SIZE_T) lpBaseAddress & ~VIRTUAL_PAGE_MASK);
+    offset = ((SIZE_T) lpBaseAddress & VIRTUAL_PAGE_MASK);
+    char *data;
+    data = (char*)alloca(VIRTUAL_PAGE_SIZE);
+    while (nSize > 0)
+    {
+        vm_size_t bytesRead;
+        
+        bytesToRead = VIRTUAL_PAGE_SIZE - offset;
+        if (bytesToRead > (LONG_PTR)nSize)
+        {
+            bytesToRead = nSize;
+        }
+        bytesRead = VIRTUAL_PAGE_SIZE;
+        result = vm_read_overwrite(task, (vm_address_t) lpBaseAddressAligned,
+                                   VIRTUAL_PAGE_SIZE, (vm_address_t) data, &bytesRead);
+        if (result != KERN_SUCCESS || bytesRead != VIRTUAL_PAGE_SIZE)
+        {
+            ERROR("vm_read_overwrite failed for %d bytes from %p in %d: %d\n",
+                  VIRTUAL_PAGE_SIZE, (char *) lpBaseAddressAligned, task, result);
+            if (result <= KERN_RETURN_MAX)
+            {
+                SetLastError(ERROR_INVALID_ACCESS);
+            }
+            else
+            {
+                SetLastError(ERROR_INTERNAL_ERROR);
+            }
+            goto EXIT;
+        }
+        memcpy((LPSTR)lpBuffer + numberOfBytesRead, data + offset, bytesToRead);
+        numberOfBytesRead.Store(numberOfBytesRead.Load() + bytesToRead);
+        lpBaseAddressAligned = (int*)((char*)lpBaseAddressAligned + VIRTUAL_PAGE_SIZE);
+        nSize -= bytesToRead;
+        offset = 0;
+    }
+    ret = TRUE;
+#else   // HAVE_VM_READ
+#if HAVE_PROCFS_CTL
+    snprintf(memPath, sizeof(memPath), "/proc/%u/%s", processId, PROCFS_MEM_NAME);
+    fd = InternalOpen(memPath, O_RDONLY);
+    if (fd == -1)
+    {
+        ERROR("Failed to open %s\n", memPath);
+        SetLastError(ERROR_INVALID_ACCESS);
+        goto PROCFSCLEANUP;
+    }
+
+    //
+    // off_t may be greater in size than void*, so first cast to
+    // an unsigned type to ensure that no sign extension takes place
+    //
+
+    offset = (off_t) (UINT_PTR) lpBaseAddress;
+
+    if (lseek(fd, offset, SEEK_SET) == -1)
+    {
+        ERROR("Failed to seek to base address\n");
+        SetLastError(ERROR_INVALID_ACCESS);
+        goto PROCFSCLEANUP;
+    }
+    
+    numberOfBytesRead = read(fd, lpBuffer, nSize);
+    ret = TRUE;
+
+#else   // HAVE_PROCFS_CTL
+    // Attach the process before calling ttrace/ptrace otherwise it fails.
+    if (DBGAttachProcess(pThread, hProcess, processId))
+    {
+#if HAVE_TTRACE
+        if (ttrace(TT_PROC_RDDATA, processId, 0, (__uint64_t)lpBaseAddress, (__uint64_t)nSize, (__uint64_t)lpBuffer) == -1)
+        {
+            if (errno == EFAULT) 
+            {
+                ERROR("ttrace(TT_PROC_RDDATA, pid:%d, 0, addr:%p, data:%d, addr2:%d) failed"
+                      " errno=%d (%s)\n", processId, lpBaseAddress, (int)nSize, lpBuffer,
+                      errno, strerror(errno));
+                
+                SetLastError(ERROR_ACCESS_DENIED);
+            }
+            else
+            {
+                ASSERT("ttrace(TT_PROC_RDDATA, pid:%d, 0, addr:%p, data:%d, addr2:%d) failed"
+                      " errno=%d (%s)\n", processId, lpBaseAddress, (int)nSize, lpBuffer,
+                      errno, strerror(errno));
+                SetLastError(ERROR_INTERNAL_ERROR);
+            }
+
+            goto CLEANUP1;
+        }
+
+        numberOfBytesRead = nSize;
+        ret = TRUE;
+        
+#else   // HAVE_TTRACE
+
+        offset = (SIZE_T)lpBaseAddress % sizeof(int);
+        lpBaseAddressAligned =  (int*)((char*)lpBaseAddress - offset);
+        nbInts = (nSize + offset)/sizeof(int) + 
+                 ((nSize + offset)%sizeof(int) ? 1:0);
+        
+        /* before transferring any data to lpBuffer we should make sure that all 
+           data is accessible for read. so we need to use a temp buffer for that.*/
+        if (!(lpTmpBuffer = (int*)InternalMalloc((nbInts * sizeof(int)))))
+        {
+            ERROR("Insufficient memory available !\n");
+            SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+            goto CLEANUP1;
+        }
+        
+        for (ptrInt = lpTmpBuffer; nbInts; ptrInt++,
+            lpBaseAddressAligned++, nbInts--)
+        {
+            errno = 0;
+            *ptrInt =
+                PAL_PTRACE(PAL_PT_READ_D, processId, lpBaseAddressAligned, 0);
+            if (*ptrInt == -1 && errno) 
+            {
+                if (errno == EFAULT) 
+                {
+                    ERROR("ptrace(PT_READ_D, pid:%d, addr:%p, data:0) failed"
+                          " errno=%d (%s)\n", processId, lpBaseAddressAligned,
+                          errno, strerror(errno));
+                    
+                    SetLastError(ptrInt == lpTmpBuffer ? ERROR_ACCESS_DENIED : 
+                                                         ERROR_PARTIAL_COPY);
+                }
+                else
+                {
+                    ASSERT("ptrace(PT_READ_D, pid:%d, addr:%p, data:0) failed"
+                          " errno=%d (%s)\n", processId, lpBaseAddressAligned,
+                          errno, strerror(errno));
+                    SetLastError(ERROR_INTERNAL_ERROR);
+                }
+                
+                goto CLEANUP2;
+            }
+        }
+        
+        /* transfer data from temp buffer to lpBuffer */
+        memcpy( (char *)lpBuffer, ((char*)lpTmpBuffer) + offset, nSize);
+        numberOfBytesRead = nSize;
+        ret = TRUE;
+#endif // HAVE_TTRACE        
+    }
+    else
+    {
+        /* Failed to attach processId */
+        goto EXIT;    
+    }
+#endif  // HAVE_PROCFS_CTL
+
+#if HAVE_PROCFS_CTL
+PROCFSCLEANUP:
+    if (fd != -1)
+    {
+        close(fd);
+    }    
+#elif !HAVE_TTRACE
+CLEANUP2:
+    if (lpTmpBuffer) 
+    {
+        free(lpTmpBuffer);
+    }
+#endif  // !HAVE_TTRACE
+
+#if !HAVE_PROCFS_CTL
+CLEANUP1:
+    if (!DBGDetachProcess(pThread, hProcess, processId))
+    {
+        /* Failed to detach processId */
+        ret = FALSE;
+    }
+#endif  // HAVE_PROCFS_CTL
+#endif  // HAVE_VM_READ
+
+EXIT:
+    if (lpNumberOfBytesRead)
+    {
+        *lpNumberOfBytesRead = numberOfBytesRead;
+    }
+    LOGEXIT("ReadProcessMemory returns BOOL %d\n", ret.Load());
+    PERF_EXIT(ReadProcessMemory);
+    return ret;
+}
+
+/*++
+Function:
+  WriteProcessMemory
+
+See MSDN doc.
+--*/
+BOOL
+PALAPI
+WriteProcessMemory(
+           IN HANDLE hProcess,
+           IN LPVOID lpBaseAddress,
+           IN LPCVOID lpBuffer,
+           IN SIZE_T nSize,
+           OUT SIZE_T * lpNumberOfBytesWritten
+           )
+
+{
+    CPalThread *pThread;
+    DWORD processId;
+    Volatile<BOOL> ret = FALSE;
+    Volatile<SIZE_T> numberOfBytesWritten = 0;
+#if HAVE_VM_READ
+    kern_return_t result;
+    vm_map_t task;
+#elif HAVE_PROCFS_CTL
+    int fd = -1;
+    char memPath[64];
+    LONG_PTR bytesWritten;
+    off_t offset;
+#elif !HAVE_TTRACE
+    SIZE_T FirstIntOffset;
+    SIZE_T LastIntOffset;
+    unsigned int FirstIntMask;
+    unsigned int LastIntMask;
+    SIZE_T nbInts;
+    int *lpTmpBuffer = 0, *lpInt;
+    int* lpBaseAddressAligned;
+#endif
+
+    PERF_ENTRY(WriteProcessMemory);
+    ENTRY("WriteProcessMemory (hProcess=%p,lpBaseAddress=%p, lpBuffer=%p, "
+           "nSize=%u, lpNumberOfBytesWritten=%p)\n",
+           hProcess,lpBaseAddress, lpBuffer, (unsigned int)nSize, lpNumberOfBytesWritten); 
+
+    pThread = InternalGetCurrentThread();
+    
+    if (!(nSize && (processId = PROCGetProcessIDFromHandle(hProcess))))
+    {
+        ERROR("Invalid nSize:%u number or invalid process handler "
+              "hProcess:%p\n", (unsigned int)nSize, hProcess);
+        SetLastError(ERROR_INVALID_PARAMETER);
+        goto EXIT;
+    }
+    
+    // Check if the write request is for the current process.
+    // In that case we don't need ptrace.
+    if (GetCurrentProcessId() == processId) 
+    {
+        TRACE("We are in the same process so we don't need ptrace\n");
+        
+        struct Param
+        {
+            LPVOID lpBaseAddress;
+            LPCVOID lpBuffer;
+            SIZE_T nSize;
+            SIZE_T numberOfBytesWritten;
+            BOOL ret;
+        } param;
+        param.lpBaseAddress = lpBaseAddress;
+        param.lpBuffer = lpBuffer;
+        param.nSize = nSize;
+        param.numberOfBytesWritten = numberOfBytesWritten;
+        param.ret = ret;
+
+        PAL_TRY(Param *, pParam, &param)
+        {
+            SIZE_T i;
+            
+            // Seg fault in memcpy can't be caught
+            // so we simulate the memcpy here
+
+            for (i = 0; i<pParam->nSize; i++)
+            {
+                *((char*)(pParam->lpBaseAddress)+i) = *((char*)(pParam->lpBuffer)+i);
+            }
+
+            pParam->numberOfBytesWritten = pParam->nSize;
+            pParam->ret = TRUE;
+        } 
+        PAL_EXCEPT(EXCEPTION_EXECUTE_HANDLER)
+        {
+            SetLastError(ERROR_ACCESS_DENIED);
+        }
+        PAL_ENDTRY
+
+        numberOfBytesWritten = param.numberOfBytesWritten;
+        ret = param.ret;
+        goto EXIT;        
+    }
+
+#if HAVE_VM_READ
+    result = task_for_pid(mach_task_self(), processId, &task);
+    if (result != KERN_SUCCESS)
+    {
+        ERROR("No Mach task for pid %d: %d\n", processId, ret.Load());
+        SetLastError(ERROR_INVALID_HANDLE);
+        goto EXIT;
+    }
+    result = vm_write(task, (vm_address_t) lpBaseAddress, 
+                      (vm_address_t) lpBuffer, nSize);
+    if (result != KERN_SUCCESS)
+    {
+        ERROR("vm_write failed for %d bytes from %p in %d: %d\n",
+              (int)nSize, lpBaseAddress, task, result);
+        if (result <= KERN_RETURN_MAX)
+        {
+            SetLastError(ERROR_ACCESS_DENIED);
+        }
+        else
+        {
+            SetLastError(ERROR_INTERNAL_ERROR);
+        }
+        goto EXIT;
+    }
+    numberOfBytesWritten = nSize;
+    ret = TRUE;
+#else   // HAVE_VM_READ
+#if HAVE_PROCFS_CTL
+    snprintf(memPath, sizeof(memPath), "/proc/%u/%s", processId, PROCFS_MEM_NAME);
+    fd = InternalOpen(memPath, O_WRONLY);
+    if (fd == -1)
+    {
+        ERROR("Failed to open %s\n", memPath);
+        SetLastError(ERROR_INVALID_ACCESS);
+        goto PROCFSCLEANUP;
+    }
+
+    //
+    // off_t may be greater in size than void*, so first cast to
+    // an unsigned type to ensure that no sign extension takes place
+    //
+
+    offset = (off_t) (UINT_PTR) lpBaseAddress;
+
+    if (lseek(fd, offset, SEEK_SET) == -1)
+    {
+        ERROR("Failed to seek to base address\n");
+        SetLastError(ERROR_INVALID_ACCESS);
+        goto PROCFSCLEANUP;
+    }
+    
+    bytesWritten = write(fd, lpBuffer, nSize);
+    if (bytesWritten < 0)
+    {
+        ERROR("Failed to write to %s\n", memPath);
+        SetLastError(ERROR_INVALID_ACCESS);
+        goto PROCFSCLEANUP;
+    }
+
+    numberOfBytesWritten = bytesWritten;
+    ret = TRUE;
+
+#else   // HAVE_PROCFS_CTL
+    /* Attach the process before calling ptrace otherwise it fails */
+    if (DBGAttachProcess(pThread, hProcess, processId))
+    {
+#if HAVE_TTRACE
+        if (ttrace(TT_PROC_WRDATA, processId, 0, (__uint64_t)lpBaseAddress, (__uint64_t)nSize, (__uint64_t)lpBuffer) == -1)
+        {
+            if (errno == EFAULT) 
+            {
+                ERROR("ttrace(TT_PROC_WRDATA, pid:%d, addr:%p, data:%d, addr2:%d) failed"
+                      " errno=%d (%s)\n", processId, lpBaseAddress, nSize, lpBuffer,
+                      errno, strerror(errno));
+                
+                SetLastError(ERROR_ACCESS_DENIED);
+            }
+            else
+            {
+                ASSERT("ttrace(TT_PROC_WRDATA, pid:%d, addr:%p, data:%d, addr2:%d) failed"
+                      " errno=%d (%s)\n", processId, lpBaseAddress, nSize, lpBuffer,
+                      errno, strerror(errno));
+                SetLastError(ERROR_INTERNAL_ERROR);
+            }
+
+            goto CLEANUP1;
+        }
+
+        numberOfBytesWritten = nSize;
+        ret = TRUE;
+        
+#else   // HAVE_TTRACE
+
+        FirstIntOffset = (SIZE_T)lpBaseAddress % sizeof(int);    
+        FirstIntMask = -1;
+        FirstIntMask <<= (FirstIntOffset * 8);
+        
+        nbInts = (nSize + FirstIntOffset) / sizeof(int) + 
+                 (((nSize + FirstIntOffset)%sizeof(int)) ? 1:0);
+        lpBaseAddressAligned = (int*)((char*)lpBaseAddress - FirstIntOffset);
+        
+        if ((lpTmpBuffer = (int*)InternalMalloc((nbInts * sizeof(int)))) == NULL)
+        {
+            ERROR("Insufficient memory available !\n");
+            SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+            goto CLEANUP1;
+        }
+
+        memcpy((char *)lpTmpBuffer + FirstIntOffset, (char *)lpBuffer, nSize);
+        lpInt = lpTmpBuffer;
+
+        LastIntOffset = (nSize + FirstIntOffset) % sizeof(int);
+        LastIntMask = -1;
+        LastIntMask >>= ((sizeof(int) - LastIntOffset) * 8);
+
+        if (nbInts == 1)
+        {
+            if (DBGWriteProcMem_IntWithMask(processId, lpBaseAddressAligned, 
+                                            *lpInt,
+                                            LastIntMask & FirstIntMask)
+                  == 0)
+            {
+                goto CLEANUP2;
+            }
+            numberOfBytesWritten = nSize;
+            ret = TRUE;
+            goto CLEANUP2;
+        }
+
+        if (DBGWriteProcMem_IntWithMask(processId,
+                                        lpBaseAddressAligned++,
+                                        *lpInt++, FirstIntMask) 
+            == 0)
+        {
+            goto CLEANUP2;
+        }
+
+        while (--nbInts > 1)
+        {      
+          if (DBGWriteProcMem_Int(processId, lpBaseAddressAligned++,
+                                  *lpInt++) == 0)
+          {
+              goto CLEANUP2;
+          }
+        }
+        
+        if (DBGWriteProcMem_IntWithMask(processId, lpBaseAddressAligned,
+                                        *lpInt, LastIntMask ) == 0)
+        {
+            goto CLEANUP2;
+        }
+
+        numberOfBytesWritten = nSize;
+        ret = TRUE;
+#endif  // HAVE_TTRACE
+    }
+    else
+    {
+        /* Failed to attach processId */
+        goto EXIT;
+    }
+#endif // HAVE_PROCFS_CTL
+
+#if HAVE_PROCFS_CTL
+PROCFSCLEANUP:
+    if (fd != -1)
+    {
+        close(fd);
+    }
+#elif !HAVE_TTRACE
+CLEANUP2:
+    if (lpTmpBuffer) 
+    {
+        free(lpTmpBuffer);
+    }
+#endif  // !HAVE_TTRACE
+
+#if !HAVE_PROCFS_CTL
+CLEANUP1:
+    if (!DBGDetachProcess(pThread, hProcess, processId))
+    {
+        /* Failed to detach processId */
+        ret = FALSE;
+    }
+#endif  // !HAVE_PROCFS_CTL
+#endif  // HAVE_VM_READ
+
+EXIT:
+    if (lpNumberOfBytesWritten)
+    {
+        *lpNumberOfBytesWritten = numberOfBytesWritten;
+    }
+
+    LOGEXIT("WriteProcessMemory returns BOOL %d\n", ret.Load());
+    PERF_EXIT(WriteProcessMemory);
+    return ret;
 }
 
 } // extern "C"

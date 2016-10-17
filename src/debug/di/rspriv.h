@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // rspriv.
 // 
@@ -86,6 +85,7 @@ class CordbJITILFrame;
 class CordbInternalFrame;
 class CordbContext;
 class CordbThread;
+class CordbVariableHome;
 
 #ifdef FEATURE_INTEROP_DEBUGGING
 class CordbUnmanagedThread;
@@ -138,7 +138,9 @@ class DbgTransportSession;
 class ShimProcess;
 
 
+#ifndef FEATURE_PAL
 extern HINSTANCE GetModuleInst();
+#endif
 
 
 template <class T>
@@ -1264,14 +1266,14 @@ public:
         LOG((LF_CORDB, LL_EVERYTHING, "Memory: CordbBase object deleted: this=%p, id=%p, Refcount=0x%x\n", this, m_id, m_RefCount));
 
 #ifdef _DEBUG
-        InterlockedDecrement(&s_TotalObjectCount);
-        _ASSERTE(s_TotalObjectCount >= 0);
+        LONG newTotalObjectsCount = InterlockedDecrement(&s_TotalObjectCount);
+        _ASSERTE(newTotalObjectsCount >= 0);
 #endif
 
         // Don't shutdown logic until everybody is done with it.
         // If we leak objects, this may mean that we never shutdown logging at all!
 #if defined(_DEBUG) && defined(LOGGING)
-        if (s_TotalObjectCount == 0)
+        if (newTotalObjectsCount == 0)
         {
             ShutdownLogging();
         }
@@ -1585,7 +1587,7 @@ template< typename ElemType,
           typename ElemPublicType,
           typename EnumInterfaceType,
           ElemPublicType (*GetPublicType)(ElemType)>
-class CordbEnumerator : public CordbBase, EnumInterfaceType
+class CordbEnumerator : public CordbBase, public EnumInterfaceType
 {
 private:
     // the list of items being enumerated over
@@ -1678,6 +1680,11 @@ typedef CordbEnumerator<RsGuidToTypeMapping,
                         CorDebugGuidToTypeMapping,
                         ICorDebugGuidToTypeEnum,
                         GuidToTypeMappingConvert > CordbGuidToTypeEnumerator;
+
+typedef CordbEnumerator<RSSmartPtr<CordbVariableHome>,
+                        ICorDebugVariableHome*,
+                        ICorDebugVariableHomeEnum,
+                        QueryInterfaceConvert<RSSmartPtr<CordbVariableHome>, ICorDebugVariableHome> > CordbVariableHomeEnumerator;
 
 // ----------------------------------------------------------------------------
 // Hash table for CordbBase objects.
@@ -2919,7 +2926,7 @@ class CordbProcess :
     public ICorDebugProcess4,
     public ICorDebugProcess5,
     public ICorDebugProcess7,
-	public ICorDebugProcess8,
+    public ICorDebugProcess8,
     public IDacDbiInterface::IAllocator,
     public IDacDbiInterface::IMetaDataLookup,
     public IProcessShimHooks
@@ -3426,9 +3433,7 @@ public:
                  type == DB_IPCE_INTERCEPT_EXCEPTION ||
                  type == DB_IPCE_GET_NGEN_COMPILER_FLAGS ||
                  type == DB_IPCE_SET_NGEN_COMPILER_FLAGS || 
-                 type == DB_IPCE_SET_VALUE_CLASS ||
-                 type == DB_IPCE_NETCF_HOST_CONTROL_PAUSE ||
-                 type == DB_IPCE_NETCF_HOST_CONTROL_RESUME);
+                 type == DB_IPCE_SET_VALUE_CLASS);
 
         ipce->type = type;
         ipce->hr = S_OK;
@@ -4697,7 +4702,7 @@ public:
 // See definition of ICorDebugType for further invariants on types.
 //
 
-class CordbType : public CordbBase, public ICorDebugType
+class CordbType : public CordbBase, public ICorDebugType, public ICorDebugType2
 {
 public:
     CordbType(CordbAppDomain *appdomain, CorElementType ty, unsigned int rank);
@@ -4736,6 +4741,11 @@ public:
                                    ICorDebugValue ** ppValue);
     COM_METHOD GetRank(ULONG32 *pnRank);
 
+    //-----------------------------------------------------------
+    // ICorDebugType2
+    //-----------------------------------------------------------
+    COM_METHOD GetTypeID(COR_TYPEID *pId);
+    
     //-----------------------------------------------------------
     // Non-COM members
     //-----------------------------------------------------------
@@ -5813,7 +5823,10 @@ private:
  * code, including an optional set of mappings from IL to offsets in the native Code.
  * ------------------------------------------------------------------------- */
 
-class CordbNativeCode : public CordbCode, public ICorDebugCode2, public ICorDebugCode3
+class CordbNativeCode : public CordbCode,
+                        public ICorDebugCode2,
+                        public ICorDebugCode3,
+                        public ICorDebugCode4
 {
 public:
     CordbNativeCode(CordbFunction * pFunction, 
@@ -5853,6 +5866,11 @@ public:
     COM_METHOD GetReturnValueLiveOffset(ULONG32 ILoffset, ULONG32 bufferSize, ULONG32 *pFetched, ULONG32 *pOffsets);
     
 
+    //-----------------------------------------------------------
+    // ICorDebugCode4
+    //-----------------------------------------------------------
+    COM_METHOD EnumerateVariableHomes(ICorDebugVariableHomeEnum **ppEnum);
+    
     //-----------------------------------------------------------
     // Internal members
     //-----------------------------------------------------------
@@ -6111,7 +6129,7 @@ public:
     // Converts the values in the floating point register area of the context to real number values.
     void Get32bitFPRegisters(CONTEXT * pContext);
 
-#elif defined(DBG_TARGET_AMD64)
+#elif defined(DBG_TARGET_AMD64) ||  defined(DBG_TARGET_ARM64)
     // Converts the values in the floating point register area of the context to real number values.
     void Get64bitFPRegisters(FPRegister64 * rgContextFPRegisters, int start, int nRegisters);
 #endif // DBG_TARGET_X86
@@ -8539,6 +8557,63 @@ private:
 
 typedef enum {kUnboxed, kBoxed} BoxedValue;
 #define EMPTY_BUFFER TargetBuffer(PTR_TO_CORDB_ADDRESS((void *)NULL), 0)
+
+/* ------------------------------------------------------------------------- *
+ * Variable Home class
+ * ------------------------------------------------------------------------- */
+class CordbVariableHome : public CordbBase, public ICorDebugVariableHome
+{
+public:
+    CordbVariableHome(CordbNativeCode *pCode,
+                      const ICorDebugInfo::NativeVarInfo nativeVarInfo,
+                      BOOL isLoc,
+                      ULONG index);
+    ~CordbVariableHome();
+    virtual void Neuter();
+
+#ifdef _DEBUG
+    virtual const char * DbgGetName() { return "CordbVariableHome"; }
+#endif
+    
+    //-----------------------------------------------------------
+    // IUnknown
+    //-----------------------------------------------------------
+    ULONG STDMETHODCALLTYPE AddRef()
+    {
+        return (BaseAddRef());
+    }
+    ULONG STDMETHODCALLTYPE Release()
+    {
+        return (BaseRelease());
+    }
+
+    COM_METHOD QueryInterface(REFIID riid, void **ppInterface);
+    
+    //-----------------------------------------------------------
+    // ICorDebugVariableHome
+    //-----------------------------------------------------------
+    
+    COM_METHOD GetCode(ICorDebugCode **ppCode);
+    
+    COM_METHOD GetSlotIndex(ULONG32 *pSlotIndex);
+
+    COM_METHOD GetArgumentIndex(ULONG32* pArgumentIndex);
+
+    COM_METHOD GetLiveRange(ULONG32* pStartOffset,
+                            ULONG32 *pEndOffset);
+    
+    COM_METHOD GetLocationType(VariableLocationType *pLocationType);
+
+    COM_METHOD GetRegister(CorDebugRegister *pRegister);
+    
+    COM_METHOD GetOffset(LONG *pOffset);
+private:
+    RSSmartPtr<CordbNativeCode> m_pCode;
+    ICorDebugInfo::NativeVarInfo m_nativeVarInfo;
+    BOOL m_isLocal;
+    ULONG m_index;
+};
+
 
 // for an inheritance graph of the ICDValue types, // See file:./ICorDebugValueTypes.vsd for a diagram of the types.  
 /* ------------------------------------------------------------------------- *

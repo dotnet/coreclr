@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 /*=============================================================================
@@ -22,7 +23,6 @@ namespace System.Threading
     using System.Runtime.InteropServices;
     using System.Runtime.ConstrainedExecution;
     using System.Runtime.Versioning;
-    using System.Security.Principal;
     using System.Security;
     using System.Diagnostics.Contracts;
     
@@ -52,10 +52,17 @@ namespace System.Threading
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public unsafe Mutex(bool initiallyOwned, String name, out bool createdNew, MutexSecurity mutexSecurity)
         {
-            if(null != name && System.IO.Path.MAX_PATH < name.Length)
+            if (name == string.Empty)
             {
-                throw new ArgumentException(Environment.GetResourceString("Argument_WaitHandleNameTooLong",name));
-            }            
+                // Empty name is treated as an unnamed mutex. Set to null, and we will check for null from now on.
+                name = null;
+            }
+#if !PLATFORM_UNIX
+            if (name != null && System.IO.Path.MaxPath < name.Length)
+            {
+                throw new ArgumentException(Environment.GetResourceString("Argument_WaitHandleNameTooLong", Path.MaxPath), "name");
+            }
+#endif
             Contract.EndContractBlock();
             Win32Native.SECURITY_ATTRIBUTES secAttrs = null;
 #if FEATURE_MACL
@@ -79,38 +86,26 @@ namespace System.Threading
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         internal Mutex(bool initiallyOwned, String name, out bool createdNew, Win32Native.SECURITY_ATTRIBUTES secAttrs) 
         {
-            if (null != name && Path.MAX_PATH < name.Length) 
+            if (name == string.Empty)
             {
-                throw new ArgumentException(Environment.GetResourceString("Argument_WaitHandleNameTooLong", name));
+                // Empty name is treated as an unnamed mutex. Set to null, and we will check for null from now on.
+                name = null;
             }
+#if !PLATFORM_UNIX
+            if (name != null && System.IO.Path.MaxPath < name.Length)
+            {
+                throw new ArgumentException(Environment.GetResourceString("Argument_WaitHandleNameTooLong", Path.MaxPath), "name");
+            }
+#endif
             Contract.EndContractBlock();
 
             CreateMutexWithGuaranteedCleanup(initiallyOwned, name, out createdNew, secAttrs);
         }
 
-#if FEATURE_LEGACYNETCF
-        static string WinCEObjectNameQuirk(string name)
-        {
-            if (name == null)
-                return null;
-
-            // WinCE allowed backslashes in kernel object names, but WinNT does not allow them.
-            // Replace all backslashes with a rare unicode character if we are in NetCF compat mode.
-            // Mutex was the only named kernel object exposed to phone apps, so we do not have
-            // to apply this quirk in other places.
-            return name.Replace('\\', '\u2044');
-        }
-#endif
-
         [System.Security.SecurityCritical]  // auto-generated_required
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         internal void CreateMutexWithGuaranteedCleanup(bool initiallyOwned, String name, out bool createdNew, Win32Native.SECURITY_ATTRIBUTES secAttrs)
         {
-#if FEATURE_LEGACYNETCF
-            if (CompatibilitySwitches.IsAppEarlierThanWindowsPhone8)
-                name = WinCEObjectNameQuirk(name);
-#endif
-
             RuntimeHelpers.CleanupCode cleanupCode = new RuntimeHelpers.CleanupCode(MutexCleanupCode);
             MutexCleanupInfo cleanupInfo = new MutexCleanupInfo(null, false);
             MutexTryCodeHelper tryCodeHelper = new MutexTryCodeHelper(initiallyOwned, cleanupInfo, name, secAttrs, this);
@@ -136,6 +131,8 @@ namespace System.Threading
             [PrePrepareMethod]
             internal MutexTryCodeHelper(bool initiallyOwned,MutexCleanupInfo cleanupInfo, String name, Win32Native.SECURITY_ATTRIBUTES secAttrs, Mutex mutex)
             {
+                Contract.Assert(name == null || name.Length != 0);
+
                 m_initiallyOwned = initiallyOwned;
                 m_cleanupInfo = cleanupInfo;
                 m_name = name;
@@ -178,8 +175,20 @@ namespace System.Threading
                 if (mutexHandle.IsInvalid) 
                 {
                     mutexHandle.SetHandleAsInvalid();
-                    if(null != m_name && 0 != m_name.Length && Win32Native.ERROR_INVALID_HANDLE == errorCode)
-                        throw new WaitHandleCannotBeOpenedException(Environment.GetResourceString("Threading.WaitHandleCannotBeOpenedException_InvalidHandle", m_name));
+                    if (m_name != null)
+                    {
+                        switch (errorCode)
+                        {
+#if PLATFORM_UNIX
+                            case Win32Native.ERROR_FILENAME_EXCED_RANGE:
+                                // On Unix, length validation is done by CoreCLR's PAL after converting to utf-8
+                                throw new ArgumentException(Environment.GetResourceString("Argument_WaitHandleNameTooLong", Path.MaxPathComponentLength), "name");
+#endif
+
+                            case Win32Native.ERROR_INVALID_HANDLE:
+                                throw new WaitHandleCannotBeOpenedException(Environment.GetResourceString("Threading.WaitHandleCannotBeOpenedException_InvalidHandle", m_name));
+                        }
+                    }
                     __Error.WinIOError(errorCode, m_name);
                 }
                 m_newMutex = errorCode != Win32Native.ERROR_ALREADY_EXISTS;
@@ -229,18 +238,7 @@ namespace System.Threading
             }
         }
 
-        // For the .NET Compact Framework this constructor was security safe critical.
-        // For Windows Phone version 8 (Apollo), all apps will run as fully trusted,
-        // meaning the CLR is not considered a trust boundary.  This API could be marked security critical.
-        // However for Windows Phone version 7.1 applications, they will still be run
-        // as partially trusted applications, with our security transparency model enforced.
-        // So we have this peculiar #ifdef that should be enabled only for .NET CF backwards
-        // compatibility.
-#if FEATURE_LEGACYNETCF
-        [System.Security.SecuritySafeCritical]  // auto-generated_required
-#else
         [System.Security.SecurityCritical]  // auto-generated_required
-#endif //FEATURE_LEGACYNETCF
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public Mutex(bool initiallyOwned, String name) : this(initiallyOwned, name, out dummyBool) {
         }
@@ -330,18 +328,15 @@ namespace System.Threading
             {
                 throw new ArgumentException(Environment.GetResourceString("Argument_EmptyName"), "name");
             }
-            if(System.IO.Path.MAX_PATH < name.Length)
+#if !PLATFORM_UNIX
+            if(System.IO.Path.MaxPath < name.Length)
             {
-                throw new ArgumentException(Environment.GetResourceString("Argument_WaitHandleNameTooLong",name));
+                throw new ArgumentException(Environment.GetResourceString("Argument_WaitHandleNameTooLong", Path.MaxPath), "name");
             }
+#endif
             Contract.EndContractBlock();
 
             result = null;
-
-#if FEATURE_LEGACYNETCF
-            if (CompatibilitySwitches.IsAppEarlierThanWindowsPhone8)
-                name = WinCEObjectNameQuirk(name);
-#endif
 
             // To allow users to view & edit the ACL's, call OpenMutex
             // with parameters to allow us to view & edit the ACL.  This will
@@ -358,11 +353,19 @@ namespace System.Threading
             {
                 errorCode = Marshal.GetLastWin32Error();
 
+#if PLATFORM_UNIX
+                if (name != null && errorCode == Win32Native.ERROR_FILENAME_EXCED_RANGE)
+                {
+                    // On Unix, length validation is done by CoreCLR's PAL after converting to utf-8
+                    throw new ArgumentException(Environment.GetResourceString("Argument_WaitHandleNameTooLong", Path.MaxPathComponentLength), "name");
+                }
+#endif
+
                 if(Win32Native.ERROR_FILE_NOT_FOUND == errorCode || Win32Native.ERROR_INVALID_NAME == errorCode)
                     return OpenExistingResult.NameNotFound;
                 if (Win32Native.ERROR_PATH_NOT_FOUND == errorCode)
                     return OpenExistingResult.PathNotFound;
-                if (null != name && 0 != name.Length && Win32Native.ERROR_INVALID_HANDLE == errorCode) 
+                if (null != name && Win32Native.ERROR_INVALID_HANDLE == errorCode)
                     return OpenExistingResult.NameInvalid;
 
                 // this is for passed through Win32Native Errors

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -21,7 +20,7 @@
 #include "cgensys.h"
 #include "comutilnative.h"
 #include "siginfo.hpp"
-#include "gc.h"
+#include "gcheaputilities.h"
 #include "eedbginterfaceimpl.h" //so we can clearexception in RealCOMPlusThrow
 #include "perfcounters.h"
 #include "dllimportcallback.h"
@@ -105,11 +104,11 @@ BOOL IsExceptionFromManagedCode(const EXCEPTION_RECORD * pExceptionRecord)
     UINT_PTR address = reinterpret_cast<UINT_PTR>(pExceptionRecord->ExceptionAddress);
 
     // An exception code of EXCEPTION_COMPLUS indicates a managed exception
-    // has occured (most likely due to executing a "throw" instruction).
+    // has occurred (most likely due to executing a "throw" instruction).
     //
     // Also, a hardware level exception may not have an exception code of
     // EXCEPTION_COMPLUS. In this case, an exception address that resides in
-    // managed code indicates a managed exception has occured.
+    // managed code indicates a managed exception has occurred.
     return (IsComPlusException(pExceptionRecord) ||
             (ExecutionManager::IsManagedCode((PCODE)address)));
 }
@@ -1680,7 +1679,7 @@ bool FinallyIsUnwinding(EHRangeTreeNode *pNode,
 BOOL LeaveCatch(ICodeManager* pEECM,
                 Thread *pThread,
                 CONTEXT *pCtx,
-                void *methodInfoPtr,
+                GCInfoToken gcInfoToken,
                 unsigned offset)
 {
     CONTRACTL
@@ -1704,7 +1703,7 @@ BOOL LeaveCatch(ICodeManager* pEECM,
     PopNestedExceptionRecords(esp, pCtx, pThread->GetExceptionListPtr());
 
     // Do JIT-specific work
-    pEECM->LeaveCatch(methodInfoPtr, offset, pCtx);
+    pEECM->LeaveCatch(gcInfoToken, offset, pCtx);
 
     SetSP(pCtx, (UINT_PTR)esp);
     return TRUE;
@@ -1763,7 +1762,7 @@ HRESULT IsLegalTransition(Thread *pThread,
                           ICodeManager* pEECM,
                           PREGDISPLAY pReg,
                           SLOT addrStart,
-                          void *methodInfoPtr,
+                          GCInfoToken gcInfoToken,
                           PCONTEXT pCtx)
 {
     CONTRACTL
@@ -1876,7 +1875,7 @@ HRESULT IsLegalTransition(Thread *pThread,
                         if (!LeaveCatch(pEECM,
                                         pThread,
                                         pFilterCtx,
-                                        methodInfoPtr,
+                                        gcInfoToken,
                                         offFrom))
                             return E_FAIL;
                     }
@@ -1931,7 +1930,7 @@ HRESULT IsLegalTransition(Thread *pThread,
 
                         if (!fCanSetIPOnly)
                         {
-                            if (!pEECM->LeaveFinally(methodInfoPtr,
+                            if (!pEECM->LeaveFinally(gcInfoToken,
                                                      offFrom,
                                                      pFilterCtx))
                                 return E_FAIL;
@@ -2042,7 +2041,7 @@ HRESULT SetIPFromSrcToDst(Thread *pThread,
     EECodeInfo codeInfo((TADDR)(addrStart));
 
     ICodeManager * pEECM = codeInfo.GetCodeManager();
-    LPVOID methodInfoPtr = codeInfo.GetGCInfo();
+    GCInfoToken gcInfoToken = codeInfo.GetGCInfoToken();
 
     // Do both checks here so compiler doesn't complain about skipping
     // initialization b/c of goto.
@@ -2098,7 +2097,7 @@ retryForCommit:
                                pEECM,
                                pReg,
                                addrStart,
-                               methodInfoPtr,
+                               gcInfoToken,
                                pCtx);
 
         if (FAILED(hr))
@@ -2121,7 +2120,7 @@ retryForCommit:
                                pEECM,
                                pReg,
                                addrStart,
-                               methodInfoPtr,
+                               gcInfoToken,
                                pCtx);
 
         if (FAILED(hr))
@@ -2144,7 +2143,7 @@ retryForCommit:
                                pEECM,
                                pReg,
                                addrStart,
-                               methodInfoPtr,
+                               gcInfoToken,
                                pCtx);
 
         if (FAILED(hr))
@@ -3492,7 +3491,7 @@ DWORD MapWin32FaultToCOMPlusException(EXCEPTION_RECORD *pExceptionRecord)
                 if ((g_pConfig != NULL) && !g_pConfig->LegacyNullReferenceExceptionPolicy() &&
                     !GetCompatibilityFlag(compatNullReferenceExceptionOnAV) )
                 {
-#ifdef FEATURE_HIJACK
+#if defined(FEATURE_HIJACK) && !defined(PLATFORM_UNIX)
                     // If we got the exception on a redirect function it means the original exception happened in managed code:
                     if (Thread::IsAddrOfRedirectFunc(pExceptionRecord->ExceptionAddress))
                         return (DWORD) kNullReferenceException;
@@ -3501,7 +3500,7 @@ DWORD MapWin32FaultToCOMPlusException(EXCEPTION_RECORD *pExceptionRecord)
                     {
                         return (DWORD) kNullReferenceException;
                     }
-#endif // FEATURE_HIJACK
+#endif // FEATURE_HIJACK && !PLATFORM_UNIX
 
                     // If the IP of the AV is not in managed code, then its an AccessViolationException.
                     if (!ExecutionManager::IsManagedCode((PCODE)pExceptionRecord->ExceptionAddress))
@@ -4266,7 +4265,6 @@ LONG WatsonLastChance(                  // EXCEPTION_CONTINUE_SEARCH, _CONTINUE_
         LOG((LF_EH, LL_INFO10, "WatsonLastChance: Debugger not attached at sp %p ...\n", GetCurrentSP()));
 
 #ifndef FEATURE_PAL
-
         BOOL bRunDoFaultReport = TRUE;
         FaultReportResult result = FaultReportResultQuit;
 
@@ -4323,7 +4321,7 @@ LONG WatsonLastChance(                  // EXCEPTION_CONTINUE_SEARCH, _CONTINUE_
 
                     LOG((LF_EH, LL_INFO10, "D::WLC: Call RaiseFailFastExceptionOnWin7\n"));
                     RaiseFailFastExceptionOnWin7(pExceptionInfo == NULL ? NULL : pExceptionInfo->ExceptionRecord,
-                                                 pExceptionInfo == NULL ? NULL : pExceptionInfo->ContextRecord);
+                        pExceptionInfo == NULL ? NULL : pExceptionInfo->ContextRecord);
                     STRESS_LOG0(LF_CORDB,LL_INFO10, "D::WLC: Return from RaiseFailFastExceptionOnWin7\n");
                 }
             }
@@ -4470,12 +4468,15 @@ LONG WatsonLastChance(                  // EXCEPTION_CONTINUE_SEARCH, _CONTINUE_
                 UNREACHABLE_MSG("Unknown FaultReportResult");
                 break;
         }
-#endif // !FEATURE_PAL
     }
     // When the debugger thread detects that the debugger process is abruptly terminated, and triggers
     // a failfast error, CORDebuggerAttached() will be TRUE, but IsDebuggerPresent() will be FALSE.
     // If IsDebuggerPresent() is FALSE, do not try to notify the deubgger.
     else if (CORDebuggerAttached() && IsDebuggerPresent())
+#else
+    }
+    else if (CORDebuggerAttached())
+#endif // !FEATURE_PAL
     {
         // Already debugging with a managed debugger.  Should let that debugger know.
         LOG((LF_EH, LL_INFO100, "WatsonLastChance: Managed debugger already attached at sp %p ...\n", GetCurrentSP()));
@@ -4710,15 +4711,18 @@ LONG UserBreakpointFilter(EXCEPTION_POINTERS* pEP)
     }
     CONTRACTL_END;
 
-#if defined(DEBUGGING_SUPPORTED) && !defined(FEATURE_PAL)
+#ifdef DEBUGGING_SUPPORTED
     // Invoke the unhandled exception filter, bypassing any further first pass exception processing and treating
     // user breakpoints as if they're unhandled exceptions right away.
     //
     // @todo: The InternalUnhandledExceptionFilter can trigger.
     CONTRACT_VIOLATION(GCViolation | ThrowsViolation | ModeViolation | FaultViolation | FaultNotFatal);
 
-
+#ifdef FEATURE_PAL
+    int result = COMUnhandledExceptionFilter(pEP);
+#else
     int result = UnhandledExceptionFilter(pEP);
+#endif
 
     if (result == EXCEPTION_CONTINUE_SEARCH)
     {
@@ -4729,7 +4733,7 @@ LONG UserBreakpointFilter(EXCEPTION_POINTERS* pEP)
         // here.
         return EXCEPTION_CONTINUE_EXECUTION;
     }
-#endif // DEBUGGING_SUPPORTED && !FEATURE_PAL
+#endif // DEBUGGING_SUPPORTED
 
     if(ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, FailFast))
     {
@@ -4974,8 +4978,12 @@ BOOL InstallUnhandledExceptionFilter() {
     // We will be here only for CoreCLR on WLC since we dont
     // register UEF for SL.
     if (g_pOriginalUnhandledExceptionFilter == FILTER_NOT_INSTALLED) {
-        g_pOriginalUnhandledExceptionFilter =
-            SetUnhandledExceptionFilter(COMUnhandledExceptionFilter);
+
+        #pragma prefast(push)
+        #pragma prefast(suppress:28725, "Calling to SetUnhandledExceptionFilter is intentional in this case.")
+        g_pOriginalUnhandledExceptionFilter = SetUnhandledExceptionFilter(COMUnhandledExceptionFilter);
+        #pragma prefast(pop)
+
         // make sure is set (ie. is not our special value to indicate unset)
         LOG((LF_EH, LL_INFO10, "InstallUnhandledExceptionFilter registered UEF with OS for CoreCLR!\n"));
     }
@@ -5009,7 +5017,12 @@ void UninstallUnhandledExceptionFilter() {
 #else // !FEATURE_UEF_CHAINMANAGER
     // We will be here only for CoreCLR on WLC or on Mac SL.
     if (g_pOriginalUnhandledExceptionFilter != FILTER_NOT_INSTALLED) {
+
+        #pragma prefast(push)
+        #pragma prefast(suppress:28725, "Calling to SetUnhandledExceptionFilter is intentional in this case.")
         SetUnhandledExceptionFilter(g_pOriginalUnhandledExceptionFilter);
+        #pragma prefast(pop)
+
         g_pOriginalUnhandledExceptionFilter = FILTER_NOT_INSTALLED;
         LOG((LF_EH, LL_INFO10, "UninstallUnhandledExceptionFilter unregistered UEF from OS for CoreCLR!\n"));
     }
@@ -5206,7 +5219,7 @@ LONG InternalUnhandledExceptionFilter_Worker(
     //
     // This needs to be done before the check for TSNC_ProcessedUnhandledException because it is perfectly
     // legitimate (though rare) for the debugger to be inspecting exceptions which are nested in finally
-    // clauses that run after an unhandled exception has already occured on the thread
+    // clauses that run after an unhandled exception has already occurred on the thread
     if ((pThread != NULL) && pThread->IsExceptionInProgress())
     {
         LOG((LF_EH, LL_INFO1000, "InternalUnhandledExceptionFilter_Worker: Set unhandled exception flag at %p\n",
@@ -5403,7 +5416,7 @@ LONG InternalUnhandledExceptionFilter_Worker(
 #endif // DEBUGGING_SUPPORTED
 
 
-#ifdef FEATURE_EVENT_TRACE    
+#if defined(FEATURE_EVENT_TRACE) && !defined(FEATURE_PAL)
         DoReportForUnhandledException(pParam->pExceptionInfo);
 #endif // FEATURE_EVENT_TRACE    
 
@@ -5652,6 +5665,7 @@ LONG __stdcall COMUnhandledExceptionFilter(     // EXCEPTION_CONTINUE_SEARCH or 
         return retVal;
     }
 
+#ifndef FEATURE_CORECLR
 #ifdef _DEBUG
     // V4 onwards, we will reach here in the UEF only on the following conditions:
     //
@@ -5670,18 +5684,28 @@ LONG __stdcall COMUnhandledExceptionFilter(     // EXCEPTION_CONTINUE_SEARCH or 
     //
     // 4) A corrupting exception may become unhandled.
     //
-    // This is applicable to CoreCLR as well. We wont enter the UEF (and thus come here) on Silverlight,
-    // but we could when being used by WLC as we register the UEF for them.
+    // This is not applicable to CoreCLR, as this unhandled exception filter is always set up, and all hardware exceptions in
+    // managed code, including those that are not process-corrupting, such as integer division by zero, will end up here.
 
     // Assert these conditions here - we shouldnt be here for any other unhandled exception processing.
     Thread *pThread = GetThread();
-    _ASSERTE((pThread == NULL) || // condition 3
-             (pThread->GetExceptionState()->IsExceptionInProgress() &&
-              pThread->GetExceptionState()->GetFlags()->ReversePInvokeEscapingException()) || // condition 2
-             ((!ExecutionManager::IsManagedCode((PCODE)pExceptionInfo->ExceptionRecord->ExceptionAddress))) // condition 1
-             CORRUPTING_EXCEPTIONS_ONLY(||(CEHelper::IsProcessCorruptedStateException(pExceptionInfo->ExceptionRecord->ExceptionCode)) ||) // condition 4
-             CORRUPTING_EXCEPTIONS_ONLY((CEHelper::IsProcessCorruptedStateException(pThread->GetThrowable())))); // condition 4
+    if ((pThread != NULL) && // condition 3
+        !(pThread->GetExceptionState()->IsExceptionInProgress() &&
+            pThread->GetExceptionState()->GetFlags()->ReversePInvokeEscapingException()) && // condition 2
+        (ExecutionManager::IsManagedCode((PCODE)pExceptionInfo->ExceptionRecord->ExceptionAddress))) // condition 1
+    {
+#ifdef FEATURE_CORRUPTING_EXCEPTIONS
+        if (!CEHelper::IsProcessCorruptedStateException(pExceptionInfo->ExceptionRecord->ExceptionCode)) // condition 4
+        {
+            GCX_COOP();
+            _ASSERTE(CEHelper::IsProcessCorruptedStateException(pThread->GetThrowable())); // condition 4
+        }
+#else // !FEATURE_CORRUPTING_EXCEPTIONS
+        _ASSERTE(false);
+#endif // FEATURE_CORRUPTING_EXCEPTIONS
+    }
 #endif // _DEBUG
+#endif // !FEATURE_CORECLR
 
     retVal = InternalUnhandledExceptionFilter(pExceptionInfo);
 
@@ -5868,7 +5892,7 @@ DefaultCatchHandler(PEXCEPTION_POINTERS pExceptionPointers,
     }
 
     const int buf_size = 128;
-    WCHAR buf[buf_size];
+    WCHAR buf[buf_size] = {0};
 
     // See detailed explanation of this flag in threads.cpp.  But the basic idea is that we already
     // reported the exception in the AppDomain where it went unhandled, so we don't need to report
@@ -7054,7 +7078,7 @@ LONG FilterAccessViolation(PEXCEPTION_POINTERS pExceptionPointers, LPVOID lpvPar
  * Returns whether this is an exception the EE knows how to intercept and continue from.
  *
  * Parameters:
- *   pThread - The thread the exception occured on.
+ *   pThread - The thread the exception occurred on.
  *
  * Returns:
  *   TRUE if the exception on the thread is interceptable or not.
@@ -7092,7 +7116,24 @@ bool IsInterceptableException(Thread *pThread)
             );
 }
 
-// Did we hit an DO_A_GC_HERE marker in JITTed code?
+// Determines whether we hit an DO_A_GC_HERE marker in JITted code, and returns the 
+// appropriate exception code, or zero if the code is not a GC marker.
+DWORD GetGcMarkerExceptionCode(LPVOID ip)
+{
+#if defined(HAVE_GCCOVER) && defined(FEATURE_CORECLR)
+    WRAPPER_NO_CONTRACT;
+
+    if (GCStress<cfg_any>::IsEnabled() && IsGcCoverageInterrupt(ip))
+    {
+        return STATUS_CLR_GCCOVER_CODE;
+    }
+#else // !(defined(HAVE_GCCOVER) && defined(FEATURE_CORECLR))
+    LIMITED_METHOD_CONTRACT;
+#endif // defined(HAVE_GCCOVER) && defined(FEATURE_CORECLR)
+    return 0;
+}
+
+// Did we hit an DO_A_GC_HERE marker in JITted code?
 bool IsGcMarker(DWORD exceptionCode, CONTEXT *pContext)
 {
 #ifdef HAVE_GCCOVER
@@ -7182,7 +7223,7 @@ IsDebuggerFault(EXCEPTION_RECORD *pExceptionRecord,
     // to fixup the state before any other part of the system uses it (we do it here since only the debugger
     // uses single step functionality).
 
-    // First ask the emulation itself whether this exception occured while single stepping was enabled. If so
+    // First ask the emulation itself whether this exception occurred while single stepping was enabled. If so
     // it will fix up the context to be consistent again and return true. If so and the exception was
     // EXCEPTION_BREAKPOINT then we translate it to EXCEPTION_SINGLE_STEP (otherwise we leave it be, e.g. the
     // instruction stepped caused an access violation).  since this is called from our VEH there might not
@@ -7631,7 +7672,7 @@ VEH_ACTION WINAPI CLRVectoredExceptionHandlerPhase3(PEXCEPTION_POINTERS pExcepti
 
 LONG WINAPI CLRVectoredExceptionHandler(PEXCEPTION_POINTERS pExceptionInfo)
 {
-    // It is not safe to execute code inside VM after we shutdown EE.  One example is DiablePreemptiveGC
+    // It is not safe to execute code inside VM after we shutdown EE.  One example is DisablePreemptiveGC
     // will block forever.
     if (g_fForbidEnterEE)
     {
@@ -7704,11 +7745,9 @@ LONG WINAPI CLRVectoredExceptionHandler(PEXCEPTION_POINTERS pExceptionInfo)
     // not already have one allocated.  Thus, if we OOM during the setting up of the
     // thread, the log buffer will not be allocated and this will try to do so.  Thus,
     // all STRESS_LOGs in here need to be after you have guaranteed the allocation has
-    // already occured.
+    // already occurred.
     //
 
-
-#ifndef FEATURE_PAL
     Thread *pThread;
 
     {
@@ -7736,15 +7775,16 @@ LONG WINAPI CLRVectoredExceptionHandler(PEXCEPTION_POINTERS pExceptionInfo)
     // the operating system will not be able to walk the stack and not find the handlers for
     // the exception.  It is safe to unhijack the thread in this case for two reasons:
     // 1.  pThread refers to *this* thread.
-    // 2.  If another thread trys to hijack this thread, it will se we are not in managed
+    // 2.  If another thread tries to hijack this thread, it will see we are not in managed
     //     code (and thus won't try to hijack us).
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && defined(FEATURE_HIJACK)
     if (pThread != NULL)
     {
         pThread->UnhijackThreadNoAlloc();
     }
-#endif // defined(WIN64EXCEPTIONS)
+#endif // defined(WIN64EXCEPTIONS) && defined(FEATURE_HIJACK)
 
+#ifndef FEATURE_PAL
     if (IsSOExceptionCode(pExceptionInfo->ExceptionRecord->ExceptionCode))
     {
         //
@@ -7765,7 +7805,7 @@ LONG WINAPI CLRVectoredExceptionHandler(PEXCEPTION_POINTERS pExceptionInfo)
     {
         DontCallDirectlyForceStackOverflow();
     }
-#endif
+#endif // FEATURE_STACK_PROBE
 
     // We can't probe here, because we won't return from the CLRVectoredExceptionHandlerPhase2
     // on WIN64
@@ -7788,7 +7828,6 @@ LONG WINAPI CLRVectoredExceptionHandler(PEXCEPTION_POINTERS pExceptionInfo)
 #endif // !FEATURE_PAL
 }
 
-
 LONG WINAPI CLRVectoredExceptionHandlerPhase2(PEXCEPTION_POINTERS pExceptionInfo)
 {
     //
@@ -7810,7 +7849,7 @@ LONG WINAPI CLRVectoredExceptionHandlerPhase2(PEXCEPTION_POINTERS pExceptionInfo
     // not already have one allocated.  Thus, if we OOM during the setting up of the
     // thread, the log buffer will not be allocated and this will try to do so.  Thus,
     // all STRESS_LOGs in here need to be after you have guaranteed the allocation has
-    // already occured.
+    // already occurred.
     //
 
     PEXCEPTION_RECORD pExceptionRecord  = pExceptionInfo->ExceptionRecord;
@@ -7887,7 +7926,6 @@ LONG WINAPI CLRVectoredExceptionHandlerPhase2(PEXCEPTION_POINTERS pExceptionInfo
     if ((pExceptionRecord->ExceptionCode == STATUS_BREAKPOINT) ||
         (pExceptionRecord->ExceptionCode == STATUS_SINGLE_STEP))
     {
-#ifndef FEATURE_PAL
         // A breakpoint outside managed code and outside the runtime will have to be handled by some
         //  other piece of code.
 
@@ -7912,7 +7950,6 @@ LONG WINAPI CLRVectoredExceptionHandlerPhase2(PEXCEPTION_POINTERS pExceptionInfo
             //  an unhandled exception.)
             return EXCEPTION_CONTINUE_SEARCH;
         }
-#endif // !FEATURE_PAL
 
         // The breakpoint was from managed or the runtime.  Handle it.  Or,
         //  this may be a Rotor build.
@@ -7993,7 +8030,7 @@ VEH_ACTION WINAPI CLRVectoredExceptionHandlerPhase3(PEXCEPTION_POINTERS pExcepti
     // not already have one allocated.  Thus, if we OOM during the setting up of the
     // thread, the log buffer will not be allocated and this will try to do so.  Thus,
     // all STRESS_LOGs in here need to be after you have guaranteed the allocation has
-    // already occured.
+    // already occurred.
     //
 
     // Handle special cases which are common amongst all filters.
@@ -8021,11 +8058,11 @@ VEH_ACTION WINAPI CLRVectoredExceptionHandlerPhase3(PEXCEPTION_POINTERS pExcepti
     }
 #endif // USE_REDIRECT_FOR_GCSTRESS
 
-#ifdef FEATURE_HIJACK
+#if defined(FEATURE_HIJACK) && !defined(PLATFORM_UNIX)
 #ifdef _TARGET_X86_
     CPFH_AdjustContextForThreadSuspensionRace(pContext, GetThread());
 #endif // _TARGET_X86_
-#endif // FEATURE_HIJACK
+#endif // FEATURE_HIJACK && !PLATFORM_UNIX
 
     // Some other parts of the EE use exceptions in their own nefarious ways.  We do some up-front processing
     // here to fix up the exception if needed.
@@ -8243,28 +8280,6 @@ bool IsIPInEpilog(PTR_CONTEXT pContextToCheck, EECodeInfo *pCodeInfo, BOOL *pSaf
 
     imageBase = pCodeInfo->GetModuleBase();
     pUnwindInfo = (PUNWIND_INFO)(imageBase+ funcEntry->UnwindData);
-
-#if defined(_DEBUG)
-    // In debug builds, assert our invariant that jitted code always have the managed personality routine
-    // specified in the unwindInfo. For this, get an IP that is inside the method body. For this case,
-    // we calculate the first address comprising the method body.
-    PCODE ipInMethodBody = pCodeInfo->GetStartAddress()+pUnwindInfo->SizeOfProlog;
-
-    ZeroMemory(&tempContext, sizeof(CONTEXT));
-    CopyOSContext(&tempContext, pContextToCheck);
-
-    // TODO: Explain the context mismatch issue here and why the unwind is still okay.
-    personalityRoutine = RtlVirtualUnwind(UNW_FLAG_EHANDLER,     // HandlerType
-                     imageBase,
-                     ipInMethodBody,
-                     funcEntry,
-                     &tempContext,
-                     &HandlerData,
-                     &establisherFrame,
-                     NULL);
-
-    _ASSERTE(personalityRoutine != NULL);
-#endif // _DEBUG
 
     ZeroMemory(&tempContext, sizeof(CONTEXT));
     CopyOSContext(&tempContext, pContextToCheck);
@@ -8663,10 +8678,6 @@ void UnwindAndContinueRethrowHelperInsideCatch(Frame* pEntryFrame, Exception* pE
     // policy here. Do we want to let such funcitons throw, etc.? Right now, we believe that there are no such
     // frames on the stack to be unwound, so the SetFrame is alright (see the first comment above.) At the very
     // least, we should add some way to assert that.
-    //
-    // ~FrameWithCookieHolder is also calling SetFrame() and if UnwindAndContinueRethrowHelperInsideCatch is ever changed
-    // to not call SetFrame then the change should be reflected in the FrameWithCookieHolder as well.
-    //
     pThread->SetFrame(pEntryFrame);
 
 #ifdef _DEBUG
@@ -8949,6 +8960,33 @@ LONG ReflectionInvocationExceptionFilter(
         }
     }
 #endif // !FEATURE_PAL
+
+    // If the application has opted into triggering a failfast when a CorruptedStateException enters the Reflection system,
+    // then do the needful.
+    if (CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_FailFastOnCorruptedStateException) == 1)
+    {
+         // Get the thread and the managed exception object - they must exist at this point
+        Thread *pCurThread = GetThread();
+        _ASSERTE(pCurThread != NULL);
+
+        // Get the thread exception state
+        ThreadExceptionState * pCurTES = pCurThread->GetExceptionState();
+        _ASSERTE(pCurTES != NULL);
+
+        // Get the exception tracker for the current exception
+#ifdef WIN64EXCEPTIONS
+        PTR_ExceptionTracker pEHTracker = pCurTES->GetCurrentExceptionTracker();
+#elif _TARGET_X86_
+        PTR_ExInfo pEHTracker = pCurTES->GetCurrentExceptionTracker();
+#else // !(_WIN64 || _TARGET_X86_)
+#error Unsupported platform
+#endif // _WIN64
+        
+        if (pEHTracker->GetCorruptionSeverity() == ProcessCorrupting)
+        {
+            EEPolicy::HandleFatalError(COR_E_FAILFAST, reinterpret_cast<UINT_PTR>(pExceptionInfo->ExceptionRecord->ExceptionAddress), NULL, pExceptionInfo);
+        }
+    }
 
     return ret;
 } // LONG ReflectionInvocationExceptionFilter()
@@ -11725,7 +11763,7 @@ BOOL CEHelper::CanMethodHandleException(CorruptionSeverity severity, PTR_MethodD
     }
 
     // If we have been asked to use the last active corruption severity (e.g. in cases of Reflection
-    // or COM interop), then retrive it.
+    // or COM interop), then retrieve it.
     if (severity == UseLast)
     {
         LOG((LF_EH, LL_INFO100, "CEHelper::CanMethodHandleException - Using LastActiveExceptionCorruptionSeverity.\n"));
@@ -12236,18 +12274,18 @@ BOOL CEHelper::ShouldTreatActiveExceptionAsNonCorrupting()
 //
 // Note: This method must be called once the exception trackers have been adjusted post catch-block execution.
 /* static */
-void CEHelper::ResetLastActiveCorruptionSeverityPostCatchHandler()
+void CEHelper::ResetLastActiveCorruptionSeverityPostCatchHandler(Thread *pThread)
 {
     CONTRACTL
     {
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(GetThread() != NULL);
+        PRECONDITION(pThread != NULL);
     }
     CONTRACTL_END;
 
-    ThreadExceptionState *pCurTES = GetThread()->GetExceptionState();
+    ThreadExceptionState *pCurTES = pThread->GetExceptionState();
 
     // By this time, we would have set the correct exception tracker for the active exception domain,
     // if applicable. An example is throwing and catching an exception within a catch block. We will update
@@ -12874,15 +12912,6 @@ void ExceptionNotifications::DeliverNotificationInternal(ExceptionNotificationHa
     // Get the current AppDomain
     AppDomain *pCurDomain = GetAppDomain();
     _ASSERTE(pCurDomain != NULL);
-
-#ifdef FEATURE_CORECLR
-    if (true)
-    {
-        // On CoreCLR, we dont support enhanced exception notifications
-        _ASSERTE(!"CoreCLR does not support enhanced exception notifications!");
-        return;
-    }
-#endif // FEATURE_CORECLR
 
     struct
     {
@@ -13827,7 +13856,7 @@ VOID DECLSPEC_NORETURN RealCOMPlusThrowSO()
 
     if (breakOnSO != 0)
     {
-        _ASSERTE(!"SO occured");
+        _ASSERTE(!"SO occurred");
     }
 #endif
 
@@ -13865,7 +13894,7 @@ VOID GetAssemblyDetailInfo(SString    &sType,
 {
     WRAPPER_NO_CONTRACT;
 
-    InlineSString<MAX_PATH> sFormat;
+    InlineSString<MAX_LONGPATH> sFormat;
 #ifdef FEATURE_FUSION
     const WCHAR *pwzLoadContext = GetContextName(pPEAssembly->GetLoadContext(),
                                                  pPEAssembly->IsIntrospectionOnly());
@@ -13921,8 +13950,8 @@ VOID CheckAndThrowSameTypeAndAssemblyInvalidCastException(TypeHandle thCastFrom,
          _ASSERTE(pPEAssemblyTypeFrom != NULL);
          _ASSERTE(pPEAssemblyTypeTo != NULL);
 
-         InlineSString<MAX_PATH> sAssemblyFromDisplayName;
-         InlineSString<MAX_PATH> sAssemblyToDisplayName;
+         InlineSString<MAX_LONGPATH> sAssemblyFromDisplayName;
+         InlineSString<MAX_LONGPATH> sAssemblyToDisplayName;
 
          pPEAssemblyTypeFrom->GetDisplayName(sAssemblyFromDisplayName);
          pPEAssemblyTypeTo->GetDisplayName(sAssemblyToDisplayName);
@@ -13930,8 +13959,8 @@ VOID CheckAndThrowSameTypeAndAssemblyInvalidCastException(TypeHandle thCastFrom,
          // Found the culprit case. Now format the new exception text.
          InlineSString<MAX_CLASSNAME_LENGTH + 1> strCastFromName;
          InlineSString<MAX_CLASSNAME_LENGTH + 1> strCastToName;
-         InlineSString<MAX_PATH> sAssemblyDetailInfoFrom;
-         InlineSString<MAX_PATH> sAssemblyDetailInfoTo;
+         InlineSString<MAX_LONGPATH> sAssemblyDetailInfoFrom;
+         InlineSString<MAX_LONGPATH> sAssemblyDetailInfoTo;
 
          thCastFrom.GetName(strCastFromName);
          thCastTo.GetName(strCastToName);

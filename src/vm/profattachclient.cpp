@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // ProfAttachClient.cpp
 // 
@@ -210,7 +209,7 @@ HRESULT ProfilingAPIAttachClient::AttachProfiler(
         return E_INVALIDARG;
     }
 
-    if ((wszProfilerPath != NULL) && (wcslen(wszProfilerPath) >= MAX_PATH))
+    if ((wszProfilerPath != NULL) && (wcslen(wszProfilerPath) >= MAX_LONGPATH))
     {
         return E_INVALIDARG;
     }
@@ -227,7 +226,7 @@ HRESULT ProfilingAPIAttachClient::AttachProfiler(
         return CORPROF_E_PROFILEE_PROCESS_NOT_FOUND;
     }
 
-    // Adjust time out value according to env var COMPLUS_ProfAPI_AttachProfilerTimeoutInMs
+    // Adjust time out value according to env var COMPlus_ProfAPI_AttachProfilerTimeoutInMs
     // The default is 10 seconds as we want to avoid client (trigger process) time out too early 
     // due to wait operation for concurrent GC in the server (profilee side)
     DWORD dwMillisecondsMinFromEnv = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_ProfAPI_AttachProfilerMinTimeoutInMs);

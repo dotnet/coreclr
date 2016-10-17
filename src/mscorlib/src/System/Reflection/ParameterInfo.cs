@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // 
 
@@ -101,10 +102,8 @@ namespace System.Reflection
         }
 
         public bool IsIn { get { return((Attributes & ParameterAttributes.In) != 0); } }        
-        public bool IsOut { get { return((Attributes & ParameterAttributes.Out) != 0); } }  
-#if FEATURE_USE_LCID        
-        public bool IsLcid { get { return((Attributes & ParameterAttributes.Lcid) != 0); } }        
-#endif
+        public bool IsOut { get { return((Attributes & ParameterAttributes.Out) != 0); } }
+        public bool IsLcid { get { return((Attributes & ParameterAttributes.Lcid) != 0); } }
         public bool IsRetval { get { return((Attributes & ParameterAttributes.Retval) != 0); } }        
         public bool IsOptional { get { return((Attributes & ParameterAttributes.Optional) != 0); } }
 
@@ -577,11 +576,6 @@ namespace System.Reflection
             if (defaultValue == DBNull.Value)
             {
                 #region Handle case if no default value was found
-#if FEATURE_LEGACYNETCF
-                if (CompatibilitySwitches.IsAppEarlierThanWindowsPhone8)
-                    defaultValue = null;
-                else
-#endif
                 if (IsOptional)
                 {
                     // If the argument is marked as optional then the default value is Missing.Value.

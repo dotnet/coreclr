@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -121,16 +122,11 @@ namespace System.IO
                 path = path.Trim();
 
 #if !PLATFORM_UNIX
-                if (path.Length > 2 && path.IndexOf( ':', 2 ) != -1)
-                    throw new NotSupportedException( Environment.GetResourceString( "Argument_PathFormatNotSupported" ) );
-#endif // !PLATFORM_UNIX
+                if (!PathInternal.IsDevice(path) && PathInternal.HasInvalidVolumeSeparator(path))
+                    throw new ArgumentException(Environment.GetResourceString("Argument_PathFormatNotSupported"));
+#endif
 
-                System.IO.Path.CheckInvalidPathChars(path);
-
-#if !PLATFORM_UNIX
-                if (path.IndexOfAny( m_illegalCharacters ) != -1)
-                    throw new ArgumentException( Environment.GetResourceString( "Argument_InvalidPathChars" ) );
-#endif // !PLATFORM_UNIX
+                System.IO.Path.CheckInvalidPathChars(path, checkAdditional: true);
             }
         }
     }

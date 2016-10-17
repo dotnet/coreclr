@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -16,7 +15,6 @@
 #ifndef _APPDOMAIN_H
 #define _APPDOMAIN_H
 
-#ifndef CLR_STANDALONE_BINDER
 #include "eventtrace.h"
 #include "assembly.hpp"
 #include "clsload.hpp"
@@ -32,6 +30,7 @@
 #include "fptrstubs.h"
 #include "ilstubcache.h"
 #include "testhookmgr.h"
+#include "gcheaputilities.h"
 #ifdef FEATURE_VERSIONING
 #include "../binder/inc/applicationcontext.hpp"
 #endif // FEATURE_VERSIONING
@@ -50,17 +49,6 @@
 #include "..\md\winmd\inc\adapter.h"
 #include "winrttypenameconverter.h"
 #endif // FEATURE_COMINTEROP
-
-#else // CLR_STANDALONE_BINDER
-class DomainFile;
-class CPUSTUBLINKER;
-struct CodeLabel;
-class IdDispenser;
-typedef DPTR(OBJECTREF) PTR_OBJECTREF;
-typedef DPTR(DomainFile) PTR_DomainFile;
-typedef DPTR(IdDispenser) PTR_IdDispenser;
-#include "..\md\winmd\inc\adapter.h"
-#endif // CLR_STANDALONE_BINDER
 
 #include "appxutil.h"
 
@@ -289,7 +277,6 @@ struct DomainLocalModule
         return &m_pGCStatics;
     }
 
-#ifndef CLR_STANDALONE_BINDER
     // Returns bytes so we can add offsets
     inline PTR_BYTE GetGCStaticsBasePointer(MethodTable * pMT)
     {
@@ -322,7 +309,6 @@ struct DomainLocalModule
             return dac_cast<PTR_BYTE>(this);
         }
     }
-#endif // !CLR_STANDALONE_BINDER
 
     inline DynamicClassInfo* GetDynamicClassInfo(DWORD n)
     {
@@ -334,7 +320,6 @@ struct DomainLocalModule
         return &m_pDynamicClassTable[n];
     }
 
-#ifndef CLR_STANDALONE_BINDER
     // These helpers can now return null, as the debugger may do queries on a type
     // before the calls to PopulateClass happen
     inline PTR_BYTE GetDynamicEntryGCStaticsBasePointer(DWORD n, PTR_LoaderAllocator pLoaderAllocator)
@@ -398,7 +383,6 @@ struct DomainLocalModule
 
         return retval;
     }
-#endif // CLR_STANDALONE_BINDER
 
     FORCEINLINE PTR_DynamicClassInfo GetDynamicClassInfoIfInitialized(DWORD n)
     {
@@ -467,7 +451,6 @@ struct DomainLocalModule
         return offsetof(DomainLocalModule, m_pDataBlob);
     }
 
-#ifndef CLR_STANDALONE_BINDER
     FORCEINLINE MethodTable * GetMethodTableFromClassDomainID(DWORD dwClassDomainID)
     {
         DWORD rid = (DWORD)(dwClassDomainID) + 1;
@@ -477,8 +460,7 @@ struct DomainLocalModule
         PREFIX_ASSUME(pMT != NULL);
         return pMT;
     }
-#endif // CLR_STANDALONE_BINDER
-    
+
 private:
     friend void EmitFastGetSharedStaticBase(CPUSTUBLINKER *psl, CodeLabel *init, bool bCCtorCheck);
 
@@ -520,8 +502,6 @@ public:
 
 };  // struct DomainLocalModule
 
-
-#ifndef CLR_STANDALONE_BINDER
 
 typedef DPTR(class DomainLocalBlock) PTR_DomainLocalBlock;
 class DomainLocalBlock
@@ -1222,12 +1202,6 @@ public:
 #endif
 
     //****************************************************************************************
-    //
-
-    virtual IApplicationSecurityDescriptor* GetSecurityDescriptor() { LIMITED_METHOD_CONTRACT; return NULL; }
-
-
-    //****************************************************************************************
     // Get the class init lock. The method is limited to friends because inappropriate use
     // will cause deadlocks in the system
     ListLock*  GetClassInitLock()
@@ -1322,7 +1296,7 @@ public:
     {
         WRAPPER_NO_CONTRACT;
         OBJECTHANDLE h = ::CreateSizedRefHandle(
-            m_hHandleTableBucket->pTable[GCHeap::IsServerHeap() ? (m_dwSizedRefHandles % m_iNumberOfProcessors) : GetCurrentThreadHomeHeapNumber()], 
+            m_hHandleTableBucket->pTable[GCHeapUtilities::IsServerHeap() ? (m_dwSizedRefHandles % m_iNumberOfProcessors) : GetCurrentThreadHomeHeapNumber()], 
             object);
         InterlockedIncrement((LONG*)&m_dwSizedRefHandles);
         return h;
@@ -1580,22 +1554,6 @@ public:
     virtual void EnumMemoryRegions(CLRDataEnumMemoryFlags flags,
                                    bool enumThis);
 #endif
-
-#ifdef FEATURE_CORECLR
-public:
-    enum AppDomainCompatMode
-    {
-        APPDOMAINCOMPAT_NONE
-#ifdef FEATURE_LEGACYNETCF
-        , APPDOMAINCOMPAT_APP_EARLIER_THAN_WP8 // for "AppDomainCompatSwitch" == "WindowsPhone_3.7.0.0" or "AppDomainCompatSwitch" == "WindowsPhone_3.8.0.0"
-#endif
-    };
-    void SetAppDomainCompatMode(AppDomainCompatMode compatMode);
-    AppDomainCompatMode GetAppDomainCompatMode();
-    
-private:
-    AppDomainCompatMode m_CompatMode;
-#endif // FEATURE_CORECLR   
 
 };  // class BaseDomain
 
@@ -1857,7 +1815,7 @@ struct FailedAssembly {
         CONTRACTL
         {
             THROWS;
-            GC_NOTRIGGER;
+            GC_TRIGGERS;
             MODE_ANY;
         }
         CONTRACTL_END;
@@ -2572,7 +2530,6 @@ public:
         AssemblyLoadSecurity *pLoadSecurity = NULL,
         BOOL fUseHostBinderIfAvailable = TRUE) DAC_EMPTY_RET(NULL);
 
-#ifdef FEATURE_HOSTED_BINDER
     HRESULT BindAssemblySpecForHostedBinder(
         AssemblySpec *   pSpec, 
         IAssemblyName *  pAssemblyName, 
@@ -2585,7 +2542,6 @@ public:
         IAssemblyName *    pAssemblyName, 
         PEAssembly **      ppAssembly, 
         BOOL               fIsIntrospectionOnly = FALSE) DAC_EMPTY_RET(S_OK);
-#endif // FEATURE_HOSTED_BINDER
 
 #ifdef FEATURE_REFLECTION_ONLY_LOAD    
     virtual DomainAssembly *BindAssemblySpecForIntrospectionDependencies(AssemblySpec *pSpec) DAC_EMPTY_RET(NULL);
@@ -2894,66 +2850,6 @@ public:
         return (m_dwFlags & IGNORE_UNHANDLED_EXCEPTIONS);
     }
 
-#if defined(FEATURE_CORECLR)    
-    void SetEnablePInvokeAndClassicComInterop()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        m_dwFlags |= ENABLE_PINVOKE_AND_CLASSIC_COMINTEROP;
-    }
-
-    BOOL EnablePInvokeAndClassicComInterop()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        return (m_dwFlags & ENABLE_PINVOKE_AND_CLASSIC_COMINTEROP);
-    }
-
-    void SetAllowPlatformSpecificAppAssemblies()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        m_dwFlags |= ENABLE_SKIP_PLAT_CHECKS;
-    }
-
-    BOOL AllowPlatformSpecificAppAssemblies()
-    {
-        LIMITED_METHOD_CONTRACT;
-        if(IsCompilationDomain())
-            return TRUE;
-
-        return (m_dwFlags & ENABLE_SKIP_PLAT_CHECKS);
-    }
-
-    void SetAllowLoadFile()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        m_dwFlags |= ENABLE_ASSEMBLY_LOADFILE;
-    }
-
-    BOOL IsLoadFileAllowed()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        return (m_dwFlags & ENABLE_ASSEMBLY_LOADFILE);
-    }
-
-    void DisableTransparencyEnforcement()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        m_dwFlags |= DISABLE_TRANSPARENCY_ENFORCEMENT;
-    }
-
-    BOOL IsTransparencyEnforcementDisabled()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        return (m_dwFlags & DISABLE_TRANSPARENCY_ENFORCEMENT);
-    }
-#endif // defined(FEATURE_CORECLR)
-
     void SetPassiveDomain()
     {
         LIMITED_METHOD_CONTRACT;
@@ -3012,52 +2908,6 @@ public:
         _ASSERTE(IsCompilationDomain());
         return dac_cast<PTR_CompilationDomain>(this);
     }
-
-#ifdef MDIL
-    void SetMDILCompilationDomain()
-    {
-
-        LIMITED_METHOD_CONTRACT;
-
-        _ASSERTE(IsCompilationDomain());
-        m_dwFlags |= MDIL_COMPILATION_DOMAIN;
-    }
-
-    BOOL IsMDILCompilationDomain()
-    {
-
-        LIMITED_METHOD_CONTRACT;
-        return m_dwFlags & MDIL_COMPILATION_DOMAIN;
-    }
-
-    void SetMinimalMDILCompilationDomain()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        _ASSERTE(IsCompilationDomain());
-        m_dwFlags |= MINIMAL_MDIL_COMPILATION_DOMAIN;
-    }
-
-    BOOL IsMinimalMDILCompilationDomain()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_dwFlags & MINIMAL_MDIL_COMPILATION_DOMAIN;
-    }
-
-    void SetNoMDILCompilationDomain()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        _ASSERTE(IsCompilationDomain());
-        m_dwFlags |= NO_MDIL_COMPILATION_DOMAIN;
-    }
-
-    BOOL IsNoMDILCompilationDomain()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_dwFlags & NO_MDIL_COMPILATION_DOMAIN;
-    }
-#endif // MDIL
 
     void SetCanUnload()
     {
@@ -3990,11 +3840,6 @@ public:
         ILLEGAL_VERIFICATION_DOMAIN =       0x8000, // This can't be a verification domain
         IGNORE_UNHANDLED_EXCEPTIONS =      0x10000, // AppDomain was created using the APPDOMAIN_IGNORE_UNHANDLED_EXCEPTIONS flag
         ENABLE_PINVOKE_AND_CLASSIC_COMINTEROP    =      0x20000, // AppDomain was created using the APPDOMAIN_ENABLE_PINVOKE_AND_CLASSIC_COMINTEROP flag
-#ifdef MDIL
-        MDIL_COMPILATION_DOMAIN =         0x040000, // Are we generating MDIL?
-        MINIMAL_MDIL_COMPILATION_DOMAIN = 0x080000, // Are we generating platform MDIL?
-        NO_MDIL_COMPILATION_DOMAIN      = 0x100000, // Are we generating a file we believe will fail on the Triton code path
-#endif
 #ifdef FEATURE_CORECLR
         ENABLE_SKIP_PLAT_CHECKS         = 0x200000, // Skip various assembly checks (like platform check)
         ENABLE_ASSEMBLY_LOADFILE        = 0x400000, // Allow Assembly.LoadFile in CoreCLR
@@ -4103,7 +3948,6 @@ public:
     COMNlsHashProvider *m_pNlsHashProvider;
 #endif // !FEATURE_CORECLR
 
-#ifdef FEATURE_HOSTED_BINDER
 private:
     // This is the root-level default load context root binder. If null, then
     // the Fusion binder is used; otherwise this binder is used.
@@ -4308,7 +4152,6 @@ private:
         DomainAssembly* pAssembly);
 #endif // DACCESS_COMPILE
 
-#endif //FEATURE_HOSTED_BINDER
 #ifdef FEATURE_PREJIT
     friend void DomainFile::InsertIntoDomainFileWithNativeImageList();
     Volatile<DomainFile *> m_pDomainFileWithNativeImageList;
@@ -4526,12 +4369,7 @@ public:
 #endif
     static void ActivateApplication(int *pReturnValue);
 
-    static void InitializeDefaultDomain(
-        BOOL allowRedirects
-#ifdef FEATURE_HOSTED_BINDER
-        , ICLRPrivBinder * pBinder = NULL
-#endif
-        );
+    static void InitializeDefaultDomain(BOOL allowRedirects, ICLRPrivBinder * pBinder = NULL);
     static void SetupDefaultDomain();
     static HRESULT SetupDefaultDomainNoThrow();
 
@@ -4602,13 +4440,6 @@ public:
     // torn down using the normal sequence.
     static HRESULT NotifyProfilerShutdown();
 #endif // PROFILING_SUPPORTED
-
-    IApplicationSecurityDescriptor* GetSecurityDescriptor()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        return NULL;
-    }
 
     //****************************************************************************************
     // return the dev path
@@ -4703,8 +4534,8 @@ public:
         if (m_UnloadIsAsync)
         {
             pDomain->AddRef();
-            int iGCRefPoint=GCHeap::GetGCHeap()->CollectionCount(GCHeap::GetGCHeap()->GetMaxGeneration());
-            if (GCHeap::GetGCHeap()->IsGCInProgress())
+            int iGCRefPoint=GCHeapUtilities::GetGCHeap()->CollectionCount(GCHeapUtilities::GetGCHeap()->GetMaxGeneration());
+            if (GCHeapUtilities::IsGCInProgress())
                 iGCRefPoint++;
             pDomain->SetGCRefPoint(iGCRefPoint);
         }
@@ -4724,8 +4555,8 @@ public:
         pAllocator->m_pLoaderAllocatorDestroyNext=m_pDelayedUnloadListOfLoaderAllocators;
         m_pDelayedUnloadListOfLoaderAllocators=pAllocator;
 
-        int iGCRefPoint=GCHeap::GetGCHeap()->CollectionCount(GCHeap::GetGCHeap()->GetMaxGeneration());
-        if (GCHeap::GetGCHeap()->IsGCInProgress())
+        int iGCRefPoint=GCHeapUtilities::GetGCHeap()->CollectionCount(GCHeapUtilities::GetGCHeap()->GetMaxGeneration());
+        if (GCHeapUtilities::IsGCInProgress())
             iGCRefPoint++;
         pAllocator->SetGCRefPoint(iGCRefPoint);
     }
@@ -5457,8 +5288,5 @@ public:
     }
 };
 #endif // !DACCESS_COMPILE && !CROSSGEN_COMPILE
-
-
-#endif // !CLR_STANDALONE_BINDER
 
 #endif

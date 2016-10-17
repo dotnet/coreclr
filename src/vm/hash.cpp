@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 /*++
@@ -298,7 +297,7 @@ void HashMap::Init(DWORD cbInitialSize, Compare* pCompare, BOOL fAsyncMode, Lock
         m_pfnLockOwner = pLock->lockOwnerFunc;
     }
     if (m_pfnLockOwner == NULL) {
-        m_writerThreadId.SetThreadId();
+        m_writerThreadId.SetToCurrentThread();
     }
 #endif // _DEBUG
 }
@@ -548,8 +547,8 @@ UPTR HashMap::LookupValue(UPTR key, UPTR value)
 
     // BROKEN: This is called for the RCWCache on the GC thread
     // Also called by AppDomain::FindCachedAssembly to resolve AssemblyRef -- this is used by stack walking on the GC thread.
-    // See comments in GCHeap::RestartEE (above the call to SyncClean::CleanUp) for reason to enter COOP mode.
-    // However, if the current thread is the GC thread, we know we're not going to call GCHeap::RestartEE
+    // See comments in GCHeapUtilities::RestartEE (above the call to SyncClean::CleanUp) for reason to enter COOP mode.
+    // However, if the current thread is the GC thread, we know we're not going to call GCHeapUtilities::RestartEE
     // while accessing the HashMap, so it's safe to proceed.
     // (m_fAsyncMode && !IsGCThread() is the condition for entering COOP mode.  I.e., enable COOP GC only if
     // the HashMap is in async mode and this is not a GC thread.)
@@ -1079,7 +1078,7 @@ BOOL HashMap::OwnLock()
     DEBUG_ONLY_FUNCTION;
 
     if (m_pfnLockOwner == NULL) {
-        return m_writerThreadId.IsSameThread();
+        return m_writerThreadId.IsCurrentThread();
     }
     else {
         BOOL ret = m_pfnLockOwner(m_lockData);

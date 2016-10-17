@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // Disp.cpp
 // 
@@ -79,7 +78,9 @@ Disp::DefineScope(
 {
 #ifdef FEATURE_METADATA_EMIT
     HRESULT     hr = S_OK;
-
+    PathString szFileName(PathString::Literal, W("file:"));
+    PathString szFileNameSuffix;
+    DWORD len;
     BEGIN_ENTRYPOINT_NOTHROW;
 
     RegMeta     *pMeta = 0;
@@ -112,13 +113,13 @@ Disp::DefineScope(
 
 #ifdef ENC_DELTA_HACK
 // Testers need this flag for their tests.
-    const int prefixLen = 5;
-    WCHAR szFileName[256 + prefixLen];
-    wcscpy_s(szFileName, 256 + prefixLen, W("file:"));
-    WCHAR *szFileNamePrefix = szFileName + prefixLen;
-    DWORD cchFileNamePrefix = (DWORD) ((sizeof(szFileName)/sizeof(WCHAR))-prefixLen);
-    DWORD len = WszGetEnvironmentVariable(W("COMP_ENC_OPENSCOPE"), szFileNamePrefix, cchFileNamePrefix);
-    _ASSERTE(len < cchFileNamePrefix);
+    
+    EX_TRY{
+    len = WszGetEnvironmentVariable(W("COMP_ENC_OPENSCOPE"), szFileNameSuffix);
+    szFileName.Append(szFileNameSuffix);
+    }
+    EX_CATCH_HRESULT(hr);
+
     if (len > 0) 
     {
         // _ASSERTE(!"ENC override on DefineScope");
@@ -151,7 +152,7 @@ Disp::DefineScope(
         BOOL fResult = SUCCEEDED(hr);
         // print out a message so people know what's happening
         printf("Defining scope for EnC using %S %s\n", 
-                            szFileName+prefixLen, fResult ? "succeeded" : "failed");
+                            static_cast<LPCWSTR>(szFileNameSuffix), fResult ? "succeeded" : "failed");
 
         goto ErrExit;
     }

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // File: COMDelegate.cpp 
 // 
@@ -29,6 +28,8 @@
 #include "security.h"
 #include "virtualcallstub.h"
 #include "callingconvention.h"
+#include "customattribute.h"
+#include "../md/compiler/custattr.h"
 #ifdef FEATURE_COMINTEROP
 #include "comcallablewrapper.h"
 #endif // FEATURE_COMINTEROP
@@ -70,37 +71,149 @@ static UINT16 ShuffleOfs(INT ofs, UINT stackSizeDelta = 0)
 
 #else // Portable default implementation
 
-// Helpers used when calculating shuffle array entries in GenerateShuffleArray below.
-
-// Return true if the current argument still has slots left to shuffle in general registers or on the stack
-// (currently we never shuffle floating point registers since there's no need).
-static bool AnythingToShuffle(ArgLocDesc * pArg)
+// Iterator for extracting shuffle entries for argument desribed by an ArgLocDesc.
+// Used when calculating shuffle array entries in GenerateShuffleArray below.
+class ShuffleIterator
 {
-    return (pArg->m_cGenReg > 0) || (pArg->m_cStack > 0);
-}
+    // Argument location description
+    ArgLocDesc* m_argLocDesc;
 
-// Return an encoded shuffle entry describing a general register or stack offset that needs to be shuffled.
-static UINT16 ShuffleOfs(ArgLocDesc * pArg)
-{
-    // Shuffle any registers first (the order matters since otherwise we could end up shuffling a stack slot
-    // over a register we later need to shuffle down as well).
-    if (pArg->m_cGenReg > 0)
-    {        
-        pArg->m_cGenReg--;
-        return (UINT16)(ShuffleEntry::REGMASK | pArg->m_idxGenReg++);
+#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+    // Current eightByte used for struct arguments in registers
+    int m_currentEightByte;
+#endif    
+    // Current general purpose register index (relative to the ArgLocDesc::m_idxGenReg)
+    int m_currentGenRegIndex;
+    // Current floating point register index (relative to the ArgLocDesc::m_idxFloatReg)
+    int m_currentFloatRegIndex;
+    // Current stack slot index (relative to the ArgLocDesc::m_idxStack)
+    int m_currentStackSlotIndex;
+
+#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+    // Get next shuffle offset for struct passed in registers. There has to be at least one offset left.
+    UINT16 GetNextOfsInStruct()
+    {
+        EEClass* eeClass = m_argLocDesc->m_eeClass;
+        _ASSERTE(eeClass != NULL);
+        
+        if (m_currentEightByte < eeClass->GetNumberEightBytes())
+        {
+            SystemVClassificationType eightByte = eeClass->GetEightByteClassification(m_currentEightByte);
+            unsigned int eightByteSize = eeClass->GetEightByteSize(m_currentEightByte);
+
+            m_currentEightByte++;
+
+            int index;
+            UINT16 mask = ShuffleEntry::REGMASK;
+
+            if (eightByte == SystemVClassificationTypeSSE)
+            {
+                _ASSERTE(m_currentFloatRegIndex < m_argLocDesc->m_cFloatReg);
+                index = m_argLocDesc->m_idxFloatReg + m_currentFloatRegIndex;
+                m_currentFloatRegIndex++;
+
+                mask |= ShuffleEntry::FPREGMASK;
+                if (eightByteSize == 4)
+                {
+                    mask |= ShuffleEntry::FPSINGLEMASK;
+                }
+            }
+            else
+            {
+                _ASSERTE(m_currentGenRegIndex < m_argLocDesc->m_cGenReg);
+                index = m_argLocDesc->m_idxGenReg + m_currentGenRegIndex;
+                m_currentGenRegIndex++;
+            }
+
+            return (UINT16)index | mask;
+        }
+
+        // There are no more offsets to get, the caller should not have called us
+        _ASSERTE(false);
+        return 0;
+    }
+#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+
+public:
+
+    // Construct the iterator for the ArgLocDesc
+    ShuffleIterator(ArgLocDesc* argLocDesc)
+    :
+        m_argLocDesc(argLocDesc),
+#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+        m_currentEightByte(0),
+#endif
+        m_currentGenRegIndex(0),
+        m_currentFloatRegIndex(0),
+        m_currentStackSlotIndex(0)
+    {
     }
 
-    // If we get here we must have at least one stack slot left to shuffle (this method should only be called
-    // when AnythingToShuffle(pArg) == true).
-    _ASSERTE(pArg->m_cStack > 0);
-    pArg->m_cStack--;
+    // Check if there are more offsets to shuffle
+    bool HasNextOfs()
+    {
+        return (m_currentGenRegIndex < m_argLocDesc->m_cGenReg) || 
+#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+               (m_currentFloatRegIndex < m_argLocDesc->m_cFloatReg) ||
+#endif
+               (m_currentStackSlotIndex < m_argLocDesc->m_cStack);        
+    }
 
-    // Delegates cannot handle overly large argument stacks due to shuffle entry encoding limitations.
-    if (pArg->m_idxStack >= ShuffleEntry::REGMASK)
-        COMPlusThrow(kNotSupportedException);
+    // Get next offset to shuffle. There has to be at least one offset left.
+    UINT16 GetNextOfs()
+    {
+        int index;
 
-    return (UINT16)(pArg->m_idxStack++);
-}
+#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+
+        // Check if the argLocDesc is for a struct in registers
+        EEClass* eeClass = m_argLocDesc->m_eeClass;
+        if (m_argLocDesc->m_eeClass != 0)
+        {
+            return GetNextOfsInStruct();
+        }
+
+        // Shuffle float registers first
+        if (m_currentFloatRegIndex < m_argLocDesc->m_cFloatReg)
+        {        
+            index = m_argLocDesc->m_idxFloatReg + m_currentFloatRegIndex;
+            m_currentFloatRegIndex++;
+
+            return (UINT16)index | ShuffleEntry::REGMASK | ShuffleEntry::FPREGMASK;
+        }
+#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+
+        // Shuffle any registers first (the order matters since otherwise we could end up shuffling a stack slot
+        // over a register we later need to shuffle down as well).
+        if (m_currentGenRegIndex < m_argLocDesc->m_cGenReg)
+        {        
+            index = m_argLocDesc->m_idxGenReg + m_currentGenRegIndex;
+            m_currentGenRegIndex++;
+
+            return (UINT16)index | ShuffleEntry::REGMASK;
+        }
+
+        // If we get here we must have at least one stack slot left to shuffle (this method should only be called
+        // when AnythingToShuffle(pArg) == true).
+        if (m_currentStackSlotIndex < m_argLocDesc->m_cStack)
+        {
+            index = m_argLocDesc->m_idxStack + m_currentStackSlotIndex;
+            m_currentStackSlotIndex++;
+
+            // Delegates cannot handle overly large argument stacks due to shuffle entry encoding limitations.
+            if (index >= ShuffleEntry::REGMASK)
+            {
+                COMPlusThrow(kNotSupportedException);
+            }
+
+            return (UINT16)index;
+        }
+
+        // There are no more offsets to get, the caller should not have called us
+        _ASSERTE(false);
+        return 0;
+    }
+};
 
 #endif
 
@@ -245,8 +358,11 @@ VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, SArray<S
 
         sArgPlacerSrc.GetThisLoc(&sArgDst);
 
-        entry.srcofs = ShuffleOfs(&sArgSrc);
-        entry.dstofs = ShuffleOfs(&sArgDst);
+        ShuffleIterator iteratorSrc(&sArgSrc);
+        ShuffleIterator iteratorDst(&sArgDst);
+
+        entry.srcofs = iteratorSrc.GetNextOfs();
+        entry.dstofs = iteratorDst.GetNextOfs();
 
         pShuffleEntryArray->Append(entry);
     }
@@ -259,8 +375,11 @@ VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, SArray<S
         sArgPlacerSrc.GetRetBuffArgLoc(&sArgSrc);
         sArgPlacerDst.GetRetBuffArgLoc(&sArgDst);
 
-        entry.srcofs = ShuffleOfs(&sArgSrc);
-        entry.dstofs = ShuffleOfs(&sArgDst);
+        ShuffleIterator iteratorSrc(&sArgSrc);
+        ShuffleIterator iteratorDst(&sArgDst);
+
+        entry.srcofs = iteratorSrc.GetNextOfs();
+        entry.dstofs = iteratorDst.GetNextOfs();
 
         // Depending on the type of target method (static vs instance) the return buffer argument may end up
         // in the same register in both signatures. So we only commit the entry (by moving the entry pointer
@@ -269,34 +388,76 @@ VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, SArray<S
             pShuffleEntryArray->Append(entry);
     }
 
-    // Iterate all the regular arguments. mapping source registers and stack locations to the corresponding
-    // destination locations.
-    while ((ofsSrc = sArgPlacerSrc.GetNextOffset()) != TransitionBlock::InvalidOffset)
+#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+    // The shuffle entries are produced in two passes on Unix AMD64. The first pass generates shuffle entries for
+    // all cases except of shuffling struct argument from stack to registers, which is performed in the second pass
+    // The reason is that if such structure argument contained floating point field and it was followed by a 
+    // floating point argument, generating code for transferring the structure from stack into registers would
+    // overwrite the xmm register of the floating point argument before it could actually be shuffled.
+    // For example, consider this case:
+    // struct S { int x; float y; };
+    // void fn(long a, long b, long c, long d, long e, S f, float g);
+    // src: rdi = this, rsi = a, rdx = b, rcx = c, r8 = d, r9 = e, stack: f, xmm0 = g
+    // dst: rdi = a, rsi = b, rdx = c, rcx = d, r8 = e, r9 = S.x, xmm0 = s.y, xmm1 = g
+    for (int pass = 0; pass < 2; pass++)
+#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
     {
-        ofsDst = sArgPlacerDst.GetNextOffset();
-
-        // Find the argument location mapping for both source and destination signature. A single argument can
-        // occupy a floating point register (in which case we don't need to do anything, they're not shuffled)
-        // or some combination of general registers and the stack.
-        sArgPlacerSrc.GetArgLoc(ofsSrc, &sArgSrc);
-        sArgPlacerDst.GetArgLoc(ofsDst, &sArgDst);
-
-        // Shuffle each slot in the argument (register or stack slot) from source to destination.
-        while (AnythingToShuffle(&sArgSrc))
+        // Iterate all the regular arguments. mapping source registers and stack locations to the corresponding
+        // destination locations.
+        while ((ofsSrc = sArgPlacerSrc.GetNextOffset()) != TransitionBlock::InvalidOffset)
         {
-            // Locate the next slot to shuffle in the source and destination and encode the transfer into a
-            // shuffle entry.
-            entry.srcofs = ShuffleOfs(&sArgSrc);
-            entry.dstofs = ShuffleOfs(&sArgDst);
+            ofsDst = sArgPlacerDst.GetNextOffset();
 
-            // Only emit this entry if it's not a no-op (i.e. the source and destination locations are
-            // different).
-            if (entry.srcofs != entry.dstofs)
-                pShuffleEntryArray->Append(entry);
+#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+            bool shuffleStructFromStackToRegs = (ofsSrc != TransitionBlock::StructInRegsOffset) && (ofsDst == TransitionBlock::StructInRegsOffset);
+            if (((pass == 0) && shuffleStructFromStackToRegs) || 
+                ((pass == 1) && !shuffleStructFromStackToRegs))
+            {
+                continue;
+            }
+#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+            // Find the argument location mapping for both source and destination signature. A single argument can
+            // occupy a floating point register (in which case we don't need to do anything, they're not shuffled)
+            // or some combination of general registers and the stack.
+            sArgPlacerSrc.GetArgLoc(ofsSrc, &sArgSrc);
+            sArgPlacerDst.GetArgLoc(ofsDst, &sArgDst);
+
+            ShuffleIterator iteratorSrc(&sArgSrc);
+            ShuffleIterator iteratorDst(&sArgDst);
+
+            // Shuffle each slot in the argument (register or stack slot) from source to destination.
+            while (iteratorSrc.HasNextOfs())
+            {
+                // Locate the next slot to shuffle in the source and destination and encode the transfer into a
+                // shuffle entry.
+                entry.srcofs = iteratorSrc.GetNextOfs();
+                entry.dstofs = iteratorDst.GetNextOfs();
+
+                // Only emit this entry if it's not a no-op (i.e. the source and destination locations are
+                // different).
+                if (entry.srcofs != entry.dstofs)
+                    pShuffleEntryArray->Append(entry);
+            }
+
+            // We should have run out of slots to shuffle in the destination at the same time as the source.
+            _ASSERTE(!iteratorDst.HasNextOfs());
         }
+#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+        if (pass == 0)
+        {
+            // Reset the iterator for the 2nd pass
+            sSigSrc.Reset();
+            sSigDst.Reset();
 
-        // We should have run out of slots to shuffle in the destination at the same time as the source.
-        _ASSERTE(!AnythingToShuffle(&sArgDst));
+            sArgPlacerSrc = ArgIterator(&sSigSrc);
+            sArgPlacerDst = ArgIterator(&sSigDst);
+
+            if (sSigDst.HasThis())
+            {
+                sArgPlacerSrc.GetNextOffset();
+            }
+        }
+#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
     }
 
     entry.srcofs = ShuffleEntry::SENTINEL;
@@ -450,7 +611,7 @@ Stub* COMDelegate::SetupShuffleThunk(MethodTable * pDelMT, MethodDesc *pTargetMe
 
     EnsureWritablePages(pClass);
 
-    if (!pTargetMeth->IsStatic() && pTargetMeth->HasRetBuffArg()) 
+    if (!pTargetMeth->IsStatic() && pTargetMeth->HasRetBuffArg() && IsRetBuffPassedAsFirstArg()) 
     {
         if (FastInterlockCompareExchangePointer(&pClass->m_pInstRetBuffCallStub, pShuffleThunk, NULL ) != NULL)
         {
@@ -536,12 +697,6 @@ FCIMPL5(FC_BOOL_RET, COMDelegate::BindToMethodName,
     // Caching of MethodDescs (impl and decl) for MethodTable slots provided significant
     // performance gain in some reflection emit scenarios.
     MethodTable::AllowMethodDataCaching();
-
-#ifdef FEATURE_LEGACYNETCF
-    // NetCF has done relaxed signature matching unconditionally
-    if (GetAppDomain()->GetAppDomainCompatMode() == BaseDomain::APPDOMAINCOMPAT_APP_EARLIER_THAN_WP8)
-        flags |= DBF_RelaxedSignature;
-#endif
 
     TypeHandle targetType((gc.target != NULL) ? gc.target->GetTrueMethodTable() : NULL);
     // get the invoke of the delegate
@@ -854,7 +1009,7 @@ void COMDelegate::BindToMethod(DELEGATEREF   *pRefThis,
 
         // Look for a thunk cached on the delegate class first. Note we need a different thunk for instance methods with a
         // hidden return buffer argument because the extra argument switches place with the target when coming from the caller.
-        if (!pTargetMethod->IsStatic() && pTargetMethod->HasRetBuffArg()) 
+        if (!pTargetMethod->IsStatic() && pTargetMethod->HasRetBuffArg() && IsRetBuffPassedAsFirstArg()) 
             pShuffleThunk = pDelegateClass->m_pInstRetBuffCallStub;
         else
             pShuffleThunk = pDelegateClass->m_pStaticCallStub;
@@ -924,7 +1079,7 @@ void COMDelegate::BindToMethod(DELEGATEREF   *pRefThis,
             pTargetCode = pTargetMethod->GetMultiCallableAddrOfVirtualizedCode(pRefFirstArg, pTargetMethod->GetMethodTable());
         else
 #ifdef HAS_THISPTR_RETBUF_PRECODE
-        if (pTargetMethod->IsStatic() && pTargetMethod->HasRetBuffArg())
+        if (pTargetMethod->IsStatic() && pTargetMethod->HasRetBuffArg() && IsRetBuffPassedAsFirstArg())
             pTargetCode = pTargetMethod->GetLoaderAllocatorForCode()->GetFuncPtrStubs()->GetFuncPtrStub(pTargetMethod, PRECODE_THISPTR_RETBUF);
         else
 #endif // HAS_THISPTR_RETBUF_PRECODE
@@ -1064,6 +1219,74 @@ BOOL COMDelegate::IsMethodAllowedToSinkReversePInvoke(MethodDesc *pMD)
 #endif // FEATURE_WINDOWSPHONE
 }
 #endif // FEATURE_CORECLR
+
+// Marshals a managed method to an unmanaged callback provided the 
+// managed method is static and it's parameters require no marshalling.
+PCODE COMDelegate::ConvertToCallback(MethodDesc* pMD)
+{
+    CONTRACTL
+    {
+        THROWS;
+    GC_TRIGGERS;
+    INJECT_FAULT(COMPlusThrowOM());
+    }
+    CONTRACTL_END;
+
+    PCODE pCode = NULL;
+
+    // only static methods are allowed
+    if (!pMD->IsStatic())
+        COMPlusThrow(kNotSupportedException, W("NotSupported_NonStaticMethod"));
+
+    // no generic methods
+    if (pMD->IsGenericMethodDefinition())
+        COMPlusThrow(kNotSupportedException, W("NotSupported_GenericMethod"));
+
+    // Arguments 
+    if (NDirect::MarshalingRequired(pMD, pMD->GetSig(), pMD->GetModule()))
+        COMPlusThrow(kNotSupportedException, W("NotSupported_NonBlittableTypes"));
+
+    // Get UMEntryThunk from appdomain thunkcache cache.
+    UMEntryThunk *pUMEntryThunk = GetAppDomain()->GetUMEntryThunkCache()->GetUMEntryThunk(pMD);
+
+#ifdef _TARGET_X86_
+
+    // System.Runtime.InteropServices.NativeCallableAttribute
+    BYTE* pData = NULL;
+    LONG cData = 0;
+    CorPinvokeMap callConv = (CorPinvokeMap)0;
+
+    HRESULT hr = pMD->GetMDImport()->GetCustomAttributeByName(pMD->GetMemberDef(), g_NativeCallableAttribute, (const VOID **)(&pData), (ULONG *)&cData);
+    IfFailThrow(hr);
+
+    if (cData > 0)
+    {
+        CustomAttributeParser ca(pData, cData);
+        // NativeCallable has two optional named arguments CallingConvention and EntryPoint.
+        CaNamedArg namedArgs[2];
+        CaTypeCtor caType(SERIALIZATION_TYPE_STRING);
+        // First, the void constructor.
+        IfFailThrow(ParseKnownCaArgs(ca, NULL, 0));
+
+        // Now the optional named properties
+        namedArgs[0].InitI4FieldEnum("CallingConvention", "System.Runtime.InteropServices.CallingConvention", (ULONG)callConv);
+        namedArgs[1].Init("EntryPoint", SERIALIZATION_TYPE_STRING, caType);
+        IfFailThrow(ParseKnownCaNamedArgs(ca, namedArgs, lengthof(namedArgs)));
+
+        callConv = (CorPinvokeMap)(namedArgs[0].val.u4 << 8);
+        // Let UMThunkMarshalInfo choose the default if calling convension not definied.
+        if (namedArgs[0].val.type.tag != SERIALIZATION_TYPE_UNDEFINED)
+        {
+            UMThunkMarshInfo* pUMThunkMarshalInfo = pUMEntryThunk->GetUMThunkMarshInfo();
+            pUMThunkMarshalInfo->SetCallingConvention(callConv);
+        }
+}
+#endif  //_TARGET_X86_
+
+    pCode = (PCODE)pUMEntryThunk->GetCode();
+    _ASSERTE(pCode != NULL);
+    return pCode;
+}
 
 // Marshals a delegate to a unmanaged callback.
 LPVOID COMDelegate::ConvertToCallback(OBJECTREF pDelegateObj)
@@ -1253,7 +1476,7 @@ OBJECTREF COMDelegate::ConvertToDelegate(LPVOID pCallback, MethodTable* pMT)
 
     // Lookup the callsite in the hash, if found, we can map this call back to its managed function.
     // Otherwise, we'll treat this as an unmanaged callsite.
-	// Make sure that the pointer doesn't have the value of 1 which is our hash table deleted item marker.
+    // Make sure that the pointer doesn't have the value of 1 which is our hash table deleted item marker.
     LPVOID DelegateHnd = (pUMEntryThunk != NULL) && ((UPTR)pUMEntryThunk != (UPTR)1)
         ? COMDelegate::s_pDelegateToFPtrHash->LookupValue((UPTR)pUMEntryThunk, 0)
         : (LPVOID)INVALIDENTRY;
@@ -1821,7 +2044,7 @@ FCIMPL3(void, COMDelegate::DelegateConstruct, Object* refThisUNSAFE, Object* tar
 
         // set the shuffle thunk
         Stub *pShuffleThunk = NULL;
-        if (!pMeth->IsStatic() && pMeth->HasRetBuffArg()) 
+        if (!pMeth->IsStatic() && pMeth->HasRetBuffArg() && IsRetBuffPassedAsFirstArg()) 
             pShuffleThunk = pDelCls->m_pInstRetBuffCallStub;
         else
             pShuffleThunk = pDelCls->m_pStaticCallStub;
@@ -1879,10 +2102,24 @@ FCIMPL3(void, COMDelegate::DelegateConstruct, Object* refThisUNSAFE, Object* tar
                                 // <TODO>it looks like we need to pass an ownerType in here.
                                 //  Why can we take a delegate to an interface method anyway?  </TODO>
                                 // 
-                                pMeth = pMTTarg->FindDispatchSlotForInterfaceMD(pMeth).GetMethodDesc();
-                                if (pMeth == NULL)
+                                MethodDesc * pDispatchSlotMD = pMTTarg->FindDispatchSlotForInterfaceMD(pMeth).GetMethodDesc();
+                                if (pDispatchSlotMD == NULL)
                                 {
                                     COMPlusThrow(kArgumentException, W("Arg_DlgtTargMeth"));
+                                }
+
+                                if (pMeth->HasMethodInstantiation())
+                                {
+                                    pMeth = MethodDesc::FindOrCreateAssociatedMethodDesc(
+                                        pDispatchSlotMD,
+                                        pMTTarg,
+                                        (!pDispatchSlotMD->IsStatic() && pMTTarg->IsValueType()),
+                                        pMeth->GetMethodInstantiation(),
+                                        FALSE /* allowInstParam */);
+                                }
+                                else
+                                {
+                                    pMeth = pDispatchSlotMD;
                                 }
                             }
                         }
@@ -1925,7 +2162,7 @@ FCIMPL3(void, COMDelegate::DelegateConstruct, Object* refThisUNSAFE, Object* tar
             }
         }
 #ifdef HAS_THISPTR_RETBUF_PRECODE
-        else if (pMeth->HasRetBuffArg())
+        else if (pMeth->HasRetBuffArg() && IsRetBuffPassedAsFirstArg())
             method = pMeth->GetLoaderAllocatorForCode()->GetFuncPtrStubs()->GetFuncPtrStub(pMeth, PRECODE_THISPTR_RETBUF);
 #endif // HAS_THISPTR_RETBUF_PRECODE
 
@@ -2189,7 +2426,7 @@ PCODE COMDelegate::GetInvokeMethodStub(EEImplMethodDesc* pMD)
         STANDARD_VM_CHECK;
         POSTCONDITION(RETVAL != NULL);
 
-        INJECT_FAULT(COMPlusThrowOM()); 
+        INJECT_FAULT(COMPlusThrowOM());
     }
     CONTRACT_END;
 
@@ -2236,7 +2473,7 @@ PCODE COMDelegate::GetInvokeMethodStub(EEImplMethodDesc* pMD)
         // If the call was indeed for async delegate invocation, we will just throw an exception.
         if ((pMD == pClass->m_pBeginInvokeMethod) || (pMD == pClass->m_pEndInvokeMethod))
         {
-            COMPlusThrow(kNotSupportedException);
+            COMPlusThrow(kPlatformNotSupportedException);
         }
 
 #endif //FEATURE_REMOTING
@@ -2245,7 +2482,7 @@ PCODE COMDelegate::GetInvokeMethodStub(EEImplMethodDesc* pMD)
         COMPlusThrow(kInvalidProgramException);
     }
 
-    RETURN ret;    
+    RETURN ret;
 }
 
 FCIMPL1(Object*, COMDelegate::InternalAlloc, ReflectClassBaseObject * pTargetUNSAFE)
@@ -2359,7 +2596,7 @@ BOOL COMDelegate::NeedsWrapperDelegate(MethodDesc* pTargetMD)
 #ifdef _TARGET_ARM_
     // For arm VSD expects r4 to contain the indirection cell. However r4 is a non-volatile register
     // and its value must be preserved. So we need to erect a frame and store indirection cell in r4 before calling
-    // virtual stub dispatch. Erecting frame is already done by secure delegates so the secureDelegate infrastructure 
+    // virtual stub dispatch. Erecting frame is already done by secure delegates so the secureDelegate infrastructure
     //  can easliy be used for our purpose.
     // set needsSecureDelegate flag in order to erect a frame. (Secure Delegate stub also loads the right value in r4)
     if (!pTargetMD->IsStatic() && pTargetMD->IsVirtual() && !pTargetMD->GetMethodTable()->IsValueType())
@@ -2694,7 +2931,47 @@ PCODE COMDelegate::GetSecureInvoke(MethodDesc* pMD)
 #ifdef FEATURE_CAS_POLICY
 #error GetSecureInvoke not implemented
 #else
-    UNREACHABLE();
+    GCX_PREEMP();
+
+    MetaSig sig(pMD);
+
+    BOOL fReturnVal = !sig.IsReturnTypeVoid();
+
+    SigTypeContext emptyContext;
+    ILStubLinker sl(pMD->GetModule(), pMD->GetSignature(), &emptyContext, pMD, TRUE, TRUE, FALSE);
+
+    ILCodeStream *pCode = sl.NewCodeStream(ILStubLinker::kDispatch);
+
+    // Load the "real" delegate
+    pCode->EmitLoadThis();
+    pCode->EmitLDFLD(pCode->GetToken(MscorlibBinder::GetField(FIELD__MULTICAST_DELEGATE__INVOCATION_LIST)));
+
+    // Load the arguments
+    UINT paramCount = 0;
+    while(paramCount < sig.NumFixedArgs())
+      pCode->EmitLDARG(paramCount++);
+
+    // Call the delegate
+    pCode->EmitCALL(pCode->GetToken(pMD), sig.NumFixedArgs(), fReturnVal);
+
+    // Return
+    pCode->EmitRET();
+
+    PCCOR_SIGNATURE pSig;
+    DWORD cbSig;
+
+    pMD->GetSig(&pSig,&cbSig);
+
+    MethodDesc* pStubMD =
+      ILStubCache::CreateAndLinkNewILStubMethodDesc(pMD->GetLoaderAllocator(),
+                                                    pMD->GetMethodTable(),
+                                                    ILSTUB_SECUREDELEGATE_INVOKE,
+                                                    pMD->GetModule(),
+                                                    pSig, cbSig,
+                                                    NULL,
+                                                    &sl);
+
+    return Stub::NewStub(JitILStub(pStubMD))->GetEntryPoint();
 #endif
 }
 #else // FEATURE_STUBS_AS_IL
@@ -3188,6 +3465,13 @@ MethodDesc* COMDelegate::GetDelegateCtor(TypeHandle delegateType, MethodDesc *pT
     // that has the _methodBase field filled in with the LoaderAllocator of the collectible assembly
     // associated with the instantiation.
     BOOL fMaybeCollectibleAndStatic = FALSE;
+   
+    // Do not allow static methods with [NativeCallableAttribute] to be a delegate target.
+    // A native callable method is special and allowing it to be delegate target will destabilize the runtime.
+    if (pTargetMethod->HasNativeCallableAttribute())
+    {
+        COMPlusThrow(kNotSupportedException, W("NotSupported_NativeCallableTarget"));
+    }
 
     if (isStatic)
     {
@@ -3278,7 +3562,7 @@ MethodDesc* COMDelegate::GetDelegateCtor(TypeHandle delegateType, MethodDesc *pT
     // 1, 4     - MulticastDelegate.ctor1 (simply assign _target and _methodPtr)
     // 5        - MulticastDelegate.ctor2 (see table, takes 3 args)
     // 2, 6     - MulticastDelegate.ctor3 (take shuffle thunk)
-    // 3        - MulticastDelegate.ctor4 (take shuffle thunk, retrive MethodDesc) ???
+    // 3        - MulticastDelegate.ctor4 (take shuffle thunk, retrieve MethodDesc) ???
     //
     // 7 - Needs special handling
     //
@@ -3325,7 +3609,7 @@ MethodDesc* COMDelegate::GetDelegateCtor(TypeHandle delegateType, MethodDesc *pT
                 pRealCtor = MscorlibBinder::GetMethod(METHOD__MULTICAST_DELEGATE__CTOR_OPENED);
         }
         Stub *pShuffleThunk = NULL;
-        if (!pTargetMethod->IsStatic() && pTargetMethod->HasRetBuffArg()) 
+        if (!pTargetMethod->IsStatic() && pTargetMethod->HasRetBuffArg() && IsRetBuffPassedAsFirstArg()) 
             pShuffleThunk = pDelCls->m_pInstRetBuffCallStub;
         else
             pShuffleThunk = pDelCls->m_pStaticCallStub;
@@ -3353,7 +3637,7 @@ MethodDesc* COMDelegate::GetDelegateCtor(TypeHandle delegateType, MethodDesc *pT
 #ifdef HAS_THISPTR_RETBUF_PRECODE
         // Force closed delegates over static methods with return buffer to go via 
         // the slow path to create ThisPtrRetBufPrecode
-        if (isStatic && pTargetMethod->HasRetBuffArg())
+        if (isStatic && pTargetMethod->HasRetBuffArg() && IsRetBuffPassedAsFirstArg())
             return NULL;
 #endif
 

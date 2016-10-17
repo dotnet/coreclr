@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // --------------------------------------------------------------------------------
 // PEDecoder.inl
 // 
@@ -62,6 +61,11 @@ inline BOOL PEDecoder::IsRelocated() const
     LIMITED_METHOD_CONTRACT;
     
     return (m_flags & FLAG_RELOCATED) != 0;
+}
+
+inline void PEDecoder::SetRelocated()
+{
+    m_flags |= FLAG_RELOCATED;
 }
 
 inline BOOL PEDecoder::IsFlat() const
@@ -962,8 +966,11 @@ inline BOOL PEDecoder::IsNativeMachineFormat() const
     if (!HasContents() || !HasNTHeaders() )
         return FALSE;
     _ASSERTE(m_pNTHeaders);
+    WORD expectedFormat = HasCorHeader() && (HasNativeHeader() || HasReadyToRunHeader()) ?
+        IMAGE_FILE_MACHINE_NATIVE_NI :
+        IMAGE_FILE_MACHINE_NATIVE;
     //do not call GetNTHeaders as we do not want to bother with PE32->PE32+ conversion
-    return m_pNTHeaders->FileHeader.Machine==IMAGE_FILE_MACHINE_NATIVE;
+    return m_pNTHeaders->FileHeader.Machine==expectedFormat;
 }
 
 inline BOOL PEDecoder::IsI386() const
@@ -1333,11 +1340,20 @@ inline void PEDecoder::GetPEKindAndMachine(DWORD * pdwPEKind, DWORD *pdwMachine)
                 dwKind |= (DWORD)pe32Unmanaged;
             }
 
-            if (HasReadyToRunHeader() && (GetReadyToRunHeader()->Flags & READYTORUN_FLAG_PLATFORM_NEUTRAL_SOURCE) != 0)
+            if (HasReadyToRunHeader())
             {
-                // Supply the original PEKind/Machine to the assembly binder to make the full assembly name look like the original
-                dwKind = peILonly;
-                dwMachine = IMAGE_FILE_MACHINE_I386;
+                if (dwMachine == IMAGE_FILE_MACHINE_NATIVE_NI)
+                {
+                    // Supply the original machine type to the assembly binder
+                    dwMachine = IMAGE_FILE_MACHINE_NATIVE;
+                }
+
+                if ((GetReadyToRunHeader()->Flags & READYTORUN_FLAG_PLATFORM_NEUTRAL_SOURCE) != 0)
+                {
+                    // Supply the original PEKind/Machine to the assembly binder to make the full assembly name look like the original
+                    dwKind = peILonly;
+                    dwMachine = IMAGE_FILE_MACHINE_I386;
+                }
             }
         }
         else

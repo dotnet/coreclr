@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -148,6 +147,12 @@ function_name() to call the system's implementation
    compiling PAL implementation files. */
 #include "config.h"
 
+#ifdef DEBUG
+#define _ENABLE_DEBUG_MESSAGES_ 1
+#else
+#define _ENABLE_DEBUG_MESSAGES_ 0
+#endif
+
 #ifdef PAL_PERF
 #include "pal_perf.h"
 #endif
@@ -156,13 +161,14 @@ function_name() to call the system's implementation
    of those functions when including standard C header files */
 #define div DUMMY_div
 #define div_t DUMMY_div_t
+#if !defined(_DEBUG)
 #define memcpy DUMMY_memcpy 
+#endif //!defined(_DEBUG)
 #define memcmp DUMMY_memcmp 
 #define memset DUMMY_memset 
 #define memmove DUMMY_memmove 
 #define memchr DUMMY_memchr
 #define strlen DUMMY_strlen
-#define strnlen DUMMY_strnlen
 #define stricmp DUMMY_stricmp 
 #define strstr DUMMY_strstr 
 #define strcmp DUMMY_strcmp 
@@ -192,28 +198,26 @@ function_name() to call the system's implementation
 #define srand DUMMY_srand
 #define atoi DUMMY_atoi
 #define atof DUMMY_atof
-#define time DUMMY_time
 #define tm PAL_tm
 #define size_t DUMMY_size_t
 #define time_t PAL_time_t
 #define va_list DUMMY_va_list
 #define abs DUMMY_abs
 #define llabs DUMMY_llabs
-#define atan DUMMY_atan
-#define tan DUMMY_tan
-#define cos DUMMY_cos
-#define sin DUMMY_sin
-#define cosh DUMMY_cosh
-#define sinh DUMMY_sinh
-#define tanh DUMMY_tanh
-#define modf DUMMY_modf
-#define fmod DUMMY_fmod
-#define fmodf DUMMY_fmodf
-#define sqrt DUMMY_sqrt
 #define ceil DUMMY_ceil
+#define cos DUMMY_cos
+#define cosh DUMMY_cosh
 #define fabs DUMMY_fabs
-#define fabsf DUMMY_fabsf
 #define floor DUMMY_floor
+#define fmod DUMMY_fmod
+#define modf DUMMY_modf
+#define sin DUMMY_sin
+#define sinh DUMMY_sinh
+#define sqrt DUMMY_sqrt
+#define tan DUMMY_tan
+#define tanh DUMMY_tanh
+#define fabsf DUMMY_fabsf
+#define fmodf DUMMY_fmodf
 #define modff DUMMY_modff
 
 /* RAND_MAX needed to be renamed to avoid duplicate definition when including 
@@ -317,9 +321,9 @@ function_name() to call the system's implementation
 #define uintptr_t PAL_uintptr_t
 #define timeval PAL_timeval
 #define FILE PAL_FILE
-#define fpos_t PAL_fpos_t
 
 #include "pal.h"
+#include "palprivate.h"
 
 #include "mbusafecrt.h"
 
@@ -332,19 +336,21 @@ function_name() to call the system's implementation
 #undef _BitScanForward64
 #endif 
 
-/* pal.h does "#define alloca _alloca", but we need access to the "real"
-   alloca */
-#undef alloca
+/* pal.h defines alloca(3) as a compiler builtin.
+   Redefining it to native libc will result in undefined breakage because
+   a compiler is allowed to make assumptions about the stack and frame
+   pointers. */
 
 /* Undef all functions and types previously defined so those functions and
    types could be mapped to the C runtime and socket implementation of the 
    native OS */
 #undef exit
-#undef alloca
 #undef atexit
 #undef div
 #undef div_t
+#if !defined(_DEBUG)
 #undef memcpy
+#endif //!defined(_DEBUG)
 #undef memcmp
 #undef memset
 #undef memmove
@@ -435,11 +441,27 @@ function_name() to call the system's implementation
 #undef llabs
 #undef acos
 #undef asin
+#undef atan
 #undef atan2
+#undef ceil
+#undef cos
+#undef cosh
 #undef exp
+#undef fabs
+#undef floor
+#undef fmod
 #undef log
 #undef log10
+#undef modf
 #undef pow
+#undef sin
+#undef sinh
+#undef sqrt
+#undef tan
+#undef tanh
+#undef fabsf
+#undef fmodf
+#undef modff
 #undef rand
 #undef srand
 #undef errno
@@ -447,29 +469,12 @@ function_name() to call the system's implementation
 #undef wcsspn
 #undef open
 #undef glob
-#undef atan
-#undef tan
-#undef cos
-#undef sin
-#undef cosh
-#undef sinh
-#undef tanh
-#undef modf
-#undef fmod
-#undef fmodf
-#undef sqrt
-#undef ceil
-#undef fabs
-#undef fabsf
-#undef floor
-#undef modff
 
 #undef wchar_t
 #undef ptrdiff_t
 #undef intptr_t
 #undef uintptr_t
 #undef timeval
-#undef fpos_t
 
 
 #undef printf
@@ -560,6 +565,11 @@ function_name() to call the system's implementation
 #endif
 #include <ctype.h>
 
+// Don't use C++ wrappers for stdlib.h
+// https://gcc.gnu.org/ml/libstdc++/2016-01/msg00025.html 
+#define _GLIBCXX_INCLUDE_NEXT_C_HEADERS 1
+
+#define _WITH_GETLINE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -677,6 +687,8 @@ inline T* InterlockedCompareExchangePointerT(
 #define InterlockedCompareExchangePointer InterlockedCompareExchangePointerT
 
 #include "volatile.h"
+
+const char StackOverflowMessage[] = "Process is terminated due to StackOverflowException.\n";
 
 #endif // __cplusplus
 

@@ -1,7 +1,7 @@
 Build CoreCLR on Linux
 ======================
 
-This guide will walk you through building CoreCLR on Linux and running Hello World.  We'll start by showing how to set up your environment from scratch.
+This guide will walk you through building CoreCLR on Linux.  We'll start by showing how to set up your environment from scratch.
 
 Environment
 ===========
@@ -20,11 +20,16 @@ Install the following packages for the toolchain:
 - cmake 
 - llvm-3.5 
 - clang-3.5 
-- lldb-3.6  
+- lldb-3.6
 - lldb-3.6-dev 
 - libunwind8 
-- libunwind8-dev  
+- libunwind8-dev
 - gettext
+- libicu-dev
+- liblttng-ust-dev
+- libcurl4-openssl-dev
+- libssl-dev
+- uuid-dev
 
 In order to get lldb-3.6 on Ubuntu 14.04, we need to add an additional package source:
 
@@ -36,17 +41,32 @@ ellismg@linux:~$ sudo apt-get update
 
 Then install the packages you need:
 
-`ellismg@linux:~$ sudo apt-get install cmake llvm-3.5 clang-3.5 lldb-3.6 lldb-3.6-dev libunwind8 libunwind8-dev gettext`
+```
+ellismg@linux:~$ sudo apt-get install cmake llvm-3.5 clang-3.5 lldb-3.6 lldb-3.6-dev libunwind8 libunwind8-dev gettext libicu-dev liblttng-ust-dev libcurl4-openssl-dev libssl-dev uuid-dev
+```
 
 You now have all the required components.
+
+If you are using Fedora 23 or 24, then you will need to install the following packages:
+
+`$ sudo dnf install llvm cmake clang lldb-devel libunwind-devel lttng-ust-devel libuuid-devel libicu-devel`
 
 Git Setup
 ---------
 
-This guide assumes that you've cloned the coreclr repository into `~/git/coreclr` on your Linux machine and the corefx and coreclr repositories into `D:\git\corefx` and `D:\git\coreclr` on Windows. If your setup is different, you'll need to pay careful attention to the commands you run. In this guide, I'll always show what directory I'm in on both the Linux and Windows machine.
+This guide assumes that you've cloned the corefx and coreclr repositories into `~/git/corefx` and `~/git/coreclr` on your Linux machine. If your setup is different, you'll need to pay careful attention to the commands you run. In this guide, I'll always show what directory I'm in.
 
-Build the Runtime
-=================
+Set the maximum number of file-handles
+--------------------------------------
+
+To ensure that your system can allocate enough file-handles for the corefx build run `sysctl fs.file-max`. If it is less than 100000, add `fs.file-max = 100000` to `/etc/sysctl.conf`, and then run `sudo sysctl -p`.
+
+On Fedora 23 or 24:
+
+`$ sudo dnf install mono-devel`
+
+Build the Runtime and Microsoft Core Library
+=============================================
 
 To build the runtime on Linux, run build.sh from the root of the coreclr repository:
 
@@ -58,147 +78,151 @@ After the build is completed, there should some files placed in `bin/Product/Lin
 
 * `corerun`: The command line host.  This program loads and starts the CoreCLR runtime and passes the managed program you want to run to it.
 * `libcoreclr.so`: The CoreCLR runtime itself.
+* `mscorlib.dll`: Microsoft Core Library.
 
-In order to keep everything tidy, let's create a new directory for the runtime and copy the runtime and corerun into it.
-
-```
-ellismg@linux:~/git/coreclr$ mkdir -p ~/coreclr-demo/runtime
-ellismg@linux:~/git/coreclr$ cp bin/Product/Linux.x64.Debug/corerun ~/coreclr-demo/runtime
-ellismg@linux:~/git/coreclr$ cp bin/Product/Linux.x64.Debug/libcoreclr.so ~/coreclr-demo/runtime
-```
-
-Build the Framework 
+Build the Framework
 ===================
 
-We don't _yet_ have support for building managed code on Linux, so you'll need a Windows machine with clones of both the CoreCLR and CoreFX projects.
-
-You will build `mscorlib.dll` out of the coreclr repository and the rest of the framework that out of the corefx repository.  For mscorlib (from a regular command prompt window) run:
-
 ```
-D:\git\coreclr> build.cmd linuxmscorlib
+ellismg@linux:~/git/corefx$ ./build.sh
 ```
 
-The output is placed in `bin\Product\Linux.x64.Debug\mscorlib.dll`.  You'll want to copy this to the runtime folder on your Linux machine. (e.g. `~/coreclr-demo/runtime`)
+After the build is complete you will be able to find the output in the `bin` folder.
 
-For the rest of the framework, you need to pass some special parameters to build.cmd when building out of the CoreFX repository.
+Build for ARM/Linux
+===================
 
-```
-D:\git\corefx> build.cmd /p:OSGroup=Linux /p:SkipTests=true
-```
+Libunwind-arm requires fixes that are not included in Ubuntu 14.04, yet. The fix allows libunwind-arm not to break when it is ordered to access unaccessible memory locations.
 
-It's also possible to add `/t:rebuild` to the build.cmd to force it to delete the previously built assemblies.
+First, import the patch from the libunwind upstream: http://git.savannah.gnu.org/gitweb/?p=libunwind.git;a=commit;h=770152268807e460184b4152e23aba9c86601090
 
-For the purposes of Hello World, you need to copy over both `bin\Linux.AnyCPU.Debug\System.Console\System.Console.dll` and `bin\Linux.AnyCPU.Debug\System.Diagnostics.Debug\System.Diagnostics.Debug.dll`  into the runtime folder on Linux. (e.g `~/coreclr-demo/runtime`).
-
-After you've done these steps, the runtime directory on Linux should look like this:
+Then, expand the coverage of the upstream patch by:
 
 ```
-matell@linux:~$ ls ~/coreclr-demo/runtime/
-corerun  libcoreclr.so  mscorlib.dll  System.Console.dll  System.Diagnostics.Debug.dll
+diff --git a/src/arm/Ginit.c b/src/arm/Ginit.c
+index 1ed3dbf..c643032 100644
+--- a/src/arm/Ginit.c
++++ b/src/arm/Ginit.c
+@@ -128,6 +128,11 @@ access_mem (unw_addr_space_t as, unw_word_t addr, unw_word_t *val, int write,
+ {
+   if (write)
+     {
++      /* validate address */
++      const struct cursor *c = (const struct cursor *) arg;
++      if (c && validate_mem(addr))
++        return -1;
++
+       Debug (16, "mem[%x] <- %x\n", addr, *val);
+       *(unw_word_t *) addr = *val;
+     }
 ```
 
-Download Dependencies
-=====================
+How to enable -O3 optimization level for ARM/Linux
+==================================================
 
-The rest of the assemblies you need to run are presently just facades that point to mscorlib.  We can pull these dependencies down via NuGet (which currently requires Mono).
+Currently, we can build coreclr with -O1 flag of clang in release build mode for Linux/ARM without any bugfix of llvm-3.6. This instruction is to enable -O3 optimization level of clang on Linux/ARM by fixing the bug of llvm.
 
-Install Mono
-------------
-
-If you don't already have Mono installed on your system, use the [installation instructions](http://www.mono-project.com/docs/getting-started/install/linux/).
-
-At a high level, you do the following:
-
+First, download latest version from the clang-3.6/llvm-3.6 upstream: 
 ```
-ellismg@linux:~$ sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF
-ellismg@linux:~$ echo "deb http://download.mono-project.com/repo/debian wheezy main" | sudo tee /etc/apt/sources.list.d/mono-xamarin.list
-ellismg@linux:~$ sudo apt-get update
-ellismg@linux:~$ sudo apt-get install mono-devel
+lgs@ubuntu cd /work/dotnet/
+lgs@ubuntu wget http://llvm.org/releases/3.6.2/llvm-3.6.2.src.tar.xz
+lgs@ubuntu tar xJf llvm-3.6.2.src.tar.xz
+lgs@ubuntu cd ./llvm-3.6.2.src/tools/
+lgs@ubuntu wget http://llvm.org/releases/3.6.2/cfe-3.6.2.src.tar.xz
+lgs@ubuntu tar xJf cfe-3.6.2.src.tar.xz
+lgs@ubuntu mv cfe-3.6.2.src clang
 ```
 
-Download the NuGet Client
--------------------------
+Second, expand the coverage of the upstream patch by:
+https://bugs.launchpad.net/ubuntu/+source/llvm-defaults/+bug/1584089
 
-Grab NuGet (if you don't have it already)
-
+Third, build clang-3.6/llvm-3.6 source as following: 
 ```
-ellismg@linux:~/coreclr-demo/packages$ curl -L -O https://nuget.org/nuget.exe
-```
-Download NuGet Packages
------------------------
-
-With Mono and NuGet in hand, you can use NuGet to get the required dependencies.  Place all the NuGet packages together:
-
-```
-ellismg@linux:~$ mkdir ~/coreclr-demo/packages
-ellismg@linux:~$ cd ~/coreclr-demo/packages
-```
-
-Make a `packages.config` file with the following text. These are the required dependencies of this particular app. Different apps will have different dependencies and require a different `packages.config` - see [Issue #480](https://github.com/dotnet/coreclr/issues/480).
-
-```
-<?xml version="1.0" encoding="utf-8"?>
-<packages>
-  <package id="System.Console" version="4.0.0-beta-22703" />
-  <package id="System.Diagnostics.Contracts" version="4.0.0-beta-22703" />
-  <package id="System.Diagnostics.Debug" version="4.0.10-beta-22703" />
-  <package id="System.Diagnostics.Tools" version="4.0.0-beta-22703" />
-  <package id="System.Globalization" version="4.0.10-beta-22703" />
-  <package id="System.IO" version="4.0.10-beta-22703" />
-  <package id="System.IO.FileSystem.Primitives" version="4.0.0-beta-22703" />
-  <package id="System.Reflection" version="4.0.10-beta-22703" />
-  <package id="System.Resources.ResourceManager" version="4.0.0-beta-22703" />
-  <package id="System.Runtime" version="4.0.20-beta-22703" />
-  <package id="System.Runtime.Extensions" version="4.0.10-beta-22703" />
-  <package id="System.Runtime.Handles" version="4.0.0-beta-22703" />
-  <package id="System.Runtime.InteropServices" version="4.0.20-beta-22703" />
-  <package id="System.Text.Encoding" version="4.0.10-beta-22703" />
-  <package id="System.Text.Encoding.Extensions" version="4.0.10-beta-22703" />
-  <package id="System.Threading" version="4.0.10-beta-22703" />
-  <package id="System.Threading.Tasks" version="4.0.10-beta-22703" />
-</packages>
-
+lgs@ubuntu cmake -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="all" -DCMAKE_INSTALL_PREFIX=~/llvm-3.6.2 \
+-DLLVM_BUILD_LLVM_DYLIB=1 -DLLDB_DISABLE_LIBEDIT=1 -DLLDB_DISABLE_CURSES=1 -DLLDB_DISABLE_PYTHON=1 \
+-DLLVM_ENABLE_DOXYGEN=0 -DLLVM_ENABLE_TERMINFO=0 -DLLVM_INCLUDE_EXAMPLES=0 -DLLVM_BUILD_RUNTIME=0 \
+-DLLVM_INCLUDE_TESTS=0 -DPYTHON_INCLUDE_DIR=/usr/include/python2.7 /work/dotnet/llvm-3.6.2.src
+lgs@ubuntu  
+lgs@ubuntu sudo ln -sf /usr/bin/ld /usr/bin/ld.gold
+lgs@ubuntu time make -j8
+lgs@ubuntu time make -j8 install 
+lgs@ubuntu
+lgs@ubuntu sudo apt-get remove clang-3.6 llvm-3.6
+lgs@ubuntu  vi ~/.bashrc (or /etc/profile)
+# Setting new clang/llvm version
+export PATH=$HOME/llvm-3.6.2/bin/:$PATH
+export LD_LIBRARY_PATH=$HOME/llvm-3.6.2/lib:$LD_LIBRARY_PATH
 ```
 
-And restore your packages.config file:
-
+For Ubuntu 14.04 X64 users, they can easily install the fixed clang/llvm3.6 package with "apt-get" command from the "ppa:leemgs/dotnet" Ubuntu repository, without the need to execute the above 1st, 2nd, and 3rd step.
 ```
-ellismg@linux:~/coreclr-demo/packages$ mono nuget.exe restore -Source https://www.myget.org/F/dotnet-corefx/ -PackagesDirectory .
-```
-
-NOTE: This assumes you installed Mono from the mono-project.com packages. If you have built your own please see this comment in [Issue #602](https://github.com/dotnet/coreclr/issues/602#issuecomment-88203778)
-
-Finally, you need to copy over the assemblies to the runtime folder.  You don't want to copy over System.Console.dll or System.Diagnostics.Debug however, since the version from NuGet is the Windows version.  The easiest way to do this is with a little find magic:
-
-```
-ellismg@linux:~/coreclr-demo/packages$ find . -wholename '*/aspnetcore50/*.dll' -exec cp -n {} ~/coreclr-demo/runtime \;
+lgs@ubuntu sudo add-apt-repository ppa:leemgs/dotnet
+lgs@ubuntu sudo apt-get update
+lgs@ubuntu sudo apt-get install clang-3.6 llvm-3.6 lldb-3.6
 ```
 
-Compile an App
-==============
-
-Now you need a Hello World application to run.  You can write your own, if you'd like.  Personally, I'm partial to the one on corefxlab which will draw Tux for us.
-
+Finally, let's build coreclr with updated clang/llvm. If you meet a lldb related error message at build-time, try to build coreclr with "skipgenerateversion" option. 
 ```
-ellismg@linux:~$ cd ~/coreclr-demo/runtime
-ellismg@linux:~/coreclr-demo/runtime$ curl -O https://raw.githubusercontent.com/dotnet/corefxlab/master/demos/CoreClrConsoleApplications/HelloWorld/HelloWorld.cs
+lgs@ubuntu time ROOTFS_DIR=/work/dotnet/rootfs-coreclr/arm ./build.sh arm release clean cross 
 ```
 
-Then you just need to build it, with `mcs`, the Mono C# compiler. FYI: The Roslyn C# compiler will soon be available on Linux.  Because you need to compile the app against the .NET Core surface area, you need to pass references to the contract assemblies you restored using NuGet:
+Additional optimization levels for ARM/Linux: -Oz and -Ofast
+============================================================
+
+This instruction is to enable additional optimization levels such as -Oz and -Ofast on ARM/Linux. The below table shows what we have to enable for the code optimization of the CoreCLR run-time either the size or speed on embedded devices. 
+
+| **Content** | **Build Mode** | **Clang/LLVM (Linux)** |
+| --- | --- | --- |
+| -O0 | Debug | Disable optimization to generate the most debuggable code |
+| -O1 | - | Optimize for code size and execution time |
+| -O2 | Checked | Optimize more for code size and execution time |
+| -O3 | Release | Optimize more for code size and execution time to make program run faster |
+| -Oz | - | Optimize more to reduce code size further |
+| -Ofast | - | Enable all the optimizations from O3 along with other aggressive optimizations |
+
+If you want to focus on the size reduction for low-end devices, you have to modify clang-compile-override.txt to enable -Oz flag in the release build as following: 
 
 ```
-ellismg@linux:~/coreclr-demo/runtime$ mcs /nostdlib /noconfig /r:../packages/System.Console.4.0.0-beta-22703/lib/contract/System.Console.dll /r:../packages/System.Runtime.4.0.20-beta-22703/lib/contract/System.Runtime.dll HelloWorld.cs
+--- a/src/pal/tools/clang-compiler-override.txt
++++ b/src/pal/tools/clang-compiler-override.txt
+@@ -3,13 +3,13 @@ SET (CMAKE_C_FLAGS_DEBUG_INIT          "-g -O0")
+ SET (CLR_C_FLAGS_CHECKED_INIT          "-g -O2")
+ # Refer to the below instruction to support __thread with -O2/-O3 on Linux/ARM
+ # https://github.com/dotnet/coreclr/blob/master/Documentation/building/linux-instructions.md
+-SET (CMAKE_C_FLAGS_RELEASE_INIT        "-g -O3")
++SET (CMAKE_C_FLAGS_RELEASE_INIT        "-g -Oz")
+ SET (CMAKE_C_FLAGS_RELWITHDEBINFO_INIT "-g -O2")
+
+ SET (CMAKE_CXX_FLAGS_INIT                "-Wall -Wno-null-conversion -std=c++11")
+ SET (CMAKE_CXX_FLAGS_DEBUG_INIT          "-g -O0")
+ SET (CLR_CXX_FLAGS_CHECKED_INIT          "-g -O2")
+-SET (CMAKE_CXX_FLAGS_RELEASE_INIT        "-g -O3")
++SET (CMAKE_CXX_FLAGS_RELEASE_INIT        "-g -Oz")
+ SET (CMAKE_CXX_FLAGS_RELWITHDEBINFO_INIT "-g -O2")
+
+ SET (CLR_DEFINES_DEBUG_INIT              DEBUG _DEBUG _DBG URTBLDENV_FRIENDLY=Checked BUILDENV_
 ```
 
-Run your App
-============
 
-You're ready to run Hello World!  To do that, run corerun, passing the path to the managed exe, plus any arguments.  The HelloWorld from corefxlab will print Tux if you pass "linux" as an argument, so:
-
+If you want to focus on the speed optimization for high-end devices, you have to modify clang-compile-override.txt to enable -Ofast flag in the release build as following: 
 ```
-ellismg@linux:~/coreclr-demo/runtime$ ./corerun HelloWorld.exe linux
+--- a/src/pal/tools/clang-compiler-override.txt
++++ b/src/pal/tools/clang-compiler-override.txt
+@@ -3,13 +3,13 @@ SET (CMAKE_C_FLAGS_DEBUG_INIT          "-g -O0")
+ SET (CLR_C_FLAGS_CHECKED_INIT          "-g -O2")
+ # Refer to the below instruction to support __thread with -O2/-O3 on Linux/ARM
+ # https://github.com/dotnet/coreclr/blob/master/Documentation/building/linux-instructions.md
+-SET (CMAKE_C_FLAGS_RELEASE_INIT        "-g -O3")
++SET (CMAKE_C_FLAGS_RELEASE_INIT        "-g -Ofast")
+ SET (CMAKE_C_FLAGS_RELWITHDEBINFO_INIT "-g -O2")
+
+ SET (CMAKE_CXX_FLAGS_INIT                "-Wall -Wno-null-conversion -std=c++11")
+ SET (CMAKE_CXX_FLAGS_DEBUG_INIT          "-g -O0")
+ SET (CLR_CXX_FLAGS_CHECKED_INIT          "-g -O2")
+-SET (CMAKE_CXX_FLAGS_RELEASE_INIT        "-g -O3")
++SET (CMAKE_CXX_FLAGS_RELEASE_INIT        "-g -Ofast")
+ SET (CMAKE_CXX_FLAGS_RELWITHDEBINFO_INIT "-g -O2")
+
+ SET (CLR_DEFINES_DEBUG_INIT              DEBUG _DEBUG _DBG URTBLDENV_FRIENDLY=Checked BUILDENV_
 ```
 
-Over time, this process will get easier. We will remove the dependency on having to compile managed code on Windows. For example, we are working to get our NuGet packages to include both the Windows and Linux versions of an assembly, so you can simply nuget restore the dependencies. 
-
-Pull Requests to enable building CoreFX and mscorlib on Linux via Mono would be very welcome. A sample that builds Hello World on Linux using the correct references but via XBuild or MonoDevelop would also be great! Some of our processes (e.g. the mscorlib build) rely on Windows specific tools, but we want to figure out how to solve these problems for Linux as well. There's still a lot of work ahead, so if you're interested in helping, we're ready for you!

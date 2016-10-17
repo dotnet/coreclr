@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections.Generic;
@@ -21,7 +22,7 @@ namespace System.Diagnostics.Tracing
     /// TraceLogging: Used when calling EventSource.WriteMultiMerge.
     /// Stores the type information to use when writing the event fields.
     /// </summary>
-    internal class TraceLoggingEventTypes
+    public class TraceLoggingEventTypes
     {
         internal readonly TraceLoggingTypeInfo[] typeInfos;
         internal readonly string name;
@@ -220,7 +221,7 @@ namespace System.Diagnostics.Tracing
             var result = new TraceLoggingTypeInfo[paramInfos.Length];
             for (int i = 0; i < paramInfos.Length; ++i)
             {
-                result[i] = Statics.GetTypeInfoInstance(paramInfos[i].ParameterType, recursionCheck);
+                result[i] = TraceLoggingTypeInfo.GetInstance(paramInfos[i].ParameterType, recursionCheck);
             }
 
             return result;
@@ -239,7 +240,7 @@ namespace System.Diagnostics.Tracing
             var result = new TraceLoggingTypeInfo[types.Length];
             for (int i = 0; i < types.Length; i++)
             {
-                result[i] = Statics.GetTypeInfoInstance(types[i], recursionCheck);
+                result[i] = TraceLoggingTypeInfo.GetInstance(types[i], recursionCheck);
             }
 
             return result;

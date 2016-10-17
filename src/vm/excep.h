@@ -1,8 +1,7 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
-// EXCEP.H - Copyright (C) 1998 Microsoft Corporation
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+// EXCEP.H
 //
 
 //
@@ -769,6 +768,7 @@ LONG NotifyDebuggerLastChance(Thread *pThread,
 void CPFH_AdjustContextForThreadSuspensionRace(T_CONTEXT *pContext, Thread *pThread);
 #endif // _TARGET_X86_
 
+DWORD GetGcMarkerExceptionCode(LPVOID ip);
 bool IsGcMarker(DWORD exceptionCode, T_CONTEXT *pContext);
 
 void InitSavedExceptionInfo();
@@ -859,7 +859,7 @@ public:
     void static SetupCorruptionSeverityForActiveExceptionInUnwindPass(Thread *pCurThread, PTR_ExceptionTracker pEHTracker, BOOL fIsFirstPass, 
                                                                      DWORD dwExceptionCode);
 #endif // WIN64EXCEPTIONS
-    void static ResetLastActiveCorruptionSeverityPostCatchHandler();
+    void static ResetLastActiveCorruptionSeverityPostCatchHandler(Thread *pThread);
 };
 
 #endif // FEATURE_CORRUPTING_EXCEPTIONS

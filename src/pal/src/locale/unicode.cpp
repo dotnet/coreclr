@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -30,6 +29,7 @@ Revision History:
 #include "pal/utf8.h"
 #include "pal/locale.h"
 #include "pal/cruntime.h"
+#include "pal/stackstring.hpp"
 
 #if !(HAVE_PTHREAD_RWLOCK_T || HAVE_COREFOUNDATION)
 #error Either pthread rwlocks or Core Foundation are required for Unicode support
@@ -44,6 +44,8 @@ Revision History:
 #if HAVE_COREFOUNDATION
 #include <corefoundation/corefoundation.h>
 #endif // HAVE_COREFOUNDATION
+
+#include <debugmacrosext.h>
 
 using namespace CorUnix;
 
@@ -926,6 +928,10 @@ ReleaseString:
     {
         CFRelease(cfString);
     }
+#else /*HAVE_COREFOUNDATION */
+    ERROR( "This code page is not in the system.\n" );
+    SetLastError( ERROR_INVALID_PARAMETER );
+    goto EXIT;
 #endif /* HAVE_COREFOUNDATION */
 
 EXIT:
@@ -951,7 +957,7 @@ EXIT:
     return retval;
 }
 
-extern char g_szCoreCLRPath[MAX_PATH];
+extern char * g_szCoreCLRPath;
 
 /*++
 Function :
@@ -965,10 +971,18 @@ PALAPI
 PAL_BindResources(IN LPCSTR lpDomain)
 {
 #ifndef __APPLE__
-    char coreCLRDirectoryPath[MAX_PATH];
+    _ASSERTE(g_szCoreCLRPath != NULL);
+    char * coreCLRDirectoryPath;
+    PathCharString coreCLRDirectoryPathPS;
+    int len = strlen(g_szCoreCLRPath);
+    coreCLRDirectoryPath = coreCLRDirectoryPathPS.OpenStringBuffer(len);
+    if (NULL == coreCLRDirectoryPath)
+    {
+        return FALSE;
+    }
+    DWORD size = FILEGetDirectoryFromFullPathA(g_szCoreCLRPath, len, coreCLRDirectoryPath);
+    coreCLRDirectoryPathPS.CloseBuffer(size);
 
-    DWORD size = FILEGetDirectoryFromFullPathA(g_szCoreCLRPath, MAX_PATH, coreCLRDirectoryPath);
-    _ASSERTE(size <= MAX_PATH);
     LPCSTR boundPath = bindtextdomain(lpDomain, coreCLRDirectoryPath);
 
     return boundPath != NULL;

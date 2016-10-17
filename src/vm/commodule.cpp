@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 #include "common.h"
@@ -846,7 +845,7 @@ mdTypeSpec QCALLTYPE COMModule::GetTokenFromTypeSpec(QCall::ModuleHandle pModule
 // GetType
 // Given a class name, this method will look for that class
 //  with in the module. 
-void QCALLTYPE COMModule::GetType(QCall::ModuleHandle pModule, LPCWSTR wszName, BOOL bThrowOnError, BOOL bIgnoreCase, QCall::ObjectHandleOnStack retType)
+void QCALLTYPE COMModule::GetType(QCall::ModuleHandle pModule, LPCWSTR wszName, BOOL bThrowOnError, BOOL bIgnoreCase, QCall::ObjectHandleOnStack retType, QCall::ObjectHandleOnStack keepAlive)
 {
     CONTRACTL
     {
@@ -859,28 +858,13 @@ void QCALLTYPE COMModule::GetType(QCall::ModuleHandle pModule, LPCWSTR wszName, 
 
     BEGIN_QCALL;
 
-    GCX_COOP();
-
     DomainAssembly *pAssembly = pModule->GetDomainAssembly();
     _ASSERTE(pAssembly);
 
-    OBJECTREF keepAlive = NULL;
-    GCPROTECT_BEGIN(keepAlive);
+    BOOL prohibitAsmQualifiedName = TRUE;
 
-    {
-        GCX_PREEMP();
-
-        BOOL prohibitAsmQualifiedName = TRUE;
-
-#ifdef FEATURE_LEGACYNETCF
-        // // NetCF type name parser allowed assembly name to be overriden here
-        if (GetAppDomain()->GetAppDomainCompatMode() == BaseDomain::APPDOMAINCOMPAT_APP_EARLIER_THAN_WP8)
-            prohibitAsmQualifiedName = FALSE;
-#endif
-
-        // Load the class from this assembly (fail if it is in a different one).
-        retTypeHandle = TypeName::GetTypeManaged(wszName, pAssembly, bThrowOnError, bIgnoreCase, pAssembly->IsIntrospectionOnly(), prohibitAsmQualifiedName, NULL, FALSE, &keepAlive);
-    }
+    // Load the class from this assembly (fail if it is in a different one).
+    retTypeHandle = TypeName::GetTypeManaged(wszName, pAssembly, bThrowOnError, bIgnoreCase, pAssembly->IsIntrospectionOnly(), prohibitAsmQualifiedName, NULL, FALSE, (OBJECTREF*)keepAlive.m_ppObject);
 
     // Verify that it's in 'this' module
     // But, if it's in a different assembly than expected, that's okay, because
@@ -897,8 +881,7 @@ void QCALLTYPE COMModule::GetType(QCall::ModuleHandle pModule, LPCWSTR wszName, 
         GCX_COOP();
         retType.Set(retTypeHandle.GetManagedClassObject());
     }
-    GCPROTECT_END();
-
+ 
     END_QCALL;
 
     return;
@@ -938,19 +921,15 @@ void QCALLTYPE COMModule::GetScopeName(QCall::ModuleHandle pModule, QCall::Strin
     END_QCALL;
 }
 
-static bool StringEndsWith(LPCWSTR pwzString, LPCWSTR pwzCandidate)
+static void ReplaceNiExtension(SString& fileName, PCWSTR pwzOldSuffix, PCWSTR pwzNewSuffix)
 {
-    size_t stringLength = wcslen(pwzString);
-    size_t candidateLength = wcslen(pwzCandidate);
+    STANDARD_VM_CONTRACT;
 
-    if (candidateLength > stringLength || stringLength == 0 || candidateLength == 0)
+    if (fileName.EndsWithCaseInsensitive(pwzOldSuffix))
     {
-        return false;
+        COUNT_T oldSuffixLen = (COUNT_T)wcslen(pwzOldSuffix);
+        fileName.Replace(fileName.End() - oldSuffixLen, oldSuffixLen, pwzNewSuffix);
     }
-
-    LPCWSTR pwzStringEnd = pwzString + stringLength - candidateLength;
-
-    return !_wcsicmp(pwzStringEnd, pwzCandidate);
 }
 
 /*============================GetFullyQualifiedName=============================
@@ -989,23 +968,12 @@ void QCALLTYPE COMModule::GetFullyQualifiedName(QCall::ModuleHandle pModule, QCa
                 //
                 if (pModule->GetFile()->GetAssembly()->GetILimage()->IsTrustedNativeImage())
                 {
-                    WCHAR fileNameWithoutNi[MAX_PATH];
-                    
-                    wcscpy_s(fileNameWithoutNi, MAX_PATH, fileName);
-                    
-                    if (StringEndsWith(fileName, W(".ni.dll")))
-                    {
-                        wcscpy_s(fileNameWithoutNi + wcslen(fileNameWithoutNi) - wcslen(W(".ni.dll")), MAX_PATH, W(".dll"));
-                    }
-                    else if (StringEndsWith(fileName, W(".ni.exe")))
-                    {
-                        wcscpy_s(fileNameWithoutNi + wcslen(fileNameWithoutNi) - wcslen(W(".ni.exe")), MAX_PATH, W(".exe"));
-                    }
-                    else if (StringEndsWith(fileName, W(".ni.winmd")))
-                    {
-                        wcscpy_s(fileNameWithoutNi + wcslen(fileNameWithoutNi) - wcslen(W(".ni.winmd")), MAX_PATH, W(".winmd"));
-                    }
+                    SString fileNameWithoutNi(fileName);
 
+                    ReplaceNiExtension(fileNameWithoutNi, W(".ni.dll"), W(".dll"));
+                    ReplaceNiExtension(fileNameWithoutNi, W(".ni.exe"), W(".exe"));
+                    ReplaceNiExtension(fileNameWithoutNi, W(".ni.winmd"), W(".winmd"));
+ 
                     retString.Set(fileNameWithoutNi);
                 }
                 else

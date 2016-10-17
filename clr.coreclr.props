@@ -21,11 +21,10 @@
     <FeatureDbiOopDebugging_HostOneCoreamd64 Condition="'$(TargetArch)' == 'amd64'">true</FeatureDbiOopDebugging_HostOneCoreamd64>
     <FeatureEventTrace>true</FeatureEventTrace>
     <FeatureExceptionDispatchInfo>true</FeatureExceptionDispatchInfo>
+    <FeatureExceptionNotifications>true</FeatureExceptionNotifications>
     <FeatureFrameworkInternal>true</FeatureFrameworkInternal>
     <FeatureHijack>true</FeatureHijack>
     <FeatureInteropDebugging Condition="('$(TargetArch)' == 'i386') or ('$(TargetArch)' == 'amd64')">true</FeatureInteropDebugging>
-    <FeatureIsostore>true</FeatureIsostore>
-    <FeatureIsostoreLight>true</FeatureIsostoreLight>
     <FeatureIsymReader>true</FeatureIsymReader>
     <!-- This is here for testing purposes only, and only on checked builds for x86/ARM -->
     <FeatureLazyCOWPages Condition="'$(_BuildType)'!='ret' and (('$(TargetArch)' == 'i386') or ('$(TargetArch)' == 'arm'))">true</FeatureLazyCOWPages>
@@ -33,8 +32,7 @@
     <FeatureMainClrModuleUsesCoreName>true</FeatureMainClrModuleUsesCoreName>
     <FeatureMergeCultureSupportAndEngine>true</FeatureMergeCultureSupportAndEngine>
     <FeatureMergeJitAndEngine>true</FeatureMergeJitAndEngine>
-    <FeatureMulticoreJIT Condition="'$(TargetArch)'!='arm'">true</FeatureMulticoreJIT>
-    <FeatureNormIdnaOnly>true</FeatureNormIdnaOnly>
+    <FeatureMulticoreJIT>true</FeatureMulticoreJIT>
     <FeaturePrejit>true</FeaturePrejit>
     <FeatureStandaloneSn>true</FeatureStandaloneSn>
     <FeatureStrongnameDelaySigningAllowed>true</FeatureStrongnameDelaySigningAllowed>
@@ -44,8 +42,6 @@
     <FeatureVersioning>true</FeatureVersioning>
     <FeatureVersioningLog>true</FeatureVersioningLog>
     <FeatureWin32Registry>true</FeatureWin32Registry>
-    <FeatureX509>true</FeatureX509>
-    <FeatureX509Securestrings>true</FeatureX509Securestrings>
     <FeatureXPlatDacDebugging_HostWindowsx86 Condition="'$(TargetArch)' == 'i386' or '$(TargetArch)' == 'arm'">true</FeatureXPlatDacDebugging_HostWindowsx86>
     <FeatureXPlatDacDebugging_HostWindowsAMD64 Condition="'$(TargetArch)' == 'amd64' or '$(TargetArch)' == 'arm64'">true</FeatureXPlatDacDebugging_HostWindowsAMD64>
     <FeatureXPlatDacDebugging_HostOneCorex86 Condition="'$(TargetArch)' == 'i386' or '$(TargetArch)' == 'arm'">true</FeatureXPlatDacDebugging_HostOneCorex86>
@@ -58,30 +54,19 @@
 
     <FeatureCoreSystem>true</FeatureCoreSystem>
     <FeatureClassicCominterop>true</FeatureClassicCominterop>
-    <FeatureLegacySurface>true</FeatureLegacySurface>
     <FeatureCominterop>true</FeatureCominterop>
     <FeatureICastable>true</FeatureICastable>
     <FeatureCominteropUnmanagedActivation>true</FeatureCominteropUnmanagedActivation>
     <FeatureCominteropWinRTManagedActivation>true</FeatureCominteropWinRTManagedActivation>
-    <FeatureCrypto>true</FeatureCrypto>
     <FeatureHostAssemblyResolver>true</FeatureHostAssemblyResolver>
     <FeatureLazyCOWPages Condition="('$(TargetArch)' == 'i386') or ('$(TargetArch)' == 'arm')">true</FeatureLazyCOWPages>
-    <FeatureLegacyNetCFCrypto>true</FeatureLegacyNetCFCrypto>
-    <FeatureLatin1>true</FeatureLatin1>
-    <FeatureEncodingNls>true</FeatureEncodingNls>
-    <FeatureAscii>true</FeatureAscii>
-    <FeatureUtf7>true</FeatureUtf7>
-    <FeatureUtf32>true</FeatureUtf32>
     <FeatureLegacyNetCFDbgHostControl>true</FeatureLegacyNetCFDbgHostControl>
-    <FeatureLegacyNetCFFAS>true</FeatureLegacyNetCFFAS>
-    <FeatureLegacyNetCF>true</FeatureLegacyNetCF>
     <FeatureRandomizedStringHashing>true</FeatureRandomizedStringHashing>
     <!-- The rejit feature is available only on supported architectures (x86 & x64) -->
     <FeatureReJIT Condition="('$(TargetArch)' == 'i386') or ('$(TargetArch)' == 'amd64')">true</FeatureReJIT>
     <FeatureWindowsPhone>true</FeatureWindowsPhone>
-    <FeatureManagedEtw Condition="'$(OS)' == 'Windows_NT'">true</FeatureManagedEtw>
+    <FeatureManagedEtw>true</FeatureManagedEtw>
     <FeatureManagedEtwChannels>true</FeatureManagedEtwChannels>
-    <FeatureHostedBinder>true</FeatureHostedBinder>
     <BinderDebugLog Condition="'$(_BuildType)'=='dbg'">true</BinderDebugLog>
     <FeatureAppX>true</FeatureAppX>
     <FeatureWinMDResilient>true</FeatureWinMDResilient>
@@ -96,13 +81,9 @@
 
   <PropertyGroup Condition="'$(TargetsUnix)' == 'true'">
     <FeaturePal>true</FeaturePal>
+    <FeatureXplatEventSource>true</FeatureXplatEventSource>
 
     <FeatureStubsAsIL>true</FeatureStubsAsIL>
-
-    <ProfilingSupportedBuild>false</ProfilingSupportedBuild>
-
-    <!-- UNIXTODO Enable randomized string hashing -->
-    <FeatureRandomizedStringHashing>false</FeatureRandomizedStringHashing>
 
     <!-- Windows specific features -->
     <FeatureWin32Registry>false</FeatureWin32Registry>
@@ -112,16 +93,13 @@
     <FeatureCominterop>false</FeatureCominterop>
     <FeatureCominteropUnmanagedActivation>false</FeatureCominteropUnmanagedActivation>
     <FeatureCominteropWinRTManagedActivation>false</FeatureCominteropWinRTManagedActivation>
-
-    <!-- Features implemented by fxcore -->
-    <FeatureLegacySurface>false</FeatureLegacySurface>
-    <FeatureCrypto>false</FeatureCrypto>
-    <FeatureLegacyNetCFCrypto>false</FeatureLegacyNetCFCrypto>
-    <FeatureX509>false</FeatureX509>
-    <FeatureX509Securestrings>false</FeatureX509Securestrings>
-    <FeatureIsostore>false</FeatureIsostore>
-    <FeatureIsostoreLight>false</FeatureIsostoreLight>
+    <FeatureManagedEtw>false</FeatureManagedEtw>
 
     <FeatureCoreFxGlobalization>true</FeatureCoreFxGlobalization>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetsUnix)' != 'true'">
+    <FeatureUseLcid>true</FeatureUseLcid>
+    <FeatureImplicitLongPath>true</FeatureImplicitLongPath>
   </PropertyGroup>
 </Project>

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -89,7 +90,6 @@ namespace System {
 
             if (StackTrace != null)
                 s += Environment.NewLine + StackTrace;
-#if FEATURE_FUSION
             try
             {
                 if(FusionLog!=null)
@@ -105,7 +105,6 @@ namespace System {
             {
             
             }
-#endif
             return s;
         }
 
@@ -132,15 +131,14 @@ namespace System {
             SetMessageField();
         }
 
-#if FEATURE_FUSION
         public String FusionLog {
             [System.Security.SecuritySafeCritical]  // auto-generated
+#pragma warning disable CS0618 // Type or member is obsolete
             [SecurityPermissionAttribute( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlEvidence | SecurityPermissionFlag.ControlPolicy)]
+#pragma warning restore CS0618 // Type or member is obsolete
             get { return _fusionLog; }
         }
-#endif
 
-#if FEATURE_SERIALIZATION
         [System.Security.SecurityCritical]  // auto-generated_required
         public override void GetObjectData(SerializationInfo info, StreamingContext context) {
             // Serialize data for our base classes.  base will verify info != null.
@@ -155,8 +153,6 @@ namespace System {
             catch (SecurityException)
             {
             }
-
         }
-#endif
     }
 }

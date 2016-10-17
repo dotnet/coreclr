@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -265,7 +266,7 @@ public abstract class CriticalHandle : CriticalFinalizerObject, IDisposable
     // that no jit allocations etc. will occur, but don't allocate memory unless
     // you can deal with the failure and still free the handle).
     // The boolean returned should be true for success and false if a
-    // catastrophic error occured and you wish to trigger a diagnostic for
+    // catastrophic error occurred and you wish to trigger a diagnostic for
     // debugging purposes (the SafeHandleCriticalFailure MDA).
     [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
     protected abstract bool ReleaseHandle();

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 namespace System {
     
@@ -52,7 +53,8 @@ namespace System {
     // 
     [StructLayout(LayoutKind.Auto)]
     [Serializable]
-    public struct DateTime : IComparable, IFormattable, IConvertible, ISerializable, IComparable<DateTime>,IEquatable<DateTime> {
+    public struct DateTime : IComparable, IFormattable, IConvertible, IComparable<DateTime>, IEquatable<DateTime>, ISerializable
+    {
     
         // Number of 100ns ticks per time unit
         private const long TicksPerMillisecond = 10000;
@@ -486,20 +488,12 @@ namespace System {
             if (!(value is DateTime)) {
                 throw new ArgumentException(Environment.GetResourceString("Arg_MustBeDateTime"));
             }
-    
-            long valueTicks = ((DateTime)value).InternalTicks;
-            long ticks = InternalTicks;
-            if (ticks > valueTicks) return 1;
-            if (ticks < valueTicks) return -1;
-            return 0;
+            
+            return Compare(this, (DateTime)value);
         }
 
         public int CompareTo(DateTime value) {
-            long valueTicks = value.InternalTicks;
-            long ticks = InternalTicks;
-            if (ticks > valueTicks) return 1;
-            if (ticks < valueTicks) return -1;
-            return 0;
+            return Compare(this, value);
         }
     
         // Returns the tick count corresponding to the given year, month, and day.
@@ -677,8 +671,7 @@ namespace System {
         public static DateTime FromOADate(double d) {
             return new DateTime(DoubleDateToTicks(d), DateTimeKind.Unspecified);
         }        
-        
-#if FEATURE_SERIALIZATION
+
         [System.Security.SecurityCritical /*auto-generated_required*/]
         void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context) {
             if (info==null) {
@@ -689,8 +682,7 @@ namespace System {
             // Serialize both the old and the new format
             info.AddValue(TicksField, InternalTicks);
             info.AddValue(DateDataField, dateData);
-        }        
-#endif
+        }
 
         public Boolean IsDaylightSavingTime() {
             if (Kind == DateTimeKind.Utc) {
@@ -927,14 +919,6 @@ namespace System {
                 long ticks = 0;
                 ticks = GetSystemTimeAsFileTime();
 
-#if FEATURE_LEGACYNETCF
-            // Windows Phone 7.0/7.1 return the ticks up to millisecond, not up to the 100th nanosecond.
-            if (CompatibilitySwitches.IsAppEarlierThanWindowsPhone8)
-            {
-                long ticksms = ticks / TicksPerMillisecond;
-                ticks = ticksms * TicksPerMillisecond;
-            }
-#endif
                 return new DateTime( ((UInt64)(ticks + FileTimeOffset)) | KindUtc);
             }
         }

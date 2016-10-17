@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 ////////////////////////////////////////////////////////////////////////////////
 // 
@@ -83,7 +84,6 @@ namespace System.Reflection
         public static readonly TypeFilter FilterTypeName;
         public static readonly TypeFilter FilterTypeNameIgnoreCase;
 
-#if !FEATURE_CORECLR
         public static bool operator ==(Module left, Module right)
         {
             if (ReferenceEquals(left, right))
@@ -102,7 +102,6 @@ namespace System.Reflection
         {
             return !(left == right);
         }
-#endif // !FEATURE_CORECLR
 
         public override bool Equals(object o)
         {
@@ -585,7 +584,7 @@ namespace System.Reflection
         [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
 		[SuppressUnmanagedCodeSecurity]
-        private extern static void GetType(RuntimeModule module, String className, bool ignoreCase, bool throwOnError, ObjectHandleOnStack type);
+        private extern static void GetType(RuntimeModule module, String className, bool ignoreCase, bool throwOnError, ObjectHandleOnStack type, ObjectHandleOnStack keepAlive);
 
         [System.Security.SecurityCritical]
         [DllImport(JitHelpers.QCall)]
@@ -1055,7 +1054,9 @@ namespace System.Reflection
                 throw new ArgumentNullException("className");
 
             RuntimeType retType = null;
-            GetType(GetNativeHandle(), className, throwOnError, ignoreCase, JitHelpers.GetObjectHandleOnStack(ref retType));
+            Object keepAlive = null;
+            GetType(GetNativeHandle(), className, throwOnError, ignoreCase, JitHelpers.GetObjectHandleOnStack(ref retType), JitHelpers.GetObjectHandleOnStack(ref keepAlive));
+            GC.KeepAlive(keepAlive);
             return retType;
         }
 
@@ -1186,7 +1187,7 @@ namespace System.Reflection
                 if (i == -1)
                     return s;
 
-                return new String(s.ToCharArray(), i + 1, s.Length - i - 1);
+                return s.Substring(i + 1);
             }
         }
 

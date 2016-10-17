@@ -1,13 +1,14 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 namespace System.Globalization
 {
     public partial class HijriCalendar : Calendar
     {
-        public static int GetHijriDateAdjustment()
+        private static int GetHijriDateAdjustment()
         {
-            //TODO: Implement this fully.
+            // this setting is not supported on Unix, so always return 0
             return 0;
         }
     }

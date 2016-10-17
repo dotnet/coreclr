@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: memberload.cpp
 //
@@ -31,7 +30,7 @@
 #include "log.h"
 #include "fieldmarshaler.h"
 #include "cgensys.h"
-#include "gc.h"
+#include "gcheaputilities.h"
 #include "security.h"
 #include "dbginterface.h"
 #include "comdelegate.h"
@@ -1090,7 +1089,7 @@ MemberLoader::FindMethod(
         MODE_ANY;
     } CONTRACT_END;
 
-    // Retrive the right comparition function to use.
+    // Retrieve the right comparition function to use.
     UTF8StringCompareFuncPtr StrCompFunc = FM_GetStrCompFunc(flags);
 
     SString targetName(SString::Utf8Literal, pszName);
@@ -1487,7 +1486,7 @@ MemberLoader::FindField(MethodTable * pMT, LPCUTF8 pszName, PCCOR_SIGNATURE pSig
     
     CONSISTENCY_CHECK(pMT->CheckLoadLevel(CLASS_LOAD_APPROXPARENTS));
     
-    // Retrive the right comparition function to use.
+    // Retrieve the right comparition function to use.
     UTF8StringCompareFuncPtr StrCompFunc = bCaseSensitive ? strcmp : stricmpUTF8;
     
     // The following assert is very important, but we need to special case it enough

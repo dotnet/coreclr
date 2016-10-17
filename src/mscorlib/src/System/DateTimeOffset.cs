@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 namespace System {
     
@@ -33,9 +34,9 @@ namespace System {
     
     [StructLayout(LayoutKind.Auto)]
     [Serializable]
-    public struct DateTimeOffset : IComparable, IFormattable, ISerializable, IDeserializationCallback,
-                                   IComparable<DateTimeOffset>, IEquatable<DateTimeOffset> {
-    
+    public struct DateTimeOffset : IComparable, IFormattable,
+                                   IComparable<DateTimeOffset>, IEquatable<DateTimeOffset>, ISerializable, IDeserializationCallback
+    {
         // Constants
         internal const Int64 MaxOffset = TimeSpan.TicksPerHour * 14;
         internal const Int64 MinOffset = -MaxOffset;
@@ -43,7 +44,10 @@ namespace System {
         private const long UnixEpochTicks = TimeSpan.TicksPerDay * DateTime.DaysTo1970; // 621,355,968,000,000,000
         private const long UnixEpochSeconds = UnixEpochTicks / TimeSpan.TicksPerSecond; // 62,135,596,800
         private const long UnixEpochMilliseconds = UnixEpochTicks / TimeSpan.TicksPerMillisecond; // 62,135,596,800,000
-    
+
+        internal const long UnixMinSeconds = DateTime.MinTicks / TimeSpan.TicksPerSecond - UnixEpochSeconds;
+        internal const long UnixMaxSeconds = DateTime.MaxTicks / TimeSpan.TicksPerSecond - UnixEpochSeconds;
+
         // Static Fields
         public static readonly DateTimeOffset MinValue = new DateTimeOffset(DateTime.MinTicks, TimeSpan.Zero);
         public static readonly DateTimeOffset MaxValue = new DateTimeOffset(DateTime.MaxTicks, TimeSpan.Zero);        
@@ -474,12 +478,9 @@ namespace System {
         }
 
         public static DateTimeOffset FromUnixTimeSeconds(long seconds) {
-            const long MinSeconds = DateTime.MinTicks / TimeSpan.TicksPerSecond - UnixEpochSeconds;
-            const long MaxSeconds = DateTime.MaxTicks / TimeSpan.TicksPerSecond - UnixEpochSeconds;
-
-            if (seconds < MinSeconds || seconds > MaxSeconds) {
+            if (seconds < UnixMinSeconds || seconds > UnixMaxSeconds) {
                 throw new ArgumentOutOfRangeException("seconds",
-                    string.Format(Environment.GetResourceString("ArgumentOutOfRange_Range"), MinSeconds, MaxSeconds));
+                    string.Format(Environment.GetResourceString("ArgumentOutOfRange_Range"), UnixMinSeconds, UnixMaxSeconds));
             }
 
             long ticks = seconds * TimeSpan.TicksPerSecond + UnixEpochTicks;
@@ -501,7 +502,6 @@ namespace System {
         
         // ----- SECTION: private serialization instance methods  ----------------*
 
-#if FEATURE_SERIALIZATION
         void IDeserializationCallback.OnDeserialization(Object sender) {
             try {
                 m_offsetMinutes = ValidateOffset(Offset);
@@ -534,7 +534,6 @@ namespace System {
             m_dateTime      = (DateTime)info.GetValue("DateTime", typeof(DateTime));
             m_offsetMinutes = (Int16)info.GetValue("OffsetMinutes", typeof(Int16));
         }  
-#endif
 
         // Returns the hash code for this DateTimeOffset.
         //

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -19,8 +20,9 @@ namespace System.Reflection {
     [CLSCompliant(false)]
     [Serializable]
     [System.Runtime.InteropServices.ComVisible(true)]
-    public sealed class Pointer: ISerializable {
-        [SecurityCritical]
+    public sealed class Pointer : ISerializable
+    {
+    [SecurityCritical]
         unsafe private void* _ptr;
         private RuntimeType _ptrType;
 
@@ -71,12 +73,10 @@ namespace System.Reflection {
             return (IntPtr)_ptr;
         }
 
-#if FEATURE_SERIALIZATION
         [System.Security.SecurityCritical]
         unsafe void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context) {
             info.AddValue("_ptr", new IntPtr(_ptr));
             info.AddValue("_ptrType", _ptrType);
         }
-#endif
     }
 }

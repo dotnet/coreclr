@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 
 // 
@@ -9,43 +8,11 @@
 // 
 //=====================================================================================================================
 
-#ifdef FEATURE_HOSTED_BINDER
-
 #pragma once
 
 #include "internalunknownimpl.h"
 #include "clrprivbinding.h"
 
-#ifdef CLR_STANDALONE_BINDER
-typedef HRESULT (*ContainsTypeFnPtr)(
-	IUnknown         * object,
-    ICLRPrivAssembly * pAssembly, 
-    LPCWSTR            wszTypeName);
-
-// CLRPrivTypeCacheWinRT proxy object for use by the mdilbind assembly binder.
-class CLRPrivTypeCacheWinRT : public IUnknownCommon<IUnknown>
-{
-	ReleaseHolder<IUnknown> m_actualCacheObject;
-	ContainsTypeFnPtr m_containsTypeFunction;
-public:
-	CLRPrivTypeCacheWinRT(IUnknown *object, ContainsTypeFnPtr containsTypeFunction)
-	{
-		m_actualCacheObject =  clr::SafeAddRef(object);
-		m_containsTypeFunction = containsTypeFunction;
-	}
-    //=============================================================================================
-    // Class methods
-    
-    // S_OK - pAssembly contains type wszTypeName
-    // S_FALSE - pAssembly does not contain type wszTypeName
-    HRESULT ContainsType(
-        ICLRPrivAssembly * pAssembly, 
-        LPCWSTR            wszTypeName)
-	{
-		return m_containsTypeFunction(m_actualCacheObject, pAssembly, wszTypeName);
-	}
-};
-#else
 //=====================================================================================================================
 class CLRPrivTypeCacheWinRT : 
     public IUnknownCommon<IUnknown>
@@ -99,7 +66,5 @@ private:
     static CLRPrivTypeCacheWinRT * s_pSingleton;
     
 };  // class CLRPrivTypeCaheWinRT
-#endif
-typedef DPTR(CLRPrivTypeCacheWinRT) PTR_CLRPrivTypeCacheWinRT;
 
-#endif // FEATURE_HOSTED_BINDER
+typedef DPTR(CLRPrivTypeCacheWinRT) PTR_CLRPrivTypeCacheWinRT;

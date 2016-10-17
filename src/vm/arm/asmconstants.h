@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // asmconstants.h -
 //
 // This header defines field offsets and constants used by assembly code
@@ -12,7 +11,7 @@
 // #error this file should only be used on an ARM platform
 // #endif // _ARM_
 
-#include "..\..\inc\switches.h"
+#include "../../inc/switches.h"
 
 //-----------------------------------------------------------------------------
 
@@ -226,10 +225,10 @@ ASMCONSTANTS_C_ASSERT(UnmanagedToManagedFrame__m_pvDatum == offsetof(UnmanagedTo
 
 #ifndef CROSSGEN_COMPILE
 #define               Thread__m_alloc_context__alloc_limit   0x44
-ASMCONSTANTS_C_ASSERT(Thread__m_alloc_context__alloc_limit == offsetof(Thread, m_alloc_context) + offsetof(alloc_context, alloc_limit));
+ASMCONSTANTS_C_ASSERT(Thread__m_alloc_context__alloc_limit == offsetof(Thread, m_alloc_context) + offsetof(gc_alloc_context, alloc_limit));
 
 #define               Thread__m_alloc_context__alloc_ptr   0x40
-ASMCONSTANTS_C_ASSERT(Thread__m_alloc_context__alloc_ptr == offsetof(Thread, m_alloc_context) + offsetof(alloc_context, alloc_ptr));
+ASMCONSTANTS_C_ASSERT(Thread__m_alloc_context__alloc_ptr == offsetof(Thread, m_alloc_context) + offsetof(gc_alloc_context, alloc_ptr));
 #endif // CROSSGEN_COMPILE
 
 #define               Thread__m_fPreemptiveGCDisabled   0x08
@@ -296,7 +295,7 @@ ASMCONSTANTS_C_ASSERT(CallDescrData__fpReturnSize         == offsetof(CallDescrD
 ASMCONSTANTS_C_ASSERT(CallDescrData__pTarget              == offsetof(CallDescrData, pTarget))
 ASMCONSTANTS_C_ASSERT(CallDescrData__returnValue          == offsetof(CallDescrData, returnValue))
 
-#define SIZEOF__FaultingExceptionFrame                  SIZEOF__Frame + 0x8 + SIZEOF__CONTEXT
+#define SIZEOF__FaultingExceptionFrame                  (SIZEOF__Frame + 0x8 + SIZEOF__CONTEXT)
 #define FaultingExceptionFrame__m_fFilterExecuted       SIZEOF__Frame
 ASMCONSTANTS_C_ASSERT(SIZEOF__FaultingExceptionFrame        == sizeof(FaultingExceptionFrame));
 ASMCONSTANTS_C_ASSERT(FaultingExceptionFrame__m_fFilterExecuted == offsetof(FaultingExceptionFrame, m_fFilterExecuted));

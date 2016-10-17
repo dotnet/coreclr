@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 namespace System.Globalization {
     using System.Security.Permissions;
@@ -41,7 +42,7 @@ namespace System.Globalization {
 
     [Serializable]
 [System.Runtime.InteropServices.ComVisible(true)]
-    sealed public class NumberFormatInfo : ICloneable, IFormatProvider
+    sealed public partial class NumberFormatInfo : ICloneable, IFormatProvider
     {
         // invariantInfo is constant irrespective of your current culture.
         private static volatile NumberFormatInfo invariantInfo;
@@ -91,10 +92,8 @@ namespace System.Globalization {
         internal int percentNegativePattern = 0;
         internal int percentDecimalDigits = 2;
 
-#if !FEATURE_CORECLR
         [OptionalField(VersionAdded = 2)]
         internal int digitSubstitution = 1; // DigitShapes.None
-#endif // !FEATURE_CORECLR        
 
         internal bool isReadOnly=false;
         // We shouldn't be persisting m_useUserOverride (since its useless & we weren't using it),
@@ -110,7 +109,6 @@ namespace System.Globalization {
         }
 
 #region Serialization
-#if !FEATURE_CORECLR
         // Check if NumberFormatInfo was not set up ambiguously for parsing as number and currency
         // eg. if the NumberDecimalSeparator and the NumberGroupSeparator were the same. This check
         // is solely for backwards compatibility / version tolerant serialization
@@ -118,7 +116,6 @@ namespace System.Globalization {
         internal bool validForParseAsNumber = true;     // NEVER USED, DO NOT USE THIS! (Serialized in Whidbey/Everett)
         [OptionalField(VersionAdded = 1)]
         internal bool validForParseAsCurrency = true;   // NEVER USED, DO NOT USE THIS! (Serialized in Whidbey/Everett)
-#endif // !FEATURE_CORECLR        
 
         [OnSerializing]
         private void OnSerializing(StreamingContext ctx)
@@ -218,7 +215,6 @@ namespace System.Globalization {
             }
         }
 
-#if !FEATURE_CORECLR
          static private void VerifyDigitSubstitution(DigitShapes digitSub, String propertyName) {
             switch(digitSub)
             {
@@ -232,7 +228,6 @@ namespace System.Globalization {
                     throw new ArgumentException(Environment.GetResourceString("Argument_InvalidDigitSubstitution"), propertyName);
             }
         }
-#endif // !FEATURE_CORECLR
 
         // We aren't persisting dataItem any more (since its useless & we weren't using it),
         // Ditto with m_useUserOverride.  Don't use them, we use a local copy of everything.
@@ -775,7 +770,6 @@ namespace System.Globalization {
             }
         }
 
-#if !FEATURE_CORECLR
         [System.Runtime.InteropServices.ComVisible(false)]
         public DigitShapes DigitSubstitution
         {
@@ -787,7 +781,6 @@ namespace System.Globalization {
                 digitSubstitution = (int)value;
             }
         }
-#endif // !FEATURE_CORECLR
 
         public Object GetFormat(Type formatType) {
             return formatType == typeof(NumberFormatInfo)? this: null;

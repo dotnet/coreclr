@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ---------------------------------------------------------------------------
 // typestring.cpp
 // ---------------------------------------------------------------------------
@@ -56,9 +55,7 @@ private:
     friend class TypeString;
     friend SString* TypeName::ToString(SString*, BOOL, BOOL, BOOL);
     friend TypeHandle TypeName::GetTypeWorker(BOOL, BOOL, BOOL, Assembly*, BOOL, BOOL, StackCrawlMark*, Assembly*, 
-#ifdef FEATURE_HOSTED_BINDER
         ICLRPrivBinder * pPrivHostBinder,
-#endif
         BOOL, OBJECTREF *);
     HRESULT OpenGenericArguments(); 
     HRESULT CloseGenericArguments(); 

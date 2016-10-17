@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // MetaModelRO.cpp -- Read-only implementation of compressed COM+ metadata.
 // 
@@ -390,10 +389,6 @@ CMiniMd::vSearchTableNotGreater(
     return S_OK;
 } // CMiniMd::vSearchTableNotGreater
 
-#if defined(FEATURE_LEGACYNETCF) && defined(FEATURE_METADATA_IN_VM)
-extern BOOL RuntimeIsLegacyNetCF(DWORD adid);
-#endif
-
 //*****************************************************************************
 // return just the blob value of the first found CA matching the query.
 // returns S_FALSE if there is no match
@@ -445,11 +440,5 @@ CMiniMd::CommonGetCustomAttributeByNameEx(
     }
     
 ErrExit:
-#if defined(FEATURE_LEGACYNETCF) && defined(FEATURE_METADATA_IN_VM)
-    // NetCF ignore malformed custom attribute tables
-    if (FAILED(hr) && RuntimeIsLegacyNetCF(0))
-        hr = S_FALSE;
-#endif
-
     return hr;
 } // CMiniMd::CommonGetCustomAttributeByName

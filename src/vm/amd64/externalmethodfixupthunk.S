@@ -1,8 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Copyright (c) Geoff Norton. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 ;
 .intel_syntax noprefix
 #include "unixasmmacros.inc"
@@ -32,7 +30,7 @@ NESTED_END ExternalMethodFixupStub, _TEXT
 
 NESTED_ENTRY DelayLoad_MethodCall, _TEXT, NoHandler
 
-        PROLOG_WITH_TRANSITION_BLOCK 0, 10h, rdx, rcx, 0
+        PROLOG_WITH_TRANSITION_BLOCK 0, 0x10, rdx, rcx, 0
 
         lea     rdi, [rsp + __PWTB_TransitionBlock] // pTransitionBlock
         mov     rsi, rax                            // pIndirection
@@ -52,7 +50,7 @@ NESTED_END DelayLoad_MethodCall, _TEXT
 
 NESTED_ENTRY DelayLoad_Helper\suffix, _TEXT, NoHandler
 
-        PROLOG_WITH_TRANSITION_BLOCK 0, 10h, rdx, rcx, 0
+        PROLOG_WITH_TRANSITION_BLOCK 0, 0x10, rdx, rcx, 0
 
         mov     r8, \frameFlags
         lea     rdi, [rsp + __PWTB_TransitionBlock] // pTransitionBlock

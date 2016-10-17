@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // ZapHeaders.h
 //
@@ -267,6 +266,23 @@ public:
     void SaveOriginalDebugDirectoryEntry(ZapWriter *pZapWriter);
     void SaveNGenDebugDirectoryEntry(ZapWriter *pZapWriter);
     virtual void Save(ZapWriter * pZapWriter);
+};
+
+//
+// PE Style exports.  Currently can only save an empty list of exports
+// but this is useful because it avoids the DLL being seen as Resource Only
+// (which then causes SymServer to avoid copying its PDB to the cloud).  
+//
+
+class ZapPEExports : public ZapNode
+{
+	LPCWSTR m_dllFileName;	// Just he DLL name without the path.
+
+public:
+	ZapPEExports(LPCWSTR dllPath);
+	virtual DWORD GetSize();
+	virtual UINT GetAlignment() { return sizeof(DWORD);  }
+	virtual void Save(ZapWriter * pZapWriter);
 };
 
 //

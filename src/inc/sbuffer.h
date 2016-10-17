@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // --------------------------------------------------------------------------------
 // SBuffer.h  (Safe Buffer)
 // 
@@ -50,7 +49,7 @@
     (( (size^(size-1)) >> 1) +1)
 
 #define ALIGN(size, align) \
-    (((size)+(align)-1) & ~((align)-1))
+    (((size)+((align)-1)) & ~((align)-1))
 
 #define PAD(size, align) \
     (ALIGN((size), (align)) - (size))
@@ -353,8 +352,8 @@ class SBuffer
     // Manipulates contents of the buffer via the plugins below, but 
     // adds some debugging checks.  Should always call through here rather
     // than directly calling the extensibility points.
-    void DebugMoveBuffer(BYTE *to, BYTE *from, COUNT_T size);
-    void DebugCopyConstructBuffer(BYTE *to, const BYTE *from, COUNT_T size);
+    void DebugMoveBuffer(__out_bcount(size) BYTE *to, BYTE *from, COUNT_T size);
+    void DebugCopyConstructBuffer(__out_bcount(size) BYTE *to, const BYTE *from, COUNT_T size);
     void DebugConstructBuffer(BYTE *buffer, COUNT_T size);
     void DebugDestructBuffer(BYTE *buffer, COUNT_T size);
 

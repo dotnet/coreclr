@@ -1,73 +1,127 @@
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-
-  <PropertyGroup Condition="'$(TargetFrameworkVersion)' != '' and '$(TargetFrameworkProfile)' != ''">
-    <TargetingPortable>true</TargetingPortable>
+  <!-- Default priority building values. -->
+  <PropertyGroup>
+    <CLRTestKind Condition="'$(CLRTestKind)' == '' and '$(OutputType)' == 'Library'">SharedLibrary</CLRTestKind>
+    <CLRTestKind Condition="'$(CLRTestKind)' == ''">BuildAndRun</CLRTestKind>
+    <CLRTestPriority Condition="'$(CLRTestPriority)' == ''">0</CLRTestPriority>
   </PropertyGroup>
 
-  <!-- Setup the default target for projects not already explicitly targeting portable -->
-  <PropertyGroup Condition="'$(TargetingPortable)' != 'true'">
-    <!-- Setting a default portable profile, although nothing should resolve from there as we BuildProjectDir to use the pacakge refs -->
-    <TargetPlatformIdentifier>Portable</TargetPlatformIdentifier>
-    <TargetFrameworkIdentifier>.NETPortable</TargetFrameworkIdentifier>
-    <TargetFrameworkVersion Condition="'$(TargetFrameworkVersion)' == ''">v4.5</TargetFrameworkVersion>
-    <TargetFrameworkProfile Condition="'$(TargetFrameworkProfile)' == ''">Profile7</TargetFrameworkProfile>
-    <TargetFrameworkMonikerDisplayName>.NET Portable Subset</TargetFrameworkMonikerDisplayName>
-    <ImplicitlyExpandTargetFramework Condition="'$(ImplicitlyExpandTargetFramework)' == ''">false</ImplicitlyExpandTargetFramework>
-
-    <AssemblySearchPaths>
-      {HintPathFromItem};
-      $(OutDir);
-      {RawFileName};
-    </AssemblySearchPaths>
-    <!-- For our projects we don't BuildProjectDir to resolve from the usual paths for now only hint paths and output directory 
-      {CandidateAssemblyFiles};
-      $(ReferencePath);
-      {TargetFrameworkDirectory};
-      {Registry:$(FrameworkRegistryBase),$(TargetFrameworkVersion),$(AssemblyFoldersSuffix)$(AssemblyFoldersExConditions)};
-    -->
+  <!-- All CLRTests need to be of a certain "kind". These kinds are enumerated below.
+  By default all tests are BuildAndRun. This means that the build system will Build them
+  and construct a run-batch-script for them. -->
+  <Choose>
+    <When Condition=" '$(CLRTestKind)'=='SharedLibrary'">
+      <PropertyGroup>
+        <_CLRTestCompilesSource>true</_CLRTestCompilesSource>
+        <_CLRTestNeedsToRun>false</_CLRTestNeedsToRun>
+        <GenerateRunScript>false</GenerateRunScript>
+        <_CLRTestBuildsExecutable>false</_CLRTestBuildsExecutable>
+      </PropertyGroup>
+    </When>
+    <When Condition=" '$(CLRTestKind)'=='BuildAndRun' ">
+      <PropertyGroup>
+        <GenerateRunScript>true</GenerateRunScript>
+        <_CLRTestNeedsToRun>true</_CLRTestNeedsToRun>
+        <_CLRTestCompilesSource>true</_CLRTestCompilesSource>
+        <_CLRTestBuildsExecutable>true</_CLRTestBuildsExecutable>
+      </PropertyGroup>
+    </When>
+    <When Condition=" '$(CLRTestKind)'=='BuildOnly'">
+      <PropertyGroup>
+        <_CLRTestNeedsToRun>false</_CLRTestNeedsToRun>
+        <GenerateRunScript>false</GenerateRunScript>
+        <_CLRTestCompilesSource>true</_CLRTestCompilesSource>
+        <_CLRTestBuildsExecutable>true</_CLRTestBuildsExecutable>
+      </PropertyGroup>
+    </When>
+    <When Condition=" '$(CLRTestKind)'=='RunOnly' ">
+      <PropertyGroup>
+        <GenerateRunScript>true</GenerateRunScript>
+        <SkipSigning>true</SkipSigning>
+        <_CLRTestBuildsExecutable>false</_CLRTestBuildsExecutable>
+        <_CLRTestNeedsToRun>true</_CLRTestNeedsToRun>
+        <_CLRTestCompilesSource>false</_CLRTestCompilesSource>
+      </PropertyGroup>
+    </When>
+  </Choose>
+  
+  <PropertyGroup> 
+    <_CLRTestNeedsProjectToRun>false</_CLRTestNeedsProjectToRun>
+    <_CLRTestNeedsProjectToRun Condition=" '$(_CLRTestNeedsToRun)' and '!$(_CLRTestBuildsExecutable)' ">true</_CLRTestNeedsProjectToRun>
   </PropertyGroup>
 
-  <!-- Need to add references to the mscorlib design-time facade for some old-style portable dependencies like xunit -->
-  <Target Name="AddDesignTimeFacadeReferences"
-      Condition="'$(TargetingPortable)' != 'true'"
-      BeforeTargets="ResolveReferences"
-      DependsOnTargets="GetReferenceAssemblyPaths"
-  >
-    <ItemGroup>
-      <PossibleTargetFrameworks Include="$(_TargetFrameworkDirectories)" />
-      <ReferencePath Condition="'$(LinkLocalMscorlib)' != 'true'" Include="%(PossibleTargetFrameworks.Identity)mscorlib.dll" />
-      <ReferencePath Condition="'$(LinkLocalMscorlib)' == 'true'" Include="$(ProjectDir)\..\bin\Product\$(BuildOS).$(BuildArch).$(BuildType)\mscorlib.dll" />
-    </ItemGroup>
+  <PropertyGroup Condition="'$(ReferenceLocalMscorlib)' == 'true'">
+    <ProjectJson>$(SourceDir)Common/empty/project.json</ProjectJson>
+    <ProjectLockJson>$(SourceDir)Common/empty/project.lock.json</ProjectLockJson>
+  </PropertyGroup>
+
+  <!--
+  If it needs ProjectToRun, turn the project into a ProjectReference so it gets built
+  -->
+  <ItemGroup Condition=" $(_CLRTestNeedsProjectToRun) ">
+    <ProjectReference Include="$(CLRTestProjectToRun)">
+      <Private>false</Private>
+    </ProjectReference>
+  </ItemGroup>
+        
+  <PropertyGroup>
+    <ErrorIfBuildToolsRestoredFromIndividualProject Condition="!Exists('$(ToolsDir)')">true</ErrorIfBuildToolsRestoredFromIndividualProject>
+  </PropertyGroup>
+  
+  <Import Project="..\dir.targets" />
+
+  <Target Name="CreateManifestResourceNames" />
+  <Target Name="CoreCompile" />
+  
+  <!-- If we are a run-only, that depends on another project, this is the "Build" we use. I.e. build all dependency projects, absolutely.
+  -->
+
+  <PropertyGroup> 
+    <BuildAllProjects Condition=" '$(BuildAllProjects)' == ''">false</BuildAllProjects>
+    <_WillCLRTestProjectBuild Condition="'$(_WillCLRTestProjectBuild)' == ''">false</_WillCLRTestProjectBuild>
+    <_WillCLRTestProjectBuild Condition="'$(BuildAllProjects)' != true">true</_WillCLRTestProjectBuild>
+    <_WillCLRTestProjectBuild Condition="'$(DisableProjectBuild)' != true And '$(BuildAllProjects)' == true And '$(CLRTestPriority)' &lt;= '$(CLRTestPriorityToBuild)'">true</_WillCLRTestProjectBuild>
+  </PropertyGroup>
+
+  <Target Name="Build" Condition="('$(CLRTestKind)'=='RunOnly') And '$(_WillCLRTestProjectBuild)'">
+    <MSBuild Projects="@(ProjectReference)" />
+    <MakeDir Condition="'$(CLRTestKind)' == 'RunOnly'" ContinueOnError="false" Directories="$(OutputPath)" />
   </Target>
+ 
+  <Target Name="CopyJsonProjectFiles" AfterTargets="Build">  
+    <!-- Post build copy project json files so we can generate assembly lists for the projects -->  
+    <Copy SourceFiles="$(ProjectLockJson)" DestinationFolder="$(OutputPath)" Condition="Exists('$(ProjectLockJson)')" />  
+  </Target>  
+  
+  <!-- We will use an imported build here in the instance that we have source that we need to build, and we are the correct priority...OR if we are being asked to build for
+  a test with a higher priority. -->
+  <Import Project="$(ToolsDir)Build.Common.targets" Condition="('$(CLRTestKind)'!='RunOnly') And $(_CLRTestCompilesSource) And ('$(_WillCLRTestProjectBuild)')"/>
+
+
+  <Import Project="..\override.targets" Condition="Exists('..\override.targets')"/>
+
+  <!-- We enable auto-unification of assembly references after importing the common targets.  Binding redirects are not needed
+       for coreclr since it auto-unifies, so the warnings we get without this setting are just noise -->
+  <PropertyGroup>
+    <AutoUnifyAssemblyReferences>true</AutoUnifyAssemblyReferences>
+  </PropertyGroup>
 
   <!-- Project language -->
+  <!-- TODO: This might just be the Language property -->
   <PropertyGroup Condition="'$(ProjectLanguage)' == ''">
     <ProjectLanguage Condition="'$(MSBuildProjectExtension)' == '.ilproj' OR '$(Language)' == 'IL'">IL</ProjectLanguage>
     <ProjectLanguage Condition="'$(MSBuildProjectExtension)' == '.csproj' OR '$(Language)' == 'C#' OR '$(ProjectLanguage)'==''">CSharp</ProjectLanguage>
   </PropertyGroup>
+  
+  <!-- TODO (#1122): import this from the ToolsDir once it becomes available --> 
+  <Import Project="$(ProjectDir)src\IL.targets" Condition="'$(ProjectLanguage)' == 'IL' And '$(CLRTestPriority)' &lt;= '$(CLRTestPriorityToBuild)'" />
 
-  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" Condition="'$(ProjectLanguage)' == 'CSharp'" />
-
-  <!-- TODO (#1122): import this from the ToolsDir once it becomes available -->
-  <Import Project="$(ProjectDir)src\IL.targets" Condition="'$(ProjectLanguage)' == 'IL'" />
-
-  <Import Project="$(ToolsDir)packageresolve.targets" Condition="Exists('$(ToolsDir)packageresolve.targets')" />
-
-  <Import Project="$(ToolsDir)sign.targets" Condition="Exists('$(ToolsDir)sign.targets')" />
-
-  <PropertyGroup>
-    <GenerateRunScript Condition="'$(OutputType.ToUpper())' != 'EXE' And '$(GenerateRunScript)' == ''">false</GenerateRunScript>
-  </PropertyGroup>
 
   <Import Project="CLRTest.Execute.targets" />
   <Target Name="CreateExecuteScript" 
           AfterTargets="Build"
-          Condition="'$(GenerateRunScript)' != 'false'"
+          Condition="'$(GenerateRunScript)' != 'false' And ('$(_WillCLRTestProjectBuild)')"
           DependsOnTargets="GenerateExecutionScriptsInternal" />
-
-  <PropertyGroup>
-      <OutDir>$(BaseOutputPathWithConfig)$(BuildProjectRelativeDir)\</OutDir>
-  </PropertyGroup>
 
   <Target Name="CopyNativeProjectBinaries">
      <ItemGroup>
@@ -100,19 +154,28 @@
   </Target>
 
   <Target Name="ConsolidateNativeProjectReference"
-          Condition="'@(ProjectReference)' != ''"
+          Condition="'@(NativeProjectReferenceNormalized)' != ''"
           BeforeTargets="Build" >
      <ItemGroup>
         <NativeProjectOutputFoldersToCopy Include="$([System.String]::Copy('%(NativeProjectReferenceNormalized.RelativeDir)').Replace($(SourceDir),$(__NativeTestIntermediatesDir)\src\))$(Configuration)\"/>
      </ItemGroup>
 
-    <Message Text= "Project files are :$([System.String]::Copy(%(ProjectReference.FileName)).ToUpper()) " />
-    <Message Text= "Project references are :%(ProjectReference.Identity)" />
-    <Message Text= "Native project references are :%(NativeProjectReference.Identity)" />
     <Message Text= "Full native project references are :%(NativeProjectReferenceNormalized.Identity)" />
     <Message Text= "Native binaries will be copied from :%(NativeProjectOutputFoldersToCopy.Identity)" />
    <MSBuild Projects="$(MSBuildProjectFile)" Targets="CopyNativeProjectBinaries" Properties="NativeProjectOutputFolder=%(NativeProjectOutputFoldersToCopy.Identity)" Condition="'@(NativeProjectReference)' != ''" />
 
   </Target>
-</Project>
 
+  <PropertyGroup>
+     <PrepareForRunDependsOn>$(PrepareForRunDependsOn);ResetReferenceCopyLocalPaths</PrepareForRunDependsOn>
+  </PropertyGroup>
+
+  <Target Name="ResetReferenceCopyLocalPaths"
+          Condition="'@(ReferenceCopyLocalPaths)' != ''"
+          BeforeTargets="_CopyFilesMarkedCopyLocal">
+    <ItemGroup>
+       <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)" Condition="'%(ReferenceCopyLocalPaths.CopyLocal)' != 'true'"/>
+    </ItemGroup>
+  </Target>
+
+</Project>

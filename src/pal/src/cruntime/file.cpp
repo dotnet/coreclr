@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -315,8 +314,6 @@ PAL_fopen(const char * fileName, const char * mode)
     _ASSERTE(fileName != NULL);
     _ASSERTE(mode != NULL);
 
-    THREADMarkDiagnostic("PAL_fopen");
-
     if ( *mode == 'r' || *mode == 'w' || *mode == 'a' )
     {
         supported = MapFileOpenModes( (char*)mode,&bTextMode);
@@ -418,12 +415,12 @@ _wfopen(
         }
         else
         {
-            ERROR( "An error occured while converting mode to ANSI.\n" );
+            ERROR( "An error occurred while converting mode to ANSI.\n" );
         }
     }
     else
     {
-        ERROR( "An error occured while converting"
+        ERROR( "An error occurred while converting"
                " fileName to ANSI string.\n" );
     }
     LOGEXIT("_wfopen returning FILE* %p\n", filePtr);
@@ -549,7 +546,6 @@ int __cdecl PAL__close(int handle)
 
     PERF_ENTRY(_close);
     ENTRY( "_close( handle=%d )\n", handle );
-    THREADMarkDiagnostic("PAL__close");
 
     nRetVal = close( handle );
 
@@ -591,8 +587,6 @@ PAL_fread(void * buffer, size_t size, size_t count, PAL_FILE * f)
            buffer, size, count, f );
 	
     _ASSERTE(f != NULL);
-
-    THREADMarkDiagnostic("PAL_fread");
 
     CLEARERR(f);
 
@@ -654,8 +648,6 @@ PAL_ferror(PAL_FILE * f)
 
     _ASSERTE(f != NULL);
 
-    THREADMarkDiagnostic("PAL_ferror");
-
     nErrorCode = ferror( f->bsdFilePtr );
     if ( 0 == nErrorCode )
     {
@@ -687,8 +679,6 @@ PAL_fclose(PAL_FILE * f)
 
     _ASSERTE(f != NULL);
 
-    THREADMarkDiagnostic("PAL_fclose");
-
     CLEARERR(f);
 
     nRetVal = fclose( f->bsdFilePtr );
@@ -715,8 +705,6 @@ PAL_setbuf(PAL_FILE * f, char * buffer)
     
     _ASSERTE(f != NULL);
 
-    THREADMarkDiagnostic("PAL_setbuf");
-
     setbuf( f->bsdFilePtr, buffer );
     
     LOGEXIT( "setbuf\n" );
@@ -741,8 +729,6 @@ PAL_fputs(const char * str,  PAL_FILE * f)
 
     _ASSERTE(str != NULL);
     _ASSERTE(f != NULL);
-
-    THREADMarkDiagnostic("PAL_fputs");
 
     CLEARERR(f);
 
@@ -771,8 +757,6 @@ PAL_fputc(int c,  PAL_FILE * f)
 
     _ASSERTE(f != NULL);
 
-    THREADMarkDiagnostic("PAL_fputc");
-
     CLEARERR(f);
 
     nRetVal = fputc( c, f->bsdFilePtr );
@@ -798,9 +782,8 @@ PAL_putchar( int c )
     PERF_ENTRY(putchar);
     ENTRY( "putchar( 0x%x (%c) )\n", c, c);
 
-    THREADMarkDiagnostic("PAL_putchar");
     nRetVal = putchar( c );
-	
+
     LOGEXIT( "putchar returning %d\n", nRetVal );
     PERF_EXIT(putchar);
     return nRetVal;
@@ -823,7 +806,6 @@ PAL_ftell(PAL_FILE * f)
     ENTRY( "ftell( %p )\n", f );
 
     _ASSERTE(f != NULL);
-    THREADMarkDiagnostic("PAL_ftell");
     lRetVal = ftell( f->bsdFilePtr );
 
 #ifdef BIT64
@@ -843,101 +825,6 @@ PAL_ftell(PAL_FILE * f)
 }
 
 /*++
-
-Function:
-
-    fgetpos
-
-See msdn for more details.
---*/
-
-int
-__cdecl
-PAL_fgetpos (
-    PAL_FILE   *f,
-    PAL_fpos_t *pos
-)
-{
-#ifdef __LINUX__
-    // TODO: implement for Linux if required
-    ASSERT(FALSE);
-    return -1;
-#else
-    int    nRetVal = -1;
-    fpos_t native_pos;
-
-    PERF_ENTRY(fgetpos);
-    ENTRY("fgetpos( f=%p, pos=%p )\n", f, pos);
-    
-    _ASSERTE(f != NULL);
-    _ASSERTE(pos != NULL);
-
-    THREADMarkDiagnostic("PAL_fgetpos");
-
-    if (pos) {
-        native_pos = *pos;
-        nRetVal = fgetpos (f->bsdFilePtr, &native_pos);
-        *pos = native_pos;
-    }
-    else {
-        ERROR ("Error: NULL pos pointer\n");
-        errno = EINVAL;
-    }
-  
-    LOGEXIT( "fgetpos returning error code %d, pos %d\n", nRetVal, pos ? *pos : 0);
-    PERF_EXIT(fgetpos);
-    return nRetVal;
-#endif // __LINUX__
-}
-
-/*++
-
-Function:
-
-    fsetpos
-
-See msdn for more details.
---*/
-
-int
-__cdecl
-PAL_fsetpos (
-    PAL_FILE         *f,
-    const PAL_fpos_t *pos
-)
-{
-#ifdef __LINUX__
-    // TODO: implement for Linux if required
-    ASSERT(FALSE);
-    return  -1;
-#else
-    int    nRetVal = -1;
-    fpos_t native_pos;
-
-    PERF_ENTRY(fsetpos);
-    ENTRY("fsetpos( f=%p, pos=%p )\n", f, pos);
-
-    _ASSERTE(f != NULL);
-    _ASSERTE(pos != NULL);
-
-    THREADMarkDiagnostic("PAL_fsetpos");
-    if (pos) {
-        native_pos = *pos;
-        nRetVal = fsetpos (f->bsdFilePtr, &native_pos);
-    }
-    else {
-        ERROR ("Error: NULL pos pointer\n");
-        errno = EINVAL;
-    }
-  
-    LOGEXIT( "fsetpos returning error code %d\n", nRetVal);
-    PERF_EXIT(fsetpos);
-    return nRetVal;
-#endif // __LINUX__
-}
-
-
-/*++
 Function :
 
     feof
@@ -954,7 +841,6 @@ PAL_feof(PAL_FILE * f)
     ENTRY( "feof( %p )\n", f );
 
     _ASSERTE(f != NULL);
-    THREADMarkDiagnostic("PAL_feof");
     nRetVal = feof( f->bsdFilePtr );
 
     LOGEXIT( "feof returning %d\n", nRetVal );
@@ -980,8 +866,6 @@ PAL_getc(PAL_FILE * f)
     ENTRY( "getc( %p )\n", f );
 
     _ASSERTE(f != NULL);
-
-    THREADMarkDiagnostic("PAL_fgetc");
 
     CLEARERR(f);
 
@@ -1022,8 +906,6 @@ PAL_ungetc(int c, PAL_FILE * f)
 
     _ASSERTE(f != NULL);
 
-    THREADMarkDiagnostic("PAL_fungetc");
-
 #if UNGETC_NOT_RETURN_EOF
     /* On some Unix platform such as Solaris, ungetc does not return EOF
        on write-only file. */
@@ -1063,8 +945,6 @@ PAL_setvbuf(PAL_FILE *f, char *buf, int type, size_t size)
     ENTRY( "setvbuf( %p, %p, %d, %ul )\n", f, buf, type, size);
     
     _ASSERTE(f != NULL);
-    
-    THREADMarkDiagnostic("PAL_setvbuf");
     
     nRetVal = setvbuf(f->bsdFilePtr, buf, type, size);
     

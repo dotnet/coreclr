@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 /*============================================================
@@ -1938,7 +1937,7 @@ UINT64 QCALLTYPE ThreadNative::GetProcessDefaultStackSize()
     return (UINT64)reserve;
 }
 
-
+#ifndef FEATURE_CORECLR
 FCIMPL0(void, ThreadNative::BeginCriticalRegion)
 {
     FCALL_CONTRACT;
@@ -1972,6 +1971,7 @@ FCIMPL0(void, ThreadNative::EndThreadAffinity)
     Thread::EndThreadAffinity();
 }
 FCIMPLEND
+#endif // !FEATURE_CORECLR
 
 
 FCIMPL1(FC_BOOL_RET, ThreadNative::IsThreadpoolThread, ThreadBaseObject* thread)

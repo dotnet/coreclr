@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
@@ -24,7 +23,7 @@
 #include "security.h"
 #include "securitymeta.h"
 #include "dllimport.h"
-#include "gc.h"
+#include "gcheaputilities.h"
 #include "comdelegate.h"
 #include "jitperf.h" // to track jit perf
 #include "corprof.h"
@@ -514,7 +513,7 @@ HCIMPL1_V(double, JIT_ULng2Dbl, UINT64 val)
 HCIMPLEND
 
 /*********************************************************************/
-// needed for ARM
+// needed for ARM and RyuJIT-x86
 HCIMPL1_V(double, JIT_Lng2Dbl, INT64 val)
 {
     FCALL_CONTRACT;
@@ -620,7 +619,7 @@ HCIMPL1_V(UINT64, JIT_Dbl2ULng, double val)
     else {        
         // subtract 0x8000000000000000, do the convert then add it back again
         ret = FastDbl2Lng(val - two63) + I64(0x8000000000000000);
-}
+    }
     return ret;
 }
 HCIMPLEND
@@ -2447,14 +2446,13 @@ BOOL ObjIsInstanceOf(Object *pObject, TypeHandle toTypeHnd, BOOL throwCastExcept
     // to a given type.
     else if (toTypeHnd.IsInterface() && fromTypeHnd.GetMethodTable()->IsICastable())
     {
-        // Make actuall call to obj.IsInstanceOfInterface(interfaceTypeObj, out exception)
+        // Make actuall call to ICastableHelpers.IsInstanceOfInterface(obj, interfaceTypeObj, out exception)
         OBJECTREF exception = NULL;
         GCPROTECT_BEGIN(exception);
-        MethodTable *pFromTypeMT = fromTypeHnd.GetMethodTable();
-        MethodDesc *pIsInstanceOfMD = pFromTypeMT->GetMethodDescForInterfaceMethod(MscorlibBinder::GetMethod(METHOD__ICASTABLE__ISINSTANCEOF)); //GC triggers
-        OBJECTREF managedType = toTypeHnd.GetManagedClassObject(); //GC triggers
+        
+        PREPARE_NONVIRTUAL_CALLSITE(METHOD__ICASTABLEHELPERS__ISINSTANCEOF);
 
-        PREPARE_NONVIRTUAL_CALLSITE_USING_METHODDESC(pIsInstanceOfMD);
+        OBJECTREF managedType = toTypeHnd.GetManagedClassObject(); //GC triggers
 
         DECLARE_ARGHOLDER_ARRAY(args, 3);
         args[ARGNUM_0] = OBJECTREF_TO_ARGHOLDER(obj);
@@ -2849,6 +2847,63 @@ HCIMPLEND
 //
 //========================================================================
 
+#include <optsmallperfcritical.h>
+
+//*************************************************************
+// Allocation fast path for typical objects
+//
+HCIMPL1(Object*, JIT_NewS_MP_FastPortable, CORINFO_CLASS_HANDLE typeHnd_)
+{
+    FCALL_CONTRACT;
+
+    do
+    {
+        _ASSERTE(GCHeapUtilities::UseAllocationContexts());
+
+        // This is typically the only call in the fast path. Making the call early seems to be better, as it allows the compiler
+        // to use volatile registers for intermediate values. This reduces the number of push/pop instructions and eliminates
+        // some reshuffling of intermediate values into nonvolatile registers around the call.
+        Thread *thread = GetThread();
+
+        TypeHandle typeHandle(typeHnd_);
+        _ASSERTE(!typeHandle.IsTypeDesc());
+        MethodTable *methodTable = typeHandle.AsMethodTable();
+
+        SIZE_T size = methodTable->GetBaseSize();
+        _ASSERTE(size % DATA_ALIGNMENT == 0);
+
+        gc_alloc_context *allocContext = thread->GetAllocContext();
+        BYTE *allocPtr = allocContext->alloc_ptr;
+        _ASSERTE(allocPtr <= allocContext->alloc_limit);
+        if (size > static_cast<SIZE_T>(allocContext->alloc_limit - allocPtr))
+        {
+            break;
+        }
+        allocContext->alloc_ptr = allocPtr + size;
+
+        _ASSERTE(allocPtr != nullptr);
+        Object *object = reinterpret_cast<Object *>(allocPtr);
+        _ASSERTE(object->HasEmptySyncBlockInfo());
+        object->SetMethodTable(methodTable);
+
+#if CHECK_APP_DOMAIN_LEAKS
+        if (g_pConfig->AppDomainLeaks())
+        {
+            object->SetAppDomain();
+        }
+#endif // CHECK_APP_DOMAIN_LEAKS
+
+        return object;
+    } while (false);
+
+    // Tail call to the slow helper
+    ENDFORBIDGC();
+    return HCCALL1(JIT_New, typeHnd_);
+}
+HCIMPLEND
+
+#include <optdefault.h>
+
 /*************************************************************/
 HCIMPL1(Object*, JIT_New, CORINFO_CLASS_HANDLE typeHnd_)
 {
@@ -2930,6 +2985,74 @@ HCIMPLEND
 //      STRING HELPERS
 //
 //========================================================================
+
+#include <optsmallperfcritical.h>
+
+//*************************************************************
+// Allocation fast path for typical objects
+//
+HCIMPL1(StringObject*, AllocateString_MP_FastPortable, DWORD stringLength)
+{
+    FCALL_CONTRACT;
+
+    do
+    {
+        _ASSERTE(GCHeapUtilities::UseAllocationContexts());
+
+        // Instead of doing elaborate overflow checks, we just limit the number of elements. This will avoid all overflow
+        // problems, as well as making sure big string objects are correctly allocated in the big object heap.
+        if (stringLength >= (LARGE_OBJECT_SIZE - 256) / sizeof(WCHAR))
+        {
+            break;
+        }
+
+        // This is typically the only call in the fast path. Making the call early seems to be better, as it allows the compiler
+        // to use volatile registers for intermediate values. This reduces the number of push/pop instructions and eliminates
+        // some reshuffling of intermediate values into nonvolatile registers around the call.
+        Thread *thread = GetThread();
+
+        SIZE_T totalSize = StringObject::GetSize(stringLength);
+
+        // The method table's base size includes space for a terminating null character
+        _ASSERTE(totalSize >= g_pStringClass->GetBaseSize());
+        _ASSERTE((totalSize - g_pStringClass->GetBaseSize()) / sizeof(WCHAR) == stringLength);
+
+        SIZE_T alignedTotalSize = ALIGN_UP(totalSize, DATA_ALIGNMENT);
+        _ASSERTE(alignedTotalSize >= totalSize);
+        totalSize = alignedTotalSize;
+
+        gc_alloc_context *allocContext = thread->GetAllocContext();
+        BYTE *allocPtr = allocContext->alloc_ptr;
+        _ASSERTE(allocPtr <= allocContext->alloc_limit);
+        if (totalSize > static_cast<SIZE_T>(allocContext->alloc_limit - allocPtr))
+        {
+            break;
+        }
+        allocContext->alloc_ptr = allocPtr + totalSize;
+
+        _ASSERTE(allocPtr != nullptr);
+        StringObject *stringObject = reinterpret_cast<StringObject *>(allocPtr);
+        stringObject->SetMethodTable(g_pStringClass);
+        stringObject->SetStringLength(stringLength);
+        _ASSERTE(stringObject->GetBuffer()[stringLength] == W('\0'));
+
+#if CHECK_APP_DOMAIN_LEAKS
+        if (g_pConfig->AppDomainLeaks())
+        {
+            stringObject->SetAppDomain();
+        }
+#endif // CHECK_APP_DOMAIN_LEAKS
+
+        return stringObject;
+    } while (false);
+
+    // Tail call to the slow helper
+    ENDFORBIDGC();
+    return HCCALL1(FramedAllocateString, stringLength);
+}
+HCIMPLEND
+
+#include <optdefault.h>
 
 /*********************************************************************/
 /* We don't use HCIMPL macros because this is not a real helper call */
@@ -3021,12 +3144,160 @@ HCIMPL2(Object *, JIT_StrCns, unsigned rid, CORINFO_MODULE_HANDLE scopeHnd)
 HCIMPLEND
 
 
-
 //========================================================================
 //
 //      ARRAY HELPERS
 //
 //========================================================================
+
+#include <optsmallperfcritical.h>
+
+//*************************************************************
+// Array allocation fast path for arrays of value type elements
+//
+HCIMPL2(Object*, JIT_NewArr1VC_MP_FastPortable, CORINFO_CLASS_HANDLE arrayTypeHnd_, INT_PTR size)
+{
+    FCALL_CONTRACT;
+
+    do
+    {
+        _ASSERTE(GCHeapUtilities::UseAllocationContexts());
+
+        // Do a conservative check here.  This is to avoid overflow while doing the calculations.  We don't
+        // have to worry about "large" objects, since the allocation quantum is never big enough for
+        // LARGE_OBJECT_SIZE.
+        //
+        // For Value Classes, this needs to be 2^16 - slack (2^32 / max component size), 
+        // The slack includes the size for the array header and round-up ; for alignment.  Use 256 for the
+        // slack value out of laziness.
+        SIZE_T componentCount = static_cast<SIZE_T>(size);
+        if (componentCount >= static_cast<SIZE_T>(65535 - 256))
+        {
+            break;
+        }
+
+        // This is typically the only call in the fast path. Making the call early seems to be better, as it allows the compiler
+        // to use volatile registers for intermediate values. This reduces the number of push/pop instructions and eliminates
+        // some reshuffling of intermediate values into nonvolatile registers around the call.
+        Thread *thread = GetThread();
+
+        TypeHandle arrayTypeHandle(arrayTypeHnd_);
+        ArrayTypeDesc *arrayTypeDesc = arrayTypeHandle.AsArray();
+        MethodTable *arrayMethodTable = arrayTypeDesc->GetTemplateMethodTable();
+
+        _ASSERTE(arrayMethodTable->HasComponentSize());
+        SIZE_T componentSize = arrayMethodTable->RawGetComponentSize();
+        SIZE_T totalSize = componentCount * componentSize;
+        _ASSERTE(totalSize / componentSize == componentCount);
+
+        SIZE_T baseSize = arrayMethodTable->GetBaseSize();
+        totalSize += baseSize;
+        _ASSERTE(totalSize >= baseSize);
+
+        SIZE_T alignedTotalSize = ALIGN_UP(totalSize, DATA_ALIGNMENT);
+        _ASSERTE(alignedTotalSize >= totalSize);
+        totalSize = alignedTotalSize;
+
+        gc_alloc_context *allocContext = thread->GetAllocContext();
+        BYTE *allocPtr = allocContext->alloc_ptr;
+        _ASSERTE(allocPtr <= allocContext->alloc_limit);
+        if (totalSize > static_cast<SIZE_T>(allocContext->alloc_limit - allocPtr))
+        {
+            break;
+        }
+        allocContext->alloc_ptr = allocPtr + totalSize;
+
+        _ASSERTE(allocPtr != nullptr);
+        ArrayBase *array = reinterpret_cast<ArrayBase *>(allocPtr);
+        array->SetMethodTable(arrayMethodTable);
+        _ASSERTE(static_cast<DWORD>(componentCount) == componentCount);
+        array->m_NumComponents = static_cast<DWORD>(componentCount);
+
+#if CHECK_APP_DOMAIN_LEAKS
+        if (g_pConfig->AppDomainLeaks())
+        {
+            array->SetAppDomain();
+        }
+#endif // CHECK_APP_DOMAIN_LEAKS
+
+        return array;
+    } while (false);
+
+    // Tail call to the slow helper
+    ENDFORBIDGC();
+    return HCCALL2(JIT_NewArr1, arrayTypeHnd_, size);
+}
+HCIMPLEND
+
+//*************************************************************
+// Array allocation fast path for arrays of object elements
+//
+HCIMPL2(Object*, JIT_NewArr1OBJ_MP_FastPortable, CORINFO_CLASS_HANDLE arrayTypeHnd_, INT_PTR size)
+{
+    FCALL_CONTRACT;
+
+    do
+    {
+        _ASSERTE(GCHeapUtilities::UseAllocationContexts());
+
+        // Make sure that the total size cannot reach LARGE_OBJECT_SIZE, which also allows us to avoid overflow checks. The
+        // "256" slack is to cover the array header size and round-up, using a constant value here out of laziness.
+        SIZE_T componentCount = static_cast<SIZE_T>(size);
+        if (componentCount >= static_cast<SIZE_T>((LARGE_OBJECT_SIZE - 256) / sizeof(void *)))
+        {
+            break;
+        }
+
+        // This is typically the only call in the fast path. Making the call early seems to be better, as it allows the compiler
+        // to use volatile registers for intermediate values. This reduces the number of push/pop instructions and eliminates
+        // some reshuffling of intermediate values into nonvolatile registers around the call.
+        Thread *thread = GetThread();
+
+        TypeHandle arrayTypeHandle(arrayTypeHnd_);
+        ArrayTypeDesc *arrayTypeDesc = arrayTypeHandle.AsArray();
+        MethodTable *arrayMethodTable = arrayTypeDesc->GetTemplateMethodTable();
+
+        SIZE_T totalSize = componentCount * sizeof(void *);
+        _ASSERTE(totalSize / sizeof(void *) == componentCount);
+
+        SIZE_T baseSize = arrayMethodTable->GetBaseSize();
+        totalSize += baseSize;
+        _ASSERTE(totalSize >= baseSize);
+
+        _ASSERTE(ALIGN_UP(totalSize, DATA_ALIGNMENT) == totalSize);
+
+        gc_alloc_context *allocContext = thread->GetAllocContext();
+        BYTE *allocPtr = allocContext->alloc_ptr;
+        _ASSERTE(allocPtr <= allocContext->alloc_limit);
+        if (totalSize > static_cast<SIZE_T>(allocContext->alloc_limit - allocPtr))
+        {
+            break;
+        }
+        allocContext->alloc_ptr = allocPtr + totalSize;
+
+        _ASSERTE(allocPtr != nullptr);
+        ArrayBase *array = reinterpret_cast<ArrayBase *>(allocPtr);
+        array->SetMethodTable(arrayMethodTable);
+        _ASSERTE(static_cast<DWORD>(componentCount) == componentCount);
+        array->m_NumComponents = static_cast<DWORD>(componentCount);
+
+#if CHECK_APP_DOMAIN_LEAKS
+        if (g_pConfig->AppDomainLeaks())
+        {
+            array->SetAppDomain();
+        }
+#endif // CHECK_APP_DOMAIN_LEAKS
+
+        return array;
+    } while (false);
+
+    // Tail call to the slow helper
+    ENDFORBIDGC();
+    return HCCALL2(JIT_NewArr1, arrayTypeHnd_, size);
+}
+HCIMPLEND
+
+#include <optdefault.h>
 
 /*************************************************************/
 HCIMPL2(Object*, JIT_NewArr1, CORINFO_CLASS_HANDLE arrayTypeHnd_, INT_PTR size)
@@ -3068,7 +3339,8 @@ HCIMPL2(Object*, JIT_NewArr1, CORINFO_CLASS_HANDLE arrayTypeHnd_, INT_PTR size)
         && (elemType != ELEMENT_TYPE_U8)
         && (elemType != ELEMENT_TYPE_R8)
 #endif
-        ) {
+        )
+    {
 #ifdef _DEBUG
         if (g_pConfig->FastGCStressLevel()) {
             GetThread()->DisableStressHeap();
@@ -3171,6 +3443,25 @@ HCIMPL2VA(Object*, JIT_NewMDArr, CORINFO_CLASS_HANDLE classHnd, unsigned dwNumAr
 
     ret = allocNewMDArr(typeHnd, dwNumArgs, dimsAndBounds);
     va_end(dimsAndBounds);
+
+    HELPER_METHOD_FRAME_END();
+    return OBJECTREFToObject(ret);
+}
+HCIMPLEND
+
+/*************************************************************/
+HCIMPL3(Object*, JIT_NewMDArrNonVarArg, CORINFO_CLASS_HANDLE classHnd, unsigned dwNumArgs, INT32 * pArgList)
+{
+    FCALL_CONTRACT;
+
+    OBJECTREF    ret = 0;
+    HELPER_METHOD_FRAME_BEGIN_RET_1(ret);    // Set up a frame
+
+    TypeHandle typeHnd(classHnd);
+    typeHnd.CheckRestore();
+    _ASSERTE(typeHnd.GetMethodTable()->IsArray());
+
+    ret = AllocateArrayEx(typeHnd, pArgList, dwNumArgs);
 
     HELPER_METHOD_FRAME_END();
     return OBJECTREFToObject(ret);
@@ -3360,7 +3651,7 @@ NOINLINE HCIMPL3(VOID, JIT_Unbox_Nullable_Framed, void * destPtr, MethodTable* t
     HELPER_METHOD_FRAME_BEGIN_1(objRef);
     if (!Nullable::UnBox(destPtr, objRef, typeMT))
     {
-        COMPlusThrow(kInvalidCastException);
+        COMPlusThrowInvalidCastException(&objRef, TypeHandle(typeMT));
     }
     HELPER_METHOD_FRAME_END();
 }
@@ -3398,15 +3689,16 @@ NOINLINE HCIMPL2(LPVOID, JIT_Unbox_Helper_Framed, CORINFO_CLASS_HANDLE type, Obj
 
     LPVOID result = NULL;
 
-    HELPER_METHOD_FRAME_BEGIN_RET_0();
-    if (TypeHandle(type).IsEquivalentTo(obj->GetTypeHandle()))
+    OBJECTREF objRef = ObjectToOBJECTREF(obj);
+    HELPER_METHOD_FRAME_BEGIN_RET_1(objRef);
+    if (TypeHandle(type).IsEquivalentTo(objRef->GetTypeHandle()))
     {
         // the structures are equivalent
-        result = obj->GetData();
+        result = objRef->GetData();
     }
     else
     {
-        COMPlusThrow(kInvalidCastException);
+        COMPlusThrowInvalidCastException(&objRef, TypeHandle(type));
     }
     HELPER_METHOD_FRAME_END();
 
@@ -3702,11 +3994,7 @@ void ClearJitGenericHandleCache(AppDomain *pDomain)
 
 // Factored out most of the body of JIT_GenericHandle so it could be called easily from the CER reliability code to pre-populate the
 // cache.
-CORINFO_GENERIC_HANDLE 
-JIT_GenericHandleWorker(
-    MethodDesc *  pMD, 
-    MethodTable * pMT, 
-    LPVOID        signature)
+CORINFO_GENERIC_HANDLE JIT_GenericHandleWorker(MethodDesc * pMD, MethodTable * pMT, LPVOID signature, DWORD dictionaryIndexAndSlot, Module* pModule)
 {
      CONTRACTL {
         THROWS;
@@ -3717,20 +4005,34 @@ JIT_GenericHandleWorker(
 
     if (pMT != NULL)
     {
-        SigPointer ptr((PCCOR_SIGNATURE)signature);
-
-        ULONG kind; // DictionaryEntryKind
-        IfFailThrow(ptr.GetData(&kind));
-
-        // We need to normalize the class passed in (if any) for reliability purposes. That's because preparation of a code region that
-        // contains these handle lookups depends on being able to predict exactly which lookups are required (so we can pre-cache the
-        // answers and remove any possibility of failure at runtime). This is hard to do if the lookup (in this case the lookup of the
-        // dictionary overflow cache) is keyed off the somewhat arbitrary type of the instance on which the call is made (we'd need to
-        // prepare for every possible derived type of the type containing the method). So instead we have to locate the exactly
-        // instantiated (non-shared) super-type of the class passed in.
-
         ULONG dictionaryIndex = 0;
-        IfFailThrow(ptr.GetData(&dictionaryIndex));
+
+        if (pModule != NULL)
+        {
+#ifdef _DEBUG
+            // Only in R2R mode are the module, dictionary index and dictionary slot provided as an input
+            _ASSERTE(dictionaryIndexAndSlot != -1);
+            _ASSERT(ExecutionManager::FindReadyToRunModule(dac_cast<TADDR>(signature)) == pModule);
+#endif
+            dictionaryIndex = (dictionaryIndexAndSlot >> 16);
+        }
+        else
+        {
+            SigPointer ptr((PCCOR_SIGNATURE)signature);
+
+            ULONG kind; // DictionaryEntryKind
+            IfFailThrow(ptr.GetData(&kind));
+
+            // We need to normalize the class passed in (if any) for reliability purposes. That's because preparation of a code region that
+            // contains these handle lookups depends on being able to predict exactly which lookups are required (so we can pre-cache the
+            // answers and remove any possibility of failure at runtime). This is hard to do if the lookup (in this case the lookup of the
+            // dictionary overflow cache) is keyed off the somewhat arbitrary type of the instance on which the call is made (we'd need to
+            // prepare for every possible derived type of the type containing the method). So instead we have to locate the exactly
+            // instantiated (non-shared) super-type of the class passed in.
+
+            _ASSERTE(dictionaryIndexAndSlot == -1);
+            IfFailThrow(ptr.GetData(&dictionaryIndex));
+        }
 
         pDeclaringMT = pMT;
         for (;;)
@@ -3757,7 +4059,7 @@ JIT_GenericHandleWorker(
     }
 
     DictionaryEntry * pSlot;
-    CORINFO_GENERIC_HANDLE result = (CORINFO_GENERIC_HANDLE)Dictionary::PopulateEntry(pMD, pDeclaringMT, signature, FALSE, &pSlot);
+    CORINFO_GENERIC_HANDLE result = (CORINFO_GENERIC_HANDLE)Dictionary::PopulateEntry(pMD, pDeclaringMT, signature, FALSE, &pSlot, dictionaryIndexAndSlot, pModule);
 
     if (pSlot == NULL)
     {
@@ -3784,10 +4086,12 @@ JIT_GenericHandleWorker(
 
 /*********************************************************************/
 // slow helper to tail call from the fast one
-NOINLINE HCIMPL3(CORINFO_GENERIC_HANDLE, JIT_GenericHandle_Framed,
-         CORINFO_CLASS_HANDLE classHnd,
-         CORINFO_METHOD_HANDLE methodHnd,
-         LPVOID signature)
+NOINLINE HCIMPL5(CORINFO_GENERIC_HANDLE, JIT_GenericHandle_Framed, 
+        CORINFO_CLASS_HANDLE classHnd, 
+        CORINFO_METHOD_HANDLE methodHnd, 
+        LPVOID signature, 
+        DWORD dictionaryIndexAndSlot, 
+        CORINFO_MODULE_HANDLE moduleHnd)
 {
     CONTRACTL {
         FCALL_CHECK;
@@ -3800,11 +4104,12 @@ NOINLINE HCIMPL3(CORINFO_GENERIC_HANDLE, JIT_GenericHandle_Framed,
 
     MethodDesc * pMD = GetMethod(methodHnd);
     MethodTable * pMT = TypeHandle(classHnd).AsMethodTable();
+    Module * pModule = GetModule(moduleHnd);
 
     // Set up a frame
     HELPER_METHOD_FRAME_BEGIN_RET_0();
 
-    result = JIT_GenericHandleWorker(pMD, pMT, signature);
+    result = JIT_GenericHandleWorker(pMD, pMT, signature, dictionaryIndexAndSlot, pModule);
 
     HELPER_METHOD_FRAME_END();
 
@@ -3833,7 +4138,27 @@ HCIMPL2(CORINFO_GENERIC_HANDLE, JIT_GenericHandleMethod, CORINFO_METHOD_HANDLE  
 
     // Tailcall to the slow helper
     ENDFORBIDGC();
-    return HCCALL3(JIT_GenericHandle_Framed, NULL, methodHnd, signature);
+    return HCCALL5(JIT_GenericHandle_Framed, NULL, methodHnd, signature, -1, NULL);
+}
+HCIMPLEND
+
+HCIMPL2(CORINFO_GENERIC_HANDLE, JIT_GenericHandleMethodWithSlotAndModule, CORINFO_METHOD_HANDLE  methodHnd, GenericHandleArgs * pArgs)
+{
+    CONTRACTL{
+        FCALL_CHECK;
+        PRECONDITION(CheckPointer(methodHnd));
+        PRECONDITION(GetMethod(methodHnd)->IsRestored());
+        PRECONDITION(CheckPointer(pArgs));
+    } CONTRACTL_END;
+
+    JitGenericHandleCacheKey key(NULL, methodHnd, pArgs->signature);
+    HashDatum res;
+    if (g_pJitGenericHandleCache->GetValueSpeculative(&key, &res))
+        return (CORINFO_GENERIC_HANDLE)(DictionaryEntry)res;
+
+    // Tailcall to the slow helper
+    ENDFORBIDGC();
+    return HCCALL5(JIT_GenericHandle_Framed, NULL, methodHnd, pArgs->signature, pArgs->dictionaryIndexAndSlot, pArgs->module);
 }
 HCIMPLEND
 #include <optdefault.h>
@@ -3857,7 +4182,7 @@ HCIMPL2(CORINFO_GENERIC_HANDLE, JIT_GenericHandleMethodLogging, CORINFO_METHOD_H
 
     // Tailcall to the slow helper
     ENDFORBIDGC();
-    return HCCALL3(JIT_GenericHandle_Framed, NULL, methodHnd, signature);
+    return HCCALL5(JIT_GenericHandle_Framed, NULL, methodHnd, signature, -1, NULL);
 }
 HCIMPLEND
 
@@ -3879,7 +4204,27 @@ HCIMPL2(CORINFO_GENERIC_HANDLE, JIT_GenericHandleClass, CORINFO_CLASS_HANDLE cla
 
     // Tailcall to the slow helper
     ENDFORBIDGC();
-    return HCCALL3(JIT_GenericHandle_Framed, classHnd, NULL, signature);
+    return HCCALL5(JIT_GenericHandle_Framed, classHnd, NULL, signature, -1, NULL);
+}
+HCIMPLEND
+
+HCIMPL2(CORINFO_GENERIC_HANDLE, JIT_GenericHandleClassWithSlotAndModule, CORINFO_CLASS_HANDLE classHnd, GenericHandleArgs * pArgs)
+{
+    CONTRACTL{
+        FCALL_CHECK;
+        PRECONDITION(CheckPointer(classHnd));
+        PRECONDITION(TypeHandle(classHnd).IsRestored());
+        PRECONDITION(CheckPointer(pArgs));
+    } CONTRACTL_END;
+
+    JitGenericHandleCacheKey key(classHnd, NULL, pArgs->signature);
+    HashDatum res;
+    if (g_pJitGenericHandleCache->GetValueSpeculative(&key, &res))
+        return (CORINFO_GENERIC_HANDLE)(DictionaryEntry)res;
+
+    // Tailcall to the slow helper
+    ENDFORBIDGC();
+    return HCCALL5(JIT_GenericHandle_Framed, classHnd, NULL, pArgs->signature, pArgs->dictionaryIndexAndSlot, pArgs->module);
 }
 HCIMPLEND
 #include <optdefault.h>
@@ -3903,7 +4248,7 @@ HCIMPL2(CORINFO_GENERIC_HANDLE, JIT_GenericHandleClassLogging, CORINFO_CLASS_HAN
 
     // Tailcall to the slow helper
     ENDFORBIDGC();
-    return HCCALL3(JIT_GenericHandle_Framed, classHnd, NULL, signature);
+    return HCCALL5(JIT_GenericHandle_Framed, classHnd, NULL, signature, -1, NULL);
 }
 HCIMPLEND
 
@@ -5158,6 +5503,42 @@ HCIMPL0(void, JIT_RngChkFail)
 HCIMPLEND
 
 /*********************************************************************/
+HCIMPL0(void, JIT_ThrowArgumentException)
+{
+    FCALL_CONTRACT;
+
+    /* Make no assumptions about the current machine state */
+    ResetCurrentContext();
+
+    FC_GC_POLL_NOT_NEEDED();    // throws always open up for GC
+
+    HELPER_METHOD_FRAME_BEGIN_ATTRIB_NOPOLL(Frame::FRAME_ATTR_EXCEPTION);    // Set up a frame
+
+    COMPlusThrow(kArgumentException);
+
+    HELPER_METHOD_FRAME_END();
+}
+HCIMPLEND
+
+/*********************************************************************/
+HCIMPL0(void, JIT_ThrowArgumentOutOfRangeException)
+{
+    FCALL_CONTRACT;
+
+    /* Make no assumptions about the current machine state */
+    ResetCurrentContext();
+
+    FC_GC_POLL_NOT_NEEDED();    // throws always open up for GC
+
+    HELPER_METHOD_FRAME_BEGIN_ATTRIB_NOPOLL(Frame::FRAME_ATTR_EXCEPTION);    // Set up a frame
+
+    COMPlusThrow(kArgumentOutOfRangeException);
+
+    HELPER_METHOD_FRAME_END();
+}
+HCIMPLEND
+
+/*********************************************************************/
 HCIMPL0(void, JIT_Overflow)
 {
     FCALL_CONTRACT;
@@ -5347,7 +5728,7 @@ void DoJITFailFast ()
     if(ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, FailFast))
     {
         // Fire an ETW FailFast event
-        FireEtwFailFast(L"Unsafe buffer security check failure: Buffer overrun detected", 
+        FireEtwFailFast(W("Unsafe buffer security check failure: Buffer overrun detected"),
                        (const PVOID)GetThread()->GetFrame()->GetIP(), 
                        STATUS_STACK_BUFFER_OVERRUN, 
                        COR_E_EXECUTIONENGINE, 
@@ -5428,7 +5809,7 @@ HCIMPLEND;
 //
 //========================================================================
 
-HCIMPL2(void, JIT_DelegateSecurityCheck_Internal, CORINFO_CLASS_HANDLE delegateHnd, CORINFO_METHOD_HANDLE calleeMethodHnd)
+NOINLINE HCIMPL2(void, JIT_DelegateSecurityCheck_Internal, CORINFO_CLASS_HANDLE delegateHnd, CORINFO_METHOD_HANDLE calleeMethodHnd)
 {
     FCALL_CONTRACT;
 
@@ -5443,6 +5824,7 @@ HCIMPL2(void, JIT_DelegateSecurityCheck_Internal, CORINFO_CLASS_HANDLE delegateH
 }
 HCIMPLEND
 
+#include <optsmallperfcritical.h>
 /*************************************************************/
 HCIMPL2(void, JIT_DelegateSecurityCheck, CORINFO_CLASS_HANDLE delegateHnd, CORINFO_METHOD_HANDLE calleeMethodHnd)
 {
@@ -5461,11 +5843,12 @@ HCIMPL2(void, JIT_DelegateSecurityCheck, CORINFO_CLASS_HANDLE delegateHnd, CORIN
     HCCALL2(JIT_DelegateSecurityCheck_Internal, delegateHnd, calleeMethodHnd);
 }
 HCIMPLEND
+#include <optdefault.h>
 
 
 /*************************************************************/
 //Make sure to allow check of 0 for COMPlus_Security_AlwaysInsertCallout
-HCIMPL4(void, JIT_MethodAccessCheck_Internal, CORINFO_METHOD_HANDLE callerMethodHnd, CORINFO_METHOD_HANDLE calleeMethodHnd, CORINFO_CLASS_HANDLE calleeTypeHnd, CorInfoSecurityRuntimeChecks check)
+NOINLINE HCIMPL4(void, JIT_MethodAccessCheck_Internal, CORINFO_METHOD_HANDLE callerMethodHnd, CORINFO_METHOD_HANDLE calleeMethodHnd, CORINFO_CLASS_HANDLE calleeTypeHnd, CorInfoSecurityRuntimeChecks check)
 {
     FCALL_CONTRACT;
 
@@ -5508,6 +5891,7 @@ HCIMPL4(void, JIT_MethodAccessCheck_Internal, CORINFO_METHOD_HANDLE callerMethod
 HCIMPLEND
 
 
+#include <optsmallperfcritical.h>
 /*************************************************************/
 //Make sure to allow check of 0 for COMPlus_Security_AlwaysInsertCallout
 HCIMPL4(void, JIT_MethodAccessCheck, CORINFO_METHOD_HANDLE callerMethodHnd, CORINFO_METHOD_HANDLE calleeMethodHnd, CORINFO_CLASS_HANDLE calleeTypeHnd, CorInfoSecurityRuntimeChecks check)
@@ -5530,10 +5914,11 @@ HCIMPL4(void, JIT_MethodAccessCheck, CORINFO_METHOD_HANDLE callerMethodHnd, CORI
     HCCALL4(JIT_MethodAccessCheck_Internal, callerMethodHnd, calleeMethodHnd, calleeTypeHnd, check);
 }
 HCIMPLEND
+#include <optdefault.h>
 
 
 // Slower checks (including failure paths) for determining if a method has runtime access to a field
-HCIMPL3(void, JIT_FieldAccessCheck_Internal, CORINFO_METHOD_HANDLE callerMethodHnd, CORINFO_FIELD_HANDLE calleeFieldHnd, CorInfoSecurityRuntimeChecks check)
+NOINLINE HCIMPL3(void, JIT_FieldAccessCheck_Internal, CORINFO_METHOD_HANDLE callerMethodHnd, CORINFO_FIELD_HANDLE calleeFieldHnd, CorInfoSecurityRuntimeChecks check)
 {
     FCALL_CONTRACT;
 
@@ -5564,6 +5949,7 @@ HCIMPL3(void, JIT_FieldAccessCheck_Internal, CORINFO_METHOD_HANDLE callerMethodH
 }
 HCIMPLEND
 
+#include <optsmallperfcritical.h>
 // Check to see if a method has runtime access to a field
 HCIMPL3(void, JIT_FieldAccessCheck, CORINFO_METHOD_HANDLE callerMethodHnd, CORINFO_FIELD_HANDLE calleeFieldHnd, CorInfoSecurityRuntimeChecks check)
 {
@@ -5592,9 +5978,10 @@ HCIMPL3(void, JIT_FieldAccessCheck, CORINFO_METHOD_HANDLE callerMethodHnd, CORIN
     HCCALL3(JIT_FieldAccessCheck_Internal, callerMethodHnd, calleeFieldHnd, check);
 }
 HCIMPLEND
+#include <optdefault.h>
 
 // Slower checks (including failure paths) for determining if a method has runtime access to a type
-HCIMPL3(void, JIT_ClassAccessCheck_Internal, CORINFO_METHOD_HANDLE callerMethodHnd, CORINFO_CLASS_HANDLE calleeClassHnd, CorInfoSecurityRuntimeChecks check)
+NOINLINE HCIMPL3(void, JIT_ClassAccessCheck_Internal, CORINFO_METHOD_HANDLE callerMethodHnd, CORINFO_CLASS_HANDLE calleeClassHnd, CorInfoSecurityRuntimeChecks check)
 {
     FCALL_CONTRACT;
 
@@ -5609,6 +5996,7 @@ HCIMPL3(void, JIT_ClassAccessCheck_Internal, CORINFO_METHOD_HANDLE callerMethodH
 }
 HCIMPLEND
 
+#include <optsmallperfcritical.h>
 // Check to see if a method has runtime access to a type
 HCIMPL3(void, JIT_ClassAccessCheck, CORINFO_METHOD_HANDLE callerMethodHnd, CORINFO_CLASS_HANDLE calleeClassHnd, CorInfoSecurityRuntimeChecks check)
 {
@@ -5637,6 +6025,7 @@ HCIMPL3(void, JIT_ClassAccessCheck, CORINFO_METHOD_HANDLE callerMethodHnd, CORIN
     HCCALL3(JIT_ClassAccessCheck_Internal, callerMethodHnd, calleeClassHnd, check);
 }
 HCIMPLEND
+#include <optdefault.h>
 
 NOINLINE HCIMPL2(void, JIT_Security_Prolog_Framed, CORINFO_METHOD_HANDLE methHnd_, OBJECTREF* ppFrameSecDesc)
 {
@@ -5711,7 +6100,7 @@ HCIMPLEND
 #include <optdefault.h>
 
 /*************************************************************/
-HCIMPL1(void, JIT_VerificationRuntimeCheck_Internal, CORINFO_METHOD_HANDLE methHnd_)
+NOINLINE HCIMPL1(void, JIT_VerificationRuntimeCheck_Internal, CORINFO_METHOD_HANDLE methHnd_)
 {
     FCALL_CONTRACT;
 
@@ -5721,24 +6110,7 @@ HCIMPL1(void, JIT_VerificationRuntimeCheck_Internal, CORINFO_METHOD_HANDLE methH
 #ifdef FEATURE_CORECLR
         // Transparent methods that contains unverifiable code is not allowed.
         MethodDesc *pMethod = GetMethod(methHnd_);
-
-#if defined(FEATURE_CORECLR_COVERAGE_BUILD) && defined(FEATURE_STRONGNAME_DELAY_SIGNING_ALLOWED)
-        // For code coverage builds we have an issue where the inserted IL is not verifiable.
-        // This means that transparent methods in platform assemblies will throw verification exceptions.
-        // Temporary fix is to allow transparent methods in platform assemblies to be unverifiable only on coverage builds.
-        // Paranoia: allow this only on non ret builds - all builds except the RET type will have
-        // FEATURE_STRONGNAME_DELAY_SIGNING_ALLOWED defined. So we can use that to figure out if this is a RET build
-        // type that someone is trying to relax that constraint on and not allow that.
-        if (!pMethod->GetModule()->GetFile()->GetAssembly()->IsProfileAssembly())
-        {
-            // Only throw if pMethod is not in any platform assembly.
-            SecurityTransparent::ThrowMethodAccessException(pMethod);
-        }
-#else // defined(FEATURE_CORECLR_COVERAGE_BUILD) && defined(FEATURE_STRONGNAME_DELAY_SIGNING_ALLOWED)
-
         SecurityTransparent::ThrowMethodAccessException(pMethod);
-#endif // defined(FEATURE_CORECLR_COVERAGE_BUILD) && defined(FEATURE_STRONGNAME_DELAY_SIGNING_ALLOWED)
-
 #else // FEATURE_CORECLR        
     //
     // inject a full-demand for unmanaged code permission at runtime
@@ -5750,6 +6122,7 @@ HCIMPL1(void, JIT_VerificationRuntimeCheck_Internal, CORINFO_METHOD_HANDLE methH
 }
 HCIMPLEND
 
+#include <optsmallperfcritical.h>
 /*************************************************************/
 HCIMPL1(void, JIT_VerificationRuntimeCheck, CORINFO_METHOD_HANDLE methHnd_)
 {
@@ -5768,6 +6141,7 @@ HCIMPL1(void, JIT_VerificationRuntimeCheck, CORINFO_METHOD_HANDLE methHnd_)
 
 }
 HCIMPLEND
+#include <optdefault.h>
 
 
 
@@ -6057,7 +6431,7 @@ HCIMPL0(VOID, JIT_StressGC)
     bool fSkipGC = false;
 
     if (!fSkipGC)
-        GCHeap::GetGCHeap()->GarbageCollect();
+        GCHeapUtilities::GetGCHeap()->GarbageCollect();
 
 // <TODO>@TODO: the following ifdef is in error, but if corrected the
 // compiler complains about the *__ms->pRetAddr() saying machine state
@@ -6373,8 +6747,8 @@ void F_CALL_VA_CONV JIT_TailCall(PCODE copyArgs, PCODE target, ...)
     CONTEXT   ctx;
 
     // Unwind back to our caller in managed code
-    static PRUNTIME_FUNCTION my_pdata;
-    static ULONG_PTR         my_imagebase;
+    static PT_RUNTIME_FUNCTION my_pdata;
+    static ULONG_PTR           my_imagebase;
 
     ctx.ContextFlags = CONTEXT_ALL;
     RtlCaptureContext(&ctx);
@@ -6572,17 +6946,17 @@ void F_CALL_VA_CONV JIT_TailCall(PCODE copyArgs, PCODE target, ...)
 // *****************************************************************************
 //  JitHelperLogging usage:
 //      1) Ngen using:
-//              COMPLUS_HardPrejitEnabled=0 
+//              COMPlus_HardPrejitEnabled=0 
 //
 //         This allows us to instrument even ngen'd image calls to JIT helpers. 
 //         Remember to clear the key after ngen-ing and before actually running 
 //         the app you want to log.
 //
 //      2) Then set:
-//              COMPLUS_JitHelperLogging=1
-//              COMPLUS_LogEnable=1
-//              COMPLUS_LogLevel=1
-//              COMPLUS_LogToFile=1
+//              COMPlus_JitHelperLogging=1
+//              COMPlus_LogEnable=1
+//              COMPlus_LogLevel=1
+//              COMPlus_LogToFile=1
 //
 //      3) Run the app that you want to log; Results will be in COMPLUS.LOG(.X)
 //
@@ -6732,7 +7106,7 @@ void InitJitHelperLogging()
                     hlpFuncCount->count = 0;
 #ifdef _TARGET_AMD64_
                     ULONGLONG           uImageBase;
-                    PRUNTIME_FUNCTION   pFunctionEntry;            
+                    PT_RUNTIME_FUNCTION   pFunctionEntry;            
                     pFunctionEntry  = RtlLookupFunctionEntry((ULONGLONG)hlpFunc->pfnHelper, &uImageBase, NULL);
 
                     if (pFunctionEntry != NULL)
@@ -6777,7 +7151,7 @@ void InitJitHelperLogging()
 
 #ifdef _TARGET_AMD64_
                     ULONGLONG           uImageBase;
-                    PRUNTIME_FUNCTION   pFunctionEntry;            
+                    PT_RUNTIME_FUNCTION   pFunctionEntry;            
                     pFunctionEntry  = RtlLookupFunctionEntry((ULONGLONG)hlpFunc->pfnHelper, &uImageBase, NULL);
 
                     if (pFunctionEntry != NULL)

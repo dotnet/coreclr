@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 //  This file was previously known as instrs.h
@@ -23,6 +22,7 @@
  *
 ******************************************************************************/
 
+// clang-format off
 #if !defined(_TARGET_XARCH_)
   #error Unexpected target type
 #endif
@@ -154,23 +154,23 @@ INSTMUL(imul_15, "imul", 0, IUM_RD, 0, 1, BAD_CODE, 0x4400003868, BAD_CODE)
 // So a 4-byte opcode would be something like this:
 //             0x22114433
 
-#define B3(byte1,byte2,byte3) ((byte1 << 16) | (byte2 << 24) | byte3)
-#define B2(byte1,byte2)                       ((byte1 << 16) | byte2)
-#define SSEFLT(c) B3(0xf3, 0x0f, c)
-#define SSEDBL(c) B3(0xf2, 0x0f, c)
-#define PCKDBL(c) B3(0x66, 0x0f, c)
-#define PCKFLT(c) B2(0x0f,c)
+#define PACK3(byte1,byte2,byte3) ((byte1 << 16) | (byte2 << 24) | byte3)
+#define PACK2(byte1,byte2)                       ((byte1 << 16) | byte2)
+#define SSEFLT(c) PACK3(0xf3, 0x0f, c)
+#define SSEDBL(c) PACK3(0xf2, 0x0f, c)
+#define PCKDBL(c) PACK3(0x66, 0x0f, c)
+#define PCKFLT(c) PACK2(0x0f,c)
 
 // These macros encode extra byte that is implicit in the macro.
-#define B4(byte1,byte2,byte3,byte4) ((byte1 << 16) | (byte2 << 24) | byte3 | (byte4 << 8))
-#define SSE38(c)   B4(0x66, 0x0f, 0x38, c)
-#define SSE3A(c)   B4(0x66, 0x0f, 0x3A, c)
+#define PACK4(byte1,byte2,byte3,byte4) ((byte1 << 16) | (byte2 << 24) | byte3 | (byte4 << 8))
+#define SSE38(c)   PACK4(0x66, 0x0f, 0x38, c)
+#define SSE3A(c)   PACK4(0x66, 0x0f, 0x3A, c)
 
 // VEX* encodes the implied leading opcode bytes in c1:
 // 1: implied 0f, 2: implied 0f 38, 3: implied 0f 3a
-#define VEX2INT(c1,c2)   B3(c1, 0xc5, c2)
-#define VEX3INT(c1,c2)   B4(c1, 0xc5, 0x02, c2)
-#define VEX3FLT(c1,c2)   B4(c1, 0xc5, 0x02, c2)
+#define VEX2INT(c1,c2)   PACK3(c1, 0xc5, c2)
+#define VEX3INT(c1,c2)   PACK4(c1, 0xc5, 0x02, c2)
+#define VEX3FLT(c1,c2)   PACK4(c1, 0xc5, 0x02, c2)
 
 //  Please insert any SSE2 instructions between FIRST_SSE2_INSTRUCTION and LAST_SSE2_INSTRUCTION
 INST3(FIRST_SSE2_INSTRUCTION, "FIRST_SSE2_INSTRUCTION",  0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, BAD_CODE)
@@ -317,6 +317,7 @@ INST3( insertps,     "insertps"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SS
 INST3( pcmpeqq,      "pcmpeqq"     , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x29))   // Packed compare 64-bit integers for equality
 INST3( pcmpgtq,      "pcmpgtq"     , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x37))   // Packed compare 64-bit integers for equality
 INST3( pmulld,       "pmulld"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x40))   // Packed multiply 32 bit unsigned integers and store lower 32 bits of each result
+INST3( ptest,        "ptest"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x17))   // Packed logical compare
 INST3(LAST_SSE4_INSTRUCTION, "LAST_SSE4_INSTRUCTION",  0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, BAD_CODE)
 
 INST3(FIRST_AVX_INSTRUCTION, "FIRST_AVX_INSTRUCTION",  0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, BAD_CODE)
@@ -339,6 +340,13 @@ INST2(ret    , "ret"          , 0, IUM_RD, 0, 0, 0x0000C3, 0x0000C2)
 INST2(loop   , "loop"         , 0, IUM_RD, 0, 0, BAD_CODE, 0x0000E2)
 INST2(call   , "call"         , 0, IUM_RD, 0, 1, 0x0010FF, 0x0000E8)
 
+INST2(rol    , "rol"          , 0, IUM_RW, 0, 1, 0x0000D2, BAD_CODE)
+INST2(rol_1  , "rol"          , 0, IUM_RW, 0, 1, 0x0000D0, 0x0000D0)
+INST2(rol_N  , "rol"          , 0, IUM_RW, 0, 1, 0x0000C0, 0x0000C0)
+INST2(ror    , "ror"          , 0, IUM_RW, 0, 1, 0x0008D2, BAD_CODE)
+INST2(ror_1  , "ror"          , 0, IUM_RW, 0, 1, 0x0008D0, 0x0008D0)
+INST2(ror_N  , "ror"          , 0, IUM_RW, 0, 1, 0x0008C0, 0x0008C0)
+
 INST2(rcl    , "rcl"          , 0, IUM_RW, 1, 1, 0x0010D2, BAD_CODE)
 INST2(rcl_1  , "rcl"          , 0, IUM_RW, 1, 1, 0x0010D0, 0x0010D0)
 INST2(rcl_N  , "rcl"          , 0, IUM_RW, 1, 1, 0x0010C0, 0x0010C0)
@@ -360,25 +368,25 @@ INST2(sar_N  , "sar"          , 0, IUM_RW, 0, 1, 0x0038C0, 0x0038C0)
 
 INST1(r_movsb, "rep movsb"    , 0, IUM_RD, 0, 0, 0x00A4F3)
 INST1(r_movsd, "rep movsd"    , 0, IUM_RD, 0, 0, 0x00A5F3)
-#ifndef LEGACY_BACKEND
+#if !defined(LEGACY_BACKEND) && defined(_TARGET_AMD64_)
 INST1(r_movsq, "rep movsq"    , 0, IUM_RD, 0, 0, 0xF3A548)
-#endif // !LEGACY_BACKEND
+#endif // !LEGACY_BACKEND || !defined(_TARGET_AMD64_)
 INST1(movsb  , "movsb"        , 0, IUM_RD, 0, 0, 0x0000A4)
 INST1(movsd  , "movsd"        , 0, IUM_RD, 0, 0, 0x0000A5)
-#ifndef LEGACY_BACKEND
+#if !defined(LEGACY_BACKEND) && defined(_TARGET_AMD64_)
 INST1(movsq, "movsq"          , 0, IUM_RD, 0, 0, 0x00A548)
-#endif // !LEGACY_BACKEND
+#endif // !LEGACY_BACKEND || !defined(_TARGET_AMD64_)
 
 INST1(r_stosb, "rep stosb"    , 0, IUM_RD, 0, 0, 0x00AAF3)
 INST1(r_stosd, "rep stosd"    , 0, IUM_RD, 0, 0, 0x00ABF3)
-#ifndef LEGACY_BACKEND
+#if !defined(LEGACY_BACKEND) && defined(_TARGET_AMD64_)
 INST1(r_stosq, "rep stosq"    , 0, IUM_RD, 0, 0, 0xF3AB48)
-#endif // !LEGACY_BACKEND
+#endif // !LEGACY_BACKEND || !defined(_TARGET_AMD64_)
 INST1(stosb,   "stosb"        , 0, IUM_RD, 0, 0, 0x0000AA)
 INST1(stosd,   "stosd"        , 0, IUM_RD, 0, 0, 0x0000AB)
-#ifndef LEGACY_BACKEND
+#if !defined(LEGACY_BACKEND) && defined(_TARGET_AMD64_)
 INST1(stosq,   "stosq"        , 0, IUM_RD, 0, 0, 0x00AB48)
-#endif // !LEGACY_BACKEND
+#endif // !LEGACY_BACKEND || !defined(_TARGET_AMD64_)
 
 INST1(int3   , "int3"         , 0, IUM_RD, 0, 0, 0x0000CC)
 INST1(nop    , "nop"          , 0, IUM_RD, 0, 0, 0x000090)
@@ -420,7 +428,6 @@ INST1(fcomi  , "fcomi"        , 1, IUM_RD, 0, 1, 0x00F0DB)
 INST1(fcomip , "fcomip"       , 1, IUM_RD, 0, 1, 0x00F0DF)
 
 INST1(fchs   , "fchs"         , 1, IUM_RW, 0, 1, 0x00E0D9)
-#if INLINE_MATH
 INST1(fabs   , "fabs"         , 1, IUM_RW, 0, 1, 0x00E1D9)
 INST1(fsin   , "fsin"         , 1, IUM_RW, 0, 1, 0x00FED9)
 INST1(fcos   , "fcos"         , 1, IUM_RW, 0, 1, 0x00FFD9)
@@ -429,7 +436,6 @@ INST1(fldl2e , "fldl2e"       , 1, IUM_RW, 0, 1, 0x00EAD9)
 INST1(frndint, "frndint"      , 1, IUM_RW, 0, 1, 0x00FCD9)
 INST1(f2xm1  , "f2xm1"        , 1, IUM_RW, 0, 1, 0x00F0D9)
 INST1(fscale , "fscale"       , 1, IUM_RW, 0, 1, 0x00FDD9)
-#endif
 
 INST1(fld1   , "fld1"         , 1, IUM_WR, 0, 0, 0x00E8D9)
 INST1(fldz   , "fldz"         , 1, IUM_WR, 0, 0, 0x00EED9)
@@ -531,3 +537,5 @@ INST0(align  , "align"        , 0, IUM_RD, 0, 0, BAD_CODE)
 #undef  INST4
 #undef  INST5
 /*****************************************************************************/
+
+// clang-format on

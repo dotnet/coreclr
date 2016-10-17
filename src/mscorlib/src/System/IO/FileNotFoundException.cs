@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -22,7 +23,7 @@ using System.Globalization;
 namespace System.IO {
     // Thrown when trying to access a file that doesn't exist on disk.
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
+    [System.Runtime.InteropServices.ComVisible(true)]
     public class FileNotFoundException : IOException {
 
         private String _fileName;  // The name of the file that isn't found.
@@ -92,7 +93,6 @@ namespace System.IO {
             if (StackTrace != null)
                 s += Environment.NewLine + StackTrace;
 
-#if FEATURE_FUSION            
             try
             {
                 if(FusionLog!=null)
@@ -108,7 +108,6 @@ namespace System.IO {
             {
             
             }
-#endif            
             return s;
             
         }
@@ -125,7 +124,6 @@ namespace System.IO {
             {
                 _fusionLog = null;
             }
-            
         }
 
         private FileNotFoundException(String fileName, String fusionLog,int hResult)
@@ -137,15 +135,11 @@ namespace System.IO {
             SetMessageField();
         }
 
-#if FEATURE_FUSION
         public String FusionLog {
             [System.Security.SecuritySafeCritical]  // auto-generated
-            [SecurityPermissionAttribute( SecurityAction.Demand, Flags = SecurityPermissionFlag.ControlEvidence | SecurityPermissionFlag.ControlPolicy)]
             get { return _fusionLog; }
         }
-#endif
 
-#if FEATURE_SERIALIZATION
         [System.Security.SecurityCritical]  // auto-generated_required
         public override void GetObjectData(SerializationInfo info, StreamingContext context) {
             // Serialize data for our base classes.  base will verify info != null.
@@ -162,7 +156,6 @@ namespace System.IO {
             {
             }
         }
-#endif
     }
 }
 

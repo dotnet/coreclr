@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================================
 **
@@ -28,7 +27,7 @@ int testvswp(wchar_t* buf, const wchar_t* format, ...)
 	return( retVal);
 }
 
-void DoWStrTest(WCHAR *formatstr, WCHAR *param, WCHAR *checkstr)
+void DoWStrTest(const WCHAR *formatstr, WCHAR *param, const WCHAR *checkstr)
 {
     WCHAR buf[256] = { 0 };
 
@@ -43,7 +42,7 @@ void DoWStrTest(WCHAR *formatstr, WCHAR *param, WCHAR *checkstr)
     }
 }
 
-void DoStrTest(WCHAR *formatstr, char *param, WCHAR *checkstr)
+void DoStrTest(const WCHAR *formatstr, char *param, const WCHAR *checkstr)
 {
     WCHAR buf[256] = { 0 };
 
@@ -58,7 +57,7 @@ void DoStrTest(WCHAR *formatstr, char *param, WCHAR *checkstr)
     }
 }
 
-void DoCharTest(WCHAR *formatstr, char param, WCHAR *checkstr)
+void DoCharTest(const WCHAR *formatstr, char param, const WCHAR *checkstr)
 {
     WCHAR buf[256] = { 0 };
 
@@ -72,7 +71,7 @@ void DoCharTest(WCHAR *formatstr, char param, WCHAR *checkstr)
     }    
 }
 
-void DoWCharTest(WCHAR *formatstr, WCHAR param, WCHAR *checkstr)
+void DoWCharTest(const WCHAR *formatstr, WCHAR param, const WCHAR *checkstr)
 {
     WCHAR buf[256] = { 0 };
 
@@ -86,7 +85,7 @@ void DoWCharTest(WCHAR *formatstr, WCHAR param, WCHAR *checkstr)
     }    
 }
 
-void DoNumTest(WCHAR *formatstr, int value, WCHAR*checkstr)
+void DoNumTest(const WCHAR *formatstr, int value, const WCHAR *checkstr)
 {
     WCHAR buf[256] = { 0 };
 
@@ -99,7 +98,7 @@ void DoNumTest(WCHAR *formatstr, int value, WCHAR*checkstr)
     }    
 }
 
-void DoI64NumTest(WCHAR *formatstr, INT64 value, char *valuestr, WCHAR*checkstr)
+void DoI64NumTest(const WCHAR *formatstr, INT64 value, char *valuestr, const WCHAR *checkstr)
 {
     WCHAR buf[256] = { 0 };
 
@@ -111,7 +110,7 @@ void DoI64NumTest(WCHAR *formatstr, INT64 value, char *valuestr, WCHAR*checkstr)
             convertC(checkstr), convertC(buf));
     }    
 }
-void DoDoubleTest(WCHAR *formatstr, double value, WCHAR *checkstr1, WCHAR
+void DoDoubleTest(const WCHAR *formatstr, double value, const WCHAR *checkstr1, WCHAR
  *checkstr2)
 {
     WCHAR buf[256] = { 0 };

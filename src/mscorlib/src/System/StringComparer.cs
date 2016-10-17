@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 namespace System {
@@ -239,8 +240,7 @@ namespace System {
             }
 
 #if FEATURE_COREFX_GLOBALIZATION
-            // TODO: Implement this fully.
-            throw new NotImplementedException();
+            return _compareInfo.GetHashCodeOfStringCore(obj, options, true, _entropy);
 #else
             return _compareInfo.GetHashCodeOfString(obj, options, true, _entropy);
 #endif
@@ -394,8 +394,7 @@ namespace System {
 
             if( _ignoreCase) {
 #if FEATURE_COREFX_GLOBALIZATION
-                // TODO: Implement this fully.
-                throw new NotImplementedException();
+                return CultureInfo.InvariantCulture.CompareInfo.GetHashCodeOfStringCore(obj, CompareOptions.IgnoreCase, true, _entropy);
 #else
                 return TextInfo.GetHashCodeOrdinalIgnoreCase(obj, true, _entropy);
 #endif

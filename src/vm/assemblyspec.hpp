@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -43,6 +42,14 @@ class AssemblySpec  : public BaseAssemblySpec
     DWORD            m_dwHashAlg;
     DomainAssembly  *m_pParentAssembly;
 
+#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
+    // Contains the reference to the fallback load context associated with RefEmitted assembly requesting the load of another assembly (static or dynamic)
+    ICLRPrivBinder *m_pFallbackLoadContextBinder;
+
+    // Flag to indicate if we should prefer the fallback load context binder for binding or not.
+    bool m_fPreferFallbackLoadContextBinder;
+#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
+
     BOOL IsValidAssemblyName();
     
     HRESULT InitializeSpecInternal(mdToken kAssemblyRefOrDef, 
@@ -68,6 +75,12 @@ class AssemblySpec  : public BaseAssemblySpec
     {
         LIMITED_METHOD_CONTRACT;
         m_pParentAssembly = NULL;
+
+#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
+        m_pFallbackLoadContextBinder = NULL;     
+        m_fPreferFallbackLoadContextBinder = false;   
+#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
+
     }
 #endif //!DACCESS_COMPILE
 
@@ -75,6 +88,12 @@ class AssemblySpec  : public BaseAssemblySpec
     { 
         LIMITED_METHOD_CONTRACT
         m_pParentAssembly = NULL;
+
+#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
+        m_pFallbackLoadContextBinder = NULL;
+        m_fPreferFallbackLoadContextBinder = false;        
+#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
+
     }
 
 #ifdef FEATURE_FUSION
@@ -151,15 +170,43 @@ class AssemblySpec  : public BaseAssemblySpec
 #ifdef FEATURE_FUSION
         if (pAssembly)
         {
-#ifdef FEATURE_HOSTED_BINDER
             _ASSERTE(GetHostBinder() == nullptr);
-#endif // FEATURE_HOSTED_BINDER
             m_fParentLoadContext=pAssembly->GetFile()->GetLoadContext();
         }
         else
             m_fParentLoadContext = LOADCTX_TYPE_DEFAULT;
 #endif
     }
+
+#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
+    void SetFallbackLoadContextBinderForRequestingAssembly(ICLRPrivBinder *pFallbackLoadContextBinder)
+    {
+       LIMITED_METHOD_CONTRACT;
+
+        m_pFallbackLoadContextBinder = pFallbackLoadContextBinder;
+    }
+
+    ICLRPrivBinder* GetFallbackLoadContextBinderForRequestingAssembly()
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        return m_pFallbackLoadContextBinder;
+    }
+
+    void SetPreferFallbackLoadContextBinder()
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        m_fPreferFallbackLoadContextBinder = true;
+    }
+
+    bool GetPreferFallbackLoadContextBinder()
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        return m_fPreferFallbackLoadContextBinder;
+    }
+#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
 
     // Note that this method does not clone the fields!
     void CopyFrom(AssemblySpec* pSource)
@@ -176,6 +223,13 @@ class AssemblySpec  : public BaseAssemblySpec
 
         SetIntrospectionOnly(pSource->IsIntrospectionOnly());
         SetParentAssembly(pSource->GetParentAssembly());
+
+#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
+        // Copy the details of the fallback load context binder
+        SetFallbackLoadContextBinderForRequestingAssembly(pSource->GetFallbackLoadContextBinderForRequestingAssembly());
+        m_fPreferFallbackLoadContextBinder = pSource->GetPreferFallbackLoadContextBinder();
+#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
+
         m_HashForControl = pSource->m_HashForControl;
         m_dwHashAlg = pSource->m_dwHashAlg;
     }
@@ -331,14 +385,13 @@ class AssemblySpec  : public BaseAssemblySpec
     inline BOOL CanUseWithBindingCache() const
     {
         STATIC_CONTRACT_LIMITED_METHOD;
-#if defined(FEATURE_HOSTED_BINDER) && defined(FEATURE_APPX_BINDER)
+#if defined(FEATURE_APPX_BINDER)
         return (GetHostBinder() == nullptr) && HasUniqueIdentity();
 #else
         return HasUniqueIdentity(); 
 #endif
     }
 
-#ifdef FEATURE_HOSTED_BINDER
     inline ICLRPrivBinder *GetHostBinder() const
     {
         LIMITED_METHOD_CONTRACT;
@@ -350,7 +403,6 @@ class AssemblySpec  : public BaseAssemblySpec
         LIMITED_METHOD_CONTRACT;
         m_pHostBinder = pHostBinder;
     }
-#endif
 
 };
 

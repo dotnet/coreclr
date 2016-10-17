@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*****************************************************************************
  **                                                                         **
@@ -58,6 +57,11 @@
 class ICeeFileGen;
 
 typedef void *HCEEFILE;
+
+#ifdef FEATURE_CORECLR
+EXTERN_C HRESULT __stdcall CreateICeeFileGen(ICeeFileGen** pCeeFileGen);
+EXTERN_C HRESULT __stdcall DestroyICeeFileGen(ICeeFileGen ** ppCeeFileGen);
+#endif
 
 typedef HRESULT (__stdcall * PFN_CreateICeeFileGen)(ICeeFileGen ** ceeFileGen);  // call this to instantiate an ICeeFileGen interface
 typedef HRESULT (__stdcall * PFN_DestroyICeeFileGen)(ICeeFileGen ** ceeFileGen); // call this to delete an ICeeFileGen

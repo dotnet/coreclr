@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -144,7 +143,9 @@ protected:
     FatTokenSet *m_pFatTokenSet;
 #endif
 
+#ifndef CROSSGEN_COMPILE
     VirtualCallStubManager *m_pVirtualCallStubManager;
+#endif
 
 private:
     typedef SHash<PtrSetSHashTraits<LoaderAllocator * > > LoaderAllocatorSet;
@@ -432,11 +433,13 @@ public:
 
     void InitVirtualCallStubManager(BaseDomain *pDomain, BOOL fCollectible = FALSE);
     void UninitVirtualCallStubManager();
+#ifndef CROSSGEN_COMPILE
     inline VirtualCallStubManager *GetVirtualCallStubManager()
     {
         LIMITED_METHOD_CONTRACT;
         return m_pVirtualCallStubManager;
     }
+#endif
 };  // class LoaderAllocator
 
 typedef VPTR(LoaderAllocator) PTR_LoaderAllocator;

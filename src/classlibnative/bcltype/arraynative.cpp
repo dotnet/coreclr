@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: ArrayNative.cpp
 //
@@ -40,13 +39,15 @@ FCIMPL2(INT32, ArrayNative::GetLowerBound, ArrayBase* array, unsigned int dimens
 
     if (array == NULL)
         FCThrow(kNullReferenceException);
-
-    // What is this an array of?
-    MethodTable *pArrayMT = array->GetMethodTable();
-    DWORD Rank = pArrayMT->GetRank();
-
-    if (dimension >= Rank)
-        FCThrowRes(kIndexOutOfRangeException, W("IndexOutOfRange_ArrayRankIndex"));
+    
+    if (dimension != 0)
+    {
+        // Check the dimension is within our rank
+        unsigned int rank = array->GetRank();
+    
+        if (dimension >= rank)
+            FCThrowRes(kIndexOutOfRangeException, W("IndexOutOfRange_ArrayRankIndex"));
+    }
 
     return array->GetLowerBoundsPtr()[dimension];
 }
@@ -62,13 +63,15 @@ FCIMPL2(INT32, ArrayNative::GetUpperBound, ArrayBase* array, unsigned int dimens
 
     if (array == NULL)
         FCThrow(kNullReferenceException);
-
-    // What is this an array of?
-    MethodTable *pArrayMT = array->GetMethodTable();
-    DWORD Rank = pArrayMT->GetRank();
-
-    if (dimension >= Rank)
-        FCThrowRes(kIndexOutOfRangeException, W("IndexOutOfRange_ArrayRankIndex"));
+    
+    if (dimension != 0)
+    {
+        // Check the dimension is within our rank
+        unsigned int rank = array->GetRank();
+    
+        if (dimension >= rank)
+            FCThrowRes(kIndexOutOfRangeException, W("IndexOutOfRange_ArrayRankIndex"));
+    }
 
     return array->GetBoundsPtr()[dimension] + array->GetLowerBoundsPtr()[dimension] - 1;
 }
@@ -83,9 +86,15 @@ FCIMPL2(INT32, ArrayNative::GetLength, ArrayBase* array, unsigned int dimension)
 
     if (array==NULL)
         FCThrow(kNullReferenceException);
-    unsigned int rank = array->GetRank();
-    if (dimension >= rank)
-        FCThrow(kIndexOutOfRangeException);
+    
+    if (dimension != 0)
+    {
+        // Check the dimension is within our rank
+        unsigned int rank = array->GetRank();
+        if (dimension >= rank)
+            FCThrow(kIndexOutOfRangeException);
+    }
+    
     return array->GetBoundsPtr()[dimension];
 }
 FCIMPLEND
@@ -952,7 +961,7 @@ void memmoveGCRefs(void *dest, const void *src, size_t len)
         }
     }
 
-    GCHeap::GetGCHeap()->SetCardsAfterBulkCopy((Object**)dest, len);
+    GCHeapUtilities::GetGCHeap()->SetCardsAfterBulkCopy((Object**)dest, len);
 }
 
 void ArrayNative::ArrayCopyNoTypeCheck(BASEARRAYREF pSrc, unsigned int srcIndex, BASEARRAYREF pDest, unsigned int destIndex, unsigned int length)
@@ -1203,9 +1212,9 @@ void ArrayNative::CheckElementType(TypeHandle elementType)
         }        
 #endif // !FEATURE_CORECLR
 
-        // Check for TypedReference, ArgIterator and RuntimeArgument.
-        if (pMT->ContainsStackPtr())
-            COMPlusThrow(kNotSupportedException, W("NotSupported_ContainsStackPtr[]"));
+        // Check for byref-like types.
+        if (pMT->IsByRefLike())
+            COMPlusThrow(kNotSupportedException, W("NotSupported_ByRefLike[]"));
 
         // Check for open generic types.
         if (pMT->IsGenericTypeDefinition() || pMT->ContainsGenericVariables())
@@ -1228,7 +1237,7 @@ void ArrayNative::CheckElementType(TypeHandle elementType)
 
     // ByRefs and generic type variables are never allowed.
     if (elementType.IsByRef() || elementType.IsGenericVariable())
-        COMPlusThrow(kNotSupportedException, W("NotSupported_ContainsStackPtr[]"));
+        COMPlusThrow(kNotSupportedException, W("NotSupported_Type"));
 
     // We can create pointers and function pointers, but it requires skip verification permission.
     CorElementType etType = elementType.GetSignatureCorElementType();
@@ -1240,7 +1249,7 @@ void ArrayNative::CheckElementType(TypeHandle elementType)
 
     // We shouldn't get here (it means we've encountered a new type of typehandle if we do).
     _ASSERTE(!"Shouldn't get here, unknown type handle type");
-    COMPlusThrow(kNotSupportedException, W("NotSupported_ContainsStackPtr[]"));
+    COMPlusThrow(kNotSupportedException);
 }
 
 FCIMPL4(Object*, ArrayNative::CreateInstance, void* elementTypeHandle, INT32 rank, INT32* pLengths, INT32* pLowerBounds)

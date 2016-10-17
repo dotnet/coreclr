@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*
  * GCHELPERS.CPP 
@@ -17,7 +16,7 @@
 #include "threads.h"
 #include "eetwain.h"
 #include "eeconfig.h"
-#include "gc.h"
+#include "gcheaputilities.h"
 #include "corhost.h"
 #include "threads.h"
 #include "fieldmarshaler.h"
@@ -36,6 +35,7 @@
 #endif // FEATURE_COMINTEROP
 
 #include "rcwwalker.h"
+#include "../gc/softwarewritewatch.h"
 
 //========================================================================
 //
@@ -51,13 +51,48 @@
             orObject = (ArrayBase *) OBJECTREFToObject(objref);
 
 
-inline alloc_context* GetThreadAllocContext()
+inline gc_alloc_context* GetThreadAllocContext()
 {
     WRAPPER_NO_CONTRACT;
 
-    assert(GCHeap::UseAllocationContexts());
+    assert(GCHeapUtilities::UseAllocationContexts());
 
     return & GetThread()->m_alloc_context;
+}
+
+// Checks to see if the given allocation size exceeds the
+// largest object size allowed - if it does, it throws
+// an OutOfMemoryException with a message indicating that
+// the OOM was not from memory pressure but from an object
+// being too large.
+inline void CheckObjectSize(size_t alloc_size)
+{
+    CONTRACTL {
+        THROWS;
+        GC_TRIGGERS;
+    } CONTRACTL_END;
+
+    size_t max_object_size;
+#ifdef BIT64
+    if (g_pConfig->GetGCAllowVeryLargeObjects())
+    {
+        max_object_size = (INT64_MAX - 7 - min_obj_size);
+    }
+    else
+#endif // BIT64
+    {
+        max_object_size = (INT32_MAX - 7 - min_obj_size);
+    }
+
+    if (alloc_size >= max_object_size)
+    {
+        if (g_pConfig->IsGCBreakOnOOMEnabled())
+        {
+            DebugBreak();
+        }
+
+        ThrowOutOfMemoryDimensionsExceeded();
+    }
 }
 
 
@@ -98,14 +133,21 @@ inline Object* Alloc(size_t size, BOOL bFinalize, BOOL bContainsPointers )
                    (bFinalize ? GC_ALLOC_FINALIZE : 0));
 
     Object *retVal = NULL;
+    CheckObjectSize(size);
 
     // We don't want to throw an SO during the GC, so make sure we have plenty
     // of stack before calling in.
     INTERIOR_STACK_PROBE_FOR(GetThread(), static_cast<unsigned>(DEFAULT_ENTRY_PROBE_AMOUNT * 1.5));
-    if (GCHeap::UseAllocationContexts())
-        retVal = GCHeap::GetGCHeap()->Alloc(GetThreadAllocContext(), size, flags);
+    if (GCHeapUtilities::UseAllocationContexts())
+        retVal = GCHeapUtilities::GetGCHeap()->Alloc(GetThreadAllocContext(), size, flags);
     else
-        retVal = GCHeap::GetGCHeap()->Alloc(size, flags);
+        retVal = GCHeapUtilities::GetGCHeap()->Alloc(size, flags);
+
+    if (!retVal)
+    {
+        ThrowOutOfMemory();
+    }
+
     END_INTERIOR_STACK_PROBE;
     return retVal;
 }
@@ -126,14 +168,20 @@ inline Object* AllocAlign8(size_t size, BOOL bFinalize, BOOL bContainsPointers, 
                    (bAlignBias ? GC_ALLOC_ALIGN8_BIAS : 0));
 
     Object *retVal = NULL;
+    CheckObjectSize(size);
 
     // We don't want to throw an SO during the GC, so make sure we have plenty
     // of stack before calling in.
     INTERIOR_STACK_PROBE_FOR(GetThread(), static_cast<unsigned>(DEFAULT_ENTRY_PROBE_AMOUNT * 1.5));
-    if (GCHeap::UseAllocationContexts())
-        retVal = GCHeap::GetGCHeap()->AllocAlign8(GetThreadAllocContext(), size, flags);
+    if (GCHeapUtilities::UseAllocationContexts())
+        retVal = GCHeapUtilities::GetGCHeap()->AllocAlign8(GetThreadAllocContext(), size, flags);
     else
-        retVal = GCHeap::GetGCHeap()->AllocAlign8(size, flags);
+        retVal = GCHeapUtilities::GetGCHeap()->AllocAlign8(size, flags);
+
+    if (!retVal)
+    {
+        ThrowOutOfMemory();
+    }
 
     END_INTERIOR_STACK_PROBE;
     return retVal;
@@ -169,11 +217,18 @@ inline Object* AllocLHeap(size_t size, BOOL bFinalize, BOOL bContainsPointers )
                    (bFinalize ? GC_ALLOC_FINALIZE : 0));
 
     Object *retVal = NULL;
+    CheckObjectSize(size);
 
     // We don't want to throw an SO during the GC, so make sure we have plenty
     // of stack before calling in.
     INTERIOR_STACK_PROBE_FOR(GetThread(), static_cast<unsigned>(DEFAULT_ENTRY_PROBE_AMOUNT * 1.5));
-    retVal = GCHeap::GetGCHeap()->AllocLHeap(size, flags);
+    retVal = GCHeapUtilities::GetGCHeap()->AllocLHeap(size, flags);
+
+    if (!retVal)
+    {
+        ThrowOutOfMemory();
+    }
+
     END_INTERIOR_STACK_PROBE;
     return retVal;
 }
@@ -427,7 +482,7 @@ OBJECTREF AllocateArrayEx(TypeHandle arrayType, INT32 *pArgs, DWORD dwNumArgs, B
     if (bAllocateInLargeHeap || 
         (totalSize >= LARGE_OBJECT_SIZE))
     {
-        GCHeap::GetGCHeap()->PublishObject((BYTE*)orArray);
+        GCHeapUtilities::GetGCHeap()->PublishObject((BYTE*)orArray);
     }
 
 #ifdef  _LOGALLOC
@@ -651,7 +706,7 @@ OBJECTREF   FastAllocatePrimitiveArray(MethodTable* pMT, DWORD cElements, BOOL b
 
     if (bPublish)
     {
-        GCHeap::GetGCHeap()->PublishObject((BYTE*)orObject);
+        GCHeapUtilities::GetGCHeap()->PublishObject((BYTE*)orObject);
     }
 
     // Notify the profiler of the allocation
@@ -860,7 +915,7 @@ STRINGREF SlowAllocateString( DWORD cchStringLength )
 
     if (ObjectSize >= LARGE_OBJECT_SIZE)
     {
-        GCHeap::GetGCHeap()->PublishObject((BYTE*)orObject);
+        GCHeapUtilities::GetGCHeap()->PublishObject((BYTE*)orObject);
     }
 
     // Notify the profiler of the allocation
@@ -1000,7 +1055,7 @@ OBJECTREF AllocateObject(MethodTable *pMT
         if ((baseSize >= LARGE_OBJECT_SIZE))
         {
             orObject->SetMethodTableForLargeObject(pMT);
-            GCHeap::GetGCHeap()->PublishObject((BYTE*)orObject);
+            GCHeapUtilities::GetGCHeap()->PublishObject((BYTE*)orObject);
         }
         else
         {
@@ -1183,6 +1238,13 @@ extern "C" HCIMPL2_RAW(VOID, JIT_CheckedWriteBarrier, Object **dst, Object *ref)
     updateGCShadow(dst, ref);     // support debugging write barrier
 #endif
 
+#ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+    if (SoftwareWriteWatch::IsEnabledForGCHeap())
+    {
+        SoftwareWriteWatch::SetDirty(dst, sizeof(*dst));
+    }
+#endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+
 #ifdef FEATURE_COUNT_GC_WRITE_BARRIERS
     if((BYTE*) dst >= g_ephemeral_low && (BYTE*) dst < g_ephemeral_high)
     {
@@ -1227,12 +1289,19 @@ extern "C" HCIMPL2_RAW(VOID, JIT_WriteBarrier, Object **dst, Object *ref)
     *dst = ref;
 
     // If the store above succeeded, "dst" should be in the heap.
-   assert(GCHeap::GetGCHeap()->IsHeapPointer((void*)dst));
+   assert(GCHeapUtilities::GetGCHeap()->IsHeapPointer((void*)dst));
 
 #ifdef WRITE_BARRIER_CHECK
     updateGCShadow(dst, ref);     // support debugging write barrier
 #endif
     
+#ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+    if (SoftwareWriteWatch::IsEnabledForGCHeap())
+    {
+        SoftwareWriteWatch::SetDirty(dst, sizeof(*dst));
+    }
+#endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+
 #ifdef FEATURE_COUNT_GC_WRITE_BARRIERS
     if((BYTE*) dst >= g_ephemeral_low && (BYTE*) dst < g_ephemeral_high)
     {
@@ -1266,7 +1335,7 @@ extern "C" HCIMPL2_RAW(VOID, JIT_WriteBarrierEnsureNonHeapTarget, Object **dst, 
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_NOTRIGGER;
 
-    assert(!GCHeap::GetGCHeap()->IsHeapPointer((void*)dst));
+    assert(!GCHeapUtilities::GetGCHeap()->IsHeapPointer((void*)dst));
 
     // no HELPER_METHOD_FRAME because we are MODE_COOPERATIVE, GC_NOTRIGGER
     
@@ -1293,7 +1362,14 @@ void ErectWriteBarrier(OBJECTREF *dst, OBJECTREF ref)
 #ifdef WRITE_BARRIER_CHECK
     updateGCShadow((Object**) dst, OBJECTREFToObject(ref));     // support debugging write barrier
 #endif
-    
+
+#ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+    if (SoftwareWriteWatch::IsEnabledForGCHeap())
+    {
+        SoftwareWriteWatch::SetDirty(dst, sizeof(*dst));
+    }
+#endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+
     if((BYTE*) OBJECTREFToObject(ref) >= g_ephemeral_low && (BYTE*) OBJECTREFToObject(ref) < g_ephemeral_high)
     {
         // VolatileLoadWithoutBarrier() is used here to prevent fetch of g_card_table from being reordered 
@@ -1314,12 +1390,19 @@ void ErectWriteBarrierForMT(MethodTable **dst, MethodTable *ref)
 
     *dst = ref;
 
-#ifdef _DEBUG
+#ifdef WRITE_BARRIER_CHECK
     updateGCShadow((Object **)dst, (Object *)ref);     // support debugging write barrier, updateGCShadow only cares that these are pointers
 #endif
     
     if (ref->Collectible())
     {
+#ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+        if (SoftwareWriteWatch::IsEnabledForGCHeap())
+        {
+            SoftwareWriteWatch::SetDirty(dst, sizeof(*dst));
+        }
+#endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+
         BYTE *refObject = *(BYTE **)((MethodTable*)ref)->GetLoaderAllocatorObjectHandle();
         if((BYTE*) refObject >= g_ephemeral_low && (BYTE*) refObject < g_ephemeral_high)
         {

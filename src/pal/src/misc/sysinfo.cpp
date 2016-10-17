@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -23,6 +22,7 @@ Revision History:
 
 #include "pal/palinternal.h"
 
+#include <sched.h>
 #include <errno.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -33,6 +33,7 @@ Revision History:
 #endif
 
 #include <sys/param.h>
+
 #if HAVE_SYS_VMPARAM_H
 #include <sys/vmparam.h>
 #endif  // HAVE_SYS_VMPARAM_H
@@ -44,6 +45,10 @@ Revision History:
 #if HAVE_MACH_VM_PARAM_H
 #include <mach/vm_param.h>
 #endif  // HAVE_MACH_VM_PARAM_H
+
+#if HAVE_MACHINE_VMPARAM_H
+#include <machine/vmparam.h>
+#endif  // HAVE_MACHINE_VMPARAM_H
 
 #if defined(_TARGET_MAC64)
 #include <mach/vm_statistics.h>
@@ -71,7 +76,7 @@ Revision History:
 
 SET_DEFAULT_DEBUG_CHANNEL(MISC);
 
-#if defined(__hppa__) || ( defined (_IA64_) && defined (_HPUX_) )
+#if defined(_HPUX_) && ( defined (_IA64_) || defined (__hppa__) )
 #include <sys/pstat.h>
 #include <sys/vmparam.h>
 #endif
@@ -130,7 +135,7 @@ GetSystemInfo(
     lpSystemInfo->dwActiveProcessorMask_PAL_Undefined = 0;
 
 #if HAVE_SYSCONF
-#if defined(__hppa__) || ( defined (_IA64_) && defined (_HPUX_) )
+#if defined(_HPUX_) && ( defined (_IA64_) || defined (__hppa__) )
     struct pst_dynamic psd;
     if (pstat_getdynamic(&psd, sizeof(psd), (size_t)1, 0) != -1) {
         nrcpus = psd.psd_proc_cnt;
@@ -166,7 +171,7 @@ GetSystemInfo(
 
 #ifdef VM_MAXUSER_ADDRESS
     lpSystemInfo->lpMaximumApplicationAddress = (PVOID) VM_MAXUSER_ADDRESS;
-#elif defined(__sun__) || defined(_AIX) || defined(__hppa__) || ( defined (_IA64_) && defined (_HPUX_) ) || defined(__LINUX__)
+#elif defined(__sun__) || defined(_AIX) || defined(__hppa__) || ( defined (_IA64_) && defined (_HPUX_) ) || defined(__linux__)
     lpSystemInfo->lpMaximumApplicationAddress = (PVOID) -1;
 #elif defined(USERLIMIT)
     lpSystemInfo->lpMaximumApplicationAddress = (PVOID) USERLIMIT;
@@ -195,7 +200,6 @@ GetSystemInfo(
     PERF_EXIT(GetSystemInfo);
 }
 
-#if defined(_AMD64_)
 /*++
 Function:
   GlobalMemoryStatusEx
@@ -286,6 +290,7 @@ GlobalMemoryStatusEx(
                 lpBuffer->dwMemoryLoad = (DWORD)((used_memory * 100) / lpBuffer->ullTotalPhys);
             }
         }
+        mach_port_deallocate(mach_task_self(), mach_port);
 #endif // __APPLE__
     }
 
@@ -308,8 +313,18 @@ DWORD
 PALAPI
 GetCurrentProcessorNumber()
 {
-    // TODO: implement this
-    return 0;
+#if HAVE_SCHED_GETCPU
+    return sched_getcpu();
+#else //HAVE_SCHED_GETCPU
+    return -1;
+#endif //HAVE_SCHED_GETCPU
+}
+
+BOOL
+PALAPI
+PAL_HasGetCurrentProcessorNumber()
+{
+    return HAVE_SCHED_GETCPU;
 }
 
 DWORD
@@ -325,4 +340,24 @@ PAL_GetLogicalCpuCountFromOS()
     return numLogicalCores;
 }
 
-#endif // defined(_AMD64_)
+size_t
+PALAPI
+PAL_GetLogicalProcessorCacheSizeFromOS()
+{
+    size_t cacheSize = 0;
+
+#ifdef _SC_LEVEL1_DCACHE_SIZE
+    cacheSize = max(cacheSize, sysconf(_SC_LEVEL1_DCACHE_SIZE));
+#endif
+#ifdef _SC_LEVEL2_CACHE_SIZE
+    cacheSize = max(cacheSize, sysconf(_SC_LEVEL2_CACHE_SIZE));
+#endif
+#ifdef _SC_LEVEL3_CACHE_SIZE
+    cacheSize = max(cacheSize, sysconf(_SC_LEVEL3_CACHE_SIZE));
+#endif
+#ifdef _SC_LEVEL4_CACHE_SIZE
+    cacheSize = max(cacheSize, sysconf(_SC_LEVEL4_CACHE_SIZE));
+#endif
+
+    return cacheSize;
+}

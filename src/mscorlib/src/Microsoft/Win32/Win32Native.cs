@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -89,7 +90,9 @@
 namespace Microsoft.Win32 {
     using System;
     using System.Security;
+#if FEATURE_IMPERSONATION
     using System.Security.Principal;
+#endif
     using System.Text;
     using System.Configuration.Assemblies;
     using System.Runtime.Remoting;
@@ -696,18 +699,20 @@ namespace Microsoft.Win32 {
         internal const String KERNEL32 = "kernel32.dll";
         internal const String USER32   = "user32.dll";
         internal const String OLE32    = "ole32.dll";
+        internal const String OLEAUT32 = "oleaut32.dll";
+        internal const String NTDLL    = "ntdll.dll";
 #else //FEATURE_PAL
         internal const String KERNEL32 = "libcoreclr";
         internal const String USER32   = "libcoreclr";
         internal const String OLE32    = "libcoreclr";
+        internal const String OLEAUT32 = "libcoreclr";
+        internal const String NTDLL    = "libcoreclr";
 #endif //FEATURE_PAL         
         internal const String ADVAPI32 = "advapi32.dll";
-        internal const String OLEAUT32 = "oleaut32.dll";
         internal const String SHELL32  = "shell32.dll";
         internal const String SHIM     = "mscoree.dll";
         internal const String CRYPT32  = "crypt32.dll";
         internal const String SECUR32  = "secur32.dll";
-        internal const String NTDLL    = "ntdll.dll";
 #if FEATURE_MAIN_CLR_MODULE_USES_CORE_NAME
         internal const String MSCORWKS = "coreclr.dll";
 #else //FEATURE_MAIN_CLR_MODULE_USES_CORE_NAME
@@ -756,7 +761,7 @@ namespace Microsoft.Win32 {
         internal static extern IntPtr LocalFree(IntPtr handle);
 
         // MSDN says the length is a SIZE_T.
-        [DllImport(KERNEL32, EntryPoint = "RtlZeroMemory")]
+        [DllImport(NTDLL, EntryPoint = "RtlZeroMemory")]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         internal static extern void ZeroMemory(IntPtr address, UIntPtr length);
 
@@ -829,11 +834,19 @@ namespace Microsoft.Win32 {
         [DllImport(KERNEL32, CharSet=CharSet.Unicode, ExactSpelling=true, EntryPoint="lstrlenW")]
         internal static extern int lstrlenW(IntPtr ptr);
 
-#if FEATURE_COMINTEROP
-        [DllImport(Win32Native.OLEAUT32, CharSet=CharSet.Unicode)]
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]            
+        [DllImport(Win32Native.OLEAUT32, CharSet = CharSet.Unicode)]
+        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         internal static extern IntPtr SysAllocStringLen(String src, int len);  // BSTR
 
+        [DllImport(Win32Native.OLEAUT32)]
+        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
+        internal static extern uint SysStringLen(IntPtr bstr);
+
+        [DllImport(Win32Native.OLEAUT32)]
+        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
+        internal static extern void SysFreeString(IntPtr bstr);
+
+#if FEATURE_COMINTEROP
         [DllImport(Win32Native.OLEAUT32)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]            
         internal static extern IntPtr SysAllocStringByteLen(byte[] str, uint len);  // BSTR
@@ -842,17 +855,12 @@ namespace Microsoft.Win32 {
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         internal static extern uint SysStringByteLen(IntPtr bstr);
 
-        [DllImport(Win32Native.OLEAUT32)]
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-        internal static extern uint SysStringLen(IntPtr bstr);
-
+#if FEATURE_LEGACYSURFACE
         [DllImport(Win32Native.OLEAUT32)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         internal static extern uint SysStringLen(SafeBSTRHandle bstr);
+#endif
 
-        [DllImport(Win32Native.OLEAUT32)]
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-        internal static extern void SysFreeString(IntPtr bstr);
 #endif
 
         [DllImport(KERNEL32)]
@@ -890,8 +898,17 @@ namespace Microsoft.Win32 {
         [DllImport(KERNEL32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
         internal unsafe static extern int GetLongPathName(char* path, char* longPathBuffer, int bufferLength);
 
+        [DllImport(KERNEL32, SetLastError = true, ExactSpelling = true)]
+        internal unsafe static extern uint GetFullPathNameW(char* path, uint numBufferChars, SafeHandle buffer, IntPtr mustBeZero);
+
         [DllImport(KERNEL32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
         internal static extern int GetLongPathName(String path, [Out]StringBuilder longPathBuffer, int bufferLength);
+
+        [DllImport(KERNEL32, SetLastError = true, ExactSpelling = true)]
+        internal static extern uint GetLongPathNameW(SafeHandle lpszShortPath, SafeHandle lpszLongPath, uint cchBuffer);
+
+        [DllImport(KERNEL32, SetLastError = true, CharSet = CharSet.Unicode, ExactSpelling = true)]
+        internal static extern uint GetLongPathNameW(string lpszShortPath, SafeHandle lpszLongPath, uint cchBuffer);
 
         // Disallow access to all non-file devices from methods that take
         // a String.  This disallows DOS devices like "con:", "com1:", 
@@ -1043,6 +1060,9 @@ namespace Microsoft.Win32 {
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static extern bool ReleaseSemaphore(SafeWaitHandle handle, int releaseCount, out int previousCount);
+
+        [DllImport(KERNEL32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
+        internal static extern SafeWaitHandle OpenSemaphore(/* DWORD */ int desiredAccess, bool inheritHandle, String name);
 
         // Will be in winnls.h
         internal const int FIND_STARTSWITH  = 0x00100000; // see if value is at the beginning of source
@@ -1281,6 +1301,9 @@ namespace Microsoft.Win32 {
         internal static extern int GetCurrentDirectory(
                   int nBufferLength,
                   [Out]StringBuilder lpBuffer);
+
+        [DllImport(KERNEL32, SetLastError = true, ExactSpelling = true)]
+        internal static extern uint GetCurrentDirectoryW(uint nBufferLength, SafeHandle lpBuffer);
 
         [DllImport(KERNEL32, SetLastError=true, CharSet=CharSet.Auto, BestFitMapping=false)]
         internal static extern bool GetFileAttributesEx(String name, int fileInfoLevel, ref WIN32_FILE_ATTRIBUTE_DATA lpFileInformation);
@@ -1750,7 +1773,7 @@ namespace Microsoft.Win32 {
         // DPAPI
         //
 
-#if FEATURE_COMINTEROP
+#if FEATURE_LEGACYSURFACE
         //
         // RtlEncryptMemory and RtlDecryptMemory are declared in the internal header file crypt.h. 
         // They were also recently declared in the public header file ntsecapi.h (in the Platform SDK as well as the current build of Server 2003). 
@@ -1772,7 +1795,7 @@ namespace Microsoft.Win32 {
             [In,Out] SafeBSTRHandle     pDataIn,
             [In]     uint       cbDataIn,   // multiple of RTL_ENCRYPT_MEMORY_SIZE
             [In]     uint       dwFlags);
-#endif // FEATURE_COMINTEROP
+#endif // FEATURE_LEGACYSURFACE
 
 #if FEATURE_CORECLR 
         [DllImport(NTDLL, CharSet=CharSet.Unicode, SetLastError=true)]
@@ -2322,23 +2345,12 @@ namespace Microsoft.Win32 {
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         internal static extern int LsaFreeReturnBuffer(IntPtr handle);
 
-#if FEATURE_IMPERSONATION || FEATURE_CORECLR
+#if FEATURE_IMPERSONATION
         [DllImport (ADVAPI32, CharSet=CharSet.Unicode, SetLastError=true)]
         internal static extern 
         bool OpenProcessToken (
             [In]     IntPtr                     ProcessToken,
             [In]     TokenAccessLevels          DesiredAccess,
-            [Out]    out SafeAccessTokenHandle  TokenHandle);
-#endif
-
-#if FEATURE_CORECLR
-        [DllImport (ADVAPI32, CharSet=CharSet.Unicode, SetLastError=true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern 
-        bool OpenThreadToken (
-            [In]     IntPtr                     ThreadHandle,
-            [In]     TokenAccessLevels          DesiredAccess,
-            [In, MarshalAs(UnmanagedType.Bool)]     bool OpenAsSelf,
             [Out]    out SafeAccessTokenHandle  TokenHandle);
 #endif
 
@@ -2411,11 +2423,33 @@ namespace Microsoft.Win32 {
         [return: MarshalAs(UnmanagedType.Bool)]
         internal extern static bool QueryUnbiasedInterruptTime(out ulong UnbiasedTime);
 
+#if FEATURE_CORECLR
 #if FEATURE_PAL
         [DllImport(KERNEL32, EntryPoint = "PAL_Random")]
-        [ResourceExposure(ResourceScope.None)]
         internal extern static bool Random(bool bStrong,
                            [Out, MarshalAs(UnmanagedType.LPArray)] byte[] buffer, int length);
+#else
+        private const int BCRYPT_USE_SYSTEM_PREFERRED_RNG = 0x00000002;
+
+        [DllImport("BCrypt.dll", CharSet = CharSet.Unicode)]
+        private static extern uint BCryptGenRandom(IntPtr hAlgorithm, [In, Out] byte[] pbBuffer, int cbBuffer, int dwFlags);
+
+        internal static void Random(bool bStrong, byte[] buffer, int length)
+        {
+            uint status = BCryptGenRandom(IntPtr.Zero, buffer, length, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+            if (status != STATUS_SUCCESS)
+            {
+                if (status == STATUS_NO_MEMORY)
+                {
+                    throw new OutOfMemoryException();
+                }
+                else
+                {
+                    throw new InvalidOperationException();
+                }
+            }
+        }
+#endif
 #endif
     }
 }

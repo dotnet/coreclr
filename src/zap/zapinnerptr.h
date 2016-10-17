@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // ZapInnerPtr.h
 //
@@ -34,11 +33,7 @@ public:
 
     void Resolve()
     {
-        if (
-#ifdef BINDER
-            !IsPlaced() && 
-#endif
-             m_pBase->IsPlaced())
+        if (m_pBase->IsPlaced())
         {
             SetRVA(m_pBase->GetRVA() + GetOffset());
         }
@@ -48,14 +43,6 @@ public:
     {
         return ZapNodeType_InnerPtr;
     }
-
-#if defined(TARGET_THUMB2) && defined(BINDER)
-    virtual BOOL IsThumb2Code()
-    {
-        return m_pBase->IsThumb2Code();
-    }
-#endif
-
 };
 
 class ZapInnerPtrTable

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -29,39 +28,22 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #ifdef _TARGET_ARM_
 
 #include "jit.h"
+#include "sideeffects.h"
 #include "lower.h"
 #include "lsra.h"
 
 /* Lowering of GT_CAST nodes */
-void Lowering::LowerCast(GenTreePtr *ppTree) { }
-
-
-void Lowering::LowerCntBlockOp(GenTreePtr *ppTree)
+void Lowering::LowerCast(GenTree* tree)
 {
-    NYI_ARM("ARM Lowering for BlockOp");
+    NYI_ARM("ARM Lowering for cast");
 }
 
-void Lowering::TreeNodeInfoInitCall(GenTree *tree, TreeNodeInfo &info, 
-                                    int &srcCount, // out 
-                                    int &dstCount  // out
-    )
+void Lowering::LowerRotate(GenTreePtr tree)
 {
-    NYI_ARM("ARM TreeNodeInfoInit for Call");
-}
-
-Compiler::fgWalkResult Lowering::TreeInfoInitHelper(GenTreePtr* pTree, Compiler::fgWalkData* data)
-{
-    Lowering* lower = (Lowering*)data->pCallbackData;
-    lower->TreeNodeInfoInit(pTree, data->parent);
-    return Compiler::WALK_CONTINUE;
+    NYI_ARM("ARM Lowering for ROL and ROR");
 }
 
 void Lowering::TreeNodeInfoInit(GenTree* stmt)
-{
-    comp->fgWalkTreePost(&stmt->gtStmt.gtStmtExpr, &Lowering::TreeInfoInitHelper, this);
-}
-
-void Lowering::TreeNodeInfoInit(GenTreePtr *pTree, GenTree* parent)
 {
     NYI("ARM TreeNodInfoInit");
 }
@@ -72,13 +54,13 @@ bool Lowering::isRMWRegOper(GenTreePtr tree)
     return false;
 }
 
-bool Lowering::IsCallTargetInRange(void *addr)
+bool Lowering::IsCallTargetInRange(void* addr)
 {
-    return comp->codeGen->validImmForBL ((ssize_t)addr);
+    return comp->codeGen->validImmForBL((ssize_t)addr);
 }
 
 // return true if the immediate can be folded into an instruction, for example small enough and non-relocatable
-bool Lowering:: IsContainableImmed(GenTree* parentNode, GenTree* childNode)
+bool Lowering::IsContainableImmed(GenTree* parentNode, GenTree* childNode)
 {
     NYI_ARM("ARM IsContainableImmed");
     return false;

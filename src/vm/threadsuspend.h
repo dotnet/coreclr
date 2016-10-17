@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // threadsuspend.h
 
 #ifndef _THREAD_SUSPEND_H_
@@ -196,6 +195,9 @@ private:
 public:
     static HRESULT SuspendRuntime(ThreadSuspend::SUSPEND_REASON reason);
     static void    ResumeRuntime(BOOL bFinishedGC, BOOL SuspendSucceded);
+
+    // Initialize thread suspension support
+    static void    Initialize();
 
 private:
     static CLREvent * g_pGCSuspendEvent;

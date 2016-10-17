@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -16,10 +15,10 @@ Module Name:
 
 #define max_generation 2
 
-// We pack the dynamic tuning for deciding which gen to condemn in a DWORD.
+// We pack the dynamic tuning for deciding which gen to condemn in a uint32_t.
 // We assume that 2 bits are enough to represent the generation. 
 #define bits_generation 2
-#define generation_mask (~(~0 << bits_generation))
+#define generation_mask (~(~0u << bits_generation))
 //=======================note !!!===================================//
 // If you add stuff to this enum, remember to update total_gen_reasons
 // and record_condemn_gen_reasons below.
@@ -27,7 +26,7 @@ Module Name:
 
 // These are condemned reasons related to generations.
 // Each reason takes up 2 bits as we have 3 generations.
-// So we can store up to 16 reasons in this DWORD.
+// So we can store up to 16 reasons in this uint32_t.
 // They need processing before being used.
 // See the set and the get method for details.
 enum gc_condemn_reason_gen
@@ -73,8 +72,8 @@ static char char_gen_number[4] = {'0', '1', '2', '3'};
 
 class gen_to_condemn_tuning
 {
-    DWORD condemn_reasons_gen;
-    DWORD condemn_reasons_condition;
+    uint32_t condemn_reasons_gen;
+    uint32_t condemn_reasons_condition;
 
 #ifdef DT_LOG
     char str_reasons_gen[64];
@@ -106,7 +105,7 @@ public:
         init_str();
     }
 
-    void set_gen (gc_condemn_reason_gen condemn_gen_reason, DWORD value)
+    void set_gen (gc_condemn_reason_gen condemn_gen_reason, uint32_t value)
     {
         assert ((value & (~generation_mask)) == 0);
         condemn_reasons_gen |= (value << (condemn_gen_reason * 2));
@@ -120,38 +119,38 @@ public:
     // This checks if condition_to_check is the only condition set.
     BOOL is_only_condition (gc_condemn_reason_condition condition_to_check)
     {
-        DWORD temp_conditions = 1 << condition_to_check;
+        uint32_t temp_conditions = 1 << condition_to_check;
         return !(condemn_reasons_condition ^ temp_conditions);
     }
 
-    DWORD get_gen (gc_condemn_reason_gen condemn_gen_reason)
+    uint32_t get_gen (gc_condemn_reason_gen condemn_gen_reason)
     {
-        DWORD value = ((condemn_reasons_gen >> (condemn_gen_reason * 2)) & generation_mask);
+        uint32_t value = ((condemn_reasons_gen >> (condemn_gen_reason * 2)) & generation_mask);
         return value;
     }
 
-    DWORD get_condition (gc_condemn_reason_condition condemn_gen_reason)
+    uint32_t get_condition (gc_condemn_reason_condition condemn_gen_reason)
     {
-        DWORD value = (condemn_reasons_condition & (1 << condemn_gen_reason));
+        uint32_t value = (condemn_reasons_condition & (1 << condemn_gen_reason));
         return value;
     }
 
-    DWORD get_reasons0()
+    uint32_t get_reasons0()
     {
         return condemn_reasons_gen;
     }
 
-    DWORD get_reasons1()
+    uint32_t get_reasons1()
     {
         return condemn_reasons_condition;
     }
 
 #ifdef DT_LOG
-    char get_gen_char (DWORD value)
+    char get_gen_char (uint32_t value)
     {
         return char_gen_number[value];
     }
-    char get_condition_char (DWORD value)
+    char get_condition_char (uint32_t value)
     {
         return (value ? 'Y' : 'N');
     }
@@ -190,7 +189,7 @@ struct maxgen_size_increase
     size_t condemned_allocated;
     size_t pinned_allocated;
     size_t pinned_allocated_advance;
-    DWORD running_free_list_efficiency;
+    uint32_t running_free_list_efficiency;
 };
 
 // The following indicates various mechanisms and one value
@@ -203,11 +202,13 @@ struct maxgen_size_increase
 // we'll record the can_expand_into_p result here.
 enum gc_heap_expand_mechanism
 {
-    expand_reuse_normal,
-    expand_reuse_bestfit,
-    expand_new_seg_ep, // new seg with ephemeral promotion
-    expand_new_seg,
-    expand_no_memory // we can't get a new seg.
+    expand_reuse_normal = 0,
+    expand_reuse_bestfit = 1,
+    expand_new_seg_ep = 2, // new seg with ephemeral promotion
+    expand_new_seg = 3,
+    expand_no_memory = 4, // we can't get a new seg.
+    expand_next_full_gc = 5, 
+    max_expand_mechanisms_count = 6
 };
 
 #ifdef DT_LOG
@@ -217,41 +218,83 @@ static char* str_heap_expand_mechanisms[] =
     "reused seg with best fit",
     "expand promoting eph",
     "expand with a new seg",
-    "no memory for a new seg"
+    "no memory for a new seg",
+    "expand in next full GC"
 };
 #endif //DT_LOG
 
-enum gc_compact_reason
+enum gc_heap_compact_reason
 {
-    compact_low_ephemeral,
-    compact_high_frag,
-    compact_no_gaps,
-    compact_loh_forced
+    compact_low_ephemeral = 0,
+    compact_high_frag = 1,
+    compact_no_gaps = 2,
+    compact_loh_forced = 3,
+    compact_last_gc = 4,
+    compact_induced_compacting = 5,
+    compact_fragmented_gen0 = 6, 
+    compact_high_mem_load = 7, 
+    compact_high_mem_frag = 8, 
+    compact_vhigh_mem_frag = 9,
+    compact_no_gc_mode = 10,
+    max_compact_reasons_count = 11
 };
 
+#ifndef DACCESS_COMPILE
+static BOOL gc_heap_compact_reason_mandatory_p[] =
+{
+    TRUE, //compact_low_ephemeral = 0,
+    FALSE, //compact_high_frag = 1,
+    TRUE, //compact_no_gaps = 2,
+    TRUE, //compact_loh_forced = 3,
+    TRUE, //compact_last_gc = 4
+    TRUE, //compact_induced_compacting = 5,
+    FALSE, //compact_fragmented_gen0 = 6, 
+    FALSE, //compact_high_mem_load = 7, 
+    TRUE, //compact_high_mem_frag = 8, 
+    TRUE, //compact_vhigh_mem_frag = 9,
+    TRUE //compact_no_gc_mode = 10
+};
+
+static BOOL gc_expand_mechanism_mandatory_p[] =
+{
+    FALSE, //expand_reuse_normal = 0,
+    TRUE, //expand_reuse_bestfit = 1,
+    FALSE, //expand_new_seg_ep = 2, // new seg with ephemeral promotion
+    TRUE, //expand_new_seg = 3,
+    FALSE, //expand_no_memory = 4, // we can't get a new seg.
+    TRUE //expand_next_full_gc = 5
+};
+#endif //!DACCESS_COMPILE
+
 #ifdef DT_LOG
-static char* str_compact_reasons[] = 
+static char* str_heap_compact_reasons[] = 
 {
     "low on ephemeral space",
     "high fragmetation",
     "couldn't allocate gaps",
-    "user specfied compact LOH"
-};
-#endif //DT_LOG
-
-#ifdef DT_LOG
-static char* str_concurrent_compact_reasons[] = 
-{
-    "high fragmentation",
-    "low on ephemeral space in concurrent marking"
+    "user specfied compact LOH",
+    "last GC before OOM",
+    "induced compacting GC",
+    "fragmented gen0 (ephemeral GC)", 
+    "high memory load (ephemeral GC)",
+    "high memory load and frag",
+    "very high memory load and frag",
+    "no gc mode"
 };
 #endif //DT_LOG
 
 enum gc_mechanism_per_heap
 {
     gc_heap_expand,
-    gc_compact,
+    gc_heap_compact,
     max_mechanism_per_heap
+};
+
+enum gc_mechanism_bit_per_heap
+{
+    gc_mark_list_bit = 0,
+    gc_demotion_bit = 1, 
+    max_gc_mechanism_bits_count = 2
 };
 
 #ifdef DT_LOG
@@ -264,13 +307,13 @@ struct gc_mechanism_descr
 static gc_mechanism_descr gc_mechanisms_descr[max_mechanism_per_heap] =
 {
     {"expanded heap ", str_heap_expand_mechanisms},
-    {"compacted because of ", str_compact_reasons}
+    {"compacted because of ", str_heap_compact_reasons}
 };
 #endif //DT_LOG
 
 int index_of_set_bit (size_t power2);
 
-#define mechanism_mask (1 << (sizeof (DWORD) * 8 - 1))
+#define mechanism_mask (1 << (sizeof (uint32_t) * 8 - 1))
 // interesting per heap data we want to record for each GC.
 class gc_history_per_heap
 {
@@ -281,34 +324,51 @@ public:
 
     // The mechanisms data is compacted in the following way:
     // most significant bit indicates if we did the operation.
-    // the rest of the bits indicate the reason
+    // the rest of the bits indicate the reason/mechanism
     // why we chose to do the operation. For example:
     // if we did a heap expansion using best fit we'd have
     // 0x80000002 for the gc_heap_expand mechanism.
     // Only one value is possible for each mechanism - meaning the 
     // values are all exclusive
-    DWORD mechanisms[max_mechanism_per_heap];
+    // TODO: for the config stuff I need to think more about how to represent this
+    // because we might want to know all reasons (at least all mandatory ones) for 
+    // compact.
+    // TODO: no need to the MSB for this
+    uint32_t mechanisms[max_mechanism_per_heap];
 
-    DWORD heap_index; 
+    // Each bit in this uint32_t represent if a mechanism was used or not.
+    uint32_t machanism_bits;
+
+    uint32_t heap_index; 
 
     size_t extra_gen0_committed;
 
-    void set_mechanism (gc_mechanism_per_heap mechanism_per_heap, DWORD value)
+    void set_mechanism (gc_mechanism_per_heap mechanism_per_heap, uint32_t value);
+
+    void set_mechanism_bit (gc_mechanism_bit_per_heap mech_bit)
     {
-        DWORD* mechanism = &mechanisms[mechanism_per_heap];
-        *mechanism |= mechanism_mask;
-        *mechanism |= (1 << value);
+        machanism_bits |= 1 << mech_bit;
     }
 
-    void clear_mechanism (gc_mechanism_per_heap mechanism_per_heap)
+    void clear_mechanism_bit (gc_mechanism_bit_per_heap mech_bit)
     {
-        DWORD* mechanism = &mechanisms[mechanism_per_heap];
+        machanism_bits &= ~(1 << mech_bit);
+    }
+
+    BOOL is_mechanism_bit_set (gc_mechanism_bit_per_heap mech_bit)
+    {
+        return (machanism_bits & (1 << mech_bit));
+    }
+    
+    void clear_mechanism(gc_mechanism_per_heap mechanism_per_heap)
+    {
+        uint32_t* mechanism = &mechanisms[mechanism_per_heap];
         *mechanism = 0;
     }
 
     int get_mechanism (gc_mechanism_per_heap mechanism_per_heap)
     {
-        DWORD mechanism = mechanisms[mechanism_per_heap];
+        uint32_t mechanism = mechanisms[mechanism_per_heap];
 
         if (mechanism & mechanism_mask)
         {
@@ -327,12 +387,12 @@ public:
 enum gc_global_mechanism_p
 {
     global_concurrent = 0,
-    global_compaction,
-    global_promotion,
-    global_demotion,
-    global_card_bundles,
-    global_elevation,
-    max_global_mechanism
+    global_compaction = 1,
+    global_promotion = 2,
+    global_demotion = 3,
+    global_card_bundles = 4,
+    global_elevation = 5,
+    max_global_mechanisms_count
 };
 
 struct gc_history_global
@@ -341,13 +401,13 @@ struct gc_history_global
     // desired_new_allocation such as equalization or smoothing so
     // record the final budget here. 
     size_t final_youngest_desired;
-    DWORD num_heaps;
+    uint32_t num_heaps;
     int condemned_generation;
     int gen0_reduction_count;
     gc_reason reason;
     int pause_mode;
-    DWORD mem_pressure;
-    DWORD global_mechanims_p;
+    uint32_t mem_pressure;
+    uint32_t global_mechanims_p;
 
     void set_mechanism_p (gc_global_mechanism_p mechanism)
     {

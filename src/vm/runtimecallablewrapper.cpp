@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -679,7 +678,7 @@ OBJECTREF ComClassFactory::CreateInstance(MethodTable* pMTClass, BOOL ForManaged
 
 //--------------------------------------------------------------
 // Init the ComClassFactory.
-void ComClassFactory::Init(__in_opt __in_z WCHAR* pwszProgID, __in_opt __in_z WCHAR* pwszServer, MethodTable* pClassMT)
+void ComClassFactory::Init(__in_opt WCHAR* pwszProgID, __in_opt WCHAR* pwszServer, MethodTable* pClassMT)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -1592,7 +1591,7 @@ public:
 
         if (pRCW->IsValid())
         {
-            if (!GCHeap::GetGCHeap()->IsPromoted(OBJECTREFToObject(pRCW->GetExposedObject())) &&
+            if (!GCHeapUtilities::GetGCHeap()->IsPromoted(OBJECTREFToObject(pRCW->GetExposedObject())) &&
                 !pRCW->IsDetached())
             {
                 // No need to use InterlockedOr here since every other place that modifies the flags
@@ -1613,7 +1612,7 @@ void RCWCache::DetachWrappersWorker()
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(GCHeap::IsGCInProgress()); // GC is in progress and the runtime is suspended
+        PRECONDITION(GCHeapUtilities::IsGCInProgress()); // GC is in progress and the runtime is suspended
     }
     CONTRACTL_END;
 
@@ -2809,7 +2808,7 @@ void RCW::MinorCleanup()
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(GCHeap::IsGCInProgress() || ( (g_fEEShutDown & ShutDown_SyncBlock) && g_fProcessDetach ));
+        PRECONDITION(GCHeapUtilities::IsGCInProgress() || ( (g_fEEShutDown & ShutDown_SyncBlock) && g_fProcessDetach ));
     }
     CONTRACTL_END;
     

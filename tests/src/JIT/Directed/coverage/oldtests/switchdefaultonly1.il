@@ -1,7 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 .assembly extern legacy library mscorlib {}
+.assembly extern System.Console
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
 .assembly switchdefaultonly1 {}
 .class private auto ansi beforefieldinit switchdefaultonly1
        extends [mscorlib]System.Object
@@ -24,7 +30,7 @@
     IL_0026:  ldarg.0
     IL_0027:  ldlen
     IL_0028:  conv.i4
-    IL_0029:  call       void [mscorlib]System.Console::WriteLine(int32)
+    IL_0029:  call       void [System.Console]System.Console::WriteLine(int32)
     IL_002e:  br.s       IL_0030
 
     IL_0030:  ldc.i4 100	ret

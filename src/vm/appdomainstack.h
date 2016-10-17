@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // Appdomainstack.h -
 //
 
@@ -56,7 +55,7 @@ class AppDomainStack
 public:
     AppDomainStack() : m_numEntries(0), m_pExtraStack(NULL), m_ExtraStackSize(0), m_dwOverridesCount(0), m_dwAsserts(0), m_dwThreadWideSpecialFlags(0xFFFFFFFF)
     {
-        WRAPPER_NO_CONTRACT;
+        LIMITED_METHOD_CONTRACT;
         FillEntries(m_pStack, ADSTACK_BLOCK_SIZE);
     }
 

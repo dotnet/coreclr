@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 //  util.cpp
 //
@@ -18,6 +17,7 @@
 #include "loaderheap.h"
 #include "sigparser.h"
 #include "cor.h"
+#include "corinfo.h"
 
 #ifndef FEATURE_CORECLR
 #include "metahost.h"
@@ -56,12 +56,12 @@ void InitWinRTStatus()
     const WCHAR wszComBaseDll[] = W("\\combase.dll");
     const SIZE_T cchComBaseDll = _countof(wszComBaseDll);
 
-    WCHAR wszComBasePath[MAX_PATH + 1];
+    WCHAR wszComBasePath[MAX_LONGPATH + 1];
     const SIZE_T cchComBasePath = _countof(wszComBasePath);
 
     ZeroMemory(wszComBasePath, cchComBasePath * sizeof(wszComBasePath[0]));
 
-    UINT cchSystemDirectory = WszGetSystemDirectory(wszComBasePath, MAX_PATH);
+    UINT cchSystemDirectory = WszGetSystemDirectory(wszComBasePath, MAX_LONGPATH);
 
     // Make sure that we're only probing in the system directory.  If we can't find the system directory, or
     // we find it but combase.dll doesn't fit into it, we'll fall back to a safe default of saying that WinRT
@@ -263,8 +263,8 @@ HRESULT FakeCoCreateInstanceEx(REFCLSID       rclsid,
     HRESULT hr = S_OK;
 
     // Call the function to get a class factory for the rclsid passed in.
-    ReleaseHolder<IClassFactory> classFactory;
     HModuleHolder hDll;
+    ReleaseHolder<IClassFactory> classFactory;
     IfFailRet(FakeCoCallDllGetClassObject(rclsid, wszDllPath, _IID_IClassFactory, (void**)&classFactory, &hDll));
 
     // Ask the class factory to create an instance of the
@@ -526,6 +526,13 @@ BYTE * ClrVirtualAllocExecutable(SIZE_T dwSize,
     // Fall through to 
 #endif // USE_UPPER_ADDRESS
 
+#ifdef FEATURE_PAL
+    // Tell PAL to use the executable memory allocator to satisfy this request for virtual memory.
+    // This will allow us to place JIT'ed code close to the coreclr library
+    // and thus improve performance by avoiding jump stubs in managed code.
+    flAllocationType |= MEM_RESERVE_EXECUTABLE;
+#endif // FEATURE_PAL
+
     return (BYTE *) ClrVirtualAlloc (NULL, dwSize, flAllocationType, flProtect);
 
 }
@@ -678,32 +685,20 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
 // NumaNodeInfo 
 //******************************************************************************
 #if !defined(FEATURE_REDHAWK) && !defined(FEATURE_PAL)
-#if !defined(FEATURE_CORESYSTEM)
-/*static*/ NumaNodeInfo::PGNPN    NumaNodeInfo::m_pGetNumaProcessorNode = NULL;
-#endif
 /*static*/ NumaNodeInfo::PGNHNN NumaNodeInfo::m_pGetNumaHighestNodeNumber = NULL;
 /*static*/ NumaNodeInfo::PVAExN NumaNodeInfo::m_pVirtualAllocExNuma = NULL;
-
-#if !defined(FEATURE_CORESYSTEM)
-/*static*/ BOOL NumaNodeInfo::GetNumaProcessorNode(UCHAR proc_no, PUCHAR node_no)
-{
-    return (*m_pGetNumaProcessorNode)(proc_no, node_no);
-}
-#endif
 
 /*static*/ LPVOID NumaNodeInfo::VirtualAllocExNuma(HANDLE hProc, LPVOID lpAddr, SIZE_T dwSize,
 		    		     DWORD allocType, DWORD prot, DWORD node)
 {
     return (*m_pVirtualAllocExNuma)(hProc, lpAddr, dwSize, allocType, prot, node);
 }
-#if !defined(FEATURE_CORECLR) || defined(FEATURE_CORESYSTEM)
 /*static*/ NumaNodeInfo::PGNPNEx NumaNodeInfo::m_pGetNumaProcessorNodeEx = NULL;
 
 /*static*/ BOOL NumaNodeInfo::GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, PUSHORT node_no)
 {
     return (*m_pGetNumaProcessorNodeEx)(proc_no, node_no);
 }
-#endif
 #endif
 
 /*static*/ BOOL NumaNodeInfo::m_enableGCNumaAware = FALSE;
@@ -729,17 +724,9 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
     if (!m_pGetNumaHighestNodeNumber(&highest) || (highest == 0))
         return FALSE;
 
-#if !defined(FEATURE_CORESYSTEM)
-    m_pGetNumaProcessorNode = (PGNPN) GetProcAddress(hMod, "GetNumaProcessorNode");
-    if (m_pGetNumaProcessorNode == NULL)
-        return FALSE;
-#endif
-
-#if !defined(FEATURE_CORECLR) || defined(FEATURE_CORESYSTEM)
     m_pGetNumaProcessorNodeEx = (PGNPNEx) GetProcAddress(hMod, "GetNumaProcessorNodeEx");
     if (m_pGetNumaProcessorNodeEx == NULL)
         return FALSE;
-#endif
 
     m_pVirtualAllocExNuma = (PVAExN) GetProcAddress(hMod, "VirtualAllocExNuma");
     if (m_pVirtualAllocExNuma == NULL)
@@ -768,10 +755,8 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
 /*static*/ CPUGroupInfo::PGLPIEx CPUGroupInfo::m_pGetLogicalProcessorInformationEx = NULL;
 /*static*/ CPUGroupInfo::PSTGA   CPUGroupInfo::m_pSetThreadGroupAffinity = NULL;
 /*static*/ CPUGroupInfo::PGTGA   CPUGroupInfo::m_pGetThreadGroupAffinity = NULL;
-#if !defined(FEATURE_CORESYSTEM) && !defined(FEATURE_CORECLR)
 /*static*/ CPUGroupInfo::PGCPNEx CPUGroupInfo::m_pGetCurrentProcessorNumberEx = NULL;
 /*static*/ CPUGroupInfo::PGST    CPUGroupInfo::m_pGetSystemTimes = NULL;
-#endif
 /*static*/ //CPUGroupInfo::PNTQSIEx CPUGroupInfo::m_pNtQuerySystemInformationEx = NULL;
 
 /*static*/ BOOL CPUGroupInfo::GetLogicalProcessorInformationEx(DWORD relationship,
@@ -794,13 +779,11 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
     return (*m_pGetThreadGroupAffinity)(h, groupAffinity);
 }
 
-#if !defined(FEATURE_CORESYSTEM) && !defined(FEATURE_CORECLR)
 /*static*/ BOOL CPUGroupInfo::GetSystemTimes(FILETIME *idleTime, FILETIME *kernelTime, FILETIME *userTime)
 {
     LIMITED_METHOD_CONTRACT;
     return (*m_pGetSystemTimes)(idleTime, kernelTime, userTime);
 }
-#endif
 #endif
 
 /*static*/ BOOL  CPUGroupInfo::m_enableGCCPUGroups = FALSE;
@@ -838,7 +821,6 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
     if (m_pGetThreadGroupAffinity == NULL)
         return FALSE;
 
-#if !defined(FEATURE_CORESYSTEM) && !defined(FEATURE_CORECLR)
     m_pGetCurrentProcessorNumberEx = (PGCPNEx)GetProcAddress(hMod, "GetCurrentProcessorNumberEx");
     if (m_pGetCurrentProcessorNumberEx == NULL)
         return FALSE;
@@ -846,7 +828,6 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
     m_pGetSystemTimes = (PGST)GetProcAddress(hMod, "GetSystemTimes");
     if (m_pGetSystemTimes == NULL)
         return FALSE;
-#endif
 
     return TRUE;
 #else
@@ -966,10 +947,10 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
 
 #if !defined(FEATURE_REDHAWK) && defined(_TARGET_AMD64_) && !defined(FEATURE_PAL)
     BOOL enableGCCPUGroups     = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_GCCpuGroup) != 0;
-	BOOL threadUseAllCpuGroups = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_Thread_UseAllCpuGroups) != 0;
+    BOOL threadUseAllCpuGroups = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_Thread_UseAllCpuGroups) != 0;
 
-	if (!enableGCCPUGroups)
-		return;
+    if (!enableGCCPUGroups)
+        return;
 
     if (!InitCPUGroupInfoAPI())
         return;
@@ -1078,7 +1059,7 @@ retry:
     }
     CONTRACTL_END;
 
-#if !defined(FEATURE_REDHAWK) && !defined(FEATURE_CORESYSTEM) && !defined(FEATURE_CORECLR) && defined(_TARGET_AMD64_) && !defined(FEATURE_PAL)
+#if !defined(FEATURE_REDHAWK) && defined(_TARGET_AMD64_) && !defined(FEATURE_PAL)
     // m_enableGCCPUGroups and m_threadUseAllCpuGroups must be TRUE
     _ASSERTE(m_enableGCCPUGroups && m_threadUseAllCpuGroups);
 
@@ -1099,7 +1080,7 @@ retry:
 #endif
 }
 
-#if !defined(FEATURE_REDHAWK) && !defined(FEATURE_CORESYSTEM) && !defined(FEATURE_CORECLR) && !defined(FEATURE_PAL)
+#if !defined(FEATURE_REDHAWK) && !defined(FEATURE_PAL)
 //Lock ThreadStore before calling this function, so that updates of weights/counts are consistent
 /*static*/ void CPUGroupInfo::ChooseCPUGroupAffinity(GROUP_AFFINITY *gf)
 {
@@ -1196,7 +1177,7 @@ int GetCurrentProcessCpuCount()
     if (cCPUs != 0)
         return cCPUs;
 
-#if !defined(FEATURE_CORESYSTEM)
+#ifndef FEATURE_PAL
 
     DWORD_PTR pmask, smask;
 
@@ -1231,14 +1212,14 @@ int GetCurrentProcessCpuCount()
             
     return count;
 
-#else // !FEATURE_CORESYSTEM
+#else // !FEATURE_PAL
 
     SYSTEM_INFO sysInfo;
     ::GetSystemInfo(&sysInfo);
     cCPUs = sysInfo.dwNumberOfProcessors;
     return sysInfo.dwNumberOfProcessors;
 
-#endif // !FEATURE_CORESYSTEM
+#endif // !FEATURE_PAL
 }
 
 DWORD_PTR GetCurrentProcessCpuMask()
@@ -1251,7 +1232,7 @@ DWORD_PTR GetCurrentProcessCpuMask()
     }
     CONTRACTL_END;
 
-#if !defined(FEATURE_CORESYSTEM)
+#ifndef FEATURE_PAL
     DWORD_PTR pmask, smask;
 
     if (!GetProcessAffinityMask(GetCurrentProcess(), &pmask, &smask))
@@ -1295,12 +1276,28 @@ bool ConfigMethodSet::contains(LPCUTF8 methodName, LPCUTF8 className, PCCOR_SIGN
         NOTHROW;
     }
     CONTRACTL_END;
-    
+
     _ASSERTE(m_inited == 1);
 
     if (m_list.IsEmpty())
         return false;
     return(m_list.IsInList(methodName, className, sig));
+}
+
+/**************************************************************************/
+bool ConfigMethodSet::contains(LPCUTF8 methodName, LPCUTF8 className, CORINFO_SIG_INFO* pSigInfo)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+    }
+    CONTRACTL_END;
+
+    _ASSERTE(m_inited == 1);
+
+    if (m_list.IsEmpty())
+        return false;
+    return(m_list.IsInList(methodName, className, pSigInfo));
 }
 
 /**************************************************************************/
@@ -1641,20 +1638,50 @@ bool MethodNamesListBase::IsInList(LPCUTF8 methName, LPCUTF8 clsName, PCCOR_SIGN
         NOTHROW;
     }
     CONTRACTL_END;
-    
-    ULONG numArgs = -1;
+
+    int numArgs = -1;
     if (sig != NULL)
     {
         sig++;      // Skip calling convention
         numArgs = CorSigUncompressData(sig);  
     }
 
+    return IsInList(methName, clsName, numArgs);
+}
+
+/**************************************************************/
+bool MethodNamesListBase::IsInList(LPCUTF8 methName, LPCUTF8 clsName, CORINFO_SIG_INFO* pSigInfo)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+    }
+    CONTRACTL_END;
+
+    int numArgs = -1;
+    if (pSigInfo != NULL)
+    {
+        numArgs = pSigInfo->numArgs;
+    }
+
+    return IsInList(methName, clsName, numArgs);
+}
+
+/**************************************************************/
+bool MethodNamesListBase::IsInList(LPCUTF8 methName, LPCUTF8 clsName, int numArgs) 
+{
+    CONTRACTL
+    {
+        NOTHROW;
+    }
+    CONTRACTL_END;
+
     // Try to match all the entries in the list
 
     for(MethodName * pName = pNames; pName; pName = pName->next)
     {
         // If numArgs is valid, check for mismatch
-        if (pName->numArgs != -1 && (ULONG)pName->numArgs != numArgs)
+        if (pName->numArgs != -1 && pName->numArgs != numArgs)
             continue;
 
         // If methodName is valid, check for mismatch
@@ -2631,6 +2658,41 @@ INT32 GetArm64Rel28(UINT32 * pCode)
 }
 
 //*****************************************************************************
+//  Extract the PC-Relative offset from an adrp instruction
+//*****************************************************************************
+INT32 GetArm64Rel21(UINT32 * pCode)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    UINT32 addInstr = *pCode;
+
+    // 23-5 bits for the high part. Shift it by 5.
+    INT32 immhi = (((INT32)(addInstr & 0xFFFFE0))) >> 5;
+    // 30,29 bits for the lower part. Shift it by 29.
+    INT32 immlo = ((INT32)(addInstr & 0x60000000)) >> 29;
+
+    // Merge them
+    INT32 imm21 = (immhi << 2) | immlo;
+
+    return imm21;
+}
+
+//*****************************************************************************
+//  Extract the PC-Relative offset from an add instruction
+//*****************************************************************************
+INT32 GetArm64Rel12(UINT32 * pCode)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    UINT32 addInstr = *pCode;
+
+    // 21-10 contains value. Mask 12 bits and shift by 10 bits.
+    INT32 imm12 = (INT32)(addInstr & 0x003FFC00) >> 10;
+
+    return imm12;
+}
+
+//*****************************************************************************
 //  Deposit the PC-Relative offset 'imm28' into a b or bl instruction 
 //*****************************************************************************
 void PutArm64Rel28(UINT32 * pCode, INT32 imm28)
@@ -2651,6 +2713,52 @@ void PutArm64Rel28(UINT32 * pCode, INT32 imm28)
     *pCode = branchInstr;          // write the assembled instruction
 
     _ASSERTE(GetArm64Rel28(pCode) == imm28);
+}
+
+//*****************************************************************************
+//  Deposit the PC-Relative offset 'imm21' into an adrp instruction
+//*****************************************************************************
+void PutArm64Rel21(UINT32 * pCode, INT32 imm21)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    // Verify that we got a valid offset
+    _ASSERTE(FitsInRel21(imm21));
+
+    UINT32 adrpInstr = *pCode;
+    // Check adrp opcode 1ii1 0000 ...
+    _ASSERTE((adrpInstr & 0x9F000000) == 0x90000000);
+
+    adrpInstr &= 0x9F00001F;               // keep bits 31, 28-24, 4-0.
+    INT32 immlo = imm21 & 0x03;            // Extract low 2 bits which will occupy 30-29 bits.
+    INT32 immhi = (imm21 & 0x1FFFFC) >> 2; // Extract high 19 bits which will occupy 23-5 bits.
+    adrpInstr |= ((immlo << 29) | (immhi << 5));
+
+    *pCode = adrpInstr;                    // write the assembled instruction
+
+    _ASSERTE(GetArm64Rel21(pCode) == imm21);
+}
+
+//*****************************************************************************
+//  Deposit the PC-Relative offset 'imm12' into an add instruction
+//*****************************************************************************
+void PutArm64Rel12(UINT32 * pCode, INT32 imm12)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    // Verify that we got a valid offset
+    _ASSERTE(FitsInRel12(imm12));
+
+    UINT32 addInstr = *pCode;
+    // Check add opcode 1001 0001 00...
+    _ASSERTE((addInstr & 0xFFC00000) == 0x91000000);
+
+    addInstr &= 0xFFC003FF;     // keep bits 31-22, 9-0
+    addInstr |= (imm12 << 10);  // Occupy 21-10.
+
+    *pCode = addInstr;          // write the assembled instruction
+
+    _ASSERTE(GetArm64Rel12(pCode) == imm12);
 }
 
 //---------------------------------------------------------------------
@@ -2839,7 +2947,7 @@ void SOTolerantViolation(const char *szFunction, const char *szFile, int lineNum
 
 //
 // SONotMainlineViolation is used to report any code with SO_NOT_MAINLINE being run in a test environment
-// with COMPLUS_NO_SO_NOT_MAINLINE enabled
+// with COMPlus_NO_SO_NOT_MAINLINE enabled
 //
 void SONotMainlineViolation(const char *szFunction, const char *szFile, int lineNum) 
 {
@@ -2848,7 +2956,7 @@ void SONotMainlineViolation(const char *szFunction, const char *szFile, int line
 
 //
 // SONotMainlineViolation is used to report any code with SO_NOT_MAINLINE being run in a test environment
-// with COMPLUS_NO_SO_NOT_MAINLINE enabled
+// with COMPlus_NO_SO_NOT_MAINLINE enabled
 //
 void SOBackoutViolation(const char *szFunction, const char *szFile, int lineNum) 
 {
@@ -2915,8 +3023,8 @@ void SOViolation(const char *szFunction, const char *szFile, int lineNum, SOViol
                         "CONTRACT VIOLATION by %s at \"%s\" @ %d\n\n" 
                         "SO-not-mainline function being called with not-mainline checking enabled.\n"
                         "\nPlease open a bug against the feature owner.\n"
-                        "\nNOTE: You can disable this ASSERT by setting COMPLUS_SOEnableDefaultRWValidation=0.\n"
-                        "      or by turning of not-mainline checking by by setting COMPLUS_NO_SO_NOT_MAINLINE=0.\n"
+                        "\nNOTE: You can disable this ASSERT by setting COMPlus_SOEnableDefaultRWValidation=0.\n"
+                        "      or by turning of not-mainline checking by by setting COMPlus_NO_SO_NOT_MAINLINE=0.\n"
                         "\nFor details about this feature, see, in a CLR enlistment,\n"
                         "src\\ndp\\clr\\doc\\OtherDevDocs\\untriaged\\clrdev_web\\SO Guide for CLR Developers.doc\n",
                             szFunction, szFile, lineNum);
@@ -2928,10 +3036,9 @@ void SOViolation(const char *szFunction, const char *szFile, int lineNum, SOViol
                         "SO Backout Marker overrun.\n\n" 
                         "A dtor or handler path exceeded the backout code stack consumption limit.\n"
                         "\nPlease open a bug against the feature owner.\n"
-                        "\nNOTE: You can disable this ASSERT by setting COMPLUS_SOEnableBackoutStackValidation=0.\n"
+                        "\nNOTE: You can disable this ASSERT by setting COMPlus_SOEnableBackoutStackValidation=0.\n"
                         "\nFor details about this feature, see, in a CLR enlistment,\n"
-                        "src\\ndp\\clr\\doc\\OtherDevDocs\\untriaged\\clrdev_web\\SO Guide for CLR Developers.doc\n",
-                            szFunction, szFile, lineNum);
+                        "src\\ndp\\clr\\doc\\OtherDevDocs\\untriaged\\clrdev_web\\SO Guide for CLR Developers.doc\n");
     }
     else 
     {
@@ -2940,7 +3047,7 @@ void SOViolation(const char *szFunction, const char *szFile, int lineNum, SOViol
                         "CONTRACT VIOLATION by %s at \"%s\" @ %d\n\n" 
                         "SO-intolerant function called outside an SO probe.\n"
                         "\nPlease open a bug against the feature owner.\n"
-                        "\nNOTE: You can disable this ASSERT by setting COMPLUS_SOEnableDefaultRWValidation=0.\n"
+                        "\nNOTE: You can disable this ASSERT by setting COMPlus_SOEnableDefaultRWValidation=0.\n"
                         "\nFor details about this feature, see, in a CLR enlistment,\n"
                         "src\\ndp\\clr\\doc\\OtherDevDocs\\untriaged\\clrdev_web\\SO Guide for CLR Developers.doc\n",
                             szFunction, szFile, lineNum);
@@ -3186,6 +3293,8 @@ FileLockHolder::~FileLockHolder()
 
 void FileLockHolder::Acquire(LPCWSTR lockName, HANDLE hInterrupt, BOOL* pInterrupted)
 {
+    WRAPPER_NO_CONTRACT;
+
     DWORD dwErr = 0;
     DWORD dwAccessDeniedRetry = 0;
     const DWORD MAX_ACCESS_DENIED_RETRIES = 10;
@@ -3505,53 +3614,7 @@ BOOL IsClrHostedLegacyComObject(REFCLSID rclsid)
 }
 #endif // FEATURE_COMINTEROP
 
-// Returns the directory for HMODULE. So, if HMODULE was for "C:\Dir1\Dir2\Filename.DLL",
-// then this would return "C:\Dir1\Dir2\" (note the trailing backslash).
-HRESULT GetHModuleDirectory(
-    __in                          HMODULE   hMod,
-    __out_z __out_ecount(cchPath) LPWSTR    wszPath,
-                                  size_t    cchPath)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        CANNOT_TAKE_LOCK;
-    }
-    CONTRACTL_END;
 
-    DWORD dwRet = WszGetModuleFileName(hMod, wszPath, static_cast<DWORD>(cchPath));
-
-    if (dwRet == cchPath)
-    {   // If there are cchPath characters in the string, it means that the string
-        // itself is longer than cchPath and GetModuleFileName had to truncate at cchPath.
-        return HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
-    }
-    else if (dwRet == 0)
-    {   // Some other error.
-        return HRESULT_FROM_GetLastError();
-    }
-
-    LPWSTR wszEnd = wcsrchr(wszPath, W('\\'));
-    if (wszEnd == NULL)
-    {   // There was no backslash? Not sure what's going on.
-        return E_UNEXPECTED;
-    }
-
-    // Include the backslash in the resulting string.
-    *(++wszEnd) = W('\0');
-
-    return S_OK;
-}
-
-SString & GetHModuleDirectory(HMODULE hMod, SString &ssDir)
-{
-    LPWSTR wzDir = ssDir.OpenUnicodeBuffer(_MAX_PATH);
-    HRESULT hr = GetHModuleDirectory(hMod, wzDir, _MAX_PATH);
-    ssDir.CloseBuffer(FAILED(hr) ? 0 : static_cast<COUNT_T>(wcslen(wzDir)));
-    IfFailThrow(hr);
-    return ssDir;
-}
 
 #if !defined(FEATURE_CORECLR) && !defined(SELF_NO_HOST) && !defined(FEATURE_UTILCODE_NO_DEPENDENCIES)
 
@@ -3631,7 +3694,7 @@ namespace Util
                 DWORD cCharsNeeded;
                 cCharsNeeded = GetEnvironmentVariableW(W("LOCALAPPDATA"), NULL, 0);
 
-                if ((cCharsNeeded != 0) && (cCharsNeeded < MAX_PATH))
+                if ((cCharsNeeded != 0) && (cCharsNeeded < MAX_LONGPATH))
                 {
                     wszLocalAppData = new WCHAR[cCharsNeeded];
                     cCharsNeeded = GetEnvironmentVariableW(W("LOCALAPPDATA"), wszLocalAppData, cCharsNeeded);
@@ -3784,6 +3847,7 @@ namespace Com
 {
     namespace __imp
     {
+        __success(return == S_OK)
         static
         HRESULT FindSubKeyDefaultValueForCLSID(REFCLSID rclsid, LPCWSTR wszSubKeyName, SString & ssValue)
         {
@@ -3804,6 +3868,7 @@ namespace Com
             return Clr::Util::Reg::ReadStringValue(HKEY_CLASSES_ROOT, ssKeyName.GetUnicode(), NULL, ssValue);
         }
 
+        __success(return == S_OK)
         static
         HRESULT FindSubKeyDefaultValueForCLSID(REFCLSID rclsid, LPCWSTR wszSubKeyName, __deref_out __deref_out_z LPWSTR* pwszValue)
         {
@@ -3882,39 +3947,14 @@ namespace Win32
 
         // Try to use what the SString already has allocated. If it does not have anything allocated
         // or it has < 20 characters allocated, then bump the size requested to _MAX_PATH.
-        DWORD dwSize = (DWORD)(ssFileName.GetUnicodeAllocation()) + 1;
-        dwSize = (dwSize < 20) ? (_MAX_PATH) : (dwSize);
-        DWORD dwResult = WszGetModuleFileName(hModule, ssFileName.OpenUnicodeBuffer(dwSize - 1), dwSize);
+        
+        DWORD dwResult = WszGetModuleFileName(hModule, ssFileName);
 
-        // if there was a failure, dwResult == 0;
-        // if there was insufficient buffer, dwResult == dwSize;
-        // if there was sufficient buffer and a successful write, dwResult < dwSize
-        ssFileName.CloseBuffer(dwResult < dwSize ? dwResult : 0);
 
         if (dwResult == 0)
             ThrowHR(HRESULT_FROM_GetLastError());
 
-        // Ok, we didn't have enough buffer. Let's loop, doubling the buffer each time, until we succeed.
-        while (dwResult == dwSize)
-        {
-            dwSize = dwSize * 2;
-            dwResult = WszGetModuleFileName(hModule, ssFileName.OpenUnicodeBuffer(dwSize - 1), dwSize);
-            ssFileName.CloseBuffer(dwResult < dwSize ? dwResult : 0);
-
-            if (dwResult == 0)
-                ThrowHR(HRESULT_FROM_GetLastError());
-        }
-
-        // Most of the runtime is not able to handle long filenames. fAllowLongFileNames
-        // has a default value of false, so that callers will not accidentally get long
-        // file names returned.
-        if (!fAllowLongFileNames && ssFileName.BeginsWith(SL(LONG_FILENAME_PREFIX_W)))
-        {
-            ssFileName.Clear();
-            ThrowHR(E_UNEXPECTED);
-        }
-
-        _ASSERTE(dwResult != 0 && dwResult < dwSize);
+        _ASSERTE(dwResult != 0 );
     }
 
     // Returns heap-allocated string in *pwszFileName
@@ -3976,16 +4016,6 @@ namespace Win32
         if (!(dwLengthWritten < dwLengthRequired))
             ThrowHR(E_UNEXPECTED);
 
-        // Most of the runtime is not able to handle long filenames. fAllowLongFileNames
-        // has a default value of false, so that callers will not accidentally get long
-        // file names returned.
-        if (!fAllowLongFileNames && ssFileName.BeginsWith(SL(LONG_FILENAME_PREFIX_W)))
-        {
-            ssPathName.Clear();
-            if (pdwFilePartIdx != NULL)
-                *pdwFilePartIdx = 0;
-            ThrowHR(E_UNEXPECTED);
-        }
     }
 } // namespace Win32
 

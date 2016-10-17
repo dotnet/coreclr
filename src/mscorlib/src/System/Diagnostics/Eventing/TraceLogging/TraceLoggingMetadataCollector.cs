@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections.Generic;
@@ -102,7 +103,7 @@ namespace System.Diagnostics.Tracing
                 var newGroup = new FieldMetadata(
                     name,
                     TraceLoggingDataType.Struct,
-                    0,
+                    this.Tags,
                     this.BeginningBufferedArray);
                 this.AddField(newGroup);
                 result = new TraceLoggingMetadataCollector(this, newGroup);
@@ -231,7 +232,7 @@ namespace System.Diagnostics.Tracing
 
             if (this.BeginningBufferedArray)
             {
-                throw new NotSupportedException(Environment.GetResourceString("EventSource_NotSupportedNestedArraysEnums"));
+                throw new NotSupportedException(Resources.GetResourceString("EventSource_NotSupportedNestedArraysEnums"));
             }
 
             this.impl.AddScalar(2);
@@ -243,7 +244,7 @@ namespace System.Diagnostics.Tracing
         {
             if (this.bufferedArrayFieldCount >= 0)
             {
-                throw new NotSupportedException(Environment.GetResourceString("EventSource_NotSupportedNestedArraysEnums"));
+                throw new NotSupportedException(Resources.GetResourceString("EventSource_NotSupportedNestedArraysEnums"));
             }
 
             this.bufferedArrayFieldCount = 0;
@@ -254,7 +255,7 @@ namespace System.Diagnostics.Tracing
         {
             if (this.bufferedArrayFieldCount != 1)
             {
-                throw new InvalidOperationException(Environment.GetResourceString("EventSource_IncorrentlyAuthoredTypeInfo"));
+                throw new InvalidOperationException(Resources.GetResourceString("EventSource_IncorrentlyAuthoredTypeInfo"));
             }
 
             this.bufferedArrayFieldCount = int.MinValue;
@@ -273,7 +274,7 @@ namespace System.Diagnostics.Tracing
         {
             if (this.BeginningBufferedArray)
             {
-                throw new NotSupportedException(Environment.GetResourceString("EventSource_NotSupportedCustomSerializedData"));
+                throw new NotSupportedException(Resources.GetResourceString("EventSource_NotSupportedCustomSerializedData"));
             }
 
             this.impl.AddScalar(2);

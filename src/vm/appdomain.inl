@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 /*============================================================
 **
 ** Header:  AppDomain.i
@@ -16,25 +15,9 @@
 #ifndef _APPDOMAIN_I
 #define _APPDOMAIN_I
 
-#ifndef BINDER
-
 #ifndef DACCESS_COMPILE
 
 #include "appdomain.hpp"
-
-#ifdef FEATURE_CORECLR 
-inline void BaseDomain::SetAppDomainCompatMode(AppDomainCompatMode compatMode)
-{
-    LIMITED_METHOD_CONTRACT;
-    m_CompatMode = compatMode;
-}
-
-inline BaseDomain::AppDomainCompatMode BaseDomain::GetAppDomainCompatMode()
-{
-    LIMITED_METHOD_CONTRACT;
-    return m_CompatMode;
-}
-#endif // FEATURE_CORECLR
 
 inline void AppDomain::SetUnloadInProgress(AppDomain *pThis)
 {
@@ -326,8 +309,6 @@ inline PTR_LoaderAllocator AppDomain::GetLoaderAllocator()
     WRAPPER_NO_CONTRACT;
     return PTR_LoaderAllocator(PTR_HOST_MEMBER_TADDR(AppDomain,this,m_LoaderAllocator));
 }
-
-#endif // !BINDER
 
 /* static */
 inline DWORD DomainLocalModule::DynamicEntry::GetOffsetOfDataBlob() 

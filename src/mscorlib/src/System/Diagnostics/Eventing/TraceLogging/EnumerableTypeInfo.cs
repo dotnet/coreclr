@@ -1,7 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 
 #if ES_BUILD_STANDALONE
@@ -10,13 +12,12 @@ namespace Microsoft.Diagnostics.Tracing
 namespace System.Diagnostics.Tracing
 #endif
 {
-    internal sealed class EnumerableTypeInfo<IterableType, ElementType>
-        : TraceLoggingTypeInfo<IterableType>
-        where IterableType : IEnumerable<ElementType>
+    internal sealed class EnumerableTypeInfo : TraceLoggingTypeInfo
     {
-        private readonly TraceLoggingTypeInfo<ElementType> elementInfo;
+        private readonly TraceLoggingTypeInfo elementInfo;
 
-        public EnumerableTypeInfo(TraceLoggingTypeInfo<ElementType> elementInfo)
+        public EnumerableTypeInfo(Type type, TraceLoggingTypeInfo elementInfo)
+            : base(type)
         {
             this.elementInfo = elementInfo;
         }
@@ -31,19 +32,17 @@ namespace System.Diagnostics.Tracing
             collector.EndBufferedArray();
         }
 
-        public override void WriteData(
-            TraceLoggingDataCollector collector,
-            ref IterableType value)
+        public override void WriteData(TraceLoggingDataCollector collector, PropertyValue value)
         {
             var bookmark = collector.BeginBufferedArray();
 
             var count = 0;
-            if (value != null)
+            IEnumerable enumerable = (IEnumerable)value.ReferenceValue;
+            if (enumerable != null)
             {
-                foreach (var element in value)
+                foreach (var element in enumerable)
                 {
-                    var el = element;
-                    this.elementInfo.WriteData(collector, ref el);
+                    this.elementInfo.WriteData(collector, elementInfo.PropertyValueFactory(element));
                     count++;
                 }
             }
@@ -53,7 +52,7 @@ namespace System.Diagnostics.Tracing
 
         public override object GetData(object value)
         {
-            var iterType = (IterableType)value;
+            var iterType = (IEnumerable)value;
             List<object> serializedEnumerable = new List<object>();
             foreach (var element in iterType)
             {

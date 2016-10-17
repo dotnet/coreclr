@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // --------------------------------------------------------------------------------
 // PEImage.cpp
 // 
@@ -423,15 +422,8 @@ void PEImage::GetPathFromDll(HINSTANCE hMod, SString &result)
     }
     CONTRACTL_END;
 
-    DWORD ret;
-    DWORD length = MAX_PATH;
-    do
-    {
-        WCHAR *buffer = result.OpenUnicodeBuffer(length);
-        ret = WszGetModuleFileName(hMod, buffer, length);
-        result.CloseBuffer(ret);
-        length *= 2;
-    } while (ret == 0);
+    WszGetModuleFileName(hMod, result);   
+    
 }
 #endif // !FEATURE_PAL
 
@@ -830,7 +822,14 @@ void PEImage::VerifyIsILOrNIAssembly(BOOL fIL)
 
 void DECLSPEC_NORETURN PEImage::ThrowFormat(HRESULT hrError)
 {
-    WRAPPER_NO_CONTRACT;
+    CONTRACTL
+    {
+        GC_TRIGGERS;
+        THROWS;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
     EEFileLoadException::Throw(m_path, hrError);
 }
 
@@ -1367,7 +1366,7 @@ void PEImage::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
                             continue;
                         }
                         // Because data may be corrupted make sure we null terminate the string.
-                        pCvInfo->path[MAX_PATH - 1] = '\0';
+                        pCvInfo->path[MAX_LONGPATH - 1] = '\0';
 
                         //Find the filename from pdb full path
                         char* fileName = strrchr(pCvInfo->path, '\\');
@@ -1381,7 +1380,7 @@ void PEImage::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
                         memmove(pCvInfo->path, fileName, fileNameLenght);
 
                         // NULL out the rest of the path buffer.
-                        for (size_t i = fileNameLenght; i < MAX_PATH - 1; i++)
+                        for (size_t i = fileNameLenght; i < MAX_PATH_FNAME - 1; i++)
                         {
                             pCvInfo->path[i] = '\0';
                         }
@@ -2103,7 +2102,7 @@ HRESULT RuntimeGetILFingerprintForPath(LPCWSTR path, IILFingerprint **ppFingerpr
 #endif //!DACCESS_COMPILE
 #endif //FEATURE_FUSION
 
-#if defined(FEATURE_HOSTED_BINDER) && !defined(DACCESS_COMPILE)
+#if !defined(DACCESS_COMPILE)
 PEImage * PEImage::OpenImage(
     ICLRPrivResource * pIResource,
     MDInternalImportFlags flags)

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Runtime.InteropServices;
@@ -85,7 +86,7 @@ namespace System.Diagnostics.Tracing
                 var scratchNew = scratchOld + size;
                 if (this.scratchEnd < scratchNew)
                 {
-                    throw new IndexOutOfRangeException(Environment.GetResourceString("EventSource_AddScalarOutOfRange"));
+                    throw new IndexOutOfRangeException(Resources.GetResourceString("EventSource_AddScalarOutOfRange"));
                 }
 
                 this.ScalarsBegin();
@@ -221,6 +222,14 @@ namespace System.Diagnostics.Tracing
 
             if (this.bufferNesting == 0)
             {
+                /*
+                TODO (perf): consider coalescing adjacent buffered regions into a
+                single buffer, similar to what we're already doing for adjacent
+                scalars. In addition, if a type contains a buffered region adjacent
+                to a blittable array, and the blittable array is small, it would be
+                more efficient to buffer the array instead of pinning it.
+                */
+
                 this.EnsureBuffer();
                 this.PinArray(this.buffer, this.bufferPos);
                 this.buffer = null;
@@ -264,13 +273,13 @@ namespace System.Diagnostics.Tracing
             var pinsTemp = this.pins;
             if (this.pinsEnd <= pinsTemp)
             {
-                throw new IndexOutOfRangeException(Environment.GetResourceString("EventSource_PinArrayOutOfRange"));
+                throw new IndexOutOfRangeException(Resources.GetResourceString("EventSource_PinArrayOutOfRange"));
             }
 
             var datasTemp = this.datas;
             if (this.datasEnd <= datasTemp)
             {
-                throw new IndexOutOfRangeException(Environment.GetResourceString("EventSource_DataDescriptorsOutOfRange"));
+                throw new IndexOutOfRangeException(Resources.GetResourceString("EventSource_DataDescriptorsOutOfRange"));
             }
 
             this.pins = pinsTemp + 1;
@@ -288,7 +297,7 @@ namespace System.Diagnostics.Tracing
                 var datasTemp = this.datas;
                 if (this.datasEnd <= datasTemp)
                 {
-                    throw new IndexOutOfRangeException(Environment.GetResourceString("EventSource_DataDescriptorsOutOfRange"));
+                    throw new IndexOutOfRangeException(Resources.GetResourceString("EventSource_DataDescriptorsOutOfRange"));
                 }
 
                 datasTemp->m_Ptr = (long)(ulong)(UIntPtr)this.scratch;

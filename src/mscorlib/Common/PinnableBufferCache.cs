@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 #define ENABLE
 #define MINBUFFERS
 using System;
@@ -403,7 +404,7 @@ namespace System
                     return true;
                 }
 
-                // Move buffers from teh free list back to the non-aged list.  If we don't use them by next time, then we'll consider trimming them.
+                // Move buffers from the free list back to the non-aged list.  If we don't use them by next time, then we'll consider trimming them.
                 PinnableBufferCacheEventSource.Log.TrimExperiment(m_CacheName, m_buffersUnderManagement, freeCount, trimSize);
                 object buffer;
                 for (int i = 0; i < trimSize; i++)

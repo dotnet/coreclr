@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #if FEATURE_CODEPAGES_FILE
 namespace System.Text
@@ -178,11 +179,10 @@ namespace System.Text
         }
 
         // ISerializable implementation
-#if FEATURE_SERIALIZATION
         [System.Security.SecurityCritical]  // auto-generated_required
         void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            // Make sure to get teh base stuff too This throws if info is null
+            // Make sure to get the base stuff too This throws if info is null
             SerializeEncoding(info, context);
             Contract.Assert(info!=null, "[BaseCodePageEncoding.GetObjectData] Expected null info to throw");
 
@@ -194,7 +194,6 @@ namespace System.Text
             info.SetType(m_bUseMlangTypeForSerialization ? typeof(MLangCodePageEncoding) :
                                                            typeof(CodePageEncoding));
         }
-#endif
 
         // We need to load tables for our code page
         [System.Security.SecurityCritical]  // auto-generated

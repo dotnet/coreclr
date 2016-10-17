@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // MSCoree.cpp
 //*****************************************************************************
@@ -15,7 +14,7 @@
 #include <mscoree.h>
 #include "shimload.h"
 #include "metadataexports.h"
-
+#include "ex.h"
 #if !defined(FEATURE_CORECLR)
 #include "corsym.h"
 #endif 
@@ -33,9 +32,7 @@
 extern ICLRRuntimeInfo *g_pCLRRuntime;
 #endif // !FEATURE_CORECLR && !CROSSGEN_COMPILE
 
-#ifdef FEATURE_HOSTED_BINDER
 #include "clrprivhosting.h"
-#endif
 
 #ifndef FEATURE_CORECLR
 #include "clr/win32.h"
@@ -71,12 +68,6 @@ HINSTANCE g_hThisInst;  // This library.
 //*****************************************************************************
 // Handle lifetime of loaded library.
 //*****************************************************************************
-
-#ifdef FEATURE_MERGE_JIT_AND_ENGINE
-void            jitOnDllProcessAttach();
-void            jitOnDllProcessDetach();
-#endif // FEATURE_MERGE_JIT_AND_ENGINE
-
 
 #ifdef FEATURE_CORECLR
 
@@ -122,7 +113,7 @@ extern "C" BOOL WINAPI CoreDllMain(HANDLE hInstance, DWORD dwReason, LPVOID lpRe
             CoreClrCallbacks cccallbacks;
             cccallbacks.m_hmodCoreCLR               = (HINSTANCE)hInstance;
             cccallbacks.m_pfnIEE                    = IEE;
-            cccallbacks.m_pfnGetCORSystemDirectory  = GetCORSystemDirectoryInternal;
+            cccallbacks.m_pfnGetCORSystemDirectory  = GetCORSystemDirectoryInternaL;
             cccallbacks.m_pfnGetCLRFunction         = GetCLRFunction;
             InitUtilcode(cccallbacks);
 
@@ -184,21 +175,12 @@ BOOL WINAPI DllMain(HANDLE hInstance, DWORD dwReason, LPVOID lpReserved)
             {
                 return FALSE;
             }
-
-#ifdef FEATURE_MERGE_JIT_AND_ENGINE
-            jitOnDllProcessAttach();
-#endif // FEATURE_MERGE_JIT_AND_ENGINE
         }
         break;
 
     case DLL_PROCESS_DETACH:
         {
             EEDllMain((HINSTANCE)hInstance, dwReason, lpReserved);
-
-#ifdef FEATURE_MERGE_JIT_AND_ENGINE
-            jitOnDllProcessDetach();
-#endif // FEATURE_MERGE_JIT_AND_ENGINE
-
         }
         break;
 
@@ -261,9 +243,7 @@ STDAPI InternalDllGetClassObject(
     if (rclsid == CLSID_CorMetaDataDispenser || rclsid == CLSID_CorMetaDataDispenserRuntime ||
         rclsid == CLSID_CorRuntimeHost || rclsid == CLSID_CLRRuntimeHost ||
         rclsid == CLSID_TypeNameFactory
-#ifdef FEATURE_HOSTED_BINDER
         || rclsid == __uuidof(CLRPrivRuntime)
-#endif
        )
     {
         hr = MetaDataDllGetClassObject(rclsid, riid, ppv);
@@ -285,13 +265,18 @@ STDAPI InternalDllGetClassObject(
     {
         EX_TRY
         {
-        // PDB format - use diasymreader.dll with COM activation
-        InlineSString<_MAX_PATH> ssBuf;
-        hr = FakeCoCallDllGetClassObject(rclsid,
-            GetHModuleDirectory(GetModuleInst(), ssBuf).GetUnicode(),
-            riid,
-            ppv,
-            NULL);
+
+            // PDB format - use diasymreader.dll with COM activation
+            InlineSString<_MAX_PATH> ssBuf;
+            if (SUCCEEDED(GetHModuleDirectory(GetModuleInst(), ssBuf)))
+            {
+                hr = FakeCoCallDllGetClassObject(rclsid,
+                    ssBuf,
+                    riid,
+                    ppv,
+                    NULL
+                    );
+            }
         }
         EX_CATCH_HRESULT(hr);
     }
@@ -720,108 +705,6 @@ STDAPI LoadStringRCEx(
 #endif // CROSSGEN_COMPILE
 
 
-#if defined(FEATURE_CORECLR) || defined(CROSSGEN_COMPILE)
-
-extern HINSTANCE            g_pMSCorEE;
-
-#ifndef FEATURE_PAL
-
-//
-// Returns path name from a file name. The path name will be (null-terminated, incl. the last '\' if present).
-// Example: For input "C:\Windows\System.dll" returns "C:\Windows\".
-// Warning: The input file name string might be destroyed.
-// 
-// Arguments:
-//    pFileName - [in] Null-terminated file name. Will be destroyed (an additional null-terminator might be 
-//                written into the string).
-//    pBuffer - [out] buffer allocated by caller of size cchBuffer.
-//    cchBuffer - Size of pBuffer in characters.
-//    pdwLength - [out] Size of the path name in characters (incl. null-terminator). Will be filled even if 
-//                ERROR_INSUFFICIENT_BUFFER is returned.
-// 
-// Return Value:
-//    S_OK - Output buffer contains path name.
-//    HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER) - *pdwLength contains required size of the buffer in 
-//                                                    characters.
-//    other errors - If input parameters are incorrect (NULL).
-//
-static
-HRESULT CopySystemDirectory(__in WCHAR *pFileName,
-                            __out_ecount_z_opt(cchBuffer) LPWSTR pBuffer, 
-                            DWORD  cchBuffer,
-                            __out DWORD *pdwLength)
-{
-    if ((pBuffer != NULL) && (cchBuffer > 0))
-    {   // Initialize the output for case the function fails
-        *pBuffer = W('\0');
-    }
-    
-    if (pdwLength == NULL)
-        return E_POINTER;
-    
-    HRESULT hr = S_OK;
-    if (pFileName == NULL)
-        return HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND);
-    
-    SIZE_T dwFileNameLength = wcslen(pFileName);
-    LPWSTR pSeparator = wcsrchr(pFileName, W('\\'));
-    if (pSeparator != NULL)
-    {
-        dwFileNameLength = (DWORD)(pSeparator - pFileName + 1);
-        pFileName[dwFileNameLength] = W('\0');
-    }
-    
-    dwFileNameLength++; // Add back in the null
-    *pdwLength = (DWORD)dwFileNameLength;
-    if ((dwFileNameLength > cchBuffer) || (pBuffer == NULL))
-    {
-        hr = HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
-    }
-    else
-    {
-        CopyMemory(pBuffer, 
-                   pFileName,
-                   dwFileNameLength * sizeof(WCHAR));
-    }
-    return hr;
-}
-
-BOOL PAL_GetPALDirectory(__out_ecount(cchBuffer) LPWSTR pbuffer, 
-                         DWORD  cchBuffer)
-{
-
-    HRESULT hr = S_OK;
-
-    WCHAR pPath[MAX_PATH];
-    DWORD dwPath = MAX_PATH;
-
-#ifndef CROSSGEN_COMPILE
-    _ASSERTE(g_pMSCorEE != NULL);
-#endif
-
-    dwPath = WszGetModuleFileName(g_pMSCorEE, pPath, dwPath);
-    if(dwPath == 0)
-    {
-        hr = HRESULT_FROM_GetLastErrorNA();
-    }
-    else 
-    {
-        DWORD dwLength;
-        hr = CopySystemDirectory(pPath, pbuffer, cchBuffer, &dwLength);
-    }
-
-    return (hr == S_OK);
-}
-
-BOOL PAL_GetPALDirectoryW(__out_ecount(cchBuffer) LPWSTR pbuffer, 
-                         DWORD  cchBuffer)
-{
-    return PAL_GetPALDirectory(pbuffer, cchBuffer);
-}
-
-#endif // FEATURE_PAL
-
-#endif // FEATURE_CORECLR || CROSSGEN_COMPILE
 
 
 // Note that there are currently two callers of this function: code:CCompRC.LoadLibrary
@@ -831,7 +714,7 @@ STDAPI GetRequestedRuntimeInfoInternal(LPCWSTR pExe,
                                LPCWSTR pConfigurationFile, 
                                DWORD startupFlags,
                                DWORD runtimeInfoFlags, 
-                               __out_ecount_opt(dwDirectory) LPWSTR pDirectory, 
+                                __out_ecount_opt(dwDirectory) LPWSTR pDirectory,
                                DWORD dwDirectory, 
                                __out_opt DWORD *pdwDirectoryLength, 
                                __out_ecount_opt(cchBuffer) LPWSTR pVersion, 
@@ -843,18 +726,37 @@ STDAPI GetRequestedRuntimeInfoInternal(LPCWSTR pExe,
         NOTHROW;
         GC_NOTRIGGER;
         ENTRY_POINT;
-        PRECONDITION(pDirectory != NULL && pVersion != NULL && cchBuffer > 0);
+        PRECONDITION( pVersion != NULL && cchBuffer > 0);
     } CONTRACTL_END;
 
     // for simplicity we will cheat and return the entire system directory in pDirectory
     pVersion[0] = 0;
     if (pdwLength != NULL)
         *pdwLength = 0;
+    HRESULT hr;
 
-    if (pdwDirectoryLength == NULL)
-        pdwDirectoryLength = &dwDirectory;
+    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(SetLastError(COR_E_STACKOVERFLOW); return COR_E_STACKOVERFLOW;)
+    EX_TRY
+    {
 
-    return GetCORSystemDirectoryInternal(pDirectory, dwDirectory, pdwDirectoryLength);
+        PathString pDirectoryPath;
+
+        hr = GetCORSystemDirectoryInternaL(pDirectoryPath);
+        *pdwLength = pDirectoryPath.GetCount() + 1;
+        if (dwDirectory >= *pdwLength)
+        {
+            wcscpy_s(pDirectory, pDirectoryPath.GetCount() + 1, pDirectoryPath);
+        }
+        else
+        {
+            hr = E_FAIL;
+        }
+        
+    }
+    EX_CATCH_HRESULT(hr);
+    END_SO_INTOLERANT_CODE
+
+    return hr;
 }
 
 // Replacement for legacy shim API GetCORRequiredVersion(...) used in linked libraries.
@@ -883,31 +785,31 @@ CLRRuntimeHostInternal_GetImageVersionString(
     return hr;
 } // CLRRuntimeHostInternal_GetImageVersionString
 
-
-STDAPI GetCORSystemDirectoryInternal(__out_ecount_part_opt(cchBuffer, *pdwLength) LPWSTR pBuffer, 
-                             DWORD  cchBuffer,
-                             __out_opt DWORD* pdwLength)
+  //LONGPATH:TODO: Remove this once Desktop usage has been removed 
+#if !defined(FEATURE_CORECLR) 
+STDAPI GetCORSystemDirectoryInternal(__out_ecount_part_opt(cchBuffer, *pdwLength) LPWSTR pBuffer,
+    DWORD  cchBuffer,
+    __out_opt DWORD* pdwLength)
 {
-#if defined(FEATURE_CORECLR) || defined(CROSSGEN_COMPILE)
+#if defined(CROSSGEN_COMPILE)
 
-    CONTRACTL {
+    CONTRACTL{
         NOTHROW;
-        GC_NOTRIGGER;
-        ENTRY_POINT;
-        PRECONDITION(CheckPointer(pBuffer, NULL_OK));
-        PRECONDITION(CheckPointer(pdwLength, NULL_OK));
+    GC_NOTRIGGER;
+    ENTRY_POINT;
+    PRECONDITION(CheckPointer(pBuffer, NULL_OK));
+    PRECONDITION(CheckPointer(pdwLength, NULL_OK));
     } CONTRACTL_END;
 
     HRESULT hr = S_OK;
     BEGIN_ENTRYPOINT_NOTHROW;
-    
-    if(pdwLength == NULL)
+
+    if (pdwLength == NULL)
         IfFailGo(E_POINTER);
 
     if (pBuffer == NULL)
         IfFailGo(E_POINTER);
 
-#ifdef CROSSGEN_COMPILE
     if (WszGetModuleFileName(NULL, pBuffer, cchBuffer) == 0)
     {
         IfFailGo(HRESULT_FROM_GetLastError());
@@ -919,20 +821,15 @@ STDAPI GetCORSystemDirectoryInternal(__out_ecount_part_opt(cchBuffer, *pdwLength
         IfFailGo(HRESULT_FROM_WIN32(ERROR_PATH_NOT_FOUND));
     }
     *pSeparator = W('\0');
-#else
-    if (!PAL_GetPALDirectory(pBuffer, cchBuffer)) {
-        IfFailGo(HRESULT_FROM_GetLastError());
-    }
-#endif
 
     // Include the null terminator in the length
-    *pdwLength = (DWORD)wcslen(pBuffer)+1;
+    *pdwLength = (DWORD)wcslen(pBuffer) + 1;
 
 ErrExit:
     END_ENTRYPOINT_NOTHROW;
     return hr;
 
-#else // FEATURE_CORECLR || CROSSGEN_COMPILE
+#else // CROSSGEN_COMPILE
 
     // Simply forward the call to the ICLRRuntimeInfo implementation.
     STATIC_CONTRACT_WRAPPER;
@@ -946,8 +843,8 @@ ErrExit:
     {
         // not invoked via shim (most probably loaded by Fusion)
         WCHAR wszPath[_MAX_PATH];
-        DWORD dwLength = WszGetModuleFileName(g_hThisInst, wszPath,NumItems(wszPath));
-            
+        DWORD dwLength = WszGetModuleFileName(g_hThisInst, wszPath, NumItems(wszPath));
+
 
         if (dwLength == 0 || (dwLength == NumItems(wszPath) && GetLastError() == ERROR_INSUFFICIENT_BUFFER))
         {
@@ -961,7 +858,7 @@ ErrExit:
         }
         pwzSeparator[1] = W('\0'); // after '\'
 
-        LPWSTR pwzDirectoryName = wszPath; 
+        LPWSTR pwzDirectoryName = wszPath;
 
         size_t cchLength = wcslen(pwzDirectoryName) + 1;
 
@@ -975,14 +872,78 @@ ErrExit:
             {
                 // all look good, copy the string over
                 wcscpy_s(pBuffer,
-                         cchLength,
-                         pwzDirectoryName
-                        );
+                    cchLength,
+                    pwzDirectoryName
+                    );
             }
         }
 
         // hand out the length regardless of success/failure
         *pdwLength = (DWORD)cchLength;
+    }
+    return hr;
+
+#endif // CROSSGEN_COMPILE
+}
+#endif // !FEATURE_CORECLR 
+
+STDAPI GetCORSystemDirectoryInternaL(SString& pBuffer)
+{
+#if defined(FEATURE_CORECLR) || defined(CROSSGEN_COMPILE)
+
+    CONTRACTL {
+        NOTHROW;
+        GC_NOTRIGGER;
+        ENTRY_POINT;        
+    } CONTRACTL_END;
+
+    HRESULT hr = S_OK;
+    BEGIN_ENTRYPOINT_NOTHROW;
+    
+        
+#ifdef CROSSGEN_COMPILE
+
+    if (WszGetModuleFileName(NULL, pBuffer) > 0)
+    {     
+        hr = CopySystemDirectory(pBuffer, pBuffer);    
+    }
+    else {
+        hr = HRESULT_FROM_GetLastError();
+    }
+        
+#else
+       
+    if (!PAL_GetPALDirectoryWrapper(pBuffer)) {
+        hr = HRESULT_FROM_GetLastError();
+    }
+#endif
+
+    END_ENTRYPOINT_NOTHROW;
+    return hr;
+
+#else // FEATURE_CORECLR || CROSSGEN_COMPILE
+    DWORD cchBuffer = MAX_PATH - 1;
+    // Simply forward the call to the ICLRRuntimeInfo implementation.
+    STATIC_CONTRACT_WRAPPER;
+    HRESULT hr = S_OK;
+    if (g_pCLRRuntime)
+    {
+        WCHAR* temp = pBuffer.OpenUnicodeBuffer(cchBuffer);
+        hr = g_pCLRRuntime->GetRuntimeDirectory(temp, &cchBuffer);
+        pBuffer.CloseBuffer(cchBuffer - 1);
+    }
+    else
+    {
+        // not invoked via shim (most probably loaded by Fusion)
+        DWORD dwLength = WszGetModuleFileName(g_hThisInst, pBuffer);
+            
+
+        if (dwLength == 0 || ((dwLength == pBuffer.GetCount() + 1) && GetLastError() == ERROR_INSUFFICIENT_BUFFER))
+        {
+            return E_UNEXPECTED;
+        }
+
+        CopySystemDirectory(pBuffer, pBuffer);
     }
     return hr;
 
@@ -1002,7 +963,6 @@ ErrExit:
 //    S_OK - Output buffer contains the version string.
 //    HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER) - *pdwLength contains required size of the buffer in 
 //                                                    characters.
-//
 
 STDAPI GetCORVersionInternal(
 __out_ecount_z_opt(cchBuffer) LPWSTR pBuffer, 
@@ -1115,44 +1075,10 @@ __out_ecount_z_opt(cchBuffer) LPWSTR pBuffer,
 
 }
 
-
 #ifndef CROSSGEN_COMPILE
+#ifndef FEATURE_CORECLR
 STDAPI LoadLibraryShimInternal(LPCWSTR szDllName, LPCWSTR szVersion, LPVOID pvReserved, HMODULE *phModDll)
 {
-#ifdef FEATURE_CORECLR
-
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-        PRECONDITION(CheckPointer(szDllName, NULL_OK));
-        PRECONDITION(CheckPointer(szVersion, NULL_OK));
-        PRECONDITION(CheckPointer(pvReserved, NULL_OK));
-        PRECONDITION(CheckPointer(phModDll));
-    } CONTRACTL_END;
-
-    if (szDllName == NULL)
-        return E_POINTER;
-
-    HRESULT hr = S_OK;
-    
-    BEGIN_ENTRYPOINT_NOTHROW;
-
-    WCHAR szDllPath[_MAX_PATH+1];
-
-    if (!PAL_GetPALDirectoryW(szDllPath, _MAX_PATH)) {
-        IfFailGo(HRESULT_FROM_GetLastError());
-    }
-    wcsncat(szDllPath, szDllName, _MAX_PATH - wcslen(szDllPath));
-    
-    if ((*phModDll = WszLoadLibrary(szDllPath)) == NULL)
-        IfFailGo(HRESULT_FROM_GetLastError());
-
-ErrExit:
-    END_ENTRYPOINT_NOTHROW;
-    return hr;
-
-#else // FEATURE_CORECLR
-
     // Simply forward the call to the ICLRRuntimeInfo implementation.
     STATIC_CONTRACT_WRAPPER;
     if (g_pCLRRuntime)
@@ -1188,15 +1114,12 @@ ErrExit:
         }
         return S_OK;
     }
-
-#endif // FEATURE_CORECLR
-
 }
-
-#endif // CROSSGEN_COMPILE
+#endif
+#endif 
 
 static DWORD g_dwSystemDirectory = 0;
-static WCHAR g_pSystemDirectory[_MAX_PATH + 1];
+static WCHAR * g_pSystemDirectory = NULL;
 
 HRESULT GetInternalSystemDirectory(__out_ecount_part_opt(*pdwLength,*pdwLength) LPWSTR buffer, __inout DWORD* pdwLength)
 {
@@ -1258,22 +1181,34 @@ HRESULT SetInternalSystemDirectory()
     } CONTRACTL_END;
 
     HRESULT hr = S_OK;
-
     if(g_dwSystemDirectory == 0) {
-        DWORD len;
 
-        // use local buffer for thread safety
-        WCHAR wzSystemDirectory[COUNTOF(g_pSystemDirectory)];
-        
-        hr = GetCORSystemDirectoryInternal(wzSystemDirectory, COUNTOF(wzSystemDirectory), &len);
+        DWORD len = 0;
+        NewArrayHolder<WCHAR> pSystemDirectory;
+        EX_TRY{
 
-        if(FAILED(hr)) {
-            wzSystemDirectory[0] = W('\0');
-            len = 1;
+            // use local buffer for thread safety
+            PathString wzSystemDirectory;
+            
+            hr = GetCORSystemDirectoryInternaL(wzSystemDirectory);
+
+            if (FAILED(hr)) {
+                wzSystemDirectory.Set(W('\0'));
+            }
+
+            pSystemDirectory = wzSystemDirectory.GetCopyOfUnicodeString();
+            if (pSystemDirectory == NULL)
+            {
+               hr =  HRESULT_FROM_WIN32(ERROR_NOT_ENOUGH_MEMORY);
+            }
+            len = wzSystemDirectory.GetCount() + 1;
+
         }
+        EX_CATCH_HRESULT(hr);
 
         // publish results idempotently with correct memory ordering
-        memcpy(g_pSystemDirectory, wzSystemDirectory, len * sizeof(WCHAR));
+        g_pSystemDirectory = pSystemDirectory.Extract();
+        
         (void)InterlockedExchange((LONG *)&g_dwSystemDirectory, len);
     }
 
@@ -1283,17 +1218,32 @@ HRESULT SetInternalSystemDirectory()
 #if defined(CROSSGEN_COMPILE) && defined(FEATURE_CORECLR)
 void SetMscorlibPath(LPCWSTR wzSystemDirectory)
 {
-    wcscpy_s(g_pSystemDirectory, COUNTOF(g_pSystemDirectory), wzSystemDirectory);
-
-    DWORD len = (DWORD)wcslen(g_pSystemDirectory);
-
-    if(g_pSystemDirectory[len-1] != '\\')
+    DWORD len = (DWORD)wcslen(wzSystemDirectory);
+    bool appendSeparator = wzSystemDirectory[len-1] != DIRECTORY_SEPARATOR_CHAR_W;
+    DWORD lenAlloc = appendSeparator ? len+2 : len+1;
+    if (g_dwSystemDirectory < lenAlloc)
     {
-        g_pSystemDirectory[len] = W('\\');
+        delete [] g_pSystemDirectory;
+        g_pSystemDirectory = new (nothrow) WCHAR[lenAlloc];
+        
+        if (g_pSystemDirectory == NULL)
+        {
+            SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+            return;
+        }
+    }
+    
+    wcscpy_s(g_pSystemDirectory, len+1, wzSystemDirectory);
+    
+    if(appendSeparator)
+    {
+        g_pSystemDirectory[len] = DIRECTORY_SEPARATOR_CHAR_W;
         g_pSystemDirectory[len+1] = W('\0');
         g_dwSystemDirectory = len + 1;
     }
     else
+    {
         g_dwSystemDirectory = len;
+    }
 }
 #endif

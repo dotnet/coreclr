@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -46,7 +45,7 @@ SET_DEFAULT_DEBUG_CHANNEL(LOADER);
     Retrieve the full path of the librotor_pal.so using loadquery()
 
 Parameters:
-    pszBuf - CHAR array of MAX_PATH length
+    pszBuf - CHAR array of MAX_PATH_FNAME length
 
 Return value:
     0 on success
@@ -83,7 +82,7 @@ int GetLibRotorNameViaLoadQuery(LPSTR pszBuf)
         iLQRetVal = loadquery(L_GETINFO, pLoadQueryBuf, cbBuf);
         if (iLQRetVal < 0)
         {
-            InternalFree(pThread, pLoadQueryBuf);
+            free(pThread, pLoadQueryBuf);
             pLoadQueryBuf = NULL;
             DWORD dwLastError = GetLastError();
             if (dwLastError == ERROR_NOT_ENOUGH_MEMORY)
@@ -109,9 +108,9 @@ int GetLibRotorNameViaLoadQuery(LPSTR pszBuf)
             if (strstr(pInfo->ldinfo_filename, "librotor_pal.a"))
             {
                 UINT cchFileName = strlen(pInfo->ldinfo_filename);
-                if (cchFileName + 1  > MAX_PATH)
+                if (cchFileName + 1  > MAX_PATH_FNAME)
                 {
-                    ASSERT("Filename returned by loadquery was longer than MAX_PATH!\n");
+                    ASSERT("Filename returned by loadquery was longer than MAX_PATH_FNAME!\n");
                     SetLastError(ERROR_INTERNAL_ERROR);
                     goto Done;
                 }
@@ -119,7 +118,7 @@ int GetLibRotorNameViaLoadQuery(LPSTR pszBuf)
                 {
                     // The buffer should be large enough to accomodate the filename.
                     // So, we send in the size of the filename+1
-                    strcpy_s(pszBuf, MAX_PATH, pInfo->ldinfo_filename);
+                    strcpy_s(pszBuf, MAX_PATH_FNAME, pInfo->ldinfo_filename);
                     iRetVal = 0;
                     goto Done;
                 }
@@ -138,7 +137,7 @@ int GetLibRotorNameViaLoadQuery(LPSTR pszBuf)
     }
 Done:
     if (pLoadQueryBuf)
-        InternalFree(pThread, pLoadQueryBuf);
+        free(pThread, pLoadQueryBuf);
     return iRetVal;
 }
 #endif // defined(_AIX)
@@ -155,7 +154,7 @@ Return value:
     Pointer to string with the fullpath to the librotor_pal.so being
     used.
 
-    NULL if error occured.
+    NULL if error occurred.
 
 Notes: 
     The string returned by this function is owned by the OS.

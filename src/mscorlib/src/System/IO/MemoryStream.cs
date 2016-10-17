@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -64,7 +65,7 @@ namespace System.IO {
             }
             Contract.EndContractBlock();
 
-            _buffer = new byte[capacity];
+            _buffer = capacity != 0 ? new byte[capacity] : EmptyArray<byte>.Value;
             _capacity = capacity;
             _expandable = true;
             _writable = true;
@@ -184,7 +185,7 @@ namespace System.IO {
         public override Task FlushAsync(CancellationToken cancellationToken) {
 
             if (cancellationToken.IsCancellationRequested)
-                return Task.FromCancellation(cancellationToken);
+                return Task.FromCanceled(cancellationToken);
 
             try {
 
@@ -372,7 +373,7 @@ namespace System.IO {
 
             // If cancellation was requested, bail early
             if (cancellationToken.IsCancellationRequested) 
-                return Task.FromCancellation<int>(cancellationToken);
+                return Task.FromCanceled<int>(cancellationToken);
 
             try
             {
@@ -401,42 +402,52 @@ namespace System.IO {
             return _buffer[_position++];
         }
 
+        public override void CopyTo(Stream destination, int bufferSize)
+        {
+            // Since we did not originally override this method, validate the arguments
+            // the same way Stream does for back-compat.
+            StreamHelpers.ValidateCopyToArgs(this, destination, bufferSize);
+
+            // If we have been inherited into a subclass, the following implementation could be incorrect
+            // since it does not call through to Read() which a subclass might have overridden.  
+            // To be safe we will only use this implementation in cases where we know it is safe to do so,
+            // and delegate to our base class (which will call into Read) when we are not sure.
+            if (GetType() != typeof(MemoryStream))
+            {
+                base.CopyTo(destination, bufferSize);
+                return;
+            }
+            
+            int originalPosition = _position;
+
+            // Seek to the end of the MemoryStream.
+            int remaining = InternalEmulateRead(_length - originalPosition);
+
+            // If we were already at or past the end, there's no copying to do so just quit.
+            if (remaining > 0)
+            {
+                // Call Write() on the other Stream, using our internal buffer and avoiding any
+                // intermediary allocations.
+                destination.Write(_buffer, originalPosition, remaining);
+            }
+        }
 
         public override Task CopyToAsync(Stream destination, Int32 bufferSize, CancellationToken cancellationToken) {
 
             // This implementation offers beter performance compared to the base class version.
 
-            // The parameter checks must be in sync with the base version:
-            if (destination == null)
-                throw new ArgumentNullException("destination");
-            
-            if (bufferSize <= 0)
-                throw new ArgumentOutOfRangeException("bufferSize", Environment.GetResourceString("ArgumentOutOfRange_NeedPosNum"));
-
-            if (!CanRead && !CanWrite)
-                throw new ObjectDisposedException(null, Environment.GetResourceString("ObjectDisposed_StreamClosed"));
-
-            if (!destination.CanRead && !destination.CanWrite)
-                throw new ObjectDisposedException("destination", Environment.GetResourceString("ObjectDisposed_StreamClosed"));
-
-            if (!CanRead)
-                throw new NotSupportedException(Environment.GetResourceString("NotSupported_UnreadableStream"));
-
-            if (!destination.CanWrite)
-                throw new NotSupportedException(Environment.GetResourceString("NotSupported_UnwritableStream"));
-
-            Contract.EndContractBlock();
+            StreamHelpers.ValidateCopyToArgs(this, destination, bufferSize);
 
             // If we have been inherited into a subclass, the following implementation could be incorrect
-            // since it does not call through to Read() or Write() which a subclass might have overriden.  
+            // since it does not call through to ReadAsync() which a subclass might have overridden.  
             // To be safe we will only use this implementation in cases where we know it is safe to do so,
-            // and delegate to our base class (which will call into Read/Write) when we are not sure.
+            // and delegate to our base class (which will call into ReadAsync) when we are not sure.
             if (this.GetType() != typeof(MemoryStream))
                 return base.CopyToAsync(destination, bufferSize, cancellationToken);
 
             // If cancelled - return fast:
             if (cancellationToken.IsCancellationRequested)
-                return Task.FromCancellation(cancellationToken);
+                return Task.FromCanceled(cancellationToken);
            
             // Avoid copying data from this buffer into a temp buffer:
             //   (require that InternalEmulateRead does not throw,
@@ -595,7 +606,7 @@ namespace System.IO {
 
             // If cancellation is already requested, bail early
             if (cancellationToken.IsCancellationRequested) 
-                return Task.FromCancellation(cancellationToken);
+                return Task.FromCanceled(cancellationToken);
 
             try
             {
@@ -641,16 +652,5 @@ namespace System.IO {
             if (!_isOpen) __Error.StreamIsClosed();
             stream.Write(_buffer, _origin, _length - _origin);
         }
-
-#if CONTRACTS_FULL
-        [ContractInvariantMethod]
-        private void ObjectInvariantMS() {
-            Contract.Invariant(_origin >= 0);
-            Contract.Invariant(_origin <= _position);
-            Contract.Invariant(_length <= _capacity);
-            // equivalent to _origin > 0 => !expandable, and using fact that _origin is non-negative.
-            Contract.Invariant(_origin == 0 || !_expandable);
-        }
-#endif
     }
 }

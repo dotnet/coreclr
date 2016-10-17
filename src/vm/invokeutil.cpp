@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -28,6 +27,7 @@
 #include "eeconfig.h"
 #include "generics.h"
 #include "runtimehandles.h"
+#include "argdestination.h"
 
 #ifndef CROSSGEN_COMPILE
 
@@ -130,7 +130,7 @@ void *InvokeUtil::GetIntPtrValue(OBJECTREF pObj) {
     RETURN *(void **)((pObj)->UnBox());
 }
 
-void InvokeUtil::CopyArg(TypeHandle th, OBJECTREF *pObjUNSAFE, void *pArgDst) {
+void InvokeUtil::CopyArg(TypeHandle th, OBJECTREF *pObjUNSAFE, ArgDestination *argDest) {
     CONTRACTL {
         THROWS;
         GC_NOTRIGGER; // Caller does not protect object references
@@ -140,7 +140,9 @@ void InvokeUtil::CopyArg(TypeHandle th, OBJECTREF *pObjUNSAFE, void *pArgDst) {
         INJECT_FAULT(COMPlusThrowOM()); 
     }
     CONTRACTL_END;
-    
+
+    void *pArgDst = argDest->GetDestinationAddress();
+
     OBJECTREF rObj = *pObjUNSAFE;
     MethodTable* pMT;
     CorElementType oType;
@@ -204,12 +206,12 @@ void InvokeUtil::CopyArg(TypeHandle th, OBJECTREF *pObjUNSAFE, void *pArgDst) {
 
     case ELEMENT_TYPE_VALUETYPE:
     {
-        // If we got the univeral zero...Then assign it and exit.
+        // If we got the universal zero...Then assign it and exit.
         if (rObj == 0) {
-            InitValueClass(pArgDst, th.AsMethodTable());
+            InitValueClassArg(argDest, th.AsMethodTable());
          }
         else {
-            if (!th.AsMethodTable()->UnBoxInto(pArgDst, rObj))
+            if (!th.AsMethodTable()->UnBoxIntoArg(argDest, rObj))
                 COMPlusThrow(kArgumentException, W("Arg_ObjObj"));
         }
         break;
@@ -2013,11 +2015,6 @@ AccessCheckOptions::AccessCheckType InvokeUtil::GetInvocationAccessCheckType(BOO
         // Ignore transparency so that reflection invocation is consistenct with LCG.
         // There is no security concern because we are in Full Trust.
         return AccessCheckOptions::kRestrictedMemberAccessNoTransparency;
-
-#ifdef FEATURE_LEGACYNETCF
-    if (pAppDomain->GetAppDomainCompatMode() == BaseDomain::APPDOMAINCOMPAT_APP_EARLIER_THAN_WP8)
-        return AccessCheckOptions::kRestrictedMemberAccess;
-#endif // FEATURE_LEGACYNETCF
 
     return AccessCheckOptions::kMemberAccess;
 

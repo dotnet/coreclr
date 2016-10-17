@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*=============================================================================
 **
@@ -19,7 +20,7 @@ namespace System {
     using System.Runtime.CompilerServices;
     using System.Runtime.ConstrainedExecution;
     using System.Diagnostics.Contracts;
-#if FEATURE_CAS_POLICY || FEATURE_LEGACYNETCFCRYPTO
+#if FEATURE_CAS_POLICY
     using StringMaker = System.Security.Util.Tokenizer.StringMaker;
 #endif // FEATURE_CAS_POLICY
 
@@ -66,7 +67,7 @@ namespace System {
             } 
         }
 
-#if FEATURE_CAS_POLICY || FEATURE_LEGACYNETCFCRYPTO
+#if FEATURE_CAS_POLICY
         private StringMaker _maker;
         [System.Security.SecuritySafeCritical]  // auto-generated
         static public StringMaker GetSharedStringMaker()

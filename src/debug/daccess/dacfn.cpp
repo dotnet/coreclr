@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // File: dacfn.cpp
 // 
@@ -217,6 +216,33 @@ DacWriteAll(TADDR addr, PVOID buffer, ULONG32 size, bool throwEx)
 
     return S_OK;
 }
+
+#if defined(WIN64EXCEPTIONS) && defined(FEATURE_PAL)
+HRESULT 
+DacVirtualUnwind(DWORD threadId, PCONTEXT context, PT_KNONVOLATILE_CONTEXT_POINTERS contextPointers)
+{
+    if (!g_dacImpl)
+    {
+        DacError(E_UNEXPECTED);
+        UNREACHABLE();
+    }
+
+    // The DAC code doesn't use these context pointers but zero them out to be safe.
+    if (contextPointers != NULL)
+    {
+        memset(contextPointers, 0, sizeof(T_KNONVOLATILE_CONTEXT_POINTERS));
+    }
+
+    ReleaseHolder<ICorDebugDataTarget4> dt;
+    HRESULT hr = g_dacImpl->m_pTarget->QueryInterface(IID_ICorDebugDataTarget4, (void **)&dt);
+    if (SUCCEEDED(hr))
+    {
+        hr = dt->VirtualUnwind(threadId, sizeof(CONTEXT), (BYTE*)context);
+    }
+
+    return hr;
+}
+#endif // defined(WIN64EXCEPTIONS) && defined(FEATURE_PAL)
 
 // DacAllocVirtual - Allocate memory from the target process
 // Note: this is only available to clients supporting the legacy
@@ -1078,6 +1104,7 @@ PWSTR    DacGetVtNameW(TADDR targetVtable)
         if (targetVtable == (*targ + DacGlobalBase()))
         {
             pszRet = (PWSTR) *(g_dacVtStrings + (targ - targStart));
+            break;
         }
 
         targ++;

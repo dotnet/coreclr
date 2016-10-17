@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ===========================================================================
 // File: ReadyToRunInfo.h
 //
@@ -22,22 +21,24 @@ class ReadyToRunInfo
 {
     friend class ReadyToRunJitManager;
 
-    PTR_Module                  m_pModule;
+    PTR_Module                      m_pModule;
 
-    PTR_PEImageLayout           m_pLayout;
-    PTR_READYTORUN_HEADER       m_pHeader;
+    PTR_PEImageLayout               m_pLayout;
+    PTR_READYTORUN_HEADER           m_pHeader;
 
-    PTR_RUNTIME_FUNCTION        m_pRuntimeFunctions;
-    DWORD                       m_nRuntimeFunctions;
+    PTR_RUNTIME_FUNCTION            m_pRuntimeFunctions;
+    DWORD                           m_nRuntimeFunctions;
 
-    PTR_CORCOMPILE_IMPORT_SECTION m_pImportSections;
-    DWORD                       m_nImportSections;
+    PTR_CORCOMPILE_IMPORT_SECTION   m_pImportSections;
+    DWORD                           m_nImportSections;
 
-    NativeFormat::NativeReader  m_nativeReader;
-    NativeFormat::NativeArray   m_methodDefEntryPoints;
+    NativeFormat::NativeReader      m_nativeReader;
+    NativeFormat::NativeArray       m_methodDefEntryPoints;
+    NativeFormat::NativeHashtable   m_instMethodEntryPoints;
+    NativeFormat::NativeHashtable   m_availableTypesHashtable;
 
-    Crst                        m_Crst;
-    PtrHashMap                  m_entryPointToMethodDescMap;
+    Crst                            m_Crst;
+    PtrHashMap                      m_entryPointToMethodDescMap;
 
     ReadyToRunInfo(Module * pModule, PEImageLayout * pLayout, READYTORUN_HEADER * pHeader);
 
@@ -49,6 +50,9 @@ public:
     PCODE GetEntryPoint(MethodDesc * pMD, BOOL fFixups = TRUE);
 
     MethodDesc * GetMethodDescForEntryPoint(PCODE entryPoint);
+
+    BOOL HasHashtableOfTypes();
+    BOOL TryLookupTypeTokenFromName(NameHandle *pName, mdToken * pFoundTypeToken);
 
     BOOL SkipTypeValidation()
     {
@@ -108,14 +112,22 @@ public:
         BOOL Next();
 
         MethodDesc * GetMethodDesc();
+        MethodDesc * GetMethodDesc_NoRestore();
         PCODE GetMethodStartAddress();
     };
 
     static DWORD GetFieldBaseOffset(MethodTable * pMT);
+
+private:
+    BOOL GetTypeNameFromToken(IMDInternalImport * pImport, mdToken mdType, LPCUTF8 * ppszName, LPCUTF8 * ppszNameSpace);
+    BOOL GetEnclosingToken(IMDInternalImport * pImport, mdToken mdType, mdToken * pEnclosingToken);
+    BOOL CompareTypeNameOfTokens(mdToken mdToken1, IMDInternalImport * pImport1, mdToken mdToken2, IMDInternalImport * pImport2);
 };
 
 class DynamicHelpers
 {
+private:
+    static void EmitHelperWithArg(BYTE*& pCode, LoaderAllocator * pAllocator, TADDR arg, PCODE target);
 public:
     static PCODE CreateHelper(LoaderAllocator * pAllocator, TADDR arg, PCODE target);
     static PCODE CreateHelperWithArg(LoaderAllocator * pAllocator, TADDR arg, PCODE target);
@@ -126,6 +138,7 @@ public:
     static PCODE CreateReturnIndirConst(LoaderAllocator * pAllocator, TADDR arg, INT8 offset);
     static PCODE CreateHelperWithTwoArgs(LoaderAllocator * pAllocator, TADDR arg, PCODE target);
     static PCODE CreateHelperWithTwoArgs(LoaderAllocator * pAllocator, TADDR arg, TADDR arg2, PCODE target);
+    static PCODE CreateDictionaryLookupHelper(LoaderAllocator * pAllocator, CORINFO_RUNTIME_LOOKUP * pLookup, DWORD dictionaryIndexAndSlot, Module * pModule);
 };
 
 #endif // _READYTORUNINFO_H_

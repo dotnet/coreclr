@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // Volatile.h
 // 
@@ -59,9 +58,7 @@
 #ifndef _VOLATILE_H_
 #define _VOLATILE_H_
 
-#ifndef CLR_STANDALONE_BINDER
 #include "staticcontract.h"
-#endif
 
 //
 // This code is extremely compiler- and CPU-specific, and will need to be altered to 
@@ -72,11 +69,15 @@
 #error The Volatile type is currently only defined for Visual C++ and GNU C++
 #endif
 
-#if defined(__GNUC__) && !defined(_X86_) && !defined(_AMD64_)
-#error The Volatile type is currently only defined for GCC when targeting x86 or AMD64 CPUs
+#if defined(__GNUC__) && !defined(_X86_) && !defined(_AMD64_) && !defined(_ARM_) && !defined(_ARM64_)
+#error The Volatile type is currently only defined for GCC when targeting x86, AMD64, ARM or ARM64 CPUs
 #endif
 
-#ifdef __GNUC__
+#if defined(__GNUC__)
+#if defined(_ARM_) || defined(_ARM64_)
+// This is functionally equivalent to the MemoryBarrier() macro used on ARM on Windows.
+#define VOLATILE_MEMORY_BARRIER() asm volatile ("dmb sy" : : : "memory")
+#else
 //
 // For GCC, we prevent reordering by the compiler by inserting the following after a volatile
 // load (to prevent subsequent operations from moving before the read), and before a volatile 
@@ -89,8 +90,9 @@
 // notice.
 //
 #define VOLATILE_MEMORY_BARRIER() asm volatile ("" : : : "memory")
-#elif defined(_ARM_) && _ISO_VOLATILE
-// ARM has a very weak memory model and very few tools to control that model. We're forced to perform a full
+#endif // _ARM_ || _ARM64_
+#elif (defined(_ARM_) || defined(_ARM64_)) && _ISO_VOLATILE
+// ARM & ARM64 have a very weak memory model and very few tools to control that model. We're forced to perform a full
 // memory barrier to preserve the volatile semantics. Technically this is only necessary on MP systems but we
 // currently don't have a cheap way to determine the number of CPUs from this header file. Revisit this if it
 // turns out to be a performance issue for the uni-proc case.
@@ -102,7 +104,7 @@
 // targeted by VC++ with /iso_volatile-.
 //
 #define VOLATILE_MEMORY_BARRIER()
-#endif
+#endif // __GNUC__
 
 //
 // VolatileLoad loads a T from a pointer to T.  It is guaranteed that this load will not be optimized
@@ -165,6 +167,19 @@ void VolatileStore(T* pt, T val)
 
 #ifndef DACCESS_COMPILE
     VOLATILE_MEMORY_BARRIER();
+    *(T volatile *)pt = val;
+#else
+    *pt = val;
+#endif
+}
+
+template<typename T>
+inline
+void VolatileStoreWithoutBarrier(T* pt, T val)
+{
+    STATIC_CONTRACT_SUPPORTS_DAC_HOST_ONLY;
+
+#ifndef DACCESS_COMPILE
     *(T volatile *)pt = val;
 #else
     *pt = val;

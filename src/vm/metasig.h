@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // METASIG.H
 //
 
@@ -303,7 +302,10 @@ DEFINE_METASIG(SM(Int_IntPtr_RetObj, i I, j))
 DEFINE_METASIG(SM(IntPtr_IntPtr_Int_RetVoid, I I i, v))
 DEFINE_METASIG_T(SM(Exception_RetInt, C(EXCEPTION), i))
 
+#ifdef FEATURE_REMOTING
 DEFINE_METASIG_T(SM(ContextBoundObject_RetObj, C(CONTEXT_BOUND_OBJECT), j))
+#endif
+
 DEFINE_METASIG_T(SM(PMS_PMS_RetInt, C(PERMISSION_SET) C(PERMISSION_SET), i))
 
 DEFINE_METASIG(SM(IntPtr_RetVoid, I, v))
@@ -552,6 +554,7 @@ DEFINE_METASIG(SM(Str_RetStr, s, s))
 DEFINE_METASIG_T(SM(Str_CultureInfo_RetStr, s C(CULTURE_INFO), s))
 DEFINE_METASIG_T(SM(Str_CultureInfo_RefBool_RetStr, s C(CULTURE_INFO) r(F), s))
 DEFINE_METASIG(IM(Str_ArrStr_ArrStr_RetVoid, s a(s) a(s), v))
+DEFINE_METASIG(SM(ArrStr_RetVoid, a(s), v))
 DEFINE_METASIG(IM(Str_RetVoid, s, v))
 DEFINE_METASIG(SM(RefBool_RefBool_RetVoid, r(F) r(F), v))
 DEFINE_METASIG_T(IM(Str_Exception_RetVoid, s C(EXCEPTION), v))
@@ -675,8 +678,14 @@ DEFINE_METASIG(SM(RefObject_Object_Object_RetObject, r(j) j j, j))
 DEFINE_METASIG_T(SM(RefCleanupWorkList_RetVoid, r(C(CLEANUP_WORK_LIST)), v))
 DEFINE_METASIG_T(SM(RefCleanupWorkList_SafeHandle_RetIntPtr, r(C(CLEANUP_WORK_LIST)) C(SAFE_HANDLE), I))
 
-DEFINE_METASIG_T(IM(RuntimeTypeHandle_RefException_RetBool, g(RT_TYPE_HANDLE) r(C(EXCEPTION)), F))
-DEFINE_METASIG_T(IM(RuntimeTypeHandle_RetRuntimeTypeHandle, g(RT_TYPE_HANDLE), g(RT_TYPE_HANDLE)))
+#ifdef FEATURE_ICASTABLE
+DEFINE_METASIG_T(SM(ICastable_RtType_RefException_RetBool, C(ICASTABLE) C(CLASS) r(C(EXCEPTION)), F))
+DEFINE_METASIG_T(SM(ICastable_RtType_RetRtType, C(ICASTABLE) C(CLASS), C(CLASS)))
+#endif // FEATURE_ICASTABLE
+
+DEFINE_METASIG_T(IM(ArrByte_Int_Int_AsyncCallback_Object_RetIAsyncResult, a(b) i i C(ASYNCCALLBACK) j, C(IASYNCRESULT)))
+DEFINE_METASIG_T(IM(IAsyncResult_RetInt, C(IASYNCRESULT), i))
+DEFINE_METASIG_T(IM(IAsyncResult_RetVoid, C(IASYNCRESULT), v))
 
 // Undefine macros in case we include the file again in the compilation unit
 

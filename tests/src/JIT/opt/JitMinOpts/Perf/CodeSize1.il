@@ -1,12 +1,18 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // DEFAULT_MIN_OPTS_CODE_SIZE    60000
 // OPTIONS: opts.MinOpts() == true
 // TID abc: IL Code Size exceeded, using MinOpts for method CodeSize1.Main():int
 // TID abc: IL Code Size,Instr 60002,15515, Basic Block count 722, Local Variable Num,Ref count  17,5328 for method CodeSize1.Main():int
 
-.assembly extern mscorlib {}
+.assembly extern mscorlib { }
+.assembly extern System.Console
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
 .assembly CodeSize1 {}
 .module CodeSize1.exe
 .class private auto ansi beforefieldinit CodeSize1
@@ -18662,7 +18668,7 @@
     IL_e9e7:  box        [mscorlib]System.Int32
     IL_e9ec:  call       string [mscorlib]System.String::Concat(object,
                                                                 object)
-    IL_e9f1:  call       void [mscorlib]System.Console::WriteLine(string)
+    IL_e9f1:  call       void [System.Console]System.Console::WriteLine(string)
     IL_e9f6:  ldstr      "b is: "
     IL_e9fb:  ldloc.s    V_7
     IL_e9fd:  ldloc.1
@@ -18670,7 +18676,7 @@
     IL_e9ff:  box        [mscorlib]System.Int32
     IL_ea04:  call       string [mscorlib]System.String::Concat(object,
                                                                 object)
-    IL_ea09:  call       void [mscorlib]System.Console::WriteLine(string)
+    IL_ea09:  call       void [System.Console]System.Console::WriteLine(string)
     IL_ea0e:  ldstr      "c is: "
     IL_ea13:  ldloc.s    V_8
     IL_ea15:  ldloc.2
@@ -18678,7 +18684,7 @@
     IL_ea17:  box        [mscorlib]System.Int32
     IL_ea1c:  call       string [mscorlib]System.String::Concat(object,
                                                                 object)
-    IL_ea21:  call       void [mscorlib]System.Console::WriteLine(string)
+    IL_ea21:  call       void [System.Console]System.Console::WriteLine(string)
     IL_ea26:  ldstr      "d is: "
     IL_ea2b:  ldloc.s    V_9
     IL_ea2d:  ldloc      V_3
@@ -18686,7 +18692,7 @@
     IL_ea32:  box        [mscorlib]System.Int32
     IL_ea37:  call       string [mscorlib]System.String::Concat(object,
                                                                 object)
-    IL_ea3c:  call       void [mscorlib]System.Console::WriteLine(string)
+    IL_ea3c:  call       void [System.Console]System.Console::WriteLine(string)
     IL_ea41:  ldstr      "e is: "
     IL_ea46:  ldloc.s    V_10
     IL_ea48:  ldloc.s    V_4
@@ -18696,7 +18702,7 @@
     IL_ea4d:  box        [mscorlib]System.Int32
     IL_ea52:  call       string [mscorlib]System.String::Concat(object,
                                                                 object)
-    IL_ea57:  call       void [mscorlib]System.Console::WriteLine(string)
+    IL_ea57:  call       void [System.Console]System.Console::WriteLine(string)
     IL_ea5c:  ldc.i4.s   100
     IL_ea5e:  stloc.s    V_11
     IL_ea60:  ldloc.s    V_11

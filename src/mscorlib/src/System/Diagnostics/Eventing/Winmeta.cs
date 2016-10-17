@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -24,7 +25,8 @@ namespace System.Diagnostics.Tracing
     /// <summary>
     /// WindowsEventLevel. Custom values must be in the range from 16 through 255
     /// </summary>
-    public enum EventLevel {
+    public enum EventLevel
+    {
         /// <summary>
         /// Log always
         /// </summary>
@@ -53,10 +55,11 @@ namespace System.Diagnostics.Tracing
     /// <summary>
     /// WindowsEventTask. Custom values must be in the range from 1 through 65534
     /// </summary>
-#if !ES_BUILD_STANDALONE
+#if (!ES_BUILD_STANDALONE && !PROJECTN)
     [System.Runtime.CompilerServices.FriendAccessAllowed]
 #endif
-    public enum EventTask {
+    public enum EventTask
+    {
         /// <summary>
         /// Undefined task
         /// </summary>
@@ -65,7 +68,7 @@ namespace System.Diagnostics.Tracing
     /// <summary>
     /// EventOpcode. Custom values must be in the range from 11 through 239
     /// </summary>
-#if !ES_BUILD_STANDALONE
+#if (!ES_BUILD_STANDALONE && !PROJECTN)
     [System.Runtime.CompilerServices.FriendAccessAllowed]
 #endif
     public enum EventOpcode
@@ -120,12 +123,12 @@ namespace System.Diagnostics.Tracing
     /// <summary>
     /// EventChannel. Custom values must be in the range from 16 through 255. Currently only predefined values allowed.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1028:EnumStorageShouldBeInt32", Justification="Backwards compatibility")]
-#if !ES_BUILD_STANDALONE
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1028:EnumStorageShouldBeInt32", Justification = "Backwards compatibility")]
+#if (!ES_BUILD_STANDALONE && !PROJECTN)
     [System.Runtime.CompilerServices.FriendAccessAllowed]
 #endif
-    public enum EventChannel : byte 
-    { 
+    public enum EventChannel : byte
+    {
         /// <summary>
         /// No channel
         /// </summary>
@@ -146,7 +149,8 @@ namespace System.Diagnostics.Tracing
     /// EventOpcode
     /// </summary>
     [Flags]
-    public enum EventKeywords : long {
+    public enum EventKeywords : long
+    {
         /// <summary>
         /// No events. 
         /// </summary>

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 //
@@ -31,9 +32,6 @@ namespace System {
     [ClassInterface(ClassInterfaceType.None)]
     [ComDefaultInterface(typeof(_Type))]
     [System.Runtime.InteropServices.ComVisible(true)]
-#if CONTRACTS_FULL
-    [ContractClass(typeof(TypeContracts))]
-#endif
     public abstract class Type : MemberInfo, _Type, IReflect
     {
         //
@@ -101,7 +99,6 @@ namespace System {
             return RuntimeType.GetType(typeName, false, false, false, ref stackMark);
         }
 
-#if !FEATURE_CORECLR
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static Type GetType(
             string typeName,
@@ -134,7 +131,6 @@ namespace System {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return TypeNameParser.GetType(typeName, assemblyResolver, typeResolver, throwOnError, ignoreCase, ref stackMark);
         }
-#endif //!FEATURE_CORECLR
 
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static Type ReflectionOnlyGetType(String typeName, bool throwIfNotFound, bool ignoreCase) 
@@ -149,7 +145,6 @@ namespace System {
         public virtual Type MakeArrayType() { throw new NotSupportedException(); }
         public virtual Type MakeArrayType(int rank) { throw new NotSupportedException(); }
 
-#if FEATURE_COMINTEROP
         ////////////////////////////////////////////////////////////////////////////////
         // This will return a class based upon the progID.  This is provided for 
         // COM classic support.  Program ID's are not used in COM+ because they 
@@ -222,7 +217,6 @@ namespace System {
         {
                 return RuntimeType.GetTypeFromCLSIDImpl(clsid, server, throwOnError);
         }
-#endif // FEATURE_COMINTEROP
 
         // GetTypeCode
         // This method will return a TypeCode for the passed
@@ -1312,13 +1306,20 @@ namespace System {
     
         // Protected routine to determine if this class is contextful
         protected virtual bool IsContextfulImpl(){
+#if FEATURE_REMOTING
             return typeof(ContextBoundObject).IsAssignableFrom(this);
+#else
+            return false;
+#endif
         }
-    
 
         // Protected routine to determine if this class is marshaled by ref
         protected virtual bool IsMarshalByRefImpl(){
+#if FEATURE_REMOTING
             return typeof(MarshalByRefObject).IsAssignableFrom(this);
+#else
+            return false;
+#endif
         }
 
         internal virtual bool HasProxyAttributeImpl()
@@ -1368,7 +1369,7 @@ namespace System {
             return rootElementType;
         }
 
-        #region Enum methods
+#region Enum methods
 
         // Default implementations of GetEnumNames, GetEnumValues, and GetEnumUnderlyingType
         // Subclass of types can override these methods.
@@ -1510,12 +1511,6 @@ namespace System {
                 Array values = GetEnumRawConstantValues();
                 return (BinarySearch(values, value) >= 0);
             }
-            else if (CompatibilitySwitches.IsAppEarlierThanWindowsPhone8)
-            {
-                // if at this point the value type is not an integer type, then its type doesn't match the enum type
-                // NetCF used to throw an argument exception in this case
-                throw new ArgumentException(Environment.GetResourceString("Arg_EnumUnderlyingTypeAndObjectMustBeSameType", valueType.ToString(), GetEnumUnderlyingType()));
-            }
             else
             {
                 throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_UnknownEnumType"));
@@ -1573,7 +1568,7 @@ namespace System {
                     t == typeof(char) ||
                     t == typeof(bool));
         }
-        #endregion
+#endregion
 
         public virtual bool IsSecurityCritical { [Pure] get { throw new NotImplementedException(); } }
 
@@ -1790,7 +1785,6 @@ namespace System {
             return (Object.ReferenceEquals(this.UnderlyingSystemType, o.UnderlyingSystemType));
         }
 
-#if !FEATURE_CORECLR
         [System.Security.SecuritySafeCritical]
         [Pure]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -1800,7 +1794,6 @@ namespace System {
         [Pure]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern bool operator !=(Type left, Type right);
-#endif // !FEATURE_CORECLR
 
         public override int GetHashCode()
         {
@@ -1821,7 +1814,6 @@ namespace System {
             throw new NotSupportedException(Environment.GetResourceString("NotSupported_SubclassOverride"));
         }
 
-#if !FEATURE_CORECLR
         // this method is required so Object.GetType is not made virtual by the compiler 
         // _Type.GetType()
         public new Type GetType()
@@ -1829,6 +1821,7 @@ namespace System {
             return base.GetType();
         }
 
+#if !FEATURE_CORECLR
         void _Type.GetTypeInfoCount(out uint pcTInfo)
         {
             throw new NotImplementedException();
@@ -1856,28 +1849,4 @@ namespace System {
         private const BindingFlags DefaultLookup = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
         internal const BindingFlags DeclaredOnlyLookup = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
 }
-
-#if CONTRACTS_FULL
-    [ContractClassFor(typeof(Type))]
-    internal abstract class TypeContracts : Type
-    {
-        public override FieldInfo[] GetFields(BindingFlags bindingAttr)
-        {
-            Contract.Ensures(Contract.Result<FieldInfo[]>() != null);
-            return default(FieldInfo[]);
-        }
-
-        public new static Type GetTypeFromHandle(RuntimeTypeHandle handle)
-        {
-            Contract.Ensures(Contract.Result<Type>() != null);
-            return default(Type);
-        }
-
-        public override Type[] GetInterfaces()
-        {
-            Contract.Ensures(Contract.Result<Type[]>() != null);
-            return default(Type[]);
-        }
-    }
-#endif 
 }

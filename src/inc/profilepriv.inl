@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // ProfilePriv.inl
 // 
@@ -720,6 +719,21 @@ inline BOOL CORProfilerAddsAssemblyReferences()
 
     return (CORProfilerPresent() && 
         ((&g_profControlBlock)->dwEventMaskHigh & COR_PRF_HIGH_ADD_ASSEMBLY_REFERENCES));
+}
+
+inline BOOL CORProfilerInMemorySymbolsUpdatesEnabled()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        CANNOT_TAKE_LOCK;
+        SO_NOT_MAINLINE;
+    }
+    CONTRACTL_END;
+
+    return (CORProfilerPresent() &&
+        ((&g_profControlBlock)->dwEventMaskHigh & COR_PRF_HIGH_IN_MEMORY_SYMBOLS_UPDATED));
 }
 
 #if defined(PROFILING_SUPPORTED) && !defined(CROSSGEN_COMPILE)

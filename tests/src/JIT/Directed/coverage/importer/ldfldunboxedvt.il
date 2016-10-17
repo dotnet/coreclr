@@ -1,7 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 .assembly extern legacy library mscorlib {}
+.assembly extern System.Console
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
 .assembly legacy library ldfldunboxedvt {}
 .class public sequential ansi sealed beforefieldinit VT
        extends [mscorlib]System.ValueType
@@ -21,7 +27,7 @@
     IL_0008:  //ldloca.s   V_0
 		ldloc.s   V_0
     IL_000a:  ldfld      int32 VT::a
-    IL_000f:  call       void [mscorlib]System.Console::WriteLine(int32)
+    IL_000f:  call       void [System.Console]System.Console::WriteLine(int32)
 	ret
   }
 
@@ -37,7 +43,7 @@
     catch [mscorlib]System.NullReferenceException
     {
 	ldstr "FAIL - Caught an unexpected NullReferenceException"
-	call void [mscorlib]System.Console::WriteLine(string)
+	call void [System.Console]System.Console::WriteLine(string)
 	leave.s FAIL
 
     }
@@ -46,7 +52,7 @@
 	ret
     PASS:
 	ldstr "PASS"
-	call void [mscorlib]System.Console::WriteLine(string)
+	call void [System.Console]System.Console::WriteLine(string)
 	ldc.i4.s   100
 	ret
   } // end of method ldfldunboxedvt::Main

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
@@ -181,10 +180,9 @@ public:
     static
     void QCALLTYPE GetTypeByName(LPCWSTR pwzClassName, BOOL bThrowOnError, BOOL bIgnoreCase, BOOL bReflectionOnly,
                                  QCall::StackCrawlMarkHandle pStackMark, 
-#ifdef FEATURE_HOSTED_BINDER
                                  ICLRPrivBinder * pPrivHostBinder,
-#endif
-                                 BOOL bLoadTypeFromPartialNameHack, QCall::ObjectHandleOnStack retType);
+                                 BOOL bLoadTypeFromPartialNameHack, QCall::ObjectHandleOnStack retType,
+                                 QCall::ObjectHandleOnStack keepAlive);
 
     static FCDECL1(AssemblyBaseObject*, GetAssembly, ReflectClassBaseObject *pType);
     static FCDECL1(ReflectClassBaseObject*, GetBaseType, ReflectClassBaseObject* pType);

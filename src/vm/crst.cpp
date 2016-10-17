@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // CRST.CPP
 // 
@@ -628,7 +627,7 @@ void CrstBase::PreEnter()
                           || (pThread != NULL && pThread->PreemptiveGCDisabled())
                            // If GC heap has not been initialized yet, there is no need to synchronize with GC.
                            // This check is mainly for code called from EEStartup.
-                          || (pThread == NULL && !GCHeap::IsGCHeapInitialized()) );
+                          || (pThread == NULL && !GCHeapUtilities::IsGCHeapInitialized()) );
     }
     
     if ((pThread != NULL) && 
@@ -653,9 +652,9 @@ void CrstBase::PostEnter()
     }
 
     _ASSERTE((m_entercount == 0 && m_holderthreadid.IsUnknown()) ||
-             m_holderthreadid.IsSameThread() ||
+             m_holderthreadid.IsCurrentThread() ||
              IsAtProcessExit());
-    m_holderthreadid.SetThreadId();
+    m_holderthreadid.SetToCurrentThread();
     m_entercount++;
 
     if (m_entercount == 1)
@@ -715,7 +714,7 @@ void CrstBase::PreLeave()
     _ASSERTE(m_entercount > 0);
     m_entercount--;
     if (!m_entercount) {
-        m_holderthreadid.ResetThreadId();
+        m_holderthreadid.Clear();
 
         // Delink it from the Thread's chain of OwnedChain
         if (m_prev)
@@ -796,7 +795,7 @@ void CrstBase::DebugInit(CrstType crstType, CrstFlags flags)
     m_crstType = crstType;
     m_tag = GetCrstName(crstType);
     m_crstlevel = GetCrstLevel(crstType);
-    m_holderthreadid.ResetThreadId();
+    m_holderthreadid.Clear();
     m_entercount       = 0;
     m_next = NULL;
     m_prev = NULL;
@@ -868,7 +867,7 @@ void CrstBase::DebugDestroy()
     }
     
     FillMemory(&m_criticalsection, sizeof(m_criticalsection), 0xcc);
-    m_holderthreadid.ResetThreadId();
+    m_holderthreadid.Clear();
     m_entercount     = 0xcccccccc;
 
     m_next = (CrstBase*)POISONC;
@@ -911,10 +910,10 @@ BOOL CrstBase::IsSafeToTake()
     _ASSERTE(pThread == NULL ||
              (pThread->PreemptiveGCDisabled() == ((m_dwFlags & CRST_UNSAFE_COOPGC) != 0)) ||
              ((m_dwFlags & (CRST_UNSAFE_ANYMODE | CRST_GC_NOTRIGGER_WHEN_TAKEN)) != 0) ||
-             (GCHeap::IsGCInProgress() && pThread == ThreadSuspend::GetSuspensionThread()));
+             (GCHeapUtilities::IsGCInProgress() && pThread == ThreadSuspend::GetSuspensionThread()));
     END_GETTHREAD_ALLOWED;
 
-    if (m_holderthreadid.IsSameThread())
+    if (m_holderthreadid.IsCurrentThread())
     {
         // If we already hold it, we can't violate level order.
         // Check if client wanted to allow reentrancy.
@@ -949,7 +948,7 @@ BOOL CrstBase::IsSafeToTake()
     for (CrstBase *pcrst = GetThreadsOwnedCrsts(); pcrst != NULL; pcrst = pcrst->m_next)
     {
         fSafe = 
-            !pcrst->m_holderthreadid.IsSameThread()
+            !pcrst->m_holderthreadid.IsCurrentThread()
             || (pcrst->m_crstlevel == CRSTUNORDERED)
             || (pcrst->m_crstlevel > m_crstlevel)
             || (pcrst->m_crstlevel == m_crstlevel && (m_dwFlags & CRST_UNSAFE_SAMELEVEL) != 0);

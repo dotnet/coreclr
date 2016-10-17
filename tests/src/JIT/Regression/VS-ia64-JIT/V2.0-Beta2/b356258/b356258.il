@@ -1,5 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
+.assembly extern System.Console
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
 
 
 
@@ -39,7 +46,7 @@
     .maxstack  8
     IL_0000:  call       void FOO::callFoo()
     ldstr "Test SUCCESS"
-    call void [mscorlib]System.Console::WriteLine(string)
+    call void [System.Console]System.Console::WriteLine(string)
     ldc.i4 100
     IL_0006:  ret
   } // end of method FOO::Main

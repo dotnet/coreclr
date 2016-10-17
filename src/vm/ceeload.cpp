@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ===========================================================================
 // File: CEELOAD.CPP
 // 
@@ -38,7 +37,6 @@
 #include "virtualcallstub.h"
 #include "typestring.h"
 #include "stringliteralmap.h"
-#include "eventtrace.h"
 #include <formattype.h>
 #include "fieldmarshaler.h"
 #include "sigbuilder.h"
@@ -85,9 +83,9 @@
 #include "peimagelayout.inl"
 #include "ildbsymlib.h"
 
-#if defined(FEATURE_HOSTED_BINDER) && defined(FEATURE_APPX_BINDER)
+#if defined(FEATURE_APPX_BINDER)
 #include "clrprivbinderappx.h"
-#endif //defined(FEATURE_HOSTED_BINDER) && defined(FEATURE_APPX_BINDER)
+#endif // defined(FEATURE_APPX_BINDER)
 
 #if defined(PROFILING_SUPPORTED)
 #include "profilermetadataemitvalidator.h"
@@ -105,15 +103,6 @@
 #define COR_VTABLE_PTRSIZED     COR_VTABLE_32BIT
 #define COR_VTABLE_NOT_PTRSIZED COR_VTABLE_64BIT
 #endif // !_WIN64
-
-// Hash table parameter of available classes (name -> module/class) hash
-#define AVAILABLE_CLASSES_HASH_BUCKETS 1024
-#define AVAILABLE_CLASSES_HASH_BUCKETS_COLLECTIBLE 128
-#define PARAMTYPES_HASH_BUCKETS 23
-#define PARAMMETHODS_HASH_BUCKETS 11
-#define METHOD_STUBS_HASH_BUCKETS 11
-
-#define GUID_TO_TYPE_HASH_BUCKETS 16
 
 #define CEE_FILE_GEN_GROWTH_COLLECTIBLE 2048
 
@@ -853,10 +842,15 @@ void Module::Initialize(AllocMemTracker *pamTracker, LPCWSTR szName)
 
     m_dwTransientFlags &= ~((DWORD)CLASSES_FREED);  // Set flag indicating LookupMaps are now in a consistent and destructable state
 
+#ifdef FEATURE_READYTORUN
+    if (!HasNativeImage() && !IsResource())
+        m_pReadyToRunInfo = ReadyToRunInfo::Initialize(this, pamTracker);
+#endif
+
     // Initialize the instance fields that we need for all non-Resource Modules
     if (!IsResource())
     {
-        if (m_pAvailableClasses == NULL)
+        if (m_pAvailableClasses == NULL && !IsReadyToRun())
         {
             m_pAvailableClasses = EEClassHashTable::Create(this,
                 GetAssembly()->IsCollectible() ? AVAILABLE_CLASSES_HASH_BUCKETS_COLLECTIBLE : AVAILABLE_CLASSES_HASH_BUCKETS,
@@ -923,11 +917,6 @@ void Module::Initialize(AllocMemTracker *pamTracker, LPCWSTR szName)
     // Set up native image
     if (HasNativeImage())
         InitializeNativeImage(pamTracker);
-#ifdef FEATURE_READYTORUN
-    else
-    if (!IsResource())
-        m_pReadyToRunInfo = ReadyToRunInfo::Initialize(this, pamTracker);
-#endif
 #endif // FEATURE_PREJIT
 
 
@@ -1167,10 +1156,12 @@ BOOL Module::CanCacheWinRTTypeByGuid(MethodTable *pMT)
     if (WinRTTypeNameConverter::IsRedirectedWinRTSourceType(pMT))
         return FALSE;
 
+#ifdef FEATURE_NATIVE_IMAGE_GENERATION
     // Don't cache in a module that's not the NGen target, since the result
     // won't be saved, and since the such a module might be read-only.
     if (GetAppDomain()->ToCompilationDomain()->GetTargetModule() != this)
         return FALSE;
+#endif
 
     return TRUE;
 }
@@ -1418,7 +1409,10 @@ void Module::SetDebuggerInfoBits(DebuggerAssemblyControlFlags newBits)
     m_dwTransientFlags |= (newBits << DEBUGGER_INFO_SHIFT_PRIV);
 
 #ifdef DEBUGGING_SUPPORTED 
-    BOOL setEnC = ((newBits & DACF_ENC_ENABLED) != 0) && IsEditAndContinueCapable() && !GetAssembly()->IsDomainNeutral();
+    BOOL setEnC = ((newBits & DACF_ENC_ENABLED) != 0) && IsEditAndContinueCapable();
+
+    // IsEditAndContinueCapable should already check !GetAssembly()->IsDomainNeutral
+    _ASSERTE(!setEnC || !GetAssembly()->IsDomainNeutral());
 
     // The only way can change Enc is through debugger override.
     if (setEnC)
@@ -1482,8 +1476,11 @@ Module *Module::Create(Assembly *pAssembly, mdFile moduleRef, PEFile *file, Allo
     if (pModule == NULL)
     {
 #ifdef EnC_SUPPORTED
-        if (IsEditAndContinueCapable(file) && !pAssembly->IsDomainNeutral())
+        if (IsEditAndContinueCapable(pAssembly, file))
         {
+            // IsEditAndContinueCapable should already check !pAssembly->IsDomainNeutral
+            _ASSERTE(!pAssembly->IsDomainNeutral());
+            
             // if file is EnCCapable, always create an EnC-module, but EnC won't necessarily be enabled.
             // Debugger enables this by calling SetJITCompilerFlags on LoadModule callback.
 
@@ -1503,6 +1500,30 @@ Module *Module::Create(Assembly *pAssembly, mdFile moduleRef, PEFile *file, Allo
     pModuleSafe->DoInit(pamTracker, NULL);
 
     RETURN pModuleSafe.Extract();
+}
+
+void Module::ApplyMetaData()
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    LOG((LF_CLASSLOADER, LL_INFO100, "Module::ApplyNewMetaData %x\n", this));
+
+    HRESULT hr = S_OK;
+    ULONG ulCount;
+
+    // Ensure for TypeRef
+    ulCount = GetMDImport()->GetCountWithTokenKind(mdtTypeRef) + 1;
+    EnsureTypeRefCanBeStored(TokenFromRid(ulCount, mdtTypeRef));
+
+    // Ensure for AssemblyRef
+    ulCount = GetMDImport()->GetCountWithTokenKind(mdtAssemblyRef) + 1;
+    EnsureAssemblyRefCanBeStored(TokenFromRid(ulCount, mdtAssemblyRef));
 }
 
 //
@@ -1835,8 +1856,6 @@ PTR_Module Module::ComputePreferredZapModule(Module * pDefinitionModule,
 // Is pModule likely a dependency of pOtherModule? Heuristic used by preffered zap module algorithm.
 // It can return both false positives and negatives.
 //
-// Keep in sync with tools\mdilbind\mdilmodule.cpp
-//
 static bool IsLikelyDependencyOf(Module * pModule, Module * pOtherModule)
 {
     CONTRACTL
@@ -2152,7 +2171,29 @@ PTR_Module Module::GetPreferredZapModuleForFieldDesc(FieldDesc * pFD)
 }
 #endif // FEATURE_PREJIT
 
+/*static*/
+BOOL Module::IsEditAndContinueCapable(Assembly *pAssembly, PEFile *file)
+{
+    CONTRACTL
+        {
+            NOTHROW;
+            GC_NOTRIGGER;
+            SO_TOLERANT;
+            MODE_ANY;
+            SUPPORTS_DAC;
+        }
+    CONTRACTL_END;
 
+    _ASSERTE(pAssembly != NULL && file != NULL);
+    
+    // Some modules are never EnC-capable
+    return ! (pAssembly->GetDebuggerInfoBits() & DACF_ALLOW_JIT_OPTS ||
+              pAssembly->IsDomainNeutral() ||
+              file->IsSystem() ||
+              file->IsResource() ||
+              file->HasNativeImage() ||
+              file->IsDynamic());
+}
 
 BOOL Module::IsManifest()
 {
@@ -2852,12 +2893,6 @@ BOOL Module::IsNoStringInterning()
         // Default is string interning
         BOOL fNoStringInterning = FALSE;
 
-#ifdef FEATURE_LEGACYNETCF
-        // NetCF ignored this attribute
-        if (GetAppDomain()->GetAppDomainCompatMode() != BaseDomain::APPDOMAINCOMPAT_APP_EARLIER_THAN_WP8)
-        {
-#endif
-
         HRESULT hr;
         
         // This flag applies to assembly, but it is stored on module so it can be cached in ngen image
@@ -2890,10 +2925,6 @@ BOOL Module::IsNoStringInterning()
                 fNoStringInterning = TRUE;
             }
         }
-
-#ifdef FEATURE_LEGACYNETCF
-        }
-#endif
 
 #ifdef _DEBUG
         static ConfigDWORD g_NoStringInterning;
@@ -2991,7 +3022,6 @@ BOOL Module::GetNeutralResourcesLanguage(LPCUTF8 * cultureName, ULONG * cultureN
 }
 
 
-#ifndef FEATURE_CORECLR
 BOOL Module::HasDefaultDllImportSearchPathsAttribute()
 {
     CONTRACTL
@@ -3021,7 +3051,6 @@ BOOL Module::HasDefaultDllImportSearchPathsAttribute()
 
     return (m_dwPersistedFlags & DEFAULT_DLL_IMPORT_SEARCH_PATHS_STATUS) != 0 ;
 }
-#endif // !FEATURE_CORECLR
 
 // Returns a BOOL to indicate if we have computed whether compiler has instructed us to
 // wrap the non-CLS compliant exceptions or not.
@@ -3068,7 +3097,7 @@ BOOL Module::IsRuntimeWrapExceptions()
         if (hr == S_OK)
         {
             CustomAttributeParser ca(pVal, cbVal);
-            CaNamedArg namedArgs[1];
+            CaNamedArg namedArgs[1] = {{0}};
             
             // First, the void constructor:
             IfFailGo(ParseKnownCaArgs(ca, NULL, 0));
@@ -3398,8 +3427,8 @@ void Module::EnumRegularStaticGCRefs(AppDomain* pAppDomain, promote_func* fn, Sc
     }
     CONTRACT_END;
 
-    _ASSERTE(GCHeap::IsGCInProgress() && 
-         GCHeap::IsServerHeap() && 
+    _ASSERTE(GCHeapUtilities::IsGCInProgress() && 
+         GCHeapUtilities::IsServerHeap() && 
          IsGCSpecialThread());
 
 
@@ -4251,7 +4280,11 @@ ISymUnmanagedReader *Module::GetISymUnmanagedReader(void)
             // On desktop, the framework installer is supposed to install diasymreader.dll as well
             // and so this shouldn't happen.
             hr = FakeCoCreateInstanceEx(CLSID_CorSymBinder_SxS,
+#ifdef FEATURE_CORECLR
+                                        NATIVE_SYMBOL_READER_DLL,
+#else
                                         GetInternalSystemDirectory(),
+#endif
                                         IID_ISymUnmanagedBinder,
                                         (void**)&pBinder,
                                         NULL);
@@ -4467,7 +4500,15 @@ void Module::SetSymbolBytes(LPCBYTE pbSyms, DWORD cbSyms)
                                                 &cbWritten);
     IfFailThrow(HRESULT_FROM_WIN32(dwError));
 
-    // Don't eager load the diasymreader
+#if PROFILING_SUPPORTED && !defined(CROSSGEN_COMPILE)
+    BEGIN_PIN_PROFILER(CORProfilerInMemorySymbolsUpdatesEnabled());
+    {
+        g_profControlBlock.pProfInterface->ModuleInMemorySymbolsUpdated((ModuleID) this);
+    }
+    END_PIN_PROFILER();
+#endif //PROFILING_SUPPORTED && !defined(CROSSGEN_COMPILE)
+
+    ETW::CodeSymbolLog::EmitCodeSymbols(this);
 
     // Tell the debugger that symbols have been loaded for this
     // module.  We iterate through all domains which contain this
@@ -5597,13 +5638,10 @@ Assembly * Module::GetAssemblyIfLoadedFromNativeAssemblyRefWithRefDefMismatch(md
             // This extended check is designed only to find assemblies loaded via an AssemblySpecBindingCache based binder. Verify that's what we found.
             if(pAssemblyCandidate != NULL)
             {
-#ifdef FEATURE_HOSTED_BINDER
                 if (!pAssemblyCandidate->GetManifestFile()->HasHostAssembly())
-#endif // FEATURE_HOSTED_BINDER
                 {
                     pAssembly = pAssemblyCandidate;
                 }
-#ifdef FEATURE_HOSTED_BINDER
                 else
                 {
                     DWORD binderFlags = 0;
@@ -5622,7 +5660,6 @@ Assembly * Module::GetAssemblyIfLoadedFromNativeAssemblyRefWithRefDefMismatch(md
                         _ASSERTE("Non-AssemblySpecBindingCache based assembly found with extended search" && !(IsStackWalkerThread() || IsGCThread()) && IsGenericInstantiationLookupCompareThread());
                     }
                 }
-#endif // FEATURE_HOSTED_BINDER
             }
         }
     }
@@ -5723,7 +5760,6 @@ Module::GetAssemblyIfLoaded(
                 _ASSERTE(szWinRtClassName != NULL);
                 
                 CLRPrivBinderWinRT * pWinRtBinder = pAppDomainExamine->GetWinRtBinder();
-#ifdef FEATURE_HOSTED_BINDER
                 if (pWinRtBinder == nullptr)
                 {   // We are most likely in AppX mode (calling AppX::IsAppXProcess() for verification is painful in DACCESS)
 #ifndef DACCESS_COMPILE
@@ -5760,7 +5796,6 @@ Module::GetAssemblyIfLoaded(
 #endif // defined(FEATURE_APPX_BINDER)
                     }
                 }
-#endif //FEATURE_HOSTED_BINDER
                 
                 if (pWinRtBinder != nullptr)
                 {
@@ -6230,21 +6265,17 @@ Module *Module::GetModuleIfLoaded(mdFile kFile, BOOL onlyLoadedInAppDomain, BOOL
     if (!permitResources && pModule && pModule->IsResource())
         pModule = NULL;
 
+#ifndef DACCESS_COMPILE
 #if defined(FEATURE_MULTIMODULE_ASSEMBLIES)
     // check if actually loaded, unless happens during GC (GC works only with loaded assemblies)
-    if (!GCHeap::IsGCInProgress() && onlyLoadedInAppDomain && pModule && !pModule->IsManifest())
+    if (!GCHeapUtilities::IsGCInProgress() && onlyLoadedInAppDomain && pModule && !pModule->IsManifest())
     {
-#ifndef DACCESS_COMPILE
         DomainModule *pDomainModule = pModule->FindDomainModule(GetAppDomain());
         if (pDomainModule == NULL || !pDomainModule->IsLoaded())
             pModule = NULL;
-#else
-        // unfortunately DAC doesn't have a GetAppDomain() however multi-module
-        // assemblies aren't very common so it should be ok to fail here for now.
-        DacNotImpl();
-#endif // !DACCESS_COMPILE
     }    
 #endif // FEATURE_MULTIMODULE_ASSEMBLIES
+#endif // !DACCESS_COMPILE
     RETURN pModule;
 }
 
@@ -9143,26 +9174,11 @@ void Module::ExpandAll(DataImage *image)
     mdToken tk;
     DWORD assemblyFlags = GetAssembly()->GetFlags();
 
-    // construct a compact layout writer if necessary
-#ifdef MDIL
-    ICompactLayoutWriter *pCompactLayoutWriter = NULL;
-    if (!GetAppDomain()->IsNoMDILCompilationDomain())
-    {
-        pCompactLayoutWriter = ICompactLayoutWriter::MakeCompactLayoutWriter(this, image->m_pZapImage);
-    }
-#endif //MDIL
     //
     // Explicitly load the global class.
     //
 
     MethodTable *pGlobalMT = GetGlobalMethodTable();
-#ifdef MDIL
-    if (pCompactLayoutWriter != NULL && pGlobalMT != NULL)
-    {
-        EEClass *pGlocalClass = pGlobalMT->GetClass();
-        pGlocalClass->WriteCompactLayout(pCompactLayoutWriter, image->m_pZapImage);
-    }
-#endif //MDIL
 
     //
     // Load all classes.  This also fills out the
@@ -9208,15 +9224,6 @@ void Module::ExpandAll(DataImage *image)
             
             if (t.IsNull()) // Skip this type
                 continue; 
-
-#ifdef MDIL
-            if (pCompactLayoutWriter != NULL)
-            {
-                MethodTable *pMT = t.AsMethodTable();
-                EEClass *pClass = pMT->GetClass();
-                pClass->WriteCompactLayout(pCompactLayoutWriter, image->m_pZapImage);
-            }
-#endif // MDIL
 
             if (!t.HasInstantiation())
             {
@@ -9470,12 +9477,6 @@ void Module::ExpandAll(DataImage *image)
         m_pBinder->BindAll();
     }
 
-#ifdef MDIL
-    if (pCompactLayoutWriter)
-    {
-        pCompactLayoutWriter->Flush();
-    }
-#endif // MDIL
 } // Module::ExpandAll
 
 /* static */
@@ -9949,9 +9950,7 @@ void Module::Save(DataImage *image)
     GetReliabilityContract();
     IsPreV4Assembly();
 
-#ifndef FEATURE_CORECLR
     HasDefaultDllImportSearchPathsAttribute();
-#endif
 
     // Precompute property information to avoid runtime metadata lookup
     PopulatePropertyInfoMap();
@@ -13865,7 +13864,7 @@ static void ProfileDataAllocateTokenDefinitions(ProfileEmitter * pEmitter, Modul
     mdProfileData->size = sizeof(CORBBTPROF_BLOB_ENTRY);
 }
 
-// Responsible for writing out the profile data if the COMPLUS_BBInstr 
+// Responsible for writing out the profile data if the COMPlus_BBInstr 
 // environment variable is set.  This is called when the module is unloaded
 // (usually at shutdown).
 HRESULT Module::WriteMethodProfileDataLogFile(bool cleanup)
@@ -14816,7 +14815,7 @@ void ReflectionModule::ReleaseILData()
 
     Module::ReleaseILData();
 }
-#endif // CROSSGEN_COMPILE
+#endif // !CROSSGEN_COMPILE
 
 #endif // !DACCESS_COMPILE
 

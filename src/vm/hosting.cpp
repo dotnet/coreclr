@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -1738,10 +1737,10 @@ STDAPI CorLaunchApplication (HOST_TYPE               dwClickOnceHost,
                         }
                     }
                 }
-                wszDirectory = new WCHAR[MAX_PATH + 1];
-                wszVersion = new WCHAR[MAX_PATH + 1];
+                wszDirectory = new WCHAR[MAX_LONGPATH + 1];
+                wszVersion = new WCHAR[MAX_PATH_FNAME + 1];
                 wszVersion[0] = 0; // we don't prefer any version
-                DWORD cchBuffer = MAX_PATH;
+                DWORD cchBuffer = MAX_LONGPATH;
 
                 // Use GetRequestedRuntimeInfo because MetaHost APIs do not yet support architecture arguments.
                 // Calls to GetRequestedRuntimeInfo() will goes to a local copy inside clr.dll, 
@@ -1769,8 +1768,8 @@ STDAPI CorLaunchApplication (HOST_TYPE               dwClickOnceHost,
                                                 0,                            // startupFlags
                                                 dwRuntimeInfoFlags,           // Will bind to post-v2 runtimes if EXE PE runtime version is post-v2
                                                                               // or EXE has config file binding to post-v2 runtime.
-                                                wszDirectory, MAX_PATH, NULL, // Retrieve bound directory
-                                                wszVersion, MAX_PATH, NULL);  // Retrieve bound version
+                                                wszDirectory, MAX_LONGPATH, NULL, // Retrieve bound directory
+                                                wszVersion, MAX_PATH_FNAME, NULL);  // Retrieve bound version
 
                 if (SUCCEEDED(hr)) {
                     commandLine.Append(wszDirectory);

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ---------------------------------------------------------------------------
 // FString.cpp
 // 
@@ -74,6 +73,9 @@ HRESULT Unicode_Utf8_Length(__in_z LPCWSTR pString, __out bool * pAllAscii, __ou
             return HRESULT_FROM_GetLastError();
         }
 
+        // Remove the count of null terminator, to be consistent with the all-ASCII case.
+        --*pLength;
+
         if (*pLength > MAX_LENGTH)
         {
             return COR_E_OVERFLOW;
@@ -130,7 +132,7 @@ HRESULT Unicode_Utf8(__in_z LPCWSTR pString, bool allAscii, __out_z LPSTR pBuffe
     }
     else
     {
-        length = WszWideCharToMultiByte(CP_UTF8, 0, pString, -1, pBuffer, (int) length, NULL, NULL);
+        length = WszWideCharToMultiByte(CP_UTF8, 0, pString, -1, pBuffer, (int) length + 1, NULL, NULL);
 
         if (length == 0)
         {
@@ -191,6 +193,9 @@ HRESULT Utf8_Unicode_Length(__in_z LPCSTR pString, __out bool * pAllAscii, __out
             return HRESULT_FROM_GetLastError();
         }
 
+        // Remove the count of null terminator, to be consistent with the all-ASCII case.
+        --*pLength;
+
         if (* pLength > MAX_LENGTH)
         {
             return COR_E_OVERFLOW;
@@ -201,7 +206,7 @@ HRESULT Utf8_Unicode_Length(__in_z LPCSTR pString, __out bool * pAllAscii, __out
 }
 
 
-// UTF8 to ANSI
+// UTF8 to Unicode
 
 HRESULT Utf8_Unicode(__in_z LPCSTR pString, bool allAscii, __out_z LPWSTR pBuffer, DWORD length)
 {
@@ -248,7 +253,7 @@ HRESULT Utf8_Unicode(__in_z LPCSTR pString, bool allAscii, __out_z LPWSTR pBuffe
     }
     else
     {
-        length = WszMultiByteToWideChar(CP_UTF8, 0, pString, -1, pBuffer, (int) length);
+        length = WszMultiByteToWideChar(CP_UTF8, 0, pString, -1, pBuffer, (int) length + 1);
 
         if (length == 0)
         {

@@ -25,6 +25,7 @@
         <CppCompile Include="$(ClrSrcDirectory)\vm\debugdebugger.cpp" />
         <CppCompile Include="$(ClrSrcDirectory)\vm\debugHelp.cpp" />
         <CppCompile Include="$(ClrSrcDirectory)\vm\debuginfostore.cpp" />
+        <CppCompile Include="$(ClrSrcDirectory)\vm\disassembler.cpp" />
         <CppCompile Include="$(ClrSrcDirectory)\vm\DllImport.cpp" />
         <CppCompile Include="$(ClrSrcDirectory)\vm\domainfile.cpp" />
         <CppCompile Include="$(ClrSrcDirectory)\vm\dynamicmethod.cpp" />
@@ -39,6 +40,7 @@
         <CppCompile Include="$(ClrSrcDirectory)\vm\fptrstubs.cpp" />
         <CppCompile Include="$(ClrSrcDirectory)\vm\frames.cpp" />
         <CppCompile Include="$(ClrSrcDirectory)\vm\GCDecode.cpp" />
+        <CppCompile Include="$(ClrSrcDirectory)\vm\gcheaputilities.cpp" />
         <CppCompile Include="$(ClrSrcDirectory)\vm\genericdict.cpp" />
         <CppCompile Include="$(ClrSrcDirectory)\vm\generics.cpp" />
         <CppCompile Include="$(ClrSrcDirectory)\vm\hash.cpp" />
@@ -79,6 +81,7 @@
         <CppCompile Include="$(ClrSrcDirectory)\vm\typeString.cpp" />
         <CppCompile Include="$(ClrSrcDirectory)\vm\util.cpp" />
         <CppCompile Include="$(ClrSrcDirectory)\vm\vars.cpp" />
+        <CppCompile Include="$(ClrSrcDirectory)\vm\versionresilienthashcode.cpp" />
         <CppCompile Include="$(ClrSrcDirectory)\vm\VirtualCallStub.cpp" />
         <CppCompile Include="$(ClrSrcDirectory)\vm\ThreadPoolRequest.cpp" />
         <CppCompile Include="$(ClrSrcDirectory)\vm\ThreadStatics.cpp" />
@@ -125,7 +128,6 @@
     
     <ItemGroup Condition="'$(TargetArch)' == 'amd64'" >
         <CppCompile Include="$(ClrSrcDirectory)\vm\GcInfoDecoder.cpp" />
-        <CppCompile Include="$(ClrSrcDirectory)\vm\DbgGcInfoDecoder.cpp" />
         <CppCompile Include="$(ClrSrcDirectory)\vm\amd64\cGenAMD64.cpp" />
         <CppCompile Include="$(ClrSrcDirectory)\vm\amd64\ExcepAMD64.cpp" />
         <CppCompile Include="$(ClrSrcDirectory)\vm\amd64\gmsAMD64.cpp" />

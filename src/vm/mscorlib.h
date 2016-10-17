@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // This file contains the classes, methods, and field used by the EE from mscorlib
 
 //
@@ -268,9 +267,7 @@ DEFINE_FIELD_U(_PublicKeyToken,            AssemblyNameBaseObject, m_pPublicKeyT
 DEFINE_FIELD_U(_CultureInfo,               AssemblyNameBaseObject, m_pCultureInfo)
 DEFINE_FIELD_U(_CodeBase,                  AssemblyNameBaseObject, m_pCodeBase)
 DEFINE_FIELD_U(_Version,                   AssemblyNameBaseObject, m_pVersion)
-#ifdef FEATURE_SERIALIZATION
 DEFINE_FIELD_U(m_siInfo,                   AssemblyNameBaseObject, m_siInfo)
-#endif
 DEFINE_FIELD_U(_HashForControl,            AssemblyNameBaseObject, m_HashForControl)
 DEFINE_FIELD_U(_HashAlgorithm,             AssemblyNameBaseObject, m_HashAlgorithm)
 DEFINE_FIELD_U(_HashAlgorithmForControl, AssemblyNameBaseObject, m_HashAlgorithmForControl)
@@ -465,19 +462,20 @@ DEFINE_METHOD(CONTEXT,              CALLBACK,               DoCallBackFromEE,   
 DEFINE_METHOD(CONTEXT,              RESERVE_SLOT,           ReserveSlot,                IM_RetInt)
 #endif
 
+#ifdef FEATURE_REMOTING
 DEFINE_CLASS(CONTEXT_BOUND_OBJECT,  System,                 ContextBoundObject)
+#endif
 
-
-#if defined(FEATURE_CRYPTO) || defined(FEATURE_LEGACYNETCFCRYPTO)
+#ifdef FEATURE_CRYPTO
 DEFINE_CLASS(CSP_PARAMETERS,        Cryptography,           CspParameters)
 
 DEFINE_FIELD(CSP_PARAMETERS,        PROVIDER_TYPE,          ProviderType)
 DEFINE_FIELD(CSP_PARAMETERS,        PROVIDER_NAME,          ProviderName)
 DEFINE_FIELD(CSP_PARAMETERS,        KEY_CONTAINER_NAME,     KeyContainerName)
 DEFINE_FIELD(CSP_PARAMETERS,        FLAGS,                  m_flags)
-#endif //FEATURE_CRYPTO || FEATURE_LEGACYNETCFCRYPTO
+#endif //FEATURE_CRYPTO
 
-#if defined(FEATURE_X509) || defined(FEATURE_CRYPTO) || defined(FEATURE_LEGACYNETCFCRYPTO)
+#if defined(FEATURE_X509) || defined(FEATURE_CRYPTO)
 DEFINE_CLASS(CRYPTO_EXCEPTION,      Cryptography,           CryptographicException)
 DEFINE_METHOD(CRYPTO_EXCEPTION,     THROW,                  ThrowCryptographicException, SM_Int_RetVoid)
 #endif // FEATURE_X509 || FEATURE_CRYPTO
@@ -557,18 +555,14 @@ DEFINE_FIELD_U(iFirstDayOfWeek,       CultureDataBaseObject,  iFirstDayOfWeek)
 DEFINE_FIELD_U(iFirstWeekOfYear,      CultureDataBaseObject,  iFirstWeekOfYear)
 DEFINE_FIELD_U(waCalendars,           CultureDataBaseObject,  waCalendars)
 DEFINE_FIELD_U(calendars,             CultureDataBaseObject,  calendars)
-#ifndef FEATURE_CORECLR
 DEFINE_FIELD_U(iReadingLayout,        CultureDataBaseObject,  iReadingLayout)
-#endif
 DEFINE_FIELD_U(sTextInfo,             CultureDataBaseObject,  sTextInfo)
 DEFINE_FIELD_U(sCompareInfo,          CultureDataBaseObject,  sCompareInfo)
 DEFINE_FIELD_U(sScripts,              CultureDataBaseObject,  sScripts)
 DEFINE_FIELD_U(bUseOverrides,         CultureDataBaseObject,  bUseOverrides)
 DEFINE_FIELD_U(bNeutral,              CultureDataBaseObject,  bNeutral)
-#ifndef FEATURE_CORECLR
 DEFINE_FIELD_U(bWin32Installed,       CultureDataBaseObject,  bWin32Installed)
 DEFINE_FIELD_U(bFramework,            CultureDataBaseObject,  bFramework)
-#endif 
 #endif
 #ifndef FEATURE_COREFX_GLOBALIZATION
 DEFINE_CLASS_U(Globalization,          CalendarData,           CalendarDataBaseObject)
@@ -676,6 +670,9 @@ DEFINE_CLASS(ENUM,                  System,                 Enum)
 
 DEFINE_CLASS(ENVIRONMENT,           System,                 Environment)
 DEFINE_METHOD(ENVIRONMENT,       GET_RESOURCE_STRING_LOCAL, GetResourceStringLocal,     SM_Str_RetStr)
+#ifdef FEATURE_CORECLR
+DEFINE_METHOD(ENVIRONMENT,       SET_COMMAND_LINE_ARGS,     SetCommandLineArgs,         SM_ArrStr_RetVoid)
+#endif
 
 #ifdef FEATURE_COMINTEROP
 DEFINE_CLASS(ERROR_WRAPPER,         Interop,                ErrorWrapper)
@@ -863,13 +860,11 @@ DEFINE_FIELD(IDENTITY,              LEASE,                  _lease)
 DEFINE_FIELD(IDENTITY,              OBJURI,                 _ObjURI)
 #endif
 
-#ifdef FEATURE_SERIALIZATION
 DEFINE_CLASS(ISERIALIZABLE,         Serialization,          ISerializable)
 DEFINE_CLASS(IOBJECTREFERENCE,      Serialization,          IObjectReference)
 DEFINE_CLASS(IDESERIALIZATIONCB,    Serialization,          IDeserializationCallback)
 DEFINE_CLASS(STREAMING_CONTEXT,     Serialization,          StreamingContext)
 DEFINE_CLASS(SERIALIZATION_INFO,    Serialization,          SerializationInfo)
-#endif
 
 #ifdef FEATURE_REMOTING
 DEFINE_CLASS(OBJECTCLONEHELPER,     Serialization,          ObjectCloneHelper)
@@ -1091,18 +1086,18 @@ DEFINE_FIELD_U(numberNegativePattern,  NumberFormatInfo,   cNegativeNumberFormat
 DEFINE_FIELD_U(percentPositivePattern, NumberFormatInfo,   cPositivePercentFormat)
 DEFINE_FIELD_U(percentNegativePattern, NumberFormatInfo,   cNegativePercentFormat)
 DEFINE_FIELD_U(percentDecimalDigits,   NumberFormatInfo,   cPercentDecimals)
-#ifndef FEATURE_CORECLR
+#ifndef FEATURE_COREFX_GLOBALIZATION
 DEFINE_FIELD_U(digitSubstitution,      NumberFormatInfo,   iDigitSubstitution)
-#endif // !FEATURE_CORECLR
+#endif
 DEFINE_FIELD_U(isReadOnly,             NumberFormatInfo,   bIsReadOnly)
 #ifndef FEATURE_COREFX_GLOBALIZATION
 DEFINE_FIELD_U(m_useUserOverride,      NumberFormatInfo,   bUseUserOverride)
 #endif
 DEFINE_FIELD_U(m_isInvariant,          NumberFormatInfo,   bIsInvariant)
-#ifndef FEATURE_CORECLR
+#ifndef FEATURE_COREFX_GLOBALIZATION
 DEFINE_FIELD_U(validForParseAsNumber,  NumberFormatInfo,   bvalidForParseAsNumber)
 DEFINE_FIELD_U(validForParseAsCurrency,NumberFormatInfo,   bvalidForParseAsCurrency)
-#endif // !FEATURE_CORECLR
+#endif
 
 // Defined as element type alias
 // DEFINE_CLASS(OBJECT,                System,                 Object)
@@ -1472,26 +1467,36 @@ DEFINE_CLASS(STACK_BUILDER_SINK,    Messaging,              StackBuilderSink)
 DEFINE_METHOD(STACK_BUILDER_SINK,   PRIVATE_PROCESS_MESSAGE,_PrivateProcessMessage,     IM_IntPtr_ArrObj_Obj_RefArrObj_RetObj)
 #endif
 
-DEFINE_CLASS_U(Diagnostics,            StackFrameHelper,           StackFrameHelper)
-DEFINE_FIELD_U(targetThread,               StackFrameHelper,   TargetThread)
+DEFINE_CLASS_U(Diagnostics,                StackFrameHelper,   StackFrameHelper)
+DEFINE_FIELD_U(targetThread,               StackFrameHelper,   targetThread)
 DEFINE_FIELD_U(rgiOffset,                  StackFrameHelper,   rgiOffset)
 DEFINE_FIELD_U(rgiILOffset,                StackFrameHelper,   rgiILOffset)
 DEFINE_FIELD_U(rgMethodBase,               StackFrameHelper,   rgMethodBase)
 DEFINE_FIELD_U(dynamicMethods,             StackFrameHelper,   dynamicMethods)
 DEFINE_FIELD_U(rgMethodHandle,             StackFrameHelper,   rgMethodHandle)
+DEFINE_FIELD_U(rgAssemblyPath,             StackFrameHelper,   rgAssemblyPath)
+DEFINE_FIELD_U(rgLoadedPeAddress,          StackFrameHelper,   rgLoadedPeAddress)
+DEFINE_FIELD_U(rgiLoadedPeSize,            StackFrameHelper,   rgiLoadedPeSize)
+DEFINE_FIELD_U(rgInMemoryPdbAddress,       StackFrameHelper,   rgInMemoryPdbAddress)
+DEFINE_FIELD_U(rgiInMemoryPdbSize,         StackFrameHelper,   rgiInMemoryPdbSize)
+DEFINE_FIELD_U(rgiMethodToken,             StackFrameHelper,   rgiMethodToken)
 DEFINE_FIELD_U(rgFilename,                 StackFrameHelper,   rgFilename)
 DEFINE_FIELD_U(rgiLineNumber,              StackFrameHelper,   rgiLineNumber)
 DEFINE_FIELD_U(rgiColumnNumber,            StackFrameHelper,   rgiColumnNumber)
 #if defined(FEATURE_EXCEPTIONDISPATCHINFO)
 DEFINE_FIELD_U(rgiLastFrameFromForeignExceptionStackTrace,            StackFrameHelper,   rgiLastFrameFromForeignExceptionStackTrace)
 #endif // defined(FEATURE_EXCEPTIONDISPATCHINFO)
+DEFINE_FIELD_U(getSourceLineInfo,          StackFrameHelper,   getSourceLineInfo)
 DEFINE_FIELD_U(iFrameCount,                StackFrameHelper,   iFrameCount)
-DEFINE_FIELD_U(fNeedFileInfo,              StackFrameHelper,   fNeedFileInfo)
 
 DEFINE_CLASS(STACK_TRACE,           Diagnostics,            StackTrace)
 DEFINE_METHOD(STACK_TRACE,          GET_MANAGED_STACK_TRACE_HELPER, GetManagedStackTraceStringHelper, SM_Bool_RetStr)
 
 DEFINE_CLASS(STREAM,                IO,                     Stream)
+DEFINE_METHOD(STREAM,               BEGIN_READ,             BeginRead,  IM_ArrByte_Int_Int_AsyncCallback_Object_RetIAsyncResult)
+DEFINE_METHOD(STREAM,               END_READ,               EndRead,    IM_IAsyncResult_RetInt)
+DEFINE_METHOD(STREAM,               BEGIN_WRITE,            BeginWrite, IM_ArrByte_Int_Int_AsyncCallback_Object_RetIAsyncResult)
+DEFINE_METHOD(STREAM,               END_WRITE,              EndWrite,   IM_IAsyncResult_RetVoid)
 
 // Defined as element type alias
 // DEFINE_CLASS(INTPTR,                System,                 IntPtr)
@@ -1668,6 +1673,7 @@ DEFINE_METHOD(FIRSTCHANCE_EVENTARGS,  CTOR,                   .ctor,            
 DEFINE_CLASS(ASSEMBLYLOADCONTEXT,  Loader,                AssemblyLoadContext)    
 DEFINE_METHOD(ASSEMBLYLOADCONTEXT,  RESOLVE,          Resolve,                      SM_IntPtr_AssemblyName_RetAssemblyBase)
 DEFINE_METHOD(ASSEMBLYLOADCONTEXT,  RESOLVEUNMANAGEDDLL,          ResolveUnmanagedDll,                      SM_Str_IntPtr_RetIntPtr)
+DEFINE_METHOD(ASSEMBLYLOADCONTEXT,  RESOLVEUSINGEVENT,          ResolveUsingResolvingEvent,                      SM_IntPtr_AssemblyName_RetAssemblyBase)
 
 #endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
 
@@ -2197,9 +2203,21 @@ DEFINE_CLASS(MODULEBASE,        Reflection,         Module)
 
 #ifdef FEATURE_ICASTABLE
 DEFINE_CLASS(ICASTABLE,         CompilerServices,   ICastable)
-DEFINE_METHOD(ICASTABLE,        ISINSTANCEOF,       IsInstanceOfInterface, IM_RuntimeTypeHandle_RefException_RetBool)
-DEFINE_METHOD(ICASTABLE,        GETIMPLTYPE,        GetImplType, IM_RuntimeTypeHandle_RetRuntimeTypeHandle)
+
+DEFINE_CLASS(ICASTABLEHELPERS,         CompilerServices,   ICastableHelpers)
+DEFINE_METHOD(ICASTABLEHELPERS,        ISINSTANCEOF,       IsInstanceOfInterface, SM_ICastable_RtType_RefException_RetBool)
+DEFINE_METHOD(ICASTABLEHELPERS,        GETIMPLTYPE,        GetImplType, SM_ICastable_RtType_RetRtType)
+
 #endif // FEATURE_ICASTABLE
+
+DEFINE_CLASS(CUTF8MARSHALER, StubHelpers, UTF8Marshaler)
+DEFINE_METHOD(CUTF8MARSHALER, CONVERT_TO_NATIVE, ConvertToNative, SM_Int_Str_IntPtr_RetIntPtr)
+DEFINE_METHOD(CUTF8MARSHALER, CONVERT_TO_MANAGED, ConvertToManaged, SM_IntPtr_RetStr)
+DEFINE_METHOD(CUTF8MARSHALER, CLEAR_NATIVE, ClearNative, SM_IntPtr_RetVoid)
+
+DEFINE_CLASS(UTF8BUFFERMARSHALER, StubHelpers, UTF8BufferMarshaler)
+DEFINE_METHOD(UTF8BUFFERMARSHALER, CONVERT_TO_NATIVE, ConvertToNative, NoSig)
+DEFINE_METHOD(UTF8BUFFERMARSHALER, CONVERT_TO_MANAGED, ConvertToManaged, NoSig)
 
 #undef DEFINE_CLASS
 #undef DEFINE_METHOD

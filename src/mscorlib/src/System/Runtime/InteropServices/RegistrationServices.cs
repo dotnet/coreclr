@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*=============================================================================
 **
@@ -352,7 +353,7 @@ namespace System.Runtime.InteropServices {
 
             // If the does not have a public default constructor then is not creatable from COM so 
             // it does not require registration unless it is a value class.
-            if (!type.IsValueType && type.GetConstructor(BindingFlags.Instance | BindingFlags.Public,null,new Type[0],null) == null)
+            if (!type.IsValueType && type.GetConstructor(BindingFlags.Instance | BindingFlags.Public,null,Array.Empty<Type>(),null) == null)
                 return false;
 
             // All other conditions are met so check to see if the type is visible from COM.

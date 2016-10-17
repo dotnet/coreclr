@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 using Microsoft.CodeAnalysis;
@@ -14,11 +15,11 @@ class Program
     static int Main(string[] args)
     {
         Console.WriteLine("Starting the test");
-        string codeFile = @"helloWorld.cs";
+        string codeFile = @"HelloWorld.cs";
 
         var sourceTree = new List<SyntaxTree>(){SyntaxFactory.ParseSyntaxTree(File.ReadAllText(codeFile))};
 
-        string mscorlibFile = Path.Combine(Environment.GetEnvironmentVariable("Core_root"), "mscorlib.dll");
+        string mscorlibFile = Path.Combine(Environment.GetEnvironmentVariable("CORE_ROOT"), "System.Private.CoreLib.dll");
         Console.WriteLine("Using reference to: {0}", mscorlibFile);
         var reference = new List<MetadataReference>(){ MetadataReference.CreateFromFile(mscorlibFile)};
 

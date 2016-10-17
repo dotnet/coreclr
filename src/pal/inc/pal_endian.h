@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -14,20 +13,35 @@
 #ifndef __PAL_ENDIAN_H__
 #define __PAL_ENDIAN_H__
 
-#if BIGENDIAN
 #ifdef __cplusplus
 extern "C++" {
-inline UINT16 VAL16(UINT16 x)
+inline UINT16 SWAP16(UINT16 x)
 {
     return (x >> 8) | (x << 8);
 }
 
-inline UINT32 VAL32(UINT32 x)
+inline UINT32 SWAP32(UINT32 x)
 {
     return  (x >> 24) |
             ((x >> 8) & 0x0000FF00L) |
             ((x & 0x0000FF00L) << 8) |
             (x << 24);
+}
+
+}
+#endif // __cplusplus
+
+#if BIGENDIAN
+#ifdef __cplusplus
+extern "C++" {
+inline UINT16 VAL16(UINT16 x)
+{
+    return SWAP16(x);
+}
+
+inline UINT32 VAL32(UINT32 x)
+{
+    return SWAP32(x);
 }
 
 inline UINT64 VAL64(UINT64 x)   
@@ -84,8 +98,12 @@ inline void SwapGuid(GUID *pGuid)
 #define VALPTR(x) VAL32(x)
 #endif
 
-#if defined(ALIGN_ACCESS) && !defined(_MSC_VER)
+#ifdef _ARM_
+#define LOG2_PTRSIZE	2
+#define ALIGN_ACCESS    ((1<<LOG2_PTRSIZE)-1)
+#endif
 
+#if defined(ALIGN_ACCESS) && !defined(_MSC_VER)
 #ifdef __cplusplus
 extern "C++" {
 // Get Unaligned values from a potentially unaligned object
@@ -124,7 +142,7 @@ inline void SET_UNALIGNED_64(void *pObject, UINT64 Value)
 }
 #endif // __cplusplus
 
-#else
+#else // defined(ALIGN_ACCESS) && !defined(_MSC_VER)
 
 // Get Unaligned values from a potentially unaligned object
 #define GET_UNALIGNED_16(_pObject)  (*(UINT16 UNALIGNED *)(_pObject))
@@ -136,7 +154,7 @@ inline void SET_UNALIGNED_64(void *pObject, UINT64 Value)
 #define SET_UNALIGNED_32(_pObject, _Value)  (*(UNALIGNED UINT32 *)(_pObject)) = (UINT32)(_Value)
 #define SET_UNALIGNED_64(_pObject, _Value)  (*(UNALIGNED UINT64 *)(_pObject)) = (UINT64)(_Value) 
 
-#endif
+#endif // defined(ALIGN_ACCESS) && !defined(_MSC_VER)
 
 // Get Unaligned values from a potentially unaligned object and swap the value
 #define GET_UNALIGNED_VAL16(_pObject) VAL16(GET_UNALIGNED_16(_pObject))

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
@@ -59,5 +60,23 @@ namespace System.Runtime.CompilerServices
         // The results of this lookup are cached so computation of the result is not as perf-sensitive as
         // IsInstanceOfInterface.
         RuntimeTypeHandle GetImplType(RuntimeTypeHandle interfaceType);
+    }
+    
+    /// <summary>
+    /// Helpers that allows VM to call into ICastable methods without having to deal with RuntimeTypeHandle.
+    /// RuntimeTypeHandle is a struct and is always passed in stack in x86, which our VM call helpers don't
+    /// particularly like.
+    /// </summary>
+    class ICastableHelpers
+    {
+        internal static bool IsInstanceOfInterface(ICastable castable, RuntimeType type, out Exception castError)
+        {
+            return castable.IsInstanceOfInterface(new RuntimeTypeHandle(type), out castError);
+        }    
+        
+        internal static RuntimeType GetImplType(ICastable castable, RuntimeType interfaceType)
+        {
+            return castable.GetImplType(new RuntimeTypeHandle(interfaceType)).GetRuntimeType(); 
+        }    
     }
 }

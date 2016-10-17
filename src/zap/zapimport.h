@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // ZapImport.h
 //
@@ -340,9 +339,10 @@ public:
     void EncodeClass(CORCOMPILE_FIXUP_BLOB_KIND kind, CORINFO_CLASS_HANDLE handle, SigBuilder * pSigBuilder);
     void EncodeClassInContext(CORINFO_MODULE_HANDLE context, CORINFO_CLASS_HANDLE handle, SigBuilder * pSigBuilder);
     void EncodeField(CORCOMPILE_FIXUP_BLOB_KIND kind, CORINFO_FIELD_HANDLE handle, SigBuilder * pSigBuilder,
-            CORINFO_RESOLVED_TOKEN * pResolvedToken = NULL);
+            CORINFO_RESOLVED_TOKEN * pResolvedToken = NULL, BOOL fEncodeUsingResolvedTokenSpecStreams = FALSE);
     void EncodeMethod(CORCOMPILE_FIXUP_BLOB_KIND kind, CORINFO_METHOD_HANDLE handle, SigBuilder * pSigBuilder, 
-            CORINFO_RESOLVED_TOKEN * pResolvedToken = NULL, CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken = NULL);
+            CORINFO_RESOLVED_TOKEN * pResolvedToken = NULL, CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken = NULL,
+            BOOL fEncodeUsingResolvedTokenSpecStreams = FALSE);
 
     // Encode module if the reference is within current version bubble. If not, return a suitable module within current version bubble.
     CORINFO_MODULE_HANDLE TryEncodeModule(CORCOMPILE_FIXUP_BLOB_KIND kind, CORINFO_MODULE_HANDLE module, SigBuilder * pSigBuilder);
@@ -433,11 +433,13 @@ public:
     ZapImport * GetExternalMethodCell(CORINFO_METHOD_HANDLE handle, CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken);
 
     ZapImport * GetDynamicHelperCell(CORCOMPILE_FIXUP_BLOB_KIND kind, CORINFO_CLASS_HANDLE handle);
-    ZapImport * GetDynamicHelperCell(CORCOMPILE_FIXUP_BLOB_KIND kind, CORINFO_METHOD_HANDLE handle, CORINFO_RESOLVED_TOKEN * pResolvedToken);
+    ZapImport * GetDynamicHelperCell(CORCOMPILE_FIXUP_BLOB_KIND kind, CORINFO_METHOD_HANDLE handle, CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_CLASS_HANDLE delegateType = NULL);
     ZapImport * GetDynamicHelperCell(CORCOMPILE_FIXUP_BLOB_KIND kind, CORINFO_FIELD_HANDLE handle, CORINFO_RESOLVED_TOKEN * pResolvedToken);
 
+    ZapImport * GetDictionaryLookupCell(CORCOMPILE_FIXUP_BLOB_KIND kind, CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_LOOKUP_KIND * pLookup);
+
 #ifdef FEATURE_READYTORUN_COMPILER
-    ZapNode * GetPlacedIndirectHelperThunk(ReadyToRunHelper helperNum, PVOID pArg = NULL);
+    ZapNode * GetPlacedIndirectHelperThunk(ReadyToRunHelper helperNum, PVOID pArg = NULL, ZapNode * pCell = NULL);
     ZapNode * GetIndirectHelperThunk(ReadyToRunHelper helperNum, PVOID pArg = NULL);
     void PlaceIndirectHelperThunk(ZapNode * pImport);
 

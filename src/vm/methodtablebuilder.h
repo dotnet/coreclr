@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // ==++==
 //
@@ -44,7 +43,6 @@ public:
     static const UINT16 INVALID_SLOT_INDEX = static_cast<UINT16>(-1);
     static const UINT16 MAX_SLOT_INDEX = static_cast<UINT16>(-1) - 10;
 
-#ifndef BINDER
     // Information gathered by the class loader relating to generics
     // Fields in this structure are initialized very early in class loading
     // See code:ClassLoader.CreateTypeHandleForTypeDefThrowing
@@ -221,7 +219,6 @@ private:
     void SetIsComClassInterface() { WRAPPER_NO_CONTRACT; GetHalfBakedClass()->SetIsComClassInterface(); } 
 #endif // FEATURE_COMINTEROP
     BOOL IsEnum() { WRAPPER_NO_CONTRACT; return bmtProp->fIsEnum; } 
-    BOOL ContainsStackPtr() { WRAPPER_NO_CONTRACT; return GetHalfBakedClass()->ContainsStackPtr(); } 
     BOOL HasNonPublicFields() { WRAPPER_NO_CONTRACT; return GetHalfBakedClass()->HasNonPublicFields(); }
     BOOL IsValueClass() { WRAPPER_NO_CONTRACT; return bmtProp->fIsValueClass; } 
     BOOL IsUnsafeValueClass() { WRAPPER_NO_CONTRACT; return GetHalfBakedClass()->IsUnsafeValueClass(); }
@@ -2980,6 +2977,15 @@ private:
 
     VOID    CheckForNativeHFA();
 
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+    // checks whether the struct is enregisterable.
+    void SystemVAmd64CheckForPassStructInRegister();
+    void SystemVAmd64CheckForPassNativeStructInRegister();
+    // Store the eightbyte classification into the EEClass
+    void StoreEightByteClassification(SystemVStructRegisterPassingHelper* helper);
+
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+
     // this accesses the field size which is temporarily stored in m_pMTOfEnclosingClass
     // during class loading. Don't use any other time
     DWORD GetFieldSize(FieldDesc *pFD);
@@ -3009,8 +3015,6 @@ private:
         DWORD dwR8Fields,
         DWORD dwTotalFields);
 
-#endif // !BINDER
-
     MethodTable * AllocateNewMT(Module *pLoaderModule,
                                 DWORD dwVtableSlots, 
                                 DWORD dwVirtuals,
@@ -3019,14 +3023,8 @@ private:
                                 DWORD dwNumDicts, 
                                 DWORD dwNumTypeSlots, 
                                 MethodTable *pMTParent,
-#ifndef BINDER
                                 ClassLoader *pClassLoader,
                                 LoaderAllocator *pAllocator, 
-#else // BINDER
-                                MdilModule *declaringModule,
-                                MdilModule *containingModule,
-                                BOOL fHasDispatchMap,
-#endif // BINDER
                                 BOOL isIFace, 
                                 BOOL fDynamicStatics,
                                 BOOL fHasGenericsStaticsInfo,
@@ -3045,8 +3043,6 @@ private:
 
 };  // class MethodTableBuilder
 
-#ifndef BINDER
 #include "methodtablebuilder.inl"
-#endif // !BINDER
 
 #endif // !METHODTABLEBUILDER_H

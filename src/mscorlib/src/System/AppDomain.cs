@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*=============================================================================
 **
@@ -28,7 +29,9 @@ namespace System {
 #endif    
     using System.Security;
     using System.Security.Permissions;
+#if FEATURE_IMPERSONATION
     using System.Security.Principal;
+#endif
     using System.Security.Policy;
     using System.Security.Util;
     using System.Collections;
@@ -2237,13 +2240,6 @@ namespace System {
 
         [System.Security.SecurityCritical]  // auto-generated_required
         public void SetData (string name, object data) {
-#if FEATURE_CORECLR        
-            if (!name.Equals("LOCATION_URI"))
-            {
-                // Only LOCATION_URI can be set using AppDomain.SetData
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_SetData_OnlyLocationURI", name));
-            }
-#endif // FEATURE_CORECLR            
             SetDataHelper(name, data, null);
         }
 
@@ -2800,17 +2796,6 @@ namespace System {
 
 #endif // FEATURE_REMOTING        
 
-#if FEATURE_LEGACYNETCFFAS
-        public static IAppDomainPauseManager PauseManager
-        {
-            [System.Security.SecurityCritical]
-            get
-            {
-                return AppDomainPauseManager.Instance;
-            }
-        }
-#endif // FEATURE_LEGACYNETCFFAS
-
 #if !FEATURE_CORECLR
         //
         // Called by the VM if ICLRExecutionManager::Pause is called with the PAUSE_APP_DOMAINS flag.
@@ -3297,7 +3282,7 @@ namespace System {
                                       AppDomainSetup info)
         {
             if (friendlyName == null)
-                throw new ArgumentNullException(Environment.GetResourceString("ArgumentNull_String"));
+                throw new ArgumentNullException("friendlyName", Environment.GetResourceString("ArgumentNull_String"));
 
             Contract.EndContractBlock();
 
@@ -3623,9 +3608,11 @@ namespace System {
 
             if(propertyNames!=null && propertyValues != null)
             {
+#if FEATURE_CORECLR
+                StringBuilder normalisedAppPathList = null;
+#endif // FEATURE_CORECLR
                 for (int i=0; i<propertyNames.Length; i++)
                 {
-                    
                     if(propertyNames[i]=="APPBASE") // make sure in sync with Fusion
                     {
                         if(propertyValues[i]==null)
@@ -3634,7 +3621,7 @@ namespace System {
                         if (Path.IsRelative(propertyValues[i]))
                             throw new ArgumentException( Environment.GetResourceString( "Argument_AbsolutePathRequired" ) );
 
-                        newSetup.ApplicationBase=Path.NormalizePath(propertyValues[i],true);
+                        newSetup.ApplicationBase = NormalizePath(propertyValues[i], fullCheck: true);
 
                     }
 #if FEATURE_CAS_POLICY
@@ -3642,10 +3629,10 @@ namespace System {
                     {
                         providedSecurityInfo=new Evidence();
                         providedSecurityInfo.AddHostEvidence(new Url(propertyValues[i]));
-                        ad.SetDataHelper(propertyNames[i],propertyValues[i],null);                        
+                        ad.SetDataHelper(propertyNames[i],propertyValues[i],null);
                     }
 #endif // FEATURE_CAS_POLICY
-#if FEATURE_LOADER_OPTIMIZATION                    
+#if FEATURE_LOADER_OPTIMIZATION
                     else
                     if(propertyNames[i]=="LOADER_OPTIMIZATION")
                     {
@@ -3661,8 +3648,8 @@ namespace System {
                             default: throw new ArgumentException(Environment.GetResourceString("Argument_UnrecognizedLoaderOptimization"), "LOADER_OPTIMIZATION");
                         }
                     }
-#endif // FEATURE_LOADER_OPTIMIZATION                    
-#if FEATURE_CORECLR      
+#endif // FEATURE_LOADER_OPTIMIZATION
+#if FEATURE_CORECLR
                     else
                     if(propertyNames[i]=="NATIVE_DLL_SEARCH_DIRECTORIES")
                     {
@@ -3675,22 +3662,48 @@ namespace System {
                         nSetNativeDllSearchDirectories(paths);
                     }
                     else
-                    if(propertyNames[i]=="TRUSTED_PLATFORM_ASSEMBLIES")
+                    if(propertyNames[i]=="TRUSTED_PLATFORM_ASSEMBLIES" ||
+                       propertyNames[i]=="PLATFORM_RESOURCE_ROOTS" ||
+                       propertyNames[i]=="APP_PATHS" ||
+                       propertyNames[i]=="APP_NI_PATHS")
                     {
-                        if(propertyValues[i]==null)
-                            throw new ArgumentNullException("TRUSTED_PLATFORM_ASSEMBLIES");
+                        string values = propertyValues[i];
+                        if(values==null)
+                            throw new ArgumentNullException(propertyNames[i]);
 
-                        StringBuilder normalisedAppPathList = new StringBuilder();
-                        foreach(string path in propertyValues[i].Split(Path.PathSeparator))
+                        int estimatedLength = values.Length + 1; // +1 for extra separator temporarily added at end
+                        if (normalisedAppPathList == null) {
+                            normalisedAppPathList = new StringBuilder(estimatedLength);
+                        }
+                        else {
+                            normalisedAppPathList.Clear();
+                            if (normalisedAppPathList.Capacity < estimatedLength)
+                                normalisedAppPathList.Capacity = estimatedLength;
+                        }
+
+                        for (int pos = 0; pos < values.Length; pos++)
                         {
+                            string path;
+
+                            int nextPos = values.IndexOf(Path.PathSeparator, pos);
+                            if (nextPos == -1)
+                            {
+                                path = values.Substring(pos);
+                                pos = values.Length - 1;
+                            }
+                            else
+                            {
+                                path = values.Substring(pos, nextPos - pos);
+                                pos = nextPos;
+                            }
 
                             if( path.Length==0 )                  // skip empty dirs
                                 continue;
-                               
+
                             if (Path.IsRelative(path))
                                 throw new ArgumentException( Environment.GetResourceString( "Argument_AbsolutePathRequired" ) );
 
-                            string appPath=Path.NormalizePath(path,true);
+                            string appPath = NormalizePath(path, fullCheck: true);
                             normalisedAppPathList.Append(appPath);
                             normalisedAppPathList.Append(Path.PathSeparator);
                         }
@@ -3699,93 +3712,12 @@ namespace System {
                         {
                             normalisedAppPathList.Remove(normalisedAppPathList.Length - 1, 1);
                         }
-                        ad.SetDataHelper(propertyNames[i],normalisedAppPathList.ToString(),null);        // not supported by fusion, so set explicitly                
-                    }
-                    else
-                    if(propertyNames[i]=="PLATFORM_RESOURCE_ROOTS")
-                    {
-                        if(propertyValues[i]==null)
-                            throw new ArgumentNullException("PLATFORM_RESOURCE_ROOTS");
-
-                        StringBuilder normalisedAppPathList = new StringBuilder();
-                        foreach(string path in propertyValues[i].Split(Path.PathSeparator))
-                        {
-
-                            if( path.Length==0 )                  // skip empty dirs
-                                continue;
-                               
-                            if (Path.IsRelative(path))
-                                throw new ArgumentException( Environment.GetResourceString( "Argument_AbsolutePathRequired" ) );
-
-                            string appPath=Path.NormalizePath(path,true);
-                            normalisedAppPathList.Append(appPath);
-                            normalisedAppPathList.Append(Path.PathSeparator);
-                        }
-                        // Strip the last separator
-                        if (normalisedAppPathList.Length > 0)
-                        {
-                            normalisedAppPathList.Remove(normalisedAppPathList.Length - 1, 1);
-                        }
-                        ad.SetDataHelper(propertyNames[i],normalisedAppPathList.ToString(),null);        // not supported by fusion, so set explicitly                
-                    }
-                    else
-                    if(propertyNames[i]=="APP_PATHS")
-                    {
-                        if(propertyValues[i]==null)
-                            throw new ArgumentNullException("APP_PATHS");
-
-                        StringBuilder normalisedAppPathList = new StringBuilder();
-                        foreach(string path in propertyValues[i].Split(Path.PathSeparator))
-                        {
-
-                            if( path.Length==0 )                  // skip empty dirs
-                                continue;
-                               
-                            if (Path.IsRelative(path))
-                                throw new ArgumentException( Environment.GetResourceString( "Argument_AbsolutePathRequired" ) );
-
-                            string appPath=Path.NormalizePath(path,true);
-                            normalisedAppPathList.Append(appPath);
-                            normalisedAppPathList.Append(Path.PathSeparator);
-                        }
-                        // Strip the last separator
-                        if (normalisedAppPathList.Length > 0)
-                        {
-                            normalisedAppPathList.Remove(normalisedAppPathList.Length - 1, 1);
-                        }
-                        ad.SetDataHelper(propertyNames[i],normalisedAppPathList.ToString(),null);        // not supported by fusion, so set explicitly                
-                    }
-                    else
-                    if(propertyNames[i]=="APP_NI_PATHS")
-                    {
-                        if(propertyValues[i]==null)
-                            throw new ArgumentNullException("APP_NI_PATHS");
-
-                        StringBuilder normalisedAppPathList = new StringBuilder();
-                        foreach(string path in propertyValues[i].Split(Path.PathSeparator))
-                        {
-
-                            if( path.Length==0 )                  // skip empty dirs
-                                continue;
-                               
-                            if (Path.IsRelative(path))
-                                throw new ArgumentException( Environment.GetResourceString( "Argument_AbsolutePathRequired" ) );
-
-                            string appPath=Path.NormalizePath(path,true);
-                            normalisedAppPathList.Append(appPath);
-                            normalisedAppPathList.Append(Path.PathSeparator);
-                        }
-                        // Strip the last separator
-                        if (normalisedAppPathList.Length > 0)
-                        {
-                            normalisedAppPathList.Remove(normalisedAppPathList.Length - 1, 1);
-                        }
-                        ad.SetDataHelper(propertyNames[i],normalisedAppPathList.ToString(),null);        // not supported by fusion, so set explicitly                
+                        ad.SetDataHelper(propertyNames[i],normalisedAppPathList.ToString(),null);        // not supported by fusion, so set explicitly
                     }
                     else
                     if(propertyNames[i]!= null)
                     {
-                        ad.SetDataHelper(propertyNames[i],propertyValues[i],null);     // just propagate                   
+                        ad.SetDataHelper(propertyNames[i],propertyValues[i],null);     // just propagate
                     }
 #endif
 
@@ -3874,6 +3806,23 @@ namespace System {
 #endif // FEATURE_CLICKONCE
         }
 
+        [SecuritySafeCritical]
+        internal static string NormalizePath(string path, bool fullCheck)
+        {
+#if FEATURE_PATHCOMPAT
+            // Appcontext switches can't currently be safely hit during AppDomain bringup
+            return Path.LegacyNormalizePath(
+                path: path,
+                fullCheck: fullCheck,
+                maxPathLength: PathInternal.MaxShortPath,
+                expandShortPaths: true);
+#else
+            return Path.NormalizePath(
+                path: path,
+                fullCheck: fullCheck,
+                expandShortPaths: true);
+#endif
+        }
 
 #if FEATURE_APTCA
         // Called from DomainAssembly in Conditional APTCA cases

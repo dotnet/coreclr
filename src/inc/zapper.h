@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #ifndef ZAPPER_H_
 #define ZAPPER_H_
@@ -103,7 +102,7 @@ class Zapper
     CORINFO_ASSEMBLY_HANDLE m_hAssembly;
     IMDInternalImport      *m_pAssemblyImport;
 
-    WCHAR                   m_outputPath[MAX_PATH]; // Temp folder for creating the output file
+    SString                 m_outputPath; // Temp folder for creating the output file
 
     IMetaDataAssemblyEmit  *m_pAssemblyEmit;
     IMetaDataAssemblyEmit  *CreateAssemblyEmitter();
@@ -123,21 +122,19 @@ class Zapper
     SString                 m_appPaths;
     SString                 m_appNiPaths;
     SString                 m_platformWinmdPaths;
-
-#ifdef FEATURE_LEGACYNETCF
-    bool                    m_appCompatWP8;    // Whether we're using quirks mode for binding with NetCF semantics.
-#endif
-
 #endif // FEATURE_CORECLR || CROSSGEN_COMPILE
 
+#if defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+    SString                 m_CLRJITPath;
+    bool                    m_fDontLoadJit;
+#endif // defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+#if defined(FEATURE_CORECLR) && !defined(NO_NGENPDB)
+    SString                 m_DiasymreaderPath;
+#endif // defined(FEATURE_CORECLR) && !defined(NO_NGENPDB)
     bool                    m_fForceFullTrust;
 
-#ifdef MDIL
-    bool                    m_fEmbedMDIL;
-#endif
+    SString                 m_outputFilename;
 
-    SString                 m_outputFilename;  // output target when coregen is emitting a combined IL/MDIL file.
-                                                   // (an empty string here (temporarily) indicates the use of the depecrated /createmdil sitch.)
   public:
 
     struct assemblyDependencies
@@ -355,12 +352,8 @@ class Zapper
 
     // The arguments control which native image of mscorlib to use.
     // This matters for hardbinding.
-#ifdef BINDER
-    void InitEE(BOOL fForceDebug, BOOL fForceProfile, BOOL fForceInstrument, ICorCompileInfo *compileInfo, ICorDynamicInfo *dynamicInfo);
-#else
     void InitEE(BOOL fForceDebug, BOOL fForceProfile, BOOL fForceInstrument);
     void LoadAndInitializeJITForNgen(LPCWSTR pwzJitName, OUT HINSTANCE* phJit, OUT ICorJitCompiler** ppICorJitCompiler);
-#endif
 
 #ifdef FEATURE_FUSION
     HRESULT TryEnumerateFusionCache(LPCWSTR assemblyName, bool fPrint, bool fDelete);
@@ -456,18 +449,17 @@ class Zapper
     void SetAppPaths(LPCWSTR pwzAppPaths);
     void SetAppNiPaths(LPCWSTR pwzAppNiPaths);
     void SetPlatformWinmdPaths(LPCWSTR pwzPlatformWinmdPaths);
-
-#ifdef FEATURE_LEGACYNETCF
-    void SetAppCompatWP8(bool val);
-#endif
-
-#ifdef MDIL
-    void SetEmbedMDIL(bool val);
-    void SetCompilerFlag(DWORD val);
-#endif
-
     void SetForceFullTrust(bool val);
 #endif // FEATURE_CORECLR || CROSSGEN_COMPILE
+
+#if defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+    void SetCLRJITPath(LPCWSTR pwszCLRJITPath);
+    void SetDontLoadJit();
+#endif // defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+
+#if defined(FEATURE_CORECLR) && !defined(NO_NGENPDB)
+    void SetDiasymreaderPath(LPCWSTR pwzDiasymreaderPath);
+#endif // defined(FEATURE_CORECLR) && !defined(NO_NGENPDB)
 
     void SetOutputFilename(LPCWSTR pwszOutputFilename);
     SString GetOutputFileName();

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // CRST.H
 //
@@ -111,8 +110,6 @@ extern bool g_fFinalizerRunOnShutDown;
 // The CRST.
 class CrstBase
 {
-#ifndef CLR_STANDALONE_BINDER
-
 // The following classes and methods violate the requirement that Crst usage be
 // exception-safe, or they satisfy that requirement using techniques other than
 // Holder objects:
@@ -261,7 +258,7 @@ public:
 #ifdef CROSSGEN_COMPILE
         return TRUE;
 #else
-        return m_holderthreadid.IsSameThread();
+        return m_holderthreadid.IsCurrentThread();
 #endif
     }
     
@@ -299,8 +296,6 @@ protected:
     void DebugDestroy();
 #endif
 
-#endif // CLR_STANDALONE_BINDER
-
     union {
         CRITICAL_SECTION    m_criticalsection;
 #ifdef FEATURE_INCLUDE_ALL_INTERFACES
@@ -336,8 +331,6 @@ protected:
     void                PreEnter ();
     void                PreLeave  ();
 #endif //_DEBUG
-    
-#ifndef CLR_STANDALONE_BINDER
     
 private:
 
@@ -416,20 +409,15 @@ private:
     // Generally, it's better to use a regular CrstHolder, and then use the Release() / Acquire() methods on it.
     // This just exists to convert legacy OS Critical Section patterns over to holders.
     typedef DacHolder<CrstBase *, CrstBase::ReleaseLock, CrstBase::AcquireLock, 0, CompareDefault, HSV_ValidateMinimumStackReq> UnsafeCrstInverseHolder;
-
-#endif // CLR_STANDALONE_BINDER
 };
 
-#ifndef CLR_STANDALONE_BINDER
 typedef CrstBase::CrstHolder CrstHolder;
 typedef CrstBase::CrstHolderWithState CrstHolderWithState;
-#endif // CLR_STANDALONE_BINDER
 
 
 // The CRST.
 class Crst : public CrstBase
 {
-#ifndef CLR_STANDALONE_BINDER
 public:
     void *operator new(size_t size)
     {
@@ -478,8 +466,6 @@ public:
     Crst() {
         LIMITED_METHOD_CONTRACT;
     }
-
-#endif // CLR_STANDALONE_BINDER
 };
 
 typedef DPTR(Crst) PTR_Crst;
@@ -488,7 +474,6 @@ typedef DPTR(Crst) PTR_Crst;
    initialized memory */
 class CrstStatic : public CrstBase
 {
-#ifndef CLR_STANDALONE_BINDER
 public:
     VOID Init(CrstType crstType, CrstFlags flags = CRST_DEFAULT)
     {
@@ -523,13 +508,11 @@ public:
 
         return fSuccess;
     }
-#endif // CLR_STANDALONE_BINDER
 };
 
 /* to be used as regular variable when a explicit call to Init method is needed */
 class CrstExplicitInit : public CrstStatic
 {
-#ifndef CLR_STANDALONE_BINDER
 public:
     CrstExplicitInit() {
         m_dwFlags = 0;
@@ -539,10 +522,8 @@ public:
         Destroy();
 #endif
     }   
-#endif // CLR_STANDALONE_BINDER
 };
 
-#ifndef CLR_STANDALONE_BINDER
 __inline BOOL IsOwnerOfCrst(LPVOID lock)
 {
     WRAPPER_NO_CONTRACT;
@@ -555,8 +536,6 @@ __inline BOOL IsOwnerOfCrst(LPVOID lock)
     return TRUE;
 #endif
 }
-
-#endif // CLR_STANDALONE_BINDER
 
 #ifdef TEST_DATA_CONSISTENCY
 // used for test purposes. Determines if a crst is held. 

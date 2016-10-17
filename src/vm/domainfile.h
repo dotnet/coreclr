@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // --------------------------------------------------------------------------------
 // DomainFile.h
 // 
@@ -254,7 +253,7 @@ class DomainFile
     // Throws if a load error has occurred
     void ThrowIfError(FileLoadLevel targetLevel) DAC_EMPTY();
 
-    // Checks that a load error has not occured before the given level
+    // Checks that a load error has not occurred before the given level
     CHECK CheckNoError(FileLoadLevel targetLevel) DAC_EMPTY_RET(CHECK::OK());
 
     // IsNotified means that the profiler API notification has been delivered

@@ -1,16 +1,16 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
 
 
-.assembly extern mscorlib
+.assembly extern mscorlib { }
+.assembly extern System.Console
 {
-                           
-  
-           
-  
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
 }
 .assembly 'fr4'// as "fr4"
 {
@@ -53,7 +53,7 @@
 
 		throwex:
 				pop
-      			newobj     instance void ['mscorlib']System.ApplicationException::.ctor()
+      			newobj     instance void ['mscorlib']System.Exception::.ctor()
       			throw
     } // end of method 'Test::MulTest'
 
@@ -77,14 +77,14 @@
       {
         IL_001b:  pop
         IL_001c:  ldstr      "Failed w/ exception"
-        IL_0021:  call       void ['mscorlib']System.Console::WriteLine(class System.String)
+        IL_0021:  call       void [System.Console]System.Console::WriteLine(class System.String)
         IL_0026:  ldc.i4.1
         IL_0027:  stloc.0
         IL_0028:  leave.s    IL_0038
 
       }  // end handler
       IL_002a:  ldstr      "Passed"
-      IL_002f:  call       void ['mscorlib']System.Console::WriteLine(class System.String)
+      IL_002f:  call       void [System.Console]System.Console::WriteLine(class System.String)
       IL_0034:  ldc.i4   0x64
       IL_0035:  stloc.0
       IL_0036:  br.s       IL_0038

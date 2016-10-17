@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // 
 
@@ -35,7 +36,7 @@ namespace System.Reflection
         public static FieldInfo GetFieldFromHandle(RuntimeFieldHandle handle)
         {
             if (handle.IsNullHandle())
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidHandle"));
+                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidHandle"), "handle");
                 
             FieldInfo f = RuntimeType.GetFieldInfo(handle.GetRuntimeFieldInfo());
                        
@@ -62,7 +63,6 @@ namespace System.Reflection
         protected FieldInfo() { }       
         #endregion
 
-#if !FEATURE_CORECLR
         public static bool operator ==(FieldInfo left, FieldInfo right)
         {
             if (ReferenceEquals(left, right))
@@ -80,7 +80,6 @@ namespace System.Reflection
         {
             return !(left == right);
         }
-#endif // !FEATURE_CORECLR
 
         public override bool Equals(object obj)
         {
@@ -313,10 +312,7 @@ namespace System.Reflection
         #region Object Overrides
         public unsafe override String ToString() 
         {
-            if (CompatibilitySwitches.IsAppEarlierThanWindowsPhone8)
-                return FieldType.ToString() + " " + Name;
-            else
-                return FieldType.FormatTypeName() + " " + Name;
+            return FieldType.FormatTypeName() + " " + Name;
         }
         #endregion
 
@@ -516,11 +512,6 @@ namespace System.Reflection
                 {
                     if (target == null)
                     {
-#if FEATURE_LEGACYNETCF
-                        if (CompatibilitySwitches.IsAppEarlierThanWindowsPhone8)
-                            throw new ArgumentNullException(Environment.GetResourceString("RFLCT.Targ_StatFldReqTarg"));
-                        else
-#endif
                         throw new TargetException(Environment.GetResourceString("RFLCT.Targ_StatFldReqTarg"));
                     }
                     else

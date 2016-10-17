@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: ObjectClone.cpp
 // 
@@ -1308,7 +1307,7 @@ PTRARRAYREF ObjectClone::MakeObjectLookLikeISerializable(int objectId)
                 case ELEMENT_TYPE_FNPTR:
                 {
                     TypeHandle th = LoadExactFieldType(&pFields[i], m_currObject, m_fromDomain);
-                    _ASSERTE(!th.AsMethodTable()->ContainsStackPtr() && "Field types cannot contain stack pointers.");
+                    _ASSERTE(!th.AsMethodTable()->IsByRefLike() && "Field types cannot contain stack pointers.");
 
                     OBJECTREF refBoxed = BoxValueTypeInWrongDomain(m_currObject, offset, th.AsMethodTable());
 
@@ -2190,7 +2189,7 @@ DWORD ObjectClone::CloneField(FieldDesc *pSrcField, FieldDesc *pDstField)
 
                 STRINGREF refStr = (STRINGREF) *pSrc;
                 refStr = m_cbInterface->AllocateString(refStr);
-                // Get dest addr again, as a GC might have occured
+                // Get dest addr again, as a GC might have occurred
                 pDest = (OBJECTREF *)(m_newObject->GetData() + dstOffset);
                 _ASSERTE(GetAppDomain()==m_toDomain);
                 SetObjectReference(pDest, refStr, GetAppDomain());
@@ -2209,7 +2208,7 @@ DWORD ObjectClone::CloneField(FieldDesc *pSrcField, FieldDesc *pDstField)
     case ELEMENT_TYPE_VALUETYPE:
         {
             TypeHandle th = LoadExactFieldType(pSrcField, m_currObject, m_fromDomain);
-            _ASSERTE(!th.AsMethodTable()->ContainsStackPtr() && "Field types cannot contain stack pointers.");
+            _ASSERTE(!th.AsMethodTable()->IsByRefLike() && "Field types cannot contain stack pointers.");
 
             TypeHandle thTarget = LoadExactFieldType(pDstField, m_newObject, m_toDomain);
 
@@ -3691,7 +3690,7 @@ OBJECTREF ObjectClone::BoxValueTypeInWrongDomain(OBJECTREF refParent, DWORD offs
         GC_TRIGGERS;
         MODE_COOPERATIVE;
         PRECONDITION(pValueTypeMT->IsValueType());
-        PRECONDITION(!pValueTypeMT->ContainsStackPtr());
+        PRECONDITION(!pValueTypeMT->IsByRefLike());
     }
     CONTRACTL_END;
 

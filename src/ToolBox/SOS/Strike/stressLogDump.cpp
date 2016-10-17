@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // ==++==
 // 
@@ -21,10 +20,8 @@
 #include "stresslog.h"
 
 
-#ifndef FEATURE_PAL
 void GcHistClear();
 void GcHistAddLog(LPCSTR msg, StressMsg* stressMsg);
-#endif
 
 
 /*********************************************************************************/
@@ -110,7 +107,7 @@ const char *getFacilityName(DWORD_PTR lf)
 /* be altered if format string contains %s                                         */
 // TODO: This function assumes the pointer size of the target equals the pointer size of the host
 // TODO: replace uses of void* with appropriate TADDR or CLRDATA_ADDRESS
-void formatOutput(struct IDebugDataSpaces* memCallBack, __in FILE* file, __inout __inout_z char* format, unsigned threadId, double timeStamp, DWORD_PTR facility, __in void** args)
+void formatOutput(struct IDebugDataSpaces* memCallBack, ___in FILE* file, __inout __inout_z char* format, unsigned threadId, double timeStamp, DWORD_PTR facility, ___in void** args)
 {
     fprintf(file, "%4x %13.9f : ", threadId, timeStamp);
     fprintf(file, "%-20s ", getFacilityName ( facility ));
@@ -316,6 +313,7 @@ HRESULT StressLog::Dump(ULONG64 outProcLog, const char* fileName, struct IDebugD
 {
     ULONG64 g_hThisInst;
     BOOL    bDoGcHist = (fileName == NULL);
+    FILE*   file = NULL;
 
     // Fetch the circular buffer bookeeping data 
     StressLog inProcLog;
@@ -334,12 +332,7 @@ HRESULT StressLog::Dump(ULONG64 outProcLog, const char* fileName, struct IDebugD
 
     if (bDoGcHist)
     {
-#ifdef FEATURE_PAL
-        ExtOut ("GC history not supported\n");
-        return S_FALSE;
-#else
         GcHistClear();
-#endif
     }
     else
     {
@@ -355,6 +348,7 @@ HRESULT StressLog::Dump(ULONG64 outProcLog, const char* fileName, struct IDebugD
     ThreadStressLog** logsPtr = &logs;
     int threadCtr = 0;
     unsigned __int64 lastTimeStamp = 0;// timestamp of last log entry
+
     while(outProcPtr != 0) {
         inProcPtr = new ThreadStressLog;
         hr = memCallBack->ReadVirtual(outProcPtr, inProcPtr, sizeof (*inProcPtr), 0);
@@ -430,9 +424,7 @@ HRESULT StressLog::Dump(ULONG64 outProcLog, const char* fileName, struct IDebugD
         threadCtr++;
     }
 
-    FILE* file;
-    file = NULL;
-    if (!bDoGcHist && (fopen_s(&file, fileName, "w") != 0))
+    if (!bDoGcHist && ((file = fopen(fileName, "w")) == NULL))
     {
         hr = GetLastError();
         goto FREE_MEM;
@@ -462,9 +454,9 @@ HRESULT StressLog::Dump(ULONG64 outProcLog, const char* fileName, struct IDebugD
 
     if (!bDoGcHist)
     {
-    fprintf(file, "\nTHREAD  TIMESTAMP     FACILITY                              MESSAGE\n");
-    fprintf(file, "  ID  (sec from start)\n");
-    fprintf(file, "--------------------------------------------------------------------------------------\n");
+        fprintf(file, "\nTHREAD  TIMESTAMP     FACILITY                              MESSAGE\n");
+        fprintf(file, "  ID  (sec from start)\n");
+        fprintf(file, "--------------------------------------------------------------------------------------\n");
     }
     char format[257];
     format[256] = format[0] = 0;
@@ -481,9 +473,11 @@ HRESULT StressLog::Dump(ULONG64 outProcLog, const char* fileName, struct IDebugD
             break;
         }
 
-        if (latestLog == 0) {
+        if (latestLog == 0) 
+        {
             break;
         }
+
         StressMsg* latestMsg = latestLog->readPtr;
         if (latestMsg->formatOffset != 0 && !latestLog->CompletedDump()) 
         {
@@ -495,26 +489,24 @@ HRESULT StressLog::Dump(ULONG64 outProcLog, const char* fileName, struct IDebugD
             double deltaTime = ((double) (latestMsg->timeStamp - inProcLog.startTimeStamp)) / inProcLog.tickFrequency;
             if (bDoGcHist)
             {
-#ifndef FEATURE_PAL
                 if (strcmp(format, ThreadStressLog::TaskSwitchMsg()) == 0)
                 {
                     latestLog->threadId = (unsigned)(size_t)latestMsg->args[0];
                 }
                 GcHistAddLog(format, latestMsg);                                
-#endif // FEATURE_PAL
             }
             else
             {
-            if (strcmp(format, ThreadStressLog::TaskSwitchMsg()) == 0)
-            {
-                fprintf (file, "Task was switched from %x\n", (unsigned)(size_t)latestMsg->args[0]);
-                latestLog->threadId = (unsigned)(size_t)latestMsg->args[0];
-            }
+                if (strcmp(format, ThreadStressLog::TaskSwitchMsg()) == 0)
+                {
+                    fprintf (file, "Task was switched from %x\n", (unsigned)(size_t)latestMsg->args[0]);
+                    latestLog->threadId = (unsigned)(size_t)latestMsg->args[0];
+                }
                 else 
                 {
-                args = latestMsg->args;
-                formatOutput(memCallBack, file, format, latestLog->threadId, deltaTime, latestMsg->facility, args);
-            }
+                    args = latestMsg->args;
+                    formatOutput(memCallBack, file, format, latestLog->threadId, deltaTime, latestMsg->facility, args);
+                }
             }
             msgCtr++;
         }
@@ -525,8 +517,8 @@ HRESULT StressLog::Dump(ULONG64 outProcLog, const char* fileName, struct IDebugD
             latestLog->readPtr = NULL;
             if (!bDoGcHist)
             {
-            fprintf(file, "------------ Last message from thread %x -----------\n", latestLog->threadId);
-        }
+                fprintf(file, "------------ Last message from thread %x -----------\n", latestLog->threadId);
+            }
         }
 
         if (msgCtr % 64 == 0) 
@@ -541,7 +533,7 @@ HRESULT StressLog::Dump(ULONG64 outProcLog, const char* fileName, struct IDebugD
     vDoOut(bDoGcHist, file, "---------------------------- %d total entries ------------------------------------\n", msgCtr);
     if (!bDoGcHist)
     {
-    fclose(file);
+        fclose(file);
     }
 
 FREE_MEM:

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -23,6 +24,7 @@ namespace System.Globalization
     ============================================================================*/
 
 
+    [Serializable]
     [System.Runtime.InteropServices.ComVisible(true)]
     public class KoreanCalendar : Calendar
     {
@@ -42,7 +44,7 @@ namespace System.Globalization
         //m_EraInfo[0] = new EraInfo(1, new DateTime(1, 1, 1).Ticks, -2333, 2334, GregorianCalendar.MaxYear + 2333);
 
         // Initialize our era info.
-        static internal EraInfo[] koreanEraInfo = new EraInfo[] {
+        internal static EraInfo[] koreanEraInfo = new EraInfo[] {
             new EraInfo( 1, 1, 1, 1, -2333, 2334, GregorianCalendar.MaxYear + 2333)   // era #, start year/month/day, yearOffset, minEraYear 
         };
 
@@ -67,22 +69,14 @@ namespace System.Globalization
             }
         }
 
-        /*=================================GetDefaultInstance==========================
-        **Action: Internal method to provide a default intance of KoreanCalendar.  Used by NLS+ implementation
-        **       and other calendars.
-        **Returns:
-        **Arguments:
-        **Exceptions:
-        ============================================================================*/
-        /*
-        internal static Calendar GetDefaultInstance() {
-            if (m_defaultInstance == null) {
-                m_defaultInstance = new KoreanCalendar();
+        [System.Runtime.InteropServices.ComVisible(false)]
+        public override CalendarAlgorithmType AlgorithmType
+        {
+            get
+            {
+                return CalendarAlgorithmType.SolarCalendar;
             }
-            return (m_defaultInstance);
         }
-        */
-
 
         public KoreanCalendar()
         {

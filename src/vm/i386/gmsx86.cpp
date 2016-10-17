@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /**************************************************************/
 /*                       gmsx86.cpp                           */
@@ -115,6 +114,11 @@ static bool shouldEnterCall(PTR_BYTE ip) {
     // just work.
     for (int i = 0; i < 48; i++) {
         switch(*ip) {
+            case 0xF2:              // repne
+            case 0xF3:              // repe
+                ip++;
+                break;
+
             case 0x68:              // push 0xXXXXXXXX
                 ip += 5;
 
@@ -339,6 +343,7 @@ static bool shouldEnterCall(PTR_BYTE ip) {
 //
 void LazyMachState::unwindLazyState(LazyMachState* baseState,
                                     MachState* lazyState,
+                                    DWORD threadId,
                                     int funCallDepth /* = 1 */,
                                     HostCallPreference hostCallPreference /* = (HostCallPreference)(-1) */)
 {
@@ -861,6 +866,8 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
                 datasize = b16bit?2:4;
                 goto decodeRM;
 
+            case 0x01:                           // ADD mod/rm
+            case 0x03:
             case 0x29:                           // SUB mod/rm
             case 0x2B:
                 datasize = 0;

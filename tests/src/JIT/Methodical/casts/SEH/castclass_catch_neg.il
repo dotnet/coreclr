@@ -1,8 +1,14 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // castclass_catch_neg.il
 .assembly extern mscorlib { }
+.assembly extern System.Console
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
 .assembly castclass_catch_neg { }
 .namespace JitTest
 {
@@ -17,7 +23,6 @@
       .locals (int32 V_0,
                int32 V_1,
                class [mscorlib]System.Exception V_2,
-               class [mscorlib]System.ApplicationException V_3,
                int32 V_4)
       .try
       {
@@ -32,19 +37,19 @@
           IL_0006:  ldloc.0
           IL_0007:  sub
           IL_0008:  div
-          IL_0009:  call       void [mscorlib]System.Console::WriteLine(int32)
+          IL_0009:  call       void [System.Console]System.Console::WriteLine(int32)
           IL_000e:  ldstr      "failed (1)"
-          IL_0013:  call       void [mscorlib]System.Console::WriteLine(string)
+          IL_0013:  call       void [System.Console]System.Console::WriteLine(string)
           IL_0018:  ldc.i4.s   101
           IL_001a:  stloc.s    V_4
           IL_001c:  leave.s    IL_004d
         }
         catch [mscorlib]System.Exception 
         {
-          IL_0020:  castclass  [mscorlib]System.ApplicationException
-          IL_0027:  call       void [mscorlib]System.Console::WriteLine(object)
+          IL_0020:  castclass  [mscorlib]System.ArgumentException
+          IL_0027:  call       void [System.Console]System.Console::WriteLine(object)
           IL_002c:  ldstr      "failed (2)"
-          IL_0031:  call       void [mscorlib]System.Console::WriteLine(string)
+          IL_0031:  call       void [System.Console]System.Console::WriteLine(string)
           IL_0036:  ldc.i4.s   102
           IL_0038:  stloc.s    V_4
           IL_003a:  leave.s    IL_004d
@@ -54,7 +59,7 @@
       {
         IL_003c:  pop
         IL_003d:  ldstr      "*** TEST PASSED ***"
-        IL_0042:  call       void [mscorlib]System.Console::WriteLine(string)
+        IL_0042:  call       void [System.Console]System.Console::WriteLine(string)
         IL_0047:  ldc.i4.s   100
         IL_0049:  stloc.s    V_4
         IL_004b:  leave.s    IL_004d

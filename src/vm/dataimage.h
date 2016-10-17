@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
@@ -207,11 +206,7 @@ public:
     InlineTrackingMap *m_inlineTrackingMap;
 
   public:
-#ifndef CLR_STANDALONE_BINDER
     DataImage(Module *module, CEEPreloader *preloader);
-#else
-    DataImage(Module *module, ZapImage *pZapImage);
-#endif
     ~DataImage();
 
     void Preallocate();
@@ -401,21 +396,13 @@ public:
     void FixupMethodDescPointer(MethodDesc * pMD, PVOID p, SSIZE_T offset, ZapRelocationType type);
     void FixupFieldDescPointer(FieldDesc * pFD, PVOID p, SSIZE_T offset, ZapRelocationType type);
 
-#ifndef CLR_STANDALONE_BINDER
     void FixupModulePointer(PVOID p, FixupPointer<PTR_Module> * ppModule);
-#else
-    void FixupModulePointer(PVOID p, FixupPointer<PTR_ClrModule> * ppModule);
-#endif
     void FixupMethodTablePointer(PVOID p, FixupPointer<PTR_MethodTable> * ppMT);
     void FixupTypeHandlePointer(PVOID p, FixupPointer<TypeHandle> * pth);
     void FixupMethodDescPointer(PVOID p, FixupPointer<PTR_MethodDesc> * ppMD);
     void FixupFieldDescPointer(PVOID p, FixupPointer<PTR_FieldDesc> * ppFD);
 
-#ifndef CLR_STANDALONE_BINDER
     void FixupModulePointer(PVOID p, RelativeFixupPointer<PTR_Module> * ppModule);
-#else
-    void FixupModulePointer(PVOID p, RelativeFixupPointer<PTR_ClrModule> * ppModule);
-#endif
     void FixupMethodTablePointer(PVOID p, RelativeFixupPointer<PTR_MethodTable> * ppMT);
     void FixupTypeHandlePointer(PVOID p, RelativeFixupPointer<TypeHandle> * pth);
     void FixupMethodDescPointer(PVOID p, RelativeFixupPointer<PTR_MethodDesc> * ppMD);

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 
@@ -256,7 +257,7 @@ namespace System.Diagnostics.Tracing
                 newActivity.startStopOptions.Opcode = EventOpcode.Start;
                 this.eventSource.Write(eventName, ref newActivity.startStopOptions, ref newActivity.activityId, ref relatedActivityId, ref data);
             }
-            else 
+            else
             {
                 // If we are not active, we don't set the eventName, which basically also turns off the Stop event as well.  
                 newActivity.activityId = this.Id;
@@ -305,11 +306,11 @@ namespace System.Diagnostics.Tracing
         /// <summary>
         /// If eventName is non-null then we logged a start event 
         /// </summary>
-        private bool StartEventWasFired { get { return eventName != null; }}
+        private bool StartEventWasFired { get { return eventName != null; } }
 
         private readonly EventSource eventSource;
         private EventSourceOptions startStopOptions;
-        internal  Guid activityId;
+        internal Guid activityId;
         // internal Guid relatedActivityId;
         private State state;
         private string eventName;

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 namespace System 
@@ -22,8 +23,8 @@ namespace System
     using Microsoft.Win32.SafeHandles;
     using System.Diagnostics.Contracts;
     using StackCrawlMark = System.Threading.StackCrawlMark;
-    
-    [Serializable()]
+
+    [Serializable]
     [System.Runtime.InteropServices.ComVisible(true)]
     public unsafe struct RuntimeTypeHandle : ISerializable
     {
@@ -126,9 +127,7 @@ namespace System
 
         public IntPtr Value
         {
-#if !FEATURE_LEGACYNETCF
             [SecurityCritical]
-#endif
             get
             {
                 return m_type != null ? m_type.m_handle : IntPtr.Zero;
@@ -535,24 +534,18 @@ namespace System
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private extern static void GetTypeByName(string name, bool throwOnError, bool ignoreCase, bool reflectionOnly, StackCrawlMarkHandle stackMark, 
-#if FEATURE_HOSTED_BINDER
             IntPtr pPrivHostBinder,
-#endif
-            bool loadTypeFromPartialName, ObjectHandleOnStack type);
+            bool loadTypeFromPartialName, ObjectHandleOnStack type, ObjectHandleOnStack keepalive);
 
-#if FEATURE_HOSTED_BINDER
         // Wrapper function to reduce the need for ifdefs.
         internal static RuntimeType GetTypeByName(string name, bool throwOnError, bool ignoreCase, bool reflectionOnly, ref StackCrawlMark stackMark, bool loadTypeFromPartialName)
         {
             return GetTypeByName(name, throwOnError, ignoreCase, reflectionOnly, ref stackMark, IntPtr.Zero, loadTypeFromPartialName);
         }
-#endif
 
         [System.Security.SecuritySafeCritical]  // auto-generated
         internal static RuntimeType GetTypeByName(string name, bool throwOnError, bool ignoreCase, bool reflectionOnly, ref StackCrawlMark stackMark,
-#if FEATURE_HOSTED_BINDER
                                                   IntPtr pPrivHostBinder,
-#endif
                                                   bool loadTypeFromPartialName)
         {
             if (name == null || name.Length == 0)
@@ -565,12 +558,12 @@ namespace System
 
             RuntimeType type = null;
 
+            Object keepAlive = null;
             GetTypeByName(name, throwOnError, ignoreCase, reflectionOnly,
                 JitHelpers.GetStackCrawlMarkHandle(ref stackMark),
-#if FEATURE_HOSTED_BINDER
                 pPrivHostBinder,
-#endif
-                loadTypeFromPartialName, JitHelpers.GetObjectHandleOnStack(ref type));
+                loadTypeFromPartialName, JitHelpers.GetObjectHandleOnStack(ref type), JitHelpers.GetObjectHandleOnStack(ref keepAlive));
+            GC.KeepAlive(keepAlive);
 
             return type;
         }
@@ -674,19 +667,9 @@ namespace System
         [System.Security.SecuritySafeCritical]  // auto-generated
         internal RuntimeType MakeByRef()
         {
-#if FEATURE_LEGACYNETCF
-            try {
-#endif
-                RuntimeType type = null;
-                MakeByRef(GetNativeHandle(), JitHelpers.GetObjectHandleOnStack(ref type));
-                return type;
-#if FEATURE_LEGACYNETCF
-            } catch(Exception) {
-                if (CompatibilitySwitches.IsAppEarlierThanWindowsPhone8)
-                    return null;
-                throw;
-            }
-#endif
+            RuntimeType type = null;
+            MakeByRef(GetNativeHandle(), JitHelpers.GetObjectHandleOnStack(ref type));
+            return type;
         }
        
         [System.Security.SecurityCritical]  // auto-generated
@@ -707,9 +690,9 @@ namespace System
         [SuppressUnmanagedCodeSecurity]
         internal extern static bool IsCollectible(RuntimeTypeHandle handle);
         
-        #if FEATURE_CORECLR
+#if FEATURE_CORECLR
         [System.Security.SecuritySafeCritical] // auto-generated
-        #endif
+#endif
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal extern static bool HasInstantiation(RuntimeType type);
 
@@ -933,10 +916,10 @@ namespace System
         {
             get;
         }
-    }                                       
+    }
 
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
+    [System.Runtime.InteropServices.ComVisible(true)]
     public unsafe struct RuntimeMethodHandle : ISerializable
     {
         // Returns handle for interop with EE. The handle is guaranteed to be non-null.
@@ -1005,11 +988,7 @@ namespace System
 
         public IntPtr Value
         {
-#if FEATURE_LEGACYNETCF
-            [SecuritySafeCritical]
-#else
             [SecurityCritical]
-#endif
             get
             {
                 return m_value != null ? m_value.Value.Value : IntPtr.Zero;
@@ -1184,7 +1163,7 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal extern static object InvokeMethod(object target, object[] arguments, Signature sig, bool constructor);
 
-        #region Private Invocation Helpers
+#region Private Invocation Helpers
         [System.Security.SecurityCritical]  // auto-generated
         internal static INVOCATION_FLAGS GetSecurityFlags(IRuntimeMethodInfo handle)
         {
@@ -1195,6 +1174,7 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         static extern internal uint GetSpecialSecurityFlags(IRuntimeMethodInfo method);
 
+#if !FEATURE_CORECLR
         [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         static extern internal void PerformSecurityCheck(Object obj, RuntimeMethodHandleInternal method, RuntimeType parent, uint invocationFlags);
@@ -1206,7 +1186,8 @@ namespace System
             GC.KeepAlive(method);
             return;
         }
-        #endregion
+#endif //!FEATURE_CORECLR
+#endregion
 
         [System.Security.SecuritySafeCritical]  // auto-generated
         [DebuggerStepThroughAttribute]
@@ -1221,11 +1202,11 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern bool _IsTokenSecurityTransparent(RuntimeModule module, int metaDataToken);
         
-        #if FEATURE_CORECLR
+#if FEATURE_CORECLR
         [System.Security.SecuritySafeCritical] // auto-generated
-        #else
+#else
         [System.Security.SecurityCritical]
-        #endif
+#endif
         internal static bool IsTokenSecurityTransparent(Module module, int metaDataToken)
         {
             return _IsTokenSecurityTransparent(module.ModuleHandle.GetRuntimeModule(), metaDataToken);
@@ -1486,7 +1467,7 @@ namespace System
     }
 
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
+    [System.Runtime.InteropServices.ComVisible(true)]
     public unsafe struct RuntimeFieldHandle : ISerializable
     {
         // Returns handle for interop with EE. The handle is guaranteed to be non-null.
@@ -1513,11 +1494,7 @@ namespace System
 
         public IntPtr Value
         {
-#if FEATURE_LEGACYNETCF
-            [SecuritySafeCritical]
-#else
             [SecurityCritical]
-#endif
             get
             {
                 return m_ptr != null ? m_ptr.Value.Value : IntPtr.Zero;
@@ -1703,27 +1680,27 @@ namespace System
     public unsafe struct ModuleHandle
     {
         // Returns handle for interop with EE. The handle is guaranteed to be non-null.
-        #region Public Static Members
+#region Public Static Members
         public static readonly ModuleHandle EmptyHandle = GetEmptyMH();
-        #endregion
+#endregion
 
         unsafe static private ModuleHandle GetEmptyMH()
         {
             return new ModuleHandle();
         }
 
-        #region Private Data Members
+#region Private Data Members
         private RuntimeModule m_ptr;
-        #endregion
+#endregion
     
-        #region Constructor
+#region Constructor
         internal ModuleHandle(RuntimeModule module) 
         {
             m_ptr = module;
         }
-        #endregion
+#endregion
 
-        #region Internal FCalls
+#region Internal FCalls
 
         internal RuntimeModule GetRuntimeModule()
         {
@@ -1985,12 +1962,12 @@ namespace System
         {
             return new MetadataImport(_GetMetadataImport(module.GetNativeHandle()), module);
         }
-        #endregion
+#endregion
     }
 
     internal unsafe class Signature
     {
-        #region Definitions
+#region Definitions
         internal enum MdSigCallingConvention : byte
         {
             Generics            = 0x10,
@@ -2010,18 +1987,18 @@ namespace System
             GenericInst         = 0x0A,
             Max                 = 0x0B,
         }
-        #endregion
+#endregion
 
-        #region FCalls
+#region FCalls
         [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]        
         private extern void GetSignature(
             void* pCorSig, int cCorSig,
             RuntimeFieldHandleInternal fieldHandle, IRuntimeMethodInfo methodHandle, RuntimeType declaringType);
 
-        #endregion
+#endregion
 
-        #region Private Data Members
+#region Private Data Members
         //
         // Keep the layout in sync with SignatureNative in the VM
         //
@@ -2035,9 +2012,9 @@ namespace System
         internal int m_nSizeOfArgStack;
         internal int m_csig;
         internal RuntimeMethodHandleInternal m_pMethod;
-        #endregion
+#endregion
 
-        #region Constructors
+#region Constructors
         [System.Security.SecuritySafeCritical]  // auto-generated
         public Signature (
             IRuntimeMethodInfo method,
@@ -2071,9 +2048,9 @@ namespace System
         {
             GetSignature(pCorSig, cCorSig, new RuntimeFieldHandleInternal(), null, declaringType);
         }
-        #endregion
+#endregion
 
-        #region Internal Members
+#region Internal Members
         internal CallingConventions CallingConvention { get { return (CallingConventions)(byte)m_managedCallingConventionAndArgIteratorFlags; } }
         internal RuntimeType[] Arguments { get { return m_arguments; } }
         internal RuntimeType ReturnType { get { return m_returnTypeORfieldType; } }
@@ -2083,16 +2060,10 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern bool CompareSig(Signature sig1, Signature sig2);
 
-#if FEATURE_LEGACYNETCF
-        [System.Security.SecuritySafeCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern bool CompareSigForAppCompat(Signature left, RuntimeType typeLeft, Signature right, RuntimeType typeRight); 
-#endif
-
         [System.Security.SecuritySafeCritical]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal extern Type[] GetCustomModifiers(int position, bool required);
-        #endregion
+#endregion
     }
 
 

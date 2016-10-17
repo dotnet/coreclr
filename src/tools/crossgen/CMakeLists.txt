@@ -12,13 +12,21 @@ if(WIN32)
     add_definitions(-D_CRT_NON_CONFORMING_WCSTOK)
 endif()
 
-add_definitions(-DFX_VER_INTERNALNAME_STR=crossgen.exe)
-add_definitions(-DNO_NGENPDB)
+if(CLR_CMAKE_PLATFORM_UNIX)
+  add_compile_options(-fPIE)
+  add_definitions(-DNO_NGENPDB)
+endif(CLR_CMAKE_PLATFORM_UNIX)
 
-add_executable(crossgen
+add_definitions(-DFX_VER_INTERNALNAME_STR=crossgen.exe)
+
+add_executable_clr(crossgen
   ${crossgen_SOURCES}
   ${crossgen_RESOURCES}
 )
+
+if(FEATURE_MERGE_JIT_AND_ENGINE)
+    set(CLRJIT_CROSSGEN clrjit_crossgen)
+endif(FEATURE_MERGE_JIT_AND_ENGINE)
 
 target_link_libraries(crossgen
     cee_crossgen
@@ -27,7 +35,7 @@ target_link_libraries(crossgen
     mdruntimerw_crossgen
     mdhotdata_crossgen
     corguids
-    jit_crossgen
+    ${CLRJIT_CROSSGEN}
     gcinfo_crossgen
     corzap_crossgen
     mscorlib_crossgen
@@ -54,15 +62,14 @@ else()
         bcrypt
         mdwinmd_crossgen
         ${STATIC_MT_CRT_LIB}
+        ${STATIC_MT_VCRT_LIB}
     )
 
-    # We will generate PDB only for the debug configuration
-    install (FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/crossgen.pdb DESTINATION PDB)
-
 endif(CLR_CMAKE_PLATFORM_UNIX)
-
-install (TARGETS crossgen DESTINATION .)
 
 add_subdirectory(../../zap/crossgen ../../zap/crossgen)
 add_subdirectory(../../vm/crossgen ../../vm/crossgen)
 add_subdirectory(../../vm/crossgen_mscorlib ../../vm/crossgen_mscorlib)
+
+# add the install targets
+install_clr(crossgen)

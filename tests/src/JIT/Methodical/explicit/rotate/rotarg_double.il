@@ -1,14 +1,14 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
-.assembly extern mscorlib
+.assembly extern mscorlib { }
+.assembly extern System.Console
 {
-                           
-  
-           
-  
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
 }
 .assembly 'rotarg_double'// as "rotarg_double"
 {
@@ -250,8 +250,8 @@
         IL_013c:  beq.s      IL_014e
 
         IL_013e:  ldstr      "left weight do not match."
-        IL_0143:  call       void ['mscorlib']System.Console::WriteLine(class System.String)
-        IL_0148:  newobj     instance void ['mscorlib']System.ApplicationException::.ctor()
+        IL_0143:  call       void [System.Console]System.Console::WriteLine(class System.String)
+        IL_0148:  newobj     instance void ['mscorlib']System.Exception::.ctor()
         IL_014d:  throw
 
         IL_014e:  ldarg.0
@@ -298,8 +298,8 @@
         IL_01c7:  beq.s      IL_01d9
 
         IL_01c9:  ldstr      "right weight do not match."
-        IL_01ce:  call       void ['mscorlib']System.Console::WriteLine(class System.String)
-        IL_01d3:  newobj     instance void ['mscorlib']System.ApplicationException::.ctor()
+        IL_01ce:  call       void [System.Console]System.Console::WriteLine(class System.String)
+        IL_01d3:  newobj     instance void ['mscorlib']System.Exception::.ctor()
         IL_01d8:  throw
 
         IL_01d9:  ret

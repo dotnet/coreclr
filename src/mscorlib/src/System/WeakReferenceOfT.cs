@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -19,7 +20,8 @@ namespace System
 
     [Serializable]
     // This class is sealed to mitigate security issues caused by Object::MemberwiseClone.
-    public sealed class WeakReference<T> : ISerializable where T : class
+    public sealed class WeakReference<T> : ISerializable 
+        where T : class
     {
         // If you fix bugs here, please fix them in WeakReference at the same time.
 

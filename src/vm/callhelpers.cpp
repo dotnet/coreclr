@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 /*
  *    CallHelpers.CPP: helpers to call managed code
  * 
@@ -17,6 +16,8 @@
 // To include declaration of "SignatureNative"
 #include "runtimehandles.h"
 
+#include "invokeutil.h"
+#include "argdestination.h"
 
 #if defined(FEATURE_MULTICOREJIT) && defined(_DEBUG)
 
@@ -336,9 +337,9 @@ extern Volatile<LONG> g_fInExecuteMainMethod;
 
 //*******************************************************************************
 #ifdef FEATURE_INTERPRETER
-ARG_SLOT MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments, bool transitionToPreemptive)
+void MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments, ARG_SLOT *pReturnValue, int cbReturnValue, bool transitionToPreemptive)
 #else
-ARG_SLOT MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments)
+void MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments, ARG_SLOT *pReturnValue, int cbReturnValue)
 #endif
 {
     //
@@ -401,7 +402,7 @@ ARG_SLOT MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments)
         // Record this call if required
         g_IBCLogger.LogMethodDescAccess(m_pMD);
 
-        // 
+        //  
         // All types must already be loaded. This macro also sets up a FAULT_FORBID region which is
         // also required for critical calls since we cannot inject any failure points between the 
         // caller of MethodDesc::CallDescr and the actual transition to managed code.
@@ -444,6 +445,18 @@ ARG_SLOT MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments)
 
 #ifdef _DEBUG
         {
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+            // Validate that the return value is not too big for the buffer passed
+            if (m_pMD->GetMethodTable()->IsRegPassedStruct())
+            {
+                TypeHandle thReturnValueType;
+                if (m_methodSig.GetReturnTypeNormalized(&thReturnValueType) == ELEMENT_TYPE_VALUETYPE)
+                {
+                    _ASSERTE(cbReturnValue >= thReturnValueType.GetSize());
+                }
+            }
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+
             // The metasig should be reset
             _ASSERTE(m_methodSig.GetArgNum() == 0);
 
@@ -525,7 +538,7 @@ ARG_SLOT MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments)
         }
 #endif
 
-        int    ofs;
+        int ofs;
         for (; TransitionBlock::InvalidOffset != (ofs = m_argIt.GetNextOffset()); arg++)
         {
 #ifdef CALLDESCR_REGTYPEMAP
@@ -537,9 +550,12 @@ ARG_SLOT MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments)
             // have at least one such argument we point the call worker at the floating point area of the
             // frame (we leave it null otherwise since the worker can perform a useful optimization if it
             // knows no floating point registers need to be set up).
-            if ((ofs < 0) && (pFloatArgumentRegisters == NULL))
+            if (TransitionBlock::HasFloatRegister(ofs, m_argIt.GetArgLocDescForStructInRegs()) && 
+                (pFloatArgumentRegisters == NULL))
+            {
                 pFloatArgumentRegisters = (FloatArgumentRegisters*)(pTransitionBlock +
                                                                     TransitionBlock::GetOffsetOfFloatArgumentRegisters());
+            }
 #endif
 
 #if CHECK_APP_DOMAIN_LEAKS
@@ -553,43 +569,56 @@ ARG_SLOT MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments)
             }
 #endif // CHECK_APP_DOMAIN_LEAKS
 
-            PVOID pDest = pTransitionBlock + ofs;
+            ArgDestination argDest(pTransitionBlock, ofs, m_argIt.GetArgLocDescForStructInRegs());
 
             UINT32 stackSize = m_argIt.GetArgSize();
-            switch (stackSize)
+            // We need to pass in a pointer, but be careful of the ARG_SLOT calling convention. We might already have a pointer in the ARG_SLOT.
+            PVOID pSrc = stackSize > sizeof(ARG_SLOT) ? (LPVOID)ArgSlotToPtr(pArguments[arg]) : (LPVOID)ArgSlotEndianessFixup((ARG_SLOT*)&pArguments[arg], stackSize);
+
+#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+            if (argDest.IsStructPassedInRegs())
             {
-                case 1:
-                case 2:
-                case 4:
-                    *((INT32*)pDest) = (INT32)pArguments[arg];
-                    break;
+                TypeHandle th;
+                m_argIt.GetArgType(&th);
 
-                case 8:
-                    *((INT64*)pDest) = pArguments[arg];
-                    break;
+                argDest.CopyStructToRegisters(pSrc, th.AsMethodTable()->GetNumInstanceFieldBytes(), 0);
+            }
+            else
+#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+            {
+                PVOID pDest = argDest.GetDestinationAddress();
 
-                default:
-                    // The ARG_SLOT contains a pointer to the value-type
-#ifdef ENREGISTERED_PARAMTYPE_MAXSIZE
-                    if (m_argIt.IsArgPassedByRef())
-                    {
-                        // We need to pass in a pointer, but be careful of the ARG_SLOT calling convention.
-                        // We might already have a pointer in the ARG_SLOT
-                       *(PVOID*)pDest = stackSize>sizeof(ARG_SLOT) ?
-                                (LPVOID)ArgSlotToPtr(pArguments[arg]) :
-                                (LPVOID)ArgSlotEndianessFixup((ARG_SLOT*)&pArguments[arg], stackSize);
-                    }
-                    else
-#endif // ENREGISTERED_PARAMTYPE_MAXSIZE
-                    if (stackSize>sizeof(ARG_SLOT))
-                    {
-                        CopyMemory(pDest, ArgSlotToPtr(pArguments[arg]), stackSize);
-                    }
-                    else
-                    {
-                        CopyMemory(pDest, (LPVOID) (&pArguments[arg]), stackSize);
-                    }
-                    break;
+                switch (stackSize)
+                {
+                    case 1:
+                    case 2:
+                    case 4:
+                        *((INT32*)pDest) = (INT32)pArguments[arg];
+                        break;
+
+                    case 8:
+                        *((INT64*)pDest) = pArguments[arg];
+                        break;
+
+                    default:
+                        // The ARG_SLOT contains a pointer to the value-type
+    #ifdef ENREGISTERED_PARAMTYPE_MAXSIZE
+                        if (m_argIt.IsArgPassedByRef())
+                        {
+                            *(PVOID*)pDest = pSrc;
+                        }
+                        else
+    #endif // ENREGISTERED_PARAMTYPE_MAXSIZE
+                        if (stackSize > sizeof(ARG_SLOT))
+                        {
+                            CopyMemory(pDest, ArgSlotToPtr(pArguments[arg]), stackSize);
+                        }
+                        else
+                        {
+                            CopyMemory(pDest, (LPVOID) (&pArguments[arg]), stackSize);
+                        }
+                        break;
+                }
             }
         }
 
@@ -632,20 +661,22 @@ ARG_SLOT MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments)
         memcpyNoGCRefs(pvRetBuff, &callDescrData.returnValue, sizeof(callDescrData.returnValue));
     }
 
-    ARG_SLOT retval = *(ARG_SLOT *)(&callDescrData.returnValue);
+    if (pReturnValue != NULL)
+    {
+        _ASSERTE(cbReturnValue <= sizeof(callDescrData.returnValue));
+        memcpyNoGCRefs(pReturnValue, &callDescrData.returnValue, cbReturnValue);
 
 #if !defined(_WIN64) && BIGENDIAN
-    {
-        GCX_FORBID();
-
-        if (!m_methodSig.Is64BitReturn())
         {
-            retval >>= 32;
+            GCX_FORBID();
+
+            if (!m_methodSig.Is64BitReturn())
+            {
+                pReturnValue[0] >>= 32;
+            }
         }
-    }
 #endif // !defined(_WIN64) && BIGENDIAN
-    
-    return retval;
+    }
 }
 
 void CallDefaultConstructor(OBJECTREF ref)

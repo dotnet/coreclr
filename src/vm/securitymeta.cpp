@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //--------------------------------------------------------------------------
 // securitymeta.cpp
 //
@@ -67,7 +66,7 @@ void FieldSecurityDescriptor::VerifyDataComputed()
     // now.
     static ConfigMethodSet fieldTransparencyBreak;
     fieldTransparencyBreak.ensureInit(CLRConfig::INTERNAL_Security_TransparencyFieldBreak);
-    if (fieldTransparencyBreak.contains(m_pFD->GetName(), m_pFD->GetApproxEnclosingMethodTable()->GetDebugClassName(), NULL))
+    if (fieldTransparencyBreak.contains(m_pFD->GetName(), m_pFD->GetApproxEnclosingMethodTable()->GetDebugClassName()))
     {
         DebugBreak();
     }
@@ -296,7 +295,7 @@ void MethodSecurityDescriptor::ComputeCriticalTransparentInfo()
     // now.
     static ConfigMethodSet methodTransparencyBreak;
     methodTransparencyBreak.ensureInit(CLRConfig::INTERNAL_Security_TransparencyMethodBreak);
-    if (methodTransparencyBreak.contains(m_pMD->GetName(), pMT->GetDebugClassName(), NULL))
+    if (methodTransparencyBreak.contains(m_pMD->GetName(), pMT->GetDebugClassName()))
     {
         DebugBreak();
     }
@@ -1613,15 +1612,6 @@ void ModuleSecurityDescriptor::VerifyDataComputed()
 
     AssemblySecurityDescriptor *pAssemSecDesc = static_cast<AssemblySecurityDescriptor*>(pAssembly->GetSecurityDescriptor());
 
-#ifdef FEATURE_LEGACYNETCF
-    // Legacy Mango apps have incorrect transparency attributes, so quirk to ignore them and force
-    // opportunistic criticality
-    if (GetAppDomain()->GetAppDomainCompatMode() == BaseDomain::APPDOMAINCOMPAT_APP_EARLIER_THAN_WP8 && !pAssemSecDesc->IsMicrosoftPlatform())
-    {
-        moduleFlags = ModuleSecurityDescriptorFlags_IsOpportunisticallyCritical | ModuleSecurityDescriptorFlags_IsAPTCA;
-    }
-#endif // FEATURE_LEGACYNETCF
-
     // We shouldn't be both all transparent and all critical
     const ModuleSecurityDescriptorFlags invalidMask = ModuleSecurityDescriptorFlags_IsAllCritical |
                                                       ModuleSecurityDescriptorFlags_IsAllTransparent;
@@ -1721,17 +1711,6 @@ void ModuleSecurityDescriptor::VerifyDataComputed()
         moduleFlags |= ModuleSecurityDescriptorFlags_IsAllTransparent;
     }
 #endif // _DEBUG
-
-#ifdef FEATURE_CORECLR
-    if (pAssembly->IsSystem() || (pAssembly->GetManifestFile()->HasOpenedILimage() && GetAppDomain()->IsImageFullyTrusted(pAssembly->GetManifestFile()->GetOpenedILimage())))
-    {
-        // Set the flag if the assembly is microsoft platform. This gets saved in Ngen Image
-        // to determinne if the NI was genrated as full-trust. If NI is generated as full-trust
-        // the codegen is generated different as compared to non-trusted.
-        _ASSERTE(!(moduleFlags & ModuleSecurityDescriptorFlags_IsMicrosoftPlatform));
-            moduleFlags |= ModuleSecurityDescriptorFlags_IsMicrosoftPlatform;
-    }
-#endif
 
     // Mark the module as having its security state computed
     moduleFlags |= ModuleSecurityDescriptorFlags_IsComputed;
@@ -1834,7 +1813,7 @@ TokenSecurityDescriptorFlags ParseAptcaAttribute(const BYTE *pbAptcaBlob, DWORD 
         aptcaFlags |= TokenSecurityDescriptorFlags_APTCA;
 
         // Look for the PartialTrustVisibilityLevel named argument
-        CaNamedArg namedArgs[1];
+        CaNamedArg namedArgs[1] = {{0}};
         namedArgs[0].InitI4FieldEnum(g_PartialTrustVisibilityLevel, g_SecurityPartialTrustVisibilityLevel);
 
         if (SUCCEEDED(ParseKnownCaNamedArgs(cap, namedArgs, _countof(namedArgs))))

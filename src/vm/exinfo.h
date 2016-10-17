@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -57,7 +56,7 @@ public:
     // Reference to the topmost handler we saw during an SO that goes past us
     PTR_EXCEPTION_REGISTRATION_RECORD m_pTopMostHandlerDuringSO; 
 
-    LPVOID              m_dEsp;             // Esp when  fault occured, OR esp to restore on endcatch
+    LPVOID              m_dEsp;             // Esp when  fault occurred, OR esp to restore on endcatch
 
     StackTraceInfo      m_StackTraceInfo;
 

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -26,7 +25,6 @@ Revision History:
 #include "pal/handlemgr.hpp"
 #include "pal/corunix.hpp"
 #include <errno.h>
-#define HEAP_SIZEINFO_SIZE (2 * sizeof(DWORD))
 using namespace CorUnix;
 
 SET_DEFAULT_DEBUG_CHANNEL(MEM);
@@ -36,29 +34,9 @@ SET_DEFAULT_DEBUG_CHANNEL(MEM);
 // should be placed after the SET_DEFAULT_DEBUG_CHANNEL(MEM)
 #include <safemath.h>
 
-#define HEAP_MAGIC 0xEAFDC9BB
 #ifndef __APPLE__
 #define DUMMY_HEAP 0x01020304
 #endif // __APPLE__
-
-
-#ifdef __APPLE__
-#define CACHE_HEAP_ZONE
-#endif // __APPLE__
-
-#ifdef CACHE_HEAP_ZONE
-/* This is a kludge.
- *
- * We need to know whether an instruction pointer fault is in our executable
- * heap, but the intersection between the HeapX functions on Windows and the
- * malloc_zone functions on Mac OS X are somewhat at odds and we'd have to 
- * implement an unnecessarily complicated HeapWalk. Instead, we cache the only
- * "heap" we create, knowing it's the executable heap, and use that instead
- * with the much simpler malloc_zone_from_ptr.
- */
-extern malloc_zone_t *s_pExecutableHeap;
-malloc_zone_t *s_pExecutableHeap = NULL;
-#endif // CACHE_HEAP_ZONE
 
 /*++
 Function:
@@ -140,13 +118,7 @@ HeapCreate(
     }
     else
     {
-        malloc_zone_t *pZone = malloc_create_zone(dwInitialSize, 0 /* flags */);
-        ret = (HANDLE)pZone;
-#ifdef CACHE_HEAP_ZONE
-        _ASSERT_MSG(s_pExecutableHeap == NULL, "PAL currently only handles the creation of one executable heap.");
-        s_pExecutableHeap = pZone;
-        TRACE("s_pExecutableHeap is %p.\n", s_pExecutableHeap);
-#endif // CACHE_HEAP_ZONE
+        ret = (HANDLE)malloc_create_zone(dwInitialSize, 0 /* flags */);
     }
     
 #else // __APPLE__
@@ -179,7 +151,8 @@ GetProcessHeap(
 #if HEAP_HANDLES_ARE_REAL_HANDLES
 #error
 #else
-    ret = (HANDLE) malloc_default_zone();
+    malloc_zone_t *pZone = malloc_default_zone();
+    ret = (HANDLE)pZone;
 #endif // HEAP_HANDLES_ARE_REAL_HANDLES
 #else
     ret = (HANDLE) DUMMY_HEAP;
@@ -187,33 +160,6 @@ GetProcessHeap(
   
     LOGEXIT("GetProcessHeap returning HANDLE %p\n", ret);
     PERF_EXIT(GetProcessHeap);
-    return ret;
-}
-
-/*++
-Function:
-HeapSize
-
-See MSDN doc.
---*/
-SIZE_T
-PALAPI
-HeapSize(
-    HANDLE hHeap,
-    DWORD dwFlags,
-    LPCVOID lpMem)
-{
-    SIZE_T ret = (SIZE_T)-1;
-    PERF_ENTRY(HeapSize);
-    ENTRY("HeapSize(hHeap=%p, dwFlags=%#x, lpMem=%p)\n",
-            hHeap, dwFlags, lpMem);
-
-    // First four bytes contain magic
-    // Second four bytes size.
-    ret = ((DWORD *)(static_cast<LPCBYTE>(lpMem) - HEAP_SIZEINFO_SIZE))[1];
-
-    LOGEXIT("HeapSize returning %d\n", ret);
-    PERF_EXIT(HeapSize);
     return ret;
 }
 
@@ -229,15 +175,15 @@ See MSDN doc.
 LPVOID
 PALAPI
 HeapAlloc(
-	  IN HANDLE hHeap,
-	  IN DWORD dwFlags,
-	  IN SIZE_T dwBytes)
+    IN HANDLE hHeap,
+    IN DWORD dwFlags,
+    IN SIZE_T numberOfBytes)
 {
     BYTE *pMem;
 
     PERF_ENTRY(HeapAlloc);
-    ENTRY("HeapAlloc (hHeap=%p, dwFlags=%#x, dwBytes=%u)\n",
-          hHeap, dwFlags, dwBytes);
+    ENTRY("HeapAlloc (hHeap=%p, dwFlags=%#x, numberOfBytes=%u)\n",
+          hHeap, dwFlags, numberOfBytes);
 
 #ifdef __APPLE__
     if (hHeap == NULL)
@@ -261,26 +207,13 @@ HeapAlloc(
         return NULL;
     }
 
-    
-    size_t fullsize;
-    if (!ClrSafeInt<size_t>::addition(dwBytes, HEAP_SIZEINFO_SIZE,fullsize))
-    {
-        ERROR("Integer Overflow\n");
-        SetLastError(ERROR_ARITHMETIC_OVERFLOW);
-        LOGEXIT("HeapAlloc returning NULL\n");
-        PERF_EXIT(HeapAlloc);
-        return NULL;
-    }
 #ifdef __APPLE__
     // This is patterned off of InternalMalloc in malloc.cpp.
     {
-        CPalThread *pthrCurrent = InternalGetCurrentThread();
-        pthrCurrent->suspensionInfo.EnterUnsafeRegion();
-        pMem = (BYTE *)malloc_zone_malloc((malloc_zone_t *)hHeap, fullsize);
-        pthrCurrent->suspensionInfo.LeaveUnsafeRegion();
+        pMem = (BYTE *)malloc_zone_malloc((malloc_zone_t *)hHeap, numberOfBytes);
     }
 #else // __APPLE__
-    pMem = (BYTE *) PAL_malloc(fullsize);
+    pMem = (BYTE *) PAL_malloc(numberOfBytes);
 #endif // __APPLE__ else
 
     if (pMem == NULL)
@@ -292,20 +225,15 @@ HeapAlloc(
         return NULL;
     }
 
-    /* use a magic number, to know it has been allocated with HeapAlloc
-       when doing HeapFree */
-    ((DWORD *) pMem)[0] = HEAP_MAGIC;
-    /* Store the size in the second word */
-    ((DWORD *)pMem)[1] = dwBytes;
-
-    /*If the Heap Zero memory flag is set initialize to zero*/
+    /* If the HEAP_ZERO_MEMORY flag is set initialize to zero */
     if (dwFlags == HEAP_ZERO_MEMORY)
     {
-        memset(pMem+ HEAP_SIZEINFO_SIZE, 0, dwBytes);
+        memset(pMem, 0, numberOfBytes);
     }
-    LOGEXIT("HeapAlloc returning LPVOID %p\n", pMem + HEAP_SIZEINFO_SIZE);
+
+    LOGEXIT("HeapAlloc returning LPVOID %p\n", pMem);
     PERF_EXIT(HeapAlloc);
-    return (pMem + HEAP_SIZEINFO_SIZE);
+    return (pMem);
 }
 
 
@@ -321,9 +249,9 @@ See MSDN doc.
 BOOL
 PALAPI
 HeapFree(
-	 IN HANDLE hHeap,
-	 IN DWORD dwFlags,
-	 IN LPVOID lpMem)
+    IN HANDLE hHeap,
+    IN DWORD dwFlags,
+    IN LPVOID lpMem)
 {
     BOOL bRetVal = FALSE;
 
@@ -349,33 +277,16 @@ HeapFree(
         goto done;
     }
 
-    if ( !lpMem )
+    if (!lpMem)
     {
         bRetVal = TRUE;
         goto done;
     }
-    /*HEAP_SIZEINFO_SIZE + nMemAlloc is the size of Magic Number plus
-     *size of the int to store value of Memory allocated */
-	lpMem = static_cast<LPVOID>(static_cast<LPBYTE>(lpMem) - HEAP_SIZEINFO_SIZE);
-    
-    /* check if the memory has been allocated by HeapAlloc */
-    if (*((DWORD *) lpMem) != HEAP_MAGIC)
-    {
-        ERROR("Pointer hasn't been allocated with HeapAlloc (%p)\n",
-            static_cast<LPBYTE>(lpMem) + HEAP_SIZEINFO_SIZE);
-        SetLastError(ERROR_INVALID_PARAMETER);
-        goto done;
-    }
-    *((DWORD *) lpMem) = 0;
 
     bRetVal = TRUE;
 #ifdef __APPLE__
-    // This is patterned off of InternalFree in malloc.cpp.
     {
-        CPalThread *pthrCurrent = InternalGetCurrentThread();
-        pthrCurrent->suspensionInfo.EnterUnsafeRegion();
         malloc_zone_free((malloc_zone_t *)hHeap, lpMem);
-        pthrCurrent->suspensionInfo.LeaveUnsafeRegion();
     }
 #else // __APPLE__
     PAL_free (lpMem);
@@ -400,21 +311,21 @@ See MSDN doc.
 LPVOID
 PALAPI
 HeapReAlloc(
-	  IN HANDLE hHeap,
-	  IN DWORD dwFlags,
-	  IN LPVOID lpmem,
-	  IN SIZE_T dwBytes)
+    IN HANDLE hHeap,
+    IN DWORD dwFlags,
+    IN LPVOID lpmem,
+    IN SIZE_T numberOfBytes)
 {
     BYTE *pMem = NULL;
 
     PERF_ENTRY(HeapReAlloc);
-    ENTRY("HeapReAlloc (hHeap=%p, dwFlags=%#x, lpmem=%p, dwBytes=%u)\n",
-          hHeap, dwFlags, lpmem, dwBytes);
+    ENTRY("HeapReAlloc (hHeap=%p, dwFlags=%#x, lpmem=%p, numberOfBytes=%u)\n",
+          hHeap, dwFlags, lpmem, numberOfBytes);
 
 #ifdef __APPLE__
     if (hHeap == NULL)
 #else // __APPLE__
-    if (hHeap != (HANDLE) DUMMY_HEAP)
+    if (hHeap != (HANDLE)DUMMY_HEAP)
 #endif // __APPLE__ else
     {
         ASSERT("Invalid heap handle\n");
@@ -438,38 +349,19 @@ HeapReAlloc(
         goto done;
     }
 
-   /*HEAP_SIZEINFO_SIZE + nMemAlloc is the size of Magic Number plus
-     *size of the int to store value of Memory allocated */
-   lpmem = static_cast<LPVOID>(static_cast<LPBYTE>(lpmem) - HEAP_SIZEINFO_SIZE);
-
-    /* check if the memory has been allocated by HeapAlloc */
-    if (*((DWORD *) lpmem) != HEAP_MAGIC)
+    if(numberOfBytes == 0)
     {
-        ERROR("Pointer hasn't been allocated with HeapAlloc (%p)\n",
-            static_cast<LPBYTE>(lpmem) + HEAP_SIZEINFO_SIZE);
-        SetLastError(ERROR_INVALID_PARAMETER);
-        goto done;
-    }
-
-
-    size_t fullsize;
-    if (!ClrSafeInt<size_t>::addition(dwBytes, HEAP_SIZEINFO_SIZE, fullsize))
-    {
-        ERROR("Integer Overflow\n");
-        SetLastError(ERROR_ARITHMETIC_OVERFLOW);
-        goto done;
+        // PAL's realloc behaves like free for a requested size of zero bytes. Force a nonzero size to get a valid pointer.
+        numberOfBytes = 1;
     }
 
 #ifdef __APPLE__
     // This is patterned off of InternalRealloc in malloc.cpp.
     {
-        CPalThread *pthrCurrent = InternalGetCurrentThread();
-        pthrCurrent->suspensionInfo.EnterUnsafeRegion();
-        pMem = (BYTE *) malloc_zone_realloc((malloc_zone_t *)hHeap, lpmem, fullsize);
-        pthrCurrent->suspensionInfo.LeaveUnsafeRegion();
+        pMem = (BYTE *) malloc_zone_realloc((malloc_zone_t *)hHeap, lpmem, numberOfBytes);
     }
 #else // __APPLE__
-    pMem = (BYTE *) PAL_realloc(lpmem,fullsize);
+    pMem = (BYTE *) PAL_realloc(lpmem, numberOfBytes);
 #endif // __APPLE__ else
 
     if (pMem == NULL)
@@ -479,14 +371,10 @@ HeapReAlloc(
         goto done;
     }
 
-    /* use a magic number, to know it has been allocated with HeapAlloc
-       when doing HeapFree */
-    *((DWORD *) pMem) = HEAP_MAGIC;
-
 done:
-    LOGEXIT("HeapReAlloc returns LPVOID %p\n", pMem ? (pMem + HEAP_SIZEINFO_SIZE) : pMem);
+    LOGEXIT("HeapReAlloc returns LPVOID %p\n", pMem);
     PERF_EXIT(HeapReAlloc);
-    return pMem ? (pMem + HEAP_SIZEINFO_SIZE) : pMem;
+    return pMem;
 }
 
 BOOL

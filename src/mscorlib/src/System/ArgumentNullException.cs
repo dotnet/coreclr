@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*=============================================================================
 **
@@ -20,8 +21,9 @@ namespace System {
     // The ArgumentException is thrown when an argument 
     // is null when it shouldn't be.
     // 
-[System.Runtime.InteropServices.ComVisible(true)]
-    [Serializable] public class ArgumentNullException : ArgumentException
+    [System.Runtime.InteropServices.ComVisible(true)]
+    [Serializable]
+    public class ArgumentNullException : ArgumentException
     {
         // Creates a new ArgumentNullException with its message 
         // string set to a default message explaining an argument was null.

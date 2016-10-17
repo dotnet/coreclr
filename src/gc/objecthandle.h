@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*
  * Wraps handle table to implement various handle types (Strong, Weak, etc.)
@@ -119,7 +118,7 @@
  */
 #define HNDTYPE_VARIABLE                        (4)
 
-#ifdef FEATURE_COMINTEROP
+#if defined(FEATURE_COMINTEROP) || defined(FEATURE_REDHAWK)
 /*
  * REFCOUNTED HANDLES
  *
@@ -131,7 +130,7 @@
  *
  */
 #define HNDTYPE_REFCOUNTED                      (5)
-#endif // FEATURE_COMINTEROP
+#endif // FEATURE_COMINTEROP || FEATURE_REDHAWK
 
 
 /*
@@ -149,7 +148,7 @@
  *
  *
  */
-#define HNDTYPE_DEPENDENT		                     (6)
+#define HNDTYPE_DEPENDENT                            (6)
 
 /*
  * PINNED HANDLES for asynchronous operation
@@ -203,7 +202,7 @@ struct HandleTableMap
 {
     PTR_PTR_HandleTableBucket   pBuckets;
     PTR_HandleTableMap          pNext;
-    DWORD                       dwMaxIndex;
+    uint32_t                    dwMaxIndex;
 };
 
 GVAL_DECL(HandleTableMap, g_HandleTableMap);
@@ -216,7 +215,7 @@ GVAL_DECL(HandleTableMap, g_HandleTableMap);
 struct HandleTableBucket
 {
     PTR_HHANDLETABLE pTable;
-    UINT             HandleTableIndex;
+    uint32_t         HandleTableIndex;
 
     bool Contains(OBJECTHANDLE handle);
 };
@@ -385,7 +384,7 @@ inline OBJECTHANDLE CreateSizedRefHandle(HHANDLETABLE table, OBJECTREF object)
 { 
     WRAPPER_NO_CONTRACT;
 
-    return HndCreateHandle(table, HNDTYPE_SIZEDREF, object, (LPARAM)0);
+    return HndCreateHandle(table, HNDTYPE_SIZEDREF, object, (uintptr_t)0);
 }
 
 void DestroySizedRefHandle(OBJECTHANDLE handle);
@@ -412,8 +411,8 @@ inline void DestroyRefcountedHandle(OBJECTHANDLE handle)
 inline OBJECTHANDLE CreateWinRTWeakHandle(HHANDLETABLE table, OBJECTREF object, IWeakReference* pWinRTWeakReference)
 {
     WRAPPER_NO_CONTRACT;
-    _ASSERTE(pWinRTWeakReference != nullptr);
-    return HndCreateHandle(table, HNDTYPE_WEAK_WINRT, object, reinterpret_cast<LPARAM>(pWinRTWeakReference));
+    _ASSERTE(pWinRTWeakReference != NULL);
+    return HndCreateHandle(table, HNDTYPE_WEAK_WINRT, object, reinterpret_cast<uintptr_t>(pWinRTWeakReference));
 }
 
 void DestroyWinRTWeakHandle(OBJECTHANDLE handle);
@@ -438,8 +437,10 @@ inline void DestroyDependentHandle(OBJECTHANDLE handle)
 
 #ifndef DACCESS_COMPILE
 
-OBJECTHANDLE CreateVariableHandle(HHANDLETABLE hTable, OBJECTREF object, UINT type);
-void         UpdateVariableHandleType(OBJECTHANDLE handle, UINT type);
+OBJECTHANDLE CreateVariableHandle(HHANDLETABLE hTable, OBJECTREF object, uint32_t type);
+uint32_t     GetVariableHandleType(OBJECTHANDLE handle);
+void         UpdateVariableHandleType(OBJECTHANDLE handle, uint32_t type);
+uint32_t     CompareExchangeVariableHandleType(OBJECTHANDLE handle, uint32_t oldType, uint32_t newType);
 
 inline void  DestroyVariableHandle(OBJECTHANDLE handle)
 {
@@ -652,30 +653,33 @@ BOOL Ref_ContainHandle(HandleTableBucket *pBucket, OBJECTHANDLE handle);
 struct ScanContext;
 struct DhContext;
 struct ProfilingScanContext;
-void Ref_BeginSynchronousGC   (UINT uCondemnedGeneration, UINT uMaxGeneration);
-void Ref_EndSynchronousGC     (UINT uCondemnedGeneration, UINT uMaxGeneration);
+void Ref_BeginSynchronousGC   (uint32_t uCondemnedGeneration, uint32_t uMaxGeneration);
+void Ref_EndSynchronousGC     (uint32_t uCondemnedGeneration, uint32_t uMaxGeneration);
 
-typedef void Ref_promote_func(class Object**, ScanContext*, DWORD);
+typedef void Ref_promote_func(class Object**, ScanContext*, uint32_t);
 
-void Ref_TraceRefCountHandles(HANDLESCANPROC callback, LPARAM lParam1, LPARAM lParam2);
-void Ref_TracePinningRoots(UINT condemned, UINT maxgen, ScanContext* sc, Ref_promote_func* fn);
-void Ref_TraceNormalRoots(UINT condemned, UINT maxgen, ScanContext* sc, Ref_promote_func* fn);
-void Ref_UpdatePointers(UINT condemned, UINT maxgen, ScanContext* sc, Ref_promote_func* fn);
-void Ref_UpdatePinnedPointers(UINT condemned, UINT maxgen, ScanContext* sc, Ref_promote_func* fn);
+void Ref_TraceRefCountHandles(HANDLESCANPROC callback, uintptr_t lParam1, uintptr_t lParam2);
+void Ref_TracePinningRoots(uint32_t condemned, uint32_t maxgen, ScanContext* sc, Ref_promote_func* fn);
+void Ref_TraceNormalRoots(uint32_t condemned, uint32_t maxgen, ScanContext* sc, Ref_promote_func* fn);
+void Ref_UpdatePointers(uint32_t condemned, uint32_t maxgen, ScanContext* sc, Ref_promote_func* fn);
+void Ref_UpdatePinnedPointers(uint32_t condemned, uint32_t maxgen, ScanContext* sc, Ref_promote_func* fn);
 DhContext *Ref_GetDependentHandleContext(ScanContext* sc);
 bool Ref_ScanDependentHandlesForPromotion(DhContext *pDhContext);
-void Ref_ScanDependentHandlesForClearing(UINT condemned, UINT maxgen, ScanContext* sc, Ref_promote_func* fn);
-void Ref_ScanDependentHandlesForRelocation(UINT condemned, UINT maxgen, ScanContext* sc, Ref_promote_func* fn);
-void Ref_ScanSizedRefHandles(UINT condemned, UINT maxgen, ScanContext* sc, Ref_promote_func* fn);
+void Ref_ScanDependentHandlesForClearing(uint32_t condemned, uint32_t maxgen, ScanContext* sc, Ref_promote_func* fn);
+void Ref_ScanDependentHandlesForRelocation(uint32_t condemned, uint32_t maxgen, ScanContext* sc, Ref_promote_func* fn);
+void Ref_ScanSizedRefHandles(uint32_t condemned, uint32_t maxgen, ScanContext* sc, Ref_promote_func* fn);
+#ifdef FEATURE_REDHAWK
+void Ref_ScanPointers(uint32_t condemned, uint32_t maxgen, ScanContext* sc, Ref_promote_func* fn);
+#endif
 
-void Ref_CheckReachable       (UINT uCondemnedGeneration, UINT uMaxGeneration, LPARAM lp1);
-void Ref_CheckAlive           (UINT uCondemnedGeneration, UINT uMaxGeneration, LPARAM lp1);
-void Ref_ScanPointersForProfilerAndETW(UINT uMaxGeneration, LPARAM lp1);
-void Ref_ScanDependentHandlesForProfilerAndETW(UINT uMaxGeneration, ProfilingScanContext * SC);
-void Ref_AgeHandles           (UINT uCondemnedGeneration, UINT uMaxGeneration, LPARAM lp1);
-void Ref_RejuvenateHandles(UINT uCondemnedGeneration, UINT uMaxGeneration, LPARAM lp1);
+void Ref_CheckReachable       (uint32_t uCondemnedGeneration, uint32_t uMaxGeneration, uintptr_t lp1);
+void Ref_CheckAlive           (uint32_t uCondemnedGeneration, uint32_t uMaxGeneration, uintptr_t lp1);
+void Ref_ScanPointersForProfilerAndETW(uint32_t uMaxGeneration, uintptr_t lp1);
+void Ref_ScanDependentHandlesForProfilerAndETW(uint32_t uMaxGeneration, ProfilingScanContext * SC);
+void Ref_AgeHandles           (uint32_t uCondemnedGeneration, uint32_t uMaxGeneration, uintptr_t lp1);
+void Ref_RejuvenateHandles(uint32_t uCondemnedGeneration, uint32_t uMaxGeneration, uintptr_t lp1);
 
-void Ref_VerifyHandleTable(UINT condemned, UINT maxgen, ScanContext* sc);
+void Ref_VerifyHandleTable(uint32_t condemned, uint32_t maxgen, ScanContext* sc);
 
 #endif // DACCESS_COMPILE
 

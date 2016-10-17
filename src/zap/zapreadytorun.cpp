@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // ZapReadyToRun.cpp
 //
@@ -176,16 +175,37 @@ public:
     }
 };
 
+class EntryPointWithBlobVertex : public EntryPointVertex
+{
+    BlobVertex * m_pBlob;
+
+public:
+    EntryPointWithBlobVertex(DWORD methodIndex, BlobVertex * pFixups, BlobVertex * pBlob)
+        : EntryPointVertex(methodIndex, pFixups), m_pBlob(pBlob)
+    {
+    }
+
+    virtual void Save(NativeWriter * pWriter)
+    {
+        m_pBlob->Save(pWriter);
+        EntryPointVertex::Save(pWriter);
+    }
+};
+
 void ZapImage::OutputEntrypointsTableForReadyToRun()
 {
     BeginRegion(CORINFO_REGION_COLD);
 
-    NativeWriter writer;
+    NativeWriter arrayWriter;
+    NativeWriter hashtableWriter;
 
-    NativeSection * pSection = writer.NewSection();
+    NativeSection * pArraySection = arrayWriter.NewSection();
+    NativeSection * pHashtableSection = hashtableWriter.NewSection();
 
-    VertexArray vertexArray(pSection);
-    pSection->Place(&vertexArray);
+    VertexArray vertexArray(pArraySection);
+    pArraySection->Place(&vertexArray);
+    VertexHashtable vertexHashtable;
+    pHashtableSection->Place(&vertexHashtable);
 
     bool fEmpty = true;
 
@@ -197,6 +217,8 @@ void ZapImage::OutputEntrypointsTableForReadyToRun()
         ZapMethodHeader * pMethod = m_MethodCompilationOrder[i];
 
         mdMethodDef token = GetJitInfo()->getMethodDefFromMethod(pMethod->GetHandle());
+        CORINFO_SIG_INFO sig;
+        GetJitInfo()->getMethodSig(pMethod->GetHandle(), &sig);
 
         int rid = RidFromToken(token);
         _ASSERTE(rid != 0);
@@ -222,7 +244,31 @@ void ZapImage::OutputEntrypointsTableForReadyToRun()
             }
         }
 
-        vertexArray.Set(rid - 1, new (GetHeap()) EntryPointVertex(pMethod->GetMethodIndex(), pFixupBlob));
+        if (sig.sigInst.classInstCount > 0 || sig.sigInst.methInstCount > 0)
+        {
+            CORINFO_MODULE_HANDLE module = GetJitInfo()->getClassModule(pMethod->GetClassHandle());
+            _ASSERTE(GetCompileInfo()->IsInCurrentVersionBubble(module));
+            SigBuilder sigBuilder;
+            CORINFO_RESOLVED_TOKEN resolvedToken = {};
+            resolvedToken.tokenScope = module;
+            resolvedToken.token = token;
+            resolvedToken.hClass = pMethod->GetClassHandle();
+            resolvedToken.hMethod = pMethod->GetHandle();
+            GetCompileInfo()->EncodeMethod(module, pMethod->GetHandle(), &sigBuilder, NULL, NULL, &resolvedToken);
+
+            DWORD cbBlob;
+            PVOID pBlob = sigBuilder.GetSignature(&cbBlob);
+            void * pMemory = new (GetHeap()) BYTE[sizeof(BlobVertex) + cbBlob];
+            BlobVertex * pSigBlob = new (pMemory) BlobVertex(cbBlob);
+            memcpy(pSigBlob->GetData(), pBlob, cbBlob);
+
+            int dwHash = GetCompileInfo()->GetVersionResilientMethodHashCode(pMethod->GetHandle());
+            vertexHashtable.Append(dwHash, pHashtableSection->Place(new (GetHeap()) EntryPointWithBlobVertex(pMethod->GetMethodIndex(), pFixupBlob, pSigBlob)));
+        }
+        else
+        {
+            vertexArray.Set(rid - 1, new (GetHeap()) EntryPointVertex(pMethod->GetMethodIndex(), pFixupBlob));
+        }
 
         fEmpty = false;
     }
@@ -232,13 +278,17 @@ void ZapImage::OutputEntrypointsTableForReadyToRun()
 
     vertexArray.ExpandLayout();
 
-    vector<byte>& blob = writer.Save();
+    vector<byte>& arrayBlob = arrayWriter.Save();
+    ZapNode * pArrayBlob = ZapBlob::NewBlob(this, &arrayBlob[0], arrayBlob.size());
+    m_pCodeMethodDescsSection->Place(pArrayBlob);
 
-    ZapNode * pBlob = ZapBlob::NewBlob(this, &blob[0], blob.size());
-    m_pCodeMethodDescsSection->Place(pBlob);
+    vector<byte>& hashtableBlob = hashtableWriter.Save();
+    ZapNode * pHashtableBlob = ZapBlob::NewBlob(this, &hashtableBlob[0], hashtableBlob.size());
+    m_pCodeMethodDescsSection->Place(pHashtableBlob);
 
     ZapReadyToRunHeader * pReadyToRunHeader = GetReadyToRunHeader();
-    pReadyToRunHeader->RegisterSection(READYTORUN_SECTION_METHODDEF_ENTRYPOINTS, pBlob);
+    pReadyToRunHeader->RegisterSection(READYTORUN_SECTION_METHODDEF_ENTRYPOINTS, pArrayBlob);
+    pReadyToRunHeader->RegisterSection(READYTORUN_SECTION_INSTANCE_METHOD_ENTRYPOINTS, pHashtableBlob);
     pReadyToRunHeader->RegisterSection(READYTORUN_SECTION_RUNTIME_FUNCTIONS, m_pRuntimeFunctionSection);
 
     if (m_pImportSectionsTable->GetSize() != 0)
@@ -333,6 +383,58 @@ void ZapImage::OutputDebugInfoForReadyToRun()
     GetReadyToRunHeader()->RegisterSection(READYTORUN_SECTION_DEBUG_INFO, pBlob);
 }
 
+void ZapImage::OutputTypesTableForReadyToRun(IMDInternalImport * pMDImport)
+{
+    NativeWriter writer;
+    VertexHashtable typesHashtable;
+
+    NativeSection * pSection = writer.NewSection();
+    pSection->Place(&typesHashtable);
+
+    // Note on duplicate types with same name: there is not need to perform that check when building
+    // the hashtable. If such types were encountered, the R2R compilation would fail before reaching here.
+
+    LPCUTF8 pszName;
+    LPCUTF8 pszNameSpace;
+
+    // Save the TypeDefs to the hashtable
+    {
+        HENUMInternalHolder hEnum(pMDImport);
+        hEnum.EnumAllInit(mdtTypeDef);
+
+        mdToken mdTypeToken;
+        while (pMDImport->EnumNext(&hEnum, &mdTypeToken))
+        {
+            mdTypeDef mdCurrentToken = mdTypeToken;
+            DWORD dwHash = GetCompileInfo()->GetVersionResilientTypeHashCode(GetModuleHandle(), mdTypeToken);
+
+            typesHashtable.Append(dwHash, pSection->Place(new UnsignedConstant(RidFromToken(mdTypeToken) << 1)));
+        }
+    }
+
+    // Save the ExportedTypes to the hashtable
+    {
+        HENUMInternalHolder hEnum(pMDImport);
+        hEnum.EnumInit(mdtExportedType, mdTokenNil);
+
+        mdToken mdTypeToken;
+        while (pMDImport->EnumNext(&hEnum, &mdTypeToken))
+        {
+            DWORD dwHash = GetCompileInfo()->GetVersionResilientTypeHashCode(GetModuleHandle(), mdTypeToken);
+
+            typesHashtable.Append(dwHash, pSection->Place(new UnsignedConstant((RidFromToken(mdTypeToken) << 1) | 1)));
+        }
+    }
+
+    vector<byte>& blob = writer.Save();
+
+    ZapNode * pBlob = ZapBlob::NewBlob(this, &blob[0], blob.size());
+    _ASSERTE(m_pAvailableTypesSection);
+    m_pAvailableTypesSection->Place(pBlob);
+
+    GetReadyToRunHeader()->RegisterSection(READYTORUN_SECTION_AVAILABLE_TYPES, pBlob);
+}
+
 
 //
 // Verify that data structures and flags shared between NGen and ReadyToRun are in sync
@@ -343,71 +445,77 @@ void ZapImage::OutputDebugInfoForReadyToRun()
 //
 static_assert_no_msg(sizeof(READYTORUN_IMPORT_SECTION)          == sizeof(CORCOMPILE_IMPORT_SECTION));
 
-static_assert_no_msg(READYTORUN_IMPORT_SECTION_TYPE_UNKNOWN     == CORCOMPILE_IMPORT_TYPE_UNKNOWN);
+static_assert_no_msg((int)READYTORUN_IMPORT_SECTION_TYPE_UNKNOWN     == (int)CORCOMPILE_IMPORT_TYPE_UNKNOWN);
 
-static_assert_no_msg(READYTORUN_IMPORT_SECTION_FLAGS_EAGER      == CORCOMPILE_IMPORT_FLAGS_EAGER);
+static_assert_no_msg((int)READYTORUN_IMPORT_SECTION_FLAGS_EAGER      == (int)CORCOMPILE_IMPORT_FLAGS_EAGER);
 
 //
 // READYTORUN_METHOD_SIG
 //
-static_assert_no_msg(READYTORUN_METHOD_SIG_UnboxingStub         == ENCODE_METHOD_SIG_UnboxingStub);
-static_assert_no_msg(READYTORUN_METHOD_SIG_InstantiatingStub    == ENCODE_METHOD_SIG_InstantiatingStub);
-static_assert_no_msg(READYTORUN_METHOD_SIG_MethodInstantiation  == ENCODE_METHOD_SIG_MethodInstantiation);
-static_assert_no_msg(READYTORUN_METHOD_SIG_SlotInsteadOfToken   == ENCODE_METHOD_SIG_SlotInsteadOfToken);
-static_assert_no_msg(READYTORUN_METHOD_SIG_MemberRefToken       == ENCODE_METHOD_SIG_MemberRefToken);
-static_assert_no_msg(READYTORUN_METHOD_SIG_Constrained          == ENCODE_METHOD_SIG_Constrained);
-static_assert_no_msg(READYTORUN_METHOD_SIG_OwnerType            == ENCODE_METHOD_SIG_OwnerType);
+static_assert_no_msg((int)READYTORUN_METHOD_SIG_UnboxingStub         == (int)ENCODE_METHOD_SIG_UnboxingStub);
+static_assert_no_msg((int)READYTORUN_METHOD_SIG_InstantiatingStub    == (int)ENCODE_METHOD_SIG_InstantiatingStub);
+static_assert_no_msg((int)READYTORUN_METHOD_SIG_MethodInstantiation  == (int)ENCODE_METHOD_SIG_MethodInstantiation);
+static_assert_no_msg((int)READYTORUN_METHOD_SIG_SlotInsteadOfToken   == (int)ENCODE_METHOD_SIG_SlotInsteadOfToken);
+static_assert_no_msg((int)READYTORUN_METHOD_SIG_MemberRefToken       == (int)ENCODE_METHOD_SIG_MemberRefToken);
+static_assert_no_msg((int)READYTORUN_METHOD_SIG_Constrained          == (int)ENCODE_METHOD_SIG_Constrained);
+static_assert_no_msg((int)READYTORUN_METHOD_SIG_OwnerType            == (int)ENCODE_METHOD_SIG_OwnerType);
 
 //
 // READYTORUN_FIELD_SIG
 //
-static_assert_no_msg(READYTORUN_FIELD_SIG_IndexInsteadOfToken   == ENCODE_FIELD_SIG_IndexInsteadOfToken);
-static_assert_no_msg(READYTORUN_FIELD_SIG_MemberRefToken        == ENCODE_FIELD_SIG_MemberRefToken);
-static_assert_no_msg(READYTORUN_FIELD_SIG_OwnerType             == ENCODE_FIELD_SIG_OwnerType);
+static_assert_no_msg((int)READYTORUN_FIELD_SIG_IndexInsteadOfToken   == (int)ENCODE_FIELD_SIG_IndexInsteadOfToken);
+static_assert_no_msg((int)READYTORUN_FIELD_SIG_MemberRefToken        == (int)ENCODE_FIELD_SIG_MemberRefToken);
+static_assert_no_msg((int)READYTORUN_FIELD_SIG_OwnerType             == (int)ENCODE_FIELD_SIG_OwnerType);
 
 //
 // READYTORUN_FIXUP
 //
-static_assert_no_msg(READYTORUN_FIXUP_TypeHandle                == ENCODE_TYPE_HANDLE);
-static_assert_no_msg(READYTORUN_FIXUP_MethodHandle              == ENCODE_METHOD_HANDLE);
-static_assert_no_msg(READYTORUN_FIXUP_FieldHandle               == ENCODE_FIELD_HANDLE);
+static_assert_no_msg((int)READYTORUN_FIXUP_ThisObjDictionaryLookup   == (int)ENCODE_DICTIONARY_LOOKUP_THISOBJ);
+static_assert_no_msg((int)READYTORUN_FIXUP_TypeDictionaryLookup      == (int)ENCODE_DICTIONARY_LOOKUP_TYPE);
+static_assert_no_msg((int)READYTORUN_FIXUP_MethodDictionaryLookup    == (int)ENCODE_DICTIONARY_LOOKUP_METHOD);
 
-static_assert_no_msg(READYTORUN_FIXUP_MethodEntry               == ENCODE_METHOD_ENTRY);
-static_assert_no_msg(READYTORUN_FIXUP_MethodEntry_DefToken      == ENCODE_METHOD_ENTRY_DEF_TOKEN);
-static_assert_no_msg(READYTORUN_FIXUP_MethodEntry_RefToken      == ENCODE_METHOD_ENTRY_REF_TOKEN);
+static_assert_no_msg((int)READYTORUN_FIXUP_TypeHandle                == (int)ENCODE_TYPE_HANDLE);
+static_assert_no_msg((int)READYTORUN_FIXUP_MethodHandle              == (int)ENCODE_METHOD_HANDLE);
+static_assert_no_msg((int)READYTORUN_FIXUP_FieldHandle               == (int)ENCODE_FIELD_HANDLE);
 
-static_assert_no_msg(READYTORUN_FIXUP_VirtualEntry              == ENCODE_VIRTUAL_ENTRY);
-static_assert_no_msg(READYTORUN_FIXUP_VirtualEntry_DefToken     == ENCODE_VIRTUAL_ENTRY_DEF_TOKEN);
-static_assert_no_msg(READYTORUN_FIXUP_VirtualEntry_RefToken     == ENCODE_VIRTUAL_ENTRY_REF_TOKEN);
-static_assert_no_msg(READYTORUN_FIXUP_VirtualEntry_Slot         == ENCODE_VIRTUAL_ENTRY_SLOT);
+static_assert_no_msg((int)READYTORUN_FIXUP_MethodEntry               == (int)ENCODE_METHOD_ENTRY);
+static_assert_no_msg((int)READYTORUN_FIXUP_MethodEntry_DefToken      == (int)ENCODE_METHOD_ENTRY_DEF_TOKEN);
+static_assert_no_msg((int)READYTORUN_FIXUP_MethodEntry_RefToken      == (int)ENCODE_METHOD_ENTRY_REF_TOKEN);
 
-static_assert_no_msg(READYTORUN_FIXUP_Helper                    == ENCODE_READYTORUN_HELPER);
-static_assert_no_msg(READYTORUN_FIXUP_StringHandle              == ENCODE_STRING_HANDLE);
+static_assert_no_msg((int)READYTORUN_FIXUP_VirtualEntry              == (int)ENCODE_VIRTUAL_ENTRY);
+static_assert_no_msg((int)READYTORUN_FIXUP_VirtualEntry_DefToken     == (int)ENCODE_VIRTUAL_ENTRY_DEF_TOKEN);
+static_assert_no_msg((int)READYTORUN_FIXUP_VirtualEntry_RefToken     == (int)ENCODE_VIRTUAL_ENTRY_REF_TOKEN);
+static_assert_no_msg((int)READYTORUN_FIXUP_VirtualEntry_Slot         == (int)ENCODE_VIRTUAL_ENTRY_SLOT);
 
-static_assert_no_msg(READYTORUN_FIXUP_NewObject                  == ENCODE_NEW_HELPER);
-static_assert_no_msg(READYTORUN_FIXUP_NewArray                   == ENCODE_NEW_ARRAY_HELPER);
+static_assert_no_msg((int)READYTORUN_FIXUP_Helper                    == (int)ENCODE_READYTORUN_HELPER);
+static_assert_no_msg((int)READYTORUN_FIXUP_StringHandle              == (int)ENCODE_STRING_HANDLE);
 
-static_assert_no_msg(READYTORUN_FIXUP_IsInstanceOf               == ENCODE_ISINSTANCEOF_HELPER);
-static_assert_no_msg(READYTORUN_FIXUP_ChkCast                    == ENCODE_CHKCAST_HELPER);
+static_assert_no_msg((int)READYTORUN_FIXUP_NewObject                 == (int)ENCODE_NEW_HELPER);
+static_assert_no_msg((int)READYTORUN_FIXUP_NewArray                  == (int)ENCODE_NEW_ARRAY_HELPER);
 
-static_assert_no_msg(READYTORUN_FIXUP_FieldAddress               == ENCODE_FIELD_ADDRESS);
-static_assert_no_msg(READYTORUN_FIXUP_CctorTrigger               == ENCODE_CCTOR_TRIGGER);
+static_assert_no_msg((int)READYTORUN_FIXUP_IsInstanceOf              == (int)ENCODE_ISINSTANCEOF_HELPER);
+static_assert_no_msg((int)READYTORUN_FIXUP_ChkCast                   == (int)ENCODE_CHKCAST_HELPER);
 
-static_assert_no_msg(READYTORUN_FIXUP_StaticBaseNonGC            == ENCODE_STATIC_BASE_NONGC_HELPER);
-static_assert_no_msg(READYTORUN_FIXUP_StaticBaseGC               == ENCODE_STATIC_BASE_GC_HELPER);
-static_assert_no_msg(READYTORUN_FIXUP_ThreadStaticBaseNonGC      == ENCODE_THREAD_STATIC_BASE_NONGC_HELPER);
-static_assert_no_msg(READYTORUN_FIXUP_ThreadStaticBaseGC         == ENCODE_THREAD_STATIC_BASE_GC_HELPER);
+static_assert_no_msg((int)READYTORUN_FIXUP_FieldAddress              == (int)ENCODE_FIELD_ADDRESS);
+static_assert_no_msg((int)READYTORUN_FIXUP_CctorTrigger              == (int)ENCODE_CCTOR_TRIGGER);
 
-static_assert_no_msg(READYTORUN_FIXUP_FieldBaseOffset            == ENCODE_FIELD_BASE_OFFSET);
-static_assert_no_msg(READYTORUN_FIXUP_FieldOffset                == ENCODE_FIELD_OFFSET);
+static_assert_no_msg((int)READYTORUN_FIXUP_StaticBaseNonGC           == (int)ENCODE_STATIC_BASE_NONGC_HELPER);
+static_assert_no_msg((int)READYTORUN_FIXUP_StaticBaseGC              == (int)ENCODE_STATIC_BASE_GC_HELPER);
+static_assert_no_msg((int)READYTORUN_FIXUP_ThreadStaticBaseNonGC     == (int)ENCODE_THREAD_STATIC_BASE_NONGC_HELPER);
+static_assert_no_msg((int)READYTORUN_FIXUP_ThreadStaticBaseGC        == (int)ENCODE_THREAD_STATIC_BASE_GC_HELPER);
 
-static_assert_no_msg(READYTORUN_FIXUP_TypeDictionary             == ENCODE_TYPE_DICTIONARY);
-static_assert_no_msg(READYTORUN_FIXUP_MethodDictionary           == ENCODE_METHOD_DICTIONARY);
+static_assert_no_msg((int)READYTORUN_FIXUP_FieldBaseOffset           == (int)ENCODE_FIELD_BASE_OFFSET);
+static_assert_no_msg((int)READYTORUN_FIXUP_FieldOffset               == (int)ENCODE_FIELD_OFFSET);
 
-static_assert_no_msg(READYTORUN_FIXUP_Check_TypeLayout           == ENCODE_CHECK_TYPE_LAYOUT);
-static_assert_no_msg(READYTORUN_FIXUP_Check_FieldOffset          == ENCODE_CHECK_FIELD_OFFSET);
+static_assert_no_msg((int)READYTORUN_FIXUP_TypeDictionary            == (int)ENCODE_TYPE_DICTIONARY);
+static_assert_no_msg((int)READYTORUN_FIXUP_MethodDictionary          == (int)ENCODE_METHOD_DICTIONARY);
 
-static_assert_no_msg(READYTORUN_FIXUP_DelegateCtor               == ENCODE_DELEGATE_CTOR);
+static_assert_no_msg((int)READYTORUN_FIXUP_Check_TypeLayout          == (int)ENCODE_CHECK_TYPE_LAYOUT);
+static_assert_no_msg((int)READYTORUN_FIXUP_Check_FieldOffset         == (int)ENCODE_CHECK_FIELD_OFFSET);
+
+static_assert_no_msg((int)READYTORUN_FIXUP_DelegateCtor              == (int)ENCODE_DELEGATE_CTOR);
+
+static_assert_no_msg((int)READYTORUN_FIXUP_DeclaringTypeHandle       == (int)ENCODE_DECLARINGTYPE_HANDLE);
 
 //
 // READYTORUN_EXCEPTION

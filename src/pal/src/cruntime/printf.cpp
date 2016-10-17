@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -123,6 +122,52 @@ BOOL Internal_AddPaddingA(LPSTR *Out, INT Count, LPSTR In,
     }
 }
 
+/*******************************************************************************
+Function:
+  PAL_printf_arg_remover
+
+Parameters:
+  ap
+    - pointer to the va_list from which to remove arguments
+  Width
+    - the width of the current format operation
+  Precision
+    - the precision of the current format option
+  Type
+    - the type of the argument for the current format option
+  Prefix
+    - the prefix for the current format option
+*******************************************************************************/
+void PAL_printf_arg_remover(va_list *ap, INT Width, INT Precision, INT Type, INT Prefix)
+{
+    /* remove arg and precision if needed */
+    if (PRECISION_STAR == Precision ||
+        PRECISION_INVALID == Precision)
+    {
+        (void)va_arg(*ap, int);
+    }
+    if (WIDTH_STAR == Width ||
+        WIDTH_INVALID == Width)
+    {
+        (void)va_arg(*ap, int);
+    }
+    if (Type == PFF_TYPE_FLOAT)
+    {
+        (void)va_arg(*ap, double);
+    }
+    else if (Type == PFF_TYPE_INT && Prefix == PFF_PREFIX_LONGLONG)
+    {
+        (void)va_arg(*ap, INT64);
+    }
+    else if (Type == PFF_TYPE_INT || Type == PFF_TYPE_CHAR)
+    {
+        (void)va_arg(*ap, int);
+    }
+    else
+    {
+        (void)va_arg(*ap, void *);
+    }
+}
 
 /*++
 Function:
@@ -250,7 +295,7 @@ wsprintfA(
     ENTRY("wsprintfA (buffer=%p, format=%p (%s))\n", buffer, format, format);
 
     va_start(ap, format);
-    Length = PAL__vsnprintf(buffer, 1024, format, ap);
+    Length = InternalVsnprintf(CorUnix::InternalGetCurrentThread(), buffer, 1024, format, ap);
     va_end(ap);
 
     LOGEXIT("wsprintfA returns int %d\n", Length);
@@ -309,7 +354,7 @@ _snprintf(
           buffer, (unsigned long) count, format, format);
 
     va_start(ap, format);
-    Length = PAL__vsnprintf(buffer, count, format, ap);
+    Length = InternalVsnprintf(CorUnix::InternalGetCurrentThread(), buffer, count, format, ap);
     va_end(ap);
 
     LOGEXIT("_snprintf returns int %d\n", Length);
@@ -482,7 +527,7 @@ static BOOL Internal_ScanfExtractFormatA(LPCSTR *Fmt, LPSTR Out, int iOutSize, L
     /* grab prefix of 'I64' for __int64 */
     if ((*Fmt)[0] == 'I' && (*Fmt)[1] == '6' && (*Fmt)[2] == '4')
     {
-        /* convert to 'q'/'ll' so BSD's sscanf can handle it */
+        /* convert to 'q'/'ll' so Unix sscanf can handle it */
         *Fmt += 3;
         *Prefix = SCANF_PREFIX_LONGLONG;
     }
@@ -502,6 +547,11 @@ static BOOL Internal_ScanfExtractFormatA(LPCSTR *Fmt, LPSTR Out, int iOutSize, L
 #endif
         {
             *Prefix = SCANF_PREFIX_LONG; /* give it a wide prefix */
+        }
+        if (**Fmt == 'l')
+        {
+            *Prefix = SCANF_PREFIX_LONGLONG;
+            ++(*Fmt);
         }
     }
     else if (**Fmt == 'L')
@@ -793,7 +843,7 @@ static BOOL Internal_ScanfExtractFormatW(LPCWSTR *Fmt, LPSTR Out, int iOutSize, 
     /* grab prefix of 'I64' for __int64 */
     if ((*Fmt)[0] == 'I' && (*Fmt)[1] == '6' && (*Fmt)[2] == '4')
     {
-        /* convert to 'q'/'ll' so BSD's sscanf can handle it */
+        /* convert to 'q'/'ll' so that Unix sscanf can handle it */
         *Fmt += 3;
         *Prefix = SCANF_PREFIX_LONGLONG;
     }
@@ -813,6 +863,11 @@ static BOOL Internal_ScanfExtractFormatW(LPCWSTR *Fmt, LPSTR Out, int iOutSize, 
 #endif
         {
             *Prefix = SCANF_PREFIX_LONG; /* give it a wide prefix */
+        }
+        if (**Fmt == 'l')
+        {
+            *Prefix = SCANF_PREFIX_LONGLONG;
+            ++(*Fmt);
         }
     }
     else if (**Fmt == 'L')
@@ -1031,8 +1086,6 @@ int PAL_vsscanf(LPCSTR Buffer, LPCSTR Format, va_list ap)
     INT Prefix;
     INT Type = -1;
 
-    THREADMarkDiagnostic("PAL_vsscanf");
-
     while (*Fmt)
     {
         if (!*Buff && Length == 0)
@@ -1207,7 +1260,6 @@ int PAL_wvsscanf(LPCWSTR Buffer, LPCWSTR Format, va_list ap)
     INT Prefix;
     INT Type = -1;
 
-    THREADMarkDiagnostic("PAL_wvsscanf");
     while (*Fmt)
     {
         if (!*Buff && Length == 0)
@@ -1447,12 +1499,11 @@ PAL_sscanf(
 
     PERF_ENTRY(sscanf);
     ENTRY("PAL_sscanf (buffer=%p (%s), format=%p (%s))\n", buffer, buffer, format, format);
-    THREADMarkDiagnostic("PAL_sscanf");
 
     va_start(ap, format);
     Length = PAL_vsscanf(buffer, format, ap);
     va_end(ap);
-	
+
     LOGEXIT("PAL_sscanf returns int %d\n", Length);
     PERF_EXIT(sscanf);
     return Length;
@@ -1478,7 +1529,7 @@ PAL_sprintf(
     ENTRY("PAL_sprintf (buffer=%p, format=%p (%s))\n", buffer, format, format);
 
     va_start(ap, format);
-    Length = PAL__vsnprintf(buffer, 0x7fffffff, format, ap);
+    Length = InternalVsnprintf(CorUnix::InternalGetCurrentThread(), buffer, 0x7fffffff, format, ap);
     va_end(ap);
 
     LOGEXIT("PAL_sprintf returns int %d\n", Length);
@@ -1533,7 +1584,6 @@ PAL_swscanf(
 
     PERF_ENTRY(swscanf);
     ENTRY("PAL_swscanf (buffer=%p (%S), format=%p (%S))\n", buffer, buffer, format, format);
-    THREADMarkDiagnostic("PAL_swscanf");
 
     va_start(ap, format);
     Length = PAL_wvsscanf(buffer, format, ap);
@@ -1563,42 +1613,13 @@ PAL_vsprintf(char *buffer,
     ENTRY("PAL_vsprintf (buffer=%p, format=%p (%s), argptr=%p)\n", 
           buffer, format, format, argptr);
 
-    Length = PAL__vsnprintf(buffer, 0x7fffffff, format, argptr);
+    Length = InternalVsnprintf(CorUnix::InternalGetCurrentThread(), buffer, 0x7fffffff, format, argptr);
 
     LOGEXIT("PAL_vsprintf returns int %d\n", Length);
     PERF_EXIT(vsprintf);
 
     return Length;
 }
-
-
-/*++
-Function:
-  _vsnprintf
-
-See MSDN doc.
---*/
-int 
-__cdecl 
-_vsnprintf(char *buffer, 
-           size_t count, 
-           const char *format, 
-           va_list argptr)
-{
-    LONG Length;
-
-    PERF_ENTRY(_vsnprintf);
-    ENTRY("_vsnprintf (buffer=%p, count=%d, format=%p (%s), argptr=%p)\n", 
-          buffer, count, format, format, argptr);
-
-    Length = PAL__vsnprintf(buffer, count, format, argptr);
-
-    LOGEXIT("_vsnprintf returns int %d\n", Length);
-    PERF_EXIT(_vsnprintf);
-
-    return Length;
-}
-
 
 
 /*++
@@ -1735,4 +1756,3 @@ static int SscanfFloatCheckExponent(LPCSTR buff, LPCSTR floatFmt,
     return ret;
 }
 #endif // SSCANF_CANNOT_HANDLE_MISSING_EXPONENT
-

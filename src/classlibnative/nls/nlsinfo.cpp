@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 ////////////////////////////////////////////////////////////////////////////
 //
 //  Class:    NLSInfo
@@ -128,7 +127,7 @@ inline BOOL IsCustomCultureId(LCID lcid)
     return (lcid == LOCALE_CUSTOM_DEFAULT || lcid == LOCALE_CUSTOM_UNSPECIFIED);
 }
 
-#ifndef FEATURE_CORECLR
+#ifndef FEATURE_COREFX_GLOBALIZATION
 //
 // Normalization Implementation
 //
@@ -137,7 +136,7 @@ HMODULE COMNlsInfo::m_hNormalization = NULL;
 PFN_NORMALIZATION_IS_NORMALIZED_STRING COMNlsInfo::m_pfnNormalizationIsNormalizedStringFunc = NULL;
 PFN_NORMALIZATION_NORMALIZE_STRING COMNlsInfo::m_pfnNormalizationNormalizeStringFunc = NULL;
 PFN_NORMALIZATION_INIT_NORMALIZATION COMNlsInfo::m_pfnNormalizationInitNormalizationFunc = NULL;
-#endif
+#endif // FEATURE_COREFX_GLOBALIZATION
 
 #if FEATURE_CODEPAGES_FILE
 /*============================nativeCreateOpenFileMapping============================
@@ -684,7 +683,7 @@ FCIMPLEND
 
 ////////////////////////////////////////////////////////////////////////
 //
-// Call the Win32 GetLocaleInfo() using the specified lcid to retrive
+// Call the Win32 GetLocaleInfo() using the specified lcid to retrieve
 // the native digits, probably from the registry override. The return
 // indicates whether the call was successful.
 //
@@ -797,7 +796,6 @@ BOOL COMNlsInfo::CallGetLocaleInfoEx(LPCWSTR localeName, int lcType, STRINGREF* 
     return (result != 0);
 }
 
-#ifdef FEATURE_USE_LCID
 FCIMPL1(Object*, COMNlsInfo::LCIDToLocaleName, LCID lcid)
 {
     FCALL_CONTRACT;
@@ -850,7 +848,6 @@ FCIMPL1(INT32, COMNlsInfo::LocaleNameToLCID, StringObject* localeNameUNSAFE)
     return result;
 }
 FCIMPLEND
-#endif // FEATURE_USE_LCID
 
 ////////////////////////////////////////////////////////////////////////
 //
@@ -1008,10 +1005,8 @@ FCIMPL3(FC_BOOL_RET, COMNlsInfo::nativeGetNumberFormatInfoValues,
     _ASSERT(ret == TRUE);
     ret &= CallGetLocaleInfoEx(pLocaleName, LOCALE_INEGNUMBER| LOCALE_RETURN_NUMBER         , &(gc.numfmt->cNegativeNumberFormat), useUserOverride);
     _ASSERT(ret == TRUE);
-#ifndef FEATURE_CORECLR
     ret &= CallGetLocaleInfoEx(pLocaleName, LOCALE_IDIGITSUBSTITUTION | LOCALE_RETURN_NUMBER, &(gc.numfmt->iDigitSubstitution), useUserOverride);
     _ASSERT(ret == TRUE);
-#endif
 
     // LOCALE_SNATIVEDIGITS (gc.tempArray of strings)
     if (GetNativeDigitsFromWin32(pLocaleName, &gc.tempArray, useUserOverride)) {
@@ -2628,7 +2623,7 @@ FCIMPL0(CodePageDataItem *, COMNlsInfo::nativeGetCodePageTableDataPointer)
 FCIMPLEND
 
 
-#ifndef FEATURE_CORECLR
+#ifndef FEATURE_COREFX_GLOBALIZATION
 //
 // Normalization
 //
@@ -2727,12 +2722,15 @@ void QCALLTYPE COMNlsInfo::nativeNormalizationInitNormalization(int NormForm, BY
             if (!hNormalization)
                ThrowLastError();
         }
+#ifndef FEATURE_CORECLR
+        // in coreclr we should always find the normalization in kernel32 as it supports Win7 and up 
         else
         {
             HRESULT hr = g_pCLRRuntime->LoadLibrary(NORMALIZATION_DLL, &hNormalization);
             if (FAILED(hr))
                 ThrowHR(hr);
         }
+#endif // FEATURE_CORECLR
 
         _ASSERTE(hNormalization != NULL);
         m_hNormalization = hNormalization;
@@ -2772,7 +2770,7 @@ void QCALLTYPE COMNlsInfo::nativeNormalizationInitNormalization(int NormForm, BY
     END_QCALL;
 }
 
-#endif // FEATURE_CORECLR
+#endif // FEATURE_COREFX_GLOBALIZATION
 
 
 //
@@ -2881,10 +2879,8 @@ FCIMPL1(FC_BOOL_RET, COMNlsInfo::nativeInitCultureData, CultureDataBaseObject *c
     // Remember our neutrality
     gc.cultureData->bNeutral = (bNeutral != 0);
 
-#ifndef FEATURE_CORECLR
     gc.cultureData->bWin32Installed = (IsOSValidLocaleName(buffer, gc.cultureData->bNeutral) != 0);
     gc.cultureData->bFramework = (IsWhidbeyFrameworkCulture(buffer) != 0);
-#endif // FEATURE_CORECLR
 
 
     // Note: Parents will be set dynamically

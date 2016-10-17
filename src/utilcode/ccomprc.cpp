@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #include "stdafx.h"                     // Standard header.
 #include <utilcode.h>                   // Utility helpers.
@@ -10,7 +9,11 @@
 #include "ndpversion.h"
 
 #include "../dlls/mscorrc/resource.h"
-#include "../dlls/mscorrc/resourcestring.h"
+#ifdef FEATURE_PAL
+#include "resourcestring.h"
+#define NATIVE_STRING_RESOURCE_NAME mscorrc_debug
+DECLARE_NATIVE_STRING_RESOURCE_TABLE(NATIVE_STRING_RESOURCE_NAME);
+#endif
 #include "sstring.h"
 #include "stringarraylist.h"
 
@@ -331,11 +334,15 @@ HRESULT CCompRC::Init(LPCWSTR pResourceFile, BOOL bUseFallback)
         _ASSERTE(!"Unsupported resource file");
     }
 
+#ifndef CROSSGEN_COMPILE
+    // PAL_BindResources requires that libcoreclr.so has been loaded,
+    // and thus can'be be called by crossgen.
     if (!PAL_BindResources(m_pResourceDomain))
     {
         // The function can fail only due to OOM
         return E_OUTOFMEMORY;
     }
+#endif
 
 #endif // FEATURE_PAL
 
@@ -697,21 +704,6 @@ HRESULT CCompRC::LoadString(ResourceCategory eCategory, UINT iResourceID, __out_
     return LoadString(eCategory, langId, iResourceID, szBuffer, iMax, pcwchUsed);
 }
 
-// Used for comparing NativeStringResource elements by ID.
-int CompareNativeStringResources(const void *a, const void *b)
-{
-    unsigned int resourceIdA = ((NativeStringResource*)a)->resourceId;
-    unsigned int resourceIdB = ((NativeStringResource*)b)->resourceId;
-
-    if (resourceIdA < resourceIdB)
-        return -1;
-
-    if (resourceIdA == resourceIdB)
-        return 0;
-
-    return 1;
-}
-
 HRESULT CCompRC::LoadString(ResourceCategory eCategory, LocaleID langId, UINT iResourceID, __out_ecount(iMax) LPWSTR szBuffer, int iMax, int *pcwchUsed)
 {
     CONTRACTL
@@ -875,40 +867,8 @@ HRESULT CCompRC::LoadString(ResourceCategory eCategory, LocaleID langId, UINT iR
 
     return hr;
 #else // !FEATURE_PAL
-    int len = 0;
-    if (szBuffer && iMax)
-    {
-        // Search the sorted set of resources for the ID we're interested in.
-        NativeStringResource searchEntry = {iResourceID, NULL};
-        NativeStringResource *resourceEntry = (NativeStringResource*)bsearch(
-            &searchEntry,
-            nativeStringResources,
-            NUMBER_OF_NATIVE_STRING_RESOURCES,
-            sizeof(NativeStringResource),
-            CompareNativeStringResources);
-
-        if (resourceEntry != NULL)
-        {
-            len = PAL_GetResourceString(m_pResourceDomain, resourceEntry->resourceString, szBuffer, iMax);
-        }
-        else
-        {
-            // The resource ID wasn't found in our array. Fall back on returning the ID as a string.
-            len = _snwprintf(szBuffer, iMax - 1, W("[Undefined resource string ID:0x%X]"), iResourceID);
-            if ((len < 0) || (len == (iMax - 1)))
-            {
-                // Add string terminator if the result of _snwprintf didn't fit the buffer.
-                szBuffer[iMax - 1] = W('\0');
-                len = iMax - 1;
-            }
-        }
-    }
-
-    if (pcwchUsed)
-    {
-        *pcwchUsed = len;
-    }
-
+    LoadNativeStringResource(NATIVE_STRING_RESOURCE_TABLE(NATIVE_STRING_RESOURCE_NAME), iResourceID,
+      szBuffer, iMax, pcwchUsed);
     return S_OK;
 #endif // !FEATURE_PAL
 }
@@ -958,13 +918,13 @@ HRESULT CCompRC::LoadResourceFile(HRESOURCEDLL * pHInst, LPCWSTR lpFileName)
 // Load the library for this thread's current language
 // Called once per language. 
 // Search order is: 
-//  1. Dll in localized path (<dir of this module>\<lang name (en-US format)>\mscorrc.dll)
-//  2. Dll in localized (parent) path (<dir of this module>\<lang name> (en format)\mscorrc.dll)
-//  3. Dll in root path (<dir of this module>\mscorrc.dll)
+//  1. Dll in localized path (<dir passed>\<lang name (en-US format)>\mscorrc.dll)
+//  2. Dll in localized (parent) path (<dir passed>\<lang name> (en format)\mscorrc.dll)
+//  3. Dll in root path (<dir passed>\mscorrc.dll)
 //  4. Dll in current path   (<current dir>\mscorrc.dll)
 //*****************************************************************************
 HRESULT CCompRC::LoadLibraryHelper(HRESOURCEDLL *pHInst,
-                                   __out_ecount(rcPathSize) __out_z WCHAR *rcPath, const DWORD rcPathSize)
+                                   SString& rcPath)
 {
     CONTRACTL
     {
@@ -977,18 +937,10 @@ HRESULT CCompRC::LoadLibraryHelper(HRESOURCEDLL *pHInst,
     CONTRACTL_END;
     
     HRESULT     hr = E_FAIL;
-    
-    WCHAR       rcDrive[_MAX_DRIVE];    // Volume name.
-    WCHAR       rcDir[_MAX_PATH];       // Directory.
-  
-    size_t      rcDriveLen;
-    size_t      rcDirLen;
     size_t      rcPartialPathLen;
-
+    
 
     _ASSERTE(m_pResourceFile != NULL);
-
-    size_t      rcMscorrcLen = wcslen(m_pResourceFile);
 
     // must initialize before calling SString::Empty()
     SString::Startup();
@@ -1012,58 +964,43 @@ HRESULT CCompRC::LoadLibraryHelper(HRESOURCEDLL *pHInst,
 
     if (hr == E_OUTOFMEMORY)
         return hr;
-
-    rcDir[0] = W('\0');
-    rcDrive[0] = W('\0');
-    rcPath[rcPathSize - 1] = 0;
-
-    SplitPath(rcPath, rcDrive, _MAX_DRIVE, rcDir, _MAX_PATH, 0, 0, 0, 0);
-    rcDriveLen = wcslen(rcDrive);
-    rcDirLen   = wcslen(rcDir);
-    
-    // Length that does not include culture name length
-    rcPartialPathLen = rcDriveLen + rcDirLen + rcMscorrcLen + 1;
-
-
-    for (DWORD i=0; i< cultureNames.GetCount();i++)
+    EX_TRY
     {
-        SString& sLang = cultureNames[i];
-        if (rcPartialPathLen + sLang.GetCount() <= rcPathSize)
+        for (DWORD i=0; i< cultureNames.GetCount();i++)
         {
-            wcscpy_s(rcPath, rcDriveLen+1, rcDrive);
-            WCHAR *rcPathPtr = rcPath + rcDriveLen;
+            SString& sLang = cultureNames[i];
+       
+            PathString rcPathName(rcPath);
 
-            wcscpy_s(rcPathPtr, rcDirLen+1, rcDir);
-            rcPathPtr += rcDirLen;
-
-            if(!sLang.IsEmpty())
+            if (!rcPathName.EndsWith(W("\\")))
             {
-                wcscpy_s(rcPathPtr, sLang.GetCount()+1, sLang);
-                wcscpy_s(rcPathPtr+ sLang.GetCount(), rcMscorrcLen+1, W("\\"));
-                wcscpy_s(rcPathPtr + sLang.GetCount()+1, rcMscorrcLen+1, m_pResourceFile);
+                rcPathName.Append(W("\\"));
+            }
+
+            if (!sLang.IsEmpty())
+            {
+                rcPathName.Append(sLang);
+                rcPathName.Append(W("\\"));
+                rcPathName.Append(m_pResourceFile);
             }
             else
             {
-                wcscpy_s(rcPathPtr + sLang.GetCount(), rcMscorrcLen+1, m_pResourceFile);
+                rcPathName.Append(m_pResourceFile);
             }
 
             // Feedback for debugging to eliminate unecessary loads.
-            DEBUG_STMT(DbgWriteEx(W("Loading %s to load strings.\n"), rcPath));
+            DEBUG_STMT(DbgWriteEx(W("Loading %s to load strings.\n"), rcPath.GetUnicode()));
 
             // Load the resource library as a data file, so that the OS doesn't have
             // to allocate it as code.  This only works so long as the file contains
             // only strings.
-            hr = LoadResourceFile(pHInst, rcPath);
+            hr = LoadResourceFile(pHInst, rcPathName);
             if (SUCCEEDED(hr))
                 break;
-        }
-        else
-        {
-            _ASSERTE(!"Buffer not big enough");
-            hr = E_FAIL;
-        
-        }
-    };
+            
+        }   
+    }
+    EX_CATCH_HRESULT(hr);
     
     // Last ditch search effort in current directory
     if (FAILED(hr)) {
@@ -1075,12 +1012,12 @@ HRESULT CCompRC::LoadLibraryHelper(HRESOURCEDLL *pHInst,
 
 // Two-stage approach:
 // First try module directory, then try CORSystemDirectory for default resource
-HRESULT CCompRC::LoadLibrary(HRESOURCEDLL * pHInst)
+HRESULT CCompRC::LoadLibraryThrows(HRESOURCEDLL * pHInst)
 {
     CONTRACTL
     {
         GC_NOTRIGGER;
-        NOTHROW;
+        THROWS;
 #ifdef      MODE_PREEMPTIVE
         MODE_PREEMPTIVE;
 #endif
@@ -1095,26 +1032,28 @@ HRESULT CCompRC::LoadLibrary(HRESOURCEDLL * pHInst)
     // The resources are embeded into the .exe itself for crossgen
     *pHInst = GetModuleInst();
 #else
-    WCHAR       rcPath[_MAX_PATH];      // Path to resource DLL.
+    PathString       rcPath;      // Path to resource DLL.
 
     // Try first in the same directory as this dll.
 #if defined(FEATURE_CORECLR)
 
     VALIDATECORECLRCALLBACKS();
 
-    DWORD length = 0;
-    hr = g_CoreClrCallbacks.m_pfnGetCORSystemDirectory(rcPath, NumItems(rcPath), &length);
+    
+    hr = g_CoreClrCallbacks.m_pfnGetCORSystemDirectory(rcPath);
     if (FAILED(hr))
         return hr;
 
-    hr = LoadLibraryHelper(pHInst, rcPath, NumItems(rcPath));
+    hr = LoadLibraryHelper(pHInst, rcPath);
 
 #else // FEATURE_CORECLR
 
-    if (!WszGetModuleFileName(GetModuleInst(), rcPath, NumItems(rcPath)))
+    if (!WszGetModuleFileName(GetModuleInst(), rcPath))
         return HRESULT_FROM_GetLastError();
-
-    hr = LoadLibraryHelper(pHInst, rcPath, NumItems(rcPath));
+    
+    CopySystemDirectory(rcPath, rcPath);
+    
+    hr = LoadLibraryHelper(pHInst, rcPath);
     if (hr == E_OUTOFMEMORY)
         return hr;
 
@@ -1136,36 +1075,39 @@ HRESULT CCompRC::LoadLibrary(HRESOURCEDLL * pHInst)
 
         // The reason for using GetRequestedRuntimeInfo is the ability to suppress message boxes
         // with RUNTIME_INFO_DONT_SHOW_ERROR_DIALOG.
+        COUNT_T size = MAX_PATH;
         hr = LegacyActivationShim::GetRequestedRuntimeInfo(
             NULL, 
             W("v")VER_PRODUCTVERSION_NO_QFE_STR_L, 
             NULL, 
             0,
             RUNTIME_INFO_UPGRADE_VERSION|RUNTIME_INFO_DONT_SHOW_ERROR_DIALOG|RUNTIME_INFO_CONSIDER_POST_2_0,
-            rcPath,
-            NumItems(rcPath),
+            rcPath.OpenUnicodeBuffer(size-1),
+            size,
             &corSystemPathSize,
             rcVersion,
             NumItems(rcVersion),
             &rcVersionSize);
 
+        rcPath.CloseBuffer(corSystemPathSize);
+
         if (SUCCEEDED(hr))
         {
             if (rcVersionSize > 0)
             {
-                wcscat_s(rcPath, NumItems(rcPath), rcVersion) ;
-                wcscat_s(rcPath, NumItems(rcPath), W("\\")) ;
+                rcPath.Append(rcVersion);
+                rcPath.Append(W("\\"));
             }
         }
 #else
         // If we're hosted, we have the advantage of a CoreClrCallbacks reference.
         // More importantly, we avoid calling back to mscoree.dll.
-        DWORD cchPath;
-        hr = GetClrCallbacks().m_pfnGetCORSystemDirectory(rcPath, NumItems(rcPath), &cchPath);
+        
+        hr = GetClrCallbacks().m_pfnGetCORSystemDirectory(rcPath);
 #endif
         if (SUCCEEDED(hr))
         {
-            hr = LoadLibraryHelper(pHInst, rcPath, NumItems(rcPath));
+            hr = LoadLibraryHelper(pHInst, rcPath);
         }
     }
 #endif // !DACCESS_COMPILE
@@ -1176,7 +1118,27 @@ HRESULT CCompRC::LoadLibrary(HRESOURCEDLL * pHInst)
 
     return hr;
 }
+HRESULT CCompRC::LoadLibrary(HRESOURCEDLL * pHInst)
+{
+    CONTRACTL
+    {
+        GC_NOTRIGGER;
+    NOTHROW;
+#ifdef      MODE_PREEMPTIVE
+    MODE_PREEMPTIVE;
+#endif
+    }
+    CONTRACTL_END;
 
+    HRESULT hr = S_OK;
+    EX_TRY
+    {
+        hr = LoadLibraryThrows(pHInst);
+    }
+    EX_CATCH_HRESULT(hr);
+
+    return hr;
+}
 #endif // DACCESS_COMPILE
 
 

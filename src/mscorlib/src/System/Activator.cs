@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -92,8 +93,10 @@ namespace System {
                     }
                 }
                 else
-#endif                    
                     throw new NotSupportedException(Environment.GetResourceString("NotSupported_ActivAttrOnNonMBR" ));
+#else
+                    throw new PlatformNotSupportedException(Environment.GetResourceString("NotSupported_ActivAttr" ));
+#endif
             }
 
             RuntimeType rt = type.UnderlyingSystemType as RuntimeType;
@@ -204,20 +207,6 @@ namespace System {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
 
             // Skip the CreateInstanceCheckThis call to avoid perf cost and to maintain compatibility with V2 (throwing the same exceptions).
-#if FEATURE_CORECLR
-            // In SL2/3 CreateInstance<T> doesn't do any security checks. This would mean that Assembly B can create instances of an internal
-            // type in Assembly A upon A's request:
-            //      TypeInAssemblyA.DoWork() { AssemblyB.Create<InternalTypeInAssemblyA>();}
-            //      TypeInAssemblyB.Create<T>() {return new T();}
-            // This violates type safety but we saw multiple user apps that have put a dependency on it. So for compatibility we allow this if
-            // the SL app was built against SL2/3.
-            // Note that in SL2/3 it is possible for app code to instantiate public transparent types with public critical default constructors.
-            // Fortunately we don't have such types in out platform assemblies.
-            if (CompatibilitySwitches.IsAppEarlierThanSilverlight4 ||
-                CompatibilitySwitches.IsAppEarlierThanWindowsPhone8)
-                return (T)rt.CreateInstanceSlow(true /*publicOnly*/, true /*skipCheckThis*/, false /*fillCache*/, ref stackMark);
-            else
-#endif // FEATURE_CORECLR
             return (T)rt.CreateInstanceDefaultCtor(true /*publicOnly*/, true /*skipCheckThis*/, true /*fillCache*/, ref stackMark);
         }
 
@@ -575,7 +564,6 @@ namespace System {
                                                                    activationAttributes,
                                                                    null);
         }
-#if FEATURE_COMINTEROP
 
 #if FEATURE_CLICKONCE
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -643,7 +631,6 @@ namespace System {
                 return Handle;
             }
         }
-#endif // FEATURE_COMINTEROP                                  
 
 #if FEATURE_REMOTING
         //  This method is a helper method and delegates to the remoting 
@@ -676,8 +663,7 @@ namespace System {
                 BCLDebug.Trace("REMOTE", "{0}{1}", title, failure);
 #endif            
         }
-
-#if !FEATURE_CORECLR
+        
         void _Activator.GetTypeInfoCount(out uint pcTInfo)
         {
             throw new NotImplementedException();
@@ -699,7 +685,6 @@ namespace System {
         {
             throw new NotImplementedException();
         }
-#endif
     }
 }
 

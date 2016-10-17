@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ===========================================================================
 // File: JITinterfaceX86.CPP
 //
@@ -58,10 +57,10 @@ extern "C" void STDCALL WriteBarrierAssert(BYTE* ptr, Object* obj)
     if (fVerifyHeap)
     {
         obj->Validate(FALSE);
-        if(GCHeap::GetGCHeap()->IsHeapPointer(ptr))
+        if(GCHeapUtilities::GetGCHeap()->IsHeapPointer(ptr))
         {
             Object* pObj = *(Object**)ptr;
-            _ASSERTE (pObj == NULL || GCHeap::GetGCHeap()->IsHeapPointer(pObj));
+            _ASSERTE (pObj == NULL || GCHeapUtilities::GetGCHeap()->IsHeapPointer(pObj));
         }
     }
     else
@@ -611,7 +610,7 @@ void JIT_TrialAlloc::EmitCore(CPUSTUBLINKER *psl, CodeLabel *noLock, CodeLabel *
         if (flags & (ALIGN8 | SIZE_IN_EAX | ALIGN8OBJ))
         {
             // MOV EBX, [edx]Thread.m_alloc_context.alloc_ptr
-            psl->X86EmitOffsetModRM(0x8B, kEBX, kEDX, offsetof(Thread, m_alloc_context) + offsetof(alloc_context, alloc_ptr));
+            psl->X86EmitOffsetModRM(0x8B, kEBX, kEDX, offsetof(Thread, m_alloc_context) + offsetof(gc_alloc_context, alloc_ptr));
             // add EAX, EBX
             psl->Emit16(0xC303);
             if (flags & ALIGN8)
@@ -620,11 +619,11 @@ void JIT_TrialAlloc::EmitCore(CPUSTUBLINKER *psl, CodeLabel *noLock, CodeLabel *
         else
         {
             // add             eax, [edx]Thread.m_alloc_context.alloc_ptr
-            psl->X86EmitOffsetModRM(0x03, kEAX, kEDX, offsetof(Thread, m_alloc_context) + offsetof(alloc_context, alloc_ptr));
+            psl->X86EmitOffsetModRM(0x03, kEAX, kEDX, offsetof(Thread, m_alloc_context) + offsetof(gc_alloc_context, alloc_ptr));
         }
 
         // cmp             eax, [edx]Thread.m_alloc_context.alloc_limit
-        psl->X86EmitOffsetModRM(0x3b, kEAX, kEDX, offsetof(Thread, m_alloc_context) + offsetof(alloc_context, alloc_limit));
+        psl->X86EmitOffsetModRM(0x3b, kEAX, kEDX, offsetof(Thread, m_alloc_context) + offsetof(gc_alloc_context, alloc_limit));
 
         // ja              noAlloc
         psl->X86EmitCondJump(noAlloc, X86CondCode::kJA);
@@ -632,7 +631,7 @@ void JIT_TrialAlloc::EmitCore(CPUSTUBLINKER *psl, CodeLabel *noLock, CodeLabel *
         // Fill in the allocation and get out.
 
         // mov             [edx]Thread.m_alloc_context.alloc_ptr, eax
-        psl->X86EmitIndexRegStore(kEDX, offsetof(Thread, m_alloc_context) + offsetof(alloc_context, alloc_ptr), kEAX);
+        psl->X86EmitIndexRegStore(kEDX, offsetof(Thread, m_alloc_context) + offsetof(gc_alloc_context, alloc_ptr), kEAX);
 
         if (flags & (ALIGN8 | SIZE_IN_EAX | ALIGN8OBJ))
         {
@@ -1228,7 +1227,7 @@ void *JIT_TrialAlloc::GenAllocString(Flags flags)
 
     // Instead of doing elaborate overflow checks, we just limit the number of elements
     // to (LARGE_OBJECT_SIZE - 256)/sizeof(WCHAR) or less.
-    // This will avoid avoid all overflow problems, as well as making sure
+    // This will avoid all overflow problems, as well as making sure
     // big string objects are correctly allocated in the big object heap.
 
     _ASSERTE(sizeof(WCHAR) == 2);
@@ -1503,7 +1502,7 @@ void InitJITHelpers1()
 
     _ASSERTE(g_SystemInfo.dwNumberOfProcessors != 0);
 
-    JIT_TrialAlloc::Flags flags = GCHeap::UseAllocationContexts() ?
+    JIT_TrialAlloc::Flags flags = GCHeapUtilities::UseAllocationContexts() ?
         JIT_TrialAlloc::MP_ALLOCATOR : JIT_TrialAlloc::NORMAL;
 
     // Get CPU features and check for SSE2 support.
@@ -1728,7 +1727,7 @@ void ValidateWriteBarrierHelpers()
 // When a GC happens, the upper and lower bounds of the ephemeral
 // generation change.  This routine updates the WriteBarrier thunks
 // with the new values.
-void StompWriteBarrierEphemeral()
+void StompWriteBarrierEphemeral(bool /* isRuntimeSuspended */)
 {
     CONTRACTL {
         NOTHROW;
@@ -1786,7 +1785,7 @@ void StompWriteBarrierEphemeral()
 // to the PostGrow thunk that checks both upper and lower bounds.
 // regardless we need to update the thunk with the
 // card_table - lowest_address.
-void StompWriteBarrierResize(BOOL bReqUpperBoundsCheck)
+void StompWriteBarrierResize(bool isRuntimeSuspended, bool bReqUpperBoundsCheck)
 {
     CONTRACTL {
         NOTHROW;
@@ -1802,7 +1801,7 @@ void StompWriteBarrierResize(BOOL bReqUpperBoundsCheck)
     bool bWriteBarrierIsPreGrow = WriteBarrierIsPreGrow();
     bool bStompWriteBarrierEphemeral = false;
 
-    BOOL bEESuspended = FALSE;
+    BOOL bEESuspendedHere = FALSE;
 
     for (int iBarrier = 0; iBarrier < NUM_WRITE_BARRIERS; iBarrier++)
     {
@@ -1818,9 +1817,9 @@ void StompWriteBarrierResize(BOOL bReqUpperBoundsCheck)
             if (bReqUpperBoundsCheck)
             {
                 GCX_MAYBE_COOP_NO_THREAD_BROKEN((GetThread()!=NULL));
-                if( !IsGCThread() && !bEESuspended) {
+                if( !isRuntimeSuspended && !bEESuspendedHere) {
                     ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_FOR_GC_PREP);
-                    bEESuspended = TRUE;
+                    bEESuspendedHere = TRUE;
                 }
 
                 pfunc = (size_t *) JIT_WriteBarrierReg_PostGrow;
@@ -1907,12 +1906,17 @@ void StompWriteBarrierResize(BOOL bReqUpperBoundsCheck)
     }
 
     if (bStompWriteBarrierEphemeral)
-        StompWriteBarrierEphemeral();
+    {
+        _ASSERTE(isRuntimeSuspended || bEESuspendedHere);
+        StompWriteBarrierEphemeral(true);
+    }
     else
-        FlushInstructionCache(GetCurrentProcess(), (void *)JIT_PatchedWriteBarrierStart, 
+    {
+        FlushInstructionCache(GetCurrentProcess(), (void *)JIT_PatchedWriteBarrierStart,
             (BYTE*)JIT_PatchedWriteBarrierLast - (BYTE*)JIT_PatchedWriteBarrierStart);
+    }
 
-    if(bEESuspended)
+    if(bEESuspendedHere)
         ThreadSuspend::RestartEE(FALSE, TRUE);
 }
 

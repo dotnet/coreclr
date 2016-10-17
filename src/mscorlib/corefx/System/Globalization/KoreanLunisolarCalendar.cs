@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Diagnostics.Contracts;
@@ -19,6 +20,7 @@ namespace System.Globalization
     **      KoreanLunisolar    918/01/01          2050/13/29
     */
 
+    [Serializable]
     public class KoreanLunisolarCalendar : EastAsianLunisolarCalendar
     {
         //
@@ -26,8 +28,6 @@ namespace System.Globalization
         //
 
         public const int GregorianEra = 1;
-
-        //internal static Calendar m_defaultInstance;
 
         internal const int MIN_LUNISOLAR_YEAR = 918;
         internal const int MAX_LUNISOLAR_YEAR = 2050;
@@ -71,7 +71,7 @@ namespace System.Globalization
             }
         }
 
-        static readonly int[,] yinfo =
+        private static readonly int[,] s_yinfo =
         {
             /*Y            LM        Lmon    Lday        DaysPerMonth    D1    D2    D3    D4    D5    D6    D7    D8    D9    D10    D11    D12    D13    #Days
             918    */
@@ -1264,7 +1264,7 @@ namespace System.Globalization
                                 MAX_LUNISOLAR_YEAR));
             }
             Contract.EndContractBlock();
-            return yinfo[LunarYear - MIN_LUNISOLAR_YEAR, Index];
+            return s_yinfo[LunarYear - MIN_LUNISOLAR_YEAR, Index];
         }
 
         internal override int GetYear(int year, DateTime time)
@@ -1290,30 +1290,9 @@ namespace System.Globalization
             return year;
         }
 
-        /*=================================GetDefaultInstance==========================
-        **Action: Internal method to provide a default intance of KoreanLunisolarCalendar.  Used by NLS+ implementation
-        **       and other calendars.
-        **Returns:
-        **Arguments:
-        **Exceptions:
-        ============================================================================*/
-        /*
-        internal static Calendar GetDefaultInstance()
-        {
-            if (m_defaultInstance == null) {
-                m_defaultInstance = new KoreanLunisolarCalendar();
-            }
-            return (m_defaultInstance);
-        }
-        */
-
-        // Construct an instance of KoreanLunisolar calendar.
-
         public KoreanLunisolarCalendar()
         {
         }
-
-
 
         public override int GetEra(DateTime time)
         {

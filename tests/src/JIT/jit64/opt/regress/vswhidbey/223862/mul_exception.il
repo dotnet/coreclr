@@ -1,5 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
+.assembly extern System.Console
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
 
 .assembly cprop_test {}
 .assembly extern mscorlib{auto}
@@ -15,19 +22,19 @@
      ldc.i4.3
     sub
      dup
-     call       void [mscorlib]System.Console::WriteLine(int32)
+     call       void [System.Console]System.Console::WriteLine(int32)
 
 
    mul.ovf.un
      dup
-     call       void [mscorlib]System.Console::WriteLine(int32)
+     call       void [System.Console]System.Console::WriteLine(int32)
      leave IL_02
    }
 	catch [mscorlib]System.OverflowException
 	{
 		pop
 		ldstr "Pass"
-		call       void [mscorlib]System.Console::WriteLine(string)
+		call       void [System.Console]System.Console::WriteLine(string)
 		leave IL_01
 	} 
 // this is to make the errorlevel 100 if the answer is right ( ie 0)

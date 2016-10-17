@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -181,15 +182,17 @@ namespace System.Resources {
             return typeof(ResourceReader);
         }
     
-#if !FEATURE_CORECLR
         // Returns the preferred IResourceWriter class for this kind of ResourceSet.
         // Subclasses of ResourceSet using their own Readers &; should override
         // GetDefaultReader and GetDefaultWriter.
         public virtual Type GetDefaultWriter()
         {
+#if FEATURE_CORECLR
+            return Type.GetType("System.Resources.ResourceWriter, System.Resources.Writer, Version=4.0.1.0, Culture=neutral, PublicKeyToken=" + AssemblyRef.MicrosoftPublicKeyToken, throwOnError: true);
+#else
             return typeof(ResourceWriter);
+#endif
         }
-#endif // !FEATURE_CORECLR
 
         [ComVisible(false)]
         public virtual IDictionaryEnumerator GetEnumerator()

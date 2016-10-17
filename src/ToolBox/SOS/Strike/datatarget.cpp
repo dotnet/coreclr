@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #include "sos.h"
 #include "datatarget.h"
@@ -21,14 +20,20 @@ DataTarget::DataTarget(void) :
 STDMETHODIMP
 DataTarget::QueryInterface(
     THIS_
-    __in REFIID InterfaceId,
-    __out PVOID* Interface
+    ___in REFIID InterfaceId,
+    ___out PVOID* Interface
     )
 {
     if (InterfaceId == IID_IUnknown ||
         InterfaceId == IID_ICLRDataTarget)
     {
         *Interface = (ICLRDataTarget*)this;
+        AddRef();
+        return S_OK;
+    }
+    else if (InterfaceId == IID_ICorDebugDataTarget4)
+    {
+        *Interface = (ICorDebugDataTarget4*)this;
         AddRef();
         return S_OK;
     }
@@ -76,7 +81,14 @@ HRESULT STDMETHODCALLTYPE
 DataTarget::GetPointerSize(
     /* [out] */ ULONG32 *size)
 {
+#if defined(SOS_TARGET_AMD64) || defined(SOS_TARGET_ARM64)
     *size = 8;
+#elif defined(SOS_TARGET_ARM)
+    *size = 4;
+#elif
+  #error Unsupported architecture
+#endif
+
     return S_OK;
 }
 
@@ -89,8 +101,8 @@ DataTarget::GetImageBase(
     {
         return E_UNEXPECTED;
     }
-    CHAR lpstr[MAX_PATH];
-    int name_length = WideCharToMultiByte(CP_ACP, 0, name, -1, lpstr, MAX_PATH, NULL, NULL);
+    CHAR lpstr[MAX_LONGPATH];
+    int name_length = WideCharToMultiByte(CP_ACP, 0, name, -1, lpstr, MAX_LONGPATH, NULL, NULL);
     if (name_length == 0)
     {
         return E_FAIL;
@@ -119,7 +131,11 @@ DataTarget::WriteVirtual(
     /* [in] */ ULONG32 request,
     /* [optional][out] */ ULONG32 *done)
 {
-    return E_NOTIMPL;
+    if (g_ExtData == NULL)
+    {
+        return E_UNEXPECTED;
+    }
+    return g_ExtData->WriteVirtual(address, (PVOID)buffer, request, done);
 }
 
 HRESULT STDMETHODCALLTYPE
@@ -183,4 +199,17 @@ DataTarget::Request(
     /* [size_is][out] */ BYTE *outBuffer)
 {
     return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE 
+DataTarget::VirtualUnwind(
+    /* [in] */ DWORD threadId,
+    /* [in] */ ULONG32 contextSize,
+    /* [in, out, size_is(contextSize)] */ PBYTE context)
+{
+    if (g_ExtServices == NULL)
+    {
+        return E_UNEXPECTED;
+    }
+    return g_ExtServices->VirtualUnwind(threadId, contextSize, context);
 }

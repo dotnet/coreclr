@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // 
 
@@ -38,7 +39,6 @@ namespace System.Reflection
         protected MethodInfo() { }
         #endregion
 
-#if !FEATURE_CORECLR
         public static bool operator ==(MethodInfo left, MethodInfo right)
         {
             if (ReferenceEquals(left, right))
@@ -56,7 +56,6 @@ namespace System.Reflection
         {
             return !(left == right);
         }
-#endif // !FEATURE_CORECLR
 
         public override bool Equals(object obj)
         {
@@ -433,7 +432,7 @@ namespace System.Reflection
 
             // We cannot do simple object identity comparisons for generic methods.
             // Equals will be called in CerHashTable when RuntimeType+RuntimeTypeCache.GetGenericMethodInfo()
-            // retrive items from and insert items into s_methodInstantiations which is a CerHashtable.
+            // retrieve items from and insert items into s_methodInstantiations which is a CerHashtable.
 
             RuntimeMethodInfo mi = obj as RuntimeMethodInfo;
 
@@ -559,19 +558,31 @@ namespace System.Reflection
 
         public override bool IsSecurityCritical 
         {
-            get { return RuntimeMethodHandle.IsSecurityCritical(this); } 
+#if FEATURE_CORECLR
+            get { return true; }
+#else
+            get { return RuntimeMethodHandle.IsSecurityCritical(this); }
+#endif
         }
         public override bool IsSecuritySafeCritical
         {
+#if FEATURE_CORECLR
+            get { return false; }
+#else
             get { return RuntimeMethodHandle.IsSecuritySafeCritical(this); }
+#endif
         }
         public override bool IsSecurityTransparent
         {
+#if FEATURE_CORECLR
+            get { return false; }
+#else
             get { return RuntimeMethodHandle.IsSecurityTransparent(this); }
+#endif
         }
-        #endregion
+#endregion
 
-        #region MethodBase Overrides
+#region MethodBase Overrides
         [System.Security.SecuritySafeCritical]  // auto-generated
         internal override ParameterInfo[] GetParametersNoCopy()
         {
@@ -643,9 +654,9 @@ namespace System.Reflection
                 mb.m_methodBase = this;
             return mb;
         }        
-        #endregion
+#endregion
 
-        #region Invocation Logic(On MemberBase)
+#region Invocation Logic(On MemberBase)
         private void CheckConsistency(Object target) 
         {
             // only test instance methods
@@ -707,7 +718,7 @@ namespace System.Reflection
         {
             object[] arguments = InvokeArgumentsCheck(obj, invokeAttr, binder, parameters, culture);
 
-            #region Security Check
+#region Security Check
             INVOCATION_FLAGS invocationFlags = InvocationFlags;
 
 #if FEATURE_APPX
@@ -720,17 +731,17 @@ namespace System.Reflection
             }
 #endif
 
+#if !FEATURE_CORECLR
             if ((invocationFlags & (INVOCATION_FLAGS.INVOCATION_FLAGS_RISKY_METHOD | INVOCATION_FLAGS.INVOCATION_FLAGS_NEED_SECURITY)) != 0)
             {
-#if !FEATURE_CORECLR
                 if ((invocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_RISKY_METHOD) != 0)
                     CodeAccessPermission.Demand(PermissionType.ReflectionMemberAccess);
 
                 if ((invocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_NEED_SECURITY) != 0)
-#endif // !FEATURE_CORECLR
                     RuntimeMethodHandle.PerformSecurityCheck(obj, this, m_declaringType, (uint)m_invocationFlags);
             }
-            #endregion
+#endif // !FEATURE_CORECLR
+#endregion
 
             return UnsafeInvokeInternal(obj, parameters, arguments);
         }
@@ -794,9 +805,9 @@ namespace System.Reflection
                 return null;
         }
 
-        #endregion
+#endregion
 
-        #region MethodInfo Overrides
+#region MethodInfo Overrides
         public override Type ReturnType 
         { 
             get { return Signature.ReturnType; } 
@@ -906,9 +917,9 @@ namespace System.Reflection
             return d;
         }
 
-        #endregion
+#endregion
 
-        #region Generics
+#region Generics
         [System.Security.SecuritySafeCritical]  // auto-generated
         public override MethodInfo MakeGenericMethod(params Type[] methodInstantiation)
         {
@@ -1018,9 +1029,9 @@ namespace System.Reflection
                 return false;
             } 
         }
-        #endregion
+#endregion
 
-        #region ISerializable Implementation
+#region ISerializable Implementation
         [System.Security.SecurityCritical]  // auto-generated
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
@@ -1045,9 +1056,9 @@ namespace System.Reflection
         {
             return ReturnType.FormatTypeName(true) + " " + FormatNameAndSig(true);
         }
-        #endregion
+#endregion
 
-        #region Legacy Internal
+#region Legacy Internal
         internal static MethodBase InternalGetCurrentMethod(ref StackCrawlMark stackMark)
         {
             IRuntimeMethodInfo method = RuntimeMethodHandle.GetCurrentMethod(ref stackMark);
@@ -1057,6 +1068,6 @@ namespace System.Reflection
             
             return RuntimeType.GetMethodBase(method);
         }
-        #endregion
+#endregion
     }
 }

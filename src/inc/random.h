@@ -1,14 +1,13 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // random.h
 // 
 
 // 
-// Defines a random number generator, ripped off from the System.Random code in the BCL.  If you notice any problems,
-// please compare to the implementation in ndp\clr\src\bcl\system\random.cs.
+// Defines a random number generator, initially from the System.Random code in the BCL.  If you notice any problems,
+// please compare to the implementation in src\mscorlib\src\system\random.cs.
 //
 // Main advantages over rand() are:
 //
@@ -93,7 +92,6 @@ public:
         int mj, mk;
 
         //Initialize our Seed array.
-        //This algorithm comes from Numerical Recipes in C (2nd Ed.)
         mj = MSEED - abs(Seed);
         SeedArray[55]=mj;
         mk=1;

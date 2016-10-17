@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Reflection;
@@ -99,7 +100,7 @@ namespace System.Reflection.Emit
             // bit unfortunate, since it means that we need to allocate
             // yet another array of bytes...  
             mungedSig = new byte[sigLength - 1];
-            Array.Copy(signature, 1, mungedSig, 0, sigLength - 1);
+            Buffer.BlockCopy(signature, 1, mungedSig, 0, sigLength - 1);
             
             index = methodBuilder.GetILGenerator().m_ScopeTree.GetCurrentActiveScopeIndex();
             if (index == -1)

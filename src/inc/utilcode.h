@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // UtilCode.h
 //
@@ -30,7 +29,13 @@
 #include "winnls.h"
 #include "check.h"
 #include "safemath.h"
+#include "new.hpp"
+
+#ifdef PAL_STDCPP_COMPAT
+#include <type_traits>
+#else
 #include "clr_std/type_traits"
+#endif
 
 #include "contract.h"
 #include "entrypoints.h"
@@ -43,15 +48,36 @@ const WCHAR kWatsonName2[] = W("drwtsn32");
 
 #include "random.h"
 
-// Windows CoreSystem has a different naming scheme for some dlls, which we must take account of when doing
-// LoadLibrary and the like.
-#if defined(FEATURE_CORESYSTEM)
-#define WINDOWS_KERNEL32_DLLNAME_A "kernelbase"
-#define WINDOWS_KERNEL32_DLLNAME_W W("kernelbase")
-#elif !defined(FEATURE_CORESYSTEM) || defined(CROSS_COMPILE)
 #define WINDOWS_KERNEL32_DLLNAME_A "kernel32"
 #define WINDOWS_KERNEL32_DLLNAME_W W("kernel32")
-#endif
+
+#if defined(FEATURE_CORECLR)
+#define CoreLibName_W W("System.Private.CoreLib")
+#define CoreLibName_IL_W W("System.Private.CoreLib.dll")
+#define CoreLibName_NI_W W("System.Private.CoreLib.ni.dll")
+#define CoreLibName_TLB_W W("System.Private.CoreLib.tlb")
+#define CoreLibName_A "System.Private.CoreLib"
+#define CoreLibName_IL_A "System.Private.CoreLib.dll"
+#define CoreLibName_NI_A "System.Private.CoreLib.ni.dll"
+#define CoreLibName_TLB_A "System.Private.CoreLib.tlb"
+#define CoreLibNameLen 22
+#define CoreLibSatelliteName_A "System.Private.CoreLib.resources"
+#define CoreLibSatelliteNameLen 32
+#define LegacyCoreLibName_A "mscorlib"
+#else // !defined(FEATURE_CORECLR)
+#define CoreLibName_W W("mscorlib")
+#define CoreLibName_IL_W W("mscorlib.dll")
+#define CoreLibName_NI_W W("mscorlib.ni.dll")
+#define CoreLibName_TLB_W W("mscorlib.tlb")
+#define CoreLibName_A "mscorlib"
+#define CoreLibName_IL_A "mscorlib.dll"
+#define CoreLibName_NI_A "mscorlib.ni.dll"
+#define CoreLibName_TLB_A "mscorlib.tlb"
+#define CoreLibNameLen 8
+#define CoreLibSatelliteName_A "mscorlib.resources"
+#define CoreLibSatelliteNameLen 18
+#define LegacyCoreLibName_A "mscorlib"
+#endif // defined(FEATURE_CORECLR)
 
 class StringArrayList;
 
@@ -187,12 +213,6 @@ typedef LPSTR   LPUTF8;
 #ifndef sizeofmember
 // Returns the size of a class or struct member.
 #define sizeofmember(c,m) (sizeof(((c*)0)->m))
-#endif
-
-#if defined(_MSC_VER) && _MSC_VER < 1900
-#define NOEXCEPT
-#else
-#define NOEXCEPT noexcept
 #endif
 
 //=--------------------------------------------------------------------------=
@@ -508,7 +528,7 @@ inline void *__cdecl operator new(size_t, void *_P)
 void * __cdecl
 operator new(size_t n);
 
-_Ret_bytecap_(_Size) void * __cdecl
+_Ret_bytecap_(n) void * __cdecl
 operator new[](size_t n);
 
 void __cdecl
@@ -579,7 +599,7 @@ BOOL CLRFreeLibrary(HMODULE hModule);
 // Load a string using the resources for the current module.
 STDAPI UtilLoadStringRC(UINT iResouceID, __out_ecount (iMax) LPWSTR szBuffer, int iMax, int bQuiet=FALSE);
 
-#if ENABLE_DOWNLEVEL_FOR_NLS
+#if defined(ENABLE_DOWNLEVEL_FOR_NLS) || defined(FEATURE_USE_LCID)
 STDAPI UtilLoadStringRCEx(LCID lcid, UINT iResourceID, __out_ecount (iMax) LPWSTR szBuffer, int iMax, int bQuiet, int *pcwchUsed);
 #endif
 
@@ -839,7 +859,8 @@ private:
     HRESULT GetLibrary(LocaleID langId, HRESOURCEDLL* phInst);
 #ifndef DACCESS_COMPILE
     HRESULT LoadLibraryHelper(HRESOURCEDLL *pHInst,
-                              __out_ecount(rcPathSize) WCHAR *rcPath, const DWORD rcPathSize);
+                              SString& rcPath);
+    HRESULT LoadLibraryThrows(HRESOURCEDLL * pHInst);
     HRESULT LoadLibrary(HRESOURCEDLL * pHInst);
     HRESULT LoadResourceFile(HRESOURCEDLL * pHInst, LPCWSTR lpFileName);
 #endif
@@ -1036,53 +1057,7 @@ inline int CountBits(int iNum)
     return (iBits);
 }
 
-//------------------------------------------------------------------------
-// BitPosition: Return the position of the single bit that is set in 'value'.
-//
-// Return Value:
-//    The position (0 is LSB) of bit that is set in 'value'
-//
-// Notes:
-//    'value' must have exactly one bit set.
-//    The algorithm is as follows:
-//    - PRIME is a prime bigger than sizeof(unsigned int), which is not of the
-//      form 2^n-1.
-//    - Taking the modulo of 'value' with this will produce a unique hash for all
-//      powers of 2 (which is what "value" is).
-//    - Entries in hashTable[] which are -1 should never be used. There
-//      should be PRIME-8*sizeof(value) entries which are -1 .
-//
-inline
-unsigned            BitPosition(unsigned value)
-{
-    _ASSERTE((value != 0) && ((value & (value-1)) == 0));
-#ifndef _TARGET_AMD64_
-    const unsigned PRIME = 37;
-
-    static const char hashTable[PRIME] =
-    {
-        -1,  0,  1, 26,  2, 23, 27, -1,  3, 16,
-        24, 30, 28, 11, -1, 13,  4,  7, 17, -1,
-        25, 22, 31, 15, 29, 10, 12,  6, -1, 21,
-        14,  9,  5, 20,  8, 19, 18
-    };
-
-    _ASSERTE(PRIME >= 8*sizeof(value));
-    _ASSERTE(sizeof(hashTable) == PRIME);
-
-
-    unsigned hash   = value % PRIME;
-    unsigned index  = hashTable[hash];
-    _ASSERTE(index != (unsigned char)-1);
-#else
-    // not enabled for x86 because BSF is extremely slow on Atom
-    // (15 clock cycles vs 1-3 on any other Intel CPU post-P4)
-    DWORD index;
-    BitScanForward(&index, value);
-#endif
-    return index;
-}
-
+#include "bitposition.h"
 
 // Used to remove trailing zeros from Decimal types.
 // NOTE: Assumes hi32 bits are empty (used for conversions from Cy->Dec)
@@ -1157,10 +1132,18 @@ void    SplitPathInterior(
     __out_opt LPCWSTR *pwszFileName, __out_opt size_t *pcchFileName,
     __out_opt LPCWSTR *pwszExt,      __out_opt size_t *pcchExt);
 
-void    MakePath(__out_ecount (MAX_PATH) register WCHAR *path, 
+#ifndef FEATURE_CORECLR
+void    MakePath(__out_ecount (MAX_LONGPATH) register WCHAR *path, 
                  __in LPCWSTR drive, 
                  __in LPCWSTR dir, 
                  __in LPCWSTR fname, 
+                 __in LPCWSTR ext);
+#endif
+
+void    MakePath(__out CQuickWSTR &path,
+                 __in LPCWSTR drive,
+                 __in LPCWSTR dir,
+                 __in LPCWSTR fname,
                  __in LPCWSTR ext);
 
 WCHAR * FullPath(__out_ecount (maxlen) WCHAR *UserBuf, const WCHAR *path, size_t maxlen);
@@ -1175,6 +1158,8 @@ void    SplitPath(__in SString const &path,
                   __inout_opt SString *dir,
                   __inout_opt SString *fname,
                   __inout_opt SString *ext);
+
+#if !defined(NO_CLRCONFIG)
 
 //*****************************************************************************
 //
@@ -1510,6 +1495,8 @@ private:
     LPWSTR m_wszString;
 };
 
+#endif // defined(NO_CLRCONFIG)
+
 #include "ostype.h"
 
 #define CLRGetTickCount64() GetTickCount64()
@@ -1573,11 +1560,6 @@ public:
 
 #if !defined(FEATURE_REDHAWK)&& !defined(FEATURE_PAL)
 private:	// apis types
-#if !defined(FEATURE_CORESYSTEM)
-    //GetNumaProcessorNode()
-    typedef BOOL
-    (WINAPI *PGNPN)(UCHAR, PUCHAR);
-#endif
 
     //GetNumaHighestNodeNumber()
     typedef BOOL
@@ -1587,21 +1569,14 @@ private:	// apis types
     (WINAPI *PVAExN)(HANDLE,LPVOID,SIZE_T,DWORD,DWORD,DWORD);
 
     // api pfns and members
-#if !defined(FEATURE_CORESYSTEM)
-    static PGNPN    m_pGetNumaProcessorNode;
-#endif
     static PGNHNN   m_pGetNumaHighestNodeNumber;
     static PVAExN   m_pVirtualAllocExNuma;
 
 public: 	// functions
-#if !defined(FEATURE_CORESYSTEM)
-    static BOOL GetNumaProcessorNode(UCHAR proc_no, PUCHAR node_no);
-#endif
 
     static LPVOID VirtualAllocExNuma(HANDLE hProc, LPVOID lpAddr, SIZE_T size,
                                      DWORD allocType, DWORD prot, DWORD node);
 
-#if !defined(FEATURE_CORECLR) || defined(FEATURE_CORESYSTEM)
 private:
     //GetNumaProcessorNodeEx()
     typedef BOOL
@@ -1610,7 +1585,6 @@ private:
 
 public:
     static BOOL GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, PUSHORT node_no);
-#endif
 #endif
 };
 
@@ -1663,7 +1637,6 @@ private:
     //GetThreadGroupAffinity()
     typedef BOOL
     (WINAPI *PGTGA)(HANDLE, GROUP_AFFINITY *);
-#if !defined(FEATURE_CORESYSTEM) && !defined(FEATURE_CORECLR)
     //GetCurrentProcessorNumberEx()
     typedef void
     (WINAPI *PGCPNEx)(PROCESSOR_NUMBER *);
@@ -1673,16 +1646,12 @@ private:
     //NtQuerySystemInformationEx()
     //typedef int
     //(WINAPI *PNTQSIEx)(SYSTEM_INFORMATION_CLASS, PULONG, ULONG, PVOID, ULONG, PULONG);
-#endif
-
     static PGLPIEx m_pGetLogicalProcessorInformationEx;
     static PSTGA   m_pSetThreadGroupAffinity;
     static PGTGA   m_pGetThreadGroupAffinity;
-#if !defined(FEATURE_CORESYSTEM) && !defined(FEATURE_CORECLR)
     static PGCPNEx m_pGetCurrentProcessorNumberEx;
     static PGST    m_pGetSystemTimes;
     //static PNTQSIEx m_pNtQuerySystemInformationEx;
-#endif
 
 public:
     static BOOL GetLogicalProcessorInformationEx(DWORD relationship,
@@ -1690,11 +1659,9 @@ public:
     static BOOL SetThreadGroupAffinity(HANDLE h,
 		    GROUP_AFFINITY *groupAffinity, GROUP_AFFINITY *previousGroupAffinity);
     static BOOL GetThreadGroupAffinity(HANDLE h, GROUP_AFFINITY *groupAffinity);
-#if !defined(FEATURE_CORESYSTEM) && !defined(FEATURE_CORECLR)
     static BOOL GetSystemTimes(FILETIME *idleTime, FILETIME *kernelTime, FILETIME *userTime);
     static void ChooseCPUGroupAffinity(GROUP_AFFINITY *gf);
     static void ClearCPUGroupAffinity(GROUP_AFFINITY *gf);
-#endif
 #endif
 };
 
@@ -3203,8 +3170,16 @@ inline DWORD HashThreeToOne(DWORD a, DWORD b, DWORD c)
 {
     LIMITED_METHOD_DAC_CONTRACT;
 
-    // Current implementation taken from lookup3.c, by Bob Jenkins, May 2006
-    
+    /*
+    lookup3.c, by Bob Jenkins, May 2006, Public Domain.
+
+    These are functions for producing 32-bit hashes for hash table lookup.
+    hashword(), hashlittle(), hashlittle2(), hashbig(), mix(), and final() 
+    are externally useful functions.  Routines to test the hash are included 
+    if SELF_TEST is defined.  You can use this free for any purpose.  It's in
+    the public domain.  It has no warranty.
+    */
+
     #define rot32(x,k) (((x)<<(k)) | ((x)>>(32-(k))))
     c ^= b; c -= rot32(b,14);
     a ^= c; a -= rot32(c,11);
@@ -3356,15 +3331,6 @@ inline ULONG HashiStringNKnownLower80(LPCWSTR szStr, DWORD count) {
     }
     return hash;
 }
-
-// // //
-// // //  See $\src\utilcode\Debug.cpp for "Binomial (K, M, N)", which
-// // //  computes the binomial distribution, with which to compare your
-// // //  hash-table statistics.
-// // //
-
-
-
 
 //*****************************************************************************
 // IMPORTANT: This data structure is deprecated, please do not add any new uses.
@@ -4098,6 +4064,8 @@ public:
 // Class to parse a list of method names and then find a match
 //*****************************************************************************
 
+struct CORINFO_SIG_INFO;
+
 class MethodNamesListBase
 {
     struct MethodName
@@ -4109,6 +4077,8 @@ class MethodNamesListBase
     };
 
     MethodName     *pNames;         // List of names
+
+    bool IsInList(LPCUTF8 methodName, LPCUTF8 className, int numArgs);
 
 public:
     void Init()
@@ -4128,7 +4098,8 @@ public:
 
     void Insert(__in __in_z LPWSTR list);
 
-    bool IsInList(LPCUTF8 methodName, LPCUTF8 className, PCCOR_SIGNATURE sig);
+    bool IsInList(LPCUTF8 methodName, LPCUTF8 className, PCCOR_SIGNATURE sig = NULL);
+    bool IsInList(LPCUTF8 methodName, LPCUTF8 className, CORINFO_SIG_INFO* pSigInfo);
     bool IsEmpty()
     {
         LIMITED_METHOD_CONTRACT;
@@ -4157,6 +4128,8 @@ public:
         Destroy();
     }
 };
+
+#if !defined(NO_CLRCONFIG)
 
 /**************************************************************************/
 /* simple wrappers around the REGUTIL and MethodNameList routines that make
@@ -4243,7 +4216,8 @@ public:
         return m_list.IsEmpty();
     }
 
-    bool contains(LPCUTF8 methodName, LPCUTF8 className, PCCOR_SIGNATURE sig);
+    bool contains(LPCUTF8 methodName, LPCUTF8 className, PCCOR_SIGNATURE sig = NULL);
+    bool contains(LPCUTF8 methodName, LPCUTF8 className, CORINFO_SIG_INFO* pSigInfo);
 
     inline void ensureInit(const CLRConfig::ConfigStringInfo & info)
     {
@@ -4262,6 +4236,8 @@ private:
 
     BYTE m_inited;
 };
+
+#endif // !defined(NO_CLRCONFIG)
 
 //*****************************************************************************
 // Convert a pointer to a string into a GUID.
@@ -4458,7 +4434,7 @@ BOOL GetRegistryLongValue(HKEY    hKeyParent,              // Parent key.
                           long    *pValue,                 // Put value here, if found.
                           BOOL    fReadNonVirtualizedKey); // Whether to read 64-bit hive on WOW64
 
-HRESULT GetCurrentModuleFileName(__out_ecount(*pcchBuffer) LPWSTR pBuffer, __inout DWORD *pcchBuffer);
+HRESULT GetCurrentModuleFileName(SString& pBuffer);
 
 //*****************************************************************************
 // Retrieve information regarding what registered default debugger
@@ -4466,7 +4442,7 @@ HRESULT GetCurrentModuleFileName(__out_ecount(*pcchBuffer) LPWSTR pBuffer, __ino
 void GetDebuggerSettingInfo(SString &debuggerKeyValue, BOOL *pfAuto);
 HRESULT GetDebuggerSettingInfoWorker(__out_ecount_part_opt(*pcchDebuggerString, *pcchDebuggerString) LPWSTR wszDebuggerString, DWORD * pcchDebuggerString, BOOL * pfAuto);
 
-void TrimWhiteSpace(__deref_inout_ecount(*pcch)  LPCWSTR *pwsz, __inout LPDWORD pcch);
+void TrimWhiteSpace(__inout_ecount(*pcch)  LPCWSTR *pwsz, __inout LPDWORD pcch);
 
 
 //*****************************************************************************
@@ -4546,9 +4522,29 @@ void PutThumb2BlRel24(UINT16 * p, INT32 imm24);
 INT32 GetArm64Rel28(UINT32 * pCode);
 
 //*****************************************************************************
+//  Extract the PC-Relative page address from an adrp instruction
+//*****************************************************************************
+INT32 GetArm64Rel21(UINT32 * pCode);
+
+//*****************************************************************************
+//  Extract the page offset from an add instruction
+//*****************************************************************************
+INT32 GetArm64Rel12(UINT32 * pCode);
+
+//*****************************************************************************
 //  Deposit the PC-Relative offset 'imm28' into a b or bl instruction 
 //*****************************************************************************
 void PutArm64Rel28(UINT32 * pCode, INT32 imm28);
+
+//*****************************************************************************
+//  Deposit the PC-Relative page address 'imm21' into an adrp instruction
+//*****************************************************************************
+void PutArm64Rel21(UINT32 * pCode, INT32 imm21);
+
+//*****************************************************************************
+//  Deposit the page offset 'imm12' into an add instruction
+//*****************************************************************************
+void PutArm64Rel12(UINT32 * pCode, INT32 imm12);
 
 //*****************************************************************************
 // Returns whether the offset fits into bl instruction
@@ -4564,6 +4560,22 @@ inline bool FitsInThumb2BlRel24(INT32 imm24)
 inline bool FitsInRel28(INT32 val32)
 {
     return (val32 >= -0x08000000) && (val32 < 0x08000000);
+}
+
+//*****************************************************************************
+// Returns whether the offset fits into an Arm64 adrp instruction
+//*****************************************************************************
+inline bool FitsInRel21(INT32 val32)
+{
+    return (val32 >= 0) && (val32 <= 0x001FFFFF);
+}
+
+//*****************************************************************************
+// Returns whether the offset fits into an Arm64 add instruction
+//*****************************************************************************
+inline bool FitsInRel12(INT32 val32)
+{
+    return (val32 >= 0) && (val32 <= 0x00000FFF);
 }
 
 //*****************************************************************************
@@ -4685,7 +4697,7 @@ public:
 #endif // !FEATURE_PAL
 };
 
-#if !defined(DACCESS_COMPILE) && !defined(CLR_STANDALONE_BINDER)
+#if !defined(DACCESS_COMPILE)
 
 // check if current thread is a GC thread (concurrent or server)
 inline BOOL IsGCSpecialThread ()
@@ -4869,7 +4881,7 @@ inline BOOL IsStackWalkerThread()
     STATIC_CONTRACT_MODE_ANY;
     STATIC_CONTRACT_CANNOT_TAKE_LOCK;
 
-#if defined(DACCESS_COMPILE) || defined(CLR_STANDALONE_BINDER)
+#if defined(DACCESS_COMPILE)
     return FALSE;
 #else
     return ClrFlsGetValue (TlsIdx_StackWalkerWalkingThread) != NULL;
@@ -4884,13 +4896,13 @@ inline BOOL IsGCThread ()
     STATIC_CONTRACT_SUPPORTS_DAC;
     STATIC_CONTRACT_SO_TOLERANT;
 
-#if !defined(DACCESS_COMPILE) && !defined(CLR_STANDALONE_BINDER)
+#if !defined(DACCESS_COMPILE)
     return IsGCSpecialThread () || IsSuspendEEThread ();
 #else
     return FALSE;
 #endif
 }
-#ifndef CLR_STANDALONE_BINDER
+
 class ClrFlsThreadTypeSwitch
 {
 public:
@@ -4981,7 +4993,6 @@ private:
     PVOID m_PreviousValue;
     PredefinedTlsSlots m_slot;
 };
-#endif // !CLR_STANDALONE_BINDER
 
 //*********************************************************************************
 
@@ -5300,7 +5311,7 @@ BOOL IsIPInModule(HMODULE_TGT hModule, PCODE ip);
 struct CoreClrCallbacks
 {
     typedef IExecutionEngine* (__stdcall * pfnIEE_t)();
-    typedef HRESULT (__stdcall * pfnGetCORSystemDirectory_t)(LPWSTR pbuffer, DWORD cchBuffer, DWORD* pdwlength);
+    typedef HRESULT (__stdcall * pfnGetCORSystemDirectory_t)(SString& pbuffer);
     typedef void* (__stdcall * pfnGetCLRFunction_t)(LPCSTR functionName);
 
     HINSTANCE                   m_hmodCoreCLR;
@@ -5534,8 +5545,8 @@ inline T* InterlockedCompareExchangeT(
 
 // Returns the directory for HMODULE. So, if HMODULE was for "C:\Dir1\Dir2\Filename.DLL",
 // then this would return "C:\Dir1\Dir2\" (note the trailing backslash).
-HRESULT GetHModuleDirectory(HMODULE hMod, __out_z __out_ecount(cchPath) LPWSTR wszPath, size_t cchPath);
-SString & GetHModuleDirectory(HMODULE hMod, SString &ssDir);
+HRESULT GetHModuleDirectory(HMODULE hMod, SString& wszPath);
+HRESULT CopySystemDirectory(const SString& pPathString, SString& pbuffer);
 
 HMODULE LoadLocalizedResourceDLLForSDK(_In_z_ LPCWSTR wzResourceDllName, _In_opt_z_ LPCWSTR modulePath=NULL, bool trySelf=true);
 // This is a slight variation that can be used for anything else
@@ -5595,6 +5606,7 @@ namespace Clr { namespace Util
 namespace Reg
 {
     HRESULT ReadStringValue(HKEY hKey, LPCWSTR wszSubKey, LPCWSTR wszName, SString & ssValue);
+    __success(return == S_OK)
     HRESULT ReadStringValue(HKEY hKey, LPCWSTR wszSubKey, LPCWSTR wszName, __deref_out __deref_out_z LPWSTR* pwszValue);
 }
 
@@ -5620,6 +5632,7 @@ namespace Win32
         SString & ssFileName,
         bool fAllowLongFileNames = false);
 
+    __success(return == S_OK)
     HRESULT GetModuleFileName(
         HMODULE hModule,
         __deref_out_z LPWSTR * pwszFileName,

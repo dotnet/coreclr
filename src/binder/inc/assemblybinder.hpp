@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ============================================================
 //
 // AssemblyBinder.hpp
@@ -47,6 +46,7 @@ namespace BINDER_SPACE
                                     /* in */  PEAssembly          *pParentAssembly,
                                     /* in */  BOOL                 fNgenExplicitBind,
                                     /* in */  BOOL                 fExplicitBindToNativeImage,
+                                    /* in */  bool                 excludeAppPaths,
                                     /* out */ Assembly           **ppAssembly);
 
         static HRESULT BindToSystem(/* in */ SString    &systemDirectory,
@@ -74,10 +74,11 @@ namespace BINDER_SPACE
                                    /* out */ Assembly   **ppAssembly,
                                    /* in */  LPCTSTR      szMDAssemblyPath = NULL);
 
-#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(MDILNIGEN)
-        static HRESULT BindUsingHostAssemblyResolver (/* in */ CLRPrivBinderAssemblyLoadContext *pLoadContextToBindWithin,
+#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+        static HRESULT BindUsingHostAssemblyResolver (/* in */ INT_PTR pManagedAssemblyLoadContextToBindWithin,
                                                       /* in */ AssemblyName       *pAssemblyName,
                                                       /* in */ IAssemblyName      *pIAssemblyName,
+                                                      /* in */ CLRPrivBinderCoreCLR *pTPABinder,
                                                       /* out */ Assembly           **ppAssembly);
                                                       
         static HRESULT BindUsingPEImage(/* in */  ApplicationContext *pApplicationContext,
@@ -86,9 +87,9 @@ namespace BINDER_SPACE
                                         /* in */  PEKIND              peKind,
                                         /* in */  IMDInternalImport  *pIMetaDataAssemblyImport, 
                                         /* [retval] [out] */  Assembly **ppAssembly);          
-#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(MDILNIGEN)
+#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
                                  
-        static HRESULT TranslatePEToArchitectureType(DWORD  *pdwPAFlags, PEKIND *PeKind);                            
+        static HRESULT TranslatePEToArchitectureType(DWORD  *pdwPAFlags, PEKIND *PeKind);
         
     protected:
         enum
@@ -97,10 +98,10 @@ namespace BINDER_SPACE
             BIND_CACHE_FAILURES = 0x01,
             BIND_CACHE_RERUN_BIND = 0x02,
             BIND_IGNORE_DYNAMIC_BINDS = 0x04
-#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(MDILNIGEN)
+#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
             ,
             BIND_IGNORE_REFDEF_MATCH = 0x8
-#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(MDILNIGEN)            
+#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
         };
 
         static BOOL IgnoreDynamicBinds(DWORD dwBindFlags)
@@ -118,16 +119,17 @@ namespace BINDER_SPACE
             return ((dwBindFlags & BIND_CACHE_RERUN_BIND) != 0);
         }
         
-#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(MDILNIGEN)
+#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
         static BOOL IgnoreRefDefMatch(DWORD dwBindFlags)
         {
             return ((dwBindFlags & BIND_IGNORE_REFDEF_MATCH) != 0);
         }
-#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(MDILNIGEN)
+#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
         
         static HRESULT BindByName(/* in */  ApplicationContext *pApplicationContext,
                                   /* in */  AssemblyName       *pAssemblyName,
                                   /* in */  DWORD               dwBindFlags,
+                                  /* in */  bool                excludeAppPaths,
                                   /* out */ BindResult         *pBindResult);
 
         // See code:BINDER_SPACE::AssemblyBinder::GetAssembly for info on fNgenExplicitBind
@@ -137,14 +139,17 @@ namespace BINDER_SPACE
                                     /* in */  PathString         &assemblyPath,
                                     /* in */  BOOL                fNgenExplicitBind,
                                     /* in */  BOOL                fExplicitBindToNativeImage,
+                                    /* in */  bool                excludeAppPaths,
                                     /* out */ BindResult         *pBindResult);
 
         static HRESULT BindLocked(/* in */  ApplicationContext *pApplicationContext,
                                   /* in */  AssemblyName       *pAssemblyName,
                                   /* in */  DWORD               dwBindFlags,
+                                  /* in */  bool                excludeAppPaths,
                                   /* out */ BindResult         *pBindResult);
         static HRESULT BindLockedOrService(/* in */  ApplicationContext *pApplicationContext,
                                            /* in */  AssemblyName       *pAssemblyName,
+                                           /* in */  bool                excludeAppPaths,
                                            /* out */ BindResult         *pBindResult);
 
         static HRESULT FindInExecutionContext(/* in */  ApplicationContext  *pApplicationContext,
@@ -154,8 +159,8 @@ namespace BINDER_SPACE
         static HRESULT BindByTpaList(/* in */  ApplicationContext  *pApplicationContext,
                                      /* in */  AssemblyName        *pRequestedAssemblyName,
                                      /* in */  BOOL                 fInspectionOnly,
-                                     /* out */ BindResult          *pBindResult,
-                                     /* out */ bool                *pfUnifiedAppAssemblyToPlatform);
+                                     /* in */  bool                 excludeAppPaths,
+                                     /* out */ BindResult          *pBindResult);
         
         static HRESULT Register(/* in */  ApplicationContext *pApplicationContext,
                                 /* in */  BOOL                fInspectionOnly,

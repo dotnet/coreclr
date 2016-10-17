@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -16,6 +17,7 @@ namespace System {
     using System.Resources;
     using System.Globalization;
     using System.Collections;
+    using System.Collections.Generic;
     using System.Security.Permissions;
     using System.Text;
     using System.Configuration.Assemblies;
@@ -62,7 +64,7 @@ namespace System {
 
             // To avoid infinite loops when calling GetResourceString.  See comments
             // in GetResourceString for this field.
-            private Stack currentlyLoading;
+            private List<string> currentlyLoading;
         
             // process-wide state (since this is only used in one domain), 
             // used to avoid the TypeInitialization infinite recusion
@@ -77,30 +79,19 @@ namespace System {
             {
                 public ResourceHelper m_resourceHelper;
                 public String m_key;
-                public CultureInfo m_culture;
                 public String m_retVal;
                 public bool m_lockWasTaken;
 
-                public GetResourceStringUserData(ResourceHelper resourceHelper, String key, CultureInfo culture)
+                public GetResourceStringUserData(ResourceHelper resourceHelper, String key)
                 {
                     m_resourceHelper = resourceHelper;
                     m_key = key;
-                    m_culture = culture;
                 }
             }
             
-            [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-            internal String GetResourceString(String key) {
-                if (key == null || key.Length == 0) {
-                    Contract.Assert(false, "Environment::GetResourceString with null or empty key.  Bug in caller, or weird recursive loading problem?");
-                    return "[Resource lookup failed - null or empty resource name]";
-                }
-                return GetResourceString(key, null);
-            }
-
             [System.Security.SecuritySafeCritical]  // auto-generated
             [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-            internal String GetResourceString(String key, CultureInfo culture)  {
+            internal String GetResourceString(String key)  {
                 if (key == null || key.Length == 0) {
                     Contract.Assert(false, "Environment::GetResourceString with null or empty key.  Bug in caller, or weird recursive loading problem?");
                     return "[Resource lookup failed - null or empty resource name]";
@@ -125,7 +116,7 @@ namespace System {
                 // returning, we're going into an infinite loop and we should 
                 // return a bogus string.  
 
-                GetResourceStringUserData userData = new GetResourceStringUserData(this, key, culture);
+                GetResourceStringUserData userData = new GetResourceStringUserData(this, key);
 
                 RuntimeHelpers.TryCode tryCode = new RuntimeHelpers.TryCode(GetResourceStringCode);
                 RuntimeHelpers.CleanupCode cleanupCode = new RuntimeHelpers.CleanupCode(GetResourceStringBackoutCode);
@@ -144,13 +135,12 @@ namespace System {
                 GetResourceStringUserData userData = (GetResourceStringUserData) userDataIn;
                 ResourceHelper rh = userData.m_resourceHelper;
                 String key = userData.m_key;
-                CultureInfo culture = userData.m_culture;
 
                 Monitor.Enter(rh, ref userData.m_lockWasTaken);
 
                 // Are we recursively looking up the same resource?  Note - our backout code will set
                 // the ResourceHelper's currentlyLoading stack to null if an exception occurs.
-                if (rh.currentlyLoading != null && rh.currentlyLoading.Count > 0 && rh.currentlyLoading.Contains(key)) {
+                if (rh.currentlyLoading != null && rh.currentlyLoading.Count > 0 && rh.currentlyLoading.LastIndexOf(key) != -1) {
                     // We can start infinitely recursing for one resource lookup,
                     // then during our failure reporting, start infinitely recursing again.
                     // avoid that.
@@ -162,12 +152,12 @@ namespace System {
 
                     // Note: our infrastructure for reporting this exception will again cause resource lookup.
                     // This is the most direct way of dealing with that problem.
-                    String message = "Infinite recursion during resource lookup within mscorlib.  This may be a bug in mscorlib, or potentially in certain extensibility points such as assembly resolve events or CultureInfo names.  Resource name: " + key;
-                    Assert.Fail("[mscorlib recursive resource lookup bug]", message, Assert.COR_E_FAILFAST, System.Diagnostics.StackTrace.TraceFormat.NoResourceLookup);
+                    String message = "Infinite recursion during resource lookup within "+System.CoreLib.Name+".  This may be a bug in "+System.CoreLib.Name+", or potentially in certain extensibility points such as assembly resolve events or CultureInfo names.  Resource name: " + key;
+                    Assert.Fail("[Recursive resource lookup bug]", message, Assert.COR_E_FAILFAST, System.Diagnostics.StackTrace.TraceFormat.NoResourceLookup);
                     Environment.FailFast(message);
                 }
                 if (rh.currentlyLoading == null)
-                    rh.currentlyLoading = new Stack(4);
+                    rh.currentlyLoading = new List<string>();
 
                 // Call class constructors preemptively, so that we cannot get into an infinite
                 // loop constructing a TypeInitializationException.  If this were omitted,
@@ -191,13 +181,13 @@ namespace System {
             
                 } 
         
-                rh.currentlyLoading.Push(key);
+                rh.currentlyLoading.Add(key); // Push
 
                 if (rh.SystemResMgr == null) {
                     rh.SystemResMgr = new ResourceManager(m_name, typeof(Object).Assembly);
                 }
                 String s = rh.SystemResMgr.GetString(key, null);
-                rh.currentlyLoading.Pop();
+                rh.currentlyLoading.RemoveAt(rh.currentlyLoading.Count - 1); // Pop
 
                 Contract.Assert(s!=null, "Managed resource string lookup failed.  Was your resource name misspelled?  Did you rebuild mscorlib after adding a resource to resources.txt?  Debug this w/ cordbg and bug whoever owns the code that called Environment.GetResourceString.  Resource name was: \""+key+"\"");
 
@@ -379,9 +369,9 @@ namespace System {
             [System.Security.SecuritySafeCritical]  // auto-generated
 #endif
             get {
-                StringBuilder sb = new StringBuilder(Path.MAX_PATH);
-                int r = Win32Native.GetSystemDirectory(sb, Path.MAX_PATH);
-                Contract.Assert(r < Path.MAX_PATH, "r < Path.MAX_PATH");
+                StringBuilder sb = new StringBuilder(Path.MaxPath);
+                int r = Win32Native.GetSystemDirectory(sb, Path.MaxPath);
+                Contract.Assert(r < Path.MaxPath, "r < Path.MaxPath");
                 if (r==0) __Error.WinIOError();
                 String path = sb.ToString();
                 
@@ -399,9 +389,9 @@ namespace System {
         internal static String InternalWindowsDirectory {
             [System.Security.SecurityCritical]  // auto-generated
             get {
-                StringBuilder sb = new StringBuilder(Path.MAX_PATH);
-                int r = Win32Native.GetWindowsDirectory(sb, Path.MAX_PATH);
-                Contract.Assert(r < Path.MAX_PATH, "r < Path.MAX_PATH");
+                StringBuilder sb = new StringBuilder(Path.MaxPath);
+                int r = Win32Native.GetWindowsDirectory(sb, Path.MaxPath);
+                Contract.Assert(r < Path.MaxPath, "r < Path.MaxPath");
                 if (r==0) __Error.WinIOError();
                 String path = sb.ToString();
                 
@@ -531,9 +521,19 @@ namespace System {
         public static String MachineName {
             [System.Security.SecuritySafeCritical]  // auto-generated
             get {
+
+                // UWP Debug scenarios
+                if (AppDomain.IsAppXModel() && !AppDomain.IsAppXDesignMode())
+                {
+                    // Getting Computer Name is not a supported scenario on Store apps.
+                    throw new PlatformNotSupportedException();
+                }
+
                 // In future release of operating systems, you might be able to rename a machine without
                 // rebooting.  Therefore, don't cache this machine name.
+#if !FEATURE_CORECLR
                 new EnvironmentPermission(EnvironmentPermissionAccess.Read, "COMPUTERNAME").Demand();
+#endif
                 StringBuilder buf = new StringBuilder(MaxMachineNameLength);
                 int len = MaxMachineNameLength;
                 if (Win32Native.GetComputerName(buf, ref len) == 0)
@@ -564,7 +564,6 @@ namespace System {
             }
         }
 
-#if !FEATURE_CORECLR
         /*==============================GetCommandLineArgs==============================
         **Action: Gets the command line and splits it appropriately to deal with whitespace,
         **        quotes, and escape characters.
@@ -573,15 +572,34 @@ namespace System {
         **Exceptions: None.
         ==============================================================================*/
         [System.Security.SecuritySafeCritical]  // auto-generated
-        public static String[] GetCommandLineArgs() {
+        public static String[] GetCommandLineArgs()
+        {
             new EnvironmentPermission(EnvironmentPermissionAccess.Read, "Path").Demand();
+#if FEATURE_CORECLR
+            /*
+             * There are multiple entry points to a hosted app.
+             * The host could use ::ExecuteAssembly() or ::CreateDelegate option
+             * ::ExecuteAssembly() -> In this particular case, the runtime invokes the main 
+               method based on the arguments set by the host, and we return those arguments
+             *
+             * ::CreateDelegate() -> In this particular case, the host is asked to create a 
+             * delegate based on the appDomain, assembly and methodDesc passed to it.
+             * which the caller uses to invoke the method. In this particular case we do not have
+             * any information on what arguments would be passed to the delegate.
+             * So our best bet is to simply use the commandLine that was used to invoke the process.
+             * in case it is present.
+             */
+            if(s_CommandLineArgs != null)
+                return (string[])s_CommandLineArgs.Clone();
+#endif
             return GetCommandLineArgsNative();
         }
 
         [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern String[] GetCommandLineArgsNative();
-        
+
+#if !FEATURE_CORECLR
         // We need to keep this Fcall since it is used in AppDomain.cs.
         // If we call GetEnvironmentVariable from AppDomain.cs, we will use StringBuilder class.
         // That has side effect to change the ApartmentState of the calling Thread to MTA.
@@ -590,7 +608,15 @@ namespace System {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern String nativeGetEnvironmentVariable(String variable);
 #endif //!FEATURE_CORECLR
-        
+
+#if FEATURE_CORECLR
+        private static string[] s_CommandLineArgs = null;
+        private static void SetCommandLineArgs(string[] cmdLineArgs)
+        {
+            s_CommandLineArgs = cmdLineArgs;
+        }
+#endif
+
         /*============================GetEnvironmentVariable============================
         **Action:
         **Returns:
@@ -1110,14 +1136,6 @@ namespace System {
                     PlatformID id = PlatformID.Unix;
 #else
                     PlatformID id = PlatformID.Win32NT;
-
-#if FEATURE_LEGACYNETCF
-                    // return platform as WinCE, to ensure apps earlier than WP8 works as expected. 
-                    if (CompatibilitySwitches.IsAppEarlierThanWindowsPhone8)
-                    {
-                        id = PlatformID.WinCE;
-                    }
-#endif
 #endif // PLATFORM_UNIX
 
                     Version v =  new Version(osvi.MajorVersion, osvi.MinorVersion, osvi.BuildNumber, (osviEx.ServicePackMajor << 16) |osviEx.ServicePackMinor);
@@ -1213,9 +1231,9 @@ namespace System {
             }
         }
 
-        #if FEATURE_CORECLR
+#if FEATURE_CORECLR
         [System.Security.SecurityCritical] // auto-generated
-        #endif
+#endif
         internal static String GetStackTrace(Exception e, bool needFileInfo)
         {
             // Note: Setting needFileInfo to true will start up COM and set our
@@ -1245,7 +1263,7 @@ namespace System {
                 Monitor.Enter(Environment.InternalSyncObject, ref tookLock);
 
                 if (m_resHelper == null) {
-                    ResourceHelper rh = new ResourceHelper("mscorlib");
+                    ResourceHelper rh = new ResourceHelper(System.CoreLib.Name);
 
                     System.Threading.Thread.MemoryBarrier();
                     m_resHelper =rh;
@@ -1261,35 +1279,24 @@ namespace System {
         [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal extern static String GetResourceFromDefault(String key);           
-#endif	
+#endif
 
         // Looks up the resource string value for key.
         // 
         // if you change this method's signature then you must change the code that calls it
         // in excep.cpp and probably you will have to visit mscorlib.h to add the new signature
         // as well as metasig.h to create the new signature type
-        #if FEATURE_CORECLR
+#if FEATURE_CORECLR
         [System.Security.SecurityCritical] // auto-generated
-        #endif
+#endif
+        // NoInlining causes the caller and callee to not be inlined in mscorlib as it is an assumption of StackCrawlMark use
+        [MethodImpl(MethodImplOptions.NoInlining)]
         internal static String GetResourceStringLocal(String key) {
             if (m_resHelper == null)
                 InitResourceHelper();
 
             return m_resHelper.GetResourceString(key);
         }
-
-        // #threadCultureInfo
-        // Currently in silverlight, CurrentCulture and CurrentUICulture are isolated 
-        // within an AppDomain. This is in contrast to the desktop, in which cultures 
-        // leak across AppDomain boundaries with the thread. 
-        // 
-        // Note that mscorlib transitions to the default domain to perform resource 
-        // lookup. This causes problems for the silverlight changes: since culture isn't
-        // passed, resource string lookup won't necessarily use the culture of the thread 
-        // originating the request. To get around that problem, we pass the CultureInfo 
-        // so that the ResourceManager GetString(x, cultureInfo) overload can be used. 
-        // We first perform the same check as in CultureInfo to make sure it's safe to 
-        // let the CultureInfo travel across AppDomains. 
 
         [System.Security.SecuritySafeCritical]  // auto-generated
         internal static String GetResourceString(String key) {
@@ -1300,45 +1307,94 @@ namespace System {
 #endif //FEATURE_CORECLR
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        internal static String GetResourceString(String key, params Object[] values) {
-            String s = GetResourceString(key);
-            return String.Format(CultureInfo.CurrentCulture, s, values);
+        // The reason the following overloads exist are to reduce code bloat.
+        // Since GetResourceString is basically only called when exceptions are
+        // thrown, we want the code size to be as small as possible.
+        // Using the params object[] overload works against this since the
+        // initialization of the array is done inline in the caller at the IL
+        // level. So we have overloads that simply wrap the params one, and
+        // the methods they call through to are tagged as NoInlining. 
+        // In mscorlib NoInlining causes the caller and callee to not be inlined
+        // as it is an assumption of StackCrawlMark use so it is not added 
+        // directly to these methods, but to the ones they call.
+        // That way they do not bloat either the IL or the generated asm.
+
+        internal static string GetResourceString(string key, object val0)
+        {
+            return GetResourceStringFormatted(key, new object[] { val0 });
         }
 
-        //The following two internal methods are not used anywhere within the framework,
+        internal static string GetResourceString(string key, object val0, object val1)
+        {
+            return GetResourceStringFormatted(key, new object[] { val0, val1 });
+        }
+
+        internal static string GetResourceString(string key, object val0, object val1, object val2)
+        {
+            return GetResourceStringFormatted(key, new object[] { val0, val1, val2 });
+        }
+
+        internal static string GetResourceString(string key, object val0, object val1, object val2, object val3)
+        {
+            return GetResourceStringFormatted(key, new object[] { val0, val1, val2, val3 });
+        }
+
+        internal static string GetResourceString(string key, object val0, object val1, object val2, object val3, object val4)
+        {
+            return GetResourceStringFormatted(key, new object[] { val0, val1, val2, val3, val4 });
+        }
+
+        internal static string GetResourceString(string key, object val0, object val1, object val2, object val3, object val4, object val5)
+        {
+            return GetResourceStringFormatted(key, new object[] { val0, val1, val2, val3, val4, val5 });
+        }
+
+        internal static String GetResourceString(string key, params object[] values)
+        {
+            return GetResourceStringFormatted(key, values);
+        }
+
+        // NoInlining causes the caller and callee to not be inlined in mscorlib as it is an assumption of StackCrawlMark use
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static String GetResourceStringFormatted(string key, params object[] values)
+        {
+            string rs = GetResourceString(key);
+            return String.Format(CultureInfo.CurrentCulture, rs, values);
+        }
+
+        // The following two internal methods are not used anywhere within the framework,
         // but are being kept around as external platforms built on top of us have taken 
         // dependency by using private reflection on them for getting system resource strings 
-        internal static String GetRuntimeResourceString(String key) {
+        private static String GetRuntimeResourceString(String key) {
             return GetResourceString(key);
         }
 
-        internal static String GetRuntimeResourceString(String key, params Object[] values) {
-            return GetResourceString(key,values);
+        private static String GetRuntimeResourceString(String key, params Object[] values) {
+            return GetResourceStringFormatted(key,values);
         }
 
         public static bool Is64BitProcess {
             get {
-                #if WIN32
-                    return false;
-                #else
+#if BIT64
                     return true;
-                #endif
+#else // 32
+                    return false;
+#endif
             }
         }
 
         public static bool Is64BitOperatingSystem {
             [System.Security.SecuritySafeCritical]
             get {
-                #if WIN32                    
+#if BIT64
+                    // 64-bit programs run only on 64-bit
+                    return true;
+#else // 32
                     bool isWow64; // WinXP SP2+ and Win2k3 SP1+
                     return Win32Native.DoesWin32MethodExist(Win32Native.KERNEL32, "IsWow64Process")
                         && Win32Native.IsWow64Process(Win32Native.GetCurrentProcess(), out isWow64)
                         && isWow64;
-                #else
-                    // 64-bit programs run only on 64-bit
-                    return true;
-                #endif
+#endif
             }
         }
 
@@ -1458,7 +1514,7 @@ namespace System {
             }
 #endif
 
-            StringBuilder sb = new StringBuilder(Path.MAX_PATH);
+            StringBuilder sb = new StringBuilder(Path.MaxPath);
             int hresult = Win32Native.SHGetFolderPath(IntPtr.Zero,                    /* hwndOwner: [in] Reserved */
                                                       ((int)folder | (int)option),    /* nFolder:   [in] CSIDL    */
                                                       IntPtr.Zero,                    /* hToken:    [in] access token */

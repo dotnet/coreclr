@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //
@@ -24,7 +25,7 @@ namespace System.Threading.Tasks
     [EventSource(
         Name = "System.Threading.Tasks.TplEventSource",
         Guid = "2e5dba47-a3d2-4d16-8ee0-6671ffdcd7b5", 
-        LocalizationResources = "mscorlib")]
+        LocalizationResources = System.CoreLib.Name)]
     internal sealed class TplEtwProvider : EventSource
     {
         /// Used to determine if tasks should generate Activity IDs for themselves
@@ -423,7 +424,7 @@ namespace System.Threading.Tasks
             {
                 unsafe
                 {
-                    EventData* eventPayload = stackalloc EventData[5];
+                    EventData* eventPayload = stackalloc EventData[6];
                     eventPayload[0].Size = sizeof(int);
                     eventPayload[0].DataPointer = ((IntPtr) (&OriginatingTaskSchedulerID));
                     eventPayload[1].Size = sizeof(int);
@@ -434,13 +435,15 @@ namespace System.Threading.Tasks
                     eventPayload[3].DataPointer = ((IntPtr) (&CreatingTaskID));
                     eventPayload[4].Size = sizeof(int);
                     eventPayload[4].DataPointer = ((IntPtr) (&TaskCreationOptions));
+                    eventPayload[5].Size = sizeof(int);
+                    eventPayload[5].DataPointer = ((IntPtr) (&appDomain));
                     if (TasksSetActivityIds)
                     {
                         Guid childActivityId = CreateGuidForTaskID(TaskID);
-                        WriteEventWithRelatedActivityIdCore(TASKSCHEDULED_ID, &childActivityId, 5, eventPayload);
+                        WriteEventWithRelatedActivityIdCore(TASKSCHEDULED_ID, &childActivityId, 6, eventPayload);
                     }
                     else 
-                        WriteEventCore(TASKSCHEDULED_ID, 5, eventPayload);
+                        WriteEventCore(TASKSCHEDULED_ID, 6, eventPayload);
                 }
             }
         }

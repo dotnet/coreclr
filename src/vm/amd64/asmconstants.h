@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // See makefile.inc.  During the build, this file is converted into a .inc
 // file for inclusion by .asm files.  The #defines are converted into EQU's.
@@ -165,10 +164,10 @@ ASMCONSTANTS_C_ASSERT(OFFSETOF__Thread__m_ThreadId
                     == offsetof(Thread, m_ThreadId));
 
 #define               OFFSET__Thread__m_alloc_context__alloc_ptr 0x60
-ASMCONSTANTS_C_ASSERT(OFFSET__Thread__m_alloc_context__alloc_ptr == offsetof(Thread, m_alloc_context) + offsetof(alloc_context, alloc_ptr));
+ASMCONSTANTS_C_ASSERT(OFFSET__Thread__m_alloc_context__alloc_ptr == offsetof(Thread, m_alloc_context) + offsetof(gc_alloc_context, alloc_ptr));
 
 #define               OFFSET__Thread__m_alloc_context__alloc_limit 0x68
-ASMCONSTANTS_C_ASSERT(OFFSET__Thread__m_alloc_context__alloc_limit == offsetof(Thread, m_alloc_context) + offsetof(alloc_context, alloc_limit));
+ASMCONSTANTS_C_ASSERT(OFFSET__Thread__m_alloc_context__alloc_limit == offsetof(Thread, m_alloc_context) + offsetof(gc_alloc_context, alloc_limit));
 
 #define               OFFSETOF__ThreadExceptionState__m_pCurrentTracker 0x000
 ASMCONSTANTS_C_ASSERT(OFFSETOF__ThreadExceptionState__m_pCurrentTracker
@@ -664,7 +663,9 @@ ASMCONSTANTS_C_ASSERT(OFFSETOF__TransitionBlock__m_argumentRegisters == offsetof
 
 #undef ASMCONSTANTS_RUNTIME_ASSERT
 #undef ASMCONSTANTS_C_ASSERT
+#ifndef UNIX_AMD64_ABI
 #undef DBG_FRE
+#endif // UNIX_AMD64_ABI
 
 
 //#define USE_COMPILE_TIME_CONSTANT_FINDER // Uncomment this line to use the constant finder

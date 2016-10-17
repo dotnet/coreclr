@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 ////////////////////////////////////////////////////////////////////////////////
@@ -62,7 +63,7 @@ namespace System.Threading
         {
             // Remove the entry from the array.
             // This call includes a full memory fence which prevents potential reorderings of the reads below
-            bool deregisterOccured = TryDeregister();
+            bool deregisterOccurred = TryDeregister();
             
             // We guarantee that we will not return if the callback is being executed (assuming we are not currently called by the callback itself)
             // We achieve this by the following rules:
@@ -79,7 +80,7 @@ namespace System.Threading
                 var tokenSource = callbackInfo.CancellationTokenSource;
                 if (tokenSource.IsCancellationRequested && //running callbacks has commenced.
                     !tokenSource.IsCancellationCompleted && //running callbacks hasn't finished
-                    !deregisterOccured && //deregistration failed (ie the callback is missing from the list)
+                    !deregisterOccurred && //deregistration failed (ie the callback is missing from the list)
                     tokenSource.ThreadIDExecutingCallbacks != Thread.CurrentThread.ManagedThreadId) //the executingThreadID is not this threadID.
                 {
                     // Callback execution is in progress, the executing thread is different to us and has taken the callback for execution

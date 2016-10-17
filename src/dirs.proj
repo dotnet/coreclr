@@ -23,7 +23,9 @@
     
     <!--The following projects will build during PHASE 1-->
     <ItemGroup Condition="'$(BuildExePhase)' == '1'">
-        <ProjectFile Include="inc\corguids.nativeproj" />
+        <ProjectFile Include="inc\corguids.nativeproj" >
+            <ProductGroups>FX;PK</ProductGroups>
+        </ProjectFile>
         <ProjectFile Include="format\format.nativeproj" />
         <ProjectFile Include="shimload\shimload.nativeproj" Condition="'$(BuildProjectName)' != 'CoreSys'"/>
         <ProjectFile Include="utilcode\dirs.proj" />
@@ -31,7 +33,7 @@
         <ProjectFile Include="md\dirs.proj" />
         <ProjectFile Include="classlibnative\dirs.proj" />
         <ProjectFile Include="strongname\dirs.proj" >
-            <ProductGroups>VS;FX</ProductGroups>
+            <ProductGroups>FX</ProductGroups>
         </ProjectFile>
         <ProjectFile Include="zap\dirs.proj" />
         <ProjectFile Include="gcdump\lib\gcdump.nativeproj" />
@@ -42,18 +44,15 @@
         <ProjectFile Include="dlls\dirs.proj" />
         <ProjectFile Include="unwinder\dirs.proj" Condition="'$(TargetArch)' != 'i386'" />
 
-        <!-- In the CodeGen branch, we use RyuJIT for all JIT builds -->
-        <ProjectFile Include="jit\dirs.proj"   Condition="'$(_BuildBranch)' == 'CodeGen'" />
-        
-        <!-- In other branches, we build RyuJIT only for amd64 and arm64, and use JIT32 for ARM and x86 -->
-        <ProjectFile Include="jit\dirs.proj"   Condition="('$(_BuildBranch)' != 'CodeGen') and ('$(BuildArchitecture)' == 'amd64' or  '$(BuildArchitecture)' == 'arm64')" />
-        <ProjectFile Include="jit32\dirs.proj" Condition="('$(_BuildBranch)' != 'CodeGen') and ('$(BuildArchitecture)' != 'amd64' and '$(BuildArchitecture)' != 'arm64')" />
+        <ProjectFile Include="jit\dirs.proj" />
+        <ProjectFile Include="jit32\dirs.proj" Condition="'$(BuildArchitecture)' != 'amd64' and '$(BuildArchitecture)' != 'arm64'" />
+        <ProjectFile Include="jit64\dirs.proj" Condition="'$(BuildProjectName)' != 'CoreSys'" />
 
-        <ProjectFile Include="jit64\dirs.proj" />
-
-        <ProjectFile Include="tools\dirs.proj" />
+        <ProjectFile Include="tools\dirs.proj" >
+            <ProductGroups>FX;PK</ProductGroups>
+        </ProjectFile>
         <ProjectFile Include="toolbox\dirs.proj" >
-            <ProductGroups>VS;FX</ProductGroups>
+            <ProductGroups>FX;PK</ProductGroups>
         </ProjectFile>
         <ProjectFile Include="misc\misc.proj" />
     </ItemGroup>
@@ -70,7 +69,7 @@
         <ProjectFile Include="bcl\mscorlib.csproj" />
         <ProjectFile Include="managedlibraries\dirs.proj" />
         <ProjectFile Include="config\config.nativeproj" >
-            <ProductGroups>VS;FX</ProductGroups>
+            <ProductGroups>FX</ProductGroups>
         </ProjectFile>
         <ProjectFile Include="usagelog\usagelog.nativeproj" />
         <ProjectFile Include="lhdwshim\dirs.proj" />

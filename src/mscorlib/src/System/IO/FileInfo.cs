@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -64,23 +65,6 @@ namespace System.IO {
             if (fileName == null)
                 throw new ArgumentNullException("fileName");
             Contract.EndContractBlock();
-
-#if FEATURE_LEGACYNETCF
-            if(CompatibilitySwitches.IsAppEarlierThanWindowsPhone8)
-            {
-                System.Reflection.Assembly callingAssembly = System.Reflection.Assembly.GetCallingAssembly();
-                if(callingAssembly != null && !callingAssembly.IsProfileAssembly)
-                {
-                    string caller = new System.Diagnostics.StackFrame(1).GetMethod().FullName;
-                    string callee = System.Reflection.MethodBase.GetCurrentMethod().FullName;
-                    throw new MethodAccessException(String.Format(
-                        CultureInfo.CurrentCulture,
-                        Environment.GetResourceString("Arg_MethodAccessException_WithCaller"),
-                        caller,
-                        callee));
-                }
-            }
-#endif // FEATURE_LEGACYNETCF
 
             Init(fileName, true);
         }

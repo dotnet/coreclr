@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 /* ------------------------------------------------------------------------- *
  * DbgIPCEvents.h -- header file for private Debugger data shared by various
 // 
@@ -181,7 +180,7 @@ struct MSLAYOUT DebuggerIPCRuntimeOffsets
 // aren't any embedded buffers in the DebuggerIPCControlBlock).
 
 #if defined(DBG_TARGET_X86) || defined(DBG_TARGET_ARM)
-#define CorDBIPC_BUFFER_SIZE (1500) // hand tuned to ensure that ipc block in IPCHeader.h fits in 1 page.
+#define CorDBIPC_BUFFER_SIZE (2088) // hand tuned to ensure that ipc block in IPCHeader.h fits in 1 page.
 #else  // !_TARGET_X86_ && !_TARGET_ARM_
 // This is the size of a DebuggerIPCEvent.  You will hit an assert in Cordb::Initialize() (DI\process.cpp)
 // if this is not defined correctly.  AMD64 actually has a page size of 0x1000, not 0x2000.
@@ -2292,7 +2291,7 @@ struct MSLAYOUT DebuggerIPCEvent
         struct MSLAYOUT
         {
             CONNID     connectionId;
-            EmbeddedIPCString<MAX_PATH> wzConnectionName;
+            EmbeddedIPCString<MAX_LONGPATH> wzConnectionName;
         } CreateConnection;
 
         struct MSLAYOUT

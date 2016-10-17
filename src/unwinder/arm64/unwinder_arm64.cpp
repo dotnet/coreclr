@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // 
 
@@ -104,9 +103,9 @@ typedef struct _ARM64_VFP_STATE
 // Macros for accessing memory. These can be overridden if other code
 // (in particular the debugger) needs to use them.
 
-#define MEMORY_READ_BYTE(params, addr)       (*(const BYTE *)(addr))
-#define MEMORY_READ_DWORD(params, addr)      (*(const DWORD *)(addr))
-#define MEMORY_READ_QWORD(params, addr)      (*(const UINT64 *)(addr))
+#define MEMORY_READ_BYTE(params, addr)       (*dac_cast<PTR_BYTE>(addr))
+#define MEMORY_READ_DWORD(params, addr)      (*dac_cast<PTR_DWORD>(addr))
+#define MEMORY_READ_QWORD(params, addr)      (*dac_cast<PTR_UINT64>(addr))
 
 typedef struct _ARM64_UNWIND_PARAMS
 {
@@ -215,7 +214,11 @@ Return Value:
         SourceAddress = StartingSp + FIELD_OFFSET(ARM64_KTRAP_FRAME, X);
         for (RegIndex = 0; RegIndex < 18; RegIndex++) {
             UPDATE_CONTEXT_POINTERS(UnwindParams, RegIndex, SourceAddress);
+#ifdef __clang__
+            *(&ContextRecord->X0 + (RegIndex * sizeof(void*))) = MEMORY_READ_QWORD(UnwindParams, SourceAddress);
+#else
             ContextRecord->X[RegIndex] = MEMORY_READ_QWORD(UnwindParams, SourceAddress);
+#endif
             SourceAddress += sizeof(ULONG_PTR);
         }
         
@@ -288,10 +291,14 @@ Return Value:
         // Restore X0-X28, and D0-D31
         //
         
-        SourceAddress = StartingSp + FIELD_OFFSET(T_CONTEXT, X);
+        SourceAddress = StartingSp + FIELD_OFFSET(T_CONTEXT, X0);
         for (RegIndex = 0; RegIndex < 29; RegIndex++) {
             UPDATE_CONTEXT_POINTERS(UnwindParams, RegIndex, SourceAddress);
+#ifdef __clang__
+            *(&ContextRecord->X0 + (RegIndex * sizeof(void*))) = MEMORY_READ_QWORD(UnwindParams, SourceAddress);
+#else
             ContextRecord->X[RegIndex] = MEMORY_READ_QWORD(UnwindParams, SourceAddress);
+#endif
             SourceAddress += sizeof(ULONG_PTR);
         }
         
@@ -473,7 +480,11 @@ Return Value:
 
     for (RegIndex = 0; RegIndex < RegisterCount; RegIndex++) {
         UPDATE_CONTEXT_POINTERS(UnwindParams, RegIndex, CurAddress);
+#ifdef __clang__
+        *(&ContextRecord->X0 + (RegIndex * sizeof(void*))) = MEMORY_READ_QWORD(UnwindParams, CurAddress);
+#else
         ContextRecord->X[FirstRegister + RegIndex] = MEMORY_READ_QWORD(UnwindParams, CurAddress);
+#endif
         CurAddress += 8;
     }
     if (SpOffset < 0) {
@@ -1534,7 +1545,7 @@ BOOL OOPStackUnwinderArm64::Unwind(T_CONTEXT * pContext)
 
     if ((Rfe.UnwindData & 3) != 0) 
     {
-        hr = RtlpUnwindFunctionCompact(pContext->Pc - (ULONG)ImageBase,
+        hr = RtlpUnwindFunctionCompact(pContext->Pc - ImageBase,
                                         &Rfe,
                                         pContext,
                                         &DummyEstablisherFrame,
@@ -1545,8 +1556,8 @@ BOOL OOPStackUnwinderArm64::Unwind(T_CONTEXT * pContext)
     }
     else
     {
-        hr = RtlpUnwindFunctionFull(pContext->Pc - (ULONG)ImageBase,
-                                    (ULONG)ImageBase,
+        hr = RtlpUnwindFunctionFull(pContext->Pc - ImageBase,
+                                    ImageBase,
                                     &Rfe,
                                     pContext,
                                     &DummyEstablisherFrame,
@@ -1578,3 +1589,57 @@ BOOL DacUnwindStackFrame(T_CONTEXT *pContext, T_KNONVOLATILE_CONTEXT_POINTERS* p
     
     return res;
 }
+
+#if defined(FEATURE_PAL)
+//TODO: Fix the context pointers
+PEXCEPTION_ROUTINE
+RtlVirtualUnwind(
+    IN ULONG HandlerType,
+    IN ULONG64 ImageBase,
+    IN ULONG64 ControlPc,
+    IN PT_RUNTIME_FUNCTION FunctionEntry,
+    IN OUT PCONTEXT ContextRecord,
+    OUT PVOID *HandlerData,
+    OUT PULONG64 EstablisherFrame,
+    IN OUT PKNONVOLATILE_CONTEXT_POINTERS ContextPointers OPTIONAL
+    )
+{
+    PEXCEPTION_ROUTINE handlerRoutine;
+    HRESULT hr;
+
+    DWORD64 startingPc = ControlPc;
+    DWORD64 startingSp = ContextRecord->Sp;
+    
+    T_RUNTIME_FUNCTION rfe;
+
+    rfe.BeginAddress = FunctionEntry->BeginAddress;
+    rfe.UnwindData = FunctionEntry->UnwindData;
+
+    if ((rfe.UnwindData & 3) != 0) 
+    {
+        hr = RtlpUnwindFunctionCompact(ControlPc - ImageBase,
+                                        &rfe,
+                                        ContextRecord,
+                                        EstablisherFrame,
+                                        &handlerRoutine,
+                                        HandlerData,
+                                        NULL);
+
+    }
+    else
+    {
+        hr = RtlpUnwindFunctionFull(ControlPc - ImageBase,
+                                    ImageBase,
+                                    &rfe,
+                                    ContextRecord,
+                                    EstablisherFrame,
+                                    &handlerRoutine,
+                                    HandlerData,
+                                    NULL);
+    }
+
+    _ASSERTE(SUCCEEDED(hr));
+
+    return handlerRoutine;
+}
+#endif

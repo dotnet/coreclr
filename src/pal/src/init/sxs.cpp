@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -15,6 +14,7 @@
 #include "pal/thread.hpp"
 #include "../thread/procprivate.hpp"
 #include "pal/module.h"
+#include "pal/process.h"
 #include "pal/seh.hpp"
 
 using namespace CorUnix;
@@ -24,28 +24,6 @@ using namespace CorUnix;
 SET_DEFAULT_DEBUG_CHANNEL(SXS);
 
 PAL_ERROR AllocatePalThread(CPalThread **ppThread);
-
-/*++
-Function:
-  PAL_IsSelf
-
-Abstract:
-  Returns TRUE iff the argument module corresponds to this PAL.
-  In other words, clients should not call PAL_Leave when calling
-  functions obtained from this module using GetProcAddress.
---*/
-BOOL
-PALAPI
-PAL_IsSelf(HMODULE hModule)
-{
-    ENTRY("PAL_IsSelf(hModule=%p)\n", hModule);
-
-    MODSTRUCT *module = (MODSTRUCT *) hModule;
-    BOOL fIsSelf = (module->dl_handle == pal_module.dl_handle);
-
-    LOGEXIT("PAL_IsSelf returns %d\n", fIsSelf);
-    return fIsSelf;
-}
 
 /************************* Enter *************************/
 
@@ -117,7 +95,7 @@ CreateCurrentThreadData()
         if (NO_ERROR != palError)
         {
             ASSERT("Unable to allocate pal thread: error %d - aborting\n", palError);
-            abort();
+            PROCAbort();
         }
     }
 
@@ -252,7 +230,7 @@ PAL_ReenterForEH()
     }
     else if (!pThread->IsInPal())
     {
-#if !_NO_DEBUG_MESSAGES_                
+#if _ENABLE_DEBUG_MESSAGES_
         DBG_PRINTF(DLI_ENTRY, defdbgchan, TRUE)("PAL_ReenterForEH()\n");
 #endif
 

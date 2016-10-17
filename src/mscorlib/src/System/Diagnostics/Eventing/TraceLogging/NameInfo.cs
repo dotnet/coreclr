@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections.Generic;
@@ -26,14 +27,14 @@ namespace System.Diagnostics.Tracing
         {
             for(;;)
             {
-                int snapshot =lastIdentity;
+                int snapshot = lastIdentity;
                 int newIdentity = (lastIdentity & ~0xFFFFFF) + eventId;
                 newIdentity = Math.Max(newIdentity, snapshot);      // Should be redundant.  as we only create descriptors once.  
                 if (Interlocked.CompareExchange(ref lastIdentity, newIdentity, snapshot) == snapshot)
                     break;
             }
         }
- 
+
         private static int lastIdentity = Statics.TraceLoggingChannel << 24;
         internal readonly string name;
         internal readonly EventTags tags;

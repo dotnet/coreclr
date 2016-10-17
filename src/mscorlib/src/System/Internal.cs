@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -46,6 +47,11 @@ namespace System
         // This can be removed after V2, when we implement other schemes
         // of keeping the JIT-compiler out for generic instantiations.
 
+        // Method marked as NoOptimization as we don't want the JIT to
+        // inline any methods or take any short-circuit paths since the 
+        // instantiation closure process is driven by "fixup" references 
+        // left in the final code stream.
+        [MethodImplAttribute(MethodImplOptions.NoOptimization)]
         static void CommonlyUsedGenericInstantiations()
         {
             // Make absolutely sure we include some of the most common 
@@ -53,10 +59,11 @@ namespace System
             // Note that reference type instantiations are already included
             // automatically for us.
 
-            System.Array.Sort<double>(null);
-            System.Array.Sort<int>(null);
-            System.Array.Sort<IntPtr>(null);
-            
+            // Need to sort non null, len > 1 array or paths will short-circuit
+            Array.Sort<double>(new double[1]);
+            Array.Sort<int>(new int[1]);
+            Array.Sort<IntPtr>(new IntPtr[1]);
+
             new ArraySegment<byte>(new byte[1], 0, 0);
 
             new Dictionary<Char, Object>();

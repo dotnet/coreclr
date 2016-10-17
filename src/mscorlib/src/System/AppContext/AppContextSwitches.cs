@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved. 
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 namespace System
 {
@@ -37,6 +38,36 @@ namespace System
                 return GetCachedSwitchValue(AppContextDefaultValues.SwitchPreserveEventListnerObjectIdentity, ref _preserveEventListnerObjectIdentity);
             }
         }
+
+#if FEATURE_PATHCOMPAT
+        private static int _useLegacyPathHandling;
+
+        /// <summary>
+        /// Use legacy path normalization logic and blocking of extended syntax.
+        /// </summary>
+        public static bool UseLegacyPathHandling
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return GetCachedSwitchValue(AppContextDefaultValues.SwitchUseLegacyPathHandling, ref _useLegacyPathHandling);
+            }
+        }
+
+        private static int _blockLongPaths;
+
+        /// <summary>
+        /// Throw PathTooLongException for paths greater than MAX_PATH or directories greater than 248 (as per CreateDirectory Win32 limitations)
+        /// </summary>
+        public static bool BlockLongPaths
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return GetCachedSwitchValue(AppContextDefaultValues.SwitchBlockLongPaths, ref _blockLongPaths);
+            }
+        }
+#endif // FEATURE_PATHCOMPAT
 
         //
         // Implementation details

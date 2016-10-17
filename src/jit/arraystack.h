@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 // ArrayStack: A stack, implemented as a growable array
@@ -10,21 +9,21 @@ template <class T>
 class ArrayStack
 {
     static const int builtinSize = 8;
-    
+
 public:
-    ArrayStack(Compiler *comp, int initialSize = builtinSize)
+    ArrayStack(Compiler* comp, int initialSize = builtinSize)
     {
         compiler = comp;
 
         if (initialSize > builtinSize)
         {
             maxIndex = initialSize;
-            data = new(compiler, CMK_ArrayStack) T[initialSize];
+            data     = new (compiler, CMK_ArrayStack) T[initialSize];
         }
         else
         {
             maxIndex = builtinSize;
-            data = builtinData;
+            data     = builtinData;
         }
 
         tosIndex = 0;
@@ -33,8 +32,10 @@ public:
     void Push(T item)
     {
         if (tosIndex == maxIndex)
+        {
             Realloc();
-        
+        }
+
         data[tosIndex] = item;
         tosIndex++;
     }
@@ -44,9 +45,9 @@ public:
         // get a new chunk 2x the size of the old one
         // and copy over
         T* oldData = data;
-        noway_assert(maxIndex*2 > maxIndex);
-        data = new(compiler, CMK_ArrayStack) T[maxIndex*2];
-        for (int i=0; i<maxIndex; i++)
+        noway_assert(maxIndex * 2 > maxIndex);
+        data = new (compiler, CMK_ArrayStack) T[maxIndex * 2];
+        for (int i = 0; i < maxIndex; i++)
         {
             data[i] = oldData[i];
         }
@@ -57,19 +58,21 @@ public:
     void ReverseTop(int number)
     {
         if (number < 2)
+        {
             return;
+        }
 
         assert(number <= tosIndex);
 
-        int start = tosIndex - number;
+        int start  = tosIndex - number;
         int offset = 0;
-        while (offset < number/2)
+        while (offset < number / 2)
         {
-            T temp;
-            int index = start+offset;
-            int otherIndex = tosIndex - 1 - offset;
-            temp = data[index];
-            data[index] = data[otherIndex];
+            T   temp;
+            int index        = start + offset;
+            int otherIndex   = tosIndex - 1 - offset;
+            temp             = data[index];
+            data[index]      = data[otherIndex];
             data[otherIndex] = temp;
 
             offset++;
@@ -86,11 +89,24 @@ public:
     T Top()
     {
         assert(tosIndex > 0);
-        return data[tosIndex-1];
+        return data[tosIndex - 1];
+    }
+
+    T& TopRef()
+    {
+        assert(tosIndex > 0);
+        return data[tosIndex - 1];
     }
 
     // return the i'th from the top
     T Index(int idx)
+    {
+        assert(tosIndex > idx);
+        return data[tosIndex - 1 - idx];
+    }
+
+    // return a reference to the i'th from the top
+    T& IndexRef(int idx)
     {
         assert(tosIndex > idx);
         return data[tosIndex - 1 - idx];
@@ -121,13 +137,10 @@ public:
     }
 
 private:
-    Compiler *compiler; // needed for allocation
-    int tosIndex; // first free location
-    int maxIndex;
-    T* data;
+    Compiler* compiler; // needed for allocation
+    int       tosIndex; // first free location
+    int       maxIndex;
+    T*        data;
     // initial allocation
-    T builtinData[builtinSize]; 
+    T builtinData[builtinSize];
 };
-    
-
-

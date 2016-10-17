@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //{{NO_DEPENDENCIES}}
 // Used by mscorrc.rc
 //
@@ -943,6 +942,9 @@
 #define IDS_HOST_ASSEMBLY_RESOLVER_ASSEMBLY_ALREADY_LOADED_IN_CONTEXT                  0x2636
 #define IDS_HOST_ASSEMBLY_RESOLVER_DYNAMICALLY_EMITTED_ASSEMBLIES_UNSUPPORTED          0x2637
 #define IDS_HOST_ASSEMBLY_RESOLVER_INCOMPATIBLE_BINDING_CONTEXT                        0x2638
+#define IDS_HOST_ASSEMBLY_RESOLVER_INCOMPATIBLE_TPA_BINDING_CONTEXT                    0x2639
 #endif // FEATURE_HOST_ASSEMBLY_RESOLVER
 
-#define IDS_NATIVE_IMAGE_CANNOT_BE_LOADED_MULTIPLE_TIMES                               0x2639
+#define IDS_NATIVE_IMAGE_CANNOT_BE_LOADED_MULTIPLE_TIMES                               0x263a
+
+

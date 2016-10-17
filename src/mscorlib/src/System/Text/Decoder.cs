@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 namespace System.Text
 {
@@ -100,7 +101,7 @@ namespace System.Text
         [System.Runtime.InteropServices.ComVisible(false)]
         public virtual void Reset()
         {
-            byte[] byteTemp = {};
+            byte[] byteTemp = Array.Empty<byte>();
             char[] charTemp = new char[GetCharCount(byteTemp, 0, 0, true)];
             GetChars(byteTemp, 0, 0, charTemp, 0, true);
             if (m_fallbackBuffer != null)

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -16,6 +15,12 @@
 #include "clrnt.h"
 #include "contract.h"
 #include "tls.h"
+
+#if defined __llvm__
+#  if defined(__has_feature) && __has_feature(address_sanitizer)
+#    define HAS_ADDRESS_SANITIZER
+#  endif
+#endif
 
 #ifdef _DEBUG_IMPL
 
@@ -37,6 +42,10 @@ void DisableThrowCheck()
     dbg_fDisableThrowCheck = TRUE;
 }
 
+#ifdef HAS_ADDRESS_SANITIZER
+// use the functionality from address santizier (which does not throw exceptions)
+#else
+
 #define CLRThrowsExceptionWorker() RealCLRThrowsExceptionWorker(__FUNCTION__, __FILE__, __LINE__)
 
 static void RealCLRThrowsExceptionWorker(__in_z const char *szFunction,
@@ -53,6 +62,7 @@ static void RealCLRThrowsExceptionWorker(__in_z const char *szFunction,
     CONTRACT_THROWSEX(szFunction, szFile, lineNum);
 }
 
+#endif // HAS_ADDRESS_SANITIZER
 #endif //_DEBUG_IMPL
 
 #if defined(_DEBUG_IMPL) && defined(ENABLE_CONTRACTS_IMPL)
@@ -383,9 +393,10 @@ FastFreeInProcessHeapFunc __ClrFreeInProcessHeap = (FastFreeInProcessHeapFunc) C
 
 const NoThrow nothrow = { 0 };
 
-#ifdef __llvm__
-__attribute__((visibility("hidden")))
-#endif
+#ifdef HAS_ADDRESS_SANITIZER
+// use standard heap functions for address santizier
+#else
+
 void * __cdecl
 operator new(size_t n)
 {
@@ -407,9 +418,6 @@ operator new(size_t n)
     return result;
 }
 
-#ifdef __llvm__
-__attribute__((visibility("hidden")))
-#endif
 void * __cdecl
 operator new[](size_t n)
 {
@@ -431,11 +439,14 @@ operator new[](size_t n)
     return result;
 };
 
-#ifdef __llvm__
-__attribute__((visibility("hidden")))
-#endif
-void * __cdecl operator new(size_t n, const NoThrow&)
+#endif // HAS_ADDRESS_SANITIZER
+
+void * __cdecl operator new(size_t n, const NoThrow&) NOEXCEPT
 {
+#ifdef HAS_ADDRESS_SANITIZER
+    // use standard heap functions for address santizier (which doesn't provide for NoThrow)
+	void * result = operator new(n);
+#else
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_FAULT;
@@ -445,15 +456,17 @@ void * __cdecl operator new(size_t n, const NoThrow&)
     INCONTRACT(_ASSERTE(!ARE_FAULTS_FORBIDDEN()));
 
     void * result = ClrAllocInProcessHeap(0, S_SIZE_T(n));
-    TRASH_LASTERROR;
+#endif // HAS_ADDRESS_SANITIZER
+	TRASH_LASTERROR;
     return result;
 }
 
-#ifdef __llvm__
-__attribute__((visibility("hidden")))
-#endif
-void * __cdecl operator new[](size_t n, const NoThrow&)
+void * __cdecl operator new[](size_t n, const NoThrow&) NOEXCEPT
 {
+#ifdef HAS_ADDRESS_SANITIZER
+    // use standard heap functions for address santizier (which doesn't provide for NoThrow)
+	void * result = operator new[](n);
+#else
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_FAULT;
@@ -463,13 +476,14 @@ void * __cdecl operator new[](size_t n, const NoThrow&)
     INCONTRACT(_ASSERTE(!ARE_FAULTS_FORBIDDEN()));
 
     void * result = ClrAllocInProcessHeap(0, S_SIZE_T(n));
-    TRASH_LASTERROR;
+#endif // HAS_ADDRESS_SANITIZER
+	TRASH_LASTERROR;
     return result;
 }
 
-#ifdef __llvm__
-__attribute__((visibility("hidden")))
-#endif
+#ifdef HAS_ADDRESS_SANITIZER
+// use standard heap functions for address santizier
+#else
 void __cdecl
 operator delete(void *p) NOEXCEPT
 {
@@ -483,9 +497,6 @@ operator delete(void *p) NOEXCEPT
     TRASH_LASTERROR;
 }
 
-#ifdef __llvm__
-__attribute__((visibility("hidden")))
-#endif
 void __cdecl
 operator delete[](void *p) NOEXCEPT
 {
@@ -498,6 +509,9 @@ operator delete[](void *p) NOEXCEPT
         ClrFreeInProcessHeap(0, p);
     TRASH_LASTERROR;
 }
+
+#endif // HAS_ADDRESS_SANITIZER
+
 
 /* ------------------------------------------------------------------------ *
  * New operator overloading for the executable heap
@@ -731,15 +745,15 @@ void ClrFlsAssociateCallback(DWORD slot, PTLS_CALLBACK_FUNCTION callback)
     GetExecutionEngine()->TLS_AssociateCallback(slot, callback);
 }
 
-void * __stdcall ClrFlsGetBlockGeneric()
+void ** __stdcall ClrFlsGetBlockGeneric()
 {
     WRAPPER_NO_CONTRACT;
     STATIC_CONTRACT_SO_TOLERANT;
 
-    return GetExecutionEngine()->TLS_GetDataBlock();
+    return (void **) GetExecutionEngine()->TLS_GetDataBlock();
 }
 
-POPTIMIZEDTLSGETTER __ClrFlsGetBlock = (POPTIMIZEDTLSGETTER)ClrFlsGetBlockGeneric;
+CLRFLSGETBLOCK __ClrFlsGetBlock = ClrFlsGetBlockGeneric;
 
 CRITSEC_COOKIE ClrCreateCriticalSection(CrstType crstType, CrstFlags flags)
 {

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //--------------------------------------------------------------------------
 // ComCallablewrapper.cpp
 //
@@ -2386,7 +2385,7 @@ ComCallWrapper* ComCallWrapper::CopyFromTemplate(ComCallWrapperTemplate* pTempla
     if (pStartWrapper == NULL)
         COMPlusThrowOM();
 
-    LOG((LF_INTEROP, LL_INFO100, "ComCallWrapper::CopyFromTemplate on Object %8.8x, Wrapper %8.8x\n", oh, pStartWrapper));
+    LOG((LF_INTEROP, LL_INFO100, "ComCallWrapper::CopyFromTemplate on Object %8.8x, Wrapper %8.8x\n", oh, static_cast<ComCallWrapperPtr>(pStartWrapper)));
 
     // addref commgr
     pWrapperCache->AddRef();

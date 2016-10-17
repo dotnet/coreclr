@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 ////////////////////////////////////////////////////////////////////////////
 //
@@ -43,7 +44,7 @@ namespace System.Globalization {
 
     [Serializable]
     [System.Runtime.InteropServices.ComVisible(true)]
-    public class CultureInfo : ICloneable, IFormatProvider {
+    public partial class CultureInfo : ICloneable, IFormatProvider {
         //--------------------------------------------------------------------//
         //                        Internal Information                        //
         //--------------------------------------------------------------------//
@@ -72,12 +73,10 @@ namespace System.Globalization {
         internal NumberFormatInfo numInfo;
         internal DateTimeFormatInfo dateTimeInfo;
         internal Calendar calendar;
-#if !FEATURE_CORECLR
         [OptionalField(VersionAdded = 1)]
         internal int m_dataItem;       // NEVER USED, DO NOT USE THIS! (Serialized in Whidbey/Everett)
         [OptionalField(VersionAdded = 1)]
         internal int cultureID  = 0x007f;  // NEVER USED, DO NOT USE THIS! (Serialized in Whidbey/Everett)
-#endif // !FEATURE_CORECLR
         //
         // The CultureData instance that we are going to read data from.
         // For supported culture, this will be the CultureData instance that read data from mscorlib assembly.
@@ -329,24 +328,10 @@ namespace System.Globalization {
             }
             Contract.EndContractBlock();
 
-#if FEATURE_LEGACYNETCF
-            // Windows Phone 7 and 7.1 do not support Bengali.  When running on Windows Phone 8,
-            // WinPhone 7.x apps get the old Mango text stack, not the Apollo text stack.  The Mango
-            // text stack cannot display characters in Bengali, such as the culture's native name.
-            // Phone apps are already written to catch an exception here and bypass this culture.
-            if (CompatibilitySwitches.IsAppEarlierThanWindowsPhone8 &&
-                (name == "bn" || name == "bn-BD" || name == "bn-IN" ||  name == "ml" || name == "or"))
-                throw new ArgumentException(Environment.GetResourceString("Argument_CultureNotSupported"));
-#endif
-
             // Get our data providing record
             this.m_cultureData = CultureData.GetCultureData(name, useUserOverride);
 
             if (this.m_cultureData == null) {
-#if FEATURE_LEGACYNETCF
-                if (CompatibilitySwitches.IsAppEarlierThanWindowsPhone8)
-                    throw new PlatformNotSupportedException(Environment.GetResourceString("Argument_CultureNotSupported"));
-#endif
                 throw new CultureNotFoundException("name", name, Environment.GetResourceString("Argument_CultureNotSupported"));
             }
 
@@ -355,7 +340,7 @@ namespace System.Globalization {
         }
 
 
-#if  FEATURE_USE_LCID         
+#if FEATURE_USE_LCID
         public CultureInfo(int culture) : this(culture, true) {
         }
 
@@ -420,7 +405,7 @@ namespace System.Globalization {
         [OnDeserialized]
         private void OnDeserialized(StreamingContext ctx)
         {
-#if  FEATURE_USE_LCID         
+#if FEATURE_USE_LCID
             // Whidbey+ should remember our name
             // but v1 and v1.1 did not store name -- only lcid
             // Whidbey did not store actual alternate sort name in m_name
@@ -441,7 +426,7 @@ namespace System.Globalization {
                     throw new CultureNotFoundException(
                         "m_name", m_name, Environment.GetResourceString("Argument_CultureNotSupported"));
                     
-#if  FEATURE_USE_LCID         
+#if FEATURE_USE_LCID
             }
 #endif
             m_isInherited = (this.GetType() != typeof(System.Globalization.CultureInfo));
@@ -462,7 +447,7 @@ namespace System.Globalization {
             }
         }
 
-#if  FEATURE_USE_LCID         
+#if FEATURE_USE_LCID
         //  A locale ID is a 32 bit value which is the combination of a
         //  language ID, a sort ID, and a reserved area.  The bits are
         //  allocated as follows:
@@ -596,7 +581,6 @@ namespace System.Globalization {
         // if we can't find a bigger name.  That doesn't help with things like "zh" though, so
         // the approach is of questionable value
         //
-#if !FEATURE_CORECLR
         public static CultureInfo CreateSpecificCulture(String name) {
             Contract.Ensures(Contract.Result<CultureInfo>() != null);
 
@@ -637,7 +621,6 @@ namespace System.Globalization {
 
             return (new CultureInfo(culture.m_cultureData.SSPECIFICCULTURE));
         }
-#endif // !FEATURE_CORECLR
 
         internal static bool VerifyCultureName(String cultureName, bool throwException) 
         {
@@ -899,21 +882,6 @@ namespace System.Globalization {
             }
         }
 
-#if FEATURE_LEGACYNETCF
-        //
-        // Helper methods to set default thread culture without security demand. Used
-        // by NetCF compatibility quirk. See comment in Thread.CurrentUICulture setter for details.
-        //
-        internal static void SetCurrentUICultureQuirk(CultureInfo value) {
-            s_DefaultThreadCurrentUICulture = value;
-        }
-
-        internal static void SetCurrentCultureQuirk(CultureInfo value) {
-            s_DefaultThreadCurrentCulture = value;
-        }
-#endif
-
-
         ////////////////////////////////////////////////////////////////////////
         //
         //  InvariantCulture
@@ -1004,7 +972,7 @@ namespace System.Globalization {
         //  of a customized culture (LCID == LOCALE_CUSTOM_UNSPECIFIED).
         //
         ////////////////////////////////////////////////////////////////////////
-#if FEATURE_USE_LCID    
+#if FEATURE_USE_LCID
         [System.Runtime.InteropServices.ComVisible(false)]
         public virtual int KeyboardLayoutId
         {
@@ -1018,7 +986,6 @@ namespace System.Globalization {
         }
 #endif
 
-#if !FEATURE_CORECLR
         public static CultureInfo[] GetCultures(CultureTypes types) {
             Contract.Ensures(Contract.Result<CultureInfo[]>() != null);
             // internally we treat UserCustomCultures as Supplementals but v2
@@ -1029,7 +996,6 @@ namespace System.Globalization {
             }
             return (CultureData.GetCultures(types));
         }
-#endif
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -1154,7 +1120,6 @@ namespace System.Globalization {
             }
         }
 
-#if !FEATURE_CORECLR
         // ie: eng
         public virtual String ThreeLetterISOLanguageName {
             [System.Security.SecuritySafeCritical]  // auto-generated
@@ -1179,7 +1144,6 @@ namespace System.Globalization {
                 return (this.m_cultureData.SABBREVLANGNAME);
             }
         }
-#endif
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -1931,7 +1895,6 @@ namespace System.Globalization {
         }
 
 
-#if !FEATURE_CORECLR
         // This function is deprecated, we don't like it
         public static CultureInfo GetCultureInfoByIetfLanguageTag(string name)
         {
@@ -1959,7 +1922,7 @@ namespace System.Globalization {
             
             return ci;
         }
-#endif
+
         private static volatile bool s_isTaiwanSku;
         private static volatile bool s_haveIsTaiwanSku;
         internal static bool IsTaiwanSku

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: methodtable.inl
 //
@@ -326,15 +325,6 @@ inline BOOL MethodTable::IsSerializable()
 {
     WRAPPER_NO_CONTRACT;
     return GetClass()->IsSerializable();
-}
-
-//==========================================================================================
-inline BOOL MethodTable::ContainsStackPtr()
-{
-    WRAPPER_NO_CONTRACT;
-    return (this == g_ArgumentHandleMT || 
-            this == g_ArgIteratorMT ||
-            this == g_TypedReferenceMT);
 }
 
 //==========================================================================================
@@ -1711,6 +1701,32 @@ inline BOOL MethodTable::UnBoxInto(void *dest, OBJECTREF src)
             return FALSE;
 
         CopyValueClass(dest, src->UnBox(), this, src->GetAppDomain());
+    }
+    return TRUE;
+}
+
+//==========================================================================================
+// unbox src into argument, making sure src is of the correct type.
+
+inline BOOL MethodTable::UnBoxIntoArg(ArgDestination *argDest, OBJECTREF src)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        SO_TOLERANT;
+        MODE_COOPERATIVE;
+    }
+    CONTRACTL_END;
+
+    if (Nullable::IsNullableType(TypeHandle(this)))
+        return Nullable::UnBoxIntoArgNoGC(argDest, src, this);
+    else  
+    {
+        if (src == NULL || src->GetMethodTable() != this)
+            return FALSE;
+
+        CopyValueClassArg(argDest, src->UnBox(), this, src->GetAppDomain(), 0);
     }
     return TRUE;
 }

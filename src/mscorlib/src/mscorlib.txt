@@ -1,16 +1,16 @@
-﻿;==++==
-;
-;   Copyright (c) Microsoft Corporation.  All rights reserved.
-;
-;==--==
-;
+﻿; Licensed to the .NET Foundation under one or more agreements.
+; The .NET Foundation licenses this file to you under the MIT license.
+; See the LICENSE file in the project root for more information.
+
 ; These are the managed resources for mscorlib.dll.
 ; See those first three bytes in the file?  This is in UTF-8.  Leave the
 ; Unicode byte order mark (U+FEFF) written in UTF-8 at the start of this file.
 
 ; For resource info, see the ResourceManager documentation and the ResGen tool,
 ; which is a managed app using ResourceWriter.
-; ResGen now supports C++ & C# style #ifdef's, like #ifndef FOO and #if BAR
+; ResGen now supports limited preprocessing of txt files, you can use
+; #if SYMBOL and #if !SYMBOL to control what sets of resources are included in
+; the resulting resources.
 
 ; The naming scheme is: [Namespace.] ExceptionName _ Reason
 ; We'll suppress "System." where possible.
@@ -68,12 +68,6 @@ PostconditionOnExceptionFailed = Postcondition failed after throwing an exceptio
 PostconditionOnExceptionFailed_Cnd = Postcondition failed after throwing an exception: {0}
 InvariantFailed = Invariant failed.
 InvariantFailed_Cnd = Invariant failed: {0}
-#if PLATFORM_UNIX
-StackTrace_Stack = Stack trace: \n{0}
-#endif
-#if !PLATFORM_UNIX
-StackTrace_Stack = Stack trace: \r\n{0}
-#endif // PLATFORM_UNIX
 MustUseCCRewrite = An assembly (probably "{1}") must be rewritten using the code contracts binary rewriter (CCRewrite) because it is calling Contract.{0} and the CONTRACTS_FULL symbol is defined.  Remove any explicit definitions of the CONTRACTS_FULL symbol from your project and rebuild.  CCRewrite can be downloaded from http://go.microsoft.com/fwlink/?LinkID=169180. \r\nAfter the rewriter is installed, it can be enabled in Visual Studio from the project's Properties page on the Code Contracts pane.  Ensure that "Perform Runtime Contract Checking" is enabled, which will define CONTRACTS_FULL.
 
 ; Access Control
@@ -127,6 +121,9 @@ Access_Void = Cannot create an instance of void.
 Arg_TypedReference_Null = The TypedReference must be initialized.
 Argument_AddingDuplicate__ = Item has already been added. Key in dictionary: '{0}'  Key being added: '{1}'
 Argument_AddingDuplicate = An item with the same key has already been added.
+#if FEATURE_CORECLR
+Argument_AddingDuplicateWithKey = An item with the same key has already been added. Key: {0}
+#endif // FEATURE_CORECLR
 Argument_MethodDeclaringTypeGenericLcg = Method '{0}' has a generic declaring type '{1}'. Explicitly provide the declaring type to GetTokenFor. 
 Argument_MethodDeclaringTypeGeneric = Cannot resolve method {0} because the declaring type of the method handle {1} is generic. Explicitly provide the declaring type to GetMethodFromHandle. 
 Argument_FieldDeclaringTypeGeneric = Cannot resolve field {0} because the declaring type of the field handle {1} is generic. Explicitly provide the declaring type to GetFieldFromHandle.
@@ -579,7 +576,7 @@ Argument_ImpersonateUser = Unable to impersonate user.
 Argument_InvalidHexFormat = Improperly formatted hex string.
 Argument_InvalidSite = Invalid site.
 Argument_InterfaceMap = 'this' type cannot be an interface itself.
-Argument_ArrayGetInterfaceMap = Interface maps for generic interfaces on arrays cannot be retrived.
+Argument_ArrayGetInterfaceMap = Interface maps for generic interfaces on arrays cannot be retrieved.
 Argument_InvalidName = Invalid name.
 Argument_InvalidDirectoryOnUrl = Invalid directory on URL.
 Argument_InvalidUrl = Invalid URL.
@@ -933,8 +930,6 @@ Cryptography_InvalidKeySize = Specified key is not a valid size for this algorit
 Cryptography_PasswordDerivedBytes_FewBytesSalt = Salt is not at least eight bytes.
 Cryptography_PKCS7_InvalidPadding = Padding is invalid and cannot be removed.
 Cryptography_UnknownHashAlgorithm='{0}' is not a known hash algorithm.
-Cryptography_LegacyNetCF_UnknownError = Unknown Error '{0}'.
-Cryptography_LegacyNetCF_CSP_CouldNotAcquire = CryptoAPI cryptographic service provider (CSP) for this implementation could not be acquired.
 
 #if FEATURE_CRYPTO
 Cryptography_Config_EncodedOIDError = Encoded OID length is too large (greater than 0x7f bytes).
@@ -1016,7 +1011,7 @@ EventSource_IllegalTaskValue = Task {0} has a value of {1} which is outside the 
 EventSource_TaskCollision = Tasks {0} and {1} are defined with the same value ({2}).
 EventSource_IllegalKeywordsValue = Keyword {0} has a value of {1} which is outside the legal range (0-0x0000080000000000).
 EventSource_KeywordCollision = Keywords {0} and {1} are defined with the same value ({2}).
-EventSource_EventChannelOutOfRange = Channel {0} has a value of [1} which is outside the legal range (16-254).
+EventSource_EventChannelOutOfRange = Channel {0} has a value of {1} which is outside the legal range (16-254).
 EventSource_ChannelTypeDoesNotMatchEventChannelValue = Channel {0} does not match event channel value {1}.
 EventSource_MaxChannelExceeded = Attempt to define more than the maximum limit of 8 channels for a provider.
 EventSource_DuplicateStringKey = Multiple definitions for string "{0}".
@@ -1025,7 +1020,7 @@ EventSource_UnsupportedMessageProperty = Event {0} specifies an illegal or unsup
 EventSource_AbstractMustNotDeclareKTOC = Abstract event source must not declare {0} nested type.
 EventSource_AbstractMustNotDeclareEventMethods = Abstract event source must not declare event methods ({0} with ID {1}).
 EventSource_EventMustNotBeExplicitImplementation = Event method {0} (with ID {1}) is an explicit interface method implementation. Re-write method as implicit implementation.
-EventSource_EventParametersMismatch = Event {0} was called with {1} argument(s) , but it is defined with {2} paramenter(s).
+EventSource_EventParametersMismatch = Event {0} was called with {1} argument(s), but it is defined with {2} parameter(s).
 EventSource_InvalidCommand = Invalid command value.
 EventSource_InvalidEventFormat = Can't specify both etw event format flags.
 EventSource_AddScalarOutOfRange = Getting out of bounds during scalar addition. 
@@ -1042,6 +1037,8 @@ EventSource_NotSupportedNestedArraysEnums = Nested arrays/enumerables are not su
 EventSource_IncorrentlyAuthoredTypeInfo = Incorrectly-authored TypeInfo - a type should be serialized as one field or as one group
 EventSource_NotSupportedCustomSerializedData = Enumerables of custom-serialized data are not supported
 EventSource_StopsFollowStarts = An event with stop suffix must follow a corresponding event with a start suffix.
+EventSource_NoRelatedActivityId = EventSource expects the first parameter of the Event method to be of type Guid and to be named "relatedActivityId" when calling WriteEventWithRelatedActivityId.
+EventSource_VarArgsParameterMismatch = The parameters to the Event method do not match the parameters to the WriteEvent method. This may cause the event to be displayed incorrectly.
 
 ; ExecutionEngineException
 ExecutionEngine_InvalidAttribute = Attribute cannot have multiple definitions.
@@ -1359,8 +1356,8 @@ NotImplemented_ResourcesLongerThan2^63 = Resource files longer than 2^63 bytes a
 NotSupported_NYI = This feature is not currently implemented.
 NotSupported_AbstractNonCLS = This non-CLS method is not implemented.
 NotSupported_ChangeType = ChangeType operation is not supported.
-NotSupported_ContainsStackPtr = Cannot create boxed TypedReference, ArgIterator, or RuntimeArgumentHandle Objects.
-NotSupported_ContainsStackPtr[] = Cannot create arrays of TypedReference, ArgIterator, ByRef, or RuntimeArgumentHandle Objects.
+NotSupported_ByRefLike = Cannot create boxed ByRef-like values.
+NotSupported_ByRefLike[] = Cannot create arrays of ByRef-like values.
 NotSupported_OpenType = Cannot create arrays of open type. 
 NotSupported_DBNullSerial = Only one DBNull instance may exist, and calls to DBNull deserialization methods are not allowed.
 NotSupported_DelegateSerHolderSerial = DelegateSerializationHolder objects are designed to represent a delegate during serialization and are not serializable themselves.
@@ -1445,6 +1442,11 @@ NotSupported_CollectibleCOM = COM Interop is not supported for collectible types
 NotSupported_CollectibleAssemblyResolve = Resolving to a collectible assembly is not supported.
 NotSupported_CollectibleBoundNonCollectible = A non-collectible assembly may not reference a collectible assembly.
 NotSupported_CollectibleDelegateMarshal = Delegate marshaling for types within collectible assemblies is not supported.
+NotSupported_NonStaticMethod = Non-static methods with NativeCallableAttribute are not supported.
+NotSupported_NativeCallableTarget = Methods with NativeCallableAttribute cannot be used as delegate target.
+NotSupported_GenericMethod = Generic methods with NativeCallableAttribute are not supported.
+NotSupported_NonBlittableTypes = Non-blittable parameter types are not supported for NativeCallable methods.
+
 #if FEATURE_WINDOWSPHONE
 NotSupported_UserDllImport = DllImport cannot be used on user-defined methods.
 NotSupported_UserCOM = COM Interop is not supported for user-defined types.
@@ -1471,8 +1473,9 @@ NotSupported_NoTypeInfo = Cannot resolve {0} to a TypeInfo object.
 NotSupported_PIAInAppxProcess = A Primary Interop Assembly is not supported in AppX.
 #endif
 #if FEATURE_WINDOWSPHONE
-NotSupported_WindowsPhone = {0} is not supported on Windows Phone.
-NotSupported_AssemblyLoadCodeBase = Assembly.Load with a Codebase is not supported on Windows Phone.
+; Not referring to "Windows Phone" in the messages, as FEATURE_WINDOWSPHONE is defined for .NET Core as well.
+NotSupported_WindowsPhone = {0} is not supported.
+NotSupported_AssemblyLoadCodeBase = Assembly.Load with a Codebase is not supported.
 #endif
 
 ; TypeLoadException
@@ -1888,45 +1891,57 @@ IO_StreamWriterBufferedDataLostCaptureAllocatedFromCallstackNotEnabled = callsta
 ;
 ; Serialization Exceptions
 ;
-#if FEATURE_SERIALIZATION
 ; SerializationException
+Serialization_InvalidData=An error occurred while deserializing the object.  The serialized data is corrupt.
+Serialization_InvalidPtrValue = An IntPtr or UIntPtr with an eight byte value cannot be deserialized on a machine with a four byte word size.
+Serialization_MemberTypeNotRecognized = Unknown member type.
+Serialization_InsufficientState = Insufficient state to return the real object.
+Serialization_InvalidFieldState = Object fields may not be properly initialized.
+Serialization_MissField = Field {0} is missing.
+Serialization_NullSignature = The method signature cannot be null.
+Serialization_UnknownMember = Cannot get the member '{0}'.
+Serialization_InsufficientDeserializationState = Insufficient state to deserialize the object. Missing field '{0}'. More information is needed.
+Serialization_UnableToFindModule = The given module {0} cannot be found within the assembly {1}.
+Serialization_InvalidOnDeser = OnDeserialization method was called while the object was not being deserialized.
+Serialization_MissingKeys = The Keys for this Hashtable are missing.
+Serialization_MissingValues = The values for this dictionary are missing.
+Serialization_NullKey = One of the serialized keys is null.
+Serialization_KeyValueDifferentSizes = The keys and values arrays have different sizes.
+Serialization_SameNameTwice = Cannot add the same member twice to a SerializationInfo object.
+Serialization_BadParameterInfo = Non existent ParameterInfo. Position bigger than member's parameters length.
+Serialization_NoParameterInfo = Serialized member does not have a ParameterInfo.
+Serialization_NotFound = Member '{0}' was not found.
+Serialization_StringBuilderMaxCapacity = The serialized MaxCapacity property of StringBuilder must be positive and greater than or equal to the String length.
+Serialization_StringBuilderCapacity = The serialized Capacity property of StringBuilder must be positive, less than or equal to MaxCapacity and greater than or equal to the String length.
+Serialization_InvalidDelegateType = Cannot serialize delegates over unmanaged function pointers, dynamic methods or methods outside the delegate creator's assembly.
+Serialization_OptionalFieldVersionValue = Version value must be positive.
+Serialization_MissingDateTimeData = Invalid serialized DateTime data. Unable to find 'ticks' or 'dateData'.
+Serialization_DateTimeTicksOutOfRange = Invalid serialized DateTime data. Ticks must be between DateTime.MinValue.Ticks and DateTime.MaxValue.Ticks. 
+; The following serialization exception messages appear in native resources too (mscorrc.rc)
+Serialization_MemberOutOfRange = The deserialized value of the member "{0}" in the class "{1}" is out of range.
+
+#if FEATURE_SERIALIZATION
 Serialization_NoID = Object has never been assigned an objectID.
 Serialization_UnknownMemberInfo = Only FieldInfo, PropertyInfo, and SerializationMemberInfo are recognized.
 Serialization_UnableToFixup = Cannot perform fixup.
 Serialization_NoType = Object does not specify a type.
 Serialization_ValueTypeFixup = ValueType fixup on Arrays is not implemented.
 Serialization_PartialValueTypeFixup = Fixing up a partially available ValueType chain is not implemented.
-Serialization_InvalidData=An error occurred while deserializing the object.  The serialized data is corrupt.
 Serialization_InvalidID = Object specifies an invalid ID.
-Serialization_InvalidPtrValue = An IntPtr or UIntPtr with an eight byte value cannot be deserialized on a machine with a four byte word size.
 Serialization_DuplicateSelector = Selector is already on the list of checked selectors.
-Serialization_MemberTypeNotRecognized = Unknown member type.
 Serialization_NoBaseType = Object does not specify a base type.
 Serialization_ArrayNoLength = Array does not specify a length.
 Serialization_CannotGetType = Cannot get the type '{0}'.
 Serialization_AssemblyNotFound = Unable to find assembly '{0}'.
 Serialization_ArrayInvalidLength = Array specifies an invalid length.
 Serialization_MalformedArray = The array information in the stream is invalid.
-Serialization_InsufficientState = Insufficient state to return the real object.
-Serialization_InvalidFieldState = Object fields may not be properly initialized.
-Serialization_MissField = Field {0} is missing.
 Serialization_MultipleMembers = Cannot resolve multiple members with the same name.
-Serialization_NullSignature = The method signature cannot be null.
 Serialization_ObjectUsedBeforeDeserCallback = An object was used before its deserialization callback ran, which may break higher-level consistency guarantees in the application.
-Serialization_UnknownMember = Cannot get the member '{0}'.
 Serialization_RegisterTwice = An object cannot be registered twice.
 Serialization_IdTooSmall = Object IDs must be greater than zero.
-Serialization_NotFound = Member '{0}' was not found.
-Serialization_InsufficientDeserializationState = Insufficient state to deserialize the object. Missing field '{0}'. More information is needed.
-Serialization_UnableToFindModule = The given module {0} cannot be found within the assembly {1}.
 Serialization_TooManyReferences = The implementation of the IObjectReference interface returns too many nested references to other objects that implement IObjectReference.
 Serialization_NotISer = The given object does not implement the ISerializable interface.
-Serialization_InvalidOnDeser = OnDeserialization method was called while the object was not being deserialized.
-Serialization_MissingKeys = The Keys for this Hashtable are missing.
 Serialization_MissingKeyValuePairs = The KeyValuePairs for this Dictionary are missing.
-Serialization_MissingValues = The values for this dictionary are missing.
-Serialization_NullKey = One of the serialized keys is null.
-Serialization_KeyValueDifferentSizes = The keys and values arrays have different sizes.
 Serialization_SurrogateCycleInArgument = Selector contained a cycle.
 Serialization_SurrogateCycle = Adding selector will introduce a cycle.
 Serialization_NeverSeen = A fixup is registered to the object with ID {0}, but the object does not appear in the graph.
@@ -1934,7 +1949,6 @@ Serialization_IORIncomplete = The object with ID {0} implements the IObjectRefer
 Serialization_NotCyclicallyReferenceableSurrogate = {0}.SetObjectData returns a value that is neither null nor equal to the first parameter. Such Surrogates cannot be part of cyclical reference.
 Serialization_ObjectNotSupplied = The object with ID {0} was referenced in a fixup but does not exist.
 Serialization_TooManyElements = The internal array cannot expand to greater than Int32.MaxValue elements.
-Serialization_SameNameTwice = Cannot add the same member twice to a SerializationInfo object.
 Serialization_InvalidType = Only system-provided types can be passed to the GetUninitializedObject method. '{0}' is not a valid instance of a type.
 Serialization_MissingObject = The object with ID {0} was referenced in a fixup but has not been registered.
 Serialization_InvalidFixupType = A member fixup was registered for an object which implements ISerializable or has a surrogate. In this situation, a delayed fixup must be used.
@@ -1942,14 +1956,6 @@ Serialization_InvalidFixupDiscovered = A fixup on an object implementing ISerial
 Serialization_InvalidFormat = The input stream is not a valid binary format. The starting contents (in bytes) are: {0} ...
 Serialization_ParentChildIdentical = The ID of the containing object cannot be the same as the object ID.
 Serialization_IncorrectNumberOfFixups = The ObjectManager found an invalid number of fixups. This usually indicates a problem in the Formatter.
-Serialization_BadParameterInfo = Non existent ParameterInfo. Position bigger than member's parameters length.
-Serialization_NoParameterInfo = Serialized member does not have a ParameterInfo.
-Serialization_StringBuilderMaxCapacity = The serialized MaxCapacity property of StringBuilder must be positive and greater than or equal to the String length.
-Serialization_StringBuilderCapacity = The serialized Capacity property of StringBuilder must be positive, less than or equal to MaxCapacity and greater than or equal to the String length.
-Serialization_InvalidDelegateType = Cannot serialize delegates over unmanaged function pointers, dynamic methods or methods outside the delegate creator's assembly.
-Serialization_OptionalFieldVersionValue = Version value must be positive.
-Serialization_MissingDateTimeData = Invalid serialized DateTime data. Unable to find 'ticks' or 'dateData'.
-Serialization_DateTimeTicksOutOfRange = Invalid serialized DateTime data. Ticks must be between DateTime.MinValue.Ticks and DateTime.MaxValue.Ticks. 
 ; The following serialization exception messages appear in native resources too (mscorrc.rc)
 Serialization_NonSerType = Type '{0}' in Assembly '{1}' is not marked as serializable.
 Serialization_ConstructorNotFound = The constructor to deserialize an object of type '{0}' was not found.
@@ -1991,7 +1997,6 @@ Serialization_TypeLoadFailure = Unable to load type {0} required for deserializa
 Serialization_RequireFullTrust = A type '{0}' that is defined in a partially trusted assembly cannot be type forwarded from an assembly with a different Public Key Token or without a public key token. To fix this, please either turn on unsafeTypeForwarding flag in the configuration file or remove the TypeForwardedFrom attribute.
 ; The following serialization exception messages appear in native resources too (mscorrc.rc)
 Serialization_TypeResolved = Type is not resolved for member '{0}'.
-Serialization_MemberOutOfRange = The deserialized value of the member "{0}" in the class "{1}" is out of range.
 #endif  // FEATURE_SERIALIZATION
 
 ;
@@ -2083,7 +2088,10 @@ Parallel_ForEach_PartitionerNotDynamic=The Partitioner used here must support dy
 Parallel_ForEach_PartitionerReturnedNull=The Partitioner used here returned a null partitioner source.
 Parallel_ForEach_NullEnumerator=The Partitioner source returned a null enumerator.
 
-; SemaphyoreFullException
+; Semaphore
+Argument_SemaphoreInitialMaximum=The initial count for the semaphore must be greater than or equal to zero and less than the maximum count.
+
+; SemaphoreFullException
 Threading_SemaphoreFullException=Adding the specified count to the semaphore would cause it to exceed its maximum count.
 
 ; Lazy
@@ -2129,6 +2137,12 @@ SpinWait_SpinUntil_ArgumentNull=The condition argument is null.
 event_SpinLock_FastPathFailed=SpinLock beginning to spin.
 event_SpinWait_NextSpinWillYield=Next spin will yield.
 event_Barrier_PhaseFinished=Barrier finishing phase {1}.
+
+#if PLATFORM_UNIX
+; Unix threading
+PlatformNotSupported_NamedSynchronizationPrimitives=The named version of this synchronization primitive is not supported on this platform.
+PlatformNotSupported_NamedSyncObjectWaitAnyWaitAll=Wait operations on multiple wait handles including a named synchronization primitive are not supported on this platform.
+#endif
 
 ;
 ; System.Threading.Tasks
@@ -2304,7 +2318,7 @@ Argument_DateTimeHasTimeOfDay = The supplied DateTime includes a TimeOfDay setti
 Argument_DateTimeIsInvalid = The supplied DateTime represents an invalid time.  For example, when the clock is adjusted forward, any time in the period that is skipped is invalid.
 Argument_DateTimeIsNotAmbiguous = The supplied DateTime is not in an ambiguous time range.
 Argument_DateTimeOffsetIsNotAmbiguous = The supplied DateTimeOffset is not in an ambiguous time range.
-Argument_DateTimeKindMustBeUnspecified = The supplied DateTime must have the Kind property set to DateTimeKind.Unspecified.
+Argument_DateTimeKindMustBeUnspecifiedOrUtc = The supplied DateTime must have the Kind property set to DateTimeKind.Unspecified or DateTimeKind.Utc.
 Argument_DateTimeHasTicks = The supplied DateTime must have the Year, Month, and Day properties set to 1.  The time cannot be specified more precisely than whole milliseconds.
 Argument_InvalidId = The specified ID parameter '{0}' is not supported.
 Argument_InvalidSerializedString = The specified serialized string '{0}' is not supported.
@@ -2327,11 +2341,16 @@ ArgumentOutOfRange_Week = The Week parameter must be in the range 1 through 5.
 ; begin System.TimeZoneInfo InvalidTimeZoneException's
 ;
 InvalidTimeZone_InvalidRegistryData = The time zone ID '{0}' was found on the local computer, but the registry information was corrupt.
+InvalidTimeZone_InvalidFileData = The time zone ID '{0}' was found on the local computer, but the file at '{1}' was corrupt.
 InvalidTimeZone_InvalidWin32APIData = The Local time zone was found on the local computer, but the data was corrupt.
+InvalidTimeZone_NoTTInfoStructures = There are no ttinfo structures in the tzfile.  At least one ttinfo structure is required in order to construct a TimeZoneInfo object.
+InvalidTimeZone_UnparseablePosixMDateString = '{0}' is not a valid POSIX-TZ-environment-variable MDate rule.  A valid rule has the format 'Mm.w.d'.
+InvalidTimeZone_JulianDayNotSupported = Julian dates in POSIX strings are unsupported.
 ;
 ; begin System.TimeZoneInfo SecurityException's
 ;
 Security_CannotReadRegistryData = The time zone ID '{0}' was found on the local computer, but the application does not have permission to read the registry information.
+Security_CannotReadFileData = The time zone ID '{0}' was found on the local computer, but the application does not have permission to read the file.
 ;
 ; begin System.TimeZoneInfo SerializationException's
 ;
@@ -2340,7 +2359,7 @@ Serialization_InvalidEscapeSequence = The serialized data contained an invalid e
 ;
 ; begin System.TimeZoneInfo TimeZoneNotFoundException's
 ;
-TimeZoneNotFound_MissingRegistryData = The time zone ID '{0}' was not found on the local computer.
+TimeZoneNotFound_MissingData = The time zone ID '{0}' was not found on the local computer.
 ;
 ; end System.TimeZoneInfo
 ;
@@ -2638,7 +2657,7 @@ Globalization.ci_ewo = Ewondo
 Globalization.ci_ewo-CM = Ewondo (Cameroon)
 Globalization.ci_fa = Persian
 Globalization.ci_fa-AF = Persian (Afghanistan)
-Globalization.ci_fa-IR = Persian
+Globalization.ci_fa-IR = Persian (Iran)
 Globalization.ci_ff = Fulah
 Globalization.ci_ff-CM = Fulah (Cameroon)
 Globalization.ci_ff-GN = Fulah (Guinea)

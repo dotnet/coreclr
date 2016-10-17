@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // DataTargetAdapter.cpp
 // 
@@ -45,18 +44,18 @@ DataTargetAdapter::~DataTargetAdapter()
 // Standard impl of IUnknown::QueryInterface
 HRESULT STDMETHODCALLTYPE
 DataTargetAdapter::QueryInterface(
-    REFIID InterfaceId,
+    REFIID interfaceId,
     PVOID* pInterface)
 {
-    if (InterfaceId == IID_IUnknown)
+    if (interfaceId == IID_IUnknown)
     {
         *pInterface = static_cast<IUnknown *>(static_cast<ICorDebugDataTarget *>(this));
     }
-    else if (InterfaceId == IID_ICorDebugDataTarget)
+    else if (interfaceId == IID_ICorDebugDataTarget)
     {
         *pInterface = static_cast<ICorDebugDataTarget *>(this);
     }
-    else if (InterfaceId == IID_ICorDebugMutableDataTarget)
+    else if (interfaceId == IID_ICorDebugMutableDataTarget)
     {
         // Note that we always implement the mutable interface, even though our underlying target
         // may return E_NOTIMPL for all the functions on this interface.  There is no reliable way
@@ -65,8 +64,8 @@ DataTargetAdapter::QueryInterface(
     }
     else
     {
-        *pInterface = NULL;
-        return E_NOINTERFACE;
+        // For ICorDebugDataTarget4 and other interfaces directly implemented by the legacy data target.
+        return m_pLegacyTarget->QueryInterface(interfaceId, pInterface);
     }
 
     AddRef();
@@ -123,8 +122,12 @@ DataTargetAdapter::GetPlatform(
         platform = CORDB_PLATFORM_POSIX_AMD64;
         break;
 
-    case IMAGE_FILE_MACHINE_IA64:
     case IMAGE_FILE_MACHINE_ARMNT:
+        ulExpectedPointerSize = 4;
+        platform = CORDB_PLATFORM_POSIX_ARM;
+        break;
+
+    case IMAGE_FILE_MACHINE_IA64:
     case IMAGE_FILE_MACHINE_ARM64:
         _ASSERTE_MSG(false, "Not supported platform.");
         return E_NOTIMPL;

@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //
@@ -75,6 +76,9 @@ namespace System.Threading
         // A pre-completed task with Result==true
         private readonly static Task<bool> s_trueTask =
             new Task<bool>(false, true, (TaskCreationOptions)InternalTaskOptions.DoNotDispose, default(CancellationToken));
+        // A pre-completed task with Result==false
+        private readonly static Task<bool> s_falseTask =
+            new Task<bool>(false, false, (TaskCreationOptions)InternalTaskOptions.DoNotDispose, default(CancellationToken));
 
         // No maximum constant
         private const int NO_MAXIMUM = Int32.MaxValue;
@@ -318,6 +322,13 @@ namespace System.Threading
             }
 
             cancellationToken.ThrowIfCancellationRequested();
+
+            // Perf: Check the stack timeout parameter before checking the volatile count
+            if (millisecondsTimeout == 0 && m_currentCount == 0)
+            {
+                // Pessimistic fail fast, check volatile count outside lock (only when timeout is zero!)
+                return false;
+            }
 
             uint startTime = 0;
             if (millisecondsTimeout != Timeout.Infinite && millisecondsTimeout > 0)
@@ -606,7 +617,7 @@ namespace System.Threading
 
             // Bail early for cancellation
             if (cancellationToken.IsCancellationRequested)
-                return Task.FromCancellation<bool>(cancellationToken);
+                return Task.FromCanceled<bool>(cancellationToken);
 
             lock (m_lockObj)
             {
@@ -616,6 +627,11 @@ namespace System.Threading
                     --m_currentCount;
                     if (m_waitHandle != null && m_currentCount == 0) m_waitHandle.Reset();
                     return s_trueTask;
+                }
+                else if (millisecondsTimeout == 0)
+                {
+                    // No counts, if timeout is zero fail fast
+                    return s_falseTask;
                 }
                     // If there aren't, create and return a task to the caller.
                     // The task will be completed either when they've successfully acquired
@@ -781,13 +797,11 @@ namespace System.Threading
 
                 // Signal to any synchronous waiters
                 int waitCount = m_waitCount;
-                if (currentCount == 1 || waitCount == 1)
+
+                int waitersToNotify = Math.Min(releaseCount, waitCount);
+                for (int i = 0; i < waitersToNotify; i++)
                 {
                     Monitor.Pulse(m_lockObj);
-                }
-                else if (waitCount > 1)
-                {
-                    Monitor.PulseAll(m_lockObj);
                 }
 
                 // Now signal to any asynchronous waiters, if there are any.  While we've already

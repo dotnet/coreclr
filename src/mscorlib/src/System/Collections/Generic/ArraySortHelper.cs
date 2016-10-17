@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -21,37 +22,11 @@ namespace System.Collections.Generic
     
     #region ArraySortHelper for single arrays
 
-#if CONTRACTS_FULL
-    [ContractClass(typeof(IArraySortHelperContract<>))]
-#endif // CONTRACTS_FULL
     internal interface IArraySortHelper<TKey>
     {
         void Sort(TKey[] keys, int index, int length, IComparer<TKey> comparer);
         int BinarySearch(TKey[] keys, int index, int length, TKey value, IComparer<TKey> comparer);
     }
-
-#if CONTRACTS_FULL
-    [ContractClassFor(typeof(IArraySortHelper<>))]
-    internal abstract class IArraySortHelperContract<TKey> : IArraySortHelper<TKey>
-    {
-        void IArraySortHelper<TKey>.Sort(TKey[] keys, int index, int length, IComparer<TKey> comparer)
-        {
-            Contract.Requires(keys != null, "Check the arguments in the caller!");
-            Contract.Requires(index >= 0 && index <= keys.Length);  // allow 0?
-            Contract.Requires(length >= 0 && index + length <= keys.Length);
-        }
-
-        int IArraySortHelper<TKey>.BinarySearch(TKey[] keys, int index, int length, TKey value, IComparer<TKey> comparer)
-        {
-            Contract.Requires(index >= 0 && index <= keys.Length);  // allow 0?
-            Contract.Requires(length >= 0 && index + length <= keys.Length);
-            Contract.Ensures((Contract.Result<int>() >= index && Contract.Result<int>() <= index + length) ||
-                (~Contract.Result<int>() >= index && ~Contract.Result<int>() <= index + length), "Binary search returned a bad value");
-
-            return default(int);
-        }
-    }
-#endif // CONTRACTS_FULL
 
     internal static class IntrospectiveSortUtilities
     {
@@ -270,7 +245,7 @@ namespace System.Collections.Generic
                 } while (i <= j);
 
                 // The next iteration of the while loop is to "recursively" sort the larger half of the array and the
-                // following calls recrusively sort the smaller half.  So we subtrack one from depthLimit here so
+                // following calls recursively sort the smaller half.  So we subtract one from depthLimit here so
                 // both sorts see the new value.
                 depthLimit--;
 
@@ -469,15 +444,7 @@ namespace System.Collections.Generic
 
             try
             {
-#if FEATURE_LEGACYNETCF
-                // Pre-Apollo Windows Phone call the overload that sorts the keys, not values this achieves the same result
-                if (comparer == null && CompatibilitySwitches.IsAppEarlierThanWindowsPhone8)
-                    comparer = Comparer<T>.Default;
-
-                if (comparer == null || (comparer == Comparer<T>.Default && !CompatibilitySwitches.IsAppEarlierThanWindowsPhone8)) {
-#else
                 if (comparer == null || comparer == Comparer<T>.Default) {
-#endif
 
 #if FEATURE_CORECLR
                     // Since QuickSort and IntrospectiveSort produce different sorting sequence for equal keys the upgrade 
@@ -671,7 +638,7 @@ namespace System.Collections.Generic
                 } while (i <= j);
 
                 // The next iteration of the while loop is to "recursively" sort the larger half of the array and the
-                // following calls recrusively sort the smaller half.  So we subtrack one from depthLimit here so
+                // following calls recursively sort the smaller half.  So we subtract one from depthLimit here so
                 // both sorts see the new value.
                 depthLimit--;
 
@@ -1025,7 +992,7 @@ namespace System.Collections.Generic
                 } while (i <= j);
 
                 // The next iteration of the while loop is to "recursively" sort the larger half of the array and the
-                // following calls recrusively sort the smaller half.  So we subtrack one from depthLimit here so
+                // following calls recursively sort the smaller half.  So we subtract one from depthLimit here so
                 // both sorts see the new value.
                 depthLimit--;
 
@@ -1382,7 +1349,7 @@ namespace System.Collections.Generic
                 } while (i <= j);
 
                 // The next iteration of the while loop is to "recursively" sort the larger half of the array and the
-                // following calls recrusively sort the smaller half.  So we subtrack one from depthLimit here so
+                // following calls recursively sort the smaller half.  So we subtract one from depthLimit here so
                 // both sorts see the new value.
                 depthLimit--;
 

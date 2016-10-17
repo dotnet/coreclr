@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
@@ -23,14 +22,16 @@
 #if defined(FEATURE_APPX)
 #include "appxutil.h"
 #endif // FEATURE_APPX
-#if defined(FEATURE_APPX_BINDER) && defined(FEATURE_HOSTED_BINDER)
+#if defined(FEATURE_APPX_BINDER)
 #include "clrprivbinderappx.h"
 #include "clrprivtypecachewinrt.h"
-#endif // FEATURE_APPX_BINDER && FEATURE_HOSTED_BINDER
+#endif // FEATURE_APPX_BINDER
 #ifdef FEATURE_VERSIONING
 #include "../binder/inc/clrprivbindercoreclr.h"
 #endif
 
+#include "clr/fs/path.h"
+using namespace clr::fs;
 
 //************************************************************************
 inline AppDomain *AppDomainNative::ValidateArg(APPDOMAINREF pThis)
@@ -536,7 +537,7 @@ INT32 AppDomainNative::ExecuteAssemblyHelper(Assembly* pAssembly,
 
     EE_TRY_FOR_FINALLY(Param *, pParam, &param)
     {
-        pParam->iRetVal = pParam->pAssembly->ExecuteMainMethod(pParam->pStringArgs);
+        pParam->iRetVal = pParam->pAssembly->ExecuteMainMethod(pParam->pStringArgs, FALSE /* waitForOtherThreads */);
     }
     EE_FINALLY 
     {
@@ -761,7 +762,10 @@ void QCALLTYPE AppDomainNative::SetupBindingPaths(__in_z LPCWSTR wszTrustedPlatf
                                             sAppNiPaths));
 
 #ifdef FEATURE_COMINTEROP
-        pDomain->SetWinrtApplicationContext(sappLocalWinMD);
+        if (WinRTSupported())
+        {
+            pDomain->SetWinrtApplicationContext(sappLocalWinMD);
+        }
 #endif
 
     END_QCALL;
@@ -1578,7 +1582,7 @@ void QCALLTYPE AppDomainNative::SetNativeDllSearchDirectories(__in_z LPCWSTR wsz
         while (itr != end)
         {
             start = itr;
-            BOOL found = sDirectories.Find(itr, W(';'));
+            BOOL found = sDirectories.Find(itr, PATH_SEPARATOR_CHAR_W);
             if (!found)
             {
                 itr = end;
@@ -1595,9 +1599,9 @@ void QCALLTYPE AppDomainNative::SetNativeDllSearchDirectories(__in_z LPCWSTR wsz
 
             if (len > 0)
             {
-                if (qualifiedPath[len-1]!='\\')
+                if (qualifiedPath[len - 1] != DIRECTORY_SEPARATOR_CHAR_W)
                 {
-                    qualifiedPath.Append('\\');
+                    qualifiedPath.Append(DIRECTORY_SEPARATOR_CHAR_W);
                 }
 
                 NewHolder<SString> stringHolder (new SString(qualifiedPath));
@@ -1724,7 +1728,7 @@ FCIMPL0(INT64, AppDomainNative::GetLastSurvivedProcessMemorySize)
 FCIMPLEND
 #endif // FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
-#if defined(FEATURE_HOSTED_BINDER) && defined(FEATURE_APPX_BINDER)
+#if defined(FEATURE_APPX_BINDER)
 ICLRPrivBinder * QCALLTYPE AppDomainNative::CreateDesignerContext(LPCWSTR *rgPaths, 
                                                             UINT cPaths,
                                                             BOOL fShared)
@@ -1774,5 +1778,5 @@ void QCALLTYPE AppDomainNative::SetCurrentDesignerContext(BOOL fDesignerContext,
 
     END_QCALL;
 }
-#endif // defined(FEATURE_HOSTED_BINDER) && defined(FEATURE_APPX_BINDER)
+#endif // defined(FEATURE_APPX_BINDER)
 

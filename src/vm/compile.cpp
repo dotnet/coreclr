@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ===========================================================================
 // File: compile.cpp
 //
@@ -52,11 +51,11 @@
 #include "cgensys.h"
 #include "peimagelayout.inl"
 
-#if defined(FEATURE_HOSTED_BINDER) && defined(FEATURE_APPX_BINDER)
+#if defined(FEATURE_APPX_BINDER)
 #include "appxutil.h"
 #include "clrprivbinderappx.h"
 #include "clrprivtypecachewinrt.h"
-#endif // defined(FEATURE_HOSTED_BINDER) && defined(FEATURE_APPX_BINDER)
+#endif // defined(FEATURE_APPX_BINDER)
 
 #ifdef FEATURE_COMINTEROP
 #include "clrprivbinderwinrt.h"
@@ -71,10 +70,13 @@
 #include <cvinfo.h>
 #endif
 
-#ifdef MDIL
-#include <mdil.h>
+#ifdef FEATURE_PERFMAP
+#include "perfmap.h"
 #endif
-#include "tritonstress.h"
+
+#include "argdestination.h"
+
+#include "versionresilienthashcode.h"
 
 #ifdef CROSSGEN_COMPILE
 CompilationDomain * theDomain;
@@ -137,11 +139,7 @@ HRESULT CEECompileInfo::CreateDomain(ICorCompilationDomain **ppDomain,
                                      BOOL fForceDebug,
                                      BOOL fForceProfiling,
                                      BOOL fForceInstrument,
-                                     BOOL fForceFulltrustDomain
-#ifdef MDIL
-                                   , MDILCompilationFlags     mdilCompilationFlags
-#endif
-                                               )
+                                     BOOL fForceFulltrustDomain)
 {
     STANDARD_VM_CONTRACT;
 
@@ -159,17 +157,13 @@ HRESULT CEECompileInfo::CreateDomain(ICorCompilationDomain **ppDomain,
 
     {
         SystemDomain::LockHolder lh;
-        pCompilationDomain->Init(
-#ifdef MDIL
-            mdilCompilationFlags
-#endif
-             );
+        pCompilationDomain->Init();
     }
 
     if (pEmitter)
         pCompilationDomain->SetDependencyEmitter(pEmitter);
     
-#if defined(FEATURE_HOSTED_BINDER) && defined(FEATURE_APPX_BINDER)
+#if defined(FEATURE_APPX_BINDER)
     if (AppX::IsAppXProcess())
     {
         HRESULT hr = S_OK;
@@ -179,7 +173,7 @@ HRESULT CEECompileInfo::CreateDomain(ICorCompilationDomain **ppDomain,
         IfFailThrow(pBinder->QueryInterface(IID_ICLRPrivBinder, &pBinderInterface));
         pCompilationDomain->SetLoadContextHostBinder(pBinderInterface);
     }
-#endif // defined(FEATURE_HOSTED_BINDER) && defined(FEATURE_APPX_BINDER)
+#endif // defined(FEATURE_APPX_BINDER)
 
 #ifdef DEBUGGING_SUPPORTED 
     // Notify the debugger here, before the thread transitions into the
@@ -388,7 +382,6 @@ HRESULT CEECompileInfo::LoadAssemblyByPath(
 
     Assembly * pAssembly;
     HRESULT    hrProcessLibraryBitnessMismatch = S_OK;
-    bool       verifyingImageIsAssembly = false;
 
     // We don't want to do a LoadFrom, since they do not work with ngen. Instead,
     // read the metadata from the file and do a bind based on that.
@@ -422,9 +415,6 @@ HRESULT CEECompileInfo::LoadAssemblyByPath(
                 fExplicitBindToNativeImage ? MDInternalImport_NoCache : MDInternalImport_Default);
         }
 
-#if defined(FEATURE_WINDOWSPHONE)
-        verifyingImageIsAssembly = true;
-#endif // FEATURE_WINDOWSPHONE
         if (fExplicitBindToNativeImage && !pImage->HasReadyToRunHeader())
         {
             pImage->VerifyIsNIAssembly();
@@ -433,8 +423,6 @@ HRESULT CEECompileInfo::LoadAssemblyByPath(
         {
             pImage->VerifyIsAssembly();
         }
-        
-        verifyingImageIsAssembly = false;
 
         // Check to make sure the bitness of the assembly matches the bitness of the process
         // we will be loading it into and store the result.  If a COR_IMAGE_ERROR gets thrown
@@ -507,7 +495,7 @@ HRESULT CEECompileInfo::LoadAssemblyByPath(
                     TRUE,                   // fThrowOnFileNotFound
                     &bindResult, 
 
-                    // fNgenExplicitBind: Generally during NGEN / MDIL compilation, this is
+                    // fNgenExplicitBind: Generally during NGEN compilation, this is
                     // TRUE, meaning "I am NGEN, and I am doing an explicit bind to the IL
                     // image, so don't infer the NI and try to open it, because I already
                     // have it open". But if we're executing crossgen /CreatePDB, this should
@@ -538,13 +526,6 @@ HRESULT CEECompileInfo::LoadAssemblyByPath(
                 pDomain->ToCompilationDomain()->ComputeAssemblyHardBindList(pAssemblyHolder->GetPersistentMDImport());
 #endif
 
-#ifdef MDIL
-            // MDIL is generated as a special mode of ngen.exe or coregen.exe; normally these two utilities
-            // would not generate anything if a native image for the requested assembly already exists.
-            // Of course, this is not the desired behavior when generating MDIL - it should always work.
-            // We need to prevent loading of the native image when we are generating MDIL.
-            if (!GetAppDomain()->IsMDILCompilationDomain())
-#endif
             {
                 // Mark the assembly before it gets fully loaded and NGen image dependencies are verified. This is necessary
                 // to allow skipping compilation if there is NGen image already.
@@ -559,22 +540,13 @@ HRESULT CEECompileInfo::LoadAssemblyByPath(
             pDomain->ToCompilationDomain()->AddDependency(&spec, pAssemblyHolder);
         }
 
-#ifdef MDIL
-        if (GetAppDomain()->IsMDILCompilationDomain())
-            TritonStressStartup(LogToSvcLogger);
-#endif
-
         // Kind of a workaround - if we could have loaded this assembly via normal load,
 
         *pHandle = CORINFO_ASSEMBLY_HANDLE(pAssembly);
     }
     EX_CATCH_HRESULT(hr);
     
-    if (verifyingImageIsAssembly && hr != S_OK)
-    {
-        hr = NGEN_E_FILE_NOT_ASSEMBLY;
-    }
-    else if ( hrProcessLibraryBitnessMismatch != S_OK && ( hr == COR_E_BADIMAGEFORMAT || hr == HRESULT_FROM_WIN32(ERROR_BAD_EXE_FORMAT) ) )
+    if ( hrProcessLibraryBitnessMismatch != S_OK && ( hr == COR_E_BADIMAGEFORMAT || hr == HRESULT_FROM_WIN32(ERROR_BAD_EXE_FORMAT) ) )
     {
         hr = hrProcessLibraryBitnessMismatch;
     }
@@ -622,11 +594,6 @@ static HRESULT LoadAssemblyByIAssemblyNameWorker(
 
         pAssembly = spec.LoadAssembly(FILE_LOADED);
     }
-
-#ifdef MDIL
-    if (GetAppDomain()->IsMDILCompilationDomain())
-        TritonStressStartup(LogToSvcLogger);
-#endif
 
     //
     // Return the module handle
@@ -759,9 +726,9 @@ HRESULT CEECompileInfo::LoadTypeRefWinRT(
         Assembly *pAssembly;
 
         mdToken tkResolutionScope;
-        pAssemblyImport->GetResolutionScopeOfTypeRef(ref, &tkResolutionScope);
-        
-        if(TypeFromToken(tkResolutionScope) == mdtAssemblyRef)
+        if(FAILED(pAssemblyImport->GetResolutionScopeOfTypeRef(ref, &tkResolutionScope)))
+            hr = S_FALSE;
+        else if(TypeFromToken(tkResolutionScope) == mdtAssemblyRef)
         {
             DWORD dwAssemblyRefFlags;
             IfFailThrow(pAssemblyImport->GetAssemblyRefProps(tkResolutionScope, NULL, NULL,
@@ -874,7 +841,13 @@ HRESULT CEECompileInfo::SetCachedSigningLevel(HANDLE hNI, HANDLE *pModules, COUN
         handles.Append(hFile);
     }
 
-    IfFailGo(SetCachedSigningLevel(handles.GetElements(), handles.GetCount(), 0, hNI));
+    if (!SetCachedSigningLevel(handles.GetElements(), handles.GetCount(), 0, hNI))
+    {
+        hr = HRESULT_FROM_WIN32(GetLastError());
+        _ASSERTE(FAILED(hr));
+        goto ErrExit;
+    }
+
     for (COUNT_T i = 0; i < nModules; i++)
     {
         if (!SetCachedSigningLevel(handles.GetElements(), handles.GetCount(), 0, pModules[i]))
@@ -929,90 +902,6 @@ BOOL CEECompileInfo::CheckAssemblyZap(
     return result;
 }
 
-#ifdef MDIL
-DWORD CEECompileInfo::GetMdilModuleSecurityFlags(
-    CORINFO_ASSEMBLY_HANDLE assembly)
-{
-    STANDARD_VM_CONTRACT;
-
-    Assembly *pAssembly = (Assembly*) assembly;
-
-    ModuleSecurityDescriptor *pMSD = ModuleSecurityDescriptor::GetModuleSecurityDescriptor(pAssembly);
-
-    MDILHeader::Flags securityFlags = MDILHeader::MdilModuleSecurityDescriptorFlags_None;
-
-    // Is Microsoft Platform
-    if (pMSD->IsMicrosoftPlatform())
-        securityFlags = (MDILHeader::Flags)(securityFlags | MDILHeader::MdilModuleSecurityDescriptorFlags_IsMicrosoftPlatform);
-
-    // Is every method and type in the assembly transparent
-    if (pMSD->IsAllTransparent())
-        securityFlags = (MDILHeader::Flags)(securityFlags | MDILHeader::MdilModuleSecurityDescriptorFlags_IsAllTransparent);
-
-    // Is every method and type introduced by the assembly critical
-    if (pMSD->IsAllCritical())
-        securityFlags = (MDILHeader::Flags)(securityFlags | MDILHeader::MdilModuleSecurityDescriptorFlags_IsAllCritical);
-
-    // Combined with IsAllCritical - is every method and type introduced by the assembly safe critical
-    if (pMSD->IsTreatAsSafe())
-        securityFlags = (MDILHeader::Flags)(securityFlags | MDILHeader::MdilModuleSecurityDescriptorFlags_IsTreatAsSafe);
-
-    // Does the assembly not care about transparency, and wants the CLR to take care of making sure everything
-    // is annotated properly in the assembly.
-    if (pMSD->IsOpportunisticallyCritical())
-        securityFlags = (MDILHeader::Flags)(securityFlags | MDILHeader::MdilModuleSecurityDescriptorFlags_IsOpportunisticallyCritical);
-
-    // Partial trust assemblies are forced all-transparent under some conditions. This 
-    // tells us whether that is true for this particular assembly.
-    if (pMSD->IsAllTransparentDueToPartialTrust())
-        securityFlags = (MDILHeader::Flags)(securityFlags | MDILHeader::MdilModuleSecurityDescriptorFlags_TransparentDueToPartialTrust);
-
-#ifdef FEATURE_APTCA
-    if (pMSD->IsAPTCA())
-#endif
-        securityFlags = (MDILHeader::Flags)(securityFlags | MDILHeader::MdilModuleSecurityDescriptorFlags_IsAPTCA);
-
-#ifndef FEATURE_CORECLR
-    // Can fully trusted transparent code bypass verification
-    if (pMSD->CanTransparentCodeSkipVerification())
-        securityFlags = (MDILHeader::Flags)(securityFlags | MDILHeader::MdilModuleSecurityDescriptorFlags_SkipFullTrustVerification);
-#endif // !FEATURE_CORECLR
-
-    return (DWORD)securityFlags;
-}
-
-BOOL CEECompileInfo::CompilerRelaxationNoStringInterningPermitted(
-    CORINFO_ASSEMBLY_HANDLE assembly)
-{
-    STANDARD_VM_CONTRACT;
-
-    Assembly *pAssembly = (Assembly*) assembly;
-
-    return pAssembly->GetManifestModule()->IsNoStringInterning();
-}
-
-BOOL CEECompileInfo::RuntimeCompatibilityWrapExceptions(
-    CORINFO_ASSEMBLY_HANDLE assembly)
-{
-    STANDARD_VM_CONTRACT;
-
-    Assembly *pAssembly = (Assembly*) assembly;
-
-    return pAssembly->GetManifestModule()->IsRuntimeWrapExceptions();
-}
-
-DWORD CEECompileInfo::CERReliabilityContract(
-    CORINFO_ASSEMBLY_HANDLE assembly)
-{
-    STANDARD_VM_CONTRACT;
-
-    Assembly *pAssembly = (Assembly*) assembly;
-
-    return pAssembly->GetManifestModule()->GetReliabilityContract();
-}
-
-#endif // MDIL
-
 HRESULT CEECompileInfo::SetCompilationTarget(CORINFO_ASSEMBLY_HANDLE     assembly,
                                              CORINFO_MODULE_HANDLE       module)
 {
@@ -1042,6 +931,14 @@ HRESULT CEECompileInfo::SetCompilationTarget(CORINFO_ASSEMBLY_HANDLE     assembl
             }
         }
     }
+
+#ifdef FEATURE_READYTORUN_COMPILER
+    if (IsReadyToRunCompilation() && !pModule->IsILOnly())
+    {
+        GetSvcLogger()->Printf(LogLevel_Error, W("Error: /readytorun not supported for mixed mode assemblies\n"));
+        return E_FAIL;
+    }
+#endif
 
 #ifdef FEATURE_READYTORUN_COMPILER
     if (IsReadyToRunCompilation() && !pModule->IsILOnly())
@@ -1147,23 +1044,6 @@ CORINFO_ASSEMBLY_HANDLE
 
     return (CORINFO_ASSEMBLY_HANDLE) GetModule(module)->GetAssembly();
 }
-
-#ifdef MDIL
-HRESULT CEECompileInfo::ShouldCompile(CORINFO_METHOD_HANDLE method)
-{
-    STANDARD_VM_CONTRACT;
-    MethodDesc * pMD = (MethodDesc *)method;
-
-    BOOL fIsMinimalMDIL = GetAppDomain()->IsMinimalMDILCompilationDomain();
-    if (fIsMinimalMDIL && !pMD->HasClassOrMethodInstantiation())
-        return S_FALSE;
-
-    if (GetAppDomain()->IsNoMDILCompilationDomain())
-        return S_FALSE;
-
-    return S_OK;
-}
-#endif // MDIL
 
 #ifdef FEATURE_FUSION
 HRESULT CEECompileInfo::GetAssemblyName(
@@ -1366,9 +1246,7 @@ void GetLoadHint(ASSEMBLY * pAssembly, ASSEMBLY *pAssemblyDependency,
 HRESULT CEECompileInfo::GetLoadHint(CORINFO_ASSEMBLY_HANDLE hAssembly,
                                     CORINFO_ASSEMBLY_HANDLE hAssemblyDependency,
                                     LoadHintEnum *loadHint,
-                                    LoadHintEnum *defaultLoadHint // for MDIL we want to separate the default load hint on the assembly
-                                                                  // from the load hint on the dependency
-                                    )
+                                    LoadHintEnum *defaultLoadHint)
 {
     STANDARD_VM_CONTRACT;
 
@@ -1414,7 +1292,7 @@ void CEECompileInfo::GetAssemblyCodeBase(CORINFO_ASSEMBLY_HANDLE hAssembly, SStr
 
 //=================================================================================
 
-void FakePromote(PTR_PTR_Object ppObj, ScanContext *pSC, DWORD dwFlags)
+void FakePromote(PTR_PTR_Object ppObj, ScanContext *pSC, uint32_t dwFlags)
 {
     CONTRACTL {
         NOTHROW;
@@ -1428,7 +1306,7 @@ void FakePromote(PTR_PTR_Object ppObj, ScanContext *pSC, DWORD dwFlags)
 
 //=================================================================================
 
-void FakePromoteCarefully(promote_func *fn, Object **ppObj, ScanContext *pSC, DWORD dwFlags)
+void FakePromoteCarefully(promote_func *fn, Object **ppObj, ScanContext *pSC, uint32_t dwFlags)
 {
     (*fn)(ppObj, pSC, dwFlags);
 }
@@ -1483,7 +1361,8 @@ void FakeGcScanRoots(MetaSig& msig, ArgIterator& argit, MethodDesc * pMD, BYTE *
     int argOffset;
     while ((argOffset = argit.GetNextOffset()) != TransitionBlock::InvalidOffset)
     {
-        msig.GcScanRoots(pFrame + argOffset, &FakePromote, &sc, &FakePromoteCarefully);
+        ArgDestination argDest(pFrame, argOffset, argit.GetArgLocDescForStructInRegs());
+        msig.GcScanRoots(&argDest, &FakePromote, &sc, &FakePromoteCarefully);
     }
 }
 
@@ -1795,13 +1674,13 @@ HRESULT CEECompileInfo::GetMethodDef(CORINFO_METHOD_HANDLE methodHandle,
 // Depends on what things are persisted by CEEPreloader
 
 BOOL CEEPreloader::CanEmbedFunctionEntryPoint(
-        CORINFO_METHOD_HANDLE   methodHandle,
-        CORINFO_METHOD_HANDLE   contextHandle, /* = NULL */
-        CORINFO_ACCESS_FLAGS    accessFlags /*=CORINFO_ACCESS_ANY*/)
+    CORINFO_METHOD_HANDLE   methodHandle,
+    CORINFO_METHOD_HANDLE   contextHandle, /* = NULL */
+    CORINFO_ACCESS_FLAGS    accessFlags /*=CORINFO_ACCESS_ANY*/)
 {
     STANDARD_VM_CONTRACT;
 
-    MethodDesc * pMethod  = GetMethod(methodHandle);
+    MethodDesc * pMethod = GetMethod(methodHandle);
     MethodDesc * pContext = GetMethod(contextHandle);
 
     // IsRemotingInterceptedViaVirtualDispatch is a rather special case.
@@ -1818,11 +1697,18 @@ BOOL CEEPreloader::CanEmbedFunctionEntryPoint(
     // don't save these stubs.  Unlike most other remoting stubs these ones 
     // are NOT inserted by DoPrestub.
     //
-    if (((accessFlags & CORINFO_ACCESS_THIS) == 0)       &&
-        (pMethod->IsRemotingInterceptedViaVirtualDispatch())    )
+    if (((accessFlags & CORINFO_ACCESS_THIS) == 0) &&
+        (pMethod->IsRemotingInterceptedViaVirtualDispatch()))
     {
         return FALSE;
     }
+
+    // Methods with native callable attribute are special , since 
+    // they are used as LDFTN targets.Native Callable methods
+    // uses the same code path as reverse pinvoke and embedding them
+    // in an ngen image require saving the reverse pinvoke stubs.
+    if (pMethod->HasNativeCallableAttribute())
+        return FALSE;
 
     return TRUE;
 }
@@ -1864,6 +1750,14 @@ BOOL CEEPreloader::DoesMethodNeedRestoringBeforePrestubIsRun(
     }
 
     return FALSE;
+}
+
+BOOL CEECompileInfo::IsNativeCallableMethod(CORINFO_METHOD_HANDLE handle)
+{
+    WRAPPER_NO_CONTRACT;
+
+    MethodDesc * pMethod = GetMethod(handle);
+    return pMethod->HasNativeCallableAttribute();
 }
 
 BOOL CEEPreloader::CanSkipDependencyActivation(CORINFO_METHOD_HANDLE   context,
@@ -1918,7 +1812,17 @@ BOOL CanDeduplicateCode(CORINFO_METHOD_HANDLE method, CORINFO_METHOD_HANDLE dupl
         return FALSE;
 #endif // _TARGET_X86_
 
-    if (pMethod->ReturnsObject() != pDuplicateMethod->ReturnsObject())
+    MetaSig::RETURNTYPE returnType = pMethod->ReturnsObject();
+    MetaSig::RETURNTYPE returnTypeDuplicate = pDuplicateMethod->ReturnsObject();
+
+    if (returnType != returnTypeDuplicate)
+        return FALSE;
+
+    //
+    // Do not enable deduplication of structs returned in registers
+    //
+
+    if (returnType == MetaSig::RETVALUETYPE)
         return FALSE;
 
     //
@@ -2095,7 +1999,8 @@ void CEECompileInfo::EncodeMethod(
                           LPVOID                pEncodeModuleContext,
                           ENCODEMODULE_CALLBACK pfnEncodeModule,
                           CORINFO_RESOLVED_TOKEN * pResolvedToken,
-                          CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken)
+                          CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken,
+                          BOOL                  fEncodeUsingResolvedTokenSpecStreams)
 {
     STANDARD_VM_CONTRACT;
 
@@ -2108,7 +2013,8 @@ void CEECompileInfo::EncodeMethod(
                               pSigBuilder,
                               pEncodeModuleContext, 
                               pfnEncodeModule, NULL,
-                              pResolvedToken, pConstrainedResolvedToken);
+                              pResolvedToken, pConstrainedResolvedToken,
+                              fEncodeUsingResolvedTokenSpecStreams);
     _ASSERTE(fSuccess);
 
     COOPERATIVE_TRANSITION_END();
@@ -2452,7 +2358,8 @@ void CEECompileInfo::EncodeField(
                          SigBuilder *          pSigBuilder,
                          LPVOID                encodeContext,
                          ENCODEMODULE_CALLBACK pfnEncodeModule,
-                         CORINFO_RESOLVED_TOKEN * pResolvedToken)
+                         CORINFO_RESOLVED_TOKEN * pResolvedToken, 
+                         BOOL fEncodeUsingResolvedTokenSpecStreams)
 {
     STANDARD_VM_CONTRACT;
 
@@ -2463,7 +2370,8 @@ void CEECompileInfo::EncodeField(
                         pSigBuilder,
                         encodeContext, 
                         pfnEncodeModule,
-                        pResolvedToken);
+                        pResolvedToken,
+                        fEncodeUsingResolvedTokenSpecStreams);
 
     COOPERATIVE_TRANSITION_END();
 }
@@ -2503,12 +2411,12 @@ CORCOMPILE_FIXUP_BLOB_KIND CEECompileInfo::GetFieldBaseOffset(
 
     if (pMT->IsValueType())
     {
-        return (CORCOMPILE_FIXUP_BLOB_KIND)0;
+        return ENCODE_NONE;
     }
 
     if (pMT->GetParentMethodTable()->IsInheritanceChainLayoutFixedInCurrentVersionBubble())
     {
-        return (CORCOMPILE_FIXUP_BLOB_KIND)0;
+        return ENCODE_NONE;
     }
 
     if (pMT->HasLayout())
@@ -2584,7 +2492,7 @@ void CEECompileInfo::EncodeTypeLayout(CORINFO_CLASS_HANDLE classHandle, SigBuild
     }
 #endif
 
-    if ((dwFlags & dwFlags & READYTORUN_LAYOUT_Alignment) && !(dwFlags & READYTORUN_LAYOUT_Alignment_Native))
+    if ((dwFlags & READYTORUN_LAYOUT_Alignment) && !(dwFlags & READYTORUN_LAYOUT_Alignment_Native))
     {
         pSigBuilder->AppendData(dwAlignment);
     }
@@ -2610,8 +2518,33 @@ BOOL CEECompileInfo::AreAllClassesFullyLoaded(CORINFO_MODULE_HANDLE moduleHandle
     return ((Module *)moduleHandle)->AreAllClassesFullyLoaded();
 }
 
+int CEECompileInfo::GetVersionResilientTypeHashCode(CORINFO_MODULE_HANDLE moduleHandle, mdToken token)
+{
+    STANDARD_VM_CONTRACT;
+
+    int dwHashCode;
+    if (!::GetVersionResilientTypeHashCode(((Module *)moduleHandle)->GetMDImport(), token, &dwHashCode))
+        ThrowHR(COR_E_BADIMAGEFORMAT);
+
+    return dwHashCode;
+}
+
+int CEECompileInfo::GetVersionResilientMethodHashCode(CORINFO_METHOD_HANDLE methodHandle)
+{
+    STANDARD_VM_CONTRACT;
+
+    return ::GetVersionResilientMethodHashCode(GetMethod(methodHandle));
+}
+
 #endif // FEATURE_READYTORUN_COMPILER
 
+BOOL CEECompileInfo::HasCustomAttribute(CORINFO_METHOD_HANDLE method, LPCSTR customAttributeName)
+{
+    STANDARD_VM_CONTRACT;
+
+    MethodDesc * pMD = GetMethod(method);
+    return S_OK == pMD->GetMDImport()->GetCustomAttributeByName(pMD->GetMemberDef(), customAttributeName, NULL, NULL);
+}
 
 #define OMFConst_Read            0x0001
 #define OMFConst_Write           0x0002
@@ -2640,7 +2573,7 @@ BOOL CEECompileInfo::AreAllClassesFullyLoaded(CORINFO_MODULE_HANDLE moduleHandle
 // public\devdiv\inc\corsym.h and debugger\sh\symwrtr\ngenpdbwriter.h,cpp
 // ----------------------------------------------------------------------------
 
-#ifdef NO_NGENPDB
+#if defined(NO_NGENPDB) && !defined(FEATURE_PERFMAP)
 BOOL CEECompileInfo::GetIsGeneratingNgenPDB() 
 {
     return FALSE; 
@@ -2654,13 +2587,7 @@ BOOL IsNgenPDBCompilationProcess()
 {
     return FALSE;
 }
-
-HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath)
-{
-    return E_NOTIMPL;
-}
-#else // NO_NGENPDB
-
+#else
 BOOL CEECompileInfo::GetIsGeneratingNgenPDB() 
 {
     LIMITED_METHOD_DAC_CONTRACT;
@@ -2679,6 +2606,9 @@ BOOL IsNgenPDBCompilationProcess()
     return IsCompilationProcess() && g_pCEECompileInfo->GetIsGeneratingNgenPDB();
 }
 
+#endif // NO_NGENPDB && !FEATURE_PERFMAP
+
+#ifndef NO_NGENPDB
 // This is the prototype of "CreateNGenPdbWriter" exported by diasymreader.dll 
 typedef HRESULT (__stdcall *CreateNGenPdbWriter_t)(const WCHAR *pwszNGenImagePath, const WCHAR *pwszPdbPath, void **ppvObj);
 
@@ -2847,7 +2777,35 @@ class QuickSortILNativeMapByIL : public CQuickSort<ICorDebugInfo::OffsetMapping>
             return 1;
     }
 };
-    
+
+// ----------------------------------------------------------------------------
+// Simple class to sort IL to Native mapping arrays by Native offset
+// 
+class QuickSortILNativeMapByNativeOffset : public CQuickSort<ICorDebugInfo::OffsetMapping>
+{
+public:
+    QuickSortILNativeMapByNativeOffset(
+        ICorDebugInfo::OffsetMapping * rgMap,
+        int cEntries)
+        : CQuickSort<ICorDebugInfo::OffsetMapping>(rgMap, cEntries)
+    {
+        LIMITED_METHOD_CONTRACT;
+    }
+
+    int Compare(ICorDebugInfo::OffsetMapping * pFirst,
+        ICorDebugInfo::OffsetMapping * pSecond)
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        if (pFirst->nativeOffset < pSecond->nativeOffset)
+            return -1;
+        else if (pFirst->nativeOffset == pSecond->nativeOffset)
+            return 0;
+        else
+            return 1;
+    }
+};
+
 // ----------------------------------------------------------------------------
 // Simple structure used when merging the JIT manager's IL-to-native maps
 // (ICorDebugInfo::OffsetMapping) with the IL PDB's source-to-IL map.
@@ -2951,36 +2909,44 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
     }
-            
-    HRESULT Load()
+
+#ifdef FEATURE_CORECLR
+#define WRITER_LOAD_ERROR_MESSAGE W("Unable to load ") NATIVE_SYMBOL_READER_DLL W(".  Please ensure that ") NATIVE_SYMBOL_READER_DLL W(" is on the path.  Error='%d'\n")
+#else
+#define WRITER_LOAD_ERROR_MESSAGE W("Unable to load diasymreader.dll.  Please ensure that version 11 or greater of diasymreader.dll is on the path.  You can typically find this DLL in the desktop .NET install directory for 4.5 or greater.  Error='%d'\n")
+#endif
+
+    HRESULT Load(LPCWSTR wszDiasymreaderPath = nullptr)
     {
         STANDARD_VM_CONTRACT;
 
         HRESULT hr = S_OK;
 
-        m_hModule = WszLoadLibrary(W("diasymreader.dll"));
+        m_hModule = WszLoadLibrary(wszDiasymreaderPath != nullptr ? wszDiasymreaderPath : (LPCWSTR)NATIVE_SYMBOL_READER_DLL);
         if (m_hModule == NULL)
         {
-            GetSvcLogger()->Printf(
-                W("Unable to load diasymreader.dll.  Please ensure that version 11 or greater of diasymreader.dll is on the path.  You can typically find this DLL in the desktop .NET install directory for 4.5 or greater.  Error='%d'\n"),
-                GetLastError());
-            return HRESULT_FROM_WIN32(GetLastError());
+            hr = HRESULT_FROM_WIN32(GetLastError());
+            GetSvcLogger()->Printf(WRITER_LOAD_ERROR_MESSAGE, GetLastError());
+            return hr;
         }
 
         m_Create = reinterpret_cast<CreateNGenPdbWriter_t>(GetProcAddress(m_hModule, "CreateNGenPdbWriter"));
         if (m_Create == NULL)
         {
-            GetSvcLogger()->Printf(
-                W("An incorrect version of diasymreader.dll was found.  Please ensure that version 11 or greater of diasymreader.dll is on the path.  You can typically find this DLL in the desktop .NET install directory for 4.5 or greater.  Error='%d'\n"),
-                GetLastError());
-            return HRESULT_FROM_WIN32(GetLastError());
+            hr = HRESULT_FROM_WIN32(GetLastError());
+            GetSvcLogger()->Printf(WRITER_LOAD_ERROR_MESSAGE, GetLastError());
+            return hr;
         }
 
         if ((m_dwExtraData & kPDBLines) != 0)
         {
             hr = FakeCoCreateInstanceEx(
                 CLSID_CorSymBinder_SxS,
-                NULL,
+#ifdef FEATURE_CORECLR
+                wszDiasymreaderPath != nullptr ? wszDiasymreaderPath : (LPCWSTR)NATIVE_SYMBOL_READER_DLL,
+#else
+                wszDiasymreaderPath,
+#endif
                 IID_ISymUnmanagedBinder,
                 (void**)&m_pBinder,
                 NULL);
@@ -3001,6 +2967,8 @@ public:
         m_Create = NULL;
     }
 };
+
+#define UNKNOWN_SOURCE_FILE_PATH L"unknown"
 
 // ----------------------------------------------------------------------------
 // Manages generating all PDB data for an EE Module. Directly responsible for writing the
@@ -3078,7 +3046,7 @@ private:
     // interfaces and close the PDB file BEFORE this holder tries to *delete* the PDB
     // file. Also, keep these two in this relative order, so that m_deletePDBFileHolder
     // is destructed before m_wszPDBFilePath.
-    WCHAR m_wszPDBFilePath[MAX_PATH];
+    WCHAR m_wszPDBFilePath[MAX_LONGPATH];
     DeleteFileHolder m_deletePDBFileHolder;
     // 
     // ************* NOTE! *************
@@ -3090,11 +3058,24 @@ private:
     DWORD m_dwExtraData;
     LPCWSTR m_wszManagedPDBSearchPath;
 
+	// Currently The DiasymWriter does not use the correct PDB signature for NGEN PDBS unless 
+	// the NGEN DLL whose symbols are being generated end in .ni.dll.   Thus we copy
+	// to this name if it does not follow this covention (as is true with readyToRun
+	// dlls).   This variable remembers this temp file path so we can delete it after
+	// Pdb generation.   If DiaSymWriter is fixed, we can remove this.  
+	SString m_tempSourceDllName;
+
     // Interfaces for reading IL PDB info
     ReleaseHolder<ISymUnmanagedBinder> m_pBinder;
     ReleaseHolder<ISymUnmanagedReader> m_pReader;
     NewInterfaceArrayHolder<ISymUnmanagedDocument> m_rgpDocs;       // All docs in the PDB Mod
-    ULONG32 m_cDocs;
+	// I know m_ilPdbCount and m_finalPdbDocCount are confusing.Here is the reason :
+	// For NGenMethodLinesPdbWriter::WriteDebugSILLinesSubsection, we won't write the path info.  
+	// In order to let WriteDebugSILLinesSubsection find "UNKNOWN_SOURCE_FILE_PATH" which does 
+	// not exist in m_rgpDocs, no matter if we have IL PDB or not, we let m_finalPdbDocCount 
+	// equal m_ilPdbDocCount + 1 and write the extra one path as "UNKNOWN_SOURCE_FILE_PATH"
+    ULONG32 m_ilPdbDocCount;
+    ULONG32 m_finalPdbDocCount;
 
     // Keeps track of source file names and how they map to offsets in the relevant PDB
     // subsections.
@@ -3120,8 +3101,9 @@ public:
           m_dwExtraData(dwExtraData),
           m_pBinder(pBinder),
           m_pModule(pModule),
-          m_wszManagedPDBSearchPath(wszManagedPDBSearchPath)
-
+          m_wszManagedPDBSearchPath(wszManagedPDBSearchPath),
+          m_ilPdbDocCount(0),
+          m_finalPdbDocCount(1)
     {
         LIMITED_METHOD_CONTRACT;
 
@@ -3130,10 +3112,12 @@ public:
 
         ZeroMemory(m_wszPDBFilePath, sizeof(m_wszPDBFilePath));
     }
+
+	~NGenModulePdbWriter();
     
     HRESULT WritePDBData();
 
-    HRESULT WriteMethodPDBData(PEImageLayout * pLoadedLayout, USHORT iCodeSection, BYTE *pCodeBase, MethodDesc * hotDesc, PCODE start);
+    HRESULT WriteMethodPDBData(PEImageLayout * pLoadedLayout, USHORT iCodeSection, BYTE *pCodeBase, MethodDesc * hotDesc, PCODE start, bool isILPDBProvided);
 };
 
 // ----------------------------------------------------------------------------
@@ -3154,6 +3138,7 @@ private:
     const IJitManager::MethodRegionInfo * m_pMethodRegionInfo;
     EECodeInfo * m_pCodeInfo;
     DocNameToOffsetMap * m_pDocNameToOffsetMap;
+    bool m_isILPDBProvided;
 
     // IL-to-native map from JIT manager
     ULONG32 m_cIlNativeMap;
@@ -3165,16 +3150,36 @@ private:
     NewArrayHolder<ULONG32> m_rgnLineStarts;                   // Array of source lines for this method
     ULONG32 m_cSeqPoints;                                      // Count of above two parallel arrays
 
-    HRESULT WriteLinesSubsection(
+    HRESULT WriteNativeILMapPDBData();
+    LPBYTE InitDebugLinesHeaderSection(
+        DEBUG_S_SUBSECTION_TYPE type,
+        ULONG32 ulCodeStartOffset,
+        ULONG32 cbCode,
+        ULONG32 lineSize,
+        CV_DebugSSubsectionHeader_t **ppSubSectHeader /*out*/,
+        CV_DebugSLinesHeader_t ** ppLinesHeader /*out*/,
+        LPBYTE * ppbLinesSubsectionCur /*out*/);
+
+    HRESULT WriteDebugSLinesSubsection(
         ULONG32 ulCodeStartOffset,
         ULONG32 cbCode,
         MapIndexPair * rgMapIndexPairs,
         ULONG32 cMapIndexPairs);
 
+    HRESULT WriteDebugSILLinesSubsection(
+        ULONG32 ulCodeStartOffset,
+        ULONG32 cbCode,
+        ICorDebugInfo::OffsetMapping * rgILNativeMap,
+        ULONG32 rgILNativeMapAdjustSize);
+
     BOOL FinalizeLinesFileBlock(
-        CV_DebugSLinesFileBlockHeader_t * pLinesFileBlockHeader, 
+        CV_DebugSLinesFileBlockHeader_t * pLinesFileBlockHeader,
         CV_Line_t * pLineBlockStart,
-        CV_Line_t * pLineBlockAfterEnd);
+        CV_Line_t * pLineBlockAfterEnd
+#ifdef _DEBUG
+        , BOOL ignorekUnmappedIPCheck = false
+#endif
+        );
 
 public:
     NGenMethodLinesPdbWriter(
@@ -3187,7 +3192,8 @@ public:
         TADDR addrCodeSection,
         const IJitManager::MethodRegionInfo * pMethodRegionInfo,
         EECodeInfo * pCodeInfo,
-        DocNameToOffsetMap * pDocNameToOffsetMap)
+        DocNameToOffsetMap * pDocNameToOffsetMap,
+        bool isILPDBProvided)
         : m_pWriter(pWriter),
           m_pMod(pMod),
           m_pReader(pReader),
@@ -3199,7 +3205,8 @@ public:
           m_pCodeInfo(pCodeInfo),
           m_pDocNameToOffsetMap(pDocNameToOffsetMap),
           m_cIlNativeMap(0),
-          m_cSeqPoints(0)
+          m_cSeqPoints(0),
+          m_isILPDBProvided(isILPDBProvided)
     {
         LIMITED_METHOD_CONTRACT;
     }
@@ -3249,7 +3256,7 @@ HRESULT NGenModulePdbWriter::WriteStringTable()
     UINT64 cbStringTableEstimate =
         sizeof(DWORD) +
         sizeof(CV_DebugSSubsectionHeader_t) +
-        m_cDocs * (MAX_PATH + 1);
+        m_finalPdbDocCount * (MAX_LONGPATH + 1);
     if (!FitsIn<ULONG32>(cbStringTableEstimate))
     {
         return HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
@@ -3274,14 +3281,21 @@ HRESULT NGenModulePdbWriter::WriteStringTable()
     LPBYTE pbStringTableStart = pbStringTableSubsectionCur;
 
     // The actual strings
-    for (ULONG32 i=0; i < m_cDocs; i++)
+    for (ULONG32 i = 0; i < m_finalPdbDocCount; i++)
     {
-        WCHAR wszURL[MAX_PATH];
+        // For NGenMethodLinesPdbWriter::WriteDebugSILLinesSubsection, we won't write the path info.  
+        // In order to let WriteDebugSILLinesSubsection can find "UNKNOWN_SOURCE_FILE_PATH" which is 
+        // not existed in m_rgpDocs, no matter we have IL PDB or not, we let m_finalPdbDocCount equals to 
+        // m_ilPdbDocCount + 1 and write the extra one path as "UNKNOWN_SOURCE_FILE_PATH". That also explains
+        // why we have a inconsistence between m_finalPdbDocCount and m_ilPdbDocCount.
+        WCHAR wszURL[MAX_LONGPATH] = UNKNOWN_SOURCE_FILE_PATH;
         ULONG32 cchURL;
-        hr = m_rgpDocs[i]->GetURL(_countof(wszURL), &cchURL, wszURL);
-        if (FAILED(hr))
-            return hr;
-
+        if (i < m_ilPdbDocCount)
+        {
+            hr = m_rgpDocs[i]->GetURL(_countof(wszURL), &cchURL, wszURL);
+            if (FAILED(hr))
+                return hr;
+        }
         int cbWritten = WideCharToMultiByte(
             CP_UTF8,
             0,                                      // dwFlags
@@ -3361,7 +3375,7 @@ HRESULT NGenModulePdbWriter::InitILPdbData()
     GetSvcLogger()->Log(W("Loaded managed PDB"));
 
     // Grab the full path of the managed PDB so we can log it
-    WCHAR wszIlPdbPath[MAX_PATH];
+    WCHAR wszIlPdbPath[MAX_LONGPATH];
     ULONG32 cchIlPdbPath;
     hr = m_pReader->GetSymbolStoreFileName(
         _countof(wszIlPdbPath),
@@ -3389,16 +3403,24 @@ HRESULT NGenModulePdbWriter::InitILPdbData()
     m_rgpDocs = new ISymUnmanagedDocument * [cDocs];
     hr = m_pReader->GetDocuments(
         cDocs,
-        &m_cDocs,
+        &m_ilPdbDocCount,
         m_rgpDocs);
     if (FAILED(hr))
         return hr;
+    m_finalPdbDocCount = m_ilPdbDocCount + 1;
     // Commit m_rgpDocs to calling Release() on each ISymUnmanagedDocument* in the array
-    m_rgpDocs.SetElementCount(m_cDocs);
+    m_rgpDocs.SetElementCount(m_ilPdbDocCount);
     
     return S_OK;
 }
 
+NGenModulePdbWriter::~NGenModulePdbWriter()
+{
+	// Delete any temporary files we created. 
+	if (m_tempSourceDllName.GetCount() != 0)
+		DeleteFileW(m_tempSourceDllName);
+	m_tempSourceDllName.Clear();
+}
 
 //---------------------------------------------------------------------------------------
 //
@@ -3417,11 +3439,13 @@ HRESULT NGenModulePdbWriter::WritePDBData()
     // This will try to open the managed PDB if lines info was requested.  This is a
     // likely failure point, so intentionally do this before creating the NGEN PDB file
     // on disk.
+    bool isILPDBProvided = false;
     if ((m_dwExtraData & kPDBLines) != 0)
     {
         hr = InitILPdbData();
         if (FAILED(hr))
             return hr;
+        isILPDBProvided = true;
     }
 
     // Create the PDB file we will write into.
@@ -3431,8 +3455,32 @@ HRESULT NGenModulePdbWriter::WritePDBData()
 
     PEImageLayout * pLoadedLayout = m_pModule->GetFile()->GetLoaded();
 
+	// Currently DiaSymReader does not work properly generating NGEN PDBS unless 
+	// the DLL whose PDB is being generated ends in .ni.*.   Unfortunately, readyToRun
+	// images do not follow this convention and end up producing bad PDBS.  To fix
+	// this (without changing diasymreader.dll which ships indepdendently of .Net Core)
+	// we copy the file to somethign with this convention before generating the PDB
+	// and delete it when we are done.  
+	SString dllPath = pLoadedLayout->GetPath();
+	if (!dllPath.EndsWithCaseInsensitive(L".ni.dll") && !dllPath.EndsWithCaseInsensitive(L".ni.exe"))
+	{
+		SString::Iterator fileNameStart = dllPath.Begin();
+		dllPath.FindBack(fileNameStart, '\\');
+
+		SString::Iterator ext = dllPath.End();
+		dllPath.FindBack(ext, '.');
+
+		// m_tempSourceDllName = Convertion of  INPUT.dll  to INPUT.ni.dll where the PDB lives.  
+		m_tempSourceDllName = m_wszPdbPath;
+		m_tempSourceDllName += SString(dllPath, fileNameStart, ext - fileNameStart);
+		m_tempSourceDllName += L".ni";
+		m_tempSourceDllName += SString(dllPath, ext, dllPath.End() - ext);
+		CopyFileW(dllPath, m_tempSourceDllName, false);
+		dllPath = m_tempSourceDllName;
+	}
+
     ReleaseHolder<ISymNGenWriter> pWriter1;
-    hr = m_Create(pLoadedLayout->GetPath(), m_wszPdbPath, &pWriter1);
+    hr = m_Create(dllPath, m_wszPdbPath, &pWriter1);
     if (FAILED(hr))
         return hr;
     
@@ -3459,20 +3507,19 @@ HRESULT NGenModulePdbWriter::WritePDBData()
         m_deletePDBFileHolder.Assign(m_wszPDBFilePath);
     }
 
-    if ((m_dwExtraData & kPDBLines) != 0)
-    {
-        hr = m_pdbMod.Open(m_pWriter, pLoadedLayout->GetPath(), m_pModule->GetPath());
-        if (FAILED(hr))
-            return hr;
 
-        hr = WriteStringTable();
-        if (FAILED(hr))
-            return hr;
+    hr = m_pdbMod.Open(m_pWriter, pLoadedLayout->GetPath(), m_pModule->GetPath());
+    if (FAILED(hr))
+        return hr;
 
-        hr = WriteFileChecksums();
-        if (FAILED(hr))
-            return hr;
-    }
+    hr = WriteStringTable();
+    if (FAILED(hr))
+        return hr;
+
+    hr = WriteFileChecksums();
+    if (FAILED(hr))
+        return hr;
+    
 
     COUNT_T sectionCount = pLoadedLayout->GetNumberOfSections();
     IMAGE_SECTION_HEADER *section = pLoadedLayout->FindFirstSection();
@@ -3494,23 +3541,20 @@ HRESULT NGenModulePdbWriter::WritePDBData()
             pCodeBase = (BYTE *)section[sectionIndex].VirtualAddress;
         }
 
-        if ((m_dwExtraData & kPDBLines) != 0)
-        {
-            // In order to support the DIA RVA-to-lines API against the PDB we're
-            // generating, we need to update the section contribution table with each
-            // section we add.
-            hr = m_pWriter->ModAddSecContribEx(
-                m_pdbMod.GetModPtr(),
-                (USHORT)(sectionIndex + 1),
-                0,
-                section[sectionIndex].SizeOfRawData,
-                section[sectionIndex].Characteristics,
-                0,          // dwDataCrc
-                0           // dwRelocCrc
-                );
-            if (FAILED(hr))
-                return hr;
-        }
+        // In order to support the DIA RVA-to-lines API against the PDB we're
+        // generating, we need to update the section contribution table with each
+        // section we add.
+        hr = m_pWriter->ModAddSecContribEx(
+            m_pdbMod.GetModPtr(),
+            (USHORT)(sectionIndex + 1),
+            0,
+            section[sectionIndex].SizeOfRawData,
+            section[sectionIndex].Characteristics,
+            0,          // dwDataCrc
+            0           // dwRelocCrc
+            );
+        if (FAILED(hr))
+            return hr;
 
         sectionIndex++;
     }
@@ -3518,17 +3562,16 @@ HRESULT NGenModulePdbWriter::WritePDBData()
     _ASSERTE(iCodeSection != 0);
     _ASSERTE(pCodeBase != NULL);
 
-    if ((m_dwExtraData & kPDBLines) != 0)
-    {
-        // To support lines info, we need a "dummy" section, indexed as 0, for use as a
-        // sentinel when MSPDB sets up its section contribution table
-        hr = m_pWriter->AddSection(0,           // Dummy section 0
-            OMF_SentinelType, 
-            0,
-            0xFFFFffff);
-        if (FAILED(hr))
-            return hr;
-    }
+
+    // To support lines info, we need a "dummy" section, indexed as 0, for use as a
+    // sentinel when MSPDB sets up its section contribution table
+    hr = m_pWriter->AddSection(0,           // Dummy section 0
+        OMF_SentinelType, 
+        0,
+        0xFFFFffff);
+    if (FAILED(hr))
+        return hr;
+    
 
 #ifdef FEATURE_READYTORUN_COMPILER
     if (pLoadedLayout->HasReadyToRunHeader())
@@ -3538,7 +3581,7 @@ HRESULT NGenModulePdbWriter::WritePDBData()
         {
             MethodDesc *hotDesc = mi.GetMethodDesc();
 
-            hr = WriteMethodPDBData(pLoadedLayout, iCodeSection, pCodeBase, hotDesc, mi.GetMethodStartAddress());
+            hr = WriteMethodPDBData(pLoadedLayout, iCodeSection, pCodeBase, hotDesc, mi.GetMethodStartAddress(), isILPDBProvided);
             if (FAILED(hr))
                 return hr;
         }
@@ -3552,7 +3595,7 @@ HRESULT NGenModulePdbWriter::WritePDBData()
             MethodDesc *hotDesc = mi.GetMethodDesc();
             hotDesc->CheckRestore();
 
-            hr = WriteMethodPDBData(pLoadedLayout, iCodeSection, pCodeBase, hotDesc, mi.GetMethodStartAddress());
+            hr = WriteMethodPDBData(pLoadedLayout, iCodeSection, pCodeBase, hotDesc, mi.GetMethodStartAddress(), isILPDBProvided);
             if (FAILED(hr))
                 return hr;
         }
@@ -3563,7 +3606,7 @@ HRESULT NGenModulePdbWriter::WritePDBData()
     return S_OK;
 }
 
-HRESULT NGenModulePdbWriter::WriteMethodPDBData(PEImageLayout * pLoadedLayout, USHORT iCodeSection, BYTE *pCodeBase, MethodDesc * hotDesc, PCODE start)
+HRESULT NGenModulePdbWriter::WriteMethodPDBData(PEImageLayout * pLoadedLayout, USHORT iCodeSection, BYTE *pCodeBase, MethodDesc * hotDesc, PCODE start, bool isILPDBProvided)
 {
     STANDARD_VM_CONTRACT;
 
@@ -3579,6 +3622,12 @@ HRESULT NGenModulePdbWriter::WriteMethodPDBData(PEImageLayout * pLoadedLayout, U
     _ASSERTE(pHotCodeStart);
 
     PCODE pColdCodeStart = methodRegionInfo.coldStartAddress;
+	SString mAssemblyName;
+	mAssemblyName.SetUTF8(m_pModule->GetAssembly()->GetSimpleName());
+    SString assemblyName;
+    assemblyName.SetUTF8(hotDesc->GetAssembly()->GetSimpleName());
+    SString methodToken;
+    methodToken.Printf("%X", hotDesc->GetMemberDef());
 
     // Hot name
     {
@@ -3587,7 +3636,11 @@ HRESULT NGenModulePdbWriter::WriteMethodPDBData(PEImageLayout * pLoadedLayout, U
             fullName, 
             hotDesc, 
             TypeString::FormatNamespace | TypeString::FormatSignature);
-
+		fullName.Append(L"$#");
+		if (!mAssemblyName.Equals(assemblyName))
+			fullName.Append(assemblyName);
+		fullName.Append(L"#");
+        fullName.Append(methodToken);
         BSTRHolder hotNameHolder(SysAllocString(fullName.GetUnicode()));
         hr = m_pWriter->AddSymbol(hotNameHolder,
                                 iCodeSection,
@@ -3606,7 +3659,12 @@ HRESULT NGenModulePdbWriter::WriteMethodPDBData(PEImageLayout * pLoadedLayout, U
                 fullNameCold, 
                 hotDesc, 
                 TypeString::FormatNamespace | TypeString::FormatSignature);
-                
+			fullNameCold.Append(L"$#");
+			if (!mAssemblyName.Equals(assemblyName))
+				fullNameCold.Append(assemblyName);
+			fullNameCold.Append(L"#");
+            fullNameCold.Append(methodToken);
+
             BSTRHolder coldNameHolder(SysAllocString(fullNameCold.GetUnicode()));
             hr = m_pWriter->AddSymbol(coldNameHolder,
                                     iCodeSection,
@@ -3619,10 +3677,8 @@ HRESULT NGenModulePdbWriter::WriteMethodPDBData(PEImageLayout * pLoadedLayout, U
     }
 
     // Offset / lines mapping
-    if (((m_dwExtraData & kPDBLines) != 0) &&
-
-        // Skip functions that are too big for PDB lines format
-        FitsIn<DWORD>(methodRegionInfo.hotSize) &&
+    // Skip functions that are too big for PDB lines format
+    if (FitsIn<DWORD>(methodRegionInfo.hotSize) &&
         FitsIn<DWORD>(methodRegionInfo.coldSize))
     {
         NGenMethodLinesPdbWriter methodLinesWriter(
@@ -3635,7 +3691,8 @@ HRESULT NGenModulePdbWriter::WriteMethodPDBData(PEImageLayout * pLoadedLayout, U
             (TADDR)pLoadedLayout->GetBase() + (TADDR)pCodeBase, 
             &methodRegionInfo, 
             &codeInfo, 
-            &m_docNameToOffsetMap);
+            &m_docNameToOffsetMap,
+            isILPDBProvided);
 
         hr = methodLinesWriter.WritePDBData();
         if (FAILED(hr))
@@ -3672,7 +3729,7 @@ HRESULT NGenModulePdbWriter::WriteFileChecksums()
     UINT64 cbChecksumSubsectionEstimate =
         sizeof(DWORD) +
         sizeof(CV_DebugSSubsectionHeader_t) +
-        m_cDocs * kcbEachChecksumEstimate;
+        m_finalPdbDocCount * kcbEachChecksumEstimate;
     if (!FitsIn<ULONG32>(cbChecksumSubsectionEstimate))
     {
         return HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
@@ -3696,14 +3753,25 @@ HRESULT NGenModulePdbWriter::WriteFileChecksums()
 
     // (3) Iterate through source files, steal their checksum info from the IL PDB, and
     // write it into the NGEN PDB.
-    for (ULONG32 i=0; i < m_cDocs; i++)
+    for (ULONG32 i = 0; i < m_finalPdbDocCount; i++)
     {
-        WCHAR wszURL[MAX_PATH];
-        char szURL[MAX_PATH];
+        WCHAR wszURL[MAX_LONGPATH] = UNKNOWN_SOURCE_FILE_PATH;
+        char szURL[MAX_LONGPATH];
         ULONG32 cchURL;
-        hr = m_rgpDocs[i]->GetURL(_countof(wszURL), &cchURL, wszURL);
-        if (FAILED(hr))
-            return hr;
+
+
+        bool isKnownSourcePath = i < m_ilPdbDocCount;
+        if (isKnownSourcePath)
+        {
+            // For NGenMethodLinesPdbWriter::WriteDebugSILLinesSubsection, we won't write the path info.  
+            // In order to let WriteDebugSILLinesSubsection can find "UNKNOWN_SOURCE_FILE_PATH" which is 
+            // not existed in m_rgpDocs, no matter we have IL PDB or not, we let m_finalPdbDocCount equals to 
+            // m_ilPdbDocCount + 1 and write the extra one path as "UNKNOWN_SOURCE_FILE_PATH". That also explains
+            // why we have a inconsistence between m_finalPdbDocCount and m_ilPdbDocCount.
+            hr = m_rgpDocs[i]->GetURL(_countof(wszURL), &cchURL, wszURL);
+            if (FAILED(hr))
+                return hr;
+        }
 
         int cbWritten = WideCharToMultiByte(
             CP_UTF8,
@@ -3745,16 +3813,19 @@ HRESULT NGenModulePdbWriter::WriteFileChecksums()
         BYTE rgbChecksum[kcbEachChecksumEstimate];
         ULONG32 cbChecksum = 0;
         BYTE bChecksumAlgorithmType = CHKSUM_TYPE_NONE;
-        GUID guidChecksumAlgorithm;
-        hr = m_rgpDocs[i]->GetCheckSumAlgorithmId(&guidChecksumAlgorithm);
-        if (SUCCEEDED(hr))
+        if (isKnownSourcePath)
         {
-            // If we got the checksum algorithm, we can write it all out to the buffer. 
-            // Else, we'll just omit the checksum info
-            if (memcmp(&guidChecksumAlgorithm, &CorSym_SourceHash_MD5, sizeof(GUID)) == 0)
-                bChecksumAlgorithmType = CHKSUM_TYPE_MD5;
-            else if (memcmp(&guidChecksumAlgorithm, &CorSym_SourceHash_SHA1, sizeof(GUID)) == 0)
-                bChecksumAlgorithmType = CHKSUM_TYPE_SHA1;
+            GUID guidChecksumAlgorithm;
+            hr = m_rgpDocs[i]->GetCheckSumAlgorithmId(&guidChecksumAlgorithm);
+            if (SUCCEEDED(hr))
+            {
+                // If we got the checksum algorithm, we can write it all out to the buffer. 
+                // Else, we'll just omit the checksum info
+                if (memcmp(&guidChecksumAlgorithm, &CorSym_SourceHash_MD5, sizeof(GUID)) == 0)
+                    bChecksumAlgorithmType = CHKSUM_TYPE_MD5;
+                else if (memcmp(&guidChecksumAlgorithm, &CorSym_SourceHash_SHA1, sizeof(GUID)) == 0)
+                    bChecksumAlgorithmType = CHKSUM_TYPE_SHA1;
+            }
         }
 
         if (bChecksumAlgorithmType != CHKSUM_TYPE_NONE)
@@ -3840,6 +3911,16 @@ HRESULT NGenMethodLinesPdbWriter::WritePDBData()
         // Shouldn't happen, but just skip this method if it does
         return S_OK;
     }
+    HRESULT hr;
+    if (FAILED(hr = WriteNativeILMapPDBData()))
+    {
+        return hr;
+    }
+
+    if (!m_isILPDBProvided)
+    {
+        return S_OK;
+    }
 
     // We will traverse this IL-to-native map (from the JIT) in parallel with the
     // source-to-IL map provided by the IL PDB (below).  Both need to be sorted by IL so
@@ -3851,7 +3932,7 @@ HRESULT NGenMethodLinesPdbWriter::WritePDBData()
     // according to the IL PDB API)
     
     ReleaseHolder<ISymUnmanagedMethod> pMethod;
-    HRESULT hr = m_pReader->GetMethod(
+    hr = m_pReader->GetMethod(
         m_hotDesc->GetMemberDef(),
         &pMethod);
     if (FAILED(hr))
@@ -3916,7 +3997,7 @@ HRESULT NGenMethodLinesPdbWriter::WritePDBData()
     
     ULONG32 iIlNativeMap = 0;
     ULONG32 iMapIndexPairs = 0;
-
+	
     // Traverse IL PDB entries and IL-to-native map entries (both sorted by IL) in
     // parallel
     // 
@@ -3980,7 +4061,16 @@ HRESULT NGenMethodLinesPdbWriter::WritePDBData()
                 // Reset our memory of the last unmatched entry in the IL PDB
                 iSeqPointLastUnmatched = (ULONG32) -1;
             }
-            
+			else if (iMapIndexPairs > 0)
+			{
+				DWORD lastMatchedilNativeIndex = rgMapIndexPairs[iMapIndexPairs - 1].m_iIlNativeMap;
+				if (m_rgIlNativeMap[iIlNativeMap].ilOffset == m_rgIlNativeMap[lastMatchedilNativeIndex].ilOffset &&
+					m_rgIlNativeMap[iIlNativeMap].nativeOffset < m_rgIlNativeMap[lastMatchedilNativeIndex].nativeOffset)
+				{
+					rgMapIndexPairs[iMapIndexPairs - 1].m_iIlNativeMap = iIlNativeMap;
+				}
+
+			}
             // Go to next ilnative map entry
             iIlNativeMap++;
             continue;
@@ -4053,7 +4143,7 @@ HRESULT NGenMethodLinesPdbWriter::WritePDBData()
     }
 
     // Write out the hot region into its own lines-file subsection
-    hr = WriteLinesSubsection(
+    hr = WriteDebugSLinesSubsection(
         ULONG32(m_pMethodRegionInfo->hotStartAddress - m_addrCodeSection),
         ULONG32(m_pMethodRegionInfo->hotSize),
         rgMapIndexPairs,
@@ -4065,7 +4155,7 @@ HRESULT NGenMethodLinesPdbWriter::WritePDBData()
     // region
     if (iMapIndexPairsFirstEntryInColdSection < cMapIndexPairs)
     {
-        hr = WriteLinesSubsection(
+        hr = WriteDebugSLinesSubsection(
             ULONG32(m_pMethodRegionInfo->coldStartAddress - m_addrCodeSection),
             ULONG32(m_pMethodRegionInfo->coldSize),
             &rgMapIndexPairs[iMapIndexPairsFirstEntryInColdSection],
@@ -4075,6 +4165,145 @@ HRESULT NGenMethodLinesPdbWriter::WritePDBData()
     }
 
     return S_OK;
+}
+
+//---------------------------------------------------------------------------------------
+//
+// Manages the writing of all native-IL subsections requred for a given method. Almost do
+// the same thing as NGenMethodLinesPdbWriter::WritePDBData. But we will write the native-IL 
+// map this time.  
+//
+
+HRESULT NGenMethodLinesPdbWriter::WriteNativeILMapPDBData()
+{
+    STANDARD_VM_CONTRACT;
+
+    HRESULT hr;
+
+    QuickSortILNativeMapByNativeOffset sorterByNativeOffset(m_rgIlNativeMap, m_cIlNativeMap);
+    sorterByNativeOffset.Sort();
+
+    ULONG32 iIlNativeMap = 0;
+    ULONG32 ilNativeMapFirstEntryInColdeSection = m_cIlNativeMap;
+    for (iIlNativeMap = 0; iIlNativeMap < m_cIlNativeMap; iIlNativeMap++)
+    {
+        if (m_rgIlNativeMap[iIlNativeMap].nativeOffset >= m_pMethodRegionInfo->hotSize)
+        {
+            ilNativeMapFirstEntryInColdeSection = iIlNativeMap;
+            break;
+        }
+    }
+
+    NewArrayHolder<ICorDebugInfo::OffsetMapping> coldRgIlNativeMap(new ICorDebugInfo::OffsetMapping[m_cIlNativeMap - ilNativeMapFirstEntryInColdeSection]);
+    // Adjust the cold offsets (if any) to be relative to the cold start
+    for (iIlNativeMap = ilNativeMapFirstEntryInColdeSection; iIlNativeMap < m_cIlNativeMap; iIlNativeMap++)
+    {
+        DWORD dwNativeOffset = m_rgIlNativeMap[iIlNativeMap].nativeOffset;
+        _ASSERTE(dwNativeOffset >= m_pMethodRegionInfo->hotSize);
+
+        // Adjust offset so it's relative to the cold region start
+        dwNativeOffset -= DWORD(m_pMethodRegionInfo->hotSize);
+        _ASSERTE(dwNativeOffset < m_pMethodRegionInfo->coldSize);
+        coldRgIlNativeMap[iIlNativeMap - ilNativeMapFirstEntryInColdeSection].ilOffset = m_rgIlNativeMap[iIlNativeMap].ilOffset;
+        coldRgIlNativeMap[iIlNativeMap - ilNativeMapFirstEntryInColdeSection].nativeOffset = dwNativeOffset;
+        coldRgIlNativeMap[iIlNativeMap - ilNativeMapFirstEntryInColdeSection].source = m_rgIlNativeMap[iIlNativeMap].source;
+    }
+
+    // Write out the hot region into its own lines-file subsection
+    hr = WriteDebugSILLinesSubsection(
+        ULONG32(m_pMethodRegionInfo->hotStartAddress - m_addrCodeSection),
+        ULONG32(m_pMethodRegionInfo->hotSize),
+        m_rgIlNativeMap,
+        ilNativeMapFirstEntryInColdeSection);
+    if (FAILED(hr))
+        return hr;
+
+    // If there was a hot/cold split, write a separate lines-file subsection for the cold
+    // region
+    if (ilNativeMapFirstEntryInColdeSection < m_cIlNativeMap)
+    {
+        hr = WriteDebugSILLinesSubsection(
+            ULONG32(m_pMethodRegionInfo->coldStartAddress - m_addrCodeSection),
+            ULONG32(m_pMethodRegionInfo->coldSize),
+            coldRgIlNativeMap,
+            m_cIlNativeMap - ilNativeMapFirstEntryInColdeSection);
+        if (FAILED(hr))
+            return hr;
+    }
+
+    return S_OK;
+}
+
+
+//---------------------------------------------------------------------------------------
+//
+// Helper called by NGenMethodLinesPdbWriter::WriteDebugSLinesSubsection and 
+// NGenMethodLinesPdbWriter::WriteDebugSILLinesSubsection to initial the DEBUG_S*_LINE 
+// subsection headers.
+//
+// Arguments:
+//      * ulCodeStartOffset - Offset relative to the code section, or where this region
+//          of code begins
+//      * type - the subsection's type
+//      * lineSize - how many lines mapping the subsection will have.
+//      * cbCode - Size in bytes of this region of code
+//      * ppSubSectHeader -  output value which returns the intialed CV_DebugSLinesHeader_t struct pointer.
+//      * ppLinesHeader - output value which returns the initialed CV_DebugSLinesHeader_t struct pointer.
+//      * ppbLinesSubsectionCur - output value which points to the address right after the DebugSLinesHeader
+//
+// Return Value:
+//      * Pointer which points the staring address of the SubSection.
+//
+
+LPBYTE NGenMethodLinesPdbWriter::InitDebugLinesHeaderSection(
+    DEBUG_S_SUBSECTION_TYPE type,
+    ULONG32 ulCodeStartOffset,
+    ULONG32 cbCode,
+    ULONG32 lineSize,
+    CV_DebugSSubsectionHeader_t **ppSubSectHeader /*out*/,
+    CV_DebugSLinesHeader_t ** ppLinesHeader /*out*/,
+    LPBYTE * ppbLinesSubsectionCur /*out*/)
+{
+    STANDARD_VM_CONTRACT;
+
+    UINT64 cbLinesSubsectionEstimate =
+        sizeof(DWORD) +
+        sizeof(CV_DebugSSubsectionHeader_t) +
+        sizeof(CV_DebugSLinesHeader_t) +
+        // Worst case: assume each sequence point will require its own
+        // CV_DebugSLinesFileBlockHeader_t
+        (lineSize * (sizeof(CV_DebugSLinesFileBlockHeader_t) + sizeof(CV_Line_t)));
+    if (!FitsIn<ULONG32>(cbLinesSubsectionEstimate))
+    {
+        return NULL;
+    }
+
+    LPBYTE rgbLinesSubsection = new BYTE[ULONG32(cbLinesSubsectionEstimate)];
+    LPBYTE pbLinesSubsectionCur = rgbLinesSubsection;
+
+    // * (1) DWORD = CV_SIGNATURE_C13 -- the usual subsection signature DWORD
+    *((DWORD *)pbLinesSubsectionCur) = CV_SIGNATURE_C13;
+    pbLinesSubsectionCur += sizeof(DWORD);
+
+    // * (2) CV_DebugSSubsectionHeader_t
+    CV_DebugSSubsectionHeader_t * pSubSectHeader = (CV_DebugSSubsectionHeader_t *)pbLinesSubsectionCur;
+    memset(pSubSectHeader, 0, sizeof(*pSubSectHeader));
+    pSubSectHeader->type = type;
+    *ppSubSectHeader = pSubSectHeader;
+    // pSubSectHeader->cblen to be filled in later once we know the size
+    pbLinesSubsectionCur += sizeof(*pSubSectHeader);
+
+    // * (3) CV_DebugSLinesHeader_t
+    CV_DebugSLinesHeader_t * pLinesHeader = (CV_DebugSLinesHeader_t *)pbLinesSubsectionCur;
+    memset(pLinesHeader, 0, sizeof(*pLinesHeader));
+    pLinesHeader->offCon = ulCodeStartOffset;
+    pLinesHeader->segCon = m_iCodeSection;
+    pLinesHeader->flags = 0;   // 0 means line info, but not column info, is included
+    pLinesHeader->cbCon = cbCode;
+    *ppLinesHeader = pLinesHeader;
+    pbLinesSubsectionCur += sizeof(*pLinesHeader);
+    *ppbLinesSubsectionCur = pbLinesSubsectionCur;
+    return rgbLinesSubsection;
 }
 
 //---------------------------------------------------------------------------------------
@@ -4098,7 +4327,7 @@ HRESULT NGenMethodLinesPdbWriter::WritePDBData()
 //      m_rgIlNativeMap[rgMapIndexPairs[i].m_iIlNativeMap].nativeOffset increases with i.
 //
 
-HRESULT NGenMethodLinesPdbWriter::WriteLinesSubsection(
+HRESULT NGenMethodLinesPdbWriter::WriteDebugSLinesSubsection(
     ULONG32 ulCodeStartOffset,
     ULONG32 cbCode,
     MapIndexPair * rgMapIndexPairs,
@@ -4125,40 +4354,31 @@ HRESULT NGenMethodLinesPdbWriter::WriteLinesSubsection(
 
     HRESULT hr;
 
-    UINT64 cbLinesSubsectionEstimate =
-        sizeof(DWORD) +
-        sizeof(CV_DebugSSubsectionHeader_t) +
-        sizeof(CV_DebugSLinesHeader_t) +
-        // Worst case: assume each sequence point will require its own
-        // CV_DebugSLinesFileBlockHeader_t
-        (cMapIndexPairs * (sizeof(CV_DebugSLinesFileBlockHeader_t) + sizeof(CV_Line_t)));
-    if (!FitsIn<ULONG32>(cbLinesSubsectionEstimate))
+
+    CV_DebugSSubsectionHeader_t * pSubSectHeader = NULL;
+    CV_DebugSLinesHeader_t * pLinesHeader = NULL;
+    CV_DebugSLinesFileBlockHeader_t * LinesFileBlockHeader = NULL;
+
+    // the InitDebugLinesHeaderSection will help us taking care of 
+    // * (1) DWORD = CV_SIGNATURE_C13
+    // * (2) CV_DebugSSubsectionHeader_t 
+    // * (3) CV_DebugSLinesHeader_t 
+    LPBYTE pbLinesSubsectionCur;
+    LPBYTE prgbLinesSubsection = InitDebugLinesHeaderSection(
+        DEBUG_S_LINES,
+        ulCodeStartOffset,
+        cbCode,
+        cMapIndexPairs,
+        &pSubSectHeader,
+        &pLinesHeader,
+        &pbLinesSubsectionCur);
+
+    if (pbLinesSubsectionCur == NULL)
     {
         return HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
     }
-        
-    NewArrayHolder<BYTE> rgbLinesSubsection(new BYTE[ULONG32(cbLinesSubsectionEstimate)]);
-    LPBYTE pbLinesSubsectionCur = rgbLinesSubsection;
 
-    // * (1) DWORD = CV_SIGNATURE_C13 -- the usual subsection signature DWORD
-    *((DWORD *) pbLinesSubsectionCur) = CV_SIGNATURE_C13;
-    pbLinesSubsectionCur += sizeof(DWORD);
-    
-    // * (2) CV_DebugSSubsectionHeader_t
-    CV_DebugSSubsectionHeader_t * pSubSectHeader = (CV_DebugSSubsectionHeader_t *) pbLinesSubsectionCur;
-    memset(pSubSectHeader, 0, sizeof(*pSubSectHeader));
-    pSubSectHeader->type = DEBUG_S_LINES;
-    // pSubSectHeader->cblen to be filled in later once we know the size
-    pbLinesSubsectionCur += sizeof(*pSubSectHeader);
-    
-    // * (3) CV_DebugSLinesHeader_t
-    CV_DebugSLinesHeader_t * pLinesHeader = (CV_DebugSLinesHeader_t *) pbLinesSubsectionCur;
-    memset(pLinesHeader, 0, sizeof(*pLinesHeader));
-    pLinesHeader->offCon = ulCodeStartOffset;
-    pLinesHeader->segCon = m_iCodeSection;
-    pLinesHeader->flags = 0;   // 0 means line info, but not column info, is included
-    pLinesHeader->cbCon = cbCode;
-    pbLinesSubsectionCur += sizeof(*pLinesHeader);
+    NewArrayHolder<BYTE> rgbLinesSubsection(prgbLinesSubsection);
 
     // The loop below takes care of
     //     * (4) CV_DebugSLinesFileBlockHeader_t
@@ -4167,11 +4387,13 @@ HRESULT NGenMethodLinesPdbWriter::WriteLinesSubsection(
     BOOL fAtLeastOneBlockWritten = FALSE;
     CV_DebugSLinesFileBlockHeader_t * pLinesFileBlockHeader = NULL;
     CV_Line_t * pLineCur = NULL;
+	CV_Line_t * pLinePrev = NULL;
     CV_Line_t * pLineBlockStart = NULL;
     BOOL fBeginNewBlock = TRUE;
     ULONG32 iSeqPointsPrev = (ULONG32) -1;
     DWORD dwNativeOffsetPrev = (DWORD) -1;
-    WCHAR wszURLPrev[MAX_PATH];
+    DWORD ilOffsetPrev = (DWORD) -1;
+    WCHAR wszURLPrev[MAX_LONGPATH];
     memset(&wszURLPrev, 0, sizeof(wszURLPrev));
     LPBYTE pbEnd = NULL;
 
@@ -4184,20 +4406,31 @@ HRESULT NGenMethodLinesPdbWriter::WriteLinesSubsection(
         // offset mapping. PDB format frowns on that. Since rgMapIndexPairs is being
         // iterated in native offset order, it's easy to find these dupes right now, and
         // skip all but the first map containing a given IP offset.
-        if (m_rgIlNativeMap[iIlNativeMap].nativeOffset == dwNativeOffsetPrev)
+        if (pLinePrev != NULL && m_rgIlNativeMap[iIlNativeMap].nativeOffset == pLinePrev->offset)
         {
-            // Found a native offset dupe. Since we've already assigned
-            // dwNativeOffsetPrev, ignore the current map entry
-            continue;
+			if (ilOffsetPrev == kUnmappedIP)
+			{
+				// if the previous IL offset is kUnmappedIP, then we should rewrite it. 
+				pLineCur = pLinePrev;
+			}
+			else if (iSeqPoints != kUnmappedIP &&
+				m_rgilOffsets[iSeqPoints] < ilOffsetPrev)
+			{
+				pLineCur = pLinePrev;
+			}
+			else
+			{
+				// Found a native offset dupe, ignore the current map entry
+				continue;
+			}
         }
-        dwNativeOffsetPrev = m_rgIlNativeMap[iIlNativeMap].nativeOffset;
 
         if ((iSeqPoints != kUnmappedIP) && (iSeqPoints != iSeqPointsPrev))
         {
             // This is the first iteration where we're looking at this iSeqPoints.  So
             // check whether the document name has changed on us.  If it has, that means
             // we need to start a new block.
-            WCHAR wszURL[MAX_PATH];
+            WCHAR wszURL[MAX_LONGPATH];
             ULONG32 cchURL;
             hr = m_rgpDocs[iSeqPoints]->GetURL(_countof(wszURL), &cchURL, wszURL);
             if (FAILED(hr))
@@ -4238,7 +4471,7 @@ HRESULT NGenMethodLinesPdbWriter::WriteLinesSubsection(
             }
 
             // Now get the info we'll need for the next block
-            char szURL[MAX_PATH];
+            char szURL[MAX_LONGPATH];
             int cbWritten = WideCharToMultiByte(
                 CP_UTF8,
                 0,                                      // dwFlags
@@ -4306,6 +4539,8 @@ HRESULT NGenMethodLinesPdbWriter::WriteLinesSubsection(
             m_rgnLineStarts[iSeqPoints];
         pLineCur->deltaLineEnd = 0;
         pLineCur->fStatement = 1;
+		ilOffsetPrev = (iSeqPoints == kUnmappedIP) ? kUnmappedIP : m_rgilOffsets[iSeqPoints];
+		pLinePrev = pLineCur;
         pLineCur++;
     }       // for (ULONG32 iMapIndexPairs=0; iMapIndexPairs < cMapIndexPairs; iMapIndexPairs++)
 
@@ -4343,6 +4578,183 @@ HRESULT NGenMethodLinesPdbWriter::WriteLinesSubsection(
     return S_OK;
 }
 
+//---------------------------------------------------------------------------------------
+//
+// Helper called by NGenMethodLinesPdbWriter::WriteNativeILMapPDBData to do the actual PDB writing of a single
+// lines-subsection.  This is called once for the hot region, and once for the cold
+// region, of a given method that has been split.  That means you get two
+// lines-subsections for split methods.
+//
+// Arguments:
+//      * ulCodeStartOffset - Offset relative to the code section, or where this region
+//          of code begins
+//      * cbCode - Size in bytes of this region of code
+//      * rgIlNativeMap - IL to Native map array.
+//      * rgILNativeMapAdjustSize - the number of elements we need to read in rgILNativeMap.
+//
+
+HRESULT NGenMethodLinesPdbWriter::WriteDebugSILLinesSubsection(
+    ULONG32 ulCodeStartOffset,
+    ULONG32 cbCode,
+    ICorDebugInfo::OffsetMapping * rgIlNativeMap,
+    ULONG32 rgILNativeMapAdjustSize)
+{
+    STANDARD_VM_CONTRACT;
+
+    // The lines subsection of the PDB (i.e., "DEBUG_S_IL_LINES"), is a blob consisting of a
+    // few structs stacked one after the other:
+    // 
+    // * (1) DWORD = CV_SIGNATURE_C13 -- the usual subsection signature DWORD
+    // * (2) CV_DebugSSubsectionHeader_t -- the usual subsection header, with type =
+    //     DEBUG_S_LINES
+    // * (3) CV_DebugSLinesHeader_t -- a single header for the entire subsection.  Its
+    //     purpose is to specify the native function being described, and to specify the
+    //     size of the variable-sized "blocks" that follow
+    // * (4) CV_DebugSLinesFileBlockHeader_t -- For each block, you get one of these.  A
+    //     block is defined by a set of sequence points that map to the same source
+    //     file.  While iterating through the offsets, we need to define new blocks
+    //     whenever the source file changes.  In C#, this typically only happens when
+    //     you advance to (or away from) an unmapped IP (0xFeeFee).
+    // * (5) CV_Line_t (Line array entries) -- For each block, you get several line
+    //     array entries, one entry for the beginning of each sequence point.
+
+    HRESULT hr;
+
+    CV_DebugSSubsectionHeader_t * pSubSectHeader = NULL;
+    CV_DebugSLinesHeader_t * pLinesHeader = NULL;
+    CV_DebugSLinesFileBlockHeader_t * pLinesFileBlockHeader = NULL;
+
+    // the InitDebugLinesHeaderSection will help us taking care of 
+    // * (1) DWORD = CV_SIGNATURE_C13
+    // * (2) CV_DebugSSubsectionHeader_t 
+    // * (3) CV_DebugSLinesHeader_t 
+    LPBYTE pbLinesSubsectionCur;
+    LPBYTE prgbLinesSubsection = InitDebugLinesHeaderSection(
+        DEBUG_S_IL_LINES,
+        ulCodeStartOffset,
+        cbCode,
+        rgILNativeMapAdjustSize,
+        &pSubSectHeader,
+        &pLinesHeader,
+        &pbLinesSubsectionCur);
+
+    if (prgbLinesSubsection == NULL)
+    {
+        return HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
+    }
+
+    NewArrayHolder<BYTE> rgbLinesSubsection(prgbLinesSubsection);
+
+    // The loop below takes care of
+    //     * (4) CV_DebugSLinesFileBlockHeader_t
+    //     * (5) CV_Line_t (Line array entries)
+    //
+    CV_Line_t * pLineCur = NULL;
+    CV_Line_t * pLineBlockStart = NULL;
+    BOOL fBeginNewBlock = TRUE;
+    LPBYTE pbEnd = NULL;
+
+    pLinesFileBlockHeader = (CV_DebugSLinesFileBlockHeader_t *)pbLinesSubsectionCur;
+    // PDB structure sizes guarantee this is the case, though their docs are
+    // explicit that each lines-file block header must be 4-byte aligned.
+    _ASSERTE(IS_ALIGNED(pLinesFileBlockHeader, 4));
+
+    memset(pLinesFileBlockHeader, 0, sizeof(*pLinesFileBlockHeader));
+    char szURL[MAX_PATH];
+    int cbWritten = WideCharToMultiByte(
+        CP_UTF8,
+        0,                                      // dwFlags
+        UNKNOWN_SOURCE_FILE_PATH,
+        -1,                                     // i.e., input is NULL-terminated
+        szURL,                                  // output: UTF8 string starts here
+        _countof(szURL),                        // Available space
+        NULL,                                   // lpDefaultChar
+        NULL                                    // lpUsedDefaultChar
+        );
+    _ASSERTE(cbWritten > 0);
+    DocNameOffsets docNameOffsets;
+    m_pDocNameToOffsetMap->Lookup(szURL, &docNameOffsets);
+    pLinesFileBlockHeader->offFile = docNameOffsets.m_dwChksumTableOffset;
+    // pLinesFileBlockHeader->nLines to be filled in when block is complete
+    // pLinesFileBlockHeader->cbBlock to be filled in when block is complete
+
+    pLineCur = (CV_Line_t *)(pLinesFileBlockHeader + 1);
+    pLineBlockStart = pLineCur;
+    CV_Line_t * pLinePrev = NULL;
+
+    for (ULONG32 iINativeMap = 0;iINativeMap < rgILNativeMapAdjustSize; iINativeMap++)
+    {
+        if ((rgIlNativeMap[iINativeMap].ilOffset == NO_MAPPING) ||
+            (rgIlNativeMap[iINativeMap].ilOffset == PROLOG) ||
+            (rgIlNativeMap[iINativeMap].ilOffset == EPILOG))
+        {
+            rgIlNativeMap[iINativeMap].ilOffset = kUnmappedIP;
+        }
+
+        // Sometimes the JIT manager will give us duplicate native offset in the IL-to-native
+        // offset mapping. PDB format frowns on that. Since rgMapIndexPairs is being
+        // iterated in native offset order, it's easy to find these dupes right now, and
+        // skip all but the first map containing a given IP offset.
+        if (pLinePrev != NULL &&
+            rgIlNativeMap[iINativeMap].nativeOffset == pLinePrev->offset)
+        {
+            if (pLinePrev->linenumStart == kUnmappedIP)
+            {
+                // if the previous IL offset is kUnmappedIP, then we should rewrite it. 
+                pLineCur = pLinePrev;
+            }
+            else if (rgIlNativeMap[iINativeMap].ilOffset != kUnmappedIP &&
+                rgIlNativeMap[iINativeMap].ilOffset < pLinePrev->linenumStart)
+            {
+                pLineCur = pLinePrev;
+            }
+            else
+            {
+                // Found a native offset dupe, ignore the current map entry
+                continue;
+            }
+        }
+
+        pLineCur->linenumStart = rgIlNativeMap[iINativeMap].ilOffset;
+
+        pLineCur->offset = rgIlNativeMap[iINativeMap].nativeOffset;
+        pLineCur->fStatement = 1;
+        pLineCur->deltaLineEnd = 0;
+        pLinePrev = pLineCur;
+        pLineCur++;
+    }
+
+    if (pLineCur == NULL)
+    {
+        // There were no lines data for this function, so don't write anything
+        return S_OK;
+    }
+
+    if (!FinalizeLinesFileBlock(pLinesFileBlockHeader, pLineBlockStart, pLineCur
+#ifdef _DEBUG
+        , true
+#endif
+        ))
+    {
+        return S_OK;
+    }
+
+    // Now that we know pSubSectHeader->cbLen, fill it in
+    pSubSectHeader->cbLen = CV_off32_t(LPBYTE(pLineCur) - LPBYTE(pLinesHeader));
+
+    // Subsection is now filled out, so add it.
+    hr = m_pWriter->ModAddSymbols(
+        m_pMod,
+        rgbLinesSubsection,
+
+        // The size we pass here is the size of the entire byte array that we pass in.
+        long(LPBYTE(pLineCur) - rgbLinesSubsection));
+
+    if (FAILED(hr))
+        return hr;
+
+    return S_OK;
+}
 
 //---------------------------------------------------------------------------------------
 //
@@ -4363,7 +4775,11 @@ HRESULT NGenMethodLinesPdbWriter::WriteLinesSubsection(
 BOOL NGenMethodLinesPdbWriter::FinalizeLinesFileBlock(
     CV_DebugSLinesFileBlockHeader_t * pLinesFileBlockHeader, 
     CV_Line_t * pLineBlockStart,
-    CV_Line_t * pLineBlockAfterEnd)
+    CV_Line_t * pLineBlockAfterEnd
+#ifdef _DEBUG
+  , BOOL ignorekUnmappedIPCheck
+#endif
+    )
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -4394,12 +4810,15 @@ BOOL NGenMethodLinesPdbWriter::FinalizeLinesFileBlock(
         // at the first file), but the offset will generally be ignored by the PDB
         // reader.
 #ifdef _DEBUG
+    {
+        if (!ignorekUnmappedIPCheck)
         {
             for (CV_Line_t * pLineCur = pLineBlockStart; pLineCur < pLineBlockAfterEnd; pLineCur++)
             {
                 _ASSERTE(pLineCur->linenumStart == kUnmappedIP);
             }
         }
+    }
 #endif // _DEBUG
         pLinesFileBlockHeader->offFile = 0;
     }
@@ -4411,23 +4830,27 @@ BOOL NGenMethodLinesPdbWriter::FinalizeLinesFileBlock(
     
     return TRUE;
 }
-
-
-HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath)
+#endif // NO_NGENPDB
+#if defined(FEATURE_PERFMAP) || !defined(NO_NGENPDB)
+HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath, LPCWSTR pDiasymreaderPath)
 {
     STANDARD_VM_CONTRACT;
-
-    NGenPdbWriter pdbWriter(
-        pNativeImagePath, 
-        pPdbPath, 
-        pdbLines ? kPDBLines : 0,
-        pManagedPdbSearchPath);
-    IfFailThrow(pdbWriter.Load());
 
     Assembly *pAssembly = reinterpret_cast<Assembly *>(hAssembly);
     _ASSERTE(pAssembly);
     _ASSERTE(pNativeImagePath);
     _ASSERTE(pPdbPath);
+
+#if !defined(NO_NGENPDB)
+    NGenPdbWriter pdbWriter(
+        pNativeImagePath, 
+        pPdbPath, 
+        pdbLines ? kPDBLines : 0,
+        pManagedPdbSearchPath);
+    IfFailThrow(pdbWriter.Load(pDiasymreaderPath));
+#elif defined(FEATURE_PERFMAP)
+    NativeImagePerfMap perfMap(pAssembly, pPdbPath);
+#endif
 
     ModuleIterator moduleIterator = pAssembly->IterateModules();
     Module *pModule = NULL;
@@ -4439,7 +4862,11 @@ HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImage
 
         if (pModule->HasNativeImage() || pModule->IsReadyToRun())
         {
+#if !defined(NO_NGENPDB)
             IfFailThrow(pdbWriter.WritePDBDataForModule(pModule));
+#elif defined(FEATURE_PERFMAP)
+            perfMap.LogDataForModule(pModule);
+#endif
             fAtLeastOneNativeModuleFound = TRUE;
         }
     }
@@ -4447,17 +4874,28 @@ HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImage
     if (!fAtLeastOneNativeModuleFound)
     {
         GetSvcLogger()->Printf(
+            W("Loaded image '%s' (for input file '%s') is not a native image.\n"),
+            pAssembly->GetManifestFile()->GetPath().GetUnicode(),
             pNativeImagePath);
-        return E_FAIL;
+        return CORDBG_E_NO_IMAGE_AVAILABLE;
     }
 
     GetSvcLogger()->Printf(
+#if !defined(NO_NGENPDB)
         W("Successfully generated PDB for native assembly '%s'.\n"),
+#elif defined(FEATURE_PERFMAP)
+        W("Successfully generated perfmap for native assembly '%s'.\n"),
+#endif
         pNativeImagePath);
+
     return S_OK;
 }
-
-#endif // NO_NGENPDB
+#else
+HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath, LPCWSTR pDiasymreaderPath)
+{
+    return E_NOTIMPL;
+}
+#endif // defined(FEATURE_PERFMAP) || !defined(NO_NGENPDB)
 
 // End of PDB writing code
 // ----------------------------------------------------------------------------
@@ -4540,6 +4978,8 @@ CEEPreloader::CEEPreloader(Module *pModule,
     CONSISTENCY_CHECK(pModule == GetAppDomain()->ToCompilationDomain()->GetTargetModule());
 
     GetAppDomain()->ToCompilationDomain()->SetTargetImage(m_image, this);
+
+    m_methodCompileLimit = pModule->GetMDImport()->GetCountWithTokenKind(mdtMethodDef) * 10;
 
 #ifdef FEATURE_FULL_NGEN
     m_fSpeculativeTriage = FALSE;
@@ -4750,7 +5190,7 @@ void CEEPreloader::MethodReferencedByCompiledCode(CORINFO_METHOD_HANDLE handle)
 
         if (pEntry->fScheduled)
             return;        
-        m_uncompiledMethods.Append(pMD);
+        AppendUncompiledMethod(pMD);
     }
     else
     {
@@ -4779,199 +5219,6 @@ BOOL CEEPreloader::IsUncompiledMethod(CORINFO_METHOD_HANDLE handle)
     return m_compileMethodsHash.LookupPtr(pMD) != NULL;
 #endif
 }
-
-#ifdef MDIL
-#define ELEMENT_TYPE_NULLABLE       ((CorElementType)0x17)
-#define ELEMENT_TYPE_NULLABLE_CANON ((CorElementType)0x1f)
-MethodTable *GetMethodTable(CorElementType elType)
-{
-    switch (elType)
-    {
-    default:
-        assert(!"unexpected element type");
-        return g_pCanonMethodTableClass;
-
-    case    ELEMENT_TYPE_BOOLEAN:
-    case    ELEMENT_TYPE_CHAR:
-    case    ELEMENT_TYPE_I1:
-    case    ELEMENT_TYPE_U1:
-    case    ELEMENT_TYPE_I2:
-    case    ELEMENT_TYPE_U2:
-    case    ELEMENT_TYPE_I4:
-    case    ELEMENT_TYPE_U4:
-    case    ELEMENT_TYPE_I8:
-    case    ELEMENT_TYPE_U8:
-    case    ELEMENT_TYPE_R4:
-    case    ELEMENT_TYPE_R8:
-        return MscorlibBinder::LoadPrimitiveType(elType);
-
-    case    ELEMENT_TYPE_VALUETYPE:
-        return MscorlibBinder::GetClass(CLASS__DECIMAL);
-
-    case    ELEMENT_TYPE_CLASS:
-        return g_pCanonMethodTableClass;
-
-    case    ELEMENT_TYPE_NULLABLE:
-        {
-            MethodTable *pInstMT = NULL;
-            EX_TRY
-            {
-                TypeHandle int32TH = GetMethodTable(ELEMENT_TYPE_I4);
-                pInstMT = ClassLoader::LoadGenericInstantiationThrowing(g_pNullableClass->GetModule(),
-                                                                        g_pNullableClass->GetCl(),
-                                                                        Instantiation(&int32TH, 1),
-                                                                        ClassLoader::LoadTypes
-                                                                        ).GetMethodTable();
-            }
-            EX_CATCH
-            {
-                // do nothing
-            }
-            EX_END_CATCH(SwallowAllExceptions)
-
-            return pInstMT;
-        }
-
-    case    ELEMENT_TYPE_NULLABLE_CANON:
-        {
-            MethodTable *pInstMT = NULL;
-            EX_TRY
-            {
-                TypeHandle canonTH = g_pCanonMethodTableClass;
-                pInstMT = ClassLoader::LoadGenericInstantiationThrowing(g_pNullableClass->GetModule(),
-                                                                        g_pNullableClass->GetCl(),
-                                                                        Instantiation(&canonTH, 1),
-                                                                        ClassLoader::LoadTypes
-                                                                        ).GetMethodTable();
-            }
-            EX_CATCH
-            {
-                // do nothing
-            }
-            EX_END_CATCH(SwallowAllExceptions)
-
-            return pInstMT;
-        }
-    }
-}
-
-void CEEPreloader::AddMDILCodeFlavorsToUncompiledMethods(CORINFO_METHOD_HANDLE handle)
-{
-    STANDARD_VM_CONTRACT;
-#if 0
-    static CorElementType popularFlavors[] = 
-    {
-        ELEMENT_TYPE_CLASS,
-        ELEMENT_TYPE_VALUETYPE,
-        ELEMENT_TYPE_I4,
-//        ELEMENT_TYPE_NULLABLE,
-        ELEMENT_TYPE_R8,
-        ELEMENT_TYPE_U1,
-        ELEMENT_TYPE_BOOLEAN,
-        ELEMENT_TYPE_U2,
-        ELEMENT_TYPE_I8,
-        ELEMENT_TYPE_U4,
-        ELEMENT_TYPE_U8,
-//        ELEMENT_TYPE_NULLABLE_CANON,
-    };
-
-    MethodDesc *pMD = GetMethod(handle);
-    MethodTable *pMT = pMD->GetMethodTable();
-
-    DWORD nGenericClassArgs = pMT->GetNumGenericArgs();
-    DWORD nGenericMethodArgs = pMD->GetNumGenericMethodArgs();
-    DWORD nGenericArgs = nGenericClassArgs + nGenericMethodArgs;
-    if (nGenericArgs == 0)
-                return;
-    DWORD flavorCount = nGenericArgs <= 1 ? COUNTOF(popularFlavors) : COUNTOF(popularFlavors)*COUNTOF(popularFlavors);
-    DWORD flavorsPerArg = nGenericArgs <= 1 ? COUNTOF(popularFlavors) : COUNTOF(popularFlavors);
-
-    for (DWORD flavor = 1; flavor < flavorCount; flavor++)
-    {
-        // First instantiate the declaring type at <...,...,...>
-
-        DWORD dwAllocSize = 0;
-        if (!ClrSafeInt<DWORD>::multiply(sizeof(TypeHandle), nGenericClassArgs, dwAllocSize))
-            ThrowHR(COR_E_OVERFLOW);
-
-        CQuickBytes qbGenericClassArgs;
-        TypeHandle* pGenericClassArgs = reinterpret_cast<TypeHandle*>(qbGenericClassArgs.AllocThrows(dwAllocSize));
-
-        DWORD remainder = flavor;
-
-        for (DWORD i = 0; i < nGenericClassArgs; i++)
-        {
-            pGenericClassArgs[i] = GetMethodTable(popularFlavors[remainder % flavorsPerArg]);
-            remainder /= flavorsPerArg;
-        }
-
-        MethodTable *pInstMT = NULL;
-
-        EX_TRY
-        {
-            pInstMT = ClassLoader::LoadGenericInstantiationThrowing(pMT->GetModule(),
-                                                                    pMT->GetCl(),
-                                                                    Instantiation(pGenericClassArgs, nGenericClassArgs),
-                                                                    ClassLoader::LoadTypes
-                                                                    ).GetMethodTable();
-        }
-        EX_CATCH
-        {
-            // do nothing
-        }
-        EX_END_CATCH(SwallowAllExceptions)
-
-        if (pInstMT == NULL)
-        {
-            continue;
-        }
-
-        // Now instantiate the method at <__Canon,...,__Canon>, creating the shared code.
-        // This will not create an instantiating stub just yet.
-        CQuickBytes qbGenericMethodArgs;
-        TypeHandle *genericMethodArgs = NULL;
-
-        // The rest of this method instantiates a generic method
-        // Instantiate at "__Canon" if a NULL "genericMethodArgs" is given
-        if (nGenericMethodArgs)
-        {
-            dwAllocSize = 0;
-            if (!ClrSafeInt<DWORD>::multiply(sizeof(TypeHandle), nGenericMethodArgs, dwAllocSize))
-                ThrowHR(COR_E_OVERFLOW);
-        
-            genericMethodArgs = reinterpret_cast<TypeHandle*>(qbGenericMethodArgs.AllocThrows(dwAllocSize));
-
-
-            for (DWORD i =0; i < nGenericMethodArgs; i++)
-            {
-                genericMethodArgs[i] = GetMethodTable(popularFlavors[remainder % flavorsPerArg]);
-                remainder /= flavorsPerArg;
-            }
-        }
-
-        MethodDesc *pInstMD = NULL;
-        EX_TRY
-        {
-            pInstMD = MethodDesc::FindOrCreateAssociatedMethodDesc( pMD, 
-                                                                    pMT,
-                                                                    FALSE, /* don't get unboxing entry point */
-                                                                    Instantiation(genericMethodArgs, nGenericMethodArgs),
-                                                                    TRUE,
-                                                                    FALSE,
-                                                                    TRUE);
-        }
-        EX_CATCH
-        {
-            // do nothing
-        }
-        EX_END_CATCH(SwallowAllExceptions)
-
-        if (pInstMD != NULL)
-            AddToUncompiledMethods(pInstMD);
-    }
-#endif
-}
-#endif
 
 static bool IsTypeAccessibleOutsideItsAssembly(TypeHandle th)
 {
@@ -5063,12 +5310,6 @@ static bool IsMethodCallableOutsideItsAssembly(MethodDesc * pMD)
 {
     STANDARD_VM_CONTRACT;
 
-#ifdef MDIL
-    // Tracking of referenced methods does not kick in during MDIL compilation, so disable this optimization.
-    if (GetAppDomain()->IsMDILCompilationDomain())
-        return true;
-#endif
-
     // Virtual methods can be called via interfaces, etc. We would need to do
     // more analysis to trim them. For now, assume that they can be referenced outside this assembly.
     if (pMD->IsVirtual())
@@ -5100,12 +5341,6 @@ void CEEPreloader::AddToUncompiledMethods(MethodDesc *pMD, BOOL fForStubs)
         if (!pMD->MayHaveNativeCode() && !pMD->IsWrapperStub())
             return;
     }
-
-#ifdef MDIL
-    BOOL fIsMinimalMDIL = GetAppDomain()->IsMinimalMDILCompilationDomain();
-    if (fIsMinimalMDIL && (fForStubs || !pMD->HasClassOrMethodInstantiation()))
-        return;
-#endif // MDIL
 
     // If it's already been compiled, don't add it to the set of uncompiled methods
     if (m_image->GetCodeAddress(pMD) != NULL)
@@ -5165,7 +5400,7 @@ void CEEPreloader::AddToUncompiledMethods(MethodDesc *pMD, BOOL fForStubs)
     }
 
     // Add it to the set of uncompiled methods
-    m_uncompiledMethods.Append(pMD);
+    AppendUncompiledMethod(pMD);
 }
 
 //
@@ -5262,6 +5497,35 @@ static void SpecializeComparer(SString& ss, Instantiation& inst)
         {
             ss.Set(W("System.Collections.Generic.NullableComparer`1"));
             inst = nullableInst;
+            return;
+        }
+    }
+
+    if (elemTypeHnd.IsEnum())
+    {
+        CorElementType et = elemTypeHnd.GetVerifierCorElementType();
+        if (et == ELEMENT_TYPE_I1 ||
+            et == ELEMENT_TYPE_I2 ||
+            et == ELEMENT_TYPE_I4)
+        {
+            ss.Set(W("System.Collections.Generic.Int32EnumComparer`1"));
+            return;
+        }
+        if (et == ELEMENT_TYPE_U1 ||
+            et == ELEMENT_TYPE_U2 ||
+            et == ELEMENT_TYPE_U4)
+        {
+            ss.Set(W("System.Collections.Generic.UInt32EnumComparer`1"));
+            return;
+        }
+        if (et == ELEMENT_TYPE_I8)
+        {
+            ss.Set(W("System.Collections.Generic.Int64EnumComparer`1"));
+            return;
+        }
+        if (et == ELEMENT_TYPE_U8)
+        {
+            ss.Set(W("System.Collections.Generic.UInt64EnumComparer`1"));
             return;
         }
     }
@@ -6452,15 +6716,7 @@ void CEEPreloader::GenerateMethodStubs(
     MethodDesc* pMD = GetMethod(hMethod);
     MethodDesc* pStubMD = NULL;
 
-#ifdef MDIL
-    // Do not generate IL stubs when generating MDIL
-    // This prevents versionability concerns around IL stubs exposing internal
-    // implementation details of the CLR.
-    if (GetAppDomain()->IsMDILCompilationDomain())
-        return;
-#endif
-
-    // Do not generate IL stubs when generating MDIL
+    // Do not generate IL stubs when generating ReadyToRun images
     // This prevents versionability concerns around IL stubs exposing internal
     // implementation details of the CLR.
     if (IsReadyToRunCompilation())
@@ -6722,9 +6978,10 @@ CORINFO_METHOD_HANDLE CEEPreloader::LookupMethodDef(mdMethodDef token)
                                      token,
                                      FALSE);
 
-    // READYTORUN: FUTURE: Generics
     if (IsReadyToRunCompilation() && pMD->HasClassOrMethodInstantiation())
-        return NULL;
+    {
+        _ASSERTE(IsCompilationProcess() && pMD->GetModule_NoLogging() == GetAppDomain()->ToCompilationDomain()->GetTargetModule());
+    }
 
     pMD = pMD->FindOrCreateTypicalSharedInstantiation();
 
@@ -7032,11 +7289,7 @@ CompilationDomain::~CompilationDomain()
 
 }
 
-void CompilationDomain::Init(
-#ifdef MDIL
-                             MDILCompilationFlags     mdilCompilationFlags
-#endif
-                             )
+void CompilationDomain::Init()
 {
     STANDARD_VM_CONTRACT;
 
@@ -7051,14 +7304,6 @@ void CompilationDomain::Init(
 
     Security::SetDefaultAppDomainProperty(GetSecurityDescriptor());
     SetCompilationDomain();
-#ifdef MDIL
-    if (mdilCompilationFlags & MDILCompilationFlags_CreateMDIL)
-        SetMDILCompilationDomain();
-    if (mdilCompilationFlags & MDILCompilationFlags_MinimalMDIL)
-        SetMinimalMDILCompilationDomain();
-    if (mdilCompilationFlags & MDILCompilationFlags_NoMDIL)
-        SetNoMDILCompilationDomain();
-#endif
 
 #ifndef FEATURE_CORECLR
     // We need the Compilation Domain to be homogeneous.  We've already forced everything to be full trust.
@@ -7859,7 +8104,7 @@ HRESULT
     {
         if (NingenEnabled())
         {
-            WCHAR buf[MAX_PATH + sizeof(CONFIGURATION_EXTENSION)/sizeof(WCHAR) + 1];
+            WCHAR buf[MAX_LONGPATH + sizeof(CONFIGURATION_EXTENSION)/sizeof(WCHAR) + 1];
             if (0 != wcscpy_s(buf, sizeof(buf)/sizeof(*buf), path))
             {
                 COMPlusThrowHR(COR_E_PATHTOOLONG);

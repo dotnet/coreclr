@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 //
 // Internal data access functionality.
@@ -47,7 +46,8 @@ struct ZeroInit
 // Private requests for DataModules
 enum
 {
-    DACDATAMODULEPRIV_REQUEST_GET_MODULEPTR = 0xf0000000
+    DACDATAMODULEPRIV_REQUEST_GET_MODULEPTR = 0xf0000000,
+    DACDATAMODULEPRIV_REQUEST_GET_MODULEDATA = 0xf0000001
 };
 
 
@@ -753,6 +753,61 @@ struct DacpOomData : ZeroInit<DacpOomData>
     }
 };
 
+// This is the value of max_idp_count in ndp\clr\src\vm\gcpriv.h
+#define NUM_GC_DATA_POINTS 9
+// These are from ndp\clr\src\vm\gcrecord.h
+#define MAX_COMPACT_REASONS_COUNT 11
+#define MAX_EXPAND_MECHANISMS_COUNT 6
+#define MAX_GC_MECHANISM_BITS_COUNT 2
+// This is from ndp\clr\src\vm\common.h
+#define MAX_GLOBAL_GC_MECHANISMS_COUNT 6
+struct DacpGCInterestingInfoData : ZeroInit<DacpGCInterestingInfoData>
+{
+    size_t interestingDataPoints[NUM_GC_DATA_POINTS];
+    size_t compactReasons[MAX_COMPACT_REASONS_COUNT];
+    size_t expandMechanisms[MAX_EXPAND_MECHANISMS_COUNT];
+    size_t bitMechanisms[MAX_GC_MECHANISM_BITS_COUNT];
+    size_t globalMechanisms[MAX_GLOBAL_GC_MECHANISMS_COUNT];
+
+    HRESULT RequestGlobal(ISOSDacInterface *sos)
+    {
+        HRESULT hr;
+        ISOSDacInterface3 *psos3 = NULL;
+        if (SUCCEEDED(hr = sos->QueryInterface(__uuidof(ISOSDacInterface3), (void**) &psos3)))
+        {
+            hr = psos3->GetGCGlobalMechanisms(globalMechanisms);
+            psos3->Release();
+        }
+        return hr;
+    }
+
+    HRESULT Request(ISOSDacInterface *sos)
+    {
+        HRESULT hr;
+        ISOSDacInterface3 *psos3 = NULL;
+        if (SUCCEEDED(hr = sos->QueryInterface(__uuidof(ISOSDacInterface3), (void**) &psos3)))
+        {
+            hr = psos3->GetGCInterestingInfoStaticData(this);
+            psos3->Release();
+        }
+        return hr;
+    }
+
+    // Use this for Server mode, as there are multiple heaps,
+    // and you need to pass a heap address in addr.
+    HRESULT Request(ISOSDacInterface *sos, CLRDATA_ADDRESS addr)
+    {
+        HRESULT hr;
+        ISOSDacInterface3 *psos3 = NULL;
+        if (SUCCEEDED(hr = sos->QueryInterface(__uuidof(ISOSDacInterface3), (void**) &psos3)))
+        {
+            hr = psos3->GetGCInterestingInfoData(addr, this);
+            psos3->Release();
+        }
+        return hr;
+    }
+};
+
 struct DacpGcHeapAnalyzeData
     : ZeroInit<DacpGcHeapAnalyzeData>
 {
@@ -848,9 +903,24 @@ struct DacpGetModuleAddress : ZeroInit<DacpGetModuleAddress>
     CLRDATA_ADDRESS ModulePtr;
     HRESULT Request(IXCLRDataModule* pDataModule)
     {
-        return pDataModule->Request(DACDATAMODULEPRIV_REQUEST_GET_MODULEPTR,
-                                0, NULL,
-                                sizeof(*this), (PBYTE) this);
+        return pDataModule->Request(DACDATAMODULEPRIV_REQUEST_GET_MODULEPTR, 0, NULL, sizeof(*this), (PBYTE) this);
+    }
+};
+
+struct DacpGetModuleData : ZeroInit<DacpGetModuleData>
+{
+    BOOL IsDynamic;
+    BOOL IsInMemory;
+    BOOL IsFileLayout;
+    CLRDATA_ADDRESS PEFile;
+    CLRDATA_ADDRESS LoadedPEAddress;
+    ULONG64 LoadedPESize;
+    CLRDATA_ADDRESS InMemoryPdbAddress;
+    ULONG64 InMemoryPdbSize;
+
+    HRESULT Request(IXCLRDataModule* pDataModule)
+    {
+        return pDataModule->Request(DACDATAMODULEPRIV_REQUEST_GET_MODULEDATA, 0, NULL, sizeof(*this), (PBYTE) this);
     }
 };
 

@@ -7,11 +7,83 @@
     <NoExplicitReferenceToStdLib>true</NoExplicitReferenceToStdLib>
     <AddAdditionalExplicitAssemblyReferences>false</AddAdditionalExplicitAssemblyReferences>
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    <!-- Disable some C# warnings for the tests. -->
+    <NoWarn>78,162,164,168,169,219,251,252,414,429,642,649,652,675,1691,1717,1718,3001,3002,3003,3005,3008</NoWarn>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <SkipSigning Condition="'$(CrossGen)' == 'true'">true</SkipSigning>
+    <!-- Set the project.json directory for generated TestWrappers. -->
+    <TestWrappersPackagesConfigFileDirectory>$(MSBuildThisFileDirectory)TestWrappersConfig\</TestWrappersPackagesConfigFileDirectory>
   </PropertyGroup>
 
-  <!-- Enable alternative JIT for testing if specified -->
+  <!-- Expose the target OS in a more convenient fashion -->
   <PropertyGroup>
-    <_CLRTestPreCommands>IF NOT "%__TestEnv%"=="" call %__TestEnv%</_CLRTestPreCommands>
+    <OSGroup Condition="'$(OSGroup)'=='' and $(Configuration.StartsWith('Windows'))">Windows_NT</OSGroup>
+    <OSGroup Condition="'$(OSGroup)'=='' and $(Configuration.StartsWith('Linux'))">Linux</OSGroup>
+    <OSGroup Condition="'$(OSGroup)'=='' and $(Configuration.StartsWith('OSX'))">OSX</OSGroup>
+    <OSGroup Condition="'$(OSGroup)'=='' and $(Configuration.StartsWith('FreeBSD'))">FreeBSD</OSGroup>
+    <OSGroup Condition="'$(OSGroup)'==''">Windows_NT</OSGroup>
   </PropertyGroup>
- 
+
+  <!-- Setup properties per OSGroup -->
+  <Choose>
+    <When Condition="'$(OSGroup)'=='AnyOS'">
+      <PropertyGroup>
+      </PropertyGroup>
+    </When>
+    <When Condition="'$(OSGroup)'=='Windows_NT'">
+      <PropertyGroup>
+        <TargetsWindows>true</TargetsWindows>
+        <TestNugetRuntimeId>win7-x64</TestNugetRuntimeId>
+        <DefaultTestTFM>net45</DefaultTestTFM>
+      </PropertyGroup>
+    </When>
+    <When Condition="'$(OSGroup)'=='Linux'">
+      <PropertyGroup>
+        <TargetsUnix>true</TargetsUnix>
+        <TargetsLinux>true</TargetsLinux>
+        <TestNugetRuntimeId>ubuntu.14.04-x64</TestNugetRuntimeId>
+      </PropertyGroup>
+    </When>
+    <When Condition="'$(OSGroup)'=='OSX'">
+      <PropertyGroup>
+        <TargetsUnix>true</TargetsUnix>
+        <TargetsOSX>true</TargetsOSX>
+        <TestNugetRuntimeId>osx.10.10-x64</TestNugetRuntimeId>
+      </PropertyGroup>
+    </When>
+    <When Condition="'$(OSGroup)'=='FreeBSD'">
+      <PropertyGroup>
+        <TargetsUnix>true</TargetsUnix>
+        <TargetsFreeBSD>true</TargetsFreeBSD>
+        <TestNugetRuntimeId>ubuntu.14.04-x64</TestNugetRuntimeId>
+      </PropertyGroup>
+    </When>
+    <Otherwise>
+      <PropertyGroup>
+        <ConfigurationErrorMsg>$(ConfigurationErrorMsg);Unknown OSGroup [$(OSGroup)] specificed in your project.</ConfigurationErrorMsg>
+      </PropertyGroup>
+    </Otherwise>
+  </Choose>
+
+  <PropertyGroup>
+    <TargetsUnknownUnix Condition="'$(TargetsUnix)' == 'true' AND '$(OSGroup)' != 'FreeBSD' AND '$(OSGroup)' != 'Linux' AND '$(OSGroup)' != 'OSX'">true</TargetsUnknownUnix>
+  </PropertyGroup>
+
+  <!-- Default Test platform to deploy the netstandard compiled tests to -->
+  <PropertyGroup>
+    <!-- we default TestTFM and FilterToTestTFM to netcoreapp1.0 if they are not explicity defined -->
+    <DefaultTestTFM Condition="'$(DefaultTestTFM)'==''">netcoreapp1.0</DefaultTestTFM>
+    <TestTFM Condition="'$(TestTFM)'==''">$(DefaultTestTFM)</TestTFM>
+    <FilterToTestTFM Condition="'$(FilterToTestTFM)'==''">$(DefaultTestTFM)</FilterToTestTFM>
+  </PropertyGroup>
+
+  <!-- Set default ZapRequire level (used only when CrossGen is enabled) -->
+  <PropertyGroup>
+    <ZapRequire Condition="'$(ZapRequire)' == ''">2</ZapRequire>
+  </PropertyGroup>
+  
+  <PropertyGroup>
+    <ProjectJson>$(SourceDir)Common\test_dependencies\project.json</ProjectJson>
+    <ProjectLockJson>$(SourceDir)Common\test_dependencies\project.lock.json</ProjectLockJson>
+  </PropertyGroup>
 </Project>

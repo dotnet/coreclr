@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // md5.cpp
 //
@@ -133,7 +132,12 @@ void MD5::GetHashValue(MD5HASHDATA* phash)
     //
     // but our compiler has an intrinsic!
 
+    #if defined(_ARM_) && defined(PLATFORM_UNIX)
+    #define ROL(x, n)        (((x) << (n)) | ((x) >> (32-(n))))
+    #define ROTATE_LEFT(x,n) (x) = ROL(x,n)
+    #else
     #define ROTATE_LEFT(x,n) (x) = _lrotl(x,n)
+    #endif
 
     ////////////////////////////////////////////////////////////////
     //

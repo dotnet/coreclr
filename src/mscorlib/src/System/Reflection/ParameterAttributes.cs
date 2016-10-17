@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -21,9 +22,7 @@ namespace System.Reflection {
         None      =   0x0000,      // no flag is specified
         In        =   0x0001,     // Param is [In]    
         Out       =   0x0002,     // Param is [Out]   
-#if FEATURE_USE_LCID || FEATURE_LEGACYNETCF       
         Lcid      =   0x0004,     // Param is [lcid]  
-#endif
         Retval    =   0x0008,     // Param is [Retval]    
         Optional  =   0x0010,     // Param is optional 
 

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #ifndef __REGDISP_H
 #define __REGDISP_H
@@ -105,6 +104,7 @@ typedef struct _Arm64VolatileContextPointer
             PDWORD64 X15;
             PDWORD64 X16;
             PDWORD64 X17;
+            //X18 is reserved by OS, in userspace it represents TEB
         };
         PDWORD64 X[18];
     };

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 ////////////////////////////////////////////////////////////////////////////
@@ -21,8 +22,8 @@ namespace System.Globalization {
     using System.Diagnostics.Contracts;
 
     [Serializable] 
-[System.Runtime.InteropServices.ComVisible(true)]
-    public class RegionInfo
+    [System.Runtime.InteropServices.ComVisible(true)]
+    public partial class RegionInfo
     {
         //--------------------------------------------------------------------//
         //                        Internal Information                        //
@@ -65,7 +66,7 @@ namespace System.Globalization {
 
             if (name.Length == 0) //The InvariantCulture has no matching region
             { 
-                throw new ArgumentException(Environment.GetResourceString("Argument_NoRegionInvariantCulture"));
+                throw new ArgumentException(Environment.GetResourceString("Argument_NoRegionInvariantCulture"), "name");
             }
             
             Contract.EndContractBlock();
@@ -136,7 +137,7 @@ namespace System.Globalization {
         [System.Security.SecurityCritical]  // auto-generated
         private void SetName(string name)
         {
-#if FEATURE_CORECLR      
+#if FEATURE_CORECLR
             // Use the name of the region we found
             this.m_name = this.m_cultureData.SREGIONNAME;
 #else
@@ -151,7 +152,7 @@ namespace System.Globalization {
 
 #region Serialization 
         //
-        //  m_cultureId is needed for serialization only to detect the case if teh region info is created using the name or using the LCID.
+        //  m_cultureId is needed for serialization only to detect the case if the region info is created using the name or using the LCID.
         //  in case m_cultureId is zero means that the RigionInfo is created using name. otherwise it is created using LCID.
         //
 
@@ -162,7 +163,7 @@ namespace System.Globalization {
         [OptionalField(VersionAdded = 2)]
         internal int m_dataItem = 0;
 
-#if !FEATURE_CORECLR            
+#if !FEATURE_CORECLR
         static private readonly int[] IdFromEverettRegionInfoDataItem =
         {
             0x3801, /*  0 */  // AE          ar-AE      Arabic (U.A.E.)
@@ -305,7 +306,7 @@ namespace System.Globalization {
         [OnDeserialized]
         private void OnDeserialized(StreamingContext ctx)
         {
-#if FEATURE_CORECLR            
+#if FEATURE_CORECLR
             // This won't happen anyway since CoreCLR doesn't support serialization
             this.m_cultureData = CultureData.GetCultureData(m_name, true);
 #else
@@ -457,7 +458,6 @@ namespace System.Globalization {
         }
 
 
-#if !FEATURE_CORECLR
         ////////////////////////////////////////////////////////////////////////
         //
         //  ThreeLetterISORegionName
@@ -489,7 +489,6 @@ namespace System.Globalization {
                 return (this.m_cultureData.SABBREVCTRYNAME);
             }
         }
-#endif
 
         ////////////////////////////////////////////////////////////////////////
         //

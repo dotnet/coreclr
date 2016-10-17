@@ -2,31 +2,32 @@ project(unixcoreconsole)
 
 include_directories(../unixcoreruncommon)
 
+add_compile_options(-fPIE)
+
 set(CORECONSOLE_SOURCES 
-    ../unixcoreruncommon/coreruncommon.cpp
     coreconsole.cpp 
 )
 
-add_executable(coreconsole
+_add_executable(coreconsole
     ${CORECONSOLE_SOURCES}
 )
 
-# FreeBSD implements dlopen in libc
-if(NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
+# FreeBSD and NetBSD implement dlopen(3) in libc
+if(NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD AND NOT CMAKE_SYSTEM_NAME STREQUAL NetBSD)
     target_link_libraries(coreconsole 
         dl
     )
-endif(NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
+endif(NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD AND NOT CMAKE_SYSTEM_NAME STREQUAL NetBSD)
 
-# FreeBSD requires pthread to be loaded by the executable process
-if(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
-    target_link_libraries(coreconsole
-        pthread
-    )
-endif(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
+# Libc turns locks into no-ops if pthread was not loaded into process yet. Loading
+# pthread by the process executable ensures that all locks are initialized properly.
+target_link_libraries(coreconsole
+    unixcoreruncommon
+    pthread
+)
 
 add_dependencies(coreconsole
     coreclr
 )
 
-install (TARGETS coreconsole DESTINATION .)
+install_clr(coreconsole)

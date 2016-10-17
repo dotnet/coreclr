@@ -104,6 +104,11 @@ namespace System.Globalization
             get { return Environment.GetResourceString("ArgumentOutOfRange_NeedPosNum"); }
         }
 
+        public static string Arg_ArgumentOutOfRangeException
+        {
+            get { return Environment.GetResourceString("Arg_ArgumentOutOfRangeException"); }
+        }
+
         public static string ArgumentOutOfRange_OffsetLength
         {
             get { return Environment.GetResourceString("ArgumentOutOfRange_OffsetLength"); }
@@ -137,6 +142,16 @@ namespace System.Globalization
         public static string Argument_CultureNotSupported
         {
             get { return Environment.GetResourceString("Argument_CultureNotSupported"); }
+        }
+
+        public static string Argument_CultureIsNeutral
+        {
+            get { return Environment.GetResourceString("Argument_CultureIsNeutral"); }
+        }
+
+        public static string Argument_CustomCultureCannotBePassedByNumber
+        {
+            get { return Environment.GetResourceString("Argument_CustomCultureCannotBePassedByNumber"); }
         }
        
         public static string Argument_EmptyDecString
@@ -199,6 +214,11 @@ namespace System.Globalization
             get { return Environment.GetResourceString("Argument_NoRegionInvariantCulture"); }
         }
 
+        public static string Argument_OnlyMscorlib
+        {
+            get { return Environment.GetResourceString("Argument_OnlyMscorlib"); }
+        }
+
         public static string Argument_ResultCalendarRange
         {
             get { return Environment.GetResourceString("Argument_ResultCalendarRange"); }
@@ -232,6 +252,11 @@ namespace System.Globalization
         public static string Overflow_TimeSpanTooLong
         {
             get { return Environment.GetResourceString("Overflow_TimeSpanTooLong"); }
+        }
+
+        public static string Serialization_MemberOutOfRange
+        {
+            get { return Environment.GetResourceString("Serialization_MemberOutOfRange"); }
         }
 
         public static string Format(string formatString, params object[] args)

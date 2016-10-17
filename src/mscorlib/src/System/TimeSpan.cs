@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 namespace System {
     using System.Text;
@@ -400,7 +401,7 @@ namespace System {
         //         </runtime>
         //        </configuration>
         // 2) Environment variable
-        //        set COMPLUS_TimeSpan_LegacyFormatMode=1
+        //        set COMPlus_TimeSpan_LegacyFormatMode=1
         // 3) RegistryKey
         //        [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\.NETFramework]
         //        "TimeSpan_LegacyFormatMode"=dword:00000001
@@ -419,11 +420,11 @@ namespace System {
 #endif
         private static bool GetLegacyFormatMode() {
 #if !FEATURE_CORECLR
-            if (LegacyFormatMode()) // FCALL to check COMPLUS_TimeSpan_LegacyFormatMode
+            if (LegacyFormatMode()) // FCALL to check COMPlus_TimeSpan_LegacyFormatMode
                 return true;
             return CompatibilitySwitches.IsNetFx40TimeSpanLegacyFormatMode;
 #else
-            return CompatibilitySwitches.IsAppEarlierThanSilverlight4;
+            return false;
 #endif // !FEATURE_CORECLR
         }
 

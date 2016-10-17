@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -10,13 +11,14 @@
 ** 
 ===========================================================*/
 namespace System {
-    
+
     using System;
     using System.Runtime;
     using System.Runtime.CompilerServices;
     using System.Globalization;
     using System.Diagnostics.Contracts;
-[System.Runtime.InteropServices.ComVisible(true)]
+
+    [System.Runtime.InteropServices.ComVisible(true)]
     [Serializable]
     public class Random {
       //
@@ -45,23 +47,28 @@ namespace System {
       //
       // Constructors
       //
-    
+      
+      /*=========================================================================================
+      **Action: Initializes a new instance of the Random class, using a default seed value
+      ===========================================================================================*/
       public Random() 
-        : this(Environment.TickCount) {
+        : this(GenerateSeed()) {
       }
-    
+      
+      /*=========================================================================================
+      **Action: Initializes a new instance of the Random class, using a specified seed value
+      ===========================================================================================*/
       public Random(int Seed) {
-        int ii;
+        int ii = 0;
         int mj, mk;
     
         //Initialize our Seed array.
-        //This algorithm comes from Numerical Recipes in C (2nd Ed.)
         int subtraction = (Seed == Int32.MinValue) ? Int32.MaxValue : Math.Abs(Seed);
         mj = MSEED - subtraction;
         SeedArray[55]=mj;
         mk=1;
         for (int i=1; i<55; i++) {  //Apparently the range [1..55] is special (Knuth) and so we're wasting the 0'th position.
-          ii = (21*i)%55;
+          if ((ii += 21) >= 55) ii -= 55;
           SeedArray[ii]=mk;
           mk = mj - mk;
           if (mk<0) mk+=MBIG;
@@ -69,19 +76,21 @@ namespace System {
         }
         for (int k=1; k<5; k++) {
           for (int i=1; i<56; i++) {
-        SeedArray[i] -= SeedArray[1+(i+30)%55];
-        if (SeedArray[i]<0) SeedArray[i]+=MBIG;
+            int n = i + 30; 
+            if (n >= 55) n -= 55; 
+            SeedArray[i] -= SeedArray[1 + n];        
+            if (SeedArray[i]<0) SeedArray[i]+=MBIG;
           }
         }
         inext=0;
         inextp = 21;
         Seed = 1;
       }
-    
+
       //
       // Package Private Methods
       //
-    
+
       /*====================================Sample====================================
       **Action: Return a new random number [0..1) and reSeed the Seed array.
       **Returns: A double [0..1)
@@ -115,11 +124,41 @@ namespace System {
           return retVal;
       }
 
+
+      [ThreadStatic]
+      private static Random t_threadRandom;
+      private static readonly Random s_globalRandom = new Random(GenerateGlobalSeed());
+
+      /*=====================================GenerateSeed=====================================
+      **Returns: An integer that can be used as seed values for consecutively
+                 creating lots of instances on the same thread within a short period of time.
+      ========================================================================================*/
+      private static int GenerateSeed() {
+          Random rnd = t_threadRandom;
+          if (rnd == null) {
+              int seed;
+              lock (s_globalRandom) {
+                  seed = s_globalRandom.Next();
+              }
+              rnd = new Random(seed);
+              t_threadRandom = rnd;
+          }
+          return rnd.Next();
+      }
+
+      /*==================================GenerateGlobalSeed====================================
+      **Action:  Creates a number to use as global seed.
+      **Returns: An integer that is safe to use as seed values for thread-local seed generators.
+      ==========================================================================================*/
+      private static int GenerateGlobalSeed() {
+          return Guid.NewGuid().GetHashCode();
+      }
+
       //
       // Public Instance Methods
       // 
-    
-    
+
+
       /*=====================================Next=====================================
       **Returns: An int [0..Int32.MaxValue)
       **Arguments: None
@@ -208,7 +247,4 @@ namespace System {
         }
       }
     }
-
-
-
 }

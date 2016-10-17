@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //---------------------------------------------------------------------------------
 // stdinterfaces.cpp
 //
@@ -694,7 +693,7 @@ HRESULT GetITypeLibForAssembly(Assembly *pAssembly, ITypeLib **ppTLB, int bAutoC
         goto ErrExit;       
     }
 
-    // Retrive the major and minor version number.
+    // Retrieve the major and minor version number.
     IfFailGo(GetTypeLibVersionForAssembly(pAssembly, &wMajor, &wMinor));
 
     // Maybe the module was imported from COM, and we can get the libid of the existing typelib.
@@ -777,8 +776,21 @@ HRESULT GetITypeLibForAssembly(Assembly *pAssembly, ITypeLib **ppTLB, int bAutoC
 
     // Add a ".tlb" extension and try again.
     IfFailGo(rName.ReSizeNoThrow((int)(wcslen(szModule) + 5)));
-    SplitPath(szModule, rcDrive, _MAX_DRIVE, rcDir, _MAX_DIR, rcFname, _MAX_FNAME, 0, 0);
-    MakePath(rName.Ptr(), rcDrive, rcDir, rcFname, W(".tlb"));
+    // Check if szModule already has an extension.
+    LPCWSTR ext;
+    size_t extSize;
+    SplitPathInterior(szModule, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, &ext, &extSize);
+    if (ext != nullptr)
+    {
+        // szModule already has an extension. Make a copy without the extension.
+        wcsncpy_s(rName.Ptr(), rName.Size(), szModule, ext - szModule);
+    }
+    else
+    {
+        // szModule does not have an extension. Copy the whole string.
+        wcscpy_s(rName.Ptr(), rName.Size(), szModule);
+    }
+    wcscat_s(rName.Ptr(), rName.Size(), W(".tlb"));
     
     hr = LoadTypeLibExWithFlags(rName.Ptr(), flags, &pITLB);
     if(hr == S_OK)

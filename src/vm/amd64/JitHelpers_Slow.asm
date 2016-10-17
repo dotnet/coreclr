@@ -1,7 +1,6 @@
-;
-; Copyright (c) Microsoft. All rights reserved.
-; Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-;
+; Licensed to the .NET Foundation under one or more agreements.
+; The .NET Foundation licenses this file to you under the MIT license.
+; See the LICENSE file in the project root for more information.
 
 ; ==++==
 ;
@@ -28,6 +27,11 @@ EXTERN  g_ephemeral_high:QWORD
 EXTERN  g_lowest_address:QWORD
 EXTERN  g_highest_address:QWORD
 EXTERN  g_card_table:QWORD
+
+ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+EXTERN  g_sw_ww_table:QWORD
+EXTERN  g_sw_ww_enabled_for_gc_heap:BYTE
+endif
 
 ifdef WRITE_BARRIER_CHECK
 ; Those global variables are always defined, but should be 0 for Server GC
@@ -119,6 +123,19 @@ ifdef WRITE_BARRIER_CHECK
     DoneShadow:
 endif
 
+ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+        ; Update the write watch table if necessary
+        cmp     byte ptr [g_sw_ww_enabled_for_gc_heap], 0h
+        je      CheckCardTable
+        mov     r10, rcx
+        shr     r10, 0Ch ; SoftwareWriteWatch::AddressToTableByteIndexShift
+        add     r10, qword ptr [g_sw_ww_table]
+        cmp     byte ptr [r10], 0h
+        jne     CheckCardTable
+        mov     byte ptr [r10], 0FFh
+endif
+
+    CheckCardTable:
         ; See if we can just quick out
         cmp     rax, [g_ephemeral_low]
         jb      Exit
@@ -260,7 +277,7 @@ NESTED_ENTRY AllocateStringFastMP, _TEXT
 
         ; Instead of doing elaborate overflow checks, we just limit the number of elements
         ; to (LARGE_OBJECT_SIZE - 256)/sizeof(WCHAR) or less.
-        ; This will avoid avoid all overflow problems, as well as making sure
+        ; This will avoid all overflow problems, as well as making sure
         ; big string objects are correctly allocated in the big object heap.
 
         cmp     ecx, (ASM_LARGE_OBJECT_SIZE - 256)/2
@@ -454,7 +471,7 @@ NESTED_END JIT_NewArr1OBJ_MP, _TEXT
 ;        Unfortunately, the compiler intrinsic for InterlockedExchangePointer seems to be broken and we
 ;        get bad code gen in gc.cpp on IA64. </TODO>
 
-M_GCLOCK equ ?m_GCLock@@3JC
+M_GCLOCK equ ?m_GCLock@@3HC
 extern M_GCLOCK:dword
 extern generation_table:qword
 
@@ -571,7 +588,7 @@ LEAF_ENTRY AllocateStringFastUP, _TEXT
 
         ; Instead of doing elaborate overflow checks, we just limit the number of elements
         ; to (LARGE_OBJECT_SIZE - 256)/sizeof(WCHAR) or less.
-        ; This will avoid avoid all overflow problems, as well as making sure
+        ; This will avoid all overflow problems, as well as making sure
         ; big string objects are correctly allocated in the big object heap.
 
         cmp     ecx, (ASM_LARGE_OBJECT_SIZE - 256)/2
@@ -1435,6 +1452,10 @@ NESTED_ENTRY JIT_MonTryEnter_Slow, _TEXT
         ret
 
     PrepareToWaitThinLock:
+        ; Return failure if timeout is zero
+        test    rsi, rsi
+        jz     TimeoutZero
+
         ; If we are on an MP system, we try spinning for a certain number of iterations
         cmp     dword ptr [g_SystemInfo + OFFSETOF__g_SystemInfo__dwNumberOfProcessors], 1
         jle     FramedLockHelper
@@ -1536,9 +1557,13 @@ endif
         ret
 
     PrepareToWait:
+        ; Return failure if timeout is zero
+        test    rsi, rsi
+        jz      TimeoutZero
+
         ; If we are on an MP system, we try spinning for a certain number of iterations
         cmp     dword ptr [g_SystemInfo + OFFSETOF__g_SystemInfo__dwNumberOfProcessors], 1
-        jle     WouldBlock
+        jle     Block
     
         ; Exponential backoff; delay by approximately 2*r10d clock cycles
         mov     eax, r10d
@@ -1553,15 +1578,11 @@ endif
         cmp     r10d, dword ptr [g_SpinConstants + OFFSETOF__g_SpinConstants__dwMaximumDuration]
         jle     RetrySyncBlock
 
-        ; We would need to block to enter the section. Return failure if
-        ; timeout is zero, else call the farmed helper to do the blocking
-        ; form of TryEnter.
-    WouldBlock:
-        test    rsi, rsi
-        jnz     Block
+        jmp     Block
 
+    TimeoutZero:
         ; Return FALSE
-        mov		byte ptr [r8], 0
+        mov     byte ptr [r8], 0
         add     rsp, MON_ENTER_STACK_SIZE
         pop     rsi
         ret

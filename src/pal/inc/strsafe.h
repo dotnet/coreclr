@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -3514,7 +3513,7 @@ Return Value:
 
     STRSAFE_E_END_OF_FILE
                 -   this return value indicates an error or end-of-file condition,
-                    use feof or ferror to determine which one has occured.
+                    use feof or ferror to determine which one has occurred.
 
     STRSAFE_E_INSUFFICIENT_BUFFER / 
     HRESULT_CODE(hr) == ERROR_INSUFFICIENT_BUFFER
@@ -3625,7 +3624,7 @@ Return Value:
 
     STRSAFE_E_END_OF_FILE
                 -   this return value indicates an error or end-of-file condition,
-                    use feof or ferror to determine which one has occured.
+                    use feof or ferror to determine which one has occurred.
 
     STRSAFE_E_INSUFFICIENT_BUFFER / 
     HRESULT_CODE(hr) == ERROR_INSUFFICIENT_BUFFER
@@ -3761,7 +3760,7 @@ Return Value:
 
     STRSAFE_E_END_OF_FILE
                 -   this return value indicates an error or end-of-file condition,
-                    use feof or ferror to determine which one has occured.
+                    use feof or ferror to determine which one has occurred.
 
     STRSAFE_E_INSUFFICIENT_BUFFER / 
     HRESULT_CODE(hr) == ERROR_INSUFFICIENT_BUFFER
@@ -3899,7 +3898,7 @@ Return Value:
 
     STRSAFE_E_END_OF_FILE
                 -   this return value indicates an error or end-of-file condition,
-                    use feof or ferror to determine which one has occured.
+                    use feof or ferror to determine which one has occurred.
 
     STRSAFE_E_INSUFFICIENT_BUFFER / 
     HRESULT_CODE(hr) == ERROR_INSUFFICIENT_BUFFER
@@ -5561,7 +5560,7 @@ STRSAFEAPI StringVPrintfWorkerA(char* pszDest, size_t cchDest, const char* pszFo
         // leave the last space for the null terminator
         cchMax = cchDest - 1;
 
-        iRet = PAL__vsnprintf(pszDest, cchMax, pszFormat, argList);
+        iRet = _vsnprintf(pszDest, cchMax, pszFormat, argList);
         // ASSERT((iRet < 0) || (((size_t)iRet) <= cchMax));
 
         if ((iRet < 0) || (((size_t)iRet) > cchMax))
@@ -5687,7 +5686,7 @@ STRSAFEAPI StringVPrintfExWorkerA(char* pszDest, size_t cchDest, size_t cbDest, 
                 // leave the last space for the null terminator
                 cchMax = cchDest - 1;
 
-                iRet = PAL__vsnprintf(pszDest, cchMax, pszFormat, argList);
+                iRet = _vsnprintf(pszDest, cchMax, pszFormat, argList);
                 // ASSERT((iRet < 0) || (((size_t)iRet) <= cchMax));
 
                 if ((iRet < 0) || (((size_t)iRet) > cchMax))

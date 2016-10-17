@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #include "common.h"
 #include "assemblybinder.hpp"
@@ -9,7 +8,7 @@
 #include "clrprivbinderassemblyloadcontext.h"
 #include "clrprivbinderutil.h"
 
-#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(MDILNIGEN)
+#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
 using namespace BINDER_SPACE;
 
@@ -34,6 +33,7 @@ HRESULT CLRPrivBinderAssemblyLoadContext::BindAssemblyByNameWorker(BINDER_SPACE:
                                       NULL,
                                       FALSE, //fNgenExplicitBind,
                                       FALSE, //fExplicitBindToNativeImage,
+                                      false, //excludeAppPaths,
                                       ppCoreCLRFoundAssembly);
     if (!FAILED(hr))
     {
@@ -53,10 +53,6 @@ HRESULT CLRPrivBinderAssemblyLoadContext::BindAssemblyByName(IAssemblyName     *
     // DevDiv #933506: Exceptions thrown during AssemblyLoadContext.Load should propagate
     // EX_TRY
     {
-        // Check if the assembly is in the TPA list or not.
-        //
-        // HAR_TODO: For Bing scenarios, we should be able to tell the TPA Binder
-        // to not consult the AppPaths/App_ni_Paths.
         _ASSERTE(m_pTPABinder != NULL);
         
         ReleaseHolder<BINDER_SPACE::Assembly> pCoreCLRFoundAssembly;
@@ -65,12 +61,19 @@ HRESULT CLRPrivBinderAssemblyLoadContext::BindAssemblyByName(IAssemblyName     *
         SAFE_NEW(pAssemblyName, AssemblyName);
         IF_FAIL_GO(pAssemblyName->Init(pIAssemblyName));
         
-        hr = m_pTPABinder->BindAssemblyByNameWorker(pAssemblyName, &pCoreCLRFoundAssembly);
-        if (hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+        // When LoadContext needs to resolve an assembly reference, it will go through the following lookup order:
+        //
+        // 1) Lookup the assembly within the LoadContext itself. If assembly is found, use it.
+        // 2) Invoke the LoadContext's Load method implementation. If assembly is found, use it.
+        // 3) Lookup the assembly within TPABinder. If assembly is found, use it.
+        // 4) Invoke the LoadContext's Resolving event. If assembly is found, use it.
+        // 5) Raise exception.
+        //
+        // This approach enables a LoadContext to override assemblies that have been loaded in TPA context by loading
+        // a different (or even the same!) version.
+        
         {
-            // If we could not find the assembly in the TPA list,
-            // then bind to it in the context of the current binder.
-            // If we find it already loaded, we will return the reference.
+            // Step 1 - Try to find the assembly within the LoadContext.
             hr = BindAssemblyByNameWorker(pAssemblyName, &pCoreCLRFoundAssembly);
             if ((hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)) ||
                 (hr == FUSION_E_APP_DOMAIN_LOCKED) || (hr == FUSION_E_REF_DEF_MISMATCH))
@@ -84,7 +87,8 @@ HRESULT CLRPrivBinderAssemblyLoadContext::BindAssemblyByName(IAssemblyName     *
                 // Thus, if default binder has been overridden, then invoke it in an attempt to perform the binding for it make the call
                 // of what to do next. The host-overridden binder can either fail the bind or return reference to an existing assembly
                 // that has been loaded.
-                hr = AssemblyBinder::BindUsingHostAssemblyResolver(this, pAssemblyName, pIAssemblyName, &pCoreCLRFoundAssembly);
+                //
+                hr = AssemblyBinder::BindUsingHostAssemblyResolver(GetManagedAssemblyLoadContext(), pAssemblyName, pIAssemblyName, m_pTPABinder, &pCoreCLRFoundAssembly);
                 if (SUCCEEDED(hr))
                 {
                     // We maybe returned an assembly that was bound to a different AssemblyLoadContext instance.
@@ -144,40 +148,19 @@ HRESULT CLRPrivBinderAssemblyLoadContext::BindUsingPEImage( /* in */ PEImage *pP
             IF_FAIL_GO(HRESULT_FROM_WIN32(ERROR_BAD_FORMAT));
         }
         
-        // Ensure we are not being asked to bind to a TPA assembly
-        //
-        // Easy out for mscorlib
+        // Disallow attempt to bind to the core library. Aside from that,
+        // the LoadContext can load any assembly (even if it was in a different LoadContext like TPA).
         if (pAssemblyName->IsMscorlib())
         {
             IF_FAIL_GO(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
         }
 
+        hr = AssemblyBinder::BindUsingPEImage(&m_appContext, pAssemblyName, pPEImage, PeKind, pIMetaDataAssemblyImport, &pCoreCLRFoundAssembly);
+        if (hr == S_OK)
         {
-            SString& simpleName = pAssemblyName->GetSimpleName();
-            ApplicationContext *pTPAApplicationContext = m_pTPABinder->GetAppContext();
-            SimpleNameToFileNameMap * tpaMap = pTPAApplicationContext->GetTpaList();
-            if (tpaMap->LookupPtr(simpleName.GetUnicode()) != NULL)
-            {
-                // The simple name of the assembly being requested to be bound was found in the TPA list.
-                // Now, perform the actual bind to see if the assembly was really in the TPA assembly or not.
-                hr = m_pTPABinder->BindAssemblyByNameWorker(pAssemblyName, &pCoreCLRFoundAssembly);
-                if (SUCCEEDED(hr))
-                {
-                    if (pCoreCLRFoundAssembly->GetIsInGAC())
-                    {
-                        // If we were able to bind to a TPA assembly, then fail the load
-                        IF_FAIL_GO(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
-                    }
-                }
-            }
-            
-            hr = AssemblyBinder::BindUsingPEImage(&m_appContext, pAssemblyName, pPEImage, PeKind, pIMetaDataAssemblyImport, &pCoreCLRFoundAssembly);
-            if (hr == S_OK)
-            {
-                _ASSERTE(pCoreCLRFoundAssembly != NULL);
-                pCoreCLRFoundAssembly->SetBinder(this);
-                *ppAssembly = pCoreCLRFoundAssembly.Extract();
-            }
+            _ASSERTE(pCoreCLRFoundAssembly != NULL);
+            pCoreCLRFoundAssembly->SetBinder(this);
+            *ppAssembly = pCoreCLRFoundAssembly.Extract();
         }
 Exit:;        
     }
@@ -273,4 +256,4 @@ CLRPrivBinderAssemblyLoadContext::CLRPrivBinderAssemblyLoadContext()
     m_pTPABinder = NULL;
 }
 
-#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(MDILNIGEN)
+#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)

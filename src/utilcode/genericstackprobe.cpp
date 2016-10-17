@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -72,7 +71,7 @@ void HandleStackOverflowAfterCatch()
 
 NOINLINE void SOIntolerantTransitionHandler::CtorImpl()
 {
-    m_exceptionOccured = true;
+    m_exceptionOccurred = true;
     m_pPreviousHandler = ClrFlsGetValue(TlsIdx_SOIntolerantTransitionHandler);
     g_fpSetSOIntolerantTransitionMarker();
 }
@@ -84,7 +83,7 @@ NOINLINE void SOIntolerantTransitionHandler::DtorImpl()
     // limit.   Checking for the guard page being present is too much overhead during
     // exception handling (if you can believe that) and impacts perf.
 
-    if (m_exceptionOccured)
+    if (m_exceptionOccurred)
     {
         g_fpCheckForSOInSOIntolerantCode();
     }

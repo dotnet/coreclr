@@ -7,10 +7,13 @@
     <Clean Include="@(RewrittenAssembly->'$(FinalOutputPath)\%(Filename)%(Extension)')" />
     <Clean Include="$(FinalOutputPath)\$(TargetName).pdb" />
   </ItemGroup>
+  
+  <Import Project="$(ToolsDir)toolruntime.targets" />
 
   <PropertyGroup>
     <CurrentAssemblyPdb>$(IntermediateOutputPath)$(TargetName).pdb</CurrentAssemblyPdb>
     <PostProcessingTargets>RewriteWithBclRewriter</PostProcessingTargets>
+    <BclRewriterDependencyTargets>EnsureBuildToolsRuntime</BclRewriterDependencyTargets>
   </PropertyGroup>
 
   <Target Name="AfterBuild" DependsOnTargets="$(PostProcessingTargets)"
@@ -18,8 +21,8 @@
     
     <!-- Copy to the final output location -->
     <Copy Retries="3" SourceFiles="@(RewrittenAssembly)" DestinationFiles="$(FinalOutputPath)\%(RewrittenAssembly.FileName)%(RewrittenAssembly.Extension)"/>
-    <Message Importance="High" Text="$(MSBuildProjectName) -&gt; $(FinalOutputPath)\%(RewrittenAssembly.FileName)%(RewrittenAssembly.Extension)" />
-    <Copy Retries="3" SourceFiles="$(CurrentAssemblyPdb)" DestinationFiles="$(FinalOutputPath)\$(TargetName).pdb"/>
+    <Message Importance="High" Text="$(MSBuildProjectName) -&gt; $(FinalOutputPath)%(RewrittenAssembly.FileName)%(RewrittenAssembly.Extension)" />
+    <Copy Condition="Exists('$(CurrentAssemblyPdb)')" Retries="3" SourceFiles="$(CurrentAssemblyPdb)" DestinationFiles="$(FinalOutputPath)\$(TargetName).pdb"/>
   </Target>
 
 </Project>

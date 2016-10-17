@@ -1,10 +1,15 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 //
-.assembly extern mscorlib
-{ }
+.assembly extern mscorlib { }
+.assembly extern System.Console
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
 .assembly 'qsort'// as "qsort"
 { }
 .module 'qsort.exe'
@@ -92,7 +97,7 @@
 		brfalse begin_sum_loop
 
 		dup
-		call void [mscorlib]System.Console::WriteLine(int32)
+		call void [System.Console]System.Console::WriteLine(int32)
 		ldc.i4 248
 		beq stop
 
@@ -104,7 +109,7 @@
 		ldstr "passed"
 	exit:
 
-		call void [mscorlib]System.Console::WriteLine(class [mscorlib]System.String)
+		call void [System.Console]System.Console::WriteLine(class [mscorlib]System.String)
 		ret
     } // end of method 'AA::Main'
 

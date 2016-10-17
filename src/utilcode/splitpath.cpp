@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 /***
 *splitpath.c - break down path name into components
 *
@@ -125,7 +124,7 @@ void    SplitPathInterior(
 
     /* extract drive letter and :, if any */
 
-    if ((wcslen(wszPath) >= (_MAX_DRIVE - 2)) && (*(wszPath + _MAX_DRIVE - 2) == _T(':'))) {
+    if ((wcslen(wszPath) > (_MAX_DRIVE - 2)) && (*(wszPath + _MAX_DRIVE - 2) == _T(':'))) {
         if (pwszDrive && pcchDrive) {
             *pwszDrive = wszPath;
             *pcchDrive = _MAX_DRIVE - 1;
@@ -244,38 +243,25 @@ void    SplitPath(__in SString const &path,
                   __inout_opt SString *fname,
                   __inout_opt SString *ext)
 {
-    LPWSTR wzDrive = NULL;
-    if (drive != NULL)
-        wzDrive = drive->OpenUnicodeBuffer(_MAX_DRIVE);
+    LPCWSTR wzDrive, wzDir, wzFname, wzExt;
+    size_t cchDrive, cchDir, cchFname, cchExt;
 
-    LPWSTR wzDir = NULL;
-    if (dir != NULL)
-        wzDir = dir->OpenUnicodeBuffer(_MAX_DIR);
-
-    LPWSTR wzFname = NULL;
-    if (fname != NULL)
-        wzFname = fname->OpenUnicodeBuffer(_MAX_FNAME);
-
-    LPWSTR wzExt = NULL;
-    if (ext != NULL)
-        wzExt = ext->OpenUnicodeBuffer(_MAX_EXT);
-
-    SplitPath(path,
-            wzDrive, _MAX_DRIVE,
-            wzDir, _MAX_DIR,
-            wzFname, _MAX_FNAME,
-            wzExt, _MAX_EXT);
+    SplitPathInterior(path,
+            &wzDrive, &cchDrive,
+            &wzDir, &cchDir,
+            &wzFname, &cchFname,
+            &wzExt, &cchExt);
 
     if (drive != NULL)
-        drive->CloseBuffer(static_cast<COUNT_T>(wcslen(wzDrive)));
+        drive->Set(wzDrive, (COUNT_T)cchDrive);
 
     if (dir != NULL)
-        dir->CloseBuffer(static_cast<COUNT_T>(wcslen(wzDir)));
+        dir->Set(wzDir, (COUNT_T)cchDir);
 
     if (fname != NULL)
-        fname->CloseBuffer(static_cast<COUNT_T>(wcslen(wzFname)));
+        fname->Set(wzFname, (COUNT_T)cchFname);
 
     if (ext != NULL)
-        ext->CloseBuffer(static_cast<COUNT_T>(wcslen(wzExt)));
+        ext->Set(wzExt, (COUNT_T)cchExt);
 }
 

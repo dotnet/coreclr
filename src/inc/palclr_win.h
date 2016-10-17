@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ===========================================================================
 // File: palclr.h
 //
@@ -143,15 +142,6 @@
             WIN_PAL_ENDTRY_NAKED_DBG                                            \
         }                                                                       \
     }
-
-#define WIN_PAL_CPP_TRY try
-#define WIN_PAL_CPP_ENDTRY
-#define WIN_PAL_CPP_THROW(type, obj) throw obj;
-#define WIN_PAL_CPP_RETHROW throw;
-#define WIN_PAL_CPP_CATCH_EXCEPTION(obj) catch (Exception * obj)
-#define WIN_PAL_CPP_CATCH_DERIVED(type, obj) catch (type * obj)
-#define WIN_PAL_CPP_CATCH_ALL catch (...)
-#define WIN_PAL_CPP_CATCH_EXCEPTION_NOARG catch (Exception *)
 
 #endif // !PAL_WIN_SEH
 

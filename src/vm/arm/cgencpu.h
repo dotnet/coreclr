@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 
@@ -37,10 +36,12 @@ Stub * GenerateInitPInvokeFrameHelper();
 
 EXTERN_C void checkStack(void);
 
+#define THUMB_CODE      1
+
 #ifdef CROSSGEN_COMPILE
 #define GetEEFuncEntryPoint(pfn) 0x1001
 #else
-#define GetEEFuncEntryPoint(pfn) GFN_TADDR(pfn)
+#define GetEEFuncEntryPoint(pfn) (GFN_TADDR(pfn) | THUMB_CODE)
 #endif
 
 //**********************************************************************
@@ -306,8 +307,6 @@ inline PCODE decodeBackToBackJump(PCODE pBuffer)
 //----------------------------------------------------------------------
 #include "stublink.h"
 struct ArrayOpScript;
-
-#define THUMB_CODE      1
 
 inline BOOL IsThumbCode(PCODE pCode)
 {
@@ -747,7 +746,7 @@ public:
         else 
         {
             _ASSERTE(reg1 != ThumbReg(15) && reg2 != ThumbReg(15));
-            Emit16((WORD)(0x4500 | reg2 << 3 | reg1 & 0x7 | (reg1 & 0x8 ? 0x80 : 0x0)));
+            Emit16((WORD)(0x4500 | reg2 << 3 | (reg1 & 0x7) | (reg1 & 0x8 ? 0x80 : 0x0)));
         }
     }
     
@@ -931,7 +930,7 @@ inline BOOL IsUnmanagedValueTypeReturnedByRef(UINT sizeofvaluetype)
     return (sizeofvaluetype > 4);
 }
 
-DECLSPEC_ALIGN(4) struct UMEntryThunkCode
+struct DECLSPEC_ALIGN(4) UMEntryThunkCode
 {
     WORD        m_code[4];
 
@@ -960,9 +959,9 @@ struct HijackArgs
     union
     {
         DWORD R0;
-        size_t ReturnValue; // this may not be the return value when return is >32bits or return value is in VFP reg
-                            // but it works for us as this is only used by functions OnHijackObjectWorker()
-                            // and OnHijackInteriorPointerWorker() (where return is an address)
+        size_t ReturnValue[1]; // this may not be the return value when return is >32bits 
+                               // or return value is in VFP reg but it works for us as 
+                               // this is only used by functions OnHijackWorker()
     };
 
     //
@@ -1002,6 +1001,7 @@ inline BOOL ClrFlushInstructionCache(LPCVOID pCodeAddr, size_t sizeOfCode)
 #endif
 }
 
+#ifndef FEATURE_IMPLICIT_TLS
 //
 // JIT HELPER ALIASING FOR PORTABILITY.
 //
@@ -1013,7 +1013,11 @@ inline BOOL ClrFlushInstructionCache(LPCVOID pCodeAddr, size_t sizeOfCode)
 #define JIT_GetSharedGCStaticBaseNoCtor     JIT_GetSharedGCStaticBaseNoCtor_InlineGetAppDomain
 #define JIT_GetSharedNonGCStaticBaseNoCtor  JIT_GetSharedNonGCStaticBaseNoCtor_InlineGetAppDomain
 
+#endif
+
+#ifndef FEATURE_PAL
 #define JIT_Stelem_Ref                      JIT_Stelem_Ref
+#endif
 
 //------------------------------------------------------------------------
 //
@@ -1192,7 +1196,7 @@ struct FixupPrecode {
 typedef DPTR(FixupPrecode) PTR_FixupPrecode;
 
 
-// Precode to stuffle this and retbuf for closed delegates over static methods with return buffer
+// Precode to shuffle this and retbuf for closed delegates over static methods with return buffer
 struct ThisPtrRetBufPrecode {
 
     static const int Type = 0x84;
@@ -1329,6 +1333,6 @@ inline size_t GetARMInstructionLength(PBYTE pInstr)
     return GetARMInstructionLength(*(WORD*)pInstr);
 }
 
-EXTERN_C void FCallMemcpy(byte* dest, byte* src, int len);
+EXTERN_C void FCallMemcpy(BYTE* dest, BYTE* src, int len);
 
 #endif // __cgencpu_h__

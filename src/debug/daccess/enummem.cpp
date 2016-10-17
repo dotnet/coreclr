@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // File: enummem.cpp
 // 
@@ -251,9 +250,9 @@ HRESULT ClrDataAccess::EnumMemCLRStatic(IN CLRDataEnumMemoryFlags flags)
         ReportMem(m_globalBase + g_dacGlobals.SharedDomain__m_pSharedDomain,
                   sizeof(SharedDomain));
 
-        // We need GCHeap pointer to make EEVersion work
+        // We need IGCHeap pointer to make EEVersion work
         ReportMem(m_globalBase + g_dacGlobals.dac__g_pGCHeap,
-              sizeof(GCHeap *));
+              sizeof(IGCHeap *));
 
         // see synblk.cpp, the pointer is pointed to a static byte[]
         SyncBlockCache::s_pSyncBlockCache.EnumMem();
@@ -317,7 +316,7 @@ HRESULT ClrDataAccess::EnumMemCLRStatic(IN CLRDataEnumMemoryFlags flags)
 #ifdef FEATURE_SVR_GC
     CATCH_ALL_EXCEPT_RETHROW_COR_E_OPERATIONCANCELLED
     (
-        GCHeap::gcHeapType.EnumMem();
+        IGCHeap::gcHeapType.EnumMem();
     );
 #endif // FEATURE_SVR_GC
 
@@ -403,7 +402,7 @@ HRESULT ClrDataAccess::DumpManagedObject(CLRDataEnumMemoryFlags flags, OBJECTREF
         return status;
     }
     
-    if (!CNameSpace::GetGcRuntimeStructuresValid ())
+    if (!GCScan::GetGcRuntimeStructuresValid ())
     {
         // GC is in progress, don't dump this object
         return S_OK;
@@ -461,7 +460,7 @@ HRESULT ClrDataAccess::DumpManagedExcepObject(CLRDataEnumMemoryFlags flags, OBJE
         return S_OK;
     }
 
-    if (!CNameSpace::GetGcRuntimeStructuresValid ())
+    if (!GCScan::GetGcRuntimeStructuresValid ())
     {
         // GC is in progress, don't dump this object
         return S_OK;
@@ -802,6 +801,7 @@ HRESULT ClrDataAccess::EnumMemWalkStackHelper(CLRDataEnumMemoryFlags flags,
         {
             frameHadContext = false;
             status = pStackWalk->GetFrame(&pFrame);
+            PCODE addr = NULL;
             if (status == S_OK && pFrame != NULL)
             {
                 // write out the code that ip pointed to
@@ -812,7 +812,8 @@ HRESULT ClrDataAccess::EnumMemWalkStackHelper(CLRDataEnumMemoryFlags flags,
                 {
                     // Enumerate the code around the call site to help debugger stack walking heuristics
                     ::FillRegDisplay(&regDisp, &context);
-                    TADDR callEnd = PCODEToPINSTR(GetControlPC(&regDisp));
+                    addr = GetControlPC(&regDisp);
+                    TADDR callEnd = PCODEToPINSTR(addr);
                     DacEnumCodeForStackwalk(callEnd);
                     frameHadContext = true;
                 }
@@ -969,8 +970,7 @@ HRESULT ClrDataAccess::EnumMemWalkStackHelper(CLRDataEnumMemoryFlags flags,
                             DebugInfoManager::EnumMemoryRegionsForMethodDebugInfo(flags, pMethodDesc);
 
 #ifdef WIN64EXCEPTIONS
-                            PCODE addr = pMethodDesc->GetNativeCode();
-
+                          
                             if (addr != NULL)
                             {
                                 EECodeInfo codeInfo(addr);
@@ -979,10 +979,11 @@ HRESULT ClrDataAccess::EnumMemWalkStackHelper(CLRDataEnumMemoryFlags flags,
                                 codeInfo.GetJitManager()->IsFilterFunclet(&codeInfo);
 
                                 // The stackwalker needs GC info to find the parent 'stack pointer' or PSP
-                                PTR_BYTE pGCInfo = dac_cast<PTR_BYTE>(codeInfo.GetGCInfo());
+                                GCInfoToken gcInfoToken = codeInfo.GetGCInfoToken();
+                                PTR_BYTE pGCInfo = dac_cast<PTR_BYTE>(gcInfoToken.Info);
                                 if (pGCInfo != NULL)
                                 {
-                                    GcInfoDecoder gcDecoder(pGCInfo, DECODE_PSP_SYM, 0);
+                                    GcInfoDecoder gcDecoder(gcInfoToken, DECODE_PSP_SYM, 0);
                                     DacEnumMemoryRegion(dac_cast<TADDR>(pGCInfo), gcDecoder.GetNumBytesRead(), true);
                                 }
                             }

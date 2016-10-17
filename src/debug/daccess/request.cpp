@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // File: request.cpp
 // 
@@ -103,24 +102,24 @@ BOOL DacValidateEEClass(EEClass *pEEClass)
     // The EEClass method table pointer should match the method table.
     // TODO: Microsoft, need another test for validity, this one isn't always true anymore.
     BOOL retval = TRUE;
-    PAL_CPP_TRY
+    EX_TRY
     {
         MethodTable *pMethodTable = pEEClass->GetMethodTable();
         if (!pMethodTable)
         {
             // PREfix.
-            return FALSE;
+            retval = FALSE;
         }
-        if (pEEClass != pMethodTable->GetClass())
+        else if (pEEClass != pMethodTable->GetClass())
         {
             retval = FALSE;
         }
     }
-    PAL_CPP_CATCH_ALL
+    EX_CATCH
     {
         retval = FALSE; // Something is wrong
     }
-    PAL_CPP_ENDTRY
+    EX_END_CATCH(SwallowAllExceptions)
     return retval;
 
 }
@@ -129,7 +128,7 @@ BOOL DacValidateMethodTable(MethodTable *pMT, BOOL &bIsFree)
 {
     // Verify things are right.
     BOOL retval = FALSE;
-    PAL_CPP_TRY
+    EX_TRY
     {
         bIsFree = FALSE;
         EEClass *pEEClass = pMT->GetClass();
@@ -170,11 +169,11 @@ BOOL DacValidateMethodTable(MethodTable *pMT, BOOL &bIsFree)
 
 BadMethodTable: ;
     }
-    PAL_CPP_CATCH_ALL
+    EX_CATCH
     {
         retval = FALSE; // Something is wrong
     }
-    PAL_CPP_ENDTRY
+    EX_END_CATCH(SwallowAllExceptions)
     return retval;
 
 }
@@ -188,7 +187,7 @@ BOOL DacValidateMD(MethodDesc * pMD)
 
     // Verify things are right.
     BOOL retval = TRUE;
-    PAL_CPP_TRY
+    EX_TRY
     {
         MethodTable *pMethodTable = pMD->GetMethodTable();
 
@@ -233,11 +232,11 @@ BOOL DacValidateMD(MethodDesc * pMD)
             }
         }
     }
-    PAL_CPP_CATCH_ALL
+    EX_CATCH
     {
         retval = FALSE; // Something is wrong
     }
-    PAL_CPP_ENDTRY
+    EX_END_CATCH(SwallowAllExceptions)
     return retval;
 }
 
@@ -726,7 +725,7 @@ ClrDataAccess::GetHeapAllocData(unsigned int count, struct DacpGenerationAllocDa
 
     SOSDacEnter();
 #if defined(FEATURE_SVR_GC)
-    if (GCHeap::IsServerHeap())
+    if (GCHeapUtilities::IsServerHeap())
     {
         hr = GetServerAllocData(count, data, pNeeded);
     }
@@ -1149,7 +1148,7 @@ ClrDataAccess::GetCodeHeaderData(CLRDATA_ADDRESS ip, struct DacpCodeHeaderData *
 
         codeHeaderData->MethodStart = 
             (CLRDATA_ADDRESS) codeInfo.GetStartAddress();
-        size_t methodSize = codeInfo.GetCodeManager()->GetFunctionSize(codeInfo.GetGCInfo());
+        size_t methodSize = codeInfo.GetCodeManager()->GetFunctionSize(codeInfo.GetGCInfoToken());
         _ASSERTE(FitsIn<DWORD>(methodSize));
         codeHeaderData->MethodSize = static_cast<DWORD>(methodSize);
 
@@ -1232,11 +1231,11 @@ ClrDataAccess::GetMethodDescName(CLRDATA_ADDRESS methodDesc, unsigned int count,
     MethodDesc* pMD = PTR_MethodDesc(TO_TADDR(methodDesc));
     StackSString str;
 
-    PAL_CPP_TRY
+    EX_TRY
     {
         TypeString::AppendMethodInternal(str, pMD, TypeString::FormatSignature|TypeString::FormatNamespace|TypeString::FormatFullInst);
     }
-    PAL_CPP_CATCH_ALL
+    EX_CATCH
     {
         hr = E_FAIL;
         if (pMD->IsDynamicMethod())
@@ -1269,7 +1268,7 @@ ClrDataAccess::GetMethodDescName(CLRDATA_ADDRESS methodDesc, unsigned int count,
             Module* pModule = pMD->GetModule();
             if (pModule)
             {
-                WCHAR path[MAX_PATH];
+                WCHAR path[MAX_LONGPATH];
                 COUNT_T nChars = 0;
                 if (pModule->GetPath().DacGetUnicode(NumItems(path), path, &nChars) &&
                     nChars > 0 && nChars <= NumItems(path))
@@ -1293,7 +1292,7 @@ ClrDataAccess::GetMethodDescName(CLRDATA_ADDRESS methodDesc, unsigned int count,
 #endif
         }
     }
-    PAL_CPP_ENDTRY
+    EX_END_CATCH(SwallowAllExceptions)
 
     if (SUCCEEDED(hr))
     {
@@ -1692,7 +1691,7 @@ ClrDataAccess::GetMethodTableName(CLRDATA_ADDRESS mt, unsigned int count, __out_
         {
             StackSString s;
 #ifdef FEATURE_MINIMETADATA_IN_TRIAGEDUMPS
-            PAL_CPP_TRY
+            EX_TRY
             {
 #endif // FEATURE_MINIMETADATA_IN_TRIAGEDUMPS
 
@@ -1700,14 +1699,14 @@ ClrDataAccess::GetMethodTableName(CLRDATA_ADDRESS mt, unsigned int count, __out_
 
 #ifdef FEATURE_MINIMETADATA_IN_TRIAGEDUMPS
             }
-            PAL_CPP_CATCH_ALL
+            EX_CATCH
             {
                 if (!MdCacheGetEEName(dac_cast<TADDR>(pMT), s))
                 {
-                    PAL_CPP_RETHROW;
+                    EX_RETHROW;
                 }
             }
-            PAL_CPP_ENDTRY
+            EX_END_CATCH(SwallowAllExceptions)
 #endif // FEATURE_MINIMETADATA_IN_TRIAGEDUMPS
 
             if (s.IsEmpty())
@@ -2810,7 +2809,7 @@ ClrDataAccess::GetGCHeapDetails(CLRDATA_ADDRESS heap, struct DacpGcHeapDetails *
     SOSDacEnter();
 
     // doesn't make sense to call this on WKS mode
-    if (!GCHeap::IsServerHeap())
+    if (!GCHeapUtilities::IsServerHeap())
         hr = E_INVALIDARG;
     else
 #ifdef FEATURE_SVR_GC
@@ -2885,7 +2884,7 @@ ClrDataAccess::GetHeapSegmentData(CLRDATA_ADDRESS seg, struct DacpHeapSegmentDat
 
     SOSDacEnter();
 
-    if (GCHeap::IsServerHeap())
+    if (GCHeapUtilities::IsServerHeap())
     {
 #if !defined(FEATURE_SVR_GC)
         _ASSERTE(0);
@@ -2925,7 +2924,7 @@ ClrDataAccess::GetGCHeapList(unsigned int count, CLRDATA_ADDRESS heaps[], unsign
     SOSDacEnter();
 
     // make sure we called this in appropriate circumstances (i.e., we have multiple heaps)
-    if (GCHeap::IsServerHeap())
+    if (GCHeapUtilities::IsServerHeap())
     {
 #if !defined(FEATURE_SVR_GC)
         _ASSERTE(0);
@@ -2961,45 +2960,49 @@ ClrDataAccess::GetGCHeapData(struct DacpGcHeapData *gcheapData)
 
     SOSDacEnter();
 
-    // Now get the heap type. The first data member of the GCHeap class is the GC_HEAP_TYPE, which has 
-    // three possible values:
+    // for server GC-capable builds only, we need to check and see if IGCHeap::gcHeapType
+    // is GC_HEAP_INVALID, in which case we fail.
+    // IGCHeap::gcHeapType doesn't exist on non-server-GC capable builds.
+#ifdef FEATURE_SVR_GC
+    ULONG32 gcHeapValue = IGCHeap::gcHeapType;
+
+    // GC_HEAP_TYPE has three possible values:
     //       GC_HEAP_INVALID = 0,
     //       GC_HEAP_WKS     = 1,
     //       GC_HEAP_SVR     = 2
+    // If we get something other than that, we probably read the wrong location.
+    _ASSERTE(gcHeapValue >= IGCHeap::GC_HEAP_INVALID && gcHeapValue <= IGCHeap::GC_HEAP_SVR);
 
-    TADDR gcHeapLocation = g_pGCHeap.GetAddrRaw (); // get the starting address of the global GCHeap instance
-    size_t gcHeapValue = 0;                         // this will hold the heap type
-    ULONG32 returned = 0;
-
-    // @todo Microsoft: we should probably be capturing the HRESULT from ReadVirtual. We could 
-    // provide a more informative error message. E_FAIL is a wretchedly vague thing to return. 
-    hr = m_pTarget->ReadVirtual(gcHeapLocation, (PBYTE)&gcHeapValue, sizeof(gcHeapValue), &returned);
-
-    //@todo Microsoft: We have an enumerated type, we probably should use the symbolic name
     // we have GC_HEAP_INVALID if gcHeapValue == 0, so we're done
-    if (SUCCEEDED(hr) && ((returned != sizeof(gcHeapValue)) || (gcHeapValue == 0)))
-        hr = E_FAIL;
-
-    if (SUCCEEDED(hr))
+    if (gcHeapValue == IGCHeap::GC_HEAP_INVALID)
     {
-        // Now we can get other important information about the heap
-        gcheapData->g_max_generation = GCHeap::GetMaxGeneration();
-        gcheapData->bServerMode = GCHeap::IsServerHeap();
-        gcheapData->bGcStructuresValid = CNameSpace::GetGcRuntimeStructuresValid();
-        if (GCHeap::IsServerHeap())
-        {
-#if !defined (FEATURE_SVR_GC)
-            _ASSERTE(0);
-            gcheapData->HeapCount = 1;
-#else // !defined (FEATURE_SVR_GC)
-            gcheapData->HeapCount = GCHeapCount();
-#endif // !defined (FEATURE_SVR_GC)
-        }
-        else
-        {
-            gcheapData->HeapCount = 1;
-        }
+        hr = E_FAIL;
+        goto cleanup;
     }
+#endif
+
+    // Now we can get other important information about the heap
+    gcheapData->g_max_generation = GCHeapUtilities::GetMaxGeneration();
+    gcheapData->bServerMode = GCHeapUtilities::IsServerHeap();
+    gcheapData->bGcStructuresValid = GCScan::GetGcRuntimeStructuresValid();
+    if (GCHeapUtilities::IsServerHeap())
+    {
+#if !defined (FEATURE_SVR_GC)
+        _ASSERTE(0);
+        gcheapData->HeapCount = 1;
+#else // !defined (FEATURE_SVR_GC)
+        gcheapData->HeapCount = GCHeapCount();
+#endif // !defined (FEATURE_SVR_GC)
+    }
+    else
+    {
+        gcheapData->HeapCount = 1;
+    }
+
+#ifdef FEATURE_SVR_GC
+cleanup:
+    ;
+#endif
 
     SOSDacLeave();
     return hr;
@@ -3015,7 +3018,7 @@ ClrDataAccess::GetOOMStaticData(struct DacpOomData *oomData)
 
     memset(oomData, 0, sizeof(DacpOomData));
 
-    if (!GCHeap::IsServerHeap())
+    if (!GCHeapUtilities::IsServerHeap())
     {
         oom_history* pOOMInfo = &(WKS::gc_heap::oom_info);
         oomData->reason = pOOMInfo->reason;
@@ -3044,7 +3047,7 @@ ClrDataAccess::GetOOMData(CLRDATA_ADDRESS oomAddr, struct DacpOomData *data)
     SOSDacEnter();
     memset(data, 0, sizeof(DacpOomData));
 
-    if (!GCHeap::IsServerHeap())
+    if (!GCHeapUtilities::IsServerHeap())
         hr = E_FAIL; // doesn't make sense to call this on WKS mode
     
 #ifdef FEATURE_SVR_GC
@@ -3060,6 +3063,89 @@ ClrDataAccess::GetOOMData(CLRDATA_ADDRESS oomAddr, struct DacpOomData *data)
 }
 
 HRESULT
+ClrDataAccess::GetGCGlobalMechanisms(size_t* globalMechanisms)
+{
+#ifdef GC_CONFIG_DRIVEN
+    if (globalMechanisms == NULL)
+        return E_INVALIDARG;
+
+    SOSDacEnter();
+    memset(globalMechanisms, 0, (sizeof(size_t) * MAX_GLOBAL_GC_MECHANISMS_COUNT));
+
+    for (int i = 0; i < MAX_GLOBAL_GC_MECHANISMS_COUNT; i++)
+    {
+        globalMechanisms[i] = gc_global_mechanisms[i];
+    }
+
+    SOSDacLeave();
+    return hr;
+#else
+    return E_NOTIMPL;
+#endif //GC_CONFIG_DRIVEN
+}
+
+HRESULT
+ClrDataAccess::GetGCInterestingInfoStaticData(struct DacpGCInterestingInfoData *data)
+{
+#ifdef GC_CONFIG_DRIVEN
+    if (data == NULL)
+        return E_INVALIDARG;
+
+    SOSDacEnter();
+    memset(data, 0, sizeof(DacpGCInterestingInfoData));
+
+    if (!GCHeapUtilities::IsServerHeap())
+    {
+        for (int i = 0; i < NUM_GC_DATA_POINTS; i++)
+            data->interestingDataPoints[i] = WKS::interesting_data_per_heap[i];
+        for (int i = 0; i < MAX_COMPACT_REASONS_COUNT; i++)
+            data->compactReasons[i] = WKS::compact_reasons_per_heap[i];
+        for (int i = 0; i < MAX_EXPAND_MECHANISMS_COUNT; i++)
+            data->expandMechanisms[i] = WKS::expand_mechanisms_per_heap[i];
+        for (int i = 0; i < MAX_GC_MECHANISM_BITS_COUNT; i++)
+            data->bitMechanisms[i] = WKS::interesting_mechanism_bits_per_heap[i];
+    }
+    else
+    {
+        hr = E_FAIL;
+    }
+
+    SOSDacLeave();
+    return hr;
+#else
+    return E_NOTIMPL;
+#endif //GC_CONFIG_DRIVEN
+}
+
+HRESULT
+ClrDataAccess::GetGCInterestingInfoData(CLRDATA_ADDRESS interestingInfoAddr, struct DacpGCInterestingInfoData *data)
+{
+#ifdef GC_CONFIG_DRIVEN
+    if (interestingInfoAddr == 0 || data == NULL)
+        return E_INVALIDARG;
+
+    SOSDacEnter();
+    memset(data, 0, sizeof(DacpGCInterestingInfoData));
+
+    if (!GCHeapUtilities::IsServerHeap())
+        hr = E_FAIL; // doesn't make sense to call this on WKS mode
+    
+#ifdef FEATURE_SVR_GC
+    else
+        hr = ServerGCInterestingInfoData(interestingInfoAddr, data);
+#else
+    _ASSERTE_MSG(false, "IsServerHeap returned true but FEATURE_SVR_GC not defined");
+    hr = E_NOTIMPL;
+#endif //FEATURE_SVR_GC
+
+    SOSDacLeave();
+    return hr;
+#else
+    return E_NOTIMPL;
+#endif //GC_CONFIG_DRIVEN
+}
+
+HRESULT
 ClrDataAccess::GetHeapAnalyzeData(CLRDATA_ADDRESS addr, struct  DacpGcHeapAnalyzeData *data)
 {
     if (addr == 0 || data == NULL)
@@ -3067,7 +3153,7 @@ ClrDataAccess::GetHeapAnalyzeData(CLRDATA_ADDRESS addr, struct  DacpGcHeapAnalyz
 
     SOSDacEnter();
 
-    if (!GCHeap::IsServerHeap())
+    if (!GCHeapUtilities::IsServerHeap())
         hr = E_FAIL; // doesn't make sense to call this on WKS mode
 
 #ifdef FEATURE_SVR_GC
@@ -3691,7 +3777,7 @@ ClrDataAccess::GetJumpThunkTarget(T_CONTEXT *ctx, CLRDATA_ADDRESS *targetIP, CLR
     if (ctx == NULL || targetIP == NULL || targetMD == NULL)
         return E_INVALIDARG;
     
-#ifdef _WIN64
+#ifdef _TARGET_AMD64_
     SOSDacEnter();
     
     if (!GetAnyThunkTarget(ctx, targetIP, targetMD))
@@ -3774,7 +3860,7 @@ ClrDataAccess::EnumWksGlobalMemoryRegions(CLRDataEnumMemoryFlags flags)
             // enumerating the generations from max (which is normally gen2) to max+1 gives you
             // the segment list for all the normal segements plus the large heap segment (max+1)
             // this is the convention in the GC so it is repeated here
-            for (ULONG i = GCHeap::GetMaxGeneration(); i <= GCHeap::GetMaxGeneration()+1; i++)
+            for (ULONG i = GCHeapUtilities::GetMaxGeneration(); i <= GCHeapUtilities::GetMaxGeneration()+1; i++)
             {
                 __DPtr<WKS::heap_segment> seg = dac_cast<TADDR>(WKS::generation_table[i].start_segment);
                 while (seg)
@@ -3823,8 +3909,8 @@ HRESULT ClrDataAccess::GetClrWatsonBucketsWorker(Thread * pThread, GenericModeBl
     OBJECTHANDLE ohThrowable = pThread->GetThrowableAsHandle();
     if (ohThrowable != NULL)
     {
-	    // Get the object from handle and check if the throwable is preallocated or not
-	    OBJECTREF oThrowable = ObjectFromHandle(ohThrowable);
+        // Get the object from handle and check if the throwable is preallocated or not
+        OBJECTREF oThrowable = ObjectFromHandle(ohThrowable);
         if (oThrowable != NULL)
         {
             // Does the throwable have buckets?
@@ -4269,4 +4355,27 @@ HRESULT ClrDataAccess::IsRCWDCOMProxy(CLRDATA_ADDRESS rcwAddr, BOOL* isDCOMProxy
 #else
     return E_NOTIMPL;
 #endif // FEATURE_COMINTEROP
+}
+
+HRESULT ClrDataAccess::GetClrNotification(CLRDATA_ADDRESS arguments[], int count, int *pNeeded)
+{
+    SOSDacEnter();
+
+    *pNeeded = MAX_CLR_NOTIFICATION_ARGS;
+
+    if (g_clrNotificationArguments[0] == NULL)
+    {
+        hr = E_FAIL;
+    }
+    else
+    {
+        for (int i = 0; i < count && i < MAX_CLR_NOTIFICATION_ARGS; i++)
+        {
+            arguments[i] = g_clrNotificationArguments[i];
+        }
+    }
+
+    SOSDacLeave();
+
+    return hr;;
 }

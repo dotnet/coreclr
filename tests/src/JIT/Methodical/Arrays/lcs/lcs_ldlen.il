@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
@@ -7,8 +8,11 @@
 
 
 
-.assembly extern mscorlib
+.assembly extern mscorlib { }
+.assembly extern System.Console
 {
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
 }
 .assembly 'lcs'// as "lcs"
 {
@@ -200,7 +204,7 @@
       IL_00c0:  stloc.3
       IL_00c1:  br.s       IL_00c9
 
-      IL_00c3:  newobj     instance void ['mscorlib']System.ApplicationException::.ctor()
+      IL_00c3:  newobj     instance void ['mscorlib']System.Exception::.ctor()
       IL_00c8:  throw
 
       IL_00c9:  ldloc.3
@@ -448,7 +452,7 @@
       IL_0108:  ldc.i4.0
       IL_0109:  bge.s      IL_0111
 
-      IL_010b:  newobj     instance void ['mscorlib']System.ApplicationException::.ctor()
+      IL_010b:  newobj     instance void ['mscorlib']System.Exception::.ctor()
       IL_0110:  throw
 
       IL_0111:  ldarg.0
@@ -745,13 +749,13 @@
       IL_00c0:  brfalse.s  IL_00d1
 
       IL_00c2:  ldstr      "Test passed"
-      IL_00c7:  call       void ['mscorlib']System.Console::WriteLine(class System.String)
+      IL_00c7:  call       void [System.Console]System.Console::WriteLine(class System.String)
       IL_00cc:  ldc.i4    0x64
       IL_00cd:  stloc.s    V_7
       IL_00cf:  br.s       IL_00e0
 
       IL_00d1:  ldstr      "Test failed."
-      IL_00d6:  call       void ['mscorlib']System.Console::WriteLine(class System.String)
+      IL_00d6:  call       void [System.Console]System.Console::WriteLine(class System.String)
       IL_00db:  ldc.i4.0
       IL_00dc:  stloc.s    V_7
       IL_00de:  br.s       IL_00e0

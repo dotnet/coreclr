@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //+----------------------------------------------------------------------------  
 //  
@@ -78,7 +77,7 @@ FindNamespaceFileInDirectory(
     if (wszDirectory == nullptr)
         return ERROR_NOT_SUPPORTED;
 
-    WCHAR wszFilePath[MAX_PATH + 1];
+    WCHAR wszFilePath[MAX_LONGPATH + 1];
     wcscpy_s(
         wszFilePath, 
         _countof(wszFilePath), 
@@ -90,7 +89,7 @@ FindNamespaceFileInDirectory(
     if (*(wszFirstFileNameChar - 1) != '\\')
         *wszFirstFileNameChar++ = '\\';
 
-    WCHAR wszRemainingNamespace[MAX_PATH +1];
+    WCHAR wszRemainingNamespace[MAX_PATH_FNAME +1];
     wcscpy_s(
         wszRemainingNamespace, 
         _countof(wszRemainingNamespace), 

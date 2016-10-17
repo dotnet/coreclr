@@ -3,15 +3,45 @@ Building and running tests on Windows
 
 **Building Tests**        
 
-In a clean command prompt, issue the following command: 
+To build the tests simply navigate to the tests directory above the repo and run,
 
-    C:\git\coreclr>tests\buildtest.cmd clean
+    C:\git\coreclr>build-test.cmd
 
-**buildtest /?** will list supported parameters.
+*Cleaning Tests*
 
-**Note:** The above command (or building from the repo_root) must be done once, at the least, to ensure that all test dependencies are initialized correctly. 
+**Note:** Cleaning should be done before all tests to be sure that the test assets are initialized correctly. To do a clean build of the tests, in a clean command prompt, issue the following command: 
 
-In Visual Studio, open `<repo_root>\tests\src\AllTestProjects.sln`, build all the test projects or the one required.
+    C:\git\coreclr>build-test.cmd -rebuild
+
+*Building tests that will be precompiled*
+
+    C:\git\coreclr>build-test.cmd crossgen
+
+This will use crossgen.exe to precompile the test executables before they are executed.
+
+*Building Other Priority Tests*
+
+    C:\git\coreclr>build-test.cmd -priority=2
+
+The number '2' is just an example. The default value (if no priority is specified) is 0. To clarify, if '2' is specified, all tests with CLRTestPriorty 0, 1 AND 2 will be built and consequently run.
+
+**Example**
+
+To run a clean, priority 1, crossgen test pass:
+
+    C:\git\coreclr>build-test.cmd -rebuild crossgen -priority=1
+
+**buildtest /?** will list additional supported parameters.
+
+Additionally, there is a Visual Studio solution, `<repo_root>\tests\src\AllTestProjects.sln`, where users can build a particular testcase, or all priority 0 testcases that are within it.
+
+**Building Individual Tests**
+
+Note: buildtest.cmd or build.cmd skipnative skipmscorlib needs to be run atleast once
+
+* Native Test: Build the generated Visual Studio solution or make file corresponding to Test cmake file.
+  
+* Managed Test: You can invoke msbuild on the project directly from Visual Studio Command Prompt.
 
 **Running Tests**
 
@@ -50,11 +80,27 @@ If test changes are needed, make the change and build the test project. This wil
 
 **Authoring Tests (in VS)**
 
+
 1. Use an existing test such as `<repo_root>\tests\src\Exceptions\Finalization\Finalizer.csproj` as a template and copy it to a new folder under `<repo_root>\tests\src`.
-2. Add the project of the new test to `<repo_root>\tests\src\AllTestProjects.sln` in VS
-3. Add source files to this newly added project.
-4. Indicate the success of the test by returning `100`.
-5. Add the .NET CoreFX contract references, as required, via the Nuget Package Manager in Visual Studio. *Make sure this does not change the csproj. If it does, then undo the change in the csproj.*
-6. Add any other projects as a dependency, if needed.
-7. Build the test.
-8. Follow the steps to re-run a failed test to validate the new test.
+2. Be sure that the AssemblyName has been removed (this causes confusion with the way tests are generally handled behind the scenes by the build system). 
+3. [Assign a CLRTestKind/CLRTestPriority.](test-configuration.md)
+4. Add the project of the new test to `<repo_root>\tests\src\AllTestProjects.sln` in VS
+5. Add source files to this newly added project.
+6. Indicate the success of the test by returning `100`.
+8. Add any other projects as a dependency, if needed.
+9. Build the test.
+10. Follow the steps to re-run a failed test to validate the new test.
+
+Note:
+
+1. You can disable building of a test per architecture or configuration by using DisableProjectBuild tag in the project. for example:
+
+  ``<PropertyGroup>``
+
+     ``<DisableProjectBuild Condition=" '$(Platform)' == 'arm64' ">true</DisableProjectBuild>``
+
+  ``</PropertyGroup>``
+
+2. To Add Nuget\MyGet Refernces use this (project.json)[https://github.com/dotnet/coreclr/blob/master/tests/src/Common/test_dependencies/project.json]
+
+3. To Build against the mscorlib facade add  ``<ReferenceLocalMscorlib>true</ReferenceLocalMscorlib>`` to your project

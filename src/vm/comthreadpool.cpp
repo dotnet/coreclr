@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 /*============================================================
@@ -274,7 +273,7 @@ FCIMPL0(FC_BOOL_RET, ThreadPoolNative::NotifyRequestComplete)
         }
 
         if (needReset)
-            pThread->InternalReset (FALSE, TRUE, TRUE, FALSE);
+            pThread->InternalReset(FALSE, TRUE, TRUE, FALSE);
 
         HELPER_METHOD_FRAME_END();    
     }

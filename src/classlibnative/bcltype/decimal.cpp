@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: decimal.cpp
 //
@@ -247,6 +246,10 @@ FCIMPL1(INT32, COMDecimal::ToInt32, FC_DECIMAL d)
             if (i >= 0) return i;
         }
         else {
+            // Int32.MinValue is represented as sign being negative
+            // and Lo32 being 0x80000000 (-ve number). Return that as is without
+            // reversing the sign of the number.
+            if(i == 0x80000000) return i;
             i = -i;
             if (i <= 0) return i;
         }

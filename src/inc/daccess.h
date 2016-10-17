@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // File: daccess.h
 // 
@@ -527,6 +526,8 @@
 #ifndef __daccess_h__
 #define __daccess_h__
 
+#include <stdint.h>
+
 #include "switches.h"
 #include "safemath.h"
 #include "corerror.h"
@@ -537,8 +538,12 @@
 
 #define DACCESS_TABLE_RESOURCE "COREXTERNALDATAACCESSRESOURCE"
 
+#ifdef PAL_STDCPP_COMPAT
+#include <type_traits>
+#else
 #include "clr_std/type_traits"
 #include "crosscomp.h"
+#endif
 
 // Information stored in the DAC table of interest to the DAC implementation
 // Note that this information is shared between all instantiations of ClrDataAccess, so initialize
@@ -775,6 +780,11 @@ struct _UNWIND_INFO * DacGetUnwindInfo(TADDR taUnwindInfo);
 // virtually unwind a CONTEXT out-of-process
 struct _KNONVOLATILE_CONTEXT_POINTERS;
 BOOL DacUnwindStackFrame(T_CONTEXT * pContext, T_KNONVOLATILE_CONTEXT_POINTERS* pContextPointers);
+
+#if defined(FEATURE_PAL)
+// call back through data target to unwind out-of-process
+HRESULT DacVirtualUnwind(ULONG32 threadId, PCONTEXT context, PT_KNONVOLATILE_CONTEXT_POINTERS contextPointers);
+#endif // FEATURE_PAL
 #endif // _WIN64
 
 #ifdef FEATURE_MINIMETADATA_IN_TRIAGEDUMPS
@@ -1413,14 +1423,14 @@ public:
 
 // Pointer wrapper for 16-bit strings.
 template<typename type, ULONG32 maxChars = 32760>
-class __Str16Ptr : public __DPtr<wchar_t>
+class __Str16Ptr : public __DPtr<WCHAR>
 {
 public:
     typedef type _Type;
     typedef type* _Ptr;
     
-    __Str16Ptr< type, maxChars >(void) : __DPtr<wchar_t>() {}
-    __Str16Ptr< type, maxChars >(TADDR addr) : __DPtr<wchar_t>(addr) {}
+    __Str16Ptr< type, maxChars >(void) : __DPtr<WCHAR>() {}
+    __Str16Ptr< type, maxChars >(TADDR addr) : __DPtr<WCHAR>(addr) {}
     explicit __Str16Ptr< type, maxChars >(__TPtrBase addr)
     {
         m_addr = addr.GetAddr();
@@ -2327,7 +2337,9 @@ inline type* DacUnsafeMarshalSingleElement( ArrayDPTR(type) arrayPtr )
 //----------------------------------------------------------------------------
 
 typedef ArrayDPTR(BYTE)    PTR_BYTE;
+typedef ArrayDPTR(uint8_t) PTR_uint8_t;
 typedef DPTR(PTR_BYTE) PTR_PTR_BYTE;
+typedef DPTR(PTR_uint8_t) PTR_PTR_uint8_t;
 typedef DPTR(PTR_PTR_BYTE) PTR_PTR_PTR_BYTE;
 typedef ArrayDPTR(signed char) PTR_SBYTE;
 typedef ArrayDPTR(const BYTE) PTR_CBYTE;
@@ -2336,6 +2348,7 @@ typedef DPTR(INT16)   PTR_INT16;
 typedef DPTR(WORD)    PTR_WORD;
 typedef DPTR(USHORT)  PTR_USHORT;
 typedef DPTR(DWORD)   PTR_DWORD;
+typedef DPTR(uint32_t) PTR_uint32_t;
 typedef DPTR(LONG)    PTR_LONG;
 typedef DPTR(ULONG)   PTR_ULONG;
 typedef DPTR(INT32)   PTR_INT32;
@@ -2354,8 +2367,8 @@ typedef S8PTR(char)           PTR_STR;
 typedef S8PTR(const char)     PTR_CSTR;
 typedef S8PTR(char)           PTR_UTF8;
 typedef S8PTR(const char)     PTR_CUTF8;
-typedef S16PTR(wchar_t)       PTR_WSTR;
-typedef S16PTR(const wchar_t) PTR_CWSTR;
+typedef S16PTR(WCHAR)         PTR_WSTR;
+typedef S16PTR(const WCHAR)   PTR_CWSTR;
 
 typedef DPTR(T_CONTEXT)                  PTR_CONTEXT;
 typedef DPTR(PTR_CONTEXT)                PTR_PTR_CONTEXT;

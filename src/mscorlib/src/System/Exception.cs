@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*=============================================================================
 **
@@ -320,9 +321,9 @@ namespace System {
         // is true.  Note that this requires FileIOPermission(PathDiscovery), and so
         // will usually fail in CoreCLR.  To avoid the demand and resulting
         // SecurityException we can explicitly not even try to get fileinfo.
-        #if FEATURE_CORECLR
+#if FEATURE_CORECLR
         [System.Security.SecurityCritical] // auto-generated
-        #endif
+#endif
         private string GetStackTrace(bool needFileInfo)
         {
             string stackTraceString = _stackTraceString;
@@ -379,9 +380,9 @@ namespace System {
         }
     
         public virtual String Source {
-            #if FEATURE_CORECLR
+#if FEATURE_CORECLR
             [System.Security.SecurityCritical] // auto-generated
-            #endif
+#endif
             get { 
                 if (_source == null)
                 {
@@ -410,9 +411,9 @@ namespace System {
 
                 return _source;
             }
-            #if FEATURE_CORECLR
+#if FEATURE_CORECLR
             [System.Security.SecurityCritical] // auto-generated
-            #endif
+#endif
             set { _source = value; }
         }
 
@@ -424,9 +425,9 @@ namespace System {
             return ToString(true, true);
         }
 
-        #if FEATURE_CORECLR
+#if FEATURE_CORECLR
         [System.Security.SecurityCritical] // auto-generated
-        #endif
+#endif
         private String ToString(bool needFileLineInfo, bool needMessage) {
             String message = (needMessage ? Message : null);
             String s;
@@ -888,7 +889,7 @@ namespace System {
         private SafeSerializationManager _safeSerializationManager;
 #endif // FEATURE_SERIALIZATION
 
-    // See clr\src\vm\excep.h's EXCEPTION_COMPLUS definition:
+        // See src\inc\corexcep.h's EXCEPTION_COMPLUS definition:
         private const int _COMPlusExceptionCode = unchecked((int)0xe0434352);   // Win32 exception code for COM+ exceptions
 
         // InternalToString is called by the runtime to get the exception text 
@@ -909,29 +910,16 @@ namespace System {
                 //however if something wrong happens we still can call the usual ToString
             }
 
-            // Get the current stack trace string.  On CoreCLR we don't bother
-            // to try and include file/line-number information because all AppDomains
-            // are sandboxed, and so this won't succeed in most (or all) cases.  Therefore the
-            // Demand and exception overhead is a waste.
-            // We currently have some bugs in watson bucket generation where the SecurityException
-            // here causes us to lose saved bucket parameters.  By not even doing the demand
-            // we avoid those problems (although there are deep underlying problems that need to
-            // be fixed there - relying on this to avoid problems is incomplete and brittle).
-            bool fGetFileLineInfo = true;
-#if FEATURE_CORECLR
-            fGetFileLineInfo = false;
-#endif
-            return ToString(fGetFileLineInfo, true);
+            // Get the current stack trace string. 
+            return ToString(true, true);
         }
-
-#if !FEATURE_CORECLR
+        
         // this method is required so Object.GetType is not made virtual by the compiler
         // _Exception.GetType()
         public new Type GetType()
         {
             return base.GetType();
         }
-#endif
 
         internal bool IsTransient
         {
@@ -988,7 +976,9 @@ namespace System {
     // The Message field is set to the ToString() output of the original exception.
     //--------------------------------------------------------------------------
 
+#if FEATURE_SERIALIZATION
     [Serializable]
+#endif
     internal sealed class CrossAppDomainMarshaledException : SystemException 
     {
         public CrossAppDomainMarshaledException(String message, int errorCode) 
@@ -1000,9 +990,9 @@ namespace System {
         // Normally, only Telesto's UEF will see these exceptions.
         // This override prints out the original Exception's ToString()
         // output and hides the fact that it is wrapped inside another excepton.
-        #if FEATURE_CORECLR
+#if FEATURE_CORECLR
         [System.Security.SecurityCritical] // auto-generated
-        #endif
+#endif
         internal override String InternalToString()
         {
             return Message;

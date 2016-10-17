@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -105,6 +106,22 @@ namespace System.Collections.Generic {
 
             if( dictionary == null) {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.dictionary);
+            }
+
+            // It is likely that the passed-in dictionary is Dictionary<TKey,TValue>. When this is the case,
+            // avoid the enumerator allocation and overhead by looping through the entries array directly.
+            // We only do this when dictionary is Dictionary<TKey,TValue> and not a subclass, to maintain
+            // back-compat with subclasses that may have overridden the enumerator behavior.
+            if (dictionary.GetType() == typeof(Dictionary<TKey,TValue>)) {
+                Dictionary<TKey,TValue> d = (Dictionary<TKey,TValue>)dictionary;
+                int count = d.count;
+                Entry[] entries = d.entries;
+                for (int i = 0; i < count; i++) {
+                    if (entries[i].hashCode >= 0) {
+                        Add(entries[i].key, entries[i].value);
+                    }
+                }
+                return;
             }
 
             foreach (KeyValuePair<TKey,TValue> pair in dictionary) {
@@ -246,7 +263,7 @@ namespace System.Collections.Generic {
             }
             
             if (index < 0 || index > array.Length ) {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+                ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
             }
 
             if (array.Length - index < Count) {
@@ -330,7 +347,11 @@ namespace System.Collections.Generic {
             for (int i = buckets[targetBucket]; i >= 0; i = entries[i].next) {
                 if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key)) {
                     if (add) { 
+#if FEATURE_CORECLR
+                        ThrowHelper.ThrowAddingDuplicateWithKeyArgumentException(key);
+#else
                         ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_AddingDuplicate);
+#endif
                     }
                     entries[i].value = value;
                     version++;
@@ -536,7 +557,7 @@ namespace System.Collections.Generic {
             }
             
             if (index < 0 || index > array.Length) {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+                ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
             }
 
             if (array.Length - index < Count) {
@@ -559,7 +580,7 @@ namespace System.Collections.Generic {
             else {
                 object[] objects = array as object[];
                 if (objects == null) {
-                    ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidArrayType);
+                    ThrowHelper.ThrowArgumentException_Argument_InvalidArrayType();
                 }
 
                 try {
@@ -572,7 +593,7 @@ namespace System.Collections.Generic {
                     }
                 }
                 catch(ArrayTypeMismatchException) {
-                    ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidArrayType);
+                    ThrowHelper.ThrowArgumentException_Argument_InvalidArrayType();
                 }
             }
         }
@@ -712,7 +733,7 @@ namespace System.Collections.Generic {
 
             public bool MoveNext() {
                 if (version != dictionary.version) {
-                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumFailedVersion);
+                    ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumFailedVersion();
                 }
 
                 // Use unsigned comparison since we set index to dictionary.count+1 when the enumeration ends.
@@ -741,7 +762,7 @@ namespace System.Collections.Generic {
             object IEnumerator.Current {
                 get { 
                     if( index == 0 || (index == dictionary.count + 1)) {
-                        ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumOpCantHappen);                        
+                        ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumOpCantHappen();                        
                     }      
 
                     if (getEnumeratorRetType == DictEntry) {
@@ -754,7 +775,7 @@ namespace System.Collections.Generic {
 
             void IEnumerator.Reset() {
                 if (version != dictionary.version) {
-                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumFailedVersion);
+                    ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumFailedVersion();
                 }
 
                 index = 0;
@@ -764,7 +785,7 @@ namespace System.Collections.Generic {
             DictionaryEntry IDictionaryEnumerator.Entry {
                 get { 
                     if( index == 0 || (index == dictionary.count + 1)) {
-                         ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumOpCantHappen);                        
+                         ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumOpCantHappen();                        
                     }                        
                     
                     return new DictionaryEntry(current.Key, current.Value); 
@@ -774,7 +795,7 @@ namespace System.Collections.Generic {
             object IDictionaryEnumerator.Key {
                 get { 
                     if( index == 0 || (index == dictionary.count + 1)) {
-                         ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumOpCantHappen);                        
+                         ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumOpCantHappen();                        
                     }                        
                     
                     return current.Key; 
@@ -784,7 +805,7 @@ namespace System.Collections.Generic {
             object IDictionaryEnumerator.Value {
                 get { 
                     if( index == 0 || (index == dictionary.count + 1)) {
-                         ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumOpCantHappen);                        
+                         ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumOpCantHappen();                        
                     }                        
                     
                     return current.Value; 
@@ -816,7 +837,7 @@ namespace System.Collections.Generic {
                 }
 
                 if (index < 0 || index > array.Length) {
-                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+                    ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
                 }
 
                 if (array.Length - index < dictionary.Count) {
@@ -877,7 +898,7 @@ namespace System.Collections.Generic {
                 }
 
                 if (index < 0 || index > array.Length) {
-                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+                    ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
                 }
 
                 if (array.Length - index < dictionary.Count) {
@@ -891,7 +912,7 @@ namespace System.Collections.Generic {
                 else {
                     object[] objects = array as object[];
                     if (objects == null) {
-                        ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidArrayType);
+                        ThrowHelper.ThrowArgumentException_Argument_InvalidArrayType();
                     }
                                          
                     int count = dictionary.count;
@@ -902,7 +923,7 @@ namespace System.Collections.Generic {
                         }
                     }                    
                     catch(ArrayTypeMismatchException) {
-                        ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidArrayType);
+                        ThrowHelper.ThrowArgumentException_Argument_InvalidArrayType();
                     }
                 }
             }
@@ -935,7 +956,7 @@ namespace System.Collections.Generic {
 
                 public bool MoveNext() {
                     if (version != dictionary.version) {
-                        ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumFailedVersion);
+                        ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumFailedVersion();
                     }
 
                     while ((uint)index < (uint)dictionary.count) {
@@ -961,7 +982,7 @@ namespace System.Collections.Generic {
                 Object System.Collections.IEnumerator.Current {
                     get {                      
                         if( index == 0 || (index == dictionary.count + 1)) {
-                             ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumOpCantHappen);                        
+                             ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumOpCantHappen();                        
                         }                        
                         
                         return currentKey;
@@ -970,7 +991,7 @@ namespace System.Collections.Generic {
                 
                 void System.Collections.IEnumerator.Reset() {
                     if (version != dictionary.version) {
-                        ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumFailedVersion);                        
+                        ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumFailedVersion();                        
                     }
 
                     index = 0;                    
@@ -1003,7 +1024,7 @@ namespace System.Collections.Generic {
                 }
 
                 if (index < 0 || index > array.Length) {
-                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+                    ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
                 }
 
                 if (array.Length - index < dictionary.Count) {
@@ -1064,7 +1085,7 @@ namespace System.Collections.Generic {
                 }
 
                 if (index < 0 || index > array.Length) { 
-                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+                    ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
                 }
 
                 if (array.Length - index < dictionary.Count)
@@ -1077,7 +1098,7 @@ namespace System.Collections.Generic {
                 else {
                     object[] objects = array as object[];
                     if (objects == null) {
-                        ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidArrayType);
+                        ThrowHelper.ThrowArgumentException_Argument_InvalidArrayType();
                     }
 
                     int count = dictionary.count;
@@ -1088,7 +1109,7 @@ namespace System.Collections.Generic {
                         }
                     }
                     catch(ArrayTypeMismatchException) {
-                        ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidArrayType);
+                        ThrowHelper.ThrowArgumentException_Argument_InvalidArrayType();
                     }
                 }
             }
@@ -1121,7 +1142,7 @@ namespace System.Collections.Generic {
 
                 public bool MoveNext() {                    
                     if (version != dictionary.version) {
-                        ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumFailedVersion);
+                        ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumFailedVersion();
                     }
                     
                     while ((uint)index < (uint)dictionary.count) {
@@ -1146,7 +1167,7 @@ namespace System.Collections.Generic {
                 Object System.Collections.IEnumerator.Current {
                     get {                      
                         if( index == 0 || (index == dictionary.count + 1)) {
-                             ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumOpCantHappen);                        
+                             ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumOpCantHappen();                        
                         }                        
                         
                         return currentValue;
@@ -1155,7 +1176,7 @@ namespace System.Collections.Generic {
                 
                 void System.Collections.IEnumerator.Reset() {
                     if (version != dictionary.version) {
-                        ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumFailedVersion);
+                        ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumFailedVersion();
                     }
                     index = 0;                    
                     currentValue = default(TValue);

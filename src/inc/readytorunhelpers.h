@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 // ReadyToRunHelpers.h
@@ -20,6 +19,8 @@ HELPER(READYTORUN_HELPER_Rethrow,                   CORINFO_HELP_RETHROW,       
 HELPER(READYTORUN_HELPER_Overflow,                  CORINFO_HELP_OVERFLOW,                          OPTIMIZEFORSIZE)
 HELPER(READYTORUN_HELPER_RngChkFail,                CORINFO_HELP_RNGCHKFAIL,                        OPTIMIZEFORSIZE)
 HELPER(READYTORUN_HELPER_FailFast,                  CORINFO_HELP_FAIL_FAST,                         OPTIMIZEFORSIZE)
+HELPER(READYTORUN_HELPER_ThrowNullRef,              CORINFO_HELP_THROWNULLREF,                      OPTIMIZEFORSIZE)
+HELPER(READYTORUN_HELPER_ThrowDivZero,              CORINFO_HELP_THROWDIVZERO,                      OPTIMIZEFORSIZE)
 
 HELPER(READYTORUN_HELPER_WriteBarrier,              CORINFO_HELP_ASSIGN_REF,                        )
 HELPER(READYTORUN_HELPER_CheckedWriteBarrier,       CORINFO_HELP_CHECKED_ASSIGN_REF,                )
@@ -40,6 +41,19 @@ HELPER(READYTORUN_HELPER_Box_Nullable,              CORINFO_HELP_BOX_NULLABLE,  
 HELPER(READYTORUN_HELPER_Unbox,                     CORINFO_HELP_UNBOX,                             )
 HELPER(READYTORUN_HELPER_Unbox_Nullable,            CORINFO_HELP_UNBOX_NULLABLE,                    )
 HELPER(READYTORUN_HELPER_NewMultiDimArr,            CORINFO_HELP_NEW_MDARR,                         )
+HELPER(READYTORUN_HELPER_NewMultiDimArr_NonVarArg,  CORINFO_HELP_NEW_MDARR_NONVARARG,               )
+
+HELPER(READYTORUN_HELPER_NewObject,                 CORINFO_HELP_NEWFAST,                           )
+HELPER(READYTORUN_HELPER_NewArray,                  CORINFO_HELP_NEWARR_1_DIRECT,                   )
+HELPER(READYTORUN_HELPER_CheckCastAny,              CORINFO_HELP_CHKCASTANY,                        )
+HELPER(READYTORUN_HELPER_CheckInstanceAny,          CORINFO_HELP_ISINSTANCEOFANY,                   )
+
+HELPER(READYTORUN_HELPER_GenericGcStaticBase,       CORINFO_HELP_GETGENERICS_GCSTATIC_BASE,         )
+HELPER(READYTORUN_HELPER_GenericNonGcStaticBase,    CORINFO_HELP_GETGENERICS_NONGCSTATIC_BASE,      )
+HELPER(READYTORUN_HELPER_GenericGcTlsBase,          CORINFO_HELP_GETGENERICS_GCTHREADSTATIC_BASE,   )
+HELPER(READYTORUN_HELPER_GenericNonGcTlsBase,       CORINFO_HELP_GETGENERICS_NONGCTHREADSTATIC_BASE,)
+
+HELPER(READYTORUN_HELPER_VirtualFuncPtr,            CORINFO_HELP_VIRTUAL_FUNC_PTR,                  )
 
 HELPER(READYTORUN_HELPER_LMul,                      CORINFO_HELP_LMUL,                              )
 HELPER(READYTORUN_HELPER_LMulOfv,                   CORINFO_HELP_LMUL_OVF,                          )

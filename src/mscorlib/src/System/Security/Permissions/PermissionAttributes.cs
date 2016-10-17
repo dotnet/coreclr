@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 namespace System.Security.Permissions
 {
@@ -11,7 +12,6 @@ namespace System.Security.Permissions
     using System.Security.AccessControl;
 #endif
     using System.Text;
-    using System.Runtime.Serialization.Formatters;
     using System.Threading;
     using System.Runtime.InteropServices;
     using System.Runtime.Remoting;
@@ -76,12 +76,8 @@ namespace System.Security.Permissions
         internal SecurityAction m_action;
         /// <internalonly/>
         internal bool m_unrestricted;
-#if FEATURE_LEGACYNETCF
-        public
-#else
-        protected
-#endif
-            SecurityAttribute( SecurityAction action ) 
+
+        protected SecurityAttribute( SecurityAction action ) 
         {
             m_action = action;
         }
@@ -121,12 +117,7 @@ namespace System.Security.Permissions
 #endif
     public abstract class CodeAccessSecurityAttribute : SecurityAttribute
     {
-#if FEATURE_LEGACYNETCF
-        public
-#else
-        protected
-#endif
-            CodeAccessSecurityAttribute( SecurityAction action )
+        protected CodeAccessSecurityAttribute( SecurityAction action )
             : base( action )
         {
         }
@@ -1122,9 +1113,7 @@ namespace System.Security.Permissions
         private PermissionSet BruteForceParseStream(Stream stream)
         {
             Encoding[] encodings = new Encoding[] { Encoding.UTF8, 
-#if FEATURE_ASCII
                                                     Encoding.ASCII, 
-#endif                                              
                                                     Encoding.Unicode };
 
             StreamReader reader = null;

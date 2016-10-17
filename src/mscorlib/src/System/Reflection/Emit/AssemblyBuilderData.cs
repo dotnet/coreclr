@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -76,7 +77,7 @@ namespace System.Reflection.Emit {
             if (m_iCABuilder == m_CABuilders.Length)
             {
                 CustomAttributeBuilder[]  tempCABuilders = new CustomAttributeBuilder[m_iCABuilder * 2];
-                Array.Copy(m_CABuilders, tempCABuilders, m_iCABuilder);
+                Array.Copy(m_CABuilders, 0, tempCABuilders, 0, m_iCABuilder);
                 m_CABuilders = tempCABuilders;            
             }
             m_CABuilders[m_iCABuilder] = customBuilder;
@@ -109,7 +110,7 @@ namespace System.Reflection.Emit {
             }
 
             byte[] attrs = new byte[binaryAttribute.Length];
-            Array.Copy(binaryAttribute, attrs, binaryAttribute.Length);
+            Buffer.BlockCopy(binaryAttribute, 0, attrs, 0, binaryAttribute.Length);
             m_CABytes[m_iCAs] = attrs;
             m_CACons[m_iCAs] = con;
             m_iCAs++;
@@ -241,7 +242,7 @@ namespace System.Reflection.Emit {
                     }
                     // CultureInfo attribute overrides the lcid from AssemblyName.                                      
                     CultureInfo culture = new CultureInfo(m_CABuilders[i].m_constructorArgs[0].ToString());
-#if FEATURE_USE_LCID                    
+#if FEATURE_USE_LCID
                     m_nativeVersion.m_lcid = culture.LCID;
 #endif
                 }
@@ -448,7 +449,7 @@ namespace System.Reflection.Emit {
             if (m_iPublicComTypeCount == m_publicComTypeList.Length)
             {
                 Type[]  tempTypeList = new Type[m_iPublicComTypeCount * 2];
-                Array.Copy(m_publicComTypeList, tempTypeList, m_iPublicComTypeCount);
+                Array.Copy(m_publicComTypeList, 0, tempTypeList, 0, m_iPublicComTypeCount);
                 m_publicComTypeList = tempTypeList;            
             }
         }

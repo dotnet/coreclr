@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 
@@ -122,10 +123,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             {
                 // The enumerator has not been advanced to the first element yet.
                 if (!m_isInitialized)
-                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumNotStarted);
+                    ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumNotStarted();
                 // The enumerator has reached the end of the collection
                 if (!m_hadCurrent)
-                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumEnded);
+                    ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumEnded();
                 return m_current;
             }
         }
@@ -136,10 +137,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             {
                 // The enumerator has not been advanced to the first element yet.
                 if (!m_isInitialized)
-                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumNotStarted);
+                    ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumNotStarted();
                 // The enumerator has reached the end of the collection
                 if (!m_hadCurrent)
-                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumEnded);
+                    ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumEnded();
                 return m_current;
             }
         }
@@ -186,7 +187,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 // Translate E_CHANGED_STATE into an InvalidOperationException for an updated enumeration
                 if (Marshal.GetHRForException(e) == __HResults.E_CHANGED_STATE)
                 {
-                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumFailedVersion);
+                    ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumFailedVersion();
                 }
                 else
                 {

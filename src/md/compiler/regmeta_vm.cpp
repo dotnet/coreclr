@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
     
 //*****************************************************************************
@@ -141,7 +140,7 @@ HRESULT RegMeta::StartupEE()
     {
         HRESULT hr = S_OK;
 
-        DWORD dwBuffer[1 + (MAX_PATH+1) * sizeof(WCHAR) / sizeof(DWORD) + 1];
+        DWORD dwBuffer[1 + (MAX_LONGPATH+1) * sizeof(WCHAR) / sizeof(DWORD) + 1];
         BSTR  bstrDir = NULL;
 
         // Create a hosting environment.
@@ -159,7 +158,7 @@ HRESULT RegMeta::StartupEE()
 
         // Get the current directory (place it in a BSTR).
         bstrDir = (BSTR)(dwBuffer + 1);
-        if ((dwBuffer[0] = (WszGetCurrentDirectory(MAX_PATH + 1, bstrDir) * sizeof(WCHAR))))
+        if ((dwBuffer[0] = (WszGetCurrentDirectory(MAX_LONGPATH + 1, bstrDir) * sizeof(WCHAR))))
         {
             // QI for the IAppDomainSetup interface.
             IfFailGo(pParam->pSetup->QueryInterface(IID_IAppDomainSetup,

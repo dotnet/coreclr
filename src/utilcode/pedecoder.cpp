@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // --------------------------------------------------------------------------------
 // PEDecoder.cpp
 //
@@ -1226,9 +1225,12 @@ IMAGE_DATA_DIRECTORY *PEDecoder::GetMetaDataHelper(METADATA_SECTION_TYPE type) c
 
     // Visual Studio took dependency on crossgen /CreatePDB returning COR_E_NI_AND_RUNTIME_VERSION_MISMATCH
     // when crossgen and the native image come from different runtimes. In order to reach error path that returns
-    // COR_E_NI_AND_RUNTIME_VERSION_MISMATCH in this case, size of CORCOMPILE_HEADER has to remain constant to pass earlier 
+    // COR_E_NI_AND_RUNTIME_VERSION_MISMATCH in this case, size of CORCOMPILE_HEADER has to remain constant,
+    // and the offset of PEKind and Machine fields inside CORCOMPILE_HEADER also have to remain constant, to pass earlier
     // checks that lead to different error codes. See Windows Phone Blue Bug #45406 for details.
     _ASSERTE(sizeof(CORCOMPILE_HEADER) == 160 + sizeof(TADDR));
+    _ASSERTE(offsetof(CORCOMPILE_HEADER, PEKind) == 108 + sizeof(TADDR));
+    _ASSERTE(offsetof(CORCOMPILE_HEADER, Machine) == 116 + sizeof(TADDR));
 
     // Handle NGEN format; otherwise, there is only one MetaData section in the
     // COR_HEADER and so the value of pDirRet is correct

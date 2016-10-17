@@ -1,8 +1,14 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // ptr_types.il
 .assembly extern mscorlib { }
+.assembly extern System.Console
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
 .assembly ptr_types { }
 .namespace JitTest
 {
@@ -17,7 +23,7 @@
       call       class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(
       													valuetype [mscorlib]System.RuntimeTypeHandle)
       callvirt   instance string [mscorlib]System.Type::ToString()
-      call       void [mscorlib]System.Console::WriteLine(string)
+      call       void [System.Console]System.Console::WriteLine(string)
       ret
     }
     .method private hidebysig static int32
@@ -62,7 +68,7 @@
       call       void JitTest.Test::test_token(valuetype [mscorlib]System.RuntimeTypeHandle)
       
       ldstr      "Passed"
-      call       void [mscorlib]System.Console::WriteLine(string)
+      call       void [System.Console]System.Console::WriteLine(string)
       ldc.i4.s   100
       ret
     }

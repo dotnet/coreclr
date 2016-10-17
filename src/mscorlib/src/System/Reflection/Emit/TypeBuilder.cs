@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 // 
@@ -227,7 +228,7 @@ namespace System.Reflection.Emit {
             if (attr != null)
             {
                 localAttr = new byte[attr.Length];
-                Array.Copy(attr, localAttr, attr.Length);
+                Buffer.BlockCopy(attr, 0, localAttr, 0, attr.Length);
             }
 
             DefineCustomAttribute(module.GetNativeHandle(), tkAssociate, tkConstructor, 
@@ -851,7 +852,7 @@ namespace System.Reflection.Emit {
             ThrowIfCreated();
 
             // form the value class name
-            strValueClassName = ModuleBuilderData.MULTI_BYTE_VALUE_CLASS + size;
+            strValueClassName = ModuleBuilderData.MULTI_BYTE_VALUE_CLASS + size.ToString();
 
             // Is this already defined in this module?
             Type temp = m_module.FindTypeBuilderWithName(strValueClassName, false);
@@ -1362,6 +1363,9 @@ namespace System.Reflection.Emit {
 
         public override bool IsSecurityCritical
         {
+#if FEATURE_CORECLR
+            get { return true; }
+#else
             get
             {
                 if (!IsCreated())
@@ -1370,10 +1374,14 @@ namespace System.Reflection.Emit {
 
                 return m_bakedRuntimeType.IsSecurityCritical;
             }
+#endif
         }
 
         public override bool IsSecuritySafeCritical
         {
+#if FEATURE_CORECLR
+            get { return false; }
+#else
             get
             {
                 if (!IsCreated())
@@ -1382,10 +1390,14 @@ namespace System.Reflection.Emit {
 
                 return m_bakedRuntimeType.IsSecuritySafeCritical;
             }
+#endif
         }
 
         public override bool IsSecurityTransparent
         {
+#if FEATURE_CORECLR
+            get { return false; }
+#else
             get
             {
                 if (!IsCreated())
@@ -1394,6 +1406,7 @@ namespace System.Reflection.Emit {
 
                 return m_bakedRuntimeType.IsSecurityTransparent;
             }
+#endif
         }
 
         [System.Runtime.InteropServices.ComVisible(true)]
@@ -1441,17 +1454,17 @@ namespace System.Reflection.Emit {
 
         public override Type MakePointerType() 
         { 
-            return SymbolType.FormCompoundType("*".ToCharArray(), this, 0); 
+            return SymbolType.FormCompoundType("*", this, 0); 
         }
 
         public override Type MakeByRefType() 
         {
-            return SymbolType.FormCompoundType("&".ToCharArray(), this, 0);
+            return SymbolType.FormCompoundType("&", this, 0);
         }
 
         public override Type MakeArrayType() 
         {
-            return SymbolType.FormCompoundType("[]".ToCharArray(), this, 0);
+            return SymbolType.FormCompoundType("[]", this, 0);
         }
 
         public override Type MakeArrayType(int rank) 
@@ -1472,7 +1485,7 @@ namespace System.Reflection.Emit {
             }
 
             string s = String.Format(CultureInfo.InvariantCulture, "[{0}]", szrank); // [,,]
-            return SymbolType.FormCompoundType((s).ToCharArray(), this, 0);
+            return SymbolType.FormCompoundType(s, this, 0);
         }
 
         #endregion

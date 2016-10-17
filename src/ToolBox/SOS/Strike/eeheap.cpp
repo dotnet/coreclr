@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // ==++==
 // 
@@ -38,15 +37,15 @@ void HeapStat::Add(DWORD_PTR aData, DWORD aSize)
         
         if (bHasStrings)
         {
-            size_t capacity_pNew = wcslen((wchar_t*)aData) + 1;
-            wchar_t *pNew = new wchar_t[capacity_pNew];
+            size_t capacity_pNew = _wcslen((WCHAR*)aData) + 1;
+            WCHAR *pNew = new WCHAR[capacity_pNew];
             if (pNew == NULL)
             {
                ReportOOM();               
                ControlC = TRUE;
                return;
             }
-            wcscpy_s(pNew, capacity_pNew, (wchar_t*)aData);
+            wcscpy_s(pNew, capacity_pNew, (WCHAR*)aData);
             aData = (DWORD_PTR)pNew;            
         }
 
@@ -96,15 +95,15 @@ void HeapStat::Add(DWORD_PTR aData, DWORD aSize)
 
         if (bHasStrings)
         {
-            size_t capacity_pNew = wcslen((wchar_t*)aData) + 1;
-            wchar_t *pNew = new wchar_t[capacity_pNew];
+            size_t capacity_pNew = _wcslen((WCHAR*)aData) + 1;
+            WCHAR *pNew = new WCHAR[capacity_pNew];
             if (pNew == NULL)
             {
                ReportOOM();
                ControlC = TRUE;
                return;
             }
-            wcscpy_s(pNew, capacity_pNew, (wchar_t*)aData);
+            wcscpy_s(pNew, capacity_pNew, (WCHAR*)aData);
             aData = (DWORD_PTR)pNew;            
         }
         
@@ -131,7 +130,7 @@ void HeapStat::Add(DWORD_PTR aData, DWORD aSize)
 int HeapStat::CompareData(DWORD_PTR d1, DWORD_PTR d2)
 {
     if (bHasStrings)
-        return wcscmp((wchar_t*)d1, (wchar_t*)d2);
+        return _wcscmp((WCHAR*)d1, (WCHAR*)d2);
 
     if (d1 > d2)
         return 1;
@@ -329,7 +328,7 @@ void HeapStat::Delete()
         head = head->right;
 
         if (bHasStrings)
-            delete[] ((wchar_t*)tmp->data);
+            delete[] ((WCHAR*)tmp->data);
         delete tmp;
     }
 
@@ -434,8 +433,6 @@ size_t AlignLarge(size_t nbytes)
     return (nbytes + ALIGNCONSTLARGE) & ~ALIGNCONSTLARGE;
 }
 
-#ifndef FEATURE_PAL
-
 /**********************************************************************\
 * Routine Description:                                                 *
 *                                                                      *
@@ -450,7 +447,7 @@ void GCPrintGenerationInfo(const DacpGcHeapDetails &heap)
         if (IsInterrupt())
             return;
         ExtOut("generation %d starts at 0x%p\n",
-                 n, (ULONG64)heap.generation_table[n].allocation_start);
+                 n, SOS_PTR(heap.generation_table[n].allocation_start));
     }
 
     // We also need to look at the gen0 alloc context.
@@ -458,8 +455,8 @@ void GCPrintGenerationInfo(const DacpGcHeapDetails &heap)
     if (heap.generation_table[0].allocContextPtr)
     {
         ExtOut("(0x%p, 0x%p)\n",
-            (ULONG64) heap.generation_table[0].allocContextPtr,
-            (ULONG64) (heap.generation_table[0].allocContextLimit + Align(min_obj_size)));       
+            SOS_PTR(heap.generation_table[0].allocContextPtr),
+            SOS_PTR(heap.generation_table[0].allocContextLimit + Align(min_obj_size)));
     }
     else
     {
@@ -482,11 +479,11 @@ void GCPrintSegmentInfo(const DacpGcHeapDetails &heap, DWORD_PTR &total_size)
             return;
         if (segment.Request(g_sos, dwAddrSeg, heap) != S_OK)
         {
-            ExtOut("Error requesting heap segment %p\n", (ULONG64)dwAddrSeg);
+            ExtOut("Error requesting heap segment %p\n", SOS_PTR(dwAddrSeg));
             return;
         }
-        ExtOut("%p  %p  %p  0x%" POINTERSIZE_TYPE "x(%" POINTERSIZE_TYPE "d)\n", (ULONG64)dwAddrSeg,
-                 (ULONG64)segment.mem, (ULONG64)segment.allocated,
+        ExtOut("%p  %p  %p  0x%" POINTERSIZE_TYPE "x(%" POINTERSIZE_TYPE "d)\n", SOS_PTR(dwAddrSeg),
+                 SOS_PTR(segment.mem), SOS_PTR(segment.allocated),
                  (ULONG_PTR)(segment.allocated - segment.mem),
                  (ULONG_PTR)(segment.allocated - segment.mem));
         total_size += (DWORD_PTR) (segment.allocated - segment.mem);
@@ -495,13 +492,13 @@ void GCPrintSegmentInfo(const DacpGcHeapDetails &heap, DWORD_PTR &total_size)
 
     if (segment.Request(g_sos, dwAddrSeg, heap) != S_OK)
     {
-        ExtOut("Error requesting heap segment %p\n",(ULONG64)dwAddrSeg);
+        ExtOut("Error requesting heap segment %p\n", SOS_PTR(dwAddrSeg));
         return;
     }
     
     DWORD_PTR end = (DWORD_PTR)heap.alloc_allocated;
-    ExtOut("%p  %p  %p  0x%" POINTERSIZE_TYPE "x(%" POINTERSIZE_TYPE "d)\n", (ULONG64)dwAddrSeg,
-             (ULONG64)segment.mem, (ULONG64)end,
+    ExtOut("%p  %p  %p  0x%" POINTERSIZE_TYPE "x(%" POINTERSIZE_TYPE "d)\n", SOS_PTR(dwAddrSeg),
+             SOS_PTR(segment.mem), SOS_PTR(end),
              (ULONG_PTR)(end - (DWORD_PTR)segment.mem),
              (ULONG_PTR)(end - (DWORD_PTR)segment.mem));
     
@@ -524,11 +521,11 @@ void GCPrintLargeHeapSegmentInfo(const DacpGcHeapDetails &heap, DWORD_PTR &total
             return;
         if (segment.Request(g_sos, dwAddrSeg, heap) != S_OK)
         {
-            ExtOut("Error requesting heap segment %p\n", (ULONG64)dwAddrSeg);
+            ExtOut("Error requesting heap segment %p\n", SOS_PTR(dwAddrSeg));
             return;
         }
-        ExtOut("%p  %p  %p  0x%" POINTERSIZE_TYPE "x(%" POINTERSIZE_TYPE "d)\n", (ULONG64)dwAddrSeg,
-                 (ULONG64)segment.mem, (ULONG64)segment.allocated,
+        ExtOut("%p  %p  %p  0x%" POINTERSIZE_TYPE "x(%" POINTERSIZE_TYPE "d)\n", SOS_PTR(dwAddrSeg),
+                 SOS_PTR(segment.mem), SOS_PTR(segment.allocated),
                  (ULONG_PTR)(segment.allocated - segment.mem),
                  segment.allocated - segment.mem);
         total_size += (DWORD_PTR) (segment.allocated - segment.mem);
@@ -539,11 +536,11 @@ void GCPrintLargeHeapSegmentInfo(const DacpGcHeapDetails &heap, DWORD_PTR &total
 void GCHeapInfo(const DacpGcHeapDetails &heap, DWORD_PTR &total_size)
 {
     GCPrintGenerationInfo(heap);
-    ExtOut(WIN64_8SPACES " segment " WIN64_8SPACES "    begin " WIN64_8SPACES "allocated  size\n");
+    ExtOut("%" POINTERSIZE "s  %" POINTERSIZE "s  %" POINTERSIZE "s  %" POINTERSIZE "s\n", "segment", "begin", "allocated", "size");
     GCPrintSegmentInfo(heap, total_size);
     ExtOut("Large object heap starts at 0x%p\n",
-                  (ULONG64)heap.generation_table[GetMaxGeneration()+1].allocation_start);
-    ExtOut(WIN64_8SPACES " segment " WIN64_8SPACES "    begin " WIN64_8SPACES "allocated  size\n");
+                  SOS_PTR(heap.generation_table[GetMaxGeneration()+1].allocation_start));
+    ExtOut("%" POINTERSIZE "s  %" POINTERSIZE "s  %" POINTERSIZE "s  %" POINTERSIZE "s\n", "segment", "begin", "allocated", "size");
     GCPrintLargeHeapSegmentInfo(heap,total_size);
 }
 
@@ -591,7 +588,7 @@ BOOL GCObjInSegment(TADDR taddrObj, const DacpGcHeapDetails &heap,
             return FALSE;
         if (dacpSeg.Request(g_sos, taddrSeg, heap) != S_OK)
         {
-            ExtOut("Error requesting heap segment %p\n", (ULONG64)taddrSeg);
+            ExtOut("Error requesting heap segment %p\n", SOS_PTR(taddrSeg));
             return FALSE;
         }
         if (taddrObj >= TO_TADDR(dacpSeg.mem) && taddrObj < TO_TADDR(dacpSeg.allocated))
@@ -609,7 +606,7 @@ BOOL GCObjInSegment(TADDR taddrObj, const DacpGcHeapDetails &heap,
     // the ephemeral segment
     if (dacpSeg.Request(g_sos, taddrSeg, heap) != S_OK)
     {
-        ExtOut("Error requesting heap segment %p\n", (ULONG64)taddrSeg);
+        ExtOut("Error requesting heap segment %p\n", SOS_PTR(taddrSeg));
         return FALSE;
     }
 
@@ -640,7 +637,7 @@ BOOL GCObjInLargeSegment(TADDR taddrObj, const DacpGcHeapDetails &heap, TADDR_SE
             return FALSE;
         if (dacpSeg.Request(g_sos, taddrSeg, heap) != S_OK)
         {
-            ExtOut("Error requesting heap segment %p\n",(ULONG64)taddrSeg);
+            ExtOut("Error requesting heap segment %p\n", SOS_PTR(taddrSeg));
             return FALSE;
         }
         if (taddrObj >= TO_TADDR(dacpSeg.mem) && taddrObj && taddrObj < TO_TADDR(dacpSeg.allocated))
@@ -708,7 +705,7 @@ void GCGenUsageStats(TADDR start, TADDR end, const std::unordered_set<TADDR> &li
                 if (taddrObj == (TADDR)pAllocInfo->array[i].alloc_ptr)
                 {
                     ExtDbgOut("Skipping allocation context: [%#p-%#p)\n", 
-                        (ULONG64)pAllocInfo->array[i].alloc_ptr, (ULONG64)pAllocInfo->array[i].alloc_limit);
+                        SOS_PTR(pAllocInfo->array[i].alloc_ptr), SOS_PTR(pAllocInfo->array[i].alloc_limit));
                     taddrObj =
                         (TADDR)pAllocInfo->array[i].alloc_limit + Align(min_obj_size);
                     break;
@@ -742,7 +739,7 @@ void GCGenUsageStats(TADDR start, TADDR end, const std::unordered_set<TADDR> &li
         BOOL bMTOk = GetSizeEfficient(taddrObj, taddrMT, bLarge, objSize, bContainsPointers);
         if (!bMTOk)
         {
-            ExtErr("bad object: %#p - bad MT %#p\n", (ULONG64) taddrObj, (ULONG64) taddrMT);
+            ExtErr("bad object: %#p - bad MT %#p\n", SOS_PTR(taddrObj), SOS_PTR(taddrMT));
             // set objSize to size_t to look for the next valid MT
             objSize = sizeof(TADDR);
             continue;
@@ -760,7 +757,7 @@ void GCGenUsageStats(TADDR start, TADDR end, const std::unordered_set<TADDR> &li
         {
             genUsage->freed += objSize;
         }
-        else if (liveObjs.find(taddrObj) == liveObjs.end())
+        else if (!(liveObjs.empty()) && liveObjs.find(taddrObj) == liveObjs.end())
         {
             genUsage->unrooted += objSize;
         }
@@ -784,7 +781,8 @@ BOOL GCHeapUsageStats(const DacpGcHeapDetails& heap, BOOL bIncUnreachable, HeapU
 #ifndef FEATURE_PAL
     // this will create the bitmap of rooted objects only if bIncUnreachable is true
     GCRootImpl gcroot;
-    const std::unordered_set<TADDR> &liveObjs = gcroot.GetLiveObjects();
+    std::unordered_set<TADDR> emptyLiveObjs;
+    const std::unordered_set<TADDR> &liveObjs = (bIncUnreachable ? gcroot.GetLiveObjects() : emptyLiveObjs);
     
     // 1a. enumerate all non-ephemeral segments
     while (taddrSeg != (TADDR)heap.generation_table[0].start_segment)
@@ -794,7 +792,7 @@ BOOL GCHeapUsageStats(const DacpGcHeapDetails& heap, BOOL bIncUnreachable, HeapU
 
         if (dacpSeg.Request(g_sos, taddrSeg, heap) != S_OK)
         {
-            ExtErr("Error requesting heap segment %p\n", (ULONG64)taddrSeg);
+            ExtErr("Error requesting heap segment %p\n", SOS_PTR(taddrSeg));
             return FALSE;
         }
         GCGenUsageStats((TADDR)dacpSeg.mem, (TADDR)dacpSeg.allocated, liveObjs, heap, FALSE, &allocInfo, &hpUsage->genUsage[2]);
@@ -805,7 +803,7 @@ BOOL GCHeapUsageStats(const DacpGcHeapDetails& heap, BOOL bIncUnreachable, HeapU
     // 1b. now handle the ephemeral segment
     if (dacpSeg.Request(g_sos, taddrSeg, heap) != S_OK)
     {
-        ExtErr("Error requesting heap segment %p\n", (ULONG64)taddrSeg);
+        ExtErr("Error requesting heap segment %p\n", SOS_PTR(taddrSeg));
         return FALSE;
     }
 
@@ -838,7 +836,7 @@ BOOL GCHeapUsageStats(const DacpGcHeapDetails& heap, BOOL bIncUnreachable, HeapU
 
         if (dacpSeg.Request(g_sos, taddrSeg, heap) != S_OK)
         {
-            ExtErr("Error requesting heap segment %p\n",(ULONG64)taddrSeg);
+            ExtErr("Error requesting heap segment %p\n", SOS_PTR(taddrSeg));
             return FALSE;
         }
 
@@ -850,8 +848,6 @@ BOOL GCHeapUsageStats(const DacpGcHeapDetails& heap, BOOL bIncUnreachable, HeapU
 
     return TRUE;
 }
-
-#endif // FEATURE_PAL
 
 DWORD GetNumComponents(TADDR obj)
 {
@@ -932,8 +928,8 @@ void GatherOneHeapFinalization(DacpGcHeapDetails& heapDetails, HeapStat *stat, B
                 (SegQueueLimit(heapDetails,gen_segment(m)) - SegQueue(heapDetails,gen_segment(m))) / sizeof(size_t));
             
             ExtOut ("(%p->%p)\n",
-                (ULONG64) SegQueue(heapDetails,gen_segment(m)),
-                (ULONG64) SegQueueLimit(heapDetails,gen_segment(m)));    
+                SOS_PTR(SegQueue(heapDetails,gen_segment(m))),
+                SOS_PTR(SegQueueLimit(heapDetails,gen_segment(m))));
         }
     }
 #ifndef FEATURE_PAL
@@ -955,9 +951,9 @@ void GatherOneHeapFinalization(DacpGcHeapDetails& heapDetails, HeapStat *stat, B
     {
         ExtOut ("Ready for finalization %d objects ",
                 (SegQueueLimit(heapDetails,FinalizerListSeg)-SegQueue(heapDetails,CriticalFinalizerListSeg)) / sizeof(size_t));
-        ExtOut ("(%p->%p)\n",                    
-                (ULONG64) SegQueue(heapDetails,CriticalFinalizerListSeg),
-                (ULONG64) SegQueueLimit(heapDetails,FinalizerListSeg));            
+        ExtOut ("(%p->%p)\n",
+                SOS_PTR(SegQueue(heapDetails,CriticalFinalizerListSeg)),
+                SOS_PTR(SegQueueLimit(heapDetails,FinalizerListSeg)));
     }
 
     // if bAllReady we only count objects that are ready for finalization,
@@ -1006,7 +1002,7 @@ BOOL GCHeapTraverse(const DacpGcHeapDetails &heap, AllocInfo* pallocInfo, VISITG
 
     if (segment.Request(g_sos, dwAddr, heap) != S_OK)
     {
-        ExtOut("Error requesting heap segment %p\n", (ULONG64)dwAddr);
+        ExtOut("Error requesting heap segment %p\n", SOS_PTR(dwAddr));
         return FALSE;
     }    
     
@@ -1037,9 +1033,9 @@ BOOL GCHeapTraverse(const DacpGcHeapDetails &heap, AllocInfo* pallocInfo, VISITG
             if (dwAddrCurrObj > (DWORD_PTR)end_of_segment)
             {
                 ExtOut ("curr_object: %p > heap_segment_allocated (seg: %p)\n",
-                         (ULONG64)dwAddrCurrObj, (ULONG64)dwAddrSeg);
+                         SOS_PTR(dwAddrCurrObj), SOS_PTR(dwAddrSeg));
                 if (dwAddrPrevObj) {
-                    ExtOut ("Last good object: %p\n", (ULONG64)dwAddrPrevObj);
+                    ExtOut ("Last good object: %p\n", SOS_PTR(dwAddrPrevObj));
                 }
                 return FALSE;
             }
@@ -1049,7 +1045,7 @@ BOOL GCHeapTraverse(const DacpGcHeapDetails &heap, AllocInfo* pallocInfo, VISITG
                 dwAddr = dwAddrSeg;
                 if (segment.Request(g_sos, dwAddr, heap) != S_OK)
                 {
-                    ExtOut("Error requesting heap segment %p\n", (ULONG64)dwAddr);
+                    ExtOut("Error requesting heap segment %p\n", SOS_PTR(dwAddr));
                     return FALSE;
                 }
                 dwAddrCurrObj = (DWORD_PTR)segment.mem;
@@ -1066,7 +1062,7 @@ BOOL GCHeapTraverse(const DacpGcHeapDetails &heap, AllocInfo* pallocInfo, VISITG
             {
                 // prev_object length is too long
                 ExtOut("curr_object: %p > end_youngest: %p\n",
-                         (ULONG64)dwAddrCurrObj, (ULONG64)end_youngest);
+                         SOS_PTR(dwAddrCurrObj), SOS_PTR(end_youngest));
                 if (dwAddrPrevObj) {
                     DMLOut("Last good object: %s\n", DMLObject(dwAddrPrevObj));
                 }
@@ -1136,7 +1132,7 @@ BOOL GCHeapTraverse(const DacpGcHeapDetails &heap, AllocInfo* pallocInfo, VISITG
     
     if (segment.Request(g_sos, dwAddr, heap) != S_OK)
     {
-        ExtOut("Error requesting heap segment %p\n",(ULONG64)dwAddr);
+        ExtOut("Error requesting heap segment %p\n", SOS_PTR(dwAddr));
         return FALSE;
     }
 
@@ -1160,9 +1156,9 @@ BOOL GCHeapTraverse(const DacpGcHeapDetails &heap, AllocInfo* pallocInfo, VISITG
             if (dwAddrCurrObj > (DWORD_PTR)end_of_segment)
             {
                 ExtOut("curr_object: %p > heap_segment_allocated (seg: %p)\n",
-                         (ULONG64)dwAddrCurrObj, (ULONG64)dwAddrSeg);
+                         SOS_PTR(dwAddrCurrObj), SOS_PTR(dwAddrSeg));
                 if (dwAddrPrevObj) {
-                    ExtOut("Last good object: %p\n", (ULONG64)dwAddrPrevObj);
+                    ExtOut("Last good object: %p\n", SOS_PTR(dwAddrPrevObj));
                 }
                 return FALSE;
             }
@@ -1172,7 +1168,7 @@ BOOL GCHeapTraverse(const DacpGcHeapDetails &heap, AllocInfo* pallocInfo, VISITG
                 dwAddr = dwAddrSeg;
                 if (segment.Request(g_sos, dwAddr, heap) != S_OK)
                 {
-                    ExtOut("Error requesting heap segment %p\n", (ULONG64)dwAddr);
+                    ExtOut("Error requesting heap segment %p\n", SOS_PTR(dwAddr));
                     return FALSE;
                 }
                 dwAddrCurrObj = (DWORD_PTR)segment.mem;
@@ -1485,7 +1481,7 @@ BOOL GCHeapSnapshot::AddSegments(DacpGcHeapDetails& details)
             // See code:ClrDataAccess::RequestGCHeapSegment for details. 
             if (segment.Request(g_sos, AddrSeg, details) != S_OK)
             {
-                ExtOut("Error requesting heap segment %p\n", (ULONG64)AddrSeg);
+                ExtOut("Error requesting heap segment %p\n", SOS_PTR(AddrSeg));
                 return FALSE;
             }
             if (n++ > nMaxHeapSegmentCount) // that would be insane
@@ -1556,7 +1552,7 @@ int GCHeapSnapshot::GetGeneration(CLRDATA_ADDRESS objectPointer)
     DacpGcHeapDetails *pDetails = GetHeap(objectPointer);
     if (pDetails == NULL)
     {
-        ExtOut("Object %p has no generation\n", (ULONG64)objectPointer);
+        ExtOut("Object %p has no generation\n", SOS_PTR(objectPointer));
         return 0;
     }
 
@@ -1576,7 +1572,6 @@ int GCHeapSnapshot::GetGeneration(CLRDATA_ADDRESS objectPointer)
     return 2;
 }
 
-#ifndef FEATURE_PAL
 
 DWORD_PTR g_trav_totalSize = 0;
 DWORD_PTR g_trav_wastedSize = 0;
@@ -1606,7 +1601,7 @@ void LoaderHeapTraverse(CLRDATA_ADDRESS blockData,size_t blockSize,BOOL blockIsC
     }
     
     g_trav_totalSize += curSize;
-    ExtOut("%p(%x:%x) ", (ULONG64)blockData, blockSize, curSize);
+    ExtOut("%p(%x:%x) ", SOS_PTR(blockData), blockSize, curSize);
 }
 
 /**********************************************************************\
@@ -1701,7 +1696,7 @@ DWORD_PTR JitHeapInfo()
                     else if (codeHeapInfo[iHeaps].codeHeapType == CODEHEAP_HOST)
                     {
                         ExtOut("HostCodeHeap:      ");
-                        ExtOut("%p ", (ULONG64)codeHeapInfo[iHeaps].HostData.baseAddr);
+                        ExtOut("%p ", SOS_PTR(codeHeapInfo[iHeaps].HostData.baseAddr));
                         DWORD dwSize = (DWORD)(codeHeapInfo[iHeaps].HostData.currentAddr - codeHeapInfo[iHeaps].HostData.baseAddr);
                         PrintHeapSize(dwSize, 0);
                         totalSize += dwSize;
@@ -1720,6 +1715,7 @@ DWORD_PTR JitHeapInfo()
 
     return totalSize;
 }
+
 
 /**********************************************************************\
 * Routine Description:                                                 *
@@ -1894,7 +1890,7 @@ DWORD_PTR PrintModuleHeapInfo(__out_ecount(count) DWORD_PTR *moduleList, int cou
             DacpModuleData dmd;
             if (dmd.Request(g_sos, addr) != S_OK)
             {
-                ExtOut("Unable to read module %p\n", (ULONG64)addr);
+                ExtOut("Unable to read module %p\n", SOS_PTR(addr));
             }
             else
             {
@@ -1915,5 +1911,3 @@ DWORD_PTR PrintModuleHeapInfo(__out_ecount(count) DWORD_PTR *moduleList, int cou
 
     return toReturn;
 }
-
-#endif // !FEATURE_PAL

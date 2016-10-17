@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: ObjectNative.cpp
 //
@@ -183,7 +182,7 @@ FCIMPL2(FC_BOOL_RET, ObjectNative::Equals, Object *pThisRef, Object *pCompareRef
     if (pThisMT != pCompareRef->GetMethodTable())
         FC_RETURN_BOOL(FALSE);
 
-    // Compare the contents (size - vtable - sink block index).
+    // Compare the contents (size - vtable - sync block index).
     DWORD dwBaseSize = pThisRef->GetMethodTable()->GetBaseSize();
     if(pThisRef->GetMethodTable() == g_pStringClass)
         dwBaseSize -= sizeof(WCHAR);

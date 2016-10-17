@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 // This file is used to describe the different types of Crst and their dependencies on other Crst types (in
@@ -137,6 +136,10 @@ Crst ClassInit
     SameLevelAs Jit
 End
 
+Crst ClrNotification
+    Unordered
+End
+
 Crst CrstCLRPrivBinderLocalWinMDPath
 End
 
@@ -183,6 +186,10 @@ End
 // This is a leaf debugger lock. 
 Crst DebuggerFavorLock
     AcquiredAfter DebuggerJitInfo DebuggerMutex
+End
+
+// This is the lock used by the DebuggerHeapExecutableMemoryAllocator for allocating/freeing memory.
+Crst DebuggerHeapExecMemLock
 End
 
 // Debugger Heap lock is the smallest of the debugger locks.

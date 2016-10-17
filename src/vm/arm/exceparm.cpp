@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: ExcepArm.cpp
 
@@ -54,6 +53,38 @@ FaultingExceptionFrame *GetFrameFromRedirectedStubStackFrame (T_DISPATCHER_CONTE
 
     return (FaultingExceptionFrame*)((TADDR)pDispatcherContext->ContextRecord->R4);
 }
+
+//Return TRUE if pContext->Pc is in VirtualStub
+BOOL IsIPinVirtualStub(PCODE f_IP)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    Thread * pThread = GetThread();
+
+    // We may not have a managed thread object. Example is an AV on the helper thread.
+    // (perhaps during StubManager::IsStub)
+    if (pThread == NULL)
+    {
+        return FALSE;
+    }
+
+    VirtualCallStubManager::StubKind sk;
+    VirtualCallStubManager::FindStubManager(f_IP, &sk);
+
+    if (sk == VirtualCallStubManager::SK_DISPATCH)
+    {
+        return TRUE;
+    }
+    else if (sk == VirtualCallStubManager::SK_RESOLVE)
+    {
+        return TRUE;
+    }
+
+    else {
+        return FALSE;
+    }
+}
+
 
 // Returns TRUE if caller should resume execution.
 BOOL

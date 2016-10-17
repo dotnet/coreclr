@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #ifndef __CONSOLEARGS_H__
 #define __CONSOLEARGS_H__
@@ -21,12 +20,12 @@ class ConsoleArgs
 {
 public:
     // Place the fully-qualified filename in the given output buffer
-    bool GetFullFileName(LPCWSTR szSource, __deref_out_ecount(cbFilenameBuffer) LPWSTR filenameBuffer, DWORD cbFilenameBuffer, bool fOutputFilename);
+    bool GetFullFileName(LPCWSTR szSource, __out_ecount(cbFilenameBuffer) LPWSTR filenameBuffer, DWORD cbFilenameBuffer, bool fOutputFilename);
 
     ConsoleArgs() :
             m_rgArgs(NULL),
             m_listArgs(NULL),
-            m_errorOccured(false),
+            m_errorOccurred(false),
             m_lastErrorMessage(nullptr)
     {
     };
@@ -37,14 +36,14 @@ public:
     };
 
     // returns false if there are errors
-    bool ExpandResponseFiles(__in int argc, __deref_in_ecount(argc) const LPCWSTR * argv, __deref_out int * pargc2, __out LPWSTR ** pppargv2);
+    bool ExpandResponseFiles(__in int argc, __deref_in_ecount(argc) const LPCWSTR * argv, int * pargc2, __deref_out_ecount(*pargc2) LPWSTR ** pppargv2);
 
     // Frees all memory used by the arg list and the argv/argc array
     void CleanUpArgs();
 
     LPCWSTR ErrorMessage()
     {
-        if (m_errorOccured)
+        if (m_errorOccurred)
         {
             return m_lastErrorMessage;
         }
@@ -55,7 +54,7 @@ public:
     }
 
 private:
-    void SetErrorMessage(__deref_in LPCWSTR pwzMessage);
+    void SetErrorMessage(__in LPCWSTR pwzMessage);
     b_tree * MakeLeaf( LPCWSTR szText);
     void CleanupTree( b_tree * root);
     HRESULT TreeAdd( b_tree ** root, LPCWSTR szAdd);
@@ -66,7 +65,7 @@ private:
     LPWSTR * m_rgArgs;
     WStrList * m_listArgs;
 
-    bool m_errorOccured;
+    bool m_errorOccurred;
     LPCWSTR m_lastErrorMessage;
 };
 

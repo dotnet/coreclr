@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -27,8 +26,43 @@ Abstract:
 #include <sys/time.h>
 #include <errno.h>
 #include <string.h>
+#include <sched.h>
+
+#if HAVE_MACH_ABSOLUTE_TIME
+#include <mach/mach_time.h>
+static mach_timebase_info_data_t s_TimebaseInfo;
+#endif
+
+using namespace CorUnix;
 
 SET_DEFAULT_DEBUG_CHANNEL(MISC);
+
+/*++
+Function :
+TIMEInitialize
+
+Initialize all Time-related stuff related
+
+(no parameters)
+
+Return value :
+TRUE  if Time support initialization succeeded
+FALSE otherwise
+--*/
+BOOL TIMEInitialize(void)
+{
+#if HAVE_MACH_ABSOLUTE_TIME
+    kern_return_t machRet;
+    if ((machRet = mach_timebase_info(&s_TimebaseInfo)) != KERN_SUCCESS)
+    {
+        ASSERT("mach_timebase_info() failed: %s\n", mach_error_string(machRet));
+        return FALSE;
+    }
+#endif
+
+    return TRUE;
+}
+
 
 /*++
 Function:
@@ -167,6 +201,7 @@ QueryPerformanceCounter(
 
     PERF_ENTRY(QueryPerformanceCounter);
     ENTRY("QueryPerformanceCounter()\n");
+    do
 #if HAVE_CLOCK_MONOTONIC
     {
         struct timespec ts;
@@ -174,10 +209,14 @@ QueryPerformanceCounter(
         {
             ASSERT("clock_gettime(CLOCK_MONOTONIC) failed; errno is %d (%s)\n", errno, strerror(errno));
             retval = FALSE;
-            goto EXIT;
+            break;
         }
         lpPerformanceCount->QuadPart = 
             (LONGLONG)ts.tv_sec * (LONGLONG)tccSecondsToNanoSeconds + (LONGLONG)ts.tv_nsec;
+    }
+#elif HAVE_MACH_ABSOLUTE_TIME
+    {
+        lpPerformanceCount->QuadPart = (LONGLONG)mach_absolute_time();
     }
 #elif HAVE_GETHRTIME
     {
@@ -191,7 +230,7 @@ QueryPerformanceCounter(
         {
             ASSERT("time_base_to_time() failed; errno is %d (%s)\n", errno, strerror(errno));
             retval = FALSE;
-            goto EXIT;
+            break;
         }
         lpPerformanceCount->QuadPart = 
             (LONGLONG)tb.tb_high * (LONGLONG)tccSecondsToNanoSeconds + (LONGLONG)tb.tb_low;
@@ -203,13 +242,14 @@ QueryPerformanceCounter(
         {
             ASSERT("gettimeofday() failed; errno is %d (%s)\n", errno, strerror(errno));
             retval = FALSE;
-            goto EXIT;
+            break;
         }
         lpPerformanceCount->QuadPart = 
             (LONGLONG)tv.tv_sec * (LONGLONG)tccSecondsToMicroSeconds + (LONGLONG)tv.tv_usec;    
     }
 #endif // HAVE_CLOCK_MONOTONIC 
-EXIT:
+    while (false);
+
     LOGEXIT("QueryPerformanceCounter\n");
     PERF_EXIT(QueryPerformanceCounter);
     return retval;
@@ -221,29 +261,67 @@ QueryPerformanceFrequency(
     OUT LARGE_INTEGER *lpFrequency
     )
 {
+    BOOL retval = TRUE;
     PERF_ENTRY(QueryPerformanceFrequency);
     ENTRY("QueryPerformanceFrequency()\n");
 #if HAVE_GETHRTIME || HAVE_READ_REAL_TIME || HAVE_CLOCK_MONOTONIC
     lpFrequency->QuadPart = (LONGLONG)tccSecondsToNanoSeconds;
+#elif HAVE_MACH_ABSOLUTE_TIME
+    // use denom == 0 to indicate that s_TimebaseInfo is uninitialised.
+    if (s_TimebaseInfo.denom == 0)
+    {
+        ASSERT("s_TimebaseInfo is uninitialized.\n");
+        retval = FALSE;
+    }
+    else
+    {
+        lpFrequency->QuadPart = (LONGLONG)tccSecondsToNanoSeconds * ((LONGLONG)s_TimebaseInfo.denom / (LONGLONG)s_TimebaseInfo.numer);
+    }
 #else
     lpFrequency->QuadPart = (LONGLONG)tccSecondsToMicroSeconds;
 #endif // HAVE_GETHRTIME || HAVE_READ_REAL_TIME || HAVE_CLOCK_MONOTONIC 
     LOGEXIT("QueryPerformanceFrequency\n");
     PERF_EXIT(QueryPerformanceFrequency);
-    return TRUE;
+    return retval;
 }
+
+/*++
+Function:
+  QueryThreadCycleTime
+
+Puts the execution time (in nanoseconds) for the thread pointed to by ThreadHandle, into the unsigned long
+pointed to by CycleTime. ThreadHandle must refer to the current thread. Returns TRUE on success, FALSE on
+failure.
+--*/
 
 BOOL
 PALAPI
 QueryThreadCycleTime(
-IN HANDLE ThreadHandle,
-OUT PULONG64 CycleTime)
+    IN HANDLE ThreadHandle,
+    OUT PULONG64 CycleTime
+    )
 {
-    // UNIXTODO: Implement this!
-    ERROR("Needs Implementation!!!");
-    return FALSE;
-}
 
+    ULONG64 calcTime;
+    FILETIME kernelTime, userTime;
+    BOOL retval = TRUE;
+
+    if(!GetThreadTimesInternal(ThreadHandle, &kernelTime, &userTime))
+    {
+        ASSERT("Could not get cycle time for current thread");
+        retval = FALSE;
+        goto EXIT;
+    }
+
+    calcTime = ((ULONG64)kernelTime.dwHighDateTime << 32);
+    calcTime += (ULONG64)kernelTime.dwLowDateTime;
+    calcTime += ((ULONG64)userTime.dwHighDateTime << 32);
+    calcTime += (ULONG64)userTime.dwLowDateTime;
+    *CycleTime = calcTime;
+
+EXIT:
+    return retval;
+}
 
 /*++
 Function:
@@ -260,15 +338,31 @@ GetTickCount64()
 {
     ULONGLONG retval = 0;
 
-#if HAVE_CLOCK_MONOTONIC
+#if HAVE_CLOCK_MONOTONIC_COARSE || HAVE_CLOCK_MONOTONIC
     {
+        clockid_t clockType = 
+#if HAVE_CLOCK_MONOTONIC_COARSE
+            CLOCK_MONOTONIC_COARSE; // good enough resolution, fastest speed
+#else
+            CLOCK_MONOTONIC;
+#endif
         struct timespec ts;
-        if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0)
+        if (clock_gettime(clockType, &ts) != 0)
         {
-            ASSERT("clock_gettime(CLOCK_MONOTONIC) failed; errno is %d (%s)\n", errno, strerror(errno));
+            ASSERT("clock_gettime(CLOCK_MONOTONIC*) failed; errno is %d (%s)\n", errno, strerror(errno));
             goto EXIT;
         }
         retval = (ts.tv_sec * tccSecondsToMillieSeconds)+(ts.tv_nsec / tccMillieSecondsToNanoSeconds);
+    }
+#elif HAVE_MACH_ABSOLUTE_TIME
+    {
+        // use denom == 0 to indicate that s_TimebaseInfo is uninitialised.
+        if (s_TimebaseInfo.denom == 0)
+        {
+            ASSERT("s_TimebaseInfo is uninitialized.\n");
+            goto EXIT;
+        }
+        retval = (mach_absolute_time() * s_TimebaseInfo.numer / s_TimebaseInfo.denom) / tccMillieSecondsToNanoSeconds;
     }
 #elif HAVE_GETHRTIME
     {
@@ -299,3 +393,4 @@ GetTickCount64()
 EXIT:    
     return retval;
 }
+

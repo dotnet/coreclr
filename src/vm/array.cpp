@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // File: ARRAY.CPP
 //
 
@@ -431,8 +430,6 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
         pClass->SetAttrClass (tdPublic | tdSerializable | tdSealed);  // This class is public, serializable, sealed
         pClass->SetRank (Rank);
         pClass->SetArrayElementType (elemType);
-        if (pElemMT->GetClass()->ContainsStackPtr())
-            pClass->SetContainsStackPtr();
         pClass->SetMethodTable (pMT);
 
 #if defined(CHECK_APP_DOMAIN_LEAKS) || defined(_DEBUG)
@@ -528,7 +525,7 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
     }
 
     // The type is sufficiently initialized for most general purpose accessor methods to work.
-    // Mark the type as restored to avoid avoid asserts. Note that this also enables IBC logging.
+    // Mark the type as restored to avoid asserts. Note that this also enables IBC logging.
     pMTWriteableData->SetIsFullyLoadedForBuildMethodTable();
 
     {
@@ -1129,7 +1126,7 @@ void GenerateArrayOpScript(ArrayMethodDesc *pMD, ArrayOpScript *paos)
     MetaSig msig(pMD);
     _ASSERTE(!msig.IsVarArg());     // No array signature is varargs, code below does not expect it.
 
-    switch (pcls->GetArrayElementType())
+    switch (pMT->GetApproxArrayElementTypeHandle().GetInternalCorElementType())
     {
         // These are all different because of sign extension
 

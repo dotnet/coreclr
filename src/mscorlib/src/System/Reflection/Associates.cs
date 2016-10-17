@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // 
 
@@ -74,13 +75,8 @@ namespace System.Reflection
                 // the reflected type, the private methods should not be exposed. Note that this implies that the 
                 // identity of a property includes it's reflected type.
 
-                // NetCF actually includes private methods from parent classes in Reflection results
-                // We will mimic that in Mango Compat mode.
-                if (!CompatibilitySwitches.IsAppEarlierThanWindowsPhone8)
-                {
-                    if ((methAttr & MethodAttributes.MemberAccessMask) == MethodAttributes.Private)
-                        return null;
-                }
+                if ((methAttr & MethodAttributes.MemberAccessMask) == MethodAttributes.Private)
+                    return null;
 
                 // Note this is the first time the property was encountered walking from the most derived class 
                 // towards the base class. It would seem to follow that any associated methods would not

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // SYNCBLK.H
 //
@@ -162,7 +161,7 @@ inline void InitializeSpinConstants()
 {
     WRAPPER_NO_CONTRACT;
 
-#if !defined(DACCESS_COMPILE) && !defined(BINDER)
+#if !defined(DACCESS_COMPILE)
     g_SpinConstants.dwInitialDuration = g_pConfig->SpinInitialDuration();
     g_SpinConstants.dwMaximumDuration = min(g_pConfig->SpinLimitProcCap(), g_SystemInfo.dwNumberOfProcessors) * g_pConfig->SpinLimitProcFactor() + g_pConfig->SpinLimitConstant();
     g_SpinConstants.dwBackoffFactor   = g_pConfig->SpinBackoffFactor();
@@ -447,7 +446,7 @@ public:
 #endif // FEATURE_COMINTEROP_UNMANAGED_ACTIVATION
 #endif // FEATURE_COMINTEROP
 
-#if !defined(DACCESS_COMPILE) && !defined(BINDER)
+#if !defined(DACCESS_COMPILE)
     // set m_pUMEntryThunkOrInterceptStub if not already set - return true if not already set
     bool SetUMEntryThunk(void* pUMEntryThunk)
     {
@@ -1008,7 +1007,7 @@ class SyncBlockCache
     // return sync block to cache or delete, called from GC
     void    GCDeleteSyncBlock(SyncBlock *sb);
 
-    void    GCWeakPtrScan(HANDLESCANPROC scanProc, LPARAM lp1, LPARAM lp2);
+    void    GCWeakPtrScan(HANDLESCANPROC scanProc, uintptr_t lp1, uintptr_t lp2);
 
     void    GCDone(BOOL demoting, int max_gen);
 
@@ -1029,7 +1028,11 @@ class SyncBlockCache
         return m_bSyncBlockCleanupInProgress;
     }
 
-#if !defined(BINDER)
+    DWORD GetActiveCount()
+    {
+        return m_ActiveCount;
+    }
+
     // Encapsulate a CrstHolder, so that clients of our lock don't have to know
     // the details of our implementation.
     class LockHolder : public CrstHolder
@@ -1049,7 +1052,6 @@ class SyncBlockCache
         }
     };
     friend class LockHolder;
-#endif
 
 #if CHECK_APP_DOMAIN_LEAKS 
     void CheckForUnloadedInstances(ADIndex unloadingIndex);
@@ -1104,7 +1106,6 @@ class ObjHeader
     // bit field -- even in the presence of threaded access.
     // 
     // This service can only be used to transition from a 0 index to a non-0 index.
-#if !defined(BINDER)
     void SetIndex(DWORD indx)
     {
         CONTRACTL
@@ -1149,7 +1150,6 @@ class ObjHeader
             }
         }
     }
-#endif // !BINDER
 
     // Used only during shutdown
     void ResetIndex()
@@ -1254,13 +1254,8 @@ class ObjHeader
     // retrieve sync block but don't allocate
     PTR_SyncBlock PassiveGetSyncBlock()
     {
-#if !defined(BINDER)
         LIMITED_METHOD_DAC_CONTRACT;
         return g_pSyncTable [(int)GetHeaderSyncBlockIndex()].m_SyncBlock;    
-#else
-        _ASSERTE(FALSE);
-        return NULL;
-#endif // BINDER
     }
 
     DWORD GetSyncBlockIndex();

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 //
@@ -115,17 +116,6 @@ namespace System
                     Contract.Requires(index < Count);
                     return (_items != null) ? _items[index] : _item;
                 }
-#if FEATURE_LEGACYNETCF
-                // added for Dev11 466969 quirk
-                set
-                {
-                    Contract.Requires(index < Count);
-                    if (_items != null)
-                        _items[index] = value;
-                    else
-                        _item = value;
-                }
-#endif
             }
 
             public T[] ToArray()
@@ -275,10 +265,6 @@ namespace System
                 // reallocating the list every time a new entry is added.
                 private T[] m_allMembers;
                 private bool m_cacheComplete;
-#if FEATURE_LEGACYNETCF
-                // Dev11 466969 quirk
-                private List<RuntimePropertyInfo> m_ambiguousProperties;
-#endif
 
                 // This is the strong reference back to the cache
                 private RuntimeTypeCache m_runtimeTypeCache;
@@ -295,29 +281,6 @@ namespace System
 #endif
                     m_runtimeTypeCache = runtimeTypeCache;
                 }
-                
-#if FEATURE_LEGACYNETCF
-                // Dev11 466969 quirk
-                internal IReadOnlyList<RuntimePropertyInfo> AmbiguousProperties { get { return m_ambiguousProperties; } }
-                
-                private void InitializeAndUpdateAmbiguousPropertiesList(RuntimePropertyInfo parent, RuntimePropertyInfo child)
-                {
-                    Contract.Assert(CompatibilitySwitches.IsAppEarlierThanWindowsPhone8);
-
-                    if (m_ambiguousProperties == null)
-                    {
-                        List<RuntimePropertyInfo> newList = new List<RuntimePropertyInfo>();
-                        Interlocked.CompareExchange(ref m_ambiguousProperties, newList, null);
-                    }
-
-                    lock (m_ambiguousProperties)
-                    {
-                        // record the parent type in case it needs to be pruned later.
-                        Contract.Assert(child.DeclaringType.IsSubclassOf(parent.DeclaringType));
-                        m_ambiguousProperties.Add(parent);
-                    }
-                }
-#endif
 
                 [System.Security.SecuritySafeCritical]  // auto-generated
                 internal MethodBase AddMethod(RuntimeType declaringType, RuntimeMethodHandleInternal method, CacheType cacheType)
@@ -442,7 +405,7 @@ namespace System
                             list = PopulateInterfaces(filter);
                             break;
                         default:
-                            BCLDebug.Assert(true, "Invalid CacheType");
+                            BCLDebug.Assert(false, "Invalid CacheType");
                             break;
                     }
 
@@ -512,11 +475,8 @@ namespace System
 
                                     Volatile.Write(ref m_cacheComplete, true);
                                 }
-// We want the behavior where the results are returned in the same order on the phone
-#if !FEATURE_LEGACYNETCF
                                 else
-#endif
-                                list = m_allMembers;
+                                    list = m_allMembers;
                                 break;
 
                             default:
@@ -728,14 +688,10 @@ namespace System
 
                                 bool isInherited = declaringType != ReflectedType;
 
-                                // NetCF actually includes private methods from parent classes in Reflection results
-                                // We will mimic that in Mango Compat mode.
-                                if (!CompatibilitySwitches.IsAppEarlierThanWindowsPhone8)
-                                {
-                                    bool isPrivate = methodAccess == MethodAttributes.Private;
-                                    if (isInherited && isPrivate && !isVirtual)
-                                        continue;
-                                }
+                                bool isPrivate = methodAccess == MethodAttributes.Private;
+                                if (isInherited && isPrivate && !isVirtual)
+                                    continue;
+
                                 #endregion
 
                                 #region Continue if this is a virtual and is already overridden
@@ -1463,18 +1419,8 @@ namespace System
                                 {
                                     if (propertyInfo.EqualsSig(cache[j]))
                                     {
-#if FEATURE_LEGACYNETCF
-                                        // Dev11 466969 quirk
-                                        if (CompatibilitySwitches.IsAppEarlierThanWindowsPhone8 && !propertyInfo.HasMatchingAccessibility(cache[j]))
-                                        {
-                                            InitializeAndUpdateAmbiguousPropertiesList(propertyInfo, cache[j]);
-                                        }
-                                        else
-#endif
-                                        {
-                                            cache = null;
-                                            break;
-                                        }
+                                        cache = null;
+                                        break;
                                     }
                                 }
 
@@ -1491,18 +1437,8 @@ namespace System
                                 {
                                     if (propertyInfo.EqualsSig(list[j]))
                                     {
-#if FEATURE_LEGACYNETCF
-                                        // Dev11 466969 quirk
-                                        if (CompatibilitySwitches.IsAppEarlierThanWindowsPhone8 && !propertyInfo.HasMatchingAccessibility(list[j]))
-                                        {
-                                            InitializeAndUpdateAmbiguousPropertiesList(propertyInfo, list[j]);
-                                        }
-                                        else
-#endif
-                                        {
-                                            duplicate = true;
-                                            break;
-                                        }
+                                        duplicate = true;
+                                        break;
                                     }
                                 }
 
@@ -1611,25 +1547,6 @@ namespace System
                 return existingCache.GetMemberList(listType, name, cacheType);
             }
 
-#if FEATURE_LEGACYNETCF
-            // Dev11 466969 quirk
-            private T[] GetMemberList<T>(ref MemberInfoCache<T> m_cache, MemberListType listType, string name, CacheType cacheType, out IReadOnlyList<RuntimePropertyInfo> ambiguousProperties) 
-                where T : MemberInfo
-            {
-                Contract.Assert(cacheType == CacheType.Property);
-
-                MemberInfoCache<T> existingCache = GetMemberCache<T>(ref m_cache);
-                T[] results = existingCache.GetMemberList(listType, name, cacheType);
-
-                // must access property after GetMemberList() has been called
-                ambiguousProperties = existingCache.AmbiguousProperties;
-
-                // we should only have an ambiguous properties list in Mango-compat mode
-                Contract.Assert(ambiguousProperties == null || CompatibilitySwitches.IsAppEarlierThanWindowsPhone8);
-                return results;
-            }
-#endif
-            
             private MemberInfoCache<T> GetMemberCache<T>(ref MemberInfoCache<T> m_cache) 
                 where T : MemberInfo
             {
@@ -1873,14 +1790,6 @@ namespace System
                 return GetMemberList<RuntimePropertyInfo>(ref m_propertyInfoCache, listType, name, CacheType.Property);
             }
 
-#if FEATURE_LEGACYNETCF
-            // Dev11 466969 quirk
-            internal RuntimePropertyInfo[] GetPropertyList(MemberListType listType, string name, out IReadOnlyList<RuntimePropertyInfo> ambiguousProperties)
-            { 
-                return GetMemberList<RuntimePropertyInfo>(ref m_propertyInfoCache, listType, name, CacheType.Property, out ambiguousProperties);
-            }
-#endif
-
             internal RuntimeEventInfo[] GetEventList(MemberListType listType, string name)
             { 
                 return GetMemberList<RuntimeEventInfo>(ref m_eventInfoCache, listType, name, CacheType.Event);
@@ -1962,11 +1871,6 @@ namespace System
             if (typeName == null)
                 throw new ArgumentNullException("typeName");
             Contract.EndContractBlock();
-
-#if FEATURE_LEGACYNETCF
-            if (CompatibilitySwitches.IsAppEarlierThanWindowsPhone8 && typeName.Length == 0)
-                throw new TypeLoadException(Environment.GetResourceString("Arg_TypeLoadNullStr"));
-#endif
 
             return RuntimeTypeHandle.GetTypeByName(
                 typeName, throwOnError, ignoreCase, reflectionOnly, ref stackMark, false);
@@ -2845,13 +2749,7 @@ namespace System
             MemberListType listType;
             RuntimeType.FilterHelper(bindingAttr, ref name, allowPrefixLookup, out prefixLookup, out ignoreCase, out listType);
 
-#if FEATURE_LEGACYNETCF
-            // Dev11 466969 quirk
-            IReadOnlyList<RuntimePropertyInfo> ambiguousProperties = null;
-            RuntimePropertyInfo[] cache = Cache.GetPropertyList(listType, name, out ambiguousProperties);
-#else
             RuntimePropertyInfo[] cache = Cache.GetPropertyList(listType, name);
-#endif
 
             bindingAttr ^= BindingFlags.DeclaredOnly;
 
@@ -2867,92 +2765,8 @@ namespace System
                 }
             }
 
-#if FEATURE_LEGACYNETCF
-            // Dev11 466969 quirk
-            if (CompatibilitySwitches.IsAppEarlierThanWindowsPhone8 &&
-                candidates.Count > 1 &&
-                ambiguousProperties != null &&
-                ambiguousProperties.Count > 0)
-            {
-                return PruneAmbiguousProperties(candidates, ambiguousProperties);
-            }
-#endif
-
             return candidates;
         }
-
-#if FEATURE_LEGACYNETCF
-        private ListBuilder<PropertyInfo> PruneAmbiguousProperties(ListBuilder<PropertyInfo> candidates, IReadOnlyList<RuntimePropertyInfo> ambiguousProperties)
-        {
-            Contract.Assert(CompatibilitySwitches.IsAppEarlierThanWindowsPhone8);
-            Contract.Assert(candidates.Count > 1);
-            Contract.Assert(ambiguousProperties != null && ambiguousProperties.Count > 0);
-
-            ListBuilder<PropertyInfo> newCandidates = candidates;
-
-            // Dev11 466969 quirk
-            // NetCF reflection will differentiate properties by sig and by accessibility.
-            // Consider the following:
-            //
-            // class FooBase
-            // {
-            //     public int Prop { get; set; }
-            // }
-            //
-            // class FooDerived : FooBase
-            // {
-            //     private int Prop { get; set; }
-            // }
-            //
-            // In Mango one can reflect on FooDerived for property "Prop" with *Public*
-            // binding flags and get an answer.  On desktop CLR/CoreCLR you get back null
-            // since FooBase.Prop is considered a duplicate and thus removed from the
-            // list of candidate properties.  To make this distinction the method
-            // RuntimePropertyInfo.HasMatchingAccessibility() was added.
-            //
-            // There is a wrinkle here though, when reflecting on FooDerived for
-            // property "Prop" with Public and NonPublic binding flags the answer
-            // will always be the most-derived type, so FooDerived in this example.
-            // The purpose of PruneAmbiguousProperties() is to apply this invariant. 
-            //
-
-            int countRemoved = 0;
-
-            lock (ambiguousProperties)
-            {
-                for (int outerIndex = 0; outerIndex < ambiguousProperties.Count; ++outerIndex)
-                {
-                    for (int innerIndex = 0; innerIndex < candidates.Count; ++innerIndex)
-                    {
-                        if (candidates[innerIndex] != null &&
-                            candidates[innerIndex] == ambiguousProperties[outerIndex])
-                        {
-                            candidates[innerIndex] = null;
-                            ++countRemoved;
-                        }
-                    }
-                }
-            }
-            
-            // should have only gone down this code path because we knew
-            // that at least one ambiguous property needed to be pruned.
-            Contract.Assert(countRemoved > 0);
-
-            if (countRemoved > 0)
-            {
-                newCandidates = new ListBuilder<PropertyInfo>(candidates.Count - countRemoved);
-                for (int index = 0; index < candidates.Count; ++index)
-                {
-                    if (candidates[index] != null)
-                        newCandidates.Add(candidates[index]);
-                }
-                
-                Contract.Assert(newCandidates.Count == (candidates.Count - countRemoved));
-            }
-            
-            return newCandidates;
-        }
-#endif
 
         private ListBuilder<EventInfo> GetEventCandidates(String name, BindingFlags bindingAttr, bool allowPrefixLookup)
         {
@@ -4086,12 +3900,6 @@ namespace System
 
                 return (Array.BinarySearch(ulValues, ulValue) >= 0);
             }
-            else if (CompatibilitySwitches.IsAppEarlierThanWindowsPhone8)
-            {
-                // if at this point the value type is not an integer type, then its type doesn't match the enum type
-                // NetCF used to throw an argument exception in this case
-                throw new ArgumentException(Environment.GetResourceString("Arg_EnumUnderlyingTypeAndObjectMustBeSameType", valueType.ToString(), GetEnumUnderlyingType()));
-            }
             else
             {
                 throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_UnknownEnumType"));
@@ -4109,17 +3917,9 @@ namespace System
             if (!(valueType.IsEnum || IsIntegerType(valueType)))
                 throw new ArgumentException(Environment.GetResourceString("Arg_MustBeEnumBaseTypeOrEnum"), "value");
 
-            ulong[] ulValues = Enum.InternalGetValues(this);
             ulong ulValue = Enum.ToUInt64(value);
-            int index = Array.BinarySearch(ulValues, ulValue);
 
-            if (index >= 0)
-            {
-                string[] names = Enum.InternalGetNames(this);
-                return names[index];
-            }
-
-            return null;
+            return Enum.GetEnumName(this, ulValue);
         }
         #endregion
 
@@ -5412,6 +5212,9 @@ namespace System
                 bCanBeCached = false;
             }
 #endif
+#if FEATURE_CORECLR
+            bSecurityCheckOff = true;       // CoreCLR does not use security at all.   
+#endif
 
             Object instance = RuntimeTypeHandle.CreateInstance(this, publicOnly, bSecurityCheckOff, ref bCanBeCached, ref runtime_ctor, ref bNeedSecurityCheck);
 
@@ -5466,9 +5269,11 @@ namespace System
 
                     if (ace.m_ctor != null)
                     {
+#if !FEATURE_CORECLR
                         // Perform security checks if needed
                         if (ace.m_bNeedSecurityCheck)
                             RuntimeMethodHandle.PerformSecurityCheck(instance, ace.m_hCtorMethodHandle, this, (uint)INVOCATION_FLAGS.INVOCATION_FLAGS_CONSTRUCTOR_INVOKE);
+#endif
 
                         // Call ctor (value types wont have any)
                         try
@@ -5508,7 +5313,6 @@ namespace System
             return _CreateEnum(enumType, value);
         }
 
-#if FEATURE_COMINTEROP
         [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private extern Object InvokeDispMethod(
@@ -5534,7 +5338,6 @@ namespace System
             throw new NotImplementedException("CoreCLR_REMOVED -- Unmanaged activation removed"); 
         }
 #endif // FEATURE_COMINTEROP_UNMANAGED_ACTIVATION
-#endif
 
         #endregion
 

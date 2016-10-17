@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // ==++==
 //
@@ -37,7 +36,6 @@
 /*
  *  Include Files
  */
-#ifndef BINDER
 #include "eecontract.h"
 #include "argslot.h"
 #include "vars.hpp"
@@ -59,25 +57,13 @@
 #include "eeconfig.h"
 #include "typectxt.h"
 #include "iterator_util.h"
-#endif // BINDER
 
 #ifdef FEATURE_COMINTEROP
 #include "..\md\winmd\inc\adapter.h"
 #endif
 #include "packedfields.inl"
 #include "array.h"
-#ifndef BINDER
 #define IBCLOG(x) g_IBCLogger.##x
-#else
-#include "gcdesc.h"
-#define IBCLOG(x)
-#define COUNTER_ONLY(x) 
-class PrestubMethodFrame;
-#endif
-
-#ifdef MDIL
-#include "compactlayoutwriter.h"
-#endif
 
 VOID DECLSPEC_NORETURN RealCOMPlusThrowHR(HRESULT hr);
 
@@ -256,9 +242,6 @@ class ExplicitFieldTrustHolder : private ExplicitFieldTrust
 #endif
 };
 
-#ifdef BINDER
-class InterfaceImplEnum;
-#else
 //*******************************************************************************
 // Enumerator to traverse the interface declarations of a type, automatically building
 // a substitution chain on the stack.
@@ -300,7 +283,6 @@ public:
     const Substitution *CurrentSubst() const { LIMITED_METHOD_CONTRACT; return &m_CurrSubst; }
     mdTypeDef CurrentToken() const { LIMITED_METHOD_CONTRACT; return m_CurrTok; }
 };
-#endif // BINDER
 
 #ifdef FEATURE_COMINTEROP
 //
@@ -401,10 +383,6 @@ class EEClassLayoutInfo
 #ifdef DACCESS_COMPILE
     friend class NativeImageDumper;
 #endif
-#ifdef BINDER
-    friend class CompactTypeBuilder;
-    friend class MdilModule;
-#endif
 
     private:
         // size (in bytes) of fixed portion of NStruct.
@@ -428,21 +406,26 @@ class EEClassLayoutInfo
             // to its unmanaged counterpart (i.e. no internal reference fields,
             // no ansi-unicode char conversions required, etc.) Used to
             // optimize marshaling.
-            e_BLITTABLE             = 0x01,
+            e_BLITTABLE                 = 0x01,
             // Post V1.0 addition: Is this type also sequential in managed memory?
-            e_MANAGED_SEQUENTIAL    = 0x02,
+            e_MANAGED_SEQUENTIAL        = 0x02,
             // When a sequential/explicit type has no fields, it is conceptually
             // zero-sized, but actually is 1 byte in length. This holds onto this
             // fact and allows us to revert the 1 byte of padding when another
             // explicit type inherits from this type.
-            e_ZERO_SIZED            = 0x04,
+            e_ZERO_SIZED                =   0x04,
             // The size of the struct is explicitly specified in the meta-data.
-            e_HAS_EXPLICIT_SIZE     = 0x08,
-
+            e_HAS_EXPLICIT_SIZE         = 0x08,
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+#ifdef FEATURE_HFA
+#error Can't have FEATURE_HFA and FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF defined at the same time.
+#endif // FEATURE_HFA
+            e_NATIVE_PASS_IN_REGISTERS  = 0x10, // Flag wheter a native struct is passed in registers.
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
 #ifdef FEATURE_HFA
             // HFA type of the unmanaged layout
-            e_R4_HFA                = 0x10,
-            e_R8_HFA                = 0x20,
+            e_R4_HFA                    = 0x10,
+            e_R8_HFA                    = 0x20,
 #endif
         };
 
@@ -527,6 +510,14 @@ class EEClassLayoutInfo
             return m_cbPackingSize;
         }
 
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+        bool IsNativeStructPassedInRegisters()
+        {
+            LIMITED_METHOD_CONTRACT;
+            return (m_bFlags & e_NATIVE_PASS_IN_REGISTERS) != 0;
+        }
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+
 #ifdef FEATURE_HFA
         bool IsNativeHFA()
         {
@@ -579,6 +570,14 @@ class EEClassLayoutInfo
             m_bFlags |= (hfaType == ELEMENT_TYPE_R4) ? e_R4_HFA : e_R8_HFA;
         }
 #endif
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+        void SetNativeStructPassedInRegisters()
+        {
+            LIMITED_METHOD_CONTRACT;
+            m_bFlags |= e_NATIVE_PASS_IN_REGISTERS;
+        }
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+
 };
 
 
@@ -667,11 +666,6 @@ class EEClassOptionalFields
     friend class NativeImageDumper;
 #endif
 
-#ifdef BINDER
-    friend class MdilModule;
-    friend class CompactTypeBuilder;
-#endif
-
     //
     // GENERICS RELATED FIELDS. 
     //
@@ -712,6 +706,15 @@ class EEClassOptionalFields
     DWORD m_dwReliabilityContract;
 
     SecurityProperties m_SecProps;
+
+#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+    // Number of eightBytes in the following arrays
+    int m_numberEightBytes; 
+    // Classification of the eightBytes
+    SystemVClassificationType m_eightByteClassifications[CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS];
+    // Size of data the eightBytes
+    unsigned int m_eightByteSizes[CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS];
+#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
 
     // Set default values for optional fields.
     inline void Init();
@@ -821,10 +824,6 @@ class EEClass // DO NOT CREATE A NEW EEClass USING NEW!
     friend class FieldDesc;
     friend class CheckAsmOffsets;
     friend class ClrDataAccess;
-#ifdef BINDER
-    friend class MdilModule;
-    friend class CompactTypeBuilder;
-#endif
 #ifdef DACCESS_COMPILE
     friend class NativeImageDumper;
 #endif
@@ -1004,19 +1003,6 @@ public:
 #endif // FEATURE_COMINTEROP
 
 public:
-#ifndef DACCESS_COMPILE 
-#ifdef MDIL
-    void WriteCompactLayout(ICompactLayoutWriter *, ZapImage *);
-    HRESULT WriteCompactLayoutHelper(ICompactLayoutWriter *);
-    HRESULT WriteCompactLayoutInterfaces(ICompactLayoutWriter *);
-    HRESULT WriteCompactLayoutInterfaceImpls(ICompactLayoutWriter *);
-    HRESULT WriteCompactLayoutFields(ICompactLayoutWriter *);
-    HRESULT WriteCompactLayoutMethods(ICompactLayoutWriter *);
-    HRESULT WriteCompactLayoutMethodImpls(ICompactLayoutWriter *);
-    HRESULT WriteCompactLayoutTypeFlags(ICompactLayoutWriter *pICLW);
-    HRESULT WriteCompactLayoutSpecialType(ICompactLayoutWriter *pICLW);
-#endif // MDIL
-#endif
     /*
      * Maintain back pointer to statcally hot portion of EEClass.
      * For an EEClass representing multiple instantiations of a generic type, this is the method table
@@ -1597,16 +1583,6 @@ public:
     DWORD  SomeMethodsRequireInheritanceCheck();
     void SetSomeMethodsRequireInheritanceCheck();
 
-    BOOL ContainsStackPtr()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_VMFlags & VMFLAG_CONTAINS_STACK_PTR;
-    }
-    void SetContainsStackPtr()
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_VMFlags |= (DWORD)VMFLAG_CONTAINS_STACK_PTR;
-    }
     BOOL HasFixedAddressVTStatics()
     {
         LIMITED_METHOD_CONTRACT;
@@ -1689,18 +1665,6 @@ public:
     void SetCannotBeBlittedByObjectCloner()
     {
         /* no op */
-    }
-#endif
-#ifdef FEATURE_LEGACYNETCF
-    DWORD IsTypeValidOnNetCF()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return (m_VMFlags & VMFLAG_TYPE_VALID_ON_NETCF);
-    }
-    void SetTypeValidOnNetCF()
-    {
-        WRAPPER_NO_CONTRACT;
-        FastInterlockOr(EnsureWritablePages(&m_VMFlags), VMFLAG_TYPE_VALID_ON_NETCF);
     }
 #endif
     DWORD HasNonPublicFields()
@@ -1810,6 +1774,45 @@ public:
         _ASSERTE(HasOptionalFields());
         GetOptionalFields()->m_dwReliabilityContract = dwValue;
     }
+
+#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+    // Get number of eightbytes used by a struct passed in registers.
+    inline int GetNumberEightBytes()
+    {
+        LIMITED_METHOD_CONTRACT;
+        _ASSERTE(HasOptionalFields());
+        return GetOptionalFields()->m_numberEightBytes;
+    }
+
+    // Get eightbyte classification for the eightbyte with the specified index.
+    inline SystemVClassificationType GetEightByteClassification(int index)
+    {
+        LIMITED_METHOD_CONTRACT;
+        _ASSERTE(HasOptionalFields());
+        return GetOptionalFields()->m_eightByteClassifications[index];
+    }
+
+    // Get size of the data in the eightbyte with the specified index.
+    inline unsigned int GetEightByteSize(int index)
+    {
+        LIMITED_METHOD_CONTRACT;
+        _ASSERTE(HasOptionalFields());
+        return GetOptionalFields()->m_eightByteSizes[index];
+    }
+
+    // Set the eightByte classification
+    inline void SetEightByteClassification(int eightByteCount, SystemVClassificationType *eightByteClassifications, unsigned int *eightByteSizes)
+    {
+        LIMITED_METHOD_CONTRACT;
+        _ASSERTE(HasOptionalFields());
+        GetOptionalFields()->m_numberEightBytes = eightByteCount;
+        for (int i = 0; i < eightByteCount; i++)
+        {
+            GetOptionalFields()->m_eightByteClassifications[i] = eightByteClassifications[i];
+            GetOptionalFields()->m_eightByteSizes[i] = eightByteSizes[i];
+        }
+    }
+#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING    
 
 #ifdef FEATURE_COMINTEROP
     inline TypeHandle GetCoClassForInterface()
@@ -1954,7 +1957,6 @@ public:
         GetOptionalFields()->m_pVarianceInfo = pVarianceInfo;
     }
 
-#ifndef BINDER
     // Check that a signature blob uses type parameters correctly
     // in accordance with the variance annotations specified by this class
     // The position parameter indicates the variance of the context we're in
@@ -1967,8 +1969,6 @@ public:
         Module * pModule,
         SigPointer sp,
         CorGenericParamAttr position);
-#endif
-
 
 #if defined(CHECK_APP_DOMAIN_LEAKS) || defined(_DEBUG)
 public:
@@ -2136,9 +2136,6 @@ public:
         VMFLAG_ISNESTED                        = 0x00000080,
 #ifdef FEATURE_REMOTING
         VMFLAG_CANNOT_BE_BLITTED_BY_OBJECT_CLONER = 0x00000100,  // This class has GC type fields, or implements ISerializable or has non-Serializable fields
-#endif
-#ifdef FEATURE_LEGACYNETCF
-        VMFLAG_TYPE_VALID_ON_NETCF              = 0x00000100,    // This type would succesfully load on NetCF
 #endif
 
         VMFLAG_IS_EQUIVALENT_TYPE              = 0x00000200,
@@ -2447,9 +2444,6 @@ public:
 
 typedef DPTR(ArrayClass) PTR_ArrayClass;
 
-#ifdef BINDER
-class MdilModule;
-#endif
 
 // Dynamically generated array class structure
 class ArrayClass : public EEClass
@@ -2458,11 +2452,8 @@ class ArrayClass : public EEClass
     friend void EEClass::Fixup(DataImage *image, MethodTable *pMethodTable);
 #endif
 
-#ifndef BINDER
-	friend MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementType arrayKind, unsigned Rank, AllocMemTracker *pamTracker);
-#else
-    friend MdilModule;
-#endif
+    friend MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementType arrayKind, unsigned Rank, AllocMemTracker *pamTracker);
+
 #ifndef DACCESS_COMPILE
     ArrayClass() : EEClass(sizeof(ArrayClass)) { LIMITED_METHOD_CONTRACT; }
 #else

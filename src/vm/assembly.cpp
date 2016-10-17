@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -283,7 +282,8 @@ void Assembly::Init(AllocMemTracker *pamTracker, LoaderAllocator *pLoaderAllocat
 
     CacheManifestFiles();
 
-    CacheManifestExportedTypes(pamTracker);
+    if (!m_pManifest->IsReadyToRun())
+        CacheManifestExportedTypes(pamTracker);
 
 #if !defined(FEATURE_CORECLR) && !defined(CROSSGEN_COMPILE)
     GenerateBreadcrumbForServicing();
@@ -756,6 +756,55 @@ Assembly *Assembly::CreateDynamic(AppDomain *pDomain, CreateDynamicAssemblyArgs 
                                                    name, &assemData, dwFlags,
                                                    &ma));
         pFile = PEAssembly::Create(pCallerAssembly->GetManifestFile(), pAssemblyEmit, args->access & ASSEMBLY_ACCESS_REFLECTION_ONLY);
+
+#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
+        // Dynamically created modules (aka RefEmit assemblies) do not have a LoadContext associated with them since they are not bound
+        // using an actual binder. As a result, we will assume the same binding/loadcontext information for the dynamic assembly as its
+        // caller/creator to ensure that any assembly loads triggered by the dynamic assembly are resolved using the intended load context.
+        //
+        // If the creator assembly has a HostAssembly associated with it, then use it for binding. Otherwise, ithe creator is dynamic
+        // and will have a fallback load context binder associated with it.
+        ICLRPrivBinder *pFallbackLoadContextBinder = nullptr;
+        
+        // There is always a manifest file - wehther working with static or dynamic assemblies.
+        PEFile *pCallerAssemblyManifestFile = pCallerAssembly->GetManifestFile();
+        _ASSERTE(pCallerAssemblyManifestFile != NULL);
+
+        if (!pCallerAssemblyManifestFile->IsDynamic())
+        {
+            // Static assemblies with do not have fallback load context
+            _ASSERTE(pCallerAssemblyManifestFile->GetFallbackLoadContextBinder() == nullptr);
+
+            if (pCallerAssemblyManifestFile->IsSystem())
+            {
+                // CoreLibrary is always bound to TPA binder
+                pFallbackLoadContextBinder = pDomain->GetTPABinderContext();
+            }
+            else
+            {
+                // Fetch the binder from the host assembly
+                PTR_ICLRPrivAssembly pCallerAssemblyHostAssembly = pCallerAssemblyManifestFile->GetHostAssembly();
+                _ASSERTE(pCallerAssemblyHostAssembly != nullptr);
+
+                UINT_PTR assemblyBinderID = 0;
+                IfFailThrow(pCallerAssemblyHostAssembly->GetBinderID(&assemblyBinderID));
+                pFallbackLoadContextBinder = reinterpret_cast<ICLRPrivBinder *>(assemblyBinderID);
+            }
+        }
+        else
+        {
+            // Creator assembly is dynamic too, so use its fallback load context for the one
+            // we are creating.
+            pFallbackLoadContextBinder = pCallerAssemblyManifestFile->GetFallbackLoadContextBinder(); 
+        }
+
+        // At this point, we should have a fallback load context binder to work with
+        _ASSERTE(pFallbackLoadContextBinder != nullptr);
+
+        // Set it as the fallback load context binder for the dynamic assembly being created
+        pFile->SetFallbackLoadContextBinder(pFallbackLoadContextBinder);
+#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
+
     }            
     
     AssemblyLoadSecurity loadSecurity;
@@ -1972,12 +2021,11 @@ void Assembly::PrepareModuleForAssembly(Module* module, AllocMemTracker *pamTrac
     }
     CONTRACTL_END;
     
-    if (!module->IsPersistedObject(module->m_pAvailableClasses)) {
-        if (!(module->IsResource()))
-            // ! We intentionally do not take the AvailableClass lock here. It creates problems at
-            // startup and we haven't yet published the module yet so nobody should be searching it.
-            m_pClassLoader->PopulateAvailableClassHashTable(module,
-                                                            pamTracker);
+    if (module->m_pAvailableClasses != NULL && !module->IsPersistedObject(module->m_pAvailableClasses)) 
+    {
+        // ! We intentionally do not take the AvailableClass lock here. It creates problems at
+        // startup and we haven't yet published the module yet so nobody should be searching it.
+        m_pClassLoader->PopulateAvailableClassHashTable(module, pamTracker);
     }
 
 
@@ -2344,8 +2392,6 @@ static void Stress_Thread_Start (LPVOID lpParameter)
     for (n = 0; n < dwThreads-1; n ++)
     {
         threads[n] = SetupUnstartedThread();
-        if (threads[n] == NULL)
-            COMPlusThrowOM();
 
         threads[n]->m_stressThreadCount = dwThreads/2;
         Stress_Thread_Param *param = ((Stress_Thread_Param*)lpParameter)->Clone();
@@ -2649,7 +2695,7 @@ static void RunMainPost()
     }
 }
 
-INT32 Assembly::ExecuteMainMethod(PTRARRAYREF *stringArgs)
+INT32 Assembly::ExecuteMainMethod(PTRARRAYREF *stringArgs, BOOL waitForOtherThreads)
 {
     CONTRACTL
     {
@@ -2722,7 +2768,7 @@ INT32 Assembly::ExecuteMainMethod(PTRARRAYREF *stringArgs)
     //to decide when the process should get torn down.  So, don't call it from
     // AppDomain.ExecuteAssembly()
     if (pMeth) {
-        if (stringArgs == NULL)
+        if (waitForOtherThreads)
             RunMainPost();
     }
     else {
@@ -4301,7 +4347,7 @@ void Assembly::WriteBreadcrumb(const SString &ssDisplayName)
 {
     STANDARD_VM_CONTRACT;
 
-    WCHAR path[MAX_PATH];
+    WCHAR path[MAX_LONGPATH];
     HRESULT hr = WszSHGetFolderPath(NULL, CSIDL_COMMON_APPDATA, NULL, SHGFP_TYPE_CURRENT, ARRAYSIZE(path), path);
     if (hr != S_OK)
     {
@@ -4705,22 +4751,8 @@ Assembly::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 
 #ifndef DACCESS_COMPILE
 
-#ifdef FEATURE_FRAMEWORK_INTERNAL
-
-// static
-const LPCSTR FriendAssemblyDescriptor::AllInternalsVisibleProperty = "AllInternalsVisible";
-
-#endif // FEATURE_FRAMEWORK_INTERNAL
-
 FriendAssemblyDescriptor::FriendAssemblyDescriptor()
-#ifdef FEATURE_FRAMEWORK_INTERNAL
-    : m_crstFriendMembersCache(CrstFriendAccessCache)  
-#endif // FEATURE_FRAMEWORK_INTERNAL
 {
-#ifdef FEATURE_FRAMEWORK_INTERNAL
-    LockOwner lockOwner  = { &m_crstFriendMembersCache, IsOwnerOfCrst };
-    m_htFriendMembers.Init(FriendMemberHashSize, &lockOwner);
-#endif // FEATURE_FRAMEWORK_INTERNAL
 }
 
 FriendAssemblyDescriptor::~FriendAssemblyDescriptor()
@@ -4741,19 +4773,6 @@ FriendAssemblyDescriptor::~FriendAssemblyDescriptor()
         delete pFriendAssemblyName;
 #endif // FEATURE_FUSION
     }
-
-#if FEATURE_FRAMEWORK_INTERNAL
-    ArrayList::Iterator itPartialAccessAssemblies = m_alPartialAccessFriendAssemblies.Iterate();
-    while (itPartialAccessAssemblies.Next())
-    {
-        FriendAssemblyName_t *pFriendAssemblyName = static_cast<FriendAssemblyName_t *>(itPartialAccessAssemblies.GetElement());
-#ifdef FEATURE_FUSION
-        pFriendAssemblyName->Release();
-#else // FEATURE_FUSION
-        delete pFriendAssemblyName;
-#endif // FEATURE_FUSION
-    }
-#endif // FEATURE_FRAMEWORK_INTERNAL
 }
 
 
@@ -4891,33 +4910,7 @@ FriendAssemblyDescriptor *FriendAssemblyDescriptor::CreateFriendAssemblyDescript
             }
 #endif // !defined(FEATURE_CORECLR)
 
-#ifdef FEATURE_FRAMEWORK_INTERNAL
-            bool fAllInternalsVisible = true;
-
-            // Framework internal is only available for framework assemblies
-            if (pAssembly->IsProfileAssembly())
-            {
-                //
-                // Find out if the friend assembly is allowed access to all internals, or only selected internals.
-                // We default to true for compatibility with behavior of previous runtimes.
-                //
-
-                CaNamedArg allInternalsArg;
-                allInternalsArg.InitBoolField(const_cast<LPCSTR>(AllInternalsVisibleProperty), true);
-                hr = ParseKnownCaNamedArgs(cap, &allInternalsArg, 1);
-                if (FAILED(hr) && hr != META_E_CA_UNKNOWN_ARGUMENT)
-                {
-                    IfFailThrow(hr);
-                }
-
-                fAllInternalsVisible = !!allInternalsArg.val.u1;
-            }
-
-            pFriendAssemblies->AddFriendAssembly(pFriendAssemblyName, fAllInternalsVisible);
-
-#else // FEATURE_FRAMEWORK_INTERNAL
             pFriendAssemblies->AddFriendAssembly(pFriendAssemblyName);
-#endif // FEATURE_FRAMEWORK_INTERNAL
 
             pFriendAssemblyName.SuppressRelease();
         }
@@ -4941,11 +4934,7 @@ FriendAssemblyDescriptor *FriendAssemblyDescriptor::CreateFriendAssemblyDescript
 //    see if an assembly has already been added to the friend assembly list.
 //
 
-#ifdef FEATURE_FRAMEWORK_INTERNAL
-void FriendAssemblyDescriptor::AddFriendAssembly(FriendAssemblyName_t *pFriendAssembly, bool fAllInternalsVisible)
-#else // FEATURE_FRAMEWORK_INTERNAL
 void FriendAssemblyDescriptor::AddFriendAssembly(FriendAssemblyName_t *pFriendAssembly)
-#endif // FEATURE_FRAMEWORK_INTERNAL
 {
     CONTRACTL
     {
@@ -4955,18 +4944,7 @@ void FriendAssemblyDescriptor::AddFriendAssembly(FriendAssemblyName_t *pFriendAs
     }
     CONTRACTL_END
 
-#ifdef FEATURE_FRAMEWORK_INTERNAL
-    if (fAllInternalsVisible)
-#endif // FEATURE_FRAMEWORK_INTERNAL
-    {
-        m_alFullAccessFriendAssemblies.Append(pFriendAssembly);
-    }
-#ifdef FEATURE_FRAMEWORK_INTERNAL
-    else
-    {
-        m_alPartialAccessFriendAssemblies.Append(pFriendAssembly);
-    }
-#endif // FEATURE_FRAMEWORK_INTERNAL
+    m_alFullAccessFriendAssemblies.Append(pFriendAssembly);
 }
 
 void FriendAssemblyDescriptor::AddSubjectAssembly(FriendAssemblyName_t *pFriendAssembly)
@@ -4981,95 +4959,6 @@ void FriendAssemblyDescriptor::AddSubjectAssembly(FriendAssemblyName_t *pFriendA
 
     m_subjectAssemblies.Append(pFriendAssembly);
 }
-
-#ifdef FEATURE_FRAMEWORK_INTERNAL
-
-//
-// Helpers to see if a member is internal, and therefore could be considered for friend access.
-//
-
-// static
-bool FriendAssemblyDescriptor::FriendAccessAppliesTo(FieldDesc *pFD)
-{
-    LIMITED_METHOD_CONTRACT;
-        
-    DWORD dwFieldProtection = pFD->GetFieldProtection();
-    return IsFdAssembly(dwFieldProtection) ||
-           IsFdFamANDAssem(dwFieldProtection) ||
-           IsFdFamORAssem(dwFieldProtection);
-}
-
-// static
-bool FriendAssemblyDescriptor::FriendAccessAppliesTo(MethodDesc *pMD)
-{
-    LIMITED_METHOD_CONTRACT;
-        
-    DWORD dwMethodProtection = pMD->GetAttrs();
-    return IsMdAssem(dwMethodProtection) ||
-           IsMdFamANDAssem(dwMethodProtection) ||
-           IsMdFamORAssem(dwMethodProtection);
-}
-
-// static
-bool FriendAssemblyDescriptor::FriendAccessAppliesTo(MethodTable *pMT)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    DWORD dwTypeProtection = pMT->GetClass()->GetProtection();
-    return IsTdNotPublic(dwTypeProtection) ||
-           IsTdNestedAssembly(dwTypeProtection) ||
-           IsTdNestedFamANDAssem(dwTypeProtection) ||
-           IsTdNestedFamORAssem(dwTypeProtection);
-}
-
-//
-// Helper methods to get the metadata token for items that may have the FriendAccessAllowed attribute.
-//
-
-// static
-mdToken FriendAssemblyDescriptor::GetMetadataToken(FieldDesc *pFD)
-{
-    WRAPPER_NO_CONTRACT;
-    return pFD->GetMemberDef();
-}
-
-// static
-mdToken FriendAssemblyDescriptor::GetMetadataToken(MethodDesc *pMD)
-{
-    WRAPPER_NO_CONTRACT;
-    return pMD->GetMemberDef();
-}
-
-// static
-mdToken FriendAssemblyDescriptor::GetMetadataToken(MethodTable *pMT)
-{
-    WRAPPER_NO_CONTRACT;
-    return pMT->GetCl();
-}
-
-// static
-bool FriendAssemblyDescriptor::HasFriendAccessAttribute(IMDInternalImport *pMDImport, mdToken tkMember)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        PRECONDITION(CheckPointer(pMDImport));
-    }
-    CONTRACTL_END;
-
-    const BYTE *pbAttribute = NULL;
-    ULONG cbAttribute = 0;
-    HRESULT hr = pMDImport->GetCustomAttributeByName(tkMember,
-                                                     FRIEND_ACCESS_ALLOWED_ATTRIBUTE_TYPE,
-                                                     reinterpret_cast<const void **>(&pbAttribute),
-                                                     &cbAttribute);
-    IfFailThrow(hr);
-
-    return hr == S_OK;
-}
-
-#endif // FEATURE_FRAMEWORK_INTERNAL
 
 // static
 bool FriendAssemblyDescriptor::IsAssemblyOnList(PEAssembly *pAssembly, const ArrayList &alAssemblyNames)
@@ -5127,7 +5016,7 @@ ExistingOobAssemblyList::ExistingOobAssemblyList()
 
     for (DWORD i = 0; ; i++)
     {
-        WCHAR name[MAX_PATH + 1];
+        WCHAR name[MAX_PATH_FNAME + 1];
         DWORD cchName = ARRAYSIZE(name);
         status = RegEnumKeyExW(hKey, i, name, &cchName, NULL, NULL, NULL, NULL);
 

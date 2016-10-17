@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 
@@ -12,10 +11,6 @@
 #include "clrtypes.h"
 #include "appmodel.h"
 #include "fusionsetup.h"
-
-#if defined(CLR_STANDALONE_BINDER)
-#include "windowsstring.h"
-#endif // CLR_STANDALONE_BINDER
 
 #define PACKAGE_FILTER_CLR_DEFAULT (PACKAGE_FILTER_HEAD|PACKAGE_FILTER_DIRECT)
 

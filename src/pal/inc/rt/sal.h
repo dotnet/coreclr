@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /***
 *sal.h - markers for documenting the semantics of APIs
@@ -2654,8 +2653,8 @@ buffer, use the table in the buffer annotations section.
 -------------------------------------------------------------------------------
 */
 
-#ifndef PAL_STDCPP_COMPAT
 // These macros conflict with c++ headers.
+#ifndef PAL_STDCPP_COMPAT
 #define __in                                                     _SAL1_Source_(__in, (), _In_)
 #define __out                                                    _SAL1_Source_(__out, (), _Out_)
 #endif // !PAL_STDCPP_COMPAT

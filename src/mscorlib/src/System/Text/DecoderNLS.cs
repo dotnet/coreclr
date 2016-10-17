@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 namespace System.Text
 {
@@ -40,7 +41,6 @@ namespace System.Text
                             Environment.GetResourceString("NotSupported_TypeCannotDeserialized"), this.GetType()));
         }
 
-#if FEATURE_SERIALIZATION
         // ISerializable implementation. called during serialization.
         [System.Security.SecurityCritical]  // auto-generated_required
         void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
@@ -49,7 +49,6 @@ namespace System.Text
             info.AddValue("encoding", this.m_encoding);
             info.SetType(typeof(Encoding.DefaultDecoder));
         }
-#endif
 
 #endregion Serialization 
 

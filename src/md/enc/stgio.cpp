@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // StgIO.h
 // 
@@ -112,7 +111,6 @@ void StgIO::CtorInit()
     m_cbBuff = 0;
     m_rgPageMap = 0;
     m_FileType = FILETYPE_UNKNOWN;
-    *m_rcShared = '\0';
     m_cRef = 1;
     m_mtMappedType = MTYPE_NOMAPPING;
 }
@@ -787,10 +785,8 @@ HRESULT StgIO::MapFileToMem(            // Return code.
     // Check the size of the data we want to map.  If it is small enough, then
     // simply allocate a chunk of memory from a finer grained heap.  This saves
     // virtual memory space, page table entries, and should reduce overall working set.
-    // Note that any shared memory objects will require the handles to be in place
-    // and are not elligible.  Also, open for read/write needs a full backing
-    // store.
-    if (!*m_rcShared && (m_cbData <= SMALL_ALLOC_MAP_SIZE) && (SMALL_ALLOC_MAP_SIZE > 0))
+    // Also, open for read/write needs a full backing store.
+    if ((m_cbData <= SMALL_ALLOC_MAP_SIZE) && (SMALL_ALLOC_MAP_SIZE > 0))
     {
         DWORD cbRead = m_cbData;
         _ASSERTE(m_pData == 0);
@@ -854,8 +850,6 @@ HRESULT StgIO::MapFileToMem(            // Return code.
         // change for the life of the handle.
         if ((m_fFlags & DBPROP_TMODEF_WRITE) == 0 && m_iType != STGIO_STREAM)
         {
-            _ASSERTE(!*m_rcShared);
-
             // Create a mapping object for the file.
             _ASSERTE(m_hMapping == 0);
 
@@ -869,7 +863,7 @@ HRESULT StgIO::MapFileToMem(            // Return code.
 #endif
             
             if ((m_hMapping = WszCreateFileMapping(m_hFile, pAttributes, dwProtectionFlags,
-                0, 0, *m_rcShared ? m_rcShared : 0)) == 0)
+                0, 0, nullptr)) == 0)
             {
                 return (MapFileError(GetLastError()));
             }

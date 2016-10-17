@@ -1,12 +1,16 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
 
 
-.assembly extern mscorlib
+.assembly extern mscorlib { }
+.assembly extern System.Console
 {
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
 }
 .assembly 'muldiv'// as "muldiv"
 {
@@ -77,7 +81,7 @@
         IL_003b:  ldarg.0
         IL_003c:  beq.s      IL_0044
 
-        IL_003e:  newobj     instance void ['mscorlib']System.ApplicationException::.ctor()
+        IL_003e:  newobj     instance void ['mscorlib']System.Exception::.ctor()
         IL_0043:  throw
 
         IL_0044:  ldloc.3
@@ -88,7 +92,7 @@
         IL_0052:  ldarg.1
         IL_0053:  beq.s      IL_005b
 
-        IL_0055:  newobj     instance void ['mscorlib']System.ApplicationException::.ctor()
+        IL_0055:  newobj     instance void ['mscorlib']System.Exception::.ctor()
         IL_005a:  throw
 
         IL_005b:  ldloc.1
@@ -126,7 +130,7 @@
         IL_0092:  sub.ovf.un
         IL_0093:  bgt.un.s   IL_009b
 
-        IL_0095:  newobj     instance void ['mscorlib']System.ApplicationException::.ctor()
+        IL_0095:  newobj     instance void ['mscorlib']System.Exception::.ctor()
         IL_009a:  throw
 
         IL_009b:  leave.s    IL_00d5
@@ -140,7 +144,7 @@
         IL_00a0:  ldarg.0
         IL_00a1:  beq.s      IL_00a9
 
-        IL_00a3:  newobj     instance void ['mscorlib']System.ApplicationException::.ctor()
+        IL_00a3:  newobj     instance void ['mscorlib']System.Exception::.ctor()
         IL_00a8:  throw
 
         IL_00a9:  leave.s    IL_00b9
@@ -154,7 +158,7 @@
         IL_00ae:  conv.i8
         IL_00af:  beq.s      IL_00b7
 
-        IL_00b1:  newobj     instance void ['mscorlib']System.ApplicationException::.ctor()
+        IL_00b1:  newobj     instance void ['mscorlib']System.Exception::.ctor()
         IL_00b6:  throw
 
         IL_00b7:  leave.s    IL_00b9
@@ -168,7 +172,7 @@
         IL_00bc:  ldarg.1
         IL_00bd:  beq.s      IL_00c5
 
-        IL_00bf:  newobj     instance void ['mscorlib']System.ApplicationException::.ctor()
+        IL_00bf:  newobj     instance void ['mscorlib']System.Exception::.ctor()
         IL_00c4:  throw
 
         IL_00c5:  leave.s    IL_00d5
@@ -182,7 +186,7 @@
         IL_00ca:  conv.i8
         IL_00cb:  beq.s      IL_00d3
 
-        IL_00cd:  newobj     instance void ['mscorlib']System.ApplicationException::.ctor()
+        IL_00cd:  newobj     instance void ['mscorlib']System.Exception::.ctor()
         IL_00d2:  throw
 
         IL_00d3:  leave.s    IL_00d5
@@ -1481,7 +1485,7 @@
         IL_139b:  call       void JitTest.Test::testNumbers(unsigned int64,
                                                             unsigned int64)
         IL_13a0:  ldstr      "All tests passed."
-        IL_13a5:  call       void ['mscorlib']System.Console::WriteLine(class System.String)
+        IL_13a5:  call       void [System.Console]System.Console::WriteLine(class System.String)
         IL_13aa:  ldc.i4    0x64
         IL_13ab:  stloc.0
         IL_13ac:  leave.s    IL_13b3

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -50,19 +49,8 @@ public:
     static FCDECL2(Object*,         LoadFile,                   StringObject* pathUNSAFE,
                                                                 Object* securityUNSAFE);
     static FCDECL6(Object*,         LoadImage,                  U1Array* PEByteArrayUNSAFE, U1Array* SymByteArrayUNSAFE, Object* securityUNSAFE, StackCrawlMark* stackMark, CLR_BOOL fForIntrospection, SecurityContextSource securityContextSource);
-#ifdef FEATURE_CORECLR    
-    static 
-    void QCALLTYPE LoadFromUnmanagedArray(CLR_BOOL fForIntrospection,   
-                                             BYTE* pAssembly,  
-                                             UINT64 uAssemblyLength, 
-                                             BYTE* pPDB,  
-                                             UINT64 uPDBLength, 
-                                             QCall::StackCrawlMarkHandle stackMark,
-                                             QCall::ObjectHandleOnStack retAssembly);
-#endif
 
-#ifdef FEATURE_HOSTED_BINDER
-    static FCDECL9(Object*,         Load,                       AssemblyNameBaseObject* assemblyNameUNSAFE, 
+    static FCDECL10(Object*,         Load,                       AssemblyNameBaseObject* assemblyNameUNSAFE, 
                                                                 StringObject* codeBaseUNSAFE, 
                                                                 Object* securityUNSAFE, 
                                                                 AssemblyBaseObject* requestingAssemblyUNSAFE,
@@ -70,18 +58,8 @@ public:
                                                                 ICLRPrivBinder * pPrivHostBinder,
                                                                 CLR_BOOL fThrowOnFileNotFound,
                                                                 CLR_BOOL fForIntrospection,
-                                                                CLR_BOOL fSuppressSecurityChecks);
-
-#else //!FEATURE_HOSTED_BINDER
-    static FCDECL8(Object*,         Load,                       AssemblyNameBaseObject* assemblyNameUNSAFE, 
-                                                                StringObject* codeBaseUNSAFE, 
-                                                                Object* securityUNSAFE, 
-                                                                AssemblyBaseObject* requestingAssemblyUNSAFE,
-                                                                StackCrawlMark* stackMark,
-                                                                CLR_BOOL fThrowOnFileNotFound,
-                                                                CLR_BOOL fForIntrospection,
-                                                                CLR_BOOL fSuppressSecurityChecks);
-#endif // FEATURE_HOSTED_BINDER
+                                                                CLR_BOOL fSuppressSecurityChecks,
+                                                                INT_PTR ptrLoadContextBinder);
 
     static FCDECL1(FC_BOOL_RET, IsFrameworkAssembly, AssemblyNameBaseObject* refAssemblyNameUNSAFE);
     static FCDECL1(FC_BOOL_RET, IsNewPortableAssembly, AssemblyNameBaseObject* refAssemblyNameUNSAFE);
@@ -142,7 +120,7 @@ public:
                                              QCall::ObjectHandleOnStack retModule);
 
     static 
-    void QCALLTYPE GetType(QCall::AssemblyHandle pAssembly, LPCWSTR wszName, BOOL bThrowOnError, BOOL bIgnoreCase, QCall::ObjectHandleOnStack retType);
+    void QCALLTYPE GetType(QCall::AssemblyHandle pAssembly, LPCWSTR wszName, BOOL bThrowOnError, BOOL bIgnoreCase, QCall::ObjectHandleOnStack retType, QCall::ObjectHandleOnStack keepAlive);
     
     static 
     INT32 QCALLTYPE GetManifestResourceInfo(QCall::AssemblyHandle pAssembly, LPCWSTR wszName, QCall::ObjectHandleOnStack retAssembly, QCall::StringHandleOnStack retFileName, QCall::StackCrawlMarkHandle stackMark);
@@ -194,11 +172,6 @@ public:
     static 
     void QCALLTYPE GetImageRuntimeVersion(QCall::AssemblyHandle pAssembly, QCall::StringHandleOnStack retString);
     
-#ifdef FEATURE_LEGACYNETCF
-    static
-    BOOL QCALLTYPE GetIsProfileAssembly(QCall::AssemblyHandle pAssembly);
-#endif // FEATURE_LEGACYNETCF
-
     static
     INT64 QCALLTYPE GetHostContext(QCall::AssemblyHandle pAssembly);
 
@@ -275,13 +248,16 @@ public:
     BOOL QCALLTYPE IsDesignerBindingContext(QCall::AssemblyHandle pAssembly);
 #endif
 
-    static INT_PTR QCALLTYPE InitializeAssemblyLoadContext(INT_PTR ptrManagedAssemblyLoadContext);
+    static INT_PTR QCALLTYPE InitializeAssemblyLoadContext(INT_PTR ptrManagedAssemblyLoadContext, BOOL fRepresentsTPALoadContext);
     static BOOL QCALLTYPE OverrideDefaultAssemblyLoadContextForCurrentDomain(INT_PTR ptrNativeAssemblyLoadContext);
     static BOOL QCALLTYPE CanUseAppPathAssemblyLoadContextInCurrentDomain();
     static void QCALLTYPE LoadFromPath(INT_PTR ptrNativeAssemblyLoadContext, LPCWSTR pwzILPath, LPCWSTR pwzNIPath, QCall::ObjectHandleOnStack retLoadedAssembly);
+    static INT_PTR QCALLTYPE InternalLoadUnmanagedDllFromPath(LPCWSTR unmanagedLibraryPath);
     static void QCALLTYPE LoadFromStream(INT_PTR ptrNativeAssemblyLoadContext, INT_PTR ptrAssemblyArray, INT32 cbAssemblyArrayLength, INT_PTR ptrSymbolArray, INT32 cbSymbolArrayLength, QCall::ObjectHandleOnStack retLoadedAssembly);
-    static Assembly* LoadFromPEImage(CLRPrivBinderAssemblyLoadContext* pBinderContext, PEImage *pILImage, PEImage *pNIImage);
+    static Assembly* LoadFromPEImage(ICLRPrivBinder* pBinderContext, PEImage *pILImage, PEImage *pNIImage);
     static INT_PTR QCALLTYPE GetLoadContextForAssembly(QCall::AssemblyHandle pAssembly);
+
+    static BOOL QCALLTYPE InternalTryGetRawMetadata(QCall::AssemblyHandle assembly, UINT8 **blobRef, INT32 *lengthRef);
 };
 
 #endif

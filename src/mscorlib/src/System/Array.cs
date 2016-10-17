@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -25,17 +26,15 @@ namespace System {
     // IList<U> and IReadOnlyList<U>, where T : U dynamically.  See the SZArrayHelper class for details.
     [Serializable]
     [ComVisible(true)]
-    #if CONTRACTS_FULL
-    [ContractClass(typeof(ArrayContracts))]
-    #endif
     public abstract class Array : ICloneable, IList, IStructuralComparable, IStructuralEquatable 
     {
-        /// <internalonly/>
-        internal Array() {}  // Don't call this.  Internal for ArrayContracts type.
-        
+        // This ctor exists solely to prevent C# from generating a protected .ctor that violates the surface area. I really want this to be a
+        // "protected-and-internal" rather than "internal" but C# has no keyword for the former.
+        internal Array() {}
+
         public static ReadOnlyCollection<T> AsReadOnly<T>(T[] array) {
             if (array == null) {
-                throw new ArgumentNullException("array");                
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);                
             }
             Contract.Ensures(Contract.Result<ReadOnlyCollection<T>>() != null);
 
@@ -46,7 +45,7 @@ namespace System {
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public static void Resize<T>(ref T[] array, int newSize) {
             if (newSize < 0)
-                throw new ArgumentOutOfRangeException("newSize", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.newSize, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
             Contract.Ensures(Contract.ValueAtReturn(out array) != null);
             Contract.Ensures(Contract.ValueAtReturn(out array).Length == newSize);
             Contract.EndContractBlock();
@@ -69,9 +68,9 @@ namespace System {
         public unsafe static Array CreateInstance(Type elementType, int length)
         {
             if ((object)elementType == null)
-                throw new ArgumentNullException("elementType");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.elementType);
             if (length < 0)
-                throw new ArgumentOutOfRangeException("length", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                ThrowHelper.ThrowLengthArgumentOutOfRange_ArgumentOutOfRange_NeedNonNegNum();
             Contract.Ensures(Contract.Result<Array>() != null);
             Contract.Ensures(Contract.Result<Array>().Length == length);
             Contract.Ensures(Contract.Result<Array>().Rank == 1);
@@ -79,7 +78,7 @@ namespace System {
 
             RuntimeType t = elementType.UnderlyingSystemType as RuntimeType;
             if (t == null)
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeType"),"elementType");
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_MustBeType, ExceptionArgument.elementType);
             return InternalCreate((void*)t.TypeHandle.Value,1,&length,null);
         }
         
@@ -87,9 +86,11 @@ namespace System {
         public unsafe static Array CreateInstance(Type elementType, int length1, int length2)
         {
             if ((object)elementType == null)
-                throw new ArgumentNullException("elementType");
-            if (length1 < 0 || length2 < 0)
-                throw new ArgumentOutOfRangeException((length1 < 0 ? "length1" : "length2"), Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.elementType);
+            if (length1 < 0)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length1, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+            if (length2 < 0)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length2, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
             Contract.Ensures(Contract.Result<Array>() != null);
             Contract.Ensures(Contract.Result<Array>().Rank == 2);
             Contract.Ensures(Contract.Result<Array>().GetLength(0) == length1);
@@ -97,7 +98,7 @@ namespace System {
 
             RuntimeType t = elementType.UnderlyingSystemType as RuntimeType;
             if (t == null)
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeType"),"elementType");
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_MustBeType, ExceptionArgument.elementType);
             int* pLengths = stackalloc int[2];
             pLengths[0] = length1;
             pLengths[1] = length2;
@@ -108,13 +109,13 @@ namespace System {
         public unsafe static Array CreateInstance(Type elementType, int length1, int length2, int length3)
         {
             if ((object)elementType == null)
-                throw new ArgumentNullException("elementType");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.elementType);
             if (length1 < 0)
-                throw new ArgumentOutOfRangeException("length1", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length1, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
             if (length2 < 0)
-                throw new ArgumentOutOfRangeException("length2", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length2, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
             if (length3 < 0)
-                throw new ArgumentOutOfRangeException("length3", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length3, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
             Contract.Ensures(Contract.Result<Array>() != null);
             Contract.Ensures(Contract.Result<Array>().Rank == 3);
             Contract.Ensures(Contract.Result<Array>().GetLength(0) == length1);
@@ -123,7 +124,7 @@ namespace System {
 
             RuntimeType t = elementType.UnderlyingSystemType as RuntimeType;
             if (t == null)
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeType"), "elementType");
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_MustBeType, ExceptionArgument.elementType);
             int* pLengths = stackalloc int[3];
             pLengths[0] = length1;
             pLengths[1] = length2;
@@ -135,38 +136,38 @@ namespace System {
         public unsafe static Array CreateInstance(Type elementType, params int[] lengths)
         {
             if ((object)elementType == null)
-                throw new ArgumentNullException("elementType");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.elementType);
             if (lengths == null)
-                throw new ArgumentNullException("lengths");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.lengths);
             if (lengths.Length == 0)
-                throw new ArgumentException(Environment.GetResourceString("Arg_NeedAtLeast1Rank"));
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_NeedAtLeast1Rank);
             Contract.Ensures(Contract.Result<Array>() != null);
             Contract.Ensures(Contract.Result<Array>().Rank == lengths.Length);
             Contract.EndContractBlock();
 
             RuntimeType t = elementType.UnderlyingSystemType as RuntimeType;
             if (t == null)
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeType"), "elementType");
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_MustBeType, ExceptionArgument.elementType);
 
             // Check to make sure the lenghts are all positive. Note that we check this here to give
             // a good exception message if they are not; however we check this again inside the execution 
             // engine's low level allocation function after having made a copy of the array to prevent a 
             // malicious caller from mutating the array after this check.           
-            for (int i=0;i<lengths.Length;i++)
+            for (int i = 0; i < lengths.Length; i++)
                 if (lengths[i] < 0)
-                    throw new ArgumentOutOfRangeException("lengths["+i+']', Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
-                
-            fixed(int* pLengths = lengths)
+                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.lengths, i, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+
+            fixed (int* pLengths = lengths)
                 return InternalCreate((void*)t.TypeHandle.Value,lengths.Length,pLengths,null);
         }
 
         public static Array CreateInstance(Type elementType, params long[] lengths)
         {
             if( lengths == null) {
-                throw new ArgumentNullException("lengths");                
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.lengths);
             }
             if (lengths.Length == 0)
-                throw new ArgumentException(Environment.GetResourceString("Arg_NeedAtLeast1Rank"));
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_NeedAtLeast1Rank);
             Contract.Ensures(Contract.Result<Array>() != null);
             Contract.Ensures(Contract.Result<Array>().Rank == lengths.Length);
             Contract.EndContractBlock();
@@ -176,8 +177,8 @@ namespace System {
             for (int i = 0; i < lengths.Length; ++i) 
             {
                 long len = lengths[i];
-                if (len > Int32.MaxValue || len < Int32.MinValue) 
-                    throw new ArgumentOutOfRangeException("len", Environment.GetResourceString("ArgumentOutOfRange_HugeArrayNotSupported"));
+                if (len > Int32.MaxValue || len < Int32.MinValue)
+                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.len, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
                 intLengths[i] = (int) len;
             }
 
@@ -189,22 +190,22 @@ namespace System {
         public unsafe static Array CreateInstance(Type elementType, int[] lengths,int[] lowerBounds)
         {
             if (elementType == null)
-                throw new ArgumentNullException("elementType");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.elementType);
             if (lengths == null)
-                throw new ArgumentNullException("lengths");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.lengths);
             if (lowerBounds == null)
-                throw new ArgumentNullException("lowerBounds");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.lowerBounds);
             if (lengths.Length != lowerBounds.Length)
-                throw new ArgumentException(Environment.GetResourceString("Arg_RanksAndBounds"));
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RanksAndBounds);
             if (lengths.Length == 0)
-                throw new ArgumentException(Environment.GetResourceString("Arg_NeedAtLeast1Rank"));
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_NeedAtLeast1Rank);
             Contract.Ensures(Contract.Result<Array>() != null);
             Contract.Ensures(Contract.Result<Array>().Rank == lengths.Length);
             Contract.EndContractBlock();
 
             RuntimeType t = elementType.UnderlyingSystemType as RuntimeType;
             if (t == null)
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeType"), "elementType");
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_MustBeType, ExceptionArgument.elementType);
 
             // Check to make sure the lenghts are all positive. Note that we check this here to give
             // a good exception message if they are not; however we check this again inside the execution 
@@ -212,9 +213,9 @@ namespace System {
             // malicious caller from mutating the array after this check.           
             for (int i=0;i<lengths.Length;i++)
                 if (lengths[i] < 0)
-                    throw new ArgumentOutOfRangeException("lengths["+i+']', Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
-                            
-            fixed(int* pLengths = lengths)
+                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.lengths, i, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+
+            fixed (int* pLengths = lengths)
                 fixed(int* pLowerBounds = lowerBounds)
                     return InternalCreate((void*)t.TypeHandle.Value,lengths.Length,pLengths,pLowerBounds);
         }
@@ -266,9 +267,9 @@ namespace System {
         public static void Copy(Array sourceArray, Array destinationArray, int length)
         {
             if (sourceArray == null)
-                throw new ArgumentNullException("sourceArray");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.sourceArray);
             if (destinationArray == null)
-                throw new ArgumentNullException("destinationArray");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.destinationArray);
             /*
             Contract.Requires(sourceArray.Rank == destinationArray.Rank);
             Contract.Requires(length >= 0);
@@ -314,8 +315,8 @@ namespace System {
         [ReliabilityContract(Consistency.MayCorruptInstance, Cer.MayFail)]
         public static void Copy(Array sourceArray, Array destinationArray, long length)
         {
-            if (length > Int32.MaxValue || length < Int32.MinValue) 
-                throw new ArgumentOutOfRangeException("length", Environment.GetResourceString("ArgumentOutOfRange_HugeArrayNotSupported"));
+            if (length > Int32.MaxValue || length < Int32.MinValue)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
 
             Array.Copy(sourceArray, destinationArray, (int) length);
         }
@@ -323,12 +324,12 @@ namespace System {
         [ReliabilityContract(Consistency.MayCorruptInstance, Cer.MayFail)]
         public static void Copy(Array sourceArray, long sourceIndex, Array destinationArray, long destinationIndex, long length)
         {
-            if (sourceIndex > Int32.MaxValue || sourceIndex < Int32.MinValue) 
-                throw new ArgumentOutOfRangeException("sourceIndex", Environment.GetResourceString("ArgumentOutOfRange_HugeArrayNotSupported"));
-            if (destinationIndex > Int32.MaxValue || destinationIndex < Int32.MinValue) 
-                throw new ArgumentOutOfRangeException("destinationIndex", Environment.GetResourceString("ArgumentOutOfRange_HugeArrayNotSupported"));
-            if (length > Int32.MaxValue || length < Int32.MinValue) 
-                throw new ArgumentOutOfRangeException("length", Environment.GetResourceString("ArgumentOutOfRange_HugeArrayNotSupported"));
+            if (sourceIndex > Int32.MaxValue || sourceIndex < Int32.MinValue)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.sourceIndex, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
+            if (destinationIndex > Int32.MaxValue || destinationIndex < Int32.MinValue)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.destinationIndex, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
+            if (length > Int32.MaxValue || length < Int32.MinValue)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
 
             Array.Copy(sourceArray, (int) sourceIndex, destinationArray, (int) destinationIndex, (int) length);
         }
@@ -347,9 +348,9 @@ namespace System {
         public unsafe Object GetValue(params int[] indices)
         {
             if (indices == null)
-                throw new ArgumentNullException("indices");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.indices);
             if (Rank != indices.Length)
-                throw new ArgumentException(Environment.GetResourceString("Arg_RankIndices"));
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RankIndices);
             Contract.EndContractBlock();
 
             TypedReference elemref = new TypedReference();
@@ -362,7 +363,7 @@ namespace System {
         public unsafe Object GetValue(int index)
         {
             if (Rank != 1)
-                throw new ArgumentException(Environment.GetResourceString("Arg_Need1DArray"));
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_Need1DArray);
             Contract.EndContractBlock();
 
             TypedReference elemref = new TypedReference();
@@ -374,7 +375,7 @@ namespace System {
         public unsafe Object GetValue(int index1, int index2)
         {
             if (Rank != 2)
-                throw new ArgumentException(Environment.GetResourceString("Arg_Need2DArray"));
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_Need2DArray);
             Contract.EndContractBlock();
 
             int* pIndices = stackalloc int[2];
@@ -390,7 +391,7 @@ namespace System {
         public unsafe Object GetValue(int index1, int index2, int index3)
         {
             if (Rank != 3)
-                throw new ArgumentException(Environment.GetResourceString("Arg_Need3DArray"));
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_Need3DArray);
             Contract.EndContractBlock();
 
             int* pIndices = stackalloc int[3];
@@ -406,8 +407,8 @@ namespace System {
         [ComVisible(false)]       
         public Object GetValue(long index)
         {
-            if (index > Int32.MaxValue || index < Int32.MinValue) 
-                throw new ArgumentOutOfRangeException("index", Environment.GetResourceString("ArgumentOutOfRange_HugeArrayNotSupported"));
+            if (index > Int32.MaxValue || index < Int32.MinValue)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
             Contract.EndContractBlock();
 
             return this.GetValue((int) index);
@@ -416,10 +417,10 @@ namespace System {
         [ComVisible(false)]
         public Object GetValue(long index1, long index2)
         {
-            if (index1 > Int32.MaxValue || index1 < Int32.MinValue) 
-                throw new ArgumentOutOfRangeException("index1", Environment.GetResourceString("ArgumentOutOfRange_HugeArrayNotSupported"));
-            if (index2 > Int32.MaxValue || index2 < Int32.MinValue) 
-                throw new ArgumentOutOfRangeException("index2", Environment.GetResourceString("ArgumentOutOfRange_HugeArrayNotSupported"));
+            if (index1 > Int32.MaxValue || index1 < Int32.MinValue)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index1, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
+            if (index2 > Int32.MaxValue || index2 < Int32.MinValue)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index2, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
             Contract.EndContractBlock();
 
             return this.GetValue((int) index1, (int) index2);
@@ -428,12 +429,12 @@ namespace System {
         [ComVisible(false)]
         public Object GetValue(long index1, long index2, long index3)
         {
-            if (index1 > Int32.MaxValue || index1 < Int32.MinValue) 
-                throw new ArgumentOutOfRangeException("index1", Environment.GetResourceString("ArgumentOutOfRange_HugeArrayNotSupported"));
-            if (index2 > Int32.MaxValue || index2 < Int32.MinValue) 
-                throw new ArgumentOutOfRangeException("index2", Environment.GetResourceString("ArgumentOutOfRange_HugeArrayNotSupported"));
-            if (index3 > Int32.MaxValue || index3 < Int32.MinValue) 
-                throw new ArgumentOutOfRangeException("index3", Environment.GetResourceString("ArgumentOutOfRange_HugeArrayNotSupported"));
+            if (index1 > Int32.MaxValue || index1 < Int32.MinValue)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index1, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
+            if (index2 > Int32.MaxValue || index2 < Int32.MinValue)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index2, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
+            if (index3 > Int32.MaxValue || index3 < Int32.MinValue)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index3, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
             Contract.EndContractBlock();
             
             return this.GetValue((int) index1, (int) index2, (int) index3);
@@ -443,9 +444,9 @@ namespace System {
         public Object GetValue(params long[] indices)
         {
             if (indices == null)
-                throw new ArgumentNullException("indices");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.indices);
             if (Rank != indices.Length)
-                throw new ArgumentException(Environment.GetResourceString("Arg_RankIndices"));
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RankIndices);
             Contract.EndContractBlock();
 
             int[] intIndices = new int[indices.Length];
@@ -453,8 +454,8 @@ namespace System {
             for (int i = 0; i < indices.Length; ++i) 
             {
                 long index = indices[i];
-                if (index > Int32.MaxValue || index < Int32.MinValue) 
-                    throw new ArgumentOutOfRangeException("index", Environment.GetResourceString("ArgumentOutOfRange_HugeArrayNotSupported"));
+                if (index > Int32.MaxValue || index < Int32.MinValue)
+                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
                 intIndices[i] = (int) index;
             }
 
@@ -466,7 +467,7 @@ namespace System {
         public unsafe void SetValue(Object value,int index)
         {
             if (Rank != 1)
-                throw new ArgumentException(Environment.GetResourceString("Arg_Need1DArray"));
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_Need1DArray);
             Contract.EndContractBlock();
 
             TypedReference elemref = new TypedReference();
@@ -478,7 +479,7 @@ namespace System {
         public unsafe void SetValue(Object value,int index1, int index2)
         {
             if (Rank != 2)
-                throw new ArgumentException(Environment.GetResourceString("Arg_Need2DArray"));
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_Need2DArray);
             Contract.EndContractBlock();
 
             int* pIndices = stackalloc int[2];
@@ -494,7 +495,7 @@ namespace System {
         public unsafe void SetValue(Object value,int index1, int index2, int index3)
         {
             if (Rank != 3)
-                throw new ArgumentException(Environment.GetResourceString("Arg_Need3DArray"));
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_Need3DArray);
             Contract.EndContractBlock();
 
             int* pIndices = stackalloc int[3];
@@ -511,9 +512,9 @@ namespace System {
         public unsafe void SetValue(Object value,params int[] indices)
         {
             if (indices == null)
-                throw new ArgumentNullException("indices");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.indices);
             if (Rank != indices.Length)
-                throw new ArgumentException(Environment.GetResourceString("Arg_RankIndices"));
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RankIndices);
             Contract.EndContractBlock();
 
             TypedReference elemref = new TypedReference();
@@ -525,8 +526,8 @@ namespace System {
         [ComVisible(false)]
         public void SetValue(Object value, long index)
         {
-            if (index > Int32.MaxValue || index < Int32.MinValue) 
-                throw new ArgumentOutOfRangeException("index", Environment.GetResourceString("ArgumentOutOfRange_HugeArrayNotSupported"));
+            if (index > Int32.MaxValue || index < Int32.MinValue)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
             Contract.EndContractBlock();
 
             this.SetValue(value, (int) index);
@@ -535,10 +536,10 @@ namespace System {
         [ComVisible(false)]
         public void SetValue(Object value, long index1, long index2)
         {
-            if (index1 > Int32.MaxValue || index1 < Int32.MinValue) 
-                throw new ArgumentOutOfRangeException("index1", Environment.GetResourceString("ArgumentOutOfRange_HugeArrayNotSupported"));
-            if (index2 > Int32.MaxValue || index2 < Int32.MinValue) 
-                throw new ArgumentOutOfRangeException("index2", Environment.GetResourceString("ArgumentOutOfRange_HugeArrayNotSupported"));
+            if (index1 > Int32.MaxValue || index1 < Int32.MinValue)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index1, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
+            if (index2 > Int32.MaxValue || index2 < Int32.MinValue)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index2, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
             Contract.EndContractBlock();
 
             this.SetValue(value, (int) index1, (int) index2);
@@ -547,12 +548,12 @@ namespace System {
         [ComVisible(false)]
         public void SetValue(Object value, long index1, long index2, long index3)
         {
-            if (index1 > Int32.MaxValue || index1 < Int32.MinValue) 
-                throw new ArgumentOutOfRangeException("index1", Environment.GetResourceString("ArgumentOutOfRange_HugeArrayNotSupported"));
-            if (index2 > Int32.MaxValue || index2 < Int32.MinValue) 
-                throw new ArgumentOutOfRangeException("index2", Environment.GetResourceString("ArgumentOutOfRange_HugeArrayNotSupported"));
-            if (index3 > Int32.MaxValue || index3 < Int32.MinValue) 
-                throw new ArgumentOutOfRangeException("index3", Environment.GetResourceString("ArgumentOutOfRange_HugeArrayNotSupported"));
+            if (index1 > Int32.MaxValue || index1 < Int32.MinValue)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index1, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
+            if (index2 > Int32.MaxValue || index2 < Int32.MinValue)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index2, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
+            if (index3 > Int32.MaxValue || index3 < Int32.MinValue)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index3, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
             Contract.EndContractBlock();
 
             this.SetValue(value, (int) index1, (int) index2, (int) index3);
@@ -562,9 +563,9 @@ namespace System {
         public void SetValue(Object value, params long[] indices)
         {
             if (indices == null)
-                throw new ArgumentNullException("indices");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.indices);
             if (Rank != indices.Length)
-                throw new ArgumentException(Environment.GetResourceString("Arg_RankIndices"));
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RankIndices);
             Contract.EndContractBlock();
 
             int[] intIndices = new int[indices.Length];
@@ -572,8 +573,8 @@ namespace System {
             for (int i = 0; i < indices.Length; ++i) 
             {
                 long index = indices[i];
-                if (index > Int32.MaxValue || index < Int32.MinValue) 
-                    throw new ArgumentOutOfRangeException("index", Environment.GetResourceString("ArgumentOutOfRange_HugeArrayNotSupported"));
+                if (index > Int32.MaxValue || index < Int32.MinValue)
+                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
                 intIndices[i] = (int) index;
             }
 
@@ -694,7 +695,8 @@ namespace System {
 
         int IList.Add(Object value)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_FixedSizeCollection"));
+            ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_FixedSizeCollection);
+            return default(int);
         }
 
         bool IList.Contains(Object value)
@@ -714,17 +716,17 @@ namespace System {
 
         void IList.Insert(int index, Object value)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_FixedSizeCollection"));
+            ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_FixedSizeCollection);
         }
 
         void IList.Remove(Object value)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_FixedSizeCollection"));
+            ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_FixedSizeCollection);
         }
 
         void IList.RemoveAt(int index)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_FixedSizeCollection"));
+            ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_FixedSizeCollection);
         }
 
         // Make a new array which is a shallow copy of the original array.
@@ -741,8 +743,9 @@ namespace System {
 
             Array o = other as Array;
 
-            if (o == null || this.Length != o.Length) {
-                throw new ArgumentException(Environment.GetResourceString("ArgumentException_OtherNotArrayOfCorrectLength"), "other");
+            if (o == null || this.Length != o.Length)
+            {
+                ThrowHelper.ThrowArgumentException(ExceptionResource.ArgumentException_OtherNotArrayOfCorrectLength, ExceptionArgument.other);
             }
 
             int i = 0;
@@ -796,7 +799,7 @@ namespace System {
 
         int IStructuralEquatable.GetHashCode(IEqualityComparer comparer) {
             if (comparer == null)
-                throw new ArgumentNullException("comparer");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.comparer);
             Contract.EndContractBlock();
 
             int ret = 0;
@@ -825,7 +828,7 @@ namespace System {
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public static int BinarySearch(Array array, Object value) {
             if (array==null)
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             Contract.Ensures((Contract.Result<int>() >= array.GetLowerBound(0) && Contract.Result<int>() <= array.GetUpperBound(0)) || (Contract.Result<int>() < array.GetLowerBound(0) && ~Contract.Result<int>() <= array.GetUpperBound(0) + 1));
             Contract.EndContractBlock();
             int lb = array.GetLowerBound(0);
@@ -869,7 +872,7 @@ namespace System {
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public static int BinarySearch(Array array, Object value, IComparer comparer) {
             if (array==null)
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             Contract.EndContractBlock();
             int lb = array.GetLowerBound(0);
             return BinarySearch(array, lb, array.Length, value, comparer);
@@ -895,15 +898,17 @@ namespace System {
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public static int BinarySearch(Array array, int index, int length, Object value, IComparer comparer) {
             if (array==null) 
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             Contract.EndContractBlock();
             int lb = array.GetLowerBound(0);
-            if (index < lb || length < 0)
-                throw new ArgumentOutOfRangeException((index<lb ? "index" : "length"), Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+            if (index < lb)
+                ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
+            if (length < 0)
+                ThrowHelper.ThrowLengthArgumentOutOfRange_ArgumentOutOfRange_NeedNonNegNum();
             if (array.Length - (index - lb) < length)
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidOffLen"));
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
             if (array.Rank != 1)
-                throw new RankException(Environment.GetResourceString("Rank_MultiDimNotSupported"));
+                ThrowHelper.ThrowRankException(ExceptionResource.Rank_MultiDimNotSupported);
             
             if (comparer == null) comparer = Comparer.Default;
             if (comparer == Comparer.Default) {
@@ -921,12 +926,12 @@ namespace System {
                     // i might overflow if lo and hi are both large positive numbers. 
                     int i = GetMedian(lo, hi);
 
-                    int c;
+                    int c = 0;
                     try {
                         c = comparer.Compare(objArray[i], value);
                     }
                     catch (Exception e) {
-                        throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_IComparerFailed"), e);
+                        ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_IComparerFailed, e);
                     }
                     if (c == 0) return i;
                     if (c < 0) {
@@ -941,12 +946,12 @@ namespace System {
                 while (lo <= hi) {
                     int i = GetMedian(lo, hi);                    
 
-                    int c;
+                    int c = 0;
                     try {
                         c = comparer.Compare(array.GetValue(i), value);
                     }
                     catch (Exception e) {
-                        throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_IComparerFailed"), e);
+                        ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_IComparerFailed, e);
                     }
                     if (c == 0) return i;
                     if (c < 0) {
@@ -969,7 +974,7 @@ namespace System {
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public static int BinarySearch<T>(T[] array, T value) {
             if (array==null)
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             Contract.EndContractBlock();
             return BinarySearch<T>(array, 0, array.Length, value, null);
         }
@@ -978,7 +983,7 @@ namespace System {
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public static int BinarySearch<T>(T[] array, T value, System.Collections.Generic.IComparer<T> comparer) {
             if (array==null)
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             Contract.EndContractBlock();
             return BinarySearch<T>(array, 0, array.Length, value, comparer);
         }
@@ -993,30 +998,26 @@ namespace System {
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public static int BinarySearch<T>(T[] array, int index, int length, T value, System.Collections.Generic.IComparer<T> comparer) {
             if (array==null) 
-                throw new ArgumentNullException("array");
-            if (index < 0 || length < 0)
-                throw new ArgumentOutOfRangeException((index<0 ? "index" : "length"), Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
+            if (index < 0)
+                ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
+            if (length < 0)
+                ThrowHelper.ThrowLengthArgumentOutOfRange_ArgumentOutOfRange_NeedNonNegNum();
+
             if (array.Length - index < length)
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidOffLen"));
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
             Contract.EndContractBlock();
 
-#if FEATURE_LEGACYNETCF
-            if (CompatibilitySwitches.IsAppEarlierThanWindowsPhone8)
-                return MangoArraySortHelper<T>.Default.BinarySearch(array, index, length, value, comparer);
-            else
-                return ArraySortHelper<T>.Default.BinarySearch(array, index, length, value, comparer);
-#else
             return ArraySortHelper<T>.Default.BinarySearch(array, index, length, value, comparer);
-#endif
         }
 
         public static TOutput[] ConvertAll<TInput, TOutput>(TInput[] array, Converter<TInput,TOutput> converter) {
             if( array == null) {
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
 
             if( converter == null) {
-                throw new ArgumentNullException("converter");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.converter);
             }
             Contract.Ensures(Contract.Result<TOutput[]>() != null);
             Contract.Ensures(Contract.Result<TOutput[]>().Length == array.Length);
@@ -1040,7 +1041,7 @@ namespace System {
         public void CopyTo(Array array, int index)
         {
             if (array != null && array.Rank != 1)
-                throw new ArgumentException(Environment.GetResourceString("Arg_RankMultiDimNotSupported"));
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RankMultiDimNotSupported);
             Contract.EndContractBlock();
             // Note: Array.Copy throws a RankException and we want a consistent ArgumentException for all the IList CopyTo methods.
             Array.Copy(this, GetLowerBound(0), array, index, Length);
@@ -1050,8 +1051,8 @@ namespace System {
         [ComVisible(false)]
         public void CopyTo(Array array, long index)
         {
-            if (index > Int32.MaxValue || index < Int32.MinValue) 
-                throw new ArgumentOutOfRangeException("index", Environment.GetResourceString("ArgumentOutOfRange_HugeArrayNotSupported"));
+            if (index > Int32.MaxValue || index < Int32.MinValue)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
             Contract.EndContractBlock();
 
             this.CopyTo(array, (int) index);
@@ -1074,11 +1075,11 @@ namespace System {
 
         public static T Find<T>(T[] array, Predicate<T> match) {
             if( array == null) {
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
 
             if( match == null) {
-                throw new ArgumentNullException("match");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
             }
             Contract.EndContractBlock();
 
@@ -1092,11 +1093,11 @@ namespace System {
 
         public static T[] FindAll<T>(T[] array, Predicate<T> match) {
             if( array == null) {
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
 
             if( match == null) {
-                throw new ArgumentNullException("match");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
             }
             Contract.EndContractBlock();
 
@@ -1111,7 +1112,7 @@ namespace System {
 
         public static int FindIndex<T>(T[] array, Predicate<T> match) {
             if (array==null) {
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
             Contract.Ensures(Contract.Result<int>() < array.Length);
             Contract.EndContractBlock();
@@ -1121,7 +1122,7 @@ namespace System {
 
         public static int FindIndex<T>(T[] array, int startIndex, Predicate<T> match) {
             if (array==null) {
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
             Contract.Ensures(Contract.Result<int>() < array.Length);
             Contract.EndContractBlock();
@@ -1131,19 +1132,19 @@ namespace System {
 
         public static int FindIndex<T>(T[] array, int startIndex, int count, Predicate<T> match) {
             if (array==null) {
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
 
             if( startIndex < 0 || startIndex > array.Length ) {
-                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_Index"));                
+                ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
             }
 
             if (count < 0 || startIndex > array.Length - count) {
-                throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_Count"));
+                ThrowHelper.ThrowCountArgumentOutOfRange_ArgumentOutOfRange_Count();
             }
 
             if( match == null) {
-                throw new ArgumentNullException("match");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
             }
             Contract.Ensures(Contract.Result<int>() < array.Length);
             Contract.EndContractBlock();
@@ -1157,11 +1158,11 @@ namespace System {
 
         public static T FindLast<T>(T[] array, Predicate<T> match) {
             if( array == null) {
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
 
             if( match == null) {
-                throw new ArgumentNullException("match");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
             }
             Contract.EndContractBlock();
             
@@ -1175,7 +1176,7 @@ namespace System {
 
         public static int FindLastIndex<T>(T[] array, Predicate<T> match) {
             if( array == null) {
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
             Contract.EndContractBlock();
 
@@ -1184,7 +1185,7 @@ namespace System {
 
         public static int FindLastIndex<T>(T[] array, int startIndex, Predicate<T> match) {
             if( array == null) {
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
             Contract.EndContractBlock();
         
@@ -1193,30 +1194,30 @@ namespace System {
 
         public static int FindLastIndex<T>(T[] array, int startIndex, int count, Predicate<T> match) {
             if( array == null) {
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
 
             if( match == null) {
-                throw new ArgumentNullException("match");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
             }
             Contract.EndContractBlock();
 
             if(array.Length == 0) {
                 // Special case for 0 length List
                 if( startIndex != -1) {
-                    throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_Index"));
+                    ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
                 }
             }
             else {
                 // Make sure we're not out of range            
                 if ( startIndex < 0 || startIndex >= array.Length) {
-                    throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_Index"));
+                    ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
                 }
             }
             
             // 2nd have of this also catches when startIndex == MAXINT, so MAXINT - 0 + 1 == -1, which is < 0.
             if (count < 0 || startIndex - count + 1 < 0) {
-                throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_Count"));
+                ThrowHelper.ThrowCountArgumentOutOfRange_ArgumentOutOfRange_Count();
             }
 
             int endIndex = startIndex - count;
@@ -1230,11 +1231,11 @@ namespace System {
 
         public static void ForEach<T>(T[] array, Action<T> action) {
             if( array == null) {
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
 
             if( action == null) {
-                throw new ArgumentNullException("action");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.action);
             }
             Contract.EndContractBlock();
 
@@ -1263,7 +1264,7 @@ namespace System {
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public static int IndexOf(Array array, Object value) {
             if (array==null)
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             Contract.Ensures(Contract.Result<int>() < array.GetLowerBound(0) + array.Length);
             Contract.EndContractBlock();
             int lb = array.GetLowerBound(0);
@@ -1279,7 +1280,7 @@ namespace System {
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public static int IndexOf(Array array, Object value, int startIndex) {
             if (array==null)
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             Contract.Ensures(Contract.Result<int>() < array.GetLowerBound(0) + array.Length);
             Contract.EndContractBlock();
             int lb = array.GetLowerBound(0);
@@ -1296,17 +1297,17 @@ namespace System {
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public static int IndexOf(Array array, Object value, int startIndex, int count) {
             if (array==null)
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             if (array.Rank != 1)
-                throw new RankException(Environment.GetResourceString("Rank_MultiDimNotSupported"));
+                ThrowHelper.ThrowRankException(ExceptionResource.Rank_MultiDimNotSupported);
             Contract.Ensures(Contract.Result<int>() < array.GetLowerBound(0) + array.Length);
             Contract.EndContractBlock();
 
             int lb = array.GetLowerBound(0);
             if (startIndex < lb || startIndex > array.Length + lb)
-                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_Index"));
+                ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
             if (count < 0 || count > array.Length - startIndex + lb)
-                throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_Count"));
+                ThrowHelper.ThrowCountArgumentOutOfRange_ArgumentOutOfRange_Count();
 
             // Try calling a quick native method to handle primitive types.
             int retVal;
@@ -1350,7 +1351,7 @@ namespace System {
         [Pure]
         public static int IndexOf<T>(T[] array, T value) {
             if (array==null) {
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
             Contract.Ensures((Contract.Result<int>() < 0) ||
                 (Contract.Result<int>() >= 0 && Contract.Result<int>() < array.Length && EqualityComparer<T>.Default.Equals(value, array[Contract.Result<int>()])));
@@ -1361,7 +1362,7 @@ namespace System {
 
         public static int IndexOf<T>(T[] array, T value, int startIndex) {
             if (array==null) {
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
             Contract.Ensures(Contract.Result<int>() < array.Length);
             Contract.EndContractBlock();
@@ -1371,15 +1372,15 @@ namespace System {
 
         public static int IndexOf<T>(T[] array, T value, int startIndex, int count) {
             if (array==null) {
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
 
             if (startIndex < 0 || startIndex > array.Length ) {
-                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_Index"));
+                ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
             }
 
             if (count < 0 || count > array.Length - startIndex) {
-                throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_Count"));
+                ThrowHelper.ThrowCountArgumentOutOfRange_ArgumentOutOfRange_Count();
             }
             Contract.Ensures(Contract.Result<int>() < array.Length);
             Contract.EndContractBlock();
@@ -1400,7 +1401,7 @@ namespace System {
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public static int LastIndexOf(Array array, Object value) {
             if (array==null)
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             Contract.Ensures(Contract.Result<int>() < array.GetLowerBound(0) + array.Length);
             Contract.EndContractBlock();
             int lb = array.GetLowerBound(0);
@@ -1415,7 +1416,7 @@ namespace System {
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public static int LastIndexOf(Array array, Object value, int startIndex) {
             if (array == null)
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             Contract.Ensures(Contract.Result<int>() < array.GetLowerBound(0) + array.Length);
             Contract.EndContractBlock();
             int lb = array.GetLowerBound(0);
@@ -1432,7 +1433,7 @@ namespace System {
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public static int LastIndexOf(Array array, Object value, int startIndex, int count) {
             if (array==null)
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             Contract.Ensures(Contract.Result<int>() < array.GetLowerBound(0) + array.Length);
             Contract.EndContractBlock();
             int lb = array.GetLowerBound(0);
@@ -1441,13 +1442,13 @@ namespace System {
             }
 
             if (startIndex < lb || startIndex >= array.Length + lb)
-                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_Index"));
+                ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
             if (count < 0)
-                throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_Count"));
+                ThrowHelper.ThrowCountArgumentOutOfRange_ArgumentOutOfRange_Count();
             if (count > startIndex - lb + 1)
-                throw new ArgumentOutOfRangeException("endIndex", Environment.GetResourceString("ArgumentOutOfRange_EndIndexStartIndex"));
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.endIndex, ExceptionResource.ArgumentOutOfRange_EndIndexStartIndex);
             if (array.Rank != 1)
-                throw new RankException(Environment.GetResourceString("Rank_MultiDimNotSupported"));
+                ThrowHelper.ThrowRankException(ExceptionResource.Rank_MultiDimNotSupported);
 
             // Try calling a quick native method to handle primitive types.
             int retVal;
@@ -1486,7 +1487,7 @@ namespace System {
         
         public static int LastIndexOf<T>(T[] array, T value) {
             if (array==null) {
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
             Contract.Ensures(Contract.Result<int>() < array.Length);
             Contract.EndContractBlock();
@@ -1496,7 +1497,7 @@ namespace System {
 
         public static int LastIndexOf<T>(T[] array, T value, int startIndex) {
             if (array==null) {
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
             Contract.Ensures(Contract.Result<int>() < array.Length);
             Contract.EndContractBlock();
@@ -1506,7 +1507,7 @@ namespace System {
 
         public static int LastIndexOf<T>(T[] array, T value, int startIndex, int count) {
             if (array==null) {
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
             Contract.Ensures(Contract.Result<int>() < array.Length);
             Contract.EndContractBlock();
@@ -1517,24 +1518,24 @@ namespace System {
                 // accept -1 and 0 as valid startIndex for compablility reason.
                 //
                 if( startIndex != -1 && startIndex != 0) {
-                    throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_Index"));
+                    ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
                 }
 
                 // only 0 is a valid value for count if array is empty
                 if( count != 0) {
-                    throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_Count"));
+                    ThrowHelper.ThrowCountArgumentOutOfRange_ArgumentOutOfRange_Count();
                 }
                 return -1;
             }
 
             // Make sure we're not out of range            
             if ( startIndex < 0 || startIndex >= array.Length) {
-                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_Index"));
+                ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
             }
             
             // 2nd have of this also catches when startIndex == MAXINT, so MAXINT - 0 + 1 == -1, which is < 0.
             if (count < 0 || startIndex - count + 1 < 0) {
-                throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_Count"));
+                ThrowHelper.ThrowCountArgumentOutOfRange_ArgumentOutOfRange_Count();
             }
 
             return EqualityComparer<T>.Default.LastIndexOf(array, value, startIndex, count);            
@@ -1554,7 +1555,7 @@ namespace System {
         [ReliabilityContract(Consistency.MayCorruptInstance, Cer.MayFail)]
         public static void Reverse(Array array) {
             if (array==null)
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             Contract.EndContractBlock();
             Reverse(array, array.GetLowerBound(0), array.Length);
         }
@@ -1569,13 +1570,17 @@ namespace System {
         [ReliabilityContract(Consistency.MayCorruptInstance, Cer.MayFail)]
         public static void Reverse(Array array, int index, int length) {
             if (array==null) 
-                throw new ArgumentNullException("array");
-            if (index < array.GetLowerBound(0) || length < 0)
-                throw new ArgumentOutOfRangeException((index<0 ? "index" : "length"), Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
-            if (array.Length - (index - array.GetLowerBound(0)) < length)
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidOffLen"));
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
+            int lowerBound = array.GetLowerBound(0);
+            if (index < lowerBound)
+                ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
+            if (length < 0)
+                ThrowHelper.ThrowLengthArgumentOutOfRange_ArgumentOutOfRange_NeedNonNegNum();
+
+            if (array.Length - (index - lowerBound) < length)
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
             if (array.Rank != 1)
-                throw new RankException(Environment.GetResourceString("Rank_MultiDimNotSupported"));
+                ThrowHelper.ThrowRankException(ExceptionResource.Rank_MultiDimNotSupported);
             Contract.EndContractBlock();
 
             bool r = TrySZReverse(array, index, length);
@@ -1609,7 +1614,41 @@ namespace System {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.MayCorruptInstance, Cer.MayFail)]
         private static extern bool TrySZReverse(Array array, int index, int count);
-        
+
+        [ReliabilityContract(Consistency.MayCorruptInstance, Cer.MayFail)]
+        public static void Reverse<T>(T[] array)
+        {
+            if (array == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
+            Contract.EndContractBlock();
+            Reverse(array, 0, array.Length);
+        }
+
+        [ReliabilityContract(Consistency.MayCorruptInstance, Cer.MayFail)]
+        public static void Reverse<T>(T[] array, int index, int length)
+        {
+            if (array == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
+            if (index < 0)
+                ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
+            if (length < 0)
+                ThrowHelper.ThrowLengthArgumentOutOfRange_ArgumentOutOfRange_NeedNonNegNum();
+            if (array.Length - index < length)
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
+            Contract.EndContractBlock();
+
+            int i = index;
+            int j = index + length - 1;
+            while (i < j)
+            {
+                T temp = array[i];
+                array[i] = array[j];
+                array[j] = temp;
+                i++;
+                j--;
+            }
+        }
+
         // Sorts the elements of an array. The sort compares the elements to each
         // other using the IComparable interface, which must be implemented
         // by all elements of the array.
@@ -1617,7 +1656,7 @@ namespace System {
         [ReliabilityContract(Consistency.MayCorruptInstance, Cer.MayFail)]
         public static void Sort(Array array) {
             if (array==null)
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             Contract.EndContractBlock();
             Sort(array, null, array.GetLowerBound(0), array.Length, null);
         }
@@ -1631,7 +1670,7 @@ namespace System {
         [ReliabilityContract(Consistency.MayCorruptInstance, Cer.MayFail)]
         public static void Sort(Array keys, Array items) {
             if (keys==null)
-                throw new ArgumentNullException("keys");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.keys);
             Contract.EndContractBlock();
             Sort(keys, items, keys.GetLowerBound(0), keys.Length, null);
         }
@@ -1665,7 +1704,7 @@ namespace System {
         [ReliabilityContract(Consistency.MayCorruptInstance, Cer.MayFail)]
         public static void Sort(Array array, IComparer comparer) {
             if (array==null)
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             Contract.EndContractBlock();
             Sort(array, null, array.GetLowerBound(0), array.Length, comparer);
         }
@@ -1681,7 +1720,7 @@ namespace System {
         [ReliabilityContract(Consistency.MayCorruptInstance, Cer.MayFail)]
         public static void Sort(Array keys, Array items, IComparer comparer) {
             if (keys==null)
-                throw new ArgumentNullException("keys");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.keys);
             Contract.EndContractBlock();
             Sort(keys, items, keys.GetLowerBound(0), keys.Length, comparer);
         }
@@ -1709,15 +1748,19 @@ namespace System {
         [ReliabilityContract(Consistency.MayCorruptInstance, Cer.MayFail)]
         public static void Sort(Array keys, Array items, int index, int length, IComparer comparer) {
             if (keys==null)
-                throw new ArgumentNullException("keys");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.keys);
             if (keys.Rank != 1 || (items != null && items.Rank != 1))
-                throw new RankException(Environment.GetResourceString("Rank_MultiDimNotSupported"));
-            if (items != null && keys.GetLowerBound(0) != items.GetLowerBound(0))
-                throw new ArgumentException(Environment.GetResourceString("Arg_LowerBoundsMustMatch"));
-            if (index < keys.GetLowerBound(0) || length < 0)
-                throw new ArgumentOutOfRangeException((length<0 ? "length" : "index"), Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
-            if (keys.Length - (index - keys.GetLowerBound(0)) < length || (items != null && (index - items.GetLowerBound(0)) > items.Length - length))
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidOffLen"));
+                ThrowHelper.ThrowRankException(ExceptionResource.Rank_MultiDimNotSupported);
+            int keysLowerBound = keys.GetLowerBound(0);
+            if (items != null && keysLowerBound != items.GetLowerBound(0))
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_LowerBoundsMustMatch);
+            if (index < keysLowerBound)
+                ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
+            if (length < 0)
+                ThrowHelper.ThrowLengthArgumentOutOfRange_ArgumentOutOfRange_NeedNonNegNum();
+
+            if (keys.Length - (index - keysLowerBound) < length || (items != null && (index - keysLowerBound) > items.Length - length))
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
 
             Contract.EndContractBlock();
             
@@ -1751,15 +1794,15 @@ namespace System {
         [ReliabilityContract(Consistency.MayCorruptInstance, Cer.MayFail)]
         public static void Sort<T>(T[] array) {
             if (array==null)
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             Contract.EndContractBlock();
-            Sort<T>(array, array.GetLowerBound(0), array.Length, null);
+            Sort<T>(array, 0, array.Length, null);
         }
 
         [ReliabilityContract(Consistency.MayCorruptInstance, Cer.MayFail)]
         public static void Sort<TKey, TValue>(TKey[] keys, TValue[] items) {
             if (keys==null)
-                throw new ArgumentNullException("keys");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.keys);
             Contract.EndContractBlock();
             Sort<TKey, TValue>(keys, items, 0, keys.Length, null);
         }
@@ -1776,8 +1819,8 @@ namespace System {
 
         [ReliabilityContract(Consistency.MayCorruptInstance, Cer.MayFail)]
         public static void Sort<T>(T[] array, System.Collections.Generic.IComparer<T> comparer) {
-            if (array==null)
-                throw new ArgumentNullException("array");
+            if (array == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             Contract.EndContractBlock();
             Sort<T>(array, 0, array.Length, comparer);
         }
@@ -1785,7 +1828,7 @@ namespace System {
         [ReliabilityContract(Consistency.MayCorruptInstance, Cer.MayFail)]
         public static void Sort<TKey, TValue>(TKey[] keys, TValue[] items, System.Collections.Generic.IComparer<TKey> comparer) {
             if (keys==null)
-                throw new ArgumentNullException("keys");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.keys);
             Contract.EndContractBlock();
             Sort<TKey, TValue>(keys, items, 0, keys.Length, comparer);
         }
@@ -1794,11 +1837,13 @@ namespace System {
         [ReliabilityContract(Consistency.MayCorruptInstance, Cer.MayFail)]
         public static void Sort<T>(T[] array, int index, int length, System.Collections.Generic.IComparer<T> comparer) {
             if (array==null)
-                throw new ArgumentNullException("array");
-            if (index < 0 || length < 0)
-                throw new ArgumentOutOfRangeException((length<0 ? "length" : "index"), Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
+            if (index < 0)
+                ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
+            if (length < 0)
+                ThrowHelper.ThrowLengthArgumentOutOfRange_ArgumentOutOfRange_NeedNonNegNum();
             if (array.Length - index < length)
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidOffLen"));
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
             Contract.EndContractBlock();
 
             if (length > 1) {
@@ -1807,15 +1852,8 @@ namespace System {
                         return;
                     }
                 }
-                
-#if FEATURE_LEGACYNETCF
-                if (CompatibilitySwitches.IsAppEarlierThanWindowsPhone8)
-                    MangoArraySortHelper<T>.Default.Sort(array, index, length, comparer);                
-                else
-                    ArraySortHelper<T>.Default.Sort(array, index, length, comparer);                
-#else
+
                 ArraySortHelper<T>.Default.Sort(array, index, length, comparer);                
-#endif
             }
         }
 
@@ -1823,11 +1861,13 @@ namespace System {
         [ReliabilityContract(Consistency.MayCorruptInstance, Cer.MayFail)]
         public static void Sort<TKey, TValue>(TKey[] keys, TValue[] items, int index, int length, System.Collections.Generic.IComparer<TKey> comparer) {
             if (keys==null)
-                throw new ArgumentNullException("keys");
-            if (index < 0 || length < 0)
-                throw new ArgumentOutOfRangeException((length<0 ? "length" : "index"), Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.keys);
+            if (index < 0)
+                ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
+            if (length < 0)
+                ThrowHelper.ThrowLengthArgumentOutOfRange_ArgumentOutOfRange_NeedNonNegNum();
             if (keys.Length - index < length || (items != null && index > items.Length - length))
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidOffLen"));
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
             Contract.EndContractBlock();
 
             if (length > 1) {
@@ -1843,38 +1883,31 @@ namespace System {
                     return;
                 }
 
-#if FEATURE_LEGACYNETCF
-                if (CompatibilitySwitches.IsAppEarlierThanWindowsPhone8)
-                    MangoArraySortHelper<TKey>.Default.Sort<TValue>(keys, items, index, length, comparer);
-                else
-                    ArraySortHelper<TKey, TValue>.Default.Sort(keys, items, index, length, comparer);
-#else
                 ArraySortHelper<TKey, TValue>.Default.Sort(keys, items, index, length, comparer);
-#endif
             }
         }
 
         public static void Sort<T>(T[] array, Comparison<T> comparison) {
             if( array == null) {
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
 
             if( comparison == null) {
-                throw new ArgumentNullException("comparison");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.comparison);
             }
             Contract.EndContractBlock();
 
-            IComparer<T> comparer = new FunctorComparer<T>(comparison);
+            IComparer<T> comparer = Comparer<T>.Create(comparison);
             Array.Sort(array, comparer);
         }
 
         public static bool TrueForAll<T>(T[] array, Predicate<T> match) {
             if( array == null) {
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
 
             if( match == null) {
-                throw new ArgumentNullException("match");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
             }
             Contract.EndContractBlock();
 
@@ -1884,18 +1917,6 @@ namespace System {
                 }
             }
             return true;
-        }
-
-        internal sealed class FunctorComparer<T> : IComparer<T> {
-            Comparison<T> comparison;
-
-            public FunctorComparer(Comparison<T> comparison) {
-                this.comparison = comparison;
-            }
-
-            public int Compare(T x, T y) {
-                return comparison(x, y);
-            }
         }
 
 
@@ -1966,6 +1987,7 @@ namespace System {
 #endif
             }
 
+#if !FEATURE_CORECLR
             private void DepthLimitedQuickSort(int left, int right, int depthLimit)
             {
                 // Can use the much faster jit helpers for array access.
@@ -1982,11 +2004,11 @@ namespace System {
                         }
                         catch (IndexOutOfRangeException)
                         {
-                            throw new ArgumentException(Environment.GetResourceString("Arg_BogusIComparer", comparer));
+                            ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_BogusIComparer, ExceptionArgument.comparer);
                         }
                         catch (Exception e)
                         {
-                            throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_IComparerFailed"), e);
+                            ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_IComparerFailed, e);
                         }
                     }
 
@@ -2008,7 +2030,7 @@ namespace System {
                     }
                     catch (Exception e)
                     {
-                        throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_IComparerFailed"), e);
+                        ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_IComparerFailed, e);
                     }
                     Object x = keys[middle];
                     do
@@ -2022,11 +2044,11 @@ namespace System {
                         }
                         catch (IndexOutOfRangeException)
                         {
-                            throw new ArgumentException(Environment.GetResourceString("Arg_BogusIComparer", comparer));
+                            ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_BogusIComparer, ExceptionArgument.comparer);
                         }
                         catch (Exception e)
                         {
-                            throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_IComparerFailed"), e);
+                            ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_IComparerFailed, e);
                         }
                         Contract.Assert(i >= left && j <= right, "(i>=left && j<=right)  Sort failed - Is your IComparer bogus?");
                         if (i > j) break;
@@ -2047,7 +2069,7 @@ namespace System {
                     } while (i <= j);
 
                     // The next iteration of the while loop is to "recursively" sort the larger half of the array and the
-                    // following calls recrusively sort the smaller half.  So we subtrack one from depthLimit here so
+                    // following calls recursively sort the smaller half.  So we subtract one from depthLimit here so
                     // both sorts see the new value.
                     depthLimit--;
 
@@ -2063,6 +2085,7 @@ namespace System {
                     }
                 } while (left < right);
             }
+#endif
 
             private void IntrospectiveSort(int left, int length)
             {
@@ -2079,7 +2102,7 @@ namespace System {
                 }
                 catch (Exception e)
                 {
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_IComparerFailed"), e);
+                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_IComparerFailed, e);
                 }
             }
 
@@ -2285,6 +2308,7 @@ namespace System {
 #endif
             }
 
+#if !FEATURE_CORECLR
             private void DepthLimitedQuickSort(int left, int right, int depthLimit)
             {
                 // Must use slow Array accessors (GetValue & SetValue)
@@ -2301,11 +2325,11 @@ namespace System {
                         }
                         catch (IndexOutOfRangeException)
                         {
-                            throw new ArgumentException(Environment.GetResourceString("Arg_BogusIComparer", comparer));
+                            ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_BogusIComparer, ExceptionArgument.comparer);
                         }
                         catch (Exception e)
                         {
-                            throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_IComparerFailed"), e);
+                            ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_IComparerFailed, e);
                         }
                     }
 
@@ -2324,7 +2348,7 @@ namespace System {
                     }
                     catch (Exception e)
                     {
-                        throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_IComparerFailed"), e);
+                        ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_IComparerFailed, e);
                     }
 
                     Object x = keys.GetValue(middle);
@@ -2339,11 +2363,11 @@ namespace System {
                         }
                         catch (IndexOutOfRangeException)
                         {
-                            throw new ArgumentException(Environment.GetResourceString("Arg_BogusIComparer", comparer));
+                            ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_BogusIComparer, ExceptionArgument.comparer);
                         }
                         catch (Exception e)
                         {
-                            throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_IComparerFailed"), e);
+                            ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_IComparerFailed, e);
                         }
                         Contract.Assert(i >= left && j <= right, "(i>=left && j<=right)  Sort failed - Is your IComparer bogus?");
                         if (i > j) break;
@@ -2364,7 +2388,7 @@ namespace System {
                     } while (i <= j);
 
                     // The next iteration of the while loop is to "recursively" sort the larger half of the array and the
-                    // following calls recrusively sort the smaller half.  So we subtrack one from depthLimit here so
+                    // following calls recursively sort the smaller half.  So we subtract one from depthLimit here so
                     // both sorts see the new value.
                     depthLimit--;
 
@@ -2380,6 +2404,7 @@ namespace System {
                     }
                 } while (left < right);
             }
+#endif
 
             private void IntrospectiveSort(int left, int length)
             {
@@ -2396,7 +2421,7 @@ namespace System {
                 }
                 catch (Exception e)
                 {
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_IComparerFailed"), e);
+                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_IComparerFailed, e);
                 }
             }
 
@@ -2564,8 +2589,8 @@ namespace System {
     
             public Object Current {
                 get {
-                    if (_index < 0) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumNotStarted));
-                    if (_index >= _endIndex) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumEnded));
+                    if (_index < 0) ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumNotStarted();
+                    if (_index >= _endIndex) ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumEnded();
                     return _array.GetValue(_index);
                 }
             }
@@ -2642,8 +2667,8 @@ namespace System {
     
             public Object Current {
                 get {
-                    if (index < startIndex) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumNotStarted));
-                    if (_complete) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumEnded));
+                    if (index < startIndex) ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumNotStarted();
+                    if (_complete) ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumEnded();
                     return array.GetValue(_indices);
                 }
             }
@@ -2725,10 +2750,6 @@ namespace System {
             //! Warning: "this" is an array, not an SZArrayHelper. See comments above
             //! or you may introduce a security hole!
 
-            if (array != null && array.Rank != 1)
-                throw new ArgumentException(Environment.GetResourceString("Rank_MultiDimNotSupported"));
-            Contract.EndContractBlock();
-
             T[] _this = JitHelpers.UnsafeCast<T[]>(this);
             Array.Copy(_this, 0, array, index, _this.Length);
         }
@@ -2750,7 +2771,7 @@ namespace System {
             //! or you may introduce a security hole!
             T[] _this = JitHelpers.UnsafeCast<T[]>(this);
             if ((uint)index >= (uint)_this.Length) {
-                ThrowHelper.ThrowArgumentOutOfRangeException();
+                ThrowHelper.ThrowArgumentOutOfRange_IndexException();
             }
 
             return _this[index];
@@ -2762,7 +2783,7 @@ namespace System {
             //! or you may introduce a security hole!
             T[] _this = JitHelpers.UnsafeCast<T[]>(this);
             if ((uint)index >= (uint)_this.Length) {
-                ThrowHelper.ThrowArgumentOutOfRangeException();
+                ThrowHelper.ThrowArgumentOutOfRange_IndexException();
             }
 
             _this[index] = value;
@@ -2770,7 +2791,7 @@ namespace System {
 
         void Add<T>(T value) {
             // Not meaningful for arrays.
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_FixedSizeCollection"));
+            ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_FixedSizeCollection);
         }
 
         [SecuritySafeCritical]
@@ -2778,7 +2799,7 @@ namespace System {
             //! Warning: "this" is an array, not an SZArrayHelper. See comments above
             //! or you may introduce a security hole!
             T[] _this = JitHelpers.UnsafeCast<T[]>(this);
-            return Array.IndexOf(_this, value) != -1;
+            return Array.IndexOf(_this, value, 0, _this.Length) >= 0;
         }
         
         bool get_IsReadOnly<T>() {
@@ -2788,7 +2809,8 @@ namespace System {
         void Clear<T>() {
             //! Warning: "this" is an array, not an SZArrayHelper. See comments above
             //! or you may introduce a security hole!
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_ReadOnlyCollection"));                        
+
+            ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_ReadOnlyCollection);                     
         }
 
         [SecuritySafeCritical]
@@ -2796,22 +2818,23 @@ namespace System {
             //! Warning: "this" is an array, not an SZArrayHelper. See comments above
             //! or you may introduce a security hole!
             T[] _this = JitHelpers.UnsafeCast<T[]>(this);
-            return Array.IndexOf(_this, value);
+            return Array.IndexOf(_this, value, 0, _this.Length);
         }
         
         void Insert<T>(int index, T value) {
             // Not meaningful for arrays
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_FixedSizeCollection"));
+            ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_FixedSizeCollection);
         }
 
         bool Remove<T>(T value) {
             // Not meaningful for arrays
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_FixedSizeCollection"));
+            ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_FixedSizeCollection);
+            return default(bool);
         }
 
         void RemoveAt<T>(int index) {
             // Not meaningful for arrays
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_FixedSizeCollection"));
+            ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_FixedSizeCollection);
         }
 
         // This is a normal generic Enumerator for SZ arrays. It doesn't have any of the "this" stuff
@@ -2827,8 +2850,7 @@ namespace System {
 
             internal SZGenericArrayEnumerator(T[] array, int endIndex) {
                 // We allow passing null array in case of empty enumerator. 
-                Contract.Assert((array == null && endIndex == -1) || (array.Rank == 1 && array.GetLowerBound(0) == 0), 
-                   "SZArrayEnumerator<T> only works on single dimension arrays w/ a lower bound of zero or with empty array for null enumerator.");
+                Contract.Assert(array != null || endIndex == -1, "endIndex should be -1 in the case of a null array (for the empty enumerator).");
                 _array = array;
                 _index = -1;
                 _endIndex = endIndex;
@@ -2844,8 +2866,8 @@ namespace System {
     
             public T Current {
                 get {
-                    if (_index < 0) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumNotStarted));
-                    if (_index >= _endIndex) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumEnded));
+                    if (_index < 0) ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumNotStarted();
+                    if (_index >= _endIndex) ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumEnded();
                     return _array[_index];
                 }
             }
@@ -2865,182 +2887,6 @@ namespace System {
             }
         }
     }
-    
-#if CONTRACTS_FULL
-    [ContractClassFor(typeof(Array))]
-    internal abstract class ArrayContracts : Array
-    {
-        private ArrayContracts() { }
-
-        public new int Rank
-        {
-            get
-            {
-                Contract.Ensures(Contract.Result<int>() >= 0);
-                return default(int);
-            }
-        }
-
-        public new int Length
-        {
-            get
-            {
-                Contract.Ensures(0 <= Contract.Result<int>());
-                return default(int);
-            }
-        }
-
-        // Copy
-        public new static void Copy(Array sourceArray, Array destinationArray, int length)
-        {
-            Contract.Requires(sourceArray != null);
-            Contract.Requires(destinationArray != null);
-            Contract.Requires(sourceArray.Rank == destinationArray.Rank);
-            Contract.Requires(length >= 0);
-            Contract.Requires(length <= sourceArray.GetLowerBound(0) + sourceArray.Length);
-            Contract.Requires(length <= destinationArray.GetLowerBound(0) + destinationArray.Length);
-        }
-
-        public new static void Copy(Array sourceArray, int sourceIndex, Array destinationArray, int destinationIndex, int length)
-        {
-            Contract.Requires(sourceArray != null);
-            Contract.Requires(destinationArray != null);
-            Contract.Requires(sourceArray.Rank == destinationArray.Rank);
-            Contract.Requires(sourceIndex >= sourceArray.GetLowerBound(0));
-            Contract.Requires(destinationIndex >= destinationArray.GetLowerBound(0));
-            Contract.Requires(length >= 0);
-            Contract.Requires(sourceIndex + length <= sourceArray.GetLowerBound(0) + sourceArray.Length);
-            Contract.Requires(destinationIndex + length <= destinationArray.GetLowerBound(0) + destinationArray.Length);
-        }
-
-        public new static void ConstrainedCopy(Array sourceArray, int sourceIndex, Array destinationArray, int destinationIndex, int length)
-        {
-            Contract.Requires(sourceArray != null);
-            Contract.Requires(destinationArray != null);
-            Contract.Requires(sourceArray.Rank == destinationArray.Rank);
-            Contract.Requires(sourceIndex >= sourceArray.GetLowerBound(0));
-            Contract.Requires(destinationIndex >= destinationArray.GetLowerBound(0));
-            Contract.Requires(length >= 0);
-            Contract.Requires(sourceIndex + length <= sourceArray.GetLowerBound(0) + sourceArray.Length);
-            Contract.Requires(destinationIndex + length <= destinationArray.GetLowerBound(0) + destinationArray.Length);
-        }
-
-        public new static void Copy(Array sourceArray, Array destinationArray, long length)
-        {
-            Contract.Requires(sourceArray != null);
-            Contract.Requires(destinationArray != null);
-            Contract.Requires(sourceArray.Rank == destinationArray.Rank);
-            Contract.Requires(length >= 0);
-            Contract.Requires(length <= sourceArray.GetLowerBound(0) + sourceArray.Length);
-            Contract.Requires(length <= destinationArray.GetLowerBound(0) + destinationArray.Length);
-        }
-
-        public new static void Copy(Array sourceArray, long sourceIndex, Array destinationArray, long destinationIndex, long length)
-        {
-            Contract.Requires(sourceArray != null);
-            Contract.Requires(destinationArray != null);
-            Contract.Requires(sourceArray.Rank == destinationArray.Rank);
-            Contract.Requires(sourceIndex >= sourceArray.GetLowerBound(0));
-            Contract.Requires(destinationIndex >= destinationArray.GetLowerBound(0));
-            Contract.Requires(length >= 0);
-            Contract.Requires(sourceIndex + length <= sourceArray.GetLowerBound(0) + sourceArray.Length);
-            Contract.Requires(destinationIndex + length <= destinationArray.GetLowerBound(0) + destinationArray.Length);
-        }
-
-        public new static void Clear(Array array, int index, int length)
-        {
-            Contract.Requires(array != null);
-            Contract.Requires(index >= array.GetLowerBound(0));  // No precondition on the rank.  But index >= the first dimension's lower bounds.
-            Contract.Requires(length >= 0);
-            Contract.Requires(array.Length - (index + array.GetLowerBound(0)) >= length);
-        }
-
-        public new Object GetValue(long index)
-        {
-            Contract.Requires(((Array)this).Rank == 1);
-            Contract.Requires(index >= ((Array)this).GetLowerBound(0));
-            Contract.Requires(index <= ((Array)this).GetUpperBound(0));
-
-            return default(Object);
-        }
-
-        public new Object GetValue(int index)
-        {
-            Contract.Requires(((Array)this).Rank == 1);
-            Contract.Requires(index >= ((Array)this).GetLowerBound(0));
-            Contract.Requires(index <= ((Array)this).GetUpperBound(0));
-
-            return default(Object);        
-        }
-
-        public new void SetValue(Object value, int index)
-        {
-            Contract.Requires(((Array)this).Rank == 1);
-            Contract.Requires(index >= ((Array)this).GetLowerBound(0));
-            Contract.Requires(index <= ((Array)this).GetUpperBound(0));
-        }
-
-        public new int GetUpperBound(int dimension)
-        {
-            Contract.Requires(dimension >= 0);
-            Contract.Requires(dimension <= ((Array)this).Rank);
-            return default(int);
-        }
-
-        public new int GetLowerBound(int dimension)
-        {
-            Contract.Requires(dimension >= 0);
-            Contract.Requires(dimension <= ((Array)this).Rank);
-            return default(int);
-        }
-
-        public new static void Sort(Array keys, Array items, int index, int length, System.Collections.IComparer comparer)
-        {
-            Contract.Requires(keys != null);
-            Contract.Requires(keys.Rank == 1);
-            Contract.Requires(items == null || items.Rank == 1);
-            Contract.Requires(items == null || keys.GetLowerBound(0) == items.GetLowerBound(0));
-            Contract.Requires(index >= keys.GetLowerBound(0));
-            Contract.Requires(length >= 0);
-            Contract.Requires(keys.GetLowerBound(0) + index + length <= keys.Length);
-            Contract.Requires(items == null || index + length <= items.Length);
-        }
-
-        public new static void Sort(Array array, int index, int length, System.Collections.IComparer comparer)
-        {
-            Contract.Requires(array != null);
-            Contract.Requires(array.Rank == 1);
-            Contract.Requires(index >= array.GetLowerBound(0));
-            Contract.Requires(length >= 0);
-            Contract.Requires(array.GetLowerBound(0) + index + length <= array.Length);
-        }
-
-        public new static void Sort(Array keys, Array items, System.Collections.IComparer comparer)
-        {
-            Contract.Requires(keys != null);
-            Contract.Requires(keys.Rank == 1);
-            Contract.Requires(items == null || items.Rank == 1);
-            Contract.Requires(items == null || keys.GetLowerBound(0) == items.GetLowerBound(0));
-        }
-
-        public new static void Sort(Array array, int index, int length)
-        {
-            Contract.Requires(array != null);
-            Contract.Requires(array.Rank == 1);
-            Contract.Requires(index >= array.GetLowerBound(0));
-            Contract.Requires(length >= 0);
-            Contract.Requires(array.GetLowerBound(0) + index + length <= array.Length);
-        }
-
-        public new static void Sort(Array keys, Array items)
-        {
-            Contract.Requires(keys != null);
-            Contract.Requires(keys.Rank == 1);
-            Contract.Requires(items == null || items.Rank == 1);
-            Contract.Requires(items == null || keys.GetLowerBound(0) == items.GetLowerBound(0));
-        }
-    }
-#endif // CONTRACTS_FULL
 }
 
 // Useful in number of places that return an empty byte array to avoid unnecessary memory allocation.

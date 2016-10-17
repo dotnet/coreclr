@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -227,6 +228,28 @@ public class Object
 [System.Runtime.InteropServices.ComVisible(true)]
 internal class __Canon
 {
+}
+
+// This class is used to define the name of the base class library
+internal class CoreLib
+{
+
+#if FEATURE_CORECLR
+    public const string Name = "System.Private.CoreLib";
+#else
+    public const string Name = "mscorlib";
+#endif 
+
+    public static string FixupCoreLibName(string strToFixup)
+    {
+#if FEATURE_CORECLR                        
+        if (!String.IsNullOrEmpty(strToFixup))
+        {    
+            strToFixup = strToFixup.Replace("mscorlib", System.CoreLib.Name);
+        }
+#endif   
+        return strToFixup;              
+    }
 }
 
 }

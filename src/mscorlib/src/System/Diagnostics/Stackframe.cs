@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 namespace System.Diagnostics {
 
@@ -321,25 +322,26 @@ namespace System.Diagnostics {
     
         private void BuildStackFrame(int skipFrames, bool fNeedFileInfo)
         {
-            StackFrameHelper StackF = new StackFrameHelper(fNeedFileInfo, null);
-    
-            StackTrace.GetStackFramesInternal (StackF, 0, null); 
-    
-            int iNumOfFrames = StackF.GetNumberOfFrames();
-    
-            skipFrames += StackTrace.CalculateFramesToSkip (StackF, iNumOfFrames);
-    
-            if ((iNumOfFrames - skipFrames) > 0)
+            using (StackFrameHelper StackF = new StackFrameHelper(null))
             {
-                method = StackF.GetMethodBase (skipFrames);
-                offset = StackF.GetOffset (skipFrames);
-                ILOffset = StackF.GetILOffset (skipFrames);
-                if (fNeedFileInfo)
+                StackF.InitializeSourceInfo(0, fNeedFileInfo, null);
+
+                int iNumOfFrames = StackF.GetNumberOfFrames();
+
+                skipFrames += StackTrace.CalculateFramesToSkip(StackF, iNumOfFrames);
+
+                if ((iNumOfFrames - skipFrames) > 0)
                 {
-                    strFileName = StackF.GetFilename (skipFrames);
-                    iLineNumber = StackF.GetLineNumber (skipFrames);
-                    iColumnNumber = StackF.GetColumnNumber (skipFrames);
-                }        
+                    method = StackF.GetMethodBase(skipFrames);
+                    offset = StackF.GetOffset(skipFrames);
+                    ILOffset = StackF.GetILOffset(skipFrames);
+                    if (fNeedFileInfo)
+                    {
+                        strFileName = StackF.GetFilename(skipFrames);
+                        iLineNumber = StackF.GetLineNumber(skipFrames);
+                        iColumnNumber = StackF.GetColumnNumber(skipFrames);
+                    }
+                }
             }
         }
     }

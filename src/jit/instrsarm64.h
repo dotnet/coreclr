@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*****************************************************************************
  *  Arm64 instructions for JIT compiler
@@ -20,29 +19,29 @@
 ******************************************************************************/
 
 #if !defined(_TARGET_ARM64_)
-  #error Unexpected target type
+#error Unexpected target type
 #endif
 
 #ifndef INST1
-#error  INST1 must be defined before including this file.
+#error INST1 must be defined before including this file.
 #endif
 #ifndef INST2
-#error  INST2 must be defined before including this file.
+#error INST2 must be defined before including this file.
 #endif
 #ifndef INST3
-#error  INST3 must be defined before including this file.
+#error INST3 must be defined before including this file.
 #endif
 #ifndef INST4
-#error  INST4 must be defined before including this file.
+#error INST4 must be defined before including this file.
 #endif
 #ifndef INST5
-#error  INST5 must be defined before including this file.
+#error INST5 must be defined before including this file.
 #endif
 #ifndef INST6
-#error  INST6 must be defined before including this file.
+#error INST6 must be defined before including this file.
 #endif
 #ifndef INST9
-#error  INST9 must be defined before including this file.
+#error INST9 must be defined before including this file.
 #endif
 
 /*****************************************************************************/
@@ -54,7 +53,7 @@
 //   * If the instruction writes to more than one destination register, update the function
 //     emitInsMayWriteMultipleRegs in emitArm64.cpp.
 
-
+// clang-format off
 INST9(invalid, "INVALID", 0, 0, IF_NONE,  BAD_CODE,    BAD_CODE,    BAD_CODE,    BAD_CODE,   BAD_CODE,     BAD_CODE,    BAD_CODE,    BAD_CODE,    BAD_CODE)
 
 //    enum     name     FP LD/ST            DR_2E        DR_2G        DI_1B        DI_1D        DV_3C        DV_2B        DV_2C        DV_2E        DV_2F
@@ -92,7 +91,7 @@ INST5(ldr,     "ldr",    0,LD, IF_EN5A,   0xB9400000,  0xB9400000,  0xB8400000, 
                                    //  ldr     Rt,[Xn+pimm12]       LS_2B  1X11100101iiiiii iiiiiinnnnnttttt   B940 0000   imm(0-4095<<{2,3})
                                    //  ldr     Rt,[Xn+simm9]        LS_2C  1X111000010iiiii iiiiPPnnnnnttttt   B840 0000   [Xn imm(-256..+255) pre/post/no inc]
                                    //  ldr     Rt,[Xn,(Rm,ext,shl)] LS_3A  1X111000011mmmmm oooS10nnnnnttttt   B860 0800   [Xn, ext(Rm) LSL {0,2,3}]
-                                   //  ldr     Vt/Rt,[PC+simm19<<2] LS_1A  XX011000iiiiiiii iiiiiiiiiiittttt   1800 0000   [PC +- imm(1MB)]
+                                   //  ldr     Vt/Rt,[PC+simm19<<2] LS_1A  XX011V00iiiiiiii iiiiiiiiiiittttt   1800 0000   [PC +- imm(1MB)]
   
 INST5(ldrsw,   "ldrsw",  0,LD, IF_EN5A,   0xB9800000,  0xB9800000,  0xB8800000,  0xB8A00800,  0x98000000)
                                    //  ldrsw   Rt,[Xn]              LS_2A  1011100110000000 000000nnnnnttttt   B980 0000   
@@ -591,7 +590,10 @@ INST1(adrp,    "adrp",   0, 0, IF_DI_1E,  0x90000000)
 
 INST1(b,       "b",      0, 0, IF_BI_0A,  0x14000000)
                                    //  b       simm26               BI_0A  000101iiiiiiiiii iiiiiiiiiiiiiiii   1400 0000   simm26:00
-   
+
+INST1(b_tail,  "b",      0, 0, IF_BI_0C,  0x14000000)
+                                   //  b       simm26               BI_0A  000101iiiiiiiiii iiiiiiiiiiiiiiii   1400 0000   simm26:00, same as b representing a tail call of bl.
+
 INST1(bl_local,"bl",     0, 0, IF_BI_0A,  0x94000000)
                                    //  bl      simm26               BI_0A  100101iiiiiiiiii iiiiiiiiiiiiiiii   9400 0000   simm26:00, same as bl, but with a BasicBlock target.
    
@@ -599,14 +601,17 @@ INST1(bl,      "bl",     0, 0, IF_BI_0C,  0x94000000)
                                    //  bl      simm26               BI_0C  100101iiiiiiiiii iiiiiiiiiiiiiiii   9400 0000   simm26:00
 
 INST1(br,      "br",     0, 0, IF_BR_1A,  0xD61F0000)
-                                   //  br      Rn                   BR_1A  1101011000011111 000000nnnnn00000   D61F 0000   
-   
-INST1(blr,     "blr",    0, 0, IF_BR_1A,  0xD63F0000)
-                                   //  blr     Rn                   BR_1A  1101011000111111 000000nnnnn00000   D63F 0000   
-   
+                                   //  br      Rn                   BR_1A  1101011000011111 000000nnnnn00000   D61F 0000, an indirect branch like switch expansion
+
+INST1(br_tail, "br",     0, 0, IF_BR_1B,  0xD61F0000)
+                                   //  br      Rn                   BR_1B  1101011000011111 000000nnnnn00000   D61F 0000, same as br representing a tail call of blr. Encode target with Reg3.
+
+INST1(blr,     "blr",    0, 0, IF_BR_1B,  0xD63F0000)
+                                   //  blr     Rn                   BR_1B  1101011000111111 000000nnnnn00000   D63F 0000, Encode target with Reg3.
+
 INST1(ret,     "ret",    0, 0, IF_BR_1A,  0xD65F0000)
-                                   //  ret     Rn                   BR_1A  1101011001011111 000000nnnnn00000   D65F 0000   
-   
+                                   //  ret     Rn                   BR_1A  1101011001011111 000000nnnnn00000   D65F 0000
+
 INST1(beq,     "beq",    0, 0, IF_BI_0B,  0x54000000)  
                                    //  beq     simm19               BI_0B  01010100iiiiiiii iiiiiiiiiii00000   5400 0000   simm19:00
 
@@ -936,14 +941,14 @@ INST1(uxtl,    "uxtl",   0, 0, IF_DV_2O,  0x2F00A400)
 
 INST1(uxtl2,   "uxtl2",  0, 0, IF_DV_2O,  0x6F00A400)
                                    //  uxtl2   Vd,Vn                DV_2O  011011110iiiiiii 101001nnnnnddddd   6F00 A400   Vd,Vn      (shift - vector)
-
+// clang-format on
 
 /*****************************************************************************/
-#undef  INST1
-#undef  INST2
-#undef  INST3
-#undef  INST4
-#undef  INST5
-#undef  INST6
-#undef  INST9
+#undef INST1
+#undef INST2
+#undef INST3
+#undef INST4
+#undef INST5
+#undef INST6
+#undef INST9
 /*****************************************************************************/

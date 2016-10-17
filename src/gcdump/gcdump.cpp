@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 /*****************************************************************************
  *                                  GCDump.cpp
  *
@@ -19,8 +18,9 @@
 
 
 
-GCDump::GCDump(bool encBytes, unsigned maxEncBytes, bool dumpCodeOffs)
-  : fDumpEncBytes   (encBytes    ), 
+GCDump::GCDump(UINT32 gcInfoVer, bool encBytes, unsigned maxEncBytes, bool dumpCodeOffs)
+  : gcInfoVersion   (gcInfoVer),
+    fDumpEncBytes   (encBytes    ), 
     cMaxEncBytes    (maxEncBytes ), 
     fDumpCodeOffsets(dumpCodeOffs)
 {
@@ -33,7 +33,7 @@ GCDump::GCDump(bool encBytes, unsigned maxEncBytes, bool dumpCodeOffs)
  *  Display the byte encodings for the given range of the GC tables.
  */
 
-PTR_CBYTE GCDump::DumpEncoding(PTR_CBYTE table, int cDumpBytes)
+PTR_CBYTE GCDump::DumpEncoding(PTR_CBYTE gcInfoBlock, int cDumpBytes)
 {
     _ASSERTE((cDumpBytes >= 0) && (cMaxEncBytes < 256));
 
@@ -43,7 +43,7 @@ PTR_CBYTE GCDump::DumpEncoding(PTR_CBYTE table, int cDumpBytes)
         unsigned        count;
         int             cBytesLeft;
 
-        for (count = cMaxEncBytes, cBytesLeft = cDumpBytes, pCurPos = table; 
+        for (count = cMaxEncBytes, cBytesLeft = cDumpBytes, pCurPos = gcInfoBlock;
              count > 0; 
              count--, pCurPos++, cBytesLeft--)
         {
@@ -61,7 +61,7 @@ PTR_CBYTE GCDump::DumpEncoding(PTR_CBYTE table, int cDumpBytes)
         gcPrintf("| ");
     }
 
-    return  table + cDumpBytes;
+    return  gcInfoBlock + cDumpBytes;
 }
 
 /*****************************************************************************/

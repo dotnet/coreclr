@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // FILE: ProfToEEInterfaceImpl.cpp
 //
@@ -18,7 +17,7 @@
 // PLEASE READ!
 //
 // There are strict rules for how to implement ICorProfilerInfo* methods.  Please read
-// https://github.com/dotnet/coreclr/blob/master/Documentation/profilability.md
+// https://github.com/dotnet/coreclr/blob/master/Documentation/botr/profilability.md
 // to understand the rules and why they exist.
 //
 // As a reminder, here is a short summary of your responsibilities.  Every PUBLIC
@@ -80,22 +79,22 @@
 //  The above restrictions are lifted for certain tests that run with these environment
 //  variables set. (These are only available on DEBUG builds--including chk--not retail
 //  builds.)
-//    * COMPLUS_TestOnlyEnableSlowELTHooks:
+//    * COMPlus_TestOnlyEnableSlowELTHooks:
 //         * If nonzero, then on startup the runtime will act as if a profiler was loaded
 //             on startup and requested ELT slow-path (even if no profiler is loaded on
 //             startup). This will also allow the SetEnterLeaveFunctionHooks(2) info
 //             functions to be called outside of Initialize(). If a profiler later
 //             attaches and calls these functions, then the slow-path wrapper will call
 //             into the profiler's ELT hooks.
-//    * COMPLUS_TestOnlyEnableObjectAllocatedHook:
+//    * COMPlus_TestOnlyEnableObjectAllocatedHook:
 //         * If nonzero, then on startup the runtime will act as if a profiler was loaded
 //             on startup and requested ObjectAllocated callback (even if no profiler is loaded
 //             on startup). If a profiler later attaches and calls these functions, then the 
 //             ObjectAllocated notifications will call into the profiler's ObjectAllocated callback.
-//    * COMPLUS_TestOnlyEnableICorProfilerInfo:
+//    * COMPlus_TestOnlyEnableICorProfilerInfo:
 //         * If nonzero, then attaching profilers allows to call ICorProfilerInfo inteface, 
 //             which would otherwise be disallowed for attaching profilers
-//    * COMPLUS_TestOnlyAllowedEventMask
+//    * COMPlus_TestOnlyAllowedEventMask
 //         * If a profiler needs to work around the restrictions of either
 //             COR_PRF_ALLOWABLE_AFTER_ATTACH or COR_PRF_MONITOR_IMMUTABLE it may set
 //             this environment variable. Its value should be a bitmask containing all
@@ -582,6 +581,10 @@ COM_METHOD ProfToEEInterfaceImpl::QueryInterface(REFIID id, void ** pInterface)
     {
         *pInterface = static_cast<ICorProfilerInfo6 *>(this);
     }
+    else if (id == IID_ICorProfilerInfo7)
+    {
+        *pInterface = static_cast<ICorProfilerInfo7 *>(this);
+    }
     else if (id == IID_IUnknown)
     {
         *pInterface = static_cast<IUnknown *>(static_cast<ICorProfilerInfo *>(this));
@@ -751,7 +754,7 @@ struct GenerationTable
 
 //---------------------------------------------------------------------------------------
 //
-// This is a callback used by the GC when we call GCHeap::DescrGenerationsToProfiler
+// This is a callback used by the GC when we call GCHeapUtilities::DescrGenerationsToProfiler
 // (from UpdateGenerationBounds() below).  The GC gives us generation information through
 // this callback, which we use to update the GenerationDesc in the corresponding
 // GenerationTable
@@ -871,7 +874,7 @@ void __stdcall UpdateGenerationBounds()
 #endif
         // fill in the values by calling back into the gc, which will report
         // the ranges by calling GenWalkFunc for each one
-        GCHeap *hp = GCHeap::GetGCHeap();
+        IGCHeap *hp = GCHeapUtilities::GetGCHeap();
         hp->DescrGenerationsToProfiler(GenWalkFunc, newGenerationTable);
 
         // remember the old table and plug in the new one
@@ -971,6 +974,15 @@ HRESULT AllowObjectInspection()
     return S_OK;
 }
 
+//---------------------------------------------------------------------------------------
+//
+// helper functions for the GC events
+//
+
+
+#endif // PROFILING_SUPPORTED
+
+#if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
 
 //---------------------------------------------------------------------------------------
 //
@@ -992,7 +1004,6 @@ ClassID SafeGetClassIDFromObject(Object * pObj)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        if (!NativeThreadInGC()) { MODE_COOPERATIVE; }
     } 
     CONTRACTL_END;
 
@@ -1005,16 +1016,9 @@ ClassID SafeGetClassIDFromObject(Object * pObj)
     return TypeHandleToClassID(th);
 }
 
-
 //---------------------------------------------------------------------------------------
 //
-// helper functions for the GC events
-//
-
-
-//---------------------------------------------------------------------------------------
-//
-// Callback of type walk_fn used by GCHeap::WalkObject.  Keeps a count of each
+// Callback of type walk_fn used by GCHeapUtilities::WalkObject.  Keeps a count of each
 // object reference found.
 //
 // Arguments:
@@ -1034,10 +1038,9 @@ BOOL CountContainedObjectRef(Object * pBO, void * context)
     return TRUE;
 }
 
-
 //---------------------------------------------------------------------------------------
 //
-// Callback of type walk_fn used by GCHeap::WalkObject.  Stores each object reference
+// Callback of type walk_fn used by GCHeapUtilities::WalkObject.  Stores each object reference
 // encountered into an array.
 //
 // Arguments:
@@ -1069,12 +1072,13 @@ BOOL SaveContainedObjectRef(Object * pBO, void * context)
     return TRUE;
 }
 
-
 //---------------------------------------------------------------------------------------
 //
 // Callback of type walk_fn used by the GC when walking the heap, to help profapi and ETW
 // track objects.  This guy orchestrates the use of the above callbacks which dig
 // into object references contained each object encountered by this callback.
+// This method is defined when either GC_PROFILING is defined or FEATURE_EVENT_TRACING
+// is defined and can operate fully when only one of the two is defined.
 //
 // Arguments:
 //      pBO - Object reference encountered on the heap
@@ -1086,7 +1090,6 @@ BOOL SaveContainedObjectRef(Object * pBO, void * context)
 //      TRUE=continue
 //      FALSE=stop
 //
-
 extern bool s_forcedGCInProgress;
 
 BOOL HeapWalkHelper(Object * pBO, void * pvContext)
@@ -1110,7 +1113,7 @@ BOOL HeapWalkHelper(Object * pBO, void * pvContext)
     if (pMT->ContainsPointersOrCollectible())
     {
         // First round through calculates the number of object refs for this class
-        GCHeap::GetGCHeap()->WalkObject(pBO, &CountContainedObjectRef, (void *)&cNumRefs);
+        GCHeapUtilities::GetGCHeap()->WalkObject(pBO, &CountContainedObjectRef, (void *)&cNumRefs);
 
         if (cNumRefs > 0)
         {
@@ -1135,12 +1138,13 @@ BOOL HeapWalkHelper(Object * pBO, void * pvContext)
 
             // Second round saves off all of the ref values
             OBJECTREF * pCurObjRef = arrObjRef;
-            GCHeap::GetGCHeap()->WalkObject(pBO, &SaveContainedObjectRef, (void *)&pCurObjRef);
+            GCHeapUtilities::GetGCHeap()->WalkObject(pBO, &SaveContainedObjectRef, (void *)&pCurObjRef);
         }
     }
 
     HRESULT hr = E_FAIL;
 
+#if defined(GC_PROFILING)
     if (pProfilerWalkHeapContext->fProfilerPinned)
     {
         // It is not safe and could be overflowed to downcast size_t to ULONG on WIN64.
@@ -1152,7 +1156,9 @@ BOOL HeapWalkHelper(Object * pBO, void * pvContext)
             (ULONG) cNumRefs, 
             (ObjectID *) arrObjRef);
     }
+#endif
 
+#ifdef FEATURE_EVENT_TRACE
     if (s_forcedGCInProgress &&
         ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, 
                                      TRACE_LEVEL_INFORMATION, 
@@ -1166,6 +1172,7 @@ BOOL HeapWalkHelper(Object * pBO, void * pvContext)
             (Object **) arrObjRef);
 
     }
+#endif // FEATURE_EVENT_TRACE
 
     // If the data was not allocated on the stack, need to clean it up.
     if ((arrObjRef != NULL) && !bOnStack)
@@ -1190,6 +1197,9 @@ BOOL HeapWalkHelper(Object * pBO, void * pvContext)
     return (pProfilerWalkHeapContext->fProfilerPinned) ? SUCCEEDED(hr) : TRUE;
 }
 
+#endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACING)
+
+#ifdef PROFILING_SUPPORTED
 //---------------------------------------------------------------------------------------
 //
 // Callback of type walk_fn used by the GC when walking the heap, to help profapi
@@ -1231,6 +1241,8 @@ BOOL AllocByClassHelper(Object * pBO, void * pv)
     return TRUE;
 }
 
+#endif // PROFILING_SUPPORTED
+#if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
 
 //---------------------------------------------------------------------------------------
 //
@@ -1239,14 +1251,15 @@ BOOL AllocByClassHelper(Object * pBO, void * pv)
 // which does the real work.
 //
 // Arguments:
-//      o - Object reference encountered
+//      pObj - Object reference encountered
+///     ppRoot - Address that references ppObject (can be interior pointer)
 //      pSC - ProfilingScanContext * containing the root kind and GCReferencesData used
 //            by RootReference2 
 //      dwFlags - Properties of the root as GC_CALL* constants (this function converts
 //                to COR_PRF_GC_ROOT_FLAGS.
 //
 
-void ScanRootsHelper(Object** ppObject, ScanContext *pSC, DWORD dwFlags)
+void ScanRootsHelper(Object* pObj, Object ** ppRoot, ScanContext *pSC, uint32_t dwFlags)
 {
     CONTRACTL
     {
@@ -1271,6 +1284,8 @@ void ScanRootsHelper(Object** ppObject, ScanContext *pSC, DWORD dwFlags)
         dwEtwRootFlags |= kEtwGCRootFlagsInterior;
     if (dwFlags & GC_CALL_PINNED)
         dwEtwRootFlags |= kEtwGCRootFlagsPinning;
+
+#if defined(GC_PROFILING)
     void *rootID = NULL;
     switch (pPSC->dwEtwRootKind)
     {
@@ -1291,9 +1306,11 @@ void ScanRootsHelper(Object** ppObject, ScanContext *pSC, DWORD dwFlags)
     {
         // Let the profiling code know about this root reference
         g_profControlBlock.pProfInterface->
-            RootReference2((BYTE *)*ppObject, pPSC->dwEtwRootKind, (EtwGCRootFlags)dwEtwRootFlags, (BYTE *)rootID, &((pPSC)->pHeapId));
+            RootReference2((BYTE *)pObj, pPSC->dwEtwRootKind, (EtwGCRootFlags)dwEtwRootFlags, (BYTE *)rootID, &((pPSC)->pHeapId));
     }
+#endif
 
+#ifdef FEATURE_EVENT_TRACE
     // Notify ETW of the root
     if (s_forcedGCInProgress &&
         ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, 
@@ -1302,15 +1319,18 @@ void ScanRootsHelper(Object** ppObject, ScanContext *pSC, DWORD dwFlags)
     {
         ETW::GCLog::RootReference(
             NULL,           // handle is NULL, cuz this is a non-HANDLE root
-            *ppObject,      // object being rooted
+            pObj,           // object being rooted
             NULL,           // pSecondaryNodeForDependentHandle is NULL, cuz this isn't a dependent handle
             FALSE,          // is dependent handle
             pPSC,
             dwFlags,        // dwGCFlags
             dwEtwRootFlags);
     }
+#endif // FEATURE_EVENT_TRACE
 }
 
+#endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
+#ifdef PROFILING_SUPPORTED
 
 //---------------------------------------------------------------------------------------
 //
@@ -4093,8 +4113,15 @@ DWORD ProfToEEInterfaceImpl::GetModuleFlags(Module * pModule)
     }
     else
     {
-        // Not NGEN.
-
+#ifdef FEATURE_READYTORUN 
+        // pModule->HasNativeImage() returns false for ReadyToRun images
+        if (pModule->IsReadyToRun())
+        {
+            // Ready To Run
+            dwRet |= (COR_PRF_MODULE_DISK | COR_PRF_MODULE_NGEN);
+        }
+#endif
+        // Not NGEN or ReadyToRun.
         if (pPEFile->HasOpenedILimage())
         {
             PEImage * pILImage = pPEFile->GetOpenedILimage();
@@ -4788,11 +4815,15 @@ HRESULT ProfToEEInterfaceImpl::ForceGC()
         LL_INFO1000, 
         "**PROF: ForceGC.\n"));        
 
+#ifdef FEATURE_EVENT_TRACE
     // This helper, used by ETW and profAPI ensures a managed thread gets created for
     // this thread before forcing the GC (to work around Jupiter issues where it's
     // expected this thread is already managed before starting the GC).
     HRESULT hr = ETW::GCLog::ForceGCForDiagnostics();
-
+#else // !FEATURE_EVENT_TRACE
+    HRESULT hr = E_FAIL;
+#endif // FEATURE_EVENT_TRACE
+ 
     // If a Thread object was just created for this thread, remember the fact that it
     // was a ForceGC() thread, so we can be more lenient when doing
     // COR_PRF_CALLBACKSTATE_INCALLBACK later on from other APIs
@@ -5656,7 +5687,7 @@ HRESULT ProfToEEInterfaceImpl::GetFunctionFromTokenAndTypeArgs(ModuleID moduleID
 }
 
 //*****************************************************************************
-// Retrive information about a given application domain, which is like a
+// Retrieve information about a given application domain, which is like a
 // sub-process.
 //*****************************************************************************
 HRESULT ProfToEEInterfaceImpl::GetAppDomainInfo(AppDomainID appDomainId,
@@ -6019,7 +6050,7 @@ HRESULT ProfToEEInterfaceImpl::SetEnterLeaveFunctionHooks3WithInfo(FunctionEnter
 
     // The profiler must call SetEnterLeaveFunctionHooks3WithInfo during initialization, since
     // the enter/leave events are immutable and must also be set during initialization.
-    PROFILER_TO_CLR_ENTRYPOINT_SET_ELT((LF_CORPROF, 
+    PROFILER_TO_CLR_ENTRYPOINT_SET_ELT((LF_CORPROF,
                                         LL_INFO10, 
                                         "**PROF: SetEnterLeaveFunctionHooks3WithInfo 0x%p, 0x%p, 0x%p.\n", 
                                         pFuncEnter3WithInfo, 
@@ -6795,6 +6826,8 @@ StackWalkAction ProfilerStackWalkCallback(CrawlFrame *pCf, PROFILER_STACK_WALK_D
     return SWA_ABORT;
 }
 
+#ifdef _TARGET_X86_
+
 //---------------------------------------------------------------------------------------
 // Normally, calling GetFunction() on the frame is sufficient to ensure
 // HelperMethodFrames are intialized. However, sometimes we need to be able to specify
@@ -6855,8 +6888,6 @@ static BOOL EnsureFrameInitialized(Frame * pFrame)
     return FALSE;
 }
 
-
-#ifdef _TARGET_X86_
 //---------------------------------------------------------------------------------------
 //
 // Implements the COR_PRF_SNAPSHOT_X86_OPTIMIZED algorithm called by DoStackSnapshot. 
@@ -7049,12 +7080,13 @@ Loop:
 
             // GC info will assist us in determining whether this is a non-EBP frame and
             // info about pushed arguments.
-            PTR_VOID gcInfo = codeInfo.GetGCInfo();
+            GCInfoToken gcInfoToken = codeInfo.GetGCInfoToken();
+            PTR_VOID gcInfo = gcInfoToken.Info;
             InfoHdr header;
             unsigned uiMethodSizeDummy;
             PTR_CBYTE table = PTR_CBYTE(gcInfo);
             table += decodeUnsigned(table, &uiMethodSizeDummy);
-            table = decodeHeader(table, &header);
+            table = decodeHeader(table, gcInfoToken.Version, &header);
 
             // Ok, GCInfo, can we do a simple EBP walk or what?
 
@@ -7203,18 +7235,13 @@ HRESULT ProfToEEInterfaceImpl::DoStackSnapshot(ThreadID thread,
                                               ULONG32 contextSize)
 {
 
-#ifdef _TARGET_ARM_
-    // DoStackSnapshot is not supported on arm. Profilers can use OS apis to get the call stack.
-    return E_NOTIMPL;
-#endif
-
-#ifndef FEATURE_HIJACK
+#if !defined(FEATURE_HIJACK)
 
     // DoStackSnapshot needs Thread::Suspend/ResumeThread functionality.
     // On platforms w/o support for these APIs return E_NOTIMPL.
     return E_NOTIMPL;
 
-#else // FEATURE_HIJACK
+#else // !defined(FEATURE_HIJACK)
 
     CONTRACTL
     {
@@ -7382,6 +7409,10 @@ HRESULT ProfToEEInterfaceImpl::DoStackSnapshot(ThreadID thread,
     // First, check "1) Target thread to walk == current thread OR Target thread is suspended"
     if (pThreadToSnapshot != pCurrentThread)
     {
+#ifndef PLATFORM_SUPPORTS_SAFE_THREADSUSPEND
+        hr = E_NOTIMPL;
+        goto Cleanup;
+#else
         // Walking separate thread, so it must be suspended.  First, ensure that
         // target thread exists.
         //
@@ -7401,7 +7432,7 @@ HRESULT ProfToEEInterfaceImpl::DoStackSnapshot(ThreadID thread,
             _ASSERTE(!"Profiler trying to walk destroyed thread");
             EEPOLICY_HANDLE_FATAL_ERROR(CORPROF_E_STACKSNAPSHOT_INVALID_TGT_THREAD);
         }
-        
+
         // Thread::SuspendThread() ensures that no one else should try to suspend us
         // while we're suspending pThreadToSnapshot.
         //
@@ -7417,6 +7448,7 @@ HRESULT ProfToEEInterfaceImpl::DoStackSnapshot(ThreadID thread,
             hr = CORPROF_E_STACKSNAPSHOT_UNSAFE;
             goto Cleanup;            
         }
+#endif // !PLATFORM_SUPPORTS_SAFE_THREADSUSPEND
     }
 
     hostCallPreference =
@@ -7449,7 +7481,10 @@ HRESULT ProfToEEInterfaceImpl::DoStackSnapshot(ThreadID thread,
         // (Note that this whole block is skipped if pThreadToSnapshot is in preemptive mode (the IF
         // above), as the context is unused in such a case--the EE Frame chain is used
         // to seed the walk instead.)
-
+#ifndef PLATFORM_SUPPORTS_SAFE_THREADSUSPEND
+        hr = E_NOTIMPL;
+        goto Cleanup;
+#else
         if (!pThreadToSnapshot->GetSafelyRedirectableThreadContext(Thread::kDefaultChecks, &ctxCurrent, &rd))
         {
             LOG((LF_CORPROF, LL_INFO100, "**PROF: GetSafelyRedirectableThreadContext failure leads to CORPROF_E_STACKSNAPSHOT_UNSAFE.\n"));
@@ -7510,6 +7545,7 @@ HRESULT ProfToEEInterfaceImpl::DoStackSnapshot(ThreadID thread,
         {
             pctxSeed = &ctxCurrent;
         }
+#endif // !PLATFORM_SUPPORTS_SAFE_THREADSUSPEND
     }
 
     // Second, check "2) Target thread to walk is currently executing JITted / NGENd code"
@@ -7556,6 +7592,10 @@ HRESULT ProfToEEInterfaceImpl::DoStackSnapshot(ThreadID thread,
     //
     if (pThreadToSnapshot != pCurrentThread)
     {
+#ifndef PLATFORM_SUPPORTS_SAFE_THREADSUSPEND
+        hr = E_NOTIMPL;
+        goto Cleanup;
+#else
         if (pctxSeed == NULL)
         {
             if (pThreadToSnapshot->GetSafelyRedirectableThreadContext(Thread::kDefaultChecks, &ctxCurrent, &rd))
@@ -7572,9 +7612,9 @@ HRESULT ProfToEEInterfaceImpl::DoStackSnapshot(ThreadID thread,
                 }
             }
         }
+#endif // !PLATFORM_SUPPORTS_SAFE_THREADSUSPEND
     }
-#endif
-
+#endif //_DEBUG
     // Third, verify the target thread is seeded or not in the midst of an unwind.
     if (pctxSeed == NULL)
     {
@@ -7639,12 +7679,13 @@ HRESULT ProfToEEInterfaceImpl::DoStackSnapshot(ThreadID thread,
 
     INDEBUG(if (pCurrentThread) pCurrentThread->m_ulForbidTypeLoad = ulForbidTypeLoad;)
 
-
 Cleanup:
+#if defined(PLATFORM_SUPPORTS_SAFE_THREADSUSPEND)
     if (fResumeThread)
     {
         pThreadToSnapshot->ResumeThread();
     }
+#endif // PLATFORM_SUPPORTS_SAFE_THREADSUSPEND
     if (fResetSnapshotThreadExternalCount)
     {
         pThreadToSnapshot->DecExternalCountDANGEROUSProfilerOnly();
@@ -7652,7 +7693,7 @@ Cleanup:
 
     return hr;
 
-#endif //  FEATURE_HIJACK
+#endif // !defined(FEATURE_HIJACK)
 }
 
 
@@ -8407,7 +8448,7 @@ HRESULT ProfToEEInterfaceImpl::RequestProfilerDetach(DWORD dwExpectedCompletionM
 typedef struct _COR_PRF_ELT_INFO_INTERNAL
 {
     // Point to a platform dependent structure ASM helper push on the stack
-    void * platformSpecificHandle;  	  
+    void * platformSpecificHandle;
 
     // startAddress of COR_PRF_FUNCTION_ARGUMENT_RANGE structure needs to point 
     // TO the argument value, not BE the argument value.  So, when the argument 
@@ -9050,8 +9091,6 @@ HRESULT ProfToEEInterfaceImpl::EnumNgenModuleMethodsInliningThisMethod(
 
     PROFILER_TO_CLR_ENTRYPOINT_SYNC_EX(kP2EETriggers, (LF_CORPROF, LL_INFO1000,  "**PROF: EnumNgenModuleMethodsInliningThisMethod.\n"));
 
-    typedef DPTR(class MethodDesc)   PTR_MethodDesc;
-
     if (ppEnum == NULL)
     {
         return E_INVALIDARG;
@@ -9123,7 +9162,188 @@ HRESULT ProfToEEInterfaceImpl::EnumNgenModuleMethodsInliningThisMethod(
     return hr;
 }
 
+HRESULT ProfToEEInterfaceImpl::GetInMemorySymbolsLength(
+    ModuleID moduleId,
+    DWORD* pCountSymbolBytes)
+{
 
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        SO_NOT_MAINLINE;
+    }
+    CONTRACTL_END;
+
+
+    PROFILER_TO_CLR_ENTRYPOINT_SYNC_EX(
+        kP2EEAllowableAfterAttach,
+        (LF_CORPROF,
+            LL_INFO10,
+            "**PROF: GetInMemorySymbolsLength.\n"));
+
+    HRESULT hr = S_OK;
+    if (pCountSymbolBytes == NULL)
+    {
+        return E_INVALIDARG;
+    }
+    *pCountSymbolBytes = 0;
+
+    Module* pModule = reinterpret_cast< Module* >(moduleId);
+    if (pModule == NULL)
+    {
+        return E_INVALIDARG;
+    }
+    if (pModule->IsBeingUnloaded())
+    {
+        return CORPROF_E_DATAINCOMPLETE;
+    }
+
+    //This method would work fine on reflection.emit, but there would be no way to know
+    //if some other thread was changing the size of the symbols before this method returned.
+    //Adding events or locks to detect/prevent changes would make the scenario workable
+    if (pModule->IsReflection())
+    {
+        return COR_PRF_MODULE_DYNAMIC;
+    }
+    
+    CGrowableStream* pStream = pModule->GetInMemorySymbolStream();
+    if (pStream == NULL)
+    {
+        return S_OK;
+    }
+
+    STATSTG SizeData = { 0 };
+    hr = pStream->Stat(&SizeData, STATFLAG_NONAME);
+    if (FAILED(hr))
+    {
+        return hr;
+    }
+    if (SizeData.cbSize.u.HighPart > 0)
+    {
+        return COR_E_OVERFLOW;
+    }
+    *pCountSymbolBytes = SizeData.cbSize.u.LowPart;
+
+    return S_OK;
+}
+
+HRESULT ProfToEEInterfaceImpl::ReadInMemorySymbols(
+    ModuleID moduleId,
+    DWORD symbolsReadOffset,
+    BYTE* pSymbolBytes,
+    DWORD countSymbolBytes,
+    DWORD* pCountSymbolBytesRead)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        SO_NOT_MAINLINE;
+    }
+    CONTRACTL_END;
+
+    PROFILER_TO_CLR_ENTRYPOINT_SYNC_EX(
+        kP2EEAllowableAfterAttach,
+        (LF_CORPROF,
+            LL_INFO10,
+            "**PROF: ReadInMemorySymbols.\n"));
+
+    HRESULT hr = S_OK;
+    if (pSymbolBytes == NULL)
+    {
+        return E_INVALIDARG;
+    }
+    if (pCountSymbolBytesRead == NULL)
+    {
+        return E_INVALIDARG;
+    }
+    *pCountSymbolBytesRead = 0;
+
+    Module* pModule = reinterpret_cast< Module* >(moduleId);
+    if (pModule == NULL)
+    {
+        return E_INVALIDARG;
+    }
+    if (pModule->IsBeingUnloaded())
+    {
+        return CORPROF_E_DATAINCOMPLETE;
+    }
+
+    //This method would work fine on reflection.emit, but there would be no way to know
+    //if some other thread was changing the size of the symbols before this method returned.
+    //Adding events or locks to detect/prevent changes would make the scenario workable
+    if (pModule->IsReflection())
+    {
+        return COR_PRF_MODULE_DYNAMIC;
+    }
+
+    CGrowableStream* pStream = pModule->GetInMemorySymbolStream();
+    if (pStream == NULL)
+    {
+        return E_INVALIDARG;
+    }
+
+    STATSTG SizeData = { 0 };
+    hr = pStream->Stat(&SizeData, STATFLAG_NONAME);
+    if (FAILED(hr))
+    {
+        return hr;
+    }
+    if (SizeData.cbSize.u.HighPart > 0)
+    {
+        return COR_E_OVERFLOW;
+    }
+    DWORD streamSize = SizeData.cbSize.u.LowPart;
+    if (symbolsReadOffset >= streamSize)
+    {
+        return E_INVALIDARG;
+    }
+
+    *pCountSymbolBytesRead = min(streamSize - symbolsReadOffset, countSymbolBytes);
+    memcpy_s(pSymbolBytes, countSymbolBytes, ((BYTE*)pStream->GetRawBuffer().StartAddress()) + symbolsReadOffset, *pCountSymbolBytesRead);
+
+    return S_OK;
+}
+
+HRESULT ProfToEEInterfaceImpl::ApplyMetaData(
+    ModuleID    moduleId)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        SO_NOT_MAINLINE;
+    }
+    CONTRACTL_END;
+
+    PROFILER_TO_CLR_ENTRYPOINT_SYNC_EX(kP2EEAllowableAfterAttach, (LF_CORPROF, LL_INFO1000, "**PROF: ApplyMetaData.\n"));
+
+    if (moduleId == NULL)
+    {
+        return E_INVALIDARG;
+    }
+
+    HRESULT hr = S_OK;
+    EX_TRY
+    {
+        Module *pModule = (Module *)moduleId;
+        _ASSERTE(pModule != NULL);
+        if (pModule->IsBeingUnloaded())
+        {
+            hr = CORPROF_E_DATAINCOMPLETE;
+        }
+       else
+       {
+            pModule->ApplyMetaData();
+       }
+    }
+    EX_CATCH_HRESULT(hr);
+    return hr;
+}
 
 //---------------------------------------------------------------------------------------
 //
@@ -9250,7 +9470,7 @@ FCIMPL2(void, ProfilingFCallHelper::FC_RemotingClientSendingMessage, GUID *pId, 
     // it is a value class declared on the stack and so GC doesn't
     // know about it.
 
-    _ASSERTE (!GCHeap::GetGCHeap()->IsHeapPointer(pId));     // should be on the stack, not in the heap
+    _ASSERTE (!GCHeapUtilities::GetGCHeap()->IsHeapPointer(pId));     // should be on the stack, not in the heap
     HELPER_METHOD_FRAME_BEGIN_NOPOLL();
 
     {

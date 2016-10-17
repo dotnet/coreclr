@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ---------------------------------------------------------------------------
 // safemath.h
 //
@@ -35,9 +34,9 @@
 
 #ifdef PAL_STDCPP_COMPAT
 #include <type_traits>
-#else  // PAL_STDCPP_COMPAT
+#else
 #include "clr_std/type_traits"
-#endif // PAL_STDCPP_COMPAT
+#endif
 
 //==================================================================
 // Semantics: if val can be represented as the exact same value

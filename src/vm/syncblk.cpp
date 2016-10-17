@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // SYNCBLK.CPP
 //
@@ -1056,7 +1055,6 @@ SyncBlock *SyncBlockCache::GetNextFreeSyncBlock()
     SyncBlock       *psb;
     SLink           *plst = m_FreeBlockList;
 
-    COUNTER_ONLY(GetPerfCounters().m_GC.cSinkBlocks ++);
     m_ActiveCount++;
 
     if (plst)
@@ -1312,8 +1310,6 @@ void    SyncBlockCache::DeleteSyncBlockMemory(SyncBlock *psb)
     }
     CONTRACTL_END
 
-    COUNTER_ONLY(GetPerfCounters().m_GC.cSinkBlocks --);
-
     m_ActiveCount--;
     m_FreeCount++;
 
@@ -1338,9 +1334,6 @@ void SyncBlockCache::GCDeleteSyncBlock(SyncBlock *psb)
     // operator delete).
     delete psb;
 
-    COUNTER_ONLY(GetPerfCounters().m_GC.cSinkBlocks --);
-
-
     m_ActiveCount--;
     m_FreeCount++;
 
@@ -1348,7 +1341,7 @@ void SyncBlockCache::GCDeleteSyncBlock(SyncBlock *psb)
     m_FreeBlockList = &psb->m_Link;
 }
 
-void SyncBlockCache::GCWeakPtrScan(HANDLESCANPROC scanProc, LPARAM lp1, LPARAM lp2)
+void SyncBlockCache::GCWeakPtrScan(HANDLESCANPROC scanProc, uintptr_t lp1, uintptr_t lp2)
 {
     CONTRACTL
     {
@@ -1379,7 +1372,7 @@ void SyncBlockCache::GCWeakPtrScan(HANDLESCANPROC scanProc, LPARAM lp1, LPARAM l
        STRESS_LOG0 (LF_GC | LF_SYNC, LL_INFO100, "GCWeakPtrScan starting\n");
 #endif
 
-   if (GCHeap::GetGCHeap()->GetCondemnedGeneration() < GCHeap::GetGCHeap()->GetMaxGeneration())
+   if (GCHeapUtilities::GetGCHeap()->GetCondemnedGeneration() < GCHeapUtilities::GetGCHeap()->GetMaxGeneration())
    {
 #ifdef VERIFY_HEAP
         //for VSW 294550: we saw stale obeject reference in SyncBlkCache, so we want to make sure the card 
@@ -1423,7 +1416,7 @@ void SyncBlockCache::GCWeakPtrScan(HANDLESCANPROC scanProc, LPARAM lp1, LPARAM l
                                 Object* o = SyncTableEntry::GetSyncTableEntry()[nb].m_Object;
                                 if (o && !((size_t)o & 1))
                                 {
-                                    if (GCHeap::GetGCHeap()->IsEphemeral (o))
+                                    if (GCHeapUtilities::GetGCHeap()->IsEphemeral (o))
                                     {
                                         clear_card = FALSE;
 
@@ -1622,8 +1615,8 @@ void SyncBlockCache::GCDone(BOOL demoting, int max_gen)
     CONTRACTL_END;
 
     if (demoting && 
-        (GCHeap::GetGCHeap()->GetCondemnedGeneration() == 
-         GCHeap::GetGCHeap()->GetMaxGeneration()))
+        (GCHeapUtilities::GetGCHeap()->GetCondemnedGeneration() == 
+         GCHeapUtilities::GetGCHeap()->GetMaxGeneration()))
     {
         //scan the bitmap
         size_t dw = 0;
@@ -1650,7 +1643,7 @@ void SyncBlockCache::GCDone(BOOL demoting, int max_gen)
                                 Object* o = SyncTableEntry::GetSyncTableEntry()[nb].m_Object;
                                 if (o && !((size_t)o & 1))
                                 {
-                                    if (GCHeap::GetGCHeap()->WhichGeneration (o) < (unsigned int)max_gen)
+                                    if (GCHeapUtilities::GetGCHeap()->WhichGeneration (o) < (unsigned int)max_gen)
                                     {
                                         SetCard (card);
                                         break;
@@ -1720,7 +1713,7 @@ void SyncBlockCache::VerifySyncTableEntry()
             
             DWORD idx = o->GetHeader()->GetHeaderSyncBlockIndex();
             _ASSERTE(idx == nb || ((0 == idx) && (loop == max_iterations)));
-            _ASSERTE(!GCHeap::GetGCHeap()->IsEphemeral(o) || CardSetP(CardOf(nb)));
+            _ASSERTE(!GCHeapUtilities::GetGCHeap()->IsEphemeral(o) || CardSetP(CardOf(nb)));
         }
     }
 }
@@ -2505,10 +2498,10 @@ BOOL ObjHeader::Validate (BOOL bVerifySyncBlkIndex)
     //BIT_SBLK_GC_RESERVE (0x20000000) is only set during GC. But for frozen object, we don't clean the bit
     if (bits & BIT_SBLK_GC_RESERVE)
     {
-        if (!GCHeap::GetGCHeap()->IsGCInProgress () && !GCHeap::GetGCHeap()->IsConcurrentGCInProgress ())
+        if (!GCHeapUtilities::IsGCInProgress () && !GCHeapUtilities::GetGCHeap()->IsConcurrentGCInProgress ())
         {
 #ifdef FEATURE_BASICFREEZE
-            ASSERT_AND_CHECK (GCHeap::GetGCHeap()->IsInFrozenSegment(obj));
+            ASSERT_AND_CHECK (GCHeapUtilities::GetGCHeap()->IsInFrozenSegment(obj));
 #else //FEATURE_BASICFREEZE
             _ASSERTE(!"Reserve bit not cleared");
             return FALSE;
@@ -2525,7 +2518,7 @@ BOOL ObjHeader::Validate (BOOL bVerifySyncBlkIndex)
         //rest of the DWORD is SyncBlk Index
         if (!(bits & BIT_SBLK_IS_HASHCODE))
         {
-            if (bVerifySyncBlkIndex  && CNameSpace::GetGcRuntimeStructuresValid ())
+            if (bVerifySyncBlkIndex  && GCScan::GetGcRuntimeStructuresValid ())
             {
                 DWORD sbIndex = bits & MASK_SYNCBLOCKINDEX;
                 ASSERT_AND_CHECK(SyncTableEntry::GetSyncTableEntry()[sbIndex].m_Object == obj);             

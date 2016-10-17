@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: typedesc.h
 //
@@ -204,7 +203,6 @@ public:
     PTR_BaseDomain GetDomain();
     BOOL IsDomainNeutral();
 
-#ifndef BINDER
     PTR_LoaderAllocator GetLoaderAllocator()
     {
         SUPPORTS_DAC;
@@ -213,7 +211,6 @@ public:
     }
 
  protected:
-#endif // !BINDER
     // See methodtable.h for details of the flags with the same name there
     enum
     {
@@ -249,9 +246,6 @@ class ParamTypeDesc : public TypeDesc {
 #ifdef DACCESS_COMPILE
     friend class NativeImageDumper;
 #endif
-#ifdef BINDER
-    friend class MdilModule;
-#endif
 
 public:
 #ifndef DACCESS_COMPILE
@@ -278,7 +272,7 @@ public:
     INDEBUGIMPL(BOOL Verify();)
 
     OBJECTREF GetManagedClassObject();
-#ifndef BINDER
+
     OBJECTREF GetManagedClassObjectIfExists()
     {
         CONTRACTL
@@ -301,7 +295,6 @@ public:
         LoaderAllocator::GetHandleValueFast(m_hExposedClassObject, &objRet);
         return objRet;
     }
-#endif
 
     TypeHandle GetModifiedType()
     {
@@ -355,9 +348,7 @@ public:
     {
         STATIC_CONTRACT_SO_TOLERANT;
         WRAPPER_NO_CONTRACT;
-#ifndef BINDER
         INDEBUG(Verify());
-#endif
     }
 
 //private:    TypeHandle      m_Arg;              // The type that is being modified
@@ -374,7 +365,6 @@ public:
         return GetTypeParam();
     }
 
-#ifndef CLR_STANDALONE_BINDER
     unsigned GetRank() {
         WRAPPER_NO_CONTRACT;
         SUPPORTS_DAC;
@@ -384,13 +374,9 @@ public:
         else
             return dac_cast<PTR_ArrayClass>(GetMethodTable()->GetClass())->GetRank();
     }
-#else
-    unsigned GetRank();
-#endif
 
     MethodTable* GetParent()
     {
-#ifndef BINDER
         WRAPPER_NO_CONTRACT;
 
         _ASSERTE(!m_TemplateMT.IsNull());
@@ -398,9 +384,6 @@ public:
         _ASSERTE(m_TemplateMT.GetValue()->ParentEquals(g_pArrayClass));
 
         return g_pArrayClass;
-#else
-        _ASSERTE(0);
-#endif
     }
 
 #ifdef FEATURE_COMINTEROP
@@ -460,9 +443,6 @@ class TypeVarTypeDesc : public TypeDesc
 {
 #ifdef DACCESS_COMPILE
     friend class NativeImageDumper;
-#endif
-#ifdef BINDER
-    friend class MdilModule;
 #endif
 public:
 
@@ -524,7 +504,6 @@ public:
     }
 
     OBJECTREF GetManagedClassObject();
-#ifndef BINDER
     OBJECTREF GetManagedClassObjectIfExists()
     {
         CONTRACTL
@@ -547,7 +526,6 @@ public:
         LoaderAllocator::GetHandleValueFast(m_hExposedClassObject, &objRet);
         return objRet;
     }
-#endif
 
     // Load the owning type. Note that the result is not guaranteed to be full loaded
     MethodDesc * LoadOwnerMethod();

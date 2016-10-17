@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 //*************************************************************************************************************
@@ -398,7 +399,7 @@ namespace System.Reflection.Emit
                     else if (attribute.m_con.DeclaringType == typeof(SecurityRulesAttribute))
                     {
                         securityRulesBlob = new byte[attribute.m_blob.Length];
-                        Array.Copy(attribute.m_blob, securityRulesBlob, securityRulesBlob.Length);
+                        Buffer.BlockCopy(attribute.m_blob, 0, securityRulesBlob, 0, securityRulesBlob.Length);
                     }
                     else if (attribute.m_con.DeclaringType == typeof(SecurityTreatAsSafeAttribute))
                     {
@@ -410,7 +411,7 @@ namespace System.Reflection.Emit
                     {
                         assemblyFlags |= DynamicAssemblyFlags.Aptca;
                         aptcaBlob = new byte[attribute.m_blob.Length];
-                        Array.Copy(attribute.m_blob, aptcaBlob, aptcaBlob.Length);
+                        Buffer.BlockCopy(attribute.m_blob, 0, aptcaBlob, 0, aptcaBlob.Length);
                     }
 #endif // FEATURE_APTCA
                 }
@@ -1048,16 +1049,11 @@ namespace System.Reflection.Emit
             return resWriter;
         }
 
-#endif // !FEATURE_CORECLR
-
         /**********************************************
         *
         * Add an existing resource file to the Assembly
         *
         **********************************************/
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         public void AddResourceFile(
             String      name,
             String      fileName)
@@ -1070,9 +1066,6 @@ namespace System.Reflection.Emit
         * Add an existing resource file to the Assembly
         *
         **********************************************/
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         public void AddResourceFile(
             String      name,
             String      fileName,
@@ -1132,6 +1125,7 @@ namespace System.Reflection.Emit
                     fileName), fileName);
             m_assemblyData.AddResWriter( new ResWriterData( null, null, name, fileName, fullFileName, attribute) );
         }
+#endif // !FEATURE_CORECLR
 
         #region object overrides
         public override bool Equals(object obj)
@@ -1370,8 +1364,9 @@ namespace System.Reflection.Emit
             }
         }
         #endregion
-        
-       
+
+
+#if !FEATURE_CORECLR
         /**********************************************
         *
         * Add an unmanaged Version resource to the
@@ -1459,7 +1454,7 @@ namespace System.Reflection.Emit
                 throw new ArgumentException(Environment.GetResourceString("Argument_NativeResourceAlreadyDefined"));
             
             m_assemblyData.m_resourceBytes = new byte[resource.Length];
-            System.Array.Copy(resource, m_assemblyData.m_resourceBytes, resource.Length);
+            Buffer.BlockCopy(resource, 0, m_assemblyData.m_resourceBytes, 0, resource.Length);
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -1504,9 +1499,9 @@ namespace System.Reflection.Emit
                     resourceFileName), resourceFileName);
             m_assemblyData.m_strResourceFileName = strFullFileName;
         }
-        
+#endif // !FEATURE_CORECLR
 
-        
+
         /**********************************************
         *
         * return a dynamic module with the specified name.
@@ -1766,7 +1761,7 @@ namespace System.Reflection.Emit
 
                     // In memory this module is not the manifest module and has a valid file token
                     // On disk it will be the manifest module so lets clean the file token
-                    // We should not retrive FileToken after the assembly has been saved
+                    // We should not retrieve FileToken after the assembly has been saved
                     // If that is absolutely necessary, we need two separate fields on ModuleBuilderData:
                     // the in memory file token and the on disk file token.
                     assemblyModule.m_moduleData.FileToken = 0;

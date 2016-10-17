@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: VirtualCallStub.CPP
 //
@@ -83,7 +82,11 @@ UINT32 g_bucket_space_dead = 0;         //# of bytes of abandoned buckets not ye
 // This is the number of times a successful chain lookup will occur before the
 // entry is promoted to the front of the chain. This is declared as extern because
 // the default value (CALL_STUB_CACHE_INITIAL_SUCCESS_COUNT) is defined in the header.
+#ifdef _TARGET_ARM64_
+extern "C" size_t g_dispatch_cache_chain_success_counter;
+#else
 extern size_t g_dispatch_cache_chain_success_counter;
+#endif
 
 #define DECLARE_DATA
 #include "virtualcallstub.h"
@@ -1104,7 +1107,7 @@ BOOL VirtualCallStubManager::TraceManager(Thread *thread,
 
 #ifdef FEATURE_PREJIT
     // This is the case for the lazy slot fixup
-    if (GetIP(pContext) == GFN_TADDR(StubDispatchFixupPatchLabel)) {
+    if (GetIP(pContext) == GetEEFuncEntryPoint(StubDispatchFixupPatchLabel)) {
 
         *pRetAddr = (BYTE *)StubManagerHelpers::GetReturnAddress(pContext);
 
@@ -1228,6 +1231,7 @@ extern "C" PCODE STDCALL StubDispatchFixupWorker(TransitionBlock * pTransitionBl
     pSDFrame->SetCallSite(pModule, pIndirectCell);
 
     pSDFrame->Push(CURRENT_THREAD);
+    INSTALL_MANAGED_EXCEPTION_DISPATCHER;
     INSTALL_UNWIND_AND_CONTINUE_HANDLER;
 
     PEImageLayout *pNativeImage = pModule->GetNativeOrReadyToRunImage();
@@ -1296,6 +1300,7 @@ extern "C" PCODE STDCALL StubDispatchFixupWorker(TransitionBlock * pTransitionBl
     // Ready to return
 
     UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
+    UNINSTALL_MANAGED_EXCEPTION_DISPATCHER;
     pSDFrame->Pop(CURRENT_THREAD);
 
     return pTarget;
@@ -1534,9 +1539,11 @@ PCODE VSD_ResolveWorker(TransitionBlock * pTransitionBlock,
     if (pObj == NULL) {
         pSDFrame->SetForNullReferenceException();
         pSDFrame->Push(CURRENT_THREAD);
+        INSTALL_MANAGED_EXCEPTION_DISPATCHER;
         INSTALL_UNWIND_AND_CONTINUE_HANDLER;
         COMPlusThrow(kNullReferenceException);
         UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
+        UNINSTALL_MANAGED_EXCEPTION_DISPATCHER;
         _ASSERTE(!"Throw returned");
     }
 
@@ -1575,6 +1582,7 @@ PCODE VSD_ResolveWorker(TransitionBlock * pTransitionBlock,
 
     pSDFrame->SetRepresentativeSlot(pRepresentativeMT, representativeToken.GetSlotNumber());
     pSDFrame->Push(CURRENT_THREAD);
+    INSTALL_MANAGED_EXCEPTION_DISPATCHER;
     INSTALL_UNWIND_AND_CONTINUE_HANDLER;
 
     // For Virtual Delegates the m_siteAddr is a field of a managed object
@@ -1604,6 +1612,7 @@ PCODE VSD_ResolveWorker(TransitionBlock * pTransitionBlock,
     GCPROTECT_END();
 
     UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
+    UNINSTALL_MANAGED_EXCEPTION_DISPATCHER;
     pSDFrame->Pop(CURRENT_THREAD);
 
     return target;
@@ -2268,12 +2277,11 @@ VirtualCallStubManager::Resolver(
         // It allows objects that implement ICastable to mimic behavior of other types. 
         MethodTable * pTokenMT = GetTypeFromToken(token);
 
-        // Make call to obj.GetImplType(interfaceTypeObj)
-        MethodDesc *pGetImplTypeMD = pMT->GetMethodDescForInterfaceMethod(MscorlibBinder::GetMethod(METHOD__ICASTABLE__GETIMPLTYPE));
+        // Make call to ICastableHelpers.GetImplType(this, interfaceTypeObj)
+        PREPARE_NONVIRTUAL_CALLSITE(METHOD__ICASTABLEHELPERS__GETIMPLTYPE);
+
         OBJECTREF tokenManagedType = pTokenMT->GetManagedClassObject(); //GC triggers
-
-        PREPARE_NONVIRTUAL_CALLSITE_USING_METHODDESC(pGetImplTypeMD);
-
+        
         DECLARE_ARGHOLDER_ARRAY(args, 2);
         args[ARGNUM_0] = OBJECTREF_TO_ARGHOLDER(*protectedObj);
         args[ARGNUM_1] = OBJECTREF_TO_ARGHOLDER(tokenManagedType);

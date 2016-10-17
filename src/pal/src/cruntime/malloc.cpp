@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -39,12 +38,11 @@ PAL_realloc(
     size_t szSize
     )
 {
-    return InternalRealloc(InternalGetCurrentThread(), pvMemblock, szSize);
+    return InternalRealloc(pvMemblock, szSize);
 }
 
 void *
 CorUnix::InternalRealloc(
-    CPalThread *pthrCurrent,
     void* pvMemblock,
     size_t szSize
     )
@@ -59,15 +57,13 @@ CorUnix::InternalRealloc(
         // If pvMemblock is NULL, there's no reason to call free.
         if (pvMemblock != NULL)
         {
-            InternalFree(pthrCurrent, pvMemblock);
+            free(pvMemblock);
         }
         pvMem = NULL;
     }
     else
     {
-        pthrCurrent->suspensionInfo.EnterUnsafeRegion();
         pvMem = realloc(pvMemblock, szSize);
-        pthrCurrent->suspensionInfo.LeaveUnsafeRegion();
     }
 
     LOGEXIT("realloc returns void * %p\n", pvMem);
@@ -81,18 +77,7 @@ PAL_free(
     void *pvMem
     )
 {
-    InternalFree(InternalGetCurrentThread(), pvMem);
-}
-
-void
-CorUnix::InternalFree(
-    CPalThread *pthrCurrent,
-    void *pvMem
-    )
-{
-    pthrCurrent->suspensionInfo.EnterUnsafeRegion();
     free(pvMem);
-    pthrCurrent->suspensionInfo.LeaveUnsafeRegion();
 }
 
 void * 
@@ -101,25 +86,23 @@ PAL_malloc(
     size_t szSize
     )
 {
-    return InternalMalloc(InternalGetCurrentThread(), szSize);
+    return InternalMalloc(szSize);
 }
 
 void *
 CorUnix::InternalMalloc(
-    CPalThread *pthrCurrent,
     size_t szSize
     )
 {
     void *pvMem;
-    pthrCurrent->suspensionInfo.EnterUnsafeRegion();
-#if MALLOC_ZERO_RETURNS_NULL
+
     if (szSize == 0)
     {
+        // malloc may return null for a requested size of zero bytes. Force a nonzero size to get a valid pointer.
         szSize = 1;
     }
-#endif
+
     pvMem = (void*)malloc(szSize);
-    pthrCurrent->suspensionInfo.LeaveUnsafeRegion();
     return pvMem;
 }
 
@@ -129,18 +112,5 @@ PAL__strdup(
     const char *c_szStr
     )
 {
-    return InternalStrdup(InternalGetCurrentThread(), c_szStr);
-}
-
-char *
-CorUnix::InternalStrdup(
-    CPalThread *pthrCurrent,
-    const char *c_szStr
-    )
-{
-    char *pszStrCopy;
-    pthrCurrent->suspensionInfo.EnterUnsafeRegion();
-    pszStrCopy = strdup(c_szStr);
-    pthrCurrent->suspensionInfo.LeaveUnsafeRegion();
-    return pszStrCopy;
+    return strdup(c_szStr);
 }

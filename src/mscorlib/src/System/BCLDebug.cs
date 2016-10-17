@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -337,6 +338,7 @@ namespace System {
             System.Diagnostics.Log.LogMessage(LoggingLevels.TraceLevel0, logSwitch, trace.ToString());
         }
 
+#if !FEATURE_CORECLR
         // For logging errors related to the console - we often can't expect to
         // write to stdout if it doesn't exist.
         [SecuritySafeCritical]
@@ -359,6 +361,7 @@ namespace System {
                 err.WriteLine(msg);
             }
         }
+#endif // !FEATURE_CORECLR
 
         // For perf-related asserts.  On a debug build, set the registry key
         // BCLPerfWarnings to non-zero.
@@ -407,20 +410,20 @@ namespace System {
 #endif
         }
 
-#if WIN32
+#if !BIT64 // 32
         [SecuritySafeCritical]
 #endif
         internal static bool CorrectnessEnabled()
         {
-#if WIN32
+#if BIT64
+            return false;
+#else // 32
             if (AppDomain.CurrentDomain.IsUnloadingForcedFinalize())
                 return false;
             if (!m_registryChecked)
                 CheckRegistry();
             return m_correctnessWarnings;  
-#else 
-            return false;
-#endif // WIN32
+#endif // BIT64
         }
 
         // Whether SafeHandles include a stack trace showing where they 

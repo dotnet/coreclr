@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // TLS.H -
 //
 
@@ -16,12 +15,18 @@
 
 #ifdef FEATURE_IMPLICIT_TLS
 #ifdef _WIN64
-#define OFFSETOF__TLS__tls_CurrentThread            0x08
-#define OFFSETOF__TLS__tls_EETlsData                0x18
-#else
-#define OFFSETOF__TLS__tls_CurrentThread            0x04
-#define OFFSETOF__TLS__tls_EETlsData                0x0c
+#ifndef _DEBUG
+#define OFFSETOF__TLS__tls_ThreadLocalInfo 0x10
+#else // _DEBUG
+#define OFFSETOF__TLS__tls_ThreadLocalInfo 0x08
+#endif // _DEBUG
+#else // _WIN64
+#define OFFSETOF__TLS__tls_ThreadLocalInfo 0x04
 #endif // _WIN64
+
+#define OFFSETOF__TLS__tls_CurrentThread         (OFFSETOF__TLS__tls_ThreadLocalInfo+0x0)
+#define OFFSETOF__TLS__tls_EETlsData             (OFFSETOF__TLS__tls_CurrentThread+2*sizeof(void*))
+
 
 #ifdef _TARGET_WIN64_
 #define WINNT_OFFSETOF__TEB__ThreadLocalStoragePointer  0x58
@@ -31,7 +36,7 @@
 
 #endif // FEATURE_IMPLICIT_TLS
 
-// Pointer to a function that retrives the TLS data for a specific index.
+// Pointer to a function that retrieves the TLS data for a specific index.
 typedef LPVOID (*POPTIMIZEDTLSGETTER)();
 
 //---------------------------------------------------------------------------

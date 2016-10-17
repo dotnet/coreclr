@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 // This include file determines how VARSET_TP is implemented.
@@ -12,7 +11,7 @@
 // A VARSET_TP is a set of (small) integers representing local variables.
 // We implement varsets using the BitSet abstraction, which supports
 // several different implementations.
-// 
+//
 // The set of tracked variables may change during a compilation, and variables may be
 // re-sorted, so the tracked variable index of a variable is decidedly *not* stable.  The
 // bitset abstraction supports labeling of bitsets with "epochs", and supports a
@@ -46,11 +45,11 @@ const unsigned UInt64Bits = sizeof(UINT64) * 8;
 
 #include "bitsetasuint64.h"
 
-typedef BitSetOps</*BitSetType*/UINT64, 
-                  /*Brand*/VARSET_REP,
-                  /*Env*/Compiler*,
-                  /*BitSetTraits*/TrackedVarBitSetTraits>
-        VarSetOpsRaw;
+typedef BitSetOps</*BitSetType*/ UINT64,
+                  /*Brand*/ VARSET_REP,
+                  /*Env*/ Compiler*,
+                  /*BitSetTraits*/ TrackedVarBitSetTraits>
+    VarSetOpsRaw;
 
 typedef UINT64 VARSET_TP;
 
@@ -62,16 +61,25 @@ const unsigned lclMAX_TRACKED = UInt64Bits;
 
 #include "bitsetasshortlong.h"
 
-typedef BitSetOps</*BitSetType*/BitSetShortLongRep, 
-                  /*Brand*/VARSET_REP,
-                  /*Env*/Compiler*,
-                  /*BitSetTraits*/TrackedVarBitSetTraits>
-        VarSetOpsRaw;
+typedef BitSetOps</*BitSetType*/ BitSetShortLongRep,
+                  /*Brand*/ VARSET_REP,
+                  /*Env*/ Compiler*,
+                  /*BitSetTraits*/ TrackedVarBitSetTraits>
+    VarSetOpsRaw;
 
-typedef  BitSetShortLongRep VARSET_TP;
+typedef BitSetShortLongRep VARSET_TP;
 
-// For the unbounded-width varset implementation, test it a little by allowing the max tracked vars to be than UINT64 can hold.
+// Tested various sizes for max tracked locals. The largest value for which no throughput regression
+// could be measured was 512. Going to 1024 showed the first throughput regressions.
+// We anticipate the larger size will be needed to support better inlining.
+// There were a number of failures when 512 was used for legacy, so we just retain the 128 value
+// for legacy backend.
+
+#if !defined(LEGACY_BACKEND)
+const unsigned       lclMAX_TRACKED = 512;
+#else
 const unsigned lclMAX_TRACKED = 128;
+#endif
 
 #define VARSET_REP_IS_CLASS 0
 
@@ -79,13 +87,13 @@ const unsigned lclMAX_TRACKED = 128;
 
 #include "bitsetasuint64inclass.h"
 
-typedef BitSetOps</*BitSetType*/BitSetUint64<Compiler*, TrackedVarBitSetTraits>, 
-                  /*Brand*/VARSET_REP,
-                  /*Env*/Compiler*,
-                  /*BitSetTraits*/TrackedVarBitSetTraits>
-        VarSetOpsRaw;
+typedef BitSetOps</*BitSetType*/ BitSetUint64<Compiler*, TrackedVarBitSetTraits>,
+                  /*Brand*/ VARSET_REP,
+                  /*Env*/ Compiler*,
+                  /*BitSetTraits*/ TrackedVarBitSetTraits>
+    VarSetOpsRaw;
 
-typedef   BitSetUint64<Compiler*, TrackedVarBitSetTraits> VARSET_TP;
+typedef BitSetUint64<Compiler*, TrackedVarBitSetTraits> VARSET_TP;
 
 const unsigned lclMAX_TRACKED = UInt64Bits;
 
@@ -98,12 +106,19 @@ const unsigned lclMAX_TRACKED = UInt64Bits;
 #endif
 
 // These types should be used as the types for VARSET_TP arguments and return values, respectively.
-typedef   VarSetOpsRaw::ValArgType VARSET_VALARG_TP;
-typedef   VarSetOpsRaw::RetValType VARSET_VALRET_TP;
+typedef VarSetOpsRaw::ValArgType VARSET_VALARG_TP;
+typedef VarSetOpsRaw::RetValType VARSET_VALRET_TP;
 
 #define VARSET_COUNTOPS 0
 #if VARSET_COUNTOPS
-typedef BitSetOpsWithCounter<VARSET_TP, VARSET_REP, Compiler*, TrackedVarBitSetTraits, VARSET_VALARG_TP, VARSET_VALRET_TP, VarSetOpsRaw::Iter> VarSetOps;
+typedef BitSetOpsWithCounter<VARSET_TP,
+                             VARSET_REP,
+                             Compiler*,
+                             TrackedVarBitSetTraits,
+                             VARSET_VALARG_TP,
+                             VARSET_VALRET_TP,
+                             VarSetOpsRaw::Iter>
+    VarSetOps;
 #else
 typedef VarSetOpsRaw VarSetOps;
 #endif
@@ -114,15 +129,15 @@ typedef VarSetOpsRaw VarSetOps;
 
 #include "bitsetasuint64.h"
 
-typedef BitSetOps</*BitSetType*/UINT64, 
-                  /*Brand*/ALLVARSET_REP,
-                  /*Env*/Compiler*,
-                  /*BitSetTraits*/AllVarBitSetTraits>
-        AllVarSetOps;
+typedef BitSetOps</*BitSetType*/ UINT64,
+                  /*Brand*/ ALLVARSET_REP,
+                  /*Env*/ Compiler*,
+                  /*BitSetTraits*/ AllVarBitSetTraits>
+    AllVarSetOps;
 
-typedef   UINT64   ALLVARSET_TP;
+typedef UINT64 ALLVARSET_TP;
 
-const unsigned lclMAX_ALLSET_TRACKED = UInt64Bits; 
+const unsigned lclMAX_ALLSET_TRACKED = UInt64Bits;
 
 #define ALLVARSET_REP_IS_CLASS 0
 
@@ -130,16 +145,15 @@ const unsigned lclMAX_ALLSET_TRACKED = UInt64Bits;
 
 #include "bitsetasshortlong.h"
 
-typedef BitSetOps</*BitSetType*/BitSetShortLongRep,
-                  /*Brand*/ALLVARSET_REP,
-                  /*Env*/Compiler*,
-                  /*BitSetTraits*/AllVarBitSetTraits>
-        AllVarSetOps;
+typedef BitSetOps</*BitSetType*/ BitSetShortLongRep,
+                  /*Brand*/ ALLVARSET_REP,
+                  /*Env*/ Compiler*,
+                  /*BitSetTraits*/ AllVarBitSetTraits>
+    AllVarSetOps;
 
-typedef  BitSetShortLongRep ALLVARSET_TP;
+typedef BitSetShortLongRep ALLVARSET_TP;
 
-// For the unbounded-width varset implementation, test them a little by allowing the max tracked vars to be than UINT64 can hold.
-const unsigned lclMAX_ALLSET_TRACKED = 128; 
+const unsigned lclMAX_ALLSET_TRACKED = lclMAX_TRACKED;
 
 #define ALLVARSET_REP_IS_CLASS 0
 
@@ -147,15 +161,15 @@ const unsigned lclMAX_ALLSET_TRACKED = 128;
 
 #include "bitsetasuint64inclass.h"
 
-typedef BitSetOps</*BitSetType*/BitSetUint64<Compiler*, AllVarBitSetTraits>,
-                  /*Brand*/ALLVARSET_REP,
-                  /*Env*/Compiler*,
-                  /*BitSetTraits*/AllVarBitSetTraits>
-        AllVarSetOps;
+typedef BitSetOps</*BitSetType*/ BitSetUint64<Compiler*, AllVarBitSetTraits>,
+                  /*Brand*/ ALLVARSET_REP,
+                  /*Env*/ Compiler*,
+                  /*BitSetTraits*/ AllVarBitSetTraits>
+    AllVarSetOps;
 
-typedef  BitSetUint64<Compiler*, AllVarBitSetTraits> ALLVARSET_TP;
+typedef BitSetUint64<Compiler*, AllVarBitSetTraits> ALLVARSET_TP;
 
-const unsigned lclMAX_ALLSET_TRACKED = UInt64Bits; 
+const unsigned lclMAX_ALLSET_TRACKED = UInt64Bits;
 
 #define ALLVARSET_REP_IS_CLASS 1
 
@@ -164,12 +178,11 @@ const unsigned lclMAX_ALLSET_TRACKED = UInt64Bits;
 #endif
 
 // These types should be used as the types for VARSET_TP arguments and return values, respectively.
-typedef   AllVarSetOps::ValArgType ALLVARSET_VALARG_TP;
-typedef   AllVarSetOps::RetValType ALLVARSET_VALRET_TP;
+typedef AllVarSetOps::ValArgType ALLVARSET_VALARG_TP;
+typedef AllVarSetOps::RetValType ALLVARSET_VALRET_TP;
 
-
-// Initialize "varName" to "initVal."  Copies contents, not references; if "varName" is uninitialized, allocates a var set
-// for it (using "comp" for any necessary allocation), and copies the contents of "initVal" into it.
+// Initialize "varName" to "initVal."  Copies contents, not references; if "varName" is uninitialized, allocates a var
+// set for it (using "comp" for any necessary allocation), and copies the contents of "initVal" into it.
 #define VARSET_INIT(comp, varName, initVal) varName(VarSetOps::MakeCopy(comp, initVal))
 #define ALLVARSET_INIT(comp, varName, initVal) varName(AllVarSetOps::MakeCopy(comp, initVal))
 
@@ -187,13 +200,12 @@ typedef   AllVarSetOps::RetValType ALLVARSET_VALRET_TP;
 #define ALLVARSET_INIT_NOCOPY(varName, initVal) varName(initVal)
 #endif
 
-
 // The iterator pattern.
 
 // Use this to initialize an iterator "iterName" to iterate over a VARSET_TP "vs".
 // "varIndex" will be an unsigned variable to which we assign the elements of "vs".
-#define VARSET_ITER_INIT(comp, iterName, vs, varIndex) \
-    unsigned varIndex = 0; \
+#define VARSET_ITER_INIT(comp, iterName, vs, varIndex)                                                                 \
+    unsigned        varIndex = 0;                                                                                      \
     VarSetOps::Iter iterName(comp, vs)
 
 #endif // _VARSET_INCLUDED_

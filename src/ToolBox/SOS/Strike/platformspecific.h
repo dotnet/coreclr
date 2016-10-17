@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // ==++==
 // 
@@ -15,7 +14,7 @@
 #define __PLATFORM_SPECIFIC_INCLUDED
 
 // The main debugger code already has target platform definitions for CONTEXT.
-#include "../../../../debug/inc/dbgtargetcontext.h"
+#include "../../../debug/inc/dbgtargetcontext.h"
 
 #ifndef FEATURE_PAL
 
@@ -46,6 +45,10 @@ struct DT_UNICODE_STRING
 
 #ifndef IMAGE_FILE_MACHINE_ARMNT
 #define IMAGE_FILE_MACHINE_ARMNT             0x01c4  // ARM Thumb-2 Little-Endian 
+#endif
+
+#ifndef IMAGE_FILE_MACHINE_ARM64
+#define IMAGE_FILE_MACHINE_ARM64             0xAA64  // ARM64 Little-Endian
 #endif
 
 #ifdef _TARGET_WIN64_

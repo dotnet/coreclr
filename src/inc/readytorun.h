@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 // readytorun.h
@@ -16,8 +15,8 @@
 
 #define READYTORUN_SIGNATURE 0x00525452 // 'RTR'
 
-#define READYTORUN_MAJOR_VERSION 0x0001
-#define READYTORUN_MINOR_VERSION 0x0002
+#define READYTORUN_MAJOR_VERSION 0x0002
+#define READYTORUN_MINOR_VERSION 0x0000
 
 struct READYTORUN_HEADER
 {
@@ -55,6 +54,9 @@ enum ReadyToRunSectionType
     READYTORUN_SECTION_EXCEPTION_INFO               = 104,
     READYTORUN_SECTION_DEBUG_INFO                   = 105,
     READYTORUN_SECTION_DELAYLOAD_METHODCALL_THUNKS  = 106,
+    // 107 used by an older format of READYTORUN_SECTION_AVAILABLE_TYPES
+    READYTORUN_SECTION_AVAILABLE_TYPES              = 108,
+    READYTORUN_SECTION_INSTANCE_METHOD_ENTRYPOINTS  = 109,
 };
 
 //
@@ -120,6 +122,10 @@ enum ReadyToRunTypeLayoutFlags
 
 enum ReadyToRunFixupKind
 {
+    READYTORUN_FIXUP_ThisObjDictionaryLookup    = 0x07,
+    READYTORUN_FIXUP_TypeDictionaryLookup       = 0x08,
+    READYTORUN_FIXUP_MethodDictionaryLookup     = 0x09,
+
     READYTORUN_FIXUP_TypeHandle                 = 0x10,
     READYTORUN_FIXUP_MethodHandle               = 0x11,
     READYTORUN_FIXUP_FieldHandle                = 0x12,
@@ -160,6 +166,7 @@ enum ReadyToRunFixupKind
     READYTORUN_FIXUP_Check_FieldOffset          = 0x2B,
 
     READYTORUN_FIXUP_DelegateCtor               = 0x2C, /* optimized delegate ctor */
+    READYTORUN_FIXUP_DeclaringTypeHandle        = 0x2D,
 };
 
 //
@@ -195,6 +202,8 @@ enum ReadyToRunHelper
     READYTORUN_HELPER_Overflow                  = 0x22,
     READYTORUN_HELPER_RngChkFail                = 0x23,
     READYTORUN_HELPER_FailFast                  = 0x24,
+    READYTORUN_HELPER_ThrowNullRef              = 0x25,
+    READYTORUN_HELPER_ThrowDivZero              = 0x26,
 
     // Write barriers
     READYTORUN_HELPER_WriteBarrier              = 0x30,
@@ -221,6 +230,18 @@ enum ReadyToRunHelper
     READYTORUN_HELPER_Unbox                     = 0x5A,
     READYTORUN_HELPER_Unbox_Nullable            = 0x5B,
     READYTORUN_HELPER_NewMultiDimArr            = 0x5C,
+    READYTORUN_HELPER_NewMultiDimArr_NonVarArg  = 0x5D,
+
+    // Helpers used with generic handle lookup cases
+    READYTORUN_HELPER_NewObject                 = 0x60,
+    READYTORUN_HELPER_NewArray                  = 0x61,
+    READYTORUN_HELPER_CheckCastAny              = 0x62,
+    READYTORUN_HELPER_CheckInstanceAny          = 0x63,
+    READYTORUN_HELPER_GenericGcStaticBase       = 0x64,
+    READYTORUN_HELPER_GenericNonGcStaticBase    = 0x65,
+    READYTORUN_HELPER_GenericGcTlsBase          = 0x66,
+    READYTORUN_HELPER_GenericNonGcTlsBase       = 0x67,
+    READYTORUN_HELPER_VirtualFuncPtr            = 0x68,
 
     // Long mul/div/shift ops
     READYTORUN_HELPER_LMul                      = 0xC0,

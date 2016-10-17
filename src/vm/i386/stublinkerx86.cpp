@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 // NOTE on Frame Size C_ASSERT usage in this file 
@@ -3639,7 +3638,7 @@ extern "C" VOID __cdecl DebugCheckStubUnwindInfoWorker (CONTEXT *pStubContext)
         LOG((LF_STUBS, LL_INFO1000000, "pc %p, sp %p\n", ControlPc, GetSP(&ctx)));
 
         ULONG64 ImageBase;
-        RUNTIME_FUNCTION *pFunctionEntry = RtlLookupFunctionEntry(
+        T_RUNTIME_FUNCTION *pFunctionEntry = RtlLookupFunctionEntry(
                 ControlPc,
                 &ImageBase,
                 NULL);
@@ -4001,16 +4000,49 @@ VOID StubLinkerCPU::EmitShuffleThunk(ShuffleEntry *pShuffleEntryArray)
         {
             // If source is present in register then destination must also be a register
             _ASSERTE(pEntry->dstofs & ShuffleEntry::REGMASK);
+            // Both the srcofs and dstofs must be of the same kind of registers - float or general purpose.
+            _ASSERTE((pEntry->dstofs & ShuffleEntry::FPREGMASK) == (pEntry->srcofs & ShuffleEntry::FPREGMASK));
 
-            X86EmitMovRegReg(c_argRegs[pEntry->dstofs & ShuffleEntry::OFSMASK], c_argRegs[pEntry->srcofs & ShuffleEntry::OFSMASK]);
+            int dstRegIndex = pEntry->dstofs & ShuffleEntry::OFSREGMASK;
+            int srcRegIndex = pEntry->srcofs & ShuffleEntry::OFSREGMASK;
+
+            if (pEntry->srcofs & ShuffleEntry::FPREGMASK) 
+            {
+                // movdqa dstReg, srcReg
+                X64EmitMovXmmXmm((X86Reg)(kXMM0 + dstRegIndex), (X86Reg)(kXMM0 + srcRegIndex));
+            }
+            else
+            {
+                // mov dstReg, srcReg
+                X86EmitMovRegReg(c_argRegs[dstRegIndex], c_argRegs[srcRegIndex]);
+            }
         }
         else if (pEntry->dstofs & ShuffleEntry::REGMASK)
         {
             // source must be on the stack
             _ASSERTE(!(pEntry->srcofs & ShuffleEntry::REGMASK));
 
-            // mov dstreg, [rax + src]
-            X86EmitIndexRegLoad(c_argRegs[pEntry->dstofs & ShuffleEntry::OFSMASK], SCRATCH_REGISTER_X86REG, (pEntry->srcofs + 1) * sizeof(void*));
+            int dstRegIndex = pEntry->dstofs & ShuffleEntry::OFSREGMASK;
+            int srcOffset = (pEntry->srcofs + 1) * sizeof(void*);
+
+            if (pEntry->dstofs & ShuffleEntry::FPREGMASK) 
+            {
+                if (pEntry->dstofs & ShuffleEntry::FPSINGLEMASK)
+                {
+                    // movss dstReg, [rax + src]
+                    X64EmitMovSSFromMem((X86Reg)(kXMM0 + dstRegIndex), SCRATCH_REGISTER_X86REG, srcOffset);
+                }
+                else
+                {
+                    // movsd dstReg, [rax + src]
+                    X64EmitMovSDFromMem((X86Reg)(kXMM0 + dstRegIndex), SCRATCH_REGISTER_X86REG, srcOffset);
+                }
+            }
+            else
+            {
+                // mov dstreg, [rax + src]
+                X86EmitIndexRegLoad(c_argRegs[dstRegIndex], SCRATCH_REGISTER_X86REG, srcOffset);
+            }
         }
         else
         {
@@ -5887,8 +5919,8 @@ void TailCallFrame::GcScanRoots(promote_func *fn, ScanContext* sc)
                     atEnd = (offsetEnd & 1);
                     offsetEnd = (offsetEnd & ~1) << 1;
                     // range encoding starts with a range of 3 (2 is better to encode as
-                    // 2 offsets), so 0 == 3
-                    offsetEnd += sizeof(void*) * 3;
+                    // 2 offsets), so 0 == 2 (the last offset in the range)
+                    offsetEnd += sizeof(void*) * 2;
                     rangeEnd = prevOffset - offsetEnd;
                 }
 
@@ -6016,8 +6048,8 @@ static void EncodeGCOffsets(CPUSTUBLINKER *pSl, /* const */ ULONGARRAY & gcOffse
             {
                 EncodeOneGCOffset(pSl, delta, FALSE, TRUE, last); 
                 i = j - 1;
-                _ASSERTE(rangeOffset >= (offset + (sizeof(void*) * 3)));
-                delta = rangeOffset - (offset + (sizeof(void*) * 3));
+                _ASSERTE(rangeOffset >= (offset + (sizeof(void*) * 2)));
+                delta = rangeOffset - (offset + (sizeof(void*) * 2));
                 offset = rangeOffset;
             }
         }
@@ -6703,8 +6735,16 @@ void FixupPrecode::Fixup(DataImage *image, MethodDesc * pMD)
 
 #endif // HAS_FIXUP_PRECODE
 
+#endif // !DACCESS_COMPILE
+
+
 #ifdef HAS_THISPTR_RETBUF_PRECODE
 
+// rel32 jmp target that points back to the jump (infinite loop).
+// Used to mark uninitialized ThisPtrRetBufPrecode target
+#define REL32_JMP_SELF (-5)
+
+#ifndef DACCESS_COMPILE
 void ThisPtrRetBufPrecode::Init(MethodDesc* pMD, LoaderAllocator *pLoaderAllocator)
 {
     WRAPPER_NO_CONTRACT;
@@ -6729,13 +6769,38 @@ void ThisPtrRetBufPrecode::Init(MethodDesc* pMD, LoaderAllocator *pLoaderAllocat
     m_jmp = X86_INSTR_JMP_REL32;        // jmp rel32
     m_pMethodDesc = (TADDR)pMD;
 
-    if (pLoaderAllocator != NULL)
+    // This precode is never patched lazily - avoid unnecessary jump stub allocation
+    m_rel32 = REL32_JMP_SELF;
+}
+
+BOOL ThisPtrRetBufPrecode::SetTargetInterlocked(TADDR target, TADDR expected)
+{
+    CONTRACTL
     {
-        m_rel32 = rel32UsingJumpStub(&m_rel32,
-            GetPreStubEntryPoint(), NULL /* pMD */, pLoaderAllocator);
+        THROWS;
+        GC_TRIGGERS;
     }
+    CONTRACTL_END;
+
+    // This precode is never patched lazily - the interlocked semantics is not required.
+    _ASSERTE(m_rel32 == REL32_JMP_SELF);
+
+    // Use pMD == NULL to allocate the jump stub in non-dynamic heap that has the same lifetime as the precode itself
+    m_rel32 = rel32UsingJumpStub(&m_rel32, target, NULL /* pMD */, ((MethodDesc *)GetMethodDesc())->GetLoaderAllocatorForCode());
+
+    return TRUE;
+}
+#endif // !DACCESS_COMPILE
+
+PCODE ThisPtrRetBufPrecode::GetTarget()
+{ 
+    LIMITED_METHOD_DAC_CONTRACT;
+
+    // This precode is never patched lazily - pretend that the uninitialized m_rel32 points to prestub
+    if (m_rel32 == REL32_JMP_SELF)
+        return GetPreStubEntryPoint();
+
+    return rel32Decode(PTR_HOST_MEMBER_TADDR(ThisPtrRetBufPrecode, this, m_rel32));
 }
 
 #endif // HAS_THISPTR_RETBUF_PRECODE
-
-#endif // !DACCESS_COMPILE

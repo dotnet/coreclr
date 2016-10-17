@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ===========================================================================
 // File: EnC.CPP
 //
@@ -167,6 +166,8 @@ HRESULT EditAndContinueModule::ApplyEditAndContinue(
     // Ensure the metadata is RW.
     EX_TRY
     {
+        // ConvertMetadataToRWForEnC should only ever be called on EnC capable files.
+        _ASSERTE(IsEditAndContinueCapable()); // this also checks that the file is EnC capable
         GetFile()->ConvertMetadataToRWForEnC();
     }
     EX_CATCH_HRESULT(hr);

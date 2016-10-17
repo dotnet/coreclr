@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -25,7 +24,7 @@
 
 #define MAX_EXCEPTION_MSG   200
 
-// Set if fatal error (like stack overflow or out of memory) occured in this process.
+// Set if fatal error (like stack overflow or out of memory) occurred in this process.
 GVAL_IMPL_INIT(HRESULT, g_hrFatalError, S_OK);
 
 // Helper function to get an exception object from outside the exception.  In
@@ -1698,7 +1697,8 @@ void DECLSPEC_NORETURN ThrowOutOfMemory()
     
 #ifndef DACCESS_COMPILE
 
-    g_hrFatalError = COR_E_OUTOFMEMORY;
+    // Use volatile store to prevent compiler from optimizing the static variable away
+    VolatileStoreWithoutBarrier<HRESULT>(&g_hrFatalError, COR_E_OUTOFMEMORY);
 
     // Regular CLR builds - throw our pre-created OOM exception object
     PAL_CPP_THROW(Exception *, Exception::GetOOMException());

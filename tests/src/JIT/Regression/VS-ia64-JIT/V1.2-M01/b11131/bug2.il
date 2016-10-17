@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
@@ -8,10 +9,6 @@
 // Metadata version: v1.1.1919
 .assembly extern mscorlib
 {
-  .publickeytoken = (B7 7A 5C 56 19 34 E0 89 )                         // .z\V.4..
-  .hash = (77 05 78 E2 0E 97 32 6B 44 09 C8 5F 32 3F 27 30   // w.x...2kD.._2?'0
-           1A 90 4E 64 )                                     // ..Nd
-  .ver 1:1:3300:0
 }
 .assembly 'switch'
 {

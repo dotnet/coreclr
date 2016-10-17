@@ -16,6 +16,8 @@ Note that these conventions are different from the CLR C++ Coding Conventions, d
 
 > Note: the JIT currently doesn't follow some of these conventions very widely. The non-conformant code should be updated, eventually.
 
+> Note: we now use jit-format to format our code. All changes it makes supersede the conventions in this doc. Please see the [jit-format documentation](https://github.com/dotnet/jitutils/blob/master/doc/getstarted.md#formatting-jit-source) for instructions on running jit-format.
+
 # How to use this document
 
 * All new code written in the JIT should adhere to these conventions.
@@ -1454,7 +1456,7 @@ Note that periodically we do need to go through and remove FEATURE_* defines tha
 
 It is generally discouraged to permanently disable code by commenting it out or by putting `#if 0` around it, in an attempt to keep it around for reference. This reduces the hygiene of the code base over time and such disabled code is rarely actually useful. Instead, such disabled code should be entirely deleted. If you do disable code without deleting it, then you must add a comment as to why the code is disabled, and why it is better to leave the code disabled than it is to delete it.
 
-One exception is that it is often useful to `#if 0` code that is useful for debugging an area, but is not otherwise useful. Even in this case, however, it is probably better to introduce a COMPLUS_* variable to enable the special debugging mode.
+One exception is that it is often useful to `#if 0` code that is useful for debugging an area, but is not otherwise useful. Even in this case, however, it is probably better to introduce a COMPlus_* variable to enable the special debugging mode.
 
 ### <a name="14.1.3"/>14.1.3 Debug code
 
@@ -1462,7 +1464,7 @@ Use `#ifdef DEBUG` for debug-only code. Do not use `#ifdef _DEBUG` (with a leadi
 
 Use the `INDEBUG(x)` macro (and related macros) judiciously, for code that only runs in DEBUG, to avoid `#ifdef`s.
 
-Use the `JITDUMP(x)` macro for printing things to the JIT dump output. Note that these things will only get printed when the `verbose` variable is set, which is when `COMPLUS_JitDump=*` or when `COMPLUS_JitDump=XXX` and we are JITting function XXX; or when `COMPLUS_NgenDump=*` or `COMPLUS_NgenDump=XXX` and we are NGENing function XXX. Do not use `JITDUMP` for all output in a debug-only function that might be useful to call from the debugger. In that case, define a function that uses `printf` (which is a JIT-specific implementation of this function), which can be called from the debugger, and invoke that function like this:
+Use the `JITDUMP(x)` macro for printing things to the JIT dump output. Note that these things will only get printed when the `verbose` variable is set, which is when `COMPlus_JitDump=*` or when `COMPlus_JitDump=XXX` and we are JITting function XXX; or when `COMPlus_NgenDump=*` or `COMPlus_NgenDump=XXX` and we are NGENing function XXX. Do not use `JITDUMP` for all output in a debug-only function that might be useful to call from the debugger. In that case, define a function that uses `printf` (which is a JIT-specific implementation of this function), which can be called from the debugger, and invoke that function like this:
 
 ```c++
 DBEXEC(verbose, MyDumpFunction());
@@ -1483,7 +1485,7 @@ This could be written on fewer lines as:
 JITDUMP("*************** In genGenerateCode()\n");
 ```
 
-However, the former is preferred because it is trivial to set an unconditional breakpoint on the "printf" that triggers when we are compiling the function that matches what COMPLUS_JitDump is set to – a very common debugging technique. Note that conditional breakpoints could be used, but they are more cumbersome, and are very difficult to get right in windbg.
+However, the former is preferred because it is trivial to set an unconditional breakpoint on the "printf" that triggers when we are compiling the function that matches what COMPlus_JitDump is set to – a very common debugging technique. Note that conditional breakpoints could be used, but they are more cumbersome, and are very difficult to get right in windbg.
 
 If many back-to-back JITDUMP statements are going to be used it is preferred that they be written using printf().
 

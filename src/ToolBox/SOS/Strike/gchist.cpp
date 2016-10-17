@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // ==++==
 // 
@@ -30,18 +29,17 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
-
-#include <malloc.h>
 #include <stddef.h>
 
+#include "strike.h"
 // We need to define the target address type.  This will be used in the 
 // functions that read directly from the debuggee address space, vs. using 
 // the DAC tgo read the DAC-ized data structures.
 #include "daccess.h"
 //#include "dbgeng.h"
 
-#include "strike.h"
 
 #ifndef STRESS_LOG
 #define STRESS_LOG
@@ -297,8 +295,8 @@ DECLARE_API(HistStats)
                 {
                     if (Iter->Root == innerIter->Root)
                     {
-                        ExtOut ("Root %p promoted multiple times in gc %d\n", 
-                            (ULONG64) Iter->Root, 
+                        ExtOut ("Root %p promoted multiple times in gc %d\n",
+                            SOS_PTR(Iter->Root),
                             GCCount);
                         bErrorFound = TRUE;
                     }
@@ -319,8 +317,8 @@ DECLARE_API(HistStats)
                 {
                     if (Iter->Root == innerIter->Root)
                     {
-                        ExtOut ("Root %p relocated multiple times in gc %d\n", 
-                            (ULONG64) Iter->Root, 
+                        ExtOut ("Root %p relocated multiple times in gc %d\n",
+                            SOS_PTR(Iter->Root),
                             GCCount);
                         bErrorFound = TRUE;
                     }
@@ -419,8 +417,8 @@ DECLARE_API(HistRoot)
             bBoringPeople = false;
             
             ExtOut ("%8d %p %p %9s ", GCCount,
-                (ULONG64) pRelocRec->NewValue, 
-                (ULONG64) pRelocRec->methodTable,
+                SOS_PTR(pRelocRec->NewValue),
+                SOS_PTR(pRelocRec->methodTable),
                 pPromoteRec ? "yes" : "no");
             if (pPromoteRec != NULL)
             {
@@ -501,10 +499,10 @@ DECLARE_API(HistObjFind)
             if (pPtr->Value  == curAddress)
             {
                 bBoringPeople = false;
-                ExtOut ("%8d %p ", GCCount, (ULONG64) curAddress);
-                ExtOut ("Promotion for root %p (MT = %p)\n", 
-                    (ULONG64) pPtr->Root, 
-                    (ULONG64) pPtr->methodTable);
+                ExtOut ("%8d %p ", GCCount, SOS_PTR(curAddress));
+                ExtOut ("Promotion for root %p (MT = %p)\n",
+                    SOS_PTR(pPtr->Root),
+                    SOS_PTR(pPtr->methodTable));
             }
             pPtr = pPtr->next;
         }
@@ -514,12 +512,12 @@ DECLARE_API(HistObjFind)
         {
             if (pReloc->NewValue == curAddress ||
                 pReloc->PrevValue == curAddress)
-            {              
+            {
                 bBoringPeople = false;
-                ExtOut ("%8d %p ", GCCount, (ULONG64) curAddress);
-                ExtOut ("Relocation %s for root %p\n", 
+                ExtOut ("%8d %p ", GCCount, SOS_PTR(curAddress));
+                ExtOut ("Relocation %s for root %p\n",
                     (pReloc->NewValue == curAddress) ? "NEWVALUE" : "PREVVALUE",
-                    (ULONG64) pReloc->Root);
+                    SOS_PTR(pReloc->Root));
             }
             pReloc = pReloc->next;
         }
@@ -573,7 +571,7 @@ DECLARE_API(HistObj)
         
         UINT GCCount = (UINT) g_records[i].GCCount;
 
-        ExtOut ("%8d %p ", GCCount, (ULONG64) curAddress);
+        ExtOut ("%8d %p ", GCCount, SOS_PTR(curAddress));
 
         RelocRecord *pReloc = g_records[i].RelocList;
         size_t candidateCurAddress = curAddress;
@@ -582,7 +580,7 @@ DECLARE_API(HistObj)
         {
             if (pReloc->NewValue == curAddress)
             {
-                ExtOut ("%p, ", (ULONG64) pReloc->Root);
+                ExtOut ("%p, ", SOS_PTR(pReloc->Root));
                 if (bFirstReloc)
                 {
                     candidateCurAddress = pReloc->PrevValue;

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // 
 
@@ -19,9 +20,6 @@ namespace System.Reflection
     [PermissionSetAttribute(SecurityAction.InheritanceDemand, Name = "FullTrust")]
 #pragma warning restore 618
     [System.Runtime.InteropServices.ComVisible(true)]
-#if CONTRACTS_FULL
-    [ContractClass(typeof(MemberInfoContracts))]
-#endif
     public abstract class MemberInfo : ICustomAttributeProvider, _MemberInfo
     {
         #region Constructor
@@ -76,7 +74,6 @@ namespace System.Reflection
         
         #endregion
 
-#if !FEATURE_CORECLR
         public static bool operator ==(MemberInfo left, MemberInfo right)
         {
             if (ReferenceEquals(left, right))
@@ -109,7 +106,6 @@ namespace System.Reflection
         {
             return !(left == right);
         }
-#endif // !FEATURE_CORECLR
 
         public override bool Equals(object obj)
         {
@@ -149,18 +145,4 @@ namespace System.Reflection
         }
 #endif
     }
-
-#if CONTRACTS_FULL
-    [ContractClassFor(typeof(MemberInfo))]
-    internal abstract class MemberInfoContracts : MemberInfo
-    {
-        public override String Name {
-            get {
-                Contract.Ensures(Contract.Result<String>() != null);
-                return default(String);
-            }
-        }
-    }
-#endif // CONTRACTS_FULL
-
 }

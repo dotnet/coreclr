@@ -1,154 +1,181 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
+using System.Runtime.CompilerServices;
 
 internal class test
 {
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static float f00(float x, float y)
     {
         x = x + y;
         return x;
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static float f01(float x, float y)
     {
         x = x - y;
         return x;
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static float f02(float x, float y)
     {
         x = x * y;
         return x;
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static float f03(float x, float y)
     {
         x = x / y;
         return x;
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static float f04(float x, float y)
     {
         x = x % y;
         return x;
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static float f10(float x, float y)
     {
         x += x + y;
         return x;
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static float f11(float x, float y)
     {
         x += x - y;
         return x;
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static float f12(float x, float y)
     {
         x += x * y;
         return x;
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static float f13(float x, float y)
     {
         x += x / y;
         return x;
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static float f14(float x, float y)
     {
         x += x % y;
         return x;
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static float f20(float x, float y)
     {
         x -= x + y;
         return x;
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static float f21(float x, float y)
     {
         x -= x - y;
         return x;
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static float f22(float x, float y)
     {
         x -= x * y;
         return x;
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static float f23(float x, float y)
     {
         x -= x / y;
         return x;
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static float f24(float x, float y)
     {
         x -= x % y;
         return x;
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static float f30(float x, float y)
     {
         x *= x + y;
         return x;
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static float f31(float x, float y)
     {
         x *= x - y;
         return x;
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static float f32(float x, float y)
     {
         x *= x * y;
         return x;
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static float f33(float x, float y)
     {
         x *= x / y;
         return x;
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static float f34(float x, float y)
     {
         x *= x % y;
         return x;
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static float f40(float x, float y)
     {
         x /= x + y;
         return x;
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static float f41(float x, float y)
     {
         x /= x - y;
         return x;
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static float f42(float x, float y)
     {
         x /= x * y;
         return x;
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static float f43(float x, float y)
     {
         x /= x / y;
         return x;
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static float f44(float x, float y)
     {
         x /= x % y;

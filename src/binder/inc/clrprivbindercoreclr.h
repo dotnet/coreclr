@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 #ifndef __CLR_PRIV_BINDER_CORECLR_H__
@@ -68,15 +67,34 @@ public:
     HRESULT PreBindByteArray(PEImage  *pPEImage, BOOL fInspectionOnly);
 #endif // CROSSGEN_COMPILE
 
+#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+    HRESULT BindUsingPEImage( /* in */ PEImage *pPEImage, 
+                              /* in */ BOOL fIsNativeImage, 
+                              /* [retval][out] */ ICLRPrivAssembly **ppAssembly);
+#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+
     HRESULT BindAssemblyByNameWorker(
             BINDER_SPACE::AssemblyName *pAssemblyName,
-            BINDER_SPACE::Assembly **ppCoreCLRFoundAssembly);
+            BINDER_SPACE::Assembly **ppCoreCLRFoundAssembly,
+            bool excludeAppPaths);
 
+    INT_PTR GetManagedAssemblyLoadContext()
+    {
+        return m_ptrManagedAssemblyLoadContext;
+    }
+
+    void SetManagedAssemblyLoadContext(INT_PTR ptrManagedTPABinderInstance)
+    {
+        m_ptrManagedAssemblyLoadContext = ptrManagedTPABinderInstance;
+    }
+    
     //=========================================================================
     // Internal implementation details
     //-------------------------------------------------------------------------
 private:
     BINDER_SPACE::ApplicationContext m_appContext;
+
+    INT_PTR m_ptrManagedAssemblyLoadContext;
 };
 
 #endif // __CLR_PRIV_BINDER_CORECLR_H__

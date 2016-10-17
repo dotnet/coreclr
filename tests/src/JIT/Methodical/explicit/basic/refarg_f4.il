@@ -1,14 +1,14 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
-.assembly extern mscorlib
+.assembly extern mscorlib { }
+.assembly extern System.Console
 {
-                           
-  
-           
-  
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
 }
 .assembly 'refarg_f4'// as "refarg_f4"
 {
@@ -88,7 +88,7 @@
       IL_0013:  ldc.r4     11.314
       IL_0018:  beq.s      IL_0020
 
-      IL_001a:  newobj     instance void ['mscorlib']System.ApplicationException::.ctor()
+      IL_001a:  newobj     instance void ['mscorlib']System.Exception::.ctor()
       IL_001f:  throw
 
       IL_0020:  ret
@@ -165,13 +165,13 @@
       IL_0012:  beq.s      IL_0022
 
       IL_0014:  ldstr      "*** failed ***"
-      IL_0019:  call       void ['mscorlib']System.Console::WriteLine(class System.String)
+      IL_0019:  call       void [System.Console]System.Console::WriteLine(class System.String)
       IL_001e:  ldc.i4.1
       IL_001f:  stloc.0
       IL_0020:  br.s       IL_0030
 
       IL_0022:  ldstr      "*** passed ***"
-      IL_0027:  call       void ['mscorlib']System.Console::WriteLine(class System.String)
+      IL_0027:  call       void [System.Console]System.Console::WriteLine(class System.String)
       IL_002c:  ldc.i4    0x64
       IL_002d:  stloc.0
       IL_002e:  br.s       IL_0030

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // CorDB.cpp
 // 
@@ -21,11 +20,10 @@
 #include "dbgtransportmanager.h"
 #endif // FEATURE_DBGIPC_TRANSPORT_DI
 
-// Helper function returns the instance handle of this module.
-HINSTANCE GetModuleInst();
-
 //********** Globals. *********************************************************
+#ifndef FEATURE_PAL
 HINSTANCE       g_hInst;                // Instance handle to this piece of code.
+#endif
 
 //-----------------------------------------------------------------------------
 // SxS Versioning story for Mscordbi (ICorDebug + friends)
@@ -180,9 +178,9 @@ BOOL WINAPI DbgDllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReserved)
 
         case DLL_PROCESS_ATTACH:
         {
+#ifndef FEATURE_PAL
             g_hInst = hInstance;
-
-#ifdef FEATURE_PAL
+#else
             int err = PAL_InitializeDLL();
             if(err != 0)
             {
@@ -203,11 +201,11 @@ BOOL WINAPI DbgDllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReserved)
 
 #if defined(LOGGING)
             {
-                WCHAR   rcFile[_MAX_PATH];
-                WszGetModuleFileName(hInstance, rcFile, NumItems(rcFile));
+                PathString rcFile;
+                WszGetModuleFileName(hInstance, rcFile);
                 LOG((LF_CORDB, LL_INFO10000,
                     "DI::DbgDllMain: load right side support from file '%s'\n",
-                     rcFile));
+                     rcFile.GetUnicode()));
             }
 #endif
 
@@ -429,16 +427,15 @@ HRESULT STDMETHODCALLTYPE CClassFactory::LockServer(
 }
 
 
-
-
-
 //*****************************************************************************
 // This helper provides access to the instance handle of the loaded image.
 //*****************************************************************************
+#ifndef FEATURE_PAL
 HINSTANCE GetModuleInst()
 {
     return g_hInst;
 }
+#endif
 
 
 //-----------------------------------------------------------------------------

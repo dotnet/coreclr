@@ -1,12 +1,12 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
-
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // Defines the functions understood by the value-numbering system.
-// ValueNumFuncDef(<name of function>, <arity (1-4)>, <is-commutative (for arity = 2)>, <non-null (for gc functions)>, <is-shared-static>)
+// ValueNumFuncDef(<name of function>, <arity (1-4)>, <is-commutative (for arity = 2)>, <non-null (for gc functions)>,
+// <is-shared-static>)
 
+// clang-format off
 ValueNumFuncDef(MapStore, 3, false, false, false)
 ValueNumFuncDef(MapSelect, 2, false, false, false)
 
@@ -31,7 +31,8 @@ ValueNumFuncDef(Cast, 2, false, false, false)               // VNF_Cast: Cast Op
 
 ValueNumFuncDef(CastClass, 2, false, false, false)          // Args: 0: Handle of class being cast to, 1: object being cast.
 ValueNumFuncDef(IsInstanceOf, 2, false, false, false)       // Args: 0: Handle of class being queried, 1: object being queried.
-
+ValueNumFuncDef(ReadyToRunCastClass, 2, false, false, false)          // Args: 0: Helper stub address, 1: object being cast.
+ValueNumFuncDef(ReadyToRunIsInstanceOf, 2, false, false, false)       // Args: 0: Helper stub address, 1: object being queried.
 
 ValueNumFuncDef(LdElemA, 3, false, false, false)            // Args: 0: array value; 1: index value; 2: type handle of element.
 
@@ -74,16 +75,30 @@ ValueNumFuncDef(Abs, 1, false, false, false)
 ValueNumFuncDef(RoundDouble, 1, false, false, false)
 ValueNumFuncDef(RoundFloat, 1, false, false, false)
 ValueNumFuncDef(RoundInt, 1, false, false, false)
-
+ValueNumFuncDef(Cosh, 1, false, false, false)
+ValueNumFuncDef(Sinh, 1, false, false, false)
+ValueNumFuncDef(Tan, 1, false, false, false)
+ValueNumFuncDef(Tanh, 1, false, false, false)
+ValueNumFuncDef(Asin, 1, false, false, false)
+ValueNumFuncDef(Acos, 1, false, false, false)
+ValueNumFuncDef(Atan, 1, false, false, false)
+ValueNumFuncDef(Atan2, 2, false, false, false)
+ValueNumFuncDef(Log10, 1, false, false, false)
+ValueNumFuncDef(Pow, 2, false, false, false)
+ValueNumFuncDef(Exp, 1, false, false, false)
+ValueNumFuncDef(Ceiling, 1, false, false, false)
+ValueNumFuncDef(Floor, 1, false, false, false)
 
 ValueNumFuncDef(ManagedThreadId, 0, false, false, false)
 
+ValueNumFuncDef(ObjGetType, 1, false, false, false)
 ValueNumFuncDef(GetgenericsGcstaticBase, 1, false, true, true)
 ValueNumFuncDef(GetgenericsNongcstaticBase, 1, false, true, true)
 ValueNumFuncDef(GetsharedGcstaticBase, 2, false, true, true)
 ValueNumFuncDef(GetsharedNongcstaticBase, 2, false, true, true)
 ValueNumFuncDef(GetsharedGcstaticBaseNoctor, 1, false, true, true)
 ValueNumFuncDef(GetsharedNongcstaticBaseNoctor, 1, false, true, true)
+ValueNumFuncDef(ReadyToRunStaticBase, 1, false, true, true)
 ValueNumFuncDef(GetsharedGcstaticBaseDynamicclass, 2, false, true, true)
 ValueNumFuncDef(GetsharedNongcstaticBaseDynamicclass, 2, false, true, true)
 ValueNumFuncDef(GetgenericsGcthreadstaticBase, 1, false, true, true)
@@ -104,6 +119,8 @@ ValueNumFuncDef(GetStaticAddrTLS, 1, false, true, false)
 
 ValueNumFuncDef(JitNew, 2, false, true, false)
 ValueNumFuncDef(JitNewArr, 3, false, true, false)
+ValueNumFuncDef(JitReadyToRunNew, 2, false, true, false)
+ValueNumFuncDef(JitReadyToRunNewArr, 3, false, true, false)
 ValueNumFuncDef(BoxNullable, 3, false, false, false)
 
 ValueNumFuncDef(LT_UN, 2, false, false, false)
@@ -119,7 +136,6 @@ ValueNumFuncDef(MOD_UN, 2, false, false, false)
 ValueNumFuncDef(StrCns, 2, false, true, false)
 
 ValueNumFuncDef(Unbox, 2, false, true, false)
-
-
+// clang-format on
 
 #undef ValueNumFuncDef

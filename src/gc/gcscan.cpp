@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*
  * GCSCAN.CPP 
@@ -20,27 +19,31 @@
 #include "gc.h"
 #include "objecthandle.h"
 
-//#define CATCH_GC  //catches exception during GC
 #ifdef DACCESS_COMPILE
-SVAL_IMPL_INIT(LONG, CNameSpace, m_GcStructuresInvalidCnt, 1);
+SVAL_IMPL_INIT(int32_t, GCScan, m_GcStructuresInvalidCnt, 1);
 #else //DACCESS_COMPILE
-VOLATILE(LONG) CNameSpace::m_GcStructuresInvalidCnt = 1;
+VOLATILE(int32_t) GCScan::m_GcStructuresInvalidCnt = 1;
 #endif //DACCESS_COMPILE
 
-BOOL CNameSpace::GetGcRuntimeStructuresValid ()
+bool GCScan::GetGcRuntimeStructuresValid ()
 {
     LIMITED_METHOD_CONTRACT;
     SUPPORTS_DAC;
-    _ASSERTE ((LONG)m_GcStructuresInvalidCnt >= 0);
-    return (LONG)m_GcStructuresInvalidCnt == 0;
+    _ASSERTE ((int32_t)m_GcStructuresInvalidCnt >= 0);
+    return (int32_t)m_GcStructuresInvalidCnt == 0;
 }
 
 #ifdef DACCESS_COMPILE
+
+#ifndef FEATURE_REDHAWK
 void
-CNameSpace::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
+GCScan::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 {
+    UNREFERENCED_PARAMETER(flags);
     m_GcStructuresInvalidCnt.EnumMem();
 }
+#endif
+
 #else
 
 //
@@ -57,7 +60,7 @@ CNameSpace::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 // will still be correct and this scan allows us to spot a common optimization where no dependent handles are
 // due for retirement in this particular GC. This is an important optimization to take advantage of since
 // synchronizing the GC to calculate complete results is a costly operation.
-void CNameSpace::GcDhInitialScan(promote_func* fn, int condemned, int max_gen, ScanContext* sc)
+void GCScan::GcDhInitialScan(promote_func* fn, int condemned, int max_gen, ScanContext* sc)
 {
     // We allocate space for dependent handle scanning context during Ref_Initialize. Under server GC there
     // are actually as many contexts as heaps (and CPUs). Ref_GetDependentHandleContext() retrieves the
@@ -82,7 +85,7 @@ void CNameSpace::GcDhInitialScan(promote_func* fn, int condemned, int max_gen, S
 
 // This method is called after GcDhInitialScan and before each subsequent scan (GcDhReScan below). It
 // determines whether any handles are left that have unpromoted secondaries.
-bool CNameSpace::GcDhUnpromotedHandlesExist(ScanContext* sc)
+bool GCScan::GcDhUnpromotedHandlesExist(ScanContext* sc)
 {
     WRAPPER_NO_CONTRACT;
     // Locate our dependent handle context based on the GC context.
@@ -98,7 +101,7 @@ bool CNameSpace::GcDhUnpromotedHandlesExist(ScanContext* sc)
 // this method in a loop. The scan records state that let's us know when to terminate (no further handles to
 // be promoted or no promotions in the last scan). Returns true if at least one object was promoted as a
 // result of the scan.
-bool CNameSpace::GcDhReScan(ScanContext* sc)
+bool GCScan::GcDhReScan(ScanContext* sc)
 {
     // Locate our dependent handle context based on the GC context.
     DhContext *pDhContext = Ref_GetDependentHandleContext(sc);
@@ -110,23 +113,23 @@ bool CNameSpace::GcDhReScan(ScanContext* sc)
  * Scan for dead weak pointers
  */
 
-VOID CNameSpace::GcWeakPtrScan( promote_func* fn, int condemned, int max_gen, ScanContext* sc )
+void GCScan::GcWeakPtrScan( promote_func* fn, int condemned, int max_gen, ScanContext* sc )
 {
     // Clear out weak pointers that are no longer live.
-    Ref_CheckReachable(condemned, max_gen, (LPARAM)sc);
+    Ref_CheckReachable(condemned, max_gen, (uintptr_t)sc);
 
     // Clear any secondary objects whose primary object is now definitely dead.
     Ref_ScanDependentHandlesForClearing(condemned, max_gen, sc, fn);
 }
 
-static void CALLBACK CheckPromoted(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExtraInfo, LPARAM lp1, LPARAM lp2)
+static void CALLBACK CheckPromoted(_UNCHECKED_OBJECTREF *pObjRef, uintptr_t * /*pExtraInfo*/, uintptr_t /*lp1*/, uintptr_t /*lp2*/)
 {
     LIMITED_METHOD_CONTRACT;
 
     LOG((LF_GC, LL_INFO100000, LOG_HANDLE_OBJECT_CLASS("Checking referent of Weak-", pObjRef, "to ", *pObjRef)));
 
     Object **pRef = (Object **)pObjRef;
-    if (!GCHeap::GetGCHeap()->IsPromoted(*pRef))
+    if (!g_theGCHeap->IsPromoted(*pRef))
     {
         LOG((LF_GC, LL_INFO100, LOG_HANDLE_OBJECT_CLASS("Severing Weak-", pObjRef, "to unreachable ", *pObjRef)));
 
@@ -138,72 +141,33 @@ static void CALLBACK CheckPromoted(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExtra
     }
 }
 
-VOID CNameSpace::GcWeakPtrScanBySingleThread( int condemned, int max_gen, ScanContext* sc )
+void GCScan::GcWeakPtrScanBySingleThread( int condemned, int max_gen, ScanContext* sc )
 {
-    GCToEEInterface::SyncBlockCacheWeakPtrScan(&CheckPromoted, (LPARAM)sc, 0);
+    UNREFERENCED_PARAMETER(condemned);
+    UNREFERENCED_PARAMETER(max_gen);
+    GCToEEInterface::SyncBlockCacheWeakPtrScan(&CheckPromoted, (uintptr_t)sc, 0);
 }
 
-VOID CNameSpace::GcScanSizedRefs(promote_func* fn, int condemned, int max_gen, ScanContext* sc)
+void GCScan::GcScanSizedRefs(promote_func* fn, int condemned, int max_gen, ScanContext* sc)
 {
     Ref_ScanSizedRefHandles(condemned, max_gen, sc, fn);
 }
 
-VOID CNameSpace::GcShortWeakPtrScan(promote_func* fn,  int condemned, int max_gen, 
+void GCScan::GcShortWeakPtrScan(promote_func* fn,  int condemned, int max_gen, 
                                      ScanContext* sc)
 {
-    Ref_CheckAlive(condemned, max_gen, (LPARAM)sc);
+    UNREFERENCED_PARAMETER(fn);
+    Ref_CheckAlive(condemned, max_gen, (uintptr_t)sc);
 }
 
 /*
  * Scan all stack roots in this 'namespace'
  */
  
-VOID CNameSpace::GcScanRoots(promote_func* fn,  int condemned, int max_gen, 
+void GCScan::GcScanRoots(promote_func* fn,  int condemned, int max_gen, 
                              ScanContext* sc)
 {
-#if defined ( _DEBUG) && defined (CATCH_GC)
-    //note that we can't use EX_TRY because the gc_thread isn't known
-    PAL_TRY
-#endif // _DEBUG && CATCH_GC
-    {
-        STRESS_LOG1(LF_GCROOTS, LL_INFO10, "GCScan: Promotion Phase = %d\n", sc->promotion);
-        {
-            // In server GC, we should be competing for marking the statics
-            if (GCHeap::MarkShouldCompeteForStatics())
-            {
-                if (condemned == max_gen && sc->promotion)
-                {
-                    GCToEEInterface::ScanStaticGCRefsOpportunistically(fn, sc);
-                }
-            }
-
-            Thread* pThread = NULL;
-            while ((pThread = ThreadStore::GetThreadList(pThread)) != NULL)
-            {
-                STRESS_LOG2(LF_GC|LF_GCROOTS, LL_INFO100, "{ Starting scan of Thread %p ID = %x\n", pThread, pThread->GetThreadId());
-
-                if (GCHeap::GetGCHeap()->IsThreadUsingAllocationContextHeap(pThread->GetAllocContext(), sc->thread_number))
-                {
-                    sc->thread_under_crawl = pThread;
-#ifdef FEATURE_EVENT_TRACE
-                    sc->dwEtwRootKind = kEtwGCRootKindStack;
-#endif // FEATURE_EVENT_TRACE
-                    GCToEEInterface::ScanStackRoots(pThread, fn, sc);
-#ifdef FEATURE_EVENT_TRACE
-                    sc->dwEtwRootKind = kEtwGCRootKindOther;
-#endif // FEATURE_EVENT_TRACE
-                }
-                STRESS_LOG2(LF_GC|LF_GCROOTS, LL_INFO100, "Ending scan of Thread %p ID = 0x%x }\n", pThread, pThread->GetThreadId());
-            }
-        }
-    }
-#if defined ( _DEBUG) && defined (CATCH_GC)
-    PAL_EXCEPT(EXCEPTION_EXECUTE_HANDLER)
-    {
-        _ASSERTE (!"We got an exception during scan roots");
-    }
-    PAL_ENDTRY
-#endif //_DEBUG
+    GCToEEInterface::GcScanRoots(fn, condemned, max_gen, sc);
 }
 
 /*
@@ -211,36 +175,21 @@ VOID CNameSpace::GcScanRoots(promote_func* fn,  int condemned, int max_gen,
  */
 
 
-VOID CNameSpace::GcScanHandles (promote_func* fn,  int condemned, int max_gen, 
+void GCScan::GcScanHandles (promote_func* fn,  int condemned, int max_gen, 
                                 ScanContext* sc)
 {
-
-#if defined ( _DEBUG) && defined (CATCH_GC)
-    //note that we can't use EX_TRY because the gc_thread isn't known
-    PAL_TRY
-#endif // _DEBUG && CATCH_GC
+    STRESS_LOG1(LF_GC|LF_GCROOTS, LL_INFO10, "GcScanHandles (Promotion Phase = %d)\n", sc->promotion);
+    if (sc->promotion)
     {
-        STRESS_LOG1(LF_GC|LF_GCROOTS, LL_INFO10, "GcScanHandles (Promotion Phase = %d)\n", sc->promotion);
-        if (sc->promotion)
-        {
-            Ref_TracePinningRoots(condemned, max_gen, sc, fn);
-            Ref_TraceNormalRoots(condemned, max_gen, sc, fn);
-        }
-        else
-        {
-            Ref_UpdatePointers(condemned, max_gen, sc, fn);
-            Ref_UpdatePinnedPointers(condemned, max_gen, sc, fn);
-            Ref_ScanDependentHandlesForRelocation(condemned, max_gen, sc, fn);
-        }
+        Ref_TracePinningRoots(condemned, max_gen, sc, fn);
+        Ref_TraceNormalRoots(condemned, max_gen, sc, fn);
     }
-    
-#if defined ( _DEBUG) && defined (CATCH_GC)
-    PAL_EXCEPT(EXCEPTION_EXECUTE_HANDLER)
+    else
     {
-        _ASSERTE (!"We got an exception during scan roots");
+        Ref_UpdatePointers(condemned, max_gen, sc, fn);
+        Ref_UpdatePinnedPointers(condemned, max_gen, sc, fn);
+        Ref_ScanDependentHandlesForRelocation(condemned, max_gen, sc, fn);
     }
-    PAL_ENDTRY
-#endif //_DEBUG
 }
 
 
@@ -250,32 +199,18 @@ VOID CNameSpace::GcScanHandles (promote_func* fn,  int condemned, int max_gen,
  * Scan all handle roots in this 'namespace' for profiling
  */
 
-VOID CNameSpace::GcScanHandlesForProfilerAndETW (int max_gen, ScanContext* sc)
+void GCScan::GcScanHandlesForProfilerAndETW (int max_gen, ScanContext* sc)
 {
     LIMITED_METHOD_CONTRACT;
 
-#if defined ( _DEBUG) && defined (CATCH_GC)
-    //note that we can't use EX_TRY because the gc_thread isn't known
-    PAL_TRY
-#endif // _DEBUG && CATCH_GC
-    {
-        LOG((LF_GC|LF_GCROOTS, LL_INFO10, "Profiler Root Scan Phase, Handles\n"));
-        Ref_ScanPointersForProfilerAndETW(max_gen, (LPARAM)sc);
-    }
-    
-#if defined ( _DEBUG) && defined (CATCH_GC)
-    PAL_EXCEPT(EXCEPTION_EXECUTE_HANDLER)
-    {
-        _ASSERTE (!"We got an exception during scan roots for the profiler");
-    }
-    PAL_ENDTRY
-#endif //_DEBUG
+    LOG((LF_GC|LF_GCROOTS, LL_INFO10, "Profiler Root Scan Phase, Handles\n"));
+    Ref_ScanPointersForProfilerAndETW(max_gen, (uintptr_t)sc);
 }
 
 /*
  * Scan dependent handles in this 'namespace' for profiling
  */
-void CNameSpace::GcScanDependentHandlesForProfilerAndETW (int max_gen, ProfilingScanContext* sc)
+void GCScan::GcScanDependentHandlesForProfilerAndETW (int max_gen, ProfilingScanContext* sc)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -285,68 +220,39 @@ void CNameSpace::GcScanDependentHandlesForProfilerAndETW (int max_gen, Profiling
 
 #endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
 
-void CNameSpace::GcRuntimeStructuresValid (BOOL bValid)
+void GCScan::GcRuntimeStructuresValid (BOOL bValid)
 {
     WRAPPER_NO_CONTRACT;
     if (!bValid)
     {
-        LONG result;
-        result = FastInterlockIncrement (&m_GcStructuresInvalidCnt);
+        int32_t result;
+        result = Interlocked::Increment (&m_GcStructuresInvalidCnt);
         _ASSERTE (result > 0);
     }
     else
     {
-        LONG result;
-        result = FastInterlockDecrement (&m_GcStructuresInvalidCnt);
+        int32_t result;
+        result = Interlocked::Decrement (&m_GcStructuresInvalidCnt);
         _ASSERTE (result >= 0);
     }
 }
 
-void CNameSpace::GcDemote (int condemned, int max_gen, ScanContext* sc)
+void GCScan::GcDemote (int condemned, int max_gen, ScanContext* sc)
 {
-    Ref_RejuvenateHandles (condemned, max_gen, (LPARAM)sc);
-    if (!GCHeap::IsServerHeap() || sc->thread_number == 0)
+    Ref_RejuvenateHandles (condemned, max_gen, (uintptr_t)sc);
+    if (!IsServerHeap() || sc->thread_number == 0)
         GCToEEInterface::SyncBlockCacheDemote(max_gen);
 }
 
-void CNameSpace::GcPromotionsGranted (int condemned, int max_gen, ScanContext* sc)
+void GCScan::GcPromotionsGranted (int condemned, int max_gen, ScanContext* sc)
 {
-    Ref_AgeHandles(condemned, max_gen, (LPARAM)sc);
-    if (!GCHeap::IsServerHeap() || sc->thread_number == 0)
+    Ref_AgeHandles(condemned, max_gen, (uintptr_t)sc);
+    if (!IsServerHeap() || sc->thread_number == 0)
         GCToEEInterface::SyncBlockCachePromotionsGranted(max_gen);
 }
 
 
-void CNameSpace::GcFixAllocContexts (void* arg, void *heap)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    if (GCHeap::UseAllocationContexts())
-    {
-        Thread  *thread = NULL;
-        while ((thread = ThreadStore::GetThreadList(thread)) != NULL)
-        {
-            GCHeap::GetGCHeap()->FixAllocContext(thread->GetAllocContext(), FALSE, arg, heap);
-        }
-    }
-}
-
-void CNameSpace::GcEnumAllocContexts (enum_alloc_context_func* fn)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    if (GCHeap::UseAllocationContexts())
-    {
-        Thread  *thread = NULL;
-        while ((thread = ThreadStore::GetThreadList(thread)) != NULL)
-        {
-            (*fn) (thread->GetAllocContext());
-        }
-    }
-}
-
-
-size_t CNameSpace::AskForMoreReservedMemory (size_t old_size, size_t need_size)
+size_t GCScan::AskForMoreReservedMemory (size_t old_size, size_t need_size)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -367,7 +273,7 @@ size_t CNameSpace::AskForMoreReservedMemory (size_t old_size, size_t need_size)
     return old_size + need_size;
 }
 
-void CNameSpace::VerifyHandleTable(int condemned, int max_gen, ScanContext* sc)
+void GCScan::VerifyHandleTable(int condemned, int max_gen, ScanContext* sc)
 {
     LIMITED_METHOD_CONTRACT;
     Ref_VerifyHandleTable(condemned, max_gen, sc);

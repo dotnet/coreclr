@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ===========================================================================
 // File: CORPRIV.H
 //
@@ -50,10 +49,6 @@ LocaleID RuntimeGetFileSystemLocale();
 #endif // FEATURE_VERSIONING
 
 BOOL RuntimeFileNotFound(HRESULT hr);
-
-#ifdef FEATURE_LEGACYNETCF
-BOOL RuntimeIsLegacyNetCF(DWORD adid);
-#endif
 
 // Helper function to get an Internal interface with an in-memory metadata section
 STDAPI  GetMetaDataInternalInterface(
@@ -642,10 +637,16 @@ STDAPI LoadLibraryShimInternal(
     LPVOID pvReserved,
     HMODULE *phModDll);
 
+STDAPI GetCORSystemDirectoryInternaL(
+    SString& pBuffer
+      );
+
+//LONGPATH:TODO: Remove this once Desktop usage has been removed 
 STDAPI GetCORSystemDirectoryInternal(
-    __out_ecount_part_opt(cchBuffer, *pdwLength) LPWSTR pBuffer, 
-                                                 DWORD  cchBuffer,
-    __out_opt                                    DWORD* pdwLength);
+    __out_ecount_part_opt(cchBuffer, *pdwLength) LPWSTR pBuffer,
+    DWORD  cchBuffer,
+    __out_opt DWORD* pdwLength
+    );
 
 STDAPI GetCORVersionInternal(
     __out_ecount_z_opt(cchBuffer) LPWSTR pBuffer, 
@@ -657,7 +658,7 @@ STDAPI GetRequestedRuntimeInfoInternal(LPCWSTR pExe,
                                LPCWSTR pConfigurationFile, 
                                DWORD startupFlags,
                                DWORD runtimeInfoFlags, 
-                               __out_ecount_opt(dwDirectory) LPWSTR pDirectory, 
+                               __out_ecount_opt(dwDirectory) LPWSTR pDirectory,
                                DWORD dwDirectory, 
                                __out_opt DWORD *pdwDirectoryLength, 
                                __out_ecount_opt(cchBuffer) LPWSTR pVersion, 

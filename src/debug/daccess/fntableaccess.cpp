@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ===========================================================================
 
 // 
@@ -144,7 +143,7 @@ static NTSTATUS OutOfProcessFunctionTableCallback_JIT(IN  ReadMemoryFunction    
                                                       IN  PVOID                 pUserContext,
                                                       IN  PVOID                 TableAddress,
                                                       OUT PULONG                pnEntries,
-                                                      OUT PRUNTIME_FUNCTION*    ppFunctions)
+                                                      OUT PT_RUNTIME_FUNCTION*    ppFunctions)
 {
     if (NULL == pnEntries)      { return STATUS_INVALID_PARAMETER_3; }
     if (NULL == ppFunctions)    { return STATUS_INVALID_PARAMETER_4; }
@@ -180,7 +179,7 @@ static NTSTATUS OutOfProcessFunctionTableCallback_JIT(IN  ReadMemoryFunction    
             DWORD              nEntries;
             DWORD              index;
             DWORD_PTR          pUnwindInfo;
-            PRUNTIME_FUNCTION  pFunctions;
+            PT_RUNTIME_FUNCTION  pFunctions;
             LONG64             lSmallestOffset;
 
             //
@@ -218,7 +217,7 @@ static NTSTATUS OutOfProcessFunctionTableCallback_JIT(IN  ReadMemoryFunction    
                 OutOfProcessFindHeader(fpReadMemory, pUserContext, Hp.pHdrMap, hdrOffset, hdrOffset);
             }
 
-            pFunctions   = (PRUNTIME_FUNCTION)ClrHeapAlloc(ClrGetProcessHeap(), HEAP_ZERO_MEMORY, S_SIZE_T(nEntries) * S_SIZE_T(sizeof(RUNTIME_FUNCTION)));
+            pFunctions   = (PT_RUNTIME_FUNCTION)ClrHeapAlloc(ClrGetProcessHeap(), HEAP_ZERO_MEMORY, S_SIZE_T(nEntries) * S_SIZE_T(sizeof(T_RUNTIME_FUNCTION)));
             *ppFunctions = pFunctions;
             *pnEntries   = nEntries;
 
@@ -275,7 +274,7 @@ static NTSTATUS OutOfProcessFunctionTableCallback_Stub(IN  ReadMemoryFunction   
                                                        IN  PVOID                 pUserContext,
                                                        IN  PVOID                 TableAddress,
                                                        OUT PULONG                pnEntries,
-                                                       OUT PRUNTIME_FUNCTION*    ppFunctions)
+                                                       OUT PT_RUNTIME_FUNCTION*    ppFunctions)
 {
     if (NULL == pnEntries)      { return STATUS_INVALID_PARAMETER_3; }
     if (NULL == ppFunctions)    { return STATUS_INVALID_PARAMETER_4; }
@@ -293,7 +292,7 @@ static NTSTATUS OutOfProcessFunctionTableCallback_Stub(IN  ReadMemoryFunction   
 
     UINT nEntries = 0;
     UINT nEntriesAllocated = 0;
-    RUNTIME_FUNCTION *rgFunctions = NULL;
+    PT_RUNTIME_FUNCTION rgFunctions = NULL;
 
     for (int pass = 1; pass <= 2; pass++)
     {
@@ -372,7 +371,7 @@ static NTSTATUS OutOfProcessFunctionTableCallback_Stub(IN  ReadMemoryFunction   
 
             _ASSERTE(!nEntriesAllocated);
             nEntriesAllocated = nEntries;
-            rgFunctions = (PRUNTIME_FUNCTION)ClrHeapAlloc(ClrGetProcessHeap(), HEAP_ZERO_MEMORY, S_SIZE_T(nEntries) * S_SIZE_T(sizeof(RUNTIME_FUNCTION)));
+            rgFunctions = (PT_RUNTIME_FUNCTION)ClrHeapAlloc(ClrGetProcessHeap(), HEAP_ZERO_MEMORY, S_SIZE_T(nEntries) * S_SIZE_T(sizeof(T_RUNTIME_FUNCTION)));
             nEntries = 0;
         }
         else
@@ -398,7 +397,7 @@ BOOL ReadMemory(PVOID pUserContext, LPCVOID lpBaseAddress, PVOID lpBuffer, SIZE_
 extern "C" NTSTATUS OutOfProcessFunctionTableCallback(IN  HANDLE                hProcess,
                                                       IN  PVOID                 TableAddress,
                                                       OUT PULONG                pnEntries,
-                                                      OUT PRUNTIME_FUNCTION*    ppFunctions)
+                                                      OUT PT_RUNTIME_FUNCTION*    ppFunctions)
 {
     return OutOfProcessFunctionTableCallbackEx(&ReadMemory, hProcess, TableAddress, pnEntries, ppFunctions);
 }
@@ -407,7 +406,7 @@ extern "C" NTSTATUS OutOfProcessFunctionTableCallbackEx(IN  ReadMemoryFunction  
                                                         IN  PVOID				  pUserContext,
                                                         IN  PVOID                 TableAddress,
                                                         OUT PULONG                pnEntries,
-                                                        OUT PRUNTIME_FUNCTION*    ppFunctions)
+                                                        OUT PT_RUNTIME_FUNCTION*    ppFunctions)
 {
     if (NULL == pnEntries)      { return STATUS_INVALID_PARAMETER_3; }
     if (NULL == ppFunctions)    { return STATUS_INVALID_PARAMETER_4; }

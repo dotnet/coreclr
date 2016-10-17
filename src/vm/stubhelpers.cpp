@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: stubhelpers.cpp
 // 
@@ -20,7 +19,7 @@
 #include "security.h"
 #include "eventtrace.h"
 #include "comdatetime.h"
-#include "gc.h"
+#include "gcheaputilities.h"
 #include "interoputil.h"
 #include "gcscan.h"
 #ifdef FEATURE_REMOTING
@@ -62,7 +61,7 @@ void StubHelpers::ValidateObjectInternal(Object *pObjUNSAFE, BOOL fValidateNextO
 }
 	CONTRACTL_END;
 
-	_ASSERTE(CNameSpace::GetGcRuntimeStructuresValid());
+	_ASSERTE(GCScan::GetGcRuntimeStructuresValid());
 
 	// validate the object - there's no need to validate next object's
 	// header since we validate the next object explicitly below
@@ -71,7 +70,7 @@ void StubHelpers::ValidateObjectInternal(Object *pObjUNSAFE, BOOL fValidateNextO
 	// and the next object as required
 	if (fValidateNextObj)
 	{
-		Object *nextObj = GCHeap::GetGCHeap()->NextObj(pObjUNSAFE);
+		Object *nextObj = GCHeapUtilities::GetGCHeap()->NextObj(pObjUNSAFE);
 		if (nextObj != NULL)
 		{
 			// Note that the MethodTable of the object (i.e. the pointer at offset 0) can change from
@@ -144,7 +143,7 @@ void StubHelpers::ProcessByrefValidationList()
 {
     CONTRACTL
     {
-        THROWS;
+        NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;           
     }
@@ -163,14 +162,22 @@ void StubHelpers::ProcessByrefValidationList()
         {
             entry = s_ByrefValidationEntries[i];
 
-            Object *pObjUNSAFE = GCHeap::GetGCHeap()->GetGCHeap()->GetContainingObject(entry.pByref);
+            Object *pObjUNSAFE = GCHeapUtilities::GetGCHeap()->GetContainingObject(entry.pByref);
             ValidateObjectInternal(pObjUNSAFE, TRUE);
         }
     }
     EX_CATCH
     {
-        FormatValidationMessage(entry.pMD, errorString);
-        EEPOLICY_HANDLE_FATAL_ERROR_WITH_MESSAGE(COR_E_EXECUTIONENGINE, errorString.GetUnicode());
+        EX_TRY
+        {
+            FormatValidationMessage(entry.pMD, errorString);
+            EEPOLICY_HANDLE_FATAL_ERROR_WITH_MESSAGE(COR_E_EXECUTIONENGINE, errorString.GetUnicode());
+        }
+        EX_CATCH
+        {
+            EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
+        }
+        EX_END_CATCH_UNREACHABLE;
     }
     EX_END_CATCH_UNREACHABLE;
 
@@ -393,11 +400,13 @@ FORCEINLINE static void *GetCOMIPFromRCW_GetTarget(IUnknown *pUnk, ComPlusCallIn
         pComInfo->m_pInterceptStub = (LPVOID)-1;
     }
 #else // _TARGET_X86_
+#ifdef FEATURE_INCLUDE_ALL_INTERFACES 
     if (NDirect::IsHostHookEnabled())
     {
         // There's one static stub on !_TARGET_X86_.
         return (LPVOID)GetEEFuncEntryPoint(PInvokeStubForHost);
     }
+#endif // FEATURE_INCLUDE_ALL_INTERFACES 
 #endif // _TARGET_X86_
 #endif // FEATURE_CORECLR
 
@@ -1246,19 +1255,19 @@ FCIMPL2(void*, StubHelpers::GetDelegateTarget, DelegateObject *pThisUNSAFE, UINT
     UINT_PTR target = (UINT_PTR)orefThis->GetMethodPtrAux();
 
     // The lowest bit is used to distinguish between MD and target on 64-bit.
-#ifdef _TARGET_AMD64_
     target = (target << 1) | 1;
-#endif // _TARGET_AMD64_
 
     // On 64-bit we pass the real target to the stub-for-host through this out argument,
     // see IL code gen in NDirectStubLinker::DoNDirect for details.
     *ppStubArg = target;
 
+#ifdef FEATURE_INCLUDE_ALL_INTERFACES 
     if (NDirect::IsHostHookEnabled())
     {
         // There's one static stub on !_TARGET_X86_.
         pEntryPoint = GetEEFuncEntryPoint(PInvokeStubForHost);
     }
+#endif // FEATURE_INCLUDE_ALL_INTERFACES 
 #elif defined(_TARGET_ARM_)
     // @ARMTODO: Nothing to do for ARM yet since we don't support the hosted path.
 #endif // _WIN64, _TARGET_ARM_
@@ -1878,7 +1887,7 @@ FCIMPL4(Object*, StubHelpers::GetCOMHRExceptionObject, HRESULT hr, MethodDesc *p
             }
         }
 
-        GetExceptionForHR(hr, pErrInfo, !fForWinRT, &oThrowable, pResErrorInfo, bHasNonCLRLanguageErrorObject);
+        GetExceptionForHR(hr, pErrInfo, fForWinRT, &oThrowable, pResErrorInfo, bHasNonCLRLanguageErrorObject);
     }
     HELPER_METHOD_FRAME_END();    
 
@@ -1995,7 +2004,7 @@ FCIMPL3(void, StubHelpers::ValidateObject, Object *pObjUNSAFE, MethodDesc *pMD, 
         AVInRuntimeImplOkayHolder AVOkay;
 		// don't validate the next object if a BGC is in progress.  we can race with background
 	    // sweep which could make the next object a Free object underneath us if it's dead.
-        ValidateObjectInternal(pObjUNSAFE, !(GCHeap::GetGCHeap()->IsConcurrentGCInProgress()));
+        ValidateObjectInternal(pObjUNSAFE, !(GCHeapUtilities::GetGCHeap()->IsConcurrentGCInProgress()));
     }
     EX_CATCH
     {
@@ -2022,7 +2031,7 @@ FCIMPL3(void, StubHelpers::ValidateByref, void *pByref, MethodDesc *pMD, Object 
     // perform the validation on next GC (see code:StubHelpers.ProcessByrefValidationList).
 
     // Skip byref if is not pointing inside managed heap
-    if (!GCHeap::GetGCHeap()->IsHeapPointer(pByref))
+    if (!GCHeapUtilities::GetGCHeap()->IsHeapPointer(pByref))
     {
         return;
     }
@@ -2057,7 +2066,7 @@ FCIMPL3(void, StubHelpers::ValidateByref, void *pByref, MethodDesc *pMD, Object 
     if (NumOfEntries > BYREF_VALIDATION_LIST_MAX_SIZE)
     {
         // if the list is too big, trigger GC now
-        GCHeap::GetGCHeap()->GarbageCollect(0);
+        GCHeapUtilities::GetGCHeap()->GarbageCollect(0);
     }
 
     HELPER_METHOD_FRAME_END();
@@ -2161,6 +2170,7 @@ FCIMPLEND
 FCIMPL2(void, StubHelpers::MulticastDebuggerTraceHelper, Object* element, INT32 count)
 {
     FCALL_CONTRACT;
+    FCUnique(0xa5);
 }
 FCIMPLEND
 #endif // FEATURE_STUBS_AS_IL

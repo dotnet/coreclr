@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // spinlock.cpp
 //
@@ -160,7 +159,7 @@ BOOL SpinLock::OwnedByCurrentThread()
     }
     CONTRACTL_END;
 
-    return m_holdingThreadId.IsSameThread();
+    return m_holdingThreadId.IsCurrentThread();
 }
 #endif
 
@@ -222,7 +221,7 @@ void SpinLock::GetLock(Thread* pThread)
 
     INCTHREADLOCKCOUNTTHREAD(pThread);
 #ifdef _DEBUG
-    m_holdingThreadId.SetThreadId();
+    m_holdingThreadId.SetToCurrentThread();
     dbg_EnterLock();
 #endif
 }
@@ -289,7 +288,7 @@ void SpinLock::FreeLock(Thread* pThread)
 
 #ifdef _DEBUG
     _ASSERTE(OwnedByCurrentThread());
-    m_holdingThreadId.ResetThreadId();
+    m_holdingThreadId.Clear();
     dbg_LeaveLock();
 #endif
 

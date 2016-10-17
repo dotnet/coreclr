@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 ////////////////////////////////////////////////////////////////////////////
 //
@@ -31,7 +32,6 @@ namespace System.Globalization {
     using System.Security.Permissions;
     using Microsoft.Win32;
     using System.Security;
-    using System.Security.Principal;
     using System.Diagnostics.Contracts;
 
     //
@@ -65,12 +65,8 @@ namespace System.Globalization {
 
 
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
-
-    public class CompareInfo
-#if FEATURE_SERIALIZATION
-    : IDeserializationCallback
-#endif
+    [System.Runtime.InteropServices.ComVisible(true)]
+    public partial class CompareInfo : IDeserializationCallback
     {
         // Mask used to check if IndexOf()/LastIndexOf()/IsPrefix()/IsPostfix() has the right flags.
         private const CompareOptions ValidIndexMaskOffFlags =
@@ -244,7 +240,6 @@ namespace System.Globalization {
         }
 
 
-#if FEATURE_SERIALIZATION // Only defined when FEATURE_USE_LCID is also defined
 #region Serialization
         // the following fields are defined to keep the compatibility with Whidbey.
         // don't change/remove the names/types of these fields.
@@ -265,15 +260,18 @@ namespace System.Globalization {
             // If we didn't have a name, use the LCID
             if (this.m_name == null)
             {
+#if FEATURE_USE_LCID
                 // From whidbey, didn't have a name
                 ci = CultureInfo.GetCultureInfo(this.culture);
                 this.m_name = ci.m_name;
+                this.m_sortName = ci.SortName;
+#endif
             }
             else
             {
                 ci = CultureInfo.GetCultureInfo(m_name);
+                this.m_sortName = ci.SortName;
             }
-            this.m_sortName = ci.SortName;
 
             IntPtr handleOrigin;
             this.m_dataHandle = InternalInitSortHandle(m_sortName, out handleOrigin);
@@ -290,9 +288,11 @@ namespace System.Globalization {
         [OnSerializing]
         private void OnSerializing(StreamingContext ctx)
         {
+#if FEATURE_USE_LCID
             // This is merely for serialization compatibility with Whidbey/Orcas, it can go away when we don't want that compat any more.
             culture = CultureInfo.GetCultureInfo(this.Name).LCID; // This is the lcid of the constructing culture (still have to dereference to get target sort)
             Contract.Assert(m_name != null, "CompareInfo.OnSerializing - expected m_name to be set already");
+#endif
         }
 
         void IDeserializationCallback.OnDeserialization(Object sender)
@@ -301,7 +301,6 @@ namespace System.Globalization {
         }
 
 #endregion Serialization
-#endif // FEATURE_SERIALIZATION
 
 
         ///////////////////////////----- Name -----/////////////////////////////////
@@ -323,10 +322,12 @@ namespace System.Globalization {
             get
             {
                 Contract.Assert(m_name != null, "CompareInfo.Name Expected m_name to be set");
+#if !FEATURE_CORECLR
                 if (m_name == "zh-CHT" || m_name == "zh-CHS")
                 {
                     return m_name;
                 }
+#endif // FEATURE_CORECLR
 
                 return (m_sortName);
             }
@@ -529,25 +530,12 @@ namespace System.Globalization {
 
             if (options == CompareOptions.Ordinal)
             {
-                return CompareOrdinal(string1, offset1, length1,
-                                      string2, offset2, length2);
+                return string.CompareOrdinalHelper(string1, offset1, length1, string2, offset2, length2);
             }
             return InternalCompareString(this.m_dataHandle, this.m_handleOrigin, this.m_sortName, 
                                          string1, offset1, length1, 
                                          string2, offset2, length2, 
                                          GetNativeCompareFlags(options));
-        }
-
-        [System.Security.SecurityCritical]
-        private static int CompareOrdinal(string string1, int offset1, int length1, string string2, int offset2, int length2)
-        {
-            int result = String.nativeCompareOrdinalEx(string1, offset1, string2, offset2,
-                                                       (length1 < length2 ? length1 : length2));
-            if ((length1 != length2) && result == 0)
-            {
-                return (length1 > length2 ? 1 : -1);
-            }
-            return (result);
         }
 
         ////////////////////////////////////////////////////////////////////////

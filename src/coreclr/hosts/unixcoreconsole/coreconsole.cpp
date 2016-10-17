@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 // A simple CoreCLR host that runs a managed binary with the same name as this executable but with the *.dll extension
@@ -95,9 +94,17 @@ int main(const int argc, const char* argv[])
 {
     // Make sure we have a full path for argv[0].
     std::string argv0AbsolutePath;
-    if (!GetAbsolutePath(argv[0], argv0AbsolutePath))
+    std::string entryPointExecutablePath;
+
+    if (!GetEntrypointExecutableAbsolutePath(entryPointExecutablePath))
     {
         perror("Could not get full path to current executable");
+        return -1;
+    }
+
+    if (!GetAbsolutePath(entryPointExecutablePath.c_str(), argv0AbsolutePath))
+    {
+        perror("Could not normalize full path to current executable");
         return -1;
     }
 

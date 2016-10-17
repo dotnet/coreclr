@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 // 
@@ -281,17 +280,17 @@ namespace _GCStress
     // GC Trigger policy classes define how a garbage collection is triggered
 
     // This is the default GC Trigger policy that simply calls 
-    // GCHeap::StressHeap
+    // IGCHeap::StressHeap
     class StressGcTriggerPolicy
     {
     public:
         FORCEINLINE
         static void Trigger()
-        { GCHeap::GetGCHeap()->StressHeap(); }
+        { GCHeapUtilities::GetGCHeap()->StressHeap(); }
 
         FORCEINLINE
-        static void Trigger(::alloc_context* acontext)
-        { GCHeap::GetGCHeap()->StressHeap(acontext); }
+        static void Trigger(::gc_alloc_context* acontext)
+        { GCHeapUtilities::GetGCHeap()->StressHeap(acontext); }
     };
 
     // This is an overriding GC Trigger policy that triggers a GC by calling
@@ -404,7 +403,7 @@ namespace _GCStress
         // Additionally it switches the GC mode as specified by GcModePolicy, and it 
         // uses GcTriggerPolicy::Trigger(alloc_context*) to actually trigger the GC
         FORCEINLINE
-        static void MaybeTrigger(::alloc_context* acontext, DWORD minFastGc = 0)
+        static void MaybeTrigger(::gc_alloc_context* acontext, DWORD minFastGc = 0)
         {
             if (IsEnabled(minFastGc) && GCStressPolicy::IsEnabled())
             {
@@ -456,7 +455,7 @@ namespace _GCStress
     public:
 
         FORCEINLINE
-        static void MaybeTrigger(::alloc_context* acontext)
+        static void MaybeTrigger(::gc_alloc_context* acontext)
         {
             GcStressBase::MaybeTrigger(acontext);
 

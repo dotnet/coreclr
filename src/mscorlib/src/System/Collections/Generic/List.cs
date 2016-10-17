@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -45,7 +46,8 @@ namespace System.Collections.Generic {
             
         // Constructs a List. The list is initially empty and has a capacity
         // of zero. Upon adding the first element to the list the capacity is
-        // increased to 16, and then increased in multiples of two as required.
+        // increased to _defaultCapacity, and then increased in multiples of two
+        // as required.
         public List() {
             _items = _emptyArray;
         }
@@ -172,7 +174,7 @@ namespace System.Collections.Generic {
             get {
                 // Following trick can reduce the range check by one
                 if ((uint) index >= (uint)_size) {
-                    ThrowHelper.ThrowArgumentOutOfRangeException();
+                    ThrowHelper.ThrowArgumentOutOfRange_IndexException();
                 }
                 Contract.EndContractBlock();
                 return _items[index]; 
@@ -180,7 +182,7 @@ namespace System.Collections.Generic {
 
             set {
                 if ((uint) index >= (uint)_size) {
-                    ThrowHelper.ThrowArgumentOutOfRangeException();
+                    ThrowHelper.ThrowArgumentOutOfRange_IndexException();
                 }
                 Contract.EndContractBlock();
                 _items[index] = value;
@@ -272,7 +274,7 @@ namespace System.Collections.Generic {
         // 
         public int BinarySearch(int index, int count, T item, IComparer<T> comparer) {
             if (index < 0)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+                ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
             if (count < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
             if (_size - index < count)
@@ -308,22 +310,19 @@ namespace System.Collections.Generic {
     
         // Contains returns true if the specified element is in the List.
         // It does a linear, O(n) search.  Equality is determined by calling
-        // item.Equals().
-        //
-        public bool Contains(T item) {
-            if ((Object) item == null) {
-                for(int i=0; i<_size; i++)
-                    if ((Object) _items[i] == null)
-                        return true;
-                return false;
-            }
-            else {
-                EqualityComparer<T> c = EqualityComparer<T>.Default;
-                for(int i=0; i<_size; i++) {
-                    if (c.Equals(_items[i], item)) return true;
-                }
-                return false;
-            }
+        // EqualityComparer<T>.Default.Equals().
+
+        public bool Contains(T item)
+        {
+            // PERF: IndexOf calls Array.IndexOf, which internally
+            // calls EqualityComparer<T>.Default.IndexOf, which
+            // is specialized for different types. This
+            // boosts performance since instead of making a
+            // virtual method call each iteration of the loop,
+            // via EqualityComparer<T>.Default.Equals, we
+            // only make one virtual call to EqualityComparer.IndexOf.
+
+            return _size != 0 && IndexOf(item) != -1;
         }
 
         bool System.Collections.IList.Contains(Object item)
@@ -370,7 +369,7 @@ namespace System.Collections.Generic {
                 Array.Copy(_items, 0, array, arrayIndex, _size);
             }
             catch(ArrayTypeMismatchException){
-                ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidArrayType);
+                ThrowHelper.ThrowArgumentException_Argument_InvalidArrayType();
             }
         }
     
@@ -455,11 +454,11 @@ namespace System.Collections.Generic {
  
         public int FindIndex(int startIndex, int count, Predicate<T> match) {
             if( (uint)startIndex > (uint)_size ) {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);                
+                ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();                
             }
 
             if (count < 0 || startIndex > _size - count) {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_Count);
+                ThrowHelper.ThrowCountArgumentOutOfRange_ArgumentOutOfRange_Count();
             }
 
             if( match == null) {
@@ -513,19 +512,19 @@ namespace System.Collections.Generic {
             if(_size == 0) {
                 // Special case for 0 length List
                 if( startIndex != -1) {
-                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);
+                    ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
                 }
             }
             else {
                 // Make sure we're not out of range            
                 if ( (uint)startIndex >= (uint)_size) {
-                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);
+                    ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
                 }
             }
             
             // 2nd have of this also catches when startIndex == MAXINT, so MAXINT - 0 + 1 == -1, which is < 0.
             if (count < 0 || startIndex - count + 1 < 0) {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_Count);
+                ThrowHelper.ThrowCountArgumentOutOfRange_ArgumentOutOfRange_Count();
             }
                         
             int endIndex = startIndex - count;
@@ -539,7 +538,7 @@ namespace System.Collections.Generic {
 
         public void ForEach(Action<T> action) {
             if( action == null) {
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.action);
             }
             Contract.EndContractBlock();
 
@@ -553,7 +552,7 @@ namespace System.Collections.Generic {
             }
 
             if (version != _version && BinaryCompatibility.TargetsAtLeast_Desktop_V4_5)
-                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumFailedVersion);
+                ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumFailedVersion();
         }
 
         // Returns an enumerator for this list with the given
@@ -576,7 +575,7 @@ namespace System.Collections.Generic {
 
         public List<T> GetRange(int index, int count) {
             if (index < 0) {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+                ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
             }
 
             if (count < 0) {
@@ -629,7 +628,7 @@ namespace System.Collections.Generic {
         // 
         public int IndexOf(T item, int index) {
             if (index > _size)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_Index);
+                ThrowHelper.ThrowArgumentOutOfRange_IndexException();
             Contract.Ensures(Contract.Result<int>() >= -1);
             Contract.Ensures(Contract.Result<int>() < Count);
             Contract.EndContractBlock();
@@ -647,9 +646,9 @@ namespace System.Collections.Generic {
         // 
         public int IndexOf(T item, int index, int count) {
             if (index > _size)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_Index);
+                ThrowHelper.ThrowArgumentOutOfRange_IndexException();
 
-            if (count <0 || index > _size - count) ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_Count);
+            if (count <0 || index > _size - count) ThrowHelper.ThrowCountArgumentOutOfRange_ArgumentOutOfRange_Count();
             Contract.Ensures(Contract.Result<int>() >= -1);
             Contract.Ensures(Contract.Result<int>() < Count);
             Contract.EndContractBlock();
@@ -699,7 +698,7 @@ namespace System.Collections.Generic {
             }
             
             if ((uint)index > (uint)_size) {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_Index);
+                ThrowHelper.ThrowArgumentOutOfRange_IndexException();
             }
             Contract.EndContractBlock();
 
@@ -720,9 +719,7 @@ namespace System.Collections.Generic {
                         Array.Copy(_items, index+count, _items, index*2, _size-index);
                     }
                     else {
-                        T[] itemsToInsert = new T[count];
-                        c.CopyTo(itemsToInsert, 0);
-                        itemsToInsert.CopyTo(_items, index);                    
+                        c.CopyTo(_items, index);
                     }
                     _size += count;
                 }                
@@ -769,7 +766,7 @@ namespace System.Collections.Generic {
         public int LastIndexOf(T item, int index)
         {
             if (index >= _size)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_Index);
+                ThrowHelper.ThrowArgumentOutOfRange_IndexException();
             Contract.Ensures(Contract.Result<int>() >= -1);
             Contract.Ensures(((Count == 0) && (Contract.Result<int>() == -1)) || ((Count > 0) && (Contract.Result<int>() <= index)));
             Contract.EndContractBlock();
@@ -787,7 +784,7 @@ namespace System.Collections.Generic {
         // 
         public int LastIndexOf(T item, int index, int count) {
             if ((Count != 0) && (index < 0)) {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+                ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
             }
 
             if ((Count !=0) && (count < 0)) {
@@ -871,7 +868,7 @@ namespace System.Collections.Generic {
         // 
         public void RemoveAt(int index) {
             if ((uint)index >= (uint)_size) {
-                ThrowHelper.ThrowArgumentOutOfRangeException();
+                ThrowHelper.ThrowArgumentOutOfRange_IndexException();
             }
             Contract.EndContractBlock();
             _size--;
@@ -886,7 +883,7 @@ namespace System.Collections.Generic {
         // 
         public void RemoveRange(int index, int count) {
             if (index < 0) {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+                ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
             }
 
             if (count < 0) {
@@ -918,12 +915,9 @@ namespace System.Collections.Generic {
         // which was previously located at index i will now be located at
         // index index + (index + count - i - 1).
         // 
-        // This method uses the Array.Reverse method to reverse the
-        // elements.
-        // 
         public void Reverse(int index, int count) {
             if (index < 0) {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+                ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
             }
                 
             if (count < 0) {
@@ -933,6 +927,7 @@ namespace System.Collections.Generic {
             if (_size - index < count)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
             Contract.EndContractBlock();
+
             Array.Reverse(_items, index, count);
             _version++;
         }
@@ -961,7 +956,7 @@ namespace System.Collections.Generic {
         // 
         public void Sort(int index, int count, IComparer<T> comparer) {
             if (index < 0) {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+                ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
             }
             
             if (count < 0) {
@@ -978,21 +973,28 @@ namespace System.Collections.Generic {
 
         public void Sort(Comparison<T> comparison) {
             if( comparison == null) {
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.comparison);
             }
             Contract.EndContractBlock();
 
             if( _size > 0) {
-                IComparer<T> comparer = new Array.FunctorComparer<T>(comparison);
+                IComparer<T> comparer = Comparer<T>.Create(comparison);
                 Array.Sort(_items, 0, _size, comparer);
             }
         }
 
-        // ToArray returns a new Object array containing the contents of the List.
+        // ToArray returns an array containing the contents of the List.
         // This requires copying the List, which is an O(n) operation.
         public T[] ToArray() {
             Contract.Ensures(Contract.Result<T[]>() != null);
             Contract.Ensures(Contract.Result<T[]>().Length == Count);
+
+#if FEATURE_CORECLR
+            if (_size == 0)
+            {
+                return _emptyArray;
+            }
+#endif
 
             T[] array = new T[_size];
             Array.Copy(_items, 0, array, 0, _size);
@@ -1027,108 +1029,6 @@ namespace System.Collections.Generic {
                 }
             }
             return true;
-        } 
-
-        internal static IList<T> Synchronized(List<T> list) {
-            return new SynchronizedList(list);
-        }
-
-        [Serializable()]
-        internal class SynchronizedList : IList<T> {
-            private List<T> _list;
-            private Object _root;
-    
-            internal SynchronizedList(List<T> list) {
-                _list = list;
-                _root = ((System.Collections.ICollection)list).SyncRoot;
-            }
-
-            public int Count {
-                get {
-                    lock (_root) { 
-                        return _list.Count; 
-                    }
-                }
-            }
-
-            public bool IsReadOnly {
-                get {
-                    return ((ICollection<T>)_list).IsReadOnly;
-                }
-            }
-
-            public void Add(T item) {
-                lock (_root) { 
-                    _list.Add(item); 
-                }
-            }
-
-            public void Clear() {
-                lock (_root) { 
-                    _list.Clear(); 
-                }
-            }
-
-            public bool Contains(T item) {
-                lock (_root) { 
-                    return _list.Contains(item);
-                }
-            }
-
-            public void CopyTo(T[] array, int arrayIndex) {
-                lock (_root) { 
-                    _list.CopyTo(array, arrayIndex);
-                }
-            }
-
-            public bool Remove(T item) {
-                lock (_root) { 
-                    return _list.Remove(item);
-                }
-            }
-
-            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() {
-                lock (_root) { 
-                    return _list.GetEnumerator();
-                }
-            }
-
-            IEnumerator<T> IEnumerable<T>.GetEnumerator() {
-                lock (_root) { 
-                    return ((IEnumerable<T>)_list).GetEnumerator();
-                }
-            }
-
-            public T this[int index] {
-                get {
-                    lock(_root) {
-                        return _list[index];
-                    }
-                }
-                set {
-                    lock(_root) {
-                        _list[index] = value;
-                    }
-                }
-            }
-
-            public int IndexOf(T item) {
-                lock (_root) {
-                    return _list.IndexOf(item);
-                }
-            }
-
-            public void Insert(int index, T item) {
-                lock (_root) {
-                    _list.Insert(index, item);
-                }
-            }
-
-            public void RemoveAt(int index) {
-                lock (_root) {
-                    _list.RemoveAt(index);
-                }
-            }
         }
 
         [Serializable]
@@ -1165,7 +1065,7 @@ namespace System.Collections.Generic {
             private bool MoveNextRare()
             {                
                 if (version != list._version) {
-                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumFailedVersion);
+                    ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumFailedVersion();
                 }
 
                 index = list._size + 1;
@@ -1182,7 +1082,7 @@ namespace System.Collections.Generic {
             Object System.Collections.IEnumerator.Current {
                 get {
                     if( index == 0 || index == list._size + 1) {
-                         ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumOpCantHappen);
+                         ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumOpCantHappen();
                     }
                     return Current;
                 }
@@ -1190,7 +1090,7 @@ namespace System.Collections.Generic {
     
             void System.Collections.IEnumerator.Reset() {
                 if (version != list._version) {
-                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumFailedVersion);
+                    ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumFailedVersion();
                 }
                 
                 index = 0;

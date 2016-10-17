@@ -1,5 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
+.assembly extern System.Console
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
 
 
 // Metadata version: v4.0.21016
@@ -47,7 +54,7 @@
     // Code size       11 (0xb)
     .maxstack  8
     IL_0000:  ldstr      "Activate()"
-    IL_0005:  call       void [mscorlib]System.Console::WriteLine(string)
+    IL_0005:  call       void [System.Console]System.Console::WriteLine(string)
     IL_000a:  ret
   } // end of method TestCase::Activate
 
@@ -57,7 +64,7 @@
     // Code size       11 (0xb)
     .maxstack  8
     IL_0000:  ldstr      "Deactivate()"
-    IL_0005:  call       void [mscorlib]System.Console::WriteLine(string)
+    IL_0005:  call       void [System.Console]System.Console::WriteLine(string)
     IL_000a:  ret
   } // end of method TestCase::Deactivate
 
@@ -67,7 +74,7 @@
     // Code size       11 (0xb)
     .maxstack  8
     IL_0000:  ldstr      "LightUp()"
-    IL_0005:  call       void [mscorlib]System.Console::WriteLine(string)
+    IL_0005:  call       void [System.Console]System.Console::WriteLine(string)
     IL_000a:  ret
   } // end of method TestCase::LightUp
 
@@ -77,7 +84,7 @@
     // Code size       11 (0xb)
     .maxstack  8
     IL_0000:  ldstr      "DimOut()"
-    IL_0005:  call       void [mscorlib]System.Console::WriteLine(string)
+    IL_0005:  call       void [System.Console]System.Console::WriteLine(string)
     IL_000a:  ret
   } // end of method TestCase::DimOut
 
@@ -123,7 +130,7 @@
     .maxstack  4
     .locals init (object[] V_0)
     IL_0000:  ldstr      "============================================"
-    IL_0005:  call       void [mscorlib]System.Console::WriteLine(string)
+    IL_0005:  call       void [System.Console]System.Console::WriteLine(string)
     IL_000a:  ldc.i4.5
     IL_000b:  newarr     [mscorlib]System.Object
     IL_0010:  stloc.0
@@ -151,7 +158,7 @@
     IL_003a:  stelem.ref
     IL_003b:  ldloc.0
     IL_003c:  call       string [mscorlib]System.String::Concat(object[])
-    IL_0041:  call       void [mscorlib]System.Console::WriteLine(string)
+    IL_0041:  call       void [System.Console]System.Console::WriteLine(string)
     IL_0046:  ldarg.1
     IL_0047:  ldarg.1
     IL_0048:  ldarg.2
@@ -160,8 +167,8 @@
                                                       bool,
                                                       bool)
     IL_004f:  ldstr      "============================================"
-    IL_0054:  call       void [mscorlib]System.Console::WriteLine(string)
-    IL_0059:  call       void [mscorlib]System.Console::WriteLine()
+    IL_0054:  call       void [System.Console]System.Console::WriteLine(string)
+    IL_0059:  call       void [System.Console]System.Console::WriteLine()
     IL_005e:  ret
   } // end of method TestCase::TestWrap
 

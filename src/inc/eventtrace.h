@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: eventtrace.h
 // Abstract: This module implements Event Tracing support.  This includes
@@ -329,9 +328,16 @@ namespace ETW
         static BOOL ShouldWalkStaticsAndCOMForEtw();
         static VOID WalkStaticsAndCOMForETW();
         static VOID EndHeapDump(ProfilerWalkHeapContext * profilerWalkHeapContext);
+#ifdef FEATURE_EVENT_TRACE        
         static VOID BeginMovedReferences(size_t * pProfilingContext);
         static VOID MovedReference(BYTE * pbMemBlockStart, BYTE * pbMemBlockEnd, ptrdiff_t cbRelocDistance, size_t profilingContext, BOOL fCompacting, BOOL fAllowProfApiNotification = TRUE);
         static VOID EndMovedReferences(size_t profilingContext, BOOL fAllowProfApiNotification = TRUE);
+#else
+        // TODO: Need to be implemented for PROFILING_SUPPORTED.
+        static VOID BeginMovedReferences(size_t * pProfilingContext) {};
+        static VOID MovedReference(BYTE * pbMemBlockStart, BYTE * pbMemBlockEnd, ptrdiff_t cbRelocDistance, size_t profilingContext, BOOL fCompacting, BOOL fAllowProfApiNotification = TRUE) {};
+        static VOID EndMovedReferences(size_t profilingContext, BOOL fAllowProfApiNotification = TRUE) {};
+#endif // FEATURE_EVENT_TRACE        
         static VOID SendFinalizeObjectEvent(MethodTable * pMT, Object * pObj);
     };
 };

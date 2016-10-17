@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -42,7 +43,7 @@ namespace System.IO {
      *
      * It may become necessary to add in some sort of 
      * DeallocationMode enum, specifying whether we unmap a section of memory, 
-     * call free, run a user-provided delegate to free the memory, etc etc.  
+     * call free, run a user-provided delegate to free the memory, etc.  
      * We'll suggest user write a subclass of UnmanagedMemoryStream that uses
      * a SafeHandle subclass to hold onto the memory.
      * Check for problems when using this in the negative parts of a 
@@ -75,7 +76,7 @@ namespace System.IO {
      *    a. a race condition in WriteX that could have allowed a thread to 
      *    read from unzeroed memory was fixed
      *    b. memory region cannot be expanded beyond _capacity; in other 
-     *    words, a UMS creator is saying a writeable UMS is safe to 
+     *    words, a UMS creator is saying a writable UMS is safe to 
      *    write to anywhere in the memory range up to _capacity, specified
      *    in the ctor. Even if the caller doesn't specify a capacity, then
      *    length is used as the capacity.
@@ -93,7 +94,7 @@ namespace System.IO {
         private long _position;
         private long _offset;
         private FileAccess _access;
-        internal bool _isOpen;        
+        internal bool _isOpen;
         [NonSerialized] 
         private Task<Int32> _lastReadTask; // The last successful task returned from ReadAsync 
 
@@ -232,10 +233,11 @@ namespace System.IO {
             if (_isOpen)
                 throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_CalledTwice"));
 
-            if (!skipSecurityCheck)
+            if (!skipSecurityCheck) {
 #pragma warning disable 618
                 new SecurityPermission(SecurityPermissionFlag.UnmanagedCode).Demand();
 #pragma warning restore 618
+            }
 
             _mem = pointer;
             _offset = 0;
@@ -281,7 +283,7 @@ namespace System.IO {
         public override Task FlushAsync(CancellationToken cancellationToken) { 
         
             if (cancellationToken.IsCancellationRequested) 
-                return Task.FromCancellation(cancellationToken); 
+                return Task.FromCanceled(cancellationToken); 
 
             try { 
             
@@ -322,7 +324,7 @@ namespace System.IO {
                 Contract.EndContractBlock();
                 if (!CanSeek) __Error.StreamIsClosed();
                 
-#if WIN32
+#if !BIT64
                 unsafe {
                     // On 32 bit machines, ensure we don't wrap around.
                     if (value > (long) Int32.MaxValue || _mem + value < _mem)
@@ -403,27 +405,35 @@ namespace System.IO {
 
             int nInt = (int) n; // Safe because n <= count, which is an Int32
             if (nInt < 0)
-                nInt = 0;  // _position could be beyond EOF
+                return 0;  // _position could be beyond EOF
             Contract.Assert(pos + nInt >= 0, "_position + n >= 0");  // len is less than 2^63 -1.
 
-            if (_buffer != null) {
-                unsafe {
-                    byte* pointer = null;
-                    RuntimeHelpers.PrepareConstrainedRegions();
-                    try {
-                        _buffer.AcquirePointer(ref pointer);
-                        Buffer.Memcpy(buffer, offset, pointer + pos + _offset, 0, nInt);
-                    }
-                    finally {
-                        if (pointer != null) {
-                            _buffer.ReleasePointer();
+            unsafe
+            {
+                fixed (byte* pBuffer = buffer)
+                {
+                    if (_buffer != null)
+                    {
+                        byte* pointer = null;
+
+                        RuntimeHelpers.PrepareConstrainedRegions();
+                        try
+                        {
+                            _buffer.AcquirePointer(ref pointer);
+                            Buffer.Memcpy(pBuffer + offset, pointer + pos + _offset, nInt);
+                        }
+                        finally
+                        {
+                            if (pointer != null)
+                            {
+                                _buffer.ReleasePointer();
+                            }
                         }
                     }
-                }
-            }
-            else {
-                unsafe {
-                    Buffer.Memcpy(buffer, offset, _mem + pos, 0, nInt);
+                    else
+                    {
+                        Buffer.Memcpy(pBuffer + offset, _mem + pos, nInt);
+                    }
                 }
             }
             Interlocked.Exchange(ref _position, pos + n);
@@ -444,7 +454,7 @@ namespace System.IO {
             Contract.EndContractBlock();  // contract validation copied from Read(...) 
       
             if (cancellationToken.IsCancellationRequested)  
-                return Task.FromCancellation<Int32>(cancellationToken); 
+                return Task.FromCanceled<Int32>(cancellationToken); 
         
             try { 
             
@@ -594,30 +604,37 @@ namespace System.IO {
                 }
             }
 
-            if (_buffer != null) {
+            unsafe
+            {
+                fixed (byte* pBuffer = buffer)
+                {
+                    if (_buffer != null)
+                    {
+                        long bytesLeft = _capacity - pos;
+                        if (bytesLeft < count)
+                        {
+                            throw new ArgumentException(Environment.GetResourceString("Arg_BufferTooSmall"));
+                        }
 
-                long bytesLeft = _capacity - pos;
-                if (bytesLeft < count) {
-                    throw new ArgumentException(Environment.GetResourceString("Arg_BufferTooSmall"));
-                }
-
-                unsafe {
-                    byte* pointer = null;
-                    RuntimeHelpers.PrepareConstrainedRegions();
-                    try {
-                        _buffer.AcquirePointer(ref pointer);
-                        Buffer.Memcpy(pointer + pos + _offset, 0, buffer, offset, count);
-                    }
-                    finally {
-                        if (pointer != null) {
-                            _buffer.ReleasePointer();
+                        byte* pointer = null;
+                        RuntimeHelpers.PrepareConstrainedRegions();
+                        try
+                        {
+                            _buffer.AcquirePointer(ref pointer);
+                            Buffer.Memcpy(pointer + pos + _offset, pBuffer + offset, count);
+                        }
+                        finally
+                        {
+                            if (pointer != null)
+                            {
+                                _buffer.ReleasePointer();
+                            }
                         }
                     }
-                }
-            }
-            else {
-                unsafe {
-                    Buffer.Memcpy(_mem + pos, 0, buffer, offset, count);
+                    else
+                    {
+                        Buffer.Memcpy(_mem + pos, pBuffer + offset, count);
+                    }
                 }
             }
             Interlocked.Exchange(ref _position, n);
@@ -639,7 +656,7 @@ namespace System.IO {
             Contract.EndContractBlock();  // contract validation copied from Write(..) 
                             
             if (cancellationToken.IsCancellationRequested)  
-                return Task.FromCancellation(cancellationToken); 
+                return Task.FromCanceled(cancellationToken); 
          
             try { 
                        
@@ -673,7 +690,7 @@ namespace System.IO {
                 // Check to see whether we are now expanding the stream and must 
                 // zero any memory in the middle.
                 // don't do if created from SafeBuffer
-                if (_buffer == null) {                             
+                if (_buffer == null) {
                     if (pos > len) {
                         unsafe {
                             Buffer.ZeroMemory(_mem+len, pos-len);

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // 
 
@@ -90,7 +91,7 @@ namespace System.Security.Policy {
             List<StrongName> fullTrustList = new List<StrongName>();
             foreach (StrongName strongName in fullTrustAssemblies) {
                 if (strongName == null) {
-                    throw new ArgumentException(Environment.GetResourceString("Argument_NullFullTrustAssembly"));
+                    throw new ArgumentException(Environment.GetResourceString("Argument_NullFullTrustAssembly"), "fullTrustAssemblies");
                 }
 
                 fullTrustList.Add(new StrongName(strongName.PublicKey, strongName.Name, strongName.Version));
@@ -119,7 +120,7 @@ namespace System.Security.Policy {
             }
             set {
                 if (value == null)
-                    throw new ArgumentNullException(Environment.GetResourceString("Argument_InvalidAppId"));
+                    throw new ArgumentNullException("value", Environment.GetResourceString("Argument_InvalidAppId"));
                 Contract.EndContractBlock();
                 m_appId = value;
             }

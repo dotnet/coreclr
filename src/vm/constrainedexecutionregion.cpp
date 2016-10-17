@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // Methods to support the implementation of Constrained Execution Regions (CERs). This includes logic to walk the IL of methods to
 // determine the statically determinable call graph and prepare each submethod (jit, prepopulate generic dictionaries etc.,
@@ -1746,6 +1745,10 @@ void PrepopulateGenericHandleCache(DictionaryLayout  *pDictionaryLayout,
                                    MethodDesc        *pMD,
                                    MethodTable       *pMT)
 {
+#ifdef FEATURE_CORECLR
+    // Disable this function in CoreCLR to work around https://github.com/dotnet/corefx/issues/12412.
+    LIMITED_METHOD_CONTRACT;
+#else
     CONTRACTL {
         THROWS;
         GC_TRIGGERS;
@@ -1769,6 +1772,7 @@ void PrepopulateGenericHandleCache(DictionaryLayout  *pDictionaryLayout,
         }
         pOverflows = pOverflows->GetNextLayout();
     }
+#endif // FEATURE_CORECLR
 }
 
 #ifdef FEATURE_PREJIT

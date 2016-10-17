@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -86,7 +87,7 @@ namespace System {
 
         [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void SetLOHCompactionMode(int newLOHCompactionyMode);
+        internal static extern void SetLOHCompactionMode(int newLOHCompactionMode);
 
         [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -158,20 +159,13 @@ namespace System {
 
         // Returns the generation that obj is currently in.
         //
-#if FEATURE_LEGACYNETCF
-        [System.Security.SecurityCritical]
-#else
         [System.Security.SecuritySafeCritical]  // auto-generated
-#endif
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern int GetGeneration(Object obj);
 
     
         // Forces a collection of all generations from 0 through Generation.
         //
-#if FEATURE_LEGACYNETCF
-        [System.Security.SecurityCritical]  // auto-generated
-#endif
         public static void Collect(int generation) {
             Collect(generation, GCCollectionMode.Default);
         }
@@ -206,7 +200,7 @@ namespace System {
 
             if ((mode < GCCollectionMode.Default) || (mode > GCCollectionMode.Optimized))
             {
-                throw new ArgumentOutOfRangeException(Environment.GetResourceString("ArgumentOutOfRange_Enum"));
+                throw new ArgumentOutOfRangeException("mode", Environment.GetResourceString("ArgumentOutOfRange_Enum"));
             }
 
             Contract.EndContractBlock();
@@ -269,9 +263,12 @@ namespace System {
         // thread.  This isn't just about handles - it can happen with just 
         // about any finalizable resource.
         //
-        // Users should insert a call to this method near the end of a
-        // method where they must keep an object alive for the duration of that
-        // method, up until this method is called.  Here is an example:
+        // Users should insert a call to this method right after the last line
+        // of their code where their code still needs the object to be kept alive.
+        // The object which reference is passed into this method will not
+        // be eligible for collection until the call to this method happens.
+        // Once the call to this method has happened the object may immediately
+        // become eligible for collection. Here is an example:
         // 
         // "...all you really need is one object with a Finalize method, and a 
         // second object with a Close/Dispose/Done method.  Such as the following 
@@ -289,7 +286,7 @@ namespace System {
         // stream.MethodThatSpansGCs, thus closing a stream still in use."
         //
         // If we insert a call to GC.KeepAlive(this) at the end of Problem(), then
-        // Foo doesn't get finalized and the stream says open.
+        // Foo doesn't get finalized and the stream stays open.
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         public static void KeepAlive(Object obj)
@@ -380,6 +377,15 @@ namespace System {
                 diff = ((float)(newSize - size)) / size;
             } while (reps-- > 0 && !(-.05 < diff && diff < .05));
             return newSize;
+        }
+
+        [System.Security.SecurityCritical]  // auto-generated
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        private static extern long _GetAllocatedBytesForCurrentThread();
+
+        [System.Security.SecuritySafeCritical]  // auto-generated
+        public static long GetAllocatedBytesForCurrentThread() {
+            return _GetAllocatedBytesForCurrentThread();
         }
 
         [System.Security.SecurityCritical]  // auto-generated

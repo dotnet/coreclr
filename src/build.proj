@@ -3,39 +3,38 @@
   
   <!-- List the projects that need to be built -->
   <ItemGroup>
-    <Project Include="mscorlib\mscorlib.csproj" />
+    <Project Include="ToolBox\SOS\NETCore\SOS.NETCore.csproj" />
+    <Project Include="mscorlib\System.Private.CoreLib.csproj" />
+    <Project Include="mscorlib\facade\mscorlib.csproj" />
+    <Project Include="mscorlib\ref\mscorlib.csproj" />
   </ItemGroup>
 
   <Import Project="..\dir.targets" />
 
   <Import Project="..\dir.traversal.targets" />
 
+  <ItemGroup>
+    <BinariesToMove Include="$(BinDir)\facade\mscorlib.dll"/>
+  </ItemGroup>
 
-  <!-- Hook into the local publishing by providing the task that needs to run before we can do the local publishing -->
-  <Import Project="$(BuildToolsLocation)\lib\packages.targets" Condition="Exists('$(BuildToolsLocation)\lib\packages.targets')" />
-  <PropertyGroup>
-    <NugetPackageBuildTargets>BuildNuGetPackages</NugetPackageBuildTargets>
-  </PropertyGroup>
-
-  <!-- Generate Microsoft.Dotnet.CoreCLR nuget package and associated development package -->
-  <Target Name="BuildNuGetPackages" AfterTargets="MovePDB" Condition="'$(BuildNugetPackage)' != 'false'">
-    <MakeDir Directories="$(PackagesBinDir)" Condition="!Exists('$(PackagesBinDir)')" />
-    <Copy SourceFiles="@(NuSpecSrcs)" DestinationFolder="$(PackagesBinDir)" />
-    <Exec Command="&quot;$(NuGetToolPath)&quot; pack &quot;%(NuSpecs.Identity)&quot; -NoPackageAnalysis -NoDefaultExcludes -OutputDirectory &quot;$(PackagesBinDir)&quot;" />
+  <Target Name="MovePostBuildBinaries" AfterTargets="Build">
+    <Move SourceFiles="@(BinariesToMove)"
+        DestinationFolder="$(BinDir)" />
   </Target>
 
   <ItemGroup>
-    <PDBSToMove Include="$(BinDir)mscorlib.pdb"/>
+    <PDBSToMove Include="$(BinDir)\facade\mscorlib.pdb"/>
+    <PDBSToMove Include="$(BinDir)System.Private.CoreLib.pdb"/>
   </ItemGroup>
 
   <PropertyGroup>
-    <MscorlibPDBPath>$(BinDir)mscorlib.pdb</MscorlibPDBPath>
+    <CoreLibPDBPath>$(BinDir)System.Private.CoreLib.pdb</CoreLibPDBPath>
   </PropertyGroup>
 
   <Target Name="MovePDB" AfterTargets="Build">
-    <Move Condition="Exists($(MscorlibPDBPath))"
+    <Move Condition="Exists($(CoreLibPDBPath))"
         SourceFiles="@(PDBSToMove)"
-        DestinationFolder="$(BinDir)PDB"
-    />
+        DestinationFolder="$(BinDir)PDB" />
   </Target>
+
 </Project>

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // 
 // Hash table associated with each module that records for all types defined in that module the mapping
@@ -21,9 +20,6 @@ typedef struct EEClassHashEntry
     friend class EEClassHashTable;
 #ifdef DACCESS_COMPILE
     friend class NativeImageDumper;
-#endif
-#ifdef BINDER
-    friend class MdilModule;
 #endif
 
 #ifdef _DEBUG
@@ -80,7 +76,6 @@ public:
     //NOTICE: look at InsertValue() in ClassLoader, that may be the function you want to use. Use this only
     //        when you are sure you want to insert the value in 'this' table. This function does not deal
     //        with case (as often the class loader has to)
-#ifndef BINDER
     EEClassHashEntry_t *InsertValue(LPCUTF8 pszNamespace, LPCUTF8 pszClassName, PTR_VOID Data, EEClassHashEntry_t *pEncloser, AllocMemTracker *pamTracker);
     EEClassHashEntry_t *InsertValueIfNotFound(LPCUTF8 pszNamespace, LPCUTF8 pszClassName, PTR_VOID *pData, EEClassHashEntry_t *pEncloser, BOOL IsNested, BOOL *pbFound, AllocMemTracker *pamTracker);
     EEClassHashEntry_t *InsertValueUsingPreallocatedEntry(EEClassHashEntry_t *pStorageForNewEntry, LPCUTF8 pszNamespace, LPCUTF8 pszClassName, PTR_VOID Data, EEClassHashEntry_t *pEncloser);
@@ -93,7 +88,6 @@ public:
     EEClassHashEntry_t *FindNextNestedClass(NameHandle* pName, PTR_VOID *pData, LookupContext *pContext);
     EEClassHashEntry_t *FindNextNestedClass(LPCUTF8 pszNamespace, LPCUTF8 pszClassName, PTR_VOID *pData, LookupContext *pContext);
     EEClassHashEntry_t *FindNextNestedClass(LPCUTF8 pszFullyQualifiedName, PTR_VOID *pData, LookupContext *pContext);
-#endif // BINDER
 
     BOOL     CompareKeys(PTR_EEClassHashEntry pEntry, LPCUTF8 * pKey2);
 
@@ -106,14 +100,12 @@ public:
     };
 
     static PTR_VOID CompressClassDef(mdToken cl /* either a TypeDef or ExportedType*/);
-#ifndef BINDER
     bool UncompressModuleAndClassDef(PTR_VOID Data, Loader::LoadFlag loadFlag,
                                      Module **ppModule, mdTypeDef *pCL,
                                      mdExportedType *pmdFoundExportedType);
     VOID UncompressModuleAndNonExportClassDef(PTR_VOID Data, Module **ppModule,
                                               mdTypeDef *pCL);
     static mdToken UncompressModuleAndClassDef(PTR_VOID Data);
-#endif // !BINDER
 
 #ifdef DACCESS_COMPILE
     void EnumMemoryRegions(CLRDataEnumMemoryFlags flags);

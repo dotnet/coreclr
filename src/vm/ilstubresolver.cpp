@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // File: ILStubResolver.cpp
 // 
@@ -92,6 +91,7 @@ LPCUTF8 ILStubResolver::GetStubMethodName()
         case MulticastDelegateStub:  return "IL_STUB_MulticastDelegate_Invoke";
         case UnboxingILStub:         return "IL_STUB_UnboxingStub";
         case InstantiatingStub:      return "IL_STUB_InstantiatingStub";
+        case SecureDelegateStub:     return "IL_STUB_SecureDelegate_Invoke";
 #endif
         default:
             UNREACHABLE_MSG("Unknown stub type");

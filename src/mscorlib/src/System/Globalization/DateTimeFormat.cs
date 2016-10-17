@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 namespace System {
     using System.Text;
@@ -287,7 +288,7 @@ namespace System {
     
         //
         // The pos should point to a quote character. This method will
-        // get the string encloed by the quote character.
+        // append to the result StringBuilder the string encloed by the quote character.
         //
         internal static int ParseQuoteString(String format, int pos, StringBuilder result)
         {
@@ -605,7 +606,7 @@ namespace System {
                                 FormatDigits(result, year % 100, tokenLen);
                             }
                             else {
-                                String fmtPattern = "D" + tokenLen;
+                                String fmtPattern = "D" + tokenLen.ToString();
                                 result.Append(year.ToString(fmtPattern, CultureInfo.InvariantCulture));
                             }
                         }
@@ -629,9 +630,7 @@ namespace System {
                         break;
                     case '\'':
                     case '\"':
-                        StringBuilder enquotedString = new StringBuilder();
-                        tokenLen = ParseQuoteString(format, i, enquotedString); 
-                        result.Append(enquotedString);
+                        tokenLen = ParseQuoteString(format, i, result); 
                         break;
                     case '%':
                         // Optional format character.
@@ -1010,7 +1009,7 @@ namespace System {
                 case 'O':
                 case 's':
                 case 'u':            
-                    results = new String[] {Format(dateTime, new String(new char[] {format}), dtfi)};
+                    results = new String[] {Format(dateTime, new String(format, 1), dtfi)};
                     break;   
                 default:
                     throw new FormatException(Environment.GetResourceString("Format_InvalidString"));

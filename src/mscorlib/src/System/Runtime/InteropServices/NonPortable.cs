@@ -1,12 +1,19 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // Dummy implementations of non-portable interop methods that just throw PlatformNotSupportedException
 
 namespace System.Runtime.InteropServices
-{    
+{
     public  static partial class Marshal
     {
+        [System.Security.SecurityCritical]
+        public static int GetHRForException(Exception e)
+        {
+            return (e != null) ? e.HResult : 0;
+        }
+
         [System.Security.SecurityCriticalAttribute]
         public static int AddRef(System.IntPtr pUnk)
         {
@@ -45,12 +52,6 @@ namespace System.Runtime.InteropServices
 
         [System.Security.SecurityCriticalAttribute]
         public static int FinalReleaseComObject(object o)
-        {
-            throw new PlatformNotSupportedException();
-        }
-
-        [System.Security.SecurityCriticalAttribute]
-        public static void FreeBSTR(System.IntPtr ptr)
         {
             throw new PlatformNotSupportedException();
         }
@@ -150,12 +151,6 @@ namespace System.Runtime.InteropServices
         }
 
         [System.Security.SecurityCriticalAttribute]
-        public static string PtrToStringBSTR(System.IntPtr ptr)
-        {
-            throw new PlatformNotSupportedException();
-        }
-
-        [System.Security.SecurityCriticalAttribute]
         public static int QueryInterface(System.IntPtr pUnk, ref System.Guid iid, out System.IntPtr ppv)
         {
             throw new PlatformNotSupportedException();
@@ -169,12 +164,6 @@ namespace System.Runtime.InteropServices
 
         [System.Security.SecurityCriticalAttribute]
         public static int ReleaseComObject(object o)
-        {
-            throw new PlatformNotSupportedException();
-        }
-
-        [System.Security.SecurityCriticalAttribute]
-        public static System.IntPtr StringToBSTR(string s)
         {
             throw new PlatformNotSupportedException();
         }

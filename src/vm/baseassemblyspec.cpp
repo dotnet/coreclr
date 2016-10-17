@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ============================================================
 //
 // BaseAssemblySpec.cpp
@@ -113,14 +112,14 @@ BOOL BaseAssemblySpec::IsMscorlib()
         return FALSE;
     }
 
-    _ASSERTE(strlen(g_psBaseLibraryName) == 8);
+    _ASSERTE(strlen(g_psBaseLibraryName) == CoreLibNameLen);
 
     // <TODO>More of bug 213471</TODO>
     size_t iNameLen = strlen(m_pAssemblyName);
-    return ( (iNameLen >= 8) &&
+    return ( (iNameLen >= CoreLibNameLen) &&
              ( (!stricmpUTF8(m_pAssemblyName, g_psBaseLibrary)) ||
-             ( (!SString::_strnicmp(m_pAssemblyName, g_psBaseLibraryName, 8)) &&
-               ( (iNameLen == 8) || (m_pAssemblyName[8] == ',') ) ) ) );
+             ( (!SString::_strnicmp(m_pAssemblyName, g_psBaseLibraryName, CoreLibNameLen)) &&
+               ( (iNameLen == CoreLibNameLen) || (m_pAssemblyName[CoreLibNameLen] == ',') ) ) ) );
 }
 
 #ifdef FEATURE_CORECLR
@@ -132,7 +131,7 @@ BOOL BaseAssemblySpec::IsAssemblySpecForMscorlib()
         INSTANCE_CHECK;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(strlen(g_psBaseLibraryName) == 8);
+        PRECONDITION(strlen(g_psBaseLibraryName) == CoreLibNameLen);
     }
     CONTRACTL_END;
     
@@ -141,10 +140,10 @@ BOOL BaseAssemblySpec::IsAssemblySpecForMscorlib()
     if (m_pAssemblyName)
     {
         size_t iNameLen = strlen(m_pAssemblyName);
-        fIsAssemblySpecForMscorlib = ( (iNameLen >= 8) &&
+        fIsAssemblySpecForMscorlib = ( (iNameLen >= CoreLibNameLen) &&
                  ( (!_stricmp(m_pAssemblyName, g_psBaseLibrary)) ||
-                 ( (!_strnicmp(m_pAssemblyName, g_psBaseLibraryName, 8)) &&
-                   ( (iNameLen == 8) || (m_pAssemblyName[8] == ',') ) ) ) );
+                 ( (!_strnicmp(m_pAssemblyName, g_psBaseLibraryName, CoreLibNameLen)) &&
+                   ( (iNameLen == CoreLibNameLen) || (m_pAssemblyName[CoreLibNameLen] == ',') ) ) ) );
     }
     
     return fIsAssemblySpecForMscorlib;
@@ -184,16 +183,16 @@ BOOL BaseAssemblySpec::IsMscorlibSatellite()
         return FALSE;
     }
 
-    _ASSERTE(strlen(g_psBaseLibrarySatelliteAssemblyName) == 18);
+    _ASSERTE(strlen(g_psBaseLibrarySatelliteAssemblyName) == CoreLibSatelliteNameLen);
  
     // <TODO>More of bug 213471</TODO>
     size_t iNameLen = strlen(m_pAssemblyName);
 
     // we allow name to be of the form mscorlib.resources.dll only 
     BOOL r = ( (m_cbPublicKeyOrToken == sizeof(MSCORLIB_PUBLICKEY)) && 
-             (iNameLen >= 18) &&
-             (!SString::_strnicmp(m_pAssemblyName, g_psBaseLibrarySatelliteAssemblyName, 18)) &&
-             ( (iNameLen == 18) || (m_pAssemblyName[18] == ',') ) );
+             (iNameLen >= CoreLibSatelliteNameLen) &&
+             (!SString::_strnicmp(m_pAssemblyName, g_psBaseLibrarySatelliteAssemblyName, CoreLibSatelliteNameLen)) &&
+             ( (iNameLen == CoreLibSatelliteNameLen) || (m_pAssemblyName[CoreLibSatelliteNameLen] == ',') ) );
 
     r = r && ( memcmp(m_pbPublicKeyOrToken,MSCORLIB_PUBLICKEY,sizeof(MSCORLIB_PUBLICKEY)) == 0);
 

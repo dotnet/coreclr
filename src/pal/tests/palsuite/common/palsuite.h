@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================================
 **
@@ -20,6 +19,7 @@
 
 #include <pal_assert.h>
 #include <pal.h>
+#include <palprivate.h>
 
 enum
 {
@@ -135,7 +135,7 @@ inline ULONG   VAL32(ULONG x)
 
 
 
-WCHAR* convert(char * aString) 
+WCHAR* convert(const char * aString) 
 {
     int size;
     WCHAR* wideBuffer;
@@ -150,7 +150,7 @@ WCHAR* convert(char * aString)
     return wideBuffer;
 }
 
-char* convertC(WCHAR * wString) 
+char* convertC(const WCHAR * wString) 
 {
     int size;
     char * MultiBuffer = NULL;
@@ -163,6 +163,17 @@ char* convertC(WCHAR * wString)
     }
     WideCharToMultiByte(CP_ACP,0,wString,-1,MultiBuffer,size,NULL,NULL);
     return MultiBuffer;
+}
+
+UINT64 GetHighPrecisionTimeStamp(LARGE_INTEGER performanceFrequency)
+{
+    LARGE_INTEGER ts;
+    if (!QueryPerformanceCounter(&ts))
+    {
+        Fail("ERROR: Unable to query performance counter!\n");      
+    }
+    
+    return ts.QuadPart / (performanceFrequency.QuadPart / 1000);    
 }
 
 #endif

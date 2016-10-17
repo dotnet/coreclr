@@ -1,5 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
+.assembly extern System.Console
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
 
 
 
@@ -63,7 +70,7 @@
     IL_0019:  stfld      uint8 MyStruct::x1
     IL_001e:  ldloca.s   V_0
     IL_0020:  ldfld      uint8 MyStruct::x1
-    IL_0025:  call       void [mscorlib]System.Console::WriteLine(int32)
+    IL_0025:  call       void [System.Console]System.Console::WriteLine(int32)
     IL_002a:  nop
     IL_002b:  ldloca.s   V_0
     IL_002d:  ldfld      uint8 MyStruct::x1

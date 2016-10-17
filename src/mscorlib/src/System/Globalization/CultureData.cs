@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 namespace System.Globalization
 {
@@ -18,7 +19,6 @@ namespace System.Globalization
     using System.Runtime.Versioning;
     using System.Diagnostics.Contracts;
     using System.Security;
-    using System.Security.Principal;
 
     //
     // List of culture data
@@ -159,8 +159,6 @@ namespace System.Globalization
         private String sCompareInfo; // Compare info name (including sorting key) to use if custom
         private String sScripts; // Typical Scripts for this locale (latn;cyrl; etc)
 
-        // CoreCLR depends on this even though its not exposed publicly.
-#if !FEATURE_CORECLR
         private int iDefaultAnsiCodePage = undef; // default ansi code page ID (ACP)
         private int iDefaultOemCodePage = undef; // default oem code page ID (OCP or OEM)
         private int iDefaultMacCodePage = undef; // default macintosh code page
@@ -176,17 +174,13 @@ namespace System.Globalization
         private String sConsoleFallbackName; // The culture name for the console fallback UI culture
         private String sKeyboardsToInstall; // Keyboard installation string.
         private String fontSignature; // Font signature (16 WORDS)
-#endif
 
         // The bools all need to be in one spot
         private bool bUseOverrides; // use user overrides?
         private bool bNeutral; // Flags for the culture (ie: neutral or not right now)
-#if !FEATURE_CORECLR
         private bool bWin32Installed; // Flags indicate if the culture is Win32 installed
         private bool bFramework; // Flags for indicate if the culture is one of Whidbey cultures
-#endif
 
-#if !FEATURE_CORECLR
         // Region Name to Culture Name mapping table
         // (In future would be nice to be in registry or something)
 
@@ -334,8 +328,6 @@ namespace System.Globalization
         }
         private volatile static Dictionary<string, string> s_RegionNames;
 
-#endif
-
         /////////////////////////////////////////////////////////////////////////
         // Build our invariant information
         //
@@ -350,7 +342,6 @@ namespace System.Globalization
 		    // Make a new culturedata
 		    CultureData invariant = new CultureData();
 
-#if !FEATURE_CORECLR
 		    // Call the native code to get the value of bWin32Installed.
 		    // For versions <= Vista, we set this to false for compatibility with v2.
 		    // For Windows 7, the flag is true.
@@ -359,7 +350,6 @@ namespace System.Globalization
 
 		    // Ask the native code to fill it out for us, we only need the field IsWin32Installed
 		    nativeInitCultureData(invariant);
-#endif
 
 		    // Basics
 		    // Note that we override the resources since this IS NOT supposed to change (by definition)
@@ -371,10 +361,8 @@ namespace System.Globalization
 		    invariant.sName = "";                     // locale name (ie: en-us)
 		    invariant.sParent = "";                     // Parent name (which may be a custom locale/culture)
 		    invariant.bNeutral = false;                   // Flags for the culture (ie: neutral or not right now)
-#if !FEATURE_CORECLR
 		    // Don't set invariant.bWin32Installed, we used nativeInitCultureData for that.
 		    invariant.bFramework = true;
-#endif
 
 		    invariant.sEnglishDisplayName = "Invariant Language (Invariant Country)"; // English pretty name for this locale
 		    invariant.sNativeDisplayName = "Invariant Language (Invariant Country)";  // Native pretty name for this locale
@@ -458,8 +446,6 @@ namespace System.Globalization
 		    invariant.sCompareInfo = "";                     // Compare info name (including sorting key) to use if custom
 		    invariant.sScripts = "Latn;";                // Typical Scripts for this locale (latn,cyrl, etc)
 
-		    // These are desktop only, not coreclr
-	#if !FEATURE_CORECLR
 		    invariant.iLanguage = 0x007f;                 // locale ID (0409) - NO sort information
 		    invariant.iDefaultAnsiCodePage = 1252;                   // default ansi code page ID (ACP)
 		    invariant.iDefaultOemCodePage = 437;                    // default oem code page ID (OCP or OEM)
@@ -472,7 +458,6 @@ namespace System.Globalization
 		    invariant.iInputLanguageHandle = 0x007f;                 // input language handle
 		    invariant.sConsoleFallbackName = "";                     // The culture name for the console fallback UI culture
 		    invariant.sKeyboardsToInstall = "0409:00000409";        // Keyboard installation string.
-	#endif
 		    // Remember it
                     s_Invariant = invariant;
                 }
@@ -511,23 +496,6 @@ namespace System.Globalization
             if (String.IsNullOrEmpty(cultureName))
             {
                 return CultureData.Invariant;
-            }
-
-            if (CompatibilitySwitches.IsAppEarlierThanWindowsPhone8)
-            {
-                // WinCE named some locales differently than Windows.
-                if (cultureName.Equals("iw", StringComparison.OrdinalIgnoreCase))
-                {
-                    cultureName = "he";
-                } 
-                else if (cultureName.Equals("tl", StringComparison.OrdinalIgnoreCase))
-                {
-                    cultureName = "fil";
-                }
-                else if (cultureName.Equals("english", StringComparison.OrdinalIgnoreCase))
-                {
-                    cultureName = "en";
-                }
             }
 
             // Try the hash table first
@@ -778,10 +746,10 @@ namespace System.Globalization
                 }
             }
 
-#if !FEATURE_CORECLR
             //
             // Not found in the hash table, look it up the hard way
             //
+#if !FEATURE_CORECLR
 #if FEATURE_WIN32_REGISTRY
             // First try the registry in case there are overrides of our table
             try
@@ -815,6 +783,7 @@ namespace System.Globalization
             catch (ObjectDisposedException) { }
             catch (ArgumentException) { }
 #endif // FEATURE_WIN32_REGISTRY
+#endif // !FEATURE_CORECLR
 
             // If not a valid mapping from the registry we'll have to try the hard coded table
             if (retVal == null || (retVal.IsNeutralCulture == true))
@@ -826,7 +795,7 @@ namespace System.Globalization
                     retVal = GetCultureData(RegionNames[cultureName], useUserOverride);
                 }
             }
-#endif // !FEATURE_CORECLR
+
             // If not found in the hard coded table we'll have to find a culture that works for us
             if (retVal == null || (retVal.IsNeutralCulture == true))
             {
@@ -948,10 +917,8 @@ namespace System.Globalization
         internal static void ClearCachedData()
         {
             s_cachedCultures = null;
-#if !FEATURE_CORECLR
             s_cachedRegions = null;
             s_replacementCultureNames = null;
-#endif
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -1005,10 +972,12 @@ namespace System.Globalization
 
             int arrayLength = cultureNames.Length;
 
+#if !FEATURE_CORECLR
             if ((types & (CultureTypes.NeutralCultures | CultureTypes.FrameworkCultures)) != 0) // add zh-CHT and zh-CHS
             {
                 arrayLength += 2;
             }
+#endif // FEATURE_CORECLR
 
             CultureInfo[] cultures = new CultureInfo[arrayLength];
 
@@ -1017,12 +986,14 @@ namespace System.Globalization
                 cultures[i] = new CultureInfo(cultureNames[i]);
             }
 
+#if !FEATURE_CORECLR
             if ((types & (CultureTypes.NeutralCultures | CultureTypes.FrameworkCultures)) != 0) // add zh-CHT and zh-CHS
             {
                 Contract.Assert(arrayLength == cultureNames.Length + 2, "CultureData.nativeEnumCultureNames() Incorrect array size");
                 cultures[cultureNames.Length] = new CultureInfo("zh-CHS");
                 cultures[cultureNames.Length + 1] = new CultureInfo("zh-CHT");
             }
+#endif // FEATURE_CORECLR
 
 #pragma warning restore 618
 
@@ -1042,7 +1013,6 @@ namespace System.Globalization
             }
         }
 
-#if !FEATURE_CORECLR
         internal bool IsReplacementCulture
         {
             get
@@ -1081,7 +1051,6 @@ namespace System.Globalization
             }
             return Array.BinarySearch(replacementCultureNames, name) >= 0;
         }
-#endif
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -1180,24 +1149,10 @@ namespace System.Globalization
                 if (this.sLocalizedDisplayName == null)
                 {
 #if !FEATURE_CORECLR
-                    if (this.IsSupplementalCustomCulture)
+                    String resourceKey = "Globalization.ci_" + this.sName;
+                    if (IsResourcePresent(resourceKey))
                     {
-                        if (this.IsNeutralCulture)
-                        {
-                            this.sLocalizedDisplayName = this.SNATIVELANGUAGE;
-                        }
-                        else
-                        {
-                            this.sLocalizedDisplayName = this.SNATIVEDISPLAYNAME;
-                        }
-                    }
-                    else
-                    {
-                        String resourceKey = "Globalization.ci_" + this.sName;
-                        if (IsResourcePresent(resourceKey))
-                        {
-                            this.sLocalizedDisplayName = Environment.GetResourceString(resourceKey);
-                        }
+                        this.sLocalizedDisplayName = Environment.GetResourceString(resourceKey);
                     }
 #endif
                     // If it hasn't been found (Windows 8 and up), fallback to the system
@@ -1208,14 +1163,6 @@ namespace System.Globalization
                         {
                             this.sLocalizedDisplayName = this.SLOCALIZEDLANGUAGE;
                         }
-#if FEATURE_LEGACYNETCF
-                        // NetCF renders Invariant DisplayName differently from Windows
-                        // Quirk it for NetCF apps
-                        else if (CompatibilitySwitches.IsAppEarlierThanWindowsPhone8 && object.ReferenceEquals(this, s_Invariant))
-                        {
-                            this.sLocalizedDisplayName = this.SLOCALIZEDLANGUAGE;
-                        }
-#endif
                         else
                         {
                             // We have to make the neutral distinction in case the OS returns a specific name
@@ -1367,7 +1314,6 @@ namespace System.Globalization
             }
         }
 
-#if !FEATURE_CORECLR
         // iso 639 language name, ie: eng
         internal String SISO639LANGNAME2
         {
@@ -1395,7 +1341,6 @@ namespace System.Globalization
                 return this.sAbbrevLang;
             }
         }
-#endif
 
         // Localized name for this language (Windows Only) ie: Inglis
         // This is only valid for Windows 8 and higher neutrals:
@@ -1486,7 +1431,6 @@ namespace System.Globalization
         }
 
         // (user can override) country code (RegionInfo)
-#if !FEATURE_CORECLR
         internal int ICOUNTRY
         {
             get
@@ -1494,7 +1438,6 @@ namespace System.Globalization
                 return DoGetLocaleInfoInt(LOCALE_ICOUNTRY);
             }
         }
-#endif
 
         // GeoId
         internal int IGEOID
@@ -1518,17 +1461,10 @@ namespace System.Globalization
                 if (this.sLocalizedCountry == null)
                 {
 #if !FEATURE_CORECLR
-                    if (this.IsSupplementalCustomCulture)
+                    String resourceKey = "Globalization.ri_" + this.SREGIONNAME;
+                    if (IsResourcePresent(resourceKey))
                     {
-                        this.sLocalizedCountry = SNATIVECOUNTRY;
-                    }
-                    else
-                    {
-                        String resourceKey = "Globalization.ri_" + this.SREGIONNAME;
-                        if (IsResourcePresent(resourceKey))
-                        {
-                            this.sLocalizedCountry = Environment.GetResourceString(resourceKey);
-                        }
+                        this.sLocalizedCountry = Environment.GetResourceString(resourceKey);
                     }
 #endif
                     // If it hasn't been found (Windows 8 and up), fallback to the system
@@ -1591,7 +1527,6 @@ namespace System.Globalization
             }
         }
 
-#if !FEATURE_CORECLR
         // ISO 3166 Country Name
         internal String SISO3166CTRYNAME2
         {
@@ -1620,7 +1555,6 @@ namespace System.Globalization
             }
         }
 
-#if !FEATURE_CORECLR
         // Default Country
         private int IDEFAULTCOUNTRY
         {
@@ -1629,7 +1563,6 @@ namespace System.Globalization
                 return DoGetLocaleInfoInt(LOCALE_IDEFAULTCOUNTRY);
             }
         }
-#endif
 
         // Console fallback name (ie: locale to use for console apps for unicode-only locales)
         internal int IINPUTLANGUAGEHANDLE
@@ -1670,7 +1603,6 @@ namespace System.Globalization
                 return this.sConsoleFallbackName;
             }
         }
-#endif
 
         /////////////
         // Numbers //
@@ -1683,7 +1615,6 @@ namespace System.Globalization
         //                internal int iDigits                  ; // (user can override) number of fractional digits
         //                internal int iNegativeNumber          ; // (user can override) negative number format
 
-#if !FEATURE_CORECLR
         // Leading zeroes
         private bool ILEADINGZEROS
         {
@@ -1692,7 +1623,6 @@ namespace System.Globalization
                 return (DoGetLocaleInfoInt(LOCALE_ILZERO) == 1);
             }
         }
-#endif
 
 
         // (user can override) grouping of digits
@@ -1701,11 +1631,7 @@ namespace System.Globalization
             [System.Security.SecurityCritical]  // auto-generated
             get
             {
-                if (this.waGrouping == null
-#if !FEATURE_CORECLR
-                    || UseUserOverride
-#endif
-                    )
+                if (this.waGrouping == null || UseUserOverride)
                 {
                     this.waGrouping = ConvertWin32GroupString(DoGetLocaleInfo(LOCALE_SGROUPING));
                 }
@@ -1832,11 +1758,7 @@ namespace System.Globalization
             [System.Security.SecurityCritical]  // auto-generated
             get
             {
-                if (this.sCurrency == null
-#if !FEATURE_CORECLR
-                    || UseUserOverride
-#endif
-                    )
+                if (this.sCurrency == null || UseUserOverride)
                 {
                     this.sCurrency = DoGetLocaleInfo(LOCALE_SCURRENCY);
                 }
@@ -1896,11 +1818,7 @@ namespace System.Globalization
             [System.Security.SecurityCritical]  // auto-generated
             get
             {
-                if (this.waMonetaryGrouping == null
-#if !FEATURE_CORECLR
-                    || UseUserOverride
-#endif
-                    )
+                if (this.waMonetaryGrouping == null || UseUserOverride)
                 {
                     this.waMonetaryGrouping = ConvertWin32GroupString(DoGetLocaleInfo(LOCALE_SMONGROUPING));
                 }
@@ -1920,11 +1838,7 @@ namespace System.Globalization
         {
             get
             {
-                if (this.iMeasure == undef
-#if !FEATURE_CORECLR
-                    || UseUserOverride
-#endif
-                    )
+                if (this.iMeasure == undef || UseUserOverride)
                 {
                     this.iMeasure = DoGetLocaleInfoInt(LOCALE_IMEASURE);
                 }
@@ -1938,11 +1852,7 @@ namespace System.Globalization
             [System.Security.SecurityCritical]  // auto-generated
             get
             {
-                if (this.sListSeparator == null
-#if !FEATURE_CORECLR
-                    || UseUserOverride
-#endif
-                    )
+                if (this.sListSeparator == null || UseUserOverride)
                 {
                     this.sListSeparator = DoGetLocaleInfo(LOCALE_SLIST);
                 }
@@ -1950,7 +1860,6 @@ namespace System.Globalization
             }
         }
 
-#if !FEATURE_CORECLR
         // Paper size
         private int IPAPERSIZE
         {
@@ -1959,7 +1868,6 @@ namespace System.Globalization
                 return DoGetLocaleInfoInt(LOCALE_IPAPERSIZE);
             }
         }
-#endif
 
         ////////////////////////////
         // Calendar/Time (Gregorian) //
@@ -1971,11 +1879,7 @@ namespace System.Globalization
             [System.Security.SecurityCritical]  // auto-generated
             get
             {
-                if (this.sAM1159 == null
-#if !FEATURE_CORECLR
-                    || UseUserOverride
-#endif
-                    )
+                if (this.sAM1159 == null || UseUserOverride)
                 {
                     this.sAM1159 = DoGetLocaleInfo(LOCALE_S1159);
                 }
@@ -1989,11 +1893,7 @@ namespace System.Globalization
             [System.Security.SecurityCritical]  // auto-generated
             get
             {
-                if (this.sPM2359 == null
-#if !FEATURE_CORECLR
-                    || UseUserOverride
-#endif
-                    )
+                if (this.sPM2359 == null || UseUserOverride)
                 {
                     this.sPM2359 = DoGetLocaleInfo(LOCALE_S2359);
                 }
@@ -2006,11 +1906,7 @@ namespace System.Globalization
         {
             get
             {
-                if (this.saLongTimes == null
-#if !FEATURE_CORECLR
-                    || UseUserOverride
-#endif
-                    )
+                if (this.saLongTimes == null || UseUserOverride)
                 {
                     String[] longTimes = DoEnumTimeFormats();
                     if (longTimes == null || longTimes.Length == 0)
@@ -2032,11 +1928,7 @@ namespace System.Globalization
         {
             get
             {
-                if (this.saShortTimes == null
-#if !FEATURE_CORECLR
-                    || UseUserOverride
-#endif
-                    )
+                if (this.saShortTimes == null || UseUserOverride)
                 {
                     // Try to get the short times from the OS/culture.dll
                     String[] shortTimes = DoEnumShortTimeFormats();
@@ -2196,11 +2088,7 @@ namespace System.Globalization
         {
             get
             {
-                if (this.iFirstDayOfWeek == undef
-#if !FEATURE_CORECLR
-                    || UseUserOverride
-#endif
-                    )
+                if (this.iFirstDayOfWeek == undef || UseUserOverride)
                 {
                     // Have to convert it from windows to .Net formats
                     this.iFirstDayOfWeek = ConvertFirstDayOfWeekMonToSun(DoGetLocaleInfoInt(LOCALE_IFIRSTDAYOFWEEK));
@@ -2214,11 +2102,7 @@ namespace System.Globalization
         {
             get
             {
-                if (this.iFirstWeekOfYear == undef
-#if !FEATURE_CORECLR
-                    || UseUserOverride
-#endif
-                    )
+                if (this.iFirstWeekOfYear == undef || UseUserOverride)
                 {
                     this.iFirstWeekOfYear = DoGetLocaleInfoInt(LOCALE_IFIRSTWEEKOFYEAR);
                 }
@@ -2409,11 +2293,7 @@ namespace System.Globalization
             // right after we insert the newly created CalendarData (below)
             CalendarData calendarData = calendars[calendarIndex];
             // Make sure that calendar has data
-            if (calendarData == null
-#if !FEATURE_CORECLR
-                || UseUserOverride
-#endif
-                )
+            if (calendarData == null || UseUserOverride)
             {
                 Contract.Assert(this.sWindowsName != null, "[CultureData.GetCalendar] Expected this.sWindowsName to be populated by COMNlsInfo::nativeInitCultureData already");
                 calendarData = new CalendarData(this.sWindowsName, calendarId, this.UseUserOverride);
@@ -2485,17 +2365,9 @@ namespace System.Globalization
         // es-ES_tradnl -> es-ES
         internal String STEXTINFO               // Text info name to use for text information
         {
-#if !FEATURE_CORECLR
             [System.Security.SecuritySafeCritical]
-#endif
             get
             {
-#if FEATURE_CORECLR
-                // Note: Custom cultures might point at another culture's textinfo, however windows knows how
-                // to redirect it to the desired textinfo culture, so this is OK.
-                Contract.Assert(this.sWindowsName != null, "[CultureData.STEXTINFO] Expected this.sWindowsName to be populated by COMNlsInfo::nativeInitCultureData already");
-                return (this.sWindowsName);
-#else
                 if (this.sTextInfo == null)
                 {
                     // LOCALE_SSORTLOCALE is broken in Win7 for Alt sorts.
@@ -2513,24 +2385,15 @@ namespace System.Globalization
                 }
 
                 return this.sTextInfo;
-#endif
             }
         }
 
         // Compare info name (including sorting key) to use if custom
         internal String SCOMPAREINFO
         {
-#if !FEATURE_CORECLR
             [System.Security.SecuritySafeCritical]
-#endif
             get
             {
-#if FEATURE_CORECLR
-                // Note: Custom cultures might point at another culture's compareinfo, however windows knows how
-                // to redirect it to the desired compareinfo culture, so this is OK.
-                Contract.Assert(this.sWindowsName != null, "[CultureData.SCOMPAREINFO] Expected this.sWindowsName to be populated by COMNlsInfo::nativeInitCultureData already");
-                return (this.sWindowsName);
-#else
                 if (this.sCompareInfo == null)
                 {
                     // LOCALE_SSORTLOCALE is broken in Win7 for Alt sorts.
@@ -2549,7 +2412,6 @@ namespace System.Globalization
                 }
 
                 return this.sCompareInfo;
-#endif
             }
         }
 
@@ -2557,15 +2419,10 @@ namespace System.Globalization
         {
             get
             {
-#if FEATURE_CORECLR
-                return false;
-#else
                 return IsCustomCultureId(this.ILANGUAGE);
-#endif
             }
         }
 
-#if !FEATURE_CORECLR
         // Typical Scripts for this locale (latn;cyrl; etc)
 
         private String SSCRIPTS
@@ -2612,9 +2469,7 @@ namespace System.Globalization
             }
         }
 
-#endif
 
-#if !FEATURE_CORECLR
         internal int IDEFAULTANSICODEPAGE   // default ansi code page ID (ACP)
         {
             get
@@ -2693,7 +2548,6 @@ namespace System.Globalization
         {
             get { return this.bFramework; }
         }
-#endif // !FEATURE_CORECLR
 
         ////////////////////
         // Derived properties //
@@ -2763,11 +2617,7 @@ namespace System.Globalization
             [System.Security.SecuritySafeCritical]  // auto-generated
             get
             {
-                if (sTimeSeparator == null
-#if !FEATURE_CORECLR
-                    || UseUserOverride
-#endif
-                    )
+                if (sTimeSeparator == null || UseUserOverride)
                 {
                     string longTimeFormat = ReescapeWin32String(DoGetLocaleInfo(LOCALE_STIMEFORMAT));
                     if (String.IsNullOrEmpty(longTimeFormat))
@@ -3137,10 +2987,8 @@ namespace System.Globalization
                 nfi.positiveSign = this.sPositiveSign;
                 nfi.negativeSign = this.sNegativeSign;
 
-#if !FEATURE_CORECLR
                 nfi.nativeDigits = this.saNativeDigits;
                 nfi.digitSubstitution = this.iDigitSubstitution;
-#endif // !FEATURE_CORECLR
 
                 nfi.numberGroupSeparator = this.sThousandSeparator;
                 nfi.numberDecimalSeparator = this.sDecimalSeparator;

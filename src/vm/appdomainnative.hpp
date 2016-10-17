@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
@@ -142,7 +141,7 @@ public:
     void QCALLTYPE RegisterWithHost(IUnknown *punkAppDomainManager);
 #endif // FEATURE_APPDOMAINMANAGER_INITOPTIONS
 
-#if defined(FEATURE_HOSTED_BINDER) && defined(FEATURE_APPX_BINDER)
+#if defined(FEATURE_APPX_BINDER)
     static
     ICLRPrivBinder * QCALLTYPE CreateDesignerContext(LPCWSTR *rgPaths, UINT cPaths, BOOL fShared);
 

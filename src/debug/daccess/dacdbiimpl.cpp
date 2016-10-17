@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // File: DacDbiImpl.cpp
 // 
@@ -1247,8 +1246,8 @@ bool DacDbiInterfaceImpl::GetMetaDataFileInfoFromPEFile(VMPTR_PEFile vmPEFile,
     if (pPEFile == NULL)
         return false;
 
-    WCHAR wszFilePath[MAX_PATH] = {0};
-    DWORD cchFilePath = MAX_PATH;
+    WCHAR wszFilePath[MAX_LONGPATH] = {0};
+    DWORD cchFilePath = MAX_LONGPATH;
     bool ret = ClrDataAccess::GetMetaDataFileInfoFromPEFile(pPEFile,
                                                             dwTimeStamp,
                                                             dwSize,
@@ -1284,8 +1283,8 @@ bool DacDbiInterfaceImpl::GetILImageInfoFromNgenPEFile(VMPTR_PEFile vmPEFile,
         return false;
     }
 
-    WCHAR wszFilePath[MAX_PATH] = {0};
-    DWORD cchFilePath = MAX_PATH;
+    WCHAR wszFilePath[MAX_LONGPATH] = {0};
+    DWORD cchFilePath = MAX_LONGPATH;
     bool ret = ClrDataAccess::GetILImageInfoFromNgenPEFile(pPEFile,
                                                            dwTimeStamp,
                                                            dwSize,
@@ -2365,10 +2364,12 @@ TypeHandle DacDbiInterfaceImpl::FindLoadedFnptrType(DWORD numTypeArgs, TypeHandl
     // Lookup operations run the class loader in non-load mode.
     ENABLE_FORBID_GC_LOADER_USE_IN_THIS_SCOPE();
 
-    // @dbgtodo : Do we need to worry about calling convention here? 
-    return  ClassLoader::LoadFnptrTypeThrowing(0, 
-                                               numTypeArgs, 
-                                               pInst, 
+    // @dbgtodo : Do we need to worry about calling convention here?
+    // LoadFnptrTypeThrowing expects the count of arguments, not
+    // including return value, so we subtract 1 from numTypeArgs.
+    return  ClassLoader::LoadFnptrTypeThrowing(0,
+                                               numTypeArgs - 1,
+                                               pInst,
                                                ClassLoader::DontLoadTypes);
 } // DacDbiInterfaceImpl::FindLoadedFnptrType
 
@@ -5082,6 +5083,9 @@ void DacDbiInterfaceImpl::Hijack(
     // (The hijack function already has the context)
     _ASSERTE((pOriginalContext == NULL) == (cbSizeContext == 0));
     _ASSERTE(EHijackReason::IsValid(reason));
+#ifdef PLATFORM_UNIX
+    _ASSERTE(!"Not supported on this platform");
+#endif
 
     //
     // If we hijack a thread which might not be managed we can set vmThread = NULL
@@ -5236,6 +5240,11 @@ void DacDbiInterfaceImpl::Hijack(
     ctx.R1 = (DWORD)espRecord;
     ctx.R2 = (DWORD)reason;
     ctx.R3 = (DWORD)pData;
+#elif defined(_TARGET_ARM64_)
+    ctx.X0 = (DWORD64)espContext;
+    ctx.X1 = (DWORD64)espRecord;
+    ctx.X2 = (DWORD64)reason;
+    ctx.X3 = (DWORD64)pData;
 #else
     PORTABILITY_ASSERT("CordbThread::HijackForUnhandledException is not implemented on this platform.");
 #endif
@@ -5615,26 +5624,44 @@ void DacDbiInterfaceImpl::GetContext(VMPTR_Thread vmThread, DT_CONTEXT * pContex
     if (pFilterContext == NULL)
     {
         // If the filter context is NULL, then we use the true context of the thread.
-        
-#ifdef FEATURE_DBGIPC_TRANSPORT_DI
-        // GetThreadContext() is currently not implemented in ShimRemoteDataTarget, which is used with our pipe transport 
-        // (FEATURE_DBGIPC_TRANSPORT_DI). Pipe transport is used on POSIX system, but occasionally we can turn it on for Windows for testing,
-        // and then we'd like to have same behavior as on POSIX system (zero context).
-        //
-        // We don't have a good way to implement GetThreadContext() in ShimRemoteDataTarget yet, because we have no way to convert a thread ID to a 
-        // thread handle.  The function to do the conversion is OpenThread(), which is not implemented in PAL. Even if we had a handle, PAL implementation 
-        // of GetThreadContext() is very limited and doesn't work when we're not attached with ptrace. 
-        // Instead, we just zero out the seed CONTEXT for the stackwalk.  This tells the stackwalker to
-        // start the stackwalk with the first explicit frame.  This won't work when we do native debugging, 
-        // but that won't happen on the POSIX systems since they don't support native debugging.
-        ZeroMemory(pContextBuffer, sizeof(*pContextBuffer));        
-#else  // DFEATURE_DBGIPC_TRANSPORT_DI
         pContextBuffer->ContextFlags = CONTEXT_ALL;
-        IfFailThrow(m_pTarget->GetThreadContext(pThread->GetOSThreadId(), 
+        HRESULT hr = m_pTarget->GetThreadContext(pThread->GetOSThreadId(), 
                                                 pContextBuffer->ContextFlags, 
                                                 sizeof(*pContextBuffer),
-                                                reinterpret_cast<BYTE *>(pContextBuffer)));
-#endif // DFEATURE_DBGIPC_TRANSPORT_DI        
+                                                reinterpret_cast<BYTE *>(pContextBuffer));
+        if (hr == E_NOTIMPL)
+        {
+            // GetThreadContext is not implemented on this data target.
+            // That's why we have to make do with context we can obtain from Frames explicitly stored in Thread object. 
+            // It suffices for managed debugging stackwalk. 
+            REGDISPLAY tmpRd = {};
+            T_CONTEXT tmpContext = {};
+            FillRegDisplay(&tmpRd, &tmpContext);
+            
+            // Going through thread Frames and looking for first (deepest one) one that 
+            // that has context available for stackwalking (SP and PC)
+            // For example: RedirectedThreadFrame, InlinedCallFrame, HelperMethodFrame, ComPlusMethodFrame
+            Frame *frame = pThread->GetFrame();
+            while (frame != NULL && frame != FRAME_TOP)
+            {
+                frame->UpdateRegDisplay(&tmpRd);
+                if (GetRegdisplaySP(&tmpRd) != 0 && GetControlPC(&tmpRd) != 0)
+                {
+                    UpdateContextFromRegDisp(&tmpRd, &tmpContext);
+                    CopyMemory(pContextBuffer, &tmpContext, sizeof(*pContextBuffer));
+                    pContextBuffer->ContextFlags = DT_CONTEXT_CONTROL;
+                    return;
+                }
+                frame = frame->Next();
+            }
+
+            // It looks like this thread is not running managed code. 
+            ZeroMemory(pContextBuffer, sizeof(*pContextBuffer));   
+        }
+        else 
+        {
+            IfFailThrow(hr);
+        }
     }
     else
     {
@@ -6492,7 +6519,7 @@ HRESULT DacHeapWalker::Init(CORDB_ADDRESS start, CORDB_ADDRESS end)
             if (thread == NULL)
                 continue;
 
-            alloc_context *ctx = thread->GetAllocContext();
+            gc_alloc_context *ctx = thread->GetAllocContext();
             if (ctx == NULL)
                 continue;
 
@@ -6508,7 +6535,7 @@ HRESULT DacHeapWalker::Init(CORDB_ADDRESS start, CORDB_ADDRESS end)
     }
 
 #ifdef FEATURE_SVR_GC
-    HRESULT hr = GCHeap::IsServerHeap() ? InitHeapDataSvr(mHeaps, mHeapCount) : InitHeapDataWks(mHeaps, mHeapCount);
+    HRESULT hr = GCHeapUtilities::IsServerHeap() ? InitHeapDataSvr(mHeaps, mHeapCount) : InitHeapDataWks(mHeaps, mHeapCount);
 #else
     HRESULT hr = InitHeapDataWks(mHeaps, mHeapCount);
 #endif
@@ -6752,7 +6779,7 @@ HRESULT DacDbiInterfaceImpl::GetHeapSegments(OUT DacDbiArrayList<COR_SEGMENT> *p
     HeapData *heaps = 0;
     
 #ifdef FEATURE_SVR_GC
-    HRESULT hr = GCHeap::IsServerHeap() ? DacHeapWalker::InitHeapDataSvr(heaps, heapCount) : DacHeapWalker::InitHeapDataWks(heaps, heapCount);
+    HRESULT hr = GCHeapUtilities::IsServerHeap() ? DacHeapWalker::InitHeapDataSvr(heaps, heapCount) : DacHeapWalker::InitHeapDataWks(heaps, heapCount);
 #else
     HRESULT hr = DacHeapWalker::InitHeapDataWks(heaps, heapCount);
 #endif
@@ -6962,6 +6989,21 @@ HRESULT DacDbiInterfaceImpl::GetTypeID(CORDB_ADDRESS dbgObj, COR_TYPEID *pID)
     return hr;
 }
 
+HRESULT DacDbiInterfaceImpl::GetTypeIDForType(VMPTR_TypeHandle vmTypeHandle, COR_TYPEID *pID)
+{
+    DD_ENTER_MAY_THROW;
+
+    _ASSERTE(pID != NULL);
+    _ASSERTE(!vmTypeHandle.IsNull());
+
+    TypeHandle th = TypeHandle::FromPtr(vmTypeHandle.GetDacPtr());
+    PTR_MethodTable pMT = th.GetMethodTable();
+    pID->token1 = pMT.GetAddr();
+    _ASSERTE(pID->token1 != 0);
+    pID->token2 = 0;
+    return S_OK;
+}
+
 HRESULT DacDbiInterfaceImpl::GetObjectFields(COR_TYPEID id, ULONG32 celt, COR_FIELD *layout, ULONG32 *pceltFetched)
 {
     if (layout == NULL || pceltFetched == NULL)
@@ -7143,10 +7185,10 @@ void DacDbiInterfaceImpl::GetGCHeapInformation(COR_HEAPINFO * pHeapInfo)
     DD_ENTER_MAY_THROW;
     
     size_t heapCount = 0;
-    pHeapInfo->areGCStructuresValid = CNameSpace::GetGcRuntimeStructuresValid();
+    pHeapInfo->areGCStructuresValid = GCScan::GetGcRuntimeStructuresValid();
     
 #ifdef FEATURE_SVR_GC
-    if (GCHeap::IsServerHeap())
+    if (GCHeapUtilities::IsServerHeap())
     {
         pHeapInfo->gcType = CorDebugServerGC;
         pHeapInfo->numHeaps = DacGetNumHeaps();
@@ -7441,7 +7483,7 @@ HRESULT DacHandleWalker::Next(ULONG celt, DacGcReference roots[], ULONG *pceltFe
 }
 
 
-void CALLBACK DacHandleWalker::EnumCallbackDac(PTR_UNCHECKED_OBJECTREF handle, LPARAM *pExtraInfo, LPARAM param1, LPARAM param2)
+void CALLBACK DacHandleWalker::EnumCallbackDac(PTR_UNCHECKED_OBJECTREF handle, uintptr_t *pExtraInfo, uintptr_t param1, uintptr_t param2)
 {
     SUPPORTS_DAC;
     
@@ -7529,7 +7571,7 @@ void CALLBACK DacHandleWalker::EnumCallbackDac(PTR_UNCHECKED_OBJECTREF handle, L
 }
 
 
-void DacStackReferenceWalker::GCEnumCallbackDac(LPVOID hCallback, OBJECTREF *pObject, DWORD flags, DacSlotLocation loc)
+void DacStackReferenceWalker::GCEnumCallbackDac(LPVOID hCallback, OBJECTREF *pObject, uint32_t flags, DacSlotLocation loc)
 {
     GCCONTEXT *gcctx = (GCCONTEXT *)hCallback;
     DacScanContext *dsc = (DacScanContext*)gcctx->sc;
@@ -7569,7 +7611,7 @@ void DacStackReferenceWalker::GCEnumCallbackDac(LPVOID hCallback, OBJECTREF *pOb
 }
 
 
-void DacStackReferenceWalker::GCReportCallbackDac(PTR_PTR_Object ppObj, ScanContext *sc, DWORD flags)
+void DacStackReferenceWalker::GCReportCallbackDac(PTR_PTR_Object ppObj, ScanContext *sc, uint32_t flags)
 {
     DacScanContext *dsc = (DacScanContext*)sc;
     

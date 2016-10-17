@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // ==++==
 // 
@@ -26,6 +25,7 @@
  *          we use a unordered_set.  Similarly to keep track of MethodTable data we use a unordered_map to track the
  *          mt -> mtinfo mapping.
  */ 
+
 #include "sos.h"
 #include "disasm.h"
 
@@ -100,8 +100,6 @@ bool LinearReadCache::MoveToPage(TADDR addr, unsigned int size)
     return true;
 }
 
-
-#ifndef FEATURE_PAL
 
 static const char *NameForHandle(unsigned int type)
 {
@@ -402,7 +400,7 @@ void GCRootImpl::ReportSizeInfo(const SOSHandleData &handle, TADDR obj)
     TADDR mt = ReadPointer(obj);
     MTInfo *mtInfo = GetMTInfo(mt);
 
-    const wchar_t *type = mtInfo ? mtInfo->GetTypeName() : W("unknown type");
+    const WCHAR *type = mtInfo ? mtInfo->GetTypeName() : W("unknown type");
 
     size_t size = mSizes[obj];
     ExtOut("Handle (%s): %p -> %p: %d (0x%x) bytes (%S)\n", NameForHandle(handle.Type), SOS_PTR(handle.Handle),
@@ -423,7 +421,7 @@ void GCRootImpl::ReportSizeInfo(DWORD thread, const SOSStackRefData &stackRef, T
 
     TADDR mt = ReadPointer(obj);
     MTInfo *mtInfo = GetMTInfo(mt);
-    const wchar_t *type = mtInfo ? mtInfo->GetTypeName() : W("unknown type");
+    const WCHAR *type = mtInfo ? mtInfo->GetTypeName() : W("unknown type");
     
     size_t size = mSizes[obj];
     ExtOut("Thread %x (%S): %S: %d (0x%x) bytes (%S)\n", thread, frame.c_str(), regOutput.c_str(), size, size, type);
@@ -454,12 +452,12 @@ void GCRootImpl::ReportOnePath(DWORD thread, const SOSStackRefData &stackRef, Ro
         if (stackRef.SourceType == SOS_StackSourceIP)
         {
             WString methodName = MethodNameFromIP(stackRef.Source);
-            ExtOut("    %p %p %S\n", stackRef.StackPointer, stackRef.Source, methodName.c_str());
+            ExtOut("    %p %p %S\n", SOS_PTR(stackRef.StackPointer), SOS_PTR(stackRef.Source), methodName.c_str());
         }
         else
         {
             WString frameName = GetFrameFromAddress(TO_TADDR(stackRef.Source));
-            ExtOut("    %p %S\n", stackRef.Source, frameName.c_str());
+            ExtOut("    %p %S\n", SOS_PTR(stackRef.Source), frameName.c_str());
         }
     }
     
@@ -527,8 +525,8 @@ int GCRootImpl::PrintRootsInOlderGen()
             return 0;
         }
 
-        ExtDbgOut("internal_root_array = %#p\n", analyzeData.internal_root_array);
-        ExtDbgOut("internal_root_array_index = %#p\n", analyzeData.internal_root_array_index);
+        ExtDbgOut("internal_root_array = %#p\n", SOS_PTR(analyzeData.internal_root_array));
+        ExtDbgOut("internal_root_array_index = %#p\n", SOS_PTR(analyzeData.internal_root_array_index));
         
         TADDR start = TO_TADDR(analyzeData.internal_root_array);
         TADDR stop = TO_TADDR(analyzeData.internal_root_array + sizeof(TADDR) * (size_t)analyzeData.internal_root_array_index);
@@ -569,8 +567,8 @@ int GCRootImpl::PrintRootsInOlderGen()
                 continue;
             }
 
-            ExtDbgOut("internal_root_array = %#p\n", analyzeData.internal_root_array);
-            ExtDbgOut("internal_root_array_index = %#p\n", analyzeData.internal_root_array_index);
+            ExtDbgOut("internal_root_array = %#p\n", SOS_PTR(analyzeData.internal_root_array));
+            ExtDbgOut("internal_root_array_index = %#p\n", SOS_PTR(analyzeData.internal_root_array_index));
             
             TADDR start = TO_TADDR(analyzeData.internal_root_array);
             TADDR stop = TO_TADDR(analyzeData.internal_root_array + sizeof(TADDR) * (size_t)analyzeData.internal_root_array_index);
@@ -1311,7 +1309,6 @@ void PrintNotReachableInRange(TADDR rngStart, TADDR rngEnd, BOOL bExcludeReadyFo
         ExtOut("\n");
 }
 
-#endif // FEATURE_PAL
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -1323,11 +1320,11 @@ void PrintNotReachableInRange(TADDR rngStart, TADDR rngEnd, BOOL bExcludeReadyFo
 // The value of card_size is determined empirically according to the average size of an object
 // In the code we also rely on the assumption that one card_table entry (DWORD) covers an entire os page
 //
-#if defined (_TARGET_AMD64_)
+#if defined (_TARGET_WIN64_)
 #define card_size ((size_t)(2*DT_OS_PAGE_SIZE/card_word_width))
 #else
 #define card_size ((size_t)(DT_OS_PAGE_SIZE/card_word_width))
-#endif //_TARGET_AMD64_
+#endif //_TARGET_WIN64_
 
 // so card_size = 128 on x86, 256 on x64
 
@@ -1621,7 +1618,6 @@ BOOL VerifyObject(const DacpGcHeapDetails &heap, const DacpHeapSegmentData &seg,
         return FALSE;
     }
 
-#ifndef FEATURE_PAL
     // If we requested to verify the object's members, the GC may be in a state where that's not possible.
     // Here we check to see if the object in question needs to have its members updated.  If so, we turn off
     // verification for the object.
@@ -1631,7 +1627,6 @@ BOOL VerifyObject(const DacpGcHeapDetails &heap, const DacpHeapSegmentData &seg,
         should_check_bgc_mark(heap, seg, &consider_bgc_mark, &check_current_sweep, &check_saved_sweep);
         bVerifyMember = fgc_should_consider_object(heap, objAddr, seg, consider_bgc_mark, check_current_sweep, check_saved_sweep);
     }
-#endif // !defined(FEATURE_PAL)
 
     return bVerifyMember ? VerifyObjectMember(heap, objAddr) : TRUE;
 }
@@ -1644,7 +1639,7 @@ BOOL FindSegment(const DacpGcHeapDetails &heap, DacpHeapSegmentData &seg, CLRDAT
     // Request the inital segment.
     if (seg.Request(g_sos, dwAddrSeg, heap) != S_OK)
     {
-        ExtOut("Error requesting heap segment %p.\n", (ULONG64)dwAddrSeg);
+        ExtOut("Error requesting heap segment %p.\n", SOS_PTR(dwAddrSeg));
         return FALSE;
     }
 
@@ -1661,7 +1656,7 @@ BOOL FindSegment(const DacpGcHeapDetails &heap, DacpHeapSegmentData &seg, CLRDAT
 
         if (seg.Request(g_sos, dwAddrSeg, heap) != S_OK)
         {
-            ExtOut("Error requesting heap segment %p.\n", (ULONG64)dwAddrSeg);
+            ExtOut("Error requesting heap segment %p.\n", SOS_PTR(dwAddrSeg));
             return FALSE;
         }
     }
@@ -1683,8 +1678,6 @@ BOOL VerifyObject(const DacpGcHeapDetails &heap, DWORD_PTR objAddr, DWORD_PTR MT
 
     return VerifyObject(heap, seg, objAddr, MTAddr, objSize, bVerifyMember);
 }
-
-#ifndef FEATURE_PAL
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -1827,9 +1820,7 @@ BOOL HeapTraverser::Initialize()
         return FALSE;
     }
 
-#ifndef FEATURE_PAL
     GCRootImpl::GetDependentHandleMap(mDependentHandleMap);
-#endif
 
     size_t startID = 1;
     TypeTree::setTypeIDs(m_pTypeTree, &startID);
@@ -1910,10 +1901,10 @@ size_t HeapTraverser::getID(size_t mTable)
 }
 
 #ifndef FEATURE_PAL
-void replace(std::wstring &str, const wchar_t *toReplace, const wchar_t *replaceWith)
+void replace(std::wstring &str, const WCHAR *toReplace, const WCHAR *replaceWith)
 {
-    const size_t replaceLen = wcslen(toReplace);
-    const size_t replaceWithLen = wcslen(replaceWith);
+    const size_t replaceLen = _wcslen(toReplace);
+    const size_t replaceWithLen = _wcslen(replaceWith);
     
     size_t i = str.find(toReplace);
     while (i != std::wstring::npos)
@@ -1928,7 +1919,6 @@ void HeapTraverser::PrintType(size_t ID,LPCWSTR name)
 {
     if (m_format==FORMAT_XML)
     {
-
 #ifndef FEATURE_PAL
         // Sanitize name based on XML spec.
         std::wstring wname = name;
@@ -2216,7 +2206,6 @@ void HeapTraverser::PrintRefs(size_t obj, size_t methodTable, size_t size)
             PrintObjectMember(*itr, false);
     }
     
-#ifndef FEATURE_PAL
     std::unordered_map<TADDR, std::list<TADDR>>::iterator itr = mDependentHandleMap.find((TADDR)obj);
     if (itr != mDependentHandleMap.end())
     {
@@ -2225,10 +2214,8 @@ void HeapTraverser::PrintRefs(size_t obj, size_t methodTable, size_t size)
             PrintObjectMember(*litr, true);
         }
     }
-#endif
 }
 
-#endif // FEATURE_PAL
 
 void sos::ObjectIterator::BuildError(char *out, size_t count, const char *format, ...) const
 {
@@ -2352,7 +2339,7 @@ bool sos::ObjectIterator::VerifyObjectMembers(char *reason, size_t count) const
                          (GetSizeEfficient(dwAddr1, dwAddrMethTable, FALSE, s, bPointers) == FALSE)) 
                     {
                         BuildError(reason, count, "object %s: bad member %p at %p", DMLObject(objAddr),
-                               (size_t)dwAddr1, (size_t)(objAddr+(size_t)parm-objAddr));
+                               SOS_PTR(dwAddr1), SOS_PTR(objAddr+(size_t)parm-objAddr));
 
                         return false;
                     }
@@ -2360,7 +2347,7 @@ bool sos::ObjectIterator::VerifyObjectMembers(char *reason, size_t count) const
                     if (IsMTForFreeObj(dwAddrMethTable))
                     {
                         sos::Throw<HeapCorruption>("object %s contains free object %p at %p", DMLObject(objAddr),
-                               (ULONG64)dwAddr1, (ULONG64)(objAddr+(size_t)parm-objAddr));
+                               SOS_PTR(dwAddr1), SOS_PTR(objAddr+(size_t)parm-objAddr));
                     }
                
                     // verify card table
@@ -2369,7 +2356,7 @@ bool sos::ObjectIterator::VerifyObjectMembers(char *reason, size_t count) const
                     {
                         BuildError(reason, count, "Object %s: %s missing card_table entry for %p",
                                 DMLObject(objAddr), (dwChild == dwAddr1)? "" : " maybe",
-                               (size_t)(objAddr+(size_t)parm-objAddr));
+                                SOS_PTR(objAddr+(size_t)parm-objAddr));
 
                         return false;
                     }
@@ -2427,8 +2414,8 @@ bool sos::ObjectIterator::VerifyObjectMembers(char *reason, size_t count) const
                              if (FAILED(GetMTOfObject(dwAddr1, &dwAddrMethTable)) ||
                                   (GetSizeEfficient(dwAddr1, dwAddrMethTable, FALSE, s, bPointers) == FALSE)) 
                              {
-                                 BuildError(reason, count, "Object %s: Bad member %p at %p.\n", DMLObject(objAddr), 
-                                         (size_t)dwAddr1, (size_t)(objAddr+(size_t)parm-objAddr));
+                                 BuildError(reason, count, "Object %s: Bad member %p at %p.\n", DMLObject(objAddr),
+                                         SOS_PTR(dwAddr1), SOS_PTR(objAddr+(size_t)parm-objAddr));
 
                                  return false;
                              }
@@ -2436,7 +2423,7 @@ bool sos::ObjectIterator::VerifyObjectMembers(char *reason, size_t count) const
                              if (IsMTForFreeObj(dwAddrMethTable))
                              {
                                  BuildError(reason, count, "Object %s contains free object %p at %p.", DMLObject(objAddr),
-                                        (size_t)dwAddr1, (size_t)(objAddr+(size_t)parm-objAddr));
+                                        SOS_PTR(dwAddr1), SOS_PTR(objAddr+(size_t)parm-objAddr));
                                  return false;
                              }
 
@@ -2446,7 +2433,7 @@ bool sos::ObjectIterator::VerifyObjectMembers(char *reason, size_t count) const
                              {
                                  BuildError(reason, count, "Object %s:%s missing card_table entry for %p",
                                         DMLObject(objAddr), (dwChild == dwAddr1) ? "" : " maybe",
-                                        (size_t)(objAddr+(size_t)parm-objAddr));
+                                        SOS_PTR(objAddr+(size_t)parm-objAddr));
 
                                  return false;
                              }
@@ -2489,7 +2476,6 @@ bool sos::ObjectIterator::Verify(char *reason, size_t count) const
         
         BOOL bVerifyMember = TRUE;
 
-#ifndef FEATURE_PAL
         // If we requested to verify the object's members, the GC may be in a state where that's not possible.
         // Here we check to see if the object in question needs to have its members updated.  If so, we turn off
         // verification for the object.
@@ -2497,7 +2483,6 @@ bool sos::ObjectIterator::Verify(char *reason, size_t count) const
         should_check_bgc_mark(mHeaps[mCurrHeap], mSegment, &consider_bgc_mark, &check_current_sweep, &check_saved_sweep);
         bVerifyMember = fgc_should_consider_object(mHeaps[mCurrHeap], mCurrObj.GetAddress(), mSegment,
                                                    consider_bgc_mark, check_current_sweep, check_saved_sweep);
-#endif // !defined(FEATURE_PAL)
 
         if (bVerifyMember)
             return VerifyObjectMembers(reason, count);

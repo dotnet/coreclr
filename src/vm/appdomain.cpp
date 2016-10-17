@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 #include "common.h"
@@ -13,8 +12,7 @@
 #include "strongnameinternal.h"
 #include "excep.h"
 #include "eeconfig.h"
-#include "gc.h"
-#include "gcenv.h"
+#include "gcheaputilities.h"
 #include "eventtrace.h"
 #ifdef FEATURE_FUSION
 #include "assemblysink.h"
@@ -99,14 +97,12 @@
 #include "../binder/inc/clrprivbindercoreclr.h"
 #endif
 
-#if defined(FEATURE_APPX_BINDER) && defined(FEATURE_HOSTED_BINDER)
+#if defined(FEATURE_APPX_BINDER)
 #include "appxutil.h"
 #include "clrprivbinderappx.h"
 #endif
 
-#ifdef FEATURE_HOSTED_BINDER
 #include "clrprivtypecachewinrt.h"
-#endif
 
 #ifndef FEATURE_CORECLR
 #include "nlsinfo.h"
@@ -796,10 +792,6 @@ BaseDomain::BaseDomain()
     m_reJitMgr.PreInit(this == (BaseDomain *) g_pSharedDomainMemory);
 #endif
 
-#ifdef FEATURE_CORECLR
-    m_CompatMode = APPDOMAINCOMPAT_NONE;
-#endif
-    
 } //BaseDomain::BaseDomain
 
 //*****************************************************************************
@@ -2554,6 +2546,10 @@ void SystemDomain::Init()
 #endif // FEATURE_VERSIONING
 
     m_BaseLibrary.Append(m_SystemDirectory);
+    if (!m_BaseLibrary.EndsWith(DIRECTORY_SEPARATOR_CHAR_W))
+    {
+        m_BaseLibrary.Append(DIRECTORY_SEPARATOR_CHAR_W);
+    }
     m_BaseLibrary.Append(g_pwBaseLibrary);
     m_BaseLibrary.Normalize();
 
@@ -2656,8 +2652,8 @@ void AppDomain::CreateADUnloadStartEvent()
     // If the thread is in cooperative mode, it must have been suspended for the GC so a delete
     // can't happen.
 
-    _ASSERTE(GCHeap::IsGCInProgress() &&
-             GCHeap::IsServerHeap()   &&
+    _ASSERTE(GCHeapUtilities::IsGCInProgress() &&
+             GCHeapUtilities::IsServerHeap()   &&
              IsGCSpecialThread());
 
     SystemDomain* sysDomain = SystemDomain::System();
@@ -2695,7 +2691,7 @@ void SystemDomain::ResetADSurvivedBytes()
     }
     CONTRACT_END;
 
-    _ASSERTE(GCHeap::IsGCInProgress());
+    _ASSERTE(GCHeapUtilities::IsGCInProgress());
 
     SystemDomain* sysDomain = SystemDomain::System();
     if (sysDomain)
@@ -2883,10 +2879,7 @@ void SystemDomain::LoadBaseSystemClasses()
     // We have delayed allocation of mscorlib's static handles until we load the object class
     MscorlibBinder::GetModule()->AllocateRegularStaticHandles(DefaultDomain());
 
-    // used by MethodTable::ContainsStackPtr
     g_TypedReferenceMT = MscorlibBinder::GetClass(CLASS__TYPED_REFERENCE);
-    g_ArgumentHandleMT = MscorlibBinder::GetClass(CLASS__ARGUMENT_HANDLE);
-    g_ArgIteratorMT    = MscorlibBinder::GetClass(CLASS__ARG_ITERATOR);
 
     // Make sure all primitive types are loaded
     for (int et = ELEMENT_TYPE_VOID; et <= ELEMENT_TYPE_R8; et++)
@@ -2915,6 +2908,10 @@ void SystemDomain::LoadBaseSystemClasses()
     g_pStringClass = MscorlibBinder::LoadPrimitiveType(ELEMENT_TYPE_STRING);
     _ASSERTE(g_pStringClass->GetBaseSize() == ObjSizeOf(StringObject)+sizeof(WCHAR));
     _ASSERTE(g_pStringClass->GetComponentSize() == 2);
+
+    // Used by Buffer::BlockCopy
+    g_pByteArrayMT = ClassLoader::LoadArrayTypeThrowing(
+        TypeHandle(MscorlibBinder::GetElementType(ELEMENT_TYPE_U1))).AsArray()->GetMethodTable();
 
 #ifndef CROSSGEN_COMPILE
     ECall::PopulateManagedStringConstructors();
@@ -3407,11 +3404,8 @@ int g_fInitializingInitialAD = 0;
 // This routine completes the initialization of the default domaine.
 // After this call mananged code can be executed.
 void SystemDomain::InitializeDefaultDomain(
-    BOOL allowRedirects
-#ifdef FEATURE_HOSTED_BINDER
-    , ICLRPrivBinder * pBinder
-#endif
-    )
+    BOOL allowRedirects,
+    ICLRPrivBinder * pBinder)
 {
     STANDARD_VM_CONTRACT;
 
@@ -3472,7 +3466,6 @@ void SystemDomain::InitializeDefaultDomain(
 
     AppDomain* pDefaultDomain = SystemDomain::System()->DefaultDomain();
 
-#ifdef FEATURE_HOSTED_BINDER
     if (pBinder != nullptr)
     {
         pDefaultDomain->SetLoadContextHostBinder(pBinder);
@@ -3484,7 +3477,6 @@ void SystemDomain::InitializeDefaultDomain(
             pDefaultDomain->SetLoadContextHostBinder(pAppXBinder);
         }
     #endif
-#endif
 
     {
         GCX_COOP();
@@ -3693,7 +3685,7 @@ void SystemDomain::ExecuteMainMethod(HMODULE hMod, __in_opt LPWSTR path /*=NULL*
         pDomain->GetMulticoreJitManager().AutoStartProfile(pDomain);
 #endif
 
-        pDomain->m_pRootAssembly->ExecuteMainMethod(NULL);
+        pDomain->m_pRootAssembly->ExecuteMainMethod(NULL, TRUE /* waitForOtherThreads */);
     }
 
     pThread->ReturnToContext(&frame);
@@ -3832,7 +3824,7 @@ HRESULT SystemDomain::RunDllMain(HINSTANCE hInst, DWORD dwReason, LPVOID lpReser
         return S_OK;
 
     // ExitProcess is called while a thread is doing GC.
-    if (dwReason == DLL_PROCESS_DETACH && GCHeap::IsGCInProgress())
+    if (dwReason == DLL_PROCESS_DETACH && GCHeapUtilities::IsGCInProgress())
         return S_OK;
 
     // ExitProcess is called on a thread that we don't know about
@@ -4764,19 +4756,17 @@ void SystemDomain::GetDevpathW(__out_ecount_opt(1) LPWSTR* pDevpath, DWORD* pdwD
 
         if(m_fDevpath == FALSE) {
             DWORD dwPath = 0;
-            dwPath = WszGetEnvironmentVariable(APPENV_DEVPATH, 0, 0);
+            PathString m_pwDevpathholder; 
+            dwPath = WszGetEnvironmentVariable(APPENV_DEVPATH, m_pwDevpathholder);
             if(dwPath) {
-                m_pwDevpath = (WCHAR*) new WCHAR[dwPath];
-                m_dwDevpath = WszGetEnvironmentVariable(APPENV_DEVPATH,
-                                                        m_pwDevpath,
-                                                        dwPath);
+                m_pwDevpath = m_pwDevpathholder.GetCopyOfUnicodeString();
             }
             else {
                 RegKeyHolder userKey;
                 RegKeyHolder machineKey;
 
-                WCHAR pVersion[MAX_PATH];
-                DWORD dwVersion = MAX_PATH;
+                WCHAR pVersion[MAX_PATH_FNAME];
+                DWORD dwVersion = MAX_PATH_FNAME;
                 HRESULT hr = S_OK;
                 hr = FusionBind::GetVersion(pVersion, &dwVersion);
                 if(SUCCEEDED(hr)) {
@@ -5066,7 +5056,6 @@ void AppDomain::Init()
     SetStage( STAGE_CREATING);
 
 
-#ifdef FEATURE_HOSTED_BINDER
     // The lock is taken also during stack walking (GC or profiler)
     //  - To prevent deadlock with GC thread, we cannot trigger GC while holding the lock
     //  - To prevent deadlock with profiler thread, we cannot allow thread suspension
@@ -5076,7 +5065,6 @@ void AppDomain::Init()
                     | CRST_DEBUGGER_THREAD 
                     INDEBUG(| CRST_DEBUG_ONLY_CHECK_FORBID_SUSPEND_THREAD)));
     m_crstHostAssemblyMapAdd.Init(CrstHostAssemblyMapAdd);
-#endif //FEATURE_HOSTED_BINDER
 
     m_dwId = SystemDomain::GetNewAppDomainId(this);
 
@@ -5119,7 +5107,7 @@ void AppDomain::Init()
     // Ref_CreateHandleTableBucket, this is because AD::Init() can race with GC
     // and once we add ourselves to the handle table map the GC can start walking
     // our handles and calling AD::RecordSurvivedBytes() which touches ARM data.
-    if (GCHeap::IsServerHeap())
+    if (GCHeapUtilities::IsServerHeap())
         m_dwNumHeaps = CPUGroupInfo::CanEnableGCCPUGroups() ?
                            CPUGroupInfo::GetNumActiveProcessors() :
                            GetCurrentProcessCpuCount();
@@ -7637,7 +7625,6 @@ DomainAssembly * AppDomain::FindAssembly(PEAssembly * pFile, FindAssemblyOptions
 
     const bool includeFailedToLoad = (options & FindAssemblyOptions_IncludeFailedToLoad) != 0;
 
-#ifdef FEATURE_HOSTED_BINDER
     if (pFile->HasHostAssembly())
     {
         DomainAssembly * pDA = FindAssembly(pFile->GetHostAssembly());
@@ -7647,7 +7634,6 @@ DomainAssembly * AppDomain::FindAssembly(PEAssembly * pFile, FindAssemblyOptions
         }
         return nullptr;
     }
-#endif
 
     AssemblyIterator i = IterateAssembliesEx((AssemblyIterationFlags)(
         kIncludeLoaded | 
@@ -8014,7 +8000,7 @@ BOOL AppDomain::AddAssemblyToCache(AssemblySpec* pSpec, DomainAssembly *pAssembl
     // check for context propagation
     if (bRetVal && pSpec->GetParentLoadContext() == LOADCTX_TYPE_LOADFROM && pAssembly->GetFile()->GetLoadContext() == LOADCTX_TYPE_DEFAULT)
     {
-        // LoadFrom propagation occured, store it in a way reachable by Load() (the "post-policy" one)
+        // LoadFrom propagation occurred, store it in a way reachable by Load() (the "post-policy" one)
         AssemblySpec loadSpec;
         loadSpec.CopyFrom(pSpec);
         loadSpec.SetParentAssembly(NULL);
@@ -8194,7 +8180,6 @@ BOOL AppDomain::PostBindResolveAssembly(AssemblySpec  *pPrePolicySpec,
     return fFailure;
 }
 
-#ifdef FEATURE_HOSTED_BINDER
 //----------------------------------------------------------------------------------------
 // Helper class for hosted binder
 
@@ -8256,8 +8241,11 @@ public:
         }
         else
         {
-            IfFailRet(FString::Utf8_Unicode(szName, bIsAscii, wzBuffer, *pcchBuffer));
-            *pcchBuffer = cchName;
+            IfFailRet(FString::Utf8_Unicode(szName, bIsAscii, wzBuffer, cchName));
+            if (pcchBuffer != nullptr)
+            {
+                *pcchBuffer = cchName;
+            }
             return S_OK;
         }
     }
@@ -8474,7 +8462,6 @@ AppDomain::BindHostedPrivAssembly(
 
     return S_OK;
 } // AppDomain::BindHostedPrivAssembly
-#endif // FEATURE_HOSTED_BINDER
 
 //---------------------------------------------------------------------------------------------------------------------
 PEAssembly * AppDomain::BindAssemblySpec(
@@ -8495,7 +8482,7 @@ PEAssembly * AppDomain::BindAssemblySpec(
 
     BOOL fForceReThrow = FALSE;
 
-#if defined(FEATURE_HOSTED_BINDER) && defined(FEATURE_APPX_BINDER)
+#if defined(FEATURE_APPX_BINDER)
     //
     // If there is a host binder available and this is an unparented bind within the
     // default load context, then the bind will be delegated to the domain-wide host
@@ -8623,8 +8610,8 @@ EndTry1:;
         return pAssembly.Extract();
     }
     else
-#endif //FEATURE_HOSTED_BINDER && FEATURE_APPX_BINDER
-#if defined(FEATURE_HOSTED_BINDER) && defined(FEATURE_COMINTEROP)
+#endif // FEATURE_APPX_BINDER
+#if defined(FEATURE_COMINTEROP)
     // Handle WinRT assemblies in the classic/hybrid scenario. If this is an AppX process,
     // then this case will be handled by the previous block as part of the full set of
     // available binding hosts.
@@ -8706,7 +8693,7 @@ EndTry2:;
         return pAssembly.Extract();
     }
     else
-#endif // FEATURE_HOSTED_BINDER && FEATURE_COMINTEROP
+#endif // FEATURE_COMINTEROP
     if (pSpec->HasUniqueIdentity())
     {
         HRESULT hrBindResult = S_OK;
@@ -11123,7 +11110,7 @@ void AppDomain::Unload(BOOL fForceUnload)
     }
     if(bForceGC)
     {
-        GCHeap::GetGCHeap()->GarbageCollect();
+        GCHeapUtilities::GetGCHeap()->GarbageCollect();
         FinalizerThread::FinalizerThreadWait();
         SetStage(STAGE_COLLECTED);
         Close(); //NOTHROW!
@@ -11159,7 +11146,7 @@ void AppDomain::Unload(BOOL fForceUnload)
     {
         // do extra finalizer wait to remove any leftover sb entries
         FinalizerThread::FinalizerThreadWait();
-        GCHeap::GetGCHeap()->GarbageCollect();
+        GCHeapUtilities::GetGCHeap()->GarbageCollect();
         FinalizerThread::FinalizerThreadWait();
         LogSpewAlways("Done unload %3.3d\n", unloadCount);
         DumpSyncBlockCache();
@@ -11285,7 +11272,7 @@ BOOL AppDomain::StopEEAndUnwindThreads(unsigned int retryCount, BOOL *pFMarkUnlo
 
                 if (pThread->PreemptiveGCDisabledOther())
                 {
-        #ifdef FEATURE_HIJACK
+        #if defined(FEATURE_HIJACK) && !defined(PLATFORM_UNIX)
                     Thread::SuspendThreadResult str = pThread->SuspendThread();
                     if (str == Thread::STR_Success)
                     {
@@ -11561,7 +11548,7 @@ void AppDomain::ClearGCHandles()
 
     SetStage(STAGE_HANDLETABLE_NOACCESS);
 
-    GCHeap::GetGCHeap()->WaitUntilConcurrentGCComplete();
+    GCHeapUtilities::GetGCHeap()->WaitUntilConcurrentGCComplete();
 
     // Keep async pin handles alive by moving them to default domain
     HandleAsyncPinHandles();
@@ -13529,8 +13516,8 @@ void SystemDomain::ProcessDelayedUnloadDomains()
     }
     CONTRACTL_END;    
 
-    int iGCRefPoint=GCHeap::GetGCHeap()->CollectionCount(GCHeap::GetGCHeap()->GetMaxGeneration());
-    if (GCHeap::GetGCHeap()->IsConcurrentGCInProgress())
+    int iGCRefPoint=GCHeapUtilities::GetGCHeap()->CollectionCount(GCHeapUtilities::GetGCHeap()->GetMaxGeneration());
+    if (GCHeapUtilities::GetGCHeap()->IsConcurrentGCInProgress())
         iGCRefPoint--;
 
     BOOL bAppDomainToCleanup = FALSE;
@@ -13748,8 +13735,8 @@ void AppDomain::EnumStaticGCRefs(promote_func* fn, ScanContext* sc)
     }
     CONTRACT_END;
 
-    _ASSERTE(GCHeap::IsGCInProgress() &&
-             GCHeap::IsServerHeap()   &&
+    _ASSERTE(GCHeapUtilities::IsGCInProgress() &&
+             GCHeapUtilities::IsServerHeap()   &&
              IsGCSpecialThread());
 
     AppDomain::AssemblyIterator asmIterator = IterateAssembliesEx((AssemblyIterationFlags)(kIncludeLoaded | kIncludeExecution));
@@ -13822,14 +13809,30 @@ DWORD* SetupCompatibilityFlags()
         SO_TOLERANT;
     } CONTRACTL_END;
 
-    WCHAR buf[2] = { '\0', '\0' };
+    LPCWSTR buf;
+    bool return_null = true;
 
     FAULT_NOT_FATAL(); // we can simply give up
 
-    if (WszGetEnvironmentVariable(W("UnsupportedCompatSwitchesEnabled"), buf, COUNTOF(buf)) == 0)
-        return NULL;
+    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(SetLastError(COR_E_STACKOVERFLOW); return NULL;)
+    InlineSString<4> bufString;
+    
+    if (WszGetEnvironmentVariable(W("UnsupportedCompatSwitchesEnabled"), bufString) != 0)
+    {
+        buf = bufString.GetUnicode();
+        if (buf[0] != '1' || buf[1] != '\0')
+        {
+            return_null = true;
+        }
+        else
+        {
+            return_null = false;
+        }
 
-    if (buf[0] != '1' || buf[1] != '\0')
+    }
+    END_SO_INTOLERANT_CODE
+
+    if (return_null)
         return NULL;
 
     static const LPCWSTR rgFlagNames[] = {
@@ -13843,17 +13846,21 @@ DWORD* SetupCompatibilityFlags()
         return NULL;
     ZeroMemory(pFlags, size * sizeof(DWORD));
 
+    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(SetLastError(COR_E_STACKOVERFLOW); return NULL;)
+    InlineSString<4> bufEnvString;
     for (int i = 0; i < COUNTOF(rgFlagNames); i++)
     {
-        if (WszGetEnvironmentVariable(rgFlagNames[i], buf, COUNTOF(buf)) == 0)
+        if (WszGetEnvironmentVariable(rgFlagNames[i], bufEnvString) == 0)
             continue;
 
+        buf = bufEnvString.GetUnicode();
         if (buf[0] != '1' || buf[1] != '\0')
             continue;
 
         pFlags[i / 32] |= 1 << (i % 32);
     }
-
+    END_SO_INTOLERANT_CODE
+    
     return pFlags;
 }
 
@@ -14137,23 +14144,6 @@ BOOL AppDomain::IsImageFullyTrusted(PEImage* pPEImage)
     return IsImageFromTrustedPath(pPEImage);
 }
 
-#ifdef FEATURE_LEGACYNETCF
-BOOL RuntimeIsLegacyNetCF(DWORD adid)
-{
-    AppDomain * pAppDomain = GetAppDomain();
-
-    _ASSERTE(adid == 0 || adid == pAppDomain->GetId().m_dwId);
-
-    if (pAppDomain == NULL)
-        return FALSE;
-
-    if (pAppDomain->GetAppDomainCompatMode() == BaseDomain::APPDOMAINCOMPAT_APP_EARLIER_THAN_WP8)
-        return TRUE;
-
-    return FALSE;
-}
-#endif
-
 #endif //FEATURE_CORECLR
 
 #endif //!DACCESS_COMPILE
@@ -14221,7 +14211,7 @@ BOOL RuntimeCanUseAppPathAssemblyResolver(DWORD adid)
 }
 
 // Returns S_OK if the assembly was successfully loaded
-HRESULT RuntimeInvokeHostAssemblyResolver(CLRPrivBinderAssemblyLoadContext *pLoadContextToBindWithin, IAssemblyName *pIAssemblyName, ICLRPrivAssembly **ppLoadedAssembly)
+HRESULT RuntimeInvokeHostAssemblyResolver(INT_PTR pManagedAssemblyLoadContextToBindWithin, IAssemblyName *pIAssemblyName, CLRPrivBinderCoreCLR *pTPABinder, BINDER_SPACE::AssemblyName *pAssemblyName, ICLRPrivAssembly **ppLoadedAssembly)
 {
     CONTRACTL
     {
@@ -14250,8 +14240,9 @@ HRESULT RuntimeInvokeHostAssemblyResolver(CLRPrivBinderAssemblyLoadContext *pLoa
         
         GCPROTECT_BEGIN(_gcRefs);
         
-        // Get the pointer to the managed assembly load context
-        INT_PTR ptrManagedAssemblyLoadContext = pLoadContextToBindWithin->GetManagedAssemblyLoadContext();
+        ICLRPrivAssembly *pAssemblyBindingContext = NULL;
+
+        bool fInvokedForTPABinder = (pTPABinder == NULL)?true:false;
         
         // Prepare to invoke System.Runtime.Loader.AssemblyLoadContext.Resolve method.
         //
@@ -14261,27 +14252,88 @@ HRESULT RuntimeInvokeHostAssemblyResolver(CLRPrivBinderAssemblyLoadContext *pLoa
         hr = spec.Init(pIAssemblyName);
         if (SUCCEEDED(hr))
         {
-            // Next, allocate an AssemblyName managed object
+            bool fResolvedAssembly = false;
+            bool fResolvedAssemblyViaTPALoadContext = false;
+
+            // Allocate an AssemblyName managed object
             _gcRefs.oRefAssemblyName = (ASSEMBLYNAMEREF) AllocateObject(MscorlibBinder::GetClass(CLASS__ASSEMBLY_NAME));
             
             // Initialize the AssemblyName object from the AssemblySpec
             spec.AssemblyNameInit(&_gcRefs.oRefAssemblyName, NULL);
-            
-            // Finally, setup arguments for invocation
-            BinderMethodID idHAR_Resolve = METHOD__ASSEMBLYLOADCONTEXT__RESOLVE;
-            MethodDescCallSite methLoadAssembly(idHAR_Resolve);
-            
-            // Setup the arguments for the call
-            ARG_SLOT args[2] =
+                
+            if (!fInvokedForTPABinder)
             {
-                PtrToArgSlot(ptrManagedAssemblyLoadContext), // IntPtr for managed assembly load context instance
-                ObjToArgSlot(_gcRefs.oRefAssemblyName), // AssemblyName instance
-            };
+                // Step 2 (of CLRPrivBinderAssemblyLoadContext::BindUsingAssemblyName) - Invoke Load method
+                // This is not invoked for TPA Binder since it always returns NULL.
 
-            // Make the call
-            _gcRefs.oRefLoadedAssembly = (ASSEMBLYREF) methLoadAssembly.Call_RetOBJECTREF(args);
-            if (_gcRefs.oRefLoadedAssembly != NULL)
+                // Finally, setup arguments for invocation
+                BinderMethodID idHAR_Resolve = METHOD__ASSEMBLYLOADCONTEXT__RESOLVE;
+                MethodDescCallSite methLoadAssembly(idHAR_Resolve);
+                
+                // Setup the arguments for the call
+                ARG_SLOT args[2] =
+                {
+                    PtrToArgSlot(pManagedAssemblyLoadContextToBindWithin), // IntPtr for managed assembly load context instance
+                    ObjToArgSlot(_gcRefs.oRefAssemblyName), // AssemblyName instance
+                };
+
+                // Make the call
+                _gcRefs.oRefLoadedAssembly = (ASSEMBLYREF) methLoadAssembly.Call_RetOBJECTREF(args);
+                if (_gcRefs.oRefLoadedAssembly != NULL)
+                {
+                    fResolvedAssembly = true;
+                }
+            
+                // Step 3 (of CLRPrivBinderAssemblyLoadContext::BindUsingAssemblyName)
+                if (!fResolvedAssembly)
+                {
+                    // If we could not resolve the assembly using Load method, then attempt fallback with TPA Binder.
+                    // Since TPA binder cannot fallback to itself, this fallback does not happen for binds within TPA binder.
+                    //
+                    // Switch to pre-emp mode before calling into the binder
+                    GCX_PREEMP();
+                    ICLRPrivAssembly *pCoreCLRFoundAssembly = NULL;
+                    hr = pTPABinder->BindAssemblyByName(pIAssemblyName, &pCoreCLRFoundAssembly);
+                    if (SUCCEEDED(hr))
+                    {
+                        pAssemblyBindingContext = pCoreCLRFoundAssembly;
+                        fResolvedAssembly = true;
+                        fResolvedAssemblyViaTPALoadContext = true;
+                    }
+                }
+            }
+            
+            if (!fResolvedAssembly)
             {
+                // Step 4 (of CLRPrivBinderAssemblyLoadContext::BindUsingAssemblyName)
+                //
+                // If we couldnt resolve the assembly using TPA LoadContext as well, then
+                // attempt to resolve it using the Resolving event.
+                // Finally, setup arguments for invocation
+                BinderMethodID idHAR_ResolveUsingEvent = METHOD__ASSEMBLYLOADCONTEXT__RESOLVEUSINGEVENT;
+                MethodDescCallSite methLoadAssembly(idHAR_ResolveUsingEvent);
+                
+                // Setup the arguments for the call
+                ARG_SLOT args[2] =
+                {
+                    PtrToArgSlot(pManagedAssemblyLoadContextToBindWithin), // IntPtr for managed assembly load context instance
+                    ObjToArgSlot(_gcRefs.oRefAssemblyName), // AssemblyName instance
+                };
+
+                // Make the call
+                _gcRefs.oRefLoadedAssembly = (ASSEMBLYREF) methLoadAssembly.Call_RetOBJECTREF(args);
+                if (_gcRefs.oRefLoadedAssembly != NULL)
+                {
+                    // Set the flag indicating we found the assembly
+                    fResolvedAssembly = true;
+                }
+            }
+            
+            if (fResolvedAssembly && !fResolvedAssemblyViaTPALoadContext)
+            {
+                // If we are here, assembly was successfully resolved via Load or Resolving events.
+                _ASSERTE(_gcRefs.oRefLoadedAssembly != NULL);
+                    
                 // We were able to get the assembly loaded. Now, get its name since the host could have
                 // performed the resolution using an assembly with different name.
                 DomainAssembly *pDomainAssembly = _gcRefs.oRefLoadedAssembly->GetDomainAssembly();
@@ -14312,23 +14364,23 @@ HRESULT RuntimeInvokeHostAssemblyResolver(CLRPrivBinderAssemblyLoadContext *pLoa
                 
                 // Is the assembly already bound using a binding context that will be incompatible?
                 // An example is attempting to consume an assembly bound to WinRT binder.
-                ICLRPrivAssembly *pAssemblyBindingContext = pLoadedPEAssembly->GetHostAssembly();
-
+                pAssemblyBindingContext = pLoadedPEAssembly->GetHostAssembly();
+            }
+            
 #ifdef FEATURE_COMINTEROP
-                if (AreSameBinderInstance(pAssemblyBindingContext, GetAppDomain()->GetWinRtBinder()))
-                {
-                    // It is invalid to return an assembly bound to an incompatible binder
-                    *ppLoadedAssembly = NULL;
-                    SString name;
-                    spec.GetFileOrDisplayName(0, name);
-                    COMPlusThrowHR(COR_E_INVALIDOPERATION, IDS_HOST_ASSEMBLY_RESOLVER_INCOMPATIBLE_BINDING_CONTEXT, name);
-                }
+            if (AreSameBinderInstance(pAssemblyBindingContext, GetAppDomain()->GetWinRtBinder()))
+            {
+                // It is invalid to return an assembly bound to an incompatible binder
+                *ppLoadedAssembly = NULL;
+                SString name;
+                spec.GetFileOrDisplayName(0, name);
+                COMPlusThrowHR(COR_E_INVALIDOPERATION, IDS_HOST_ASSEMBLY_RESOLVER_INCOMPATIBLE_BINDING_CONTEXT, name);
+            }
 #endif // FEATURE_COMINTEROP
 
-                // Get the ICLRPrivAssembly reference to return back to.
-                *ppLoadedAssembly = clr::SafeAddRef(pLoadedPEAssembly->GetHostAssembly());
-                hr = S_OK;
-            }
+            // Get the ICLRPrivAssembly reference to return back to.
+            *ppLoadedAssembly = clr::SafeAddRef(pAssemblyBindingContext);
+            hr = S_OK;
         }
         
         GCPROTECT_END();
@@ -14622,7 +14674,6 @@ TypeEquivalenceHashTable * AppDomain::GetTypeEquivalenceCache()
 
 #endif //FEATURE_TYPEEQUIVALENCE
 
-#if defined(FEATURE_HOSTED_BINDER)
 #if !defined(DACCESS_COMPILE)
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -14782,7 +14833,8 @@ void AppDomain::UnPublishHostedAssembly(
 HRESULT AppDomain::SetWinrtApplicationContext(SString &appLocalWinMD)
 {
     STANDARD_VM_CONTRACT;
-
+    
+    _ASSERTE(WinRTSupported());
     _ASSERTE(m_pWinRtBinder != nullptr);
 
     _ASSERTE(GetTPABinderContext() != NULL);
@@ -14831,9 +14883,7 @@ PTR_DomainAssembly AppDomain::FindAssembly(PTR_ICLRPrivAssembly pHostAssembly)
     }
 }
 
-#endif //FEATURE_HOSTED_BINDER
-
-#if !defined(DACCESS_COMPILE) && defined(FEATURE_CORECLR)
+#if !defined(DACCESS_COMPILE) && defined(FEATURE_CORECLR) && defined(FEATURE_NATIVE_IMAGE_GENERATION)
 
 void ZapperSetBindingPaths(ICorCompilationDomain *pDomain, SString &trustedPlatformAssemblies, SString &platformResourceRoots, SString &appPaths, SString &appNiPaths)
 {
@@ -14845,13 +14895,6 @@ void ZapperSetBindingPaths(ICorCompilationDomain *pDomain, SString &trustedPlatf
     ((CompilationDomain*)pDomain)->SetWinrtApplicationContext(emptString);
 #endif
 }
-
-#ifdef FEATURE_LEGACYNETCF
-void ZapperSetAppCompatWP8(ICorCompilationDomain *pDomain)
-{
-    ((CompilationDomain*)pDomain)->SetAppDomainCompatMode(BaseDomain::APPDOMAINCOMPAT_APP_EARLIER_THAN_WP8);
-}
-#endif
 
 #endif
 

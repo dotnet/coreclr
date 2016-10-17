@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #ifndef _PLATFORMDEFINES__H
 #define _PLATFORMDEFINES__H
@@ -14,7 +15,6 @@
 //
 #ifdef WINDOWS
 #include <windows.h>
-#include <string.h>
 
 #define FS_SEPERATOR L"\\"
 #define PATH_DELIMITER L";"
@@ -24,11 +24,30 @@
 typedef unsigned error_t;
 typedef HANDLE THREAD_ID;
 
+#define DLL_EXPORT __declspec(dllexport)
+
 #else // !WINDOWS
-#include <CoreClr.h>
 #include <pthread.h>
-#define WINAPI   _cdecl
-#ifndef __stdcall
+
+typedef char16_t WCHAR;
+typedef unsigned long DWORD;
+typedef int BOOL;
+typedef WCHAR *LPWSTR, *PWSTR;
+typedef const WCHAR *LPCWSTR, *PCWSTR;
+
+#ifndef TRUE
+#define TRUE 1
+#endif
+
+#ifndef FALSE
+#define FALSE 0
+#endif
+
+#ifndef WINAPI
+#define WINAPI  __stdcall
+#endif
+
+#ifndef _MSC_VER
 #if __i386__
 #define __stdcall __attribute__((stdcall))
 #define _cdecl __attribute__((cdecl))
@@ -36,6 +55,12 @@ typedef HANDLE THREAD_ID;
 #define __stdcall
 #define _cdecl
 #endif
+#endif
+
+#if __GNUC__ >= 4
+#define DLL_EXPORT __attribute__ ((visibility ("default")))
+#else
+#define DLL_EXPORT
 #endif
 
 LPWSTR HackyConvertToWSTR(char* pszInput);
@@ -63,7 +88,6 @@ typedef void* ULONG_PTR;
 typedef unsigned error_t;
 typedef void* LPVOID;
 typedef char BYTE;
-typedef long long __int64;
 typedef WCHAR OLECHAR;
 #endif
 

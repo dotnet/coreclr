@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
@@ -21,7 +20,7 @@ enum EEDynamicFunctionTableType
 };
 
 // Used by OutOfProcessFunctionTableCallback in DLLS\mscordbg\DebugSupport.cpp
-// to figure out how to parse a dunamic function table that was registered
+// to figure out how to parse a dynamic function table that was registered
 // with a callback.
 inline
 EEDynamicFunctionTableType IdentifyDynamicFunctionTableTypeFromContext (PVOID pvContext)
@@ -66,7 +65,7 @@ inline
 VOID DeleteEEFunctionTable(
         PVOID pvTableID)
 {
-    RtlDeleteFunctionTable((PRUNTIME_FUNCTION)((ULONG64)pvTableID | 3));
+    RtlDeleteFunctionTable((PT_RUNTIME_FUNCTION)((ULONG64)pvTableID | 3));
 }
 
 #else // WIN64EXCEPTIONS && !DACCESS_COMPILE && !CROSSGEN_COMPILE && !FEATURE_PAL

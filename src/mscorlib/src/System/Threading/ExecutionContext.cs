@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 /*============================================================
 **
 **
@@ -13,7 +14,9 @@ namespace System.Threading
     using System;
     using System.Security;
     using System.Runtime.Remoting;
+#if FEATURE_IMPERSONATION
     using System.Security.Principal;
+#endif
     using System.Collections;
     using System.Collections.Generic;
     using System.Reflection;
@@ -43,10 +46,20 @@ namespace System.Threading
         internal ExecutionContext m_ec;
         internal SynchronizationContext m_sc;
 
-        internal void Undo()
+        internal void Undo(Thread currentThread)
         {
-            SynchronizationContext.SetSynchronizationContext(m_sc);
-            ExecutionContext.Restore(m_ec);
+            Contract.Assert(currentThread == Thread.CurrentThread);
+
+            // The common case is that these have not changed, so avoid the cost of a write if not needed.
+            if (currentThread.SynchronizationContext != m_sc)
+            {
+                currentThread.SynchronizationContext = m_sc;
+            }
+            
+            if (currentThread.ExecutionContext != m_ec)
+            {
+                ExecutionContext.Restore(currentThread, m_ec);
+            }
         }
     }
 
@@ -54,41 +67,40 @@ namespace System.Threading
     {
         private static readonly ExecutionContext Default = new ExecutionContext();
 
-        [ThreadStatic]
-        [SecurityCritical]
-        static ExecutionContext t_currentMaybeNull;
-
         private readonly Dictionary<IAsyncLocal, object> m_localValues;
-        private readonly List<IAsyncLocal> m_localChangeNotifications;
+        private readonly IAsyncLocal[] m_localChangeNotifications;
 
         private ExecutionContext()
         {
             m_localValues = new Dictionary<IAsyncLocal, object>();
-            m_localChangeNotifications = new List<IAsyncLocal>();
+            m_localChangeNotifications = Array.Empty<IAsyncLocal>();
         }
 
-        private ExecutionContext(ExecutionContext other)
+        private ExecutionContext(Dictionary<IAsyncLocal, object> localValues, IAsyncLocal[] localChangeNotifications)
         {
-            m_localValues = new Dictionary<IAsyncLocal, object>(other.m_localValues);
-            m_localChangeNotifications = new List<IAsyncLocal>(other.m_localChangeNotifications);
+            m_localValues = localValues;
+            m_localChangeNotifications = localChangeNotifications;
         }
 
         [SecuritySafeCritical]
         public static ExecutionContext Capture()
         {
-            return t_currentMaybeNull ?? ExecutionContext.Default;
+            return Thread.CurrentThread.ExecutionContext ?? ExecutionContext.Default;
         }
 
         [SecurityCritical]
         [HandleProcessCorruptedStateExceptions]
         public static void Run(ExecutionContext executionContext, ContextCallback callback, Object state)
         {
+            if (executionContext == null)
+                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_NullContext"));
+
+            Thread currentThread = Thread.CurrentThread;
             ExecutionContextSwitcher ecsw = default(ExecutionContextSwitcher);
             try
             {
-                EstablishCopyOnWriteScope(ref ecsw);
-
-                ExecutionContext.Restore(executionContext);
+                EstablishCopyOnWriteScope(currentThread, ref ecsw);
+                ExecutionContext.Restore(currentThread, executionContext);
                 callback(state);
             }
             catch
@@ -97,38 +109,47 @@ namespace System.Threading
                 // to stop the first pass of EH here.  That way we can restore the previous
                 // context before any of our callers' EH filters run.  That means we need to 
                 // end the scope separately in the non-exceptional case below.
-                ecsw.Undo();
+                ecsw.Undo(currentThread);
                 throw;
             }
-            ecsw.Undo();
+            ecsw.Undo(currentThread);
         }
 
         [SecurityCritical]
-        internal static void Restore(ExecutionContext executionContext)
+        internal static void Restore(Thread currentThread, ExecutionContext executionContext)
         {
-            if (executionContext == null)
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_NullContext"));
+            Contract.Assert(currentThread == Thread.CurrentThread);
 
-            ExecutionContext previous = t_currentMaybeNull ?? Default;
-            t_currentMaybeNull = executionContext;
-
+            ExecutionContext previous = currentThread.ExecutionContext ?? Default;
+            currentThread.ExecutionContext = executionContext;
+            
+            // New EC could be null if that's what ECS.Undo saved off.
+            // For the purposes of dealing with context change, treat this as the default EC
+            executionContext = executionContext ?? Default;
+            
             if (previous != executionContext)
+            {
                 OnContextChanged(previous, executionContext);
+            }
         }
 
         [SecurityCritical]
-        static internal void EstablishCopyOnWriteScope(ref ExecutionContextSwitcher ecsw)
+        static internal void EstablishCopyOnWriteScope(Thread currentThread, ref ExecutionContextSwitcher ecsw)
         {
-            ecsw.m_ec = Capture();
-            ecsw.m_sc = SynchronizationContext.CurrentNoFlow;
+            Contract.Assert(currentThread == Thread.CurrentThread);
+            
+            ecsw.m_ec = currentThread.ExecutionContext; 
+            ecsw.m_sc = currentThread.SynchronizationContext;
         }
 
         [SecurityCritical]
         [HandleProcessCorruptedStateExceptions]
         private static void OnContextChanged(ExecutionContext previous, ExecutionContext current)
         {
-            previous = previous ?? Default;
-
+            Contract.Assert(previous != null);
+            Contract.Assert(current != null);
+            Contract.Assert(previous != current);
+            
             foreach (IAsyncLocal local in previous.m_localChangeNotifications)
             {
                 object previousValue;
@@ -171,7 +192,7 @@ namespace System.Threading
         [SecurityCritical]
         internal static object GetLocalValue(IAsyncLocal local)
         {
-            ExecutionContext current = t_currentMaybeNull;
+            ExecutionContext current = Thread.CurrentThread.ExecutionContext;
             if (current == null)
                 return null;
 
@@ -183,7 +204,7 @@ namespace System.Threading
         [SecurityCritical]
         internal static void SetLocalValue(IAsyncLocal local, object newValue, bool needChangeNotifications)
         {
-            ExecutionContext current = t_currentMaybeNull ?? ExecutionContext.Default;
+            ExecutionContext current = Thread.CurrentThread.ExecutionContext ?? ExecutionContext.Default;
 
             object previousValue;
             bool hadPreviousValue = current.m_localValues.TryGetValue(local, out previousValue);
@@ -191,18 +212,39 @@ namespace System.Threading
             if (previousValue == newValue)
                 return;
 
-            current = new ExecutionContext(current);
-            current.m_localValues[local] = newValue;
+            //
+            // Allocate a new Dictionary containing a copy of the old values, plus the new value.  We have to do this manually to 
+            // minimize allocations of IEnumerators, etc.
+            //
+            Dictionary<IAsyncLocal, object> newValues = new Dictionary<IAsyncLocal, object>(current.m_localValues.Count + (hadPreviousValue ? 0 : 1));
 
-            t_currentMaybeNull = current;
+            foreach (KeyValuePair<IAsyncLocal, object> pair in current.m_localValues)
+                newValues.Add(pair.Key, pair.Value);
 
+            newValues[local] = newValue;
+
+            //
+            // Either copy the change notification array, or create a new one, depending on whether we need to add a new item.
+            //
+            IAsyncLocal[] newChangeNotifications = current.m_localChangeNotifications;
             if (needChangeNotifications)
             {
                 if (hadPreviousValue)
-                    Contract.Assert(current.m_localChangeNotifications.Contains(local));
+                {
+                    Contract.Assert(Array.IndexOf(newChangeNotifications, local) >= 0);
+                }
                 else
-                    current.m_localChangeNotifications.Add(local);
+                {
+                    int newNotificationIndex = newChangeNotifications.Length;
+                    Array.Resize(ref newChangeNotifications, newNotificationIndex + 1);
+                    newChangeNotifications[newNotificationIndex] = local;
+                }
+            }
 
+            Thread.CurrentThread.ExecutionContext = new ExecutionContext(newValues, newChangeNotifications);
+
+            if (needChangeNotifications)
+            {
                 local.OnValueChanged(previousValue, newValue, false);
             }
         }
@@ -297,11 +339,11 @@ namespace System.Threading
 #if FEATURE_CORRUPTING_EXCEPTIONS
         [HandleProcessCorruptedStateExceptions]
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
-        internal bool UndoNoThrow()
+        internal bool UndoNoThrow(Thread currentThread)
         {
             try
             {
-                Undo();
+                Undo(currentThread);
             }
             catch
             {
@@ -312,7 +354,7 @@ namespace System.Threading
         
         [System.Security.SecurityCritical]  // auto-generated
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-        internal void Undo()
+        internal void Undo(Thread currentThread)
         {
             //
             // Don't use an uninitialized switcher, or one that's already been used.
@@ -321,7 +363,6 @@ namespace System.Threading
                 return; // Don't do anything
 
             Contract.Assert(Thread.CurrentThread == this.thread);
-            Thread currentThread = this.thread;
 
             // 
             // Restore the HostExecutionContext before restoring the ExecutionContext.
@@ -474,7 +515,9 @@ namespace System.Threading
     }
     
 
-    [Serializable] 
+#if FEATURE_SERIALIZATION
+    [Serializable]
+#endif
     public sealed class ExecutionContext : IDisposable, ISerializable
     {
         /*=========================================================================
@@ -948,14 +991,14 @@ namespace System.Threading
             }
             finally
             {
-                ecsw.Undo();
+                ecsw.Undo(currentThread);
             }
         }
 
         [SecurityCritical]
-        static internal void EstablishCopyOnWriteScope(ref ExecutionContextSwitcher ecsw)
+        static internal void EstablishCopyOnWriteScope(Thread currentThread, ref ExecutionContextSwitcher ecsw)
         {
-            EstablishCopyOnWriteScope(Thread.CurrentThread, false, ref ecsw);
+            EstablishCopyOnWriteScope(currentThread, false, ref ecsw);
         }
 
         [SecurityCritical]
@@ -1044,7 +1087,7 @@ namespace System.Threading
             }
             catch
             {
-                ecsw.UndoNoThrow();
+                ecsw.UndoNoThrow(currentThread);
                 throw;
             }
             return ecsw;    

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // 
 
@@ -32,17 +33,22 @@ namespace System.Security {
         SkipVerification = 3
     }
 
-    [Serializable] 
+#if FEATURE_SERIALIZATION
+    [Serializable]
+#endif
 #if !FEATURE_CORECLR
     [StrongNameIdentityPermissionAttribute(SecurityAction.InheritanceDemand, Name = "mscorlib", PublicKey = "0x" + AssemblyRef.EcmaPublicKeyFull)]
 #endif
     [System.Runtime.InteropServices.ComVisible(true)]
-    public class PermissionSet : ISecurityEncodable, ICollection, IStackWalk, IDeserializationCallback
+    public class PermissionSet : ISecurityEncodable, ICollection, IStackWalk
+#if FEATURE_SERIALIZATION
+        , IDeserializationCallback
+#endif
     {
-    #if _DEBUG
+#if _DEBUG
         internal static readonly bool debug;
-    #endif
-    
+#endif
+
         [System.Diagnostics.Conditional( "_DEBUG" )]
         private static void DEBUG_WRITE(String str) {
         #if _DEBUG
@@ -62,7 +68,7 @@ namespace System.Security {
         private static void DEBUG_PRINTSTACK(Exception e)
         {
         #if _DEBUG
-            if (debug) Console.Error.WriteLine((e).StackTrace);
+            if (debug) Console.WriteLine((e).StackTrace);
         #endif
         }
     

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // File: DllImport.h
 //
@@ -78,8 +77,9 @@ public:
     static HRESULT HasNAT_LAttribute(IMDInternalImport *pInternalImport, mdToken token, DWORD dwMemberAttrs);
 
     static LPVOID NDirectGetEntryPoint(NDirectMethodDesc *pMD, HINSTANCE hMod);
-    static HINSTANCE LoadLibraryModule( NDirectMethodDesc * pMD, LoadLibErrorTracker *pErrorTracker);
-    
+    static HMODULE LoadLibraryFromPath(LPCWSTR libraryPath);
+    static HINSTANCE LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracker *pErrorTracker);
+
 #ifndef FEATURE_CORECLR
     static VOID CheckUnificationList(NDirectMethodDesc * pMD, DWORD * pDllImportSearchPathFlag, BOOL * pSearchAssemblyDirectory);
 #endif // !FEATURE_CORECLR
@@ -132,8 +132,13 @@ public:
 private:
     NDirect() {LIMITED_METHOD_CONTRACT;};     // prevent "new"'s on this class
 
+#ifdef FEATURE_CORECLR
+    static HMODULE LoadFromNativeDllSearchDirectories(AppDomain* pDomain, LPCWSTR libName, DWORD flags, LoadLibErrorTracker *pErrorTracker);
+#endif
+    static HMODULE LoadFromPInvokeAssemblyDirectory(Assembly *pAssembly, LPCWSTR libName, DWORD flags, LoadLibErrorTracker *pErrorTracker);
+
 #if defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
-    static  HMODULE LoadLibraryModuleViaHost(NDirectMethodDesc * pMD, AppDomain* pDomain, const wchar_t* wszLibName);
+    static HMODULE LoadLibraryModuleViaHost(NDirectMethodDesc * pMD, AppDomain* pDomain, const wchar_t* wszLibName);
 #endif //defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
 
 #if !defined(FEATURE_CORESYSTEM)
@@ -210,6 +215,7 @@ enum ILStubTypes
     ILSTUB_MULTICASTDELEGATE_INVOKE      = 0x80000010,
     ILSTUB_UNBOXINGILSTUB                = 0x80000020,
     ILSTUB_INSTANTIATINGSTUB             = 0x80000040,
+    ILSTUB_SECUREDELEGATE_INVOKE         = 0x80000080,
 #endif
 };
 
@@ -240,6 +246,7 @@ inline bool SF_IsArrayOpStub           (DWORD dwStubFlags) { LIMITED_METHOD_CONT
 #endif
 
 #ifdef FEATURE_STUBS_AS_IL
+inline bool SF_IsSecureDelegateStub  (DWORD dwStubFlags)    { LIMITED_METHOD_CONTRACT; return (dwStubFlags == ILSTUB_SECUREDELEGATE_INVOKE); }
 inline bool SF_IsMulticastDelegateStub  (DWORD dwStubFlags) { LIMITED_METHOD_CONTRACT; return (dwStubFlags == ILSTUB_MULTICASTDELEGATE_INVOKE); }
 inline bool SF_IsUnboxingILStub         (DWORD dwStubFlags) { LIMITED_METHOD_CONTRACT; return (dwStubFlags == ILSTUB_UNBOXINGILSTUB); }
 inline bool SF_IsInstantiatingStub      (DWORD dwStubFlags) { LIMITED_METHOD_CONTRACT; return (dwStubFlags == ILSTUB_INSTANTIATINGSTUB); }

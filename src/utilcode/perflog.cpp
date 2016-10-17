@@ -1,16 +1,15 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #include "stdafx.h"
 #include "perflog.h"
 #include "jitperf.h"
 #include <limits.h>
+#include "sstring.h"
 
 //=============================================================================
-// ALL THE PERF LOG CODE IS COMPILED ONLY IF THE ENABLE_PERF_LOG WAS DEFINED.
-// ENABLE_PERF_LOGis defined if GOLDEN or DISABLE_PERF_LOG is not defined.
+// ALL THE PERF LOG CODE IS COMPILED ONLY IF ENABLE_PERF_LOG IS DEFINED.
 #if defined (ENABLE_PERF_LOG)
 //=============================================================================
 
@@ -84,9 +83,9 @@ void PerfLog::PerfLogInitialize()
     // Special cases considered. Now turn on loggin if any of above want logging
     // or if PERF_OUTPUT says so.
 
-    wchar_t lpszValue[2];
+    InlineSString<4> lpszValue;
     // Read the env var PERF_OUTPUT and if set continue.
-    m_fLogPerfData = WszGetEnvironmentVariable (W("PERF_OUTPUT"), lpszValue, sizeof(lpszValue)/sizeof(lpszValue[0]));
+    m_fLogPerfData = WszGetEnvironmentVariable (W("PERF_OUTPUT"), lpszValue);
 
 #if defined(ENABLE_JIT_PERF)
     if (!m_fLogPerfData)
@@ -101,9 +100,9 @@ void PerfLog::PerfLogInitialize()
 #endif
 
     // See if we want to output to the database
-    wchar_t _lpszValue[11];
+    PathString _lpszValue;
     DWORD _cchValue = 10; // 11 - 1
-    _cchValue = WszGetEnvironmentVariable (W("PerfOutput"), _lpszValue, _cchValue);
+    _cchValue = WszGetEnvironmentVariable (W("PerfOutput"), _lpszValue);
     if (_cchValue && (wcscmp (_lpszValue, W("DBase")) == 0))
         m_perfAutomationFormat = true;
     if (_cchValue && (wcscmp (_lpszValue, W("CSV")) == 0))
@@ -115,7 +114,7 @@ void PerfLog::PerfLogInitialize()
         // the file here for writing and close in PerfLogDone().
         m_hPerfLogFileHandle = WszCreateFile (
 #ifdef PLATFORM_UNIX
-                                              L"/tmp/PerfData.dat",
+                                              W("/tmp/PerfData.dat"),
 #else
                                               W("C:\\PerfData.dat"),
 #endif

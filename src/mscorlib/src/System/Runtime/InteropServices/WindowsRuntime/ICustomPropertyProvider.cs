@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 
@@ -15,29 +16,9 @@ using System.Security;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
-    [ComImport]
-    [Guid("7C925755-3E48-42B4-8677-76372267033F")]
-    [WindowsRuntimeImport]
-    internal interface ICustomPropertyProvider 
-    {    
-        [Pure]
-        ICustomProperty GetCustomProperty(string name);
-
-        [Pure]
-        ICustomProperty GetIndexedProperty(string name, Type indexParameterType);
-
-        [Pure]
-        string GetStringRepresentation();
-
-        Type Type 
-        { 
-            [Pure]        
-            get; 
-        }
-    }
 
     //
-    // Implementation helpers
+    // ICustomProperty Implementation helpers
     //
     internal static class ICustomPropertyProviderImpl
     {
@@ -49,6 +30,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         {
             Contract.Requires(target != null);
             Contract.Requires(propertyName != null);
+
+            IGetProxyTarget proxy = target as IGetProxyTarget;
+            if (proxy != null) 
+                target = proxy.GetTarget();
 
             // Only return public instance/static properties
             PropertyInfo propertyInfo = target.GetType().GetProperty(
@@ -82,6 +67,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             Contract.Requires(target != null);
             Contract.Requires(propertyName != null);
 
+            IGetProxyTarget proxy = target as IGetProxyTarget;
+            if (proxy != null) 
+                target = proxy.GetTarget();
+
             // Only return public instance/static properties
             PropertyInfo propertyInfo = target.GetType().GetProperty(
                 propertyName,
@@ -101,6 +90,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         [System.Security.SecurityCritical]
         static internal unsafe void GetType(object target, TypeNameNative *pIndexedParamType)
         {            
+            IGetProxyTarget proxy = target as IGetProxyTarget;
+            if (proxy != null) 
+                target = proxy.GetTarget();
+
             SystemTypeMarshaler.ConvertToNative(target.GetType(), pIndexedParamType);
         }        
     }
@@ -140,7 +133,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     //
     //
     internal class ICustomPropertyProviderProxy<T1, T2> : IGetProxyTarget,
-                                                          ICustomPropertyProvider, 
                                                           ICustomQueryInterface,
                                                           IEnumerable,          // IBindableIterable -> IBindableIterable/IIterable<T>
                                                           IBindableVector,      // IBindableVector -> IBindableVector/IVector<T>
@@ -195,31 +187,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             return new ICustomPropertyProviderProxy<T1, T2>(target, supportFlags);                
         }
 
-        //
-        // ICustomPropertyProvider implementation
-        //
-        ICustomProperty ICustomPropertyProvider.GetCustomProperty(string name)
-        {
-            return ICustomPropertyProviderImpl.CreateProperty(_target, name);
-        }
-
-        ICustomProperty ICustomPropertyProvider.GetIndexedProperty(string name, Type indexParameterType)
-        {
-            return ICustomPropertyProviderImpl.CreateIndexedProperty(_target, name, indexParameterType);
-        }
-
-        string ICustomPropertyProvider.GetStringRepresentation()
-        {
-            return WindowsRuntime.IStringableHelper.ToString(_target);
-        }
-
-        Type ICustomPropertyProvider.Type 
-        { 
-            get
-            {
-                return _target.GetType();
-            }
-        }
 
         //
         // override ToString() to make sure callers get correct IStringable.ToString() behavior in native code

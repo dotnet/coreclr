@@ -53,7 +53,6 @@
     <CppCompile Include="$(VmSourcesDir)\coreassemblyspec.cpp" />
     <CppCompile Include="$(VmSourcesDir)\COMDependentHandle.cpp" />
     <CppCompile Include="$(VmSourcesDir)\COMModule.cpp" />
-    <CppCompile Include="$(VmSourcesDir)\CompactLayoutWriter.cpp" Condition="'$(MDILGenerator)' == 'true'"  />
     <CppCompile Include="$(VmSourcesDir)\MarshalNative.cpp" />
     <CppCompile Include="$(VmSourcesDir)\CompatibilitySwitch.cpp"/>
     <CppCompile Include="$(VmSourcesDir)\COMSynchronizable.cpp" />
@@ -72,6 +71,7 @@
     <CppCompile Include="$(VmSourcesDir)\decodeMD.cpp" />
     <CppCompile Include="$(VmSourcesDir)\DebugDebugger.cpp" />
     <CppCompile Include="$(VmSourcesDir)\DebugInfoStore.cpp" />
+    <CppCompile Include="$(VmSourcesDir)\disassembler.cpp" />
     <CppCompile Include="$(VmSourcesDir)\DynamicMethod.cpp" />
     <CppCompile Include="$(VmSourcesDir)\ecall.cpp" />
     <CppCompile Include="$(VmSourcesDir)\eeconfig.cpp" />
@@ -103,9 +103,11 @@
     <CppCompile Include="$(VmSourcesDir)\FusionSink.cpp" Condition="'$(FeatureFusion)' == 'true'"/>
     <CppCompile Include="$(VmSourcesDir)\FusionBind.cpp" Condition="'$(FeatureFusion)' == 'true'"/>
     <CppCompile Include="$(VmSourcesDir)\GCDecode.cpp" />
-    <CppCompile Include="$(VmSourcesDir)\gcenv.cpp" />
+    <CppCompile Include="$(VmSourcesDir)\gcenv.ee.cpp" />
+    <CppCompile Include="$(VmSourcesDir)\gcenv.os.cpp" />
     <CppCompile Include="$(VmSourcesDir)\gchelpers.cpp" />
     <CppCompile Include="$(VmSourcesDir)\gchost.cpp" />
+    <CppCompile Include="$(VmSourcesDir)\gcheaputilities.cpp" />
     <CppCompile Include="$(VmSourcesDir)\genericdict.cpp" />
     <CppCompile Include="$(VmSourcesDir)\generics.cpp" />
     <CppCompile Include="$(VmSourcesDir)\genmeth.cpp" />
@@ -225,6 +227,7 @@
     <CppCompile Include="$(VmSourcesDir)\validator.cpp" Condition="'$(FeatureCoreclr)' != 'true'"/>
     <CppCompile Include="$(VmSourcesDir)\vars.cpp" />
     <CppCompile Include="$(VmSourcesDir)\verifier.cpp" />
+    <CppCompile Include="$(VmSourcesDir)\versionresilienthashcode.cpp" />
     <CppCompile Include="$(VmSourcesDir)\VirtualCallStub.cpp" />
     <CppCompile Include="$(VmSourcesDir)\WeakReferenceNative.cpp" />
     <CppCompile Include="$(VmSourcesDir)\Win32Threadpool.cpp" />
@@ -249,7 +252,6 @@
   <ItemGroup>
     <CppCompile Include="$(VmSourcesDir)\AssemblyNativeResource.cpp" />
     <CppCompile Include="$(VmSourcesDir)\coverage.cpp" />
-    <CppCompile Include="$(VmSourcesDir)\DbgGcInfoDecoder.cpp" />
     <CppCompile Include="$(VmSourcesDir)\dwreport.cpp" />
     <CppCompile Include="$(VmSourcesDir)\EnCEE.cpp" />
     <CppCompile Include="$(VmSourcesDir)\ExceptionHandling.cpp" />

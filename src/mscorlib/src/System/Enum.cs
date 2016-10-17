@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Reflection;
 using System.Text;
@@ -16,21 +17,22 @@ namespace System
     [System.Runtime.InteropServices.ComVisible(true)]
     public abstract class Enum : ValueType, IComparable, IFormattable, IConvertible
     {
-        #region Private Static Data Members
-        private static readonly char [] enumSeperatorCharArray = new char [] {','};
-        private const String enumSeperator = ", ";
+        #region Private Constants
+        private const char enumSeparatorChar = ',';
+        private const String enumSeparatorString = ", ";
         #endregion
 
         #region Private Static Methods
         [System.Security.SecuritySafeCritical]  // auto-generated
-        private static ValuesAndNames GetCachedValuesAndNames(RuntimeType enumType, bool getNames)
+        private static TypeValuesAndNames GetCachedValuesAndNames(RuntimeType enumType, bool getNames)
         {
-            ValuesAndNames entry = enumType.GenericCache as ValuesAndNames;
+            TypeValuesAndNames entry = enumType.GenericCache as TypeValuesAndNames;
 
             if (entry == null || (getNames && entry.Names == null))
             {
                 ulong[] values = null;
                 String[] names = null;
+                bool isFlags = enumType.IsDefined(typeof(System.FlagsAttribute), false);
 
                 GetEnumValuesAndNames(
                     enumType.GetTypeHandleInternal(),
@@ -38,125 +40,120 @@ namespace System
                     JitHelpers.GetObjectHandleOnStack(ref names),
                     getNames);
 
-                entry = new ValuesAndNames(values, names);
+                entry = new TypeValuesAndNames(isFlags, values, names);
                 enumType.GenericCache = entry;
             }
 
             return entry;
         }
 
-        private static String InternalFormattedHexString(Object value)
+        [System.Security.SecuritySafeCritical]
+        private unsafe String InternalFormattedHexString()
+        {
+            fixed (void* pValue = &JitHelpers.GetPinningHelper(this).m_data)
+            {
+                switch (InternalGetCorElementType())
+                {
+                    case CorElementType.I1:
+                    case CorElementType.U1:
+                        return (*(byte*)pValue).ToString("X2", null);
+                    case CorElementType.Boolean:
+                        // direct cast from bool to byte is not allowed
+                        return Convert.ToByte(*(bool*)pValue).ToString("X2", null);
+                    case CorElementType.I2:
+                    case CorElementType.U2:
+                    case CorElementType.Char:
+                        return (*(ushort*)pValue).ToString("X4", null);
+                    case CorElementType.I4:
+                    case CorElementType.U4:
+                        return (*(uint*)pValue).ToString("X8", null);
+                    case CorElementType.I8:
+                    case CorElementType.U8:
+                        return (*(ulong*)pValue).ToString("X16", null);
+                    default:
+                        Contract.Assert(false, "Invalid Object type in Format");
+                        throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_UnknownEnumType"));
+                }
+            }
+        }
+
+        private static String InternalFormattedHexString(object value)
         {
             TypeCode typeCode = Convert.GetTypeCode(value);
 
             switch (typeCode)
             {
-                case TypeCode.SByte :
-                    {
-                        Byte result = (byte)(sbyte)value;
-
-                        return result.ToString("X2", null);
-                    }
-
-                case TypeCode.Byte :
-                    {
-                        Byte result = (byte)value;
-
-                        return result.ToString("X2", null);
-                    }
-
+                case TypeCode.SByte:
+                    return ((byte)(sbyte)value).ToString("X2", null);
+                case TypeCode.Byte:
+                    return ((byte)value).ToString("X2", null);
                 case TypeCode.Boolean:
-                    {
-                        // direct cast from bool to byte is not allowed
-                        Byte result = Convert.ToByte((bool)value);
-
-                        return result.ToString("X2", null);
-                    }
-
+                    // direct cast from bool to byte is not allowed
+                    return Convert.ToByte((bool)value).ToString("X2", null);
                 case TypeCode.Int16:
-                    {
-                        UInt16 result = (UInt16)(Int16)value;
-
-                        return result.ToString("X4", null);
-                    }
-
-                case TypeCode.UInt16 :
-                    {
-                        UInt16 result = (UInt16)value;
-
-                        return result.ToString("X4", null);
-                    }
-
+                    return ((UInt16)(Int16)value).ToString("X4", null);
+                case TypeCode.UInt16:
+                    return ((UInt16)value).ToString("X4", null);
                 case TypeCode.Char:
-                    {
-                        UInt16 result = (UInt16)(Char)value;
-
-                        return result.ToString("X4", null);
-                    }
-
+                    return ((UInt16)(Char)value).ToString("X4", null);
                 case TypeCode.UInt32:
-                    {
-                        UInt32 result = (UInt32)value;
-
-                        return result.ToString("X8", null);
-                    }
-
-                case TypeCode.Int32 :
-                    {
-                        UInt32 result = (UInt32)(int)value;
-
-                        return result.ToString("X8", null);
-                    }
-
-                case TypeCode.UInt64 :
-                    {
-                        UInt64 result = (UInt64)value;
-
-                        return result.ToString("X16", null);
-                    }
-
-                case TypeCode.Int64 :
-                    {
-                        UInt64 result = (UInt64)(Int64)value;
-
-                        return result.ToString("X16", null);
-                    }
-
+                    return ((UInt32)value).ToString("X8", null);
+                case TypeCode.Int32:
+                    return ((UInt32)(Int32)value).ToString("X8", null);
+                case TypeCode.UInt64:
+                    return ((UInt64)value).ToString("X16", null);
+                case TypeCode.Int64:
+                    return ((UInt64)(Int64)value).ToString("X16", null);
                 // All unsigned types will be directly cast
-                default :
+                default:
                     Contract.Assert(false, "Invalid Object type in Format");
                     throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_UnknownEnumType"));
             }
         }
 
-        private static String InternalFormat(RuntimeType eT, Object value)
+        internal static String GetEnumName(RuntimeType eT, ulong ulValue)
         {
             Contract.Requires(eT != null);
-            Contract.Requires(value != null);
-            if (!eT.IsDefined(typeof(System.FlagsAttribute), false)) // Not marked with Flags attribute
+            ulong[] ulValues = Enum.InternalGetValues(eT);
+            int index = Array.BinarySearch(ulValues, ulValue);
+
+            if (index >= 0)
             {
-                // Try to see if its one of the enum values, then we return a String back else the value
-                String retval = GetName(eT, value);
-                if (retval == null)
-                    return value.ToString();
-                else
-                    return retval;
+                string[] names = Enum.InternalGetNames(eT);
+                return names[index];
+            }
+
+            return null; // return null so the caller knows to .ToString() the input
+        }
+
+        private static String InternalFormat(RuntimeType eT, ulong value)
+        {
+            Contract.Requires(eT != null);
+
+            // These values are sorted by value. Don't change this
+            TypeValuesAndNames entry = GetCachedValuesAndNames(eT, true);
+
+            if (!entry.IsFlag) // Not marked with Flags attribute
+            {
+                return Enum.GetEnumName(eT, value);
             }
             else // These are flags OR'ed together (We treat everything as unsigned types)
             {
-                return InternalFlagsFormat(eT, value);
-
+                return InternalFlagsFormat(eT, entry, value);
             }
         }
 
-        private static String InternalFlagsFormat(RuntimeType eT, Object value)
+        private static String InternalFlagsFormat(RuntimeType eT,ulong result)
+        {
+            // These values are sorted by value. Don't change this
+            TypeValuesAndNames entry = GetCachedValuesAndNames(eT, true);
+
+            return InternalFlagsFormat(eT, entry, result);
+        }
+
+        private static String InternalFlagsFormat(RuntimeType eT, TypeValuesAndNames entry, ulong result)
         {
             Contract.Requires(eT != null);
-            Contract.Requires(value != null);
-            ulong result = ToUInt64(value);
-
-            // These values are sorted by value. Don't change this
-            ValuesAndNames entry = GetCachedValuesAndNames(eT, true);
 
             String[] names = entry.Names;
             ulong[] values = entry.Values;
@@ -179,7 +176,7 @@ namespace System
                 {
                     result -= values[index];
                     if (!firstTime)
-                        retval.Insert(0, enumSeperator);
+                        retval.Insert(0, enumSeparatorString);
 
                     retval.Insert(0, names[index]);
                     firstTime = false;
@@ -190,10 +187,10 @@ namespace System
 
             // We were unable to represent this number as a bitwise or of valid flags
             if (result != 0)
-                return value.ToString();
+                return null; // return null so the caller knows to .ToString() the input
 
             // For the case when we have zero
-            if (saveResult==0)
+            if (saveResult == 0)
             {
                 if (values.Length > 0 && values[0] == 0)
                     return names[0]; // Zero was one of the enum values.
@@ -201,7 +198,9 @@ namespace System
                     return "0";
             }
             else
-            return retval.ToString(); // Return the string representation
+            {
+                return retval.ToString(); // Return the string representation
+            }
         }
 
         internal static ulong ToUInt64(Object value)
@@ -209,31 +208,47 @@ namespace System
             // Helper function to silently convert the value to UInt64 from the other base types for enum without throwing an exception.
             // This is need since the Convert functions do overflow checks.
             TypeCode typeCode = Convert.GetTypeCode(value);
-            ulong result;
 
-            switch(typeCode)
+            ulong result;
+            switch (typeCode)
             {
                 case TypeCode.SByte:
-                case TypeCode.Int16:
-                case TypeCode.Int32:
-                case TypeCode.Int64:
-                    result = (UInt64)Convert.ToInt64(value, CultureInfo.InvariantCulture);
+                    result = (ulong)(sbyte)value;
                     break;
-
                 case TypeCode.Byte:
-                case TypeCode.UInt16:
-                case TypeCode.UInt32:
-                case TypeCode.UInt64:
-                case TypeCode.Boolean:
-                case TypeCode.Char:
-                    result = Convert.ToUInt64(value, CultureInfo.InvariantCulture);
+                    result = (byte)value;
                     break;
-
-                default:
+                case TypeCode.Boolean:
+                    // direct cast from bool to byte is not allowed
+                    result = Convert.ToByte((bool)value);
+                    break;
+                case TypeCode.Int16:
+                    result = (ulong)(Int16)value;
+                    break;
+                case TypeCode.UInt16:
+                    result = (UInt16)value;
+                    break;
+                case TypeCode.Char:
+                    result = (UInt16)(Char)value;
+                    break;
+                case TypeCode.UInt32:
+                    result = (UInt32)value;
+                    break;
+                case TypeCode.Int32:
+                    result = (ulong)(int)value;
+                    break;
+                case TypeCode.UInt64:
+                    result = (ulong)value;
+                    break;
+                case TypeCode.Int64:
+                    result = (ulong)(Int64)value;
+                    break;
                 // All unsigned types will be directly cast
+                default:
                     Contract.Assert(false, "Invalid Object type in ToUInt64");
                     throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_UnknownEnumType"));
             }
+
             return result;
         }
 
@@ -276,11 +291,6 @@ namespace System
             internal object m_failureMessageFormatArgument;
             internal Exception m_innerException;
 
-            internal void Init(bool canMethodThrow)
-            {
-                parsedEnum = 0;
-                canThrow = canMethodThrow;
-            }
             internal void SetFailure(Exception unhandledException)
             {
                 m_failure = ParseFailureKind.UnhandledException;
@@ -324,6 +334,22 @@ namespace System
             }
         }
 
+        public static bool TryParse(Type enumType, String value, out Object result)
+        {
+            return TryParse(enumType, value, false, out result);
+        }
+
+        public static bool TryParse(Type enumType, String value, bool ignoreCase, out Object result)
+        {
+            result = null;
+            EnumResult parseResult = new EnumResult();
+            bool retValue;
+
+            if (retValue = TryParseEnum(enumType, value, ignoreCase, ref parseResult))
+                result = parseResult.parsedEnum;
+            return retValue;
+        }
+
         public static bool TryParse<TEnum>(String value, out TEnum result) where TEnum : struct
         {
             return TryParse(value, false, out result);
@@ -333,7 +359,6 @@ namespace System
         {
             result = default(TEnum);
             EnumResult parseResult = new EnumResult();
-            parseResult.Init(false);
             bool retValue;
 
             if (retValue = TryParseEnum(typeof(TEnum), value, ignoreCase, ref parseResult))
@@ -350,10 +375,23 @@ namespace System
         [System.Runtime.InteropServices.ComVisible(true)]
         public static Object Parse(Type enumType, String value, bool ignoreCase)
         {
-            EnumResult parseResult = new EnumResult();
-            parseResult.Init(true);
+            EnumResult parseResult = new EnumResult() { canThrow = true };
             if (TryParseEnum(enumType, value, ignoreCase, ref parseResult))
                 return parseResult.parsedEnum;
+            else
+                throw parseResult.GetEnumParseException();
+        }
+
+        public static TEnum Parse<TEnum>(String value) where TEnum : struct
+        {
+            return Parse<TEnum>(value, false);
+        }
+
+        public static TEnum Parse<TEnum>(String value, bool ignoreCase) where TEnum : struct
+        {
+            EnumResult parseResult = new EnumResult() { canThrow = true };
+            if (TryParseEnum(typeof(TEnum), value, ignoreCase, ref parseResult))
+                return (TEnum)parseResult.parsedEnum;
             else
                 throw parseResult.GetEnumParseException();
         }
@@ -376,8 +414,16 @@ namespace System
                 return false;
             }
 
-            value = value.Trim();
-            if (value.Length == 0) {
+            int firstNonWhitespaceIndex = -1;
+            for (int i = 0; i < value.Length; i++)
+            {
+                if (!Char.IsWhiteSpace(value[i]))
+                {
+                    firstNonWhitespaceIndex = i;
+                    break;
+                }
+            }
+            if (firstNonWhitespaceIndex == -1) {
                 parseResult.SetFailure(ParseFailureKind.Argument, "Arg_MustContainEnumInfo", null);
                 return false;
             }
@@ -386,13 +432,15 @@ namespace System
             // values will have the first character as as number or a sign.
             ulong result = 0;
 
-            if (Char.IsDigit(value[0]) || value[0] == '-' || value[0] == '+')
+            char firstNonWhitespaceChar = value[firstNonWhitespaceIndex];
+            if (Char.IsDigit(firstNonWhitespaceChar) || firstNonWhitespaceChar == '-' || firstNonWhitespaceChar == '+')
             {
                 Type underlyingType = GetUnderlyingType(enumType);
                 Object temp;
 
                 try
                 {
+                    value = value.Trim();
                     temp = Convert.ChangeType(value, underlyingType, CultureInfo.InvariantCulture);
                     parseResult.parsedEnum = ToObject(enumType, temp);
                     return true;
@@ -414,47 +462,55 @@ namespace System
                 }
             }
 
-            String[] values = value.Split(enumSeperatorCharArray);
-
-            // Find the field.Lets assume that these are always static classes because the class is
-            //  an enum.
-            ValuesAndNames entry = GetCachedValuesAndNames(rtType, true);
-
+            // Find the field. Let's assume that these are always static classes 
+            // because the class is an enum.
+            TypeValuesAndNames entry = GetCachedValuesAndNames(rtType, true);
             String[] enumNames = entry.Names;
             ulong[] enumValues = entry.Values;
-            
-            for (int i = 0; i < values.Length; i++)
+
+            StringComparison comparison = ignoreCase ? 
+                StringComparison.OrdinalIgnoreCase : 
+                StringComparison.Ordinal;
+
+            int valueIndex = firstNonWhitespaceIndex;
+            while (valueIndex <= value.Length) // '=' is to handle invalid case of an ending comma
             {
-                values[i] = values[i].Trim(); // We need to remove whitespace characters
-
-                bool success = false;
-
-                for (int j = 0; j < enumNames.Length; j++)
+                // Find the next separator, if there is one, otherwise the end of the string.
+                int endIndex = value.IndexOf(enumSeparatorChar, valueIndex);
+                if (endIndex == -1)
                 {
-                    if (ignoreCase)
-                    {
-                        if (String.Compare(enumNames[j], values[i], StringComparison.OrdinalIgnoreCase) != 0)
-                            continue;
-                    }
-                    else
-                    {
-                        if (!enumNames[j].Equals(values[i]))
-                            continue;
-                    }
-
-                    ulong item = enumValues[j];
-
-                    result |= item;
-                    success = true;
-                    break;
+                    endIndex = value.Length;
                 }
 
+                // Shift the starting and ending indices to eliminate whitespace
+                int endIndexNoWhitespace = endIndex;
+                while (valueIndex < endIndex && Char.IsWhiteSpace(value[valueIndex])) valueIndex++;
+                while (endIndexNoWhitespace > valueIndex && Char.IsWhiteSpace(value[endIndexNoWhitespace - 1])) endIndexNoWhitespace--;
+                int valueSubstringLength = endIndexNoWhitespace - valueIndex;
+
+                // Try to match this substring against each enum name
+                bool success = false;
+                for (int i = 0; i < enumNames.Length; i++)
+                {
+                    if (enumNames[i].Length == valueSubstringLength && 
+                        string.Compare(enumNames[i], 0, value, valueIndex, valueSubstringLength, comparison) == 0)
+                    {
+                        result |= enumValues[i];
+                        success = true;
+                        break;
+                    }
+                }
+
+                // If we couldn't find a match, throw an argument exception.
                 if (!success)
                 {
                     // Not found, throw an argument exception.
                     parseResult.SetFailure(ParseFailureKind.ArgumentWithParameter, "Arg_EnumValueNotFound", value);
                     return false;
                 }
+
+                // Move our pointer to the ending index to go again.
+                valueIndex = endIndex + 1;
             }
 
             try
@@ -539,14 +595,6 @@ namespace System
             // Delegate rest of error checking to the other functions
             TypeCode typeCode = Convert.GetTypeCode(value);
 
-            // NetCF doesn't support char and boolean conversion
-            if (CompatibilitySwitches.IsAppEarlierThanWindowsPhone8 &&
-                ((typeCode == TypeCode.Boolean) || (typeCode == TypeCode.Char)))
-            {
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeEnumBaseTypeOrEnum"), "value");
-            }
-
-
             switch (typeCode)
             {
                 case TypeCode.Int32 :
@@ -623,42 +671,39 @@ namespace System
 
             // If the value is an Enum then we need to extract the underlying value from it
             if (valueType.IsEnum) {
-                Type valueUnderlyingType = GetUnderlyingType(valueType);
 
                 if (!valueType.IsEquivalentTo(enumType))
                     throw new ArgumentException(Environment.GetResourceString("Arg_EnumAndObjectMustBeSameType", valueType.ToString(), enumType.ToString()));
 
-                valueType = valueUnderlyingType;
-                value = ((Enum)value).GetValue();
+                if (format.Length != 1)
+                {
+                    // all acceptable format string are of length 1
+                    throw new FormatException(Environment.GetResourceString("Format_InvalidEnumFormatSpecification"));
+                }
+                return ((Enum)value).ToString(format);
             }
             // The value must be of the same type as the Underlying type of the Enum
             else if (valueType != underlyingType) {
                 throw new ArgumentException(Environment.GetResourceString("Arg_EnumFormatUnderlyingTypeAndObjectMustBeSameType", valueType.ToString(), underlyingType.ToString()));
             }
-
-            if( format.Length != 1) {
+            if (format.Length != 1)
+            {
                 // all acceptable format string are of length 1
                 throw new FormatException(Environment.GetResourceString("Format_InvalidEnumFormatSpecification"));
             }
-            
+
             char formatCh = format[0];
+            if (formatCh == 'G' || formatCh == 'g')
+                return GetEnumName(rtType, ToUInt64(value));
 
-            if (formatCh == 'D' || formatCh == 'd') {
+            if (formatCh == 'D' || formatCh == 'd')
                 return value.ToString();
-            }
 
-            if (formatCh == 'X' || formatCh == 'x') {
-                // Retrieve the value from the field.
+            if (formatCh == 'X' || formatCh == 'x')
                 return InternalFormattedHexString(value);
-            }
 
-            if (formatCh == 'G' || formatCh == 'g') {
-                return InternalFormat(rtType, value);
-            }
-
-            if (formatCh == 'F' || formatCh == 'f') {
-                return InternalFlagsFormat(rtType, value);
-            }
+            if (formatCh == 'F' || formatCh == 'f')
+                return Enum.InternalFlagsFormat(rtType, ToUInt64(value)) ?? value.ToString();
 
             throw new FormatException(Environment.GetResourceString("Format_InvalidEnumFormatSpecification"));
         }
@@ -666,15 +711,17 @@ namespace System
         #endregion
 
         #region Definitions
-        private class ValuesAndNames
+        private class TypeValuesAndNames
         {
             // Each entry contains a list of sorted pair of enum field names and values, sorted by values
-            public ValuesAndNames(ulong[] values, String[] names)
+            public TypeValuesAndNames(bool isFlag, ulong[] values, String[] names)
             {
+                this.IsFlag = isFlag;
                 this.Values = values;
                 this.Names = names;
             }
 
+            public bool IsFlag;
             public ulong[] Values;
             public String[] Names;
         }
@@ -719,6 +766,59 @@ namespace System
                     default:
                         Contract.Assert(false, "Invalid primitive type");
                         return null;
+                }
+            }
+        }
+
+        [System.Security.SecuritySafeCritical]
+        private unsafe ulong ToUInt64()
+        {
+            fixed (void* pValue = &JitHelpers.GetPinningHelper(this).m_data)
+            {
+                switch (InternalGetCorElementType())
+                {
+                    case CorElementType.I1:
+                        return (ulong)*(sbyte*)pValue;
+                    case CorElementType.U1:
+                        return *(byte*)pValue;
+                    case CorElementType.Boolean:
+                        return Convert.ToUInt64(*(bool*)pValue, CultureInfo.InvariantCulture);
+                    case CorElementType.I2:
+                        return (ulong)*(short*)pValue;
+                    case CorElementType.U2:
+                    case CorElementType.Char:
+                        return *(ushort*)pValue;
+                    case CorElementType.I4:
+                        return (ulong)*(int*)pValue;
+                    case CorElementType.U4:
+                    case CorElementType.R4:
+                        return *(uint*)pValue;
+                    case CorElementType.I8:
+                        return (ulong)*(long*)pValue;
+                    case CorElementType.U8:
+                    case CorElementType.R8:
+                        return *(ulong*)pValue;
+                    case CorElementType.I:
+                        if (IntPtr.Size == 8)
+                        {
+                            return *(ulong*)pValue;
+                        }
+                        else
+                        {
+                            return (ulong)*(int*)pValue;
+                        }
+                    case CorElementType.U:
+                        if (IntPtr.Size == 8)
+                        {
+                            return *(ulong*)pValue;
+                        }
+                        else
+                        {
+                            return *(uint*)pValue;
+                        }
+                    default:
+                        Contract.Assert(false, "Invalid primitive type");
+                        return 0;
                 }
             }
         }
@@ -790,7 +890,10 @@ namespace System
             // For BitFlags (indicated by the Flags custom attribute): If for each bit that is set in the value there is a corresponding constant
             //(a pure power of 2), then the  OR string (ie "Red | Yellow") is returned. Otherwise, if the value is zero or if you can't create a string that consists of
             // pure powers of 2 OR-ed together, you return a hex value
-            return Enum.InternalFormat((RuntimeType)GetType(), GetValue());
+
+
+            // Try to see if its one of the enum values, then we return a String back else the value
+            return Enum.InternalFormat((RuntimeType)GetType(), ToUInt64()) ?? GetValue().ToString();
         }
         #endregion
 
@@ -840,20 +943,25 @@ namespace System
 
         #region Public Methods
         public String ToString(String format) {
+            char formatCh;
             if (format == null || format.Length == 0)
-                format = "G";
+                formatCh = 'G';
+            else if (format.Length != 1)
+                throw new FormatException(Environment.GetResourceString("Format_InvalidEnumFormatSpecification"));
+            else
+                formatCh = format[0];
 
-            if (String.Compare(format, "G", StringComparison.OrdinalIgnoreCase) == 0)
+            if (formatCh == 'G' || formatCh == 'g')
                 return ToString();
 
-            if (String.Compare(format, "D", StringComparison.OrdinalIgnoreCase) == 0)
+            if (formatCh == 'D' || formatCh == 'd')
                 return GetValue().ToString();
 
-            if (String.Compare(format, "X", StringComparison.OrdinalIgnoreCase) == 0)
-                return InternalFormattedHexString(GetValue());
+            if (formatCh == 'X' || formatCh == 'x')
+                return InternalFormattedHexString();
 
-            if (String.Compare(format, "F", StringComparison.OrdinalIgnoreCase) == 0)
-                return InternalFlagsFormat((RuntimeType)GetType(), GetValue());
+            if (formatCh == 'F' || formatCh == 'f')
+                return InternalFlagsFormat((RuntimeType)GetType(), ToUInt64()) ?? GetValue().ToString();
 
             throw new FormatException(Environment.GetResourceString("Format_InvalidEnumFormatSpecification"));
         }

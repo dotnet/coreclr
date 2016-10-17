@@ -1,12 +1,18 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
 
 
 // Metadata version: v1.2.30210
-.assembly extern mscorlib {}
+.assembly extern mscorlib { }
+.assembly extern System.Console
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
 .assembly hole {}
 .module hole.exe
 // MVID: {972ABF67-C385-44E6-B525-571BCCECC13C}
@@ -81,9 +87,9 @@
     // Code size       21 (0x15)
     .maxstack  10
     IL_0000:  ldstr      "In Foo: "
-    IL_0005:  call       void [mscorlib]System.Console::Write(string)
+    IL_0005:  call       void [System.Console]System.Console::Write(string)
     IL_000a:  ldsfld     int32 BASIC::x
-    IL_000f:  call       void [mscorlib]System.Console::WriteLine(int32)
+    IL_000f:  call       void [System.Console]System.Console::WriteLine(int32)
     ldc.i4 100
     IL_0014:  ret
   } // end of method BASIC::Foo

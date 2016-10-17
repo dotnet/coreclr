@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -29,18 +30,8 @@ namespace System.Reflection
     using Microsoft.Runtime.Hosting;
 #endif
 
-#if FEATURE_CORECLR
-    // Dummy type to avoid ifdefs in signature definitions
-    public class StrongNameKeyPair
-    {       
-        private StrongNameKeyPair()
-        {
-            throw new NotSupportedException();
-        }
-    }
-#else
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
+    [System.Runtime.InteropServices.ComVisible(true)]
     public class StrongNameKeyPair : IDeserializationCallback, ISerializable 
     {
         private bool    _keyPairExported;
@@ -48,6 +39,7 @@ namespace System.Reflection
         private String  _keyPairContainer;
         private byte[]  _publicKey;
 
+#if !FEATURE_CORECLR
         // Build key pair from file.
         [System.Security.SecuritySafeCritical]  // auto-generated
 #pragma warning disable 618
@@ -65,6 +57,7 @@ namespace System.Reflection
 
             _keyPairExported = true;
         }
+#endif// FEATURE_CORECLR
 
         // Build key pair from byte array in memory.
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -82,7 +75,19 @@ namespace System.Reflection
 
             _keyPairExported = true;
         }
+        
+        [System.Security.SecuritySafeCritical]  // auto-generated
+#pragma warning disable 618
+        [SecurityPermissionAttribute(SecurityAction.Demand, Flags=SecurityPermissionFlag.UnmanagedCode)]
+#pragma warning restore 618
+        protected StrongNameKeyPair (SerializationInfo info, StreamingContext context) {
+            _keyPairExported = (bool) info.GetValue("_keyPairExported", typeof(bool));
+            _keyPairArray = (byte[]) info.GetValue("_keyPairArray", typeof(byte[]));
+            _keyPairContainer = (string) info.GetValue("_keyPairContainer", typeof(string));
+            _publicKey = (byte[]) info.GetValue("_publicKey", typeof(byte[]));
+        }
 
+#if! FEATURE_CORECLR
         // Reference key pair in named key container.
         [System.Security.SecuritySafeCritical]  // auto-generated
 #pragma warning disable 618
@@ -97,17 +102,6 @@ namespace System.Reflection
             _keyPairContainer = keyPairContainer;
 
             _keyPairExported = false;
-        }
-
-        [System.Security.SecuritySafeCritical]  // auto-generated
-#pragma warning disable 618
-        [SecurityPermissionAttribute(SecurityAction.Demand, Flags=SecurityPermissionFlag.UnmanagedCode)]
-#pragma warning restore 618
-        protected StrongNameKeyPair (SerializationInfo info, StreamingContext context) {
-            _keyPairExported = (bool) info.GetValue("_keyPairExported", typeof(bool));
-            _keyPairArray = (byte[]) info.GetValue("_keyPairArray", typeof(byte[]));
-            _keyPairContainer = (string) info.GetValue("_keyPairContainer", typeof(string));
-            _publicKey = (byte[]) info.GetValue("_publicKey", typeof(byte[]));
         }
 
         // Get the public portion of the key pair.
@@ -169,8 +163,28 @@ namespace System.Reflection
             }
             return publicKey;
         }
+        // Internal routine used to retrieve key pair info from unmanaged code.
+        private bool GetKeyPair(out Object arrayOrContainer)
+        {
+            arrayOrContainer = _keyPairExported ? (Object)_keyPairArray : (Object)_keyPairContainer;
+            return _keyPairExported;
+        }
+#else
+        public StrongNameKeyPair(String keyPairContainer)
+        {
+            throw new PlatformNotSupportedException();
+        }
+        
+        public byte[] PublicKey
+        {
+            get
+            {
+                throw new PlatformNotSupportedException();
+            }
+        }
 
-#if FEATURE_SERIALIZATION
+#endif// FEATURE_CORECLR
+
         /// <internalonly/>
         [System.Security.SecurityCritical]
         void ISerializable.GetObjectData (SerializationInfo info, StreamingContext context) {
@@ -182,14 +196,6 @@ namespace System.Reflection
 
         /// <internalonly/>
         void IDeserializationCallback.OnDeserialization (Object sender) {}
-#endif
 
-        // Internal routine used to retrieve key pair info from unmanaged code.
-        private bool GetKeyPair(out Object arrayOrContainer)
-        {
-            arrayOrContainer = _keyPairExported ? (Object)_keyPairArray : (Object)_keyPairContainer;
-            return _keyPairExported;
-        }
     }
-#endif // FEATURE_CORECLR
 }

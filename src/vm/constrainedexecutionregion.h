@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // Methods to support the implementation of Constrained Execution Regions (CERs). This includes logic to walk the IL of methods to
 // determine the statically determinable call graph and prepare each submethod (jit, prepopulate generic dictionaries etc.,
@@ -85,8 +84,6 @@ enum {
 
 // Return true if either consistency or cer has not been specified in the encoded DWORD given.
 #define RC_INCOMPLETE(_encoded) (RC_CONSISTENCY(_encoded) == RC_CONSISTENCY_UNDEFINED || RC_CER(_encoded) == RC_CER_UNDEFINED)
-
-#ifndef CLR_STANDALONE_BINDER
 
 // Look for reliability contracts at the method, class and assembly level and parse them to extract the information we're interested
 // in from a runtime preparation viewpoint. This information is abstracted in the form of the ReliabilityContractLevel enumeration.
@@ -562,7 +559,5 @@ private:
     DWORD       m_dwMisses;
 #endif
 };
-
-#endif // CLR_STANDALONE_BINDER
 
 #endif

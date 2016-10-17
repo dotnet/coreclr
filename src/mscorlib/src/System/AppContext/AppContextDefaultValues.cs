@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections.Generic;
@@ -23,44 +24,26 @@ namespace System
         /// We have this separate method for getting the parsed elements out of the TargetFrameworkName so we can
         /// more easily support this on other platforms.
         /// </summary>
-        [System.Security.SecuritySafeCritical]
         private static void ParseTargetFrameworkName(out string identifier, out string profile, out int version)
         {
-#if FEATURE_CORECLR
-            if (CompatibilitySwitches.IsAppSilverlight81)
-            {
-                // Since Silverlight apps don't have an explicit Main() the reading of the TFM 
-                // will not work and as a workaround we use the CompatibilitySwitch.IsAppSilverlight81 
-                // to identify if the given app targets SL 8.1 and accordingly give it the value WindowsPhone;80100
-                identifier = "WindowsPhone";
-                version = 80100;
-                profile = string.Empty;
-                return;
-            }
-#endif
-
             string targetFrameworkMoniker = AppDomain.CurrentDomain.SetupInformation.TargetFrameworkName;
 
-            // If we don't have a TFM then we should default to the 4.0 behavior where all quirks are turned on.
             if (!TryParseFrameworkName(targetFrameworkMoniker, out identifier, out version, out profile))
             {
 #if FEATURE_CORECLR
-                if (CompatibilitySwitches.UseLatestBehaviorWhenTFMNotSpecified)
-                {
-                    // If we want to use the latest behavior it is enough to set the value of the switch to string.Empty.
-                    // When the get to the caller of this method (PopulateDefaultValuesPartial) we are going to use the 
-                    // identifier we just set to decide which switches to turn on. By having an empty string as the 
-                    // identifier we are simply saying -- don't turn on any switches, and we are going to get the latest
-                    // behavior for all the switches
-                    identifier = string.Empty;
-                }
-                else
+                // If we can't parse the TFM or we don't have a TFM, default to latest behavior for all 
+                // switches (ie. all of them false).
+                // If we want to use the latest behavior it is enough to set the value of the switch to string.Empty.
+                // When the get to the caller of this method (PopulateDefaultValuesPartial) we are going to use the 
+                // identifier we just set to decide which switches to turn on. By having an empty string as the 
+                // identifier we are simply saying -- don't turn on any switches, and we are going to get the latest
+                // behavior for all the switches
+                identifier = string.Empty;
+#else
+                identifier = ".NETFramework";		
+                version = 40000;		
+                profile = string.Empty;
 #endif
-                {
-                    identifier = ".NETFramework";
-                    version = 40000;
-                    profile = string.Empty;
-                }
             }
         }
 

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // File: registrywrapper.cpp
 //
@@ -217,10 +216,12 @@ HRESULT CheckUseWow6432Node(REGSAM samDesired, bool * fResult)
 // lpRedirectedKey is allocated and returned from this method.  Caller owns the new string and
 // should release
 //
+__success(return == ERROR_SUCCESS)
 HRESULT RedirectKey(REGSAM samDesired, HKEY hKey, LPCWSTR lpKey, __deref_out_z LPWSTR * lpRedirectedKey)
 {
     if (hKey != kRegistryRootHive || _wcsnicmp(lpKey, kRegistryRootKey, wcslen(kRegistryRootKey)) != 0)
     {
+        *lpRedirectedKey = NULL;
         return ERROR_SUCCESS;
     }
     

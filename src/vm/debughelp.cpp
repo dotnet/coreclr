@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 #include "common.h"
@@ -1199,24 +1198,24 @@ void DumpGCInfo(MethodDesc* method)
     _ASSERTE(codeInfo.GetRelOffset() == 0);
 
     ICodeManager* codeMan = codeInfo.GetCodeManager();
-    BYTE* table = (BYTE*) codeInfo.GetGCInfo();
+    GCInfoToken gcInfoToken = codeInfo.GetGCInfoToken();
 
-    unsigned methodSize = (unsigned)codeMan->GetFunctionSize(table);
+    unsigned methodSize = (unsigned)codeMan->GetFunctionSize(gcInfoToken);
 
-    GCDump gcDump;
+    GCDump gcDump(gcInfoToken.Version);
+    PTR_CBYTE gcInfo = PTR_CBYTE(gcInfoToken.Info);
 
     gcDump.gcPrintf = printfToDbgOut;
 
     InfoHdr header;
 
     printfToDbgOut ("Method info block:\n");
-
-    table += gcDump.DumpInfoHdr(table, &header, &methodSize, 0);
+    gcInfo += gcDump.DumpInfoHdr(gcInfo, &header, &methodSize, 0);
 
     printfToDbgOut ("\n");
     printfToDbgOut ("Pointer table:\n");
 
-    table += gcDump.DumpGCTable(table, header, methodSize, 0);
+    gcInfo += gcDump.DumpGCTable(gcInfo, header, methodSize, 0);
 }
 
 void DumpGCInfoMD(size_t method)

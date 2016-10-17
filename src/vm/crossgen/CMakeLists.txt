@@ -22,7 +22,6 @@ set(VM_CROSSGEN_SOURCES
     ../baseassemblyspec.cpp
     ../corebindresult.cpp
     ../coreassemblyspec.cpp
-    ../crossdomaincalls.cpp
     ../dataimage.cpp
     ../decodemd.cpp
     ../debuginfostore.cpp
@@ -34,8 +33,6 @@ set(VM_CROSSGEN_SOURCES
     ../field.cpp
     ../fieldmarshaler.cpp
     ../formattype.cpp
-    ../typeequivalencehash.cpp
-    ../gcdecode.cpp
     ../genericdict.cpp
     ../generics.cpp
     ../genmeth.cpp
@@ -68,7 +65,6 @@ set(VM_CROSSGEN_SOURCES
     ../pendingload.cpp
     ../precode.cpp
     ../olevariant.cpp
-    ../readytoruninfo.cpp
     ../security.cpp
     ../securitypolicy.cpp
     ../securityattributes.cpp
@@ -94,17 +90,43 @@ set(VM_CROSSGEN_SOURCES
     ../typestring.cpp
     ../util.cpp
     ../vars.cpp
+    ../versionresilienthashcode.cpp
     ../zapsig.cpp
-    ../dbggcinfodecoder.cpp
     ../gcinfodecoder.cpp
     ../sha1.cpp
-    ../amd64/stublinkeramd64.cpp
     ../crossgencompile.cpp
 )
 
+if(FEATURE_READYTORUN)
+    list(APPEND VM_CROSSGEN_SOURCES
+      ../readytoruninfo.cpp
+    )
+endif(FEATURE_READYTORUN)
+
 include_directories(BEFORE ..)
 include_directories(${CLR_DIR}/src/gc)
-include_directories(../amd64)
+include_directories(../${ARCH_SOURCES_DIR})
+
+if(CLR_CMAKE_TARGET_ARCH_AMD64)
+  list(APPEND VM_CROSSGEN_SOURCES 
+    ../${ARCH_SOURCES_DIR}/stublinkeramd64.cpp
+  )
+elseif(CLR_CMAKE_TARGET_ARCH_I386)
+  list(APPEND VM_CROSSGEN_SOURCES 
+    ../${ARCH_SOURCES_DIR}/stublinkerx86.cpp
+    ../gcdecode.cpp
+  )
+elseif(CLR_CMAKE_TARGET_ARCH_ARM)
+  list(APPEND VM_CROSSGEN_SOURCES 
+    ../${ARCH_SOURCES_DIR}/stubs.cpp
+  )
+elseif(CLR_CMAKE_TARGET_ARCH_ARM64)
+  list(APPEND VM_CROSSGEN_SOURCES 
+    ../${ARCH_SOURCES_DIR}/stubs.cpp
+  )
+else()
+  clr_unknown_arch()
+endif()
 
 if (WIN32)
   list(APPEND VM_CROSSGEN_SOURCES
@@ -125,4 +147,11 @@ if (WIN32)
   set_source_files_properties(../mscorlib.cpp PROPERTIES COMPILE_FLAGS "/Y-")
 endif (WIN32)
 
-add_library(cee_crossgen ${VM_CROSSGEN_SOURCES})
+if (CLR_CMAKE_PLATFORM_LINUX)
+  list(APPEND VM_CROSSGEN_SOURCES
+    ../perfmap.cpp
+    ../perfinfo.cpp
+  )
+endif (CLR_CMAKE_PLATFORM_LINUX)
+
+add_library_clr(cee_crossgen ${VM_CROSSGEN_SOURCES})

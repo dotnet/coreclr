@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ============================================================
 //
 // CoreAssemblySpec.cpp
@@ -176,14 +175,6 @@ VOID  AssemblySpec::Bind(AppDomain      *pAppDomain,
     }
     else
     {
-        // BindByWhereRef is supported only for the default (TPA) Binder in CoreCLR.
-        _ASSERTE(pBinder == pTPABinder);
-        if (pBinder != pTPABinder)
-        {
-            // Fail with an exception for better diagnosis.
-            COMPlusThrowHR(COR_E_INVALIDOPERATION);
-        }
-        
         hr = pTPABinder->Bind(assemblyDisplayName,
                            m_wszCodeBase,
                            GetParentAssembly()? GetParentAssembly()->GetFile():NULL,
@@ -192,9 +183,16 @@ VOID  AssemblySpec::Bind(AppDomain      *pAppDomain,
                           &pPrivAsm);
     }
 
+    bool fBoundUsingTPABinder = false;
     if(SUCCEEDED(hr))
     {
         _ASSERTE(pPrivAsm != nullptr);
+
+        if (AreSameBinderInstance(pTPABinder, reinterpret_cast<ICLRPrivBinder *>(pPrivAsm.Extract())))
+        {
+            fBoundUsingTPABinder = true;
+        }
+
         result = BINDER_SPACE::GetAssemblyFromPrivAssemblyFast(pPrivAsm.Extract());
         _ASSERTE(result != nullptr);
     }
@@ -202,13 +200,20 @@ VOID  AssemblySpec::Bind(AppDomain      *pAppDomain,
     pResult->SetHRBindResult(hr);
     if (SUCCEEDED(hr))
     {
-        BOOL fIsInGAC = pAppDomain->IsImageFromTrustedPath(result->GetNativeOrILPEImage());
+        BOOL fIsInGAC = FALSE;
         BOOL fIsOnTpaList = FALSE;
-        const SString &sImagePath = result->GetNativeOrILPEImage()->GetPath();
-        if (pTPABinder->IsInTpaList(sImagePath))
+
+        // Only initialize TPA/GAC status if we bound using DefaultContext
+        if (fBoundUsingTPABinder == true)
         {
-            fIsOnTpaList = TRUE;
+            fIsInGAC = pAppDomain->IsImageFromTrustedPath(result->GetNativeOrILPEImage());
+            const SString &sImagePath = result->GetNativeOrILPEImage()->GetPath();
+            if (pTPABinder->IsInTpaList(sImagePath))
+            {
+                fIsOnTpaList = TRUE;
+            }
         }
+
         pResult->Init(result,fIsInGAC, fIsOnTpaList);
     }
     else if (FAILED(hr) && (fThrowOnFileNotFound || (!Assembly::FileNotFound(hr))))
@@ -350,13 +355,13 @@ HRESULT BaseAssemblySpec::ParseName()
 
         if (pIUnknownBinder != NULL)
         {
-#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(MDILNIGEN)
+#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
             if (pDomain->GetFusionContext() != pDomain->GetTPABinderContext())
             {
                 pAppContext = (static_cast<CLRPrivBinderAssemblyLoadContext *>(pIUnknownBinder))->GetAppContext();
             }
             else
-#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(MDILNIGEN)
+#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
             {
                 pAppContext = (static_cast<CLRPrivBinderCoreCLR *>(pIUnknownBinder))->GetAppContext();
             }

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //Simple arithmatic manipulation of one 2D array elements
 
@@ -164,15 +165,17 @@ public class string1
             m++;
         }
 
+        pass = true;
         for (int i = 0; i < size; i++)
         {
-            pass = true;
             for (int j = 0; j < size; j++)
+            {
                 if (ima2d[i, j] != refa2d[i][j])
                 {
                     Console.WriteLine("i={0}, j={1}, imr[i,j] {2}!=refr[i][j] {3}", i, j, ima2d[i, j], refa2d[i][j]);
                     pass = false;
                 }
+            }
         }
 
         if (pass)
@@ -213,15 +216,17 @@ public class string1
             m++;
         }
 
+        pass = true;
         for (int i = 0; i < size; i++)
         {
-            pass = true;
             for (int j = 0; j < size; j++)
+            {
                 if (ima3d[i, size, j] != refa3d[i][j])
                 {
                     Console.WriteLine("i={0}, j={1}, imr[i,{4},j] {2}!=refr[i][j] {3}", i, j, ima3d[i, size, j], refa3d[i][j], size);
                     pass = false;
                 }
+            }
         }
 
         if (pass)

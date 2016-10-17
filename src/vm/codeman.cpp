@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // codeman.cpp - a managment class for handling multiple code managers
 //
 
@@ -10,6 +9,7 @@
 #include "common.h"
 #include "jitinterface.h"
 #include "corjit.h"
+#include "jithost.h"
 #include "eetwain.h"
 #include "eeconfig.h"
 #include "excep.h"
@@ -30,6 +30,10 @@
 #include "shimload.h"
 #include "debuginfostore.h"
 #include "strsafe.h"
+
+#ifdef FEATURE_CORECLR
+#include "configuration.h"
+#endif
 
 #ifdef _WIN64
 #define CHECK_DUPLICATED_STRUCT_LAYOUTS
@@ -73,7 +77,7 @@ CrstStatic ExecutionManager::m_RangeCrst;
 // Support for new style unwind information (to allow OS to stack crawl JIT compiled code).
 
 typedef NTSTATUS (WINAPI* RtlAddGrowableFunctionTableFnPtr) (
-        PVOID *DynamicTable, RUNTIME_FUNCTION* FunctionTable, ULONG EntryCount, 
+        PVOID *DynamicTable, PRUNTIME_FUNCTION FunctionTable, ULONG EntryCount, 
         ULONG MaximumEntryCount, ULONG_PTR rangeStart, ULONG_PTR rangeEnd);
 typedef VOID (WINAPI* RtlGrowFunctionTableFnPtr) (PVOID DynamicTable, ULONG NewEntryCount); 
 typedef VOID (WINAPI* RtlDeleteGrowableFunctionTableFnPtr) (PVOID DynamicTable);
@@ -92,7 +96,7 @@ Volatile<bool>      UnwindInfoTable::s_publishingActive = false;
 #if _DEBUG
 // Fake functions on Win7 checked build to excercize the code paths, they are no-ops
 NTSTATUS WINAPI FakeRtlAddGrowableFunctionTable (
-        PVOID *DynamicTable, RUNTIME_FUNCTION* FunctionTable, ULONG EntryCount, 
+        PVOID *DynamicTable, PT_RUNTIME_FUNCTION FunctionTable, ULONG EntryCount, 
         ULONG MaximumEntryCount, ULONG_PTR rangeStart, ULONG_PTR rangeEnd) { *DynamicTable = (PVOID) 1; return 0; }
 VOID WINAPI FakeRtlGrowFunctionTable (PVOID DynamicTable, ULONG NewEntryCount) { }
 VOID WINAPI FakeRtlDeleteGrowableFunctionTable (PVOID DynamicTable) {}
@@ -158,7 +162,7 @@ UnwindInfoTable::UnwindInfoTable(ULONG_PTR rangeStart, ULONG_PTR rangeEnd, ULONG
     iRangeStart = rangeStart;
     iRangeEnd = rangeEnd;
     hHandle = NULL;
-    pTable = new RUNTIME_FUNCTION[cTableMaxCount];
+    pTable = new T_RUNTIME_FUNCTION[cTableMaxCount];
 }
 
 /****************************************************************************/
@@ -221,7 +225,7 @@ void UnwindInfoTable::UnRegister()
 // Add 'data' to the linked list whose head is pointed at by 'unwindInfoPtr'
 //
 /* static */ 
-void UnwindInfoTable::AddToUnwindInfoTable(UnwindInfoTable** unwindInfoPtr, RUNTIME_FUNCTION* data,
+void UnwindInfoTable::AddToUnwindInfoTable(UnwindInfoTable** unwindInfoPtr, PT_RUNTIME_FUNCTION data,
                                           TADDR rangeStart, TADDR rangeEnd)    
 {
     CONTRACTL
@@ -377,7 +381,7 @@ void UnwindInfoTable::AddToUnwindInfoTable(UnwindInfoTable** unwindInfoPtr, RUNT
 // Publish the stack unwind data 'data' which is relative 'baseAddress' 
 // to the operating system in a way ETW stack tracing can use.
 
-/* static */ void UnwindInfoTable::PublishUnwindInfoForMethod(TADDR baseAddress, RUNTIME_FUNCTION* unwindInfo, int unwindInfoCount)
+/* static */ void UnwindInfoTable::PublishUnwindInfoForMethod(TADDR baseAddress, PT_RUNTIME_FUNCTION unwindInfo, int unwindInfoCount)
 {
     STANDARD_VM_CONTRACT;
     if (!s_publishingActive)
@@ -448,8 +452,6 @@ extern CrstStatic g_StubUnwindInfoHeapSegmentsCrst;
             MethodDesc *pMD = heapIterator.GetMethod();
             if(pMD)
             { 
-                _ASSERTE(!pMD->IsZapped());
-
                 PCODE methodEntry =(PCODE) heapIterator.GetMethodCode();
                 RangeSection * pRS = ExecutionManager::FindCodeRange(methodEntry, ExecutionManager::GetScanFlags());
                 _ASSERTE(pRS != NULL);
@@ -860,39 +862,34 @@ BOOL IsFunctionFragment(TADDR baseAddress, PTR_RUNTIME_FUNCTION pFunctionEntry)
     // 1. Prolog only: The host record. Epilog Count and E bit are all 0.
     // 2. Prolog and some epilogs: The host record with acompannying epilog-only records
     // 3. Epilogs only: First unwind code is Phantom prolog (Starting with an end_c, indicating an empty prolog)
-    // 4. No prologs or epilogs: Epilog Count = 1 and Epilog Start Index points end_c. (as if it's case #2 with empty epilog codes) 
+    // 4. No prologs or epilogs: First unwind code is Phantom prolog  (Starting with an end_c, indicating an empty prolog)
     //
 
     int EpilogCount = (int)(unwindHeader >> 22) & 0x1F;
     int CodeWords = unwindHeader >> 27;
     PTR_DWORD pUnwindCodes = (PTR_DWORD)(baseAddress + pFunctionEntry->UnwindData);
+    // Skip header.
+    pUnwindCodes++;
+
+    // Skip extended header.
     if ((CodeWords == 0) && (EpilogCount == 0))
-        pUnwindCodes++;
-    BOOL Ebit = (unwindHeader >> 21) & 0x1;
-    if (Ebit)
     {
-        // EpilogCount is the index of the first unwind code that describes the one and only epilog
-        // The unwind codes immediatelly follow the unwindHeader
+        EpilogCount = (*pUnwindCodes) & 0xFFFF;
         pUnwindCodes++;
     }
-    else if (EpilogCount != 0)
+
+    // Skip epilog scopes.
+    BOOL Ebit = (unwindHeader >> 21) & 0x1;
+    if (!Ebit && (EpilogCount != 0))
     {
         // EpilogCount is the number of exception scopes defined right after the unwindHeader
-        pUnwindCodes += EpilogCount+1;
-    }
-    else
-    {
-        return FALSE;
+        pUnwindCodes += EpilogCount;
     }
 
-    if ((*pUnwindCodes & 0xFF) == 0xE5) // Phantom prolog
-        return TRUE;
-        
-
+    return ((*pUnwindCodes & 0xFF) == 0xE5);
 #else
     PORTABILITY_ASSERT("IsFunctionFragnent - NYI on this platform");
 #endif
-    return FALSE;
 }
 
 #endif // EXCEPTION_DATA_SUPPORTS_FUNCTION_FRAGMENTS
@@ -987,7 +984,7 @@ PTR_VOID GetUnwindDataBlob(TADDR moduleBase, PTR_RUNTIME_FUNCTION pRuntimeFuncti
     _ASSERTE((pRuntimeFunction->UnwindData & 0x3) == 0);
 
     // compute the size of the unwind info
-    PTR_TADDR xdata = dac_cast<PTR_TADDR>(pRuntimeFunction->UnwindData + moduleBase);
+    PTR_ULONG xdata = dac_cast<PTR_ULONG>(pRuntimeFunction->UnwindData + moduleBase);
 
     ULONG epilogScopes = 0;
     ULONG unwindWords = 0;
@@ -1016,6 +1013,46 @@ PTR_VOID GetUnwindDataBlob(TADDR moduleBase, PTR_RUNTIME_FUNCTION pRuntimeFuncti
 
     *pSize = size;
     return xdata;
+
+#elif defined(_TARGET_ARM64_)
+	// if this function uses packed unwind data then at least one of the two least significant bits
+	// will be non-zero.  if this is the case then there will be no xdata record to enumerate.
+	_ASSERTE((pRuntimeFunction->UnwindData & 0x3) == 0);
+
+    // compute the size of the unwind info
+    PTR_ULONG xdata    = dac_cast<PTR_ULONG>(pRuntimeFunction->UnwindData + moduleBase);
+    ULONG epilogScopes = 0;
+    ULONG unwindWords  = 0;
+    ULONG size = 0;
+
+    //If both Epilog Count and Code Word is not zero
+    //Info of Epilog and Unwind scopes are given by 1 word header
+    //Otherwise this info is given by a 2 word header
+    if ((xdata[0] >> 27) != 0) 
+    {
+        size = 4;
+        epilogScopes = (xdata[0] >> 22) & 0x1f;
+        unwindWords = (xdata[0] >> 27) & 0x0f;
+    }
+    else 
+    {
+        size = 8;
+        epilogScopes = xdata[1] & 0xffff;
+        unwindWords = (xdata[1] >> 16) & 0xff;
+    }
+
+    if (!(xdata[0] & (1 << 21))) 
+        size += 4 * epilogScopes;
+
+    size += 4 * unwindWords;
+
+    _ASSERTE(xdata[0] & (1 << 20)); // personality routine should be always present
+    size += 4;                      // exception handler RVA
+
+    *pSize = size;
+    return xdata;
+
+
 #else
     PORTABILITY_ASSERT("GetUnwindDataBlob");
     return NULL;
@@ -1127,7 +1164,7 @@ BOOL IJitManager::IsFilterFunclet(EECodeInfo * pCodeInfo)
 
 #else // WIN64EXCEPTIONS
 
-FORCEINLINE PTR_VOID GetUnwindDataBlob(TADDR moduleBase, PTR_RUNTIME_FUNCTION pRuntimeFunction, /* out */ SIZE_T * pSize)
+PTR_VOID GetUnwindDataBlob(TADDR moduleBase, PTR_RUNTIME_FUNCTION pRuntimeFunction, /* out */ SIZE_T * pSize)
 {
     *pSize = 0;
     return dac_cast<PTR_VOID>(pRuntimeFunction->UnwindData + moduleBase);
@@ -1161,8 +1198,13 @@ EEJitManager::EEJitManager()
     m_jit = NULL;
     m_JITCompiler      = NULL;
 #ifdef _TARGET_AMD64_
+    m_pEmergencyJumpStubReserveList = NULL;
+#endif
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
     m_JITCompilerOther = NULL;
 #endif
+    m_fLegacyJitUsed   = FALSE;
+
 #ifdef ALLOW_SXS_JIT
     m_alternateJit     = NULL;
     m_AltJITCompiler   = NULL;
@@ -1177,6 +1219,42 @@ EEJitManager::EEJitManager()
 #if defined(_TARGET_AMD64_)
 extern "C" DWORD __stdcall getcpuid(DWORD arg, unsigned char result[16]);
 extern "C" DWORD __stdcall xmmYmmStateSupport();
+
+bool DoesOSSupportAVX()
+{
+#ifndef FEATURE_PAL
+    // On Windows we have an api(GetEnabledXStateFeatures) to check if AVX is supported
+    typedef DWORD64 (WINAPI *PGETENABLEDXSTATEFEATURES)();
+    PGETENABLEDXSTATEFEATURES pfnGetEnabledXStateFeatures = NULL;
+    
+    // Probe ApiSet first
+    HMODULE hMod = WszLoadLibraryEx(W("api-ms-win-core-xstate-l2-1-0.dll"), NULL, LOAD_LIBRARY_SEARCH_SYSTEM32);
+
+    if (hMod == NULL)
+    {
+        // On older OS's where apiset is not present probe kernel32
+        hMod = WszLoadLibraryEx(WINDOWS_KERNEL32_DLLNAME_W, NULL, LOAD_LIBRARY_SEARCH_SYSTEM32);
+        if(hMod = NULL)
+            return FALSE;
+    }
+        
+    pfnGetEnabledXStateFeatures = (PGETENABLEDXSTATEFEATURES)GetProcAddress(hMod, "GetEnabledXStateFeatures");
+        
+    if (pfnGetEnabledXStateFeatures == NULL)
+    {
+        return FALSE;
+    }
+    
+    DWORD64 FeatureMask = pfnGetEnabledXStateFeatures();
+    if ((FeatureMask & XSTATE_MASK_AVX) == 0)
+    {
+        return FALSE;
+    }
+#endif // !FEATURE_PAL
+
+    return TRUE;
+}
+
 #endif // defined(_TARGET_AMD64_)
 
 void EEJitManager::SetCpuInfo()
@@ -1250,15 +1328,18 @@ void EEJitManager::SetCpuInfo()
             }
             if ((buffer[11] & 0x18) == 0x18)
             {
-                if (xmmYmmStateSupport() == 1)
+                if(DoesOSSupportAVX())
                 {
-                    dwCPUCompileFlags |= CORJIT_FLG_USE_AVX;
-                    if (maxCpuId >= 0x07)
+                    if (xmmYmmStateSupport() == 1)
                     {
-                        (void) getcpuid(0x07, buffer);
-                        if ((buffer[4]  & 0x20) != 0)
+                        dwCPUCompileFlags |= CORJIT_FLG_USE_AVX;
+                        if (maxCpuId >= 0x07)
                         {
-                            dwCPUCompileFlags |= CORJIT_FLG_USE_AVX2;
+                            (void) getcpuid(0x07, buffer);
+                            if ((buffer[4]  & 0x20) != 0)
+                            {
+                                dwCPUCompileFlags |= CORJIT_FLG_USE_AVX2;
+                            }
                         }
                     }
                 }
@@ -1281,7 +1362,7 @@ void EEJitManager::SetCpuInfo()
 enum JIT_LOAD_JIT_ID
 {
     JIT_LOAD_MAIN = 500,    // The "main" JIT. Normally, this is named "clrjit.dll". Start at a number that is somewhat uncommon (i.e., not zero or 1) to help distinguish from garbage, in process dumps.
-    JIT_LOAD_LEGACY,        // The "legacy" JIT. Normally, this is named "compatjit.dll" (aka, JIT64). This only applies to AMD64.
+    JIT_LOAD_LEGACY,        // The "legacy" JIT. Normally, this is named "compatjit.dll". This applies to AMD64 on Windows desktop, or x86 on Windows .NET Core.
     JIT_LOAD_ALTJIT         // An "altjit". By default, named "protojit.dll". Used both internally, as well as externally for JIT CTP builds.
 };
 
@@ -1291,6 +1372,8 @@ enum JIT_LOAD_STATUS
     JIT_LOAD_STATUS_DONE_LOAD,                         // LoadLibrary of the JIT dll succeeded.
     JIT_LOAD_STATUS_DONE_GET_SXSJITSTARTUP,            // GetProcAddress for "sxsJitStartup" succeeded.
     JIT_LOAD_STATUS_DONE_CALL_SXSJITSTARTUP,           // Calling sxsJitStartup() succeeded.
+    JIT_LOAD_STATUS_DONE_GET_JITSTARTUP,               // GetProcAddress for "jitStartup" succeeded.
+    JIT_LOAD_STATUS_DONE_CALL_JITSTARTUP,              // Calling jitStartup() succeeded.
     JIT_LOAD_STATUS_DONE_GET_GETJIT,                   // GetProcAddress for "getJit" succeeded.
     JIT_LOAD_STATUS_DONE_CALL_GETJIT,                  // Calling getJit() succeeded.
     JIT_LOAD_STATUS_DONE_CALL_GETVERSIONIDENTIFIER,    // Calling ICorJitCompiler::getVersionIdentifier() succeeded.
@@ -1309,6 +1392,14 @@ struct JIT_LOAD_DATA
 
 // Here's the global data for JIT load and initialization state.
 JIT_LOAD_DATA g_JitLoadData;
+
+#if defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+
+// Global that holds the path to custom JIT location
+extern "C" LPCWSTR g_CLRJITPath = nullptr;
+
+#endif // defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+
 
 // LoadAndInitializeJIT: load the JIT dll into the process, and initialize it (call the UtilCode initialization function,
 // check the JIT-EE interface GUID, etc.)
@@ -1344,23 +1435,49 @@ static void LoadAndInitializeJIT(LPCWSTR pwzJitName, OUT HINSTANCE* phJit, OUT I
 
     HRESULT hr = E_FAIL;
 
-#ifdef FEATURE_MERGE_JIT_AND_ENGINE
-    WCHAR CoreClrFolder[MAX_PATH + 1];
+#ifdef FEATURE_CORECLR
+    PathString CoreClrFolderHolder;
     extern HINSTANCE g_hThisInst;
-    if (WszGetModuleFileName(g_hThisInst, CoreClrFolder, MAX_PATH))
+    bool havePath = false;
+
+#if !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+    if (g_CLRJITPath != nullptr)
     {
-        WCHAR *filePtr = wcsrchr(CoreClrFolder, DIRECTORY_SEPARATOR_CHAR_W);
-        if (filePtr)
+        // If we have been asked to load a specific JIT binary, load from that path.
+        // The main JIT load will use exactly that name because pwzJitName will have
+        // been computed as the last component of g_CLRJITPath by ExecutionManager::GetJitName().
+        // Non-primary JIT names (such as compatjit or altjit) will be loaded from the
+        // same directory.
+        // (Ideally, g_CLRJITPath would just be the JIT path without the filename component,
+        // but that's not how the JIT_PATH variable was originally defined.)
+        CoreClrFolderHolder.Set(g_CLRJITPath);
+        havePath = true;
+    }
+    else 
+#endif // !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+    if (WszGetModuleFileName(g_hThisInst, CoreClrFolderHolder))
+    {
+        // Load JIT from next to CoreCLR binary
+        havePath = true;
+    }
+
+    if (havePath && !CoreClrFolderHolder.IsEmpty())
+    {
+        SString::Iterator iter = CoreClrFolderHolder.End();
+        BOOL findSep = CoreClrFolderHolder.FindBack(iter, DIRECTORY_SEPARATOR_CHAR_W);
+        if (findSep)
         {
-            filePtr[1] = W('\0');
-            wcscat_s(CoreClrFolder, MAX_PATH, pwzJitName);
-            *phJit = CLRLoadLibrary(CoreClrFolder);
+            SString sJitName(pwzJitName);
+            CoreClrFolderHolder.Replace(iter + 1, CoreClrFolderHolder.End() - (iter + 1), sJitName);
+
+            *phJit = CLRLoadLibrary(CoreClrFolderHolder.GetUnicode());
             if (*phJit != NULL)
             {
                 hr = S_OK;
             }
         }
     }
+
 #else
     hr = g_pCLRRuntime->LoadLibrary(pwzJitName, phJit);
 #endif
@@ -1371,6 +1488,8 @@ static void LoadAndInitializeJIT(LPCWSTR pwzJitName, OUT HINSTANCE* phJit, OUT I
 
         EX_TRY
         {
+            bool fContinueToLoadJIT = false;
+#if !defined(FEATURE_CORECLR)
             typedef void (__stdcall* psxsJitStartup) (CoreClrCallbacks const &);
             psxsJitStartup sxsJitStartupFn = (psxsJitStartup) GetProcAddress(*phJit, "sxsJitStartup");
 
@@ -1382,6 +1501,27 @@ static void LoadAndInitializeJIT(LPCWSTR pwzJitName, OUT HINSTANCE* phJit, OUT I
                 (*sxsJitStartupFn) (cccallbacks);
 
                 pJitLoadData->jld_status = JIT_LOAD_STATUS_DONE_CALL_SXSJITSTARTUP;
+                fContinueToLoadJIT = true;
+            }
+#else // FEATURE_CORECLR
+            // For CoreCLR, we never use "sxsJitStartup" as that is Desktop utilcode initialization
+            // specific. Thus, assume we always got 
+            fContinueToLoadJIT = true;
+#endif // !defined(FEATURE_CORECLR)
+
+            if (fContinueToLoadJIT)
+            {
+                typedef void (__stdcall* pjitStartup)(ICorJitHost*);
+                pjitStartup jitStartupFn = (pjitStartup) GetProcAddress(*phJit, "jitStartup");
+
+                if (jitStartupFn)
+                {
+                    pJitLoadData->jld_status = JIT_LOAD_STATUS_DONE_GET_JITSTARTUP;
+
+                    (*jitStartupFn)(JitHost::getJitHost());
+
+                    pJitLoadData->jld_status = JIT_LOAD_STATUS_DONE_CALL_JITSTARTUP;
+                }
 
                 typedef ICorJitCompiler* (__stdcall* pGetJitFn)();
                 pGetJitFn getJitFn = (pGetJitFn) GetProcAddress(*phJit, "getJit");
@@ -1446,6 +1586,7 @@ static void LoadAndInitializeJIT(LPCWSTR pwzJitName, OUT HINSTANCE* phJit, OUT I
 }
 
 #ifdef FEATURE_MERGE_JIT_AND_ENGINE
+EXTERN_C void __stdcall jitStartup(ICorJitHost* host);
 EXTERN_C ICorJitCompiler* __stdcall getJit();
 #endif // FEATURE_MERGE_JIT_AND_ENGINE
 
@@ -1473,11 +1614,11 @@ BOOL EEJitManager::LoadJIT()
 
 #ifdef FEATURE_MERGE_JIT_AND_ENGINE
 
-    typedef ICorJitCompiler* (__stdcall* pGetJitFn)();
-    pGetJitFn getJitFn = (pGetJitFn) getJit;
     EX_TRY
     {
-        newJitCompiler = (*getJitFn)();
+        jitStartup(JitHost::getJitHost());
+
+        newJitCompiler = getJit();
 
         // We don't need to call getVersionIdentifier(), since the JIT is linked together with the VM.
     }
@@ -1489,7 +1630,7 @@ BOOL EEJitManager::LoadJIT()
 #else // !FEATURE_MERGE_JIT_AND_ENGINE
 
     m_JITCompiler = NULL;
-#ifdef _TARGET_AMD64_
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
     m_JITCompilerOther = NULL;
 #endif
 
@@ -1498,9 +1639,9 @@ BOOL EEJitManager::LoadJIT()
 
     // Set as a courtesy to code:CorCompileGetRuntimeDll
     s_ngenCompilerDll = m_JITCompiler;
-    
-#if defined(_TARGET_AMD64_) && !defined(CROSSGEN_COMPILE)
-    // If COMPLUS_UseLegacyJit=1, then we fall back to compatjit.dll.
+
+#if (defined(_TARGET_AMD64_) && !defined(CROSSGEN_COMPILE) && !defined(FEATURE_CORECLR)) || (defined(_TARGET_X86_) && defined(FEATURE_CORECLR))
+    // If COMPlus_UseLegacyJit=1, then we fall back to compatjit.dll.
     //
     // This fallback mechanism was introduced for Visual Studio "14" Preview, when JIT64 (the legacy JIT) was replaced with
     // RyuJIT. It was desired to provide a fallback mechanism in case comptibility problems (or other bugs)
@@ -1509,7 +1650,7 @@ BOOL EEJitManager::LoadJIT()
     //
     // If this is a compilation process, then we don't allow specifying a fallback JIT. This is a case where, when NGEN'ing,
     // we sometimes need to JIT some things (such as when we are NGEN'ing mscorlib). In that case, we want to use exactly
-    // the same JIT as NGEN uses. And NGEN doesn't follow the COMPLUS_UseLegacyJit=1 switch -- it always uses clrjit.dll.
+    // the same JIT as NGEN uses. And NGEN doesn't follow the COMPlus_UseLegacyJit=1 switch -- it always uses clrjit.dll.
     //
     // Note that we always load and initialize the default JIT. This is to handle cases where obfuscators rely on
     // LoadLibrary("clrjit.dll") returning the module handle of the JIT, and then they call GetProcAddress("getJit") to get
@@ -1520,8 +1661,16 @@ BOOL EEJitManager::LoadJIT()
     // is set, we also must use JIT64 for all NGEN compilations as well.
     //
     // See the document "RyuJIT Compatibility Fallback Specification.docx" for details.
+    //
+    // For .NET Core 1.2, RyuJIT for x86 is the primary jit (clrjit.dll) and JIT32 for x86 is the fallback, legacy JIT (compatjit.dll).
+    // Thus, the COMPlus_useLegacyJit=1 mechanism has been enabled for x86 CoreCLR. This scenario does not have the UseRyuJIT
+    // registry key, nor the AppX binder mode.
 
+#if defined(FEATURE_CORECLR)
+    bool fUseRyuJit = true;
+#else
     bool fUseRyuJit = UseRyuJit();
+#endif
 
     if ((!IsCompilationProcess() || !fUseRyuJit) &&     // Use RyuJIT for all NGEN, unless we're falling back to JIT64 for everything.
         (newJitCompiler != nullptr))    // the main JIT must successfully load before we try loading the fallback JIT
@@ -1535,7 +1684,11 @@ BOOL EEJitManager::LoadJIT()
 
         if (!fUsingCompatJit)
         {
+#if defined(FEATURE_CORECLR)
+            DWORD useLegacyJit = Configuration::GetKnobBooleanValue(W("System.JIT.UseWindowsX86CoreLegacyJit"), CLRConfig::EXTERNAL_UseWindowsX86CoreLegacyJit);
+#else
             DWORD useLegacyJit = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_UseLegacyJit); // uncached access, since this code is run no more than one time
+#endif
             if (useLegacyJit == 1)
             {
                 fUsingCompatJit = TRUE;
@@ -1550,8 +1703,8 @@ BOOL EEJitManager::LoadJIT()
             // back to JIT64. This same file is also used to prevent this app from participating in AutoNgen.
             if (AppX::IsAppXProcess())
             {
-                WCHAR szPathName[MAX_PATH];
-                UINT32 cchPathName = MAX_PATH;
+                WCHAR szPathName[MAX_LONGPATH];
+                UINT32 cchPathName = MAX_LONGPATH;
                 if (AppX::FindFileInCurrentPackage(L"UseLegacyJit.txt", &cchPathName, szPathName, PACKAGE_FILTER_HEAD) == S_OK)
                 {
                     fUsingCompatJit = TRUE;
@@ -1577,16 +1730,19 @@ BOOL EEJitManager::LoadJIT()
                 // Tell the main JIT to fall back to the "fallback" JIT compiler, in case some
                 // obfuscator tries to directly call the main JIT's getJit() function.
                 newJitCompiler->setRealJit(fallbackICorJitCompiler);
+
+                // Now, the compat JIT will be used.
+                m_fLegacyJitUsed = TRUE;
             }
         }
     }
-#endif // defined(_TARGET_AMD64_) && !defined(CROSSGEN_COMPILE)
+#endif // (defined(_TARGET_AMD64_) && !defined(CROSSGEN_COMPILE) && !defined(FEATURE_CORECLR)) || (defined(_TARGET_X86_) && defined(FEATURE_CORECLR))
 
 #endif // !FEATURE_MERGE_JIT_AND_ENGINE
 
 #ifdef ALLOW_SXS_JIT
 
-    // Do not load altjit.dll unless COMPLUS_AltJit is set.
+    // Do not load altjit.dll unless COMPlus_AltJit is set.
     // Even if the main JIT fails to load, if the user asks for an altjit we try to load it.
     // This allows us to display load error messages for loading altjit.
 
@@ -1781,7 +1937,7 @@ void CodeFragmentHeap::RealBackoutMem(void *pMem
 
     AddBlock(pMem, dwSize);
 }
-#endif // CROSSGEN_COMPILE
+#endif // !CROSSGEN_COMPILE
 
 //**************************************************************************
 
@@ -1801,8 +1957,137 @@ void ThrowOutOfMemoryWithinRange()
         GC_NOTRIGGER;
     } CONTRACTL_END;
 
+    // Allow breaking into debugger or terminating the process when this exception occurs
+    switch (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_BreakOnOutOfMemoryWithinRange))
+    {
+    case 1:
+        DebugBreak();
+        break;
+    case 2:
+        EEPOLICY_HANDLE_FATAL_ERROR(COR_E_OUTOFMEMORY);
+        break;   
+    default:
+        break;
+    }
+
     EX_THROW(EEMessageException, (kOutOfMemoryException, IDS_EE_OUT_OF_MEMORY_WITHIN_RANGE));
 }
+
+#ifdef _TARGET_AMD64_
+BYTE * EEJitManager::AllocateFromEmergencyJumpStubReserve(const BYTE * loAddr, const BYTE * hiAddr, SIZE_T * pReserveSize)
+{
+    CONTRACTL {
+        NOTHROW;
+        GC_NOTRIGGER;
+        PRECONDITION(m_CodeHeapCritSec.OwnedByCurrentThread());
+    } CONTRACTL_END;
+
+    for (EmergencyJumpStubReserve ** ppPrev = &m_pEmergencyJumpStubReserveList; *ppPrev != NULL; ppPrev = &(*ppPrev)->m_pNext)
+    {
+        EmergencyJumpStubReserve * pList = *ppPrev;
+
+        if (loAddr <= pList->m_ptr &&
+            pList->m_ptr + pList->m_size < hiAddr)
+        {
+            *ppPrev = pList->m_pNext;
+
+            BYTE * pBlock = pList->m_ptr;
+            *pReserveSize = pList->m_size;
+
+            delete pList;
+
+            return pBlock;
+        }
+    }
+
+    return NULL;
+}
+
+VOID EEJitManager::EnsureJumpStubReserve(BYTE * pImageBase, SIZE_T imageSize, SIZE_T reserveSize)
+{
+    CONTRACTL {
+        THROWS;
+        GC_NOTRIGGER;
+    } CONTRACTL_END;
+
+    CrstHolder ch(&m_CodeHeapCritSec);
+
+    BYTE * loAddr = pImageBase + imageSize + INT32_MIN;
+    if (loAddr > pImageBase) loAddr = NULL; // overflow
+
+    BYTE * hiAddr = pImageBase + INT32_MAX;
+    if (hiAddr < pImageBase) hiAddr = (BYTE *)UINT64_MAX; // overflow
+
+    for (EmergencyJumpStubReserve * pList = m_pEmergencyJumpStubReserveList; pList != NULL; pList = pList->m_pNext)
+    {
+        if (loAddr <= pList->m_ptr &&
+            pList->m_ptr + pList->m_size < hiAddr)
+        {
+            SIZE_T used = min(reserveSize, pList->m_free);
+            pList->m_free -= used;
+
+            reserveSize -= used;
+            if (reserveSize == 0)
+                return;
+        }        
+    }
+
+    // Try several different strategies - the most efficient one first
+    int allocMode = 0;
+
+    // Try to reserve at least 16MB at a time
+    SIZE_T allocChunk = max(ALIGN_UP(reserveSize, VIRTUAL_ALLOC_RESERVE_GRANULARITY), 16*1024*1024);
+
+    while (reserveSize > 0)
+    {
+        NewHolder<EmergencyJumpStubReserve> pNewReserve(new EmergencyJumpStubReserve());
+
+        for (;;)
+        {
+            BYTE * loAddrCurrent = loAddr;
+            BYTE * hiAddrCurrent = hiAddr;
+
+            switch (allocMode)
+            {
+            case 0:
+                // First, try to allocate towards the center of the allowed range. It is more likely to 
+                // satisfy subsequent reservations.
+                loAddrCurrent = loAddr + (hiAddr - loAddr) / 8;
+                hiAddrCurrent = hiAddr - (hiAddr - loAddr) / 8;
+                break;
+            case 1:
+                // Try the whole allowed range
+                break;
+            case 2:
+                // If the large allocation failed, retry with small chunk size
+                allocChunk = VIRTUAL_ALLOC_RESERVE_GRANULARITY;
+                break;
+            default:
+                return; // Unable to allocate the reserve - give up
+            }
+
+            pNewReserve->m_ptr = ClrVirtualAllocWithinRange(loAddrCurrent, hiAddrCurrent,
+                                               allocChunk, MEM_RESERVE, PAGE_NOACCESS);
+
+            if (pNewReserve->m_ptr != NULL)
+                break;
+
+            // Retry with the next allocation strategy
+            allocMode++;
+        }
+
+        SIZE_T used = min(allocChunk, reserveSize);
+        reserveSize -= used;
+
+        pNewReserve->m_size = allocChunk;
+        pNewReserve->m_free = allocChunk - used;
+
+        // Add it to the list
+        pNewReserve->m_pNext = m_pEmergencyJumpStubReserveList;
+        m_pEmergencyJumpStubReserveList = pNewReserve.Extract();
+    }
+}
+#endif // _TARGET_AMD64_
 
 HeapList* LoaderCodeHeap::CreateCodeHeap(CodeHeapRequestInfo *pInfo, LoaderHeap *pJitMetaHeap)
 {
@@ -1838,6 +2123,7 @@ HeapList* LoaderCodeHeap::CreateCodeHeap(CodeHeapRequestInfo *pInfo, LoaderHeap 
 
     BYTE * pBaseAddr = NULL;
     DWORD dwSizeAcquiredFromInitialBlock = 0;
+    bool fAllocatedFromEmergencyJumpStubReserve = false;
 
     pBaseAddr = (BYTE *)pInfo->m_pAllocator->GetCodeHeapInitialBlock(loAddr, hiAddr, (DWORD)initialRequestSize, &dwSizeAcquiredFromInitialBlock);
     if (pBaseAddr != NULL)
@@ -1850,8 +2136,18 @@ HeapList* LoaderCodeHeap::CreateCodeHeap(CodeHeapRequestInfo *pInfo, LoaderHeap 
         {
             pBaseAddr = ClrVirtualAllocWithinRange(loAddr, hiAddr,
                                                    reserveSize, MEM_RESERVE, PAGE_NOACCESS);
+
             if (!pBaseAddr)
+            {
+#ifdef _TARGET_AMD64_
+                pBaseAddr = ExecutionManager::GetEEJitManager()->AllocateFromEmergencyJumpStubReserve(loAddr, hiAddr, &reserveSize);
+                if (!pBaseAddr)
+                    ThrowOutOfMemoryWithinRange();
+                fAllocatedFromEmergencyJumpStubReserve = true;                
+#else
                 ThrowOutOfMemoryWithinRange();
+#endif // _TARGET_AMD64_
+            }
         }
         else
         {
@@ -1881,7 +2177,7 @@ HeapList* LoaderCodeHeap::CreateCodeHeap(CodeHeapRequestInfo *pInfo, LoaderHeap 
     // We do not need to memset this memory, since ClrVirtualAlloc() guarantees that the memory is zero.
     // Furthermore, if we avoid writing to it, these pages don't come into our working set
 
-    pHp->bFull           = false;
+    pHp->bFull           = fAllocatedFromEmergencyJumpStubReserve;
     pHp->bFullForJumpStubs = false;
 
     pHp->cBlocks         = 0;
@@ -1895,7 +2191,7 @@ HeapList* LoaderCodeHeap::CreateCodeHeap(CodeHeapRequestInfo *pInfo, LoaderHeap 
          ));
 
 #ifdef _WIN64
-    emitJump(pHp->CLRPersonalityRoutine, (void *)ProcessCLRException);
+    emitJump((LPBYTE)pHp->CLRPersonalityRoutine, (void *)ProcessCLRException);
 #endif
 
     pCodeHeap.SuppressRelease();
@@ -1941,16 +2237,16 @@ void CodeHeapRequestInfo::Init()
 #ifdef WIN64EXCEPTIONS
 
 #ifdef _WIN64
-extern "C" PRUNTIME_FUNCTION GetRuntimeFunctionCallback(IN ULONG64   ControlPc,
+extern "C" PT_RUNTIME_FUNCTION GetRuntimeFunctionCallback(IN ULONG64   ControlPc,
                                                         IN PVOID     Context)
 #else
-extern "C" PRUNTIME_FUNCTION GetRuntimeFunctionCallback(IN ULONG     ControlPc,
+extern "C" PT_RUNTIME_FUNCTION GetRuntimeFunctionCallback(IN ULONG     ControlPc,
                                                         IN PVOID     Context)
 #endif
 {
     WRAPPER_NO_CONTRACT;
 
-    PRUNTIME_FUNCTION prf = NULL;
+    PT_RUNTIME_FUNCTION prf = NULL;
 
     // We must preserve this so that GCStress=4 eh processing doesnt kill last error.
     BEGIN_PRESERVE_LAST_ERROR;
@@ -2167,12 +2463,10 @@ void* EEJitManager::allocCodeRaw(CodeHeapRequestInfo *pInfo,
             // allocation won't fail or handle jump stub allocation gracefully (see DevDiv #381823 and 
             // related bugs for details).
             //
-            static int codeHeapReserveForJumpStubs = -1;
+            static ConfigDWORD configCodeHeapReserveForJumpStubs;
+            int percentReserveForJumpStubs = configCodeHeapReserveForJumpStubs.val(CLRConfig::INTERNAL_CodeHeapReserveForJumpStubs);
 
-            if (codeHeapReserveForJumpStubs == -1)
-                codeHeapReserveForJumpStubs = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_CodeHeapReserveForJumpStubs);
-
-            size_t reserveForJumpStubs = codeHeapReserveForJumpStubs * (pCodeHeap->maxCodeHeapSize / 100);
+            size_t reserveForJumpStubs = percentReserveForJumpStubs * (pCodeHeap->maxCodeHeapSize / 100);
 
             size_t minReserveForJumpStubs = sizeof(CodeHeader) +
                 sizeof(JumpStubBlockHeader) + (size_t) DEFAULT_JUMPSTUBS_PER_BLOCK * BACK_TO_BACK_JUMP_ALLOCATE_SIZE +
@@ -2296,7 +2590,7 @@ CodeHeader* EEJitManager::allocCode(MethodDesc* pMD, size_t blockSize, CorJitAll
     SIZE_T totalSize = blockSize;
 
 #if defined(USE_INDIRECT_CODEHEADER)
-    SIZE_T realHeaderSize = offsetof(RealCodeHeader, unwindInfos[0]) + (sizeof(RUNTIME_FUNCTION) * nUnwindInfos); 
+    SIZE_T realHeaderSize = offsetof(RealCodeHeader, unwindInfos[0]) + (sizeof(T_RUNTIME_FUNCTION) * nUnwindInfos); 
 
     // if this is a LCG method then we will be allocating the RealCodeHeader
     // following the code so that the code block can be removed easily by 
@@ -2747,7 +3041,7 @@ void * EEJitManager::allocCodeFragmentBlock(size_t blockSize, unsigned alignment
 #endif // !DACCESS_COMPILE
 
 
-PTR_VOID EEJitManager::GetGCInfo(const METHODTOKEN& MethodToken)
+GCInfoToken EEJitManager::GetGCInfoToken(const METHODTOKEN& MethodToken)
 {
     CONTRACTL {
         NOTHROW;
@@ -2756,7 +3050,8 @@ PTR_VOID EEJitManager::GetGCInfo(const METHODTOKEN& MethodToken)
         SUPPORTS_DAC;
     } CONTRACTL_END;
 
-    return GetCodeHeader(MethodToken)->GetGCInfo();
+    // The JIT-ed code always has the current version of GCInfo 
+    return{ GetCodeHeader(MethodToken)->GetGCInfo(), GCINFO_VERSION };
 }
 
 // creates an enumeration and returns the number of EH clauses
@@ -3133,7 +3428,7 @@ void ExecutionManager::CleanupCodeHeaps()
     }
     CONTRACTL_END;
 
-    _ASSERTE (g_fProcessDetach || (GCHeap::IsGCInProgress()  && ::IsGCThread()));
+    _ASSERTE (g_fProcessDetach || (GCHeapUtilities::IsGCInProgress()  && ::IsGCThread()));
 
     GetEEJitManager()->CleanupCodeHeaps();
 }
@@ -3147,7 +3442,7 @@ void EEJitManager::CleanupCodeHeaps()
     }
     CONTRACTL_END;
 
-    _ASSERTE (g_fProcessDetach || (GCHeap::IsGCInProgress() && ::IsGCThread()));
+    _ASSERTE (g_fProcessDetach || (GCHeapUtilities::IsGCInProgress() && ::IsGCThread()));
 
     CrstHolder ch(&m_CodeHeapCritSec);
 
@@ -3717,13 +4012,13 @@ void GetUnmanagedStackWalkInfo(IN  ULONG64   ControlPc,
                 T_RUNTIME_FUNCTION functionEntry;
 
                 DWORD dwLow  = 0;
-                DWORD dwHigh = cbSize / sizeof(RUNTIME_FUNCTION);
+                DWORD dwHigh = cbSize / sizeof(T_RUNTIME_FUNCTION);
                 DWORD dwMid  = 0;
 
                 while (dwLow <= dwHigh)
                 {
                     dwMid = (dwLow + dwHigh) >> 1;
-                    taFuncEntry = pExceptionDir + dwMid * sizeof(RUNTIME_FUNCTION);
+                    taFuncEntry = pExceptionDir + dwMid * sizeof(T_RUNTIME_FUNCTION);
                     hr = DacReadAll(taFuncEntry, &functionEntry, sizeof(functionEntry), false);
                     if (FAILED(hr))
                     {
@@ -3832,7 +4127,17 @@ void EEJitManager::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 }
 #endif // #ifdef DACCESS_COMPILE
 
-#endif // CROSSGEN_COMPILE
+#else // CROSSGEN_COMPILE
+// stub for compilation
+BOOL EEJitManager::JitCodeToMethodInfo(RangeSection * pRangeSection,
+    PCODE currentPC,
+    MethodDesc ** ppMethodDesc,
+    EECodeInfo * pCodeInfo)
+{
+    _ASSERTE(FALSE);
+    return FALSE;
+}
+#endif // !CROSSGEN_COMPILE
 
 
 #ifndef DACCESS_COMPILE
@@ -4079,15 +4384,32 @@ BOOL ExecutionManager::IsCacheCleanupRequired( void )
 /*********************************************************************/
 // This static method returns the name of the jit dll
 //
-LPWSTR ExecutionManager::GetJitName()
+LPCWSTR ExecutionManager::GetJitName()
 {
     STANDARD_VM_CONTRACT;
 
-    LPWSTR  pwzJitName;
+    LPCWSTR  pwzJitName = NULL;
 
+#if defined(FEATURE_CORECLR)
+#if !defined(CROSSGEN_COMPILE)
+    if (g_CLRJITPath != nullptr)
+    {
+        const wchar_t* p = wcsrchr(g_CLRJITPath, DIRECTORY_SEPARATOR_CHAR_W);
+        if (p != nullptr)
+        {
+            pwzJitName = p + 1; // Return just the filename, not the directory name
+        }
+        else
+        {
+            pwzJitName = g_CLRJITPath;
+        }
+    }
+#endif // !defined(CROSSGEN_COMPILE)
+#else // !FEATURE_CORECLR
     // Try to obtain a name for the jit library from the env. variable
-    IfFailThrow(CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_JitName, &pwzJitName));
-
+    IfFailThrow(CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_JitName, const_cast<LPWSTR *>(&pwzJitName)));
+#endif // !FEATURE_CORECLR
+    
     if (NULL == pwzJitName)
     {
         pwzJitName = MAKEDLLNAME_W(W("clrjit"));
@@ -4095,7 +4417,7 @@ LPWSTR ExecutionManager::GetJitName()
 
     return pwzJitName;
 }
-#endif // FEATURE_MERGE_JIT_AND_ENGINE
+#endif // !FEATURE_MERGE_JIT_AND_ENGINE
 
 #endif // #ifndef DACCESS_COMPILE
 
@@ -4175,7 +4497,7 @@ RangeSection* ExecutionManager::GetRangeSection(TADDR addr)
     // Unless we are on an MP system with many cpus
     // where this sort of caching actually diminishes scaling during server GC
     // due to many processors writing to a common location
-    if (g_SystemInfo.dwNumberOfProcessors < 4 || !GCHeap::IsServerHeap() || !GCHeap::IsGCInProgress())
+    if (g_SystemInfo.dwNumberOfProcessors < 4 || !GCHeapUtilities::IsServerHeap() || !GCHeapUtilities::IsGCInProgress())
         pHead->pLastUsed = pLast;
 #endif
 
@@ -4253,6 +4575,40 @@ PTR_Module ExecutionManager::FindZapModule(TADDR currentData)
 
     return dac_cast<PTR_Module>(pRS->pHeapListOrZapModule);
 }
+
+/* static */
+PTR_Module ExecutionManager::FindReadyToRunModule(TADDR currentData)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        SO_TOLERANT;
+        MODE_ANY;
+        STATIC_CONTRACT_HOST_CALLS;
+        SUPPORTS_DAC;
+    }
+    CONTRACTL_END;
+
+#ifdef FEATURE_READYTORUN
+    ReaderLockHolder rlh;
+
+    RangeSection * pRS = GetRangeSection(currentData);
+    if (pRS == NULL)
+        return NULL;
+
+    if (pRS->flags & RangeSection::RANGE_SECTION_CODEHEAP)
+        return NULL;
+
+    if (pRS->flags & RangeSection::RANGE_SECTION_READYTORUN)
+        return dac_cast<PTR_Module>(pRS->pHeapListOrZapModule);;
+
+    return NULL;
+#else
+    return NULL;
+#endif
+}
+
 
 /* static */
 PTR_Module ExecutionManager::FindModuleForGCRefMap(TADDR currentData)
@@ -4721,7 +5077,7 @@ NativeImageJitManager::NativeImageJitManager()
 
 #endif // #ifndef DACCESS_COMPILE
 
-PTR_VOID NativeImageJitManager::GetGCInfo(const METHODTOKEN& MethodToken)
+GCInfoToken NativeImageJitManager::GetGCInfoToken(const METHODTOKEN& MethodToken)
 {
     CONTRACTL {
         NOTHROW;
@@ -4746,7 +5102,8 @@ PTR_VOID NativeImageJitManager::GetGCInfo(const METHODTOKEN& MethodToken)
     PTR_VOID pUnwindData = GetUnwindDataBlob(baseAddress, pRuntimeFunction, &nUnwindDataSize);
 
     // GCInfo immediatelly follows unwind data
-    return dac_cast<PTR_BYTE>(pUnwindData) + nUnwindDataSize;
+    // GCInfo from an NGEN-ed image is always the current version
+    return{ dac_cast<PTR_BYTE>(pUnwindData) + nUnwindDataSize, GCINFO_VERSION };
 }
 
 unsigned NativeImageJitManager::InitializeEHEnumeration(const METHODTOKEN& MethodToken, EH_CLAUSE_ENUMERATOR* pEnumState)
@@ -5114,7 +5471,7 @@ BOOL NativeImageJitManager::JitCodeToMethodInfo(RangeSection * pRangeSection,
         }
 
         //Get the function entry that corresponds to the real method desc.
-        _ASSERTE(RelativePc >= RUNTIME_FUNCTION__BeginAddress(FunctionEntry));
+        _ASSERTE((RelativePc >= RUNTIME_FUNCTION__BeginAddress(FunctionEntry)));
     
         if (pCodeInfo)
         {
@@ -5367,7 +5724,7 @@ void NativeImageJitManager::JitTokenToMethodRegionInfo(const METHODTOKEN& Method
     //
 
     methodRegionInfo->hotStartAddress  = JitTokenToStartAddress(MethodToken);
-    methodRegionInfo->hotSize          = GetCodeManager()->GetFunctionSize(GetGCInfo(MethodToken));
+    methodRegionInfo->hotSize          = GetCodeManager()->GetFunctionSize(GetGCInfoToken(MethodToken));
     methodRegionInfo->coldStartAddress = 0;
     methodRegionInfo->coldSize         = 0;
 
@@ -5482,7 +5839,7 @@ static void EnumRuntimeFunctionEntriesToFindEntry(PTR_RUNTIME_FUNCTION pRtf, PTR
     IMAGE_DATA_DIRECTORY * pProgramExceptionsDirectory = pNativeLayout->GetDirectoryEntry(IMAGE_DIRECTORY_ENTRY_EXCEPTION);
     if (!pProgramExceptionsDirectory || 
         (pProgramExceptionsDirectory->Size == 0) ||
-        (pProgramExceptionsDirectory->Size % sizeof(RUNTIME_FUNCTION) != 0))
+        (pProgramExceptionsDirectory->Size % sizeof(T_RUNTIME_FUNCTION) != 0))
     {
         // Program exceptions directory malformatted
         return;
@@ -5492,7 +5849,7 @@ static void EnumRuntimeFunctionEntriesToFindEntry(PTR_RUNTIME_FUNCTION pRtf, PTR
     PTR_RUNTIME_FUNCTION firstFunctionEntry(moduleBase + pProgramExceptionsDirectory->VirtualAddress);
 
     if (pRtf < firstFunctionEntry ||
-        ((dac_cast<TADDR>(pRtf) - dac_cast<TADDR>(firstFunctionEntry)) % sizeof(RUNTIME_FUNCTION) != 0))
+        ((dac_cast<TADDR>(pRtf) - dac_cast<TADDR>(firstFunctionEntry)) % sizeof(T_RUNTIME_FUNCTION) != 0))
     {
         // Program exceptions directory malformatted
         return;
@@ -5511,7 +5868,7 @@ static void EnumRuntimeFunctionEntriesToFindEntry(PTR_RUNTIME_FUNCTION pRtf, PTR
 #endif // defined(_MSC_VER)
 
     ULONG low = 0; // index in the function entry table of low end of search range
-    ULONG high = (pProgramExceptionsDirectory->Size)/sizeof(RUNTIME_FUNCTION) - 1; // index of high end of search range
+    ULONG high = (pProgramExceptionsDirectory->Size)/sizeof(T_RUNTIME_FUNCTION) - 1; // index of high end of search range
     ULONG mid = (low + high) /2; // index of entry to be compared
 
     if (indexToLocate > high)
@@ -5960,14 +6317,17 @@ PTR_MethodDesc MethodIterator::GetMethodDesc()
     return NativeUnwindInfoLookupTable::GetMethodDesc(m_pNgenLayout, GetRuntimeFunction(), m_ModuleBase);
 }
 
-PTR_VOID MethodIterator::GetGCInfo()
+GCInfoToken MethodIterator::GetGCInfoToken()
 {
     LIMITED_METHOD_CONTRACT;
 
     // get the gc info from the RT function
     SIZE_T size;
     PTR_VOID pUnwindData = GetUnwindDataBlob(m_ModuleBase, GetRuntimeFunction(), &size);
-    return (PTR_VOID)((PTR_BYTE)pUnwindData + size);
+    PTR_VOID gcInfo = (PTR_VOID)((PTR_BYTE)pUnwindData + size);
+    // MethodIterator is used to iterate over methods of an NgenImage.
+    // So, GcInfo version is always current
+    return{ gcInfo, GCINFO_VERSION };
 }
 
 TADDR MethodIterator::GetMethodStartAddress()
@@ -6045,8 +6405,8 @@ void MethodIterator::GetMethodRegionInfo(IJitManager::MethodRegionInfo *methodRe
 
     methodRegionInfo->hotStartAddress  = GetMethodStartAddress();
     methodRegionInfo->coldStartAddress = GetMethodColdStartAddress();
-
-    methodRegionInfo->hotSize          = ExecutionManager::GetNativeImageJitManager()->GetCodeManager()->GetFunctionSize(GetGCInfo());
+    GCInfoToken gcInfoToken = GetGCInfoToken();
+    methodRegionInfo->hotSize          = ExecutionManager::GetNativeImageJitManager()->GetCodeManager()->GetFunctionSize(gcInfoToken);
     methodRegionInfo->coldSize         = 0;
 
     if (methodRegionInfo->coldStartAddress != NULL)
@@ -6094,6 +6454,20 @@ ReadyToRunInfo * ReadyToRunJitManager::JitTokenToReadyToRunInfo(const METHODTOKE
     return dac_cast<PTR_Module>(MethodToken.m_pRangeSection->pHeapListOrZapModule)->GetReadyToRunInfo();
 }
 
+UINT32 ReadyToRunJitManager::JitTokenToGCInfoVersion(const METHODTOKEN& MethodToken)
+{
+    CONTRACTL{
+        NOTHROW;
+        GC_NOTRIGGER;
+        HOST_NOCALLS;
+        SUPPORTS_DAC;
+    } CONTRACTL_END;
+
+    READYTORUN_HEADER * header = JitTokenToReadyToRunInfo(MethodToken)->GetImage()->GetReadyToRunHeader();
+
+    return GCInfoToken::ReadyToRunVersionToGcInfoVersion(header->MajorVersion);
+}
+
 PTR_RUNTIME_FUNCTION ReadyToRunJitManager::JitTokenToRuntimeFunction(const METHODTOKEN& MethodToken)
 {
     CONTRACTL {
@@ -6119,7 +6493,7 @@ TADDR ReadyToRunJitManager::JitTokenToStartAddress(const METHODTOKEN& MethodToke
         RUNTIME_FUNCTION__BeginAddress(dac_cast<PTR_RUNTIME_FUNCTION>(MethodToken.m_pCodeHeader));
 }
 
-PTR_VOID ReadyToRunJitManager::GetGCInfo(const METHODTOKEN& MethodToken)
+GCInfoToken ReadyToRunJitManager::GetGCInfoToken(const METHODTOKEN& MethodToken)
 {
     CONTRACTL {
         NOTHROW;
@@ -6144,7 +6518,10 @@ PTR_VOID ReadyToRunJitManager::GetGCInfo(const METHODTOKEN& MethodToken)
     PTR_VOID pUnwindData = GetUnwindDataBlob(baseAddress, pRuntimeFunction, &nUnwindDataSize);
 
     // GCInfo immediatelly follows unwind data
-    return dac_cast<PTR_BYTE>(pUnwindData) + nUnwindDataSize;
+    PTR_BYTE gcInfo = dac_cast<PTR_BYTE>(pUnwindData) + nUnwindDataSize;
+    UINT32 gcInfoVersion = JitTokenToGCInfoVersion(MethodToken);
+
+    return{ gcInfo, gcInfoVersion };
 }
 
 unsigned ReadyToRunJitManager::InitializeEHEnumeration(const METHODTOKEN& MethodToken, EH_CLAUSE_ENUMERATOR* pEnumState)
@@ -6549,7 +6926,7 @@ void ReadyToRunJitManager::JitTokenToMethodRegionInfo(const METHODTOKEN& MethodT
     // READYTORUN: FUTURE: Hot-cold spliting
 
     methodRegionInfo->hotStartAddress  = JitTokenToStartAddress(MethodToken);
-    methodRegionInfo->hotSize          = GetCodeManager()->GetFunctionSize(GetGCInfo(MethodToken));
+    methodRegionInfo->hotSize          = GetCodeManager()->GetFunctionSize(GetGCInfoToken(MethodToken));
     methodRegionInfo->coldStartAddress = 0;
     methodRegionInfo->coldSize         = 0;
 }

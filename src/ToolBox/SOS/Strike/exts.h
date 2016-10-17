@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // ==++==
 // 
@@ -24,7 +23,6 @@
 #pragma warning(disable:4430)   // missing type specifier: C++ doesn't support default-int
 #endif
 #include "strike.h"
-
 #include <wdbgexts.h>
 #include <dbgeng.h>
 #include <stdio.h>
@@ -43,6 +41,8 @@
 // functions that read directly from the debuggee address space, vs. using 
 // the DAC to read the DAC-ized data structures.
 #include "daccess.h"
+
+#include "gcinfo.h"
 
 // Convert between CLRDATA_ADDRESS and TADDR.
 #define TO_TADDR(cdaddr) ((TADDR)(cdaddr))
@@ -124,15 +124,13 @@ private:
 };
 
 #ifndef MINIDUMP
-
+ 
 #define EXIT_API     ExtRelease
-
 
 // Safe release and NULL.
 #define EXT_RELEASE(Unk) \
     ((Unk) != NULL ? ((Unk)->Release(), (Unk) = NULL) : NULL)
 
-extern PDEBUG_CLIENT         g_ExtClient;
 extern PDEBUG_CONTROL2       g_ExtControl;
 extern PDEBUG_DATA_SPACES    g_ExtData;
 extern PDEBUG_SYMBOLS        g_ExtSymbols;
@@ -142,14 +140,19 @@ extern PDEBUG_REGISTERS      g_ExtRegisters;
 #ifndef FEATURE_PAL
 
 // Global variables initialized by query.
+extern PDEBUG_CLIENT         g_ExtClient;
 extern PDEBUG_DATA_SPACES2   g_ExtData2;
 extern PDEBUG_SYMBOLS2       g_ExtSymbols2;
 extern PDEBUG_ADVANCED3      g_ExtAdvanced3;
 
-#endif // !FEATURE_PAL
+#else // FEATURE_PAL
+
+extern ILLDBServices*        g_ExtServices;    
+
+#endif // FEATURE_PAL
 
 HRESULT
-ExtQuery(PDEBUG_CLIENT Client);
+ExtQuery(PDEBUG_CLIENT client);
 
 HRESULT 
 ArchQuery(void);
@@ -180,7 +183,7 @@ inline BOOL IsInterrupt()
 #undef DECLARE_API
 
 #define DECLARE_API(extension)     \
-CPPMOD HRESULT CALLBACK extension(PDEBUG_CLIENT Client, PCSTR args)
+CPPMOD HRESULT CALLBACK extension(PDEBUG_CLIENT client, PCSTR args)
 
 class __ExtensionCleanUp
 {
@@ -191,15 +194,16 @@ public:
 
 inline void EENotLoadedMessage(HRESULT Status)
 {
-    ExtOut("Failed to find runtime DLL (clr.dll), 0x%08x\n",Status);
-    ExtOut("Extension commands need clr.dll in order to have something to do.\n");
+    ExtOut("Failed to find runtime DLL (%s), 0x%08x\n", MAKEDLLNAME_A("coreclr"), Status);
+    ExtOut("Extension commands need it in order to have something to do.\n");
 }
 
 inline void DACMessage(HRESULT Status)
 {
-    ExtOut("Failed to load data access DLL, 0x%08x\n",Status);
+    ExtOut("Failed to load data access DLL, 0x%08x\n", Status);
+#ifndef FEATURE_PAL
     ExtOut("Verify that 1) you have a recent build of the debugger (6.2.14 or newer)\n");
-    ExtOut("            2) the file mscordacwks.dll that matches your version of clr.dll is \n");
+    ExtOut("            2) the file mscordacwks.dll that matches your version of coreclr.dll is \n");
     ExtOut("                in the version directory or on the symbol path\n");
     ExtOut("            3) or, if you are debugging a dump file, verify that the file \n");
     ExtOut("                mscordacwks_<arch>_<arch>_<version>.dll is on your symbol path.\n");
@@ -213,7 +217,18 @@ inline void DACMessage(HRESULT Status)
     ExtOut("If that succeeds, the SOS command should work on retry.\n");
     ExtOut("\n");
     ExtOut("If you are debugging a minidump, you need to make sure that your executable\n");
-    ExtOut("path is pointing to clr.dll as well.\n");
+    ExtOut("path is pointing to coreclr.dll as well.\n");
+#else // FEATURE_PAL
+    if (Status == CORDBG_E_MISSING_DEBUGGER_EXPORTS)
+    {
+        ExtOut("You can run the debugger command 'setclrpath' to control the load of %s.\n", MAKEDLLNAME_A("mscordaccore"));
+        ExtOut("If that succeeds, the SOS command should work on retry.\n");
+    }
+    else
+    {
+        ExtOut("Can not load or initialize %s. The target runtime may not be initialized.\n", MAKEDLLNAME_A("mscordaccore"));
+    }
+#endif // FEATURE_PAL
 }
 
 HRESULT CheckEEDll();
@@ -221,21 +236,25 @@ HRESULT CheckEEDll();
 #define INIT_API_NOEE()                                         \
     HRESULT Status;                                             \
     __ExtensionCleanUp __extensionCleanUp;                      \
-    if ((Status = ExtQuery(Client)) != S_OK) return Status;     \
+    if ((Status = ExtQuery(client)) != S_OK) return Status;     \
     if ((Status = ArchQuery()) != S_OK)      return Status;     \
     ControlC = FALSE;                                           \
-    g_bDacBroken = TRUE;
+    g_bDacBroken = TRUE;                                        \
+    g_clrData = NULL;                                           \
+    g_sos = NULL;                                        
 
-#define INIT_API_NODAC()                                        \
-    INIT_API_NOEE()                                             \
+#define INIT_API_EE()                                           \
     if ((Status = CheckEEDll()) != S_OK)                        \
     {                                                           \
         EENotLoadedMessage(Status);                             \
         return Status;                                          \
     }                                                           
 
-#define INIT_API()                                              \
-    INIT_API_NODAC()                                            \
+#define INIT_API_NODAC()                                        \
+    INIT_API_NOEE()                                             \
+    INIT_API_EE()
+
+#define INIT_API_DAC()                                          \
     if ((Status = LoadClrDebugDll()) != S_OK)                   \
     {                                                           \
         DACMessage(Status);                                     \
@@ -248,6 +267,10 @@ HRESULT CheckEEDll();
     ToRelease<ISOSDacInterface> spISD(g_sos);                   \
     ResetGlobals();
 
+#define INIT_API()                                              \
+    INIT_API_NODAC()                                            \
+    INIT_API_DAC()
+
 // Attempt to initialize DAC and SOS globals, but do not "return" on failure.
 // Instead, mark the failure to initialize the DAC by setting g_bDacBroken to TRUE.
 // This should be used from extension commands that should work OK even when no
@@ -256,15 +279,14 @@ HRESULT CheckEEDll();
 // feature.
 #define INIT_API_NO_RET_ON_FAILURE()                            \
     INIT_API_NOEE()                                             \
-    g_clrData = NULL;                                           \
     if ((Status = CheckEEDll()) != S_OK)                        \
     {                                                           \
-        ExtOut("Failed to find runtime DLL (clr.dll), 0x%08x\n", Status); \
+        ExtOut("Failed to find runtime DLL (%s), 0x%08x\n", MAKEDLLNAME_A("coreclr"), Status); \
         ExtOut("Some functionality may be impaired\n");         \
     }                                                           \
     else if ((Status = LoadClrDebugDll()) != S_OK)              \
     {                                                           \
-        ExtOut("Failed to load data access DLL, 0x%08x\n", Status);       \
+        ExtOut("Failed to load data access DLL (%s), 0x%08x\n", MAKEDLLNAME_A("mscordaccore"), Status); \
         ExtOut("Some functionality may be impaired\n");         \
     }                                                           \
     else                                                        \
@@ -365,7 +387,7 @@ public:
 
     typedef void (*printfFtn)(const char* fmt, ...);
     // Dumps the GCInfo
-    virtual void DumpGCInfo(BYTE* pTable, unsigned methodSize, printfFtn gcPrintf, bool encBytes, bool bPrintHeader) const = 0;
+    virtual void DumpGCInfo(GCInfoToken gcInfoToken, unsigned methodSize, printfFtn gcPrintf, bool encBytes, bool bPrintHeader) const = 0;
 
 protected:
     IMachine()           {}
@@ -415,11 +437,7 @@ inline CLRDATA_ADDRESS GetBP(const CROSS_PLATFORM_CONTEXT& context)
 //
 //-----------------------------------------------------------------------------------------
 
-#ifdef FEATURE_PAL
-
-#define GetExpression(exp) g_ExtClient->GetExpression(exp)
-
-#else // FEATURE_PAL
+#ifndef FEATURE_PAL
 
 extern WINDBG_EXTENSION_APIS ExtensionApis;
 #define GetExpression (ExtensionApis.lpGetExpressionRoutine)
@@ -427,6 +445,10 @@ extern WINDBG_EXTENSION_APIS ExtensionApis;
 extern ULONG TargetMachine;
 extern ULONG g_TargetClass;
 extern ULONG g_VDbgEng;
+
+#else // FEATURE_PAL
+
+#define GetExpression(exp) g_ExtServices->GetExpression(exp)
 
 #endif // FEATURE_PAL
 

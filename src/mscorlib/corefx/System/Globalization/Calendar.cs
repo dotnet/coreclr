@@ -1,10 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Runtime.CompilerServices;
 using System.Globalization;
 using System.Diagnostics.Contracts;
+using System.Runtime.Serialization;
 
 namespace System.Globalization
 {
@@ -28,9 +30,9 @@ namespace System.Globalization
     // The calculation of hour/minute/second is moved to Calendar from GregorianCalendar,
     // since most of the calendars (or all?) have the same way of calcuating hour/minute/second.
 
-
+    [Serializable]
     [System.Runtime.InteropServices.ComVisible(true)]
-    public abstract class Calendar
+    public abstract partial class Calendar : ICloneable
     {
         // Number of 100ns (10E-7 second) ticks per time unit
         internal const long TicksPerMillisecond = 10000;
@@ -60,10 +62,10 @@ namespace System.Globalization
         internal const long MaxMillis = (long)DaysTo10000 * MillisPerDay;
 
 
-        internal int m_currentEraValue = -1;
+        private int _currentEraValue = -1;
 
-
-        private bool m_isReadOnly = false;
+        [OptionalField(VersionAdded = 2)]
+        private bool _isReadOnly = false;
 
 #if INSIDE_CLR
         internal const CalendarId CAL_HEBREW = CalendarId.HEBREW;
@@ -97,8 +99,14 @@ namespace System.Globalization
             }
         }
 
-
-
+        [System.Runtime.InteropServices.ComVisible(false)]
+        public virtual CalendarAlgorithmType AlgorithmType
+        {
+            get
+            {
+                return CalendarAlgorithmType.Unknown;
+            }
+        }
 
         protected Calendar()
         {
@@ -135,18 +143,18 @@ namespace System.Globalization
         [System.Runtime.InteropServices.ComVisible(false)]
         public bool IsReadOnly
         {
-            get { return (m_isReadOnly); }
+            get { return (_isReadOnly); }
         }
 
         ////////////////////////////////////////////////////////////////////////
         //
         //  Clone
         //
-        //  Is the implementation of IColnable.
+        //  Is the implementation of ICloneable.
         //
         ////////////////////////////////////////////////////////////////////////
         [System.Runtime.InteropServices.ComVisible(false)]
-        internal virtual Object Clone()
+        public virtual object Clone()
         {
             object o = MemberwiseClone();
             ((Calendar)o).SetReadOnlyState(false);
@@ -162,7 +170,7 @@ namespace System.Globalization
         //
         ////////////////////////////////////////////////////////////////////////
         [System.Runtime.InteropServices.ComVisible(false)]
-        internal static Calendar ReadOnly(Calendar calendar)
+        public static Calendar ReadOnly(Calendar calendar)
         {
             if (calendar == null) { throw new ArgumentNullException("calendar"); }
             Contract.EndContractBlock();
@@ -176,7 +184,7 @@ namespace System.Globalization
 
         internal void VerifyWritable()
         {
-            if (m_isReadOnly)
+            if (_isReadOnly)
             {
                 throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
             }
@@ -184,7 +192,7 @@ namespace System.Globalization
 
         internal void SetReadOnlyState(bool readOnly)
         {
-            m_isReadOnly = readOnly;
+            _isReadOnly = readOnly;
         }
 
 
@@ -202,12 +210,12 @@ namespace System.Globalization
             get
             {
                 // The following code assumes that the current era value can not be -1.
-                if (m_currentEraValue == -1)
+                if (_currentEraValue == -1)
                 {
                     Contract.Assert(BaseCalendarID != CalendarId.UNINITIALIZED_VALUE, "[Calendar.CurrentEraValue] Expected a real calendar ID");
-                    m_currentEraValue = CalendarData.GetCalendarData(BaseCalendarID).iCurrentEra;
+                    _currentEraValue = CalendarData.GetCalendarData(BaseCalendarID).iCurrentEra;
                 }
-                return (m_currentEraValue);
+                return (_currentEraValue);
             }
         }
 
@@ -698,6 +706,16 @@ namespace System.Globalization
 
         public abstract bool IsLeapMonth(int year, int month, int era);
 
+        // Returns  the leap month in a calendar year of the current era. This method returns 0
+        // if this calendar does not have leap month, or this year is not a leap year.
+        //
+
+        [System.Runtime.InteropServices.ComVisible(false)]
+        public virtual int GetLeapMonth(int year)
+        {
+            return (GetLeapMonth(year, CurrentEra));
+        }
+
         // Returns  the leap month in a calendar year of the specified era. This method returns 0
         // if this calendar does not have leap month, or this year is not a leap year.
         //
@@ -838,7 +856,6 @@ namespace System.Globalization
             throw new ArgumentOutOfRangeException(null, SR.ArgumentOutOfRange_BadHourMinuteSecond);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal static int GetSystemTwoDigitYearSetting(CalendarId CalID, int defaultYearValue)
         {
             // Call nativeGetTwoDigitYearMax

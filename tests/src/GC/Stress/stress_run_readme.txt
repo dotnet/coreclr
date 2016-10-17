@@ -6,21 +6,23 @@ Most of the code in gc.cpp is intricate - unless you are touching something that
 
 This was adapted from one of the ways we run stress internally. The idea is that it takes a config that specifies the tests to run and runs them all in one process to stress random combinations of allocation and survival patterns. 
 
+Note that these tests were picked from functional tests so some of them could have failures because some condition it checks for is not met. In stress runs, we only care about AVs so we want to run them as long as possible and don't care about failures indicated by the tests themselves.
+
 This is a pretty crude implementation. Feel free to improve it!
 
 2. Setting up stress
 
 It has 3 parts:
 
-The stress framework is built from <REPO_ROOT>\tests\src\GC\Stress\Framework and the resulting .exe is in <REPO_ROOT>\binaries\tests\<arch>\<buildtype>\GC\Stress\Framework\ReliabilityFramework.exe.
+The stress framework is built from <REPO_ROOT>\tests\src\GC\Stress\Framework
 
-The tests are built from <REPO_ROOT>\tests\src\GC\Stress\Tests and the resulting .exe's are in <REPO_ROOT>\binaries\tests\<arch>\<buildtype>\GC\Stress\Framework\*.exe.
+The tests are built from <REPO_ROOT>\tests\src\GC\Stress\Tests
 
 The config is at <REPO_ROOT>NDP\clr\tests\src\GC\Stress\testmix_gc.config, this will be copied to the output folder of Framework
 
 3. Running stress
 
-The test .exe's need to be in a directory called Tests next to ReliabilityFramework.exe. So if you keep ReliabilityFramework.exe where it is, you should see the test binaries copied to the <REPO_ROOT>\tests\src\GC\Stress\Framework\Tests.
+The test .exe's need to be in a directory called Tests next to ReliabilityFramework.exe. So if you keep ReliabilityFramework.exe where it is, you should see the test binaries copied to the <TestBin>\GC\Stress\Framework\ReliabilityFramework\Tests.
 
 To run stress:
 

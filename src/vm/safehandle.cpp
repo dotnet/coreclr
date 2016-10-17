@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 
@@ -247,7 +246,7 @@ void SafeHandle::Dispose()
     // Suppress finalization on this object (we may be racing here but the
     // operation below is idempotent and a dispose should never race a
     // finalization).
-    GCHeap::GetGCHeap()->SetFinalizationRun(OBJECTREFToObject(sh));
+    GCHeapUtilities::GetGCHeap()->SetFinalizationRun(OBJECTREFToObject(sh));
     GCPROTECT_END();
 }
 
@@ -395,7 +394,7 @@ FCIMPL1(void, SafeHandle::SetHandleAsInvalid, SafeHandle* refThisUNSAFE)
 
     } while (InterlockedCompareExchange((LONG*)&sh->m_state, newState, oldState) != oldState);
 
-    GCHeap::GetGCHeap()->SetFinalizationRun(OBJECTREFToObject(sh));
+    GCHeapUtilities::GetGCHeap()->SetFinalizationRun(OBJECTREFToObject(sh));
 }
 FCIMPLEND
 

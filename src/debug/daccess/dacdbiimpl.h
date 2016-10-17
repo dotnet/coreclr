@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // DacDbiImpl.h
 // 
@@ -139,11 +138,13 @@ public:
     HRESULT WalkRefs(RefWalkHandle handle, ULONG count, OUT DacGcReference * objects, OUT ULONG *pFetched);
     
     HRESULT GetTypeID(CORDB_ADDRESS obj, COR_TYPEID *pID);
+
+    HRESULT GetTypeIDForType(VMPTR_TypeHandle vmTypeHandle, COR_TYPEID *pID);
     
-	HRESULT GetObjectFields(COR_TYPEID id, ULONG32 celt, COR_FIELD *layout, ULONG32 *pceltFetched);
-	HRESULT GetTypeLayout(COR_TYPEID id, COR_TYPE_LAYOUT *pLayout);
-	HRESULT GetArrayLayout(COR_TYPEID id, COR_ARRAY_LAYOUT *pLayout);
-	void GetGCHeapInformation(COR_HEAPINFO * pHeapInfo);
+    HRESULT GetObjectFields(COR_TYPEID id, ULONG32 celt, COR_FIELD *layout, ULONG32 *pceltFetched);
+    HRESULT GetTypeLayout(COR_TYPEID id, COR_TYPE_LAYOUT *pLayout);
+    HRESULT GetArrayLayout(COR_TYPEID id, COR_ARRAY_LAYOUT *pLayout);
+    void GetGCHeapInformation(COR_HEAPINFO * pHeapInfo);
     HRESULT GetPEFileMDInternalRW(VMPTR_PEFile vmPEFile, OUT TADDR* pAddrMDInternalRW);
     HRESULT GetReJitInfo(VMPTR_Module vmModule, mdMethodDef methodTk, OUT VMPTR_ReJitInfo* pReJitInfo);
     HRESULT GetReJitInfo(VMPTR_MethodDesc vmMethod, CORDB_ADDRESS codeStartAddress, OUT VMPTR_ReJitInfo* pReJitInfo);

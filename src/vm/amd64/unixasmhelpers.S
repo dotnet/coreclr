@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 .intel_syntax noprefix
 #include "unixasmmacros.inc"
@@ -137,8 +136,8 @@ NESTED_END NDirectImportThunk, _TEXT
 // MOVDQA is not an atomic operation.  You need to call this function in a crst.
 // </NOTE>
 LEAF_ENTRY moveOWord, _TEXT
-        movdqu          xmm0, [rdi]
-        movdqu          [rsi], xmm0
+        movdqu          xmm0, xmmword ptr [rdi]
+        movdqu          xmmword ptr [rsi], xmm0
 
         ret
 LEAF_END moveOWord, _TEXT
@@ -157,20 +156,62 @@ NESTED_ENTRY JIT_RareDisableHelper, _TEXT, NoHandler
     alloc_stack         0x28
     END_PROLOGUE
     // First float return register
-    movdqa              [rsp], xmm0
+    movdqa              xmmword ptr [rsp], xmm0
     // Second float return register
-    movdqa              [rsp+0x10], xmm1
+    movdqa              xmmword ptr [rsp+0x10], xmm1
 
     call                C_FUNC(JIT_RareDisableHelperWorker)
 
-    movdqa              xmm0, [rsp]
-    movdqa              xmm1, [rsp+0x10]
+    movdqa              xmm0, xmmword ptr [rsp]
+    movdqa              xmm1, xmmword ptr [rsp+0x10]
     free_stack          0x28
     pop_register        rdx
     pop_register        rax
     ret
 
 NESTED_END JIT_RareDisableHelper, _TEXT
+
+#ifdef FEATURE_HIJACK
+
+//------------------------------------------------
+// OnHijackTripThread
+//
+NESTED_ENTRY OnHijackTripThread, _TEXT, NoHandler
+
+    // Make room for the real return address (rip)
+    push_register rax
+
+    PUSH_CALLEE_SAVED_REGISTERS
+
+    push_register rdx
+    // Push rax again - this is where integer/pointer return values are returned
+    push_register rax
+
+    mov                 rdi, rsp
+
+    alloc_stack         0x28
+
+    // First float return register
+    movdqa              [rsp], xmm0
+    // Second float return register
+    movdqa              [rsp+0x10], xmm1
+
+    END_PROLOGUE
+
+    call                C_FUNC(OnHijackWorker)
+
+    movdqa              xmm0, [rsp]
+    movdqa              xmm1, [rsp+0x10]
+    free_stack          0x28
+    pop_register        rax
+    pop_register        rdx
+
+    POP_CALLEE_SAVED_REGISTERS
+    ret
+
+NESTED_END OnHijackTripThread, _TEXT
+
+#endif // FEATURE_HIJACK
 
 LEAF_ENTRY SinglecastDelegateInvokeStub, _TEXT                                        
                                                                                       
@@ -188,42 +229,3 @@ NullObject:
         jmp     C_FUNC(JIT_InternalThrow)
                                                                                       
 LEAF_END SinglecastDelegateInvokeStub, _TEXT
-
-//////////////////////////////////////////////////////////////////////////
-//
-// This function initiates unwinding of native frames during the unwinding of a managed 
-// exception. The managed exception can be propagated over several managed / native ranges 
-// until it is finally handled by a managed handler or leaves the stack unhandled and
-// aborts the current process.
-// It creates a stack frame right below the target frame, restores all callee saved registers
-// from the passed in context and finally sets the RSP to that frame and sets the return
-// address to the target frame's RIP.
-//
-// EXTERN_C void StartUnwindingNativeFrames(CONTEXT* context);
-LEAF_ENTRY StartUnwindingNativeFrames, _TEXT
-        // Save the RBP to the stack so that the unwind can work at the instruction after
-        // loading the RBP from the context, but before loading the RSP from the context.
-        push_nonvol_reg rbp
-        mov     r12, [rdi + OFFSETOF__CONTEXT__R12]
-        mov     r13, [rdi + OFFSETOF__CONTEXT__R13]
-        mov     r14, [rdi + OFFSETOF__CONTEXT__R14]
-        mov     r15, [rdi + OFFSETOF__CONTEXT__R15]
-        mov     rbx, [rdi + OFFSETOF__CONTEXT__Rbx]
-        mov     rbp, [rdi + OFFSETOF__CONTEXT__Rbp]
-        mov     rsp, [rdi + OFFSETOF__CONTEXT__Rsp]
-        // The RSP was set to the target frame's value, so the current function's
-        // CFA is now right at the RSP.
-        .cfi_def_cfa_offset 0
-
-        // Indicate that now that we have moved the RSP to the target address, 
-        // the RBP is no longer saved in the current stack frame. 
-        .cfi_restore rbp
-
-        mov     rax, [rdi + OFFSETOF__CONTEXT__Rip]
-
-        // Store return address to the stack
-        push_register rax
-        push_nonvol_reg rbp
-        call    EXTERNAL_C_FUNC(__cxa_rethrow)
-LEAF_END StartUnwindingNativeFrames, _TEXT
-

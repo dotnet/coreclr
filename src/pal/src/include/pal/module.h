@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -21,40 +20,10 @@ Abstract:
 #ifndef _PAL_MODULE_H_
 #define _PAL_MODULE_H_
 
-#if defined(CORECLR) && defined(__APPLE__)
-
-#include <CoreFoundation/CFBundle.h>
-
-// Name of the CoreCLR bundle executable
-#define CORECLR_BUNDLE_NAME "coreclr"
-
-// Name of the CoreCLR bundle root directory.
-#define CORECLR_BUNDLE_DIR "CoreCLR.bundle"
-
-// Directory components between the bundle root and the executable.
-#define CORECLR_BUNDLE_PATH "Contents/MacOS/"
-
-// Abstract the API used to load and query for functions in the CoreCLR binary to make it easier to change the
-// underlying implementation.
-typedef CFBundleRef CORECLRHANDLE;
-#endif // CORECLR && __APPLE__
-
 #ifdef __cplusplus
 extern "C"
 {
 #endif // __cplusplus
-
-#define PAL_SHLIB_PREFIX "lib"
-
-#if __APPLE__
-#define PAL_SHLIB_SUFFIX ".dylib"
-#elif _AIX
-#define PAL_SHLIB_SUFFIX ".a"
-#elif _HPUX_
-#define PAL_SHLIB_SUFFIX ".sl"
-#else
-#define PAL_SHLIB_SUFFIX ".so"
-#endif
 
 typedef BOOL (__stdcall *PDLLMAIN)(HINSTANCE, DWORD, LPVOID);   /* entry point of module */
 typedef HINSTANCE (PALAPI *PREGISTER_MODULE)(LPCSTR);           /* used to create the HINSTANCE for above DLLMain entry point */
@@ -62,64 +31,57 @@ typedef VOID (PALAPI *PUNREGISTER_MODULE)(HINSTANCE);           /* used to clean
 
 typedef struct _MODSTRUCT
 {
-    HMODULE self;         /* circular reference to this module */
-    void *dl_handle;      /* handle returned by dlopen() */
-    HINSTANCE hinstance;  /* handle returned by PAL_RegisterLibrary */
-#if defined(CORECLR) && defined(__APPLE__)
-    CORECLRHANDLE sys_module; /* System modules can be loaded via mechanisms other than dlopen() under
-                               * CoreCLR/Mac */
-#endif // CORECLR && __APPLE__
-    LPWSTR lib_name;      /* full path of module */
-    INT refcount;         /* reference count */
-                          /* -1 means infinite reference count - module is never released */
-    BOOL ThreadLibCalls;  /* TRUE for DLL_THREAD_ATTACH/DETACH notifications 
-                              enabled, FALSE if they are disabled */
+    HMODULE self;           /* circular reference to this module */
+    void *dl_handle;        /* handle returned by dlopen() */
+    HINSTANCE hinstance;    /* handle returned by PAL_RegisterLibrary */
+    LPWSTR lib_name;        /* full path of module */
+    INT refcount;           /* reference count */
+                            /* -1 means infinite reference count - module is never released */
+    BOOL threadLibCalls;    /* TRUE for DLL_THREAD_ATTACH/DETACH notifications enabled, FALSE if they are disabled */
 
 #if RETURNS_NEW_HANDLES_ON_REPEAT_DLOPEN
     ino_t inode;
     dev_t device;
 #endif
 
-    PDLLMAIN pDllMain; /* entry point of module */
+    PDLLMAIN pDllMain;    /* entry point of module */
 
     /* reference to next and previous modules in list (in load order) */
     struct _MODSTRUCT *next;
     struct _MODSTRUCT *prev;
 } MODSTRUCT;
 
-extern MODSTRUCT pal_module;
-
 
 /*++
 Function :
-    LoadInitializeModules
+    LOADInitializeModules
 
-    Initialize the process-wide list of modules (2 initial modules : 1 for
-    the executable and 1 for the PAL)
+    Initialize the process-wide list of modules
 
 Parameters :
-    LPWSTR exe_name : full path to executable
+    None
 
 Return value :
     TRUE on success, FALSE on failure
 
-Notes :
-    the module manager takes ownership of the string
 --*/
-BOOL LOADInitializeModules(LPWSTR exe_name);
+BOOL LOADInitializeModules();
 
 /*++
 Function :
-    LOADFreeModules
+    LOADSetExeName
 
-    Release all resources held by the module manager (including dlopen handles)
+    Set the exe name path
 
-Parameters:
-    BOOL bTerminateUnconditionally: If TRUE, this will avoid calling any DllMains
+Parameters :
+    LPWSTR man exe path and name
 
-    (no return value)
+Return value :
+    TRUE  if initialization succeedded
+    FALSE otherwise
+
 --*/
-void LOADFreeModules(BOOL bTerminateUnconditionally);
+BOOL LOADSetExeName(LPWSTR name);
 
 /*++
 Function :
@@ -204,52 +166,34 @@ Return value:
 --*/
 BOOL PAL_LOADUnloadPEFile(void * ptr);
 
-
-#if !defined(CORECLR) || !defined(__APPLE__)
 /*++
-    LOADGetLibRotorPalSoFileName
+    LOADInitializeCoreCLRModule
 
-    Retrieve the full path of the librotor_pal.so being used.
+    Run the initialization methods for CoreCLR module.
 
 Parameters:
-    OUT pwzBuf - WCHAR buffer of MAX_PATH length to receive file name
-
-Return value:
-    0 if successful
-    -1 if failure, with last error set.
---*/
-int LOADGetLibRotorPalSoFileName(LPSTR pszBuf);
-#endif // !CORECLR || !__APPLE__
-
-/*++
-    LOADInitCoreCLRModules
-
-    Run the initialization methods for CoreCLR modules that used to be standalone dynamic libraries (PALRT and
-    mscorwks).
-
-Parameters:
-    Core CLR path
+    None
 
 Return value:
     TRUE if successful
     FALSE if failure
 --*/
-BOOL LOADInitCoreCLRModules(const char *szCoreCLRPath);
+BOOL LOADInitializeCoreCLRModule();
 
-#if defined(CORECLR) && defined(__APPLE__)
-// Abstract the API used to load and query for functions in the CoreCLR binary to make it easier to change the
-// underlying implementation.
+/*++
+Function :
+    LOADGetPalLibrary
 
-// Load the CoreCLR module into memory given the directory in which it resides. Returns NULL on failure.
-CORECLRHANDLE LoadCoreCLR(const char *szPath);
+    Load and initialize the PAL module.
 
-// Lookup the named function in the given CoreCLR image. Returns NULL on failure.
-void *LookupFunctionInCoreCLR(CORECLRHANDLE hCoreCLR, const char *szFunction);
+Parameters :
+    None
 
-// Locate the CoreCLR module handle associated with the code currently executing. Returns NULL on failure.
-CORECLRHANDLE FindCoreCLRHandle();
+Return value :
+    handle to loaded module
 
-#endif // CORECLR && __APPLE__
+--*/
+MODSTRUCT *LOADGetPalLibrary();
 
 #ifdef __cplusplus
 }

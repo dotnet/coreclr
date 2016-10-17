@@ -34,7 +34,6 @@
         <CppCompile Include="$(VmSourcesDir)\clsload.cpp" />
         <CppCompile Include="$(VmSourcesDir)\comdelegate.cpp" />
         <CppCompile Include="$(VmSourcesDir)\codeman.cpp" />
-        <CppCompile Include="$(VmSourcesDir)\CompactLayoutWriter.cpp" Condition="'$(MDILGenerator)' == 'true'"/>
         <CppCompile Include="$(VmSourcesDir)\compile.cpp" />
         <CppCompile Include="$(VmSourcesDir)\ConstrainedExecutionRegion.cpp" />
         <CppCompile Include="$(VmSourcesDir)\CustomMarshalerInfo.cpp" />
@@ -116,6 +115,7 @@
         <CppCompile Include="$(VmSourcesDir)\typestring.cpp" />
         <CppCompile Include="$(VmSourcesDir)\util.cpp" />
         <CppCompile Include="$(VmSourcesDir)\vars.cpp" />
+        <CppCompile Include="$(VmSourcesDir)\versionresilienthashcode.cpp" />
         <CppCompile Include="$(VmSourcesDir)\zapsig.cpp" />
     </ItemGroup>
 
@@ -130,7 +130,6 @@
   
     <!-- SOURCES_NONPAL -->
     <ItemGroup>
-        <CppCompile Include="$(VmSourcesDir)\DbgGcInfoDecoder.cpp" />
         <CppCompile Include="$(VmSourcesDir)\GcInfoDecoder.cpp" />
         <CppCompile Include="$(VmSourcesDir)\Crypto\SHA1.cpp" Condition="'$(FeatureCoreclr)' != 'true'"/>
         <CppCompile Include="$(VmSourcesDir)\SHA1.cpp" Condition="'$(FeatureCoreclr)' == 'true'"/>

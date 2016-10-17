@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // DelayLoad.cpp
 //
@@ -68,10 +67,10 @@ ExternC extern PfnDliHook __pfnDliNotifyHook = CorDelayLoadHook;
 extern void DECLSPEC_NORETURN ThrowOutOfMemory();
 
 //*****************************************************************************
-// Called for errors that might have occured.
+// Called for errors that might have occurred.
 //*****************************************************************************
 FARPROC __stdcall CorDelayErrorHook(    // Always 0.
-    unsigned        dliNotify,          // What event has occured, dli* flag.
+    unsigned        dliNotify,          // What event has occurred, dli* flag.
     DelayLoadInfo   *pdli)              // Description of the event.
 {
 
@@ -164,7 +163,7 @@ DWORD _FormatMessage(                           // How many characters written.
 // A library failed to load.  This is always a bad thing.
 //*****************************************************************************
 void _FailLoadLib(
-    unsigned        dliNotify,          // What event has occured, dli* flag.
+    unsigned        dliNotify,          // What event has occurred, dli* flag.
     DelayLoadInfo   *pdli)              // Description of the event.
 {
     STATIC_CONTRACT_NOTHROW;
@@ -215,7 +214,7 @@ void _FailLoadLib(
 // A library failed to load.  This is always a bad thing.
 //*****************************************************************************
 void _FailGetProc(
-    unsigned        dliNotify,          // What event has occured, dli* flag.
+    unsigned        dliNotify,          // What event has occurred, dli* flag.
     DelayLoadInfo   *pdli)              // Description of the event.
 {
     STATIC_CONTRACT_NOTHROW;
@@ -304,7 +303,7 @@ HMODULE DoPreloadLibraryThrowing(LPCSTR szLibrary)
 // load event that occurs while the application is running.
 //*****************************************************************************
 FARPROC __stdcall CorDelayLoadHook(     // Always 0.
-    unsigned        dliNotify,          // What event has occured, dli* flag.
+    unsigned        dliNotify,          // What event has occurred, dli* flag.
     DelayLoadInfo   *pdli)              // Description of the event.
 {
 #ifdef _DEBUG
@@ -377,16 +376,16 @@ FARPROC __stdcall CorDelayLoadHook(     // Always 0.
     // If we've not yet looked at our environment, then do so.
     if (!bInit)
     {
-        WCHAR       rcBreak[16];
+        PathString  rcBreak;
 
         // set DelayLoadBreak=[0|1]
-        if (WszGetEnvironmentVariable(W("DelayLoadBreak"), rcBreak, NumItems(rcBreak)))
+        if (WszGetEnvironmentVariable(W("DelayLoadBreak"), rcBreak))
         {
             // "1" means to break hard and display errors.
-            if (*rcBreak == '1')
+            if (rcBreak[0] == '1')
                 bBreak = 1;
             // "2" means no break, but display errors.
-            else if (*rcBreak == '2')
+            else if (rcBreak[0] == '2')
                 bBreak = 2;
             else
                 bBreak = false;

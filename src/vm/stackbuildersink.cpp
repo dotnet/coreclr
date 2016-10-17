@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // File: StackBuilderSink.cpp
 // 
@@ -404,13 +403,16 @@ void CallDescrWithObjectArray(OBJECTREF& pServer,
 #endif
 
 #ifdef CALLDESCR_FPARGREGS
-        // Under CALLDESCR_FPARGREGS -ve offsets indicate arguments in floating point registers. If we have at
+        // Under CALLDESCR_FPARGREGS we can have arguments in floating point registers. If we have at
         // least one such argument we point the call worker at the floating point area of the frame (we leave
         // it null otherwise since the worker can perform a useful optimization if it knows no floating point
         // registers need to be set up).
-        if (TransitionBlock::IsFloatArgumentRegisterOffset(ofs) && (pFloatArgumentRegisters == NULL))
+        if (TransitionBlock::HasFloatRegister(ofs, argit.GetArgLocDescForStructInRegs()) && 
+            (pFloatArgumentRegisters == NULL))
+        {
             pFloatArgumentRegisters = (FloatArgumentRegisters*)(pTransitionBlock +
                                                                 TransitionBlock::GetOffsetOfFloatArgumentRegisters());
+        }
 #endif
 
         if (argit.GetArgType() == ELEMENT_TYPE_BYREF)

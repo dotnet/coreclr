@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // --------------------------------------------------------------------------------
 // DomainFile.cpp
 //
@@ -38,6 +37,10 @@
 #include "policy.h" // for fusion::util::isanyframeworkassembly
 #endif
 #include "winrthelpers.h"
+
+#ifdef FEATURE_PERFMAP
+#include "perfmap.h"
+#endif // FEATURE_PERFMAP
 
 BOOL DomainAssembly::IsUnloading()
 {
@@ -897,6 +900,7 @@ BOOL DomainFile::IsZapRequired()
         g_pConfig->RequireZaps() == EEConfig::REQUIRE_ZAPS_SUPPORTED)
         return FALSE;
 
+#ifdef FEATURE_NATIVE_IMAGE_GENERATION
     if (IsCompilationProcess())
     {
         // Ignore the assembly being ngened.
@@ -919,6 +923,7 @@ BOOL DomainFile::IsZapRequired()
         if (fileIsBeingNGened)
             return FALSE;
     }
+#endif
 
     return TRUE;
 }
@@ -937,6 +942,11 @@ void DomainFile::CheckZapRequired()
 
     if (m_pFile->HasNativeImage() || !IsZapRequired())
         return;
+
+#ifdef FEATURE_READYTORUN
+    if(m_pFile->GetLoaded()->HasReadyToRunHeader())
+        return;
+#endif
 
     // Flush any log messages
     GetFile()->FlushExternalLog();
@@ -997,6 +1007,7 @@ void DomainFile::ClearNativeImageStress()
     // Different app-domains should make different decisions
     hash ^= HashString(this->GetAppDomain()->GetFriendlyName());
 
+#ifdef FEATURE_NATIVE_IMAGE_GENERATION
     // Since DbgRandomOnHashAndExe() is not so random under ngen.exe, also
     // factor in the module being compiled
     if (this->GetAppDomain()->IsCompilationDomain())
@@ -1006,6 +1017,7 @@ void DomainFile::ClearNativeImageStress()
         if (module)
             hash ^= HashStringA(module->GetSimpleName());
     }
+#endif
 
     if (DbgRandomOnHashAndExe(hash, float(stressPercentage)/100))
     {
@@ -1365,6 +1377,11 @@ void DomainFile::FinishLoad()
     // Set a bit to indicate that the module has been loaded in some domain, and therefore
     // typeloads can involve types from this module. (Used for candidate instantiations.)
     GetModule()->SetIsReadyForTypeLoad();
+
+#ifdef FEATURE_PERFMAP
+    // Notify the perfmap of the IL image load.
+    PerfMap::LogImageLoad(m_pFile);
+#endif
 }
 
 void DomainFile::VerifyExecution()
@@ -1884,13 +1901,11 @@ DomainAssembly::~DomainAssembly()
     }
     CONTRACTL_END;
 
-    #ifdef FEATURE_HOSTED_BINDER
     if (m_fHostAssemblyPublished)
     {
         // Remove association first.
         GetAppDomain()->UnPublishHostedAssembly(this);
     }
-    #endif
 
     ModuleIterator i = IterateModules(kModIterIncludeLoading);
     while (i.Next())
@@ -2256,11 +2271,9 @@ void DomainAssembly::Begin()
         AppDomain::LoadLockHolder lock(m_pDomain);
         m_pDomain->AddAssembly(this);
     }
-#ifdef FEATURE_HOSTED_BINDER
     // Make it possible to find this DomainAssembly object from associated ICLRPrivAssembly.
     GetAppDomain()->PublishHostedAssembly(this);
     m_fHostAssemblyPublished = true;
-#endif
 }
 
 #ifdef FEATURE_PREJIT
@@ -2314,11 +2327,8 @@ void DomainAssembly::FindNativeImage()
 #ifdef FEATURE_FUSION
     DomainAssembly * pDomainAssembly = GetDomainAssembly();
     if (pDomainAssembly->GetSecurityDescriptor()->HasAdditionalEvidence() ||
-        !(pDomainAssembly->GetFile()->IsContextLoad()
-#ifdef FEATURE_HOSTED_BINDER
-        || pDomainAssembly->GetFile()->HasHostAssembly()
-#endif
-        ))
+        !(pDomainAssembly->GetFile()->IsContextLoad() ||
+        pDomainAssembly->GetFile()->HasHostAssembly()))
     {
         m_pFile->SetCannotUseNativeImage();
     }
@@ -2335,7 +2345,7 @@ void DomainAssembly::FindNativeImage()
         {
             SString sbuf;
             StackScratchBuffer scratch;
-            sbuf.Printf("COMPLUS_NgenBind_ZapForbid violation: %s.", GetSimpleName());
+            sbuf.Printf("COMPlus_NgenBind_ZapForbid violation: %s.", GetSimpleName());
             DbgAssertDialog(__FILE__, __LINE__, sbuf.GetUTF8(scratch));
         }
 #endif
@@ -2878,12 +2888,10 @@ Retry:
     fInsertIntoAssemblySpecBindingCache = GetFile()->GetLoadContext() == LOADCTX_TYPE_DEFAULT;
 #endif
     
-#if defined(FEATURE_HOSTED_BINDER)
 #if defined(FEATURE_APPX_BINDER)
     fInsertIntoAssemblySpecBindingCache = fInsertIntoAssemblySpecBindingCache && !GetFile()->HasHostAssembly();
 #else
     fInsertIntoAssemblySpecBindingCache = fInsertIntoAssemblySpecBindingCache && GetFile()->CanUseWithBindingCache();
-#endif
 #endif
 
     if (fInsertIntoAssemblySpecBindingCache)
@@ -3279,7 +3287,7 @@ void DomainAssembly::GetCurrentVersionInfo(CORCOMPILE_VERSION_INFO *pNativeVersi
     // pNativeVersionInfo->wOSMajorVersion = (WORD) osInfo.dwMajorVersion;
     pNativeVersionInfo->wOSMajorVersion = 4;
 
-    pNativeVersionInfo->wMachine = IMAGE_FILE_MACHINE_NATIVE;
+    pNativeVersionInfo->wMachine = IMAGE_FILE_MACHINE_NATIVE_NI;
 
     pNativeVersionInfo->wVersionMajor = VER_MAJORVERSION;
     pNativeVersionInfo->wVersionMinor = VER_MINORVERSION;
@@ -3430,18 +3438,6 @@ void DomainAssembly::GetOptimizedIdentitySignature(CORCOMPILE_ASSEMBLY_SIGNATURE
     PEImageLayoutHolder ilLayout(GetFile()->GetAnyILWithRef());
     pSignature->timeStamp = ilLayout->GetTimeDateStamp();
     pSignature->ilImageSize = ilLayout->GetVirtualSize();
-#ifdef MDIL    
-    if (g_fIsNGenEmbedILProcess)
-    {
-        PEImageHolder pILImage(GetFile()->GetILimage());
-        DWORD dwActualILSize; 
-        if (pILImage->GetLoadedLayout()->GetILSizeFromMDILCLRCtlData(&dwActualILSize))
-        {
-            // Use actual source IL size instead of MDIL size
-            pSignature->ilImageSize = dwActualILSize;
-        }
-    }
-#endif  // MDIL
 }
 
 BOOL DomainAssembly::CheckZapDependencyIdentities(PEImage *pNativeImage)
@@ -3514,6 +3510,10 @@ BOOL DomainAssembly::CheckZapSecurity(PEImage *pNativeImage)
     }
     CONTRACTL_END;
 
+#ifdef FEATURE_CORECLR
+    return TRUE;
+#else
+
     //
     // System libraries are a special case, the security info's always OK.
     //
@@ -3531,21 +3531,6 @@ BOOL DomainAssembly::CheckZapSecurity(PEImage *pNativeImage)
         return TRUE;
 #endif
 
-#if defined(FEATURE_CORECLR)
-    // Lets first check whether the assembly is going to receive full trust
-    BOOL fAssemblyIsFullyTrusted = this->GetAppDomain()->IsImageFullyTrusted(pNativeImage);
-
-    // Check if the assembly was ngen as platform
-    Module *  pNativeModule = pNativeImage->GetLoadedLayout()->GetPersistedModuleImage();
-    BOOL fImageAndDependenciesAreFullTrust = pNativeModule->m_pModuleSecurityDescriptor->IsMicrosoftPlatform();
-
-    // return true only if image was ngen at the same trust level as the current trust level. 
-    // images ngen'd as fulltrust can only be loaded in fulltrust and 
-    // non-trusted transparent assembly ngen image can only be loaded in partial trust 
-    // ( only tranparent assemblies can be ngen'd as partial trust.....if it has critical code ngen will error out)
-    return (fAssemblyIsFullyTrusted == fImageAndDependenciesAreFullTrust);
-
-#else // FEATURE_CORECLR
     ETWOnStartup (SecurityCatchCall_V1, SecurityCatchCallEnd_V1);
 
 #ifdef CROSSGEN_COMPILE
@@ -3799,13 +3784,6 @@ DWORD DomainAssembly::ComputeDebuggingConfig()
     {
         dacfFlags |= DACF_USER_OVERRIDE;
     }
-#ifdef FEATURE_LEGACYNETCF
-    else
-    if (GetAppDomain()->GetAppDomainCompatMode() == BaseDomain::APPDOMAINCOMPAT_APP_EARLIER_THAN_WP8)
-    {
-        // NetCF did not respect the DebuggableAttribute
-    }
-#endif
     else
     {
         IfFailThrow(GetDebuggingCustomAttributes(&dacfFlags));
@@ -4162,8 +4140,8 @@ void DomainAssembly::EnumStaticGCRefs(promote_func* fn, ScanContext* sc)
     }
     CONTRACT_END;
 
-    _ASSERTE(GCHeap::IsGCInProgress() &&
-         GCHeap::IsServerHeap()   &&
+    _ASSERTE(GCHeapUtilities::IsGCInProgress() &&
+         GCHeapUtilities::IsServerHeap()   &&
          IsGCSpecialThread());
 
     DomainModuleIterator i = IterateModules(kModIterIncludeLoaded);

@@ -1,7 +1,6 @@
-;
-; Copyright (c) Microsoft. All rights reserved.
-; Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-;
+; Licensed to the .NET Foundation under one or more agreements.
+; The .NET Foundation licenses this file to you under the MIT license.
+; See the LICENSE file in the project root for more information.
 
 ; ==++==
 ;
@@ -42,9 +41,7 @@ EXTERN _StubRareDisableTHROWWorker@4:PROC
 EXTERN __imp__TlsGetValue@4:DWORD
 TlsGetValue PROTO stdcall
 ifdef FEATURE_HIJACK
-EXTERN _OnHijackObjectWorker@4:PROC
-EXTERN _OnHijackInteriorPointerWorker@4:PROC
-EXTERN _OnHijackScalarWorker@4:PROC
+EXTERN _OnHijackWorker@4:PROC
 endif ;FEATURE_HIJACK
 EXTERN _COMPlusEndCatch@20:PROC
 EXTERN _COMPlusFrameHandler:PROC
@@ -117,6 +114,11 @@ EXTERN @JIT_InternalThrow@4:PROC
 EXTERN @ProfileEnter@8:PROC
 EXTERN @ProfileLeave@8:PROC
 EXTERN @ProfileTailcall@8:PROC
+
+UNREFERENCED macro arg
+    local unref
+    unref equ size arg
+endm
 
 FASTCALL_FUNC macro FuncName,cbArgs
 FuncNameReal EQU @&FuncName&@&cbArgs
@@ -327,6 +329,27 @@ ___CxxFrameHandler3 ENDP
 endif ; _DEBUG
 endif ; FEATURE_CORECLR
 
+; Register CLR exception handlers defined on the C++ side with SAFESEH.
+; Note that these directives must be in a file that defines symbols that will be used during linking,
+; otherwise it's possible that the resulting .obj will completly be ignored by the linker and these
+; directives will have no effect.
+COMPlusFrameHandler proto c
+.safeseh COMPlusFrameHandler
+
+COMPlusNestedExceptionHandler proto c
+.safeseh COMPlusNestedExceptionHandler
+
+FastNExportExceptHandler proto c
+.safeseh FastNExportExceptHandler
+
+UMThunkPrestubHandler proto c
+.safeseh UMThunkPrestubHandler
+
+ifdef FEATURE_COMINTEROP
+COMPlusFrameHandlerRevCom proto c
+.safeseh COMPlusFrameHandlerRevCom
+endif
+
 ; Note that RtlUnwind trashes EBX, ESI and EDI, so this wrapper preserves them
 CallRtlUnwind PROC stdcall public USES ebx esi edi, pEstablisherFrame :DWORD, callback :DWORD, pExceptionRecord :DWORD, retVal :DWORD
 
@@ -465,7 +488,7 @@ _GetSpecificCpuTypeAsm@0 PROC public
         push    ecx
         popfd               ; Save the updated flags.
         pushfd
-        pop     ecx         ; Retrive the updated flags
+        pop     ecx         ; Retrieve the updated flags
         xor     ecx, eax    ; Test if it actually changed (bit set means yes)
         push    eax
         popfd               ; Restore the flags
@@ -507,7 +530,7 @@ _GetSpecificCpuFeaturesAsm@4 PROC public
         push    ecx
         popfd               ; Save the updated flags.
         pushfd
-        pop     ecx         ; Retrive the updated flags
+        pop     ecx         ; Retrieve the updated flags
         xor     ecx, eax    ; Test if it actually changed (bit set means yes)
         push    eax
         popfd               ; Restore the flags
@@ -907,12 +930,9 @@ endif
 
 ifdef FEATURE_HIJACK
 
-; A JITted method's return address was hijacked to return to us here.  What we do
-; is make a __cdecl call with 2 ints.  One is the return value we wish to preserve.
-; The other is space for our real return address.
-;
-;VOID __stdcall OnHijackObjectTripThread();
-OnHijackObjectTripThread PROC stdcall public
+; A JITted method's return address was hijacked to return to us here.  
+; VOID OnHijackTripThread()
+OnHijackTripThread PROC stdcall public
 
     ; Don't fiddle with this unless you change HijackFrame::UpdateRegDisplay
     ; and HijackArgs
@@ -929,41 +949,7 @@ OnHijackObjectTripThread PROC stdcall public
     sub     esp,12
 
     push    esp
-    call    _OnHijackObjectWorker@4
-
-    ; unused space for floating point state
-    add     esp,12
-
-    pop     edi
-    pop     esi
-    pop     ebx
-    pop     edx
-    pop     ecx
-    pop     eax
-    pop     ebp
-    retn                 ; return to the correct place, adjusted by our caller
-OnHijackObjectTripThread ENDP
-
-
-; VOID OnHijackInteriorPointerTripThread()
-OnHijackInteriorPointerTripThread PROC stdcall public
-
-    ; Don't fiddle with this unless you change HijackFrame::UpdateRegDisplay
-    ; and HijackArgs
-    push    eax         ; make room for the real return address (Eip)
-    push    ebp
-    push    eax
-    push    ecx
-    push    edx
-    push    ebx
-    push    esi
-    push    edi
-
-    ; unused space for floating point state
-    sub     esp,12
-
-    push    esp
-    call    _OnHijackInteriorPointerWorker@4
+    call    _OnHijackWorker@4
 
     ; unused space for floating point state
     add     esp,12
@@ -976,43 +962,10 @@ OnHijackInteriorPointerTripThread PROC stdcall public
     pop     eax
     pop     ebp
     retn                ; return to the correct place, adjusted by our caller
-OnHijackInteriorPointerTripThread ENDP
+OnHijackTripThread ENDP
 
-; VOID OnHijackScalarTripThread()
-OnHijackScalarTripThread PROC stdcall public
-
-    ; Don't fiddle with this unless you change HijackFrame::UpdateRegDisplay
-    ; and HijackArgs
-    push    eax         ; make room for the real return address (Eip)
-    push    ebp
-    push    eax
-    push    ecx
-    push    edx
-    push    ebx
-    push    esi
-    push    edi
-
-    ; unused space for floating point state
-    sub     esp,12
-
-    push    esp
-    call    _OnHijackScalarWorker@4
-
-    ; unused space for floating point state
-    add     esp,12
-
-    pop     edi
-    pop     esi
-    pop     ebx
-    pop     edx
-    pop     ecx
-    pop     eax
-    pop     ebp
-    retn                ; return to the correct place, adjusted by our caller
-OnHijackScalarTripThread ENDP
-
-; VOID OnHijackFloatingPointTripThread()
-OnHijackFloatingPointTripThread PROC stdcall public
+; VOID OnHijackFPTripThread()
+OnHijackFPTripThread PROC stdcall public
 
     ; Don't fiddle with this unless you change HijackFrame::UpdateRegDisplay
     ; and HijackArgs
@@ -1032,7 +985,7 @@ OnHijackFloatingPointTripThread PROC stdcall public
     fstp    tbyte ptr [esp]
 
     push    esp
-    call    _OnHijackScalarWorker@4
+    call    _OnHijackWorker@4
 
     ; restore top of the floating point stack
     fld     tbyte ptr [esp]
@@ -1047,7 +1000,7 @@ OnHijackFloatingPointTripThread PROC stdcall public
     pop     eax
     pop     ebp
     retn                ; return to the correct place, adjusted by our caller
-OnHijackFloatingPointTripThread ENDP
+OnHijackFPTripThread ENDP
 
 endif ; FEATURE_HIJACK
 
@@ -1236,6 +1189,7 @@ UM2MThunk_WrapperHelper proc stdcall public,
                         pAddr : DWORD,
                         pEntryThunk : DWORD,
                         pThread : DWORD
+    UNREFERENCED argLen
 
     push    ebx
 

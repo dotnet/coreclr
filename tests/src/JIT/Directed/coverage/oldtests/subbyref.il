@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // Arithemetic operations are generally only allowed with
 // primitive types, but certain operations are allowed
@@ -8,6 +9,11 @@
 
 
 .assembly extern legacy library mscorlib {}
+.assembly extern System.Console
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
 .assembly subbyref {}
 .class a extends [mscorlib]System.Object
 {
@@ -32,13 +38,13 @@
 	sub
 	dup
 	stloc.2
-	call       void [mscorlib]System.Console::WriteLine(int32)
+	call       void [System.Console]System.Console::WriteLine(int32)
 
   // op1: byref, op2: int
 	ldloca V_2
 	ldc.i4 1
 	sub
-	call       void [mscorlib]System.Console::WriteLine(int32)
+	call       void [System.Console]System.Console::WriteLine(int32)
 
 ldc.i4 100
   IL_0038:  ret

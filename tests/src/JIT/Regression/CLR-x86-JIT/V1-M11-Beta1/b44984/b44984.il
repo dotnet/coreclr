@@ -1,7 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 .assembly extern legacy library mscorlib {}
+.assembly extern System.Console
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
 .assembly ILGEN_0xd135fd7 {}
 .class ILGEN_0xd135fd7 {
 .method static int32 Method_0x96745647(int8 Arg_0x0, unsigned int8 Arg_0x1, unsigned int32 Arg_0x2, int16 Arg_0x3, unsigned int8 Arg_0x4, unsigned int32 Arg_0x5, int8 Arg_0x6, int64 Arg_0x7, float64 Arg_0x8) {

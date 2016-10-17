@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 #if !defined(_EX_H_)
@@ -9,66 +8,17 @@
 
 void RetailAssertIfExpectedClean();             // Defined in src/utilcode/debug.cpp
 
-#ifdef CLR_STANDALONE_BINDER
+#ifdef FEATURE_PAL
+#define EX_TRY_HOLDER                                   \
+    HardwareExceptionHolder                             \
+    NativeExceptionHolderCatchAll __exceptionHolder;    \
+    __exceptionHolder.Push();                           \
 
-#define INCONTRACT(x)
-
-#define EX_THROW(type, value)   throw type(value)
-
-void DECLSPEC_NORETURN ThrowLastError();
-
-#define EX_TRY  try
-#define EX_CATCH_HRESULT(_hr)    catch (HRESULT hr) { _hr = hr; }
-#define EX_CATCH    catch(...)
-#define EX_END_CATCH(a)
-#define EX_RETHROW  throw
-#define EX_SWALLOW_NONTERMINAL catch(...) {}
-#define EX_END_CATCH_UNREACHABLE
-#define EX_CATCH_HRESULT_NO_ERRORINFO(_hr)                                      \
-    EX_CATCH                                                                    \
-    {                                                                           \
-        (_hr) = GET_EXCEPTION()->GetHR();                                       \
-        _ASSERTE(FAILED(_hr));                                                  \
-    }                                                                           \
-    EX_END_CATCH(SwallowAllExceptions)
-
-void DECLSPEC_NORETURN ThrowHR(HRESULT hr);
-inline void DECLSPEC_NORETURN ThrowHR(HRESULT hr, int msgId)
-{
-    throw hr;
-}
-void DECLSPEC_NORETURN ThrowHR(HRESULT hr, SString const &msg);
-
-#define GET_EXCEPTION() ((Exception*)NULL)
-
-void DECLSPEC_NORETURN ThrowWin32(DWORD err);
-
-inline void IfFailThrow(HRESULT hr)
-{
-    WRAPPER_NO_CONTRACT;
-
-    if (FAILED(hr))
-    {
-        ThrowHR(hr);
-    }
-}
-
-/*
-inline HRESULT OutOfMemory()
-{
-    LEAF_CONTRACT;
-    return (E_OUTOFMEMORY);
-}
-*/
-#define COMPlusThrowNonLocalized(key, msg)  throw msg
-
-// Set if fatal error (like stack overflow or out of memory) occured in this process.
-extern HRESULT g_hrFatalError;
-
-#endif //CLR_STANDALONE_BINDER
+#else // FEATURE_PAL
+#define EX_TRY_HOLDER
+#endif // FEATURE_PAL
 
 #include "sstring.h"
-#ifndef CLR_STANDALONE_BINDER
 #include "crtwrap.h"
 #include "winwrap.h"
 #include "corerror.h"
@@ -80,8 +30,6 @@ extern HRESULT g_hrFatalError;
 #if !defined(_DEBUG_IMPL) && defined(_DEBUG) && !defined(DACCESS_COMPILE)
 #define _DEBUG_IMPL 1
 #endif
-
-#endif //!CLR_STANDALONE_BINDER
 
 
 //=========================================================================================== 
@@ -651,8 +599,6 @@ class OutOfMemoryException : public Exception
     virtual BOOL IsPreallocatedException() { return bIsPreallocated; }
 };
 
-#ifndef CLR_STANDALONE_BINDER
-
 template <typename STATETYPE>
 class CAutoTryCleanup
 {
@@ -953,7 +899,9 @@ Exception *ExThrowWithInnerHelper(Exception *inner);
 
 //#define IsCLRException(ex) ((ex !=NULL) && ex->IsType(CLRException::GetType())
 
-#define EX_TRY EX_TRY_CUSTOM(Exception::HandlerState, , DelegatingException /* was SEHException*/)
+#define EX_TRY_IMPL EX_TRY_CUSTOM(Exception::HandlerState, , DelegatingException /* was SEHException*/)
+
+#define EX_TRY_CPP_ONLY EX_TRY_CUSTOM_CPP_ONLY(Exception::HandlerState, , DelegatingException /* was SEHException*/)
 
 #ifndef INCONTRACT
 #ifdef ENABLE_CONTRACTS
@@ -982,6 +930,7 @@ Exception *ExThrowWithInnerHelper(Exception *inner);
                 {                                                                       \
                     /* this is necessary for Rotor exception handling to work */        \
                     DEBUG_ASSURE_NO_RETURN_BEGIN(EX_TRY)                                \
+                    EX_TRY_HOLDER                                                       \
 
                                                                                         
 #define EX_CATCH_IMPL_EX(DerivedExceptionClass)                                         \
@@ -1017,40 +966,44 @@ Exception *ExThrowWithInnerHelper(Exception *inner);
 
 #define EX_CATCH_IMPL EX_CATCH_IMPL_EX(Exception)
 
-//
-// What we really need a different version of EX_TRY with one less try scope, but this
-// gets us what we need for now...
-//
-#define EX_CATCH_IMPL_CPP_ONLY                                                          \
-                    DEBUG_ASSURE_NO_RETURN_END(EX_TRY)                                  \
-                }                                                                       \
-                SCAN_EHMARKER_END_TRY();                                                \
-            }                                                                           \
-            PAL_CPP_CATCH_DERIVED (Exception, __pExceptionRaw)                          \
-            {                                                                           \
-                SCAN_EHMARKER_CATCH();                                                  \
-                __state.SetCaughtCxx();                                                 \
-                __state.m_pExceptionPtr = __pExceptionRaw;                              \
-                SCAN_EHMARKER_END_CATCH();                                              \
-                SCAN_IGNORE_THROW_MARKER;                                               \
-                PAL_CPP_RETHROW;                                                        \
-            }                                                                           \
-            PAL_CPP_ENDTRY                                                              \
-            SCAN_EHMARKER_END_TRY();                                                    \
-        }                                                                               \
-        PAL_CPP_CATCH_EXCEPTION_NOARG                                                   \
-        {                                                                               \
-            SCAN_EHMARKER_CATCH();                                                      \
-            VALIDATE_BACKOUT_STACK_CONSUMPTION;                                         \
-            __defaultException_t __defaultException;                                    \
-            CHECK::ResetAssert();                                                       \
-            ExceptionHolder __pException(__state.m_pExceptionPtr);                      \
-            /* work around unreachable code warning */                                  \
-            if (true) {                                                                 \
-                DEBUG_ASSURE_NO_RETURN_BEGIN(EX_CATCH)                                  \
-                /* don't embed file names in retail to save space and avoid IP */       \
-                /* a findstr /n will allow you to locate it in a pinch */               \
-                __state.SetupCatch(INDEBUG_COMMA(__FILE__) __LINE__);                   \
+#define EX_TRY_CUSTOM_CPP_ONLY(STATETYPE, STATEARG, DEFAULT_EXCEPTION_TYPE)         \
+    {                                                                               \
+        STATETYPE               __state STATEARG;                                   \
+        typedef DEFAULT_EXCEPTION_TYPE  __defaultException_t;                       \
+        SCAN_EHMARKER();                                                            \
+        PAL_CPP_TRY                                                                 \
+        {                                                                           \
+            SCAN_EHMARKER_TRY();                                                    \
+            CAutoTryCleanup<STATETYPE> __autoCleanupTry(__state);                   \
+            /* prevent annotations from being dropped by optimizations in debug */  \
+            INDEBUG(static bool __alwayszero;)                                      \
+            INDEBUG(VolatileLoad(&__alwayszero);)                                   \
+            {                                                                       \
+                /* this is necessary for Rotor exception handling to work */        \
+                DEBUG_ASSURE_NO_RETURN_BEGIN(EX_TRY)                                \
+
+#define EX_CATCH_IMPL_CPP_ONLY                                                      \
+                DEBUG_ASSURE_NO_RETURN_END(EX_TRY)                                  \
+            }                                                                       \
+            SCAN_EHMARKER_END_TRY();                                                \
+        }                                                                           \
+        PAL_CPP_CATCH_DERIVED (Exception, __pExceptionRaw)                          \
+        {                                                                           \
+            SCAN_EHMARKER_CATCH();                                                  \
+            __state.SetCaughtCxx();                                                 \
+            __state.m_pExceptionPtr = __pExceptionRaw;                              \
+            SCAN_EHMARKER_END_CATCH();                                              \
+            SCAN_IGNORE_THROW_MARKER;                                               \
+            VALIDATE_BACKOUT_STACK_CONSUMPTION;                                     \
+            __defaultException_t __defaultException;                                \
+            CHECK::ResetAssert();                                                   \
+            ExceptionHolder __pException(__state.m_pExceptionPtr);                  \
+            /* work around unreachable code warning */                              \
+            if (true) {                                                             \
+                DEBUG_ASSURE_NO_RETURN_BEGIN(EX_CATCH)                              \
+                /* don't embed file names in retail to save space and avoid IP */   \
+                /* a findstr /n will allow you to locate it in a pinch */           \
+                __state.SetupCatch(INDEBUG_COMMA(__FILE__) __LINE__);               \
 
 
 // Here we finally define the EX_CATCH* macros that will be used throughout the system.
@@ -1062,11 +1015,13 @@ Exception *ExThrowWithInnerHelper(Exception *inner);
 // Likewise, in the C++ only version, EX_CATCH_CPP_ONLY is redundant with EX_CATCH.
 
 #ifndef NO_HOST_CPP_EH_ONLY
+#define EX_TRY                  EX_TRY_IMPL
 #define EX_CATCH                EX_CATCH_IMPL
 #define EX_CATCH_EX             EX_CATCH_IMPL_EX
 #define EX_CATCH_CPP_ONLY       EX_CATCH_IMPL_CPP_ONLY
 #define EX_CATCH_CPP_AND_SEH    Dont_Use_EX_CATCH_CPP_AND_SEH
 #else
+#define EX_TRY                  EX_TRY_CPP_ONLY
 #define EX_CATCH                EX_CATCH_IMPL_CPP_ONLY
 #define EX_CATCH_CPP_ONLY       Dont_Use_EX_CATCH_CPP_ONLY
 #define EX_CATCH_CPP_AND_SEH    EX_CATCH_IMPL
@@ -1558,8 +1513,7 @@ inline HRESULT IfTransientFailThrow(HRESULT hr)
     return hr;
 }
 
-// Set if fatal error (like stack overflow or out of memory) occured in this process.
+// Set if fatal error (like stack overflow or out of memory) occurred in this process.
 GVAL_DECL(HRESULT, g_hrFatalError);
 
-#endif // !CLR_STANDALONE_BINDER
 #endif  // _EX_H_

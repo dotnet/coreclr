@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 ////////////////////////////////////////////////////////////////////////////////
 // ResFile.CPP
 
@@ -281,8 +280,8 @@ VOID Win32Res::WriteVerResource()
     WORD  cbStringBlocks;
     int i;
     bool bUseFileVer = false;
-    WCHAR       rcFile[_MAX_PATH];              // Name of file without path
-    WCHAR       rcFileExtension[_MAX_PATH];     // file extension
+    WCHAR       rcFile[_MAX_PATH] = {0};              // Name of file without path
+    WCHAR       rcFileExtension[_MAX_PATH] = {0};     // file extension
     WCHAR       rcFileName[_MAX_PATH];          // Name of file with extension but without path
     DWORD       cbTmp;
 

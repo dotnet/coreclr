@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -250,11 +249,11 @@ void CMessage::GetObjectFromStack(OBJECTREF* ppDest, PVOID val, const CorElement
 
         _ASSERTE(ty.GetMethodTable()->IsValueType() || ty.GetMethodTable()->IsEnum());
 
-        _ASSERTE(!GCHeap::GetGCHeap()->IsHeapPointer((BYTE *) ppDest) ||
+        _ASSERTE(!GCHeapUtilities::GetGCHeap()->IsHeapPointer((BYTE *) ppDest) ||
              !"(pDest) can not point to GC Heap");
         MethodTable* pMT = ty.GetMethodTable();
 
-        if (pMT->ContainsStackPtr())
+        if (pMT->IsByRefLike())
             COMPlusThrow(kRemotingException, W("Remoting_TypeCantBeRemoted"));
 
         PVOID* pVal;
@@ -752,7 +751,7 @@ FCIMPL2(FC_BOOL_RET, CMessage::Dispatch, MessageObject* pMessageUNSAFE, Object* 
     int ofs;
     while ((ofs = argit.GetNextOffset()) != TransitionBlock::InvalidOffset)
     {
-        if (TransitionBlock::IsFloatArgumentRegisterOffset(ofs))
+        if (TransitionBlock::HasFloatRegister(ofs, argit.GetArgLocDescForStructInRegs()))
         {
             // Found a floating point argument register. The first time we find this we point
             // pFloatArgumentRegisters to the part of the frame where these values were spilled (we don't do
@@ -772,7 +771,7 @@ FCIMPL2(FC_BOOL_RET, CMessage::Dispatch, MessageObject* pMessageUNSAFE, Object* 
     DWORD_PTR   dwRegTypeMap    = 0;
 
     {
-        int    ofs;
+        int ofs;
         while ((ofs = argit.GetNextOffset()) != TransitionBlock::InvalidOffset)
         {
             int regArgNum = TransitionBlock::GetArgumentIndexFromOffset(ofs);

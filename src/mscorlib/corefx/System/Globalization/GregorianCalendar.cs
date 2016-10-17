@@ -1,14 +1,16 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 
 //
 
-using System.Threading;
 using System;
 using System.Globalization;
 using System.Diagnostics.Contracts;
+using System.Runtime.Serialization;
+using System.Threading;
 
 namespace System.Globalization
 {
@@ -16,6 +18,7 @@ namespace System.Globalization
     // 0 CurrentEra (AD)
     // 1 BeforeCurrentEra (BC)
 
+    [Serializable]
     [System.Runtime.InteropServices.ComVisible(true)]
 
     public class GregorianCalendar : Calendar
@@ -52,6 +55,16 @@ namespace System.Globalization
 
         private static volatile Calendar s_defaultInstance;
 
+        [OnDeserialized]
+        private void OnDeserialized(StreamingContext ctx)
+        {
+            if (m_type < GregorianCalendarTypes.Localized ||
+                m_type > GregorianCalendarTypes.TransliteratedFrench)
+            {
+                throw new SerializationException(
+                    String.Format(CultureInfo.CurrentCulture, SR.Serialization_MemberOutOfRange, "type", "GregorianCalendar"));
+            }
+        }
 
         [System.Runtime.InteropServices.ComVisible(false)]
         public override DateTime MinSupportedDateTime
@@ -68,6 +81,15 @@ namespace System.Globalization
             get
             {
                 return (DateTime.MaxValue);
+            }
+        }
+
+        [System.Runtime.InteropServices.ComVisible(false)]
+        public override CalendarAlgorithmType AlgorithmType
+        {
+            get
+            {
+                return CalendarAlgorithmType.SolarCalendar;
             }
         }
 

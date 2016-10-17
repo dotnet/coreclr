@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 #include "common.h"
@@ -52,7 +51,10 @@ LoaderAllocator::LoaderAllocator()
     m_pFatTokenSet = NULL;
 #endif
     
+#ifndef CROSSGEN_COMPILE
     m_pVirtualCallStubManager = NULL;
+#endif
+
     m_fGCPressure = false;
     m_fTerminated = false;
     m_fUnloaded = false;
@@ -298,7 +300,7 @@ BOOL LoaderAllocator::EnsureInstantiation(Module *pDefiningModule, Instantiation
 {
     return FALSE;
 }
-#endif // CROSSGEN_COMPILE
+#endif // !CROSSGEN_COMPILE
 
 #ifndef CROSSGEN_COMPILE
 bool LoaderAllocator::Marked()
@@ -881,7 +883,7 @@ void LoaderAllocator::ActivateManagedTracking()
     LOADERALLOCATORREF loaderAllocator = (LOADERALLOCATORREF)ObjectFromHandle(m_hLoaderAllocatorObjectHandle);
     loaderAllocator->SetNativeLoaderAllocator(this);
 }
-#endif // CROSSGEN_COMPILE
+#endif // !CROSSGEN_COMPILE
 
 
 // We don't actually allocate a low frequency heap for collectible types
@@ -1217,7 +1219,7 @@ void LoaderAllocator::Terminate()
     LOG((LF_CLASSLOADER, LL_INFO100, "End LoaderAllocator::Terminate for loader allocator %p\n", reinterpret_cast<void *>(static_cast<PTR_LoaderAllocator>(this))));
 }
 
-#endif // CROSSGEN_COMPILE
+#endif // !CROSSGEN_COMPILE
 
 
 #else //DACCESS_COMPILE
@@ -1260,8 +1262,10 @@ SIZE_T LoaderAllocator::EstimateSize()
         retval+=m_pStubHeap->GetSize();   
     if(m_pStringLiteralMap)
         retval+=m_pStringLiteralMap->GetSize();
+#ifndef CROSSGEN_COMPILE
     if(m_pVirtualCallStubManager)
         retval+=m_pVirtualCallStubManager->GetSize();
+#endif
 
     return retval;    
 }
@@ -1421,9 +1425,9 @@ void LoaderAllocator::UninitVirtualCallStubManager()
         m_pVirtualCallStubManager = NULL;
     }
 }
-#endif // CROSSGEN_COMPILE
+#endif // !CROSSGEN_COMPILE
 
-#endif // DACCESS_COMPILE
+#endif // !DACCESS_COMPILE
 
 BOOL GlobalLoaderAllocator::CanUnload()
 {
@@ -1661,6 +1665,6 @@ void LoaderAllocator::CleanupFailedTypeInit()
         pLock->Unlink(pItem->m_pListLockEntry);
     }
 }
-#endif // CROSSGEN_COMPILE
+#endif // !CROSSGEN_COMPILE
 
-#endif //!DACCES_COMPILE
+#endif // !DACCESS_COMPILE

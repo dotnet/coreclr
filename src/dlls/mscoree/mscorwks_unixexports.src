@@ -1,8 +1,30 @@
+; Unix hosting API
+coreclr_create_delegate
+coreclr_execute_assembly
+coreclr_initialize
+coreclr_shutdown
+
+; il{d}asm
+MetaDataGetDispenser
+GetMetaDataInternalInterface
+GetMetaDataInternalInterfaceFromPublic
+GetMetaDataPublicInterfaceFromInternal
+
+; PAL module registration
+PAL_RegisterModule
+PAL_UnregisterModule
+
+; Functions exported by the coreclr
+CoreDllMain
+DllMain
+GetCLRRuntimeHost
+
+; Win32 API and other PAL functions used by the mscorlib
 CloseHandle
 CoCreateGuid
 CopyFileW
-CoreDllMain
 CoTaskMemAlloc
+CoTaskMemRealloc
 CoTaskMemFree
 CreateDirectoryW
 CreateEventW
@@ -10,28 +32,24 @@ CreateFileW
 CreateMutexW
 CreateSemaphoreW
 DeleteFileW
-DllMain
 DuplicateHandle
-EnsureOpenSslInitialized
-ExecuteAssembly
 FindClose
 FindFirstFileW
 FindNextFileW
 FlushFileBuffers
-ForkAndExecProcess
 FormatMessageW
 FreeEnvironmentStringsW
 GetACP
+GetComputerNameW
 GetConsoleCP
 GetConsoleOutputCP
 GetCurrentDirectoryW
 GetCurrentProcess
 GetCurrentProcessId
+GetCurrentThreadId
 GetEnvironmentStringsW
 GetEnvironmentVariableW
 GetFileAttributesExW
-GetFileInformationFromFd
-GetFileInformationFromPath
 GetFileSize
 GetFileType
 GetFullPathNameW
@@ -42,19 +60,20 @@ GetSystemInfo
 GetTempFileNameW
 GetTempPathW
 LocalAlloc
+LocalReAlloc
 LocalFree
 LockFile
 lstrlenA
 lstrlenW
 MapViewOfFile
+MetaDataGetDispenser
 MoveFileExW
 MultiByteToWideChar
 OpenEventW
 OpenMutexW
 OpenSemaphoreW
+OutputDebugStringW
 PAL_Random
-PAL_RegisterModule
-PAL_UnregisterModule
 QueryPerformanceCounter  
 QueryPerformanceFrequency
 RaiseException
@@ -64,7 +83,6 @@ ReleaseSemaphore
 RemoveDirectoryW
 ResetEvent
 RtlZeroMemory
-SetConsoleCtrlHandler
 SetCurrentDirectoryW
 SetEndOfFile
 SetEnvironmentVariableW
@@ -73,6 +91,9 @@ SetEvent
 SetFileAttributesW
 SetFilePointer
 SetFileTime
+SysAllocStringLen
+SysFreeString
+SysStringLen
 UnlockFile
 UnmapViewOfFile
 VirtualAlloc

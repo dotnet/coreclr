@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ============================================================
 //
 // Variables.cpp
@@ -84,7 +83,8 @@ namespace BINDER_SPACE
             architectureARM.SetLiteral(W("ARM"));
             architectureARM64.SetLiteral(W("ARM64"));
             cultureNeutral.SetLiteral(W("neutral"));
-            mscorlib.SetLiteral(W("mscorlib"));
+            mscorlib.SetLiteral(CoreLibName_W);
+            
             emptyString.Clear();
 
 #ifdef FEATURE_VERSIONING_LOG

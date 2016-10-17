@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #include <stdio.h>
 #include "consoleargs.h"
@@ -337,10 +336,10 @@ void ConsoleArgs::CleanUpArgs()
     }
 }
 
-bool ConsoleArgs::GetFullFileName(LPCWSTR szSource, __deref_out_ecount(cchFilenameBuffer) LPWSTR filenameBuffer, DWORD cchFilenameBuffer, bool fOutputFilename)
+bool ConsoleArgs::GetFullFileName(LPCWSTR szSource, __out_ecount(cchFilenameBuffer) LPWSTR filenameBuffer, DWORD cchFilenameBuffer, bool fOutputFilename)
 {
 #ifdef PLATFORM_UNIX
-    WCHAR tempBuffer[MAX_PATH];
+    WCHAR tempBuffer[MAX_LONGPATH];
     memset(filenameBuffer, 0, cchFilenameBuffer * sizeof(WCHAR));
     if (!PathCanonicalizeW(tempBuffer, szSource) ||
         StringCchCopyW(filenameBuffer, cchFilenameBuffer, tempBuffer) != S_OK)
@@ -367,13 +366,13 @@ bool ConsoleArgs::GetFullFileName(LPCWSTR szSource, __deref_out_ecount(cchFilena
 // Clear previous error message if any and set the new one by copying into m_lastErrorMessage.
 // We are responsible for freeing the memory destruction.
 //
-void ConsoleArgs::SetErrorMessage(__deref_in LPCWSTR pwzMessage)
+void ConsoleArgs::SetErrorMessage(__in LPCWSTR pwzMessage)
 {
     if (m_lastErrorMessage != nullptr)
     {
         delete[] m_lastErrorMessage;
     }
-    m_errorOccured = true;
+    m_errorOccurred = true;
     m_lastErrorMessage = new WCHAR[wcslen(pwzMessage) + 1];
     if (m_lastErrorMessage == nullptr)
     {
@@ -665,7 +664,7 @@ LEADINGWHITE:
         argLast = &listArgNew->next;
     }
 
-    delete szTemp;
+    delete[] szTemp;
 
 }
 
@@ -675,7 +674,7 @@ LEADINGWHITE:
 // We expand any response files that may be contained in the args and return a new
 // set of args, pargc2 and pppargv2 that contain the full flat command line.
 //
-bool ConsoleArgs::ExpandResponseFiles(__in int argc, __deref_in_ecount(argc) const LPCWSTR * argv, __deref_out int * pargc2, __out LPWSTR ** pppargv2)
+bool ConsoleArgs::ExpandResponseFiles(__in int argc, __deref_in_ecount(argc) const LPCWSTR * argv, int * pargc2, __deref_out_ecount(*pargc2) LPWSTR ** pppargv2)
 {
     *pargc2 = 0;
     *pppargv2 = NULL;
@@ -709,7 +708,7 @@ bool ConsoleArgs::ExpandResponseFiles(__in int argc, __deref_in_ecount(argc) con
 
     // Process Response Files
     ProcessResponseArgs();
-    if (m_errorOccured)
+    if (m_errorOccurred)
         return false;
 
     // Now convert to an argc/argv form for remaining processing.
@@ -739,7 +738,7 @@ bool ConsoleArgs::ExpandResponseFiles(__in int argc, __deref_in_ecount(argc) con
 
     *pargc2 = newArgc;
     *pppargv2 = m_rgArgs;
-    return !m_errorOccured;
+    return !m_errorOccurred;
 }
 
 //
@@ -882,10 +881,10 @@ void ConsoleArgs::ProcessResponseArgs()
     HRESULT hr;
     b_tree *response_files = NULL;
 
-    WCHAR szFilename[MAX_PATH];
+    WCHAR szFilename[MAX_LONGPATH];
 
     for (WStrList * listCurArg = m_listArgs;
-         listCurArg != NULL && !m_errorOccured;
+         listCurArg != NULL && !m_errorOccurred;
          listCurArg = listCurArg->next)
     {
         WCHAR * szArg = listCurArg->arg;
@@ -901,7 +900,7 @@ void ConsoleArgs::ProcessResponseArgs()
         }
 
         // Check for duplicates
-        if (!GetFullFileName(&szArg[1], szFilename, MAX_PATH, false))
+        if (!GetFullFileName(&szArg[1], szFilename, MAX_LONGPATH, false))
             continue;
 
         

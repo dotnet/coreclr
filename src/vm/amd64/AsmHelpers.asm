@@ -1,7 +1,6 @@
-;
-; Copyright (c) Microsoft. All rights reserved.
-; Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-;
+; Licensed to the .NET Foundation under one or more agreements.
+; The .NET Foundation licenses this file to you under the MIT license.
+; See the LICENSE file in the project root for more information.
 
 ; ==++==
 ;
@@ -24,9 +23,7 @@ extern ThePreStub:proc
 extern  ProfileEnter:proc
 extern  ProfileLeave:proc
 extern  ProfileTailcall:proc
-extern OnHijackObjectWorker:proc
-extern OnHijackInteriorPointerWorker:proc
-extern OnHijackScalarWorker:proc
+extern OnHijackWorker:proc
 extern JIT_RareDisableHelperWorker:proc
 
 ifdef _DEBUG
@@ -432,54 +429,8 @@ endif ; _DEBUG
 
 
 ; A JITted method's return address was hijacked to return to us here.  
-;
-;VOID __stdcall OnHijackObjectTripThread();
-NESTED_ENTRY OnHijackObjectTripThread, _TEXT 
-
-        ; Don't fiddle with this unless you change HijackFrame::UpdateRegDisplay
-        ; and HijackObjectArgs
-        push                rax ; make room for the real return address (Rip)
-        PUSH_CALLEE_SAVED_REGISTERS
-        push_vol_reg        rax
-        mov                 rcx, rsp
-
-        alloc_stack         20h
-
-        END_PROLOGUE
-    
-        call                OnHijackObjectWorker
-
-        add                 rsp, 20h
-        pop                 rax
-        POP_CALLEE_SAVED_REGISTERS
-        ret                 ; return to the correct place, adjusted by our caller
-NESTED_END OnHijackObjectTripThread, _TEXT
-
-
-; VOID OnHijackInteriorPointerTripThread()
-NESTED_ENTRY OnHijackInteriorPointerTripThread, _TEXT
-
-        ; Don't fiddle with this unless you change HijackFrame::UpdateRegDisplay
-        ; and HijackObjectArgs
-        push                rax ; make room for the real return address (Rip)
-        PUSH_CALLEE_SAVED_REGISTERS
-        push_vol_reg        rax
-        mov                 rcx, rsp
-
-        alloc_stack         20h
-
-        END_PROLOGUE
-    
-        call                OnHijackInteriorPointerWorker
-
-        add                 rsp, 20h
-        pop                 rax
-        POP_CALLEE_SAVED_REGISTERS
-        ret                 ; return to the correct place, adjusted by our caller
-NESTED_END OnHijackInteriorPointerTripThread, _TEXT
-
-; VOID OnHijackScalarTripThread()
-NESTED_ENTRY OnHijackScalarTripThread, _TEXT
+; VOID OnHijackTripThread()
+NESTED_ENTRY OnHijackTripThread, _TEXT
 
         ; Don't fiddle with this unless you change HijackFrame::UpdateRegDisplay
         ; and HijackObjectArgs
@@ -494,7 +445,7 @@ NESTED_ENTRY OnHijackScalarTripThread, _TEXT
         
         END_PROLOGUE
     
-        call                OnHijackScalarWorker
+        call                OnHijackWorker
 
         movdqa              xmm0, [rsp + 20h]
 
@@ -502,7 +453,7 @@ NESTED_ENTRY OnHijackScalarTripThread, _TEXT
         pop                 rax
         POP_CALLEE_SAVED_REGISTERS
         ret                 ; return to the correct place, adjusted by our caller
-NESTED_END OnHijackScalarTripThread, _TEXT
+NESTED_END OnHijackTripThread, _TEXT
 
 
 ;

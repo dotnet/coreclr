@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -19,7 +18,11 @@ Abstract:
 
 --*/
 
+#include "pal/dbgmsg.h"
+SET_DEFAULT_DEBUG_CHANNEL(THREAD); // some headers have code with asserts, so do this first
+
 #include "pal/corunix.hpp"
+#include "pal/context.h"
 #include "pal/thread.hpp"
 #include "pal/mutex.hpp"
 #include "pal/handlemgr.hpp"
@@ -29,9 +32,15 @@ Abstract:
 #include "procprivate.hpp"
 #include "pal/process.h"
 #include "pal/module.h"
-#include "pal/dbgmsg.h"
-#include "pal/misc.h"
+#include "pal/environ.h"
 #include "pal/init.h"
+
+#if defined(__NetBSD__) && !HAVE_PTHREAD_GETCPUCLOCKID
+#include <sys/cdefs.h>
+#include <sys/param.h>
+#include <sys/sysctl.h>
+#include <kvm.h>
+#endif
 
 #include <signal.h>
 #include <pthread.h>
@@ -51,18 +60,22 @@ Abstract:
 #include "pal/fakepoll.h"
 #endif  // HAVE_POLL
 #include <limits.h>
+
 #if HAVE_SYS_LWP_H
 #include <sys/lwp.h>
+#endif
+#if HAVE_LWP_H
+#include <lwp.h>
+#endif
 // If we don't have sys/lwp.h but do expect to use _lwp_self, declare it to silence compiler warnings
-#elif HAVE__LWP_SELF
+#if HAVE__LWP_SELF && !HAVE_SYS_LWP_H && !HAVE_LWP_H
 extern "C" int _lwp_self ();
-#endif // HAVE_LWP_H
+#endif
 
 using namespace CorUnix;
 
 
 /* ------------------- Definitions ------------------------------*/
-SET_DEFAULT_DEBUG_CHANNEL(THREAD);
 
 // The default stack size of a newly created thread (currently 256KB)
 // when the dwStackSize parameter of PAL_CreateThread()
@@ -84,6 +97,11 @@ can't be suspended. */
 pthread_mutex_t ptmEndThread;
 pthread_cond_t ptcEndThread;
 static int iEndingThreads = 0;
+
+// Activation function that gets called when an activation is injected into a thread.
+PAL_ActivationFunction g_activationFunction = NULL;
+// Function to check if an activation can be safely injected at a specified context
+PAL_SafeActivationCheckFunction g_safeActivationCheckFunction = NULL;
 
 void
 ThreadCleanupRoutine(
@@ -196,6 +214,8 @@ Function:
 VOID TLSCleanup()
 {
     SPINLOCKDestroy(&free_threads_spinlock);
+
+    pthread_key_delete(thObjKey);
 }
 
 /*++
@@ -208,7 +228,7 @@ Abstract:
 Return:
     The fresh thread structure, NULL otherwise
 --*/
-CPalThread* AllocTHREAD(CPalThread *pthr)
+CPalThread* AllocTHREAD()
 {
     CPalThread* pThread = NULL;
 
@@ -226,25 +246,7 @@ CPalThread* AllocTHREAD(CPalThread *pthr)
 
     if (pThread == NULL)
     {
-        if(pthr != NULL)
-        {
-            pThread = InternalNew<CPalThread>(pthr);
-        }
-        else
-        {
-#ifdef FEATURE_PAL_SXS
-            // When we reach this point, this thread has presumably wandered in
-            // and is creating a CPalThread instance for itself.  In other words,
-            // the current thread is not registered in the PAL thread list, and
-            // therefore, we will not try to suspend it.  This in turn means
-            // that it's okay to use the system's "new", as opposed to our "new",
-            // whose purpose is to disallow thread suspension while in malloc.
-#else // FEATURE_PAL_SXS
-            // do not use the overloaded new in malloc.cpp since thread data isn't initialized.
-            _ASSERT_MSG(!PALIsThreadDataInitialized(), "Thread data was initialized but NULL was passed in as a reference to the current thread.\n");
-#endif // FEATURE_PAL_SXS
-            pThread = InternalNew<CPalThread>(NULL);
-        }
+        pThread = InternalNew<CPalThread>();
     }
     else
     {
@@ -294,7 +296,10 @@ static void FreeTHREAD(CPalThread *pThread)
        LeaveCriticalSection(&cs,TRUE) need to access the thread private data 
        stored in the very THREAD structure that we just destroyed. Entering and 
        leaving the critical section with internal==FALSE leads to possible hangs
-       in the PROCSuspendOtherThreads logic, at shutdown time */
+       in the PROCSuspendOtherThreads logic, at shutdown time 
+
+       Update: [TODO] PROCSuspendOtherThreads has been removed. Can this 
+       code be changed?*/
 
     /* Get the lock */
     SPINLOCKAcquire(&free_threads_spinlock, 0);
@@ -583,7 +588,7 @@ CorUnix::InternalCreateThread(
     // Create the CPalThread for the thread
     //
 
-    pNewThread = AllocTHREAD(pThread);
+    pNewThread = AllocTHREAD();
     if (NULL == pNewThread)
     {
         palError = ERROR_OUTOFMEMORY;
@@ -626,11 +631,13 @@ CorUnix::InternalCreateThread(
         dwStackSize = CPalThread::s_dwDefaultThreadStackSize;
     }
 
+#ifdef PTHREAD_STACK_MIN
     if (PTHREAD_STACK_MIN > pthreadStackSize)
     {
         WARN("default stack size is reported as %d, but PTHREAD_STACK_MIN is "
              "%d\n", pthreadStackSize, PTHREAD_STACK_MIN);
     }
+#endif
     
     if (pthreadStackSize < dwStackSize)
     {
@@ -938,6 +945,7 @@ CorUnix::InternalEndCurrentThread(
     //
     // Need to synchronize setting the thread state to TS_DONE since 
     // this is checked for in InternalSuspendThreadFromData.
+    // TODO: Is this still needed after removing InternalSuspendThreadFromData?
     //
 
     pThread->suspensionInfo.AcquireSuspensionLock(pThread);
@@ -1168,7 +1176,7 @@ CorUnix::InternalSetThreadPriority(
     {
         goto InternalSetThreadPriorityExit;
     }
-        
+
     pTargetThread->Lock(pThread);
 
     /* validate the requested priority */
@@ -1218,6 +1226,17 @@ CorUnix::InternalSetThreadPriority(
         palError = ERROR_INTERNAL_ERROR;
         goto InternalSetThreadPriorityExit;
     }
+
+#if !HAVE_SCHED_OTHER_ASSIGNABLE
+    /* Defining thread priority for SCHED_OTHER is implementation defined.
+       Some platforms like NetBSD cannot reassign it as they are dynamic.
+    */
+    if (policy == SCHED_OTHER)
+    {
+        TRACE("Pthread priority levels for SCHED_OTHER cannot be reassigned on this platform\n");
+        goto InternalSetThreadPriorityExit;
+    }
+#endif
 
 #if HAVE_SCHED_GET_PRIORITY
     max_priority = sched_get_priority_max(policy);
@@ -1311,6 +1330,240 @@ InternalSetThreadPriorityExit:
     return palError;    
 }
 
+BOOL
+CorUnix::GetThreadTimesInternal(
+    IN HANDLE hThread,
+    OUT LPFILETIME lpKernelTime,
+    OUT LPFILETIME lpUserTime)
+{
+    __int64 calcTime;
+    BOOL retval = FALSE;
+    const __int64 SECS_TO_NS = 1000000000; /* 10^9 */
+    const __int64 USECS_TO_NS = 1000;      /* 10^3 */
+
+#if HAVE_MACH_THREADS
+    thread_basic_info resUsage;
+    PAL_ERROR palError = NO_ERROR;
+    CPalThread *pthrCurrent = NULL;
+    CPalThread *pthrTarget = NULL;
+    IPalObject *pobjThread = NULL;
+    mach_msg_type_number_t resUsage_count = THREAD_BASIC_INFO_COUNT;
+
+    pthrCurrent = InternalGetCurrentThread();
+    palError = InternalGetThreadDataFromHandle(
+        pthrCurrent,
+        hThread,
+        0,
+        &pthrTarget,
+        &pobjThread
+        );
+    
+    if (palError != NO_ERROR)
+    {
+        ASSERT("Unable to get thread data from handle %p"
+              "thread\n", hThread);
+        SetLastError(ERROR_INTERNAL_ERROR);
+        goto SetTimesToZero;
+    }   
+
+    pthrTarget->Lock(pthrCurrent);
+    
+    mach_port_t mhThread;
+    mhThread = pthread_mach_thread_np(pthrTarget->GetPThreadSelf());
+    
+    kern_return_t status;
+    status = thread_info(
+        mhThread, 
+        THREAD_BASIC_INFO, 
+        (thread_info_t)&resUsage, 
+        &resUsage_count);
+
+    pthrTarget->Unlock(pthrCurrent);
+
+    if (status != KERN_SUCCESS)
+    {
+        ASSERT("Unable to get resource usage information for the current "
+              "thread\n");
+        SetLastError(ERROR_INTERNAL_ERROR);
+        goto SetTimesToZero;
+    }
+
+    /* Get the time of user mode execution, in nanoseconds */
+    calcTime = (__int64)resUsage.user_time.seconds * SECS_TO_NS;
+    calcTime += (__int64)resUsage.user_time.microseconds * USECS_TO_NS;
+    /* Assign the time into lpUserTime */
+    lpUserTime->dwLowDateTime = (DWORD)calcTime;
+    lpUserTime->dwHighDateTime = (DWORD)(calcTime >> 32);
+
+    /* Get the time of kernel mode execution, in nanoseconds */
+    calcTime = (__int64)resUsage.system_time.seconds * SECS_TO_NS;
+    calcTime += (__int64)resUsage.system_time.microseconds * USECS_TO_NS;
+    /* Assign the time into lpKernelTime */
+    lpKernelTime->dwLowDateTime = (DWORD)calcTime;
+    lpKernelTime->dwHighDateTime = (DWORD)(calcTime >> 32);
+
+    retval = TRUE;
+
+    goto GetThreadTimesInternalExit;
+
+#elif defined(__NetBSD__) && !HAVE_PTHREAD_GETCPUCLOCKID /* Currently unimplemented */
+
+    PAL_ERROR palError;
+    CPalThread *pThread;
+    CPalThread *pTargetThread;
+    IPalObject *pobjThread = NULL;
+    kvm_t *kd;
+    int cnt, nlwps;
+    struct kinfo_lwp *klwp;
+    int i;
+    bool found = false;
+
+    pThread = InternalGetCurrentThread();
+
+    palError = InternalGetThreadDataFromHandle(
+        pThread,
+        hThread,
+        0, // THREAD_GET_CONTEXT
+        &pTargetThread,
+        &pobjThread
+        );
+    if (palError != NO_ERROR)
+    {
+        ASSERT("Unable to get thread data from handle %p"
+              "thread\n", hThread);
+        SetLastError(ERROR_INTERNAL_ERROR);
+        goto SetTimesToZero;
+    }
+
+    kd = kvm_open(NULL, NULL, NULL, KVM_NO_FILES, "kvm_open");
+    if (kd == NULL)
+    {
+        ASSERT("kvm_open(3) error");
+        SetLastError(ERROR_INTERNAL_ERROR);
+        goto SetTimesToZero;
+    }
+
+    pTargetThread->Lock(pThread);
+
+    klwp = kvm_getlwps(kd, getpid(), 0, sizeof(struct kinfo_lwp), &nlwps);
+    if (klwp == NULL || nlwps < 1)
+    {
+        kvm_close(kd);
+        ASSERT("Unable to get clock from %p thread\n", hThread);
+        SetLastError(ERROR_INTERNAL_ERROR);
+        pTargetThread->Unlock(pThread);
+        goto SetTimesToZero;
+    }
+
+    for (i = 0; i < nlwps; i++)
+    {
+        if (klwp[i].l_lid == THREADSilentGetCurrentThreadId())
+        {
+            found = true;
+            break;
+        }
+    }
+
+    if (!found)
+    {
+        kvm_close(kd);
+        ASSERT("Unable to get clock from %p thread\n", hThread);
+        SetLastError(ERROR_INTERNAL_ERROR);
+        pTargetThread->Unlock(pThread);
+        goto SetTimesToZero;
+    }
+
+    pTargetThread->Unlock(pThread);
+
+    kvm_close(kd);
+
+    calcTime = (__int64) klwp[i].l_rtime_sec * SECS_TO_NS;
+    calcTime += (__int64) klwp[i].l_rtime_usec * USECS_TO_NS;
+    lpUserTime->dwLowDateTime = (DWORD)calcTime;
+    lpUserTime->dwHighDateTime = (DWORD)(calcTime >> 32);
+
+    /* NetBSD as of (7.0) doesn't differentiate used time in user/kernel for lwp */
+    lpKernelTime->dwLowDateTime = 0;
+    lpKernelTime->dwHighDateTime = 0;
+
+    retval = TRUE;
+    goto GetThreadTimesInternalExit;
+
+#else //HAVE_MACH_THREADS
+
+    PAL_ERROR palError;
+    CPalThread *pThread;
+    CPalThread *pTargetThread;
+    IPalObject *pobjThread = NULL;
+    clockid_t cid;
+
+    pThread = InternalGetCurrentThread();
+
+    palError = InternalGetThreadDataFromHandle(
+        pThread,
+        hThread,
+        0, // THREAD_GET_CONTEXT
+        &pTargetThread,
+        &pobjThread
+        );
+    if (palError != NO_ERROR)
+    {
+        ASSERT("Unable to get thread data from handle %p"
+              "thread\n", hThread);
+        SetLastError(ERROR_INTERNAL_ERROR);
+        goto SetTimesToZero;
+    }   
+
+    pTargetThread->Lock(pThread);
+
+#if HAVE_PTHREAD_GETCPUCLOCKID
+    if (pthread_getcpuclockid(pTargetThread->GetPThreadSelf(), &cid) != 0)
+#endif
+    {
+        ASSERT("Unable to get clock from thread\n", hThread);
+        SetLastError(ERROR_INTERNAL_ERROR);
+        pTargetThread->Unlock(pThread);
+        goto SetTimesToZero;
+    }
+
+    struct timespec ts;
+    if (clock_gettime(cid, &ts) != 0)
+    {
+        ASSERT("clock_gettime() failed; errno is %d (%s)\n", errno, strerror(errno));
+        SetLastError(ERROR_INTERNAL_ERROR);
+        pTargetThread->Unlock(pThread);
+        goto SetTimesToZero;
+    }
+
+    pTargetThread->Unlock(pThread);
+
+    /* Calculate time in nanoseconds and assign to user time */
+    calcTime = (__int64) ts.tv_sec * SECS_TO_NS;
+    calcTime += (__int64) ts.tv_nsec;
+    lpUserTime->dwLowDateTime = (DWORD)calcTime;
+    lpUserTime->dwHighDateTime = (DWORD)(calcTime >> 32);
+    
+    /* Set kernel time to zero, for now */
+    lpKernelTime->dwLowDateTime = 0;
+    lpKernelTime->dwHighDateTime = 0;
+
+    retval = TRUE;
+    goto GetThreadTimesInternalExit;
+
+#endif //HAVE_MACH_THREADS
+
+SetTimesToZero:
+    
+    lpUserTime->dwLowDateTime = 0;
+    lpUserTime->dwHighDateTime = 0;
+    lpKernelTime->dwLowDateTime = 0;
+    lpKernelTime->dwHighDateTime = 0;
+    goto GetThreadTimesInternalExit;
+
+GetThreadTimesInternalExit:
+    return retval;
+}
+
 /*++
 Function:
   GetThreadTimes
@@ -1331,104 +1584,49 @@ GetThreadTimes(
           "lpUserTime=%p)\n",
           hThread, lpCreationTime, lpExitTime, lpKernelTime, lpUserTime );
 
-    BOOL retval = FALSE;
-    
-#if HAVE_MACH_THREADS
-    PAL_ERROR palError = NO_ERROR;
-	CPalThread *pthrCurrent = NULL;
-    CPalThread *pthrTarget = NULL;
-    IPalObject *pobjThread = NULL;
-    thread_basic_info resUsage;
-    mach_msg_type_number_t resUsage_count = THREAD_BASIC_INFO_COUNT;
-    __int64 calcTime;
-    const __int64 SECS_TO_NS = 1000000000; /* 10^9 */
-    const __int64 USECS_TO_NS = 1000;      /* 10^3 */
+    FILETIME KernelTime, UserTime;
 
-    pthrCurrent = InternalGetCurrentThread();
-    palError = InternalGetThreadDataFromHandle(
-        pthrCurrent,
-        hThread,
-        0,
-        &pthrTarget,
-        &pobjThread
-        );
-    
-	if (palError != NO_ERROR)
-    {
-        ASSERT("Unable to get thread data from handle %p"
-              "thread\n", hThread);
-        SetLastError(ERROR_INTERNAL_ERROR);
-        goto GetThreadTimesExit;
-	}	
+    BOOL retval = GetThreadTimesInternal(hThread, &KernelTime, &UserTime);
 
-    pthrTarget->Lock(pthrCurrent);
-	
-    mach_port_t mhThread;
-    mhThread = pthread_mach_thread_np(pthrTarget->GetPThreadSelf());
-	
-	kern_return_t status;
-	status = thread_info(
-	    mhThread, 
-		THREAD_BASIC_INFO, 
-		(thread_info_t)&resUsage, 
-		&resUsage_count);
-	
-    if (status != KERN_SUCCESS)
-	{
-        ASSERT("Unable to get resource usage information for the current "
-              "thread\n");
-        SetLastError(ERROR_INTERNAL_ERROR);
-        goto GetThreadTimesExit;
-    }
-    
+    /* Not sure if this still needs to be here */
+    /*
     TRACE ("thread_info User: %ld sec,%ld microsec. Kernel: %ld sec,%ld"
            " microsec\n",
            resUsage.user_time.seconds, resUsage.user_time.microseconds,
            resUsage.system_time.seconds, resUsage.system_time.microseconds);
+    */
 
+    __int64 calcTime;
     if (lpUserTime)
     {
-        /* Get the time of user mode execution, in 100s of nanoseconds */
-        calcTime = (__int64)resUsage.user_time.seconds * SECS_TO_NS;
-        calcTime += (__int64)resUsage.user_time.microseconds * USECS_TO_NS;
-        calcTime /= 100; /* Produce the time in 100s of ns */
-        /* Assign the time into lpUserTime */
+        /* Produce the time in 100s of ns */
+        calcTime = ((ULONG64)UserTime.dwHighDateTime << 32);
+        calcTime += (ULONG64)UserTime.dwLowDateTime;
+        calcTime /= 100;
         lpUserTime->dwLowDateTime = (DWORD)calcTime;
         lpUserTime->dwHighDateTime = (DWORD)(calcTime >> 32);
     }
-
     if (lpKernelTime)
     {
-        /* Get the time of kernel mode execution, in 100s of nanoseconds */
-        calcTime = (__int64)resUsage.system_time.seconds * SECS_TO_NS;
-        calcTime += (__int64)resUsage.system_time.microseconds * USECS_TO_NS;
-        calcTime /= 100; /* Produce the time in 100s of ns */
-        /* Assign the time into lpUserTime */
+        /* Produce the time in 100s of ns */
+        calcTime = ((ULONG64)KernelTime.dwHighDateTime << 32);
+        calcTime += (ULONG64)KernelTime.dwLowDateTime;
+        calcTime /= 100;
         lpKernelTime->dwLowDateTime = (DWORD)calcTime;
         lpKernelTime->dwHighDateTime = (DWORD)(calcTime >> 32);
     }
+    //Set CreationTime and Exit time to zero for now - maybe change this later?
+    if (lpCreationTime)
+    {
+        lpCreationTime->dwLowDateTime = 0;
+        lpCreationTime->dwHighDateTime = 0;
+    }
     
-    pthrTarget->Unlock(pthrCurrent);
-
-    retval = TRUE;
-
-GetThreadTimesExit:
-
-#else // HAVE_MACH_THREADS
-    // UNIXTODO: Implement this
-    lpCreationTime->dwLowDateTime = 0;
-    lpCreationTime->dwHighDateTime = 0;
-    
-    lpExitTime->dwLowDateTime = 0;
-    lpExitTime->dwHighDateTime = 0;
-    
-    lpUserTime->dwLowDateTime = 0;
-    lpUserTime->dwHighDateTime = 0;
-    
-    lpKernelTime->dwLowDateTime = 0;
-    lpKernelTime->dwHighDateTime = 0;
-    retval = TRUE;
-#endif // HAVE_MACH_THREADS
+    if (lpExitTime)
+    {
+        lpExitTime->dwLowDateTime = 0;
+        lpExitTime->dwHighDateTime = 0;
+    }
     
     LOGEXIT("GetThreadTimes returns BOOL %d\n", retval);
     PERF_EXIT(GetThreadTimes);
@@ -1466,6 +1664,9 @@ CPalThread::ThreadEntry(
 
     pThread->m_threadId = THREADSilentGetCurrentThreadId();
     pThread->m_pthreadSelf = pthread_self();
+#if HAVE_MACH_THREADS
+    pThread->m_machPortSelf = pthread_mach_thread_np(pThread->m_pthreadSelf);
+#endif
 #if HAVE_THREAD_SELF
     pThread->m_dwLwpId = (DWORD) thread_self();
 #elif HAVE__LWP_SELF
@@ -1569,7 +1770,7 @@ CorUnix::InitializeGlobalThreadData(
     // Read in the environment to see whether we need to change the default
     // thread stack size.
     //
-    pszStackSize = MiscGetenv(PAL_THREAD_DEFAULT_STACK_SIZE);
+    pszStackSize = EnvironGetenv(PAL_THREAD_DEFAULT_STACK_SIZE);
     if (NULL != pszStackSize)
     {
         // Environment variable exists
@@ -1579,15 +1780,9 @@ CorUnix::InitializeGlobalThreadData(
         {
             CPalThread::s_dwDefaultThreadStackSize = dw;
         }
-    }
 
-#if !HAVE_MACH_EXCEPTIONS || USE_SIGNALS_FOR_THREAD_SUSPENSION
-    //
-    // Initialize the thread suspension signal sets.
-    //
-    
-    CThreadSuspensionInfo::InitializeSignalSets();
-#endif // !HAVE_MACH_EXCEPTIONS || USE_SIGNALS_FOR_THREAD_SUSPENSION
+        free(pszStackSize);
+    }
 
     return palError;
 }
@@ -1618,8 +1813,7 @@ CorUnix::CreateThreadData(
     CPalThread *pThread = NULL;
     
     /* Create the thread object */
-    /* Passing NULL to AllocTHREAD since there is no thread reference to pass in. */
-    pThread = AllocTHREAD(NULL);
+    pThread = AllocTHREAD();
 
     if (NULL == pThread)
     {
@@ -1638,6 +1832,9 @@ CorUnix::CreateThreadData(
 
     pThread->m_threadId = THREADSilentGetCurrentThreadId();
     pThread->m_pthreadSelf = pthread_self();
+#if HAVE_MACH_THREADS
+    pThread->m_machPortSelf = pthread_mach_thread_np(pThread->m_pthreadSelf);
+#endif
 #if HAVE_THREAD_SELF
     pThread->m_dwLwpId = (DWORD) thread_self();
 #elif HAVE__LWP_SELF
@@ -1669,7 +1866,7 @@ CreateThreadDataExit:
 
 /*++
 Function:
-    CreateThreadObject
+    CreateThreadData
 
 Abstract:
     Creates the IPalObject for a thread, storing
@@ -1832,7 +2029,7 @@ CorUnix::InternalCreateDummyThread(
     CObjectAttributes oa(NULL, lpThreadAttributes);
     bool fThreadDataStoredInObject = FALSE;
 
-    pDummyThread = AllocTHREAD(pThread);
+    pDummyThread = AllocTHREAD();
     if (NULL == pDummyThread)
     {
         palError = ERROR_OUTOFMEMORY;
@@ -2183,14 +2380,11 @@ CPalThread::SetStartStatus(
 #endif
 
     //
-    // This routine may get called from two spots:
-    // * CPalThread::ThreadEntry
-    // * InternalSuspendThreadFromData
+    // This routine may get called from CPalThread::ThreadEntry
     //
-    // No matter which path we're on if we've reached this point
-    // there are no further thread suspensions that happen at
-    // creation time, to reset m_bCreateSuspended to prevent
-    // InternalSuspendThreadFromData from calling us again
+    // If we've reached this point there are no further thread 
+    // suspensions that happen at creation time, so reset
+    // m_bCreateSuspended
     //
 
     m_bCreateSuspended = FALSE;
@@ -2416,21 +2610,22 @@ ThreadInitializationRoutine(
     return NO_ERROR;
 }
 
+// Get base address of the current thread's stack
 void *
-PALAPI
-PAL_GetStackBase()
+CPalThread::GetStackBase()
 {
+    void* stackBase;
 #ifdef _TARGET_MAC64
     // This is a Mac specific method
-    return pthread_get_stackaddr_np(pthread_self());
+    stackBase = pthread_get_stackaddr_np(pthread_self());
 #else
     pthread_attr_t attr;
     void* stackAddr;
     size_t stackSize;
     int status;
-    
+
     pthread_t thread = pthread_self();
-    
+
     status = pthread_attr_init(&attr);
     _ASSERT_MSG(status == 0, "pthread_attr_init call failed");
 
@@ -2446,124 +2641,222 @@ PAL_GetStackBase()
     status = pthread_attr_getstack(&attr, &stackAddr, &stackSize);
     _ASSERT_MSG(status == 0, "pthread_attr_getstack call failed");
 
-    return (void*)((size_t)stackAddr + stackSize);
+    status = pthread_attr_destroy(&attr);
+    _ASSERT_MSG(status == 0, "pthread_attr_destroy call failed");
+
+    stackBase = (void*)((size_t)stackAddr + stackSize);
 #endif
+
+    return stackBase;
+}
+
+// Get limit address of the current thread's stack
+void *
+CPalThread::GetStackLimit()
+{
+    void* stackLimit;
+#ifdef _TARGET_MAC64
+    // This is a Mac specific method
+    stackLimit = ((BYTE *)pthread_get_stackaddr_np(pthread_self()) -
+                   pthread_get_stacksize_np(pthread_self()));
+#else
+    pthread_attr_t attr;
+    size_t stackSize;
+    int status;
+
+    pthread_t thread = pthread_self();
+
+    status = pthread_attr_init(&attr);
+    _ASSERT_MSG(status == 0, "pthread_attr_init call failed");
+
+#if HAVE_PTHREAD_ATTR_GET_NP
+    status = pthread_attr_get_np(thread, &attr);
+#elif HAVE_PTHREAD_GETATTR_NP
+    status = pthread_getattr_np(thread, &attr);
+#else
+#error Dont know how to get thread attributes on this platform!
+#endif
+    _ASSERT_MSG(status == 0, "pthread_getattr_np call failed");
+
+    status = pthread_attr_getstack(&attr, &stackLimit, &stackSize);
+    _ASSERT_MSG(status == 0, "pthread_attr_getstack call failed");
+
+    status = pthread_attr_destroy(&attr);
+    _ASSERT_MSG(status == 0, "pthread_attr_destroy call failed");
+#endif
+
+    return stackLimit;
+}
+
+// Get cached base address of this thread's stack
+// Can be called only for the current thread.
+void *
+CPalThread::GetCachedStackBase()
+{
+    _ASSERT_MSG(this == InternalGetCurrentThread(), "CPalThread::GetStackBase called from foreign thread");
+
+    if (m_stackBase == NULL)
+    {
+        m_stackBase = GetStackBase();
+    }
+
+    return m_stackBase;
+}
+
+// Get cached limit address of this thread's stack.
+// Can be called only for the current thread.
+void *
+CPalThread::GetCachedStackLimit()
+{
+    _ASSERT_MSG(this == InternalGetCurrentThread(), "CPalThread::GetCachedStackLimit called from foreign thread");
+
+    if (m_stackLimit == NULL)
+    {
+        m_stackLimit = GetStackLimit();
+    }
+
+    return m_stackLimit;
+}
+
+void *
+PALAPI
+PAL_GetStackBase()
+{
+    CPalThread* thread = InternalGetCurrentThread();
+    return thread->GetCachedStackBase();
 }
 
 void *
 PALAPI
 PAL_GetStackLimit()
 {
-#ifdef _TARGET_MAC64
-    // This is a Mac specific method
-    return ((BYTE *)pthread_get_stackaddr_np(pthread_self()) -
-            pthread_get_stacksize_np(pthread_self()));
-#else
-    pthread_attr_t attr;
-    void* stackAddr;
-    size_t stackSize;
-    int status;
-    
-    pthread_t thread = pthread_self();
-    
-    status = pthread_attr_init(&attr);
-    _ASSERT_MSG(status == 0, "pthread_attr_init call failed");
+    CPalThread* thread = InternalGetCurrentThread();
+    return thread->GetCachedStackLimit();
+}
 
-#if HAVE_PTHREAD_ATTR_GET_NP
-    status = pthread_attr_get_np(thread, &attr);
-#elif HAVE_PTHREAD_GETATTR_NP
-    status = pthread_getattr_np(thread, &attr);
-#else
-#error Dont know how to get thread attributes on this platform!
-#endif
-    _ASSERT_MSG(status == 0, "pthread_getattr_np call failed");
+PAL_ERROR InjectActivationInternal(CorUnix::CPalThread* pThread);
 
-    status = pthread_attr_getstack(&attr, &stackAddr, &stackSize);
-    _ASSERT_MSG(status == 0, "pthread_attr_getstack call failed");
-    
-    return stackAddr;
-#endif
+/*++
+Function:
+    PAL_SetActivationFunction
+
+    Register an activation function that gets called when an activation is injected
+    into a thread.
+
+Parameters:
+    pActivationFunction - activation function
+    pSafeActivationCheckFunction - function to check if an activation can be safely
+                                   injected at a specified context
+Return value:
+    None
+--*/
+PALIMPORT
+VOID
+PALAPI
+PAL_SetActivationFunction(
+    IN PAL_ActivationFunction pActivationFunction,
+    IN PAL_SafeActivationCheckFunction pSafeActivationCheckFunction)
+{
+    g_activationFunction = pActivationFunction;
+    g_safeActivationCheckFunction = pSafeActivationCheckFunction;
+}
+
+/*++
+Function:
+PAL_InjectActivation
+
+Interrupt the specified thread and have it call an activation function registered
+using the PAL_SetActivationFunction
+
+Parameters:
+hThread            - handle of the target thread
+
+Return:
+TRUE if it succeeded, FALSE otherwise.
+--*/
+BOOL
+PALAPI
+PAL_InjectActivation(
+    IN HANDLE hThread)
+{
+    PERF_ENTRY(PAL_InjectActivation);
+    ENTRY("PAL_InjectActivation(hThread=%p)\n", hThread);
+
+    CPalThread *pCurrentThread;
+    CPalThread *pTargetThread;
+    IPalObject *pobjThread = NULL;
+
+    pCurrentThread = InternalGetCurrentThread();
+
+    PAL_ERROR palError = InternalGetThreadDataFromHandle(
+        pCurrentThread,
+        hThread,
+        0,
+        &pTargetThread,
+        &pobjThread
+        );
+
+    if (palError == NO_ERROR)
+    {
+        palError = InjectActivationInternal(pTargetThread);
+    }
+
+    if (palError == NO_ERROR)
+    {
+        pCurrentThread->SetLastError(palError);
+    }
+
+    if (pobjThread != NULL)
+    {
+        pobjThread->ReleaseReference(pCurrentThread);
+    }
+
+    BOOL success = (palError == NO_ERROR);
+    LOGEXIT("PAL_InjectActivation returns:d\n", success);
+    PERF_EXIT(PAL_InjectActivation);
+
+    return success;
 }
 
 #if HAVE_MACH_EXCEPTIONS
-extern mach_port_t s_ExceptionPort;
-extern mach_port_t s_TopExceptionPort;
 
-// Returns a pointer to the handler node that should be initialized next. The first time this is called for a
-// thread the bottom node will be returned. Thereafter the top node will be returned. Also returns the Mach
-// exception port that should be registered.
-CorUnix::CThreadMachExceptionHandlerNode *CorUnix::CThreadMachExceptionHandlers::GetNodeForInitialization(mach_port_t *pExceptionPort)
-{
-    if (m_bottom.m_nPorts == -1)
-    {
-        // Thread hasn't registered handlers before. Return the bottom handler node and exception port.
-        *pExceptionPort = s_ExceptionPort;
-        return &m_bottom;
-    }
-    else
-    {
-        // Othewise use the top handler node and register the top exception port.
-        *pExceptionPort = s_TopExceptionPort;
-        return &m_top;
-    }
-}
+extern mach_port_t s_ExceptionPort;
 
 // Get handler details for a given type of exception. If successful the structure pointed at by pHandler is
-// filled in and true is returned. Otherwise false is returned. The fTopException argument indicates whether
-// the handlers found at the time of a call to ICLRRuntimeHost2::RegisterMacEHPort() should be searched (if
-// not, or a handler is not found there, we'll fallback to looking at the handlers discovered at the point
-// when the CLR first saw this thread).
-bool CorUnix::CThreadMachExceptionHandlers::GetHandler(exception_type_t eException,
-                                                       bool fTopException,
-                                                       CorUnix::MachExceptionHandler *pHandler)
+// filled in and true is returned. Otherwise false is returned.
+bool CorUnix::CThreadMachExceptionHandlers::GetHandler(exception_type_t eException, CorUnix::MachExceptionHandler *pHandler)
 {
     exception_mask_t bmExceptionMask = (1 << eException);
-    int idxHandler = -1;
-    CThreadMachExceptionHandlerNode *pNode = NULL;
-
-    // Check top handlers first if we've been asked to and they have been initialized.
-    if (fTopException && m_top.m_nPorts != -1)
-    {
-        pNode = &m_top;
-        idxHandler = GetIndexOfHandler(bmExceptionMask, pNode);
-    }
-
-    // If we haven't identified a handler yet continue looking with the bottom handlers.
-    if (idxHandler == -1)
-    {
-        pNode = &m_bottom;
-        idxHandler = GetIndexOfHandler(bmExceptionMask, pNode);
-    }
+    int idxHandler = GetIndexOfHandler(bmExceptionMask);
 
     // Did we find a handler?
     if (idxHandler == -1)
         return false;
 
     // Found one, so initialize the output structure with the details.
-    pHandler->m_mask = pNode->m_masks[idxHandler];
-    pHandler->m_handler = pNode->m_handlers[idxHandler];
-    pHandler->m_behavior = pNode->m_behaviors[idxHandler];
-    pHandler->m_flavor = pNode->m_flavors[idxHandler];
+    pHandler->m_mask = m_masks[idxHandler];
+    pHandler->m_handler = m_handlers[idxHandler];
+    pHandler->m_behavior = m_behaviors[idxHandler];
+    pHandler->m_flavor = m_flavors[idxHandler];
 
     return true;
 }
 
 // Look for a handler for the given exception within the given handler node. Return its index if successful or
 // -1 otherwise.
-int CorUnix::CThreadMachExceptionHandlers::GetIndexOfHandler(exception_mask_t bmExceptionMask,
-                                                             CorUnix::CThreadMachExceptionHandlerNode *pNode)
+int CorUnix::CThreadMachExceptionHandlers::GetIndexOfHandler(exception_mask_t bmExceptionMask)
 {
     // Check all handler entries for one handling the exception mask.
-    for (int i = 0; i < pNode->m_nPorts; i++)
+    for (mach_msg_type_number_t i = 0; i < m_nPorts; i++)
     {
-        if (pNode->m_masks[i] & bmExceptionMask &&      // Entry covers this exception type
-            pNode->m_handlers[i] != MACH_PORT_NULL &&   // And the handler isn't null
-            pNode->m_handlers[i] != s_ExceptionPort)    // And the handler isn't ourselves
-        {
+        // Entry covers this exception type and the handler isn't null
+        if (m_masks[i] & bmExceptionMask && m_handlers[i] != MACH_PORT_NULL)
+        { 
+            _ASSERTE(m_handlers[i] != s_ExceptionPort);
+
             // One more check; has the target handler port become dead?
             mach_port_type_t ePortType;
-            if (mach_port_type(mach_task_self(), pNode->m_handlers[i], &ePortType) == KERN_SUCCESS &&
-                !(ePortType & MACH_PORT_TYPE_DEAD_NAME))
+            if (mach_port_type(mach_task_self(), m_handlers[i], &ePortType) == KERN_SUCCESS && !(ePortType & MACH_PORT_TYPE_DEAD_NAME))
             {
                 // Got a matching entry.
                 return i;

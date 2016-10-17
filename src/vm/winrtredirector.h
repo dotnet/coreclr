@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: winrtredirector.h
 //
@@ -22,7 +21,6 @@
 class WinRTInterfaceRedirector
 {
 public:
-#ifndef CLR_STANDALONE_BINDER
     // Returns a MethodDesc to be used as an interop stub for the given redirected interface/slot/direction.
     static MethodDesc *GetStubMethodForRedirectedInterface(
         WinMDAdapter::RedirectedTypeIndex   interfaceIndex,                // redirected interface index
@@ -72,12 +70,9 @@ public:
         }
         return BaseType_None;
     }
-#endif // !CLR_STANDALONE_BINDER
 
     // Returns the redirection index if the MethodTable* is a redirected interface.
     static inline bool ResolveRedirectedInterface(MethodTable *pMT, WinMDAdapter::RedirectedTypeIndex * pIndex);
-
-#ifndef CLR_STANDALONE_BINDER
 
 #ifdef _DEBUG
     static void VerifyRedirectedInterfaceStubs();
@@ -133,7 +128,6 @@ private:
     const static NonMscorlibRedirectedInterfaceInfo s_rNonMscorlibInterfaceInfos[3];
 
     const static int NON_MSCORLIB_MARKER = 0x80000000;
-#endif // !CLR_STANDALONE_BINDER
 };
 
 

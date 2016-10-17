@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 #include "common.h"
@@ -327,6 +326,12 @@ FCIMPL3(void, RuntimeMethodHandle::CheckLinktimeDemands, ReflectMethodObject *pM
         PRECONDITION(CheckPointer(pMethodUNSAFE));
     }
     CONTRACTL_END;
+
+    if(!Security::IsTransparencyEnforcementEnabled())
+    {
+        FCUnique(0xb0);
+        return;
+    }
 
     REFLECTMETHODREF refMethod = (REFLECTMETHODREF)ObjectToOBJECTREF(pMethodUNSAFE);
     REFLECTMODULEBASEREF refModule = (REFLECTMODULEBASEREF)ObjectToOBJECTREF(pModuleUNSAFE);
@@ -842,6 +847,12 @@ void QCALLTYPE RuntimeFieldHandle::CheckAttributeAccess(FieldDesc *pFD, QCall::M
         PRECONDITION(CheckPointer(pModule.m_pModule));
     }
     CONTRACTL_END;
+    
+    if(!Security::IsTransparencyEnforcementEnabled())
+    {
+        FCUnique(0xb1);
+        return;
+    }
 
     BEGIN_QCALL;
 
@@ -1881,10 +1892,9 @@ void QCALLTYPE RuntimeTypeHandle::GetTypeByNameUsingCARules(LPCWSTR pwzClassName
 
 void QCALLTYPE RuntimeTypeHandle::GetTypeByName(LPCWSTR pwzClassName, BOOL bThrowOnError, BOOL bIgnoreCase, BOOL bReflectionOnly,
                                                 QCall::StackCrawlMarkHandle pStackMark, 
-#ifdef FEATURE_HOSTED_BINDER
                                                 ICLRPrivBinder * pPrivHostBinder,
-#endif
-                                                BOOL bLoadTypeFromPartialNameHack, QCall::ObjectHandleOnStack retType)
+                                                BOOL bLoadTypeFromPartialNameHack, QCall::ObjectHandleOnStack retType,
+                                                QCall::ObjectHandleOnStack keepAlive)
 {
     QCALL_CONTRACT;
     
@@ -1895,32 +1905,16 @@ void QCALLTYPE RuntimeTypeHandle::GetTypeByName(LPCWSTR pwzClassName, BOOL bThro
     if (!pwzClassName)
             COMPlusThrowArgumentNull(W("className"),W("ArgumentNull_String"));
 
-    GCX_COOP();
     {
-        OBJECTREF keepAlive = NULL;
+        typeHandle = TypeName::GetTypeManaged(pwzClassName, NULL, bThrowOnError, bIgnoreCase, bReflectionOnly, /*bProhibitAsmQualifiedName =*/ FALSE, pStackMark,
+                                              bLoadTypeFromPartialNameHack, (OBJECTREF*)keepAlive.m_ppObject,
+                                              pPrivHostBinder);
+    }
 
-        // BEGIN_QCALL/END_QCALL define try/catch scopes for potential exceptions thrown when bThrowOnError is enabled.
-        // Originally, in case of an exception the GCFrame was removed from the Thread's Frame chain in the catch block, in UnwindAndContinueRethrowHelperInsideCatch.
-        // However, the catch block declared some local variables that overlapped the location of the now out of scope GCFrame and OBJECTREF, therefore corrupting
-        // those values. Having the GCX_COOP/GCX_PREEMP switching GC modes, allowed a situation where in case of an exception, the thread would wait for a GC to complete
-        // while still having the GCFrame in the Thread's Frame chain, but with a corrupt OBJECTREF due to stack location reuse in the catch block.
-        // The solution is to force the removal of GCFrame (and the Frames above) from the Thread's Frame chain before entering the catch block, at the time of 
-        // FrameWithCookieHolder's destruction.
-        GCPROTECT_HOLDER(keepAlive);
-
-        {
-            GCX_PREEMP();
-            typeHandle = TypeName::GetTypeManaged(pwzClassName, NULL, bThrowOnError, bIgnoreCase, bReflectionOnly, /*bProhibitAsmQualifiedName =*/ FALSE, pStackMark, bLoadTypeFromPartialNameHack, &keepAlive
-#ifdef FEATURE_HOSTED_BINDER
-                                                  , pPrivHostBinder
-#endif
-                );
-        }
-
-        if (!typeHandle.IsNull())
-        {
-            retType.Set(typeHandle.GetManagedClassObject());
-        }
+    if (!typeHandle.IsNull())
+    {
+        GCX_COOP();
+        retType.Set(typeHandle.GetManagedClassObject());
     }
 
     END_QCALL;
@@ -2617,49 +2611,6 @@ FCIMPL2(FC_BOOL_RET, SignatureNative::CompareSig, SignatureNative* pLhsUNSAFE, S
     FC_RETURN_BOOL(ret);
 }
 FCIMPLEND
-
-#if FEATURE_LEGACYNETCF
-FCIMPL4(FC_BOOL_RET, SignatureNative::CompareSigForAppCompat, SignatureNative* pLhsUNSAFE, ReflectClassBaseObject * pTypeLhsUNSAFE, SignatureNative* pRhsUNSAFE, ReflectClassBaseObject * pTypeRhsUNSAFE)
-{
-    FCALL_CONTRACT;
-    
-    INT32 ret = 0;
-
-    struct
-    {
-        SIGNATURENATIVEREF pLhs;
-        REFLECTCLASSBASEREF refTypeLhs;
-        SIGNATURENATIVEREF pRhs;
-        REFLECTCLASSBASEREF refTypeRhs;
-    } gc;
-
-    gc.pLhs = (SIGNATURENATIVEREF)pLhsUNSAFE;
-    gc.refTypeLhs = (REFLECTCLASSBASEREF)ObjectToOBJECTREF(pTypeLhsUNSAFE);
-    gc.pRhs = (SIGNATURENATIVEREF)pRhsUNSAFE;
-    gc.refTypeRhs = (REFLECTCLASSBASEREF)ObjectToOBJECTREF(pTypeRhsUNSAFE);
-
-    if ((gc.refTypeLhs == NULL) || (gc.refTypeRhs == NULL))
-        FCThrowRes(kArgumentNullException, W("Arg_InvalidHandle"));
-
-    TypeHandle typeHandle1 = gc.refTypeLhs->GetType();
-    TypeHandle typeHandle2 = gc.refTypeRhs->GetType();
-
-    // The type contexts will be used in substituting formal type arguments in generic types.
-    SigTypeContext typeContext1(typeHandle1);
-    SigTypeContext typeContext2(typeHandle2);
-
-    HELPER_METHOD_FRAME_BEGIN_RET_PROTECT(gc);
-    {
-        MetaSig metaSig1(gc.pLhs->GetCorSig(), gc.pLhs->GetCorSigSize(), gc.pLhs->GetModule(), &typeContext1);
-        MetaSig metaSig2(gc.pRhs->GetCorSig(), gc.pRhs->GetCorSigSize(), gc.pRhs->GetModule(), &typeContext2);
-
-        ret = MetaSig::CompareMethodSigs(metaSig1, metaSig2, FALSE);
-    }
-    HELPER_METHOD_FRAME_END();
-    FC_RETURN_BOOL(ret);
-}
-FCIMPLEND
-#endif
 
 void QCALLTYPE RuntimeMethodHandle::GetMethodInstantiation(MethodDesc * pMethod, QCall::ObjectHandleOnStack retTypes, BOOL fAsRuntimeTypeArray)
 {

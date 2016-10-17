@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -38,8 +37,10 @@ extern "C"
 */
 extern Volatile<LONG> terminator;
 
-// The process ID of this process, so we can avoid excessive calls to getpid().
+// The process and session ID of this process, so we can avoid excessive calls to getpid() and getsid().
 extern DWORD gPID;
+extern DWORD gSID;
+
 extern LPWSTR pAppDir;
 
 /*++
@@ -69,7 +70,7 @@ Return
 Notes :
     This function takes ownership of lpwstrCmdLine, but not of lpwstrFullPath
 --*/
-BOOL  PROCCreateInitialProcess(LPWSTR lpwstrCmdLine, LPWSTR lpwstrFullPath);
+BOOL PROCCreateInitialProcess(LPWSTR lpwstrCmdLine, LPWSTR lpwstrFullPath);
 
 /*++
 Function:
@@ -102,28 +103,6 @@ VOID PROCCleanupThreadSemIds(VOID);
 
 /*++
 Function:
-  PROCCondemnOtherThreads
-
-  Set the waiting state of other threads to TWS_EARLYDEATH; this will prevent 
-  signaled objects from trying to wake up other threads during process termination
-
-(no parameters, no return value)
---*/
-void PROCCondemnOtherThreads(void);
-
-/*++
-Function:
-  PROCSuspendOtherThreads
-
-  Calls SuspendThread on all threads in the process, except the current 
-  thread. Used by PAL_Terminate.
-
-(no parameters, no return value)
---*/
-void PROCSuspendOtherThreads(void);
-
-/*++
-Function:
   PROCProcessLock
 
 Abstract
@@ -143,14 +122,26 @@ VOID PROCProcessUnlock(VOID);
 
 /*++
 Function:
-  PROCCleanupProcess
+  PROCAbort()
+
+  Aborts the process after calling the shutdown cleanup handler. This function
+  should be called instead of calling abort() directly.
   
-  Do all cleanup work for TerminateProcess, but don't terminate the process.
-  If bTerminateUnconditionally is TRUE, we exit as quickly as possible.
+  Does not return
+--*/
+PAL_NORETURN 
+void PROCAbort();
+
+/*++
+Function:
+  PROCNotifyProcessShutdown
+  
+  Calls the abort handler to do any shutdown cleanup. Call be
+  called from the unhandled native exception handler.
 
 (no return value)
 --*/
-void PROCCleanupProcess(BOOL bTerminateUnconditionally);
+void PROCNotifyProcessShutdown();
 
 /*++
 Function:
@@ -162,19 +153,6 @@ Return
   TRUE if it succeeded, FALSE otherwise
 --*/
 BOOL InitializeFlushProcessWriteBuffers();
-
-#if HAVE_MACH_EXCEPTIONS
-/*++
-Function:
-  PROCThreadFromMachPort
-  
-  Given a Mach thread port, return the CPalThread associated with it.
-
-Return
-    CPalThread*
---*/
-CorUnix::CPalThread *PROCThreadFromMachPort(mach_port_t hThread);
-#endif // HAVE_MACH_EXCEPTIONS
 
 #ifdef __cplusplus
 }

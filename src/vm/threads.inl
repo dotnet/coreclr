@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 
@@ -21,6 +20,28 @@
 #include "threads.h"
 #include "appdomain.hpp"
 #include "frames.h"
+
+#ifndef DACCESS_COMPILE
+#ifdef FEATURE_IMPLICIT_TLS
+
+#ifndef __llvm__
+EXTERN_C __declspec(thread) ThreadLocalInfo gCurrentThreadInfo;
+#else // !__llvm__
+EXTERN_C __thread ThreadLocalInfo gCurrentThreadInfo;
+#endif // !__llvm__
+
+EXTERN_C inline Thread* STDCALL GetThread()
+{
+    return gCurrentThreadInfo.m_pThread;
+}
+
+EXTERN_C inline AppDomain* STDCALL GetAppDomain()
+{
+    return gCurrentThreadInfo.m_pAppDomain;
+}
+
+#endif // FEATURE_IMPLICIT_TLS
+#endif // !DACCESS_COMPILE
 
 #ifdef ENABLE_GET_THREAD_GENERIC_FULL_CHECK
 // See code:GetThreadGenericFullCheck

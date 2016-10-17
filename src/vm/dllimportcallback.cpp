@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: DllImportCallback.cpp
 //
@@ -150,6 +149,7 @@ EXTERN_C void STDCALL UM2MDoADCallBack(UMEntryThunk *pEntryThunk,
     UM2MThunk_Args args = { pEntryThunk, pAddr, pArgs, argLen };
 
 
+    INSTALL_MANAGED_EXCEPTION_DISPATCHER;
     INSTALL_UNWIND_AND_CONTINUE_HANDLER;
     {
         AppDomainFromIDHolder domain(pEntryThunk->GetDomainId(),FALSE);
@@ -161,6 +161,7 @@ EXTERN_C void STDCALL UM2MDoADCallBack(UMEntryThunk *pEntryThunk,
     GetThread()->DoADCallBack(pEntryThunk->GetDomainId(), UM2MThunk_Wrapper, &args);
 
     UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
+    UNINSTALL_MANAGED_EXCEPTION_DISPATCHER;
 }
 
 #ifdef _TARGET_X86_
@@ -1088,6 +1089,19 @@ UMEntryThunk *UMEntryThunkCache::GetUMEntryThunk(MethodDesc *pMD)
     RETURN pThunk;
 }
 
+// FailFast if a native callable method invoked directly from managed code.
+// UMThunkStub.asm check the mode and call this function to failfast.
+extern "C" VOID STDCALL ReversePInvokeBadTransition()
+{
+    STATIC_CONTRACT_THROWS;
+    STATIC_CONTRACT_GC_TRIGGERS;
+    // Fail 
+    EEPOLICY_HANDLE_FATAL_ERROR_WITH_MESSAGE(
+                                             COR_E_EXECUTIONENGINE,
+                                             W("Invalid Program: attempted to call a NativeCallable method from runtime-typesafe code.")
+                                            );
+}
+
 // Disable from a place that is calling into managed code via a UMEntryThunk.
 extern "C" VOID STDCALL UMThunkStubRareDisableWorker(Thread *pThread, UMEntryThunk *pUMEntryThunk)
 {
@@ -1178,6 +1192,7 @@ void STDCALL UMEntryThunk::DoRunTimeInit(UMEntryThunk* pUMEntryThunk)
     }
     CONTRACTL_END;
 
+    INSTALL_MANAGED_EXCEPTION_DISPATCHER;
     // this method is called by stubs which are called by managed code,
     // so we need an unwind and continue handler so that our internal
     // exceptions don't leak out into managed code.
@@ -1198,6 +1213,7 @@ void STDCALL UMEntryThunk::DoRunTimeInit(UMEntryThunk* pUMEntryThunk)
     }
 
     UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
+    UNINSTALL_MANAGED_EXCEPTION_DISPATCHER;
 }
 
 UMEntryThunk* UMEntryThunk::CreateUMEntryThunk()

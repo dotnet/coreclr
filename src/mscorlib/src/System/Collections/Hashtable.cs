@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -22,7 +23,7 @@ namespace System.Collections {
     using System.Runtime.CompilerServices;
     using System.Runtime.ConstrainedExecution;
     using System.Diagnostics.Contracts;
-#if FEATURE_RANDOMIZED_STRING_HASHING
+#if !FEATURE_CORECLR
     using System.Security.Cryptography;
 #endif
    
@@ -462,7 +463,7 @@ namespace System.Collections {
             occupancy = 0;
             UpdateVersion();            
             isWriterInProgress = false;    
-#if !FEATURE_CORECLR        
+#if !FEATURE_CORECLR
             Thread.EndCriticalRegion();
 #endif
         }
@@ -763,9 +764,9 @@ namespace System.Collections {
             loadsize = (int)(loadFactor * newsize);
             UpdateVersion();
             isWriterInProgress = false;
-#if !FEATURE_CORECLR            
+#if !FEATURE_CORECLR
             Thread.EndCriticalRegion();   
-#endif         
+#endif
             // minimun size of hashtable is 3 now and maximum loadFactor is 0.72 now.
             Contract.Assert(loadsize < newsize, "Our current implementaion means this is not possible.");
             return;
@@ -914,7 +915,7 @@ namespace System.Collections {
                     // code until the value & key are set appropriately.
 #if !FEATURE_CORECLR
                     Thread.BeginCriticalRegion(); 
-#endif           
+#endif
                     isWriterInProgress = true;                    
                     buckets[bucketNumber].val = nvalue;
                     buckets[bucketNumber].key  = key;
@@ -922,9 +923,9 @@ namespace System.Collections {
                     count++;
                     UpdateVersion();
                     isWriterInProgress = false;   
-#if !FEATURE_CORECLR                                     
+#if !FEATURE_CORECLR
                     Thread.EndCriticalRegion();
-#endif                    
+#endif
 
 #if FEATURE_RANDOMIZED_STRING_HASHING
 #if !FEATURE_CORECLR
@@ -942,7 +943,6 @@ namespace System.Collections {
                     }
 #endif // !FEATURE_CORECLR
 #endif // FEATURE_RANDOMIZED_STRING_HASHING
-
                     return;
                 }
 
@@ -956,14 +956,14 @@ namespace System.Collections {
                     }
 #if !FEATURE_CORECLR
                     Thread.BeginCriticalRegion();
-#endif          
+#endif
                     isWriterInProgress = true;                    
                     buckets[bucketNumber].val = nvalue;
                     UpdateVersion();                    
                     isWriterInProgress = false; 
-#if !FEATURE_CORECLR       
+#if !FEATURE_CORECLR
                     Thread.EndCriticalRegion();   
-#endif                 
+#endif
 
 #if FEATURE_RANDOMIZED_STRING_HASHING
 #if !FEATURE_CORECLR
@@ -1002,7 +1002,7 @@ namespace System.Collections {
                 // code until the value & key are set appropriately.
 #if !FEATURE_CORECLR
                 Thread.BeginCriticalRegion();  
-#endif         
+#endif
                 isWriterInProgress = true;                    
                 buckets[emptySlotNumber].val = nvalue;
                 buckets[emptySlotNumber].key  = key;
@@ -1010,7 +1010,7 @@ namespace System.Collections {
                 count++;
                 UpdateVersion();                
                 isWriterInProgress = false;     
-#if !FEATURE_CORECLR                
+#if !FEATURE_CORECLR
                 Thread.EndCriticalRegion(); 
 #endif
 
@@ -1088,7 +1088,7 @@ namespace System.Collections {
                     KeyEquals (b.key, key)) {
 #if !FEATURE_CORECLR
                     Thread.BeginCriticalRegion();    
-#endif                
+#endif
                     isWriterInProgress = true;
                     // Clear hash_coll field, then key, then value
                     buckets[bn].hash_coll &= unchecked((int)0x80000000);
@@ -1102,9 +1102,9 @@ namespace System.Collections {
                     count--;
                     UpdateVersion();
                     isWriterInProgress = false; 
-#if !FEATURE_CORECLR                   
+#if !FEATURE_CORECLR
                     Thread.EndCriticalRegion();   
-#endif                 
+#endif
                     return;
                 }
                 bn = (int) (((long)bn + incr)% (uint)buckets.Length);                               
@@ -1221,7 +1221,7 @@ namespace System.Collections {
 
 #pragma warning disable 618
             IHashCodeProvider hcp = null;
-#pragma warning restore 618        
+#pragma warning restore 618
 
             Object [] serKeys = null;
             Object [] serValues = null;
@@ -1247,7 +1247,7 @@ namespace System.Collections {
                     case HashCodeProviderName:
 #pragma warning disable 618
                         hcp = (IHashCodeProvider)siInfo.GetValue(HashCodeProviderName, typeof(IHashCodeProvider));
-#pragma warning restore 618        
+#pragma warning restore 618
                         break;
                     case KeysName:
                         serKeys = (Object[])siInfo.GetValue(KeysName, typeof(Object[]));
@@ -1802,9 +1802,11 @@ namespace System.Collections {
 
             return comparer;
         }
- 
+
         private const int bufferSize = 1024;
+#if !FEATURE_CORECLR
         private static RandomNumberGenerator rng;
+#endif
         private static byte[] data;
         private static int currentIndex = bufferSize;
         private static readonly object lockObj = new Object();
@@ -1816,14 +1818,21 @@ namespace System.Collections {
 
                 if(currentIndex == bufferSize) 
                 {
-                    if(null == rng)
+                    if(data == null)
                     {
-                        rng = RandomNumberGenerator.Create();
                         data = new byte[bufferSize];
                         Contract.Assert(bufferSize % 8 == 0, "We increment our current index by 8, so our buffer size must be a multiple of 8");
+#if !FEATURE_CORECLR
+                        rng = RandomNumberGenerator.Create();
+#endif
+
                     }
 
+#if FEATURE_CORECLR
+                    Microsoft.Win32.Win32Native.Random(true, data, data.Length);
+#else
                     rng.GetBytes(data);
+#endif
                     currentIndex = 0;
                 }
 

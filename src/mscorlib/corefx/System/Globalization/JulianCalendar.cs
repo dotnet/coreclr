@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Diagnostics.Contracts;
@@ -17,6 +18,7 @@ namespace System.Globalization
     //*      Gregorian   0001/01/01   9999/12/31
     //*      Julia       0001/01/03   9999/10/19
 
+    [Serializable]
     [System.Runtime.InteropServices.ComVisible(true)]
     public class JulianCalendar : Calendar
     {
@@ -32,14 +34,12 @@ namespace System.Globalization
         // Number of days in 4 years
         private const int JulianDaysPer4Years = JulianDaysPerYear * 4 + 1;
 
-        //internal static Calendar m_defaultInstance;
-
-        private static readonly int[] DaysToMonth365 =
+        private static readonly int[] s_daysToMonth365 =
         {
             0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365
         };
 
-        private static readonly int[] DaysToMonth366 =
+        private static readonly int[] s_daysToMonth366 =
         {
             0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335, 366
         };
@@ -67,35 +67,14 @@ namespace System.Globalization
             }
         }
 
-        // Return the type of the Julian calendar.
-        //
-
-        //[System.Runtime.InteropServices.ComVisible(false)]
-        //public override CalendarAlgorithmType AlgorithmType
-        //{
-        //    get
-        //    {
-        //        return CalendarAlgorithmType.SolarCalendar;
-        //    }
-        //}
-
-        /*=================================GetDefaultInstance==========================
-        **Action: Internal method to provide a default intance of JulianCalendar.  Used by NLS+ implementation
-        **       and other calendars.
-        **Returns:
-        **Arguments:
-        **Exceptions:
-        ============================================================================*/
-        /*
-        internal static Calendar GetDefaultInstance() {
-            if (m_defaultInstance == null) {
-                m_defaultInstance = new JulianCalendar();
+        [System.Runtime.InteropServices.ComVisible(false)]
+        public override CalendarAlgorithmType AlgorithmType
+        {
+            get
+            {
+                return CalendarAlgorithmType.SolarCalendar;
             }
-            return (m_defaultInstance);
         }
-        */
-
-        // Construct an instance of gregorian calendar.
 
         public JulianCalendar()
         {
@@ -111,7 +90,7 @@ namespace System.Globalization
             }
         }
 
-        static internal void CheckEraRange(int era)
+        internal static void CheckEraRange(int era)
         {
             if (era != CurrentEra && era != JulianEra)
             {
@@ -134,7 +113,7 @@ namespace System.Globalization
             }
         }
 
-        static internal void CheckMonthRange(int month)
+        internal static void CheckMonthRange(int month)
         {
             if (month < 1 || month > 12)
             {
@@ -142,7 +121,7 @@ namespace System.Globalization
             }
         }
 
-        /*=================================GetDefaultInstance==========================
+        /*===================================CheckDayRange============================
         **Action: Check for if the day value is valid.
         **Returns:
         **Arguments:
@@ -152,7 +131,7 @@ namespace System.Globalization
         **  sure year/month values are correct.
         ============================================================================*/
 
-        static internal void CheckDayRange(int year, int month, int day)
+        internal static void CheckDayRange(int year, int month, int day)
         {
             if (year == 1 && month == 1)
             {
@@ -164,7 +143,7 @@ namespace System.Globalization
                 }
             }
             bool isLeapYear = (year % 4) == 0;
-            int[] days = isLeapYear ? DaysToMonth366 : DaysToMonth365;
+            int[] days = isLeapYear ? s_daysToMonth366 : s_daysToMonth365;
             int monthDays = days[month] - days[month - 1];
             if (day < 1 || day > monthDays)
             {
@@ -181,7 +160,7 @@ namespace System.Globalization
 
         // Returns a given date part of this DateTime. This method is used
         // to compute the year, day-of-year, month, or day part.
-        static internal int GetDatePart(long ticks, int part)
+        internal static int GetDatePart(long ticks, int part)
         {
             // Gregorian 1/1/0001 is Julian 1/3/0001. Remember DateTime(0) is refered to Gregorian 1/1/0001.
             // The following line convert Gregorian ticks to Julian ticks.
@@ -211,7 +190,7 @@ namespace System.Globalization
             // Leap year calculation looks different from IsLeapYear since y1, y4,
             // and y100 are relative to year 1, not year 0
             bool leapYear = (y1 == 3);
-            int[] days = leapYear ? DaysToMonth366 : DaysToMonth365;
+            int[] days = leapYear ? s_daysToMonth366 : s_daysToMonth365;
             // All months have less than 32 days, so n >> 5 is a good conservative
             // estimate for the month
             int m = n >> 5 + 1;
@@ -224,9 +203,9 @@ namespace System.Globalization
         }
 
         // Returns the tick count corresponding to the given year, month, and day.
-        static internal long DateToTicks(int year, int month, int day)
+        internal static long DateToTicks(int year, int month, int day)
         {
-            int[] days = (year % 4 == 0) ? DaysToMonth366 : DaysToMonth365;
+            int[] days = (year % 4 == 0) ? s_daysToMonth366 : s_daysToMonth365;
             int y = year - 1;
             int n = y * 365 + y / 4 + days[month - 1] + day - 1;
             // Gregorian 1/1/0001 is Julian 1/3/0001. n * TicksPerDay is the ticks in JulianCalendar.
@@ -263,7 +242,7 @@ namespace System.Globalization
                 m = 12 + (i + 1) % 12;
                 y = y + (i - 11) / 12;
             }
-            int[] daysArray = (y % 4 == 0 && (y % 100 != 0 || y % 400 == 0)) ? DaysToMonth366 : DaysToMonth365;
+            int[] daysArray = (y % 4 == 0 && (y % 100 != 0 || y % 400 == 0)) ? s_daysToMonth366 : s_daysToMonth365;
             int days = (daysArray[m] - daysArray[m - 1]);
 
             if (d > days)
@@ -304,7 +283,7 @@ namespace System.Globalization
         {
             CheckYearEraRange(year, era);
             CheckMonthRange(month);
-            int[] days = (year % 4 == 0) ? DaysToMonth366 : DaysToMonth365;
+            int[] days = (year % 4 == 0) ? s_daysToMonth366 : s_daysToMonth365;
             return (days[month] - days[month - 1]);
         }
 

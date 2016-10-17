@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -155,7 +156,7 @@ namespace System {
             }
 
             if ((uint)startIndex >= value.Length) {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);
+                ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
             }
 
             if (startIndex > value.Length - 2) {
@@ -174,7 +175,7 @@ namespace System {
             }
             
             if ((uint) startIndex >= value.Length) {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);
+                ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
             }
         
             if (startIndex > value.Length -2) {
@@ -206,7 +207,7 @@ namespace System {
             }
         
             if ((uint) startIndex >= value.Length) {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);
+                ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
             }
         
             if (startIndex > value.Length -4) {
@@ -237,7 +238,7 @@ namespace System {
             }
         
             if ((uint) startIndex >= value.Length) {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);
+                ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
             }
         
             if (startIndex > value.Length -8) {
@@ -273,7 +274,7 @@ namespace System {
             if (value == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             if ((uint)startIndex >= value.Length)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);
+                ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
             if (startIndex > value.Length - 2)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_ArrayPlusOffTooSmall);
             Contract.EndContractBlock();
@@ -289,7 +290,7 @@ namespace System {
             if (value == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             if ((uint)startIndex >= value.Length)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);
+                ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
             if (startIndex > value.Length - 4)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_ArrayPlusOffTooSmall);
             Contract.EndContractBlock();
@@ -305,7 +306,7 @@ namespace System {
             if (value == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             if ((uint)startIndex >= value.Length)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);
+                ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
             if (startIndex > value.Length - 8)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_ArrayPlusOffTooSmall);
             Contract.EndContractBlock();
@@ -320,7 +321,7 @@ namespace System {
             if (value == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             if ((uint)startIndex >= value.Length)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);
+                ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
             if (startIndex > value.Length - 4)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_ArrayPlusOffTooSmall);
             Contract.EndContractBlock();
@@ -336,7 +337,7 @@ namespace System {
             if (value == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             if ((uint)startIndex >= value.Length)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);
+                ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
             if (startIndex > value.Length - 8)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_ArrayPlusOffTooSmall);
             Contract.EndContractBlock();
@@ -357,7 +358,7 @@ namespace System {
         // Converts an array of bytes into a String.  
         public static String ToString (byte[] value, int startIndex, int length) {            
             if (value == null) {
-                throw new ArgumentNullException("byteArray");
+                throw new ArgumentNullException("value");
             }
 
             if (startIndex < 0 || startIndex >= value.Length && startIndex > 0) {  // Don't throw for a 0 length array.
@@ -411,7 +412,7 @@ namespace System {
         public static String ToString (byte [] value, int startIndex) {
             if (value == null)
                 throw new ArgumentNullException("value");
-            Contract.Ensures(Contract.Result<String>() != null);            
+            Contract.Ensures(Contract.Result<String>() != null);
             Contract.EndContractBlock();
             return ToString(value, startIndex, value.Length - startIndex);
         }
@@ -439,26 +440,12 @@ namespace System {
 
         [SecuritySafeCritical]
         public static unsafe long DoubleToInt64Bits(double value) {
-            // If we're on a big endian machine, what should this method do?  You could argue for
-            // either big endian or little endian, depending on whether you are writing to a file that
-            // should be used by other programs on that processor, or for compatibility across multiple
-            // formats.  Because this is ambiguous, we're excluding this from the Portable Library & Win8 Profile.
-            // If we ever run on big endian machines, produce two versions where endianness is specified.
-            Contract.Assert(IsLittleEndian, "This method is implemented assuming little endian with an ambiguous spec.");
             return *((long *)&value);
         }
 
         [SecuritySafeCritical]
         public static unsafe double Int64BitsToDouble(long value) {
-            // If we're on a big endian machine, what should this method do?  You could argue for
-            // either big endian or little endian, depending on whether you are writing to a file that
-            // should be used by other programs on that processor, or for compatibility across multiple
-            // formats.  Because this is ambiguous, we're excluding this from the Portable Library & Win8 Profile.
-            // If we ever run on big endian machines, produce two versions where endianness is specified.
-            Contract.Assert(IsLittleEndian, "This method is implemented assuming little endian with an ambiguous spec.");
             return *((double*)&value);
         }                    
     }
-
-
 }

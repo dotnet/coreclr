@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 /*============================================================
 **
 **
@@ -168,44 +169,26 @@ namespace System.Threading
 
 #if FEATURE_CORECLR
 
-        [ThreadStatic]
-        private static SynchronizationContext s_threadStaticContext;
-        //
-        // Maintain legacy NetCF Behavior where setting the value for one thread impacts all threads.
-        //
-        private static SynchronizationContext s_appDomainStaticContext;
-
         [System.Security.SecurityCritical]
         public static void SetSynchronizationContext(SynchronizationContext syncContext)
         {
-            s_threadStaticContext = syncContext;
+            Thread.CurrentThread.SynchronizationContext = syncContext;
         }
 
         [System.Security.SecurityCritical]
         public static void SetThreadStaticContext(SynchronizationContext syncContext)
         {
-			//
-			// If this is a pre-Mango Windows Phone app, we need to set the SC for *all* threads to match the old NetCF behavior.
-			//
-            if (CompatibilitySwitches.IsAppEarlierThanWindowsPhoneMango)
-                s_appDomainStaticContext = syncContext;
-            else
-                s_threadStaticContext = syncContext;
+            Thread.CurrentThread.SynchronizationContext = syncContext;
         }
 
         public static SynchronizationContext Current 
         {
             get      
             {
-                SynchronizationContext context = null;
-            
-                if (CompatibilitySwitches.IsAppEarlierThanWindowsPhoneMango)
-                    context = s_appDomainStaticContext;
-                else
-                    context = s_threadStaticContext;
+                SynchronizationContext context = Thread.CurrentThread.SynchronizationContext;
 
 #if FEATURE_APPX
-                if (context == null && Environment.IsWinRTSupported)
+                if (context == null && AppDomain.IsAppXModel())
                     context = GetWinRTContext();
 #endif
 
@@ -258,7 +241,7 @@ namespace System.Threading
             SynchronizationContext context = null;
             
 #if FEATURE_APPX
-            if (context == null && Environment.IsWinRTSupported)
+            if (context == null && AppDomain.IsAppXModel())
                 context = GetWinRTContext();
 #endif
 
@@ -272,13 +255,8 @@ namespace System.Threading
         private static SynchronizationContext GetWinRTContext()
         {
             Contract.Assert(Environment.IsWinRTSupported);
-
-            // Temporary workaround to avoid loading a bunch of DLLs in every managed process.
-            // This disables this feature for non-AppX processes that happen to use CoreWindow/CoreDispatcher,
-            // which is not what we want.
-            if (!AppDomain.IsAppXModel())
-                return null;
-
+            Contract.Assert(AppDomain.IsAppXModel());
+    
             //
             // We call into the VM to get the dispatcher.  This is because:
             //

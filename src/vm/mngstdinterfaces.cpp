@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -229,7 +228,7 @@ LPVOID MngStdItfBase::ForwardCallToManagedView(
             MethodDescCallSite mngItf(pMngItfMD, CRemotingServices::GetStubForInterfaceMethod(pMngItfMD));
 
             // Call the stub with the args we were passed originally.
-            Result = (Object*)mngItf.CallWithValueTypes_RetArgSlot(pArgs);
+            Result = (Object*)mngItf.Call_RetArgSlot(pArgs);
             if (mngItf.GetMetaSig()->IsObjectRefReturnType()) 
             {
                 Lr.Result = ObjectToOBJECTREF(Result);

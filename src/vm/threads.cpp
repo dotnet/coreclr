@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // THREADS.CPP
 // 
@@ -19,7 +18,7 @@
 #include "excep.h"
 #include "comsynchronizable.h"
 #include "log.h"
-#include "gc.h"
+#include "gcheaputilities.h"
 #include "mscoree.h"
 #include "dbginterface.h"
 #include "corprof.h"                // profiling
@@ -328,16 +327,6 @@ GVAL_IMPL_INIT(DWORD, gAppDomainTLSIndex, TLS_OUT_OF_INDEXES);   // index ( (-1)
 
 #ifndef DACCESS_COMPILE
 #ifdef FEATURE_IMPLICIT_TLS
-EXTERN_C Thread* STDCALL GetThread()
-{
-    return gCurrentThreadInfo.m_pThread;
-}
-
-EXTERN_C AppDomain* STDCALL GetAppDomain()
-{
-    return gCurrentThreadInfo.m_pAppDomain;
-}
-
 BOOL SetThread(Thread* t)
 {
 	LIMITED_METHOD_CONTRACT
@@ -355,16 +344,22 @@ BOOL SetAppDomain(AppDomain* ad)
 }
 
 #if defined(FEATURE_MERGE_JIT_AND_ENGINE)
-Compiler* GetTlsCompiler()
+extern "C"
+{
+
+void* GetJitTls()
 {
     LIMITED_METHOD_CONTRACT
 
-    return gCurrentThreadInfo.m_pCompiler;
+    return gCurrentThreadInfo.m_pJitTls;
 }
-void SetTlsCompiler(Compiler* c)
+
+void SetJitTls(void* v)
 {
     LIMITED_METHOD_CONTRACT
-    gCurrentThreadInfo.m_pCompiler = c;
+    gCurrentThreadInfo.m_pJitTls = v;
+}
+
 }
 #endif // defined(FEATURE_MERGE_JIT_AND_ENGINE)
 
@@ -613,16 +608,18 @@ void Thread::ChooseThreadCPUGroupAffinity()
     }
     CONTRACTL_END;
 
-#if !defined(FEATURE_CORECLR)
+#ifndef FEATURE_PAL
     if (!CPUGroupInfo::CanEnableGCCPUGroups() || !CPUGroupInfo::CanEnableThreadUseAllCpuGroups()) 
          return;
 
+#ifndef FEATURE_CORECLR
     // We only handle the non-hosted case here. If CLR is hosted, the hosting 
     // process controls the physical OS Threads. If CLR is not hosted, we can 
     // set thread group affinity on OS threads directly.
     HostComHolder<IHostTask> pHostTask (GetHostTaskWithAddRef());
     if (pHostTask != NULL)
         return;
+#endif //!FEATURE_CORECLR
 
     //Borrow the ThreadStore Lock here: Lock ThreadStore before distributing threads
     ThreadStoreLockHolder TSLockHolder(TRUE);
@@ -639,7 +636,7 @@ void Thread::ChooseThreadCPUGroupAffinity()
     CPUGroupInfo::SetThreadGroupAffinity(GetThreadHandle(), &groupAffinity, NULL);
     m_wCPUGroup = groupAffinity.Group;
     m_pAffinityMask = groupAffinity.Mask;
-#endif
+#endif // !FEATURE_PAL
 }
 
 void Thread::ClearThreadCPUGroupAffinity()
@@ -651,16 +648,18 @@ void Thread::ClearThreadCPUGroupAffinity()
     }
     CONTRACTL_END;
 
-#if !defined(FEATURE_CORECLR)
+#ifndef FEATURE_PAL
     if (!CPUGroupInfo::CanEnableGCCPUGroups() || !CPUGroupInfo::CanEnableThreadUseAllCpuGroups()) 
          return;
 
+#ifndef FEATURE_CORECLR
     // We only handle the non-hosted case here. If CLR is hosted, the hosting 
     // process controls the physical OS Threads. If CLR is not hosted, we can 
     // set thread group affinity on OS threads directly.
     HostComHolder<IHostTask> pHostTask (GetHostTaskWithAddRef());
     if (pHostTask != NULL)
         return;
+#endif //!FEATURE_CORECLR
 
     ThreadStoreLockHolder TSLockHolder(TRUE);
 
@@ -675,7 +674,7 @@ void Thread::ClearThreadCPUGroupAffinity()
 
     m_wCPUGroup = 0;
     m_pAffinityMask = 0;
-#endif 
+#endif // !FEATURE_PAL
 }
 
 DWORD Thread::StartThread()
@@ -690,8 +689,8 @@ DWORD Thread::StartThread()
 
     DWORD dwRetVal = (DWORD) -1;
 #ifdef _DEBUG
-    _ASSERTE (m_Creater.IsSameThread());
-    m_Creater.ResetThreadId();
+    _ASSERTE (m_Creater.IsCurrentThread());
+    m_Creater.Clear();
 #endif
 #ifdef FEATURE_INCLUDE_ALL_INTERFACES
     HostComHolder<IHostTask> pHostTask(GetHostTaskWithAddRef());
@@ -1119,13 +1118,10 @@ Thread* SetupUnstartedThread(BOOL bRequiresTSL)
     _ASSERTE(ThreadInited());
     Thread* pThread = new Thread();
 
-    if (pThread)
-    {
-        FastInterlockOr((ULONG *) &pThread->m_State,
-                        (Thread::TS_Unstarted | Thread::TS_WeOwn));
+    FastInterlockOr((ULONG *) &pThread->m_State,
+                    (Thread::TS_Unstarted | Thread::TS_WeOwn));
 
-        ThreadStore::AddThread(pThread, bRequiresTSL);
-    }
+    ThreadStore::AddThread(pThread, bRequiresTSL);
 
     return pThread;
 }
@@ -1418,7 +1414,7 @@ DWORD_PTR Thread::OBJREF_HASH = OBJREF_TABSIZE;
 //             GetThreadGenericFullCheck() to actually be called when GetThread() is
 //             called, given the optimizations around GetThread():
 //             * code:InitThreadManager ensures that non-PAL, debug, x86/x64 builds that
-//                 run with COMPLUS_EnforceEEThreadNotRequiredContracts set are forced to
+//                 run with COMPlus_EnforceEEThreadNotRequiredContracts set are forced to
 //                 use GetThreadGeneric instead of the dynamically generated optimized
 //                 TLS getter.
 //             * The non-PAL, debug, x86/x64 GetThreadGeneric() (implemented in the
@@ -1536,11 +1532,11 @@ AppDomain* STDCALL GetAppDomainGeneric()
 // FLS getter to avoid unnecessary indirection via execution engine. It will be used if we get high TLS slot
 // from the OS where we cannot use the fast optimized assembly helpers. (It happens pretty often in hosted scenarios).
 //
-VOID * ClrFlsGetBlockDirect()
+LPVOID* ClrFlsGetBlockDirect()
 {
     LIMITED_METHOD_CONTRACT;
 
-    return UnsafeTlsGetValue(CExecutionEngine::GetTlsIndex());
+    return (LPVOID*)UnsafeTlsGetValue(CExecutionEngine::GetTlsIndex());
 }
 
 extern "C" void * ClrFlsGetBlock();
@@ -1670,10 +1666,10 @@ void InitThreadManager()
     CExecutionEngine::CheckThreadState(0, FALSE);
 
     DWORD masterSlotIndex = CExecutionEngine::GetTlsIndex();
-    POPTIMIZEDTLSGETTER pGetter = MakeOptimizedTlsGetter(masterSlotIndex, (PVOID)ClrFlsGetBlock, TLS_GETTER_MAX_SIZE);
+    CLRFLSGETBLOCK pGetter = (CLRFLSGETBLOCK)MakeOptimizedTlsGetter(masterSlotIndex, (PVOID)ClrFlsGetBlock, TLS_GETTER_MAX_SIZE);
     __ClrFlsGetBlock = pGetter ? pGetter : ClrFlsGetBlockDirect;
 #else
-    __ClrFlsGetBlock = (POPTIMIZEDTLSGETTER) CExecutionEngine::GetTlsData;
+    __ClrFlsGetBlock = CExecutionEngine::GetTlsData;
 #endif // FEATURE_IMPLICIT_TLS
 
     IfFailThrow(Thread::CLRSetThreadStackGuarantee(Thread::STSGuarantee_Force));
@@ -1691,6 +1687,8 @@ void InitThreadManager()
     // Randomize OBJREF_HASH to handle hash collision.
     Thread::OBJREF_HASH = OBJREF_TABSIZE - (DbgGetEXETimeStamp()%10);
 #endif // _DEBUG
+
+    ThreadSuspend::Initialize();
 }
 
 
@@ -1921,14 +1919,16 @@ Thread::Thread()
 
     m_dwLockCount = 0;
     m_dwBeginLockCount = 0;
+#ifndef FEATURE_CORECLR
     m_dwBeginCriticalRegionCount = 0;
     m_dwCriticalRegionCount = 0;
     m_dwThreadAffinityCount = 0;
+#endif // !FEATURE_CORECLR
 
 #ifdef _DEBUG
     dbg_m_cSuspendedThreads = 0;
     dbg_m_cSuspendedThreadsWithoutOSLock = 0;
-    m_Creater.ResetThreadId();
+    m_Creater.Clear();
     m_dwUnbreakableLockCount = 0;
 #endif
 
@@ -2021,6 +2021,7 @@ Thread::Thread()
 #ifdef FEATURE_HIJACK
     m_ppvHJRetAddrPtr = (VOID**) 0xCCCCCCCCCCCCCCCC;
     m_pvHJRetAddr = (VOID*) 0xCCCCCCCCCCCCCCCC;
+
     X86_ONLY(m_LastRedirectIP = 0);
     X86_ONLY(m_SpinCount = 0);
 #endif // FEATURE_HIJACK
@@ -2141,7 +2142,7 @@ Thread::Thread()
 
     m_dwAVInRuntimeImplOkayCount = 0;
 
-#if defined(HAVE_GCCOVER) && defined(USE_REDIRECT_FOR_GCSTRESS) // GCCOVER
+#if defined(HAVE_GCCOVER) && defined(USE_REDIRECT_FOR_GCSTRESS) && !defined(PLATFORM_UNIX) // GCCOVER
     m_fPreemptiveGCDisabledForGCStress = false;
 #endif
 
@@ -2231,14 +2232,14 @@ Thread::Thread()
     
     m_fGCSpecial = FALSE;
 
-#if !defined(FEATURE_CORECLR)
+#if !defined(FEATURE_PAL)
     m_wCPUGroup = 0;
     m_pAffinityMask = 0;
 #endif
 
     m_pAllLoggedTypes = NULL;
+    m_HijackReturnKind = RT_Illegal;
 }
-
 
 //--------------------------------------------------------------------
 // Failable initialization occurs here.
@@ -2374,10 +2375,7 @@ BOOL Thread::InitThread(BOOL fInternal)
 
     // Set floating point mode to round to nearest
 #ifndef FEATURE_PAL
-#ifndef _TARGET_ARM64_
-    //ARM64TODO: remove the ifdef
     (void) _controlfp_s( NULL, _RC_NEAR, _RC_CHOP|_RC_UP|_RC_DOWN|_RC_NEAR );
-#endif
 
     m_pTEB = (struct _NT_TIB*)NtCurrentTeb();
 
@@ -3134,7 +3132,7 @@ BOOL Thread::CreateNewOSThread(SIZE_T sizeToCommitOrReserve, LPTHREAD_START_ROUT
     FastInterlockIncrement(&ThreadStore::s_pThreadStore->m_PendingThreadCount);
 
 #ifdef _DEBUG
-    m_Creater.SetThreadId();
+    m_Creater.SetToCurrentThread();
 #endif
 
     return TRUE;
@@ -3190,7 +3188,7 @@ BOOL Thread::CreateNewHostTask(SIZE_T stackSize, LPTHREAD_START_ROUTINE start, v
     FastInterlockIncrement(&ThreadStore::s_pThreadStore->m_PendingThreadCount);
 
 #ifdef _DEBUG
-    m_Creater.SetThreadId();
+    m_Creater.SetToCurrentThread();
 #endif
 
     return TRUE;
@@ -3891,14 +3889,14 @@ void Thread::OnThreadTerminate(BOOL holdingLock)
 #endif
     }
 
-    if  (GCHeap::IsGCHeapInitialized())
+    if  (GCHeapUtilities::IsGCHeapInitialized())
     {
         // Guaranteed to NOT be a shutdown case, because we tear down the heap before
         // we tear down any threads during shutdown.
         if (ThisThreadID == CurrentThreadID)
         {
             GCX_COOP();
-            GCHeap::GetGCHeap()->FixAllocContext(&m_alloc_context, FALSE, NULL, NULL);
+            GCHeapUtilities::GetGCHeap()->FixAllocContext(&m_alloc_context, FALSE, NULL, NULL);
             m_alloc_context.init();
         }
     }
@@ -3959,11 +3957,11 @@ void Thread::OnThreadTerminate(BOOL holdingLock)
 #endif
         }
 
-        if  (GCHeap::IsGCHeapInitialized() && ThisThreadID != CurrentThreadID)
+        if  (GCHeapUtilities::IsGCHeapInitialized() && ThisThreadID != CurrentThreadID)
         {
             // We must be holding the ThreadStore lock in order to clean up alloc context.
             // We should never call FixAllocContext during GC.
-            GCHeap::GetGCHeap()->FixAllocContext(&m_alloc_context, FALSE, NULL, NULL);
+            GCHeapUtilities::GetGCHeap()->FixAllocContext(&m_alloc_context, FALSE, NULL, NULL);
             m_alloc_context.init();
         }
 
@@ -4514,6 +4512,14 @@ retry:
         {
             ThrowOutOfMemory();
         }
+#ifdef FEATURE_PAL
+        else if (errorCode == ERROR_NOT_SUPPORTED)
+        {
+            // "Wait for any" and "wait for all" operations on multiple wait handles are not supported when a cross-process sync
+            // object is included in the array
+            COMPlusThrow(kPlatformNotSupportedException, W("PlatformNotSupported_NamedSyncObjectWaitAnyWaitAll"));
+        }
+#endif
         else if (errorCode != ERROR_INVALID_HANDLE)
         {
             ThrowWin32(errorCode);
@@ -4698,7 +4704,7 @@ WaitCompleted:
     return ret;
 }
 
-#ifndef FEATURE_CORECLR
+#ifndef FEATURE_PAL
 //--------------------------------------------------------------------
 // Only one style of wait for DoSignalAndWait since we don't support this on STA Threads
 //--------------------------------------------------------------------
@@ -4845,7 +4851,7 @@ WaitCompleted:
 
     return ret;
 }
-#endif // FEATURE_CORECLR
+#endif // !FEATURE_PAL
 
 #ifdef FEATURE_SYNCHRONIZATIONCONTEXT_WAIT
 DWORD Thread::DoSyncContextWait(OBJECTREF *pSyncCtxObj, int countHandles, HANDLE *handles, BOOL waitAll, DWORD millis)
@@ -4898,7 +4904,7 @@ BOOL Thread::Block(INT32 timeOut, PendingSync *syncState)
 }
 
 
-// Return whether or not a timeout occured.  TRUE=>we waited successfully
+// Return whether or not a timeout occurred.  TRUE=>we waited successfully
 DWORD Thread::Wait(HANDLE *objs, int cntObjs, INT32 timeOut, PendingSync *syncInfo)
 {
     WRAPPER_NO_CONTRACT;
@@ -4923,7 +4929,7 @@ DWORD Thread::Wait(HANDLE *objs, int cntObjs, INT32 timeOut, PendingSync *syncIn
     return dwResult;
 }
 
-// Return whether or not a timeout occured.  TRUE=>we waited successfully
+// Return whether or not a timeout occurred.  TRUE=>we waited successfully
 DWORD Thread::Wait(CLREvent *pEvent, INT32 timeOut, PendingSync *syncInfo)
 {
     WRAPPER_NO_CONTRACT;
@@ -5519,6 +5525,37 @@ OBJECTREF Thread::SafeSetThrowables(OBJECTREF throwable DEBUG_ARG(ThreadExceptio
 
 
     return ret;
+}
+
+// This method will sync the managed exception state to be in sync with the topmost active exception
+// for a given thread
+void Thread::SyncManagedExceptionState(bool fIsDebuggerThread)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    {
+        GCX_COOP();
+
+        // Syncup the LastThrownObject on the managed thread
+        SafeUpdateLastThrownObject();
+    }
+
+#ifdef FEATURE_CORRUPTING_EXCEPTIONS
+    // Since the catch clause has successfully executed and we are exiting it, reset the corruption severity
+    // in the ThreadExceptionState for the last active exception. This will ensure that when the next exception
+    // gets thrown/raised, EH tracker wont pick up an invalid value.
+    if (!fIsDebuggerThread)
+    {
+        CEHelper::ResetLastActiveCorruptionSeverityPostCatchHandler(this);
+    }
+#endif // FEATURE_CORRUPTING_EXCEPTIONS
+
 }
 
 void Thread::SetLastThrownObjectHandle(OBJECTHANDLE h)
@@ -7344,8 +7381,7 @@ HRESULT Thread::CLRSetThreadStackGuarantee(SetThreadStackGuaranteeScope fScope)
         ULONG uGuardSize = SIZEOF_DEFAULT_STACK_GUARANTEE;
         int   EXTRA_PAGES = 0;
 #if defined(_WIN64)
-#if defined(_TARGET_AMD64_)
-        // AMD64 Free Build EH Stack Stats:
+        // Free Build EH Stack Stats:
         // --------------------------------
         // currently the maximum stack usage we'll face while handling a SO includes:
         //      4.3k for the OS (kernel32!RaiseException, Rtl EH dispatch code, RtlUnwindEx [second pass])
@@ -7361,8 +7397,6 @@ HRESULT Thread::CLRSetThreadStackGuarantee(SetThreadStackGuaranteeScope fScope)
         //
         EXTRA_PAGES = 3;
         INDEBUG(EXTRA_PAGES += 1);
-
-#endif // _TARGET_AMD64_
 
         int ThreadGuardPages = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_ThreadGuardPages);
         if (ThreadGuardPages == 0)
@@ -7895,7 +7929,6 @@ BOOL Thread::CanResetStackTo(LPCVOID stackPointer)
         return FALSE;
     }
 }
-#endif // FEATURE_STACK_PROBE
 
 /*
  * IsStackSpaceAvailable
@@ -7945,6 +7978,8 @@ BOOL Thread::IsStackSpaceAvailable(float numPages)
 
     return TRUE;
 }
+
+#endif // FEATURE_STACK_PROBE
 
 /*
  * GetStackGuarantee
@@ -8210,7 +8245,9 @@ void CheckRegDisplaySP (REGDISPLAY *pRD)
 {
     if (pRD->SP && pRD->_pThread)
     {
+#ifndef NO_FIXED_STACK_LIMIT
         _ASSERTE(PTR_VOID(pRD->SP) >= pRD->_pThread->GetCachedStackLimit());
+#endif // NO_FIXED_STACK_LIMIT
         _ASSERTE(PTR_VOID(pRD->SP) <  pRD->_pThread->GetCachedStackBase());
     }
 }
@@ -8749,9 +8786,12 @@ void Thread::EnterContextRestricted(Context *pContext, ContextTransitionFrame *p
 
     if (pPrevDomain != pDomain)
     {
-    pFrame->SetLockCount(m_dwBeginLockCount, m_dwBeginCriticalRegionCount);
-    m_dwBeginLockCount = m_dwLockCount;
-    m_dwBeginCriticalRegionCount = m_dwCriticalRegionCount;
+        pFrame->SetLockCount(m_dwBeginLockCount);
+        m_dwBeginLockCount = m_dwLockCount;
+#ifndef FEATURE_CORECLR
+        pFrame->SetCriticalRegionCount(m_dwBeginCriticalRegionCount);
+        m_dwBeginCriticalRegionCount = m_dwCriticalRegionCount;
+#endif // !FEATURE_CORECLR
     }
 
     if (m_Context == pContext) {
@@ -8934,9 +8974,12 @@ void Thread::ReturnToContext(ContextTransitionFrame *pFrame)
         }
 
         m_dwLockCount = m_dwBeginLockCount;
+        m_dwBeginLockCount = pFrame->GetLockCount();
+#ifndef FEATURE_CORECLR
         m_dwCriticalRegionCount = m_dwBeginCriticalRegionCount;
+        m_dwBeginCriticalRegionCount = pFrame->GetCriticalRegionCount();
+#endif // !FEATURE_CORECLR
 
-        pFrame->GetLockCount(&m_dwBeginLockCount, &m_dwBeginCriticalRegionCount);
     }
 
     if (m_Context == pReturnContext)
@@ -9118,89 +9161,7 @@ void Thread::ReturnToContextAndOOM(ContextTransitionFrame* pFrame)
     COMPlusThrowOM();
 }
 
-
-#ifdef FEATURE_CORECLR
-
-//---------------------------------------------------------------------------------------
-// Allocates an agile CrossAppDomainMarshaledException whose ToString() and ErrorCode
-// matches the original exception.
-//
-// This is our "remoting" story for exceptions that leak across appdomains in Telesto.
-//---------------------------------------------------------------------------------------
-static OBJECTREF WrapThrowableInCrossAppDomainMarshaledException(OBJECTREF pOriginalThrowable)
-{
-    CONTRACTL
-    {
-        GC_TRIGGERS;
-        THROWS;
-        MODE_COOPERATIVE;
-    }
-    CONTRACTL_END;
-
-    _ASSERTE(GetThread() != NULL);
-
-
-    struct _gc
-    {
-        OBJECTREF pOriginalThrowable;
-        OBJECTREF pThrowable;
-        STRINGREF pOriginalMessage;
-    }
-    prot;
-
-
-    memset(&prot, 0, sizeof(prot));
-
-    GCPROTECT_BEGIN(prot);
-    prot.pOriginalThrowable = pOriginalThrowable;
-    prot.pOriginalMessage   = GetExceptionMessage(prot.pOriginalThrowable);
-    HRESULT originalHResult = GetExceptionHResult(prot.pOriginalThrowable);
-
-    MethodTable *pMT = MscorlibBinder::GetClass(CLASS__CROSSAPPDOMAINMARSHALEDEXCEPTION);
-    prot.pThrowable = AllocateObject(pMT);
-
-    MethodDescCallSite exceptionCtor(METHOD__CROSSAPPDOMAINMARSHALEDEXCEPTION__STR_INT_CTOR);
-
-    ARG_SLOT args1[] = { 
-        ObjToArgSlot(prot.pThrowable),
-        ObjToArgSlot(prot.pOriginalMessage),
-        (ARG_SLOT)originalHResult,
-    };
-    exceptionCtor.Call(args1);
-
-#ifndef FEATURE_PAL
-    // Since, on CoreCLR, we dont have serialization of exceptions going across
-    // AD transition boundaries, we will copy over the bucket details to the 
-    // CrossAppDomainMarshalledException object from the original exception object 
-    // if it isnt a preallocated exception.
-    if (IsWatsonEnabled() && (!CLRException::IsPreallocatedExceptionObject(prot.pOriginalThrowable)))
-    {
-        // If the watson buckets are present, then copy them over.
-        // They maybe missing if the original throwable couldnt get them from Watson helper functions
-        // during SetupInitialThrowBucketDetails due to OOM.
-        if (((EXCEPTIONREF)prot.pOriginalThrowable)->AreWatsonBucketsPresent())
-        {
-            _ASSERTE(prot.pThrowable != NULL);
-            // Copy them to CrossADMarshalledException object
-            CopyWatsonBucketsBetweenThrowables(prot.pOriginalThrowable, prot.pThrowable);
-
-            // The exception object should now have the buckets inside it
-            _ASSERTE(((EXCEPTIONREF)prot.pThrowable)->AreWatsonBucketsPresent());
-        }
-    }
-#endif // !FEATURE_PAL
-
-    GCPROTECT_END(); //Prot
-
-
-    return prot.pThrowable;
-}
-
-
-
-#endif
-
-
+#ifdef FEATURE_REMOTING
 // for cases when marshaling is not needed
 // throws it is able to take a shortcut, otherwise just returns
 void Thread::RaiseCrossContextExceptionHelper(Exception* pEx, ContextTransitionFrame* pFrame)
@@ -9370,15 +9331,7 @@ Thread::TryRaiseCrossContextException(Exception **ppExOrig,
             *ppThrowable = CLRException::GetThrowableFromException(exception);
             _ASSERTE(*ppThrowable != NULL);
 
-#ifdef FEATURE_CORECLR
-            (*pOrBlob) = WrapThrowableInCrossAppDomainMarshaledException(*ppThrowable);
-#if CHECK_APP_DOMAIN_LEAKS 
-            (*pOrBlob)->SetAppDomainAgile();
-#endif //CHECK_APP_DOMAIN_LEAKS 
-#else
             AppDomainHelper::MarshalObject(ppThrowable, pOrBlob);
-#endif //FEATURE_CORECLR
-        
         }
     }
     EX_CATCH
@@ -9556,6 +9509,25 @@ void DECLSPEC_NORETURN Thread::RaiseCrossContextException(Exception* pExOrig, Co
         GCPROTECT_END();
     }
 }
+
+#else // FEATURE_REMOTING
+
+void DECLSPEC_NORETURN Thread::RaiseCrossContextException(Exception* pExOrig, ContextTransitionFrame* pFrame)
+{
+    CONTRACTL
+    {
+        THROWS;
+        WRAPPER(GC_TRIGGERS);
+    }
+    CONTRACTL_END;
+
+    // pEx is NULL means that the exception is CLRLastThrownObjectException
+    CLRLastThrownObjectException lastThrown;
+    Exception* pException = pExOrig ? pExOrig : &lastThrown;
+    COMPlusThrow(CLRException::GetThrowableFromException(pException));
+}
+
+#endif
 
 struct FindADCallbackType {
     AppDomain *pSearchDomain;
@@ -9805,7 +9777,7 @@ void Thread::DoExtraWorkForFinalizer()
         Thread::CleanupDetachedThreads();
     }
     
-    if(ExecutionManager::IsCacheCleanupRequired() && GCHeap::GetGCHeap()->GetCondemnedGeneration()>=1)
+    if(ExecutionManager::IsCacheCleanupRequired() && GCHeapUtilities::GetGCHeap()->GetCondemnedGeneration()>=1)
     {
         ExecutionManager::ClearCaches();
     }
@@ -10070,7 +10042,7 @@ static void ManagedThreadBase_DispatchMiddle(ManagedThreadCallState *pCallState)
     // also invokes SO_INTOLERANT code.
     BEGIN_SO_INTOLERANT_CODE(GetThread());
 
-    EX_TRY
+    EX_TRY_CPP_ONLY
     {
         // During an unwind, we have some cleanup:
         //
@@ -10598,8 +10570,10 @@ TADDR Thread::GetStaticFieldAddrNoCreate(FieldDesc *pFD, PTR_AppDomain pDomain)
     if (pFD->IsByValue())
     {
         _ASSERTE(result != NULL);
-        result = dac_cast<TADDR>
-            ((* PTR_UNCHECKED_OBJECTREF(result))->GetData());
+        PTR_Object obj = *PTR_UNCHECKED_OBJECTREF(result);
+        if (obj == NULL)
+            return NULL;
+        result = dac_cast<TADDR>(obj->GetData());
     }
 
     return result;
@@ -11143,7 +11117,7 @@ void Thread::SetHasPromotedBytes ()
 
     m_fPromoted = TRUE;
 
-    _ASSERTE(GCHeap::IsGCInProgress()  && IsGCThread ());
+    _ASSERTE(GCHeapUtilities::IsGCInProgress()  && IsGCThread ());
 
     if (!m_fPreemptiveGCDisabled)
     {
@@ -11167,7 +11141,7 @@ BOOL ThreadStore::HoldingThreadStore(Thread *pThread)
     }
     else
     {
-        return (s_pThreadStore->m_holderthreadid.IsSameThread());
+        return (s_pThreadStore->m_holderthreadid.IsCurrentThread());
     }
 }
 
@@ -11573,7 +11547,7 @@ HRESULT Thread::GetMemStats (COR_GC_THREAD_STATS *pStats)
     CONTRACTL_END;
 
     // Get the allocation context which contains this counter in it.
-    alloc_context *p = &m_alloc_context;
+    gc_alloc_context *p = &m_alloc_context;
     pStats->PerThreadAllocation = p->alloc_bytes + p->alloc_bytes_loh;
     if (GetHasPromotedBytes())
         pStats->Flags = COR_GC_THREAD_HAS_PROMOTED_BYTES;
@@ -11732,11 +11706,13 @@ void Thread::InternalReset(BOOL fFull, BOOL fNotFinalizerThread, BOOL fThreadObj
         FullResetThread();
     }
 
+#ifndef FEATURE_CORECLR
     _ASSERTE (m_dwCriticalRegionCount == 0);
     m_dwCriticalRegionCount = 0;
 
     _ASSERTE (m_dwThreadAffinityCount == 0);
     m_dwThreadAffinityCount = 0;
+#endif // !FEATURE_CORECLR
 
     //m_MarshalAlloc.Collapse(NULL);
 
@@ -11860,7 +11836,9 @@ HRESULT Thread::Reset(BOOL fFull)
 
         ResetThreadStateNC(TSNC_UnbalancedLocks);
         m_dwLockCount = 0;
+#ifndef FEATURE_CORECLR
         m_dwCriticalRegionCount = 0;
+#endif // !FEATURE_CORECLR
 
     InternalSwitchOut();
     m_OSThreadId = SWITCHED_OUT_FIBER_OSID;
@@ -12000,6 +11978,7 @@ HRESULT Thread::NeedsPriorityScheduling(BOOL *pbNeedsPriorityScheduling)
     return S_OK;
 }
 
+#ifdef FEATURE_INCLUDE_ALL_INTERFACES
 HRESULT Thread::YieldTask()
 {
 #undef Sleep
@@ -12205,6 +12184,7 @@ HRESULT Thread::YieldTask()
 #endif //_DEBUG
 
 #endif // FEATURE_HIJACK
+
 Retry:
         ::ResumeThread(hThread);
         if (fDone)
@@ -12226,12 +12206,16 @@ Retry:
     return S_OK;
 #define Sleep(a) Dont_Use_Sleep(a)
 }
+#endif // FEATURE_INCLUDE_ALL_INTERFACES
 
 HRESULT Thread::LocksHeld(SIZE_T *pLockCount)
 {
     LIMITED_METHOD_CONTRACT;
 
-    *pLockCount = m_dwLockCount + m_dwCriticalRegionCount;
+    *pLockCount = m_dwLockCount;
+#ifndef FEATURE_CORECLR
+    *pLockCount += m_dwCriticalRegionCount;
+#endif // !FEATURE_CORECLR
     return S_OK;
 }
 
@@ -12825,6 +12809,7 @@ void Thread::BeginThreadAffinity()
 {
     LIMITED_METHOD_CONTRACT;
 
+#ifndef FEATURE_CORECLR
     if (!CLRTaskHosted())
     {
         return;
@@ -12854,6 +12839,7 @@ void Thread::BeginThreadAffinity()
 #endif
     }
 #endif // FEATURE_INCLUDE_ALL_INTERFACES
+#endif // !FEATURE_CORECLR
 }
 
 
@@ -12862,6 +12848,7 @@ void Thread::EndThreadAffinity()
 {
     LIMITED_METHOD_CONTRACT;
 
+#ifndef FEATURE_CORECLR
     if (!CLRTaskHosted())
     {
         return;
@@ -12894,6 +12881,7 @@ void Thread::EndThreadAffinity()
 
     _ASSERTE (hr == S_OK);
 #endif // FEATURE_INCLUDE_ALL_INTERFACES
+#endif // !FEATURE_CORECLR
 }
 
 void Thread::SetupThreadForHost()

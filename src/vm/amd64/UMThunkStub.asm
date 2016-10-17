@@ -1,7 +1,6 @@
-;
-; Copyright (c) Microsoft. All rights reserved.
-; Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-;
+; Licensed to the .NET Foundation under one or more agreements.
+; The .NET Foundation licenses this file to you under the MIT license.
+; See the LICENSE file in the project root for more information.
 
 ; ==++==
 ;
@@ -35,7 +34,7 @@ extern gfHostConfig:dword
 extern NDirect__IsHostHookEnabled:proc
 endif
 extern UMThunkStubRareDisableWorker:proc
-
+extern ReversePInvokeBadTransition:proc
 
 ;
 ; METHODDESC_REGISTER: UMEntryThunk*
@@ -83,10 +82,10 @@ endif
         mov             r8,  [rsp + TheUMEntryPrestub_STACK_FRAME_SIZE + 18h]
         mov             r9,  [rsp + TheUMEntryPrestub_STACK_FRAME_SIZE + 20h]
 
-        movdqa          xmm0, [rsp + TheUMEntryPrestub_XMM_SAVE_OFFSET]
-        movdqa          xmm1, [rsp + TheUMEntryPrestub_XMM_SAVE_OFFSET + 10h]
-        movdqa          xmm2, [rsp + TheUMEntryPrestub_XMM_SAVE_OFFSET + 20h]
-        movdqa          xmm3, [rsp + TheUMEntryPrestub_XMM_SAVE_OFFSET + 30h]
+        movdqa          xmm0, xmmword ptr [rsp + TheUMEntryPrestub_XMM_SAVE_OFFSET]
+        movdqa          xmm1, xmmword ptr [rsp + TheUMEntryPrestub_XMM_SAVE_OFFSET + 10h]
+        movdqa          xmm2, xmmword ptr [rsp + TheUMEntryPrestub_XMM_SAVE_OFFSET + 20h]
+        movdqa          xmm3, xmmword ptr [rsp + TheUMEntryPrestub_XMM_SAVE_OFFSET + 30h]
 
         ;
         ; epilogue
@@ -188,6 +187,10 @@ HaveThread:
 
         mov             r12, rax                ; r12 <- Thread*
 
+        ;FailFast if a native callable method invoked via ldftn and calli.
+        cmp             dword ptr [r12 + OFFSETOF__Thread__m_fPreemptiveGCDisabled], 1
+        jz              InvalidTransition
+
         ;
         ; disable preemptive GC
         ;
@@ -257,10 +260,10 @@ DoThreadSetup:
         ; @CONSIDER: mark UMEntryThunks that have FP params and only save/restore xmm regs on those calls
         ;            initial measurements indidcate that this could be worth about a 5% savings in reverse
         ;            pinvoke overhead.
-        movdqa          [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET +  0h], xmm0
-        movdqa          [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 10h], xmm1
-        movdqa          [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 20h], xmm2
-        movdqa          [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 30h], xmm3
+        movdqa          xmmword ptr[rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET +  0h], xmm0
+        movdqa          xmmword ptr[rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 10h], xmm1
+        movdqa          xmmword ptr[rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 20h], xmm2
+        movdqa          xmmword ptr[rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 30h], xmm3
 
         mov             [rbp + UMThunkStubAMD64_RARE_PATH_SPILL_OFFSET], METHODDESC_REGISTER
         call            CreateThreadBlockThrow
@@ -272,13 +275,17 @@ DoThreadSetup:
         mov             r9,   [rbp + UMThunkStubAMD64_ARGUMENTS_STACK_HOME_OFFSET + 18h]
 
         ; @CONSIDER: mark UMEntryThunks that have FP params and only save/restore xmm regs on those calls
-        movdqa          xmm0, [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET +  0h]
-        movdqa          xmm1, [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 10h]
-        movdqa          xmm2, [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 20h]
-        movdqa          xmm3, [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 30h]
+        movdqa          xmm0, xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET +  0h]
+        movdqa          xmm1, xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 10h]
+        movdqa          xmm2, xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 20h]
+        movdqa          xmm3, xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 30h]
         
         jmp             HaveThread
         
+InvalidTransition:
+        ; ReversePInvokeBadTransition will failfast
+        call            ReversePInvokeBadTransition
+
 DoTrapReturningThreadsTHROW:
 
         mov             [rbp + UMThunkStubAMD64_ARGUMENTS_STACK_HOME_OFFSET +  0h], rcx
@@ -289,10 +296,10 @@ DoTrapReturningThreadsTHROW:
         ; @CONSIDER: mark UMEntryThunks that have FP params and only save/restore xmm regs on those calls
         ;            initial measurements indidcate that this could be worth about a 5% savings in reverse
         ;            pinvoke overhead.
-        movdqa          [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET +  0h], xmm0
-        movdqa          [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 10h], xmm1
-        movdqa          [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 20h], xmm2
-        movdqa          [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 30h], xmm3
+        movdqa          xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET +  0h], xmm0
+        movdqa          xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 10h], xmm1
+        movdqa          xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 20h], xmm2
+        movdqa          xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 30h], xmm3
 
         mov             [rbp + UMThunkStubAMD64_RARE_PATH_SPILL_OFFSET], METHODDESC_REGISTER
         mov             rcx, r12                                                                  ; Thread* pThread
@@ -306,10 +313,10 @@ DoTrapReturningThreadsTHROW:
         mov             r9,   [rbp + UMThunkStubAMD64_ARGUMENTS_STACK_HOME_OFFSET + 18h]
 
         ; @CONSIDER: mark UMEntryThunks that have FP params and only save/restore xmm regs on those calls
-        movdqa          xmm0, [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET +  0h]
-        movdqa          xmm1, [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 10h]
-        movdqa          xmm2, [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 20h]
-        movdqa          xmm3, [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 30h]
+        movdqa          xmm0, xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET +  0h]
+        movdqa          xmm1, xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 10h]
+        movdqa          xmm2, xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 20h]
+        movdqa          xmm3, xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 30h]
 
         jmp             InCooperativeMode
 
@@ -357,10 +364,10 @@ NotifyHost_ReverseEnterRuntime:
         ; @CONSIDER: mark UMEntryThunks that have FP params and only save/restore xmm regs on those calls
         ;            initial measurements indidcate that this could be worth about a 5% savings in reverse
         ;            pinvoke overhead.
-        movdqa          [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET +  0h], xmm0
-        movdqa          [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 10h], xmm1
-        movdqa          [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 20h], xmm2
-        movdqa          [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 30h], xmm3
+        movdqa          xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET +  0h], xmm0
+        movdqa          xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 10h], xmm1
+        movdqa          xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 20h], xmm2
+        movdqa          xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 30h], xmm3
 
         mov             rcx, r12
         call            ReverseEnterRuntimeHelper
@@ -372,10 +379,10 @@ NotifyHost_ReverseEnterRuntime:
         mov             r9,   [rbp + UMThunkStubAMD64_ARGUMENTS_STACK_HOME_OFFSET + 18h]
 
         ; @CONSIDER: mark UMEntryThunks that have FP params and only save/restore xmm regs on those calls
-        movdqa          xmm0, [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET +  0h]
-        movdqa          xmm1, [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 10h]
-        movdqa          xmm2, [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 20h]
-        movdqa          xmm3, [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 30h]
+        movdqa          xmm0, xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET +  0h]
+        movdqa          xmm1, xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 10h]
+        movdqa          xmm2, xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 20h]
+        movdqa          xmm3, xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 30h]
 
         mov             METHODDESC_REGISTER, [rbp + UMThunkStubAMD64_RARE_PATH_SPILL_OFFSET]
 
@@ -385,7 +392,7 @@ NotifyHost_ReverseLeaveRuntime:
 
         ; save rax, xmm0
         mov             [rbp + UMThunkStubAMD64_ARGUMENTS_STACK_HOME_OFFSET +  0h], rax
-        movdqa          [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET +  0h], xmm0
+        movdqa          xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET +  0h], xmm0
 
         mov             rcx, r12
         call            ReverseLeaveRuntimeHelper
@@ -393,7 +400,7 @@ NotifyHost_ReverseLeaveRuntime:
 
         ; restore rax, xmm0
         mov             rax, [rbp + UMThunkStubAMD64_ARGUMENTS_STACK_HOME_OFFSET +  0h]
-        movdqa          xmm0, [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET +  0h]
+        movdqa          xmm0, xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET +  0h]
         
         jmp             Done_NotifyHost_ReverseLeaveRuntime
 endif
@@ -410,10 +417,10 @@ WrongAppDomain:
         ;
         ; save off xmm registers
         ;
-        movdqa          [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET +  0h], xmm0
-        movdqa          [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 10h], xmm1
-        movdqa          [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 20h], xmm2
-        movdqa          [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 30h], xmm3
+        movdqa          xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET +  0h], xmm0
+        movdqa          xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 10h], xmm1
+        movdqa          xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 20h], xmm2
+        movdqa          xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 30h], xmm3
 
         ;
         ; call our helper to perform the AD transtion 
@@ -426,7 +433,7 @@ WrongAppDomain:
 
         ; restore return value
         mov             rax,  [rbp + UMThunkStubAMD64_ARGUMENTS_STACK_HOME_OFFSET +  0h]
-        movdqa          xmm0, [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET +  0h]
+        movdqa          xmm0, xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET +  0h]
 
         jmp             PostCall
 
@@ -486,10 +493,10 @@ ArgumentsSetup:
         mov             r8,  [rsi + 10h]
         mov             r9,  [rsi + 18h]
 
-        movdqa          xmm0, [rsi + UMThunkStubAMD64_XMM_SAVE_OFFSET - UMThunkStubAMD64_ARGUMENTS_STACK_HOME_OFFSET +  0h]
-        movdqa          xmm1, [rsi + UMThunkStubAMD64_XMM_SAVE_OFFSET - UMThunkStubAMD64_ARGUMENTS_STACK_HOME_OFFSET + 10h]
-        movdqa          xmm2, [rsi + UMThunkStubAMD64_XMM_SAVE_OFFSET - UMThunkStubAMD64_ARGUMENTS_STACK_HOME_OFFSET + 20h]
-        movdqa          xmm3, [rsi + UMThunkStubAMD64_XMM_SAVE_OFFSET - UMThunkStubAMD64_ARGUMENTS_STACK_HOME_OFFSET + 30h]
+        movdqa          xmm0, xmmword ptr [rsi + UMThunkStubAMD64_XMM_SAVE_OFFSET - UMThunkStubAMD64_ARGUMENTS_STACK_HOME_OFFSET +  0h]
+        movdqa          xmm1, xmmword ptr [rsi + UMThunkStubAMD64_XMM_SAVE_OFFSET - UMThunkStubAMD64_ARGUMENTS_STACK_HOME_OFFSET + 10h]
+        movdqa          xmm2, xmmword ptr [rsi + UMThunkStubAMD64_XMM_SAVE_OFFSET - UMThunkStubAMD64_ARGUMENTS_STACK_HOME_OFFSET + 20h]
+        movdqa          xmm3, xmmword ptr [rsi + UMThunkStubAMD64_XMM_SAVE_OFFSET - UMThunkStubAMD64_ARGUMENTS_STACK_HOME_OFFSET + 30h]
 
         mov             rax, [METHODDESC_REGISTER + OFFSETOF__UMEntryThunk__m_pUMThunkMarshInfo]      ; rax <- UMThunkMarshInfo*
         mov             rax, [rax + OFFSETOF__UMThunkMarshInfo__m_pILStub]                              ; rax <- Stub*
@@ -497,7 +504,7 @@ ArgumentsSetup:
 
         ; make sure we don't trash the return value
         mov             [rsi + 0h], rax
-        movdqa          [rsi + UMThunkStubAMD64_XMM_SAVE_OFFSET - UMThunkStubAMD64_ARGUMENTS_STACK_HOME_OFFSET +  0h], xmm0
+        movdqa          xmmword ptr [rsi + UMThunkStubAMD64_XMM_SAVE_OFFSET - UMThunkStubAMD64_ARGUMENTS_STACK_HOME_OFFSET +  0h], xmm0
 
         lea             rsp, [rbp - UM2MThunk_WrapperHelper_FRAME_OFFSET + UM2MThunk_WrapperHelper_FIXED_STACK_ALLOC_SIZE]
         pop             rbp
@@ -546,17 +553,17 @@ IsHostHookEnabledHelper_FIXED_STACK_ALLOC_SIZE = 20h + 40h
 
         END_PROLOGUE
 
-        movdqa          [rsp + 20h +  0h], xmm0
-        movdqa          [rsp + 20h + 10h], xmm1
-        movdqa          [rsp + 20h + 20h], xmm2
-        movdqa          [rsp + 20h + 30h], xmm3
+        movdqa          xmmword ptr [rsp + 20h +  0h], xmm0
+        movdqa          xmmword ptr [rsp + 20h + 10h], xmm1
+        movdqa          xmmword ptr [rsp + 20h + 20h], xmm2
+        movdqa          xmmword ptr [rsp + 20h + 30h], xmm3
 
         call            NDirect__IsHostHookEnabled
 
-        movdqa          xmm0, [rsp + 20h +  0h]
-        movdqa          xmm1, [rsp + 20h + 10h]
-        movdqa          xmm2, [rsp + 20h + 20h]
-        movdqa          xmm3, [rsp + 20h + 30h]
+        movdqa          xmm0, xmmword ptr [rsp + 20h +  0h]
+        movdqa          xmm1, xmmword ptr [rsp + 20h + 10h]
+        movdqa          xmm2, xmmword ptr [rsp + 20h + 20h]
+        movdqa          xmm3, xmmword ptr [rsp + 20h + 30h]
 
         ; epilog
         add             rsp, IsHostHookEnabledHelper_FIXED_STACK_ALLOC_SIZE
@@ -591,10 +598,10 @@ NESTED_ENTRY IJWNOADThunk__MakeCall, _TEXT
         mov             rcx, METHODDESC_REGISTER
         call            IJWNOADThunk__FindThunkTarget
 
-        movdqa          xmm0, [rsp + 20h]
-        movdqa          xmm1, [rsp + 30h]
-        movdqa          xmm2, [rsp + 40h]
-        movdqa          xmm3, [rsp + 50h]
+        movdqa          xmm0, xmmword ptr [rsp + 20h]
+        movdqa          xmm1, xmmword ptr [rsp + 30h]
+        movdqa          xmm2, xmmword ptr [rsp + 40h]
+        movdqa          xmm3, xmmword ptr [rsp + 50h]
 
         mov             rcx, [rsp + 70h]
         mov             rdx, [rsp + 78h]

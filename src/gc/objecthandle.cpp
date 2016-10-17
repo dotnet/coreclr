@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*
  * Wraps handle table to implement various handle types (Strong, Weak, etc.)
@@ -44,9 +43,9 @@ DhContext *g_pDependentHandleContexts;
  */
 struct VARSCANINFO
 {
-    LPARAM         lEnableMask; // mask of types to trace
+    uintptr_t      lEnableMask; // mask of types to trace
     HANDLESCANPROC pfnTrace;    // tracing function to use
-	LPARAM		   lp2;			// second parameter
+    uintptr_t      lp2;         // second parameter
 };
 
 
@@ -58,7 +57,7 @@ struct VARSCANINFO
  * This callback is called to trace individual objects referred to by handles
  * in the variable-strength table.
  */
-void CALLBACK VariableTraceDispatcher(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExtraInfo, LPARAM lp1, LPARAM lp2)
+void CALLBACK VariableTraceDispatcher(_UNCHECKED_OBJECTREF *pObjRef, uintptr_t *pExtraInfo, uintptr_t lp1, uintptr_t lp2)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -73,16 +72,17 @@ void CALLBACK VariableTraceDispatcher(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pEx
     }
 }
 
-#ifdef FEATURE_COMINTEROP
+#if defined(FEATURE_COMINTEROP) || defined(FEATURE_REDHAWK)
 /*
  * Scan callback for tracing ref-counted handles.
  *
  * This callback is called to trace individual objects referred to by handles
  * in the refcounted table.
  */
-void CALLBACK PromoteRefCounted(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExtraInfo, LPARAM lp1, LPARAM lp2)
+void CALLBACK PromoteRefCounted(_UNCHECKED_OBJECTREF *pObjRef, uintptr_t *pExtraInfo, uintptr_t lp1, uintptr_t lp2)
 {
     WRAPPER_NO_CONTRACT;
+    UNREFERENCED_PARAMETER(pExtraInfo);
 
     // there are too many races when asychnronously scanning ref-counted handles so we no longer support it
     _ASSERTE(!((ScanContext*)lp1)->concurrent);
@@ -95,14 +95,9 @@ void CALLBACK PromoteRefCounted(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExtraInf
     Object *pOldObj = pObj;
 #endif
 
-    if (!HndIsNullOrDestroyedHandle(pObj) && !GCHeap::GetGCHeap()->IsPromoted(pObj))
+    if (!HndIsNullOrDestroyedHandle(pObj) && !g_theGCHeap->IsPromoted(pObj))
     {
-        //<REVISIT_TODO>@todo optimize the access to the ref-count
-        ComCallWrapper* pWrap = ComCallWrapper::GetWrapperForObject((OBJECTREF)pObj);
-        _ASSERTE(pWrap != NULL);
-
-        BOOL fIsActive = pWrap->IsWrapperActive();
-        if (fIsActive)
+        if (GCToEEInterface::RefCountedHandleCallbacks(pObj))
         {
             _ASSERTE(lp2);
             promote_func* callback = (promote_func*) lp2;
@@ -113,9 +108,9 @@ void CALLBACK PromoteRefCounted(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExtraInf
     // Assert this object wasn't relocated since we are passing a temporary object's address.
     _ASSERTE(pOldObj == pObj);
 }
-#endif // FEATURE_COMINTEROP
+#endif // FEATURE_COMINTEROP || FEATURE_REDHAWK
 
-void CALLBACK TraceDependentHandle(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExtraInfo, LPARAM lp1, LPARAM lp2)
+void CALLBACK TraceDependentHandle(_UNCHECKED_OBJECTREF *pObjRef, uintptr_t *pExtraInfo, uintptr_t lp1, uintptr_t lp2)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -138,7 +133,7 @@ void CALLBACK TraceDependentHandle(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExtra
     }
 }
 
-void CALLBACK UpdateDependentHandle(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExtraInfo, LPARAM lp1, LPARAM lp2)
+void CALLBACK UpdateDependentHandle(_UNCHECKED_OBJECTREF *pObjRef, uintptr_t *pExtraInfo, uintptr_t lp1, uintptr_t lp2)
 {
     LIMITED_METHOD_CONTRACT;
     _ASSERTE(pExtraInfo);
@@ -177,7 +172,7 @@ void CALLBACK UpdateDependentHandle(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExtr
 #endif
 }
 
-void CALLBACK PromoteDependentHandle(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExtraInfo, LPARAM lp1, LPARAM lp2)
+void CALLBACK PromoteDependentHandle(_UNCHECKED_OBJECTREF *pObjRef, uintptr_t *pExtraInfo, uintptr_t lp1, uintptr_t lp2)
 {
     LIMITED_METHOD_CONTRACT;
     _ASSERTE(pExtraInfo);
@@ -191,9 +186,9 @@ void CALLBACK PromoteDependentHandle(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExt
     ScanContext *sc = (ScanContext*)lp1;
     DhContext *pDhContext = Ref_GetDependentHandleContext(sc);
 
-    if (*pObjRef && GCHeap::GetGCHeap()->IsPromoted(*pPrimaryRef))
+    if (*pObjRef && g_theGCHeap->IsPromoted(*pPrimaryRef))
     {
-        if (!GCHeap::GetGCHeap()->IsPromoted(*pSecondaryRef))
+        if (!g_theGCHeap->IsPromoted(*pSecondaryRef))
         {
             LOG((LF_GC|LF_ENC, LL_INFO10000, "\tPromoting secondary " LOG_OBJECT_CLASS(*pSecondaryRef)));
             _ASSERTE(lp2);
@@ -215,7 +210,7 @@ void CALLBACK PromoteDependentHandle(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExt
     }
 }
     
-void CALLBACK ClearDependentHandle(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExtraInfo, LPARAM lp1, LPARAM lp2)
+void CALLBACK ClearDependentHandle(_UNCHECKED_OBJECTREF *pObjRef, uintptr_t *pExtraInfo, uintptr_t /*lp1*/, uintptr_t /*lp2*/)
 {
     LIMITED_METHOD_CONTRACT;
     _ASSERTE(pExtraInfo);
@@ -226,7 +221,7 @@ void CALLBACK ClearDependentHandle(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExtra
     LOG((LF_GC|LF_ENC, LL_INFO1000, LOG_HANDLE_OBJECT_CLASS("\tPrimary:\t", pPrimaryRef, "to ", *pPrimaryRef)));
     LOG((LF_GC|LF_ENC, LL_INFO1000, LOG_HANDLE_OBJECT_CLASS("\tSecondary\t", pSecondaryRef, "to ", *pSecondaryRef)));
 
-    if (!GCHeap::GetGCHeap()->IsPromoted(*pPrimaryRef))
+    if (!g_theGCHeap->IsPromoted(*pPrimaryRef))
     {
         LOG((LF_GC|LF_ENC, LL_INFO1000, "\tunreachable ", LOG_OBJECT_CLASS(*pPrimaryRef)));
         LOG((LF_GC|LF_ENC, LL_INFO1000, "\tunreachable ", LOG_OBJECT_CLASS(*pSecondaryRef)));
@@ -235,7 +230,7 @@ void CALLBACK ClearDependentHandle(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExtra
     }
     else
     {
-        _ASSERTE(GCHeap::GetGCHeap()->IsPromoted(*pSecondaryRef));
+        _ASSERTE(g_theGCHeap->IsPromoted(*pSecondaryRef));
         LOG((LF_GC|LF_ENC, LL_INFO10000, "\tPrimary is reachable " LOG_OBJECT_CLASS(*pPrimaryRef)));
         LOG((LF_GC|LF_ENC, LL_INFO10000, "\tSecondary is reachable " LOG_OBJECT_CLASS(*pSecondaryRef)));
     }
@@ -247,12 +242,13 @@ void CALLBACK ClearDependentHandle(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExtra
  * This callback is called to pin individual objects referred to by handles in
  * the pinning table.
  */
-void CALLBACK PinObject(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExtraInfo, LPARAM lp1, LPARAM lp2)
+void CALLBACK PinObject(_UNCHECKED_OBJECTREF *pObjRef, uintptr_t *pExtraInfo, uintptr_t lp1, uintptr_t lp2)
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_MODE_COOPERATIVE;
+    UNREFERENCED_PARAMETER(pExtraInfo);
 
     // PINNING IS BAD - DON'T DO IT IF YOU CAN AVOID IT
     LOG((LF_GC, LL_WARNING, LOG_HANDLE_OBJECT_CLASS("WARNING: ", pObjRef, "causes pinning of ", *pObjRef)));
@@ -277,8 +273,8 @@ void CALLBACK PinObject(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExtraInfo, LPARA
                 pOverlapped->m_userObjectInternal = static_cast<void*>(OBJECTREFToObject(pOverlapped->m_userObject));
                 ArrayBase* pUserObject = (ArrayBase*)OBJECTREFToObject(pOverlapped->m_userObject);
                 Object **ppObj = (Object**)pUserObject->GetDataPtr(TRUE);
-                SIZE_T num = pUserObject->GetNumComponents();
-                for (SIZE_T i = 0; i < num; i ++)
+                size_t num = pUserObject->GetNumComponents();
+                for (size_t i = 0; i < num; i ++)
                 {
                     callback(ppObj + i, (ScanContext *)lp1, GC_CALL_PINNED);
                 }
@@ -304,16 +300,17 @@ void CALLBACK PinObject(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExtraInfo, LPARA
  * This callback is called to trace individual objects referred to by handles
  * in the strong table.
  */
-void CALLBACK PromoteObject(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExtraInfo, LPARAM lp1, LPARAM lp2)
+void CALLBACK PromoteObject(_UNCHECKED_OBJECTREF *pObjRef, uintptr_t *pExtraInfo, uintptr_t lp1, uintptr_t lp2)
 {
     WRAPPER_NO_CONTRACT;
+    UNREFERENCED_PARAMETER(pExtraInfo);
 
     LOG((LF_GC, LL_INFO1000, LOG_HANDLE_OBJECT_CLASS("", pObjRef, "causes promotion of ", *pObjRef)));
 
     Object **ppRef = (Object **)pObjRef;
-	_ASSERTE(lp2);
-	promote_func* callback = (promote_func*) lp2;
-	callback(ppRef, (ScanContext *)lp1, 0);
+    _ASSERTE(lp2);
+    promote_func* callback = (promote_func*) lp2;
+    callback(ppRef, (ScanContext *)lp1, 0);
 }
 
 
@@ -323,14 +320,17 @@ void CALLBACK PromoteObject(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExtraInfo, L
  * This callback is called to check promotion of individual objects referred to by
  * handles in the weak tables.
  */
-void CALLBACK CheckPromoted(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExtraInfo, LPARAM lp1, LPARAM lp2)
+void CALLBACK CheckPromoted(_UNCHECKED_OBJECTREF *pObjRef, uintptr_t *pExtraInfo, uintptr_t lp1, uintptr_t lp2)
 {
     WRAPPER_NO_CONTRACT;
+    UNREFERENCED_PARAMETER(pExtraInfo);
+    UNREFERENCED_PARAMETER(lp1);
+    UNREFERENCED_PARAMETER(lp2);
 
     LOG((LF_GC, LL_INFO100000, LOG_HANDLE_OBJECT_CLASS("Checking referent of Weak-", pObjRef, "to ", *pObjRef)));
 
     Object **ppRef = (Object **)pObjRef;
-    if (!GCHeap::GetGCHeap()->IsPromoted(*ppRef))
+    if (!g_theGCHeap->IsPromoted(*ppRef))
     {
         LOG((LF_GC, LL_INFO100, LOG_HANDLE_OBJECT_CLASS("Severing Weak-", pObjRef, "to unreachable ", *pObjRef)));
 
@@ -342,7 +342,7 @@ void CALLBACK CheckPromoted(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExtraInfo, L
     }
 }
 
-void CALLBACK CalculateSizedRefSize(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExtraInfo, LPARAM lp1, LPARAM lp2)
+void CALLBACK CalculateSizedRefSize(_UNCHECKED_OBJECTREF *pObjRef, uintptr_t *pExtraInfo, uintptr_t lp1, uintptr_t lp2)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -355,9 +355,9 @@ void CALLBACK CalculateSizedRefSize(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExtr
     ScanContext* sc = (ScanContext *)lp1;
     promote_func* callback = (promote_func*) lp2;
 
-    size_t sizeBegin = GCHeap::GetGCHeap()->GetPromotedBytes(sc->thread_number);
+    size_t sizeBegin = g_theGCHeap->GetPromotedBytes(sc->thread_number);
     callback(ppSizedRef, (ScanContext *)lp1, 0);
-    size_t sizeEnd = GCHeap::GetGCHeap()->GetPromotedBytes(sc->thread_number);
+    size_t sizeEnd = g_theGCHeap->GetPromotedBytes(sc->thread_number);
     *pSize = sizeEnd - sizeBegin;
 }
 
@@ -367,9 +367,10 @@ void CALLBACK CalculateSizedRefSize(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExtr
  * This callback is called to update pointers for individual objects referred to by
  * handles in the weak and strong tables.
  */
-void CALLBACK UpdatePointer(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExtraInfo, LPARAM lp1, LPARAM lp2)
+void CALLBACK UpdatePointer(_UNCHECKED_OBJECTREF *pObjRef, uintptr_t *pExtraInfo, uintptr_t lp1, uintptr_t lp2)
 {
     LIMITED_METHOD_CONTRACT;
+    UNREFERENCED_PARAMETER(pExtraInfo);
 
     LOG((LF_GC, LL_INFO100000, LOG_HANDLE_OBJECT("Querying for new location of ", pObjRef, "to ", *pObjRef)));
 
@@ -379,9 +380,9 @@ void CALLBACK UpdatePointer(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExtraInfo, L
     Object *pOldLocation = *ppRef;
 #endif
 
-	_ASSERTE(lp2);
-	promote_func* callback = (promote_func*) lp2;
-	callback(ppRef, (ScanContext *)lp1, 0);
+    _ASSERTE(lp2);
+    promote_func* callback = (promote_func*) lp2;
+    callback(ppRef, (ScanContext *)lp1, 0);
 
 #ifdef _DEBUG
     if (pOldLocation != *pObjRef)
@@ -401,8 +402,9 @@ void CALLBACK UpdatePointer(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExtraInfo, L
  * This callback is called to update pointers for individual objects referred to by
  * handles in the weak and strong tables.
  */
-void CALLBACK ScanPointerForProfilerAndETW(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExtraInfo, LPARAM lp1, LPARAM lp2)
+void CALLBACK ScanPointerForProfilerAndETW(_UNCHECKED_OBJECTREF *pObjRef, uintptr_t *pExtraInfo, uintptr_t lp1, uintptr_t lp2)
 {
+#ifndef FEATURE_REDHAWK
     CONTRACTL
     {
         NOTHROW;
@@ -410,6 +412,9 @@ void CALLBACK ScanPointerForProfilerAndETW(_UNCHECKED_OBJECTREF *pObjRef, LPARAM
         if (GetThreadNULLOk()) { MODE_COOPERATIVE; } 
     }
     CONTRACTL_END;
+#endif // FEATURE_REDHAWK
+    UNREFERENCED_PARAMETER(pExtraInfo);
+    UNREFERENCED_PARAMETER(lp2);
 
     LOG((LF_GC | LF_CORPROF, LL_INFO100000, LOG_HANDLE_OBJECT_CLASS("Notifying profiler of ", pObjRef, "to ", *pObjRef)));
 
@@ -419,7 +424,7 @@ void CALLBACK ScanPointerForProfilerAndETW(_UNCHECKED_OBJECTREF *pObjRef, LPARAM
     // Get a hold of the heap ID that's tacked onto the end of the scancontext struct.
     ProfilingScanContext *pSC = (ProfilingScanContext *)lp1;
 
-    DWORD rootFlags = 0;
+    uint32_t rootFlags = 0;
     BOOL isDependent = FALSE;
 
     OBJECTHANDLE handle = (OBJECTHANDLE)(pRef);
@@ -446,14 +451,28 @@ void CALLBACK ScanPointerForProfilerAndETW(_UNCHECKED_OBJECTREF *pObjRef, LPARAM
         break;
 
     case    HNDTYPE_VARIABLE:
-#if 0 // this feature appears to be unused for now
-        rootFlags |= COR_PRF_GC_ROOT_VARIABLE;
+#ifdef FEATURE_REDHAWK
+    {
+        // Set the appropriate ETW flags for the current strength of this variable handle
+        uint32_t nVarHandleType = GetVariableHandleType(handle);
+        if (((nVarHandleType & VHT_WEAK_SHORT) != 0) ||
+            ((nVarHandleType & VHT_WEAK_LONG) != 0))
+        {
+            rootFlags |= kEtwGCRootFlagsWeakRef;
+        }
+        if ((nVarHandleType & VHT_PINNED) != 0)
+        {
+            rootFlags |= kEtwGCRootFlagsPinning;
+        }
+
+        // No special ETW flag for strong handles (VHT_STRONG)
+    }
 #else
         _ASSERTE(!"Variable handle encountered");
 #endif
         break;
 
-#ifdef FEATURE_COMINTEROP
+#if defined(FEATURE_COMINTEROP) && !defined(FEATURE_REDHAWK)
     case    HNDTYPE_REFCOUNTED:
         rootFlags |= kEtwGCRootFlagsRefCounted;
         if (*pRef != NULL)
@@ -463,7 +482,7 @@ void CALLBACK ScanPointerForProfilerAndETW(_UNCHECKED_OBJECTREF *pObjRef, LPARAM
                 rootFlags |= kEtwGCRootFlagsWeakRef;
         }
         break;
-#endif // FEATURE_COMINTEROP
+#endif // FEATURE_COMINTEROP || FEATURE_REDHAWK
     }
 
     _UNCHECKED_OBJECTREF pSec = NULL;
@@ -476,7 +495,7 @@ void CALLBACK ScanPointerForProfilerAndETW(_UNCHECKED_OBJECTREF *pObjRef, LPARAM
         {
             BEGIN_PIN_PROFILER(CORProfilerTrackGC());
             g_profControlBlock.pProfInterface->RootReference2(
-                (BYTE *)*pRef, 
+                (uint8_t *)*pRef,
                 kEtwGCRootKindHandle,
                 (EtwGCRootFlags)rootFlags,
                 pRef, 
@@ -488,8 +507,8 @@ void CALLBACK ScanPointerForProfilerAndETW(_UNCHECKED_OBJECTREF *pObjRef, LPARAM
             BEGIN_PIN_PROFILER(CORProfilerTrackConditionalWeakTableElements());
             pSec = (_UNCHECKED_OBJECTREF)HndGetHandleExtraInfo(handle);
             g_profControlBlock.pProfInterface->ConditionalWeakTableElementReference(
-                (BYTE*)*pRef,
-                (BYTE*)pSec,
+                (uint8_t*)*pRef,
+                (uint8_t*)pSec,
                 pRef,
                 &pSC->pHeapId);
             END_PIN_PROFILER();
@@ -497,6 +516,7 @@ void CALLBACK ScanPointerForProfilerAndETW(_UNCHECKED_OBJECTREF *pObjRef, LPARAM
     }
 #endif // GC_PROFILING
 
+#if defined(FEATURE_EVENT_TRACE)
     // Notify ETW of the handle
     if (ETW::GCLog::ShouldWalkHeapRootsForEtw())
     {
@@ -515,6 +535,7 @@ void CALLBACK ScanPointerForProfilerAndETW(_UNCHECKED_OBJECTREF *pObjRef, LPARAM
             0,              // dwGCFlags,
             rootFlags);     // ETW handle flags
     }
+#endif // defined(FEATURE_EVENT_TRACE) 
 }
 #endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
 
@@ -526,9 +547,10 @@ void CALLBACK ScanPointerForProfilerAndETW(_UNCHECKED_OBJECTREF *pObjRef, LPARAM
  * This callback is called to update pointers for individual objects referred to by
  * handles in the pinned table.
  */
-void CALLBACK UpdatePointerPinned(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExtraInfo, LPARAM lp1, LPARAM lp2)
+void CALLBACK UpdatePointerPinned(_UNCHECKED_OBJECTREF *pObjRef, uintptr_t *pExtraInfo, uintptr_t lp1, uintptr_t lp2)
 {
     LIMITED_METHOD_CONTRACT;
+    UNREFERENCED_PARAMETER(pExtraInfo);
 
     Object **ppRef = (Object **)pObjRef;
 
@@ -543,7 +565,7 @@ void CALLBACK UpdatePointerPinned(_UNCHECKED_OBJECTREF *pObjRef, LPARAM *pExtraI
 //----------------------------------------------------------------------------
 
 // flags describing the handle types
-static const UINT s_rgTypeFlags[] =
+static const uint32_t s_rgTypeFlags[] =
 {
     HNDF_NORMAL,    // HNDTYPE_WEAK_SHORT
     HNDF_NORMAL,    // HNDTYPE_WEAK_LONG
@@ -561,10 +583,10 @@ int getNumberOfSlots()
 {
     WRAPPER_NO_CONTRACT;
 
-    // when Ref_Initialize called, GCHeap::GetNumberOfHeaps() is still 0, so use #procs as a workaround
+    // when Ref_Initialize called, IGCHeap::GetNumberOfHeaps() is still 0, so use #procs as a workaround
     // it is legal since even if later #heaps < #procs we create handles by thread home heap
     // and just have extra unused slots in HandleTableBuckets, which does not take a lot of space
-    if (!GCHeap::IsServerHeap())
+    if (!IsServerHeap())
         return 1;
 
 #ifdef FEATURE_REDHAWK
@@ -630,7 +652,7 @@ bool Ref_Initialize()
     _ASSERTE(g_HandleTableMap.pBuckets == NULL);
 
     // Create an array of INITIAL_HANDLE_TABLE_ARRAY_SIZE HandleTableBuckets to hold the handle table sets
-    NewHolder<HandleTableBucket*> pBuckets(new (nothrow) HandleTableBucket * [ INITIAL_HANDLE_TABLE_ARRAY_SIZE ]);
+    HandleTableBucket** pBuckets = new (nothrow) HandleTableBucket * [ INITIAL_HANDLE_TABLE_ARRAY_SIZE ];
     if (pBuckets == NULL)
         return false;
 
@@ -639,45 +661,50 @@ bool Ref_Initialize()
 
     // Crate the first bucket
     HandleTableBucket * pBucket = new (nothrow) HandleTableBucket;
-    if (pBucket == NULL)
-        return false;
-    pBucket->HandleTableIndex = 0;
-
-    int n_slots = getNumberOfSlots();
-
-    HandleTableBucketHolder bucketHolder(pBucket, n_slots);
-
-    // create the handle table set for the first bucket
-    pBucket->pTable = new (nothrow) HHANDLETABLE [ n_slots ];
-    if (pBucket->pTable == NULL)
-        return false;
-
-    ZeroMemory(pBucket->pTable,
-         n_slots * sizeof (HHANDLETABLE));
-    for (int uCPUindex=0; uCPUindex < n_slots; uCPUindex++)
+    if (pBucket != NULL)
     {
-        pBucket->pTable[uCPUindex] = HndCreateHandleTable(s_rgTypeFlags, _countof(s_rgTypeFlags), ADIndex(1));
-        if (pBucket->pTable[uCPUindex] == NULL)
-            return false;
-    
-        HndSetHandleTableIndex(pBucket->pTable[uCPUindex], 0);
+        pBucket->HandleTableIndex = 0;
+
+        int n_slots = getNumberOfSlots();
+
+        HandleTableBucketHolder bucketHolder(pBucket, n_slots);
+
+        // create the handle table set for the first bucket
+        pBucket->pTable = new (nothrow) HHANDLETABLE[n_slots];
+        if (pBucket->pTable == NULL)
+            goto CleanupAndFail;
+
+        ZeroMemory(pBucket->pTable,
+            n_slots * sizeof(HHANDLETABLE));
+        for (int uCPUindex = 0; uCPUindex < n_slots; uCPUindex++)
+        {
+            pBucket->pTable[uCPUindex] = HndCreateHandleTable(s_rgTypeFlags, _countof(s_rgTypeFlags), ADIndex(1));
+            if (pBucket->pTable[uCPUindex] == NULL)
+                goto CleanupAndFail;
+
+            HndSetHandleTableIndex(pBucket->pTable[uCPUindex], 0);
+        }
+
+        pBuckets[0] = pBucket;
+        bucketHolder.SuppressRelease();
+
+        g_HandleTableMap.pBuckets = pBuckets;
+        g_HandleTableMap.dwMaxIndex = INITIAL_HANDLE_TABLE_ARRAY_SIZE;
+        g_HandleTableMap.pNext = NULL;
+
+        // Allocate contexts used during dependent handle promotion scanning. There's one of these for every GC
+        // heap since they're scanned in parallel.
+        g_pDependentHandleContexts = new (nothrow) DhContext[n_slots];
+        if (g_pDependentHandleContexts == NULL)
+            goto CleanupAndFail;
+
+        return true;
     }
 
-    pBuckets[0] = pBucket;
-    bucketHolder.SuppressRelease();
-
-    g_HandleTableMap.pBuckets = pBuckets;
-    g_HandleTableMap.dwMaxIndex = INITIAL_HANDLE_TABLE_ARRAY_SIZE;
-    g_HandleTableMap.pNext = NULL;
-    pBuckets.SuppressRelease();
-
-    // Allocate contexts used during dependent handle promotion scanning. There's one of these for every GC
-    // heap since they're scanned in parallel.
-    g_pDependentHandleContexts = new (nothrow) DhContext[n_slots];
-    if (g_pDependentHandleContexts == NULL)
-        return false;
-
-    return true;
+CleanupAndFail:
+    if (pBuckets != NULL)
+        delete[] pBuckets;
+    return false;
 }
 
 void Ref_Shutdown()
@@ -733,7 +760,7 @@ HandleTableBucket *Ref_CreateHandleTableBucket(ADIndex uADIndex)
     
     walk = &g_HandleTableMap;
     HandleTableMap *last = NULL;
-    UINT offset = 0;
+    uint32_t offset = 0;
 
     result = new HandleTableBucket;
     result->pTable = NULL;
@@ -755,13 +782,13 @@ HandleTableBucket *Ref_CreateHandleTableBucket(ADIndex uADIndex)
     for (;;) {
         // Do we have free slot
         while (walk) {
-            for (UINT i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++) {
+            for (uint32_t i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++) {
                 if (walk->pBuckets[i] == 0) {
                     for (int uCPUindex=0; uCPUindex < n_slots; uCPUindex++)
                         HndSetHandleTableIndex(result->pTable[uCPUindex], i+offset);
 
                     result->HandleTableIndex = i+offset;
-                    if (FastInterlockCompareExchangePointer(&walk->pBuckets[i], result, NULL) == 0) {
+                    if (Interlocked::CompareExchangePointer(&walk->pBuckets[i], result, NULL) == 0) {
                         // Get a free slot.
                         bucketHolder.SuppressRelease();
                         return result;
@@ -786,7 +813,7 @@ HandleTableBucket *Ref_CreateHandleTableBucket(ADIndex uADIndex)
         ZeroMemory(newMap->pBuckets,
                 INITIAL_HANDLE_TABLE_ARRAY_SIZE * sizeof (HandleTableBucket *));
 
-        if (FastInterlockCompareExchangePointer(&last->pNext, newMap.GetValue(), NULL) != NULL) 
+        if (Interlocked::CompareExchangePointer(&last->pNext, newMap.GetValue(), NULL) != NULL) 
         {
             // This thread loses.
             delete [] newMap->pBuckets;
@@ -847,13 +874,15 @@ int getSlotNumber(ScanContext* sc)
 {
     WRAPPER_NO_CONTRACT;
 
-    return (GCHeap::IsServerHeap() ? sc->thread_number : 0);
+    return (IsServerHeap() ? sc->thread_number : 0);
 }
 
 // <TODO> - reexpress as complete only like hndtable does now!!! -fmh</REVISIT_TODO>
-void Ref_EndSynchronousGC(UINT condemned, UINT maxgen)
+void Ref_EndSynchronousGC(uint32_t condemned, uint32_t maxgen)
 {
     LIMITED_METHOD_CONTRACT;
+    UNREFERENCED_PARAMETER(condemned);
+    UNREFERENCED_PARAMETER(maxgen);
 
 // NOT used, must be modified for MTHTS (scalable HandleTable scan) if planned to use:
 // need to pass ScanContext info to split HT bucket by threads, or to be performed under t_join::join
@@ -861,7 +890,7 @@ void Ref_EndSynchronousGC(UINT condemned, UINT maxgen)
     // tell the table we finished a GC
     HandleTableMap *walk = &g_HandleTableMap;
     while (walk) {
-        for (UINT i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++) {
+        for (uint32_t i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++) {
             HHANDLETABLE hTable = walk->pTable[i];
             if (hTable)
                 HndNotifyGcCycleComplete(hTable, condemned, maxgen);
@@ -918,7 +947,7 @@ void SetDependentHandleSecondary(OBJECTHANDLE handle, OBJECTREF objref)
         HndWriteBarrier(handle, objref);
 
     // store the pointer
-    HndSetHandleExtraInfo(handle, HNDTYPE_DEPENDENT, (LPARAM)value);
+    HndSetHandleExtraInfo(handle, HNDTYPE_DEPENDENT, (uintptr_t)value);
 }
 
 
@@ -932,7 +961,7 @@ void SetDependentHandleSecondary(OBJECTHANDLE handle, OBJECTREF objref)
  * N.B. This routine is not a macro since we do validation in RETAIL.
  * We always validate the type here because it can come from external callers.
  */
-OBJECTHANDLE CreateVariableHandle(HHANDLETABLE hTable, OBJECTREF object, UINT type)
+OBJECTHANDLE CreateVariableHandle(HHANDLETABLE hTable, OBJECTREF object, uint32_t type)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -945,9 +974,20 @@ OBJECTHANDLE CreateVariableHandle(HHANDLETABLE hTable, OBJECTREF object, UINT ty
     }
 
     // create the handle
-    return HndCreateHandle(hTable, HNDTYPE_VARIABLE, object, (LPARAM)type);
+    return HndCreateHandle(hTable, HNDTYPE_VARIABLE, object, (uintptr_t)type);
 }
 
+/*
+* GetVariableHandleType.
+*
+* Retrieves the dynamic type of a variable-strength handle.
+*/
+uint32_t GetVariableHandleType(OBJECTHANDLE handle)
+{
+    WRAPPER_NO_CONTRACT;
+
+    return (uint32_t)HndGetHandleExtraInfo(handle);
+}
 
 /*
  * UpdateVariableHandleType.
@@ -957,7 +997,7 @@ OBJECTHANDLE CreateVariableHandle(HHANDLETABLE hTable, OBJECTREF object, UINT ty
  * N.B. This routine is not a macro since we do validation in RETAIL.
  * We always validate the type here because it can come from external callers.
  */
-void UpdateVariableHandleType(OBJECTHANDLE handle, UINT type)
+void UpdateVariableHandleType(OBJECTHANDLE handle, uint32_t type)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -978,7 +1018,24 @@ void UpdateVariableHandleType(OBJECTHANDLE handle, UINT type)
     //
 
     // store the type in the handle's extra info
-    HndSetHandleExtraInfo(handle, HNDTYPE_VARIABLE, (LPARAM)type);
+    HndSetHandleExtraInfo(handle, HNDTYPE_VARIABLE, (uintptr_t)type);
+}
+
+/*
+* CompareExchangeVariableHandleType.
+*
+* Changes the dynamic type of a variable-strength handle. Unlike UpdateVariableHandleType we assume that the
+* types have already been validated.
+*/
+uint32_t CompareExchangeVariableHandleType(OBJECTHANDLE handle, uint32_t oldType, uint32_t newType)
+{
+    WRAPPER_NO_CONTRACT;
+
+    // verify that we are being asked to get/set valid types
+    _ASSERTE(IS_VALID_VHT_VALUE(oldType) && IS_VALID_VHT_VALUE(newType));
+
+    // attempt to store the type in the handle's extra info
+    return (uint32_t)HndCompareExchangeHandleExtraInfo(handle, HNDTYPE_VARIABLE, (uintptr_t)oldType, (uintptr_t)newType);
 }
 
 
@@ -988,17 +1045,17 @@ void UpdateVariableHandleType(OBJECTHANDLE handle, UINT type)
  * Convenience function for tracing variable-strength handles.
  * Wraps HndScanHandlesForGC.
  */
-void TraceVariableHandles(HANDLESCANPROC pfnTrace, LPARAM lp1, LPARAM lp2, UINT uEnableMask, UINT condemned, UINT maxgen, UINT flags)
+void TraceVariableHandles(HANDLESCANPROC pfnTrace, uintptr_t lp1, uintptr_t lp2, uint32_t uEnableMask, uint32_t condemned, uint32_t maxgen, uint32_t flags)
 {
     WRAPPER_NO_CONTRACT;
 
     // set up to scan variable handles with the specified mask and trace function
-    UINT               type = HNDTYPE_VARIABLE;
-    struct VARSCANINFO info = { (LPARAM)uEnableMask, pfnTrace, lp2 };
+    uint32_t               type = HNDTYPE_VARIABLE;
+    struct VARSCANINFO info = { (uintptr_t)uEnableMask, pfnTrace, lp2 };
 
     HandleTableMap *walk = &g_HandleTableMap;
     while (walk) {
-        for (UINT i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i++)
+        for (uint32_t i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i++)
             if (walk->pBuckets[i] != NULL)
             {
                 HHANDLETABLE hTable = walk->pBuckets[i]->pTable[getSlotNumber((ScanContext*) lp1)];
@@ -1012,7 +1069,7 @@ void TraceVariableHandles(HANDLESCANPROC pfnTrace, LPARAM lp1, LPARAM lp2, UINT 
                     }
 #endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
                     HndScanHandlesForGC(hTable, VariableTraceDispatcher,
-                                        lp1, (LPARAM)&info, &type, 1, condemned, maxgen, HNDGCF_EXTRAINFO | flags);
+                                        lp1, (uintptr_t)&info, &type, 1, condemned, maxgen, HNDGCF_EXTRAINFO | flags);
                 }
             }
         walk = walk->pNext;
@@ -1023,17 +1080,17 @@ void TraceVariableHandles(HANDLESCANPROC pfnTrace, LPARAM lp1, LPARAM lp2, UINT 
   loop scan version of TraceVariableHandles for single-thread-managed Ref_* functions
   should be kept in sync with the code above
 */
-void TraceVariableHandlesBySingleThread(HANDLESCANPROC pfnTrace, LPARAM lp1, LPARAM lp2, UINT uEnableMask, UINT condemned, UINT maxgen, UINT flags)
+void TraceVariableHandlesBySingleThread(HANDLESCANPROC pfnTrace, uintptr_t lp1, uintptr_t lp2, uint32_t uEnableMask, uint32_t condemned, uint32_t maxgen, uint32_t flags)
 {
     WRAPPER_NO_CONTRACT;
 
     // set up to scan variable handles with the specified mask and trace function
-    UINT type = HNDTYPE_VARIABLE;
-    struct VARSCANINFO info = { (LPARAM)uEnableMask, pfnTrace, lp2 };
+    uint32_t type = HNDTYPE_VARIABLE;
+    struct VARSCANINFO info = { (uintptr_t)uEnableMask, pfnTrace, lp2 };
 
     HandleTableMap *walk = &g_HandleTableMap;
     while (walk) {
-        for (UINT i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
+        for (uint32_t i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
             if (walk->pBuckets[i] != NULL)
             {
                   // this is the one of Ref_* function performed by single thread in MULTI_HEAPS case, so we need to loop through all HT of the bucket
@@ -1042,7 +1099,7 @@ void TraceVariableHandlesBySingleThread(HANDLESCANPROC pfnTrace, LPARAM lp1, LPA
                    HHANDLETABLE hTable = walk->pBuckets[i]->pTable[uCPUindex];
                     if (hTable)
                         HndScanHandlesForGC(hTable, VariableTraceDispatcher,
-                                        lp1, (LPARAM)&info, &type, 1, condemned, maxgen, HNDGCF_EXTRAINFO | flags);
+                                        lp1, (uintptr_t)&info, &type, 1, condemned, maxgen, HNDGCF_EXTRAINFO | flags);
                 }
             }
         walk = walk->pNext;
@@ -1051,19 +1108,19 @@ void TraceVariableHandlesBySingleThread(HANDLESCANPROC pfnTrace, LPARAM lp1, LPA
 
 //----------------------------------------------------------------------------
 
-void Ref_TracePinningRoots(UINT condemned, UINT maxgen, ScanContext* sc, Ref_promote_func* fn)
+void Ref_TracePinningRoots(uint32_t condemned, uint32_t maxgen, ScanContext* sc, Ref_promote_func* fn)
 {
     WRAPPER_NO_CONTRACT;
 
     LOG((LF_GC, LL_INFO10000, "Pinning referents of pinned handles in generation %u\n", condemned));
 
     // pin objects pointed to by pinning handles
-    UINT types[2] = {HNDTYPE_PINNED, HNDTYPE_ASYNCPINNED};
-    UINT flags = sc->concurrent ? HNDGCF_ASYNC : HNDGCF_NORMAL;
+    uint32_t types[2] = {HNDTYPE_PINNED, HNDTYPE_ASYNCPINNED};
+    uint32_t flags = sc->concurrent ? HNDGCF_ASYNC : HNDGCF_NORMAL;
 
     HandleTableMap *walk = &g_HandleTableMap;
     while (walk) {
-        for (UINT i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
+        for (uint32_t i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
             if (walk->pBuckets[i] != NULL)
             {
                 HHANDLETABLE hTable = walk->pBuckets[i]->pTable[getSlotNumber((ScanContext*) sc)];
@@ -1075,18 +1132,18 @@ void Ref_TracePinningRoots(UINT condemned, UINT maxgen, ScanContext* sc, Ref_pro
                         sc->pCurrentDomain = SystemDomain::GetAppDomainAtIndex(HndGetHandleTableADIndex(hTable));
                     }
 #endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
-                    HndScanHandlesForGC(hTable, PinObject, LPARAM(sc), LPARAM(fn), types, _countof(types), condemned, maxgen, flags);
+                    HndScanHandlesForGC(hTable, PinObject, uintptr_t(sc), uintptr_t(fn), types, _countof(types), condemned, maxgen, flags);
                 }
             }
         walk = walk->pNext;
     }
 
     // pin objects pointed to by variable handles whose dynamic type is VHT_PINNED
-    TraceVariableHandles(PinObject, LPARAM(sc), LPARAM(fn), VHT_PINNED, condemned, maxgen, flags);
+    TraceVariableHandles(PinObject, uintptr_t(sc), uintptr_t(fn), VHT_PINNED, condemned, maxgen, flags);
 }
 
 
-void Ref_TraceNormalRoots(UINT condemned, UINT maxgen, ScanContext* sc, Ref_promote_func* fn)
+void Ref_TraceNormalRoots(uint32_t condemned, uint32_t maxgen, ScanContext* sc, Ref_promote_func* fn)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -1094,13 +1151,13 @@ void Ref_TraceNormalRoots(UINT condemned, UINT maxgen, ScanContext* sc, Ref_prom
 
     // promote objects pointed to by strong handles
     // during ephemeral GCs we also want to promote the ones pointed to by sizedref handles.
-    UINT types[2] = {HNDTYPE_STRONG, HNDTYPE_SIZEDREF};
-    UINT uTypeCount = (((condemned >= maxgen) && !GCHeap::GetGCHeap()->IsConcurrentGCInProgress()) ? 1 : _countof(types));
-    UINT flags = (sc->concurrent) ? HNDGCF_ASYNC : HNDGCF_NORMAL;
+    uint32_t types[2] = {HNDTYPE_STRONG, HNDTYPE_SIZEDREF};
+    uint32_t uTypeCount = (((condemned >= maxgen) && !g_theGCHeap->IsConcurrentGCInProgress()) ? 1 : _countof(types));
+    uint32_t flags = (sc->concurrent) ? HNDGCF_ASYNC : HNDGCF_NORMAL;
 
     HandleTableMap *walk = &g_HandleTableMap;
     while (walk) {
-        for (UINT i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
+        for (uint32_t i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
             if (walk->pBuckets[i] != NULL)
             {
                 HHANDLETABLE hTable = walk->pBuckets[i]->pTable[getSlotNumber(sc)];
@@ -1113,48 +1170,48 @@ void Ref_TraceNormalRoots(UINT condemned, UINT maxgen, ScanContext* sc, Ref_prom
                     }
 #endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
-                    HndScanHandlesForGC(hTable, PromoteObject, LPARAM(sc), LPARAM(fn), types, uTypeCount, condemned, maxgen, flags);
+                    HndScanHandlesForGC(hTable, PromoteObject, uintptr_t(sc), uintptr_t(fn), types, uTypeCount, condemned, maxgen, flags);
                 }
             }
         walk = walk->pNext;
     }
 
     // promote objects pointed to by variable handles whose dynamic type is VHT_STRONG
-    TraceVariableHandles(PromoteObject, LPARAM(sc), LPARAM(fn), VHT_STRONG, condemned, maxgen, flags);
+    TraceVariableHandles(PromoteObject, uintptr_t(sc), uintptr_t(fn), VHT_STRONG, condemned, maxgen, flags);
 
-#ifdef FEATURE_COMINTEROP    
+#if defined(FEATURE_COMINTEROP) || defined(FEATURE_REDHAWK)
     // don't scan ref-counted handles during concurrent phase as the clean-up of CCWs can race with AD unload and cause AV's
     if (!sc->concurrent)
     {
         // promote ref-counted handles
-        UINT type = HNDTYPE_REFCOUNTED;
+        uint32_t type = HNDTYPE_REFCOUNTED;
 
         walk = &g_HandleTableMap;
         while (walk) {
-            for (UINT i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
+            for (uint32_t i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
                 if (walk->pBuckets[i] != NULL)
                 {
                     HHANDLETABLE hTable = walk->pBuckets[i]->pTable[getSlotNumber(sc)];
                     if (hTable)
-                        HndScanHandlesForGC(hTable, PromoteRefCounted, LPARAM(sc), LPARAM(fn), &type, 1, condemned, maxgen, flags );
+                        HndScanHandlesForGC(hTable, PromoteRefCounted, uintptr_t(sc), uintptr_t(fn), &type, 1, condemned, maxgen, flags );
                 }
             walk = walk->pNext;
         }
     }
-#endif // FEATURE_COMINTEROP    
+#endif // FEATURE_COMINTEROP || FEATURE_REDHAWK
 }
 
 #ifdef FEATURE_COMINTEROP
 
-void Ref_TraceRefCountHandles(HANDLESCANPROC callback, LPARAM lParam1, LPARAM lParam2)
+void Ref_TraceRefCountHandles(HANDLESCANPROC callback, uintptr_t lParam1, uintptr_t lParam2)
 {
     int max_slots = getNumberOfSlots();
-    UINT handleType = HNDTYPE_REFCOUNTED;
+    uint32_t handleType = HNDTYPE_REFCOUNTED;
 
     HandleTableMap *walk = &g_HandleTableMap;
     while (walk)
     {
-        for (UINT i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i++)
+        for (uint32_t i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i++)
         {
             if (walk->pBuckets[i] != NULL)
             {
@@ -1162,7 +1219,7 @@ void Ref_TraceRefCountHandles(HANDLESCANPROC callback, LPARAM lParam1, LPARAM lP
                 {
                     HHANDLETABLE hTable = walk->pBuckets[i]->pTable[j];
                     if (hTable)
-                        HndEnumHandles(hTable, &handleType, 1, callback, lParam1, lParam2, FALSE);
+                        HndEnumHandles(hTable, &handleType, 1, callback, lParam1, lParam2, false);
                 }
             }
         }
@@ -1174,28 +1231,28 @@ void Ref_TraceRefCountHandles(HANDLESCANPROC callback, LPARAM lParam1, LPARAM lP
 
 
 
-void Ref_CheckReachable(UINT condemned, UINT maxgen, LPARAM lp1)
+void Ref_CheckReachable(uint32_t condemned, uint32_t maxgen, uintptr_t lp1)
 {
     WRAPPER_NO_CONTRACT;
 
     LOG((LF_GC, LL_INFO10000, "Checking reachability of referents of long-weak handles in generation %u\n", condemned));
 
     // these are the handle types that need to be checked
-    UINT types[] =
+    uint32_t types[] =
     {
         HNDTYPE_WEAK_LONG,
-#ifdef FEATURE_COMINTEROP
+#if defined(FEATURE_COMINTEROP) || defined(FEATURE_REDHAWK)
         HNDTYPE_REFCOUNTED,
-#endif // FEATURE_COMINTEROP
+#endif // FEATURE_COMINTEROP || FEATURE_REDHAWK
     };
 
     // check objects pointed to by short weak handles
-    UINT flags = (((ScanContext*) lp1)->concurrent) ? HNDGCF_ASYNC : HNDGCF_NORMAL;
+    uint32_t flags = (((ScanContext*) lp1)->concurrent) ? HNDGCF_ASYNC : HNDGCF_NORMAL;
     int uCPUindex = getSlotNumber((ScanContext*) lp1);
 
     HandleTableMap *walk = &g_HandleTableMap;
     while (walk) {
-        for (UINT i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
+        for (uint32_t i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
         {
             if (walk->pBuckets[i] != NULL)
            {
@@ -1248,8 +1305,8 @@ DhContext *Ref_GetDependentHandleContext(ScanContext* sc)
 bool Ref_ScanDependentHandlesForPromotion(DhContext *pDhContext)
 {
     LOG((LF_GC, LL_INFO10000, "Checking liveness of referents of dependent handles in generation %u\n", pDhContext->m_iCondemned));
-    UINT type = HNDTYPE_DEPENDENT;
-    UINT flags = (pDhContext->m_pScanContext->concurrent) ? HNDGCF_ASYNC : HNDGCF_NORMAL;
+    uint32_t type = HNDTYPE_DEPENDENT;
+    uint32_t flags = (pDhContext->m_pScanContext->concurrent) ? HNDGCF_ASYNC : HNDGCF_NORMAL;
     flags |= HNDGCF_EXTRAINFO;
 
     // Keep a note of whether we promoted anything over the entire scan (not just the last iteration). We need
@@ -1275,7 +1332,7 @@ bool Ref_ScanDependentHandlesForPromotion(DhContext *pDhContext)
         HandleTableMap *walk = &g_HandleTableMap;
         while (walk) 
         {
-            for (UINT i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
+            for (uint32_t i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
             {
                 if (walk->pBuckets[i] != NULL)
                 {
@@ -1284,8 +1341,8 @@ bool Ref_ScanDependentHandlesForPromotion(DhContext *pDhContext)
                     {
                         HndScanHandlesForGC(hTable,
                                             PromoteDependentHandle,
-                                            LPARAM(pDhContext->m_pScanContext),
-                                            LPARAM(pDhContext->m_pfnPromoteFunction),
+                                            uintptr_t(pDhContext->m_pScanContext),
+                                            uintptr_t(pDhContext->m_pfnPromoteFunction),
                                             &type, 1,
                                             pDhContext->m_iCondemned,
                                             pDhContext->m_iMaxGen,
@@ -1306,24 +1363,24 @@ bool Ref_ScanDependentHandlesForPromotion(DhContext *pDhContext)
 
 // Perform a scan of dependent handles for the purpose of clearing any that haven't had their primary
 // promoted.
-void Ref_ScanDependentHandlesForClearing(UINT condemned, UINT maxgen, ScanContext* sc, Ref_promote_func* fn)
+void Ref_ScanDependentHandlesForClearing(uint32_t condemned, uint32_t maxgen, ScanContext* sc, Ref_promote_func* fn)
 {
     LOG((LF_GC, LL_INFO10000, "Clearing dead dependent handles in generation %u\n", condemned));
-    UINT type = HNDTYPE_DEPENDENT;
-    UINT flags = (sc->concurrent) ? HNDGCF_ASYNC : HNDGCF_NORMAL;
+    uint32_t type = HNDTYPE_DEPENDENT;
+    uint32_t flags = (sc->concurrent) ? HNDGCF_ASYNC : HNDGCF_NORMAL;
     flags |= HNDGCF_EXTRAINFO;
 
     HandleTableMap *walk = &g_HandleTableMap;
     while (walk) 
     {
-        for (UINT i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
+        for (uint32_t i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
         {
             if (walk->pBuckets[i] != NULL)
             {
                 HHANDLETABLE hTable = walk->pBuckets[i]->pTable[getSlotNumber(sc)];
                 if (hTable)
                 {
-                    HndScanHandlesForGC(hTable, ClearDependentHandle, LPARAM(sc), LPARAM(fn), &type, 1, condemned, maxgen, flags );
+                    HndScanHandlesForGC(hTable, ClearDependentHandle, uintptr_t(sc), uintptr_t(fn), &type, 1, condemned, maxgen, flags );
                 }
             }
         }
@@ -1332,24 +1389,24 @@ void Ref_ScanDependentHandlesForClearing(UINT condemned, UINT maxgen, ScanContex
 }
 
 // Perform a scan of dependent handles for the purpose of updating handles to track relocated objects.
-void Ref_ScanDependentHandlesForRelocation(UINT condemned, UINT maxgen, ScanContext* sc, Ref_promote_func* fn)
+void Ref_ScanDependentHandlesForRelocation(uint32_t condemned, uint32_t maxgen, ScanContext* sc, Ref_promote_func* fn)
 {
     LOG((LF_GC, LL_INFO10000, "Relocating moved dependent handles in generation %u\n", condemned));
-    UINT type = HNDTYPE_DEPENDENT;
-    UINT flags = (sc->concurrent) ? HNDGCF_ASYNC : HNDGCF_NORMAL;
+    uint32_t type = HNDTYPE_DEPENDENT;
+    uint32_t flags = (sc->concurrent) ? HNDGCF_ASYNC : HNDGCF_NORMAL;
     flags |= HNDGCF_EXTRAINFO;
 
     HandleTableMap *walk = &g_HandleTableMap;
     while (walk) 
     {
-        for (UINT i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
+        for (uint32_t i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
         {
             if (walk->pBuckets[i] != NULL)
             {
                 HHANDLETABLE hTable = walk->pBuckets[i]->pTable[getSlotNumber(sc)];
                 if (hTable)
                 {
-                    HndScanHandlesForGC(hTable, UpdateDependentHandle, LPARAM(sc), LPARAM(fn), &type, 1, condemned, maxgen, flags );
+                    HndScanHandlesForGC(hTable, UpdateDependentHandle, uintptr_t(sc), uintptr_t(fn), &type, 1, condemned, maxgen, flags );
                 }
             }
         }
@@ -1361,16 +1418,16 @@ void Ref_ScanDependentHandlesForRelocation(UINT condemned, UINT maxgen, ScanCont
   loop scan version of TraceVariableHandles for single-thread-managed Ref_* functions
   should be kept in sync with the code above
 */
-void TraceDependentHandlesBySingleThread(HANDLESCANPROC pfnTrace, LPARAM lp1, UINT condemned, UINT maxgen, UINT flags)
+void TraceDependentHandlesBySingleThread(HANDLESCANPROC pfnTrace, uintptr_t lp1, uint32_t condemned, uint32_t maxgen, uint32_t flags)
 {
     WRAPPER_NO_CONTRACT;
 
     // set up to scan variable handles with the specified mask and trace function
-    UINT type = HNDTYPE_DEPENDENT;
+    uint32_t type = HNDTYPE_DEPENDENT;
 
     HandleTableMap *walk = &g_HandleTableMap;
     while (walk) {
-        for (UINT i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
+        for (uint32_t i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
             if (walk->pBuckets[i] != NULL)
             {
                 // this is the one of Ref_* function performed by single thread in MULTI_HEAPS case, so we need to loop through all HT of the bucket
@@ -1379,7 +1436,7 @@ void TraceDependentHandlesBySingleThread(HANDLESCANPROC pfnTrace, LPARAM lp1, UI
                     HHANDLETABLE hTable = walk->pBuckets[i]->pTable[uCPUindex];
                     if (hTable)
                         HndScanHandlesForGC(hTable, TraceDependentHandle,
-                                    lp1, (LPARAM)pfnTrace, &type, 1, condemned, maxgen, HNDGCF_EXTRAINFO | flags);
+                                    lp1, (uintptr_t)pfnTrace, &type, 1, condemned, maxgen, HNDGCF_EXTRAINFO | flags);
                 }
             }
         walk = walk->pNext;
@@ -1392,21 +1449,21 @@ void TraceDependentHandlesBySingleThread(HANDLESCANPROC pfnTrace, LPARAM lp1, UI
 // indices haven't been reused yet) and we could be scanning them in an unbalanced fashion. 
 // Consider using an array to represent the compacted form of all AD indices exist for the 
 // sized ref handles. 
-void ScanSizedRefByAD(UINT maxgen, HANDLESCANPROC scanProc, ScanContext* sc, Ref_promote_func* fn, UINT flags)
+void ScanSizedRefByAD(uint32_t maxgen, HANDLESCANPROC scanProc, ScanContext* sc, Ref_promote_func* fn, uint32_t flags)
 {
     HandleTableMap *walk = &g_HandleTableMap;
-    UINT type = HNDTYPE_SIZEDREF;
+    uint32_t type = HNDTYPE_SIZEDREF;
     int uCPUindex = getSlotNumber(sc);
-    int n_slots = GCHeap::GetGCHeap()->GetNumberOfHeaps();
+    int n_slots = g_theGCHeap->GetNumberOfHeaps();
 
     while (walk)
     {
-        for (UINT i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
+        for (uint32_t i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
         {
             if (walk->pBuckets[i] != NULL)
             {
                 ADIndex adIndex = HndGetHandleTableADIndex(walk->pBuckets[i]->pTable[0]);
-                if ((adIndex.m_dwIndex % n_slots) == (DWORD)uCPUindex)
+                if ((adIndex.m_dwIndex % n_slots) == (uint32_t)uCPUindex)
                 {
                     for (int index = 0; index < n_slots; index++)
                     {
@@ -1419,7 +1476,7 @@ void ScanSizedRefByAD(UINT maxgen, HANDLESCANPROC scanProc, ScanContext* sc, Ref
                                 sc->pCurrentDomain = SystemDomain::GetAppDomainAtIndex(adIndex);
                             }
 #endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
-                            HndScanHandlesForGC(hTable, scanProc, LPARAM(sc), LPARAM(fn), &type, 1, maxgen, maxgen, flags);
+                            HndScanHandlesForGC(hTable, scanProc, uintptr_t(sc), uintptr_t(fn), &type, 1, maxgen, maxgen, flags);
                         }
                     }
                 }
@@ -1429,15 +1486,15 @@ void ScanSizedRefByAD(UINT maxgen, HANDLESCANPROC scanProc, ScanContext* sc, Ref
     }
 }
 
-void ScanSizedRefByCPU(UINT maxgen, HANDLESCANPROC scanProc, ScanContext* sc, Ref_promote_func* fn, UINT flags)
+void ScanSizedRefByCPU(uint32_t maxgen, HANDLESCANPROC scanProc, ScanContext* sc, Ref_promote_func* fn, uint32_t flags)
 {
     HandleTableMap *walk = &g_HandleTableMap;
-    UINT type = HNDTYPE_SIZEDREF;
+    uint32_t type = HNDTYPE_SIZEDREF;
     int uCPUindex = getSlotNumber(sc);
 
     while (walk) 
     {
-        for (UINT i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
+        for (uint32_t i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
         {
         	if (walk->pBuckets[i] != NULL)
 	        {
@@ -1451,7 +1508,7 @@ void ScanSizedRefByCPU(UINT maxgen, HANDLESCANPROC scanProc, ScanContext* sc, Re
                     }
 #endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
-                    HndScanHandlesForGC(hTable, scanProc, LPARAM(sc), LPARAM(fn), &type, 1, maxgen, maxgen, flags);
+                    HndScanHandlesForGC(hTable, scanProc, uintptr_t(sc), uintptr_t(fn), &type, 1, maxgen, maxgen, flags);
                 }
             }
         }
@@ -1459,36 +1516,37 @@ void ScanSizedRefByCPU(UINT maxgen, HANDLESCANPROC scanProc, ScanContext* sc, Re
     }
 }
 
-void Ref_ScanSizedRefHandles(UINT condemned, UINT maxgen, ScanContext* sc, Ref_promote_func* fn)
+void Ref_ScanSizedRefHandles(uint32_t condemned, uint32_t maxgen, ScanContext* sc, Ref_promote_func* fn)
 {
     LOG((LF_GC, LL_INFO10000, "Scanning SizedRef handles to in generation %u\n", condemned));
+    UNREFERENCED_PARAMETER(condemned);
     _ASSERTE (condemned == maxgen);
-    UINT flags = (sc->concurrent ? HNDGCF_ASYNC : HNDGCF_NORMAL) | HNDGCF_EXTRAINFO;
+    uint32_t flags = (sc->concurrent ? HNDGCF_ASYNC : HNDGCF_NORMAL) | HNDGCF_EXTRAINFO;
 
     ScanSizedRefByCPU(maxgen, CalculateSizedRefSize, sc, fn, flags);
 }
 
-void Ref_CheckAlive(UINT condemned, UINT maxgen, LPARAM lp1)
+void Ref_CheckAlive(uint32_t condemned, uint32_t maxgen, uintptr_t lp1)
 {
     WRAPPER_NO_CONTRACT;
 
     LOG((LF_GC, LL_INFO10000, "Checking liveness of referents of short-weak handles in generation %u\n", condemned));
 
     // perform a multi-type scan that checks for unreachable objects
-    UINT types[] =
+    uint32_t types[] =
     {
         HNDTYPE_WEAK_SHORT
 #ifdef FEATURE_COMINTEROP
         , HNDTYPE_WEAK_WINRT
 #endif // FEATURE_COMINTEROP
     };
-    UINT flags = (((ScanContext*) lp1)->concurrent) ? HNDGCF_ASYNC : HNDGCF_NORMAL;
+    uint32_t flags = (((ScanContext*) lp1)->concurrent) ? HNDGCF_ASYNC : HNDGCF_NORMAL;
 
     int uCPUindex = getSlotNumber((ScanContext*) lp1);
     HandleTableMap *walk = &g_HandleTableMap;
     while (walk)
     {
-        for (UINT i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
+        for (uint32_t i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
         {
             if (walk->pBuckets[i] != NULL)
             {
@@ -1503,10 +1561,10 @@ void Ref_CheckAlive(UINT condemned, UINT maxgen, LPARAM lp1)
     TraceVariableHandles(CheckPromoted, lp1, 0, VHT_WEAK_SHORT, condemned, maxgen, flags);
 }
 
-static VOLATILE(LONG) uCount = 0;
+static VOLATILE(int32_t) uCount = 0;
 
 // NOTE: Please: if you update this function, update the very similar profiling function immediately below!!!
-void Ref_UpdatePointers(UINT condemned, UINT maxgen, ScanContext* sc, Ref_promote_func* fn)
+void Ref_UpdatePointers(uint32_t condemned, uint32_t maxgen, ScanContext* sc, Ref_promote_func* fn)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -1516,54 +1574,56 @@ void Ref_UpdatePointers(UINT condemned, UINT maxgen, ScanContext* sc, Ref_promot
     // @TODO cwb: wait for compelling performance measurements.</REVISIT_TODO>
     BOOL bDo = TRUE;
 
-    if (GCHeap::IsServerHeap()) 
+    if (IsServerHeap()) 
     {
-        bDo = (FastInterlockIncrement(&uCount) == 1);
-        FastInterlockCompareExchange (&uCount, 0, GCHeap::GetGCHeap()->GetNumberOfHeaps());        
-        _ASSERTE (uCount <= GCHeap::GetGCHeap()->GetNumberOfHeaps());
+        bDo = (Interlocked::Increment(&uCount) == 1);
+        Interlocked::CompareExchange (&uCount, 0, g_theGCHeap->GetNumberOfHeaps());
+        _ASSERTE (uCount <= g_theGCHeap->GetNumberOfHeaps());
     }
 
     if (bDo)   
-        GCToEEInterface::SyncBlockCacheWeakPtrScan(&UpdatePointer, LPARAM(sc), LPARAM(fn));
+        GCToEEInterface::SyncBlockCacheWeakPtrScan(&UpdatePointer, uintptr_t(sc), uintptr_t(fn));
 
     LOG((LF_GC, LL_INFO10000, "Updating pointers to referents of non-pinning handles in generation %u\n", condemned));
 
     // these are the handle types that need their pointers updated
-    UINT types[] =
+    uint32_t types[] =
     {
         HNDTYPE_WEAK_SHORT,
         HNDTYPE_WEAK_LONG,
         HNDTYPE_STRONG,
-#ifdef FEATURE_COMINTEROP
+#if defined(FEATURE_COMINTEROP) || defined(FEATURE_REDHAWK)
         HNDTYPE_REFCOUNTED,
+#endif // FEATURE_COMINTEROP || FEATURE_REDHAWK
+#ifdef FEATURE_COMINTEROP
         HNDTYPE_WEAK_WINRT,
 #endif // FEATURE_COMINTEROP
         HNDTYPE_SIZEDREF,
     };
 
     // perform a multi-type scan that updates pointers
-    UINT flags = (sc->concurrent) ? HNDGCF_ASYNC : HNDGCF_NORMAL;
+    uint32_t flags = (sc->concurrent) ? HNDGCF_ASYNC : HNDGCF_NORMAL;
 
     HandleTableMap *walk = &g_HandleTableMap;
     while (walk) {
-        for (UINT i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
-        	if (walk->pBuckets[i] != NULL)
-	       {
-	            HHANDLETABLE hTable = walk->pBuckets[i]->pTable[getSlotNumber(sc)];
-            if (hTable)
-                HndScanHandlesForGC(hTable, UpdatePointer, LPARAM(sc), LPARAM(fn), types, _countof(types), condemned, maxgen, flags);
-        }
+        for (uint32_t i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
+            if (walk->pBuckets[i] != NULL)
+            {
+                HHANDLETABLE hTable = walk->pBuckets[i]->pTable[getSlotNumber(sc)];
+                if (hTable)
+                    HndScanHandlesForGC(hTable, UpdatePointer, uintptr_t(sc), uintptr_t(fn), types, _countof(types), condemned, maxgen, flags);
+            }
         walk = walk->pNext;
     }
 
     // update pointers in variable handles whose dynamic type is VHT_WEAK_SHORT, VHT_WEAK_LONG or VHT_STRONG
-    TraceVariableHandles(UpdatePointer, LPARAM(sc), LPARAM(fn), VHT_WEAK_SHORT | VHT_WEAK_LONG | VHT_STRONG, condemned, maxgen, flags);
+    TraceVariableHandles(UpdatePointer, uintptr_t(sc), uintptr_t(fn), VHT_WEAK_SHORT | VHT_WEAK_LONG | VHT_STRONG, condemned, maxgen, flags);
 }
 
 #if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
 
 // Please update this if you change the Ref_UpdatePointers function above.
-void Ref_ScanPointersForProfilerAndETW(UINT maxgen, LPARAM lp1)
+void Ref_ScanPointersForProfilerAndETW(uint32_t maxgen, uintptr_t lp1)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -1573,27 +1633,29 @@ void Ref_ScanPointersForProfilerAndETW(UINT maxgen, LPARAM lp1)
 
     // <REVISIT_TODO>We should change the following to not report weak either
     // these are the handle types that need their pointers updated</REVISIT_TODO>
-    UINT types[] =
+    uint32_t types[] =
     {
         HNDTYPE_WEAK_SHORT,
         HNDTYPE_WEAK_LONG,
         HNDTYPE_STRONG,
-#ifdef FEATURE_COMINTEROP
+#if defined(FEATURE_COMINTEROP) || defined(FEATURE_REDHAWK)
         HNDTYPE_REFCOUNTED,
+#endif // FEATURE_COMINTEROP || FEATURE_REDHAWK
+#ifdef FEATURE_COMINTEROP
         HNDTYPE_WEAK_WINRT,
-#endif // FEATURE_COMINTEROP,
+#endif // FEATURE_COMINTEROP
         HNDTYPE_PINNED,
 //        HNDTYPE_VARIABLE,
         HNDTYPE_ASYNCPINNED,
         HNDTYPE_SIZEDREF,
     };
 
-    UINT flags = HNDGCF_NORMAL;
+    uint32_t flags = HNDGCF_NORMAL;
 
     // perform a multi-type scan that updates pointers
     HandleTableMap *walk = &g_HandleTableMap;
     while (walk) {
-        for (UINT i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
+        for (uint32_t i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
             if (walk->pBuckets[i] != NULL)
                 // this is the one of Ref_* function performed by single thread in MULTI_HEAPS case, so we need to loop through all HT of the bucket
                 for (int uCPUindex=0; uCPUindex < getNumberOfSlots(); uCPUindex++)
@@ -1609,15 +1671,15 @@ void Ref_ScanPointersForProfilerAndETW(UINT maxgen, LPARAM lp1)
     TraceVariableHandlesBySingleThread(&ScanPointerForProfilerAndETW, lp1, 0, VHT_WEAK_SHORT | VHT_WEAK_LONG | VHT_STRONG, maxgen, maxgen, flags);
 }
 
-void Ref_ScanDependentHandlesForProfilerAndETW(UINT maxgen, ProfilingScanContext * SC)
+void Ref_ScanDependentHandlesForProfilerAndETW(uint32_t maxgen, ProfilingScanContext * SC)
 {
     WRAPPER_NO_CONTRACT;
 
     LOG((LF_GC | LF_CORPROF, LL_INFO10000, "Scanning dependent handles for profiler.\n"));
 
-    UINT flags = HNDGCF_NORMAL;
+    uint32_t flags = HNDGCF_NORMAL;
 
-    LPARAM lp1 = (LPARAM)SC;
+    uintptr_t lp1 = (uintptr_t)SC;
     // we'll re-use pHeapId (which was either unused (0) or freed by EndRootReferences2
     // (-1)), so reset it to NULL
     _ASSERTE((*((size_t *)(&SC->pHeapId)) == (size_t)(-1)) ||
@@ -1628,41 +1690,97 @@ void Ref_ScanDependentHandlesForProfilerAndETW(UINT maxgen, ProfilingScanContext
 
 #endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
 
-void Ref_UpdatePinnedPointers(UINT condemned, UINT maxgen, ScanContext* sc, Ref_promote_func* fn)
+// Callback to enumerate all object references held in handles.
+void CALLBACK ScanPointer(_UNCHECKED_OBJECTREF *pObjRef, uintptr_t *pExtraInfo, uintptr_t lp1, uintptr_t lp2)
+{
+    WRAPPER_NO_CONTRACT;
+    UNREFERENCED_PARAMETER(pExtraInfo);
+
+    Object **pRef = (Object **)pObjRef;
+    _ASSERTE(lp2);
+    promote_func* callback = (promote_func*)lp2;
+    callback(pRef, (ScanContext *)lp1, 0);
+}
+
+// Enumerate all object references held by any of the handle tables in the system.
+void Ref_ScanPointers(uint32_t condemned, uint32_t maxgen, ScanContext* sc, Ref_promote_func* fn)
+{
+    WRAPPER_NO_CONTRACT;
+
+    uint32_t types[] =
+    {
+        HNDTYPE_WEAK_SHORT,
+        HNDTYPE_WEAK_LONG,
+        HNDTYPE_STRONG,
+#if defined(FEATURE_COMINTEROP) || defined(FEATURE_REDHAWK)
+        HNDTYPE_REFCOUNTED,
+#endif // FEATURE_COMINTEROP || FEATURE_REDHAWK
+        HNDTYPE_PINNED,
+        HNDTYPE_ASYNCPINNED,
+        HNDTYPE_SIZEDREF,
+    };
+
+    uint32_t flags = HNDGCF_NORMAL;
+
+    // perform a multi-type scan that enumerates pointers
+    for (HandleTableMap * walk = &g_HandleTableMap; 
+         walk != nullptr; 
+         walk = walk->pNext)
+    {
+        for (uint32_t i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i++)
+        {
+            if (walk->pBuckets[i] != NULL)
+            {
+                // this is the one of Ref_* function performed by single thread in MULTI_HEAPS case, so we need to loop through all HT of the bucket
+                for (int uCPUindex = 0; uCPUindex < getNumberOfSlots(); uCPUindex++)
+                {
+                    HHANDLETABLE hTable = walk->pBuckets[i]->pTable[uCPUindex];
+                    if (hTable)
+                        HndScanHandlesForGC(hTable, &ScanPointer, uintptr_t(sc), uintptr_t(fn), types, _countof(types), condemned, maxgen, flags);
+                }
+            }
+        }
+    }
+
+    // enumerate pointers in variable handles whose dynamic type is VHT_WEAK_SHORT, VHT_WEAK_LONG or VHT_STRONG
+    TraceVariableHandlesBySingleThread(&ScanPointer, uintptr_t(sc), uintptr_t(fn), VHT_WEAK_SHORT | VHT_WEAK_LONG | VHT_STRONG, condemned, maxgen, flags);
+}
+
+void Ref_UpdatePinnedPointers(uint32_t condemned, uint32_t maxgen, ScanContext* sc, Ref_promote_func* fn)
 {
     WRAPPER_NO_CONTRACT;
 
     LOG((LF_GC, LL_INFO10000, "Updating pointers to referents of pinning handles in generation %u\n", condemned));
 
     // these are the handle types that need their pointers updated
-    UINT types[2] = {HNDTYPE_PINNED, HNDTYPE_ASYNCPINNED};
-    UINT flags = (sc->concurrent) ? HNDGCF_ASYNC : HNDGCF_NORMAL;
+    uint32_t types[2] = {HNDTYPE_PINNED, HNDTYPE_ASYNCPINNED};
+    uint32_t flags = (sc->concurrent) ? HNDGCF_ASYNC : HNDGCF_NORMAL;
 
     HandleTableMap *walk = &g_HandleTableMap;
     while (walk) {
-        for (UINT i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
+        for (uint32_t i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
             if (walk->pBuckets[i] != NULL)
             {
                 HHANDLETABLE hTable = walk->pBuckets[i]->pTable[getSlotNumber(sc)];
                 if (hTable)
-                    HndScanHandlesForGC(hTable, UpdatePointerPinned, LPARAM(sc), LPARAM(fn), types, _countof(types), condemned, maxgen, flags); 
+                    HndScanHandlesForGC(hTable, UpdatePointerPinned, uintptr_t(sc), uintptr_t(fn), types, _countof(types), condemned, maxgen, flags); 
             }
         walk = walk->pNext;
     }
 
     // update pointers in variable handles whose dynamic type is VHT_PINNED
-    TraceVariableHandles(UpdatePointerPinned, LPARAM(sc), LPARAM(fn), VHT_PINNED, condemned, maxgen, flags);
+    TraceVariableHandles(UpdatePointerPinned, uintptr_t(sc), uintptr_t(fn), VHT_PINNED, condemned, maxgen, flags);
 }
 
 
-void Ref_AgeHandles(UINT condemned, UINT maxgen, LPARAM lp1)
+void Ref_AgeHandles(uint32_t condemned, uint32_t maxgen, uintptr_t lp1)
 {
     WRAPPER_NO_CONTRACT;
 
     LOG((LF_GC, LL_INFO10000, "Aging handles in generation %u\n", condemned));
 
     // these are the handle types that need their ages updated
-    UINT types[] =
+    uint32_t types[] =
     {
         HNDTYPE_WEAK_SHORT,
         HNDTYPE_WEAK_LONG,
@@ -1671,8 +1789,10 @@ void Ref_AgeHandles(UINT condemned, UINT maxgen, LPARAM lp1)
 
         HNDTYPE_PINNED,
         HNDTYPE_VARIABLE,
-#ifdef FEATURE_COMINTEROP
+#if defined(FEATURE_COMINTEROP) || defined(FEATURE_REDHAWK)
         HNDTYPE_REFCOUNTED,
+#endif // FEATURE_COMINTEROP || FEATURE_REDHAWK
+#ifdef FEATURE_COMINTEROP
         HNDTYPE_WEAK_WINRT,
 #endif // FEATURE_COMINTEROP
         HNDTYPE_ASYNCPINNED,
@@ -1683,7 +1803,7 @@ void Ref_AgeHandles(UINT condemned, UINT maxgen, LPARAM lp1)
     // perform a multi-type scan that ages the handles
     HandleTableMap *walk = &g_HandleTableMap;
     while (walk) {
-        for (UINT i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
+        for (uint32_t i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
             if (walk->pBuckets[i] != NULL)
             {
                 HHANDLETABLE hTable = walk->pBuckets[i]->pTable[uCPUindex];
@@ -1695,14 +1815,14 @@ void Ref_AgeHandles(UINT condemned, UINT maxgen, LPARAM lp1)
 }
 
 
-void Ref_RejuvenateHandles(UINT condemned, UINT maxgen, LPARAM lp1)
+void Ref_RejuvenateHandles(uint32_t condemned, uint32_t maxgen, uintptr_t lp1)
 {
     WRAPPER_NO_CONTRACT;
 
     LOG((LF_GC, LL_INFO10000, "Rejuvenating handles.\n"));
 
     // these are the handle types that need their ages updated
-    UINT types[] =
+    uint32_t types[] =
     {
         HNDTYPE_WEAK_SHORT,
         HNDTYPE_WEAK_LONG,
@@ -1712,8 +1832,10 @@ void Ref_RejuvenateHandles(UINT condemned, UINT maxgen, LPARAM lp1)
 
         HNDTYPE_PINNED,
         HNDTYPE_VARIABLE,
-#ifdef FEATURE_COMINTEROP
+#if defined(FEATURE_COMINTEROP) || defined(FEATURE_REDHAWK)
         HNDTYPE_REFCOUNTED,
+#endif // FEATURE_COMINTEROP || FEATURE_REDHAWK
+#ifdef FEATURE_COMINTEROP
         HNDTYPE_WEAK_WINRT,
 #endif // FEATURE_COMINTEROP
         HNDTYPE_ASYNCPINNED,
@@ -1724,7 +1846,7 @@ void Ref_RejuvenateHandles(UINT condemned, UINT maxgen, LPARAM lp1)
     // reset the ages of these handles
     HandleTableMap *walk = &g_HandleTableMap;
     while (walk) {
-        for (UINT i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
+        for (uint32_t i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
             if (walk->pBuckets[i] != NULL)
             {
                 HHANDLETABLE hTable = walk->pBuckets[i]->pTable[uCPUindex];
@@ -1735,14 +1857,14 @@ void Ref_RejuvenateHandles(UINT condemned, UINT maxgen, LPARAM lp1)
     }
 }
 
-void Ref_VerifyHandleTable(UINT condemned, UINT maxgen, ScanContext* sc)
+void Ref_VerifyHandleTable(uint32_t condemned, uint32_t maxgen, ScanContext* sc)
 {
     WRAPPER_NO_CONTRACT;
 
     LOG((LF_GC, LL_INFO10000, "Verifying handles.\n"));
 
     // these are the handle types that need to be verified
-    UINT types[] =
+    uint32_t types[] =
     {
         HNDTYPE_WEAK_SHORT,
         HNDTYPE_WEAK_LONG,
@@ -1752,19 +1874,22 @@ void Ref_VerifyHandleTable(UINT condemned, UINT maxgen, ScanContext* sc)
 
         HNDTYPE_PINNED,
         HNDTYPE_VARIABLE,
-#ifdef FEATURE_COMINTEROP
+#if defined(FEATURE_COMINTEROP) || defined(FEATURE_REDHAWK)
         HNDTYPE_REFCOUNTED,
+#endif // FEATURE_COMINTEROP || FEATURE_REDHAWK
+#ifdef FEATURE_COMINTEROP
         HNDTYPE_WEAK_WINRT,
 #endif // FEATURE_COMINTEROP
         HNDTYPE_ASYNCPINNED,
         HNDTYPE_SIZEDREF,
+        HNDTYPE_DEPENDENT,
     };
 
     // verify these handles
     HandleTableMap *walk = &g_HandleTableMap;
     while (walk)
     {
-        for (UINT i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
+        for (uint32_t i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
         {
             if (walk->pBuckets[i] != NULL)
             {
@@ -1781,9 +1906,9 @@ int GetCurrentThreadHomeHeapNumber()
 {
     WRAPPER_NO_CONTRACT;
 
-	if (!GCHeap::IsGCHeapInitialized())
-		return 0;
-    return GCHeap::GetGCHeap()->GetHomeHeapNumber();
+    if (g_theGCHeap == nullptr)
+        return 0;
+    return g_theGCHeap->GetHomeHeapNumber();
 }
 
 bool HandleTableBucket::Contains(OBJECTHANDLE handle)
@@ -1796,7 +1921,7 @@ bool HandleTableBucket::Contains(OBJECTHANDLE handle)
     }
     
     HHANDLETABLE hTable = HndGetHandleTable(handle);
-    for (int uCPUindex=0; uCPUindex < GCHeap::GetGCHeap()->GetNumberOfHeaps(); uCPUindex++)
+    for (int uCPUindex=0; uCPUindex < g_theGCHeap->GetNumberOfHeaps(); uCPUindex++)
     {
         if (hTable == this->pTable[uCPUindex]) 
         {
@@ -1841,7 +1966,7 @@ void DestroyWinRTWeakHandle(OBJECTHANDLE handle)
     // runtime, since if we are pointing at a managed object, we should not be using a HNDTYPE_WEAK_WINRT
     // but rather a HNDTYPE_WEAK_SHORT or HNDTYPE_WEAK_LONG.
     IWeakReference* pWinRTWeakReference = reinterpret_cast<IWeakReference*>(HndGetHandleExtraInfo(handle));
-    if (pWinRTWeakReference != nullptr)
+    if (pWinRTWeakReference != NULL)
     {
         pWinRTWeakReference->Release();
     }

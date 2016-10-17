@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // STUBLINK.H
 // 
@@ -114,9 +113,7 @@ struct StubUnwindInfoHeapSegment
 #endif
 };
 
-#ifndef BINDER
 VOID UnregisterUnwindInfoInLoaderHeap (UnlockedLoaderHeap *pHeap);
-#endif //!BINDER
 
 #endif // STUBLINKER_GENERATES_UNWIND_INFO
 
@@ -312,8 +309,26 @@ public:
                                             //   labels, and
                                             //   internals.
         BOOL          m_fDataOnly;          // the stub contains only data - does not need FlushInstructionCache
+        
+#ifdef _TARGET_ARM_
+protected:
+        BOOL            m_fProlog;              // True if DescribeProlog has been called
+        UINT            m_cCalleeSavedRegs;     // Count of callee saved registers (0 == none, 1 == r4, 2 ==
+                                                // r4-r5 etc. up to 8 == r4-r11)
+        UINT            m_cbStackFrame;         // Count of bytes in the stack frame (excl of saved regs)
+        BOOL            m_fPushArgRegs;         // If true, r0-r3 are saved before callee saved regs
+#endif // _TARGET_ARM_
 
-#ifdef STUBLINKER_GENERATES_UNWIND_INFO 
+#ifdef _TARGET_ARM64_
+protected:
+        BOOL            m_fProlog;              // True if DescribeProlog has been called
+        UINT            m_cIntRegArgs;          // Count of int register arguments (x0 - x7)
+        UINT            m_cVecRegArgs;          // Count of FP register arguments (v0 - v7)
+        UINT            m_cCalleeSavedRegs;     // Count of callee saved registers (x19 - x28)
+        UINT            m_cbStackSpace;         // Additional stack space for return buffer and stack alignment
+#endif // _TARGET_ARM64_
+
+#ifdef STUBLINKER_GENERATES_UNWIND_INFO
 
 #ifdef _DEBUG
         CodeLabel     *m_pUnwindInfoCheckLabel;  // subfunction to call to unwind info check helper.
@@ -334,7 +349,7 @@ public:
         {
             if (m_nUnwindSlots == 0) return 0;
 
-            return sizeof(RUNTIME_FUNCTION) + offsetof(UNWIND_INFO, UnwindCode) + m_nUnwindSlots * sizeof(UNWIND_CODE);
+            return sizeof(T_RUNTIME_FUNCTION) + offsetof(UNWIND_INFO, UnwindCode) + m_nUnwindSlots * sizeof(UNWIND_CODE);
         }
 #endif // _TARGET_AMD64_
 
@@ -342,16 +357,9 @@ public:
 #define MAX_UNWIND_CODE_WORDS 5  /* maximum number of 32-bit words to store unwind codes */
         // Cache information about the stack frame set up in the prolog and use it in the generation of the
         // epilog.
-protected:
-        BOOL            m_fProlog;              // True if DescribeProlog has been called
-        UINT            m_cCalleeSavedRegs;     // Count of callee saved registers (0 == none, 1 == r4, 2 ==
-                                                // r4-r5 etc. up to 8 == r4-r11)
-        UINT            m_cbStackFrame;         // Count of bytes in the stack frame (excl of saved regs)
-        BOOL            m_fPushArgRegs;         // If true, r0-r3 are saved before callee saved regs
-
 private:
         // Reserve fixed size block that's big enough to fit any unwind info we can have
-        static const int c_nUnwindInfoSize = sizeof(RUNTIME_FUNCTION) + sizeof(DWORD) + MAX_UNWIND_CODE_WORDS *4;
+        static const int c_nUnwindInfoSize = sizeof(T_RUNTIME_FUNCTION) + sizeof(DWORD) + MAX_UNWIND_CODE_WORDS *4;
 
         //
         // Returns total UnwindInfoSize, including RUNTIME_FUNCTION entry
@@ -366,16 +374,10 @@ private:
 
 #ifdef _TARGET_ARM64_
 #define MAX_UNWIND_CODE_WORDS 5  /* maximum number of 32-bit words to store unwind codes */
-protected:
-        BOOL            m_fProlog;              // True if DescribeProlog has been called
-        UINT            m_cIntRegArgs;          // Count of int register arguments (x0 - x7)
-        UINT            m_cVecRegArgs;          // Count of FP register arguments (v0 - v7)
-        UINT            m_cCalleeSavedRegs;     // Count of callee saved registers (x19 - x28)
-        UINT            m_cbStackSpace;         // Additional stack space for return buffer and stack alignment
 
 private:
         // Reserve fixed size block that's big enough to fit any unwind info we can have
-        static const int c_nUnwindInfoSize = sizeof(RUNTIME_FUNCTION) + sizeof(DWORD) + MAX_UNWIND_CODE_WORDS *4;
+        static const int c_nUnwindInfoSize = sizeof(T_RUNTIME_FUNCTION) + sizeof(DWORD) + MAX_UNWIND_CODE_WORDS *4;
         UINT UnwindInfoSize(UINT codeSize)
         {
             if (!m_fProlog) return 0;

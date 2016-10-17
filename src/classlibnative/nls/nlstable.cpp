@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #include "common.h"
 #include <winwrap.h>
@@ -103,9 +102,9 @@ HANDLE NLSTable::CreateSharedMemoryMapping(const LPCWSTR pMappingName, const int
 
     // If we are on Windows 2000 or later, try to open it in global namespace.  The \global namespace is ignored if
     // Terminal service is not running.
-    WCHAR globalSectionName[MAX_PATH];
+    WCHAR globalSectionName[MAX_LONGPATH];
     wcscpy_s(globalSectionName, COUNTOF(globalSectionName), W("Global\\"));
-    if (wcslen(pMappingName) + wcslen(globalSectionName) >= MAX_PATH) {
+    if (wcslen(pMappingName) + wcslen(globalSectionName) >= MAX_LONGPATH) {
         goto ErrorExit;            
     }
     wcscat_s(globalSectionName, COUNTOF(globalSectionName), pMappingName);
@@ -192,9 +191,9 @@ PBYTE NLSTable::OpenOrCreateMemoryMapping(const LPCWSTR pMappingName, const int 
     // to synchornize different threads.
 
     // Try to open it in global namespace. The global\ namespace is ignored if terminal service is not running.
-    WCHAR globalSectionName[MAX_PATH];
+    WCHAR globalSectionName[MAX_LONGPATH];
     wcscpy_s(globalSectionName, COUNTOF(globalSectionName), W("Global\\"));
-    if (wcslen(pMappingName) + wcslen(globalSectionName) >= MAX_PATH)
+    if (wcslen(pMappingName) + wcslen(globalSectionName) >= MAX_LONGPATH)
         return NULL;
     
     wcscat_s(globalSectionName, COUNTOF(globalSectionName), pMappingName);

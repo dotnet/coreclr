@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //Microsoft Developer Studio generated resource script.
 //
@@ -995,7 +994,12 @@ BEGIN
     IDS_EE_LOAD_BAD_MAIN_SIG                "Main method for type '%1' has invalid signature."
     IDS_EE_LOAD_CIRCULAR_DEPENDENCY         "A circular dependency was detected when loading file or assembly '%1'."
 
+#ifdef FEATURE_CORECLR
+    IDS_EE_FILE_NOT_FOUND                   "File or assembly name '%1' was not found."
+#else
     IDS_EE_FILE_NOT_FOUND                   "File or assembly name '%1', or one of its dependencies, was not found."
+#endif
+
     IDS_EE_TOO_MANY_OPEN_FILES              "The system cannot open file '%1'.  There may be too many open files."
     IDS_EE_SHARING_VIOLATION                "Cannot access file '%1' because it is being used by another process."
     IDS_EE_LOCK_VIOLATION                   "Cannot access file '%1' because another process has locked a portion of the file."
@@ -1368,8 +1372,12 @@ BEGIN
     IDS_EE_IJWLOAD_MULTIRUNTIME_DISALLOWED  "Mixed mode assembly cannot be loaded into version '%1' of the runtime because it is already loaded into version '%2'."
     IDS_EE_CANNOT_HAVE_ASSEMBLY_SPEC        "Unexpected assembly-qualifier in a typename."
     IDS_EE_NEEDS_ASSEMBLY_SPEC              "Typename needs an assembly qualifier."
-    IDS_EE_FILELOAD_ERROR_GENERIC           "Could not load file or assembly '%1' or one of its dependencies. %2"
 
+#ifdef FEATURE_CORECLR
+    IDS_EE_FILELOAD_ERROR_GENERIC           "Could not load file or assembly '%1'. %2"
+#else
+    IDS_EE_FILELOAD_ERROR_GENERIC           "Could not load file or assembly '%1' or one of its dependencies. %2"
+#endif
 
     IDS_EE_CRYPTO_UNKNOWN_OPERATION         "Unknown import key operation specified."
 
@@ -2095,11 +2103,11 @@ BEGIN
         IDS_PROF_DETACH_COMPLETE                "The CLR has fully detached and unloaded the profiler."
         IDS_PROF_DETACH_THREAD_ERROR            "There was an internal failure in the profiling API detach infrastructure.  The profiler will not be able to be detached.  Error code: %d."
         IDS_PROF_CANCEL_ACTIVATION              "The profiler has requested that the CLR instance not load the profiler into this process.  Profiler CLSID: '%s'."
-        IDS_PROF_V2PROFILER_DISABLED            "Loading profiler failed.   The profiler that was configured to load was designed for an older version of the CLR.  You can use the COMPLUS_ProfAPI_ProfilerCompatibilitySetting environment variable to allow older profilers to be loaded by the current version of the CLR.  Please consult the documentation for information on how to use this environment variable, and the risks associated with it.  Profiler CLSID: '%s'."
+        IDS_PROF_V2PROFILER_DISABLED            "Loading profiler failed.   The profiler that was configured to load was designed for an older version of the CLR.  You can use the COMPlus_ProfAPI_ProfilerCompatibilitySetting environment variable to allow older profilers to be loaded by the current version of the CLR.  Please consult the documentation for information on how to use this environment variable, and the risks associated with it.  Profiler CLSID: '%s'."
         IDS_PROF_V2PROFILER_ENABLED             "A profiler designed for an older version of the CLR was loaded because of the environment variable setting below.  Older profilers will continue to work in many cases, but if you encounter problems, please consider upgrading the profiler or changing the setting of the environment variable.  Please consult the documentation for information on how to use this environment variable, and the risks associated with it.  Environment variable setting: %s=%s.  Profiler CLSID: '%s'."
         IDS_PROF_V2PROFILER_ALREADY_LOADED      "A profiler designed for an older version of the CLR was already loaded by an older version of the CLR in the process, and the profiler will therefore not be loaded into this process again.  Please consider upgrading your profiler in order to gain better support profiling processes that load multiple instances of the CLR. Profiler CLSID: '%s'."
         IDS_PROF_PROFILER_DISABLED              "Profilers will not be loaded by the current version of the CLR because of the environment variable setting below.  Please consult the documentation for information on how to use this environment variable, and the risks associated with it.  Environment variable setting: %s=%s. Profiler CLSID: '%s'."
-        IDS_E_PROF_TIMEOUT_WAITING_FOR_CONCURRENT_GC    "Profiler timed out on waiting for concurrent GC to finish after '%d' milliseconds. Please configure your profiler to increase its attaching time out value or consult the documentation for the COMPLUS_ProfAPI_AttachProfilerMinTimeoutInMs environment variable and try again. Profiler CLSID: '%s'."
+        IDS_E_PROF_TIMEOUT_WAITING_FOR_CONCURRENT_GC    "Profiler timed out on waiting for concurrent GC to finish after '%d' milliseconds. Please configure your profiler to increase its attaching time out value or consult the documentation for the COMPlus_ProfAPI_AttachProfilerMinTimeoutInMs environment variable and try again. Profiler CLSID: '%s'."
   END
 
 // Dialog box buttons
@@ -2137,6 +2145,7 @@ BEGIN
     IDS_HOST_ASSEMBLY_RESOLVER_ASSEMBLY_ALREADY_LOADED_IN_CONTEXT "Assembly with same name is already loaded"
     IDS_HOST_ASSEMBLY_RESOLVER_DYNAMICALLY_EMITTED_ASSEMBLIES_UNSUPPORTED "Dynamically emitted assemblies are unsupported during host-based resolution."
     IDS_HOST_ASSEMBLY_RESOLVER_INCOMPATIBLE_BINDING_CONTEXT "Assembly is already bound to an incompatible binding context."
+    IDS_HOST_ASSEMBLY_RESOLVER_INCOMPATIBLE_TPA_BINDING_CONTEXT "Default binding context is already attached to managed load context."
 END
 #endif // FEATURE_HOST_ASSEMBLY_RESOLVER
 

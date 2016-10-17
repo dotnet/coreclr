@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // StgIO.h
 // 
@@ -261,7 +260,6 @@ private:
     
     // Flags and state data.
     FILETYPE    m_FileType;             // Cached type of the file (based on extension).
-    WCHAR       m_rcShared[MAXSHMEM];   // Name of shared memory segment.
     LONG        m_cRef;                 // Ref count on this object.
     bool        m_bWriteThrough : 1;    // true for write through mode.
     bool        m_bRewrite : 1;         // State check for rewrite mode.

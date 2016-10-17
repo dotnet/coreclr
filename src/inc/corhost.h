@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -34,9 +33,7 @@
 #endif
 #include "holder.h"
 
-#if defined(FEATURE_HOSTED_BINDER)
 #include "clrprivhosting.h"
-#endif
 
 #ifdef FEATURE_COMINTEROP
 #include "activation.h" // WinRT activation.
@@ -45,12 +42,6 @@
 class DangerousNonHostedSpinLock;
 
 #define INVALID_STACK_BASE_MARKER_FOR_CHECK_STATE 2
-
-#ifndef _WIN64
-#if (_WIN32_WINNT < 0x0500)
-typedef VOID (__stdcall *WAITORTIMERCALLBACK)(PVOID, BOOL);
-#endif
-#endif
 
 class AppDomain;
 class Assembly;
@@ -654,7 +645,7 @@ class CCLRErrorReportingManager :
     
     BucketParamsCache* m_pBucketParamsCache;
     
-    HRESULT CopyToDataCache(WCHAR** pTarget, WCHAR const* pSource);
+    HRESULT CopyToDataCache(_In_ WCHAR** pTarget, WCHAR const* pSource);
 #endif // FEATURE_WINDOWSPHONE
 
 public:
@@ -743,10 +734,8 @@ class CorHost2 :
     , public CLRValidator
     , public CorDebuggerInfo
     , public ICLRRuntimeHost
-#endif // FEATURE_CORECLR
-#if defined(FEATURE_HOSTED_BINDER) && !defined(FEATURE_CORECLR)
     , public ICLRPrivRuntime
-#endif
+#endif // FEATURE_CORECLR
     , public CorExecutionManager
 {
     friend struct _DacGlobals;
@@ -866,7 +855,7 @@ public:
 
 #endif // !FEATURE_CORECLR
 
-#if defined(FEATURE_HOSTED_BINDER) && !defined(FEATURE_CORECLR)
+#if !defined(FEATURE_CORECLR)
     /**********************************************************************************
      ** ICLRPrivRuntime Methods
      **********************************************************************************/
@@ -891,7 +880,7 @@ public:
         ICLRPrivBinder * pBinder,
         int * pRetVal);
 
-#endif // FEATURE_HOSTED_BINDER && !FEATURE_CORECLR
+#endif // !FEATURE_CORECLR
 
     static IHostControl *GetHostControl ()
     {
@@ -1016,14 +1005,6 @@ public:
     }
 #endif // FEATURE_INCLUDE_ALL_INTERFACES
 
-#ifdef FEATURE_LEGACYNETCF_DBG_HOST_CONTROL
-    static IHostNetCFDebugControlManager *GetHostNetCFDebugControlManager ()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_HostNetCFDebugControlManager;
-    }
-#endif
-
     static int GetHostOverlappedExtensionSize()
     {
         LIMITED_METHOD_CONTRACT;
@@ -1097,7 +1078,6 @@ private:
 
 #endif // FEATURE_CORECLR
 
-#if defined(FEATURE_CORECLR) || defined(FEATURE_HOSTED_BINDER)
     // Helpers for both ICLRRuntimeHost2 and ICLRPrivRuntime
     HRESULT _CreateAppDomain(
         LPCWSTR wszFriendlyName,
@@ -1107,7 +1087,7 @@ private:
         int nProperties, 
         LPCWSTR* pPropertyNames, 
         LPCWSTR* pPropertyValues,
-#if defined(FEATURE_HOSTED_BINDER) && !defined(FEATURE_CORECLR)
+#if !defined(FEATURE_CORECLR)
         ICLRPrivBinder* pBinder,
 #endif
         DWORD* pAppDomainID);
@@ -1118,12 +1098,9 @@ private:
         LPCWSTR wszClassName,     
         LPCWSTR wszMethodName,
         INT_PTR* fnPtr);
-#endif // defined(FEATURE_CORECLR) || defined(FEATURE_HOSTED_BINDER)
 
-#ifdef FEATURE_HOSTED_BINDER
     // entrypoint helper to be wrapped in a filter to process unhandled exceptions
     VOID ExecuteMainInner(Assembly* pRootAssembly);
-#endif // FEATURE_HOSTED_BINDER
 
     static LONG  m_RefCount;
 
@@ -1156,11 +1133,6 @@ protected:
     static BOOL m_dwFlagsFinalized;
     static DangerousNonHostedSpinLock m_FlagsLock; // protects the flags and host config
 #endif // !defined(FEATURE_CORECLR)
-
-#ifdef FEATURE_LEGACYNETCF_DBG_HOST_CONTROL
-protected:
-    static IHostNetCFDebugControlManager *m_HostNetCFDebugControlManager;
-#endif
 
     SVAL_DECL(STARTUP_FLAGS, m_dwStartupFlags);
 };

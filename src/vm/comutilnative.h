@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -34,7 +33,7 @@
 #ifdef  FEATURE_RANDOMIZED_STRING_HASHING
 #pragma warning(push)
 #pragma warning(disable:4324)
-#if !defined(CROSS_COMPILE) && defined(_TARGET_ARM_)
+#if !defined(CROSS_COMPILE) && defined(_TARGET_ARM_) && !defined(PLATFORM_UNIX)
 #include "arm_neon.h"
 #endif
 #include "marvin32.h"
@@ -185,6 +184,8 @@ public:
     static FCDECL1(void,    ReRegisterForFinalize, Object *obj);
     static FCDECL2(int,     CollectionCount, INT32 generation, INT32 getSpecialGCCount);
     
+    static FCDECL0(INT64,    GetAllocatedBytesForCurrentThread);
+
     static 
     int QCALLTYPE StartNoGCRegion(INT64 totalSize, BOOL lohSizeKnown, INT64 lohSize, BOOL disallowFullBlockingGC);
 
@@ -307,6 +308,19 @@ private:
     void InitializeDefaultSeed();
     void CreateMarvin32Seed(INT64 additionalEntropy, PSYMCRYPT_MARVIN32_EXPANDED_SEED pExpandedMarvinSeed);
 #endif // FEATURE_RANDOMIZED_STRING_HASHING
+};
+
+#ifdef FEATURE_COREFX_GLOBALIZATION
+class CoreFxGlobalization {
+public:
+  static INT32 QCALLTYPE HashSortKey(PCBYTE pSortKey, INT32 cbSortKey, BOOL forceRandomizedHashing, INT64 additionalEntropy);
+};
+#endif // FEATURE_COREFX_GLOBALIZATION
+
+class StreamNative {
+public:
+    static FCDECL1(FC_BOOL_RET, HasOverriddenBeginEndRead, Object *stream);
+    static FCDECL1(FC_BOOL_RET, HasOverriddenBeginEndWrite, Object *stream);
 };
 
 #endif // _COMUTILNATIVE_H_

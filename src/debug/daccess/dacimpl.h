@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // File: dacimpl.h
 // 
@@ -857,7 +856,9 @@ class ClrDataAccess
     : public IXCLRDataProcess2,
       public ICLRDataEnumMemoryRegions,
       public ISOSDacInterface,
-      public ISOSDacInterface2
+      public ISOSDacInterface2,
+      public ISOSDacInterface3,
+      public ISOSDacInterface4
 {
 public:
     ClrDataAccess(ICorDebugDataTarget * pTarget, ICLRDataTarget * pLegacyTarget=0);
@@ -1192,6 +1193,14 @@ public:
     virtual HRESULT STDMETHODCALLTYPE GetObjectExceptionData(CLRDATA_ADDRESS objAddr, struct DacpExceptionObjectData *data);
     virtual HRESULT STDMETHODCALLTYPE IsRCWDCOMProxy(CLRDATA_ADDRESS rcwAddr, BOOL* isDCOMProxy);
 
+    // ISOSDacInterface3
+    virtual HRESULT STDMETHODCALLTYPE GetGCInterestingInfoData(CLRDATA_ADDRESS interestingInfoAddr, struct DacpGCInterestingInfoData *data);
+    virtual HRESULT STDMETHODCALLTYPE GetGCInterestingInfoStaticData(struct DacpGCInterestingInfoData *data);
+    virtual HRESULT STDMETHODCALLTYPE GetGCGlobalMechanisms(size_t* globalMechanisms);
+
+    // ISOSDacInterface4
+    virtual HRESULT STDMETHODCALLTYPE GetClrNotification(CLRDATA_ADDRESS arguments[], int count, int *pNeeded);
+
     //
     // ClrDataAccess.
     //
@@ -1271,6 +1280,7 @@ public:
                                 DacpGcHeapDetails *detailsData);
     HRESULT GetServerAllocData(unsigned int count, struct DacpGenerationAllocData *data, unsigned int *pNeeded);
     HRESULT ServerOomData(CLRDATA_ADDRESS addr, DacpOomData *oomData);
+    HRESULT ServerGCInterestingInfoData(CLRDATA_ADDRESS addr, DacpGCInterestingInfoData *interestingInfoData);
     HRESULT ServerGCHeapAnalyzeData(CLRDATA_ADDRESS heapAddr, 
                                 DacpGcHeapAnalyzeData *analyzeData);
 
@@ -1911,10 +1921,10 @@ public:
                                    
 private:
     static StackWalkAction Callback(CrawlFrame *pCF, VOID *pData);
-    static void GCEnumCallbackSOS(LPVOID hCallback, OBJECTREF *pObject, DWORD flags, DacSlotLocation loc);
-    static void GCReportCallbackSOS(PTR_PTR_Object ppObj, ScanContext *sc, DWORD flags);
-    static void GCEnumCallbackDac(LPVOID hCallback, OBJECTREF *pObject, DWORD flags, DacSlotLocation loc);
-    static void GCReportCallbackDac(PTR_PTR_Object ppObj, ScanContext *sc, DWORD flags);
+    static void GCEnumCallbackSOS(LPVOID hCallback, OBJECTREF *pObject, uint32_t flags, DacSlotLocation loc);
+    static void GCReportCallbackSOS(PTR_PTR_Object ppObj, ScanContext *sc, uint32_t flags);
+    static void GCEnumCallbackDac(LPVOID hCallback, OBJECTREF *pObject, uint32_t flags, DacSlotLocation loc);
+    static void GCReportCallbackDac(PTR_PTR_Object ppObj, ScanContext *sc, uint32_t flags);
 
     CLRDATA_ADDRESS ReadPointer(TADDR addr);
 
@@ -2145,8 +2155,8 @@ private:
     static UINT32 BuildTypemask(UINT types[], UINT typeCount);
 
 private:
-    static void CALLBACK EnumCallbackSOS(PTR_UNCHECKED_OBJECTREF pref, LPARAM *pExtraInfo, LPARAM userParam, LPARAM type);
-    static void CALLBACK EnumCallbackDac(PTR_UNCHECKED_OBJECTREF pref, LPARAM *pExtraInfo, LPARAM userParam, LPARAM type);
+    static void CALLBACK EnumCallbackSOS(PTR_UNCHECKED_OBJECTREF pref, uintptr_t *pExtraInfo, uintptr_t userParam, uintptr_t type);
+    static void CALLBACK EnumCallbackDac(PTR_UNCHECKED_OBJECTREF pref, uintptr_t *pExtraInfo, uintptr_t userParam, uintptr_t type);
     
     bool FetchMoreHandles(HANDLESCANPROC proc);
     static inline bool IsAlwaysStrongReference(unsigned int type)
@@ -2560,9 +2570,14 @@ public:
         /* [size_is][out] */ BYTE *outBuffer);
 
     HRESULT RequestGetModulePtr(IN ULONG32 inBufferSize,
-                              IN BYTE* inBuffer,
-                              IN ULONG32 outBufferSize,
-                              OUT BYTE* outBuffer);
+                                IN BYTE* inBuffer,
+                                IN ULONG32 outBufferSize,
+                                OUT BYTE* outBuffer);
+
+    HRESULT RequestGetModuleData(IN ULONG32 inBufferSize,
+                                 IN BYTE* inBuffer,
+                                 IN ULONG32 outBufferSize,
+                                 OUT BYTE* outBuffer);
 
     Module* GetModule(void)
     {

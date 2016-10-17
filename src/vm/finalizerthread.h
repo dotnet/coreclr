@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ===========================================================================
 
 #ifndef _FINALIZER_THREAD_H_
@@ -12,6 +11,10 @@ class FinalizerThread
     static BOOL fRunFinalizersOnUnload;
     static BOOL fQuitFinalizer;
     static AppDomain *UnloadingAppDomain;
+    
+#if defined(__linux__) && defined(FEATURE_EVENT_TRACE)
+    static ULONGLONG LastHeapDumpTime;
+#endif
 
     static CLREvent *hEventFinalizer;
     static CLREvent *hEventFinalizerDone;
@@ -88,7 +91,7 @@ public:
     static void FinalizeObjectsOnShutdown(LPVOID args);
     static DWORD __stdcall FinalizerThreadStart(void *args);
 
-    static DWORD FinalizerThreadCreate();
+    static void FinalizerThreadCreate();
     static BOOL FinalizerThreadWatchDog();
 };
 

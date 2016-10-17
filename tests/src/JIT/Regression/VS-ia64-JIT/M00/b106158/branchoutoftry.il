@@ -1,5 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
+.assembly extern System.Console
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
 
 
 
@@ -8,8 +15,6 @@
 // Metadata version: v1.1.904.chk
 .assembly extern mscorlib
 {
-  .publickeytoken = (B7 7A 5C 56 19 34 E0 89 )                         // .z\V.4..
-  .ver 1:1:3102:0
 }
 .assembly testit
 {
@@ -41,20 +46,20 @@
       .try
       {
         IL_0000:  ldstr      "In try"
-        IL_0005:  call       void [mscorlib]System.Console::WriteLine(string)
+        IL_0005:  call       void [System.Console]System.Console::WriteLine(string)
         IL_000a:  leave.s    IL_0021
 
       }  // end .try
       finally
       {
         IL_000c:  ldstr      "In finally"
-        IL_0011:  call       void [mscorlib]System.Console::WriteLine(string)
+        IL_0011:  call       void [System.Console]System.Console::WriteLine(string)
         IL_0016:  endfinally
       }  // end handler
       IL_0017:  ldstr      "Unreached"
-      IL_001c:  call       void [mscorlib]System.Console::WriteLine(string)
+      IL_001c:  call       void [System.Console]System.Console::WriteLine(string)
       IL_0021:  ldstr      "After try"
-      IL_0026:  call       void [mscorlib]System.Console::WriteLine(string)
+      IL_0026:  call       void [System.Console]System.Console::WriteLine(string)
 		ldc.i4 100
       IL_002b:  ret
     } // end of method Class1::Main

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //--------------------------------------------------------------------------
 // securitymeta.h
 //
@@ -560,8 +559,6 @@ enum ModuleSecurityDescriptorFlags
     ModuleSecurityDescriptorFlags_IsOpportunisticallyCritical   = 0x0020,       // Ensure that the assembly follows all transparency rules by making all methods critical or safe critical as needed
     ModuleSecurityDescriptorFlags_SkipFullTrustVerification     = 0x0040,       // Fully trusted transparent code does not require verification
     ModuleSecurityDescriptorFlags_TransparentDueToPartialTrust  = 0x0080,       // Whether we made the assembly all transparent because it was partially-trusted
-    ModuleSecurityDescriptorFlags_IsMicrosoftPlatform           = 0x0100,       // Whether we made the assembly microsoft platform. Stored in ngen image to determine if the ngen 
-                                                                                // was generated as microsoft platform assembly (full trust) or not.
 };
 
 inline ModuleSecurityDescriptorFlags operator|(ModuleSecurityDescriptorFlags lhs,
@@ -615,9 +612,6 @@ public:
     // Get the value of the module security descriptor flags without forcing them to be computed
     inline ModuleSecurityDescriptorFlags GetRawFlags();
 #endif // DACCESS_COMPILE
-
-    // Is Microsoft Platform
-    inline BOOL IsMicrosoftPlatform();
 
     // Is every method and type in the assembly transparent
     inline BOOL IsAllTransparent();

@@ -1,12 +1,16 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // ASURT     149071
 // VSWHIDBEY 91942
 
 
-.assembly extern mscorlib
+.assembly extern mscorlib { }
+.assembly extern System.Console
 {
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
 }
 .assembly d
 {
@@ -64,7 +68,7 @@
 PASSED:
 
 	ldstr      "Test PASSED. Exit Code=100"
-	call       void [mscorlib] System.Console::WriteLine(string)
+	call       void [System.Console]System.Console::WriteLine(string)
 	ldc.i4.s   100
 	stloc.0
 	br.s       RET
@@ -107,7 +111,7 @@ NEXT:	ldsfld     class BigClass TestClass::s_bigClass
   {
     .locals init (bool retValue)
 	ldstr   "Running Test1: Using a class with a big offset field"
-	call    void [mscorlib] System.Console::WriteLine(string)
+	call    void [System.Console]System.Console::WriteLine(string)
 	.try
 	{
 		ldarg.0
@@ -117,7 +121,7 @@ NEXT:	ldsfld     class BigClass TestClass::s_bigClass
 	{
 		pop
 		ldstr      "Test1 PASSED: expected NullReferenceException"
-		call       void [mscorlib]System.Console::WriteLine(string)
+		call       void [System.Console]System.Console::WriteLine(string)
 		ldc.i4.s   1
 		stloc.0
 		leave.s    RET
@@ -125,7 +129,7 @@ NEXT:	ldsfld     class BigClass TestClass::s_bigClass
 
 FAILED:
 	ldstr      "Test1 FAILED: NullReferenceException has not been thrown"
-	call       void [mscorlib]System.Console::WriteLine(string)
+	call       void [System.Console]System.Console::WriteLine(string)
 	ldc.i4.s   0
 	stloc.0
 
@@ -158,7 +162,7 @@ NEXT:	ldloc.0
 	ldstr      "Value: {0}"    
 	ldloc.1
 	box        [mscorlib]System.Int32
-	call       void [mscorlib] System.Console::WriteLine(string, object)
+	call       void [System.Console]System.Console::WriteLine(string, object)
 
     IL_0000:  ret
   } 
@@ -167,7 +171,7 @@ NEXT:	ldloc.0
   {
     .locals init (bool retValue)
 	ldstr   "Running Test2: Using a valuetype with a not so big offset field"
-	call    void [mscorlib] System.Console::WriteLine(string)
+	call    void [System.Console]System.Console::WriteLine(string)
 	.try
 	{
 		ldarg.0
@@ -177,7 +181,7 @@ NEXT:	ldloc.0
 	{
 		pop
 		ldstr      "Test2 PASSED: expected NullReferenceException"
-		call       void [mscorlib]System.Console::WriteLine(string)
+		call       void [System.Console]System.Console::WriteLine(string)
 		ldc.i4.s   1
 		stloc.0
 		leave.s    RET
@@ -185,7 +189,7 @@ NEXT:	ldloc.0
 
 FAILED:
 	ldstr      "Test2 FAILED: NullReferenceException has not been thrown"
-	call       void [mscorlib]System.Console::WriteLine(string)
+	call       void [System.Console]System.Console::WriteLine(string)
 	ldc.i4.s   0
 	stloc.0
 
@@ -228,7 +232,7 @@ NEXT:	ldloc.0
 	box        [mscorlib]System.Int32
 	ldloc.1
 	box        [mscorlib]System.Int32
-	call       void [mscorlib] System.Console::WriteLine(string, object, object)
+	call       void [System.Console]System.Console::WriteLine(string, object, object)
 
     IL_0000:  ret
   } 
@@ -237,7 +241,7 @@ NEXT:	ldloc.0
   {
     .locals init (bool retValue)
 	ldstr   "Running Test3: Using a valuetype with a big offset field"
-	call    void [mscorlib] System.Console::WriteLine(string)
+	call    void [System.Console]System.Console::WriteLine(string)
 	.try
 	{
 		ldarg.0
@@ -247,7 +251,7 @@ NEXT:	ldloc.0
 	{
 		pop
 		ldstr      "Test3 PASSED: expected NullReferenceException"
-		call       void [mscorlib]System.Console::WriteLine(string)
+		call       void [System.Console]System.Console::WriteLine(string)
 		ldc.i4.s   1
 		stloc.0
 		leave.s    RET
@@ -255,7 +259,7 @@ NEXT:	ldloc.0
 
 FAILED:
 	ldstr      "Test3 FAILED: NullReferenceException has not been thrown"
-	call       void [mscorlib]System.Console::WriteLine(string)
+	call       void [System.Console]System.Console::WriteLine(string)
 	ldc.i4.s   0
 	stloc.0
 

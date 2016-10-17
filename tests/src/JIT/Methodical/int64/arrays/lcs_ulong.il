@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
@@ -7,8 +8,11 @@
 
 
 
-.assembly extern mscorlib
+.assembly extern mscorlib { }
+.assembly extern System.Console
 {
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
 }
 .assembly 'lcs_ulong'// as "lcs_ulong"
 {
@@ -171,7 +175,7 @@
       IL_00a6:  stloc.s    V_4
       IL_00a8:  br.s       IL_00b0
 
-      IL_00aa:  newobj     instance void ['mscorlib']System.ApplicationException::.ctor()
+      IL_00aa:  newobj     instance void ['mscorlib']System.Exception::.ctor()
       IL_00af:  throw
 
       IL_00b0:  ldloc.s    V_4
@@ -483,7 +487,7 @@
       IL_0147:  conv.i8
       IL_0148:  bne.un.s   IL_0150
 
-      IL_014a:  newobj     instance void ['mscorlib']System.ApplicationException::.ctor()
+      IL_014a:  newobj     instance void ['mscorlib']System.Exception::.ctor()
       IL_014f:  throw
 
       IL_0150:  ldarg.0
@@ -636,7 +640,7 @@
                int32 V_10)
       IL_0000:  ldstr      "Test searches for ulongest common subsequence of 4"
       + " strings\n\n"
-      IL_0005:  call       void ['mscorlib']System.Console::WriteLine(class System.String)
+      IL_0005:  call       void [System.Console]System.Console::WriteLine(class System.String)
       IL_000a:  ldc.i4.4
       IL_000b:  newarr     ['mscorlib']System.String
       IL_0010:  stloc.s    V_8
@@ -793,13 +797,13 @@
       IL_00e7:  brfalse.s  IL_00f8
 
       IL_00e9:  ldstr      "Test passed"
-      IL_00ee:  call       void ['mscorlib']System.Console::WriteLine(class System.String)
+      IL_00ee:  call       void [System.Console]System.Console::WriteLine(class System.String)
       IL_00f3:  ldc.i4     0x64
       IL_00f4:  stloc.s    V_7
       IL_00f6:  br.s       IL_0107
 
       IL_00f8:  ldstr      "Test failed."
-      IL_00fd:  call       void ['mscorlib']System.Console::WriteLine(class System.String)
+      IL_00fd:  call       void [System.Console]System.Console::WriteLine(class System.String)
       IL_0102:  ldc.i4.0
       IL_0103:  stloc.s    V_7
       IL_0105:  br.s       IL_0107

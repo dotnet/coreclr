@@ -31,6 +31,11 @@
 # Events from the runtime provider
 ##################################
 
+##################
+# Used in Non Windows Platform Linux 
+##################
+noclrinstanceid::::EventSource
+
 ##########################
 # GarbageCollection events
 ##########################

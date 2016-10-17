@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // FILE: ProfToEEInterfaceImpl.h
 //
@@ -134,7 +133,7 @@ typedef struct _PROFILER_STACK_WALK_DATA PROFILER_STACK_WALK_DATA;
 // from the profiler implementation.  The profiler will call back on the v-table
 // to get at EE internals as required.
 
-class ProfToEEInterfaceImpl : public ICorProfilerInfo6
+class ProfToEEInterfaceImpl : public ICorProfilerInfo7
 {
 public:
 
@@ -144,7 +143,7 @@ public:
     static void ObjectRefCallback(void* context, void* objectRefUNSAFE);
 
     ProfToEEInterfaceImpl();
-    ~ProfToEEInterfaceImpl();
+    virtual ~ProfToEEInterfaceImpl();
     HRESULT Init();
 
     // IUnknown
@@ -524,6 +523,10 @@ public:
 
     COM_METHOD GetEventMask2(DWORD *pdwEventsLow, DWORD *pdwEventsHigh);
 
+    // end ICorProfilerInfo5
+
+    // begin ICorProfilerInfo6
+
     COM_METHOD EnumNgenModuleMethodsInliningThisMethod(
         ModuleID    inlinersModuleId,
         ModuleID    inlineeModuleId,
@@ -532,7 +535,25 @@ public:
         ICorProfilerMethodEnum** ppEnum);
 
 
-    // end ICorProfilerInfo5
+    // end ICorProfilerInfo6
+
+    // begin ICorProfilerInfo7
+
+    COM_METHOD ApplyMetaData(
+        ModuleID    moduleId);
+
+ COM_METHOD GetInMemorySymbolsLength(
+        ModuleID moduleId,
+        DWORD* pCountSymbolBytes);
+
+    COM_METHOD ReadInMemorySymbols(
+        ModuleID moduleId, 
+        DWORD symbolsReadOffset, 
+        BYTE* pSymbolBytes, 
+        DWORD countSymbolBytes, 
+        DWORD* pCountSymbolBytesRead);
+
+    // end ICorProfilerInfo7
 
 protected:
 

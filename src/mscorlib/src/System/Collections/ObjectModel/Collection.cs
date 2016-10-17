@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // 
 
@@ -48,7 +49,7 @@ namespace System.Collections.ObjectModel
                 }
                 
                 if (index < 0 || index >= items.Count) {
-                    ThrowHelper.ThrowArgumentOutOfRangeException();
+                    ThrowHelper.ThrowArgumentOutOfRange_IndexException();
                 }
 
                 SetItem(index, value);
@@ -117,7 +118,7 @@ namespace System.Collections.ObjectModel
             }
 
             if (index < 0 || index >= items.Count) {
-                ThrowHelper.ThrowArgumentOutOfRangeException();
+                ThrowHelper.ThrowArgumentOutOfRange_IndexException();
             }
 
             RemoveItem(index);
@@ -182,7 +183,7 @@ namespace System.Collections.ObjectModel
             }
             
             if (index < 0 ) {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+                ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
             }
 
             if (array.Length - index < Count) {
@@ -203,7 +204,7 @@ namespace System.Collections.ObjectModel
                 Type targetType = array.GetType().GetElementType(); 
                 Type sourceType = typeof(T);
                 if(!(targetType.IsAssignableFrom(sourceType) || sourceType.IsAssignableFrom(targetType))) {
-                    ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidArrayType);
+                    ThrowHelper.ThrowArgumentException_Argument_InvalidArrayType();
                 }
 
                 //
@@ -212,7 +213,7 @@ namespace System.Collections.ObjectModel
                 //
                 object[] objects = array as object[];
                 if( objects == null) {
-                    ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidArrayType);
+                    ThrowHelper.ThrowArgumentException_Argument_InvalidArrayType();
                 }
 
                 int count = items.Count;
@@ -222,7 +223,7 @@ namespace System.Collections.ObjectModel
                     }
                 }
                 catch(ArrayTypeMismatchException) {
-                    ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidArrayType);
+                    ThrowHelper.ThrowArgumentException_Argument_InvalidArrayType();
                 }
             }            
         }

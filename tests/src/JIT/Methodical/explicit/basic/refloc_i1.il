@@ -1,14 +1,14 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
-.assembly extern mscorlib
+.assembly extern mscorlib { }
+.assembly extern System.Console
 {
-                           
-  
-           
-  
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
 }
 .assembly 'refloc_i1'// as "refloc_i1"
 {
@@ -34,13 +34,13 @@
       // Code size       59 (0x3b)
       .maxstack  8
       IL_0000:  ldstr      "finalizer called."
-      IL_0005:  call       void ['mscorlib']System.Console::WriteLine(class System.String)
+      IL_0005:  call       void [System.Console]System.Console::WriteLine(class System.String)
       IL_000a:  ldarg.0
       IL_0027:  ldfld      unsigned int8 Test.AA::mm
       			ldc.i4 45
       IL_002c:  beq.s      IL_0034
 
-      IL_002e:  newobj     instance void ['mscorlib']System.ApplicationException::.ctor()
+      IL_002e:  newobj     instance void ['mscorlib']System.Exception::.ctor()
       IL_0033:  throw
 
       IL_0034:  ldc.i4.1
@@ -132,13 +132,13 @@
       IL_0020:  beq.s      IL_0030
 
       IL_0022:  ldstr      "*** failed ***"
-      IL_0027:  call       void ['mscorlib']System.Console::WriteLine(class System.String)
+      IL_0027:  call       void [System.Console]System.Console::WriteLine(class System.String)
       IL_002c:  ldc.i4.1
       IL_002d:  stloc.1
       IL_002e:  br.s       IL_003e
 
       IL_0030:  ldstr      "*** passed ***"
-      IL_0035:  call       void ['mscorlib']System.Console::WriteLine(class System.String)
+      IL_0035:  call       void [System.Console]System.Console::WriteLine(class System.String)
       IL_003a:  ldc.i4    0x64
       IL_003b:  stloc.1
       IL_003c:  br.s       IL_003e

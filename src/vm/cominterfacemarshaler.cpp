@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // File: ComInterfaceMarshaler.cpp
 //
@@ -166,7 +165,7 @@ VOID COMInterfaceMarshaler::InitializeFlags()
             GCX_PREEMP();
             
             INT_PTR pCCW;
-            IfFailThrow(m_pIManaged->GetObjectIdentity(&bstrProcessGUID, (int*)&m_dwServerDomainId, &pCCW));
+            IfFailThrow(m_pIManaged->GetObjectIdentity(&bstrProcessGUID, (int*)&m_dwServerDomainId, (CCW_PTR)&pCCW));
 
             // we may get back a pointer-sized value but only the lower 32-bits are guaranteed to be valid and
             // contain syncblock index of the managed object

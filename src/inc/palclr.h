@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ===========================================================================
 // File: palclr.h
 //
@@ -86,11 +85,15 @@
 #define PORTABILITY_ASSERT(message)     _ASSERTE(false && message)
 #endif
 
-
+#define DIRECTORY_SEPARATOR_CHAR_A '\\'
+#define DIRECTORY_SEPARATOR_STR_A "\\"
 #define DIRECTORY_SEPARATOR_CHAR_W W('\\')
 #define DIRECTORY_SEPARATOR_STR_W W("\\")
 
 #define PATH_SEPARATOR_CHAR_W W(';')
+#define PATH_SEPARATOR_STR_W W(";")
+
+#define VOLUME_SEPARATOR_CHAR_W W(':')
 
 // PAL Macros
 // Not all compilers support fully anonymous aggregate types, so the
@@ -296,6 +299,8 @@
 
 #include "staticcontract.h"
 
+#define HardwareExceptionHolder
+
 // Note: PAL_SEH_RESTORE_GUARD_PAGE is only ever defined in clrex.h, so we only restore guard pages automatically
 // when these macros are used from within the VM.
 #define PAL_SEH_RESTORE_GUARD_PAGE
@@ -480,7 +485,14 @@
 //  and it provides __declspec(selectany) to instruct the linker to merge
 //  duplicate external const static data copies into one.
 //  
+#if defined(SOURCE_FORMATTING)
+#define SELECTANY extern
+#else
 #define SELECTANY extern __declspec(selectany)
+#endif
+#if defined(SOURCE_FORMATTING)
+#define __annotation(x)
+#endif
         
 
 #if defined(_DEBUG_IMPL) && !defined(JIT_BUILD) && !defined(JIT64_BUILD) && !defined(CROSS_COMPILE) && !defined(_TARGET_ARM_) // @ARMTODO: no contracts for speed
@@ -598,7 +610,14 @@
 #define MAKEDLLNAME(x) MAKEDLLNAME_A(x)
 #endif
 
-#endif	// __PALCLR_H__
+#if !defined(MAX_LONGPATH)
+#define MAX_LONGPATH   260 /* max. length of full pathname */
+#endif
+#if !defined(MAX_PATH_FNAME)
+#define MAX_PATH_FNAME   MAX_PATH /* max. length of full pathname */
+#endif
+
+#endif // __PALCLR_H__
 
 #include "palclr_win.h"
 

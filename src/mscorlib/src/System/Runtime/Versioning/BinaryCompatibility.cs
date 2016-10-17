@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -444,45 +445,9 @@ namespace System.Runtime.Versioning
             }
         }
 
-#if FEATURE_CORECLR
-        /// <summary>
-        /// This method checks for CompatibilitySwitches for SL8.1 scenarios.
-        /// PS - This is used only for SL 8.1
-        /// </summary>
-        [System.Security.SecuritySafeCritical]
-        private static bool IsAppUnderSL81CompatMode()
-        {
-            Contract.Assert(s_AppWasBuiltForFramework == TargetFrameworkId.NotYetChecked);
-
-            if (CompatibilitySwitches.IsAppSilverlight81)
-            {
-                // This is an SL8.1 scenario and hence it gets the same quirks as WPBlue+ settings.
-                s_AppWasBuiltForFramework = TargetFrameworkId.Phone;
-                s_AppWasBuiltForVersion = 80100;
-
-                return true;
-            }
-
-            return false;
-        }
-#endif //FEATURE_CORECLR
-
         [System.Security.SecuritySafeCritical]
         private static void ReadTargetFrameworkId()
         {
-#if FEATURE_CORECLR
-            if (IsAppUnderSL81CompatMode())
-            {
-                // Since the SL does not have any Main() the reading of the TFM will not work and as a workaround we use the CompatibilitySwitch.IsAppSilverlight81 
-                // to identify if the given app targets SL 8.1 and accordingly give it the value TargetFrameworkId.Phone;80100
-
-                // PS - This also means that the CompatMode set by AppDomain m_compatFlags with AppDomainCompatMode.APPDOMAINCOMPAT_APP_SL81
-                // will override any other mechanism like TFM, RegistryKey, env variable or config file settings. Since this option
-                // is only used by SL8.1 scenario's I don't think this is an issue and is rather desirable.
-
-                return;
-            }
-#endif //FEATURE_CORECLR
             String targetFrameworkName = AppDomain.CurrentDomain.GetTargetFrameworkName();
 
             var overrideValue = System.Runtime.Versioning.CompatibilitySwitch.GetValueInternal("TargetFrameworkMoniker");

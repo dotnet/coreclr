@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -1226,7 +1225,7 @@ OBJECTREF EEException::CreateThrowable()
 #endif
 }
 
-RuntimeExceptionKind EEException::GetKindFromHR(HRESULT hr, bool fIsWinRtMode /*= false*/)
+RuntimeExceptionKind EEException::GetKindFromHR(HRESULT hr, bool fIsWinRtMode)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -2056,6 +2055,7 @@ void DECLSPEC_NORETURN EEFileLoadException::Throw(LPCWSTR path, HRESULT hr, Exce
     if (hr == E_OUTOFMEMORY)
         COMPlusThrowOM();
 
+#ifndef CROSSGEN_COMPILE
     // Remove path - location must be hidden for security purposes
 
     LPCWSTR pStart = wcsrchr(path, '\\');
@@ -2063,6 +2063,9 @@ void DECLSPEC_NORETURN EEFileLoadException::Throw(LPCWSTR path, HRESULT hr, Exce
         pStart++;
     else
         pStart = path;
+#else
+    LPCWSTR pStart = path;
+#endif
     EX_THROW_WITH_INNER(EEFileLoadException, (StackSString(pStart), hr), pInnerException);
 }
 
@@ -2666,7 +2669,7 @@ CLRLastThrownObjectException* CLRLastThrownObjectException::Validate()
                     "  Please get a good stack trace of the exception that was thrown first\n"
                     "  (by re-running the app & catching first chance exceptions), find\n"
                     "  the caller of Validate, and file a bug against the owner.\n\n"
-                    "To suppress this assert 'set COMPLUS_SuppressLostExceptionTypeAssert=1'");
+                    "To suppress this assert 'set COMPlus_SuppressLostExceptionTypeAssert=1'");
                 }
             }
         }

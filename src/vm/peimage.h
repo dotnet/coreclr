@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // --------------------------------------------------------------------------------
 // PEImage.h
 // 
@@ -53,7 +52,7 @@ struct CV_INFO_PDB70
     DWORD      magic; 
     GUID       signature;       // unique identifier 
     DWORD      age;             // an always-incrementing value 
-    char       path[MAX_PATH];  // zero terminated string with the name of the PDB file 
+    char       path[MAX_LONGPATH];  // zero terminated string with the name of the PDB file 
 };
 
 typedef DPTR(class PEImage)                PTR_PEImage;
@@ -134,13 +133,11 @@ public:
 
     };
 
-#ifdef FEATURE_HOSTED_BINDER
     // pUnkResource must be one of the ICLRPrivResource* interfaces defined in CLRPrivBinding.IDL.
     // pUnkResource will be queried for each of these to find a match and 
     static PEImage * OpenImage(
         ICLRPrivResource * pIResource,
         MDInternalImportFlags flags = MDInternalImport_Default);
-#endif
 
     static PTR_PEImage FindById(UINT64 uStreamAsmId, DWORD dwModuleId);
     static PTR_PEImage FindByPath(LPCWSTR pPath);    

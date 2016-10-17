@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Reflection;
@@ -17,18 +18,20 @@ namespace System.Diagnostics.Tracing
     internal sealed class PropertyAnalysis
     {
         internal readonly string name;
-        internal readonly MethodInfo getterInfo;
+        internal readonly PropertyInfo propertyInfo;
+        internal readonly Func<PropertyValue, PropertyValue> getter;
         internal readonly TraceLoggingTypeInfo typeInfo;
         internal readonly EventFieldAttribute fieldAttribute;
 
         public PropertyAnalysis(
             string name,
-            MethodInfo getterInfo,
+            PropertyInfo propertyInfo,
             TraceLoggingTypeInfo typeInfo,
             EventFieldAttribute fieldAttribute)
         {
             this.name = name;
-            this.getterInfo = getterInfo;
+            this.propertyInfo = propertyInfo;
+            this.getter = PropertyValue.GetPropertyGetter(propertyInfo);
             this.typeInfo = typeInfo;
             this.fieldAttribute = fieldAttribute;
         }

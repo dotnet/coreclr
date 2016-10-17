@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -19,9 +18,7 @@ Abstract:
 
 --*/
 
-#include <typeinfo>
 #include "pal/thread.hpp"
-#include "signal.hpp"
 #include "pal/handleapi.hpp"
 #include "pal/seh.hpp"
 #include "pal/dbgmsg.h"
@@ -30,21 +27,49 @@ Abstract:
 #include "pal/init.h"
 #include "pal/process.h"
 #include "pal/malloc.hpp"
+#include "signal.hpp"
 
-#if HAVE_ALLOCA_H
-#include "alloca.h"
-#endif
-
-#include <errno.h>
-#include <string.h>
 #if HAVE_MACH_EXCEPTIONS
 #include "machexception.h"
 #else
 #include <signal.h>
 #endif
+
+#include <string.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <stdlib.h>
+
+// Define the std::move so that we don't have to include the <utility> header
+// which on some platforms pulls in STL stuff that collides with PAL stuff.
+// The std::move is needed to enable using move constructor and assignment operator
+// for PAL_SEHException.
+namespace std
+{
+    template<typename T>
+    struct remove_reference
+    {
+        typedef T type;
+    };
+
+    template<typename T>
+    struct remove_reference<T&>
+    {
+        typedef T type;
+    };
+
+    template<typename T>
+    struct remove_reference<T&&>
+    {
+        typedef T type;
+    };
+
+    template<class T> inline
+    typename remove_reference<T>::type&& move(T&& arg)
+    {   // forward arg as movable
+        return ((typename remove_reference<T>::type&&)arg);
+    }
+}
 
 using namespace CorUnix;
 
@@ -58,23 +83,14 @@ const UINT RESERVED_SEH_BIT = 0x800000;
 /* Internal variables definitions **********************************************/
 
 PHARDWARE_EXCEPTION_HANDLER g_hardwareExceptionHandler = NULL;
+// Function to check if an activation can be safely injected at a specified context
+PHARDWARE_EXCEPTION_SAFETY_CHECK_FUNCTION g_safeExceptionCheckFunction = NULL;
 
-#ifdef __llvm__
-__thread 
-#else // __llvm__
-__declspec(thread)
-#endif // !__llvm__
-int t_holderCount = 0;
+PGET_GCMARKER_EXCEPTION_CODE g_getGcMarkerExceptionCode = NULL;
 
-/* Internal function declarations *********************************************/
-
-BOOL SEHInitializeConsole();
-
-#if !HAVE_MACH_EXCEPTIONS
-PAL_ERROR
-StartExternalSignalHandlerThread(
-    CPalThread *pthr);
-#endif // !HAVE_MACH_EXCEPTIONS
+// Return address of the SEHProcessException, which is used to enable walking over 
+// the signal handler trampoline on some Unixes where the libunwind cannot do that.
+void* g_SEHProcessExceptionReturnAddress = NULL;
 
 /* Internal function definitions **********************************************/
 
@@ -95,38 +111,16 @@ Return value :
 BOOL 
 SEHInitialize (CPalThread *pthrCurrent, DWORD flags)
 {
-    BOOL bRet = FALSE;
-
-    if (!SEHInitializeConsole())
-    {
-        ERROR("SEHInitializeConsole failed!\n");
-        SEHCleanup();
-        goto SEHInitializeExit;
-    }
-
 #if !HAVE_MACH_EXCEPTIONS
-    if (!SEHInitializeSignals())
+    if (!SEHInitializeSignals(flags))
     {
         ERROR("SEHInitializeSignals failed!\n");
         SEHCleanup();
-        goto SEHInitializeExit;
-    }
-
-    if (flags & PAL_INITIALIZE_SIGNAL_THREAD)
-    {
-        PAL_ERROR palError = StartExternalSignalHandlerThread(pthrCurrent);
-        if (NO_ERROR != palError)
-        {
-            ERROR("StartExternalSignalHandlerThread returned %d\n", palError);
-            SEHCleanup();
-            goto SEHInitializeExit;
-        }
+        return FALSE;
     }
 #endif
-    bRet = TRUE;
 
-SEHInitializeExit:
-    return bRet;
+    return TRUE;
 }
 
 /*++
@@ -168,40 +162,141 @@ Return value:
 VOID
 PALAPI 
 PAL_SetHardwareExceptionHandler(
-    IN PHARDWARE_EXCEPTION_HANDLER exceptionHandler)
-
+    IN PHARDWARE_EXCEPTION_HANDLER exceptionHandler,
+    IN PHARDWARE_EXCEPTION_SAFETY_CHECK_FUNCTION exceptionCheckFunction)
 {
     g_hardwareExceptionHandler = exceptionHandler;
+    g_safeExceptionCheckFunction = exceptionCheckFunction;
+}
+
+/*++
+Function:
+    PAL_SetGetGcMarkerExceptionCode
+
+    Register a function that determines if the specified IP has code that is a GC marker for GCCover.
+
+Parameters:
+    getGcMarkerExceptionCode - the function to register
+
+Return value:
+    None
+--*/
+VOID
+PALAPI 
+PAL_SetGetGcMarkerExceptionCode(
+    IN PGET_GCMARKER_EXCEPTION_CODE getGcMarkerExceptionCode)
+{
+    g_getGcMarkerExceptionCode = getGcMarkerExceptionCode;
+}
+
+EXTERN_C void ThrowExceptionFromContextInternal(CONTEXT* context, PAL_SEHException* ex);
+
+/*++
+Function:
+    PAL_ThrowExceptionFromContext
+
+    This function creates a stack frame right below the target frame, restores all callee
+    saved registers from the passed in context, sets the RSP to that frame and sets the
+    return address to the target frame's RIP.
+    Then it uses the ThrowExceptionHelper to throw the passed in exception from that context.
+
+Parameters:
+    CONTEXT* context - context from which the exception will be thrown
+    PAL_SEHException* ex - the exception to throw.
+--*/
+VOID
+PALAPI 
+PAL_ThrowExceptionFromContext(CONTEXT* context, PAL_SEHException* ex)
+{
+    // We need to make a copy of the exception off stack, since the "ex" is located in one of the stack
+    // frames that will become obsolete by the ThrowExceptionFromContextInternal and the ThrowExceptionHelper
+    // could overwrite the "ex" object by stack e.g. when allocating the low level exception object for "throw".
+    static __thread BYTE threadLocalExceptionStorage[sizeof(PAL_SEHException)];
+    ThrowExceptionFromContextInternal(context, new (threadLocalExceptionStorage) PAL_SEHException(std::move(*ex)));
+}
+
+/*++
+Function:
+    ThrowExceptionHelper
+
+    Helper function to throw the passed in exception.
+    It is called from the assembler function ThrowExceptionFromContextInternal
+
+Parameters:
+    PAL_SEHException* ex - the exception to throw.
+--*/
+extern "C"
+void ThrowExceptionHelper(PAL_SEHException* ex)
+{
+    throw std::move(*ex);
 }
 
 /*++
 Function:
     SEHProcessException
 
-    Build the PAL exception and sent it to any handler registered.
+    Send the PAL exception to any handler registered.
 
 Parameters:
-    PEXCEPTION_POINTERS pointers
+    PAL_SEHException* exception
 
 Return value:
-    Returns only if the exception is unhandled
+    Returns TRUE if the exception happened in managed code and the execution should 
+    continue (with possibly modified context).
+    Returns FALSE if the exception happened in managed code and it was not handled.
+    In case the exception was handled by calling a catch handler, it doesn't return at all.
 --*/
-VOID
-SEHProcessException(PEXCEPTION_POINTERS pointers)
+BOOL
+SEHProcessException(PAL_SEHException* exception)
 {
-    PAL_SEHException exception(pointers->ExceptionRecord, pointers->ContextRecord);
+    g_SEHProcessExceptionReturnAddress = __builtin_return_address(0);
 
-    if (g_hardwareExceptionHandler != NULL)
+    CONTEXT* contextRecord = exception->GetContextRecord();
+    EXCEPTION_RECORD* exceptionRecord = exception->GetExceptionRecord();
+
+    if (!IsInDebugBreak(exceptionRecord->ExceptionAddress))
     {
-        g_hardwareExceptionHandler(&exception);
+        if (g_hardwareExceptionHandler != NULL)
+        {
+            _ASSERTE(g_safeExceptionCheckFunction != NULL);
+            // Check if it is safe to handle the hardware exception (the exception happened in managed code
+            // or in a jitter helper or it is a debugger breakpoint)
+            if (g_safeExceptionCheckFunction(contextRecord, exceptionRecord))
+            {
+                if (exceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION)
+                {
+                    // Check if the failed access has hit a stack guard page. In such case, it
+                    // was a stack probe that detected that there is not enough stack left.
+                    void* stackLimit = CPalThread::GetStackLimit();
+                    void* stackGuard = (void*)((size_t)stackLimit - getpagesize());
+                    void* violationAddr = (void*)exceptionRecord->ExceptionInformation[1];
+                    if ((violationAddr >= stackGuard) && (violationAddr < stackLimit))
+                    {
+                        // The exception happened in the page right below the stack limit,
+                        // so it is a stack overflow
+                        write(STDERR_FILENO, StackOverflowMessage, sizeof(StackOverflowMessage) - 1);
+                        PROCAbort();
+                    }
+                }
+
+                if (g_hardwareExceptionHandler(exception))
+                {
+                    // The exception happened in managed code and the execution should continue.
+                    return TRUE;
+                }
+
+                // The exception was a single step or a breakpoint and it was not handled by the debugger.
+            }
+        }
+
+        if (CatchHardwareExceptionHolder::IsEnabled())
+        {
+            PAL_ThrowExceptionFromContext(exception->GetContextRecord(), exception);
+        }
     }
 
-    if (PAL_CatchHardwareExceptionHolder::IsEnabled())
-    {
-        throw exception;
-    }
-
-    TRACE("Unhandled hardware exception %08x\n", pointers->ExceptionRecord->ExceptionCode);
+    // Unhandled hardware exception pointers->ExceptionRecord->ExceptionCode at pointers->ExceptionRecord->ExceptionAddress
+    return FALSE;
 }
 
 /*++
@@ -222,7 +317,7 @@ PAL_ERROR SEHEnable(CPalThread *pthrCurrent)
 {
 #if HAVE_MACH_EXCEPTIONS
     return pthrCurrent->EnableMachExceptions();
-#elif __LINUX__ || defined(__FreeBSD__)
+#elif defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__)
     // TODO: This needs to be implemented. Cannot put an ASSERT here
     // because it will make other parts of PAL fail.
     return NO_ERROR;
@@ -251,7 +346,7 @@ PAL_ERROR SEHDisable(CPalThread *pthrCurrent)
     return pthrCurrent->DisableMachExceptions();
     // TODO: This needs to be implemented. Cannot put an ASSERT here
     // because it will make other parts of PAL fail.
-#elif __LINUX__ || defined(__FreeBSD__)
+#elif defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__)
     return NO_ERROR;
 #else // HAVE_MACH_EXCEPTIONS
 #error not yet implemented
@@ -260,23 +355,83 @@ PAL_ERROR SEHDisable(CPalThread *pthrCurrent)
 
 /*++
 
-PAL_HandlerExceptionHolder implementation
+  CatchHardwareExceptionHolder implementation
 
 --*/
 
-PAL_CatchHardwareExceptionHolder::PAL_CatchHardwareExceptionHolder()
+CatchHardwareExceptionHolder::CatchHardwareExceptionHolder()
 {
-    ++t_holderCount;
+    CPalThread *pThread = InternalGetCurrentThread();
+    ++pThread->m_hardwareExceptionHolderCount;
 }
 
-PAL_CatchHardwareExceptionHolder::~PAL_CatchHardwareExceptionHolder()
+CatchHardwareExceptionHolder::~CatchHardwareExceptionHolder()
 {
-    --t_holderCount;
+    CPalThread *pThread = InternalGetCurrentThread();
+    --pThread->m_hardwareExceptionHolderCount;
 }
 
-bool PAL_CatchHardwareExceptionHolder::IsEnabled()
+bool CatchHardwareExceptionHolder::IsEnabled()
 {
-    return t_holderCount > 0;
+    CPalThread *pThread = InternalGetCurrentThread();
+    return pThread->IsHardwareExceptionsEnabled();
+}
+
+/*++
+
+  NativeExceptionHolderBase implementation
+
+--*/
+
+#ifdef __llvm__
+__thread 
+#else // __llvm__
+__declspec(thread)
+#endif // !__llvm__
+static NativeExceptionHolderBase *t_nativeExceptionHolderHead = nullptr;
+
+NativeExceptionHolderBase::NativeExceptionHolderBase()
+{
+    m_head = nullptr;
+    m_next = nullptr;
+}
+
+NativeExceptionHolderBase::~NativeExceptionHolderBase()
+{
+    // Only destroy if Push was called
+    if (m_head != nullptr)
+    {
+        *m_head = m_next;
+        m_head = nullptr;
+        m_next = nullptr;
+    }
+}
+
+void 
+NativeExceptionHolderBase::Push()
+{
+    NativeExceptionHolderBase **head = &t_nativeExceptionHolderHead;
+    m_head = head;
+    m_next = *head;
+    *head = this;
+}
+
+NativeExceptionHolderBase *
+NativeExceptionHolderBase::FindNextHolder(NativeExceptionHolderBase *currentHolder, void *stackLowAddress, void *stackHighAddress)
+{
+    NativeExceptionHolderBase *holder = (currentHolder == nullptr) ? t_nativeExceptionHolderHead : currentHolder->m_next;
+
+    while (holder != nullptr)
+    {
+        if (((void *)holder >= stackLowAddress) && ((void *)holder < stackHighAddress))
+        { 
+            return holder;
+        }
+        // Get next holder
+        holder = holder->m_next;
+    }
+
+    return nullptr;
 }
 
 #include "seh-unwind.cpp"

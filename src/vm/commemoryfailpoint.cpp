@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -27,7 +26,7 @@ FCIMPL2(void, COMMemoryFailPoint::GetMemorySettings, UINT64* pMaxGCSegmentSize, 
 {
     FCALL_CONTRACT;
 
-    GCHeap * pGC = GCHeap::GetGCHeap();
+    IGCHeap * pGC = GCHeapUtilities::GetGCHeap();
     size_t segment_size = pGC->GetValidSegmentSize(FALSE);
     size_t large_segment_size = pGC->GetValidSegmentSize(TRUE);
     _ASSERTE(segment_size < SIZE_T_MAX && large_segment_size < SIZE_T_MAX);

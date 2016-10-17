@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ===========================================================================
 // File: MultiCoreJIT.cpp
 //
@@ -28,6 +27,7 @@
 #include "appdomain.hpp"
 #include "qcall.h"
 
+#include "eventtracebase.h"
 #include "multicorejit.h"
 #include "multicorejitimpl.h"
 
@@ -96,7 +96,7 @@ void MulticoreJitFireEtwA(const wchar_t * pAction, const char * pTarget, int p1,
 #ifdef FEATURE_EVENT_TRACE
     EX_TRY
     {
-        if (McGenEventTracingEnabled(& MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, & MulticoreJit))
+        if (EventEnabledMulticoreJit())
         {
             SString wTarget;
 
@@ -356,7 +356,7 @@ ModuleRecord::ModuleRecord(unsigned lenName, unsigned lenAsmName)
     wLoadLevel = 0;
     // Extra data
     lenModuleName = (unsigned short) lenName;
-#if defined(FEATURE_CORECLR) && defined(FEATURE_HOSTED_BINDER)
+#if defined(FEATURE_CORECLR)
     lenAssemblyName = (unsigned short) lenAsmName;
     recordID += RoundUp(lenModuleName) + RoundUp(lenAssemblyName);
 #else
@@ -375,7 +375,7 @@ bool RecorderModuleInfo::SetModule(Module * pMod)
     unsigned lenModuleName = (unsigned) strlen(pModuleName);
     simpleName.Set((const BYTE *) pModuleName, lenModuleName); // SBuffer::Set copies over name
 
-#if defined(FEATURE_CORECLR) && defined(FEATURE_HOSTED_BINDER)
+#if defined(FEATURE_CORECLR)
     SString sAssemblyName;
     StackScratchBuffer scratch;
     pMod->GetAssembly()->GetManifestFile()->GetDisplayName(sAssemblyName);
@@ -422,7 +422,7 @@ HRESULT MulticoreJitRecorder::WriteModuleRecord(IStream * pStream, const Recorde
     const void * pModuleName = module.simpleName;
     unsigned lenModuleName = module.simpleName.GetSize();
 
-#if defined(FEATURE_CORECLR) && defined(FEATURE_HOSTED_BINDER)
+#if defined(FEATURE_CORECLR)
     const void * pAssemblyName = module.assemblyName;
     unsigned lenAssemblyName = module.assemblyName.GetSize();
 #else
@@ -442,7 +442,7 @@ HRESULT MulticoreJitRecorder::WriteModuleRecord(IStream * pStream, const Recorde
     {
         hr = WriteString(pModuleName, lenModuleName, pStream);
 
-#if defined(FEATURE_CORECLR) && defined(FEATURE_HOSTED_BINDER)
+#if defined(FEATURE_CORECLR)
         if (SUCCEEDED(hr))
         {
             hr = WriteString(pAssemblyName, lenAssemblyName, pStream);
@@ -1061,7 +1061,7 @@ HRESULT MulticoreJitRecorder::StartProfile(const wchar_t * pRoot, const wchar_t 
 
         NewHolder<MulticoreJitProfilePlayer> player(new (nothrow) MulticoreJitProfilePlayer(
             m_pDomain,
-#if defined(FEATURE_CORECLR) && defined(FEATURE_HOSTED_BINDER)
+#if defined(FEATURE_CORECLR)
             m_pBinderContext,
 #else
             NULL,
@@ -1235,7 +1235,7 @@ void MulticoreJitManager::StartProfile(AppDomain * pDomain, ICLRPrivBinder *pBin
     {
         MulticoreJitRecorder * pRecorder = new (nothrow) MulticoreJitRecorder(
             pDomain,
-#if defined(FEATURE_CORECLR) && defined(FEATURE_HOSTED_BINDER)
+#if defined(FEATURE_CORECLR)
             pBinderContext,
 #else
             NULL,

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /**************************************************************/
 /*                       gmscpu.h                             */
@@ -18,15 +17,14 @@
 
 #define __gmscpu_h__
 
-// X19 - X28
-#define NUM_NONVOLATILE_CONTEXT_POINTERS 10
+// X19 - X29
+#define NUM_NONVOLATILE_CONTEXT_POINTERS 11
 
 struct MachState {
-    ULONG64        captureX19_X28[NUM_NONVOLATILE_CONTEXT_POINTERS]; // preserved registers
-    PTR_ULONG64    ptrX19_X28[NUM_NONVOLATILE_CONTEXT_POINTERS]; // pointers to preserved registers
-    TADDR          _pc;
-    TADDR          _sp;        
-    TADDR          _fp;
+    ULONG64        captureX19_X29[NUM_NONVOLATILE_CONTEXT_POINTERS]; // preserved registers
+    PTR_ULONG64    ptrX19_X29[NUM_NONVOLATILE_CONTEXT_POINTERS]; // pointers to preserved registers
+    TADDR          _pc; // program counter after the function returns
+    TADDR          _sp; // stack pointer after the function returns       
     BOOL           _isValid;
     
     BOOL   isValid()    { LIMITED_METHOD_DAC_CONTRACT; return _isValid; }
@@ -37,11 +35,11 @@ struct LazyMachState : public MachState{
 
     TADDR          captureSp;         // Stack pointer at the time of capture
     TADDR          captureIp;         // Instruction pointer at the time of capture
-    TADDR          captureFp;         // Frame pointer at the time of the captues
 
     void setLazyStateFromUnwind(MachState* copy);
     static void unwindLazyState(LazyMachState* baseState,
                                 MachState* lazyState,
+                                DWORD threadId,
                                 int funCallDepth = 1,
                                 HostCallPreference hostCallPreference = AllowHostCalls);
 };
@@ -57,24 +55,23 @@ inline void LazyMachState::setLazyStateFromUnwind(MachState* copy)
 
     _sp = copy->_sp;
     _pc = copy->_pc;
-    _fp = copy->_fp;
 
     // Now copy the preserved register pointers. Note that some of the pointers could be
-    // pointing to copy->captureX19_X28[]. If that is case then while copying to destination
-    // ensure that they point to corresponding element in captureX19_X28[] of destination.
-    ULONG64* srcLowerBound = &copy->captureX19_X28[0];
-    ULONG64* srcUpperBound = (ULONG64*)((BYTE*)copy + offsetof(MachState, ptrX19_X28));
+    // pointing to copy->captureX19_X29[]. If that is case then while copying to destination
+    // ensure that they point to corresponding element in captureX19_X29[] of destination.
+    ULONG64* srcLowerBound = &copy->captureX19_X29[0];
+    ULONG64* srcUpperBound = (ULONG64*)((BYTE*)copy + offsetof(MachState, ptrX19_X29));
 
 
     for (int i = 0; i<NUM_NONVOLATILE_CONTEXT_POINTERS; i++)
     {
-        if (copy->ptrX19_X28[i] >= srcLowerBound && copy->ptrX19_X28[i] < srcUpperBound)
+        if (copy->ptrX19_X29[i] >= srcLowerBound && copy->ptrX19_X29[i] < srcUpperBound)
         {
-            ptrX19_X28[i] = (PTR_ULONG64)((BYTE*)copy->ptrX19_X28[i] - (BYTE*)srcLowerBound + (BYTE*)captureX19_X28);
+            ptrX19_X29[i] = (PTR_ULONG64)((BYTE*)copy->ptrX19_X29[i] - (BYTE*)srcLowerBound + (BYTE*)captureX19_X29);
         }
         else
         {
-            ptrX19_X28[i] = copy->ptrX19_X28[i];
+            ptrX19_X29[i] = copy->ptrX19_X29[i];
         }
     }
 

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -428,8 +427,10 @@ typedef PIMAGE_NT_HEADERS32                 PIMAGE_NT_HEADERS;
 //      IMAGE_LIBRARY_PROCESS_TERM           0x0002     // Reserved.
 //      IMAGE_LIBRARY_THREAD_INIT            0x0004     // Reserved.
 //      IMAGE_LIBRARY_THREAD_TERM            0x0008     // Reserved.
+#define IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA 0x0020 // Image can handle a high entropy 64-bit virtual address space.
 #define IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE 0x0040    // DLL can move
 #define IMAGE_DLLCHARACTERISTICS_NX_COMPAT   0x0100     // Image ix NX compatible
+#define IMAGE_DLLCHARACTERISTICS_NO_SEH       0x0400    // Image does not use SEH.  No SE handler may reside in this image
 #define IMAGE_DLLCHARACTERISTICS_NO_BIND     0x0800     // Do not bind this image.
 #define IMAGE_DLLCHARACTERISTICS_APPCONTAINER 0x1000    // Image should execute in an AppContainer
 #define IMAGE_DLLCHARACTERISTICS_WDM_DRIVER  0x2000     // Driver uses WDM model
@@ -795,7 +796,7 @@ typedef struct _IMAGE_RELOCATION {
     union {
         ULONG   VirtualAddress;
         ULONG   RelocCount;             // Set to the real count when IMAGE_SCN_LNK_NRELOC_OVFL is set
-    } u;
+    };
     ULONG   SymbolTableIndex;
     USHORT  Type;
 } IMAGE_RELOCATION;
@@ -938,6 +939,25 @@ typedef IMAGE_RELOCATION UNALIGNED *PIMAGE_RELOCATION;
 #define IMAGE_REL_ARM_BLX11             0x0009
 #define IMAGE_REL_ARM_SECTION           0x000E  // Section table index
 #define IMAGE_REL_ARM_SECREL            0x000F  // Offset within section
+
+//
+// ARM64 relocation types
+//
+#define IMAGE_REL_ARM64_ABSOLUTE        0x0000
+#define IMAGE_REL_ARM64_ADDR32          0x0001
+#define IMAGE_REL_ARM64_ADDR32NB        0x0002
+#define IMAGE_REL_ARM64_BRANCH26        0x0003
+#define IMAGE_REL_ARM64_PAGEBASE_REL21  0x0004
+#define IMAGE_REL_ARM64_REL21           0x0005
+#define IMAGE_REL_ARM64_PAGEOFFSET_12A  0x0006
+#define IMAGE_REL_ARM64_PAGEOFFSET_12L  0x0007
+#define IMAGE_REL_ARM64_SECREL          0x0008
+#define IMAGE_REL_ARM64_SECREL_LOW12A   0x0009
+#define IMAGE_REL_ARM64_SECREL_HIGH12A  0x000A
+#define IMAGE_REL_ARM64_SECREL_LOW12L   0x000B
+#define IMAGE_REL_ARM64_TOKEN           0x000C
+#define IMAGE_REL_ARM64_SECTION         0x000D
+#define IMAGE_REL_ARM64_ADDR64          0x000E
 
 #define IMAGE_REL_AM_ABSOLUTE           0x0000
 #define IMAGE_REL_AM_ADDR32             0x0001

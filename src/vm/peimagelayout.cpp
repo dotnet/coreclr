@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 // 
@@ -94,11 +93,47 @@ PEImageLayout* PEImageLayout::Map(HANDLE hFile, PEImage* pOwner)
 }
 
 #ifdef FEATURE_PREJIT
+
+#ifdef FEATURE_PAL
+DWORD SectionCharacteristicsToPageProtection(UINT characteristics)
+{
+    _ASSERTE((characteristics & VAL32(IMAGE_SCN_MEM_READ)) != 0);
+    DWORD pageProtection;
+
+    if ((characteristics & VAL32(IMAGE_SCN_MEM_WRITE)) != 0)
+    {
+        if ((characteristics & VAL32(IMAGE_SCN_MEM_EXECUTE)) != 0)
+        {
+            pageProtection = PAGE_EXECUTE_READWRITE;
+        }
+        else
+        {
+            pageProtection = PAGE_READWRITE;
+        }
+    }
+    else
+    {
+        if ((characteristics & VAL32(IMAGE_SCN_MEM_EXECUTE)) != 0)
+        {
+            pageProtection = PAGE_EXECUTE_READ;
+        }
+        else
+        {
+            pageProtection = PAGE_READONLY;
+        }
+    }
+
+    return pageProtection;
+}
+#endif // FEATURE_PAL
+
 //To force base relocation on Vista (which uses ASLR), unmask IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
 //(0x40) for OptionalHeader.DllCharacteristics
 void PEImageLayout::ApplyBaseRelocations()
 {
     STANDARD_VM_CONTRACT;
+
+    SetRelocated();
 
     //
     // Note that this is not a univeral routine for applying relocations. It handles only the subset
@@ -153,9 +188,21 @@ void PEImageLayout::ApplyBaseRelocations()
             // Unprotect the section if it is not writable
             if (((pSection->Characteristics & VAL32(IMAGE_SCN_MEM_WRITE)) == 0))
             {
+                DWORD dwNewProtection = PAGE_READWRITE;
+#ifdef FEATURE_PAL
+                if (((pSection->Characteristics & VAL32(IMAGE_SCN_MEM_EXECUTE)) != 0))
+                {
+                    // On SELinux, we cannot change protection that doesn't have execute access rights
+                    // to one that has it, so we need to set the protection to RWX instead of RW
+                    dwNewProtection = PAGE_EXECUTE_READWRITE;
+                }
+#endif // FEATURE_PAL
                 if (!ClrVirtualProtect(pWriteableRegion, cbWriteableRegion,
-                                       PAGE_READWRITE, &dwOldProtection))
+                                       dwNewProtection, &dwOldProtection))
                     ThrowLastError();
+#ifdef FEATURE_PAL
+                dwOldProtection = SectionCharacteristicsToPageProtection(pSection->Characteristics);
+#endif // FEATURE_PAL
             }
         }
 
@@ -318,9 +365,9 @@ RawImageLayout::RawImageLayout(const void *mapped, PEImage* pOwner, BOOL bTakeOw
     if (bTakeOwnership)
     {
 #ifndef FEATURE_PAL
-        WCHAR wszDllName[MAX_PATH];
-        WszGetModuleFileName((HMODULE)mapped, wszDllName, MAX_PATH);
-        wszDllName[MAX_PATH - 1] = W('\0');
+        PathString wszDllName;
+        WszGetModuleFileName((HMODULE)mapped, wszDllName);
+        
         m_LibraryHolder=CLRLoadLibraryEx(wszDllName,NULL,GetLoadWithAlteredSearchPathFlag());
 #else // !FEATURE_PAL
         _ASSERTE(!"bTakeOwnership Should not be used on FEATURE_PAL");
@@ -399,6 +446,7 @@ MappedImageLayout::MappedImageLayout(HANDLE hFile, PEImage* pOwner)
     PEFingerprintVerificationHolder verifyHolder(pOwner);  // Do not remove: This holder ensures the IL file hasn't changed since the runtime started making assumptions about it.
 
 #ifndef FEATURE_PAL
+
 #ifndef FEATURE_CORECLR
     ETWLoaderMappingPhaseHolder loaderMappingPhaseHolder;
     if (ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, TRACE_LEVEL_INFORMATION, CLR_PRIVATEBINDING_KEYWORD)) {
@@ -528,40 +576,34 @@ MappedImageLayout::MappedImageLayout(HANDLE hFile, PEImage* pOwner)
 
 #else //!FEATURE_PAL
 
-#ifdef FEATURE_PREJIT
-    if (pOwner->IsTrustedNativeImage())
+    m_FileView = PAL_LOADLoadPEFile(hFile);
+    if (m_FileView == NULL)
     {
-        m_FileView = PAL_LOADLoadPEFile(hFile);
-        if (m_FileView == NULL)
+        // For CoreCLR, try to load all files via LoadLibrary first. If LoadLibrary did not work, retry using 
+        // regular mapping - but not for native images.
+        if (pOwner->IsTrustedNativeImage())
             ThrowHR(E_FAIL); // we don't have any indication of what kind of failure. Possibly a corrupt image.
+        return;
+    }
 
-        LOG((LF_LOADER, LL_INFO1000, "PEImage: image %S (hFile %p) mapped @ %p\n",
-            (LPCWSTR) GetPath(), hFile, (void*)m_FileView));
+    LOG((LF_LOADER, LL_INFO1000, "PEImage: image %S (hFile %p) mapped @ %p\n",
+        (LPCWSTR) GetPath(), hFile, (void*)m_FileView));
 
-        TESTHOOKCALL(ImageMapped(GetPath(),m_FileView,IM_IMAGEMAP));            
-        IfFailThrow(Init((void *) m_FileView));
+    TESTHOOKCALL(ImageMapped(GetPath(),m_FileView,IM_IMAGEMAP));            
+    IfFailThrow(Init((void *) m_FileView));
 
-        // This should never happen in correctly setup system, but do a quick check right anyway to 
-        // avoid running too far with bogus data
-#ifdef MDIL
-        // In MDIL we need to be permissive of MSIL assemblies pretending to be native images,
-        // to support forced fall back to JIT
-        if ((HasNativeHeader() && !IsNativeMachineFormat()) || !HasCorHeader())
+    if (!HasCorHeader())
+        ThrowHR(COR_E_BADIMAGEFORMAT);
+
+    if (HasNativeHeader() || HasReadyToRunHeader())
+    {
+        //Do base relocation for PE, if necessary.
+        if (!IsNativeMachineFormat())
             ThrowHR(COR_E_BADIMAGEFORMAT);
 
-        if (HasNativeHeader()) 
-            ApplyBaseRelocations();
-#else
-        if (!IsNativeMachineFormat() || !HasCorHeader() || !HasNativeHeader())
-             ThrowHR(COR_E_BADIMAGEFORMAT);
-
-        //Do base relocation for PE, if necessary.
         ApplyBaseRelocations();
-#endif // MDIL
+        SetRelocated();
     }
-#else //FEATURE_PREJIT
-    //Do nothing.  The file cannot be mapped unless it is an ngen image.
-#endif //FEATURE_PREJIT
 
 #endif // !FEATURE_PAL
 }
@@ -704,30 +746,6 @@ StreamImageLayout::StreamImageLayout(IStream* pIStream,PEImage* pOwner)
     Init(m_FileView,(COUNT_T)cbRead);
 }
 #endif // FEATURE_FUSION
-
-#ifdef MDIL
-BOOL PEImageLayout::GetILSizeFromMDILCLRCtlData(DWORD* pdwActualILSize)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    IMAGE_SECTION_HEADER* pMDILSection = FindSection(".mdil");
-    if (pMDILSection)
-    {
-        TADDR pMDILSectionStart = GetRvaData(VAL32(pMDILSection->VirtualAddress));
-        MDILHeader* mdilHeader = (MDILHeader*)pMDILSectionStart;
-        ClrCtlData* pClrCtlData = (ClrCtlData*)(pMDILSectionStart + mdilHeader->hdrSize);
-        *pdwActualILSize = pClrCtlData->ilImageSize;
-        return TRUE;
-    }
-    return FALSE;
-}
-#endif // MDIL
 
 #endif // !DACESS_COMPILE
 

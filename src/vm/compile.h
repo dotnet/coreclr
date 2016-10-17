@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ===========================================================================
 // File: compile.h
 //
@@ -115,9 +114,7 @@ CEEPreloader::AddFixup, which forwards it to the zapper
 #ifndef COMPILE_H_
 #define COMPILE_H_
 
-#ifndef FEATURE_PREJIT
-#error FEATURE_PREJIT is required for this file
-#endif // FEATURE_PREJIT
+#ifdef FEATURE_NATIVE_IMAGE_GENERATION
 
 struct ZapperLoaderModuleTableKey {
     ZapperLoaderModuleTableKey(Module *pDefinitionModule, 
@@ -183,7 +180,10 @@ typedef  SHash<ZapperLoaderModuleTableTraits> ZapperLoaderModuleTable;
 class CEECompileInfo : public ICorCompileInfo
 {
   public:
-    virtual ~CEECompileInfo() {}
+    virtual ~CEECompileInfo()
+    {
+        WRAPPER_NO_CONTRACT;
+    }
     
     HRESULT Startup(     BOOL                     fForceDebug, 
                          BOOL                     fForceProfiling,
@@ -194,11 +194,7 @@ class CEECompileInfo : public ICorCompileInfo
                          BOOL                     fForceDebug,
                          BOOL                     fForceProfiling,
                          BOOL                     fForceInstrument,
-                         BOOL                     fForceFulltrustDomain
-#ifdef MDIL
-                       , MDILCompilationFlags     mdilCompilationFlags
-#endif
-                       );
+                         BOOL                     fForceFulltrustDomain);
 
     HRESULT MakeCrossDomainCallback(
                                     ICorCompilationDomain*  pDomain,
@@ -252,20 +248,6 @@ class CEECompileInfo : public ICorCompileInfo
         LPWSTR                  assemblyManifestModulePath, 
         LPDWORD                 cAssemblyManifestModulePath);
 
-#ifdef MDIL
-    DWORD GetMdilModuleSecurityFlags(
-        CORINFO_ASSEMBLY_HANDLE assembly);
-
-    BOOL CompilerRelaxationNoStringInterningPermitted(
-        CORINFO_ASSEMBLY_HANDLE assembly);
-
-    BOOL RuntimeCompatibilityWrapExceptions(
-        CORINFO_ASSEMBLY_HANDLE assembly);
-
-    DWORD CERReliabilityContract(
-        CORINFO_ASSEMBLY_HANDLE assembly);
-#endif //MDIL
-
     HRESULT SetCompilationTarget(CORINFO_ASSEMBLY_HANDLE     assembly,
                                  CORINFO_MODULE_HANDLE       module);
 
@@ -299,8 +281,9 @@ class CEECompileInfo : public ICorCompileInfo
                        SigBuilder              *pSigBuilder,
                        LPVOID                  encodeContext,
                        ENCODEMODULE_CALLBACK   pfnEncodeModule,
-                       CORINFO_RESOLVED_TOKEN * pResolvedToken,
-                       CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken);
+                       CORINFO_RESOLVED_TOKEN  *pResolvedToken,
+                       CORINFO_RESOLVED_TOKEN  *pConstrainedResolvedToken,
+                       BOOL                    fEncodeUsingResolvedTokenSpecStreams);
 
     virtual mdToken TryEncodeMethodAsToken(CORINFO_METHOD_HANDLE handle, 
                                            CORINFO_RESOLVED_TOKEN * pResolvedToken,
@@ -313,7 +296,8 @@ class CEECompileInfo : public ICorCompileInfo
                        SigBuilder              *pSigBuilder,
                        LPVOID                  encodeContext,
                        ENCODEMODULE_CALLBACK   pfnEncodeModule,
-                       CORINFO_RESOLVED_TOKEN * pResolvedToken);
+                       CORINFO_RESOLVED_TOKEN  *pResolvedToken,
+                       BOOL                    fEncodeUsingResolvedTokenSpecStreams);
 
     // Encode generic dictionary signature
     virtual void EncodeGenericSignature(
@@ -326,6 +310,8 @@ class CEECompileInfo : public ICorCompileInfo
 
     BOOL IsEmptyString(mdString token,
                        CORINFO_MODULE_HANDLE module);
+
+    BOOL IsNativeCallableMethod(CORINFO_METHOD_HANDLE handle);
 
     BOOL IsCachingOfInliningHintsEnabled()
     {
@@ -357,10 +343,6 @@ class CEECompileInfo : public ICorCompileInfo
                                     ICorCompileDataStore    *pData,
                                     CorProfileData          *profileData);
 
-#if MDIL
-    HRESULT ShouldCompile(CORINFO_METHOD_HANDLE   methodHandle);
-#endif // MDIL
-
 #ifdef FEATURE_FUSION
     HRESULT GetAssemblyName(
             CORINFO_ASSEMBLY_HANDLE hAssembly,
@@ -372,9 +354,7 @@ class CEECompileInfo : public ICorCompileInfo
     HRESULT GetLoadHint(CORINFO_ASSEMBLY_HANDLE   hAssembly,
                         CORINFO_ASSEMBLY_HANDLE hAssemblyDependency,
                         LoadHintEnum           *loadHint,
-                        LoadHintEnum           *defaultLoadHint = NULL // for MDIL we want to separate the default load hint on the assembly
-                                                                       // from the load hint on the dependency
-                        );
+                        LoadHintEnum           *defaultLoadHint);
 
     HRESULT GetAssemblyVersionInfo(CORINFO_ASSEMBLY_HANDLE Handle, 
                                     CORCOMPILE_VERSION_INFO *pInfo);
@@ -419,7 +399,13 @@ class CEECompileInfo : public ICorCompileInfo
     void EncodeTypeLayout(CORINFO_CLASS_HANDLE classHandle, SigBuilder * pSigBuilder);
 
     BOOL AreAllClassesFullyLoaded(CORINFO_MODULE_HANDLE moduleHandle);
+
+    int GetVersionResilientTypeHashCode(CORINFO_MODULE_HANDLE moduleHandle, mdToken token);
+
+    int GetVersionResilientMethodHashCode(CORINFO_METHOD_HANDLE methodHandle);
 #endif
+
+    BOOL HasCustomAttribute(CORINFO_METHOD_HANDLE method, LPCSTR customAttributeName);
 
     //--------------------------------------------------------------------
     // ZapperLoaderModules and the ZapperLoaderModuleTable
@@ -542,6 +528,18 @@ class CEEPreloader : public ICorCompilePreloader
     // Array of methods that we need to compile.
     SArray<MethodDesc*> m_uncompiledMethods;
 
+    int m_methodCompileLimit;
+
+    void AppendUncompiledMethod(MethodDesc *pMD)
+    {
+        STANDARD_VM_CONTRACT;
+        if (m_methodCompileLimit > 0)
+        {
+            m_uncompiledMethods.Append(pMD);
+            m_methodCompileLimit--;
+        }
+    }
+
     struct DuplicateMethodEntry
     {
         MethodDesc * pMD;
@@ -599,9 +597,6 @@ class CEEPreloader : public ICorCompilePreloader
     void MethodReferencedByCompiledCode(CORINFO_METHOD_HANDLE handle);
 
     BOOL IsUncompiledMethod(CORINFO_METHOD_HANDLE handle);
-#ifdef MDIL
-    void AddMDILCodeFlavorsToUncompiledMethods(CORINFO_METHOD_HANDLE handle);
-#endif
 
 private:
     void AddToUncompiledMethods(MethodDesc *pMethod, BOOL fForStubs);
@@ -819,11 +814,7 @@ class CompilationDomain : public AppDomain,
     ~CompilationDomain();
 #endif
 
-    void Init(
-#ifdef MDIL
-              MDILCompilationFlags     mdilCompilationFlags
-#endif
-             );
+    void Init();
 
     HRESULT AddDependency(AssemblySpec *pRefSpec, PEAssembly *pFile);
 
@@ -917,5 +908,7 @@ class CompilationDomain : public AppDomain,
 
     void SetDependencyEmitter(IMetaDataAssemblyEmit *pEmitter);
 };
+
+#endif // FEATURE_NATIVE_IMAGE_GENERATION
 
 #endif // COMPILE_H_

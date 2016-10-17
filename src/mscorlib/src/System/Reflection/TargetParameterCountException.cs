@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -17,12 +18,8 @@ namespace System.Reflection {
     using SystemException = System.SystemException;
     using System.Runtime.Serialization;
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
-#if FEATURE_CORECLR
-    public sealed class TargetParameterCountException : Exception {
-#else
+    [System.Runtime.InteropServices.ComVisible(true)]
     public sealed class TargetParameterCountException : ApplicationException {
-#endif //FEATURE_CORECLR
         public TargetParameterCountException()
             : base(Environment.GetResourceString("Arg_TargetParameterCountException")) {
             SetErrorCode(__HResults.COR_E_TARGETPARAMCOUNT);

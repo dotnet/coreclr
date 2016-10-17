@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // ===========================================================================
 // File: StrongName.cpp
@@ -114,9 +113,9 @@ enum StrongNameCachedCsp {
 // allocated lazily as needed.
 struct SN_THREAD_CTX {
     DWORD       m_dwLastError;
-#if !defined(FEATURE_CORECLR) || (defined(CROSSGEN_COMPILE) && !defined(PLATFORM_UNIX))
+#if !defined(FEATURE_CORECLR)
     HCRYPTPROV  m_hProv[CachedCspCount];
-#endif // !FEATURE_CORECLR || (CROSSGEN_COMPILE && !PLATFORM_UNIX)
+#endif // !FEATURE_CORECLR
 };
 
 #endif // !DACCESS_COMPILE
@@ -200,7 +199,7 @@ struct SN_THREAD_CTX {
 #endif // FEATURE_WINDOWSPHONE
 #endif // FEATURE_CORECLR
 
-#if !defined(FEATURE_CORECLR) || (defined(CROSSGEN_COMPILE) && !defined(PLATFORM_UNIX))
+#if !defined(FEATURE_CORECLR)
 
 #ifdef FEATURE_STRONGNAME_MIGRATION
 #include "caparser.h"
@@ -317,8 +316,6 @@ SN_REVOCATION_REC *g_pRevocationRecords = NULL;
 #endif // #ifndef DACCESS_COMPILE
 
 
-
-#include "thetestkey.h"
 
 #ifndef DACCESS_COMPILE
 
@@ -2631,8 +2628,8 @@ BOOLEAN RehashModules (SN_LOAD_CTX *pLoadCtx, LPCWSTR wszFilePath) {
     DWORD               cbNewFileHash = 0;
     DWORD               cchDirectory;
     DWORD               cchFullFile;
-    CHAR                szFullFile[MAX_PATH + 1];
-    WCHAR               wszFullFile[MAX_PATH + 1];
+    CHAR                szFullFile[MAX_LONGPATH + 1];
+    WCHAR               wszFullFile[MAX_LONGPATH + 1];
     LPCWSTR             pszSlash;
     DWORD               cchFile;
     IMDInternalImport  *pMetaDataImport = NULL;
@@ -2641,8 +2638,8 @@ BOOLEAN RehashModules (SN_LOAD_CTX *pLoadCtx, LPCWSTR wszFilePath) {
     // look for linked files).
     if (((pszSlash = wcsrchr(wszFilePath, W('\\'))) != NULL) || ((pszSlash = wcsrchr(wszFilePath, W('/'))) != NULL)) {
         cchDirectory = (DWORD) (pszSlash - wszFilePath + 1);
-        cchDirectory = WszWideCharToMultiByte(CP_UTF8, 0, wszFilePath, cchDirectory, szFullFile, MAX_PATH, NULL, NULL);
-        if (cchDirectory >= MAX_PATH) {
+        cchDirectory = WszWideCharToMultiByte(CP_UTF8, 0, wszFilePath, cchDirectory, szFullFile, MAX_LONGPATH, NULL, NULL);
+        if (cchDirectory >= MAX_LONGPATH) {
             SNLOG((W("Assembly directory name too long\n")));
             hr = ERROR_BUFFER_OVERFLOW;
             goto Error;
@@ -2712,8 +2709,8 @@ BOOLEAN RehashModules (SN_LOAD_CTX *pLoadCtx, LPCWSTR wszFilePath) {
             cbNewFileHash = cbFileHash;
         }
 
-        cchFullFile = WszMultiByteToWideChar(CP_UTF8, 0, szFullFile, -1, wszFullFile, MAX_PATH);
-        if (cchFullFile == 0 || cchFullFile >= MAX_PATH) {
+        cchFullFile = WszMultiByteToWideChar(CP_UTF8, 0, szFullFile, -1, wszFullFile, MAX_LONGPATH);
+        if (cchFullFile == 0 || cchFullFile >= MAX_LONGPATH) {
             pMetaDataImport->EnumClose(&hFileEnum);
             SNLOG((W("Assembly directory name too long\n")));
             hr = ERROR_BUFFER_OVERFLOW;
@@ -3104,7 +3101,7 @@ HRESULT ReadRegistryConfig()
 HRESULT ReadVerificationRecords()
 {
     HKEYHolder hKey;
-    WCHAR      wszSubKey[MAX_PATH + 1];
+    WCHAR      wszSubKey[MAX_PATH_FNAME + 1];
     DWORD      cchSubKey;
     SN_VER_REC *pVerificationRecords = NULL;
     HRESULT    hr = S_OK;
@@ -3117,7 +3114,7 @@ HRESULT ReadVerificationRecords()
     // just opened.
     for (DWORD i = 0; ; i++) {
         // Get the name of the next subkey.
-        cchSubKey = MAX_PATH + 1;
+        cchSubKey = MAX_PATH_FNAME + 1;
         FILETIME sFiletime;
         if (WszRegEnumKeyEx(hKey, i, wszSubKey, &cchSubKey, NULL, NULL, NULL, &sFiletime) != ERROR_SUCCESS)
             break;
@@ -3270,7 +3267,7 @@ HRESULT ReadReplacementKeys(HKEY hKey, SN_REPLACEMENT_KEY_REC **ppReplacementRec
 HRESULT ReadRevocationRecordsFromKey(REGSAM samDesired, SN_REVOCATION_REC **ppRevocationRecords)
 {
     HKEYHolder          hKey;
-    WCHAR               wszSubKey[MAX_PATH + 1];
+    WCHAR               wszSubKey[MAX_PATH_FNAME + 1];
     DWORD               cchSubKey;
     HRESULT             hr = S_OK;
 
@@ -3282,7 +3279,7 @@ HRESULT ReadRevocationRecordsFromKey(REGSAM samDesired, SN_REVOCATION_REC **ppRe
     // just opened.
     for (DWORD i = 0; ; i++) {
         // Read the next subkey
-        cchSubKey = MAX_PATH + 1; // reset size of buffer, as the following call changes it
+        cchSubKey = MAX_PATH_FNAME + 1; // reset size of buffer, as the following call changes it
         if (WszRegEnumKeyEx(hKey, i, wszSubKey, &cchSubKey, NULL, NULL, NULL, NULL) != ERROR_SUCCESS)
             break;
         
@@ -4114,7 +4111,7 @@ HRESULT VerifySignature(__in SN_LOAD_CTX *pLoadCtx, DWORD dwInFlags, PublicKeyBl
     // Read the public key used to sign the assembly from the assembly metadata.
     // Also get the assembly name, we might need this if we fail the
     // verification and need to look up a verification disablement entry.
-    WCHAR           wszSimpleAssemblyName[MAX_PATH + 1];
+    WCHAR           wszSimpleAssemblyName[MAX_PATH_FNAME + 1];
     SString         strFullyQualifiedAssemblyName;
     BOOL            bSuccess = FALSE;
 #if STRONGNAME_IN_VM
@@ -4668,11 +4665,11 @@ ErrExit:
 
 #endif // #ifndef DACCESS_COMPILE
 
-#else // !defined(FEATURE_CORECLR) || (defined(CROSSGEN_COMPILE) && !defined(PLATFORM_UNIX))
+#else // !defined(FEATURE_CORECLR)
 
 #define InitStrongName() S_OK
 
-#endif // !defined(FEATURE_CORECLR) || (defined(CROSSGEN_COMPILE) && !defined(PLATFORM_UNIX))
+#endif // !defined(FEATURE_CORECLR)
 
 
 // Free buffer allocated by routines below.
@@ -4698,12 +4695,12 @@ SN_THREAD_CTX *GetThreadContext()
         if (pThreadCtx == NULL)
             return NULL;
         pThreadCtx->m_dwLastError = S_OK;
-#if !defined(FEATURE_CORECLR) || (defined(CROSSGEN_COMPILE) && !defined(PLATFORM_UNIX))
+#if !defined(FEATURE_CORECLR)
         for (ULONG i = 0; i < CachedCspCount; i++)
         {
             pThreadCtx->m_hProv[i] = NULL;
         }
-#endif // !FEATURE_CORECLR || (CROSSGEN_COMPILE && !PLATFORM_UNIX)
+#endif // !FEATURE_CORECLR
 
         EX_TRY {
             ClrFlsSetValue(TlsIdx_StrongName, pThreadCtx);
