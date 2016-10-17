@@ -148,7 +148,7 @@ def static getOSGroup(def os) {
             }
         }
 
-        Utilities.setMachineAffinity(newJob, os, 'latest-or-auto') // Just run against Linux VM’s for now.
+        Utilities.setMachineAffinity(newJob, os, 'latest-or-auto') // Just run against Linux VMï¿½s for now.
 
         // Save machinedata.json to /artifact/bin/ Jenkins dir
         def archiveSettings = new ArchivalSettings()

@@ -1,6 +1,7 @@
 @if not defined _echo @echo off
 setlocal EnableDelayedExpansion EnableExtensions
 
+echo Starting Build at %TIME%
 set __ThisScriptFull="%~f0"
 set __VSToolsRoot=%VS140COMNTOOLS%
 :: Note that the msbuild project files (specifically, dir.proj) will use the following variables, if set:
@@ -221,7 +222,13 @@ if %__BuildNative% EQU 1 (
     :: Set the environment for the native build
     set __VCBuildArch=x86_amd64
     if /i "%__BuildArch%" == "x86" ( set __VCBuildArch=x86 )
-    if /i "%__BuildArch%" == "arm" (set __VCBuildArch=x86_arm)
+    if /i "%__BuildArch%" == "arm" (
+        set __VCBuildArch=x86_arm
+        
+        REM Make CMake pick the highest installed version in the 10.0.* range
+        set ___SDKVersion="-DCMAKE_SYSTEM_VERSION=10.0"
+    )
+
     echo %__MsgPrefix%Using environment: "%__VSToolsRoot%\..\..\VC\vcvarsall.bat" !__VCBuildArch!
     call                                 "%__VSToolsRoot%\..\..\VC\vcvarsall.bat" !__VCBuildArch!
 	@if defined _echo @echo on
@@ -231,13 +238,14 @@ if %__BuildNative% EQU 1 (
         exit /b 1
     )
     if not exist "!VSINSTALLDIR!DIA SDK" goto NoDIA
+
 :GenVSSolution
     if defined __SkipConfigure goto SkipConfigure
 
     echo %__MsgPrefix%Regenerating the Visual Studio solution
 
     pushd "%__IntermediatesDir%"
-    set __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_OS=%__BuildOs%" "-DCLR_CMAKE_PACKAGES_DIR=%__PackagesDir%" "-DCLR_CMAKE_PGO_INSTRUMENT=%__PgoInstrument%"
+    set __ExtraCmakeArgs=!___SDKVersion! "-DCLR_CMAKE_TARGET_OS=%__BuildOs%" "-DCLR_CMAKE_PACKAGES_DIR=%__PackagesDir%" "-DCLR_CMAKE_PGO_INSTRUMENT=%__PgoInstrument%"
     call "%__SourceDir%\pal\tools\gen-buildsys-win.bat" "%__ProjectDir%" %__VSVersion% %__BuildArch% %__BuildJit32% !__ExtraCmakeArgs!
 	@if defined _echo @echo on
     popd
@@ -448,7 +456,7 @@ REM === All builds complete!
 REM ===
 REM =========================================================================================
 
-echo %__MsgPrefix%Repo successfully built.
+echo %__MsgPrefix%Repo successfully built.  Finished at %TIME%
 echo %__MsgPrefix%Product binaries are available at !__BinDir!
 if %__BuildTests% EQU 1 (
     echo %__MsgPrefix%Test binaries are available at !__TestBinDir!

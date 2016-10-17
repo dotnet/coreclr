@@ -4316,8 +4316,6 @@ emitJumpKind CodeGen::genCondSetFlags(GenTreePtr cond)
             addrReg1 = genMakeRvalueAddressable(op1, RBM_NONE, RegSet::KEEP_REG, false, smallOk);
         }
 
-        // #if defined(DEBUGGING_SUPPORT)
-
         /* Special case: comparison of two constants */
 
         // Needed if Importer doesn't call gtFoldExpr()
@@ -4334,8 +4332,6 @@ emitJumpKind CodeGen::genCondSetFlags(GenTreePtr cond)
 
             addrReg1 = genRegMask(op1->gtRegNum);
         }
-
-        // #endif
 
         /* Compare the operand against the constant */
 
@@ -9709,7 +9705,7 @@ void CodeGen::genCodeForTreeSmpOp(GenTreePtr tree, regMaskTP destReg, regMaskTP 
     switch (oper)
     {
         case GT_ASG:
-            if (tree->OperIsBlkOp())
+            if (tree->OperIsBlkOp() && op1->gtOper != GT_LCL_VAR)
             {
                 genCodeForBlkOp(tree, destReg);
             }
@@ -11281,10 +11277,8 @@ void CodeGen::genCodeForTreeSmpOpAsg(GenTreePtr tree)
     bool        volat   = false; // Is this a volatile store
     regMaskTP   regGC;
     instruction ins;
-#ifdef DEBUGGING_SUPPORT
-    unsigned lclVarNum = compiler->lvaCount;
-    unsigned lclILoffs = DUMMY_INIT(0);
-#endif
+    unsigned    lclVarNum = compiler->lvaCount;
+    unsigned    lclILoffs = DUMMY_INIT(0);
 
 #ifdef _TARGET_ARM_
     if (tree->gtType == TYP_STRUCT)
@@ -11323,7 +11317,6 @@ void CodeGen::genCodeForTreeSmpOpAsg(GenTreePtr tree)
             noway_assert(varNum < compiler->lvaCount);
             varDsc = compiler->lvaTable + varNum;
 
-#ifdef DEBUGGING_SUPPORT
             /* For non-debuggable code, every definition of a lcl-var has
              * to be checked to see if we need to open a new scope for it.
              * Remember the local var info to call siCheckVarScope
@@ -11334,7 +11327,6 @@ void CodeGen::genCodeForTreeSmpOpAsg(GenTreePtr tree)
                 lclVarNum = varNum;
                 lclILoffs = op1->gtLclVar.gtLclILoffs;
             }
-#endif
 
             /* Check against dead store ? (with min opts we may have dead stores) */
 
@@ -11987,13 +11979,11 @@ void CodeGen::genCodeForTreeSmpOpAsg(GenTreePtr tree)
     genCodeForTreeSmpOpAsg_DONE_ASSG(tree, addrReg, REG_NA, ovfl);
 
 LExit:
-#ifdef DEBUGGING_SUPPORT
     /* For non-debuggable code, every definition of a lcl-var has
      * to be checked to see if we need to open a new scope for it.
      */
     if (lclVarNum < compiler->lvaCount)
         siCheckVarScope(lclVarNum, lclILoffs);
-#endif
 }
 #ifdef _PREFAST_
 #pragma warning(pop)
@@ -12424,14 +12414,12 @@ void CodeGen::genCodeForBBlist()
 
     regSet.rsSpillBeg();
 
-#ifdef DEBUGGING_SUPPORT
     /* Initialize the line# tracking logic */
 
     if (compiler->opts.compScopeInfo)
     {
         siInit();
     }
-#endif
 
 #ifdef _TARGET_X86_
     if (compiler->compTailCallUsed)
@@ -12762,27 +12750,7 @@ void CodeGen::genCodeForBBlist()
         genResetFPstkLevel();
 #endif // FEATURE_STACK_FP_X87
 
-#if !FEATURE_FIXED_OUT_ARGS
-        /* Check for inserted throw blocks and adjust genStackLevel */
-
-        if (!isFramePointerUsed() && compiler->fgIsThrowHlpBlk(block))
-        {
-            noway_assert(block->bbFlags & BBF_JMP_TARGET);
-
-            genStackLevel = compiler->fgThrowHlpBlkStkLevel(block) * sizeof(int);
-
-            if (genStackLevel)
-            {
-#ifdef _TARGET_X86_
-                getEmitter()->emitMarkStackLvl(genStackLevel);
-                inst_RV_IV(INS_add, REG_SPBASE, genStackLevel, EA_PTRSIZE);
-                genStackLevel = 0;
-#else  // _TARGET_X86_
-                NYI("Need emitMarkStackLvl()");
-#endif // _TARGET_X86_
-            }
-        }
-#endif // !FEATURE_FIXED_OUT_ARGS
+        genAdjustStackLevel(block);
 
         savedStkLvl = genStackLevel;
 
@@ -12790,7 +12758,6 @@ void CodeGen::genCodeForBBlist()
 
         compiler->compCurBB = block;
 
-#ifdef DEBUGGING_SUPPORT
         siBeginBlock(block);
 
         // BBF_INTERNAL blocks don't correspond to any single IL instruction.
@@ -12798,7 +12765,6 @@ void CodeGen::genCodeForBBlist()
             genIPmappingAdd((IL_OFFSETX)ICorDebugInfo::NO_MAPPING, true);
 
         bool firstMapping = true;
-#endif // DEBUGGING_SUPPORT
 
         /*---------------------------------------------------------------------
          *
@@ -12818,8 +12784,6 @@ void CodeGen::genCodeForBBlist()
         {
             noway_assert(stmt->gtOper == GT_STMT);
 
-#if defined(DEBUGGING_SUPPORT)
-
             /* Do we have a new IL-offset ? */
 
             if (stmt->gtStmt.gtStmtILoffsx != BAD_IL_OFFSET)
@@ -12828,8 +12792,6 @@ void CodeGen::genCodeForBBlist()
                 genIPmappingAdd(stmt->gtStmt.gtStmt.gtStmtILoffsx, firstMapping);
                 firstMapping = false;
             }
-
-#endif // DEBUGGING_SUPPORT
 
 #ifdef DEBUG
             if (stmt->gtStmt.gtStmtLastILoffs != BAD_IL_OFFSET)
@@ -12960,13 +12922,9 @@ void CodeGen::genCodeForBBlist()
 
             noway_assert(stmt->gtOper == GT_STMT);
 
-#ifdef DEBUGGING_SUPPORT
             genEnsureCodeEmitted(stmt->gtStmt.gtStmtILoffsx);
-#endif
 
         } //-------- END-FOR each statement-tree of the current block ---------
-
-#ifdef DEBUGGING_SUPPORT
 
         if (compiler->opts.compScopeInfo && (compiler->info.compVarScopesCount > 0))
         {
@@ -12992,8 +12950,6 @@ void CodeGen::genCodeForBBlist()
                 siCloseAllOpenScopes();
             }
         }
-
-#endif // DEBUGGING_SUPPORT
 
         genStackLevel -= savedStkLvl;
 
@@ -13437,10 +13393,8 @@ void CodeGen::genCodeForTreeLng(GenTreePtr tree, regMaskTP needReg, regMaskTP av
         {
             case GT_ASG:
             {
-#ifdef DEBUGGING_SUPPORT
                 unsigned lclVarNum    = compiler->lvaCount;
                 unsigned lclVarILoffs = DUMMY_INIT(0);
-#endif
 
                 /* Is the target a local ? */
 
@@ -13455,7 +13409,6 @@ void CodeGen::genCodeForTreeLng(GenTreePtr tree, regMaskTP needReg, regMaskTP av
                     // No dead stores, (with min opts we may have dead stores)
                     noway_assert(!varDsc->lvTracked || compiler->opts.MinOpts() || !(op1->gtFlags & GTF_VAR_DEATH));
 
-#ifdef DEBUGGING_SUPPORT
                     /* For non-debuggable code, every definition of a lcl-var has
                      * to be checked to see if we need to open a new scope for it.
                      * Remember the local var info to call siCheckVarScope
@@ -13467,7 +13420,6 @@ void CodeGen::genCodeForTreeLng(GenTreePtr tree, regMaskTP needReg, regMaskTP av
                         lclVarNum    = varNum;
                         lclVarILoffs = op1->gtLclVar.gtLclILoffs;
                     }
-#endif
 
                     /* Has the variable been assigned to a register (pair) ? */
 
@@ -13755,13 +13707,11 @@ void CodeGen::genCodeForTreeLng(GenTreePtr tree, regMaskTP needReg, regMaskTP av
                 genUpdateLife(op1);
                 genUpdateLife(tree);
 
-#ifdef DEBUGGING_SUPPORT
                 /* For non-debuggable code, every definition of a lcl-var has
                  * to be checked to see if we need to open a new scope for it.
                  */
                 if (lclVarNum < compiler->lvaCount)
                     siCheckVarScope(lclVarNum, lclVarILoffs);
-#endif
             }
                 return;
 
@@ -18381,12 +18331,10 @@ regMaskTP CodeGen::genCodeForCall(GenTreePtr call, bool valUsed)
 
     CORINFO_SIG_INFO* sigInfo = nullptr;
 
-#ifdef DEBUGGING_SUPPORT
     if (compiler->opts.compDbgInfo && compiler->genCallSite2ILOffsetMap != NULL)
     {
         (void)compiler->genCallSite2ILOffsetMap->Lookup(call, &ilOffset);
     }
-#endif
 
     /* Make some sanity checks on the call node */
 
@@ -20664,8 +20612,6 @@ DONE:
     return regCnt;
 }
 
-/*****************************************************************************/
-#ifdef DEBUGGING_SUPPORT
 /*****************************************************************************
  *                          genSetScopeInfo
  *
@@ -20753,8 +20699,6 @@ void CodeGen::genSetScopeInfo(unsigned            which,
 
     compiler->eeSetLVinfo(which, startOffs, length, ilVarNum, LVnum, name, avail, varLoc);
 }
-
-#endif // DEBUGGING_SUPPORT
 
 /*****************************************************************************
  *

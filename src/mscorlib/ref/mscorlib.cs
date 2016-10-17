@@ -15,6 +15,32 @@ namespace Internal.Runtime.Augments
         public static void FailFast(string message, System.Exception error) { }
         public static string[] GetCommandLineArgs() { throw null; }
     }
+    public partial class RuntimeThread : System.Runtime.ConstrainedExecution.CriticalFinalizerObject
+    {
+        public static Internal.Runtime.Augments.RuntimeThread CurrentThread { get { throw null; } }
+        public bool IsAlive { get { throw null; } }
+        public bool IsBackground { get { throw null; } set { } }
+        public bool IsThreadPoolThread { get { throw null; } }
+        public int ManagedThreadId { get { throw null; } }
+        public string Name { get { throw null; } set { } }
+        public System.Threading.ThreadPriority Priority { get { throw null; } set { } }
+        public System.Threading.ThreadState ThreadState { get { throw null; } }
+        ~RuntimeThread() { }
+        public static Internal.Runtime.Augments.RuntimeThread Create(System.Threading.ThreadStart start) { throw null; }
+        public static Internal.Runtime.Augments.RuntimeThread Create(System.Threading.ThreadStart start, int maxStackSize) { throw null; }
+        public static Internal.Runtime.Augments.RuntimeThread Create(System.Threading.ParameterizedThreadStart start) { throw null; }
+        public static Internal.Runtime.Augments.RuntimeThread Create(System.Threading.ParameterizedThreadStart start, int maxStackSize) { throw null; }
+        public System.Threading.ApartmentState GetApartmentState() { throw null; }
+        [System.Security.SecurityCriticalAttribute]
+        public void Interrupt() { }
+        public void Join() { }
+        public bool Join(int millisecondsTimeout) { throw null; }
+        public static void Sleep(int millisecondsTimeout) { }
+        public static void SpinWait(int iterations) { }
+        public void Start() { }
+        public void Start(object parameter) { }
+        public bool TrySetApartmentState(System.Threading.ApartmentState state) { throw null; }
+    }
 }
 namespace Microsoft.Win32.SafeHandles
 {
@@ -802,26 +828,6 @@ namespace System
         public static void Write(string s) { }
         public static void WriteLine() { }
         public static void WriteLine(string s) { }
-    }
-    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
-    public abstract partial class ContextBoundObject
-    {
-        protected ContextBoundObject() { }
-    }
-    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
-    public partial class ContextMarshalException : System.SystemException
-    {
-        public ContextMarshalException() { }
-        public ContextMarshalException(string message) { }
-        public ContextMarshalException(string message, System.Exception inner) { }
-        protected ContextMarshalException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) : base(info, context) { }
-    }
-    [System.AttributeUsageAttribute((System.AttributeTargets)(256), Inherited=false)]
-    [System.ObsoleteAttribute("ContextStaticAttribute is not supported in this release. It has been left in so that legacy tools can be used with this release, but it cannot be used in your code.", true)]
-    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
-    public partial class ContextStaticAttribute : System.Attribute
-    {
-        public ContextStaticAttribute() { }
     }
     public static partial class Convert
     {
@@ -2490,6 +2496,10 @@ namespace System
     public abstract partial class MarshalByRefObject
     {
         protected MarshalByRefObject() { }
+        public object GetLifetimeService() { throw null; }
+        public virtual object InitializeLifetimeService() { throw null; }
+        protected System.MarshalByRefObject MemberwiseClone(bool cloneIdentity) { throw null; }
+    
     }
     public static partial class Math
     {
@@ -7787,7 +7797,7 @@ namespace System.Reflection
         public static System.Reflection.TypeInfo GetTypeInfo(this System.Type type) { throw null; }
     }
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
-    public partial class InvalidFilterCriteriaException : System.Exception
+    public partial class InvalidFilterCriteriaException : System.ApplicationException
     {
         public InvalidFilterCriteriaException() { }
         public InvalidFilterCriteriaException(string message) { }
@@ -8283,7 +8293,7 @@ namespace System.Reflection
         public static System.Reflection.PropertyInfo GetRuntimeProperty(this System.Type type, string name) { throw null; }
     }
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
-    public partial class TargetException : System.Exception
+    public partial class TargetException : System.ApplicationException
     {
         public TargetException() { }
         public TargetException(string message) { }
@@ -8291,13 +8301,13 @@ namespace System.Reflection
         protected TargetException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) : base(info, context) { }
     }
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
-    public sealed partial class TargetInvocationException : System.Exception
+    public sealed partial class TargetInvocationException : System.ApplicationException
     {
         public TargetInvocationException(System.Exception inner) { }
         public TargetInvocationException(string message, System.Exception inner) { }
     }
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
-    public sealed partial class TargetParameterCountException : System.Exception
+    public sealed partial class TargetParameterCountException : System.ApplicationException
     {
         public TargetParameterCountException() { }
         public TargetParameterCountException(string message) { }
@@ -11975,50 +11985,12 @@ namespace System.Runtime.Serialization
 }
 namespace System.Runtime.Versioning
 {
-    [System.AttributeUsageAttribute((System.AttributeTargets)(5887), AllowMultiple=false, Inherited=false)]
-    public sealed partial class ComponentGuaranteesAttribute : System.Attribute
-    {
-        public ComponentGuaranteesAttribute(System.Runtime.Versioning.ComponentGuaranteesOptions guarantees) { }
-        public System.Runtime.Versioning.ComponentGuaranteesOptions Guarantees { get { throw null; } }
-    }
-    [System.FlagsAttribute]
-    public enum ComponentGuaranteesOptions
-    {
-        Exchange = 1,
-        None = 0,
-        SideBySide = 4,
-        Stable = 2,
-    }
-    [System.AttributeUsageAttribute((System.AttributeTargets)(480), Inherited=false)]
-    [System.Diagnostics.ConditionalAttribute("RESOURCE_ANNOTATION_WORK")]
-    public sealed partial class ResourceExposureAttribute : System.Attribute
-    {
-        public ResourceExposureAttribute(System.Runtime.Versioning.ResourceScope exposureLevel) { }
-        public System.Runtime.Versioning.ResourceScope ResourceExposureLevel { get { throw null; } }
-    }
-    [System.FlagsAttribute]
-    public enum ResourceScope
-    {
-        AppDomain = 4,
-        Assembly = 32,
-        Library = 8,
-        Machine = 1,
-        None = 0,
-        Private = 16,
-        Process = 2,
-    }
     [System.AttributeUsageAttribute((System.AttributeTargets)(1), AllowMultiple=false, Inherited=false)]
     public sealed partial class TargetFrameworkAttribute : System.Attribute
     {
         public TargetFrameworkAttribute(string frameworkName) { }
         public string FrameworkDisplayName { get { throw null; } set { } }
         public string FrameworkName { get { throw null; } }
-    }
-    public static partial class VersioningHelper
-    {
-        public static string MakeVersionSafeName(string name, System.Runtime.Versioning.ResourceScope from, System.Runtime.Versioning.ResourceScope to) { throw null; }
-        [System.Security.SecuritySafeCriticalAttribute]
-        public static string MakeVersionSafeName(string name, System.Runtime.Versioning.ResourceScope from, System.Runtime.Versioning.ResourceScope to, System.Type type) { throw null; }
     }
 }
 namespace System.Security
@@ -12832,6 +12804,12 @@ namespace System.Threading
         public System.Threading.Mutex Mutex { get { throw null; } }
         public int MutexIndex { get { throw null; } }
     }
+    public enum ApartmentState
+    {
+        MTA = 1,
+        STA = 0,
+        Unknown = 2,
+    }
     public sealed partial class AsyncLocal<T>
     {
         public AsyncLocal() { }
@@ -13241,38 +13219,33 @@ namespace System.Threading
     }
     [System.Runtime.InteropServices.ClassInterfaceAttribute((System.Runtime.InteropServices.ClassInterfaceType)(0))]
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
-    public sealed partial class Thread : System.Runtime.ConstrainedExecution.CriticalFinalizerObject
+    public sealed partial class Thread : Internal.Runtime.Augments.RuntimeThread
     {
         [System.Security.SecuritySafeCriticalAttribute]
         public Thread(System.Threading.ParameterizedThreadStart start) { }
         [System.Security.SecuritySafeCriticalAttribute]
         public Thread(System.Threading.ThreadStart start) { }
         public System.Globalization.CultureInfo CurrentCulture { get { throw null; } [System.Security.SecuritySafeCriticalAttribute]set { } }
-        public static System.Threading.Thread CurrentThread { [System.Security.SecuritySafeCriticalAttribute]get { throw null; } }
+        public static new System.Threading.Thread CurrentThread { [System.Security.SecuritySafeCriticalAttribute]get { throw null; } }
         public System.Globalization.CultureInfo CurrentUICulture { get { throw null; } [System.Security.SecuritySafeCriticalAttribute]set { } }
-        public bool IsAlive { [System.Security.SecuritySafeCriticalAttribute][System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.InternalCall)]get { throw null; } }
-        public bool IsBackground { [System.Security.SecuritySafeCriticalAttribute]get { throw null; } [System.Security.SecuritySafeCriticalAttribute]set { } }
-        public int ManagedThreadId { [System.Security.SecuritySafeCriticalAttribute][System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.InternalCall)]get { throw null; } }
-        public string Name { get { throw null; } [System.Security.SecuritySafeCriticalAttribute]set { } }
-        public System.Threading.ThreadState ThreadState { [System.Security.SecuritySafeCriticalAttribute]get { throw null; } }
+        public new int ManagedThreadId { [System.Security.SecuritySafeCriticalAttribute][System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.InternalCall)]get { throw null; } }
+        public new string Name { get { throw null; } [System.Security.SecuritySafeCriticalAttribute]set { } }
         ~Thread() { }
         [System.Security.SecuritySafeCriticalAttribute]
         public static System.AppDomain GetDomain() { throw null; }
         [System.Runtime.InteropServices.ComVisibleAttribute(false)]
         public override int GetHashCode() { throw null; }
-        [System.Security.SecuritySafeCriticalAttribute]
-        public void Join() { }
-        [System.Security.SecuritySafeCriticalAttribute]
-        public bool Join(int millisecondsTimeout) { throw null; }
         [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.InternalCall)][System.Security.SecuritySafeCriticalAttribute]
         public static void MemoryBarrier() { }
         [System.Security.SecuritySafeCriticalAttribute]
-        public static void Sleep(int millisecondsTimeout) { }
-        public static void Sleep(System.TimeSpan timeout) { }
+        public static new void Sleep(int millisecondsTimeout) { }
+        public static new void Sleep(System.TimeSpan timeout) { }
         [System.Security.SecuritySafeCriticalAttribute]
-        public static void SpinWait(int iterations) { }
-        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]public void Start() { }
-        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]public void Start(object parameter) { }
+        public static new void SpinWait(int iterations) { }
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        public new void Start() { }
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        public new void Start(object parameter) { }
     }
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     public sealed partial class ThreadAbortException : System.SystemException
@@ -13331,6 +13304,14 @@ namespace System.Threading
         [System.Security.SecurityCriticalAttribute]
         [System.Security.Permissions.SecurityPermissionAttribute(System.Security.Permissions.SecurityAction.Demand, ControlThread=true)]
         public static bool SetMinThreads(int workerThreads, int completionPortThreads) { throw null; }
+    }
+    public enum ThreadPriority
+    {
+        AboveNormal = 3,
+        BelowNormal = 1,
+        Highest = 4,
+        Lowest = 0,
+        Normal = 2,
     }
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     public delegate void ThreadStart();
@@ -13472,7 +13453,7 @@ namespace System.Threading
         public virtual bool WaitOne(System.TimeSpan timeout, bool exitContext) { return default(bool); }
     }
     [System.Runtime.InteropServices.ComVisibleAttribute(false)]
-    public partial class WaitHandleCannotBeOpenedException : System.Exception
+    public partial class WaitHandleCannotBeOpenedException : System.ApplicationException
     {
         public WaitHandleCannotBeOpenedException() { }
         public WaitHandleCannotBeOpenedException(string message) { }

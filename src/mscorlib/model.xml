@@ -795,6 +795,9 @@
       <Member Name="#ctor(System.String,System.Exception)" />
       <Member Name="#ctor(System.Runtime.Serialization.SerializationInfo,System.Runtime.Serialization.StreamingContext)" />
     </Type>
+    <Type Name="System.Collections.Generic.KeyValuePair">
+      <Member Name="Create&lt;TKey,TValue&gt;(TKey,TValue)" />
+    </Type>
     <Type Name="System.Collections.Generic.KeyValuePair&lt;TKey,TValue&gt;">
       <Member Name="#ctor(TKey,TValue)" />
       <Member Name="get_Key" />
@@ -1079,18 +1082,6 @@
     </Type>
     <Type Name="System.Reflection.Metadata.AssemblyExtensions">
       <Member Name="TryGetRawMetadata(System.Reflection.Assembly,System.Byte*@,System.Int32@)"/>
-    </Type>
-    <Type Name="System.ContextBoundObject">
-      <Member Name="#ctor" />
-    </Type>
-    <Type Name="System.ContextMarshalException">
-      <Member Name="#ctor" />
-      <Member Name="#ctor(System.String)" />
-      <Member Name="#ctor(System.String,System.Exception)" />
-      <Member Name="#ctor(System.Runtime.Serialization.SerializationInfo,System.Runtime.Serialization.StreamingContext)" />
-    </Type>
-    <Type Name="System.ContextStaticAttribute">
-        <Member Name="#ctor" />
     </Type>
     <Type Name="System.Convert">
       <Member MemberType="Field" Name="DBNull" />
@@ -2187,6 +2178,7 @@
       <Member Name="Collect(System.Int32,System.GCCollectionMode,System.Boolean)" />
       <Member Name="Collect(System.Int32,System.GCCollectionMode,System.Boolean,System.Boolean)" />
       <Member Name="CollectionCount(System.Int32)" />
+      <Member Name="EndNoGCRegion" />
       <Member Name="GetAllocatedBytesForCurrentThread" />
       <Member Name="GetGeneration(System.Object)" />
       <Member Name="GetGeneration(System.WeakReference)" />
@@ -2197,6 +2189,10 @@
       <Member Name="RemoveMemoryPressure(System.Int64)" />
       <Member Name="ReRegisterForFinalize(System.Object)" />
       <Member Name="SuppressFinalize(System.Object)" />
+      <Member Name="TryStartNoGCRegion(System.Int64)" />
+      <Member Name="TryStartNoGCRegion(System.Int64,System.Boolean)" />
+      <Member Name="TryStartNoGCRegion(System.Int64,System.Int64)" />
+      <Member Name="TryStartNoGCRegion(System.Int64,System.Int64,System.Boolean)" />
       <Member Name="WaitForFullGCApproach" />
       <Member Name="WaitForFullGCApproach(System.Int32)" />
       <Member Name="WaitForFullGCComplete" />
@@ -3501,11 +3497,6 @@
       <Member Name="#ctor(System.String,System.Exception)" />
       <Member Name="#ctor(System.Runtime.Serialization.SerializationInfo,System.Runtime.Serialization.StreamingContext)" />
     </Type>
-    <Type Status="ApiFxInternal" Name="System.IO.BufferedStream">
-      <Member Name="#ctor(System.IO.Stream,System.Int32)" />
-      <Member Name="get_UnderlyingStream" />
-      <Member Name="get_BufferSize" />
-    </Type>
     <Type Name="System.IO.FileLoadException">
       <Member Name="#ctor" />
       <Member Name="#ctor(System.String)" />
@@ -3566,6 +3557,9 @@
     </Type>
     <Type Name="System.MarshalByRefObject">
       <Member Name="#ctor" />
+      <Member Name="GetLifetimeService" />
+      <Member Name="InitializeLifetimeService" />
+      <Member Name="MemberwiseClone(System.Boolean)" />
     </Type>
     <Type Status="ImplRoot" Name="System.System_LazyDebugView&lt;T&gt;">
       <Member Status="ImplRoot" Name="#ctor(System.Lazy&lt;T&gt;)"/>
@@ -6656,6 +6650,15 @@
       <Member MemberType="Property" Name="Value" />
       <Member Name="get_Value" />
     </Type>
+    <Type Name="System.Runtime.InteropServices.HandleRef">
+      <Member Name="#ctor(System.Object,System.IntPtr)"/>
+      <Member MemberType="Property" Name="Handle"/>
+      <Member Name="get_Handle"/>
+      <Member MemberType="Property" Name="Wrapper"/>
+      <Member Name="get_Wrapper"/>
+      <Member Name="op_Explicit(System.Runtime.InteropServices.HandleRef)" ReturnType="System.IntPtr" />
+      <Member Name="ToIntPtr(System.Runtime.InteropServices.HandleRef)"/>
+    </Type>
     <Type Name="System.Runtime.InteropServices.ICustomQueryInterface">
       <Member Name="GetInterface(System.Guid@,System.IntPtr@)" />
     </Type>
@@ -6740,6 +6743,8 @@
       <Member Name="PrelinkAll(System.Type)" />
       <Member Name="PtrToStringAnsi(System.IntPtr)" />
       <Member Name="PtrToStringAnsi(System.IntPtr,System.Int32)" />
+      <Member Name="PtrToStringAuto(System.IntPtr)" />
+      <Member Name="PtrToStringAuto(System.IntPtr,System.Int32)" />
       <Member Name="PtrToStringUTF8(System.IntPtr)" />
       <Member Name="PtrToStringUTF8(System.IntPtr,System.Int32)" />
       <Member Name="PtrToStringUni(System.IntPtr)" />
@@ -6818,8 +6823,10 @@
       <Member Name="SizeOf&lt;T&gt;(T)" />
       <Member Name="StringToBSTR(System.String)" />
       <Member Name="StringToCoTaskMemAnsi(System.String)" />
+      <Member Name="StringToCoTaskMemAuto(System.String)" />
       <Member Name="StringToCoTaskMemUni(System.String)" />
       <Member Name="StringToHGlobalAnsi(System.String)" />
+      <Member Name="StringToHGlobalAuto(System.String)" />
       <Member Name="StringToHGlobalUni(System.String)" />
       <Member Name="StringToCoTaskMemUTF8(System.String)" />
       <Member Name="StructureToPtr&lt;T&gt;(T,System.IntPtr,System.Boolean)" />
@@ -6987,16 +6994,6 @@
       <Member MemberType="Field" Name="HString" />
       <Member MemberType="Field" Name="IInspectable" />
       <Member MemberType="Field" Name="IUnknown" />
-    </Type>
-    <Type Status="ApiRoot" Name="System.Runtime.Versioning.ComponentGuaranteesAttribute">
-      <Member Name="#ctor(System.Runtime.Versioning.ComponentGuaranteesOptions)" />
-      <Member MemberType="Property" Name="Guarantees" />
-    </Type>
-    <Type Name="System.Runtime.Versioning.ComponentGuaranteesOptions">
-      <Member MemberType="Field" Name="None" />
-      <Member MemberType="Field" Name="Exchange" />
-      <Member MemberType="Field" Name="Stable" />
-      <Member MemberType="Field" Name="value__" />
     </Type>
     <Type Name="System.RuntimeFieldHandle">
       <Member Status="ImplRoot" Name="#ctor(System.Runtime.Serialization.SerializationInfo,System.Runtime.Serialization.StreamingContext)" />
@@ -7827,6 +7824,12 @@
       <Member MemberType="Property" Name="Mutex" />
       <Member MemberType="Property" Name="MutexIndex" />
     </Type>
+    <Type Name="System.Threading.ApartmentState">
+      <Member MemberType="Field" Name="MTA" />
+      <Member MemberType="Field" Name="STA" />
+      <Member MemberType="Field" Name="Unknown" />
+      <Member MemberType="Field" Name="value__" />
+    </Type>
     <Type Name="System.Threading.AutoResetEvent">
       <Member Name="#ctor(System.Boolean)" />
     </Type>
@@ -7965,14 +7968,8 @@
       <Member Name="get_CurrentThread" />
       <Member Name="get_CurrentUICulture" />
       <Member Name="GetDomain" />
-      <Member Name="get_IsBackground" />
       <Member Name="get_ManagedThreadId" />
       <Member Name="get_Name" />
-      <Member Name="get_IsAlive" />
-      <Member Name="get_ThreadState" />
-      <Member Name="Join" />
-      <Member Name="Join(System.Int32)" />
-      <Member Name="set_IsBackground(System.Boolean)" />
       <Member Name="set_Name(System.String)" />
       <Member Name="Sleep(System.Int32)" />
       <Member Name="Sleep(System.TimeSpan)" />
@@ -7982,15 +7979,35 @@
       <Member MemberType="Property" Name="CurrentCulture" />
       <Member MemberType="Property" Name="CurrentThread" />
       <Member MemberType="Property" Name="CurrentUICulture" />
-      <Member MemberType="Property" Name="IsBackground" />
       <Member MemberType="Property" Name="ManagedThreadId" />
       <Member MemberType="Property" Name="Name" />
-      <Member MemberType="Property" Name="IsAlive" />
-      <Member MemberType="Property" Name="ThreadState" />
       <Member Status="ImplRoot" Name="InternalGetCurrentThread" />
       <Member Status="ImplRoot" MemberType="Field" Name="DONT_USE_InternalThread" />
       <Member Status="ImplRoot" MemberType="Field" Name="m_Priority" />
       <Member Status="ImplRoot" MemberType="Field" Name="m_ThreadStartArg" />
+    </Type>
+    <Type Name="Internal.Runtime.Augments.RuntimeThread">
+      <Member MemberType="Property" Name="CurrentThread" />
+      <Member MemberType="Property" Name="IsAlive" />
+      <Member MemberType="Property" Name="IsBackground" />
+      <Member MemberType="Property" Name="IsThreadPoolThread" />
+      <Member MemberType="Property" Name="ManagedThreadId" />
+      <Member MemberType="Property" Name="Name" />
+      <Member MemberType="Property" Name="Priority" />
+      <Member MemberType="Property" Name="ThreadState" />
+      <Member Name="Create(System.Threading.ThreadStart)" />
+      <Member Name="Create(System.Threading.ThreadStart,System.Int32)" />
+      <Member Name="Create(System.Threading.ParameterizedThreadStart)" />
+      <Member Name="Create(System.Threading.ParameterizedThreadStart,System.Int32)" />
+      <Member Name="GetApartmentState" />
+      <Member Name="Interrupt" />
+      <Member Name="Join" />
+      <Member Name="Join(System.Int32)" />
+      <Member Name="Sleep(System.Int32)" />
+      <Member Name="SpinWait(System.Int32)" />
+      <Member Name="Start" />
+      <Member Name="Start(System.Object)" />
+      <Member Name="TrySetApartmentState(System.Threading.ApartmentState)" />
     </Type>
     <Type Name="System.Threading.ThreadAbortException">
       <Member Status="ImplRoot" Name="#ctor(System.Runtime.Serialization.SerializationInfo,System.Runtime.Serialization.StreamingContext)" />
@@ -8015,6 +8032,14 @@
       <Member Status="ImplRoot" Name="GetGloballyQueuedWorkItemsForDebugger"/>
       <Member Status="ImplRoot" Name="GetLocallyQueuedWorkItemsForDebugger"/>
       <Member Status="ImplRoot" Name="NotifyWorkItemProgress"/>
+    </Type>
+    <Type Name="System.Threading.ThreadPriority">
+      <Member MemberType="Field" Name="AboveNormal" />
+      <Member MemberType="Field" Name="BelowNormal" />
+      <Member MemberType="Field" Name="Highest" />
+      <Member MemberType="Field" Name="Lowest" />
+      <Member MemberType="Field" Name="Normal" />
+      <Member MemberType="Field" Name="value__" />
     </Type>
     <Type Status="ImplRoot"  Name="System.Threading.StackCrawlMark">
       <Member MemberType="Field" Name="LookForMe" />
@@ -9235,187 +9260,6 @@
       <Member MemberType="Property" Name="ReadTimeout" />
       <Member MemberType="Property" Name="WriteTimeout" />
     </Type>
-    <Type Name="System.IO.StreamReader">
-      <Member MemberType="Field" Name="Null" />
-      <Member Name="#ctor(System.IO.Stream)" />
-      <Member Name="#ctor(System.IO.Stream,System.Boolean)" />
-      <Member Name="#ctor(System.IO.Stream,System.Text.Encoding)" />
-      <Member Name="#ctor(System.IO.Stream,System.Text.Encoding,System.Boolean)" />
-      <Member Name="#ctor(System.IO.Stream,System.Text.Encoding,System.Boolean,System.Int32)" />
-      <Member Name="#ctor(System.IO.Stream,System.Text.Encoding,System.Boolean,System.Int32,System.Boolean)"   />
-      <Member Name="#ctor(System.String)" />
-      <Member Name="#ctor(System.String,System.Boolean)" />
-      <Member Name="#ctor(System.String,System.Text.Encoding)" />
-      <Member Name="#ctor(System.String,System.Text.Encoding,System.Boolean)" />
-      <Member Name="#ctor(System.String,System.Text.Encoding,System.Boolean,System.Int32)" />
-      <Member Name="Close" />
-      <Member Name="DiscardBufferedData" />
-      <Member Name="Dispose(System.Boolean)" />
-      <Member Name="get_BaseStream" />
-      <Member Name="get_CurrentEncoding" />
-      <Member Name="get_EndOfStream" />
-      <Member Name="Peek" />
-      <Member Name="Read" />
-      <Member Name="Read(System.Char[],System.Int32,System.Int32)" />
-      <Member Name="ReadAsync(System.Char[],System.Int32,System.Int32)"  />
-      <Member Name="ReadBlock(System.Char[],System.Int32,System.Int32)"  />
-      <Member Name="ReadBlockAsync(System.Char[],System.Int32,System.Int32)"  />
-      <Member Name="ReadLine" />
-      <Member Name="ReadLineAsync"  />
-      <Member Name="ReadToEnd" />
-      <Member Name="ReadToEndAsync"  />
-      <Member MemberType="Property" Name="BaseStream" />
-      <Member MemberType="Property" Name="CurrentEncoding" />
-      <Member MemberType="Property" Name="EndOfStream" />
-    </Type>
-    <Type Name="System.IO.StreamWriter">
-      <Member MemberType="Field" Name="Null" />
-      <Member Name="#ctor(System.IO.Stream)" />
-      <Member Name="#ctor(System.IO.Stream,System.Text.Encoding)" />
-      <Member Name="#ctor(System.IO.Stream,System.Text.Encoding,System.Int32)" />
-      <Member Name="#ctor(System.IO.Stream,System.Text.Encoding,System.Int32,System.Boolean)" />
-      <Member Name="#ctor(System.String)" />
-      <Member Name="#ctor(System.String,System.Boolean)" />
-      <Member Name="#ctor(System.String,System.Boolean,System.Text.Encoding)" />
-      <Member Name="#ctor(System.String,System.Boolean,System.Text.Encoding,System.Int32)" />
-      <Member Name="Close" />
-      <Member Name="Dispose(System.Boolean)" />
-      <Member Name="Flush" />
-      <Member Name="FlushAsync"  />
-      <Member Name="get_AutoFlush" />
-      <Member Name="get_BaseStream" />
-      <Member Name="get_Encoding" />
-      <Member Name="set_AutoFlush(System.Boolean)" />
-      <Member Name="Write(System.Char)" />
-      <Member Name="Write(System.Char[])" />
-      <Member Name="Write(System.Char[],System.Int32,System.Int32)" />
-      <Member Name="Write(System.String)" />
-      <Member Name="WriteAsync(System.Char)"  />
-      <Member Name="WriteAsync(System.Char[],System.Int32,System.Int32)"  />
-      <Member Name="WriteAsync(System.String)"  />
-      <Member Name="WriteLineAsync"  />
-      <Member Name="WriteLineAsync(System.Char)"  />
-      <Member Name="WriteLineAsync(System.Char[],System.Int32,System.Int32)"  />
-      <Member Name="WriteLineAsync(System.String)"  />
-      <Member MemberType="Property" Name="AutoFlush" />
-      <Member MemberType="Property" Name="BaseStream" />
-      <Member MemberType="Property" Name="Encoding" />
-    </Type>
-    <Type Name="System.IO.StringReader">
-      <Member Name="#ctor(System.String)" />
-      <Member Name="Close" />
-      <Member Name="Dispose(System.Boolean)" />
-      <Member Name="Peek" />
-      <Member Name="Read" />
-      <Member Name="Read(System.Char[],System.Int32,System.Int32)" />
-      <Member Name="ReadAsync(System.Char[],System.Int32,System.Int32)"  />
-      <Member Name="ReadBlockAsync(System.Char[],System.Int32,System.Int32)"  />
-      <Member Name="ReadLine" />
-      <Member Name="ReadLineAsync"  />
-      <Member Name="ReadToEnd" />
-      <Member Name="ReadToEndAsync"  />
-    </Type>
-    <Type Name="System.IO.StringWriter">
-      <Member Name="#ctor" />
-      <Member Name="#ctor(System.IFormatProvider)" />
-      <Member Name="#ctor(System.Text.StringBuilder)" />
-      <Member Name="#ctor(System.Text.StringBuilder,System.IFormatProvider)" />
-      <Member Name="Close" />
-      <Member Name="Dispose(System.Boolean)" />
-      <Member Name="FlushAsync"  />
-      <Member Name="get_Encoding" />
-      <Member Name="GetStringBuilder" />
-      <Member Name="ToString" />
-      <Member Name="Write(System.Char)" />
-      <Member Name="Write(System.Char[],System.Int32,System.Int32)" />
-      <Member Name="Write(System.String)" />
-      <Member Name="WriteAsync(System.Char)"  />
-      <Member Name="WriteAsync(System.Char[],System.Int32,System.Int32)"  />
-      <Member Name="WriteAsync(System.String)"  />
-      <Member Name="WriteLineAsync(System.Char)"  />
-      <Member Name="WriteLineAsync(System.Char[],System.Int32,System.Int32)"  />
-      <Member Name="WriteLineAsync(System.String)"  />
-      <Member MemberType="Property" Name="Encoding" />
-    </Type>
-    <Type Name="System.IO.TextReader">
-      <Member MemberType="Field" Name="Null" />
-      <Member Name="#ctor" />
-      <Member Name="Close" />
-      <Member Name="Dispose(System.Boolean)" />
-      <Member Name="Peek" />
-      <Member Name="Read" />
-      <Member Name="Read(System.Char[],System.Int32,System.Int32)" />
-      <Member Name="ReadAsync(System.Char[],System.Int32,System.Int32)"  />
-      <Member Name="ReadBlock(System.Char[],System.Int32,System.Int32)" />
-      <Member Name="ReadBlockAsync(System.Char[],System.Int32,System.Int32)" />
-      <Member Name="ReadLine" />
-      <Member Name="ReadLineAsync"  />
-      <Member Name="ReadToEnd" />
-      <Member Name="ReadToEndAsync"  />
-      <Member Name="Synchronized(System.IO.TextReader)" />
-    </Type>
-    <Type Name="System.IO.TextWriter">
-      <Member MemberType="Field" Name="CoreNewLine" />
-      <Member MemberType="Field" Name="Null" />
-      <Member Name="#ctor" />
-      <Member Name="#ctor(System.IFormatProvider)" />
-      <Member Name="Close" />
-      <Member Name="Dispose(System.Boolean)" />
-      <Member Name="Flush" />
-      <Member Name="FlushAsync" />
-      <Member Name="get_Encoding" />
-      <Member Name="get_FormatProvider" />
-      <Member Name="get_NewLine" />
-      <Member Name="set_NewLine(System.String)" />
-      <Member Name="Synchronized(System.IO.TextWriter)" />
-      <Member Name="Write(System.Boolean)" />
-      <Member Name="Write(System.Char)" />
-      <Member Name="Write(System.Char[])" />
-      <Member Name="Write(System.Char[],System.Int32,System.Int32)" />
-      <Member Name="Write(System.Decimal)" />
-      <Member Name="Write(System.Double)" />
-      <Member Name="Write(System.Int32)" />
-      <Member Name="Write(System.Int64)" />
-      <Member Name="Write(System.Object)" />
-      <Member Name="Write(System.Single)" />
-      <Member Name="Write(System.String)" />
-      <Member Name="Write(System.String,System.Object)" />
-      <Member Name="Write(System.String,System.Object,System.Object)" />
-      <Member Name="Write(System.String,System.Object,System.Object,System.Object)" />
-      <Member Name="Write(System.String,System.Object[])" />
-      <Member Name="Write(System.UInt32)" />
-      <Member Name="Write(System.UInt64)" />
-      <Member Name="WriteAsync(System.Char)" />
-      <Member Name="WriteAsync(System.Char[])" />
-      <Member Name="WriteAsync(System.Char[],System.Int32,System.Int32)" />
-      <Member Name="WriteAsync(System.String)" />
-      <Member Name="WriteLine" />
-      <Member Name="WriteLine(System.Boolean)" />
-      <Member Name="WriteLine(System.Char)" />
-      <Member Name="WriteLine(System.Char[])" />
-      <Member Name="WriteLine(System.Char[],System.Int32,System.Int32)" />
-      <Member Name="WriteLine(System.Decimal)" />
-      <Member Name="WriteLine(System.Double)" />
-      <Member Name="WriteLine(System.Int32)" />
-      <Member Name="WriteLine(System.Int64)" />
-      <Member Name="WriteLine(System.Object)" />
-      <Member Name="WriteLine(System.Single)" />
-      <Member Name="WriteLine(System.String)" />
-      <Member Name="WriteLine(System.String,System.Object)" />
-      <Member Name="WriteLine(System.String,System.Object,System.Object)" />
-      <Member Name="WriteLine(System.String,System.Object,System.Object,System.Object)" />
-      <Member Name="WriteLine(System.String,System.Object[])" />
-      <Member Name="WriteLine(System.UInt32)" />
-      <Member Name="WriteLine(System.UInt64)" />
-      <Member Name="WriteLineAsync" />
-      <Member Name="WriteLineAsync(System.Char)" />
-      <Member Name="WriteLineAsync(System.Char[])" />
-      <Member Name="WriteLineAsync(System.Char[],System.Int32,System.Int32)" />
-      <Member Name="WriteLineAsync(System.String)" />
-      <Member MemberType="Property" Name="Encoding" />
-      <Member MemberType="Property" Name="FormatProvider" />
-      <Member MemberType="Property" Name="NewLine" />
-    </Type>
     <Type Name="System.IO.UnmanagedMemoryAccessor">
       <Member Name="#ctor" />
       <Member Name="#ctor(System.Runtime.InteropServices.SafeBuffer,System.Int64,System.Int64)" />
@@ -10458,24 +10302,10 @@
       <Member Name="RemoveEventHandler&lt;T&gt;(System.Action&lt;System.Runtime.InteropServices.WindowsRuntime.EventRegistrationToken&gt;,T)" />
       <Member Name="StringToHString(System.String)" />
     </Type>
-    <Type Status="ImplRoot" Name="System.Runtime.Versioning.ResourceConsumptionAttribute">
-      <Member Name="#ctor(System.Runtime.Versioning.ResourceScope)" />
-      <Member Name="#ctor(System.Runtime.Versioning.ResourceScope,System.Runtime.Versioning.ResourceScope)" />
-      <Member MemberType="Property" Name="ConsumptionScope" />
-      <Member MemberType="Property" Name="ResourceScope" />
-    </Type>
-    <Type Status="ApiRoot" Name="System.Runtime.Versioning.ResourceExposureAttribute">
-      <Member Name="#ctor(System.Runtime.Versioning.ResourceScope)" />
-      <Member MemberType="Property" Name="ResourceExposureLevel" />
-    </Type>
     <Type Status="ApiRoot" Name="System.Runtime.Versioning.TargetFrameworkAttribute">
       <Member Name="#ctor(System.String)" />
       <Member MemberType="Property" Name="FrameworkName" />
       <Member MemberType="Property" Name="FrameworkDisplayName" />
-    </Type>
-    <Type Status="ApiRoot" Name="System.Runtime.Versioning.VersioningHelper">
-      <Member Name="MakeVersionSafeName(System.String,System.Runtime.Versioning.ResourceScope,System.Runtime.Versioning.ResourceScope)" />
-      <Member Name="MakeVersionSafeName(System.String,System.Runtime.Versioning.ResourceScope,System.Runtime.Versioning.ResourceScope,System.Type)" />
     </Type>
     <Type Name="System.Runtime.Serialization.FormatterServices">
         <Member Name="GetUninitializedObject(System.Type)" />

@@ -4585,7 +4585,7 @@ void CordbUnmanagedThread::SaveRaiseExceptionEntryContext()
         LOG((LF_CORDB, LL_INFO1000, "CP::SREEC: failed to read exception information pointer.\n"));
         return;
     }
-#elif
+#else
     _ASSERTE(!"Implement this for your platform");
     return;
 #endif
@@ -8935,8 +8935,13 @@ HRESULT CordbJITILFrame::GetReturnValueForILOffsetImpl(ULONG32 ILoffset, ICorDeb
     bool found = false;
     ULONG32 currentOffset = m_nativeFrame->GetIPOffset();
     for (ULONG32 i = 0; i < count; ++i)
-        if ((found = currentOffset == offsets[i]))
+    {
+        if (currentOffset == offsets[i])
+        {
+            found = true;
             break;
+        }
+    }
 
     if (!found)
         return E_UNEXPECTED;

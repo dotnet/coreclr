@@ -167,12 +167,10 @@ CodeGen::CodeGen(Compiler* theCompiler) : CodeGenInterface(theCompiler)
     genFlagsEqualToNone();
 #endif // LEGACY_BACKEND
 
-#ifdef DEBUGGING_SUPPORT
     //  Initialize the IP-mapping logic.
     compiler->genIPmappingList        = nullptr;
     compiler->genIPmappingLast        = nullptr;
     compiler->genCallSite2ILOffsetMap = nullptr;
-#endif
 
     /* Assume that we not fully interruptible */
 
@@ -1010,9 +1008,7 @@ void Compiler::compUpdateLifeVar(GenTreePtr tree, VARSET_TP* pLastUseVars)
 
 #endif // LEGACY_BACKEND
 
-#ifdef DEBUGGING_SUPPORT
             codeGen->siUpdate();
-#endif
         }
     }
 
@@ -1178,9 +1174,7 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife DEBUGARG(GenTreePtr tree)
 #endif // !LEGACY_BACKEND
     }
 
-#ifdef DEBUGGING_SUPPORT
     codeGen->siUpdate();
-#endif
 }
 
 // Need an explicit instantiation.
@@ -1630,6 +1624,44 @@ void CodeGen::genAdjustSP(ssize_t delta)
     else
 #endif
         inst_RV_IV(INS_add, REG_SPBASE, delta, EA_PTRSIZE);
+}
+
+//------------------------------------------------------------------------
+// genAdjustStackLevel: Adjust the stack level, if required, for a throw helper block
+//
+// Arguments:
+//    block - The BasicBlock for which we are about to generate code.
+//
+// Assumptions:
+//    Must be called just prior to generating code for 'block'.
+//
+// Notes:
+//    This only makes an adjustment if !FEATURE_FIXED_OUT_ARGS, if there is no frame pointer,
+//    and if 'block' is a throw helper block with a non-zero stack level.
+
+void CodeGen::genAdjustStackLevel(BasicBlock* block)
+{
+#if !FEATURE_FIXED_OUT_ARGS
+    // Check for inserted throw blocks and adjust genStackLevel.
+
+    if (!isFramePointerUsed() && compiler->fgIsThrowHlpBlk(block))
+    {
+        noway_assert(block->bbFlags & BBF_JMP_TARGET);
+
+        genStackLevel = compiler->fgThrowHlpBlkStkLevel(block) * sizeof(int);
+
+        if (genStackLevel != 0)
+        {
+#ifdef _TARGET_X86_
+            getEmitter()->emitMarkStackLvl(genStackLevel);
+            inst_RV_IV(INS_add, REG_SPBASE, genStackLevel, EA_PTRSIZE);
+            genStackLevel = 0;
+#else  // _TARGET_X86_
+            NYI("Need emitMarkStackLvl()");
+#endif // _TARGET_X86_
+        }
+    }
+#endif // !FEATURE_FIXED_OUT_ARGS
 }
 
 #ifdef _TARGET_ARM_
@@ -2545,14 +2577,12 @@ emitJumpKind CodeGen::genJumpKindForOper(genTreeOps cmp, CompareKind compareKind
 
 void CodeGen::genExitCode(BasicBlock* block)
 {
-#ifdef DEBUGGING_SUPPORT
     /* Just wrote the first instruction of the epilog - inform debugger
        Note that this may result in a duplicate IPmapping entry, and
        that this is ok  */
 
     // For non-optimized debuggable code, there is only one epilog.
     genIPmappingAdd((IL_OFFSETX)ICorDebugInfo::EPILOG, true);
-#endif // DEBUGGING_SUPPORT
 
     bool jmpEpilog = ((block->bbFlags & BBF_HAS_JMP) != 0);
     if (compiler->getNeedsGSSecurityCookie())
@@ -3122,8 +3152,6 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
 
     compiler->unwindEmit(*codePtr, coldCodePtr);
 
-#ifdef DEBUGGING_SUPPORT
-
     /* Finalize the line # tracking logic after we know the exact block sizes/offsets */
 
     genIPmappingGen();
@@ -3131,8 +3159,6 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
     /* Finalize the Local Var info in terms of generated code */
 
     genSetScopeInfo();
-
-#endif // DEBUGGING_SUPPORT
 
 #ifdef LATE_DISASM
     unsigned finalHotCodeSize;
@@ -8171,11 +8197,9 @@ void CodeGen::genFnProlog()
     getEmitter()->emitBegProlog();
     compiler->unwindBegProlog();
 
-#ifdef DEBUGGING_SUPPORT
     // Do this so we can put the prolog instruction group ahead of
     // other instruction groups
     genIPmappingAddToFront((IL_OFFSETX)ICorDebugInfo::PROLOG);
-#endif // DEBUGGING_SUPPORT
 
 #ifdef DEBUG
     if (compiler->opts.dspCode)
@@ -8184,13 +8208,11 @@ void CodeGen::genFnProlog()
     }
 #endif
 
-#ifdef DEBUGGING_SUPPORT
     if (compiler->opts.compScopeInfo && (compiler->info.compVarScopesCount > 0))
     {
         // Create new scopes for the method-parameters for the prolog-block.
         psiBegProlog();
     }
-#endif
 
 #ifdef DEBUG
 
@@ -8876,12 +8898,10 @@ void CodeGen::genFnProlog()
         getEmitter()->emitMarkPrologEnd();
     }
 
-#ifdef DEBUGGING_SUPPORT
     if (compiler->opts.compScopeInfo && (compiler->info.compVarScopesCount > 0))
     {
         psiEndProlog();
     }
-#endif
 
     if (hasGCRef)
     {
@@ -11014,9 +11034,6 @@ void CodeGen::genPopRegs(regMaskTP regs, regMaskTP byrefRegs, regMaskTP noRefReg
 #endif // FEATURE_FIXED_OUT_ARGS
 }
 
-/*****************************************************************************/
-#ifdef DEBUGGING_SUPPORT
-
 /*****************************************************************************
  *                          genSetScopeInfo
  *
@@ -11910,19 +11927,16 @@ void CodeGen::genIPmappingGen()
     compiler->eeSetLIdone();
 }
 
-#endif // DEBUGGING_SUPPORT
-
 /*============================================================================
  *
  *   These are empty stubs to help the late dis-assembler to compile
- *   if DEBUGGING_SUPPORT is not enabled, or the late disassembler is being
- *   built into a non-DEBUG build.
+ *   if the late disassembler is being built into a non-DEBUG build.
  *
  *============================================================================
  */
 
 #if defined(LATE_DISASM)
-#if !defined(DEBUGGING_SUPPORT) || !defined(DEBUG)
+#if !defined(DEBUG)
 
 /* virtual */
 const char* CodeGen::siRegVarName(size_t offs, size_t size, unsigned reg)
@@ -11937,6 +11951,6 @@ const char* CodeGen::siStackVarName(size_t offs, size_t size, unsigned reg, unsi
 }
 
 /*****************************************************************************/
-#endif // !defined(DEBUGGING_SUPPORT) || !defined(DEBUG)
+#endif // !defined(DEBUG)
 #endif // defined(LATE_DISASM)
 /*****************************************************************************/
