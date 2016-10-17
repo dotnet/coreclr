@@ -304,7 +304,6 @@ namespace System.Globalization
             }
         }
 
-        [System.Runtime.InteropServices.ComVisible(false)]        
         public virtual int GeoId 
         {
             get 
@@ -320,7 +319,6 @@ namespace System.Globalization
         //  English name for this region's currency, ie: Swiss Franc
         //
         ////////////////////////////////////////////////////////////////////////
-        [System.Runtime.InteropServices.ComVisible(false)]
         public virtual string CurrencyEnglishName
         {
             get
@@ -337,7 +335,6 @@ namespace System.Globalization
         //  WARNING: You need a full locale name for this to make sense.
         //
         ////////////////////////////////////////////////////////////////////////
-        [System.Runtime.InteropServices.ComVisible(false)]
         public virtual string CurrencyNativeName
         {
             get
