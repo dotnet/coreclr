@@ -21,7 +21,6 @@ using System.Runtime.Serialization;
 namespace System.Globalization
 {
     [Serializable]
-    [System.Runtime.InteropServices.ComVisible(true)]
     public partial class RegionInfo
     {
         //--------------------------------------------------------------------//
@@ -232,7 +231,6 @@ namespace System.Globalization
         //  WARNING: You need a full locale name for this to make sense.        
         //
         ////////////////////////////////////////////////////////////////////////
-        [System.Runtime.InteropServices.ComVisible(false)]
         public virtual String NativeName
         {
             get

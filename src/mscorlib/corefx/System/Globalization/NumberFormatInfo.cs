@@ -42,7 +42,6 @@ namespace System.Globalization
     //
 
     [Serializable]
-    [System.Runtime.InteropServices.ComVisible(true)]
     sealed public partial class NumberFormatInfo : IFormatProvider, ICloneable
     {
         // invariantInfo is constant irrespective of your current culture.
@@ -808,7 +807,6 @@ namespace System.Globalization
             }
         }
 
-        [System.Runtime.InteropServices.ComVisible(false)]
         public string [] NativeDigits
         {
             get { return (String[]) nativeDigits.Clone(); }
@@ -820,7 +818,6 @@ namespace System.Globalization
             }
         }
 
-        [System.Runtime.InteropServices.ComVisible(false)]
         public DigitShapes DigitSubstitution
         {
             get { return (DigitShapes) digitSubstitution; } 
