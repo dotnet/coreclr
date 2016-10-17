@@ -176,6 +176,9 @@ build_coreclr()
             echo $__versionSourceLine > $__versionSourceFile
         fi
 
+        echo "Restoring the OptimizationData package"
+        "$__ProjectRoot/run.sh" sync -optdata
+
 		pushd "$__IntermediatesDir"
         # Regenerate the CMake solution
         __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument"

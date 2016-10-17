@@ -13,7 +13,7 @@ function(add_pgo TargetName)
     endif(WIN32)
 
     file(TO_NATIVE_PATH
-        "${CLR_CMAKE_PACKAGES_DIR}/Microsoft.DotNet.OptimizationData.Coreclr/${CLR_CMAKE_TARGET_OS}.${CLR_CMAKE_TARGET_ARCH}/${ProfileFileName}"
+        "${CLR_CMAKE_PACKAGES_DIR}/${CLR_CMAKE_OPTDATA_PACKAGEWITHRID}/${CLR_CMAKE_OPTDATA_VERSION}/data/${ProfileFileName}"
         ProfilePath
     )
 
@@ -36,6 +36,18 @@ function(add_pgo TargetName)
         endif(CLR_CMAKE_PGO_INSTRUMENT)
     endforeach(ConfigType)
 endfunction(add_pgo)
+
+set(CLR_CMAKE_OPTDATA_PACKAGEID "optimization.PGO.CoreCLR")
+set(CLR_CMAKE_OPTDATA_PACKAGEWITHRID "optimization.${CLR_CMAKE_TARGET_OS}-${CLR_CMAKE_TARGET_ARCH}.PGO.CoreCLR")
+
+# Parse optdata package version from project.json
+file(TO_NATIVE_PATH "${CMAKE_SOURCE_DIR}/extract-from-json.py" ExtractFromJsonScript)
+file(TO_NATIVE_PATH "${CMAKE_SOURCE_DIR}/src/.nuget/optdata/project.json" OptDataProjectJsonPath)
+execute_process(
+  COMMAND python "${ExtractFromJsonScript}" -rf "${OptDataProjectJsonPath}" dependencies "${CLR_CMAKE_OPTDATA_PACKAGEID}"
+  OUTPUT_VARIABLE CLR_CMAKE_OPTDATA_VERSION
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
 
 if(WIN32)
   if(CLR_CMAKE_PGO_INSTRUMENT)
