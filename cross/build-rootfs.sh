@@ -34,7 +34,6 @@ for i in "$@"
         arm)
         __BuildArch=arm
         __UbuntuArch=armhf
-        __UbuntuPackages="$__UbuntuPackagesBase $__LLDB_Package"
         __MachineTriple=arm-linux-gnueabihf
         ;;
         arm64)
@@ -47,7 +46,6 @@ for i in "$@"
         __BuildArch=arm-softfp
         __UbuntuArch=armel
         __UbuntuRepo="http://ftp.debian.org/debian/"
-        __UbuntuPackages="$__UbuntuPackagesBase $__LLDB_Package"
         __MachineTriple=arm-linux-gnueabi
         __UbuntuCodeName=jessie
         ;;
