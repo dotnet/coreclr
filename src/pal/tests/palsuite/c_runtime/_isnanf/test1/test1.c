@@ -79,7 +79,7 @@ int __cdecl main(int argc, char *argv[])
     
     if (!_isnanf(snan))
     {
-        Fail("_isnanf() failed to identify %I64x as NaN!\n", lsnan);
+        Fail("_isnanf() failed to identify %I32x as NaN!\n", lsnan);
     }
 
     UINT32 lqnan =             0x7f800001u;
@@ -87,7 +87,7 @@ int __cdecl main(int argc, char *argv[])
     
     if (!_isnanf(qnan))
     {
-        Fail("_isnanf() failed to identify %I64x as NaN!\n", lqnan);
+        Fail("_isnanf() failed to identify %I32x as NaN!\n", lqnan);
     }
 
     /*
@@ -99,7 +99,7 @@ int __cdecl main(int argc, char *argv[])
 
     if (!_isnanf(snan))
     {
-        Fail ("_isnanf() failed to identify %I64x as NaN!\n", lsnan);
+        Fail ("_isnanf() failed to identify %I32x as NaN!\n", lsnan);
     }
 
     lqnan =                     0x7fc00000u;
@@ -107,7 +107,7 @@ int __cdecl main(int argc, char *argv[])
 
     if (!_isnanf(qnan))
     {
-        Fail ("_isnanf() failed to identify %I64x as NaN!\n", lqnan);
+        Fail ("_isnanf() failed to identify %I32x as NaN!\n", lqnan);
     }
 
     PAL_Terminate();
