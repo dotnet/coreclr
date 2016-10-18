@@ -382,8 +382,6 @@ private:
     static void IssueSpecialCommand(char*& ptr, int8_t line_shift, uint8_t addr_shift);
     static void SplitPathname(const char* path, const char*& pathName, const char*& fileName);
     static bool CollectCalledMethods(CalledMethod* pCM);
-    static int GetArgsAndLocalsLen(NewArrayHolder<VarDebugInfo>& varsDebug,
-                                   unsigned int varsDebugSize);
 #ifdef _DEBUG
     static void DumpElf(const char* methodName, const MemBuf& buf);
 #endif

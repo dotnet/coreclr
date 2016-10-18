@@ -268,8 +268,8 @@ HRESULT GetArgNameByILIndex(MethodDesc* MethodDescPtr, unsigned index, LPSTR &pa
     // Param indexing is 1-based.
     ULONG32 mdIndex = index + 1;
 
-    NewHolder<MetaSig> sig = new MetaSig(MethodDescPtr);
-    if (sig->HasThis())
+    MetaSig sig(MethodDescPtr);
+    if (sig.HasThis())
     {
         mdIndex--;
     }
@@ -461,45 +461,43 @@ GetDebugInfoFromPDB(MethodDesc* MethodDescPtr, SymbolsInfo** symInfo, unsigned i
     StackScratchBuffer scratch;
     const char* szModName = modName.GetUTF8(scratch);
 
-    NewHolder<MethodDebugInfo> methodDebugInfo = new (nothrow) MethodDebugInfo();
-    if (methodDebugInfo == nullptr)
+    MethodDebugInfo methodDebugInfo;
+
+    methodDebugInfo.points = (SequencePointInfo*) CoTaskMemAlloc(sizeof(SequencePointInfo) * numMap);
+    if (methodDebugInfo.points == nullptr)
         return E_OUTOFMEMORY;
 
-    methodDebugInfo->points = (SequencePointInfo*) CoTaskMemAlloc(sizeof(SequencePointInfo) * numMap);
-    if (methodDebugInfo->points == nullptr)
-        return E_OUTOFMEMORY;
+    methodDebugInfo.size = numMap;
 
-    methodDebugInfo->size = numMap;
-
-    if (getInfoForMethodDelegate(szModName, MethodDescPtr->GetMemberDef(), *methodDebugInfo) == FALSE)
+    if (getInfoForMethodDelegate(szModName, MethodDescPtr->GetMemberDef(), methodDebugInfo) == FALSE)
         return E_FAIL;
 
-    symInfoLen = methodDebugInfo->size;
+    symInfoLen = methodDebugInfo.size;
     *symInfo = new (nothrow) SymbolsInfo[symInfoLen];
     if (*symInfo == nullptr)
         return E_FAIL;
-    locals.size = methodDebugInfo->localsSize;
+    locals.size = methodDebugInfo.localsSize;
     locals.localsName = new (nothrow) char *[locals.size];
     if (locals.localsName == nullptr)
         return E_FAIL;
 
     for (ULONG32 i = 0; i < locals.size; i++)
     {
-        size_t sizeRequired = WideCharToMultiByte(CP_UTF8, 0, methodDebugInfo->locals[i], -1, NULL, 0, NULL, NULL);
+        size_t sizeRequired = WideCharToMultiByte(CP_UTF8, 0, methodDebugInfo.locals[i], -1, NULL, 0, NULL, NULL);
         locals.localsName[i] = new (nothrow) char[sizeRequired];
 
         int len = WideCharToMultiByte(
-            CP_UTF8, 0, methodDebugInfo->locals[i], -1, locals.localsName[i], sizeRequired, NULL, NULL);
+            CP_UTF8, 0, methodDebugInfo.locals[i], -1, locals.localsName[i], sizeRequired, NULL, NULL);
     }
 
     for (ULONG32 i = 0; i < symInfoLen; i++)
     {
         for (ULONG32 j = 0; j < numMap; j++)
         {
-            if (methodDebugInfo->points[i].ilOffset == map[j].ilOffset)
+            if (methodDebugInfo.points[i].ilOffset == map[j].ilOffset)
             {
                 SymbolsInfo& s = (*symInfo)[i];
-                const SequencePointInfo& sp = methodDebugInfo->points[i];
+                const SequencePointInfo& sp = methodDebugInfo.points[i];
 
                 s.nativeOffset = map[j].nativeStartOffset;
                 s.ilOffset = map[j].ilOffset;
@@ -511,7 +509,7 @@ GetDebugInfoFromPDB(MethodDesc* MethodDescPtr, SymbolsInfo** symInfo, unsigned i
         }
     }
 
-    CoTaskMemFree(methodDebugInfo->points);
+    CoTaskMemFree(methodDebugInfo.points);
     return S_OK;
 }
 
@@ -858,17 +856,14 @@ void PrimitiveTypeInfo::DumpDebugInfo(char* ptr, int& offset)
 
     if (ptr != nullptr)
     {
-        NewHolder<DebugInfoType> bufType = new (nothrow) DebugInfoType;
-        if (bufType == nullptr)
-            return;
-
-        bufType->m_type_abbrev = 2;
-        bufType->m_type_name = m_type_name_offset;
-        bufType->m_encoding = m_type_encoding;
-        bufType->m_byte_size = m_type_size;
+        DebugInfoType bufType;
+        bufType.m_type_abbrev = 2;
+        bufType.m_type_name = m_type_name_offset;
+        bufType.m_encoding = m_type_encoding;
+        bufType.m_byte_size = m_type_size;
 
         memcpy(ptr + offset,
-               bufType,
+               &bufType,
                sizeof(DebugInfoType));
         m_type_offset = offset;
     }
@@ -905,21 +900,19 @@ void TypeMember::DumpDebugInfo(char* ptr, int& offset)
 {
     if (ptr != nullptr)
     {
-        NewHolder<DebugInfoClassMember> memberEntry = new (nothrow) DebugInfoClassMember;
-        if (memberEntry == nullptr)
-            return;
+        DebugInfoClassMember memberEntry;
 
         if (m_static_member_address == 0)
-            memberEntry->m_member_abbrev = 8;
+            memberEntry.m_member_abbrev = 8;
         else
         {
-            memberEntry->m_member_abbrev = 14;
+            memberEntry.m_member_abbrev = 14;
             m_member_offset = offset;
         }
-        memberEntry->m_member_name = m_member_name_offset;
-        memberEntry->m_member_type = m_member_type->m_type_offset;
+        memberEntry.m_member_name = m_member_name_offset;
+        memberEntry.m_member_type = m_member_type->m_type_offset;
 
-        memcpy(ptr + offset, memberEntry, sizeof(DebugInfoClassMember));
+        memcpy(ptr + offset, &memberEntry, sizeof(DebugInfoClassMember));
         if (m_static_member_address == 0)
             memcpy(ptr + offset + sizeof(DebugInfoClassMember), &m_member_offset, sizeof(m_member_offset));
     }
@@ -933,13 +926,11 @@ void TypeMember::DumpStaticDebugInfo(char* ptr, int& offset)
     const int ptrSize = sizeof(TADDR);
     if (ptr != nullptr)
     {
-        NewHolder<DebugInfoStaticMember> memberEntry = new (nothrow) DebugInfoStaticMember;
-        if (memberEntry == nullptr)
-            return;
+        DebugInfoStaticMember memberEntry;
 
-        memberEntry->m_member_abbrev = 15;
-        memberEntry->m_member_specification = m_member_offset;
-        memcpy(ptr + offset, memberEntry, sizeof(DebugInfoStaticMember));
+        memberEntry.m_member_abbrev = 15;
+        memberEntry.m_member_specification = m_member_offset;
+        memcpy(ptr + offset, &memberEntry, sizeof(DebugInfoStaticMember));
 
         char buf[ptrSize + 2] = {0};
         buf[0] = ptrSize + 1;
@@ -950,7 +941,7 @@ void TypeMember::DumpStaticDebugInfo(char* ptr, int& offset)
             buf[i + 2] = m_static_member_address >> (i * 8);
         }
 
-        memcpy(ptr + offset + sizeof(DebugInfoStaticMember), buf, ptrSize + 2);
+        memcpy(ptr + offset + sizeof(DebugInfoStaticMember), &buf, ptrSize + 2);
     }
     offset += sizeof(DebugInfoStaticMember);
     offset += ptrSize + 2;
@@ -971,33 +962,29 @@ void FunctionMember::DumpDebugInfo(char* ptr, int& offset)
 {
     if (ptr != nullptr)
     {
-        NewHolder<DebugInfoSub> subEntry = new (nothrow) DebugInfoSub;
-        if (subEntry == nullptr)
-            return;
+        DebugInfoSub subEntry;
 
-        subEntry->m_sub_abbrev = 4;
-        subEntry->m_sub_name = m_member_name_offset;
-        subEntry->m_file = m_file;
-        subEntry->m_line = m_line;
-        subEntry->m_sub_type = m_member_type->m_type_offset;
-        subEntry->m_sub_low_pc = m_sub_low_pc;
-        subEntry->m_sub_high_pc = m_sub_high_pc;
-        subEntry->m_sub_loc[0] = m_sub_loc[0];
-        subEntry->m_sub_loc[1] = m_sub_loc[1];
+        subEntry.m_sub_abbrev = 4;
+        subEntry.m_sub_name = m_member_name_offset;
+        subEntry.m_file = m_file;
+        subEntry.m_line = m_line;
+        subEntry.m_sub_type = m_member_type->m_type_offset;
+        subEntry.m_sub_low_pc = m_sub_low_pc;
+        subEntry.m_sub_high_pc = m_sub_high_pc;
+        subEntry.m_sub_loc[0] = m_sub_loc[0];
+        subEntry.m_sub_loc[1] = m_sub_loc[1];
 
         if (!md->IsStatic())
         {
-            NewHolder<DebugInfoSubMember> subMemberEntry = new (nothrow) DebugInfoSubMember;
-            if (subMemberEntry == nullptr)
-                return;
-            subEntry->m_sub_abbrev = 12;
-            subMemberEntry->sub = *subEntry;
-            subMemberEntry->m_obj_ptr = offset+sizeof(DebugInfoSubMember);
-            memcpy(ptr + offset, subMemberEntry, sizeof(DebugInfoSubMember));
+            DebugInfoSubMember subMemberEntry;
+            subEntry.m_sub_abbrev = 12;
+            subMemberEntry.sub = subEntry;
+            subMemberEntry.m_obj_ptr = offset+sizeof(DebugInfoSubMember);
+            memcpy(ptr + offset, &subMemberEntry, sizeof(DebugInfoSubMember));
         }
         else
         {
-            memcpy(ptr + offset, subEntry, sizeof(DebugInfoSub));
+            memcpy(ptr + offset, &subEntry, sizeof(DebugInfoSub));
         }
         m_entry_offset = offset;
         dumped = true;
@@ -1065,11 +1052,11 @@ void RefTypeInfo::DumpDebugInfo(char* ptr, int& offset)
     m_value_type->DumpDebugInfo(ptr, offset);
     if (ptr != nullptr)
     {
-        NewHolder<DebugInfoRefType> refType = new (nothrow) DebugInfoRefType;
-        refType->m_type_abbrev = 9;
-        refType->m_ref_type = m_value_type->m_type_offset;
-        refType->m_byte_size = m_type_size;
-        memcpy(ptr + m_type_offset, refType, sizeof(DebugInfoRefType));
+        DebugInfoRefType refType;
+        refType.m_type_abbrev = 9;
+        refType.m_ref_type = m_value_type->m_type_offset;
+        refType.m_byte_size = m_type_size;
+        memcpy(ptr + m_type_offset, &refType, sizeof(DebugInfoRefType));
     }
     else
     {
@@ -1093,15 +1080,12 @@ void ClassTypeInfo::DumpDebugInfo(char* ptr, int& offset)
 
     if (ptr != nullptr)
     {
-        NewHolder<DebugInfoClassType> bufType = new (nothrow) DebugInfoClassType;
-        if (bufType == nullptr)
-            return;
+        DebugInfoClassType bufType;
+        bufType.m_type_abbrev = 7;
+        bufType.m_type_name = m_type_name_offset;
+        bufType.m_byte_size = m_type_size;
 
-        bufType->m_type_abbrev = 7;
-        bufType->m_type_name = m_type_name_offset;
-        bufType->m_byte_size = m_type_size;
-
-        memcpy(ptr + offset, bufType, sizeof(DebugInfoClassType));
+        memcpy(ptr + offset, &bufType, sizeof(DebugInfoClassType));
         m_type_offset = offset;
     }
     offset += sizeof(DebugInfoClassType);
@@ -1144,14 +1128,12 @@ void ArrayTypeInfo::DumpDebugInfo(char* ptr, int& offset)
     }
     if (ptr != nullptr)
     {
-        NewHolder<DebugInfoArrayType> arrType = new (nothrow) DebugInfoArrayType;
-        if (arrType == nullptr)
-            return;
+        DebugInfoArrayType arrType;
 
-        arrType->m_abbrev = 10; // DW_TAG_array_type abbrev
-        arrType->m_type = m_elem_type->m_type_offset;
+        arrType.m_abbrev = 10; // DW_TAG_array_type abbrev
+        arrType.m_type = m_elem_type->m_type_offset;
 
-        memcpy(ptr + offset, arrType, sizeof(DebugInfoArrayType));
+        memcpy(ptr + offset, &arrType, sizeof(DebugInfoArrayType));
         m_type_offset = offset;
     }
     offset += sizeof(DebugInfoArrayType);
@@ -1198,16 +1180,14 @@ void VarDebugInfo::DumpDebugInfo(char* ptr, int& offset)
     int len = GetFrameLocation(m_native_offset, bufVarLoc);
     if (ptr != nullptr)
     {
-        NewHolder<DebugInfoVar> bufVar = new (nothrow) DebugInfoVar;
-        if (bufVar == nullptr)
-            return;
+        DebugInfoVar bufVar;
 
-        bufVar->m_var_abbrev = m_var_abbrev;
-        bufVar->m_var_name = m_var_name_offset;
-        bufVar->m_var_file = 1;
-        bufVar->m_var_line = 1;
-        bufVar->m_var_type = m_var_type->m_type_offset;
-        memcpy(ptr + offset, bufVar, sizeof(DebugInfoVar));
+        bufVar.m_var_abbrev = m_var_abbrev;
+        bufVar.m_var_name = m_var_name_offset;
+        bufVar.m_var_file = 1;
+        bufVar.m_var_line = 1;
+        bufVar.m_var_type = m_var_type->m_type_offset;
+        memcpy(ptr + offset, &bufVar, sizeof(DebugInfoVar));
         memcpy(ptr + offset + sizeof(DebugInfoVar), bufVarLoc, len);
     }
     offset += sizeof(DebugInfoVar);
@@ -1343,9 +1323,9 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
         return;
     }
 
-    NewHolder<MetaSig> sig = new MetaSig(MethodDescPtr);
-    int nArgsCount = sig->NumFixedArgs();
-    if (sig->HasThis())
+    MetaSig sig(MethodDescPtr);
+    int nArgsCount = sig.NumFixedArgs();
+    if (sig.HasThis())
         nArgsCount++;
 
     method = new FunctionMember(MethodDescPtr, locals.size, nArgsCount);
@@ -1537,7 +1517,7 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
 
     elfFile.MemPtr.SuppressRelease();
 
-#if 1//def GDBJIT_DUMPELF
+#ifdef GDBJIT_DUMPELF
     DumpElf(methodName, elfFile);
 #endif
 
@@ -2112,7 +2092,7 @@ bool NotifyGdb::BuildSectionNameTable(MemBuf& buf)
 /* Build the ELF section headers table */
 bool NotifyGdb::BuildSectionTable(MemBuf& buf)
 {
-    NewArrayHolder<Elf_Shdr> sectionHeaders = new (nothrow) Elf_Shdr[SectionNamesCount - 1];    
+    Elf_Shdr* sectionHeaders = new (nothrow) Elf_Shdr[SectionNamesCount - 1];    
     Elf_Shdr* pSh = sectionHeaders;
 
     if (sectionHeaders == nullptr)
@@ -2153,8 +2133,7 @@ bool NotifyGdb::BuildSectionTable(MemBuf& buf)
             pSh->sh_entsize = 0;
     }
 
-    sectionHeaders.SuppressRelease();
-    buf.MemPtr = reinterpret_cast<char*>(sectionHeaders.GetValue());
+    buf.MemPtr = reinterpret_cast<char*>(sectionHeaders);
     buf.MemSize = sizeof(Elf_Shdr) * (SectionNamesCount - 1);
     return true;
 }
@@ -2162,19 +2141,19 @@ bool NotifyGdb::BuildSectionTable(MemBuf& buf)
 /* Build the ELF header */
 bool NotifyGdb::BuildELFHeader(MemBuf& buf)
 {
-    NewHolder<Elf_Ehdr> header = new (nothrow) Elf_Ehdr;
-    buf.MemPtr = reinterpret_cast<char*>(header.GetValue());
-    buf.MemSize = sizeof(Elf_Ehdr);
-    
+    Elf_Ehdr* header = new (nothrow) Elf_Ehdr;
+
     if (header == nullptr)
+    {
         return false;
-    
-    header.SuppressRelease();
+    }
+
+    buf.MemPtr = reinterpret_cast<char*>(header);
+    buf.MemSize = sizeof(Elf_Ehdr);
     return true;
-        
 }
 
-/* Split full path name into directory & file anmes */
+/* Split full path name into directory & file names */
 void NotifyGdb::SplitPathname(const char* path, const char*& pathName, const char*& fileName)
 {
     char* pSlash = strrchr(path, '/');
