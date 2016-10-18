@@ -2110,8 +2110,6 @@ namespace System.Globalization
 
             // Clear the token hash table, note that even short dates could require this
             ClearTokenHashTable();
-
-            return;
         }
 
         public String[] AbbreviatedMonthGenitiveNames
