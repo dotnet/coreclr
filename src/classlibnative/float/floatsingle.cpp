@@ -11,8 +11,8 @@
 
 #define IS_FLT_INFINITY(x)         (((*((INT32*)((void*)&x))) & 0x7FFFFFFF) == 0x7F800000)
 
-// Windows x86 doesn't define _isnanf() but it does define a generic macro isnan()
-#if defined(_TARGET_X86_) && !defined(FEATURE_PAL) && !defined(_isnanf)
+// Windows x86 and Windows ARM don't define _isnanf() but they do define a generic macro isnan()
+#if (defined(_TARGET_X86_) || defined(_TARGET_ARM_)) && !defined(FEATURE_PAL) && !defined(_isnanf)
 #define _isnanf      isnan
 #endif
 
