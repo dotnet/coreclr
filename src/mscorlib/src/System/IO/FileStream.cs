@@ -1309,6 +1309,24 @@ namespace System.IO {
             }
         }
 
+
+        // This method allows the user to specify an external buffer, which can then be pooled or shared
+        // among mulitple instances of FileStream. Note that this buffer can _only_ be used by a single
+        // instance of FileStream at a time. 
+        // This should be called before any action is done on the FileStream, otherwise a buffer will 
+        // be allocation, and we'll miss this optimization
+        [System.Security.SecuritySafeCritical]  // auto-generated
+        public override void SetBuffer(byte[] externalBuffer)
+        {
+            if (externalBuffer==null)
+                throw new ArgumentNullException("externalBuffer", Environment.GetResourceString("ArgumentNull_Buffer"));
+            if (externalBuffer.Length < _bufferSize)
+                throw new ArgumentOutOfRangeException("externalBuffer", Environment.GetResourceString("Arg_BufferTooSmall"));
+            // it is okay to use a buffer that is too big, only _bufferSize is ever used for checking
+            // and this allows to use a larger buffer in a stream that have a smaller buffer size.
+            _buffer = externalBuffer;
+        }
+
         [System.Security.SecuritySafeCritical]  // auto-generated
         public override void SetLength(long value)
         {
