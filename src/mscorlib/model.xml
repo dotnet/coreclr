@@ -9952,12 +9952,12 @@
       <Member Name="AddField(System.String)" /> <!-- EE -->
       <Member Name="RemoveMember(System.Reflection.MemberInfo)" /> <!-- EE -->
     </Type>
-    <Type Status="ImplRoot" Name="System.Runtime.InteropServices.ICustomMarshaler">
-      <Member Name="MarshalNativeToManaged(System.IntPtr)" /> <!-- EE -->
-      <Member Name="MarshalManagedToNative(System.Object)" /> <!-- EE -->
-      <Member Name="CleanUpNativeData(System.IntPtr)" /> <!-- EE -->
-      <Member Name="CleanUpManagedData(System.Object)" /> <!-- EE -->
-      <Member Name="GetNativeDataSize" /> <!-- EE -->
+    <Type Name="System.Runtime.InteropServices.ICustomMarshaler">
+      <Member Name="MarshalNativeToManaged(System.IntPtr)" />
+      <Member Name="MarshalManagedToNative(System.Object)" />
+      <Member Name="CleanUpNativeData(System.IntPtr)" />
+      <Member Name="CleanUpManagedData(System.Object)" />
+      <Member Name="GetNativeDataSize" />
     </Type>
     <Type Name="System.Runtime.InteropServices.InvalidOleVariantTypeException">
       <Member Name="#ctor" />
