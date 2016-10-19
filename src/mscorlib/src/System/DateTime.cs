@@ -773,9 +773,9 @@ namespace System {
             // and y100 are relative to year 1, not year 0
             bool leapYear = y1 == 3 && (y4 != 24 || y100 == 3);
             int[] days = leapYear? DaysToMonth366: DaysToMonth365;
-            // All months have less than 32 days, so n >> 5 is a good conservative
-            // estimate for the month
-            int m = n >> 5 + 1;
+			// All months have less than 32 days so n >> 5, which is the same as n / 32,
+			// is a good conservative estimate for the month
+			int m = (n >> 5) + 1;
             // m = 1-based month number
             while (n >= days[m]) m++;
             // If month was requested, return it
