@@ -7704,6 +7704,9 @@
       <Member Name="#ctor(System.String,System.Int32)" />
       <Member Name="#ctor(System.String,System.Int32,System.Int32,System.Int32)" />
       <Member Status="ImplRoot" Name="#ctor(System.Runtime.Serialization.SerializationInfo,System.Runtime.Serialization.StreamingContext)" />
+      <Member Name="#ctor(System.Text.StringBuilder)" />
+      <Member Name="#ctor(System.Text.StringBuilder,System.Int32)" />
+      <Member Name="#ctor(System.Text.StringBuilder,System.Int32,System.Int32,System.Int32)" />
       <Member Name="Append(System.Boolean)" />
       <Member Name="Append(System.Byte)" />
       <Member Name="Append(System.Char)" />
