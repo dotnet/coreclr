@@ -549,7 +549,7 @@ namespace System.Threading
         private Flags _flags;
 
         private Dictionary<IAsyncLocal, object> _localValues;
-        private List<IAsyncLocal> _localChangeNotifications;
+        private IAsyncLocal[] _localChangeNotifications;
 
         internal bool isNewCapture 
         { 
@@ -716,7 +716,12 @@ namespace System.Threading
             if (current._localValues == null)
                 current._localValues = new Dictionary<IAsyncLocal, object>();
             else
-                current._localValues = new Dictionary<IAsyncLocal, object>(current._localValues);
+            {
+                Dictionary<IAsyncLocal, object> prevLocalValues = current._localValues;
+                current._localValues = new Dictionary<IAsyncLocal, object>(prevLocalValues.Count + 1);
+                foreach (KeyValuePair<IAsyncLocal, object> pair in prevLocalValues)
+                    current._localValues.Add(pair.Key, pair.Value);
+            }
 
             current._localValues[local] = newValue;
 
@@ -725,16 +730,22 @@ namespace System.Threading
                 if (hadPreviousValue)
                 {
                     Contract.Assert(current._localChangeNotifications != null);
-                    Contract.Assert(current._localChangeNotifications.Contains(local));
+                    Contract.Assert(Array.IndexOf(current._localChangeNotifications, local) >= 0);
                 }
                 else
                 {
+                    int newNotificationIndex;
                     if (current._localChangeNotifications == null)
-                        current._localChangeNotifications = new List<IAsyncLocal>();
+                    {
+                        newNotificationIndex = 0;
+                        current._localChangeNotifications = new IAsyncLocal[1];
+                    }
                     else
-                        current._localChangeNotifications = new List<IAsyncLocal>(current._localChangeNotifications);
-
-                    current._localChangeNotifications.Add(local);
+                    {
+                        newNotificationIndex = current._localChangeNotifications.Length;
+                        Array.Resize(ref current._localChangeNotifications, newNotificationIndex + 1);
+                    }
+                    current._localChangeNotifications[newNotificationIndex] = local;
                 }
 
                 local.OnValueChanged(previousValue, newValue, false);
@@ -745,7 +756,7 @@ namespace System.Threading
         [HandleProcessCorruptedStateExceptions]
         internal static void OnAsyncLocalContextChanged(ExecutionContext previous, ExecutionContext current)
         {
-            List<IAsyncLocal> previousLocalChangeNotifications = (previous == null) ? null : previous._localChangeNotifications;
+            IAsyncLocal[] previousLocalChangeNotifications = (previous == null) ? null : previous._localChangeNotifications;
             if (previousLocalChangeNotifications != null)
             {
                 foreach (IAsyncLocal local in previousLocalChangeNotifications)
@@ -763,7 +774,7 @@ namespace System.Threading
                 }
             }
 
-            List<IAsyncLocal> currentLocalChangeNotifications = (current == null) ? null : current._localChangeNotifications;
+            IAsyncLocal[] currentLocalChangeNotifications = (current == null) ? null : current._localChangeNotifications;
             if (currentLocalChangeNotifications != null && currentLocalChangeNotifications != previousLocalChangeNotifications)
             {
                 try
@@ -1282,7 +1293,7 @@ namespace System.Threading
             }
 
             Dictionary<IAsyncLocal, object> localValues = null;
-            List<IAsyncLocal> localChangeNotifications = null;
+            IAsyncLocal[] localChangeNotifications = null;
             if (!ecCurrent.IsNull)
             {
                 localValues = ecCurrent.DangerousGetRawExecutionContext()._localValues;
