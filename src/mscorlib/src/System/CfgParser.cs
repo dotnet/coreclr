@@ -27,86 +27,89 @@ namespace System
     [Serializable]
     internal enum ConfigEvents
     {
-        StartDocument     = 0,
-        StartDTD          = StartDocument + 1,
-        EndDTD            = StartDTD + 1,
-        StartDTDSubset    = EndDTD + 1,
-        EndDTDSubset      = StartDTDSubset + 1,
-        EndProlog         = EndDTDSubset + 1,
-        StartEntity       = EndProlog + 1,
-        EndEntity         = StartEntity + 1,
-        EndDocument       = EndEntity + 1,
-        DataAvailable     = EndDocument + 1,
-        LastEvent         = DataAvailable
+        StartDocument       = 0,
+        StartDTD            ,
+        EndDTD              ,
+        StartDTDSubset      ,
+        EndDTDSubset        ,
+        EndProlog           ,
+        StartEntity         ,
+        EndEntity           ,
+        EndDocument         ,
+        DataAvailable       ,
+
+        LastEvent           = DataAvailable
     }
 
     [Serializable]
     internal enum ConfigNodeType
     {
-        Element = 1,
-        Attribute   = Element + 1,
-        Pi  = Attribute + 1,
-        XmlDecl = Pi + 1,
-        DocType = XmlDecl + 1,
-        DTDAttribute    = DocType + 1,
-        EntityDecl  = DTDAttribute + 1,
-        ElementDecl = EntityDecl + 1,
-        AttlistDecl = ElementDecl + 1,
-        Notation    = AttlistDecl + 1,
-        Group   = Notation + 1,
-        IncludeSect = Group + 1,
-        PCData  = IncludeSect + 1,
-        CData   = PCData + 1,
-        IgnoreSect  = CData + 1,
-        Comment = IgnoreSect + 1,
-        EntityRef   = Comment + 1,
-        Whitespace  = EntityRef + 1,
-        Name    = Whitespace + 1,
-        NMToken = Name + 1,
-        String  = NMToken + 1,
-        Peref   = String + 1,
-        Model   = Peref + 1,
-        ATTDef  = Model + 1,
-        ATTType = ATTDef + 1,
-        ATTPresence = ATTType + 1,
-        DTDSubset   = ATTPresence + 1,
-        LastNodeType    = DTDSubset + 1
+        Element             = 1,
+        Attribute           ,
+        Pi                  ,
+        XmlDecl             ,
+        DocType             ,
+        DTDAttribute        ,
+        EntityDecl          ,
+        ElementDecl         ,
+        AttlistDecl         ,
+        Notation            ,
+        Group               ,
+        IncludeSect         ,
+        PCData              ,
+        CData               ,
+        IgnoreSect          ,
+        Comment             ,
+        EntityRef           ,
+        Whitespace          ,
+        Name                ,
+        NMToken             ,
+        String              ,
+        Peref               ,
+        Model               ,
+        ATTDef              ,
+        ATTType             ,
+        ATTPresence         ,
+        DTDSubset           ,
+
+        LastNodeType        ,
     } 
 
     [Serializable]
     internal enum ConfigNodeSubType
     {
-        Version = (int)ConfigNodeType.LastNodeType,
-        Encoding    = Version + 1,
-        Standalone  = Encoding + 1,
-        NS  = Standalone + 1,
-        XMLSpace    = NS + 1,
-        XMLLang = XMLSpace + 1,
-        System  = XMLLang + 1,
-        Public  = System + 1,
-        NData   = Public + 1,
-        AtCData = NData + 1,
-        AtId    = AtCData + 1,
-        AtIdref = AtId + 1,
-        AtIdrefs    = AtIdref + 1,
-        AtEntity    = AtIdrefs + 1,
-        AtEntities  = AtEntity + 1,
-        AtNmToken   = AtEntities + 1,
-        AtNmTokens  = AtNmToken + 1,
-        AtNotation  = AtNmTokens + 1,
-        AtRequired  = AtNotation + 1,
-        AtImplied   = AtRequired + 1,
-        AtFixed = AtImplied + 1,
-        PentityDecl = AtFixed + 1,
-        Empty   = PentityDecl + 1,
-        Any = Empty + 1,
-        Mixed   = Any + 1,
-        Sequence    = Mixed + 1,
-        Choice  = Sequence + 1,
-        Star    = Choice + 1,
-        Plus    = Star + 1,
-        Questionmark    = Plus + 1,
-        LastSubNodeType = Questionmark + 1
+        Version             = (int)ConfigNodeType.LastNodeType,
+        Encoding            , 
+        Standalone          , 
+        NS                  , 
+        XMLSpace            , 
+        XMLLang             , 
+        System              , 
+        Public              , 
+        NData               , 
+        AtCData             , 
+        AtId                , 
+        AtIdref             , 
+        AtIdrefs            , 
+        AtEntity            , 
+        AtEntities          , 
+        AtNmToken           , 
+        AtNmTokens          , 
+        AtNotation          , 
+        AtRequired          , 
+        AtImplied           , 
+        AtFixed             , 
+        PentityDecl         , 
+        Empty               , 
+        Any                 , 
+        Mixed               , 
+        Sequence            , 
+        Choice              , 
+        Star                , 
+        Plus                , 
+        Questionmark        , 
+
+        LastSubNodeType     , 
     }
 
     internal abstract class BaseConfigHandler
@@ -115,21 +118,24 @@ namespace System
         // This is necessary because unmanaged code takes a dependency on this layout
         // Any changes made to this must be reflected in ConfigHelper.h in ConfigFactory class
         protected Delegate[] eventCallbacks;
+        
         public BaseConfigHandler()
         {
             InitializeCallbacks();
         }
+
         private void InitializeCallbacks()
         {
             if (eventCallbacks == null)
             {
-                eventCallbacks = new Delegate[6];
-                eventCallbacks[0] = new NotifyEventCallback(this.NotifyEvent);
-                eventCallbacks[1] = new BeginChildrenCallback(this.BeginChildren);
-                eventCallbacks[2] = new EndChildrenCallback(this.EndChildren);
-                eventCallbacks[3] = new ErrorCallback(this.Error);
-                eventCallbacks[4] = new CreateNodeCallback(this.CreateNode);
-                eventCallbacks[5] = new CreateAttributeCallback(this.CreateAttribute);
+                eventCallbacks = new Delegate[6] {
+                    new NotifyEventCallback(this.NotifyEvent),
+                    new BeginChildrenCallback(this.BeginChildren),
+                    new EndChildrenCallback(this.EndChildren),
+                    new ErrorCallback(this.Error),
+                    new CreateNodeCallback(this.CreateNode),
+                    new CreateAttributeCallback(this.CreateAttribute)
+                };
             }
         }
 
@@ -137,83 +143,88 @@ namespace System
         public abstract void NotifyEvent(ConfigEvents nEvent);
 
         private delegate void BeginChildrenCallback(int size,
-                           ConfigNodeSubType subType,
-                           ConfigNodeType nType,
-                           int terminal,
-                           [MarshalAs(UnmanagedType.LPWStr)] String text,
-                           int textLength,
-                           int prefixLength);
+                    ConfigNodeSubType subType,
+                    ConfigNodeType nType,
+                    int terminal,
+                    [MarshalAs(UnmanagedType.LPWStr)] String text,
+                    int textLength,
+                    int prefixLength);
+
         public abstract void BeginChildren(int size,
-                           ConfigNodeSubType subType,
-                           ConfigNodeType nType,
-                           int terminal,
-                           [MarshalAs(UnmanagedType.LPWStr)] String text,
-                           int textLength,
-                           int prefixLength);
+                    ConfigNodeSubType subType,
+                    ConfigNodeType nType,
+                    int terminal,
+                    [MarshalAs(UnmanagedType.LPWStr)] String text,
+                    int textLength,
+                    int prefixLength);
 
         private delegate void EndChildrenCallback(int fEmpty,
-                         int size,
-                         ConfigNodeSubType subType,
-                         ConfigNodeType nType,
-                         int terminal,
-                         [MarshalAs(UnmanagedType.LPWStr)] String text,
-                         int textLength,
-                         int prefixLength);
+                    int size,
+                    ConfigNodeSubType subType,
+                    ConfigNodeType nType,
+                    int terminal,
+                    [MarshalAs(UnmanagedType.LPWStr)] String text,
+                    int textLength,
+                    int prefixLength);
+
         public abstract void EndChildren(int fEmpty,
-                         int size,
-                         ConfigNodeSubType subType,
-                         ConfigNodeType nType,
-                         int terminal,
-                         [MarshalAs(UnmanagedType.LPWStr)] String text,
-                         int textLength,
-                         int prefixLength);
+                    int size,
+                    ConfigNodeSubType subType,
+                    ConfigNodeType nType,
+                    int terminal,
+                    [MarshalAs(UnmanagedType.LPWStr)] String text,
+                    int textLength,
+                    int prefixLength);
 
         private delegate void ErrorCallback(int size,
-                   ConfigNodeSubType subType,
-                   ConfigNodeType nType,
-                   int terminal,
-                   [MarshalAs(UnmanagedType.LPWStr)]String text,
-                   int textLength,
-                   int prefixLength);
+                    ConfigNodeSubType subType,
+                    ConfigNodeType nType,
+                    int terminal,
+                    [MarshalAs(UnmanagedType.LPWStr)]String text,
+                    int textLength,
+                    int prefixLength);
+
         public abstract void Error(int size,
-                   ConfigNodeSubType subType,
-                   ConfigNodeType nType,
-                   int terminal,
-                   [MarshalAs(UnmanagedType.LPWStr)]String text,
-                   int textLength,
-                   int prefixLength);
+                    ConfigNodeSubType subType,
+                    ConfigNodeType nType,
+                    int terminal,
+                    [MarshalAs(UnmanagedType.LPWStr)]String text,
+                    int textLength,
+                    int prefixLength);
 
         private delegate void CreateNodeCallback(int size,
-                        ConfigNodeSubType subType,
-                        ConfigNodeType nType,
-                        int terminal,
-                        [MarshalAs(UnmanagedType.LPWStr)]String text,
-                        int textLength,
-                        int prefixLength);
+                    ConfigNodeSubType subType,
+                    ConfigNodeType nType,
+                    int terminal,
+                    [MarshalAs(UnmanagedType.LPWStr)]String text,
+                    int textLength,
+                    int prefixLength);
+
         public abstract void CreateNode(int size,
-                        ConfigNodeSubType subType,
-                        ConfigNodeType nType,
-                        int terminal,
-                        [MarshalAs(UnmanagedType.LPWStr)]String text,
-                        int textLength,
-                        int prefixLength);
+                    ConfigNodeSubType subType,
+                    ConfigNodeType nType,
+                    int terminal,
+                    [MarshalAs(UnmanagedType.LPWStr)]String text,
+                    int textLength,
+                    int prefixLength);
 
         private delegate void CreateAttributeCallback(int size,
-                             ConfigNodeSubType subType,
-                             ConfigNodeType nType,
-                             int terminal,
-                             [MarshalAs(UnmanagedType.LPWStr)]String text,
-                             int textLength,
-                             int prefixLength);
-        public abstract void CreateAttribute(int size,
-                             ConfigNodeSubType subType,
-                             ConfigNodeType nType,
-                             int terminal,
-                             [MarshalAs(UnmanagedType.LPWStr)]String text,
-                             int textLength,
-                             int prefixLength);
+                    ConfigNodeSubType subType,
+                    ConfigNodeType nType,
+                    int terminal,
+                    [MarshalAs(UnmanagedType.LPWStr)]String text,
+                    int textLength,
+                    int prefixLength);
 
-        [System.Security.SecurityCritical]  // auto-generated
+        public abstract void CreateAttribute(int size,
+                    ConfigNodeSubType subType,
+                    ConfigNodeType nType,
+                    int terminal,
+                    [MarshalAs(UnmanagedType.LPWStr)]String text,
+                    int textLength,
+                    int prefixLength);
+
+        [SecurityCritical]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal extern void RunParser(String fileName);
     }
@@ -221,17 +232,17 @@ namespace System
     // Class used to build a DOM like tree of parsed XML
     internal class ConfigTreeParser : BaseConfigHandler
     {
-        ConfigNode rootNode = null;
-        ConfigNode currentNode = null;
-        String fileName = null;
-        int attributeEntry;
-        String key = null;
-        String [] treeRootPath = null; // element to start tree
-        bool parsing = false;
-        int depth = 0;
-        int pathDepth = 0;
-        int searchDepth = 0;
-        bool bNoSearchPath = false;
+        ConfigNode rootNode     = null;
+        ConfigNode currentNode  = null;
+        String fileName         = null;
+        int attributeEntry      = 0;
+        String key              = null;
+        String [] treeRootPath  = null; // element to start tree
+        bool parsing            = false;
+        int depth               = 0;
+        int pathDepth           = 0;
+        int searchDepth         = 0;
+        bool bNoSearchPath      = false;
 
         // Track state for error message formatting
         String lastProcessed = null;
@@ -245,27 +256,32 @@ namespace System
             return Parse(fileName, configPath, false);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
+        [SecuritySafeCritical]
         internal ConfigNode Parse(String fileName, String configPath, bool skipSecurityStuff)
         {
             if (fileName == null)
                 throw new ArgumentNullException("fileName");
+
             Contract.EndContractBlock();
+
             this.fileName = fileName;
-            if (configPath[0] == '/'){
+
+            if (configPath[0] == '/')
+            {
                 treeRootPath = configPath.Substring(1).Split('/');
                 pathDepth = treeRootPath.Length - 1;
                 bNoSearchPath = false;
             }
-            else{
+            else
+            {
                 treeRootPath = new String[1];
                 treeRootPath[0] = configPath;
                 bNoSearchPath = true;
             }
 
-            if (!skipSecurityStuff) {
-                (new FileIOPermission( FileIOPermissionAccess.Read, System.IO.Path.GetFullPathInternal( fileName ) )).Demand();
-            }
+            if (!skipSecurityStuff)
+                (new FileIOPermission(FileIOPermissionAccess.Read, Path.GetFullPathInternal(fileName))).Demand();
+
 #pragma warning disable 618
             (new SecurityPermission(SecurityPermissionFlag.UnmanagedCode)).Assert();
 #pragma warning restore 618
@@ -297,25 +313,25 @@ namespace System
                 throw new ApplicationException(message, inner);
 #endif
             }
+
             return rootNode;
         }
 
         public override void NotifyEvent(ConfigEvents nEvent)
         {
-            BCLDebug.Trace("REMOTE", "NotifyEvent "+((Enum)nEvent).ToString()+"\n");
+            BCLDebug.Trace("REMOTE", "NotifyEvent " + ((Enum)nEvent).ToString() + "\n");
         }
 
         public override void BeginChildren(int size,
-                                  ConfigNodeSubType subType, 
-                                  ConfigNodeType nType,                                   
-                                  int terminal, 
-                                  [MarshalAs(UnmanagedType.LPWStr)] String text, 
-                                  int textLength, 
-                                  int prefixLength)
+                    ConfigNodeSubType subType, 
+                    ConfigNodeType nType,                                   
+                    int terminal, 
+                    [MarshalAs(UnmanagedType.LPWStr)] String text, 
+                    int textLength, 
+                    int prefixLength)
         {
             //Trace("BeginChildren",size,subType,nType,terminal,text,textLength,prefixLength,0);
-            if (!parsing &&
-                (!bNoSearchPath 
+            if (!parsing && (!bNoSearchPath 
                  && depth == (searchDepth + 1)
                  && String.Compare(text, treeRootPath[searchDepth], StringComparison.Ordinal) == 0))
             {
@@ -324,16 +340,17 @@ namespace System
         }
 
         public override void EndChildren(int fEmpty, 
-                                int size,
-                                ConfigNodeSubType subType, 
-                                ConfigNodeType nType,                               
-                                int terminal, 
-                                [MarshalAs(UnmanagedType.LPWStr)] String text, 
-                                int textLength, 
-                                int prefixLength)
+                    int size,
+                    ConfigNodeSubType subType, 
+                    ConfigNodeType nType,                               
+                    int terminal, 
+                    [MarshalAs(UnmanagedType.LPWStr)] String text, 
+                    int textLength, 
+                    int prefixLength)
         {
             lastProcessed = text;
             lastProcessedEndElement = true;
+
             if (parsing)
             {
                 //Trace("EndChildren",size,subType,nType,terminal,text,textLength,prefixLength,fEmpty);
@@ -346,35 +363,38 @@ namespace System
 
                 currentNode = currentNode.Parent;
             }
-            else if (nType == ConfigNodeType.Element){
-                if(depth == searchDepth && String.Compare(text, treeRootPath[searchDepth - 1], StringComparison.Ordinal) == 0)
+            else if (nType == ConfigNodeType.Element)
+            {
+                if (depth == searchDepth && String.Compare(text, treeRootPath[searchDepth - 1], StringComparison.Ordinal) == 0)
                 {
                     searchDepth--;
                     depth--;
                 }
-                else 
+                else
+                {
                     depth--;
+                }
             }            
         }
 
         public override void Error(int size,
-                          ConfigNodeSubType subType, 
-                          ConfigNodeType nType, 
-                          int terminal, 
-                          [MarshalAs(UnmanagedType.LPWStr)]String text, 
-                          int textLength, 
-                          int prefixLength)
+                    ConfigNodeSubType subType, 
+                    ConfigNodeType nType, 
+                    int terminal, 
+                    [MarshalAs(UnmanagedType.LPWStr)]String text, 
+                    int textLength, 
+                    int prefixLength)
         {
             //Trace("Error",size,subType,nType,terminal,text,textLength,prefixLength,0);                        
         }
 
         public override void CreateNode(int size,
-                               ConfigNodeSubType subType, 
-                               ConfigNodeType nType, 
-                               int terminal, 
-                               [MarshalAs(UnmanagedType.LPWStr)]String text, 
-                               int textLength, 
-                               int prefixLength)
+                    ConfigNodeSubType subType, 
+                    ConfigNodeType nType, 
+                    int terminal, 
+                    [MarshalAs(UnmanagedType.LPWStr)]String text, 
+                    int textLength, 
+                    int prefixLength)
         {
             //Trace("CreateNode",size,subType,nType,terminal,text,textLength,prefixLength,0);
 
@@ -384,41 +404,41 @@ namespace System
                 lastProcessed = text;
                 lastProcessedEndElement = false;
 
-                if (parsing  
+                if (parsing
                     || (bNoSearchPath &&
                         String.Compare(text, treeRootPath[0], StringComparison.OrdinalIgnoreCase) == 0)
-                    || (depth == searchDepth && searchDepth == pathDepth && 
-                        String.Compare(text, treeRootPath[pathDepth], StringComparison.OrdinalIgnoreCase) == 0 ))
-                    {
-                        parsing = true;
-                        
-                        ConfigNode parentNode = currentNode;
-                        currentNode = new ConfigNode(text, parentNode);
-                        if (rootNode == null)
-                            rootNode = currentNode;
-                        else
-                            parentNode.AddChild(currentNode);
-                    }
-                else 
+                    || (depth == searchDepth && searchDepth == pathDepth &&
+                        String.Compare(text, treeRootPath[pathDepth], StringComparison.OrdinalIgnoreCase) == 0))
+                {
+                    parsing = true;
+
+                    ConfigNode parentNode = currentNode;
+                    currentNode = new ConfigNode(text, parentNode);
+                    if (rootNode == null)
+                        rootNode = currentNode;
+                    else
+                        parentNode.AddChild(currentNode);
+                }
+                else
+                {
                     depth++;
+                }
             }
             else if (nType == ConfigNodeType.PCData)
             {
                 // Data node
                 if (currentNode != null)
-                {
                     currentNode.Value = text;
-                }
             }
         }
 
         public override void CreateAttribute(int size,
-                                    ConfigNodeSubType subType, 
-                                    ConfigNodeType nType,                                   
-                                    int terminal, 
-                                    [MarshalAs(UnmanagedType.LPWStr)]String text, 
-                                    int textLength, 
-                                    int prefixLength)
+                    ConfigNodeSubType subType, 
+                    ConfigNodeType nType,                                   
+                    int terminal, 
+                    [MarshalAs(UnmanagedType.LPWStr)]String text, 
+                    int textLength, 
+                    int prefixLength)
         {
             //Trace("CreateAttribute",size,subType,nType,terminal,text,textLength,prefixLength,0);
             if (parsing)
@@ -487,11 +507,11 @@ namespace System
     // Node in Tree produced by ConfigTreeParser
     internal class ConfigNode
     {
-        String m_name = null;
-        String m_value = null;
-        ConfigNode m_parent = null;
-        List<ConfigNode> m_children = new List<ConfigNode>(5);
-        List<DictionaryEntry> m_attributes = new List<DictionaryEntry>(5);
+        String m_name                       = null;
+        String m_value                      = null;
+        ConfigNode m_parent                 = null;
+        List<ConfigNode> m_children         = new List<ConfigNode>(5);
+        List<DictionaryEntry> m_attributes  = new List<DictionaryEntry>(5);
 
         internal ConfigNode(String name, ConfigNode parent)
         {
@@ -548,10 +568,12 @@ namespace System
         {
             BCLDebug.Trace("REMOTE","************ConfigNode************");
             BCLDebug.Trace("REMOTE","Name = "+m_name);
+
             if (m_value != null)
                 BCLDebug.Trace("REMOTE","Value = "+m_value);
             if (m_parent != null)
                 BCLDebug.Trace("REMOTE","Parent = "+m_parent.Name);
+            
             for (int i=0; i<m_attributes.Count; i++)
             {
                 DictionaryEntry de = (DictionaryEntry)m_attributes[i];
