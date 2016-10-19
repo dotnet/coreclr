@@ -1114,9 +1114,11 @@ namespace System.IO {
             set {
                 if (value < 0) throw new ArgumentOutOfRangeException("value", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
                 Contract.EndContractBlock();
-                if (_writePos > 0) FlushWrite(false);
-                _readPos = 0;
-                _readLen = 0;
+                if (_writePos > 0) {
+                    FlushWrite(false);
+                    _readPos = 0;
+                    _readLen = 0;
+                }
                 Seek(value, SeekOrigin.Begin);
             }
         }
