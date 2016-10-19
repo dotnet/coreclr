@@ -213,26 +213,7 @@ namespace  System.StubHelpers {
         [System.Security.SecurityCritical]
         static internal unsafe void ConvertToManaged(StringBuilder sb, IntPtr pNative)
         {
-            if (pNative == null)
-                return;
-
-            int nbBytes = StubHelpers.strlen((sbyte*)pNative);
-            int numChar = Encoding.UTF8.GetCharCount((byte*)pNative, nbBytes);
-
-            // +1 GetCharCount return 0 if the pNative points to a 
-            // an empty buffer.We still need to allocate an empty 
-            // buffer with a '\0' to distingiush it from null.
-            // Note that pinning on (char *pinned = new char[0])
-            // return null and  Encoding.UTF8.GetChars do not like 
-            // null argument.
-            char[] cCharBuffer = new char[numChar + 1];
-            cCharBuffer[numChar] = '\0';
-            fixed (char* pBuffer = cCharBuffer)
-            {
-                numChar = Encoding.UTF8.GetChars((byte*)pNative, nbBytes, pBuffer, numChar);
-                // replace string builder internal buffer
-                sb.ReplaceBufferInternal(pBuffer, numChar);
-            }
+            throw new NotImplementedException();
         }
     }
 
@@ -995,7 +976,7 @@ namespace  System.StubHelpers {
     internal struct AsAnyMarshaler
     {
         private const ushort VTHACK_ANSICHAR = 253;
-        private const ushort VTHACK_WINBOOL  = 254;
+        private const ushort VTHACK_WINBOOL = 254;
 
         private enum BackPropAction
         {
@@ -1018,11 +999,30 @@ namespace  System.StubHelpers {
         // Cleanup list to be destroyed when clearing the native view (for layouts with SafeHandles).
         private CleanupWorkList cleanupWorkList;
 
-        private static bool IsIn(int dwFlags)      { return ((dwFlags & 0x10000000) != 0); }
-        private static bool IsOut(int dwFlags)     { return ((dwFlags & 0x20000000) != 0); }
-        private static bool IsAnsi(int dwFlags)    { return ((dwFlags & 0x00FF0000) != 0); }
-        private static bool IsThrowOn(int dwFlags) { return ((dwFlags & 0x0000FF00) != 0); }
-        private static bool IsBestFit(int dwFlags) { return ((dwFlags & 0x000000FF) != 0); }
+        private static bool IsIn(int dwFlags)
+        {
+            return ((dwFlags & 0x10000000) != 0);
+        }
+
+        private static bool IsOut(int dwFlags)
+        {
+            return ((dwFlags & 0x20000000) != 0);
+        }
+
+        private static bool IsAnsi(int dwFlags)
+        {
+            return ((dwFlags & 0x00FF0000) != 0);
+        }
+
+        private static bool IsThrowOn(int dwFlags)
+        {
+            return ((dwFlags & 0x0000FF00) != 0);
+        }
+
+        private static bool IsBestFit(int dwFlags)
+        {
+            return ((dwFlags & 0x000000FF) != 0);
+        }
 
         internal AsAnyMarshaler(IntPtr pvArrayMarshaler)
         {
@@ -1045,18 +1045,42 @@ namespace  System.StubHelpers {
 
             switch (Type.GetTypeCode(elementType))
             {
-                case TypeCode.SByte:   vt = VarEnum.VT_I1;  break;
-                case TypeCode.Byte:    vt = VarEnum.VT_UI1; break;
-                case TypeCode.Int16:   vt = VarEnum.VT_I2;  break;
-                case TypeCode.UInt16:  vt = VarEnum.VT_UI2; break;
-                case TypeCode.Int32:   vt = VarEnum.VT_I4;  break;
-                case TypeCode.UInt32:  vt = VarEnum.VT_UI4; break;
-                case TypeCode.Int64:   vt = VarEnum.VT_I8;  break;
-                case TypeCode.UInt64:  vt = VarEnum.VT_UI8; break;
-                case TypeCode.Single:  vt = VarEnum.VT_R4;  break;
-                case TypeCode.Double:  vt = VarEnum.VT_R8;  break;
-                case TypeCode.Char:    vt = (IsAnsi(dwFlags) ? (VarEnum)VTHACK_ANSICHAR : VarEnum.VT_UI2); break;
-                case TypeCode.Boolean: vt = (VarEnum)VTHACK_WINBOOL; break;
+                case TypeCode.SByte:
+                    vt = VarEnum.VT_I1;
+                    break;
+                case TypeCode.Byte:
+                    vt = VarEnum.VT_UI1;
+                    break;
+                case TypeCode.Int16:
+                    vt = VarEnum.VT_I2;
+                    break;
+                case TypeCode.UInt16:
+                    vt = VarEnum.VT_UI2;
+                    break;
+                case TypeCode.Int32:
+                    vt = VarEnum.VT_I4;
+                    break;
+                case TypeCode.UInt32:
+                    vt = VarEnum.VT_UI4;
+                    break;
+                case TypeCode.Int64:
+                    vt = VarEnum.VT_I8;
+                    break;
+                case TypeCode.UInt64:
+                    vt = VarEnum.VT_UI8;
+                    break;
+                case TypeCode.Single:
+                    vt = VarEnum.VT_R4;
+                    break;
+                case TypeCode.Double:
+                    vt = VarEnum.VT_R8;
+                    break;
+                case TypeCode.Char:
+                    vt = (IsAnsi(dwFlags) ? (VarEnum) VTHACK_ANSICHAR : VarEnum.VT_UI2);
+                    break;
+                case TypeCode.Boolean:
+                    vt = (VarEnum) VTHACK_WINBOOL;
+                    break;
 
                 case TypeCode.Object:
                 {
@@ -1077,13 +1101,13 @@ namespace  System.StubHelpers {
             }
 
             // marshal the object as C-style array (UnmanagedType.LPArray)
-            int dwArrayMarshalerFlags = (int)vt;
+            int dwArrayMarshalerFlags = (int) vt;
             if (IsBestFit(dwFlags)) dwArrayMarshalerFlags |= (1 << 16);
             if (IsThrowOn(dwFlags)) dwArrayMarshalerFlags |= (1 << 24);
 
             MngdNativeArrayMarshaler.CreateMarshaler(
                 pvArrayMarshaler,
-                IntPtr.Zero,      // not needed as we marshal primitive VTs only
+                IntPtr.Zero, // not needed as we marshal primitive VTs only
                 dwArrayMarshalerFlags);
 
             IntPtr pNativeHome;
@@ -1120,15 +1144,15 @@ namespace  System.StubHelpers {
                 // marshal the object as Ansi string (UnmanagedType.LPStr)
                 pNativeHome = CSTRMarshaler.ConvertToNative(
                     dwFlags & 0xFFFF, // (throw on unmappable char << 8 | best fit)
-                    pManagedHome,     //
-                    IntPtr.Zero);     // unmanaged buffer will be allocated
+                    pManagedHome, //
+                    IntPtr.Zero); // unmanaged buffer will be allocated
             }
             else
             {
                 // marshal the object as Unicode string (UnmanagedType.LPWStr)
                 StubHelpers.CheckStringLength(pManagedHome.Length);
 
-                int allocSize = (pManagedHome.Length + 1) * 2;
+                int allocSize = (pManagedHome.Length + 1)*2;
                 pNativeHome = Marshal.AllocCoTaskMem(allocSize);
 
                 String.InternalCopy(pManagedHome, pNativeHome, allocSize);
@@ -1140,75 +1164,7 @@ namespace  System.StubHelpers {
         [System.Security.SecurityCritical]
         private unsafe IntPtr ConvertStringBuilderToNative(StringBuilder pManagedHome, int dwFlags)
         {
-            IntPtr pNativeHome;
-
-            // P/Invoke can be used to call Win32 apis that don't strictly follow CLR in/out semantics and thus may
-            // leave garbage in the buffer in circumstances that we can't detect. To prevent us from crashing when
-            // converting the contents back to managed, put a hidden NULL terminator past the end of the official buffer.
-
-            // Unmanaged layout:
-            // +====================================+
-            // | Extra hidden NULL                  |
-            // +====================================+ \
-            // |                                    | |
-            // | [Converted] NULL-terminated string | |- buffer that the target may change
-            // |                                    | |
-            // +====================================+ / <-- native home
-
-            // Note that StringBuilder.Capacity is the number of characters NOT including any terminators.
-
-            if (IsAnsi(dwFlags))
-            {
-                StubHelpers.CheckStringLength(pManagedHome.Capacity);
-
-                // marshal the object as Ansi string (UnmanagedType.LPStr)
-                int allocSize = (pManagedHome.Capacity * Marshal.SystemMaxDBCSCharSize) + 4;
-                pNativeHome = Marshal.AllocCoTaskMem(allocSize);
-
-                byte* ptr = (byte*)pNativeHome;
-                *(ptr + allocSize - 3) = 0;
-                *(ptr + allocSize - 2) = 0;
-                *(ptr + allocSize - 1) = 0;
-
-                if (IsIn(dwFlags))
-                {
-                    int length = pManagedHome.ToString().ConvertToAnsi(
-                        ptr, allocSize,
-                        IsBestFit(dwFlags),
-                        IsThrowOn(dwFlags));
-                    Contract.Assert(length < allocSize, "Expected a length less than the allocated size");
-                }
-                if (IsOut(dwFlags))
-                {
-                    backPropAction = BackPropAction.StringBuilderAnsi;
-                }
-            }
-            else
-            {
-                // marshal the object as Unicode string (UnmanagedType.LPWStr)
-                int allocSize = (pManagedHome.Capacity * 2) + 4;
-                pNativeHome = Marshal.AllocCoTaskMem(allocSize);
-
-                byte* ptr = (byte*)pNativeHome;
-                *(ptr + allocSize - 1) = 0;
-                *(ptr + allocSize - 2) = 0;
-
-                if (IsIn(dwFlags))
-                {
-                    int length = pManagedHome.Length * 2;
-                    pManagedHome.InternalCopy(pNativeHome, length);
-
-                    // null-terminate the native string
-                    *(ptr + length + 0) = 0;
-                    *(ptr + length + 1) = 0;
-                }
-                if (IsOut(dwFlags))
-                {
-                    backPropAction = BackPropAction.StringBuilderUnicode;
-                }
-            }
-
-            return pNativeHome;
+            throw new NotImplementedException();
         }
 
         [System.Security.SecurityCritical]
@@ -1224,7 +1180,8 @@ namespace  System.StubHelpers {
             // marshal the object as class with layout (UnmanagedType.LPStruct)
             if (IsIn(dwFlags))
             {
-                StubHelpers.FmtClassUpdateNativeInternal(pManagedHome, (byte *)pNativeHome.ToPointer(), ref cleanupWorkList);
+                StubHelpers.FmtClassUpdateNativeInternal(pManagedHome, (byte*) pNativeHome.ToPointer(),
+                    ref cleanupWorkList);
             }
             if (IsOut(dwFlags))
             {
@@ -1286,39 +1243,7 @@ namespace  System.StubHelpers {
         [System.Security.SecurityCritical]
         internal unsafe void ConvertToManaged(object pManagedHome, IntPtr pNativeHome)
         {
-            switch (backPropAction)
-            {
-                case BackPropAction.Array:
-                {
-                    MngdNativeArrayMarshaler.ConvertContentsToManaged(
-                        pvArrayMarshaler,
-                        ref pManagedHome,
-                        new IntPtr(&pNativeHome));
-                    break;
-                }
-
-                case BackPropAction.Layout:
-                {
-                    StubHelpers.FmtClassUpdateCLRInternal(pManagedHome, (byte *)pNativeHome.ToPointer());
-                    break;
-                }
-
-                case BackPropAction.StringBuilderAnsi:
-                {
-                    sbyte* ptr = (sbyte*)pNativeHome.ToPointer();
-                    ((StringBuilder)pManagedHome).ReplaceBufferAnsiInternal(ptr, Win32Native.lstrlenA(pNativeHome));
-                    break;
-                }
-
-                case BackPropAction.StringBuilderUnicode:
-                {
-                    char* ptr = (char*)pNativeHome.ToPointer();
-                    ((StringBuilder)pManagedHome).ReplaceBufferInternal(ptr, Win32Native.lstrlenW(pNativeHome));
-                    break;
-                }
-
-                // nothing to do for BackPropAction.None
-            }
+            throw new NotImplementedException(); 
         }
 
         [System.Security.SecurityCritical]

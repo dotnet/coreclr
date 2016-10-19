@@ -198,7 +198,10 @@ namespace System {
                 *--p='0';
                 digits++;
             }
-            outputBuffer.Append(p, digits);
+
+            string appString = new string(p);
+
+            outputBuffer.Append(appString, digits);
         }
 
         private static void HebrewFormatDigits(StringBuilder outputBuffer, int digits) {
