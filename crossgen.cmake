@@ -4,7 +4,6 @@ add_definitions(
     -DCROSSGEN_COMPILE
     -DCROSS_COMPILE
     -DFEATURE_NATIVE_IMAGE_GENERATION
-    -DFEATURE_JIT_METHOD_PERF
     -DSELF_NO_HOST)
 
 remove_definitions(
