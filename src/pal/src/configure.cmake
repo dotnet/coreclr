@@ -946,6 +946,12 @@ int main()
 }" FILE_OPS_CHECK_FERROR_OF_PREVIOUS_CALL)
 set(CMAKE_REQUIRED_DEFINITIONS)
 
+check_c_source_compiles("
+int main(int argc, char **argv)
+{
+        __builtin___clear_cache(0, 0);
+}" HAVE___BUILTIN___CLEAR_CACHE)
+
 set(SYNCHMGR_SUSPENSION_SAFE_CONDITION_SIGNALING 1)
 set(ERROR_FUNC_FOR_GLOB_HAS_FIXED_PARAMS 1)
 

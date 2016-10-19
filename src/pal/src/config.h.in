@@ -21,6 +21,7 @@
 #cmakedefine01 HAVE_SYS_SYSCTL_H
 #cmakedefine01 HAVE_GNU_LIBNAMES_H
 
+#cmakedefine01 HAVE___BUILTIN___CLEAR_CACHE
 #cmakedefine01 HAVE_KQUEUE
 #cmakedefine01 HAVE_GETPWUID_R
 #cmakedefine01 HAVE_PTHREAD_SUSPEND
