@@ -66,11 +66,13 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
 
             typeInfo->m_type_size = typeHandle.AsMethodTable()->GetClass()->GetSize();
 
+            pTypeMap->Add(typeInfo->GetTypeKey(), typeInfo);
+            typeInfo->CalculateName();
+
             RefTypeInfo* refTypeInfo = nullptr;
             if (!typeHandle.IsValueType())
             {
                 // name the type
-                typeInfo->CalculateName();
                 refTypeInfo = new (nothrow) RefTypeInfo(typeHandle, typeInfo);
                 if (refTypeInfo == nullptr)
                 {
@@ -95,7 +97,7 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
                 LPCUTF8 szName = pField->GetName();
                 info->members[i].m_member_name = new char[strlen(szName) + 1];
                 strcpy(info->members[i].m_member_name, szName);
-                if (!pField->IsStatic() || pField->GetModule()->GetDomain()->IsSharedDomain())
+                if (!pField->IsStatic())
                 {
                     info->members[i].m_member_offset = (ULONG)pField->GetOffset();
                     if (!typeHandle.IsValueType())
@@ -104,8 +106,11 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
                 else
                 {
                     PTR_BYTE base = 0;
-                    if (!pField->IsRVA()) // for RVA the base is ignored
-                        base = pField->GetBaseInDomain(pField->GetModule()->GetDomain()->AsAppDomain());
+                    if (!pField->IsRVA())
+                    {
+                        MethodTable* pMT = pField->GetEnclosingMethodTable();
+                        base = pField->GetBaseInDomainLocalModule(pMT->GetDomainLocalModule(NULL));
+                    }
                     PTR_VOID pAddress = pField->GetStaticAddressHandle((PTR_VOID)dac_cast<TADDR>(base));
                     info->members[i].m_static_member_address = dac_cast<TADDR>(pAddress);
                 }
@@ -127,7 +132,7 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
             if (refTypeInfo)
                 return refTypeInfo;
             else
-                break;
+                return typeInfo;
         }
         case ELEMENT_TYPE_BYREF:
         {
