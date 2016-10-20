@@ -1330,6 +1330,9 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
     method->m_member_type = GetArgTypeInfo(MethodDescPtr, pTypeMap, 0);
     method->GetLocalsDebugInfo(pTypeMap, locals, symInfo[0].nativeOffset);
 
+    // method's class
+    GetTypeInfoFromTypeHandle(TypeHandle(method->md->GetMethodTable()), pTypeMap);
+
     MemBuf elfHeader, sectHeaders, sectStr, sectSymTab, sectStrTab, dbgInfo, dbgAbbrev, dbgPubname, dbgPubType, dbgLine,
         dbgStr, elfFile;
 
