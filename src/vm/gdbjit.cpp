@@ -209,17 +209,14 @@ TypeInfoBase* GetArgTypeInfo(MethodDesc* MethodDescPtr,
     TypeHandle th;
     if (ilIndex == 0)
     {
-        CorElementType ty = sig.GetReturnType();
-        th = (ty == ELEMENT_TYPE_VALUETYPE)
-            ? sig.GetLastTypeHandleNT()
-            : TypeHandle(MscorlibBinder::GetElementType(ty));
+        th = sig.GetRetTypeHandleNT();
     }
     else
     {
         while (--ilIndex)
             sig.SkipArg();
 
-        CorElementType ty = sig.NextArg();
+        sig.NextArg();
         th = sig.GetLastTypeHandleNT();
     }
     return GetTypeInfoFromTypeHandle(th, pTypeMap);
