@@ -117,23 +117,14 @@ namespace System
                 return 0;
             }
             
-#if !FEATURE_CORECLR
-            // Old implementation: Xor everything.
-            // This isn't optimal since it treats _offset and _count interchangeably,
-            // but we keep it around in the full framework for compat.
-            return _array.GetHashCode() ^ _offset ^ _count;
-#else
-            // Modified Bernstein hash: start with 5381,
-            // multiply by 33, xor with the next hash.
-            // NOTE: (hash << 5) + hash is equal to hash * 33.
+            int hash = 5381;
+            hash = System.Numerics.HashHelpers.Combine(hash, _offset);
+            hash = System.Numerics.HashHelpers.Combine(hash, _count);
             
-            int hash = (33 * 5381) ^ _offset;
-            hash = ((hash << 5) + hash) ^ _count;
-            
-            // Finally, xor in the array's hash
+            // The array hash is expected to be an evenly-distributed mixture of bits,
+            // so rather than adding the cost of another rotation we just xor it.
             hash ^= _array.GetHashCode();
             return hash;
-#endif // !FEATURE_CORECLR
         }
 
         public override bool Equals(Object obj)
