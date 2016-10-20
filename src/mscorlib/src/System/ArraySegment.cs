@@ -118,8 +118,8 @@ namespace System
             }
             
             int hash = 5381;
-            hash = System.Numerics.HashHelpers.Combine(hash, _offset);
-            hash = System.Numerics.HashHelpers.Combine(hash, _count);
+            hash = System.Numerics.Hashing.HashHelpers.Combine(hash, _offset);
+            hash = System.Numerics.Hashing.HashHelpers.Combine(hash, _count);
             
             // The array hash is expected to be an evenly-distributed mixture of bits,
             // so rather than adding the cost of another rotation we just xor it.
