@@ -1245,7 +1245,6 @@ static int getNextPrologueIndex(int from, const SymbolsInfo *lines, int nlines)
 
 int SymbolCount = 0;
 NewArrayHolder<Elf_Symbol> SymbolNames;
-TADDR MinCallAddr, MaxCallAddr;
 
 /* Create ELF/DWARF debug info for jitted method */
 void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
@@ -1488,7 +1487,6 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
     }
     delete [] method;
     method = nullptr;
-    method_count = 0;
 
     /* Patch section offsets & sizes */
     long offset = sizeof(Elf_Ehdr);
@@ -1533,9 +1531,13 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
     pShdr->sh_offset = offset;
     pShdr->sh_size = sectStrTab.MemSize;
     offset += sectStrTab.MemSize;
-    ++pShdr; // .thunks
-    pShdr->sh_addr = MinCallAddr;
-    pShdr->sh_size = (MaxCallAddr - MinCallAddr) + 8;
+
+    // .thunks
+    for (int i = 1 + method_count; i < SymbolCount; i++) {
+        ++pShdr;
+        pShdr->sh_addr = SymbolNames[i].m_value;
+        pShdr->sh_size = 8;
+    }
 
     /* Build ELF header */
     if (!BuildELFHeader(elfHeader))
@@ -1553,7 +1555,7 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
 #endif    
     header->e_shoff = offset;
     header->e_shentsize = sizeof(Elf_Shdr);
-    header->e_shnum = SectionNamesCount - 1;
+    header->e_shnum = SectionNamesCount - 2 + SymbolCount - method_count - 1;
     header->e_shstrndx = 2;
 
     /* Build ELF image in memory */
@@ -2069,20 +2071,10 @@ bool NotifyGdb::CollectCalledMethods(CalledMethod* pCalledMethods)
     int calledCount = 0;
     CalledMethod* pList = pCalledMethods;
 
-    MinCallAddr = (TADDR)~0; MaxCallAddr = (TADDR)0;
-
-    /* count called methods and find min & max addresses */
+     /* count called methods */
     while (pList != NULL)
     {
         calledCount++;
-        TADDR callAddr = (TADDR)pList->GetCallAddr();
-#if defined(_TARGET_ARM_)
-        callAddr &= ~1;
-#endif
-        if(callAddr < MinCallAddr)
-            MinCallAddr = callAddr;
-        if(callAddr > MaxCallAddr)
-            MaxCallAddr = callAddr;
         pList = pList->GetNext();
     }
 
@@ -2098,7 +2090,7 @@ bool NotifyGdb::CollectCalledMethods(CalledMethod* pCalledMethods)
         SymbolNames[i].m_name = new char[strlen(buf) + 1];
         strcpy((char*)SymbolNames[i].m_name, buf);
         TADDR callAddr = (TADDR)pList->GetCallAddr();
-        SymbolNames[i].m_value = callAddr - MinCallAddr;
+        SymbolNames[i].m_value = callAddr;
         CalledMethod* ptr = pList;
         pList = pList->GetNext();
         delete ptr;
@@ -2166,9 +2158,9 @@ bool NotifyGdb::BuildSymbolTableSection(MemBuf& buf, PCODE addr, TADDR codeSize)
         sym[i].st_name = SymbolNames[i].m_off;
         sym[i].setBindingAndType(STB_GLOBAL, STT_FUNC);
         sym[i].st_other = 0;
-        sym[i].st_shndx = 11; // .thunks section index
+        sym[i].st_shndx = 11 + (i - (1 + method_count)); // .thunks section index
         sym[i].st_size = 8;
-        sym[i].st_value = SymbolNames[i].m_value;
+        sym[i].st_value = 0;
     }
     return true;
 }
@@ -2176,12 +2168,19 @@ bool NotifyGdb::BuildSymbolTableSection(MemBuf& buf, PCODE addr, TADDR codeSize)
 /* Build ELF string section */
 bool NotifyGdb::BuildSectionNameTable(MemBuf& buf)
 {
+    int thunks_count = SymbolCount - 1 - method_count;
     uint32_t totalLength = 0;
     
     /* calculate total size */
-    for (int i = 0; i < SectionNamesCount; ++i)
+    for (int i = 0; i < SectionNamesCount - 2; ++i)
     {
         totalLength += strlen(SectionNames[i]) + 1;
+    }
+    for (int i = SectionNamesCount - 2; i < SectionNamesCount - 2 + thunks_count; ++i)
+    {
+        char name[256];
+        sprintf(name, ".thunk_%i", i);
+        totalLength += strlen(name) + 1;
     }
 
     buf.MemSize = totalLength;
@@ -2191,19 +2190,26 @@ bool NotifyGdb::BuildSectionNameTable(MemBuf& buf)
 
     /* copy strings */
     char* bufPtr = buf.MemPtr;
-    for (int i = 0; i < SectionNamesCount; ++i)
+    for (int i = 0; i < SectionNamesCount - 2; ++i)
     {
         strcpy(bufPtr, SectionNames[i]);
         bufPtr += strlen(SectionNames[i]) + 1;
     }
-    
+    for (int i = SectionNamesCount - 2; i < SectionNamesCount - 2 + thunks_count; ++i)
+    {
+        char name[256];
+        sprintf(name, ".thunk_%i", i);
+        strcpy(bufPtr, name);
+        bufPtr += strlen(name) + 1;
+    }
     return true;
 }
 
 /* Build the ELF section headers table */
 bool NotifyGdb::BuildSectionTable(MemBuf& buf)
 {
-    Elf_Shdr* sectionHeaders = new (nothrow) Elf_Shdr[SectionNamesCount - 1];    
+    int thunks_count = SymbolCount - 1 - method_count;
+    Elf_Shdr* sectionHeaders = new (nothrow) Elf_Shdr[SectionNamesCount - 2 + thunks_count];
     Elf_Shdr* pSh = sectionHeaders;
 
     if (sectionHeaders == nullptr)
@@ -2226,7 +2232,7 @@ bool NotifyGdb::BuildSectionTable(MemBuf& buf)
     ++pSh;
     /* fill section header data */
     uint32_t sectNameOffset = 1;
-    for (int i = 1; i < SectionNamesCount - 1; ++i, ++pSh)
+    for (int i = 1; i < SectionNamesCount - 2; ++i, ++pSh)
     {
         pSh->sh_name = sectNameOffset;
         sectNameOffset += strlen(SectionNames[i]) + 1;
@@ -2244,8 +2250,24 @@ bool NotifyGdb::BuildSectionTable(MemBuf& buf)
             pSh->sh_entsize = 0;
     }
 
+    for (int i = SectionNamesCount - 2; i < SectionNamesCount - 2 + thunks_count; ++i, ++pSh)
+    {
+        char name[256];
+        sprintf(name, ".thunk_%i", i);
+        pSh->sh_name = sectNameOffset;
+        sectNameOffset += strlen(name) + 1;
+        pSh->sh_type = Sections[SectionNamesCount - 2].m_type;
+        pSh->sh_flags = Sections[SectionNamesCount - 2].m_flags;
+        pSh->sh_addr = 0;
+        pSh->sh_offset = 0;
+        pSh->sh_size = 0;
+        pSh->sh_link = SHN_UNDEF;
+        pSh->sh_info = 0;
+        pSh->sh_addralign = 1;
+        pSh->sh_entsize = 0;
+    }
     buf.MemPtr = reinterpret_cast<char*>(sectionHeaders);
-    buf.MemSize = sizeof(Elf_Shdr) * (SectionNamesCount - 1);
+    buf.MemSize = sizeof(Elf_Shdr) * (SectionNamesCount - 2 + thunks_count);
     return true;
 }
 
