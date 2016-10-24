@@ -354,7 +354,10 @@ public:
 
     typedef MapSHash<TypeKey*, TypeInfoBase*, DeleteValuesOnDestructSHashTraits<TypeKeyHashTraits<TypeInfoBase*>>> TK_TypeInfoMap;
     typedef TK_TypeInfoMap* PTK_TypeInfoMap;
-
+    typedef SetSHash< TADDR,
+                      NoRemoveSHashTraits <
+                      NonDacAwareSHashTraits< SetSHashTraits <TADDR> >
+                    > > AddrSet;
 private:
 
     struct MemBuf

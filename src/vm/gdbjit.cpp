@@ -1245,6 +1245,7 @@ static int getNextPrologueIndex(int from, const SymbolsInfo *lines, int nlines)
 
 int SymbolCount = 0;
 NewArrayHolder<Elf_Symbol> SymbolNames;
+NotifyGdb::AddrSet codeAddrs;
 
 /* Create ELF/DWARF debug info for jitted method */
 void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
@@ -1255,8 +1256,6 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
     unsigned int symInfoLen = 0;
     NewArrayHolder<SymbolsInfo> symInfo = nullptr;
     LocalsInfo locals;
-
-
 
     /* Get method name & size of jitted code */
     LPCUTF8 methodName = MethodDescPtr->GetName();
@@ -1363,6 +1362,8 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
         return;
     }
     pCH->SetCalledMethods(NULL);
+    if (!codeAddrs.Contains((TADDR)pCode))
+        codeAddrs.Add((TADDR)pCode);
 
     MetaSig sig(MethodDescPtr);
     int nArgsCount = sig.NumFixedArgs();
@@ -2068,29 +2069,38 @@ bool NotifyGdb::BuildDebugPub(MemBuf& buf, const char* name, uint32_t size, uint
 /* Store addresses and names of the called methods into symbol table */
 bool NotifyGdb::CollectCalledMethods(CalledMethod* pCalledMethods)
 {
-    int calledCount = 0;
+    AddrSet tmpCodeAddrs;
+
     CalledMethod* pList = pCalledMethods;
 
      /* count called methods */
     while (pList != NULL)
     {
-        calledCount++;
+        TADDR callAddr = (TADDR)pList->GetCallAddr();
+        if (!tmpCodeAddrs.Contains(callAddr) && !codeAddrs.Contains(callAddr)) {
+            tmpCodeAddrs.Add(callAddr);
+        }
         pList = pList->GetNext();
     }
 
-    SymbolCount = 1 + method_count + calledCount;
+    SymbolCount = 1 + method_count + tmpCodeAddrs.GetCount();
     SymbolNames = new (nothrow) Elf_Symbol[SymbolCount];
 
     pList = pCalledMethods;
-    for (int i = 1 + method_count; i < SymbolCount; ++i)
+    for (int i = 1 + method_count; i < SymbolCount;)
     {
-        char buf[256];
-        MethodDesc* pMD = pList->GetMethodDesc();
-        sprintf(buf, "__thunk_%s", pMD->GetName());
-        SymbolNames[i].m_name = new char[strlen(buf) + 1];
-        strcpy((char*)SymbolNames[i].m_name, buf);
         TADDR callAddr = (TADDR)pList->GetCallAddr();
-        SymbolNames[i].m_value = callAddr;
+        if (!codeAddrs.Contains(callAddr))
+        {
+            char buf[256];
+            MethodDesc* pMD = pList->GetMethodDesc();
+            sprintf(buf, "__thunk_%s", pMD->GetName());
+            SymbolNames[i].m_name = new char[strlen(buf) + 1];
+            strcpy((char*)SymbolNames[i].m_name, buf);
+            SymbolNames[i].m_value = callAddr;
+            ++i;
+            codeAddrs.Add(callAddr);
+        }
         CalledMethod* ptr = pList;
         pList = pList->GetNext();
         delete ptr;
