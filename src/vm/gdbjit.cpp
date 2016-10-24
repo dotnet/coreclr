@@ -1797,6 +1797,7 @@ bool NotifyGdb::BuildLineProg(MemBuf& buf, PCODE startAddr, TADDR codeSize, Symb
                 + 6                              /* set file command */
                 + nlines * 6                     /* advance line commands */
                 + nlines * (3 + ADDRESS_SIZE)    /* set address commands */
+                + nlines * 1                     /* set prologue end or epilogue begin commands */
                 + nlines * 1                     /* copy commands */
                 + 6                              /* advance PC command */
                 + 3;                             /* end of sequence command */
@@ -1827,6 +1828,11 @@ bool NotifyGdb::BuildLineProg(MemBuf& buf, PCODE startAddr, TADDR codeSize, Symb
             IssueParamCommand(ptr, DW_LNS_advance_line, cnv_buf, len);
             prevLine = lines[i].lineNumber;
         }
+
+        if (lines[i].ilOffset == ICorDebugInfo::EPILOG)
+            IssueSimpleCommand(ptr, DW_LNS_set_epilogue_begin);
+        else if (i > 0 && lines[i - 1].ilOffset == ICorDebugInfo::PROLOG)
+            IssueSimpleCommand(ptr, DW_LNS_set_prologue_end);
 
         IssueParamCommand(ptr, DW_LNS_copy, NULL, 0);
     }
