@@ -1751,20 +1751,6 @@ void NotifyGdb::IssueParamCommand(char*& ptr, uint8_t command, char* param, int 
     }
 }
 
-/* Special command moves address, line number and issue one row to source line matrix */
-void NotifyGdb::IssueSpecialCommand(char*& ptr, int8_t line_shift, uint8_t addr_shift)
-{
-    *ptr++ = (line_shift - DWARF_LINE_BASE) + addr_shift * DWARF_LINE_RANGE + DWARF_OPCODE_BASE;
-}
-
-/* Check to see if given shifts are fit into one byte command */
-bool NotifyGdb::FitIntoSpecialOpcode(int8_t line_shift, uint8_t addr_shift)
-{
-    unsigned opcode = (line_shift - DWARF_LINE_BASE) + addr_shift * DWARF_LINE_RANGE + DWARF_OPCODE_BASE;
-    
-    return opcode < 255;
-}
-
 static void fixLineMapping(SymbolsInfo* lines, unsigned nlines)
 {
     // Fix EPILOGUE line mapping
@@ -1806,12 +1792,12 @@ bool NotifyGdb::BuildLineProg(MemBuf& buf, PCODE startAddr, TADDR codeSize, Symb
 {
     static char cnv_buf[16];
     
-    /* reserve memory assuming worst case: one extended and one special plus advance line command for each line*/
-    buf.MemSize = 3 + ADDRESS_SIZE               /* initial set address command */
-                + 1                              /* set prolog end command */
+    /* reserve memory assuming worst case: set address, advance line command, set proglogue/epilogue and copy for each line */
+    buf.MemSize =
                 + 6                              /* set file command */
                 + nlines * 6                     /* advance line commands */
-                + nlines * (4 + ADDRESS_SIZE)    /* 1 extended + 1 special command */
+                + nlines * (3 + ADDRESS_SIZE)    /* set address commands */
+                + nlines * 1                     /* copy commands */
                 + 6                              /* advance PC command */
                 + 3;                             /* end of sequence command */
     buf.MemPtr = new (nothrow) char[buf.MemSize];
@@ -1819,14 +1805,10 @@ bool NotifyGdb::BuildLineProg(MemBuf& buf, PCODE startAddr, TADDR codeSize, Symb
   
     if (buf.MemPtr == nullptr)
         return false;
-    
-    /* set absolute start address */
-    IssueSetAddress(ptr, startAddr);
-    IssueSimpleCommand(ptr, DW_LNS_set_prologue_end);
-    
-    int prevLine = 1, prevAddr = 0, prevFile = 0;
-    
+
     fixLineMapping(lines, nlines);
+
+    int prevLine = 1, prevFile = 0;
 
     for (int i = 0; i < nlines; ++i)
     {
@@ -1837,29 +1819,23 @@ bool NotifyGdb::BuildLineProg(MemBuf& buf, PCODE startAddr, TADDR codeSize, Symb
             IssueParamCommand(ptr, DW_LNS_set_file, cnv_buf, len);
             prevFile = lines[i].fileIndex;
         }
-        /* too big line number shift */
-        if (lines[i].lineNumber - prevLine > (DWARF_LINE_BASE + DWARF_LINE_RANGE - 1))
-        {
+
+        IssueSetAddress(ptr, startAddr + lines[i].nativeOffset);
+
+        if (lines[i].lineNumber != prevLine) {
             int len = Leb128Encode(static_cast<int32_t>(lines[i].lineNumber - prevLine), cnv_buf, sizeof(cnv_buf));
             IssueParamCommand(ptr, DW_LNS_advance_line, cnv_buf, len);
             prevLine = lines[i].lineNumber;
         }
-        /* first try special opcode */
-        if (FitIntoSpecialOpcode(lines[i].lineNumber - prevLine, lines[i].nativeOffset - prevAddr))
-            IssueSpecialCommand(ptr, lines[i].lineNumber - prevLine, lines[i].nativeOffset - prevAddr);
-        else
-        {
-            IssueSetAddress(ptr, startAddr + lines[i].nativeOffset);
-            IssueSpecialCommand(ptr, lines[i].lineNumber - prevLine, 0);
-        }
-           
-        prevLine = lines[i].lineNumber;
-        prevAddr = lines[i].nativeOffset;
+
+        IssueParamCommand(ptr, DW_LNS_copy, NULL, 0);
     }
-    
+
+    int lastAddr = nlines > 0 ? lines[nlines - 1].nativeOffset : 0;
+
     // Advance PC to the end of function
-    if (prevAddr < codeSize) {
-        int len = Leb128Encode(static_cast<uint32_t>(codeSize - prevAddr), cnv_buf, sizeof(cnv_buf));
+    if (lastAddr < codeSize) {
+        int len = Leb128Encode(static_cast<uint32_t>(codeSize - lastAddr), cnv_buf, sizeof(cnv_buf));
         IssueParamCommand(ptr, DW_LNS_advance_pc, cnv_buf, len);
     }
 

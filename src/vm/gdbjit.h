@@ -377,12 +377,10 @@ private:
     static bool BuildLineTable(MemBuf& buf, PCODE startAddr, TADDR codeSize, SymbolsInfo* lines, unsigned nlines);
     static bool BuildFileTable(MemBuf& buf, SymbolsInfo* lines, unsigned nlines);
     static bool BuildLineProg(MemBuf& buf, PCODE startAddr, TADDR codeSize, SymbolsInfo* lines, unsigned nlines);
-    static bool FitIntoSpecialOpcode(int8_t line_shift, uint8_t addr_shift);
     static void IssueSetAddress(char*& ptr, PCODE addr);
     static void IssueEndOfSequence(char*& ptr);
     static void IssueSimpleCommand(char*& ptr, uint8_t command);
     static void IssueParamCommand(char*& ptr, uint8_t command, char* param, int param_len);
-    static void IssueSpecialCommand(char*& ptr, int8_t line_shift, uint8_t addr_shift);
     static void SplitPathname(const char* path, const char*& pathName, const char*& fileName);
     static bool CollectCalledMethods(CalledMethod* pCM);
 #ifdef _DEBUG
