@@ -452,8 +452,8 @@ FCFuncStart(gCOMTypeHandleFuncs)
     FCFuncElement("IsComObject", RuntimeTypeHandle::IsComObject)
 #ifdef FEATURE_REMOTING        
     FCFuncElement("HasProxyAttribute", RuntimeTypeHandle::HasProxyAttribute)
-    FCFuncElement("IsContextful", RuntimeTypeHandle::IsContextful)
 #endif    
+    FCFuncElement("IsContextful", RuntimeTypeHandle::IsContextful)
     FCFuncElement("IsValueType", RuntimeTypeHandle::IsValueType)
     FCFuncElement("IsInterface", RuntimeTypeHandle::IsInterface)
     QCFuncElement("IsSecurityCritical", RuntimeTypeHandle::IsSecurityCritical)
