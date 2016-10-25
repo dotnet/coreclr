@@ -49,7 +49,7 @@
     "System.Runtime.InteropServices.RuntimeInformation": "4.4.0-beta-24625-02",
     "System.Runtime.Loader": "4.4.0-beta-24625-02",
     "System.Runtime.Serialization.Json": "4.4.0-beta-24625-02",
-    "System.Runtime.Serialization.Primitives": "4.1.1",
+    "System.Runtime.Serialization.Primitives": "4.4.0-beta-24625-02",
     "System.Runtime.Serialization.Xml": "4.4.0-beta-24625-02",
     "System.Security.Cryptography.Algorithms": "4.4.0-beta-24625-02",
     "System.Text.Encoding": "4.4.0-beta-24625-02",
