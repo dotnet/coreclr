@@ -24,7 +24,7 @@
 #include "bitposition.h"
 #endif
 
-#ifdef MEASURE_GCINFO
+#ifdef _DEBUG
 #define GCINFO_WRITE(writer, val, numBits, counter) \
     {                                               \
         writer.Write(val, numBits);                 \
@@ -319,7 +319,7 @@ public:
 
 typedef SimplerHashTable<const BitArray *, LiveStateFuncs, UINT32, GcInfoHashBehavior> LiveStateHashTable;
 
-#ifdef MEASURE_GCINFO
+#ifdef _DEBUG
 // Fi = fully-interruptible; we count any method that has one or more interruptible ranges
 // Pi = partially-interruptible; methods with zero fully-interruptible ranges
 GcInfoSize g_FiGcInfoSize;
@@ -433,7 +433,7 @@ GcInfoEncoder::GcInfoEncoder(
         m_InterruptibleRanges( pJitAllocator ),
         m_LifetimeTransitions( pJitAllocator )
 {
-#ifdef MEASURE_GCINFO
+#ifdef _DEBUG
     // This causes multiple complus.log files in JIT64.  TODO: consider using ICorJitInfo::logMsg instead.
     InitializeLogging();
 #endif
@@ -2156,7 +2156,7 @@ void GcInfoEncoder::Build()
                         GCINFO_WRITE(m_Info2, 1, 1, ChunkTransitionSize);
                         GCINFO_WRITE(m_Info2, normCodeOffsetDelta, NUM_NORM_CODE_OFFSETS_PER_CHUNK_LOG2, ChunkTransitionSize);
 
-#ifdef MEASURE_GCINFO                    
+#ifdef _DEBUG                    
                         m_CurrentMethodSize.NumTransitions++;
 #endif
                     }
@@ -2220,7 +2220,7 @@ lExitSuccess:;
     // Update global stats
     //-------------------------------------------------------------------
 
-#ifdef MEASURE_GCINFO
+#ifdef _DEBUG
     if (slimHeader)
     {
         g_NumSlimHeaders++;
