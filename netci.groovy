@@ -2091,7 +2091,7 @@ combinedScenarios.each { scenario ->
                                             latestSuccessful(true)
                                         }
                                     }
-                                    copyArtifacts("${corefxFolder}/linuxarmemulator_cross_${lowerConfiguration}") {
+                                    copyArtifacts("${corefxFolder}/linuxarmemulator_softfp_cross_${lowerConfiguration}") {
                                         includePatterns('bin/build.tar.gz')
                                         buildSelector {
                                             latestSuccessful(true)
