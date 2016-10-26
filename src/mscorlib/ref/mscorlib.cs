@@ -10744,7 +10744,7 @@ namespace System.Runtime.InteropServices
         System.IntPtr MarshalManagedToNative(object ManagedObj);
         void CleanUpNativeData(System.IntPtr pNativeData);
         void CleanUpManagedData(object ManagedObj);
-        int GetNativeDataSize();
+        System.Int32 GetNativeDataSize();
     }
     [System.Runtime.InteropServices.ComVisibleAttribute(false)]
     public partial interface ICustomQueryInterface
