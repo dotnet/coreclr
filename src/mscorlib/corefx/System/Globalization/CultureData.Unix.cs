@@ -357,13 +357,13 @@ namespace System.Globalization
         {
             if ((types & (CultureTypes.NeutralCultures | CultureTypes.SpecificCultures)) == 0)
             {
-                return new CultureInfo[0];
+                return Array.Empty<CultureInfo>();
             }
             
             int bufferLength = Interop.GlobalizationInterop.GetLocales(null, 0);
             if (bufferLength <= 0)
             {
-                return new CultureInfo[0];
+                return Array.Empty<CultureInfo>();
             }
             
             Char [] chars = new Char[bufferLength];
@@ -371,7 +371,7 @@ namespace System.Globalization
             bufferLength = Interop.GlobalizationInterop.GetLocales(chars, bufferLength);
             if (bufferLength <= 0)
             {
-                return new CultureInfo[0];
+                return Array.Empty<CultureInfo>();
             }
             
             bool enumNeutrals   = (types & CultureTypes.NeutralCultures) != 0; 
