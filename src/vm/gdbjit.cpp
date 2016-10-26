@@ -1455,7 +1455,7 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
     /* Build .strtab section */
     SymbolNames[0].m_name = "";
     for (int i = 0; i < method_count; ++i) {
-        SymbolNames[1 + i].m_name = methodName;
+        SymbolNames[1 + i].m_name = method[i]->m_member_name;
         SymbolNames[1 + i].m_value = method[i]->m_sub_low_pc;
         SymbolNames[1 + i].m_section = 1;
         SymbolNames[1 + i].m_size = method[i]->m_sub_high_pc;
@@ -2154,10 +2154,9 @@ bool NotifyGdb::BuildSymbolTableSection(MemBuf& buf, PCODE addr, TADDR codeSize)
         sym[i].st_name = SymbolNames[i].m_off;
         sym[i].setBindingAndType(STB_GLOBAL, STT_FUNC);
         sym[i].st_other = 0;
+        sym[i].st_value = SymbolNames[i].m_value - addr;
 #ifdef _TARGET_ARM_
-        sym[i].st_value = 1; // for THUMB code
-#else    
-        sym[i].st_value = 0;
+        sym[i].st_value |= 1; // for THUMB code
 #endif    
         sym[i].st_shndx = 1; // .text section index
         sym[i].st_size = SymbolNames[i].m_size;
