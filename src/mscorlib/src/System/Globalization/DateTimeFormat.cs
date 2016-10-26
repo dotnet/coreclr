@@ -807,10 +807,6 @@ namespace System {
                 case 'M':       // Month/Day Date
                     realFormat = dtfi.MonthDayPattern;
                     break;
-                case 'o':
-                case 'O':
-                    realFormat = RoundtripFormat;
-                    break;
                 case 'r':
                 case 'R':       // RFC 1123 Standard                    
                     realFormat = dtfi.RFC1123Pattern;
@@ -848,10 +844,6 @@ namespace System {
         //
         private static String ExpandPredefinedFormat(String format, ref DateTime dateTime, ref DateTimeFormatInfo dtfi, ref TimeSpan offset) {
             switch (format[0]) {
-                case 'o':
-                case 'O':       // Round trip format
-                    dtfi = DateTimeFormatInfo.InvariantInfo;
-                    break;
                 case 'r':
                 case 'R':       // RFC 1123 Standard                    
                     if (offset != NullOffset) {
