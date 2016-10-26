@@ -949,9 +949,9 @@ namespace System {
             }
 
             if (format.Length == 1) {
-                switch (format) {
-                    case "o":
-                    case "O":
+                switch (format[0]) {
+                    case 'o':
+                    case 'O':
                         // Fast track for round trip format without going through a format string.
                         return RoundTripFormat(ref dateTime);
                 }
