@@ -16201,6 +16201,20 @@ GenTreePtr Compiler::fgInitThisClass()
         // context parameter is this that we don't need the eager reporting logic.)
         lvaGenericsContextUsed = true;
 
+#ifdef FEATURE_READYTORUN_COMPILER
+        // Only CoreRT understands CORINFO_HELP_READYTORUN_GENERIC_STATIC_BASE. Don't do this on CoreCLR.
+        if (opts.IsReadyToRun() && eeGetEEInfo()->targetAbi == CORINFO_CORERT_ABI)
+        {
+            CORINFO_RESOLVED_TOKEN resolvedToken;
+            ZeroMemory(&resolvedToken, sizeof(resolvedToken));
+            resolvedToken.hClass = info.compClassHnd;
+
+            GenTreePtr ctxTree = getRuntimeContextTree(kind.runtimeLookupKind);
+            return impReadyToRunHelperToTree(&resolvedToken, CORINFO_HELP_READYTORUN_GENERIC_STATIC_BASE, TYP_BYREF,
+                                             gtNewArgList(ctxTree), &kind);
+        }
+#endif
+
         switch (kind.runtimeLookupKind)
         {
             case CORINFO_LOOKUP_THISOBJ:
