@@ -163,7 +163,7 @@ extern "C" int32_t GlobalizationNative_GetLocales(UChar *value, int32_t valueLen
     if (localeCount <=  0)
         return -1; // failed
     
-    for (int32_t i=0; i<localeCount; i++)
+    for (int32_t i = 0; i < localeCount; i++)
     {
         const char *pLocaleName = uloc_getAvailable(i);
         if (pLocaleName[0] == 0) // unexpected empty name
