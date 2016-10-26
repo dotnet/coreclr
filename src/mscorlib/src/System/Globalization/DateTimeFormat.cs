@@ -957,12 +957,88 @@ namespace System {
             }
 
             if (format.Length == 1) {
+                switch (format) {
+                    case "o":
+                    case "O":
+                        // Fast track for round trip format without going through a format string.
+                        return RoundTripFormat(ref dateTime);
+                }
+
                 format = ExpandPredefinedFormat(format, ref dateTime, ref dtfi, ref offset);
-            }            
+            }      
 
             return (FormatCustomized(dateTime, format, dtfi, offset));
         }
-    
+
+        internal static string RoundTripFormat(ref DateTime dateTime)
+        {
+            StringBuilder result = StringBuilderCache.Acquire();
+            Append(result, dateTime.Year, 4);
+            result.Append('-');
+
+            Append(result, dateTime.Month, 2);
+            result.Append('-');
+
+            Append(result, dateTime.Day, 2);
+            result.Append('T');
+
+            Append(result, dateTime.Hour, 2);
+            result.Append(':');
+
+            Append(result, dateTime.Minute, 2);
+            result.Append(':');
+
+            Append(result, dateTime.Second, 2);
+            result.Append('.');
+
+            long fraction = dateTime.Ticks % TimeSpan.TicksPerSecond;
+
+            Append(result, fraction, 7);
+
+            switch (dateTime.Kind)
+            {
+                case DateTimeKind.Local:
+                    {
+                        TimeSpan offset = TimeZoneInfo.Local.GetUtcOffset(dateTime);
+
+                        if (offset >= TimeSpan.Zero)
+                        {
+                            result.Append('+');
+                        }
+                        else
+                        {
+                            result.Append('-');
+                            offset = offset.Negate();
+                        }
+
+                        Append(result, offset.Hours, 2);
+                        result.Append(':');
+                        Append(result, offset.Minutes, 2);
+                    }
+                    break;
+
+                case DateTimeKind.Utc:
+                    result.Append('Z');
+                    break;
+
+                default:
+                    break;
+            }
+
+            return StringBuilderCache.GetStringAndRelease(result);
+        }
+
+        internal static void Append(StringBuilder builder, long val, int digit)
+        {
+            if (digit > 1)
+            {
+                Append(builder, val / 10, digit - 1);
+            }
+
+            builder.Append((char)('0' + (val % 10)));
+        }
+
+
         internal static String[] GetAllDateTimes(DateTime dateTime, char format, DateTimeFormatInfo dtfi)
         {
             Contract.Requires(dtfi != null);
