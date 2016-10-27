@@ -10382,6 +10382,13 @@ namespace System.Runtime.InteropServices
     {
         public AllowReversePInvokeCallsAttribute() { }
     }
+    [System.AttributeUsageAttribute((System.AttributeTargets)(1029), Inherited=false)]
+    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+    public sealed partial class AutomationProxyAttribute : System.Attribute
+    {
+        public AutomationProxyAttribute(bool val) { }
+        public bool Value { get { throw null; } }
+    }    
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     [System.Runtime.InteropServices.StructLayoutAttribute(System.Runtime.InteropServices.LayoutKind.Sequential)]
     public partial struct ArrayWithOffset
@@ -10454,6 +10461,29 @@ namespace System.Runtime.InteropServices
         public CoClassAttribute(System.Type coClass) { }
         public System.Type CoClass { get { throw null; } }
     }
+    [System.AttributeUsageAttribute((System.AttributeTargets)(10624), Inherited=false)]
+    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+    public sealed partial class ComAliasNameAttribute : System.Attribute
+    {
+        public ComAliasNameAttribute(String val) { }
+        public String Value { get { throw null; } }
+    }
+    [System.AttributeUsageAttribute((System.AttributeTargets)(1), Inherited=false)]
+    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+    public sealed partial class ComCompatibleVersionAttribute : System.Attribute
+    {
+        public ComCompatibleVersionAttribute(System.Int32 major, System.Int32 minor, System.Int32 build, System.Int32 revision) { }
+        public System.Int32 MajorVersion { get { throw null; } }
+        public System.Int32 MinorVersion { get { throw null; } }
+        public System.Int32 BuildNumber { get { throw null;} }
+        public System.Int32 RevisionNumber { get { throw null; } }
+    }    
+    [System.AttributeUsageAttribute((System.AttributeTargets)(32767), Inherited=false)]
+    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+    public sealed partial class ComConversionLossAttribute : Attribute
+    {
+        public ComConversionLossAttribute() { }
+    }
     [System.AttributeUsageAttribute((System.AttributeTargets)(4), Inherited=false)]
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     public sealed partial class ComDefaultInterfaceAttribute : System.Attribute
@@ -10508,6 +10538,12 @@ namespace System.Runtime.InteropServices
         PropGet = 1,
         PropSet = 2,
     }
+    [System.AttributeUsageAttribute((System.AttributeTargets)(64), Inherited=false)]
+    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+    public sealed partial class ComRegisterFunctionAttribute : Attribute
+    {
+        public ComRegisterFunctionAttribute() { }
+    }
     [System.AttributeUsageAttribute((System.AttributeTargets)(4), Inherited=true)]
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     public sealed partial class ComSourceInterfacesAttribute : System.Attribute
@@ -10518,6 +10554,12 @@ namespace System.Runtime.InteropServices
         public ComSourceInterfacesAttribute(System.Type sourceInterface1, System.Type sourceInterface2, System.Type sourceInterface3) { }
         public ComSourceInterfacesAttribute(System.Type sourceInterface1, System.Type sourceInterface2, System.Type sourceInterface3, System.Type sourceInterface4) { }
         public string Value { get { throw null; } }
+    }
+    [System.AttributeUsageAttribute((System.AttributeTargets)(64), Inherited=false)]
+    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+    public sealed partial class ComUnregisterFunctionAttribute : Attribute
+    {
+        public ComUnregisterFunctionAttribute() { }
     }
     [System.AttributeUsageAttribute((System.AttributeTargets)(5597), Inherited=false)]
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
@@ -10690,12 +10732,33 @@ namespace System.Runtime.InteropServices
     {
         object GetUnderlyingObject();
     }
+    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+    public partial interface ICustomFactory
+    {
+        MarshalByRefObject CreateInstance(Type serverType);
+    }    
+    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+    public partial interface ICustomMarshaler
+    {        
+        object MarshalNativeToManaged(System.IntPtr pNativeData);
+        System.IntPtr MarshalManagedToNative(object ManagedObj);
+        void CleanUpNativeData(System.IntPtr pNativeData);
+        void CleanUpManagedData(object ManagedObj);
+        int GetNativeDataSize();
+    }
     [System.Runtime.InteropServices.ComVisibleAttribute(false)]
     public partial interface ICustomQueryInterface
     {
         [System.Security.SecurityCriticalAttribute]
         System.Runtime.InteropServices.CustomQueryInterfaceResult GetInterface(ref System.Guid iid, out System.IntPtr ppv);
     }
+    [System.AttributeUsageAttribute((System.AttributeTargets)(1), Inherited=false)]
+    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+    public sealed partial class ImportedFromTypeLibAttribute : System.Attribute
+    {
+        public ImportedFromTypeLibAttribute(String val) { }
+        public String Value { get { throw null; } }
+    }   
     [System.AttributeUsageAttribute((System.AttributeTargets)(2048), Inherited=false)]
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     public sealed partial class InAttribute : System.Attribute
@@ -10733,6 +10796,13 @@ namespace System.Runtime.InteropServices
         Explicit = 2,
         Sequential = 0,
     }
+    [System.AttributeUsageAttribute((System.AttributeTargets)(64), Inherited=false)]
+    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+    public sealed partial class LCIDConversionAttribute : System.Attribute
+    {
+        public LCIDConversionAttribute(System.Int32 val) { }
+        public System.Int32 Value { get { throw null; } }
+    }    
     [System.Security.SecurityCriticalAttribute]
     public static partial class Marshal
     {
@@ -10802,11 +10872,17 @@ namespace System.Runtime.InteropServices
         [System.Security.SecurityCriticalAttribute]
         public static void FreeHGlobal(System.IntPtr hglobal) { }
         [System.Security.SecurityCriticalAttribute]
+        public static Guid GenerateGuidForType(System.Type type) { throw null; }
+        [System.Security.SecurityCritical]
+        public static string GenerateProgIdForType(System.Type type) { throw null; }        
+        [System.Security.SecurityCriticalAttribute]
         public static System.IntPtr GetComInterfaceForObject(object o, System.Type T) { throw null; }
         [System.Security.SecurityCriticalAttribute]
         public static System.IntPtr GetComInterfaceForObject(object o, System.Type T, System.Runtime.InteropServices.CustomQueryInterfaceMode mode) { throw null; }
         [System.Security.SecurityCriticalAttribute]
         public static System.IntPtr GetComInterfaceForObject<T, TInterface>(T o) { throw null; }
+        [System.Security.SecurityCritical]
+        public static object GetComObjectData(object obj, object key) { throw null; }        
         [System.Security.SecurityCriticalAttribute]
         public static System.Delegate GetDelegateForFunctionPointer(System.IntPtr ptr, System.Type t) { throw null; }
         [System.Security.SecurityCriticalAttribute]
@@ -10821,10 +10897,14 @@ namespace System.Runtime.InteropServices
         public static System.IntPtr GetFunctionPointerForDelegate(System.Delegate d) { throw null; }
         [System.Security.SecurityCriticalAttribute]
         public static System.IntPtr GetFunctionPointerForDelegate<TDelegate>(TDelegate d) { throw null; }
+        [System.Security.SecurityCritical]
+        public static System.IntPtr GetHINSTANCE(System.Reflection.Module m) { throw null; }
         [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.InternalCall)][System.Security.SecurityCriticalAttribute]
         public static int GetHRForException(System.Exception e) { throw null; }
         [System.Security.SecurityCriticalAttribute]
         public static int GetHRForLastWin32Error() { throw null; }
+        [System.Security.SecurityCritical]
+        public static System.IntPtr GetIDispatchForObject(object o) { throw null; }        
         [System.Security.SecurityCriticalAttribute]
         public static System.IntPtr GetIUnknownForObject(object o) { throw null; }
         [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.InternalCall)][System.Security.SecurityCriticalAttribute]
@@ -10845,6 +10925,8 @@ namespace System.Runtime.InteropServices
         public static T[] GetObjectsForNativeVariants<T>(System.IntPtr aSrcNativeVariant, int cVars) { throw null; }
         [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.InternalCall)][System.Security.SecurityCriticalAttribute]
         public static int GetStartComSlot(System.Type t) { throw null; }
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.InternalCall)][System.Security.SecurityCritical]
+        public static object GetTypedObjectForIUnknown(System.IntPtr pUnk, System.Type t) { throw null; }        
         public static System.Type GetTypeFromCLSID(System.Guid clsid) { throw null; }
         [System.Security.SecurityCriticalAttribute]
         public static string GetTypeInfoName(System.Runtime.InteropServices.ComTypes.ITypeInfo typeInfo) { throw null; }
@@ -10861,6 +10943,8 @@ namespace System.Runtime.InteropServices
         public static string PtrToStringAnsi(System.IntPtr ptr) { throw null; }
         [System.Security.SecurityCriticalAttribute]
         public static string PtrToStringAnsi(System.IntPtr ptr, int len) { throw null; }
+        [System.Security.SecurityCritical]
+        public static string PtrToStringAuto(System.IntPtr ptr) { throw null; }
         [System.Security.SecurityCriticalAttribute]
         public static string PtrToStringBSTR(System.IntPtr ptr) { throw null; }
         [System.Security.SecurityCriticalAttribute]
@@ -10921,6 +11005,8 @@ namespace System.Runtime.InteropServices
         public static int Release(System.IntPtr pUnk) { throw null; }
         [System.Security.SecurityCriticalAttribute]
         public static int ReleaseComObject(object o) { throw null; }
+        [System.Security.SecurityCritical]
+        public static bool SetComObjectData(object obj, object key, object data) { throw null; }        
         [System.Runtime.InteropServices.ComVisibleAttribute(true)]
         public static int SizeOf(object structure) { throw null; }
         public static int SizeOf(System.Type t) { throw null; }
@@ -10930,12 +11016,16 @@ namespace System.Runtime.InteropServices
         public static System.IntPtr StringToBSTR(string s) { throw null; }
         [System.Security.SecurityCriticalAttribute]
         public static System.IntPtr StringToCoTaskMemAnsi(string s) { throw null; }
+        [System.Security.SecurityCritical]
+        public static System.IntPtr StringToCoTaskMemAuto(string s) { throw null; }        
         [System.Security.SecurityCriticalAttribute]
         public static System.IntPtr StringToCoTaskMemUni(string s) { throw null; }
         [System.Security.SecurityCriticalAttribute]
         public static System.IntPtr StringToCoTaskMemUTF8(string s) { throw null; }
         [System.Security.SecurityCriticalAttribute]
         public static System.IntPtr StringToHGlobalAnsi(string s) { throw null; }
+        [System.Security.SecurityCritical]
+        public static System.IntPtr StringToHGlobalAuto(string s) { throw null; }
         [System.Security.SecurityCriticalAttribute]
         public static System.IntPtr StringToHGlobalUni(string s) { throw null; }
         [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.InternalCall)][System.Runtime.InteropServices.ComVisibleAttribute(true)]
@@ -11000,6 +11090,14 @@ namespace System.Runtime.InteropServices
         [System.Security.SecurityCriticalAttribute]
         public static void ZeroFreeGlobalAllocUnicode(System.IntPtr s) { }
     }
+    [System.AttributeUsageAttribute((System.AttributeTargets)(64), Inherited=false)]
+    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+    public sealed partial class ManagedToNativeComInteropStubAttribute : System.Attribute
+    {
+        public ManagedToNativeComInteropStubAttribute(System.Type classType, System.String methodName) { }
+        public System.Type ClassType { get { throw null; } }
+        public System.String MethodName { get { throw null; } }
+    }    
     [System.AttributeUsageAttribute((System.AttributeTargets)(10496), Inherited=false)]
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     public sealed partial class MarshalAsAttribute : System.Attribute
@@ -11052,6 +11150,21 @@ namespace System.Runtime.InteropServices
     {
         public PreserveSigAttribute() { }
     }
+    [System.AttributeUsageAttribute((System.AttributeTargets)(1), Inherited=false, AllowMultiple = true)]
+    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+    public sealed partial class PrimaryInteropAssemblyAttribute : System.Attribute
+    {
+        public PrimaryInteropAssemblyAttribute(System.Int32 major, System.Int32 minor) { }
+        public System.Int32 MajorVersion { get { throw null; } }
+        public System.Int32 MinorVersion { get { throw null; } }
+    }
+    [System.AttributeUsageAttribute((System.AttributeTargets)(4), Inherited=false)]
+    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+    public sealed partial class ProgIdAttribute : System.Attribute
+    {
+        public ProgIdAttribute(String val) { }
+        public String Value { get { throw null; } }
+    }  
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     public partial class SafeArrayRankMismatchException : System.SystemException
     {
@@ -11145,6 +11258,21 @@ namespace System.Runtime.InteropServices
         public TypeIdentifierAttribute(string scope, string identifier) { }
         public string Identifier { get { throw null; } }
         public string Scope { get { throw null; } }
+    }
+    [System.AttributeUsageAttribute((System.AttributeTargets)(1024), Inherited=false)]
+    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+    public sealed partial class TypeLibImportClassAttribute : System.Attribute
+    {
+        public TypeLibImportClassAttribute(System.Type val) { }
+        public String Value { get { throw null; } }
+    }
+    [System.AttributeUsageAttribute((System.AttributeTargets)(1), Inherited=false)]
+    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+    public sealed partial class TypeLibVersionAttribute : System.Attribute
+    {
+        public TypeLibVersionAttribute(System.Int32 major, System.Int32 minor) { }
+        public System.Int32 MajorVersion { get { throw null; } }
+        public System.Int32 MinorVersion { get { throw null; } }
     }
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     public sealed partial class UnknownWrapper
@@ -11840,6 +11968,7 @@ namespace System.Runtime.Loader
         public event System.Action<System.Runtime.Loader.AssemblyLoadContext> Unloading { add { } remove { } }
         public static System.Reflection.AssemblyName GetAssemblyName(string assemblyPath) { throw null; }
         public static System.Runtime.Loader.AssemblyLoadContext GetLoadContext(System.Reflection.Assembly assembly) { throw null; }
+        public static System.Reflection.Assembly[] GetLoadedAssemblies() { throw null; }
         protected abstract System.Reflection.Assembly Load(System.Reflection.AssemblyName assemblyName);
         public System.Reflection.Assembly LoadFromAssemblyName(System.Reflection.AssemblyName assemblyName) { throw null; }
         public System.Reflection.Assembly LoadFromAssemblyPath(string assemblyPath) { throw null; }

@@ -650,9 +650,11 @@ FCFuncStart(gCustomAttributeEncodedArgument)
     FCFuncElement("ParseAttributeArguments", Attribute::ParseAttributeArguments)
 FCFuncEnd()
 
+#ifdef FEATURE_CAS_POLICY
 FCFuncStart(gPseudoCustomAttribute)
     FCFuncElement("_GetSecurityAttributes", COMCustomAttribute::GetSecurityAttributes)
 FCFuncEnd()
+#endif
 
 FCFuncStart(gCOMCustomAttributeFuncs)
     FCFuncElement("_ParseAttributeUsageAttribute", COMCustomAttribute::ParseAttributeUsageAttribute)
@@ -1146,6 +1148,7 @@ FCFuncEnd()
 FCFuncStart(gAssemblyLoadContextFuncs)
     QCFuncElement("InitializeAssemblyLoadContext", AssemblyNative::InitializeAssemblyLoadContext)
     QCFuncElement("LoadFromPath", AssemblyNative::LoadFromPath)
+    QCFuncElement("GetLoadedAssembliesInternal", AssemblyNative::GetLoadedAssembliesInternal)
     QCFuncElement("InternalLoadUnmanagedDllFromPath", AssemblyNative::InternalLoadUnmanagedDllFromPath)
     QCFuncElement("OverrideDefaultAssemblyLoadContextForCurrentDomain", AssemblyNative::OverrideDefaultAssemblyLoadContextForCurrentDomain)
     QCFuncElement("CanUseAppPathAssemblyLoadContextInCurrentDomain", AssemblyNative::CanUseAppPathAssemblyLoadContextInCurrentDomain)
@@ -1603,10 +1606,10 @@ FCFuncStart(gInteropMarshalFuncs)
     FCFuncElement("DestroyStructure", MarshalNative::DestroyStructure)
     FCFuncElement("UnsafeAddrOfPinnedArrayElement", MarshalNative::FCUnsafeAddrOfPinnedArrayElement)
     FCFuncElement("GetExceptionCode", ExceptionNative::GetExceptionCode)
+    QCFuncElement("GetHINSTANCE", COMModule::GetHINSTANCE)
 #ifndef FEATURE_CORECLR
     QCFuncElement("InternalNumParamBytes", MarshalNative::NumParamBytes)
     FCFuncElement("GetExceptionPointers", ExceptionNative::GetExceptionPointers)
-    QCFuncElement("GetHINSTANCE", COMModule::GetHINSTANCE)
     FCFuncElement("GetUnmanagedThunkForManagedMethodPtr", MarshalNative::GetUnmanagedThunkForManagedMethodPtr)
     FCFuncElement("GetManagedThunkForUnmanagedMethodPtr", MarshalNative::GetManagedThunkForUnmanagedMethodPtr)
     FCFuncElement("InternalGetThreadFromFiberCookie", MarshalNative::GetThreadFromFiberCookie)
@@ -1651,10 +1654,10 @@ FCFuncStart(gInteropMarshalFuncs)
     FCFuncElement("InternalReleaseComObject", MarshalNative::ReleaseComObject)
     FCFuncElement("Release", MarshalNative::Release)
     FCFuncElement("InitializeWrapperForWinRT", MarshalNative::InitializeWrapperForWinRT)
+    FCFuncElement("GetTypedObjectForIUnknown", MarshalNative::GetTypedObjectForIUnknown)    
 #ifndef FEATURE_CORECLR
     FCFuncElement("GetLoadedTypeForGUID", MarshalNative::GetLoadedTypeForGUID)
     FCFuncElement("GetITypeInfoForType", MarshalNative::GetITypeInfoForType)
-    FCFuncElement("GetTypedObjectForIUnknown", MarshalNative::GetTypedObjectForIUnknown)
     FCFuncElement("CleanupUnusedObjectsInCurrentContext", MarshalNative::CleanupUnusedObjectsInCurrentContext)
     FCFuncElement("IsTypeVisibleFromCom", MarshalNative::IsTypeVisibleFromCom)
     FCFuncElement("FCallGenerateGuidForType", MarshalNative::DoGenerateGuidForType)
@@ -2325,7 +2328,9 @@ FCClassElement("PolicyManager", "System.Security", gPolicyManagerFuncs)
 FCClassElement("ProfileOptimization", "System.Runtime", gProfileOptimizationFuncs)
 #endif  // defined(FEATURE_MULTICOREJIT) && !defined(FEATURE_CORECLR)
 
+#ifdef FEATURE_CAS_POLICY
 FCClassElement("PseudoCustomAttribute", "System.Reflection", gPseudoCustomAttribute)
+#endif
 #ifdef FEATURE_CORECLR
 FCClassElement("PunkSafeHandle", "System.Reflection.Emit", gSymWrapperCodePunkSafeHandleFuncs)
 #endif

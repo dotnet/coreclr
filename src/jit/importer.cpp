@@ -1455,6 +1455,8 @@ GenTreePtr Compiler::impGetStructAddr(GenTreePtr           structVal,
 //                      into which the gcLayout will be written.
 //    pNumGCVars      - (optional, default nullptr) - if non-null, a pointer to an unsigned,
 //                      which will be set to the number of GC fields in the struct.
+//    pSimdBaseType   - (optional, default nullptr) - if non-null, and the struct is a SIMD
+//                      type, set to the SIMD base type
 //
 // Return Value:
 //    The JIT type for the struct (e.g. TYP_STRUCT, or TYP_SIMD*).
@@ -1476,53 +1478,63 @@ var_types Compiler::impNormStructType(CORINFO_CLASS_HANDLE structHnd,
                                       var_types*           pSimdBaseType)
 {
     assert(structHnd != NO_CLASS_HANDLE);
-    unsigned  originalSize        = info.compCompHnd->getClassSize(structHnd);
-    unsigned  numGCVars           = 0;
-    var_types structType          = TYP_STRUCT;
-    var_types simdBaseType        = TYP_UNKNOWN;
-    bool      definitelyHasGCPtrs = false;
 
-#ifdef FEATURE_SIMD
-    // We don't want to consider this as a possible SIMD type if it has GC pointers.
-    // (Saves querying about the SIMD assembly.)
-    BYTE gcBytes[maxPossibleSIMDStructBytes / TARGET_POINTER_SIZE];
-    if ((gcLayout == nullptr) && (originalSize >= minSIMDStructBytes()) && (originalSize <= maxSIMDStructBytes()))
-    {
-        gcLayout = gcBytes;
-    }
-#endif // FEATURE_SIMD
+    const DWORD structFlags = info.compCompHnd->getClassAttribs(structHnd);
+    const bool  isRefAny    = (structHnd == impGetRefAnyClass());
+    const bool  hasGCPtrs   = isRefAny || ((structFlags & CORINFO_FLG_CONTAINS_GC_PTR) != 0);
+    var_types   structType  = TYP_STRUCT;
 
-    if (gcLayout != nullptr)
-    {
-        numGCVars           = info.compCompHnd->getClassGClayout(structHnd, gcLayout);
-        definitelyHasGCPtrs = (numGCVars != 0);
-    }
 #ifdef FEATURE_SIMD
     // Check to see if this is a SIMD type.
-    if (featureSIMD && (originalSize <= getSIMDVectorRegisterByteLength()) && (originalSize >= TARGET_POINTER_SIZE) &&
-        !definitelyHasGCPtrs)
+    if (featureSIMD && !hasGCPtrs)
     {
-        unsigned int sizeBytes;
-        simdBaseType = getBaseTypeAndSizeOfSIMDType(structHnd, &sizeBytes);
-        if (simdBaseType != TYP_UNKNOWN)
+        unsigned originalSize = info.compCompHnd->getClassSize(structHnd);
+
+        if ((originalSize >= minSIMDStructBytes()) && (originalSize <= maxSIMDStructBytes()))
         {
-            assert(sizeBytes == originalSize);
-            structType = getSIMDTypeForSize(sizeBytes);
-            if (pSimdBaseType != nullptr)
+            unsigned int sizeBytes;
+            var_types    simdBaseType = getBaseTypeAndSizeOfSIMDType(structHnd, &sizeBytes);
+            if (simdBaseType != TYP_UNKNOWN)
             {
-                *pSimdBaseType = simdBaseType;
-            }
+                assert(sizeBytes == originalSize);
+                structType = getSIMDTypeForSize(sizeBytes);
+                if (pSimdBaseType != nullptr)
+                {
+                    *pSimdBaseType = simdBaseType;
+                }
 #ifdef _TARGET_AMD64_
-            // Amd64: also indicate that we use floating point registers
-            compFloatingPointUsed = true;
+                // Amd64: also indicate that we use floating point registers
+                compFloatingPointUsed = true;
 #endif
+            }
         }
     }
 #endif // FEATURE_SIMD
-    if (pNumGCVars != nullptr)
+
+    // Fetch GC layout info if requested
+    if (gcLayout != nullptr)
     {
-        *pNumGCVars = numGCVars;
+        unsigned numGCVars = info.compCompHnd->getClassGClayout(structHnd, gcLayout);
+
+        // Verify that the quick test up above via the class attributes gave a
+        // safe view of the type's GCness.
+        //
+        // Note there are cases where hasGCPtrs is true but getClassGClayout
+        // does not report any gc fields.
+        assert(hasGCPtrs || (numGCVars == 0));
+
+        if (pNumGCVars != nullptr)
+        {
+            *pNumGCVars = numGCVars;
+        }
     }
+    else
+    {
+        // Can't safely ask for number of GC pointers without also
+        // asking for layout.
+        assert(pNumGCVars == nullptr);
+    }
+
     return structType;
 }
 
@@ -1860,7 +1872,7 @@ GenTreePtr Compiler::impMethodPointer(CORINFO_RESOLVED_TOKEN* pResolvedToken, CO
 // getRuntimeContextTree: find pointer to context for runtime lookup.
 //
 // Arguments:
-//    pLookup - how to do lookup.
+//    kind - lookup kind.
 //
 // Return Value:
 //    Return GenTree pointer to generic shared context.
@@ -1868,10 +1880,9 @@ GenTreePtr Compiler::impMethodPointer(CORINFO_RESOLVED_TOKEN* pResolvedToken, CO
 // Notes:
 //    Reports about generic context using.
 
-GenTreePtr Compiler::getRuntimeContextTree(CORINFO_LOOKUP* pLookup)
+GenTreePtr Compiler::getRuntimeContextTree(CORINFO_RUNTIME_LOOKUP_KIND kind)
 {
-    GenTreePtr                  ctxTree = nullptr;
-    CORINFO_RUNTIME_LOOKUP_KIND kind    = pLookup->lookupKind.runtimeLookupKind;
+    GenTreePtr ctxTree = nullptr;
 
     // Collectible types requires that for shared generic code, if we use the generic context parameter
     // that we report it. (This is a conservative approach, we could detect some cases particularly when the
@@ -1924,7 +1935,7 @@ GenTreePtr Compiler::impRuntimeLookupToTree(CORINFO_RESOLVED_TOKEN* pResolvedTok
     // In other word, it cannot be called by the instance of the Compiler for the inlinee.
     assert(!compIsForInlining());
 
-    GenTreePtr ctxTree = getRuntimeContextTree(pLookup);
+    GenTreePtr ctxTree = getRuntimeContextTree(pLookup->lookupKind.runtimeLookupKind);
 
 #ifdef FEATURE_READYTORUN_COMPILER
     if (opts.IsReadyToRun())
@@ -5782,11 +5793,10 @@ GenTreePtr Compiler::impImportStaticFieldAccess(CORINFO_RESOLVED_TOKEN* pResolve
         {
 #ifdef FEATURE_READYTORUN_COMPILER
             noway_assert(opts.IsReadyToRun());
-            CORINFO_GENERICHANDLE_RESULT embedInfo;
-            info.compCompHnd->embedGenericHandle(pResolvedToken, FALSE, &embedInfo);
-            assert(embedInfo.lookup.lookupKind.needsRuntimeLookup);
+            CORINFO_LOOKUP_KIND kind = info.compCompHnd->getLocationOfThisType(info.compMethodHnd);
+            assert(kind.needsRuntimeLookup);
 
-            GenTreePtr      ctxTree = getRuntimeContextTree(&embedInfo.lookup);
+            GenTreePtr      ctxTree = getRuntimeContextTree(kind.runtimeLookupKind);
             GenTreeArgList* args    = gtNewArgList(ctxTree);
 
             unsigned callFlags = 0;
@@ -5802,12 +5812,12 @@ GenTreePtr Compiler::impImportStaticFieldAccess(CORINFO_RESOLVED_TOKEN* pResolve
             FieldSeqNode* fs = GetFieldSeqStore()->CreateSingleton(pResolvedToken->hField);
             op1              = gtNewOperNode(GT_ADD, type, op1,
                                 new (this, GT_CNS_INT) GenTreeIntCon(TYP_I_IMPL, pFieldInfo->offset, fs));
-            break;
 #else
             unreached();
 #endif // FEATURE_READYTORUN_COMPILER
-#endif // COR_JIT_EE_VERSION > 460
         }
+        break;
+#endif // COR_JIT_EE_VERSION > 460
         default:
         {
             if (!(access & CORINFO_ACCESS_ADDRESS))

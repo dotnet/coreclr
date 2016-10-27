@@ -123,7 +123,7 @@
     <InteropSources Condition="'$(FeatureCominterop)' != 'true'" Include="$(BclSourcesRoot)\System\Runtime\InteropServices\NonPortable.cs" />
     <InteropSources Condition="'$(FeatureCominterop)' == 'true'" Include="$(BclSourcesRoot)\System\Runtime\InteropServices\DispatchWrapper.cs" />
     <InteropSources Condition="'$(FeatureCominterop)' == 'true'" Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ExtensibleClassFactory.cs" />
-    <InteropSources Condition="'$(FeatureCominterop)' == 'true'" Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ICustomFactory.cs" />
+    <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ICustomFactory.cs" />
     <InteropSources Condition="'$(FeatureCominterop)' == 'true'" Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ObjectCreationDelegate.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(FeatureClassicCominterop)' == 'true'">
@@ -627,6 +627,7 @@
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\CompareInfo.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\CultureData.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\CultureInfo.cs" />
+    <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\CultureTypes.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\CultureNotFoundException.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\DateTimeFormatInfo.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\DateTimeFormatInfoScanner.cs" />
