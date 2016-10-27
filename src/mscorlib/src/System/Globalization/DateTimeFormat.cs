@@ -807,6 +807,10 @@ namespace System {
                 case 'M':       // Month/Day Date
                     realFormat = dtfi.MonthDayPattern;
                     break;
+                case 'o':
+                case 'O':
+                    realFormat = RoundtripFormat;
+                    break;
                 case 'r':
                 case 'R':       // RFC 1123 Standard                    
                     realFormat = dtfi.RFC1123Pattern;
@@ -844,6 +848,10 @@ namespace System {
         //
         private static String ExpandPredefinedFormat(String format, ref DateTime dateTime, ref DateTimeFormatInfo dtfi, ref TimeSpan offset) {
             switch (format[0]) {
+                case 'o':
+                case 'O':       // Round trip format
+                    dtfi = DateTimeFormatInfo.InvariantInfo;
+                    break;
                 case 'r':
                 case 'R':       // RFC 1123 Standard                    
                     if (offset != NullOffset) {
@@ -949,11 +957,8 @@ namespace System {
             }
 
             if (format.Length == 1) {
-                switch (format[0]) {
-                    case 'o':
-                    case 'O':
-                        // Fast track for round trip format without going through a format string.
-                        return RoundTripFormat(ref dateTime);
+                if (format[0] == 'o' || format[0] == 'O') {
+                        return FastFormatRoundTrip(dateTime);
                 }
 
                 format = ExpandPredefinedFormat(format, ref dateTime, ref dtfi, ref offset);
@@ -962,30 +967,25 @@ namespace System {
             return (FormatCustomized(dateTime, format, dtfi, offset));
         }
 
-        internal static string RoundTripFormat(ref DateTime dateTime)
+        internal static string FastFormatRoundTrip(DateTime dateTime)
         {
             StringBuilder result = StringBuilderCache.Acquire();
-            Append(result, dateTime.Year, 4);
+            AppendNumber(result, dateTime.Year, 4);
             result.Append('-');
-
-            Append(result, dateTime.Month, 2);
+            AppendNumber(result, dateTime.Month, 2);
             result.Append('-');
-
-            Append(result, dateTime.Day, 2);
+            AppendNumber(result, dateTime.Day, 2);
             result.Append('T');
-
-            Append(result, dateTime.Hour, 2);
+            AppendNumber(result, dateTime.Hour, 2);
             result.Append(':');
-
-            Append(result, dateTime.Minute, 2);
+            AppendNumber(result, dateTime.Minute, 2);
             result.Append(':');
-
-            Append(result, dateTime.Second, 2);
+            AppendNumber(result, dateTime.Second, 2);
             result.Append('.');
 
             long fraction = dateTime.Ticks % TimeSpan.TicksPerSecond;
 
-            Append(result, fraction, 7);
+            AppendNumber(result, fraction, 7);
 
             switch (dateTime.Kind)
             {
@@ -1003,31 +1003,35 @@ namespace System {
                             offset = offset.Negate();
                         }
 
-                        Append(result, offset.Hours, 2);
+                        AppendNumber(result, offset.Hours, 2);
                         result.Append(':');
-                        Append(result, offset.Minutes, 2);
+                        AppendNumber(result, offset.Minutes, 2);
                     }
                     break;
 
                 case DateTimeKind.Utc:
                     result.Append('Z');
                     break;
-
-                default:
-                    break;
             }
 
             return StringBuilderCache.GetStringAndRelease(result);
         }
 
-        internal static void Append(StringBuilder builder, long val, int digit)
+        internal static void AppendNumber(StringBuilder builder, long val, int digits)
         {
-            if (digit > 1)
+            for (int i = 0; i < digits; i++)
             {
-                Append(builder, val / 10, digit - 1);
+                builder.Append('0');
             }
 
-            builder.Append((char)('0' + (val % 10)));
+            int index = 1;
+
+            while (val > 0 && index <= digits)
+            {
+                builder[builder.Length - index] = (char)('0' + (val % 10));
+                val = val / 10;
+                index++;
+            }
         }
 
 
