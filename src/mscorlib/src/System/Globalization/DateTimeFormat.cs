@@ -1034,7 +1034,6 @@ namespace System {
             }
         }
 
-
         internal static String[] GetAllDateTimes(DateTime dateTime, char format, DateTimeFormatInfo dtfi)
         {
             Contract.Requires(dtfi != null);
