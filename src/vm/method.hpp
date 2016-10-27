@@ -1406,6 +1406,11 @@ public:
     // - ngened code if IsPreImplemented()
     PCODE GetNativeCode();
 
+#if defined(FEATURE_JIT_DROPPING)
+    bool IsNotForDropping();
+    void DropNativeCode();
+#endif
+
     //================================================================
     // FindOrCreateAssociatedMethodDesc
     //
@@ -1647,9 +1652,17 @@ public:
     //
     PCODE DoBackpatch(MethodTable * pMT, MethodTable * pDispatchingMT, BOOL fFullBackPatch);
 
+#if defined(FEATURE_JIT_DROPPING)
+    PCODE DoPrestub(MethodTable *pDispatchingMT, BOOL fDoJitDropping = FALSE);
+#else
     PCODE DoPrestub(MethodTable *pDispatchingMT);
+#endif
 
+#if defined(FEATURE_JIT_DROPPING)
+    PCODE MakeJitWorker(COR_ILMETHOD_DECODER* ILHeader, DWORD  flags, DWORD flags2, BOOL fDoJitDropping = FALSE);
+#else
     PCODE MakeJitWorker(COR_ILMETHOD_DECODER* ILHeader, DWORD  flags, DWORD flags2);
+#endif
 
     VOID GetMethodInfo(SString &namespaceOrClassName, SString &methodName, SString &methodSignature);
     VOID GetMethodInfoWithNewSig(SString &namespaceOrClassName, SString &methodName, SString &methodSignature);

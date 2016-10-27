@@ -8094,6 +8094,9 @@ public:
                     COMP_HANDLE           compHnd,
                     CORINFO_METHOD_INFO*  methodInfo,
                     void**                methodCodePtr,
+#if defined(FEATURE_JIT_DROPPING)
+                    ULONG*                totalNCSize,
+#endif
                     ULONG*                methodCodeSize,
                     CORJIT_FLAGS*         compileFlags);
     void compCompileFinish();
@@ -8101,6 +8104,9 @@ public:
                           COMP_HANDLE                      compHnd,
                           CORINFO_METHOD_INFO*             methodInfo,
                           void**                           methodCodePtr,
+#if defined(FEATURE_JIT_DROPPING)
+                          ULONG*                           totalNCSize,
+#endif
                           ULONG*                           methodCodeSize,
                           CORJIT_FLAGS*                    compileFlags,
                           CorInfoInstantiationVerification instVerInfo);
@@ -8343,7 +8349,11 @@ protected:
 #ifdef _TARGET_ARMARCH_
     bool compRsvdRegCheck(FrameLayoutState curState);
 #endif
+#if defined(FEATURE_JIT_DROPPING)
+    void compCompile(void** methodCodePtr, ULONG* totalNCSize,ULONG* methodCodeSize, CORJIT_FLAGS* compileFlags);
+#else
     void compCompile(void** methodCodePtr, ULONG* methodCodeSize, CORJIT_FLAGS* compileFlags);
+#endif
 
 #ifdef PROFILING_SUPPORTED
     // Data required for generating profiler Enter/Leave/TailCall hooks
@@ -9026,7 +9036,6 @@ const unsigned TYPE_REF_TYPEMASK = 0x7F; // bits that represent the type
 
 extern size_t grossVMsize;
 extern size_t grossNCsize;
-extern size_t totalNCsize;
 
 extern unsigned genMethodICnt;
 extern unsigned genMethodNCnt;
@@ -9036,6 +9045,10 @@ extern size_t   gcHeaderNSize;
 extern size_t   gcPtrMapNSize;
 
 #endif // DISPLAY_SIZES
+
+#if DISPLAY_SIZES || defined(FEATURE_JIT_DROPPING)
+extern size_t totalNCsize;
+#endif
 
 /*****************************************************************************
  *

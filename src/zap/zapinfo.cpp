@@ -477,6 +477,9 @@ void ZapInfo::CompileMethod()
     CorJitResult res = CORJIT_SKIPPED;
     
     BYTE *pCode;
+#if defined(FEATURE_JIT_DROPPING)
+    ULONG tCode;
+#endif
     ULONG cCode;
 
 #ifdef ALLOW_SXS_JIT_NGEN
@@ -488,6 +491,9 @@ void ZapInfo::CompileMethod()
                                                      &m_currentMethodInfo,
                                                      CORJIT_FLG_CALL_GETJITFLAGS,
                                                      &pCode,
+#if defined(FEATURE_JIT_DROPPING)
+                                                     &tCode,
+#endif
                                                      &cCode );
         if (FAILED(res))
         {
@@ -506,6 +512,9 @@ void ZapInfo::CompileMethod()
                                     &m_currentMethodInfo,
                                     CORJIT_FLG_CALL_GETJITFLAGS,
                                     &pCode,
+#if defined(FEATURE_JIT_DROPPING)
+                                    &tCode,
+#endif
                                     &cCode);
 
         if (FAILED(res))

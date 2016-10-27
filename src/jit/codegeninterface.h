@@ -54,7 +54,11 @@ class CodeGenInterface
 
 public:
     CodeGenInterface(Compiler* theCompiler);
+#if defined(FEATURE_JIT_DROPPING)
+    virtual void genGenerateCode(void** codePtr, ULONG* totalNCSize, ULONG* nativeSizeOfCode) = 0;
+#else
     virtual void genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode) = 0;
+#endif
 
 #ifndef LEGACY_BACKEND
     // genSpillVar is called by compUpdateLifeVar in the RyuJIT backend case.

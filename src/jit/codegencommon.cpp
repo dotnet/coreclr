@@ -2796,7 +2796,11 @@ void CodeGen::genUpdateCurrentFunclet(BasicBlock* block)
  *  Generate code for the function.
  */
 
+#if defined(FEATURE_JIT_DROPPING)
+void CodeGen::genGenerateCode(void** codePtr, ULONG* totalNCSize, ULONG* nativeSizeOfCode)
+#else
 void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
+#endif
 {
 #ifdef DEBUG
     if (verbose)
@@ -3085,7 +3089,7 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
 
     compiler->unwindReserve();
 
-#if DISPLAY_SIZES
+#if DISPLAY_SIZES || defined(FEATURE_JIT_DROPPING)
 
     size_t dataSize = getEmitter()->emitDataSize();
 
@@ -3146,7 +3150,8 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
                   (compiler->compTailCallUsed ? 4 : 0))); // CORINFO_HELP_TAILCALL args
 #endif
 
-    *nativeSizeOfCode                 = codeSize;
+    if (nativeSizeOfCode != NULL)
+        *nativeSizeOfCode = codeSize;
     compiler->info.compNativeCodeSize = (UNATIVE_OFFSET)codeSize;
 
     // printf("%6u bytes of code generated for %s.%s\n", codeSize, compiler->info.compFullName);
@@ -3283,10 +3288,18 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
 #if DISPLAY_SIZES
 
     grossVMsize += compiler->info.compILCodeSize;
-    totalNCsize += codeSize + dataSize + compiler->compInfoBlkSize;
     grossNCsize += codeSize + dataSize;
 
 #endif // DISPLAY_SIZES
+
+#if DISPLAY_SIZES || defined(FEATURE_JIT_DROPPING)
+    totalNCsize += codeSize + dataSize + compiler->compInfoBlkSize;
+#endif
+
+#if defined(FEATURE_JIT_DROPPING)
+    if (totalNCSize != NULL)
+        *totalNCSize = totalNCsize;
+#endif
 
     compiler->EndPhase(PHASE_EMIT_GCEH);
 }

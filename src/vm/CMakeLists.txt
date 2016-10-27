@@ -34,6 +34,10 @@ if(FEATURE_GDBJIT)
     add_definitions(-DFEATURE_GDBJIT)
 endif(FEATURE_GDBJIT)
 
+if(FEATURE_JIT_DROPPING)
+   add_definitions(-DFEATURE_JIT_DROPPING)
+endif(FEATURE_JIT_DROPPING)
+
 set(VM_SOURCES_DAC_AND_WKS_COMMON
     appdomain.cpp
     array.cpp

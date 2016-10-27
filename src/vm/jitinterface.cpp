@@ -11476,7 +11476,6 @@ void CEEJitInfo::allocMem (
                                            , &m_moduleBase
 #endif
                                            );
-
     BYTE* current = (BYTE *)m_CodeHeader->GetCodeStartAddress();
 
     *codeBlock = current;
@@ -11660,6 +11659,9 @@ static CorJitResult CompileMethodWithEtwWrapper(EEJitManager *jitMgr,
                                                       struct CORINFO_METHOD_INFO *info,
                                                       unsigned flags,
                                                       BYTE **nativeEntry,
+#if defined(FEATURE_JIT_DROPPING)
+                                                      ULONG *totalNCSize,
+#endif
                                                       ULONG *nativeSizeOfCode)
 {
     STATIC_CONTRACT_THROWS;
@@ -11671,7 +11673,11 @@ static CorJitResult CompileMethodWithEtwWrapper(EEJitManager *jitMgr,
     // Fire an ETW event to mark the beginning of JIT'ing
     ETW::MethodLog::MethodJitting(reinterpret_cast<MethodDesc*>(info->ftn), &namespaceOrClassName, &methodName, &methodSignature);
 
+#if defined(FEATURE_JIT_DROPPING)
+    CorJitResult ret = jitMgr->m_jit->compileMethod(comp, info, flags, nativeEntry, totalNCSize, nativeSizeOfCode);
+#else
     CorJitResult ret = jitMgr->m_jit->compileMethod(comp, info, flags, nativeEntry, nativeSizeOfCode);
+#endif
 
     // Logically, it would seem that the end-of-JITting ETW even should go here, but it must come after the native code has been
     // set for the given method desc, which happens in a caller.
@@ -11689,6 +11695,9 @@ CorJitResult invokeCompileMethodHelper(EEJitManager *jitMgr,
                                  unsigned flags,
                                  unsigned flags2,
                                  BYTE **nativeEntry,
+#if defined(FEATURE_JIT_DROPPING)
+                                 ULONG *totalNCSize,
+#endif
                                  ULONG *nativeSizeOfCode)
 {
     STATIC_CONTRACT_THROWS;
@@ -11722,6 +11731,9 @@ CorJitResult invokeCompileMethodHelper(EEJitManager *jitMgr,
                                    info,
                                    CORJIT_FLG_CALL_GETJITFLAGS,
                                    nativeEntry,
+#if defined(FEATURE_JIT_DROPPING)
+                                   totalNCSize,
+#endif
                                    nativeSizeOfCode);
 
 #else // defined(CROSSGEN_COMPILE) && !defined(FEATURE_CORECLR)
@@ -11737,6 +11749,9 @@ CorJitResult invokeCompileMethodHelper(EEJitManager *jitMgr,
                                                      info,
                                                      CORJIT_FLG_CALL_GETJITFLAGS,
                                                      nativeEntry,
+#if defined(FEATURE_JIT_DROPPING)
+                                                     totalNCSize,
+#endif
                                                      nativeSizeOfCode );
 
 #ifdef FEATURE_STACK_SAMPLING
@@ -11780,6 +11795,9 @@ CorJitResult invokeCompileMethodHelper(EEJitManager *jitMgr,
                                           info,
                                           CORJIT_FLG_CALL_GETJITFLAGS,
                                           nativeEntry,
+#if defined(FEATURE_JIT_DROPPING)
+                                          totalNCSize,
+#endif
                                           nativeSizeOfCode);
     }
 
@@ -11799,6 +11817,9 @@ CorJitResult invokeCompileMethodHelper(EEJitManager *jitMgr,
                                             info,
                                             CORJIT_FLG_CALL_GETJITFLAGS,
                                             nativeEntry,
+#if defined(FEATURE_JIT_DROPPING)
+                                            totalNCSize,
+#endif
                                             nativeSizeOfCode);
     }
 #endif // FEATURE_INTERPRETER
@@ -11845,6 +11866,9 @@ CorJitResult invokeCompileMethod(EEJitManager *jitMgr,
                                  unsigned flags,
                                  unsigned flags2,
                                  BYTE **nativeEntry,
+#if defined(FEATURE_JIT_DROPPING)
+                                 ULONG *totalNCSize,
+#endif
                                  ULONG *nativeSizeOfCode)
 {
     CONTRACTL {
@@ -11858,7 +11882,11 @@ CorJitResult invokeCompileMethod(EEJitManager *jitMgr,
 
     GCX_PREEMP();
 
+#if defined(FEATURE_JIT_DROPPING)
+    CorJitResult ret = invokeCompileMethodHelper(jitMgr, comp, info, flags, flags2, nativeEntry, totalNCSize, nativeSizeOfCode);
+#else
     CorJitResult ret = invokeCompileMethodHelper(jitMgr, comp, info, flags, flags2, nativeEntry, nativeSizeOfCode);
+#endif
 
     //
     // Verify that we are still in preemptive mode when we return
@@ -11883,6 +11911,9 @@ CorJitResult CallCompileMethodWithSEHWrapper(EEJitManager *jitMgr,
                                 unsigned flags,
                                 unsigned flags2,
                                 BYTE **nativeEntry,
+#if defined(FEATURE_JIT_DROPPING)
+                                ULONG *totalNCSize,
+#endif
                                 ULONG *nativeSizeOfCode,
                                 MethodDesc *ftn)
 {
@@ -11900,6 +11931,9 @@ CorJitResult CallCompileMethodWithSEHWrapper(EEJitManager *jitMgr,
         unsigned flags;
         unsigned flags2;
         BYTE **nativeEntry;
+#if defined(FEATURE_JIT_DROPPING)
+        ULONG *totalNCSize;
+#endif
         ULONG *nativeSizeOfCode;
         MethodDesc *ftn;
         CorJitResult res;
@@ -11910,6 +11944,9 @@ CorJitResult CallCompileMethodWithSEHWrapper(EEJitManager *jitMgr,
     param.flags = flags;
     param.flags2 = flags2;
     param.nativeEntry = nativeEntry;
+#if defined(FEATURE_JIT_DROPPING)
+    param.totalNCSize = totalNCSize;
+#endif
     param.nativeSizeOfCode = nativeSizeOfCode;
     param.ftn = ftn;
     param.res = CORJIT_INTERNALERROR;
@@ -11926,6 +11963,9 @@ CorJitResult CallCompileMethodWithSEHWrapper(EEJitManager *jitMgr,
                                            pParam->flags,
                                            pParam->flags2,
                                            pParam->nativeEntry,
+#if defined(FEATURE_JIT_DROPPING)
+                                           pParam->totalNCSize,
+#endif
                                            pParam->nativeSizeOfCode);
     }
     PAL_FINALLY
@@ -12361,8 +12401,13 @@ BOOL g_fAllowRel32 = TRUE;
 // Calls to this method that occur to check if inlining can occur on x86,
 // are OK since they discard the return value of this method.
 
+#if defined(FEATURE_JIT_DROPPING)
+PCODE UnsafeJitFunction(MethodDesc* ftn, COR_ILMETHOD_DECODER* ILHeader,
+                        DWORD flags, DWORD flags2, ULONG * totalNCSize, ULONG * pSizeOfCode)
+#else
 PCODE UnsafeJitFunction(MethodDesc* ftn, COR_ILMETHOD_DECODER* ILHeader,
                         DWORD flags, DWORD flags2, ULONG * pSizeOfCode)
+#endif
 {
     STANDARD_VM_CONTRACT;
 
@@ -12617,6 +12662,9 @@ PCODE UnsafeJitFunction(MethodDesc* ftn, COR_ILMETHOD_DECODER* ILHeader,
                                                   flags,
                                                   flags2,
                                                   &nativeEntry,
+#if defined(FEATURE_JIT_DROPPING)
+                                                  totalNCSize,
+#endif
                                                   &sizeOfCode,
                                                   (MethodDesc*)ftn);
             LOG((LF_CORDB, LL_EVERYTHING, "Got through CallCompile MethodWithSEHWrapper\n"));
@@ -12725,6 +12773,7 @@ PCODE UnsafeJitFunction(MethodDesc* ftn, COR_ILMETHOD_DECODER* ILHeader,
 
         //DbgPrintf("Jitted Entry at" FMT_ADDR "method %s::%s %s size %08x\n", DBG_ADDR(nativeEntry),
         //          pszDebugClassName, pszDebugMethodName, pszDebugMethodSignature, sizeOfCode);
+
 #endif
 
         ClrFlushInstructionCache(nativeEntry, sizeOfCode); 

@@ -144,6 +144,10 @@ public:
     VOID*            pCalledMethods;
 #endif
 
+#if defined(FEATURE_JIT_DROPPING)
+    struct _HeapList*   phdrHeapList;
+#endif
+
     PTR_MethodDesc      phdrMDesc;
 
 #ifdef WIN64EXCEPTIONS
@@ -193,13 +197,20 @@ public:
         SUPPORTS_DAC;
         return (StubCodeBlockKind)dac_cast<TADDR>(phdrMDesc);
     }
+#if defined(FEATURE_JIT_DROPPING)
+    struct _HeapList*       GetHeapList()
+    {
+        SUPPORTS_DAC;
+        return phdrHeapList;
+    }
+#endif
+
     BOOL                    IsStubCodeBlock()
     {
         SUPPORTS_DAC;
         // Note that it is important for this comparison to be unsigned
         return dac_cast<TADDR>(phdrMDesc) <= (TADDR)STUB_CODE_BLOCK_LAST;
     }
-
     void SetDebugInfo(PTR_BYTE pDI)
     {
         phdrDebugInfo = pDI;
@@ -226,6 +237,13 @@ public:
     {
         phdrMDesc = (PTR_MethodDesc)kind;
     }
+#if defined(FEATURE_JIT_DROPPING)
+    void SetHeapList(struct _HeapList* pHL)
+    {
+        phdrHeapList = pHL;
+    }
+#endif
+
 #endif // !USE_INDIRECT_CODEHEADER
 
 // if we're using the indirect codeheaders then all enumeration is done by the code header
@@ -282,6 +300,13 @@ public:
         SUPPORTS_DAC;
         return (StubCodeBlockKind)dac_cast<TADDR>(pRealCodeHeader);
     }
+#if defined(FEATURE_JIT_DROPPING)
+    struct _HeapList*       GetHeapList()
+    {
+        SUPPORTS_DAC;
+        return pRealCodeHeader->phdrHeapList;
+    }
+#endif
     BOOL                    IsStubCodeBlock()
     {
         SUPPORTS_DAC;
@@ -320,6 +345,12 @@ public:
     {
         pRealCodeHeader = (PTR_RealCodeHeader)kind;
     }
+#if defined(FEATURE_JIT_DROPPING)
+    void SetHeapList(struct _HeapList* pHL)
+    {
+        pRealCodeHeader->phdrHeapList = pHL;
+    }
+#endif
 
 #if defined(WIN64EXCEPTIONS)
     UINT                    GetNumberOfUnwindInfos()
@@ -364,9 +395,16 @@ struct CodeHeapRequestInfo
     size_t       m_requestSize;     // minimum size that must be made available
     size_t       m_reserveSize;     // Amount that VirtualAlloc will reserved
     bool         m_isDynamicDomain;
+#if defined(FEATURE_JIT_DROPPING)
+    bool         m_isJitDroppedDomain;
+#endif
     bool         m_isCollectible;
     
     bool   IsDynamicDomain()                    { return m_isDynamicDomain;    }
+#if defined(FEATURE_JIT_DROPPING)
+    bool   IsJitDroppedDomain()                 { return m_isJitDroppedDomain; }
+    void   SetJitDroppedDomain()                { m_isJitDroppedDomain = true; }
+#endif
     bool   IsCollectible()                      { return m_isCollectible;      }
     
     size_t getRequestSize()                     { return m_requestSize;        }
@@ -1093,7 +1131,11 @@ private :
                              size_t header, size_t blockSize, unsigned align,
                              HeapList ** ppCodeHeap /* Writeback, Can be null */ );
 
+#if defined(FEATURE_JIT_DROPPING)
+    DomainCodeHeapList *GetCodeHeapList(MethodDesc *pMD, LoaderAllocator *pAllocator, BOOL fDynamicOnly = FALSE, BOOL fJitDropped = FALSE);
+#else
     DomainCodeHeapList *GetCodeHeapList(MethodDesc *pMD, LoaderAllocator *pAllocator, BOOL fDynamicOnly = FALSE);
+#endif
     DomainCodeHeapList *CreateCodeHeapList(CodeHeapRequestInfo *pInfo);
     LoaderHeap* GetJitMetaHeap(MethodDesc *pMD);
 #endif // !CROSSGEN_COMPILE
@@ -1168,7 +1210,11 @@ private :
     // must hold critical section to access this structure.
     CUnorderedArray<DomainCodeHeapList *, 5> m_DomainCodeHeaps;
     CUnorderedArray<DomainCodeHeapList *, 5> m_DynamicDomainCodeHeaps;
+#if defined(FEATURE_JIT_DROPPING)
+    CUnorderedArray<DomainCodeHeapList *, 5> m_JitDroppedDomainCodeHeaps;
 #endif
+#endif
+
 
 #ifdef _TARGET_AMD64_
 private:

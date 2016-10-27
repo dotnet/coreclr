@@ -276,12 +276,21 @@ void JitTls::SetCompiler(Compiler* compiler)
 // interface. Things really don't get going inside the JIT until the code:Compiler::compCompile#Phases
 // method.  Usually that is where you want to go.
 
+#if defined(FEATURE_JIT_DROPPING)
+CorJitResult CILJit::compileMethod(
+    ICorJitInfo* compHnd, CORINFO_METHOD_INFO* methodInfo, unsigned flags, BYTE** entryAddress, ULONG* totalNCSize, ULONG* nativeSizeOfCode)
+#else
 CorJitResult CILJit::compileMethod(
     ICorJitInfo* compHnd, CORINFO_METHOD_INFO* methodInfo, unsigned flags, BYTE** entryAddress, ULONG* nativeSizeOfCode)
+#endif
 {
     if (g_realJitCompiler != nullptr)
     {
+#if defined(FEATURE_JIT_DROPPING)
+        return g_realJitCompiler->compileMethod(compHnd, methodInfo, flags, entryAddress, totalNCSize, nativeSizeOfCode);
+#else
         return g_realJitCompiler->compileMethod(compHnd, methodInfo, flags, entryAddress, nativeSizeOfCode);
+#endif
     }
 
     CORJIT_FLAGS jitFlags = {0};
@@ -308,8 +317,13 @@ CorJitResult CILJit::compileMethod(
 
     assert(methodInfo->ILCode);
 
+#if defined(FEATURE_JIT_DROPPING)
+    result = jitNativeCode(methodHandle, methodInfo->scope, compHnd, methodInfo, &methodCodePtr, totalNCSize, nativeSizeOfCode,
+                           &jitFlags, nullptr);
+#else
     result = jitNativeCode(methodHandle, methodInfo->scope, compHnd, methodInfo, &methodCodePtr, nativeSizeOfCode,
                            &jitFlags, nullptr);
+#endif
 
     if (result == CORJIT_OK)
     {

@@ -53,8 +53,13 @@ bool SigInfoFlagsAreValid (CORINFO_SIG_INFO *sig)
 void InitJITHelpers1();
 void InitJITHelpers2();
 
+#if defined(FEATURE_JIT_DROPPING)
+PCODE UnsafeJitFunction(MethodDesc* ftn, COR_ILMETHOD_DECODER* header,
+                        DWORD flags, DWORD flags2, ULONG* totalNCSize = NULL, ULONG* sizeOfCode = NULL);
+#else
 PCODE UnsafeJitFunction(MethodDesc* ftn, COR_ILMETHOD_DECODER* header,
                         DWORD flags, DWORD flags2, ULONG* sizeOfCode = NULL);
+#endif
 
 void getMethodInfoHelper(MethodDesc * ftn,
                          CORINFO_METHOD_HANDLE ftnHnd,
