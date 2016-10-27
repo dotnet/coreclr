@@ -958,7 +958,7 @@ namespace System {
 
             if (format.Length == 1) {
                 if (format[0] == 'o' || format[0] == 'O') {
-                        return FastFormatRoundTrip(dateTime);
+                        return FastFormatRoundtrip(dateTime);
                 }
 
                 format = ExpandPredefinedFormat(format, ref dateTime, ref dtfi, ref offset);
@@ -967,7 +967,7 @@ namespace System {
             return (FormatCustomized(dateTime, format, dtfi, offset));
         }
 
-        internal static string FastFormatRoundTrip(DateTime dateTime)
+        internal static string FastFormatRoundtrip(DateTime dateTime)
         {
             StringBuilder result = StringBuilderCache.Acquire();
             AppendNumber(result, dateTime.Year, 4);
