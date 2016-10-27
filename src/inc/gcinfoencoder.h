@@ -100,7 +100,12 @@
 
 #include "gcinfotypes.h"
 
+// As stated in issue #6008, GcInfoSize should be incorporated into debug builds. 
 #ifdef _DEBUG
+#define MEASURE_GCINFO
+#endif
+
+#ifdef MEASURE_GCINFO
 struct GcInfoSize
 {
     size_t TotalSize;
@@ -111,12 +116,12 @@ struct GcInfoSize
     size_t NumRegs;
     size_t NumStack;
     size_t NumUntracked;
-    size_t UntrackedSlotSize;
-    size_t NumUntrackedSize;
     size_t NumTransitions;
     size_t SizeOfCode;
     size_t EncPreservedSlots;
 
+    size_t UntrackedSlotSize;
+    size_t NumUntrackedSize;
     size_t FlagsSize;
     size_t RetKindSize;
     size_t CodeLengthSize;
@@ -546,7 +551,7 @@ private:
     bool m_IsSlotTableFrozen;
 #endif
 
-#ifdef _DEBUG
+#ifdef MEASURE_GCINFO
     GcInfoSize m_CurrentMethodSize;
 #endif
 };

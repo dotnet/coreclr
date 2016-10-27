@@ -24,7 +24,7 @@
 #include "bitposition.h"
 #endif
 
-#ifdef _DEBUG
+#ifdef MEASURE_GCINFO
 #define GCINFO_WRITE(writer, val, numBits, counter) \
     {                                               \
         writer.Write(val, numBits);                 \
@@ -319,7 +319,7 @@ public:
 
 typedef SimplerHashTable<const BitArray *, LiveStateFuncs, UINT32, GcInfoHashBehavior> LiveStateHashTable;
 
-#ifdef _DEBUG
+#ifdef MEASURE_GCINFO
 // Fi = fully-interruptible; we count any method that has one or more interruptible ranges
 // Pi = partially-interruptible; methods with zero fully-interruptible ranges
 GcInfoSize g_FiGcInfoSize;
@@ -343,9 +343,13 @@ GcInfoSize& GcInfoSize::operator+=(const GcInfoSize& other)
     NumRanges += other.NumRanges;
     NumRegs += other.NumRegs;
     NumStack += other.NumStack;
+    NumUntracked += other.NumUntracked;
     NumTransitions += other.NumTransitions;
     SizeOfCode += other.SizeOfCode;
+    EncPreservedSlots += other.EncPreservedSlots;
     
+    UntrackedSlotSize += other.UntrackedSlotSize;
+    NumUntrackedSize += other.NumUntrackedSize;
     FlagsSize += other.FlagsSize;
     CodeLengthSize += other.CodeLengthSize;
     ProEpilogSize += other.ProEpilogSize;
@@ -387,11 +391,15 @@ void GcInfoSize::Log(DWORD level, const char * header)
         LogSpew(LF_GCINFO, level, "NumRanges: %Iu\n", NumRanges);
         LogSpew(LF_GCINFO, level, "NumRegs: %Iu\n", NumRegs);
         LogSpew(LF_GCINFO, level, "NumStack: %Iu\n", NumStack);
+        LogSpew(LF_GCINFO, level, "NumUntracked: %Iu\n", NumUntracked);
         LogSpew(LF_GCINFO, level, "NumTransitions: %Iu\n", NumTransitions);
         LogSpew(LF_GCINFO, level, "SizeOfCode: %Iu\n", SizeOfCode);
+        LogSpew(LF_GCINFO, level, "EncPreservedSlots: %Iu\n", EncPreservedSlots);
 
         LogSpew(LF_GCINFO, level, "---SIZES(bits)---\n");
         LogSpew(LF_GCINFO, level, "Total: %Iu\n", TotalSize);
+        LogSpew(LF_GCINFO, level, "UntrackedSlot: %Iu\n", UntrackedSlotSize);
+        LogSpew(LF_GCINFO, level, "NumUntracked: %Iu\n", NumUntrackedSize);
         LogSpew(LF_GCINFO, level, "Flags: %Iu\n", FlagsSize);
         LogSpew(LF_GCINFO, level, "CodeLength: %Iu\n", CodeLengthSize);
         LogSpew(LF_GCINFO, level, "Prolog/Epilog: %Iu\n", ProEpilogSize);
@@ -433,7 +441,7 @@ GcInfoEncoder::GcInfoEncoder(
         m_InterruptibleRanges( pJitAllocator ),
         m_LifetimeTransitions( pJitAllocator )
 {
-#ifdef _DEBUG
+#ifdef MEASURE_GCINFO
     // This causes multiple complus.log files in JIT64.  TODO: consider using ICorJitInfo::logMsg instead.
     InitializeLogging();
 #endif
@@ -2156,7 +2164,7 @@ void GcInfoEncoder::Build()
                         GCINFO_WRITE(m_Info2, 1, 1, ChunkTransitionSize);
                         GCINFO_WRITE(m_Info2, normCodeOffsetDelta, NUM_NORM_CODE_OFFSETS_PER_CHUNK_LOG2, ChunkTransitionSize);
 
-#ifdef _DEBUG                    
+#ifdef MEASURE_GCINFO                    
                         m_CurrentMethodSize.NumTransitions++;
 #endif
                     }
@@ -2220,7 +2228,7 @@ lExitSuccess:;
     // Update global stats
     //-------------------------------------------------------------------
 
-#ifdef _DEBUG
+#ifdef MEASURE_GCINFO
     if (slimHeader)
     {
         g_NumSlimHeaders++;
