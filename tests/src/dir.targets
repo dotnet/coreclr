@@ -79,8 +79,8 @@
   <PropertyGroup> 
     <BuildAllProjects Condition=" '$(BuildAllProjects)' == ''">false</BuildAllProjects>
     <_WillCLRTestProjectBuild Condition="'$(_WillCLRTestProjectBuild)' == ''">false</_WillCLRTestProjectBuild>
-    <_WillCLRTestProjectBuild Condition="'$(BuildAllProjects)' == 'true'">true</_WillCLRTestProjectBuild>
-    <_WillCLRTestProjectBuild Condition="'$(DisableProjectBuild)' != 'true' And '$(BuildAllProjects)' == 'true' And '$(CLRTestPriority)' &lt;= '$(CLRTestPriorityToBuild)'">true</_WillCLRTestProjectBuild>
+    <_WillCLRTestProjectBuild Condition="'$(BuildAllProjects)' != true">true</_WillCLRTestProjectBuild>
+    <_WillCLRTestProjectBuild Condition="'$(DisableProjectBuild)' != true And '$(BuildAllProjects)' == true And '$(CLRTestPriority)' &lt;= '$(CLRTestPriorityToBuild)'">true</_WillCLRTestProjectBuild>
   </PropertyGroup>
 
   <Target Name="Build" Condition="('$(CLRTestKind)'=='RunOnly') And '$(_WillCLRTestProjectBuild)'">
