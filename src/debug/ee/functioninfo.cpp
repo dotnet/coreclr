@@ -950,6 +950,11 @@ void DebuggerJitInfo::LazyInitBounds()
             }
             m_fAttemptInit = true;
         }
+        else
+        {
+            DeleteInteropSafe(pMap);
+            DeleteInteropSafe(pVars);
+        }
         // DebuggerDataLockHolder out of scope - release implied
     }
     EX_CATCH
@@ -968,10 +973,7 @@ void DebuggerJitInfo::SetVars(ULONG32 cVars, ICorDebugInfo::NativeVarInfo *pVars
 {
     LIMITED_METHOD_CONTRACT;
 
-    if (m_varNativeInfo)
-    {
-        return;
-    }
+    _ASSERTE(m_varNativeInfo == NULL);
 
     m_varNativeInfo = pVars;
     m_varNativeInfoCount = cVars;
@@ -1025,14 +1027,10 @@ void DebuggerJitInfo::SetBoundaries(ULONG32 cMap, ICorDebugInfo::OffsetMapping *
 
     LOG((LF_CORDB,LL_EVERYTHING, "DJI::SetBoundaries: this=0x%x cMap=0x%x pMap=0x%x\n", this, cMap, pMap));
     _ASSERTE((cMap == 0) == (pMap == NULL));
+    _ASSERTE(m_sequenceMap == NULL);
 
     if (cMap == 0)
         return;
-
-    if (m_sequenceMap)
-    {
-        return;
-    }
 
     ULONG ilLast = 0;
 #ifdef _DEBUG
