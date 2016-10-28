@@ -1002,13 +1002,14 @@ namespace System {
             }
 
             int index = 1;
-
             while (val > 0 && index <= digits)
             {
                 builder[builder.Length - index] = (char)('0' + (val % 10));
                 val = val / 10;
                 index++;
             }
+
+            Contract.Assert(val == 0, "DateTimeFormat.AppendNumber(): digits less than size of val");
         }
 
         internal static String[] GetAllDateTimes(DateTime dateTime, char format, DateTimeFormatInfo dtfi)
