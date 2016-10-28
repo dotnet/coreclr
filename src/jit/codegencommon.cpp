@@ -1422,11 +1422,11 @@ TempDsc* CodeGenInterface::getSpillTempDsc(GenTree* tree)
 
     // Get the tree's SpillDsc.
     RegSet::SpillDsc* prevDsc;
-    RegSet::SpillDsc* spillDsc = regSet.rsGetSpillInfo(tree, tree->gtRegNum, &prevDsc);
+    RegSet::SpillDsc* spillDsc = regSet.rsGetSpillInfo(tree, tree->RegAtDef(), &prevDsc);
     assert(spillDsc != nullptr);
 
     // Get the temp desc.
-    TempDsc* temp = regSet.rsGetSpillTempWord(tree->gtRegNum, spillDsc, prevDsc);
+    TempDsc* temp = regSet.rsGetSpillTempWord(tree->RegAtDef(), spillDsc, prevDsc);
     return temp;
 }
 

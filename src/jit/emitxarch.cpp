@@ -2812,7 +2812,7 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
     {
         lclField = src->AsLclFld();
     }
-    else if (dst->isLclField() && dst->gtRegNum == REG_NA)
+    else if (dst->isLclField() && dst->RegAtUse() == REG_NA)
     {
         lclField = dst->AsLclFld();
     }
@@ -2927,7 +2927,7 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
         }
         else // The memory op is in the dest position.
         {
-            assert(dst->gtRegNum == REG_NA || dst->IsRegOptional());
+            assert(dst->RegAtUse() == REG_NA);
 
             // src could be int or reg
             if (src->isContainedIntOrIImmed())
@@ -2950,7 +2950,7 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
             emitComp->tmpRlsTemp(tmpDsc);
         }
 
-        return dst->gtRegNum;
+        return dst->RegAtUse();
     }
 
     // Now we are left with only the cases where the instruction has some kind of a memory operand
@@ -2993,7 +2993,7 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
             }
         }
 
-        return dst->gtRegNum;
+        return dst->RegAtUse();
     }
 
     // Finally we handle addressing modes case [regBase + regIndex*scale + const]
@@ -3083,7 +3083,7 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
     regNumber result = REG_NA;
     if (src == mem)
     {
-        result = dst->gtRegNum;
+        result = dst->RegAtUse();
     }
 
     id->idCodeSize(sz);

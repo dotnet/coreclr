@@ -311,10 +311,6 @@ public:
 
 #endif // FEATURE_STACK_FP_X87
 
-#ifndef LEGACY_BACKEND
-    regNumber genGetAssignedReg(GenTreePtr tree);
-#endif // !LEGACY_BACKEND
-
 #ifdef LEGACY_BACKEND
     // Changes GT_LCL_VAR nodes to GT_REG_VAR nodes if possible.
     bool genMarkLclVar(GenTreePtr tree);
