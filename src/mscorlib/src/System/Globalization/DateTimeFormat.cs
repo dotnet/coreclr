@@ -775,7 +775,9 @@ namespace System {
                 offset = offset.Negate();
             }
 
-            result.AppendFormat(CultureInfo.InvariantCulture, "{0:00}:{1:00}", offset.Hours, offset.Minutes);
+            AppendNumber(result, offset.Hours, 2);
+            result.Append(':');
+            AppendNumber(result, offset.Minutes, 2);
         }
         
     
@@ -958,7 +960,7 @@ namespace System {
 
             if (format.Length == 1) {
                 if (format[0] == 'o' || format[0] == 'O') {
-                        return FastFormatRoundtrip(dateTime);
+                        return FastFormatRoundtrip(dateTime, offset);
                 }
 
                 format = ExpandPredefinedFormat(format, ref dateTime, ref dtfi, ref offset);
@@ -967,9 +969,10 @@ namespace System {
             return (FormatCustomized(dateTime, format, dtfi, offset));
         }
 
-        internal static string FastFormatRoundtrip(DateTime dateTime)
+        internal static string FastFormatRoundtrip(DateTime dateTime, TimeSpan offset)
         {
             StringBuilder result = StringBuilderCache.Acquire();
+
             AppendNumber(result, dateTime.Year, 4);
             result.Append('-');
             AppendNumber(result, dateTime.Month, 2);
@@ -984,39 +987,13 @@ namespace System {
             result.Append('.');
 
             long fraction = dateTime.Ticks % TimeSpan.TicksPerSecond;
-
             AppendNumber(result, fraction, 7);
 
-            switch (dateTime.Kind)
-            {
-                case DateTimeKind.Local:
-                    {
-                        TimeSpan offset = TimeZoneInfo.Local.GetUtcOffset(dateTime);
-
-                        if (offset >= TimeSpan.Zero)
-                        {
-                            result.Append('+');
-                        }
-                        else
-                        {
-                            result.Append('-');
-                            offset = offset.Negate();
-                        }
-
-                        AppendNumber(result, offset.Hours, 2);
-                        result.Append(':');
-                        AppendNumber(result, offset.Minutes, 2);
-                    }
-                    break;
-
-                case DateTimeKind.Utc:
-                    result.Append('Z');
-                    break;
-            }
+            FormatCustomizedRoundripTimeZone(dateTime, offset, result);
 
             return StringBuilderCache.GetStringAndRelease(result);
         }
-
+        
         internal static void AppendNumber(StringBuilder builder, long val, int digits)
         {
             for (int i = 0; i < digits; i++)
