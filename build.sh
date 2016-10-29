@@ -716,6 +716,16 @@ setup_dirs
 
 # Check prereqs.
 
+lldb=$(which lldb)
+lldb_36=$(which lldb-3.6)
+lldb_38=$(which lldb-3.8)
+gdb=$(which gdb)
+
+echo "lldb: $lldb"
+echo "lldb3.6: $lldb_36"
+echo "lldb3.8: $lldb_38"
+echo "gdb: $gdb"
+
 check_prereqs
 
 # Build the coreclr (native) components.
