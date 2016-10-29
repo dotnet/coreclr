@@ -293,64 +293,109 @@ namespace System {
         }
   
         private static bool TryParseVersion(string version, ref VersionResult result) {
-            int major, minor, build, revision;
-
             if ((Object)version == null) {
                 result.SetFailure(ParseFailureKind.ArgumentNullException);
                 return false;
             }
 
-            String[] parsedComponents = version.Split(SeparatorsArray);
-            int parsedComponentsLength = parsedComponents.Length;
-            if ((parsedComponentsLength < 2) || (parsedComponentsLength > 4)) {
+            int componentsCount = 1;
+            for (int i = 0; i < version.Length; i++) {
+                if (version[i] == '.') {
+                    componentsCount++;
+                }
+            }
+
+            if (componentsCount < 2 || componentsCount > 4) {
                 result.SetFailure(ParseFailureKind.ArgumentException);
                 return false;
             }
 
-            if (!TryParseComponent(parsedComponents[0], "version", ref result, out major)) {
-                return false;
-            }
+            result.m_parsedVersion = new Version();
+            int numberStart = 0;
+            componentsCount = 0;
+            for (int i = 0; i < version.Length; i++) {
+                if (version[i] == '.' || i == version.Length - 1) {
+                    componentsCount++;
 
-            if (!TryParseComponent(parsedComponents[1], "version", ref result, out minor)) {
-                return false;
-            }
-
-            parsedComponentsLength -= 2;
-
-            if (parsedComponentsLength > 0) {
-                if (!TryParseComponent(parsedComponents[2], "build", ref result, out build)) {
-                    return false;
-                }
-
-                parsedComponentsLength--;
-
-                if (parsedComponentsLength > 0) {
-                    if (!TryParseComponent(parsedComponents[3], "revision", ref result, out revision)) {
-                        return false;
-                    } else {
-                        result.m_parsedVersion = new Version(major, minor, build, revision);
+                    int numberEnd = i == version.Length - 1 ? i : i - 1;
+                    if (componentsCount == 1) {
+                        if(!TryParseComponent(version, numberStart, numberEnd, "major", ref result, out result.m_parsedVersion._Major)) {
+                        	result.m_parsedVersion = null;
+                            return false;
+                        }
                     }
-                } else {
-                    result.m_parsedVersion = new Version(major, minor, build);
+                    else if (componentsCount == 2) {
+                        if(!TryParseComponent(version, numberStart, numberEnd, "minor", ref result, out result.m_parsedVersion._Minor)) {
+                        	result.m_parsedVersion = null;
+                            return false;
+                        }
+                    }
+                    else if (componentsCount == 3) {
+                        if(!TryParseComponent(version, numberStart, numberEnd, "build", ref result, out result.m_parsedVersion._Build)) {
+                        	result.m_parsedVersion = null;
+                            return false;
+                        }
+                    }
+                    else if (componentsCount == 4) {
+                        if(!TryParseComponent(version, numberStart, numberEnd, "revision", ref result, out result.m_parsedVersion._Revision)) {
+                        	result.m_parsedVersion = null;
+                            return false;
+                        }
+                    }
+                    else {
+                        break;
+                    }
+
+                    numberStart = i + 1;
                 }
-            } else {
-                result.m_parsedVersion = new Version(major, minor);
             }
 
             return true;
         }
 
-        private static bool TryParseComponent(string component, string componentName, ref VersionResult result, out int parsedComponent) {
-            if (!Int32.TryParse(component, NumberStyles.Integer, CultureInfo.InvariantCulture, out parsedComponent)) {
-                result.SetFailure(ParseFailureKind.FormatException, component);
-                return false;
-            }
+        private static bool TryParseComponent(string version, int start, int end, string componentName, ref VersionResult result, out int parsedComponent) {
+            parsedComponent = 0;
+            // Consume any leading or trailing whitespace
+            while (start <= end && char.IsWhiteSpace(version[start]))
+                start++;
+            while (end >= start && char.IsWhiteSpace(version[end]))
+                end--;
 
-            if (parsedComponent < 0) {
+
+            int firstChar = version[start];
+            if (firstChar == '-') {
+                // Don't allow negative integers
                 result.SetFailure(ParseFailureKind.ArgumentOutOfRangeException, componentName);
                 return false;
+            } else if (firstChar  == '+') {
+            	start++;
             }
 
+            if (end - start < 0) {
+                // Empty string (or all whitespace)
+                result.SetFailure(ParseFailureKind.FormatException, string.Empty));
+                return false;
+            }
+            
+            for (int i = start; i <= end; i++) {
+                int digitValue = 0;
+                char c = version[i];
+                if (c >= '0' && c <= '9') {
+                    digitValue = c - '0';
+                }
+                else {
+                    result.SetFailure(ParseFailureKind.FormatException, version.Substring(start, end - start + 1));
+                    return false;
+                }
+
+                int previousResult = parsedComponent;
+                parsedComponent = (parsedComponent * 10) + digitValue;
+                if (parsedComponent < previousResult) {
+                    // Overflow occured (>int.MaxValue)
+                    result.SetFailure(ParseFailureKind.FormatException, version.Substring(start, end - start + 1));
+                    return false;
+                }
+            }
             return true;
         }
 
