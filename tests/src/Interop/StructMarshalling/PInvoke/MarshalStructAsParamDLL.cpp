@@ -169,10 +169,10 @@ extern "C" DLL_EXPORT BOOL WINAPI MarshalStructAsParam_AsSeqByRefOut3(CharSetAns
 {
 	char const* strSource = "change string";
 	int len = strlen(strSource);
-	LPCSTR temp = (LPCSTR)TP_CoTaskMemAlloc((sizeof(char)*len)+1);
+	LPCSTR temp = (LPCSTR)CoTaskMemAlloc((sizeof(char)*len)+1);
 	if(temp != NULL)
 	{
-		TP_CoTaskMemFree((void*)(str1->f1));
+		CoTaskMemFree((void*)(str1->f1));
 		strcpy((char*)temp,strSource);		
 		str1->f1 = temp;
 		str1->f2 = 'n';
@@ -846,7 +846,7 @@ extern "C" DLL_EXPORT BOOL WINAPI MarshalStructAsParam_AsExpByRefInnerArrayExpli
 	}
 	char const * temp = "change string2";
 	size_t len = strlen(temp);
-	LPCSTR str = (LPCSTR)TP_CoTaskMemAlloc( sizeof(char)*(len+1) );
+	LPCSTR str = (LPCSTR)CoTaskMemAlloc( sizeof(char)*(len+1) );
 	strcpy((char*)str,temp);
 	outer2->f4 = str;
 	return TRUE;
@@ -873,7 +873,7 @@ extern "C" DLL_EXPORT BOOL WINAPI MarshalStructAsParam_AsExpByRefInInnerArrayExp
 	}
 	char const * temp = "change string2";
 	size_t len = strlen(temp);
-	LPCSTR str = (LPCSTR)TP_CoTaskMemAlloc( sizeof(char)*(len+1) );
+	LPCSTR str = (LPCSTR)CoTaskMemAlloc( sizeof(char)*(len+1) );
 	strcpy((char*)str,temp);
 	outer2->f4 = str;
 	return TRUE;
@@ -886,7 +886,7 @@ extern "C" DLL_EXPORT BOOL WINAPI MarshalStructAsParam_AsExpByRefOutInnerArrayEx
 	}
 	char const * temp = "change string2";
 	size_t len = strlen(temp);
-	LPCSTR str = (LPCSTR)TP_CoTaskMemAlloc( sizeof(char)*(len+1) );
+	LPCSTR str = (LPCSTR)CoTaskMemAlloc( sizeof(char)*(len+1) );
 	strcpy((char*)str,temp);
 	outer2->f4 = str;
 	return TRUE;

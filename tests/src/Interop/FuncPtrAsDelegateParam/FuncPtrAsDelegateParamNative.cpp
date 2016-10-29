@@ -1,4 +1,3 @@
-#include "platformdefines.cpp"
 #include <stdio.h>
 #include <stdlib.h>
 #include <xplatform.h>
