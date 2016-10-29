@@ -283,24 +283,30 @@ namespace System.Text {
             }
         }
 
-        public int Capacity {
+        public int Capacity
+        {
             get { return m_ChunkChars.Length + m_ChunkOffset; }
-            set {
-                if (value < 0) {
+            set
+            {
+                if (value < 0)
+                {
                     throw new ArgumentOutOfRangeException("value", Environment.GetResourceString("ArgumentOutOfRange_NegativeCapacity"));
                 }
-                if (value > MaxCapacity) {
+                if (value > MaxCapacity)
+                {
                     throw new ArgumentOutOfRangeException("value", Environment.GetResourceString("ArgumentOutOfRange_Capacity"));
                 }
-                if (value < Length) {
+                if (value < Length)
+                {
                     throw new ArgumentOutOfRangeException("value", Environment.GetResourceString("ArgumentOutOfRange_SmallCapacity"));
                 }
                 Contract.EndContractBlock();
 
-                if (Capacity != value) {
+                if (Capacity != value)
+                {
                     int newLen = value - m_ChunkOffset;
                     char[] newArray = new char[newLen];
-                    Array.Copy(m_ChunkChars, newArray, m_ChunkLength);
+                    Buffer.InternalBlockCopy(m_ChunkChars, 0, newArray, 0, m_ChunkLength * sizeof(char));
                     m_ChunkChars = newArray;
                 }
             }
@@ -500,7 +506,7 @@ namespace System.Text {
                         char[] newArray = new char[newLen];
 
                         Contract.Assert(newLen > chunk.m_ChunkChars.Length, "the new chunk should be larger than the one it is replacing");
-                        Array.Copy(chunk.m_ChunkChars, newArray, chunk.m_ChunkLength);
+                        Buffer.InternalBlockCopy(chunk.m_ChunkChars, 0, newArray, 0, chunk.m_ChunkLength * sizeof(char));
                         
                         m_ChunkChars = newArray;
                         m_ChunkPrevious = chunk.m_ChunkPrevious;                        
@@ -1629,7 +1635,7 @@ namespace System.Text {
                     else if (replacementsCount >= replacements.Length)
                     {
                         int[] newArray = new int[replacements.Length * 3 / 2 + 4];     // grow by 1.5X but more in the begining
-                        Array.Copy(replacements, newArray, replacements.Length);
+                        Buffer.InternalBlockCopy(replacements, 0, newArray, 0, replacements.Length * sizeof(int));
                         replacements = newArray;
                     }
                     replacements[replacementsCount++] = indexInChunk;
