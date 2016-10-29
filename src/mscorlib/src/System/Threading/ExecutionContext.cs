@@ -50,16 +50,13 @@ namespace System.Threading
         {
             Contract.Assert(currentThread == Thread.CurrentThread);
 
-            // The common case is that these have not changed, so avoid the cost of a write if not needed.
+            // The common case is this has not changed, so avoid the cost of a write if not needed.
             if (currentThread.SynchronizationContext != m_sc)
             {
                 currentThread.SynchronizationContext = m_sc;
             }
-            
-            if (currentThread.ExecutionContext != m_ec)
-            {
-                ExecutionContext.Restore(currentThread, m_ec);
-            }
+
+            ExecutionContext.Restore(currentThread, m_ec);
         }
     }
 
@@ -116,20 +113,30 @@ namespace System.Threading
         }
 
         [SecurityCritical]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static void Restore(Thread currentThread, ExecutionContext executionContext)
         {
             Contract.Assert(currentThread == Thread.CurrentThread);
 
+            // ExecutionContext.Capture() returns Default if thread's context is null, set null to Default for equality
             ExecutionContext previous = currentThread.ExecutionContext ?? Default;
+
+            // The common case is that this has not changed, so avoid the cost of writes if not needed.
+            if (previous == executionContext) return;
+
+            RestoreChanged(currentThread, executionContext, previous);
+        }
+
+        [SecurityCritical]
+        private static void RestoreChanged(Thread currentThread, ExecutionContext executionContext, ExecutionContext previousContext)
+        {
+            Contract.Assert(currentThread == Thread.CurrentThread);
+
             currentThread.ExecutionContext = executionContext;
-            
-            // New EC could be null if that's what ECS.Undo saved off.
-            // For the purposes of dealing with context change, treat this as the default EC
-            executionContext = executionContext ?? Default;
-            
-            if (previous != executionContext)
+
+            if (previousContext != executionContext)
             {
-                OnContextChanged(previous, executionContext);
+                OnContextChanged(previousContext, executionContext);
             }
         }
 
@@ -137,8 +144,8 @@ namespace System.Threading
         static internal void EstablishCopyOnWriteScope(Thread currentThread, ref ExecutionContextSwitcher ecsw)
         {
             Contract.Assert(currentThread == Thread.CurrentThread);
-            
-            ecsw.m_ec = currentThread.ExecutionContext; 
+
+            ecsw.m_ec = currentThread.ExecutionContext ?? (currentThread.ExecutionContext = Default);
             ecsw.m_sc = currentThread.SynchronizationContext;
         }
 
@@ -192,9 +199,12 @@ namespace System.Threading
         [SecurityCritical]
         internal static object GetLocalValue(IAsyncLocal local)
         {
-            ExecutionContext current = Thread.CurrentThread.ExecutionContext;
-            if (current == null)
+            ExecutionContext current = Thread.CurrentThread.ExecutionContext ?? ExecutionContext.Default;
+            if (current == ExecutionContext.Default)
+            {
+                // Fast-path Default context has no values
                 return null;
+            }
 
             object value;
             current.m_localValues.TryGetValue(local, out value);
@@ -205,6 +215,27 @@ namespace System.Threading
         internal static void SetLocalValue(IAsyncLocal local, object newValue, bool needChangeNotifications)
         {
             ExecutionContext current = Thread.CurrentThread.ExecutionContext ?? ExecutionContext.Default;
+            if (current == ExecutionContext.Default)
+            {
+                // Fast-path for first/single AsyncLocal store
+                if (newValue == null && !needChangeNotifications) return;
+
+                var values = new Dictionary<IAsyncLocal, object>(1);
+                values[local] = newValue;
+
+                if (!needChangeNotifications)
+                {
+                    Thread.CurrentThread.ExecutionContext = new ExecutionContext(values, Array.Empty<IAsyncLocal>());
+                }
+                else
+                {
+                    Thread.CurrentThread.ExecutionContext = new ExecutionContext(values, new IAsyncLocal[] { local });
+
+                    local.OnValueChanged(null, newValue, false);
+                }
+
+                return;
+            }
 
             object previousValue;
             bool hadPreviousValue = current.m_localValues.TryGetValue(local, out previousValue);
@@ -219,7 +250,9 @@ namespace System.Threading
             Dictionary<IAsyncLocal, object> newValues = new Dictionary<IAsyncLocal, object>(current.m_localValues.Count + (hadPreviousValue ? 0 : 1));
 
             foreach (KeyValuePair<IAsyncLocal, object> pair in current.m_localValues)
+            {
                 newValues.Add(pair.Key, pair.Value);
+            }
 
             newValues[local] = newValue;
 
