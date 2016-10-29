@@ -603,7 +603,7 @@ public:
         return (isContained() && isMemoryOp()) || isContainedLclVar() || isContainedSpillTemp();
     }
 
-    regNumber GetRegNum() const
+    regNumber GetRawRegNum() const
     {
         assert((gtRegTag == GT_REGTAG_REG) || (gtRegTag == GT_REGTAG_NONE)); // TODO-Cleanup: get rid of the NONE case,
                                                                              // and fix everyplace that reads undefined
@@ -613,6 +613,12 @@ public:
                                                // undefined values
                (reg >= REG_FIRST && reg <= REG_COUNT));
         return reg;
+    }
+
+    regNumber GetRegNum() const
+    {
+        assert((gtRegTag == GT_REGTAG_NONE) || !isContained());
+        return GetRawRegNum();
     }
 
     void SetRegNum(regNumber reg)
@@ -1746,6 +1752,15 @@ public:
     // a local variable; sets "*pLclVarTree" to that local variable instance; and, if "pIsEntire" is non-null,
     // sets "*pIsEntire" to true if this assignment writes the full width of the local.
     bool DefinesLocalAddr(Compiler* comp, unsigned width, GenTreeLclVarCommon** pLclVarTree, bool* pIsEntire);
+
+    regNumber RegAtDef() const
+    {
+        return GetRawRegNum();
+    }
+    regNumber RegAtUse() const
+    {
+        return isContained() ? REG_NA : GetRawRegNum();
+    }
 
     bool IsRegVar() const
     {
@@ -3035,7 +3050,7 @@ struct GenTreeCall final : public GenTree
 
         if (idx == 0)
         {
-            return gtRegNum;
+            return GetRawRegNum();
         }
 
 #if FEATURE_MULTIREG_RET

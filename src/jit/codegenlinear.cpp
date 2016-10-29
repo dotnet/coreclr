@@ -663,20 +663,6 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 //
 
 //------------------------------------------------------------------------
-// genGetAssignedReg: Get the register assigned to the given node
-//
-// Arguments:
-//    tree      - the lclVar node whose assigned register we want
-//
-// Return Value:
-//    The assigned regNumber
-//
-regNumber CodeGenInterface::genGetAssignedReg(GenTreePtr tree)
-{
-    return tree->gtRegNum;
-}
-
-//------------------------------------------------------------------------
 // genSpillVar: Spill a local variable
 //
 // Arguments:
@@ -779,45 +765,6 @@ void CodeGenInterface::genUpdateVarReg(LclVarDsc* varDsc, GenTreePtr tree)
 {
     assert(tree->OperIsScalarLocal() || (tree->gtOper == GT_COPY));
     varDsc->lvRegNum = tree->gtRegNum;
-}
-
-//------------------------------------------------------------------------
-// sameRegAsDst: Return the child that has the same reg as the dst (if any)
-//
-// Arguments:
-//    tree  - the node of interest
-//    other - an out parameter to return the other child
-//
-// Notes:
-//    If 'tree' has a child with the same assigned register as its target reg,
-//    that child will be returned, and 'other' will contain the non-matching child.
-//    Otherwise, both other and the return value will be nullptr.
-//
-GenTree* sameRegAsDst(GenTree* tree, GenTree*& other /*out*/)
-{
-    if (tree->gtRegNum == REG_NA)
-    {
-        other = nullptr;
-        return nullptr;
-    }
-
-    GenTreePtr op1 = tree->gtOp.gtOp1;
-    GenTreePtr op2 = tree->gtOp.gtOp2;
-    if (op1->gtRegNum == tree->gtRegNum)
-    {
-        other = op2;
-        return op1;
-    }
-    if (op2->gtRegNum == tree->gtRegNum)
-    {
-        other = op1;
-        return op2;
-    }
-    else
-    {
-        other = nullptr;
-        return nullptr;
-    }
 }
 
 //------------------------------------------------------------------------
@@ -1075,6 +1022,8 @@ void CodeGen::genCheckConsumeNode(GenTree* treeNode)
 //    of the multi-reg return.
 regNumber CodeGen::genConsumeReg(GenTree* tree)
 {
+    assert(!tree->isContained());
+
     if (tree->OperGet() == GT_COPY)
     {
         genRegCopy(tree);
@@ -1295,7 +1244,7 @@ void CodeGen::genConsumePutStructArgStk(GenTreePutArgStk* putArgNode,
     assert(srcReg != REG_NA);
 
     // Consume the registers only if they are not contained or set to REG_NA.
-    if (srcAddr->gtRegNum != REG_NA)
+    if (srcAddr->RegAtUse() != REG_NA)
     {
         genConsumeReg(srcAddr);
     }
@@ -1318,7 +1267,7 @@ void CodeGen::genConsumePutStructArgStk(GenTreePutArgStk* putArgNode,
     }
 #endif // !_TARGET_X86_
 
-    if (srcAddr->gtRegNum != srcReg)
+    if (srcAddr->RegAtUse() != srcReg)
     {
         if (srcAddr->OperIsLocalAddr())
         {
@@ -1573,8 +1522,8 @@ void CodeGen::genProduceReg(GenTree* tree)
             else
             {
                 tree->SetInReg();
-                regSet.rsSpillTree(tree->gtRegNum, tree);
-                gcInfo.gcMarkRegSetNpt(genRegMask(tree->gtRegNum));
+                regSet.rsSpillTree(tree->RegAtDef(), tree);
+                gcInfo.gcMarkRegSetNpt(genRegMask(tree->RegAtDef()));
             }
 
             tree->gtFlags |= GTF_SPILLED;

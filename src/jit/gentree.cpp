@@ -1698,7 +1698,7 @@ bool GenTree::gtHasReg() const
         }
         else
         {
-            hasReg = (gtRegNum != REG_NA);
+            hasReg = (GetRawRegNum() != REG_NA);
         }
     }
 
