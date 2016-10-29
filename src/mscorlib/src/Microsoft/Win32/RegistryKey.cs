@@ -1408,7 +1408,7 @@ namespace Microsoft.Win32 {
                 throw new ArgumentException(Environment.GetResourceString("Arg_RegValStrLenBug"));
             }
 
-            if (!Enum.IsDefined(typeof(RegistryValueKind), valueKind))
+            if (!valueKind.IsDefined())
                 throw new ArgumentException(Environment.GetResourceString("Arg_RegBadKeyKind"), "valueKind");
 
             EnsureWriteable();

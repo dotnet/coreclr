@@ -643,7 +643,15 @@ namespace System
 
             return enumType.IsEnumDefined(value);
         }
-        
+
+        [System.Security.SecuritySafeCritical]
+        public bool IsDefined()
+        {
+            ulong[] ulValues = Enum.InternalGetValues((RuntimeType)GetType());
+
+            return (Array.BinarySearch(ulValues, ToUInt64()) >= 0);
+        }
+
         [System.Runtime.InteropServices.ComVisible(true)]
         public static String Format(Type enumType, Object value, String format)
         {

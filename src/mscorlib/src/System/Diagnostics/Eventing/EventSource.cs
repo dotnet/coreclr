@@ -6395,7 +6395,7 @@ namespace System.Diagnostics.Tracing
                     if (channelInfo.Attribs != null)
                     {
                         var attribs = channelInfo.Attribs;
-                        if (Enum.IsDefined(typeof(EventChannelType), attribs.EventChannelType))
+                        if (attribs.EventChannelType.IsDefined())
                             channelType = attribs.EventChannelType.ToString();
                         enabled = attribs.Enabled;
 #if FEATURE_ADVANCED_MANAGED_ETW_CHANNELS
