@@ -209,16 +209,9 @@ namespace System {
       /*=================================CheckLetter=====================================
       ** Check if the specified UnicodeCategory belongs to the letter categories.
       ==============================================================================*/
-      internal static bool CheckLetter(UnicodeCategory uc) {                  
-          switch(uc) {
-              case (UnicodeCategory.UppercaseLetter):
-              case (UnicodeCategory.LowercaseLetter): 
-              case (UnicodeCategory.TitlecaseLetter): 
-              case (UnicodeCategory.ModifierLetter): 
-              case (UnicodeCategory.OtherLetter):
-                  return (true);
-          }
-          return (false);
+      internal static bool CheckLetter(UnicodeCategory uc) {
+          Contract.Assert(Enum.IsDefined(typeof(UnicodeCategory), uc));
+          return (uint)uc <= (uint)UnicodeCategory.OtherLetter;
       }
     
       /*=================================ISLETTER=====================================
@@ -250,10 +243,7 @@ namespace System {
             // U+000d = <control> CARRIAGE RETURN
             // U+0085 = <control> NEXT LINE
             // U+00a0 = NO-BREAK SPACE
-            if ((c == ' ') || (c >= '\x0009' && c <= '\x000d') || c == '\x00a0' || c == '\x0085') {
-                return (true);
-            }
-            return (false);
+            return IsSeparatorLatin1(c) || (uint)(c - '\u0009') <= (uint)('\u000d' - '\u0009') || c == '\u0085';
         }
     
     /*===============================ISWHITESPACE===================================
@@ -305,17 +295,8 @@ namespace System {
 
       internal static bool CheckPunctuation(UnicodeCategory uc)
       {
-          switch (uc) {
-              case UnicodeCategory.ConnectorPunctuation:
-              case UnicodeCategory.DashPunctuation:
-              case UnicodeCategory.OpenPunctuation:
-              case UnicodeCategory.ClosePunctuation:
-              case UnicodeCategory.InitialQuotePunctuation:
-              case UnicodeCategory.FinalQuotePunctuation:
-              case UnicodeCategory.OtherPunctuation:
-                  return (true);
-          }
-          return (false);
+          Contract.Assert(Enum.IsDefined(typeof(UnicodeCategory), uc));
+          return (uint)(uc - UnicodeCategory.ConnectorPunctuation) <= (uint)(UnicodeCategory.OtherPunctuation - UnicodeCategory.ConnectorPunctuation);
       }
 
     
@@ -336,16 +317,10 @@ namespace System {
       ** Check if the specified UnicodeCategory belongs to the letter or digit categories.
       ==============================================================================*/
       internal static bool CheckLetterOrDigit(UnicodeCategory uc) {
-          switch (uc) {
-              case UnicodeCategory.UppercaseLetter:
-              case UnicodeCategory.LowercaseLetter:
-              case UnicodeCategory.TitlecaseLetter:
-              case UnicodeCategory.ModifierLetter:
-              case UnicodeCategory.OtherLetter:
-              case UnicodeCategory.DecimalDigitNumber:
-                  return (true);
-          }
-          return (false);
+          Contract.Assert(Enum.IsDefined(typeof(UnicodeCategory), uc));
+          // TODO: See if we can come up with some bit-twiddling hack
+          // to avoid branching altogether here.
+          return CheckLetter(uc) || uc == UnicodeCategory.DecimalDigitNumber;
       }
     
         // Determines whether a character is a letter or a digit.
@@ -594,13 +569,8 @@ namespace System {
         ==============================================================================*/
 
         internal static bool CheckNumber(UnicodeCategory uc) {
-            switch (uc) {
-                case (UnicodeCategory.DecimalDigitNumber):
-                case (UnicodeCategory.LetterNumber):
-                case (UnicodeCategory.OtherNumber):
-                    return (true);
-            }
-            return (false);
+            Contract.Assert(Enum.IsDefined(typeof(UnicodeCategory), uc));
+            return (uint)(uc - UnicodeCategory.DecimalDigitNumber) <= (uint)(UnicodeCategory.OtherNumber - UnicodeCategory.DecimalDigitNumber);
         }
 
         public static bool IsNumber(char c)
@@ -662,19 +632,14 @@ namespace System {
 
         internal static bool CheckSeparator(UnicodeCategory uc)
         {
-            switch (uc) {
-                case UnicodeCategory.SpaceSeparator:
-                case UnicodeCategory.LineSeparator:
-                case UnicodeCategory.ParagraphSeparator:
-                    return (true);
-            }
-            return (false);
+            Contract.Assert(Enum.IsDefined(typeof(UnicodeCategory), uc));
+            return (uint)(uc - UnicodeCategory.SpaceSeparator) <= (uint)(UnicodeCategory.ParagraphSeparator - UnicodeCategory.SpaceSeparator);
         }
 
         private static bool IsSeparatorLatin1(char c) {
             // U+00a0 = NO-BREAK SPACE
             // There is no LineSeparator or ParagraphSeparator in Latin 1 range.
-            return (c == '\x0020' || c == '\x00a0');
+            return (c | '\u0080') == '\u00a0';
         }
 
         public static bool IsSeparator(char c)
@@ -703,7 +668,7 @@ namespace System {
         [Pure]
         public static bool IsSurrogate(char c)
         {
-            return (c >= HIGH_SURROGATE_START && c <= LOW_SURROGATE_END);
+            return (uint)(c - HIGH_SURROGATE_START) <= (uint)(LOW_SURROGATE_END - HIGH_SURROGATE_START);
         }
 
         [Pure]
@@ -724,14 +689,8 @@ namespace System {
         ==============================================================================*/
 
         internal static bool CheckSymbol(UnicodeCategory uc) {
-            switch (uc) {
-                case (UnicodeCategory.MathSymbol):
-                case (UnicodeCategory.CurrencySymbol): 
-                case (UnicodeCategory.ModifierSymbol): 
-                case (UnicodeCategory.OtherSymbol):            
-                    return (true);
-            }
-            return (false);
+            Contract.Assert(Enum.IsDefined(typeof(UnicodeCategory), uc));
+            return (uint)(uc - UnicodeCategory.MathSymbol) <= (uint)(UnicodeCategory.OtherSymbol - UnicodeCategory.MathSymbol);
         }
         
         public static bool IsSymbol(char c)
@@ -836,7 +795,7 @@ namespace System {
         ==============================================================================*/
         [Pure]
         public static bool IsHighSurrogate(char c) {
-            return ((c >= CharUnicodeInfo.HIGH_SURROGATE_START) && (c <= CharUnicodeInfo.HIGH_SURROGATE_END));
+            return (uint)(c - HIGH_SURROGATE_START) <= (uint)(HIGH_SURROGATE_END - HIGH_SURROGATE_START);
         } 
 
         [Pure]
@@ -844,7 +803,7 @@ namespace System {
             if (s == null) {
                 throw new ArgumentNullException("s");
             }
-            if (index < 0 || index >= s.Length) {
+            if ((uint)index >= s.Length) {
                 throw new ArgumentOutOfRangeException("index");
             }
             Contract.EndContractBlock();
@@ -856,7 +815,7 @@ namespace System {
         ==============================================================================*/
         [Pure]
         public static bool IsLowSurrogate(char c) {
-            return ((c >= CharUnicodeInfo.LOW_SURROGATE_START) && (c <= CharUnicodeInfo.LOW_SURROGATE_END));
+            return (uint)(c - LOW_SURROGATE_START) <= (uint)(LOW_SURROGATE_END - LOW_SURROGATE_START);
         }
 
         [Pure]
@@ -864,7 +823,7 @@ namespace System {
             if (s == null) {
                 throw new ArgumentNullException("s");
             }
-            if (index < 0 || index >= s.Length) {
+            if ((uint)index >= s.Length) {
                 throw new ArgumentOutOfRangeException("index");
             }
             Contract.EndContractBlock();
@@ -879,20 +838,19 @@ namespace System {
             if (s == null) {
                 throw new ArgumentNullException("s");
             }
-            if (index < 0 || index >= s.Length) {
+            if ((uint)index >= s.Length) {
                 throw new ArgumentOutOfRangeException("index");
             }
             Contract.EndContractBlock();
             if (index + 1 < s.Length) {
-                return (IsSurrogatePair(s[index], s[index+1]));
+                return (IsSurrogatePair(s[index], s[index + 1]));
             }
             return (false);
         }
 
         [Pure]
         public static bool IsSurrogatePair(char highSurrogate, char lowSurrogate) {
-            return ((highSurrogate >= CharUnicodeInfo.HIGH_SURROGATE_START && highSurrogate <= CharUnicodeInfo.HIGH_SURROGATE_END) &&
-                    (lowSurrogate >= CharUnicodeInfo.LOW_SURROGATE_START && lowSurrogate <= CharUnicodeInfo.LOW_SURROGATE_END));
+            return IsHighSurrogate(highSurrogate) && IsLowSurrogate(lowSurrogate);
         }
 
         internal const int UNICODE_PLANE00_END = 0x00ffff;
@@ -901,11 +859,11 @@ namespace System {
         // The end codepoint for Unicode plane 16.  This is the maximum code point value allowed for Unicode.
         // Plane 16 contains 0x100000 ~ 0x10ffff.
         internal const int UNICODE_PLANE16_END   = 0x10ffff;
-
-        internal const int HIGH_SURROGATE_START = 0x00d800;
-        internal const int LOW_SURROGATE_END    = 0x00dfff;
         
-
+        internal const int HIGH_SURROGATE_START = CharUnicodeInfo.HIGH_SURROGATE_START;
+        internal const int HIGH_SURROGATE_END = CharUnicodeInfo.HIGH_SURROGATE_END;
+        internal const int LOW_SURROGATE_START = CharUnicodeInfo.LOW_SURROGATE_START;
+        internal const int LOW_SURROGATE_END = CharUnicodeInfo.LOW_SURROGATE_END;
 
        /*================================= ConvertFromUtf32 ============================
         ** Convert an UTF32 value into a surrogate pair.
@@ -916,7 +874,7 @@ namespace System {
         {
             // For UTF32 values from U+00D800 ~ U+00DFFF, we should throw.  They
             // are considered as irregular code unit sequence, but they are not illegal.
-            if ((utf32 < 0 || utf32 > UNICODE_PLANE16_END) || (utf32 >= HIGH_SURROGATE_START && utf32 <= LOW_SURROGATE_END)) {
+            if ((uint)utf32 > UNICODE_PLANE16_END || (uint)(utf32 - HIGH_SURROGATE_START) <= (uint)(LOW_SURROGATE_END) - HIGH_SURROGATE_START) {
                 throw new ArgumentOutOfRangeException("utf32", Environment.GetResourceString("ArgumentOutOfRange_InvalidUTF32"));
             }
             Contract.EndContractBlock();
@@ -951,7 +909,7 @@ namespace System {
                 throw new ArgumentOutOfRangeException("lowSurrogate", Environment.GetResourceString("ArgumentOutOfRange_InvalidLowSurrogate"));
             }
             Contract.EndContractBlock();
-            return (((highSurrogate - CharUnicodeInfo.HIGH_SURROGATE_START) * 0x400) + (lowSurrogate - CharUnicodeInfo.LOW_SURROGATE_START) + UNICODE_PLANE01_START);
+            return (((highSurrogate - HIGH_SURROGATE_START) * 0x400) + (lowSurrogate - LOW_SURROGATE_START) + UNICODE_PLANE01_START);
         }
 
         /*=============================ConvertToUtf32===================================
@@ -967,35 +925,32 @@ namespace System {
                 throw new ArgumentNullException("s");
             }
 
-            if (index < 0 || index >= s.Length) {
+            if ((uint)index >= s.Length) {
                 throw new ArgumentOutOfRangeException("index", Environment.GetResourceString("ArgumentOutOfRange_Index"));
             }
             Contract.EndContractBlock();
             // Check if the character at index is a high surrogate.
-            int temp1 = (int)s[index] - CharUnicodeInfo.HIGH_SURROGATE_START;
-            if (temp1 >= 0 && temp1 <= 0x7ff) {
+            int temp1 = (int)s[index] - HIGH_SURROGATE_START;
+            if ((uint)temp1 <= 0x7ff) {
                 // Found a surrogate char.
                 if (temp1 <= 0x3ff) {
                     // Found a high surrogate.
                     if (index < s.Length - 1) {
-                        int temp2 = (int)s[index+1] - CharUnicodeInfo.LOW_SURROGATE_START;
-                        if (temp2 >= 0 && temp2 <= 0x3ff) {
+                        int temp2 = (int)s[index + 1] - LOW_SURROGATE_START;
+                        if ((uint)temp2 <= 0x3ff) {
                             // Found a low surrogate.
                             return ((temp1 * 0x400) + temp2 + UNICODE_PLANE01_START);
-                        } else {
-                            throw new ArgumentException(Environment.GetResourceString("Argument_InvalidHighSurrogate", index), "s"); 
                         }
-                    } else {
-                        // Found a high surrogate at the end of the string.
-                        throw new ArgumentException(Environment.GetResourceString("Argument_InvalidHighSurrogate", index), "s"); 
                     }
+                    // Found a standalone high surrogate.
+                    throw new ArgumentException(Environment.GetResourceString("Argument_InvalidHighSurrogate", index), "s");
                 } else {
                     // Find a low surrogate at the character pointed by index.
                     throw new ArgumentException(Environment.GetResourceString("Argument_InvalidLowSurrogate", index), "s"); 
                 }
             }
             // Not a high-surrogate or low-surrogate. Genereate the UTF32 value for the BMP characters.
-            return ((int)s[index]);
+            return (int)s[index];
         }
     }
 }
