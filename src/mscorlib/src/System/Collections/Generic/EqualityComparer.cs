@@ -338,16 +338,12 @@ namespace System.Collections.Generic
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
-        internal unsafe override int IndexOf(byte[] array, byte value, int startIndex, int count) {
-            if (array==null)
-                throw new ArgumentNullException("array");
-            if (startIndex < 0)
-                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_Index"));
-            if (count < 0)
-                throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_Count"));
-            if (count > array.Length - startIndex)
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidOffLen"));
-            Contract.EndContractBlock();
+        internal unsafe override int IndexOf(byte[] array, byte value, int startIndex, int count)
+        {
+            Contract.Assert(array != null);
+            Contract.Assert(startIndex >= 0 && count >= 0);
+            Contract.Assert(count <= array.Length - startIndex);
+            
             if (count == 0) return -1;
             fixed (byte* pbytes = array) {
                 return Buffer.IndexOfByte(pbytes, value, startIndex, count);
