@@ -278,7 +278,7 @@ namespace System {
         }
         
         private DateTime(SerializationInfo info, StreamingContext context) {
-            if (info==null)
+            if (info == null)
                 throw new ArgumentNullException("info");
             Contract.EndContractBlock();
     
@@ -901,10 +901,10 @@ namespace System {
                 Boolean isAmbiguousLocalDst = false;
                 Int64 offset = TimeZoneInfo.GetDateTimeNowUtcOffsetFromUtc(utc, out isAmbiguousLocalDst).Ticks;
                 long tick = utc.Ticks + offset;
-                if (tick>DateTime.MaxTicks) {
+                if (tick > DateTime.MaxTicks) {
                     return new DateTime(DateTime.MaxTicks, DateTimeKind.Local);
                 }
-                if (tick<DateTime.MinTicks) {
+                if (tick < DateTime.MinTicks) {
                     return new DateTime(DateTime.MinTicks, DateTimeKind.Local);
                 }
                 return new DateTime(tick, DateTimeKind.Local, isAmbiguousLocalDst);  
