@@ -541,16 +541,27 @@ namespace System
             }
             return result;
         }
-    
-        // Joins an array of strings together as one string with a separator between each original string.
+
+        // Joins an array of strings together as one string with a string separator between each original string.
         //
         public static String Join(String separator, params String[] value) {
-            if (value==null)
+            if (value == null)
                 throw new ArgumentNullException("value");
             Contract.EndContractBlock();
             return Join(separator, value, 0, value.Length);
         }
 
+        // Joins an array of strings together as one string with a char separator between each original string.
+        //
+        public static String Join(Char separator, params String[] value) {
+            if (value == null)
+                throw new ArgumentNullException("value");
+            
+            return Join(separator, value, 0, value.Length);
+        }
+
+        // Joins an object array of strings together as one string with a string separator between each original string.
+        //
         [ComVisible(false)]
         public static string Join(string separator, params object[] values)
         {
@@ -584,6 +595,42 @@ namespace System
             return StringBuilderCache.GetStringAndRelease(result);
         }
 
+        // Joins an array of objects together as one string with a char separator between each original string.
+        //
+        [ComVisible(false)]
+        public static String Join(Char separator, params Object[] values) {
+            if (values == null)
+                throw new ArgumentNullException("values");
+
+            if (values.Length == 0 || values[0] == null)
+                return String.Empty;
+            Contract.EndContractBlock();
+
+            string firstString = values[0].ToString();
+
+            if (values.Length == 1)
+            {
+                return firstString ?? string.Empty;
+            }
+
+            StringBuilder result = StringBuilderCache.Acquire();
+            result.Append(firstString);
+
+            for (int i = 1; i < values.Length; i++)
+            {
+                result.Append(separator);
+                object value = values[i];
+                if (value != null)
+                {
+                    result.Append(value.ToString());
+                }
+            }
+
+            return StringBuilderCache.GetStringAndRelease(result);
+        }
+
+        // Joins a generic IEnumerable together as one string with a string separator between each original string.
+        //
         [ComVisible(false)]
         public static String Join<T>(String separator, IEnumerable<T> values)
         {
@@ -635,6 +682,46 @@ namespace System
             }
         }
 
+        // Joins a generic IEnumerable together as one string with a char separator between each original string.
+        //
+        [ComVisible(false)]
+        public static String Join<T>(Char separator, IEnumerable<T> values)
+        {
+            if (values == null)
+                throw new ArgumentNullException("values");
+            Contract.Ensures(Contract.Result<String>() != null);
+            Contract.EndContractBlock();
+
+            using(IEnumerator<T> en = values.GetEnumerator())
+            {
+                if (!en.MoveNext())
+                    return String.Empty;
+
+                StringBuilder result = StringBuilderCache.Acquire();
+                T currentValue = en.Current;
+
+                if (currentValue != null)
+                {
+                    result.Append(currentValue.ToString());
+                }
+
+                while (en.MoveNext())
+                {
+                    result.Append(separator);
+                    currentValue = en.Current;
+
+                    if (currentValue != null)
+                    {
+                        result.Append(currentValue.ToString());
+                    }
+                }
+
+                return StringBuilderCache.GetStringAndRelease(result);
+            }
+        }
+
+        // Joins a string IEnumerable together as one string with a string separator between each original string.
+        //
         [ComVisible(false)]
         public static String Join(String separator, IEnumerable<String> values) {
             if (values == null)
@@ -665,7 +752,39 @@ namespace System
             }
         }
 
-        // Joins an array of strings together as one string with a separator between each original string.
+        // Joins a string IEnumerable together as one string with a char separator between each original string.
+        //
+        [ComVisible(false)]
+        public static String Join(Char separator, IEnumerable<String> values) {
+            if (values == null)
+                throw new ArgumentNullException("values");
+            Contract.Ensures(Contract.Result<String>() != null);
+            Contract.EndContractBlock();
+
+            using(IEnumerator<String> en = values.GetEnumerator()) {
+                if (!en.MoveNext())
+                    return String.Empty;
+
+                String firstValue = en.Current;
+
+                if (!en.MoveNext()) {
+                    // Only one value available
+                    return firstValue ?? String.Empty;
+                }
+
+                // Null separator and values are handled by the StringBuilder
+                StringBuilder result = StringBuilderCache.Acquire();
+                result.Append(firstValue);
+
+                do {
+                    result.Append(separator);
+                    result.Append(en.Current);
+                } while (en.MoveNext());
+                return StringBuilderCache.GetStringAndRelease(result);
+            }
+        }
+
+        // Joins an array of strings together as one string with a string separator between each original string.
         //
         [System.Security.SecuritySafeCritical]  // auto-generated
         public unsafe static String Join(String separator, String[] value, int startIndex, int count) {
@@ -730,6 +849,74 @@ namespace System
                 charBuffer.AppendString( value[startIndex] );
                 for (int stringToJoinIndex = startIndex + 1; stringToJoinIndex <= endIndex; stringToJoinIndex++) {
                     charBuffer.AppendString( separator );
+                    charBuffer.AppendString( value[stringToJoinIndex] );
+                }
+                Contract.Assert(*(pointerToJointString + charBuffer.Length) == '\0', "String must be null-terminated!");
+            }
+
+            return jointString;
+        }
+
+        // Joins an array of strings together as one string with a char separator between each original string.
+        //
+        [System.Security.SecuritySafeCritical]  // auto-generated
+        public unsafe static String Join(Char separator, String[] value, int startIndex, int count) {
+            //Range check the array
+            if (value == null)
+                throw new ArgumentNullException("value");
+
+            if (startIndex < 0)
+                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_StartIndex"));
+            if (count < 0)
+                throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_NegativeCount"));
+
+            if (startIndex > value.Length - count)
+                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_IndexCountBuffer"));
+            Contract.EndContractBlock();
+
+            //If count is 0, that skews a whole bunch of the calculations below, so just special case that.
+            if (count == 0) {
+                return String.Empty;
+            }
+
+            if (count == 1) {
+                return value[startIndex] ?? String.Empty;
+            }
+
+            int jointLength = 0;
+            //Figure out the total length of the strings in value
+            int endIndex = startIndex + count;
+            for (int stringToJoinIndex = startIndex; stringToJoinIndex < endIndex; stringToJoinIndex++) {
+                string currentValue = value[stringToJoinIndex];
+
+                if (currentValue != null) {
+                    jointLength += currentValue.Length;
+                }
+            }
+
+            //Add enough room for the separator.
+            jointLength += count - 1;
+
+            // Note that we may not catch all overflows with this check (since we could have wrapped around the 4gb range any number of times
+            // and landed back in the positive range.) The input array might be modifed from other threads, 
+            // so we have to do an overflow check before each append below anyway. Those overflows will get caught down there.
+            if ((jointLength < 0) || ((jointLength + 1) < 0) ) {
+                throw new OutOfMemoryException();
+            }
+
+            //If this is an empty string, just return.
+            if (jointLength == 0) {
+                return String.Empty;
+            }
+
+            string jointString = FastAllocateString( jointLength );
+            fixed (char * pointerToJointString = &jointString.m_firstChar) {
+                UnSafeCharBuffer charBuffer = new UnSafeCharBuffer( pointerToJointString, jointLength);                
+                
+                // Append the first string first and then append each following string prefixed by the separator.
+                charBuffer.AppendString( value[startIndex] );
+                for (int stringToJoinIndex = startIndex + 1; stringToJoinIndex < endIndex; stringToJoinIndex++) {
+                    charBuffer.AppendChar( separator );
                     charBuffer.AppendString( value[stringToJoinIndex] );
                 }
                 Contract.Assert(*(pointerToJointString + charBuffer.Length) == '\0', "String must be null-terminated!");
