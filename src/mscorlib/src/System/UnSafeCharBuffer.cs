@@ -29,25 +29,36 @@ namespace System {
             m_totalSize = bufferSize;    
             m_length = 0;
         }
-    
+
+        [System.Security.SecuritySafeCritical]  // auto-generated
+        public void AppendChar( char charToAppend ) {
+            if ( (m_totalSize - m_length) < 1 ) {
+                throw new IndexOutOfRangeException();
+            }
+
+            m_buffer[m_length++] = charToAppend;
+
+            Contract.Assert(m_length <= m_totalSize, "Buffer has been overflowed!");
+        }
+
         [System.Security.SecuritySafeCritical]  // auto-generated
         public void AppendString(string stringToAppend) {
             if( String.IsNullOrEmpty( stringToAppend ) ) {
                 return;
             }
-            
+
             if ( (m_totalSize - m_length) < stringToAppend.Length ) {
                 throw new IndexOutOfRangeException();
             }
-            
-            fixed( char* pointerToString = stringToAppend ) {        
+
+            fixed( char* pointerToString = stringToAppend ) {
                 Buffer.Memcpy( (byte*) (m_buffer + m_length), (byte *) pointerToString, stringToAppend.Length * sizeof(char));
-            }    
-            
+            }
+
             m_length += stringToAppend.Length;
             Contract.Assert(m_length <= m_totalSize, "Buffer has been overflowed!");
         }
-                
+
         public int Length {
             get {
                 return m_length;
