@@ -141,9 +141,9 @@ namespace System {
     
         private const int DEFAULT_ALL_DATETIMES_SIZE = 132;
 
-        internal static readonly DateTimeFormatInfo FormatInfo = CultureInfo.InvariantCulture.DateTimeFormat;
-        internal static readonly string[] AbbreviatedMonthNames = FormatInfo.AbbreviatedMonthNames;
-        internal static readonly string[] AbbreviatedDayNames = FormatInfo.AbbreviatedDayNames;
+        internal static readonly DateTimeFormatInfo InvariantFormatInfo = CultureInfo.InvariantCulture.DateTimeFormat;
+        internal static readonly string[] InvariantAbbreviatedMonthNames = InvariantFormatInfo.AbbreviatedMonthNames;
+        internal static readonly string[] InvariantAbbreviatedDayNames = InvariantFormatInfo.AbbreviatedDayNames;
         internal const string Gmt = "GMT";
 
         internal static String[] fixedNumberFormats = new String[] {
@@ -964,12 +964,14 @@ namespace System {
             }
 
             if (format.Length == 1) {
-                if (format[0] == 'o' || format[0] == 'O') {
-                    return FastFormatRoundtrip(dateTime, offset);
-                }
-
-                if (format[0] == 'r' || format[0] == 'R') {
-                    return FastFormatRfc1123(dateTime, offset, dtfi);
+                switch (format[0])
+                {
+                    case 'O':
+                    case 'o':
+                        return FastFormatRoundtrip(dateTime, offset);
+                    case 'R':
+                    case 'r':
+                        return FastFormatRfc1123(dateTime, offset, dtfi);
                 }
 
                 format = ExpandPredefinedFormat(format, ref dateTime, ref dtfi, ref offset);
@@ -981,18 +983,19 @@ namespace System {
         internal static string FastFormatRfc1123(DateTime dateTime, TimeSpan offset, DateTimeFormatInfo dtfi)
         {
             // ddd, dd MMM yyyy HH:mm:ss GMT
-            StringBuilder result = StringBuilderCache.Acquire();
+            const int Rfc1123FormatLength = 29;
+            StringBuilder result = StringBuilderCache.Acquire(Rfc1123FormatLength);
 
-            result.Append(AbbreviatedDayNames[(int)dateTime.DayOfWeek]);
+            result.Append(InvariantAbbreviatedDayNames[(int)dateTime.DayOfWeek]);
             result.Append(',');
             result.Append(' ');
             AppendNumber(result, dateTime.Day, 2);
             result.Append(' ');
-            result.Append(AbbreviatedMonthNames[dateTime.Month - 1]);
+            result.Append(InvariantAbbreviatedMonthNames[dateTime.Month - 1]);
             result.Append(' ');
             AppendNumber(result, dateTime.Year, 4);
             result.Append(' ');
-            AppendTimeOfDay(result, dateTime);
+            AppendHHmmssTimeOfDay(result, dateTime);
             result.Append(' ');
             result.Append(Gmt);
 
@@ -1002,7 +1005,8 @@ namespace System {
         internal static string FastFormatRoundtrip(DateTime dateTime, TimeSpan offset)
         {
             // yyyy-MM-ddTHH:mm:ss.fffffffK
-            StringBuilder result = StringBuilderCache.Acquire();
+            const int roundTrimFormatLength = 28;
+            StringBuilder result = StringBuilderCache.Acquire(roundTrimFormatLength);
 
             AppendNumber(result, dateTime.Year, 4);
             result.Append('-');
@@ -1010,7 +1014,7 @@ namespace System {
             result.Append('-');
             AppendNumber(result, dateTime.Day, 2);
             result.Append('T');
-            AppendTimeOfDay(result, dateTime);
+            AppendHHmmssTimeOfDay(result, dateTime);
             result.Append('.');
 
             long fraction = dateTime.Ticks % TimeSpan.TicksPerSecond;
@@ -1021,7 +1025,7 @@ namespace System {
             return StringBuilderCache.GetStringAndRelease(result);
         }
 
-        private static void AppendTimeOfDay(StringBuilder result, DateTime dateTime)
+        private static void AppendHHmmssTimeOfDay(StringBuilder result, DateTime dateTime)
         {
             // HH:mm:ss
             AppendNumber(result, dateTime.Hour, 2);
