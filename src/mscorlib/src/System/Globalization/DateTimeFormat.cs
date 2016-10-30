@@ -986,6 +986,12 @@ namespace System {
             const int Rfc1123FormatLength = 29;
             StringBuilder result = StringBuilderCache.Acquire(Rfc1123FormatLength);
 
+            if (offset != NullOffset)
+            {
+                // Convert to UTC invariants
+                dateTime = dateTime - offset;
+            }
+
             result.Append(InvariantAbbreviatedDayNames[(int)dateTime.DayOfWeek]);
             result.Append(',');
             result.Append(' ');
