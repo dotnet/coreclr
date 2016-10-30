@@ -968,8 +968,7 @@ namespace System {
                     return FastFormatRoundtrip(dateTime, offset);
                 }
 
-                if (format[0] == 'r' || format[0] == 'R')
-                {
+                if (format[0] == 'r' || format[0] == 'R') {
                     return FastFormatRfc1123(dateTime, offset, dtfi);
                 }
 
