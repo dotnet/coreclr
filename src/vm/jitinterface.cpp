@@ -5093,6 +5093,20 @@ void CEEInfo::getCallInfo(
         // shared generic code - it may just resolve it to a candidate suitable for
         // JIT compilation, and require a runtime lookup for the actual code pointer
         // to call.
+		if (constrainedType.IsEnum())
+		{
+			// Optimize constrained calls to enum's GetHashCode method. TryResolveConstraintMethodApprox would return
+			// null since the virtual method resolves to System.Enum's implementation and that's a reference type.
+			// We can't do this for any other method since ToString and Equals have different semantics for enums
+			// and their underlying type.
+			LPCUTF8 pMethodName = pMD->GetName();
+			if (strcmp(pMethodName, "GetHashCode") == 0)
+			{
+				// Pretend this was a "constrained. UnderlyingType" instruction prefix
+				constrainedType = TypeHandle(MscorlibBinder::GetElementType(constrainedType.GetVerifierCorElementType()));
+			}
+		}
+
         MethodDesc * directMethod = constrainedType.GetMethodTable()->TryResolveConstraintMethodApprox(
             exactType, 
             pMD, 
