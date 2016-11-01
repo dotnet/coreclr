@@ -3420,7 +3420,7 @@ BOOL QCALLTYPE COMNlsInfo::InternalGetNlsVersionEx(INT_PTR handle, INT_PTR handl
     BOOL ret = FALSE;
 
     BEGIN_QCALL;
-    
+#ifndef FEATURE_CORECLR
     AppDomain* curDomain = GetAppDomain();
 
     if(curDomain->m_bUseOsSorting)
@@ -3448,7 +3448,9 @@ BOOL QCALLTYPE COMNlsInfo::InternalGetNlsVersionEx(INT_PTR handle, INT_PTR handl
         lpVersionInformation->dwEffectiveId = 0;
         ZeroMemory(&(lpVersionInformation->guidCustomVersion), sizeof(GUID));                
     }
-    
+#else
+    ret = GetNLSVersionEx(COMPARE_STRING, lpLocaleName, lpVersionInformation);
+#endif // FEATURE_CORECLR
     END_QCALL;
  
     return ret;

@@ -89,9 +89,7 @@ namespace System.Globalization {
         [NonSerialized]private bool m_isSafeCrossDomain;
         [NonSerialized]private int m_createdDomainID;
 #endif // !FEATURE_CORECLR
-#if !FEATURE_CORECLR
         [NonSerialized]private CultureInfo m_consoleFallbackCulture;
-#endif // !FEATURE_CORECLR
 
         // Names are confusing.  Here are 3 names we have:
         //
