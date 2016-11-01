@@ -3411,7 +3411,6 @@ INT_PTR COMNlsInfo::InternalInitOsSortHandle(LPCWSTR localeName, __out INT_PTR* 
     return pSort;
 }
 
-#ifndef FEATURE_CORECLR
 BOOL QCALLTYPE COMNlsInfo::InternalGetNlsVersionEx(INT_PTR handle, INT_PTR handleOrigin, LPCWSTR lpLocaleName, NLSVERSIONINFOEX * lpVersionInformation)
 {
     CONTRACTL {
@@ -3455,6 +3454,7 @@ BOOL QCALLTYPE COMNlsInfo::InternalGetNlsVersionEx(INT_PTR handle, INT_PTR handl
     return ret;
 }
 
+#ifndef FEATURE_CORECLR
 DWORD QCALLTYPE COMNlsInfo::InternalGetSortVersion()
 {
     CONTRACTL {
