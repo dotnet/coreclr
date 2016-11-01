@@ -1328,8 +1328,8 @@ namespace System.Globalization {
 // Disable  warning 618: System.Globalization.CultureTypes.FrameworkCultures' is obsolete
 #pragma warning disable 618
                 types |= m_cultureData.IsFramework ? CultureTypes.FrameworkCultures : 0;
-
 #pragma warning restore 618
+
                 types |= m_cultureData.IsSupplementalCustomCulture ? CultureTypes.UserCustomCulture : 0;
                 types |= m_cultureData.IsReplacementCulture ? CultureTypes.ReplacementCultures | CultureTypes.UserCustomCulture : 0;
 
