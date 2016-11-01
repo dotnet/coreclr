@@ -1885,6 +1885,8 @@ combinedScenarios.each { scenario ->
                                     
                                         // Zip up the tests directory so that we don't use so much space/time copying
                                         // 10s of thousands of files around.
+                                        // First delete all files underneath named "project.lock".  Since there are around 9 gigs of them
+                                        buildCommands += "del /S .\\bin\\tests\\${osGroup}.${arch}.${configuration}\\project.lock"
                                         buildCommands += "powershell -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('.\\bin\\tests\\${osGroup}.${arch}.${configuration}', '.\\bin\\tests\\tests.zip')\"";
                                         
                                         if (!Constants.jitStressModeScenarios.containsKey(scenario)) {
