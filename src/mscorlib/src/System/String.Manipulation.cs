@@ -541,6 +541,184 @@ namespace System
             }
             return result;
         }
+
+        public static string Join(char separator, params string[] value)
+        {
+            if (value == null)
+            {
+                throw new ArgumentNullException("value");
+            }
+
+            return Join(separator, value, 0, value.Length);
+        }
+
+        public static string Join(char separator, params object[] values)
+        {
+            if (values == null)
+            {
+                throw new ArgumentNullException("values");
+            }
+
+            if (values.Length == 0)
+            {
+                return string.Empty;
+            }
+
+            string firstString = values[0]?.ToString();
+
+            if (values.Length == 1)
+            {
+                return firstString ?? string.Empty;
+            }
+
+            StringBuilder result = StringBuilderCache.Acquire();
+            result.Append(firstString);
+
+            for (int i = 1; i < values.Length; i++)
+            {
+                result.Append(separator);
+                object value = values[i];
+                if (value != null)
+                {
+                    result.Append(value.ToString());
+                }
+            }
+
+            return StringBuilderCache.GetStringAndRelease(result);
+        }
+
+        public static string Join<T>(char separator, IEnumerable<T> values)
+        {
+            if (values == null)
+            {
+                throw new ArgumentNullException("values");
+            }
+
+            using (IEnumerator<T> en = values.GetEnumerator())
+            {
+                if (!en.MoveNext())
+                    return string.Empty;
+                
+                // We called MoveNext once, so this will be the first item
+                T currentValue = en.Current;
+
+                // Call ToString before calling MoveNext again, since
+                // we want to stay consistent with the below loop
+                string firstString = currentValue?.ToString();
+
+                // If there's only 1 item, simply call ToString on that
+                if (!en.MoveNext())
+                {
+                    // We have to handle the case of either currentValue
+                    // or its ToString being null
+                    return firstString ?? string.Empty;
+                }
+
+                StringBuilder result = StringBuilderCache.Acquire();
+                
+                result.Append(firstString);
+
+                do
+                {
+                    currentValue = en.Current;
+
+                    result.Append(separator);
+                    if (currentValue != null)
+                    {
+                        result.Append(currentValue.ToString());
+                    }
+                }
+                while (en.MoveNext());
+
+                return StringBuilderCache.GetStringAndRelease(result);
+            }
+        }
+
+        public unsafe static string Join(char separator, string[] value, int startIndex, int count)
+        {
+            if (value == null)
+            {
+                throw new ArgumentNullException("value");
+            }
+            if (startIndex < 0)
+            {
+                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_StartIndex"));
+            }
+            if (count < 0)
+            {
+                throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_NegativeCount"));
+            }
+            if (startIndex > value.Length - count)
+            {
+                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_IndexCountBuffer"));
+            }
+            
+            if (count <= 1)
+            {
+                return count == 0 ?
+                    string.Empty :
+                    value[startIndex] ?? string.Empty;
+            }
+
+            int totalLength = count - 1; // This is how many times the single-char separator will be added.
+
+            // Calculate the length of the resultant string so we know how much space to allocate.
+            for (int i = startIndex, end = startIndex + count; i < end; i++)
+            {
+                string currentValue = value[i];
+                if (currentValue != null)
+                {
+                    checked
+                    {
+                        totalLength += currentValue.Length;
+                    }
+                }
+            }
+
+            // Copy each of the strings into the resultant buffer, interleaving with the separator.
+            string result = FastAllocateString(totalLength);
+            int copiedLength = 0;
+
+            for (int i = startIndex, end = startIndex + count; i < end; i++)
+            {
+                // It's possible that another thread may have mutated the input array
+                // such that our second read of an index will not be the same string
+                // we got during the first read.
+
+                // We range check again to avoid buffer overflows if this happens.
+
+                string currentValue = value[i];
+                if (currentValue != null)
+                {
+                    int valueLen = currentValue.Length;
+                    if (valueLen > totalLength - copiedLength)
+                    {
+                        copiedLength = -1;
+                        break;
+                    }
+
+                    // Fill in the value.
+                    FillStringChecked(result, copiedLength, currentValue);
+                    copiedLength += valueLen;
+                }
+                    
+                if (i < end - 1)
+                {
+                    // Fill in the separator.
+                    fixed (char* pResult = &result.m_firstChar)
+                    {
+                        pResult[copiedLength] = separator;
+                    }
+                    copiedLength++;
+                }
+            }
+
+            // If we copied exactly the right amount, return the new string.  Otherwise,
+            // something changed concurrently to mutate the input array: fall back to
+            // doing the concatenation again, but this time with a defensive copy. This
+            // fall back should be extremely rare.
+            return copiedLength == totalLength ? result : Concat((string[])value.Clone());
+        }
     
         // Joins an array of strings together as one string with a separator between each original string.
         //
