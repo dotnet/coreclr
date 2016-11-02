@@ -587,51 +587,10 @@ namespace System
             return StringBuilderCache.GetStringAndRelease(result);
         }
 
-        public static string Join<T>(char separator, IEnumerable<T> values)
+        public unsafe static string Join<T>(char separator, IEnumerable<T> values)
         {
-            if (values == null)
-            {
-                throw new ArgumentNullException("values");
-            }
-
-            using (IEnumerator<T> en = values.GetEnumerator())
-            {
-                if (!en.MoveNext())
-                    return string.Empty;
-                
-                // We called MoveNext once, so this will be the first item
-                T currentValue = en.Current;
-
-                // Call ToString before calling MoveNext again, since
-                // we want to stay consistent with the below loop
-                string firstString = currentValue?.ToString();
-
-                // If there's only 1 item, simply call ToString on that
-                if (!en.MoveNext())
-                {
-                    // We have to handle the case of either currentValue
-                    // or its ToString being null
-                    return firstString ?? string.Empty;
-                }
-
-                StringBuilder result = StringBuilderCache.Acquire();
-                
-                result.Append(firstString);
-
-                do
-                {
-                    currentValue = en.Current;
-
-                    result.Append(separator);
-                    if (currentValue != null)
-                    {
-                        result.Append(currentValue.ToString());
-                    }
-                }
-                while (en.MoveNext());
-
-                return StringBuilderCache.GetStringAndRelease(result);
-            }
+            // Defer argument validation to the internal function
+            return JoinCore(&separator, 1, values);
         }
 
         public unsafe static string Join(char separator, string[] value, int startIndex, int count)
@@ -761,53 +720,12 @@ namespace System
         }
 
         [ComVisible(false)]
-        public static String Join<T>(String separator, IEnumerable<T> values)
+        public unsafe static string Join<T>(string separator, IEnumerable<T> values)
         {
-            if (values == null)
-                throw new ArgumentNullException(nameof(values));
-            Contract.Ensures(Contract.Result<String>() != null);
-            Contract.EndContractBlock();
-
-            using (IEnumerator<T> en = values.GetEnumerator())
+            fixed (char* pSeparator = &separator.m_firstChar)
             {
-                if (!en.MoveNext())
-                    return string.Empty;
-                
-                // We called MoveNext once, so this will be the first item
-                T currentValue = en.Current;
-
-                // Call ToString before calling MoveNext again, since
-                // we want to stay consistent with the below loop
-                // Everything should be called in the order
-                // MoveNext-Current-ToString, unless further optimizations
-                // can be made, to avoid breaking changes
-                string firstString = currentValue?.ToString();
-
-                // If there's only 1 item, simply call ToString on that
-                if (!en.MoveNext())
-                {
-                    // We have to handle the case of either currentValue
-                    // or its ToString being null
-                    return firstString ?? string.Empty;
-                }
-
-                StringBuilder result = StringBuilderCache.Acquire();
-                
-                result.Append(firstString);
-
-                do
-                {
-                    currentValue = en.Current;
-
-                    result.Append(separator);
-                    if (currentValue != null)
-                    {
-                        result.Append(currentValue.ToString());
-                    }
-                }
-                while (en.MoveNext());
-
-                return StringBuilderCache.GetStringAndRelease(result);
+                // Defer argument validataion to the internal function
+                return JoinCore(pSeparator, separator.Length, values);
             }
         }
 
@@ -912,6 +830,58 @@ namespace System
             }
 
             return jointString;
+        }
+
+        private unsafe static string JoinCore<T>(char* separator, int length, IEnumerable<T> values)
+        {
+            if (values == null)
+            {
+                throw new ArgumentNullException(nameof(values));
+            }
+
+            using (IEnumerator<T> en = values.GetEnumerator())
+            {
+                if (!en.MoveNext())
+                {
+                    return string.Empty;
+                }
+                
+                // We called MoveNext once, so this will be the first item
+                T currentValue = en.Current;
+
+                // Call ToString before calling MoveNext again, since
+                // we want to stay consistent with the below loop
+                // Everything should be called in the order
+                // MoveNext-Current-ToString, unless further optimizations
+                // can be made, to avoid breaking changes
+                string firstString = currentValue?.ToString();
+
+                // If there's only 1 item, simply call ToString on that
+                if (!en.MoveNext())
+                {
+                    // We have to handle the case of either currentValue
+                    // or its ToString being null
+                    return firstString ?? string.Empty;
+                }
+
+                StringBuilder result = StringBuilderCache.Acquire();
+
+                result.Append(firstString);
+
+                do
+                {
+                    currentValue = en.Current;
+
+                    result.Append(separator, length);
+                    if (currentValue != null)
+                    {
+                        result.Append(currentValue.ToString());
+                    }
+                }
+                while (en.MoveNext());
+
+                return StringBuilderCache.GetStringAndRelease(result);
+            }
         }
         
         //
