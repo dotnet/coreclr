@@ -722,6 +722,7 @@ namespace System
         [ComVisible(false)]
         public unsafe static string Join<T>(string separator, IEnumerable<T> values)
         {
+            separator = separator ?? string.Empty;
             fixed (char* pSeparator = &separator.m_firstChar)
             {
                 // Defer argument validataion to the internal function
