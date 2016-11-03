@@ -2097,11 +2097,11 @@ bool NotifyGdb::CollectCalledMethods(CalledMethod* pCalledMethods)
         TADDR callAddr = (TADDR)pList->GetCallAddr();
         if (!codeAddrs.Contains(callAddr))
         {
-            char buf[256];
             MethodDesc* pMD = pList->GetMethodDesc();
-            sprintf(buf, "__thunk_%s", pMD->GetName());
-            SymbolNames[i].m_name = new char[strlen(buf) + 1];
-            strcpy((char*)SymbolNames[i].m_name, buf);
+            LPCUTF8 methodName = pMD->GetName();
+            int symbolNameLength = strlen(methodName) + sizeof("__thunk_");
+            SymbolNames[i].m_name = new char[symbolNameLength];
+            sprintf((char*)SymbolNames[i].m_name, "__thunk_%s", methodName);
             SymbolNames[i].m_value = callAddr;
             ++i;
             codeAddrs.Add(callAddr);
