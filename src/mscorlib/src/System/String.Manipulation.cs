@@ -651,31 +651,39 @@ namespace System
         }
 
         [ComVisible(false)]
-        public static String Join(String separator, IEnumerable<String> values) {
+        public static string Join(string separator, IEnumerable<string> values)
+        {
             if (values == null)
+            {
                 throw new ArgumentNullException(nameof(values));
-            Contract.Ensures(Contract.Result<String>() != null);
-            Contract.EndContractBlock();
+            }
 
-            using(IEnumerator<String> en = values.GetEnumerator()) {
+            using (IEnumerator<string> en = values.GetEnumerator())
+            {
                 if (!en.MoveNext())
-                    return String.Empty;
+                {
+                    return string.Empty;
+                }
 
-                String firstValue = en.Current;
+                string firstValue = en.Current;
 
-                if (!en.MoveNext()) {
+                if (!en.MoveNext())
+                {
                     // Only one value available
-                    return firstValue ?? String.Empty;
+                    return firstValue ?? string.Empty;
                 }
 
                 // Null separator and values are handled by the StringBuilder
                 StringBuilder result = StringBuilderCache.Acquire();
                 result.Append(firstValue);
 
-                do {
+                do
+                {
                     result.Append(separator);
                     result.Append(en.Current);
-                } while (en.MoveNext());
+                }
+                while (en.MoveNext());
+                
                 return StringBuilderCache.GetStringAndRelease(result);
             }
         }
