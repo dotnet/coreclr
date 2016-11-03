@@ -595,88 +595,8 @@ namespace System
 
         public unsafe static string Join(char separator, string[] value, int startIndex, int count)
         {
-            if (value == null)
-            {
-                throw new ArgumentNullException("value");
-            }
-            if (startIndex < 0)
-            {
-                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_StartIndex"));
-            }
-            if (count < 0)
-            {
-                throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_NegativeCount"));
-            }
-            if (startIndex > value.Length - count)
-            {
-                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_IndexCountBuffer"));
-            }
-            
-            if (count <= 1)
-            {
-                return count == 0 ?
-                    string.Empty :
-                    value[startIndex] ?? string.Empty;
-            }
-
-            int totalLength = count - 1; // This is how many times the single-char separator will be added.
-
-            // Calculate the length of the resultant string so we know how much space to allocate.
-            for (int i = startIndex, end = startIndex + count; i < end; i++)
-            {
-                string currentValue = value[i];
-                if (currentValue != null)
-                {
-                    checked
-                    {
-                        totalLength += currentValue.Length;
-                    }
-                }
-            }
-
-            // Copy each of the strings into the resultant buffer, interleaving with the separator.
-            string result = FastAllocateString(totalLength);
-            int copiedLength = 0;
-
-            for (int i = startIndex, end = startIndex + count; i < end; i++)
-            {
-                // It's possible that another thread may have mutated the input array
-                // such that our second read of an index will not be the same string
-                // we got during the first read.
-
-                // We range check again to avoid buffer overflows if this happens.
-
-                string currentValue = value[i];
-                if (currentValue != null)
-                {
-                    int valueLen = currentValue.Length;
-                    if (valueLen > totalLength - copiedLength)
-                    {
-                        copiedLength = -1;
-                        break;
-                    }
-
-                    // Fill in the value.
-                    FillStringChecked(result, copiedLength, currentValue);
-                    copiedLength += valueLen;
-                }
-                    
-                if (i < end - 1)
-                {
-                    // Fill in the separator.
-                    fixed (char* pResult = &result.m_firstChar)
-                    {
-                        pResult[copiedLength] = separator;
-                    }
-                    copiedLength++;
-                }
-            }
-
-            // If we copied exactly the right amount, return the new string.  Otherwise,
-            // something changed concurrently to mutate the input array: fall back to
-            // doing the concatenation again, but this time with a defensive copy. This
-            // fall back should be extremely rare.
-            return copiedLength == totalLength ? result : Concat((string[])value.Clone());
+            // Defer argument validation to the internal function
+            return JoinCore(&separator, 1, value, startIndex, count);
         }
     
         // Joins an array of strings together as one string with a separator between each original string.
@@ -763,77 +683,17 @@ namespace System
         // Joins an array of strings together as one string with a separator between each original string.
         //
         [System.Security.SecuritySafeCritical]  // auto-generated
-        public unsafe static String Join(String separator, String[] value, int startIndex, int count) {
-            //Range check the array
-            if (value == null)
-                throw new ArgumentNullException(nameof(value));
-
-            if (startIndex < 0)
-                throw new ArgumentOutOfRangeException(nameof(startIndex), Environment.GetResourceString("ArgumentOutOfRange_StartIndex"));
-            if (count < 0)
-                throw new ArgumentOutOfRangeException(nameof(count), Environment.GetResourceString("ArgumentOutOfRange_NegativeCount"));
-
-            if (startIndex > value.Length - count)
-                throw new ArgumentOutOfRangeException(nameof(startIndex), Environment.GetResourceString("ArgumentOutOfRange_IndexCountBuffer"));
-            Contract.EndContractBlock();
-
-            //Treat null as empty string.
-            if (separator == null) {
-                separator = String.Empty;
+        public unsafe static string Join(string separator, string[] value, int startIndex, int count)
+        {
+            separator = separator ?? string.Empty;
+            fixed (char* pSeparator = &separator.m_firstChar)
+            {
+                // Defer argument validation to the internal function
+                return JoinCore(pSeparator, separator.Length, value, startIndex, count);
             }
-
-            //If count is 0, that skews a whole bunch of the calculations below, so just special case that.
-            if (count == 0) {
-                return String.Empty;
-            }
-
-            if (count == 1) {
-                return value[startIndex] ?? String.Empty;
-            }
-
-            int jointLength = 0;
-            //Figure out the total length of the strings in value
-            int endIndex = startIndex + count - 1;
-            for (int stringToJoinIndex = startIndex; stringToJoinIndex <= endIndex; stringToJoinIndex++) {
-                string currentValue = value[stringToJoinIndex];
-
-                if (currentValue != null) {
-                    jointLength += currentValue.Length;
-                }
-            }
-            
-            //Add enough room for the separator.
-            jointLength += (count - 1) * separator.Length;
-
-            // Note that we may not catch all overflows with this check (since we could have wrapped around the 4gb range any number of times
-            // and landed back in the positive range.) The input array might be modifed from other threads, 
-            // so we have to do an overflow check before each append below anyway. Those overflows will get caught down there.
-            if ((jointLength < 0) || ((jointLength + 1) < 0) ) {
-                throw new OutOfMemoryException();
-            }
-
-            //If this is an empty string, just return.
-            if (jointLength == 0) {
-                return String.Empty;
-            }
-
-            string jointString = FastAllocateString( jointLength );
-            fixed (char * pointerToJointString = &jointString.m_firstChar) {
-                UnSafeCharBuffer charBuffer = new UnSafeCharBuffer( pointerToJointString, jointLength);                
-                
-                // Append the first string first and then append each following string prefixed by the separator.
-                charBuffer.AppendString( value[startIndex] );
-                for (int stringToJoinIndex = startIndex + 1; stringToJoinIndex <= endIndex; stringToJoinIndex++) {
-                    charBuffer.AppendString( separator );
-                    charBuffer.AppendString( value[stringToJoinIndex] );
-                }
-                Contract.Assert(*(pointerToJointString + charBuffer.Length) == '\0', "String must be null-terminated!");
-            }
-
-            return jointString;
         }
 
-        private unsafe static string JoinCore<T>(char* separator, int length, IEnumerable<T> values)
+        private unsafe static string JoinCore<T>(char* separator, int separatorLength, IEnumerable<T> values)
         {
             if (values == null)
             {
@@ -873,7 +733,7 @@ namespace System
                 {
                     currentValue = en.Current;
 
-                    result.Append(separator, length);
+                    result.Append(separator, separatorLength);
                     if (currentValue != null)
                     {
                         result.Append(currentValue.ToString());
@@ -883,6 +743,119 @@ namespace System
 
                 return StringBuilderCache.GetStringAndRelease(result);
             }
+        }
+
+        private unsafe static string JoinCore(char* separator, int separatorLength, string[] value, int startIndex, int count)
+        {
+            // If the separator is null, it is converted to an empty string before entering this function.
+            // Even for empty strings, fixed should never return null (it should return a pointer to a null char).
+            Contract.Assert(separator != null);
+            Contract.Assert(separatorLength >= 0);
+
+            if (value == null)
+            {
+                throw new ArgumentNullException("value");
+            }
+            if (startIndex < 0)
+            {
+                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_StartIndex"));
+            }
+            if (count < 0)
+            {
+                throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_NegativeCount"));
+            }
+            if (startIndex > value.Length - count)
+            {
+                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_IndexCountBuffer"));
+            }
+            
+            if (count <= 1)
+            {
+                return count == 0 ?
+                    string.Empty :
+                    value[startIndex] ?? string.Empty;
+            }
+
+            int totalLength;
+            try
+            {
+                checked
+                {
+                    totalLength = (count - 1) * separatorLength;
+                }
+            }
+            catch (OverflowException)
+            {
+                throw new OutOfMemoryException();
+            }
+
+            // Calculate the length of the resultant string so we know how much space to allocate.
+            for (int i = startIndex, end = startIndex + count; i < end; i++)
+            {
+                string currentValue = value[i];
+                if (currentValue != null)
+                {
+                    totalLength += currentValue.Length;
+                    if (totalLength < 0) // Check for overflow
+                    {
+                        throw new OutOfMemoryException();
+                    }
+                }
+            }
+
+            // Copy each of the strings into the resultant buffer, interleaving with the separator.
+            string result = FastAllocateString(totalLength);
+            int copiedLength = 0;
+
+            for (int i = startIndex, end = startIndex + count; i < end; i++)
+            {
+                // It's possible that another thread may have mutated the input array
+                // such that our second read of an index will not be the same string
+                // we got during the first read.
+
+                // We range check again to avoid buffer overflows if this happens.
+
+                string currentValue = value[i];
+                if (currentValue != null)
+                {
+                    int valueLen = currentValue.Length;
+                    if (valueLen > totalLength - copiedLength)
+                    {
+                        copiedLength = -1;
+                        break;
+                    }
+
+                    // Fill in the value.
+                    FillStringChecked(result, copiedLength, currentValue);
+                    copiedLength += valueLen;
+                }
+                    
+                if (i < end - 1)
+                {
+                    // Fill in the separator.
+                    fixed (char* pResult = &result.m_firstChar)
+                    {
+                        // If we are called from the char-based overload, we will not
+                        // want to call MemoryCopy each time we fill in the separator. So
+                        // specialize for 1-length separators.
+                        if (separatorLength == 1)
+                        {
+                            pResult[copiedLength] = *separator;
+                        }
+                        else
+                        {
+                            wstrcpy(pResult + copiedLength, separator, separatorLength);
+                        }
+                    }
+                    copiedLength += separatorLength;
+                }
+            }
+
+            // If we copied exactly the right amount, return the new string.  Otherwise,
+            // something changed concurrently to mutate the input array: fall back to
+            // doing the concatenation again, but this time with a defensive copy. This
+            // fall back should be extremely rare.
+            return copiedLength == totalLength ? result : Concat((string[])value.Clone());
         }
         
         //
