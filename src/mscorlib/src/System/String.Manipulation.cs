@@ -601,10 +601,12 @@ namespace System
     
         // Joins an array of strings together as one string with a separator between each original string.
         //
-        public static String Join(String separator, params String[] value) {
-            if (value==null)
+        public static string Join(string separator, params string[] value)
+        {
+            if (value == null)
+            {
                 throw new ArgumentNullException(nameof(value));
-            Contract.EndContractBlock();
+            }
             return Join(separator, value, 0, value.Length);
         }
 
@@ -612,16 +614,21 @@ namespace System
         public static string Join(string separator, params object[] values)
         {
             if (values == null)
+            {
                 throw new ArgumentNullException(nameof(values));
-            Contract.EndContractBlock();
+            }
 
             if (values.Length == 0)
+            {
                 return string.Empty;
+            }
 
             string firstString = values[0]?.ToString();
 
             if (values.Length == 1)
+            {
                 return firstString ?? string.Empty;
+            }
 
             StringBuilder result = StringBuilderCache.Acquire();
             result.Append(firstString);
@@ -683,7 +690,7 @@ namespace System
                     result.Append(en.Current);
                 }
                 while (en.MoveNext());
-                
+
                 return StringBuilderCache.GetStringAndRelease(result);
             }
         }
