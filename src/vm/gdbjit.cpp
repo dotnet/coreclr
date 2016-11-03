@@ -772,8 +772,40 @@ struct __attribute__((packed)) DebugInfoSubMember
     uint32_t m_obj_ptr;
 };
 
-static FunctionMember** method = nullptr;
-int method_count = 0;
+// Holder for array of pointers to FunctionMember objects
+class FunctionMemberPtrArrayHolder : public NewArrayHolder<FunctionMember*>
+{
+private:
+    int m_cElements;
+
+public:
+    FunctionMemberPtrArrayHolder() :
+        NewArrayHolder<FunctionMember*>(),
+        m_cElements(0)
+    {
+    }
+
+    void Set(FunctionMember** value, int cElements)
+    {
+        NewArrayHolder<FunctionMember*>::operator=(value);
+        m_cElements = cElements;
+    }
+
+    int GetCount() const
+    {
+        return m_cElements;
+    }
+
+    ~FunctionMemberPtrArrayHolder()
+    {
+        for (int i = 0; i < m_cElements; i++)
+        {
+            delete this->m_value[i];
+        }
+    }
+};
+
+static FunctionMemberPtrArrayHolder method;
 
 struct __attribute__((packed)) DebugInfoType
 {
@@ -1110,7 +1142,8 @@ void ClassTypeInfo::DumpDebugInfo(char* ptr, int& offset)
         members[i].DumpDebugInfo(ptr, offset);
     }
 
-    for (int i = 0; i < method_count; ++i) {
+    for (int i = 0; i < method.GetCount(); ++i)
+    {
         if (method[i]->md->GetMethodTable() == GetTypeHandle().GetMethodTable())
         {
             // our method is part of this class, we should dump it now before terminating members
@@ -1358,7 +1391,11 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
         return;
     }
 
-    method_count = countFuncs(symInfo, symInfoLen);
+    int method_count = countFuncs(symInfo, symInfoLen);
+    method.Set(new (nothrow) FunctionMember*[method_count], method_count);
+    if (method == nullptr) {
+        return;
+    }
 
     CodeHeader* pCH = ((CodeHeader*)(pCode & ~1)) - 1;
     CalledMethod* pCalledMethods = reinterpret_cast<CalledMethod*>(pCH->GetCalledMethods());
@@ -1386,14 +1423,10 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
         return;
     }
 
-    method = new (nothrow) FunctionMember*[method_count];
-    if (method == nullptr) {
-        return;
-    }
-
     int start_index = getNextPrologueIndex(0, symInfo, symInfoLen);
 
-    for (int method_index = 0; method_index < method_count; ++method_index) {
+    for (int method_index = 0; method_index < method.GetCount(); ++method_index)
+    {
         method[method_index] = new FunctionMember(MethodDescPtr, locals.size, nArgsCount);
 
         int end_index = getNextPrologueIndex(start_index + 1, symInfo, symInfoLen);
@@ -1465,7 +1498,8 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
     
     /* Build .strtab section */
     SymbolNames[0].m_name = "";
-    for (int i = 0; i < method_count; ++i) {
+    for (int i = 0; i < method.GetCount(); ++i)
+    {
         SymbolNames[1 + i].m_name = method[i]->m_member_name;
         SymbolNames[1 + i].m_value = method[i]->m_sub_low_pc;
         SymbolNames[1 + i].m_section = 1;
@@ -1493,12 +1527,6 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
     {
         return;
     }
-
-    for (int i = 0; i < method_count; ++i) {
-        delete method[i];
-    }
-    delete [] method;
-    method = nullptr;
 
     /* Patch section offsets & sizes */
     long offset = sizeof(Elf_Ehdr);
@@ -1545,7 +1573,8 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
     offset += sectStrTab.MemSize;
 
     // .thunks
-    for (int i = 1 + method_count; i < SymbolCount; i++) {
+    for (int i = 1 + method.GetCount(); i < SymbolCount; i++)
+    {
         ++pShdr;
         pShdr->sh_addr = SymbolNames[i].m_value;
         pShdr->sh_size = 8;
@@ -1567,7 +1596,7 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
 #endif    
     header->e_shoff = offset;
     header->e_shentsize = sizeof(Elf_Shdr);
-    header->e_shnum = SectionNamesCount - 2 + SymbolCount - method_count - 1;
+    header->e_shnum = SectionNamesCount - 2 + SymbolCount - method.GetCount() - 1;
     header->e_shstrndx = 2;
 
     /* Build ELF image in memory */
@@ -1930,7 +1959,7 @@ bool NotifyGdb::BuildDebugStrings(MemBuf& buf, PTK_TypeInfoMap pTypeMap)
         totalLength += strlen(DebugStrings[i]) + 1;
     }
 
-    for (int i = 0; i < method_count; ++i)
+    for (int i = 0; i < method.GetCount(); ++i)
     {
         method[i]->DumpStrings(nullptr, totalLength);
     }
@@ -1960,7 +1989,7 @@ bool NotifyGdb::BuildDebugStrings(MemBuf& buf, PTK_TypeInfoMap pTypeMap)
         offset += strlen(DebugStrings[i]) + 1;
     }
 
-    for (int i = 0; i < method_count; ++i)
+    for (int i = 0; i < method.GetCount(); ++i)
     {
         method[i]->DumpStrings(bufPtr, offset);
     }
@@ -2005,7 +2034,7 @@ bool NotifyGdb::BuildDebugInfo(MemBuf& buf, PTK_TypeInfoMap pTypeMap)
         }
     }
 
-    for (int i = 0; i < method_count; ++i)
+    for (int i = 0; i < method.GetCount(); ++i)
     {
         method[i]->DumpDebugInfo(nullptr, totalTypeVarSubSize);
     }
@@ -2039,7 +2068,7 @@ bool NotifyGdb::BuildDebugInfo(MemBuf& buf, PTK_TypeInfoMap pTypeMap)
             iter++;
         }
     }
-    for (int i = 0; i < method_count; ++i)
+    for (int i = 0; i < method.GetCount(); ++i)
     {
         if (!method[i]->IsDumped())
         {
@@ -2094,11 +2123,11 @@ bool NotifyGdb::CollectCalledMethods(CalledMethod* pCalledMethods)
         pList = pList->GetNext();
     }
 
-    SymbolCount = 1 + method_count + tmpCodeAddrs.GetCount();
+    SymbolCount = 1 + method.GetCount() + tmpCodeAddrs.GetCount();
     SymbolNames = new (nothrow) Elf_Symbol[SymbolCount];
 
     pList = pCalledMethods;
-    for (int i = 1 + method_count; i < SymbolCount;)
+    for (int i = 1 + method.GetCount(); i < SymbolCount;)
     {
         TADDR callAddr = (TADDR)pList->GetCallAddr();
         if (!codeAddrs.Contains(callAddr))
@@ -2162,7 +2191,8 @@ bool NotifyGdb::BuildSymbolTableSection(MemBuf& buf, PCODE addr, TADDR codeSize)
     sym[0].st_size = 0;
     sym[0].st_shndx = SHN_UNDEF;
     
-    for (int i = 1; i < 1 + method_count; ++i) {
+    for (int i = 1; i < 1 + method.GetCount(); ++i)
+    {
         sym[i].st_name = SymbolNames[i].m_off;
         sym[i].setBindingAndType(STB_GLOBAL, STT_FUNC);
         sym[i].st_other = 0;
@@ -2174,12 +2204,12 @@ bool NotifyGdb::BuildSymbolTableSection(MemBuf& buf, PCODE addr, TADDR codeSize)
         sym[i].st_size = SymbolNames[i].m_size;
     }
 
-    for (int i = 1 + method_count; i < SymbolCount; ++i)
+    for (int i = 1 + method.GetCount(); i < SymbolCount; ++i)
     {
         sym[i].st_name = SymbolNames[i].m_off;
         sym[i].setBindingAndType(STB_GLOBAL, STT_FUNC);
         sym[i].st_other = 0;
-        sym[i].st_shndx = 11 + (i - (1 + method_count)); // .thunks section index
+        sym[i].st_shndx = 11 + (i - (1 + method.GetCount())); // .thunks section index
         sym[i].st_size = 8;
         sym[i].st_value = 0;
     }
@@ -2189,7 +2219,7 @@ bool NotifyGdb::BuildSymbolTableSection(MemBuf& buf, PCODE addr, TADDR codeSize)
 /* Build ELF string section */
 bool NotifyGdb::BuildSectionNameTable(MemBuf& buf)
 {
-    int thunks_count = SymbolCount - 1 - method_count;
+    int thunks_count = SymbolCount - 1 - method.GetCount();
     uint32_t totalLength = 0;
     
     /* calculate total size */
@@ -2229,7 +2259,7 @@ bool NotifyGdb::BuildSectionNameTable(MemBuf& buf)
 /* Build the ELF section headers table */
 bool NotifyGdb::BuildSectionTable(MemBuf& buf)
 {
-    int thunks_count = SymbolCount - 1 - method_count;
+    int thunks_count = SymbolCount - 1 - method.GetCount();
     Elf_Shdr* sectionHeaders = new (nothrow) Elf_Shdr[SectionNamesCount - 2 + thunks_count];
     Elf_Shdr* pSh = sectionHeaders;
 
