@@ -29,7 +29,8 @@ const int InterruptTime = 1000;
    in a hypervisor (like VMWare ESXi) we may get values around an order of
    magnitude higher, up to 110 ms for some tests.
 */
-const DWORD AcceptableDelta = 150;
+const int AcceptableEarlyDiff = -100;
+const int AcceptableLateDiff = 300;
 
 const int Iterations = 5;
 
@@ -37,12 +38,11 @@ void RunTest(BOOL AlertThread);
 VOID PALAPI APCFunc(ULONG_PTR dwParam);
 DWORD PALAPI SleeperProc(LPVOID lpParameter);
 
-DWORD ThreadSleepDelta;
+int ThreadSleepDelta;
 
 int __cdecl main( int argc, char **argv ) 
 {
     int i;
-    DWORD dwAvgDelta;
 
     if (0 != (PAL_Initialize(argc, argv)))
     {
@@ -62,38 +62,32 @@ int __cdecl main( int argc, char **argv )
      * Check that Queueing an APC in the middle of a sleep does interrupt
      * it, if it's in an alertable state.
      */
-    dwAvgDelta = 0;
-    for (i=0;i<Iterations;i++)
+    for (i = 0; i < Iterations; i++)
     {
-	RunTest(TRUE);
-	dwAvgDelta += ThreadSleepDelta - InterruptTime;
-    }
-    dwAvgDelta /= Iterations;
-
-    if (dwAvgDelta > AcceptableDelta)
-    {
-        Fail("Expected thread to sleep for %d ms (and get interrupted).\n"
-             "Average delta: %u ms,  acceptable delta: %u\n", 
-             InterruptTime, dwAvgDelta, AcceptableDelta);
+        RunTest(TRUE);
+        int diff = ThreadSleepDelta - InterruptTime;
+        if (diff < AcceptableEarlyDiff || diff > AcceptableLateDiff)
+        {
+            Fail("Expected thread to sleep for %d ms (and get interrupted).\n"
+                 "Acceptable early diff: %d, Acceptable late diff: %d\n",
+                 InterruptTime, AcceptableEarlyDiff, AcceptableLateDiff);
+        }
     }
 
     /* 
      * Check that Queueing an APC in the middle of a sleep does NOT interrupt 
      * it, if it is not in an alertable state.
      */
-    dwAvgDelta = 0;
-    for (i=0;i<Iterations;i++)
+    for (i = 0; i < Iterations; i++)
     {
-	RunTest(FALSE);
-	dwAvgDelta += ThreadSleepDelta - ChildThreadSleepTime;
-    }
-    dwAvgDelta /= Iterations;
-
-    if (dwAvgDelta > AcceptableDelta)
-    {
-        Fail("Expected thread to sleep for %d ms (and not be interrupted).\n"
-             "Average delta: %u ms,  acceptable delta: %u\n", 
-             ChildThreadSleepTime, dwAvgDelta, AcceptableDelta);
+        RunTest(FALSE);
+        int diff = ThreadSleepDelta - ChildThreadSleepTime;
+        if (diff < AcceptableEarlyDiff || diff > AcceptableLateDiff)
+        {
+            Fail("Expected thread to sleep for %d ms (and not be interrupted).\n"
+                 "Acceptable early diff: %d, Acceptable late diff: %d\n",
+                 ChildThreadSleepTime, AcceptableEarlyDiff, AcceptableLateDiff);
+        }
     }
 
     PAL_Terminate();
@@ -147,24 +141,18 @@ VOID PALAPI APCFunc(ULONG_PTR dwParam)
 /* Entry Point for child thread. */
 DWORD PALAPI SleeperProc(LPVOID lpParameter)
 {
-    UINT64 OldTimeStamp;
-    UINT64 NewTimeStamp;
+    DWORD OldTimeStamp;
+    DWORD NewTimeStamp;
     BOOL Alertable;
     DWORD ret;
 
     Alertable = (BOOL) lpParameter;
 
-    LARGE_INTEGER performanceFrequency;
-    if (!QueryPerformanceFrequency(&performanceFrequency))
-    {
-        return FAIL;
-    }
-
-    OldTimeStamp = GetHighPrecisionTimeStamp(performanceFrequency);
+    OldTimeStamp = GetTickCount();
 
     ret = SleepEx(ChildThreadSleepTime, Alertable);
     
-    NewTimeStamp = GetHighPrecisionTimeStamp(performanceFrequency);
+    NewTimeStamp = GetTickCount();
 
     if (Alertable && ret != WAIT_IO_COMPLETION)
     {
@@ -177,7 +165,7 @@ DWORD PALAPI SleeperProc(LPVOID lpParameter)
     }
 
 
-    ThreadSleepDelta = NewTimeStamp - OldTimeStamp;
+    ThreadSleepDelta = static_cast<int>(NewTimeStamp - OldTimeStamp);
 
     return 0;
 }

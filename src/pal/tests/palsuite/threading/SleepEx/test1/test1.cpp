@@ -16,7 +16,7 @@
 
 typedef struct
 {
-    DWORD SleepTime;
+    int SleepTime;
     BOOL Alertable;
 } testCase;
 
@@ -36,14 +36,13 @@ testCase testCases[] =
 };
 
 /* Milliseconds of error which are acceptable Function execution time, etc. */
-DWORD AcceptableTimeError = 150;
+const int AcceptableEarlyDiff = -100;
 
 int __cdecl main( int argc, char **argv ) 
 {
-    UINT64 OldTimeStamp;
-    UINT64 NewTimeStamp;
-    DWORD MaxDelta;
-    DWORD TimeDelta;
+    DWORD OldTimeStamp;
+    DWORD NewTimeStamp;
+    int TimeDelta;
     DWORD i;
 
     if (0 != (PAL_Initialize(argc, argv)))
@@ -51,37 +50,29 @@ int __cdecl main( int argc, char **argv )
         return FAIL;
     }
 
-    LARGE_INTEGER performanceFrequency;
-    if (!QueryPerformanceFrequency(&performanceFrequency))
-    {
-        return FAIL;
-    }
-
     for (i = 0; i<sizeof(testCases) / sizeof(testCases[0]); i++)
     {
-        OldTimeStamp = GetHighPrecisionTimeStamp(performanceFrequency);
+        OldTimeStamp = GetTickCount();
 
         SleepEx(testCases[i].SleepTime, testCases[i].Alertable);
 
-        NewTimeStamp = GetHighPrecisionTimeStamp(performanceFrequency);
+        NewTimeStamp = GetTickCount();
 
-        TimeDelta = NewTimeStamp - OldTimeStamp;
+        TimeDelta = static_cast<int>(NewTimeStamp - OldTimeStamp);
 
         /* For longer intervals use a 10 percent tolerance */
-        if ((testCases[i].SleepTime * 0.1) > AcceptableTimeError)
+        int AcceptableLateDiff = 300;
+        if ((testCases[i].SleepTime * 0.1) > AcceptableLateDiff)
         {
-            MaxDelta = testCases[i].SleepTime + (DWORD)(testCases[i].SleepTime * 0.1);
-        }
-        else
-        {
-            MaxDelta = testCases[i].SleepTime + AcceptableTimeError;
+            AcceptableLateDiff = (int)(testCases[i].SleepTime * 0.1);
         }
 
-        if (TimeDelta < testCases[i].SleepTime || TimeDelta > MaxDelta)
+        int diff = TimeDelta - testCases[i].SleepTime;
+        if (diff < AcceptableEarlyDiff || diff > AcceptableLateDiff)
         {
             Fail("The sleep function slept for %d ms when it should have "
              "slept for %d ms\n", TimeDelta, testCases[i].SleepTime);
-       }
+        }
     }
 
     PAL_Terminate();

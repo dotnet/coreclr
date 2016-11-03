@@ -20,13 +20,13 @@
 const unsigned int ChildThreadWaitTime = 1000;
 const unsigned int InterruptTime = 500; 
 
-#define TOLERANCE 10
+#define TOLERANCE 100
 
 void RunTest(BOOL AlertThread);
 VOID PALAPI APCFunc(ULONG_PTR dwParam);
 DWORD PALAPI WaiterProc(LPVOID lpParameter);
 
-DWORD ThreadWaitDelta;
+int ThreadWaitDelta;
 
 int __cdecl main( int argc, char **argv ) 
 {
@@ -57,7 +57,7 @@ int __cdecl main( int argc, char **argv )
     // wait timeout
     if ( 
         ((ThreadWaitDelta >= ChildThreadWaitTime) && (ThreadWaitDelta - ChildThreadWaitTime) > TOLERANCE) 
-        || (( ThreadWaitDelta < InterruptTime) && (ThreadWaitDelta - InterruptTime) > TOLERANCE)
+        || (( ThreadWaitDelta < InterruptTime) && (InterruptTime - ThreadWaitDelta) > TOLERANCE)
         )
     {
         Fail("Expected thread to wait for %d ms (and get interrupted).\n"
@@ -132,8 +132,8 @@ VOID PALAPI APCFunc(ULONG_PTR dwParam)
 DWORD PALAPI WaiterProc(LPVOID lpParameter)
 {
     HANDLE Semaphore;
-    UINT64 OldTimeStamp;
-    UINT64 NewTimeStamp;
+    DWORD OldTimeStamp;
+    DWORD NewTimeStamp;
     BOOL Alertable;
     DWORD ret;
 
@@ -148,18 +148,12 @@ DWORD PALAPI WaiterProc(LPVOID lpParameter)
 
     Alertable = (BOOL) lpParameter;
 
-    LARGE_INTEGER performanceFrequency;
-    if (!QueryPerformanceFrequency(&performanceFrequency))
-    {
-        Fail("Failed to query performance frequency!");
-    }
-
-    OldTimeStamp = GetHighPrecisionTimeStamp(performanceFrequency);
+    OldTimeStamp = GetTickCount();
 
     ret = WaitForMultipleObjectsEx(1, &Semaphore, FALSE, ChildThreadWaitTime, 
         Alertable);
     
-    NewTimeStamp = GetHighPrecisionTimeStamp(performanceFrequency);
+    NewTimeStamp = GetTickCount();
 
 
     if (Alertable && ret != WAIT_IO_COMPLETION)
@@ -173,7 +167,7 @@ DWORD PALAPI WaiterProc(LPVOID lpParameter)
             "Expected return of WAIT_TIMEOUT, got %d.\n", ret);
     }
 
-    ThreadWaitDelta = NewTimeStamp - OldTimeStamp;
+    ThreadWaitDelta = static_cast<int>(NewTimeStamp - OldTimeStamp);
 
     ret = CloseHandle(Semaphore);
     if (!ret)

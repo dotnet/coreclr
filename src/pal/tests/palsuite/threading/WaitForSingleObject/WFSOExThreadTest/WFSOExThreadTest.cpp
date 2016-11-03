@@ -19,7 +19,8 @@
 
 const int ChildThreadWaitTime = 4000;
 const int InterruptTime = 2000; 
-const DWORD AcceptableDelta = 300;
+const int AcceptableEarlyDiff = -100;
+const int AcceptableLateDiff = 300;
 
 void RunTest(BOOL AlertThread);
 VOID PALAPI APCFunc(ULONG_PTR dwParam);
@@ -50,11 +51,12 @@ int __cdecl main( int argc, char **argv )
      */
 
     RunTest(TRUE);
-    if (abs(ThreadWaitDelta - InterruptTime) > AcceptableDelta)
+    int diff = ThreadWaitDelta - InterruptTime;
+    if (diff < AcceptableEarlyDiff || diff > AcceptableLateDiff)
     {
         Fail("Expected thread to wait for %d ms (and get interrupted).\n"
-            "Thread waited for %d ms! (Acceptable delta: %d)\n", 
-            InterruptTime, ThreadWaitDelta, AcceptableDelta);
+            "Thread waited for %d ms! (Acceptable early diff: %d, Acceptable late diff: %d)\n", 
+            InterruptTime, ThreadWaitDelta, AcceptableEarlyDiff, AcceptableLateDiff);
     }
 
 
@@ -63,11 +65,12 @@ int __cdecl main( int argc, char **argv )
      * it, if it is not in an alertable state.
      */
     RunTest(FALSE);
-    if (abs(ThreadWaitDelta - ChildThreadWaitTime) > AcceptableDelta)
+    diff = ThreadWaitDelta - ChildThreadWaitTime;
+    if (diff < AcceptableEarlyDiff || diff > AcceptableLateDiff)
     {
         Fail("Expected thread to wait for %d ms (and not be interrupted).\n"
-            "Thread waited for %d ms! (Acceptable delta: %d)\n", 
-            ChildThreadWaitTime, ThreadWaitDelta, AcceptableDelta);
+            "Thread waited for %d ms! (Acceptable early diff: %d, Acceptable late diff: %d)\n", 
+            ChildThreadWaitTime, ThreadWaitDelta, AcceptableEarlyDiff, AcceptableLateDiff);
     }
 
 
@@ -128,8 +131,8 @@ VOID PALAPI APCFunc(ULONG_PTR dwParam)
 DWORD PALAPI WaiterProc(LPVOID lpParameter)
 {
     HANDLE hWaitThread;
-    UINT64 OldTimeStamp;
-    UINT64 NewTimeStamp;
+    DWORD OldTimeStamp;
+    DWORD NewTimeStamp;
     BOOL Alertable;
     DWORD ret;
     DWORD dwThreadId = 0;
@@ -155,19 +158,13 @@ satisfying any threads that were waiting on the object.
 
     Alertable = (BOOL) lpParameter;
 
-    LARGE_INTEGER performanceFrequency;
-    if (!QueryPerformanceFrequency(&performanceFrequency))
-    {
-        Fail("Failed to query performance frequency!");
-    }
-
-    OldTimeStamp = GetHighPrecisionTimeStamp(performanceFrequency);
+    OldTimeStamp = GetTickCount();
 
     ret = WaitForSingleObjectEx(	hWaitThread, 
 								ChildThreadWaitTime, 
         							Alertable);
     
-    NewTimeStamp = GetHighPrecisionTimeStamp(performanceFrequency);
+    NewTimeStamp = GetTickCount();
 
 
     if (Alertable && ret != WAIT_IO_COMPLETION)
@@ -181,7 +178,7 @@ satisfying any threads that were waiting on the object.
             "Expected return of WAIT_TIMEOUT, got %d.\n", ret);
     }
 
-    ThreadWaitDelta = NewTimeStamp - OldTimeStamp;
+    ThreadWaitDelta = static_cast<int>(NewTimeStamp - OldTimeStamp);
 
     ret = CloseHandle(hWaitThread);
     if (!ret)
