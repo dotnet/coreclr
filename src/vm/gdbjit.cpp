@@ -1372,7 +1372,12 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
 
     unsigned int firstLineIndex = 0;
     for (;firstLineIndex < symInfoLen; firstLineIndex++) {
-        if (symInfo[firstLineIndex].lineNumber != 0 && symInfo[firstLineIndex].lineNumber != HiddenLine && symInfo[firstLineIndex].fileName[0] != 0) break;
+        if (symInfo[firstLineIndex].lineNumber != 0 && symInfo[firstLineIndex].lineNumber != HiddenLine) break;
+    }
+
+    if (firstLineIndex >= symInfoLen)
+    {
+        return;
     }
 
     method = new (nothrow) FunctionMember*[method_count];
