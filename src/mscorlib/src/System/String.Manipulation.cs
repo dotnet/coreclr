@@ -776,18 +776,12 @@ namespace System
                     value[startIndex] ?? string.Empty;
             }
 
-            int totalLength;
-            try
-            {
-                checked
-                {
-                    totalLength = (count - 1) * separatorLength;
-                }
-            }
-            catch (OverflowException)
+            long totalSeparatorsLength = (long)(count - 1) * separatorLength;
+            if (totalSeparatorsLength > int.MaxValue)
             {
                 throw new OutOfMemoryException();
             }
+            int totalLength = (int)totalSeparatorsLength;
 
             // Calculate the length of the resultant string so we know how much space to allocate.
             for (int i = startIndex, end = startIndex + count; i < end; i++)
