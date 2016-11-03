@@ -2411,7 +2411,7 @@ HostStyle=0
 RelativePath=baseservices\threading\interlocked\compareexchange\CompareExchangeTClass\CompareExchangeTClass.cmd
 WorkingDir=baseservices\threading\interlocked\compareexchange\CompareExchangeTClass
 Expected=0
-MaxAllowedDurationSeconds=600
+MaxAllowedDurationSeconds=900
 Categories=NEW;EXPECTED_PASS;UNSTABLE
 HostStyle=0
 [CompareExchangeTClass_1.cmd_345]
