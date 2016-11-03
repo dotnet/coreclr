@@ -1217,7 +1217,13 @@ struct Elf_Symbol {
     int m_off;
     TADDR m_value;
     int m_section, m_size;
-    Elf_Symbol() : m_name(nullptr), m_off(0), m_value(0), m_section(0), m_size(0) {}
+    bool m_releaseName;
+    Elf_Symbol() : m_name(nullptr), m_off(0), m_value(0), m_section(0), m_size(0), m_releaseName(false) {}
+    ~Elf_Symbol()
+    {
+        if (m_releaseName)
+            delete [] m_name;
+    }
 };
 
 static int countFuncs(const SymbolsInfo *lines, int nlines)
@@ -2101,6 +2107,7 @@ bool NotifyGdb::CollectCalledMethods(CalledMethod* pCalledMethods)
             LPCUTF8 methodName = pMD->GetName();
             int symbolNameLength = strlen(methodName) + sizeof("__thunk_");
             SymbolNames[i].m_name = new char[symbolNameLength];
+            SymbolNames[i].m_releaseName = true;
             sprintf((char*)SymbolNames[i].m_name, "__thunk_%s", methodName);
             SymbolNames[i].m_value = callAddr;
             ++i;
