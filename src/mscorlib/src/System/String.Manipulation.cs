@@ -645,7 +645,7 @@ namespace System
             separator = separator ?? string.Empty;
             fixed (char* pSeparator = &separator.m_firstChar)
             {
-                // Defer argument validataion to the internal function
+                // Defer argument validation to the internal function
                 return JoinCore(pSeparator, separator.Length, values);
             }
         }
