@@ -620,11 +620,24 @@ struct jit_descriptor __jit_debug_descriptor = { 1, 0, 0, 0 };
 
 /* Predefined section names */
 const char* SectionNames[] = {
-    "", ".text", ".shstrtab", ".debug_str", ".debug_abbrev", ".debug_info",
-    ".debug_pubnames", ".debug_pubtypes", ".debug_line", ".symtab", ".strtab", ".thunks", ""
+    "",
+    ".text",
+    ".shstrtab",
+    ".debug_str",
+    ".debug_abbrev",
+    ".debug_info",
+    ".debug_pubnames",
+    ".debug_pubtypes",
+    ".debug_line",
+    ".symtab",
+    ".strtab"
+    /* After the last (.strtab) section zero or more .thunk_* sections are generated.
+
+       Each .thunk_* section contains a single .thunk_#.
+       These symbols are mapped to methods (or trampolines) called by currently compiled method. */
 };
 
-const int SectionNamesCount = sizeof(SectionNames) / sizeof(SectionNames[0]);
+const int SectionNamesCount = sizeof(SectionNames) / sizeof(SectionNames[0]); // Does not include .thunk_* sections
 
 /* Static data for section headers */
 struct SectionHeader {
@@ -1596,7 +1609,8 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
 #endif    
     header->e_shoff = offset;
     header->e_shentsize = sizeof(Elf_Shdr);
-    header->e_shnum = SectionNamesCount - 2 + SymbolCount - method.GetCount() - 1;
+    int thunks_count = SymbolCount - method.GetCount() - 1;
+    header->e_shnum = SectionNamesCount + thunks_count;
     header->e_shstrndx = 2;
 
     /* Build ELF image in memory */
@@ -2223,11 +2237,11 @@ bool NotifyGdb::BuildSectionNameTable(MemBuf& buf)
     uint32_t totalLength = 0;
     
     /* calculate total size */
-    for (int i = 0; i < SectionNamesCount - 2; ++i)
+    for (int i = 0; i < SectionNamesCount; ++i)
     {
         totalLength += strlen(SectionNames[i]) + 1;
     }
-    for (int i = SectionNamesCount - 2; i < SectionNamesCount - 2 + thunks_count; ++i)
+    for (int i = SectionNamesCount; i < SectionNamesCount + thunks_count; ++i)
     {
         char name[256];
         sprintf(name, ".thunk_%i", i);
@@ -2241,12 +2255,12 @@ bool NotifyGdb::BuildSectionNameTable(MemBuf& buf)
 
     /* copy strings */
     char* bufPtr = buf.MemPtr;
-    for (int i = 0; i < SectionNamesCount - 2; ++i)
+    for (int i = 0; i < SectionNamesCount; ++i)
     {
         strcpy(bufPtr, SectionNames[i]);
         bufPtr += strlen(SectionNames[i]) + 1;
     }
-    for (int i = SectionNamesCount - 2; i < SectionNamesCount - 2 + thunks_count; ++i)
+    for (int i = SectionNamesCount; i < SectionNamesCount + thunks_count; ++i)
     {
         char name[256];
         sprintf(name, ".thunk_%i", i);
@@ -2260,7 +2274,7 @@ bool NotifyGdb::BuildSectionNameTable(MemBuf& buf)
 bool NotifyGdb::BuildSectionTable(MemBuf& buf)
 {
     int thunks_count = SymbolCount - 1 - method.GetCount();
-    Elf_Shdr* sectionHeaders = new (nothrow) Elf_Shdr[SectionNamesCount - 2 + thunks_count];
+    Elf_Shdr* sectionHeaders = new (nothrow) Elf_Shdr[SectionNamesCount + thunks_count];
     Elf_Shdr* pSh = sectionHeaders;
 
     if (sectionHeaders == nullptr)
@@ -2283,7 +2297,7 @@ bool NotifyGdb::BuildSectionTable(MemBuf& buf)
     ++pSh;
     /* fill section header data */
     uint32_t sectNameOffset = 1;
-    for (int i = 1; i < SectionNamesCount - 2; ++i, ++pSh)
+    for (int i = 1; i < SectionNamesCount; ++i, ++pSh)
     {
         pSh->sh_name = sectNameOffset;
         sectNameOffset += strlen(SectionNames[i]) + 1;
@@ -2301,14 +2315,15 @@ bool NotifyGdb::BuildSectionTable(MemBuf& buf)
             pSh->sh_entsize = 0;
     }
 
-    for (int i = SectionNamesCount - 2; i < SectionNamesCount - 2 + thunks_count; ++i, ++pSh)
+    for (int i = SectionNamesCount; i < SectionNamesCount + thunks_count; ++i, ++pSh)
     {
         char name[256];
         sprintf(name, ".thunk_%i", i);
         pSh->sh_name = sectNameOffset;
         sectNameOffset += strlen(name) + 1;
-        pSh->sh_type = Sections[SectionNamesCount - 2].m_type;
-        pSh->sh_flags = Sections[SectionNamesCount - 2].m_flags;
+        // All .thunk_* sections have the same type and flags
+        pSh->sh_type = Sections[SectionNamesCount].m_type;
+        pSh->sh_flags = Sections[SectionNamesCount].m_flags;
         pSh->sh_addr = 0;
         pSh->sh_offset = 0;
         pSh->sh_size = 0;
@@ -2318,7 +2333,7 @@ bool NotifyGdb::BuildSectionTable(MemBuf& buf)
         pSh->sh_entsize = 0;
     }
     buf.MemPtr = reinterpret_cast<char*>(sectionHeaders);
-    buf.MemSize = sizeof(Elf_Shdr) * (SectionNamesCount - 2 + thunks_count);
+    buf.MemSize = sizeof(Elf_Shdr) * (SectionNamesCount + thunks_count);
     return true;
 }
 
