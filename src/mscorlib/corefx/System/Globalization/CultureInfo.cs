@@ -971,7 +971,7 @@ namespace System.Globalization
                 {
                     NumberFormatInfo temp = new NumberFormatInfo(this.m_cultureData);
                     temp.isReadOnly = m_isReadOnly;
-                    numInfo = temp;
+                    Interlocked.CompareExchange(ref numInfo, temp, null);
                 }
                 return (numInfo);
             }
@@ -1003,8 +1003,7 @@ namespace System.Globalization
                     // Change the calendar of DTFI to the specified calendar of this CultureInfo.
                     DateTimeFormatInfo temp = new DateTimeFormatInfo(this.m_cultureData, this.Calendar);
                     temp._isReadOnly = m_isReadOnly;
-                    System.Threading.Interlocked.MemoryBarrier();
-                    dateTimeInfo = temp;
+                    Interlocked.CompareExchange(ref dateTimeInfo, temp, null);
                 }
                 return (dateTimeInfo);
             }

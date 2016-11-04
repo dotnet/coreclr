@@ -1351,7 +1351,7 @@ namespace System.Globalization {
                 if (numInfo == null) {
                     NumberFormatInfo temp = new NumberFormatInfo(this.m_cultureData);
                     temp.isReadOnly = m_isReadOnly;
-                    numInfo = temp;
+                    Interlocked.CompareExchange(ref numInfo, temp, null);
                 }
                 return (numInfo);
             }
@@ -1385,8 +1385,7 @@ namespace System.Globalization {
                     DateTimeFormatInfo temp = new DateTimeFormatInfo(
                         this.m_cultureData, this.Calendar);
                     temp.m_isReadOnly = m_isReadOnly;
-                    System.Threading.Thread.MemoryBarrier();
-                    dateTimeInfo = temp;
+                    Interlocked.CompareExchange(ref dateTimeInfo, temp, null);
                 }
                 return (dateTimeInfo);
             }
