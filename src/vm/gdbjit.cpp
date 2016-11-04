@@ -1571,7 +1571,7 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
     ++pShdr; // .symtab
     pShdr->sh_offset = offset;
     pShdr->sh_size = sectSymTab.MemSize;
-    pShdr->sh_link = 10;
+    pShdr->sh_link = GetSectionIndex(".strtab");
     offset += sectSymTab.MemSize;
     ++pShdr; // .strtab
     pShdr->sh_offset = offset;
@@ -1604,7 +1604,7 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
     header->e_shentsize = sizeof(Elf_Shdr);
     int thunks_count = SymbolCount - method.GetCount() - 1;
     header->e_shnum = SectionNamesCount + thunks_count;
-    header->e_shstrndx = 2;
+    header->e_shstrndx = GetSectionIndex(".shstrtab");
 
     /* Build ELF image in memory */
     elfFile.MemSize = elfHeader.MemSize + sectStr.MemSize + dbgStr.MemSize + dbgAbbrev.MemSize + dbgInfo.MemSize +
@@ -1679,6 +1679,11 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
 
 void NotifyGdb::MethodDropped(MethodDesc* MethodDescPtr)
 {
+    static const int textSectionIndex = GetSectionIndex(".text");
+
+    if (textSectionIndex < 0)
+        return;
+
     PCODE pCode = MethodDescPtr->GetNativeCode();
 
     if (pCode == NULL)
@@ -1692,7 +1697,7 @@ void NotifyGdb::MethodDropped(MethodDesc* MethodDescPtr)
         
         const Elf_Ehdr* pEhdr = reinterpret_cast<const Elf_Ehdr*>(ptr);
         const Elf_Shdr* pShdr = reinterpret_cast<const Elf_Shdr*>(ptr + pEhdr->e_shoff);
-        ++pShdr; // bump to .text section
+        pShdr += textSectionIndex; // bump to .text section
         if (pShdr->sh_addr == pCode)
         {
             /* Notify the debugger */
@@ -2184,6 +2189,8 @@ bool NotifyGdb::BuildStringTableSection(MemBuf& buf)
 /* Build ELF .symtab section */
 bool NotifyGdb::BuildSymbolTableSection(MemBuf& buf, PCODE addr, TADDR codeSize)
 {
+    static const int textSectionIndex = GetSectionIndex(".text");
+
     buf.MemSize = SymbolCount * sizeof(Elf_Sym);
     buf.MemPtr = new (nothrow) char[buf.MemSize];
     if (buf.MemPtr == nullptr)
@@ -2207,7 +2214,7 @@ bool NotifyGdb::BuildSymbolTableSection(MemBuf& buf, PCODE addr, TADDR codeSize)
 #ifdef _TARGET_ARM_
         sym[i].st_value |= 1; // for THUMB code
 #endif    
-        sym[i].st_shndx = 1; // .text section index
+        sym[i].st_shndx = textSectionIndex;
         sym[i].st_size = SymbolNames[i].m_size;
     }
 
@@ -2216,7 +2223,7 @@ bool NotifyGdb::BuildSymbolTableSection(MemBuf& buf, PCODE addr, TADDR codeSize)
         sym[i].st_name = SymbolNames[i].m_off;
         sym[i].setBindingAndType(STB_GLOBAL, STT_FUNC);
         sym[i].st_other = 0;
-        sym[i].st_shndx = 11 + (i - (1 + method.GetCount())); // .thunks section index
+        sym[i].st_shndx = SectionNamesCount + (i - (1 + method.GetCount())); // .thunks section index
         sym[i].st_size = 8;
         sym[i].st_value = 0;
     }
