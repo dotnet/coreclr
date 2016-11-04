@@ -11249,6 +11249,7 @@ GenTreePtr Compiler::fgMorphSmpOp(GenTreePtr tree, MorphAddrContext* mac)
             if (oper == GT_ADDR && (op1->gtOper == GT_LCL_VAR || op1->gtOper == GT_CLS_VAR))
             {
                 tree->gtFlags &= ~GTF_GLOB_REF;
+                op1->gtFlags &= ~GTF_GLOB_REF;
             }
         } // if (op1)
 
