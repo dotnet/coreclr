@@ -63,15 +63,12 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 void Compiler::impInit()
 {
+
 #ifdef DEBUG
     impTreeList = impTreeLast = nullptr;
-#endif
-
-#if defined(DEBUG)
     impInlinedCodeSize = 0;
 #endif
 
-    seenConditionalJump = false;
 }
 
 /*****************************************************************************
@@ -11107,8 +11104,6 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 
             COND_JUMP:
 
-                seenConditionalJump = true;
-
                 /* Fold comparison if we can */
 
                 op1 = gtFoldExpr(op1);
@@ -14145,20 +14140,6 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                         /* if not, just don't inline the method */
 
                         compInlineResult->NoteFatal(InlineObservation::CALLEE_THROW_WITH_INVALID_STACK);
-                        return;
-                    }
-
-                    /* Don't inline non-void conditionals that have a throw in one of the branches */
-
-                    /* NOTE: If we do allow this, note that we can't simply do a
-                      checkLiveness() to match the liveness at the end of the "then"
-                      and "else" branches of the GT_COLON. The branch with the throw
-                      will keep nothing live, so we should use the liveness at the
-                      end of the non-throw branch. */
-
-                    if (seenConditionalJump && (impInlineInfo->inlineCandidateInfo->fncRetType != TYP_VOID))
-                    {
-                        compInlineResult->NoteFatal(InlineObservation::CALLSITE_CONDITIONAL_THROW);
                         return;
                     }
                 }
