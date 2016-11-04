@@ -29,7 +29,7 @@ const int InterruptTime = 1000;
    in a hypervisor (like VMWare ESXi) we may get values around an order of
    magnitude higher, up to 110 ms for some tests.
 */
-const int AcceptableEarlyDiff = -100;
+const int AcceptableEarlyDiff = -300;
 const int AcceptableLateDiff = 300;
 
 const int Iterations = 5;
@@ -141,18 +141,24 @@ VOID PALAPI APCFunc(ULONG_PTR dwParam)
 /* Entry Point for child thread. */
 DWORD PALAPI SleeperProc(LPVOID lpParameter)
 {
-    DWORD OldTimeStamp;
-    DWORD NewTimeStamp;
+    UINT64 OldTimeStamp;
+    UINT64 NewTimeStamp;
     BOOL Alertable;
     DWORD ret;
 
     Alertable = (BOOL) lpParameter;
 
-    OldTimeStamp = GetTickCount();
+    LARGE_INTEGER performanceFrequency;
+    if (!QueryPerformanceFrequency(&performanceFrequency))
+    {
+        return FAIL;
+    }
+
+    OldTimeStamp = GetHighPrecisionTimeStamp(performanceFrequency);
 
     ret = SleepEx(ChildThreadSleepTime, Alertable);
     
-    NewTimeStamp = GetTickCount();
+    NewTimeStamp = GetHighPrecisionTimeStamp(performanceFrequency);
 
     if (Alertable && ret != WAIT_IO_COMPLETION)
     {

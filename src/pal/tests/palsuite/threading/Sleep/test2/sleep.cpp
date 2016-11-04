@@ -30,12 +30,12 @@ int SleepTimes[] =
 };
 
 /* Milliseconds of error which are acceptable Function execution time, etc. */
-const int AcceptableEarlyDiff = -100;
+const int AcceptableEarlyDiff = -300;
 
 int __cdecl main( int argc, char **argv ) 
 {
-    DWORD OldTimeStamp;
-    DWORD NewTimeStamp;
+    UINT64 OldTimeStamp;
+    UINT64 NewTimeStamp;
     int MaxDelta;
     int TimeDelta;
     DWORD i;
@@ -45,11 +45,17 @@ int __cdecl main( int argc, char **argv )
         return ( FAIL );
     }
 
+    LARGE_INTEGER performanceFrequency;
+    if (!QueryPerformanceFrequency(&performanceFrequency))
+    {
+        return FAIL;
+    }
+
     for( i = 0; i < sizeof(SleepTimes) / sizeof(SleepTimes[0]); i++)
     {
-        OldTimeStamp = GetTickCount();
+        OldTimeStamp = GetHighPrecisionTimeStamp(performanceFrequency);
         Sleep(SleepTimes[i]);
-        NewTimeStamp = GetTickCount();
+        NewTimeStamp = GetHighPrecisionTimeStamp(performanceFrequency);
 
         TimeDelta = static_cast<int>(NewTimeStamp - OldTimeStamp);
 

@@ -131,8 +131,8 @@ VOID PALAPI APCFunc(ULONG_PTR dwParam)
 DWORD PALAPI WaiterProc(LPVOID lpParameter)
 {
     HANDLE hWaitThread;
-    DWORD OldTimeStamp;
-    DWORD NewTimeStamp;
+    UINT64 OldTimeStamp;
+    UINT64 NewTimeStamp;
     BOOL Alertable;
     DWORD ret;
     DWORD dwThreadId = 0;
@@ -158,13 +158,19 @@ satisfying any threads that were waiting on the object.
 
     Alertable = (BOOL) lpParameter;
 
-    OldTimeStamp = GetTickCount();
+    LARGE_INTEGER performanceFrequency;
+    if (!QueryPerformanceFrequency(&performanceFrequency))
+    {
+        Fail("Failed to query performance frequency!");
+    }
+
+    OldTimeStamp = GetHighPrecisionTimeStamp(performanceFrequency);
 
     ret = WaitForSingleObjectEx(	hWaitThread, 
 								ChildThreadWaitTime, 
         							Alertable);
     
-    NewTimeStamp = GetTickCount();
+    NewTimeStamp = GetHighPrecisionTimeStamp(performanceFrequency);
 
 
     if (Alertable && ret != WAIT_IO_COMPLETION)

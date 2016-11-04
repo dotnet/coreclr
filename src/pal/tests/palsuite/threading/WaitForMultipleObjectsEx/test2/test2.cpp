@@ -20,7 +20,8 @@
 const unsigned int ChildThreadWaitTime = 1000;
 const unsigned int InterruptTime = 500; 
 
-#define TOLERANCE 100
+const int AcceptableEarlyDiff = -300;
+const int AcceptableLateDiff = 300;
 
 void RunTest(BOOL AlertThread);
 VOID PALAPI APCFunc(ULONG_PTR dwParam);
@@ -30,9 +31,6 @@ int ThreadWaitDelta;
 
 int __cdecl main( int argc, char **argv ) 
 {
-
-    DWORD delta = 0;
-
     if (0 != (PAL_Initialize(argc, argv)))
     {
         return FAIL;
@@ -55,10 +53,8 @@ int __cdecl main( int argc, char **argv )
     RunTest(TRUE);
     // Make sure that the wait returns in time greater than interrupt and less than 
     // wait timeout
-    if ( 
-        ((ThreadWaitDelta >= ChildThreadWaitTime) && (ThreadWaitDelta - ChildThreadWaitTime) > TOLERANCE) 
-        || (( ThreadWaitDelta < InterruptTime) && (InterruptTime - ThreadWaitDelta) > TOLERANCE)
-        )
+    int diff = ThreadWaitDelta - InterruptTime;
+    if (diff < AcceptableEarlyDiff || diff > AcceptableLateDiff)
     {
         Fail("Expected thread to wait for %d ms (and get interrupted).\n"
              "Interrupt Time: %d ms,  ThreadWaitDelta %u\n", 
@@ -74,8 +70,8 @@ int __cdecl main( int argc, char **argv )
     // Make sure that time taken for thread to return from wait is more than interrupt
     // and also not less than the complete child thread wait time
 
-    delta = ThreadWaitDelta - ChildThreadWaitTime;
-    if( (ThreadWaitDelta < ChildThreadWaitTime) && ( delta > TOLERANCE) ) 
+    diff = ThreadWaitDelta - ChildThreadWaitTime;
+    if (diff < AcceptableEarlyDiff || diff > AcceptableLateDiff)
     {
         Fail("Expected thread to wait for %d ms (and not get interrupted).\n"
              "Interrupt Time: %d ms,  ThreadWaitDelta %u\n", 
@@ -132,8 +128,8 @@ VOID PALAPI APCFunc(ULONG_PTR dwParam)
 DWORD PALAPI WaiterProc(LPVOID lpParameter)
 {
     HANDLE Semaphore;
-    DWORD OldTimeStamp;
-    DWORD NewTimeStamp;
+    UINT64 OldTimeStamp;
+    UINT64 NewTimeStamp;
     BOOL Alertable;
     DWORD ret;
 
@@ -148,12 +144,18 @@ DWORD PALAPI WaiterProc(LPVOID lpParameter)
 
     Alertable = (BOOL) lpParameter;
 
-    OldTimeStamp = GetTickCount();
+    LARGE_INTEGER performanceFrequency;
+    if (!QueryPerformanceFrequency(&performanceFrequency))
+    {
+        Fail("Failed to query performance frequency!");
+    }
+
+    OldTimeStamp = GetHighPrecisionTimeStamp(performanceFrequency);
 
     ret = WaitForMultipleObjectsEx(1, &Semaphore, FALSE, ChildThreadWaitTime, 
         Alertable);
     
-    NewTimeStamp = GetTickCount();
+    NewTimeStamp = GetHighPrecisionTimeStamp(performanceFrequency);
 
 
     if (Alertable && ret != WAIT_IO_COMPLETION)
