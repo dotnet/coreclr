@@ -1528,15 +1528,8 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
         return;
     }
 
-
-    /* Build section names section */
-    if (!BuildSectionNameTable(sectStr))
-    {
-        return;
-    }
-
-    /* Build section headers table */
-    if (!BuildSectionTable(sectHeaders))
+    /* Build section headers table and section names table */
+    if (!BuildSectionTables(sectHeaders, sectStr))
     {
         return;
     }
@@ -2230,110 +2223,88 @@ bool NotifyGdb::BuildSymbolTableSection(MemBuf& buf, PCODE addr, TADDR codeSize)
     return true;
 }
 
-/* Build ELF string section */
-bool NotifyGdb::BuildSectionNameTable(MemBuf& buf)
+int NotifyGdb::GetSectionIndex(const char *sectName)
 {
-    int thunks_count = SymbolCount - 1 - method.GetCount();
-    uint32_t totalLength = 0;
-    
-    /* calculate total size */
     for (int i = 0; i < SectionNamesCount; ++i)
-    {
-        totalLength += strlen(SectionNames[i]) + 1;
-    }
-    for (int i = SectionNamesCount; i < SectionNamesCount + thunks_count; ++i)
-    {
-        char name[256];
-        sprintf(name, ".thunk_%i", i);
-        totalLength += strlen(name) + 1;
-    }
-
-    buf.MemSize = totalLength;
-    buf.MemPtr = new (nothrow) char[totalLength];
-    if (buf.MemPtr == nullptr)
-        return false;
-
-    /* copy strings */
-    char* bufPtr = buf.MemPtr;
-    for (int i = 0; i < SectionNamesCount; ++i)
-    {
-        strcpy(bufPtr, SectionNames[i]);
-        bufPtr += strlen(SectionNames[i]) + 1;
-    }
-    for (int i = SectionNamesCount; i < SectionNamesCount + thunks_count; ++i)
-    {
-        char name[256];
-        sprintf(name, ".thunk_%i", i);
-        strcpy(bufPtr, name);
-        bufPtr += strlen(name) + 1;
-    }
-    return true;
+        if (strcmp(SectionNames[i], sectName) == 0)
+            return i;
+    return -1;
 }
 
-/* Build the ELF section headers table */
-bool NotifyGdb::BuildSectionTable(MemBuf& buf)
+/* Build the ELF section headers table and section names table */
+bool NotifyGdb::BuildSectionTables(MemBuf& sectBuf, MemBuf& strBuf)
 {
-    int thunks_count = SymbolCount - 1 - method.GetCount();
-    Elf_Shdr* sectionHeaders = new (nothrow) Elf_Shdr[SectionNamesCount + thunks_count];
-    Elf_Shdr* pSh = sectionHeaders;
+    static const int symtabSectionIndex = GetSectionIndex(".symtab");
+    static const int nullSectionIndex = GetSectionIndex("");
 
+    const int thunks_count = SymbolCount - 1 - method.GetCount();
+
+    // Approximate length of single section name.
+    // Used only to reduce memory reallocations.
+    static const int SECT_NAME_LENGTH = 11;
+
+    if (!strBuf.Resize(SECT_NAME_LENGTH * (SectionNamesCount + thunks_count)))
+    {
+        return false;
+    }
+
+    Elf_Shdr* sectionHeaders = new (nothrow) Elf_Shdr[SectionNamesCount + thunks_count];
     if (sectionHeaders == nullptr)
     {
         return false;
     }
-    
-    /* NULL entry */
-    pSh->sh_name = 0;
-    pSh->sh_type = SHT_NULL;
-    pSh->sh_flags = 0;
-    pSh->sh_addr = 0;
-    pSh->sh_offset = 0;
-    pSh->sh_size = 0;
-    pSh->sh_link = SHN_UNDEF;
-    pSh->sh_info = 0;
-    pSh->sh_addralign = 0;
-    pSh->sh_entsize = 0;
-    
-    ++pSh;
-    /* fill section header data */
-    uint32_t sectNameOffset = 1;
-    for (int i = 1; i < SectionNamesCount; ++i, ++pSh)
+
+    sectBuf.MemPtr = reinterpret_cast<char*>(sectionHeaders);
+    sectBuf.MemSize = sizeof(Elf_Shdr) * (SectionNamesCount + thunks_count);
+
+    Elf_Shdr* pSh = sectionHeaders;
+    uint32_t sectNameOffset = 0;
+
+    // Fill section headers and names
+    for (int i = 0; i < SectionNamesCount + thunks_count; ++i, ++pSh)
     {
+        char thunkSectNameBuf[256]; // temporary buffer for .thunk_# section name
+        const char *sectName;
+
+        bool isThunkSection = i >= SectionNamesCount;
+        if (isThunkSection)
+        {
+            sprintf(thunkSectNameBuf, ".thunk_%i", i);
+            sectName = thunkSectNameBuf;
+        }
+        else
+        {
+            sectName = SectionNames[i];
+        }
+
+        // Ensure that there is enough memory for section name,
+        // reallocate if necessary.
         pSh->sh_name = sectNameOffset;
-        sectNameOffset += strlen(SectionNames[i]) + 1;
-        pSh->sh_type = Sections[i].m_type;
-        pSh->sh_flags = Sections[i].m_flags;
+        sectNameOffset += strlen(sectName) + 1;
+        if (sectNameOffset > strBuf.MemSize)
+        {
+            if (!strBuf.Resize(sectNameOffset))
+                return false;
+        }
+
+        strcpy(strBuf.MemPtr + pSh->sh_name, sectName);
+
+        // All .thunk_* sections have the same type and flags
+        int index = isThunkSection ? SectionNamesCount : i;
+        pSh->sh_type = Sections[index].m_type;
+        pSh->sh_flags = Sections[index].m_flags;
+
         pSh->sh_addr = 0;
         pSh->sh_offset = 0;
         pSh->sh_size = 0;
         pSh->sh_link = SHN_UNDEF;
         pSh->sh_info = 0;
-        pSh->sh_addralign = 1;
-        if (strcmp(SectionNames[i], ".symtab") == 0)
-            pSh->sh_entsize = sizeof(Elf_Sym);
-        else
-            pSh->sh_entsize = 0;
+        pSh->sh_addralign = i == nullSectionIndex ? 0 : 1;
+        pSh->sh_entsize = i == symtabSectionIndex ? sizeof(Elf_Sym) : 0;
     }
 
-    for (int i = SectionNamesCount; i < SectionNamesCount + thunks_count; ++i, ++pSh)
-    {
-        char name[256];
-        sprintf(name, ".thunk_%i", i);
-        pSh->sh_name = sectNameOffset;
-        sectNameOffset += strlen(name) + 1;
-        // All .thunk_* sections have the same type and flags
-        pSh->sh_type = Sections[SectionNamesCount].m_type;
-        pSh->sh_flags = Sections[SectionNamesCount].m_flags;
-        pSh->sh_addr = 0;
-        pSh->sh_offset = 0;
-        pSh->sh_size = 0;
-        pSh->sh_link = SHN_UNDEF;
-        pSh->sh_info = 0;
-        pSh->sh_addralign = 1;
-        pSh->sh_entsize = 0;
-    }
-    buf.MemPtr = reinterpret_cast<char*>(sectionHeaders);
-    buf.MemSize = sizeof(Elf_Shdr) * (SectionNamesCount + thunks_count);
+    // Set actual used size to avoid garbage in ELF section
+    strBuf.MemSize = sectNameOffset;
     return true;
 }
 

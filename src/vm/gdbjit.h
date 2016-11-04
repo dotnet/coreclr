@@ -366,11 +366,27 @@ private:
         unsigned MemSize;
         MemBuf() : MemPtr(0), MemSize(0)
         {}
+        bool Resize(unsigned newSize)
+        {
+            if (newSize == 0)
+            {
+                MemPtr = nullptr;
+                MemSize = 0;
+                return true;
+            }
+            char *tmp = new (nothrow) char [newSize];
+            if (tmp == nullptr)
+                return false;
+            memmove(tmp, MemPtr.GetValue(), newSize < MemSize ? newSize : MemSize);
+            MemPtr = tmp;
+            MemSize = newSize;
+            return true;
+        }
     };
 
+    static int GetSectionIndex(const char *sectName);
     static bool BuildELFHeader(MemBuf& buf);
-    static bool BuildSectionNameTable(MemBuf& buf);
-    static bool BuildSectionTable(MemBuf& buf);
+    static bool BuildSectionTables(MemBuf& sectBuf, MemBuf& strBuf);
     static bool BuildSymbolTableSection(MemBuf& buf, PCODE addr, TADDR codeSize);
     static bool BuildStringTableSection(MemBuf& strTab);
     static bool BuildDebugStrings(MemBuf& buf, PTK_TypeInfoMap pTypeMap);
