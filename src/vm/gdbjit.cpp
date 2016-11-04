@@ -2267,6 +2267,10 @@ bool NotifyGdb::BuildSectionTables(MemBuf& sectBuf, MemBuf& strBuf)
     Elf_Shdr* pSh = sectionHeaders;
     uint32_t sectNameOffset = 0;
 
+    // Additional memory for remaining section names,
+    // grows twice on each reallocation.
+    int addSize = SECT_NAME_LENGTH;
+
     // Fill section headers and names
     for (int i = 0; i < SectionNamesCount + thunks_count; ++i, ++pSh)
     {
@@ -2290,8 +2294,10 @@ bool NotifyGdb::BuildSectionTables(MemBuf& sectBuf, MemBuf& strBuf)
         sectNameOffset += strlen(sectName) + 1;
         if (sectNameOffset > strBuf.MemSize)
         {
-            if (!strBuf.Resize(sectNameOffset))
+            // Allocate more memory for remaining section names
+            if (!strBuf.Resize(sectNameOffset + addSize))
                 return false;
+            addSize *= 2;
         }
 
         strcpy(strBuf.MemPtr + pSh->sh_name, sectName);
