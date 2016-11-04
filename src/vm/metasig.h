@@ -652,6 +652,7 @@ DEFINE_METASIG_T(IM(RefGuid_OutIntPtr_RetCustomQueryInterfaceResult, r(g(GUID)) 
 
 #if defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
 DEFINE_METASIG_T(SM(IntPtr_AssemblyName_RetAssemblyBase, I C(ASSEMBLY_NAME), C(ASSEMBLYBASE)))
+DEFINE_METASIG_T(SM(IntPtr_AssemblyName_AssemblyBase_RetAssemblyBase, I C(ASSEMBLY_NAME) C(ASSEMBLYBASE), C(ASSEMBLYBASE)))
 #endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
 
 // ThreadPool

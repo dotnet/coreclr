@@ -170,6 +170,9 @@ VOID  AssemblySpec::Bind(AppDomain      *pAppDomain,
         hr = CreateAssemblyNameObject(&pName, assemblyDisplayName, CANOF_PARSE_DISPLAY_NAME, NULL);
         if (SUCCEEDED(hr))
         {
+            Holder<Thread*, DoNothing, Thread::ResetParentOfLoadAssemblyByName> holder(GetThread());
+            if(GetThread() != NULL)
+            	GetThread()->SetParentOfLoadAssemblyByName(GetParentAssembly());
             hr = pBinder->BindAssemblyByName(pName, &pPrivAsm);
         }
     }

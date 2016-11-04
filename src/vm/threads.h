@@ -391,6 +391,19 @@ public:
 #endif
 
     DWORD       m_dwLastError;
+    
+    void SetParentOfLoadAssemblyByName(DomainAssembly *assem)
+    {
+    }
+    
+    DomainAssembly* GetParentOfLoadAssemblyByName()
+    {
+        return NULL;
+    }    
+    
+    static void ResetParentOfLoadAssemblyByName(Thread* t)
+    {
+    }
 };
 
 inline void DoReleaseCheckpoint(void *checkPointMarker)
@@ -5599,6 +5612,24 @@ public:
         m_HijackReturnKind = returnKind;
     }
 #endif // FEATURE_HIJACK
+
+public:   
+    void SetParentOfLoadAssemblyByName(DomainAssembly *assem)
+    {
+        m_pParentOfLoadAssemblyByName = assem;
+    }
+    
+    DomainAssembly* GetParentOfLoadAssemblyByName()
+    {
+        return m_pParentOfLoadAssemblyByName;
+    }
+    static void ResetParentOfLoadAssemblyByName(Thread* t)
+    {
+        if(t != NULL)
+            t->SetParentOfLoadAssemblyByName(NULL);
+    }
+private:
+    DomainAssembly* m_pParentOfLoadAssemblyByName;
 };
 
 // End of class Thread
