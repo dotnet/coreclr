@@ -777,7 +777,7 @@ namespace System {
 						state |= StateSign | StateParens;
 						number.sign = true;
 					}
-					else if ((currSymbol != null && (next = MatchChars(p, currSymbol)) != null)) {
+					else if (currSymbol != null && (next = MatchChars(p, currSymbol)) != null) {
 						state |= StateCurrency;
 						currSymbol = null;  
 						// We already found the currency symbol. There should not be more currency symbols. Set
@@ -876,7 +876,7 @@ namespace System {
 						else if (ch == ')' && ((state & StateParens) != 0)) {
 							state &= ~StateParens;
 						}
-						else if ((currSymbol != null && (next = MatchChars(p, currSymbol)) != null)) {
+						else if (currSymbol != null && (next = MatchChars(p, currSymbol)) != null) {
 							currSymbol = null;
 							p = next - 1;
 						}
