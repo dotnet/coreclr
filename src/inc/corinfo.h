@@ -231,11 +231,11 @@ TODO: Talk about initializing strutures before use
 #if COR_JIT_EE_VERSION > 460
 
 // Update this one
-SELECTANY const GUID JITEEVersionIdentifier = { /* A2F9724B-C4E5-4DCE-9191-110F69B1D0DB */
-    0xa2f9724b,
-    0xc4e5,
-    0x4dce,
-    {0x91, 0x91, 0x11, 0xf, 0x69, 0xb1, 0xd0, 0xdb}
+SELECTANY const GUID JITEEVersionIdentifier = { /* 4bd06266-8ef7-4172-bec6-d3149fde7859 */
+    0x4bd06266,
+    0x8ef7,
+    0x4172,
+    {0xbe, 0xc6, 0xd3, 0x14, 0x9f, 0xde, 0x78, 0x59}
 };
 
 #else
