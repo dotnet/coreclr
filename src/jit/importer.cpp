@@ -1482,12 +1482,12 @@ var_types Compiler::impNormStructType(CORINFO_CLASS_HANDLE structHnd,
     const DWORD structFlags = info.compCompHnd->getClassAttribs(structHnd);
     var_types   structType  = TYP_STRUCT;
 
-#ifndef FEATURE_CORECLR
+#ifdef FEATURE_CORECLR
+    const bool hasGCPtrs = (structFlags & CORINFO_FLG_CONTAINS_GC_PTR) != 0;
+#else
     // Desktop CLR won't report FLG_CONTAINS_GC_PTR for RefAnyClass - need to check explicitly.
     const bool isRefAny  = (structHnd == impGetRefAnyClass());
     const bool hasGCPtrs = isRefAny || ((structFlags & CORINFO_FLG_CONTAINS_GC_PTR) != 0);
-#else
-    const bool        hasGCPtrs                                        = (structFlags & CORINFO_FLG_CONTAINS_GC_PTR) != 0;
 #endif
 
 #ifdef FEATURE_SIMD
