@@ -26,7 +26,15 @@ namespace System.Globalization
         private void InitSort(CultureInfo culture)
         {
             _sortName = culture.SortName;
-            _sortHandle = Interop.GlobalizationInterop.GetSortHandle(GetNullTerminatedUtf8String(_sortName));
+            int errorCode = 0;
+            _sortHandle = Interop.GlobalizationInterop.GetSortHandle(GetNullTerminatedUtf8String(_sortName), ref errorCode);
+            if (_sortHandle == null || _sortHandle.IsInvalid)
+            {
+                if (errorCode == Interop.GlobalizationInterop.U_MEMORY_ALLOCATION_ERROR)
+                    throw new OutOfMemoryException();
+                
+                throw new ExternalException(SR.Arg_ExternalException, errorCode);
+            }
             _isAsciiEqualityOrdinal = (_sortName == "en-US" || _sortName == "");
         }
 

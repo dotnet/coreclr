@@ -11,9 +11,12 @@ internal static partial class Interop
 {
     internal static partial class GlobalizationInterop
     {
+        // ICU U_MEMORY_ALLOCATION_ERROR error code 
+        internal const int U_MEMORY_ALLOCATION_ERROR = 7;
+         
         [SecurityCritical]
         [DllImport(Libraries.GlobalizationInterop, CharSet = CharSet.Unicode, EntryPoint = "GlobalizationNative_GetSortHandle")]
-        internal unsafe static extern SafeSortHandle GetSortHandle(byte[] localeName);
+        internal unsafe static extern SafeSortHandle GetSortHandle(byte[] localeName, ref int errorCode);
 
         [SecurityCritical]
         [DllImport(Libraries.GlobalizationInterop, CharSet = CharSet.Unicode, EntryPoint = "GlobalizationNative_CloseSortHandle")]

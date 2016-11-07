@@ -331,13 +331,19 @@ extern "C" int32_t GlobalizationNative_GetSortVersion()
     return UCOL_RUNTIME_VERSION << 16 | UCOL_BUILDER_VERSION;
 }
 
-extern "C" SortHandle* GlobalizationNative_GetSortHandle(const char* lpLocaleName)
+extern "C" SortHandle* GlobalizationNative_GetSortHandle(const char* lpLocaleName, int32_t *errorCode)
 {
-    SortHandle* pSortHandle = new SortHandle();
+    SortHandle* pSortHandle = new (std::nothrow) SortHandle();
+    if (pSortHandle == nullptr)
+    {
+        *errorCode = U_MEMORY_ALLOCATION_ERROR;
+        return nullptr;
+    }
 
     UErrorCode err = U_ZERO_ERROR;
 
     pSortHandle->regular = ucol_open(lpLocaleName, &err);
+    *errorCode = err;
 
     if (U_FAILURE(err))
     {
