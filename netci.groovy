@@ -258,17 +258,6 @@ def static getJobName(def configuration, def architecture, def os, def scenario,
     return baseName + suffix
 }
 
-static void addEmailPublisher(def job, def recipient) {
-    job.with {
-        publishers {
-            extendedEmail(recipient, '$DEFAULT_SUBJECT', '$DEFAULT_CONTENT') {
-                trigger('Aborted', '$PROJECT_DEFAULT_SUBJECT', '$PROJECT_DEFAULT_CONTENT', null, true, true, true, true)
-                trigger('Failure', '$PROJECT_DEFAULT_SUBJECT', '$PROJECT_DEFAULT_CONTENT', null, true, true, true, true)
-            }
-        }
-    }
-}
-
 // **************************
 // Define the basic inner loop builds for PR and commit.  This is basically just the set
 // of coreclr builds over linux/osx/freebsd/windows and debug/release/checked.  In addition, the windows
@@ -304,7 +293,8 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                     case 'arm64':
                         if (os == 'Windows_NT') {
                             Utilities.addGithubPushTrigger(job)
-                            addEmailPublisher(job, 'dotnetonarm64@microsoft.com')
+                            // TODO: Add once external email sending is available again
+                            // addEmailPublisher(job, 'dotnetonarm64@microsoft.com')
                         }
                         break
                     default:
@@ -395,14 +385,16 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                 assert configuration == 'Release'
                 assert architecture == 'x64'
                 Utilities.addPeriodicTrigger(job, '@daily')
-                addEmailPublisher(job, 'dotnetgctests@microsoft.com')
+                // TODO: Add once external email sending is available again
+                // addEmailPublisher(job, 'dotnetgctests@microsoft.com')
                 break
             case 'gcsimulator':
                 assert (os == 'Ubuntu' || os == 'Windows_NT' || os == 'OSX')
                 assert configuration == 'Release'
                 assert architecture == 'x64'
                 Utilities.addPeriodicTrigger(job, 'H H * * 3,6') // some time every Wednesday and Saturday
-                addEmailPublisher(job, 'dotnetgctests@microsoft.com')
+                // TODO: Add once external email sending is available again
+                // addEmailPublisher(job, 'dotnetgctests@microsoft.com')
                 break
             case 'ilrt':
                 assert !(os in bidailyCrossList)
@@ -2115,7 +2107,8 @@ combinedScenarios.each { scenario ->
                     if (scenario == 'coverage') {
                         // Publish coverage reports
                         Utilities.addHtmlPublisher(newJob, '${WORKSPACE}/coverage', 'Code Coverage Report', 'coreclr.html')
-                        addEmailPublisher(newJob, 'clrcoverage@microsoft.com')
+                        // TODO: Add once external email sending is available again
+                        // addEmailPublisher(newJob, 'clrcoverage@microsoft.com')
                     }
 
                     setMachineAffinity(newJob, os, architecture)
