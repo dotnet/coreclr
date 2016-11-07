@@ -108,7 +108,7 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
                 {
                     PTR_BYTE base = 0;
                     MethodTable* pMT = pField->GetEnclosingMethodTable();
-                    base = pField->GetBaseInDomainLocalModule(pMT->GetDomainLocalModule(NULL));
+                    base = pField->GetBase();
 
                     // TODO: add support of generics with static fields
                     if (pField->IsRVA() || !pMT->IsDynamicStatics())
