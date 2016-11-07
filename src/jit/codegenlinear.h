@@ -68,6 +68,7 @@ enum SIMDScalarMoveType
 };
 
 instruction getOpForSIMDIntrinsic(SIMDIntrinsicID intrinsicId, var_types baseType, unsigned* ival = nullptr);
+instruction getOpForSIMDWidenHi(var_types baseType);
 void genSIMDScalarMove(
     var_types targetType, var_types type, regNumber target, regNumber src, SIMDScalarMoveType moveType);
 void genSIMDZero(var_types targetType, var_types baseType, regNumber targetReg);
@@ -83,6 +84,11 @@ void genSIMDIntrinsicGetItem(GenTreeSIMD* simdNode);
 void genSIMDIntrinsicShuffleSSE2(GenTreeSIMD* simdNode);
 void genSIMDIntrinsicUpperSave(GenTreeSIMD* simdNode);
 void genSIMDIntrinsicUpperRestore(GenTreeSIMD* simdNode);
+void genSIMDLo64BitConvert(SIMDIntrinsicID intrinsicID, var_types simdType, var_types baseType, regNumber tmpReg, regNumber tmpIntReg, regNumber targetReg);
+void genSIMDIntrinsic64BitConvert(GenTreeSIMD* simdNode);
+void genSIMDIntrinsicNarrow(GenTreeSIMD* simdNode);
+void genSIMDExtractUpperHalf(GenTreeSIMD* simdNode, regNumber srcReg, regNumber tgtReg);
+void genSIMDIntrinsicWiden(GenTreeSIMD* simdNode);
 
 void genSIMDIntrinsic(GenTreeSIMD* simdNode);
 void genSIMDCheck(GenTree* treeNode);

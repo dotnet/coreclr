@@ -2614,11 +2614,76 @@ GenTreePtr Compiler::impSIMDIntrinsic(OPCODE                opcode,
 
         // Unary operators that take and return a Vector.
         case SIMDIntrinsicCast:
+        case SIMDIntrinsicConvertToSingle:
+        case SIMDIntrinsicConvertToDouble:
+        case SIMDIntrinsicConvertToInt32:
+        case SIMDIntrinsicConvertToUInt32:
+        case SIMDIntrinsicConvertToInt64:
+        case SIMDIntrinsicConvertToUInt64:
         {
+            // The following intrinsics are not yet supported. They are here to make it clearer what work remains,
+            // rather than omitting them from the list of supported base types in simdintrinsiclist.h.
+            if ((simdIntrinsicID == SIMDIntrinsicConvertToUInt64) || (simdIntrinsicID == SIMDIntrinsicConvertToUInt32) ||
+                ((simdIntrinsicID == SIMDIntrinsicConvertToSingle) && (baseType == TYP_UINT)) ||
+                ((simdIntrinsicID == SIMDIntrinsicConvertToDouble) && (baseType == TYP_ULONG)))
+            {
+                JITDUMP("SIMD convert to unsigned intrinsic %s not yet implemented\n",simdIntrinsicNames[simdIntrinsicID]);
+                return nullptr;
+            }
             op1 = impSIMDPopStack(simdType, instMethod);
 
             simdTree = gtNewSIMDNode(simdType, op1, nullptr, simdIntrinsicID, baseType, size);
             retVal   = simdTree;
+        }
+        break;
+
+        case SIMDIntrinsicNarrow:
+        {
+            // The following intrinsics are not yet supported. They are here to make it clearer what work remains,
+            // rather than omitting them from the list of supported base types in simdintrinsiclist.h.
+            if ((getSIMDInstructionSet() == InstructionSet_SSE2) && (baseType == TYP_INT || baseType == TYP_UINT))
+            {
+                JITDUMP("SIMD Narrow is not yet supported for SSE2 on base type %s\n", varTypeName(baseType));
+                return nullptr;
+            }
+            assert(!instMethod);
+            op2 = impSIMDPopStack(simdType);
+            op1 = impSIMDPopStack(simdType);
+
+            simdTree = gtNewSIMDNode(simdType, op1, op2, simdIntrinsicID, baseType, size);
+            retVal = simdTree;
+        }
+        break;
+
+        case SIMDIntrinsicWiden:
+        {
+            if ((getSIMDInstructionSet() == InstructionSet_SSE2) && !varTypeIsUnsigned(baseType))
+            {
+                JITDUMP("SIMD Widen is not yet supported for SSE2 on base type %s\n", varTypeName(baseType));
+                return nullptr;
+            }
+            GenTree* dstAddrHi = impSIMDPopStack(TYP_BYREF);
+            GenTree* dstAddrLo = impSIMDPopStack(TYP_BYREF);
+            op1 = impSIMDPopStack(simdType);
+            GenTree* dupOp1 = fgInsertCommaFormTemp(&op1, gtGetStructHandleForSIMD(simdType, baseType));
+
+            // Widen the lower half and assign it to dstAddrLo.
+            simdTree = gtNewSIMDNode(simdType, op1, nullptr, simdIntrinsicID, baseType, size);
+            GenTree* loDest = new (this, GT_BLK) GenTreeBlk(GT_BLK, simdType, dstAddrLo, getSIMDTypeSizeInBytes(clsHnd));
+            GenTree* loAsg = gtNewBlkOpNode(loDest, simdTree, getSIMDTypeSizeInBytes(clsHnd),
+                                            false, // not volatile
+                                            true); // copyBlock
+            loAsg->gtFlags |= ((simdTree->gtFlags | dstAddrLo->gtFlags) & GTF_ALL_EFFECT);
+
+            // Widen the upper half and assign it to dstAddrHi.
+            simdTree = gtNewSIMDNode(simdType, dupOp1, nullptr, SIMDIntrinsicWidenHi, baseType, size);
+            GenTree* hiDest = new (this, GT_BLK) GenTreeBlk(GT_BLK, simdType, dstAddrHi, getSIMDTypeSizeInBytes(clsHnd));
+            GenTree* hiAsg = gtNewBlkOpNode(hiDest, simdTree, getSIMDTypeSizeInBytes(clsHnd),
+                                            false, // not volatile
+                                            true); // copyBlock
+            hiAsg->gtFlags |= ((simdTree->gtFlags | dstAddrHi->gtFlags) & GTF_ALL_EFFECT);
+
+            retVal = gtNewOperNode(GT_COMMA, simdType, loAsg, hiAsg);
         }
         break;
 

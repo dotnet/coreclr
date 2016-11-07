@@ -2,7 +2,7 @@
   "dependencies": {
     "Microsoft.NETCore.Platforms": "2.0.0-beta-25001-02",
     "System.Console": "4.4.0-beta-24913-02",
-    "System.Numerics.Vectors": "4.4.0-beta-24913-02",
+    "System.Numerics.Vectors": "4.4.0-beta-24919-0",
     "System.Runtime": "4.4.0-beta-24913-02",
     "System.Runtime.Extensions": "4.4.0-beta-24913-02",
     "System.Threading": "4.4.0-beta-24913-02",

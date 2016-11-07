@@ -183,6 +183,7 @@ INST3( movq,        "movq"        , 0, IUM_WR, 0, 0, PCKDBL(0xD6), BAD_CODE, SSE
 INST3( movsdsse2,   "movsd"       , 0, IUM_WR, 0, 0, SSEDBL(0x11), BAD_CODE, SSEDBL(0x10))
 
 INST3( punpckldq,   "punpckldq"   , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCKDBL(0x62))
+INST3( punpckhdq,   "punpckhdq"   , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCKDBL(0x6A))
 
 INST3( xorps,       "xorps"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCKFLT(0x57)) // XOR packed singles
 
@@ -288,8 +289,18 @@ INST3( pand,        "pand"        , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,    
 INST3( pandn,       "pandn"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xDF))   // Packed bit-wise AND NOT of two xmm regs
 INST3( por,         "por"         , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xEB))   // Packed bit-wise OR of two xmm regs
 INST3( pxor,        "pxor"        , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xEF))   // Packed bit-wise XOR of two xmm regs
+
+// Note that the shift immediates share the same encoding between left and right-shift, and are distinguished by the Reg/Opcode,
+// which is handled in emitxarch.cpp.
 INST3( psrldq,      "psrldq"      , 0, IUM_WR, 0, 0, BAD_CODE,     PCKDBL(0x73),  BAD_CODE    )   // Shift right logical of xmm reg by given number of bytes
 INST3( pslldq,      "pslldq"      , 0, IUM_WR, 0, 0, BAD_CODE,     PCKDBL(0x73),  BAD_CODE    )   // Shift left logical of xmm reg by given number of bytes
+INST3( psllq,       "psllq"       , 0, IUM_WR, 0, 0, BAD_CODE,     PCKDBL(0x73),  BAD_CODE    )   // Packed shift left logical of 32-bit integers
+INST3( psrlq,       "psrlq"       , 0, IUM_WR, 0, 0, BAD_CODE,     PCKDBL(0x73),  BAD_CODE    )   // Packed shift left logical of 32-bit integers
+INST3( pslld,       "pslld"       , 0, IUM_WR, 0, 0, BAD_CODE,     PCKDBL(0x72),  BAD_CODE    )   // Packed shift left logical of 32-bit integers
+INST3( psrld,       "psrld"       , 0, IUM_WR, 0, 0, BAD_CODE,     PCKDBL(0x72),  BAD_CODE    )   // Packed shift left logical of 32-bit integers
+INST3( psllw,       "psllw"       , 0, IUM_WR, 0, 0, BAD_CODE,     PCKDBL(0x71),  BAD_CODE    )   // Packed shift left logical of 16-bit integers
+INST3( psrlw,       "psrlw"       , 0, IUM_WR, 0, 0, BAD_CODE,     PCKDBL(0x71),  BAD_CODE    )   // Packed shift left logical of 16-bit integers
+
 INST3( pmaxub,      "pmaxub"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xDE))   // packed maximum unsigned bytes
 INST3( pminub,      "pminub"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xDA))   // packed minimum unsigned bytes
 INST3( pmaxsw,      "pmaxsw"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xEE))   // packed maximum signed words
@@ -305,6 +316,16 @@ INST3( pshufd,      "pshufd"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,    
 INST3( pextrw,      "pextrw"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xC5))   // Extract 16-bit value into a r32 with zero extended to 32-bits
 INST3( pinsrw,      "pinsrw"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xC4))   // packed insert word
 
+INST3( punpckhbw,   "punpckhbw"   , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0x68))   // Packed logical (unsigned) widen ubyte to ushort (hi)
+INST3( punpcklbw,   "punpcklbw"   , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0x60))   // Packed logical (unsigned) widen ubyte to ushort (lo)
+INST3( punpckhqdq,  "punpckhqdq"  , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0x6D))   // Packed logical (unsigned) widen uint to ulong (hi)
+INST3( punpcklqdq,  "punpcklqdq"  , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0x6C))   // Packed logical (unsigned) widen uint to ulong (lo)
+INST3( punpckhwd,   "punpckhwd"   , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0x69))   // Packed logical (unsigned) widen ushort to uint (hi)
+INST3( punpcklwd,   "punpcklwd"   , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0x61))   // Packed logical (unsigned) widen ushort to uint (lo)
+
+INST3( packssdw,    "packssdw"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0x6B))   // Pack (narrow) int to short with saturation
+INST3( packsswb,    "packsswb"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0x63))   // Pack (narrow) short to byte with saturation
+INST3( packuswb,    "packuswb"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0x67))   // Pack (narrow) short to unsigned byte with saturation
 #endif // !LEGACY_BACKEND
 INST3(LAST_SSE2_INSTRUCTION, "LAST_SSE2_INSTRUCTION",  0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, BAD_CODE)
 
@@ -312,8 +333,8 @@ INST3(LAST_SSE2_INSTRUCTION, "LAST_SSE2_INSTRUCTION",  0, IUM_WR, 0, 0, BAD_CODE
 INST3(FIRST_SSE4_INSTRUCTION, "FIRST_SSE4_INSTRUCTION",  0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, BAD_CODE)
 // Most of the following instructions should be included in the method Is4ByteAVXInstruction()
 //    enum           name           FP updmode rf wf    MR            MI        RM
-INST3( dpps,         "dpps"        , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x40))   // Packed bit-wise AND NOT of two xmm regs
-INST3( dppd,         "dppd"        , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x41))   // Packed bit-wise AND NOT of two xmm regs
+INST3( dpps,         "dpps"        , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x40))   // Packed dot product of two float vector regs
+INST3( dppd,         "dppd"        , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x41))   // Packed dot product of two double vector regs
 INST3( insertps,     "insertps"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x21))   // Insert packed single precision float value
 INST3( pcmpeqq,      "pcmpeqq"     , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x29))   // Packed compare 64-bit integers for equality
 INST3( pcmpgtq,      "pcmpgtq"     , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x37))   // Packed compare 64-bit integers for equality
@@ -323,6 +344,11 @@ INST3( phaddd,       "phaddd"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SS
 INST3( pabsb,        "pabsb"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x1C))   // Packed absolute value of bytes
 INST3( pabsw,        "pabsw"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x1D))   // Packed absolute value of 16-bit integers
 INST3( pabsd,        "pabsd"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x1E))   // Packed absolute value of 32-bit integers
+INST3( pmovsxbw,     "pmovsxbw"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x20))   // Packed sign extend byte to short
+INST3( pmovsxwd,     "pmovsxwd"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x23))   // Packed sign extend short to int
+INST3( pmovsxdq,     "pmovsxdq"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x25))   // Packed sign extend int to long
+INST3( packusdw,     "packusdw"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x2B))   // Pack (narrow) int to unsigned short with saturation
+
 INST3(LAST_SSE4_INSTRUCTION, "LAST_SSE4_INSTRUCTION",  0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, BAD_CODE)
 
 INST3(FIRST_AVX_INSTRUCTION, "FIRST_AVX_INSTRUCTION",  0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, BAD_CODE)
@@ -334,8 +360,11 @@ INST3( vpbroadcastw, "pbroadcastw" , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SS
 INST3( vpbroadcastd, "pbroadcastd" , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x58))   // Broadcast int32 value from reg/memory to entire ymm register
 INST3( vpbroadcastq, "pbroadcastq" , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x59))   // Broadcast int64 value from reg/memory to entire ymm register
 INST3( vextractf128, "extractf128" , 0, IUM_WR, 0, 0, SSE3A(0x19),  BAD_CODE, BAD_CODE)      // Extract 128-bit packed floating point values
+INST3( vextracti128, "extracti128" , 0, IUM_WR, 0, 0, SSE3A(0x39),  BAD_CODE, BAD_CODE)      // Extract 128-bit packed integer values
 INST3( vinsertf128,  "insertf128"  , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x18))   // Insert 128-bit packed floating point values
+INST3( vinserti128,  "inserti128"  , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x38))   // Insert 128-bit packed floating point values
 INST3( vzeroupper,   "zeroupper"   , 0, IUM_WR, 0, 0, 0xC577F8,     BAD_CODE, BAD_CODE)      // Zero upper 128-bits of all YMM regs (includes 2-byte fixed VEX prefix)
+INST3( vperm2i128,   "perm2i128"   , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x46))   // Permute 128-bit halves of input register
 
 INST3(LAST_AVX_INSTRUCTION, "LAST_AVX_INSTRUCTION",  0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, BAD_CODE)
 #endif // !LEGACY_BACKEND

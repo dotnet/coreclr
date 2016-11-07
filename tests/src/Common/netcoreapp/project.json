@@ -59,7 +59,7 @@
     "System.Xml.XmlDocument": "4.4.0-beta-24913-02",
     "System.Xml.XPath": "4.4.0-beta-24913-02",
     "System.Xml.XPath.XmlDocument": "4.4.0-beta-24913-02",
-    "System.Numerics.Vectors": "4.4.0-beta-24913-02"
+    "System.Numerics.Vectors": "4.4.0-beta-24919-0"
   },
   "frameworks": {
     "netcoreapp1.1": {

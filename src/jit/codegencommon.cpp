@@ -8574,7 +8574,7 @@ void CodeGen::genFnProlog()
     else
 #endif // _TARGET_XARCH_
     {
-        tempMask = initRegs & ~excludeMask & ~regSet.rsMaskResvd;
+        tempMask = initRegs & RBM_ALLINT & ~excludeMask & ~regSet.rsMaskResvd;
 
         if (tempMask != RBM_NONE)
         {
