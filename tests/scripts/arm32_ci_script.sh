@@ -203,7 +203,7 @@ function mount_emulator {
     mount_with_checking "-o bind" "/mnt"     "$__ARMEmulRootfs/bindings/tmp"
 
 	if [ ! -d "$__ARMEmulRootfs/$__TempFolder" ]; then
-        mkdir "$__ARMEmulRootfs/$__TempFolder"
+        sudo mkdir "$__ARMEmulRootfs/$__TempFolder"
 	fi
 }
 
