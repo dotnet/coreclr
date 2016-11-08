@@ -335,6 +335,8 @@ extern "C" int32_t GlobalizationNative_GetSortVersion()
 
 extern "C" ResultCode GlobalizationNative_GetSortHandle(const char* lpLocaleName, SortHandle** ppSortHandle)
 {
+    assert(ppSortHandle != nullptr);
+    
     *ppSortHandle = new (std::nothrow) SortHandle();
     if ((*ppSortHandle) == nullptr)
     {
