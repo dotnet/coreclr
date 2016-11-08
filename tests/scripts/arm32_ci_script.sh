@@ -128,6 +128,12 @@ function clean_env {
 
     #Check for revert of git changes
     check_git_head
+
+    if [ -d "$__ARMEmulRootfs/bindings/tmp" ]; then
+	    sudo umount -l "$__ARMEmulRootfs/bindings/tmp"
+	fi
+
+    sudo rm -rf "/mnt/arm32_ci_temp"
 }
 
 #Trap Ctrl-C and handle it
@@ -169,8 +175,6 @@ function mount_with_checking {
 #Mount emulator to the target mount path
 function mount_emulator {
     #Check if the mount path exists and create if neccessary
-    set +x
-
     if [ ! -d "$__ARMRootfsMountPath" ]; then
         sudo mkdir "$__ARMRootfsMountPath"
     fi
@@ -180,7 +184,11 @@ function mount_emulator {
 	fi
 
 	if [ ! -f "$__ARMEmulRootfs/arm-emulator-rootfs.tar" ]; then
+	    if mountpoint -q -- "$__ARMRootfsMountPath"; then
+	        sudo umount -l $__ARMRootfsMountPath
+        fi
 		mount_with_checking "" "$__ARMEmulPath/platform/rootfs-t30.ext4" "$__ARMRootfsMountPath"
+		
 		cd $__ARMRootfsMountPath
 		sudo tar -cf "$__ARMEmulRootfs/arm-emulator-rootfs.tar" *
 		cd -
@@ -197,6 +205,10 @@ function mount_emulator {
         sudo mkdir -p "$__ARMEmulRootfs/bindings/tmp"
     fi
     mount_with_checking "-o bind" "/mnt"     "$__ARMEmulRootfs/bindings/tmp"
+
+	if [ ! -d "$__ARMEmulRootfs/$__TempFolder" ]; then
+        mkdir "$__ARMEmulRootfs/$__TempFolder"
+	fi
 }
 
 #Cross builds coreclr
@@ -412,11 +424,6 @@ __buildDirName="$__buildOS.$__buildArch.$__buildConfig"
 
 #Define emulator paths
 __TempFolder="bindings/tmp/arm32_ci_temp"
-
-if [ ! -d "$__TempFolder" ]; then
-    mkdir "$__TempFolder"
-fi
-
 __ARMRootfsCoreclrPath="$__ARMEmulRootfs/$__TempFolder/coreclr"
 __ARMRootfsCorefxPath="$__ARMEmulRootfs/$__TempFolder/corefx"
 __ARMEmulCoreclr="/$__TempFolder/coreclr"
@@ -462,10 +469,10 @@ copy_to_emulator
 (set +x; echo 'Running tests...')
 run_tests
 
+
 #Clean the environment
 (set +x; echo 'Cleaning environment...')
 clean_env
 
-rm -r "/mnt/arm32_ci_temp"
 
 (set +x; echo 'Build and test complete')
