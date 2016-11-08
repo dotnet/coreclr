@@ -29,6 +29,8 @@ namespace System.Globalization
             Interop.GlobalizationInterop.ResultCode resultCode = Interop.GlobalizationInterop.GetSortHandle(GetNullTerminatedUtf8String(_sortName), out _sortHandle); 
             if (resultCode != Interop.GlobalizationInterop.ResultCode.Success)
             {
+                _sortHandle.Dispose();
+                
                 if (resultCode == Interop.GlobalizationInterop.ResultCode.OutOfMemory)
                     throw new OutOfMemoryException();
                 
